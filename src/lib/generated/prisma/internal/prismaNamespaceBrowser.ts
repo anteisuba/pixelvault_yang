@@ -465,6 +465,7 @@ export const AssistantPersonaScalarFieldEnum = {
   tone: 'tone',
   toneCustom: 'toneCustom',
   verbosity: 'verbosity',
+  characterCardId: 'characterCardId',
   planMode: 'planMode',
   language: 'language',
   nextStepHint: 'nextStepHint',

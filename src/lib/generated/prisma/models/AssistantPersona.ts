@@ -41,6 +41,7 @@ export type AssistantPersonaMinAggregateOutputType = {
   tone: string | null
   toneCustom: string | null
   verbosity: string | null
+  characterCardId: string | null
   planMode: string | null
   language: string | null
   nextStepHint: boolean | null
@@ -62,6 +63,7 @@ export type AssistantPersonaMaxAggregateOutputType = {
   tone: string | null
   toneCustom: string | null
   verbosity: string | null
+  characterCardId: string | null
   planMode: string | null
   language: string | null
   nextStepHint: boolean | null
@@ -83,6 +85,7 @@ export type AssistantPersonaCountAggregateOutputType = {
   tone: number
   toneCustom: number
   verbosity: number
+  characterCardId: number
   planMode: number
   language: number
   nextStepHint: number
@@ -106,6 +109,7 @@ export type AssistantPersonaMinAggregateInputType = {
   tone?: true
   toneCustom?: true
   verbosity?: true
+  characterCardId?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -127,6 +131,7 @@ export type AssistantPersonaMaxAggregateInputType = {
   tone?: true
   toneCustom?: true
   verbosity?: true
+  characterCardId?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -148,6 +153,7 @@ export type AssistantPersonaCountAggregateInputType = {
   tone?: true
   toneCustom?: true
   verbosity?: true
+  characterCardId?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -242,6 +248,7 @@ export type AssistantPersonaGroupByOutputType = {
   tone: string
   toneCustom: string | null
   verbosity: string
+  characterCardId: string | null
   planMode: string
   language: string
   nextStepHint: boolean
@@ -284,6 +291,7 @@ export type AssistantPersonaWhereInput = {
   tone?: Prisma.StringFilter<"AssistantPersona"> | string
   toneCustom?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   verbosity?: Prisma.StringFilter<"AssistantPersona"> | string
+  characterCardId?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
@@ -294,6 +302,7 @@ export type AssistantPersonaWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
 }
 
 export type AssistantPersonaOrderByWithRelationInput = {
@@ -306,6 +315,7 @@ export type AssistantPersonaOrderByWithRelationInput = {
   tone?: Prisma.SortOrder
   toneCustom?: Prisma.SortOrderInput | Prisma.SortOrder
   verbosity?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -316,6 +326,7 @@ export type AssistantPersonaOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  characterCard?: Prisma.CharacterCardOrderByWithRelationInput
 }
 
 export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
@@ -331,6 +342,7 @@ export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
   tone?: Prisma.StringFilter<"AssistantPersona"> | string
   toneCustom?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   verbosity?: Prisma.StringFilter<"AssistantPersona"> | string
+  characterCardId?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
@@ -341,6 +353,7 @@ export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
 }, "id" | "userId">
 
 export type AssistantPersonaOrderByWithAggregationInput = {
@@ -353,6 +366,7 @@ export type AssistantPersonaOrderByWithAggregationInput = {
   tone?: Prisma.SortOrder
   toneCustom?: Prisma.SortOrderInput | Prisma.SortOrder
   verbosity?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -380,6 +394,7 @@ export type AssistantPersonaScalarWhereWithAggregatesInput = {
   tone?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   toneCustom?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   verbosity?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
+  characterCardId?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   planMode?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   language?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
@@ -410,6 +425,7 @@ export type AssistantPersonaCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantPersonaInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantPersonasInput
 }
 
 export type AssistantPersonaUncheckedCreateInput = {
@@ -422,6 +438,7 @@ export type AssistantPersonaUncheckedCreateInput = {
   tone?: string
   toneCustom?: string | null
   verbosity?: string
+  characterCardId?: string | null
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -452,6 +469,7 @@ export type AssistantPersonaUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantPersonaNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantPersonasNestedInput
 }
 
 export type AssistantPersonaUncheckedUpdateInput = {
@@ -464,6 +482,7 @@ export type AssistantPersonaUncheckedUpdateInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   toneCustom?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -485,6 +504,7 @@ export type AssistantPersonaCreateManyInput = {
   tone?: string
   toneCustom?: string | null
   verbosity?: string
+  characterCardId?: string | null
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -526,6 +546,7 @@ export type AssistantPersonaUncheckedUpdateManyInput = {
   tone?: Prisma.StringFieldUpdateOperationsInput | string
   toneCustom?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -552,6 +573,7 @@ export type AssistantPersonaCountOrderByAggregateInput = {
   tone?: Prisma.SortOrder
   toneCustom?: Prisma.SortOrder
   verbosity?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -573,6 +595,7 @@ export type AssistantPersonaMaxOrderByAggregateInput = {
   tone?: Prisma.SortOrder
   toneCustom?: Prisma.SortOrder
   verbosity?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -594,6 +617,7 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   tone?: Prisma.SortOrder
   toneCustom?: Prisma.SortOrder
   verbosity?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -603,6 +627,16 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   routeModel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssistantPersonaListRelationFilter = {
+  every?: Prisma.AssistantPersonaWhereInput
+  some?: Prisma.AssistantPersonaWhereInput
+  none?: Prisma.AssistantPersonaWhereInput
+}
+
+export type AssistantPersonaOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
 }
 
 export type AssistantPersonaCreateNestedOneWithoutUserInput = {
@@ -637,6 +671,48 @@ export type AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AssistantPersonaUpdateToOneWithWhereWithoutUserInput, Prisma.AssistantPersonaUpdateWithoutUserInput>, Prisma.AssistantPersonaUncheckedUpdateWithoutUserInput>
 }
 
+export type AssistantPersonaCreateNestedManyWithoutCharacterCardInput = {
+  create?: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantPersonaCreateWithoutCharacterCardInput[] | Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantPersonaCreateManyCharacterCardInputEnvelope
+  connect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+}
+
+export type AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput = {
+  create?: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantPersonaCreateWithoutCharacterCardInput[] | Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantPersonaCreateManyCharacterCardInputEnvelope
+  connect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+}
+
+export type AssistantPersonaUpdateManyWithoutCharacterCardNestedInput = {
+  create?: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantPersonaCreateWithoutCharacterCardInput[] | Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput[]
+  upsert?: Prisma.AssistantPersonaUpsertWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantPersonaUpsertWithWhereUniqueWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantPersonaCreateManyCharacterCardInputEnvelope
+  set?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  disconnect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  delete?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  connect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  update?: Prisma.AssistantPersonaUpdateWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantPersonaUpdateWithWhereUniqueWithoutCharacterCardInput[]
+  updateMany?: Prisma.AssistantPersonaUpdateManyWithWhereWithoutCharacterCardInput | Prisma.AssistantPersonaUpdateManyWithWhereWithoutCharacterCardInput[]
+  deleteMany?: Prisma.AssistantPersonaScalarWhereInput | Prisma.AssistantPersonaScalarWhereInput[]
+}
+
+export type AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput = {
+  create?: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantPersonaCreateWithoutCharacterCardInput[] | Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantPersonaCreateOrConnectWithoutCharacterCardInput[]
+  upsert?: Prisma.AssistantPersonaUpsertWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantPersonaUpsertWithWhereUniqueWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantPersonaCreateManyCharacterCardInputEnvelope
+  set?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  disconnect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  delete?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  connect?: Prisma.AssistantPersonaWhereUniqueInput | Prisma.AssistantPersonaWhereUniqueInput[]
+  update?: Prisma.AssistantPersonaUpdateWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantPersonaUpdateWithWhereUniqueWithoutCharacterCardInput[]
+  updateMany?: Prisma.AssistantPersonaUpdateManyWithWhereWithoutCharacterCardInput | Prisma.AssistantPersonaUpdateManyWithWhereWithoutCharacterCardInput[]
+  deleteMany?: Prisma.AssistantPersonaScalarWhereInput | Prisma.AssistantPersonaScalarWhereInput[]
+}
+
 export type AssistantPersonaCreateWithoutUserInput = {
   id?: string
   name?: string | null
@@ -655,6 +731,7 @@ export type AssistantPersonaCreateWithoutUserInput = {
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantPersonasInput
 }
 
 export type AssistantPersonaUncheckedCreateWithoutUserInput = {
@@ -666,6 +743,7 @@ export type AssistantPersonaUncheckedCreateWithoutUserInput = {
   tone?: string
   toneCustom?: string | null
   verbosity?: string
+  characterCardId?: string | null
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -711,10 +789,189 @@ export type AssistantPersonaUpdateWithoutUserInput = {
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantPersonasNestedInput
 }
 
 export type AssistantPersonaUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarPreset?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tone?: Prisma.StringFieldUpdateOperationsInput | string
+  toneCustom?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  verbosity?: Prisma.StringFieldUpdateOperationsInput | string
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  planMode?: Prisma.StringFieldUpdateOperationsInput | string
+  language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type AssistantPersonaCreateWithoutCharacterCardInput = {
+  id?: string
+  name?: string | null
+  avatarPreset?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  tone?: string
+  toneCustom?: string | null
+  verbosity?: string
+  planMode?: string
+  language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
+  archetype?: string | null
+  routeModel?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutAssistantPersonaInput
+}
+
+export type AssistantPersonaUncheckedCreateWithoutCharacterCardInput = {
+  id?: string
+  userId: string
+  name?: string | null
+  avatarPreset?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  tone?: string
+  toneCustom?: string | null
+  verbosity?: string
+  planMode?: string
+  language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
+  archetype?: string | null
+  routeModel?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AssistantPersonaCreateOrConnectWithoutCharacterCardInput = {
+  where: Prisma.AssistantPersonaWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput>
+}
+
+export type AssistantPersonaCreateManyCharacterCardInputEnvelope = {
+  data: Prisma.AssistantPersonaCreateManyCharacterCardInput | Prisma.AssistantPersonaCreateManyCharacterCardInput[]
+  skipDuplicates?: boolean
+}
+
+export type AssistantPersonaUpsertWithWhereUniqueWithoutCharacterCardInput = {
+  where: Prisma.AssistantPersonaWhereUniqueInput
+  update: Prisma.XOR<Prisma.AssistantPersonaUpdateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedUpdateWithoutCharacterCardInput>
+  create: Prisma.XOR<Prisma.AssistantPersonaCreateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedCreateWithoutCharacterCardInput>
+}
+
+export type AssistantPersonaUpdateWithWhereUniqueWithoutCharacterCardInput = {
+  where: Prisma.AssistantPersonaWhereUniqueInput
+  data: Prisma.XOR<Prisma.AssistantPersonaUpdateWithoutCharacterCardInput, Prisma.AssistantPersonaUncheckedUpdateWithoutCharacterCardInput>
+}
+
+export type AssistantPersonaUpdateManyWithWhereWithoutCharacterCardInput = {
+  where: Prisma.AssistantPersonaScalarWhereInput
+  data: Prisma.XOR<Prisma.AssistantPersonaUpdateManyMutationInput, Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardInput>
+}
+
+export type AssistantPersonaScalarWhereInput = {
+  AND?: Prisma.AssistantPersonaScalarWhereInput | Prisma.AssistantPersonaScalarWhereInput[]
+  OR?: Prisma.AssistantPersonaScalarWhereInput[]
+  NOT?: Prisma.AssistantPersonaScalarWhereInput | Prisma.AssistantPersonaScalarWhereInput[]
+  id?: Prisma.StringFilter<"AssistantPersona"> | string
+  userId?: Prisma.StringFilter<"AssistantPersona"> | string
+  name?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  avatarPreset?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  avatarUrl?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  avatarStorageKey?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  tone?: Prisma.StringFilter<"AssistantPersona"> | string
+  toneCustom?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  verbosity?: Prisma.StringFilter<"AssistantPersona"> | string
+  characterCardId?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  planMode?: Prisma.StringFilter<"AssistantPersona"> | string
+  language?: Prisma.StringFilter<"AssistantPersona"> | string
+  nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  useMyWords?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  archetype?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
+}
+
+export type AssistantPersonaCreateManyCharacterCardInput = {
+  id?: string
+  userId: string
+  name?: string | null
+  avatarPreset?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  tone?: string
+  toneCustom?: string | null
+  verbosity?: string
+  planMode?: string
+  language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
+  archetype?: string | null
+  routeModel?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AssistantPersonaUpdateWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarPreset?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tone?: Prisma.StringFieldUpdateOperationsInput | string
+  toneCustom?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  verbosity?: Prisma.StringFieldUpdateOperationsInput | string
+  planMode?: Prisma.StringFieldUpdateOperationsInput | string
+  language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutAssistantPersonaNestedInput
+}
+
+export type AssistantPersonaUncheckedUpdateWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarPreset?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tone?: Prisma.StringFieldUpdateOperationsInput | string
+  toneCustom?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  verbosity?: Prisma.StringFieldUpdateOperationsInput | string
+  planMode?: Prisma.StringFieldUpdateOperationsInput | string
+  language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type AssistantPersonaUncheckedUpdateManyWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   avatarPreset?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -745,6 +1002,7 @@ export type AssistantPersonaSelect<ExtArgs extends runtime.Types.Extensions.Inte
   tone?: boolean
   toneCustom?: boolean
   verbosity?: boolean
+  characterCardId?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -755,6 +1013,7 @@ export type AssistantPersonaSelect<ExtArgs extends runtime.Types.Extensions.Inte
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantPersona"]>
 
 export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -767,6 +1026,7 @@ export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   tone?: boolean
   toneCustom?: boolean
   verbosity?: boolean
+  characterCardId?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -777,6 +1037,7 @@ export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantPersona"]>
 
 export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -789,6 +1050,7 @@ export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   tone?: boolean
   toneCustom?: boolean
   verbosity?: boolean
+  characterCardId?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -799,6 +1061,7 @@ export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantPersona"]>
 
 export type AssistantPersonaSelectScalar = {
@@ -811,6 +1074,7 @@ export type AssistantPersonaSelectScalar = {
   tone?: boolean
   toneCustom?: boolean
   verbosity?: boolean
+  characterCardId?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -822,21 +1086,25 @@ export type AssistantPersonaSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
+export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "characterCardId" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
 export type AssistantPersonaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }
 export type AssistantPersonaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }
 export type AssistantPersonaIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
 }
 
 export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "AssistantPersona"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    characterCard: Prisma.$CharacterCardPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -866,6 +1134,11 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      * concise / standard / detailed —— 落到系统提示里是**字数区间**，不是形容词。
      */
     verbosity: string
+    /**
+     * 「用角色卡」这一档（owner 09-26）：头像取这张卡外观里的脸，语气取它设定里的
+     * 说话方式。null = 不用卡。卡删了只清绑定（SetNull），不动人设其余格。
+     */
+    characterCardId: string | null
     /**
      * always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
      */
@@ -1300,6 +1573,7 @@ readonly fields: AssistantPersonaFieldRefs;
 export interface Prisma__AssistantPersonaClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  characterCard<T extends Prisma.AssistantPersona$characterCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssistantPersona$characterCardArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1338,6 +1612,7 @@ export interface AssistantPersonaFieldRefs {
   readonly tone: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly toneCustom: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly verbosity: Prisma.FieldRef<"AssistantPersona", 'String'>
+  readonly characterCardId: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly planMode: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly language: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly nextStepHint: Prisma.FieldRef<"AssistantPersona", 'Boolean'>
@@ -1745,6 +2020,25 @@ export type AssistantPersonaDeleteManyArgs<ExtArgs extends runtime.Types.Extensi
    * Limit how many AssistantPersonas to delete.
    */
   limit?: number
+}
+
+/**
+ * AssistantPersona.characterCard
+ */
+export type AssistantPersona$characterCardArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterCard
+   */
+  select?: Prisma.CharacterCardSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterCard
+   */
+  omit?: Prisma.CharacterCardOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterCardInclude<ExtArgs> | null
+  where?: Prisma.CharacterCardWhereInput
 }
 
 /**

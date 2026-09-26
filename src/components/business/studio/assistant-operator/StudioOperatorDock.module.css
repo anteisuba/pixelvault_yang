@@ -81,6 +81,11 @@
     filter var(--liquid-out) var(--ease-standard);
 }
 
+/* 布局 A（滑进来那一支）：内容随面板整块滑，⛔ 不分批、不模糊。 */
+.content[data-motion='slide'] > * {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .content > *,
   .content[data-visible='false'] > * {

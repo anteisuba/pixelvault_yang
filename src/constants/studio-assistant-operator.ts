@@ -18,22 +18,50 @@ import {
 } from '@/constants/assistant-operator'
 
 /**
- * 覆盖层的宽度（拍板 9：默认 560，左缘拖拽 420–860，宽度记忆）。
+ * 面板宽度 = **占视口宽的比例**（owner 2026-09-26「按屏幕比例算，小屏也保持三成
+ * 左右」；拍板 9 的固定 560 作废 —— 560 在 1440 屏上占四成）。左缘拖拽记的也是
+ * 比例，窗口拖宽拖窄时面板跟着变。
  *
- * ⚠ **不复用 `STUDIO_ASSISTANT_DOCK_RESIZE`**：那份是旧 dock 的
- * （320/360/720），三个数一个都对不上，而且**记忆键必须分开** —— 共用一个键，
- * 用户在旧面板拖到 340 之后新面板会开在 420（被 min 夹上来），看起来像「我明明
- * 拖过它自己弹回去了」。两个面板并存期间（P4 之前视频/音频仍走旧 dock）这条是
- * 硬要求，不是洁癖。
+ * ⚠ **不复用 `STUDIO_ASSISTANT_DOCK_RESIZE`**：那份是旧 dock 的，记忆键必须分开
+ * （共用一个键，旧面板拖出来的数会被新面板夹成别的值，看起来像「拖过的宽度自己
+ * 弹回去了」）。
+ * ⚠ 记忆键换成 v2：v1 存的是像素，按比例读会读出荒唐值。
  */
 export const STUDIO_OPERATOR_PANEL_RESIZE = {
-  defaultWidthPx: 560,
-  minWidthPx: 420,
-  maxWidthPx: 860,
+  /** 缺省占视口宽的比例。 */
+  defaultRatio: 0.3,
+  /** 拖宽的上限比例 —— ⛔ 不做对半（owner 2026-09-26）。 */
+  maxRatio: 0.45,
+  /** 最窄（px）：面板内容在这个宽度下还排得开（`@container` 自己收疏密）。 */
+  minWidthPx: 320,
   /** 键盘 ←/→ 一次挪多少 —— 拖拽之外还得有个键盘可达的路径。 */
   widthStepPx: 20,
-  storageKey: 'pixelvault.studio.operatorPanel.width.v1',
+  storageKey: 'pixelvault.studio.operatorPanel.ratio.v2',
 } as const
+
+/** 某个视口宽下面板能拖到的最窄 / 最宽（px）。 */
+export function getStudioOperatorPanelWidthBounds(viewportPx: number): {
+  min: number
+  max: number
+} {
+  const min = STUDIO_OPERATOR_PANEL_RESIZE.minWidthPx
+  return {
+    min,
+    max: Math.max(
+      min,
+      Math.round(viewportPx * STUDIO_OPERATOR_PANEL_RESIZE.maxRatio),
+    ),
+  }
+}
+
+/** 按比例算出的面板宽（px），夹在上面那组上下限里。 */
+export function getStudioOperatorPanelWidthPx(
+  ratio: number,
+  viewportPx: number,
+): number {
+  const { min, max } = getStudioOperatorPanelWidthBounds(viewportPx)
+  return Math.min(max, Math.max(min, Math.round(viewportPx * ratio)))
+}
 
 /**
  * 「清掉助手的全部改动」二击确认的复原窗口（拍板 14）。
@@ -459,8 +487,10 @@ export interface StudioOperatorShellAnchor {
   readonly panelBottomPx?: number
   /**
    * 头像**留在原位**、不飞进面板头部（布局 A「分栏并排」，owner 2026-09-26）：
-   * 面板是工作台旁边的一列、顶边对齐舞台，头像留在右上角那一行里当开关；面板
-   * 头部因此不给它留槽，收起走头部右上那颗收起键。
+   * 面板是工作台旁边的一列、顶边对齐舞台，头像留在右上角那一行里当开关（点它开、
+   * 再点收），面板头部因此不给它留槽。
+   * ⚠ 头像不动了，「从头像长出来」的 B 形状也就没了依据 —— 这种宿主面板从右侧
+   *   **滑进来**，工作台同一根弹簧同步让位（Dock 里 `slides` 那一支）。
    */
   readonly avatarStays?: boolean
 }

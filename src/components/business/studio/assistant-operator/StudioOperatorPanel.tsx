@@ -2588,7 +2588,9 @@ export function StudioOperatorPanel({
               ⚠ 只在有生成键的宿主上画（图片 / 视频档），⛔ 不摆一颗没用的开关。
             */}
             {operatorHost.generationControls ? (
-              <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
+              // ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
+              //   让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
+              <label className="mr-1 flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground select-none">
                 {t('autoGenerate.label')}
                 <Switch
                   size="sm"

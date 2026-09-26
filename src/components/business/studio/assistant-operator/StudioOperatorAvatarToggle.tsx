@@ -138,7 +138,8 @@ export function StudioOperatorAvatarToggle({
             ? `${t('expand')} — ${t('collapsedTodo', { count: badgeCount })}`
             : t('expand')
       }
-      title={name}
+      /* 展开时悬停说出怎么收（owner 2026-09-26：收起只走头像，得让人知道）。 */
+      title={docked ? t('collapseHint') : name}
       onClick={onToggle}
       style={{
         width: `${STUDIO_OPERATOR_SHELL.avatarSizePx}px`,

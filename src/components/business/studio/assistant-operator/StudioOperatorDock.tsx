@@ -55,6 +55,8 @@ import {
   STUDIO_OPERATOR_MOBILE_SHELL,
   STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
+  getStudioOperatorPanelWidthBounds,
+  getStudioOperatorPanelWidthPx,
 } from '@/constants/studio-assistant-operator'
 import {
   getReferenceImageAttachmentId,
@@ -95,43 +97,46 @@ import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator
 
 // ─── 宽度记忆（localStorage 背书的模块 store）──────────────────────
 //
+// 记的是**占视口宽的比例**（owner 2026-09-26「按屏幕比例算」），快照按当前视口
+// 折成像素 —— 所以窗口缩放也算一次变化（`resize` 一起订阅）。
 // ⚠ 记忆键与旧 dock **必须分开**（见 `constants/studio-assistant-operator.ts`
-//    里那段注释）：两个面板的取值范围不同，共用一个键会让用户觉得「我拖过的
-//    宽度自己弹回去了」。
+//    里那段注释）。
 
-let storedWidth: number | null = null
+let storedRatio: number | null = null
 const widthListeners = new Set<() => void>()
 
-function clamp(value: number): number {
-  if (value < RESIZE.minWidthPx) return RESIZE.minWidthPx
-  if (value > RESIZE.maxWidthPx) return RESIZE.maxWidthPx
-  return value
+function readViewportPx(): number {
+  return typeof window === 'undefined' ? 0 : window.innerWidth
 }
 
-function readStoredWidth(): number {
-  if (typeof window === 'undefined') return RESIZE.defaultWidthPx
+function readStoredRatio(): number {
+  if (typeof window === 'undefined') return RESIZE.defaultRatio
   try {
     const raw = window.localStorage.getItem(RESIZE.storageKey)
-    const parsed = raw === null ? Number.NaN : Number.parseInt(raw, 10)
-    return Number.isFinite(parsed) ? clamp(parsed) : RESIZE.defaultWidthPx
+    const parsed = raw === null ? Number.NaN : Number.parseFloat(raw)
+    return Number.isFinite(parsed) && parsed > 0
+      ? Math.min(RESIZE.maxRatio, parsed)
+      : RESIZE.defaultRatio
   } catch {
-    return RESIZE.defaultWidthPx
+    return RESIZE.defaultRatio
   }
 }
 
 function getWidthSnapshot(): number {
-  if (storedWidth === null) storedWidth = readStoredWidth()
-  return storedWidth
+  if (storedRatio === null) storedRatio = readStoredRatio()
+  return getStudioOperatorPanelWidthPx(storedRatio, readViewportPx())
 }
 
 function getServerWidthSnapshot(): number {
-  return RESIZE.defaultWidthPx
+  return RESIZE.minWidthPx
 }
 
 function subscribeWidth(listener: () => void): () => void {
   widthListeners.add(listener)
+  window.addEventListener('resize', listener)
   return () => {
     widthListeners.delete(listener)
+    window.removeEventListener('resize', listener)
   }
 }
 
@@ -162,18 +167,25 @@ const LIQUID_CONTENT_VARS = {
   '--liquid-blur': `${LIQUID_TIMING.blurPx}px`,
 } as CSSProperties
 
-function writeWidth(next: number): void {
-  const width = clamp(next)
-  if (storedWidth === width) return
-  storedWidth = width
+function writeRatio(ratio: number): void {
+  if (storedRatio === ratio) return
+  storedRatio = ratio
   if (typeof window !== 'undefined') {
     try {
-      window.localStorage.setItem(RESIZE.storageKey, String(width))
+      window.localStorage.setItem(RESIZE.storageKey, String(ratio))
     } catch {
       // 存不下就只在本次会话里生效 —— 一个 UI 偏好不值得让面板报错。
     }
   }
   for (const listener of widthListeners) listener()
+}
+
+/** 拖到 / 键盘挪到某个像素宽 —— 先夹进上下限，再按当前视口折成比例记下。 */
+function writeWidth(next: number): void {
+  const viewport = readViewportPx()
+  if (viewport <= 0) return
+  const { min, max } = getStudioOperatorPanelWidthBounds(viewport)
+  writeRatio(Math.min(max, Math.max(min, next)) / viewport)
 }
 
 export function StudioOperatorDock() {
@@ -206,6 +218,14 @@ export function StudioOperatorDock() {
    *   `collapseOnOutsidePointer` 逐字同源，第四个宿主该由它自己说了算。
    */
   const anchor = hostAnchor ?? STUDIO_OPERATOR_DEFAULT_ANCHOR
+  /**
+   * 布局 A（锚点 `avatarStays`，图片台桌面）：头像留在原位，面板是工作台旁边的一列
+   * —— 它从右侧**滑进来**，工作台用同一根弹簧同步让位（owner 2026-09-26「打开时
+   * 有点卡」）。⛔ 这一支不走 B 形状：头像不动，「从头像长出来」没有依据；而且
+   * `clip-path` 每帧重绘整块面板、外层投影滤镜每帧重算整个视口，再叠上工作台每帧
+   * 重排，正是那一下「卡」。滑动只动 `transform`。
+   */
+  const slides = Boolean(anchor.avatarStays)
   const isMobile = useIsMobile()
   const { domain, entries, mentions, question, confirm } =
     useStudioOperatorState()
@@ -432,7 +452,7 @@ export function StudioOperatorDock() {
   const shapeClipPath = useTransform(() => {
     const left = insetLeft.get()
     const bottom = insetBottom.get()
-    if (phase === 'open' || reducedMotion) return 'none'
+    if (slides || phase === 'open' || reducedMotion) return 'none'
     return `inset(0px 0px ${bottom}px ${left}px round ${STUDIO_OPERATOR_SHELL.avatarSizePx / 2}px)`
   })
   const dockProgress = useTransform(() => {
@@ -444,7 +464,7 @@ export function StudioOperatorDock() {
   useLayoutEffect(() => {
     const previous = previousPhaseRef.current
     previousPhaseRef.current = phase
-    if (reducedMotion) return
+    if (reducedMotion || slides) return
     if (phase === 'closed') {
       insetLeft.jump(SHAPE_HIDDEN_INSET_PX)
       insetBottom.jump(SHAPE_HIDDEN_INSET_PX)
@@ -499,7 +519,7 @@ export function StudioOperatorDock() {
     // ⚠ 只清还没发出的那几拍；已经在跑的弹簧不停 —— 下一段 `animate` 会从它此刻的
     //   位置与速度接着走（连点不从头播）。
     return () => timers.forEach((timer) => window.clearTimeout(timer))
-  }, [phase, reducedMotion, insetLeft, insetBottom, shapeSpan])
+  }, [phase, reducedMotion, slides, insetLeft, insetBottom, shapeSpan])
   const shapeMoving = phase === 'opening' || phase === 'closing'
   const panelPresent = phase !== 'closed'
   const [settingsSection, setSettingsSection] =
@@ -517,6 +537,8 @@ export function StudioOperatorDock() {
     getWidthSnapshot,
     getServerWidthSnapshot,
   )
+  /** 拖宽的上下限随视口走（`width` 的快照已订阅 `resize`，这里跟着重算）。 */
+  const widthBounds = getStudioOperatorPanelWidthBounds(readViewportPx())
   /**
    * 工作台让位（owner 2026-09-26）：面板占掉的右侧宽度写进 `studioOperatorYield`，
    * 绑了它的外壳跟着收窄。节拍与形状同一套 —— 展开随第二拍、收起随收回那一拍。
@@ -532,6 +554,22 @@ export function StudioOperatorDock() {
     }
     if (reducedMotion) {
       studioOperatorYield.jump(open ? yieldReserve : 0)
+      return
+    }
+    if (slides && (phase === 'opening' || phase === 'closing')) {
+      // 布局 A：面板位移由让位量推出来（见 `slideX`），两边同一根弹簧、同一刻起步，
+      // 所以面板左缘与工作台右缘一起走。⚠ 展开落定认这根弹簧（兜底定时器照旧在）。
+      const opening = phase === 'opening'
+      void animate(
+        studioOperatorYield,
+        opening ? yieldReserve : 0,
+        opening ? LIQUID_SPRING.unfold : LIQUID_SPRING.retract,
+      ).finished.then(() => {
+        if (!opening) return
+        setShell((current) =>
+          current.phase === 'opening' ? { ...current, phase: 'open' } : current,
+        )
+      })
       return
     }
     if (phase === 'opening' || phase === 'closing') {
@@ -552,7 +590,20 @@ export function StudioOperatorDock() {
     if (!studioOperatorYield.isAnimating()) {
       studioOperatorYield.jump(phase === 'open' ? yieldReserve : 0)
     }
-  }, [phase, open, yieldReserve, isMobile, reducedMotion])
+  }, [phase, open, yieldReserve, isMobile, reducedMotion, slides])
+  /**
+   * 布局 A 的面板位移：让位量走到哪，面板就滑到哪（收起位 = 整块推出右缘）。
+   * ⚠ 由让位量**推出来**而不是另起一根弹簧：两根弹簧各走各的，面板与工作台之间
+   *   那条缝会在途中忽宽忽窄。
+   */
+  const slideX = useTransform(() => {
+    if (!slides || yieldReserve <= 0) return 0
+    const progress = Math.min(
+      1,
+      Math.max(0, studioOperatorYield.get() / yieldReserve),
+    )
+    return (1 - progress) * (width + anchor.panelRightPx)
+  })
   useEffect(() => () => studioOperatorYield.jump(0), [])
   /**
    * ⭐ 草稿与非图片附件住在外壳；图片来自宿主参考图列表：收起会卸载面板，
@@ -773,10 +824,11 @@ export function StudioOperatorDock() {
         writeWidth(width - RESIZE.widthStepPx)
       } else if (event.key === 'Home') {
         event.preventDefault()
-        writeWidth(RESIZE.maxWidthPx)
+        // 夹进上下限的那一步在 `writeWidth` 里，这里给两端就够。
+        writeWidth(Number.POSITIVE_INFINITY)
       } else if (event.key === 'End') {
         event.preventDefault()
-        writeWidth(RESIZE.minWidthPx)
+        writeWidth(0)
       }
     },
     [width],
@@ -909,7 +961,7 @@ export function StudioOperatorDock() {
         <div
           className={cn(
             'pointer-events-none fixed inset-0 z-40 hidden lg:block',
-            shapeMoving && styles.shapeShadow,
+            shapeMoving && !slides && styles.shapeShadow,
           )}
         >
           <motion.aside
@@ -935,6 +987,7 @@ export function StudioOperatorDock() {
               top: `${anchor.panelTopPx}px`,
               right: `${anchor.panelRightPx}px`,
               clipPath: shapeClipPath,
+              x: slideX,
               ...LIQUID_CONTENT_VARS,
             }}
             className={cn(
@@ -962,15 +1015,24 @@ export function StudioOperatorDock() {
                * `phase === 'open'` 正是那一刻（reduced-motion 下它当场就成立）。
                * ⚠ 阴影**不在这条分支里**：它常驻，⛔ 也不做过渡。
                */
-              phase === 'open'
-                ? 'pointer-events-auto assistant-glass-panel'
-                : 'bg-card',
+              /**
+               * ⚠ 布局 A 始终是一张白卡（与舞台 / 输入框同一种东西，它们都是地台上的
+               *   卡），⛔ 不在落定时换成毛玻璃：背后只有地台，玻璃看不出来，结尾那一下
+               *   换皮反而是一次跳变。
+               */
+              slides
+                ? cn('bg-card', phase === 'open' && 'pointer-events-auto')
+                : phase === 'open'
+                  ? 'pointer-events-auto assistant-glass-panel'
+                  : 'bg-card',
               isResizing && styles.resizing,
             )}
           >
             <div
               className={styles.content}
-              data-visible={phase === 'open' || phase === 'opening'}
+              /* 布局 A 的内容随面板一起滑，⛔ 不分两批换场（`data-motion`）。 */
+              data-motion={slides ? 'slide' : 'shape'}
+              data-visible={slides || phase === 'open' || phase === 'opening'}
               inert={!open}
               aria-hidden={!open}
             >
@@ -978,8 +1040,8 @@ export function StudioOperatorDock() {
                 role="separator"
                 aria-orientation="vertical"
                 aria-label={t('resize')}
-                aria-valuemin={RESIZE.minWidthPx}
-                aria-valuemax={RESIZE.maxWidthPx}
+                aria-valuemin={widthBounds.min}
+                aria-valuemax={widthBounds.max}
                 aria-valuenow={width}
                 tabIndex={0}
                 data-testid="operator-resize-handle"
@@ -988,7 +1050,7 @@ export function StudioOperatorDock() {
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerUp}
                 onKeyDown={handleKeyDown}
-                onDoubleClick={() => writeWidth(RESIZE.defaultWidthPx)}
+                onDoubleClick={() => writeRatio(RESIZE.defaultRatio)}
                 title={t('resize')}
                 className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
               >

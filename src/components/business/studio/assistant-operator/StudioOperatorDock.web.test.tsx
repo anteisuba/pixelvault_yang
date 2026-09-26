@@ -16,6 +16,9 @@ import {
   STUDIO_OPERATOR_MOBILE_SHELL,
   STUDIO_OPERATOR_PANEL_RESIZE,
   STUDIO_OPERATOR_SHELL,
+  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+  getStudioOperatorPanelWidthPx,
+  type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 
 /**
@@ -26,7 +29,7 @@ import {
  * ⛔ 静态检查不冒称视觉验证，但这几个**数**必须有机器守着。
  *
  * 钉四件事：
- *  ① 展开态宽 = `defaultWidthPx`（560），fixed 四边 inset 24（`top-6/right-6/bottom-6`）；
+ *  ① 展开态宽 = 视口 × `defaultRatio`（三成，夹在上下限里），fixed 四边 inset 24；
  *  ② 收起态是**同一个 `<aside>` 收到 48px**，⛔ 不再有另一颗 fixed 在别处的胶囊
  *     （胶囊连同它的 testid 已于切片 3a 全仓删净，所以这里不再断言它不存在 ——
  *      一条永远不会失败的断言只是噪音）；
@@ -45,6 +48,7 @@ const setOpen = vi.hoisted(() => vi.fn())
 let hostOpen = true
 let hostDomain = 'image'
 let hostCollapseOnOutsidePointer: boolean | undefined
+let hostAnchor: StudioOperatorShellAnchor | undefined
 let mobile = false
 let references: ReturnType<typeof useImageUpload>
 let panelProps: StudioOperatorPanelProps
@@ -70,6 +74,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       },
       results: [],
       collapseOnOutsidePointer: hostCollapseOnOutsidePointer,
+      ...(hostAnchor ? { anchor: hostAnchor } : {}),
     }
   },
 }))
@@ -159,6 +164,7 @@ beforeEach(() => {
   hostOpen = true
   hostDomain = 'image'
   hostCollapseOnOutsidePointer = undefined
+  hostAnchor = undefined
   mobile = false
   setOpen.mockClear()
   resetOperatorThread()
@@ -213,11 +219,14 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.attachments).toHaveLength(1)
   })
 
-  it('展开态：宽 560、顶 / 右由宿主锚点给（缺省 24）', () => {
+  it('展开态：宽 = 视口三成（夹在上下限里）、顶 / 右由宿主锚点给（缺省 24）', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.style.width).toBe(
-      `${STUDIO_OPERATOR_PANEL_RESIZE.defaultWidthPx}px`,
+      `${getStudioOperatorPanelWidthPx(
+        STUDIO_OPERATOR_PANEL_RESIZE.defaultRatio,
+        window.innerWidth,
+      )}px`,
     )
     expect(STUDIO_OPERATOR_SHELL.insetPx).toBe(24)
     expect(panel).toHaveClass('fixed')
@@ -241,6 +250,32 @@ describe('StudioOperatorDock', () => {
     expect(panel.className).not.toContain('bg-card')
     expect(panel.dataset.phase).toBe('open')
     expect(panel.className).toContain('shadow-assistant-panel')
+  })
+
+  /**
+   * 布局 A（图片台桌面，锚点 `avatarStays`）：面板是工作台旁边的一列 —— 白卡、不裁
+   * 形状、上下贴锚点，头部不给头像留位，头像留在原位、悬停说「收起 · Esc」。
+   */
+  it('布局 A：白卡一列、不走 B 形状，头像留在原位', () => {
+    hostAnchor = STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR
+    render(<StudioOperatorDock />)
+    const panel = screen.getByTestId('operator-panel')
+    expect(panel.className).toContain('bg-card')
+    expect(panel.className).not.toContain('assistant-glass-panel')
+    expect(panel.style.clipPath).toBe('none')
+    expect(panel.style.top).toBe(
+      `${STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR.panelTopPx}px`,
+    )
+    expect(panel.style.height).toBe(
+      `calc(100dvh - ${
+        STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR.panelTopPx +
+        (STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR.panelBottomPx ?? 0)
+      }px)`,
+    )
+    expect(panelProps.headerAvatar).toBe('none')
+    const avatar = screen.getByTestId('operator-avatar-toggle')
+    expect(avatar.getAttribute('title')).toBe('collapseHint')
+    expect(avatar.style.transform).not.toContain('translate')
   })
 
   /**

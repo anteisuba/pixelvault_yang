@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowUp } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
 import {
   setOperatorPrimed,
@@ -25,6 +26,14 @@ interface StudioGenerateButtonProps {
   /** 真正点不动的那一档（生成中 / 提示词超长）。 */
   disabled: boolean
   onGenerate: () => void
+  /**
+   * `block` = 参数栏底部那颗整宽键（文案写在键上）。
+   * `round` = 底部输入框右端那颗 36px 圆键 ①（owner 2026-09-26）：只画 ↑，
+   * 张数进角标，缺什么由宿主在左边写一行灰字 —— 键上不写字。
+   */
+  variant?: 'block' | 'round'
+  /** `round` 的角标数（这一次出几张）；≤ 1 不画。 */
+  count?: number
   className?: string
 }
 
@@ -48,9 +57,65 @@ export function StudioGenerateButton({
   canGenerate,
   disabled,
   onGenerate,
+  variant = 'block',
+  count = 1,
   className,
 }: StudioGenerateButtonProps) {
   const { primed: isOperatorPrimed } = useStudioOperatorState()
+
+  if (variant === 'round') {
+    const blocked = !isGenerating && Boolean(blockedMessage)
+    const spoken = isGenerating
+      ? elapsedSeconds > 0
+        ? `${busyLabel} ${elapsedSeconds}s`
+        : busyLabel
+      : (blockedMessage ?? label)
+    return (
+      <button
+        type="button"
+        data-operator-primed={isOperatorPrimed ? 'true' : undefined}
+        onClick={(event) => {
+          event.stopPropagation()
+          setOperatorPrimed(false)
+          onGenerate()
+        }}
+        disabled={disabled}
+        aria-label={`${ariaLabel} · ${spoken}`}
+        title={spoken}
+        aria-busy={isGenerating}
+        aria-disabled={!canGenerate}
+        className={cn(
+          'relative grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground',
+          'transition-[background-color,color,transform] duration-fast ease-standard',
+          'active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          // ⚠ 被挡住仍然可点（同 block 那档的 Krea 式规则），只是退成灰底。
+          blocked && 'bg-muted text-muted-foreground',
+          disabled &&
+            !isGenerating &&
+            'cursor-not-allowed bg-muted text-muted-foreground',
+          isOperatorPrimed &&
+            !isGenerating &&
+            !blockedMessage &&
+            'ring-2 ring-primary/60 ring-offset-2 ring-offset-background',
+          className,
+        )}
+      >
+        {isGenerating ? (
+          <Spinner className="size-4" />
+        ) : (
+          <ArrowUp className="size-4" aria-hidden />
+        )}
+        {count > 1 && !isGenerating ? (
+          <span
+            aria-hidden
+            className="absolute -right-1.5 -top-1.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-background px-1 font-mono text-2xs font-semibold tabular-nums text-foreground ring-1 ring-border"
+          >
+            {count}
+          </span>
+        ) : null}
+      </button>
+    )
+  }
 
   return (
     <button

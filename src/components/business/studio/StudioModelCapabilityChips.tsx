@@ -43,11 +43,17 @@ interface StudioModelCapabilityChipsProps {
   disabled?: boolean
   /** 手机 composer 那一行放不下时横向滚动，不换行（换行会让 composer 高度跳）。 */
   scroll?: boolean
+  /**
+   * 底部输入框的工具行（owner 2026-09-26）：只要那一排 chip，⛔ 不画虚线与
+   * 「专属 · 模型名」小标 —— 小标改成 chip 行的无障碍名。
+   */
+  inline?: boolean
 }
 
 export function StudioModelCapabilityChips({
   disabled = false,
   scroll = false,
+  inline = false,
 }: StudioModelCapabilityChipsProps) {
   const { state } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -62,6 +68,34 @@ export function StudioModelCapabilityChips({
   if (!selectedModel || chips.length === 0) return null
 
   const hasReferenceImage = imageUpload.referenceImages.length > 0
+  const visibleChips = chips.filter((chip) =>
+    isCapabilityChipVisible(chip, state.advancedParams, hasReferenceImage),
+  )
+  const sectionLabel = t('sectionLabel', {
+    model: getTranslatedModelLabel(tModels, selectedModel.modelId),
+  })
+
+  if (inline) {
+    if (visibleChips.length === 0) return null
+    return (
+      <div
+        role="group"
+        aria-label={sectionLabel}
+        className="flex items-center gap-1.5"
+        data-assistant-field="capabilities"
+      >
+        {visibleChips.map((chip) => (
+          <CapabilityChipControl
+            key={chip.capability}
+            chip={chip}
+            params={state.advancedParams}
+            disabled={disabled}
+            hasReferenceImage={hasReferenceImage}
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div

@@ -11,6 +11,8 @@ import {
 import { ResponsiveDialogTitle } from '@/components/ui/responsive-dialog'
 import { cn } from '@/lib/utils'
 
+import { useLiquidPopover } from './liquid-popover'
+
 /**
  * Dialog 型工具面板的统一 chrome（决议 5 工具面板契约）。
  * 重型面板（多轮对话/大列表/多步表单）走居中 Dialog；轻面板走
@@ -248,8 +250,15 @@ export function StudioToolPopoverContent({
   label,
   className,
   mobileClassName,
+  style,
   ...props
 }: StudioToolPopoverContentProps) {
+  // 描边外观（底部输入框那一行）的弹层从 chip 液态长出来。
+  const {
+    attach: liquidRef,
+    className: liquidClassName,
+    style: liquidStyle,
+  } = useLiquidPopover(useContext(StudioChipLookContext) === 'outline')
   return (
     <ResponsivePopoverContent
       data-studio-tool-popover=""
@@ -262,8 +271,11 @@ export function StudioToolPopoverContent({
         studioToolPopoverBaseClass,
         studioToolSurfaceSizeClass[size],
         className,
+        liquidClassName,
       )}
       mobileClassName={cn(studioToolSurfaceMobileClass[size], mobileClassName)}
+      style={{ ...style, ...liquidStyle }}
+      ref={liquidRef}
       {...props}
     />
   )

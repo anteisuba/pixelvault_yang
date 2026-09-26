@@ -49,6 +49,8 @@ import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
 import { QuickSetupDialog } from '../setup/QuickSetupDialog'
+import { useLiquidPopover } from '../primitives/liquid-popover'
+import { useStudioChipClasses } from '../primitives/tool-surface'
 
 import { ModelChip } from './ModelChip'
 
@@ -211,6 +213,12 @@ export function ModelPickerPopover({
 }: ModelPickerPopoverProps) {
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
+  // 底部输入框那一行（描边外观）里弹层液态长出来；其余宿主不在那层外观里，照旧。
+  const {
+    attach: liquidRef,
+    className: liquidClassName,
+    style: liquidStyle,
+  } = useLiquidPopover(useStudioChipClasses().look === 'outline')
   const [search, setSearch] = useState('')
   /** 桌面：渠道面板跟着走的那一行；手机：原地展开的那一行（按**行身份**）。 */
   const [activeRowId, setActiveRowId] = useState<string | null>(null)
@@ -870,10 +878,16 @@ export function ModelPickerPopover({
           />
         </ResponsivePopoverTrigger>
         <ResponsivePopoverContent
+          ref={liquidRef}
+          style={liquidStyle}
           side={side}
           align={align}
           label={triggerEmptyLabel ?? tCommon('selectModel')}
-          className={cn(contentClassName ?? 'w-model-picker', 'p-0')}
+          className={cn(
+            contentClassName ?? 'w-model-picker',
+            'p-0',
+            liquidClassName,
+          )}
           mobileClassName="px-0"
         >
           {body}

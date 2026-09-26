@@ -100,6 +100,25 @@ export const LIQUID_TIMING = {
   swapInS: 0.16,
   /** 内容换场的模糊半径（px）。 */
   blurPx: 6,
+  /** chip 弹层第一次打开：内容在形状横成一条之后进场。 */
+  popoverInDelayS: 0.12,
+  popoverInS: 0.2,
+} as const
+
+/**
+ * chip 弹层的液态展开（owner 2026-09-26 原型：弹层从 chip 长出来，开着时点另一颗
+ * chip 同一块形状变形过去）。节拍与弹簧沿用上面两张表，这里只放弹层自己的几何
+ * 与兜底定时器 —— 相位靠定时器落定，⛔ 不等弹簧 `finished`（后台页 rAF 冻结）。
+ */
+export const LIQUID_POPOVER = {
+  /** 第一拍横成的那一条有多高（px），与助手头部条同高。 */
+  stripPx: 44,
+  /** 展开兜底：这么久后无论弹簧落没落定都切到静止档（ms）。 */
+  restFallbackMs: 700,
+  /** 收起：形状缩回 chip 后这么久隐藏（ms）。 */
+  closeMs: 560,
+  /** 收起第二拍缩回 chip 时形状同时淡掉，融回 chip（秒）。 */
+  dissolveS: 0.18,
 } as const
 
 /**

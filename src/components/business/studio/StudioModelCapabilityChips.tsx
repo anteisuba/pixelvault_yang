@@ -29,6 +29,7 @@ import {
   studioToolPopoverWidthClass,
   useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useLiquidPopover } from '@/components/business/studio-shared/primitives/liquid-popover'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 
 /**
@@ -287,6 +288,11 @@ function CapabilitySingleChip({
   const t = useTranslations('StudioCapabilityChips')
   const tAdvanced = useTranslations('AdvancedSettings')
   const chipClasses = useStudioChipClasses()
+  const {
+    attach: liquidRef,
+    className: liquidClassName,
+    style: liquidStyle,
+  } = useLiquidPopover(chipClasses.look === 'outline')
 
   const update = (patch: Partial<AdvancedParams>) =>
     dispatch({
@@ -332,6 +338,8 @@ function CapabilitySingleChip({
         </button>
       </StudioToolSurfaceTrigger>
       <ResponsivePopoverContent
+        ref={liquidRef}
+        style={liquidStyle}
         label={sectionLabel}
         align="end"
         side="top"
@@ -340,6 +348,7 @@ function CapabilitySingleChip({
           studioToolPopoverBaseClass,
           studioToolPopoverWidthClass.action,
           studioToolPopoverPaddingClass.small,
+          liquidClassName,
         )}
         mobileClassName={studioToolSurfaceMobileClass.action}
       >

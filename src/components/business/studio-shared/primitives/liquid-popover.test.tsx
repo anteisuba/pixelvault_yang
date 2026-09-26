@@ -61,6 +61,8 @@ describe('useLiquidPopover', () => {
     )
     const popover = getByTestId('popover')
     expect(popover.dataset.liquid).toBe('moving')
+    // ⚠ 弹层底座的 `duration-*` 会让皮肤与裁剪都走 200ms 过渡 —— 打开后「闪一下」。
+    expect(popover).toHaveClass('transition-none')
 
     await act(async () => {
       vi.advanceTimersByTime(LIQUID_POPOVER.restFallbackMs * 3)

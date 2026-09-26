@@ -528,9 +528,12 @@ const NO_LIQUID: LiquidPopoverProps = {}
 /**
  * 动着时本体的皮肤让给形状层；进场动画关掉（形状就是进场）；退场只留一下模糊
  * 淡出（`animate-out` 读这几个变量），⛔ 不缩放 —— 缩放是形状的事。
+ * ⚠ `transition-none` 不能省：弹层底座带 `duration-*` 却没写 `transition-property`
+ * （初始值 = `all`），于是皮肤从透明切回来要渐变 200ms、每帧改的裁剪也被拖慢 ——
+ * 形状一藏、皮肤还没回来，就是打开后「闪一下」（owner 2026-09-26 报）。
  */
 const LIQUID_CONTENT_CLASS =
-  'data-[state=open]:animate-none data-[liquid=moving]:border-transparent data-[liquid=moving]:bg-transparent data-[liquid=moving]:shadow-none data-[liquid=moving]:backdrop-blur-none'
+  'transition-none data-[state=open]:animate-none data-[liquid=moving]:border-transparent data-[liquid=moving]:bg-transparent data-[liquid=moving]:shadow-none data-[liquid=moving]:backdrop-blur-none'
 
 const LIQUID_CONTENT_STYLE = {
   '--tw-exit-scale': '1',

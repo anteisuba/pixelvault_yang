@@ -231,18 +231,31 @@ describe('StudioOperatorHeader', () => {
 
   /**
    * D7c ④ 画板「加载中」那条 ⚠：真机上「读取中…」那行字和已经载出来的会话行
-   * **同时挂着**。骨架必须**替掉**列表，⛔ 不叠在上面。
+   * **同时挂着**。骨架必须**替掉**列表，⛔ 不叠在上面 —— 但只在一条都还没有时。
    */
-  it('⭐ 加载中 = 三条骨架**替掉**列表，⛔ 不与会话行同时挂着', () => {
-    renderHeader({
-      history: { ...HISTORY, isHydrating: true, sessions: SESSIONS },
-    })
+  it('⭐ 头一次加载 = 三条骨架，底下「新对话」照常在', () => {
+    renderHeader({ history: { ...HISTORY, isHydrating: true, sessions: [] } })
 
     const skeleton = screen.getByTestId('operator-history-skeleton')
     expect(skeleton.children).toHaveLength(3)
-    expect(screen.queryAllByTestId('operator-session-item')).toHaveLength(0)
+    expect(screen.queryByTestId('operator-history-empty')).toBeNull()
     // 「新对话」在这一档照常在（画板：底下那颗不跟着消失）。
     expect(screen.getByTestId('operator-new-thread')).toBeTruthy()
+  })
+
+  /**
+   * owner 2026-09-26「删除要点好多次才出确认」：后台刷新（菜单打开时过了保鲜期、
+   * 当前会话每次落库之后）把整张列表换成骨架，行被卸载，点在删除上的那一下落空。
+   * ⛔ 这条红 = 手上已有列表时刷新又把它换掉了。
+   */
+  it('⭐ 已有列表时后台刷新照旧画着列表，⛔ 不换成骨架', () => {
+    renderHeader({
+      history: { ...HISTORY, isHydrating: true, sessions: SESSIONS },
+    })
+    expect(screen.queryByTestId('operator-history-skeleton')).toBeNull()
+    expect(screen.getAllByTestId('operator-session-item')).toHaveLength(
+      SESSIONS.length,
+    )
   })
 
   /**

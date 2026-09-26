@@ -221,6 +221,8 @@ export function StudioOperatorHeader({
    * ⚠ 与历史行**共用同一个函数**（`lib/assistant-conversation-title.ts`），
    * ⛔ 两处各写一遍必然漂成两种长度。
    */
+  /** 骨架只给「一条都还没载到」那一刻（见列表那段 ⚠）。 */
+  const listLoading = history.isHydrating && history.sessions.length === 0
   const sessionTitle =
     deriveAssistantConversationTitle(
       history.sessions.find((item) => item.id === history.currentSessionId)
@@ -354,8 +356,12 @@ export function StudioOperatorHeader({
             {/* ── 加载中 = **替掉**列表（画板「加载中」那条 ⚠）───────────
                 真机上现在是「读取中…」那行字和已经载出来的会话行同时挂着 ——
                 于是列表读起来像「这些是旧的，新的还在路上」。三条骨架占住行位，
-                ⛔ 不叠在列表上面。⚠ 骨架行高 = 真行高（`h-11`），⛔ 不许跳动。 */}
-            {history.isHydrating ? (
+                ⛔ 不叠在列表上面。⚠ 骨架行高 = 真行高（`h-11`），⛔ 不许跳动。
+                ⚠ **只在一条都还没有时**（`listLoading`）：后台刷新（打开菜单时列表
+                  过了保鲜期、当前会话每次落库之后）照旧画着手上那份，拉回来原地换。
+                  整张换成骨架的代价是行被卸载 —— 点在删除上的那一下落空、确认态
+                  跟着没了（owner 2026-09-26「删除要点好多次才出确认」）。 */}
+            {listLoading ? (
               <div
                 data-testid="operator-history-skeleton"
                 role="status"
@@ -373,7 +379,7 @@ export function StudioOperatorHeader({
             ) : null}
             {/* 一条都没有 = **一句灰字**（画板「一条都没有」）：⛔ 不画插图空态，
                 这是个下拉菜单不是一页；底下那颗「新对话」照常在。 */}
-            {!history.isHydrating && history.sessions.length === 0 ? (
+            {!listLoading && history.sessions.length === 0 ? (
               <p
                 data-testid="operator-history-empty"
                 className="px-2.25 pb-4 pt-3.5 text-xs text-muted-foreground"
@@ -381,9 +387,8 @@ export function StudioOperatorHeader({
                 {t('history.empty')}
               </p>
             ) : null}
-            {/* ⚠ 列表与骨架**互斥**（上面那条 ⚠）：这一行的 `isHydrating` 判据就是
-                「⛔ 不叠加」本身 —— 少了它，骨架会挂在已经载出来的行上面。 */}
-            {(history.isHydrating ? [] : history.sessions).map((session) => {
+            {/* ⚠ 列表与骨架**互斥**：骨架只在列表为空时出现，两者天然不叠加。 */}
+            {history.sessions.map((session) => {
               /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
                  哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
                  ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进

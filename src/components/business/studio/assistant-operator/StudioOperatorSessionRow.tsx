@@ -40,6 +40,10 @@
  * ── 退回确认态的三条路 ─────────────────────────────────────────
  * 3 秒无操作 · 指针离开这一行 · 焦点离开这一行。三条都退回，因为「举着一把刀」
  * 不该是列表的常态；⛔ 也不靠点别处冒泡来退（下拉里点别处会顺手关掉整个菜单）。
+ * ⚠ 「焦点离开」**不算**焦点落回菜单本身（`role="menu"`）：指针一离开某个菜单项
+ *   （哪怕只是滑到这一行的空白处），Radix 就把焦点停回菜单容器 —— 把它当成离开，
+ *   点完删除手一动确认就没了（owner 2026-09-26「要点好多次才出确认」的真因）。
+ *   指针真离开这一行由上面那条管。
  * **同一列表同时只有一行能进确认态**：那一格状态住在父级（`confirming` 是 prop，
  * 不是自己的 state），⛔ 不让每行各记各的 —— 各记各的表现是一屏红字。
  *
@@ -204,8 +208,14 @@ export function StudioOperatorSessionRow({
         onBlur={
           confirming
             ? (event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node))
-                  onCancelDelete()
+                const next = event.relatedTarget
+                if (
+                  next instanceof Element &&
+                  (event.currentTarget.contains(next) ||
+                    next.getAttribute('role') === 'menu')
+                )
+                  return
+                onCancelDelete()
               }
             : undefined
         }

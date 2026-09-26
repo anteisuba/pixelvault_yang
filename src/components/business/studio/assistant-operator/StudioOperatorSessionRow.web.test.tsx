@@ -353,6 +353,23 @@ describe('StudioOperatorSessionRow — 删除两段', () => {
     expect(second.onCancelDelete).toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * owner 2026-09-26「要点好多次才出确认」的真因：点完删除手一动（滑出那颗按钮、
+   * 还在这一行里），Radix 把焦点停回菜单容器（`role="menu"`）。⛔ 这不算离开这一行。
+   */
+  it('焦点落回菜单容器（指针滑出按钮）⛔ 不退回', () => {
+    const menu = document.createElement('div')
+    menu.setAttribute('role', 'menu')
+    menu.tabIndex = -1
+    document.body.appendChild(menu)
+    const { onCancelDelete } = renderRow({ confirming: true })
+    fireEvent.blur(screen.getByTestId('operator-session-delete'), {
+      relatedTarget: menu,
+    })
+    expect(onCancelDelete).not.toHaveBeenCalled()
+    menu.remove()
+  })
+
   it('⛔ 不在确认态时不画那句 aria-live', () => {
     renderRow()
     expect(screen.getByTestId('operator-session-delete-live').textContent).toBe(

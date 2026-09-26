@@ -27,6 +27,11 @@ export const CANVAS_SHELL_LAYOUT = {
   /** 图标按钮：34 见方、10 圆角（画板 rail / 底栏 / 快捷加节点共用同一颗）。 */
   iconButtonPx: 34,
   iconButtonRadiusPx: 10,
+  /**
+   * 左侧面板液态开合第一拍那条「标题条」的高（owner 2026-09-26 定 B · 方向稿
+   * `GFfqsraLtaRRBBKigkmCuT`：比图标上下各多出一丝，居中在被点那一格上）。
+   */
+  panelTitleStripPx: 40,
   /** 项目胶囊高（画板 .pill）。 */
   pillHeightPx: 36,
   /**

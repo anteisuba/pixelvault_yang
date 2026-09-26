@@ -17,7 +17,26 @@
  * 「拖一张图片」（owner 2026-09-12 真机：素材拖不进画布）。
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Ref,
+} from 'react'
+import {
+  animate,
+  calcGeneratorDuration,
+  motion,
+  spring,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type MotionStyle,
+  type MotionValue,
+} from 'motion/react'
 import {
   FolderOpen,
   ChevronDown,
@@ -38,6 +57,13 @@ import {
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
 import { CONTEXT_CARD_KIND_IDS } from '@/constants/context-cards'
+import {
+  DURATION_MS,
+  EASE_STANDARD,
+  LIQUID_SPRING,
+  LIQUID_TIMING,
+  motionTransition,
+} from '@/constants/motion'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
@@ -283,13 +309,31 @@ interface ShellPanelFrameProps {
   readonly title: string
   onClose(): void
   readonly children: React.ReactNode
+  /**
+   * 标题行与正文各自可寻址 —— 液态开合里标题骑着形状的上边沿走、先于正文进场
+   * （见 `ShellPanelLayer`）。
+   */
+  readonly headRef?: Ref<HTMLDivElement>
+  readonly headStyle?: MotionStyle
+  readonly bodyStyle?: MotionStyle
 }
 
-function ShellPanelFrame({ title, onClose, children }: ShellPanelFrameProps) {
+function ShellPanelFrame({
+  title,
+  onClose,
+  children,
+  headRef,
+  headStyle,
+  bodyStyle,
+}: ShellPanelFrameProps) {
   const t = useTranslations('StudioNode.shell.panels')
   return (
     <>
-      <div className="flex h-9 shrink-0 items-center gap-2 px-2">
+      <motion.div
+        ref={headRef}
+        style={headStyle}
+        className="flex h-9 shrink-0 items-center gap-2 px-2"
+      >
         <span className="min-w-0 flex-1 truncate text-node-foreground canvas-panel-title">
           {title}
         </span>
@@ -302,8 +346,10 @@ function ShellPanelFrame({ title, onClose, children }: ShellPanelFrameProps) {
         >
           <PanelLeftClose className="size-3.5" aria-hidden />
         </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </motion.div>
+      <motion.div style={bodyStyle} className="min-h-0 flex-1 overflow-y-auto">
+        {children}
+      </motion.div>
     </>
   )
 }
@@ -612,6 +658,258 @@ function ShellLibraryPanel({
   )
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * 液态开合（owner 2026-09-26 定 B「先横成一条，再落下」）—— 与助手头像点开同一套
+ * `LIQUID_SPRING` / `LIQUID_TIMING`，原型是方向稿 `GFfqsraLtaRRBBKigkmCuT`
+ * 的「画布左侧栏」一节。
+ *
+ * 四档相位：`closed` → `opening` →（第二拍弹簧 `finished`，或兜底定时器）→ `open`
+ * → `closing` →（**只认定时器**）→ `closed`。
+ * ⚠ 收回只认定时器、⛔ 不用 `AnimatePresence`：后台标签页里 rAF 冻结，动画永远
+ *   跑不完，靠它摘节点会留下一块吃点击的幽灵面板（助手 dock 2026-08-30 真机实测，
+ *   同一条理由）。
+ * ⚠ 展开认弹簧落定、并带一条兜底定时器：毛玻璃要等形状长完才挂，而后台标签页里
+ *   弹簧同样不落 —— 没有兜底，面板就永远停在 `pointer-events: none`。
+ * ⚠ 进档在 render 里派生（⛔ 不在 effect 里 setState：那会先按静止态画一帧再跳）；
+ *   出档才走定时器 / 动画回调 —— 那是真的「过一会儿」的事。
+ * ⚠ `prefers-reduced-motion`：直切，没有中间档。
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+type ShellLiquidPhase = 'closed' | 'opening' | 'open' | 'closing'
+
+/** 面板上那份内容是怎么来的：挂载时就开着 / 随开合进场 / 开着时切过来。 */
+type ShellLiquidEntry = 'static' | 'open' | 'swap'
+
+interface ShellLiquidState {
+  /** 上一次看到的 `activePanel` —— 与它不同就在 render 里派生下一档。 */
+  readonly target: CanvasShellPanelId | null
+  readonly phase: ShellLiquidPhase
+  /** 进当前相位之前那一档：形状据此分「从一颗图标长出来」还是「从半路接着走」。 */
+  readonly from: ShellLiquidPhase
+  /** 形状从哪一格长出来 / 缩回哪一格。 */
+  readonly origin: CanvasShellPanelId | null
+  /** 面板上正显示的内容（收起途中照旧是它，直到卸载）。 */
+  readonly shown: CanvasShellPanelId | null
+  /** 开着时切格：正在退场的旧内容，与新内容叠放 `swapOutS` 后摘掉。 */
+  readonly leaving: CanvasShellPanelId | null
+  readonly entry: ShellLiquidEntry
+}
+
+function settledLiquid(panel: CanvasShellPanelId | null): ShellLiquidState {
+  const phase: ShellLiquidPhase = panel === null ? 'closed' : 'open'
+  return {
+    target: panel,
+    phase,
+    from: phase,
+    origin: panel,
+    shown: panel,
+    leaving: null,
+    entry: 'static',
+  }
+}
+
+function nextLiquid(
+  state: ShellLiquidState,
+  panel: CanvasShellPanelId | null,
+  reducedMotion: boolean,
+): ShellLiquidState {
+  if (panel !== null) {
+    if (state.phase === 'closed' || state.phase === 'closing') {
+      return {
+        target: panel,
+        phase: reducedMotion ? 'open' : 'opening',
+        from: state.phase,
+        origin: panel,
+        shown: panel,
+        // 收回途中点了另一格：旧内容本来就在退场，让它按换场那一拍退完。
+        leaving:
+          !reducedMotion && state.shown !== null && state.shown !== panel
+            ? state.shown
+            : null,
+        entry: reducedMotion ? 'static' : 'open',
+      }
+    }
+    if (state.shown === panel) return { ...state, target: panel }
+    // ⭐ 开着时切格：面板**不收不开**，只换内容（相位、形状都不动）。
+    return {
+      ...state,
+      target: panel,
+      shown: panel,
+      leaving: reducedMotion ? null : state.shown,
+      entry: reducedMotion ? 'static' : 'swap',
+    }
+  }
+  if (state.phase === 'closed' || state.phase === 'closing') {
+    return { ...state, target: null }
+  }
+  if (reducedMotion) return settledLiquid(null)
+  return {
+    ...state,
+    target: null,
+    phase: 'closing',
+    from: state.phase,
+    origin: state.shown,
+  }
+}
+
+type ShellLayerMode =
+  | 'static'
+  | 'enter-open'
+  | 'enter-swap'
+  | 'exit-close'
+  | 'exit-swap'
+
+function layerMode(
+  state: ShellLiquidState,
+  panel: CanvasShellPanelId,
+): ShellLayerMode {
+  if (panel === state.leaving) return 'exit-swap'
+  if (state.phase === 'closing') return 'exit-close'
+  if (state.entry === 'open') return 'enter-open'
+  if (state.entry === 'swap') return 'enter-swap'
+  return 'static'
+}
+
+interface ShellLayerBeat {
+  readonly delay: number
+  readonly duration: number
+}
+
+/**
+ * 内容的几拍（秒，数只住 `LIQUID_TIMING`）：开 = 标题随第一拍、正文随第二拍；
+ * 收 = 两批一起先退；切格 = 旧的退、新的晚一点进。
+ */
+const LAYER_BEATS: Record<
+  Exclude<ShellLayerMode, 'static'>,
+  {
+    readonly to: number
+    readonly head: ShellLayerBeat
+    readonly body: ShellLayerBeat
+  }
+> = {
+  'enter-open': {
+    to: 1,
+    head: {
+      delay: LIQUID_TIMING.headInDelayS,
+      duration: LIQUID_TIMING.headInS,
+    },
+    body: {
+      delay: LIQUID_TIMING.bodyInDelayS,
+      duration: LIQUID_TIMING.bodyInS,
+    },
+  },
+  'enter-swap': {
+    to: 1,
+    head: {
+      delay: LIQUID_TIMING.swapInDelayS,
+      duration: LIQUID_TIMING.swapInS,
+    },
+    body: {
+      delay: LIQUID_TIMING.swapInDelayS,
+      duration: LIQUID_TIMING.swapInS,
+    },
+  },
+  'exit-close': {
+    to: 0,
+    head: { delay: 0, duration: LIQUID_TIMING.contentOutS },
+    body: { delay: 0, duration: LIQUID_TIMING.contentOutS },
+  },
+  'exit-swap': {
+    to: 0,
+    head: { delay: 0, duration: LIQUID_TIMING.swapOutS },
+    body: { delay: 0, duration: LIQUID_TIMING.swapOutS },
+  },
+}
+
+/** 模糊跟透明度走同一根线；全显时不挂滤镜（⛔ 留一个 `blur(0)` 平白多一层合成）。 */
+function liquidBlur(visible: number): string {
+  if (visible >= 1) return 'none'
+  return `blur(${((1 - visible) * LIQUID_TIMING.blurPx).toFixed(2)}px)`
+}
+
+type LiquidSpring = (typeof LIQUID_SPRING)[keyof typeof LIQUID_SPRING]
+
+/** 一根液态弹簧从静止走完 `distancePx` 要多久（ms）—— 用 motion 自己的弹簧生成器算，⛔ 不另估一个数。 */
+function liquidSettleMs(config: LiquidSpring, distancePx: number): number {
+  return calcGeneratorDuration(
+    spring({
+      keyframes: [0, Math.abs(distancePx)],
+      stiffness: config.stiffness,
+      damping: config.damping,
+    }),
+  )
+}
+
+/**
+ * 形状动着时的皮：clip-path 会把 box-shadow 与描边一起裁掉 —— 阴影改由外层
+ * `drop-shadow` 画（滤镜先于裁剪执行，挂在面板自己身上会被一起裁掉），描边先透明
+ * （否则方块 / 标题条只剩左边一根发丝线），毛玻璃先不挂（动着开 backdrop-filter 会
+ * 掉帧）。落定后回到 `.canvas-glass` 原样。
+ */
+const MOVING_SHADOW_FILTER = 'drop-shadow(var(--canvas-glass-shadow))'
+const MOVING_GLASS_STYLE = {
+  boxShadow: 'none',
+  backdropFilter: 'none',
+  WebkitBackdropFilter: 'none',
+  borderColor: 'transparent',
+  willChange: 'clip-path',
+} as const
+
+/**
+ * 面板里的一份内容（标题行 + 正文）。切格的那一小段里新旧两份叠放，所以按面板 id
+ * 各挂一份；它自己只管淡入淡出与模糊，标题的纵向位置由外壳的形状给（`titleY`）。
+ */
+function ShellPanelLayer({
+  mode,
+  titleY,
+  titleRowRef,
+  inert,
+  title,
+  onClose,
+  children,
+}: {
+  readonly mode: ShellLayerMode
+  readonly titleY: MotionValue<number>
+  readonly titleRowRef?: Ref<HTMLDivElement>
+  readonly inert: boolean
+  readonly title: string
+  onClose(): void
+  readonly children: React.ReactNode
+}) {
+  const headIn = useMotionValue(mode === 'static' ? 1 : 0)
+  const bodyIn = useMotionValue(mode === 'static' ? 1 : 0)
+  const headFilter = useTransform(headIn, liquidBlur)
+  const bodyFilter = useTransform(bodyIn, liquidBlur)
+
+  useEffect(() => {
+    if (mode === 'static') {
+      headIn.jump(1)
+      bodyIn.jump(1)
+      return
+    }
+    const beat = LAYER_BEATS[mode]
+    const controls = [
+      animate(headIn, beat.to, { ...beat.head, ease: EASE_STANDARD }),
+      animate(bodyIn, beat.to, { ...beat.body, ease: EASE_STANDARD }),
+    ]
+    return () => controls.forEach((control) => control.stop())
+  }, [mode, headIn, bodyIn])
+
+  return (
+    <div inert={inert} className="absolute inset-0 flex flex-col">
+      <ShellPanelFrame
+        title={title}
+        onClose={onClose}
+        headRef={titleRowRef}
+        headStyle={{ y: titleY, opacity: headIn, filter: headFilter }}
+        bodyStyle={{ opacity: bodyIn, filter: bodyFilter }}
+      >
+        {children}
+      </ShellPanelFrame>
+    </div>
+  )
+}
+
 export interface ShellSidePanelsProps {
   /** `null` = 三个面板都收着（只剩图标栏）。 */
   readonly activePanel: CanvasShellPanelId | null
@@ -638,12 +936,308 @@ export function ShellSidePanels({
     () => onActivePanelChange(null),
     [onActivePanelChange],
   )
+  const reducedMotion = useReducedMotion() ?? false
+
+  const [liquid, setLiquid] = useState(() => settledLiquid(activePanel))
+  if (liquid.target !== activePanel) {
+    setLiquid(nextLiquid(liquid, activePanel, reducedMotion))
+  } else if (
+    reducedMotion &&
+    (liquid.phase === 'opening' || liquid.phase === 'closing')
+  ) {
+    // 动到一半用户打开了「减少动态效果」：两拍的定时器已随之撤掉，当场落到终态，
+    // ⛔ 不留一块停在半路、永远 `pointer-events: none` 的面板。
+    setLiquid(settledLiquid(liquid.target))
+  }
+  const { phase, from, origin, shown, leaving } = liquid
+  const moving = phase === 'opening' || phase === 'closing'
 
   const titleByPanel: Record<CanvasShellPanelId, string> = {
     [CANVAS_SHELL_PANEL_IDS.nodes]: t('nodes'),
     [CANVAS_SHELL_PANEL_IDS.cards]: t('cards'),
     [CANVAS_SHELL_PANEL_IDS.library]: t('library'),
   }
+
+  /** 三格图标按钮 —— 选中底块与形状的起点都从它们身上量，⛔ 不在 render 里猜。 */
+  const railSlots = useRef<
+    Partial<Record<CanvasShellPanelId, HTMLButtonElement | null>>
+  >({})
+  const panelRef = useRef<HTMLDivElement>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const titleRowRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * ── 形状 ──────────────────────────────────────────────────────────────
+   * 面板始终按全尺寸排好，只动 `clip-path: inset()`（⛔ 不动宽高与位置）。三条边
+   * 是面板自己盒子里的坐标（左边沿恒为 0）：上边沿 y、右边沿 x、下边沿 y。
+   * 收起形 = 面板左缘、与被点那一格同一行的一颗图标大小的方块 → 第一拍右边沿走满、
+   * 上下收成一条 `panelTitleStripPx` 的标题条 → `unfoldDelayS` 后上下走满。收回反着走。
+   * 圆角跟着横向进度从图标的圆角走到面板的圆角。
+   * ⚠ 静止档（`open`）是 `none`，⛔ 别在 style 上把它换成字符串：motion 的 style 从
+   *   MotionValue 换成静态值时不会解绑，DOM 上会留着最后一帧的裁剪（助手 dock
+   *   2026-09-26 用例抓到）。所以两档都走同一个值。
+   */
+  const shapeTop = useMotionValue(0)
+  const shapeRight = useMotionValue(0)
+  const shapeBottom = useMotionValue(0)
+  /**
+   * 标题行中心比标题条中心低多少。标题行骑着上边沿走（平移 = 上边沿），再减掉它，
+   * 第一拍里标题才正落在被点那一格的中线上；到顶时夹在 0，落定位置不变。
+   */
+  const titleRide = useMotionValue(0)
+  const clipPath = useTransform(() => {
+    const top = shapeTop.get()
+    const right = shapeRight.get()
+    const bottom = shapeBottom.get()
+    if (phase === 'open' || reducedMotion) return 'none'
+    const icon = CANVAS_SHELL_LAYOUT.iconButtonPx
+    const progress = Math.min(
+      1,
+      Math.max(0, (right - icon) / (CANVAS_SHELL_LAYOUT.panelWidthPx - icon)),
+    )
+    const radius =
+      CANVAS_SHELL_LAYOUT.iconButtonRadiusPx +
+      (CANVAS_SHELL_LAYOUT.glassRadiusPx -
+        CANVAS_SHELL_LAYOUT.iconButtonRadiusPx) *
+        progress
+    return `inset(${top.toFixed(2)}px calc(100% - ${right.toFixed(2)}px) calc(100% - ${bottom.toFixed(2)}px) 0px round ${radius.toFixed(2)}px)`
+  })
+  const titleY = useTransform(() => {
+    const top = shapeTop.get()
+    const ride = titleRide.get()
+    if (phase === 'open' || reducedMotion) return 0
+    return Math.max(0, top - ride)
+  })
+
+  /**
+   * ── 选中底块 ──────────────────────────────────────────────────────────
+   * 一块底在三格之间滑；上下两条边各走一根弹簧（前进方向那条 `lead`、另一条
+   * `trail`），途中自然拉长。开 / 收只淡入淡出（图标状态切换那一档 `fast`）。
+   */
+  const indicatorTop = useMotionValue(0)
+  const indicatorBottom = useMotionValue<number>(
+    CANVAS_SHELL_LAYOUT.iconButtonPx,
+  )
+  const indicatorOpacity = useMotionValue(activePanel === null ? 0 : 1)
+  const indicatorHeight = useTransform(
+    () => indicatorBottom.get() - indicatorTop.get(),
+  )
+  const indicatorPrevious = useRef<{
+    readonly phase: ShellLiquidPhase
+    readonly shown: CanvasShellPanelId | null
+  }>({ phase: 'closed', shown: null })
+
+  useLayoutEffect(() => {
+    const previous = indicatorPrevious.current
+    indicatorPrevious.current = { phase, shown }
+    if (phase === 'closed' || shown === null) {
+      indicatorOpacity.jump(0)
+      return
+    }
+    const top = railSlots.current[shown]?.offsetTop ?? 0
+    const bottom = top + CANVAS_SHELL_LAYOUT.iconButtonPx
+    const visible = phase === 'closing' ? 0 : 1
+    if (reducedMotion) {
+      indicatorTop.jump(top)
+      indicatorBottom.jump(bottom)
+      indicatorOpacity.jump(visible)
+      return
+    }
+    if (previous.phase === 'closed' || previous.shown === null) {
+      // 从全收起来点开：底块直接落在那一格，只淡入（⛔ 不从上一次的格子滑过来）。
+      indicatorTop.jump(top)
+      indicatorBottom.jump(bottom)
+    } else if (previous.shown !== shown) {
+      const down =
+        CANVAS_SHELL_PANELS.indexOf(shown) >
+        CANVAS_SHELL_PANELS.indexOf(previous.shown)
+      animate(
+        indicatorBottom,
+        bottom,
+        down ? LIQUID_SPRING.lead : LIQUID_SPRING.trail,
+      )
+      animate(
+        indicatorTop,
+        top,
+        down ? LIQUID_SPRING.trail : LIQUID_SPRING.lead,
+      )
+    }
+    animate(indicatorOpacity, visible, motionTransition('fast'))
+  }, [
+    phase,
+    shown,
+    reducedMotion,
+    indicatorTop,
+    indicatorBottom,
+    indicatorOpacity,
+  ])
+
+  /**
+   * 两拍的编排。⚠ 尺寸在 layout effect 里量（面板此刻已按全尺寸排好、还没上屏）。
+   * ⚠ 只挂在「开 / 收」上：开着时切格不改相位也不改 `origin`，这里不重跑，第二拍
+   *   的定时器不会被切格清掉。
+   */
+  useLayoutEffect(() => {
+    if (reducedMotion) return
+    if (phase === 'closed') {
+      // 下一次点开前形状是空的：面板首帧不会带着上一次的残形。
+      shapeTop.jump(0)
+      shapeRight.jump(0)
+      shapeBottom.jump(0)
+      return
+    }
+    if (phase === 'open') return
+    const panel = panelRef.current
+    if (!panel || origin === null) return
+
+    const panelTop = panel.getBoundingClientRect().top
+    const icon = CANVAS_SHELL_LAYOUT.iconButtonPx
+    const strip = CANVAS_SHELL_LAYOUT.panelTitleStripPx
+    const width = CANVAS_SHELL_LAYOUT.panelWidthPx
+    const height = panel.offsetHeight
+    const slot = railSlots.current[origin]
+    const row = slot ? slot.getBoundingClientRect().top - panelTop : 0
+    const stripTop = row + icon / 2 - strip / 2
+    const stripBottom = stripTop + strip
+    const titleRow = titleRowRef.current
+    const stack = stackRef.current
+    titleRide.jump(
+      titleRow && stack
+        ? Math.max(
+            0,
+            stack.getBoundingClientRect().top -
+              panelTop +
+              titleRow.offsetTop +
+              titleRow.offsetHeight / 2 -
+              strip / 2,
+          )
+        : 0,
+    )
+
+    let live = true
+    const timers: number[] = []
+    const later = (ms: number, run: () => void) => {
+      timers.push(window.setTimeout(run, ms))
+    }
+    const settleOpen = () => {
+      if (!live) return
+      setLiquid((current) =>
+        current.phase === 'opening'
+          ? { ...current, phase: 'open', from: 'opening' }
+          : current,
+      )
+    }
+
+    if (phase === 'opening') {
+      if (from === 'closed') {
+        shapeTop.jump(row)
+        shapeRight.jump(icon)
+        shapeBottom.jump(row + icon)
+        const stripRight = animate(shapeRight, width, LIQUID_SPRING.strip)
+        animate(shapeTop, stripTop, LIQUID_SPRING.strip)
+        animate(shapeBottom, stripBottom, LIQUID_SPRING.strip)
+        const unfoldAtMs = LIQUID_TIMING.unfoldDelayS * 1000
+        later(unfoldAtMs, () => {
+          // ⚠ 只等没被接走的那几根：第一拍的上下边沿会被第二拍打断，而 motion
+          //   被 `stop()` 的动画 `finished` 永远不 resolve。
+          void Promise.all([
+            stripRight.finished,
+            animate(shapeTop, 0, LIQUID_SPRING.unfold).finished,
+            animate(shapeBottom, height, LIQUID_SPRING.unfold).finished,
+          ]).then(settleOpen)
+        })
+        later(
+          unfoldAtMs +
+            liquidSettleMs(
+              LIQUID_SPRING.unfold,
+              Math.max(stripTop, height - stripBottom),
+            ) +
+            DURATION_MS.fast,
+          settleOpen,
+        )
+      } else {
+        // 收回途中又点开：弹簧接住此刻的位置与速度直接走满（⛔ 不跳回图标方块从头播）。
+        const distance = Math.max(
+          width - shapeRight.get(),
+          shapeTop.get(),
+          height - shapeBottom.get(),
+        )
+        const unfold = [
+          animate(shapeRight, width, LIQUID_SPRING.unfold),
+          animate(shapeTop, 0, LIQUID_SPRING.unfold),
+          animate(shapeBottom, height, LIQUID_SPRING.unfold),
+        ]
+        void Promise.all(unfold.map((control) => control.finished)).then(
+          settleOpen,
+        )
+        later(
+          liquidSettleMs(LIQUID_SPRING.unfold, distance) + DURATION_MS.fast,
+          settleOpen,
+        )
+      }
+    } else {
+      if (from === 'open') {
+        // 静止档没有裁剪（`none`），三条边从整块起步。
+        shapeTop.jump(0)
+        shapeRight.jump(width)
+        shapeBottom.jump(height)
+      }
+      const retractAtMs = LIQUID_TIMING.retractDelayS * 1000
+      const secondBeatAtMs =
+        retractAtMs + LIQUID_TIMING.retractSecondBeatDelayS * 1000
+      later(retractAtMs, () => {
+        animate(shapeTop, stripTop, LIQUID_SPRING.retract)
+        animate(shapeBottom, stripBottom, LIQUID_SPRING.retract)
+      })
+      later(secondBeatAtMs, () => {
+        animate(shapeRight, icon, LIQUID_SPRING.retract)
+        animate(shapeTop, row, LIQUID_SPRING.retract)
+        animate(shapeBottom, row + icon, LIQUID_SPRING.retract)
+      })
+      // ⚠ 卸载只认定时器（见上方相位机头注）。
+      later(
+        secondBeatAtMs +
+          liquidSettleMs(LIQUID_SPRING.retract, width - icon) +
+          DURATION_MS.fast,
+        () =>
+          setLiquid((current) =>
+            current.phase === 'closing' ? settledLiquid(null) : current,
+          ),
+      )
+    }
+    // ⚠ 只清还没发出的那几拍；已经在跑的弹簧不停 —— 下一段 `animate` 从它此刻的
+    //   位置与速度接着走（连点不从头播）。
+    return () => {
+      live = false
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [
+    phase,
+    from,
+    origin,
+    reducedMotion,
+    shapeTop,
+    shapeRight,
+    shapeBottom,
+    titleRide,
+  ])
+
+  /** 切格时叠放的旧内容：退场那一拍走完就摘掉。 */
+  useEffect(() => {
+    if (leaving === null) return
+    const timer = window.setTimeout(
+      () =>
+        setLiquid((current) =>
+          current.leaving === leaving ? { ...current, leaving: null } : current,
+        ),
+      LIQUID_TIMING.swapOutS * 1000,
+    )
+    return () => window.clearTimeout(timer)
+  }, [leaving])
+
+  const layers = [leaving, shown].filter(
+    (panel): panel is CanvasShellPanelId => panel !== null,
+  )
 
   return (
     <>
@@ -657,13 +1251,31 @@ export function ShellSidePanels({
         }}
         className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
       >
+        {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
+            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
+        <motion.span
+          aria-hidden
+          data-testid="shell-rail-indicator"
+          className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
+          style={{
+            width: CANVAS_SHELL_LAYOUT.iconButtonPx,
+            height: indicatorHeight,
+            y: indicatorTop,
+            opacity: indicatorOpacity,
+            borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
+          }}
+        />
         {CANVAS_SHELL_PANELS.map((panel) => (
           <ShellIconButton
             key={panel}
+            ref={(element) => {
+              railSlots.current[panel] = element
+            }}
             icon={PANEL_ICONS[panel]}
             label={titleByPanel[panel]}
             testId={`shell-rail-${panel}`}
             active={activePanel === panel}
+            externalActiveSurface
             onClick={() =>
               onActivePanelChange(activePanel === panel ? null : panel)
             }
@@ -671,10 +1283,8 @@ export function ShellSidePanels({
         ))}
       </div>
 
-      {activePanel === null ? null : (
+      {phase === 'closed' || shown === null ? null : (
         <div
-          data-testid="shell-side-panel"
-          data-panel={activePanel}
           style={{
             top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
             left:
@@ -683,19 +1293,56 @@ export function ShellSidePanels({
               CANVAS_SHELL_LAYOUT.panelGapPx,
             bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
             width: CANVAS_SHELL_LAYOUT.panelWidthPx,
-            borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
+            ...(moving ? { filter: MOVING_SHADOW_FILTER } : {}),
           }}
-          className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col overflow-hidden p-1.5 md:flex"
+          // 画影子的壳：只在形状动着时挂滤镜（静止档不挂 —— filter 会让它成为 fixed
+          // 子元素的包含块，也会让面板的毛玻璃只看得见壳里的东西）。
+          className="pointer-events-none absolute z-canvas-chrome hidden md:block"
         >
-          <ShellPanelFrame title={titleByPanel[activePanel]} onClose={close}>
-            {activePanel === CANVAS_SHELL_PANEL_IDS.nodes ? (
-              <CastDock query={nodeQuery} onQueryChange={onNodeQueryChange} />
-            ) : activePanel === CANVAS_SHELL_PANEL_IDS.cards ? (
-              <ShellCardsPanel onPlace={onPlaceMedia} />
-            ) : (
-              <ShellLibraryPanel onUpload={onUpload} onPlace={onPlaceMedia} />
+          <motion.div
+            ref={panelRef}
+            data-testid="shell-side-panel"
+            data-panel={shown}
+            data-phase={phase}
+            style={{
+              borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
+              clipPath,
+              ...(moving ? MOVING_GLASS_STYLE : {}),
+            }}
+            className={cn(
+              'canvas-glass flex size-full flex-col overflow-hidden p-1.5',
+              // 动着时不接点击：形状没长完就点到里面的东西，落点和看到的对不上。
+              moving ? 'pointer-events-none' : 'pointer-events-auto',
             )}
-          </ShellPanelFrame>
+          >
+            <div ref={stackRef} className="relative min-h-0 flex-1">
+              {layers.map((panel) => (
+                <ShellPanelLayer
+                  key={panel}
+                  mode={layerMode(liquid, panel)}
+                  titleY={titleY}
+                  {...(panel === shown ? { titleRowRef } : {})}
+                  inert={panel !== shown}
+                  title={titleByPanel[panel]}
+                  onClose={close}
+                >
+                  {panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
+                    <CastDock
+                      query={nodeQuery}
+                      onQueryChange={onNodeQueryChange}
+                    />
+                  ) : panel === CANVAS_SHELL_PANEL_IDS.cards ? (
+                    <ShellCardsPanel onPlace={onPlaceMedia} />
+                  ) : (
+                    <ShellLibraryPanel
+                      onUpload={onUpload}
+                      onPlace={onPlaceMedia}
+                    />
+                  )}
+                </ShellPanelLayer>
+              ))}
+            </div>
+          </motion.div>
         </div>
       )}
     </>

@@ -7,7 +7,7 @@
  * 就是同一颗（`ChromeOverview.dc.html` 三处的 inline style 逐字相同）。
  */
 
-import type { ComponentType } from 'react'
+import type { ComponentType, Ref } from 'react'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { cn } from '@/lib/utils'
@@ -18,6 +18,13 @@ export interface ShellIconButtonProps {
   readonly active?: boolean
   readonly disabled?: boolean
   readonly testId?: string
+  /**
+   * 选中底色**由容器来画**（左侧栏那块会滑动的选中底块）：按下态不再铺自己的底，
+   * 只留前景色，并抬成 `relative` 压在容器的底块之上。`aria-pressed` 照旧跟 `active`。
+   * 默认 `false` = 画板上那颗原样。
+   */
+  readonly externalActiveSurface?: boolean
+  readonly ref?: Ref<HTMLButtonElement>
   onClick(): void
 }
 
@@ -27,10 +34,13 @@ export function ShellIconButton({
   active = false,
   disabled = false,
   testId,
+  externalActiveSurface = false,
+  ref,
   onClick,
 }: ShellIconButtonProps) {
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={label}
       title={label}
@@ -47,12 +57,15 @@ export function ShellIconButton({
       // ⛔ 不用 `--node-subtle`（3.82 / 3.18，够不着正文 4.5:1 —— 实算见任务报告）。
       className={cn(
         'flex shrink-0 items-center justify-center transition-colors',
+        externalActiveSurface && 'relative',
         disabled
           ? // 禁用态用 `--node-subtle`（3.82:1）：WCAG 对 disabled 控件不设门槛，
             // 而画板上「不能撤了」正是靠这一档更浅的灰说话。
             'text-node-subtle'
           : active
-            ? 'bg-node-panel-inner text-node-foreground'
+            ? externalActiveSurface
+              ? 'text-node-foreground'
+              : 'bg-node-panel-inner text-node-foreground'
             : 'text-node-muted hover:text-node-foreground',
       )}
     >

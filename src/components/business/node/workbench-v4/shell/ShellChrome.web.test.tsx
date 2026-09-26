@@ -13,7 +13,7 @@ import {
   renderHook,
   screen,
 } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // cmdk 挂 ResizeObserver；jsdom 没有，补一个空壳（⛔ 不为此把面板换成手写列表）。
 class ResizeObserverStub {
@@ -103,8 +103,16 @@ vi.mock('@/lib/api-client', () => ({
   fetchGalleryImages: vi.fn().mockResolvedValue({ success: true, data: null }),
 }))
 
+/** 「减少动态效果」由用例自己拨；默认 `false`，与 jsdom 里没有 matchMedia 时一致。 */
+const motionPreference = vi.hoisted(() => ({ reduced: false }))
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
+  useReducedMotion: () => motionPreference.reduced,
+}))
+
 import { CANVAS_ADD_INTENT_IDS } from '@/constants/canvas-add-catalog'
 import { CANVAS_SHELL_PANEL_IDS } from '@/constants/canvas-shell'
+import { LIQUID_TIMING } from '@/constants/motion'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { fetchGalleryImages } from '@/lib/api-client'
 import {
@@ -228,6 +236,123 @@ describe('ShellSidePanels · 三面板', () => {
 
     fireEvent.click(screen.getByTestId('shell-rail-nodes'))
     expect(props.onActivePanelChange).toHaveBeenLastCalledWith(null)
+  })
+})
+
+/**
+ * 液态开合（owner 2026-09-26 定 B）：只证相位、叠放与卸载的时机。
+ *
+ * ⚠ jsdom 里没有真实的帧，形状的弹簧跑不完 —— 这正是「后台标签页 rAF 冻结」那条
+ * 路：展开得靠兜底定时器落到 `open`，收回只认定时器卸载。两条都必须自己走完。
+ */
+describe('ShellSidePanels · 液态开合', () => {
+  const baseProps = {
+    onActivePanelChange: vi.fn(),
+    nodeQuery: '',
+    onNodeQueryChange: vi.fn(),
+    onUpload: vi.fn(),
+    onPlaceMedia: vi.fn(),
+  }
+
+  function advance(ms: number) {
+    act(() => {
+      vi.advanceTimersByTime(ms)
+    })
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    motionPreference.reduced = false
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    motionPreference.reduced = false
+  })
+
+  it('开 → 切 → 关：切格不收不开、旧内容叠放一拍后摘掉；收起落定前不卸载', () => {
+    const view = render(<ShellSidePanels {...baseProps} activePanel={null} />)
+    view.rerender(
+      <ShellSidePanels
+        {...baseProps}
+        activePanel={CANVAS_SHELL_PANEL_IDS.nodes}
+      />,
+    )
+
+    const panel = screen.getByTestId('shell-side-panel')
+    expect(panel.dataset.phase).toBe('opening')
+    // 动着时不接点击；阴影挂在外层壳上（clip-path 会把 box-shadow 一起裁掉）。
+    expect(panel.className).toContain('pointer-events-none')
+    expect(panel.parentElement?.style.filter).toContain('drop-shadow')
+    // 按下底由栏里那块会滑的底块画，按钮自己不铺；aria-pressed 照旧。
+    const railButton = screen.getByTestId('shell-rail-nodes')
+    expect(railButton.getAttribute('aria-pressed')).toBe('true')
+    expect(railButton.className).not.toContain('bg-node-panel-inner')
+    expect(screen.getByTestId('shell-rail-indicator')).toBeTruthy()
+
+    advance(2000)
+    expect(panel.dataset.phase).toBe('open')
+    expect(panel.className).toContain('pointer-events-auto')
+    expect(panel.parentElement?.style.filter).toBe('')
+
+    view.rerender(
+      <ShellSidePanels
+        {...baseProps}
+        activePanel={CANVAS_SHELL_PANEL_IDS.cards}
+      />,
+    )
+    // 同一块面板、相位不动 —— 只换内容。
+    expect(screen.getByTestId('shell-side-panel')).toBe(panel)
+    expect(panel.dataset.phase).toBe('open')
+    expect(panel.dataset.panel).toBe('cards')
+    // 旧内容还叠在下面退场，且不可交互；退场那一拍走完就摘掉。
+    expect(screen.getByTestId('cast-dock').closest('[inert]')).not.toBeNull()
+    advance(LIQUID_TIMING.swapOutS * 1000)
+    expect(screen.queryByTestId('cast-dock')).toBeNull()
+
+    view.rerender(<ShellSidePanels {...baseProps} activePanel={null} />)
+    expect(panel.dataset.phase).toBe('closing')
+    expect(panel.dataset.panel).toBe('cards')
+    expect(panel.className).toContain('pointer-events-none')
+    expect(
+      screen.getByTestId('shell-rail-cards').getAttribute('aria-pressed'),
+    ).toBe('false')
+    // 形状还在收：落定前不卸载。
+    advance(
+      (LIQUID_TIMING.retractDelayS + LIQUID_TIMING.retractSecondBeatDelayS) *
+        1000,
+    )
+    expect(screen.getByTestId('shell-side-panel')).toBe(panel)
+    advance(2000)
+    expect(screen.queryByTestId('shell-side-panel')).toBeNull()
+  })
+
+  it('减少动态效果：开 / 切 / 关都直切，没有中间档', () => {
+    motionPreference.reduced = true
+    const view = render(<ShellSidePanels {...baseProps} activePanel={null} />)
+
+    view.rerender(
+      <ShellSidePanels
+        {...baseProps}
+        activePanel={CANVAS_SHELL_PANEL_IDS.nodes}
+      />,
+    )
+    const panel = screen.getByTestId('shell-side-panel')
+    expect(panel.dataset.phase).toBe('open')
+    expect(panel.className).toContain('pointer-events-auto')
+    expect(panel.parentElement?.style.filter).toBe('')
+
+    view.rerender(
+      <ShellSidePanels
+        {...baseProps}
+        activePanel={CANVAS_SHELL_PANEL_IDS.cards}
+      />,
+    )
+    expect(panel.dataset.panel).toBe('cards')
+    expect(screen.queryByTestId('cast-dock')).toBeNull()
+
+    view.rerender(<ShellSidePanels {...baseProps} activePanel={null} />)
+    expect(screen.queryByTestId('shell-side-panel')).toBeNull()
   })
 })
 

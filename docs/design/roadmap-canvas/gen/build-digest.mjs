@@ -1904,14 +1904,14 @@ const CF_NODES = [
   { id: 'purpose', tag: '已定', title: '卡片的初衷：一个角色，三处用', text: '出图 · 画布剧本 · 助手人设', x: 520, y: 0, w: 260, h: 60 },
   { id: 'lib', tag: '已定', title: '素材库挑图', text: '可跨多个文件夹挑；出图照旧进素材库', x: 0, y: 100, w: 210, h: 90 },
   { id: 'agent', tag: '已定', title: '卡片助手（第五张脸）', text: '查图存进素材库；查设定、起草设定；⛔ 自己不出图', x: 0, y: 290, w: 210, h: 100 },
-  { id: 'write', tag: '建议', title: '你手写 / 助手采访', text: '原创角色没有资料可查：助手问几个问题再整理', x: 0, y: 460, w: 210, h: 90 },
-  { id: 'distill', tag: '建议', title: '提炼', text: '自动裁出本人、去背景（编辑能力已有）；只删不加，不编细节', x: 260, y: 100, w: 210, h: 90 },
-  { id: 'draft', tag: '建议', title: '起草设定', text: '游戏角色查 wiki 起草，每条附来源，你确认', x: 260, y: 400, w: 210, h: 90 },
-  { id: 'looks', tag: '建议', title: '外观', text: '核心 3 张：脸 · 全身 · 背面（可选）+ 一句外观；⛔ 不写画风、性格', x: 520, y: 100, w: 260, h: 110 },
+  { id: 'write', tag: '已定', title: '你手写 / 助手采访', text: '原创角色没有资料可查：助手问几个问题再整理', x: 0, y: 460, w: 210, h: 90 },
+  { id: 'distill', tag: '已定', title: '提炼', text: '自动裁出本人、去背景（编辑能力已有）；只删不加，不编细节', x: 260, y: 100, w: 210, h: 90 },
+  { id: 'draft', tag: '已定', title: '起草设定', text: '游戏角色查 wiki 起草，每条附来源，你确认', x: 260, y: 400, w: 210, h: 90 },
+  { id: 'looks', tag: '已定', title: '外观', text: '核心 3 张：脸 · 全身 · 背面（可选）+ 一句外观；⛔ 不写画风、性格', x: 520, y: 100, w: 260, h: 110 },
   { id: 'tags', tag: '已定', title: '标签（给 NAI / LoRA）', text: '角色标签（例 denia_(wuthering_waves)）+ 外观标签 + LoRA 触发词；看不到图的模型靠它认人', x: 520, y: 238, w: 260, h: 110 },
-  { id: 'setting', tag: '建议', title: '设定', text: '性格 · 说话方式 · 口头禅 · 背景（字段已有，画布还没读）+ 关系 · 示例对白（09-25 推后，现拿回）', x: 520, y: 400, w: 260, h: 120 },
-  { id: 'audition', tag: '建议', title: '试镜', text: '用推荐模型出一张 + 自动打分（脸 · 头发 · 服装，打分服务已有）', x: 830, y: 100, w: 180, h: 100 },
-  { id: 'reading', tag: '建议', title: '试读', text: '让助手用她的口吻写两句，你判断像不像', x: 830, y: 400, w: 180, h: 90 },
+  { id: 'setting', tag: '已定', title: '设定', text: '性格 · 说话方式 · 口头禅 · 背景（字段已有，画布还没读）+ 关系 · 示例对白（09-25 推后，现拿回）', x: 520, y: 400, w: 260, h: 120 },
+  { id: 'audition', tag: '已定', title: '试镜', text: '用推荐模型出一张 + 自动打分（脸 · 头发 · 服装，打分服务已有）', x: 830, y: 100, w: 180, h: 100 },
+  { id: 'reading', tag: '已定', title: '试读', text: '让助手用她的口吻写两句，你判断像不像', x: 830, y: 400, w: 180, h: 90 },
   { id: 'img', tag: '已落', title: '出图', text: '看得到图的模型：参考图 + 一句外观；NAI / LoRA：送标签；选卡后标明哪种；⛔ 不读设定', x: 1060, y: 60, w: 240, h: 110 },
   { id: 'persona', tag: '已定', title: '助手人设（你的初衷）', text: '头像 = 外观里裁出的脸；语气、口头禅 = 设定。建议 ⛔ 只改措辞，不进出图提示词，不改事实和价格', x: 1060, y: 240, w: 240, h: 130 },
   { id: 'script', tag: '依赖', title: '画布剧本 / 分镜', text: '只取在场角色的设定；关系只在双方都出场时带', x: 1060, y: 440, w: 240, h: 100 },
@@ -1995,9 +1995,93 @@ const CARD_FLOW_MAP = {
       '卡片助手是**助手的第五张脸**，自己不出图；找不到好图时**先问再**交给图片助手出定妆三视图',
       '出图只在图片工作台 / 图片助手；图都在素材库，卡可以跨多个文件夹挑图',
       '卡片页的「精修」「AI 渲染成卡牌样式」**下线**',
-      '卡有**标签**（角色标签 · 外观标签 · LoRA 触发词），给 NAI / LoRA 出图用',
+      '卡有**标签**（角色标签 · 外观标签 · LoRA 触发词），给 NAI / LoRA 出图用；LoRA 只存触发词，不记对应的 LoRA',
+      '③ 整图确认（09-26），进入 ④ 界面设计',
       '出图加「照 Image N 保持」这句 —— 已落（本地提交）',
     ] },
+  ],
+}
+
+// ④ 画板：卡片界面（owner 09-26 ③ 确认 v3 关系图）。颜色只用脊柱：白 · 次级面 97% · 边 92% · 黑主色 · 三个状态色。
+const KD = {
+  panel: 'box-sizing:border-box;width:100%;border:1px solid #d4d4d4;border-radius:14px;background:#fff;padding:14px;display:flex;flex-direction:column;gap:10px',
+  card: 'border:1px solid #e5e5e5;border-radius:10px;background:#fff;padding:10px;display:flex;flex-direction:column;gap:6px',
+  soft: 'border-radius:10px;background:#f7f7f7;padding:10px;display:flex;flex-direction:column;gap:6px',
+  h: 'font-size:13px;font-weight:600;color:#0a0a0a;white-space:nowrap',
+  label: `font-size:11px;color:${MUTED}`,
+  text: 'font-size:12px;line-height:1.6;color:#0a0a0a',
+  chip: 'display:inline-block;height:22px;line-height:20px;padding:0 8px;border-radius:999px;border:1px solid #e5e5e5;background:#fff;font-size:11px;color:#404040;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box',
+  btn: 'display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:8px;background:#0a0a0a;color:#fff;font-size:12px;white-space:nowrap',
+  ghost: 'display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:8px;border:1px solid #e5e5e5;background:#fff;font-size:12px;color:#0a0a0a;white-space:nowrap',
+  ok: 'display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#eaf5ef;color:#16794c;font-size:10.5px;white-space:nowrap',
+  warn: 'display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fdf1e3;color:#a04f00;font-size:10.5px;white-space:nowrap',
+  risk: 'display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;background:#fbeaea;color:#b3261e;font-size:10.5px;white-space:nowrap',
+}
+const kdImg = (label, size = 64, tone = 0) =>
+  `<div style="width:${size}px;height:${Math.round(size * 1.25)}px;border-radius:8px;flex:none;background:${['linear-gradient(160deg,#ead7dd,#b9bcc6)', 'linear-gradient(160deg,#dcd3e8,#9aa0a8)', 'linear-gradient(160deg,#e4ddd2,#8f949c)'][tone % 3]};display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;box-sizing:border-box">${label ? `<span style="font-size:10px;color:#fff;background:rgba(0,0,0,.45);border-radius:4px;padding:1px 5px">${label}</span>` : ''}</div>`
+const kdAvatar = (size = 36) => `<span style="flex:none;width:${size}px;height:${size}px;border-radius:999px;background:linear-gradient(135deg,#ead7dd,#9aa0a8)"></span>`
+const kdHead = (extra = '') =>
+  `<div style="display:flex;align-items:center;gap:10px">${kdAvatar()}<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:15px;font-weight:600">Denia</span><span style="${KD.label}">@Denia · 鸣潮</span></div><div style="display:flex;gap:4px;flex-wrap:wrap"><span style="${KD.chip}">denia_(wuthering_waves)</span><span style="${KD.chip}">pink_hair</span><span style="${KD.chip}">＋ 标签</span></div></div><div style="margin-left:auto;display:flex;gap:6px">${extra}</div></div>`
+const kdLooksAt = (size) => `<div style="${KD.soft}"><div style="display:flex;align-items:center;gap:6px"><span style="${KD.h}">外观</span><span style="${KD.ok}">试镜 86 · 像</span><span style="margin-left:auto;${KD.label}">从素材库挑</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${kdImg('脸', size, 0)}${kdImg('全身', size, 1)}${kdImg('背面', size, 2)}<div style="width:${size}px;height:${Math.round(size * 1.25)}px;border-radius:8px;border:1px dashed #d4d4d4;display:flex;align-items:center;justify-content:center;font-size:11px;color:${MUTED}">＋ 用途图</div></div><div style="${KD.text}">粉色长卷发、发梢浅蓝；黑色发箍；白色上衣配红手套。</div></div>`
+const kdLooks = kdLooksAt(62)
+const kdSetting = `<div style="${KD.soft}"><div style="display:flex;align-items:center;gap:6px"><span style="${KD.h}">设定</span><span style="${KD.ok}">试读 · 像</span></div>${[['性格', '温柔、爱照顾人，偶尔露出狡黠'], ['说话方式', '句尾爱加「呢」，称对方「指挥官」'], ['背景', '舞台上的魔术师 · 来源 wiki[1]'], ['关系', '＋ 添加（例：@里希 · 搭档）']].map(([k, v]) => `<div style="display:flex;gap:8px;font-size:12px;line-height:1.55"><span style="width:52px;flex:none;color:${MUTED}">${k}</span><span style="min-width:0">${v}</span></div>`).join('')}</div>`
+const kdUse = `<div style="display:flex;gap:6px;flex-wrap:wrap"><span style="${KD.ghost}">设为助手人设</span><span style="${KD.ghost}">在工作台用</span><span style="${KD.ghost}">放进画布</span></div>`
+
+const KD_DIR_A = `<div style="${KD.panel}">${kdHead(`<span style="${KD.ghost}">⋯</span>`)}<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px">${kdLooksAt(44)}${kdSetting}</div>${kdUse}</div>`
+const KD_DIR_B = `<div style="${KD.panel}">${kdHead(`<span style="${KD.ghost}">⋯</span>`)}<div style="display:flex;gap:4px;border-bottom:1px solid #e5e5e5;padding-bottom:6px"><span style="${KD.chip};background:#0a0a0a;color:#fff;border-color:#0a0a0a">外观</span><span style="${KD.chip}">设定</span><span style="${KD.chip}">用在哪</span></div>${kdLooks}<div style="${KD.label}">「设定」「用在哪」各自一页；用在哪 = 出过的图 · 画布里的镜头 · 是否为助手人设</div></div>`
+const KD_DIR_C = `<div style="${KD.panel}"><div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:10px"><div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:6px">${kdAvatar(20)}<span style="font-size:12px;font-weight:600">卡片助手</span></div><div style="align-self:flex-end;max-width:85%;background:#f3f1ea;border-radius:16px 4px 16px 16px;padding:6px 10px;font-size:12px">帮我建鸣潮的 Denia</div><div style="border-radius:4px 16px 16px 16px;background:#f7f7f7;padding:8px 10px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.55">找到 6 张，2 张能用；标签是 denia_(wuthering_waves)。设定按 wiki 起草了，右边逐条确认。<div style="display:flex;gap:4px">${kdImg('可用', 40, 0)}${kdImg('可用', 40, 1)}${kdImg('脸太小', 40, 2)}</div></div></div><div style="${KD.card}"><div style="${KD.label}">卡（边聊边长）</div>${kdHead()}<div style="display:flex;gap:4px">${kdImg('脸', 40, 0)}${kdImg('全身', 40, 1)}<div style="width:40px;height:50px;border-radius:8px;border:1px dashed #d4d4d4"></div></div><div style="font-size:11.5px;line-height:1.5">性格 ✓ · 说话方式 ✓ · 背景 待确认</div></div></div></div>`
+
+const kdDir = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}">${body}</div><div style="${MOCK.cap}">${rule}</div></div>`
+const KD_DIRECTIONS = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  kdDir('K-A', '一页档案', KD_DIR_A, '点开一张卡就是一页人物档案：头部名字 · @ · 标签；下面外观、设定两栏并排，各带验证结果；底部三个去处。所有东西一屏看全。'),
+  kdDir('K-B', '分页签', KD_DIR_B, '头部相同，下面分「外观 / 设定 / 用在哪」三页。每页更宽松；「用在哪」集中列出这张卡出过的图、在哪些画布镜头里、是不是助手人设。'),
+  kdDir('K-C', '边聊边建', KD_DIR_C, '卡片页左边就是卡片助手（第五张脸），右边是随对话长出来的卡；手动编辑也在右边。建卡以对话为主，看卡时右边展开成 K-A 的样子。'),
+].join('')}</div>`
+
+const kdState = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}"><div style="${KD.panel}">${body}</div></div><div style="${MOCK.cap}">${rule}</div></div>`
+const KD_STATES = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  kdState('S1', '空态', `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 0"><div style="font-size:14px;font-weight:600">还没有角色</div><div style="${KD.label}">说一个名字，助手去找图和设定；或者直接从素材库挑图</div><div style="display:flex;gap:6px"><span style="${KD.btn}">说个名字</span><span style="${KD.ghost}">从素材库挑图</span></div></div>`, '两个入口：交给卡片助手，或自己从素材库挑。'),
+  kdState('S2', '从素材库挑图', `<div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="color:${MUTED}">素材</span>›<span style="color:${MUTED}">无限大</span>›<b>里希</b><span style="margin-left:auto;${KD.label}">可跨文件夹</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${[['可用', 'ok'], ['脸太小', 'warn'], ['有别人', 'risk'], ['有游戏 UI', 'risk'], ['可用', 'ok'], ['可裁出本人', 'warn']].map(([t, k], i) => `<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">${kdImg('', 52, i)}<span style="${KD[k]}">${t}</span></div>`).join('')}</div><div style="display:flex;gap:6px;align-items:center;border-top:1px solid #e5e5e5;padding-top:8px"><span style="${KD.label}">脸</span>${kdImg('', 30, 0)}<span style="${KD.label}">全身</span><div style="width:30px;height:38px;border-radius:6px;border:1px dashed #d4d4d4"></div><span style="margin-left:auto;${KD.btn}">放进卡</span></div>`, '每张图带一个质检标：可用 / 脸太小 / 有别人 / 有文字或 UI / 可裁出本人。底部是卡的三个槽，点图放进当前槽。'),
+  kdState('S3', '提炼：裁出本人', `<div style="display:flex;gap:10px;align-items:center">${kdImg('原图', 70, 1)}<span style="font-size:16px;color:${MUTED}">→</span>${kdImg('裁好', 70, 0)}</div><div style="${KD.text}">自动裁出本人、去掉背景，只删不加。</div><div style="display:flex;gap:6px"><span style="${KD.btn}">用裁好的</span><span style="${KD.ghost}">用原图</span></div>`, '「可裁出本人」的图点进来是这一步；⛔ 不重画、不补细节。'),
+  kdState('S4', '试镜结果', `<div style="display:flex;gap:8px">${kdImg('参考', 56, 0)}${kdImg('试镜', 56, 1)}<div style="display:flex;flex-direction:column;gap:4px;font-size:12px"><div>脸 <b>88</b></div><div>头发 <b>92</b></div><div>服装 <b style="color:#a04f00">61</b></div></div></div><div style="${KD.text}">服装拖后腿：全身图被裁掉了一半，换一张完整的全身图？</div><div style="display:flex;gap:6px"><span style="${KD.btn}">换全身图</span><span style="${KD.ghost}">先这样</span></div>`, '建卡后可选试镜一次（花一次出图，先报价）；分数分项给，指出哪张图拖后腿。'),
+  kdState('S5', '设定起草 · 带来源', `${[['性格', '温柔、爱照顾人', '[1]'], ['说话方式', '称对方「指挥官」', '[1]'], ['背景', '舞台魔术师', '[2]']].map(([k, v, c]) => `<div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:56px;color:${MUTED}">${k}</span><span style="flex:1">${v} <sup style="color:${MUTED}">${c}</sup></span><span style="${KD.ghost};height:22px;padding:0 8px">✓</span></div>`).join('')}<div style="${KD.label}">[1] 鸣潮 wiki · 角色页 [2] 官方角色 PV 简介</div>`, '游戏角色由助手查资料起草，每条带来源，逐条打勾确认；原创角色改成助手问几个问题。'),
+  kdState('S6', '试读', `<div style="${KD.label}">用 Denia 的口吻说两句</div><div style="border-radius:4px 16px 16px 16px;background:#f7f7f7;padding:8px 10px;font-size:12px;line-height:1.6">「指挥官，今天的舞台也请好好看着我呢。」<br>「嘘——魔术的秘密，可不能告诉你。」</div><div style="display:flex;gap:6px"><span style="${KD.btn}">像她</span><span style="${KD.ghost}">不像，改说话方式</span></div>`, '和试镜对称：不花出图钱，一眼判断设定写得像不像。'),
+  kdState('S7', '工作台选卡：模型提示', `<div style="display:flex;align-items:center;gap:6px">${kdAvatar(20)}<span style="font-size:12px;font-weight:600">@Denia</span><span style="${KD.label}">已选</span></div>${[['GPT Image 2', '看得到 3 张卡图', 'ok'], ['NovelAI V5 Full', '认得 denia_(wuthering_waves)', 'ok'], ['NovelAI V5 Curated', '不认得这个标签，可能不像', 'warn'], ['FLUX LoRA', '只看文字，可能不像', 'warn']].map(([m, t, k]) => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-top:1px solid #f0f0f0"><span style="flex:1">${m}</span><span style="${KD[k]}">${t}</span></div>`).join('')}`, '选了卡，模型列表逐个标：看得到几张图 / 认不认得标签 / 只看文字。默认推荐看得到图的。'),
+  kdState('S8', '助手人设用卡', `<div style="${KD.h}">助手人设</div><div style="display:flex;gap:6px"><span style="${KD.chip}">简洁</span><span style="${KD.chip}">标准</span><span style="${KD.chip};background:#0a0a0a;color:#fff;border-color:#0a0a0a">用角色卡</span></div><div style="display:flex;align-items:center;gap:8px">${kdAvatar(28)}<div style="font-size:12px;line-height:1.5"><b>Denia</b><br><span style="color:${MUTED}">头像取外观里的脸 · 语气取设定里的说话方式</span></div></div><div style="border-radius:4px 16px 16px 16px;background:#f7f7f7;padding:6px 10px;font-size:12px">指挥官，这张图出好了呢。</div><div style="${KD.label}">只改措辞；提示词、价格、报错照常说清楚</div>`, '在现有的人设三档旁边多一档「用角色卡」；右上角收起态头像同步换成她。'),
+  kdState('S9', '卡片助手在壳里', `<div style="display:flex;align-items:center;gap:6px">${kdAvatar(20)}<span style="font-size:12px;font-weight:600">卡片助手</span><span style="${KD.label}">第五张脸</span></div><div style="align-self:flex-end;background:#f3f1ea;border-radius:16px 4px 16px 16px;padding:6px 10px;font-size:12px">里希缺一张背面图</div><div style="border-radius:4px 16px 16px 16px;background:#f7f7f7;padding:8px 10px;font-size:12px;line-height:1.55">素材库里没有合格的背面。可以交给图片助手出一张定妆三视图，约 $0.04。<div style="display:flex;gap:6px;margin-top:6px"><span style="${KD.btn}">交给图片助手</span><span style="${KD.ghost}">先不要</span></div></div>`, '同一个助手壳、同一套对话框（B-C）；自己不出图，要出图就报价后交给图片助手。'),
+].join('')}</div>`
+
+const KD_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#f4f4f1;padding:10px"><div style="${KD.panel}">${kdHead()}<div style="display:flex;gap:6px;overflow:hidden">${kdImg('脸', 56, 0)}${kdImg('全身', 56, 1)}${kdImg('背面', 56, 2)}${kdImg('用途', 56, 0)}</div>${kdSetting}${kdUse}</div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：一页档案竖排——头部 → 外观（图横向滑）→ 设定 → 去处。质检标、按钮点击区 ≥ 44；挑图面板是底部抽屉，三个槽固定在抽屉底；试镜 / 试读结果用底部抽屉，不弹中间对话框。</div></div>`
+
+const CARD_UI = {
+  file: 'DesignCardUi.dc.html',
+  title: '卡片 · ④ 全状态',
+  eyebrow: 'PixelVault · 7 卡片重设计 · ④ 画板 · 2026-09-26',
+  heading: '卡片界面：一个角色的档案',
+  sub: 'owner 09-26 ③ 确认 v3：一个角色三处用（出图 · 画布剧本 · 助手人设），卡分外观（图 + 一句 + 标签）与设定两半；卡片助手是第五张脸、自己不出图；图都在素材库、可跨文件夹挑；卡片页精修 / AI 渲染下线；LoRA 只存触发词。三个方向只差卡片页怎么排，状态、手机、动效共用。颜色只用脊柱：你的气泡是输入条象牙，质检标用三个状态色。',
+  blocks: [
+    h('① 卡片页：三个方向'),
+    { t: 'mock', html: KD_DIRECTIONS, md: '三个方向：K-A 一页档案（外观、设定两栏并排，一屏看全）· K-B 分页签（外观 / 设定 / 用在哪）· K-C 边聊边建（左卡片助手、右随对话长出的卡）。' },
+    h('② 状态'),
+    { t: 'mock', html: KD_STATES, md: '9 态：S1 空态（说名字 / 从素材库挑）· S2 挑图面板（每张带质检标，底部三个槽）· S3 提炼裁出本人（只删不加）· S4 试镜结果（分项打分，指出拖后腿的图）· S5 设定起草带来源逐条确认 · S6 试读（口吻两句）· S7 工作台选卡后模型逐个标能不能认人 · S8 助手人设多一档「用角色卡」· S9 卡片助手在壳里，出图报价后交给图片助手。' },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:12px">${KD_PHONE}</div>`, md: '手机：档案竖排；挑图、试镜、试读走底部抽屉；点击区 ≥ 44。' },
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['图放进槽', '`--duration-base` 200ms · `ease-standard`', '缩略图 opacity 0→1 + scale .96→1', '不从网格飞到槽里'],
+        ['质检标出现', '`--duration-fast` 120ms', '标签 opacity 0→1', '不闪、不抖'],
+        ['裁出本人（原图 → 裁好）', '`--duration-base`', '交叉淡换', '不做形变动画'],
+        ['试镜打分出来', '—', '分数直接出现，拖后腿那项用警告色', '不做数字滚动'],
+        ['K-C 卡随对话长', '`--duration-base`', '新填的一格 opacity 0→1', '整卡不重排动画'],
+        ['切人设为角色卡', '`--duration-base`', '收起态头像交叉淡换', '不旋转、不弹'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
   ],
 }
 
@@ -2090,7 +2174,7 @@ export const PAGES = [
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
   { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI] },
-  { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP] },
+  { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP, CARD_UI] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -459,9 +459,12 @@ export async function listCharacterCards(
     where: { userId: dbUser.id, isDeleted: false, parentId: null },
     orderBy: { updatedAt: 'desc' },
     include: {
+      // 角色页按张数排名：卡上的图 + 用她出过的图（owner 09-26）。
+      _count: { select: { generationLinks: true } },
       variants: {
         where: { isDeleted: false },
         orderBy: { updatedAt: 'desc' },
+        include: { _count: { select: { generationLinks: true } } },
       },
     },
   })

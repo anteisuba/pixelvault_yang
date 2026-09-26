@@ -9,7 +9,7 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { EASE_STANDARD, LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import type {
@@ -29,6 +29,10 @@ import {
 } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterSampleLines } from '@/hooks/cards/use-character-sample-lines'
+import {
+  workLabelFromTag,
+  workTagFromCharacterTag,
+} from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
 /** 侧栏里这份内容是怎么来的：随侧栏展开进场 / 开着时换角色 / 已经在那。 */
@@ -423,6 +427,12 @@ function CharacterCardEditor({
   const t = useTranslations('CharacterRoster')
   const editor = useCharacterCardEditor(card)
   const { draft, patch } = editor
+  const locale = useLocale()
+  const tagWork = draft.characterTags
+    .split(/[,，\n]/)
+    .map((tag) => workTagFromCharacterTag(tag))
+    .find((tag): tag is string => tag !== null)
+  const tagWorkLabel = tagWork ? workLabelFromTag(tagWork, locale) : null
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   /** 素材库选择器开着时在做什么：加几张，或换掉某一格。 */
@@ -521,15 +531,28 @@ function CharacterCardEditor({
             <span className={LABEL}>{t('fieldCharacterTags')}</span>
             <Input
               value={draft.characterTags}
-              placeholder="denia_(wuthering_waves)"
+              placeholder={t('example', { value: 'denia_(wuthering_waves)' })}
               onChange={(event) => patch({ characterTags: event.target.value })}
             />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={LABEL}>{t('fieldWork')}</span>
+            <Input
+              value={draft.work}
+              placeholder={tagWorkLabel ?? t('workOriginal')}
+              onChange={(event) => patch({ work: event.target.value })}
+            />
+            <span className={LABEL}>
+              {tagWorkLabel
+                ? t('workFromTag', { work: tagWorkLabel })
+                : t('workNoTag')}
+            </span>
           </label>
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t('fieldAppearanceTags')}</span>
             <Input
               value={draft.appearanceTags}
-              placeholder="pink_hair, red_gloves"
+              placeholder={t('example', { value: 'pink_hair, red_gloves' })}
               onChange={(event) =>
                 patch({ appearanceTags: event.target.value })
               }

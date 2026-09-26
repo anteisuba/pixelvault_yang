@@ -63,6 +63,8 @@ function card(
     ],
     persona: null,
     cardTags: { character: [], appearance: [], loraTrigger: '' },
+    workOverride: null,
+    generationCount: 0,
     createdAt: new Date(0),
     updatedAt: new Date(0),
     ...overrides,

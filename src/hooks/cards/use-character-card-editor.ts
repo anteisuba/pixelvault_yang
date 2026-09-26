@@ -33,6 +33,8 @@ export interface CharacterCardDraft {
   characterTags: string
   appearanceTags: string
   loraTrigger: string
+  /** 作品手改值；空 = 从角色标签取。 */
+  work: string
   slots: CharacterReferenceSlot[]
 }
 
@@ -53,6 +55,7 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     characterTags: card.cardTags.character.join(', '),
     appearanceTags: card.cardTags.appearance.join(', '),
     loraTrigger: card.cardTags.loraTrigger,
+    work: card.workOverride ?? '',
     slots: card.referenceSlots,
   }
 }
@@ -82,6 +85,9 @@ export function updateFromDraft(
         appearance: splitTags(draft.appearanceTags),
         loraTrigger: draft.loraTrigger.trim(),
       },
+      // 清空 = 删键（回到从标签取）。
+      [CARD_EXTENSIONS.KEYS.work]:
+        draft.work.trim().slice(0, CARD_EXTENSIONS.WORK_MAX_LENGTH) || null,
     },
     ...(draft.slots.length ? { referenceSlots: draft.slots } : {}),
   }

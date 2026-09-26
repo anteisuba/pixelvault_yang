@@ -86,7 +86,11 @@ export const CARD_EXTENSIONS = {
     negative: 'pv.negative',
     /** 标签：给 NovelAI / LoRA 这类只认标签的模型（owner 09-26）。 */
     tags: 'pv.tags',
+    /** 作品手改值（角色页按作品分组；没有就从角色标签括号里取，owner 09-26）。 */
+    work: 'pv.work',
   },
+  /** 作品名最长多少字符。 */
+  WORK_MAX_LENGTH: 60,
   /** 标签的上限。 */
   TAG_MAX_LENGTH: 80,
   MAX_CHARACTER_TAGS: 20,

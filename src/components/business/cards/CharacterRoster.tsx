@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
-import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
+import { LIQUID_TIMING } from '@/constants/motion'
 import type { CharacterCardRecord, CreateCharacterCardRequest } from '@/types'
 import { Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import {
   type CharacterPanelEntry,
 } from '@/components/business/cards/CharacterCardPanel'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
+import { CharacterOverview } from '@/components/business/cards/CharacterOverview'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -77,7 +78,11 @@ export function CharacterRoster() {
   const [isCreating, setIsCreating] = useState(false)
 
   const stageRef = useRef<HTMLDivElement>(null)
-  const tileImageRefs = useRef(new Map<string, HTMLDivElement>())
+  const tileImageRefs = useRef(new Map<string, HTMLElement>())
+  const registerTile = useCallback((id: string, node: HTMLElement | null) => {
+    if (node) tileImageRefs.current.set(id, node)
+    else tileImageRefs.current.delete(id)
+  }, [])
   const reveal = useLiquidReveal({
     reducedMotion,
     stripHeightPx: STRIP_HEIGHT_PX,
@@ -212,24 +217,6 @@ export function CharacterRoster() {
           gridShifted && 'lg:pr-104',
         )}
       >
-        <header className="mb-6 flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t('title')}
-          </h1>
-          <span className="text-sm text-muted-foreground">
-            {items.length || ''}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            className="ml-auto"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="size-4" />
-            {t('newCharacter')}
-          </Button>
-        </header>
-
         {characters.isLoading ? (
           <div className="flex justify-center py-16">
             <Spinner size="lg" className="text-muted-foreground" />
@@ -251,65 +238,23 @@ export function CharacterRoster() {
             }
           />
         ) : (
-          <div className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {items.map(({ card, parentName }) => {
-              const cover = card.referenceSlots[0]?.url ?? card.sourceImageUrl
-              const isSelected = card.id === activeId
-              return (
-                <motion.button
-                  key={card.id}
-                  type="button"
-                  layout={!reducedMotion}
-                  transition={LIQUID_SPRING.unfold}
-                  onClick={() => openCharacter(card.id)}
-                  aria-pressed={isSelected}
-                  data-testid="roster-tile"
-                  className="flex flex-col gap-2.5 text-left"
-                >
-                  <div
-                    ref={(node) => {
-                      if (node) tileImageRefs.current.set(card.id, node)
-                      else tileImageRefs.current.delete(card.id)
-                    }}
-                    className="relative aspect-4/5 w-full rounded-xl bg-muted"
-                  >
-                    {cover ? (
-                      <Image
-                        src={cover}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 220px, 45vw"
-                        className="rounded-xl object-cover"
-                      />
-                    ) : null}
-                    {isSelected ? (
-                      <motion.span
-                        layoutId="character-roster-selection"
-                        transition={LIQUID_SPRING.lead}
-                        aria-hidden
-                        className="pointer-events-none absolute -inset-1 rounded-2xl border-2 border-foreground"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold">
-                      {card.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {parentName
-                        ? t('variantOf', {
-                            parent: parentName,
-                            label: card.variantLabel ?? '',
-                          })
-                        : card.handle
-                          ? `@${card.handle}`
-                          : ''}
-                    </p>
-                  </div>
-                </motion.button>
-              )
-            })}
-          </div>
+          <CharacterOverview
+            items={items}
+            activeId={activeId}
+            reducedMotion={reducedMotion}
+            onOpen={openCharacter}
+            registerTile={registerTile}
+            actions={
+              <Button
+                type="button"
+                className="shrink-0 rounded-full"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="size-4" />
+                {t('newCharacter')}
+              </Button>
+            }
+          />
         )}
       </div>
 

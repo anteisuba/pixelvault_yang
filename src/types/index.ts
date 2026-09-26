@@ -3599,6 +3599,10 @@ export interface CharacterCardRecord {
   persona: CharacterPersona | null
   /** 标签（`extensions['pv.tags']`）。 */
   cardTags: CardTags
+  /** 作品手改值（`extensions['pv.work']`）；null = 从角色标签取。 */
+  workOverride: string | null
+  /** 用这个角色出过几张图（生成 ↔ 角色关联表计数；只在列表里算，其余为 0）。 */
+  generationCount: number
   createdAt: Date
   updatedAt: Date
 }

@@ -46,6 +46,7 @@ const CARD = {
     loraTrigger: '',
   },
   referenceSlots: [slot('a', { isPrimary: true }), slot('b')],
+  workOverride: null,
 } as unknown as CharacterCardRecord
 
 describe('makePrimary / removeSlot', () => {
@@ -159,7 +160,17 @@ describe('updateFromDraft', () => {
         appearance: ['pink_hair'],
         loraTrigger: 'dnw',
       },
+      // 作品没填 = 删键，回到从角色标签取。
+      'pv.work': null,
     })
     expect(update.referenceSlots).toHaveLength(2)
+  })
+
+  it('作品手改值写进 pv.work', () => {
+    const update = updateFromDraft(CARD, {
+      ...draftFromCard(CARD),
+      work: '  鸣潮 ',
+    })
+    expect(update.extensions?.['pv.work']).toBe('鸣潮')
   })
 })

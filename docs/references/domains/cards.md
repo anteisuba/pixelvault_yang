@@ -121,6 +121,13 @@
 
 **施工第 6 片（从素材库挑图）**：「添加图片」「换一张」都打开共享的 `AssetSelectorDialog`（锁图片；加 = 多选、容量传剩余格数，换 = 单选）；可跨文件夹挑，新图在选择器首格上传、先进素材库。卡片侧 ⛔ 不另开上传。已在卡上的图不重复挂（url 不重复是槽的不变量）；来源按生成的 provider 记 `upload` / `generation`。侧栏的 Esc 让叠在上面的弹层先吃（`defaultPrevented` 就不收侧栏）。
 
+**角色页 · 方向 A（owner 09-26 选 A，参考 Illustash 角色页；原型 https://claude.ai/artifact/QUmgqtBUMP5f5pGfgrGSJc）**：「卡片」改名「角色」（全站字样，单独一片）；角色分两个模块——图片展示 + 文字描述。
+
+- **A1 总览**（`CharacterOverview`）：标题行「N 位角色 · M 部作品」+ 搜索；作品 chip（总览 + 各作品，带张数）；「用得最多」按张数排前 5（第 1 名占 2×2）；作品书架（张数前三位扇形叠放）；点 chip / 书架只看这部作品。**只有一位时不排名次**：一张大图 + 一句提示。
+- **张数** = 卡上的图 + 用她出过的图（`GenerationCharacterCard` 计数，列表接口 `_count.generationLinks` → `generationCount`）。画布里把她的图当参考图发出去的不算（没走角色关联）。
+- **作品**：手改值 `extensions['pv.work']`（`workOverride`，清空 = 删键）→ 第一个角色标签最后一组括号（`denia_(wuthering_waves)` → `wuthering_waves`，三语名表 `constants/cards/character-works.ts`，表外还原成词）→ 原创。分组按显示名认（`lib/character-works.ts`）。
+- A2 整页详情（左图右文，替掉侧栏）· A3 全站改名 · 之后第 5 片「用她」/ 助手设置选角色。
+
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
 3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。

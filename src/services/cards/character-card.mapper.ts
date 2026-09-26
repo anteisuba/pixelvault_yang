@@ -58,6 +58,7 @@ export interface DbCharacterCardRow {
   createdAt: Date
   updatedAt: Date
   variants?: DbCharacterCardRow[]
+  _count?: { generationLinks: number }
   /** 卡片总线 v3 的新列；老的测试夹具与窄 select 里可能没有。 */
   handle?: string | null
   referenceSlots?: unknown
@@ -154,6 +155,14 @@ function readCardTags(extensions: unknown): CardTags {
     : { character: [], appearance: [], loraTrigger: '' }
 }
 
+function readWorkOverride(extensions: unknown): string | null {
+  const value =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[CARD_EXTENSIONS.KEYS.work]
+      : undefined
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 export function mapCharacterCardRow(
   row: DbCharacterCardRow,
 ): CharacterCardRecord {
@@ -197,6 +206,8 @@ export function mapCharacterCardRow(
       null,
     ),
     cardTags: readCardTags(row.extensions),
+    workOverride: readWorkOverride(row.extensions),
+    generationCount: row._count?.generationLinks ?? 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

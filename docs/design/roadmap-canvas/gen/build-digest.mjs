@@ -2055,6 +2055,31 @@ const KD_STATES = `<div style="margin-top:14px;display:grid;grid-template-column
 
 const KD_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#f4f4f1;padding:10px"><div style="${KD.panel}">${kdHead()}<div style="display:flex;gap:6px;overflow:hidden">${kdImg('脸', 56, 0)}${kdImg('全身', 56, 1)}${kdImg('背面', 56, 2)}${kdImg('用途', 56, 0)}</div>${kdSetting}${kdUse}</div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：一页档案竖排——头部 → 外观（图横向滑）→ 设定 → 去处。质检标、按钮点击区 ≥ 44；挑图面板是底部抽屉，三个槽固定在抽屉底；试镜 / 试读结果用底部抽屉，不弹中间对话框。</div></div>`
 
+// v2（owner 09-26「太挤」）：一页一个主角 · 不框里套框 · 次要的收起来 · 三个去处合成一个「用她…」
+const KQ = {
+  page: 'box-sizing:border-box;width:100%;border:1px solid #d4d4d4;border-radius:16px;background:#fff;padding:40px 48px;display:flex;flex-direction:column;gap:28px',
+  eyebrow: `font-size:12px;color:${MUTED};letter-spacing:.02em`,
+  name: 'font-size:28px;font-weight:600;letter-spacing:-.01em;color:#0a0a0a',
+  sub: `font-size:14px;color:${MUTED}`,
+  body: 'font-size:15px;line-height:1.75;color:#262626',
+  sect: 'font-size:13px;font-weight:600;color:#0a0a0a',
+  primary: 'display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;background:#0a0a0a;color:#fff;font-size:14px;white-space:nowrap',
+  quiet: `display:inline-flex;align-items:center;height:36px;padding:0 4px;font-size:14px;color:${MUTED};white-space:nowrap`,
+}
+const kqImg = (w, h, tone = 0, label = '') =>
+  `<div style="width:${w}px;height:${h}px;border-radius:14px;flex:none;background:${['linear-gradient(160deg,#ead7dd,#b9bcc6)', 'linear-gradient(160deg,#dcd3e8,#9aa0a8)', 'linear-gradient(160deg,#e4ddd2,#8f949c)'][tone % 3]};display:flex;align-items:flex-end;padding:10px;box-sizing:border-box">${label ? `<span style="font-size:12px;color:#fff">${label}</span>` : ''}</div>`
+const kqAvatar = (size) => `<span style="flex:none;width:${size}px;height:${size}px;border-radius:999px;background:linear-gradient(135deg,#ead7dd,#9aa0a8)"></span>`
+const kqUse = `<div style="display:flex;align-items:center;gap:16px"><span style="${KQ.primary}">用她 ▾</span><span style="${KQ.quiet}">编辑</span></div>`
+const kqSetting = `<div style="display:flex;flex-direction:column;gap:10px;max-width:520px"><div style="${KQ.sect}">设定</div><div style="${KQ.body}">温柔、爱照顾人，偶尔露出一点狡黠。舞台上的魔术师，说话句尾爱加「呢」，叫你「指挥官」。</div></div>`
+
+const KQ_A = `<div style="${KQ.page};align-items:center;text-align:center">${kqAvatar(112)}<div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="${KQ.name}">Denia</div><div style="${KQ.sub}">@Denia · 鸣潮</div></div>${kqUse}<div style="display:flex;gap:16px;justify-content:center">${kqImg(170, 220, 0, '脸')}${kqImg(170, 220, 1, '全身')}${kqImg(170, 220, 2, '背面')}</div><div style="display:flex;flex-direction:column;align-items:center">${kqSetting}</div><div style="${KQ.quiet}">标签 · 试镜 · 来源 ›</div></div>`
+const KQ_B = `<div style="${KQ.page};flex-direction:row;gap:48px;align-items:flex-start">${kqImg(380, 500, 1)}<div style="display:flex;flex-direction:column;gap:24px;flex:1;min-width:0;padding-top:8px"><div style="display:flex;flex-direction:column;gap:6px"><div style="${KQ.eyebrow}">鸣潮</div><div style="${KQ.name}">Denia</div><div style="${KQ.sub}">@Denia</div></div>${kqUse}<div style="display:flex;gap:10px">${kqImg(72, 92, 0)}${kqImg(72, 92, 2)}</div>${kqSetting}<div style="${KQ.quiet}">标签 · 试镜 · 来源 ›</div></div></div>`
+const KQ_C = `<div style="${KQ.page};flex-direction:row;gap:0;padding:0;overflow:hidden"><div style="flex:1;padding:36px 40px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px 22px;align-content:start">${['Denia', '里希', '爱弥斯', '星街', '绯雪', 'CardifyTest'].map((n, i) => `<div style="display:flex;flex-direction:column;gap:8px">${kqImg(170, 210, i)}<div style="font-size:14px;font-weight:600">${n}</div></div>`).join('')}</div><div style="width:400px;flex:none;border-left:1px solid #e5e5e5;padding:36px 32px;display:flex;flex-direction:column;gap:22px;background:#fff"><div style="display:flex;align-items:center;gap:14px">${kqAvatar(64)}<div><div style="font-size:22px;font-weight:600">Denia</div><div style="${KQ.sub}">@Denia · 鸣潮</div></div></div>${kqUse}${['外观 · 3 张图 ›', '设定 ›', '用在哪 · 12 张图 · 2 个镜头 ›'].map((t) => `<div style="font-size:15px;padding:14px 0;border-top:1px solid #f0f0f0">${t}</div>`).join('')}</div></div>`
+
+const kqDir = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:10px;margin-top:18px"><div style="font-size:14px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}">${body}</div><div style="${MOCK.cap};max-width:900px">${rule}</div></div>`
+const KQ_DIRECTIONS = `${kqDir('K1', '名片', KQ_A, '居中：大头像、名字，一个「用她 ▾」（设为助手人设 · 在工作台用 · 放进画布）；下面三张大图，再下面两三行读得下去的设定。标签、试镜分数、资料来源都收进最底下那一行，点开才看。')}${kqDir('K2', '左图右文', KQ_B, '左边一张大全身图，右边名字、「用她 ▾」、另外两张小图、设定一段话。像一本画册的一页；图大、字少。')}${kqDir('K3', '网格 + 侧栏', KQ_C, '卡片页就是一排角色大图；点一个，右侧滑出一栏：头像名字、「用她 ▾」，下面三行可展开（外观 · 设定 · 用在哪），一次只开一行。')}`
+
 const CARD_UI = {
   file: 'DesignCardUi.dc.html',
   title: '卡片 · ④ 全状态',
@@ -2062,8 +2087,9 @@ const CARD_UI = {
   heading: '卡片界面：一个角色的档案',
   sub: 'owner 09-26 ③ 确认 v3：一个角色三处用（出图 · 画布剧本 · 助手人设），卡分外观（图 + 一句 + 标签）与设定两半；卡片助手是第五张脸、自己不出图；图都在素材库、可跨文件夹挑；卡片页精修 / AI 渲染下线；LoRA 只存触发词。三个方向只差卡片页怎么排，状态、手机、动效共用。颜色只用脊柱：你的气泡是输入条象牙，质检标用三个状态色。',
   blocks: [
-    h('① 卡片页：三个方向'),
-    { t: 'mock', html: KD_DIRECTIONS, md: '三个方向：K-A 一页档案（外观、设定两栏并排，一屏看全）· K-B 分页签（外观 / 设定 / 用在哪）· K-C 边聊边建（左卡片助手、右随对话长出的卡）。' },
+    h('① 卡片页：三个方向（v2，按真实尺寸画）'),
+    note('owner 09-26：v1 太挤。原因不是间距，是一页想把所有事同时交代：框里套框、标签 · 分数 · 来源 · 三个按钮挤在同一层。v2 四条：**一页一个主角**（她的脸和名字最大）· **不框里套框**（只靠留白和小标题分区）· **次要的收起来**（标签 · 试镜分数 · 来源平时不出现，分数只在有问题时出现）· **三个去处合成一个「用她 ▾」**。下面的状态板仍是 v1 的密度，选定方向后按同一原则重画。'),
+    { t: 'mock', html: KQ_DIRECTIONS, md: 'v2 三个方向：K1 名片（居中大头像 · 名字 · 用她 ▾ · 三张大图 · 两三行设定；标签 / 试镜 / 来源收进底部一行）· K2 左图右文（左大全身图，右名字 · 用她 ▾ · 两张小图 · 设定一段话）· K3 网格 + 侧栏（卡片页是角色大图网格，点一个右侧滑出，外观 / 设定 / 用在哪三行可展开，一次只开一行）。' },
     h('② 状态'),
     { t: 'mock', html: KD_STATES, md: '9 态：S1 空态（说名字 / 从素材库挑）· S2 挑图面板（每张带质检标，底部三个槽）· S3 提炼裁出本人（只删不加）· S4 试镜结果（分项打分，指出拖后腿的图）· S5 设定起草带来源逐条确认 · S6 试读（口吻两句）· S7 工作台选卡后模型逐个标能不能认人 · S8 助手人设多一档「用角色卡」· S9 卡片助手在壳里，出图报价后交给图片助手。' },
     h('手机'),

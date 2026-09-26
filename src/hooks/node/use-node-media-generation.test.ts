@@ -76,6 +76,27 @@ afterEach(() => {
 })
 
 describe('useNodeMediaGeneration', () => {
+  it('preserves confirmed cancellation separately from provider failure', async () => {
+    vi.mocked(studioGenerateAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-cancelled', requestId: 'request-cancelled' },
+    })
+    vi.mocked(checkImageGenerationStatusAPI).mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-cancelled', status: 'CANCELLED' },
+    })
+    const { result } = renderHook(() => useNodeMediaGeneration())
+    await act(async () => {
+      expect(
+        await result.current.generate({
+          kind: 'image',
+          modelId: IMAGE_GENERATION.model,
+          prompt: IMAGE_GENERATION.prompt,
+        }),
+      ).toMatchObject({ success: false, cancelled: true })
+    })
+  })
+
   it('generates image media through studioGenerateAPI', async () => {
     vi.mocked(studioGenerateAPI).mockResolvedValue({
       success: true,

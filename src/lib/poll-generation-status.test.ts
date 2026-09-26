@@ -154,6 +154,7 @@ it('stops polling immediately when the server confirms cancellation', async () =
     .mockResolvedValue({ success: true, data: { status: 'CANCELLED' } })
   expect(await pollGenerationStatus('job', probe, CONFIG)).toMatchObject({
     status: 'failed',
+    cancelled: true,
   })
   expect(probe).toHaveBeenCalledTimes(1)
 })

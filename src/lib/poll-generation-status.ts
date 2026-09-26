@@ -25,7 +25,13 @@ export type GenerationStatusProbe = (
 
 export type GenerationPollOutcome =
   | { status: 'completed'; generation: GenerationRecord }
-  | { status: 'failed'; error: string; errorCode?: string; i18nKey?: string }
+  | {
+      status: 'failed'
+      error: string
+      errorCode?: string
+      i18nKey?: string
+      cancelled?: true
+    }
   /**
    * Still in flight after the attempt budget (or after too many consecutive
    * transient status failures). The job keeps running server-side — the caller
@@ -101,6 +107,7 @@ export async function pollGenerationStatus(
         error: data.error ?? config.fallbackError,
         errorCode: data.errorCode,
         i18nKey: data.i18nKey,
+        ...(data.status === 'CANCELLED' ? { cancelled: true as const } : {}),
       }
     }
 

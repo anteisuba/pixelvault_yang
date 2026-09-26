@@ -55,6 +55,7 @@ import {
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 import type {
@@ -124,6 +125,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const tImage = useTranslations('StudioNode.v4.image')
   const tStage = useTranslations('StudioV3')
   const tPicker = useTranslations('ModelPicker')
+  const tErrors = useTranslations('Errors')
   // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
   const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.image, id)
   const canvas = useNodeV4Canvas()
@@ -145,6 +147,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const [draft, setDraft] = useState(imageData.prompt ?? '')
   const [syncedPrompt, setSyncedPrompt] = useState(imageData.prompt ?? '')
   const [startedAt, setStartedAt] = useState<number | null>(null)
+  const submissionRef = useRef<{ cancelled: boolean } | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
@@ -165,6 +168,15 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   }
 
   const generating = Boolean(imageData.mediaJobId) || startedAt !== null
+  const failureMessage =
+    !generating &&
+    (imageData.generationFailure || imageData.status === 'failed')
+      ? getGenerationErrorMessage(
+          tErrors,
+          imageData.generationFailure ?? {},
+          tErrors('generation.unknown'),
+        )
+      : undefined
 
   // 计时只在生成中跑：裱框显影的百分比是**估算曲线**读它算的
   // （`generation-progress`），⛔ 不常驻一个每 500ms 醒一次的定时器。
@@ -362,6 +374,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const submitPrompt = () => {
     if (draft.trim().length === 0 || generating) return
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
+    const submission = { cancelled: false }
+    submissionRef.current = submission
+    canvas.onSetMedia(id, { generationFailure: undefined })
     setStartedAt(Date.now())
     void generation
       .generateNode(
@@ -370,12 +385,35 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         {
           prompt: draft,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
-          onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
+          onJobCreated: (jobId) => {
+            if (submissionRef.current !== submission) return
+            canvas.onSetMedia(id, { mediaJobId: jobId })
+          },
           // ⚠ 回填写在 `onEach` 里而不是 `.then`：张数 > 1 时是顺序发的 N 枪，
           // `.then` 只拿得到最后一枪 —— 前面几张会一张都不落。每一枪各追加一个
           // 产出版本（S3b §1.8），卡下那排小点因此长出来。
           onEach: (result) => {
-            if (!result.success) return
+            if (submissionRef.current !== submission) return
+            if (!result.success) {
+              if (!result.pending) {
+                canvas.onSetMedia(id, {
+                  mediaJobId: undefined,
+                  generationFailure:
+                    result.cancelled || submission.cancelled
+                      ? undefined
+                      : {
+                          error: result.error,
+                          ...(result.errorCode
+                            ? { errorCode: result.errorCode }
+                            : {}),
+                          ...(result.i18nKey
+                            ? { i18nKey: result.i18nKey }
+                            : {}),
+                        },
+                })
+              }
+              return
+            }
             canvas.onSetMedia(id, {
               url: result.mediaUrl,
               generationId: result.generation.id,
@@ -385,8 +423,21 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           },
         },
       )
-      .then(() => {
-        setStartedAt(null)
+      .then((result) => {
+        if (
+          submissionRef.current === submission &&
+          !submission.cancelled &&
+          !result.success &&
+          result.error === 'noPlan'
+        ) {
+          canvas.onSetMedia(id, {
+            mediaJobId: undefined,
+            generationFailure: { error: t('generateDesk.noModel') },
+          })
+        }
+      })
+      .finally(() => {
+        if (submissionRef.current === submission) setStartedAt(null)
       })
   }
 
@@ -571,7 +622,20 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         changed={canvas.changedNodeIds.includes(id) || flashed}
         portSpec={portSpecOf(node)}
       >
-        {imageData.url ? (
+        {failureMessage &&
+        !imageData.url &&
+        !pendingUpload &&
+        !upload.isUploading ? (
+          <div
+            role="alert"
+            className="flex items-center justify-center overflow-y-auto px-6 py-5 text-center"
+            style={{ height: emptyCardHeight(width) }}
+          >
+            <p className="text-sm leading-relaxed break-words">
+              {t('generateDesk.failed', { reason: failureMessage })}
+            </p>
+          </div>
+        ) : imageData.url ? (
           <div
             data-image-surface
             className="relative"
@@ -588,6 +652,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 if (image?.complete) rememberImageSize(image)
               }}
             />
+            {failureMessage && !pendingUpload && !upload.isUploading && (
+              <p
+                role="alert"
+                className="absolute inset-x-3 top-3 max-h-full overflow-y-auto rounded-xl border border-status-risk/25 bg-status-risk-surface p-3 text-sm leading-relaxed break-words text-status-risk"
+              >
+                {t('generateDesk.failed', { reason: failureMessage })}
+              </p>
+            )}
             {generating && (
               <NodeFrameProgress
                 elapsedSeconds={elapsed}
@@ -651,7 +723,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     onBlockedClick: channelGate.requestPick,
                   }
                 : {})}
-              onCancel={() => setStartedAt(null)}
+              onCancel={() => {
+                if (submissionRef.current)
+                  submissionRef.current.cancelled = true
+                setStartedAt(null)
+              }}
               placeholder={tImage('promptPlaceholder')}
               ariaLabel={tImage('promptLabel')}
               className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}

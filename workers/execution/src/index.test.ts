@@ -2769,18 +2769,25 @@ describe('OpenAI image streaming execution', () => {
  * 「值有没有被读出来」，是**它只跟着参考图走**。
  * https://developers.openai.com/api/reference/resources/images/methods/edit
  */
-describe('OpenAI input fidelity', () => {
+describe('OpenAI reference uploads and input fidelity', () => {
   function openAiEnv(): {
     env: Parameters<typeof generateOpenAIImage>[0]
     put: ReturnType<typeof vi.fn>
+    get: ReturnType<typeof vi.fn>
   } {
     const put = vi.fn().mockResolvedValue(undefined)
+    const get = vi.fn().mockImplementation(async () => ({
+      body: new Response('reference').body!,
+      size: 9,
+      httpMetadata: { contentType: 'image/png' },
+    }))
     return {
       env: {
-        GENERATION_BUCKET: { put },
+        GENERATION_BUCKET: { put, get },
         R2_PUBLIC_URL: 'https://cdn.example.com',
       } as unknown as Parameters<typeof generateOpenAIImage>[0],
       put,
+      get,
     }
   }
 
@@ -2807,19 +2814,23 @@ describe('OpenAI input fidelity', () => {
     } as Parameters<typeof generateOpenAIImage>[1]
   }
 
-  function stubImageResponse(): ReturnType<typeof vi.fn> {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ data: [{ b64_json: 'ZmluYWw=' }] })),
-      )
+  function stubImageResponse() {
+    let form: FormData | undefined
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      if (String(init.headers['Content-Type']).startsWith('multipart/')) {
+        form = await new Response(init.body, {
+          headers: init.headers,
+        }).formData()
+      }
+      return Response.json({ data: [{ b64_json: 'ZmluYWw=' }] })
+    })
     vi.stubGlobal('fetch', fetchMock)
-    return fetchMock
+    return { fetchMock, uploadedForm: () => form }
   }
 
   it('sends input_fidelity on the edits route when a reference is attached', async () => {
     const { env } = openAiEnv()
-    const fetchMock = stubImageResponse()
+    const { fetchMock, uploadedForm } = stubImageResponse()
 
     await generateOpenAIImage(
       env,
@@ -2830,17 +2841,16 @@ describe('OpenAI input fidelity', () => {
       'test-key',
     )
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://api.openai.com/v1/images/edits')
-    expect(JSON.parse(String(init.body))).toMatchObject({
-      input_fidelity: 'high',
-      images: [{ image_url: 'https://cdn.example.com/ref.png' }],
-    })
+    expect(uploadedForm()?.get('input_fidelity')).toBe('high')
+    const image = uploadedForm()?.get('image[]') as File
+    expect(await image.text()).toBe('reference')
   })
 
   it('omits input_fidelity on the text-only generations route', async () => {
     const { env } = openAiEnv()
-    const fetchMock = stubImageResponse()
+    const { fetchMock } = stubImageResponse()
 
     await generateOpenAIImage(
       env,
@@ -2855,7 +2865,7 @@ describe('OpenAI input fidelity', () => {
 
   it('sends nothing when the chip was never touched', async () => {
     const { env } = openAiEnv()
-    const fetchMock = stubImageResponse()
+    const { uploadedForm } = stubImageResponse()
 
     await generateOpenAIImage(
       env,
@@ -2866,8 +2876,461 @@ describe('OpenAI input fidelity', () => {
       'test-key',
     )
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(JSON.parse(String(init.body))).not.toHaveProperty('input_fidelity')
+    expect(uploadedForm()).toBeInstanceOf(FormData)
+    expect(uploadedForm()?.has('input_fidelity')).toBe(false)
+  })
+
+  it('uploads original reference bytes in order with all edit settings', async () => {
+    const { env, get } = openAiEnv()
+    const originals = [
+      new Uint8Array([0, 255, 13, 10]),
+      new Uint8Array([4, 5, 6]),
+    ]
+    get.mockImplementation(async (key: string) => {
+      const index = key === 'first.png' ? 0 : 1
+      return {
+        body: new Response(originals[index]).body!,
+        size: originals[index].length,
+        httpMetadata: { contentType: index === 0 ? 'image/png' : 'image/webp' },
+      }
+    })
+    const { fetchMock, uploadedForm } = stubImageResponse()
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: [
+          'https://cdn.example.com/first.png',
+          'https://cdn.example.com/second.webp',
+        ],
+        aspectRatio: '16:9',
+        advancedParams: {
+          quality: 'max',
+          resolution: '2K',
+          background: 'transparent',
+          inputFidelity: 'high',
+        },
+      }),
+      'test-key',
+    )
+    const form = uploadedForm()!
+    expect(form).toBeInstanceOf(FormData)
+    expect(
+      Object.fromEntries(
+        [...form.entries()].filter(([key]) => key !== 'image[]'),
+      ),
+    ).toEqual({
+      model: 'gpt-image-2.5-sunburst',
+      prompt: 'a cat',
+      size: tieredOpenAISize('16:9', '2K').size,
+      n: '1',
+      quality: 'max',
+      background: 'transparent',
+      input_fidelity: 'high',
+      output_format: 'png',
+    })
+    const files = form.getAll('image[]') as File[]
+    expect(files.map((file) => file.type)).toEqual(['image/png', 'image/webp'])
+    for (let index = 0; index < files.length; index += 1) {
+      expect(new Uint8Array(await files[index].arrayBuffer())).toEqual(
+        originals[index],
+      )
+    }
+    expect(get.mock.calls.map(([key]) => key)).toEqual([
+      'first.png',
+      'second.webp',
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps data URL references as file bytes without fetching their contents', async () => {
+    const { env, get } = openAiEnv()
+    const { fetchMock, uploadedForm } = stubImageResponse()
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: ['data:image/webp;base64,cmVmZXJlbmNl'],
+      }),
+      'test-key',
+    )
+    expect(get).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const file = uploadedForm()!.get('image[]') as File
+    expect(file.type).toBe('image/webp')
+    expect(await file.text()).toBe('reference')
+  })
+
+  it.each([0, 1])(
+    'aborts the provider upload when reference %i is missing',
+    async (missingIndex) => {
+      const { env, get, put } = openAiEnv()
+      get.mockImplementation(async (key: string) =>
+        key === `${missingIndex}.png`
+          ? null
+          : {
+              body: new Response('reference').body!,
+              size: 9,
+              httpMetadata: { contentType: 'image/png' },
+            },
+      )
+      const { fetchMock } = stubImageResponse()
+      const failure = await generateOpenAIImage(
+        env,
+        openAiContext({
+          referenceImages: [
+            'https://cdn.example.com/0.png',
+            'https://cdn.example.com/1.png?token=private',
+          ],
+        }),
+        'test-key',
+      ).catch((error: unknown) => error)
+      expect(failure).toMatchObject({
+        errorCode: 'reference_image_unreachable',
+        message: expect.stringContaining(`Reference image ${missingIndex + 1}`),
+        providerMetadata: {
+          phase: 'reference_download',
+          referenceIndex: missingIndex + 1,
+        },
+      })
+      expect(String(failure)).not.toMatch(/token|private|https:/)
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true)
+      expect(put).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    'file:///etc/passwd',
+    'https://localhost/ref.png',
+    'https://127.0.0.1/ref.png',
+    'https://169.254.169.254/ref.png',
+    'https://foreign.example/ref.png',
+  ])('rejects reference sources outside owned storage: %s', async (url) => {
+    const { env, get } = openAiEnv()
+    stubImageResponse()
+    await expect(
+      generateOpenAIImage(
+        env,
+        openAiContext({ referenceImages: [url] }),
+        'test-key',
+      ),
+    ).rejects.toMatchObject({ errorCode: 'reference_image_unreachable' })
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('preserves preview settings and persists the final image after a multipart edit', async () => {
+    const { env, put } = openAiEnv()
+    let uploaded: FormData | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url, init) => {
+        uploaded = await new Response(init.body, {
+          headers: init.headers,
+        }).formData()
+        return new Response(
+          [
+            {
+              type: 'image_generation.partial_image',
+              b64_json: 'cHJldmlldw==',
+              partial_image_index: 0,
+            },
+            { type: 'image_generation.completed', b64_json: 'ZmluYWw=' },
+          ]
+            .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+            .join(''),
+          { headers: { 'Content-Type': 'text/event-stream' } },
+        )
+      }),
+    )
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { preview: true, quality: 'max' },
+      }),
+      'test-key',
+    )
+    expect(uploaded?.get('stream')).toBe('true')
+    expect(uploaded?.get('partial_images')).toBe('2')
+    expect(uploaded?.get('quality')).toBe('max')
+    expect(put).toHaveBeenCalledTimes(2)
+    expect(new TextDecoder().decode(put.mock.calls[1][1])).toBe('final')
+  })
+
+  it('streams six references totalling 32 MiB one at a time', async () => {
+    const { env, get } = openAiEnv()
+    const sizes = [12, 12, 2, 2, 2, 2].map((mib) => mib * 1024 * 1024)
+    const chunk = new Uint8Array(64 * 1024).fill(255)
+    let active = false
+    get.mockImplementation(async (key: string) => {
+      expect(active).toBe(false)
+      active = true
+      let remaining = sizes[Number(key.split('.')[0])]
+      return {
+        size: remaining,
+        httpMetadata: { contentType: 'image/png' },
+        body: new ReadableStream<Uint8Array>(
+          {
+            pull(controller) {
+              if (!remaining) {
+                active = false
+                controller.close()
+                return
+              }
+              controller.enqueue(chunk)
+              remaining -= chunk.length
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+      }
+    })
+    let imageBytes = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url, init) => {
+        const request = new Request('https://api.openai.com/v1/images/edits', {
+          ...init,
+          duplex: 'half',
+        } as RequestInit)
+        const reader = request.body!.getReader()
+        while (true) {
+          const next = await reader.read()
+          if (next.done) break
+          if (next.value[0] === 255) imageBytes += next.value.byteLength
+        }
+        return Response.json({ data: [{ b64_json: 'ZmluYWw=' }] })
+      }),
+    )
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: sizes.map(
+          (_, index) => `https://cdn.example.com/${index}.png`,
+        ),
+      }),
+      'test-key',
+    )
+    expect(imageBytes).toBe(32 * 1024 * 1024)
+    expect(get).toHaveBeenCalledTimes(6)
+  })
+
+  it.each(['metadata', 'stream'])(
+    'cancels an oversized reference using %s byte evidence',
+    async (source) => {
+      const { env, get, put } = openAiEnv()
+      const cancel = vi.fn()
+      const chunk = new Uint8Array(1024 * 1024)
+      get.mockResolvedValue({
+        size: source === 'metadata' ? 50 * 1024 * 1024 : 1,
+        httpMetadata: { contentType: 'image/png' },
+        body: new ReadableStream<Uint8Array>(
+          {
+            pull(controller) {
+              controller.enqueue(chunk)
+            },
+            cancel,
+          },
+          { highWaterMark: 0 },
+        ),
+      })
+      const { fetchMock } = stubImageResponse()
+      await expect(
+        generateOpenAIImage(
+          env,
+          openAiContext({
+            referenceImages: ['https://cdn.example.com/large.png'],
+          }),
+          'test-key',
+        ),
+      ).rejects.toMatchObject({ errorCode: 'reference_image_too_large' })
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true)
+      expect(put).not.toHaveBeenCalled()
+    },
+  )
+
+  it('cancels the active storage reader on provider rejection', async () => {
+    const { env, get } = openAiEnv()
+    const cancel = vi.fn()
+    get.mockResolvedValue({
+      size: 10,
+      httpMetadata: { contentType: 'image/png' },
+      body: new ReadableStream<Uint8Array>(
+        {
+          pull(controller) {
+            controller.enqueue(new Uint8Array([255]))
+          },
+          cancel,
+        },
+        { highWaterMark: 0 },
+      ),
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url, init) => {
+        const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+        while ((await reader.read()).value?.[0] !== 255) {
+          /* read to first image chunk */
+        }
+        return Response.json(
+          { error: { message: 'invalid quality' } },
+          { status: 400 },
+        )
+      }),
+    )
+    await expect(
+      generateOpenAIImage(
+        env,
+        openAiContext({
+          referenceImages: ['https://cdn.example.com/ref.png'],
+        }),
+        'test-key',
+      ),
+    ).rejects.toThrow('invalid quality')
+    expect(cancel).toHaveBeenCalledOnce()
+  })
+
+  it.each(['get', 'read'])(
+    'times out a stalled R2 %s and aborts the provider upload',
+    async (stage) => {
+      vi.useFakeTimers()
+      try {
+        const { env, get } = openAiEnv()
+        const cancel = vi.fn()
+        let finishGet: ((value: unknown) => void) | undefined
+        const object = {
+          size: 10,
+          httpMetadata: { contentType: 'image/png' },
+          body: new ReadableStream<Uint8Array>(
+            { cancel },
+            { highWaterMark: 0 },
+          ),
+        }
+        get.mockImplementation(() =>
+          stage === 'get'
+            ? new Promise((resolve) => {
+                finishGet = resolve
+              })
+            : Promise.resolve(object),
+        )
+        const { fetchMock } = stubImageResponse()
+        const outcome = generateOpenAIImage(
+          env,
+          openAiContext({
+            referenceImages: ['https://cdn.example.com/ref.png'],
+          }),
+          'test-key',
+        ).catch((error: unknown) => error)
+        await vi.advanceTimersByTimeAsync(30_000)
+        expect(await outcome).toMatchObject({
+          errorCode: 'reference_image_unreachable',
+          message: 'Reference image 1 could not be read before timeout.',
+        })
+        finishGet?.(object)
+        await Promise.resolve()
+        expect(cancel).toHaveBeenCalledOnce()
+        expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true)
+        expect(vi.getTimerCount()).toBe(0)
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('cancels data URL uploads without leaving a timeout or rejected promise', async () => {
+    vi.useFakeTimers()
+    try {
+      const { env } = openAiEnv()
+      const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+        const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+        while (
+          !new TextDecoder()
+            .decode((await reader.read()).value)
+            .includes('filename=')
+        ) {
+          /* read to image header */
+        }
+        await reader.cancel('upload canceled')
+        throw new Error('provider stopped reading')
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(
+        generateOpenAIImage(
+          env,
+          openAiContext({
+            referenceImages: ['data:image/png;base64,cmVmZXJlbmNl'],
+          }),
+          'test-key',
+        ),
+      ).rejects.toBe('upload canceled')
+      expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true)
+      expect(vi.getTimerCount()).toBe(0)
+      await vi.advanceTimersByTimeAsync(30_000)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('times out stalled consumption of a data URL without unhandled rejections', async () => {
+    vi.useFakeTimers()
+    try {
+      const { env } = openAiEnv()
+      const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+        const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+        let chunk: ReadableStreamReadResult<Uint8Array>
+        do {
+          chunk = await reader.read()
+        } while (!new TextDecoder().decode(chunk.value).includes('filename='))
+        return new Promise<Response>((_resolve, reject) => {
+          init.signal.addEventListener(
+            'abort',
+            () => reject(init.signal.reason),
+            { once: true },
+          )
+        })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const outcome = generateOpenAIImage(
+        env,
+        openAiContext({
+          referenceImages: ['data:image/png;base64,cmVmZXJlbmNl'],
+        }),
+        'test-key',
+      ).catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(await outcome).toMatchObject({
+        errorCode: 'reference_image_unreachable',
+        message: 'Reference image 1 could not be read before timeout.',
+      })
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports storage read failures without leaking the source URL', async () => {
+    const { env, get } = openAiEnv()
+    get.mockRejectedValue(
+      new Error('fetch https://cdn.example.com/ref.png?token=private failed'),
+    )
+    const { fetchMock } = stubImageResponse()
+    const error = await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: ['https://cdn.example.com/ref.png?token=private'],
+      }),
+      'test-key',
+    ).catch((error: unknown) => error)
+    expect(error).toMatchObject({
+      message: 'Reference image 1 could not be read from storage.',
+      errorCode: 'reference_image_unreachable',
+      providerMetadata: {
+        phase: 'reference_download',
+        referenceIndex: 1,
+        httpStatus: 400,
+      },
+    })
+    expect(JSON.stringify(error)).not.toMatch(/token|private|https:/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 

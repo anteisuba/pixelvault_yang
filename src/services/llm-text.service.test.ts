@@ -29,6 +29,8 @@ import {
   type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { WEB_IMAGE_IMPORT_MAX_BYTES } from '@/constants/web-image-import'
 import {
   ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
@@ -646,6 +648,246 @@ describe('llmTextCompletion - Gemini', () => {
     })
     expect(isLlmTextContextLimitError(caught)).toBe(true)
   })
+})
+
+describe('OpenAI reference image transport', () => {
+  const input: LlmTextInput = {
+    systemPrompt: 'sys',
+    userPrompt: 'Describe the same character.',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+    apiKey: 'test-key',
+    responseFormat: 'json_object',
+  }
+
+  async function complete(stream: boolean, imageData?: string | string[]) {
+    const request = { ...input, imageData }
+    if (!stream) return llmTextCompletion(request)
+    let text = ''
+    for await (const chunk of llmTextStream(request)) text += chunk
+    return text
+  }
+
+  function providerResponse(stream: boolean) {
+    return new Response(
+      stream
+        ? 'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n'
+        : JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+      { status: 200 },
+    )
+  }
+
+  it.each([false, true])(
+    'inlines remote images in order without forwarding CDN URLs (stream=%s)',
+    async (stream) => {
+      const firstUrl = 'https://cdn.example.com/first.png'
+      const lastUrl = 'https://cdn.example.com/last.webp'
+      const inline = `data:image/jpeg;base64,${Buffer.from('inline').toString('base64')}`
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async (url) => {
+          if (url === firstUrl)
+            return new Response('first', {
+              headers: { 'content-type': 'image/png' },
+            })
+          if (url === lastUrl)
+            return new Response('last', {
+              headers: { 'content-type': 'image/webp' },
+            })
+          return providerResponse(stream)
+        })
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(complete(stream, [firstUrl, inline, lastUrl])).resolves.toBe(
+        'ok',
+      )
+
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      const call = fetchMock.mock.calls.find(([url]) =>
+        String(url).endsWith('/chat/completions'),
+      )
+      const body = call?.[1]?.body
+      if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
+      const payload = JSON.parse(body) as {
+        messages: Array<{ content: unknown }>
+        stream?: boolean
+        response_format: { type: string }
+      }
+      expect(payload.messages[1]?.content).toEqual([
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:image/png;base64,${Buffer.from('first').toString('base64')}`,
+          },
+        },
+        { type: 'image_url', image_url: { url: inline } },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:image/webp;base64,${Buffer.from('last').toString('base64')}`,
+          },
+        },
+        { type: 'text', text: input.userPrompt },
+      ])
+      expect(body).not.toContain('cdn.example.com')
+      expect(payload.stream).toBe(stream ? true : undefined)
+      expect(payload.response_format).toEqual({ type: 'json_object' })
+    },
+  )
+
+  it.each([false, true])(
+    'preserves a 12 MiB original image without the Gemini 10 MiB cap (stream=%s)',
+    async (stream) => {
+      const bytes = Buffer.alloc(12 * 1024 * 1024, 127)
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          new Response(bytes, {
+            headers: {
+              'content-type': 'image/png',
+              'content-length': String(bytes.byteLength),
+            },
+          }),
+        )
+        .mockResolvedValueOnce(providerResponse(stream))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(
+        complete(stream, 'https://cdn.example.com/original.png'),
+      ).resolves.toBe('ok')
+
+      const body = fetchMock.mock.calls[1]?.[1]?.body
+      if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
+      const payload = JSON.parse(body) as {
+        messages: Array<{ content: Array<{ image_url?: { url: string } }> }>
+      }
+      const sentImage = payload.messages[1]?.content[0]?.image_url?.url
+      expect(sentImage?.startsWith('data:image/png;base64,')).toBe(true)
+      expect(
+        Buffer.from(sentImage!.split(',')[1], 'base64').equals(bytes),
+      ).toBe(true)
+    },
+  )
+
+  it.each([false, true])(
+    'rejects a private image URL before any network request (stream=%s)',
+    async (stream) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => providerResponse(stream))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(
+        complete(stream, 'http://127.0.0.1/private.png'),
+      ).rejects.toMatchObject({
+        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+        i18nKey: 'errors.generation.reference_image_unreachable',
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([false, true])(
+    'reports image download failure without calling the provider (stream=%s)',
+    async (stream) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response('forbidden', { status: 403 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(
+        complete(stream, 'https://cdn.example.com/private.png'),
+      ).rejects.toMatchObject({
+        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+        i18nKey: 'errors.generation.reference_image_unreachable',
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        'https://cdn.example.com/private.png',
+      )
+    },
+  )
+
+  it.each(['remote', 'inline'])(
+    'keeps %s image size failures distinct',
+    async (kind) => {
+      const maxBytes = WEB_IMAGE_IMPORT_MAX_BYTES
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response('image', {
+          headers: { 'content-length': String(maxBytes + 1) },
+        }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const image =
+        kind === 'remote'
+          ? 'https://cdn.example.com/large.png'
+          : `data:image/png;base64,${Buffer.alloc(maxBytes + 1).toString('base64')}`
+
+      await expect(complete(false, image)).rejects.toMatchObject({
+        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+        i18nKey: 'errors.generation.reference_image_too_large',
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(kind === 'remote' ? 1 : 0)
+    },
+  )
+
+  it.each([401, 403])(
+    'preserves explicit provider authentication status %s',
+    async (status) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: { message: 'Unable to download the reference image' },
+            }),
+            { status },
+          ),
+        ),
+      )
+
+      await expect(complete(false)).rejects.toMatchObject({
+        errorCode: 'PROVIDER_AUTH_FAILED',
+        httpStatus: status,
+        i18nKey: 'errors.provider.invalidApiKey',
+      })
+    },
+  )
+
+  it.each([
+    [
+      'invalid_image_url: Unable to download content from provided URL before timeout',
+      GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+    ],
+    [
+      'unsupported image format',
+      GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
+    ],
+    ['image too large', GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE],
+    ['too many images', GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED],
+    [
+      'invalid image dimensions',
+      GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS,
+    ],
+  ])(
+    'preserves the provider reference error: %s',
+    async (message, errorCode) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(JSON.stringify({ error: { message } }), {
+            status: 400,
+          }),
+        ),
+      )
+
+      await expect(complete(false)).rejects.toMatchObject({
+        errorCode,
+        i18nKey: `errors.generation.${errorCode}`,
+      })
+    },
+  )
 })
 
 describe('llmTextCompletion - OpenAI', () => {

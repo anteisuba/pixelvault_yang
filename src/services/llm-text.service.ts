@@ -15,6 +15,7 @@ import {
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import { WEB_IMAGE_IMPORT_MAX_BYTES } from '@/constants/web-image-import'
 import {
   VIDEO_ANALYSIS,
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
@@ -79,8 +80,8 @@ export interface LlmTextInput {
    * provider:
    *  - Gemini: requires inline base64, so any http(s) URL is fetched
    *    server-side via `fetchAsBuffer` (which guards against SSRF).
-   *  - OpenAI-compatible vision routes (OpenAI, DeepSeek vision, Grok) accept
-   *    both forms in `image_url.url`, so the value is forwarded.
+   *  - OpenAI: fetches remote images server-side and sends inline data URLs.
+   *  - DeepSeek vision and Grok forward either form in `image_url.url`.
    */
   imageData?: string | string[]
   /**
@@ -634,6 +635,21 @@ function toLlmTextProviderError(
       responseStatus,
       LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.authFailed,
       LLM_TEXT_PROVIDER_ERROR_MESSAGES.authFailed,
+    )
+  }
+
+  if (
+    parsedCode === GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT ||
+    parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE ||
+    parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE ||
+    parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED ||
+    parsedCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS
+  ) {
+    return new ApiRequestError(
+      parsedCode,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
+      `errors.generation.${parsedCode}`,
+      parsedCode,
     )
   }
 
@@ -1318,14 +1334,43 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   return textPart.text.trim()
 }
 
+async function toOpenAiInlineImageUrl(image: string): Promise<string> {
+  try {
+    const { buffer, mimeType } = await fetchAsBuffer(image, {
+      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
+    })
+    return image.startsWith('data:')
+      ? image
+      : `data:${mimeType};base64,${buffer.toString('base64')}`
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const parsedCode = parseGenerationErrorCode(message)
+    const errorCode =
+      parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE
+        ? parsedCode
+        : GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE
+    logger.warn('LLM reference image preparation failed', {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      errorCode,
+      errorName: error instanceof Error ? error.name : typeof error,
+    })
+    throw new ApiRequestError(
+      errorCode,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
+      `errors.generation.${errorCode}`,
+      errorCode,
+    )
+  }
+}
+
 /**
  * OpenAI `/chat/completions` 的请求，缓冲与流式共用一份 —— 同 Gemini 那条的理由：
  * 两条各建各的 body 迟早漂移，而漂移的表现是「流式的回答和缓冲的不一样」。
  */
-function buildOpenAiChatRequest(
+async function buildOpenAiChatRequest(
   input: LlmTextInput,
   options: { stream?: boolean } = {},
-): { endpoint: string; requestModelId: string; body: string } {
+): Promise<{ endpoint: string; requestModelId: string; body: string }> {
   if (input.videoData) {
     throw new Error('OpenAI assistant route does not support video input.')
   }
@@ -1343,7 +1388,8 @@ function buildOpenAiChatRequest(
     const images = Array.isArray(input.imageData)
       ? input.imageData
       : [input.imageData]
-    const content: Array<Record<string, unknown>> = images.map((img) => ({
+    const inlineImages = await Promise.all(images.map(toOpenAiInlineImageUrl))
+    const content: Array<Record<string, unknown>> = inlineImages.map((img) => ({
       type: 'image_url',
       image_url: { url: img },
     }))
@@ -1375,7 +1421,7 @@ function buildOpenAiChatRequest(
 }
 
 async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
-  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input)
+  const { endpoint, requestModelId, body } = await buildOpenAiChatRequest(input)
 
   const response = await fetchLlmTextBuffered(
     endpoint,
@@ -2042,9 +2088,12 @@ async function* streamOpenAiCompatibleChat(options: {
 export async function* openAiTextStream(
   input: LlmTextInput,
 ): AsyncIterable<string> {
-  const { endpoint, requestModelId, body } = buildOpenAiChatRequest(input, {
-    stream: true,
-  })
+  const { endpoint, requestModelId, body } = await buildOpenAiChatRequest(
+    input,
+    {
+      stream: true,
+    },
+  )
 
   yield* streamOpenAiCompatibleChat({
     endpoint,

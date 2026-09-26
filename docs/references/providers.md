@@ -30,6 +30,7 @@
 - 默认 OpenAI 助手模型为原生 `gpt-6-sol`；无媒体引用时画布可走 AI Gateway 的
   `openai/gpt-6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
   [OpenAI GPT-6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6-sol) 一致。
+- OpenAI 助手的流式与非流式图片输入统一由服务端安全下载后发送原字节 data URL，保留参考顺序，不再让 provider 下载 CDN URL。下载沿用站内图片导入的单图 20 MiB 限制；这不是 OpenAI 官方上限。图片不可达、格式及大小错误保留具体错误码，真正的 401/403 仍按鉴权失败处理。依据：[OpenAI 视觉输入](https://developers.openai.com/api/docs/guides/images-vision)（2026-09-26 核验）。
 - Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
   [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
@@ -154,6 +155,12 @@ adapter / Worker 抛错
 | （hyper3d_rodin） | 3D，不进 registry                                                            | Worker 直发                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | （deepseek）      | 文本 planner/助手                                                            | 不是 media adapter                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | （runway）        | 曾经的视频（gen4.5）                                                         | **2026-08-24 整删**（死执行链清理）：`runway.adapter.ts` 文件+registry 条目已删，`AI_ADAPTER_TYPE_OPTIONS`/`ADAPTER_CAPABILITIES` 等类型层记录按「退役≠删除」保留但已不可被新选中——目录从未有过一个 Runway 模型，`ACTIVE_API_KEY_ADAPTER_OPTIONS` 早已自动排除它                                                                                                                                                                                                                                                                                                                                      |
+
+### OpenAI 图像参考传输（2026-09-26）
+
+- 带参考图的生成使用 `/images/edits`，Worker 按输入顺序从自有 R2 读取原始字节并流式编码为 multipart `image[]`，不让 OpenAI 下载 CDN URL，也不压缩或删减参考图；外部参考仍由提交服务先归档。无参考图的 `/images/generations` 保持 JSON。
+- 每张参考读取限时 30 秒；沿用单图 50 MB 输入限制，同时检查对象大小与实际流字节。读取失败会取消当前流及 provider 请求，保留参考序号与具体错误码，不原样重试输入错误；错误不包含参考 URL。上传中断前可能已经连接 provider。
+- 官方依据：[OpenAI 多图编辑](https://developers.openai.com/api/docs/guides/image-generation)、[Cloudflare Request](https://developers.cloudflare.com/workers/runtime-apis/request/) 与 [Streams](https://developers.cloudflare.com/workers/runtime-apis/streams/)。
 
 ### fal · Kling O3 video-to-video/edit（2026-09-17 接入）
 

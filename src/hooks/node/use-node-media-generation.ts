@@ -97,6 +97,7 @@ type NodeMediaGenerationResult =
       error: string
       errorCode?: string
       i18nKey?: string
+      cancelled?: true
       pending?: true
       /**
        * The submitted job's id, present when `pending` — the poll window closed
@@ -284,6 +285,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             error: pollOutcome.error,
             errorCode: pollOutcome.errorCode,
             i18nKey: pollOutcome.i18nKey,
+            ...(pollOutcome.cancelled ? { cancelled: true as const } : {}),
           }
         }
 

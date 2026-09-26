@@ -1,10 +1,15 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
-import { describe, expect, it, vi, type Mock } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState, type ReactNode } from 'react'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${Object.values(values).join('/')}` : key,
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${Object.values(values).join('/')}` : key,
+      { has: () => true },
+    ),
 }))
 
 vi.mock('next/image', () => ({
@@ -43,7 +48,11 @@ vi.mock('@/hooks/node/use-node-upload-v4', () => ({
   }),
 }))
 
-const generateNode = vi.fn(async () => ({ success: false as const }))
+type GenerateNode = ReturnType<typeof useNodeMediaGenerationV4>['generateNode']
+const generateNode = vi.fn<GenerateNode>(async () => ({
+  success: false,
+  error: 'noPlan',
+}))
 vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
   useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
 }))
@@ -157,6 +166,217 @@ function renderImage(
     </NodeV4CanvasProvider>,
   )
 }
+
+function renderSubmittingImage(data: Record<string, unknown> = {}) {
+  const onSetMedia = vi.fn()
+  function Fixture() {
+    const [node, setNode] = useState(
+      imageNode('i_1', { prompt: '站台', ...data }),
+    )
+    const context = harness([node], {
+      selectedNodeIds: ['i_1'],
+      onSetMedia: (id, patch) => {
+        onSetMedia(id, patch)
+        setNode(
+          (current) =>
+            ({
+              ...current,
+              data: { ...current.data, ...patch },
+            }) as NodeV4,
+        )
+      },
+    })
+    return (
+      <NodeV4CanvasProvider value={context}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <ImageNodeV4 id="i_1" data={node.data} selected />
+      </NodeV4CanvasProvider>
+    )
+  }
+  render(<Fixture />)
+  return {
+    onSetMedia,
+    submit: () =>
+      fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }),
+  }
+}
+
+describe('图片生成失败反馈', () => {
+  beforeEach(() => {
+    generateNode
+      .mockReset()
+      .mockResolvedValue({ success: false, error: 'noPlan' })
+  })
+
+  it('提交尚未创建任务就失败时持久化并显示具体错误', async () => {
+    const failure = {
+      success: false as const,
+      error: 'Reference image could not be read',
+      errorCode: 'reference_image_unreachable',
+      i18nKey: 'errors.generation.reference_image_unreachable',
+    }
+    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
+      options?.onEach?.(failure)
+      return failure
+    })
+    const { submit, onSetMedia } = renderSubmittingImage()
+    submit()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'generation.reference_image_unreachable',
+    )
+    expect(onSetMedia).toHaveBeenCalledWith('i_1', {
+      mediaJobId: undefined,
+      generationFailure: {
+        error: failure.error,
+        errorCode: failure.errorCode,
+        i18nKey: failure.i18nKey,
+      },
+    })
+    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
+      'data-generating',
+      'false',
+    )
+  })
+
+  it('未识别的服务端错误仍显示原有具体原因', async () => {
+    const failure = {
+      success: false as const,
+      error: 'Execution dispatch outcome unknown',
+    }
+    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
+      options?.onEach?.(failure)
+      return failure
+    })
+    const { submit } = renderSubmittingImage()
+    submit()
+    expect(await screen.findByRole('alert')).toHaveTextContent(failure.error)
+  })
+
+  it('刷新恢复的错误保持可见并保留此前图片', () => {
+    renderImage(
+      harness([
+        imageNode('i_1', {
+          url: 'https://cdn.test/previous.png',
+          generationFailure: { error: 'Execution dispatch outcome unknown' },
+        }),
+      ]),
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Execution dispatch outcome unknown',
+    )
+    expect(document.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://cdn.test/previous.png',
+    )
+  })
+
+  it('未创建生成计划也显示已有的选模型提示', async () => {
+    const { submit } = renderSubmittingImage()
+    submit()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'generateDesk.noModel',
+    )
+  })
+
+  it('服务器仍在运行时保留任务，不显示失败', async () => {
+    const result = {
+      success: false as const,
+      error: 'poll window ended',
+      pending: true as const,
+      jobId: 'job-pending',
+    }
+    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
+      options?.onJobCreated?.(result.jobId)
+      options?.onEach?.(result)
+      return result
+    })
+    const { submit, onSetMedia } = renderSubmittingImage()
+    await act(async () => submit())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(onSetMedia).toHaveBeenLastCalledWith('i_1', {
+      mediaJobId: 'job-pending',
+    })
+    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
+      'data-generating',
+      'true',
+    )
+  })
+
+  it('服务器确认取消后清理任务，不把取消显示成生成失败', async () => {
+    const result = {
+      success: false as const,
+      error: 'Node media generation failed',
+      cancelled: true as const,
+    }
+    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
+      options?.onJobCreated?.('job-cancelled')
+      options?.onEach?.(result)
+      return result
+    })
+    const { submit, onSetMedia } = renderSubmittingImage()
+    await act(async () => submit())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(onSetMedia).toHaveBeenLastCalledWith('i_1', {
+      mediaJobId: undefined,
+      generationFailure: undefined,
+    })
+    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
+      'data-generating',
+      'false',
+    )
+  })
+
+  it('再次提交立即清除旧失败状态', async () => {
+    let finish:
+      | ((result: Awaited<ReturnType<GenerateNode>>) => void)
+      | undefined
+    generateNode.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const { submit, onSetMedia } = renderSubmittingImage({
+      generationFailure: { error: 'previous failure' },
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('previous failure')
+    submit()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(onSetMedia).toHaveBeenCalledWith('i_1', {
+      generationFailure: undefined,
+    })
+    await act(async () => finish?.({ success: false, error: 'noPlan' }))
+  })
+
+  it('本地取消后迟到的失败不再显示或持久化为生成失败', async () => {
+    let finish: (() => void) | undefined
+    generateNode.mockImplementationOnce(
+      (_id, _graph, options) =>
+        new Promise((resolve) => {
+          finish = () => {
+            const failure = {
+              success: false as const,
+              error: 'late provider failure',
+            }
+            options?.onEach?.(failure)
+            resolve(failure)
+          }
+        }),
+    )
+    const { submit, onSetMedia } = renderSubmittingImage()
+    submit()
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+    await act(async () => finish?.())
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(
+      onSetMedia.mock.calls.every(([, patch]) => !patch.generationFailure),
+    ).toBe(true)
+    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
+      'data-generating',
+      'false',
+    )
+  })
+})
 
 describe('卡宽卡高随媒体比例', () => {
   it('缺尺寸时退回收起态定宽与 16:9', () => {

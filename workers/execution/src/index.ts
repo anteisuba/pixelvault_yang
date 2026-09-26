@@ -13,6 +13,7 @@ export {
 } from '../../../src/lib/image-output-size'
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
+import { GENERATION_ERROR_CODES } from '../../../src/constants/generation-errors'
 import { NovelAiCharacterLayoutSchema } from '../../../src/types/novelai'
 import {
   NOVELAI_SAMPLER_OPTIONS,
@@ -159,6 +160,11 @@ type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
 
 interface R2Bucket {
+  get(key: string): Promise<{
+    body: ReadableStream<Uint8Array>
+    size: number
+    httpMetadata?: { contentType?: string }
+  } | null>
   put(
     key: string,
     value: ArrayBuffer | ArrayBufferView | ReadableStream | string,
@@ -7418,6 +7424,208 @@ export async function generatePixAiImage(
   }
 }
 
+// OpenAI edits accepts PNG/JPEG/WebP files under 50 MB, up to 16 per request.
+const OPENAI_REFERENCE_MAX_BYTES = 50 * 1024 * 1024
+const OPENAI_REFERENCE_READ_TIMEOUT_MS = 30_000
+
+function openAIReferenceStorageKey(
+  rawUrl: string,
+  env: ExecutionEnv,
+): string | null {
+  try {
+    const url = new URL(rawUrl)
+    if (
+      !['https:', 'http:'].includes(url.protocol) ||
+      url.username ||
+      url.password
+    )
+      return null
+    const bases = [
+      env.R2_PUBLIC_URL,
+      R2_WORKER_BASE,
+      'https://pub-5346558f8dc549f9ba5217489fe5395e.r2.dev',
+    ]
+    for (const rawBase of bases) {
+      const base = new URL(rawBase)
+      const prefix = `${base.pathname.replace(/\/+$/, '')}/`
+      if (url.origin !== base.origin || !url.pathname.startsWith(prefix))
+        continue
+      const key = decodeURIComponent(url.pathname.slice(prefix.length))
+      return key && !key.includes('..') ? key : null
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function createOpenAIEditBody(
+  env: ExecutionEnv,
+  fields: Record<string, unknown>,
+  references: readonly string[],
+) {
+  const boundary = `pixelvault-${crypto.randomUUID()}`
+  const encoder = new TextEncoder()
+  const controller = new AbortController()
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+  const cancel = (reason: unknown) => {
+    if (!controller.signal.aborted) controller.abort(reason)
+    void reader?.cancel(reason).catch(() => {})
+    void chunks.return(undefined).catch(() => {})
+  }
+  const wait = async <T>(work: Promise<T>): Promise<T> => {
+    let onAbort: () => void = () => {}
+    const aborted = new Promise<never>((_resolve, reject) => {
+      onAbort = () => reject(controller.signal.reason)
+      if (controller.signal.aborted) onAbort()
+      else controller.signal.addEventListener('abort', onAbort, { once: true })
+    })
+    try {
+      return await Promise.race([work, aborted])
+    } finally {
+      controller.signal.removeEventListener('abort', onAbort)
+    }
+  }
+
+  async function* encode(): AsyncGenerator<Uint8Array> {
+    for (const [name, value] of Object.entries(fields)) {
+      yield encoder.encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`,
+      )
+    }
+    for (let index = 0; index < references.length; index += 1) {
+      const fail = (
+        detail: string,
+        errorCode: string = GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+      ) =>
+        new WorkerProviderError({
+          message: `Reference image ${index + 1} ${detail}`,
+          provider: 'openai',
+          phase: 'reference_download',
+          errorCode,
+          httpStatus: 400,
+          providerMetadata: { referenceIndex: index + 1 },
+        })
+      const timeout = setTimeout(
+        () => cancel(fail('could not be read before timeout.')),
+        OPENAI_REFERENCE_READ_TIMEOUT_MS,
+      )
+      try {
+        controller.signal.throwIfAborted()
+        const reference = references[index]
+        const dataUrl =
+          /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]*={0,2})$/.exec(
+            reference,
+          )
+        let mimeType: string
+        let data: string | undefined
+        if (dataUrl) {
+          mimeType = dataUrl[1]
+          data = dataUrl[2]
+          const size =
+            (data.length / 4) * 3 -
+            (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
+          if (size >= OPENAI_REFERENCE_MAX_BYTES)
+            throw fail(
+              'exceeds the 50 MB input limit.',
+              GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+            )
+        } else {
+          const key = openAIReferenceStorageKey(reference, env)
+          if (!key) throw fail('must be an archived image from this gallery.')
+          const object = await wait(
+            env.GENERATION_BUCKET.get(key).then((value) => {
+              if (controller.signal.aborted)
+                void value?.body.cancel().catch(() => {})
+              return value
+            }),
+          )
+          if (!object) throw fail('is missing from storage.')
+          reader = object.body.getReader()
+          if (object.size >= OPENAI_REFERENCE_MAX_BYTES)
+            throw fail(
+              'exceeds the 50 MB input limit.',
+              GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+            )
+          mimeType =
+            object.httpMetadata?.contentType
+              ?.split(';')[0]
+              .trim()
+              .toLowerCase() ?? 'image/png'
+        }
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
+          throw fail(
+            'must be a PNG, JPEG or WebP image.',
+            GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
+          )
+        }
+        yield encoder.encode(
+          `--${boundary}\r\nContent-Disposition: form-data; name="image[]"; filename="reference-${index + 1}.${mimeType.split('/')[1]}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+        )
+        if (data !== undefined) {
+          for (let offset = 0; offset < data.length; offset += 65_536) {
+            controller.signal.throwIfAborted()
+            yield base64ToBytes(data.slice(offset, offset + 65_536))
+          }
+        } else {
+          let bytes = 0
+          while (reader) {
+            const chunk = await wait(reader.read())
+            controller.signal.throwIfAborted()
+            if (chunk.done) break
+            bytes += chunk.value.byteLength
+            if (bytes >= OPENAI_REFERENCE_MAX_BYTES)
+              throw fail(
+                'exceeds the 50 MB input limit.',
+                GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+              )
+            yield chunk.value
+          }
+        }
+        yield encoder.encode('\r\n')
+      } catch (error) {
+        throw controller.signal.aborted
+          ? controller.signal.reason
+          : error instanceof WorkerProviderError
+            ? error
+            : fail('could not be read from storage.')
+      } finally {
+        clearTimeout(timeout)
+        void reader?.cancel().catch(() => {})
+        reader = undefined
+      }
+    }
+    yield encoder.encode(`--${boundary}--\r\n`)
+  }
+
+  const chunks = encode()
+  const body = new ReadableStream<Uint8Array>(
+    {
+      async pull(stream) {
+        try {
+          const chunk = await chunks.next()
+          if (chunk.done) stream.close()
+          else stream.enqueue(chunk.value)
+        } catch (error) {
+          cancel(error)
+          stream.error(error)
+        }
+      },
+      async cancel(reason) {
+        cancel(reason)
+        await chunks.return(undefined)
+      },
+    },
+    { highWaterMark: 0 },
+  )
+  return {
+    body,
+    contentType: `multipart/form-data; boundary=${boundary}`,
+    signal: controller.signal,
+    cancel,
+  }
+}
+
 /**
  * Call OpenAI's image API and upload the result to R2. gpt-image models return
  * base64 (no hosted URL), so the worker persists the bytes to R2 and returns a
@@ -7442,21 +7650,12 @@ export async function generateOpenAIImage(
       ? tieredOpenAISize(providerInput.aspectRatio, resolution)
       : aspectRatioToOpenAISize(providerInput.aspectRatio)
   const referenceImages = getImageReferenceInputs(context)
-  const body: Record<string, unknown> =
-    referenceImages.length > 0
-      ? {
-          model: providerInput.externalModelId,
-          prompt: providerInput.prompt,
-          images: referenceImages.map((imageUrl) => ({ image_url: imageUrl })),
-          size,
-          n: 1,
-        }
-      : {
-          model: providerInput.externalModelId,
-          prompt: providerInput.prompt,
-          size,
-          n: 1,
-        }
+  const body: Record<string, unknown> = {
+    model: providerInput.externalModelId,
+    prompt: providerInput.prompt,
+    size,
+    n: 1,
+  }
 
   const quality = readStringField(advancedParams, 'quality')
   if (quality) body.quality = quality
@@ -7478,26 +7677,37 @@ export async function generateOpenAIImage(
   }
   body.output_format = 'png'
 
-  const response = await fetch(
-    `${OPENAI_BASE_URL}/v1/images/${
-      referenceImages.length > 0 ? 'edits' : 'generations'
-    }`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': JSON_CONTENT_TYPE,
+  const edit = referenceImages.length
+    ? createOpenAIEditBody(env, body, referenceImages)
+    : undefined
+  let response: Response
+  try {
+    response = await fetch(
+      `${OPENAI_BASE_URL}/v1/images/${edit ? 'edits' : 'generations'}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': edit?.contentType ?? JSON_CONTENT_TYPE,
+        },
+        body: edit?.body ?? JSON.stringify(body),
+        ...(edit ? { signal: edit.signal } : {}),
       },
-      body: JSON.stringify(body),
-    },
-  )
+    )
+  } catch (error) {
+    const failure = edit?.signal.aborted ? edit.signal.reason : error
+    edit?.cancel(failure)
+    throw failure
+  }
 
   if (!response.ok) {
-    throw await createProviderResponseError(response, {
+    const failure = await createProviderResponseError(response, {
       provider: 'openai',
       phase: 'generate_image',
       fallbackMessage: `OpenAI image generation failed (${response.status}).`,
     })
+    edit?.cancel(failure)
+    throw failure
   }
 
   let b64: unknown

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { ROUTES, studioCanvasEditPath, studioImageEditPath } from './routes'
+import {
+  ROUTES,
+  studioCanvasEditPath,
+  studioImageEditPath,
+  studioImageWithCharacterPath,
+} from './routes'
 
 const SOURCE_OPTIONS = {
   generationId: 'generation-1',
@@ -39,5 +44,13 @@ describe('studio image-edit route helpers', () => {
       width: '1280',
       height: '720',
     })
+  })
+})
+
+describe('studioImageWithCharacterPath', () => {
+  it('带着角色 id 去图片工作台', () => {
+    expect(studioImageWithCharacterPath('denia')).toBe(
+      '/studio/image?character=denia',
+    )
   })
 })

@@ -21,6 +21,18 @@ vi.mock('motion/react', async (importOriginal) => ({
   useReducedMotion: () => true,
 }))
 
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('@/hooks/use-assistant-persona', () => ({
+  useAssistantPersona: () => ({
+    persona: { character: null },
+    isLoading: false,
+    save: vi.fn(),
+  }),
+}))
+
 vi.mock('@/hooks/cards/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [],

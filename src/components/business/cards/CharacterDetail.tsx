@@ -17,6 +17,7 @@ import { ChevronLeft } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { CharacterCardEditor } from '@/components/business/cards/CharacterCardEditor'
+import { UseCharacterMenu } from '@/components/business/cards/UseCharacterMenu'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterSampleLines } from '@/hooks/cards/use-character-sample-lines'
 import { characterImageCount, characterWork } from '@/lib/character-works'
@@ -138,14 +139,17 @@ export function CharacterDetail({
           </p>
         </div>
         {editing ? null : (
-          <Button
-            type="button"
-            variant="outline"
-            className="ml-auto rounded-full"
-            onClick={() => setEditing(true)}
-          >
-            {t('edit')}
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <UseCharacterMenu card={card} />
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setEditing(true)}
+            >
+              {t('edit')}
+            </Button>
+          </div>
         )}
       </motion.header>
 

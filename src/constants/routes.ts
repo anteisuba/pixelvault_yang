@@ -182,3 +182,16 @@ export function safeReturnPath(from: string | null | undefined): string | null {
 
 /** Type for all route values */
 export type Route = (typeof ROUTES)[keyof typeof ROUTES]
+
+/** 图片工作台带上一个角色进来（角色页「用她 ▾ → 在图片工作台用她」）的查询参数名。 */
+export const STUDIO_CHARACTER_QUERY = 'character'
+
+/**
+ * 图片工作台深链：到了就选中这个角色（工作台读完即从地址栏去掉这个参数）。
+ */
+export function studioImageWithCharacterPath(characterCardId: string): string {
+  const params = new URLSearchParams({
+    [STUDIO_CHARACTER_QUERY]: characterCardId,
+  })
+  return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
+}

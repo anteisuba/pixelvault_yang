@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { StudioModeSync } from '@/components/business/StudioModeSync'
+import { StudioCharacterDeepLink } from '@/components/business/studio/StudioCharacterDeepLink'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioImagePageProps {
@@ -27,5 +29,13 @@ export async function generateMetadata({
  * feel instant.
  */
 export default function StudioImagePage() {
-  return <StudioModeSync mode="image" />
+  return (
+    <>
+      <StudioModeSync mode="image" />
+      {/* 角色页「用她」带角色进来（`?character=`）。 */}
+      <Suspense fallback={null}>
+        <StudioCharacterDeepLink />
+      </Suspense>
+    </>
+  )
 }

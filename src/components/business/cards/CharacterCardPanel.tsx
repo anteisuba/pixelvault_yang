@@ -18,6 +18,7 @@ import type {
   UpdateCharacterCardRequest,
 } from '@/types'
 import { ChevronRight, Plus, X } from '@/components/icons'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -424,6 +425,10 @@ function CharacterCardEditor({
   const { draft, patch } = editor
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** 素材库选择器开着时在做什么：加几张，或换掉某一格。 */
+  const [picking, setPicking] = useState<
+    { kind: 'add' } | { kind: 'replace'; slotId: string } | null
+  >(null)
 
   const save = async () => {
     setSaving(true)
@@ -461,25 +466,16 @@ function CharacterCardEditor({
                     </span>
                   ) : null}
                 </div>
-                <div className="flex gap-2 text-xs text-muted-foreground">
-                  <label
-                    className={cn(
-                      'cursor-pointer hover:text-foreground',
-                      editor.isUploading && 'pointer-events-none opacity-60',
-                    )}
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 whitespace-nowrap text-xs text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPicking({ kind: 'replace', slotId: slot.id })
+                    }
+                    className="hover:text-foreground"
                   >
                     {t('replaceImage')}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0]
-                        event.target.value = ''
-                        if (file) void editor.replaceImage(slot.id, file)
-                      }}
-                    />
-                  </label>
+                  </button>
                   {slot.isPrimary ? null : (
                     <button
                       type="button"
@@ -501,33 +497,17 @@ function CharacterCardEditor({
                 </div>
               </div>
             ))}
-            <label
-              className={cn(
-                'flex aspect-4/5 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground',
-                editor.isUploading && 'pointer-events-none opacity-60',
-              )}
-            >
-              {editor.isUploading ? (
-                <Spinner size="sm" />
-              ) : (
+            {editor.remainingSlots > 0 ? (
+              <button
+                type="button"
+                onClick={() => setPicking({ kind: 'add' })}
+                className="flex aspect-4/5 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground"
+              >
                 <Plus className="size-4" />
-              )}
-              {t('addImage')}
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  event.target.value = ''
-                  if (file) void editor.addImage(file)
-                }}
-              />
-            </label>
+                {t('addImage')}
+              </button>
+            ) : null}
           </div>
-          {editor.uploadError ? (
-            <p className="text-xs text-status-risk">{t('uploadFailed')}</p>
-          ) : null}
           <p className={LABEL}>{t('addImageHint')}</p>
           <label className="flex flex-col gap-1.5">
             <span className={LABEL}>{t('fieldLooks')}</span>
@@ -625,11 +605,7 @@ function CharacterCardEditor({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2.5 border-t border-border px-7 py-4">
-        <Button
-          type="button"
-          onClick={() => void save()}
-          disabled={saving || editor.isUploading}
-        >
+        <Button type="button" onClick={() => void save()} disabled={saving}>
           {saving ? <Spinner size="sm" /> : null}
           {t('save')}
         </Button>
@@ -637,6 +613,22 @@ function CharacterCardEditor({
           {t('cancel')}
         </Button>
       </div>
+      <AssetSelectorDialog
+        open={picking !== null}
+        onOpenChange={(open) => {
+          if (!open) setPicking(null)
+        }}
+        title={t('pickTitle')}
+        description={t('addImageHint')}
+        mediaType="image"
+        multiSelect={picking?.kind === 'add'}
+        maxSelection={editor.remainingSlots}
+        onConfirmMany={editor.addImages}
+        onSelect={(generation) => {
+          if (picking?.kind === 'replace')
+            editor.replaceImage(picking.slotId, generation)
+        }}
+      />
     </div>
   )
 }

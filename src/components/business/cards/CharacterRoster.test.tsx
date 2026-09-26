@@ -164,6 +164,18 @@ describe('CharacterRoster（卡片页 K3）', () => {
     expect(screen.queryByRole('complementary', { name: 'Denia' })).toBeNull()
   })
 
+  it('叠在侧栏上的弹层吃掉的 Esc 不收侧栏', () => {
+    renderRoster()
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      cancelable: true,
+    })
+    event.preventDefault()
+    window.dispatchEvent(event)
+    expect(screen.getByRole('complementary', { name: 'Denia' })).toBeTruthy()
+  })
+
   it('编辑：在侧栏里改性格，保存时整份设定带回（没改的格不丢）', async () => {
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)

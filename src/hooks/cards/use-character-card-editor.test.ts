@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { CharacterCardRecord, CharacterReferenceSlot } from '@/types'
+import type {
+  CharacterCardRecord,
+  CharacterReferenceSlot,
+  GenerationRecord,
+} from '@/types'
 
 import {
+  appendSlotImages,
   draftFromCard,
   makePrimary,
   removeSlot,
@@ -69,22 +74,64 @@ describe('makePrimary / removeSlot', () => {
   })
 })
 
+const asset = (id: string, provider = 'user-upload') =>
+  ({
+    id,
+    url: `https://cdn.test/${id}.png`,
+    provider,
+  }) as GenerationRecord
+
 describe('replaceSlotImage', () => {
   it('只剩一张主图也能换：同一格换图，主图与用途不变，旧视角不带过去', () => {
     const [next] = replaceSlotImage(
       [slot('a', { isPrimary: true, viewType: 'front' })],
       'a',
-      { url: 'https://cdn.test/new.png', generationId: 'g1' },
+      asset('g1'),
     )
     expect(next).toMatchObject({
       id: 'a',
       role: 'identity',
       isPrimary: true,
-      url: 'https://cdn.test/new.png',
+      url: 'https://cdn.test/g1.png',
       generationId: 'g1',
       origin: 'upload',
     })
     expect(next!.viewType).toBeUndefined()
+  })
+
+  it('换成卡上已有的图不动（url 不重复是槽的不变量）', () => {
+    const slots = [slot('a', { isPrimary: true }), slot('b')]
+    expect(
+      replaceSlotImage(slots, 'a', {
+        ...asset('x'),
+        url: 'https://cdn.test/b.png',
+      }),
+    ).toBe(slots)
+  })
+})
+
+describe('appendSlotImages', () => {
+  it('素材库挑的图挂成身份图，生成的图记来源 generation；已在卡上的跳过', () => {
+    const next = appendSlotImages(
+      [slot('a', { isPrimary: true })],
+      [
+        asset('g1', 'openai'),
+        { ...asset('dup'), url: 'https://cdn.test/a.png' },
+      ],
+    )
+    expect(next).toHaveLength(2)
+    expect(next[1]).toMatchObject({
+      role: 'identity',
+      isPrimary: false,
+      generationId: 'g1',
+      origin: 'generation',
+    })
+  })
+
+  it('卡上没图时第一张当主图；满 15 张就停', () => {
+    expect(appendSlotImages([], [asset('g1')])[0]!.isPrimary).toBe(true)
+    const full = Array.from({ length: 15 }, (_, i) => slot(`s${i}`))
+    expect(appendSlotImages(full, [asset('g1')])).toHaveLength(15)
   })
 })
 

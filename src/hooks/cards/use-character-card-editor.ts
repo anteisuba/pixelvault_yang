@@ -2,19 +2,24 @@
 
 import { useCallback, useState } from 'react'
 
-import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
+import {
+  CARD_EXTENSIONS,
+  CHARACTER_CARD,
+} from '@/constants/cards/character-card'
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import type {
   CharacterCardRecord,
   CharacterReferenceSlot,
+  GenerationRecord,
   UpdateCharacterCardRequest,
 } from '@/types'
-import { uploadImageFileAPI } from '@/lib/api-client'
 
 /**
  * 卡片页侧栏的**就地编辑**（施工第 4 片）：名字 · 一句外观 · 标签 · 参考图 · 设定。
  *
- * ⭐ 图片直接改参考槽（换一张 / 删一张 / 设为主图 / 加一张），服务端按不变量校验并反向写回
- *   旧图片列。新图先传进**素材库**（图都在素材库，owner 09-26），再挂到卡上。
+ * ⭐ 图片直接改参考槽（换一张 / 删一张 / 设为主图 / 加几张），服务端按不变量校验并反向写回
+ *   旧图片列。图一律从**素材库**来（owner 09-26：图都在素材库，卡跨文件夹挑图）；
+ *   新上传走素材库选择器自己的上传格，⛔ 这里不另开上传。
  * ⚠ 设定是整体替换：没在这里编辑的格（口头禅、示例对白……）原样带回去，⛔ 不丢。
  */
 
@@ -109,17 +114,49 @@ export function removeSlot(
   return makePrimary(rest, heir.id)
 }
 
+/** 素材库里的一张 → 槽里的图：记下来源（上传 / 生成）与生成 id。 */
+function slotImage(generation: GenerationRecord) {
+  return {
+    url: generation.url,
+    generationId: generation.id,
+    origin:
+      generation.provider === USER_UPLOAD_PROVIDER
+        ? ('upload' as const)
+        : ('generation' as const),
+  }
+}
+
 /** 换一张：同一格换图，用途、主图与自定义标签不变；视角是旧图的，不带过去。 */
 export function replaceSlotImage(
   slots: CharacterReferenceSlot[],
   id: string,
-  image: { url: string; generationId: string },
+  generation: GenerationRecord,
 ): CharacterReferenceSlot[] {
+  if (slots.some((slot) => slot.url === generation.url)) return slots
   return slots.map((slot) =>
     slot.id === id
-      ? { ...slot, ...image, origin: 'upload', viewType: undefined }
+      ? { ...slot, ...slotImage(generation), viewType: undefined }
       : slot,
   )
+}
+
+/** 加几张：已在卡上的图不重复挂，满了就停；卡上原来没图时第一张当主图。 */
+export function appendSlotImages(
+  slots: CharacterReferenceSlot[],
+  generations: GenerationRecord[],
+): CharacterReferenceSlot[] {
+  const next = [...slots]
+  for (const generation of generations) {
+    if (next.length >= CHARACTER_CARD.MAX_REFERENCE_SLOTS) break
+    if (next.some((slot) => slot.url === generation.url)) continue
+    next.push({
+      id: nextSlotId(next),
+      role: 'identity',
+      isPrimary: next.length === 0,
+      ...slotImage(generation),
+    })
+  }
+  return next
 }
 
 function nextSlotId(slots: CharacterReferenceSlot[]): string {
@@ -134,8 +171,6 @@ export function useCharacterCardEditor(card: CharacterCardRecord) {
   const [draft, setDraft] = useState<CharacterCardDraft>(() =>
     draftFromCard(card),
   )
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const patch = useCallback(
     (next: Partial<CharacterCardDraft>) =>
@@ -143,60 +178,21 @@ export function useCharacterCardEditor(card: CharacterCardRecord) {
     [],
   )
 
-  /** 传进素材库；失败时记下错误并返回 null。 */
-  const upload = useCallback(async (file: File) => {
-    setIsUploading(true)
-    setUploadError(null)
-    const response = await uploadImageFileAPI(file)
-    setIsUploading(false)
-    const generation = response.data?.generation
-    if (!response.success || !generation) {
-      setUploadError(response.error ?? 'upload failed')
-      return null
-    }
-    return { url: generation.url, generationId: generation.id }
-  }, [])
-
-  const addImage = useCallback(
-    async (file: File) => {
-      const image = await upload(file)
-      if (!image) return
-      setDraft((current) => ({
-        ...current,
-        slots: [
-          ...current.slots,
-          {
-            id: nextSlotId(current.slots),
-            role: 'identity',
-            isPrimary: current.slots.length === 0,
-            origin: 'upload',
-            ...image,
-          },
-        ],
-      }))
-    },
-    [upload],
-  )
-
-  const replaceImage = useCallback(
-    async (id: string, file: File) => {
-      const image = await upload(file)
-      if (!image) return
-      setDraft((current) => ({
-        ...current,
-        slots: replaceSlotImage(current.slots, id, image),
-      }))
-    },
-    [upload],
-  )
-
   return {
     draft,
     patch,
-    addImage,
-    replaceImage,
-    isUploading,
-    uploadError,
+    /** 素材库还能再挑几张。 */
+    remainingSlots: CHARACTER_CARD.MAX_REFERENCE_SLOTS - draft.slots.length,
+    addImages: (generations: GenerationRecord[]) =>
+      setDraft((current) => ({
+        ...current,
+        slots: appendSlotImages(current.slots, generations),
+      })),
+    replaceImage: (id: string, generation: GenerationRecord) =>
+      setDraft((current) => ({
+        ...current,
+        slots: replaceSlotImage(current.slots, id, generation),
+      })),
     reset: () => setDraft(draftFromCard(card)),
     setPrimary: (id: string) =>
       setDraft((current) => ({

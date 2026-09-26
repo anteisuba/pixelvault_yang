@@ -172,6 +172,8 @@ export function CharacterRoster() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // 侧栏上叠着的弹层（素材库选择器）已经处理掉的 Esc 不再收侧栏。
+      if (event.defaultPrevented) return
       if (event.key === 'Escape' && panelVisible && !closing) closePanel()
     }
     window.addEventListener('keydown', onKey)

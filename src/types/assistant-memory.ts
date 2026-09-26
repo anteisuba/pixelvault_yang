@@ -8,8 +8,8 @@
  * ① **写入严格**（`.strict()`）：客户端递进来的每一格都会落库。
  * ② **读取有回落**：`AssistantMemorySchema` 是「库里那一行长什么样」—— 词表改过
  *    而存量没跟上时，读不出来的**那一条**被丢掉，⛔ 不连累整张列表打不开。
- * ③ 客户端**只能改 `text`**：域与类别是助手写的观察结论，用户要的是改一句话或
- *    删掉它 —— 画板上那一行也只有这两个动作。
+ * ③ 客户端能**写一条**（「你写的」，助手设置 B）、**改一行字与它用在哪**、删掉它、
+ *    按「你写的 / 助手记的」清空；类别是服务端定的（你写的一律是规矩 `rule`）。
  */
 
 import { z } from 'zod'
@@ -17,11 +17,15 @@ import { z } from 'zod'
 import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
+  ASSISTANT_MEMORY_SCOPE_IDS,
   ASSISTANT_MEMORY_SCOPES,
+  ASSISTANT_MEMORY_SOURCES,
 } from '@/constants/assistant-memory'
 
 export const AssistantMemoryScopeSchema = z.enum(ASSISTANT_MEMORY_SCOPES)
 export const AssistantMemoryKindSchema = z.enum(ASSISTANT_MEMORY_KINDS)
+/** 谁写的（助手设置 B · 记忆页「你写的 / 助手记的」）。 */
+export const AssistantMemorySourceSchema = z.enum(ASSISTANT_MEMORY_SOURCES)
 
 /** 一行字本身 —— 写入与读取共用这一条约束，⛔ 别在两处各写一遍长度。 */
 export const AssistantMemoryTextSchema = z
@@ -35,6 +39,7 @@ export const AssistantMemorySchema = z.object({
   id: z.string().min(1),
   scope: AssistantMemoryScopeSchema,
   kind: AssistantMemoryKindSchema,
+  source: AssistantMemorySourceSchema,
   text: AssistantMemoryTextSchema,
   /** ISO 串。列表上那枚时间读 `updatedAt`（画板：今天 HH:mm · 昨天 · M/D）。 */
   createdAt: z.string(),
@@ -75,30 +80,55 @@ export type ListAssistantMemoriesQuery = z.infer<
 >
 
 /**
- * 就地改那一下。
+ * **你写一条**（助手设置 B · 记忆页那一格，回车存下）。
  *
- * ⚠ **只有 `text`**：画板上点的是那行字，改完回车就存。⛔ 不开放 scope / kind ——
- * 界面上没有改它们的地方，而一个没有界面的写入口只会被误用。
+ * ⚠ 缺 `scope` = 全部工作台（默认全局，owner 09-25）。来源与类别由服务端定：
+ * 你写的一律是 `creator` + `rule`，⛔ 不收客户端递来的这两格。
+ */
+export const CreateAssistantMemorySchema = z
+  .object({
+    text: AssistantMemoryTextSchema,
+    scope: AssistantMemoryScopeSchema.default(
+      ASSISTANT_MEMORY_SCOPE_IDS.global,
+    ),
+  })
+  .strict()
+
+export type CreateAssistantMemoryRequest = z.input<
+  typeof CreateAssistantMemorySchema
+>
+
+/**
+ * 就地改那一下：那一行字，和它用在哪（右边那颗范围下拉）。
+ *
+ * ⚠ 至少改一样；⛔ 不开放 kind / source —— 界面上没有改它们的地方，而一个没有
+ * 界面的写入口只会被误用。
  */
 export const UpdateAssistantMemorySchema = z
   .object({
-    text: AssistantMemoryTextSchema,
+    text: AssistantMemoryTextSchema.optional(),
+    scope: AssistantMemoryScopeSchema.optional(),
   })
   .strict()
+  .refine((input) => input.text !== undefined || input.scope !== undefined, {
+    message: 'Nothing to update',
+  })
 
 export type UpdateAssistantMemoryRequest = z.infer<
   typeof UpdateAssistantMemorySchema
 >
 
 /**
- * 「全部清空」那一下（二次确认之后）。
+ * 清空那一下（二次确认之后）—— **跟着筛选走**（助手设置 B）：「全部清空」/
+ * 「清空你写的」/「清空助手记的」。缺 `source` = 全部。
  *
- * ⚠ 收一个**显式的 `confirm: true`** 而不是空体：这条路一次删光用户全部记忆，
+ * ⚠ 收一个**显式的 `confirm: true`** 而不是空体：这条路一次删掉一整类记忆，
  * 一个空 POST 就能触发的接口迟早会被别的东西误撞。
  */
 export const ClearAssistantMemoriesSchema = z
   .object({
     confirm: z.literal(true),
+    source: AssistantMemorySourceSchema.optional(),
   })
   .strict()
 

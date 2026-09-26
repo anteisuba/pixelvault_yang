@@ -59,9 +59,10 @@ vi.mock('@/hooks/use-assistant-memories', () => ({
     memories: [],
     isLoading: false,
     error: null,
+    create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
-    clearAll: vi.fn(),
+    clear: vi.fn(),
     reload: vi.fn(),
   }),
 }))
@@ -316,7 +317,9 @@ describe('AssistantSettingsDialog', () => {
       />,
     )
 
-    expect(await screen.findByTestId('assistant-rules')).toBeInTheDocument()
+    expect(
+      await screen.findByTestId('assistant-memory-new'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'tabs.memory' })).toHaveAttribute(
       'aria-selected',
       'true',

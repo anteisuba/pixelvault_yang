@@ -6929,7 +6929,7 @@
       "framesInvalid": "予定した位置のフレームを取得できませんでした。もう一度抽出してください。"
     },
     "projectRule": {
-      "limitReached": "ルールの上限に達しています。1 件削除してから追加してください。"
+      "limitReached": "ソースリストの上限に達しています。1 件削除してから追加してください。"
     },
     "contextCard": {
       "limitReached": "コンテキストカードの上限に達しています。1 件削除してから追加してください。",
@@ -6938,6 +6938,9 @@
     },
     "assistantPersona": {
       "characterNotFound": "そのキャラクターはもう存在しません。別のキャラクターを選ぶか「使わない」を選んでください。"
+    },
+    "assistantMemory": {
+      "limitReached": "あなたが書いた記憶が上限に達しました。一つ削除してから書いてください。"
     }
   },
   "Transform": {
@@ -7445,7 +7448,9 @@
       "critiqueFailed": "結果の評価を読み取れませんでした",
       "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
       "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
-      "ruleLimitReached": "ルールの上限に達しました。新しく追加する前に古いプロジェクトルールを削除してください。",
+      "ruleLimitReached": "ソースリストの上限に達しました。1 件削除してから追加してください。",
+      "memoryOff": "記憶がオフ（シークレット、または「アシスタントに覚えさせる」がオフ）なので、保存していません",
+      "ruleTooLong": "このルールは長すぎるため、保存していません",
       "folderLimitReached": "フォルダ数が上限に達しました。新規作成の前に古いフォルダを削除してください。",
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA は、このワークスペースには追加されていません",
@@ -7652,22 +7657,6 @@
       "copied": "コピーしました"
     },
     "assistantSettings": "アシスタント設定",
-    "persona": {
-      "tabRules": "プロジェクトのルール",
-      "rulesHint": "このプロジェクトでアシスタントが守るルールです。覚えておいてほしいことを伝えると、ここに記録できます。",
-      "rulesLoading": "読み込み中…",
-      "rulesEmpty": "まだルールはありません — 残したいことを伝えると記録します。",
-      "ruleDelete": "このルールを削除",
-      "ruleAdd": "追加",
-      "ruleAddLabel": "ルールを追加",
-      "rulePlaceholderNote": "常に効くルールを書く",
-      "rulePlaceholderSource": "ソース ID かドメイン（例：danbooru.donmai.us）",
-      "ruleKind": {
-        "note": "通常のルール",
-        "sourceAllow": "この情報源だけ",
-        "sourceDeny": "この情報源を除外"
-      }
-    },
     "rule": {
       "recordedOn": "{date} に記録",
       "sourceAssistant": "会話から",
@@ -8048,36 +8037,6 @@
         "/studio/node": "キャンバス",
         "/gallery": "ギャラリー"
       }
-    },
-    "assistant": {
-      "personaLabel": "話し方",
-      "verbosity": {
-        "concise": "簡潔",
-        "standard": "標準",
-        "detailed": "詳細"
-      },
-      "memoryLabel": "記憶",
-      "memoryClearAll": "すべて消去",
-      "memoryScope": {
-        "all": "すべて",
-        "image": "画像",
-        "video": "動画",
-        "canvas": "キャンバス",
-        "lora": "LoRA"
-      },
-      "memoryLoading": "記憶を読み込み中…",
-      "memoryEmpty": "まだ記憶はありません",
-      "memoryEmptyHint": "アシスタントは各ターンの終わりにあなたの好みや事実を書き留めます。ここでいつでも編集・削除できます。",
-      "memoryIncognitoCta": "このセッションは記憶しない",
-      "memoryEditLabel": "この記憶を編集",
-      "memoryEditHint": "Enter で保存 · Esc で取消",
-      "memoryDelete": "この記憶を削除",
-      "memoryToday": "今日 {time}",
-      "memoryYesterday": "昨日",
-      "memoryClearTitle": "記憶をすべて消去しますか？",
-      "memoryClearDescription": "{count, plural, other {# 件}}の記憶が削除されます。元に戻せません。",
-      "memoryClearConfirm": "すべて消去",
-      "memoryCancel": "キャンセル"
     }
   },
   "AssistantSettings": {
@@ -8205,6 +8164,73 @@
     "myWords": {
       "label": "自分の言葉を使う",
       "hint": "プロンプトで使った言い方をそのまま使う"
+    },
+    "memory": {
+      "caption": "会話の中でアシスタントが覚えたことと、あなたが書いたことを一列に並べています。あなたが書いたものが優先です。",
+      "captionPaused": "アシスタントは新しく覚えません。一覧にあるものは引き続き使われます。不要なものは削除してください。",
+      "capture": "アシスタントに覚えさせる",
+      "newLabel": "記憶を書く",
+      "newPlaceholder": "一つ書いて Enter で保存。例：いつも日本語で返事して",
+      "filters": {
+        "label": "書いた人で絞り込む",
+        "all": "すべて",
+        "creator": "あなたが書いた",
+        "assistant": "アシスタントが覚えた"
+      },
+      "clear": {
+        "all": "すべて消去",
+        "creator": "あなたが書いたものを消去",
+        "assistant": "アシスタントが覚えたものを消去",
+        "titleAll": "記憶 {count} 件をすべて消去しますか？",
+        "titleCreator": "あなたが書いた {count} 件を消去しますか？",
+        "titleAssistant": "アシスタントが覚えた {count} 件を消去しますか？",
+        "descAll": "元に戻せません。",
+        "descAllWithMine": "あなたが書いた {count} 件も一緒に消えます。元に戻せません。",
+        "descCreator": "アシスタントが覚えたものは残ります。元に戻せません。",
+        "descAssistant": "あなたが書いたものは残ります。元に戻せません。",
+        "cancel": "キャンセル"
+      },
+      "source": {
+        "creator": "あなたが書いた",
+        "assistant": "アシスタントが覚えた"
+      },
+      "meta": "{source} · {time}",
+      "today": "今日 {time}",
+      "yesterday": "昨日",
+      "edit": "この記憶を編集：{text}",
+      "editLabel": "この記憶を編集",
+      "editHint": "Enter で保存 · Esc でキャンセル · 右で使う場所を選ぶ",
+      "scopeLabel": "使う場所",
+      "scopeAria": "使う場所：{scope}",
+      "scope": {
+        "global": "すべてのワークベンチ",
+        "image": "画像だけ",
+        "video": "動画だけ",
+        "canvas": "キャンバスだけ",
+        "lora": "LoRA だけ"
+      },
+      "delete": "削除",
+      "deleteConfirm": "削除する",
+      "deleteAria": "この記憶を削除",
+      "deleteConfirmAria": "この記憶の削除を確定",
+      "filteredEmpty": "この種類はまだありません。",
+      "emptyTitle": "まだ記憶がありません",
+      "emptyDescription": "アシスタントは毎回の終わりに、あなたの好みや事実を覚えます。ここでいつでも編集・削除できます。",
+      "emptyAction": "最初の一つを書く",
+      "loading": "記憶を読み込み中…",
+      "failed": "保存できませんでした。もう一度お試しください。"
+    },
+    "sources": {
+      "title": "画像検索のソース",
+      "caption": "画像検索はこのリストで直接絞り込みます。アシスタント任せにはしません",
+      "allow": "このサイトだけから探す",
+      "deny": "このサイトからは探さない",
+      "add": "追加",
+      "addLabel": "サイトを追加",
+      "placeholder": "サイトまたはドメイン",
+      "remove": "{token} を削除",
+      "invalid": "サイトのドメインを入力してください（例：danbooru.donmai.us）。",
+      "failed": "保存できませんでした。もう一度お試しください。"
     }
   },
   "StudioInpaintMask": {

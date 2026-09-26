@@ -2,17 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type {
+  AssistantMemoryScopeId,
+  AssistantMemorySourceId,
+} from '@/constants/assistant-memory'
 import {
   clearAssistantMemoriesAPI,
+  createAssistantMemoryAPI,
   deleteAssistantMemoryAPI,
   listAssistantMemoriesAPI,
   updateAssistantMemoryAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type { AssistantMemory } from '@/types/assistant-memory'
+import type {
+  AssistantMemory,
+  CreateAssistantMemoryRequest,
+} from '@/types/assistant-memory'
 
 /**
- * **助手记忆**的读写（56a · `/settings/assistant` 的记忆区）。
+ * **助手记忆**的读写（56a · 助手设置 B 的「记忆」页）。
  *
  * 形状照抄 `use-context-cards.ts`（同一套 `deferEffectTask` + `aliveRef` 约定）。
  *
@@ -22,13 +30,35 @@ import type { AssistantMemory } from '@/types/assistant-memory'
  * `updatedAt` 由库决定，而列表就是按它排的。
  */
 
+/** 最近一次失败。`i18nKey` 在时按它说人话（`getApiErrorMessage`），⛔ 不把英文原话递给用户。 */
+export interface AssistantMemoriesFailure {
+  message: string
+  i18nKey?: string
+}
+
+function toFailure(result: {
+  error: string
+  i18nKey?: string
+}): AssistantMemoriesFailure {
+  return {
+    message: result.error,
+    ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+  }
+}
+
 export interface UseAssistantMemoriesValue {
   memories: AssistantMemory[]
   isLoading: boolean
-  error: string | null
-  update(memoryId: string, text: string): Promise<AssistantMemory | null>
+  error: AssistantMemoriesFailure | null
+  /** 你写一条：成功后排到最前（最新的在前，与服务端那份排序同一条）。 */
+  create(input: CreateAssistantMemoryRequest): Promise<AssistantMemory | null>
+  update(
+    memoryId: string,
+    input: { text?: string; scope?: AssistantMemoryScopeId },
+  ): Promise<AssistantMemory | null>
   remove(memoryId: string): Promise<boolean>
-  clearAll(): Promise<boolean>
+  /** 清空（跟着筛选走：缺 `source` = 全部）。 */
+  clear(source?: AssistantMemorySourceId): Promise<boolean>
   reload(): Promise<void>
 }
 
@@ -37,8 +67,9 @@ export function useAssistantMemories(
 ): UseAssistantMemoriesValue {
   const enabled = options.enabled ?? true
   const [memories, setMemories] = useState<AssistantMemory[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  /** 首次取回之前就是「在读」：⛔ 不在第一帧闪一下「还没有记忆」。 */
+  const [isLoading, setIsLoading] = useState(enabled)
+  const [error, setError] = useState<AssistantMemoriesFailure | null>(null)
   const aliveRef = useRef(true)
 
   useEffect(() => {
@@ -58,7 +89,7 @@ export function useAssistantMemories(
       setError(null)
       return
     }
-    setError(result.error)
+    setError(toFailure(result))
   }, [])
 
   /**
@@ -72,25 +103,47 @@ export function useAssistantMemories(
     })
   }, [enabled, reload])
 
-  const update = useCallback(async (memoryId: string, text: string) => {
-    const result = await updateAssistantMemoryAPI(memoryId, text)
+  const create = useCallback(async (input: CreateAssistantMemoryRequest) => {
+    const result = await createAssistantMemoryAPI(input)
     if (!aliveRef.current) return result.success ? result.data : null
     if (result.success) {
-      /**
-       * ⚠ **就地替换、⛔ 不重排**：改完 `updatedAt` 会前移，按它重排的表现是
-       * 用户刚改完那一行就从眼前跳走了。下次进页面时它自然排在最前。
-       */
-      setMemories((current) =>
-        current.map((memory) =>
-          memory.id === result.data.id ? result.data : memory,
-        ),
-      )
+      // 同一句话已经在了时服务端回的是那一行 —— 先摘掉旧位置再放到最前。
+      setMemories((current) => [
+        result.data,
+        ...current.filter((memory) => memory.id !== result.data.id),
+      ])
       setError(null)
       return result.data
     }
-    setError(result.error)
+    setError(toFailure(result))
     return null
   }, [])
+
+  const update = useCallback(
+    async (
+      memoryId: string,
+      input: { text?: string; scope?: AssistantMemoryScopeId },
+    ) => {
+      const result = await updateAssistantMemoryAPI(memoryId, input)
+      if (!aliveRef.current) return result.success ? result.data : null
+      if (result.success) {
+        /**
+         * ⚠ **就地替换、⛔ 不重排**：改完 `updatedAt` 会前移，按它重排的表现是
+         * 用户刚改完那一行就从眼前跳走了。下次进页面时它自然排在最前。
+         */
+        setMemories((current) =>
+          current.map((memory) =>
+            memory.id === result.data.id ? result.data : memory,
+          ),
+        )
+        setError(null)
+        return result.data
+      }
+      setError(toFailure(result))
+      return null
+    },
+    [],
+  )
 
   const remove = useCallback(async (memoryId: string) => {
     const result = await deleteAssistantMemoryAPI(memoryId)
@@ -102,21 +155,32 @@ export function useAssistantMemories(
       setError(null)
       return true
     }
-    setError(result.error)
+    setError(toFailure(result))
     return false
   }, [])
 
-  const clearAll = useCallback(async () => {
-    const result = await clearAssistantMemoriesAPI()
+  const clear = useCallback(async (source?: AssistantMemorySourceId) => {
+    const result = await clearAssistantMemoriesAPI(source)
     if (!aliveRef.current) return result.success
     if (result.success) {
-      setMemories([])
+      setMemories((current) =>
+        source ? current.filter((memory) => memory.source !== source) : [],
+      )
       setError(null)
       return true
     }
-    setError(result.error)
+    setError(toFailure(result))
     return false
   }, [])
 
-  return { memories, isLoading, error, update, remove, clearAll, reload }
+  return {
+    memories,
+    isLoading,
+    error,
+    create,
+    update,
+    remove,
+    clear,
+    reload,
+  }
 }

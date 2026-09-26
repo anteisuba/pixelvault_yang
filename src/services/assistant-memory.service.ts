@@ -5,15 +5,18 @@ import {
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPE_IDS,
   ASSISTANT_MEMORY_SENSITIVE_PATTERNS,
+  ASSISTANT_MEMORY_SOURCE_IDS,
   normalizeAssistantMemoryText,
   type AssistantMemoryKindId,
   type AssistantMemoryScopeId,
+  type AssistantMemorySourceId,
 } from '@/constants/assistant-memory'
 import { db } from '@/lib/db'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantMemoryKind,
   AssistantMemoryScope,
+  AssistantMemorySource,
 } from '@/lib/generated/prisma/client'
 import {
   AssistantMemorySchema,
@@ -66,10 +69,23 @@ const ID_BY_DB_KIND: Record<AssistantMemoryKind, AssistantMemoryKindId> = {
   RULE: ASSISTANT_MEMORY_KIND_IDS.rule,
 }
 
+const DB_SOURCE_BY_ID: Record<AssistantMemorySourceId, AssistantMemorySource> =
+  {
+    [ASSISTANT_MEMORY_SOURCE_IDS.assistant]: 'ASSISTANT',
+    [ASSISTANT_MEMORY_SOURCE_IDS.creator]: 'CREATOR',
+  }
+
+const ID_BY_DB_SOURCE: Record<AssistantMemorySource, AssistantMemorySourceId> =
+  {
+    ASSISTANT: ASSISTANT_MEMORY_SOURCE_IDS.assistant,
+    CREATOR: ASSISTANT_MEMORY_SOURCE_IDS.creator,
+  }
+
 const MEMORY_SELECT = {
   id: true,
   scope: true,
   kind: true,
+  source: true,
   text: true,
   createdAt: true,
   updatedAt: true,
@@ -79,6 +95,7 @@ interface MemoryRow {
   id: string
   scope: AssistantMemoryScope
   kind: AssistantMemoryKind
+  source: AssistantMemorySource
   text: string
   createdAt: Date
   updatedAt: Date
@@ -95,6 +112,7 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
     id: row.id,
     scope: ID_BY_DB_SCOPE[row.scope],
     kind: ID_BY_DB_KIND[row.kind],
+    source: ID_BY_DB_SOURCE[row.source],
     text: row.text,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -113,24 +131,43 @@ export interface ListAssistantMemoriesOptions {
  *
  * ⚠ 与注入那一条的排序**有意不同**：这里按「最近改过」，注入按「最近被用过」
  * （`lastUsedAt`）。两者混用的表现是用户刚在设置里改过一条，它却排在注入队尾。
+ * ⚠ **你写的单独取满**（≤ `maxCreatorEntries`）再与助手记的合并：只取一份
+ * 「最近 200 条」时，一个话多的月份就能把你三个月前写的规矩挤出列表 ——
+ * 「你写的」那一档筛出来就不是全部了。
  */
 export async function listAssistantMemories(
   userId: string,
   options: ListAssistantMemoriesOptions = {},
 ): Promise<AssistantMemory[]> {
-  const rows = await db.assistantMemory.findMany({
-    where: {
-      userId,
-      ...(options.scope ? { scope: DB_SCOPE_BY_ID[options.scope] } : {}),
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: Math.min(
-      options.limit ?? ASSISTANT_MEMORY_LIMITS.maxPerScope,
-      ASSISTANT_MEMORY_LIMITS.maxPerScope,
-    ),
-    select: MEMORY_SELECT,
-  })
-  return rows
+  const where = {
+    userId,
+    ...(options.scope ? { scope: DB_SCOPE_BY_ID[options.scope] } : {}),
+  }
+  const [creatorRows, assistantRows] = await Promise.all([
+    db.assistantMemory.findMany({
+      where: {
+        ...where,
+        source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+      select: MEMORY_SELECT,
+    }),
+    db.assistantMemory.findMany({
+      where: {
+        ...where,
+        source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: Math.min(
+        options.limit ?? ASSISTANT_MEMORY_LIMITS.maxPerScope,
+        ASSISTANT_MEMORY_LIMITS.maxPerScope,
+      ),
+      select: MEMORY_SELECT,
+    }),
+  ])
+  return [...creatorRows, ...assistantRows]
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
     .map(toMemory)
     .filter((memory): memory is AssistantMemory => memory !== null)
 }
@@ -143,8 +180,16 @@ export async function listAssistantMemoriesForClerkId(
   return listAssistantMemories(user.id, options)
 }
 
+/** 当前域 + `global`（`global` 本身就只是它自己）。 */
+function promptScopes(scope: AssistantMemoryScopeId): AssistantMemoryScope[] {
+  return scope === ASSISTANT_MEMORY_SCOPE_IDS.global
+    ? [DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global]]
+    : [DB_SCOPE_BY_ID[scope], DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global]]
+}
+
 /**
- * **注入那一跳要的那几条**（切片 2）：当前域 + `global`，按 `lastUsedAt` 倒序。
+ * **注入那一跳要的那几条助手记的**（切片 2）：当前域 + `global`，按 `lastUsedAt`
+ * 倒序。⚠ 只要助手记的 —— 你写的有自己那一段（`listCreatorMemoriesForPrompt`）。
  *
  * ⚠ 预算由调用方给（卡优先，见 `ASSISTANT_CONTEXT_BUDGET`）—— ⛔ 这里不自己
  * 读卡表：一个函数同时决定两种东西各占多少，是把预算判据藏进了服务层。
@@ -156,17 +201,67 @@ export async function listAssistantMemoriesForPrompt(
   limit: number,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
-  const scopes =
-    scope === ASSISTANT_MEMORY_SCOPE_IDS.global
-      ? [DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global]]
-      : [
-          DB_SCOPE_BY_ID[scope],
-          DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
-        ]
   const rows = await db.assistantMemory.findMany({
-    where: { userId, scope: { in: scopes } },
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      scope: { in: promptScopes(scope) },
+    },
     orderBy: { lastUsedAt: 'desc' },
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxInPrompt),
+    select: MEMORY_SELECT,
+  })
+  return rows
+    .map(toMemory)
+    .filter((memory): memory is AssistantMemory => memory !== null)
+}
+
+/**
+ * **你写的**那一段（助手设置 B：你写的优先）—— 当前域 + `global`，最近改过的在前。
+ *
+ * ⭐ 它们进「你写下的规矩」那一段，带 id，能被引用成规则薄卡；⛔ 不占记忆预算、
+ * ⛔ 不参与淘汰。旧「项目规则」里用户自己写的普通规则就在这里。
+ */
+export async function listCreatorMemoriesForPrompt(
+  userId: string,
+  scope: AssistantMemoryScopeId,
+  limit: number,
+): Promise<AssistantMemory[]> {
+  if (limit <= 0) return []
+  const rows = await db.assistantMemory.findMany({
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+      scope: { in: promptScopes(scope) },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
+    select: MEMORY_SELECT,
+  })
+  return rows
+    .map(toMemory)
+    .filter((memory): memory is AssistantMemory => memory !== null)
+}
+
+/**
+ * 助手翻「规矩」的那一次（`read_project_rules`）：你写的 + 助手在对话里记下的规矩，
+ * 给了域就只要该域 + `global`。最近改过的在前。
+ */
+export async function listStandingRuleMemories(
+  userId: string,
+  options: { scope?: AssistantMemoryScopeId | null; limit: number },
+): Promise<AssistantMemory[]> {
+  const rows = await db.assistantMemory.findMany({
+    where: {
+      userId,
+      OR: [
+        { source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator] },
+        { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
+      ],
+      ...(options.scope ? { scope: { in: promptScopes(options.scope) } } : {}),
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: options.limit,
     select: MEMORY_SELECT,
   })
   return rows
@@ -192,8 +287,136 @@ export async function touchAssistantMemories(
   })
 }
 
+/** 你写的满了 —— 调用方据此拒，⛔ 不静默丢弃、也不挤掉最老的一条。 */
+export class AssistantMemoryLimitError extends Error {
+  constructor(readonly limit: number) {
+    super(`Creator memory limit reached (${limit})`)
+    this.name = 'AssistantMemoryLimitError'
+  }
+}
+
 /**
- * 就地改一条。返回 `null` = 不属于这个用户（或已经没了）—— 路由据此 404。
+ * 同一句话已经在了吗（同域、归一化后相等）—— 你写的与助手记的一起比，⛔ 不存
+ * 两行一样的话。命中就把那一行顶到最前（`updatedAt`），⛔ 不改原文。
+ */
+async function findSameText(
+  userId: string,
+  scope: AssistantMemoryScopeId,
+  text: string,
+): Promise<MemoryRow | null> {
+  const normalized = normalizeAssistantMemoryText(text)
+  const siblings = await db.assistantMemory.findMany({
+    where: { userId, scope: DB_SCOPE_BY_ID[scope] },
+    select: MEMORY_SELECT,
+    take:
+      ASSISTANT_MEMORY_LIMITS.maxPerScope +
+      ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+  })
+  return (
+    siblings.find(
+      (row) => normalizeAssistantMemoryText(row.text) === normalized,
+    ) ?? null
+  )
+}
+
+/**
+ * **你写一条**（记忆页那一格，回车存下）—— 来源 `creator`、类别 `rule`。
+ *
+ * ⚠ 上限是一道真的会拒的闸（`maxCreatorEntries`）：你写的每一轮都整段进提示，
+ * ⛔ 不淘汰，所以满了就拒、让用户先删一条。
+ */
+export async function createCreatorMemory(
+  userId: string,
+  input: { text: string; scope: AssistantMemoryScopeId },
+): Promise<AssistantMemory> {
+  const text = input.text.trim()
+  const same = await findSameText(userId, input.scope, text)
+  if (same) {
+    const row = await db.assistantMemory.update({
+      where: { id: same.id },
+      data: {
+        source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+        lastUsedAt: new Date(),
+      },
+      select: MEMORY_SELECT,
+    })
+    const memory = toMemory(row)
+    if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+    return memory
+  }
+
+  const count = await db.assistantMemory.count({
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+    },
+  })
+  if (count >= ASSISTANT_MEMORY_LIMITS.maxCreatorEntries) {
+    throw new AssistantMemoryLimitError(
+      ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+    )
+  }
+
+  const row = await db.assistantMemory.create({
+    data: {
+      userId,
+      scope: DB_SCOPE_BY_ID[input.scope],
+      kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+      text,
+    },
+    select: MEMORY_SELECT,
+  })
+  const memory = toMemory(row)
+  if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+  return memory
+}
+
+export async function createCreatorMemoryForClerkId(
+  clerkId: string,
+  input: { text: string; scope: AssistantMemoryScopeId },
+): Promise<AssistantMemory> {
+  const user = await ensureUser(clerkId)
+  return createCreatorMemory(user.id, input)
+}
+
+/**
+ * **助手在对话里记下一条规矩**（`add_project_rule` 的普通规则，旧项目规则并进来后
+ * 落在这里）—— 来源 `assistant`、类别 `rule`，与每轮结账那条路同一份淘汰。
+ *
+ * ⚠ 同一句话已经在了（任何来源）就返回那一行，`created: false` —— 规划器据此
+ * 告诉模型「已经记着了」，⛔ 不存第二行。
+ */
+export async function addAssistantRuleMemory(
+  userId: string,
+  input: { text: string; scope: AssistantMemoryScopeId },
+): Promise<{ memory: AssistantMemory; created: boolean }> {
+  const text = input.text.trim()
+  const same = await findSameText(userId, input.scope, text)
+  if (same) {
+    const memory = toMemory(same)
+    if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+    return { memory, created: false }
+  }
+  const row = await db.assistantMemory.create({
+    data: {
+      userId,
+      scope: DB_SCOPE_BY_ID[input.scope],
+      kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      text,
+    },
+    select: MEMORY_SELECT,
+  })
+  await evictOldestAssistantMemories(userId, input.scope)
+  const memory = toMemory(row)
+  if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+  return { memory, created: true }
+}
+
+/**
+ * 就地改一条：那一行字，和它用在哪。返回 `null` = 不属于这个用户（或已经没了）
+ * —— 路由据此 404。
  *
  * ⚠ 改完 `updatedAt` 自动前移（`@updatedAt`），于是它跳到列表最前 —— 这是
  * 有意的：用户刚动过的那条该在眼前。
@@ -201,7 +424,7 @@ export async function touchAssistantMemories(
 export async function updateAssistantMemory(
   userId: string,
   memoryId: string,
-  text: string,
+  input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<AssistantMemory | null> {
   const existing = await db.assistantMemory.findFirst({
     where: { id: memoryId, userId },
@@ -211,7 +434,12 @@ export async function updateAssistantMemory(
 
   const row = await db.assistantMemory.update({
     where: { id: existing.id },
-    data: { text },
+    data: {
+      ...(input.text !== undefined ? { text: input.text } : {}),
+      ...(input.scope !== undefined
+        ? { scope: DB_SCOPE_BY_ID[input.scope] }
+        : {}),
+    },
     select: MEMORY_SELECT,
   })
   return toMemory(row)
@@ -220,10 +448,10 @@ export async function updateAssistantMemory(
 export async function updateAssistantMemoryForClerkId(
   clerkId: string,
   memoryId: string,
-  text: string,
+  input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<AssistantMemory | null> {
   const user = await ensureUser(clerkId)
-  return updateAssistantMemory(user.id, memoryId, text)
+  return updateAssistantMemory(user.id, memoryId, input)
 }
 
 /**
@@ -248,17 +476,26 @@ export async function deleteAssistantMemoryForClerkId(
   return deleteAssistantMemory(user.id, memoryId)
 }
 
-/** 「全部清空」。返回删掉了几条 —— 二次确认在客户端，这一跳不再问一遍。 */
-export async function clearAssistantMemories(userId: string): Promise<number> {
-  const { count } = await db.assistantMemory.deleteMany({ where: { userId } })
+/**
+ * 清空（跟着筛选走：全部 / 你写的 / 助手记的）。返回删掉了几条 —— 二次确认在
+ * 客户端，这一跳不再问一遍。
+ */
+export async function clearAssistantMemories(
+  userId: string,
+  source?: AssistantMemorySourceId,
+): Promise<number> {
+  const { count } = await db.assistantMemory.deleteMany({
+    where: { userId, ...(source ? { source: DB_SOURCE_BY_ID[source] } : {}) },
+  })
   return count
 }
 
 export async function clearAssistantMemoriesForClerkId(
   clerkId: string,
+  source?: AssistantMemorySourceId,
 ): Promise<number> {
   const user = await ensureUser(clerkId)
-  return clearAssistantMemories(user.id)
+  return clearAssistantMemories(user.id, source)
 }
 
 /**
@@ -380,8 +617,9 @@ export async function recordAssistantMemories(
 }
 
 /**
- * 每域上限 200 —— 超了按 `lastUsedAt` 最旧的**静默**删。
+ * 每域上限 200（**只数助手记的**）—— 超了按 `lastUsedAt` 最旧的**静默**删。
  *
+ * ⛔ 你写的不淘汰（助手设置 B：你写的优先）。
  * ⛔ 不通知、不画容量表、不变灰（owner 2026-09-20 撤）。
  * ⚠ 按 `lastUsedAt` 而不是 `createdAt`：一条两年前记下、每一轮都在用的偏好，
  * 比昨天记下、再没被注入过的那条值钱。
@@ -390,15 +628,17 @@ async function evictOldestAssistantMemories(
   userId: string,
   scope: AssistantMemoryScopeId,
 ): Promise<void> {
-  const dbScope = DB_SCOPE_BY_ID[scope]
-  const count = await db.assistantMemory.count({
-    where: { userId, scope: dbScope },
-  })
+  const where = {
+    userId,
+    scope: DB_SCOPE_BY_ID[scope],
+    source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+  }
+  const count = await db.assistantMemory.count({ where })
   const excess = count - ASSISTANT_MEMORY_LIMITS.maxPerScope
   if (excess <= 0) return
 
   const doomed = await db.assistantMemory.findMany({
-    where: { userId, scope: dbScope },
+    where,
     orderBy: { lastUsedAt: 'asc' },
     take: excess,
     select: { id: true },

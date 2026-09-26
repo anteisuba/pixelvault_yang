@@ -45,7 +45,18 @@ describe('POST /api/assistant-memories/clear', () => {
   it('confirm: true 才清，并回清了几条', async () => {
     const res = await POST(createPOST(PATH, { confirm: true }))
     expect(res.status).toBe(200)
-    expect(mockClear).toHaveBeenCalledWith('clerk_test_user')
+    expect(mockClear).toHaveBeenCalledWith('clerk_test_user', undefined)
     expect(await parseJSON(res)).toMatchObject({ data: { cleared: 38 } })
+  })
+
+  /** 清空跟着筛选走（助手设置 B）。 */
+  it('带来源时只清那一栏；来源词表外 400', async () => {
+    await POST(createPOST(PATH, { confirm: true, source: 'assistant' }))
+    expect(mockClear).toHaveBeenCalledWith('clerk_test_user', 'assistant')
+
+    mockClear.mockClear()
+    const bad = await POST(createPOST(PATH, { confirm: true, source: 'model' }))
+    expect(bad.status).toBe(400)
+    expect(mockClear).not.toHaveBeenCalled()
   })
 })

@@ -44,6 +44,7 @@ const BASE = {
   language: ASSISTANT_PERSONA_DEFAULTS.language,
   nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
   useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
+  memoryCapture: ASSISTANT_PERSONA_DEFAULTS.memoryCapture,
   /** v2 §11.1 的人设档 —— null = 自定义。 */
   archetype: ASSISTANT_PERSONA_DEFAULTS.archetype,
   addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
@@ -232,13 +233,14 @@ describe('AssistantPersona.archetype', () => {
 })
 
 describe('项目规则 · kind 与来源 token（v2 §9.3）', () => {
-  it('缺省 kind = 普通规则，原文一个字都不动', () => {
-    const parsed = CreateProjectRuleSchema.safeParse({
-      text: '  画面里不要出现文字  ',
-    })
-    expect(parsed.success).toBe(true)
-    expect(parsed.success && parsed.data.kind).toBe(PROJECT_RULE_KIND_IDS.note)
-    expect(parsed.success && parsed.data.text).toBe('画面里不要出现文字')
+  /** 普通规则已并进记忆（助手设置 B）—— 这张表的写入只收来源名单。 */
+  it('普通规则写不进来：缺 kind 或 note 都不收', () => {
+    for (const input of [
+      { text: '画面里不要出现文字' },
+      { text: '画面里不要出现文字', kind: PROJECT_RULE_KIND_IDS.note },
+    ]) {
+      expect(CreateProjectRuleSchema.safeParse(input).success).toBe(false)
+    }
   })
 
   it('来源类规则把地址收成域名：协议头 / 路径 / www 都剥掉', () => {

@@ -6,7 +6,7 @@ import { clearAssistantMemoriesForClerkId } from '@/services/assistant-memory.se
 import { ClearAssistantMemoriesSchema } from '@/types/assistant-memory'
 
 /**
- * 「全部清空」（56a · 记忆区右上那一行字，二次确认之后）。
+ * 清空（56a · 助手设置 B：跟着筛选走 —— 全部 / 你写的 / 助手记的，二次确认之后）。
  *
  * ⚠ 它是一条 **POST** 而不是集合上的 DELETE：路由工厂的 DELETE 那一支读
  * `context.params.id`，集合路由上没有 id 可给 —— ⛔ 与其为这一次调用给工厂长出
@@ -19,7 +19,7 @@ export const POST = createApiRoute({
   schema: ClearAssistantMemoriesSchema,
   routeName: 'POST /api/assistant-memories/clear',
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
-  handler: async (clerkId) => ({
-    cleared: await clearAssistantMemoriesForClerkId(clerkId),
+  handler: async (clerkId, data) => ({
+    cleared: await clearAssistantMemoriesForClerkId(clerkId, data.source),
   }),
 })

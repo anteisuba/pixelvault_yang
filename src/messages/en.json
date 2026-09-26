@@ -6929,7 +6929,7 @@
       "framesInvalid": "The extracted frames didn't match the selected points. Try extracting them again."
     },
     "projectRule": {
-      "limitReached": "You've reached the rule limit. Delete one to add another."
+      "limitReached": "You've reached the source-list limit. Delete one to add another."
     },
     "contextCard": {
       "limitReached": "You've reached the context card limit. Delete one to add another.",
@@ -6938,6 +6938,9 @@
     },
     "assistantPersona": {
       "characterNotFound": "That character no longer exists. Pick another one or choose \"No character\"."
+    },
+    "assistantMemory": {
+      "limitReached": "You've reached the limit for memories you write. Delete one before adding another."
     }
   },
   "Transform": {
@@ -7445,7 +7448,9 @@
       "critiqueFailed": "The result review couldn't be read",
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
       "repeatedStep": "It already ran this exact step — skipped",
-      "ruleLimitReached": "Rule limit reached — delete an old project rule before adding another.",
+      "ruleLimitReached": "Source-list limit reached — delete one before adding another.",
+      "memoryOff": "Memory is off (incognito, or \"Let the assistant remember\" is off), so this wasn't saved",
+      "ruleTooLong": "This rule is too long to save",
       "folderLimitReached": "Folder limit reached — delete an old folder before making another.",
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA hasn't been added to this workspace",
@@ -7652,22 +7657,6 @@
       "copied": "Copied"
     },
     "assistantSettings": "Assistant settings",
-    "persona": {
-      "tabRules": "Project rules",
-      "rulesHint": "Rules the assistant follows while working on this project. Tell it what you'd like remembered, and it can save it here.",
-      "rulesLoading": "Loading…",
-      "rulesEmpty": "No rules yet — tell the assistant something worth keeping and it records one.",
-      "ruleDelete": "Delete this rule",
-      "ruleAdd": "Add",
-      "ruleAddLabel": "Add a rule",
-      "rulePlaceholderNote": "Write a rule that always applies",
-      "rulePlaceholderSource": "Source id or domain, e.g. danbooru.donmai.us",
-      "ruleKind": {
-        "note": "Plain rule",
-        "sourceAllow": "Only these sources",
-        "sourceDeny": "Never these sources"
-      }
-    },
     "rule": {
       "recordedOn": "recorded {date}",
       "sourceAssistant": "from your conversation",
@@ -8048,36 +8037,6 @@
         "/studio/node": "Canvas",
         "/gallery": "Gallery"
       }
-    },
-    "assistant": {
-      "personaLabel": "Persona",
-      "verbosity": {
-        "concise": "Concise",
-        "standard": "Standard",
-        "detailed": "Detailed"
-      },
-      "memoryLabel": "Memory",
-      "memoryClearAll": "Clear all",
-      "memoryScope": {
-        "all": "All",
-        "image": "Image",
-        "video": "Video",
-        "canvas": "Canvas",
-        "lora": "LoRA"
-      },
-      "memoryLoading": "Loading memory…",
-      "memoryEmpty": "Nothing remembered yet",
-      "memoryEmptyHint": "The assistant notes your preferences and facts at the end of each turn. You can edit or delete any of them here.",
-      "memoryIncognitoCta": "Don't remember this session",
-      "memoryEditLabel": "Edit this memory",
-      "memoryEditHint": "Enter to save · Esc to cancel",
-      "memoryDelete": "Delete this memory",
-      "memoryToday": "Today {time}",
-      "memoryYesterday": "Yesterday",
-      "memoryClearTitle": "Clear all memory?",
-      "memoryClearDescription": "{count, plural, one {# remembered line} other {# remembered lines}} will be deleted. This cannot be undone.",
-      "memoryClearConfirm": "Clear all",
-      "memoryCancel": "Cancel"
     }
   },
   "AssistantSettings": {
@@ -8205,6 +8164,73 @@
     "myWords": {
       "label": "Use my words",
       "hint": "Keep the wording I use in my prompts"
+    },
+    "memory": {
+      "caption": "What the assistant picked up in conversation and what you wrote yourself, in one list. Yours come first.",
+      "captionPaused": "The assistant won't note anything new. Everything listed still applies — delete what you don't want.",
+      "capture": "Let the assistant remember",
+      "newLabel": "Write a memory",
+      "newPlaceholder": "Write one, press Enter to save. e.g. Always reply in English",
+      "filters": {
+        "label": "Filter by who wrote it",
+        "all": "All",
+        "creator": "Yours",
+        "assistant": "Assistant's"
+      },
+      "clear": {
+        "all": "Clear all",
+        "creator": "Clear yours",
+        "assistant": "Clear the assistant's",
+        "titleAll": "{count, plural, one {Clear # memory?} other {Clear all # memories?}}",
+        "titleCreator": "{count, plural, one {Clear the # you wrote?} other {Clear the # you wrote?}}",
+        "titleAssistant": "{count, plural, one {Clear the assistant's # memory?} other {Clear the assistant's # memories?}}",
+        "descAll": "This can't be undone.",
+        "descAllWithMine": "{count, plural, one {The one you wrote goes too.} other {The # you wrote go too.}} This can't be undone.",
+        "descCreator": "The assistant's stay. This can't be undone.",
+        "descAssistant": "Yours stay. This can't be undone.",
+        "cancel": "Cancel"
+      },
+      "source": {
+        "creator": "Yours",
+        "assistant": "Assistant's"
+      },
+      "meta": "{source} · {time}",
+      "today": "Today {time}",
+      "yesterday": "Yesterday",
+      "edit": "Edit this memory: {text}",
+      "editLabel": "Edit this memory",
+      "editHint": "Enter to save · Esc to cancel · pick where it applies on the right",
+      "scopeLabel": "Where it applies",
+      "scopeAria": "Where it applies: {scope}",
+      "scope": {
+        "global": "All workbenches",
+        "image": "Image only",
+        "video": "Video only",
+        "canvas": "Canvas only",
+        "lora": "LoRA only"
+      },
+      "delete": "Delete",
+      "deleteConfirm": "Confirm delete",
+      "deleteAria": "Delete this memory",
+      "deleteConfirmAria": "Confirm deleting this memory",
+      "filteredEmpty": "Nothing here yet.",
+      "emptyTitle": "No memories yet",
+      "emptyDescription": "At the end of each turn the assistant notes your preferences and facts. You can edit or delete them here anytime.",
+      "emptyAction": "Write the first one",
+      "loading": "Loading memories…",
+      "failed": "Couldn't save. Try again."
+    },
+    "sources": {
+      "title": "Image search sources",
+      "caption": "Image search filters by this list directly — it doesn't rely on the assistant",
+      "allow": "Only search these sites",
+      "deny": "Never search these sites",
+      "add": "Add",
+      "addLabel": "Add a site",
+      "placeholder": "Site or domain",
+      "remove": "Remove {token}",
+      "invalid": "Enter a site domain, like danbooru.donmai.us.",
+      "failed": "Couldn't save. Try again."
     }
   },
   "StudioInpaintMask": {

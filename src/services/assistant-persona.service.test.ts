@@ -66,6 +66,7 @@ const STORED_ROW = {
   routeModel: null,
   nextStepHint: true,
   useMyWords: false,
+  memoryCapture: true,
   /** ⚠ 这一行五格对不上任何一档（§11.1）→ 读回来是 `null` = 自定义。 */
   archetype: null,
   addressUserAs: '阿羊',
@@ -93,6 +94,7 @@ const STORED_PERSONA = {
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   nextStepHint: STORED_ROW.nextStepHint,
   useMyWords: STORED_ROW.useMyWords,
+  memoryCapture: STORED_ROW.memoryCapture,
   archetype: null,
   addressUserAs: STORED_ROW.addressUserAs,
 }
@@ -113,6 +115,7 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   nextStepHint: false,
   useMyWords: true,
+  memoryCapture: true,
   archetype: null,
   addressUserAs: null,
 }
@@ -647,6 +650,7 @@ describe('persona 的三项用户偏好', () => {
       ...BASE_UPDATE,
       nextStepHint: true,
       useMyWords: false,
+      memoryCapture: false,
       addressUserAs: '阿羊',
     })
 
@@ -656,6 +660,7 @@ describe('persona 的三项用户偏好', () => {
     ).toMatchObject({
       nextStepHint: true,
       useMyWords: false,
+      memoryCapture: false,
       archetype: null,
       addressUserAs: '阿羊',
     })

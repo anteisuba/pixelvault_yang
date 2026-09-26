@@ -466,6 +466,16 @@
       transform: translateY(0);
     }
   }
+  /* 刚写下的那一行（助手设置 B 动效表「记忆 · 写一条」）：浅底 1.2s 线性褪掉。 */
+  --animate-row-fresh: row-fresh 1.2s linear;
+  @keyframes row-fresh {
+    from {
+      background-color: var(--surface-fill);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
 }
 
 :root {

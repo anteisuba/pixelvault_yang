@@ -14,16 +14,33 @@ import type {
 } from '@/types/assistant-persona'
 
 /**
- * 项目规则的读写（`docs/references/pages/assistant-shell.md` §10，拍板 23）。
+ * 搜图来源名单的读写（`docs/references/pages/assistant-shell.md` §9.3）——项目规则表
+ * 现在只装这两种；普通规则已并进记忆（`use-assistant-memories.ts`）。
  *
  * ⚠ `scope` 给了就拿**该域的 + 全域的**（服务端那一侧的判据），⛔ 别在这里再滤
- * 一遍：滤两遍的下场是「全域规则在工作台上看不见」，而那正是它存在的意义。
+ * 一遍：滤两遍的下场是「全域名单在工作台上看不见」，而那正是它存在的意义。
  */
+
+/** 最近一次失败。`i18nKey` 在时按它说人话（`getApiErrorMessage`）。 */
+export interface ProjectRulesFailure {
+  message: string
+  i18nKey?: string
+}
+
+function toFailure(result: {
+  error: string
+  i18nKey?: string
+}): ProjectRulesFailure {
+  return {
+    message: result.error,
+    ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+  }
+}
 
 export interface UseProjectRulesValue {
   rules: ProjectRule[]
   isLoading: boolean
-  error: string | null
+  error: ProjectRulesFailure | null
   add(input: CreateProjectRuleInput): Promise<boolean>
   remove(ruleId: string): Promise<boolean>
   reload(): Promise<void>
@@ -36,7 +53,7 @@ export function useProjectRules(
   const enabled = options.enabled ?? true
   const [rules, setRules] = useState<ProjectRule[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ProjectRulesFailure | null>(null)
   const aliveRef = useRef(true)
 
   useEffect(() => {
@@ -56,7 +73,7 @@ export function useProjectRules(
       setError(null)
       return
     }
-    setError(result.error)
+    setError(toFailure(result))
   }, [scope])
 
   /**
@@ -80,7 +97,7 @@ export function useProjectRules(
       setError(null)
       return true
     }
-    setError(result.error)
+    setError(toFailure(result))
     return false
   }, [])
 
@@ -92,7 +109,7 @@ export function useProjectRules(
       setError(null)
       return true
     }
-    setError(result.error)
+    setError(toFailure(result))
     return false
   }, [])
 

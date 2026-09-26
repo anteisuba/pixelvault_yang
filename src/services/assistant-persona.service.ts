@@ -66,6 +66,7 @@ interface PersonaRow {
   routeModel: string | null
   nextStepHint: boolean
   useMyWords: boolean
+  memoryCapture: boolean
   archetype: string | null
   addressUserAs: string | null
 }
@@ -165,6 +166,7 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
     language: row.language,
     nextStepHint: row.nextStepHint,
     useMyWords: row.useMyWords,
+    memoryCapture: row.memoryCapture,
     addressUserAs: row.addressUserAs,
     /**
      * 预设字形：选的是预设就是那一款；选的是图时它是图加载不出来时的回落。
@@ -217,6 +219,7 @@ const PERSONA_SELECT = {
   routeModel: true,
   nextStepHint: true,
   useMyWords: true,
+  memoryCapture: true,
   archetype: true,
   addressUserAs: true,
 } as const
@@ -381,6 +384,7 @@ export async function upsertAssistantPersona(
     /** v2 §11.3 的三项 —— 两个开关照原样落，称呼留空即 null（= 用账号名）。 */
     nextStepHint: input.nextStepHint,
     useMyWords: input.useMyWords,
+    memoryCapture: input.memoryCapture,
     /**
      * 三档人设（§11.1）——⚠ **服务端自己算，⛔ 不落客户端递来的那个名字**。
      * 递上来的 `archetype` 只是界面上亮着哪一档，而库里这一列要为「那一档的三行

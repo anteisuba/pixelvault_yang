@@ -5,7 +5,7 @@ import ts from 'typescript'
 import { createTranslator } from 'next-intl'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_MEMORY_FILTER_SCOPES } from '@/constants/assistant-memory'
+import { ASSISTANT_MEMORY_SCOPES } from '@/constants/assistant-memory'
 import {
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
@@ -642,14 +642,13 @@ describe('i18n completeness', () => {
       values: Object.values(ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS),
     },
     /**
-     * 记忆总览那排筛选 chip（56a）—— 词表加一档而三语没跟上时，chip 上会印一个
-     * `Settings.assistant.memoryScope.xxx` 的原样 key。⚠ `all` 不在词表里
-     * （它是「不筛」那一档），所以单独补进值域。
+     * 记忆每一行的「用在哪」（助手设置 B）—— 域词表加一档而三语没跟上时，下拉与
+     * 行尾的范围标签上会印一个 `AssistantSettings.memory.scope.xxx` 的原样 key。
      */
     {
-      label: 'Settings.assistant.memoryScope',
-      prefix: 'Settings.assistant.memoryScope',
-      values: ['all', ...ASSISTANT_MEMORY_FILTER_SCOPES] as string[],
+      label: 'AssistantSettings.memory.scope',
+      prefix: 'AssistantSettings.memory.scope',
+      values: [...ASSISTANT_MEMORY_SCOPES] as string[],
     },
   ])('$label covers every constant value', ({ prefix, values }) => {
     it.each(LOCALES)('%s', (locale) => {

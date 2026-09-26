@@ -4,6 +4,7 @@ import {
   ASSISTANT_MEMORY_KIND_IDS,
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPE_IDS,
+  ASSISTANT_MEMORY_SOURCE_IDS,
   normalizeAssistantMemoryText,
 } from '@/constants/assistant-memory'
 
@@ -36,11 +37,16 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 import {
+  AssistantMemoryLimitError,
+  addAssistantRuleMemory,
   clearAssistantMemories,
+  createCreatorMemory,
   deleteAssistantMemory,
   isSensitiveMemoryText,
   listAssistantMemories,
   listAssistantMemoriesForPrompt,
+  listCreatorMemoriesForPrompt,
+  listStandingRuleMemories,
   recordAssistantMemories,
   touchAssistantMemories,
   updateAssistantMemory,
@@ -53,6 +59,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     id: 'mem-1',
     scope: 'IMAGE' as const,
     kind: 'PREFERENCE' as const,
+    source: 'ASSISTANT' as const,
     text: '偏好横构图 16:9，除非我明说要竖的',
     createdAt: NOW,
     updatedAt: NOW,
@@ -72,7 +79,7 @@ beforeEach(() => {
 
 describe('listAssistantMemories', () => {
   it('按 updatedAt 倒序、按域收敛，并且永远带 userId', async () => {
-    mockFindMany.mockResolvedValue([row()])
+    mockFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([row()])
     const memories = await listAssistantMemories('db_user_1', {
       scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
     })
@@ -82,19 +89,53 @@ describe('listAssistantMemories', () => {
       id: 'mem-1',
       scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       kind: ASSISTANT_MEMORY_KIND_IDS.preference,
+      source: ASSISTANT_MEMORY_SOURCE_IDS.assistant,
     })
-    const args = mockFindMany.mock.calls[0][0]
-    expect(args.where).toMatchObject({ userId: 'db_user_1', scope: 'IMAGE' })
-    expect(args.orderBy).toEqual({ updatedAt: 'desc' })
+    for (const [args] of mockFindMany.mock.calls) {
+      expect(args.where).toMatchObject({ userId: 'db_user_1', scope: 'IMAGE' })
+      expect(args.orderBy).toEqual({ updatedAt: 'desc' })
+    }
   })
 
   it('缺 scope = 全部（chip 默认那一档）', async () => {
     await listAssistantMemories('db_user_1')
-    expect(mockFindMany.mock.calls[0][0].where).toEqual({ userId: 'db_user_1' })
+    expect(mockFindMany.mock.calls.map(([args]) => args.where)).toEqual([
+      { userId: 'db_user_1', source: 'CREATOR' },
+      { userId: 'db_user_1', source: 'ASSISTANT' },
+    ])
+  })
+
+  /** ⭐ 你写的单独取满：一个话多的月份不该把你写的规矩挤出列表。 */
+  it('你写的单独取满，再与助手记的按 updatedAt 合并', async () => {
+    mockFindMany
+      .mockResolvedValueOnce([
+        row({
+          id: 'mine-old',
+          source: 'CREATOR',
+          kind: 'RULE',
+          updatedAt: new Date('2026-06-01T00:00:00.000Z'),
+        }),
+      ])
+      .mockResolvedValueOnce([row({ id: 'learned-new' })])
+
+    const memories = await listAssistantMemories('db_user_1')
+
+    expect(memories.map((memory) => memory.id)).toEqual([
+      'learned-new',
+      'mine-old',
+    ])
+    expect(mockFindMany.mock.calls[0][0].take).toBe(
+      ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+    )
+    expect(mockFindMany.mock.calls[1][0].take).toBe(
+      ASSISTANT_MEMORY_LIMITS.maxPerScope,
+    )
   })
 
   it('读不出来的那一条被丢掉，⛔ 不连累整张列表', async () => {
-    mockFindMany.mockResolvedValue([row(), row({ id: 'mem-2', text: '   ' })])
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([row(), row({ id: 'mem-2', text: '   ' })])
     const memories = await listAssistantMemories('db_user_1')
     expect(memories.map((memory) => memory.id)).toEqual(['mem-1'])
   })
@@ -112,6 +153,16 @@ describe('listAssistantMemoriesForPrompt', () => {
     expect(args.where.scope.in).toEqual(['VIDEO', 'GLOBAL'])
     expect(args.orderBy).toEqual({ lastUsedAt: 'desc' })
     expect(args.take).toBe(5)
+  })
+
+  /** 你写的不在这一段：它们进规则段，⛔ 不占助手记的那份预算。 */
+  it('只取助手记的', async () => {
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.image,
+      5,
+    )
+    expect(mockFindMany.mock.calls[0][0].where.source).toBe('ASSISTANT')
   })
 
   it('预算 <= 0（被卡吃光）时一条都不查', async () => {
@@ -133,6 +184,60 @@ describe('listAssistantMemoriesForPrompt', () => {
     expect(mockFindMany.mock.calls[0][0].take).toBe(
       ASSISTANT_MEMORY_LIMITS.maxInPrompt,
     )
+  })
+})
+
+describe('listCreatorMemoriesForPrompt', () => {
+  it('只取你写的：当前域 + global，最近改过的在前', async () => {
+    mockFindMany.mockResolvedValue([
+      row({ source: 'CREATOR', kind: 'RULE', scope: 'GLOBAL' }),
+    ])
+    const memories = await listCreatorMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.video,
+      12,
+    )
+    expect(memories[0]?.source).toBe(ASSISTANT_MEMORY_SOURCE_IDS.creator)
+    const args = mockFindMany.mock.calls[0][0]
+    expect(args.where).toMatchObject({
+      userId: 'db_user_1',
+      source: 'CREATOR',
+      scope: { in: ['VIDEO', 'GLOBAL'] },
+    })
+    expect(args.orderBy).toEqual({ updatedAt: 'desc' })
+    expect(args.take).toBe(12)
+  })
+
+  it('limit <= 0 时一条都不查', async () => {
+    await expect(
+      listCreatorMemoriesForPrompt(
+        'db_user_1',
+        ASSISTANT_MEMORY_SCOPE_IDS.image,
+        0,
+      ),
+    ).resolves.toEqual([])
+    expect(mockFindMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('listStandingRuleMemories', () => {
+  it('你写的 + 助手记下的规矩；给了域就是该域 + global', async () => {
+    await listStandingRuleMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.lora,
+      limit: 50,
+    })
+    const args = mockFindMany.mock.calls[0][0]
+    expect(args.where).toMatchObject({
+      userId: 'db_user_1',
+      OR: [{ source: 'CREATOR' }, { kind: 'RULE' }],
+      scope: { in: ['LORA', 'GLOBAL'] },
+    })
+    expect(args.take).toBe(50)
+  })
+
+  it('缺域 = 全部域', async () => {
+    await listStandingRuleMemories('db_user_1', { limit: 50 })
+    expect(mockFindMany.mock.calls[0][0].where).not.toHaveProperty('scope')
   })
 })
 
@@ -316,6 +421,9 @@ describe('recordAssistantMemories', () => {
     })
 
     const evictQuery = mockFindMany.mock.calls[1][0]
+    // ⛔ 你写的不淘汰：数与删都只看助手记的。
+    expect(mockCount.mock.calls[0][0].where.source).toBe('ASSISTANT')
+    expect(evictQuery.where.source).toBe('ASSISTANT')
     expect(evictQuery.orderBy).toEqual({ lastUsedAt: 'asc' })
     expect(evictQuery.take).toBe(2)
     expect(mockDeleteMany).toHaveBeenCalledWith({
@@ -336,13 +444,105 @@ describe('recordAssistantMemories', () => {
   })
 })
 
+describe('createCreatorMemory（你写一条）', () => {
+  it('落成「你写的 · 规矩」', async () => {
+    mockCreate.mockResolvedValue(
+      row({ id: 'mine-1', source: 'CREATOR', kind: 'RULE', scope: 'GLOBAL' }),
+    )
+    const memory = await createCreatorMemory('db_user_1', {
+      text: '  画面里不要出现文字  ',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
+    })
+    expect(memory.source).toBe(ASSISTANT_MEMORY_SOURCE_IDS.creator)
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      userId: 'db_user_1',
+      scope: 'GLOBAL',
+      kind: 'RULE',
+      source: 'CREATOR',
+      text: '画面里不要出现文字',
+    })
+  })
+
+  /** 同一句话助手已经记过 —— 认领成你写的，⛔ 不存第二行、⛔ 不改原文。 */
+  it('同一句已在：改成你写的，⛔ 不新增', async () => {
+    mockFindMany.mockResolvedValue([
+      row({ id: 'learned', text: '画面里不要出现文字。' }),
+    ])
+    mockUpdate.mockResolvedValue(
+      row({ id: 'learned', source: 'CREATOR', text: '画面里不要出现文字。' }),
+    )
+    const memory = await createCreatorMemory('db_user_1', {
+      text: '画面里不要出现文字',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+    })
+    expect(memory.id).toBe('learned')
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(mockUpdate.mock.calls[0][0].data).toMatchObject({
+      source: 'CREATOR',
+    })
+    expect(mockUpdate.mock.calls[0][0].data).not.toHaveProperty('text')
+  })
+
+  it('你写的满了：抛 AssistantMemoryLimitError，⛔ 不挤掉旧的', async () => {
+    mockCount.mockResolvedValue(ASSISTANT_MEMORY_LIMITS.maxCreatorEntries)
+    await expect(
+      createCreatorMemory('db_user_1', {
+        text: '再来一条',
+        scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
+      }),
+    ).rejects.toBeInstanceOf(AssistantMemoryLimitError)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
+  it('落成「助手记的 · 规矩」并收一次每域上限', async () => {
+    mockCreate.mockResolvedValue(row({ id: 'rule-1', kind: 'RULE' }))
+    mockCount.mockResolvedValue(1)
+    const { memory, created } = await addAssistantRuleMemory('db_user_1', {
+      text: '以后查资料只信官方站',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+    })
+    expect(created).toBe(true)
+    expect(memory.id).toBe('rule-1')
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      scope: 'IMAGE',
+      kind: 'RULE',
+      source: 'ASSISTANT',
+    })
+    expect(mockCount.mock.calls[0][0].where).toMatchObject({
+      source: 'ASSISTANT',
+    })
+  })
+
+  it('同一句已在：回那一条、created=false，⛔ 不存第二行', async () => {
+    mockFindMany.mockResolvedValue([
+      row({
+        id: 'mine',
+        source: 'CREATOR',
+        kind: 'RULE',
+        text: '以后查资料只信官方站',
+      }),
+    ])
+    const { memory, created } = await addAssistantRuleMemory('db_user_1', {
+      text: '以后查资料只信官方站。',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+    })
+    expect(created).toBe(false)
+    expect(memory.id).toBe('mine')
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
 // ─── 改 / 删 / 清空 ─────────────────────────────────────────────
 
 describe('updateAssistantMemory', () => {
   it('不属于这个用户 → null（路由据此 404）', async () => {
     mockFindFirst.mockResolvedValue(null)
     expect(
-      await updateAssistantMemory('db_user_1', 'someone-else', '改过的话'),
+      await updateAssistantMemory('db_user_1', 'someone-else', {
+        text: '改过的话',
+      }),
     ).toBeNull()
     expect(mockUpdate).not.toHaveBeenCalled()
   })
@@ -350,9 +550,20 @@ describe('updateAssistantMemory', () => {
   it('只改 text', async () => {
     mockFindFirst.mockResolvedValue({ id: 'mem-1' })
     mockUpdate.mockResolvedValue(row({ text: '改过的话' }))
-    const memory = await updateAssistantMemory('db_user_1', 'mem-1', '改过的话')
+    const memory = await updateAssistantMemory('db_user_1', 'mem-1', {
+      text: '改过的话',
+    })
     expect(memory?.text).toBe('改过的话')
     expect(mockUpdate.mock.calls[0][0].data).toEqual({ text: '改过的话' })
+  })
+
+  it('只改用在哪', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'mem-1' })
+    mockUpdate.mockResolvedValue(row({ scope: 'GLOBAL' }))
+    await updateAssistantMemory('db_user_1', 'mem-1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
+    })
+    expect(mockUpdate.mock.calls[0][0].data).toEqual({ scope: 'GLOBAL' })
   })
 })
 
@@ -377,6 +588,17 @@ describe('clearAssistantMemories', () => {
     expect(await clearAssistantMemories('db_user_1')).toBe(38)
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { userId: 'db_user_1' },
+    })
+  })
+
+  /** 清空跟着筛选走：筛着「助手记的」就只清助手记的。 */
+  it('给了来源就只清那一栏', async () => {
+    await clearAssistantMemories(
+      'db_user_1',
+      ASSISTANT_MEMORY_SOURCE_IDS.assistant,
+    )
+    expect(mockDeleteMany).toHaveBeenCalledWith({
+      where: { userId: 'db_user_1', source: 'ASSISTANT' },
     })
   })
 })

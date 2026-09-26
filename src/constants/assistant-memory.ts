@@ -42,17 +42,24 @@ export const ASSISTANT_MEMORY_SCOPES = [
 export type AssistantMemoryScopeId = (typeof ASSISTANT_MEMORY_SCOPES)[number]
 
 /**
- * 总览列表顶部那排筛选 chip 的次序：**全部 · 图片 · 视频 · 画布 · LoRA**。
+ * 一条记忆是**谁写的**（助手设置 B · 记忆页「你写的 / 助手记的」，owner 2026-09-26）。
  *
- * ⚠ `global` **不单独出一颗 chip**（画板上没有它）：它跟着「全部」出现。
- * ⛔ 别为了「完整」补上第六颗 —— 用户脑子里没有「全局记忆」这个类目。
+ * ⭐ 你写的优先：进系统提示「你写下的规矩」那一段（带 id，能被引用成规则薄卡），
+ * ⛔ 不占助手记的那份预算、⛔ 不参与淘汰；助手记的走预算（卡优先）与每域 200 条的淘汰。
+ * ⚠ 旧「项目规则」里的普通规则并进来了：用户自己写的那些就是 `creator`。
+ * ⚠ id 与库里 `AssistantMemorySource` 一一对应，与规则薄卡事件里的 `source` 同一套词。
  */
-export const ASSISTANT_MEMORY_FILTER_SCOPES = [
-  ASSISTANT_MEMORY_SCOPE_IDS.image,
-  ASSISTANT_MEMORY_SCOPE_IDS.video,
-  ASSISTANT_MEMORY_SCOPE_IDS.canvas,
-  ASSISTANT_MEMORY_SCOPE_IDS.lora,
+export const ASSISTANT_MEMORY_SOURCE_IDS = {
+  assistant: 'assistant',
+  creator: 'creator',
+} as const
+
+export const ASSISTANT_MEMORY_SOURCES = [
+  ASSISTANT_MEMORY_SOURCE_IDS.assistant,
+  ASSISTANT_MEMORY_SOURCE_IDS.creator,
 ] as const
+
+export type AssistantMemorySourceId = (typeof ASSISTANT_MEMORY_SOURCES)[number]
 
 /** 一条记忆是哪一类。⚠ 只影响提示里的措辞，⛔ 不影响注入顺序。 */
 export const ASSISTANT_MEMORY_KIND_IDS = {
@@ -71,7 +78,8 @@ export type AssistantMemoryKindId = (typeof ASSISTANT_MEMORY_KINDS)[number]
 
 export const ASSISTANT_MEMORY_LIMITS = {
   /**
-   * **每域**最多几条。撞上限时按 `lastUsedAt` 最旧的**静默**删。
+   * **每域**最多几条**助手记的**。撞上限时按 `lastUsedAt` 最旧的**静默**删，
+   * ⛔ 你写的不淘汰（它们有自己的上限 `maxCreatorEntries`）。
    * ⛔ 不画容量表、不变灰、不提示 —— owner 2026-09-20：「容量表撤」。
    */
   maxPerScope: 200,
@@ -79,6 +87,11 @@ export const ASSISTANT_MEMORY_LIMITS = {
   maxTextChars: 200,
   /** 一轮结账最多收几条候选 —— 再多就不是「这一轮学到的」而是复述整段对话。 */
   maxPerRound: 6,
+  /**
+   * **你写的**最多几条（旧项目规则那一档）。⚠ 它们 ⛔ 不淘汰，所以上限是一道真的
+   * 会拒的闸：满了先删一条再写。每轮进提示几条看 `ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt`。
+   */
+  maxCreatorEntries: 50,
   /**
    * **当前域 + global 一共注入几条**（按 `lastUsedAt` 倒序）。
    *

@@ -353,6 +353,8 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
    */
   nextStepHint: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.nextStepHint,
   useMyWords: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.useMyWords,
+  /** 「让助手记住」默认开（与库上的 `@default(true)` 一致）。 */
+  memoryCapture: true,
   /** null = 用账号名（§8.3）。 */
   addressUserAs: null,
   /**

@@ -155,6 +155,11 @@ const AssistantPersonaShapeSchema = z.object({
   nextStepHint: z.boolean(),
   useMyWords: z.boolean(),
   /**
+   * 「让助手记住」（记忆页右上那颗开关，助手设置 B）。关 = 每轮结账不再自己记新的；
+   * 清单里已有的照样注入，你写的照样生效。
+   */
+  memoryCapture: z.boolean(),
+  /**
    * 选的是哪一张人设卡（§11.1）。`null` = 自定义。
    *
    * ⚠ 它**不是**又一个独立偏好：服务端只在它与四格（verbosity / planMode /
@@ -357,51 +362,29 @@ export function normalizeProjectRuleSourceToken(value: string): string {
     .replace(/^www\./, '')
 }
 
-export const CreateProjectRuleSchema = z
-  .object({
-    text: z
-      .string()
-      .trim()
-      .min(1)
-      .max(ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars),
-    scope: ProjectRuleScopeSchema.nullish(),
-    /** 缺省 = 普通规则（§9.3）。 */
-    kind: ProjectRuleKindSchema.optional(),
-    /**
-     * 缺省 = `creator`（用户自己在设置里写的）。助手那条路由服务端写死
-     * `assistant`，⛔ 不从模型收 —— 让它自己声明来源，来源就不再是证据。
-     */
-    source: ProjectRuleSourceSchema.optional(),
-  })
-  .transform((input) => {
-    const kind = input.kind ?? PROJECT_RULE_KIND_IDS.note
-    return {
-      ...input,
-      kind,
-      text: isProjectRuleSourceKind(kind)
-        ? normalizeProjectRuleSourceToken(input.text)
-        : input.text,
-    }
-  })
+/**
+ * 记一条**来源名单**（§9.3）—— 这张表现在只装这两种。
+ *
+ * ⭐ 普通规则已并进记忆（助手设置 B：规矩并进记忆，owner 2026-09-26）：用户自己
+ * 写的走 `POST /api/assistant-memories`，助手在对话里记的由工具环写进记忆。
+ * ⚠ `text` **必须是来源 id 或域名**（过 `ProjectRuleSourceTokenSchema`）：收下一句
+ * 「只信官方站」的下场是名单里永远有一条匹配不到任何东西，而助手会照常去打
+ * 那些站 —— 用户以为自己设了闸，闸却不在。
+ */
+export const CreateProjectRuleSchema = z.object({
+  text: ProjectRuleSourceTokenSchema,
+  scope: ProjectRuleScopeSchema.nullish(),
+  kind: z.enum(PROJECT_RULE_SOURCE_KINDS),
   /**
-   * ⚠ 来源名单那两种 kind 的 `text` **必须是来源 id 或域名**：收下一句
-   * 「只信官方站」的下场是名单里永远有一条匹配不到任何东西，而助手会照常去打
-   * 那些站 —— 用户以为自己设了闸，闸却不在。
+   * 缺省 = `creator`（用户自己在设置里写的）。助手那条路由服务端写死
+   * `assistant`，⛔ 不从模型收 —— 让它自己声明来源，来源就不再是证据。
    */
-  .refine(
-    (input) =>
-      !isProjectRuleSourceKind(input.kind) ||
-      PROJECT_RULE_SOURCE_TOKEN_PATTERN.test(input.text),
-    { message: 'Source rules take a source id or a domain, not a sentence' },
-  )
+  source: ProjectRuleSourceSchema.optional(),
+})
 
 export type CreateProjectRuleRequest = z.infer<typeof CreateProjectRuleSchema>
 
-/**
- * 客户端**递进来**的那一份（`kind` 可缺省）。⚠ 与上面那个类型分开：上面是过完
- * schema 之后的形态（`kind` 一定在），⛔ 别让 UI 为了满足类型给每一条都手填
- * 一个 `note`。
- */
+/** 客户端**递进来**的那一份（`text` 还没收成 token）。 */
 export type CreateProjectRuleInput = z.input<typeof CreateProjectRuleSchema>
 
 /** GET `/api/assistant/rules` 的查询串。`scope` 缺省 = 全都要（含全域那些）。 */

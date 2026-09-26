@@ -22,7 +22,7 @@ vi.mock('@/services/project-rule.service', async () => {
   >('@/services/project-rule.service')
   return {
     ProjectRuleLimitError: actual.ProjectRuleLimitError,
-    listProjectRulesForClerkId: (...args: unknown[]) => mockList(...args),
+    listProjectSourceRulesForClerkId: (...args: unknown[]) => mockList(...args),
     addProjectRuleForClerkId: (...args: unknown[]) => mockAdd(...args),
   }
 })
@@ -33,7 +33,8 @@ import { ProjectRuleLimitError } from '@/services/project-rule.service'
 const RULE = {
   id: 'rule-1',
   scope: null,
-  text: 'Never put text inside the picture.',
+  text: 'danbooru.donmai.us',
+  kind: 'sourceDeny',
   source: PROJECT_RULE_SOURCE_IDS.creator,
   createdAt: '2026-09-01T10:00:00.000Z',
 }
@@ -91,27 +92,31 @@ describe('POST /api/assistant/rules', () => {
 
   it('未登录时 401', async () => {
     mockUnauthenticated()
-    const res = await POST(createPOST('/api/assistant/rules', { text: 'x' }))
+    const res = await POST(
+      createPOST('/api/assistant/rules', { text: 'web', kind: 'sourceAllow' }),
+    )
     expect(res.status).toBe(401)
     expect(mockAdd).not.toHaveBeenCalled()
   })
 
   it('空规则 400', async () => {
-    const res = await POST(createPOST('/api/assistant/rules', { text: '   ' }))
+    const res = await POST(
+      createPOST('/api/assistant/rules', { text: '   ', kind: 'sourceDeny' }),
+    )
     expect(res.status).toBe(400)
     expect(mockAdd).not.toHaveBeenCalled()
   })
 
-  it('合法载荷落到 service 上', async () => {
-    const res = await POST(
-      createPOST('/api/assistant/rules', { text: RULE.text }),
-    )
-    expect(res.status).toBe(200)
-    expect(mockAdd).toHaveBeenCalledWith('clerk_test_user', {
-      text: RULE.text,
-      // 缺省是普通规则（v2 §9.3）。
-      kind: 'note',
-    })
+  /** 普通规则已并进记忆（助手设置 B）—— 这条路只收来源名单，缺 kind 或 note 一律 400。 */
+  it('普通规则 400：它们走记忆那条路', async () => {
+    for (const body of [
+      { text: 'Never put text inside the picture.' },
+      { text: 'Never put text inside the picture.', kind: 'note' },
+    ]) {
+      const res = await POST(createPOST('/api/assistant/rules', body))
+      expect(res.status).toBe(400)
+    }
+    expect(mockAdd).not.toHaveBeenCalled()
   })
 
   /** 来源名单那两种（v2 §9.3）——`text` 收成域名，⛔ 一句话 400。 */
@@ -144,7 +149,10 @@ describe('POST /api/assistant/rules', () => {
     mockAdd.mockRejectedValue(new ProjectRuleLimitError(50))
 
     const res = await POST(
-      createPOST('/api/assistant/rules', { text: 'one more' }),
+      createPOST('/api/assistant/rules', {
+        text: 'pixiv.net',
+        kind: 'sourceDeny',
+      }),
     )
     expect(res.status).toBe(409)
     await expect(parseJSON(res)).resolves.toMatchObject({

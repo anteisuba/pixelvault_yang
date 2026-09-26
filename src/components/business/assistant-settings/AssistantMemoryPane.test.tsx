@@ -1,10 +1,19 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+// ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import type { UseAssistantMemoriesValue } from '@/hooks/use-assistant-memories'
+import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import type { AssistantMemory } from '@/types/assistant-memory'
+import type { ProjectRule } from '@/types/assistant-persona'
 
 import { AssistantMemoryPane } from './AssistantMemoryPane'
+
+/**
+ * 记忆页（助手设置 B · M-A）的回归闸：一列、你写的 / 助手记的、「让助手记住」、
+ * 清空跟着筛选走、两步删、搜图来源名单。
+ */
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -12,47 +21,30 @@ vi.mock('next-intl', () => ({
       values
         ? `${namespace}:${key}(${JSON.stringify(values)})`
         : `${namespace}:${key}`
+    translate.has = (key: string) => key === 'assistantMemory.limitReached'
     return translate
   },
   useFormatter: () => ({
-    dateTime: (date: Date, options: Record<string, string>) =>
-      options.hour ? '14:20' : '9/17',
+    dateTime: (_date: Date, options: Record<string, string>) =>
+      options.hour ? '14:20' : '09-17',
   }),
 }))
 
+const rules = vi.hoisted(() => ({
+  current: [] as ProjectRule[],
+  add: vi.fn(async () => true),
+  remove: vi.fn(async () => true),
+}))
 vi.mock('@/hooks/use-project-rules', () => ({
   useProjectRules: () => ({
-    rules: [],
+    rules: rules.current,
     isLoading: false,
     error: null,
-    add: vi.fn(),
-    remove: vi.fn(),
+    add: rules.add,
+    remove: rules.remove,
     reload: vi.fn(),
   }),
 }))
-
-vi.mock('@/hooks/use-local-preference', () => ({
-  useLocalPreference: () => ['0', mockSetIncognito],
-}))
-
-const mockSetIncognito = vi.hoisted(() => vi.fn())
-const mockUpdate = vi.hoisted(() => vi.fn(async () => null))
-const mockRemove = vi.hoisted(() => vi.fn(async () => true))
-const mockClearAll = vi.hoisted(() => vi.fn(async () => true))
-const mockMemories = vi.hoisted(() => ({ current: [] as AssistantMemory[] }))
-
-function renderPane() {
-  const memories: UseAssistantMemoriesValue = {
-    memories: mockMemories.current,
-    isLoading: false,
-    error: null,
-    update: mockUpdate,
-    remove: mockRemove,
-    clearAll: mockClearAll,
-    reload: vi.fn(),
-  }
-  return render(<AssistantMemoryPane memories={memories} />)
-}
 
 const TODAY = new Date()
 TODAY.setHours(14, 20, 0, 0)
@@ -60,153 +52,341 @@ TODAY.setHours(14, 20, 0, 0)
 function memory(overrides: Partial<AssistantMemory> = {}): AssistantMemory {
   return {
     id: 'mem-1',
-    scope: 'image',
+    scope: 'global',
     kind: 'preference',
-    text: '偏好横构图 16:9，除非我明说要竖的',
+    source: 'assistant',
+    text: '喜欢日系赛璐璐、线条干净',
     createdAt: TODAY.toISOString(),
     updatedAt: TODAY.toISOString(),
     ...overrides,
   }
 }
 
+const MINE = memory({
+  id: 'mine-1',
+  kind: 'rule',
+  source: 'creator',
+  scope: 'image',
+  text: '角色图默认用 NovelAI V4.5 Full',
+})
+const LEARNED = memory({ id: 'learned-1' })
+
+const store = {
+  create: vi.fn(),
+  update: vi.fn(async () => null),
+  remove: vi.fn(async () => true),
+  clear: vi.fn(async () => true),
+}
+const apply = vi.fn()
+
+function renderPane(
+  memories: AssistantMemory[],
+  options: {
+    isLoading?: boolean
+    error?: UseAssistantMemoriesValue['error']
+    memoryCapture?: boolean
+  } = {},
+) {
+  const value: UseAssistantMemoriesValue = {
+    memories,
+    isLoading: options.isLoading ?? false,
+    error: options.error ?? null,
+    create: store.create,
+    update: store.update,
+    remove: store.remove,
+    clear: store.clear,
+    reload: vi.fn(),
+  }
+  const persona = {
+    ...ASSISTANT_PERSONA_DEFAULTS,
+    memoryCapture: options.memoryCapture ?? true,
+  }
+  const autosave = {
+    persona,
+    draft: persona,
+    status: 'idle',
+    isLoading: false,
+    edit: vi.fn(),
+    apply,
+    replace: vi.fn(),
+    commit: vi.fn(),
+    retry: vi.fn(),
+    uploadAvatar: vi.fn(),
+  } as unknown as UseAssistantPersonaAutosaveValue
+  return render(<AssistantMemoryPane memories={value} autosave={autosave} />)
+}
+
+function rowTexts(): string[] {
+  return screen
+    .queryAllByTestId('assistant-memory-row')
+    .map((row) => row.querySelector('button')?.textContent ?? '')
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mockMemories.current = []
+  rules.current = []
 })
 
-describe('AssistantMemoryPane · 记忆区（56a）', () => {
-  it('⭐ 空态：一句话 + 隐身入口，⛔ 不摆示例记忆', () => {
-    renderPane()
-
+describe('AssistantMemoryPane · 一列（M-A）', () => {
+  it('空态：一句话 + 「写第一条」把光标送进输入框', () => {
+    renderPane([])
     expect(
-      screen.getByText('Settings:assistant.memoryEmpty'),
+      screen.getByText('AssistantSettings:memory.emptyTitle'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByText('AssistantSettings:memory.emptyAction'))
+    expect(screen.getByTestId('assistant-memory-new')).toHaveFocus()
+  })
+
+  it('还在读：⛔ 不闪「还没有记忆」', () => {
+    renderPane([], { isLoading: true })
+    expect(screen.getByText('AssistantSettings:memory.loading')).toBeTruthy()
+    expect(screen.queryByText('AssistantSettings:memory.emptyTitle')).toBeNull()
+  })
+
+  it('每行标「你写的 / 助手记的」；只有不是全部工作台的才挂范围标签', () => {
+    renderPane([MINE, LEARNED])
+    expect(rowTexts()).toEqual([MINE.text, LEARNED.text])
+    expect(
+      screen.getByText('AssistantSettings:memory.scope.image'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Settings:assistant.memoryEmptyHint'),
+      screen.queryByText('AssistantSettings:memory.scope.global'),
+    ).toBeNull()
+    expect(
+      screen.getByText(/memory\.meta\(.*memory\.source\.creator.*today/),
     ).toBeInTheDocument()
-    // 空态里没有筛选 chip、也没有「全部清空」。
+  })
+
+  it('筛选：你写的 / 助手记的 纯前端收窄；这一类没有时说一句', () => {
+    renderPane([MINE, LEARNED])
+    fireEvent.click(screen.getByTestId('assistant-memory-filter-creator'))
+    expect(rowTexts()).toEqual([MINE.text])
+    fireEvent.click(screen.getByTestId('assistant-memory-filter-assistant'))
+    expect(rowTexts()).toEqual([LEARNED.text])
+  })
+
+  it('筛选后这一类空了：「这一类还没有。」', () => {
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByTestId('assistant-memory-filter-creator'))
     expect(
-      screen.queryByText('Settings:assistant.memoryClearAll'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Settings:assistant.memoryScope.all'),
-    ).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('Settings:assistant.memoryIncognitoCta'))
-    expect(mockSetIncognito).toHaveBeenCalledWith('1')
+      screen.getByText('AssistantSettings:memory.filteredEmpty'),
+    ).toBeInTheDocument()
+    // 这一类是空的就没有东西可清。
+    expect(screen.queryByTestId('assistant-memory-clear')).toBeNull()
   })
+})
 
-  it('⭐ 一行字 + 时间，按服务端给的顺序原样渲染（⛔ 不在前端重排）', () => {
-    const older = new Date(TODAY.getTime() - 8 * 86_400_000).toISOString()
-    mockMemories.current = [
-      memory(),
-      memory({ id: 'mem-2', text: '训练集偏好 40 张以内', updatedAt: older }),
-    ]
-    renderPane()
-
-    const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toHaveTextContent('偏好横构图 16:9，除非我明说要竖的')
-    expect(rows[1]).toHaveTextContent('训练集偏好 40 张以内')
-    // 今天 HH:mm · 更早的走 M/D。
-    expect(rows[0]).toHaveTextContent('14:20')
-    expect(rows[1]).toHaveTextContent('9/17')
-  })
-
-  it('⭐ 筛选 chip 纯前端收窄，默认全部', () => {
-    mockMemories.current = [
-      memory(),
-      memory({ id: 'mem-2', scope: 'video', text: '视频默认 24fps' }),
-      memory({ id: 'mem-3', scope: 'global', text: '回答用中文' }),
-    ]
-    renderPane()
-
-    // 默认「全部」：global 那条也在（⛔ 它没有自己的 chip）。
-    expect(screen.getAllByRole('listitem')).toHaveLength(3)
-
-    fireEvent.click(screen.getByText('Settings:assistant.memoryScope.video'))
-    const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]).toHaveTextContent('视频默认 24fps')
-  })
-
-  it('⭐ 点文字就地改：回车保存', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-
-    fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
-    const input = screen.getByLabelText('Settings:assistant.memoryEditLabel')
-    fireEvent.change(input, { target: { value: '偏好竖构图 9:16' } })
+describe('AssistantMemoryPane · 写一条', () => {
+  it('回车存成「你写的」，存好清空输入框', async () => {
+    store.create.mockResolvedValue(
+      memory({ id: 'new-1', source: 'creator', text: '以后都用中文回复' }),
+    )
+    renderPane([LEARNED])
+    const input = screen.getByTestId('assistant-memory-new')
+    fireEvent.change(input, { target: { value: '  以后都用中文回复 ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    fireEvent.blur(input)
 
-    expect(mockUpdate).toHaveBeenCalledWith('mem-1', '偏好竖构图 9:16')
+    await waitFor(() =>
+      expect(store.create).toHaveBeenCalledWith({ text: '以后都用中文回复' }),
+    )
+    await waitFor(() => expect(input).toHaveValue(''))
   })
 
-  it('⛔ Esc 取消：一个字都不写回去', () => {
-    mockMemories.current = [memory()]
-    renderPane()
+  it('没存上时字留着，⛔ 不清空', async () => {
+    store.create.mockResolvedValue(null)
+    renderPane([])
+    const input = screen.getByTestId('assistant-memory-new')
+    fireEvent.change(input, { target: { value: '再来一条' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(store.create).toHaveBeenCalled())
+    expect(input).toHaveValue('再来一条')
+  })
 
-    fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
-    const input = screen.getByLabelText('Settings:assistant.memoryEditLabel')
+  it('Esc 清空输入框，⛔ 不存', () => {
+    renderPane([])
+    const input = screen.getByTestId('assistant-memory-new')
+    fireEvent.change(input, { target: { value: '算了' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(input).toHaveValue('')
+    expect(store.create).not.toHaveBeenCalled()
+  })
+
+  it('你写的满了：说人话（Errors 里那句），⛔ 不印英文原话', () => {
+    renderPane([], {
+      error: {
+        message: 'Creator memory limit reached (50)',
+        i18nKey: 'errors.assistantMemory.limitReached',
+      },
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Errors:assistantMemory.limitReached',
+    )
+  })
+
+  it('没有 i18nKey 的失败：一句通用的「没存上」', () => {
+    renderPane([], { error: { message: 'Failed to save memory' } })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'AssistantSettings:memory.failed',
+    )
+  })
+})
+
+describe('AssistantMemoryPane · 让助手记住', () => {
+  it('开关跟着人设；关掉当场存 memoryCapture=false', () => {
+    renderPane([LEARNED])
+    const toggle = screen.getByTestId('assistant-memory-capture')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(toggle)
+    expect(apply).toHaveBeenCalledWith({ memoryCapture: false })
+  })
+
+  it('关着时说明换成「不再记新的，清单照样生效」', () => {
+    renderPane([LEARNED], { memoryCapture: false })
+    expect(
+      screen.getByText('AssistantSettings:memory.captionPaused'),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('assistant-memory-capture')).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+  })
+})
+
+describe('AssistantMemoryPane · 改 / 删', () => {
+  it('点文字就地改：回车只存那一行字', async () => {
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByText(LEARNED.text))
+    const input = screen.getByLabelText('AssistantSettings:memory.editLabel')
+    fireEvent.change(input, { target: { value: '喜欢赛璐璐' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(store.update).toHaveBeenCalledWith('learned-1', {
+        text: '喜欢赛璐璐',
+      }),
+    )
+  })
+
+  it('Esc 取消：一个字都不写回去', () => {
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByText(LEARNED.text))
+    const input = screen.getByLabelText('AssistantSettings:memory.editLabel')
     fireEvent.change(input, { target: { value: '改坏了' } })
     fireEvent.keyDown(input, { key: 'Escape' })
-    fireEvent.blur(input)
-
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(store.update).not.toHaveBeenCalled()
+    expect(screen.getByText(LEARNED.text)).toBeInTheDocument()
   })
 
-  it('⛔ 就地改不弹层', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-    fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  it('「用在哪」选一项当场存', async () => {
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByText(LEARNED.text))
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(
+      await screen.findByText('AssistantSettings:memory.scope.video'),
+    )
+    await waitFor(() =>
+      expect(store.update).toHaveBeenCalledWith('learned-1', {
+        scope: 'video',
+      }),
+    )
   })
 
-  it('⭐ 行尾那颗「删」真删（唯一动作）', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-
-    const row = screen.getAllByRole('listitem')[0]
-    const buttons = within(row).getAllByRole('button')
-    // 一行上只有两颗可点：文字本身（就地改）与「删」。
-    expect(buttons).toHaveLength(2)
-    fireEvent.click(screen.getByLabelText('Settings:assistant.memoryDelete'))
-    expect(mockRemove).toHaveBeenCalledTimes(1)
+  it('删要点两下：先变「确认删除」，再点才删', async () => {
+    renderPane([LEARNED])
+    const del = screen.getByTestId('assistant-memory-delete')
+    fireEvent.click(del)
+    expect(store.remove).not.toHaveBeenCalled()
+    expect(del).toHaveTextContent('AssistantSettings:memory.deleteConfirm')
+    fireEvent.click(del)
+    await waitFor(() => expect(store.remove).toHaveBeenCalledWith('learned-1'))
   })
+})
 
-  it('⭐ 「全部清空」走二次确认，取消不清', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-
-    fireEvent.click(screen.getByText('Settings:assistant.memoryClearAll'))
+describe('AssistantMemoryPane · 清空跟着筛选走', () => {
+  it('全部：清空全部，你写的也一起删要写出来', async () => {
+    renderPane([MINE, LEARNED])
+    fireEvent.click(screen.getByTestId('assistant-memory-clear'))
     expect(
-      screen.getByText('Settings:assistant.memoryClearTitle'),
+      await screen.findByText(
+        /memory\.clear\.descAllWithMine\(\{"count":1\}\)/,
+      ),
     ).toBeInTheDocument()
-    expect(mockClearAll).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByText('Settings:assistant.memoryCancel'))
-    expect(mockClearAll).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('assistant-memory-clear-confirm'))
+    await waitFor(() => expect(store.clear).toHaveBeenCalledWith(undefined))
   })
 
-  it('⭐ 确认之后才清', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-
-    fireEvent.click(screen.getByText('Settings:assistant.memoryClearAll'))
-    fireEvent.click(screen.getByText('Settings:assistant.memoryClearConfirm'))
-    expect(mockClearAll).toHaveBeenCalledTimes(1)
+  it('筛着助手记的：只清助手记的', async () => {
+    renderPane([MINE, LEARNED])
+    fireEvent.click(screen.getByTestId('assistant-memory-filter-assistant'))
+    expect(screen.getByTestId('assistant-memory-clear')).toHaveTextContent(
+      'AssistantSettings:memory.clear.assistant',
+    )
+    fireEvent.click(screen.getByTestId('assistant-memory-clear'))
+    fireEvent.click(await screen.findByTestId('assistant-memory-clear-confirm'))
+    await waitFor(() => expect(store.clear).toHaveBeenCalledWith('assistant'))
   })
 
-  it('⛔ 「不记的类目」整块已退场（负规则不做）', () => {
-    mockMemories.current = [memory()]
-    renderPane()
-    expect(
-      screen.queryByText('Settings:assistant.mutedLabel'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Settings:assistant.addMuted'),
-    ).not.toBeInTheDocument()
+  it('取消不清', async () => {
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByTestId('assistant-memory-clear'))
+    fireEvent.click(
+      await screen.findByText('AssistantSettings:memory.clear.cancel'),
+    )
+    expect(store.clear).not.toHaveBeenCalled()
+  })
+})
+
+describe('AssistantMemoryPane · 搜图来源', () => {
+  const rule = (id: string, kind: ProjectRule['kind'], text: string) => ({
+    id,
+    scope: null,
+    text,
+    kind,
+    source: 'creator' as const,
+    createdAt: '2026-09-20T00:00:00.000Z',
+  })
+
+  it('两行名单各自列出；× 移除那一条', () => {
+    rules.current = [
+      rule('r1', 'sourceAllow', 'danbooru.donmai.us'),
+      rule('r2', 'sourceDeny', 'pinterest.com'),
+    ]
+    renderPane([])
+    expect(screen.getByText('danbooru.donmai.us')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByLabelText(
+        'AssistantSettings:sources.remove({"token":"pinterest.com"})',
+      ),
+    )
+    expect(rules.remove).toHaveBeenCalledWith('r2')
+  })
+
+  it('添加：把地址收成域名再存；一句话不收', async () => {
+    renderPane([])
+    const [allowAdd] = screen.getAllByText('AssistantSettings:sources.add')
+    fireEvent.click(allowAdd!)
+    const input = screen.getByLabelText('AssistantSettings:sources.addLabel')
+
+    fireEvent.change(input, { target: { value: '只信官方站' } })
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' })
+    })
+    expect(rules.add).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'AssistantSettings:sources.invalid',
+    )
+
+    fireEvent.change(input, {
+      target: { value: 'https://www.Danbooru.donmai.us/posts' },
+    })
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' })
+    })
+    expect(rules.add).toHaveBeenCalledWith({
+      text: 'danbooru.donmai.us',
+      kind: 'sourceAllow',
+    })
   })
 })

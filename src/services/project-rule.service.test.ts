@@ -32,52 +32,65 @@ import {
   ProjectRuleLimitError,
   addProjectRule,
   deleteProjectRule,
-  listProjectRules,
   listProjectSourceRules,
 } from '@/services/project-rule.service'
 
 const ROW = {
   id: 'rule-1',
   scope: null,
-  text: 'Never put text inside the picture.',
-  kind: 'NOTE' as const,
+  text: 'danbooru.donmai.us',
+  kind: 'SOURCE_ALLOW' as const,
   source: 'CREATOR' as const,
   createdAt: new Date('2026-09-01T10:00:00.000Z'),
 }
 
-describe('project rule service', () => {
+/**
+ * 项目规则表现在只装来源白 / 黑名单（v2 §9.3）——普通规则已并进记忆（助手设置 B）。
+ */
+describe('来源白 / 黑名单（v2 §9.3）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('列表按 userId 收敛，最新在前', async () => {
+  it('按 userId 收敛、只取来源两种，最新在前', async () => {
     mockFindMany.mockResolvedValue([ROW])
 
-    const rules = await listProjectRules('db_user_1')
+    const rules = await listProjectSourceRules('db_user_1')
 
     expect(rules).toEqual([
       {
         id: 'rule-1',
         scope: null,
         text: ROW.text,
-        kind: PROJECT_RULE_KIND_IDS.note,
+        kind: PROJECT_RULE_KIND_IDS.sourceAllow,
         source: PROJECT_RULE_SOURCE_IDS.creator,
         createdAt: '2026-09-01T10:00:00.000Z',
       },
     ])
     const args = mockFindMany.mock.calls[0][0] as {
-      where: { userId: string }
+      where: { userId: string; kind: { in: string[] } }
       orderBy: { createdAt: string }
     }
     expect(args.where.userId).toBe('db_user_1')
+    expect(args.where.kind.in).toEqual(['SOURCE_ALLOW', 'SOURCE_DENY'])
     expect(args.orderBy).toEqual({ createdAt: 'desc' })
   })
 
-  /** 全域规则在任何工作台上都成立 —— ⛔ 不能被域过滤滤掉。 */
+  /** 名单一条都不能少 —— ⛔ 不按「最近几条」截。 */
+  it('取满每用户上限', async () => {
+    mockFindMany.mockResolvedValue([])
+
+    await listProjectSourceRules('db_user_1')
+
+    const args = mockFindMany.mock.calls[0][0] as { take: number }
+    expect(args.take).toBe(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
+  })
+
+  /** 全域名单在任何工作台上都成立 —— ⛔ 不能被域过滤滤掉。 */
   it('给了 scope 时同时取该域的与全域的', async () => {
     mockFindMany.mockResolvedValue([])
 
-    await listProjectRules('db_user_1', { scope: 'image' })
+    await listProjectSourceRules('db_user_1', { scope: 'image' })
 
     const args = mockFindMany.mock.calls[0][0] as {
       where: { OR: unknown[] }
@@ -86,38 +99,44 @@ describe('project rule service', () => {
   })
 
   /**
-   * ⚠ 2026-09-19（进度表 22）`canvas` 进了域词表，所以样例换成一个**真的**不在
-   * 表里的值。⛔ 别把这条用例删掉：它守的是「库里存量行的 scope 掉出词表时被
-   * 剥掉」，而那条规则一个字都没变 —— 只是举例用的那个值不再是反例了。
+   * ⛔ 别把这条用例删掉：它守的是「库里存量行的 scope 掉出词表时被剥掉」。
+   * 举例用的值要**真的**不在域词表里（`canvas` 2026-09-19 已经进表）。
    */
   it('scope 掉出域词表的存量行被剥掉，⛔ 不塞进系统提示', async () => {
     mockFindMany.mockResolvedValue([{ ...ROW, scope: 'audio' }])
 
-    await expect(listProjectRules('db_user_1')).resolves.toEqual([])
+    await expect(listProjectSourceRules('db_user_1')).resolves.toEqual([])
   })
 
-  /** ⭐ 画布现在是个真域：它的规则照样读得出来（同 image / video / lora）。 */
-  it('canvas 是词表里的域 —— 它的规则读得出来', async () => {
+  it('canvas 是词表里的域 —— 它的名单读得出来', async () => {
     mockFindMany.mockResolvedValue([{ ...ROW, scope: 'canvas' }])
 
-    await expect(listProjectRules('db_user_1')).resolves.toHaveLength(1)
+    await expect(listProjectSourceRules('db_user_1')).resolves.toHaveLength(1)
   })
 
-  it('写入时把协议侧的小写来源翻成库里的枚举', async () => {
+  it('写入时把协议侧的小写 kind / 来源翻成库里的枚举', async () => {
     mockCount.mockResolvedValue(0)
-    mockCreate.mockResolvedValue({ ...ROW, source: 'ASSISTANT' })
+    mockCreate.mockResolvedValue({
+      ...ROW,
+      text: 'pinterest.com',
+      kind: 'SOURCE_DENY' as const,
+      source: 'ASSISTANT' as const,
+    })
 
     const rule = await addProjectRule('db_user_1', {
-      text: ROW.text,
+      text: 'pinterest.com',
       scope: 'image',
+      kind: PROJECT_RULE_KIND_IDS.sourceDeny,
       source: PROJECT_RULE_SOURCE_IDS.assistant,
     })
 
     const args = mockCreate.mock.calls[0][0] as {
-      data: { source: string; userId: string; scope: string | null }
+      data: { kind: string; source: string; userId: string }
     }
+    expect(args.data.kind).toBe('SOURCE_DENY')
     expect(args.data.source).toBe('ASSISTANT')
     expect(args.data.userId).toBe('db_user_1')
+    expect(rule.kind).toBe(PROJECT_RULE_KIND_IDS.sourceDeny)
     expect(rule.source).toBe(PROJECT_RULE_SOURCE_IDS.assistant)
   })
 
@@ -125,7 +144,10 @@ describe('project rule service', () => {
     mockCount.mockResolvedValue(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
 
     await expect(
-      addProjectRule('db_user_1', { text: 'one more' }),
+      addProjectRule('db_user_1', {
+        text: 'pixiv.net',
+        kind: PROJECT_RULE_KIND_IDS.sourceDeny,
+      }),
     ).rejects.toBeInstanceOf(ProjectRuleLimitError)
     expect(mockCreate).not.toHaveBeenCalled()
   })
@@ -137,67 +159,5 @@ describe('project rule service', () => {
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { id: 'rule-x', userId: 'db_user_1' },
     })
-  })
-})
-
-describe('来源白 / 黑名单（v2 §9.3）', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('kind 在协议侧与库里的枚举之间双向翻译', async () => {
-    mockFindMany.mockResolvedValue([
-      { ...ROW, text: 'danbooru.donmai.us', kind: 'SOURCE_ALLOW' as const },
-      {
-        ...ROW,
-        id: 'rule-2',
-        text: 'pinterest.com',
-        kind: 'SOURCE_DENY' as const,
-      },
-    ])
-
-    const rules = await listProjectRules('db_user_1')
-
-    expect(rules.map((rule) => rule.kind)).toEqual([
-      PROJECT_RULE_KIND_IDS.sourceAllow,
-      PROJECT_RULE_KIND_IDS.sourceDeny,
-    ])
-  })
-
-  /** 名单一条都不能少 —— ⛔ 不按系统提示那条的 maxInPrompt 截。 */
-  it('读名单时按 kind 收敛，且取满每用户上限', async () => {
-    mockFindMany.mockResolvedValue([])
-
-    await listProjectSourceRules('db_user_1', { scope: 'image' })
-
-    const args = mockFindMany.mock.calls[0][0] as {
-      where: { kind: { in: string[] } }
-      take: number
-    }
-    expect(args.where.kind.in).toEqual(['SOURCE_ALLOW', 'SOURCE_DENY'])
-    expect(args.take).toBe(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
-  })
-
-  it('写入时把 kind 翻成库里的枚举；缺省是普通规则', async () => {
-    mockCount.mockResolvedValue(0)
-    mockCreate.mockResolvedValue({
-      ...ROW,
-      text: 'danbooru.donmai.us',
-      kind: 'SOURCE_ALLOW' as const,
-    })
-
-    const rule = await addProjectRule('db_user_1', {
-      text: 'danbooru.donmai.us',
-      kind: PROJECT_RULE_KIND_IDS.sourceAllow,
-    })
-
-    const args = mockCreate.mock.calls[0][0] as { data: { kind: string } }
-    expect(args.data.kind).toBe('SOURCE_ALLOW')
-    expect(rule.kind).toBe(PROJECT_RULE_KIND_IDS.sourceAllow)
-
-    mockCreate.mockResolvedValue(ROW)
-    await addProjectRule('db_user_1', { text: ROW.text })
-    const plain = mockCreate.mock.calls[1][0] as { data: { kind: string } }
-    expect(plain.data.kind).toBe('NOTE')
   })
 })

@@ -14,8 +14,8 @@ import type * as Prisma from "../internal/prismaNamespace"
 
 /**
  * Model ProjectRule
- * 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）——用户在
- * 工作里沉淀下来的一条硬约束，助手读得到、也记得回。
+ * 项目规则表（`docs/references/pages/assistant-shell.md` §9.3 / §10）——现在只装
+ * **搜图来源白 / 黑名单**；普通规则已并进 `AssistantMemory`（助手设置 B）。
  * 
  * `scope` 为空 = 全域生效；非空时存的是 `ASSISTANT_OPERATOR_DOMAINS` 里的域 id。
  * ⛔ 不做成 Prisma 枚举：域词表住在 `constants/assistant-protocol.ts`，
@@ -578,15 +578,15 @@ export type $ProjectRulePayload<ExtArgs extends runtime.Types.Extensions.Interna
      */
     scope: string | null
     /**
-     * 规则原文，规则薄卡上逐字展示。来源名单那两种 kind 里装的是来源 id 或域名。
+     * 一个来源 id 或域名（来源名单）。
      */
     text: string
     /**
-     * 这条规则是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
+     * 这条是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
      */
     source: $Enums.ProjectRuleSource
     /**
-     * 普通规则 / 来源白名单 / 来源黑名单（§9.3）。存量行一律是普通规则。
+     * 来源白名单 / 来源黑名单（§9.3）。普通规则已并进记忆（见 NOTE）。
      */
     kind: $Enums.ProjectRuleKind
     createdAt: Date

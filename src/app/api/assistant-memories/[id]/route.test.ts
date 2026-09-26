@@ -38,6 +38,7 @@ const MEMORY = {
   id: MEMORY_ID,
   scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
   kind: 'preference' as const,
+  source: 'assistant' as const,
   text: '改过的那行字',
   createdAt: '2026-09-20T02:00:00.000Z',
   updatedAt: '2026-09-20T03:00:00.000Z',
@@ -60,25 +61,35 @@ describe('PATCH /api/assistant-memories/[id]', () => {
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 
-  it('就地改只收 text', async () => {
+  it('就地改一行字', async () => {
     const res = await PATCH(
       createPATCH(PATH, { text: '改过的那行字' }),
       routeParams,
     )
     expect(res.status).toBe(200)
-    expect(mockUpdate).toHaveBeenCalledWith(
-      'clerk_test_user',
-      MEMORY_ID,
-      '改过的那行字',
-    )
+    expect(mockUpdate).toHaveBeenCalledWith('clerk_test_user', MEMORY_ID, {
+      text: '改过的那行字',
+    })
   })
 
-  it('⛔ 改 scope / kind 400（界面上没有这个动作）', async () => {
-    const res = await PATCH(
-      createPATCH(PATH, { text: '还行', scope: 'global' }),
-      routeParams,
-    )
-    expect(res.status).toBe(400)
+  /** 助手设置 B：每行有「用在哪」下拉。 */
+  it('改用在哪', async () => {
+    const res = await PATCH(createPATCH(PATH, { scope: 'global' }), routeParams)
+    expect(res.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith('clerk_test_user', MEMORY_ID, {
+      scope: 'global',
+    })
+  })
+
+  it('⛔ 改类别 / 来源 400，空载荷也 400', async () => {
+    for (const body of [
+      { text: '还行', kind: 'fact' },
+      { source: 'creator' },
+      {},
+    ]) {
+      const res = await PATCH(createPATCH(PATH, body), routeParams)
+      expect(res.status).toBe(400)
+    }
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 

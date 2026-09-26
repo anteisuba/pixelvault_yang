@@ -253,7 +253,6 @@ import {
 import {
   ProjectRuleLimitError,
   addProjectRule,
-  listProjectRules,
   listProjectSourceRules,
 } from '@/services/project-rule.service'
 /**
@@ -276,7 +275,10 @@ import {
  * 一行字存起来，以及把之前存下的那几行读回提示里。
  */
 import {
+  addAssistantRuleMemory,
   listAssistantMemoriesForPrompt,
+  listCreatorMemoriesForPrompt,
+  listStandingRuleMemories,
   recordAssistantMemories,
   touchAssistantMemories,
 } from '@/services/assistant-memory.service'
@@ -836,6 +838,8 @@ interface OperatorRun {
    * ⛔ `rule_hit` 只认这张表里的 id：让模型转述规则，转述出来的那句话就不再是
    * 用户写下的那句 —— 而规则薄卡的价值恰恰在于「这是你当时写的原话」。
    * ⚠ 开跑前就把进系统提示的那几条塞进来（模型引用它们时不必先调工具）。
+   * ⚠ 规矩住在记忆表里（助手设置 B：规矩并进记忆），这里放的是它们的**协议形状**
+   * （`memoryAsRule`）—— `rule_hit` 与两条规则工具的载荷认的仍是「一条规则」。
    */
   ruleIndex: Map<string, ProjectRule>
   /**
@@ -6004,6 +6008,25 @@ async function planCritiqueResult(
 
 // ─── 项目规则（§10，拍板 23）────────────────────────────────────
 
+/**
+ * 记忆里的一条规矩 → 协议上的「一条规则」（助手设置 B：规矩并进记忆）。
+ *
+ * ⚠ 只是换个说法，⛔ 不是第二份存储：`rule_hit`、`read_project_rules` 的结果、
+ * `add_project_rule` 的载荷认的都是这个形状，而那一行字只在记忆表里。
+ * `global` = 全部工作台（协议上是 `null`）。
+ */
+function memoryAsRule(memory: AssistantMemory): ProjectRule {
+  return {
+    id: memory.id,
+    scope:
+      memory.scope === ASSISTANT_MEMORY_SCOPE_IDS.global ? null : memory.scope,
+    text: memory.text,
+    kind: PROJECT_RULE_KIND_IDS.note,
+    source: memory.source,
+    createdAt: memory.createdAt,
+  }
+}
+
 function planReadProjectRules(
   run: OperatorRun,
   args: { scope?: AssistantOperatorDomain },
@@ -6015,10 +6038,16 @@ function planReadProjectRules(
     kind: 'read',
     payload: { scope },
     run: async () => {
-      const rules = await listProjectRules(userId, {
-        scope,
-        limit: RULE_LIMITS.maxReadResults,
-      })
+      /**
+       * ⭐ 你写的 + 助手在对话里记下的规矩（记忆表里 `kind = rule` 的那些）。
+       * ⚠ 来源名单**不在这里**：它们整份已经在系统提示的来源段里。
+       */
+      const rules = (
+        await listStandingRuleMemories(userId, {
+          scope: scope ? memoryScopeForDomain(scope) : null,
+          limit: RULE_LIMITS.maxReadResults,
+        })
+      ).map(memoryAsRule)
       for (const rule of rules) run.ruleIndex.set(rule.id, rule)
 
       const observation =
@@ -6183,6 +6212,10 @@ async function planAddProjectRule(
     }
   }
 
+  if (kind === PROJECT_RULE_KIND_IDS.note) {
+    return planAddRuleMemory(run, { text, scope }, userId)
+  }
+
   let rule: ProjectRule
   try {
     rule = await addProjectRule(userId, {
@@ -6195,7 +6228,7 @@ async function planAddProjectRule(
     if (error instanceof ProjectRuleLimitError) {
       return reject(
         REJECT.ruleLimitReached,
-        `The creator already has ${error.limit} standing rules — the most this app keeps. Tell them plainly that an old one has to go before a new one fits; do not pick which.`,
+        `The creator already has ${error.limit} source-list entries — the most this app keeps. Tell them plainly that an old one has to go before a new one fits; do not pick which.`,
       )
     }
     throw error
@@ -6214,11 +6247,67 @@ async function planAddProjectRule(
       createdAt: rule.createdAt,
     },
     inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) as ${rule.kind}. It now applies to ${rule.scope ?? 'every workbench'}.${
-      isProjectRuleSourceKind(rule.kind)
-        ? ' Source lists take effect from the NEXT turn (this turn already picked its sources) — say so instead of promising it applies right now.'
-        : ''
-    } Do not record it again.`,
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) as ${rule.kind}. It now applies to ${rule.scope ?? 'every workbench'}. Source lists take effect from the NEXT turn (this turn already picked its sources) — say so instead of promising it applies right now. Do not record it again.`,
+    // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
+    apply: () => {},
+  }
+}
+
+/**
+ * 普通规矩**记进记忆**（助手设置 B：规矩并进记忆）—— 来源 `assistant`、类别
+ * `rule`，与每轮结账记下的那些同一张表、同一份每域上限与淘汰。来源名单那两种
+ * 仍住项目规则表（它们是闸，不是一句话）。
+ *
+ * ⚠ 隐身或「让助手记住」关着时**不记**：两颗开关说的都是「别再记新的」。
+ * 模型读到理由该把话转给用户 —— 想留下就自己去记忆页写（你写的那一栏不受开关管）。
+ * ⚠ 超长**在这里拒**而不是截：截断改的是用户的原话，而规则薄卡要显示的正是原话。
+ */
+async function planAddRuleMemory(
+  run: OperatorRun,
+  args: { text: string; scope: AssistantOperatorDomain | null },
+  userId: string,
+): Promise<ToolPlan> {
+  if (run.request.incognito === true || !run.persona.memoryCapture) {
+    return reject(
+      REJECT.memoryOff,
+      'Memory is off right now (incognito, or "let the assistant remember" is switched off), so nothing new is saved. Tell the creator in one line; they can write the rule themselves under Assistant settings → Memory. Do not retry.',
+    )
+  }
+  if (args.text.length > ASSISTANT_MEMORY_LIMITS.maxTextChars) {
+    return reject(
+      REJECT.ruleTooLong,
+      `A rule holds at most ${ASSISTANT_MEMORY_LIMITS.maxTextChars} characters. Shorten it to the creator's own key words — keep their wording, drop the rest — and record it again.`,
+    )
+  }
+
+  const { memory, created } = await addAssistantRuleMemory(userId, {
+    text: args.text,
+    scope: args.scope
+      ? memoryScopeForDomain(args.scope)
+      : ASSISTANT_MEMORY_SCOPE_IDS.global,
+  })
+  const rule = memoryAsRule(memory)
+  run.ruleIndex.set(rule.id, rule)
+  /** 记忆里已经有同一句（哪怕是结账时记下的）—— 引用那一条，⛔ 不存第二行。 */
+  if (!created) {
+    return reject(
+      REJECT.repeatedStep,
+      `That rule is already recorded (id=${rule.id}). Cite it instead of writing it again.`,
+    )
+  }
+
+  return {
+    kind: 'mutate',
+    payload: {
+      ruleId: rule.id,
+      scope: rule.scope,
+      text: rule.text,
+      kind: rule.kind,
+      source: rule.source,
+      createdAt: rule.createdAt,
+    },
+    inverse: { ruleId: rule.id },
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) in the creator's memory. It now applies to ${rule.scope ?? 'every workbench'}. Do not record it again.`,
     // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
     apply: () => {},
   }
@@ -7698,21 +7787,18 @@ function buildPersonaStyleSection(persona: AssistantPersona): string {
 /**
  * 项目规则段（§10，拍板 23）—— 把用户写下的规矩摆进系统提示。
  *
- * ⭐ **为什么不是只给一条工具**：一条助手从没读过的规则等于没有。最近
- * `RULE_LIMITS.maxInPrompt` 条直接进提示，更早的那些靠 `read_project_rules` 翻。
+ * ⭐ **为什么不是只给一条工具**：一条助手从没读过的规则等于没有。记忆里「你写的」
+ * 最近 `RULE_LIMITS.maxInPrompt` 条直接进提示（助手设置 B：你写的优先，⛔ 不占
+ * 助手记的那份预算），更早的那些靠 `read_project_rules` 翻。
  * ⭐ **为什么要求引用时吐 `rule_hit`**：规则薄卡要显示的是用户当时写下的原话，
- * 而模型只给 id —— 原文由服务端从这张表里查出来填（转述过的规则就不是规则了）。
+ * 而模型只给 id —— 原文由服务端从记忆表里查出来填（转述过的规则就不是规则了）。
+ * ⚠ 来源名单**不在这一段里**（§9.3）：它们的 `text` 是一个域名，该说的事
+ * （「只打这几个源」）由 `buildSourceRulesSection` 说。
  */
 function buildProjectRulesSection(rules: readonly ProjectRule[]): string {
-  /**
-   * ⚠ 来源名单那两种**不在这一段里**（§9.3）：它们的 `text` 是一个域名，摆进
-   * 「用户写下的规矩」里读起来是一条没头没脑的规则，而它真正该说的事
-   * （「只打这几个源」）由 `buildSourceRulesSection` 说。
-   */
-  const notes = rules.filter((rule) => !isProjectRuleSourceKind(rule.kind))
-  if (notes.length === 0) return ''
+  if (rules.length === 0) return ''
 
-  const lines = notes
+  const lines = rules
     .map(
       (rule) =>
         `  - [${rule.id}] (${rule.scope ?? 'all workbenches'}, recorded ${rule.createdAt.slice(0, 10)}) ${rule.text}`,
@@ -9246,11 +9332,13 @@ async function closeRound(
    *  ② **写失败不阻塞 `done`** —— 与结账整体同一条判据：用户损失的是几行记忆，
    *     ⛔ 不是一轮凭空消失；
    *  ③ 敏感类目在服务里静默跳过，跳掉的那几条**不进 `memoriesWritten`**，
-   *     这里也 ⛔ 不记任何明文。
+   *     这里也 ⛔ 不记任何明文；
+   *  ④ 「让助手记住」关着（`persona.memoryCapture`，助手设置 B）同样一条都不写 ——
+   *     它只停「记新的」，已有的照样注入。
    */
   const incognito = run.request.incognito === true
   let memoriesWritten = 0
-  if (!incognito && hasLedger) {
+  if (!incognito && run.persona.memoryCapture && hasLedger) {
     const candidates = parseMemoryCandidates(draft.memories)
     if (candidates.length > 0) {
       try {
@@ -9472,11 +9560,18 @@ export async function* runAssistantOperator(
     optionalContext('persona', clerkId, { ...ASSISTANT_PERSONA_DEFAULTS }, () =>
       getAssistantPersonaByUserId(user.id),
     ),
-    optionalContext('projectRules', clerkId, [], () =>
-      listProjectRules(user.id, {
-        scope: request.domain,
-        limit: RULE_LIMITS.maxInPrompt,
-      }),
+    /**
+     * ⭐ **你写的那几条**（助手设置 B：规矩并进记忆，你写的优先）—— 进规则段、
+     * 带 id 可引用，⛔ 不占助手记的那份预算。
+     */
+    optionalContext('creatorMemories', clerkId, [], async () =>
+      (
+        await listCreatorMemoriesForPrompt(
+          user.id,
+          memoryScopeForDomain(request.domain),
+          RULE_LIMITS.maxInPrompt,
+        )
+      ).map(memoryAsRule),
     ),
     /**
      * ⭐ **来源白 / 黑名单单独读一次**（v2 §9.3）。
@@ -9619,8 +9714,13 @@ export async function* runAssistantOperator(
     negativeFolded: false,
     request,
     persona,
-    // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
-    ruleIndex: new Map(rules.map((rule) => [rule.id, rule])),
+    /**
+     * 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
+     * 来源名单也放进来：`add_project_rule` 查重靠它（它们的 id 不进提示，模型引不到）。
+     */
+    ruleIndex: new Map(
+      [...rules, ...sourceRules].map((rule) => [rule.id, rule]),
+    ),
     /**
      * ⭐ **名单在开跑前就并好**（§9.3）：库里那份 + 这一轮临时指的那几个。
      * ⛔ 临时那份不写库 —— 用户为一个问题临时指了几个源，不该变成他此后每一轮

@@ -21,10 +21,12 @@ import {
 } from '@/types/assistant-persona'
 
 /**
- * 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）。
+ * 项目规则表（`docs/references/pages/assistant-shell.md` §10，拍板 23）——
+ * **现在只装来源白 / 黑名单**（§9.3）。这个文件就是那张表的全部读写。
  *
- * owner 的真实工作流把价值沉淀在版本状态与复盘文档里，助手一条都读不到、写不回
- * —— 缺的是一张表。这个文件就是那张表的全部读写。
+ * ⚠ 普通规则已并进记忆（助手设置 B，owner 2026-09-26）：你写的、助手在对话里记的
+ * 都住 `AssistantMemory`（`assistant-memory.service.ts`），存量由迁移
+ * `20260926210000_rules_into_memory` 搬过去。⛔ 别在这里再写 `NOTE`。
  *
  * ⚠ **每一条查询都按 `userId` 收敛**，没有例外：规则是用户自己写下的约束，
  * 翻别人的规则表和翻别人的素材库是同一件事。
@@ -94,36 +96,29 @@ const RULE_SELECT = {
 } as const
 
 /**
- * 列出用户的规则，最新的在前。
+ * **来源白 / 黑名单**（§9.3），最新的在前。
  *
+ * ⚠ ⛔ 不截断成「最近几条」：名单一条都不能少 —— 被截掉的那一条在用户眼里仍然是
+ * 「我设过的闸」，静默失效的表现是助手照常去打那个站，而用户永远不会知道。
  * ⚠ `scope` 给了就返回**该域的 + 全域的**（`scope: null`），⛔ 不是只返回该域的：
- * 一条「不许在画面里加字」的全域规则在图片工作台上照样成立，滤掉它等于让用户
- * 每个工作台再写一遍。
+ * 一条全域的黑名单在图片工作台上照样成立，滤掉它等于让用户每个工作台再写一遍。
  */
-export async function listProjectRules(
+export async function listProjectSourceRules(
   userId: string,
-  options: {
-    scope?: string | null
-    limit?: number
-    /** 只要这几种（§9.3）。缺省 = 全都要。 */
-    kinds?: readonly ProjectRuleKindId[]
-  } = {},
+  options: { scope?: string | null } = {},
 ): Promise<ProjectRule[]> {
   const rows = await db.projectRule.findMany({
     where: {
       userId,
+      kind: {
+        in: PROJECT_RULE_SOURCE_KINDS.map((kind) => DB_KIND_BY_ID[kind]),
+      },
       ...(options.scope
         ? { OR: [{ scope: options.scope }, { scope: null }] }
         : {}),
-      ...(options.kinds?.length
-        ? { kind: { in: options.kinds.map((kind) => DB_KIND_BY_ID[kind]) } }
-        : {}),
     },
     orderBy: { createdAt: 'desc' },
-    take: Math.min(
-      options.limit ?? ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
-      ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
-    ),
+    take: ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
     select: RULE_SELECT,
   })
 
@@ -131,12 +126,12 @@ export async function listProjectRules(
 }
 
 /** 同上，但从 clerkId 起跳（API 路由那一侧用）。 */
-export async function listProjectRulesForClerkId(
+export async function listProjectSourceRulesForClerkId(
   clerkId: string,
   options: { scope?: string | null } = {},
 ): Promise<ProjectRule[]> {
   const user = await ensureUser(clerkId)
-  return listProjectRules(user.id, options)
+  return listProjectSourceRules(user.id, options)
 }
 
 /** 规则表满了 —— 调用方据此拒，⛔ 不静默丢弃、也不挤掉最老的一条。 */
@@ -168,7 +163,7 @@ export async function addProjectRule(
       userId,
       scope: input.scope ?? null,
       text: input.text,
-      kind: DB_KIND_BY_ID[input.kind ?? PROJECT_RULE_KIND_IDS.note],
+      kind: DB_KIND_BY_ID[input.kind],
       source: DB_SOURCE_BY_ID[input.source ?? PROJECT_RULE_SOURCE_IDS.creator],
     },
     select: RULE_SELECT,
@@ -205,23 +200,4 @@ export async function deleteProjectRule(
     where: { id: ruleId, userId: user.id },
   })
   return count > 0
-}
-
-/**
- * **来源白 / 黑名单**那两种规则（§9.3）。
- *
- * ⚠ 与系统提示那次读**分开一条查询**：那一次按 `maxInPrompt` 截最近 12 条，而
- * 名单一条都不能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效
- * 的表现是助手照常去打那个站，而用户永远不会知道。
- * ⚠ `scope` 的语义与上面那条逐字同源：该域的 + 全域的。
- */
-export async function listProjectSourceRules(
-  userId: string,
-  options: { scope?: string | null } = {},
-): Promise<ProjectRule[]> {
-  return listProjectRules(userId, {
-    ...options,
-    kinds: PROJECT_RULE_SOURCE_KINDS,
-    limit: ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
-  })
 }

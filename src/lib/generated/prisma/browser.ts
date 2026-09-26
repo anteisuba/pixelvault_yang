@@ -126,8 +126,8 @@ export type UserCreativePreference = Prisma.UserCreativePreferenceModel
 export type AssistantPersona = Prisma.AssistantPersonaModel
 /**
  * Model ProjectRule
- * 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）——用户在
- * 工作里沉淀下来的一条硬约束，助手读得到、也记得回。
+ * 项目规则表（`docs/references/pages/assistant-shell.md` §9.3 / §10）——现在只装
+ * **搜图来源白 / 黑名单**；普通规则已并进 `AssistantMemory`（助手设置 B）。
  * 
  * `scope` 为空 = 全域生效；非空时存的是 `ASSISTANT_OPERATOR_DOMAINS` 里的域 id。
  * ⛔ 不做成 Prisma 枚举：域词表住在 `constants/assistant-protocol.ts`，

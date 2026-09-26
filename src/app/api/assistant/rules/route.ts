@@ -7,7 +7,7 @@ import { ApiRequestError } from '@/lib/errors'
 import {
   ProjectRuleLimitError,
   addProjectRuleForClerkId,
-  listProjectRulesForClerkId,
+  listProjectSourceRulesForClerkId,
 } from '@/services/project-rule.service'
 import {
   CreateProjectRuleSchema,
@@ -15,9 +15,10 @@ import {
 } from '@/types/assistant-persona'
 
 /**
- * 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）。
+ * 搜图来源名单（`docs/references/pages/assistant-shell.md` §9.3）—— 项目规则表
+ * 现在只装这两种；普通规则已并进记忆（`/api/assistant-memories`，助手设置 B）。
  *
- * ⚠ 这条路上记下来的规则**默认来源是 `creator`**（用户自己写的）。助手记的那些
+ * ⚠ 这条路上记下来的**默认来源是 `creator`**（用户自己写的）。助手记的那些
  * 走工具环（`add_project_rule`），服务端在那边写死 `assistant` —— 两条路的来源
  * 不该由同一个可选字段决定。
  */
@@ -28,7 +29,7 @@ export const GET = createApiGetRoute({
   requireAuth: true,
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId, data }) =>
-    listProjectRulesForClerkId(clerkId!, { scope: data.scope ?? null }),
+    listProjectSourceRulesForClerkId(clerkId!, { scope: data.scope ?? null }),
 })
 
 export const POST = createApiRoute({

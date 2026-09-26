@@ -12,7 +12,7 @@ import {
 import { UpdateAssistantMemorySchema } from '@/types/assistant-memory'
 
 /**
- * 单条记忆（56a）—— 就地改那一下与行尾那颗「删」。
+ * 单条记忆（56a）—— 就地改那一下（字与它用在哪）与行尾那颗「删」。
  *
  * ⚠ ownership 在服务端：两条服务都按 `userId` 收敛，不属于这个用户时回
  * `null` / `false`，工厂据此出 404。⛔ 不把「删了别人的」与「什么都没删」
@@ -26,7 +26,7 @@ export const PATCH = createApiPatchByIdRoute({
   notFoundMessage: 'Assistant memory not found',
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, id, data) =>
-    updateAssistantMemoryForClerkId(clerkId, id, data.text),
+    updateAssistantMemoryForClerkId(clerkId, id, data),
 })
 
 export const DELETE = createApiDeleteRoute({

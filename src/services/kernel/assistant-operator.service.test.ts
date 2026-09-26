@@ -297,8 +297,10 @@ function usePlanAlwaysPersona(): void {
   })
 }
 
-const mockListProjectRules = vi.fn()
-/** 来源白 / 黑名单（v2 §9.3）—— 与上面那条分开：它是**另一条查询**。 */
+/**
+ * 来源白 / 黑名单（v2 §9.3）—— 项目规则表现在只装这两种；普通规则住记忆表
+ * （助手设置 B），见下面记忆那一份 mock。
+ */
 const mockListProjectSourceRules = vi.fn()
 const mockAddProjectRule = vi.fn()
 vi.mock('@/services/project-rule.service', async () => {
@@ -307,7 +309,6 @@ vi.mock('@/services/project-rule.service', async () => {
   >('@/services/project-rule.service')
   return {
     ProjectRuleLimitError: actual.ProjectRuleLimitError,
-    listProjectRules: (...args: unknown[]) => mockListProjectRules(...args),
     listProjectSourceRules: (...args: unknown[]) =>
       mockListProjectSourceRules(...args),
     addProjectRule: (...args: unknown[]) => mockAddProjectRule(...args),
@@ -354,9 +355,22 @@ const mockListMemoriesForPrompt = vi.fn(
 )
 const mockRecordMemories = vi.fn(async (..._args: unknown[]) => 0)
 const mockTouchMemories = vi.fn(async (..._args: unknown[]) => undefined)
+/** 你写的那几条（规则段）与两条规则工具 —— 规矩并进记忆（助手设置 B）。 */
+const mockListCreatorMemories = vi.fn(
+  async (..._args: unknown[]) => [] as unknown[],
+)
+const mockListStandingRuleMemories = vi.fn(
+  async (..._args: unknown[]) => [] as unknown[],
+)
+const mockAddRuleMemory = vi.fn()
 vi.mock('@/services/assistant-memory.service', () => ({
   listAssistantMemoriesForPrompt: (...args: unknown[]) =>
     mockListMemoriesForPrompt(...args),
+  listCreatorMemoriesForPrompt: (...args: unknown[]) =>
+    mockListCreatorMemories(...args),
+  listStandingRuleMemories: (...args: unknown[]) =>
+    mockListStandingRuleMemories(...args),
+  addAssistantRuleMemory: (...args: unknown[]) => mockAddRuleMemory(...args),
   recordAssistantMemories: (...args: unknown[]) => mockRecordMemories(...args),
   touchAssistantMemories: (...args: unknown[]) => mockTouchMemories(...args),
 }))
@@ -367,6 +381,7 @@ import {
 } from '@/constants/assistant-memory'
 import {
   ASSISTANT_ASSET_WRITE_LIMITS,
+  ASSISTANT_PROJECT_RULE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_EVIDENCE_RECALL_LIMITS,
@@ -657,7 +672,8 @@ beforeEach(() => {
     ...ASSISTANT_PERSONA_DEFAULTS,
     avatarUrl: null,
   })
-  mockListProjectRules.mockResolvedValue([])
+  mockListCreatorMemories.mockResolvedValue([])
+  mockListStandingRuleMemories.mockResolvedValue([])
   // 绝大多数用户没有来源名单 —— 默认空闸，要验名单的用例自己塞。
   mockListProjectSourceRules.mockResolvedValue([])
   /**
@@ -6266,13 +6282,54 @@ describe('用户偏好进系统提示（§8.3）', () => {
   })
 })
 
-describe('项目规则（§10，拍板 23）', () => {
-  const RULE = {
+describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手设置 B）', () => {
+  /** 你写的一条（记忆行）。进规则段时它是「一条规则」：global = 全部工作台。 */
+  const MINE = {
     id: 'rule-1',
-    scope: null,
-    text: 'Never put text inside the picture.',
+    scope: 'global' as const,
+    kind: 'rule' as const,
     source: 'creator' as const,
+    text: 'Never put text inside the picture.',
     createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
+  }
+
+  function learned(text: string, scope: string, id = 'rule-9') {
+    return {
+      memory: {
+        id,
+        scope,
+        kind: 'rule',
+        source: 'assistant',
+        text,
+        createdAt: '2026-09-06T10:00:00.000Z',
+        updatedAt: '2026-09-06T10:00:00.000Z',
+      },
+      created: true,
+    }
+  }
+
+  async function runTool(
+    args: Record<string, unknown>,
+    request = buildRequest(),
+  ) {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          title: 'Note the rule',
+          args,
+        },
+      },
+      { finished: true },
+    )
+    return collect(runAssistantOperator('clerk-1', request))
+  }
+
+  function errorOf(events: readonly unknown[]) {
+    return stepsOf(events as never).find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )?.error as { reason: string; detail?: string } | undefined
   }
 
   it('零条规则时不印规则段', async () => {
@@ -6281,21 +6338,25 @@ describe('项目规则（§10，拍板 23）', () => {
     expect(systemPrompt()).not.toContain('STANDING RULES THIS CREATOR WROTE')
   })
 
-  it('有规则时逐条印进系统提示，并要求引用时吐 id', async () => {
-    mockListProjectRules.mockResolvedValue([RULE])
+  it('你写的逐条印进系统提示（当前域 + global），并要求引用时吐 id', async () => {
+    mockListCreatorMemories.mockResolvedValue([MINE])
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
+    expect(mockListCreatorMemories).toHaveBeenCalledWith(
+      'user-db-1',
+      'image',
+      ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt,
+    )
     const prompt = systemPrompt()
     expect(prompt).toContain('STANDING RULES THIS CREATOR WROTE DOWN')
-    expect(prompt).toContain('[rule-1]')
-    expect(prompt).toContain(RULE.text)
-    expect(prompt).toContain('recorded 2026-09-01')
+    expect(prompt).toContain('[rule-1] (all workbenches, recorded 2026-09-01)')
+    expect(prompt).toContain(MINE.text)
     expect(prompt).toContain('"ruleHits"')
   })
 
   it('引用一条已知规则 → 吐一帧 rule_hit，原文来自库不是模型', async () => {
-    mockListProjectRules.mockResolvedValue([RULE])
+    mockListCreatorMemories.mockResolvedValue([MINE])
     queueTurns({
       ruleHits: ['rule-1'],
       message: 'Keeping the frame text-free.',
@@ -6312,15 +6373,15 @@ describe('项目规则（§10，拍板 23）', () => {
       {
         type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
         ruleId: 'rule-1',
-        text: RULE.text,
+        text: MINE.text,
         source: 'creator',
-        createdAt: RULE.createdAt,
+        createdAt: MINE.createdAt,
       },
     ])
   })
 
   it('编出来的规则 id 被剥掉，⛔ 不作废这一轮', async () => {
-    mockListProjectRules.mockResolvedValue([RULE])
+    mockListCreatorMemories.mockResolvedValue([MINE])
     queueTurns({ ruleHits: ['rule-nope'], message: 'ok', finished: true })
 
     const events = await collect(
@@ -6334,20 +6395,13 @@ describe('项目规则（§10，拍板 23）', () => {
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
-  it('add_project_rule 落库并吐一条带 ruleId 的改动型 step', async () => {
-    mockAddProjectRule.mockResolvedValue({
-      id: 'rule-9',
-      scope: 'image',
-      text: 'Skin tones stay warm.',
-      source: 'assistant',
-      createdAt: '2026-09-06T10:00:00.000Z',
-    })
+  it('read_project_rules 读记忆里的规矩，结果是协议上的规则形状', async () => {
+    mockListStandingRuleMemories.mockResolvedValue([MINE])
     queueTurns(
       {
         tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
-          title: 'Note the rule',
-          args: { text: 'Skin tones stay warm.', scope: 'image' },
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+          args: { scope: 'video' },
         },
       },
       { finished: true },
@@ -6355,50 +6409,155 @@ describe('项目规则（§10，拍板 23）', () => {
 
     const steps = stepsOf(
       await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(mockListStandingRuleMemories).toHaveBeenCalledWith('user-db-1', {
+      scope: 'video',
+      limit: ASSISTANT_PROJECT_RULE_LIMITS.maxReadResults,
+    })
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done?.result).toEqual({
+      rules: [
+        {
+          id: 'rule-1',
+          scope: null,
+          text: MINE.text,
+          kind: 'note',
+          source: 'creator',
+          createdAt: MINE.createdAt,
+        },
+      ],
+    })
+  })
+
+  it('add_project_rule 把普通规矩记进记忆（助手记的），吐一条带 ruleId 的改动型 step', async () => {
+    mockAddRuleMemory.mockResolvedValue(
+      learned('Skin tones stay warm.', 'image'),
+    )
+
+    const steps = stepsOf(
+      await runTool({ text: 'Skin tones stay warm.', scope: 'image' }),
     )
     const done = steps.find(
       (step) =>
         step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
         step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
     )
-    expect(done).toBeDefined()
     expect(done?.payload).toMatchObject({
       ruleId: 'rule-9',
+      scope: 'image',
+      kind: 'note',
       source: 'assistant',
     })
     // 撤销的本钱：inverse 里放的是库记录 id
     expect(done?.inverse).toEqual({ ruleId: 'rule-9' })
-    // ⛔ 来源由服务端写死，不从模型收
-    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+    expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: 'Skin tones stay warm.',
       scope: 'image',
-      // 缺省是普通规则（v2 §9.3）——来源名单要模型明说 kind。
-      kind: 'note',
-      source: 'assistant',
     })
+    // ⛔ 普通规矩不再写项目规则表
+    expect(mockAddProjectRule).not.toHaveBeenCalled()
   })
 
-  it('撞上限时按 ruleLimitReached 拒，⛔ 不静默丢弃', async () => {
-    const { ProjectRuleLimitError } =
-      await import('@/services/project-rule.service')
-    mockAddProjectRule.mockRejectedValue(new ProjectRuleLimitError(50))
+  it('刚记下的那条这一轮就能被引用', async () => {
+    mockAddRuleMemory.mockResolvedValue(
+      learned('Skin tones stay warm.', 'global', 'rule-12'),
+    )
     queueTurns(
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
-          args: { text: 'one more rule' },
+          args: { text: 'Skin tones stay warm.' },
         },
       },
-      { finished: true },
+      { ruleHits: ['rule-12'], message: 'Noted.', finished: true },
     )
 
-    const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
     )
-    const rejected = steps.find(
-      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    expect(
+      events.filter(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ruleHit,
+      ),
+    ).toHaveLength(1)
+  })
+
+  /** 隐身与「让助手记住」关着说的都是「别再记新的」—— ⛔ 当场口述的也不开例外。 */
+  it.each([
+    ['隐身', buildRequest({ incognito: true }), undefined],
+    ['「让助手记住」关着', buildRequest(), false],
+  ])('%s时按 memoryOff 拒，⛔ 不写', async (_name, request, capture) => {
+    if (capture === false) {
+      mockGetAssistantPersonaByUserId.mockResolvedValue({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        avatarUrl: null,
+        memoryCapture: false,
+      })
+    }
+    const events = await runTool({ text: '以后都用中文回我' }, request)
+    expect(errorOf(events)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.memoryOff,
     )
-    expect((rejected?.error as { reason: string } | undefined)?.reason).toBe(
+    expect(mockAddRuleMemory).not.toHaveBeenCalled()
+  })
+
+  /** ⛔ 不截断：截掉的是用户的原话。 */
+  it('超过一条记忆的长度按 ruleTooLong 拒', async () => {
+    const events = await runTool({
+      text: '规'.repeat(ASSISTANT_MEMORY_LIMITS.maxTextChars + 1),
+    })
+    expect(errorOf(events)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.ruleTooLong,
+    )
+    expect(mockAddRuleMemory).not.toHaveBeenCalled()
+  })
+
+  it('记忆里已有同一句 → 引用那一条，⛔ 不存第二行', async () => {
+    mockAddRuleMemory.mockResolvedValue({
+      ...learned('Skin tones stay warm.', 'global', 'rule-old'),
+      created: false,
+    })
+    const events = await runTool({ text: 'Skin tones stay warm.' })
+    const error = errorOf(events)
+    expect(error?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+    )
+    expect(error?.detail).toContain('rule-old')
+  })
+
+  it('来源名单仍落项目规则表（收成域名）', async () => {
+    mockAddProjectRule.mockResolvedValue({
+      id: 'rule-src',
+      scope: null,
+      text: 'danbooru.donmai.us',
+      kind: 'sourceDeny',
+      source: 'assistant',
+      createdAt: '2026-09-12T10:00:00.000Z',
+    })
+    await runTool({
+      text: 'https://danbooru.donmai.us/posts',
+      kind: 'sourceDeny',
+    })
+    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+      text: 'danbooru.donmai.us',
+      scope: null,
+      kind: 'sourceDeny',
+      source: 'assistant',
+    })
+    expect(mockAddRuleMemory).not.toHaveBeenCalled()
+  })
+
+  it('来源名单撞上限时按 ruleLimitReached 拒，⛔ 不静默丢弃', async () => {
+    const { ProjectRuleLimitError } =
+      await import('@/services/project-rule.service')
+    mockAddProjectRule.mockRejectedValue(new ProjectRuleLimitError(50))
+
+    const events = await runTool({ text: 'pixiv.net', kind: 'sourceDeny' })
+    expect(errorOf(events)?.reason).toBe(
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.ruleLimitReached,
     )
   })
@@ -6437,38 +6596,24 @@ describe('项目规则（§10，拍板 23）', () => {
       },
     })
     // ⛔ 库里不该留下那条被改判的规则。
+    expect(mockAddRuleMemory).not.toHaveBeenCalled()
     expect(mockAddProjectRule).not.toHaveBeenCalled()
   })
 
-  it('工作方式那类规矩照旧落成项目规则', async () => {
-    mockAddProjectRule.mockResolvedValue({
-      id: 'rule-10',
-      scope: null,
-      text: '以后查资料只信官方站，别拿同人图当依据',
-      source: 'assistant',
-      createdAt: '2026-09-12T10:00:00.000Z',
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
-          args: { text: '以后查资料只信官方站，别拿同人图当依据' },
-        },
-      },
-      { finished: true },
+  it('工作方式那类规矩照旧记下（进记忆，缺域 = 全部工作台）', async () => {
+    mockAddRuleMemory.mockResolvedValue(
+      learned('以后查资料只信官方站，别拿同人图当依据', 'global', 'rule-10'),
     )
 
-    const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest()),
-    )
+    const events = await runTool({
+      text: '以后查资料只信官方站，别拿同人图当依据',
+    })
     expect(
       events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(false)
-    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+    expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '以后查资料只信官方站，别拿同人图当依据',
-      scope: null,
-      kind: 'note',
-      source: 'assistant',
+      scope: 'global',
     })
   })
 
@@ -6481,57 +6626,21 @@ describe('项目规则（§10，拍板 23）', () => {
     ['kind 写中文别名', { text: '输出一律不加水印', kind: '普通' }],
     ['scope 编了一个不存在的值', { text: '输出一律不加水印', scope: 'global' }],
   ])('%s 时照样落库，⛔ 不吐 malformedArgs', async (_name, args) => {
-    mockAddProjectRule.mockResolvedValue({
-      id: 'rule-11',
-      scope: null,
-      text: '输出一律不加水印',
-      source: 'assistant',
-      createdAt: '2026-09-12T10:00:00.000Z',
-    })
-    queueTurns(
-      {
-        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule, args },
-      },
-      { finished: true },
+    mockAddRuleMemory.mockResolvedValue(
+      learned('输出一律不加水印', 'global', 'rule-11'),
     )
 
-    const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildRequest())),
-    )
-    expect(
-      steps.some(
-        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
-      ),
-    ).toBe(false)
-    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+    const events = await runTool(args)
+    expect(errorOf(events)).toBeUndefined()
+    expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '输出一律不加水印',
-      scope: null,
-      kind: 'note',
-      source: 'assistant',
+      scope: 'global',
     })
   })
 
   /** 掰不动的照旧拒 —— ⚠ 但理由里要带一份正确形状，否则模型只会换个值再撞一次。 */
   it('text 缺席时拒，理由里带正确形状', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
-          args: { scope: 'image' },
-        },
-      },
-      { finished: true },
-    )
-
-    const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildRequest())),
-    )
-    const rejected = steps.find(
-      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
-    )
-    const error = rejected?.error as
-      | { reason: string; detail?: string }
-      | undefined
+    const error = errorOf(await runTool({ scope: 'image' }))
     expect(error?.reason).toBe(
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
     )
@@ -6539,26 +6648,11 @@ describe('项目规则（§10，拍板 23）', () => {
   })
 
   it('同一句规则记两遍在规划期就被拒（换标点也绕不过去）', async () => {
-    mockListProjectRules.mockResolvedValue([RULE])
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
-          args: { text: RULE.text },
-        },
-      },
-      { finished: true },
-    )
+    mockListCreatorMemories.mockResolvedValue([MINE])
 
-    const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildRequest())),
-    )
-    expect(mockAddProjectRule).not.toHaveBeenCalled()
-    expect(
-      steps.some(
-        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
-      ),
-    ).toBe(true)
+    const events = await runTool({ text: MINE.text })
+    expect(mockAddRuleMemory).not.toHaveBeenCalled()
+    expect(errorOf(events)).toBeDefined()
   })
 })
 
@@ -14404,6 +14498,47 @@ describe('助手记忆（56a）', () => {
       (doneEvent(events).roundSummary as unknown as { facts: string[] }).facts,
     ).toEqual(['库里有三张夜景'])
   })
+
+  /** 助手设置 B：「让助手记住」关 = 只停记新的；已有的照样注入。 */
+  it('⛔ 「让助手记住」关着：结账一条都不写，已有的照样注入', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      memoryCapture: false,
+    })
+    mockListMemoriesForPrompt.mockResolvedValueOnce([
+      {
+        id: 'mem-1',
+        scope: 'image',
+        kind: 'preference',
+        source: 'assistant',
+        text: '偏好横构图 16:9',
+        createdAt: '2026-09-20T02:00:00.000Z',
+        updatedAt: '2026-09-20T02:00:00.000Z',
+      },
+    ])
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [{ kind: 'preference', text: '偏好冷色调' }],
+      }),
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(doneEvent(events).roundSummary?.memoriesWritten).toBeUndefined()
+    expect(toolRingSystemPrompt()).toContain('偏好横构图 16:9')
+  })
+
   it('⭐ 注入段印出那几行字，并更新 lastUsedAt', async () => {
     mockListMemoriesForPrompt.mockResolvedValueOnce([
       {
@@ -14540,7 +14675,7 @@ describe('助手记忆（56a）', () => {
   it('⭐ 上下文卡 / 规则 / 结论三样打库炸了，这一轮照样跑完', async () => {
     const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
     mockListContextCards.mockRejectedValueOnce(new Error('cards down'))
-    mockListProjectRules.mockRejectedValueOnce(new Error('rules down'))
+    mockListCreatorMemories.mockRejectedValueOnce(new Error('rules down'))
     mockListAssistantConversationRounds.mockRejectedValueOnce(
       new Error('rounds down'),
     )

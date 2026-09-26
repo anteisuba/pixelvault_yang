@@ -6929,7 +6929,7 @@
       "framesInvalid": "抽出的帧与确定性计划对不上，请重新抽帧。"
     },
     "projectRule": {
-      "limitReached": "规则已经到上限了，先删掉一条再加。"
+      "limitReached": "来源名单已经到上限了，先删掉一条再加。"
     },
     "contextCard": {
       "limitReached": "上下文卡已经到上限了，先删掉一张再加。",
@@ -6938,6 +6938,9 @@
     },
     "assistantPersona": {
       "characterNotFound": "这个角色已经不在了，换一个或者选「不用角色」。"
+    },
+    "assistantMemory": {
+      "limitReached": "你写的记忆已经到上限了，先删掉一条再写。"
     }
   },
   "Transform": {
@@ -7445,7 +7448,9 @@
       "critiqueFailed": "看过了，但没读出可用的评价",
       "urlNotFromUser": "这条链接不是你给的，助手不能自己收下",
       "repeatedStep": "这一步刚才做过了，跳过",
-      "ruleLimitReached": "项目规则已达上限，先删掉一条旧规则再添加。",
+      "ruleLimitReached": "来源名单已达上限，先删掉一条再添加。",
+      "memoryOff": "记忆关着（隐身或「让助手记住」已关），这条没记",
+      "ruleTooLong": "这条规矩太长，没记下",
       "folderLimitReached": "文件夹数量已达上限，先删掉一个旧文件夹再新建。",
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
@@ -7652,22 +7657,6 @@
       "copied": "已复制"
     },
     "assistantSettings": "助手设置",
-    "persona": {
-      "tabRules": "项目规则",
-      "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",
-      "rulesLoading": "加载中…",
-      "rulesEmpty": "还没有规则 — 说一句值得记下来的话，助手会记下来。",
-      "ruleDelete": "删掉这条规则",
-      "ruleAdd": "添加",
-      "ruleAddLabel": "新增一条规则",
-      "rulePlaceholderNote": "写一条一直生效的规矩",
-      "rulePlaceholderSource": "来源 id 或域名，如 danbooru.donmai.us",
-      "ruleKind": {
-        "note": "普通规则",
-        "sourceAllow": "只信这些来源",
-        "sourceDeny": "屏蔽这些来源"
-      }
-    },
     "rule": {
       "recordedOn": "记于 {date}",
       "sourceAssistant": "来自对话",
@@ -8048,36 +8037,6 @@
         "/studio/node": "画布",
         "/gallery": "画廊"
       }
-    },
-    "assistant": {
-      "personaLabel": "人设",
-      "verbosity": {
-        "concise": "简洁",
-        "standard": "标准",
-        "detailed": "详尽"
-      },
-      "memoryLabel": "记忆",
-      "memoryClearAll": "全部清空",
-      "memoryScope": {
-        "all": "全部",
-        "image": "图片",
-        "video": "视频",
-        "canvas": "画布",
-        "lora": "LoRA"
-      },
-      "memoryLoading": "正在读取记忆…",
-      "memoryEmpty": "还没有记忆",
-      "memoryEmptyHint": "助手会在每轮结束时记下你的偏好和事实。这里随时能改、能删。",
-      "memoryIncognitoCta": "这一轮不记（隐身）",
-      "memoryEditLabel": "改这条记忆",
-      "memoryEditHint": "回车保存 · Esc 取消",
-      "memoryDelete": "删掉这条记忆",
-      "memoryToday": "今天 {time}",
-      "memoryYesterday": "昨天",
-      "memoryClearTitle": "清空全部记忆？",
-      "memoryClearDescription": "{count, plural, other {# 条}}记忆会被删掉，且无法恢复。",
-      "memoryClearConfirm": "全部清空",
-      "memoryCancel": "取消"
     }
   },
   "AssistantSettings": {
@@ -8205,6 +8164,73 @@
     "myWords": {
       "label": "用我的词",
       "hint": "沿用我在提示词里的说法"
+    },
+    "memory": {
+      "caption": "助手在对话里记下的，和你自己写的，都在这一列。你写的优先。",
+      "captionPaused": "助手不再自己记新的；清单里的照样生效，不想要就删。",
+      "capture": "让助手记住",
+      "newLabel": "写一条记忆",
+      "newPlaceholder": "写一条，回车存下。例：以后都用中文回复",
+      "filters": {
+        "label": "按谁写的筛选",
+        "all": "全部",
+        "creator": "你写的",
+        "assistant": "助手记的"
+      },
+      "clear": {
+        "all": "全部清空",
+        "creator": "清空你写的",
+        "assistant": "清空助手记的",
+        "titleAll": "清空全部 {count} 条记忆？",
+        "titleCreator": "清空你写的 {count} 条？",
+        "titleAssistant": "清空助手记的 {count} 条？",
+        "descAll": "删了找不回来。",
+        "descAllWithMine": "你写的 {count} 条也会一起删掉。删了找不回来。",
+        "descCreator": "助手记的留着。删了找不回来。",
+        "descAssistant": "你写的留着。删了找不回来。",
+        "cancel": "取消"
+      },
+      "source": {
+        "creator": "你写的",
+        "assistant": "助手记的"
+      },
+      "meta": "{source} · {time}",
+      "today": "今天 {time}",
+      "yesterday": "昨天",
+      "edit": "改这条记忆：{text}",
+      "editLabel": "改这条记忆",
+      "editHint": "回车保存 · Esc 取消 · 右边选它用在哪",
+      "scopeLabel": "用在哪",
+      "scopeAria": "用在哪：{scope}",
+      "scope": {
+        "global": "全部工作台",
+        "image": "只在图片",
+        "video": "只在视频",
+        "canvas": "只在画布",
+        "lora": "只在 LoRA"
+      },
+      "delete": "删",
+      "deleteConfirm": "确认删除",
+      "deleteAria": "删掉这条记忆",
+      "deleteConfirmAria": "确认删掉这条记忆",
+      "filteredEmpty": "这一类还没有。",
+      "emptyTitle": "还没有记忆",
+      "emptyDescription": "助手会在每轮结束时记下你的偏好和事实。这里随时能改、能删。",
+      "emptyAction": "写第一条",
+      "loading": "正在读记忆…",
+      "failed": "没存上，再试一次。"
+    },
+    "sources": {
+      "title": "搜图来源",
+      "caption": "搜图时直接按名单过滤，不靠助手自觉",
+      "allow": "只从这些站找",
+      "deny": "不从这些站找",
+      "add": "添加",
+      "addLabel": "添加一个站点",
+      "placeholder": "站点或域名",
+      "remove": "移除 {token}",
+      "invalid": "填一个站点域名，比如 danbooru.donmai.us。",
+      "failed": "没存上，再试一次。"
     }
   },
   "StudioInpaintMask": {

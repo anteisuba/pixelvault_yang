@@ -29,7 +29,7 @@
 
 ## 助手记忆 `AssistantMemory`（2026-09-20 · 进度表 56a）
 
-一条 = **一行字**：`text` 就是进系统提示的那一行。由助手在**每轮结账**时写，用户在 `/settings/assistant` 里改 / 删。
+一条 = **一行字**：`text` 就是进系统提示的那一行。助手记的在**每轮结账**（或 `add_project_rule` 的普通规矩）时写，你写的在 `/settings/assistant` 的记忆页写；两种都能在那里改 / 删。
 
 | 列                             | 说明                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
@@ -41,7 +41,8 @@
 | `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT） |
 
 - 三条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧。
-- **每域上限 200**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）。
+- **每域上限 200（只数助手记的）**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）；**你写的**最多 50 条、⛔ 不淘汰，满了拒。
+- 旧「项目规则」的普通规则（`ProjectRule.kind = NOTE`）由 `20260926210000_rules_into_memory` 搬进这张表（原 id / 原时间，类别 RULE，来源照搬，`scope` 为空或不在词表里的进 GLOBAL，超 200 字截断），随下一次生产构建执行。之后 `ProjectRule` 只装来源白 / 黑名单（`SOURCE_ALLOW` / `SOURCE_DENY`）；`NOTE` 这一枚举值暂留、无读写方。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。
 - ⚠ 迁移 `20260920120000_assistant_memory` 只写了文件，**owner 自己跑**——仓里另有两条未应用的迁移，一并留给 push。
 
@@ -54,7 +55,7 @@
 | `avatarChoice`      | 头像单选表：character / upload / mark / monogram；NULL = 老行，读时按「传过图用图，否则用预设」回推 |
 | `nameFromCharacter` | 名字跟着角色走；开着时服务端不写 `name`（自己的名字一直留在库里）                                   |
 | `toneFromCharacter` | 语气跟着角色设定里的 `persona.speech` 走；角色没写说话方式时不生效                                  |
-| `memoryCapture`     | 「让助手记住」（默认开）；关 = 每轮结账不再自己记新的                                               |
+| `memoryCapture`     | 「让助手记住」（默认开）；关 = 不再记新的（每轮结账与 `add_project_rule` 的普通规矩都不写）         |
 
 `characterCardId`（→ `CharacterCard`，`onDelete: SetNull`）由 `20260926120000_card_assistant` 加入；卡删了只清绑定，读的那一跳当没用角色。
 

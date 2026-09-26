@@ -62,7 +62,8 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-studio-operator-mention.ts` — **@ 四入口唯一一条 chip 管线**（`addChip`）；chip 就是 `StudioOperatorAttachment`，发送时与 📎 附件按 `id` 去重合并
 - `use-assistant-persona.ts` — 助手设置 persona 读 / 写 / 传头像（`/api/assistant/persona`）。⚠ 初值是 `ASSISTANT_PERSONA_DEFAULTS` 不是 null，⛔ 不做「加载中什么都不显示」的空窗。`useAssistantPersonaAutosave` = 助手设置 B 的「改了就存」：请求排队合并（同一时刻一个 `PUT`，⛔ 不并发）、打字只改界面失焦 `commit` 才存、失败停在「重试」；「只改一格」的地方一律从 `toAssistantPersonaUpdate(persona)` 起手（`PUT` 收完整形状）
 - `use-studio-video-assets.ts` — 视频档**素材轨**（owner 09-24 去掉三个模式）：图、视频、音频按类型编号（图片1 · 视频1 · 音频1），首 / 尾帧是图片角标。⭐ 拖入 / 素材库 / 助手 `mount_reference slot` **三条落法汇到同一份状态**（`SET_VIDEO_FRAME_SLOT` / `imageUpload` / `SET_VIDEO_REFERENCE_VIDEOS`），⛔ 组件里别另写写入。容量、编号、这一枪走哪个端点全部来自 `lib/studio/video-workbench-slots.ts`（与画布同一个 `videoSendMode`），⛔ 不由组件自己判模型；本地图片走参考图那条同源上传管线（压缩闸 → multipart → R2），⛔ 不是 base64
-- `use-project-rules.ts` — 项目规则 CRUD（`/api/assistant/rules`）。调用方是助手设置「记忆」页（`assistant-settings/AssistantMemoryPane`）
+- `use-assistant-memories.ts` — 记忆一列（`/api/assistant-memories`，助手设置 B）：一次全取、筛选在前端；「写一条」存成你写的；清空带 `source` 跟着筛选走；失败带 `i18nKey`，组件走 `getApiErrorMessage` 说人话，⛔ 不把英文原话递给用户
+- `use-project-rules.ts` — 搜图来源白 / 黑名单 CRUD（`/api/assistant/rules`；项目规则表现在只装这两种，普通规则已并进记忆）。调用方是记忆页下半块「搜图来源」（`assistant-settings/AssistantMemoryPane`）
 
 ### Node Canvas v4（`src/hooks/node/` · 基准 `docs/references/pages/node-canvas-v2.md`）
 

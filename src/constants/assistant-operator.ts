@@ -2487,6 +2487,17 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   ruleLimitReached: 'ruleLimitReached',
   /**
+   * **记忆关着**（隐身，或「让助手记住」关了，助手设置 B）—— `add_project_rule`
+   * 的普通规矩这时不记。⚠ 两颗开关说的都是「别再记新的」，⛔ 不因为是用户当场
+   * 口述的就开例外；助手读到这条理由该把话转给用户：想留下就去记忆页自己写。
+   */
+  memoryOff: 'memoryOff',
+  /**
+   * 普通规矩**超过一条记忆的长度**（`ASSISTANT_MEMORY_LIMITS.maxTextChars`）。
+   * ⛔ 不截断：截掉的是用户的原话。助手读到这条理由该留着用户的词缩短再记。
+   */
+  ruleTooLong: 'ruleTooLong',
+  /**
    * 文件夹数量撞到上限（`PROJECT.MAX_PROJECTS_PER_USER`）—— `create_folder` 拒。
    *
    * ⚠ 与 `ruleLimitReached` 分开而不是合成一条「什么东西满了」：两条给用户的

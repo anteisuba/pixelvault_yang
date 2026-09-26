@@ -67,7 +67,8 @@ enum ContextCardKind {
 /// 三个维度，而来源名单要的正是这三个，且「这个项目只信官方设定集」本来就是
 /// 用户心里的一条项目规则。
 enum ProjectRuleKind {
-  /// 普通项目规则（v1 现状）—— text 是规则原文。
+  /// 旧的普通项目规则 —— 已并进记忆（助手设置 B），存量由 20260926210000_rules_into_memory
+  /// 搬进 AssistantMemory。⛔ 新代码不再读写这一值。
   NOTE
   /// 来源白名单 —— text 是一个来源 id（web / wiki / bilibili / danbooru）或域名。
   SOURCE_ALLOW
@@ -798,8 +799,8 @@ model AssistantPersona {
   updatedAt DateTime @updatedAt
 }
 
-/// 项目规则（`docs/references/pages/assistant-shell.md` §10，拍板 23）——用户在
-/// 工作里沉淀下来的一条硬约束，助手读得到、也记得回。
+/// 项目规则表（`docs/references/pages/assistant-shell.md` §9.3 / §10）——现在只装
+/// **搜图来源白 / 黑名单**；普通规则已并进 `AssistantMemory`（助手设置 B）。
 ///
 /// `scope` 为空 = 全域生效；非空时存的是 `ASSISTANT_OPERATOR_DOMAINS` 里的域 id。
 /// ⛔ 不做成 Prisma 枚举：域词表住在 `constants/assistant-protocol.ts`，
@@ -811,11 +812,11 @@ model ProjectRule {
 
   /// null = 全域。非空时是一个域 id（image / video / lora）。
   scope  String?
-  /// 规则原文，规则薄卡上逐字展示。来源名单那两种 kind 里装的是来源 id 或域名。
+  /// 一个来源 id 或域名（来源名单）。
   text   String            @db.Text
-  /// 这条规则是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
+  /// 这条是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
   source ProjectRuleSource
-  /// 普通规则 / 来源白名单 / 来源黑名单（§9.3）。存量行一律是普通规则。
+  /// 来源白名单 / 来源黑名单（§9.3）。普通规则已并进记忆（见 NOTE）。
   kind   ProjectRuleKind   @default(NOTE)
 
   createdAt DateTime @default(now())

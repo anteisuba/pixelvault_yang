@@ -3271,14 +3271,41 @@ export type CharacterPersonaExample = z.infer<
  * 对下游有用，「温柔体贴」没有。与 `description`（视觉描述）是两回事。
  */
 export const CharacterPersonaSchema = z.object({
+  /** 身份：年龄 · 职业 · 所属 · 世界（owner 09-26）。 */
+  identity: z.string().trim().max(2000).default(''),
   behavior: z.string().trim().max(2000).default(''),
   speech: z.string().trim().max(2000).default(''),
   catchphrases: z.array(z.string().trim().max(120)).max(20).default([]),
   scenario: z.string().trim().max(2000).default(''),
   opening: z.string().trim().max(2000).default(''),
   examples: z.array(CharacterPersonaExampleSchema).max(10).default([]),
+  /**
+   * 经历（owner 09-26）：没有固定格式——原作照资料的写法，原创由用户写、助手扩充。
+   */
+  backstory: z.string().trim().max(6000).default(''),
 })
 export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
+
+/**
+ * 卡的标签（`extensions['pv.tags']`，owner 09-26）：给 NovelAI / LoRA 这类只认标签的
+ * 模型认人。角色标签如 `denia_(wuthering_waves)`；LoRA 只存触发词，⛔ 不记对应的 LoRA。
+ */
+export const CardTagsSchema = z.object({
+  character: z
+    .array(z.string().trim().min(1).max(CARD_EXTENSIONS.TAG_MAX_LENGTH))
+    .max(CARD_EXTENSIONS.MAX_CHARACTER_TAGS)
+    .default([]),
+  appearance: z
+    .array(z.string().trim().min(1).max(CARD_EXTENSIONS.TAG_MAX_LENGTH))
+    .max(CARD_EXTENSIONS.MAX_APPEARANCE_TAGS)
+    .default([]),
+  loraTrigger: z
+    .string()
+    .trim()
+    .max(CARD_EXTENSIONS.LORA_TRIGGER_MAX_LENGTH)
+    .default(''),
+})
+export type CardTags = z.infer<typeof CardTagsSchema>
 
 /**
  * 参考图的用途槽位：`Record<图片 URL, role>`，role 的值域**直接复用**画布的

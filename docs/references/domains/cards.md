@@ -113,6 +113,8 @@
 
 ⑥ 已写：图片出口多给一份与卡图逐位对齐的图例 `referenceLabels`，快速出图拼成与整串参考图对齐的 `referenceImageLabels`（用户挂的图为 `null`）送进 worker；worker 的 Gemini 在每张图前面插一段文字说明（`buildGeminiImageParts`）。长度对不上的整串丢弃 = 旧行为。⚠ worker 要随发布单独部署才生效。
 
+**卡片重设计（09-26，画布第 7 页）· 施工第 1 片已写**：人设加 `identity`（身份）与 `backstory`（经历，无固定格式）；扩展键 `pv.tags` = `{ character[], appearance[], loraTrigger }`（`CardTagsSchema`，键名在 `CARD_EXTENSIONS.KEYS`）。编译：NovelAI（多角色布局与文字退路）优先用角色标签 + 外观标签，没有标签才退回视觉文字；LoRA 触发词只在请求挂了 LoRA 时写进正文；LoRA 只存触发词、⛔ 不记对应的 LoRA。坏的 `pv.tags` 编译时当缺席、磁盘上保留。
+
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
 3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。

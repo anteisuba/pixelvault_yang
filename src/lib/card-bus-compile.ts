@@ -8,6 +8,7 @@
  * 契约见 `docs/references/domains/cards.md`「编译层」。
  */
 
+import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getNovelAiMaxCharacters,
@@ -15,7 +16,11 @@ import {
   supportsNovelAiCharacters,
 } from '@/constants/novelai'
 import { referenceUrlKey } from '@/lib/card-bus'
-import type { CharacterReferenceSlot } from '@/types'
+import {
+  CardTagsSchema,
+  type CardTags,
+  type CharacterReferenceSlot,
+} from '@/types'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
 // ─── 中间形态 ────────────────────────────────────────────────────
@@ -30,6 +35,8 @@ export interface CardBusCharacter {
   visual: string | null
   /** 角色硬否定（`extensions['pv.negative']`）。 */
   negative: string | null
+  /** 标签（`extensions['pv.tags']`）：NovelAI 用它认人；LoRA 触发词只在挂了 LoRA 时写进去。 */
+  tags: CardTags
   /**
    * 主图在最前，其次其余身份槽，再其次别的用途，同档保持卡上的顺序。
    * ⚠ 同一张图（路径相同、域名不同）只留排在前面的那个。
@@ -48,12 +55,24 @@ export interface CardBusCharacterSource {
   slots: readonly CharacterReferenceSlot[]
 }
 
-export const CARD_BUS_NEGATIVE_KEY = 'pv.negative'
+const EMPTY_TAGS: CardTags = { character: [], appearance: [], loraTrigger: '' }
+
+function readExtension(extensions: unknown, key: string): unknown {
+  if (!extensions || typeof extensions !== 'object') return undefined
+  return (extensions as Record<string, unknown>)[key]
+}
 
 function readNegative(extensions: unknown): string | null {
-  if (!extensions || typeof extensions !== 'object') return null
-  const value = (extensions as Record<string, unknown>)[CARD_BUS_NEGATIVE_KEY]
+  const value = readExtension(extensions, CARD_EXTENSIONS.KEYS.negative)
   return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+/** 坏的标签当缺席（契约：已知键逐键解析，坏键编译时当缺席，磁盘上保留）。 */
+function readTags(extensions: unknown): CardTags {
+  const parsed = CardTagsSchema.safeParse(
+    readExtension(extensions, CARD_EXTENSIONS.KEYS.tags),
+  )
+  return parsed.success ? parsed.data : EMPTY_TAGS
 }
 
 function slotRank(slot: CharacterReferenceSlot): number {
@@ -77,6 +96,7 @@ export function toCardBusCharacter(
     name: source.name,
     visual,
     negative: readNegative(source.extensions),
+    tags: readTags(source.extensions),
     slots: source.slots
       .map((slot, index) => ({ slot, index }))
       .sort((a, b) => slotRank(a.slot) - slotRank(b.slot) || a.index - b.index)
@@ -102,6 +122,8 @@ export interface ImageOutletOptions {
   userReferenceCount: number
   /** 用户已经手摆了 NovelAI 多角色，就不替他排。 */
   hasNovelAiLayout: boolean
+  /** 这次挂了 LoRA：卡上的触发词才写进正文（没挂 LoRA 时触发词只是噪音）。 */
+  hasLoras: boolean
 }
 
 export interface ImageOutlet {
@@ -150,9 +172,26 @@ function allocateSlots(
   return picked
 }
 
-function characterBlock(character: CardBusCharacter): string {
+/** NovelAI 认人用的那串：角色标签 + 外观标签；没有标签就退回视觉文字。 */
+function tagText(character: CardBusCharacter): string | null {
+  const tags = [...character.tags.character, ...character.tags.appearance]
+  return tags.length ? tags.join(', ') : null
+}
+
+function characterBlock(
+  character: CardBusCharacter,
+  options: { preferTags: boolean; hasLoras: boolean },
+): string {
   const head = `[Character: @${character.handle}${character.name !== character.handle ? ` (${character.name})` : ''}]`
-  return character.visual ? `${head}\n${character.visual}` : head
+  const trigger =
+    options.hasLoras && character.tags.loraTrigger
+      ? character.tags.loraTrigger
+      : null
+  const body = options.preferTags
+    ? (tagText(character) ?? character.visual)
+    : character.visual
+  const text = [trigger, body].filter(Boolean).join(', ')
+  return text ? `${head}\n${text}` : head
 }
 
 /**
@@ -197,7 +236,12 @@ export function compileImageOutlet(
         novelAiLayout: {
           positioning: 'auto',
           characters: characters.map((character, index) => ({
-            prompt: character.visual ?? character.name,
+            prompt: [
+              options.hasLoras ? character.tags.loraTrigger : '',
+              tagText(character) ?? character.visual ?? character.name,
+            ]
+              .filter(Boolean)
+              .join(', '),
             negativePrompt: character.negative ?? '',
             position: { x: novelAiGridCellCenter(index), y: 0.5 },
           })),
@@ -205,7 +249,14 @@ export function compileImageOutlet(
       }
     }
     return {
-      promptPrefix: characters.map(characterBlock).join('\n\n'),
+      promptPrefix: characters
+        .map((character) =>
+          characterBlock(character, {
+            preferTags: true,
+            hasLoras: options.hasLoras,
+          }),
+        )
+        .join('\n\n'),
       referenceImages: [],
       referenceLabels: [],
       negative,
@@ -246,7 +297,14 @@ export function compileImageOutlet(
     }
   })
 
-  const blocks = characters.map(characterBlock).join('\n\n')
+  const blocks = characters
+    .map((character) =>
+      characterBlock(character, {
+        preferTags: false,
+        hasLoras: options.hasLoras,
+      }),
+    )
+    .join('\n\n')
   return {
     promptPrefix: legend.length
       ? `${blocks}\n\nReference images:\n${legend.join('\n')}\n${keep.join('\n')}`

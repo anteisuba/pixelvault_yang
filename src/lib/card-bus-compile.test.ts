@@ -36,6 +36,7 @@ function character(
     name: handle,
     visual: `${handle} looks`,
     negative: null,
+    tags: { character: [], appearance: [], loraTrigger: '' },
     slots,
     ...overrides,
   }
@@ -47,6 +48,7 @@ const MULTI: ImageOutletOptions = {
   maxReferenceImages: 5,
   userReferenceCount: 0,
   hasNovelAiLayout: false,
+  hasLoras: false,
 }
 
 describe('toCardBusCharacter', () => {
@@ -58,7 +60,11 @@ describe('toCardBusCharacter', () => {
       name: '林夏',
       characterPrompt: 'red eyes',
       description: 'black hoodie',
-      extensions: { 'pv.negative': 'glasses', 'x.other': 1 },
+      extensions: {
+        'pv.negative': 'glasses',
+        'pv.tags': { character: ['lin_xia'], loraTrigger: 'lx' },
+        'x.other': 1,
+      },
       slots: [
         slot('pose', { role: 'pose' }),
         slot('side'),
@@ -72,6 +78,11 @@ describe('toCardBusCharacter', () => {
     ])
     expect(result.visual).toBe('red eyes\nblack hoodie')
     expect(result.negative).toBe('glasses')
+    expect(result.tags).toEqual({
+      character: ['lin_xia'],
+      appearance: [],
+      loraTrigger: 'lx',
+    })
   })
 
   it('同一张图换了域名只留一份（旧卡的自有 CDN 与 r2.dev 公链）', () => {
@@ -222,6 +233,44 @@ describe('compileImageOutlet', () => {
     expect(outlet.novelAiLayout).toBeNull()
     expect(outlet.referenceImages).toEqual([])
     expect(outlet.promptPrefix).toBe('[Character: @A]\nA looks')
+  })
+
+  it('NovelAI 用标签认人：角色标签 + 外观标签；挂了 LoRA 才带触发词', () => {
+    const denia = character('Denia', [slot('d1', { isPrimary: true })], {
+      tags: {
+        character: ['denia_(wuthering_waves)'],
+        appearance: ['pink_hair'],
+        loraTrigger: 'dnw',
+      },
+    })
+    const nai = {
+      ...MULTI,
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      modelId: AI_MODELS.NOVELAI_V5_FULL,
+    }
+    expect(
+      compileImageOutlet([denia], nai).novelAiLayout?.characters[0]?.prompt,
+    ).toBe('denia_(wuthering_waves), pink_hair')
+    expect(
+      compileImageOutlet([denia], { ...nai, hasLoras: true }).novelAiLayout
+        ?.characters[0]?.prompt,
+    ).toBe('dnw, denia_(wuthering_waves), pink_hair')
+  })
+
+  it('看得到图的模型仍写视觉文字；触发词只在挂了 LoRA 时出现', () => {
+    const denia = character('Denia', [slot('d1', { isPrimary: true })], {
+      tags: {
+        character: ['denia_(wuthering_waves)'],
+        appearance: [],
+        loraTrigger: 'dnw',
+      },
+    })
+    expect(compileImageOutlet([denia], MULTI).promptPrefix).toContain(
+      '[Character: @Denia]\nDenia looks',
+    )
+    expect(
+      compileImageOutlet([denia], { ...MULTI, hasLoras: true }).promptPrefix,
+    ).toContain('[Character: @Denia]\ndnw, Denia looks')
   })
 
   it('没有角色时什么都不出', () => {

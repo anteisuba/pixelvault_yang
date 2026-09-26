@@ -80,4 +80,16 @@ export const CARD_EXTENSIONS = {
   MAX_KEYS: 32,
   /** 键名最长多少字符。 */
   KEY_MAX_LENGTH: 64,
+  /** 本产品认得的键。 */
+  KEYS: {
+    /** 角色硬否定（一句负面）。 */
+    negative: 'pv.negative',
+    /** 标签：给 NovelAI / LoRA 这类只认标签的模型（owner 09-26）。 */
+    tags: 'pv.tags',
+  },
+  /** 标签的上限。 */
+  TAG_MAX_LENGTH: 80,
+  MAX_CHARACTER_TAGS: 20,
+  MAX_APPEARANCE_TAGS: 40,
+  LORA_TRIGGER_MAX_LENGTH: 80,
 } as const

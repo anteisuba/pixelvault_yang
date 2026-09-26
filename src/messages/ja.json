@@ -2870,6 +2870,8 @@
     "editTitle": "プロンプトテンプレートを編集",
     "templatePicker": "テンプレート",
     "templatePickerTitle": "プロンプトテンプレートを呼び出す",
+    "tagTemplatePickerTitle": "タグテンプレートを使う",
+    "tagTemplateHint": "適用すると全体・各キャラ・UC のタグを置き換え、モデルと設定も一緒に切り替えます。",
     "replacePrompt": "プロンプトを置き換え",
     "insertPrompt": "プロンプトに挿入",
     "applyRecipe": "レシピ全体を適用",

@@ -8,6 +8,7 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import type { DanbooruCatalogQuery } from '@/types/danbooru-catalog'
 
@@ -80,22 +81,18 @@ export function StudioDanbooruPanel() {
   }
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {(['character', 'artist'] as const).map((value) => (
-          <Button
-            key={value}
-            variant={kind === value ? 'default' : 'outline'}
-            size="sm"
-            aria-pressed={kind === value}
-            onClick={() => {
-              setKind(value)
-              change()
-            }}
-          >
-            {t(value)}
-          </Button>
-        ))}
-      </div>
+      <LiquidSegmented
+        ariaLabel={t('search')}
+        value={kind}
+        items={(['character', 'artist'] as const).map((value) => ({
+          value,
+          label: t(value),
+        }))}
+        onChange={(value) => {
+          setKind(value)
+          change()
+        }}
+      />
       <Input
         aria-label={t('search')}
         placeholder={t('search')}

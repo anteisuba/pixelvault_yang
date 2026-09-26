@@ -2870,6 +2870,8 @@
     "editTitle": "Edit prompt template",
     "templatePicker": "Templates",
     "templatePickerTitle": "Use a prompt template",
+    "tagTemplatePickerTitle": "Use a tag template",
+    "tagTemplateHint": "Applying replaces the overall, character and UC tags, along with the model and settings.",
     "replacePrompt": "Replace prompt",
     "insertPrompt": "Insert prompt",
     "applyRecipe": "Apply full recipe",

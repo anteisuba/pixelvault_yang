@@ -287,13 +287,15 @@ describe('StudioMobileComposer', () => {
   })
 
   it('reserves the measured composer height and updates after resizing', () => {
-    let resize = () => {}
+    // ⚠ 收全部回调：头部那颗写法切换（液态分段）自己也挂一个观察器。
+    const callbacks: (() => void)[] = []
+    const resize = () => callbacks.forEach((callback) => callback())
     const disconnect = vi.fn()
     vi.stubGlobal(
       'ResizeObserver',
       class {
         constructor(callback: () => void) {
-          resize = callback
+          callbacks.push(callback)
         }
         observe() {}
         disconnect = disconnect

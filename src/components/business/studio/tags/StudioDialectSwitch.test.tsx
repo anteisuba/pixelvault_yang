@@ -14,8 +14,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
-vi.mock('motion/react', () => ({
-  motion: { span: 'span' },
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
   useReducedMotion: () => true,
 }))
 vi.mock('@/i18n/navigation', () => ({
@@ -55,6 +55,16 @@ describe('两台之间那扇门', () => {
     render(<StudioDialectHeader />)
     fireEvent.click(screen.getByRole('tab', { name: 'dialect.natural' }))
     expect(mocks.push).toHaveBeenCalledWith(ROUTES.STUDIO_IMAGE)
+  })
+
+  // 液态分段（owner 2026-09-26）：点下去当场就走，⛔ 不等路由报回来才动。
+  it('点下去当场选中，不等路由换完', () => {
+    render(<StudioDialectHeader />)
+    fireEvent.click(screen.getByRole('tab', { name: 'dialect.tags' }))
+    expect(screen.getByRole('tab', { name: 'dialect.tags' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
   it('点已经站着的那一台不跳路由', () => {

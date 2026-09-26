@@ -5,17 +5,14 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import {
-  EASE_STANDARD,
-  LIQUID_TIMING,
-  motionTransition,
-} from '@/constants/motion'
+import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import {
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
   isWithinNovelAiOpusFreeTier,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_REFERENCE_DRAG_TYPE } from '@/constants/studio'
 import {
   useStudioData,
@@ -30,6 +27,7 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import {
   getCapabilityChipValue,
   isCapabilityChipSet,
@@ -47,6 +45,7 @@ import {
   SlidersHorizontal,
   X,
 } from '@/components/icons'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -70,6 +69,7 @@ import {
   useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
+import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
@@ -77,6 +77,9 @@ import { StudioDialectJumpHint } from './StudioDialectJumpHint'
 import { StudioTagChipField } from './StudioTagChipField'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
+
+/** 分页里「整体」那一格的值（角色页用下标）。 */
+const WHOLE = 'whole'
 
 /**
  * 标签台桌面的底部输入框（owner 2026-09-26 可点原型，与自然语言台同一副骨架）：
@@ -109,6 +112,8 @@ export function StudioTagsComposer({
   const { imageUpload } = useStudioData()
   const { cancelAllRunItems } = useStudioGen()
   const {
+    selectedModel,
+    modelOptions,
     runModels,
     runModelIds,
     filterModelByDialect,
@@ -123,6 +128,12 @@ export function StudioTagsComposer({
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
   const characters = useNovelAiCharacters()
+  const {
+    currentTemplateOutputType,
+    currentTemplateParams,
+    currentTemplatePrompt,
+    handleApplyTagTemplate,
+  } = useStudioPromptTemplates(modelOptions)
   const referenceNotice = useReferenceReceiverNotice(
     runModels,
     imageUpload.referenceEntries.length,
@@ -207,17 +218,19 @@ export function StudioTagsComposer({
         {/* 编辑谁 —— 只有支持角色构图的模型才有这一行。 */}
         {characters.mode ? (
           <div className="flex flex-wrap items-center gap-2">
-            <TagTargetTabs
-              labels={[
-                t('wholeTab'),
-                ...characters.characters.map((_, index) =>
-                  t('workbench.characterNumber', { number: index + 1 }),
-                ),
-              ]}
-              active={activeIndex === null ? 0 : activeIndex + 1}
+            <LiquidSegmented
+              ariaLabel={t('characterTitle')}
               disabled={isGenerating}
-              onSelect={(index) =>
-                characters.select(index === 0 ? null : index - 1)
+              value={activeIndex === null ? WHOLE : String(activeIndex)}
+              items={[
+                { value: WHOLE, label: t('wholeTab') },
+                ...characters.characters.map((_, index) => ({
+                  value: String(index),
+                  label: t('workbench.characterNumber', { number: index + 1 }),
+                })),
+              ]}
+              onChange={(next) =>
+                characters.select(next === WHOLE ? null : Number(next))
               }
             />
             <button
@@ -378,6 +391,19 @@ export function StudioTagsComposer({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
             <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
               <ReferenceImageChip disabled={isGenerating} />
+              <PromptTemplatePicker
+                dialect="tags"
+                currentModelId={selectedModel?.modelId}
+                currentOutputType={currentTemplateOutputType}
+                currentParams={currentTemplateParams}
+                currentPrompt={currentTemplatePrompt}
+                currentProvider={
+                  selectedModel
+                    ? getProviderLabel(selectedModel.providerConfig)
+                    : undefined
+                }
+                onApply={handleApplyTagTemplate}
+              />
               <Toolbar.Button
                 type="button"
                 onClick={() => onOpenPanel('catalog')}
@@ -472,61 +498,6 @@ export function StudioTagsComposer({
         </StudioChipLookProvider>
       </div>
     </>
-  )
-}
-
-/**
- * 整体 / 角色分页 —— 与方言切换同一副药丸（`StudioDialectSwitch`），滑块跟着
- * 选中的那一页走。
- */
-function TagTargetTabs({
-  labels,
-  active,
-  disabled,
-  onSelect,
-}: {
-  labels: readonly string[]
-  active: number
-  disabled: boolean
-  onSelect: (index: number) => void
-}) {
-  const t = useTranslations('StudioTags')
-  const reducedMotion = useReducedMotion()
-  return (
-    <div
-      role="tablist"
-      aria-label={t('characterTitle')}
-      className="inline-flex shrink-0 rounded-full border border-border bg-muted p-0.5"
-    >
-      {labels.map((label, index) => {
-        const selected = index === active
-        return (
-          <button
-            key={label}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            disabled={disabled}
-            onClick={() => onSelect(index)}
-            className={cn(
-              'relative rounded-full px-3 py-1 text-2xs transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-              selected
-                ? 'font-medium text-foreground'
-                : 'text-muted-foreground',
-            )}
-          >
-            {selected ? (
-              <motion.span
-                layoutId="studio-tag-target-thumb"
-                className="absolute inset-0 rounded-full bg-background shadow-sm"
-                transition={motionTransition('base', reducedMotion)}
-              />
-            ) : null}
-            <span className="relative">{label}</span>
-          </button>
-        )
-      })}
-    </div>
   )
 }
 

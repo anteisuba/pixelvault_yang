@@ -14,12 +14,15 @@ import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
+import { getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { StudioTagCharacters } from './StudioTagCharacters'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
+import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
@@ -38,6 +41,8 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   const tModels = useTranslations('Models')
   const { state, dispatch } = useStudioForm()
   const {
+    selectedModel,
+    modelOptions,
     runModels,
     runModelIds,
     filterModelByDialect,
@@ -49,6 +54,12 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
     elapsedSeconds,
     isImagePromptOverLimit,
   } = useStudioGenerateAction()
+  const {
+    currentTemplateOutputType,
+    currentTemplateParams,
+    currentTemplatePrompt,
+    handleApplyTagTemplate,
+  } = useStudioPromptTemplates(modelOptions)
 
   /**
    * 顶栏右边那颗模型 chip —— 一行就把这一轮要跑的型号说完。⚠ `value` 恒为
@@ -205,6 +216,19 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
       </section>
       <Toolbar.Root className="flex flex-wrap gap-2 border-t border-border pt-3">
         <ReferenceImageChip disabled={isGenerating} />
+        <PromptTemplatePicker
+          dialect="tags"
+          currentModelId={selectedModel?.modelId}
+          currentOutputType={currentTemplateOutputType}
+          currentParams={currentTemplateParams}
+          currentPrompt={currentTemplatePrompt}
+          currentProvider={
+            selectedModel
+              ? getProviderLabel(selectedModel.providerConfig)
+              : undefined
+          }
+          onApply={handleApplyTagTemplate}
+        />
         <StudioSpecChip disabled={isGenerating} />
       </Toolbar.Root>
       <div className="studio-tag-settings flex flex-col gap-3 border-t border-border pt-3">

@@ -3,7 +3,7 @@ import {
   PROMPT_TAG_WEIGHT,
 } from '@/constants/prompt-dialects'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { TagChip } from '@/types/tag-composer'
+import { TagTemplateParamsSchema, type TagChip } from '@/types/tag-composer'
 
 /**
  * 标签台的**翻译层**：统一表示 ↔ 存储串 ↔ provider 原生语法。
@@ -189,4 +189,9 @@ export function compileTagPrompt(
       .filter((block) => block.enabled)
       .flatMap((block) => parseTagChips(block.text)),
   ])
+}
+
+/** 这条配方是不是标签模板（标签台只列它们，自然语言台只列其余的）。 */
+export function isTagTemplateParams(params: unknown): boolean {
+  return TagTemplateParamsSchema.safeParse(params).success
 }

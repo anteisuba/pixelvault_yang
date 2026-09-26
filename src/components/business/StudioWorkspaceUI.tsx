@@ -19,7 +19,12 @@ import {
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
-import { StudioTagsWorkbench } from '@/components/business/studio/tags/StudioTagsWorkbench'
+import {
+  StudioTagsStage,
+  StudioTagsWorkbench,
+  type TagWorkbenchPanel,
+} from '@/components/business/studio/tags/StudioTagsWorkbench'
+import { StudioTagsComposer } from '@/components/business/studio/tags/StudioTagsComposer'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -128,6 +133,9 @@ export function StudioWorkspaceUI() {
    */
   const isBottomComposer = !useMobileComposer && state.outputType === 'image'
   const isImageBottomComposer = isBottomComposer && !isTagsWorkbench
+  /** 桌面标签台舞台上开着哪块面板（查资料 / 构图 / 提示词块）；离开标签台就收。 */
+  const [tagPanel, setTagPanel] = useState<TagWorkbenchPanel | null>(null)
+  if (!isTagsWorkbench && tagPanel) setTagPanel(null)
   /**
    * 助手展开时工作台让位（owner 2026-09-26）：`studioOperatorYield` 由 Dock 按
    * 形状第二拍的弹簧驱动，这里只把它绑到地台的右内边距。
@@ -391,23 +399,35 @@ export function StudioWorkspaceUI() {
               那条路连同 `StudioFlowLayout` / `StudioBottomDock` /
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
-          {isTagsWorkbench ? (
-            <StudioTagsWorkbench
-              layout={isBottomComposer ? 'bottom' : 'columns'}
-              header={workbenchHeader}
-            />
+          {/* ⚠ 桌面两台（自然语言 · 标签）挂的是**同一个** `StudioWorkbenchLayout`
+              元素，只换 params / stage —— 头部那颗写法切换因此跨台不重挂，液态
+              分段才演得完（owner 2026-09-26）。手机标签台仍是自己的两栏。 */}
+          {isTagsWorkbench && !isBottomComposer ? (
+            <StudioTagsWorkbench />
           ) : (
             <StudioWorkbenchLayout
-              layout={isImageBottomComposer ? 'bottom' : 'columns'}
+              layout={isBottomComposer ? 'bottom' : 'columns'}
               header={workbenchHeader}
               params={
-                useMobileComposer ? null : (
+                useMobileComposer ? null : isTagsWorkbench ? (
+                  <StudioTagsComposer onOpenPanel={setTagPanel} />
+                ) : (
                   <StudioPromptArea
                     layout={isImageBottomComposer ? 'bottom' : 'column'}
                   />
                 )
               }
-              stage={<StudioCanvas referenceRail={!isImageBottomComposer} />}
+              stage={
+                isTagsWorkbench ? (
+                  <StudioTagsStage
+                    panel={tagPanel}
+                    onClose={() => setTagPanel(null)}
+                    bottom
+                  />
+                ) : (
+                  <StudioCanvas referenceRail={!isImageBottomComposer} />
+                )
+              }
               composer={useMobileComposer ? <StudioMobileComposer /> : null}
             />
           )}

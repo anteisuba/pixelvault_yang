@@ -430,6 +430,29 @@ describe('PromptTemplatePicker', () => {
     expect(apply).toHaveBeenCalledWith(lora)
   })
 
+  // 标签模板与自然语言模板同一个库，两台各只列自己的（owner 2026-09-26）。
+  it('lists only the templates of the calling workbench', () => {
+    recipeState.recipes = [
+      makeRecipe({ id: 'natural', name: 'Sentence template' }),
+      makeRecipe({
+        id: 'tags',
+        name: 'Tag template',
+        params: { promptDialect: 'tags', advancedParams: {} },
+      }),
+    ]
+    const { unmount } = render(<PromptTemplatePicker onApply={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    expect(screen.getByText('Sentence template')).toBeInTheDocument()
+    expect(screen.queryByText('Tag template')).not.toBeInTheDocument()
+    unmount()
+
+    render(<PromptTemplatePicker dialect="tags" onApply={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    expect(screen.getByText('Tag template')).toBeInTheDocument()
+    expect(screen.queryByText('Sentence template')).not.toBeInTheDocument()
+    expect(screen.getByText('tagTemplateHint')).toBeInTheDocument()
+  })
+
   it('keeps inspiration prompts clamped and removes the external link affordance', async () => {
     inspirationState.items = [makeInspiration()]
 

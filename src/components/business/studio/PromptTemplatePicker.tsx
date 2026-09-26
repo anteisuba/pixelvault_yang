@@ -36,6 +36,8 @@ import { useStudioGen } from '@/contexts/studio-context'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
 import { useRecipes } from '@/hooks/prompts/use-recipes'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
+import { isTagTemplateParams } from '@/lib/tag-composer'
+import type { PromptDialect } from '@/constants/prompt-dialects'
 import type {
   CreateRecipeRequest,
   InspirationRecord,
@@ -56,6 +58,11 @@ interface PromptTemplatePickerProps {
   currentPrompt?: string
   currentProvider?: string
   onApply: (recipe: RecipeRecord) => void
+  /**
+   * 哪一台在调（owner 2026-09-26）：标签模板与自然语言模板同一个库，两台各只列
+   * 自己的（`isTagTemplateParams`）。标签台存的是整体 + 各角色 + UC。
+   */
+  dialect?: PromptDialect
   /**
    * Called when the user picks an inspiration prompt.
    * If omitted, the inspiration tab is hidden.
@@ -85,6 +92,7 @@ export function PromptTemplatePicker({
   currentProvider,
   onApply,
   onApplyInspiration,
+  dialect = 'natural',
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
   const chip = useStudioChipClasses()
@@ -101,8 +109,14 @@ export function PromptTemplatePicker({
   const showInspiration = Boolean(onApplyInspiration)
 
   const sortedRecipes = useMemo(
-    () => [...recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [recipes],
+    () =>
+      recipes
+        .filter(
+          (recipe) =>
+            isTagTemplateParams(recipe.params) === (dialect === 'tags'),
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [dialect, recipes],
   )
 
   const runRecipeAction = (recipe: RecipeRecord) => {
@@ -240,10 +254,20 @@ export function PromptTemplatePicker({
         mobileBodyClassName="studio-scrollbar px-0 pt-0"
       >
         <StudioPanelHeader icon={<FileText className="size-3.5" />}>
-          {t('templatePickerTitle')}
+          {t(
+            dialect === 'tags'
+              ? 'tagTemplatePickerTitle'
+              : 'templatePickerTitle',
+          )}
         </StudioPanelHeader>
-        <ResponsiveDialogDescription className="sr-only">
-          {t('templatePickerTitle')}
+        <ResponsiveDialogDescription
+          className={
+            dialect === 'tags'
+              ? 'px-5 pt-2 text-xs text-muted-foreground'
+              : 'sr-only'
+          }
+        >
+          {t(dialect === 'tags' ? 'tagTemplateHint' : 'templatePickerTitle')}
         </ResponsiveDialogDescription>
         <div
           className={cn(

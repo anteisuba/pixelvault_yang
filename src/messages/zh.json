@@ -2870,6 +2870,8 @@
     "editTitle": "编辑提示词模板",
     "templatePicker": "模板",
     "templatePickerTitle": "调用提示词模板",
+    "tagTemplatePickerTitle": "调用标签模板",
+    "tagTemplateHint": "套用会替换整体、各角色与 UC 的标签，模型与参数一起换。",
     "replacePrompt": "替换提示词",
     "insertPrompt": "插入提示词",
     "applyRecipe": "应用整套配方",

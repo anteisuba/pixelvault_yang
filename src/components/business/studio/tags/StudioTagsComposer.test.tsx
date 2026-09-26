@@ -47,6 +47,8 @@ vi.mock('@/contexts/studio-context', () => ({
 }))
 vi.mock('@/hooks/use-studio-generate-action', () => ({
   useStudioGenerateAction: () => ({
+    selectedModel: undefined,
+    modelOptions: [],
     runModels: [],
     runModelIds: new Set(),
     filterModelByDialect: () => true,
@@ -86,6 +88,9 @@ vi.mock('@/lib/model-options', () => ({
 // 工具行里那几颗 chip 各有自己的测试，这里只验「编辑谁」这一件事。
 vi.mock('@/components/business/studio-shared/pickers', () => ({
   MainModelPicker: () => null,
+}))
+vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
+  PromptTemplatePicker: () => null,
 }))
 vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => null,
@@ -172,11 +177,15 @@ describe('标签台底部输入框 · 编辑谁', () => {
   })
 
   it('分页与角色构图面板共用同一个「正在编辑谁」', () => {
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    const { unmount } = render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
     fireEvent.click(
       screen.getByRole('tab', { name: 'workbench.characterNumber:1' }),
     )
     expect(mocks.select).toHaveBeenCalledWith(0)
+    unmount()
+
+    mocks.activeIndex = 0
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
     fireEvent.click(screen.getByRole('tab', { name: 'wholeTab' }))
     expect(mocks.select).toHaveBeenLastCalledWith(null)
   })

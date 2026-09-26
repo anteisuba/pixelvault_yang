@@ -237,7 +237,8 @@ export function PromptTemplatePicker({
                   chip.compact,
                   // `Button` 的 `has-[>svg]:px-2.5` 压过 `compact`，收成图标时这颗会比
                   // 别的宽 4px —— 同一档写一遍把它压回去。
-                  chip.compact && '@max-4xl/composer:has-[>svg]:px-2',
+                  chip.compact &&
+                    '@max-4xl/composer:has-[>svg]:px-2 @max-6xl/tagrow:has-[>svg]:px-2',
                   'data-[state=open]:border-foreground',
                 )
               : cn(

@@ -227,8 +227,7 @@ export function StudioOperatorDock() {
    */
   const slides = Boolean(anchor.avatarStays)
   const isMobile = useIsMobile()
-  const { domain, entries, mentions, question, confirm } =
-    useStudioOperatorState()
+  const { entries, mentions, question, confirm } = useStudioOperatorState()
   /**
    * 角标的前半：**未答问题 + 未处理确认**。
    *
@@ -766,9 +765,9 @@ export function StudioOperatorDock() {
       // Radix 的下拉 / popover 渲染在 portal 里（不在面板 DOM 内），
       // 但它们是面板自己开出来的 —— 点它们当然不该收。
       if (target.closest('[data-radix-popper-content-wrapper]')) return
-      // 弹层同理，而且更要命：「+」菜单的「上下文卡 → 新建一张」开的是
-      // `ContextCardDialog`，它也在 portal 里。收面板会把菜单连同这颗弹层一起
-      // 卸载 —— 用户点一下弹层里的字段，整个弹层就没了。
+      // 弹层同理，而且更要命：面板开出来的弹层（素材库等）也在 portal 里。收面板
+      // 会把开它的那一格连同这颗弹层一起卸载 —— 用户点一下弹层里的字段，整个
+      // 弹层就没了。
       // 判据用 shadcn 的 `data-slot`（`dialog-content` / `dialog-overlay` /
       // `dialog-close`），它是本仓所有 Dialog 的共同标记。
       if (target.closest('[data-slot^="dialog-"]')) return
@@ -935,8 +934,6 @@ export function StudioOperatorDock() {
           onOpenChange={(next) => {
             if (!next) setSettingsSection(null)
           }}
-          // ⭐「常挂在这台工作台」认的就是当前域（切片 Y）。
-          scope={domain}
         />
 
         <StudioOperatorLightbox />
@@ -1105,7 +1102,6 @@ export function StudioOperatorDock() {
         onOpenChange={(next) => {
           if (!next) setSettingsSection(null)
         }}
-        scope={domain}
       />
 
       <StudioOperatorLightbox />

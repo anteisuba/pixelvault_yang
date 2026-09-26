@@ -132,9 +132,16 @@ const GHOST_CHIP_CLASSES: StudioChipClasses = {
 export const studioOutlineChipSetClass =
   'border-transparent bg-muted hover:border-foreground/40'
 
-/** 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip 也用它。 */
-export const studioOutlineChipCompactClass = '@max-4xl/composer:px-2'
-export const studioOutlineChipCompactLabelClass = '@max-4xl/composer:sr-only'
+/**
+ * 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip
+ * 也用它。两个门槛：自然语言台量输入框卡（`composer`，56rem）；标签台左组多两颗、
+ * 右组的专属 chip 也更长，整行要到 ~1030 才放得下，所以它在自己的根上另挂一个
+ * 容器（`tagrow`，72rem）—— 没有那个祖先的宿主，第二条永远不命中。
+ */
+export const studioOutlineChipCompactClass =
+  '@max-4xl/composer:px-2 @max-6xl/tagrow:px-2'
+export const studioOutlineChipCompactLabelClass =
+  '@max-4xl/composer:sr-only @max-6xl/tagrow:sr-only'
 
 const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   look: 'outline',

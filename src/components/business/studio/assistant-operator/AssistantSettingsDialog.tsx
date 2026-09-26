@@ -3,16 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import {
-  AlertCircle,
-  Check,
-  ChevronDown,
-  Pencil,
-  Plus,
-  Trash2,
-  Upload,
-  X,
-} from '@/components/icons'
+import { AlertCircle, Check, ChevronDown, Upload, X } from '@/components/icons'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
@@ -35,13 +26,10 @@ import {
   type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { PROFILE } from '@/constants/config'
-import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useContextCards } from '@/hooks/use-context-cards'
 import { useProjectRules } from '@/hooks/use-project-rules'
 import { cn } from '@/lib/utils'
 import type { UpdateAssistantPersonaRequest } from '@/types/assistant-persona'
-import type { ContextCard } from '@/types/context-cards'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,7 +47,6 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { AssistantPersonaPreview } from '@/components/business/studio/assistant-operator/AssistantPersonaPreview'
-import { ContextCardDialog } from '@/components/business/studio/assistant-operator/ContextCardDialog'
 
 /**
  * 助手设置（`docs/references/pages/assistant-shell.md` §8.1–8.2）。
@@ -130,14 +117,8 @@ import { ContextCardDialog } from '@/components/business/studio/assistant-operat
 export const ASSISTANT_SETTINGS_SECTIONS = {
   persona: 'persona',
   rules: 'rules',
-  /**
-   * 上下文卡（第三期 K1 的入口，切片 Y 接线）—— **列表 + 建/改 + 常挂开关**。
-   *
-   * ⚠ 与规则页的分工写在两处头注里：规则是「从真实工作里长出来的」，所以那一页
-   * 只读；卡是**用户自己写的资料**，所以这一页有新建与编辑。⛔ 别把两页做成
-   * 一样的形状。
-   */
-  cards: 'cards',
+  // ⛔ 上下文卡那一页已删（owner 2026-09-25 定「上下文卡整体去掉」：角色走角色卡，
+  //   画风 / 品牌是记忆里的一条文字）。表与服务等记忆收成一份那一轮再动。
 } as const
 
 export type AssistantSettingsSection =
@@ -148,11 +129,6 @@ interface AssistantSettingsDialogProps {
   onOpenChange(open: boolean): void
   /** 开在哪一页（§10 的「查看规则」直接落到 `rules`）。缺省是设置页。 */
   section?: AssistantSettingsSection
-  /**
-   * 当前工作台的域 id ——「常挂在这台工作台」那颗开关认它。
-   * ⚠ 缺席时**不画那颗开关**（没有「这里」可挂），⛔ 不摆一颗点了没反应的。
-   */
-  scope?: string
 }
 
 type PersonaDraft = UpdateAssistantPersonaRequest
@@ -262,13 +238,10 @@ export function AssistantSettingsDialog({
   open,
   onOpenChange,
   section = ASSISTANT_SETTINGS_SECTIONS.persona,
-  scope,
 }: AssistantSettingsDialogProps) {
   const t = useTranslations('StudioOperator.persona')
   const tTimeline = useTranslations('StudioOperator.timeline')
   const tRule = useTranslations('StudioOperator.rule')
-  /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
-  const tCards = useTranslations('ContextCards')
   const { persona, isSaving, save, uploadAvatar, removeAvatar } =
     useAssistantPersona({ enabled: open })
   /**
@@ -304,33 +277,6 @@ export function AssistantSettingsDialog({
           PROJECT_RULE_KINDS.indexOf(b.kind),
       ),
     [rules.rules],
-  )
-  /**
-   * ⚠ 判据与规则页逐字同源：只在这一页开着时才拉一遍卡表。
-   */
-  const cards = useContextCards({
-    enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.cards,
-  })
-  /**
-   * **助手提议、还没点头的那几张**（v2 §8.1 待确认区）。
-   *
-   * ⭐ 单独一次查询而不是从上面那份里过滤：上面那份**看不见**待确认的卡 ——
-   * 服务端默认只回已确认的（`list_context_cards` 与系统提示注入走的是同一条
-   * 默认），⛔ 别为了这一个区块把默认放开。
-   * ⚠ 空的时候整块不渲染（下面那个 `length > 0`）：一个常年空着的区块只会把
-   * 真正的卡表往下挤。
-   */
-  const proposedCards = useContextCards({
-    enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.cards,
-    status: CONTEXT_CARD_STATUS_IDS.proposed,
-  })
-  /**
-   * 编辑器开在哪张卡上 —— `'new'` 是新建，`null` 是没开。
-   * ⚠ ⛔ 不用两个布尔（「开着吗」+「编的是哪张」）：两个变量必然出现
-   * 「开着但没有卡」的组合，而那一帧里编辑器不知道自己在编什么。
-   */
-  const [cardEditing, setCardEditing] = useState<ContextCard | 'new' | null>(
-    null,
   )
 
   /**
@@ -483,6 +429,15 @@ export function AssistantSettingsDialog({
          */
         /* 画板 BSettings：弹层圆角与面板同一档（18px，§12.3 上限）。 */
         className="flex flex-col gap-0 overflow-hidden p-0 lg:max-w-4xl lg:rounded-2xl"
+        /* ⚠ 打开时焦点落在弹层本身，⛔ 不落到第一颗页签上：从 ⋯ 菜单点进来时
+           浏览器按键盘路径算 focus-visible，「助手」那颗页签会被框上一圈粗环
+           （owner 2026-09-26 截图）。Tab 一下照样进到页签。 */
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          if (event.currentTarget instanceof HTMLElement) {
+            event.currentTarget.focus()
+          }
+        }}
         style={{
           /**
            * 三项取最小：
@@ -517,15 +472,12 @@ export function AssistantSettingsDialog({
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
           <div className="shrink-0 px-4 pb-3 lg:px-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.persona}>
                 {t('tabPersona')}
               </TabsTrigger>
               <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.rules}>
                 {t('tabRules')}
-              </TabsTrigger>
-              <TabsTrigger value={ASSISTANT_SETTINGS_SECTIONS.cards}>
-                {t('tabCards')}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1041,190 +993,8 @@ export function AssistantSettingsDialog({
                 ) : null}
               </div>
             </TabsContent>
-
-            {/* ── 上下文卡（第三期 K1 的入口）────────────────────────
-                ⚠ 这一页与规则页**不是同一种页**：卡是用户自己写的资料，所以有
-                  新建与编辑；规则是从工作里长出来的，所以那一页只读。 */}
-            <TabsContent value={ASSISTANT_SETTINGS_SECTIONS.cards}>
-              <div
-                data-testid="assistant-context-cards"
-                className="flex flex-col gap-2"
-              >
-                {/* ── 待确认区（v2 §8.1）：助手提议的卡在**卡表之上** ──────
-                    ⚠ 它排在最前是因为它是**待办**：卡表是已经成立的东西，
-                      而这几张在等一个决定。⛔ 没有提议时整块不画。 */}
-                {proposedCards.cards.length > 0 ? (
-                  <section
-                    data-testid="assistant-context-cards-proposed"
-                    className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-2.5"
-                  >
-                    <p className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
-                      {t('cardsProposedTitle', {
-                        count: proposedCards.cards.length,
-                      })}
-                    </p>
-                    <p className="text-md text-muted-foreground">
-                      {t('cardsProposedHint')}
-                    </p>
-                    {proposedCards.cards.map((card) => (
-                      <div
-                        key={card.id}
-                        data-testid="assistant-context-card-proposed-item"
-                        className="flex items-start gap-2 rounded-md bg-card px-3 py-2"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
-                          <p className="truncate text-sm leading-snug text-foreground">
-                            <span className="text-2xs uppercase tracking-nav text-muted-foreground">
-                              {tCards(`kind.${card.kind}`)}
-                            </span>{' '}
-                            {card.name}
-                          </p>
-                          {card.summary ? (
-                            <p className="truncate text-md text-muted-foreground">
-                              {card.summary}
-                            </p>
-                          ) : null}
-                        </div>
-                        {/* ⚠ 「存下」= 翻面成已确认（⛔ 不再建一行：这一行已经
-                            在库里了），「删掉」= 真删。两件事各自一颗按钮。 */}
-                        <button
-                          type="button"
-                          data-testid="assistant-context-card-confirm"
-                          aria-label={t('cardConfirm', { name: card.name })}
-                          title={t('cardConfirm', { name: card.name })}
-                          onClick={() =>
-                            void proposedCards
-                              .update(card.id, {
-                                status: CONTEXT_CARD_STATUS_IDS.confirmed,
-                              })
-                              .then((saved) => {
-                                if (!saved) return
-                                // 翻面之后它属于卡表那一份，两份各自重拉。
-                                void proposedCards.reload()
-                                void cards.reload()
-                              })
-                          }
-                          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                          <Check className="size-3.5" aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          data-testid="assistant-context-card-reject"
-                          aria-label={t('cardReject', { name: card.name })}
-                          title={t('cardReject', { name: card.name })}
-                          onClick={() => void proposedCards.remove(card.id)}
-                          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                        >
-                          <Trash2 className="size-3.5" aria-hidden />
-                        </button>
-                      </div>
-                    ))}
-                    {proposedCards.error ? (
-                      <p role="alert" className="text-md text-status-risk">
-                        {proposedCards.error}
-                      </p>
-                    ) : null}
-                  </section>
-                ) : null}
-                <p className="text-md text-muted-foreground">
-                  {t('cardsHint')}
-                </p>
-                {cards.isLoading ? (
-                  <p className="flex items-center gap-1.5 text-md text-muted-foreground">
-                    <Spinner size="sm" />
-                    {t('cardsLoading')}
-                  </p>
-                ) : null}
-                {!cards.isLoading && cards.cards.length === 0 ? (
-                  <p className="text-md text-muted-foreground">
-                    {t('cardsEmpty')}
-                  </p>
-                ) : null}
-                {cards.cards.map((card) => (
-                  <div
-                    key={card.id}
-                    data-testid="assistant-context-card-item"
-                    className="flex items-start gap-2 rounded-r-md border-l-2 border-border bg-muted/40 px-3 py-2"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <p className="truncate text-sm leading-snug text-foreground">
-                        <span className="text-2xs uppercase tracking-nav text-muted-foreground">
-                          {tCards(`kind.${card.kind}`)}
-                        </span>{' '}
-                        {card.name}
-                      </p>
-                      {card.summary ? (
-                        <p className="truncate text-md text-muted-foreground">
-                          {card.summary}
-                        </p>
-                      ) : null}
-                      {/* ⭐ 常挂开关就地放（⛔ 不要求先打开编辑器）：「这一台上
-                          带不带它」是随手切的判断，进一层弹层就没人切了。
-                          ⚠ 没有 scope 时不画它 —— 没有「这里」可挂。 */}
-                      {scope ? (
-                        <label className="mt-0.5 flex items-center gap-1.5 text-md text-muted-foreground">
-                          <Switch
-                            data-testid="assistant-context-card-pin"
-                            checked={card.pinnedScopes.includes(scope)}
-                            onCheckedChange={(next) =>
-                              void cards.setPinned(card.id, scope, next)
-                            }
-                          />
-                          {t('cardPinnedHere')}
-                        </label>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      data-testid="assistant-context-card-edit"
-                      aria-label={t('cardEdit', { name: card.name })}
-                      title={t('cardEdit', { name: card.name })}
-                      onClick={() => setCardEditing(card)}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    >
-                      <Pencil className="size-3.5" aria-hidden />
-                    </button>
-                  </div>
-                ))}
-                {cards.error ? (
-                  <p role="alert" className="text-md text-status-risk">
-                    {cards.error}
-                  </p>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="outline"
-                  data-testid="assistant-context-card-new"
-                  className="h-9 self-start"
-                  onClick={() => setCardEditing('new')}
-                >
-                  <Plus className="size-3.5" aria-hidden />
-                  {t('cardNew')}
-                </Button>
-              </div>
-            </TabsContent>
           </div>
         </Tabs>
-
-        {/* ⚠ 编辑器**挂在设置弹层里**而不是它的兄弟：关掉设置就该把它一起带走，
-            ⛔ 别留一个飘在页面上的孤儿弹层。
-            ⚠ 存完重拉一遍列表（`reload`）：新建那张不出现在列表里的表现是
-              「保存了但什么都没发生」。 */}
-        {cardEditing ? (
-          <ContextCardDialog
-            open
-            onOpenChange={(next) => {
-              if (!next) setCardEditing(null)
-            }}
-            card={cardEditing === 'new' ? null : cardEditing}
-            {...(scope ? { scope } : {})}
-            onSaved={() => {
-              setCardEditing(null)
-              void cards.reload()
-            }}
-          />
-        ) : null}
 
         <ResponsiveDialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border px-4 py-3 lg:px-6">
           {/* **bug 1** 的落点：失败就地说话，⛔ 不是一条会自己走掉的 toast ——

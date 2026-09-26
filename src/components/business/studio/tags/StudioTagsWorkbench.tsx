@@ -71,7 +71,13 @@ export function StudioTagsStage({
           }}
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 ref={heading} tabIndex={-1} className="text-base font-medium">
+            {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
+                浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
+            <h2
+              ref={heading}
+              tabIndex={-1}
+              className="text-base font-medium outline-none"
+            >
               {t(panel)}
             </h2>
             <Button variant="outline" size="sm" onClick={close}>

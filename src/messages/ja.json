@@ -7757,17 +7757,6 @@
       "rulesLoading": "読み込み中…",
       "rulesEmpty": "まだルールはありません — 残したいことを伝えると記録します。",
       "ruleDelete": "このルールを削除",
-      "tabCards": "コンテキストカード",
-      "cardsHint": "キャラクターカードやスタイルカードは一度書けば、どのワークスペースでもアシスタントがそれに従います。",
-      "cardsLoading": "カードを読み込み中…",
-      "cardsEmpty": "まだカードがありません —— キャラクターカードを作れば次のターンから認識します。",
-      "cardNew": "新しいカード",
-      "cardEdit": "「{name}」を編集",
-      "cardPinnedHere": "このワークスペースに常時オン",
-      "cardsProposedTitle": "アシスタントの提案（{count}）",
-      "cardsProposedHint": "アシスタントが保存を提案したカードです。保存すると、以後の作業に反映されます。",
-      "cardConfirm": "「{name}」を保存",
-      "cardReject": "「{name}」を削除",
       "ruleAdd": "追加",
       "ruleAddLabel": "ルールを追加",
       "rulePlaceholderNote": "常に効くルールを書く",
@@ -8025,43 +8014,11 @@
     "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"
   },
   "ContextCards": {
-    "titleNew": "コンテキストカードを作成",
-    "titleEdit": "コンテキストカードを編集",
-    "description": "キャラクター・スタイル・ブランドを一度書いておけば、どのワークスペースでもアシスタントがそれを踏まえて動きます。",
     "kind": {
       "character": "キャラクター",
       "style": "スタイル",
       "brand": "ブランド"
-    },
-    "nameLabel": "名前",
-    "summaryLabel": "一行の要約",
-    "summaryPlaceholder": "銀髪・金の瞳・管制室のメカスーツ",
-    "summaryHint": "毎ターンアシスタントが見るのはこの一行だけです。詳細が必要なときだけ本文を読みます。",
-    "bodyLabel": "説明",
-    "bodyPlaceholder": {
-      "character": "外見・服装・性格。Markdown で書けます。",
-      "style": "この画風のルール — 配色、描画、やらないこと。",
-      "brand": "ブランド規定：色、書体、トーン、出してはいけないもの。"
-    },
-    "negativeLabel": "絶対に出さないもの",
-    "negativePlaceholder": "空気の波紋, ホログラム, 字幕",
-    "negativeHint": "カンマ区切り。そのままネガティブプロンプトに入ります。",
-    "imagesLabel": "参考画像（{count}/{max}）",
-    "role": {
-      "reference": "参考",
-      "sheet": "設定画",
-      "closeup": "クローズアップ"
-    },
-    "uploadImage": "画像を追加",
-    "removeImage": "画像を削除",
-    "saveBeforeUpload": "先にカードを保存してから画像を追加してください。",
-    "pinLabel": "このワークスペースに常設",
-    "pinHint": "常設したカードは @ で指名しなくても毎ターン参照されます。",
-    "save": "保存",
-    "cancel": "キャンセル",
-    "errorNameRequired": "カード名を入力してください。",
-    "errorSaveFailed": "カードを保存できませんでした。もう一度お試しください。",
-    "errorUploadFailed": "画像を追加できませんでした。もう一度お試しください。"
+    }
   },
   "ModelPicker": {
     "recent": "最近",

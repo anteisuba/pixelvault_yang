@@ -169,7 +169,9 @@ export function StudioTagChipField({
       {inline ? (
         <span
           title={note}
-          className="w-18 shrink-0 pt-1.5 text-2xs font-medium text-muted-foreground"
+          // 行高 = 格子第一行（`h-8`）：标题与占位字 / 第一排标签落在同一条中线上，
+          // ⛔ 别用 `pt-*` 凑 —— 占位字那一行只有一行字高，凑出来的是错位。
+          className="w-18 shrink-0 text-2xs leading-8 font-medium text-muted-foreground"
         >
           {label}
         </span>
@@ -250,7 +252,10 @@ export function StudioTagChipField({
             }}
             onKeyDown={handleKeyDown}
             // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
-            className="min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs"
+            className={cn(
+              'min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs',
+              inline && 'h-8',
+            )}
           />
         </div>
         {novelAiModel && official.active && (

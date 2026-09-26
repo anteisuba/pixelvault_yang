@@ -7757,17 +7757,6 @@
       "rulesLoading": "加载中…",
       "rulesEmpty": "还没有规则 — 说一句值得记下来的话，助手会记下来。",
       "ruleDelete": "删掉这条规则",
-      "tabCards": "上下文卡",
-      "cardsHint": "角色卡 / 风格卡写一次，助手在每台工作台上都照着它干活。",
-      "cardsLoading": "正在读这些卡…",
-      "cardsEmpty": "还没有卡 —— 建一张角色卡，助手下一轮就认得它。",
-      "cardNew": "新建卡",
-      "cardEdit": "编辑「{name}」",
-      "cardPinnedHere": "常挂在这台工作台",
-      "cardsProposedTitle": "助手提议的卡（{count}）",
-      "cardsProposedHint": "它提议记下来的，存下才会进以后的对话。",
-      "cardConfirm": "存下「{name}」",
-      "cardReject": "删掉「{name}」",
       "ruleAdd": "添加",
       "ruleAddLabel": "新增一条规则",
       "rulePlaceholderNote": "写一条一直生效的规矩",
@@ -8025,43 +8014,11 @@
     "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"
   },
   "ContextCards": {
-    "titleNew": "新建上下文卡",
-    "titleEdit": "编辑上下文卡",
-    "description": "角色、风格、品牌写一次就行 —— 助手在每台工作台上都照着它干活。",
     "kind": {
       "character": "角色",
       "style": "风格",
       "brand": "品牌"
-    },
-    "nameLabel": "名字",
-    "summaryLabel": "一句话摘要",
-    "summaryPlaceholder": "银发、金瞳、控制室机甲装",
-    "summaryHint": "助手每一轮只看得到这一行；要细节时它会去读正文。",
-    "bodyLabel": "正文",
-    "bodyPlaceholder": {
-      "character": "外貌、服饰、性格。可以用 Markdown。",
-      "style": "这套画风的规则 —— 配色、渲染、什么不做。",
-      "brand": "品牌规范：配色、字体、语气、绝不能出现的东西。"
-    },
-    "negativeLabel": "画面里绝不能有",
-    "negativePlaceholder": "空气波纹, 透明全息层, 字幕",
-    "negativeHint": "逗号分隔，会直接进负面提示词。",
-    "imagesLabel": "参考图（{count}/{max}）",
-    "role": {
-      "reference": "参考",
-      "sheet": "设定图",
-      "closeup": "特写"
-    },
-    "uploadImage": "加一张图",
-    "removeImage": "删掉这张",
-    "saveBeforeUpload": "先保存这张卡，再传参考图。",
-    "pinLabel": "常挂在当前工作台",
-    "pinHint": "常挂之后不用 @ 点名，助手每一轮都带着它。",
-    "save": "保存",
-    "cancel": "取消",
-    "errorNameRequired": "给这张卡起个名字。",
-    "errorSaveFailed": "没能保存这张卡，再试一次。",
-    "errorUploadFailed": "这张图没加上，再试一次。"
+    }
   },
   "ModelPicker": {
     "recent": "最近",

@@ -184,7 +184,9 @@ export function StudioTagsComposer({
 
   return (
     <>
-      <div className="flex flex-col gap-2.5">
+      {/* `@container/tagrow`：工具行 chip 按这一台自己的门槛收成图标（见
+          `studioOutlineChipCompactClass`）。 */}
+      <div className="@container/tagrow flex flex-col gap-2.5">
         <ImageAttachmentPreviewStrip
           entries={imageUpload.referenceEntries}
           previewAlt={tImageChip('label')}
@@ -421,7 +423,7 @@ export function StudioTagsComposer({
                   contentClassName="w-80"
                   disabled={isGenerating}
                   className={cn(
-                    'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                    'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36 @max-6xl/tagrow:max-w-36',
                     runModels.length > 0 && studioOutlineChipSetClass,
                     'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
                   )}

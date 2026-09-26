@@ -64,61 +64,6 @@ vi.mock('@/hooks/use-project-rules', () => ({
   }),
 }))
 
-/**
- * 上下文卡那一页（切片 Y）—— 桩住卡表，用例只验「列表画出来了、常挂开关落到
- * `setPinned`、新建按钮开出编辑器」。
- */
-const setPinned = vi.hoisted(() => vi.fn())
-const cardsState = vi.hoisted(() => ({
-  current: [
-    {
-      id: 'card-1',
-      kind: 'character',
-      name: '阿岚',
-      summary: '银发、金瞳',
-      pinnedScopes: [] as string[],
-    },
-  ],
-}))
-/**
- * **待确认区**那一份（v2 §8.1）—— ⚠ 与卡表是**两次查询**：默认那次看不见待确认
- * 的卡（服务端只回已确认的），所以桩也按 `status` 分两份，⛔ 别让一份桩糊弄过去。
- */
-const proposedState = vi.hoisted(() => ({
-  current: [] as {
-    id: string
-    kind: string
-    name: string
-    summary: string
-    pinnedScopes: string[]
-  }[],
-}))
-const updateCard = vi.hoisted(() => vi.fn(async () => ({ id: 'card-2' })))
-const removeCard = vi.hoisted(() => vi.fn(async () => true))
-vi.mock('@/hooks/use-context-cards', () => ({
-  useContextCards: (options?: { status?: string }) => ({
-    cards:
-      options?.status === 'proposed'
-        ? proposedState.current
-        : cardsState.current,
-    isLoading: false,
-    error: null,
-    setPinned,
-    update: updateCard,
-    remove: removeCard,
-    reload: vi.fn(),
-  }),
-}))
-
-/** 编辑器本身有自己的用例 —— 这里只要知道「它开了」。 */
-vi.mock(
-  '@/components/business/studio/assistant-operator/ContextCardDialog',
-  () => ({
-    ContextCardDialog: ({ open }: { open: boolean }) =>
-      open ? <div data-testid="context-card-dialog" /> : null,
-  }),
-)
-
 import {
   ASSISTANT_SETTINGS_SECTIONS,
   AssistantSettingsDialog,
@@ -643,91 +588,17 @@ describe('助手设置 · 实时示例（v2 §11.5）', () => {
   })
 })
 
-describe('助手设置 · 上下文卡页（切片 Y）', () => {
-  beforeEach(() => {
-    proposedState.current = []
-    updateCard.mockClear()
-    removeCard.mockClear()
-  })
-
-  /** ⛔ 没有提议时整块不画：常年空着的区块只会把真正的卡表往下挤。 */
-  it('没有提议时待确认区不渲染', () => {
-    render(
-      <AssistantSettingsDialog
-        open
-        onOpenChange={vi.fn()}
-        section={ASSISTANT_SETTINGS_SECTIONS.cards}
-      />,
-    )
-    expect(screen.queryByTestId('assistant-context-cards-proposed')).toBeNull()
-  })
-
-  /** 待确认区在卡表**之上**，每条两颗：存下（翻面）/ 删掉（真删）。 */
-  it('待确认区列出提议，存下翻面成 confirmed，删掉走 remove', () => {
-    proposedState.current = [
-      {
-        id: 'card-2',
-        kind: 'style',
-        name: '黄昏逆光',
-        summary: '暖色压低，轮廓留一圈光',
-        pinnedScopes: [],
-      },
-    ]
-    render(
-      <AssistantSettingsDialog
-        open
-        onOpenChange={vi.fn()}
-        section={ASSISTANT_SETTINGS_SECTIONS.cards}
-      />,
-    )
-    const region = screen.getByTestId('assistant-context-cards-proposed')
-    expect(region).toHaveTextContent('黄昏逆光')
-    expect(
-      screen.getAllByTestId('assistant-context-card-proposed-item'),
-    ).toHaveLength(1)
-
-    fireEvent.click(screen.getByTestId('assistant-context-card-confirm'))
-    expect(updateCard).toHaveBeenCalledWith('card-2', { status: 'confirmed' })
-
-    fireEvent.click(screen.getByTestId('assistant-context-card-reject'))
-    expect(removeCard).toHaveBeenCalledWith('card-2')
-  })
-
-  it('列出卡、常挂开关落到 setPinned、新建开出编辑器', () => {
-    render(
-      <AssistantSettingsDialog
-        open
-        onOpenChange={vi.fn()}
-        section={ASSISTANT_SETTINGS_SECTIONS.cards}
-        scope="image"
-      />,
-    )
-    expect(screen.getAllByTestId('assistant-context-card-item')).toHaveLength(1)
-
-    fireEvent.click(screen.getByTestId('assistant-context-card-pin'))
-    expect(setPinned).toHaveBeenCalledWith('card-1', 'image', true)
-
-    expect(screen.queryByTestId('context-card-dialog')).toBeNull()
-    fireEvent.click(screen.getByTestId('assistant-context-card-new'))
-    expect(screen.getByTestId('context-card-dialog')).toBeInTheDocument()
-  })
-
-  it('⛔ 没有 scope 时不画常挂开关（没有「这里」可挂）', () => {
-    render(
-      <AssistantSettingsDialog
-        open
-        onOpenChange={vi.fn()}
-        section={ASSISTANT_SETTINGS_SECTIONS.cards}
-      />,
-    )
-    expect(screen.queryByTestId('assistant-context-card-pin')).toBeNull()
+/**
+ * ⛔ 上下文卡那一页已删（owner 2026-09-25「上下文卡整体去掉」）：设置只剩两页。
+ */
+describe('助手设置 · 两页', () => {
+  it('只有「助手 · 项目规则」两页', () => {
+    render(<AssistantSettingsDialog open onOpenChange={() => {}} />)
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.queryByTestId('assistant-context-cards')).toBeNull()
   })
 })
 
-/**
- * 来源白 / 黑名单在**设置弹层**这一侧（v2 §9.3）：新增时能选类型，列表上同类
- * 相邻且每条印着自己的类型。
- */
 describe('助手设置 · 项目规则页的来源名单（v2 §9.3）', () => {
   beforeEach(() => {
     rulesState.current = []

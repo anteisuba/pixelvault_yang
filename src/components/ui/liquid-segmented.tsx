@@ -1,13 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react'
+import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
 
 import { LIQUID_SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
@@ -32,6 +26,9 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
     ? { left: item.offsetLeft, right: item.offsetLeft + item.offsetWidth }
     : null
 }
+
+/** 还没量过时整块藏起来 —— ⛔ 不能是 `inset(0)`：那是整条轨道都涂黑。 */
+const UNMEASURED_CLIP = 'inset(0 100% 0 0 round 999px)'
 
 const ITEM_CLASS =
   'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium'
@@ -61,10 +58,13 @@ export function LiquidSegmented<T extends string>({
   const left = useMotionValue(0)
   const right = useMotionValue(0)
   const width = useMotionValue(0)
-  const clipPath = useTransform(
-    () =>
-      `inset(0 ${width.get() - right.get()}px 0 ${left.get()}px round 999px)`,
-  )
+  /**
+   * ⚠ 裁剪是一颗**自己同步**的值，⛔ 不用 `useTransform(() => …)`：那条派生值的
+   *   更新排在下一帧，而开发态 StrictMode 的「挂载 → 清理 → 再挂载」会把首次量完
+   *   排的那一帧取消掉；再挂载时几何没变、`jump` 同值不通知 —— 裁剪就停在全 0，
+   *   整条轨道都是黑的（owner 2026-09-26「角色 / 画师」截图）。
+   */
+  const clipPath = useMotionValue(UNMEASURED_CLIP)
   /** 上一次落定的值与它的几何 —— 用来分辨「换了选中」与「只是重排了」。 */
   const placed = useRef<{ value: T; left: number; right: number } | null>(null)
 
@@ -102,6 +102,22 @@ export function LiquidSegmented<T extends string>({
       rightward ? LIQUID_SPRING.trail : LIQUID_SPRING.lead,
     )
   })
+
+  // ⚠ 排在量尺寸那条 layout effect 之后：挂载（含 StrictMode 再挂载）时当场同步一次，
+  //   此后三条边一动就跟着改。
+  useLayoutEffect(() => {
+    const sync = () =>
+      clipPath.set(
+        right.get() > left.get()
+          ? `inset(0 ${width.get() - right.get()}px 0 ${left.get()}px round 999px)`
+          : UNMEASURED_CLIP,
+      )
+    sync()
+    const unsubscribe = [left, right, width].map((edge) =>
+      edge.on('change', sync),
+    )
+    return () => unsubscribe.forEach((stop) => stop())
+  }, [clipPath, left, right, width])
 
   // 容器自己变宽变窄（窗口缩放、字体晚到）时跟着落位。
   useEffect(() => {

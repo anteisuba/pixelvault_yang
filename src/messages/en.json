@@ -7757,17 +7757,6 @@
       "rulesLoading": "Loading…",
       "rulesEmpty": "No rules yet — tell the assistant something worth keeping and it records one.",
       "ruleDelete": "Delete this rule",
-      "tabCards": "Context cards",
-      "cardsHint": "Write a character or style card once — the assistant follows it on every workspace.",
-      "cardsLoading": "Loading your cards…",
-      "cardsEmpty": "No cards yet — make a character card and the assistant knows it next turn.",
-      "cardNew": "New card",
-      "cardEdit": "Edit “{name}”",
-      "cardPinnedHere": "Always on in this workspace",
-      "cardsProposedTitle": "Proposed by the assistant ({count})",
-      "cardsProposedHint": "The assistant suggested saving these cards. They take effect once you save them.",
-      "cardConfirm": "Keep “{name}”",
-      "cardReject": "Delete “{name}”",
       "ruleAdd": "Add",
       "ruleAddLabel": "Add a rule",
       "rulePlaceholderNote": "Write a rule that always applies",
@@ -8025,43 +8014,11 @@
     "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."
   },
   "ContextCards": {
-    "titleNew": "New context card",
-    "titleEdit": "Edit context card",
-    "description": "Characters, styles and brand kits you write down once. The assistant works from them across every workspace.",
     "kind": {
       "character": "Character",
       "style": "Style",
       "brand": "Brand"
-    },
-    "nameLabel": "Name",
-    "summaryLabel": "One-line summary",
-    "summaryPlaceholder": "Silver hair, gold eyes, control-room mech suit",
-    "summaryHint": "This line is the only part the assistant sees every turn — it reads the full description when it needs the details.",
-    "bodyLabel": "Description",
-    "bodyPlaceholder": {
-      "character": "Appearance, outfit, personality. Markdown is fine.",
-      "style": "The rules this look follows — palette, rendering, what it never does.",
-      "brand": "Brand spec: colours, typefaces, tone, what must never appear."
-    },
-    "negativeLabel": "Never in the picture",
-    "negativePlaceholder": "air ripples, holographic overlay, subtitles",
-    "negativeHint": "Comma-separated. These go straight into the negative prompt.",
-    "imagesLabel": "Reference images ({count}/{max})",
-    "role": {
-      "reference": "Reference",
-      "sheet": "Character sheet",
-      "closeup": "Close-up"
-    },
-    "uploadImage": "Add image",
-    "removeImage": "Remove image",
-    "saveBeforeUpload": "Save the card first, then add images.",
-    "pinLabel": "Keep on this workspace",
-    "pinHint": "Pinned cards are in front of the assistant every turn, without being @-mentioned.",
-    "save": "Save",
-    "cancel": "Cancel",
-    "errorNameRequired": "Give the card a name.",
-    "errorSaveFailed": "Could not save the card. Try again.",
-    "errorUploadFailed": "Could not add that image. Try again."
+    }
   },
   "ModelPicker": {
     "recent": "Recent",

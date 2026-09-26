@@ -188,7 +188,11 @@ export function StudioTagChipField({
         <div
           ref={boxRef}
           onClick={() => inputRef.current?.focus()}
+          // ⚠ `contain-inline-size`：一颗超长的格（自然语言整段带过来）的最小内容
+          //   宽度会沿 flex 链一路往上传，把整个工作台撑出视口（owner 2026-09-26
+          //   报）。这一栏的宽度只听外面的，里面再长也只在栏内截断。
           className={cn(
+            'contain-inline-size',
             inline
               ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
               : cn(

@@ -51,7 +51,8 @@ export function StudioTagChip({
   return (
     <span
       className={cn(
-        'inline-flex h-6 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-2xs',
+        // `min-w-0`：否则最小宽度 = 整段字宽，压过 `max-w-full`，截断不生效。
+        'inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-2xs',
         weighted ? 'border-foreground/40' : 'border-border',
       )}
     >
@@ -63,7 +64,10 @@ export function StudioTagChip({
             title={t('weightLabel')}
             className="inline-flex min-w-0 items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
           >
-            <span className="truncate">{chip.text}</span>
+            {/* 一整句带过来的那一格会很长 —— 截在栏宽里，全文放在 title 上。 */}
+            <span className="truncate" title={chip.text}>
+              {chip.text}
+            </span>
             {weighted ? (
               <span className="font-mono text-3xs tabular-nums text-muted-foreground">
                 {formatTagWeight(chip.weight)}

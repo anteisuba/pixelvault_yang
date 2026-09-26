@@ -107,3 +107,47 @@ it('several pickers share one request and prefetch runs once', async () => {
   prefetchRecipes()()
   expect(api).toHaveBeenCalledTimes(1)
 })
+
+/**
+ * 模板 C 的改名 / 删除是乐观的：后台那一轮刷新若是在改之前发出的，拉回来的旧表
+ * ⛔ 不许把改过的名字换回去、也不许把删掉的那张带回来。
+ */
+it('a rename or delete made while a refresh is in flight survives the stale list', async () => {
+  const named = (id: number, name: string) =>
+    ({ id: String(id), name }) as RecipeRecord
+  api.mockResolvedValueOnce({
+    success: true,
+    data: { recipes: [named(1, 'old'), named(2, 'doomed')], total: 2 },
+  })
+  const { result } = renderHook(() => useRecipes(true))
+  await waitFor(() => expect(result.current.recipes).toHaveLength(2))
+
+  let resolve: (
+    value: Awaited<ReturnType<typeof listRecipesAPI>>,
+  ) => void = () => {}
+  api.mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done
+    }),
+  )
+  let pending: Promise<void> = Promise.resolve()
+  act(() => {
+    pending = result.current.refresh()
+  })
+  act(() => {
+    result.current.replaceRecipe(named(1, 'new'))
+    result.current.removeRecipe('2')
+  })
+  await act(async () => {
+    resolve({
+      success: true,
+      data: { recipes: [named(1, 'old'), named(2, 'doomed')], total: 2 },
+    })
+    await pending
+  })
+  expect(result.current.recipes).toEqual([named(1, 'new')])
+
+  // 删失败放回来之后，下一轮刷新照常列出它。
+  act(() => result.current.restoreRecipe(named(2, 'doomed')))
+  expect(result.current.recipes.map((item) => item.id)).toEqual(['1', '2'])
+})

@@ -12,7 +12,6 @@ import {
   isWithinNovelAiOpusFreeTier,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
-import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_REFERENCE_DRAG_TYPE } from '@/constants/studio'
 import {
   useStudioData,
@@ -27,7 +26,6 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import {
   getCapabilityChipValue,
   isCapabilityChipSet,
@@ -70,7 +68,7 @@ import {
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
-import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
+import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
@@ -99,8 +97,11 @@ const WHOLE = 'whole'
  */
 export function StudioTagsComposer({
   onOpenPanel,
+  activePanel = null,
 }: {
-  onOpenPanel: (panel: TagWorkbenchPanel) => void
+  onOpenPanel: (panel: TagWorkbenchPanel | null) => void
+  /** 舞台上此刻开着哪块面板（模板那颗 chip 要画「开着」、再点一下收起）。 */
+  activePanel?: TagWorkbenchPanel | null
 }) {
   const t = useTranslations('StudioTags')
   const tStudio = useTranslations('StudioV2')
@@ -114,8 +115,6 @@ export function StudioTagsComposer({
   const { imageUpload } = useStudioData()
   const { cancelAllRunItems } = useStudioGen()
   const {
-    selectedModel,
-    modelOptions,
     runModels,
     runModelIds,
     filterModelByDialect,
@@ -130,12 +129,6 @@ export function StudioTagsComposer({
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
   const characters = useNovelAiCharacters()
-  const {
-    currentTemplateOutputType,
-    currentTemplateParams,
-    currentTemplatePrompt,
-    handleApplyTagTemplate,
-  } = useStudioPromptTemplates(modelOptions)
   const referenceNotice = useReferenceReceiverNotice(
     runModels,
     imageUpload.referenceEntries.length,
@@ -338,18 +331,12 @@ export function StudioTagsComposer({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
             <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
               <ReferenceImageChip disabled={isGenerating} />
-              <PromptTemplatePicker
-                dialect="tags"
-                currentModelId={selectedModel?.modelId}
-                currentOutputType={currentTemplateOutputType}
-                currentParams={currentTemplateParams}
-                currentPrompt={currentTemplatePrompt}
-                currentProvider={
-                  selectedModel
-                    ? getProviderLabel(selectedModel.providerConfig)
-                    : undefined
+              <StudioTemplatesChip
+                open={activePanel === 'templates'}
+                disabled={isGenerating}
+                onToggle={() =>
+                  onOpenPanel(activePanel === 'templates' ? null : 'templates')
                 }
-                onApply={handleApplyTagTemplate}
               />
               <Toolbar.Button
                 type="button"

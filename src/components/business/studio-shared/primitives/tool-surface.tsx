@@ -197,16 +197,15 @@ interface StudioChipPopoverPlacement {
   sideOffset?: number
 }
 
-export function useStudioChipPopoverMotion({
+/**
+ * 「从触发点放大」这一种开合的类与行内样式（纯函数）—— 工具行 chip 弹层走下面那颗
+ * hook；别的「从一颗小按钮长出来」的浮层（模板卡上的 ⋯ 菜单）直接用它。
+ */
+export function getChipZoomMotion({
   side = 'top',
   align = 'center',
   sideOffset = 0,
-}: StudioChipPopoverPlacement): {
-  className: string
-  style: CSSProperties | undefined
-} {
-  const outline = useContext(StudioChipLookContext) === 'outline'
-  if (!outline) return { className: '', style: undefined }
+}: StudioChipPopoverPlacement): { className: string; style: CSSProperties } {
   const x =
     align === 'start'
       ? 'calc(var(--radix-popper-anchor-width) / 2)'
@@ -221,6 +220,17 @@ export function useStudioChipPopoverMotion({
     className: CHIP_POPOVER_CLASS,
     style: { ...CHIP_POPOVER_VARS, transformOrigin: `${x} ${y}` },
   }
+}
+
+export function useStudioChipPopoverMotion(
+  placement: StudioChipPopoverPlacement,
+): {
+  className: string
+  style: CSSProperties | undefined
+} {
+  const outline = useContext(StudioChipLookContext) === 'outline'
+  if (!outline) return { className: '', style: undefined }
+  return getChipZoomMotion(placement)
 }
 
 interface StudioChipBadgeProps {

@@ -31,6 +31,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import { matchesRecipeTemplateScope } from '@/lib/recipe-template-kind'
+import { getDefaultTemplateName } from '@/lib/recipe-template-name'
 import { cn } from '@/lib/utils'
 import { useStudioGen } from '@/contexts/studio-context'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
@@ -45,7 +46,6 @@ import type {
 } from '@/types'
 
 const DEFAULT_TEMPLATE_OUTPUT_TYPE: OutputType = 'IMAGE'
-const TEMPLATE_NAME_MAX_LENGTH = 48
 const INSPIRATION_PREVIEW_MAX = 160
 
 type PickerTab = 'mine' | 'inspiration'
@@ -68,20 +68,6 @@ interface PromptTemplatePickerProps {
    * If omitted, the inspiration tab is hidden.
    */
   onApplyInspiration?: (inspiration: InspirationRecord) => void
-}
-
-function getDefaultTemplateName(prompt: string): string {
-  const firstLine = prompt
-    .split('\n')
-    .map((line) => line.trim())
-    .find(Boolean)
-
-  if (!firstLine) return ''
-
-  const normalized = firstLine.replace(/\s+/g, ' ')
-  return normalized.length > TEMPLATE_NAME_MAX_LENGTH
-    ? `${normalized.slice(0, TEMPLATE_NAME_MAX_LENGTH)}...`
-    : normalized
 }
 
 export function PromptTemplatePicker({

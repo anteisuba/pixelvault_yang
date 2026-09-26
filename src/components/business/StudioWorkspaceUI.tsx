@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation'
 import { motion, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { DURATION_MS } from '@/constants/motion'
+import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
@@ -26,6 +28,9 @@ import {
   type TagWorkbenchPanel,
 } from '@/components/business/studio/tags/StudioTagsWorkbench'
 import { StudioTagsComposer } from '@/components/business/studio/tags/StudioTagsComposer'
+import { StudioTemplatesPanel } from '@/components/business/studio/templates/StudioTemplatesPanel'
+import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
+import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -37,7 +42,9 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
@@ -151,9 +158,58 @@ export function StudioWorkspaceUI() {
         : workbenchOperatorHost,
     [isBottomComposer, workbenchOperatorHost],
   )
-  /** 桌面标签台舞台上开着哪块面板（查资料 / 构图 / 提示词块）；离开标签台就收。 */
-  const [tagPanel, setTagPanel] = useState<TagWorkbenchPanel | null>(null)
-  if (!isTagsWorkbench && tagPanel) setTagPanel(null)
+  /**
+   * 桌面图片台舞台上开着哪块面板：模板（两台都有）· 查资料 / 构图 / 提示词块
+   * （只有标签台）。离开标签台时标签台那三块收掉；离开桌面图片台时全收。
+   */
+  const [stagePanel, setStagePanel] = useState<TagWorkbenchPanel | null>(null)
+  if (stagePanel && !isBottomComposer) setStagePanel(null)
+  else if (stagePanel && stagePanel !== 'templates' && !isTagsWorkbench)
+    setStagePanel(null)
+  /**
+   * 模板 C（owner 2026-09-26）：模板在舞台上打开；点一张直接套用、回到结果，
+   * 输入框正上方给 5 秒「撤销」。套用与撤销住在这里 —— 面板和那句撤销是两处，
+   * 得是同一份快照。
+   */
+  const { modelOptions: imageModelOptions, selectedModel: imageModel } =
+    useImageModelOptions()
+  const templateApply = useStudioTemplateApply(imageModelOptions)
+  const templatesPanel = isBottomComposer ? (
+    <StudioTemplatesPanel
+      dialect={state.promptDialect}
+      save={{
+        outputType: templateApply.templates.currentTemplateOutputType,
+        prompt: templateApply.templates.currentTemplatePrompt,
+        params: templateApply.templates.currentTemplateParams,
+        modelId: imageModel?.modelId,
+        provider: imageModel
+          ? getProviderLabel(imageModel.providerConfig)
+          : undefined,
+      }}
+      onApply={(recipe) => {
+        templateApply.apply(recipe)
+        setStagePanel(null)
+      }}
+      onClose={() => setStagePanel(null)}
+    />
+  ) : null
+  const toggleTemplates = useCallback(
+    () =>
+      setStagePanel((current) =>
+        current === 'templates' ? null : 'templates',
+      ),
+    [],
+  )
+  /** 撤销那一下输入框里的内容从 40% 淡回来 —— 看得出「换回去了」。 */
+  const [composerRestoring, setComposerRestoring] = useState(false)
+  useEffect(() => {
+    if (!composerRestoring) return
+    const timer = window.setTimeout(
+      () => setComposerRestoring(false),
+      DURATION_MS.base,
+    )
+    return () => window.clearTimeout(timer)
+  }, [composerRestoring])
   /**
    * 助手展开时工作台让位（owner 2026-09-26）：`studioOperatorYield` 由 Dock 按
    * 形状第二拍的弹簧驱动，这里只把它绑到地台的右内边距。
@@ -432,25 +488,64 @@ export function StudioWorkspaceUI() {
               header={workbenchHeader}
               params={
                 useMobileComposer ? null : isTagsWorkbench ? (
-                  <StudioTagsComposer onOpenPanel={setTagPanel} />
+                  <StudioTagsComposer
+                    onOpenPanel={setStagePanel}
+                    activePanel={stagePanel}
+                  />
                 ) : (
                   <StudioPromptArea
                     layout={isImageBottomComposer ? 'bottom' : 'column'}
+                    {...(isImageBottomComposer
+                      ? {
+                          templates: {
+                            open: stagePanel === 'templates',
+                            onToggle: toggleTemplates,
+                          },
+                        }
+                      : {})}
                   />
                 )
               }
               stage={
                 isTagsWorkbench ? (
                   <StudioTagsStage
-                    panel={tagPanel}
-                    onClose={() => setTagPanel(null)}
+                    panel={stagePanel}
+                    onClose={() => setStagePanel(null)}
                     bottom
+                    templates={templatesPanel}
                   />
                 ) : (
-                  <StudioCanvas referenceRail={!isImageBottomComposer} />
+                  <StudioStageSwap
+                    panelKey={stagePanel === 'templates' ? 'templates' : null}
+                    renderPanel={() => templatesPanel}
+                    renderResults={(motionClass) => (
+                      <StudioCanvas
+                        referenceRail={!isImageBottomComposer}
+                        className={motionClass}
+                      />
+                    )}
+                  />
                 )
               }
               composer={useMobileComposer ? <StudioMobileComposer /> : null}
+              composerOverlay={
+                isBottomComposer && templateApply.appliedName ? (
+                  <StudioTemplateUndoToast
+                    key={templateApply.appliedId}
+                    name={templateApply.appliedName}
+                    onUndo={() => {
+                      templateApply.undo()
+                      setComposerRestoring(true)
+                    }}
+                    onDismiss={templateApply.dismiss}
+                  />
+                ) : null
+              }
+              paramsClassName={
+                composerRestoring
+                  ? 'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none'
+                  : undefined
+              }
             />
           )}
         </motion.div>

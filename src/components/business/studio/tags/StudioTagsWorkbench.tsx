@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 import { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
+import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
@@ -12,18 +13,25 @@ import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
 import { StudioTagBlocks } from './StudioTagBlocks'
 
-export type TagWorkbenchPanel = 'composition' | 'catalog' | 'blocks'
+export type TagWorkbenchPanel =
+  | 'composition'
+  | 'catalog'
+  | 'blocks'
+  | 'templates'
+/** 标签台自己的三块面板（模板面板自带头部，走 `templates` 那一格）。 */
+type TagOwnPanel = Exclude<TagWorkbenchPanel, 'templates'>
 
 /**
- * 标签台的舞台：平时是结果区，按需换成查资料 / 构图 / 提示词块三块面板之一。
+ * 标签台的舞台：平时是结果区，按需换成查资料 / 构图 / 提示词块 / 模板之一。
  * 手机两栏（`StudioTagsWorkbench`）与桌面底部输入框（`StudioWorkspaceUI` 直接挂，
  * 与自然语言台同一个 `StudioWorkbenchLayout`，头部那颗写法切换因此跨两台不重挂）
- * 共用这一份。
+ * 共用这一份。换场走 `StudioStageSwap`（面板淡入上浮 · 收起时结果淡入回来）。
  */
 export function StudioTagsStage({
   panel,
   onClose,
   bottom = false,
+  templates,
 }: {
   panel: TagWorkbenchPanel | null
   onClose: () => void
@@ -32,6 +40,8 @@ export function StudioTagsStage({
    * 「最终画面提示词」的位置，挪进提示词块面板。
    */
   bottom?: boolean
+  /** 模板面板（宿主给，它自带头部与「返回结果」）。 */
+  templates?: ReactNode
 }) {
   const t = useTranslations('StudioTags.workbench')
   const { state } = useStudioForm()
@@ -41,7 +51,8 @@ export function StudioTagsStage({
   /** 打开面板的那颗按钮 —— 关掉时焦点回到它身上。 */
   const trigger = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    if (!panel) return
+    // 模板面板自己管焦点。
+    if (!panel || panel === 'templates') return
     // 面板之间直接切时保留最初那颗；焦点此刻还在刚点的按钮上。
     if (!trigger.current && document.activeElement instanceof HTMLElement) {
       trigger.current = document.activeElement
@@ -55,84 +66,89 @@ export function StudioTagsStage({
     trigger.current = null
   }
 
-  return (
-    <>
-      <div className={panel ? 'hidden' : 'contents'}>
-        <StudioCanvas referenceRail={!bottom} />
-      </div>
-      {panel ? (
-        <section
-          className="flex min-h-0 flex-col gap-4 pb-4"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.stopPropagation()
-              close()
-            }
-          }}
+  const renderOwnPanel = (key: TagOwnPanel) => (
+    <section
+      className="flex min-h-0 flex-col gap-4 pb-4"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation()
+          close()
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
+            浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className="text-base font-medium outline-none"
         >
-          <div className="flex items-center justify-between gap-2">
-            {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
-                浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
-            <h2
-              ref={heading}
-              tabIndex={-1}
-              className="text-base font-medium outline-none"
-            >
-              {t(panel)}
-            </h2>
-            <Button variant="outline" size="sm" onClick={close}>
-              {t('backToResults')}
-            </Button>
-          </div>
-          {panel === 'catalog' ? (
-            <StudioDanbooruPanel />
-          ) : panel === 'blocks' ? (
-            <>
-              <StudioTagBlocks />
-              {bottom ? (
-                <details>
-                  <summary className="cursor-pointer text-xs text-muted-foreground">
-                    {t('compiled')}
-                  </summary>
-                  <p className="whitespace-pre-wrap break-words py-2 text-sm">
-                    {state.prompt}
-                  </p>
-                </details>
-              ) : null}
-            </>
-          ) : c.mode ? (
-            <>
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={c.layout?.positioning !== 'manual'}
-                  disabled={isGenerating || !c.layout}
-                  onCheckedChange={(automatic) => {
-                    if (c.layout)
-                      c.setLayout({
-                        ...c.layout,
-                        positioning: automatic ? 'auto' : 'manual',
-                      })
-                  }}
-                />
-                {t('auto')}
-              </label>
-              {/* 构图格是正方形 —— 按舞台宽度铺开会比屏幕还高，收成一块居中的方格。 */}
-              <div className="mx-auto w-full max-w-md">
-                <NovelAiCharacterComposer
-                  mode={c.mode}
-                  maxCharacters={c.max}
-                  value={c.layout}
-                  activeIndex={c.activeIndex}
-                  disabled={isGenerating}
-                  onChange={c.setLayout}
-                  onSelect={c.select}
-                />
-              </div>
-            </>
+          {t(key)}
+        </h2>
+        <Button variant="outline" size="sm" onClick={close}>
+          {t('backToResults')}
+        </Button>
+      </div>
+      {key === 'catalog' ? (
+        <StudioDanbooruPanel />
+      ) : key === 'blocks' ? (
+        <>
+          <StudioTagBlocks />
+          {bottom ? (
+            <details>
+              <summary className="cursor-pointer text-xs text-muted-foreground">
+                {t('compiled')}
+              </summary>
+              <p className="whitespace-pre-wrap break-words py-2 text-sm">
+                {state.prompt}
+              </p>
+            </details>
           ) : null}
-        </section>
+        </>
+      ) : c.mode ? (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <Switch
+              checked={c.layout?.positioning !== 'manual'}
+              disabled={isGenerating || !c.layout}
+              onCheckedChange={(automatic) => {
+                if (c.layout)
+                  c.setLayout({
+                    ...c.layout,
+                    positioning: automatic ? 'auto' : 'manual',
+                  })
+              }}
+            />
+            {t('auto')}
+          </label>
+          {/* 构图格是正方形 —— 按舞台宽度铺开会比屏幕还高，收成一块居中的方格。 */}
+          <div className="mx-auto w-full max-w-md">
+            <NovelAiCharacterComposer
+              mode={c.mode}
+              maxCharacters={c.max}
+              value={c.layout}
+              activeIndex={c.activeIndex}
+              disabled={isGenerating}
+              onChange={c.setLayout}
+              onSelect={c.select}
+            />
+          </div>
+        </>
       ) : null}
-    </>
+    </section>
+  )
+
+  return (
+    <StudioStageSwap
+      panelKey={panel}
+      renderResults={(motionClass) => (
+        <StudioCanvas referenceRail={!bottom} className={motionClass} />
+      )}
+      renderPanel={(key) =>
+        key === 'templates' ? templates : renderOwnPanel(key as TagOwnPanel)
+      }
+    />
   )
 }
 

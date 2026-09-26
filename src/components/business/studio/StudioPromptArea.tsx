@@ -57,6 +57,7 @@ import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpain
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
+import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
 // 规格收成**一颗 chip**（D2 ④，第 12 项）：图片与视频共用同一颗，档位各自从能力表
 // 派生；张数 / 声音在它底部的「更多」折叠区里。
@@ -122,10 +123,16 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  */
 interface StudioPromptAreaProps {
   layout?: 'column' | 'bottom'
+  /**
+   * 模板在舞台上打开（owner 2026-09-26 模板 C，`bottom` 布局）：给了它，工具行那颗
+   * 「模板」就开合舞台面板；不给（竖排参数栏）照旧开弹窗。
+   */
+  templates?: { open: boolean; onToggle: () => void }
 }
 
 export const StudioPromptArea = memo(function StudioPromptArea({
   layout = 'column',
+  templates,
 }: StudioPromptAreaProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -506,7 +513,15 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             >
               <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
                 <ReferenceImageChip disabled={isGenerating} />
-                {templatePicker}
+                {templates ? (
+                  <StudioTemplatesChip
+                    open={templates.open}
+                    onToggle={templates.onToggle}
+                    disabled={isGenerating}
+                  />
+                ) : (
+                  templatePicker
+                )}
                 <StudioCardsButton disabled={isGenerating} />
                 <Toolbar.Button
                   type="button"

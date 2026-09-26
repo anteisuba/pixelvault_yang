@@ -32,6 +32,16 @@ interface StudioWorkbenchLayoutProps {
   layout?: 'columns' | 'bottom'
   /** `bottom` 布局舞台上方那一行（标题 + 写法切换）。 */
   header?: React.ReactNode
+  /**
+   * `bottom` 布局浮在输入框卡正上方的东西（套用模板后的「已套用 · 撤销」）。
+   * 挂在卡里、绝对定位到卡外，⛔ 不占输入框的高度。
+   */
+  composerOverlay?: React.ReactNode
+  /**
+   * `bottom` 布局输入框卡里那一层的额外类（撤销套用时内容淡回来）。
+   * ⚠ 那一层恒在，⛔ 别按有没有类加减包裹 —— 树一变输入框就重挂、手上的字没了。
+   */
+  paramsClassName?: string
 }
 
 /**
@@ -57,6 +67,8 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   composer,
   layout = 'columns',
   header,
+  composerOverlay,
+  paramsClassName,
 }: StudioWorkbenchLayoutProps) {
   if (layout === 'bottom') {
     return (
@@ -76,8 +88,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
         {params ? (
           // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
           // （`StudioChipClasses.compact`）。
-          <div className="@container/composer shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
-            {params}
+          <div className="@container/composer relative shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
+            {composerOverlay}
+            <div className={paramsClassName}>{params}</div>
           </div>
         ) : null}
         {composer}

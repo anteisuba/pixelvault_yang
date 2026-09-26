@@ -35,6 +35,8 @@ let snapshot = EMPTY_SNAPSHOT
 let inflight: Promise<void> | null = null
 /** 在飞那一轮拉回来之前新存的模板：列表换新时并进去，⛔ 不许被旧表冲掉。 */
 let additions: RecipeRecord[] = []
+/** 这一会话里删掉的：在飞那一轮拉回来的表里还有它们，⛔ 不许被带回来。 */
+let removedIds = new Set<string>()
 /** 每次重置加一：重置之前发出的请求落地时不许写回来。 */
 let epoch = 0
 const listeners = new Set<() => void>()
@@ -71,7 +73,11 @@ export function refreshRecipes(): Promise<void> {
   const run = loadAllRecipes()
     .then((loaded) => {
       if (startedIn !== epoch) return
-      const merged = new Map(loaded.map((recipe) => [recipe.id, recipe]))
+      const merged = new Map(
+        loaded
+          .filter((recipe) => !removedIds.has(recipe.id))
+          .map((recipe) => [recipe.id, recipe]),
+      )
       for (const recipe of additions) merged.set(recipe.id, recipe)
       additions = []
       setSnapshot({ recipes: [...merged.values()], loaded: true })
@@ -106,11 +112,39 @@ function addRecipe(recipe: RecipeRecord): void {
   })
 }
 
+/** 改过名的那一份原地换掉（在飞的那一轮拉回来时也以它为准）。 */
+function replaceRecipe(recipe: RecipeRecord): void {
+  additions = [...additions.filter((item) => item.id !== recipe.id), recipe]
+  setSnapshot({
+    recipes: snapshot.recipes.map((item) =>
+      item.id === recipe.id ? recipe : item,
+    ),
+  })
+}
+
+/** 删掉的那一条先从表里拿掉（乐观）；删失败时用 `restoreRecipe` 放回来。 */
+function removeRecipe(id: string): void {
+  removedIds.add(id)
+  additions = additions.filter((item) => item.id !== id)
+  setSnapshot({ recipes: snapshot.recipes.filter((item) => item.id !== id) })
+}
+
+function restoreRecipe(recipe: RecipeRecord): void {
+  removedIds.delete(recipe.id)
+  setSnapshot({
+    recipes: [
+      ...snapshot.recipes.filter((item) => item.id !== recipe.id),
+      recipe,
+    ],
+  })
+}
+
 export function __resetRecipesCacheForTests(): void {
   epoch++
   snapshot = EMPTY_SNAPSHOT
   inflight = null
   additions = []
+  removedIds = new Set()
 }
 
 export function useRecipes(enabled = true) {
@@ -133,5 +167,8 @@ export function useRecipes(enabled = true) {
     error: state.error && !state.loaded,
     refresh: refreshRecipes,
     addRecipe,
+    replaceRecipe,
+    removeRecipe,
+    restoreRecipe,
   }
 }

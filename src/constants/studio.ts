@@ -86,6 +86,12 @@ export const STUDIO_ASSISTANT_DOCK_RESIZE = {
 export const STUDIO_REFERENCE_DRAG_TYPE = 'studio-reference-image' as const
 /** 桌面底部输入框：圆键被挡住时左边那行灰字停留多久（ms）。 */
 export const STUDIO_BLOCKED_HINT_MS = 2600
+
+/** 舞台上那块模板面板的 id（工具行「模板」chip 的 `aria-controls` 指它）。 */
+export const STUDIO_TEMPLATES_PANEL_ID = 'studio-templates-panel'
+
+/** 套用模板后「已套用 · 撤销」停留多久（指针停在上面时不计时）。 */
+export const STUDIO_TEMPLATE_UNDO_MS = 5000
 /** Max recent image assets shown in the assistant composer's image popover. */
 export const STUDIO_ASSISTANT_RECENT_ASSETS = 8
 

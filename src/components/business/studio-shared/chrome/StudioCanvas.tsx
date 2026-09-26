@@ -65,10 +65,13 @@ interface StudioCanvasProps {
    * 「只发给谁」那句挪到附件行下面。
    */
   referenceRail?: boolean
+  /** 挂在根上的额外类（舞台面板收起、结果回来时那一下淡入）。 */
+  className?: string
 }
 
 export const StudioCanvas = memo(function StudioCanvas({
   referenceRail = true,
+  className,
 }: StudioCanvasProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -432,6 +435,7 @@ export const StudioCanvas = memo(function StudioCanvas({
         'studio-canvas transition-all',
         (editTarget || referenceFillsStage) && 'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
+        className,
       )}
     >
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带

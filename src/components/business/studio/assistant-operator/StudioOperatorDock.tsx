@@ -75,6 +75,7 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
+import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
 import {
   ASSISTANT_SETTINGS_SECTIONS,
@@ -516,6 +517,43 @@ export function StudioOperatorDock() {
     getWidthSnapshot,
     getServerWidthSnapshot,
   )
+  /**
+   * 工作台让位（owner 2026-09-26）：面板占掉的右侧宽度写进 `studioOperatorYield`，
+   * 绑了它的外壳跟着收窄。节拍与形状同一套 —— 展开随第二拍、收起随收回那一拍。
+   * ⚠ 只在 `open` / `closed` 两档**静止时**直接落值（初次挂载、拖宽面板）：
+   *   动着的那一段交给弹簧，⛔ 别在这里把它截断。
+   */
+  const yieldReserve =
+    width + anchor.panelRightPx + STUDIO_OPERATOR_SHELL.yieldGapPx
+  useEffect(() => {
+    if (isMobile) {
+      studioOperatorYield.jump(0)
+      return
+    }
+    if (reducedMotion) {
+      studioOperatorYield.jump(open ? yieldReserve : 0)
+      return
+    }
+    if (phase === 'opening' || phase === 'closing') {
+      const opening = phase === 'opening'
+      const timer = window.setTimeout(
+        () => {
+          animate(
+            studioOperatorYield,
+            opening ? yieldReserve : 0,
+            opening ? LIQUID_SPRING.unfold : LIQUID_SPRING.retract,
+          )
+        },
+        (opening ? LIQUID_TIMING.unfoldDelayS : LIQUID_TIMING.retractDelayS) *
+          1000,
+      )
+      return () => window.clearTimeout(timer)
+    }
+    if (!studioOperatorYield.isAnimating()) {
+      studioOperatorYield.jump(phase === 'open' ? yieldReserve : 0)
+    }
+  }, [phase, open, yieldReserve, isMobile, reducedMotion])
+  useEffect(() => () => studioOperatorYield.jump(0), [])
   /**
    * ⭐ 草稿与非图片附件住在外壳；图片来自宿主参考图列表：收起会卸载面板，
    * 而「点错工作台一下，刚写的话和刚挂好的素材一起消失」是让位法则最容易踩到的

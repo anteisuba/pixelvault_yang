@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { usePathname } from 'next/navigation'
+import { motion, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
@@ -19,6 +20,7 @@ import {
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
 import { StudioTagsWorkbench } from '@/components/business/studio/tags/StudioTagsWorkbench'
+import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
@@ -30,6 +32,7 @@ import {
 } from '@/contexts/studio-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
@@ -76,7 +79,8 @@ export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { lastGeneration } = useStudioGen()
+  const { lastGeneration, isGenerating } = useStudioGen()
+  const tEmptyState = useTranslations('StudioEmptyState')
   const router = useRouter()
   const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
   /**
@@ -118,6 +122,24 @@ export function StudioWorkspaceUI() {
    */
   const isTagsWorkbench =
     state.outputType === 'image' && state.promptDialect === 'tags'
+  /**
+   * 图片自然语言台（桌面）= 上面一整块结果舞台 + 底部一条输入框（owner
+   * 2026-09-26 按可点原型拍板）。视频 / 音频 / 标签台 / 手机这一片不动。
+   */
+  const isImageBottomComposer =
+    !useMobileComposer && state.outputType === 'image' && !isTagsWorkbench
+  /**
+   * 助手展开时工作台让位（owner 2026-09-26）：`studioOperatorYield` 由 Dock 按
+   * 形状第二拍的弹簧驱动，这里只把它绑到地台的右内边距。
+   * ⚠ 恒绑同一个 motion 值、按布局在变换里取值 —— ⛔ 不在 style 上把它换成
+   *   `undefined`：motion 的 style 从 motion 值换成静态值时不解绑（同 Dock 那条）。
+   */
+  const operatorYield = useStudioOperatorYield()
+  const groundPaddingRight = useTransform(operatorYield, (reserve) =>
+    isImageBottomComposer && reserve > 0
+      ? `max(var(--workbench-pad), ${reserve}px)`
+      : 'var(--workbench-pad)',
+  )
 
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
@@ -351,7 +373,10 @@ export function StudioWorkspaceUI() {
          * desktop shell is a fixed overlay so opening it never subtracts
          * width from the work surface.
          */}
-        <div className="studio-layout-v2 workbench-ground min-w-0 flex-1">
+        <motion.div
+          className="studio-layout-v2 workbench-ground min-w-0 flex-1"
+          style={{ paddingRight: groundPaddingRight }}
+        >
           {/* 三个模态共用一套外壳（切片 A，owner 2026-08-23）。此前只有图片走
               横向工作台，视频 / 音频还留在「纵向 canvas + 底部丸」那条路上；
               那条路连同 `StudioFlowLayout` / `StudioBottomDock` /
@@ -361,12 +386,29 @@ export function StudioWorkspaceUI() {
             <StudioTagsWorkbench />
           ) : (
             <StudioWorkbenchLayout
-              params={useMobileComposer ? null : <StudioPromptArea />}
+              layout={isImageBottomComposer ? 'bottom' : 'columns'}
+              header={
+                isImageBottomComposer ? (
+                  <div className="flex items-center gap-3.5">
+                    <h1 className="text-sm font-semibold text-muted-foreground">
+                      {tEmptyState('modeLabel.image')}
+                    </h1>
+                    <StudioDialectHeader disabled={isGenerating} />
+                  </div>
+                ) : undefined
+              }
+              params={
+                useMobileComposer ? null : (
+                  <StudioPromptArea
+                    layout={isImageBottomComposer ? 'bottom' : 'column'}
+                  />
+                )
+              }
               stage={<StudioCanvas />}
               composer={useMobileComposer ? <StudioMobileComposer /> : null}
             />
           )}
-        </div>
+        </motion.div>
         {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的
             覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标
             是旧面板的入口，两个同时在等于右上角摆两个助手）。

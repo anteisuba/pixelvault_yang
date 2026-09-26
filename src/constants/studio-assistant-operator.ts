@@ -404,6 +404,11 @@ export const STUDIO_OPERATOR_SHELL = {
   avatarHeaderSizePx: 22,
   /** 头像与它左边那颗胶囊之间的空隙（画布顶栏排布用）。 */
   avatarGapPx: 8,
+  /**
+   * 工作台让位时，面板左缘与工作台内容右缘之间的空隙（= 工作台脊柱的
+   * `--workbench-gap` 14，owner 2026-09-26「工作台让位」）。
+   */
+  yieldGapPx: 14,
   /** 头部左右内距（`px-3`）—— 头像落位的 x 由它算出来，⛔ 不量 DOM。 */
   headerPadXPx: 12,
   /**

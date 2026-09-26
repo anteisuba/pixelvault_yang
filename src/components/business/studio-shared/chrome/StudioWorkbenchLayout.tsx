@@ -24,6 +24,14 @@ interface StudioWorkbenchLayoutProps {
    * 留出底部内边距（`.studio-mobile-stage`，几何在 globals.css）。
    */
   composer?: React.ReactNode
+  /**
+   * `columns` = 左参数栏 + 右结果区（视频 / 音频 / 标签台现行）。
+   * `bottom` = 上面一整块结果舞台 + 底部一条输入框（owner 2026-09-26，图片
+   * 自然语言台）：`params` 渲染进舞台下方那张卡，`header` 在舞台上方。
+   */
+  layout?: 'columns' | 'bottom'
+  /** `bottom` 布局舞台上方那一行（标题 + 写法切换）。 */
+  header?: React.ReactNode
 }
 
 /**
@@ -47,7 +55,31 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   paramsWidthClass = 'lg:w-72',
   stage,
   composer,
+  layout = 'columns',
+  header,
 }: StudioWorkbenchLayoutProps) {
+  if (layout === 'bottom') {
+    return (
+      // ⚠ 高度契约与横向那支同一条（`.studio-workbench-shell` 在桌面给显式高度，
+      //   见下方长注释）：舞台 `flex-1 min-h-0` 吃掉剩余高度，输入框卡按内容高。
+      // ⚠ 输入框卡**不挂** `.studio-param-panel`：参考图弹层拿它当碰撞边界，
+      //   而弹层是朝上开出卡外的 —— 边界缩成这张矮卡会把弹层挤回卡里。
+      <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col gap-3 lg:flex-none">
+        {header ? (
+          <div className="flex shrink-0 items-center">{header}</div>
+        ) : null}
+        <div className="studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 pb-3 lg:px-6 lg:pt-6 lg:pb-6">
+          {stage}
+        </div>
+        {params ? (
+          <div className="shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
+            {params}
+          </div>
+        ) : null}
+        {composer}
+      </div>
+    )
+  }
   return (
     // 移动端退回纵向（参数在上、结果在下）：288px 的常驻栏在手机上会把结果区
     // 压到没有。断点用 lg（1024）与 `useIsMobile` 对齐 —— 平板 768–1023 那段

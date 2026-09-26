@@ -9,7 +9,14 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import { ChevronDown, FileAudio2, FileText, Plus, X } from '@/components/icons'
+import {
+  Ban,
+  ChevronDown,
+  FileAudio2,
+  FileText,
+  Plus,
+  X,
+} from '@/components/icons'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
@@ -66,6 +73,10 @@ import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import {
+  studioChipActiveClass,
+  studioToolTriggerClass,
+} from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
  * 模态专属那几颗丸的样式 —— 从退役的 `StudioToolbarPanels` 原样搬过来，
@@ -97,8 +108,22 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  *
  * 提示词输入与 `executeGenerate` 绑在一起，是这个组件不能按「参数 / 动作」
  * 拆开的唯一原因。
+ *
+ * `layout="bottom"`（owner 2026-09-26，图片自然语言台桌面）：同一套控件排成
+ * 舞台下方的一条输入框 —— 附件 · 提示词 ·（负面词）· 工具行（左：参考图 /
+ * 模板 / 卡片 / 负面词 / 遮罩重绘；右：模型 / 规格 / 专属 / 价格 / ① 圆键）。
+ * hook 与生成逻辑一份不多，只换排法。
  */
-export const StudioPromptArea = memo(function StudioPromptArea() {
+interface StudioPromptAreaProps {
+  layout?: 'column' | 'bottom'
+}
+
+/** 被挡住时左边那行灰字停留多久（ms）。 */
+const BLOCKED_HINT_MS = 2600
+
+export const StudioPromptArea = memo(function StudioPromptArea({
+  layout = 'column',
+}: StudioPromptAreaProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const t = useTranslations('StudioV2')
@@ -168,6 +193,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   } = useStudioGenerateAction()
 
   const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
+  /**
+   * ① 圆键被挡住时点一下，左边出现一行缺什么（owner 2026-09-26 原型）。
+   * ⚠ 只给 `bottom` 布局：参数栏那颗整宽键本来就把缺什么写在键上。
+   */
+  const [blockedHintVisible, setBlockedHintVisible] = useState(false)
+  const blockedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (blockedHintTimerRef.current) clearTimeout(blockedHintTimerRef.current)
+    },
+    [],
+  )
+  const showBlockedHint = useCallback(() => {
+    setBlockedHintVisible(true)
+    if (blockedHintTimerRef.current) clearTimeout(blockedHintTimerRef.current)
+    blockedHintTimerRef.current = setTimeout(
+      () => setBlockedHintVisible(false),
+      BLOCKED_HINT_MS,
+    )
+  }, [])
   const {
     currentTemplateOutputType,
     currentTemplateParams,
@@ -305,6 +350,274 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
       ? tStudio('sfxPlaceholder')
       : tStudio('audioPlaceholder')
     : t('freePromptPlaceholder')
+
+  const dialogs = (
+    <>
+      {state.workflowMode === 'quick' && (
+        <QuickSetupDialog
+          open={quickSetup.open}
+          onOpenChange={(v) => setQuickSetup((prev) => ({ ...prev, open: v }))}
+          modelId={quickSetup.modelId}
+          modelLabel={quickSetup.modelLabel}
+          adapterType={quickSetup.adapterType}
+          optionId={quickSetup.optionId}
+        />
+      )}
+      <PlaceholderFillDialog
+        open={placeholderDialog.open}
+        onOpenChange={(open) =>
+          setPlaceholderDialog((prev) => ({ ...prev, open }))
+        }
+        prompt={placeholderDialog.prompt}
+        onApply={applyInspirationPrompt}
+      />
+    </>
+  )
+
+  const templatePicker = (
+    <PromptTemplatePicker
+      currentModelId={selectedModel?.modelId}
+      currentOutputType={currentTemplateOutputType}
+      currentParams={currentTemplateParams}
+      currentPrompt={state.prompt}
+      currentProvider={
+        selectedModel
+          ? getProviderLabel(selectedModel.providerConfig)
+          : undefined
+      }
+      onApply={handleApplyRecipe}
+      onApplyInspiration={handleApplyInspiration}
+    />
+  )
+
+  const negativePromptValue = state.advancedParams.negativePrompt ?? ''
+  const setNegativePrompt = (value: string) =>
+    dispatch({
+      type: 'SET_ADVANCED_PARAMS',
+      // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是整体替换。
+      payload: { ...state.advancedParams, negativePrompt: value || undefined },
+    })
+
+  if (layout === 'bottom') {
+    const imageCount = Math.max(1, runModels.length) * state.imageBatchCount
+    const negativeShown =
+      negativePromptExpanded || negativePromptValue.trim() !== ''
+    const modelChipLabel =
+      runModels.length > 1
+        ? t('modelCountSelected', { count: runModels.length })
+        : runModels[0]
+          ? getTranslatedModelLabel(tModels, runModels[0].modelId)
+          : t('noModelHint')
+    return (
+      <>
+        {dialogs}
+        <PromptInput
+          ref={composerContainerRef}
+          id="studio-prompt"
+          isLoading={isGenerating}
+          value={state.prompt}
+          onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
+          maxHeight="9rem"
+          onSubmit={handleGenerate}
+          onDragEnter={handlePromptDragEnter}
+          onDragOver={handlePromptDragOver}
+          onDragLeave={handlePromptDragLeave}
+          onDrop={handlePromptDrop}
+          role="group"
+          disabled={isGenerating}
+          className={cn(
+            'flex flex-col gap-2 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
+            imageUpload.isDragging &&
+              'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+          )}
+        >
+          <ImageAttachmentPreviewStrip
+            entries={imageUpload.referenceEntries}
+            previewAlt={tImageChip('label')}
+            previewLabel={(index) =>
+              tImageChip('previewReferenceImage', { index })
+            }
+            previewDescription={tImageChip('previewReferenceDescription')}
+            previewCloseLabel={tImageChip('closeReferencePreview')}
+            removeLabel={(index) =>
+              tImageChip('removeReferenceImage', { index })
+            }
+            onRemove={imageUpload.removeReferenceImage}
+            overLimitTooltip={tImageChip('disabledOverLimit')}
+            unsupportedTooltip={tImageChip('disabledUnsupported')}
+            variant="composer"
+            dragType={STUDIO_REFERENCE_DRAG_TYPE}
+          />
+          {imageUpload.isUploading && (
+            <div
+              role="status"
+              className="flex items-center gap-2 py-1 text-sm text-muted-foreground"
+            >
+              <Spinner aria-hidden="true" className="size-4 shrink-0" />
+              {tImageUpload('uploading')}
+            </div>
+          )}
+          <StudioReferencePromptInput
+            placeholder={placeholder}
+            disabled={isGenerating}
+            onPaste={handlePromptPaste}
+            onSubmit={handleGenerate}
+            className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
+          />
+          {isImagePromptOverLimit && (
+            <span className="text-2xs tabular-nums text-destructive">
+              {`${imagePromptLength}/${imagePromptMaxChars}`}
+            </span>
+          )}
+
+          {/* 负面词那一行 —— 点工具行的「负面提示词」才出现；写了内容就一直在。
+              ⚠ 挡住冒泡：`PromptInput` 根节点会把任何点击的焦点抢回主提示词框。 */}
+          {negativeShown ? (
+            <div
+              className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <label
+                htmlFor="studio-negative-prompt-input"
+                className="shrink-0 pt-0.5 text-2xs font-medium text-muted-foreground"
+              >
+                {tPromptArea('negativePromptLabel')}
+              </label>
+              <textarea
+                id="studio-negative-prompt-input"
+                value={negativePromptValue}
+                onChange={(event) => setNegativePrompt(event.target.value)}
+                placeholder={tPromptArea('negativePromptPlaceholder')}
+                rows={1}
+                disabled={isGenerating}
+                // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大。
+                className="min-h-5 flex-1 resize-none bg-transparent text-base leading-5 outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed disabled:opacity-50 md:text-2sm"
+              />
+            </div>
+          ) : null}
+
+          {state.workflowMode === 'card' ? <StudioCardSection /> : null}
+
+          {/* 工具行 —— 左：往这一枪里加料；右：谁来画、画成什么样、多少钱、发。
+              ⚠ 整行挡住冒泡，理由同负面词那一行。 */}
+          <div
+            className="flex flex-wrap items-center gap-x-2 gap-y-2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Toolbar.Root className="flex flex-wrap items-center gap-1">
+              <ReferenceImageChip disabled={isGenerating} />
+              {templatePicker}
+              <StudioCardsButton disabled={isGenerating} />
+              <Toolbar.Button
+                type="button"
+                aria-pressed={negativeShown}
+                aria-controls="studio-negative-prompt-input"
+                disabled={isGenerating}
+                onClick={() => {
+                  if (negativeShown && negativePromptValue.trim() === '') {
+                    setNegativePromptExpanded(false)
+                    return
+                  }
+                  setNegativePromptExpanded(true)
+                  requestAnimationFrame(() =>
+                    document
+                      .getElementById('studio-negative-prompt-input')
+                      ?.focus(),
+                  )
+                }}
+                className={cn(
+                  studioToolTriggerClass,
+                  negativeShown && studioChipActiveClass,
+                )}
+              >
+                <Ban className="size-4" aria-hidden />
+                {tPromptArea('negativePromptLabel')}
+              </Toolbar.Button>
+              <StudioInpaintMaskChip disabled={isGenerating} />
+            </Toolbar.Root>
+            <span
+              aria-live="polite"
+              className={cn(
+                'text-2xs text-muted-foreground transition-[opacity,transform] duration-base ease-standard motion-reduce:transition-none',
+                blockedHintVisible && blockedReason
+                  ? 'translate-x-0 opacity-100'
+                  : 'pointer-events-none translate-x-2 opacity-0',
+              )}
+            >
+              {blockedHintVisible ? (blockedReason?.message ?? '') : ''}
+            </span>
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {state.workflowMode === 'quick' ? (
+                <span data-assistant-field="model">
+                  <MainModelPicker
+                    modality="image"
+                    // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                    //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                    value={null}
+                    onChange={(option) =>
+                      dispatch({
+                        type: 'SET_OPTION_ID',
+                        payload: option.optionId,
+                      })
+                    }
+                    selectedOptionIds={runModelIds}
+                    onToggleOption={handleToggleRunModel}
+                    filterOption={filterModelByDialect}
+                    renderSearchFallback={(query, close) => (
+                      <StudioDialectJumpHint query={query} close={close} />
+                    )}
+                    onRequestSetup={handleOpenQuickSetup}
+                    triggerEmptyLabel={modelChipLabel}
+                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                    emptySearchText={tForm('modelSelector.emptySearch')}
+                    popoverSide="top"
+                    popoverAlign="end"
+                    contentClassName="w-80"
+                    className="h-9"
+                  />
+                </span>
+              ) : null}
+              <span data-assistant-field="specs">
+                <StudioSpecChip
+                  disabled={isGenerating}
+                  triggerClassName="h-9"
+                />
+              </span>
+              <StudioModelCapabilityChips disabled={isGenerating} inline />
+              <StudioCostPreview
+                variant="line"
+                models={runModels}
+                basis={{
+                  kind: 'image',
+                  perModelCount: state.imageBatchCount,
+                  aspectRatio: state.aspectRatio,
+                  resolution: state.advancedParams.resolution,
+                  quality: state.advancedParams.quality,
+                  preview: state.advancedParams.preview,
+                }}
+              />
+              <StudioGenerateButton
+                variant="round"
+                count={imageCount}
+                ariaLabel={t('generate')}
+                isGenerating={isGenerating}
+                elapsedSeconds={elapsedSeconds}
+                canGenerate={canGenerate}
+                disabled={isGenerating || isImagePromptOverLimit}
+                blockedMessage={blockedReason?.message}
+                busyLabel={t('generating')}
+                label={t('generateCount', { count: imageCount })}
+                onGenerate={() => {
+                  if (!canGenerate) showBlockedHint()
+                  void handleGenerate()
+                }}
+              />
+            </div>
+          </div>
+        </PromptInput>
+      </>
+    )
+  }
 
   return (
     <>

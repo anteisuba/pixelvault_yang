@@ -589,6 +589,73 @@ describe('StudioPromptArea', () => {
     })
   })
 
+  /**
+   * 底部输入框布局（owner 2026-09-26，图片自然语言台桌面）：同一套控件排成舞台
+   * 下方的一条输入框。验的是这一排法特有的三件事，生成载荷与参数栏共用、不重验。
+   */
+  describe('底部输入框布局', () => {
+    const renderBottom = () =>
+      render(
+        <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
+          <StudioPromptArea layout="bottom" />
+        </StudioOperatorHostProvider>,
+      )
+    const setupImage = (overrides: Partial<StudioFormState> = {}) =>
+      setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
+        outputType: 'image',
+        selectedOptionId: null,
+        advancedParams: {},
+        ...overrides,
+      })
+
+    it('负面提示词是工具行的一颗 chip：点开出现一行，写回整个对象', () => {
+      setupImage({ advancedParams: { seed: 7 } })
+      renderBottom()
+
+      const chip = screen.getByRole('button', { name: /negativePromptLabel/ })
+      expect(chip).toHaveAttribute('aria-pressed', 'false')
+      expect(
+        screen.queryByRole('textbox', { name: 'negativePromptLabel' }),
+      ).not.toBeInTheDocument()
+
+      fireEvent.click(chip)
+      expect(chip).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
+        { target: { value: 'blurry' } },
+      )
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { seed: 7, negativePrompt: 'blurry' },
+      })
+    })
+
+    it('已经写了负面词时那一行常驻，不用再点', () => {
+      setupImage({ advancedParams: { negativePrompt: 'watermark' } })
+      renderBottom()
+      expect(
+        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
+      ).toHaveValue('watermark')
+    })
+
+    it('① 圆键：被挡住时仍可点，点了左边出一行缺什么', () => {
+      setupImage({ prompt: '' })
+      renderBottom()
+
+      const button = screen.getByRole('button', { name: /^generate · / })
+      expect(button).toHaveClass('rounded-full', 'size-9')
+      expect(button).toHaveAttribute('aria-disabled', 'true')
+      expect(button).not.toBeDisabled()
+
+      fireEvent.click(button)
+      const hint = button.closest('.ml-auto')
+        ?.previousElementSibling as HTMLElement | null
+      expect(hint).not.toBeNull()
+      expect(hint).toHaveClass('opacity-100')
+      expect(hint?.textContent).not.toBe('')
+    })
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockImageUploadState.isUploading = false

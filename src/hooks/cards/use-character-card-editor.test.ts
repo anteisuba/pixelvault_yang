@@ -6,6 +6,7 @@ import {
   draftFromCard,
   makePrimary,
   removeSlot,
+  replaceSlotImage,
   updateFromDraft,
 } from './use-character-card-editor'
 
@@ -65,6 +66,25 @@ describe('makePrimary / removeSlot', () => {
     )
     expect(next.find((item) => item.isPrimary)?.id).toBe('c')
     expect(removeSlot([slot('a', { isPrimary: true })], 'a')).toHaveLength(1)
+  })
+})
+
+describe('replaceSlotImage', () => {
+  it('只剩一张主图也能换：同一格换图，主图与用途不变，旧视角不带过去', () => {
+    const [next] = replaceSlotImage(
+      [slot('a', { isPrimary: true, viewType: 'front' })],
+      'a',
+      { url: 'https://cdn.test/new.png', generationId: 'g1' },
+    )
+    expect(next).toMatchObject({
+      id: 'a',
+      role: 'identity',
+      isPrimary: true,
+      url: 'https://cdn.test/new.png',
+      generationId: 'g1',
+      origin: 'upload',
+    })
+    expect(next!.viewType).toBeUndefined()
   })
 })
 

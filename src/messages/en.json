@@ -8204,6 +8204,7 @@
     "primary": "Main",
     "makePrimary": "Make main",
     "removeImage": "Remove",
+    "replaceImage": "Replace",
     "addImage": "Add image",
     "addImageHint": "New images go to your asset library first.",
     "uploadFailed": "Upload failed. Try again.",

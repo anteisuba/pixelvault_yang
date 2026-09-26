@@ -462,6 +462,24 @@ function CharacterCardEditor({
                   ) : null}
                 </div>
                 <div className="flex gap-2 text-xs text-muted-foreground">
+                  <label
+                    className={cn(
+                      'cursor-pointer hover:text-foreground',
+                      editor.isUploading && 'pointer-events-none opacity-60',
+                    )}
+                  >
+                    {t('replaceImage')}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        if (file) void editor.replaceImage(slot.id, file)
+                      }}
+                    />
+                  </label>
                   {slot.isPrimary ? null : (
                     <button
                       type="button"

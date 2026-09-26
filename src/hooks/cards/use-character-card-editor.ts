@@ -13,7 +13,7 @@ import { uploadImageFileAPI } from '@/lib/api-client'
 /**
  * 卡片页侧栏的**就地编辑**（施工第 4 片）：名字 · 一句外观 · 标签 · 参考图 · 设定。
  *
- * ⭐ 图片直接改参考槽（删一张 / 设为主图 / 加一张），服务端按不变量校验并反向写回
+ * ⭐ 图片直接改参考槽（换一张 / 删一张 / 设为主图 / 加一张），服务端按不变量校验并反向写回
  *   旧图片列。新图先传进**素材库**（图都在素材库，owner 09-26），再挂到卡上。
  * ⚠ 设定是整体替换：没在这里编辑的格（口头禅、示例对白……）原样带回去，⛔ 不丢。
  */
@@ -109,6 +109,19 @@ export function removeSlot(
   return makePrimary(rest, heir.id)
 }
 
+/** 换一张：同一格换图，用途、主图与自定义标签不变；视角是旧图的，不带过去。 */
+export function replaceSlotImage(
+  slots: CharacterReferenceSlot[],
+  id: string,
+  image: { url: string; generationId: string },
+): CharacterReferenceSlot[] {
+  return slots.map((slot) =>
+    slot.id === id
+      ? { ...slot, ...image, origin: 'upload', viewType: undefined }
+      : slot,
+  )
+}
+
 function nextSlotId(slots: CharacterReferenceSlot[]): string {
   const taken = new Set(slots.map((slot) => slot.id))
   for (let n = slots.length + 1; ; n += 1) {
@@ -130,7 +143,8 @@ export function useCharacterCardEditor(card: CharacterCardRecord) {
     [],
   )
 
-  const addImage = useCallback(async (file: File) => {
+  /** 传进素材库；失败时记下错误并返回 null。 */
+  const upload = useCallback(async (file: File) => {
     setIsUploading(true)
     setUploadError(null)
     const response = await uploadImageFileAPI(file)
@@ -138,28 +152,49 @@ export function useCharacterCardEditor(card: CharacterCardRecord) {
     const generation = response.data?.generation
     if (!response.success || !generation) {
       setUploadError(response.error ?? 'upload failed')
-      return
+      return null
     }
-    setDraft((current) => ({
-      ...current,
-      slots: [
-        ...current.slots,
-        {
-          id: nextSlotId(current.slots),
-          role: 'identity',
-          url: generation.url,
-          isPrimary: current.slots.length === 0,
-          origin: 'upload',
-          generationId: generation.id,
-        },
-      ],
-    }))
+    return { url: generation.url, generationId: generation.id }
   }, [])
+
+  const addImage = useCallback(
+    async (file: File) => {
+      const image = await upload(file)
+      if (!image) return
+      setDraft((current) => ({
+        ...current,
+        slots: [
+          ...current.slots,
+          {
+            id: nextSlotId(current.slots),
+            role: 'identity',
+            isPrimary: current.slots.length === 0,
+            origin: 'upload',
+            ...image,
+          },
+        ],
+      }))
+    },
+    [upload],
+  )
+
+  const replaceImage = useCallback(
+    async (id: string, file: File) => {
+      const image = await upload(file)
+      if (!image) return
+      setDraft((current) => ({
+        ...current,
+        slots: replaceSlotImage(current.slots, id, image),
+      }))
+    },
+    [upload],
+  )
 
   return {
     draft,
     patch,
     addImage,
+    replaceImage,
     isUploading,
     uploadError,
     reset: () => setDraft(draftFromCard(card)),

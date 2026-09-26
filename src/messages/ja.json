@@ -8204,6 +8204,7 @@
     "primary": "メイン",
     "makePrimary": "メインにする",
     "removeImage": "外す",
+    "replaceImage": "差し替え",
     "addImage": "画像を追加",
     "addImageHint": "新しい画像はまず素材ライブラリに保存されます。",
     "uploadFailed": "アップロードできませんでした。もう一度お試しください。",

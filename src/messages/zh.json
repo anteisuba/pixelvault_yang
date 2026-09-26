@@ -8204,6 +8204,7 @@
     "primary": "主图",
     "makePrimary": "设为主图",
     "removeImage": "移除",
+    "replaceImage": "换一张",
     "addImage": "添加图片",
     "addImageHint": "新图会先存进素材库。",
     "uploadFailed": "上传失败，再试一次。",

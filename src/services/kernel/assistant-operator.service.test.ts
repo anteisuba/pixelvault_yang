@@ -14549,6 +14549,122 @@ describe('set_capability · 专属 chip（进度表 21）', () => {
     expect(done.at(-2)).toMatchObject({ inverse: { value: 7 } })
     expect(done.at(-1)).toMatchObject({ inverse: { value: 9 } })
   })
+
+  /**
+   * 一轮多个模型（owner 2026-09-26）：这一行是整轮的并集，只看主模型的下场是
+   * 主模型为 Lite 时 Pro 才有的 `background` 设不进去。
+   */
+  describe('一轮多个模型', () => {
+    const LITE = 'seedream-5.0-lite-volcengine'
+    const PRO = 'seedream-5.0-pro-volcengine'
+    const RUN_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
+      ...SNAPSHOT,
+      model: { id: LITE, label: 'Seedream 5.0 Lite' },
+      extraModels: [{ id: PRO, label: 'Seedream 5.0 Pro' }],
+      availableModels: [
+        { id: LITE, label: 'Seedream 5.0 Lite' },
+        { id: PRO, label: 'Seedream 5.0 Pro' },
+        { id: 'seedream-5.0-lite', label: 'Seedream 5.0 Lite · fal' },
+        { id: 'flux-2-flash', label: 'FLUX.2 Flash' },
+      ],
+      references: {
+        items: [{ url: 'https://cdn.example.com/ref.png' }],
+        limit: 4,
+      },
+      capabilities: [
+        {
+          key: 'guidanceScale',
+          kind: 'slider',
+          value: null,
+          defaultValue: 8,
+          range: { min: 1, max: 10, step: 0.5 },
+          available: true,
+        },
+        {
+          key: 'background',
+          kind: 'select',
+          value: null,
+          defaultValue: 'auto',
+          options: ['auto', 'transparent'],
+          available: true,
+          models: [PRO],
+        },
+      ],
+    }
+
+    it('⭐ 状态块写出一起跑的模型，只对部分模型生效的那项注明给谁', async () => {
+      queueTurns({ finished: true })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: RUN_SNAPSHOT }),
+        ),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain(`Also runs this round`)
+      expect(prompt).toContain(`Seedream 5.0 Pro (id: ${PRO})`)
+      expect(prompt).toContain(`only used by ${PRO}`)
+    })
+
+    it('⭐ 主模型是 Lite 也设得进 Pro 才有的那项', async () => {
+      callSetCapability({ key: 'background', value: 'transparent' })
+      expect(
+        stepsOf(
+          await collect(
+            runAssistantOperator(
+              'clerk-1',
+              buildRequest({ snapshot: RUN_SNAPSHOT }),
+            ),
+          ),
+        ).at(-1),
+      ).toMatchObject({
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { key: 'background', value: 'transparent' },
+        inverse: { key: 'background', value: null },
+      })
+    })
+
+    it.each([
+      // 同系列（fal 那条 Lite）：Pro 还在这一轮里，它那几项照样设得进。
+      ['seedream-5.0-lite', ASSISTANT_OPERATOR_STEP_STATUS_IDS.done],
+      // 换到别的系列：一起跑的 Pro 跟着出局，它那几项不再给。
+      ['flux-2-flash', ASSISTANT_OPERATOR_STEP_STATUS_IDS.error],
+    ] as const)(
+      'set_model 到 %s 之后按「新主模型 + 同系列的那几个」重算',
+      async (modelId, status) => {
+        queueTurns(
+          {
+            tool: {
+              name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+              title: '换模型',
+              args: { modelId },
+            },
+          },
+          {
+            tool: {
+              name: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+              title: '透明背景',
+              args: { key: 'background', value: 'transparent' },
+            },
+          },
+          { finished: true },
+        )
+        expect(
+          stepsOf(
+            await collect(
+              runAssistantOperator(
+                'clerk-1',
+                buildRequest({ snapshot: RUN_SNAPSHOT }),
+              ),
+            ),
+          ).at(-1),
+        ).toMatchObject({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+          status,
+        })
+      },
+    )
+  })
 })
 
 /**

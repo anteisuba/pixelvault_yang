@@ -146,7 +146,11 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
-import { AI_MODELS, resolveAdapterType } from '@/constants/models'
+import {
+  AI_MODELS,
+  getModelFamily,
+  resolveAdapterType,
+} from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
@@ -510,6 +514,12 @@ interface OperatorWorkingState {
    */
   modelChannelId: string | null
   /**
+   * 这一轮**和主模型一起跑**的其余模型（快照 `extraModels` 的可变副本）。
+   * ⚠ 可变：`set_model` 之后只留与新主模型同系列的那几个（`useStudioRunModels`
+   * 的同系列闸），专属 chip 行按「新主模型 + 这几个」重算。
+   */
+  extraModels: { id: string; label: string }[]
+  /**
    * 现在**能切**到哪些模型（快照那一份的可变副本）。
    *
    * ⚠ 可变是判据的一部分（2026-09-12 真机 bug）：LoRA 域里这份列表是「与当前挂载栈
@@ -635,6 +645,7 @@ function toWorkingState(
     modelLabel: snapshot.model?.label ?? null,
     hasModelControl: snapshot.model !== undefined,
     modelChannelId: snapshot.model?.channelId ?? null,
+    extraModels: (snapshot.extraModels ?? []).map((model) => ({ ...model })),
     // ⚠ 拷一份可变副本（同 `loras` 那条）：LoRA 域会在挂载栈变动后重算它。
     availableModels: snapshot.availableModels.map((model) => ({ ...model })),
     aspectRatio: snapshot.specs?.aspectRatio ?? null,
@@ -1296,11 +1307,17 @@ function describeCapability(
       ? `one of: ${capability.options?.join(', ') ?? '(none)'}`
       : capability.kind === 'slider'
         ? `a number from ${capability.range?.min ?? '?'} to ${capability.range?.max ?? '?'}`
-        : 'true or false'
+        : capability.kind === 'text'
+          ? `text of at most ${capability.maxLength ?? '?'} characters`
+          : 'true or false'
   const blocked = capability.available
     ? ''
     : ' — NOT settable right now: it needs a reference image mounted first'
-  return `${capability.key}: ${current} — ${domain}${blocked}`
+  // 一轮多个模型时只有部分认它：其余照常出图，只是不带这一项。
+  const onlyFor = capability.models
+    ? ` — only used by ${capability.models.join(', ')}; the other models this round ignore it`
+    : ''
+  return `${capability.key}: ${current} — ${domain}${blocked}${onlyFor}`
 }
 
 function renderState(
@@ -1366,6 +1383,12 @@ function renderState(
     lines.push(
       `- Model: ${state.modelLabel ?? state.modelId} (id: ${state.modelId})`,
     )
+    if (state.extraModels.length > 0)
+      lines.push(
+        `- Also runs this round (one send generates with each): ${state.extraModels
+          .map((model) => `${model.label} (id: ${model.id})`)
+          .join(' | ')}`,
+      )
     /**
      * ⭐ **NAI 的另两条规则**（D12 已定：核角色 · 角色图选 V5 Full）。
      * 🔬 09-23 同 seed 对照：V5 Curated 不认识 Denia，V5 Full 认识。
@@ -1517,7 +1540,9 @@ function renderState(
    */
   if (state.hasCapabilityControl && state.capabilities.length > 0) {
     lines.push(
-      '- Controls that belong to THIS model only (set_capability takes one of these keys verbatim):',
+      state.extraModels.length > 0
+        ? "- Model-specific controls of this round's models (set_capability takes one of these keys verbatim):"
+        : '- Controls that belong to THIS model only (set_capability takes one of these keys verbatim):',
     )
     for (const capability of state.capabilities) {
       lines.push(`  ${describeCapability(capability)}`)
@@ -3392,23 +3417,37 @@ function planSetModel(
       // ⚠ 没指定就是「还没定」—— ⛔ 不留着上一个型号的渠道（那是另一个型号的路）。
       run.state.modelChannelId = args.channelId ?? null
       /**
+       * 一起跑的那几个跟着主模型走（`useStudioRunModels`）：只留与新主模型同系列
+       * 的，新主模型自己不重复算。旧主模型不在额外名单里，换掉就不跑了。
+       */
+      const family = getModelFamily(match.id) ?? match.id
+      run.state.extraModels = run.state.extraModels.filter(
+        (model) =>
+          model.id !== match.id &&
+          (getModelFamily(model.id) ?? model.id) === family,
+      )
+      /**
        * 专属参数跟着型号换（拆分与反推 X8）：原来整轮都读开跑时那份快照，换到
-       * V4.5 之后「角色参考」那颗设不进去，要等下一轮。与界面同一份派生。
+       * V4.5 之后「角色参考」那颗设不进去，要等下一轮。与界面同一份派生 ——
+       * 按**整轮**（新主模型 + 一起跑的那几个）的并集。
        */
       if (run.state.hasCapabilityControl) {
-        const adapter = resolveAdapterType(match.id)
         const values = Object.fromEntries(
           run.state.capabilities.map((item) => [item.key, item.value]),
         )
+        const runModels = [
+          match.id,
+          ...run.state.extraModels.map((model) => model.id),
+        ].flatMap((modelId) => {
+          const adapterType = resolveAdapterType(modelId)
+          return adapterType ? [{ adapterType, modelId }] : []
+        })
         run.state.capabilities =
-          (adapter &&
-            buildOperatorCapabilities(
-              adapter,
-              match.id,
-              values,
-              run.state.referenceUrls.some(Boolean),
-            )) ||
-          []
+          buildOperatorCapabilities(
+            runModels,
+            values,
+            run.state.referenceUrls.some(Boolean),
+          ) ?? []
       }
       /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
@@ -4627,7 +4666,7 @@ function planSetCapability(
   if (!chip) {
     return reject(
       REJECT.unknownValue,
-      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of this model's controls — they are: ${run.state.capabilities
+      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of the model-specific controls here — they are: ${run.state.capabilities
         .map((item) => item.key)
         .join(', ')}.`,
     )
@@ -4687,7 +4726,11 @@ function planSetCapability(
     inverse: { key: chip.key, value: previous },
     observation: `${chip.key} is now ${String(args.value)}${
       previous === null ? ' (it was not set before)' : ''
-    }.`,
+    }.${
+      chip.models
+        ? ` Only ${chip.models.join(', ')} use it; the other models this round ignore it.`
+        : ''
+    }`,
     apply: () => {
       chip.value = args.value
     },

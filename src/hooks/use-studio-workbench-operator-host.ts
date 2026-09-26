@@ -17,6 +17,7 @@ import {
 } from '@/contexts/studio-context'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
@@ -75,6 +76,8 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
    */
   const imageModels = useImageModelOptions()
   const videoModels = useVideoModelOptions(state.selectedOptionId ?? '')
+  /** 这一轮跑哪几个图片模型 —— 专属 chip 行按整轮并集给助手（与界面同一份名单）。 */
+  const { runModels } = useStudioRunModels()
   /** 拍板 22 的落地那一跳 —— 两个宿主共用的那一份。 */
   const userUrl = useOperatorUserUrlMount(imageUpload)
   /**
@@ -86,13 +89,19 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     state.outputType === 'video' ? 'video' : 'image',
   )
 
-  const latest = useRef({ state, imageUpload, imageModels, videoModels })
+  const latest = useRef({
+    state,
+    imageUpload,
+    imageModels,
+    videoModels,
+    runModels,
+  })
   // ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）：render 阶段改 ref 会被
   //   `react-hooks/refs` 拦下来。事件循环两次 SSE 之间隔着一次网络宏任务，
   //   effect 早就冲干净了。
   useEffect(() => {
-    latest.current = { state, imageUpload, imageModels, videoModels }
-  }, [state, imageUpload, imageModels, videoModels])
+    latest.current = { state, imageUpload, imageModels, videoModels, runModels }
+  }, [state, imageUpload, imageModels, videoModels, runModels])
 
   const domain =
     state.outputType === 'video'
@@ -150,6 +159,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       form,
       modelOptions: latest.current.imageModels.modelOptions,
       selectedModel: latest.current.imageModels.selectedModel,
+      runModels: latest.current.runModels,
       references,
     })
   }, [domain])

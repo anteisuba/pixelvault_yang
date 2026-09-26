@@ -96,6 +96,14 @@ vi.mock('@/hooks/use-image-model-options', () => ({
 vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: () => ({ modelOptions, selectedModel: null }),
 }))
+/** 这一轮跑哪几个 —— 快照的专属 chip 行按它们的并集派生。 */
+const runModels = vi.hoisted(() => [
+  { optionId: 'lite', modelId: 'seedream-lite' },
+  { optionId: 'pro', modelId: 'seedream-pro' },
+])
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({ runModels }),
+}))
 vi.mock('@/hooks/use-operator-user-url-mount', () => ({
   useOperatorUserUrlMount: () => ({
     mountUserUrl: vi.fn(),
@@ -111,8 +119,11 @@ const EMPTY_CONTROLS = {
   choicesByModel: {},
 }
 
+const buildImageOperatorSnapshot = vi.hoisted(() =>
+  vi.fn(() => ({ prompt: '', availableModels: [] })),
+)
 vi.mock('@/lib/studio-operator-snapshot', () => ({
-  buildImageOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
+  buildImageOperatorSnapshot,
   buildVideoOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
   /**
    * 四颗旋钮那份视图（#9）。
@@ -193,6 +204,17 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
     useStudioGenOptional.mockReturnValue(undefined)
     const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
     expect(result.current.results).toEqual([])
+  })
+})
+
+describe('useStudioWorkbenchOperatorHost 的图片快照', () => {
+  it('⭐ 把这一轮的全部模型交给快照 —— 专属 chip 行不能只看主模型', () => {
+    useStudioGenOptional.mockReturnValue(undefined)
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    result.current.buildSnapshot()
+    expect(buildImageOperatorSnapshot).toHaveBeenLastCalledWith(
+      expect.objectContaining({ runModels }),
+    )
   })
 })
 

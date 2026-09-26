@@ -407,6 +407,7 @@ export const AssistantOperatorSnapshotCountSchema = z.object({
  *
  * ⚠ 这一节是**逐模型派生**的（`lib/model-capability-chips.ts` 那张唯一的派生表），
  * ⛔ 不是一份固定字段表：换个模型整行换掉。所以助手能设哪几个键，只能问快照。
+ * 一轮多个模型时是**这一轮所有模型的并集**（`getRunCapabilityChips`），与界面那行 chip 同一份。
  * ⚠ 整节缺席 = 这个工作台（或这个模型）没有专属 chip 行 —— 与全表其余每一节同
  * 一条规矩：缺席 = 没有这个控件，`set_capability` 按 `noSuchControl` 拒。
  * ⚠ `available: false` = chip 画着但点不动（今天只有一种成因：这颗要先挂参考图）。
@@ -435,6 +436,12 @@ export const AssistantOperatorSnapshotCapabilitySchema = z.object({
     .optional(),
   /** 此刻点得动吗（`false` = 要先挂一张参考图）。 */
   available: z.boolean(),
+  /**
+   * 一轮多个模型时**只有这几个认它**（模型 id）。缺席 = 这一轮每个模型都认。
+   * ⚠ 值只有一份，发送时逐模型裁剪（`tailor-image-request`）—— 不认的那几个
+   * 照常出图，只是不带这一项。
+   */
+  models: z.array(IdSchema).max(LIMITS.maxAvailableModels).optional(),
 })
 
 export type AssistantOperatorSnapshotCapability = z.infer<
@@ -733,6 +740,15 @@ export const AssistantOperatorSnapshotSchema = z.object({
   negativePrompt: TextValueSchema.optional(),
   /** `null` = 明确「还没选模型」；缺席 = 这个工作台不选模型。两者不同。 */
   model: AssistantOperatorSnapshotModelSchema.nullable().optional(),
+  /**
+   * 这一轮**和主模型一起跑**的其余模型（图片工作台同系列多选，`useStudioRunModels`）。
+   * 缺席 = 只跑主模型。`set_model` 之后服务端按「新主模型 + 这几个里同系列的」
+   * 重算 `capabilities`，与界面换主模型后的名单一致。
+   */
+  extraModels: z
+    .array(z.object({ id: IdSchema, label: LabelSchema }))
+    .max(LIMITS.maxAvailableModels)
+    .optional(),
   /**
    * 现在**能切**到哪些模型。只放用户真的能跑的（绑了 key 或平台出资）——
    * 推荐一个跑不了的等于把人推去配置页，那不是帮忙。

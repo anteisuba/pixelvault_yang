@@ -57,7 +57,7 @@
 - **`set_specs` 与 `set_video_specs` 分家**，⛔ 不是同一件事换了值。图片档两个字段都必填（只给比例不是真比例）；视频档三个参数是 provider 的三个独立字段且逐型号有无 —— 塞进「两个必填」的载荷，在 `parameters.resolution === false` 的型号上这条工具**永远无解**。
 - **服务端写库的只有六条**：`add_project_rule` · `set_review_state` + 素材库四条。其余全部是「吐一个 op 让客户端应用」，所以流断在哪里都不会留下半个写入。
 - **覆盖手写内容先走三选**（追加在后 / 覆盖 / 保留），那一帧是 `ask` 不是 `confirm`。
-- **专属 chip 的键是现算的**：`set_capability` 的白名单来自快照的 `capabilities` 一节，而那一节由 `lib/model-capability-chips.ts` 从 `provider-capabilities` 派生 —— 与界面上那一行 chip 是**同一份**。⚠ 整节缺席 = 这个工作台 / 这个模型没有专属区（今天视频档就是：那一行只在图片档渲染），按 `noSuchControl` 拒，形状与 `set_negative` 逐字同源。
+- **专属 chip 的键是现算的**：`set_capability` 的白名单来自快照的 `capabilities` 一节，而那一节由 `lib/model-capability-chips.ts` 从 `provider-capabilities` 派生 —— 与界面上那一行 chip 是**同一份**。一轮多个模型时是**整轮的并集**（`getRunCapabilityChips`），不是每个模型都认的那项带 `models`；快照另带 `extraModels`，`set_model` 之后服务端按「新主模型 + 同系列的那几个」重算这一节。⚠ 整节缺席 = 这个工作台 / 这个模型没有专属区（今天视频档就是：那一行只在图片档渲染），按 `noSuchControl` 拒，形状与 `set_negative` 逐字同源。
 - **渠道只在多渠道型号上有意义**：`channels` 那一节只在**两条以上**时才给（折叠判据与模型选择器共用 `foldChannels`）。单渠道型号上写 `channelId` 一律拒，⛔ 不静默忽略；不写 `channelId` 时**服务端什么都不定** —— D2 Q1 删掉的「自动渠道」不许从这条路长回来。视频档的 `availableModels` 本身就是型号 × 渠道，那一档整列缺席。
 
 ---

@@ -375,6 +375,13 @@ describe('buildImageOperatorSnapshot', () => {
         modelId: 'seedream-4',
         displayLabel: 'Seedream 4',
       }),
+      runModels: [
+        option({
+          optionId: 'workspace:seedream-4',
+          modelId: 'seedream-4',
+          displayLabel: 'Seedream 4',
+        }),
+      ],
       references: { items: [], limit: 4 },
     })
 
@@ -397,6 +404,8 @@ describe('buildImageOperatorSnapshot', () => {
     expect(snapshot.videoSpecs).toBeUndefined()
     expect(snapshot.audioReferences).toBeUndefined()
     expect(snapshot.sound).toBeUndefined()
+    // 只跑主模型 = 没有 `extraModels` 这一节。
+    expect(snapshot).not.toHaveProperty('extraModels')
   })
 
   /**
@@ -407,6 +416,7 @@ describe('buildImageOperatorSnapshot', () => {
       form: FORM,
       modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
       selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
       references: { items: [], limit: 4 },
     })
     expect(snapshot.availableModels[0]).not.toHaveProperty('channels')
@@ -434,6 +444,7 @@ describe('buildImageOperatorSnapshot', () => {
       form: FORM,
       modelOptions: [onFal, onBytePlus],
       selectedModel: onBytePlus,
+      runModels: [onBytePlus],
       references: { items: [], limit: 4 },
     })
     expect(snapshot.availableModels[0]?.channels).toEqual([
@@ -454,6 +465,7 @@ describe('buildImageOperatorSnapshot', () => {
       form: FORM,
       modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
       selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
       references: { items: [], limit: 4 },
     })
     expect(snapshot.capabilities).toBeUndefined()
@@ -476,6 +488,7 @@ describe('buildImageOperatorSnapshot', () => {
       form: { ...FORM, advancedParams: { quality: 'high', seed: 7 } },
       modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
       selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
       references: { items: [], limit: 4 },
     })
     expect(snapshot.capabilities).toEqual([
@@ -518,6 +531,7 @@ describe('buildImageOperatorSnapshot', () => {
       form: { ...FORM, advancedParams: {} },
       modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
       selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
       references: {
         items: [{ url: 'https://cdn.example.com/a.png' }],
         limit: 4,
@@ -527,6 +541,108 @@ describe('buildImageOperatorSnapshot', () => {
       mounted.capabilities?.find((chip) => chip.key === 'referenceStrength')
         ?.available,
     ).toBe(true)
+  })
+
+  /**
+   * 一轮多个模型（owner 2026-09-26）—— 与界面那行 chip 同一份并集。
+   * 桩的两份能力表：Lite 只有 `quality`，Pro 多出 `background` / `layerDecomposition`。
+   */
+  function seedreamRun() {
+    mockGetCapabilityConfig.mockImplementation(
+      (_adapter: unknown, modelId: string) =>
+        modelId === 'seedream-pro'
+          ? {
+              capabilities: ['quality', 'background', 'layerDecomposition'],
+              qualityOptions: ['standard', 'high'],
+              backgroundOptions: ['auto', 'transparent'],
+              resolutionOptions: ['auto'],
+            }
+          : modelId === 'seedream-lite'
+            ? {
+                capabilities: ['quality'],
+                qualityOptions: ['standard', 'high'],
+                resolutionOptions: ['auto'],
+              }
+            : { capabilities: [], resolutionOptions: ['auto'] },
+    )
+    return {
+      lite: option({
+        optionId: 'lite',
+        modelId: 'seedream-lite',
+        displayLabel: 'Seedream Lite',
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      }),
+      pro: option({
+        optionId: 'pro',
+        modelId: 'seedream-pro',
+        displayLabel: 'Seedream Pro',
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      }),
+    }
+  }
+
+  it('⭐ 主模型是 Lite 也看得见 Pro 才有的项，并注明只对谁生效', () => {
+    const { lite, pro } = seedreamRun()
+    const snapshot = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: { background: 'transparent' } },
+      modelOptions: [lite, pro],
+      selectedModel: lite,
+      runModels: [lite, pro],
+      references: { items: [], limit: 4 },
+    })
+
+    expect(
+      snapshot.capabilities?.map(({ key, models }) => ({ key, models })),
+    ).toEqual([
+      // 两个都认 = 不带 `models`。
+      { key: 'quality', models: undefined },
+      { key: 'background', models: ['seedream-pro'] },
+      { key: 'layerDecomposition', models: ['seedream-pro'] },
+    ])
+    expect(
+      snapshot.capabilities?.find((chip) => chip.key === 'background')?.value,
+    ).toBe('transparent')
+    // 服务端 `set_model` 之后按「新主模型 + 这几个」重算 —— 主模型不在里面。
+    expect(snapshot.extraModels).toEqual([
+      { id: 'seedream-pro', label: 'Seedream Pro' },
+    ])
+    expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
+      true,
+    )
+  })
+
+  it('⭐ 主线路没有专属项、另一个模型有 → 这一节照样给（⛔ 不整节缺席）', () => {
+    const { pro } = seedreamRun()
+    const onFal = option({ optionId: 'fal', modelId: 'seedream-fal' })
+    const snapshot = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [onFal, pro],
+      selectedModel: onFal,
+      runModels: [onFal, pro],
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.capabilities?.map((chip) => chip.key)).toEqual([
+      'quality',
+      'background',
+      'layerDecomposition',
+    ])
+    expect(
+      snapshot.capabilities?.every(
+        (chip) => chip.models?.join() === 'seedream-pro',
+      ),
+    ).toBe(true)
+  })
+
+  it('这一轮一个模型都跑不了（跨台陈旧选择）→ 与界面一样没有专属行', () => {
+    const { lite } = seedreamRun()
+    const snapshot = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [lite],
+      selectedModel: lite,
+      runModels: [],
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.capabilities).toBeUndefined()
   })
 
   it('只放用户真能跑的模型 —— 推荐一个跑不了的等于把人推去配置页', () => {
@@ -541,6 +657,7 @@ describe('buildImageOperatorSnapshot', () => {
         option({ optionId: 'workspace:has-key', modelId: 'has-key' }),
       ],
       selectedModel: undefined,
+      runModels: [],
       references: { items: [], limit: 4 },
     })
     expect(snapshot.availableModels.map((model) => model.id)).toEqual([

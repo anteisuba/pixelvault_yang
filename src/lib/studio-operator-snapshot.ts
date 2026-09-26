@@ -28,7 +28,7 @@ import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
 import { foldChannels } from '@/lib/group-models-for-picker'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
-import { getModelCapabilityChips } from '@/lib/model-capability-chips'
+import { getRunCapabilityChips } from '@/lib/model-capability-chips'
 import { getModelById } from '@/constants/models'
 import {
   IMAGE_BATCH_COUNTS,
@@ -128,34 +128,22 @@ function emptyToNull(value: string | null, max?: number): string | null {
  * ⭐ **派生层只有一份**（`lib/model-capability-chips.ts`）：这里不重写「哪个能力
  * 长成哪种 chip」的判据，只把那一行 chip 翻译成助手读得懂的形状。两处各判一遍的
  * 表现是「界面上没有这颗 chip，助手却设得进去」。
- * ⚠ 一颗都没有 → 返回 `undefined`，整节缺席（= 这个模型没有专属能力，界面上那段
+ * ⭐ 一轮多个模型时按**整轮的并集**派生（`getRunCapabilityChips`，与
+ * `StudioModelCapabilityChips` 同一份）：只看主模型的下场是主模型是 Lite 时
+ * 助手看不见 Pro 才有的 `background`，主线路没有专属项（fal Seedream）时整节缺席。
+ * 不是每个模型都认的那一项带 `models`（认它的模型 id）。
+ * ⚠ 一颗都没有 → 返回 `undefined`，整节缺席（= 这一轮没有专属能力，界面上那段
  * 也整块不渲染）。⛔ 别给一个空数组 —— 那等于告诉助手「有这一行，只是空着」。
- */
-function buildCapabilitiesNode(
-  selectedModel: StudioModelOption | undefined,
-  params: AdvancedParams,
-  hasReferenceImage: boolean,
-): AssistantOperatorSnapshot['capabilities'] {
-  if (!selectedModel) return undefined
-  return buildOperatorCapabilities(
-    selectedModel.adapterType,
-    selectedModel.modelId,
-    params,
-    hasReferenceImage,
-  )
-}
-
-/**
- * 同一份派生按「型号 + 现值」直接算 —— 服务端 `set_model` 之后重算这一节也走它
- * （拆分与反推 X8：同一轮里换到 V4.5 就得马上认得「角色参考」那颗）。
+ *
+ * 服务端 `set_model` 之后重算这一节也走它（拆分与反推 X8：同一轮里换到 V4.5
+ * 就得马上认得「角色参考」那颗）。
  */
 export function buildOperatorCapabilities(
-  adapterType: AI_ADAPTER_TYPES,
-  modelId: string,
+  models: readonly { adapterType: AI_ADAPTER_TYPES; modelId: string }[],
   params: Partial<Record<string, unknown>>,
   hasReferenceImage: boolean,
 ): AssistantOperatorSnapshot['capabilities'] {
-  const chips = getModelCapabilityChips(adapterType, modelId)
+  const chips = getRunCapabilityChips(models)
   if (chips.length === 0) return undefined
   return chips
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSpecOptions)
@@ -187,6 +175,11 @@ export function buildOperatorCapabilities(
             }
           : {}),
         available: !chip.requiresReferenceImage || hasReferenceImage,
+        ...(chip.modelIndexes.length < models.length
+          ? {
+              models: chip.modelIndexes.map((index) => models[index]!.modelId),
+            }
+          : {}),
       }
     })
 }
@@ -211,6 +204,8 @@ export interface ImageOperatorSnapshotInput {
   form: StudioOperatorSnapshotForm
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
+  /** 这一轮要跑的模型（`useStudioRunModels`）—— 专属 chip 行按它们的并集派生。 */
+  runModels: readonly StudioModelOption[]
   references: StudioOperatorSnapshotReferences
 }
 
@@ -281,6 +276,7 @@ export function buildImageOperatorSnapshot({
   form,
   modelOptions,
   selectedModel,
+  runModels,
   references,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
   const availableModels = imageRunnableOptions(modelOptions).map((option) => {
@@ -306,11 +302,18 @@ export function buildImageOperatorSnapshot({
    * 图片档挂 `StudioModelCapabilityChips`。视频档不给这一节，`set_capability`
    * 在那边照旧按 `noSuchControl` 拒。
    */
-  const capabilities = buildCapabilitiesNode(
-    selectedModel,
+  const capabilities = buildOperatorCapabilities(
+    runModels,
     form.advancedParams,
     references.items.length > 0,
   )
+  const extraModels = runModels
+    .filter((option) => option.optionId !== selectedModel?.optionId)
+    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+    .map((option) => ({
+      id: option.modelId,
+      label: clampLabel(option.displayLabel ?? option.modelId),
+    }))
 
   return {
     prompt: form.prompt,
@@ -330,6 +333,7 @@ export function buildImageOperatorSnapshot({
             : {}),
         }
       : null,
+    ...(extraModels.length > 0 ? { extraModels } : {}),
     availableModels,
     specs: {
       aspectRatio: form.aspectRatio,

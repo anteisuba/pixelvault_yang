@@ -148,6 +148,8 @@ enum AssistantSurface {
   VIDEO_STUDIO
   LORA
   NODE_CANVAS
+  /// 卡片助手（第五张脸，owner 09-26）：卡片页右上角头像打开，查图 · 写设定。
+  CARDS
 }
 
 enum VideoScriptSceneStatus {
@@ -746,6 +748,11 @@ model AssistantPersona {
 
   /// concise / standard / detailed —— 落到系统提示里是**字数区间**，不是形容词。
   verbosity String @default("standard")
+
+  /// 「用角色卡」这一档（owner 09-26）：头像取这张卡外观里的脸，语气取它设定里的
+  /// 说话方式。null = 不用卡。卡删了只清绑定（SetNull），不动人设其余格。
+  characterCardId String?
+  characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
   planMode  String @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
@@ -926,6 +933,9 @@ model CharacterCard {
   referenceSlots Json?
   /// 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
   extensions     Json?
+
+  /// 把这张卡当人设的助手（最多每个用户一行）。
+  assistantPersonas AssistantPersona[]
 
   // ── Variant system (folder-like) ────────────────────────────
   parentId     String? // null = root card, set = variant of parent

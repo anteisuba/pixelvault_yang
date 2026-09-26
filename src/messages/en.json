@@ -2841,7 +2841,6 @@
     "saveCurrentPromptEmpty": "Write a prompt first, then save it as a template.",
     "manageInPrompts": "Manage in Prompts",
     "savingCurrentPrompt": "Saving prompt...",
-    "outputTypeLora": "LoRA",
     "templatesLoadFailed": "Could not load templates. Please try again.",
     "loadingTemplates": "Loading templates...",
     "createAction": "New template",

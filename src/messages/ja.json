@@ -2841,7 +2841,6 @@
     "saveCurrentPromptEmpty": "先にプロンプトを入力すると、テンプレートとして保存できます。",
     "manageInPrompts": "プロンプトで管理",
     "savingCurrentPrompt": "プロンプトを保存中...",
-    "outputTypeLora": "LoRA",
     "templatesLoadFailed": "テンプレートを読み込めませんでした。再試行してください。",
     "loadingTemplates": "テンプレートを読み込み中...",
     "createAction": "新規テンプレート",

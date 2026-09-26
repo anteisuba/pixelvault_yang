@@ -4,7 +4,11 @@ import { useCallback, useMemo, useState } from 'react'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 import { useStudioForm } from '@/contexts/studio-context'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
-import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import {
+  isTagTemplateParams,
+  parseTagChips,
+  serializeTagChips,
+} from '@/lib/tag-composer'
 import type { StudioModelOption } from '@/types/model-option'
 import {
   AdvancedParamsSchema,
@@ -154,9 +158,31 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
    * 套用标签模板 = **整组替换**（owner 2026-09-26）：整体 · 各角色 · UC · 模型 ·
    * 规格 · 专属参数一起换。⚠ 不走 `SET_PROMPT`：那一步会清掉画风与画师串，而
    * 它们是常驻开关、不属于模板。
+   * ⚠ **LoRA 模板只换标签**（标签台也列它们，owner 2026-09-26）：它的模型是挂 LoRA
+   *   的底模，NAI 跑不了 LoRA —— 换过去等于把人带出标签台。所以只把正向 / UC 换成
+   *   它的标签，模型、规格、专属参数都留着。
    */
   const handleApplyTagTemplate = useCallback(
     (recipe: RecipeRecord) => {
+      if (!isTagTemplateParams(recipe.params)) {
+        dispatch({
+          type: 'SET_TAG_CHIPS',
+          payload: {
+            polarity: 'positive',
+            chips: parseTagChips(recipe.compiledPrompt),
+          },
+        })
+        const negative = getRecipeAdvancedParams(recipe)?.negativePrompt
+        if (typeof negative === 'string' && negative.trim()) {
+          dispatch({
+            type: 'SET_TAG_CHIPS',
+            payload: { polarity: 'negative', chips: parseTagChips(negative) },
+          })
+        }
+        dispatch({ type: 'SET_ACTIVE_TAG_CHARACTER', payload: null })
+        setRecipeLineage(recipe, 'apply')
+        return
+      }
       const matchedOption = modelOptions.find(
         (option) => option.modelId === recipe.modelId,
       )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ArrowUpRight, FileText, Save, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -30,13 +30,12 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
-import { getRecipeTemplateKind } from '@/lib/recipe-template-kind'
+import { matchesRecipeTemplateScope } from '@/lib/recipe-template-kind'
 import { cn } from '@/lib/utils'
 import { useStudioGen } from '@/contexts/studio-context'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
-import { useRecipes } from '@/hooks/prompts/use-recipes'
+import { prefetchRecipes, useRecipes } from '@/hooks/prompts/use-recipes'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
-import { isTagTemplateParams } from '@/lib/tag-composer'
 import type { PromptDialect } from '@/constants/prompt-dialects'
 import type {
   CreateRecipeRequest,
@@ -59,8 +58,9 @@ interface PromptTemplatePickerProps {
   currentProvider?: string
   onApply: (recipe: RecipeRecord) => void
   /**
-   * 哪一台在调（owner 2026-09-26）：标签模板与自然语言模板同一个库，两台各只列
-   * 自己的（`isTagTemplateParams`）。标签台存的是整体 + 各角色 + UC。
+   * 哪一台在调（owner 2026-09-26）：同一个库，每台只列自己能用的那一种 ——
+   * 标签台列标签式模板（LoRA 与标签台存的），其余按 `currentOutputType` 只列同一
+   * 模态的（`matchesRecipeTemplateScope`）。
    */
   dialect?: PromptDialect
   /**
@@ -102,6 +102,8 @@ export function PromptTemplatePicker({
   const [tab, setTab] = useState<PickerTab>('mine')
   const [isSavingCurrent, setIsSavingCurrent] = useState(false)
   const { recipes, isLoading, error, refresh, addRecipe } = useRecipes(open)
+  // 工作台一挂上这颗 chip 就在空闲时先拉一遍：点开时列表已经在手上。
+  useEffect(() => prefetchRecipes(), [])
   const trimmedCurrentPrompt = currentPrompt?.trim() ?? ''
   const canSaveCurrent = Boolean(
     trimmedCurrentPrompt && currentModelId && currentProvider,
@@ -111,12 +113,11 @@ export function PromptTemplatePicker({
   const sortedRecipes = useMemo(
     () =>
       recipes
-        .filter(
-          (recipe) =>
-            isTagTemplateParams(recipe.params) === (dialect === 'tags'),
+        .filter((recipe) =>
+          matchesRecipeTemplateScope(recipe, dialect, currentOutputType),
         )
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [dialect, recipes],
+    [currentOutputType, dialect, recipes],
   )
 
   const runRecipeAction = (recipe: RecipeRecord) => {
@@ -376,16 +377,6 @@ function MineTabBody({
   renderRecipeItem,
 }: MineTabBodyProps) {
   const t = useTranslations('PromptLibrary')
-  const [kind, setKind] = useState('ALL')
-  const filteredRecipes = recipes.filter(
-    (recipe) => kind === 'ALL' || getRecipeTemplateKind(recipe) === kind,
-  )
-  const kinds = [
-    ['ALL', 'typeFilterAll'],
-    ['IMAGE', 'outputTypeImage'],
-    ['VIDEO', 'outputTypeVideo'],
-    ['LORA', 'outputTypeLora'],
-  ] as const
   return (
     <>
       <div className="border-b border-border/60 py-3">
@@ -413,24 +404,6 @@ function MineTabBody({
           </p>
         )}
       </div>
-      <div
-        role="group"
-        aria-label={t('typeFilterLabel')}
-        className="flex flex-wrap gap-1 py-3"
-      >
-        {kinds.map(([value, label]) => (
-          <Button
-            key={value}
-            type="button"
-            variant={kind === value ? 'secondary' : 'ghost'}
-            size="sm"
-            aria-pressed={kind === value}
-            onClick={() => setKind(value)}
-          >
-            {t(label)}
-          </Button>
-        ))}
-      </div>
       {error && (
         <div
           role="alert"
@@ -455,11 +428,9 @@ function MineTabBody({
             </div>
           ) : (
             <>
-              <CommandEmpty>
-                {t(kind === 'ALL' ? 'emptyTitle' : 'typeFilterEmpty')}
-              </CommandEmpty>
+              <CommandEmpty>{t('emptyTitle')}</CommandEmpty>
               <CommandGroup className="p-0 pt-3 [&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-2 [&_[cmdk-group-items]]:gap-2 sm:[&_[cmdk-group-items]]:grid-cols-3 lg:[&_[cmdk-group-items]]:grid-cols-4">
-                {filteredRecipes.map(renderRecipeItem)}
+                {recipes.map(renderRecipeItem)}
               </CommandGroup>
             </>
           )}

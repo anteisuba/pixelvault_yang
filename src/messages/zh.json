@@ -2841,7 +2841,6 @@
     "saveCurrentPromptEmpty": "先输入提示词，就可以直接保存为模板。",
     "manageInPrompts": "在提示词中管理",
     "savingCurrentPrompt": "正在保存提示词...",
-    "outputTypeLora": "LoRA",
     "templatesLoadFailed": "模板加载失败，请重试。",
     "loadingTemplates": "正在加载模板...",
     "createAction": "新建模板",

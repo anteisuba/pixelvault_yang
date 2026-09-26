@@ -128,4 +128,50 @@ describe('标签模板', () => {
       payload: null,
     })
   })
+
+  /**
+   * 标签台也列 LoRA 模板（owner 2026-09-26）：它的模型是挂 LoRA 的底模，NAI 跑不了
+   * LoRA —— 套用只换正向 / UC 标签，⛔ 不换模型 / 规格 / 专属参数。
+   */
+  it('LoRA 模板在标签台只换标签，⛔ 不换模型与参数', () => {
+    const { result } = renderHook(() => useStudioPromptTemplates([]))
+    result.current.handleApplyTagTemplate({
+      ...tagRecipe(),
+      modelId: 'illustrious-xl',
+      compiledPrompt: 'masterpiece, 1girl',
+      params: {
+        advancedParams: {
+          negativePrompt: 'bad hands',
+          loras: [{ id: 'style', weight: 0.8 }],
+        },
+      },
+    })
+
+    const types = mocks.dispatch.mock.calls.map(([action]) => action.type)
+    for (const type of [
+      'SET_OPTION_ID',
+      'SET_ADVANCED_PARAMS',
+      'SET_ASPECT_RATIO',
+      'SET_PROMPT',
+    ])
+      expect(types).not.toContain(type)
+    const actions = mocks.dispatch.mock.calls.map(([action]) => action)
+    expect(actions).toContainEqual({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: 'masterpiece', weight: 1 },
+          { text: '1girl', weight: 1 },
+        ],
+      },
+    })
+    expect(actions).toContainEqual({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'negative',
+        chips: [{ text: 'bad hands', weight: 1 }],
+      },
+    })
+  })
 })

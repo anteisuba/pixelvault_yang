@@ -57,6 +57,7 @@ vi.mock('@/lib/api-client/recipes', () => ({
 vi.mock('@/hooks/prompts/use-recipes', async () => {
   const React = await vi.importActual<typeof import('react')>('react')
   return {
+    prefetchRecipes: () => () => {},
     useRecipes: () => {
       const [recipes, setRecipes] = React.useState(recipeState.recipes)
       return {
@@ -403,8 +404,13 @@ describe('PromptTemplatePicker', () => {
     expect(screen.queryByText('custom-model')).not.toBeInTheDocument()
   })
 
-  it('filters image, video and LoRA templates by saved content and applies the selection', async () => {
-    const image = makeRecipe({ id: 'image', name: 'LORA' })
+  /**
+   * 每台只列自己能用的那一种（owner 2026-09-26）：图片台只列图片、视频台只列视频，
+   * 标签台（NAI）列标签式模板 —— LoRA 模板与标签台自己存的。⛔ 弹层里不再有一排
+   * 「全部 / 图片 / 视频 / LoRA」。
+   */
+  it('lists only the templates of the calling workbench', () => {
+    const image = makeRecipe({ id: 'image', name: 'Sentence template' })
     const video = makeRecipe({
       id: 'video',
       name: 'Video template',
@@ -412,42 +418,40 @@ describe('PromptTemplatePicker', () => {
     })
     const lora = makeRecipe({
       id: 'lora',
-      name: 'Character template',
+      name: 'LoRA template',
       params: { advancedParams: { loras: [{ id: 'asset', weight: 1 }] } },
     })
-    recipeState.recipes = [image, video, lora]
-    const apply = vi.fn()
-    render(<PromptTemplatePicker onApply={apply} />)
-    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
-    fireEvent.click(screen.getByRole('button', { name: 'outputTypeVideo' }))
-    expect(screen.getByText('Video template')).toBeInTheDocument()
-    expect(screen.queryByText('Character template')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'outputTypeImage' }))
-    expect(screen.getByText('LORA')).toBeInTheDocument()
-    expect(screen.queryByText('Video template')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'outputTypeLora' }))
-    fireEvent.click(screen.getByText('Character template'))
-    expect(apply).toHaveBeenCalledWith(lora)
-  })
+    const tags = makeRecipe({
+      id: 'tags',
+      name: 'Tag template',
+      params: { promptDialect: 'tags', advancedParams: {} },
+    })
+    recipeState.recipes = [image, video, lora, tags]
 
-  // 标签模板与自然语言模板同一个库，两台各只列自己的（owner 2026-09-26）。
-  it('lists only the templates of the calling workbench', () => {
-    recipeState.recipes = [
-      makeRecipe({ id: 'natural', name: 'Sentence template' }),
-      makeRecipe({
-        id: 'tags',
-        name: 'Tag template',
-        params: { promptDialect: 'tags', advancedParams: {} },
-      }),
-    ]
-    const { unmount } = render(<PromptTemplatePicker onApply={vi.fn()} />)
+    const imageApply = vi.fn()
+    const first = render(<PromptTemplatePicker onApply={imageApply} />)
     fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
     expect(screen.getByText('Sentence template')).toBeInTheDocument()
-    expect(screen.queryByText('Tag template')).not.toBeInTheDocument()
-    unmount()
+    for (const name of ['Video template', 'LoRA template', 'Tag template'])
+      expect(screen.queryByText(name)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'outputTypeVideo' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sentence template'))
+    expect(imageApply).toHaveBeenCalledWith(image)
+    first.unmount()
+
+    const second = render(
+      <PromptTemplatePicker currentOutputType="VIDEO" onApply={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    expect(screen.getByText('Video template')).toBeInTheDocument()
+    expect(screen.queryByText('Sentence template')).not.toBeInTheDocument()
+    second.unmount()
 
     render(<PromptTemplatePicker dialect="tags" onApply={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    expect(screen.getByText('LoRA template')).toBeInTheDocument()
     expect(screen.getByText('Tag template')).toBeInTheDocument()
     expect(screen.queryByText('Sentence template')).not.toBeInTheDocument()
     expect(screen.getByText('tagTemplateHint')).toBeInTheDocument()

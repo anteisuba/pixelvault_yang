@@ -37,6 +37,7 @@ export function StudioTagBlocks() {
           {t('addBlock')}
         </Button>
         <PromptTemplatePicker
+          dialect="tags"
           currentPrompt={state.prompt}
           currentOutputType="IMAGE"
           onApply={(recipe) =>
@@ -82,6 +83,7 @@ export function StudioTagBlocks() {
             onChange={(e) => update(block.id, { text: e.target.value })}
           />
           <PromptTemplatePicker
+            dialect="tags"
             currentPrompt={block.text}
             currentOutputType="IMAGE"
             onApply={(recipe) =>

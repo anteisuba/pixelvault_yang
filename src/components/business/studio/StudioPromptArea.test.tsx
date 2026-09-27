@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
 import { AI_MODELS } from '@/constants/models'
-import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
@@ -393,7 +392,6 @@ function setupStudioForm(
     longVideoMode: false,
     longVideoTargetDuration: 10,
     generateRequestId: 0,
-    stylePresetId: NO_STYLE_PRESET_ID,
     panels: { ...EMPTY_PANELS },
     ...overrides,
   }

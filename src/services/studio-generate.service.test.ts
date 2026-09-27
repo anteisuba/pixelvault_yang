@@ -275,7 +275,11 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
       advancedParams: { negativePrompt: 'blurry' },
       characterCardIds: ['card-1'],
     })
-    expect(loadCardBusCharacters).toHaveBeenCalledWith('user-1', ['card-1'])
+    expect(loadCardBusCharacters).toHaveBeenCalledWith(
+      'user-1',
+      ['card-1'],
+      undefined,
+    )
     const [, request, , meta] = vi.mocked(submitImageGeneration).mock.calls[0]!
     expect(request.referenceImages).toEqual([
       'https://example.com/pose.png',
@@ -291,6 +295,24 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     expect(meta?.studioSnapshot).toEqual({
       characterCards: [{ id: 'card-1', version: 3 }],
     })
+  })
+
+  it('工作台上挑了哪几张图，原样交给卡片总线（owner 09-27）', async () => {
+    vi.mocked(loadCardBusCharacters).mockResolvedValue([DENIA])
+    const picks = {
+      'card-1': [{ slotId: 'slot-2' }, { generationId: 'gen-9' }],
+    }
+    await compileAndGenerate('clerk-1', {
+      ...QUICK_INPUT,
+      modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+      characterCardIds: ['card-1'],
+      characterImagePicks: picks,
+    })
+    expect(loadCardBusCharacters).toHaveBeenCalledWith(
+      'user-1',
+      ['card-1'],
+      picks,
+    )
   })
 
   it('没有在场角色卡时请求与原来一样', async () => {

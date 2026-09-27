@@ -62,7 +62,11 @@ export async function compileAndGenerate(
      * 卡图排在用户参考图**之后**（`@图N` 的下标不被挤动），角色负面排在负面最后。
      */
     const characters = input.characterCardIds?.length
-      ? await loadCardBusCharacters(dbUser.id, input.characterCardIds)
+      ? await loadCardBusCharacters(
+          dbUser.id,
+          input.characterCardIds,
+          input.characterImagePicks,
+        )
       : []
     const outlet = compileImageOutlet(characters, {
       adapterType: catalogModel?.adapterType ?? '',

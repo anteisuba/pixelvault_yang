@@ -4343,6 +4343,16 @@ export type GenerationSourceSurface = z.infer<
   typeof GenerationSourceSurfaceSchema
 >
 
+/**
+ * 工作台「卡片」弹层上**挑的那几张**（owner 09-27：点开角色、挑一张或几张挂上）。
+ * 卡上的图按参考槽 id，「用她出的」按生成记录 id；服务端各自按本人校验。
+ */
+export const CharacterImagePickSchema = z.union([
+  z.object({ slotId: z.string().trim().min(1).max(64) }),
+  z.object({ generationId: z.string().trim().min(1).max(64) }),
+])
+export type CharacterImagePick = z.infer<typeof CharacterImagePickSchema>
+
 export const StudioGenerateSchema = z
   .object({
     /** Quick mode: direct model selection */
@@ -4358,6 +4368,19 @@ export const StudioGenerateSchema = z
     characterCardIds: z
       .array(z.string().trim().min(1))
       .max(CHARACTER_CARD.MAX_ACTIVE_CARDS)
+      .optional(),
+    /**
+     * 每个在场角色**挑了哪几张**（键 = 角色卡 id，顺序 = 送的顺序）。没挑的角色
+     * 仍由卡片总线按主图 → 身份图 → 其余自动排。
+     */
+    characterImagePicks: z
+      .record(
+        z.string().trim().min(1),
+        z
+          .array(CharacterImagePickSchema)
+          .min(1)
+          .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
+      )
       .optional(),
     backgroundCardId: z.string().optional(),
     styleCardId: z.string().optional(),

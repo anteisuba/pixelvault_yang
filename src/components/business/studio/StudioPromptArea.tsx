@@ -776,15 +776,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   return (
     <>
-      {/*
-       * Inline style preset chips were removed in Phase 4.1 to compress the
-       * dock to a Krea-style single-row compose bar. The state field
-       * `state.stylePresetId` and the SET_STYLE_PRESET reducer action are kept
-       * intact so Phase 4.2 (Style transfer chip popover) can re-expose the
-       * presets inside the chip — no functionality is lost, only the inline
-       * UI is suppressed.
-       */}
-
       {/* Quick-Setup modal lives at fragment root because it's a Dialog
           (no flow-layout footprint). The model picker capsule itself now
           renders inline inside PromptInputActions below. */}

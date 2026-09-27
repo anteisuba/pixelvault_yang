@@ -20,7 +20,6 @@ import {
   getReferenceCapability,
   getReferenceCapabilityMax,
 } from '@/constants/reference-image-capabilities'
-import { getStylePresetById } from '@/constants/style-presets'
 import { isVideoResolution } from '@/constants/video-options'
 import {
   getVideoModelParameterOptions,
@@ -290,12 +289,6 @@ export function useStudioGenerateAction() {
     prevAdapterRef.current = currentAdapter
   }, [selectedStyleCard?.adapterType, dispatch])
 
-  // ── Style preset prompt composition ────────────────────────────
-  const activePreset = useMemo(
-    () => getStylePresetById(state.stylePresetId),
-    [state.stylePresetId],
-  )
-
   const selectedVoiceCard = useMemo(
     () => (state.voiceCardId ? voiceCards.findCard(state.voiceCardId) : null),
     [state.voiceCardId, voiceCards],
@@ -317,25 +310,17 @@ export function useStudioGenerateAction() {
     return undefined
   }, [state.audioPace])
 
-  /** Prepend style preset prefix to user prompt */
+  /** 用户正文（内置风格预设已下线，owner 09-27：不再往前拼风格前缀）。 */
   const composePrompt = useCallback(
-    (userPrompt: string): string | undefined => {
-      const trimmed = userPrompt.trim()
-      if (!activePreset || !trimmed) return trimmed || undefined
-      return `${activePreset.promptPrefix} ${trimmed}`
-    },
-    [activePreset],
+    (userPrompt: string): string | undefined => userPrompt.trim() || undefined,
+    [],
   )
 
-  /** Merge style preset negative prompt into advancedParams */
+  /** 把额外的负面合进 advancedParams。 */
   const composeAdvancedParams = useCallback(
     (negativePrompt?: string) => {
       const params = { ...state.advancedParams }
-      const negativePrompts = [
-        params.negativePrompt,
-        activePreset?.negativePrompt,
-        negativePrompt,
-      ]
+      const negativePrompts = [params.negativePrompt, negativePrompt]
         .map((prompt) => prompt?.trim())
         .filter((prompt): prompt is string => !!prompt)
 
@@ -344,7 +329,7 @@ export function useStudioGenerateAction() {
       }
       return Object.keys(params).length > 0 ? params : undefined
     },
-    [state.advancedParams, activePreset],
+    [state.advancedParams],
   )
 
   // ── Video input builder ──────────────────────────────────────
@@ -673,6 +658,13 @@ export function useStudioGenerateAction() {
         // 在场角色卡只送 id：正文前缀、卡图、角色负面都由服务端卡片总线编译
         // （进度表 35 ⑤），⛔ 这里不再拼。
         const characterCardIds = characters.activeCards.map((card) => card.id)
+        // 弹层上挑了图的角色：只送挑的那几张（owner 09-27）；没挑的由卡片总线自动排。
+        const characterImagePicks = Object.fromEntries(
+          characterCardIds.flatMap((id) => {
+            const picks = characters.imagePicks[id]
+            return picks?.length ? [[id, [...picks]]] : []
+          }),
+        )
         const baseAdvancedParams = composeAdvancedParams(
           overrides?.negativePrompt,
         )
@@ -690,6 +682,9 @@ export function useStudioGenerateAction() {
           recipeUsage: state.recipeUsage ?? undefined,
           characterCardIds:
             characterCardIds.length > 0 ? characterCardIds : undefined,
+          ...(Object.keys(characterImagePicks).length
+            ? { characterImagePicks }
+            : {}),
         }
       }
       if (state.workflowMode === 'card' && styles.activeCardId) {
@@ -724,6 +719,7 @@ export function useStudioGenerateAction() {
       projects.activeProjectId,
       imageUpload.referenceImages,
       characters.activeCards,
+      characters.imagePicks,
     ],
   )
 

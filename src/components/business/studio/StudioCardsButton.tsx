@@ -1,10 +1,9 @@
 'use client'
 
-import { PanelsTopLeft } from '@/components/icons'
+import { UserRound } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
@@ -22,20 +21,17 @@ interface StudioCardsButtonProps {
 }
 
 /**
- * StudioCardsButton — toolbar popover hosting StudioCardPicker.
+ * StudioCardsButton — toolbar popover hosting StudioCardPicker（「角色」，owner 09-27）.
  * Same unify-with-other-popovers reasoning as StudioEnhanceButton.
  */
 export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
   const { state, dispatch } = useStudioForm()
-  const { characters, backgrounds, styles } = useStudioData()
+  const { characters } = useStudioData()
   const t = useTranslations('StudioV2')
   const chip = useStudioChipClasses()
   const open = state.panels.cardSelector
-  const selectedCardCount =
-    characters.activeCardIds.length +
-    (backgrounds.activeCardId ? 1 : 0) +
-    (styles.activeCardId ? 1 : 0) +
-    (state.stylePresetId !== NO_STYLE_PRESET_ID ? 1 : 0)
+  // 只剩角色（owner 09-27：画风卡 · 背景卡 · 内置风格下线）。
+  const selectedCardCount = characters.activeCardIds.length
 
   return (
     <StudioToolSurface
@@ -51,7 +47,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
         <Toolbar.Button
           type="button"
           disabled={disabled}
-          aria-label={t('cards')}
+          aria-label={t('characters')}
           className={cn(
             chip.trigger,
             chip.compact,
@@ -59,17 +55,17 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
             open && chip.open,
           )}
         >
-          <PanelsTopLeft className="size-4" />
+          <UserRound className="size-4" />
           {chip.look === 'outline' ? (
             <>
-              <span className={chip.compactLabel}>{t('cards')}</span>
+              <span className={chip.compactLabel}>{t('characters')}</span>
               {selectedCardCount > 0 ? (
                 <span className="tabular-nums">{selectedCardCount}</span>
               ) : null}
             </>
           ) : (
             <>
-              <span className="hidden sm:inline">{t('cards')}</span>
+              <span className="hidden sm:inline">{t('characters')}</span>
               {selectedCardCount > 0 ? (
                 <StudioChipBadge>{selectedCardCount}</StudioChipBadge>
               ) : null}
@@ -82,7 +78,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
         side="top"
         align={chip.popoverAlign}
         sideOffset={chip.popoverSideOffset}
-        label={t('cards')}
+        label={t('characters')}
       >
         <StudioCardPicker />
       </StudioToolPopoverContent>

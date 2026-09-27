@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import type {
   CharacterCardRecord,
+  CharacterImagePick,
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
 } from '@/types'
@@ -25,6 +26,16 @@ import { deferEffectTask } from '@/lib/defer-effect-task'
 
 const CHARACTER_CARDS_CACHE_KEY = makeCardCacheKey('character')
 
+function withoutKey<T>(
+  record: Record<string, T>,
+  key: string,
+): Record<string, T> {
+  if (!(key in record)) return record
+  const next = { ...record }
+  delete next[key]
+  return next
+}
+
 export interface UseCharacterCardsReturn {
   cards: CharacterCardRecord[]
   isLoading: boolean
@@ -39,6 +50,15 @@ export interface UseCharacterCardsReturn {
   setActiveCardIds: (ids: string[]) => void
   /** Toggle a single card's selection state */
   toggleCardSelection: (id: string) => void
+  /**
+   * 每个在场角色**挑了哪几张**（工作台「卡片」弹层，owner 09-27）。没有键 = 没挑，
+   * 出图时卡片总线自动排。
+   */
+  imagePicks: Readonly<Record<string, readonly CharacterImagePick[]>>
+  /**
+   * 设一个角色挑的图：挑了至少一张 = 她在场；一张都不挑 = 她不在场。
+   */
+  setImagePicks: (id: string, picks: readonly CharacterImagePick[]) => void
   /** Find a card (root or variant) by ID from the tree */
   findCard: (id: string) => CharacterCardRecord | null
   /** Get all currently active cards as records */
@@ -57,7 +77,10 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   const [cards, setCards] = useState<CharacterCardRecord[]>(
     () => readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ?? [],
   )
-  const [activeCardIds, setActiveCardIds] = useState<string[]>([])
+  const [activeCardIds, setActiveIds] = useState<string[]>([])
+  const [imagePicks, setImagePicksState] = useState<
+    Record<string, readonly CharacterImagePick[]>
+  >({})
   const [isLoading, setIsLoading] = useState(
     () =>
       readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ===
@@ -88,9 +111,20 @@ export function useCharacterCards(): UseCharacterCardsReturn {
 
   // ─── Toggle selection ───────────────────────────────────────
 
+  /** 换了在场的角色就把不在场的那几位挑的图一起清掉。 */
+  const setActiveCardIds = useCallback((ids: string[]) => {
+    setActiveIds(ids)
+    setImagePicksState((prev) =>
+      Object.fromEntries(
+        Object.entries(prev).filter(([cardId]) => ids.includes(cardId)),
+      ),
+    )
+  }, [])
+
   const toggleCardSelection = useCallback((id: string) => {
-    setActiveCardIds((prev) => {
+    setActiveIds((prev) => {
       if (prev.includes(id)) {
+        setImagePicksState((prev) => withoutKey(prev, id))
         return prev.filter((cid) => cid !== id)
       }
       if (prev.length >= CHARACTER_CARD.MAX_ACTIVE_CARDS) {
@@ -100,11 +134,31 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     })
   }, [])
 
+  const setImagePicks = useCallback(
+    (id: string, picks: readonly CharacterImagePick[]) => {
+      if (picks.length === 0) {
+        setActiveIds((prev) => prev.filter((cid) => cid !== id))
+        setImagePicksState((prev) => withoutKey(prev, id))
+        return
+      }
+      setActiveIds((prev) =>
+        prev.includes(id) || prev.length >= CHARACTER_CARD.MAX_ACTIVE_CARDS
+          ? prev
+          : [...prev, id],
+      )
+      setImagePicksState((prev) => ({ ...prev, [id]: picks }))
+    },
+    [],
+  )
+
   // ─── Backward compat: single card setter ────────────────────
 
-  const setActiveCardId = useCallback((id: string | null) => {
-    setActiveCardIds(id ? [id] : [])
-  }, [])
+  const setActiveCardId = useCallback(
+    (id: string | null) => {
+      setActiveCardIds(id ? [id] : [])
+    },
+    [setActiveCardIds],
+  )
 
   const activeCardId = activeCardIds[0] ?? null
 
@@ -222,8 +276,9 @@ export function useCharacterCards(): UseCharacterCardsReturn {
           writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
           return next
         })
-        // Remove from active selection
-        setActiveCardIds((prev) => prev.filter((cid) => cid !== id))
+        // Remove from active selection（连同她挑的图）
+        setActiveIds((prev) => prev.filter((cid) => cid !== id))
+        setImagePicksState((prev) => withoutKey(prev, id))
         toast.success(t('characterCardDeleted'))
         return true
       }
@@ -244,6 +299,8 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     activeCardIds,
     setActiveCardIds,
     toggleCardSelection,
+    imagePicks,
+    setImagePicks,
     findCard,
     activeCards,
     create,

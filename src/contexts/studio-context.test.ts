@@ -78,7 +78,6 @@ function makeInitialState(
     audioReferenceUrl: null,
     audioReferenceFileName: null,
     audioReferenceText: '',
-    stylePresetId: '',
     videoDuration: 5,
     videoResolution: null,
     videoAudioRefs: [],

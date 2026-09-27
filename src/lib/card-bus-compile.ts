@@ -53,6 +53,8 @@ export interface CardBusCharacterSource {
   description: string | null
   extensions: unknown
   slots: readonly CharacterReferenceSlot[]
+  /** 用户亲手挑的图：按挑的顺序送，⛔ 不再按主图 / 身份重排。 */
+  keepOrder?: boolean
 }
 
 const EMPTY_TAGS: CardTags = { character: [], appearance: [], loraTrigger: '' }
@@ -99,7 +101,11 @@ export function toCardBusCharacter(
     tags: readTags(source.extensions),
     slots: source.slots
       .map((slot, index) => ({ slot, index }))
-      .sort((a, b) => slotRank(a.slot) - slotRank(b.slot) || a.index - b.index)
+      .sort((a, b) =>
+        source.keepOrder
+          ? a.index - b.index
+          : slotRank(a.slot) - slotRank(b.slot) || a.index - b.index,
+      )
       .map(({ slot }) => slot)
       .filter((slot, index, sorted) => {
         const key = referenceUrlKey(slot.url)

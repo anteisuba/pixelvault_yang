@@ -132,7 +132,6 @@ function makeState(overrides: Partial<StudioFormState> = {}) {
     advancedParams: {},
     panels: EMPTY_PANELS,
     generateRequestId: 0,
-    stylePresetId: 'none',
     recipeUsage: null,
     videoAudioRefs: [],
     videoGenerateAudio: null,

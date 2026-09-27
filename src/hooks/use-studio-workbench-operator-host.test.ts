@@ -59,7 +59,6 @@ vi.mock('@/contexts/studio-context', () => ({
       workflowMode: 'quick',
       recipeUsage: null,
       extraModelOptionIds: [],
-      stylePresetId: '',
       longVideoMode: false,
       longVideoTargetDuration: 30,
       videoDuration: 5,

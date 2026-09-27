@@ -31,7 +31,6 @@ import {
   type Workflow,
   type WorkflowId,
 } from '@/constants/workflows'
-import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import {
   DEFAULT_PROMPT_DIALECT,
   type PromptDialect,
@@ -258,8 +257,6 @@ export interface StudioFormState {
    * payload rejects audio without text, so the schema enforces both-or-none.
    */
   audioReferenceText: string
-  /** Style preset ID (empty string = no preset) */
-  stylePresetId: string
   /** Video-specific — duration in seconds per clip */
   videoDuration: number
   /** Video-specific — output resolution; null means provider default */
@@ -396,7 +393,6 @@ export type StudioAction =
       type: 'SET_PRONUNCIATION_DICTIONARY'
       payload: Record<string, string>
     }
-  | { type: 'SET_STYLE_PRESET'; payload: string }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
   | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
@@ -526,7 +522,6 @@ const initialFormState: StudioFormState = {
   audioReferenceUrl: null,
   audioReferenceFileName: null,
   audioReferenceText: '',
-  stylePresetId: NO_STYLE_PRESET_ID,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
   videoAudioRefs: [],
@@ -643,8 +638,6 @@ export function studioFormReducer(
       return { ...state, audioReferenceText: action.payload }
     case 'SET_PRONUNCIATION_DICTIONARY':
       return { ...state, pronunciationDictionary: action.payload }
-    case 'SET_STYLE_PRESET':
-      return { ...state, stylePresetId: action.payload }
     case 'SET_WORKFLOW_MODE':
       return { ...state, workflowMode: action.payload }
     case 'SET_OPTION_ID':
@@ -891,7 +884,6 @@ export function studioFormReducer(
         audioReferenceUrl: null,
         audioReferenceFileName: null,
         audioReferenceText: '',
-        stylePresetId: NO_STYLE_PRESET_ID,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
         videoAudioRefs: [],

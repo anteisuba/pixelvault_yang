@@ -1029,9 +1029,11 @@ export function isCivitaiLoraBaseModel(
 }
 
 // P1-6（2026-07-04 三态分级；2026-07-06 owner 改回默认 safe）：
-//   safe         — 默认。civitai `nsfw=false` + 名称词表兜底，封面/模型都干净。
+//   safe         — 默认。至少有一张安全样例的 LoRA 都列出，封面与样例只放
+//                  安全的图（2026-09-27 owner 放宽：原先一张露骨就整个藏掉，
+//                  把大半结果藏没了）。
 //   unrestricted — 安全 + NSFW 混着显示，不额外过滤，封面放到 XXX。
-//   nsfwOnly     — 仅 NSFW：过滤掉安全内容，只留 NSFW 内容。
+//   nsfwOnly     — 仅 NSFW：只留有 NSFW 样例的 LoRA。
 // 数组顺序即 UI 循环点击顺序：unrestricted → nsfwOnly → safe → unrestricted；
 // 默认从 safe 起步，首次点击进入 unrestricted。
 export const LORA_NSFW_FILTER_VALUES = [
@@ -1047,6 +1049,16 @@ export const DEFAULT_LORA_NSFW_FILTER: LoraNsfwFilter = 'safe'
 export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
   return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)
 }
+
+/** 库里上次选的分级（owner 2026-09-27：记住，只记在这台浏览器里）。 */
+export const LORA_LIBRARY_NSFW_STORAGE_KEY =
+  'pixelvault:lora-library-nsfw' as const
+
+/**
+ * 上游慢时先给出去的旧结果，过这么久客户端自己再要一次——服务端那时多半已
+ * 经在响应之后把上游跑完、刷新了快照。
+ */
+export const CIVITAI_STALE_REFRESH_MS = 3000
 
 // civitai 搜索有
 // 两条互不兼容的分页范式——meilisearch 走 offset（client 用 page 号算

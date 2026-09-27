@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import {
@@ -21,6 +21,9 @@ import type { CivitaiLoraLibraryResult } from '@/types'
 // 命中 + 1h stale-while-revalidate。配合 prewarm cron (6h) 让默认列表几乎
 // 始终命中边缘，搜索结果在第一次冷启动 (~600 ms) 后也能复用 15min。
 const CACHE_CONTROL = 'public, s-maxage=900, stale-while-revalidate=3600'
+// 先给出去的旧结果（上游慢或挂了）不能进边缘缓存：客户端几秒后要再取一次
+// 新的，缓存住它就等于把旧结果钉满 15 分钟。
+const STALE_CACHE_CONTROL = 'no-store'
 
 const ListCivitaiLoraQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -94,19 +97,40 @@ export async function GET(
       )
     }
 
-    const data = await listCivitaiLoras({
-      page: parsed.data.page,
-      pageSize: parsed.data.pageSize,
-      cursor: parsed.data.cursor,
-      search: parsed.data.search,
-      baseModel: parsed.data.baseModel,
-      sort: parsed.data.sort,
-      nsfwFilter: parsed.data.nsfwFilter,
-      source: parsed.data.source,
-      contentType: parsed.data.type,
-    })
+    const startedAt = Date.now()
+    const timing: { upstreamMs?: number } = {}
+    const data = await listCivitaiLoras(
+      {
+        page: parsed.data.page,
+        pageSize: parsed.data.pageSize,
+        cursor: parsed.data.cursor,
+        search: parsed.data.search,
+        baseModel: parsed.data.baseModel,
+        sort: parsed.data.sort,
+        nsfwFilter: parsed.data.nsfwFilter,
+        source: parsed.data.source,
+        contentType: parsed.data.type,
+      },
+      { defer: (task) => after(task), timing },
+    )
     const response = NextResponse.json<SuccessBody>({ success: true, data })
-    response.headers.set('Cache-Control', CACHE_CONTROL)
+    response.headers.set(
+      'Cache-Control',
+      data.stale ? STALE_CACHE_CONTROL : CACHE_CONTROL,
+    )
+    // 搜索慢到底慢在哪：上游那一趟 vs 我们这一段，浏览器开发者工具里直接看。
+    response.headers.set(
+      'Server-Timing',
+      [
+        timing.upstreamMs === undefined
+          ? null
+          : `upstream;dur=${timing.upstreamMs}`,
+        data.stale ? 'snapshot;desc="stale"' : null,
+        `total;dur=${Date.now() - startedAt}`,
+      ]
+        .filter(Boolean)
+        .join(', '),
+    )
     return response
   } catch (error) {
     logger.error('GET /api/lora-assets/civitai failed', {

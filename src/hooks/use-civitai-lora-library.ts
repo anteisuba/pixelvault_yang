@@ -5,8 +5,11 @@ import { useTranslations } from 'next-intl'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
+  CIVITAI_STALE_REFRESH_MS,
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
+  isLoraNsfwFilter,
+  LORA_LIBRARY_NSFW_STORAGE_KEY,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
@@ -16,6 +19,8 @@ import {
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
+
+import { useLocalPreference } from '@/hooks/use-local-preference'
 
 export interface UseCivitaiLoraLibraryOptions {
   /**
@@ -230,9 +235,18 @@ export function useCivitaiLoraLibrary(
   const [baseModel, setBaseModelValue] = useState<CivitaiLoraBaseModel>(
     options.initialBaseModel ?? 'all',
   )
-  const [nsfwFilter, setNsfwFilterValue] = useState<LoraNsfwFilter>(
-    options.initialNsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+  // 分级记住上次选的（owner 2026-09-27，只记在这台浏览器里）；网址里带了
+  // `nsfw=` 的深链这一次以网址为准，用户再改就写回偏好。
+  const [storedNsfwFilter, storeNsfwFilter] = useLocalPreference(
+    LORA_LIBRARY_NSFW_STORAGE_KEY,
   )
+  const [nsfwFilterOverride, setNsfwFilterOverride] =
+    useState<LoraNsfwFilter | null>(options.initialNsfwFilter ?? null)
+  const nsfwFilter: LoraNsfwFilter =
+    nsfwFilterOverride ??
+    (storedNsfwFilter && isLoraNsfwFilter(storedNsfwFilter)
+      ? storedNsfwFilter
+      : DEFAULT_LORA_NSFW_FILTER)
   const [contentType, setContentTypeValue] = useState<LoraContentType>(
     options.initialContentType ?? DEFAULT_LORA_CONTENT_TYPE,
   )
@@ -254,6 +268,11 @@ export function useCivitaiLoraLibrary(
   // 锁定的选择。随 cursorByPageRef 一起在每个新会话起点重置（搜索词/
   // baseModel/sort/nsfwFilter 变化）。
   const searchBackendRef = useRef<CivitaiSearchBackend | null>(null)
+  const staleRetryRef = useRef<{
+    key: string
+    timer: ReturnType<typeof setTimeout>
+  } | null>(null)
+  const refreshRef = useRef<() => Promise<void>>(async () => {})
 
   const applyResult = useCallback((result: CivitaiLoraLibraryResult) => {
     setItems(result.items)
@@ -325,11 +344,9 @@ export function useCivitaiLoraLibrary(
       }
       // Issue C: keep the backend lock in sync even on a cache hit — a
       // cached entry still carries which backend actually served it.
-      if (activeSearch) {
-        searchBackendRef.current = cached.sortFellBackToRelevance
-          ? 'rest'
-          : 'meilisearch'
-      }
+      searchBackendRef.current = cached.offsetPaginationSupported
+        ? 'meilisearch'
+        : 'rest'
       paginationPendingRef.current = false
       setError(null)
       setIsRevalidating(false)
@@ -354,14 +371,11 @@ export function useCivitaiLoraLibrary(
       baseModel,
       nsfwFilter,
       contentType,
-      // Issue C: undefined on the session's first request (free choice,
-      // same as today); locked to whatever backend served the previous
-      // page for the rest of the session. Harmless no-op when contentType
-      // is active — the service routes on contentType first and never
-      // reads `source` for that branch.
-      source: activeSearch
-        ? (searchBackendRef.current ?? undefined)
-        : undefined,
+      // Issue C: undefined on the session's first request (free choice);
+      // locked to whatever backend served the previous page for the rest of
+      // the session. 浏览也锁——2026-09-27 起浏览同样先走 meilisearch、失败回
+      // 落 REST，两边分页范式不同。contentType 分支不读 `source`，传了无害。
+      source: searchBackendRef.current ?? undefined,
     })
     if (requestIdRef.current !== requestId) return
 
@@ -371,13 +385,21 @@ export function useCivitaiLoraLibrary(
       } else {
         cursorByPageRef.current.delete(page + 1)
       }
-      // Issue C: lock the backend from this response. sortFellBackToRelevance
-      // is only ever true when the server fell back to REST for a search
-      // request, so absence (undefined/false) means meilisearch served it.
-      if (activeSearch) {
-        searchBackendRef.current = response.data.sortFellBackToRelevance
-          ? 'rest'
-          : 'meilisearch'
+      // Issue C: lock the backend from this response. meilisearch 回的结果恒
+      // 带 offsetPaginationSupported；REST 回落（搜索或浏览）不带。
+      searchBackendRef.current = response.data.offsetPaginationSupported
+        ? 'meilisearch'
+        : 'rest'
+      // 上游慢时服务端先给了上一次的结果：过几秒自己再要一次新的（同一组查询
+      // 只补这一次——上游若真挂着，降级链会继续给旧结果，不必一直敲）。
+      if (response.data.stale && staleRetryRef.current?.key !== cacheKey) {
+        if (staleRetryRef.current) clearTimeout(staleRetryRef.current.timer)
+        staleRetryRef.current = {
+          key: cacheKey,
+          timer: setTimeout(() => {
+            void refreshRef.current()
+          }, CIVITAI_STALE_REFRESH_MS),
+        }
       }
       // 降级快照不进客户端缓存。写进去的话，上游恢复之后用户还要再盯着旧
       // 数据看满 5 分钟的 TTL——兜底数据的寿命必须止于上游恢复那一刻。
@@ -450,6 +472,7 @@ export function useCivitaiLoraLibrary(
   }, [commitSearch, search])
 
   useEffect(() => {
+    refreshRef.current = refresh
     return deferEffectTask(() => {
       void refresh()
     })
@@ -458,9 +481,11 @@ export function useCivitaiLoraLibrary(
   // 组件卸载时掐掉在飞请求——离开页面不该继续占着上游。
   useEffect(() => {
     const inFlight = inFlightRef
+    const staleRetry = staleRetryRef
     return () => {
       inFlight.current?.abort()
       inFlight.current = null
+      if (staleRetry.current) clearTimeout(staleRetry.current.timer)
     }
   }, [])
 
@@ -511,9 +536,10 @@ export function useCivitaiLoraLibrary(
       searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
-      setNsfwFilterValue(value)
+      setNsfwFilterOverride(null)
+      storeNsfwFilter(value)
     },
-    [clearFacetResults, nsfwFilter],
+    [clearFacetResults, nsfwFilter, storeNsfwFilter],
   )
 
   const setContentType = useCallback(

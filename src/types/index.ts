@@ -4870,6 +4870,9 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // `CIVITAI_CARD_WIDTH`）。optional 是为了不破坏其余构造该类型的旧调用点/
   // 测试 fixture；缺失时 UI 回退到 `coverImageUrl`（640px）。
   cardImageUrl: z.string().url().nullable().optional(),
+  // 封面的平均色（取自 Civitai 给的 blurhash）：网格先铺这块颜色，图到了
+  // 再由糊变清（LoRA 库 B，2026-09-27）。拿不到 hash 时是 null。
+  coverColor: z.string().nullable().optional(),
   // 「点击放大查看」对话框用的全分辨率原图。base `coverImageUrl` rewrite 后
   // 已经是 640px，放大时需要回退到原图。
   coverImageUrlOriginal: z.string().url().nullable(),

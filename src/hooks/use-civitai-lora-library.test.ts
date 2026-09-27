@@ -79,6 +79,8 @@ describe('useCivitaiLoraLibrary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     __resetCivitaiLibraryCacheForTests()
+    // 分级偏好记在 localStorage 里，不能串到下一个用例。
+    window.localStorage.clear()
   })
 
   afterEach(() => {
@@ -704,6 +706,74 @@ describe('useCivitaiLoraLibrary', () => {
   // silently retry meilisearch (and maybe succeed) would put that page on a
   // different pagination paradigm (offset vs. cursor-scan) than the pages
   // around it, producing duplicate/misaligned pages.
+  it('remembers the rating choice in this browser and starts from it next time', async () => {
+    mockListCivitaiLoraAssetsAPI.mockResolvedValue({
+      success: true,
+      data: createResult(createItem('rated-1', 'Rated'), 1, null),
+    })
+
+    const first = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() => expect(first.result.current.items).toHaveLength(1))
+    act(() => {
+      first.result.current.setNsfwFilter('unrestricted')
+    })
+    await waitFor(() =>
+      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ nsfwFilter: 'unrestricted' }),
+      ),
+    )
+    first.unmount()
+
+    const second = renderHook(() => useCivitaiLoraLibrary())
+    await waitFor(() =>
+      expect(second.result.current.nsfwFilter).toBe('unrestricted'),
+    )
+  })
+
+  it('lets a deep link override the remembered rating for this visit', async () => {
+    window.localStorage.setItem('pixelvault:lora-library-nsfw', 'unrestricted')
+    mockListCivitaiLoraAssetsAPI.mockResolvedValue({
+      success: true,
+      data: createResult(createItem('deep-1', 'Deep'), 1, null),
+    })
+
+    const { result } = renderHook(() =>
+      useCivitaiLoraLibrary({ initialNsfwFilter: 'nsfwOnly' }),
+    )
+
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+    expect(result.current.nsfwFilter).toBe('nsfwOnly')
+  })
+
+  it('asks again a few seconds after the server served an earlier result', async () => {
+    const staleItem = createItem('stale-1', 'From snapshot')
+    const freshItem = createItem('fresh-1', 'Fresh')
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          ...createResult(staleItem, 1, null),
+          stale: true,
+          fetchedAt: '2026-09-27T10:00:00.000Z',
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: createResult(freshItem, 1, null),
+      })
+
+    const { result } = renderHook(() => useCivitaiLoraLibrary())
+
+    await waitFor(() => expect(result.current.items).toEqual([staleItem]))
+    expect(result.current.isStale).toBe(true)
+    // 服务端在响应之后已经把上游跑完、刷新了快照——几秒后再要一次就是新的。
+    await waitFor(() => expect(result.current.items).toEqual([freshItem]), {
+      timeout: 5000,
+    })
+    expect(result.current.isStale).toBe(false)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
+  })
+
   describe('search backend lock (Issue C)', () => {
     it('locks onto REST after a fallback and keeps sending source=rest on later pages', async () => {
       const page1Item = createItem('locked-1', 'Page 1')
@@ -760,7 +830,7 @@ describe('useCivitaiLoraLibrary', () => {
       )
     })
 
-    it('never sends a source hint for browse-mode pagination (no search term)', async () => {
+    it('locks browse pagination too — a REST-served browse page keeps later pages on REST', async () => {
       const page1Item = createItem('browse-1', 'Browse 1')
       const page2Item = createItem('browse-2', 'Browse 2')
 
@@ -784,8 +854,10 @@ describe('useCivitaiLoraLibrary', () => {
         result.current.nextPage()
       })
       await waitFor(() => expect(result.current.items).toEqual([page2Item]))
+      // 2026-09-27 起浏览也先走 meilisearch、失败回落 REST——这一页是 REST
+      // 给的（没带 offsetPaginationSupported），下一页必须接着走 REST 的 cursor。
       expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ source: undefined }),
+        expect.objectContaining({ source: 'rest' }),
       )
     })
 

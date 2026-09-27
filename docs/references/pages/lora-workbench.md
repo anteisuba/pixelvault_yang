@@ -176,7 +176,7 @@ civitai 社区 tag 质量参差（官方 discussion #499：大量模型不打 ta
 
 - **L2 工程选型：下推进 `q=`，不是客户端子串过滤**。理由：① multi-search 端点原生支持一次 HTTP 请求带多个独立 `query` 对象（2026-07-17 实测确认，`body.queries` 数组，每个 query 各自返回独立 `hits`）——L1（tag 过滤）+ L2（关键词全文）打包进同一次 POST，零额外往返；② 客户端子串过滤需要先对已抓取页做宽口径 over-fetch 才有东西可过滤，这正是简报 §0 明确排除的「over-fetch 根治」方向；③ meilisearch 的 typo-tolerant 全文匹配是「名称/描述子串匹配」的合理超集，宁可稍宽，多余命中交给 L3 exclude 纠错。
 - 合并：两个 query 各自按 `offset/limit` 独立分页，返回的 hits 按 `hit.id`（civitai modelId）去重合并，L3 exclude 剔除、L3 override 补漏（modelId 不在合并集里时另发一次 REST 单模型请求解析），再按请求的 `sort` 字段重新排序（`Highest Rated` 无暴露的相关性分数，保留合并顺序）后裁到 `pageSize`。
-- **已知限制**：两个独立分页窗口的并集不是精确分页（跟简报 §0 排除的 over-fetch 根治同一个已知代价档）——`total` 如实报 `null`（未知）而不是编造一个数字；`hasNextPage` 用「任一底层 query 在这页之后还有更多」近似。meilisearch 请求失败**没有 REST 回落**（REST 表达不了多 tag OR/名称关键词），直接向上抛错、路由层 502——失败大声暴露好过悄悄丢弃用户选中的类型筛选。
+- **已知限制**：两个独立分页窗口的并集不是精确分页（跟简报 §0 排除的 over-fetch 根治同一个已知代价档）。`total` 自 2026-09-27 起是精确数：同一次请求多发三条只要数的 query，|L1| + |L2| − |L1 ∩ L2|（见 `backend.md` Civitai 搜索一节）；上游没回数时才报 `null`、`hasNextPage` 退回「任一底层 query 在这页之后还有更多」。meilisearch 请求失败**没有 REST 回落**（REST 表达不了多 tag OR/名称关键词），直接向上抛错、路由层 502——失败大声暴露好过悄悄丢弃用户选中的类型筛选。
 - HF 侧（`src/services/huggingface-lora.service.ts`）走既有的「抓 Hub 页 + 服务端过滤」架构（不是 meilisearch）：`isPotentialLoraCandidate` 新增 `modelMatchesContentType` 判据，同一套 L1(`hfTags`)/L2(`nameKeywords` 对 repoId/模型名/tags/文件名子串匹配，复用 `matchesRepositorySearch` 的 haystack 构造)/L3(`LORA_CONTENT_TYPE_OVERRIDES_HF`/`_EXCLUDES_HF`，repoId 键) 语义，不新开 over-fetch 路径。
 
 UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（3.3）。排序在合并集上生效。

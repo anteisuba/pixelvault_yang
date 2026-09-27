@@ -144,6 +144,8 @@ describe('listCivitaiLoras', () => {
     )
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       page: 2,
       cursor: 'cursor-2',
       baseModel: 'SDXL 1.0',
@@ -225,7 +227,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items).toHaveLength(1)
     expect(result.items[0]?.downloadCount).toBe(0)
@@ -269,7 +274,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'unrestricted' })
+    const result = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'unrestricted',
+    })
 
     expect(result.items[0]?.coverImageUrlOriginal).toBe(
       'https://image.civitai.com/xxx.jpeg',
@@ -281,7 +289,7 @@ describe('listCivitaiLoras', () => {
   // SFW image — exactly the reported bug ("safe 档里内容 NSFW 的 LoRA 仍作
   // 为卡片出现，只是封面被挡成占位/换图"). A model with even one image
   // above the safe ceiling is now dropped entirely, not just cover-adjusted.
-  it('drops a LoRA entirely under the safe filter when any of its images exceed the safe nsfw ceiling', async () => {
+  it('keeps a LoRA with at least one safe image under the safe filter, showing only the safe images', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [
@@ -316,14 +324,20 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const safeResult = await listCivitaiLoras({ nsfwFilter: 'safe' })
-    expect(safeResult.items).toEqual([])
+    const safeResult = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'safe',
+    })
+    // 2026-09-27 owner：有安全样例就列出，只放安全的图——一张露骨不再把整个
+    // LoRA 藏掉。
+    expect(safeResult.items).toHaveLength(1)
+    expect(safeResult.items[0]?.coverImageUrlOriginal).toBe(
+      'https://image.civitai.com/sfw.jpeg',
+    )
+    expect(safeResult.items[0]?.previewImageUrls).toHaveLength(1)
 
-    // The same image-level signal now also qualifies this model for
-    // nsfwOnly even though civitai's own `model.nsfw` bool is unset on this
-    // fixture — the level check is an OR alongside the bool, not a
-    // replacement of it (REST fixtures without an images array still rely
-    // on the bool alone; see the nsfwFilterFixture tests below).
+    // 同一个模型在「仅 NSFW」档也在（两档不再互斥）：图片分级是和 civitai
+    // 自己的 `model.nsfw` 布尔 OR 起来的信号，这个 fixture 的布尔没设。
     mockFetch.mockResolvedValue(
       jsonResponse({
         items: [
@@ -357,7 +371,10 @@ describe('listCivitaiLoras', () => {
         metadata: { totalItems: 1 },
       }),
     )
-    const nsfwOnlyResult = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+    const nsfwOnlyResult = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'nsfwOnly',
+    })
     expect(nsfwOnlyResult.items).toHaveLength(1)
     expect(nsfwOnlyResult.items[0]?.id).toBe('civitai:556:1000')
   })
@@ -405,7 +422,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'unrestricted' })
+    const result = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'unrestricted',
+    })
 
     expect(result.items[0]?.coverImageUrlOriginal).toBe(
       'https://image.civitai.com/still.jpeg',
@@ -449,7 +469,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    const result = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'safe',
+    })
 
     expect(result.items).toEqual([])
   })
@@ -494,6 +517,7 @@ describe('listCivitaiLoras', () => {
     )
 
     const result = await listCivitaiLoras({
+      source: 'rest',
       baseModel: 'other',
       nsfwFilter: 'unrestricted',
     })
@@ -522,7 +546,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.nextCursor).toBe('abc123')
     expect(result.hasNextPage).toBe(true)
@@ -562,7 +589,10 @@ describe('listCivitaiLoras', () => {
         metadata: {},
       }),
     )
-    const empty = await listCivitaiLoras()
+    const empty = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
     expect(empty.items[0]?.triggerWord).not.toBe('character')
     expect(empty.items[0]?.triggerSource).toBe('inferred')
     expect(empty.items[0]?.recommendedPrompt).toBeNull()
@@ -604,7 +634,10 @@ describe('listCivitaiLoras', () => {
         metadata: {},
       }),
     )
-    const rich = await listCivitaiLoras()
+    const rich = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
     expect(rich.items[0]?.triggerWord).toBe('cure mystique')
     expect(rich.items[0]?.triggerAlternates).toEqual(['kobayashi mikuru'])
     expect(rich.items[0]?.recommendedPrompt).toBe(
@@ -659,7 +692,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
     const item = result.items[0]
     expect(item).toBeDefined()
     // Critical: trigger MUST NOT be 'character' (the tag fallback bug
@@ -709,7 +745,7 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({ source: 'rest' })
     const item = result.items[0]
     expect(item).toBeDefined()
     // List thumbnail: 96px — mount-stack chip / facepile only, never the grid card.
@@ -745,6 +781,8 @@ describe('listCivitaiLoras', () => {
     )
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       page: 3,
       cursor: 'cursor-2',
       baseModel: 'Anima',
@@ -802,6 +840,8 @@ describe('listCivitaiLoras', () => {
       )
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       page: 3,
       baseModel: 'Anima',
     })
@@ -859,6 +899,8 @@ describe('listCivitaiLoras', () => {
     )
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       baseModel: 'Illustrious',
       pageSize: 10,
       sort: 'Most Downloaded',
@@ -923,7 +965,11 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras({ baseModel: 'other' })
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+      baseModel: 'other',
+    })
 
     // REST 表达不了 NOT IN；browse 态先用明确长尾 baseModels 缩小上游窗口，
     // 再由客户端补集过滤兜住误归类。
@@ -941,12 +987,23 @@ describe('listCivitaiLoras', () => {
   it("searches the 'other' bucket via a meilisearch NOT IN complement filter", async () => {
     mockFetch.mockImplementation(async (input) => {
       if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ results: [{ hits: [], estimatedTotalHits: 0 }] })
+        return jsonResponse({
+          results: [
+            { hits: [], totalHits: 0 },
+            { hits: [] },
+            { hits: [], totalHits: 0 },
+            { hits: [] },
+          ],
+        })
       }
-      return jsonResponse({ items: [], metadata: {} })
+      throw new Error('REST must not be called')
     })
 
-    const result = await listCivitaiLoras({ baseModel: 'other', search: 'wan' })
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      baseModel: 'other',
+      search: 'wan',
+    })
 
     const searchCall = mockFetch.mock.calls.find((call) =>
       String(call[0]).includes('search-new.civitai.com'),
@@ -992,7 +1049,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items).toHaveLength(1)
     expect(result.items[0]?.id).toBe('civitai:117135:2234652')
@@ -1056,6 +1116,8 @@ describe('listCivitaiLoras', () => {
     })
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       baseModel: 'Illustrious',
       pageSize: 10,
       search: 'Wuthering Waves',
@@ -1114,6 +1176,8 @@ describe('listCivitaiLoras', () => {
     })
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       baseModel: 'Illustrious',
       pageSize: 10,
       search: '鸣潮',
@@ -1148,7 +1212,12 @@ describe('listCivitaiLoras', () => {
       })
     })
 
-    await listCivitaiLoras({ search: '鸣潮', page: 6 })
+    await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+      search: '鸣潮',
+      page: 6,
+    })
 
     const restCall = mockFetch.mock.calls.find((call) =>
       String(call[0]).includes('/api/v1/models'),
@@ -1190,12 +1259,8 @@ describe('listCivitaiLoras', () => {
       ['cursor-5', { ids: [7, 8, 9, 10, 11], next: 'cursor-6' }],
     ])
 
-    // B11: fail meilisearch first (+1 call) so this falls through to the
-    // REST scan path under test.
+    // `source: 'rest'` 直接走 REST 扫描（被测的就是这条路），不经 meilisearch。
     mockFetch.mockImplementation(async (input) => {
-      if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'gone' }, 404)
-      }
       const cursor = new URL(String(input)).searchParams.get('cursor')
       const page = pages.get(cursor)
       if (!page) throw new Error(`Unexpected cursor: ${cursor}`)
@@ -1206,6 +1271,8 @@ describe('listCivitaiLoras', () => {
     })
 
     const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
       baseModel: 'Anima',
       pageSize: 10,
       search: '鸣潮',
@@ -1221,7 +1288,7 @@ describe('listCivitaiLoras', () => {
     )
     expect(result.hasNextPage).toBe(true)
     expect(result.nextCursor).toEqual(expect.any(String))
-    expect(mockFetch).toHaveBeenCalledTimes(7)
+    expect(mockFetch).toHaveBeenCalledTimes(6)
   })
 
   it('preserves a continuation when sparse search reaches the scan safety limit', async () => {
@@ -1258,12 +1325,8 @@ describe('listCivitaiLoras', () => {
     })
     pages.set('cursor-10', { ids: [7, 8, 9, 10, 11], next: null })
 
-    // B11: fail meilisearch first (+1 call per listCivitaiLoras invocation)
-    // so both pages fall through to the REST scan path under test.
+    // `source: 'rest'` 直接走 REST 扫描（被测的就是这条路），不经 meilisearch。
     mockFetch.mockImplementation(async (input) => {
-      if (String(input).includes('search-new.civitai.com')) {
-        return jsonResponse({ message: 'gone' }, 404)
-      }
       const cursor = new URL(String(input)).searchParams.get('cursor')
       const page = pages.get(cursor)
       if (!page) throw new Error(`Unexpected cursor: ${cursor}`)
@@ -1274,6 +1337,8 @@ describe('listCivitaiLoras', () => {
     })
 
     const firstPage = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'unrestricted',
       baseModel: 'Anima',
       pageSize: 10,
       search: '鸣潮',
@@ -1285,9 +1350,11 @@ describe('listCivitaiLoras', () => {
     )
     expect(firstPage.hasNextPage).toBe(true)
     expect(firstPage.nextCursor).toEqual(expect.any(String))
-    expect(mockFetch).toHaveBeenCalledTimes(11)
+    expect(mockFetch).toHaveBeenCalledTimes(10)
 
     const secondPage = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'unrestricted',
       baseModel: 'Anima',
       cursor: firstPage.nextCursor,
       page: 2,
@@ -1301,7 +1368,7 @@ describe('listCivitaiLoras', () => {
     )
     expect(secondPage.hasNextPage).toBe(false)
     expect(secondPage.nextCursor).toBeNull()
-    expect(mockFetch).toHaveBeenCalledTimes(13)
+    expect(mockFetch).toHaveBeenCalledTimes(11)
   })
 
   it('forwards Civitai license fields to library items', async () => {
@@ -1335,7 +1402,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items[0]).toMatchObject({
       allowCommercialUse: ['Image', 'Rent', 'Sell'],
@@ -1397,7 +1467,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items[0]?.allowCommercialUse).toEqual([
       'Image',
@@ -1436,7 +1509,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items[0]).toMatchObject({
       allowCommercialUse: [],
@@ -1445,40 +1521,48 @@ describe('listCivitaiLoras', () => {
   })
 
   it('prewarms the first page for every base model and sort combination', async () => {
-    mockFetch.mockImplementation(() =>
-      Promise.resolve(
-        jsonResponse({
-          items: [],
-          metadata: { nextCursor: 'cursor-next' },
-        }),
-      ),
+    // 浏览也走 meilisearch 之后，每个组合就是一次请求：精确总数 + 第一页。
+    mockFetch.mockImplementation(async () =>
+      jsonResponse({ results: [{ hits: [], totalHits: 0 }, { hits: [] }] }),
     )
 
     const result = await prewarmCivitaiLoraLibrary()
-    // 'other' 兜底桶被排除在预热外（REST 补集只能多页扫描，成本不值）。
     const expectedTotal =
-      CIVITAI_LORA_BASE_MODEL_VALUES.filter((value) => value !== 'other')
-        .length * CIVITAI_LORA_SORT_VALUES.length
+      CIVITAI_LORA_BASE_MODEL_VALUES.length * CIVITAI_LORA_SORT_VALUES.length
 
     expect(result.total).toBe(expectedTotal)
     expect(result.successCount).toBe(expectedTotal)
     expect(result.failureCount).toBe(0)
     expect(mockFetch).toHaveBeenCalledTimes(expectedTotal)
 
-    const urls = mockFetch.mock.calls.map((call) => new URL(String(call[0])))
+    const queries = mockFetch.mock.calls.map(
+      (call) =>
+        JSON.parse(String((call[1] as RequestInit).body)).queries as {
+          q: string
+          sort?: string[]
+          filter: string[]
+        }[],
+    )
     expect(
-      urls.some(
-        (url) =>
-          url.searchParams.get('sort') === 'Newest' &&
-          url.searchParams.get('baseModels') === null,
+      queries.every((pair) => pair.length === 2 && pair[0]?.q === ''),
+    ).toBe(true)
+    expect(
+      queries.some(
+        (pair) =>
+          pair[1]?.sort?.[0] === 'createdAt:desc' &&
+          pair[1].filter.every(
+            (clause) => !clause.startsWith('versions.baseModel'),
+          ),
       ),
     ).toBe(true)
     expect(
-      urls.some(
-        (url) =>
-          url.searchParams.get('sort') === 'Most Downloaded' &&
-          url.searchParams.getAll('baseModels').includes('Illustrious') &&
-          url.searchParams.getAll('baseModels').includes('NoobAI'),
+      queries.some(
+        (pair) =>
+          pair[1]?.sort?.[0] === 'metrics.downloadCount:desc' &&
+          pair[1].filter.some(
+            (clause) =>
+              clause.includes('"Illustrious"') && clause.includes('"NoobAI"'),
+          ),
       ),
     ).toBe(true)
   })
@@ -1498,7 +1582,10 @@ describe('listCivitaiLoras', () => {
       }),
     )
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({
+      nsfwFilter: 'unrestricted',
+      source: 'rest',
+    })
 
     expect(result.items).toEqual([])
   })
@@ -1506,7 +1593,9 @@ describe('listCivitaiLoras', () => {
   it('throws when Civitai returns a non-OK response', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ error: 'rate limited' }, 429))
 
-    await expect(listCivitaiLoras()).rejects.toThrow(/429/)
+    await expect(
+      listCivitaiLoras({ nsfwFilter: 'unrestricted', source: 'rest' }),
+    ).rejects.toThrow(/429/)
   })
 
   it('times out slow Civitai responses', async () => {
@@ -1518,9 +1607,9 @@ describe('listCivitaiLoras', () => {
         }),
     )
 
-    const promise = expect(listCivitaiLoras()).rejects.toThrow(
-      /Civitai request timeout after \d+ms/,
-    )
+    const promise = expect(
+      listCivitaiLoras({ nsfwFilter: 'unrestricted', source: 'rest' }),
+    ).rejects.toThrow(/Civitai request timeout after \d+ms/)
     // Run all pending fake timers (8s service timeout + withRetry's backoff
     // delays between retries). Using runAllTimersAsync instead of a single
     // advanceTimersByTimeAsync(8000) so we don't have to predict the exact
@@ -1529,10 +1618,10 @@ describe('listCivitaiLoras', () => {
     await promise
   })
 
-  // P1-6（2026-07-04 三态；2026-07-06 默认改回 safe）：safe（默认，civitai
-  // `nsfw=false` + 名称词表兜底）/ unrestricted（不过滤）/ nsfwOnly（civitai
-  // `nsfw=true` + 只留 `model.nsfw` 标记为真的条目）。三个 fixture 条目分别
-  // 只踩中其中一种信号，用来确认两种客户端过滤各自只认自己的信号，不互相误判。
+  // P1-6（2026-07-04 三态；2026-07-06 默认改回 safe；2026-09-27 放宽）：safe
+  // （默认，civitai `nsfw=false` + 至少有一张安全样例）/ unrestricted（不过
+  // 滤）/ nsfwOnly（civitai `nsfw=true` + `model.nsfw` 为真或有一张超出天花
+  // 板）。三个 fixture 条目分别只踩中一种信号。
   function nsfwFilterFixture() {
     function modelFor(id: number, name: string, nsfw: boolean) {
       return {
@@ -1554,7 +1643,10 @@ describe('listCivitaiLoras', () => {
                 downloadUrl: `https://civitai.com/api/download/models/${id * 10}`,
               },
             ],
-            images: [],
+            // 每个都有一张安全样例：「安全」档现在看的是「有没有安全的图」。
+            images: [
+              { url: `https://image.civitai.com/${id}.jpeg`, nsfwLevel: 1 },
+            ],
             stats: {},
           },
         ],
@@ -1564,8 +1656,8 @@ describe('listCivitaiLoras', () => {
     return {
       items: [
         modelFor(1, 'Clean Style LoRA', false),
-        // Name-keyword hit, but civitai's own model.nsfw flag is false —
-        // only the 'safe' mode's name-keyword filter should catch this one.
+        // 名字带 NSFW 词、civitai 自己的 model.nsfw 为 false——2026-09-27 起
+        // 「安全」档不再看名字（有安全样例就列出，owner 知情接受）。
         modelFor(2, 'Hentai Style LoRA', false),
         // civitai model.nsfw flag is true, but the name gives no hint —
         // only the 'nsfwOnly' mode's isNsfw filter should catch this one.
@@ -1575,30 +1667,32 @@ describe('listCivitaiLoras', () => {
     }
   }
 
-  it('defaults to nsfwFilter=safe: requests nsfw=false and name-filters NSFW models', async () => {
+  it('defaults to nsfwFilter=safe: requests nsfw=false and keeps every model that has a safe image', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
 
-    const result = await listCivitaiLoras()
+    const result = await listCivitaiLoras({ source: 'rest' })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('nsfw')).toBe('false')
-    // 默认 safe：名称词表命中的 'Hentai Style LoRA' 被过滤；civitai-nsfw 标记
-    // 为真但名字无害的 'Realistic Lingerie LoRA' 仍留（safe 只认名称信号）。
     expect(result.items.map((item) => item.name)).toEqual([
       'Clean Style LoRA',
+      'Hentai Style LoRA',
       'Realistic Lingerie LoRA',
     ])
   })
 
-  it('nsfwFilter=safe requests nsfw=false and filters NSFW-named models by keyword', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
+  it('nsfwFilter=safe drops a model that has no safe image at all', async () => {
+    const fixture = nsfwFilterFixture()
+    fixture.items[1].modelVersions[0].images = [
+      { url: 'https://image.civitai.com/2.jpeg', nsfwLevel: 16 },
+    ]
+    mockFetch.mockResolvedValueOnce(jsonResponse(fixture))
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    const result = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'safe',
+    })
 
-    const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
-    expect(requestUrl.searchParams.get('nsfw')).toBe('false')
-    // Keeps the civitai-nsfw-flagged-but-innocuous-named model — the safe
-    // filter only knows about the name-keyword signal, not model.nsfw.
     expect(result.items.map((item) => item.name)).toEqual([
       'Clean Style LoRA',
       'Realistic Lingerie LoRA',
@@ -1608,7 +1702,10 @@ describe('listCivitaiLoras', () => {
   it('nsfwFilter=nsfwOnly requests nsfw=true and keeps only civitai-flagged NSFW models', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(nsfwFilterFixture()))
 
-    const result = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+    const result = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'nsfwOnly',
+    })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.searchParams.get('nsfw')).toBe('true')
@@ -1658,7 +1755,10 @@ describe('listCivitaiLoras', () => {
         metadata: { totalItems: 1 },
       }),
     )
-    const safeResult = await listCivitaiLoras({ nsfwFilter: 'safe' })
+    const safeResult = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'safe',
+    })
     expect(safeResult.items).toEqual([])
 
     mockFetch.mockResolvedValueOnce(
@@ -1693,7 +1793,10 @@ describe('listCivitaiLoras', () => {
         metadata: { totalItems: 1 },
       }),
     )
-    const nsfwOnlyResult = await listCivitaiLoras({ nsfwFilter: 'nsfwOnly' })
+    const nsfwOnlyResult = await listCivitaiLoras({
+      source: 'rest',
+      nsfwFilter: 'nsfwOnly',
+    })
     expect(nsfwOnlyResult.items).toHaveLength(1)
   })
 })
@@ -1741,11 +1844,30 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     }
   }
 
+  // 一次请求四条（见 listCivitaiLorasViaMeilisearch）：第一档的数 / 第一档
+  // 这一页 / 整条列表的数 / 第二档这一页。`hits` = 所有词都对上的，`partial`
+  // = 只对上一部分的（'last' 相关性序里排在第一档后面）；浏览只读前两条。
   function multiSearchResponse(
     hits: unknown[],
-    estimatedTotalHits = hits.length,
+    total = hits.length,
+    partial: unknown[] = [],
+    wholeTotal = total + partial.length,
   ) {
-    return { results: [{ hits, estimatedTotalHits }] }
+    return {
+      results: [
+        { hits: [], totalHits: total },
+        { hits },
+        { hits: [], totalHits: wholeTotal },
+        { hits: [...hits, ...partial] },
+      ],
+    }
+  }
+
+  function sentQueries(): Record<string, unknown>[] {
+    const searchCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('search-new.civitai.com'),
+    )
+    return JSON.parse(String((searchCall?.[1] as RequestInit).body)).queries
   }
 
   function versionDownloadResponse(versionId: number, downloadUrl: string) {
@@ -1790,29 +1912,45 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     const init = searchCall?.[1] as RequestInit
     expect(init.method).toBe('POST')
     const body = JSON.parse(String(init.body))
-    expect(body.queries).toHaveLength(1)
-    expect(body.queries[0].q).toBe('鸣潮')
-    expect(body.queries[0].sort).toEqual(['metrics.downloadCount:desc'])
-    expect(body.queries[0].offset).toBe(0)
+    // 两档各一个精确数（hitsPerPage 0）+ 各一页，一次往返拿全。
+    expect(body.queries).toHaveLength(4)
+    expect(body.queries[0]).toMatchObject({
+      q: '鸣潮',
+      matchingStrategy: 'all',
+      page: 1,
+      hitsPerPage: 0,
+    })
+    expect(body.queries[1]).toMatchObject({
+      q: '鸣潮',
+      matchingStrategy: 'all',
+      sort: ['metrics.downloadCount:desc'],
+      offset: 0,
+    })
+    expect(body.queries[2]).toMatchObject({
+      matchingStrategy: 'last',
+      hitsPerPage: 0,
+    })
+    expect(body.queries[3]).toMatchObject({
+      matchingStrategy: 'last',
+      offset: 0,
+    })
   })
 
   it.each([
     ['Most Downloaded', ['metrics.downloadCount:desc']],
     ['Newest', ['createdAt:desc']],
   ] as const)(
-    'sends a single meilisearch window with sort=%s',
+    'puts sort=%s on the all-words window only — partial matches keep relevance order',
     async (sort, expected) => {
       mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
 
       await listCivitaiLoras({ search: 'detail', sort })
 
-      const searchCall = mockFetch.mock.calls.find((call) =>
-        String(call[0]).includes('search-new.civitai.com'),
-      )
-      const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-      expect(body.queries).toHaveLength(1)
-      expect(body.queries[0].matchingStrategy).toBe('last')
-      expect(body.queries[0].sort).toEqual(expected)
+      const queries = sentQueries()
+      expect(queries[1]).toMatchObject({ matchingStrategy: 'all' })
+      expect(queries[1]?.sort).toEqual(expected)
+      expect(queries[3]).toMatchObject({ matchingStrategy: 'last' })
+      expect(queries[3]?.sort).toBeUndefined()
     },
   )
 
@@ -1853,9 +1991,12 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
         String(call[0]).includes('search-new.civitai.com'),
       )
       const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-      for (const query of body.queries) {
-        expect(query.sort?.length).toBeGreaterThan(0)
-        for (const sortField of query.sort) {
+      const sorted = (body.queries as { sort?: string[] }[]).filter(
+        (query) => query.sort,
+      )
+      expect(sorted.length).toBeGreaterThan(0)
+      for (const query of sorted) {
+        for (const sortField of query.sort ?? []) {
           const attribute = String(sortField).replace(/:(asc|desc)$/, '')
           expect(CIVITAI_SORTABLE_ATTRIBUTES_LIVE_2026_08_29).toContain(
             attribute,
@@ -1865,89 +2006,145 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     },
   )
 
-  it('sends only one window for Highest Rated — it already is the relevance order', async () => {
-    // 退化成一条不是省事，是别白花一趟流量拉两份完全相同的结果。
-    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
-
-    await listCivitaiLoras({ search: 'detail', sort: 'Highest Rated' })
-
-    const searchCall = mockFetch.mock.calls.find((call) =>
-      String(call[0]).includes('search-new.civitai.com'),
-    )
-    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries).toHaveLength(1)
-    expect(body.queries[0].sort).toBeUndefined()
-  })
-
-  it('keeps meilisearch hit order instead of bubbling exact name matches', async () => {
-    // 跟 Civitai 官网一样：选「最多下载」就是全局下载量，不把完全匹配提前。
+  it('Highest Rated re-ranks the first 60 all-words hits by relevance plus heat', async () => {
+    // owner 09-27：推荐 = 相关性为主、热度为辅——相关性差不多时下载多的在前，
+    // 相关性差一截的不会被热度顶上来。
     mockSearchAndVersionFetch(
       multiSearchResponse([
         searchHitFixture({
           id: 1,
-          name: 'Velvet Mythic Fantasy',
-          version: { id: 11, name: 'v1', metrics: { downloadCount: 900000 } },
-        }),
-        searchHitFixture({
-          id: 3,
-          name: 'Anima Turbo LoRA',
-          version: { id: 33, name: 'v1', metrics: { downloadCount: 5000 } },
+          name: 'Near tie, few downloads',
+          _rankingScore: 0.99,
+          version: { id: 11, name: 'v1', metrics: { downloadCount: 10 } },
         }),
         searchHitFixture({
           id: 2,
-          name: 'anima',
-          version: { id: 22, name: 'v1', metrics: { downloadCount: 3 } },
+          name: 'Near tie, many downloads',
+          _rankingScore: 0.98,
+          version: { id: 22, name: 'v1', metrics: { downloadCount: 90000 } },
+        }),
+        searchHitFixture({
+          id: 3,
+          name: 'Weak match, huge downloads',
+          _rankingScore: 0.4,
+          version: { id: 33, name: 'v1', metrics: { downloadCount: 900000 } },
         }),
       ]),
     )
 
     const result = await listCivitaiLoras({
-      search: 'anima',
+      search: 'detail',
+      sort: 'Highest Rated',
+    })
+
+    const queries = sentQueries()
+    expect(queries[1]).toMatchObject({
+      offset: 0,
+      limit: 60,
+      showRankingScore: true,
+    })
+    expect(queries[1]?.sort).toBeUndefined()
+    expect(result.items.map((item) => item.name)).toEqual([
+      'Near tie, many downloads',
+      'Near tie, few downloads',
+      'Weak match, huge downloads',
+    ])
+  })
+
+  it('puts all-words matches first even when a partial match has far more downloads', async () => {
+    // owner 09-27：最匹配的排最前、界面上不分段。实测「鸣潮 洛可可」选最多下
+    // 载，旧的单条 'last' 排序前 5 全是别的鸣潮角色。
+    const partial = searchHitFixture({
+      id: 9,
+      name: '鸣潮 · 今汐',
+      version: { id: 99, name: 'v1', metrics: { downloadCount: 900000 } },
+    })
+    mockSearchAndVersionFetch(
+      multiSearchResponse(
+        [
+          searchHitFixture({
+            id: 1,
+            name: '鸣潮 · 洛可可',
+            version: { id: 11, name: 'v1', metrics: { downloadCount: 800 } },
+          }),
+        ],
+        1,
+        [partial],
+        164,
+      ),
+    )
+
+    const result = await listCivitaiLoras({
+      search: '鸣潮 洛可可',
       sort: 'Most Downloaded',
     })
 
     expect(result.items.map((item) => item.name)).toEqual([
-      'Velvet Mythic Fantasy',
-      'Anima Turbo LoRA',
-      'anima',
+      '鸣潮 · 洛可可',
+      '鸣潮 · 今汐',
     ])
+    // 一个数，就是这条列表能滚到的总数。
+    expect(result.total).toBe(164)
+    expect(result.hasNextPage).toBe(true)
   })
 
-  it('keeps newest order even when the newest hit is a weak name match', async () => {
+  it('serves a later page from the partial tier once the all-words tier is used up', async () => {
+    // 第一档只有 2 条：第 2 页（offset 12）整页都落在第二档，'last' 相关性序
+    // 在同一个 offset 上的那一窗就是它——不跳、不重。
     mockSearchAndVersionFetch(
-      multiSearchResponse([
-        searchHitFixture({
-          id: 1,
-          name: 'Wuthering Waves yesterday',
-          createdAt: '2026-08-24T00:00:00.000Z',
-          version: {
-            id: 11,
-            name: 'v1',
-            createdAt: '2026-08-24T00:00:00.000Z',
-          },
-        }),
-        searchHitFixture({
-          id: 2,
-          name: '鸣潮',
-          createdAt: '2024-01-01T00:00:00.000Z',
-          version: {
-            id: 22,
-            name: 'v1',
-            createdAt: '2024-01-01T00:00:00.000Z',
-          },
-        }),
-      ]),
+      multiSearchResponse(
+        [],
+        2,
+        [
+          searchHitFixture({
+            id: 5,
+            name: 'Partial 13',
+            version: { id: 55, name: 'v1' },
+          }),
+          searchHitFixture({
+            id: 6,
+            name: 'Partial 14',
+            version: { id: 66, name: 'v1' },
+          }),
+        ],
+        14,
+      ),
     )
 
     const result = await listCivitaiLoras({
-      search: '鸣潮',
+      search: '鸣潮 洛可可',
       sort: 'Newest',
+      page: 2,
+      pageSize: 12,
     })
 
+    const queries = sentQueries()
+    expect(queries[1]).toMatchObject({ offset: 12, limit: 12 })
+    expect(queries[3]).toMatchObject({ offset: 12, limit: 12 })
     expect(result.items.map((item) => item.name)).toEqual([
-      'Wuthering Waves yesterday',
-      '鸣潮',
+      'Partial 13',
+      'Partial 14',
     ])
+    expect(result.total).toBe(14)
+    expect(result.hasNextPage).toBe(false)
+  })
+
+  it('browses with one exact count and one window, no search text', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 18402))
+
+    const result = await listCivitaiLoras({ sort: 'Most Downloaded' })
+
+    const queries = sentQueries()
+    expect(queries).toHaveLength(2)
+    expect(queries[0]).toMatchObject({ q: '', page: 1, hitsPerPage: 0 })
+    expect(queries[1]).toMatchObject({
+      q: '',
+      offset: 0,
+      sort: ['metrics.downloadCount:desc'],
+    })
+    expect(result.total).toBe(18402)
+    expect(result.offsetPaginationSupported).toBe(true)
+    expect(result.sortFellBackToRelevance).toBeUndefined()
   })
 
   it('maps a meilisearch hit into a full library item, reconstructing the cover URL from the CDN bucket', async () => {
@@ -1974,20 +2171,44 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     )
   })
 
+  it('carries the cover blurhash average color so the grid can paint before the image loads', async () => {
+    mockSearchAndVersionFetch(
+      multiSearchResponse([
+        searchHitFixture({
+          images: [
+            {
+              id: 72251001,
+              url: '80cb3dc8-7309-4be2-b073-82bca0ba01bc',
+              nsfwLevel: 1,
+              // 2026-09-27 实测线上一张图的 hash。
+              hash: 'UMIX,Z~ptmo~.9bbR$s;-:-:kVtRtmNKwbog',
+            },
+          ],
+        }),
+      ]),
+    )
+
+    const result = await listCivitaiLoras({ search: 'roccia' })
+
+    expect(result.items[0]?.coverColor).toMatch(/^#[0-9a-f]{6}$/)
+  })
+
   it('pages search with meilisearch offset, not a prefix rescan from 0', async () => {
     mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 100))
 
-    await listCivitaiLoras({ search: 'detail', page: 3, pageSize: 12 })
+    await listCivitaiLoras({
+      search: 'detail',
+      sort: 'Most Downloaded',
+      page: 3,
+      pageSize: 12,
+    })
 
-    const searchCall = mockFetch.mock.calls.find((call) =>
-      String(call[0]).includes('search-new.civitai.com'),
-    )
-    const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries[0].offset).toBe(24)
-    expect(body.queries[0].limit).toBe(12)
+    const queries = sentQueries()
+    expect(queries[1]).toMatchObject({ offset: 24, limit: 12 })
+    expect(queries[3]).toMatchObject({ offset: 24, limit: 12 })
   })
 
-  it('derives hasNextPage from estimatedTotalHits', async () => {
+  it('derives total and hasNextPage from the exact totals, not an estimate', async () => {
     mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()], 50))
 
     const result = await listCivitaiLoras({
@@ -1996,7 +2217,6 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
       pageSize: 12,
     })
 
-    // offset(0) + hits.length(1) = 1 < estimatedTotalHits(50)
     expect(result.hasNextPage).toBe(true)
     expect(result.total).toBe(50)
   })
@@ -2028,7 +2248,9 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
                     downloadUrl: 'https://civitai.com/api/download/models/10',
                   },
                 ],
-                images: [],
+                images: [
+                  { url: 'https://image.civitai.com/10.jpeg', nsfwLevel: 1 },
+                ],
                 stats: {},
               },
             ],
@@ -2198,6 +2420,77 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     )
   })
 
+  it('writes the snapshot after the response when the caller can defer it', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
+    const deferred: (() => Promise<void>)[] = []
+
+    const result = await listCivitaiLoras(
+      { search: 'anima' },
+      { defer: (task) => deferred.push(task) },
+    )
+
+    // 快照不挡响应：结果先回，写入挂到响应之后。
+    expect(result.stale).toBeUndefined()
+    expect(snapshotStore.size).toBe(0)
+    expect(deferred).toHaveLength(1)
+    await deferred[0]?.()
+    expect(snapshotStore.size).toBe(1)
+  })
+
+  it('serves the last snapshot early when upstream is slow, then refreshes it after the response', async () => {
+    vi.useFakeTimers()
+    const key = JSON.stringify({
+      page: 1,
+      pageSize: 12,
+      cursor: null,
+      search: 'anima',
+      baseModel: 'all',
+      sort: 'Highest Rated',
+      nsfwFilter: 'safe',
+      contentType: 'all',
+    })
+    snapshotStore.set(key, {
+      items: [{ name: 'Cached Anima' }],
+      page: 1,
+      pageSize: 12,
+      total: 1,
+      hasNextPage: false,
+      nextCursor: null,
+      offsetPaginationSupported: true,
+    })
+    let release: ((response: Response) => void) | undefined
+    mockFetch.mockImplementation(async (input) => {
+      if (String(input).includes('search-new.civitai.com')) {
+        return new Promise<Response>((resolve) => {
+          release = resolve
+        })
+      }
+      throw new Error('REST must not be called')
+    })
+    const deferred: (() => Promise<void>)[] = []
+
+    const pending = listCivitaiLoras(
+      { search: 'anima' },
+      { defer: (task) => deferred.push(task) },
+    )
+    await vi.advanceTimersByTimeAsync(1500)
+    const result = await pending
+
+    expect(result.stale).toBe(true)
+    expect(result.items[0]?.name).toBe('Cached Anima')
+    expect(deferred).toHaveLength(1)
+
+    // 上游在响应之后才回来：把快照刷新成新的，客户端几秒后再要就是它。
+    release?.(
+      jsonResponse(
+        multiSearchResponse([searchHitFixture({ name: 'Fresh Anima' })]),
+      ),
+    )
+    await deferred[0]?.()
+    const refreshed = snapshotStore.get(key) as { items: { name: string }[] }
+    expect(refreshed.items[0]?.name).toBe('Fresh Anima')
+  })
+
   it('falls through to the local mirror when there is no snapshot for this query', async () => {
     // 镜像的价值恰恰在这里：它能回答**从没搜过的词**，那是快照永远填不了
     // 的洞。顺序上快照优先——它是这个查询的精确历史答案，保真度更高。
@@ -2355,21 +2648,63 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     ).rejects.toThrow(/503/)
   })
 
-  it('does not snapshot the browse path — it has prewarm and the CDN already', async () => {
-    mockFetch.mockImplementation(async () =>
-      jsonResponse({ items: [], metadata: {} }),
-    )
+  it('snapshots the browse path too — it shares the search endpoint now', async () => {
+    mockSearchAndVersionFetch(multiSearchResponse([searchHitFixture()]))
 
     await listCivitaiLoras()
 
-    expect(snapshotStore.size).toBe(0)
+    expect(snapshotStore.size).toBe(1)
   })
 
-  it('search mode keeps the safe name-keyword client filter on hits', async () => {
-    // safe only trusts the name-keyword signal client-side; the nsfwLevel
-    // ceiling is enforced upstream by the meilisearch source filter (see the
-    // 'pushes the nsfw tri-state down into the meilisearch filter clause'
-    // test below), not by re-inspecting `hit.images` here.
+  it('falls back to REST when browsing and the search subsystem is degraded — a different failure domain', async () => {
+    // 2026-08-19 实录：搜索子系统卸载时，不带 query 的 REST 浏览全程 200。
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.includes('search-new.civitai.com')) {
+        return jsonResponse({ error: 'overloaded' }, 503)
+      }
+      return jsonResponse({
+        items: [
+          {
+            id: 1,
+            name: 'Browse Via REST',
+            type: 'LORA',
+            tags: [],
+            stats: {},
+            modelVersions: [
+              {
+                id: 10,
+                name: 'v1',
+                baseModel: 'SDXL 1.0',
+                files: [
+                  {
+                    type: 'Model',
+                    primary: true,
+                    downloadUrl: 'https://civitai.com/api/download/models/10',
+                  },
+                ],
+                images: [
+                  { url: 'https://image.civitai.com/10.jpeg', nsfwLevel: 1 },
+                ],
+                stats: {},
+              },
+            ],
+          },
+        ],
+        metadata: { nextCursor: null },
+      })
+    })
+
+    const result = await listCivitaiLoras()
+
+    expect(result.items.map((item) => item.name)).toEqual(['Browse Via REST'])
+    // 浏览走 REST 排序照样有效，不打「排序已降级」。
+    expect(result.sortFellBackToRelevance).toBeUndefined()
+  })
+
+  it('safe keeps every hit the source filter returns — no name-keyword pass on top', async () => {
+    // 2026-09-27：「安全」= 有安全样例就列出（源头过滤 `nsfwLevel <= 2`），
+    // 名字不再单独判——再删就会让数量对不上。
     const cleanHit = searchHitFixture({
       id: 1,
       name: 'Clean Search Hit',
@@ -2397,6 +2732,7 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     })
     expect(safeResult.items.map((i) => i.name)).toEqual([
       'Clean Search Hit',
+      'Hentai Search Hit',
       'Innocuous Search Hit',
     ])
   })
@@ -2438,13 +2774,11 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
     ])
   })
 
-  // Issue B: the actual narrowing mechanism — the tri-state now travels as
-  // a meilisearch filter clause on the array `nsfwLevel` attribute, not a
-  // client-side post-filter. Threshold 2 matches
-  // CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL (the existing "safe cover"
-  // ceiling elsewhere in this file) so safe/nsfwOnly stay exact complements.
+  // 三态走 meilisearch 源头过滤（`nsfwLevel` 是数组、存在语义）。「安全」
+  // = 至少有一张不超过 2 的样例（owner 09-27 放宽），「仅 NSFW」= 至少有一张
+  // 超过 2——两档不再互斥，同一个模型两档都能看到，各自只放对应的图。
   it.each([
-    ['safe', 'NOT nsfwLevel > 2'],
+    ['safe', 'nsfwLevel <= 2'],
     ['nsfwOnly', 'nsfwLevel > 2'],
   ] as const)(
     'pushes the nsfw tri-state down into the meilisearch filter clause for %s',
@@ -2506,7 +2840,9 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
                       downloadUrl: 'https://civitai.com/api/download/models/10',
                     },
                   ],
-                  images: [],
+                  images: [
+                    { url: 'https://image.civitai.com/10.jpeg', nsfwLevel: 1 },
+                  ],
                   stats: {},
                 },
               ],
@@ -2579,7 +2915,9 @@ describe('listCivitaiLoras — B11 meilisearch search path', () => {
                       downloadUrl: 'https://civitai.com/api/download/models/10',
                     },
                   ],
-                  images: [],
+                  images: [
+                    { url: 'https://image.civitai.com/10.jpeg', nsfwLevel: 1 },
+                  ],
                   stats: {},
                 },
               ],
@@ -4294,11 +4632,21 @@ describe('listCivitaiLoras — S2 content type filter', () => {
     )
     expect(searchCall).toBeDefined()
     const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries).toHaveLength(2)
+    // 两条取数（L1 标签 / L2 关键词）+ 三条只要数（L1 / L2 / 两者交集）。
+    expect(body.queries).toHaveLength(5)
     expect(body.queries[0].filter).toEqual(
       expect.arrayContaining([expect.stringContaining('tags.name IN')]),
     )
     expect(body.queries[1].q).toContain('outfit')
+    expect(
+      body.queries
+        .slice(2)
+        .every((query: { hitsPerPage?: number }) => query.hitsPerPage === 0),
+    ).toBe(true)
+    expect(body.queries[4].q).toContain('outfit')
+    expect(body.queries[4].filter).toEqual(
+      expect.arrayContaining([expect.stringContaining('tags.name IN')]),
+    )
   })
 
   it('sends only the L2 keyword query for a type whose civitaiTags were pruned (expression)', async () => {
@@ -4313,8 +4661,10 @@ describe('listCivitaiLoras — S2 content type filter', () => {
       String(call[0]).includes('search-new.civitai.com'),
     )
     const body = JSON.parse(String((searchCall?.[1] as RequestInit).body))
-    expect(body.queries).toHaveLength(1)
+    // 一条取数 + 一条只要数。
+    expect(body.queries).toHaveLength(2)
     expect(body.queries[0].q).toContain('expression')
+    expect(body.queries[1]).toMatchObject({ hitsPerPage: 0 })
   })
 
   it('merges and dedupes a hit returned by both the L1 and L2 queries', async () => {
@@ -4325,6 +4675,9 @@ describe('listCivitaiLoras — S2 content type filter', () => {
         results: [
           { hits: [hit], estimatedTotalHits: 1 },
           { hits: [hit], estimatedTotalHits: 1 },
+          { hits: [], totalHits: 1 },
+          { hits: [], totalHits: 1 },
+          { hits: [], totalHits: 1 },
         ],
       })
     })
@@ -4332,8 +4685,29 @@ describe('listCivitaiLoras — S2 content type filter', () => {
     const result = await listCivitaiLoras({ contentType: 'clothing' })
 
     expect(result.items).toHaveLength(1)
-    // 两个独立分页窗口的并集无法精确推出总数——如实报 null。
-    expect(result.total).toBeNull()
+    // |L1 ∪ L2| = |L1| + |L2| − |L1 ∩ L2| = 1 + 1 − 1。
+    expect(result.total).toBe(1)
+  })
+
+  it('reports an exact union total for a type filter and pages by it', async () => {
+    mockContentTypeFetch((url) => {
+      if (!url.includes('search-new.civitai.com')) return null
+      return jsonResponse({
+        results: [
+          { hits: [typeHitFixture()] },
+          { hits: [] },
+          { hits: [], totalHits: 6867 },
+          { hits: [], totalHits: 4198 },
+          { hits: [], totalHits: 589 },
+        ],
+      })
+    })
+
+    const result = await listCivitaiLoras({ contentType: 'clothing' })
+
+    // 2026-09-27 实测服装 × Illustrious × 安全的三条数。
+    expect(result.total).toBe(10476)
+    expect(result.hasNextPage).toBe(true)
   })
 
   it('re-sorts the merged hit set by the requested sort field', async () => {

@@ -20,7 +20,6 @@ import {
   LORA_CONTENT_TYPE_EXCLUDES,
   LORA_CONTENT_TYPE_OVERRIDES,
   getLoraContentTypeDefinition,
-  isNsfwNamedModel,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type CivitaiSearchBackend,
@@ -46,6 +45,7 @@ import {
 } from '@/services/civitai-search-snapshot.service'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
 import {
+  blurhashAverageColor,
   buildCivitaiItemImageUrls,
   buildCivitaiVersionDownloadUrl,
   CIVITAI_CARD_WIDTH,
@@ -184,6 +184,7 @@ const CivitaiImageSchema = z
     width: CivitaiImageDimensionSchema,
     height: CivitaiImageDimensionSchema,
     nsfwLevel: z.number().optional(),
+    hash: nullableOptional(z.string()),
     hasMeta: z.boolean().optional(),
     hasPositivePrompt: z.boolean().optional(),
     meta: CivitaiImageMetaSchema.nullable().optional(),
@@ -310,6 +311,8 @@ const CivitaiSearchImageSchema = z
     // meilisearch 索引同样带 'image' | 'video'（网页版靠它渲染视频角标）。
     type: z.string().optional(),
     nsfwLevel: z.number().optional(),
+    // 每张图的 blurhash（2026-09-27 实测都带）——封面先铺它的平均色。
+    hash: nullableOptional(z.string()),
   })
   .passthrough()
 
@@ -351,6 +354,8 @@ const CivitaiSearchHitSchema = z
     permissions: CivitaiSearchPermissionsSchema.optional(),
     tags: z.array(CivitaiSearchTagSchema).optional(),
     images: z.array(CivitaiSearchImageSchema).optional(),
+    // 只在请求带 showRankingScore 时出现（推荐档混热度要用），0–1。
+    _rankingScore: z.number().optional(),
   })
   .passthrough()
 
@@ -401,6 +406,8 @@ const CivitaiModelSearchResponseSchema = z
               entries === undefined ? undefined : parseSearchHits(entries),
             ),
           estimatedTotalHits: z.number().optional(),
+          // 用 page/hitsPerPage 发的 query 回的是精确总数（hitsPerPage 0 只要数）。
+          totalHits: z.number().optional(),
         })
         .passthrough(),
     ),
@@ -680,40 +687,28 @@ function buildCivitaiSearchFilters(
   return filters
 }
 
-// NSFW 三态分档过滤：push the P1-6
-// tri-state down into the meilisearch source filter instead of post-
-// filtering a fetched page (which used to shrink `nsfwOnly` pages to ~half
-// and let NSFW LoRAs leak into `safe`). `nsfwLevel` is a per-model ARRAY
-// (every image's level, e.g. `[1,4]`) and meilisearch's array filter
-// semantics are existential — `nsfwLevel > N` matches if ANY element is >N.
-// `NOT nsfwLevel > N` is therefore the true logical negation: ALL elements
-// are <=N. Live-verified 2026-07-11 against search-new.civitai.com: for one
-// sample query, `nsfwLevel > 2` returned 22265 hits and `NOT nsfwLevel > 2`
-// returned 7165 — they sum to exactly the unfiltered total (29430), i.e. a
-// clean, non-overlapping bipartition (not an approximation).
+// NSFW 三态分档过滤，下推到 meilisearch 的源头过滤（不在取回来的一页上再
+// 删——那样一页 12 条会缩成 6 条，数量也就不准了）。`nsfwLevel` 是按模型的
+// 数组（每张图一个分级，例如 `[1,4]`），meilisearch 的数组过滤是「存在」
+// 语义——`nsfwLevel > N` 只要有一张超过 N 就命中。
 //
-// Threshold 2 (not the plan's initial suggestion of 1) is chosen to match
-// the file's existing `CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL` = 2
-// ("safe" cover ceiling already treats None(1)+Soft(2) as safe elsewhere in
-// this file). Using a different threshold for nsfwOnly vs. safe would leave
-// a gap where a level-2-only model matches both `nsfwLevel > 1` (nsfwOnly)
-// and `NOT nsfwLevel > 2` (safe) — same threshold keeps the two tri-state
-// filters an exact partition of each other.
+// 「安全」= 至少有一张不超过 N 的样例（`nsfwLevel <= N`），卡片与详情只放
+// 这些安全的图（maxImageNsfwLevelFor）。2026-09-27 owner 拍板放宽：原来的
+// `NOT nsfwLevel > N`（一张都不许超过）把大半结果藏掉了——实测 roccia 12 →
+// 4、wuthering waves 1065 → 238、Enchanting Eyes 6 → 0。代价是封面安全、
+// 内容偏露骨的 LoRA 也会列出来，owner 知情接受；于是「安全」与「仅 NSFW」
+// 不再互斥（同一个模型两档都能看到，各自只放对应的图）。
 //
-// Also live-verified: Civitai's own `nsfw` boolean is unreliable in BOTH
-// directions (e.g. a "girl handjob POV" hit with nsfwLevel:[16] — XXX-only —
-// was flagged `nsfw:false`; several models with only None/Soft images were
-// flagged `nsfw:true`). That's why this pushes the *level* array down
-// instead of trying to filter on `nsfw` (which meilisearch also rejects —
-// "Attribute `nsfw` is not filterable", confirmed via a live 400).
+// 天花板 2（None + Soft）与 `CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL`
+// 同源。Civitai 自己的 `nsfw` 布尔两个方向都误判过，而且 meilisearch 不许
+// 按它过滤（"Attribute `nsfw` is not filterable"，实测 400）——所以只看图
+// 的分级数组。
 function appendNsfwSearchFilter(
   filters: string[],
   nsfwFilter: LoraNsfwFilter,
 ): void {
   if (nsfwFilter === 'safe') {
-    filters.push(
-      `NOT nsfwLevel > ${CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL}`,
-    )
+    filters.push(`nsfwLevel <= ${CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL}`)
   } else if (nsfwFilter === 'nsfwOnly') {
     filters.push(`nsfwLevel > ${CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL}`)
   }
@@ -1325,35 +1320,41 @@ function pickUsableModelVersion(
 }
 
 // 各场景下的目标渲染宽度（CSS px），用于把 Civitai 默认 `original=true` 的
-function pickImages(
+function pickShownImages(
   version: z.infer<typeof CivitaiModelVersionSchema>,
   maxNsfwLevel: number,
-): string[] {
+): z.infer<typeof CivitaiImageSchema>[] {
   return (
     version.images
       ?.filter(
         (image) =>
           isStaticCivitaiImage(image) && (image.nsfwLevel ?? 1) <= maxNsfwLevel,
       )
-      .map((image) => image.url)
       .slice(0, 6) ?? []
   )
 }
 
-// Issue B REST-path counterpart to appendNsfwSearchFilter's meilisearch
-// `nsfwLevel > N` clause: REST has no pushable per-image-level filter, so
-// this scans the version's own (unceiled) images array client-side. Mirrors
-// the same existential semantics ("ANY image exceeds the ceiling") used by
-// the meilisearch array filter, so REST and search behave the same way for
-// the same data. Deliberately NOT reused from pickImages's output — that's
-// already ceiling-filtered (would make this always false for 'safe', where
-// the ceiling equals the very threshold we're checking against).
+// REST 回落路径上 appendNsfwSearchFilter 的对应物：REST 没有能下推的按图
+// 分级过滤，只能扫这个版本自己的（未按天花板筛过的）images。两条都是
+// 「存在」语义——`nsfwOnly` 看有没有一张超过天花板，`safe` 看有没有一张不
+// 超过（2026-09-27 owner：有安全样例就列出，只放安全的图）——同一份数据
+// 走哪条路结果一致。刻意不复用 pickShownImages 的输出：那份已经按天花板
+// 筛过了。
 function versionHasNsfwLevelAbove(
   version: { images?: { nsfwLevel?: number }[] },
   ceiling: number,
 ): boolean {
   return (
     version.images?.some((image) => (image.nsfwLevel ?? 1) > ceiling) ?? false
+  )
+}
+
+function versionHasImageAtOrBelow(
+  version: { images?: { nsfwLevel?: number }[] },
+  ceiling: number,
+): boolean {
+  return (
+    version.images?.some((image) => (image.nsfwLevel ?? 1) <= ceiling) ?? false
   )
 }
 
@@ -1383,7 +1384,8 @@ function toLibraryItem(
   if (!loraUrl) return null
 
   const tags = model.tags ?? []
-  const originalImageUrls = pickImages(version, maxImageNsfwLevel)
+  const shownImages = pickShownImages(version, maxImageNsfwLevel)
+  const originalImageUrls = shownImages.map((image) => image.url)
   const coverOriginal = originalImageUrls[0] ?? null
   const previewImageUrls = originalImageUrls.map((url) =>
     rewriteCivitaiImageUrl(url, { width: CIVITAI_PREVIEW_WIDTH }),
@@ -1444,6 +1446,7 @@ function toLibraryItem(
     thumbImageUrl,
     cardImageUrl,
     previewImageUrls,
+    coverColor: blurhashAverageColor(shownImages[0]?.hash),
     defaultScale: 1,
     isPublic: true,
     isOwn: false,
@@ -1587,6 +1590,7 @@ function hitToLibraryItem(
     thumbImageUrl,
     cardImageUrl,
     previewImageUrls,
+    coverColor,
   } = buildCivitaiItemImageUrls(hit.images ?? [], maxImageNsfwLevel)
   const baseModelFamily = version.baseModel?.trim() || 'unknown'
 
@@ -1627,6 +1631,7 @@ function hitToLibraryItem(
     thumbImageUrl,
     cardImageUrl,
     previewImageUrls,
+    coverColor,
     defaultScale: 1,
     isPublic: true,
     isOwn: false,
@@ -1661,28 +1666,59 @@ function hitsToLibraryItems(
   return dedupeLibraryItems(resolved)
 }
 
-// Issue B: nsfwOnly no longer post-filters by `hit.nsfw` — that boolean is
-// unreliable (live-verified false negatives: e.g. a hit with nsfwLevel
-// [16] — XXX-only — flagged `nsfw:false`) and, more importantly, the source
-// query (appendNsfwSearchFilter) already restricts the page to
-// `nsfwLevel > CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL`; post-filtering
-// again on top of that is what caused a fetched page of 12 to shrink to ~6
-// (Issue B's core symptom). `safe` keeps the name-keyword pass as a cheap
-// defense-in-depth layer alongside the source-level `NOT nsfwLevel > N`
-// filter (catches the rare case where a name itself signals NSFW despite
-// clean image levels — this never shrinks a page meaningfully since only a
-// handful of keywords are checked).
-function filterSearchHitsByNsfw(
-  hits: readonly z.infer<typeof CivitaiSearchHitSchema>[],
-  nsfwFilter: LoraNsfwFilter,
-): readonly z.infer<typeof CivitaiSearchHitSchema>[] {
-  if (nsfwFilter === 'safe') {
-    return hits.filter((hit) => !isNsfwNamedModel(hit.name))
-  }
+// ── 库列表：搜索与浏览同一条 meilisearch 路（2026-09-27 LoRA 库 B）────────
+//
+// owner 09-27 定的几件事落在这里：最匹配的排最前、推荐档混进热度、给准数；
+// 「安全」放宽成「有安全样例就列出」在 appendNsfwSearchFilter。
+//
+// 一次 multi-search 拿全，不多一趟往返：
+//   [0] 所有词都对上的精确总数（matchingStrategy 'all'；page + hitsPerPage 0
+//       回的是 totalHits，不是 offset/limit 那种估算值）
+//   [1] 第一档这一页（'all'，按所选排序；推荐档另取前 60 条混热度重排）
+//   [2] 至少对上第一个词的精确总数（'last'）——也就是整条列表的总数
+//   [3] 第二档这一页（'last'，相关性序）
+// 2026-09-27 实测 4 个多词查询：'last' 相关性序的前 |第一档| 条恰好就是第一
+// 档（words 规则排第一），所以合并列表第 m 位（m ≥ |第一档|）就是 'last'
+// 相关性序的第 m 位——[3] 用同一个 offset 就能取到，第二档天然按对上几个词
+// 往后排。浏览（没有搜索词）只有一档，只发 [0] 与 [1]。界面上是一条列表，
+// 不分段（owner 09-27）。
+//
+// ⚠ 带 sort 时上游把 sort 排在 words 前面（showRankingScoreDetails 实测
+// order 0），所以第一档必须用 'all' 单独取——直接对 'last' 排序会让只对上
+// 一个词、下载更多的条目压到真正要找的那个前面（「鸣潮 洛可可」选最多下
+// 载，前 5 全是别的鸣潮角色）。
+const CIVITAI_SEARCH_BLEND_WINDOW = 60
+const CIVITAI_SEARCH_BLEND_HEAT_WEIGHT = 0.15
+
+type CivitaiSearchHit = z.infer<typeof CivitaiSearchHitSchema>
+
+/**
+ * 推荐档：相关性为主、热度为辅。热度 = 下载数取对数、按这一窗里最大值归一
+ * 到 0–1，乘 0.15 加到相关性分上——只在相关性差不到一截的几条之间让下载多
+ * 的往前挪，不会把对得差的顶上来。
+ */
+function blendRelevanceWithHeat(
+  hits: readonly CivitaiSearchHit[],
+): CivitaiSearchHit[] {
+  const downloads = hits.map(
+    (hit) =>
+      hit.version?.metrics?.downloadCount ?? hit.metrics?.downloadCount ?? 0,
+  )
+  const heatScale = Math.log10(Math.max(0, ...downloads) + 1) || 1
   return hits
+    .map((hit, index) => ({
+      hit,
+      index,
+      score:
+        (hit._rankingScore ?? 0) +
+        (CIVITAI_SEARCH_BLEND_HEAT_WEIGHT * Math.log10(downloads[index] + 1)) /
+          heatScale,
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((entry) => entry.hit)
 }
 
-async function listCivitaiLorasBySearch({
+async function listCivitaiLorasViaMeilisearch({
   page,
   pageSize,
   search,
@@ -1697,50 +1733,79 @@ async function listCivitaiLorasBySearch({
   sort: CivitaiLoraSort
   nsfwFilter: LoraNsfwFilter
 }): Promise<CivitaiLoraLibraryResult> {
-  const windowEnd = page * pageSize
   const filters = buildCivitaiSearchFilters(
     baseModel === 'all' ? null : baseModel,
   )
-  // Issue B: nsfw tri-state pushed down to the source filter so a fetched
-  // page is already the right shape — no more post-filter shrinkage.
   appendNsfwSearchFilter(filters, nsfwFilter)
 
+  const start = (page - 1) * pageSize
   const sortFields = CIVITAI_SEARCH_SORT_MAP[sort]
-  // 跟 Civitai 官网搜索同一套：一条 query、真实 offset、sort 全局生效。
-  // 旧实现拉相关性窗口再按名称分层，会把「最新」变成「先完全匹配再按时间」
-  // ——官网选 Newest 是全局新→旧，匹配差的新模型也能置顶。
-  const query = {
+  // 浏览没有相关性可言（全是 1.0），推荐档照上游的点赞序，不混热度。
+  const blend =
+    Boolean(search) && !sortFields && start < CIVITAI_SEARCH_BLEND_WINDOW
+  const base = {
     indexUid: CIVITAI_MODEL_SEARCH_INDEX,
     q: search,
-    matchingStrategy: 'last',
-    limit: pageSize,
-    offset: (page - 1) * pageSize,
     filter: filters,
-    ...(sortFields ? { sort: sortFields } : {}),
+  }
+  const queries: Record<string, unknown>[] = [
+    { ...base, matchingStrategy: 'all', page: 1, hitsPerPage: 0 },
+    {
+      ...base,
+      matchingStrategy: 'all',
+      ...(blend
+        ? {
+            offset: 0,
+            limit: Math.max(CIVITAI_SEARCH_BLEND_WINDOW, start + pageSize),
+            showRankingScore: true,
+          }
+        : { offset: start, limit: pageSize }),
+      ...(sortFields ? { sort: sortFields } : {}),
+    },
+  ]
+  if (search) {
+    queries.push(
+      { ...base, matchingStrategy: 'last', page: 1, hitsPerPage: 0 },
+      { ...base, matchingStrategy: 'last', offset: start, limit: pageSize },
+    )
   }
 
-  const payload = await fetchCivitaiSearchPayload(
-    [query],
-    'civitai.searchLoras',
-  )
-
-  // 解析失败/形状异常直接抛出——调用方 listCivitaiLoras 捕获后按降级链处理，
-  // 不在这里吞掉错误（吞了调用方就没法区分"真的没结果"和"端点坏了"）。
+  const payload = await fetchCivitaiSearchPayload(queries, 'civitai.listLoras')
+  // 解析失败/形状异常直接抛出——调用方按降级链处理，不在这里吞掉错误（吞
+  // 了就分不清「真的没结果」和「端点坏了」）。
   const parsed = CivitaiModelSearchResponseSchema.parse(payload)
-  const hits = filterSearchHitsByNsfw(parsed.results[0]?.hits ?? [], nsfwFilter)
-  const items = hitsToLibraryItems(hits, maxImageNsfwLevelFor(nsfwFilter))
+  const [firstCount, firstWindow, wholeCount, wholeWindow] = parsed.results
+  const firstTierTotal = firstCount?.totalHits
+  const total = search ? wholeCount?.totalHits : firstTierTotal
+  if (firstTierTotal === undefined || total === undefined) {
+    throw new Error('Civitai search response is missing totalHits')
+  }
 
-  const estimatedTotal = parsed.results[0]?.estimatedTotalHits ?? null
+  let firstTierHits = firstWindow?.hits ?? []
+  if (blend) {
+    firstTierHits = [
+      ...blendRelevanceWithHeat(
+        firstTierHits.slice(0, CIVITAI_SEARCH_BLEND_WINDOW),
+      ),
+      ...firstTierHits.slice(CIVITAI_SEARCH_BLEND_WINDOW),
+    ].slice(start, start + pageSize)
+  }
+  // 这一页落进第二档的那几位：同一个 offset 的 'last' 窗口里，跳过还属于
+  // 第一档的前半截。
+  const secondTierHits = search
+    ? (wholeWindow?.hits ?? []).slice(Math.max(0, firstTierTotal - start))
+    : []
+  const items = hitsToLibraryItems(
+    [...firstTierHits, ...secondTierHits].slice(0, pageSize),
+    maxImageNsfwLevelFor(nsfwFilter),
+  )
 
   return {
     items,
     page,
     pageSize,
-    total: estimatedTotal,
-    hasNextPage:
-      estimatedTotal !== null
-        ? windowEnd < estimatedTotal
-        : items.length >= pageSize,
+    total,
+    hasNextPage: start + pageSize < total,
     nextCursor: null,
     offsetPaginationSupported: true,
   }
@@ -1753,7 +1818,7 @@ function buildTagsInFilter(tags: readonly string[]): string {
 
 // 合并两个独立分页窗口（L1 tag 命中 ∪ L2 关键词命中）后，各自的 meilisearch
 // 内部排序已不再是"整体排过序"的——重新按请求的 sort 字段排一遍，跟单
-// query 路径（listCivitaiLorasBySearch）在同一 sort 值下产出一致的顺序。
+// query 路径（listCivitaiLorasViaMeilisearch）在同一 sort 值下产出一致的顺序。
 // 'Highest Rated'（相关性）没有暴露给客户端的数值分数，保留合并顺序
 // （L1 命中排在 L2 前面，各自内部仍是 meilisearch 相关性序）。
 function sortMergedSearchHits(
@@ -1919,13 +1984,60 @@ async function listCivitaiLorasByContentType({
     }
   }
 
+  // 精确总数跟着同一次请求走：|L1 ∪ L2| = |L1| + |L2| − |L1 ∩ L2|，交集就是
+  // 「L2 的词 + L1 的标签」一起下推的那条。2026-09-27 实测（服装 × Illustrious
+  // × 安全，搜 roccia / wuthering waves）公式与取回全部 id 后的真实并集一致。
+  // ⚠ L3 的 override / exclude 表今天是空的；往里加条目时这个数要跟着算进去。
+  const tagsFilter =
+    definition.civitaiTags.length > 0
+      ? buildTagsInFilter(definition.civitaiTags)
+      : null
+  const countQueries: Record<string, unknown>[] = []
+  if (tagsFilter) {
+    countQueries.push({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q: search,
+      filter: [...baseFilters, tagsFilter],
+      page: 1,
+      hitsPerPage: 0,
+    })
+  }
+  if (l2QueryText) {
+    countQueries.push({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q: l2QueryText,
+      filter: baseFilters,
+      page: 1,
+      hitsPerPage: 0,
+    })
+  }
+  if (tagsFilter && l2QueryText) {
+    countQueries.push({
+      indexUid: CIVITAI_MODEL_SEARCH_INDEX,
+      q: l2QueryText,
+      filter: [...baseFilters, tagsFilter],
+      page: 1,
+      hitsPerPage: 0,
+    })
+  }
+
   const payload = await fetchCivitaiSearchPayload(
-    queries,
+    [...queries, ...countQueries],
     'civitai.searchLorasByContentType',
   )
 
-  // 与 listCivitaiLorasBySearch 同一套契约：解析失败直接抛出，不静默吞掉。
+  // 与 listCivitaiLorasViaMeilisearch 同一套契约：解析失败直接抛出，不静默吞掉。
   const parsed = CivitaiModelSearchResponseSchema.parse(payload)
+  const windowResults = parsed.results.slice(0, queries.length)
+  const counts = parsed.results
+    .slice(queries.length)
+    .map((result) => result.totalHits)
+  const total =
+    counts.length === 0 || counts.some((count) => count === undefined)
+      ? null
+      : counts.length === 3
+        ? (counts[0] ?? 0) + (counts[1] ?? 0) - (counts[2] ?? 0)
+        : (counts[0] ?? 0)
 
   const excludedForType = new Set(
     Object.entries(LORA_CONTENT_TYPE_EXCLUDES)
@@ -1934,9 +2046,8 @@ async function listCivitaiLorasByContentType({
   )
 
   const mergedById = new Map<number, z.infer<typeof CivitaiSearchHitSchema>>()
-  for (const result of parsed.results) {
-    const filteredHits = filterSearchHitsByNsfw(result.hits ?? [], nsfwFilter)
-    for (const hit of filteredHits) {
+  for (const result of windowResults) {
+    for (const hit of result.hits ?? []) {
       if (excludedForType.has(hit.id)) continue
       if (!mergedById.has(hit.id)) mergedById.set(hit.id, hit)
     }
@@ -1973,26 +2084,24 @@ async function listCivitaiLorasByContentType({
     }
   }
 
-  // 合并集大小无法精确换算成总数（L1/L2 成员可能重叠也可能互补）——如实
-  // 报 null（未知）好过编造一个数字。hasNextPage 两个信号任一为真即可：
-  //   1. 合并去重后的集合本身已经超出这一页的窗口末尾——说明我们已经拿
-  //      在手上的数据就够填下一页，不用等下次请求验证。
-  //   2. 某条子 query 报的 estimatedTotalHits 超过了这次实际取的量
-  //      （fetchLimit）——命中了 MAX_FETCH_LIMIT 兜底或缓冲不够宽的边界
-  //      情况：这一页数据虽已到手，但上游供给比我们这次扫到的还多。
+  // 有精确总数就按它判还有没有下一页；数缺席（上游没回 totalHits）时退回
+  // 两个信号：合并集已经超出这一页的窗口末尾，或某条子 query 的供给比这
+  // 次扫到的还多（命中 MAX_FETCH_LIMIT 兜底或缓冲不够宽）。
   const hasNextPage =
-    sortedHits.length > windowEnd ||
-    parsed.results.some(
-      (result) =>
-        result.estimatedTotalHits !== undefined &&
-        result.estimatedTotalHits > fetchLimit,
-    )
+    total !== null
+      ? windowEnd < total
+      : sortedHits.length > windowEnd ||
+        windowResults.some(
+          (result) =>
+            result.estimatedTotalHits !== undefined &&
+            result.estimatedTotalHits > fetchLimit,
+        )
 
   return {
     items,
     page,
     pageSize,
-    total: null,
+    total,
     hasNextPage,
     nextCursor: null,
     // Bug 修复（下一页不可点的真根因）：这条路径恒走 meilisearch 按页码
@@ -2261,17 +2370,14 @@ async function resolveCivitaiRestCursorForPage({
 
 async function fetchCivitaiLoraPage(
   url: URL,
-  // P1-6 三态，REST 浏览路径与 appendNsfwSearchFilter（meilisearch 搜索路
-  // 径）对齐语义（Issue B）：
-  //   'safe'     排除「名字带 NSFW 关键词」*或*「任意图片超出安全天花板
-  //              CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL」的条目。
-  //   'nsfwOnly' 反过来只留「civitai 的 model.nsfw 标记为真」*或*「任意
-  //              图片超出安全天花板」的条目。
+  // P1-6 三态。这条 REST 路现在只在 meilisearch 端点本身坏了（4xx、公钥轮
+  // 换）或浏览时上游搜索过载才走，语义跟 appendNsfwSearchFilter 对齐：
+  //   'safe'     留「至少有一张图不超过安全天花板」的条目，卡片只放那些图
+  //              （2026-09-27 owner：有安全样例就列出）。
+  //   'nsfwOnly' 留「civitai 的 model.nsfw 标记为真」*或*「任意一张图超出
+  //              安全天花板」的条目——两个信号单独都不可靠（实测双向误判），
+  //              REST 又没有能下推的按图分级过滤，OR 起来缩小漏判面。
   //   'unrestricted' 不做客户端过滤。
-  // 两个信号（名字关键词/model.nsfw 布尔）都单独不可靠（实测过双向误判，
-  // 见 appendNsfwSearchFilter 注释），REST 又没有可下推的按图 nsfwLevel
-  // 过滤——OR 组合两个信号缩小漏判面，同时保留旧信号让已有测试期望的
-  // fixture（无 images 数组时）继续按原有的关键词/布尔判据工作。
   nsfwFilter: LoraNsfwFilter = DEFAULT_LORA_NSFW_FILTER,
 ): Promise<{
   items: CivitaiLoraLibraryItem[]
@@ -2292,11 +2398,8 @@ async function fetchCivitaiLoraPage(
     .map((model) => {
       const item = toLibraryItem(model, imageNsfwCeiling)
       if (!item) return null
-      // Scan the raw (unceiled) version images — pickImages() inside
-      // toLibraryItem already dropped anything above imageNsfwCeiling from
-      // previewImageUrls/coverImageUrl, so re-deriving this signal from the
-      // mapped item would always read "safe" under 'safe' mode (its ceiling
-      // IS the threshold being checked here).
+      // 扫版本自己的原始 images（未按天花板筛过）——toLibraryItem 里挑出来的
+      // 那几张已经按天花板筛过，拿它判断在 'safe' 档下恒为「安全」。
       const version = pickUsableModelVersion(model)
       const hasNsfwLevelAboveSafeCeiling = version
         ? versionHasNsfwLevelAbove(
@@ -2304,17 +2407,19 @@ async function fetchCivitaiLoraPage(
             CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
           )
         : false
-      return { item, hasNsfwLevelAboveSafeCeiling }
+      const hasSafeImage = version
+        ? versionHasImageAtOrBelow(
+            version,
+            CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
+          )
+        : false
+      return { item, hasNsfwLevelAboveSafeCeiling, hasSafeImage }
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
   const filteredItems =
     nsfwFilter === 'safe'
       ? mappedItems
-          .filter(
-            (entry) =>
-              !isNsfwNamedModel(entry.item.name) &&
-              !entry.hasNsfwLevelAboveSafeCeiling,
-          )
+          .filter((entry) => entry.hasSafeImage)
           .map((entry) => entry.item)
       : nsfwFilter === 'nsfwOnly'
         ? mappedItems
@@ -2598,35 +2703,100 @@ async function resolveDegradedCivitaiSearch({
   throw error
 }
 
+export interface ListCivitaiLorasOptions {
+  /**
+   * 把不必挡住响应的活挂到响应之后跑——路由传 next/server 的 `after`。不传 =
+   * 就地 await（定时预热、测试、助手检索这些没有响应要赶的调用方）。
+   * 只有传了它，「上游慢就先给上一次的结果」才会启用：先出快照的前提是有地
+   * 方接着把上游跑完、刷新快照，否则那一趟白跑、快照也永远旧着。
+   */
+  defer?: (task: () => Promise<void>) => void
+  /** 路由写 Server-Timing 用：上游那一趟在响应前跑完时花了多久。 */
+  timing?: { upstreamMs?: number }
+}
+
+/** 上游这么久还没回、手上又有这一组的快照，就先把快照给出去（owner 09-27：搜索慢）。 */
+const CIVITAI_SEARCH_SNAPSHOT_RACE_MS = 1500
+
+type CivitaiUpstreamOutcome =
+  | { kind: 'done'; result: CivitaiLoraLibraryResult }
+  | { kind: 'failed'; error: unknown }
+  | { kind: 'slow' }
+
 export async function listCivitaiLoras(
   input: ListCivitaiLorasInput = {},
+  options: ListCivitaiLorasOptions = {},
 ): Promise<CivitaiLoraLibraryResult> {
-  const normalizedSearch = input.search?.trim() ?? ''
-  const contentType = input.contentType ?? DEFAULT_LORA_CONTENT_TYPE
-
-  // 浏览路径直接放行，不进快照兜底：2026-08-19 实测上游过载只打搜索子系
-  // 统，浏览全程 200；而且它已经有 prewarm cron + CDN 两层保护，再加一层
-  // 只是白占那 1000 个 LRU 名额。
-  if (!normalizedSearch && contentType === 'all') {
-    return listCivitaiLorasViaRest(input)
-  }
-
   const snapshotKey = buildCivitaiSnapshotKey({
     page: input.page ?? 1,
     pageSize: input.pageSize ?? CIVITAI_LORA_PAGE_SIZE,
     cursor: input.cursor ?? null,
-    search: normalizedSearch,
+    search: input.search?.trim() ?? '',
     baseModel: input.baseModel ?? 'all',
     sort: input.sort ?? 'Highest Rated',
     nsfwFilter: input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
-    contentType,
+    contentType: input.contentType ?? DEFAULT_LORA_CONTENT_TYPE,
   })
+  const startedAt = Date.now()
+  const upstream = listCivitaiLorasFromUpstream(input).then((result) => {
+    if (options.timing) options.timing.upstreamMs = Date.now() - startedAt
+    return result
+  })
+  const { defer } = options
+
+  if (defer) {
+    let raceTimer: ReturnType<typeof setTimeout> | undefined
+    const outcome = await Promise.race<CivitaiUpstreamOutcome>([
+      upstream.then(
+        (result) => ({ kind: 'done', result }),
+        (error: unknown) => ({ kind: 'failed', error }),
+      ),
+      new Promise<CivitaiUpstreamOutcome>((resolve) => {
+        raceTimer = setTimeout(
+          () => resolve({ kind: 'slow' }),
+          CIVITAI_SEARCH_SNAPSHOT_RACE_MS,
+        )
+      }),
+    ])
+    clearTimeout(raceTimer)
+
+    if (outcome.kind === 'done') {
+      // 快照写在响应之后：它 fail-open、只在上游失败时才会被读，没理由让用
+      // 户多等一趟数据库往返。
+      defer(() => writeCivitaiSearchSnapshot(snapshotKey, outcome.result))
+      return outcome.result
+    }
+    if (outcome.kind === 'failed') {
+      return resolveDegradedCivitaiSearch({
+        input,
+        snapshotKey,
+        error: outcome.error,
+      })
+    }
+    const snapshot = await readCivitaiSearchSnapshot(snapshotKey)
+    if (snapshot && fallbackHasHits(snapshot.payload)) {
+      // 上游只是慢：先给上一次的结果（stale 响应不进 CDN，见路由），上游在响
+      // 应之后接着跑完、刷新快照——客户端几秒后再要一次就是新的。
+      defer(async () => {
+        try {
+          await writeCivitaiSearchSnapshot(snapshotKey, await upstream)
+        } catch {
+          // 这一趟也失败了：留给下一次请求的降级链处理。
+        }
+      })
+      return markCivitaiSearchStale(snapshot.payload, snapshot.fetchedAt)
+    }
+  }
 
   try {
-    const result = await listCivitaiLorasFromUpstream(input)
-    // 同步写入而不是 void：serverless 函数在响应返回后可能立刻被回收，悬空
-    // 的 promise 不保证跑完。写入本身 fail-open，不会把成功的搜索拖失败。
-    await writeCivitaiSearchSnapshot(snapshotKey, result)
+    const result = await upstream
+    if (defer) {
+      defer(() => writeCivitaiSearchSnapshot(snapshotKey, result))
+    } else {
+      // 没有「响应之后」可挂的调用方（预热 cron 等）就地写完：serverless 函
+      // 数返回后可能立刻被回收，悬空的 promise 不保证跑完。写入本身 fail-open。
+      await writeCivitaiSearchSnapshot(snapshotKey, result)
+    }
     return result
   } catch (error) {
     return resolveDegradedCivitaiSearch({ input, snapshotKey, error })
@@ -2648,11 +2818,9 @@ async function listCivitaiLorasFromUpstream(
   const normalizedSearch = input.search?.trim() ?? ''
 
   // S2：内容类型筛选整体路由到独立的 meilisearch 合并路径（三重兜底，见
-  // listCivitaiLorasByContentType 的文档注释），绕开下面的 search/REST 双
-  // 分支——REST `tag=` 只支持单值、表达不了 civitaiTags 的多 tag OR，也没
-  // 有名称关键词兜底，type≠'all' 时统一走 meilisearch。
+  // listCivitaiLorasByContentType 的文档注释）——REST `tag=` 只支持单值、表
+  // 达不了 civitaiTags 的多 tag OR，也没有名称关键词兜底。
   if (contentType !== 'all') {
-    // 同属搜索子系统，跟下面的搜索分支共用一个断路器。
     return civitaiSearchBreaker.call(() =>
       listCivitaiLorasByContentType({
         page,
@@ -2666,82 +2834,64 @@ async function listCivitaiLorasFromUpstream(
     )
   }
 
-  // B11：有搜索词就先走 civitai 自家 meilisearch（真排序，REST 带 query 时
-  // 忽略 sort）；端点非正式、公钥可能轮换，失败就回落现有 REST 搜索路径，
-  // 结果打上 sortFellBackToRelevance 让 UI 把排序控件降级显示成「排序已降级」。
-  //
-  // 一次搜索会话内锁定分页范式：这个选择每次
-  // 请求独立做，与上一页无关——但 meilisearch 走 offset 分页、REST 回落走
-  // cursor scan 分页，client 的 page↔cursor 映射假设"同一搜索会话全程同一
-  // 分页范式"。会话中途换后端（比如 page2 撞上 civitai 间歇 503 回落
-  // REST，page3 时 civitai 又恢复、meilisearch 重新命中）就会打乱这个假
-  // 设，翻页出现重复/错位。`source` 由 client 在首页决定后回传，锁定同一
-  // 会话内的后端选择：
-  //   source === 'rest'：跳过 meilisearch，直接走 REST（保持 cursor 语义
-  //     连续，不再尝试一次注定被忽略的 meilisearch 请求）。
-  //   source === 'meilisearch'：中途失败直接整体抛错/由路由层 502，不再
-  //     偷偷回落 REST——好过静默换分页范式。
-  //   source 缺省（首页 / 未锁定）：自由选择，行为与今天一致。
-  if (normalizedSearch) {
-    // 搜索路径整体罩在断路器里；浏览路径（下面那条 return）不罩——
-    // 2026-08-19 实测过载只打搜索子系统，浏览全程 200，不该被牵连。
-    return civitaiSearchBreaker.call(async () => {
-      if (source === 'rest') {
-        const fallback = await listCivitaiLorasViaRest(input)
-        return { ...fallback, sortFellBackToRelevance: true }
-      }
-      try {
-        return await listCivitaiLorasBySearch({
-          page,
-          pageSize,
-          search: normalizedSearch,
-          baseModel,
-          sort,
-          nsfwFilter,
-        })
-      } catch (error) {
-        if (source === 'meilisearch') {
-          logger.warn(
-            'Civitai meilisearch failed mid-session (locked backend) — surfacing error instead of silently falling back to REST',
-            {
-              error: error instanceof Error ? error.message : 'Unknown',
-              search: normalizedSearch,
-              baseModel,
-              sort,
-              page,
-            },
-          )
-          throw error
-        }
-        // 上游搜索整体降级时不回落 REST——两者同一个失败域，回落只是把失
-        // 败重演一遍再赔上十几秒（2026-08-19 事故实录：meilisearch 超时后
-        // 回落 REST，503 重试三次，单次请求 21–24 秒才吐 502）。
-        if (isUpstreamSearchDegraded(error)) {
-          logger.warn(
-            'Civitai search subsystem degraded — skipping the REST fallback (same failure domain)',
-            {
-              error: error instanceof Error ? error.message : 'Unknown',
-              search: normalizedSearch,
-              baseModel,
-              sort,
-              page,
-            },
-          )
-          throw error
-        }
-        logger.warn('Civitai meilisearch failed, falling back to REST search', {
-          error: error instanceof Error ? error.message : 'Unknown',
-          search: normalizedSearch,
-          baseModel,
-          sort,
-        })
-        const fallback = await listCivitaiLorasViaRest(input)
-        return { ...fallback, sortFellBackToRelevance: true }
-      }
-    })
+  // 一次会话内锁定分页范式（Issue C）：meilisearch 按页码 offset 分页，REST
+  // 回落按 cursor 扫描，同一会话中途换后端会让翻页重复 / 错位。`source` 由
+  // client 在首页拿到结果后回传：
+  //   'rest'        直接走 REST，不再试一次注定换范式的 meilisearch；
+  //   'meilisearch' 中途失败就抛给降级链，不偷偷回落 REST；
+  //   缺省          自由选择（会话第一页）。
+  if (source === 'rest') {
+    const fallback = await listCivitaiLorasViaRest(input)
+    return normalizedSearch
+      ? { ...fallback, sortFellBackToRelevance: true }
+      : fallback
   }
 
-  return listCivitaiLorasViaRest(input)
+  // 搜索与浏览都先走 meilisearch（2026-09-27 LoRA 库 B：浏览也要准数、也要
+  // 同一套「安全」口径——REST 两样都给不了）。同一个端点，同一个断路器。
+  try {
+    return await civitaiSearchBreaker.call(() =>
+      listCivitaiLorasViaMeilisearch({
+        page,
+        pageSize,
+        search: normalizedSearch,
+        baseModel,
+        sort,
+        nsfwFilter,
+      }),
+    )
+  } catch (error) {
+    const logContext = {
+      error: error instanceof Error ? error.message : 'Unknown',
+      search: normalizedSearch || undefined,
+      baseModel,
+      sort,
+      page,
+    }
+    if (source === 'meilisearch') {
+      logger.warn(
+        'Civitai meilisearch failed mid-session (locked backend) — surfacing error instead of silently falling back to REST',
+        logContext,
+      )
+      throw error
+    }
+    // 有搜索词时上游搜索整体降级不回落 REST——REST `query=` 与 meilisearch
+    // 是同一个搜索子系统，回落只是把失败重演一遍再赔上十几秒（2026-08-19
+    // 事故实录：单次请求 21–24 秒才吐 502）。浏览不一样：同一天不带 query
+    // 的 REST 浏览全程 200，是另一个失败域，照样回落。
+    if (normalizedSearch && isUpstreamSearchDegraded(error)) {
+      logger.warn(
+        'Civitai search subsystem degraded — skipping the REST fallback (same failure domain)',
+        logContext,
+      )
+      throw error
+    }
+    logger.warn('Civitai meilisearch failed, falling back to REST', logContext)
+    const fallback = await listCivitaiLorasViaRest(input)
+    return normalizedSearch
+      ? { ...fallback, sortFellBackToRelevance: true }
+      : fallback
+  }
 }
 
 async function listCivitaiLorasViaRest({
@@ -2861,11 +3011,10 @@ async function listCivitaiLorasViaRest({
 const CIVITAI_LORA_PREWARM_CONCURRENCY = 3
 
 export async function prewarmCivitaiLoraLibrary(): Promise<CivitaiLoraPrewarmResult> {
-  // 'other' 兜底桶不预热：REST 补集只能扩窗扫描（每个 sort 最多 10 次上游
-  // 请求），命中率又低，边缘缓存价值配不上这个成本——冷路径按需加载即可。
-  const tasks = CIVITAI_LORA_BASE_MODEL_VALUES.filter(
-    (baseModel) => baseModel !== 'other',
-  ).flatMap((baseModel) =>
+  // 每个底模 × 排序的第一页各跑一次，顺手把快照写好——上游慢或挂了时，默认
+  // 列表手上总有上一次的结果可给。'other' 兜底桶现在也是一次 meilisearch
+  // 请求（NOT IN 补集），不再是 REST 多页扫描，一起预热。
+  const tasks = CIVITAI_LORA_BASE_MODEL_VALUES.flatMap((baseModel) =>
     CIVITAI_LORA_SORT_VALUES.map((sort) => ({ baseModel, sort })),
   )
   const entries: CivitaiLoraPrewarmEntry[] = new Array(tasks.length)

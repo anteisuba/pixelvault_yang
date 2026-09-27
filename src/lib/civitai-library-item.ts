@@ -35,6 +35,28 @@ export interface CivitaiCdnImage {
   url: string
   type?: string
   nsfwLevel?: number
+  /** Civitai 给每张图的 blurhash——封面在图到之前先铺它的平均色。 */
+  hash?: string
+}
+
+const BLURHASH_BASE83 =
+  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz#$%*+,-.:;=?@[]^_{|}~'
+
+/**
+ * blurhash 的第 3–6 位是整张图的平均色（sRGB，base83 编码的 24 位整数）。
+ * 只取这一格就够「先铺颜色、图到了再由糊变清」，不必为整张模糊图引依赖。
+ */
+export function blurhashAverageColor(
+  hash: string | null | undefined,
+): string | null {
+  if (!hash || hash.length < 6) return null
+  let value = 0
+  for (const char of hash.slice(2, 6)) {
+    const digit = BLURHASH_BASE83.indexOf(char)
+    if (digit < 0) return null
+    value = value * 83 + digit
+  }
+  return `#${value.toString(16).padStart(6, '0')}`
 }
 
 /**
@@ -93,6 +115,7 @@ export interface CivitaiItemImageUrls {
   thumbImageUrl: string | null
   cardImageUrl: string | null
   previewImageUrls: string[]
+  coverColor: string | null
 }
 
 /**
@@ -103,17 +126,20 @@ export function buildCivitaiItemImageUrls(
   images: readonly CivitaiCdnImage[],
   maxImageNsfwLevel: number,
 ): CivitaiItemImageUrls {
-  const originals = images
+  const shown = images
     .filter(
       (image) =>
         isStaticCivitaiImage(image) &&
         (image.nsfwLevel ?? 1) <= maxImageNsfwLevel,
     )
     .slice(0, CIVITAI_ITEM_MAX_IMAGES)
-    .map((image) => buildCivitaiSearchImageOriginalUrl(image))
+  const originals = shown.map((image) =>
+    buildCivitaiSearchImageOriginalUrl(image),
+  )
 
   const coverOriginal = originals[0] ?? null
   return {
+    coverColor: blurhashAverageColor(shown[0]?.hash),
     coverImageUrlOriginal: coverOriginal,
     coverImageUrl: coverOriginal
       ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })

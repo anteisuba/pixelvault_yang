@@ -134,6 +134,7 @@ function mirrorRowToLibraryItem(
     thumbImageUrl: imageUrls.thumbImageUrl,
     cardImageUrl: imageUrls.cardImageUrl,
     previewImageUrls: imageUrls.previewImageUrls,
+    coverColor: imageUrls.coverColor,
     defaultScale: 1,
     isPublic: true,
     isOwn: false,

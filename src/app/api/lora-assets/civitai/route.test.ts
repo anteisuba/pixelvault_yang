@@ -41,6 +41,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(body.success).toBe(true)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ nsfwFilter: 'safe' }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -56,6 +57,7 @@ describe('GET /api/lora-assets/civitai', () => {
       expect(response.status).toBe(200)
       expect(mockListCivitaiLoras).toHaveBeenCalledWith(
         expect.objectContaining({ nsfwFilter: 'safe' }),
+        expect.objectContaining({ defer: expect.any(Function) }),
       )
     },
   )
@@ -68,6 +70,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(200)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ nsfwFilter: 'safe' }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -79,6 +82,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(200)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ nsfwFilter: 'nsfwOnly' }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -107,6 +111,7 @@ describe('GET /api/lora-assets/civitai', () => {
       expect(response.status).toBe(200)
       expect(mockListCivitaiLoras).toHaveBeenCalledWith(
         expect.objectContaining({ source }),
+        expect.objectContaining({ defer: expect.any(Function) }),
       )
     },
   )
@@ -121,6 +126,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(body.success).toBe(true)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ source: undefined }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -130,6 +136,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(200)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ source: undefined }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -141,6 +148,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(200)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'all' }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -152,6 +160,7 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(200)
     expect(mockListCivitaiLoras).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: 'clothing' }),
+      expect.objectContaining({ defer: expect.any(Function) }),
     )
   })
 
@@ -164,5 +173,34 @@ describe('GET /api/lora-assets/civitai', () => {
     expect(response.status).toBe(400)
     expect(body.success).toBe(false)
     expect(mockListCivitaiLoras).not.toHaveBeenCalled()
+  })
+
+  it('keeps a stale (served-early) page out of the edge cache', async () => {
+    mockListCivitaiLoras.mockResolvedValue({
+      ...emptyResult,
+      stale: true,
+      fetchedAt: '2026-09-27T10:00:00.000Z',
+    })
+
+    const response = await GET(createGET('/api/lora-assets/civitai', {}))
+
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(response.headers.get('Server-Timing')).toContain(
+      'snapshot;desc="stale"',
+    )
+  })
+
+  it('caches a live page at the edge and reports where the time went', async () => {
+    mockListCivitaiLoras.mockImplementation(async (_input, options) => {
+      if (options?.timing) options.timing.upstreamMs = 312
+      return emptyResult
+    })
+
+    const response = await GET(createGET('/api/lora-assets/civitai', {}))
+
+    expect(response.headers.get('Cache-Control')).toContain('s-maxage=900')
+    const serverTiming = response.headers.get('Server-Timing') ?? ''
+    expect(serverTiming).toContain('upstream;dur=312')
+    expect(serverTiming).toMatch(/total;dur=\d+/)
   })
 })

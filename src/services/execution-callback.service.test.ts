@@ -22,6 +22,7 @@ const mockFailGenerationJob = vi.fn()
 const mockFailActiveGenerationJob = vi.fn()
 const mockTxUpdateMany = vi.fn()
 const mockEnqueuePreview = vi.fn()
+const mockProcessPreviewOutbox = vi.fn()
 const mockBuildRecipeSnapshot = vi.fn()
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
@@ -73,6 +74,8 @@ vi.mock('@/services/prompts/recipe.service', () => ({
 vi.mock('@/services/image/image-preview-derivative.service', () => ({
   enqueueImagePreviewDerivatives: (...args: unknown[]) =>
     mockEnqueuePreview(...args),
+  processImagePreviewDerivativeOutbox: (...args: unknown[]) =>
+    mockProcessPreviewOutbox(...args),
 }))
 
 import { handleExecutionCallback } from './execution-callback.service'
@@ -158,6 +161,11 @@ describe('execution-callback.service', () => {
       status: 'FAILED',
     })
     mockEnqueuePreview.mockResolvedValue({ id: 'outbox-1' })
+    mockProcessPreviewOutbox.mockResolvedValue({
+      outboxId: 'outbox-1',
+      status: 'completed',
+      generationId: 'generation-image-1',
+    })
     mockBuildRecipeSnapshot.mockResolvedValue(undefined)
   })
 
@@ -660,8 +668,13 @@ describe('execution-callback.service', () => {
       }),
       expect.anything(),
     )
-    // preview derivatives enqueued (sharp runs in the outbox worker)
-    expect(mockEnqueuePreview).toHaveBeenCalledTimes(1)
+    // 没传 defer：派生图任务入队后就地处理
+    expect(mockEnqueuePreview).toHaveBeenCalledWith({
+      generationJobId: 'job-1',
+      generationId: 'generation-image-1',
+      sourceStorageKey: 'generations/user-1/image/test.png',
+    })
+    expect(mockProcessPreviewOutbox).toHaveBeenCalledWith('outbox-1')
   })
 
   it('finalizes worker-uploaded IMAGE callbacks without a Next R2 upload', async () => {
@@ -707,6 +720,103 @@ describe('execution-callback.service', () => {
       }),
       expect.anything(),
     )
+  })
+
+  describe('IMAGE 缩略图 / 预览图（回调落库后立刻做）', () => {
+    const workerImagePayload: ExecutionCallbackPayload = {
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        width: 2368,
+        height: 1776,
+        requestCount: 1,
+      },
+    }
+
+    beforeEach(() => {
+      mockFindUnique.mockResolvedValue({
+        ...buildJob('RUNNING'),
+        adapterType: 'openai',
+        provider: 'OpenAI',
+        modelId: 'gpt-image-2.5-flare',
+        prompt: 'image prompt',
+        externalRequestId: JSON.stringify({
+          outputType: 'IMAGE',
+          creditCost: 1,
+          aspectRatio: '4:3',
+          originalModelId: 'gpt-image-2.5-flare',
+        }),
+      })
+      mockCreateGeneration.mockResolvedValue({
+        id: 'generation-image-1',
+        outputType: 'IMAGE',
+      })
+    })
+
+    it('入队后把这一条挂到响应之后处理，不挡回调', async () => {
+      const deferred: Array<() => Promise<void>> = []
+
+      const result = await handleExecutionCallback(workerImagePayload, {
+        defer: (task) => {
+          deferred.push(task)
+        },
+      })
+
+      expect(result.action).toBe('completed')
+      expect(mockEnqueuePreview).toHaveBeenCalledWith({
+        generationJobId: 'job-1',
+        generationId: 'generation-image-1',
+        sourceStorageKey: 'generations/user-1/image/worker.png',
+      })
+      expect(deferred).toHaveLength(1)
+      expect(mockProcessPreviewOutbox).not.toHaveBeenCalled()
+
+      await deferred[0]()
+
+      expect(mockProcessPreviewOutbox).toHaveBeenCalledWith('outbox-1')
+    })
+
+    it('处理抛错只记 warn，作品照样算完成（留在 outbox 等定时任务）', async () => {
+      mockProcessPreviewOutbox.mockRejectedValue(new Error('db unavailable'))
+
+      const result = await handleExecutionCallback(workerImagePayload)
+
+      expect(result).toEqual({
+        runId: 'job-1',
+        jobStatus: 'COMPLETED',
+        action: 'completed',
+      })
+      expect(mockFailActiveGenerationJob).not.toHaveBeenCalled()
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Image preview derivative processing failed (callback)',
+        expect.objectContaining({
+          runId: 'job-1',
+          outboxId: 'outbox-1',
+          error: 'db unavailable',
+        }),
+      )
+    })
+
+    it('入队失败就不处理，作品照样算完成', async () => {
+      mockEnqueuePreview.mockRejectedValue(new Error('outbox insert failed'))
+      const deferred: Array<() => Promise<void>> = []
+
+      const result = await handleExecutionCallback(workerImagePayload, {
+        defer: (task) => {
+          deferred.push(task)
+        },
+      })
+
+      expect(result.action).toBe('completed')
+      expect(deferred).toHaveLength(0)
+      expect(mockProcessPreviewOutbox).not.toHaveBeenCalled()
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Image preview derivative enqueue failed (callback)',
+        expect.objectContaining({ runId: 'job-1' }),
+      )
+    })
   })
 
   /**

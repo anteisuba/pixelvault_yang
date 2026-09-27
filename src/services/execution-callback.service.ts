@@ -22,7 +22,10 @@ import {
 } from '@/lib/generation-observability'
 import { createGeneration } from '@/services/generation.service'
 import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
-import { enqueueImagePreviewDerivatives } from '@/services/image/image-preview-derivative.service'
+import {
+  enqueueImagePreviewDerivatives,
+  processImagePreviewDerivativeOutbox,
+} from '@/services/image/image-preview-derivative.service'
 import {
   createVideoPosterAsset,
   generateStorageKey,
@@ -63,6 +66,14 @@ export interface CallbackResult {
   runId: string
   jobStatus: ExecutionCallbackJobStatus
   action: ExecutionCallbackAction
+}
+
+export interface ExecutionCallbackOptions {
+  /**
+   * 把不必挡住回调响应的活挂到响应之后跑——路由传 next/server 的 `after`。
+   * 不传 = 就地 await。目前只有图片的缩略图 / 预览图走这里。
+   */
+  defer?: (task: () => Promise<void>) => void
 }
 
 function isTerminalGenerationJobStatus(
@@ -292,6 +303,7 @@ async function persistImageStatusMetadata(
 
 export async function handleExecutionCallback(
   payload: ExecutionCallbackPayload,
+  options: ExecutionCallbackOptions = {},
 ): Promise<CallbackResult> {
   const job = await db.generationJob.findUnique({
     where: { id: payload.runId },
@@ -356,7 +368,7 @@ export async function handleExecutionCallback(
       await persistImageStatusMetadata(job, payload.data)
       break
     case 'result':
-      return finalizeExecutionResult(payload, job, jobStatus)
+      return finalizeExecutionResult(payload, job, jobStatus, options)
   }
 
   return {
@@ -454,6 +466,7 @@ async function finalizeExecutionResult(
     createdAt: Date
   },
   jobStatus: ExecutionCallbackJobStatus,
+  options: ExecutionCallbackOptions,
 ): Promise<CallbackResult> {
   const errorResult = ExecutionCallbackErrorDataSchema.safeParse(payload.data)
 
@@ -522,7 +535,7 @@ async function finalizeExecutionResult(
   }
 
   if (outputType === 'IMAGE') {
-    return finalizeImageResult(payload, resultData, job, metadata)
+    return finalizeImageResult(payload, resultData, job, metadata, options)
   }
 
   try {
@@ -920,6 +933,7 @@ async function finalizeImageResult(
     createdAt: Date
   },
   metadata: ReturnType<typeof parseWorkerJobMetadata>,
+  options: ExecutionCallbackOptions,
 ): Promise<CallbackResult> {
   const timer = new GenerationStageTimer({
     outputType: 'IMAGE',
@@ -1075,19 +1089,44 @@ async function finalizeImageResult(
       }),
     )
 
-    // Thumbnail/preview derivatives run sharp in the outbox worker — best
-    // effort, never block finalization.
-    await enqueueImagePreviewDerivatives({
+    // Thumbnail/preview derivatives — best effort, never block finalization.
+    // The outbox row is the durable record; it is processed right after the
+    // callback responds, and an attempt that fails or gets cut short stays in
+    // the outbox for the daily sweep cron.
+    const previewOutbox = await enqueueImagePreviewDerivatives({
       generationJobId: job.id,
       generationId: generation.id,
-      sourceUrl: uploadResult.publicUrl,
       sourceStorageKey: storageKey,
     }).catch((error: unknown) => {
       logger.warn('Image preview derivative enqueue failed (callback)', {
         runId: job.id,
         error: error instanceof Error ? error.message : String(error),
       })
+      return null
     })
+
+    if (previewOutbox) {
+      const outboxId = previewOutbox.id
+      const derivePreviews = async () => {
+        await processImagePreviewDerivativeOutbox(outboxId).catch(
+          (error: unknown) => {
+            logger.warn(
+              'Image preview derivative processing failed (callback)',
+              {
+                runId: job.id,
+                outboxId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            )
+          },
+        )
+      }
+      if (options.defer) {
+        options.defer(derivePreviews)
+      } else {
+        await derivePreviews()
+      }
+    }
 
     logger.info('Execution callback IMAGE result finalized', {
       runId: job.id,

@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { after } from 'next/server'
+
 import { createApiInternalRoute } from '@/lib/api-route-factory'
 import { verifyInternalExecutionSignature } from '@/lib/signature-verifiers/internal-execution'
 import { ExecutionCallbackPayloadSchema } from '@/types'
@@ -20,6 +22,6 @@ export const POST = createApiInternalRoute<
   routeName: 'POST /api/internal/execution/callback',
   verifySignature: verifyInternalExecutionSignature,
   handler: async ({ data }) => {
-    return handleExecutionCallback(data)
+    return handleExecutionCallback(data, { defer: (task) => after(task) })
   },
 })

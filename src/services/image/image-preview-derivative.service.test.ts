@@ -11,7 +11,7 @@ const {
   mockGenerationFindUnique,
   mockGenerationUpdate,
   mockTransaction,
-  mockFetchAsBuffer,
+  mockGetR2ObjectBuffer,
   mockCreateImagePreviewAssets,
 } = vi.hoisted(() => ({
   mockExecutionOutboxCreate: vi.fn(),
@@ -22,7 +22,7 @@ const {
   mockGenerationFindUnique: vi.fn(),
   mockGenerationUpdate: vi.fn(),
   mockTransaction: vi.fn(),
-  mockFetchAsBuffer: vi.fn(),
+  mockGetR2ObjectBuffer: vi.fn(),
   mockCreateImagePreviewAssets: vi.fn(),
 }))
 
@@ -44,7 +44,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@/services/storage/r2', () => ({
-  fetchAsBuffer: mockFetchAsBuffer,
+  getR2ObjectBuffer: mockGetR2ObjectBuffer,
   createImagePreviewAssets: mockCreateImagePreviewAssets,
 }))
 
@@ -66,7 +66,6 @@ function buildOutbox() {
     status: 'PENDING',
     payload: {
       generationId: 'gen-1',
-      sourceUrl: 'https://cdn.example.com/source.png',
       sourceStorageKey: 'generations/user-1/image/source.png',
     },
     result: null,
@@ -88,7 +87,7 @@ describe('image-preview-derivative.service', () => {
         executionOutbox: { update: mockExecutionOutboxUpdate },
       }),
     )
-    mockFetchAsBuffer.mockResolvedValue({
+    mockGetR2ObjectBuffer.mockResolvedValue({
       buffer: Buffer.from('source-image'),
       mimeType: 'image/png',
     })
@@ -107,7 +106,6 @@ describe('image-preview-derivative.service', () => {
     await enqueueImagePreviewDerivatives({
       generationJobId: 'job-1',
       generationId: 'gen-1',
-      sourceUrl: 'https://cdn.example.com/source.png',
       sourceStorageKey: 'generations/user-1/image/source.png',
     })
 
@@ -117,7 +115,6 @@ describe('image-preview-derivative.service', () => {
         kind: EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES,
         payload: {
           generationId: 'gen-1',
-          sourceUrl: 'https://cdn.example.com/source.png',
           sourceStorageKey: 'generations/user-1/image/source.png',
         },
       },
@@ -141,10 +138,11 @@ describe('image-preview-derivative.service', () => {
       status: 'completed',
       generationId: 'gen-1',
     })
-    expect(mockFetchAsBuffer).toHaveBeenCalledWith(
-      'https://cdn.example.com/source.png',
-      { maxBytes: 40 * 1024 * 1024 },
-    )
+    // Source bytes come straight from the bucket, not through the public CDN.
+    expect(mockGetR2ObjectBuffer).toHaveBeenCalledWith({
+      key: 'generations/user-1/image/source.png',
+      maxBytes: 40 * 1024 * 1024,
+    })
     expect(mockCreateImagePreviewAssets).toHaveBeenCalledWith({
       sourceBuffer: Buffer.from('source-image'),
       sourceStorageKey: 'generations/user-1/image/source.png',
@@ -166,6 +164,32 @@ describe('image-preview-derivative.service', () => {
     )
   })
 
+  it('processes rows enqueued before sourceUrl was dropped from the payload', async () => {
+    mockExecutionOutboxFindUnique.mockResolvedValue({
+      ...buildOutbox(),
+      payload: {
+        generationId: 'gen-1',
+        sourceUrl: 'https://cdn.example.com/source.png',
+        sourceStorageKey: 'generations/user-1/image/source.png',
+      },
+    })
+    mockExecutionOutboxUpdateMany.mockResolvedValue({ count: 1 })
+    mockGenerationFindUnique.mockResolvedValue({
+      id: 'gen-1',
+      outputType: 'IMAGE',
+      thumbnailUrl: null,
+      previewUrl: null,
+    })
+
+    const result = await processImagePreviewDerivativeOutbox('outbox-1')
+
+    expect(result).toMatchObject({ status: 'completed', generationId: 'gen-1' })
+    expect(mockGetR2ObjectBuffer).toHaveBeenCalledWith({
+      key: 'generations/user-1/image/source.png',
+      maxBytes: 40 * 1024 * 1024,
+    })
+  })
+
   it('requeues a transient derivative failure while retry attempts remain', async () => {
     mockExecutionOutboxFindUnique.mockResolvedValue(buildOutbox())
     mockExecutionOutboxUpdateMany.mockResolvedValue({ count: 1 })
@@ -175,7 +199,9 @@ describe('image-preview-derivative.service', () => {
       thumbnailUrl: null,
       previewUrl: null,
     })
-    mockFetchAsBuffer.mockRejectedValue(new Error('R2 temporarily unavailable'))
+    mockGetR2ObjectBuffer.mockRejectedValue(
+      new Error('R2 temporarily unavailable'),
+    )
 
     const result = await processImagePreviewDerivativeOutbox('outbox-1')
 
@@ -204,7 +230,7 @@ describe('image-preview-derivative.service', () => {
       thumbnailUrl: null,
       previewUrl: null,
     })
-    mockFetchAsBuffer.mockRejectedValue(new Error('R2 unavailable'))
+    mockGetR2ObjectBuffer.mockRejectedValue(new Error('R2 unavailable'))
 
     const result = await processImagePreviewDerivativeOutbox('outbox-1')
 
@@ -229,7 +255,6 @@ describe('image-preview-derivative.service', () => {
         id: 'outbox-2',
         payload: {
           generationId: 'gen-2',
-          sourceUrl: 'https://cdn.example.com/source-2.png',
           sourceStorageKey: 'generations/user-1/image/source-2.png',
         },
       })

@@ -108,7 +108,9 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
     expect(json.data).toEqual(VALID_CALLBACK_RESULT)
-    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD)
+    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD, {
+      defer: expect.any(Function),
+    })
   })
 
   it('returns 401 for a forged execution signature', async () => {
@@ -189,6 +191,8 @@ describe('POST /api/internal/execution/callback', () => {
     expect(res.status).toBe(404)
     expect(json.success).toBe(false)
     expect(json.errorCode).toBe('EXECUTION_RUN_NOT_FOUND')
-    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD)
+    expect(mockHandleExecutionCallback).toHaveBeenCalledWith(VALID_PAYLOAD, {
+      defer: expect.any(Function),
+    })
   })
 })

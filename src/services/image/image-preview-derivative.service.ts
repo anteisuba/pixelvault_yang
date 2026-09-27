@@ -6,7 +6,10 @@ import { EXECUTION_OUTBOX, EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
-import { createImagePreviewAssets, fetchAsBuffer } from '@/services/storage/r2'
+import {
+  createImagePreviewAssets,
+  getR2ObjectBuffer,
+} from '@/services/storage/r2'
 import {
   completeExecutionOutbox,
   createExecutionOutbox,
@@ -18,9 +21,9 @@ const IMAGE_PREVIEW_SOURCE_MAX_BYTES = 40 * 1024 * 1024
 const DEFAULT_PROCESS_LIMIT = 2
 const MAX_DERIVATIVE_ATTEMPTS = 3
 
+// Rows enqueued before 2026-09-28 also carry a `sourceUrl`; z.object strips it.
 const ImagePreviewDerivativePayloadSchema = z.object({
   generationId: z.string().min(1),
-  sourceUrl: z.string().url(),
   sourceStorageKey: z.string().min(1),
 })
 
@@ -33,7 +36,6 @@ type ImagePreviewDerivativeClient = Pick<typeof db, 'executionOutbox'>
 export interface EnqueueImagePreviewDerivativesInput {
   generationJobId: string
   generationId: string
-  sourceUrl: string
   sourceStorageKey: string
 }
 
@@ -57,7 +59,6 @@ function buildPayload(
 ): Prisma.InputJsonObject {
   return {
     generationId: input.generationId,
-    sourceUrl: input.sourceUrl,
     sourceStorageKey: input.sourceStorageKey,
   }
 }
@@ -174,7 +175,6 @@ export async function processImagePreviewDerivativeOutbox(
         result: buildPayload({
           generationJobId: outbox.generationJobId,
           generationId: payload.generationId,
-          sourceUrl: payload.sourceUrl,
           sourceStorageKey: payload.sourceStorageKey,
         }),
       })
@@ -202,7 +202,11 @@ export async function processImagePreviewDerivativeOutbox(
       }
     }
 
-    const source = await fetchAsBuffer(payload.sourceUrl, {
+    // Read the original straight from the bucket, not through the public CDN:
+    // this runs seconds after the upload, when the CDN edge may still be
+    // pulling the object in (2026-09-27: one 6 MB fill crawled for ~22 min).
+    const source = await getR2ObjectBuffer({
+      key: payload.sourceStorageKey,
       maxBytes: IMAGE_PREVIEW_SOURCE_MAX_BYTES,
     })
     const previewAssets = await createImagePreviewAssets({

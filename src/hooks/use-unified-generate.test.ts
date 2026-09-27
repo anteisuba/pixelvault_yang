@@ -228,6 +228,72 @@ describe('useUnifiedGenerate', () => {
     await generationPromise!
   })
 
+  /**
+   * 加载态 A「失败就地说」：图墙里失败的那一格原地再来一次，用**它自己**当初那份
+   * 请求重放（同一个 seed、同一个批次位置），别的格子不动，也 ⛔ 把整轮拉回生成中。
+   */
+  it('图墙失败的一格原地重试：原样重放它那份请求，成了长在原处，别的格子不动', async () => {
+    vi.useFakeTimers()
+    let uuid = 0
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(
+      () =>
+        `00000000-0000-0000-0000-${String(++uuid).padStart(12, '0')}` as ReturnType<
+          typeof crypto.randomUUID
+        >,
+    )
+    mockStudioGenerate
+      .mockResolvedValueOnce(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+      .mockResolvedValueOnce(ERROR_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 2,
+      })
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await act(async () => {
+      await generationPromise!
+    })
+
+    const [done, failed] = result.current.activeRun!.items
+    expect(done.status).toBe('completed')
+    expect(failed.status).toBe('failed')
+    const originalRequest = mockStudioGenerate.mock.calls[1][0]
+
+    mockStudioGenerate.mockResolvedValueOnce({
+      success: true,
+      data: { jobId: 'job-image-retry', requestId: 'request-image-retry' },
+    })
+    let retryPromise: Promise<void>
+    await act(async () => {
+      retryPromise = result.current.retryRunItem(failed.id)
+      await Promise.resolve()
+    })
+    expect(mockStudioGenerate).toHaveBeenCalledTimes(3)
+    expect(mockStudioGenerate.mock.calls[2][0]).toEqual(originalRequest)
+    const retrying = result.current.activeRun!.items[1]
+    expect(retrying.status).toBe('generating')
+    expect(retrying.startedAt).toEqual(expect.any(Number))
+    expect(result.current.isGenerating).toBe(false)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await act(async () => {
+      await retryPromise!
+    })
+    const [still, retried] = result.current.activeRun!.items
+    expect(still).toEqual(done)
+    expect(retried.status).toBe('completed')
+  })
+
   it('only sends character layout to V5 in a mixed-model run', async () => {
     vi.useFakeTimers()
     mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)

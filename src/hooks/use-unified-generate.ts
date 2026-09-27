@@ -152,6 +152,11 @@ export interface UseUnifiedGenerateReturn {
   /** 用某一条自己的参数重放它；原地把失败那条换成新排的一条。 */
   retryVideoQueueItem: (itemId: string) => Promise<void>
   /**
+   * 图墙（矩阵 / 多张）里失败的那一格原地再来一次：用它自己当初那份请求重放，
+   * 别的格子不动。
+   */
+  retryRunItem: (itemId: string) => Promise<void>
+  /**
    * 真取消这一条：调服务端 `cancelGenerationsAPI` + 本地立刻反馈（视频摘条 /
    * 图片&音频原地标 cancelled）。
    */
@@ -311,6 +316,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    */
   const videoJobParamsRef = useRef(new Map<string, GenerateVideoRequest>())
   /**
+   * 图墙每一格当初发出去的那份请求（逐格「重试」原样重放，见 `retryRunItem`）。
+   * 只记图片的矩阵 / 多张批次：单张走整轮 `retry`，视频有自己的 `videoJobParamsRef`。
+   */
+  const imageItemRequestsRef = useRef(new Map<string, StudioGenerateRequest>())
+  /**
    * 已被用户取消的 run item id（图片 / 视频 / 音频，任意批次）。
    *
    * ⚠ 是 ref 而不是 state：轮询循环是一个跑在 `useCallback` 闭包里的 `for`，
@@ -396,9 +406,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       setIsGenerating(false)
       setStage('idle')
       if (err) {
+        // ⛔ toast：失败在舞台（与 LoRA 出图卡 / 它的输入框）上就地说（加载态 A，
+        //   owner 2026-09-27），再弹一条就是同一句话说两遍。
         setError(err)
         setErrorCode(code ?? null)
-        toast.error(err)
       }
     },
     [stopPolling, stopTimer],
@@ -450,8 +461,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     [updateActiveRunItem],
   )
 
-  // Resolve an API error payload into both a localized message (for display)
-  // and a classification code (for the error dialog to pick its reason).
+  // Resolve an API error payload into both a localized message (said in place
+  // on the stage) and a classification code (exposed as `errorCode`).
   const resolveGenerationError = useCallback(
     (
       payload: {
@@ -853,7 +864,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    *
    * ## 失败只标这一条，不调 `finish(err)`
    *
-   * ⚠ `finish(err)` 会 `setError` 并弹全局错误对话框、同时 `setIsGenerating(false)`
+   * ⚠ `finish(err)` 会 `setError`（舞台上就地说失败）、同时 `setIsGenerating(false)`
    * ＋停表。队列里第 1 条失败时调它，等于替还在跑的第 2、3 条宣布整轮结束。
    * 所以这里只 `markActiveRunItemFailed`，错误长在那一格上，可单条重试。
    */
@@ -972,6 +983,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         startedAt: Date.now(),
         outputType: 'IMAGE',
       })
+      imageItemRequestsRef.current.clear()
 
       try {
         // Each item resolves to its own UI update as soon as the API
@@ -989,13 +1001,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         const tasks = items.map(async (item) => {
           try {
-            const result = await studioGenerateAPI({
+            const request: StudioGenerateRequest = {
               ...input,
               seed: item.seed,
               runGroupId,
               runGroupType: 'variant',
               runGroupIndex: item.index,
-            })
+            }
+            imageItemRequestsRef.current.set(item.id, request)
+            const result = await studioGenerateAPI(request)
             if (result.success && hasJobId(result.data)) {
               activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
@@ -1152,6 +1166,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         startedAt: Date.now(),
         outputType: 'IMAGE',
       })
+      imageItemRequestsRef.current.clear()
 
       try {
         // Each model in the compare set updates its own tile as soon as
@@ -1168,7 +1183,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         const tasks = items.map(async (item) => {
           try {
-            const result = await studioGenerateAPI({
+            const request: StudioGenerateRequest = {
               // ⭐ 一条名单跑 N 个模型 —— **逐个裁剪**（D10 ② Q3）：不认识的
               // 专属键删掉、角色构图截到这家的上限、标签串翻成它自己的语法。
               ...tailorImageRequestToModel(
@@ -1180,7 +1195,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               runGroupId,
               runGroupType: 'compare',
               runGroupIndex: item.index,
-            })
+            }
+            imageItemRequestsRef.current.set(item.id, request)
+            const result = await studioGenerateAPI(request)
             if (result.success && hasJobId(result.data)) {
               activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
@@ -1648,6 +1665,64 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   )
 
   /**
+   * 图墙里失败的那一格原地再来一次（加载态 A「失败就地说」，owner 2026-09-27）：用
+   * **它自己**当初发出去的那份请求重放（同一个模型、同一个 seed、同一个批次位置），
+   * 格子回到生成中、线从 0 重新走（计时锚点换成这一格自己的 `startedAt`），成了就
+   * 长在原处，别的格子不动。
+   * ⚠ 这一轮早已收尾：⛔ 碰全局 isGenerating / 计时 —— 输入框照样能发下一轮。
+   */
+  const retryRunItem = useCallback(
+    async (itemId: string): Promise<void> => {
+      const request = imageItemRequestsRef.current.get(itemId)
+      if (!request) return
+      updateActiveRunItem(itemId, (item) =>
+        item.status === 'failed'
+          ? toGeneratingRunItem({ ...item, startedAt: Date.now() })
+          : item,
+      )
+      try {
+        const result = await studioGenerateAPI(request)
+        if (result.success && hasJobId(result.data)) {
+          activeJobIdsRef.current.set(itemId, result.data.jobId)
+          const outcome = await pollImageJobForRunItem(
+            result.data.jobId,
+            itemId,
+          )
+          if (outcome.status === 'completed') {
+            // 整轮都失败时挂过的那句原因不再成立（这一轮有图了）。
+            setError(null)
+            setErrorCode(null)
+            notifySaved(outcome.generation, tStudio('generateSuccess'))
+          } else if (outcome.status === 'pending') {
+            toast.info(tStudio('stillProcessingHint'))
+          }
+          return
+        }
+        markActiveRunItemFailed(
+          itemId,
+          resolveGenerationError(result, tStudio('generateFailed')).message,
+        )
+      } catch (error) {
+        markActiveRunItemFailed(
+          itemId,
+          resolveGenerationError(
+            { error: error instanceof Error ? error.message : '' },
+            tStudio('generateFailed'),
+          ).message,
+        )
+      }
+    },
+    [
+      tStudio,
+      notifySaved,
+      updateActiveRunItem,
+      pollImageJobForRunItem,
+      markActiveRunItemFailed,
+      resolveGenerationError,
+    ],
+  )
+
+  /**
    * 竞态收尾：`cancelGenerationsAPI` 返回 `alreadyFinished` 里的一条 —— 服务端
    * CAS 判定这个 job 已经到终态（COMPLETED / FAILED，或它自己就是别的入口
    * 抢先 CANCELLED 掉的），取消请求打了个空。本地在发请求前已经乐观地把它标成
@@ -1783,7 +1858,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    * `cancelGenerationsAPI` 单次请求上限 `GENERATION_CANCEL_MAX_BATCH`（16），
    * 「取消全部」可能一次收集超过 16 个 jobId，按这个上限切片、逐片各发一次。
    *
-   * ⛔ 不调 `finish(err)`：那会 `setError` 弹全局错误框并替**还在跑的其它条**
+   * ⛔ 不调 `finish(err)`：那会 `setError` 把整轮说成失败并替**还在跑的其它条**
    * 宣布整轮结束（与 `generateVideo` 里那条注释同一个理由）。
    *
    * ## `alreadyFinished` 竞态
@@ -1922,6 +1997,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     activeVideoJobCount,
     canQueueMoreVideo,
     retryVideoQueueItem,
+    retryRunItem,
     cancelRunItem,
     cancelAllRunItems,
   }

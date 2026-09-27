@@ -2064,22 +2064,7 @@ html:lang(ja) {
   }
 }
 
-/* ── Studio generating reveal — Krea-style shimmer ─────────────── */
-.studio-reveal-shimmer {
-  background: linear-gradient(
-    100deg,
-    transparent 20%,
-    oklch(from var(--primary) l c h / 0.22) 45%,
-    oklch(from var(--background) l c h / 0.45) 50%,
-    oklch(from var(--primary) l c h / 0.22) 55%,
-    transparent 80%
-  );
-  background-size: 220% 100%;
-  background-position: 100% 0;
-  animation: studio-reveal-sweep 2.4s ease-in-out infinite;
-  mix-blend-mode: screen;
-}
-
+/* ── Studio result image ─────────────────────────────────────── */
 .studio-generation-image {
   animation: studio-generation-image-in 360ms ease-out both;
 }
@@ -2092,15 +2077,6 @@ html:lang(ja) {
   100% {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes studio-reveal-sweep {
-  0% {
-    background-position: 130% 0;
-  }
-  100% {
-    background-position: -30% 0;
   }
 }
 

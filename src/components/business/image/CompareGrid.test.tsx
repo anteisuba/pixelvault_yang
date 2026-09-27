@@ -15,8 +15,26 @@ vi.mock('@/components/ui/optimized-image', () => ({
   ),
 }))
 
+// 进度层自己的画法在它自己的测试里；这里只看格子递给它什么（失败原因、重试）。
 vi.mock('@/components/business/studio-shared', () => ({
-  StudioGeneratingProgress: () => <div data-testid="progress" />,
+  StudioGeneratingProgress: ({
+    failure,
+  }: {
+    failure?: { message: string; retryLabel: string; onRetry?: () => void }
+  }) => (
+    <div data-testid="progress">
+      {failure ? (
+        <div role="alert">
+          {failure.message}
+          {failure.onRetry ? (
+            <button type="button" onClick={failure.onRetry}>
+              {failure.retryLabel}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  ),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -297,6 +315,95 @@ it('renders a localized generation reason instead of the provider log', () => {
   renderGrid({
     items: [makeItem({ status: 'failed', error: 'ETIMEDOUT after 120000ms' })],
   })
-  expect(screen.getByText('generation.provider_timeout')).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'generation.provider_timeout',
+  )
   expect(screen.queryByText('ETIMEDOUT after 120000ms')).not.toBeInTheDocument()
+})
+
+/**
+ * 加载态 A：格子自己的边就是进度，失败就地说原因 +「重试」（只重来这一格）。
+ */
+describe('CompareGrid — 加载态 A', () => {
+  it('失败的格子就地给「重试」，点下去只重来这一格', () => {
+    const onRetry = vi.fn()
+    renderGrid({
+      items: [
+        makeItem({
+          id: 'ok',
+          status: 'completed',
+          generation: makeGeneration(
+            'gen-ok',
+            'https://cdn.example.com/ok.png',
+          ),
+        }),
+        makeItem({
+          id: 'bad',
+          status: 'failed',
+          error: 'ETIMEDOUT after 120000ms',
+        }),
+      ],
+      onRetry,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(onRetry).toHaveBeenCalledWith('bad')
+  })
+
+  it('没接逐格重试时失败格只说原因，不画按不动的键', () => {
+    renderGrid({
+      items: [makeItem({ status: 'failed', error: 'boom' })],
+    })
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'retry' })).toBeNull()
+  })
+
+  it('生成中 / 失败的格子把边交给进度线（⛔ 线旁边再一圈细边、⛔ 流光）', () => {
+    const { container } = renderGrid({
+      items: [
+        makeItem({ id: 'run', status: 'generating' }),
+        makeItem({ id: 'bad', status: 'failed', error: 'boom' }),
+        makeItem({
+          id: 'ok',
+          status: 'completed',
+          generation: makeGeneration(
+            'gen-ok',
+            'https://cdn.example.com/ok.png',
+          ),
+        }),
+      ],
+    })
+    const [running, failed, done] = screen.getAllByRole('option')
+    expect(running).toHaveClass('outline-transparent')
+    expect(failed).toHaveClass('outline-transparent')
+    expect(done).toHaveClass('outline-border/60')
+    expect(container.querySelector('.studio-reveal-shimmer')).toBeNull()
+  })
+
+  it('刚出图的那一格：进度层多留一拍（线合拢再淡掉），⛔ 一完成就抽走', () => {
+    const { rerender } = renderGrid({
+      items: [makeItem({ id: 'x', status: 'generating' })],
+    })
+    expect(screen.getByTestId('progress')).toBeInTheDocument()
+    rerender(
+      <CompareGrid
+        items={[
+          makeItem({
+            id: 'x',
+            status: 'completed',
+            generation: makeGeneration(
+              'gen-x',
+              'https://cdn.example.com/x.png',
+            ),
+          }),
+        ]}
+        selectedItemId={null}
+        onSelect={vi.fn()}
+        elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('progress')).toBeInTheDocument()
+    expect(screen.getByTestId('tile-image')).toBeInTheDocument()
+  })
 })

@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
-  AlertTriangle,
   Ban,
   Bot,
   Check,
@@ -19,7 +18,10 @@ import { toast } from 'sonner'
 import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
 import type { GenerationRecord, RunItem } from '@/types'
 import { OptimizedImage } from '@/components/ui/optimized-image'
-import { StudioGeneratingProgress } from '@/components/business/studio-shared'
+import {
+  StudioGeneratingProgress,
+  type StudioGenerationFailure,
+} from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
 import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { downloadRemoteAsset } from '@/lib/api-client'
@@ -27,6 +29,7 @@ import {
   getApiErrorMessage,
   getGenerationErrorMessage,
 } from '@/lib/api-error-message'
+import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { cn } from '@/lib/utils'
 
 // 详情弹窗按需异步加载，和 ImageCard 里同样的理由：它拖着 VideoPlayer /
@@ -54,6 +57,8 @@ interface CompareGridProps {
   onCancel?: (itemId: string) => void
   /** 取消这一轮里所有还没结束的条目。给了且确有条目在跑才画「全部取消」。 */
   onCancelAll?: () => void
+  /** 失败的那一格原地再来一次（加载态 A）。给了才画格子里的「重试」。 */
+  onRetry?: (itemId: string) => void
 }
 
 interface ModelRow {
@@ -92,6 +97,7 @@ export const CompareGrid = memo(function CompareGrid({
   onUseAsReference,
   onCancel,
   onCancelAll,
+  onRetry,
 }: CompareGridProps) {
   const t = useTranslations('StudioV3')
   const tCancel = useTranslations('GenerationCancel')
@@ -174,6 +180,18 @@ export const CompareGrid = memo(function CompareGrid({
 
   const hasRunning = items.some((item) => item.status === 'generating')
 
+  // 逐格重试的那一格自己计时（`startedAt`，整轮早已停表）；只在真有这样的格子在
+  // 跑时才起秒表。整轮一起跑的格子仍用批次的计时。
+  const hasRetrying = items.some(
+    (item) => item.status === 'generating' && item.startedAt !== undefined,
+  )
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!hasRetrying) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [hasRetrying])
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {hasRunning && onCancelAll && (
@@ -229,6 +247,10 @@ export const CompareGrid = memo(function CompareGrid({
                     selectedItemId != null &&
                     item.generation?.id === selectedItemId
                   const isFocused = item.id === focusedItemId
+                  const tileElapsed =
+                    item.startedAt !== undefined
+                      ? Math.max(0, (now - item.startedAt) / 1000)
+                      : elapsedSeconds
 
                   const aspectRatio =
                     item.generation != null
@@ -306,57 +328,26 @@ export const CompareGrid = memo(function CompareGrid({
                         // 在任何底色的图上都立得住；未选中保持一条极淡的内描边。
                         isFocused
                           ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
-                          : 'outline outline-1 -outline-offset-1 outline-border/60',
+                          : cn(
+                              'outline outline-1 -outline-offset-1 transition-[outline-color] duration-base ease-linear',
+                              // 生成中 / 失败：格子的边交给进度线（⛔ 线旁边再一圈细边）。
+                              item.status === 'generating' ||
+                                item.status === 'failed'
+                                ? 'outline-transparent'
+                                : 'outline-border/60',
+                            ),
                         'focus-visible:outline-2 focus-visible:outline-primary',
                       )}
                       style={aspectRatio ? { aspectRatio } : undefined}
                     >
-                      {item.status === 'generating' && (
-                        <>
-                          {item.previewUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.previewUrl}
-                              alt={t('generating')}
-                              className="absolute inset-0 size-full object-contain"
-                            />
-                          ) : (
-                            <div className="studio-reveal-shimmer absolute inset-0" />
-                          )}
-                          <StudioGeneratingProgress
-                            elapsedSeconds={elapsedSeconds}
-                            stageLabel={t('generating')}
-                            variant="compact"
-                          />
-                          {onCancel && (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                onCancel(item.id)
-                              }}
-                              aria-label={tCancel('cancel')}
-                              data-testid="compare-grid-cancel"
-                              className="absolute right-1.5 top-1.5 z-10 grid size-7 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
-                            >
-                              <X className="size-3.5" />
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      {item.status === 'failed' && (
-                        <div className="flex size-full flex-col items-center justify-center gap-2 px-4">
-                          <AlertTriangle className="size-5 text-destructive/60" />
-                          <p className="text-center text-xs text-muted-foreground">
-                            {getGenerationErrorMessage(
-                              tErrors,
-                              { error: item.error },
-                              t('generateFailed'),
-                            )}
-                          </p>
-                        </div>
-                      )}
+                      {item.status === 'generating' && item.previewUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.previewUrl}
+                          alt={t('generating')}
+                          className="absolute inset-0 size-full object-contain"
+                        />
+                      ) : null}
 
                       {item.status === 'cancelled' && (
                         <div className="flex size-full flex-col items-center justify-center gap-2 px-4 text-muted-foreground">
@@ -376,6 +367,52 @@ export const CompareGrid = memo(function CompareGrid({
                           containerClassName="size-full animate-in fade-in duration-300"
                           className="object-cover"
                         />
+                      )}
+
+                      {/* 格子自己的边就是进度（加载态 A）：生成中线在格边上走，
+                          失败就停住变灰、就地说原因 +「重试」，出图时补满合拢再淡掉。 */}
+                      <CompareGridTileEdge
+                        item={item}
+                        elapsedSeconds={tileElapsed}
+                        stageLabel={t(
+                          `generatingOverlayStages.${resolveGeneratingStageKey(
+                            tileElapsed,
+                            'executionStage' in item
+                              ? item.executionStage
+                              : undefined,
+                          )}` as const,
+                        )}
+                        failure={
+                          item.status === 'failed'
+                            ? {
+                                message: getGenerationErrorMessage(
+                                  tErrors,
+                                  { error: item.error },
+                                  t('generateFailed'),
+                                ),
+                                shortMessage: t('generateFailed'),
+                                retryLabel: t('retry'),
+                                ...(onRetry
+                                  ? { onRetry: () => onRetry(item.id) }
+                                  : {}),
+                              }
+                            : null
+                        }
+                      />
+
+                      {item.status === 'generating' && onCancel && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onCancel(item.id)
+                          }}
+                          aria-label={tCancel('cancel')}
+                          data-testid="compare-grid-cancel"
+                          className="absolute right-1.5 top-1.5 z-10 grid size-7 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+                        >
+                          <X className="size-3.5" />
+                        </button>
                       )}
 
                       {/* 已定为最佳：一个角标，不是按钮 —— 图上依旧零可点元素。 */}
@@ -494,3 +531,41 @@ export const CompareGrid = memo(function CompareGrid({
     </div>
   )
 })
+
+/**
+ * 一格自己的边就是进度（加载态 A「边即进度」）：生成中线在格边上走；失败就停在
+ * 原处变灰、就地说原因 +「重试」（窄于 160px 只写短句，原因留给读屏）；出图时线
+ * 补满合拢、停一拍再淡掉（⛔ 格子一完成就把线抽走）。
+ */
+function CompareGridTileEdge({
+  item,
+  elapsedSeconds,
+  stageLabel,
+  failure,
+}: {
+  item: RunItem
+  elapsedSeconds: number
+  stageLabel: string
+  failure: StudioGenerationFailure | null
+}) {
+  // 出图那一拍：这一格刚从生成中变成完成，进度层多留一拍（渲染期对齐自己的 props）。
+  const [status, setStatus] = useState(item.status)
+  const [completing, setCompleting] = useState(false)
+  if (status !== item.status) {
+    setStatus(item.status)
+    setCompleting(status === 'generating' && item.status === 'completed')
+  }
+  if (item.status !== 'generating' && item.status !== 'failed' && !completing) {
+    return null
+  }
+  return (
+    <StudioGeneratingProgress
+      elapsedSeconds={elapsedSeconds}
+      stageLabel={stageLabel}
+      variant="compact"
+      isCompleting={completing}
+      onCompleteAnimationDone={() => setCompleting(false)}
+      failure={item.status === 'failed' ? failure : null}
+    />
+  )
+}

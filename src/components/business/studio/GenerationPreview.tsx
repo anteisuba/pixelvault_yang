@@ -109,9 +109,17 @@ export const GenerationPreview = memo(function GenerationPreview({
   onRetry,
   fillStage = false,
 }: GenerationPreviewProps) {
-  const { error, isGenerating, elapsedSeconds, activeRun, cancelRunItem } =
-    useStudioGen()
+  const {
+    error: runError,
+    isGenerating,
+    elapsedSeconds,
+    activeRun,
+    cancelRunItem,
+  } = useStudioGen()
   const { state, dispatch } = useStudioForm()
+  // A video's failure is said on its queue line (reason + retry this one,
+  // video workbench A ③), so the stage lays no second one over the last video.
+  const error = state.outputType === 'video' ? null : runError
   const t = useTranslations('StudioV3')
   const tCancel = useTranslations('GenerationCancel')
   const tModels = useTranslations('Models')

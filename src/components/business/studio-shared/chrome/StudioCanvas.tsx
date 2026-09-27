@@ -77,7 +77,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const { imageUpload } = useStudioData()
   const {
     lastGeneration: rawLastGeneration,
-    error,
+    error: runError,
     retry,
     activeRun: rawActiveRun,
     selectWinner,
@@ -86,6 +86,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     isGenerating,
     elapsedSeconds,
     retryVideoQueueItem,
+    retryRunItem,
     cancelRunItem,
     cancelAllRunItems,
   } = useStudioGen()
@@ -94,6 +95,11 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
+  /**
+   * 舞台上要就地说的那句失败（加载态 A）。视频的失败由队列条那一行说（原因 +
+   * 「重试这条」，视频台 A ③），舞台 ⛔ 再说一遍，首帧封面也照常留着。
+   */
+  const error = state.outputType === 'video' ? null : runError
   /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
    * `references/pages/studio-image-edit.md` §2 方向 A：舞台接管）。
@@ -329,9 +335,8 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const sentFrame = (url: string | null) =>
     url !== null && !videoSend?.unsent.images.includes(url) ? url : null
-  // ⚠ 刚失败时不画封面：失败要在舞台上就地说（加载态 A，没有错误对话框兜着）。
   const posterFirst =
-    videoWithoutRail && !isGenerating && !lastGeneration && !error
+    videoWithoutRail && !isGenerating && !lastGeneration
       ? sentFrame(state.videoFrameSlots.first)
       : null
   const videoPoster = posterFirst
@@ -560,6 +565,7 @@ export const StudioCanvas = memo(function StudioCanvas({
               onUseAsReference={handleUseAsReference}
               onCancel={cancelRunItem}
               onCancelAll={cancelAllRunItems}
+              onRetry={(itemId) => void retryRunItem(itemId)}
             />
           )
         ) : videoPoster ? (

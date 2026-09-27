@@ -82,6 +82,7 @@ vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
   useAskAssistantAboutImage: () => askAssistantMock,
 }))
 
+let mockOutputType: 'image' | 'video' = 'image'
 let mockGen: {
   error: string | null
   isGenerating: boolean
@@ -102,7 +103,7 @@ vi.mock('@/contexts/studio-context', () => ({
   useStudioGen: () => mockGen,
   useStudioForm: () => ({
     state: {
-      outputType: 'image',
+      outputType: mockOutputType,
       aspectRatio: '1:1',
       advancedParams: {},
     },
@@ -126,6 +127,7 @@ function makeGeneration(
 
 beforeEach(() => {
   mockIsMobile = false
+  mockOutputType = 'image'
   mockGen = idleGen()
   askAssistantMock.mockClear()
 })
@@ -237,5 +239,23 @@ describe('GenerationPreview — 加载态 A', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'retry' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('视频的失败由队列那一行说：舞台 ⛔ 再压一层（上一条视频照常看）', () => {
+    mockOutputType = 'video'
+    mockGen = { ...idleGen(), error: '提交失败：配额已用完' }
+    render(
+      <GenerationPreview
+        generation={makeGeneration({
+          outputType: 'VIDEO',
+          url: 'https://cdn.example.com/gen-1.mp4',
+        })}
+        isLatestResult
+      />,
+    )
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByTestId('generating-progress')).toBeNull()
+    expect(screen.getByTestId('video-player')).toBeInTheDocument()
   })
 })

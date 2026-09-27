@@ -201,7 +201,7 @@ function withCitations(
           className={
             active === cite
               ? 'mx-px inline-flex min-w-4 items-center justify-center rounded border border-foreground bg-foreground px-1 align-super font-mono text-2xs tabular-nums leading-4 text-background'
-              : 'mx-px inline-flex min-w-4 items-center justify-center rounded border border-border px-1 align-super font-mono text-2xs tabular-nums leading-4 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground motion-reduce:transition-none'
+              : 'mx-px inline-flex min-w-4 items-center justify-center rounded border border-border px-1 align-super font-mono text-2xs tabular-nums leading-4 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground motion-reduce:transition-none'
           }
         >
           {cite}
@@ -367,13 +367,13 @@ export function StudioOperatorCollapsibleText({
           data-testid="operator-message-expand"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="flex w-fit items-center gap-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex w-fit items-center gap-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {expanded ? t('message.collapse') : t('message.expand')}
           <ChevronDown
             aria-hidden
             className={cn(
-              'size-3 transition-transform duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+              'size-3 transition-transform duration-fast ease-standard motion-reduce:transition-none',
               expanded && 'rotate-180',
             )}
           />
@@ -429,7 +429,7 @@ export function StudioOperatorMessageBody({
       {/* ⚠ 没有 `detail` 就**什么都不画**（⛔ 不画一颗点开是空的「为什么」）。 */}
       {entry.detail ? (
         <details data-testid="operator-message-why" className="min-w-0">
-          <summary className="w-fit cursor-pointer list-none text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          <summary className="w-fit cursor-pointer list-none text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {t('message.why')}
           </summary>
           <p className="mt-1 whitespace-pre-wrap border-l border-border pl-2.5 text-2sm leading-relaxed text-muted-foreground">

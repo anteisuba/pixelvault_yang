@@ -677,7 +677,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             className={cn(
               'studio-composer rounded-xl border border-border/60 px-2 py-1.5',
               templates.restoring &&
-                'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+                'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
             )}
           >
             {/* ⚠ 视频档的参考图在素材轨上（带编号与角标），⛔ 不在这里再画一条。 */}

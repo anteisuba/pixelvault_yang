@@ -67,7 +67,7 @@ export function StudioOperatorPinnedEvidence({
             type="button"
             data-testid="operator-pinned-evidence-jump"
             onClick={() => onJump(item.runKey)}
-            className="min-w-0 flex-1 rounded-md text-left transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+            className="min-w-0 flex-1 rounded-md text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
           >
             <span className="block text-2xs font-medium tracking-nav uppercase text-foreground">
               {t('research.pinned')}
@@ -87,7 +87,7 @@ export function StudioOperatorPinnedEvidence({
             data-testid="operator-pinned-evidence-unpin"
             aria-label={t('research.unpin')}
             onClick={() => onUnpin(item.runKey)}
-            className="-mr-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+            className="-mr-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
           >
             <X className="size-3.5" aria-hidden />
           </button>

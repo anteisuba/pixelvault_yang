@@ -37,7 +37,7 @@ export function ImageCardActions({
       className={cn(
         'card-actions absolute right-2.5 top-2.5 flex gap-1.5 opacity-0 max-sm:right-1.5 max-sm:top-1.5 max-sm:gap-1',
         // 透明还能点是假的干净：命中区跟着 opacity 一起走，键盘焦点照常唤醒。
-        'pointer-events-none transition-opacity duration-(--duration-base) ease-standard group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
+        'pointer-events-none transition-opacity duration-base ease-standard group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
         hiddenOnCoarse && 'coarse:hidden',
       )}
     >

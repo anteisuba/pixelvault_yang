@@ -83,10 +83,10 @@ const DELETE_CONFIRM_DWELL_MS = 3000
  */
 /** 删除药丸撑开 / 缩回的节拍（CSS token，与工具行弹层进场同一根弹簧）。 */
 const DELETE_PILL_MOTION_CLASS =
-  'duration-(--spring-slot-duration) ease-spring-slot motion-reduce:transition-none'
+  'duration-spring-slot ease-spring-slot motion-reduce:transition-none'
 
 const ROW_ICON_BUTTON_CLASS =
-  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0 transition-[background-color,color,padding] duration-(--duration-fast) ease-standard motion-reduce:transition-none'
+  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0 transition-[background-color,color,padding] duration-fast ease-standard motion-reduce:transition-none'
 
 interface StudioOperatorSessionRowProps {
   session: AssistantConversationSummary
@@ -195,7 +195,7 @@ export function StudioOperatorSessionRow({
          在说「这是当前项」的东西，⛔ 底色对读屏什么都没说。 */
         {...(current ? { 'aria-current': 'true' as const } : {})}
         className={cn(
-          'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+          'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-fast ease-standard motion-reduce:transition-none',
           // 三档底色（见头注）：选中静息 4% < 任意行 hover 7% < 选中且 hover 11%。
           current
             ? 'bg-surface-fill hover:bg-surface-fill-track focus-within:bg-surface-fill-track'
@@ -301,7 +301,7 @@ export function StudioOperatorSessionRow({
             <span
               data-testid="operator-session-actions"
               className={cn(
-                'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) ease-standard group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
+                'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-standard group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
                 confirming && 'opacity-100',
               )}
             >

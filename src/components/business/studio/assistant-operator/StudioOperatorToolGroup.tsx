@@ -58,7 +58,7 @@ export function StudioOperatorToolGroup({
           aria-expanded={open}
           aria-controls={detailsId}
           onClick={() => setOpen(!open)}
-          className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+          className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
         >
           <span
             data-testid={
@@ -85,7 +85,7 @@ export function StudioOperatorToolGroup({
           ) : null}
           <ChevronRight
             className={cn(
-              'size-3 shrink-0 transition-transform duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+              'size-3 shrink-0 transition-transform duration-fast ease-standard motion-reduce:transition-none',
               open && 'rotate-90',
             )}
             aria-hidden

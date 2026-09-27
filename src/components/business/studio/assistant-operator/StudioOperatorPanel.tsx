@@ -2123,7 +2123,7 @@ export function StudioOperatorPanel({
                           type="button"
                           data-testid="operator-out-of-steps-continue"
                           onClick={() => submit(t('outOfSteps.continuePrompt'))}
-                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                         >
                           {t('outOfSteps.continue')}
                         </button>
@@ -2131,7 +2131,7 @@ export function StudioOperatorPanel({
                           type="button"
                           data-testid="operator-out-of-steps-stop"
                           onClick={() => setOperatorOutOfSteps(false)}
-                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                         >
                           {t('outOfSteps.stop')}
                         </button>
@@ -2173,7 +2173,7 @@ export function StudioOperatorPanel({
                       data-testid="operator-history-older"
                       className="min-w-0"
                     >
-                      <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                      <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                         {t('history.earlierRounds', { count: historyCutoff })}
                       </summary>
                       <StudioOperatorTurns
@@ -2407,7 +2407,7 @@ export function StudioOperatorPanel({
                 style={{
                   animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
                 }}
-                className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
+                className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
               >
                 <span className="min-w-0 truncate">{text}</span>
               </button>
@@ -2453,7 +2453,7 @@ export function StudioOperatorPanel({
             if (files.length > 0) upload.uploadFiles(files)
           }}
           className={cn(
-            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border bg-card px-3 pt-2 pb-2 shadow-assistant-raised transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border bg-card px-3 pt-2 pb-2 shadow-assistant-raised transition-colors duration-fast ease-standard motion-reduce:transition-none',
             dragOver
               ? 'border-primary ring-2 ring-inset ring-primary'
               : 'border-assistant-line-strong',
@@ -2570,7 +2570,7 @@ export function StudioOperatorPanel({
               aria-label={t('attach.label')}
               title={t('attach.label')}
               onClick={() => uploadInputRef.current?.click()}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <Paperclip className="size-4" aria-hidden />
             </button>
@@ -2594,7 +2594,7 @@ export function StudioOperatorPanel({
               aria-label={t('library.label')}
               title={t('library.label')}
               onClick={() => setLibraryOpen(true)}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <Images className="size-4" aria-hidden />
             </button>
@@ -2635,7 +2635,7 @@ export function StudioOperatorPanel({
                 aria-label={t('stop')}
                 title={t('stop')}
                 onClick={stop}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-assistant-line-strong bg-card text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-assistant-line-strong bg-card text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <Square className="size-3" aria-hidden />
               </button>
@@ -2652,7 +2652,7 @@ export function StudioOperatorPanel({
                 title={sendLabel}
                 aria-label={sendLabel}
                 onClick={() => submit(draft)}
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground motion-reduce:transition-none"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground motion-reduce:transition-none"
               >
                 {uploading ? (
                   <Spinner size="sm" className="text-background" />

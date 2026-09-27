@@ -77,7 +77,7 @@ export function StudioOperatorSpecLine({
           type="button"
           data-testid="operator-spec-line"
           data-open={open || undefined}
-          className="mx-4 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 self-start rounded-sm text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-open:text-foreground motion-reduce:transition-none"
+          className="mx-4 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 self-start rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-open:text-foreground motion-reduce:transition-none"
         >
           {content}
           <span className="sr-only">{t('specLine.adjust')}</span>
@@ -131,7 +131,7 @@ export function StudioOperatorSpecLine({
                         data-value={option.value}
                         onClick={() => onPick(knob.id, option.value)}
                         className={cn(
-                          'flex items-center gap-2 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                          'flex items-center gap-2 text-xs transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                           isModel
                             ? 'justify-between rounded-lg px-2.5 py-2 text-left text-foreground hover:bg-accent'
                             : 'h-7 rounded-md border px-2.5',

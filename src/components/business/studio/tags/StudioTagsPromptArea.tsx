@@ -126,7 +126,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         data-assistant-field="prompt"
         className={cn(
           templates.restoring &&
-            'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+            'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
         )}
       >
         <StudioTagChipField

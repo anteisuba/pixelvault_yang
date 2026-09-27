@@ -1561,7 +1561,7 @@ export function KreaAssetBrowser({
             transition={motionTransition('slow', reducedMotion)}
             data-stuck={isToolbarStuck || undefined}
             className={cn(
-              'sticky top-0 z-30 mx-auto mb-3 flex min-h-14 w-full flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-(--duration-base) ease-standard sm:w-11/12 sm:max-w-screen-2xl',
+              'sticky top-0 z-30 mx-auto mb-3 flex min-h-14 w-full flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard sm:w-11/12 sm:max-w-screen-2xl',
               isToolbarStuck
                 ? 'border-border shadow-md'
                 : 'border-border/70 shadow-sm',
@@ -1602,7 +1602,7 @@ export function KreaAssetBrowser({
                   size="sm"
                   onClick={handleUploadClick}
                   disabled={isUploading}
-                  className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-(--duration-fast) ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
+                  className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-fast ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
                 >
                   {isUploading ? (
                     <Spinner size="sm" />
@@ -1623,7 +1623,7 @@ export function KreaAssetBrowser({
                     else setSelectionMode(true)
                   }}
                   className={cn(
-                    'h-9 rounded-lg px-4 transition-transform duration-(--duration-fast) ease-standard hover:-translate-y-px active:translate-y-0',
+                    'h-9 rounded-lg px-4 transition-transform duration-fast ease-standard hover:-translate-y-px active:translate-y-0',
                     selectionMode &&
                       'border-foreground/20 bg-muted text-foreground hover:bg-muted/80',
                   )}
@@ -2246,7 +2246,7 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
             value={d}
             aria-label={labels[d]}
             title={labels[d]}
-            className="relative h-8 w-10 rounded-lg px-0 text-sm font-medium uppercase text-muted-foreground transition-colors duration-(--duration-base) ease-standard data-[state=on]:bg-transparent data-[state=on]:text-background"
+            className="relative h-8 w-10 rounded-lg px-0 text-sm font-medium uppercase text-muted-foreground transition-colors duration-base ease-standard data-[state=on]:bg-transparent data-[state=on]:text-background"
           >
             {density === d && (
               <motion.span

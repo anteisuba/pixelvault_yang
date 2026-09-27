@@ -1042,7 +1042,7 @@ export function StudioOperatorDock() {
               >
                 <span
                   className={cn(
-                    'flex h-14 w-1.5 items-center justify-center rounded-full bg-border text-muted-foreground transition-colors duration-(--duration-fast) ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
+                    'flex h-14 w-1.5 items-center justify-center rounded-full bg-border text-muted-foreground transition-colors duration-fast ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
                     isResizing && 'bg-primary/60',
                   )}
                 >

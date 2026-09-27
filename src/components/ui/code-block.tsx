@@ -119,7 +119,7 @@ function CodeBlockCopyButton({ code }: { code: string }) {
           .catch(() => undefined)
       }}
       className={cn(
-        'absolute right-1.5 top-1.5 inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs transition-colors duration-(--duration-fast) ease-standard before:absolute before:-inset-2.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+        'absolute right-1.5 top-1.5 inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs transition-colors duration-fast ease-standard before:absolute before:-inset-2.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
         copied
           ? 'border-border bg-background text-foreground'
           : 'border-transparent text-muted-foreground',

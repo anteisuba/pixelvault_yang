@@ -8,14 +8,13 @@ import { cn } from '@/lib/utils'
 
 /** 结果让位：线性淡出，淡完面板才上来。 */
 const RESULTS_OUT_CLASS =
-  'pointer-events-none animate-out fade-out-0 fill-mode-forwards duration-(--duration-fast) ease-linear'
+  'pointer-events-none animate-out fade-out-0 fill-mode-forwards duration-fast ease-linear'
 /** 面板收起后结果回来。 */
-const RESULTS_IN_CLASS =
-  'animate-in fade-in-0 duration-(--duration-base) ease-standard'
+const RESULTS_IN_CLASS = 'animate-in fade-in-0 duration-base ease-standard'
 const PANEL_IN_CLASS =
-  'animate-in fade-in-0 slide-in-from-bottom-1.5 duration-(--duration-base) ease-standard motion-reduce:animate-none'
+  'animate-in fade-in-0 slide-in-from-bottom-1.5 duration-base ease-standard motion-reduce:animate-none'
 const PANEL_OUT_CLASS =
-  'pointer-events-none animate-out fade-out-0 slide-out-to-bottom-1.5 fill-mode-forwards duration-(--duration-fast) ease-linear'
+  'pointer-events-none animate-out fade-out-0 slide-out-to-bottom-1.5 fill-mode-forwards duration-fast ease-linear'
 
 /**
  * 换场走到哪一拍：`resultsOut` 结果正在淡出（面板还没上来）· `panelOut` 面板正在

@@ -188,7 +188,7 @@ export function StudioOperatorQuestionBlock({
               type="button"
               data-testid="operator-question-back"
               onClick={onBack}
-              className="shrink-0 rounded-sm text-muted-foreground/80 transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="shrink-0 rounded-sm text-muted-foreground/80 transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               {t('question.edit')}
             </button>
@@ -281,7 +281,7 @@ export function StudioOperatorQuestionBlock({
           onMouseEnter={() => setCursor(index)}
           onClick={() => pickOption(option)}
           className={cn(
-            'flex min-w-0 items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-(--duration-fast) ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
+            'flex min-w-0 items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
             cursor === index && 'bg-muted',
           )}
         >

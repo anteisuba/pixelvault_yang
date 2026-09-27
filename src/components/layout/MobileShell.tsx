@@ -51,7 +51,7 @@ import { cn } from '@/lib/utils'
  */
 
 const PANEL_CELL_CLASS =
-  'flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-2xs font-medium text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong [&>svg]:size-5'
+  'flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-2xs font-medium text-sidebar-foreground transition-colors duration-fast ease-standard active:bg-sidebar-accent-strong [&>svg]:size-5'
 
 function useCurrentEntry(pathname: string) {
   const all = [...SHELL_NAV_TOOLS, ...SHELL_NAV_GO]
@@ -133,7 +133,7 @@ export function MobileShell() {
             onClick={() => setOpen(true)}
             aria-haspopup="dialog"
             aria-expanded={open}
-            className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-sidebar-accent-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent"
+            className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-sidebar-accent-foreground transition-colors duration-fast ease-standard active:bg-sidebar-accent"
           >
             {CurrentIcon ? <CurrentIcon className="size-4 shrink-0" /> : null}
             <span className="truncate">{currentLabel}</span>
@@ -182,7 +182,7 @@ export function MobileShell() {
                   <button
                     type="button"
                     aria-label={tNav('account')}
-                    className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard focus-visible:ring-2 active:bg-sidebar-accent data-[state=open]:bg-sidebar-accent-strong motion-reduce:transition-none"
+                    className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-fast ease-standard focus-visible:ring-2 active:bg-sidebar-accent data-[state=open]:bg-sidebar-accent-strong motion-reduce:transition-none"
                   >
                     <ProfileAvatar
                       avatarUrl={profile?.avatarUrl}

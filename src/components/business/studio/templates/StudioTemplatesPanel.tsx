@@ -52,10 +52,10 @@ const STAGGER_MAX = 9
 
 /** 打开那一刻手上已有列表：卡片错开升起。 */
 const CARD_STAGGER_CLASS =
-  'animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both duration-(--duration-slow) ease-standard motion-reduce:animate-none'
+  'animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both duration-slow ease-standard motion-reduce:animate-none'
 /** 列表是打开之后才到的：一起淡入，⛔ 不逐张升起。 */
 const CARD_ARRIVE_CLASS =
-  'animate-in fade-in-0 duration-(--duration-fast) ease-linear motion-reduce:animate-none'
+  'animate-in fade-in-0 duration-fast ease-linear motion-reduce:animate-none'
 
 /** 这一台是哪一种模板：图片 / 标签（NAI）/ 视频 / 音频 —— 文案按它挑。 */
 type TemplateKind = 'image' | 'tags' | 'video' | 'audio'
@@ -92,7 +92,7 @@ const NAME_PLACEHOLDER_KEY = {
 
 /** 手机上那几颗键 44px（ui-defaults §6）；头部两颗是图标键。 */
 const PHONE_ICON_BUTTON_CLASS =
-  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-(--duration-fast) ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 /** 「存下当前」要用的那一份：这一台此刻的提示词、模型与参数。 */
 export interface StudioTemplateSaveContext {
@@ -534,8 +534,8 @@ export function StudioTemplatesPanel({
             'flex min-h-0 flex-1 flex-col transition-opacity motion-reduce:transition-none',
             phone ? 'gap-3' : 'gap-4',
             creating
-              ? 'opacity-0 duration-(--duration-fast) ease-linear'
-              : 'opacity-100 delay-(--duration-fast) duration-(--duration-base) ease-standard',
+              ? 'opacity-0 duration-fast ease-linear'
+              : 'opacity-100 delay-(--duration-fast) duration-base ease-standard',
           )}
         >
           <div
@@ -545,10 +545,10 @@ export function StudioTemplatesPanel({
             )}
           >
             {/* 左上那张「当前提示词」：生成满意了，一键存下。 */}
-            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-(--duration-slow) ease-standard motion-reduce:animate-none">
+            <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-slow ease-standard motion-reduce:animate-none">
               <div
                 className={cn(
-                  'flex h-full flex-col gap-2 rounded-xl border p-1.5 pb-2.5 transition-colors duration-(--duration-base) ease-linear',
+                  'flex h-full flex-col gap-2 rounded-xl border p-1.5 pb-2.5 transition-colors duration-base ease-linear',
                   saved
                     ? 'border-transparent bg-surface-fill'
                     : 'border-dashed border-border',
@@ -557,7 +557,7 @@ export function StudioTemplatesPanel({
                 <TemplateCover url={lastCover} />
                 <span
                   key={saved ? 'saved' : 'now'}
-                  className="flex min-w-0 animate-in flex-col gap-0.5 px-0.5 fade-in-0 duration-(--duration-fast) ease-linear motion-reduce:animate-none"
+                  className="flex min-w-0 animate-in flex-col gap-0.5 px-0.5 fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
                 >
                   <span className="truncate text-2sm font-semibold">
                     {saved
@@ -585,7 +585,7 @@ export function StudioTemplatesPanel({
                     disabled={!canSave || savingNow}
                     onClick={() => void saveNow()}
                     className={cn(
-                      'rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-(--duration-fast) ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
+                      'rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
                       // 手机：整宽 36px（画板「模板 C · 手机」）。
                       phone ? 'h-9 w-full' : 'ml-0.5 h-7.5 self-start',
                     )}
@@ -688,7 +688,7 @@ export function StudioTemplatesPanel({
                     >
                       <div
                         className={cn(
-                          'group/card relative rounded-xl transition-colors duration-(--duration-fast) ease-linear',
+                          'group/card relative rounded-xl transition-colors duration-fast ease-linear',
                           phone ? 'p-1' : 'p-1.5',
                           menuOpen
                             ? 'bg-surface-fill'
@@ -745,7 +745,7 @@ export function StudioTemplatesPanel({
                               data-template-apply={recipe.id}
                               aria-label={t('apply', { name })}
                               onClick={() => onApply(recipe)}
-                              className="flex w-full flex-col gap-2 rounded-lg text-left transition-transform duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-98 motion-reduce:transition-none"
+                              className="flex w-full flex-col gap-2 rounded-lg text-left transition-transform duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-98 motion-reduce:transition-none"
                             >
                               <TemplateCover
                                 url={recipe.coverThumbnailUrl ?? null}
@@ -778,7 +778,7 @@ export function StudioTemplatesPanel({
                                   aria-label={t('more', { name })}
                                   className={cn(
                                     // 触屏没有悬停：⋯ 常驻，命中区补到 44（-inset-2）。
-                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-sm transition-opacity duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100 coarse:before:absolute coarse:before:-inset-2',
+                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-sm transition-opacity duration-fast ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100 coarse:before:absolute coarse:before:-inset-2',
                                     menuOpen
                                       ? 'opacity-100'
                                       : 'opacity-0 group-hover/card:opacity-100',
@@ -830,7 +830,7 @@ export function StudioTemplatesPanel({
                                     deleteRecipe(recipe)
                                   }}
                                   className={cn(
-                                    'h-8 rounded-lg px-2.5 text-2sm transition-colors duration-(--duration-fast) ease-linear',
+                                    'h-8 rounded-lg px-2.5 text-2sm transition-colors duration-fast ease-linear',
                                     confirming
                                       ? 'bg-status-risk text-white focus:bg-status-risk focus:text-white'
                                       : 'text-status-risk focus:text-status-risk',
@@ -863,7 +863,7 @@ export function StudioTemplatesPanel({
               <button
                 type="button"
                 onClick={() => router.push(ROUTES.PROMPTS)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {t('manage')}
                 <ArrowUpRight className="size-3" aria-hidden />
@@ -877,8 +877,8 @@ export function StudioTemplatesPanel({
             className={cn(
               'absolute inset-0 overflow-y-auto',
               formLeaving
-                ? 'pointer-events-none animate-out fade-out-0 slide-out-to-bottom-1.5 fill-mode-forwards duration-(--duration-fast) ease-linear'
-                : 'animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-both delay-(--duration-fast) duration-(--duration-base) ease-standard motion-reduce:animate-none',
+                ? 'pointer-events-none animate-out fade-out-0 slide-out-to-bottom-1.5 fill-mode-forwards duration-fast ease-linear'
+                : 'animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-both delay-(--duration-fast) duration-base ease-standard motion-reduce:animate-none',
             )}
           >
             <form

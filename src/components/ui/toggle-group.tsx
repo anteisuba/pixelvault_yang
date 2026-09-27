@@ -93,7 +93,7 @@ function ToggleGroupItem({
       data-variant="segmented"
       className={cn(
         // 命中区：fine 30px / coarse 36px（ui-defaults §5 与移动端配方）。
-        'relative z-0 flex min-h-7 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors duration-(--duration-base) ease-standard coarse:min-h-9',
+        'relative z-0 flex min-h-7 flex-1 items-center justify-center rounded-full px-3 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors duration-base ease-standard coarse:min-h-9',
         'hover:text-foreground',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
         'data-[state=on]:text-primary-foreground data-[state=on]:hover:text-primary-foreground',

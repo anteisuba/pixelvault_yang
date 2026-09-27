@@ -105,7 +105,7 @@ export function StudioOperatorResearchProgress({
         {...(running ? { 'aria-busy': true } : {})}
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+          'flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
           running
             ? 'bg-muted/60 text-foreground animate-pulse motion-reduce:animate-none'
             : 'bg-muted text-muted-foreground hover:text-foreground',

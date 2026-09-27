@@ -161,7 +161,7 @@ export function StudioOperatorResultRow({
    */
   const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex max-w-sm'
   const ghost =
-    'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+    'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 
   return (
     <div

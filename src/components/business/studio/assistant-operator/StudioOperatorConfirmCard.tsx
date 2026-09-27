@@ -302,7 +302,7 @@ export function StudioOperatorConfirmCard({
               type="button"
               data-testid="operator-confirm-retry"
               onClick={onRetry}
-              className="shrink-0 rounded-sm text-foreground/80 transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 rounded-sm text-foreground/80 transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               · {t('confirm.generate.retry')}
             </button>
@@ -426,7 +426,7 @@ export function StudioOperatorConfirmCard({
                           disabled={busy}
                           aria-label={label}
                           className={cn(
-                            'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
+                            'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
                             open
                               ? 'border-foreground bg-foreground font-medium text-background'
                               : 'border-border bg-muted text-foreground hover:bg-accent',
@@ -478,7 +478,7 @@ export function StudioOperatorConfirmCard({
                                 data-value={option.value}
                                 onClick={() => pick(knob.id, option.value)}
                                 className={cn(
-                                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                   active && 'bg-muted font-medium',
                                 )}
                               >
@@ -536,7 +536,7 @@ export function StudioOperatorConfirmCard({
                     ? onApprove
                     : onConfirm
               }
-              className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-medium text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-medium text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
               {/* ⚠ 「确认中」是**按钮上的字**而不是另起一行（画板「确认中」那一
                   态）：那一刻用户的眼睛就在这颗按钮上，写在别处等于没写。 */}
@@ -561,7 +561,7 @@ export function StudioOperatorConfirmCard({
                     ? onDecline
                     : onCancel
               }
-              className="flex h-8 items-center rounded-md border border-border bg-card px-4 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+              className="flex h-8 items-center rounded-md border border-border bg-card px-4 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
             >
               {contextCard
                 ? t('confirm.contextCard.dismiss')

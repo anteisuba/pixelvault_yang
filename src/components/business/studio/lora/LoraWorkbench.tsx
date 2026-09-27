@@ -3011,7 +3011,7 @@ function GenerateBranch({
                 <p
                   data-testid="lora-generating-eta"
                   role="status"
-                  className="animate-in fade-in-0 text-center text-xs text-muted-foreground duration-(--duration-base) ease-standard motion-reduce:animate-none"
+                  className="animate-in fade-in-0 text-center text-xs text-muted-foreground duration-base ease-standard motion-reduce:animate-none"
                 >
                   {isRunnerColdStart
                     ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)

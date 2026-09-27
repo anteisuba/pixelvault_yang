@@ -124,7 +124,7 @@ const HISTORY_SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
  * 缩到 28 —— 它是头部唯一的常驻入口，先保命中。
  */
 const HEADER_ICON_BUTTON_CLASS =
-  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
 
 /** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
 export type StudioOperatorHeaderAvatar = 'slot' | 'own' | 'none'
@@ -322,7 +322,7 @@ export function StudioOperatorHeader({
                  ⚠ 静息底**透明**（D7c ④ 改后）：规格胶囊走了之后标题是这一行里唯一
                    有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
                    展开两态照旧压底 —— 可点这件事由那两态说。 */
-              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />
@@ -344,12 +344,12 @@ export function StudioOperatorHeader({
                ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
                  ⛔ 不缩放整张菜单（`zoom-in-100` 把原语那档 95 顶掉）；
                  关 = 只淡出、不位移。原语那份 `origin-(--radix-…)` 照旧贴触发器。
-               ⚠ 时长曲线走既有 token（`--duration-fast` + `ease-standard`，
+               ⚠ 时长曲线走既有 token（`duration-fast` + `ease-standard`，
                  原语已经带着后者），⛔ 不为画板上的 90ms 新开一档。
                ⚠ 降级写 `motion-reduce:animate-none` 不是 `transition-none`：
                  开合走的是 `animate-in` / `animate-out`（keyframes），⛔ 关过渡
                  关不掉动画。 */
-            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-(--duration-fast) data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
+            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
           >
             <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
               {t('history.heading')}
@@ -474,7 +474,7 @@ export function StudioOperatorHeader({
             data-testid="operator-band-resume"
             data-step={resume.stepNumber}
             onClick={resume.onResume}
-            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('resume.band', { step: resume.stepNumber })}
           </button>

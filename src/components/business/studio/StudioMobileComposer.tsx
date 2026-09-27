@@ -340,7 +340,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           className={cn(
             'flex min-h-11 min-w-0 flex-1 items-center rounded-xl border border-border/60 px-3',
             templates.restoring &&
-              'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+              'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
           )}
         >
           {!isVideo ? (

@@ -303,7 +303,7 @@ export const ImageCard = memo(function ImageCard({
             // 模型与操作全部住在这一条从底部升起的半透明条里，只动
             // `opacity` / `transform`（ui-defaults §4）。`coarse:hidden`：触屏
             // 没有 hover，这些操作改从详情弹窗进 —— ⛔ 不在卡面留常驻图标。
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 opacity-0 transition-[opacity,transform] duration-(--duration-base) ease-standard group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 coarse:hidden">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 opacity-0 transition-[opacity,transform] duration-base ease-standard group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 coarse:hidden">
               <div className="pointer-events-none flex flex-col gap-2.5 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-3 pb-3 pt-10 text-white group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
                 {creator?.username ? (
                   <a

@@ -241,7 +241,7 @@ export function LoraLibraryGridCard(props: LoraLibraryGridCardProps) {
       onClick={props.onOpen}
       aria-label={facts.name}
       className={cn(
-        'group flex w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-transform duration-(--duration-fast) ease-standard',
+        'group flex w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-transform duration-fast ease-standard',
         'active:scale-[0.98] motion-reduce:active:scale-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
       )}

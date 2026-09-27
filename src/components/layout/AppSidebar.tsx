@@ -96,7 +96,7 @@ function AppSidebarHeader() {
         <Link
           href={ROUTES.STUDIO}
           className={cn(
-            'flex min-w-0 shrink-0 items-center rounded-md px-2 py-1 text-sidebar-accent-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent',
+            'flex min-w-0 shrink-0 items-center rounded-md px-2 py-1 text-sidebar-accent-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent',
             isCollapsed && 'hidden',
           )}
         >
@@ -243,7 +243,7 @@ function AppSidebarFooter() {
                      ⛔ 别把它挂进菜单内容里：那一层只在打开后才挂载，
                      `OnboardingTooltip` 查不到目标就只能把气泡居中。 */
                   data-onboarding="apiKey"
-                  className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-1.5 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[state=open]:bg-sidebar-accent-strong data-[state=open]:text-sidebar-accent-foreground motion-reduce:transition-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
+                  className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-1.5 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-fast ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[state=open]:bg-sidebar-accent-strong data-[state=open]:text-sidebar-accent-foreground motion-reduce:transition-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
                 >
                   <ProfileAvatar
                     avatarUrl={profile?.avatarUrl}

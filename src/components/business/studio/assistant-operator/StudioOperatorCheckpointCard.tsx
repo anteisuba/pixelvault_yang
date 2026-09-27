@@ -39,7 +39,7 @@ export function StudioOperatorCheckpointCard({
   const [reverted, setReverted] = useState(false)
 
   const link =
-    'rounded-sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+    'rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 
   /**
    * ⭐ D12 P5：**不再是一张绿边薄卡**，而是过程那一行的后半句 ——

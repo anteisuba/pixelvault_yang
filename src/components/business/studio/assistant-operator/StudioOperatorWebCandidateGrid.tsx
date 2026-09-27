@@ -146,7 +146,7 @@ export function StudioOperatorWebCandidateGrid({
                 title={caption}
                 aria-label={t('web.viewLarge')}
                 className={cn(
-                  'relative aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg border border-border/70 bg-muted transition-colors duration-(--duration-fast) ease-standard hover:border-primary/50',
+                  'relative aspect-square w-full cursor-zoom-in overflow-hidden rounded-lg border border-border/70 bg-muted transition-colors duration-fast ease-standard hover:border-primary/50',
                   imported && 'border-primary ring-1 ring-primary',
                   failed && 'border-destructive ring-1 ring-destructive',
                 )}
@@ -192,7 +192,7 @@ export function StudioOperatorWebCandidateGrid({
                   rel="noopener noreferrer"
                   data-testid="operator-web-candidate-source"
                   title={t('web.openPage')}
-                  className="flex min-w-0 items-center gap-0.5 font-mono text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-(--duration-fast) ease-standard hover:text-primary hover:underline"
+                  className="flex min-w-0 items-center gap-0.5 font-mono text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
                 >
                   <span className="truncate">
                     {image.domain ?? image.title}
@@ -241,7 +241,7 @@ export function StudioOperatorWebCandidateGrid({
                 disabled={!image.usableAsInput}
                 onClick={() => onToggle(entryId, image)}
                 className={cn(
-                  'rounded-md border px-1 py-0.5 text-xs transition-colors duration-(--duration-fast) ease-standard',
+                  'rounded-md border px-1 py-0.5 text-xs transition-colors duration-fast ease-standard',
                   imported
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
@@ -322,7 +322,7 @@ export function StudioOperatorWebCandidateGrid({
             for (const image of batch) onToggle(entryId, image)
           }}
           className={cn(
-            'shrink-0 rounded-md border px-1.5 py-0.5 text-xs transition-colors duration-(--duration-fast) ease-standard',
+            'shrink-0 rounded-md border px-1.5 py-0.5 text-xs transition-colors duration-fast ease-standard',
             batch.length === 0
               ? 'cursor-not-allowed border-border/70 text-muted-foreground/60'
               : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',

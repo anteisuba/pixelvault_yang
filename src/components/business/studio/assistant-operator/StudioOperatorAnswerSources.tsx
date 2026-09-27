@@ -201,7 +201,7 @@ export function StudioOperatorAnswerSources({
                   openOperatorLightbox(source.mediaUrl, source.title)
                 }
               }}
-              className="relative size-[62px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="relative size-[62px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               <Image
                 src={source.mediaUrl as string}
@@ -259,7 +259,7 @@ export function StudioOperatorAnswerSources({
           )
           /* 高亮走**信号位**（§12.2）：近黑描边，⛔ 不引入新色相、不填色。 */
           const className = cn(
-            'flex w-[124px] shrink-0 flex-col gap-0.5 rounded-lg border bg-card px-2 py-1.5 text-left transition-colors duration-(--duration-fast) ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+            'flex w-[124px] shrink-0 flex-col gap-0.5 rounded-lg border bg-card px-2 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
             active ? 'border-foreground' : 'border-border hover:bg-muted/40',
           )
           return source.url ? (
@@ -298,7 +298,7 @@ export function StudioOperatorAnswerSources({
               type="button"
               data-testid="operator-answer-deep-research"
               onClick={onDeepResearch}
-              className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               {t('answer.deepResearch')}
             </button>
@@ -312,7 +312,7 @@ export function StudioOperatorAnswerSources({
               aria-pressed={pinned}
               onClick={onTogglePin}
               className={cn(
-                'flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+                'flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
                 pinned
                   ? 'bg-foreground font-medium text-background'
                   : 'border border-border bg-card text-muted-foreground hover:text-foreground',

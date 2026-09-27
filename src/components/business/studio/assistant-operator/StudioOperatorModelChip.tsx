@@ -174,7 +174,7 @@ export function StudioOperatorModelChip({
             /* D12 T-A：一行**灰字**，不穿框（输入区整块只有一个边框）；hover /
                展开才垫一层浅底。⛔ 不翻成近黑信号位：那一档只给发送键。 */
             className={cn(
-              'flex h-8 min-w-0 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              'flex h-8 min-w-0 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
               open ? 'bg-accent text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -210,7 +210,7 @@ export function StudioOperatorModelChip({
               data-testid="operator-model-option-auto"
               onClick={() => void commit(ASSISTANT_ROUTE_MODEL_AUTO)}
               className={cn(
-                'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected === ASSISTANT_ROUTE_MODEL_AUTO && 'bg-muted',
               )}
             >
@@ -246,7 +246,7 @@ export function StudioOperatorModelChip({
                       data-testid={`operator-model-option-${model.modelId}`}
                       onClick={() => handlePick(model)}
                       className={cn(
-                        'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         isSelected && 'bg-muted font-medium',
                       )}
                     >

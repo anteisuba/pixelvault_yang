@@ -55,7 +55,7 @@ export function StudioTemplateUndoToast({
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       className={cn(
-        'absolute left-1/2 z-10 flex h-10 max-w-9/10 -translate-x-1/2 items-center gap-3 rounded-full bg-foreground pl-4 pr-1.5 text-2sm whitespace-nowrap text-background shadow-overlay duration-(--duration-base) ease-standard motion-reduce:animate-none md:max-w-lg',
+        'absolute left-1/2 z-10 flex h-10 max-w-9/10 -translate-x-1/2 items-center gap-3 rounded-full bg-foreground pl-4 pr-1.5 text-2sm whitespace-nowrap text-background shadow-overlay duration-base ease-standard motion-reduce:animate-none md:max-w-lg',
         anchor === 'above' ? 'bottom-full mb-3' : 'bottom-6',
         leaving
           ? 'pointer-events-none animate-out fade-out-0 fill-mode-forwards'
@@ -69,7 +69,7 @@ export function StudioTemplateUndoToast({
           onUndo()
           setLeaving(true)
         }}
-        className="h-7 shrink-0 rounded-full bg-background/15 px-3 text-xs font-semibold transition-colors duration-(--duration-fast) ease-linear hover:bg-background/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60"
+        className="h-7 shrink-0 rounded-full bg-background/15 px-3 text-xs font-semibold transition-colors duration-fast ease-linear hover:bg-background/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60"
       >
         {t('undo')}
       </button>

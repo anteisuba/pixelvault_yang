@@ -454,7 +454,7 @@ export function StudioOperatorLoraPickCard({
               type="button"
               data-testid="operator-lora-pick-search-again"
               onClick={onSearchAgain}
-              className="rounded-md border border-border bg-card px-3 py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="rounded-md border border-border bg-card px-3 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               {t('confirm.loraPick.searchAgain')}
             </button>
@@ -469,7 +469,7 @@ export function StudioOperatorLoraPickCard({
                   selected.map((one) => ({ candidateId: one.candidateId })),
                 )
               }
-              className="rounded-md bg-foreground px-3.5 py-1 text-2sm font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              className="rounded-md bg-foreground px-3.5 py-1 text-2sm font-medium text-background transition-colors duration-fast ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
               {t('confirm.loraPick.mount')}
             </button>
@@ -493,7 +493,7 @@ export function StudioOperatorLoraPickCard({
           data-testid="operator-lora-pick-dismiss"
           onClick={onDismiss}
           disabled={submitting}
-          className="self-start text-2xs text-muted-foreground underline-offset-2 transition-colors duration-(--duration-fast) ease-standard hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
+          className="self-start text-2xs text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
         >
           {t('confirm.loraPick.dismiss')}
         </button>

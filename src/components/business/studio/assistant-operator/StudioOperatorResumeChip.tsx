@@ -39,7 +39,7 @@ export function StudioOperatorResumeChip({
         data-testid="operator-round-resume"
         data-step={resume.stepNumber}
         onClick={resume.onResume}
-        className="flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        className="flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
         {t('continue', { step: resume.stepNumber })}
       </button>

@@ -92,7 +92,7 @@ export function StudioOperatorErrorBar({
             }}
             /* ⚠ 触屏命中区补到 44（`ui-defaults.md §5`）：它横向只有一颗，
                `touch-target-y` 的「只撑高不撑宽」在这里不会压到邻居。 */
-            className="touch-target-y inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-(--duration-fast) ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            className="touch-target-y inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
           >
             {copied ? (
               <Check className="size-3.5" aria-hidden />

@@ -81,8 +81,6 @@ import {
   flashNodeCard,
   useNodeCardFlash,
   useMediaProblem,
-  renderPromptMentions,
-  type MentionPickerOption,
   type NodeToolbarGroup,
 } from './chrome'
 import {
@@ -107,10 +105,8 @@ import {
   imageVersions,
   toStudioModelOption,
 } from './image/image-node-model'
-import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { CharacterMentionRail } from './character/CharacterMentionRail'
-import { useNodeCharacterMentions } from './character/use-node-character-mentions'
-import { videoRailMentionLabels } from '@/lib/video-node-rail'
+import { useImagePromptMentions } from './image/use-image-prompt-mentions'
 import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -293,80 +289,16 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     mediaUrl: imageData.url,
   })
 
-  // 正文里的 @她（画布用角色 ④ 第 2 片）：跟着草稿走，边打字边出现在参考轨上。
-  const characterMentions = useNodeCharacterMentions({
-    prompt: draft,
-    ...(imageData.characterPicks
-      ? { characterPicks: imageData.characterPicks }
-      : {}),
+  // @ 候选与胶囊（参考轨 · 角色库里的她 · 画布上的图）：与手机抽屉同一份。
+  const promptMentions = useImagePromptMentions({
+    id,
+    draft,
+    imageData,
+    refs,
+    acceptsRefs,
   })
 
   if (!node) return null
-
-  const mentionTokens = buildMentionTokens(canvas.nodes, id).filter(
-    (token) => token.kind !== 'video' && token.kind !== 'voice',
-  )
-  const mentionCandidates = buildMentionCandidates(
-    canvas.nodes.filter(
-      (item) => item.id !== id && item.data.kind === NODE_MEDIA_KIND_IDS.image,
-    ),
-    id,
-    (item) => item.data.name,
-  )
-  const railMentionOptions: MentionPickerOption[] = acceptsRefs
-    ? [
-        ...refs.items.map((entry) => ({
-          id: `rail:${entry.edgeId}`,
-          name: `${tImage('rail.group')}${entry.index}`,
-          groupLabel: tImage('rail.mentionGroup'),
-          ...(entry.thumbnailUrl
-            ? {
-                media: {
-                  kind: 'image' as const,
-                  thumbnailUrl: entry.thumbnailUrl,
-                },
-              }
-            : {}),
-        })),
-        ...characterMentions.options,
-        ...mentionCandidates.map((candidate) => {
-          const token = mentionTokens.find(
-            (item) => item.name === candidate.name,
-          )
-          return {
-            id: candidate.id,
-            name: candidate.name,
-            groupLabel: tImage('add.canvas'),
-            ...(token?.thumbnailUrl
-              ? {
-                  media: {
-                    kind: 'image' as const,
-                    thumbnailUrl: token.thumbnailUrl,
-                  },
-                }
-              : {}),
-          }
-        }),
-      ]
-    : []
-  const mentionNames = [
-    ...refs.items.flatMap((entry) => videoRailMentionLabels(entry)),
-    ...mentionTokens.map((token) => token.name),
-    ...characterMentions.names,
-  ]
-  const mentionMediaOf = (name: string) => {
-    const rail = refs.items.find((entry) =>
-      videoRailMentionLabels(entry).includes(name),
-    )
-    if (rail?.thumbnailUrl) {
-      return { kind: 'image' as const, thumbnailUrl: rail.thumbnailUrl }
-    }
-    const token = mentionTokens.find((item) => item.name === name)
-    if (token?.thumbnailUrl) {
-      return { kind: 'image' as const, thumbnailUrl: token.thumbnailUrl }
-    }
-    return undefined
-  }
 
   const versions = imageVersions(imageData)
   // ⚠ 当前版**从数据读**（`outputs.cur`），⛔ 不在组件里存一份 useState：
@@ -807,7 +739,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     <ImageRefRail {...refs.railProps} />
                     <CharacterMentionRail
                       nodeId={id}
-                      mentions={characterMentions.mentions}
+                      mentions={promptMentions.characterMentions}
                       capacity={refs.railProps.capacity}
                       usedImages={refs.railProps.items.length}
                       disabled={generating}
@@ -815,20 +747,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   </div>
                 ) : null
               }
-              mentionOptions={
-                acceptsRefs && railMentionOptions.length > 0
-                  ? railMentionOptions
-                  : undefined
-              }
-              renderValue={
-                acceptsRefs
-                  ? (value) =>
-                      renderPromptMentions(value, {
-                        names: mentionNames,
-                        mediaOf: mentionMediaOf,
-                      })
-                  : undefined
-              }
+              mentionOptions={promptMentions.mentionOptions}
+              renderValue={promptMentions.renderValue}
               addMenu={
                 <ImageAddMenuItems
                   onUpload={

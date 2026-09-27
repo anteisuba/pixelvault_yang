@@ -93,6 +93,9 @@ function ResponsivePopoverContent({
           maxHeight:
             'min(85svh, calc(100svh - var(--keyboard-inset, 0px) - 0.75rem))',
           ...style,
+          // 底部抽屉恒满宽：调用方给锚定弹层的宽（参数 300 / 勾图 360…）⛔ 不带进来，
+          // 否则抽屉靠左缩成一截、右边露一条。
+          width: undefined,
         }}
       >
         <DrawerTitle className="sr-only">{label}</DrawerTitle>

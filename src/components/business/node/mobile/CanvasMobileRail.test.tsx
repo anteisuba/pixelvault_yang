@@ -8,6 +8,27 @@ vi.mock('next-intl', () => ({
 }))
 
 // 抽屉是 vaul 的 portal + 一整套编排件，本片只验「点卡把哪一张递给了它」。
+const push = vi.fn()
+vi.mock('@/i18n/navigation', () => ({ useRouter: () => ({ push }) }))
+
+vi.mock('@/hooks/cards/use-character-library', () => ({
+  useCharacterLibrary: () => ({
+    cards: [],
+    loaded: true,
+    find: (id: string) =>
+      id === 'denia'
+        ? {
+            id: 'denia',
+            name: 'Denia',
+            sourceImageUrl: null,
+            referenceSlots: [
+              { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
+            ],
+          }
+        : null,
+  }),
+}))
+
 vi.mock('./MobileNodeSheet', () => ({
   MobileNodeSheet: ({ node }: { node: NodeV4 | null }) => (
     <div data-testid="sheet">{node?.id ?? 'closed'}</div>
@@ -68,6 +89,17 @@ const nodes: NodeV4[] = [
     position: { x: 0, y: 0 },
     data: { kind: 'image', subtype: 'shot', name: '参考图' },
   },
+  {
+    id: 'char-1',
+    type: 'v4',
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'image',
+      subtype: 'character',
+      name: '旧名字',
+      characterId: 'denia',
+    },
+  },
 ] as unknown as NodeV4[]
 
 vi.mock('../nodes/v4/NodeV4Context', () => ({
@@ -125,6 +157,19 @@ describe('CanvasMobileRail', () => {
     expect(screen.queryByTestId('assistant')).toBeNull()
     fireEvent.click(container.querySelector('[data-mobile-shot-open]')!)
     expect(screen.getByTestId('sheet')).toHaveTextContent('shot-1')
+  })
+
+  it('画布上的角色卡：名字和图现读角色库，点了去角色页，⛔ 不开出图抽屉', () => {
+    const { container } = renderRail()
+    fireEvent.click(container.querySelector('[data-mobile-list-tab="images"]')!)
+    const row = container.querySelector('[data-mobile-media-row="char-1"]')!
+    expect(row).toHaveTextContent('Denia')
+    expect(row.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.test/denia.png',
+    )
+    fireEvent.click(row)
+    expect(push).toHaveBeenCalledWith('/cards?tab=characters&character=denia')
+    expect(screen.getByTestId('sheet')).toHaveTextContent('closed')
   })
 
   it('助手开着时才挂那块 sheet', () => {

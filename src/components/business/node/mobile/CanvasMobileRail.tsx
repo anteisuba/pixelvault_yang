@@ -24,6 +24,11 @@ import {
   type NodeMobileListId,
 } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { cardManagementPath } from '@/constants/routes'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { useRouter } from '@/i18n/navigation'
+import { characterMainImage } from '@/lib/node-character-mentions'
+import { isCharacterCardNode } from '@/lib/node-mentions-to-slots'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { cn } from '@/lib/utils'
 import type { NodeV4 } from '@/types/node-workflow'
@@ -55,16 +60,29 @@ export interface CanvasMobileRailProps {
   onUploadFiles(files: readonly File[]): void
 }
 
-function MediaRow({ node, onOpen }: { readonly node: NodeV4; onOpen(): void }) {
+function MediaRow({
+  node,
+  onOpen,
+  character,
+}: {
+  readonly node: NodeV4
+  onOpen(): void
+  /** 画布上的角色卡：图和名字现读角色库（卡本身没有 `url`）。 */
+  readonly character?: { readonly name: string; readonly image?: string }
+}) {
   const data = node.data
-  const thumbnailUrl =
-    data.kind === NODE_MEDIA_KIND_IDS.image
+  const thumbnailUrl = character
+    ? character.image
+    : data.kind === NODE_MEDIA_KIND_IDS.image
       ? data.url
       : data.kind === NODE_MEDIA_KIND_IDS.video
         ? data.videoThumbnailUrl
         : undefined
-  const summary =
-    data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : data.prompt
+  const summary = character
+    ? undefined
+    : data.kind === NODE_MEDIA_KIND_IDS.text
+      ? data.body
+      : data.prompt
 
   return (
     <button
@@ -86,7 +104,9 @@ function MediaRow({ node, onOpen }: { readonly node: NodeV4; onOpen(): void }) {
         ) : null}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-2sm font-medium">{data.name}</span>
+        <span className="truncate text-2sm font-medium">
+          {character?.name ?? data.name}
+        </span>
         {summary ? (
           <span className="truncate text-xs text-muted-foreground">
             {summary}
@@ -107,6 +127,8 @@ export function CanvasMobileRail({
 }: CanvasMobileRailProps) {
   const t = useTranslations('StudioNode.mobileRail')
   const canvas = useNodeV4Canvas()
+  const router = useRouter()
+  const library = useCharacterLibrary()
   const [list, setList] = useState<NodeMobileListId>(NODE_MOBILE_LIST_IDS.shots)
   const [openNodeId, setOpenNodeId] = useState<string | null>(null)
 
@@ -219,13 +241,43 @@ export function CanvasMobileRail({
             />
           ))
         ) : (
-          rows.map((node) => (
-            <MediaRow
-              key={node.id}
-              node={node}
-              onOpen={() => setOpenNodeId(node.id)}
-            />
-          ))
+          rows.map((node) => {
+            // 角色卡在手机上⛔ 不展开、不出图抽屉（画布用角色 ④ 手机档）：看图和设定去角色页。
+            const characterId =
+              isCharacterCardNode(node) &&
+              node.data.kind === NODE_MEDIA_KIND_IDS.image
+                ? node.data.characterId
+                : undefined
+            if (characterId) {
+              const card = library.find(characterId)
+              const image = card ? characterMainImage(card) : undefined
+              return (
+                <MediaRow
+                  key={node.id}
+                  node={node}
+                  character={{
+                    name: card?.name ?? node.data.name,
+                    ...(image ? { image } : {}),
+                  }}
+                  onOpen={() =>
+                    router.push(
+                      cardManagementPath({
+                        tab: 'characters',
+                        character: characterId,
+                      }),
+                    )
+                  }
+                />
+              )
+            }
+            return (
+              <MediaRow
+                key={node.id}
+                node={node}
+                onOpen={() => setOpenNodeId(node.id)}
+              />
+            )
+          })
         )}
       </div>
 

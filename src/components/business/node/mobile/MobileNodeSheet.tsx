@@ -40,7 +40,12 @@ import {
   VoiceLibraryPanel,
   type VoiceLibraryClip,
 } from '../voice-library/VoiceLibraryPanel'
+import { CharacterMentionRail } from '../nodes/v4/character/CharacterMentionRail'
 import { ImageFrameChip } from '../nodes/v4/image/ImageFrameChip'
+import { imageNodeAcceptsReferences } from '../nodes/v4/image/image-node-model'
+import { ImageRefRail } from '../nodes/v4/image/ImageRefRail'
+import { useImagePromptMentions } from '../nodes/v4/image/use-image-prompt-mentions'
+import { useImageRefBinding } from '../nodes/v4/image/use-image-ref-binding'
 import { TextAssistantBar } from '../nodes/v4/text/TextAssistantBar'
 import { useNodeV4Canvas } from '../nodes/v4/NodeV4Context'
 import {
@@ -141,7 +146,19 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
         />
       ) : null}
       <NodePromptBar
-        leadingRow={<VideoRefRail {...composer.railProps} />}
+        leadingRow={
+          <div className="flex min-w-0 max-w-full items-start gap-2">
+            <VideoRefRail {...composer.railProps} />
+            {/* 镜头里 @她：她挂在参考条上，点她从底部升起勾图抽屉（画布用角色 ④ 第 4 片）。 */}
+            <CharacterMentionRail
+              nodeId={node.id}
+              mentions={composer.characterMentions}
+              capacity={composer.characterRail.capacity}
+              usedImages={composer.characterRail.usedImages}
+              disabled={composer.generating}
+            />
+          </div>
+        }
         value={composer.draft}
         onValueChange={composer.setDraft}
         onSubmit={composer.submitPrompt}
@@ -177,6 +194,21 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
   })
   const versions = readOutputVersions(data)
   const versionIndex = readOutputIndex(data)
+  // 参考条与 @ 候选：与桌面图片卡同一份（参考图 · 角色库里的她 · 画布上的图）。
+  const acceptsRefs = imageNodeAcceptsReferences(data.subtype)
+  const refs = useImageRefBinding({
+    id: node.id,
+    displayName: data.name,
+    model: data.model,
+    disabled: Boolean(data.mediaJobId),
+  })
+  const mentions = useImagePromptMentions({
+    id: node.id,
+    draft: draft.draft,
+    imageData: data,
+    refs,
+    acceptsRefs,
+  })
 
   return (
     <div className="flex flex-col gap-3">
@@ -211,6 +243,22 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
         placeholder={tImage('promptPlaceholder')}
         ariaLabel={tImage('promptLabel')}
         className="w-full"
+        leadingRow={
+          acceptsRefs ? (
+            <div className="flex min-w-0 max-w-full items-start gap-2">
+              <ImageRefRail {...refs.railProps} />
+              <CharacterMentionRail
+                nodeId={node.id}
+                mentions={mentions.characterMentions}
+                capacity={refs.railProps.capacity}
+                usedImages={refs.railProps.items.length}
+                disabled={draft.generating}
+              />
+            </div>
+          ) : null
+        }
+        mentionOptions={mentions.mentionOptions}
+        renderValue={mentions.renderValue}
         chips={[
           <ImageFrameChip
             key="frame"
@@ -243,6 +291,7 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
           />,
         ]}
       />
+      {acceptsRefs ? refs.overlays : null}
     </div>
   )
 }

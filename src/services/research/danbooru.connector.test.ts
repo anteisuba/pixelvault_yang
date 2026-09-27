@@ -412,6 +412,57 @@ describe('catalog used by the tag workbench', () => {
     expect(result.crossHint).toBeNull()
   })
 
+  it("infers a character row's work from the detail's sample, not the first post", async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.pathname === '/tags.json')
+        return jsonResponse([
+          { name: 'hatsune_miku', category: 4, post_count: 150000 },
+        ])
+      if (url.searchParams.get('tags') === 'hatsune_miku rating:g') {
+        // 与详情同一份样图（同一个缓存键）。
+        expect(url.searchParams.get('limit')).toBe('20')
+        return jsonResponse([
+          // 最新那一张恰好是跨作品的同人图 —— 只看它会写成 pokemon。
+          {
+            id: 1,
+            rating: 'g',
+            tag_string_general: 'twintails',
+            tag_string_copyright: 'pokemon vocaloid',
+            preview_file_url: 'https://cdn.donmai.us/p1.jpg',
+          },
+          {
+            id: 2,
+            rating: 'g',
+            tag_string_general: 'twintails',
+            tag_string_copyright: 'vocaloid',
+            preview_file_url: 'https://cdn.donmai.us/p2.jpg',
+          },
+          {
+            id: 3,
+            rating: 'g',
+            tag_string_general: 'twintails',
+            tag_string_copyright: 'vocaloid',
+            preview_file_url: 'https://cdn.donmai.us/p3.jpg',
+          },
+        ])
+      }
+      throw new Error('rate limited')
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'miku',
+      kind: 'character',
+    })
+    expect(result.candidates[0]).toMatchObject({
+      name: 'hatsune_miku',
+      work: 'vocaloid',
+      // 行上只画得下一张。
+      previews: ['https://cdn.donmai.us/p1.jpg'],
+    })
+  })
+
   it('points to the artist page when a character search finds only an artist', async () => {
     mockFetch.mockImplementation(async (raw: string) => {
       const url = new URL(raw)
@@ -476,6 +527,48 @@ describe('catalog used by the tag workbench', () => {
       ),
     ).toHaveLength(1)
     vi.mocked(Math.random).mockRestore()
+  })
+
+  it('drops composition tags from a character’s traits but keeps them for an artist', async () => {
+    const posts = [
+      {
+        id: 1,
+        rating: 'g',
+        tag_string_general: '1girl solo twintails aqua_hair',
+        tag_string_copyright: 'vocaloid',
+      },
+    ]
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json') {
+        const name = url.searchParams.get('search[name]')
+        return jsonResponse([
+          {
+            name,
+            category: name === 'hatsune_miku' ? 4 : 1,
+            post_count: 10,
+          },
+        ])
+      }
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      return jsonResponse(posts)
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const character = await fetchDanbooruCatalog({
+      kind: 'character',
+      tag: 'hatsune_miku',
+    })
+    expect(character.detail?.traits.map((trait) => trait.tag)).toEqual([
+      'twintails',
+      'aqua_hair',
+    ])
+    expect(character.detail?.work).toBe('vocaloid')
+    const artist = await fetchDanbooruCatalog({
+      kind: 'artist',
+      tag: 'mizuiro_sora',
+    })
+    expect(artist.detail?.traits.map((trait) => trait.tag)).toContain('1girl')
+    expect(artist.detail?.work).toBeNull()
   })
 
   it('propagates network failures instead of returning a misleading empty search', async () => {

@@ -461,7 +461,9 @@ export function StudioTemplatesPanel({
     >
       {phone ? (
         <>
-          <div className="flex h-11 shrink-0 items-center gap-1.5">
+          {/* `pr-12`：面板顶到顶栏下时，右上角浮着的助手头像正好压在这一行右端 ——
+              让开它，⛔ 让「＋新建」被头像盖住（查资料面板同一做法）。 */}
+          <div className="flex h-11 shrink-0 items-center gap-1.5 pr-12">
             <button
               type="button"
               aria-label={t('back')}

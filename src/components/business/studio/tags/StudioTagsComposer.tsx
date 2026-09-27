@@ -26,6 +26,7 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useTagTargetFlash } from '@/hooks/use-tag-target-flash'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 import {
   getCapabilityChipValue,
@@ -120,6 +121,8 @@ export function StudioTagsComposer({
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
   const characters = useNovelAiCharacters()
+  /** 查资料刚往哪一位角色里加了标签（那一页亮个小点）。 */
+  const flashing = useTagTargetFlash()
   const referenceNotice = useReferenceReceiverNotice(
     runModels,
     imageUpload.referenceEntries.length,
@@ -209,6 +212,7 @@ export function StudioTagsComposer({
                 ...characters.characters.map((_, index) => ({
                   value: String(index),
                   label: t('workbench.characterNumber', { number: index + 1 }),
+                  indicator: flashing === index,
                 })),
               ]}
               onChange={(next) =>
@@ -396,8 +400,10 @@ export function StudioTagsComposer({
                   popoverAlign="end"
                   contentClassName="w-80"
                   disabled={isGenerating}
+                  // ⚠ 单选 chip 写「型号名 · 版本」，宽屏用它自己的 240（⛔ 压到 192 把名字挤成
+                  //   「Novel… Diffusion V5 …」）；输入框 / 标签行变窄时才收到 144，保证工具行一行不折。
                   className={cn(
-                    'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36 @max-6xl/tagrow:max-w-36',
+                    'h-8 font-medium @max-4xl/composer:max-w-36 @max-6xl/tagrow:max-w-36',
                     runModels.length > 0 && studioOutlineChipSetClass,
                     'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
                   )}

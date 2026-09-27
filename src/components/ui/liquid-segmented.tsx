@@ -9,6 +9,24 @@ import { cn } from '@/lib/utils'
 export interface LiquidSegmentedItem<T extends string> {
   readonly value: T
   readonly label: string
+  /** 字后面亮一个小点（刚往这一格里加了东西，查资料 B 动效表）。 */
+  readonly indicator?: boolean
+}
+
+/**
+ * 两层字里都画同一颗点，扫过时一起反色：底下那层是正文色（⛔ 跟着灰字走就看不出），
+ * 选中块那层跟字一起白。
+ */
+function Indicator({ className }: { className: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'ml-1.25 inline-block size-1.5 animate-target-dot rounded-full align-middle motion-reduce:animate-none',
+        className,
+      )}
+    />
+  )
 }
 
 interface LiquidSegmentedProps<T extends string> {
@@ -193,6 +211,7 @@ export function LiquidSegmented<T extends string>({
             )}
           >
             {item.label}
+            {item.indicator ? <Indicator className="bg-foreground" /> : null}
           </button>
         ))}
         <motion.div
@@ -210,6 +229,7 @@ export function LiquidSegmented<T extends string>({
               )}
             >
               {item.label}
+              {item.indicator ? <Indicator className="bg-current" /> : null}
             </span>
           ))}
         </motion.div>

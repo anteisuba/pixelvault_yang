@@ -380,12 +380,18 @@ function topCopyright(posts: readonly CatalogPost[]): string | null {
 /**
  * 给左栏每一行配样图：角色一张 + 作品名，画师三张。
  * ⚠ 一行的样图查不到（限流 / 没有全年龄作品）只让那一行没图，⛔ 不让整张列表失败。
+ * ⚠ 角色的作品名按**与详情同一份样图**推（同一个缓存键）：只看一张会把跨作品的同人图
+ *   当成出处（hatsune miku 被写成 pokemon，而详情写 vocaloid —— 一行一个说法）。
+ *   顺带详情打开时直接命中缓存。
  */
 async function withPreviews(
   tags: readonly CatalogTag[],
   kind: DanbooruCatalogKind,
 ): Promise<DanbooruCatalog['candidates']> {
-  const limit = kind === 'artist' ? DANBOORU_REQUEST.artistPreviewCount : 1
+  const limit =
+    kind === 'artist'
+      ? DANBOORU_REQUEST.artistPreviewCount
+      : DANBOORU_REQUEST.catalogSampleSize
   const samples = await Promise.allSettled(
     tags.map((tag) => safePosts(tag.name, limit)),
   )
@@ -397,9 +403,11 @@ async function withPreviews(
       count: tag.post_count,
       category: tag.category,
       work: kind === 'character' ? topCopyright(posts) : null,
+      // 行上只画得下这么几张（角色一张、画师三张）—— 多拿的样图只拿来推作品。
       previews: posts
         .map((post) => donmaiUrl(post.preview_file_url))
-        .filter((url): url is string => url !== null),
+        .filter((url): url is string => url !== null)
+        .slice(0, kind === 'artist' ? DANBOORU_REQUEST.artistPreviewCount : 1),
     }
   })
 }
@@ -495,12 +503,16 @@ async function readCatalogDetail(
   const wiki = z
     .array(z.object({ other_names: z.array(z.string()).optional() }))
     .parse(wikiRaw)
+  const generic = new Set<string>(
+    kind === 'character' ? DANBOORU_REQUEST.genericTraitTags : [],
+  )
   const counts = new Map<string, number>()
   for (const post of posts)
     for (const general of new Set(
       post.tag_string_general.split(' ').filter(Boolean),
     ))
-      counts.set(general, (counts.get(general) ?? 0) + 1)
+      if (!generic.has(general))
+        counts.set(general, (counts.get(general) ?? 0) + 1)
   return {
     ...empty,
     detail: {

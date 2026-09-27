@@ -37,22 +37,32 @@ export function useNovelAiCharacters() {
         ),
       })
   }
-  const add = () => {
-    if (!mode || characters.length >= max) return
+  /** 在末尾加一位角色；返回它的下标（加不了时 `null`）。 */
+  const append = (prompt: string): number | null => {
+    if (!mode || characters.length >= max) return null
     const x = (characters.length + 1) / (characters.length + 3)
     setLayout({
       positioning: layout?.positioning ?? 'auto',
       characters: [
         ...characters,
         {
-          prompt: '',
+          prompt,
           negativePrompt: '',
           position: { x: mode === 'grid' ? snapToNovelAiGrid(x) : x, y: 0.5 },
         },
       ],
     })
-    select(characters.length)
+    return characters.length
   }
+  const add = () => {
+    const index = append('')
+    if (index !== null) select(index)
+  }
+  /**
+   * 查资料「加到 ＋新角色」：带着标签建一位，⛔ 不切过去 —— 用户还在查资料，
+   * 输入框那一页亮个小点就够了（查资料 B 动效表）。
+   */
+  const addWithPrompt = (prompt: string) => append(prompt)
   const remove = (index: number) => {
     const next = characters.filter((_, i) => i !== index)
     setLayout(
@@ -71,6 +81,7 @@ export function useNovelAiCharacters() {
     select,
     update,
     add,
+    addWithPrompt,
     remove,
   }
 }

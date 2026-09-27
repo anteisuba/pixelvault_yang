@@ -50,4 +50,22 @@ describe('LiquidSegmented', () => {
       ),
     )
   })
+
+  it('标签后面可以亮一颗小点（底下那层正文色，选中块那层跟字反白）', () => {
+    const { container } = render(
+      <LiquidSegmented
+        items={[
+          { value: 'whole', label: '整体' },
+          { value: '0', label: '角色 1', indicator: true },
+        ]}
+        value="whole"
+        onChange={() => {}}
+        ariaLabel="编辑谁"
+      />,
+    )
+    const dots = container.querySelectorAll('.animate-target-dot')
+    expect(dots).toHaveLength(2)
+    expect(dots[0]).toHaveClass('bg-foreground')
+    expect(dots[1]).toHaveClass('bg-current')
+  })
 })

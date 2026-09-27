@@ -109,6 +109,35 @@ describe('StudioTagChipField', () => {
   })
 })
 
+// 查资料 B 动效表：新落进来的那一格放大落位、浅底褪掉；一开始就在的不演。
+describe('标签落进来', () => {
+  it('只有后加进来的那一格带落位动画', () => {
+    const chips = [{ text: '1girl', weight: 1 }]
+    const { rerender } = render(
+      <StudioTagChipField
+        label="positiveLabel"
+        polarity="positive"
+        chips={chips}
+        onChange={vi.fn()}
+      />,
+    )
+    const landing = () =>
+      [...document.querySelectorAll('.animate-tag-land')].map(
+        (node) => node.textContent,
+      )
+    expect(landing()).toEqual([])
+    rerender(
+      <StudioTagChipField
+        label="positiveLabel"
+        polarity="positive"
+        chips={[{ text: 'hatsune miku', weight: 1 }, ...chips]}
+        onChange={vi.fn()}
+      />,
+    )
+    expect(landing()).toEqual(['hatsune miku'])
+  })
+})
+
 describe('official NAI completion', () => {
   it('accepts the selected canonical role tag without changing its spelling', async () => {
     vi.mocked(getNovelAiTagSuggestionsAPI).mockResolvedValue({

@@ -22,6 +22,8 @@ vi.mock('@/contexts/studio-context', () => ({
 vi.mock('@/hooks/use-novelai-characters', () => ({
   useNovelAiCharacters: () => ({ mode: null }),
 }))
+const viewport = vi.hoisted(() => ({ phone: false }))
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.phone }))
 vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
   StudioCanvas: () => <div data-testid="results" />,
 }))
@@ -32,7 +34,20 @@ vi.mock(
   }),
 )
 vi.mock('./StudioTagsPromptArea', () => ({ StudioTagsPromptArea: () => null }))
-vi.mock('./StudioDanbooruPanel', () => ({ StudioDanbooruPanel: () => null }))
+// 查资料自带头部：宿主只把「挂上就落焦点」的 ref 递给它。
+vi.mock('./StudioDanbooruPanel', () => ({
+  StudioDanbooruPanel: ({
+    headingRef,
+  }: {
+    headingRef?: import('react').Ref<HTMLHeadingElement>
+  }) => (
+    <section data-testid="catalog-panel">
+      <h2 ref={headingRef} tabIndex={-1}>
+        catalog
+      </h2>
+    </section>
+  ),
+}))
 vi.mock('./NovelAiCharacterComposer', () => ({
   NovelAiCharacterComposer: () => null,
 }))
@@ -43,7 +58,11 @@ describe('标签台舞台面板', () => {
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn()
   })
-  beforeEach(() => vi.useFakeTimers())
+  beforeEach(() => {
+    vi.useFakeTimers()
+    viewport.phone = false
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+  })
   afterEach(() => vi.useRealTimers())
 
   /**
@@ -64,5 +83,25 @@ describe('标签台舞台面板', () => {
     // 面板之间直接切：新那块的标题接过焦点。
     rerender(<StudioTagsStage panel="composition" onClose={vi.fn()} />)
     expect(screen.getByRole('heading', { name: 'composition' })).toHaveFocus()
+  })
+
+  /**
+   * 手机上整页在滚：面板要整块顶到顶栏下（它的高度正好卡在顶栏与底部生成栏之间），
+   * ⛔ 只把标题滚进来 —— 那样钉在面板底部的「加到哪 + 加入」会压在生成栏底下。
+   */
+  it('手机：打开查资料把整块面板滚到顶，桌面只在看不见时才动', () => {
+    viewport.phone = true
+    const { rerender } = render(
+      <StudioTagsStage panel={null} onClose={vi.fn()} />,
+    )
+    rerender(<StudioTagsStage panel="catalog" onClose={vi.fn()} />)
+    act(() => {
+      vi.advanceTimersByTime(DURATION_MS.fast)
+    })
+    const scroll = vi.mocked(Element.prototype.scrollIntoView)
+    expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+    expect(scroll.mock.contexts.at(-1)).toBe(
+      screen.getByTestId('catalog-panel'),
+    )
   })
 })

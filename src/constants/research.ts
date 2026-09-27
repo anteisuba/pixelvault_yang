@@ -408,6 +408,33 @@ export const DANBOORU_REQUEST = {
     'unknown_artist',
     'anonymous_artist',
   ],
+  /**
+   * 角色详情的「常见特征」里剔掉的通用 tag：人数、构图、表情这些几乎每张图都有，
+   * 排在最前却说不出这个角色长什么样（画师「常画的」不剔 —— 那正是在说他画什么）。
+   */
+  genericTraitTags: [
+    '1girl',
+    '1boy',
+    '2girls',
+    '2boys',
+    'multiple_girls',
+    'multiple_boys',
+    'solo',
+    'looking_at_viewer',
+    'smile',
+    'blush',
+    'open_mouth',
+    'closed_mouth',
+    'simple_background',
+    'white_background',
+    'upper_body',
+    'full_body',
+    'cowboy_shot',
+    'standing',
+    'sitting',
+  ],
+  /** 查资料「角色」页还没搜时给的几个起手词（点一下就搜）。 */
+  lookupExamples: ['初音未来', 'miku', '雪ミク'],
 } as const
 
 /** Serper 时间过滤（🔬 `tbs=qdr:w` 实测生效）。 */

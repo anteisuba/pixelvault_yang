@@ -7,6 +7,7 @@ import { StudioStageSwap } from '@/components/business/studio-shared/chrome/Stud
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useStudioGen } from '@/contexts/studio-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { StudioTagsPromptArea } from './StudioTagsPromptArea'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
@@ -48,79 +49,92 @@ export function StudioTagsStage({
       trigger.current = document.activeElement
     }
   }, [panel])
+  const phone = useIsMobile()
   /**
    * 标题**挂上时**才落焦点、滚到看得见 —— 换场是「结果先淡出一拍，面板再上来」，
    * ⛔ 在 `panel` 一变就去找标题（那一拍它还没挂上）。
+   * 手机上整页在滚、面板在参数下面：把整块面板顶到顶栏下（与模板面板同一做法）—— 它的高度
+   * 正好是顶栏与底部生成栏之间那一段，只把标题滚进来的话，查资料钉在底部的「加到哪 + 加入」
+   * 会压在生成栏底下。桌面舞台只在看不见时才动。
    */
-  const focusHeading = useCallback((node: HTMLHeadingElement | null) => {
-    if (!node) return
-    node.focus({ preventScroll: true })
-    node.scrollIntoView({ block: 'nearest' })
-  }, [])
+  const focusHeading = useCallback(
+    (node: HTMLHeadingElement | null) => {
+      if (!node) return
+      node.focus({ preventScroll: true })
+      if (phone) {
+        ;(node.closest('section') ?? node).scrollIntoView({ block: 'start' })
+      } else {
+        node.scrollIntoView({ block: 'nearest' })
+      }
+    },
+    [phone],
+  )
   const close = () => {
     onClose()
     trigger.current?.focus()
     trigger.current = null
   }
 
-  const renderOwnPanel = (key: TagOwnPanel) => (
-    <section
-      className="flex min-h-0 flex-col gap-4 pb-4"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation()
-          close()
-        }
-      }}
-    >
-      <div className="flex items-center justify-between gap-2">
-        {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
+  const renderOwnPanel = (key: TagOwnPanel) =>
+    // 查资料自带头部（「查资料」+ 角色 | 画风 + 返回结果）与 Esc。
+    key === 'catalog' ? (
+      <StudioDanbooruPanel onClose={close} headingRef={focusHeading} />
+    ) : (
+      <section
+        className="flex min-h-0 flex-col gap-4 pb-4"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation()
+            close()
+          }
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
             浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
-        <h2
-          ref={focusHeading}
-          tabIndex={-1}
-          className="text-base font-medium outline-none"
-        >
-          {t(key)}
-        </h2>
-        <Button variant="outline" size="sm" onClick={close}>
-          {t('backToResults')}
-        </Button>
-      </div>
-      {key === 'catalog' ? (
-        <StudioDanbooruPanel />
-      ) : c.mode ? (
-        <>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={c.layout?.positioning !== 'manual'}
-              disabled={isGenerating || !c.layout}
-              onCheckedChange={(automatic) => {
-                if (c.layout)
-                  c.setLayout({
-                    ...c.layout,
-                    positioning: automatic ? 'auto' : 'manual',
-                  })
-              }}
-            />
-            {t('auto')}
-          </label>
-          {/* 构图格是正方形 —— 按舞台宽度铺开会比屏幕还高，收成一块居中的方格。 */}
-          <div className="mx-auto w-full max-w-md">
-            <NovelAiCharacterComposer
-              mode={c.mode}
-              maxCharacters={c.max}
-              value={c.layout}
-              activeIndex={c.activeIndex}
-              disabled={isGenerating}
-              onChange={c.setLayout}
-              onSelect={c.select}
-            />
-          </div>
-        </>
-      ) : null}
-    </section>
-  )
+          <h2
+            ref={focusHeading}
+            tabIndex={-1}
+            className="text-base font-medium outline-none"
+          >
+            {t(key)}
+          </h2>
+          <Button variant="outline" size="sm" onClick={close}>
+            {t('backToResults')}
+          </Button>
+        </div>
+        {c.mode ? (
+          <>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={c.layout?.positioning !== 'manual'}
+                disabled={isGenerating || !c.layout}
+                onCheckedChange={(automatic) => {
+                  if (c.layout)
+                    c.setLayout({
+                      ...c.layout,
+                      positioning: automatic ? 'auto' : 'manual',
+                    })
+                }}
+              />
+              {t('auto')}
+            </label>
+            {/* 构图格是正方形 —— 按舞台宽度铺开会比屏幕还高，收成一块居中的方格。 */}
+            <div className="mx-auto w-full max-w-md">
+              <NovelAiCharacterComposer
+                mode={c.mode}
+                maxCharacters={c.max}
+                value={c.layout}
+                activeIndex={c.activeIndex}
+                disabled={isGenerating}
+                onChange={c.setLayout}
+                onSelect={c.select}
+              />
+            </div>
+          </>
+        ) : null}
+      </section>
+    )
 
   return (
     <StudioStageSwap

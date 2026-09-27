@@ -17,6 +17,12 @@
    expansion so the visual footprint stays unchanged. */
 @custom-variant coarse (@media (pointer: coarse));
 
+/* Short-viewport breakpoint (owner 2026-09-27 查资料「矮屏左右排」): below ~56rem of
+   viewport height a stacked detail (samples over tags) no longer fits, so it lays
+   out side by side instead. Height, not width — what runs out is vertical room
+   (a 13" laptop leaves ~745px once the browser chrome is drawn). */
+@custom-variant short (@media (max-height: 56rem));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -488,6 +494,30 @@
     }
     to {
       background-color: transparent;
+    }
+  }
+  /* 标签刚落进输入框（查资料 B 动效表）：320ms 从 .8 放大落位，浅底 1.2s 褪掉。 */
+  --animate-tag-land:
+    tag-land-grow 320ms var(--ease-standard) both, tag-land-fill 1.2s linear;
+  @keyframes tag-land-grow {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+  @keyframes tag-land-fill {
+    from {
+      background-color: var(--surface-fill-track);
+    }
+  }
+  /* 「加到角色 N」之后输入框里那一页的小点：弹一下再站住。 */
+  --animate-target-dot: target-dot 320ms var(--ease-standard) both;
+  @keyframes target-dot {
+    from {
+      transform: scale(0);
+    }
+    60% {
+      transform: scale(1.3);
     }
   }
 }

@@ -22,6 +22,8 @@ import type { TagChip } from '@/types/tag-composer'
 
 interface StudioTagChipProps {
   chip: TagChip
+  /** 刚加进来的这一格：落进来时放大一下、浅底褪掉（查资料 B 动效表）。 */
+  landing?: boolean
   disabled?: boolean
   onChange: (next: TagChip) => void
   onRemove: () => void
@@ -38,6 +40,7 @@ interface StudioTagChipProps {
  */
 export function StudioTagChip({
   chip,
+  landing,
   disabled,
   onChange,
   onRemove,
@@ -54,6 +57,7 @@ export function StudioTagChip({
         // `min-w-0`：否则最小宽度 = 整段字宽，压过 `max-w-full`，截断不生效。
         'inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-2xs',
         weighted ? 'border-foreground/40' : 'border-border',
+        landing && 'animate-tag-land motion-reduce:animate-none',
       )}
     >
       <StudioToolSurface>

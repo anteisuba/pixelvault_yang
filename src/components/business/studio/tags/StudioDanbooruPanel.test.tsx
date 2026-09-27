@@ -1,100 +1,443 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+
+import type { DanbooruCatalogRequest } from '@/hooks/use-danbooru-catalog'
 import type { DanbooruCatalog } from '@/types/danbooru-catalog'
+import type { TagChip } from '@/types/tag-composer'
+
+type Result = {
+  data?: DanbooruCatalog
+  previous?: DanbooruCatalog
+  error: boolean
+  loading: boolean
+  retry: () => void
+}
+
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
-  setLayout: vi.fn(),
   update: vi.fn(),
+  addWithPrompt: vi.fn(() => 1),
+  flash: vi.fn(),
   retry: vi.fn(),
-  data: undefined as DanbooruCatalog | undefined,
-  error: false,
-  loading: false,
+  phone: false,
+  chips: [] as TagChip[],
+  mode: 'free' as 'free' | 'grid' | null,
+  characters: [] as { prompt: string; negativePrompt: string }[],
+  activeIndex: null as number | null,
+  requests: [] as (DanbooruCatalogRequest | null)[],
+  answer: (() => ({})) as (request: DanbooruCatalogRequest) => Partial<{
+    data: unknown
+    previous: unknown
+    error: boolean
+    loading: boolean
+  }>,
 }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}(${Object.values(values).join('|')})` : key,
+  useLocale: () => 'en',
+}))
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
+  useReducedMotion: () => true,
+}))
+vi.mock('next/image', () => ({
+  default: ({ src, alt }: { src: string; alt: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} />
+  ),
+}))
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mocks.phone }))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
-    state: { tagChips: [] },
+    state: { tagChips: mocks.chips },
     dispatch: mocks.dispatch,
   }),
   useStudioGen: () => ({ isGenerating: false }),
 }))
 vi.mock('@/hooks/use-novelai-characters', () => ({
   useNovelAiCharacters: () => ({
-    mode: 'free',
-    max: 22,
-    characters: [],
-    setLayout: mocks.setLayout,
+    mode: mocks.mode,
+    max: 6,
+    characters: mocks.characters,
+    activeIndex: mocks.activeIndex,
     update: mocks.update,
+    addWithPrompt: mocks.addWithPrompt,
   }),
 }))
-vi.mock('@/hooks/use-danbooru-catalog', () => ({
-  useDanbooruCatalog: () => mocks,
+vi.mock('@/hooks/use-tag-target-flash', () => ({
+  flashTagTarget: mocks.flash,
 }))
+vi.mock('@/hooks/use-danbooru-catalog', () => ({
+  useDanbooruCatalog: (request: DanbooruCatalogRequest | null): Result => {
+    mocks.requests.push(request)
+    const answer = request ? mocks.answer(request) : {}
+    return {
+      error: false,
+      loading: false,
+      retry: mocks.retry,
+      ...(answer as Partial<Result>),
+    }
+  },
+}))
+
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
+
+const catalog = (partial: Partial<DanbooruCatalog>): DanbooruCatalog => ({
+  candidates: [],
+  crossHint: null,
+  detail: null,
+  ...partial,
+})
+
+const miku = catalog({
+  candidates: [
+    {
+      name: 'hatsune_miku',
+      count: 152000,
+      category: 4,
+      work: 'vocaloid',
+      previews: ['https://cdn.donmai.us/p1.jpg'],
+    },
+    {
+      name: 'snow_miku',
+      count: 5140,
+      category: 4,
+      work: 'vocaloid',
+      previews: [],
+    },
+  ],
+})
+
+const mikuDetail = catalog({
+  detail: {
+    tag: 'hatsune_miku',
+    count: 152000,
+    work: 'vocaloid',
+    aliases: ['初音ミク'],
+    sampleSize: 20,
+    traits: [
+      { tag: 'twintails', count: 19 },
+      { tag: 'aqua_hair', count: 19 },
+    ],
+    images: [
+      {
+        id: 7,
+        url: 'https://cdn.donmai.us/7s.jpg',
+        large: 'https://cdn.donmai.us/7.jpg',
+      },
+    ],
+  },
+})
+
+const artists = catalog({
+  candidates: [
+    {
+      name: 'mizuiro_sora',
+      count: 1200,
+      category: 1,
+      work: null,
+      previews: ['https://cdn.donmai.us/a1.jpg'],
+    },
+  ],
+})
+
+const artistDetail = catalog({
+  detail: {
+    tag: 'mizuiro_sora',
+    count: 1200,
+    work: null,
+    aliases: [],
+    sampleSize: 20,
+    traits: [{ tag: 'flower', count: 11 }],
+    images: [],
+  },
+})
+
+/** 角色页搜 miku、画风页随便看看，详情各给一份。 */
+function answerFixtures(request: DanbooruCatalogRequest) {
+  if (request.tag === 'hatsune_miku') return { data: mikuDetail }
+  if (request.tag === 'mizuiro_sora') return { data: artistDetail }
+  if (request.kind === 'artist') return { data: artists }
+  if (request.query === 'miku') return { data: miku }
+  return {}
+}
+
+function search(text: string) {
+  fireEvent.change(screen.getByRole('searchbox', { name: 'searchCharacter' }), {
+    target: { value: text },
+  })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.error = false
-  mocks.loading = false
-  mocks.data = undefined
+  mocks.phone = false
+  mocks.chips = []
+  mocks.mode = 'free'
+  mocks.characters = []
+  mocks.activeIndex = null
+  mocks.requests = []
+  mocks.answer = answerFixtures
 })
-describe('Danbooru selection', () => {
-  it('does not apply tags until explicitly selected and confirmed', () => {
-    mocks.data = {
-      candidates: [],
-      crossHint: null,
-      detail: {
-        count: null,
-        work: null,
-        tag: 'denia_(wuthering_waves)',
-        aliases: ['达妮娅'],
-        sampleSize: 2,
-        traits: [{ tag: 'pink_hair', count: 2 }],
-        images: [],
+
+describe('查资料 B · 角色', () => {
+  it('还没搜：一句怎么搜 + 起手词，点一个就搜', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    expect(screen.getByText('guide')).toBeInTheDocument()
+    expect(screen.getByText('blank')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'miku' }))
+    expect(
+      screen.getByRole('searchbox', { name: 'searchCharacter' }),
+    ).toHaveValue('miku')
+  })
+
+  it('一搜就选中第一个，右边出详情；角色名默认选上', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(screen.getByText('characterCount(miku|2)')).toBeInTheDocument()
+    const first = screen.getByRole('button', { name: /^hatsune miku.*rowWork/ })
+    expect(first).toHaveAttribute('aria-current', 'true')
+    expect(
+      screen.getByRole('button', { name: 'hatsune miku', pressed: true }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /twintails/, pressed: false }),
+    ).toBeInTheDocument()
+    // 样图用大图，点开 Danbooru 原帖。
+    expect(screen.getByRole('img', { name: 'sample(7)' })).toHaveAttribute(
+      'src',
+      'https://cdn.donmai.us/7.jpg',
+    )
+    expect(
+      mocks.requests.some(
+        (request) =>
+          request?.tag === 'hatsune_miku' && request.kind === 'character',
+      ),
+    ).toBe(true)
+  })
+
+  it('加到整体：排在画师标签之后，已经在的不重复；按钮说「已加进」', () => {
+    mocks.chips = [
+      { text: 'artist:sora', weight: 1 },
+      { text: 'aqua hair', weight: 1 },
+    ]
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    fireEvent.click(screen.getByRole('button', { name: /aqua hair/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'addTags(2)' }))
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: 'artist:sora', weight: 1 },
+          { text: 'hatsune miku', weight: 1 },
+          { text: 'aqua hair', weight: 1 },
+        ],
       },
-    }
-    render(<StudioDanbooruPanel />)
-    expect(screen.getByRole('button', { name: 'applySelected' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('checkbox', { name: /pink hair/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'applySelected' }))
-    expect(mocks.setLayout).toHaveBeenCalledWith({
-      positioning: 'auto',
-      characters: [
-        {
-          prompt: 'pink hair',
-          negativePrompt: '',
-          position: { x: 0.5, y: 0.5 },
-        },
-      ],
     })
-    expect(mocks.dispatch).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('button', { name: 'addedTo(targetWhole)' }),
+    ).toBeInTheDocument()
   })
-  it('reports an unavailable source separately from an empty search and offers retry', () => {
-    mocks.error = true
-    render(<StudioDanbooruPanel />)
-    expect(screen.getByRole('alert')).toHaveTextContent('error')
-    expect(screen.queryByText('empty')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
-    expect(mocks.retry).toHaveBeenCalledOnce()
+
+  it('加到角色 1：并进那一位的标签，输入框那一页亮个点', () => {
+    mocks.characters = [{ prompt: 'solo', negativePrompt: '' }]
+    mocks.activeIndex = 0
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    // 默认跟着输入框当前那一页。
+    const targets = screen.getByRole('tablist', { name: 'targetsLabel' })
+    expect(
+      within(targets).getByRole('tab', { name: 'characterNumber(1)' }),
+    ).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'addTags(1)' }))
+    expect(mocks.update).toHaveBeenCalledWith(0, {
+      prompt: 'hatsune miku, solo',
+    })
+    expect(mocks.flash).toHaveBeenCalledWith(0)
   })
-  it('clears selected tags when the search changes', () => {
-    mocks.data = {
-      candidates: [],
-      crossHint: null,
-      detail: {
-        count: null,
-        work: null,
-        tag: 'denia',
-        aliases: [],
-        sampleSize: 0,
-        traits: [],
-        images: [],
+
+  it('＋新角色：带着标签建一位，之后接着加到它', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    fireEvent.click(screen.getByRole('tab', { name: 'targetNew' }))
+    fireEvent.click(screen.getByRole('button', { name: 'addTags(1)' }))
+    expect(mocks.addWithPrompt).toHaveBeenCalledWith('hatsune miku')
+    expect(mocks.flash).toHaveBeenCalledWith(1)
+  })
+
+  it('模型没有角色构图：只剩整体，不给灰按钮', () => {
+    mocks.mode = null
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(
+      screen.queryByRole('tablist', { name: 'targetsLabel' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/noComposition/)).toBeInTheDocument()
+  })
+
+  it('角色页查不到、其实是画师：说出来并带着同一个词去画风页', () => {
+    mocks.answer = (request) =>
+      request.kind === 'character' && request.query === 'fukemachi'
+        ? {
+            data: catalog({
+              crossHint: { kind: 'artist', name: 'fukemachi', count: 260 },
+            }),
+          }
+        : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('fukemachi')
+    expect(
+      screen.getByText('crossToArtistTitle(fukemachi)'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /goStyle/ }))
+    expect(screen.getByRole('tab', { name: 'tabStyle' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(
+      mocks.requests.some(
+        (request) =>
+          request?.kind === 'artist' && request.query === 'fukemachi',
+      ),
+    ).toBe(true)
+  })
+
+  it('两边都查不到：给 Danbooru 直链', () => {
+    mocks.answer = () => ({ data: catalog({}) })
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('zzqx')
+    expect(screen.getByText('noneTitle(zzqx)')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /searchDanbooru/ }),
+    ).toHaveAttribute(
+      'href',
+      'https://danbooru.donmai.us/tags?search%5Bname_matches%5D=*zzqx*',
+    )
+  })
+
+  it('Danbooru 访问不了：和查不到分开说，给重试', () => {
+    mocks.answer = () => ({ error: true })
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(screen.getByText('errorTitle')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /retry/ }))
+    expect(mocks.retry).toHaveBeenCalled()
+  })
+
+  it('换词重搜：旧列表原地留着，⛔ 不刷成骨架', () => {
+    mocks.answer = (request) =>
+      request.query === 'mik'
+        ? { loading: true, previous: miku }
+        : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('mik')
+    expect(
+      screen.getByRole('button', { name: /^hatsune miku.*rowWork/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'loading' })).toBeNull()
+  })
+
+  it('第一次搜、还没结果：左右都是骨架', () => {
+    mocks.answer = (request) =>
+      request.query === 'miku' ? { loading: true } : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(screen.getAllByRole('status', { name: 'loading' })).toHaveLength(2)
+  })
+})
+
+describe('查资料 B · 画风', () => {
+  it('随便看看；加入 = artist:名字 放最前，再点撤回', () => {
+    mocks.chips = [{ text: '1girl', weight: 1 }]
+    const { rerender } = render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabStyle' }))
+    expect(
+      mocks.requests.some(
+        (request) => request?.kind === 'artist' && request.random,
+      ),
+    ).toBe(true)
+    expect(screen.getByText('randomTitle(1)')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'addArtist(artist:mizuiro sora)' }),
+    )
+    expect(mocks.dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: 'artist:mizuiro sora', weight: 1 },
+          { text: '1girl', weight: 1 },
+        ],
       },
-    }
-    render(<StudioDanbooruPanel />)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'denia' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'search' }), {
-      target: { value: 'another' },
     })
-    expect(screen.getByRole('button', { name: 'applySelected' })).toBeDisabled()
+    // 已经在正向标签里：按钮是「已加入」、左栏行尾标出来，再点就拿掉。
+    mocks.chips = [
+      { text: 'artist:mizuiro sora', weight: 1 },
+      { text: '1girl', weight: 1 },
+    ]
+    rerender(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'artistAdded' }))
+    expect(mocks.dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: { polarity: 'positive', chips: [{ text: '1girl', weight: 1 }] },
+    })
   })
+
+  it('换一批：整批换掉，左右都是骨架', () => {
+    mocks.answer = (request) =>
+      request.random && request.round === 1
+        ? { loading: true, previous: artists }
+        : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabStyle' }))
+    fireEvent.click(screen.getByRole('button', { name: /reroll/ }))
+    expect(screen.getByText('rerolling')).toBeInTheDocument()
+    expect(screen.getAllByRole('status', { name: 'loading' })).toHaveLength(2)
+  })
+
+  it('「常画的」只是参考，不是按钮', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabStyle' }))
+    expect(screen.getByText('flower')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /flower/ })).toBeNull()
+  })
+})
+
+describe('查资料 B · 手机', () => {
+  it('列表一页，点一行推进详情，‹ 回到候选', async () => {
+    mocks.phone = true
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(screen.getByText('pickHint')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'addTags(1)' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: /^hatsune miku.*rowWork/ }),
+    )
+    expect(
+      await screen.findByRole('button', { name: 'addTags(1)' }),
+    ).toBeInTheDocument()
+    // 手机上说短一点（画板 LkFPhone）。
+    expect(screen.getByText('tagsHintPhone')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'backToList' }))
+    expect(
+      await screen.findByRole('searchbox', { name: 'searchCharacter' }),
+    ).toBeInTheDocument()
+  })
+})
+
+it('Esc 关掉面板', () => {
+  const onClose = vi.fn()
+  render(<StudioDanbooruPanel onClose={onClose} />)
+  fireEvent.keyDown(
+    screen.getByRole('searchbox', { name: 'searchCharacter' }),
+    {
+      key: 'Escape',
+    },
+  )
+  expect(onClose).toHaveBeenCalled()
 })

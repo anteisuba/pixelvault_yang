@@ -70,6 +70,19 @@ export function StudioTagChipField({
   const [draft, setDraft] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const [focused, setFocused] = useState(false)
+  /**
+   * 每格按「字 + 第几次出现」认身份，⛔ 不按下标：往最前面插一格时别的格才不会被当成
+   * 新的重挂一遍。第一次画出来时就在的那些格不演落进来的动画（换页 / 刷新不闪）。
+   */
+  const chipKeys = useMemo(() => {
+    const seen = new Map<string, number>()
+    return chips.map((chip) => {
+      const n = seen.get(chip.text) ?? 0
+      seen.set(chip.text, n + 1)
+      return `${chip.text}\u0000${n}`
+    })
+  }, [chips])
+  const [firstKeys] = useState(() => new Set(chipKeys))
 
   const parsedModel = NovelAiTagModelSchema.safeParse(modelId)
   const novelAiModel = parsedModel.success ? parsedModel.data : undefined
@@ -218,7 +231,8 @@ export function StudioTagChipField({
         >
           {chips.map((chip, index) => (
             <StudioTagChip
-              key={`${chip.text}-${index}`}
+              key={chipKeys[index]}
+              landing={!firstKeys.has(chipKeys[index]!)}
               chip={chip}
               disabled={disabled}
               onChange={(next) =>

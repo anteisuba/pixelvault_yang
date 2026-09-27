@@ -103,6 +103,12 @@ export const LIQUID_TIMING = {
 } as const
 
 /**
+ * 查资料加进标签之后（owner 2026-09-27 查资料 B 动效表）：按钮上「已加进 ✓」停多久、
+ * 输入框里「角色 N」那一页的小点亮多久。与 `--animate-tag-land` 的浅底褪色同一拍。
+ */
+export const TAG_ADD_ACK_MS = 1200
+
+/**
  * 工具行 chip 弹层 ②「从 chip 放大」（owner 2026-09-26 画板 PopZoom）的起止形态；
  * 节拍走 CSS token，见 `useStudioChipPopoverMotion`。
  */

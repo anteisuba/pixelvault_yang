@@ -323,6 +323,24 @@
       "h": 4884,
       "title": "卡片 · ④ 全状态",
       "page": "page-7"
+    },
+    {
+      "file": "DesignCanvasCharacterMap.dc.html",
+      "x": 0,
+      "y": 7474,
+      "w": 1400,
+      "h": 1159,
+      "title": "画布 · ② 用角色",
+      "page": "page-7"
+    },
+    {
+      "file": "DesignCanvasCharacterUi.dc.html",
+      "x": 0,
+      "y": 8733,
+      "w": 1400,
+      "h": 5038,
+      "title": "画布 · 角色 ④",
+      "page": "page-7"
     }
   ],
   "annotations": [],

@@ -2017,6 +2017,163 @@ const CARD_FLOW_MAP = {
   ],
 }
 
+// 画布怎么用角色（09-27 ② 思维导图）：owner 定「角色 = 画布上一张节点，点开分图片 / 文字两部分」· 左栏换成角色库。
+const CC_NODES = [
+  { id: 'lib', tag: '已定', title: '左栏「角色」', text: '换成角色库（与角色页同一份）；拖进来或点一下 = 用她。风格卡那半下线', x: 0, y: 0, w: 230, h: 96 },
+  { id: 'at', tag: '已定', title: '节点里 @她', text: '认画布上她那张角色节点；画布上还没有就从角色库拉一张进来', x: 0, y: 122, w: 230, h: 96 },
+  { id: 'script', tag: '已定', title: '剧本 @名字（24b）', text: '投影成镜头时在角色库里认；只认出一个就挂上，多个或没有由助手问一句', x: 0, y: 244, w: 230, h: 110 },
+  { id: 'use', tag: '已定', title: '角色页「用她 ▾ → 放进画布」', text: '选一个项目，放一张她的角色节点进去', x: 0, y: 380, w: 230, h: 80 },
+  { id: 'asst', tag: '建议', title: '画布助手放角色', text: 'attach_card：模型只写名字，服务端认成角色；认不出就问', x: 0, y: 486, w: 230, h: 90 },
+  { id: 'node', tag: '已定', title: '角色节点（一个角色一张）', text: '主图 + 名字 + 作品。画布只记「是她」，出图时现读角色页最新的图和设定（已出的图不变）；建议沿用现有 image.character 节点，多一个角色 id', x: 290, y: 190, w: 250, h: 170 },
+  { id: 'images', tag: '已定', title: '点开 · 图片', text: '从她的图（卡上 · 用她出的）挑一张放到画布上，成一张图片节点', x: 600, y: 60, w: 240, h: 100 },
+  { id: 'text', tag: '已定', title: '点开 · 文字', text: '身份 · 性格 · 说话方式 · 经历，交给画布助手写剧本、分镜、台词；这里只读，改去角色页', x: 600, y: 330, w: 240, h: 120 },
+  { id: 'gen', tag: '建议', title: '出图 / 出视频', text: '连着角色节点的镜头：服务端编卡（主图 + 标签 + 保持同一人，卡片总线画布出口 35 ⑧⑨）；挑出来的图节点当普通参考图', x: 900, y: 40, w: 250, h: 140 },
+  { id: 'shots', tag: '建议', title: '剧本 · 分镜 · 台词', text: '助手只取在场角色的设定；台词照她的说话方式写；关系等双方都出场才带', x: 900, y: 330, w: 250, h: 110 },
+  { id: 'video', tag: '依赖', title: '视频出口', text: '卡片总线 35 ⑦', x: 1210, y: 70, w: 150, h: 70 },
+  { id: 'voice', tag: '依赖', title: '声音', text: '角色的声音接配音节点（语音整体后置）', x: 1210, y: 350, w: 150, h: 90 },
+  { id: 'no', tag: '已定', title: '不做', text: '变体（旧设计，等「新衣服」一起定）· 风格卡 · 旧上下文卡里的角色（变回助手读的文字）', x: 600, y: 500, w: 340, h: 80 },
+]
+const CC_EDGES = [
+  { from: 'lib', to: 'node' },
+  { from: 'at', to: 'node' },
+  { from: 'script', to: 'node' },
+  { from: 'use', to: 'node' },
+  { from: 'asst', to: 'node' },
+  { from: 'node', to: 'images', label: '点开' },
+  { from: 'node', to: 'text', label: '点开' },
+  { from: 'images', to: 'gen', label: '当参考' },
+  { from: 'node', to: 'gen', label: '连线' },
+  { from: 'text', to: 'shots' },
+  { from: 'gen', to: 'video', dash: true },
+  { from: 'shots', to: 'voice', dash: true },
+]
+const CANVAS_CHAR_MAP = {
+  file: 'DesignCanvasCharacterMap.dc.html',
+  title: '画布 · ② 用角色',
+  eyebrow: 'PixelVault · 7 卡片重设计 · 画布用角色 · ② 思维导图（连线）· ③ 已确认 · 2026-09-27',
+  heading: '画布怎么用角色',
+  sub: '现状（09-27 读码）：画布**一处都没有用到角色库**——左栏「角色·风格卡」读的是旧上下文卡，拖进来只拷一张图的地址；节点里 @ 只认画布上的节点名；剧本投影只留空位或新建一张不连角色库的角色节点；卡片总线只接了图片工作台。owner 09-27 定：**角色在画布上是一张节点，点开分两部分**——图片（挑一张她的图放到画布上）与文字（她的设定给助手写剧本、分镜、台词）；左栏换成角色库。同步与剧本投影 owner 没有偏好，按最省事的给建议。',
+  blocks: [
+    { t: 'mock', html: `${graphLegend}${graph(1360, 590, CC_NODES, CC_EDGES)}`, md: '关系图（画板上是连线图）：入口五个——左栏「角色」（已定，换成角色库）· 节点里 @她 · 剧本 @名字投影（24b）· 角色页「用她 ▾ → 放进画布」· 画布助手放角色（后四个是建议）→ 角色节点（已定：一个角色一张，主图 + 名字 + 作品；建议：只记「是她」、出图现读最新）→ 点开 · 图片（已定：挑一张放到画布成图片节点）→ 出图 / 出视频（建议：连着角色节点的镜头由服务端编卡，35 ⑧⑨）→ 视频出口（依赖 35 ⑦）；点开 · 文字（已定：设定给助手写剧本、分镜、台词，只读）→ 剧本 · 分镜 · 台词（建议：只取在场角色，台词照说话方式）→ 声音（依赖，语音后置）。不做：变体 · 风格卡 · 旧上下文卡里的角色。' },
+    h('09-27 已定'),
+    { t: 'ul', items: [
+      '角色在画布上是**一张节点**，一个角色一张',
+      '点开分两部分：**图片**——从她的图里挑一张放到画布上；**文字**——她的设定交给助手写剧本、分镜、台词',
+      '画布左栏「角色·风格卡」**换成角色库**（与角色页同一份）',
+      '不做：变体（等「给角色设计新衣服」一起定）· 风格卡',
+      '节点里 @她：认画布上她那张角色节点，还没有就从角色库拉一张进来',
+      '剧本 @名字投影（24b）：只认出一个就挂上，多个或没有由助手问一句',
+      '角色页「用她 ▾」多一项「放进画布」',
+      '画布只记「是她」：角色页改了图或设定，下次出图用最新的；已出的图不变',
+      '③ 整图确认（09-27），进入 ④ 界面设计：角色节点 · 点开后的图片 / 文字两部分 · 左栏角色库',
+    ] },
+  ],
+}
+
+// ④ 画板：画布里的角色（owner 09-27 选原型 A「原地展开」+ 液态分段 + 收起也有动效）。
+// 皮肤照真实画布：点阵底 · 卡就是图 · 名字在卡外上方一行小字 · 选中环 2px 黑 · 工具条是浮在卡上方的白色胶囊。
+const CU = {
+  canvas: `position:relative;border:1px solid #d4d4d4;border-radius:14px;overflow:hidden;background-color:#f1f1f1;background-image:radial-gradient(#d6d6d4 1px,transparent 1px);background-size:22px 22px`,
+  name: `position:absolute;font-size:11px;color:${MUTED};white-space:nowrap`,
+  card: 'position:absolute;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.06)',
+  sel: 'box-shadow:0 0 0 2px #0a0a0a,0 6px 18px rgba(0,0,0,.08)',
+  bar: 'position:absolute;display:flex;align-items:center;gap:2px;padding:4px;border-radius:12px;background:rgba(255,255,255,.9);border:1px solid #ececec;box-shadow:0 6px 18px rgba(0,0,0,.08);font-size:12px;white-space:nowrap',
+  barBtn: 'height:28px;padding:0 9px;border-radius:8px;display:flex;align-items:center;gap:5px;color:#262626',
+  small: `font-size:11px;line-height:1.55;color:${MUTED}`,
+  solid: 'display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:8px;background:#0a0a0a;color:#fff;font-size:12px;white-space:nowrap',
+  line: 'display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:8px;border:1px solid #e5e5e5;background:#fff;font-size:12px;white-space:nowrap',
+  panel: 'box-sizing:border-box;border:1px solid #e5e5e5;border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 10px 30px rgba(0,0,0,.08)',
+  slot: 'position:absolute;font-size:10.5px;padding:1px 7px;border-radius:999px;background:#fff;border:1px solid #d4d4d4;color:#262626',
+  toast: 'position:absolute;left:50%;transform:translateX(-50%);background:#0a0a0a;color:#fff;font-size:11.5px;padding:5px 12px;border-radius:999px;white-space:nowrap',
+}
+const TONES = ['linear-gradient(160deg,#ead7dd,#b9bcc6)', 'linear-gradient(160deg,#dcd3e8,#9aa0a8)', 'linear-gradient(160deg,#e4ddd2,#8f949c)', 'linear-gradient(160deg,#dfe3ea,#bfc6d2)']
+const cuImg = (w, h, tone = 0, extra = '') => `<div style="width:${w}px;height:${h}px;background:${TONES[tone % 4]};flex:none;${extra}"></div>`
+const cuCanvas = (w, h, inner) => `<div style="${CU.canvas};width:${w}px;height:${h}px;flex:none">${inner}</div>`
+/** 画布上一张卡：名字在卡外上方，卡就是图。 */
+const cuCard = (x, y, w, h, name, { tone = 0, sel = false, body = '' } = {}) =>
+  `<span style="${CU.name};left:${x}px;top:${y - 17}px;${sel ? 'color:#0a0a0a' : ''}">${name}</span><div style="${CU.card};left:${x}px;top:${y}px;width:${w}px;${sel ? CU.sel : ''}">${body || cuImg(w, h, tone)}</div>`
+const cuBar = (x, y, items) => `<div style="${CU.bar};left:${x}px;top:${y}px">${items.map((t) => `<span style="${CU.barBtn}">${t}</span>`).join('<span style="width:1px;height:16px;background:#ececec"></span>')}</div>`
+/** 液态分段（与工作台写法切换同一颗 LiquidSegmented）：近黑实底 + 反色字。 */
+const cuSeg = (active) => `<div style="display:flex;border:1px solid #e5e5e5;background:#f4f4f4;border-radius:999px;padding:2px">${['图片', '文字'].map((t, i) => `<span style="flex:1;text-align:center;font-size:12px;font-weight:500;padding:4px 0;border-radius:999px;${(active === 'img') === (i === 0) ? 'background:#0a0a0a;color:#fff' : 'color:#525252'}">${t}</span>`).join('')}</div>`
+const cuGrid = (hover = -1) => `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${[0, 1, 2, 3, 1, 0].map((t, i) => `<div style="position:relative;aspect-ratio:4/5;border-radius:8px;overflow:hidden;background:${TONES[t]}">${i === 0 ? `<span style="position:absolute;left:4px;top:4px;font-size:9.5px;padding:0 5px;border-radius:999px;background:rgba(255,255,255,.92)">主图</span>` : ''}${i === hover ? `<span style="position:absolute;left:4px;right:4px;bottom:4px;text-align:center;font-size:10px;padding:1px 0;border-radius:999px;background:rgba(255,255,255,.94)">放到画布</span>` : ''}</div>`).join('')}</div>`
+const cuFields = `<div style="display:flex;flex-direction:column;gap:8px">${[['身份', '舞台魔术师，黑海岸的旅人'], ['性格', '温柔、爱照顾人，偶尔露出一点狡黠'], ['说话方式', '句尾爱加「呢」，叫对方「指挥官」']].map(([k, v]) => `<div><div style="font-size:10.5px;color:${MUTED}">${k}</div><div style="font-size:12px;line-height:1.6">${v}</div></div>`).join('')}</div><div style="display:flex;gap:6px"><span style="${CU.solid}">让助手写剧本</span><span style="${CU.line}">写台词</span></div><div style="${CU.small}">只读 · 要改去角色页 ›</div>`
+/** 选中后原地展开的角色卡（宽 300）：主图在上，分段 + 这一页的内容在下。 */
+const cuOpen = (tab, hover = -1) => `${cuImg(300, 190, 0)}<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">${cuSeg(tab)}${tab === 'img' ? `${cuGrid(hover)}<div style="${CU.small}">卡上 3 张 · 用她出的 3 张 · 点一张 = 放到画布上</div>` : cuFields}</div>`
+const cuCap = (no, title, body, rule) => `<div style="display:flex;flex-direction:column;gap:10px;flex:none"><div style="font-size:14px;font-weight:600">${no} ${title}</div>${body}<div style="${MOCK.cap};max-width:${Math.max(300, 0)}px">${rule}</div></div>`
+const cuRow = (items) => `<div style="margin-top:14px;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap">${items.join('')}</div>`
+const cuBarRole = (x, y) => cuBar(x, y, ['⇢ 连到镜头', '↗ 在角色页打开', '⋯'])
+
+const CU_NODE = cuRow([
+  cuCap('N1', '收起（平时）', cuCanvas(430, 360, `${cuCard(40, 70, 180, 225, 'Denia')}${cuCard(290, 110, 110, 150, '镜头 3', { tone: 3 })}<svg style="position:absolute;inset:0" width="430" height="360"><path d="M220,180 C255,180 255,185 290,185" fill="none" stroke="#9a9a9a" stroke-width="1.5"/></svg><span style="${CU.slot};left:232px;top:172px">参考</span>`), '卡就是她的主图，名字在卡外上方——与别的图片卡同一种长相，⛔ 没有卡头「角色 · N 张图」、没有作品小字（身份不上卡面）。连进镜头走现成的「参考」槽。'),
+  cuCap('N2', '选中 · 图片页', cuCanvas(430, 660, `${cuBarRole(66, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('img', 2) })}`), '选中 = 原地变宽展开（180 → 300），⛔ 没有底部提示词面板——她不在画布上出图。工具条三键：连到镜头 · 在角色页打开 · ⋯（从画布移除）。图是卡上的在前、用她出的在后，悬停一格出「放到画布」。'),
+  cuCap('N3', '选中 · 文字页', cuCanvas(430, 660, `${cuBarRole(66, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('text') })}`), '她的设定只读：身份 · 性格 · 说话方式（经历长时折起）。两颗键把她的设定交给画布助手：写剧本 / 写台词。要改设定去角色页。'),
+])
+
+const CU_USE = cuRow([
+  cuCap('U1', '放到画布', cuCanvas(430, 330, `${cuCard(30, 50, 180, 225, 'Denia')}${cuCard(250, 60, 150, 188, 'Denia · 图 3', { tone: 2, sel: true })}<span style="${CU.toast};bottom:14px">已放到画布 · Denia · 图 3</span>`), '点「图片」页的一张 → 她收回原尺寸，右边落一张普通图片卡，名字「Denia · 图 3」，并选中它。⛔ 不连线（画布上的线只表示连进槽）。这张图之后像别的图一样可以连首帧 / 参考。'),
+  cuCap('U2', '连到镜头', cuCanvas(430, 330, `${cuCard(30, 80, 150, 188, 'Denia')}<div style="${CU.panel};position:absolute;left:190px;top:40px;width:210px;padding:6px">${[['＋ 新建镜头', ''], ['镜头 1', '4s'], ['镜头 2', '5s · 已有她'], ['镜头 3', '4s']].map(([t, m], i) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;font-size:12px;${i === 3 ? 'background:#f4f4f4' : ''}">${i ? cuImg(28, 20, 3, 'border-radius:4px') : ''}<span>${t}</span><span style="margin-left:auto;${CU.small}">${m}</span></div>`).join('')}</div>`), '与图片卡那颗「连到镜头」同一个弹层（§1.14）：顶行新建镜头，下面按镜头带顺序列出。连上 = 她进那一镜的「参考」槽；已经有她的镜头写「已有她」，点了不重复连。'),
+  cuCap('U3', '镜头里 @她', cuCanvas(430, 330, `${cuCard(40, 50, 350, 196, '镜头 3', { tone: 3, sel: true })}<div style="position:absolute;left:24px;right:24px;bottom:18px;height:44px;border-radius:14px;background:rgba(255,255,255,.92);border:1px solid #ececec;box-shadow:0 6px 18px rgba(0,0,0,.08);display:flex;align-items:center;gap:6px;padding:0 10px;font-size:12px"><span style="color:${MUTED}">＋</span><span style="display:inline-flex;align-items:center;gap:4px;background:#f3f1ea;border-radius:999px;padding:1px 7px 1px 2px"><span style="width:16px;height:16px;border-radius:999px;background:${TONES[0]}"></span>Denia</span><span>在雨里回头笑，镜头慢推</span><span style="margin-left:auto;width:26px;height:26px;border-radius:8px;background:#0a0a0a;color:#fff;display:grid;place-items:center">↑</span></div>`), '@ 列表多一组「角色」（角色库里的人）。@ 了画布上还没有的她 = 自动拉一张她的角色卡进来并连进这一镜的参考槽；chip 是她的头像 + 名字。'),
+])
+
+const cuLibRow = (name, work, n, tone, onCanvas = false, tail = '＋') => `<div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;${onCanvas ? 'background:#f4f4f4' : ''}">${cuImg(34, 42, tone, 'border-radius:7px')}<div style="min-width:0"><div style="font-size:12.5px;font-weight:500">${name}</div><div style="${CU.small}">${work} · ${n} 张</div></div><span style="margin-left:auto;${CU.small}">${onCanvas ? '在画布上' : tail}</span></div>`
+const cuLeft = (inner) => `<div style="${CU.panel};width:296px;height:420px;display:flex;overflow:hidden;flex:none"><div style="width:56px;border-right:1px solid #f0f0f0;display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:14px">${['▦', '◉', '▢'].map((t, i) => `<span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:13px;${i === 1 ? 'background:#0a0a0a;color:#fff' : 'color:#525252'}">${t}</span>`).join('')}</div><div style="flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:8px">${inner}</div></div>`
+const CU_LEFT = cuRow([
+  cuCap('L1', '角色库', cuLeft(`<div style="font-size:13px;font-weight:600;padding:0 4px">角色</div><div style="height:30px;border-radius:8px;border:1px solid #e5e5e5;display:flex;align-items:center;padding:0 10px;${CU.small}">搜角色或作品</div>${cuLibRow('Denia', '鸣潮', 6, 0, true)}${cuLibRow('里希', '鸣潮', 4, 1)}${cuLibRow('爱弥斯', '鸣潮', 3, 2)}${cuLibRow('小满', '原创', 2, 3)}<div style="${CU.small};padding:4px">拖进画布，或点 ＋ 放到视口中间</div>`), '「角色 / 风格卡」换成角色库，与角色页同一份，排序同角色页（用得最多在前）。已在画布上的那一行写「在画布上」，点它 = 定位到她。⛔ 旧的上下文卡（如「男主角」）不再显示，数据不删，已经拖出来的卡照旧能用。'),
+  cuCap('L2', '空', cuLeft(`<div style="font-size:13px;font-weight:600;padding:0 4px">角色</div><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center"><div style="font-size:12.5px">还没有角色</div><div style="${CU.small};max-width:180px">在角色页建一个，这里就会出现。</div><span style="${CU.line}">去角色页 ↗</span></div>`), '全站空态原语：一句话 + 一个去处。'),
+  cuCap('L3', '拖进画布', cuCanvas(430, 420, `<div style="position:absolute;left:150px;top:120px;width:150px;opacity:.85;transform:rotate(-2deg)">${cuImg(150, 188, 0, 'border-radius:10px;box-shadow:0 14px 30px rgba(0,0,0,.18)')}</div><span style="${CU.small};position:absolute;left:150px;top:318px">松手落在这里</span>`), '拖着的是她的主图（略倾、带影子）；松手落成角色卡。同一个画布一个角色只有一张：再拖一次 = 定位到已有的那张（S3）。'),
+])
+
+const CU_STATES = cuRow([
+  cuCap('S1', '角色库里删了她', cuCanvas(300, 290, `${cuCard(60, 40, 180, 225, 'Denia', { body: `<div style="width:180px;height:225px;background:#f4f4f4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center"><div style="font-size:12px">这位已从角色库删除</div><span style="${CU.line}">从画布移除</span></div>` })}`), '画布只记「是她」，删了就读不到；连着她的镜头出图时缺这一份参考，发之前说一句。'),
+  cuCap('S2', '她还没有图', cuCanvas(300, 290, `${cuCard(60, 40, 180, 225, 'Denia', { body: `<div style="width:180px;height:225px;background:#f4f4f4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:0 16px;box-sizing:border-box"><div style="font-size:12px">还没有图</div><div style="${CU.small}">连进镜头只带名字和外观描述</div><span style="${CU.line}">去角色页加图 ↗</span></div>` })}`), '卡面是灰底一句话，⛔ 不画空虚线框（那是「空卡等你上传」的意思）。'),
+  cuCap('S3', '已经在画布上', cuCanvas(300, 290, `${cuCard(60, 40, 180, 225, 'Denia', { sel: true })}<span style="${CU.toast};bottom:14px">画布上已经有她了</span>`), '再拖 / 再点 ＋ / 再 @：不新建，平移到她并选中，一句 toast。'),
+  cuCap('S4', '剧本投影认人', `<div style="${CU.panel};width:300px;padding:14px;display:flex;flex-direction:column;gap:10px"><div style="font-size:12px;line-height:1.6">剧本里的「Denia」在角色库里对上了 1 位，已经挂上。</div><div style="height:1px;background:#f0f0f0"></div><div style="font-size:12px;line-height:1.6">剧本里的「里希」对上了 2 位，用哪一位？</div><div style="display:flex;flex-direction:column;gap:6px">${cuLibRow('里希', '鸣潮', 4, 1, false, '')}${cuLibRow('里希', '原创', 2, 2, false, '')}</div><span style="${CU.line};align-self:flex-start">都不是，新建一张角色卡</span></div>`, '投影时名字只对上一位就直接挂；对上多位或一位都没有，由画布助手在对话里问一句（问题块，一次一题）。'),
+  cuCap('S5', '角色页「放进画布」', `<div style="${CU.panel};width:260px;padding:6px">${[['在图片工作台用她', ''], ['设为助手人设', ''], ['放进画布 ›', '']].map(([t], i) => `<div style="padding:8px 10px;border-radius:8px;font-size:12.5px;${i === 2 ? 'background:#f4f4f4' : ''}">${t}</div>`).join('')}<div style="height:1px;background:#f0f0f0;margin:4px 0"></div>${[['eva', '12 个节点 · 刚刚'], ['雨夜', '8 个节点 · 昨天'], ['＋ 新画布', '']].map(([t, m]) => `<div style="display:flex;padding:7px 10px;font-size:12px"><span>${t}</span><span style="margin-left:auto;${CU.small}">${m}</span></div>`).join('')}</div>`, '「用她 ▾」多一项「放进画布 ›」，二级列最近的画布；选一个 = 打开那张画布，她落在视口中间并选中。'),
+])
+
+const CU_PHONE = `<div style="margin-top:14px;display:flex;gap:28px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:24px;border:1px solid #d4d4d4;background:#fff;padding:18px 14px;display:flex;flex-direction:column;gap:12px"><div style="font-size:13px;font-weight:600">镜头 3</div>${cuImg(270, 150, 3, 'border-radius:10px')}<div style="display:flex;gap:6px;align-items:center">${cuImg(44, 44, 0, 'border-radius:8px')}${cuImg(44, 44, 2, 'border-radius:8px')}<span style="width:44px;height:44px;border-radius:8px;border:1px dashed #d4d4d4;display:grid;place-items:center;color:${MUTED}">＋</span></div></div><div style="width:300px;flex:none;border-radius:24px;border:1px solid #d4d4d4;background:#fff;padding:14px;display:flex;flex-direction:column;gap:10px"><div style="width:36px;height:4px;border-radius:999px;background:#d4d4d4;align-self:center"></div>${cuSeg('img').replace('图片', '角色').replace('文字', '素材')}${cuLibRow('Denia', '鸣潮', 6, 0)}${cuLibRow('里希', '鸣潮', 4, 1)}</div><div style="flex:1;font-size:13px;line-height:1.75;color:#404040">手机画布是降级档（镜头带视图，不摆自由画布）：参考条的「＋」抽屉多一页「角色」，点一位 = 她进这一镜的参考槽，参考条上是她的主图。⛔ 手机上没有角色卡的展开，要看她的图和设定去角色页。行高 ≥ 44。</div></div>`
+
+const CANVAS_CHAR_UI = {
+  file: 'DesignCanvasCharacterUi.dc.html',
+  title: '画布 · 角色 ④',
+  eyebrow: 'PixelVault · 7 卡片重设计 · 画布用角色 · ④ 画板 · 2026-09-27',
+  heading: '画布里的角色：原地展开',
+  sub: '✅ owner 09-27 选原型 **A 原地展开**；「图片 / 文字」用液态分段；收起也要有动效。同日三问全选最简：**选中只原地展开**（没有底部提示词面板，她不在画布上出图）· **挑出来的图不连线**（名字写「Denia · 图 3」）· **旧上下文卡不再显示**。皮肤照真实画布：卡就是图、名字在卡外上方、身份不上卡面。',
+  blocks: [
+    h('① 角色卡：收起 · 选中展开'),
+    { t: 'mock', html: CU_NODE, md: 'N1 收起：卡就是她的主图，名字在卡外上方，与别的图片卡同一种长相；连进镜头走「参考」槽。N2 选中 · 图片页：原地变宽 180 → 300，没有底部提示词面板；工具条「连到镜头 · 在角色页打开 · ⋯」；图卡上的在前、用她出的在后，悬停出「放到画布」。N3 选中 · 文字页：设定只读（身份 · 性格 · 说话方式），「让助手写剧本 / 写台词」交给画布助手，要改去角色页。' },
+    h('② 用起来'),
+    { t: 'mock', html: CU_USE, md: 'U1 放到画布：点一张 → 她收回，右边落一张普通图片卡「Denia · 图 3」并选中，不连线。U2 连到镜头：与图片卡同一个弹层，连进那一镜的参考槽，已有她的镜头写「已有她」。U3 镜头里 @她：@ 列表多一组「角色」，@ 了画布上还没有的她 = 自动拉进来并连参考槽。' },
+    h('③ 左栏：角色库'),
+    { t: 'mock', html: CU_LEFT, md: 'L1 角色库：替掉「角色 / 风格卡」，与角色页同一份同一种排序；已在画布上的写「在画布上」、点了定位；旧上下文卡不再显示（数据不删）。L2 空：一句话 + 去角色页。L3 拖进画布：拖着的是她的主图，松手落成角色卡。' },
+    h('④ 状态'),
+    { t: 'mock', html: CU_STATES, md: 'S1 角色库里删了她：卡面灰底「这位已从角色库删除 · 从画布移除」，连着的镜头发之前说一句。S2 她还没有图：灰底「还没有图 · 去角色页加图」，连进镜头只带名字和外观描述。S3 已经在画布上：不新建，定位并选中 + toast。S4 剧本投影认人：对上一位直接挂；多位或没有由画布助手问一句。S5 角色页「用她 ▾ → 放进画布 ›」列最近画布，选一个 = 打开并落在视口中间。' },
+    h('数据怎么落'),
+    ul(
+      '她在画布上 = 一张 `image.character` 节点 + `characterId`（绑角色库）；⛔ 不新增第五类节点。没绑角色库的旧 `image.character` 卡照旧是普通图片卡',
+      '卡面、图片页、文字页都**现读**角色库；画布只存「是她」这个 id',
+      '连进镜头 = 现成的 `reference` 槽；出图时由卡片总线按角色编参考图（35 ⑧⑨），⛔ 设定不进出图提示词',
+      '挑出来的图 = 一张普通 `image.reference` 卡，不连线',
+    ),
+    h('手机'),
+    { t: 'mock', html: CU_PHONE, md: '手机（镜头带视图，降级档）：参考条「＋」抽屉多一页「角色」，点一位 = 进这一镜的参考槽；手机上没有角色卡展开，看图和设定去角色页。' },
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['选中 → 原地展开', '340ms 弹簧（`LIQUID_SPRING.unfold`）· 内容淡入 200ms', '卡宽 180 → 300、高度跟着内容长；工具条随选中淡入', '画布上别的卡不让位；视口不自动平移'],
+        ['点空白 / 再点她 → 收回', '260ms（`LIQUID_SPRING.retract`）', '内容先淡出、高度再收、宽度回 180', '⛔ 不直接跳回（owner 09-27「从扩大到缩小没有动效」）'],
+        ['切「图片 / 文字」', '液态分段：前沿 k520 · 后沿 k260；内容短模糊淡入 120ms', '选中块两条边各一根弹簧，途中拉长再收拢，字被扫过时反色', '与工作台写法切换同一颗 `LiquidSegmented`，⛔ 不另画滑块'],
+        ['点一张图 → 放到画布', '收回 260ms 后，新卡 300ms 弹簧从 0.9 放大淡入', '她先收回，新卡在右侧落下并选中', '不连线、不飞行动画'],
+        ['左栏拖进画布', '跟手；松手 200ms 弹簧落位', '拖影是她的主图（略倾、带影子）', '不做吞噬 / 磁吸'],
+        ['已在画布上（S3）', '视口平移 300ms `ease-standard`', '平移到她 + 选中环', '不闪烁、不抖'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
 // ④ 画板：卡片界面（owner 09-26 选 K3 网格 + 侧栏）。原则：一页一个主角 · 不框里套框 · 次要收起、有问题才冒出 · 三个去处合成「用她 ▾」。
 // 颜色只用脊柱：白 · 次级面 #f7f7f7 · 边 #e5e5e5 · 黑主色 · 三个状态色；你的气泡是输入条象牙。
 const KQ = {
@@ -2194,7 +2351,7 @@ export const PAGES = [
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
   { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI] },
-  { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP, CARD_UI] },
+  { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP, CARD_UI, CANVAS_CHAR_MAP, CANVAS_CHAR_UI] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

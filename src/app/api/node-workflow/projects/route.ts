@@ -8,6 +8,7 @@ import { ApiRequestError } from '@/lib/errors'
 import {
   createNodeWorkflowProject,
   listNodeWorkflowProjectsForUser,
+  listRecentNodeWorkflowProjectsForUser,
   NodeWorkflowProjectLimitError,
 } from '@/services/node/node-workflow.service'
 import { CreateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
@@ -15,12 +16,16 @@ import { CreateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 import { rethrowNodeWorkflowStateError } from './state-error'
 
 export const GET = createApiGetRoute({
-  schema: z.object({}),
+  /** `view=recent` = 只要最近几块画布的摘要（角色页「放进画布」）。 */
+  schema: z.object({ view: z.literal('recent').optional() }),
   routeName: 'GET /api/node-workflow/projects',
   requireAuth: true,
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
-  handler: async ({ clerkId }) => {
+  handler: async ({ clerkId, data }) => {
     try {
+      if (data.view === 'recent') {
+        return await listRecentNodeWorkflowProjectsForUser(clerkId!)
+      }
       return await listNodeWorkflowProjectsForUser(clerkId!)
     } catch (error) {
       return rethrowNodeWorkflowStateError(error)

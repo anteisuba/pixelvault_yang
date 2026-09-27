@@ -199,3 +199,20 @@ export function studioImageWithCharacterPath(characterCardId: string): string {
   })
   return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
 }
+
+/** 画布深链里「新建一块画布」的项目值。 */
+export const CANVAS_NEW_PROJECT_QUERY_VALUE = 'new'
+
+/**
+ * 角色页「用她 ▾ → 放进画布」：打开这块画布（或新建一块），她落在视口中间并选中。
+ */
+export function canvasWithCharacterPath(
+  characterCardId: string,
+  projectId: string,
+): string {
+  const params = new URLSearchParams({
+    project: projectId,
+    [STUDIO_CHARACTER_QUERY]: characterCardId,
+  })
+  return `${ROUTES.STUDIO_NODE}?${params.toString()}`
+}

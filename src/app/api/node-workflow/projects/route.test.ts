@@ -19,6 +19,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockCreate = vi.fn()
 const mockList = vi.fn()
+const mockListRecent = vi.fn()
 
 const FakeStateCorruptError = vi.hoisted(
   () =>
@@ -33,6 +34,8 @@ const FakeStateCorruptError = vi.hoisted(
 vi.mock('@/services/node/node-workflow.service', () => ({
   createNodeWorkflowProject: (...args: unknown[]) => mockCreate(...args),
   listNodeWorkflowProjectsForUser: (...args: unknown[]) => mockList(...args),
+  listRecentNodeWorkflowProjectsForUser: (...args: unknown[]) =>
+    mockListRecent(...args),
   NodeWorkflowProjectLimitError: class extends Error {},
   NodeWorkflowStateCorruptError: FakeStateCorruptError,
 }))
@@ -146,5 +149,25 @@ describe('GET /api/node-workflow/projects — 读端坏数据', () => {
     const res = await GET(createGET('/api/node-workflow/projects'))
 
     expect(res.status).toBe(200)
+  })
+
+  it('view=recent 只回最近几块画布的摘要，⛔ 不走整份列表', async () => {
+    mockListRecent.mockResolvedValue([
+      {
+        id: 'p1',
+        name: 'eva',
+        createdAt: '2026-09-01T00:00:00.000Z',
+        updatedAt: '2026-09-28T00:00:00.000Z',
+        nodeCount: 12,
+      },
+    ])
+    const res = await GET(
+      createGET('/api/node-workflow/projects', { view: 'recent' }),
+    )
+    const body = await parseJSON<{ data: { nodeCount: number }[] }>(res)
+
+    expect(res.status).toBe(200)
+    expect(body.data[0]?.nodeCount).toBe(12)
+    expect(mockList).not.toHaveBeenCalled()
   })
 })

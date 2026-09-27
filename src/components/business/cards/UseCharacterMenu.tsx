@@ -7,15 +7,21 @@ import {
   useRef,
   useState,
 } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { studioImageWithCharacterPath } from '@/constants/routes'
+import { LIQUID_SPRING } from '@/constants/motion'
+import {
+  CANVAS_NEW_PROJECT_QUERY_VALUE,
+  canvasWithCharacterPath,
+  studioImageWithCharacterPath,
+} from '@/constants/routes'
 import type { CharacterCardRecord } from '@/types'
 import { withAssistantCharacter } from '@/types/assistant-persona'
-import { Check, ChevronDown } from '@/components/icons'
+import { Check, ChevronDown, ChevronRight } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
+import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useRouter } from '@/i18n/navigation'
@@ -23,7 +29,8 @@ import { cn } from '@/lib/utils'
 
 /**
  * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色三处用——出图 · 助手人设 ·
- * 画布（画布那一项等第 14 片，⛔ 这里不摆一个点了没反应的项）。
+ * 画布。「放进画布 ›」在菜单里往下展开最近几块画布 + 新画布；选一块 = 打开它，她落在
+ * 视口中间并选中（画布用角色 ④ 画板 S5，深链见 `canvasWithCharacterPath`）。
  *
  * ⭐ 菜单**从按钮长出来**（interaction.md §2.1，`useLiquidReveal`）：先横成一条
  *   （按钮那么高、菜单那么宽），再往下落；收回反过来。菜单顶上那一行就是按钮本身，
@@ -44,6 +51,11 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [canvasOpen, setCanvasOpen] = useState(false)
+  const recent = useRecentCanvases()
+  const format = useFormatter()
+  // `relativeTime` 的参照时刻取一次（同 `ShellProjectPill`）：不传会每行报一次 fallback。
+  const [now] = useState(() => new Date())
   const assistant = useAssistantPersona({ enabled: mounted })
   const triggerRef = useRef<HTMLButtonElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
@@ -93,7 +105,21 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
 
   const open = () => {
     setClosing(false)
+    setCanvasOpen(false)
     setMounted(true)
+  }
+
+  const toggleCanvases = () => {
+    const next = !canvasOpen
+    setCanvasOpen(next)
+    if (next && (recent.status === 'idle' || recent.status === 'failed')) {
+      void recent.load()
+    }
+  }
+
+  const putOnCanvas = (projectId: string) => {
+    close()
+    router.push(canvasWithCharacterPath(card.id, projectId))
   }
 
   useEffect(() => {
@@ -189,6 +215,87 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
               disabled={isPersona || assistant.isLoading}
               onSelect={() => void setAsPersona()}
             />
+            <MenuItem
+              title={t('placeOnCanvas')}
+              hint={t('placeOnCanvasHint')}
+              expanded={canvasOpen}
+              trailing={
+                <ChevronRight
+                  aria-hidden
+                  className={cn(
+                    'size-4 text-muted-foreground transition-transform duration-fast',
+                    canvasOpen && 'rotate-90',
+                  )}
+                />
+              }
+              onSelect={toggleCanvases}
+            />
+            <AnimatePresence initial={false}>
+              {canvasOpen ? (
+                <motion.div
+                  key="canvases"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{
+                    height: 'auto',
+                    opacity: 1,
+                    transition: LIQUID_SPRING.unfold,
+                  }}
+                  exit={{
+                    height: 0,
+                    opacity: 0,
+                    transition: LIQUID_SPRING.retract,
+                  }}
+                  className="overflow-hidden"
+                >
+                  <div className="mx-3 my-1 h-px bg-border" />
+                  {recent.status === 'loading' || recent.status === 'idle' ? (
+                    <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                      <Spinner size="sm" />
+                      {t('canvasesLoading')}
+                    </p>
+                  ) : recent.status === 'failed' ? (
+                    <button
+                      type="button"
+                      onClick={() => void recent.load()}
+                      className="w-full px-3 py-2 text-left text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {t('canvasesFailed')}
+                    </button>
+                  ) : (
+                    recent.projects.map((project) => (
+                      <button
+                        key={project.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => putOnCanvas(project.id)}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors duration-fast hover:bg-accent"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          {project.name}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {t('canvasMeta', {
+                            count: project.nodeCount,
+                            time: format.relativeTime(
+                              new Date(project.updatedAt),
+                              now,
+                            ),
+                          })}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => putOnCanvas(CANVAS_NEW_PROJECT_QUERY_VALUE)}
+                    className="flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition-colors duration-fast hover:bg-accent"
+                  >
+                    {t('newCanvas')}
+                  </button>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
         </motion.div>
       ) : null}
@@ -201,12 +308,15 @@ function MenuItem({
   hint,
   trailing,
   disabled,
+  expanded,
   onSelect,
 }: {
   title: string
   hint: string
   trailing?: React.ReactNode
   disabled?: boolean
+  /** 有二级（「放进画布 ›」）时标开合。 */
+  expanded?: boolean
   onSelect(): void
 }) {
   return (
@@ -214,6 +324,7 @@ function MenuItem({
       type="button"
       role="menuitem"
       disabled={disabled}
+      aria-expanded={expanded}
       onClick={onSelect}
       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-fast hover:bg-accent disabled:cursor-default disabled:hover:bg-transparent"
     >

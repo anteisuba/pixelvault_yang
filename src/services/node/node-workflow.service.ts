@@ -6,12 +6,14 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
+import { NODE_STUDIO_PROJECTS } from '@/constants/node-studio'
 import {
   NodeWorkflowStateDataSchema,
   NodeWorkflowStateV4Schema,
   type CreateNodeWorkflowProjectRequest,
   type NodeWorkflowReadState,
   type NodeWorkflowProjectRecord,
+  type NodeWorkflowProjectSummary,
   type UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
 
@@ -163,6 +165,38 @@ export async function listNodeWorkflowProjectsForUser(
     orderBy: { lastActiveAt: 'desc' },
   })
   return rows.map(toRecord)
+}
+
+/**
+ * 最近打开过的几块画布（角色页「用她 ▾ → 放进画布」），⛔ 不回整份 state ——
+ * 那一栏只要名字、节点数和时间。
+ */
+export async function listRecentNodeWorkflowProjectsForUser(
+  clerkId: string,
+): Promise<NodeWorkflowProjectSummary[]> {
+  const user = await ensureUser(clerkId)
+  const rows = await db.nodeWorkflowProject.findMany({
+    where: { userId: user.id, isDeleted: false },
+    orderBy: { lastActiveAt: 'desc' },
+    take: NODE_STUDIO_PROJECTS.recentLimit,
+    select: {
+      id: true,
+      name: true,
+      state: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  })
+  return rows.map((row) => {
+    const nodes = (row.state as { nodes?: unknown } | null)?.nodes
+    return {
+      id: row.id,
+      name: row.name,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      nodeCount: Array.isArray(nodes) ? nodes.length : 0,
+    }
+  })
 }
 
 export async function getNodeWorkflowProject(

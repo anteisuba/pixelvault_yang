@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type {
   CreateNodeWorkflowProjectRequest,
   NodeWorkflowProjectRecord,
+  NodeWorkflowProjectSummary,
   NodeWorkflowV3BackupResult,
   UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
@@ -39,6 +40,30 @@ export async function listNodeWorkflowProjectsAPI(): Promise<
 > {
   try {
     const response = await fetch(API_ENDPOINTS.NODE_WORKFLOW_PROJECTS)
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}
+
+/** 最近几块画布的摘要（角色页「放进画布」），⛔ 不带 state。 */
+export async function listRecentNodeWorkflowProjectsAPI(): Promise<
+  NodeWorkflowApiResponse<NodeWorkflowProjectSummary[]>
+> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.NODE_WORKFLOW_PROJECTS}?view=recent`,
+    )
     if (!response.ok) {
       return {
         success: false,

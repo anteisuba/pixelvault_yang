@@ -77,6 +77,11 @@ import {
   EDIT_DESK_MODE_VALUE,
 } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  CANVAS_NEW_PROJECT_QUERY_VALUE,
+  STUDIO_CHARACTER_QUERY,
+} from '@/constants/routes'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsPhone } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
@@ -741,6 +746,82 @@ function NodeWorkbenchV4Inner() {
       { id, type: 'select', selected: true },
     ])
   }, [graph])
+
+  /**
+   * 角色页「用她 ▾ → 放进画布」的深链：`?project=<id|new>&character=<id>`（画板 S5）。
+   * 先切到那块画布（`new` = 以她的名字新建一块），切过去之后的那一次提交里再把她
+   * 落下（`placeCharacter` 本身幂等：她已在画布上就只是定位并选中），最后把两个参数
+   * 从地址栏拿掉，刷新不再触发。
+   */
+  const characterLibrary = useCharacterLibrary()
+  const handoffProject = searchParams.get('project')
+  const handoffCharacter = searchParams.get(STUDIO_CHARACTER_QUERY)
+  /** 这一次深链处理到哪了。⚠ 按 `project:character` 记：清地址栏参数后 `useSearchParams`
+   *  晚一拍才变，那一拍里 effect 还会再进来一次 —— 没有「已落」这一格就会反复定位 +
+   *  选中，选中改图又触发 effect，成了死循环（真机实测：画布报 Maximum update depth）。 */
+  const handoffRef = useRef<{
+    key: string
+    target: string | null
+    done: boolean
+  } | null>(null)
+  useEffect(() => {
+    if (!store.isHydrated || !handoffProject || !handoffCharacter) return
+    const key = `${handoffProject}:${handoffCharacter}`
+    if (handoffRef.current?.key !== key) {
+      handoffRef.current = { key, target: null, done: false }
+    }
+    const handoff = handoffRef.current
+    if (handoff.done) return
+    const finish = () => {
+      handoffRef.current = { ...handoff, done: true }
+      const rest = new URLSearchParams(searchParams.toString())
+      rest.delete('project')
+      rest.delete(STUDIO_CHARACTER_QUERY)
+      const query = rest.toString()
+      window.history.replaceState(
+        null,
+        '',
+        query
+          ? `${window.location.pathname}?${query}`
+          : window.location.pathname,
+      )
+    }
+    const card = characterLibrary.find(handoffCharacter)
+    if (!card) {
+      // 拉回过一次还找不到 = 她已经不在库里了：只清参数，⛔ 不落一张读不到的卡。
+      if (characterLibrary.loaded) finish()
+      return
+    }
+    if (handoff.target === null) {
+      if (handoffProject === CANVAS_NEW_PROJECT_QUERY_VALUE) {
+        handoffRef.current = {
+          ...handoff,
+          target: store.createProject(card.name),
+        }
+        return
+      }
+      const known = store.projects.some(
+        (project) => project.id === handoffProject,
+      )
+      // 那块画布已经没了：落在眼前这块上。
+      const target = known ? handoffProject : store.currentProject.id
+      handoffRef.current = { ...handoff, target }
+      if (store.currentProject.id !== target) {
+        store.switchProject(target)
+        return
+      }
+    }
+    if (store.currentProject.id !== handoffRef.current.target) return
+    placeCharacter(card)
+    finish()
+  }, [
+    characterLibrary,
+    handoffCharacter,
+    handoffProject,
+    placeCharacter,
+    searchParams,
+    store,
+  ])
 
   /**
    * 三条加节点路里那颗**上传**（S7 §7 owner 追加）。

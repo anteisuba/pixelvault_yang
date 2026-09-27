@@ -34,9 +34,11 @@ import {
   NODE_TYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
+import { NODE_STUDIO_PROJECTS } from '@/constants/node-studio'
 import {
   getNodeWorkflowProject,
   listNodeWorkflowProjectsForUser,
+  listRecentNodeWorkflowProjectsForUser,
   NodeWorkflowStateCorruptError,
   updateNodeWorkflowProject,
 } from '@/services/node/node-workflow.service'
@@ -100,6 +102,34 @@ beforeEach(() => {
   mockUpdate.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
     Promise.resolve(projectRow(data.state ?? V4_STATE)),
   )
+})
+
+describe('listRecentNodeWorkflowProjectsForUser（角色页「放进画布」）', () => {
+  it('按最近打开排、只取几块；回名字 + 节点数 + 时间，⛔ 不回 state', async () => {
+    mockFindMany.mockResolvedValue([
+      projectRow(V4_STATE),
+      { ...projectRow(null), id: 'srv_project_2' },
+    ])
+    const recent = await listRecentNodeWorkflowProjectsForUser(CLERK_ID)
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: DB_USER.id, isDeleted: false },
+        orderBy: { lastActiveAt: 'desc' },
+        take: NODE_STUDIO_PROJECTS.recentLimit,
+      }),
+    )
+    expect(recent).toEqual([
+      {
+        id: PROJECT_ID,
+        name: 'Server project',
+        createdAt: '2026-08-25T00:00:00.000Z',
+        updatedAt: '2026-08-25T00:00:00.000Z',
+        nodeCount: 1,
+      },
+      expect.objectContaining({ id: 'srv_project_2', nodeCount: 0 }),
+    ])
+    expect(recent[0]).not.toHaveProperty('state')
+  })
 })
 
 describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {

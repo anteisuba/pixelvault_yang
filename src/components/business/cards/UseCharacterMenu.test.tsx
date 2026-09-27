@@ -38,6 +38,11 @@ vi.mock('@/types/assistant-persona', () => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+const listRecent = vi.fn()
+vi.mock('@/lib/api-client/node-workflow', () => ({
+  listRecentNodeWorkflowProjectsAPI: () => listRecent(),
+}))
+
 const CARD = { id: 'denia', name: 'Denia' } as CharacterCardRecord
 
 function renderMenu() {
@@ -98,5 +103,36 @@ describe('UseCharacterMenu（用她 ▾）', () => {
     })
     expect(event.defaultPrevented).toBe(true)
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('放进画布 ›：点开才拉最近画布；选一块 = 带着她去那块画布，新画布走 new', async () => {
+    listRecent.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 'p_eva',
+          name: 'eva',
+          createdAt: '2026-09-01T00:00:00.000Z',
+          updatedAt: '2026-09-27T00:00:00.000Z',
+          nodeCount: 12,
+        },
+      ],
+    })
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: /用她/ }))
+    expect(listRecent).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: /放进画布/ }))
+    expect(listRecent).toHaveBeenCalledTimes(1)
+    fireEvent.click(await screen.findByRole('menuitem', { name: /eva/ }))
+    expect(push).toHaveBeenCalledWith(
+      '/studio/node?project=p_eva&character=denia',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /用她/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /放进画布/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /新画布/ }))
+    expect(push).toHaveBeenLastCalledWith(
+      '/studio/node?project=new&character=denia',
+    )
   })
 })

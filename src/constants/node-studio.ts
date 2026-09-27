@@ -207,6 +207,8 @@ export const NODE_STUDIO_PROJECTS = {
   nameMaxLength: 80,
   timestampMaxLength: 80,
   fallbackName: 'Node Studio Project',
+  /** 角色页「用她 ▾ → 放进画布」列最近几块画布。 */
+  recentLimit: 5,
 } as const
 
 export const NODE_STUDIO_AGENT_MODE_IDS = {

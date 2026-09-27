@@ -54,6 +54,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - 首行 `import 'server-only'`；命名 `<name>.service.ts`；测试同目录。
 - 日志一律 `lib/logger`；外部调用一律 `withRetry()`；per-provider `circuit-breaker`。
 - **kernel/ = prompt 引擎族**：`prompt-guard`（用户 prompt 送 AI 前必过）· `prompt-compiler` / `scene-prompt-compiler` / `card-recipe-compiler` · `prompt-enhance` / `prompt-assistant` · `node-planner-route` / `research-route` / `inspiration-context`。LLM 输出使用前必过 `lib/llm-output-validator`。
+- **提示词字数不设我们自己的上限**（owner 2026-09-27）：长度只认模型声明的 `maxPromptChars`（厂商硬上限——前端提前拦，生成服务按它拒）；请求边界只有防滥用护栏 `PROMPT_TEXT_GUARD_MAX_CHARS`（32000），画布节点字段与剧本正文是 `NODE_V4_PROMPT_MAX_LENGTH`（20000）；超过型号上限的服务端拒绝归 `prompt_too_long`，三语说人话。`validatePrompt` 缺省不查长度，要拦就传真实的数。⛔ 不悄悄截断用户写的提示词：剧本对话装配预算放不下时只截旧消息，最新一条放不下就报 `promptTooLong`；上下文预算（LoRA 参考素材、整板快照的节点摘要）另算。名字、标签、简介与局部重绘 / 3D / 语音室台词 / 剪辑台字幕的上限不在此列。
 - 可观测性：`lib/generation-observability`；错误层次在 `lib/errors`（AuthError / ApiRequestError / GenerationError / RateLimitError…）。
 
 ## 可选增强不许拖垮主流程（2026-09-20）

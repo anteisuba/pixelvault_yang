@@ -213,3 +213,27 @@ describe('LORA_DOWNLOAD_DISABLED', () => {
     ).toBe('errors.provider.loraDownloadDisabled')
   })
 })
+
+// owner 2026-09-27：生成服务按型号 `maxPromptChars` 拦下的提示词要说人话 ——
+// 此前卡片模式 / 画布 / 视频链路把 prompt-guard 的英文原话直接摆给用户。
+describe('PROMPT_TOO_LONG', () => {
+  const message = 'Prompt exceeds maximum length of 1000 characters (got 1234)'
+
+  it('classifies the prompt guard rejection — with or without reference images', () => {
+    expect(parseGenerationErrorCode(message)).toBe(
+      GENERATION_ERROR_CODES.PROMPT_TOO_LONG,
+    )
+    expect(parseGenerationErrorCode(message, { hasReferenceImage: true })).toBe(
+      GENERATION_ERROR_CODES.PROMPT_TOO_LONG,
+    )
+  })
+
+  it('resolves an i18n key of its own', () => {
+    expect(
+      getGenerationErrorI18nKeyForCode(
+        GENERATION_ERROR_CODES.PROMPT_TOO_LONG,
+        message,
+      ),
+    ).toBe('errors.provider.promptTooLong')
+  })
+})

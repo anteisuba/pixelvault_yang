@@ -102,6 +102,13 @@ export const GENERATION_ERROR_CODES = {
    */
   LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE:
     'layer_decomposition_requires_single_reference',
+  /**
+   * 发给模型的提示词超过了**那一型号声明的厂商上限**（`maxPromptChars`）——
+   * 生成服务按型号拦下来的（owner 2026-09-27：提示词只认厂商上限）。
+   * 单列一个码：卡片模式融合后的整串、画布与视频链路没有前端拦截，此前这句校验原话
+   * 以英文直接摆给用户。
+   */
+  PROMPT_TOO_LONG: 'prompt_too_long',
   UNKNOWN: 'unknown',
 } as const
 
@@ -223,6 +230,11 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /layer decomposition requires exactly one reference image/i,
     code: GENERATION_ERROR_CODES.LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE,
+  },
+  // `prompt-guard` 的固定原话（生成服务按型号 `maxPromptChars` 拦时抛的）。
+  {
+    pattern: /prompt exceeds maximum length of \d+ characters/i,
+    code: GENERATION_ERROR_CODES.PROMPT_TOO_LONG,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
@@ -432,6 +444,9 @@ export function getGenerationErrorI18nKeyForCode(
     GENERATION_ERROR_CODES.LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE
   ) {
     return 'errors.provider.layerDecompositionRequiresSingleReference'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.PROMPT_TOO_LONG) {
+    return 'errors.provider.promptTooLong'
   }
   if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
     return 'errors.provider.invalidReferenceImageDimensions'

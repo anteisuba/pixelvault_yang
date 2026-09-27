@@ -140,7 +140,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getByText('Denia · Q版')).toBeTruthy()
   })
 
-  it('点一个角色进整页详情：左图右文；「‹ 角色」回总览', () => {
+  it('点一个角色进整页详情：图片在上、设定在下；「‹ 角色」回总览', () => {
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     const detail = screen.getByRole('region', { name: 'Denia' })
@@ -164,14 +164,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('编辑：整页换成编辑态，改性格保存时整份设定带回（没改的格不丢）', async () => {
+  it('点哪改哪：改性格、离开这一格就存，整份设定带回（没改的格不丢）', async () => {
+    mockUpdate.mockClear()
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    fireEvent.click(screen.getByRole('button', { name: '编辑' }))
-    const behavior = screen.getByLabelText(/性格/)
+    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
+    const behavior = screen.getByRole('textbox', { name: '性格' })
     fireEvent.change(behavior, { target: { value: '会先把伞递给别人' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存' }))
-    await vi.waitFor(() => expect(mockUpdate).toHaveBeenCalled())
+    fireEvent.blur(behavior)
+    await vi.waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
     const [id, data] = mockUpdate.mock.calls[0]!
     expect(id).toBe('denia')
     expect(data.persona).toMatchObject({
@@ -179,5 +180,19 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       behavior: '会先把伞递给别人',
       speech: '叫对方「指挥官」',
     })
+  })
+
+  it('没改就离开不存；改到一半按 Esc 放弃这次改动，也不收起详情', () => {
+    mockUpdate.mockClear()
+    renderRoster()
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    const identity = screen.getByRole('textbox', { name: '身份' })
+    fireEvent.focus(identity)
+    fireEvent.blur(identity)
+    fireEvent.change(identity, { target: { value: '半截' } })
+    fireEvent.keyDown(identity, { key: 'Escape' })
+    expect(screen.getByRole('region', { name: 'Denia' })).toBeTruthy()
+    expect(identity).toHaveValue('舞台魔术师')
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

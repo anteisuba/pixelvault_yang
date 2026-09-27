@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils'
  * **角色页 · 方向 A**（owner 09-26 选 A；09-27 详情排版 A · 打开动画 2 · 助手布局 A）。
  *
  * ⭐ 与图片台同一套**布局 A「分栏并排」**：地台上一行（总览 = 标题 · 计数 · 搜索 ·
- *   新角色；详情 = ‹ 角色 · 用她 · 编辑），右端是助手头像那一格（Dock 的 fixed 头像，
+ *   新角色；详情 = ‹ 角色 · 用她），右端是助手头像那一格（Dock 的 fixed 头像，
  *   锚点 `STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`）；下面一张白卡。助手展开时面板从
  *   右侧滑进来，地台右内边距同一根弹簧让位（`CardsPageContent`）—— 并排，⛔ 不覆盖。
  * ⭐ 打开 / 返回 = **直接切**（原型「动画 2」）：旧的一层淡出 120ms，新的一层淡入并
@@ -48,7 +48,7 @@ import { cn } from '@/lib/utils'
  */
 
 /**
- * 地台那一行。右边给助手头像留的位（36 头像 + 12 间距）只在面板收着时留：面板开着时
+ * 地台那一行（详情 = ‹ 角色 · 用她；⛔ 没有「编辑」键，详情上点哪改哪）。右边给助手头像留的位（36 头像 + 12 间距）只在面板收着时留：面板开着时
  * 头像在面板上方，这一行已经随白卡收窄，再留就是一块空。手机不出助手，不留。
  */
 const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3'
@@ -83,7 +83,6 @@ export function CharacterRoster() {
    *   完成回调可能永远不来 —— 09-27 真机上留下一层透明详情吞掉点击。
    */
   const closeTimer = useRef<number | null>(null)
-  const [editing, setEditing] = useState(false)
   const [query, setQuery] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -131,7 +130,6 @@ export function CharacterRoster() {
   })
 
   const openCharacter = useCallback((id: string) => {
-    setEditing(false)
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     setClosingId(null)
     setOpenId(id)
@@ -143,7 +141,6 @@ export function CharacterRoster() {
     [],
   )
   const closeDetail = useCallback(() => {
-    setEditing(false)
     setOpenId(null)
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     if (reducedMotion) {
@@ -165,13 +162,14 @@ export function CharacterRoster() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // 叠在上面的弹层（素材库选择器、用她菜单）已经处理掉的 Esc 不再收详情。
+      // 叠在上面的弹层（素材库选择器、用她菜单）与正在改的那一格（Esc = 放弃这次改动）
+      // 已经处理掉的 Esc 不再收详情。
       if (event.defaultPrevented) return
-      if (event.key === 'Escape' && selected && !editing) closeDetail()
+      if (event.key === 'Escape' && selected) closeDetail()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [closeDetail, editing, selected])
+  }, [closeDetail, selected])
 
   const handleCreate = async (data: CreateCharacterCardRequest) => {
     setIsCreating(true)
@@ -222,12 +220,7 @@ export function CharacterRoster() {
           className={cn(ROW_CLASS, !operatorHost.open && ROW_AVATAR_GAP_CLASS)}
         >
           {selected ? (
-            <CharacterDetailHeader
-              card={selected}
-              editing={editing}
-              onBack={closeDetail}
-              onEdit={() => setEditing(true)}
-            />
+            <CharacterDetailHeader card={selected} onBack={closeDetail} />
           ) : (
             <CharacterOverviewHeader
               characters={items.length}
@@ -311,9 +304,6 @@ export function CharacterRoster() {
             >
               <CharacterDetailBody
                 card={detailCard}
-                editing={editing}
-                onEdit={() => setEditing(true)}
-                onEditDone={() => setEditing(false)}
                 onUpdate={(data) => characters.update(detailCard.id, data)}
                 onDelete={() => deleteCharacter(detailCard.id)}
               />

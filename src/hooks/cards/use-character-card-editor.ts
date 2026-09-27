@@ -1,7 +1,3 @@
-'use client'
-
-import { useCallback, useState } from 'react'
-
 import {
   CARD_EXTENSIONS,
   CHARACTER_CARD,
@@ -15,7 +11,8 @@ import type {
 } from '@/types'
 
 /**
- * 卡片页侧栏的**就地编辑**（施工第 4 片）：名字 · 一句外观 · 标签 · 参考图 · 设定。
+ * 角色详情**点哪改哪**用的纯函数（owner 09-27 原型 B）：一格改完 → 以当前角色记录为底
+ * 合进这一格（`draftFromCard` + 改动）→ `updateFromDraft` 出整份更新请求。
  *
  * ⭐ 图片直接改参考槽（换一张 / 删一张 / 设为主图 / 加几张），服务端按不变量校验并反向写回
  *   旧图片列。图一律从**素材库**来（owner 09-26：图都在素材库，卡跨文件夹挑图）；
@@ -170,45 +167,5 @@ function nextSlotId(slots: CharacterReferenceSlot[]): string {
   for (let n = slots.length + 1; ; n += 1) {
     const id = `slot-${n}`
     if (!taken.has(id)) return id
-  }
-}
-
-export function useCharacterCardEditor(card: CharacterCardRecord) {
-  const [draft, setDraft] = useState<CharacterCardDraft>(() =>
-    draftFromCard(card),
-  )
-
-  const patch = useCallback(
-    (next: Partial<CharacterCardDraft>) =>
-      setDraft((current) => ({ ...current, ...next })),
-    [],
-  )
-
-  return {
-    draft,
-    patch,
-    /** 素材库还能再挑几张。 */
-    remainingSlots: CHARACTER_CARD.MAX_REFERENCE_SLOTS - draft.slots.length,
-    addImages: (generations: GenerationRecord[]) =>
-      setDraft((current) => ({
-        ...current,
-        slots: appendSlotImages(current.slots, generations),
-      })),
-    replaceImage: (id: string, generation: GenerationRecord) =>
-      setDraft((current) => ({
-        ...current,
-        slots: replaceSlotImage(current.slots, id, generation),
-      })),
-    reset: () => setDraft(draftFromCard(card)),
-    setPrimary: (id: string) =>
-      setDraft((current) => ({
-        ...current,
-        slots: makePrimary(current.slots, id),
-      })),
-    remove: (id: string) =>
-      setDraft((current) => ({
-        ...current,
-        slots: removeSlot(current.slots, id),
-      })),
   }
 }

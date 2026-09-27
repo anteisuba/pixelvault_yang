@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useState } from 'react'
+import { memo, useEffect, useState, type CSSProperties } from 'react'
 import {
   BookmarkPlus,
   Bot,
@@ -34,7 +34,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
@@ -52,6 +51,12 @@ interface GenerationPreviewProps {
   onEdit?: (generation: GenerationRecord) => void
   onSaveRecipe?: (generation: GenerationRecord) => void
   onRetry?: () => void
+  /**
+   * The stage has a definite height (desktop bottom-composer layout): the art
+   * box of a generation with no result yet follows it instead of the viewport,
+   * so its whole edge — where the progress line runs — stays on screen.
+   */
+  fillStage?: boolean
 }
 
 /**
@@ -90,6 +95,11 @@ function extractSeedFromGeneration(gen: GenerationRecord): number | null {
   return null
 }
 
+/** The proportions (width / height) a `studio-fit-box` keeps; see globals.css. */
+function fitRatioStyle(ratio: number): CSSProperties {
+  return { '--studio-fit-ratio': ratio } as CSSProperties
+}
+
 export const GenerationPreview = memo(function GenerationPreview({
   generation,
   onUseAsReference,
@@ -97,6 +107,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   onEdit,
   onSaveRecipe,
   onRetry,
+  fillStage = false,
 }: GenerationPreviewProps) {
   const { error, isGenerating, elapsedSeconds, activeRun, cancelRunItem } =
     useStudioGen()
@@ -140,7 +151,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     `generatingOverlayStages.${generatingStageKey}` as const,
   )
 
-  // 裱框显影参数行 — "{elapsed}s · {模型显示名} · {比例}"（loading-language §2.1）。
+  // 舞台新生成那一行参数 — "{elapsed}s · {模型显示名} · {比例}"（加载态 A）。
   // activeRun 与 isGenerating 在同一次同步 setState 批次里落地，故 isGenerating
   // 为 true 时 activeRun 必然已可用；items[0] 兜底 selectedItemId 尚未命中的边界。
   const activeRunModelId =
@@ -155,29 +166,62 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Completion beat: keep the progress chrome mounted a beat past
   // isGenerating→false so StudioGeneratingProgress can play its close→hold→
-  // fade sequence over the freshly-revealed media (loading-language §2.3).
+  // fade sequence over the freshly-revealed media (docs/references/loading.md).
   // Adjust-state-during-render (not useEffect) per the "you might not need
   // an effect" pattern — reacting to a prop transition, not synchronizing
   // with an external system, so react-hooks/set-state-in-effect stays clean.
   const [completingGenerationId, setCompletingGenerationId] = useState<
     string | null
   >(null)
+  // The closed line starts to fade: the veil lifts and the new media comes out
+  // of its blur on the same beat (加载态 A motion table「出图」).
+  const [completionReleased, setCompletionReleased] = useState(false)
   const [prevIsGenerating, setPrevIsGenerating] = useState(isGenerating)
   if (isGenerating !== prevIsGenerating) {
     setPrevIsGenerating(isGenerating)
     if (prevIsGenerating && !isGenerating && generation && !error) {
       setCompletingGenerationId(generation.id)
+      setCompletionReleased(false)
     }
   }
   const isCompletingThisGeneration =
     completingGenerationId !== null && completingGenerationId === generation?.id
-  const showGeneratingOverlay = isGenerating || isCompletingThisGeneration
+  const completionHolding = isCompletingThisGeneration && !completionReleased
+  // A redo that failed: the old media stays under the veil and the stopped
+  // line says why in place, like a canvas card (⛔ red box, ⛔ error dialog).
+  const failed = !isGenerating && error !== null
+  const showGeneratingOverlay =
+    isGenerating || isCompletingThisGeneration || failed
+  // Audio / video frames keep a hairline edge of their own: they hand it to the
+  // line while it runs (⛔ a second frame next to the line) and take it back
+  // under the fading line, like a canvas card's hairline.
+  const edgeBusy = isGenerating || failed || completionHolding
+  const failure = failed
+    ? {
+        message: error,
+        retryLabel: t('retry'),
+        ...(onRetry ? { onRetry } : {}),
+      }
+    : null
 
   const dragRef = useStudioDraggable({
     url: generation?.url ?? undefined,
     generationId: generation?.id ?? '',
     outputType: 'IMAGE',
   })
+  // The image frame takes the image's own proportions, so a redo's line runs
+  // on the image's edge (⛔ a frame wider than the image): the natural size once
+  // loaded, the record's size until then.
+  const [loadedRatio, setLoadedRatio] = useState<{
+    id: string
+    ratio: number
+  } | null>(null)
+  const imageRatio =
+    generation && loadedRatio?.id === generation.id
+      ? loadedRatio.ratio
+      : generation && generation.width > 0 && generation.height > 0
+        ? generation.width / generation.height
+        : 1
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
@@ -211,47 +255,62 @@ export const GenerationPreview = memo(function GenerationPreview({
     )
   }
 
-  // ── Generating (no image yet) ─────────────────────────────────────
+  // ── No result yet: generating, or it failed (加载态 A) ─────────────
+  // One branch for both, so the same progress element stays mounted when the
+  // job fails and the line stops grey where it was. The art box is plain —
+  // the line on its edge is its only frame (⛔ dashed outer card, ⛔ shimmer).
   const previewItem = activeRun?.items.find(
     (item) => item.status === 'generating' && item.previewUrl,
   )
   const previewUrl =
     previewItem?.status === 'generating' ? previewItem.previewUrl : undefined
-  if (isGenerating && !generation) {
-    // Height-driven sizing keeps the placeholder visually proportional to the
-    // requested aspect ratio without ever growing past the viewport. height is
-    // explicit so `aspect-ratio` reverses to compute width — guarantees a
-    // 9:16 placeholder stays a tall narrow card, not a full-canvas takeover.
-    const aspectRatioValue = (() => {
+  if (!generation) {
+    const requestedRatio = (() => {
       switch (state.aspectRatio) {
         case '16:9':
-          return '16 / 9'
+          return 16 / 9
         case '9:16':
-          return '9 / 16'
+          return 9 / 16
         case '4:3':
-          return '4 / 3'
+          return 4 / 3
         case '3:4':
-          return '3 / 4'
+          return 3 / 4
         default:
-          return '1 / 1'
+          return 1
       }
     })()
 
     return (
-      // Full-width "stage" card — mirrors the result state's framed surface so
-      // the dashed border fills the column. The inner art box is height-driven
-      // (height comes from the stage), so its width follows the aspect ratio and
-      // is centered: square/portrait previews sit in intentional side matting
-      // instead of bare workbench, while `maxWidth: 100%` letterboxes wide
-      // ratios into the stage rather than overflowing the column.
+      // The art box has the requested proportions. On a stage with its own
+      // height it is as large as the stage allows (`studio-fit-box`); elsewhere
+      // the height is capped by the viewport and the width follows the ratio,
+      // `maxWidth: 100%` letterboxing wide ratios into the column.
       <div
-        className="mx-auto flex w-full max-w-7xl items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10 2xl:max-w-[88rem]"
-        style={{ height: isMobile ? 'min(45vh, 360px)' : 'min(72vh, 760px)' }}
-        aria-live="polite"
+        className={cn(
+          'flex w-full items-center justify-center',
+          fillStage
+            ? 'studio-fit-area min-h-0 flex-1'
+            : 'mx-auto max-w-7xl 2xl:max-w-[88rem]',
+        )}
+        style={
+          fillStage
+            ? undefined
+            : { height: isMobile ? 'min(45vh, 360px)' : 'min(72vh, 760px)' }
+        }
+        // The failure announces itself (role="alert"); a live region around it
+        // would read it twice.
+        aria-live={failure ? undefined : 'polite'}
       >
         <div
-          className="studio-reveal-canvas relative h-full overflow-hidden rounded-xl"
-          style={{ aspectRatio: aspectRatioValue, maxWidth: '100%' }}
+          className={cn(
+            'relative overflow-hidden rounded-xl bg-card',
+            fillStage ? 'studio-fit-box' : 'h-full',
+          )}
+          style={
+            fillStage
+              ? fitRatioStyle(requestedRatio)
+              : { aspectRatio: requestedRatio, maxWidth: '100%' }
+          }
         >
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -260,51 +319,29 @@ export const GenerationPreview = memo(function GenerationPreview({
               alt={generatingStageLabel}
               className="absolute inset-0 size-full object-contain"
             />
-          ) : (
-            <div className="studio-reveal-shimmer absolute inset-0" />
-          )}
+          ) : null}
           <StudioGeneratingProgress
             elapsedSeconds={elapsedSeconds}
             stageLabel={generatingStageLabel}
             paramsLine={generatingParamsLine}
             variant="full"
             cornerRadiusVar="--radius-xl"
+            failure={failure}
           />
-          {activeRun?.mode === 'single' && activeRun.items[0] && (
-            <button
-              type="button"
-              onClick={() => cancelRunItem(activeRun.items[0].id)}
-              data-testid="generation-preview-cancel"
-              className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
-            >
-              <X className="size-4" />
-              <span className="sr-only">{tCancel('cancel')}</span>
-            </button>
-          )}
+          {isGenerating &&
+            activeRun?.mode === 'single' &&
+            activeRun.items[0] && (
+              <button
+                type="button"
+                onClick={() => cancelRunItem(activeRun.items[0].id)}
+                data-testid="generation-preview-cancel"
+                className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+              >
+                <X className="size-4" />
+                <span className="sr-only">{tCancel('cancel')}</span>
+              </button>
+            )}
         </div>
-      </div>
-    )
-  }
-
-  // ── Error only (no generation) ────────────────────────────────────
-  if (!generation) {
-    return (
-      <div className="rounded-2xl border border-status-risk/20 bg-status-risk-surface p-4">
-        <p className="text-sm font-medium text-foreground">
-          {t('previewErrorTitle')}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-        {onRetry && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3 rounded-full"
-            onClick={onRetry}
-          >
-            <RotateCcw className="size-3.5" />
-            {t('retry')}
-          </Button>
-        )}
       </div>
     )
   }
@@ -361,8 +398,43 @@ export const GenerationPreview = memo(function GenerationPreview({
     toast.success(t('seedLockedToast', { seed: lockableSeed }))
   }
 
+  // ── Over media that is already there: redo, the closing beat, or a failure.
+  // The old media stays under a veil while the line runs on the box's edge;
+  // when the new one arrives the line closes and holds, then the veil lifts as
+  // the line fades (motion table「重画已有图」).
+  const renderGeneratingOverlay = (radius: 'xl' | '2xl') =>
+    showGeneratingOverlay ? (
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-0 z-10 overflow-hidden',
+          radius === 'xl' ? 'rounded-xl' : 'rounded-2xl',
+        )}
+      >
+        <div
+          className={cn(
+            'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
+            isCompletingThisGeneration && !completionHolding && 'opacity-0',
+          )}
+        />
+        <StudioGeneratingProgress
+          elapsedSeconds={elapsedSeconds}
+          stageLabel={generatingStageLabel}
+          variant="compact"
+          cornerRadiusVar={radius === 'xl' ? '--radius-xl' : '--radius-2xl'}
+          isCompleting={isCompletingThisGeneration}
+          onEdgeRelease={() => setCompletionReleased(true)}
+          onCompleteAnimationDone={() => setCompletingGenerationId(null)}
+          failure={failure}
+        />
+      </div>
+    ) : null
+
   // ── Shared image container ────────────────────────────────────────
-  const imageContainer = (
+  // The frame is the image's own box — no card around it (the stage's frame
+  // has no edge of its own; 加载态 A). On a stage with its own height it is as
+  // large as the stage allows; elsewhere it hugs the image, capped by the
+  // viewport.
+  const imageFrame = (
     <TransformWrapper
       minScale={1}
       maxScale={5}
@@ -373,26 +445,46 @@ export const GenerationPreview = memo(function GenerationPreview({
     >
       <div
         ref={dragRef}
-        className="group relative mx-auto w-full max-w-7xl overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10 2xl:max-w-[88rem]"
+        className={cn(
+          'group relative overflow-hidden rounded-xl',
+          fillStage ? 'studio-fit-box' : 'mx-auto w-fit max-w-full',
+        )}
+        style={fillStage ? fitRatioStyle(imageRatio) : undefined}
       >
         <TransformComponent
-          wrapperClass="!w-full"
-          contentClass="!w-full flex items-center justify-center"
+          {...(fillStage
+            ? { wrapperClass: '!size-full', contentClass: '!size-full' }
+            : {})}
         >
           {/* Bare <img> — the gallery ImageCard wraps the image in a card with
               date, prompt, metadata footer. Inside Studio the prompt already
               lives in the input below, so the footer is redundant noise AND
-              its layout pushes the image past max-h, cropping it.
-              `object-contain` + max-h on the img itself = always full picture. */}
+              its layout pushes the image past max-h, cropping it. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={generation.id}
             src={isGenerating && previewUrl ? previewUrl : generation.url}
             alt={generation.prompt ?? ''}
             draggable={false}
+            onLoad={(event) => {
+              const { naturalWidth, naturalHeight } = event.currentTarget
+              if (naturalWidth > 0 && naturalHeight > 0) {
+                setLoadedRatio({
+                  id: generation.id,
+                  ratio: naturalWidth / naturalHeight,
+                })
+              }
+            }}
             className={cn(
-              'studio-generation-image mx-auto block max-w-full object-contain',
-              isMobile ? 'max-h-[45vh]' : 'max-h-[72vh]',
+              'studio-generation-image block transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+              fillStage
+                ? 'size-full object-cover'
+                : cn(
+                    'max-w-full object-contain',
+                    isMobile ? 'max-h-[45vh]' : 'max-h-[72vh]',
+                  ),
+              // The new image waits under the blur until the closed line lets go.
+              completionHolding && 'motion-safe:blur-sm',
             )}
           />
         </TransformComponent>
@@ -409,27 +501,26 @@ export const GenerationPreview = memo(function GenerationPreview({
             </div>
           )}
 
-        {/* Regenerate overlay — dim + "裱框显影" frame described on the media edge */}
-        {showGeneratingOverlay && (
-          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
-            <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
-            <StudioGeneratingProgress
-              elapsedSeconds={elapsedSeconds}
-              stageLabel={generatingStageLabel}
-              variant="compact"
-              cornerRadiusVar="--radius-2xl"
-              isCompleting={isCompletingThisGeneration}
-              onCompleteAnimationDone={() => setCompletingGenerationId(null)}
-            />
-          </div>
-        )}
+        {renderGeneratingOverlay('xl')}
       </div>
     </TransformWrapper>
+  )
+  const imageContainer = fillStage ? (
+    <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
+      {imageFrame}
+    </div>
+  ) : (
+    imageFrame
   )
 
   // ── Audio container ───────────────────────────────────────────────
   const audioContainer = (
-    <div className="relative overflow-hidden rounded-2xl border border-dashed border-border/60 bg-muted/10">
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-2xl border border-dashed bg-muted/10 transition-colors duration-base ease-linear',
+        edgeBusy ? 'border-transparent' : 'border-border/60',
+      )}
+    >
       <div className="flex flex-col items-center justify-center gap-4 py-12 sm:py-16">
         <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
           <Download className="size-7 text-primary/60" />
@@ -444,19 +535,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         )}
       </div>
 
-      {showGeneratingOverlay && (
-        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
-          <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
-          <StudioGeneratingProgress
-            elapsedSeconds={elapsedSeconds}
-            stageLabel={generatingStageLabel}
-            variant="compact"
-            cornerRadiusVar="--radius-2xl"
-            isCompleting={isCompletingThisGeneration}
-            onCompleteAnimationDone={() => setCompletingGenerationId(null)}
-          />
-        </div>
-      )}
+      {renderGeneratingOverlay('2xl')}
     </div>
   )
 
@@ -479,7 +558,12 @@ export const GenerationPreview = memo(function GenerationPreview({
   ].filter((part): part is string => Boolean(part))
 
   const videoContainer = (
-    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/10 p-2">
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-2xl border bg-muted/10 p-2 transition-colors duration-base ease-linear',
+        edgeBusy ? 'border-transparent' : 'border-border/60',
+      )}
+    >
       <VideoPlayer
         src={generation.url ?? ''}
         className="rounded-xl"
@@ -496,19 +580,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         </span>
       ) : null}
 
-      {showGeneratingOverlay && (
-        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-2xl">
-          <div className="absolute inset-0 bg-background/35 backdrop-blur-[1px]" />
-          <StudioGeneratingProgress
-            elapsedSeconds={elapsedSeconds}
-            stageLabel={generatingStageLabel}
-            variant="compact"
-            cornerRadiusVar="--radius-2xl"
-            isCompleting={isCompletingThisGeneration}
-            onCompleteAnimationDone={() => setCompletingGenerationId(null)}
-          />
-        </div>
-      )}
+      {renderGeneratingOverlay('2xl')}
     </div>
   )
 
@@ -519,27 +591,6 @@ export const GenerationPreview = memo(function GenerationPreview({
     : isVideo
       ? videoContainer
       : imageContainer
-
-  // ── Error section ─────────────────────────────────────────────────
-  const errorSection = error ? (
-    <div className="mt-2 rounded-2xl border border-status-risk/20 bg-status-risk-surface p-3">
-      <p className="text-sm font-medium text-foreground">
-        {t('previewErrorTitle')}
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">{error}</p>
-      {onRetry && !isGenerating && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-2 rounded-full"
-          onClick={onRetry}
-        >
-          <RotateCcw className="size-3.5" />
-          {t('retry')}
-        </Button>
-      )}
-    </div>
-  ) : null
 
   // ── Tool actions renderer ──────────────────────────────────────────
   const renderTools = (variant: 'icon' | 'grid') => (
@@ -698,7 +749,6 @@ export const GenerationPreview = memo(function GenerationPreview({
       <>
         <div className="space-y-2">
           {previewContent}
-          {errorSection}
 
           {/* Peek action row — always visible */}
           {!isGenerating && (
@@ -764,10 +814,11 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Desktop layout: image + right tool column ─────────────────────
   return (
     <>
-      <div className="flex gap-3">
-        <div className="flex-1 min-w-0">
+      <div className={cn('flex gap-3', fillStage && 'min-h-0 flex-1')}>
+        <div
+          className={cn('min-w-0 flex-1', fillStage && 'flex min-h-0 flex-col')}
+        >
           {previewContent}
-          {errorSection}
         </div>
 
         {/* Right: tool buttons column */}

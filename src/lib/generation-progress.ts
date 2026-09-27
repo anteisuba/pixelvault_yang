@@ -55,7 +55,8 @@ function waitingAsymptotePct(elapsedSeconds: number): number {
  *
  * `reducedMotion` swaps the continuous curve for a discrete snap to the
  * current stage's end value (20 / 45 / 88 / 95) — no interpolation, no
- * asymptote, per the loading-language spec's reduced-motion contract.
+ * asymptote, per the loading spec's reduced-motion contract
+ * (docs/references/loading.md).
  */
 export function computeEstimatedGenerationProgress(
   elapsedSeconds: number,

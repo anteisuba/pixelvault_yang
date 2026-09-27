@@ -6306,14 +6306,6 @@
     "tryProMode": "Try it",
     "toolbarLabel": "Studio tools",
     "trainLora": "Train LoRA",
-    "generationError": {
-      "title": "Generation Failed",
-      "retry": "Retry",
-      "switchModel": "Switch Model",
-      "configureKey": "Set up API key",
-      "editPrompt": "Edit prompt",
-      "viewDetails": "View Details"
-    },
     "variantRequests": "Uses {count} credits"
   },
   "StudioTags": {
@@ -6518,7 +6510,6 @@
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",
-    "previewErrorTitle": "Generation didn't finish",
     "retry": "Try again",
     "remix": "Remix",
     "promptPreviewLabel": "Prompt",

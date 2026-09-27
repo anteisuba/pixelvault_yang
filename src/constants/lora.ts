@@ -1235,7 +1235,7 @@ export const CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT = 480
  * 移动端（<1024，`useIsMobile`）结果卡自动滚动 —— `LoraWorkbench` GenerateBranch。
  *
  * 时机取「生成**开始**」而不是「生成完成」：开始的那一刻结果卡里已经是
- * `StudioGeneratingProgress`（裱框显影 + 计时 + 参数行），把它顶到视口顶，用户
+ * `StudioGeneratingProgress`（边上的进度线 + 百分比 + 参数行），把它顶到视口顶，用户
  * 才看得见自己按下去的那一下有反应；等完成再滚，整轮生成里用户只能盯着输入框
  * 空等。完成时**不再滚第二次**——那时结果已经在原位，二次滚动只会打断正在读
  * 元信息 / 缩略历史的人。

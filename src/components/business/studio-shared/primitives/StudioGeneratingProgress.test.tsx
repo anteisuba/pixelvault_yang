@@ -70,6 +70,27 @@ describe('StudioGeneratingProgress · 加载态 A', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
+  it('点「重试」从 0 重新走：换一条新线，⛔ 从停住的地方往回退', () => {
+    const failure = { message: '没出图', retryLabel: '重试' }
+    const { container, rerender } = render(
+      <StudioGeneratingProgress
+        elapsedSeconds={8}
+        stageLabel="正在连接模型"
+        failure={failure}
+      />,
+    )
+    const stopped = progressPath(container)
+    rerender(
+      <StudioGeneratingProgress
+        elapsedSeconds={0}
+        stageLabel="正在准备提示词"
+      />,
+    )
+    // 同一个元素会把 dasharray 从 45 缓回 0（线倒着退）；新元素没有可缓的旧值。
+    expect(progressPath(container)).not.toBe(stopped)
+    expect(progressPath(container)).toHaveAttribute('stroke-dasharray', '0 100')
+  })
+
   it('窄格与画布缩小：阶段词只给读屏', () => {
     const { rerender } = render(
       <StudioGeneratingProgress
@@ -111,6 +132,15 @@ describe('StudioGeneratingProgress · 加载态 A', () => {
         onCompleteAnimationDone={onDone}
       />,
     )
+    // 读数先写 100；线等两帧再合拢（先让当前读数画出来，合拢才有得「补满」）。
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '100',
+    )
+    act(() => {
+      vi.advanceTimersToNextFrame()
+      vi.advanceTimersToNextFrame()
+    })
     expect(progressPath(container)).toHaveAttribute(
       'stroke-dasharray',
       '100 100',
@@ -126,6 +156,28 @@ describe('StudioGeneratingProgress · 加载态 A', () => {
       vi.advanceTimersByTime(1)
     })
     expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('一挂上就在收尾（新结果换掉舞台图框）：线也从当前读数补满，⛔ 一出现就是满的', () => {
+    const { container } = render(
+      <StudioGeneratingProgress
+        elapsedSeconds={8}
+        stageLabel="正在连接模型"
+        isCompleting
+      />,
+    )
+    expect(progressPath(container)).toHaveAttribute(
+      'stroke-dasharray',
+      '45 100',
+    )
+    act(() => {
+      vi.advanceTimersToNextFrame()
+      vi.advanceTimersToNextFrame()
+    })
+    expect(progressPath(container)).toHaveAttribute(
+      'stroke-dasharray',
+      '100 100',
+    )
   })
 
   it('窄格失败：只写短句，完整原因留给读屏', () => {

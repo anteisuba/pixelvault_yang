@@ -45,7 +45,6 @@ import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
-import { StudioGenerationErrorDialog } from '@/components/business/image/StudioGenerationErrorDialog'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
 import {
@@ -79,7 +78,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const {
     lastGeneration: rawLastGeneration,
     error,
-    errorCode,
     retry,
     activeRun: rawActiveRun,
     selectWinner,
@@ -96,7 +94,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
-  const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
    * `references/pages/studio-image-edit.md` §2 方向 A：舞台接管）。
@@ -104,7 +101,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
     null,
   )
-  const errorDialogOpen = !!error && error !== errorDismissed
   const { modelOptions } = useImageModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
@@ -143,10 +139,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   useLayoutEffect(() => {
     lastGenerationRef.current = lastGeneration
   }, [lastGeneration])
-
-  const handleSwitchModel = useCallback(() => {
-    dispatch({ type: 'OPEN_PANEL', payload: 'modelSelector' })
-  }, [dispatch])
 
   useEffect(() => {
     setLastEvaluation(null)
@@ -337,14 +329,18 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const sentFrame = (url: string | null) =>
     url !== null && !videoSend?.unsent.images.includes(url) ? url : null
+  // ⚠ 刚失败时不画封面：失败要在舞台上就地说（加载态 A，没有错误对话框兜着）。
   const posterFirst =
-    videoWithoutRail && !isGenerating && !lastGeneration
+    videoWithoutRail && !isGenerating && !lastGeneration && !error
       ? sentFrame(state.videoFrameSlots.first)
       : null
   const videoPoster = posterFirst
     ? { first: posterFirst, last: sentFrame(state.videoFrameSlots.last) }
     : null
-  /** 没有参考轨时，还没出结果的那张参考图撑满舞台（见下方舞台分支）。 */
+  /**
+   * 没有参考轨时，还没出结果的那张参考图撑满舞台（见下方舞台分支）。
+   * ⚠ 刚失败时让位给失败那一格（原因 +「重试」），参考图仍在输入框的附件行里。
+   */
   const referenceFillsStage =
     !referenceRail &&
     !videoWithoutRail &&
@@ -353,6 +349,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     activeRun?.mode !== 'variant' &&
     !isGenerating &&
     !lastGeneration &&
+    !error &&
     stageReference !== null
 
   /**
@@ -396,6 +393,19 @@ export const StudioCanvas = memo(function StudioCanvas({
     videoQueueItems.find(
       (item) => item.id === focusedQueueItemId && item.status === 'completed',
     )?.generation ?? null
+  /**
+   * 底部输入框布局里舞台有自己的高度（随输入框伸缩）：生成中 / 刚失败的那块图框和出来
+   * 的图都按舞台剩下的地方等比放到最大（加载态 A）。⛔ 按视口算 —— 矮屏上图框下沿会被
+   * 舞台切掉，边上那条进度线走到下面就看不见了。空态不在此列（它自己居中）。
+   */
+  const stageBoxFillsStage =
+    !referenceRail &&
+    !editTarget &&
+    activeRun?.mode !== 'compare' &&
+    activeRun?.mode !== 'variant' &&
+    ((focusedQueueGeneration ?? lastGeneration) !== null ||
+      isGenerating ||
+      error !== null)
 
   // 这一轮重排后旧的聚焦项可能已经不在队列里（重试会把失败那条换掉），
   // 用推导而不是 effect 同步：写回 state 会慢一帧，那一帧渲染的是空。
@@ -457,7 +467,10 @@ export const StudioCanvas = memo(function StudioCanvas({
       ref={canvasRef}
       className={cn(
         'studio-canvas transition-all',
-        (editTarget || referenceFillsStage || videoPoster) &&
+        (editTarget ||
+          referenceFillsStage ||
+          videoPoster ||
+          stageBoxFillsStage) &&
           'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
         className,
@@ -512,7 +525,7 @@ export const StudioCanvas = memo(function StudioCanvas({
           'w-full',
           // ⚠ 撑满舞台的几种（编辑 · 参考图铺满 · 视频首帧封面）这一层也得是弹性列，
           //   否则高度链在这里断掉，图按自身大小冲出舞台。
-          editTarget || referenceFillsStage || videoPoster
+          editTarget || referenceFillsStage || videoPoster || stageBoxFillsStage
             ? 'flex min-h-0 flex-1 flex-col'
             : 'mx-auto',
         )}
@@ -586,6 +599,7 @@ export const StudioCanvas = memo(function StudioCanvas({
           </div>
         ) : !isGenerating &&
           !lastGeneration &&
+          !error &&
           stageReference &&
           !videoWithoutRail ? (
           /* 还没有结果时，当前参考图占住舞台。有参考轨时位置与编辑入口归轨管，
@@ -634,6 +648,7 @@ export const StudioCanvas = memo(function StudioCanvas({
               onEdit={handleEdit}
               onSaveRecipe={handleSaveRecipe}
               onRetry={retry}
+              fillStage={stageBoxFillsStage}
             />
             {/* 走到这个分支时外层三元已经排除了 compare / variant —— 这里剩下
                 的 activeRun?.mode 只可能是 undefined 或 'single'，两种都该
@@ -670,21 +685,6 @@ export const StudioCanvas = memo(function StudioCanvas({
           onCancelAll={cancelAllRunItems}
         />
       ) : null}
-
-      {error && (
-        <StudioGenerationErrorDialog
-          open={errorDialogOpen}
-          onOpenChange={(open) => {
-            if (!open) setErrorDismissed(error)
-          }}
-          error={{ message: error, code: errorCode ?? undefined }}
-          onRetry={() => {
-            setErrorDismissed(null)
-            retry()
-          }}
-          onSwitchModel={handleSwitchModel}
-        />
-      )}
     </div>
   )
 })

@@ -40,7 +40,7 @@ export interface NodeGenerateDraft {
   setDraft(next: string): void
   readonly currentPrompt: string
   readonly generating: boolean
-  /** 生成开始到现在的秒数（裱框显影读它）。 */
+  /** 生成开始到现在的秒数（卡边的进度线读它）。 */
   readonly elapsed: number
   submitPrompt(): void
   cancel(): void

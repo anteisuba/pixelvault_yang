@@ -42,8 +42,28 @@ vi.mock('@/components/business/ImageDetailModal', () => ({
 vi.mock('@/components/business/studio/StudioEmptyState', () => ({
   StudioEmptyState: () => null,
 }))
+// 进度层自己的画法在它自己的测试里；这里只看舞台递给它什么（失败原因、重试）。
 vi.mock('@/components/business/studio-shared', () => ({
-  StudioGeneratingProgress: () => null,
+  StudioGeneratingProgress: ({
+    variant,
+    failure,
+  }: {
+    variant?: string
+    failure?: { message: string; retryLabel: string; onRetry?: () => void }
+  }) => (
+    <div data-testid="generating-progress" data-variant={variant}>
+      {failure ? (
+        <div role="alert">
+          {failure.message}
+          {failure.onRetry ? (
+            <button type="button" onClick={failure.onRetry}>
+              {failure.retryLabel}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  ),
 }))
 vi.mock('@/hooks/use-studio-draggable', () => ({
   useStudioDraggable: () => ({ current: null }),
@@ -62,14 +82,24 @@ vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
   useAskAssistantAboutImage: () => askAssistantMock,
 }))
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioGen: () => ({
+let mockGen: {
+  error: string | null
+  isGenerating: boolean
+  elapsedSeconds: number
+  activeRun: unknown
+  cancelRunItem: () => void
+}
+function idleGen(): typeof mockGen {
+  return {
     error: null,
     isGenerating: false,
     elapsedSeconds: 0,
     activeRun: null,
     cancelRunItem: vi.fn(),
-  }),
+  }
+}
+vi.mock('@/contexts/studio-context', () => ({
+  useStudioGen: () => mockGen,
   useStudioForm: () => ({
     state: {
       outputType: 'image',
@@ -96,6 +126,7 @@ function makeGeneration(
 
 beforeEach(() => {
   mockIsMobile = false
+  mockGen = idleGen()
   askAssistantMock.mockClear()
 })
 
@@ -154,5 +185,57 @@ describe('GenerationPreview — video sizing', () => {
       'data-fit',
       'contain',
     )
+  })
+})
+
+/**
+ * 加载态 A（owner 2026-09-27「画布与工作台都就地说」）：失败在舞台上就地说一句原因
+ * +「重试」—— ⛔ 错误对话框、⛔ 红框。
+ */
+describe('GenerationPreview — 加载态 A', () => {
+  it('生成中：图框只有进度那一条边（⛔ 虚线外框、⛔ shimmer）', () => {
+    mockGen = { ...idleGen(), isGenerating: true, elapsedSeconds: 8 }
+    const { container } = render(<GenerationPreview generation={null} />)
+
+    expect(screen.getByTestId('generating-progress')).toHaveAttribute(
+      'data-variant',
+      'full',
+    )
+    expect(container.querySelector('.border-dashed')).toBeNull()
+    expect(container.querySelector('.studio-reveal-shimmer')).toBeNull()
+  })
+
+  it('新生成失败：舞台上就地说原因 +「重试」', () => {
+    const onRetry = vi.fn()
+    mockGen = { ...idleGen(), error: '服务商的内容审核未通过。' }
+    render(<GenerationPreview generation={null} onRetry={onRetry} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '服务商的内容审核未通过。',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    // 取消键只在生成中给。
+    expect(screen.queryByTestId('generation-preview-cancel')).toBeNull()
+  })
+
+  it('重画失败：旧图留着，原因 +「重试」在图上那一层（⛔ 图下面的红框）', () => {
+    const onRetry = vi.fn()
+    mockGen = { ...idleGen(), error: '请求过于频繁，请稍后再试' }
+    render(
+      <GenerationPreview
+        generation={makeGeneration()}
+        isLatestResult
+        onRetry={onRetry}
+      />,
+    )
+
+    expect(screen.getByRole('img', { name: 'a cat' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '请求过于频繁，请稍后再试',
+    )
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 })

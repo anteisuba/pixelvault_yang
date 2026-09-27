@@ -16,11 +16,11 @@ import zhMessages from '@/messages/zh.json'
  * lora_incompatible_hosted · runner_monthly_limit_exceeded ·
  * runner_lora_unavailable），全量 tsc 与全量 vitest 都照过 —— 没有任何一道闸看得见。
  *
- * ⚠ 渲染侧那道 `tErrors.has()` 守卫（`StudioGenerationErrorDialog`）是**兜底**，
+ * ⚠ 渲染侧那道 `tErrors.has()` 守卫（`getGenerationErrorMessage`）是**兜底**，
  *   不是许可：它把乱码换成「未知错误」，用户仍然拿不到那句该有的说明。真正的
  *   修法是把文案写齐，所以判据留在这里。
  *
- * ⚠ 断言到「非空字符串」而不是「键存在」：`"": ""` 这种占位同样会让弹窗空着。
+ * ⚠ 断言到「非空字符串」而不是「键存在」：`"": ""` 这种占位同样会让失败那句话空着。
  */
 const LOCALES = {
   zh: zhMessages,

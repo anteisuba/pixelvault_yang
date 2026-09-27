@@ -2065,26 +2065,6 @@ html:lang(ja) {
 }
 
 /* ── Studio generating reveal — Krea-style shimmer ─────────────── */
-.studio-reveal-canvas {
-  background:
-    radial-gradient(
-      120% 80% at 0% 0%,
-      oklch(from var(--primary) l c h / 0.18),
-      transparent 65%
-    ),
-    radial-gradient(
-      120% 90% at 100% 100%,
-      oklch(from var(--primary) l c h / 0.12),
-      transparent 60%
-    ),
-    linear-gradient(
-      135deg,
-      oklch(from var(--muted) l c h / 0.7),
-      oklch(from var(--background) l c h / 0.9)
-    );
-  filter: blur(0.4px);
-}
-
 .studio-reveal-shimmer {
   background: linear-gradient(
     100deg,
@@ -2148,6 +2128,18 @@ html:lang(ja) {
 /* 失败：线停在原处变灰（⛔ 红框）。 */
 .studio-generation-edge--stopped {
   stroke: color-mix(in oklab, var(--foreground) 36%, transparent);
+}
+
+/* 舞台上的图框（底部输入框布局）：按舞台剩下的地方等比放到最大，框的比例就是图的
+   比例 —— 线跑在图自己的边上（⛔ 一块比图宽的框），整圈都在舞台里（⛔ 按视口算，
+   矮屏会切掉下沿）。`--studio-fit-ratio` = 宽 / 高。 */
+.studio-fit-area {
+  container-type: size;
+}
+
+.studio-fit-box {
+  width: min(100cqw, 100cqh * var(--studio-fit-ratio, 1));
+  height: min(100cqh, 100cqw / var(--studio-fit-ratio, 1));
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -29,7 +29,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── GenerationPreview (studio/ — current result)
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)
         │       ├── AudioVariantGrid (studio/ — 音频变体，内联播放器)
-        │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
+        │       └── StudioResultFeedback / StudioAudioFeedback（生成失败在 GenerationPreview 里就地说：线停住变灰 + 原因 +「重试」，⛔ 错误对话框，加载态 A）
         ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
         │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），位移跟着形状左边沿走；图片台桌面（布局 A，锚点 `avatarStays`）头像留在原位不进头部，面板改从右侧滑入、工作台同一根弹簧让位（不走 B 形状）。面板宽 = 视口 × 比例（缺省 0.3，`STUDIO_OPERATOR_PANEL_RESIZE`）。D7b ④；展开形状 = B「先横成一条，再落下」（clip-path，09-26），铁律见 v2 §4.3。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)

@@ -6306,14 +6306,6 @@
     "tryProMode": "试试看",
     "toolbarLabel": "工作台工具",
     "trainLora": "训练 LoRA",
-    "generationError": {
-      "title": "生成失败",
-      "retry": "重试",
-      "switchModel": "换个模型",
-      "configureKey": "配置 API 密钥",
-      "editPrompt": "修改提示词",
-      "viewDetails": "查看详情"
-    },
     "variantRequests": "消耗 {count} 积分"
   },
   "StudioTags": {
@@ -6518,7 +6510,6 @@
     },
     "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",
-    "previewErrorTitle": "这次生成需要再试一次",
     "retry": "重试",
     "remix": "Remix",
     "promptPreviewLabel": "提示词",

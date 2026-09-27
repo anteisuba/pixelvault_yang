@@ -138,10 +138,12 @@ export function StudioGeneratingProgress({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, elapsedSeconds])
 
+  // The running reading. Completion does not jump it to 100: the line closes
+  // from here (below), and only the number reads 100.
   const { percent } = resolveGenerationProgress({
     elapsedSeconds: smoothedElapsedSeconds,
     realProgress,
-    isComplete: isCompleting,
+    isComplete: false,
     reducedMotion,
   })
   const roundedPercent = Math.round(percent)
@@ -154,6 +156,16 @@ export function StudioGeneratingProgress({
     setRunningPercent(roundedPercent)
   }
   const shownPercent = failed ? runningPercent : roundedPercent
+
+  // 「重试」starts over from 0 (motion table「失败」): hosts keep this mounted
+  // through the failure, so a retry would otherwise ease the line backwards
+  // from where it stopped. A fresh line element has nothing to ease from.
+  const [attempt, setAttempt] = useState(0)
+  const [wasFailed, setWasFailed] = useState(failed)
+  if (wasFailed !== failed) {
+    setWasFailed(failed)
+    if (!failed) setAttempt((n) => n + 1)
+  }
 
   // ── The edge: measured, because the path starts at the top middle ──
   const rootRef = useRef<HTMLDivElement>(null)
@@ -198,16 +210,26 @@ export function StudioGeneratingProgress({
       setFading(false)
       return
     }
-    setClosed(true)
-    const fadeTimer = setTimeout(() => {
-      setFading(true)
-      onEdgeRelease?.()
-    }, GENERATION_COMPLETE_ANIMATION.closeMs + GENERATION_COMPLETE_ANIMATION.holdMs)
-    const doneTimer = setTimeout(
-      () => onCompleteAnimationDone?.(),
-      GENERATION_COMPLETE_TOTAL_MS,
-    )
+    let fadeTimer: ReturnType<typeof setTimeout> | undefined
+    let doneTimer: ReturnType<typeof setTimeout> | undefined
+    // Two frames first: a line mounted at completion (the result replacing the
+    // stage's art box) paints its running reading before it closes, so it
+    // still fills up instead of appearing full.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        setClosed(true)
+        fadeTimer = setTimeout(() => {
+          setFading(true)
+          onEdgeRelease?.()
+        }, GENERATION_COMPLETE_ANIMATION.closeMs + GENERATION_COMPLETE_ANIMATION.holdMs)
+        doneTimer = setTimeout(
+          () => onCompleteAnimationDone?.(),
+          GENERATION_COMPLETE_TOTAL_MS,
+        )
+      })
+    })
     return () => {
+      cancelAnimationFrame(frame)
       clearTimeout(fadeTimer)
       clearTimeout(doneTimer)
     }
@@ -222,6 +244,7 @@ export function StudioGeneratingProgress({
 
   const isFull = variant === 'full'
   const dash = closed ? 100 : shownPercent
+  const readout = isCompleting ? 100 : shownPercent
 
   return (
     <div
@@ -231,7 +254,7 @@ export function StudioGeneratingProgress({
       {...(failed
         ? {}
         : {
-            'aria-valuenow': shownPercent,
+            'aria-valuenow': readout,
             'aria-valuemin': 0,
             'aria-valuemax': 100,
             'aria-label': currentLabel,
@@ -253,6 +276,7 @@ export function StudioGeneratingProgress({
           className="studio-generation-edge-track"
         />
         <path
+          key={attempt}
           d={edgePath}
           pathLength={100}
           strokeDasharray={`${dash} 100`}
@@ -306,7 +330,7 @@ export function StudioGeneratingProgress({
               isFull ? 'text-3xl' : 'text-2xl @max-4xs/progress:text-lg',
             )}
           >
-            {shownPercent}
+            {readout}
             <span
               className={cn(
                 'ml-0.5 font-normal text-muted-foreground',
@@ -346,7 +370,7 @@ export function StudioGeneratingProgress({
       {isFull && paramsLine && !failed && (
         <p
           className={cn(
-            'absolute inset-x-0 bottom-3 text-center text-2xs tabular-nums text-muted-foreground',
+            'absolute inset-x-0 bottom-3 text-center font-mono text-2xs tabular-nums text-muted-foreground',
             fading && 'opacity-0 transition-opacity duration-fast ease-linear',
           )}
         >

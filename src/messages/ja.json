@@ -6306,14 +6306,6 @@
     "tryProMode": "試す",
     "toolbarLabel": "スタジオツール",
     "trainLora": "LoRA学習",
-    "generationError": {
-      "title": "生成に失敗しました",
-      "retry": "リトライ",
-      "switchModel": "モデルを変更",
-      "configureKey": "API キーを設定",
-      "editPrompt": "プロンプトを編集",
-      "viewDetails": "詳細を表示"
-    },
     "variantRequests": "{count}クレジット使用"
   },
   "StudioTags": {
@@ -6518,7 +6510,6 @@
     },
     "generateFailed": "生成に失敗しました",
     "elapsed": "経過時間: {seconds}",
-    "previewErrorTitle": "生成が完了しませんでした",
     "retry": "再試行",
     "remix": "リミックス",
     "promptPreviewLabel": "プロンプト",

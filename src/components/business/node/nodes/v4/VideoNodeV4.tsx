@@ -648,7 +648,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 className={cn(
                   'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
                   // 出图那一拍：线合拢之前新封面压在模糊底下，线淡出时模糊收掉。
-                  genFinish.holding && 'blur-sm',
+                  genFinish.holding && 'motion-safe:blur-sm',
                 )}
               />
             ) : videoData.url ? (
@@ -664,7 +664,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 data-video-still
                 className={cn(
                   'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
-                  genFinish.holding && 'blur-sm',
+                  genFinish.holding && 'motion-safe:blur-sm',
                 )}
                 onLoadedMetadata={(event) => {
                   const value = event.currentTarget.duration

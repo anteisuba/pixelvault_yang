@@ -113,10 +113,6 @@ vi.mock('@/components/business/studio/StudioAudioFeedback', () => ({
   StudioAudioFeedback: () => <div data-testid="studio-audio-feedback" />,
 }))
 
-vi.mock('@/components/business/image/StudioGenerationErrorDialog', () => ({
-  StudioGenerationErrorDialog: () => null,
-}))
-
 vi.mock('@/components/business/image/StudioResultFeedback', () => ({
   StudioResultFeedback: ({ generationId }: { generationId: string }) => (
     <div

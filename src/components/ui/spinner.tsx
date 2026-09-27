@@ -19,7 +19,8 @@ import { cn } from '@/lib/utils'
  * Color is deliberately NOT baked in beyond the default (`currentColor`) —
  * callers needing the "standalone centered" treatment pass
  * `className="text-muted-foreground"` themselves; anything colorful
- * (`text-primary` etc.) is off-limits per the loading-language spec.
+ * (`text-primary` etc.) is off-limits per the loading spec
+ * (docs/references/loading.md).
  */
 const spinnerVariants = cva(
   'animate-spin motion-reduce:animate-none motion-reduce:opacity-70',

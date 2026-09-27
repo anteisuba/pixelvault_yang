@@ -726,15 +726,18 @@ function GenerateBranch({
     )}` as const,
   )
 
-  // 完成节拍：isGenerating→false 后把裱框显影多留一拍,播 close→hold→fade
-  // (loading-language §2.3)。与 GenerationPreview 同款「渲染期调整 state」
-  // 模式——响应 prop 变迁,非同步外部系统,不走 useEffect。
+  // 完成节拍：isGenerating→false 后把进度多留一拍，播 合拢→停→淡出
+  // （docs/references/loading.md「出图」）。与 GenerationPreview 同款「渲染期调整
+  // state」模式——响应 prop 变迁，非同步外部系统，不走 useEffect。
+  // 线开始淡出那一刻（`completionReleased`）白纱同一拍撤掉，新图在底下显出。
   const [isCompletingGeneration, setIsCompletingGeneration] = useState(false)
+  const [completionReleased, setCompletionReleased] = useState(false)
   const [prevIsGenerating, setPrevIsGenerating] = useState(isGenerating)
   if (isGenerating !== prevIsGenerating) {
     setPrevIsGenerating(isGenerating)
     if (prevIsGenerating && !isGenerating && lastGeneration && !generateError) {
       setIsCompletingGeneration(true)
+      setCompletionReleased(false)
     }
   }
   const showGeneratingOverlay = isGenerating || isCompletingGeneration
@@ -1037,7 +1040,7 @@ function GenerateBranch({
   // selectedImageUrl / 默认选中第一张来源图都随内联面板退役。做同款的 seed
   // 策略（用原图 seed）由共享 modal 内的勾选自持（G3b-seed），不再父级托管。
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
-  // 裱框显影参数行 — "{elapsed}s · {底模名} · {比例}"（loading-language §2.1）。
+  // 出图卡新生成那一行参数 — "{elapsed}s · {底模名} · {比例}"（加载态 A）。
   const generatingParamsLine = selectedBase?.displayName
     ? `${Math.floor(elapsedSeconds)}s · ${selectedBase.displayName} · ${aspectRatio}`
     : undefined
@@ -2112,7 +2115,7 @@ function GenerateBranch({
    *
    * 手机上结果卡排在 composer **上面**，按下「出图」时它已经滚出视口——不滚的话
    * 用户按完看不到任何东西在动。所以生成**开始**时把结果卡顶到视口顶（那一刻卡
-   * 里已经是 `StudioGeneratingProgress`：裱框显影 + 计时 + 参数行）。
+   * 里已经是 `StudioGeneratingProgress`：边上的进度线 + 百分比 + 参数行）。
    *
    * ⚠ 一轮只滚一次：依赖里只有 `isGenerating`，翻到 `true` 才进这一支，翻回
    * `false`（完成/失败）直接 return——完成时结果已在原位，二次滚动会打断正在读
@@ -2880,7 +2883,7 @@ function GenerateBranch({
                   // 的上限走。判据与下面渲染分支同一条，改一处必须改两处。
                   isTrueResultEmptyState && 'lora-result-media--empty',
                   // 生成中且还没有任何结果图时，这个盒子的**全部**子元素都是
-                  // absolute（shimmer 底 + 裱框进度），内容高度为 0。旧三栏
+                  // absolute（边上的进度线 + 读数），内容高度为 0。旧三栏
                   // 布局里 `md:flex-1` 能从 flex 父级要到高，111bb8c8 重排成单
                   // 卡流之后父级是普通块容器，`md:flex-1` 失效、`md:aspect-auto`
                   // 又把比例撤了 → 桌面上整块塌成 0 高，进度卡直接看不见
@@ -2895,10 +2898,11 @@ function GenerateBranch({
                   'md:min-h-0 md:flex-1',
                   // owner 反馈（2026-09-04，对照 mock）：真空态不要虚线框/底色——
                   // mock 的空态就是卡内一句居中小字，没有任何占位盒子。虚线边界
-                  // 只留给「生成中占位」「失败占位」这两个仍需要框出范围的状态
-                  // （mock 的 `.img.run` 本身就带 `border:1px dashed`）。
+                  // 只留给「失败占位」；生成中那一格的边就是进度线（加载态 A，
+                  // owner 2026-09-27），⛔ 再套一圈虚线。
                   !displayedResultUrl &&
                     !isTrueResultEmptyState &&
+                    !showGeneratingOverlay &&
                     'border border-dashed border-border/50 bg-muted/20',
                 )}
                 style={{
@@ -2908,18 +2912,18 @@ function GenerateBranch({
                     : {}),
                 }}
               >
-                {/* 生成中「裱框显影」——无旧图走 full(shimmer 底 + 参数行),
-                  有旧图(重生成)走 compact(dim + 框描在图边)。完成播 close→
-                  hold→fade。与 GenerationPreview 同一共享组件。 */}
-                {showGeneratingOverlay && !displayedResultUrl && (
-                  <div
-                    className="studio-reveal-shimmer absolute inset-0"
-                    aria-hidden
-                  />
-                )}
+                {/* 生成中（加载态 A「边即进度」）：卡边就是进度线。无旧图走 full
+                  （百分比 + 阶段词 + 参数行）；有旧图（重生成）走 compact，旧图
+                  盖一层白纱。出图：合拢 → 停一拍 → 线淡出，白纱同一拍撤掉。与
+                  GenerationPreview 同一共享组件。 */}
                 {showGeneratingOverlay && displayedResultUrl && (
                   <div
-                    className="absolute inset-0 bg-background/35 backdrop-blur-[1px]"
+                    className={cn(
+                      'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
+                      isCompletingGeneration &&
+                        completionReleased &&
+                        'opacity-0',
+                    )}
                     aria-hidden
                   />
                 )}
@@ -2933,6 +2937,7 @@ function GenerateBranch({
                     variant={displayedResultUrl ? 'compact' : 'full'}
                     cornerRadiusVar="--radius-xl"
                     isCompleting={isCompletingGeneration}
+                    onEdgeRelease={() => setCompletionReleased(true)}
                     onCompleteAnimationDone={() =>
                       setIsCompletingGeneration(false)
                     }

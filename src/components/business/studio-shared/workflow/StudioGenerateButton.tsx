@@ -85,7 +85,7 @@ export function StudioGenerateButton({
         : busyLabel
       : (blockedMessage ?? label)
     /**
-     * 外圈进度 —— 与卡片「裱框显影」同一套阶段估算（`resolveGenerationProgress`），
+     * 外圈进度 —— 与卡片边上的进度线同一套阶段估算（`resolveGenerationProgress`），
      * 永不自己走到 100。持续运动用 linear（loading.md：匀速 = 诚实）。
      */
     const percent = isGenerating

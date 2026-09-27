@@ -821,3 +821,50 @@ describe('precise reference image preparation', () => {
     ])
   })
 })
+
+/**
+ * owner 2026-09-27：提示词长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦。
+ * 此前这里用 `validatePrompt` 的缺省 4000，所有图片模型都被砍到 4000 ——
+ * FLUX 的 8000、GPT Image 的 32000 全用不上。
+ */
+describe('resolveImageRouteAndValidate — prompt length', () => {
+  const route = {
+    modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    externalModelId: 'doubao-seedream-5-0-pro-260628',
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    apiKey: 'key',
+    creditCost: 2,
+  }
+  // ⚠ 不注入 validatePrompt —— 要跑真的那一份。
+  const deps = () => ({
+    ensureUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+    resolveGenerationRoute: vi.fn().mockResolvedValue(route),
+    getProviderAdapter: vi.fn().mockReturnValue({}),
+  })
+
+  it('accepts a prompt past the old 4000 when the model declares no limit', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        {
+          modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+          prompt: '雨夜的城市街头，霓虹灯倒映在积水里。'.repeat(300),
+        } as never,
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route })
+  })
+
+  it("rejects a prompt over the model's declared vendor limit", async () => {
+    const resolveGenerationRoute = vi.fn()
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        { modelId: AI_MODELS.IDEOGRAM_3, prompt: 'a'.repeat(1001) } as never,
+        { ...deps(), resolveGenerationRoute } as never,
+      ),
+    ).rejects.toThrow(/exceeds maximum length of 1000/)
+    expect(resolveGenerationRoute).not.toHaveBeenCalled()
+  })
+})

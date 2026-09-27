@@ -41,7 +41,6 @@ import {
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
   VIDEO_ANALYSIS_UNREACHABLE_ERROR,
 } from '@/constants/video-analysis'
-import { MAX_COMPILED_PROMPT_LENGTH } from '@/services/kernel/prompt-guard'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -133,7 +132,8 @@ describe('llmTextCompletion - Gemini', () => {
     expect(payload.generationConfig?.maxOutputTokens).toBeUndefined()
   })
 
-  it('accepts a composed prompt above the default guard when the caller supplies a bounded override', async () => {
+  // owner 2026-09-27：守卫缺省不再卡 4000（此前润色 / 卡片融合超过 4000 就被拒）。
+  it('has no default length cap — only a caller-supplied bound rejects', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -143,20 +143,21 @@ describe('llmTextCompletion - Gemini', () => {
       ),
     )
     vi.stubGlobal('fetch', fetchMock)
-
-    const result = await llmTextCompletion({
+    const input = {
       systemPrompt: 'You are helpful.',
       userPrompt: 'a'.repeat(5000),
-      promptGuardMaxLength: MAX_COMPILED_PROMPT_LENGTH,
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       providerConfig: {
         label: 'Gemini',
         baseUrl: 'https://generativelanguage.googleapis.com',
       },
       apiKey: 'test-key',
-    })
+    }
 
-    expect(result).toBe('long context ok')
+    await expect(llmTextCompletion(input)).resolves.toBe('long context ok')
+    await expect(
+      llmTextCompletion({ ...input, promptGuardMaxLength: 4000 }),
+    ).rejects.toThrow(/Prompt rejected by guard/)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 

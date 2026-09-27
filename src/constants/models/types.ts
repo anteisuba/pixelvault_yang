@@ -72,10 +72,11 @@ export interface ModelOption {
   videoExtension?: VideoExtensionConfig
   requiresReferenceImage?: boolean
   /**
-   * Max prompt characters the model's text encoder can actually use. The UI
-   * gates quick-mode freePrompt against this; omit to fall back to
-   * CARD_RECIPE.FREE_PROMPT_MAX_LENGTH. Provider limits vary widely — see the
-   * per-model values in image.ts (e.g. FLUX.1 schnell ~256 tok ≈ 1000 chars).
+   * Vendor-documented max prompt characters — the only prompt length limit the
+   * app enforces (UI blocks before sending, the generate services reject above
+   * it). Omit when the vendor documents none: the prompt is then uncapped apart
+   * from the `PROMPT_TEXT_GUARD_MAX_CHARS` abuse guard. Provider limits vary
+   * widely — see the per-model values in image.ts / video.ts.
    */
   maxPromptChars?: number
 }

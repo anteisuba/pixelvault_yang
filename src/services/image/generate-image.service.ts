@@ -454,7 +454,11 @@ export async function resolveImageRouteAndValidate(
 
   const ensuredUser = await ensureUserFn(clerkId)
 
-  const promptCheck = validatePromptFn(input.prompt)
+  // 长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦（owner 2026-09-27）。
+  const promptCheck = validatePromptFn(
+    input.prompt,
+    getModelByIdFn(input.modelId)?.maxPromptChars ?? null,
+  )
   if (!promptCheck.valid) {
     throw new GenerateImageServiceError(
       'PROVIDER_ERROR',

@@ -477,6 +477,15 @@ export const PROFILE = {
   ] as readonly string[],
 } as const
 
+/**
+ * 提示词类文本的**防滥用护栏**（字符），⚠ 不是产品上限。
+ *
+ * owner 2026-09-27：提示词不设我们自己定的字数上限。真实上限只有模型声明的
+ * `maxPromptChars`（厂商硬上限，提前拦）；这个数只挡异常大的请求 —— 与最宽的
+ * 厂商上限（GPT Image 32000）同量级，正常写碰不到。⛔ 别把它印到 UI 上当能力承诺。
+ */
+export const PROMPT_TEXT_GUARD_MAX_CHARS = 32_000
+
 /** Prompt enhancement configuration */
 export const PROMPT_ENHANCE = {
   MAX_INPUT_LENGTH: 2000,

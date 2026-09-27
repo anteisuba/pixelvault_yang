@@ -82,7 +82,7 @@ vi.mock('@/lib/with-retry', () => ({
 }))
 
 vi.mock('@/services/kernel/prompt-guard', () => ({
-  validatePrompt: () => ({ valid: true }),
+  validatePrompt: vi.fn(() => ({ valid: true, warnings: [] })),
 }))
 
 vi.mock('@/services/video-generation-validation.service', () => ({
@@ -90,6 +90,7 @@ vi.mock('@/services/video-generation-validation.service', () => ({
 }))
 
 import { db } from '@/lib/db'
+import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   checkVideoGenerationStatusForUserId,
   submitVideoGeneration,
@@ -166,6 +167,32 @@ describe('generate-video.service worker dispatch', () => {
 
       process.env[key] = value
     })
+  })
+
+  // owner 2026-09-27：长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦。
+  // 此前这里用 `validatePrompt` 的缺省 4000。
+  it('checks the prompt against the model’s declared limit only', async () => {
+    await submitVideoGeneration('clerk-1', buildVideoRequest())
+    expect(validatePrompt).toHaveBeenCalledWith(
+      'cinematic camera move over a neon city',
+      null,
+    )
+
+    vi.mocked(validatePrompt).mockReturnValueOnce({
+      valid: false,
+      reason: 'Prompt exceeds maximum length of 2500 characters (got 2501)',
+      warnings: [],
+    })
+    await expect(
+      submitVideoGeneration(
+        'clerk-1',
+        buildVideoRequest({
+          modelId: AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+          prompt: 'a'.repeat(2501),
+        }),
+      ),
+    ).rejects.toThrow(/exceeds maximum length of 2500/)
+    expect(validatePrompt).toHaveBeenLastCalledWith('a'.repeat(2501), 2500)
   })
 
   it('dispatches CINEMATIC_SHORT_VIDEO runs to the execution worker without inline provider submit', async () => {

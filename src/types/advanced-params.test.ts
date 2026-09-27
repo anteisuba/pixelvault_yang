@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
+import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
 import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
 
 describe('Latent hires parameter contracts', () => {
@@ -165,11 +166,17 @@ describe('AdvancedParamsSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects negativePrompt exceeding max length', () => {
-    const result = AdvancedParamsSchema.safeParse({
-      negativePrompt: 'x'.repeat(2001),
-    })
-    expect(result.success).toBe(false)
+  it('negativePrompt has no product cap — only the abuse guard', () => {
+    // owner 2026-09-27：原来的 2000 是我们自己定的数，删了。
+    expect(
+      AdvancedParamsSchema.safeParse({ negativePrompt: 'x'.repeat(2001) })
+        .success,
+    ).toBe(true)
+    expect(
+      AdvancedParamsSchema.safeParse({
+        negativePrompt: 'x'.repeat(PROMPT_TEXT_GUARD_MAX_CHARS + 1),
+      }).success,
+    ).toBe(false)
   })
 })
 

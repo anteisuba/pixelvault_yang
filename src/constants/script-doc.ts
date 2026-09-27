@@ -100,11 +100,11 @@ export const SCRIPT_DOC_HTTP_STATUS = {
  *
  * That envelope is NOT a user-typed prompt — it wraps the output contract, the
  * depth directive, the existing ScriptDoc's JSON and the conversation into one
- * platform-assembled string. Measuring it against `MAX_PROMPT_LENGTH` (4000,
- * calibrated for raw user input) put a silent cliff in the middle of normal
- * use: the first draft succeeded, then every later revision of a slightly
- * richer story failed at ~4018 characters with the reason swallowed into a
- * generic 500.
+ * platform-assembled string. Measuring it against the prompt guard's old
+ * 4000-character default (removed 2026-09-27) put a silent cliff in the middle
+ * of normal use: the first draft succeeded, then every later revision of a
+ * slightly richer story failed at ~4018 characters with the reason swallowed
+ * into a generic 500.
  *
  * This budget is handed to the guard as `promptGuardMaxLength`, so injection
  * detection still runs — only the length ceiling moves. It stays bounded on

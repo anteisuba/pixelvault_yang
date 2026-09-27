@@ -3,7 +3,8 @@
  *
  * Prevents:
  * - Prompt injection attacks (system instruction leakage)
- * - Excessively long prompts that waste tokens or cause truncation
+ * - Prompts over a caller-supplied real limit (a model's declared
+ *   `maxPromptChars`, a named budget) — there is no default length cap
  * - Malformed prompts that confuse AI models
  *
  * Usage:
@@ -17,9 +18,6 @@
 import { logger } from '@/lib/logger'
 
 // ─── Constants ──────────────────────────────────────────────────
-
-/** Maximum prompt length in characters (covers most model limits) */
-export const MAX_PROMPT_LENGTH = 4000
 
 /** Maximum enhanced/compiled prompt length */
 export const MAX_COMPILED_PROMPT_LENGTH = 8000
@@ -69,10 +67,17 @@ export interface PromptValidationResult {
   warnings: string[]
 }
 
-/** Validate a user-provided prompt. Returns structured result. */
+/**
+ * Validate a user-provided prompt. Returns structured result.
+ *
+ * ⚠ `maxLength` 缺省 = **不查长度**（owner 2026-09-27）。从前缺省是一个笼统的
+ * 4000，于是凡是没传上限的调用方（图片 / 视频生成、每一条 LLM 文本请求）都被它
+ * 悄悄卡住，模型自己声明的 8000 / 32000 都用不上。要拦就传真实的数：模型的
+ * `maxPromptChars`，或一份有名字的预算。
+ */
 export function validatePrompt(
   prompt: string,
-  maxLength: number | null = MAX_PROMPT_LENGTH,
+  maxLength: number | null = null,
 ): PromptValidationResult {
   const warnings: string[] = []
 

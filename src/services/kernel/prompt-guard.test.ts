@@ -6,7 +6,6 @@ vi.mock('@/lib/logger', () => ({
 
 import {
   MAX_COMPILED_PROMPT_LENGTH,
-  MAX_PROMPT_LENGTH,
   sanitizePrompt,
   validateCompiledPrompt,
   validatePrompt,
@@ -34,12 +33,13 @@ describe('validatePrompt', () => {
     expect(result.warnings).toEqual([])
   })
 
-  it('rejects prompt exceeding MAX_PROMPT_LENGTH', () => {
-    const longPrompt = 'a'.repeat(MAX_PROMPT_LENGTH + 1)
+  it('has no length cap unless the caller passes a real limit', () => {
+    // owner 2026-09-27：缺省不再是笼统的 4000 —— 长度只认模型声明的上限。
+    const longPrompt = '雨夜的城市街头，霓虹灯倒映在积水里。'.repeat(2000)
     const result = validatePrompt(longPrompt)
-    expect(result.valid).toBe(false)
-    expect(result.reason).toMatch(/exceeds maximum length/)
-    expect(result.reason).toContain(String(MAX_PROMPT_LENGTH))
+    expect(result.valid).toBe(true)
+    expect(result.reason).toBeUndefined()
+    expect(result.warnings).toEqual([])
   })
 
   it('rejects prompt exceeding custom maxLength', () => {
@@ -49,7 +49,7 @@ describe('validatePrompt', () => {
   })
 
   it('lets the provider enforce length when maxLength is null', () => {
-    const result = validatePrompt('a'.repeat(MAX_PROMPT_LENGTH + 1), null)
+    const result = validatePrompt('a'.repeat(5000), null)
     expect(result.valid).toBe(true)
     expect(result.reason).toBeUndefined()
   })
@@ -92,9 +92,8 @@ describe('validatePrompt', () => {
   })
 
   it('warns when prompt is near 80% of max length', () => {
-    const length = Math.ceil(MAX_PROMPT_LENGTH * 0.85)
-    const prompt = 'x'.repeat(length)
-    const result = validatePrompt(prompt)
+    const prompt = 'x'.repeat(85)
+    const result = validatePrompt(prompt, 100)
     expect(result.valid).toBe(true)
     expect(result.warnings.length).toBeGreaterThanOrEqual(1)
     expect(result.warnings[0]).toMatch(/% of max length/)

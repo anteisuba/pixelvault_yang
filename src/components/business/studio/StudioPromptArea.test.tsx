@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
-import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { AI_MODELS } from '@/constants/models'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
 import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
@@ -1156,22 +1155,22 @@ describe('StudioPromptArea', () => {
     await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
   })
 
-  it('卡片工作流仍按卡片配方自己的 2000 拦 —— 那条 freePrompt 就是它的字段', () => {
+  // ⭐ owner 2026-09-27：卡片工作流那条 freePrompt 也不设上限了（原来是卡片配方的
+  // 2000）。它先进卡片融合，发给模型的是融合后的整串，由服务端按那一型号的上限兜住。
+  it('⭐ 卡片工作流不设前置闸 —— 不印计数、不锁按钮', () => {
     setupStudioForm(WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE, {
       outputType: 'image',
       workflowMode: 'card',
       selectedOptionId: null,
-      prompt: 'a'.repeat(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1),
+      prompt: 'a'.repeat(2001),
     })
 
     renderPromptArea()
 
+    expect(screen.queryByText(/^2001\//)).not.toBeInTheDocument()
     expect(
-      screen.getByText(
-        `${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH + 1}/${CARD_RECIPE.FREE_PROMPT_MAX_LENGTH}`,
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
+      screen.getByRole('button', { name: /^generate$/ }),
+    ).not.toBeDisabled()
   })
 
   it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {

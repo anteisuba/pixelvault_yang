@@ -27,10 +27,7 @@ import {
   SCRIPT_DOC_LIMITS,
   SCRIPT_DOC_PROMPT_BUDGET,
 } from '@/constants/script-doc'
-import {
-  MAX_PROMPT_LENGTH,
-  validatePrompt,
-} from '@/services/kernel/prompt-guard'
+import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { createNodeScriptDoc } from '@/services/node/node-script-doc.service'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -306,10 +303,11 @@ describe('createNodeScriptDoc', () => {
 // ─── Prompt budget (P0-1: the 4000-character cliff) ──────────────────────
 //
 // The envelope `buildUserPrompt` assembles is platform-authored, not typed by
-// the user, so it was being measured against the wrong ruler:
-// `MAX_PROMPT_LENGTH` (4000). Any request carrying an existing ScriptDoc blew
-// past it once the story got even slightly rich — ~4018 characters — and the
-// rejection was swallowed into a generic 500.
+// the user, so it was being measured against the wrong ruler: the prompt
+// guard's old 4000-character default (removed 2026-09-27). Any request carrying
+// an existing ScriptDoc blew past it once the story got even slightly rich —
+// ~4018 characters — and the rejection was swallowed into a generic 500.
+const OLD_PROMPT_GUARD_CLIFF = 4000
 
 function padded(prefix: string, length: number): string {
   return `${prefix} ${'detail '.repeat(length).slice(0, Math.max(0, length))}`.slice(
@@ -437,7 +435,7 @@ describe('createNodeScriptDoc prompt budget', () => {
     })
 
     const { userPrompt } = lastCall()
-    expect(userPrompt.length).toBeGreaterThan(MAX_PROMPT_LENGTH)
+    expect(userPrompt.length).toBeGreaterThan(OLD_PROMPT_GUARD_CLIFF)
     expect(
       validatePrompt(userPrompt, SCRIPT_DOC_PROMPT_BUDGET.totalChars),
     ).toMatchObject({ valid: true })

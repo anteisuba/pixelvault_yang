@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { CARD_RECIPE } from '@/constants/cards/card-types'
 import {
   AUDIO_KIND,
   TTS_ESTIMATED_CHARS_PER_MINUTE,
@@ -121,14 +120,14 @@ export function useStudioGenerateAction() {
     audioPromptLength >= audioTextLimit.enforced * TTS_PROMPT_WARNING_RATIO
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
   /**
-   * 图片提示词上限 —— **只认模型自己声明的那个数**（owner 2026-08-24）。
-   * card 模式不变：那条 freePrompt 就是卡片配方自己的字段，2000 是它的数。
+   * 图片提示词上限 —— **只认模型自己声明的那个数**（厂商硬上限，owner 2026-08-24）。
+   * 卡片模式那条 freePrompt 不设上限（owner 2026-09-27）：它先进卡片融合，真正发给
+   * 模型的是融合后的整串，由服务端按那一型号的上限兜住。
    */
-  const imagePromptMaxChars = !isImageMode
-    ? undefined
-    : state.workflowMode === 'quick'
+  const imagePromptMaxChars =
+    isImageMode && state.workflowMode === 'quick'
       ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
-      : CARD_RECIPE.FREE_PROMPT_MAX_LENGTH
+      : undefined
   const isImagePromptOverLimit =
     imagePromptMaxChars !== undefined && imagePromptLength > imagePromptMaxChars
 

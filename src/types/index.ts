@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import { NovelAiCharacterLayoutSchema } from './novelai'
 
-import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
+import {
+  PROFILE,
+  PROMPT_ENHANCE,
+  PROMPT_TEXT_GUARD_MAX_CHARS,
+  VIDEO_GENERATION,
+} from '@/constants/config'
 import {
   AUDIO_EXPRESSIVENESS_VALUES,
   AUDIO_FORMATS,
@@ -249,7 +254,7 @@ const RunnerDimensionSchema = z
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
   novelAiLayout: NovelAiCharacterLayoutSchema.optional(),
-  negativePrompt: z.string().max(2000).optional(),
+  negativePrompt: z.string().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   guidanceScale: z.number().min(0).max(30).optional(),
   steps: z.number().int().min(1).max(100).optional(),
   seed: z.number().int().min(-1).max(4294967295).optional(),
@@ -561,7 +566,7 @@ export const GenerateRequestSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(4000, 'Prompt is too long (max 4000 characters)'),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   /** Selected AI model identifier */
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   /** Aspect ratio for the generated image */
@@ -625,7 +630,7 @@ export const GenerationConfigSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(4000, 'Prompt is too long (max 4000 characters)'),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   referenceImage: z.string().optional(),
@@ -636,7 +641,7 @@ export const GenerationConfigSchema = z.object({
   projectId: z.string().trim().min(1).optional(),
   // video-specific fields (ignored when outputType === 'image')
   duration: z.number().min(1).max(10).optional(),
-  negativePrompt: z.string().max(2000).optional(),
+  negativePrompt: z.string().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
 })
 
@@ -668,7 +673,7 @@ const GenerateVideoRequestObjectSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(4000, 'Prompt is too long (max 4000 characters)'),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
@@ -729,7 +734,7 @@ const GenerateVideoRequestObjectSchema = z.object({
    * a 40% price discount on Seedance Reference.
    */
   videoUrls: z.array(z.string().trim().min(1)).max(3).optional(),
-  negativePrompt: z.string().trim().max(2000).optional(),
+  negativePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   generateAudio: z.boolean().optional(),
   seed: z.number().int().min(0).max(2147483647).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
@@ -2230,7 +2235,7 @@ export const LongVideoRequestSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(4000, 'Prompt is too long (max 4000 characters)'),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   modelId: z.string().trim().min(1, 'Model is required').max(160),
   aspectRatio: z
     .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
@@ -2241,7 +2246,7 @@ export const LongVideoRequestSchema = z.object({
     .min(10)
     .max(VIDEO_GENERATION.MAX_LONG_VIDEO_DURATION),
   referenceImage: z.string().optional(),
-  negativePrompt: z.string().trim().max(2000).optional(),
+  negativePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
   apiKeyId: z.string().trim().min(1).optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
@@ -4214,11 +4219,7 @@ export const CreateCardRecipeSchema = z.object({
   characterCardId: z.string().optional(),
   backgroundCardId: z.string().optional(),
   styleCardId: z.string().optional(),
-  freePrompt: z
-    .string()
-    .trim()
-    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
-    .optional(),
+  freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   projectId: z.string().optional(),
 })
 
@@ -4232,7 +4233,7 @@ export const UpdateCardRecipeSchema = z.object({
   freePrompt: z
     .string()
     .trim()
-    .max(CARD_RECIPE.FREE_PROMPT_MAX_LENGTH)
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
     .nullable()
     .optional(),
   projectId: z.string().nullable().optional(),
@@ -4360,11 +4361,7 @@ export const StudioGenerateSchema = z
       .optional(),
     backgroundCardId: z.string().optional(),
     styleCardId: z.string().optional(),
-    freePrompt: z
-      .string()
-      .trim()
-      .max(CARD_RECIPE.FREE_PROMPT_ABSOLUTE_MAX_LENGTH)
-      .optional(),
+    freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
     aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
     projectId: z.string().optional(),
     /** User-uploaded reference images (base64 or URL) from toolbar */

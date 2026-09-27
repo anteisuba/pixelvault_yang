@@ -37,7 +37,10 @@ import { useStudioForm } from '@/contexts/studio-context'
 import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import type { StudioVideoImageRole } from '@/lib/studio/video-workbench-slots'
+import type {
+  StudioVideoImage,
+  StudioVideoImageRole,
+} from '@/lib/studio/video-workbench-slots'
 import { cn } from '@/lib/utils'
 
 interface StudioVideoAssetRailProps {
@@ -110,10 +113,20 @@ export function StudioVideoAssetRail({
   const unsentImages = new Set(send?.unsent.images)
   const unsentVideos = new Set(send?.unsent.videos)
   const audioFrom = send?.unsent.audioFrom ?? audioRefs.length
+  /**
+   * 只挂了尾帧时那一张由前半句说（「尾帧要和首帧一起才发得出去」），这里列其余不发的 ——
+   * 两件事同时成立时两句都说，⛔ 只说一半。
+   */
+  const droppedImages = assets.images.filter(
+    (image) =>
+      unsentImages.has(image.url) &&
+      !(send?.unsent.lastWithoutFirst && image.role === 'last'),
+  )
+  /** 这一枪走关键帧（型号没有参考档）：挂着的参考图一张都发不出去 —— 是「不收」，不是「挂多了」。 */
+  const isRefusedReference = (image: StudioVideoImage) =>
+    !send?.hasReference && image.role === 'reference'
   const unsentLabels = [
-    ...assets.images
-      .filter((image) => unsentImages.has(image.url))
-      .map((image) => t('image', { n: image.n })),
+    ...droppedImages.map((image) => t('image', { n: image.n })),
     ...assets.videos
       .map((url, index) => ({ url, n: index + 1 }))
       .filter((video) => unsentVideos.has(video.url))
@@ -132,12 +145,19 @@ export function StudioVideoAssetRail({
   const unsentReasons = () => {
     if (!send) return ''
     const over = {
-      image: unsentImages.size > 0 && !send.unsent.lastWithoutFirst,
+      reference: droppedImages.some(isRefusedReference),
+      image: droppedImages.some((image) => !isRefusedReference(image)),
       video: unsentVideos.size > 0,
       audio: audioFrom < audioRefs.length,
     }
-    const none = (['image', 'video', 'audio'] as const).filter(
-      (kind) => over[kind] && send.limits[`${kind}s`] === 0,
+    const limit = {
+      reference: 0,
+      image: send.limits.images,
+      video: send.limits.videos,
+      audio: send.limits.audios,
+    }
+    const none = (['reference', 'image', 'video', 'audio'] as const).filter(
+      (kind) => over[kind] && limit[kind] === 0,
     )
     const reasons = [
       none.length > 0
@@ -148,10 +168,8 @@ export function StudioVideoAssetRail({
           })
         : null,
       ...(['image', 'video', 'audio'] as const)
-        .filter((kind) => over[kind] && send.limits[`${kind}s`] > 0)
-        .map((kind) =>
-          t(`unsent.${kind}Max`, { max: send.limits[`${kind}s`] }),
-        ),
+        .filter((kind) => over[kind] && limit[kind] > 0)
+        .map((kind) => t(`unsent.${kind}Max`, { max: limit[kind] })),
     ]
     return reasons.filter(Boolean).join(t('unsent.separator'))
   }
@@ -333,27 +351,34 @@ export function StudioVideoAssetRail({
       {send && !empty ? (
         <span
           // 换词时交叉淡化一下（动效表：旧的 120ms 淡出 → 新的 200ms 淡入）。
-          key={`${send.mode}:${unsentLabels.join('|')}`}
+          key={`${send.mode}:${send.unsent.lastWithoutFirst}:${unsentLabels.join('|')}`}
           data-testid="video-asset-send-mode"
           // 与缩略图的中线对齐（下面那一行编号不算）。
           className="ml-auto shrink-0 animate-in self-center pb-4 text-xs text-muted-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none"
         >
           {send.unsent.lastWithoutFirst
             ? t.rich('unsent.lastWithoutFirst', { strong })
-            : unsentLabels.length > 0
-              ? t.rich('unsent.line', {
-                  model: selectedModel
-                    ? getTranslatedModelLabel(tModels, selectedModel.modelId)
-                    : '',
-                  reasons: unsentReasons(),
-                  labels: unsentLabels.join(t('unsent.labelSeparator')),
-                  strong,
-                })
-              : t.rich('sendLine', {
-                  mode: tMode(send.mode),
-                  reason: t(`reason.${send.mode}`),
-                  strong,
-                })}
+            : null}
+          {send.unsent.lastWithoutFirst && unsentLabels.length > 0
+            ? ' · '
+            : null}
+          {unsentLabels.length > 0
+            ? t.rich('unsent.line', {
+                model: selectedModel
+                  ? getTranslatedModelLabel(tModels, selectedModel.modelId)
+                  : '',
+                reasons: unsentReasons(),
+                labels: unsentLabels.join(t('unsent.labelSeparator')),
+                strong,
+              })
+            : null}
+          {!send.unsent.lastWithoutFirst && unsentLabels.length === 0
+            ? t.rich('sendLine', {
+                mode: tMode(send.mode),
+                reason: t(`reason.${send.mode}`),
+                strong,
+              })
+            : null}
         </span>
       ) : null}
     </div>

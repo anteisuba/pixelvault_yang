@@ -14,7 +14,7 @@
  * 一个默认，点一下改。编号、容量、这一枪怎么发全部来自 `lib/studio/video-workbench-slots`。
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -22,13 +22,18 @@ import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { parseDroppedAssetIds } from '@/hooks/use-studio-operator-mention'
 import { getOperatorReviewState } from '@/hooks/use-studio-operator-store'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { uploadImageFileAPI } from '@/lib/api-client'
+import { uploadImageFileAPI, uploadReferenceVideoAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { notifyGalleryChanged } from '@/lib/gallery-revision'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import { captureVideoThumbnail } from '@/lib/video-thumbnail'
+import { classifyVideoLink } from '@/lib/video-link'
 import {
   getStudioVideoCapacity,
   listStudioVideoImages,
@@ -62,8 +67,8 @@ export interface UseStudioVideoAssetsReturn {
   /** 这个型号收不收图（首尾帧或参考，有一样就收）。 */
   acceptsImages: boolean
   /**
-   * 拖进输入框的东西（本地图、画廊 / 素材库格子）—— 与「素材」菜单同一个入口；
-   * 「已否」的产物拒收，而且要说话。
+   * 拖进输入框的东西（本地图 / 视频、画廊 / 素材库格子）—— 与「素材」菜单同一个入口；
+   * 「已否」的产物拒收，型号不收的那一类也拒收，拒的时候都要说话。
    */
   acceptTransfer(data: DataTransfer): void
   /** 素材库挑中的一条：`image` 按型号能力落首帧 / 尾帧 / 参考，`video` 进参考视频。 */
@@ -80,6 +85,9 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   const tErrors = useTranslations('Errors')
   /** 拒收那一句住在助手的 `reject` 档里 —— 它说的是「助手 / 审核为什么不收」。 */
   const tOperator = useTranslations('StudioOperator')
+  /** 「这个型号不收图 / 参考视频」与「素材」菜单灰着的那一句同一份。 */
+  const tSlots = useTranslations('StudioVideoSlots')
+  const tModels = useTranslations('Models')
   const [isUploading, setIsUploading] = useState(false)
 
   const adapterType = selectedModel?.adapterType as AI_ADAPTER_TYPES | undefined
@@ -89,7 +97,15 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   )
 
   const { first, last } = state.videoFrameSlots
-  const references = imageUpload.referenceImages
+  /**
+   * ⚠ 取**全部**参考图（含当前型号收不下、被 `setMaxImages` 标成停用的）：换了型号它们
+   *   还挂着（owner 09-27 ④ 不自动删），要在排里变淡、说「这次不发」—— 只取启用的那几张，
+   *   它们会从排里凭空消失。发不发一律由 `planStudioVideoSend` 判（发送口、助手快照同一份）。
+   */
+  const references = useMemo(
+    () => imageUpload.referenceEntries.map((entry) => entry.url),
+    [imageUpload.referenceEntries],
+  )
   const videos = state.videoReferenceVideos
   const audios = state.videoAudioRefs.length
 
@@ -97,6 +113,20 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
     () => listStudioVideoImages({ first, last, references }),
     [first, last, references],
   )
+
+  /**
+   * 连着落好几样（一次拖进来几张、一张张传完）时，后一样要看得见前一样**刚占的格** ——
+   * 闭包里的 first / last / videos 还是落第一样之前那一轮渲染的值，照它算，第二张会把
+   * 第一张的首帧顶掉。落格时先记在这里，渲染提交后再以状态为准。
+   */
+  const placed = useRef<{
+    first: string | null
+    last: string | null
+    videos: readonly string[]
+  }>({ first, last, videos })
+  useEffect(() => {
+    placed.current = { first, last, videos }
+  }, [first, last, videos])
 
   const send = useMemo(
     () =>
@@ -120,6 +150,22 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   )
 
   const acceptsReferences = capacity.references !== 0
+  const acceptsImages = capacity.frames > 0 || acceptsReferences
+
+  const modelLabel = selectedModel
+    ? getTranslatedModelLabel(tModels, selectedModel.modelId)
+    : ''
+  /** 型号不收这一类：说出来（与「素材」菜单灰着的那一句同一份），⛔ 静默丢。 */
+  const refuse = useCallback(
+    (kind: 'image' | 'video') => {
+      toast.error(
+        tSlots(kind === 'image' ? 'menu.noImage' : 'menu.noVideo', {
+          model: modelLabel,
+        }),
+      )
+    },
+    [tSlots, modelLabel],
+  )
 
   const rolesFor = useCallback(
     (image: StudioVideoImage): StudioVideoImageRole[] => {
@@ -135,27 +181,34 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   const addImage = useCallback(
     (url: string) => {
       if (!url || images.some((image) => image.url === url)) return
+      if (!acceptsImages) {
+        refuse('image')
+        return
+      }
       if (acceptsReferences) {
         void imageUpload.addFromUrl(url)
         return
       }
-      if (capacity.frames >= 1 && !first) {
+      const slots = placed.current
+      if (capacity.frames >= 1 && !slots.first) {
+        slots.first = url
         setFrame('first', url)
         return
       }
-      if (capacity.frames === 2 && !last) {
+      if (capacity.frames === 2 && !slots.last) {
+        slots.last = url
         setFrame('last', url)
         return
       }
       toast.error(t('limitReached', { max: capacity.frames }))
     },
     [
+      acceptsImages,
       acceptsReferences,
       capacity.frames,
-      first,
-      last,
       images,
       imageUpload,
+      refuse,
       setFrame,
       t,
     ],
@@ -210,6 +263,11 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   const uploadImageFile = useCallback(
     async (file: File) => {
       if (!file.type.startsWith('image/')) return
+      // 型号不收图就先说，⛔ 白传一趟。
+      if (!acceptsImages) {
+        refuse('image')
+        return
+      }
       setIsUploading(true)
       try {
         const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
@@ -226,6 +284,8 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
         if (!prepared) return
         const response = await uploadImageFileAPI(prepared)
         if (response.success && response.data?.generation.url) {
+          // 传上去的这一份也是一件产物 —— 素材库那边据此重拉，⛔ 不让用户自己去点刷新。
+          notifyGalleryChanged()
           addImage(response.data.generation.url)
         } else {
           toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
@@ -236,24 +296,62 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
         setIsUploading(false)
       }
     },
-    [addImage, t, tErrors],
+    [acceptsImages, addImage, refuse, t, tErrors],
   )
 
   const addVideo = useCallback(
     (url: string) => {
-      if (videos.includes(url)) return
+      const slots = placed.current
+      if (slots.videos.includes(url)) return
+      if (capacity.videos <= 0) {
+        refuse('video')
+        return
+      }
       // ⚠ 上限在这里夹一次是为了**说得出话**（toast），发送口那边还会再夹一次
       //   —— 残留值来自「切模型」，那是另一条路径。
-      if (videos.length >= capacity.videos) {
+      if (slots.videos.length >= capacity.videos) {
         toast.error(t('limitReached', { max: capacity.videos }))
         return
       }
-      dispatch({
-        type: 'SET_VIDEO_REFERENCE_VIDEOS',
-        payload: [...videos, url],
-      })
+      const next = [...slots.videos, url]
+      slots.videos = next
+      dispatch({ type: 'SET_VIDEO_REFERENCE_VIDEOS', payload: next })
     },
-    [dispatch, t, videos, capacity.videos],
+    [dispatch, refuse, t, capacity.videos],
+  )
+
+  /**
+   * 本地视频 → 参考视频：与画布视频卡同一条（客户端抓一帧当封面 → multipart → R2）。
+   * 抓不到封面只是没封面，⛔ 不算上传失败；型号不收 / 已挂满先说，⛔ 白传一趟。
+   */
+  const uploadVideoFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('video/')) return
+      if (capacity.videos <= 0) {
+        refuse('video')
+        return
+      }
+      if (placed.current.videos.length >= capacity.videos) {
+        toast.error(t('limitReached', { max: capacity.videos }))
+        return
+      }
+      setIsUploading(true)
+      try {
+        const thumbnail = await captureVideoThumbnail(file)
+        const response = await uploadReferenceVideoAPI(file, thumbnail)
+        if (response.success && response.data?.url) {
+          notifyGalleryChanged()
+          addVideo(response.data.url)
+        } else {
+          toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
+        }
+      } catch {
+        toast.error(t('uploadFailed'))
+      } finally {
+        setIsUploading(false)
+      }
+    },
+    [addVideo, capacity.videos, refuse, t, tErrors],
   )
 
   const removeVideo = useCallback(
@@ -266,8 +364,6 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
     },
     [dispatch, videos],
   )
-
-  const acceptsImages = capacity.frames > 0 || acceptsReferences
 
   /**
    * ⭐ **拒收「已否」的产物**（切片 Y）—— 客户端先拒，⛔ 不等服务端：标 blocked 说的
@@ -286,28 +382,37 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   )
 
   /**
-   * ⚠ 原生 drop：要同时接**本地文件**与画廊格子拖过来的那条 URL —— 画廊格子拖动时
-   *   同时写了 `text/uri-list`，两边都接得住。
+   * ⚠ 原生 drop：要同时接**本地文件**（图 / 视频）与拖过来的那条 URL —— 画廊格子拖动时
+   *   同时写了 `text/uri-list`，两边都接得住。视频直链（按扩展名认，与视频链接分流同一个
+   *   判据）进参考视频，⛔ 当成一张图挂上。
    */
   const acceptTransfer = useCallback(
     (data: DataTransfer) => {
-      if (!acceptsImages) return
       const assetIds = parseDroppedAssetIds(data.getData(ASSET_DND_MIME))
       if (assetIds.length > 0 && !allowSource(assetIds)) return
-      const files = Array.from(data.files ?? []).filter((file) =>
-        file.type.startsWith('image/'),
+      const files = Array.from(data.files ?? []).filter(
+        (file) =>
+          file.type.startsWith('image/') || file.type.startsWith('video/'),
       )
       if (files.length > 0) {
-        // 一张一张传：编号跟着松手时的顺序走。
+        // 一样一样传：编号跟着松手时的顺序走。
         void (async () => {
-          for (const file of files) await uploadImageFile(file)
+          for (const file of files) {
+            if (file.type.startsWith('video/')) await uploadVideoFile(file)
+            else await uploadImageFile(file)
+          }
         })()
         return
       }
       const url = data.getData('text/uri-list') || data.getData('text/plain')
-      if (url && /^https?:\/\//.test(url)) addImage(url)
+      if (!url || !/^https?:\/\//.test(url)) return
+      if (classifyVideoLink(url).kind === VIDEO_LINK_KINDS.videoFile) {
+        addVideo(url)
+      } else {
+        addImage(url)
+      }
     },
-    [acceptsImages, allowSource, uploadImageFile, addImage],
+    [allowSource, uploadVideoFile, uploadImageFile, addVideo, addImage],
   )
 
   const acceptGeneration = useCallback(

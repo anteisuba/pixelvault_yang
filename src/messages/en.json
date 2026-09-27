@@ -7307,7 +7307,7 @@
     "itemFailed": "#{index} failed",
     "itemDone": "#{index} done",
     "itemViewing": "#{index} playing",
-    "hint": "You can keep working while videos generate. Change the settings on the left to queue another.",
+    "hint": "You can keep working while videos generate — edit the prompt box and queue another.",
     "cancel": "Cancel",
     "mobileHint": "This takes about 2–5 minutes. Stay on this page — you'll be notified when it's done."
   },
@@ -8012,7 +8012,8 @@
     "drop": {
       "here": "Drop to attach",
       "asReference": "images go in as references — tap one to make it the first or last frame",
-      "asFrame": "fills the first frame, then the last"
+      "asFrame": "fills the first frame, then the last",
+      "asFirst": "goes in as the first frame — this model takes just one"
     },
     "uploadImage": "Upload image",
     "pickImage": "Pick image from library",
@@ -8036,14 +8037,19 @@
       "separator": ", ",
       "labelSeparator": ", ",
       "kind": {
+        "reference": "reference images",
         "image": "images",
         "video": "reference videos",
         "audio": "audio"
       }
     },
+    "poster": {
+      "firstOnly": "<strong>First frame</strong> · the video starts here",
+      "withLast": "<strong>First frame</strong> · the video starts here; the last frame is bottom right"
+    },
     "libraryTitle": "Pick from the asset library",
     "libraryDescription": "Choose an asset to add to the rail.",
-    "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."
+    "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive). Remove the first frame to choose again."
   },
   "ContextCards": {
     "kind": {

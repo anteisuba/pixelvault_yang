@@ -21,6 +21,7 @@ import {
 } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { promptCreatePath } from '@/constants/routes'
@@ -93,6 +94,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tAudioFeedback = useTranslations('audioFeedback')
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
+  const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   /**
@@ -106,6 +108,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const { modelOptions } = useImageModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
+  const { send: videoSend } = useStudioVideoAssets()
 
   // Only show the latest generation if it matches the current output type.
   // Prevents Canvas from displaying an image result after user switches to
@@ -326,6 +329,21 @@ export const StudioCanvas = memo(function StudioCanvas({
    * ⛔ 不把参考图铺上来，也没有「编辑这张」（那是图片的编辑入口）。
    */
   const videoWithoutRail = state.outputType === 'video' && !referenceRail
+  /**
+   * 视频台还没出过结果、挂了首帧：舞台把首帧当封面（有尾帧就缩在右下角）——
+   * 看得见「视频从哪一帧开始」（owner 09-27 视频台 A · 画板「首帧当封面」）。
+   * ⚠ 只画这一枪**真发**的那几张（与素材排、发送口同一份 `send.unsent`）：换到只收一张图的
+   *   型号，尾帧在素材排里变淡，舞台上也 ⛔ 还缩在右下角说「右下是尾帧」。
+   */
+  const sentFrame = (url: string | null) =>
+    url !== null && !videoSend?.unsent.images.includes(url) ? url : null
+  const posterFirst =
+    videoWithoutRail && !isGenerating && !lastGeneration
+      ? sentFrame(state.videoFrameSlots.first)
+      : null
+  const videoPoster = posterFirst
+    ? { first: posterFirst, last: sentFrame(state.videoFrameSlots.last) }
+    : null
   /** 没有参考轨时，还没出结果的那张参考图撑满舞台（见下方舞台分支）。 */
   const referenceFillsStage =
     !referenceRail &&
@@ -439,7 +457,8 @@ export const StudioCanvas = memo(function StudioCanvas({
       ref={canvasRef}
       className={cn(
         'studio-canvas transition-all',
-        (editTarget || referenceFillsStage) && 'flex min-h-0 flex-1 flex-col',
+        (editTarget || referenceFillsStage || videoPoster) &&
+          'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
         className,
       )}
@@ -491,7 +510,9 @@ export const StudioCanvas = memo(function StudioCanvas({
         data-testid="studio-canvas-content"
         className={cn(
           'w-full',
-          editTarget || referenceFillsStage
+          // ⚠ 撑满舞台的几种（编辑 · 参考图铺满 · 视频首帧封面）这一层也得是弹性列，
+          //   否则高度链在这里断掉，图按自身大小冲出舞台。
+          editTarget || referenceFillsStage || videoPoster
             ? 'flex min-h-0 flex-1 flex-col'
             : 'mx-auto',
         )}
@@ -528,6 +549,41 @@ export const StudioCanvas = memo(function StudioCanvas({
               onCancelAll={cancelAllRunItems}
             />
           )
+        ) : videoPoster ? (
+          <div className="flex min-h-0 flex-1 animate-in flex-col items-center gap-3 fade-in-0 duration-base ease-linear motion-reduce:animate-none">
+            {/* ⚠ 框按舞台剩下的高度走（舞台随输入框伸缩），宽度跟着图的比例 —— 尾帧那张
+                小图才落得在首帧的右下角上。 */}
+            <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+              <div className="relative h-full max-w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={videoPoster.first}
+                  alt={tSlots('firstFrame')}
+                  className="h-full max-w-full rounded-xl object-contain"
+                />
+                {videoPoster.last ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={videoPoster.last}
+                    alt={tSlots('lastFrame')}
+                    className="absolute right-3 bottom-3 w-1/5 animate-in rounded-lg object-cover shadow-md ring-2 ring-background fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+                  />
+                ) : null}
+              </div>
+            </div>
+            <p className="shrink-0 text-xs text-muted-foreground">
+              {tSlots.rich(
+                videoPoster.last ? 'poster.withLast' : 'poster.firstOnly',
+                {
+                  strong: (chunks) => (
+                    <span className="font-semibold text-foreground">
+                      {chunks}
+                    </span>
+                  ),
+                },
+              )}
+            </p>
+          </div>
         ) : !isGenerating &&
           !lastGeneration &&
           stageReference &&

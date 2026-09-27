@@ -457,7 +457,9 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   {' · '}
                   {videoAssets.capacity.references !== 0
                     ? tSlots('drop.asReference')
-                    : tSlots('drop.asFrame')}
+                    : videoAssets.capacity.frames === 2
+                      ? tSlots('drop.asFrame')
+                      : tSlots('drop.asFirst')}
                 </div>
               ) : null}
               <StudioVideoAssetRail
@@ -662,8 +664,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                         popoverSide="top"
                         popoverAlign="end"
                         contentClassName="w-80"
+                        // ⚠ 视频 chip 上写「型号名 · 版本 · 单价」（触发器五处同一形状）：
+                        //   用它自己的 240 宽，⛔ 压到 192 把名字挤成「Seed… 2…」——
+                        //   助手展开、输入框变窄时也不压（画板：让位时收的是左边那几颗的字）。
                         className={cn(
-                          'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                          'h-8 font-medium',
                           state.selectedOptionId && studioOutlineChipSetClass,
                           'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
                         )}

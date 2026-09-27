@@ -299,15 +299,12 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                   )}
                 </div>
               ) : item.status === 'failed' ? (
-                <div className="flex h-[72px] flex-col items-center justify-center gap-1 rounded-lg border border-border/60 bg-background px-2">
-                  <AlertTriangle className="size-4 text-destructive/60" />
-                  <button
-                    type="button"
-                    onClick={() => onRetry(item.id)}
-                    className="text-2xs text-muted-foreground underline underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground"
-                  >
-                    {t('retry')}
-                  </button>
+                // 格子里只留一个记号 —— 为什么失败、「重试这条」写在右边那一行（视频台 A）。
+                <div className="flex h-[72px] items-center justify-center rounded-lg border border-border/60 bg-background">
+                  <AlertTriangle
+                    className="size-4 text-destructive/60"
+                    aria-hidden
+                  />
                 </div>
               ) : (
                 <button
@@ -367,20 +364,37 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
         })}
       </div>
 
-      <p className="hidden w-44 shrink-0 text-2xs leading-relaxed text-muted-foreground/70 xl:block">
-        {t('hint')}
-      </p>
-
-      {/* 失败那条的原因写在标签的 title 上还不够 —— 屏幕阅读器与鼠标都够不到
-          横滑区外的解释，所以这里再列一次当前所有失败原因。 */}
+      {/* 失败那条**为什么**明着写出来（owner 09-27 视频台 A，⛔ 只藏在悬停提示里），
+          「重试这条」跟在后面；没有失败时才是那句提示。 */}
       {items.some((item) => item.status === 'failed') ? (
-        <span className="sr-only">
-          {items
-            .filter((item) => item.status === 'failed')
-            .map(errorMessage)
-            .join('; ')}
-        </span>
-      ) : null}
+        <div className="flex min-w-0 max-w-md shrink flex-col gap-1">
+          {items.map((item, index) =>
+            item.status === 'failed' ? (
+              <p
+                key={item.id}
+                className="text-2xs leading-5 text-muted-foreground"
+              >
+                <span className="font-semibold text-destructive">
+                  {t('itemFailed', { index: index + 1 })}
+                </span>
+                {' · '}
+                {errorMessage(item)}{' '}
+                <button
+                  type="button"
+                  onClick={() => onRetry(item.id)}
+                  className="text-foreground/80 underline underline-offset-2 transition-colors duration-fast ease-linear hover:text-foreground"
+                >
+                  {t('retry')}
+                </button>
+              </p>
+            ) : null,
+          )}
+        </div>
+      ) : (
+        <p className="hidden w-44 shrink-0 text-2xs leading-relaxed text-muted-foreground/70 xl:block">
+          {t('hint')}
+        </p>
+      )}
     </div>
   )
 })

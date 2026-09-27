@@ -7307,7 +7307,7 @@
     "itemFailed": "#{index} 失敗",
     "itemDone": "#{index} 完了",
     "itemViewing": "#{index} 再生中",
-    "hint": "動画の生成中も操作できます。左の設定を変えて、次の生成を追加できます。",
+    "hint": "動画の生成中も操作できます。入力欄を変えて、次の生成を追加できます。",
     "cancel": "キャンセル",
     "mobileHint": "生成には約 2〜5 分かかります。このページを離れずにお待ちください。完了時にお知らせします"
   },
@@ -8012,7 +8012,8 @@
     "drop": {
       "here": "ドロップして追加",
       "asReference": "画像はまず参照に。タップで先頭 / 末尾フレームに変更できます",
-      "asFrame": "先頭フレームから、次は末尾フレームに"
+      "asFrame": "先頭フレームから、次は末尾フレームに",
+      "asFirst": "先頭フレームになります（このモデルは 1 枚だけ）"
     },
     "uploadImage": "画像をアップロード",
     "pickImage": "素材ライブラリから画像を選ぶ",
@@ -8036,14 +8037,19 @@
       "separator": "、",
       "labelSeparator": "、",
       "kind": {
+        "reference": "参照画像",
         "image": "画像",
         "video": "参照動画",
         "audio": "音声"
       }
     },
+    "poster": {
+      "firstOnly": "<strong>先頭フレーム</strong> · 動画はここから始まります",
+      "withLast": "<strong>先頭フレーム</strong> · 動画はここから始まります。右下が末尾フレームです"
+    },
     "libraryTitle": "素材ライブラリから選ぶ",
     "libraryDescription": "素材レールに追加する素材を選びます。",
-    "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"
+    "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。最初のフレームを外すと選び直せます。"
   },
   "ContextCards": {
     "kind": {

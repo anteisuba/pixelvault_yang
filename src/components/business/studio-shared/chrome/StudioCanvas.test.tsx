@@ -22,7 +22,9 @@ import { StudioCanvas } from './StudioCanvas'
  */
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  // ⚠ 带 `rich`：视频台首帧封面下面那行说明是富文本。
+  useTranslations: () =>
+    Object.assign((key: string) => key, { rich: (key: string) => key }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -55,6 +57,14 @@ vi.mock('@/hooks/use-image-model-options', () => ({
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
+}))
+
+/** 这一枪不发的那几张图（素材排、发送口与舞台封面同一份）。 */
+const videoSend = vi.hoisted(() => ({ unsentImages: [] as string[] }))
+vi.mock('@/hooks/use-studio-video-assets', () => ({
+  useStudioVideoAssets: () => ({
+    send: { unsent: { images: videoSend.unsentImages } },
+  }),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -339,5 +349,100 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
     render(<StudioCanvas />)
 
     expect(screen.getByTestId('studio-audio-feedback')).toBeInTheDocument()
+  })
+})
+
+/**
+ * 视频台桌面（底部输入框，owner 2026-09-27 视频台 A）：素材在输入框里，舞台没有参考轨。
+ * 还没出过结果时，挂了首帧就把首帧当封面；⛔ 不铺参考图，也没有「编辑这张」（那是图片的）。
+ */
+describe('StudioCanvas — 视频台桌面（没有参考轨）', () => {
+  beforeEach(() => {
+    videoSend.unsentImages = []
+    referenceState.entries = [
+      { url: 'https://cdn.example.com/ref.png', disabledReason: null },
+    ]
+    mockUseStudioGen.mockReturnValue({
+      lastGeneration: null,
+      activeRun: null,
+      error: null,
+      isGenerating: false,
+      elapsedSeconds: 0,
+      setLastEvaluation: vi.fn(),
+      retryVideoQueueItem: vi.fn(),
+      cancelRunItem: vi.fn(),
+      cancelAllRunItems: vi.fn(),
+    })
+  })
+
+  it('还没出结果、挂了首尾帧：首帧当封面、尾帧缩在右下，说一句视频从这一帧开始', () => {
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'video',
+        videoFrameSlots: {
+          first: 'https://cdn.example.com/f.png',
+          last: 'https://cdn.example.com/l.png',
+        },
+      },
+      dispatch: vi.fn(),
+    })
+    render(<StudioCanvas referenceRail={false} />)
+    expect(screen.getByAltText('firstFrame')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/f.png',
+    )
+    expect(screen.getByAltText('lastFrame')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/l.png',
+    )
+    expect(screen.getByText('poster.withLast')).toBeInTheDocument()
+    expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
+    expect(screen.queryByText('stageEditThis')).not.toBeInTheDocument()
+  })
+
+  it('换到只收一张图的型号：尾帧这次不发，⛔ 还缩在右下角、说明也不提尾帧', () => {
+    videoSend.unsentImages = ['https://cdn.example.com/l.png']
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'video',
+        videoFrameSlots: {
+          first: 'https://cdn.example.com/f.png',
+          last: 'https://cdn.example.com/l.png',
+        },
+      },
+      dispatch: vi.fn(),
+    })
+    render(<StudioCanvas referenceRail={false} />)
+    expect(screen.getByAltText('firstFrame')).toBeInTheDocument()
+    expect(screen.queryByAltText('lastFrame')).not.toBeInTheDocument()
+    expect(screen.getByText('poster.firstOnly')).toBeInTheDocument()
+  })
+
+  it('型号连首帧都不收：不当封面，走正常的结果区', () => {
+    videoSend.unsentImages = ['https://cdn.example.com/f.png']
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'video',
+        videoFrameSlots: { first: 'https://cdn.example.com/f.png', last: null },
+      },
+      dispatch: vi.fn(),
+    })
+    render(<StudioCanvas referenceRail={false} />)
+    expect(screen.queryByAltText('firstFrame')).not.toBeInTheDocument()
+    expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
+  })
+
+  it('没挂首帧：走正常的结果区，⛔ 不把参考图铺上来', () => {
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'video',
+        videoFrameSlots: { first: null, last: null },
+      },
+      dispatch: vi.fn(),
+    })
+    render(<StudioCanvas referenceRail={false} />)
+    expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
+    expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
+    expect(screen.queryByAltText('firstFrame')).not.toBeInTheDocument()
   })
 })

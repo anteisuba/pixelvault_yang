@@ -27,6 +27,12 @@ vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 const dispatch = vi.hoisted(() => vi.fn())
 const addFromUrl = vi.hoisted(() => vi.fn(async () => {}))
+const upload = vi.hoisted(() => ({
+  entries: [] as {
+    url: string
+    disabledReason: 'over_limit' | 'unsupported' | null
+  }[],
+}))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {
@@ -39,7 +45,10 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
   useStudioData: () => ({
     imageUpload: {
-      referenceImages: [],
+      referenceImages: upload.entries
+        .filter((entry) => entry.disabledReason === null)
+        .map((entry) => entry.url),
+      referenceEntries: upload.entries,
       addFromUrl,
       removeReferenceImage: vi.fn(),
       isUploading: false,
@@ -69,9 +78,16 @@ vi.mock('@/lib/studio/video-workbench-slots', async (importOriginal) => ({
 }))
 
 const uploadImageFileAPI = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/api-client', () => ({ uploadImageFileAPI }))
+const uploadReferenceVideoAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', () => ({
+  uploadImageFileAPI,
+  uploadReferenceVideoAPI,
+}))
 vi.mock('@/lib/prepare-image-upload', () => ({
   prepareImageUpload: async (file: File) => file,
+}))
+vi.mock('@/lib/video-thumbnail', () => ({
+  captureVideoThumbnail: async () => null,
 }))
 
 function transfer(data: {
@@ -96,7 +112,21 @@ beforeEach(() => {
   addFromUrl.mockClear()
   toastError.mockClear()
   uploadImageFileAPI.mockReset()
+  uploadReferenceVideoAPI.mockReset()
   capacity.current = { frames: 2, references: 0, videos: 1, audios: 0 }
+  upload.entries = []
+})
+
+describe('视频台素材 · 换了型号', () => {
+  it('当前型号收不下的参考图（被标成停用）还在排里 —— ⛔ 凭空消失，发不发由发送计划判', () => {
+    upload.entries = [
+      { url: 'https://cdn.example.com/r.png', disabledReason: 'unsupported' },
+    ]
+    const { result } = renderHook(() => useStudioVideoAssets())
+    expect(result.current.images).toEqual([
+      { url: 'https://cdn.example.com/r.png', role: 'reference', n: 1 },
+    ])
+  })
 })
 
 describe('视频台素材 · 拖进输入框 / 素材库', () => {
@@ -183,5 +213,78 @@ describe('视频台素材 · 拖进输入框 / 素材库', () => {
     )
     expect(toastError).toHaveBeenCalledWith('reject.blockedSource')
     expect(dispatch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('视频台素材 · 连着落好几样 / 拖视频', () => {
+  it('不收参考的型号连着传两张：第一张首帧、第二张尾帧（⛔ 第二张顶掉第一张）', async () => {
+    uploadImageFileAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: { generation: { url: 'https://r2.example.com/a.png' } },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { generation: { url: 'https://r2.example.com/b.png' } },
+      })
+    const { result } = renderHook(() => useStudioVideoAssets())
+    result.current.acceptTransfer(
+      transfer({
+        files: [
+          new File(['a'], 'a.png', { type: 'image/png' }),
+          new File(['b'], 'b.png', { type: 'image/png' }),
+        ],
+      }),
+    )
+    await waitFor(() => expect(dispatch).toHaveBeenCalledTimes(2))
+    expect(dispatch).toHaveBeenNthCalledWith(1, {
+      type: 'SET_VIDEO_FRAME_SLOT',
+      payload: { slot: 'first', url: 'https://r2.example.com/a.png' },
+    })
+    expect(dispatch).toHaveBeenNthCalledWith(2, {
+      type: 'SET_VIDEO_FRAME_SLOT',
+      payload: { slot: 'last', url: 'https://r2.example.com/b.png' },
+    })
+  })
+
+  it('拖进一段本地视频：走参考视频那条上传，传完进参考视频', async () => {
+    uploadReferenceVideoAPI.mockResolvedValueOnce({
+      success: true,
+      data: { url: 'https://r2.example.com/v.mp4', sizeBytes: 10 },
+    })
+    const { result } = renderHook(() => useStudioVideoAssets())
+    result.current.acceptTransfer(
+      transfer({ files: [new File(['v'], 'v.mp4', { type: 'video/mp4' })] }),
+    )
+    await waitFor(() =>
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'SET_VIDEO_REFERENCE_VIDEOS',
+        payload: ['https://r2.example.com/v.mp4'],
+      }),
+    )
+    expect(uploadImageFileAPI).not.toHaveBeenCalled()
+  })
+
+  it('型号不收参考视频：拖进视频直说「不收」，⛔ 白传一趟', () => {
+    capacity.current = { frames: 2, references: 0, videos: 0, audios: 0 }
+    const { result } = renderHook(() => useStudioVideoAssets())
+    result.current.acceptTransfer(
+      transfer({ files: [new File(['v'], 'v.mp4', { type: 'video/mp4' })] }),
+    )
+    return waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith('menu.noVideo')
+      expect(uploadReferenceVideoAPI).not.toHaveBeenCalled()
+    })
+  })
+
+  it('拖过来的是视频直链：进参考视频，⛔ 当成一张图挂上', () => {
+    const { result } = renderHook(() => useStudioVideoAssets())
+    result.current.acceptTransfer(
+      transfer({ url: 'https://cdn.example.com/clip.mp4' }),
+    )
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_VIDEO_REFERENCE_VIDEOS',
+      payload: ['https://cdn.example.com/clip.mp4'],
+    })
   })
 })

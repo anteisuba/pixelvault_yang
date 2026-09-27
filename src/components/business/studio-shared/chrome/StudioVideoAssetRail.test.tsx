@@ -225,6 +225,70 @@ describe('视频台 · 素材排', () => {
     )
   })
 
+  it('只挂尾帧、型号又不收挂着的参考视频：两句都说（⛔ 只说一半）', () => {
+    form.audioRefs = []
+    render(
+      <StudioVideoAssetRail
+        assets={makeAssets({
+          images: [
+            { url: 'https://cdn.example.com/l.png', role: 'last', n: 1 },
+          ],
+          videos: ['https://cdn.example.com/v.mp4'],
+          send: {
+            modelId: 'happyhorse-1.0',
+            hasReference: false,
+            mode: 'imageToVideo',
+            images: [],
+            videos: [],
+            audioCount: 0,
+            limits: { images: 1, videos: 0, audios: 0 },
+            unsent: {
+              lastWithoutFirst: true,
+              images: ['https://cdn.example.com/l.png'],
+              videos: ['https://cdn.example.com/v.mp4'],
+              audioFrom: 0,
+            },
+          },
+        })}
+      />,
+    )
+    const line = screen.getByTestId('video-asset-send-mode')
+    expect(line).toHaveTextContent('unsent.lastWithoutFirst')
+    expect(line).toHaveTextContent('unsent.line')
+    expect(line).toHaveTextContent('video:{\\"n\\":1}')
+    // 尾帧那一张由前半句说，后半句不再列它。
+    expect(line).not.toHaveTextContent('image:{\\"n\\":1}')
+  })
+
+  it('型号没有参考档：挂着的参考图说「不收参考图」，⛔ 不说「最多收 N 张」', () => {
+    form.audioRefs = []
+    render(
+      <StudioVideoAssetRail
+        assets={makeAssets({
+          send: {
+            modelId: 'happyhorse-1.0',
+            hasReference: false,
+            mode: 'imageToVideo',
+            images: ['https://cdn.example.com/f.png'],
+            videos: [],
+            audioCount: 0,
+            limits: { images: 1, videos: 0, audios: 0 },
+            unsent: {
+              lastWithoutFirst: false,
+              images: ['https://cdn.example.com/r.png'],
+              videos: [],
+              audioFrom: 0,
+            },
+          },
+        })}
+      />,
+    )
+    const line = screen.getByTestId('video-asset-send-mode')
+    expect(line).toHaveTextContent('unsent.kind.reference')
+    expect(line).not.toHaveTextContent('imageMax')
+    expect(line).toHaveTextContent('image:{\\"n\\":2}')
+  })
+
   it('上传中：占一格转圈，灰字还不出（还没挂上东西）', () => {
     form.audioRefs = []
     render(

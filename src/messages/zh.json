@@ -7307,7 +7307,7 @@
     "itemFailed": "#{index} 失败",
     "itemDone": "#{index} 完成",
     "itemViewing": "#{index} 正在看",
-    "hint": "生成中不占死舞台：左栏照样能改参数、再排一条。",
+    "hint": "生成中不占死舞台：输入框照样能改，再排一条。",
     "cancel": "取消",
     "mobileHint": "生成约需 2–5 分钟，请留在本页；完成后会有提示"
   },
@@ -8012,7 +8012,8 @@
     "drop": {
       "here": "松手挂上",
       "asReference": "图先当参考，点一下能改成首帧 / 尾帧",
-      "asFrame": "先当首帧，已有首帧就当尾帧"
+      "asFrame": "先当首帧，已有首帧就当尾帧",
+      "asFirst": "图当首帧，这个型号只收一张首帧"
     },
     "uploadImage": "上传图片",
     "pickImage": "从素材库选图",
@@ -8036,14 +8037,19 @@
       "separator": "，",
       "labelSeparator": "、",
       "kind": {
+        "reference": "参考图",
         "image": "图片",
         "video": "参考视频",
         "audio": "音频"
       }
     },
+    "poster": {
+      "firstOnly": "<strong>首帧</strong> · 视频从这一帧开始",
+      "withLast": "<strong>首帧</strong> · 视频从这一帧开始，右下是尾帧"
+    },
     "libraryTitle": "从素材库挑一个",
     "libraryDescription": "选一个素材放进素材轨。",
-    "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"
+    "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。拿掉首帧就能再选。"
   },
   "ContextCards": {
     "kind": {

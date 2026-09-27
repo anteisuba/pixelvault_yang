@@ -17,7 +17,7 @@ import {
  * 钉四件事：
  *  ① 容量来自契约：参考那几格按型号的**参考端点**算，没有参考档的型号不收参考图；
  *  ② 编号 = 显示顺序 = 参考档下的发送顺序：首帧、尾帧、再是参考图；
- *  ③ 有参考项 → 参考端点，首尾帧作为参考图随行；否则走关键帧端点；
+ *  ③ 有这个型号收得下的参考项 → 参考端点，首尾帧作为参考图随行；否则走关键帧端点；
  *  ④ 只有尾帧、没有首帧时两张都不发（⛔ 不把尾帧顶成首帧）。
  */
 const EMPTY = { first: null, last: null, references: [], videos: [], audios: 0 }
@@ -134,6 +134,20 @@ describe('resolveStudioVideoSend', () => {
     )
     expect(send.modelId).toBe(AI_MODELS.HAPPYHORSE_10)
   })
+
+  it('型号不收的参考项 ⛔ 不把这一枪拐去参考档：只挂尾帧 + 参考视频时尾帧不被顶成开头那张', () => {
+    const send = resolveStudioVideoSend(
+      AI_MODELS.HAPPYHORSE_10,
+      AI_ADAPTER_TYPES.FAL,
+      {
+        ...EMPTY,
+        last: 'https://cdn.example.com/l.png',
+        videos: ['https://cdn.example.com/v.mp4'],
+      },
+    )
+    expect(send.hasReference).toBe(false)
+    expect(send.images).toEqual([])
+  })
 })
 
 /**
@@ -209,6 +223,38 @@ describe('planStudioVideoSend', () => {
     expect(plan.unsent.audioFrom).toBe(0)
     // 首帧照发。
     expect(plan.images).toEqual(['https://cdn.example.com/f.png'])
+  })
+
+  it('换到不收参考的型号：参考图这次不发，首帧照走关键帧', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.HAPPYHORSE_10,
+      AI_ADAPTER_TYPES.FAL,
+      {
+        ...EMPTY,
+        first: 'https://cdn.example.com/f.png',
+        references: ['https://cdn.example.com/r.png'],
+      },
+    )
+    expect(plan.hasReference).toBe(false)
+    expect(plan.mode).toBe('imageToVideo')
+    expect(plan.images).toEqual(['https://cdn.example.com/f.png'])
+    expect(plan.unsent.images).toEqual(['https://cdn.example.com/r.png'])
+  })
+
+  it('只挂尾帧、型号又不收挂着的参考视频：两样都算不发', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.HAPPYHORSE_10,
+      AI_ADAPTER_TYPES.FAL,
+      {
+        ...EMPTY,
+        last: 'https://cdn.example.com/l.png',
+        videos: ['https://cdn.example.com/v.mp4'],
+      },
+    )
+    expect(plan.images).toEqual([])
+    expect(plan.unsent.lastWithoutFirst).toBe(true)
+    expect(plan.unsent.images).toEqual(['https://cdn.example.com/l.png'])
+    expect(plan.unsent.videos).toEqual(['https://cdn.example.com/v.mp4'])
   })
 
   it('收参考的型号：挂的音频在格数以内全发', () => {

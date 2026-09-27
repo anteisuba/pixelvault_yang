@@ -366,7 +366,8 @@ export function useStudioGenerateAction() {
       {
         first: state.videoFrameSlots.first,
         last: state.videoFrameSlots.last,
-        references: imageUpload.referenceImages,
+        // 全部参考图（含停用的）—— 与素材排、助手快照同一份，收不收由这份计划判。
+        references: imageUpload.referenceEntries.map((entry) => entry.url),
         videos: state.videoReferenceVideos,
         audios: state.videoAudioRefs.length,
       },
@@ -477,7 +478,7 @@ export function useStudioGenerateAction() {
     state.workflowMode,
     characters.activeCards,
     composePrompt,
-    imageUpload.referenceImages,
+    imageUpload.referenceEntries,
     state.videoFrameSlots,
     state.videoReferenceVideos,
   ])

@@ -127,20 +127,26 @@ export interface StudioVideoSend {
  * ⭐ 有任何参考项（参考图 / 参考视频 / 音频）→ 参考端点，首尾帧也作为参考图随行
  * （与画布同一做法）；否则走关键帧端点，只发首帧（+ 尾帧）。
  * ⚠ 首帧缺席、只有尾帧时 ⛔ 不把尾帧顶到第一位：这种情况下两张都不发。
+ * ⚠ 只数这个型号**收得下**的参考项：换了型号，挂着的东西留着（owner 09-27 ④ 不自动删），
+ *   它不收的那几样 ⛔ 不能把这一枪拐去参考档 —— 那样首尾帧会被当参考图发，只挂着尾帧时
+ *   尾帧还成了开头那一张（画布的轨挂不进型号不收的东西，没有这一层）。
  */
 export function resolveStudioVideoSend(
   modelId: string,
   adapterType: AI_ADAPTER_TYPES | undefined,
   load: StudioVideoLoad,
 ): StudioVideoSend {
-  const hasReference =
-    load.references.length > 0 || load.videos.length > 0 || load.audios > 0
+  const capacity = getStudioVideoCapacity(modelId, adapterType)
+  const references = capacity.references === 0 ? 0 : load.references.length
+  const videos = capacity.videos > 0 ? load.videos.length : 0
+  const audios = capacity.audios > 0 ? load.audios : 0
+  const hasReference = references > 0 || videos > 0 || audios > 0
   const mode = videoSendMode({
     firstFrame: load.first !== null,
     lastFrame: load.last !== null,
-    referenceImages: load.references.length,
-    videos: load.videos.length,
-    voices: load.audios,
+    referenceImages: references,
+    videos,
+    voices: audios,
   })
   const images = hasReference
     ? listStudioVideoImages(load).map((image) => image.url)

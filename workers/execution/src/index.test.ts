@@ -228,7 +228,12 @@ describe('Gemini Omni video execution', () => {
       expect(put).toHaveBeenCalledWith(
         'video/test.mp4',
         expect.any(ArrayBuffer),
-        { httpMetadata: { contentType: 'video/mp4' } },
+        {
+          httpMetadata: {
+            contentType: 'video/mp4',
+            cacheControl: 'public, max-age=31536000, immutable',
+          },
+        },
       )
       const callbackBodies = fetchMock.mock.calls
         .filter(([url]) => url === 'https://cb.example.com')
@@ -669,7 +674,12 @@ describe('pollAndPersistRunnerImageJob', () => {
     expect(put).toHaveBeenCalledWith(
       'image/run-1.png',
       expect.any(Uint8Array),
-      { httpMetadata: { contentType: 'image/png' } },
+      {
+        httpMetadata: {
+          contentType: 'image/png',
+          cacheControl: 'public, max-age=31536000, immutable',
+        },
+      },
     )
     const uploadedBytes = put.mock.calls[0]?.[1] as Uint8Array
     expect(uploadedBytes.byteLength).toBe(1_100_000)
@@ -2753,6 +2763,19 @@ describe('OpenAI image streaming execution', () => {
       'https://cdn.example.com/image/image-test.png',
     )
     expect(new TextDecoder().decode(put.mock.calls[1][1])).toBe('final')
+    // Without the header the CDN keeps its own defaults and re-pulls the
+    // multi-MB original from R2 every couple of hours (2026-09-27).
+    expect(put).toHaveBeenNthCalledWith(
+      2,
+      'image/image-test.png',
+      expect.any(Uint8Array),
+      {
+        httpMetadata: {
+          contentType: 'image/png',
+          cacheControl: 'public, max-age=31536000, immutable',
+        },
+      },
+    )
     const callback = JSON.parse(fetchMock.mock.calls[1][1].body)
     expect(callback).toMatchObject({
       kind: 'status',

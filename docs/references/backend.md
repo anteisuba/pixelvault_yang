@@ -87,7 +87,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - Worker 实例 ID 固定使用 `GenerationJob.id`；Worker 对重复 ID 返回既有实例。应用侧把超时、网络失败、5xx 与无效 ACK 视为“接收结果未知”，只做同 ID 有界重试，不把可能已执行的 Job 误标为确定失败。
 - 成功、失败回调与 stale reconciliation 都通过状态条件更新（CAS）竞争终态；CAS 失败后重新读取数据库真实状态。平台计费使用服务端模型目录的 `creditCost`，Worker 的 provider 请求次数不能覆盖计费单位。
 - 模型执行目录由 `model-config.service` 解析：数据库 `ModelConfig` 覆盖内置 bootstrap 配置，并把 `available`、adapter、external model ID、cost、timeout 与 provider config 一致传入实际执行面；后台变更会失效模型缓存。
-- 存储：`storage/r2.ts`（55 importers，高风险）；provider URL 只能作 ingestion source，成功作品永久保存进 R2。
+- 存储：`storage/r2.ts`（55 importers，高风险）；provider URL 只能作 ingestion source，成功作品永久保存进 R2。app 与 execution worker 写 R2 一律带 `Cache-Control: public, max-age=31536000, immutable`（worker 自 2026-09-28 起；此前 worker 写的对象走 Cloudflare 默认的边缘约 2 小时 / 浏览器 4 小时），新增写入点照此。
 
 ### 生成任务取消（2026-09-04，commit `205026c9` + 收尾）
 

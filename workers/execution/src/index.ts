@@ -155,6 +155,10 @@ const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
 const R2_WORKER_BASE = 'https://r2.anteisuba.com'
+// Same header as the app's `uploadToR2`. Without it the CDN falls back to
+// Cloudflare's defaults (edge ~2 h, browser 4 h), so every edge keeps
+// re-pulling multi-MB originals from R2. Keys written here are unique per run.
+const R2_OBJECT_CACHE_CONTROL = 'public, max-age=31536000, immutable'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
@@ -168,7 +172,9 @@ interface R2Bucket {
   put(
     key: string,
     value: ArrayBuffer | ArrayBufferView | ReadableStream | string,
-    options?: { httpMetadata?: { contentType?: string } },
+    options?: {
+      httpMetadata?: { contentType?: string; cacheControl?: string }
+    },
   ): Promise<{ key: string }>
 }
 
@@ -1796,7 +1802,10 @@ async function downloadAndUploadRodinGlb(
   const glbR2Key = `3d/${context.runId}/${rodin.jobUuid}.glb`
 
   await env.GENERATION_BUCKET.put(glbR2Key, glbBuffer, {
-    httpMetadata: { contentType: 'model/gltf-binary' },
+    httpMetadata: {
+      contentType: 'model/gltf-binary',
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return { artifactUrl: `${env.R2_PUBLIC_URL}/${glbR2Key}`, glbR2Key }
@@ -1927,7 +1936,10 @@ async function downloadAndUploadModel3DArtifact(
   const glbR2Key = `3d/${context.runId}/model.glb`
 
   await env.GENERATION_BUCKET.put(glbR2Key, buffer, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -3156,7 +3168,10 @@ async function submitFishAudio(
     `generations/worker/audio/${context.runId}/output.${outputFormat}`
 
   await env.GENERATION_BUCKET.put(audioR2Key, parsed.audioBytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -3195,7 +3210,10 @@ async function downloadAndUploadAudioArtifact(
     `generations/worker/audio/${context.runId}/output.${outputFormat}`
 
   await env.GENERATION_BUCKET.put(audioR2Key, audioBytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -3253,7 +3271,10 @@ async function downloadAndUploadVideoArtifactToKey(
   const videoBytes = await response.arrayBuffer()
 
   await env.GENERATION_BUCKET.put(videoR2Key, videoBytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -5284,7 +5305,10 @@ async function downloadAndUploadImageArtifactToKey(
     response.headers.get('content-type')?.split(';')[0] ?? fallbackMimeType
 
   await env.GENERATION_BUCKET.put(imageR2Key, imageBytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -5347,7 +5371,10 @@ async function uploadImageBytesToKey(
   imageR2Key: string,
 ): Promise<{ artifactUrl: string; imageR2Key: string; mimeType: string }> {
   await env.GENERATION_BUCKET.put(imageR2Key, bytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {
@@ -7720,7 +7747,10 @@ export async function generateOpenAIImage(
         try {
           const previewKey = `image/previews/${context.runId}/${index}.png`
           await env.GENERATION_BUCKET.put(previewKey, base64ToBytes(base64), {
-            httpMetadata: { contentType: 'image/png' },
+            httpMetadata: {
+              contentType: 'image/png',
+              cacheControl: R2_OBJECT_CACHE_CONTROL,
+            },
           })
           if (env.INTERNAL_CALLBACK_SECRET) {
             await postSignedJson(
@@ -7756,7 +7786,10 @@ export async function generateOpenAIImage(
   const mimeType = 'image/png'
   const r2Key = providerInput.outputStorageKey ?? `image/${context.runId}.png`
   await env.GENERATION_BUCKET.put(r2Key, bytes, {
-    httpMetadata: { contentType: mimeType },
+    httpMetadata: {
+      contentType: mimeType,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
   })
 
   return {

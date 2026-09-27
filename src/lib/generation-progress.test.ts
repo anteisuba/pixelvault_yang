@@ -6,6 +6,7 @@ import jaMessages from '@/messages/ja.json'
 import zhMessages from '@/messages/zh.json'
 
 import {
+  buildGenerationEdgePath,
   computeEstimatedGenerationProgress,
   getGeneratingStageKey,
   resolveGeneratingStageKey,
@@ -192,5 +193,42 @@ describe('执行阶段 × 三语文案', () => {
     )
     expect(keys[1]).toEqual(keys[0])
     expect(keys[2]).toEqual(keys[0])
+  })
+})
+
+/**
+ * 加载态 A「边即进度」：进度走的就是卡片自己的边 —— 从上沿正中起顺时针一圈，
+ * 压在盒子外侧半个线宽上（与画布选中环同一处）。
+ */
+describe('buildGenerationEdgePath', () => {
+  it('从上沿正中起、顺时针一圈回到原点，线压在盒子外侧半个线宽', () => {
+    expect(
+      buildGenerationEdgePath({ width: 200, height: 100, radius: 10 }, 1.5),
+    ).toBe(
+      'M 100 -0.75 H 190 A 10.75 10.75 0 0 1 200.75 10 V 90 ' +
+        'A 10.75 10.75 0 0 1 190 100.75 H 10 A 10.75 10.75 0 0 1 -0.75 90 ' +
+        'V 10 A 10.75 10.75 0 0 1 10 -0.75 H 100',
+    )
+  })
+
+  it('小格子的圆角不超过半边长（⛔ 画成交叉的弧）', () => {
+    const path = buildGenerationEdgePath({ width: 12, height: 12, radius: 20 })
+    // 半边长 = (12 + 1.5) / 2 = 6.75
+    expect(path).toContain('A 6.75 6.75')
+    expect(path.startsWith('M 6 -0.75')).toBe(true)
+  })
+
+  it('宿主整块裁切时收进盒子里半个线宽（手机镜头卡）', () => {
+    expect(
+      buildGenerationEdgePath(
+        { width: 200, height: 100, radius: 10 },
+        1.5,
+        'inside',
+      ),
+    ).toBe(
+      'M 100 0.75 H 190 A 9.25 9.25 0 0 1 199.25 10 V 90 ' +
+        'A 9.25 9.25 0 0 1 190 99.25 H 10 A 9.25 9.25 0 0 1 0.75 90 ' +
+        'V 10 A 9.25 9.25 0 0 1 10 0.75 H 100',
+    )
   })
 })

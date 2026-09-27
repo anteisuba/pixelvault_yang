@@ -94,15 +94,33 @@ export const PROGRESS_TICK_MS = 500
  */
 export const STAGE_LABEL_CROSSFADE_OUT_MS = 120
 
-/** CSS transition durations for the "closing the frame" completion beat. */
+/**
+ * Completion beat of 加载态 A「边即进度」(owner 2026-09-27, design canvas
+ * 「加载态 A · 全部状态」): the line fills up and closes on the card's edge,
+ * holds a beat, then the chrome fades while the media blurs in underneath.
+ */
 export const GENERATION_COMPLETE_ANIMATION = {
-  /** stroke-dashoffset → 0, var(--ease-standard) */
-  closeMs: 260,
-  /** pause once the frame is closed, before the whole chrome fades */
+  /** the edge line runs to 100% and closes — linear, like the progress itself */
+  closeMs: 240,
+  /** pause once the line is closed, before the chrome leaves */
   holdMs: 140,
-  /** chrome (frame + digits + params row) opacity fade, overlaps image-in */
-  fadeMs: 320,
+  /** line + digits fade; on a selected canvas card the ring is already there underneath */
+  fadeMs: 200,
 } as const
+
+/**
+ * Width of the progress line — the same as the canvas node's selected ring
+ * (`node-selected-ring`, 1.5px), so a full line lands exactly on the ring.
+ */
+export const GENERATION_EDGE_STROKE_PX = 1.5
+
+/**
+ * A box narrower than this shows only the percent (the stage word goes to
+ * screen readers). Same threshold as `--container-4xs` in globals.css — the
+ * CSS side is a container query; the canvas side has to compute it from the
+ * zoom, because the canvas scales with a transform.
+ */
+export const GENERATION_NARROW_BOX_PX = 160
 
 export const GENERATION_COMPLETE_TOTAL_MS =
   GENERATION_COMPLETE_ANIMATION.closeMs +

@@ -7,13 +7,13 @@
  * 五态：**空卡**（16:9 虚线框 + 一句提示，⌘V / 拖入都落进这张卡）· **有片收起**
  * （卡即封面、右下角只有时长；悬停静音自动播 + 底部细进度线 + 右上静音标）·
  * **选中**（工具条 `续拍 · 抽帧 · 下载 · ⋯` 浮在卡上，版本点 + 已挂小 chip + 提示词栏
- * 浮在卡下）· **生成中**（裱框显影 + 栏变灰可取消）· **展开**（画中框 720：播放器 +
+ * 浮在卡下）· **生成中**（边即进度 + 栏变灰可取消）· **展开**（画中框 720：播放器 +
  * 镜头说明 + 生成行 + 写作助手栏）。**双击 = 展开**；快速看片走空格与 ⋯ 菜单
  * （2026-09-10 owner 真机反馈第四条）。
  *
  * ── 四条纪律 ────────────────────────────────────────────────────────────
  * ① **壳全部来自 `chrome/`**：卡骨架 / 工具条 / 提示词栏 / chip 弹层 / 版本点 /
- *    裱框显影 / 快速看 / 画中框。⛔ 这里不复制任何一件的形态。
+ *    边即进度 / 快速看 / 画中框。⛔ 这里不复制任何一件的形态。
  * ② **卡面不显示槽**（spec §5）：已挂的首帧 / 尾帧 / 语音只在提示词栏首行那排小
  *    chip 上出现。
  * ③ **语义写入走 op**（`onApplyOp` / `onApplyBatch`）；媒体回填走 `onSetMedia`
@@ -71,6 +71,7 @@ import type { NodeV4VideoData } from '@/types/node-workflow'
 import {
   NodeCardShell,
   NodeFrameProgress,
+  useNodeProgressNarrow,
   NodePromptBar,
   NodeToolbar,
   QuickLook,
@@ -245,6 +246,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     window.addEventListener('paste', onPaste, true)
     return () => window.removeEventListener('paste', onPaste, true)
   }, [selected, canvas.selectedNodeIds.length, runUpload])
+
+  // 卡宽恒是收起宽度 —— 在提前返回之前取（hook 不能跟着 `node` 有无走）。
+  const progressNarrow = useNodeProgressNarrow(NODE_V4_CARD.collapsedWidth)
 
   if (!node) return null
 
@@ -529,6 +533,28 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         renameRequest={renameRequest}
         selected={Boolean(selected)}
+        edgeBusy={generating || selfUploading}
+        edgeOverlay={
+          generating ? (
+            <NodeFrameProgress
+              elapsedSeconds={elapsed}
+              stageLabel={tStage(
+                `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
+              )}
+              hideStageLabel={progressNarrow}
+            />
+          ) : selfUploading ? (
+            // 换本片的上传也走同一条边（owner 真机反馈第七条）——⛔ 不让卡在上传的那几秒里一动不动。
+            <NodeFrameProgress
+              elapsedSeconds={0}
+              realProgress={uploadProgress}
+              stageLabel={tVideo('rail.uploading', {
+                name: displayName,
+              })}
+              hideStageLabel={progressNarrow}
+            />
+          ) : undefined
+        }
         expanded={expanded}
         width={width}
         emptyHint={t('chrome.emptyHint')}
@@ -692,25 +718,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               </p>
             )}
 
-            {generating && (
-              <NodeFrameProgress
-                elapsedSeconds={elapsed}
-                stageLabel={tStage(
-                  `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
-                )}
-              />
-            )}
-
-            {/* 换本片的上传也走裱框显影（owner 真机反馈第七条）——⛔ 不让卡
-                在上传的那几秒里一动不动。 */}
-            {!generating && selfUploading && (
-              <NodeFrameProgress
-                elapsedSeconds={0}
-                realProgress={uploadProgress}
-                stageLabel={tVideo('rail.uploading', {
-                  name: displayName,
-                })}
-              />
+            {/* 重画已有片：旧片留着，盖一层白纱（加载态 A）；进度线在卡边那一层。 */}
+            {generating && videoData.url && (
+              <div aria-hidden className="absolute inset-0 bg-background/60" />
             )}
           </div>
         ) : undefined}

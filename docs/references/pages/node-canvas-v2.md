@@ -64,7 +64,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 6. **模型选择器走方案 A**（`ModelPickerPopover`）：列表只有型号，系列退成分组标题，顶部「最近」+ 搜索；行第二行显示自动选中的渠道与单价（规则：自己的 key ＞ 平台免费额度 ＞ 最便宜，实现是纯函数 `resolveModelChannel`）；多渠道的行尾出「N 渠道」点开行内单选并**按型号记住**，chip 只显示型号名、手改渠道才附「· 渠道」；缺 key 的型号灰显可点，点了进内联配置（Hard Rule 8）。音频栏用同一份行、只换分组维度（`groupBy='kind'`：语音 / 配乐 / 音效），⛔ 不为音频另写一份列表。同一套也替换 studio/image 的三栏对话框。
 7. **@ 引用**：正文里 @ 图 / 视频 / 语音 / 角色卡 / 文本节点，渲染成带 16px 缩略（语音为波形小标）的灰底 chip，可整体退格删除。@ 是把素材挂到槽上的主路径之一（§8.2）。
 8. **版本 = 卡下一排小点**（选中态可见），←→ 或点切换；连线永远拿当前版本；旧版本可在 ⋯ 里拆成独立卡。**产出版本表是槽版本之外的第二套东西**，别混：见 §9.2 与 §14。
-9. **生成中 = 裱框显影**（同 studio/image）：沿卡边描边进度环 + 中心大百分比 + 阶段文案，45s 后呼吸态，完成时描边收拢 → 停 → 内容缩放淡入；提示词栏收起变灰并可取消。矮卡（音频）例外：波形位置走一条进度线 + 百分比。
+9. **生成中 = 边即进度**（加载态 A，owner 2026-09-27，与工作台同一件，见 `loading.md`）：卡边退成浅灰轨道，前景色线从上沿正中顺时针走，与选中环同一处同一粗细（卡壳 `edgeBusy` 把环 / 细灰边交出去，线画在 `edgeOverlay`）；中心中号百分比 + 阶段文案，卡在屏幕上窄于 160px 只写百分比；重画已有图盖一层白纱。完成时线合拢 → 停 → 淡出，环 / 细灰边在底下回来；失败时线停住变灰、中间就地说原因 +「重试」（⛔ 红框）。提示词栏收起变灰并可取消。矮卡（音频）例外：波形位置走一条进度线 + 百分比。
 10. **双击 = 编辑 / 展开 / 快速看**：文本卡双击正文 = 原地编辑，工具条展开 = 全屏文档；视频卡双击 = 展开画中框；图片卡双击 = 快速看图（原比例居中的大图，只有版本、下载、关闭，没有参数）；快速看片走空格 / ⋯ 菜单。Esc 或点空白关闭。**提示词栏、参考轨、工具条内的双击不冒泡到卡片**（四类卡通用，2026-09-10 owner 定）。
 11. **展开 = 画中框**（仅文本与视频）：节点原地不动并保持选中环，框居中浮起，画布压暗；框顶只有名字与关闭；框底是这类节点自己的生成行；最底一条只属于写作助手（LLM），**两种模型不混**。展开是**画布级唯一状态**（`expandedNodeId`），⛔ 不新增第二份。
 12. 动效：展开 / 收起 / 让位走弹簧三档，hover 与颜色走 `--duration-fast|base`；**浮层用玻璃材质，卡面不透明**——画布上可能同时有上百张卡，`backdrop-filter` 只给浮层（工具条 / 右键菜单 / 媒体 transport / 提示词栏 / 移动端浮动条）。
@@ -105,7 +105,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 - 选中：工具条 `展开 · 续拍 · 抽帧 · 下载 · ⋯`（展开 = 画中框，右键菜单同项保留）。续拍 = 以最后一帧为首帧新建下一段并连线；抽帧 = 截当前画面落成图片节点并连线指回。⋯ = 改名 / 复制这张视频卡 / 拆出当前版本 / **来源（只读）** / 删除——「来源」与音频卡同一条规矩（§4 末），今天写它的只有剪辑台成片（`source.kind = 'render'`）。
 - 提示词栏：`+`（上传 / 图 / 视频 / 语音 / @ / 素材库）· 词 · chip `全能参考 · 15s · 16:9 · 720p`（模式只读 / **时长滑杆**（按模型档位吸附、两端写最小最大、拇指带读数；⛔ 不做分段控件）/ 比例 / 清晰度 / **生成声音开关**，开着时 chip 尾显示「· 有声」；底部读数带每组 已挂 / 上限）· chip `模型`。**参数 chip 永不为空**：新卡即带默认模型（与图片卡同一条 `resolveModelChannel`），没模型时 chip 写「选模型」、点开就是模型选择器；模型没有的档灰掉不藏。
 - 展开（画中框，720 宽）：上半大播放器（进度 / 声音 / 抽帧 / 下载，版本小点）；下半正文编辑区（**无「镜头说明」标题**，1px 边 / 14 圆角 / 浅阴影圈出，点即编辑；`@` 弹候选：画布上的卡按类分组 + 轨上序号项），**@ 直接指定首帧 / 尾帧 / 语音 / 参考**（不设槽位行）；说明页脚 = 视频参数 chip + 视频模型 chip + 「重新生成 ⌘↵」；最底一条只属于写作助手（改写 / 续写 / 写作模型）。
-- 生成中裱框显影，视频有真实进度就用真实的。
+- 生成中边即进度，视频有真实进度就用真实的。
 - 双击 = 展开；快速看片（播放器只有播放 / 进度 / 声音 / 下载 / 关闭，←→ 切版本）走选中态空格键或 ⋯ 菜单。
 - **不做合成节点**。多段合成去剪辑台（§6）；`video.merge` 已退役，见 §8.6。
 
@@ -160,7 +160,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 - **不摆自由画布**：< 768 宽时画布路由渲染**镜头带视图**（替换 2026-08-26 的只读覆盖层 `CanvasMobileView`）。顶部项目胶囊 + 助手星标（→ 全屏对话页）；分段 `镜头 / 图 / 语音 / 文本` 切四个列表。
 - **镜头列表**：纵向一条带，顺序 = 桌面镜头带序 = 剪辑台顺序；每张卡 = 封面（悬停播改成点封面播）+ 名字 + 模型 + **参考条**（图 · 视频 · 语音 44px 缩略横滑，末尾加号）+ 时长角标。参考条就是连线：加 = 从各自列表 / 相册选并连槽，长按 = 移除；不拖线。
-- **点卡 → 底部抽屉**（拖手柄，半屏 / 全屏两档）：名字 + 版本读数 · 参考轨（同桌面 `VideoRefRail`）· 提示词（多行）· 参数 chip（同桌面弹层，改成 sheet）· 模型 chip · 生成键；生成中卡上走裱框显影。图 / 语音 / 文本卡的抽屉同理（各自的提示词栏内容）。
+- **点卡 → 底部抽屉**（拖手柄，半屏 / 全屏两档）：名字 + 版本读数 · 参考轨（同桌面 `VideoRefRail`）· 提示词（多行）· 参数 chip（同桌面弹层，改成 sheet）· 模型 chip · 生成键；生成中卡上走边即进度。图 / 语音 / 文本卡的抽屉同理（各自的提示词栏内容）。
 - **右下 FAB**：新建镜头 / 上传（系统相册 / 文件）。
 - **剪辑台只看不剪**：手机上打开剪辑台 = 只读时间线 + 预览 + 导出进度 + 下载成片；剪辑操作留在桌面。
 - 手机上做的一切改动落成普通节点与边，回桌面即画布；⛔ 不另设数据。
@@ -554,7 +554,7 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 ## Source of Truth
 
 - 分类与端口：`src/constants/node-types.ts` · `src/constants/node-slots.ts` · `src/constants/canvas-add-catalog.ts` · `src/constants/node-studio.ts`（`NODE_V4_CARD` / `NODE_V4_SNAPSHOT` / `NODE_V4_SUBTYPE_LABELS` / `NODE_V4_OUTPUT_VERSION`）
-- 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 裱框显影 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
+- 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 边即进度 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
 - 模型选择器：`src/components/business/studio-shared/pickers/ModelPickerPopover.tsx` · `ModelChip.tsx` · `src/lib/resolve-model-channel.ts` · `src/lib/group-models-for-picker.ts` · `src/hooks/use-model-picker-memory.ts` · `src/constants/model-picker.ts`
 - 剪辑台：`src/components/business/node/edit-desk/**` · `src/hooks/node/use-edit-desk.ts` · `src/hooks/node/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
 - 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema` / `NodeV4ReferenceSlotSchema`（`src/types/node-workflow.ts`）

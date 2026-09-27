@@ -143,6 +143,9 @@
   --width-studio-sidebar: 13rem;
   /* 画布节点卡密度（baseline §3 / 草稿 fill-5）：默认 400px。 */
   --width-node-card: 25rem;
+  /* 生成进度的「窄格」门槛（加载态 A，owner 2026-09-27）：格子窄于 160px 只写百分比，
+     阶段词只给读屏 —— `@max-4xs/progress:`。 */
+  --container-4xs: 10rem;
   /* ⚠ 这里原有三个 token 已删（2026-08-04，S2）：--width-node-card-expanded、
      --width-node-detail-panel、--width-node-detail-panel-wide。三者全仓零消费者
      （grep 核过），且「宽版/窄版详情面板」这个分法早已不存在 —— 方向 E 的面板是
@@ -2121,48 +2124,41 @@ html:lang(ja) {
   }
 }
 
-/* ── Studio generating — "裱框显影" progress frame ─────────────────
-   docs/references/loading.md. Shared by GenerationPreview's
-   placeholder + image/video/audio regenerate overlays via
-   StudioGeneratingProgress. rx/ry read a per-instance custom property so
-   the frame can hug either rounded-xl or rounded-2xl art boxes. */
-.studio-generation-frame-track,
-.studio-generation-frame {
+/* ── Studio generating — 加载态 A「边即进度」──────────────────────────
+   docs/references/loading.md · owner 2026-09-27（设计画布「加载态 A · 全部状态」）。
+   只有一条线：卡片自己的边在生成时退成浅灰轨道，黑线从上沿正中顺时针走，走满
+   就是卡片原来的边（画布选中环同一处、同一粗细）。路径由
+   `buildGenerationEdgePath` 按盒子实测尺寸算，配 `pathLength=100`。
+   ⛔ 不再有第二个框、内圈或 45 秒后的呼吸 —— 等太久只让线继续慢慢爬。 */
+.studio-generation-edge-track,
+.studio-generation-edge {
   fill: none;
-  rx: var(--studio-generation-frame-radius, var(--radius-xl));
-  ry: var(--studio-generation-frame-radius, var(--radius-xl));
+  stroke-width: 1.5;
 }
 
-.studio-generation-frame-track {
-  x: 0.5px;
-  y: 0.5px;
-  width: calc(100% - 1px);
-  height: calc(100% - 1px);
-  stroke: oklch(from var(--border) l c h / 0.6);
-  stroke-width: 1;
+.studio-generation-edge-track {
+  stroke: var(--surface-fill-track);
 }
 
-.studio-generation-frame {
-  x: 1px;
-  y: 1px;
-  width: calc(100% - 2px);
-  height: calc(100% - 2px);
-  stroke: oklch(from var(--primary) l c h / 0.85);
-  stroke-width: 2;
+.studio-generation-edge {
+  stroke: var(--foreground);
   stroke-linecap: round;
 }
 
+/* 失败：线停在原处变灰（⛔ 红框）。 */
+.studio-generation-edge--stopped {
+  stroke: color-mix(in oklab, var(--foreground) 36%, transparent);
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .studio-generation-frame {
-    transition: stroke-dashoffset 600ms linear;
+  .studio-generation-edge {
+    transition:
+      stroke-dasharray 600ms linear,
+      stroke var(--duration-fast) linear;
   }
 
-  .studio-generation-frame--closing {
-    transition: stroke-dashoffset 260ms var(--ease-standard);
-  }
-
-  .studio-generation-frame--waiting {
-    animation: studio-generation-frame-breathe 2.6s ease-in-out infinite;
+  .studio-generation-edge--closing {
+    transition: stroke-dasharray 240ms linear;
   }
 
   .studio-generation-stage-in {
@@ -2171,16 +2167,6 @@ html:lang(ja) {
 
   .studio-generation-stage-out {
     animation: studio-generation-stage-out 120ms ease-out both;
-  }
-}
-
-@keyframes studio-generation-frame-breathe {
-  0%,
-  100% {
-    opacity: 0.85;
-  }
-  50% {
-    opacity: 0.55;
   }
 }
 

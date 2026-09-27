@@ -243,6 +243,13 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'loading-a',
+    key: 'loading-a',
+    title: '加载态 A · 边即进度（生成中 / 出图 / 失败 / 窄格）',
+    items: [],
+    selectedIndex: null,
+  },
+  {
     kind: 'empty-state',
     key: 'empty-state-trio',
     title: '空态模板 · 三态（双动作 / 单动作 / 只说明）',

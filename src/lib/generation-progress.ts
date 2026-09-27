@@ -1,4 +1,5 @@
 import {
+  GENERATION_EDGE_STROKE_PX,
   GENERATION_STAGE_PROGRESS,
   isExecutionProgressStage,
   WAITING_ASYMPTOTE,
@@ -129,4 +130,55 @@ export function resolveGenerationProgress({
     ...estimated,
     stageKey: resolveGeneratingStageKey(elapsedSeconds, executionStage),
   }
+}
+
+/** 线压在盒子边外（与画布选中环重合，默认）还是收在边内（宿主裁切时）。 */
+export type GenerationEdgePlacement = 'outside' | 'inside'
+
+export interface GenerationEdgeBox {
+  /** Layout width / height of the art box the line runs around (px). */
+  width: number
+  height: number
+  /** The box's corner radius (px). */
+  radius: number
+}
+
+/**
+ * 加载态 A「边即进度」的那条路（owner 2026-09-27）：沿着卡片自己的边，**从上沿正中
+ * 起顺时针一圈回到原点**。配 `pathLength={100}`，进度就是 `stroke-dasharray: p 100`。
+ *
+ * ⚠ 路径压在盒子**外侧**半个线宽：线的内沿贴着盒子边，与画布选中环
+ *   （`outline` 1.5px、offset 0，画在边外）落在同一处 —— 线走满时就是那圈环，
+ *   换过去看不出接缝。圆角跟着外扩半个线宽，与环的外轮廓同心。
+ */
+export function buildGenerationEdgePath(
+  { width, height, radius }: GenerationEdgeBox,
+  strokeWidth: number = GENERATION_EDGE_STROKE_PX,
+  placement: GenerationEdgePlacement = 'outside',
+): string {
+  // `inside`：宿主整块裁切（手机镜头卡的外壳 `overflow-hidden`），边外那半圈会被
+  // 裁掉 —— 线收进盒子里半个线宽，圆角同心内缩。
+  const half = placement === 'outside' ? strokeWidth / 2 : -strokeWidth / 2
+  const left = -half
+  const top = -half
+  const right = width + half
+  const bottom = height + half
+  const r = Math.max(
+    0,
+    Math.min(radius + half, (right - left) / 2, (bottom - top) / 2),
+  )
+  const n = (value: number) => Number(value.toFixed(2))
+  const mid = n(width / 2)
+  return [
+    `M ${mid} ${n(top)}`,
+    `H ${n(right - r)}`,
+    `A ${n(r)} ${n(r)} 0 0 1 ${n(right)} ${n(top + r)}`,
+    `V ${n(bottom - r)}`,
+    `A ${n(r)} ${n(r)} 0 0 1 ${n(right - r)} ${n(bottom)}`,
+    `H ${n(left + r)}`,
+    `A ${n(r)} ${n(r)} 0 0 1 ${n(left)} ${n(bottom - r)}`,
+    `V ${n(top + r)}`,
+    `A ${n(r)} ${n(r)} 0 0 1 ${n(left + r)} ${n(top)}`,
+    `H ${mid}`,
+  ].join(' ')
 }

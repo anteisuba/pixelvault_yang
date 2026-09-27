@@ -59,6 +59,7 @@ export {
 export { VersionDots, type VersionDotsProps } from './VersionDots'
 export {
   NodeFrameProgress,
+  useNodeProgressNarrow,
   type NodeFrameProgressProps,
 } from './NodeFrameProgress'
 export { QuickLook, type QuickLookProps } from './QuickLook'

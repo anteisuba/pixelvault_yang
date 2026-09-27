@@ -4,16 +4,17 @@
  * 手机镜头带上的**一张镜头卡**（画板 `MobileCanvas.dc.html` 方向 A 的 `.shot`）。
  *
  * 封面（点封面播 / 暂停）+ 名字 + 模型名 + 参考条 + 右下时长角标。
- * 点卡面以外的地方 = 打开底部抽屉；生成中卡上走裱框显影（与桌面同一件
+ * 点卡面以外的地方 = 打开底部抽屉；生成中卡上走边即进度（与桌面同一件
  * `NodeFrameProgress`）。
  *
  * ⛔ 这张卡不发生成、不写提示词 —— 那些在抽屉里。
  */
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Pause, Play } from '@/components/icons'
 
+import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -54,6 +55,17 @@ export function MobileShotCard({
     ? formatShotDisplayName(data.label ?? data.name, data.shotNo)
     : data.name
   const generating = Boolean(data.mediaJobId)
+  // 在飞的这一单从卡挂上起计时（与画布卡同一做法：刷新之后也从 0 起估）——
+  // ⛔ 写死 0，那样进度线一动不动。
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!generating) return
+    const begin = Date.now()
+    const tick = () => setElapsed((Date.now() - begin) / 1000)
+    tick()
+    const timer = window.setInterval(tick, PROGRESS_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [generating])
   const rail = useVideoRailBinding({
     id: node.id,
     displayName,
@@ -144,11 +156,13 @@ export function MobileShotCard({
           </span>
         ) : null}
         {generating ? (
+          // 整张卡 `overflow-hidden`：线收进封面边内（边外那半圈会被裁掉）。
           <NodeFrameProgress
-            elapsedSeconds={0}
+            elapsedSeconds={elapsed}
             stageLabel={tStage(
-              `generatingOverlayStages.${getGeneratingStageKey(0)}` as const,
+              `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
             )}
+            edgePlacement="inside"
           />
         ) : null}
       </div>

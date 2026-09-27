@@ -51,6 +51,18 @@ export interface NodeCardShellProps {
   readonly changed?: boolean
   /** 展开态标记：只换阴影档并抬 z，让位是引擎的事。 */
   readonly expanded?: boolean
+  /**
+   * 生成中：卡边交给进度线（加载态 A「边即进度」，owner 2026-09-27）—— 细灰边与
+   * 选中环都退掉，由 `NodeFrameProgress` 的浅灰轨道 + 前景色线占住同一处；线走满
+   * 合拢后宿主放开，环 / 细灰边在淡出的线底下回来，看不出接缝。
+   */
+  readonly edgeBusy?: boolean
+  /**
+   * 压在卡边上的那一层（生成进度）。⚠ 不放进卡面：卡面 `overflow-hidden`，而进度线
+   * 压在边外半个线宽上（与选中环同一处），放进去会被裁掉。这一层与卡面同一个盒子、
+   * 不裁切，端口点仍在它上面。
+   */
+  readonly edgeOverlay?: ReactNode
   readonly width?: number
   /** 卡面内容。给了它就不是空态。 */
   readonly children?: ReactNode
@@ -90,6 +102,8 @@ export function NodeCardShell({
   selected = false,
   changed = false,
   expanded = false,
+  edgeBusy = false,
+  edgeOverlay,
   width,
   children,
   emptyHint,
@@ -161,14 +175,14 @@ export function NodeCardShell({
             expanded ? 'shadow-node-card-expanded' : 'shadow-node-card',
             // 选中环走 `node-selected-ring`（globals.css 的工具类，`outline`
             // 实现）——卡影已经占了 `box-shadow`，⛔ 不要再拿 shadow 类叠环。
-            selected && 'node-selected-ring',
+            selected && !edgeBusy && 'node-selected-ring',
             // 拖线中（spec §1.13）：收得下 = 发光，收不下 = 压暗。
             connect.connecting && connect.legal && 'node-card-glow',
             connect.connecting && !connect.legal && 'node-card-dim',
             rejected && 'node-card-reject',
             empty
               ? 'border border-dashed border-border'
-              : selected
+              : selected || edgeBusy
                 ? 'border border-transparent'
                 : 'border border-border',
             surfaceClassName,
@@ -200,6 +214,14 @@ export function NodeCardShell({
             children
           )}
         </div>
+        {edgeOverlay ? (
+          <div
+            data-node-card-edge
+            className="pointer-events-none absolute inset-0"
+          >
+            {edgeOverlay}
+          </div>
+        ) : null}
         {ports ?? (portSpec && <NodePorts {...portSpec} nodeId={nodeId} />)}
       </div>
     </div>

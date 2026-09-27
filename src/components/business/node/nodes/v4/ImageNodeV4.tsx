@@ -6,12 +6,12 @@
  *
  * 五态：**空卡**（虚线框 + 加号 + 一句提示，⌘V / 拖入都落进这张卡）· **有图收起**
  * （卡即图、按真实比例、名字在卡外，⛔ 无角标、无槽、无卡头）· **选中**（工具条浮
- * 在卡上、提示词栏浮在卡下、版本点在中间）· **生成中**（裱框显影 + 栏变灰可取消）
+ * 在卡上、提示词栏浮在卡下、版本点在中间）· **生成中**（边即进度 + 栏变灰可取消）
  * · **快速看**（双击，原比例大图 + 版本 + 下载）。
  *
  * ── 三条纪律 ────────────────────────────────────────────────────────────
  * ① **壳全部来自 `chrome/`**：卡骨架 / 工具条 / 提示词栏 / chip 弹层 / 版本点 /
- *    裱框显影 / 快速看。⛔ 这里不复制任何一件的形态。
+ *    边即进度 / 快速看。⛔ 这里不复制任何一件的形态。
  * ② **语义写入走 op**（`canvas.onApplyOp`）；媒体回填走 `canvas.onSetMedia`
  *    （上传与生成都是用户的动作，⛔ 助手不许塞 URL —— op 表 §5 纪律 1）。
  * ③ **参数与模型走 `onSetParams` / `onSetModel`**，⛔ 不在组件里存一份影子状态。
@@ -70,6 +70,7 @@ import {
   NodeCardShell,
   portSpecOf,
   NodeFrameProgress,
+  useNodeProgressNarrow,
   NodePromptBar,
   NodeToolbar,
   QuickLook,
@@ -178,7 +179,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         )
       : undefined
 
-  // 计时只在生成中跑：裱框显影的百分比是**估算曲线**读它算的
+  // 计时只在生成中跑：边即进度的百分比是**估算曲线**读它算的
   // （`generation-progress`），⛔ 不常驻一个每 500ms 醒一次的定时器。
   useEffect(() => {
     // ⚠ 不生成时**不清零**：清零要在 effect 里 setState，那是一次级联渲染，而这个
@@ -272,6 +273,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   }, [selected, canvas.selectedNodeIds.length, runUpload])
 
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
+  // 卡在屏幕上窄没窄（画布缩放）—— 在提前返回之前取：hook 不能跟着 `node` 有无走。
+  const progressNarrow = useNodeProgressNarrow(
+    imageData.url
+      ? collapsedImageWidth(imageData)
+      : NODE_V4_CARD.collapsedWidth,
+  )
+
   if (!node) return null
 
   const mentionTokens = buildMentionTokens(canvas.nodes, id).filter(
@@ -613,6 +621,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         renameRequest={renameRequest}
         selected={Boolean(selected)}
+        edgeBusy={generating}
+        edgeOverlay={
+          generating ? (
+            <NodeFrameProgress
+              elapsedSeconds={elapsed}
+              stageLabel={tStage(
+                `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
+              )}
+              hideStageLabel={progressNarrow}
+            />
+          ) : undefined
+        }
         width={width}
         emptyHint={t('chrome.emptyHint')}
         emptyAddAriaLabel={tImage('add.upload')}
@@ -660,13 +680,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 {t('generateDesk.failed', { reason: failureMessage })}
               </p>
             )}
+            {/* 重画已有图：旧图留着，盖一层白纱（加载态 A）；进度线在卡边那一层。 */}
             {generating && (
-              <NodeFrameProgress
-                elapsedSeconds={elapsed}
-                stageLabel={tStage(
-                  `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
-                )}
-              />
+              <div aria-hidden className="absolute inset-0 bg-background/60" />
             )}
           </div>
         ) : pendingUpload || upload.isUploading ? (
@@ -684,14 +700,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             data-image-surface="pending"
             className="relative"
             style={{ height: emptyCardHeight(width) }}
-          >
-            <NodeFrameProgress
-              elapsedSeconds={elapsed}
-              stageLabel={tStage(
-                `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
-              )}
-            />
-          </div>
+          />
         ) : undefined}
       </NodeCardShell>
 

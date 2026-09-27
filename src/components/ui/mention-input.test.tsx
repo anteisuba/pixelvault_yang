@@ -142,3 +142,23 @@ describe('MentionInput · 没有缩略图的胶囊', () => {
     expect(video?.querySelector('svg polygon')).not.toBeNull()
   })
 })
+
+describe('MentionInput · 这一枪不发的胶囊', () => {
+  it('`dimmed` 的胶囊变淡；存储不变（序列化照旧读字面量）', () => {
+    const { container } = render(
+      <MentionInput
+        value="照 视频1 的运镜，配上 音频1"
+        onValueChange={vi.fn()}
+        tokens={[
+          { name: '视频1', kind: 'video', literal: true, dimmed: true },
+          { name: '音频1', kind: 'voice', literal: true },
+        ]}
+        aria-label="editor"
+      />,
+    )
+    const video = container.querySelector('[data-mention="视频1"]')
+    const voice = container.querySelector('[data-mention="音频1"]')
+    expect(video).toHaveClass('opacity-45')
+    expect(voice).not.toHaveClass('opacity-45')
+  })
+})

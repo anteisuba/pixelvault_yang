@@ -7,6 +7,7 @@ import {
   getStudioVideoCapacity,
   getStudioVideoTokenFormat,
   listStudioVideoImages,
+  planStudioVideoSend,
   resolveStudioVideoSend,
 } from './video-workbench-slots'
 
@@ -132,6 +133,92 @@ describe('resolveStudioVideoSend', () => {
       { ...EMPTY, audios: 1 },
     )
     expect(send.modelId).toBe(AI_MODELS.HAPPYHORSE_10)
+  })
+})
+
+/**
+ * 这一枪实际发什么、哪些这次不发（owner 2026-09-27 视频台 A：⛔ 不静默丢）。
+ * 发送口与素材排读同一份 —— 这里钉住「说的 = 发的」。
+ */
+describe('planStudioVideoSend', () => {
+  it('首尾帧都在：两张都发，没有不发的', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      {
+        ...EMPTY,
+        first: 'https://cdn.example.com/f.png',
+        last: 'https://cdn.example.com/l.png',
+      },
+    )
+    expect(plan.images).toEqual([
+      'https://cdn.example.com/f.png',
+      'https://cdn.example.com/l.png',
+    ])
+    expect(plan.unsent).toEqual({
+      lastWithoutFirst: false,
+      images: [],
+      videos: [],
+      audioFrom: 0,
+    })
+  })
+
+  it('只挂了尾帧：说「尾帧要和首帧一起才发得出去」，那一张算不发', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      { ...EMPTY, last: 'https://cdn.example.com/l.png' },
+    )
+    expect(plan.images).toEqual([])
+    expect(plan.unsent.lastWithoutFirst).toBe(true)
+    expect(plan.unsent.images).toEqual(['https://cdn.example.com/l.png'])
+  })
+
+  it('单槽型号上残留着尾帧：只发首帧，尾帧这次不发（上限是契约的 1 张）', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.HAPPYHORSE_10,
+      AI_ADAPTER_TYPES.FAL,
+      {
+        ...EMPTY,
+        first: 'https://cdn.example.com/f.png',
+        last: 'https://cdn.example.com/l.png',
+      },
+    )
+    expect(plan.limits.images).toBe(1)
+    expect(plan.images).toEqual(['https://cdn.example.com/f.png'])
+    expect(plan.unsent.images).toEqual(['https://cdn.example.com/l.png'])
+    expect(plan.unsent.lastWithoutFirst).toBe(false)
+  })
+
+  it('换到不收参考的型号：挂着的参考视频与音频这次不发，上限写 0', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.HAPPYHORSE_10,
+      AI_ADAPTER_TYPES.FAL,
+      {
+        ...EMPTY,
+        first: 'https://cdn.example.com/f.png',
+        videos: ['https://cdn.example.com/v.mp4'],
+        audios: 2,
+      },
+    )
+    expect(plan.videos).toEqual([])
+    expect(plan.audioCount).toBe(0)
+    expect(plan.limits.videos).toBe(0)
+    expect(plan.limits.audios).toBe(0)
+    expect(plan.unsent.videos).toEqual(['https://cdn.example.com/v.mp4'])
+    expect(plan.unsent.audioFrom).toBe(0)
+    // 首帧照发。
+    expect(plan.images).toEqual(['https://cdn.example.com/f.png'])
+  })
+
+  it('收参考的型号：挂的音频在格数以内全发', () => {
+    const plan = planStudioVideoSend(
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      { ...EMPTY, first: 'https://cdn.example.com/f.png', audios: 1 },
+    )
+    expect(plan.audioCount).toBe(1)
+    expect(plan.unsent.audioFrom).toBe(1)
   })
 })
 

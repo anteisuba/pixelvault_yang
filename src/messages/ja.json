@@ -8026,6 +8026,21 @@
       "imageToVideo": "最初のフレームのみ",
       "textToVideo": "素材なし"
     },
+    "unsent": {
+      "lastWithoutFirst": "末尾フレームは先頭フレームと一緒でないと送れません · <strong>今回は送りません</strong>",
+      "line": "{model}：{reasons} · <strong>{labels} は今回送りません</strong>",
+      "none": "{kinds}は受け付けません",
+      "imageMax": "画像は最大 {max} 枚",
+      "videoMax": "参照動画は最大 {max} 本",
+      "audioMax": "音声は最大 {max} 件",
+      "separator": "、",
+      "labelSeparator": "、",
+      "kind": {
+        "image": "画像",
+        "video": "参照動画",
+        "audio": "音声"
+      }
+    },
     "libraryTitle": "素材ライブラリから選ぶ",
     "libraryDescription": "素材レールに追加する素材を選びます。",
     "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"

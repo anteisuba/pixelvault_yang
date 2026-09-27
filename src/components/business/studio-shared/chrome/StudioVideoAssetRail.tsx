@@ -13,12 +13,17 @@
  * 这一枪怎么发由挂了什么推出来，写在这一排最右一行只读灰字。判定与画布视频节点
  * 同一个函数（`videoSendMode`）。
  *
+ * ── 说实话 ────────────────────────────────────────────────────────
+ * 挂着但这一枪不发的（只挂了尾帧、换了型号它不收的、超出格数的）那几格变淡，灰字直说
+ * 「… 这次不发」—— 与发送口读同一份 `send.unsent`（`planStudioVideoSend`），⛔ 不静默丢，
+ * 也⛔ 不自动删：换回能收的型号就还在。
+ *
  * ── 挂了才出现 ────────────────────────────────────────────────────
  * 什么都没挂时整排不渲染（⛔ 不写「文生视频」）。「＋」是工具行的「素材」chip
  * （`StudioVideoAssetChip`），拖放落点是整个输入框 —— 这一排里没有第二个入口。
  */
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   DropdownMenu,
@@ -30,6 +35,8 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { useStudioForm } from '@/contexts/studio-context'
 import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { StudioVideoImageRole } from '@/lib/studio/video-workbench-slots'
 import { cn } from '@/lib/utils'
 
@@ -40,24 +47,37 @@ interface StudioVideoAssetRailProps {
 }
 
 const TILE_CLASS =
-  'relative flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border transition-colors duration-fast ease-linear hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none'
+  'relative flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border transition-[border-color,opacity] duration-base ease-linear hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none'
+
+/** 这一枪不发的那一格：200ms 线性变淡（动效表），编号也跟着淡。 */
+const UNSENT_TILE_CLASS = 'opacity-40'
 
 function Tile({
   label,
   children,
   testId,
+  unsent = false,
 }: {
   label: string
   children: React.ReactNode
   testId?: string
+  unsent?: boolean
 }) {
   return (
     <span
       data-testid={testId}
+      data-unsent={unsent || undefined}
       className="flex shrink-0 animate-in flex-col items-center gap-1 fade-in-0 duration-base ease-linear motion-reduce:animate-none"
     >
       {children}
-      <span className="text-2xs text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          'text-2xs text-muted-foreground transition-colors duration-base ease-linear motion-reduce:transition-none',
+          unsent && 'text-muted-foreground/60',
+        )}
+      >
+        {label}
+      </span>
     </span>
   )
 }
@@ -68,7 +88,10 @@ export function StudioVideoAssetRail({
 }: StudioVideoAssetRailProps) {
   const t = useTranslations('StudioVideoSlots')
   const tMode = useTranslations('StudioNode.v4.video.mode')
+  const tModels = useTranslations('Models')
+  const locale = useLocale()
   const { state, dispatch } = useStudioForm()
+  const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
 
   const audioRefs = state.videoAudioRefs
   const empty =
@@ -81,6 +104,56 @@ export function StudioVideoAssetRail({
     first: t('setFirst'),
     last: t('setLast'),
     reference: t('setReference'),
+  }
+
+  const send = assets.send
+  const unsentImages = new Set(send?.unsent.images)
+  const unsentVideos = new Set(send?.unsent.videos)
+  const audioFrom = send?.unsent.audioFrom ?? audioRefs.length
+  const unsentLabels = [
+    ...assets.images
+      .filter((image) => unsentImages.has(image.url))
+      .map((image) => t('image', { n: image.n })),
+    ...assets.videos
+      .map((url, index) => ({ url, n: index + 1 }))
+      .filter((video) => unsentVideos.has(video.url))
+      .map((video) => t('video', { n: video.n })),
+    ...audioRefs
+      .slice(audioFrom)
+      .map((_, index) => t('audio', { n: audioFrom + index + 1 })),
+  ]
+  const strong = (chunks: React.ReactNode) => (
+    <span className="font-semibold text-foreground">{chunks}</span>
+  )
+  /**
+   * 为什么这次不发：格数是 0 的合成一句「不收 A 和 B」，有格数但挂多了的各说「最多收 N」。
+   * 上限一律是**实际跑的那个端点**的（`send.limits`）。
+   */
+  const unsentReasons = () => {
+    if (!send) return ''
+    const over = {
+      image: unsentImages.size > 0 && !send.unsent.lastWithoutFirst,
+      video: unsentVideos.size > 0,
+      audio: audioFrom < audioRefs.length,
+    }
+    const none = (['image', 'video', 'audio'] as const).filter(
+      (kind) => over[kind] && send.limits[`${kind}s`] === 0,
+    )
+    const reasons = [
+      none.length > 0
+        ? t('unsent.none', {
+            kinds: new Intl.ListFormat(locale, { type: 'conjunction' }).format(
+              none.map((kind) => t(`unsent.kind.${kind}`)),
+            ),
+          })
+        : null,
+      ...(['image', 'video', 'audio'] as const)
+        .filter((kind) => over[kind] && send.limits[`${kind}s`] > 0)
+        .map((kind) =>
+          t(`unsent.${kind}Max`, { max: send.limits[`${kind}s`] }),
+        ),
+    ]
+    return reasons.filter(Boolean).join(t('unsent.separator'))
   }
 
   return (
@@ -97,13 +170,17 @@ export function StudioVideoAssetRail({
               key={image.url}
               label={label}
               testId={`video-asset-image-${image.n}`}
+              unsent={unsentImages.has(image.url)}
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={disabled}>
                   <button
                     type="button"
                     aria-label={label}
-                    className={TILE_CLASS}
+                    className={cn(
+                      TILE_CLASS,
+                      unsentImages.has(image.url) && UNSENT_TILE_CLASS,
+                    )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -152,13 +229,17 @@ export function StudioVideoAssetRail({
               key={url}
               label={label}
               testId={`video-asset-video-${index + 1}`}
+              unsent={unsentVideos.has(url)}
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={disabled}>
                   <button
                     type="button"
                     aria-label={label}
-                    className={TILE_CLASS}
+                    className={cn(
+                      TILE_CLASS,
+                      unsentVideos.has(url) && UNSENT_TILE_CLASS,
+                    )}
                   >
                     <video
                       src={url}
@@ -189,6 +270,7 @@ export function StudioVideoAssetRail({
               key={ref.url}
               label={label}
               testId={`video-asset-audio-${index + 1}`}
+              unsent={index >= audioFrom}
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={disabled}>
@@ -196,7 +278,11 @@ export function StudioVideoAssetRail({
                     type="button"
                     aria-label={label}
                     title={ref.ownerName ?? ref.fileName}
-                    className={cn(TILE_CLASS, 'bg-muted px-1')}
+                    className={cn(
+                      TILE_CLASS,
+                      'bg-muted px-1',
+                      index >= audioFrom && UNSENT_TILE_CLASS,
+                    )}
                   >
                     <span className="line-clamp-2 break-all text-3xs text-muted-foreground">
                       {ref.ownerName ?? ref.fileName ?? label}
@@ -244,19 +330,30 @@ export function StudioVideoAssetRail({
         ) : null}
       </div>
 
-      {assets.send && !empty ? (
+      {send && !empty ? (
         <span
+          // 换词时交叉淡化一下（动效表：旧的 120ms 淡出 → 新的 200ms 淡入）。
+          key={`${send.mode}:${unsentLabels.join('|')}`}
           data-testid="video-asset-send-mode"
           // 与缩略图的中线对齐（下面那一行编号不算）。
-          className="ml-auto shrink-0 self-center pb-4 text-xs text-muted-foreground"
+          className="ml-auto shrink-0 animate-in self-center pb-4 text-xs text-muted-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none"
         >
-          {t.rich('sendLine', {
-            mode: tMode(assets.send.mode),
-            reason: t(`reason.${assets.send.mode}`),
-            strong: (chunks) => (
-              <span className="font-semibold text-foreground">{chunks}</span>
-            ),
-          })}
+          {send.unsent.lastWithoutFirst
+            ? t.rich('unsent.lastWithoutFirst', { strong })
+            : unsentLabels.length > 0
+              ? t.rich('unsent.line', {
+                  model: selectedModel
+                    ? getTranslatedModelLabel(tModels, selectedModel.modelId)
+                    : '',
+                  reasons: unsentReasons(),
+                  labels: unsentLabels.join(t('unsent.labelSeparator')),
+                  strong,
+                })
+              : t.rich('sendLine', {
+                  mode: tMode(send.mode),
+                  reason: t(`reason.${send.mode}`),
+                  strong,
+                })}
         </span>
       ) : null}
     </div>

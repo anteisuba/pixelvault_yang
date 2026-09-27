@@ -8026,6 +8026,21 @@
       "imageToVideo": "first frame only",
       "textToVideo": "no assets attached"
     },
+    "unsent": {
+      "lastWithoutFirst": "A last frame only goes out with a first frame · <strong>not sending it this time</strong>",
+      "line": "{model} {reasons} · <strong>not sending {labels} this time</strong>",
+      "none": "doesn’t take {kinds}",
+      "imageMax": "takes up to {max} images",
+      "videoMax": "takes up to {max} reference videos",
+      "audioMax": "takes up to {max} audio clips",
+      "separator": ", ",
+      "labelSeparator": ", ",
+      "kind": {
+        "image": "images",
+        "video": "reference videos",
+        "audio": "audio"
+      }
+    },
     "libraryTitle": "Pick from the asset library",
     "libraryDescription": "Choose an asset to add to the rail.",
     "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."

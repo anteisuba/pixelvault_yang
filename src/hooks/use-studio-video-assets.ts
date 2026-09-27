@@ -32,11 +32,11 @@ import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import {
   getStudioVideoCapacity,
   listStudioVideoImages,
-  resolveStudioVideoSend,
+  planStudioVideoSend,
   type StudioVideoCapacity,
   type StudioVideoImage,
   type StudioVideoImageRole,
-  type StudioVideoSend,
+  type StudioVideoSendPlan,
 } from '@/lib/studio/video-workbench-slots'
 import type { GenerationRecord } from '@/types'
 
@@ -45,8 +45,10 @@ export interface UseStudioVideoAssetsReturn {
   /** 轨上的图（首帧、尾帧、参考图同一序列编号）。 */
   images: readonly StudioVideoImage[]
   videos: readonly string[]
-  /** 这一枪怎么发；还没选模型时为 `null`。 */
-  send: StudioVideoSend | null
+  /**
+   * 这一枪怎么发、实际发哪几样、哪几样这次不发（与发送口同一份）；还没选模型时为 `null`。
+   */
+  send: StudioVideoSendPlan | null
   /** 这张图还能改成哪些角色（按型号能力，⛔ 不给点了没用的选项）。 */
   rolesFor(image: StudioVideoImage): StudioVideoImageRole[]
   /** 进来一张图：型号有参考档 → 参考；否则依次填首帧、尾帧。 */
@@ -99,7 +101,7 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   const send = useMemo(
     () =>
       selectedModel
-        ? resolveStudioVideoSend(selectedModel.modelId, adapterType, {
+        ? planStudioVideoSend(selectedModel.modelId, adapterType, {
             first,
             last,
             references,

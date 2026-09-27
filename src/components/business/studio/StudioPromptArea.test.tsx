@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
@@ -218,14 +218,22 @@ vi.mock('@/hooks/use-audio-model-options', () => ({
   useAudioModelOptions: mockUseAudioModelOptions,
 }))
 
+/**
+ * 视频型号 —— 缺省是一个契约里什么参考都不收的假型号；要验「挂上的音频送出去」时
+ * 换成真正收音频的型号（发送口按实际端点的契约夹，⛔ 不收的不发）。
+ */
+const mockVideoModel = vi.hoisted(() => ({
+  modelId: 'fal-video-model',
+  adapterType: 'fal',
+}))
 vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: () => {
     const selectedModel = {
       optionId: 'video-option',
-      modelId: 'fal-video-model',
+      modelId: mockVideoModel.modelId,
       keyId: 'api-key-1',
       keyLabel: 'FAL video',
-      adapterType: 'fal',
+      adapterType: mockVideoModel.adapterType,
       providerConfig: {
         label: 'fal.ai',
         baseUrl: 'https://fal.ai',
@@ -1211,6 +1219,13 @@ describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
   beforeEach(() => {
     mockGenerate.mockClear()
     mockGenerate.mockResolvedValue(undefined)
+    // 挂了音频 → 走参考端点；Seedance 2.5（火山）的参考端点收音频。
+    mockVideoModel.modelId = AI_MODELS.SEEDANCE_25_VOLCENGINE
+    mockVideoModel.adapterType = 'volcengine'
+  })
+  afterEach(() => {
+    mockVideoModel.modelId = 'fal-video-model'
+    mockVideoModel.adapterType = 'fal'
   })
 
   it('把挂上的音频送进 audioUrls，并按归属填 audioBindings.characterName', async () => {
@@ -1241,6 +1256,23 @@ describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
       { url: 'https://cdn.example.com/hinata.mp3', characterName: 'ひなた' },
       { url: 'https://cdn.example.com/narration.mp3' },
     ])
+  })
+
+  it('⛔ 这个型号不收音频：挂着的音频这次不发（素材排上说出来），不再发过去被服务端拒', async () => {
+    mockVideoModel.modelId = 'fal-video-model'
+    mockVideoModel.adapterType = 'fal'
+    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
+      videoAudioRefs: [
+        {
+          id: 'a1',
+          url: 'https://cdn.example.com/hinata.mp3',
+          fileName: 'hinata.mp3',
+        },
+      ],
+    })
+    const video = getSubmittedVideoPayload()
+    expect(video).not.toHaveProperty('audioUrls')
+    expect(video).not.toHaveProperty('audioBindings')
   })
 
   it('一条都没挂时，两个字段都不出现在请求里', async () => {

@@ -39,7 +39,7 @@ export function StudioVideoPromptInput({
 }) {
   const { state, dispatch } = useStudioForm()
   const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
-  const { images, videos } = useStudioVideoAssets()
+  const { images, videos, send } = useStudioVideoAssets()
   const editorRef = useRef<MentionInputHandle>(null)
   const t = useTranslations('StudioVideoSlots')
   const tMention = useTranslations('StudioPromptArea.referenceMention')
@@ -62,17 +62,23 @@ export function StudioVideoPromptInput({
       tokenName: string
       thumbnailUrl?: string
     }[] = []
+    // 这一枪不发的那几样，胶囊跟素材排那一格一起变淡（与发送口同一份 `send.unsent`）。
+    const unsentImages = new Set(send?.unsent.images)
+    const unsentVideos = new Set(send?.unsent.videos)
+    const audioFrom = send?.unsent.audioFrom ?? audios.length
     const add = (
       kind: MentionToken['kind'],
       native: string,
       at: string,
       label: string,
       thumbnailUrl?: string,
+      dimmed = false,
     ) => {
       const base = {
         kind,
         slotLabel: label,
         ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(dimmed ? { dimmed } : {}),
       }
       out.push({ ...base, name: native, literal: !format.prefixed })
       if (!format.prefixed) out.push({ ...base, name: at })
@@ -90,14 +96,17 @@ export function StudioVideoPromptInput({
         `Image${image.n}`,
         t('image', { n: image.n }),
         image.url,
+        unsentImages.has(image.url),
       )
     }
-    videos.forEach((_, index) =>
+    videos.forEach((url, index) =>
       add(
         'video',
         format.video(index + 1),
         `Video${index + 1}`,
         t('video', { n: index + 1 }),
+        undefined,
+        unsentVideos.has(url),
       ),
     )
     audios.forEach((_, index) =>
@@ -106,10 +115,12 @@ export function StudioVideoPromptInput({
         format.audio(index + 1),
         `Audio${index + 1}`,
         t('audio', { n: index + 1 }),
+        undefined,
+        index >= audioFrom,
       ),
     )
     return { tokens: out, candidates: picks }
-  }, [format, images, videos, audios, t])
+  }, [format, images, videos, audios, send, t])
 
   return (
     <MentionInput

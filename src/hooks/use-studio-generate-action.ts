@@ -45,7 +45,7 @@ import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
-import { resolveStudioVideoSend } from '@/lib/studio/video-workbench-slots'
+import { planStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/types/model-option'
@@ -356,8 +356,11 @@ export function useStudioGenerateAction() {
      * （参考图 / 参考视频 / 音频）→ 该型号的参考端点，首尾帧作为参考图随行；
      * 否则走关键帧端点，只发首帧（+ 尾帧）。与画布视频节点同一个判定。
      * ⚠ 线上契约仍是 `referenceImage` + `referenceImages` 两个位置字段，序列化在这里发生。
+     * ⭐ 发什么与素材排那行「这次不发」读**同一份**（`planStudioVideoSend`）：图按实际端点的
+     *   参考能力夹，参考视频 / 音频按契约格数夹 —— 残留值来自「切模型」，多出来的发过去只会
+     *   被服务端拒，所以在这里夹掉、并在界面上说出来（owner 09-27 视频台 A，⛔ 不静默丢）。
      */
-    const send = resolveStudioVideoSend(
+    const plan = planStudioVideoSend(
       selectedModel.modelId,
       selectedModel.adapterType as AI_ADAPTER_TYPES,
       {
@@ -368,28 +371,13 @@ export function useStudioGenerateAction() {
         audios: state.videoAudioRefs.length,
       },
     )
-    const sendModelId = send.modelId
-    const videoCap = getReferenceCapability(
-      'video',
-      selectedModel.adapterType as AI_ADAPTER_TYPES,
-      sendModelId,
-    )
-    const videoMax = getReferenceCapabilityMax(videoCap)
-    const refs = send.images.slice(0, videoMax)
+    const sendModelId = plan.modelId
+    const videoMax = plan.limits.images
+    const refs = [...plan.images]
     const firstRef = refs[0]
-    /**
-     * 参考视频（第二期）。传输口 `videoUrls` **早就在**（`types/index.ts` 那条
-     * `.max(3)`），断的一直是 UI 入口这一层。上限按契约夹 —— 残留值来自「切模型」，
-     * 与档位夹取同一条理由。
-     */
-    const videoRefUrls = state.videoReferenceVideos.slice(
-      0,
-      getVideoModelSendContract(
-        sendModelId,
-        selectedModel.adapterType as AI_ADAPTER_TYPES,
-      ).slots.videos,
-    )
-    const videoAudioUrls = state.videoAudioRefs.map((ref) => ref.url)
+    const videoRefUrls = [...plan.videos]
+    const sentAudioRefs = state.videoAudioRefs.slice(0, plan.audioCount)
+    const videoAudioUrls = sentAudioRefs.map((ref) => ref.url)
 
     let finalPrompt = composePrompt(state.prompt) ?? ''
     const appliedCharacterIds: string[] = []
@@ -469,7 +457,7 @@ export function useStudioGenerateAction() {
       ...(videoAudioUrls.length > 0
         ? {
             audioUrls: videoAudioUrls,
-            audioBindings: state.videoAudioRefs.map((ref) => ({
+            audioBindings: sentAudioRefs.map((ref) => ({
               url: ref.url,
               ...(ref.ownerName ? { characterName: ref.ownerName } : {}),
             })),

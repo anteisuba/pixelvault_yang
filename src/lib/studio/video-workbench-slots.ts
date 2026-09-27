@@ -157,6 +157,75 @@ export function resolveStudioVideoSend(
   }
 }
 
+/**
+ * 挂着但这一枪**不发**的那几样（owner 2026-09-27 视频台 A：⛔ 不静默丢 —— 素材排把它们
+ * 变淡、那一行灰字说出来，提示词里的胶囊一起变淡；⛔ 也不自动删，换回能收的型号就还在）。
+ */
+export interface StudioVideoUnsent {
+  /** 只挂了尾帧：尾帧要和首帧一起才发得出去（这时尾帧也在 `images` 里）。 */
+  readonly lastWithoutFirst: boolean
+  readonly images: readonly string[]
+  readonly videos: readonly string[]
+  /** 从第几段音频起不发（按挂上的顺序；等于挂的段数 = 一段不少）。 */
+  readonly audioFrom: number
+}
+
+/** 这一枪**实际发出去**的东西 —— 发送口与素材排读同一份（⛔ 两处各算各的就会说一套发一套）。 */
+export interface StudioVideoSendPlan extends StudioVideoSend {
+  /** 按实际端点的图片上限夹过的那几张（覆盖 `StudioVideoSend.images`）。 */
+  readonly images: readonly string[]
+  readonly videos: readonly string[]
+  readonly audioCount: number
+  /** 端点契约上的格数 —— 灰字要说「不收」还是「最多收几条」。 */
+  readonly limits: {
+    readonly images: number
+    readonly videos: number
+    readonly audios: number
+  }
+  readonly unsent: StudioVideoUnsent
+}
+
+/**
+ * 这一枪发什么、哪些这次不发。上限一律是**实际跑的端点**（`send.modelId`）的发送契约
+ * 格数 —— 服务端按同一份契约校验（`video-generation-validation.service`），多出来的发过去
+ * 只会被拒。
+ * ⚠ 图的上限以前取参考图能力表（缺省 1 张），与契约对不上：首尾帧型号的尾帧在工作台
+ *   一直没发出去（画布按契约发两张）。现在与服务端同一份。
+ */
+export function planStudioVideoSend(
+  modelId: string,
+  adapterType: AI_ADAPTER_TYPES | undefined,
+  load: StudioVideoLoad,
+): StudioVideoSendPlan {
+  const send = resolveStudioVideoSend(modelId, adapterType, load)
+  const contract = getVideoModelSendContract(send.modelId, adapterType)
+  const limits = {
+    // `undefined` = 上游没公布硬上限（Gemini 那一档）—— ⛔ 不编一个数，也就不夹。
+    images: contract.slots.images ?? Number.POSITIVE_INFINITY,
+    videos: contract.slots.videos,
+    audios: contract.slots.audio,
+  }
+  const images = send.images.slice(0, limits.images)
+  const videos = load.videos.slice(0, limits.videos)
+  const audioCount = Math.min(load.audios, limits.audios)
+  return {
+    ...send,
+    images,
+    videos,
+    audioCount,
+    limits,
+    unsent: {
+      lastWithoutFirst:
+        !send.hasReference && load.first === null && load.last !== null,
+      images: listStudioVideoImages(load)
+        .map((image) => image.url)
+        .filter((url) => !images.includes(url)),
+      videos: load.videos.slice(videos.length),
+      audioFrom: audioCount,
+    },
+  }
+}
+
 export interface StudioVideoTokenFormat {
   /** 这个模型的原文写法（与各模型规则里的 token 同一套）。 */
   image(n: number): string

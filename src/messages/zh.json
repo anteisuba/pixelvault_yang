@@ -8026,6 +8026,21 @@
       "imageToVideo": "只有首帧",
       "textToVideo": "没挂素材"
     },
+    "unsent": {
+      "lastWithoutFirst": "尾帧要和首帧一起才发得出去 · <strong>这次尾帧不发</strong>",
+      "line": "{model} {reasons} · <strong>{labels} 这次不发</strong>",
+      "none": "不收{kinds}",
+      "imageMax": "最多收 {max} 张图",
+      "videoMax": "最多收 {max} 条参考视频",
+      "audioMax": "最多收 {max} 段音频",
+      "separator": "，",
+      "labelSeparator": "、",
+      "kind": {
+        "image": "图片",
+        "video": "参考视频",
+        "audio": "音频"
+      }
+    },
     "libraryTitle": "从素材库挑一个",
     "libraryDescription": "选一个素材放进素材轨。",
     "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"

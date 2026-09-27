@@ -53,6 +53,11 @@ export interface MentionToken {
    * ⚠ 存储即 `name` 原文 —— 序列化写回的就是它，所见即所发；只有显示换成胶囊。
    */
   literal?: boolean
+  /**
+   * 这一枪**不发**它（视频台：换了型号它不收、只挂了尾帧……owner 2026-09-27）——
+   * 胶囊变淡，与素材排那一格同一个说法。⚠ 存储与序列化不受影响，只是显示。
+   */
+  dimmed?: boolean
 }
 
 export interface MentionInputHandle {
@@ -279,6 +284,7 @@ function buildChip(
     CHIP_BASE,
     kind ? CHIP_FILL[kind] : 'bg-node-panel-inner',
     kind ? 'pl-0.5 pr-1.5' : 'px-1.5',
+    token?.dimmed && 'opacity-45',
   )
   if (kind) chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
   const label = doc.createElement('span')

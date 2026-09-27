@@ -38,6 +38,7 @@ import { resolveRelativePlacement } from '@/hooks/node/use-node-graph-v4'
 import { cn } from '@/lib/utils'
 
 import { NodeCardShell } from './chrome'
+import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { useNodeV4Canvas, type NodeV4MediaPatch } from './NodeV4Context'
 
 type CharacterTab = 'images' | 'text'
@@ -95,6 +96,8 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
   const card = nodeData.characterId ? library.find(nodeData.characterId) : null
   const expanded = Boolean(selected) && canvas.selectedNodeIds.length < 2
   const [tab, setTab] = useState<CharacterTab>('images')
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const node = canvas.nodes.find((item) => item.id === id)
   const usage = useCharacterCardUsage(card?.id ?? null, expanded)
 
   const openInCharacterPage = useCallback(() => {
@@ -267,8 +270,16 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
   return (
     <>
       <motion.div
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setMenu({
+            x: event.nativeEvent.offsetX,
+            y: event.nativeEvent.offsetY,
+          })
+        }}
         data-character-node
         data-expanded={expanded ? 'true' : 'false'}
+        className="relative"
         initial={false}
         animate={{
           width: expanded
@@ -444,6 +455,15 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
             ) : null}
           </AnimatePresence>
         </NodeCardShell>
+        {menu && node ? (
+          <NodeV4ContextMenu
+            node={node}
+            x={menu.x}
+            y={menu.y}
+            layoutOnly
+            onClose={() => setMenu(null)}
+          />
+        ) : null}
       </motion.div>
     </>
   )

@@ -213,6 +213,23 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
     })
   })
 
+  it('右键菜单只有「整理排布 · 删除」（展开 / 下载 / 克隆对她没意义）', () => {
+    const context = harness({ selectedNodeIds: [] })
+    renderRole(context)
+    fireEvent.contextMenu(
+      document.querySelector('[data-character-node]') as HTMLElement,
+    )
+    const items = screen
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent)
+    expect(items).toEqual(['toolbar.tidy', 'toolbar.delete'])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'toolbar.delete' }))
+    expect(context.onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.delete,
+      target: 'c_1',
+    })
+  })
+
   it('角色库里删了她：灰底一句话 +「从画布移除」', () => {
     mockLibrary.value = { cards: [], loaded: true }
     const context = harness({ selectedNodeIds: [] })

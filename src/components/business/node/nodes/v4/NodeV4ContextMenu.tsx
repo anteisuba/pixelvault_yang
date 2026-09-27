@@ -33,6 +33,11 @@ export interface NodeV4ContextMenuProps {
   readonly x: number
   readonly y: number
   readonly mediaUrl?: string
+  /**
+   * 只留「整理排布 · 删除」（角色卡：展开 / 下载 / 克隆空节点 / 重跑下游对她都没意义，
+   * 克隆还会复制出一张没绑角色的空卡）。
+   */
+  readonly layoutOnly?: boolean
   onClose(): void
 }
 
@@ -41,6 +46,7 @@ export function NodeV4ContextMenu({
   x,
   y,
   mediaUrl,
+  layoutOnly = false,
   onClose,
 }: NodeV4ContextMenuProps) {
   const t = useTranslations('StudioNode.v4')
@@ -144,6 +150,9 @@ export function NodeV4ContextMenu({
         }),
     },
   ]
+  const shown = layoutOnly
+    ? items.filter((item) => item.id === 'tidy' || item.id === 'delete')
+    : items
 
   return (
     <div
@@ -153,7 +162,7 @@ export function NodeV4ContextMenu({
       style={{ left: x, top: y, width: NODE_V4_CONTEXT_MENU.width }}
       className="nodrag nopan nowheel absolute z-10 rounded-xl border p-1.5 text-popover-foreground corner-squircle surface-glass shadow-node-menu"
     >
-      {items.map((item) => (
+      {shown.map((item) => (
         <div key={item.id}>
           {item.startsGroup ? (
             <span aria-hidden className="mx-1.5 my-1 block h-px bg-border" />

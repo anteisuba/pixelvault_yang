@@ -5509,7 +5509,21 @@
         "versions": "Versions",
         "versionOf": "Version {index} of {total}",
         "emptyHint": "Upload · paste · or write a prompt",
-        "mentionPicker": "Mention suggestions"
+        "mentionPicker": "Mention suggestions",
+        "mediaMissing": {
+          "gone": {
+            "image": "This image was deleted from Assets",
+            "video": "This video was deleted from Assets",
+            "audio": "This audio was deleted from Assets"
+          },
+          "unreachable": {
+            "image": "This image can’t be loaded right now",
+            "video": "This video can’t be loaded right now",
+            "audio": "This audio can’t be loaded right now"
+          },
+          "remove": "Remove from canvas",
+          "retry": "Retry"
+        }
       },
       "text": {
         "empty": "Keep writing…",

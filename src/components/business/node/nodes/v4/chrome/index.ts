@@ -6,6 +6,7 @@
  */
 
 export { NodeCardShell, type NodeCardShellProps } from './NodeCardShell'
+export { NodeMediaMissing, useMediaProblem } from './NodeMediaMissing'
 export {
   NodePorts,
   portSpecOf,

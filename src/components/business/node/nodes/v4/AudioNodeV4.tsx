@@ -87,6 +87,8 @@ import {
   NodeCardShell,
   portSpecOf,
   NodeFrameProgress,
+  NodeMediaMissing,
+  useMediaProblem,
   NodePromptBar,
   NodeToolbar,
   VersionDots,
@@ -150,6 +152,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const audioData = data as unknown as NodeV4AudioData
+  // 源文件没了（素材库删了）/ 暂时读不到：这一行换成一句话，⛔ 不留一张放不响的卡。
+  const media = useMediaProblem(audioData.url)
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
 
@@ -703,7 +707,21 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         changed={canvas.changedNodeIds.includes(id) || flashed}
         portSpec={portSpecOf(node)}
       >
-        {audioData.url || generating ? (
+        {media.problem && !generating ? (
+          <NodeMediaMissing
+            kind="audio"
+            layout="row"
+            problem={media.problem}
+            onRetry={media.retry}
+            onRemove={() =>
+              void canvas.onApplyOp({
+                op: NODE_ASSISTANT_OP_V4_IDS.delete,
+                target: id,
+              })
+            }
+            style={{ height: AUDIO_CARD.contentHeight }}
+          />
+        ) : audioData.url || generating ? (
           <div
             data-audio-surface={audioData.url ? 'ready' : 'pending'}
             className="relative flex items-center gap-3 px-4"
@@ -800,8 +818,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
 
       {audioData.url ? (
         <audio
+          key={media.attempt}
           ref={audioRef}
           src={audioData.url}
+          onError={media.onError}
           // ⚠ 显式要元数据：`hidden` 的 `<audio>` 浏览器默认不预取，`duration` 会
           // 一直是 NaN，卡上就永远停在 `--:--`（真机 2026-09-10 实测 readyState=0）。
           preload="metadata"

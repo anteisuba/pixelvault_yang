@@ -5509,7 +5509,21 @@
         "versions": "版本",
         "versionOf": "第 {index} 版，共 {total} 版",
         "emptyHint": "上传 · 粘贴 · 或写提示词",
-        "mentionPicker": "引用候选"
+        "mentionPicker": "引用候选",
+        "mediaMissing": {
+          "gone": {
+            "image": "这张图已从素材库删除",
+            "video": "这段视频已从素材库删除",
+            "audio": "这段音频已从素材库删除"
+          },
+          "unreachable": {
+            "image": "这张图暂时读不到",
+            "video": "这段视频暂时读不到",
+            "audio": "这段音频暂时读不到"
+          },
+          "remove": "从画布移除",
+          "retry": "重试"
+        }
       },
       "text": {
         "empty": "继续写……",

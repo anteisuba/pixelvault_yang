@@ -84,6 +84,9 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
 
+const mockProbeMedia = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/media-probe', () => ({ probeMediaProblem: mockProbeMedia }))
+
 vi.mock('../../CanvasImageEditWorkspace', () => ({
   CanvasImageEditWorkspace: (props: Record<string, unknown>) => (
     <div data-testid="image-edit" data-task={String(props.defaultTask)} />
@@ -821,5 +824,36 @@ describe('提示词栏参考图轨', () => {
     window.dispatchEvent(event)
     expect(uploadFn).toHaveBeenCalledWith('image', file, 'i_shot')
     expect(context.onSetMedia).not.toHaveBeenCalled()
+  })
+})
+
+describe('来源没了（owner 09-27：素材库删了图，画布上是裂图）', () => {
+  const URL = 'https://cdn.example/deleted.png'
+
+  it('图读不出来且 CDN 回 404 → 灰底「已从素材库删除」+「从画布移除」，⛔ 不露裂图', async () => {
+    mockProbeMedia.mockResolvedValue('gone')
+    const onApplyOp = vi.fn()
+    renderImage(harness([imageNode('i_1', { url: URL })], { onApplyOp }))
+    fireEvent.error(screen.getByRole('img'))
+
+    expect(await screen.findByText('gone.image')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).toBeNull()
+    expect(mockProbeMedia).toHaveBeenCalledWith(URL)
+
+    fireEvent.click(screen.getByRole('button', { name: 'remove' }))
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.delete,
+      target: 'i_1',
+    })
+  })
+
+  it('网络读不到 → 只说暂时读不到 +「重试」，重试把图重新挂回去', async () => {
+    mockProbeMedia.mockResolvedValue('unreachable')
+    renderImage(harness([imageNode('i_1', { url: URL })]))
+    fireEvent.error(screen.getByRole('img'))
+
+    expect(await screen.findByText('unreachable.image')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(screen.getByRole('img')).toHaveAttribute('src', URL)
   })
 })

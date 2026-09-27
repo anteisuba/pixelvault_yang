@@ -70,6 +70,8 @@ import type { NodeV4VideoData } from '@/types/node-workflow'
 import {
   NodeCardShell,
   NodeFrameProgress,
+  NodeMediaMissing,
+  useMediaProblem,
   useNodeGenerationFinish,
   useNodeProgressNarrow,
   NodePromptBar,
@@ -130,6 +132,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
   const [hovering, setHovering] = useState(false)
+  // 源文件没了（素材库删了）/ 暂时读不到：换成灰底一句话，⛔ 不露裂图。
+  const media = useMediaProblem(videoData.url)
   const [hoverProgress, setHoverProgress] = useState(0)
   const [renameRequest, setRenameRequest] = useState(0)
   /**
@@ -524,7 +528,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         // 栏里 / 框里打字的空格不是快捷键。
         if (event.target !== event.currentTarget) return
         event.preventDefault()
-        if (videoData.url) setQuickLook(true)
+        if (videoData.url && !media.problem) setQuickLook(true)
       }}
     >
       <FlowNodeToolbar
@@ -629,7 +633,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             className="relative"
             style={{ height }}
             onMouseEnter={() => {
-              if (!videoData.url || generating) return
+              if (!videoData.url || generating || media.problem) return
               setHovering(true)
             }}
             onMouseLeave={() => {
@@ -639,10 +643,25 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           >
             {/* 封面。⚠ 悬停时那只 `<video>` 盖在它上面 —— ⛔ 不换掉它：
                 换掉会在视频首帧解码出来之前闪一下白。 */}
-            {posterUrl ? (
+            {media.problem ? (
+              <NodeMediaMissing
+                kind="video"
+                problem={media.problem}
+                onRetry={media.retry}
+                onRemove={() =>
+                  void canvas.onApplyOp({
+                    op: NODE_ASSISTANT_OP_V4_IDS.delete,
+                    target: id,
+                  })
+                }
+                className="size-full"
+              />
+            ) : posterUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
+                key={media.attempt}
                 src={posterUrl}
+                onError={media.onError}
                 alt={displayName}
                 draggable={false}
                 className={cn(
@@ -656,12 +675,14 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               // `preload="metadata"` 的 `<video>`。⛔ 不用 `<img src={视频}>`：
               // 那什么都画不出来（v3 缩略图空白的老根）。顺带把时长读回来。
               <video
+                key={media.attempt}
                 src={videoData.url}
                 muted
                 playsInline
                 preload="metadata"
                 aria-label={displayName}
                 data-video-still
+                onError={media.onError}
                 className={cn(
                   'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
                   genFinish.holding && 'motion-safe:blur-sm',
@@ -677,7 +698,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               <div className="size-full rounded-node bg-surface-sunken corner-squircle" />
             )}
 
-            {hovering && videoData.url ? (
+            {hovering && videoData.url && !media.problem ? (
               <>
                 <video
                   ref={frameVideoRef}

@@ -72,6 +72,7 @@ import {
   NodeFrameProgress,
   useNodeGenerationFinish,
   useNodeProgressNarrow,
+  NodeMediaMissing,
   NodePromptBar,
   NodeToolbar,
   QuickLook,
@@ -79,6 +80,7 @@ import {
   ConnectToShotPopover,
   flashNodeCard,
   useNodeCardFlash,
+  useMediaProblem,
   renderPromptMentions,
   type MentionPickerOption,
   type NodeToolbarGroup,
@@ -144,6 +146,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   /** ⋯「重命名这张图」触发卡外那行名字进入编辑（`NodeCardShell.renameRequest`）。 */
   const [renameRequest, setRenameRequest] = useState(0)
   const [quickLook, setQuickLook] = useState(false)
+  // 源文件没了（素材库删了）/ 暂时读不到：换成灰底一句话，⛔ 不露裂图。
+  const media = useMediaProblem(imageData.url)
   const [assetPicker, setAssetPicker] = useState(false)
   const [editTask, setEditTask] =
     useState<ReadyCanvasImageEditCapabilityId | null>(null)
@@ -620,7 +624,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         else runUpload(file)
       }}
       onDoubleClick={() => {
-        if (imageData.url) setQuickLook(true)
+        if (imageData.url && !media.problem) setQuickLook(true)
       }}
     >
       <FlowNodeToolbar isVisible={showChrome} position={Position.Top}>
@@ -685,21 +689,38 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             className="relative"
             style={{ height: collapsedImageHeight(imageData) }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageData.url}
-              alt={imageData.name}
-              draggable={false}
-              className={cn(
-                'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
-                // 出图那一拍：线合拢之前新图压在模糊底下，线淡出时模糊收掉。
-                genFinish.holding && 'motion-safe:blur-sm',
-              )}
-              onLoad={(event) => rememberImageSize(event.currentTarget)}
-              ref={(image) => {
-                if (image?.complete) rememberImageSize(image)
-              }}
-            />
+            {media.problem ? (
+              <NodeMediaMissing
+                kind="image"
+                problem={media.problem}
+                onRetry={media.retry}
+                onRemove={() =>
+                  void canvas.onApplyOp({
+                    op: NODE_ASSISTANT_OP_V4_IDS.delete,
+                    target: id,
+                  })
+                }
+                className="size-full"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={media.attempt}
+                src={imageData.url}
+                alt={imageData.name}
+                draggable={false}
+                className={cn(
+                  'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+                  // 出图那一拍：线合拢之前新图压在模糊底下，线淡出时模糊收掉。
+                  genFinish.holding && 'motion-safe:blur-sm',
+                )}
+                onLoad={(event) => rememberImageSize(event.currentTarget)}
+                onError={media.onError}
+                ref={(image) => {
+                  if (image?.complete) rememberImageSize(image)
+                }}
+              />
+            )}
             {/* 重画 / 出图那一拍 / 失败：图留着，盖一层白纱（加载态 A）；线、原因与
                 「重试」在卡边那一层。出图时白纱跟着线一起淡掉。 */}
             {generating || genFinish.completing || failed ? (

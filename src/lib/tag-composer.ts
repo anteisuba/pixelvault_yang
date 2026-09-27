@@ -1,6 +1,7 @@
 import {
   NOVELAI_BRACE_WEIGHT_STEP,
   PROMPT_TAG_WEIGHT,
+  PROMPT_TO_TAGS,
 } from '@/constants/prompt-dialects'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { TagTemplateParamsSchema, type TagChip } from '@/types/tag-composer'
@@ -113,12 +114,64 @@ export function serializeTagChips(tags: readonly TagChip[]): string {
 }
 
 /**
- * 从自然语言台带过来的那一句 —— **整句一格**（D10 ④ 两台跳转）。
- * ⛔ 不按逗号切：切了就等于替用户把一句话改写成标签，而他并没有要求。
+ * 从自然语言台带过来的那一句 —— 先**整句一格**占位，随后让助手翻成标签来换掉它
+ * （owner 2026-09-27；翻不成就留着这一格）。
+ * ⛔ 不按逗号切：逗号切出来的是半句话，不是标签。
  */
 export function wholeSentenceAsTag(text: string): TagChip[] {
   const trimmed = text.trim()
   return trimmed ? [{ text: trimmed, weight: PROMPT_TAG_WEIGHT.DEFAULT }] : []
+}
+
+/** 句读与 CJK 文字：一格里出现它们，就是一句话而不是 danbooru 标签。 */
+const SENTENCE_MARK = /[。！？；，、\u3040-\u30ff\u3400-\u9fff]/
+
+/**
+ * **助手翻出来的那一串 → 一格一格的标签**（自然语言带到标签台时，owner 2026-09-27）。
+ *
+ * 模型偶尔会加个「Tags:」前缀、套一层代码块或引号、用换行代替逗号 —— 这些都剥掉；
+ * 下划线换成空格（标签台一律按空格写，与 Danbooru 面板同一条）。
+ * 长得像一句话的那一格（带中日文、太长、词太多）**丢掉**，大小写不同的重复只留一格。
+ * ⚠ 丢掉的超过一半 = 模型没照做（回了一段话），回 `null` 让调用方退回整句一格，
+ * ⛔ 不把半截结果当成功。
+ */
+export function parsePromptToTagsOutput(raw: string): string[] | null {
+  const body = raw
+    .replace(/^```[a-z]*\s*|```\s*$/gi, '')
+    .replace(/^\s*(?:danbooru\s+)?tags?\s*[:：]\s*/i, '')
+  const parts = body
+    .split(/[,\n]/)
+    .map((part) =>
+      part
+        .trim()
+        .replace(/^(?:[-*•]|\d+[.)])\s+/, '')
+        .replace(/^["'`]+|["'`.]+$/g, '')
+        .replace(/(?<=\w)_(?=\w)/g, ' ')
+        .trim(),
+    )
+    .filter((part) => part.length > 0)
+  if (parts.length === 0) return null
+
+  const seen = new Set<string>()
+  const tags: string[] = []
+  let rejected = 0
+  for (const part of parts) {
+    const words = part.split(/\s+/).length
+    if (
+      SENTENCE_MARK.test(part) ||
+      part.length > PROMPT_TO_TAGS.maxTagChars ||
+      words > PROMPT_TO_TAGS.maxTagWords
+    ) {
+      rejected += 1
+      continue
+    }
+    const key = part.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    tags.push(part)
+  }
+  if (tags.length === 0 || rejected * 2 > parts.length) return null
+  return tags.slice(0, PROMPT_TO_TAGS.maxTags)
 }
 
 /**

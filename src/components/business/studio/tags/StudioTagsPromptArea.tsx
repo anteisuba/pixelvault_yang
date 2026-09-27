@@ -11,9 +11,11 @@ import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioD
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
 import { NovelAiTagModelSchema } from '@/types/novelai-tags'
+import { StudioTagCarryNote } from '@/components/business/studio/tags/StudioTagCarryNote'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -88,6 +90,11 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
     (control) => control.chip.capability === 'textRendering',
   )
 
+  const tagModelId = runModels.find(
+    (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
+  )?.modelId
+  const carry = useTagCarryTranslation(tagModelId)
+
   const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) =>
     dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips } })
   const positiveChips = state.tagChips
@@ -131,16 +138,15 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         )}
       >
         <StudioTagChipField
-          modelId={
-            runModels.find(
-              (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
-            )?.modelId
-          }
+          modelId={tagModelId}
           label={t('positiveLabel')}
           polarity="positive"
           chips={positiveChips}
           disabled={isGenerating}
           onChange={(chips) => setChips('positive', chips)}
+          status={
+            <StudioTagCarryNote status={carry.status} onRetry={carry.retry} />
+          }
         />
       </div>
       <details className="space-y-2">
@@ -149,12 +155,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         </summary>
         <div data-assistant-field="negativePrompt">
           <StudioTagChipField
-            modelId={
-              runModels.find(
-                (model) =>
-                  NovelAiTagModelSchema.safeParse(model.modelId).success,
-              )?.modelId
-            }
+            modelId={tagModelId}
             label={t('negativeLabel')}
             note={t('negativeNote')}
             polarity="negative"

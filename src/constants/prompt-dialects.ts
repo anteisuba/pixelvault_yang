@@ -69,3 +69,18 @@ export const PROMPT_TAG_WEIGHT = {
  * https://docs.novelai.net/en/image/promptmixing/
  */
 export const NOVELAI_BRACE_WEIGHT_STEP = 1.05
+
+/**
+ * 自然语言带到标签台时**让助手翻成标签**（owner 2026-09-27）的边界。
+ *
+ * ⚠ 模型回来的是一串逗号分隔的标签；多出来的截掉、长得像一句话的那一格丢掉，
+ * ⛔ 不整串作废 —— 一格写歪不该让整句重回「整句一格」。
+ */
+export const PROMPT_TO_TAGS = {
+  /** 一次最多留几格（一句话翻出来的标签很少过 40）。 */
+  maxTags: 60,
+  /** 一格最长多少字 —— 再长就是一句话，不是标签。 */
+  maxTagChars: 80,
+  /** 一格最多几个词（`looking at viewer` 这类是 3 个）。 */
+  maxTagWords: 8,
+} as const

@@ -374,13 +374,15 @@
       "image": "图片工作台",
       "video": "视频工作台",
       "audio": "音频工作台",
-      "audio_sfx": "音效工作台"
+      "audio_sfx": "音效工作台",
+      "image_tags": "标签台"
     },
     "hint": {
       "image": "描述你想要的画面，或从一个示例开始",
       "video": "描述镜头里发生什么，或从一个示例开始",
       "audio": "输入要朗读的文本，或从一个示例开始",
-      "audio_sfx": "描述你想要的声音，或从一个示例开始"
+      "audio_sfx": "描述你想要的声音，或从一个示例开始",
+      "image_tags": "写几个标签，或从一组起手"
     },
     "examples": {
       "image": {
@@ -445,6 +447,24 @@
         "e3": {
           "label": "玻璃碎裂",
           "prompt": "一只玻璃杯掉落在瓷砖地面上摔碎，清脆的破裂声伴随四散的碎片"
+        }
+      },
+      "image_tags": {
+        "e1": {
+          "label": "人像",
+          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
+        },
+        "e2": {
+          "label": "雨夜街景",
+          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
+        },
+        "e3": {
+          "label": "魔女",
+          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
+        },
+        "e4": {
+          "label": "Q 版",
+          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
         }
       }
     },
@@ -6349,6 +6369,11 @@
     },
     "jumpToTags": "{model} 是标签模型，带你去标签台",
     "jumpToNatural": "{model} 吃自然语言，带你去自然语言台",
+    "carry": {
+      "translating": "正在把这句翻成标签…",
+      "failed": "没翻成标签，整句先放在这一格。",
+      "retry": "再试一次"
+    },
     "characterCount": "{count, plural, =0 {无} other {# 人}}",
     "moreControls": "采样器 · 分辩率 · 更多",
     "preciseReferenceCost": "每张生成额外消耗 5 Anlas；仅参考角色外观。",
@@ -6941,6 +6966,9 @@
     },
     "assistantMemory": {
       "limitReached": "你写的记忆已经到上限了，先删掉一条再写。"
+    },
+    "promptTags": {
+      "unusable": "助手没翻出标签，整句先留着。"
     }
   },
   "Transform": {

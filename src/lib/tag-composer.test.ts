@@ -4,6 +4,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   formatTagWeight,
   novelAiBraceDepth,
+  parsePromptToTagsOutput,
   parseTagChips,
   serializeTagChips,
   snapTagWeight,
@@ -103,7 +104,7 @@ describe('翻成 provider 原生语法', () => {
   })
 })
 
-// 两台跳转：整句进第一格，⛔ 不自动切成标签。
+// 两台跳转：整句先占第一格，随后由助手翻成标签换掉它。
 describe('自然语言台带过来的那一句', () => {
   it('整句一格，含逗号也不切', () => {
     expect(
@@ -113,6 +114,43 @@ describe('自然语言台带过来的那一句', () => {
 
   it('空串不产生格子', () => {
     expect(wholeSentenceAsTag('   ')).toEqual([])
+  })
+})
+
+// 助手翻回来的那一串 → 一格一格的标签。
+describe('parsePromptToTagsOutput', () => {
+  it('剥掉前缀与代码块，下划线换空格，按逗号和换行切', () => {
+    expect(
+      parsePromptToTagsOutput(
+        '```\nTags: 1girl, solo,\nlong_hair, looking_at_viewer\n```',
+      ),
+    ).toEqual(['1girl', 'solo', 'long hair', 'looking at viewer'])
+  })
+
+  it('去掉编号、引号，大小写不同的重复只留一格', () => {
+    expect(
+      parsePromptToTagsOutput('1. "1girl"\n2. Rain\n3. rain\n4. night.'),
+    ).toEqual(['1girl', 'Rain', 'night'])
+  })
+
+  it('丢掉长得像一句话的那一格', () => {
+    expect(
+      parsePromptToTagsOutput(
+        '1girl, rain, night, city, 雨中的女孩, a girl who is standing in the middle of the rain at night',
+      ),
+    ).toEqual(['1girl', 'rain', 'night', 'city'])
+  })
+
+  it('大半是一段话 = 没照做，回 null', () => {
+    expect(
+      parsePromptToTagsOutput('这是一幅雨夜的画面，女孩抬头，神情安静。'),
+    ).toBeNull()
+    expect(parsePromptToTagsOutput('   ')).toBeNull()
+  })
+
+  it('最多留 60 格', () => {
+    const many = Array.from({ length: 80 }, (_, i) => `tag ${i}`).join(', ')
+    expect(parsePromptToTagsOutput(many)).toHaveLength(60)
   })
 })
 

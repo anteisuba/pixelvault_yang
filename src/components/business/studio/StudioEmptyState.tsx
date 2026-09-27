@@ -20,6 +20,7 @@ import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { getGenerationVideoPosterUrl } from '@/lib/generation-media'
+import { parseTagChips } from '@/lib/tag-composer'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
@@ -74,11 +75,19 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   const isMobileStart = isMobile && (mode === 'image' || mode === 'video')
   const isVideo = mode === 'video'
 
+  /**
+   * 标签台起手是**几组标签**（owner 2026-09-27）：点一组 = 正向栏换成这一组，
+   * ⛔ 不再拿自然语言句子当示例（那一句进标签台只会变成一颗整句的格子）。
+   */
+  const isTags = mode === 'image' && state.promptDialect === 'tags'
   // Audio splits into speech / sfx: swap the copy + example chips for sound
   // effects so the empty state isn't voice-only. Recent works + tutorial stay
   // keyed to the base mode.
-  const contentKey =
-    mode === 'audio' && state.audioKind === AUDIO_KIND.SFX ? 'audio_sfx' : mode
+  const contentKey = isTags
+    ? 'image_tags'
+    : mode === 'audio' && state.audioKind === AUDIO_KIND.SFX
+      ? 'audio_sfx'
+      : mode
 
   // 首访自动弹一次教程。标记在用户关闭教程时才写（handleGuideOpenChange）：
   // 打开时就写会让 dev StrictMode 的卸载重挂载把刚打开的对话框吞掉，
@@ -129,7 +138,14 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   }, [projects.history, mode, state.audioKind, isMobileStart])
 
   const handleExample = (prompt: string) => {
-    dispatch({ type: 'SET_PROMPT', payload: prompt })
+    if (isTags) {
+      dispatch({
+        type: 'SET_TAG_CHIPS',
+        payload: { polarity: 'positive', chips: parseTagChips(prompt) },
+      })
+    } else {
+      dispatch({ type: 'SET_PROMPT', payload: prompt })
+    }
     focusStudioPrompt()
   }
 
@@ -165,8 +181,8 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
                 key={exampleKey}
                 index={index}
                 wide={isVideo}
-                label={t(`examples.${mode}.${exampleKey}.label`)}
-                excerpt={t(`examples.${mode}.${exampleKey}.prompt`)}
+                label={t(`examples.${contentKey}.${exampleKey}.label`)}
+                excerpt={t(`examples.${contentKey}.${exampleKey}.prompt`)}
                 // ⚠ 视频借的是缩略图不是 `url`：把 mp4 塞进 <img> 只会得到一个
                 //    坏掉的图标。素材域记过「视频零缩略图」，所以常态是 null →
                 //    走渐变底。
@@ -176,7 +192,9 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
                     : recent[index]?.url) ?? null
                 }
                 onSelect={() =>
-                  handleExample(t(`examples.${mode}.${exampleKey}.prompt`))
+                  handleExample(
+                    t(`examples.${contentKey}.${exampleKey}.prompt`),
+                  )
                 }
               />
             ))}

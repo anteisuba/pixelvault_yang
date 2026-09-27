@@ -165,6 +165,13 @@ export interface StudioFormState {
   tagChips: TagChip[]
   tagNegativeChips: TagChip[]
   /**
+   * 从自然语言台带过来、**正等着助手翻成标签**的那一句（owner 2026-09-27）。它此刻
+   * 整句占着正向栏里的一格，翻好了由 `RESOLVE_TAG_CARRY` 原地换成一串标签。
+   * ⚠ 那一格被删 / 被改、提示词被外部改写、离开标签台都会把它清掉 —— 迟到的结果
+   * 随之作废。⛔ 不进 payload、不进草稿。
+   */
+  tagCarrySource: string | null
+  /**
    * 标签台里**正在编辑谁的标签**：`null` = 整体，数字 = `novelAiLayout` 里的
    * 第几个角色（D10 ④「选中某角色时，编辑器主区切到那个角色的标签」）。
    * ⚠ 它是纯 UI 焦点，不进 payload；角色没了要跟着回到整体。
@@ -328,8 +335,8 @@ export type StudioAction =
   | { type: 'SET_PROMPT'; payload: string }
   | { type: 'SET_TAG_PROMPT_BLOCKS'; payload: TagPromptBlock[] }
   /**
-   * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格
-   * （D10 ④ 两台跳转，⛔ 不自动切成标签）；负向栏本来就是逗号列表，按逗号切。
+   * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格，并记下
+   * 它等助手翻成标签（`tagCarrySource`）；负向栏本来就是逗号列表，按逗号切。
    */
   | { type: 'SET_PROMPT_DIALECT'; payload: PromptDialect }
   | {
@@ -338,10 +345,15 @@ export type StudioAction =
     }
   | { type: 'SET_ACTIVE_TAG_CHARACTER'; payload: number | null }
   /**
-   * 从自然语言台**带着提示词跳过去**（D10 ④ 两台跳转）。整句进正向栏第一格，
-   * ⛔ 不自动切成标签 —— 用户写的是一句话，替他改写成标签不是他要求的事。
+   * 从自然语言台**带着提示词跳过去**（D10 ④ 两台跳转）。整句先进正向栏第一格，
+   * 再由助手翻成标签换掉它（owner 2026-09-27）。
    */
   | { type: 'CARRY_PROMPT_TO_TAGS' }
+  /**
+   * 助手翻好了：把 `source` 那一格**原地**换成这串标签（与别的格重复的不再插）。
+   * ⚠ `source` 已经不是正在等的那一句（被删、被改、被新的一句顶掉）就什么都不做。
+   */
+  | { type: 'RESOLVE_TAG_CARRY'; payload: { source: string; chips: TagChip[] } }
   | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -479,6 +491,7 @@ const initialFormState: StudioFormState = {
   tagChips: [],
   tagPromptBlocks: [],
   tagNegativeChips: [],
+  tagCarrySource: null,
   activeTagCharacterIndex: null,
   recipeUsage: null,
   aspectRatio: '1:1',
@@ -664,6 +677,7 @@ export function studioFormReducer(
         ...state,
         prompt: action.payload,
         tagPromptBlocks: [],
+        tagCarrySource: null,
         // 标签台开着时，外部改写提示词（助手 · 草稿回灌 · 灵感）要在 chip 上
         // 看得见 —— 否则编辑器画的是一份已经被顶掉的旧名单。
         ...(state.promptDialect === 'tags' || state.tagPromptBlocks?.length
@@ -673,15 +687,17 @@ export function studioFormReducer(
     case 'SET_PROMPT_DIALECT': {
       if (state.promptDialect === action.payload) return state
       if (action.payload !== 'tags') {
-        return { ...state, promptDialect: action.payload }
+        return { ...state, promptDialect: action.payload, tagCarrySource: null }
       }
+      const seeded =
+        state.tagChips.length || state.tagPromptBlocks?.length
+          ? null
+          : wholeSentenceAsTag(state.prompt)
       return {
         ...state,
         promptDialect: 'tags',
-        tagChips:
-          state.tagChips.length || state.tagPromptBlocks?.length
-            ? state.tagChips
-            : wholeSentenceAsTag(state.prompt),
+        tagChips: seeded ?? state.tagChips,
+        tagCarrySource: seeded?.[0]?.text ?? state.tagCarrySource,
         tagNegativeChips: state.tagNegativeChips.length
           ? state.tagNegativeChips
           : parseTagChips(state.advancedParams.negativePrompt ?? ''),
@@ -692,8 +708,14 @@ export function studioFormReducer(
     case 'CARRY_PROMPT_TO_TAGS': {
       const carried = wholeSentenceAsTag(state.prompt)
       if (carried.length === 0) return state
+      // ⚠ 带画风串编过的那一串本来就是标签，原样落成一格，⛔ 不送去翻。
       if (state.tagPromptBlocks?.length)
-        return { ...state, tagPromptBlocks: [], tagChips: carried }
+        return {
+          ...state,
+          tagPromptBlocks: [],
+          tagChips: carried,
+          tagCarrySource: null,
+        }
       // 已经在场的同一句不再插第二遍（来回跳两次会攒出两格一样的字）。
       const existing = state.tagChips.filter(
         (chip) => chip.text !== carried[0].text,
@@ -702,15 +724,43 @@ export function studioFormReducer(
       return {
         ...state,
         tagChips,
+        tagCarrySource: carried[0].text,
+        prompt: compileTagPrompt(tagChips, state.tagPromptBlocks ?? []),
+      }
+    }
+    case 'RESOLVE_TAG_CARRY': {
+      const { source, chips } = action.payload
+      if (state.tagCarrySource !== source) return state
+      const at = state.tagChips.findIndex((chip) => chip.text === source)
+      if (at < 0) return { ...state, tagCarrySource: null }
+      const others = state.tagChips.filter((_, index) => index !== at)
+      const taken = new Set(others.map((chip) => chip.text.toLowerCase()))
+      const fresh = chips.filter((chip) => {
+        const key = chip.text.toLowerCase()
+        if (taken.has(key)) return false
+        taken.add(key)
+        return true
+      })
+      const tagChips = [...others.slice(0, at), ...fresh, ...others.slice(at)]
+      return {
+        ...state,
+        tagChips,
+        tagCarrySource: null,
         prompt: compileTagPrompt(tagChips, state.tagPromptBlocks ?? []),
       }
     }
     case 'SET_TAG_CHIPS': {
       const text = serializeTagChips(action.payload.chips)
       if (action.payload.polarity === 'positive') {
+        const carrying =
+          state.tagCarrySource !== null &&
+          action.payload.chips.some(
+            (chip) => chip.text === state.tagCarrySource,
+          )
         return {
           ...state,
           tagChips: action.payload.chips,
+          tagCarrySource: carrying ? state.tagCarrySource : null,
           prompt: compileTagPrompt(
             action.payload.chips,
             state.tagPromptBlocks ?? [],
@@ -834,6 +884,7 @@ export function studioFormReducer(
         tagChips: [],
         tagPromptBlocks: [],
         tagNegativeChips: [],
+        tagCarrySource: null,
         activeTagCharacterIndex: null,
         recipeUsage: null,
         aspectRatio: '1:1',

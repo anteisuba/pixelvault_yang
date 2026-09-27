@@ -41,6 +41,7 @@ function makeInitialState(
     tagChips: [],
     tagPromptBlocks: [],
     tagNegativeChips: [],
+    tagCarrySource: null,
     activeTagCharacterIndex: null,
     recipeUsage: null,
     aspectRatio: '1:1',
@@ -803,6 +804,8 @@ describe('提示词方言与标签栏', () => {
     expect(state.tagChips).toEqual([
       { text: 'a girl standing in the rain, looking up', weight: 1 },
     ])
+    // 这一格只是占位：记下它，等助手翻成标签来换。
+    expect(state.tagCarrySource).toBe('a girl standing in the rain, looking up')
     // 负向栏在每一种方言里本来就是逗号列表，整句一格会变成一颗没法用的大 chip。
     expect(state.tagNegativeChips).toEqual([
       { text: 'bad hands', weight: 1 },
@@ -817,6 +820,7 @@ describe('提示词方言与标签栏', () => {
       { type: 'SET_PROMPT_DIALECT', payload: 'tags' },
     )
     expect(state.tagChips).toBe(chips)
+    expect(state.tagCarrySource).toBeNull()
   })
 
   // chip 与统一串**一起写** —— 下游读 prompt 就够了，⛔ 不必认识 chip。
@@ -862,7 +866,7 @@ describe('提示词方言与标签栏', () => {
   })
 })
 
-// 两台跳转：整句进正向栏第一格，⛔ 不自动切成标签。
+// 两台跳转：整句先进正向栏第一格，再由助手翻成标签换掉它。
 describe('带着提示词跳去标签台', () => {
   it('整句进第一格，已有的 chip 排在后面', () => {
     const state = studioFormReducer(
@@ -878,6 +882,7 @@ describe('带着提示词跳去标签台', () => {
     ])
     // 统一串跟着一起写 —— 下游读 prompt 就够了。
     expect(state.prompt).toBe('a girl standing in the rain, looking up, 1girl')
+    expect(state.tagCarrySource).toBe('a girl standing in the rain, looking up')
   })
 
   it('来回跳两次不会攒出两格一样的字', () => {
@@ -894,6 +899,96 @@ describe('带着提示词跳去标签台', () => {
     expect(studioFormReducer(state, { type: 'CARRY_PROMPT_TO_TAGS' })).toBe(
       state,
     )
+  })
+})
+
+// 助手翻好了：占位的那一格原地换成标签（owner 2026-09-27）。
+describe('助手把带过来的那一句翻成标签', () => {
+  const sentence = 'a girl standing in the rain, looking up'
+  const carried = () =>
+    studioFormReducer(
+      makeInitialState({
+        prompt: sentence,
+        tagChips: [
+          { text: 'solo', weight: 1 },
+          { text: 'rain', weight: 1.2 },
+        ],
+      }),
+      { type: 'CARRY_PROMPT_TO_TAGS' },
+    )
+  const translated = [
+    { text: '1girl', weight: 1 },
+    { text: 'Rain', weight: 1 },
+    { text: 'looking up', weight: 1 },
+  ]
+
+  it('原地换成标签，与别的格重复的不再插，统一串跟着写', () => {
+    const state = studioFormReducer(carried(), {
+      type: 'RESOLVE_TAG_CARRY',
+      payload: { source: sentence, chips: translated },
+    })
+    expect(state.tagChips).toEqual([
+      { text: '1girl', weight: 1 },
+      { text: 'looking up', weight: 1 },
+      { text: 'solo', weight: 1 },
+      { text: 'rain', weight: 1.2 },
+    ])
+    expect(state.prompt).toBe('1girl, looking up, solo, rain:1.2')
+    expect(state.tagCarrySource).toBeNull()
+  })
+
+  it('那一格已经被删掉：迟到的结果作废', () => {
+    const edited = studioFormReducer(carried(), {
+      type: 'SET_TAG_CHIPS',
+      payload: { polarity: 'positive', chips: [{ text: 'solo', weight: 1 }] },
+    })
+    expect(edited.tagCarrySource).toBeNull()
+    expect(
+      studioFormReducer(edited, {
+        type: 'RESOLVE_TAG_CARRY',
+        payload: { source: sentence, chips: translated },
+      }),
+    ).toBe(edited)
+  })
+
+  it('只是在旁边加了一格：照样等着翻', () => {
+    const state = carried()
+    const added = studioFormReducer(state, {
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [...state.tagChips, { text: 'night', weight: 1 }],
+      },
+    })
+    expect(added.tagCarrySource).toBe(sentence)
+  })
+
+  it('离开标签台 / 外部改写提示词 / 清空：都不再等', () => {
+    const inTags = studioFormReducer(carried(), {
+      type: 'SET_PROMPT_DIALECT',
+      payload: 'tags',
+    })
+    expect(inTags.tagCarrySource).toBe(sentence)
+    for (const action of [
+      { type: 'SET_PROMPT_DIALECT', payload: 'natural' },
+      { type: 'SET_PROMPT', payload: '1girl, night' },
+      { type: 'RESET_FORM' },
+    ] satisfies StudioAction[]) {
+      expect(studioFormReducer(inTags, action).tagCarrySource).toBeNull()
+    }
+  })
+
+  it('画风串编过的那一串本来就是标签，⛔ 不送去翻', () => {
+    const state = studioFormReducer(
+      makeInitialState({
+        tagPromptBlocks: [
+          { id: 'b1', name: 'Style', text: 'watercolor', enabled: true },
+        ],
+        prompt: 'watercolor',
+      }),
+      { type: 'CARRY_PROMPT_TO_TAGS' },
+    )
+    expect(state.tagCarrySource).toBeNull()
   })
 })
 

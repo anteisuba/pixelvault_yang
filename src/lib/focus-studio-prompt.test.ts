@@ -64,6 +64,19 @@ describe('focusStudioPrompt', () => {
     expect(() => focusStudioPrompt()).not.toThrow()
   })
 
+  it('falls back to the positive tag input on the tag studio', () => {
+    stubHoverNone(false)
+    const negative = document.createElement('input')
+    negative.dataset.tagPolarity = 'negative'
+    const positive = document.createElement('input')
+    positive.dataset.tagPolarity = 'positive'
+    document.body.append(negative, positive)
+
+    focusStudioPrompt()
+
+    expect(document.activeElement).toBe(positive)
+  })
+
   it('focuses and selects the rich prompt editor on desktop', () => {
     stubHoverNone(false)
     const el = document.createElement('div')

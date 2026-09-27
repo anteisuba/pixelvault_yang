@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { PROMPT_ENHANCE } from '@/constants/config'
 import { PROMPT_TAG_WEIGHT } from '../constants/prompt-dialects'
 
 /**
@@ -44,3 +45,18 @@ export type TagPromptBlock = z.infer<typeof TagPromptBlockSchema>
 export const TagTemplateParamsSchema = z.object({
   promptDialect: z.literal('tags'),
 })
+
+/**
+ * 自然语言带到标签台时**让助手翻成标签**（owner 2026-09-27）。
+ * `modelId` = 这一轮选中的 NAI 型号：有它才顺手过一遍官方联想核对。
+ */
+export const PromptToTagsRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+  modelId: z.string().optional(),
+})
+export type PromptToTagsRequest = z.infer<typeof PromptToTagsRequestSchema>
+
+/** 翻好的一串（逗号分隔，与 `prompt` 同一种写法，客户端按 `parseTagChips` 切格）。 */
+export interface PromptToTagsResponseData {
+  tags: string
+}

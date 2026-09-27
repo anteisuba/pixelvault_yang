@@ -1,6 +1,13 @@
 'use client'
 
-import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
 import { StudioTagChip } from '@/components/business/studio/tags/StudioTagChip'
@@ -33,6 +40,8 @@ interface StudioTagChipFieldProps {
    * owner 2026-09-26 原型）。
    */
   variant?: 'stacked' | 'inline'
+  /** 格子底下那行状态（带过来的那一句正在翻成标签…）。 */
+  status?: ReactNode
 }
 
 /**
@@ -51,6 +60,7 @@ export function StudioTagChipField({
   disabled,
   onChange,
   variant = 'stacked',
+  status,
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
   const tModels = useTranslations('Models')
@@ -219,6 +229,7 @@ export function StudioTagChipField({
           ))}
           <input
             ref={inputRef}
+            data-tag-polarity={polarity}
             value={draft}
             disabled={disabled}
             role="combobox"
@@ -278,6 +289,7 @@ export function StudioTagChipField({
                   )}
           </p>
         )}
+        {status}
       </div>
       <StudioTagSuggestions
         anchorRef={boxRef}

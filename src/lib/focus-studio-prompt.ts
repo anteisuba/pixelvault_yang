@@ -16,7 +16,17 @@ import { focusUnlessTouch } from '@/lib/touch'
 export function focusStudioPrompt(options?: { select?: boolean }): void {
   if (typeof document === 'undefined') return
   const field = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-  if (field instanceof HTMLTextAreaElement || field?.isContentEditable) {
+  if (!field) {
+    // 标签台没有那块文本框：落到正向栏的输入框，同一条触屏策略。
+    focusUnlessTouch(
+      document.querySelector<HTMLInputElement>(
+        'input[data-tag-polarity="positive"]',
+      ),
+      options,
+    )
+    return
+  }
+  if (field instanceof HTMLTextAreaElement || field.isContentEditable) {
     focusUnlessTouch(field, options)
     if (
       options?.select &&

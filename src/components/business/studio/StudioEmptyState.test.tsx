@@ -15,10 +15,11 @@ vi.mock('next-intl', () => ({
 const dispatchMock = vi.fn()
 const addFromUrlMock = vi.fn(() => Promise.resolve())
 let historyMock: GenerationRecord[] = []
+let promptDialectMock = 'natural'
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
-    state: { audioKind: 'speech' },
+    state: { audioKind: 'speech', promptDialect: promptDialectMock },
     dispatch: dispatchMock,
   }),
   // ⚠ 手写镜像：组件消费到哪些字段这里就得有哪些。缺 `imageUpload` 时点缩略图
@@ -94,6 +95,7 @@ function makeGeneration(
 beforeEach(() => {
   vi.clearAllMocks()
   historyMock = []
+  promptDialectMock = 'natural'
   localStorage.clear()
 })
 
@@ -111,6 +113,26 @@ describe('StudioEmptyState', () => {
     expect(dispatchMock).toHaveBeenCalledWith({
       type: 'SET_PROMPT',
       payload: 'examples.image.e1.prompt',
+    })
+    expect(focusMock).toHaveBeenCalled()
+  })
+
+  // 标签台起手是几组标签：点一组 = 正向栏换成这一组（⛔ 不走 SET_PROMPT 的整句）。
+  it('starts the tag studio from a tag set', () => {
+    localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+    promptDialectMock = 'tags'
+    render(<StudioEmptyState mode="image" />)
+
+    expect(screen.getByText('hint.image_tags')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'examples.image_tags.e1.label' }),
+    )
+    expect(dispatchMock).toHaveBeenCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [{ text: 'examples.image_tags.e1.prompt', weight: 1 }],
+      },
     })
     expect(focusMock).toHaveBeenCalled()
   })

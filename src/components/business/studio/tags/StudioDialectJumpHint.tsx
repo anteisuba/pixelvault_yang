@@ -27,7 +27,7 @@ interface StudioDialectJumpHintProps {
  * 真要在这一台搜到它时，给一行「带你过去」而不是让人对着空结果发呆。
  *
  * 点了之后三件事一起发生：**选中那个型号** · **带走已填的提示词** · **换路由**。
- * ⚠ 带走的那句整句进正向栏第一格，⛔ 不自动切成标签。
+ * ⚠ 带走的那句先整句占正向栏第一格，到了标签台由助手翻成标签换掉它。
  */
 export function StudioDialectJumpHint({
   query,

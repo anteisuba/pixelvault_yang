@@ -26,6 +26,7 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 import {
   getCapabilityChipValue,
   isCapabilityChipSet,
@@ -73,6 +74,7 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioDialectJumpHint } from './StudioDialectJumpHint'
+import { StudioTagCarryNote } from './StudioTagCarryNote'
 import { StudioTagChipField } from './StudioTagChipField'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
@@ -137,6 +139,7 @@ export function StudioTagsComposer({
   const tagModelId = runModels.find(
     (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
   )?.modelId
+  const carry = useTagCarryTranslation(tagModelId)
   const imageCount = Math.max(1, runModels.length) * state.imageBatchCount
   const modelSummary =
     runModels.length > 1
@@ -311,6 +314,14 @@ export function StudioTagsComposer({
               chips={positive}
               disabled={isGenerating || characterDisabled}
               onChange={(chips) => setChips('positive', chips)}
+              status={
+                activeIndex === null ? (
+                  <StudioTagCarryNote
+                    status={carry.status}
+                    onRetry={carry.retry}
+                  />
+                ) : undefined
+              }
             />
           </div>
           <div data-assistant-field="negativePrompt">

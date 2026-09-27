@@ -43,6 +43,10 @@ import type {
   VideoStatusResponse,
   VideoSubmitResponse,
 } from '@/types'
+import type {
+  PromptToTagsRequest,
+  PromptToTagsResponseData,
+} from '@/types/tag-composer'
 import {
   readAssistantStream,
   type AssistantStreamMessage,
@@ -1060,6 +1064,48 @@ export async function enhancePromptAPI(
     }
 
     return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/** 自然语言带到标签台时，让助手照原意翻成 Danbooru 标签（不润色）。 */
+export async function translatePromptToTagsAPI(
+  params: PromptToTagsRequest,
+): Promise<
+  | { success: true; data: PromptToTagsResponseData }
+  | { success: false; error: string; errorCode?: string; i18nKey?: string }
+> {
+  try {
+    const response = await fetch(API_ENDPOINTS.PROMPT_TO_TAGS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Tag translation failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+    const body = (await response.json()) as {
+      success?: boolean
+      data?: PromptToTagsResponseData
+      error?: string
+    }
+    return body.success && body.data
+      ? { success: true, data: body.data }
+      : { success: false, error: body.error ?? 'Tag translation failed' }
   } catch (error) {
     return {
       success: false,

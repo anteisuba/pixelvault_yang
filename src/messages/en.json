@@ -374,13 +374,15 @@
       "image": "Image studio",
       "video": "Video studio",
       "audio": "Audio studio",
-      "audio_sfx": "Sound effects"
+      "audio_sfx": "Sound effects",
+      "image_tags": "Tag studio"
     },
     "hint": {
       "image": "Describe the image you want, or start from an example",
       "video": "Describe what happens in the shot, or start from an example",
       "audio": "Enter the text to narrate, or start from an example",
-      "audio_sfx": "Describe the sound you want, or start from an example"
+      "audio_sfx": "Describe the sound you want, or start from an example",
+      "image_tags": "Type a few tags, or start from a set"
     },
     "examples": {
       "image": {
@@ -445,6 +447,24 @@
         "e3": {
           "label": "Glass shatter",
           "prompt": "A glass cup falls and shatters on a tile floor, sharp break with scattering shards"
+        }
+      },
+      "image_tags": {
+        "e1": {
+          "label": "Portrait",
+          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
+        },
+        "e2": {
+          "label": "Rainy night street",
+          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
+        },
+        "e3": {
+          "label": "Witch",
+          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
+        },
+        "e4": {
+          "label": "Chibi",
+          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
         }
       }
     },
@@ -6349,6 +6369,11 @@
     },
     "jumpToTags": "{model} is a tag model — take me to the tag workbench",
     "jumpToNatural": "{model} takes a sentence — take me to the natural-language workbench",
+    "carry": {
+      "translating": "Turning this sentence into tags…",
+      "failed": "Couldn't turn it into tags — the sentence stays as one tag.",
+      "retry": "Try again"
+    },
     "characterCount": "{count, plural, =0 {none} one {# character} other {# characters}}",
     "moreControls": "Sampler · resolution · more",
     "preciseReferenceCost": "Adds 5 Anlas per generated image; references character appearance only.",
@@ -6941,6 +6966,9 @@
     },
     "assistantMemory": {
       "limitReached": "You've reached the limit for memories you write. Delete one before adding another."
+    },
+    "promptTags": {
+      "unusable": "The assistant couldn't turn that into tags."
     }
   },
   "Transform": {

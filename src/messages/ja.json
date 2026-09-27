@@ -374,13 +374,15 @@
       "image": "画像スタジオ",
       "video": "動画スタジオ",
       "audio": "音声スタジオ",
-      "audio_sfx": "効果音スタジオ"
+      "audio_sfx": "効果音スタジオ",
+      "image_tags": "タグスタジオ"
     },
     "hint": {
       "image": "作りたいイメージを言葉にするか、例から始めましょう",
       "video": "ショットで何が起きるかを書くか、例から始めましょう",
       "audio": "読み上げるテキストを入力するか、例から始めましょう",
-      "audio_sfx": "欲しい音を説明するか、例から始めましょう"
+      "audio_sfx": "欲しい音を説明するか、例から始めましょう",
+      "image_tags": "タグをいくつか書くか、セットから始めましょう"
     },
     "examples": {
       "image": {
@@ -445,6 +447,24 @@
         "e3": {
           "label": "ガラスが割れる",
           "prompt": "ガラスのコップがタイルの床に落ちて割れ、鋭い破砕音と飛び散る破片"
+        }
+      },
+      "image_tags": {
+        "e1": {
+          "label": "ポートレート",
+          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
+        },
+        "e2": {
+          "label": "雨の夜の街",
+          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
+        },
+        "e3": {
+          "label": "魔女",
+          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
+        },
+        "e4": {
+          "label": "ちびキャラ",
+          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
         }
       }
     },
@@ -6349,6 +6369,11 @@
     },
     "jumpToTags": "{model} はタグモデルです — タグスタジオへ移動",
     "jumpToNatural": "{model} は文章で指示します — 自然言語スタジオへ移動",
+    "carry": {
+      "translating": "この文をタグに変換中…",
+      "failed": "タグにできませんでした。文は1つのタグのまま残しています。",
+      "retry": "もう一度"
+    },
     "characterCount": "{count, plural, =0 {なし} other {# 人}}",
     "moreControls": "サンプラー · 解像度 · その他",
     "preciseReferenceCost": "生成画像ごとに 5 Anlas が追加されます。キャラクターの外観のみを参照します。",
@@ -6941,6 +6966,9 @@
     },
     "assistantMemory": {
       "limitReached": "あなたが書いた記憶が上限に達しました。一つ削除してから書いてください。"
+    },
+    "promptTags": {
+      "unusable": "アシスタントがタグに変換できませんでした。"
     }
   },
   "Transform": {

@@ -133,6 +133,8 @@ export const API_ENDPOINTS = {
 
   /** Prompt enhancement */
   ENHANCE_PROMPT: '/api/prompt/enhance',
+  /** 自然语言带到标签台时翻成 Danbooru 标签（照原意直译，不润色）。 */
+  PROMPT_TO_TAGS: '/api/prompt/to-tags',
 
   /** Prompt feedback (AI coaching) */
   PROMPT_FEEDBACK: '/api/prompt/feedback',

@@ -263,3 +263,179 @@ export function LoraCollocationStatusBar({
     </div>
   )
 }
+
+interface LoraCollocationBarProps extends Omit<
+  LoraCollocationStatusBarProps,
+  'onToggleTrigger' | 'triggerEntries' | 'disabledTriggerIds'
+> {
+  /** 挂上的 LoRA 里有几个和底模装不上（这一轮不生效）。 */
+  incompatibleCount: number
+  /** 装不上的几个家族互斥：没有一个底模能全装上，只能卸掉其一。 */
+  mutuallyExclusive: boolean
+  /** 换到推荐底模；给不出真的可用的推荐时不给。 */
+  onSwitchBase?: () => void
+}
+
+/**
+ * 生成台 B 输入框顶上那一条「搭配」（lora-generate.md §2.4）：做同款 / 助手改了
+ * 什么、有没有 LoRA 和底模装不上 ——「● 搭配 已应用来源配方」，装不上时多一段
+ * 「· 1 个 LoRA 和底模装不上 · 换底模」，末尾「查看 / 收起」在原位展开明细。
+ *
+ * ⚠ 与手机那张 `LoraCollocationStatusBar` 同一份状态、同一组回调，只换呈现。
+ * ⚠ 触发词不在这条上报：它就写在下面的正文里（owner 09-28），没写进去的在提示词
+ *   下面那一行「触发词 ＋词」。
+ * ⚠ 展开 / 收起走 `.lora-mixwrap`（lora.css）：开 200 淡入、关 120 淡出，输入框
+ *   跟着长高 / 收回。
+ */
+export function LoraCollocationBar({
+  recipeApplied,
+  recipeName,
+  appliedParamLabels,
+  changedParams = [],
+  addedPromptTags = null,
+  keptLabels = [],
+  onUndo,
+  pendingReview = false,
+  onApplyPending,
+  sourceKind = 'recipe',
+  expanded,
+  onExpandedChange,
+  incompatibleCount,
+  mutuallyExclusive,
+  onSwitchBase,
+}: LoraCollocationBarProps) {
+  const t = useTranslations('LoraWorkbench.generate')
+  const tc = useTranslations('LoraWorkbench.generate.collocation')
+  const isPending = recipeApplied && pendingReview
+  const isAssistant = sourceKind === 'assistant'
+
+  if (!recipeApplied && incompatibleCount === 0) return null
+  const hasDetail = recipeApplied
+  const dot = (
+    <span aria-hidden className="text-muted-foreground/60">
+      ·
+    </span>
+  )
+  // 明细只报「改了什么」：新并进提示词的只写几个词（整段原文在输入框里），
+  // ⛔ 把几百字的提示词铺进这一行 —— 那会把舞台挤没。
+  const recipeLine = [
+    addedPromptTags && addedPromptTags.length > 0
+      ? `${tc('rowPrompt')}${tc('addedWordCount', {
+          count: addedPromptTags.length,
+        })}`
+      : null,
+    changedParams.length > 0
+      ? changedParams.map((c) => `${c.label} ${c.from}→${c.to}`).join(' · ')
+      : appliedParamLabels.length > 0
+        ? tc('appliedParams', { params: appliedParamLabels.join(', ') })
+        : null,
+  ].filter((part): part is string => part !== null)
+
+  return (
+    <>
+      <div className="flex h-6.5 min-w-0 items-center gap-2 text-2sm text-muted-foreground">
+        <span
+          aria-hidden
+          className={cn(
+            'size-1.5 shrink-0 rounded-full',
+            isPending ? 'bg-primary' : 'bg-foreground',
+          )}
+        />
+        <b className="shrink-0 font-semibold text-foreground">{tc('label')}</b>
+        <span className="min-w-0 truncate">
+          {isPending
+            ? isAssistant
+              ? tc('assistantPending')
+              : tc('recipePending', { name: recipeName ?? '' })
+            : recipeApplied
+              ? isAssistant
+                ? tc('assistantApplied')
+                : tc('recipeApplied')
+              : null}
+        </span>
+        {incompatibleCount > 0 ? (
+          <>
+            {dot}
+            <span className="min-w-0 truncate text-status-warning">
+              {mutuallyExclusive
+                ? t('mountsMutuallyExclusive')
+                : tc('incompatible', { count: incompatibleCount })}
+            </span>
+            {onSwitchBase ? (
+              <>
+                {dot}
+                <button
+                  type="button"
+                  onClick={onSwitchBase}
+                  className="shrink-0 font-semibold text-foreground underline-offset-3 hover:underline"
+                >
+                  {tc('switchBase')}
+                </button>
+              </>
+            ) : null}
+          </>
+        ) : null}
+        {hasDetail ? (
+          <>
+            {dot}
+            <button
+              type="button"
+              onClick={() => onExpandedChange(!expanded)}
+              aria-expanded={expanded}
+              className="shrink-0 font-semibold text-foreground underline underline-offset-3"
+            >
+              {expanded ? tc('collapse') : tc('view')}
+            </button>
+          </>
+        ) : null}
+      </div>
+      <div
+        className="lora-mixwrap"
+        data-open={expanded && hasDetail ? 'true' : 'false'}
+      >
+        <div inert={!(expanded && hasDetail)}>
+          <div className="flex flex-col gap-2.5 rounded-xl bg-muted/60 px-3.5 py-3 text-2sm ring-1 ring-inset ring-border/70">
+            {recipeApplied ? (
+              <div className="flex items-baseline gap-2.5">
+                <span className="w-16 shrink-0 font-semibold text-foreground/80">
+                  {isAssistant ? tc('rowAssistant') : tc('rowRecipe')}
+                </span>
+                <span className="min-w-0 flex-1 text-muted-foreground">
+                  {isAssistant
+                    ? tc('willChangeAssistant')
+                    : tc('willChange', { name: recipeName ?? '' })}
+                  {recipeLine.length > 0 ? (
+                    <span className="mt-0.5 block font-mono text-xs text-foreground/80">
+                      {recipeLine.join(' · ')}
+                    </span>
+                  ) : null}
+                  {keptLabels.length > 0 ? (
+                    <span className="mt-0.5 block text-xs">
+                      {tc('keptUnchanged', { items: keptLabels.join(' · ') })}
+                    </span>
+                  ) : null}
+                </span>
+                {isPending ? (
+                  <button
+                    type="button"
+                    onClick={onApplyPending}
+                    className="shrink-0 font-semibold text-foreground underline underline-offset-3"
+                  >
+                    {tc('apply')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  className="shrink-0 font-semibold text-foreground underline underline-offset-3"
+                >
+                  {tc('undo')}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}

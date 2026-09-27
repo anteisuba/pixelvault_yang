@@ -59,29 +59,21 @@
 
   /* 地台外距与 `.workbench-ground` 同值（18px 桌面 / 10px <1024）——两处共用
      globals.css `:root` 的 `--workbench-pad` 变量，媒体块覆盖同名变量即可，
-     本文件不再自己维护一份 1024 断点。方向 B 起 `.domain-lora` 本身就是唯一
-     的地台容器（tab 头已挪进卡内 `.lora-bar`，不再是独立的外层行），padding
-     直接围住下方的 `.lora-ground`。 */
+     本文件不再自己维护一份 1024 断点。`.domain-lora` 本身就是地台：桌面上
+     顶上一行 + 两张白卡，手机上一张卡，padding 都直接围住它们。桌面助手展开
+     时右内边距由 JSX 绑让位量（与图片台同一根弹簧），这里只给静止值。 */
   padding: var(--workbench-pad);
 }
 
-/* 方向 B（owner 2026-09-03，和配音间同构）：整页只有**一张** `.workbench-card`
- * （bar + flow + composer 都在这张卡里），不再是方向 A 的「三块面板各自套白卡」
- * ——那一版给装配栏 / 结果卡 / composer 卡各挂一份 `workbench-card` 的写法已随
- * JSX 一起删除（`.lora-panel-shell` 这层更早的重复皮肤本来就已经退役，见下方
- * S2 分区注）。装配栏现在是卡外的 rail，宽度由本文件的 `.lora-ground` grid 给，
- * 不再自己挂 `workbench-card`。
+/* 两套骨架，按断点二选一（`useIsMobile`，1024 与本域其它移动端形态同界）：
  *
- * 下面四个语义类是这次新加的骨架，命名沿用既有 `lora-*` 前缀：
- * `.lora-ground`  地台行（rail + 卡），<1024 是纵向 flex，≥1024 是 250px/56px
- *                 两列 grid——只放这里管不了的精确像素值（Tailwind 默认刻度没有
- *                 250 这个整数倍），flex/gap 等能用 Tailwind 的都留在 JSX。
- * `.lora-bar`     卡内页头（tab 行 + meta + 助手），精确高度/横内距不在 Tailwind
- *                 默认刻度里（52/46、18/10），住这里。
- * `.lora-flow`    结果流：22px/24px（桌面）· 14px/12px（<1024）内距，同理不在
- *                 默认刻度。
- * `.lora-composer` 输入条，边框/间距都能用 Tailwind 表达，这里不需要另开值——
- *                 类名本身只用来在 JSX 里定位，不代表这里必须有样式。 */
+ * ≥1024 = 生成台 B（owner 2026-09-27，lora-generate.md §2）：地台上顶上一行
+ *   （标题 + 四格液态分段）→ 舞台白卡（装配列 + 来源图带 + 结果）→ 输入框白卡，
+ *   与图片台同一副外壳。这一套全用 Tailwind + 全局 `.workbench-card` 写在 JSX 里，
+ *   本文件只给输入框里几行原位展开的动效（`.lora-mixwrap`）。
+ * <1024 = 手机 / 平板（owner 2026-09-03 契约，本轮不动）：整页只有**一张**
+ *   `.workbench-card`，卡内页头 `.lora-bar`（tab 行 + 助手）→ 结果流 `.lora-flow`
+ *   → 输入条 `.lora-composer`，装配在抽屉里。下面这几个类只剩这一套在用。 */
 /* 生成 tab 锁高：值与 `.editorial-page` / `.studio-layout-v2`（globals.css）
  * 同一枚已验证的移动端顶栏预留（3.5rem）——`/studio/lora` 在 <1024 上方有一条
  * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
@@ -100,71 +92,25 @@
   flex-direction: column;
   min-height: 0;
 }
-@media (min-width: 1024px) {
-  .domain-lora .lora-ground {
-    display: grid;
-    grid-template-columns: 250px minmax(0, 1fr);
-    gap: var(--workbench-gap);
-    align-items: stretch;
-    /* 装配栏折叠/展开：列宽在 250px ↔ 56px 之间连续滑动，不瞬跳
-       （CD 动效轴「柔顺连续」）——原 `.lora-motion-cols` 并到这里，
-       JSX 不再需要单独挂那个类名。 */
-    transition: grid-template-columns var(--lora-motion) var(--lora-motion-ease);
-  }
-  .domain-lora .lora-ground[data-collapsed='true'] {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 8px;
-  }
-  /* owner 验收发现（2026-09-04）：库/收藏/训练三个 tab 不渲染 rail 节点
-     （root 组件只在 `isGenerate` 时挂 `.lora-rail`），但两列 grid 是写死的——
-     卡片是网格唯一子级，隐式落进第一条 250px 轨道，右边整片空白。`data-rail`
-     由 root 标记「这一刻有没有 rail」，没有就收成一列，卡片占满剩余全宽。
-     ⚠ 不用 flex 改写（owner 给的另一个选项）：grid 版本改动只多这一条规则 +
-     一个属性，flex 版本要连带把折叠动效（`grid-template-columns` 过渡）整段
-     换成 rail 自身 `width` 过渡，改面更大——选了「改动小、不留两套」的这条。 */
-  .domain-lora .lora-ground[data-rail='false'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
 .domain-lora .lora-bar {
-  height: 52px;
-  padding-inline: 18px;
-}
-/* owner 验收发现（2026-09-04）：meta 文字（"底模名 · N LoRA · 比例"）被
- * `StudioOperatorDock` 的收起态胶囊（`fixed right-6 top-6`，真机量得 zh 文案下
- * 宽 92px）盖住一半——胶囊是 viewport-fixed 定位，不在这张卡的布局流里，bar 的
- * 18px 右内距只够到卡边，够不到胶囊。真机量出胶囊左边缘 = 卡右边缘 - 98px
- * （两者都锚定在 viewport 右边，18px vs 24px+92px 宽的差值是常量，不随视口宽度
- * 变化）；这里在 18px 基础上再留出胶囊宽度 + 间距，让 meta 的可用宽度在碰到胶囊
- * 之前先截断（`truncate` 已有）。⚠ 值按 zh 胶囊宽度 + 英文「Assistant」这类更长
- * label 的余量给，不是精确贴死——meta 本来就会 truncate，留多不留少。 */
-.domain-lora .lora-bar-meta {
-  margin-right: 130px;
+  height: 46px;
+  padding-inline: 10px;
 }
 .domain-lora .lora-flow {
-  padding: 22px 24px;
+  padding: 14px 12px;
 }
-@media (max-width: 1023px) {
-  .domain-lora .lora-bar {
-    height: 46px;
-    padding-inline: 10px;
-  }
-  .domain-lora .lora-flow {
-    padding: 14px 12px;
-  }
 
-  /* 安全网（真机验证发现，2026-09-03）：composer 是 flex 列里的 shrink-0
-     兄弟，`.lora-flow` 让不动它，遇到长负面 prompt / 多条警示这类内容比
-     375 视口还高的边缘情况时，如果只靠上面把 textarea 收矮（JSX 的
-     `min-h-24`）估算余量，估算一旦不够，`.workbench-card` 的
-     `overflow:hidden` 会把超出部分悄悄裁掉、连出图按钮都摸不到，且没有任何
-     视觉提示「还有内容」。这里给 composer 自己一个上限 + 内部滚动兜底——
-     多数时候用不到（内容量正常时够放），仅在真的超限时接管。 */
-  .domain-lora .lora-composer {
-    max-height: 60svh;
-    overflow-y: auto;
-  }
+/* 安全网（真机验证发现，2026-09-03）：composer 是 flex 列里的 shrink-0
+   兄弟，`.lora-flow` 让不动它，遇到长负面 prompt / 多条警示这类内容比
+   375 视口还高的边缘情况时，如果只靠上面把 textarea 收矮（JSX 的
+   `min-h-24`）估算余量，估算一旦不够，`.workbench-card` 的
+   `overflow:hidden` 会把超出部分悄悄裁掉、连出图按钮都摸不到，且没有任何
+   视觉提示「还有内容」。这里给 composer 自己一个上限 + 内部滚动兜底——
+   多数时候用不到（内容量正常时够放），仅在真的超限时接管。 */
+.domain-lora .lora-composer {
+  max-height: 60svh;
+  overflow-y: auto;
 }
 
 /* 可折叠区（负面 Prompt / Runner 参数 / 变更审阅卡）：grid-rows 0fr→1fr —— 本项目
@@ -179,6 +125,34 @@
   grid-template-rows: 1fr;
 }
 .domain-lora .lora-reveal > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 生成台 B 输入框里原位展开的几行（lora-generate.md §2.4 · 动效表）：搭配明细 ·
+ * 参考图那一排 · 「触发词 ＋词」· 负面词。原位展开，输入框跟着长高。开 = 行高 200 ease-standard + 200 淡入；关 = 120 先淡出、行高
+ * 200 收回。收着时把输入框的行距（gap 10px）一起吃掉，⛔ 留一道空缝。
+ * 减少动态效果：全局块把时长压到 0，只剩显隐（行高不走位）。 */
+.domain-lora .lora-mixwrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -10px;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    margin-top var(--duration-base) var(--ease-standard),
+    opacity var(--duration-fast) linear;
+}
+.domain-lora .lora-mixwrap[data-open='true'] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    margin-top var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) linear;
+}
+.domain-lora .lora-mixwrap > * {
   min-height: 0;
   overflow: hidden;
 }

@@ -33,6 +33,8 @@ interface ImageAttachmentPreviewStripProps {
    * same reference.
    */
   dragType?: string
+  /** 宿主输入框的内边距不同时，用它对齐这一排（接在变体内边距后面）。 */
+  className?: string
 }
 
 /** Per-thumbnail wrapper that registers a Pragmatic DnD drag source. */
@@ -93,6 +95,7 @@ export function ImageAttachmentPreviewStrip({
   unsupportedTooltip,
   variant = 'panel',
   dragType,
+  className,
 }: ImageAttachmentPreviewStripProps) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -114,6 +117,7 @@ export function ImageAttachmentPreviewStrip({
           variant === 'composer'
             ? 'px-2 pb-1 pt-2'
             : 'rounded-xl border border-border/55 bg-background/45 p-2',
+          className,
         )}
       >
         {entries.map((entry, index) => {

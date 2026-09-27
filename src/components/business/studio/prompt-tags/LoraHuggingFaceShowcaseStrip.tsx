@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { cn } from '@/lib/utils'
 import { LoraCoverPreviewDialog } from '@/components/business/studio/lora/library/LoraCoverPreviewDialog'
 import type { LoraCoverPreviewState } from '@/components/business/studio/lora/library/LoraCoverPreviewDialog'
 
@@ -11,6 +12,8 @@ interface LoraHuggingFaceShowcaseStripProps {
   images: readonly string[]
   prompts: readonly string[]
   onFillPrompt: (promptText: string) => void
+  /** `band` = 桌面生成台 B 的来源图带（标题在带子头上，缩略图放大一档）。 */
+  size?: 'strip' | 'band'
 }
 
 /**
@@ -31,20 +34,29 @@ export function LoraHuggingFaceShowcaseStrip({
   images,
   prompts,
   onFillPrompt,
+  size = 'strip',
 }: LoraHuggingFaceShowcaseStripProps) {
+  const band = size === 'band'
   const t = useTranslations('LoraWorkbench')
   const [preview, setPreview] = useState<LoraCoverPreviewState | null>(null)
 
   if (images.length === 0 && prompts.length === 0) return null
 
   return (
-    <div className="mt-2.5 space-y-2.5">
-      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-        {t('showcaseTitle')}
-      </p>
+    <div className={cn('space-y-2.5', !band && 'mt-2.5')}>
+      {band ? null : (
+        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('showcaseTitle')}
+        </p>
+      )}
 
       {images.length > 0 ? (
-        <div className="lora-scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
+        <div
+          className={cn(
+            'lora-scrollbar-hide flex overflow-x-auto',
+            band ? 'gap-2.5' : 'gap-1.5 pb-1',
+          )}
+        >
           {images.map((url, idx) => (
             <button
               key={url}
@@ -59,14 +71,22 @@ export function LoraHuggingFaceShowcaseStrip({
                 name: assetName,
                 n: idx + 1,
               })}
-              className="shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/60 outline-none transition-shadow hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className={cn(
+                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                band
+                  ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
+                  : 'rounded-md border border-border/60 hover:border-primary/40',
+              )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
                 alt=""
                 loading="lazy"
-                className="h-24 w-20 object-cover"
+                className={cn(
+                  'object-cover',
+                  band ? 'h-22 w-16.5' : 'h-24 w-20',
+                )}
               />
             </button>
           ))}

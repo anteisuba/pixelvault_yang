@@ -10,6 +10,7 @@ import {
   LORA_DETAIL_IMAGE_WIDTH,
 } from '@/constants/lora'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -28,6 +29,8 @@ interface LoraSourceImagePreviewStripProps {
    */
   descriptionText?: string | null
   disabled?: boolean
+  /** `band` = 桌面生成台 B 的来源图带（提示在带子头上，缩略图放大一档）。 */
+  size?: 'strip' | 'band'
 }
 
 interface SourceImagePreview {
@@ -46,9 +49,13 @@ export function LoraSourceImagePreviewStrip({
   previewImages,
   descriptionText,
   disabled,
+  size = 'strip',
 }: LoraSourceImagePreviewStripProps) {
+  const band = size === 'band'
   const t = useTranslations('LoraPromptControl.generate')
   const [preview, setPreview] = useState<SourceImagePreview | null>(null)
+  // 来源图带里作者描述默认收成一行（次要信息收起，⛔ 整段 markdown 铺在舞台上）。
+  const [descriptionOpen, setDescriptionOpen] = useState(false)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const trimmedDescription = descriptionText?.trim() || ''
@@ -67,13 +74,20 @@ export function LoraSourceImagePreviewStrip({
   }
 
   return (
-    <div className="mt-2.5 space-y-2.5">
+    <div className={cn('space-y-2.5', !band && 'mt-2.5')}>
       {hasPreviews ? (
         <div>
-          <p className="text-2xs leading-relaxed text-muted-foreground">
-            {t('previewOnlyHint')}
-          </p>
-          <div className="lora-scrollbar-hide mt-1 flex gap-1.5 overflow-x-auto pb-1">
+          {band ? null : (
+            <p className="text-2xs leading-relaxed text-muted-foreground">
+              {t('previewOnlyHint')}
+            </p>
+          )}
+          <div
+            className={cn(
+              'lora-scrollbar-hide flex overflow-x-auto',
+              band ? 'gap-2.5' : 'mt-1 gap-1.5 pb-1',
+            )}
+          >
             {previewImages.map((image, idx) => {
               const imageLabel = t('sourceImageAlt', {
                 name: assetName,
@@ -98,7 +112,12 @@ export function LoraSourceImagePreviewStrip({
                     name: assetName,
                     n: idx + 1,
                   })}
-                  className="shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/60 outline-none transition-shadow hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  className={cn(
+                    'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    band
+                      ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
+                      : 'rounded-md border border-border/60 hover:border-primary/40',
+                  )}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -108,7 +127,10 @@ export function LoraSourceImagePreviewStrip({
                     )}
                     alt=""
                     loading="lazy"
-                    className="h-24 w-20 object-cover"
+                    className={cn(
+                      'object-cover',
+                      band ? 'h-22 w-16.5' : 'h-24 w-20',
+                    )}
                   />
                 </button>
               )
@@ -117,7 +139,44 @@ export function LoraSourceImagePreviewStrip({
         </div>
       ) : null}
 
-      {hasDescription ? (
+      {hasDescription && band ? (
+        <div className="flex min-w-0 items-start gap-2.5 text-xs">
+          <span className="shrink-0 pt-px font-medium text-muted-foreground">
+            {t('descriptionShort')}
+          </span>
+          <p
+            className={cn(
+              'min-w-0 flex-1 break-words text-foreground/80',
+              descriptionOpen
+                ? 'max-h-40 overflow-y-auto overscroll-contain whitespace-pre-wrap'
+                : 'truncate',
+            )}
+          >
+            {descriptionOpen
+              ? trimmedDescription
+              : trimmedDescription.replace(/\s+/g, ' ')}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDescriptionOpen((open) => !open)}
+            aria-expanded={descriptionOpen}
+            className="shrink-0 font-medium text-foreground underline-offset-3 hover:underline"
+          >
+            {descriptionOpen
+              ? t('descriptionCollapse')
+              : t('descriptionExpand')}
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={handleCopyDescription}
+            className="inline-flex shrink-0 items-center gap-1 text-muted-foreground transition-colors duration-fast hover:text-foreground"
+          >
+            <Copy className="size-3.5" aria-hidden />
+            {t('descriptionCopy')}
+          </button>
+        </div>
+      ) : hasDescription ? (
         <div className="rounded-md border border-dashed border-border/70 p-2.5">
           <div className="flex items-center justify-between gap-2">
             <p className="text-2xs font-medium text-muted-foreground">

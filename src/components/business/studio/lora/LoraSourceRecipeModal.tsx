@@ -80,14 +80,14 @@ interface LoraSourceRecipeModalProps {
   ) => void
 }
 
-function formatSize(recipe: CivitaiImageRecipe): string | null {
+export function formatSize(recipe: CivitaiImageRecipe): string | null {
   if (recipe.sizeRaw) return recipe.sizeRaw
   if (recipe.width && recipe.height) return `${recipe.width} × ${recipe.height}`
   return null
 }
 
-/** 「复制配方」的纯文本装配：只拼真实存在的字段。 */
-function buildRecipeClipboardText(recipe: CivitaiImageRecipe): string {
+/** 「复制配方」的纯文本装配：只拼真实存在的字段（查看器与本弹窗共用）。 */
+export function buildRecipeClipboardText(recipe: CivitaiImageRecipe): string {
   const lines: string[] = [recipe.prompt]
   if (recipe.negativePrompt) {
     lines.push(`Negative prompt: ${recipe.negativePrompt}`)

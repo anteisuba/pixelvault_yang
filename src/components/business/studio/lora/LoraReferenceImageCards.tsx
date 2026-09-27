@@ -6,7 +6,14 @@ import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
+import {
+  StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
+  useStudioChipClasses,
+} from '@/components/business/studio-shared/primitives/tool-surface'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { Slider } from '@/components/ui/slider'
 import {
   Dialog,
   DialogContent,
@@ -31,6 +38,12 @@ interface LoraReferenceImageCardsProps {
   onStrengthChange: (value: number) => void
   strengthConfig: NumericRange
   disabled?: boolean
+  /**
+   * `grid` = 手机装配抽屉里那一版（两列方卡 + 带说明的强度滑杆）；`chip` = 桌面
+   * 生成台 B 输入框工具行那一颗「参考图」（lora-generate.md §2.4）：弹层里上传 /
+   * 最近 / 素材库 + 参考强度，缩略图由输入框自己排在提示词上方。
+   */
+  layout?: 'grid' | 'chip'
 }
 
 /**
@@ -47,8 +60,10 @@ export function LoraReferenceImageCards({
   onStrengthChange,
   strengthConfig,
   disabled,
+  layout = 'grid',
 }: LoraReferenceImageCardsProps) {
   const t = useTranslations('ImageChip')
+  const chip = useStudioChipClasses()
   const [addOpen, setAddOpen] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -108,6 +123,136 @@ export function LoraReferenceImageCards({
       }}
     />
   )
+
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={handleFileChange}
+      disabled={disabled}
+    />
+  )
+  const assetDialog = (
+    <AssetSelectorDialog
+      open={assetDialogOpen}
+      onOpenChange={setAssetDialogOpen}
+      multiSelect
+      maxSelection={remainingReferenceSlots}
+      onConfirmMany={(gens) => void handleSelectAssets(gens)}
+      title={t('selectAsset')}
+      description={t('description')}
+      mediaType="image"
+    />
+  )
+
+  if (layout === 'chip') {
+    const isFull =
+      Number.isFinite(imageUpload.maxImages) &&
+      imageUpload.maxImages > 0 &&
+      entries.length >= imageUpload.maxImages
+    // 桌面输入框工具行（owner 09-28「参考图直接放在输入框」）：与图片台那颗同一种
+    // 描边药丸、同一个弹层；挂了几张写在字后面，图本身排在提示词上方。
+    return (
+      <>
+        <StudioToolSurface open={addOpen} onOpenChange={setAddOpen}>
+          <StudioToolSurfaceTrigger asChild>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-label={t('referenceLabel')}
+              className={cn(
+                chip.trigger,
+                chip.compact,
+                hasEntries && chip.set,
+                addOpen && chip.open,
+              )}
+            >
+              <ImageIcon className="size-4 shrink-0" aria-hidden />
+              <span className={chip.compactLabel}>{t('referenceLabel')}</span>
+              {hasEntries ? (
+                <span className="tabular-nums">{entries.length}</span>
+              ) : null}
+            </button>
+          </StudioToolSurfaceTrigger>
+          <StudioToolPopoverContent
+            size="action"
+            side="top"
+            align={chip.popoverAlign}
+            sideOffset={chip.popoverSideOffset}
+            label={t('referenceLabel')}
+            className="p-3.5"
+          >
+            {fileInput}
+            <ImagePickerPopoverBody
+              dropHint={t('dropHint')}
+              recentLabel={t('recentAssets')}
+              recentEmptyLabel={t('recentAssetsEmpty')}
+              openLibraryLabel={t('openLibrary')}
+              onPickFile={() => fileInputRef.current?.click()}
+              onDropFile={(file) => {
+                void imageUpload.handleFileChange(file)
+                setAddOpen(false)
+              }}
+              onPickAsset={(generation) => {
+                void handleSelectAsset(generation)
+                setAddOpen(false)
+              }}
+              onOpenLibrary={() => {
+                setAddOpen(false)
+                setAssetDialogOpen(true)
+              }}
+              disabledReason={
+                isFull
+                  ? t('limitReached', { max: imageUpload.maxImages })
+                  : undefined
+              }
+              headerSlot={
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium">
+                      {t('referenceLabel')}
+                    </span>
+                    <span className="text-2xs tabular-nums text-muted-foreground">
+                      {Number.isFinite(imageUpload.maxImages) &&
+                      imageUpload.maxImages > 0
+                        ? t('attachedOfMax', {
+                            count: entries.length,
+                            max: imageUpload.maxImages,
+                          })
+                        : t('attachedCount', { count: entries.length })}
+                    </span>
+                  </div>
+                  {/* 参考强度只在真有能用的参考图时出现（§3.2.3）。 */}
+                  {enabledCount > 0 ? (
+                    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                      <span className="shrink-0">{t('referenceStrength')}</span>
+                      <Slider
+                        aria-label={t('referenceStrength')}
+                        title={t('referenceStrengthHint')}
+                        value={[strength]}
+                        onValueChange={([value]) => onStrengthChange(value)}
+                        min={strengthConfig.min}
+                        max={strengthConfig.max}
+                        step={strengthConfig.step}
+                        trackClassName="data-[orientation=horizontal]:h-1 bg-surface-fill-track"
+                        thumbClassName="size-3.5 border-0 bg-background shadow-sm ring-1 ring-foreground/20"
+                      />
+                      <span className="min-w-8 text-right font-mono font-semibold tabular-nums text-foreground">
+                        {strength.toFixed(2)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              }
+            />
+          </StudioToolPopoverContent>
+        </StudioToolSurface>
+        {assetDialog}
+      </>
+    )
+  }
 
   return (
     <div className="space-y-2">

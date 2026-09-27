@@ -3,7 +3,7 @@
 > 状态：**现行施工基准**（2026-09-12 起）。owner 已逐条拍板，照做即可。
 > **本文没有「开放问题」段落**——表里没写到的按 [AGENTS.md](../../../AGENTS.md) 工程原则自己判。
 > 引擎：Operator 工具环那一份（桌面 `StudioOperatorDock`）。上层协议、五动词、帧与卡片形状全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，本文**不重抄**，只写 LoRA 域这一侧多出来的东西。
-> 上游业务契约：[`../domains/lora.md`](../domains/lora.md)（§7.1.1 family 方言 = 本文 §6 的事实源）。页面结构：[`lora-generate.md`](lora-generate.md)。当前可运行功能：[`lora-workbench.md`](lora-workbench.md)（§4.3 触发词 chips = 本文 §3 的事实源）。
+> 上游业务契约：[`../domains/lora.md`](../domains/lora.md)（§7.1.1 family 方言 = 本文 §6 的事实源）。页面结构：[`lora-generate.md`](lora-generate.md)。当前可运行功能：[`lora-workbench.md`](lora-workbench.md)（§4.3 触发词写在正文里 = 本文 §3 的事实源）。
 
 > **2026-09-19 补记（进度表 22「一张脸」）**：LoRA 装配台**早已挂着**这颗统一 dock——宿主实现是 `src/hooks/use-lora-operator-host.ts`，与工作台、画布是同一个契约的三份实现。本轮它这一侧只多了一件事：**空态第三颗起手药丸换成触发词那一问**（owner 要的），三语同步。⛔ 别把 22 读成「LoRA 这一轮才接上助手」。
 >
@@ -22,7 +22,7 @@
 | 1   | 挂载那一步的详情行加三行：底模家族 / 兼容判定 / 默认权重             | §4   |
 | 2   | 跨族挂载**助手拦下**（界面不拦），拒绝理由里给同族替代建议           | §4.2 |
 | 3   | 栈总权重超阈值 → 一条提醒行，**只提醒不动手**                        | §5   |
-| 4   | 快照每条挂载补 `triggerWord` 与 chip 启停；触发词**只读**            | §3   |
+| 4   | 快照每条挂载补 `triggerWord` 与「在不在正文里」；触发词**只读**      | §3   |
 | 5   | 家族方言表进常量，两个消费者（系统提示 / `buildLoraPromptTemplate`） | §6   |
 | 6   | `set_prompt` 在 LoRA 域多一步取材，确认卡逐段标注来源 + 负面改动段   | §7   |
 | 7   | 换底模后旧提示词带错方言 → 助手在同一张确认卡里提修正                | §7.4 |
@@ -41,26 +41,26 @@
 
 ## 2. 现状锚点（2026-09-12 读码核实，行号即当时位置）
 
-| 事                    | 在哪                                                                                      | 现在是什么样                                                                                                |
-| --------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 兼容谓词（唯一一份）  | `src/lib/lora-model-compatibility.ts:69` `isLoraBaseModelMountCompatible`                 | 按**权重架构**判：SDXL 系互通但 Illustrious ↔ Pony 互拦；`anima-dit` / `flux` 各自独立；`sd15` 永不兼容     |
-| 服务端那一层包装      | `src/services/kernel/assistant-operator.service.ts:3545` `isLoraCompatibleWithBase`       | 底模未定（`baseFamily` 为 null）时返回 `true` —— 与界面上那条橙字整块不渲染一致                             |
-| 挂载规划              | 同上 `:3721` `planMountLora`                                                              | 今天**不兼容不拒**：照挂 + observation 里说一句「换底模」。本轮改成 `reject`（§4.2）                        |
-| 摘除 / 调权重         | 同上 `:3824` `planUnmountLora` · `:3846` `planSetLoraWeight`                              | 权重只校验 `[minWeight, maxWeight]`（0.1–2），**没有任何总量判断**                                          |
-| 状态块里的 LoRA 段    | 同上 `:1254`–`:1291`                                                                      | 印底模家族 + 每条挂载的 id/名/权重/静音/不兼容告警 + 「没有上限」那一句                                     |
-| LoRA 域三条硬规矩     | 同上 `:5994`                                                                              | 只有四句：LoRA 占了画面一部分 / 不推荐挂不上的 / 没有数量上限 / tag 用英文。**一句方言都没有**              |
-| 文本写入              | 同上 `:2930` `planSetText`                                                                | 覆盖三选（`kind:'confirm'` → `:7530` 转成 `ask` 帧 + `overwrite` 块）。⚠ 只在用户**手写过**时才出这张卡     |
-| 快照构造（宿主）      | `src/hooks/use-lora-operator-host.ts:197` `buildSnapshot`                                 | 每条挂载给 id/name/weight/enabled/family/compatible，`compatible` 与界面**同一个谓词**                      |
-| 快照投影              | `src/lib/studio-operator-snapshot.ts:478` `buildLoraOperatorSnapshot`                     | 同上六格，外加 `baseFamily` / `minWeight` / `maxWeight`                                                     |
-| 快照类型              | `src/types/assistant-operator.ts:422` `AssistantOperatorSnapshotLoraSchema`               | 六格。**没有 `triggerWord`、没有 chip 状态、没有任何提示词素材**                                            |
-| 挂载日志条详情        | `src/lib/studio-operator-history.ts:235`                                                  | `名字 · 权重 [· family ✗]` —— 不兼容时才印家族，兼容时什么都不印                                            |
-| 触发词 chips          | `src/components/business/studio/lora/LoraWorkbench.tsx:870`–`:936` + `TriggerChipRow.tsx` | chips 由挂载派生；`disabledTriggerIds` 是 `LoraWorkbench` 的局部 state；停用的不进 `triggerSelections` 编译 |
-| 正文不 prefill 触发词 | `lora-workbench.md` §4.3                                                                  | 触发词是「挂载的属性」不是「用户写的词」，编译顺序 chips → tray tags → 正文                                 |
-| 起手提示词模板        | `src/lib/lora-prompt-template.ts:20` `buildLoraPromptTemplate`                            | 两条写死骨架（style / 其余），**与家族无关**；唯一调用方是 `lora-source-match-prompt.ts:109`                |
-| 来源配方              | `src/lib/lora-source-match-prompt.ts:60` `buildSourceMatchedLoraPrompt`                   | 作者推荐 → 挖到的来源图 prompt → 兜底骨架；`reliable=false` = 只有裸触发词；负面是**一张写死的 anime 表**   |
-| 底模目录              | `src/constants/lora-base-models.ts`                                                       | 11 条 `底模×后端`，字段 family/backend/fidelity/available/…                                                 |
-| 系统行（客户端卡型）  | `src/constants/studio-assistant-operator.ts:251`–`:331`                                   | 18 个码，其中 `loraMountFailed`（`:296`）就是「助手做的事在助手线程里交代」的先例                           |
-| `rule_hit` 帧         | `src/constants/assistant-operator.ts:92` · `src/types/assistant-operator.ts:2939`         | 载荷是 `ruleId` + **规则原文** + `source`（`assistant` / `creator`）+ `createdAt`，绑一条真的项目规则行     |
+| 事                    | 在哪                                                                                      | 现在是什么样                                                                                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 兼容谓词（唯一一份）  | `src/lib/lora-model-compatibility.ts:69` `isLoraBaseModelMountCompatible`                 | 按**权重架构**判：SDXL 系互通但 Illustrious ↔ Pony 互拦；`anima-dit` / `flux` 各自独立；`sd15` 永不兼容                                                   |
+| 服务端那一层包装      | `src/services/kernel/assistant-operator.service.ts:3545` `isLoraCompatibleWithBase`       | 底模未定（`baseFamily` 为 null）时返回 `true` —— 与界面上那条橙字整块不渲染一致                                                                           |
+| 挂载规划              | 同上 `:3721` `planMountLora`                                                              | 今天**不兼容不拒**：照挂 + observation 里说一句「换底模」。本轮改成 `reject`（§4.2）                                                                      |
+| 摘除 / 调权重         | 同上 `:3824` `planUnmountLora` · `:3846` `planSetLoraWeight`                              | 权重只校验 `[minWeight, maxWeight]`（0.1–2），**没有任何总量判断**                                                                                        |
+| 状态块里的 LoRA 段    | 同上 `:1254`–`:1291`                                                                      | 印底模家族 + 每条挂载的 id/名/权重/静音/不兼容告警 + 「没有上限」那一句                                                                                   |
+| LoRA 域三条硬规矩     | 同上 `:5994`                                                                              | 只有四句：LoRA 占了画面一部分 / 不推荐挂不上的 / 没有数量上限 / tag 用英文。**一句方言都没有**                                                            |
+| 文本写入              | 同上 `:2930` `planSetText`                                                                | 覆盖三选（`kind:'confirm'` → `:7530` 转成 `ask` 帧 + `overwrite` 块）。⚠ 只在用户**手写过**时才出这张卡                                                   |
+| 快照构造（宿主）      | `src/hooks/use-lora-operator-host.ts:197` `buildSnapshot`                                 | 每条挂载给 id/name/weight/enabled/family/compatible，`compatible` 与界面**同一个谓词**                                                                    |
+| 快照投影              | `src/lib/studio-operator-snapshot.ts:478` `buildLoraOperatorSnapshot`                     | 同上六格，外加 `baseFamily` / `minWeight` / `maxWeight`                                                                                                   |
+| 快照类型              | `src/types/assistant-operator.ts:422` `AssistantOperatorSnapshotLoraSchema`               | 六格。**没有 `triggerWord`、没有 chip 状态、没有任何提示词素材**                                                                                          |
+| 挂载日志条详情        | `src/lib/studio-operator-history.ts:235`                                                  | `名字 · 权重 [· family ✗]` —— 不兼容时才印家族，兼容时什么都不印                                                                                          |
+| 触发词 chips          | `src/components/business/studio/lora/LoraWorkbench.tsx:870`–`:936` + `TriggerChipRow.tsx` | chips 由挂载派生；`disabledTriggerIds` 是 `LoraWorkbench` 的局部 state；停用的不进 `triggerSelections` 编译（⚠ 2026-09-28 起触发词改写在正文里，见 §3.3） |
+| 正文不 prefill 触发词 | `lora-workbench.md` §4.3                                                                  | 触发词是「挂载的属性」不是「用户写的词」，编译顺序 chips → tray tags → 正文（⚠ 2026-09-28 作废，见 §3.3）                                                 |
+| 起手提示词模板        | `src/lib/lora-prompt-template.ts:20` `buildLoraPromptTemplate`                            | 两条写死骨架（style / 其余），**与家族无关**；唯一调用方是 `lora-source-match-prompt.ts:109`                                                              |
+| 来源配方              | `src/lib/lora-source-match-prompt.ts:60` `buildSourceMatchedLoraPrompt`                   | 作者推荐 → 挖到的来源图 prompt → 兜底骨架；`reliable=false` = 只有裸触发词；负面是**一张写死的 anime 表**                                                 |
+| 底模目录              | `src/constants/lora-base-models.ts`                                                       | 11 条 `底模×后端`，字段 family/backend/fidelity/available/…                                                                                               |
+| 系统行（客户端卡型）  | `src/constants/studio-assistant-operator.ts:251`–`:331`                                   | 18 个码，其中 `loraMountFailed`（`:296`）就是「助手做的事在助手线程里交代」的先例                                                                         |
+| `rule_hit` 帧         | `src/constants/assistant-operator.ts:92` · `src/types/assistant-operator.ts:2939`         | 载荷是 `ruleId` + **规则原文** + `source`（`assistant` / `creator`）+ `createdAt`，绑一条真的项目规则行                                                   |
 
 ### 两条读码得出的、直接改变实现选择的事实
 
@@ -78,10 +78,10 @@
 | 格                  | 类型             | 语义                                                                                                     |
 | ------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | `triggerWord`       | `string \| null` | 库记录上的触发词。`null` = 这把没有触发词（⛔ 不是空串：空串会被读成「有一个空的触发词」）               |
-| `triggerEnabled`    | `boolean`        | 那枚 chip 现在是**开**还是**关**。无触发词时恒 `true`（没有 chip 可关），语义上不参与判断                |
+| `triggerEnabled`    | `boolean`        | 它的触发词现在**在不在正文里**（2026-09-28 起触发词写在正文里）。无触发词时恒 `true`，语义上不参与判断   |
 | `recommendedPrompt` | `string \| null` | 作者推荐提示词（`LoraAssetRecord.recommendedPrompt`），`clamp` 到 `LIMITS.maxPromptChars`。`null` = 没有 |
 
-⚠ **`triggerEnabled` 的真值只在 `LoraWorkbench` 手里**（`disabledTriggerIds`，`:882`），所以它必须沿 `LoraWorkbench` → `useLoraOperatorHost` 入参 → `buildLoraOperatorSnapshot` 走一遍，⛔ 不在 hook 里重算：重算等于第二份真相，而用户点 chip 时只会更新其中一份。
+⚠ **`triggerEnabled` 的真值只在 `LoraWorkbench` 手里**（按正文算的 `disabledTriggerIds`），所以它必须沿 `LoraWorkbench` → `useLoraOperatorHost` 入参 → `buildLoraOperatorSnapshot` 走一遍，⛔ 不在 hook 里重算：重算等于第二份真相。
 ⚠ `LoraOperatorHostMount` 上加一格 `triggerEnabled?: boolean`（缺省 `true`），与既有 `enabled?` 同构。
 
 ### 3.2 状态块多印两句
@@ -89,18 +89,18 @@
 `assistant-operator.service.ts:1254` 那段的每条挂载后面追加：
 
 ```
-trigger "<word>" [MUTED chip]   ← 有触发词时才印；chip 关着时才印后半句
+trigger "<word>" [not in the prompt]   ← 有触发词时才印；不在正文里时才印后半句
 ```
 
-底模家族那一行后面追加一句方言指纹（§6.3）。⛔ 没有触发词的挂载**什么都不印**（同 chips 行「无数据不渲染」的判据）。
+底模家族那一行后面追加一句方言指纹（§6.3）。⛔ 没有触发词的挂载**什么都不印**（「无数据不渲染」）。
 
 ### 3.3 触发词只读（硬规矩，进 LoRA 域系统提示）
 
 三句，逐字：
 
-- 触发词由 chip 负责编译（chips → tray tags → 正文），**正文里不得重复写触发词**。重复的下场是同一个词进两次编译流。
-- chip 关着 = 创作者**有意**关的（风格 LoRA 的触发词与正文打架时会关）。发现关着且这一轮要靠它出效果，**说一句**，⛔ 不要自己去开。
-- 助手**没有**开关 chip 的工具，将来也不加（同「装配台没有出图键」那条判据：界面上那颗开关不在助手够得着的宿主契约里）。
+- 触发词**写在正文里**（2026-09-28 起）：挂上时写进开头，出图时⛔ 不再另拼。改写正文时**已经在里面的触发词照留、各一次**——写第二遍就送两遍。宿主兜底：助手整段改写正文时，原来在正文里的触发词缺了会被补回开头（`LoraWorkbench` 的 `keepPromptTriggers`）。
+- 标着 `[not in the prompt]` = 创作者**有意**拿掉的（风格 LoRA 的触发词与正文打架时会拿掉）。这一轮要靠它出效果就**说一句**，⛔ 不要自己写回去。
+- 写回是创作者的事（输入框下面那颗「＋」一点就回）；助手**没有**动触发词的工具，将来也不加。
 
 ---
 
@@ -257,22 +257,22 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 ## 8. 测试清单
 
-| #   | 验的是                                                                                                | 文件                                                                                    |
-| --- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 1.5 / 蒸馏 1.0，蒸馏档用构造条目验）       | `src/constants/lora-base-models.test.ts`                                                |
-| 2   | 方言表六族全覆盖；Pony 有 score 前缀、IL/FLUX/Anima DiT 各自没有                                      | `src/constants/lora-prompt-dialects.test.ts`（新）                                      |
-| 3   | `buildLoraPromptTemplate` 按家族换骨架；作者推荐仍然优先；家族归一不出时回落                          | `src/lib/lora-prompt-template.test.ts`                                                  |
-| 4   | 负面来自方言表；`isAnimeLikeLora` 全仓零命中；`reliable` 语义不变                                     | `src/lib/lora-source-match-prompt.test.ts`                                              |
-| 5   | 快照三格：`triggerWord` null 与空串之分、chip 关着时 `triggerEnabled=false`、`recommendedPrompt` 截断 | `src/lib/studio-operator-snapshot.test.ts` · `src/hooks/use-lora-operator-host.test.ts` |
-| 6   | 快照 schema 三格的校验与上限                                                                          | `src/types/assistant-operator.test.ts`                                                  |
-| 7   | 跨族挂载被拒 + 拒绝理由里有两个 family 与「去搜同族」                                                 | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 8   | 挂载详情三行恒印（家族 / 兼容 / 权重），observation 里同一份三行                                      | `src/lib/studio-operator-history.test.ts`                                               |
-| 9   | 超预算 observation 出现且**权重没被改**；不超时不出这句；底模未定时不判                               | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 10  | 系统行 `loraWeightOverBudget` 插得进线程                                                              | `src/hooks/use-lora-operator-host.test.ts`                                              |
-| 11  | 系统提示：当前家族的方言在、别族的不在；底模未定时那一句在                                            | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 12  | 取材阶梯三档 + `reliable=false` 落第 3 档 + 自训如实说                                                | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 13  | `overwrite.sourceNotes` / `negativeDiff` 渲染                                                         | `.../assistant-operator/StudioOperatorQuestionCard.web.test.tsx`                        |
-| 14  | 三语键齐                                                                                              | `/i18n-check`                                                                           |
+| #   | 验的是                                                                                                 | 文件                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 1.5 / 蒸馏 1.0，蒸馏档用构造条目验）        | `src/constants/lora-base-models.test.ts`                                                |
+| 2   | 方言表六族全覆盖；Pony 有 score 前缀、IL/FLUX/Anima DiT 各自没有                                       | `src/constants/lora-prompt-dialects.test.ts`（新）                                      |
+| 3   | `buildLoraPromptTemplate` 按家族换骨架；作者推荐仍然优先；家族归一不出时回落                           | `src/lib/lora-prompt-template.test.ts`                                                  |
+| 4   | 负面来自方言表；`isAnimeLikeLora` 全仓零命中；`reliable` 语义不变                                      | `src/lib/lora-source-match-prompt.test.ts`                                              |
+| 5   | 快照三格：`triggerWord` null 与空串之分、不在正文里时 `triggerEnabled=false`、`recommendedPrompt` 截断 | `src/lib/studio-operator-snapshot.test.ts` · `src/hooks/use-lora-operator-host.test.ts` |
+| 6   | 快照 schema 三格的校验与上限                                                                           | `src/types/assistant-operator.test.ts`                                                  |
+| 7   | 跨族挂载被拒 + 拒绝理由里有两个 family 与「去搜同族」                                                  | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 8   | 挂载详情三行恒印（家族 / 兼容 / 权重），observation 里同一份三行                                       | `src/lib/studio-operator-history.test.ts`                                               |
+| 9   | 超预算 observation 出现且**权重没被改**；不超时不出这句；底模未定时不判                                | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 10  | 系统行 `loraWeightOverBudget` 插得进线程                                                               | `src/hooks/use-lora-operator-host.test.ts`                                              |
+| 11  | 系统提示：当前家族的方言在、别族的不在；底模未定时那一句在                                             | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 12  | 取材阶梯三档 + `reliable=false` 落第 3 档 + 自训如实说                                                 | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 13  | `overwrite.sourceNotes` / `negativeDiff` 渲染                                                          | `.../assistant-operator/StudioOperatorQuestionCard.web.test.tsx`                        |
+| 14  | 三语键齐                                                                                               | `/i18n-check`                                                                           |
 
 ⚠ 触及共享类型（`types/assistant-operator.ts`）与 kernel 服务：合并前按 [WORKFLOW](../../WORKFLOW.md) 影响面表跑**全量 Vitest + 全量 typecheck**（`full-gate`）。
 
@@ -504,7 +504,7 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 
 - **决策**：owner 2026-09-12 拍板（范围、七条、§1–§9 那一段 UI 不动、手机端不做、不加新工具）+ **当日追加第 8 条**「一律先出 LoRA 推荐卡」，方向 **A 行式清单**（§10）
 - **上游契约**：[`../domains/lora.md`](../domains/lora.md) §7.1.1（family 方言 · 跨族拦截 2026-09-11 拍板）
-- **页面**：[`lora-generate.md`](lora-generate.md)（助手是按需辅助层，不重排主台）· [`lora-workbench.md`](lora-workbench.md) §4.3（触发词 chips 与编译顺序）
+- **页面**：[`lora-generate.md`](lora-generate.md)（助手是按需辅助层，不重排主台）· [`lora-workbench.md`](lora-workbench.md) §4.3（触发词写在正文里）
 - **协议**：[`assistant-shell-v2.md`](assistant-shell-v2.md)（五动词 / 十帧 / 五类卡片 / 钱闸 · §3.2 进离场表 · §7.5 以卡结束的轮次也结账）
 - **设计画板**：<https://claude.ai/code/artifact/7003a63a-b804-4937-8c65-18235f886843> 第三页「LoRA 推荐卡」的 `LoraPickA`（源文件 `design/LoraPickA.dc.html`）
 - **详情抽屉**：[`lora-library.md`](lora-library.md)（§3 展开详情 · 移动端抽屉）· `src/components/business/studio/lora/library/LoraLibraryDetailDrawer.tsx` + `LoraLibraryRowDetail.tsx`

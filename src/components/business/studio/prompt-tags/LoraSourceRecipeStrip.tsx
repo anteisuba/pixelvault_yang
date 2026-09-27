@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
@@ -46,6 +47,16 @@ interface LoraSourceRecipeStripProps {
   onRequestInference?: () => void
   inferenceLoading?: boolean
   inferenceError?: string | null
+  /**
+   * `strip` = 手机结果流里那一条（带「来源图 N」标题）；`band` = 桌面生成台 B 的
+   * 来源图带（标题与提示在带子自己的头上，这里只排大缩略图）。
+   */
+  size?: 'strip' | 'band'
+  /**
+   * 给了就不开自带的弹窗：点一张交给宿主开舞台里的样例查看器（桌面生成台 B，
+   * 从点的那张长出来 —— 所以把那张缩略图的元素一起交出去）。
+   */
+  onOpenViewer?: (index: number, trigger: HTMLElement) => void
 }
 
 export function LoraSourceRecipeStrip({
@@ -58,7 +69,10 @@ export function LoraSourceRecipeStrip({
   onRequestInference,
   inferenceLoading,
   inferenceError,
+  size = 'strip',
+  onOpenViewer,
 }: LoraSourceRecipeStripProps) {
+  const band = size === 'band'
   const t = useTranslations('LoraPromptControl.generate')
   // 点来源图开共享来源配方 modal（左大图 + 右侧参数库 + 做同款）。
   // modalIndex 非空 = 打开并定位到该逐图配方下标。
@@ -92,15 +106,22 @@ export function LoraSourceRecipeStrip({
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-2xs text-muted-foreground">
-          {t('sourceImagesLabel', { count: recipes.length })}
-        </p>
-        <p className="shrink-0 text-2xs text-muted-foreground/70">
-          {t('sourceImagesModalHint')}
-        </p>
-      </div>
-      <div className="lora-scrollbar-hide mt-1 flex gap-1.5 overflow-x-auto pb-1">
+      {band ? null : (
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-2xs text-muted-foreground">
+            {t('sourceImagesLabel', { count: recipes.length })}
+          </p>
+          <p className="shrink-0 text-2xs text-muted-foreground/70">
+            {t('sourceImagesModalHint')}
+          </p>
+        </div>
+      )}
+      <div
+        className={cn(
+          'lora-scrollbar-hide flex overflow-x-auto',
+          band ? 'gap-2.5' : 'mt-1 gap-1.5 pb-1',
+        )}
+      >
         {recipes.map((recipe, idx) => {
           const previewLabel = t('sourceImagePreviewLabel', {
             name: assetName,
@@ -111,9 +132,19 @@ export function LoraSourceRecipeStrip({
               key={recipe.imageUrl}
               type="button"
               disabled={disabled}
-              onClick={() => setModalIndex(idx)}
+              onClick={(event) =>
+                onOpenViewer
+                  ? onOpenViewer(idx, event.currentTarget)
+                  : setModalIndex(idx)
+              }
+              data-recipe-thumb={idx}
               aria-label={previewLabel}
-              className="shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border/60 outline-none transition-shadow hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className={cn(
+                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                band
+                  ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
+                  : 'rounded-md border border-border/60 hover:border-primary/40',
+              )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -123,7 +154,10 @@ export function LoraSourceRecipeStrip({
                 )}
                 alt=""
                 loading="lazy"
-                className="h-24 w-20 object-cover"
+                className={cn(
+                  'object-cover',
+                  band ? 'h-22 w-16.5' : 'h-24 w-20',
+                )}
               />
             </button>
           )
@@ -134,7 +168,7 @@ export function LoraSourceRecipeStrip({
           「用原图 seed」勾选应用真实配方并关门，不直接生成（parent 的
           handleApplyRecipe 决定后续，已有输入进搭配提醒 + 挂额外 LoRA）。 */}
       <LoraSourceRecipeModal
-        open={modalIndex !== null}
+        open={!onOpenViewer && modalIndex !== null}
         onOpenChange={(open) => {
           if (!open) setModalIndex(null)
         }}

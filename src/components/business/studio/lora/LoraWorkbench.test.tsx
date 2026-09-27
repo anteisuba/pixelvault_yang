@@ -497,10 +497,15 @@ function applyFirstRecipeViaModal() {
   fireEvent.click(screen.getByText('LoraWorkbench:sourceRecipeRemake'))
 }
 
-// G3b-2b: 触发词 chips now live inside the collapsed 搭配 status bar — expand it
-// (click 查看) before reaching for a trigger chip.
-function expandCollocation() {
-  fireEvent.click(screen.getByRole('button', { name: /collocation:view/ }))
+// 触发词写在正文里（owner 09-28）：不在正文里的那把，提示词下面出一颗「＋词」，
+// 点一下写到正文开头。
+function triggerAddButton() {
+  return screen.getByRole('button', {
+    name: 'LoraWorkbench:generate.triggerAdd',
+  })
+}
+function promptBox() {
+  return screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder')
 }
 
 describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
@@ -581,21 +586,19 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     )
   })
 
-  // S5 触发词 chips 化：正文不再 prefill 触发词，触发词改走独立的
-  // TriggerChipRow chip → compilePromptTags selections 管线。
-  it('S5: shows a trigger chip for the mounted LoRA and leaves the prompt textarea empty (no more prefill)', () => {
+  // 触发词写在正文里（owner 09-28）：挂上一把作者认过触发词的 LoRA，它的触发词
+  // 就写进正文开头；在正文里的不再出「＋」。
+  it('writes a mounted LoRA’s verified trigger into the prompt text', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
 
     render(<LoraWorkbench />)
 
+    expect(promptBox()).toHaveValue('testlora')
     expect(
-      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
-    ).toHaveValue('')
-
-    expandCollocation()
-    const chip = screen.getByRole('button', { name: /Test LoRA/ })
-    expect(chip).toHaveTextContent('testlora')
-    expect(chip).toHaveAttribute('aria-pressed', 'true')
+      screen.queryByRole('button', {
+        name: 'LoraWorkbench:generate.triggerAdd',
+      }),
+    ).toBeNull()
   })
 
   it('highlights separated comma-delimited trigger phrases individually in the prompt', () => {
@@ -682,7 +685,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe('testlora')
   })
 
-  it('S5: compiles the request prompt as trigger chips (enabled) → tray tags → free text, comma-joined', () => {
+  it('sends the prompt text as written — the trigger is not added a second time', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
         {
@@ -714,21 +717,20 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     ]
 
     render(<LoraWorkbench />)
-    fireEvent.change(
-      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
-      { target: { value: 'my free text' } },
-    )
+    fireEvent.change(promptBox(), {
+      target: { value: 'my free text, testlora' },
+    })
     fireEvent.click(
       screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
     )
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
-      'testlora, tray_tag, my free text',
+      'tray_tag, my free text, testlora',
     )
   })
 
-  it('S5: disabling a trigger chip drops its word from the compiled prompt; re-enabling restores it, ordered first', () => {
+  it('a trigger taken out of the text is not sent; the ＋ writes it back to the front', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
         {
@@ -746,15 +748,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     })
 
     render(<LoraWorkbench />)
-    fireEvent.change(
-      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
-      { target: { value: 'my free text' } },
-    )
-
-    expandCollocation()
-    const chip = screen.getByRole('button', { name: /Test LoRA/ })
-    fireEvent.click(chip)
-    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.change(promptBox(), { target: { value: 'my free text' } })
 
     const generateButton = screen.getByRole('button', {
       name: /LoraWorkbench:generate\.run/,
@@ -762,16 +756,62 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     fireEvent.click(generateButton)
     expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe('my free text')
 
-    fireEvent.click(chip)
-    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(triggerAddButton())
+    expect(promptBox()).toHaveValue('testlora, my free text')
     fireEvent.click(generateButton)
     expect(mockGenerate.mock.calls[1][0].image.freePrompt).toBe(
       'testlora, my free text',
     )
   })
 
+  it('pausing a LoRA takes its trigger out of the text; turning it back on writes it again', () => {
+    const view = render(<LoraWorkbench />)
+    fireEvent.change(promptBox(), {
+      target: { value: 'testlora, my free text' },
+    })
+
+    mockStackItems = [{ asset: stackAsset, scale: 1, enabled: false }]
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('my free text')
+
+    mockStackItems = [{ asset: stackAsset, scale: 1, enabled: true }]
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('testlora, my free text')
+
+    mockStackItems = []
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('my free text')
+  })
+
+  it('pause and resume put back exactly what was in the text — a trigger you took out stays out', () => {
+    mockStackItems = [
+      {
+        asset: { ...stackAsset, sourceSnapshot: { triggerSource: 'inferred' } },
+        scale: 1,
+      },
+    ]
+    const view = render(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('')
+    fireEvent.click(triggerAddButton())
+    expect(promptBox()).toHaveValue('testlora')
+
+    mockStackItems = [{ ...mockStackItems[0], enabled: false }]
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('')
+    mockStackItems = [{ ...mockStackItems[0], enabled: true }]
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('testlora')
+
+    fireEvent.change(promptBox(), { target: { value: 'portrait' } })
+    mockStackItems = [{ ...mockStackItems[0], enabled: false }]
+    view.rerender(<LoraWorkbench />)
+    mockStackItems = [{ ...mockStackItems[0], enabled: true }]
+    view.rerender(<LoraWorkbench />)
+    expect(promptBox()).toHaveValue('portrait')
+  })
+
   it.each(['inferred', undefined] as const)(
-    '来源为 %s 的触发词默认不注入，手动启用后才加入生成提示词',
+    '来源为 %s 的触发词挂上时不写进正文，点「＋」才写',
     (triggerSource) => {
       mockStackItems = [
         {
@@ -796,14 +836,8 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       })
 
       render(<LoraWorkbench />)
-      fireEvent.change(
-        screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
-        { target: { value: 'my free text' } },
-      )
-
-      expandCollocation()
-      const chip = screen.getByRole('button', { name: /Test LoRA/ })
-      expect(chip).toHaveAttribute('aria-pressed', 'false')
+      expect(promptBox()).toHaveValue('')
+      fireEvent.change(promptBox(), { target: { value: 'my free text' } })
 
       const generateButton = screen.getByRole('button', {
         name: /LoraWorkbench:generate\.run/,
@@ -813,8 +847,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         'my free text',
       )
 
-      fireEvent.click(chip)
-      expect(chip).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.click(triggerAddButton())
       fireEvent.click(generateButton)
       expect(mockGenerate.mock.calls[1][0].image.freePrompt).toBe(
         'testlora, my free text',
@@ -1061,10 +1094,8 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(generateButton).toBeEnabled()
   })
 
-  // S5: 一键同款只替换正文，不碰触发词 chips 行——触发词已经从旧版
-  // appendMissingTriggers（拼进 plan.prompt）迁到独立的 chip，chip 在应用
-  // 配方前后都保持挂载/启用，且仍然独立进入编译后的 prompt（排在正文前）。
-  it('S5: applying a recipe only replaces the free text — the trigger chip stays mounted and still compiles into the request', () => {
+  // 做同款整段换正文时，原来就在正文里的触发词留着（缺了补回开头，⛔ 不写两遍）。
+  it('applying a recipe keeps the trigger that was already in the prompt text', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
         {
@@ -1091,12 +1122,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     render(<LoraWorkbench />)
     applyFirstRecipeViaModal()
 
-    expect(
-      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
-    ).toHaveValue('best quality, 1girl')
-    expandCollocation()
-    const chip = screen.getByRole('button', { name: /Test LoRA/ })
-    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    expect(promptBox()).toHaveValue('testlora, best quality, 1girl')
 
     fireEvent.click(
       screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
@@ -1290,17 +1316,20 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     })
     expect(screen.queryAllByRole('option')).toHaveLength(0)
 
-    // Second generation → filmstrip appears with both, newest selected.
+    // Second generation → 「这一轮」appears with both, newest selected.
     fireEvent.click(generateButton)
     const options = await screen.findAllByRole('option')
     expect(options).toHaveLength(2)
-    // gen-2 is the most recent → prepended and selected.
+    const shownImage = () =>
+      screen.getByTestId('lora-result-card').querySelector('img')
+    // gen-2 is the most recent → prepended, selected, and the one on stage.
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
-    expect(options[0]).toHaveTextContent('222')
+    expect(shownImage()).toHaveAttribute('src', 'https://example.com/2.png')
 
-    // Clicking the older thumbnail switches selection.
+    // Clicking the older thumbnail switches selection and the shown image.
     fireEvent.click(options[1])
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
+    expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
   })
 
   it('opens a picture-frame preview when clicking the generated result image', () => {
@@ -1429,22 +1458,32 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
   it('sends manually edited Runner controls and 4x-AnimeSharp in the real request', () => {
     render(<LoraWorkbench />)
 
+    // 工具行右组「参数」chip 的弹层：Seed 先拨到「固定」才有输入框。
     fireEvent.click(
       screen.getByRole('button', {
         name: /LoraWorkbench:generate\.advanced\.title/,
       }),
+    )
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'LoraWorkbench:generate.seedFixed' }),
     )
     fireEvent.change(
       screen.getByLabelText('LoraWorkbench:generate.advanced.seed'),
       { target: { value: '5536891017203' } },
     )
     fireEvent.change(
-      screen.getByLabelText('LoraWorkbench:generate.advanced.steps'),
+      screen.getByLabelText('LoraWorkbench:generate.paramsLabels.steps'),
       { target: { value: '32' } },
     )
     fireEvent.change(
-      screen.getByLabelText('LoraWorkbench:generate.advanced.cfg'),
+      screen.getByLabelText('LoraWorkbench:generate.paramsLabels.cfg'),
       { target: { value: '4' } },
+    )
+    // 精确宽高住在「比例」chip 的弹层里（虚线下那一格）。
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.aspectRatioLabel',
+      }),
     )
     fireEvent.change(
       screen.getByLabelText('LoraWorkbench:generate.advanced.width'),
@@ -1484,7 +1523,7 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     render(<LoraWorkbench />)
     fireEvent.click(
       screen.getByRole('button', {
-        name: /LoraWorkbench:generate\.advanced\.title/,
+        name: 'LoraWorkbench:generate.aspectRatioLabel',
       }),
     )
     fireEvent.change(
@@ -1521,14 +1560,13 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
 
     render(<LoraWorkbench />)
 
-    // 负面区默认收起——语义从「不挂载」改成「折叠」（CD 动效轴：展开/收起要有
-    // grid-rows 过渡，内容因此常驻 DOM 并靠 inert 挡焦点），所以断言 aria-expanded
-    // 而不是断言元素缺席。
+    // 负面区默认收起——工具行那颗「负面」chip 按下 = 展开（与图片台同一条）；
+    // 内容常驻 DOM 靠 inert 挡焦点，所以断言 aria-pressed 而不是断言元素缺席。
     expect(
       screen.getByRole('button', {
         name: /LoraWorkbench:generate\.negativePromptLabel/,
       }),
-    ).toHaveAttribute('aria-expanded', 'false')
+    ).toHaveAttribute('aria-pressed', 'false')
 
     // G3b: applying via the shared modal's 做同款 sets the negative prompt
     // (and closes the modal) — there is no inline recipe panel underneath.
@@ -1543,16 +1581,15 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
   it('manually reveals an empty negative prompt field on request', () => {
     render(<LoraWorkbench />)
 
-    // CD：负面 Prompt 收成一条可折叠单行摘要（标签 + 内容预览 + 角标），点它展开
-    // 输入框——取代原来的「＋ 添加负面 Prompt」文字链接。
+    // 生成台 B：工具行左组「负面」chip，点它在提示词下原位展开一行负面词。
     const toggle = screen.getByRole('button', {
       name: /LoraWorkbench:generate\.negativePromptLabel/,
     })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(toggle)
 
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(
       screen.getByPlaceholderText(
         'LoraWorkbench:generate.negativePromptPlaceholder',
@@ -1602,7 +1639,10 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
 
     render(<LoraWorkbench />)
 
-    expect(screen.getByText('LoraWorkbench:showcaseTitle')).toBeInTheDocument()
+    // 桌面生成台 B：样例图排进来源图带（标题在带子头上，不再有 showcase 自己的标题）。
+    expect(
+      screen.getByText('LoraWorkbench.generate.band:title'),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /LoraWorkbench:showcaseImageAlt/ }),
     ).toBeInTheDocument()
@@ -1656,7 +1696,7 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
       screen.queryByText('LoraWorkbench:showcaseTitle'),
     ).not.toBeInTheDocument()
     expect(
-      screen.getByText('LoraWorkbench:generate.recommendEmpty'),
+      screen.getByText('LoraWorkbench:generate.band.empty'),
     ).toBeInTheDocument()
   })
 
@@ -1688,10 +1728,9 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
   })
 })
 
-// B7 / P2-4 + P2-7: the module tab bar is a real Radix Tabs pill — three
-// role="tab" triggers, clicking one drives the URL (section deep link)
-// rather than any custom pointer handler. This guards both the standard
-// tab semantics and the click→navigate wiring.
+// 生成台 B：桌面顶上一行是液态分段（与图片台写法切换同一颗 LiquidSegmented）——
+// 四个 role="tab" 的原生按钮，点一格驱动 URL（section 深链）。守住 tab 语义与
+// 点击→跳转这条接线。
 describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
   beforeEach(() => {
     mockRouterReplace.mockReset()
@@ -1716,9 +1755,8 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
   it('activating 收藏 navigates straight to the mine section', () => {
     render(<LoraWorkbench />)
 
-    fireEvent.mouseDown(
+    fireEvent.click(
       screen.getByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
-      { button: 0 },
     )
 
     expect(mockRouterReplace).toHaveBeenCalledWith(
@@ -1727,16 +1765,15 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
     )
   })
 
-  it('navigates (URL replace) to the activated section — Radix tabs activate on primary mousedown', () => {
+  it('navigates (URL replace) to the clicked section and moves the selection there at once', () => {
     render(<LoraWorkbench />)
 
-    // P2-7: Radix Tabs activate on primary pointer-down (this is why a bare
-    // synthetic click() looked like a no-op on the old bar); firing the real
-    // activation event proves the click→navigate wiring end to end.
-    fireEvent.mouseDown(
-      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.train/ }),
-      { button: 0 },
-    )
+    const trainTab = screen.getByRole('tab', {
+      name: /LoraWorkbench:tabs\.train/,
+    })
+    fireEvent.click(trainTab)
+    // 点下去当场就选中（不等路由换完），路由报回来之后以路由为准。
+    expect(trainTab).toHaveAttribute('aria-selected', 'true')
 
     expect(mockRouterReplace).toHaveBeenCalledWith(
       expect.stringContaining('section=train'),
@@ -1744,19 +1781,14 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
     )
   })
 
-  it('activates a tab from the keyboard (Enter) — full Radix tab a11y', () => {
+  it('keeps every tab a native button so Tab / Enter / Space reach it without extra wiring', () => {
     render(<LoraWorkbench />)
 
-    const trainTab = screen.getByRole('tab', {
-      name: /LoraWorkbench:tabs\.train/,
-    })
-    trainTab.focus()
-    fireEvent.keyDown(trainTab, { key: 'Enter' })
-
-    expect(mockRouterReplace).toHaveBeenCalledWith(
-      expect.stringContaining('section=train'),
-      expect.objectContaining({ scroll: false }),
-    )
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.tagName).toBe('BUTTON')
+      expect(tab).toHaveAttribute('type', 'button')
+      expect(tab).not.toBeDisabled()
+    }
   })
 })
 
@@ -1863,21 +1895,21 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     expect(mockGenerate).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the failure out of the result card on desktop', () => {
+  it('says the failure in place inside the result box on desktop, never in the composer', () => {
     mockIsMobile = false
     mockGenerateError = 'Runner dispatch failed'
 
     render(<LoraWorkbench />)
 
-    expect(
-      screen.queryByRole('button', {
+    // 生成台 B（加载态 A）：框里原因 + 就地重试，线停住变灰。
+    expect(resultCard()).toHaveTextContent('Runner dispatch failed')
+    expect(resultCard()).toContainElement(
+      screen.getByRole('button', {
         name: 'LoraWorkbench:generate.resultFailedRetry',
       }),
-    ).not.toBeInTheDocument()
-    // 桌面的失败文案仍在 composer 的 role="alert" 那一行（回归保护）。
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Runner dispatch failed',
     )
+    // ⛔ 输入框里不再另写一行报错。
+    expect(composerCard()).not.toHaveTextContent('Runner dispatch failed')
   })
 
   it('scrolls the result card to the top of the viewport when a run starts (mobile only)', () => {
@@ -1952,23 +1984,20 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
     sessionStorage.clear()
   })
 
-  const resultMedia = () =>
-    screen
-      .getByTestId('lora-result-card')
-      .querySelector('.lora-result-media') as HTMLElement
+  // 生成台 B：结果区按「框的比例就是图的比例」画一块素底框（`studio-fit-box`），
+  // 进度线跑在它自己的边上；没出过图、也没在出图时只有舞台中间那一句话。
+  const resultBox = () =>
+    screen.getByTestId('lora-result-card').querySelector('.studio-fit-box')
 
-  it('renders the in-progress state inside the result card, with the height floor that keeps it visible', () => {
+  it('renders the in-progress state inside the result box on stage', () => {
     mockIsGenerating = true
 
     render(<LoraWorkbench />)
 
-    // 裱框进度真的在结果卡里（不是只有出图按钮上那颗 spinner）。
+    // 裱框进度真的在结果区的那块框里（不是只有出图按钮上那颗 spinner）。
     const progress = screen.getByRole('progressbar')
-    expect(screen.getByTestId('lora-result-card')).toContainElement(progress)
-    // 进度/shimmer 都是 absolute，盒子只能靠这个类名拿到高度 —— 丢了它，
-    // 桌面上整块生成中态塌成 0 高，就是 owner 报的那个 bug。
-    expect(resultMedia().className).toContain('lora-result-media--running')
-    expect(resultMedia().className).not.toContain('lora-result-media--empty')
+    expect(resultBox()).not.toBeNull()
+    expect(resultBox()).toContainElement(progress)
   })
 
   // b06968a2：worker 回报 executionStage 时压过按已用时长猜的阶段词——
@@ -1988,12 +2017,14 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
     )
   })
 
-  it('keeps the running height floor off the idle empty state', () => {
+  it('shows only the one-line hint when idle — no box, no progress, no ETA', () => {
     render(<LoraWorkbench />)
 
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-    expect(resultMedia().className).not.toContain('lora-result-media--running')
-    expect(resultMedia().className).toContain('lora-result-media--empty')
+    expect(resultBox()).toBeNull()
+    expect(
+      screen.getByText('LoraWorkbench:generate.hintPure'),
+    ).toBeInTheDocument()
     expect(screen.queryByTestId('lora-generating-eta')).not.toBeInTheDocument()
   })
 

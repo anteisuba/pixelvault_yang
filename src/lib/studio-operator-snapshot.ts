@@ -630,7 +630,7 @@ export interface LoraOperatorSnapshotInput {
     compatible: boolean
     /** 触发词。空白与 `null` 同义，这里统一归一成 `null`。 */
     triggerWord: string | null
-    /** 触发词 chip 的开关现值 —— 由宿主传进来，⛔ 不在这里重算。 */
+    /** 触发词在不在正文里 —— 由宿主按正文算好传进来，⛔ 不在这里重算。 */
     triggerEnabled: boolean
     /** 作者推荐提示词；超长在这里 clamp。 */
     recommendedPrompt: string | null

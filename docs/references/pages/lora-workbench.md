@@ -15,7 +15,7 @@
 > 1. **G2 双源不合成单壳** → 改「**保留 civitai/HF 两 tab，只对齐视觉**」：两 tab 各自保留（含各自的 NSFW/排序/配方差异，**不强行隐藏**），但 tab 内复用统一的 `LoraLibraryCard` / `LoraLibraryInspector` / 控件行形制 / family slug（§2.2–2.4 作为「对齐」手段**全部保留**）。**§2.1「LoraLibraryShell 单壳 + 源 segmented 切换」作废**；§2.5 `source` 参数含义 = tab 切换；**§10 切片 S1 的「HF 收编进单壳」改「两 tab 各自保留、内部换统一组件」**。
 > 2. **G3 兼容圆点给信号** → 改「**兼容也给淡信号**」：兼容 = 淡绿/中性点，不兼容 = 琥珀点。**§4.1「安静默认·兼容不渲染」作废**。
 > 3. **G1 第7类「场景」确认加**（共 7 类）；「表情」供给实测不足才首发隐藏（沿用）。
-> 4. 触发词 chips 化（§4.3）/ inline 补全写正文（§5·拍板④）**保持不变**。
+> 4. inline 补全写正文（§5·拍板④）**保持不变**；触发词 chips 化（§4.3）已被 2026-09-28「触发词写在正文里」取代。
 
 ## 0. 范围与不做什么
 
@@ -238,15 +238,16 @@ owner 的「推荐搭配」诉求，用**已有数据**落地——当前分组 
 - 数据不足（无 recipes / extras 全空 / 计数全 1）→ 整行不渲染。
 - ⚠ 依赖：audit Issue A（fileHash null 硬依赖导致搜索命中的 LoRA 配方恒空）**必须先修**，否则此行对搜索来的 LoRA 永远不显示——见 §10 依赖表。
 
-### 4.3 触发词 chips 化（评审 v2⑤ 正式纳入本批）
+### 4.3 触发词写在正文里（2026-09-28 owner，取代 07 月的 chips 化）
 
-触发词是「挂载的属性」不是「用户写的词」，裸文本 prefill 让它与正文互相污染（评审 v2⑤ 原判断，本文把它从 v2 提前，因为它是组合体验的结构地基）：
+07 月把触发词做成正文外的一排 chip、出图时编译进请求；owner 09-28：看不见的那一份会让人在正文里再写一遍，**触发词直接放在提示词框里**。现行规则（页面契约见 [`lora-generate.md`](lora-generate.md) §2.4）：
 
-- 纸上新增**触发词 chips 行**（textarea 上方、纸面形制小 chips）：每个挂载一枚 chip（LoRA 名缩写 + 触发词 mono），挂载即现、卸载即删；无触发词的挂载显示「无需触发词」灰 chip？——**不显示**（无数据不渲染，抽屉里已如实展示）。
-- chip 可单独禁用（点 chip 切换启/停，停用=该触发词不进编译；场景：风格 LoRA 触发词与正文冲突时临时关掉）。
-- **正文 textarea 不再 prefill 触发词**（现状 `mountedTriggersPrefill` 逻辑迁移到 chips 行）；一键同款只替换正文、不碰 chips 行（v2⑤ 原语义）。
-- 编译顺序（请求 prompt 装配）：触发词 chips（启用的）→ tray 正向 tags → 正文自由文本，逗号连接去重——复用 `prompt-tag-compiler` 既有 compile 管线 + `lora_trigger` 类型（`types/prompt-tags.ts` 已预留），selections 机制照搬，别重造。
-- 回放兼容：`?prompt=` 回放只写正文；`?style=` 挂载自动生成 chips 行——两条回放路径语义不变。
+- 正文就是发出去的那份：⛔ 出图时不再往正文前面拼触发词（`compilePromptTags` 只并 tray 标签）。
+- 挂上一把作者认过触发词的 LoRA（`hasVerifiedLoraTrigger`：自训 / 精选 / Civitai `trainedWords`）→ 触发词写到正文开头；猜出来的、旧导入缺来源证据的**不自动写**。
+- 停用 / 卸下 → 从正文里拿掉；停用再启用照原样写回（停用前在正文里才写回）。别的时候正文归用户：删掉的触发词不会被写回来。
+- 做同款 / 还原 / 助手整段改写正文时，原来在正文里的触发词留着（缺了补回开头）；同一个词的不同写法（`\(` 转义、下划线、`(词:1.2)`）认作同一个，⛔ 不写第二遍。
+- 生效中、但正文里没有的触发词：桌面在提示词下面一行「触发词 ＋词」，手机那排 chip 画成关着；点一下写进 / 拿掉正文，⛔ 没有第二份开关状态。
+- 回放兼容：`?prompt=` 回放照原样写正文；`?style=` 挂载时照「挂上」规则写触发词。
 
 ## 5. 生成页 · tag 补全（G4）
 
@@ -389,7 +390,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 - service 新函数 `getHuggingFaceRepoShowcase(repoId)` → `{ images: string[], prompts: string[] }`：README 解析复用封面链的 `extractReadmeImageUrls`（全量而非首图）；提示词提取 = fenced code block + `prompt:` 前缀行两种启发式（best-effort，提不到就空数组，无则不渲染——不硬造）。纯函数可单测。
 - API：工厂路由 `/api/lora-assets/huggingface/showcase`（auth→Zod→service），生成页挂载 HF LoRA 时按 `sourceUrl` 懒取（挂载才取，不在库列表批量抓）。
 - 缓存：会话内存缓存（同 repo 不重复抓）；持久缓存后置。
-- 触发词照常由 S5 chips 行承接，不混入本条。
+- 触发词写在正文里（§4.3），不混入本条。
 
 **切片 H1**（独立于助手 F 线，可与 §12 压缩同批交 Sonnet）：service+route+单测 → 生成侧样例参考条 → 真机验收（挂 Anything2Real 见 8 图横滚 + 提示词一键填入；挂无 README 图的 HF LoRA 整条不渲染；civitai LoRA 的 mined 配方零回归）。
 

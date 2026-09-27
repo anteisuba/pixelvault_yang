@@ -24,6 +24,11 @@ export const LORA_WORKBENCH_SEARCH_PARAM = 'section'
 // 只在内存里存本会话结果，刷新清空（正片在素材库/画廊里另有长期归档）。
 export const LORA_RESULT_HISTORY_MAX = 12
 
+// 生成台 B（owner 2026-09-27）：舞台左边那一列装配的宽度（px）——整列 ↔ 收起后
+// 的竖条。整列内部始终按 `open` 排版，收起时只是外框变窄、两块内容交叉淡，
+// 列里的字不会被挤着重排。
+export const LORA_ASSEMBLY_COLUMN_PX = { open: 272, strip: 48 } as const
+
 // P1-10（D7①）：生成页比例 chip 的值域与展示顺序。LoRA 出图主流是 3:4 立绘，
 // 故 3:4 紧跟 1:1 排在前面（与 Studio 的 STUDIO_IMAGE_ASPECT_RATIOS 值域相同、
 // 顺序不同——LoRA 域偏向竖构图）。默认值仍是 1:1，见 DEFAULT_ASPECT_RATIO。

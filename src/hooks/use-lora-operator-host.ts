@@ -66,10 +66,10 @@ export interface LoraOperatorHostMount {
   scale?: number
   enabled?: boolean
   /**
-   * 那枚触发词 chip 是不是开着。**缺省 `true`**（与 `enabled?` 同构）。
+   * 它的触发词在不在正文里。**缺省 `true`**（与 `enabled?` 同构）。
    *
-   * ⚠ 真值只在 `LoraWorkbench` 的 `disabledTriggerIds` 手里，由它透传进来 ——
-   * ⛔ 不在这个 hook 里重算：重算等于第二份真相，而用户点 chip 时只更新其中一份。
+   * ⚠ 真值只在 `LoraWorkbench` 按正文算的 `disabledTriggerIds` 手里，由它透传进来
+   * —— ⛔ 不在这个 hook 里重算：重算等于第二份真相。
    */
   triggerEnabled?: boolean
 }
@@ -269,7 +269,7 @@ export function useLoraOperatorHost(
             : true,
           // 空白触发词 = 这把没有触发词；归一成 null 那一步在快照构造里。
           triggerWord: item.asset.triggerWord ?? null,
-          // 缺省视为开着（没有 chip 可关的那些也落在这一档）。
+          // 缺省视为在正文里（没有触发词的那些也落在这一档）。
           triggerEnabled: item.triggerEnabled !== false,
           recommendedPrompt: item.asset.recommendedPrompt ?? null,
           /**

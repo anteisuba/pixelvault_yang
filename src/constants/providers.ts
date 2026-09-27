@@ -176,7 +176,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     baseUrl: AI_PROVIDER_ENDPOINTS.XAI,
   },
   [AI_ADAPTER_TYPES.RUNNER]: {
-    label: 'PixelVault Runner',
+    label: 'ANTEI Runner',
     baseUrl: AI_PROVIDER_ENDPOINTS.RUNPOD,
   },
 }

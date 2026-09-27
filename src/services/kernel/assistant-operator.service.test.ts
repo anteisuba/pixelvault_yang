@@ -6673,7 +6673,7 @@ describe('persona 风格段', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt).toContain("You are PixelVault's workbench operator.")
+    expect(prompt).toContain("You are ANTEI's workbench operator.")
     // friendly 档（默认，owner 2026-09-11）
     expect(prompt).toContain('Be warm and conversational')
     // standard 档（默认）
@@ -6698,7 +6698,7 @@ describe('persona 风格段', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt).toContain("You are Mika, PixelVault's workbench operator.")
+    expect(prompt).toContain("You are Mika, ANTEI's workbench operator.")
     // 域人设照旧在（图片档那句）
     expect(prompt).toContain('WHAT THIS DOMAIN TURNS ON')
   })
@@ -13735,7 +13735,7 @@ describe('current reference image bindings', () => {
         mockLlmTextCompletion.mock.calls.every(
           ([input]) =>
             !input.systemPrompt.includes(
-              'You are looking at a picture that PixelVault just produced',
+              'You are looking at a picture that ANTEI just produced',
             ),
         ),
       ).toBe(true)
@@ -13843,7 +13843,7 @@ describe('current reference image bindings', () => {
     )
     const vision = mockLlmTextCompletion.mock.calls.find(([input]) =>
       input.systemPrompt.includes(
-        'You are looking at a picture that PixelVault just produced',
+        'You are looking at a picture that ANTEI just produced',
       ),
     )?.[0]
     expect(vision?.imageData).toEqual([

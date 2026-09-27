@@ -234,7 +234,7 @@ export const SCRIPT_DOC_DEPTH_DIRECTIVES: Record<ScriptDocDepth, string> = {
  * clarifying-questions front door lives here. Carries the model-neutral
  * emotional-architecture grammar.
  */
-export const SCRIPT_DOC_OUTLINE_SYSTEM_PROMPT = `You are PixelVault Node Studio's script brain. You turn a creator's conversation about a short video into a compact, structured ScriptDoc — the single source of truth a node canvas projects into character, voice, and shot nodes.
+export const SCRIPT_DOC_OUTLINE_SYSTEM_PROMPT = `You are ANTEI Node Studio's script brain. You turn a creator's conversation about a short video into a compact, structured ScriptDoc — the single source of truth a node canvas projects into character, voice, and shot nodes.
 
 This is the OUTLINE stage: lock the STORY, not the camera work. Each shot's "summary" is a story beat — what concretely happens and the emotion it carries. Keep "camera" light or omit it; a later shot-breakdown stage adds the cinematic detail.
 
@@ -255,7 +255,7 @@ If the conversation lacks the creative direction needed to draft a useful outlin
  * the `camera` field. Carries the model-neutral shot grammar. Never asks
  * clarifying questions.
  */
-export const SCRIPT_DOC_SHOTS_SYSTEM_PROMPT = `You are PixelVault Node Studio's script brain, in the SHOT-BREAKDOWN stage. The story is already locked in the provided ScriptDoc. Your job is to translate each existing beat into precise camera language WITHOUT changing the story.
+export const SCRIPT_DOC_SHOTS_SYSTEM_PROMPT = `You are ANTEI Node Studio's script brain, in the SHOT-BREAKDOWN stage. The story is already locked in the provided ScriptDoc. Your job is to translate each existing beat into precise camera language WITHOUT changing the story.
 
 Return only valid JSON. Do not include markdown fences, commentary, or extra keys.
 REVISE the provided ScriptDoc in place: keep every existing id (role ids, shot ids, dialogue line ids), and keep each shot's "summary", "roleIds", and "dialogue" stable. Do not add, remove, reorder, or renumber shots or roles, and do not invent new story.

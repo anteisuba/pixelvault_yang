@@ -43,7 +43,7 @@ export const HOMEPAGE_MODEL_COUNTS = {
 } as const
 
 export const HOMEPAGE_METADATA = {
-  title: 'PixelVault | Personal AI Gallery',
+  title: 'ANTEI | Personal AI Gallery',
   description:
     'Generate with multiple AI image models, then archive every result in one personal gallery.',
 } as const

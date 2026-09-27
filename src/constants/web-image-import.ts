@@ -27,7 +27,7 @@
  * ⛔ 绝不能放用户的邮箱/账号。
  */
 export const WEB_IMAGE_IMPORT_USER_AGENT =
-  'PixelVaultImport/1.0 (https://github.com/pixelvault; user-directed image import)'
+  'ANTEIImport/1.0 (https://github.com/pixelvault; user-directed image import)'
 
 /**
  * 一张联网候选最多允许多少字节。

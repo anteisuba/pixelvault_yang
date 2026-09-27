@@ -215,7 +215,7 @@
       "volcengine": "VolcEngine",
       "opensource": "Open Source",
       "replicate": "Replicate",
-      "runner": "PixelVault Runner",
+      "runner": "ANTEI Runner",
       "hyper3d": "Hyper3D",
       "byteplus": "BytePlus"
     },
@@ -552,67 +552,67 @@
     "close": "Close"
   },
   "Metadata": {
-    "title": "PixelVault | Personal AI Gallery",
+    "title": "ANTEI | Personal AI Gallery",
     "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
     "keywords": "AI image generator, AI art, Gemini image, FLUX AI, personal AI gallery, AI video generator, text to image",
     "studio": {
-      "title": "Studio — PixelVault",
+      "title": "Studio — ANTEI",
       "description": "Generate images and videos with multiple AI models in one workspace.",
       "image": {
-        "title": "Image Studio — PixelVault",
+        "title": "Image Studio — ANTEI",
         "description": "Generate images with multiple AI models in one workspace."
       },
       "video": {
-        "title": "Video Studio — PixelVault",
+        "title": "Video Studio — ANTEI",
         "description": "Turn shots, motion, and scene beats into video with AI."
       },
       "audio": {
-        "title": "Audio Studio — PixelVault",
+        "title": "Audio Studio — ANTEI",
         "description": "Generate audio with text-to-speech and voice cloning."
       },
       "edit": {
-        "title": "Image Edit — PixelVault",
+        "title": "Image Edit — ANTEI",
         "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."
       },
       "node": {
-        "title": "Canvas — PixelVault",
+        "title": "Canvas — ANTEI",
         "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
       },
       "imageTags": {
-        "title": "Tag Studio — PixelVault",
+        "title": "Tag Studio — ANTEI",
         "description": "Compose danbooru-style tag prompts for NovelAI and PixAI."
       }
     },
     "gallery": {
-      "title": "Gallery — PixelVault",
+      "title": "Gallery — ANTEI",
       "description": "Browse the public archive of AI-generated images."
     },
     "prompts": {
-      "title": "Prompt Engineering — PixelVault",
+      "title": "Prompt Engineering — ANTEI",
       "description": "Save reusable prompt templates and see what you've created with each one."
     },
     "profile": {
-      "title": "Profile — PixelVault",
+      "title": "Profile — ANTEI",
       "description": "Your generation history, credits, and saved API routes."
     },
     "assets": {
-      "title": "Assets — PixelVault",
+      "title": "Assets — ANTEI",
       "description": "Browse and manage every generation you've made, organised by project and folder."
     },
     "cards": {
-      "title": "Characters — PixelVault",
+      "title": "Characters — ANTEI",
       "description": "Your characters: images and profiles for generating, scripting and assistant personas."
     },
     "storyboard": {
-      "title": "Storyboard — PixelVault",
+      "title": "Storyboard — ANTEI",
       "description": "Create visual narratives from your AI-generated images."
     },
     "signIn": {
-      "title": "Sign In — PixelVault",
+      "title": "Sign In — ANTEI",
       "description": "Sign in to return to your saved archive, API keys, and generation history."
     },
     "signUp": {
-      "title": "Create Account — PixelVault",
+      "title": "Create Account — ANTEI",
       "description": "Create an account to start generating and saving your AI images, video, prompts, and seeds."
     }
   },
@@ -2539,8 +2539,8 @@
     "viewCover": "View full cover",
     "coverPreviewBack": "Back",
     "useExternal": "Open in Civitai",
-    "externalBadgeHint": "This base model isn't supported in PixelVault — generate on Civitai instead",
-    "externalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to generate on Civitai.",
+    "externalBadgeHint": "This base model isn't supported in ANTEI — generate on Civitai instead",
+    "externalInspectorHint": "{family} LoRAs don't have a working ANTEI inference endpoint yet. Use the button below to generate on Civitai.",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
     "librarySourceCivitaiShort": "CIV",
@@ -2569,7 +2569,7 @@
     "huggingFaceFamilyQwenImage": "Qwen Image",
     "huggingFaceFamilyZImage": "Z-Image",
     "huggingFaceFamilyOther": "Other image models",
-    "huggingFaceUnsupportedFamily": "You can save this LoRA, but PixelVault does not currently have a compatible generation base",
+    "huggingFaceUnsupportedFamily": "You can save this LoRA, but ANTEI does not currently have a compatible generation base",
     "communityOpenInCivitai": "Generate on Civitai",
     "externalUseRedirect": "Opening on Civitai: {name}",
     "sourceBadgeCivitai": "CIV",
@@ -2581,7 +2581,7 @@
     "licenseAttributionRequired": "Attribution required",
     "licenseAttributionRequiredHint": "Credit the author/source when you use this",
     "huggingFaceLicenseLabel": "License",
-    "huggingFaceExternalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to open the Hugging Face repository.",
+    "huggingFaceExternalInspectorHint": "{family} LoRAs don't have a working ANTEI inference endpoint yet. Use the button below to open the Hugging Face repository.",
     "showcaseTitle": "Sample images",
     "showcaseFillPrompt": "Add to prompt",
     "showcaseImageAlt": "{name} sample {n}"
@@ -2991,7 +2991,7 @@
     "keyStatusSavedRouteTitle": "Using this saved route",
     "keyStatusSavedRouteDescription": "{label} ({maskedKey}) will be used for this route.",
     "keyStatusFallbackTitle": "Using the workspace default route",
-    "keyStatusFallbackDescription": "This workspace route calls PixelVault's configured {provider} endpoint and fallback key when available.",
+    "keyStatusFallbackDescription": "This workspace route calls ANTEI's configured {provider} endpoint and fallback key when available.",
     "routeSourceLabel": "Route source",
     "routeSources": {
       "workspace": "Workspace default",
@@ -3575,7 +3575,7 @@
     "skipStep": "Skip",
     "steps": {
       "welcome": {
-        "title": "Welcome to PixelVault",
+        "title": "Welcome to ANTEI",
         "description": "Start for free with 5 generations a day and no API key. Add your own keys later to access all models and use your providers' quotas instead of the daily free limit."
       },
       "model": {
@@ -3711,19 +3711,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious (Runner)",
-      "description": "Faithful Civitai recipe clone via PixelVault Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
+      "description": "Faithful Civitai recipe clone via ANTEI Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL (Runner)",
-      "description": "Anima Pencil-XL via PixelVault Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in PixelVault."
+      "description": "Anima Pencil-XL via ANTEI Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in ANTEI."
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL (Runner)",
-      "description": "Pony Diffusion V6 XL via PixelVault Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
+      "description": "Pony Diffusion V6 XL via ANTEI Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0 (Runner)",
-      "description": "Plain SDXL 1.0 via PixelVault Runner — a faithful recipe-clone path alongside the hosted route."
+      "description": "Plain SDXL 1.0 via ANTEI Runner — a faithful recipe-clone path alongside the hosted route."
     },
     "qwenImage21Runner": {
       "label": "qwen2.1",
@@ -3731,7 +3731,7 @@
     },
     "animaDitRunner": {
       "label": "Anima (Runner)",
-      "description": "Anima (Cosmos-Predict2 DiT) via PixelVault Runner — the native path for the large Anima LoRA ecosystem on Civitai."
+      "description": "Anima (Cosmos-Predict2 DiT) via ANTEI Runner — the native path for the large Anima LoRA ecosystem on Civitai."
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
@@ -4061,7 +4061,7 @@
   },
   "CreatorProfile": {
     "metaTitle": "Creator Portfolio",
-    "metaDescription": "Explore {name}'s AI-generated artwork on PixelVault",
+    "metaDescription": "Explore {name}'s AI-generated artwork on ANTEI",
     "notFound": "Profile not found",
     "works": "works",
     "likes": "likes",
@@ -4214,7 +4214,7 @@
       "posterLayout": "Minimalist movie poster for a sci-fi film, single astronaut silhouette against a giant planet",
       "cinematicVideo": "A lone samurai walking through a misty bamboo forest at dawn, camera slowly tracking from behind",
       "characterToVideo": "The character turns to face the camera and smiles warmly, gentle wind blowing their hair",
-      "voiceNarration": "Welcome to PixelVault, where your imagination becomes reality through the power of AI"
+      "voiceNarration": "Welcome to ANTEI, where your imagination becomes reality through the power of AI"
     }
   },
   "StudioCommandPalette": {
@@ -6885,8 +6885,8 @@
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The result has not arrived yet. Check your generation history before deciding whether to retry.",
       "storageUploadFailed": "The provider returned media, but saving it failed. Try again.",
-      "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a PixelVault Runner model (faithful recipe clone) instead, if available.",
-      "runnerMonthlyLimitExceeded": "PixelVault Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
+      "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try an ANTEI Runner model (faithful recipe clone) instead, if available.",
+      "runnerMonthlyLimitExceeded": "ANTEI Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
       "runnerLoraUnavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
       "loraDownloadDisabled": "The creator has disabled downloads for this LoRA on Civitai, so it can't be loaded here. Choose another LoRA."
     },

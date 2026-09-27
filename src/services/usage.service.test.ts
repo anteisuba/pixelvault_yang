@@ -134,7 +134,7 @@ describe('usage.service', () => {
       await createGenerationJob({
         userId: 'user-1',
         adapterType: AI_ADAPTER_TYPES.RUNNER,
-        provider: 'PixelVault Runner',
+        provider: 'ANTEI Runner',
         modelId: 'anima-pencil-xl-runner',
       })
 
@@ -160,7 +160,7 @@ describe('usage.service', () => {
         createGenerationJob({
           userId: 'user-1',
           adapterType: AI_ADAPTER_TYPES.RUNNER,
-          provider: 'PixelVault Runner',
+          provider: 'ANTEI Runner',
           modelId: 'anima-pencil-xl-runner',
         }),
       ).rejects.toThrow(RunnerMonthlyLimitExceededError)
@@ -311,7 +311,7 @@ describe('usage.service', () => {
           createGenerationJob({
             userId: 'user-1',
             adapterType: AI_ADAPTER_TYPES.RUNNER,
-            provider: 'PixelVault Runner',
+            provider: 'ANTEI Runner',
             modelId: 'anima-pencil-xl-runner',
           }),
         ).rejects.toThrow(RunawayGenerationLimitExceededError)

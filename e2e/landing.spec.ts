@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Landing Page', () => {
   test('renders hero section and navigation', async ({ page }) => {
     await page.goto('/en')
-    await expect(page).toHaveTitle(/PixelVault|AI Gallery/i)
+    await expect(page).toHaveTitle(/ANTEI|AI Gallery/i)
 
     // Navbar should be visible
     const nav = page.locator('nav').first()

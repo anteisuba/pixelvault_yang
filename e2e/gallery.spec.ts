@@ -5,7 +5,7 @@ test.describe('Gallery Page', () => {
     await page.goto('/en/gallery')
 
     // Page should load successfully
-    await expect(page).toHaveTitle(/Gallery|PixelVault/i)
+    await expect(page).toHaveTitle(/Gallery|ANTEI/i)
 
     // Should have some content area (grid or empty state)
     const main = page.locator('main').first()

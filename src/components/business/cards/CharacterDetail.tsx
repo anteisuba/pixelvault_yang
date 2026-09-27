@@ -1,17 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import type { CharacterCardRecord, UpdateCharacterCardRequest } from '@/types'
 import { ChevronLeft } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -24,165 +16,135 @@ import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
 /**
- * **角色详情 · 方向 A「整页左图右文」**（owner 09-26 选 A）。
+ * **角色详情 · 排版 A**（owner 09-27 从原型选 A）：设定是主角。
  *
- * ⭐ 两个模块：左边**图片**（主图 + 瀑布流，「全部 / 卡上 / 用她出的」三档），
- *   右边**设定**（一句外观 · 身份 · 性格 · 说话方式 · 经历 · 标签 · 作品来源 · 试读）。
- * ⭐ 「编辑」把整页换成编辑态（图 + 文一起改），保存 / 取消回到详情。
- * ⚠ 整页从点中的那张卡长出来（形状由 `CharacterRoster` 的液态展开负责），这里只管
- *   内容的几拍：标题随第一拍、正文随第二拍；收回时两批一起先退。
+ * ⭐ 白卡里：上面一条身份带（112 的小头像 · 名字 · 作品与张数 · 一句外观），下面左边
+ *   设定、右边一列 280 宽的小图（「全部 / 卡上 / 用她出的」三档）。⛔ 不再放整列大图。
+ * ⭐ 那一行（‹ 角色 · 用她 · 编辑）住在地台上、白卡外面（布局 A，与图片台同一套），
+ *   右端是助手头像那一格 —— 见 `CharacterDetailHeader`。
+ * ⚠ 进出动效由 `CharacterRoster` 统一做（直接切：淡出 → 淡入上移 8px，原型「动画 2」），
+ *   这里不管。
  */
-
-/** 内容是怎么来的：随展开进场 / 已经在那（手机、降级动效）。 */
-export type CharacterDetailEntry = 'open' | 'static'
 
 type ImageScope = 'all' | 'card' | 'made'
 
-interface CharacterDetailProps {
-  card: CharacterCardRecord
-  entry: CharacterDetailEntry
-  /** 在收：内容先退（`contentOutS`），退完才收形状。 */
-  closing: boolean
-  onClose(): void
-  onUpdate(data: UpdateCharacterCardRequest): Promise<boolean>
-  onDelete(): Promise<boolean>
-}
-
-/** 模糊跟透明度走同一根线；全显时不挂滤镜。 */
-function liquidBlur(visible: number): string {
-  if (visible >= 1) return 'none'
-  return `blur(${((1 - visible) * LIQUID_TIMING.blurPx).toFixed(2)}px)`
-}
-
-export function CharacterDetail({
+export function CharacterDetailHeader({
   card,
-  entry,
-  closing,
-  onClose,
+  editing,
+  onBack,
+  onEdit,
+}: {
+  card: CharacterCardRecord
+  editing: boolean
+  onBack(): void
+  onEdit(): void
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-0.5 rounded-full py-1 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" aria-hidden />
+        {t('title')}
+      </button>
+      {editing ? (
+        <span className="truncate text-sm font-medium">{card.name}</span>
+      ) : (
+        <div className="ml-auto flex items-center gap-2">
+          <UseCharacterMenu card={card} />
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={onEdit}
+          >
+            {t('edit')}
+          </Button>
+        </div>
+      )}
+    </>
+  )
+}
+
+export function CharacterDetailBody({
+  card,
+  editing,
+  onEdit,
+  onEditDone,
   onUpdate,
   onDelete,
-}: CharacterDetailProps) {
+}: {
+  card: CharacterCardRecord
+  editing: boolean
+  onEdit(): void
+  onEditDone(): void
+  onUpdate(data: UpdateCharacterCardRequest): Promise<boolean>
+  onDelete(): Promise<boolean>
+}) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
-  const reducedMotion = useReducedMotion() ?? false
-  const [editing, setEditing] = useState(false)
-  const headIn = useMotionValue(entry === 'static' || reducedMotion ? 1 : 0)
-  const bodyIn = useMotionValue(entry === 'static' || reducedMotion ? 1 : 0)
-  const headFilter = useTransform(headIn, liquidBlur)
-  const bodyFilter = useTransform(bodyIn, liquidBlur)
-
-  useEffect(() => {
-    if (reducedMotion) {
-      headIn.jump(closing ? 0 : 1)
-      bodyIn.jump(closing ? 0 : 1)
-      return
-    }
-    if (closing) {
-      const out = { duration: LIQUID_TIMING.contentOutS, ease: EASE_STANDARD }
-      const controls = [animate(headIn, 0, out), animate(bodyIn, 0, out)]
-      return () => controls.forEach((control) => control.stop())
-    }
-    if (entry === 'static') return
-    const controls = [
-      animate(headIn, 1, {
-        delay: LIQUID_TIMING.headInDelayS,
-        duration: LIQUID_TIMING.headInS,
-        ease: EASE_STANDARD,
-      }),
-      animate(bodyIn, 1, {
-        delay: LIQUID_TIMING.bodyInDelayS,
-        duration: LIQUID_TIMING.bodyInS,
-        ease: EASE_STANDARD,
-      }),
-    ]
-    return () => controls.forEach((control) => control.stop())
-  }, [bodyIn, closing, entry, headIn, reducedMotion])
-
+  if (editing) {
+    return (
+      <CharacterCardEditor
+        card={card}
+        onSave={async (data) => {
+          const ok = await onUpdate(data)
+          if (ok) onEditDone()
+          return ok
+        }}
+        onCancel={onEditDone}
+        onDelete={onDelete}
+      />
+    )
+  }
   const work = characterWork(card, locale)
   const workLabel = work.label ?? t('workOriginal')
   const primaryUrl = card.referenceSlots[0]?.url ?? card.sourceImageUrl
-
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <motion.header
-        style={{ opacity: headIn, filter: headFilter }}
-        className="flex shrink-0 items-center gap-3 border-b border-border px-5 py-3.5 sm:px-8"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-0.5 rounded-full py-1 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-          {t('title')}
-        </button>
-        <span className="relative size-9 shrink-0 overflow-hidden rounded-full bg-muted">
+    <div className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8 sm:pt-7">
+      <div className="mb-8 flex items-center gap-5">
+        <span className="relative size-28 shrink-0 overflow-hidden rounded-2xl bg-muted">
           {primaryUrl ? (
             <Image
               src={primaryUrl}
               alt=""
               fill
-              sizes="36px"
+              priority
+              sizes="112px"
               className="object-cover"
             />
           ) : null}
         </span>
-        <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold leading-tight">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="truncate text-2xl font-semibold tracking-tight">
             {card.name}
           </h2>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t('tileMeta', {
               work: workLabel,
               images: characterImageCount(card),
             })}
           </p>
+          {card.description ? (
+            <p className="max-w-prose text-md leading-relaxed">
+              {card.description}
+            </p>
+          ) : null}
         </div>
-        {editing ? null : (
-          <div className="ml-auto flex items-center gap-2">
-            <UseCharacterMenu card={card} />
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setEditing(true)}
-            >
-              {t('edit')}
-            </Button>
-          </div>
-        )}
-      </motion.header>
-
-      {editing ? (
-        <CharacterCardEditor
+      </div>
+      <div className="flex flex-col gap-10 lg:flex-row lg:items-start">
+        <SettingModule
           card={card}
-          onSave={async (data) => {
-            const ok = await onUpdate(data)
-            if (ok) setEditing(false)
-            return ok
-          }}
-          onCancel={() => setEditing(false)}
-          onDelete={onDelete}
+          workLabel={workLabel}
+          workSource={work.source}
+          workTag={work.tag}
+          onEdit={onEdit}
         />
-      ) : (
-        <motion.div
-          style={{ opacity: bodyIn, filter: bodyFilter }}
-          className="min-h-0 flex-1 overflow-y-auto"
-        >
-          <div className="grid gap-8 px-5 pb-12 pt-6 sm:px-8 lg:grid-cols-5">
-            <ImagesModule card={card} />
-            <div className="lg:sticky lg:top-6 lg:col-span-2 lg:self-start">
-              <SettingModule
-                card={card}
-                workLabel={workLabel}
-                workSource={work.source}
-                workTag={work.tag}
-                onEdit={() => setEditing(true)}
-              />
-            </div>
-          </div>
-        </motion.div>
-      )}
+        <ImagesModule card={card} />
+      </div>
     </div>
   )
 }
@@ -191,7 +153,6 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
   const t = useTranslations('CharacterRoster')
   const [scope, setScope] = useState<ImageScope>('all')
   const usage = useCharacterCardUsage(card.id, true)
-  const [primary, ...restSlots] = card.referenceSlots
   const madeCount = usage.total ?? card.generationCount
 
   const scopes: { id: ImageScope; label: string }[] = [
@@ -202,20 +163,14 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
     },
     { id: 'made', label: t('imagesMade', { count: madeCount }) },
   ]
-  const cardImages = (scope === 'card' ? card.referenceSlots : restSlots).map(
-    (slot) => ({
-      id: slot.id,
-      url: slot.url,
-      width: 0,
-      height: 0,
-      badge: slot.isPrimary ? t('primary') : t('onCard'),
-    }),
-  )
+  const cardImages = card.referenceSlots.map((slot) => ({
+    id: slot.id,
+    url: slot.url,
+    badge: slot.isPrimary ? t('primary') : t('onCard'),
+  }))
   const madeImages = usage.generations.map((generation) => ({
     id: generation.id,
     url: generation.thumbnailUrl ?? generation.url,
-    width: generation.width,
-    height: generation.height,
     badge: null,
   }))
   const tiles =
@@ -224,10 +179,9 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
       : scope === 'made'
         ? madeImages
         : [...cardImages, ...madeImages]
-  const showHero = scope === 'all' && primary
 
   return (
-    <section className="flex min-w-0 flex-col gap-4 lg:col-span-3">
+    <section className="flex min-w-0 shrink-0 flex-col gap-3 lg:w-70">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         <h3 className="text-base font-semibold">{t('imagesTitle')}</h3>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">
@@ -236,7 +190,7 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
         <div
           role="group"
           aria-label={t('imagesTitle')}
-          className="ml-auto flex gap-0.5 rounded-full bg-muted p-0.5"
+          className="flex w-full gap-0.5 rounded-full bg-muted p-0.5"
         >
           {scopes.map((item) => (
             <button
@@ -245,7 +199,7 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
               aria-pressed={scope === item.id}
               onClick={() => setScope(item.id)}
               className={cn(
-                'rounded-full px-3 py-1 text-xs transition-colors duration-fast',
+                'flex-1 truncate rounded-full px-2 py-1 text-xs transition-colors duration-fast',
                 scope === item.id
                   ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
@@ -257,39 +211,22 @@ function ImagesModule({ card }: { card: CharacterCardRecord }) {
         </div>
       </div>
 
-      {showHero ? (
-        <div className="relative aspect-4/5 w-full overflow-hidden rounded-2xl bg-muted lg:max-w-xl">
-          <Image
-            src={primary.url}
-            alt=""
-            fill
-            priority
-            sizes="(min-width: 1024px) 36rem, 100vw"
-            className="object-cover"
-          />
-          <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2.5 py-0.5 text-2xs">
-            {t('primary')}
-          </span>
-        </div>
-      ) : null}
-
       {tiles.length ? (
-        <div className="columns-2 gap-2.5 sm:columns-3">
+        <div className="grid grid-cols-3 gap-2">
           {tiles.map((tile) => (
             <figure
               key={tile.id}
-              className="relative mb-2.5 break-inside-avoid overflow-hidden rounded-xl bg-muted"
+              className="relative aspect-4/5 overflow-hidden rounded-lg bg-muted"
             >
               <Image
                 src={tile.url}
                 alt=""
-                width={tile.width || 400}
-                height={tile.height || 500}
-                sizes="(min-width: 1024px) 14rem, 45vw"
-                className="h-auto w-full"
+                fill
+                sizes="(min-width: 1024px) 90px, 30vw"
+                className="object-cover"
               />
               {tile.badge ? (
-                <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-2xs">
+                <span className="absolute left-1 top-1 rounded-full bg-background/90 px-1.5 text-3xs">
                   {tile.badge}
                 </span>
               ) : null}
@@ -339,11 +276,8 @@ function SettingModule({
   ]
 
   return (
-    <section className="flex min-w-0 flex-col gap-5">
+    <section className="flex min-w-0 flex-1 flex-col gap-5">
       <h3 className="text-base font-semibold">{t('setting')}</h3>
-      {card.description ? (
-        <p className="text-md leading-relaxed">{card.description}</p>
-      ) : null}
 
       {fields.length ? (
         fields.map(([key, value]) => (

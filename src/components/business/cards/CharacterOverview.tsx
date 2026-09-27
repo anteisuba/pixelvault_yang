@@ -47,10 +47,8 @@ interface CharacterOverviewProps {
   items: OverviewItem[]
   reducedMotion: boolean
   onOpen(id: string): void
-  /** 液态展开从哪张图长出来：把每个角色的图框登记给外面。 */
-  registerTile(id: string, node: HTMLElement | null): void
-  /** 标题行右侧的动作（新角色）。 */
-  actions: React.ReactNode
+  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`）。 */
+  query: string
 }
 
 const ORIGINAL_KEY = '\u0000original'
@@ -59,13 +57,11 @@ export function CharacterOverview({
   items,
   reducedMotion,
   onOpen,
-  registerTile,
-  actions,
+  query,
 }: CharacterOverviewProps) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
   const [workKey, setWorkKey] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
 
   const entries = useMemo<Entry[]>(
     () =>
@@ -123,46 +119,16 @@ export function CharacterOverview({
       hero={hero}
       reducedMotion={reducedMotion}
       onOpen={onOpen}
-      registerTile={registerTile}
     />
   )
 
   return (
     <div className="flex flex-col">
-      <header className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t('title')}
-          </h1>
-          <p className="mt-0.5 text-2sm text-muted-foreground">
-            {t('overviewCount', {
-              characters: entries.length,
-              works: groups.length,
-            })}
-          </p>
-        </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-muted px-3.5 py-2 text-2sm text-muted-foreground sm:w-72 sm:flex-none">
-            <Search className="size-4 shrink-0" aria-hidden />
-            <input
-              id="character-search"
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('searchPlaceholder')}
-              aria-label={t('searchPlaceholder')}
-              className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-            />
-          </label>
-          {actions}
-        </div>
-      </header>
-
       {groups.length > 1 || workKey ? (
         <div
           role="group"
           aria-label={t('worksLabel')}
-          className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1"
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
         >
           <WorkChip
             label={t('overviewAll')}
@@ -345,14 +311,12 @@ function CharacterTile({
   hero,
   reducedMotion,
   onOpen,
-  registerTile,
 }: {
   entry: Entry
   rank: number | null
   hero: boolean
   reducedMotion: boolean
   onOpen(id: string): void
-  registerTile(id: string, node: HTMLElement | null): void
 }) {
   const t = useTranslations('CharacterRoster')
   const { card, parentName } = entry
@@ -372,10 +336,7 @@ function CharacterTile({
         hero ? 'aspect-4/3 md:aspect-auto md:h-full' : 'aspect-4/5',
       )}
     >
-      <span
-        ref={(node) => registerTile(card.id, node)}
-        className="absolute inset-0 overflow-hidden rounded-2xl bg-muted"
-      >
+      <span className="absolute inset-0 overflow-hidden rounded-2xl bg-muted">
         {cover ? (
           <Image
             src={cover}
@@ -476,5 +437,56 @@ function WorkShelf({
       <span className="font-semibold">{group.label}</span>
       <span className="text-xs text-muted-foreground">{summary}</span>
     </button>
+  )
+}
+
+/** 这页有几部作品（地台那一行的计数用，判据与总览分组同一套）。 */
+export function countCharacterWorks(
+  items: readonly OverviewItem[],
+  locale: string,
+): number {
+  return new Set(
+    items.map((item) => characterWork(item.card, locale).label ?? ORIGINAL_KEY),
+  ).size
+}
+
+/**
+ * 总览那一行（住在地台上、白卡外面，布局 A）：标题 + 计数 · 搜索 · 新角色。
+ * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
+ */
+export function CharacterOverviewHeader({
+  characters,
+  works,
+  query,
+  onQueryChange,
+  actions,
+}: {
+  characters: number
+  works: number
+  query: string
+  onQueryChange(query: string): void
+  actions: React.ReactNode
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <>
+      <h1 className="text-lg font-semibold">{t('title')}</h1>
+      <span className="hidden text-2sm text-muted-foreground sm:inline">
+        {t('overviewCount', { characters, works })}
+      </span>
+      <label className="ml-auto flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground sm:w-72 sm:flex-none">
+        <Search className="size-4 shrink-0" aria-hidden />
+        <input
+          id="character-search"
+          type="search"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchPlaceholder')}
+          className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      </label>
+      {actions}
+    </>
   )
 }

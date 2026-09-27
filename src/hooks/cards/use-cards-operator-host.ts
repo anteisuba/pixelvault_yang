@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { CharacterCardRecord } from '@/types'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
@@ -21,6 +22,7 @@ import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
  *   写成空函数只是为了满足契约形状（与画布宿主同一做法）。
  * ⚠ 点页面别处**不收**助手（`collapseOnOutsidePointer: false`）：卡片助手的用法就是
  *   边聊边翻角色，收放法则的前提「面板外面是表单」在这里不成立。
+ * ⚠ 锚点是布局 A（头像留在地台那一行、面板并排让位）：页面上那一行右端给头像留了位。
  */
 
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
@@ -97,6 +99,11 @@ export function useCardsOperatorHost({
       open,
       setOpen,
       collapseOnOutsidePointer: false,
+      /**
+       * 布局 A「分栏并排」（owner 09-27，与图片台同一套）：头像留在地台那一行右端，
+       * 面板顶边对齐白卡、从右侧滑进来，页面让位（`CardsPageContent` 绑让位量）。
+       */
+      anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
     }),
     [apply, buildSnapshot, face, open],
   )

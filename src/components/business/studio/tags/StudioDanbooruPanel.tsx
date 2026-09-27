@@ -6,7 +6,6 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { ChevronLeft, RefreshCw, Search } from '@/components/icons'
 import { DURATION_MS, EASE_STANDARD, TAG_ADD_ACK_MS } from '@/constants/motion'
-import { DANBOORU_REQUEST } from '@/constants/research'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { useDanbooruCatalog } from '@/hooks/use-danbooru-catalog'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -26,19 +25,14 @@ import {
   toggleArtistTag,
 } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
-import type {
-  DanbooruCatalog,
-  DanbooruCatalogCandidate,
-  DanbooruCatalogKind,
+import {
+  DanbooruCatalogKindSchema,
+  type DanbooruCatalog,
+  type DanbooruCatalogKind,
 } from '@/types/danbooru-catalog'
 import { Button } from '@/components/ui/button'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
-import {
-  LookupGuide,
-  LookupRows,
-  LookupSay,
-  LookupSkeletonRows,
-} from './lookup/LookupList'
+import { LookupRows, LookupSay, LookupSkeletonRows } from './lookup/LookupList'
 import {
   LookupAddButton,
   LookupBlank,
@@ -54,7 +48,7 @@ import {
 /** 加到哪：整体 · 第几位角色 · 新建一位。 */
 type LookupTarget = 'whole' | 'new' | number
 
-const CHARACTER_TRAIT_LIMIT = 12
+const TRAIT_LIMIT = 12
 const ARTIST_REF_LIMIT = 8
 /** 别名那一行只留前几个：排在前面的是各语言的正名，后面常混进梗名。 */
 const ALIAS_LIMIT = 4
@@ -90,16 +84,80 @@ function shownData(result: {
   return result.data ?? (result.loading ? result.previous : undefined)
 }
 
+/** 每一页用哪几句文案（页签 · 类别小签 · 搜索框 · 列表标题 · 搜不到 · 样图说明）。 */
+const KIND_TEXT: Record<
+  DanbooruCatalogKind,
+  {
+    tab: string
+    kind: string
+    search: string
+    random: string
+    results: string
+    none: string
+    note: string
+    notePhone: string
+  }
+> = {
+  character: {
+    tab: 'tabCharacter',
+    kind: 'kindCharacter',
+    search: 'searchCharacter',
+    random: 'randomCharacterTitle',
+    results: 'characterCount',
+    none: 'noneText',
+    note: 'traitsNote',
+    notePhone: 'traitsNotePhone',
+  },
+  artist: {
+    tab: 'tabStyle',
+    kind: 'kindArtist',
+    search: 'searchArtist',
+    random: 'randomTitle',
+    results: 'artistResults',
+    none: 'artistNoneText',
+    note: 'traitsNote',
+    notePhone: 'traitsNotePhone',
+  },
+  copyright: {
+    tab: 'tabWork',
+    kind: 'kindWork',
+    search: 'searchWork',
+    random: 'randomWorkTitle',
+    results: 'workResults',
+    none: 'workNoneText',
+    note: 'workNote',
+    notePhone: 'workNotePhone',
+  },
+  general: {
+    tab: 'tabFeature',
+    kind: 'kindFeature',
+    search: 'searchFeature',
+    random: 'randomFeatureTitle',
+    results: 'featureResults',
+    none: 'featureNoneText',
+    note: 'featureNote',
+    notePhone: 'featureNotePhone',
+  },
+}
+
+type ByKind<T> = Record<DanbooruCatalogKind, T>
+
+function byKind<T>(value: T): ByKind<T> {
+  return { character: value, artist: value, copyright: value, general: value }
+}
+
 /**
  * 查资料（标签台，owner 2026-09-27 选 B「左边列表，右边常驻详情」，画板
- * 「查资料 B · 全部状态」）。两页：**角色 | 画风**，各自记住搜索词与选中项。
+ * 「查资料 B · 全部状态」）。四页：**角色 | 画风 | 作品 | 特征**（owner 2026-09-28
+ * 加后两页），各自记住搜索词、换一批与选中项。
  *
- * - 一搜就选中第一个（作品最多的），右边直接出详情；停手 300ms 才查。
- * - 角色：角色名默认选上，常见特征点选；加到 整体 / 角色 N / ＋新角色，默认跟着输入框
- *   当前那一页；模型没有角色构图就只剩整体。已在目标里的不重复加。
- * - 画风：随便看看（作品多的画师里随机抽）+ 换一批 + 搜画师；加入 = `artist:名字`
- *   放在正向标签最前面，是开关。「常画的」只是参考，⛔ 不跟着加。
- * - 这一页查不到而另一页有：说「它是画师 / 角色」，点了带着同一个词过去。
+ * - 每页先「随便看看」（作品多的里随机抽；特征从一张全年龄名单里抽）+ 换一批；一搜就
+ *   选中第一个（作品最多的），右边直接出详情；停手 300ms 才查。没点过的页不查。
+ * - 角色 / 作品 / 特征：名字默认选上，下面的点选（角色 = 常见特征，作品 = 里面的角色，
+ *   特征 = 常一起出现的）；加到 整体 / 角色 N / ＋新角色，默认跟着输入框当前那一页；
+ *   模型没有角色构图就只剩整体。已在目标里的不重复加。
+ * - 画风：加入 = `artist:名字` 放在正向标签最前面，是开关。「常画的」只是参考，⛔ 不跟着加。
+ * - 这一页查不到而别的页有：说「它是画师 / 作品…」，点了带着同一个词过去。
  * - 手机：左右放不下，列表一页、点一行推进详情页，「加到哪 + 加入」钉在底部。
  */
 export function StudioDanbooruPanel({
@@ -121,56 +179,67 @@ export function StudioDanbooruPanel({
   const { acked, ack, clear } = useAck()
 
   const [tab, setTab] = useState<DanbooruCatalogKind>('character')
-  const [charQuery, setCharQuery] = useState('')
-  const [artistQuery, setArtistQuery] = useState('')
-  const [artistVisited, setArtistVisited] = useState(false)
-  const [round, setRound] = useState(0)
-  const [charPick, setCharPick] = useState<string | null>(null)
-  const [artistPick, setArtistPick] = useState<string | null>(null)
+  const [queries, setQueries] = useState(() => byKind(''))
+  const [visited, setVisited] = useState(() => ({
+    ...byKind(false),
+    character: true,
+  }))
+  const [rounds, setRounds] = useState(() => byKind(0))
+  const [picks, setPicks] = useState(() => byKind<string | null>(null))
   const [selection, setSelection] = useState<{
-    pick: string
+    key: string
     tags: string[]
   } | null>(null)
   const [target, setTarget] = useState<LookupTarget | null>(null)
   const [phoneDetail, setPhoneDetail] = useState(false)
 
-  const charText = charQuery.trim()
-  const artistText = artistQuery.trim()
-  const charList = useDanbooruCatalog(
-    charText.length >= 2 ? { kind: 'character', query: charText } : null,
-  )
-  const artistList = useDanbooruCatalog(
-    !artistVisited
-      ? null
-      : artistText.length >= 2
-        ? { kind: 'artist', query: artistText }
-        : { kind: 'artist', random: true, round },
-  )
-  const charData = shownData(charList)
-  // ⚠ 换一批是整批换掉：左右都出骨架（画板「画风 · 换一批中」），⛔ 旧的一批留着。
-  const artistData =
-    artistText.length >= 2 ? shownData(artistList) : artistList.data
-  const charCandidates = charData?.candidates ?? []
-  const artistCandidates = artistData?.candidates ?? []
-  const pickIn = (
-    list: readonly DanbooruCatalogCandidate[],
-    name: string | null,
-  ) => list.find((item) => item.name === name) ?? list[0] ?? null
-  const charCandidate = pickIn(charCandidates, charPick)
-  const artistCandidate = pickIn(artistCandidates, artistPick)
-  const charDetail = useDanbooruCatalog(
-    charCandidate ? { kind: 'character', tag: charCandidate.name } : null,
-  )
-  const artistDetail = useDanbooruCatalog(
-    artistCandidate ? { kind: 'artist', tag: artistCandidate.name } : null,
-  )
+  const setQuery = (kind: DanbooruCatalogKind, value: string) =>
+    setQueries((current) => ({ ...current, [kind]: value }))
+  const setPick = (kind: DanbooruCatalogKind, name: string | null) =>
+    setPicks((current) => ({ ...current, [kind]: name }))
 
+  // 四页各问各的：切回来还是刚才那一批，⛔ 换页就重新抽。
+  const listRequest = (kind: DanbooruCatalogKind) => {
+    if (!visited[kind]) return null
+    const text = queries[kind].trim()
+    return text.length >= 2
+      ? { kind, query: text }
+      : { kind, random: true, round: rounds[kind] }
+  }
+  const lists: ByKind<ReturnType<typeof useDanbooruCatalog>> = {
+    character: useDanbooruCatalog(listRequest('character')),
+    artist: useDanbooruCatalog(listRequest('artist')),
+    copyright: useDanbooruCatalog(listRequest('copyright')),
+    general: useDanbooruCatalog(listRequest('general')),
+  }
+  // ⚠ 换一批是整批换掉：左右都出骨架（画板「画风 · 换一批中」），⛔ 旧的一批留着。
+  const listData = (kind: DanbooruCatalogKind) =>
+    queries[kind].trim().length >= 2 ? shownData(lists[kind]) : lists[kind].data
+  const candidateOf = (kind: DanbooruCatalogKind) => {
+    const list = listData(kind)?.candidates ?? []
+    return list.find((item) => item.name === picks[kind]) ?? list[0] ?? null
+  }
+  const detailRequest = (kind: DanbooruCatalogKind) => {
+    const picked = candidateOf(kind)
+    return picked ? { kind, tag: picked.name } : null
+  }
+  const details: ByKind<ReturnType<typeof useDanbooruCatalog>> = {
+    character: useDanbooruCatalog(detailRequest('character')),
+    artist: useDanbooruCatalog(detailRequest('artist')),
+    copyright: useDanbooruCatalog(detailRequest('copyright')),
+    general: useDanbooruCatalog(detailRequest('general')),
+  }
+
+  const text = KIND_TEXT[tab]
+  const isArtist = tab === 'artist'
+  const candidate = candidateOf(tab)
   const posts = (count: number) =>
     t('posts', { count: compactPostCount(count, locale) })
-  const chosen = charCandidate
-    ? selection?.pick === charCandidate.name
+  const selectionKey = candidate ? `${tab}:${candidate.name}` : null
+  const chosen = candidate
+    ? selection?.key === selectionKey
       ? selection.tags
-      : [charCandidate.name]
+      : [candidate.name]
     : []
 
   // ── 加到哪 ─────────────────────────────────────────────────────
@@ -206,7 +275,7 @@ export function StudioDanbooruPanel({
     ...(canAddCharacter ? [{ value: 'new', label: t('targetNew') }] : []),
   ]
 
-  const addCharacterTags = () => {
+  const addChosenTags = () => {
     if (!chosen.length || isGenerating) return
     const incoming = chosen.map(displayDanbooruTag)
     if (resolvedTarget === 'whole') {
@@ -252,108 +321,87 @@ export function StudioDanbooruPanel({
   const switchTab = (next: DanbooruCatalogKind) => {
     setTab(next)
     setPhoneDetail(false)
-    if (next === 'artist') setArtistVisited(true)
+    setVisited((current) => ({ ...current, [next]: true }))
   }
-  const goArtist = (name: string) => {
-    switchTab('artist')
-    setArtistQuery(displayDanbooruTag(name))
-    setArtistPick(name)
-  }
-  const goCharacter = (name: string) => {
-    switchTab('character')
-    setCharQuery(displayDanbooruTag(name))
-    setCharPick(name)
+  const goTo = (kind: DanbooruCatalogKind, name: string) => {
+    switchTab(kind)
+    setQuery(kind, displayDanbooruTag(name))
+    setPick(kind, name)
   }
   const pick = (name: string) => {
     clear()
-    if (tab === 'character') setCharPick(name)
-    else setArtistPick(name)
+    setPick(tab, name)
     if (phone) setPhoneDetail(true)
   }
+  const nameOf = (name: string) =>
+    isArtist ? artistPromptTag(name) : displayDanbooruTag(name)
 
   // ── 左栏 ───────────────────────────────────────────────────────
-  const isChar = tab === 'character'
-  const list = isChar ? charList : artistList
-  const data = isChar ? charData : artistData
-  const candidates = isChar ? charCandidates : artistCandidates
-  const query = isChar ? charText : artistText
-  const randomMode = !isChar && artistText.length < 2
-  const guide = isChar && charText.length < 2
-  const loadingList = !guide && list.loading && !data
-  const errored = !guide && list.error
-  const empty = !guide && !loadingList && !errored && data && !candidates.length
+  const list = lists[tab]
+  const data = listData(tab)
+  const candidates = data?.candidates ?? []
+  const query = queries[tab].trim()
+  const randomMode = query.length < 2
+  const loadingList = list.loading && !data
+  const errored = list.error
+  const empty = !loadingList && !errored && data && !candidates.length
 
   const listTitle = loadingList
-    ? isChar
-      ? t('searching', { query })
-      : randomMode
-        ? t('rerolling')
-        : t('searching', { query })
+    ? randomMode
+      ? t('rerolling')
+      : t('searching', { query })
     : candidates.length
-      ? isChar
-        ? t('characterCount', { query, count: candidates.length })
-        : randomMode
-          ? t('randomTitle', { count: candidates.length })
-          : t('artistResults', { query, count: candidates.length })
+      ? randomMode
+        ? t(text.random, { count: candidates.length })
+        : t(text.results, { query, count: candidates.length })
       : null
 
+  const cross = empty ? data?.crossHint : null
   const say = errored
     ? {
         title: t('errorTitle'),
         text: t('errorText'),
         action: { label: t('retry'), onClick: list.retry },
       }
-    : empty && data?.crossHint?.kind === 'artist'
+    : cross
       ? {
-          title: t('crossToArtistTitle', { query }),
-          text: t('crossToArtistText', { posts: posts(data.crossHint.count) }),
+          title: t('crossTitle', { page: t(text.tab), query }),
+          text: t('crossText', {
+            kind: t(KIND_TEXT[cross.kind].kind),
+            posts: posts(cross.count),
+            page: t(KIND_TEXT[cross.kind].tab),
+          }),
           action: {
-            label: t('goStyle'),
-            onClick: () => goArtist(data.crossHint!.name),
+            label: t('goPage', { page: t(KIND_TEXT[cross.kind].tab) }),
+            onClick: () => goTo(cross.kind, cross.name),
           },
         }
-      : empty && data?.crossHint?.kind === 'character'
+      : empty
         ? {
-            title: t('crossToCharacterTitle', { query }),
-            text: t('crossToCharacterText', {
-              posts: posts(data.crossHint.count),
-            }),
-            action: {
-              label: t('goCharacter'),
-              onClick: () => goCharacter(data.crossHint!.name),
+            title: t('noneTitle', { query }),
+            text: t(text.none),
+            link: {
+              label: t('searchDanbooru', { query }),
+              href: danbooruTagSearchUrl(query),
             },
           }
-        : empty
-          ? {
-              title: isChar
-                ? t('noneTitle', { query })
-                : t('crossToCharacterTitle', { query }),
-              text: isChar ? t('noneText') : t('artistNoneText'),
-              link: {
-                label: t('searchDanbooru', { query }),
-                href: danbooruTagSearchUrl(query),
-              },
-            }
-          : null
+        : null
 
-  const rows = candidates.map((candidate) => ({
-    name: candidate.name,
-    label: isChar
-      ? displayDanbooruTag(candidate.name)
-      : artistPromptTag(candidate.name),
-    sub: isChar
-      ? candidate.work
+  const rows = candidates.map((item) => ({
+    name: item.name,
+    label: nameOf(item.name),
+    sub:
+      tab === 'character' && item.work
         ? t('rowWork', {
-            work: displayDanbooruTag(candidate.work),
-            posts: posts(candidate.count),
+            work: displayDanbooruTag(item.work),
+            posts: posts(item.count),
           })
-        : posts(candidate.count)
-      : t('rowArtist', { posts: posts(candidate.count) }),
-    previews: candidate.previews,
-    added: !isChar && hasTag(state.tagChips, artistPromptTag(candidate.name)),
-    selected:
-      !phone &&
-      candidate.name === (isChar ? charCandidate : artistCandidate)?.name,
+        : isArtist
+          ? t('rowArtist', { posts: posts(item.count) })
+          : posts(item.count),
+    previews: item.previews,
+    added: isArtist && hasTag(state.tagChips, artistPromptTag(item.name)),
+    selected: !phone && item.name === candidate?.name,
   }))
 
   const searchField = (
@@ -366,14 +414,13 @@ export function StudioDanbooruPanel({
       <Search className="size-3.5 shrink-0" aria-hidden />
       <input
         type="search"
-        aria-label={isChar ? t('searchCharacter') : t('searchArtist')}
-        placeholder={isChar ? t('searchCharacter') : t('searchArtist')}
-        value={isChar ? charQuery : artistQuery}
+        aria-label={t(text.search)}
+        placeholder={t(text.search)}
+        value={queries[tab]}
         maxLength={100}
         onChange={(event) => {
           clear()
-          if (isChar) setCharQuery(event.target.value)
-          else setArtistQuery(event.target.value)
+          setQuery(tab, event.target.value)
         }}
         // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
         className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
@@ -400,8 +447,11 @@ export function StudioDanbooruPanel({
             <button
               type="button"
               onClick={() => {
-                setArtistPick(null)
-                setRound((value) => value + 1)
+                setPick(tab, null)
+                setRounds((current) => ({
+                  ...current,
+                  [tab]: current[tab] + 1,
+                }))
               }}
               className="inline-flex h-6.5 shrink-0 items-center gap-1.5 rounded-lg px-2 text-2sm font-medium text-foreground/75 transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
@@ -411,13 +461,7 @@ export function StudioDanbooruPanel({
           ) : null}
         </div>
       ) : null}
-      {guide ? (
-        <LookupGuide
-          text={t('guide')}
-          examples={DANBOORU_REQUEST.lookupExamples}
-          onExample={(example) => setCharQuery(example)}
-        />
-      ) : loadingList ? (
+      {loadingList ? (
         <LookupSkeletonRows label={t('loading')} />
       ) : say ? (
         <LookupSay {...say} />
@@ -436,24 +480,24 @@ export function StudioDanbooruPanel({
   )
 
   // ── 右栏 ───────────────────────────────────────────────────────
-  const detailQuery = isChar ? charDetail : artistDetail
-  const candidate = isChar ? charCandidate : artistCandidate
+  const detailQuery = details[tab]
   const detail = detailQuery.data?.detail ?? null
   const shots: LookupShot[] = (detail?.images ?? []).map((image) => ({
     id: image.id,
     url: image.large ?? image.url,
     alt: t('sample', { id: image.id }),
     href: danbooruPostUrl(image.id),
+    hrefLabel: t('openPost'),
   }))
 
-  const characterPane =
-    candidate && detail && isChar ? (
-      <CharacterPane
+  const tagPane =
+    candidate && detail && !isArtist ? (
+      <TagPane
         phone={phone}
         title={displayDanbooruTag(candidate.name)}
-        kind={t('kindCharacter')}
+        kind={t(text.kind)}
         lines={[
-          (detail.work ?? candidate.work)
+          tab === 'character' && (detail.work ?? candidate.work)
             ? t('rowWork', {
                 work: displayDanbooruTag(detail.work ?? candidate.work ?? ''),
                 posts: posts(detail.count ?? candidate.count),
@@ -473,7 +517,7 @@ export function StudioDanbooruPanel({
         shots={shots}
         tags={[
           { name: candidate.name, count: null, main: true },
-          ...detail.traits.slice(0, CHARACTER_TRAIT_LIMIT).map((trait) => ({
+          ...detail.traits.slice(0, TRAIT_LIMIT).map((trait) => ({
             name: trait.tag,
             count: `${trait.count}/${detail.sampleSize}`,
             main: false,
@@ -483,7 +527,7 @@ export function StudioDanbooruPanel({
         onToggle={(name) => {
           clear()
           setSelection({
-            pick: candidate.name,
+            key: `${tab}:${candidate.name}`,
             tags: chosen.includes(name)
               ? chosen.filter((item) => item !== name)
               : [...chosen, name],
@@ -492,9 +536,9 @@ export function StudioDanbooruPanel({
         texts={{
           tagsTitle: t('tagsTitle'),
           tagsHint: phone ? t('tagsHintPhone') : t('tagsHint'),
-          note: phone
-            ? t('traitsNotePhone', { count: detail.sampleSize })
-            : t('traitsNote', { count: detail.sampleSize }),
+          note: t(phone ? text.notePhone : text.note, {
+            count: detail.sampleSize,
+          }),
           addTo: t('addTo'),
           targets: t('targetsLabel'),
           noComposition: t('noComposition'),
@@ -519,7 +563,7 @@ export function StudioDanbooruPanel({
               : t('pickTags'),
           done: acked,
           disabled: !chosen.length || isGenerating,
-          onClick: addCharacterTags,
+          onClick: addChosenTags,
         }}
       />
     ) : null
@@ -528,7 +572,7 @@ export function StudioDanbooruPanel({
     ? hasTag(state.tagChips, artistPromptTag(candidate.name))
     : false
   const artistPane =
-    candidate && detail && !isChar ? (
+    candidate && detail && isArtist ? (
       <ArtistPane
         phone={phone}
         title={artistPromptTag(candidate.name)}
@@ -574,7 +618,7 @@ export function StudioDanbooruPanel({
     : `${tab}:blank`
   const pane = candidate ? (
     detail ? (
-      (characterPane ?? artistPane)
+      (tagPane ?? artistPane)
     ) : detailQuery.error ? (
       <LookupBlank text={t('detailError')} />
     ) : (
@@ -582,8 +626,6 @@ export function StudioDanbooruPanel({
     )
   ) : loadingList ? (
     <LookupDetailSkeleton label={t('loading')} />
-  ) : guide ? (
-    <LookupBlank ghosts text={t('blank')} />
   ) : (
     <LookupBlank />
   )
@@ -592,11 +634,12 @@ export function StudioDanbooruPanel({
     <LiquidSegmented
       ariaLabel={t('tabsLabel')}
       value={tab}
+      fill={phone}
       onChange={switchTab}
-      items={[
-        { value: 'character', label: t('tabCharacter') },
-        { value: 'artist', label: t('tabStyle') },
-      ]}
+      items={DanbooruCatalogKindSchema.options.map((kind) => ({
+        value: kind,
+        label: t(KIND_TEXT[kind].tab),
+      }))}
     />
   )
 
@@ -617,27 +660,29 @@ export function StudioDanbooruPanel({
       }}
     >
       {phone ? (
-        // `pr-12`：面板顶到顶栏下时，右上角浮着的助手头像正好压在这一行右端 —— 让开它
-        // （与参数栏顶上那颗「返回结果」同一做法），⛔ 让「画风」页签被头像盖住。
-        <div className="-ml-2 flex h-11 shrink-0 items-center gap-1 pr-12">
-          <button
-            type="button"
-            aria-label={t('backToResults')}
-            onClick={onClose}
-            className={PHONE_ICON_BUTTON_CLASS}
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-          </button>
-          <h2
-            ref={headingRef}
-            id="studio-lookup-title"
-            tabIndex={-1}
-            className="min-w-0 flex-1 truncate text-md font-semibold outline-none"
-          >
-            {t('title')}
-          </h2>
+        <>
+          {/* `pr-12`：面板顶到顶栏下时，右上角浮着的助手头像正好压在这一行右端 —— 让开它
+            （与参数栏顶上那颗「返回结果」同一做法）。四个页签一行放不下标题，单独占下一行。 */}
+          <div className="-ml-2 flex h-11 shrink-0 items-center gap-1 pr-12">
+            <button
+              type="button"
+              aria-label={t('backToResults')}
+              onClick={onClose}
+              className={PHONE_ICON_BUTTON_CLASS}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+            </button>
+            <h2
+              ref={headingRef}
+              id="studio-lookup-title"
+              tabIndex={-1}
+              className="min-w-0 flex-1 truncate text-md font-semibold outline-none"
+            >
+              {t('title')}
+            </h2>
+          </div>
           {tabs}
-        </div>
+        </>
       ) : (
         <div className="flex h-9 shrink-0 items-center gap-2.5">
           {/* ⚠ `outline-none`：打开时焦点被程序挪到这里（给读屏一个落点）。 */}
@@ -706,12 +751,10 @@ export function StudioDanbooruPanel({
                   <ChevronLeft className="size-4" aria-hidden />
                 </button>
                 <h3 className="min-w-0 flex-1 truncate text-md font-semibold">
-                  {isChar
-                    ? displayDanbooruTag(candidate.name)
-                    : artistPromptTag(candidate.name)}
+                  {nameOf(candidate.name)}
                 </h3>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">
-                  {isChar ? t('kindCharacter') : t('kindArtist')}
+                  {t(text.kind)}
                 </span>
               </div>
               {pane}
@@ -773,8 +816,8 @@ interface PaneAdd {
   onClick: () => void
 }
 
-/** 角色详情：样图 · 要加入的标签 · 加到哪 + 加入。 */
-function CharacterPane({
+/** 角色 / 作品 / 特征详情：样图 · 要加入的标签 · 加到哪 + 加入。 */
+function TagPane({
   phone,
   title,
   kind,

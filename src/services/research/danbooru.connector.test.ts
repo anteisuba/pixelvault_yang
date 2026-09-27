@@ -529,6 +529,41 @@ describe('catalog used by the tag workbench', () => {
     vi.mocked(Math.random).mockRestore()
   })
 
+  it('draws random top characters from the character category', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    const pool = Array.from({ length: 12 }, (_, i) => ({
+      name: `character_${i}`,
+      category: 4,
+      post_count: 5000 - i,
+    }))
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json') {
+        expect(url.searchParams.get('search[category]')).toBe('4')
+        return jsonResponse(pool)
+      }
+      const tag = url.searchParams.get('tags')?.split(' ')[0] ?? ''
+      return jsonResponse([
+        {
+          id: 1,
+          rating: 'g',
+          preview_file_url: `https://cdn.donmai.us/${tag}.jpg`,
+        },
+      ])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      kind: 'character',
+      random: '1',
+    })
+    expect(result.candidates).toHaveLength(8)
+    for (const character of result.candidates) {
+      expect(character.name).toMatch(/^character_/)
+      expect(character.previews).toHaveLength(1)
+    }
+    vi.mocked(Math.random).mockRestore()
+  })
+
   it('drops composition tags from a character’s traits but keeps them for an artist', async () => {
     const posts = [
       {
@@ -569,6 +604,93 @@ describe('catalog used by the tag workbench', () => {
     })
     expect(artist.detail?.traits.map((trait) => trait.tag)).toContain('1girl')
     expect(artist.detail?.work).toBeNull()
+  })
+
+  it('counts a work’s characters and a feature’s companions, never the tag itself', async () => {
+    const posts = [
+      {
+        id: 1,
+        rating: 'g',
+        tag_string_general: '1girl solo maid apron frills',
+        tag_string_copyright: 'genshin_impact',
+        tag_string_character: 'lumine_(genshin_impact) paimon_(genshin_impact)',
+      },
+      {
+        id: 2,
+        rating: 'g',
+        tag_string_general: 'maid apron',
+        tag_string_copyright: 'genshin_impact',
+        tag_string_character: 'paimon_(genshin_impact)',
+      },
+    ]
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json') {
+        const name = url.searchParams.get('search[name]')
+        return jsonResponse([
+          { name, category: name === 'maid' ? 0 : 3, post_count: 10 },
+        ])
+      }
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      return jsonResponse(posts)
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const work = await fetchDanbooruCatalog({
+      kind: 'copyright',
+      tag: 'genshin_impact',
+    })
+    expect(work.detail?.traits).toEqual([
+      { tag: 'paimon_(genshin_impact)', count: 2 },
+      { tag: 'lumine_(genshin_impact)', count: 1 },
+    ])
+    expect(work.detail?.work).toBeNull()
+    const feature = await fetchDanbooruCatalog({ kind: 'general', tag: 'maid' })
+    expect(feature.detail?.traits).toEqual([
+      { tag: 'apron', count: 2 },
+      { tag: 'frills', count: 1 },
+    ])
+  })
+
+  it('draws random features from the all-ages list, not the top general tags', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json') {
+        expect(url.searchParams.get('search[order]')).toBeNull()
+        const names = url.searchParams.get('search[name_comma]')?.split(',')
+        expect(names).toContain('twintails')
+        return jsonResponse(
+          (names ?? []).map((name) => ({ name, category: 0, post_count: 9 })),
+        )
+      }
+      return jsonResponse([
+        { id: 1, rating: 'g', preview_file_url: 'https://cdn.donmai.us/x.jpg' },
+      ])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({ kind: 'general', random: '1' })
+    expect(result.candidates).toHaveLength(8)
+  })
+
+  it('points to the work page when a character search finds only a work', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.searchParams.get('search[category]') === '3')
+        return jsonResponse([
+          { name: 'genshin_impact', category: 3, post_count: 90000 },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'genshin',
+      kind: 'character',
+    })
+    expect(result.crossHint).toEqual({
+      kind: 'copyright',
+      name: 'genshin_impact',
+      count: 90000,
+    })
   })
 
   it('propagates network failures instead of returning a misleading empty search', async () => {

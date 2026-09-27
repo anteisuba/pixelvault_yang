@@ -1,28 +1,37 @@
 import { z } from 'zod'
 
-export const DanbooruCatalogKindSchema = z.enum(['character', 'artist'])
+/** 查资料四页：角色 · 画风（画师）· 作品 · 特征（通用标签）。 */
+export const DanbooruCatalogKindSchema = z.enum([
+  'character',
+  'artist',
+  'copyright',
+  'general',
+])
 export type DanbooruCatalogKind = z.infer<typeof DanbooruCatalogKindSchema>
 
 /**
  * 查资料（标签台，owner 2026-09-27 B）的三种问法：
- * 搜名字（`query`）· 取一个候选的详情（`tag`）· 画风页「随便看看」（`random`）。
+ * 搜名字（`query`）· 取一个候选的详情（`tag`）· 两页的「随便看看」（`random`）。
  */
 export const DanbooruCatalogQuerySchema = z
   .object({
     query: z.string().trim().min(2).max(100).optional(),
     kind: DanbooruCatalogKindSchema,
+    /**
+     * 一个 Danbooru tag 名。⚠ 名字里常有 `! : /`（princess_connect!、re:zero、
+     * fate/grand_order），⛔ 只放行字母数字；要挡的是拼进额外搜索条件：空白、逗号、
+     * 打头的 `-` / `~`（Danbooru 的排除 / 或运算）。
+     */
     tag: z
       .string()
       .max(150)
-      .regex(/^[a-z0-9_().'\-]+$/i)
+      .regex(/^[^\s,\-~][^\s,]*$/)
       .optional(),
     random: z.literal('1').optional(),
   })
   .refine(
-    (value) =>
-      Boolean(value.tag || value.query) ||
-      (value.random === '1' && value.kind === 'artist'),
-    { message: 'query, tag or random artists required' },
+    (value) => Boolean(value.tag || value.query) || value.random === '1',
+    { message: 'query, tag or random required' },
   )
 export type DanbooruCatalogQuery = z.infer<typeof DanbooruCatalogQuerySchema>
 
@@ -32,9 +41,9 @@ export const DanbooruCatalogSchema = z.object({
       name: z.string(),
       count: z.number(),
       category: z.number(),
-      /** 角色出自哪部作品（样图上的第一个作品标签）；画师没有。 */
+      /** 角色出自哪部作品（样图上的第一个作品标签）；别的页没有。 */
       work: z.string().nullable().default(null),
-      /** 全年龄缩略样图：角色一张，画师三张。 */
+      /** 全年龄缩略样图：角色一张，别的页三张。 */
       previews: z.array(z.string().url()).default([]),
     }),
   ),

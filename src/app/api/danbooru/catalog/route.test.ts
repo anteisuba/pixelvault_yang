@@ -34,7 +34,21 @@ describe('catalog API boundary', () => {
       (await GET(request('query=denia&kind=character&tag=denia%20rating:e')))
         .status,
     ).toBe(400)
+    for (const tag of ['-denia', '~denia', 'denia,rating:e']) {
+      expect(
+        (await GET(request(`kind=character&tag=${encodeURIComponent(tag)}`)))
+          .status,
+      ).toBe(400)
+    }
     expect(fetchDanbooruCatalog).not.toHaveBeenCalled()
+  })
+  it('accepts real tag names with punctuation', async () => {
+    for (const tag of ['princess_connect!', 're:zero', 'fate/grand_order']) {
+      expect(
+        (await GET(request(`kind=copyright&tag=${encodeURIComponent(tag)}`)))
+          .status,
+      ).toBe(200)
+    }
   })
   it('delegates validated queries and keeps responses private', async () => {
     const response = await GET(request())
@@ -49,13 +63,17 @@ describe('catalog API boundary', () => {
       data: { candidates: [] },
     })
   })
-  it('asks for random artists without a query, but only on the artist page', async () => {
+  it('asks for random picks without a query on either page', async () => {
     expect((await GET(request('kind=artist&random=1'))).status).toBe(200)
     expect(fetchDanbooruCatalog).toHaveBeenCalledWith({
       kind: 'artist',
       random: '1',
     })
-    expect((await GET(request('kind=character&random=1'))).status).toBe(400)
+    expect((await GET(request('kind=character&random=1'))).status).toBe(200)
+    expect(fetchDanbooruCatalog).toHaveBeenCalledWith({
+      kind: 'character',
+      random: '1',
+    })
     expect((await GET(request('kind=artist'))).status).toBe(400)
   })
   it('reports failed services as errors', async () => {

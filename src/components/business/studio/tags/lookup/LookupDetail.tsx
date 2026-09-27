@@ -1,9 +1,10 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 
 import { Check, ExternalLink } from '@/components/icons'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 /**
@@ -17,10 +18,54 @@ export interface LookupShot {
   url: string
   alt: string
   href: string
+  /** 大图底下那条去 Danbooru 原帖的链接。 */
+  hrefLabel: string
+}
+
+/** 点一张样图就地看大图；原帖链接放在大图底下。 */
+function ShotZoom({
+  shot,
+  onClose,
+}: {
+  shot: LookupShot | null
+  onClose: () => void
+}) {
+  return (
+    <Dialog open={shot !== null} onOpenChange={(open) => !open && onClose()}>
+      {shot ? (
+        <DialogContent
+          showCloseButton={false}
+          // ⚠ 面板自己也听 Esc（关掉查资料）：这里接住，只关大图。
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') event.stopPropagation()
+          }}
+          className="w-auto max-w-[calc(100%-2rem)] justify-items-center gap-3 border-0 bg-transparent p-0 shadow-none sm:max-w-[min(90vw,72rem)]"
+        >
+          <DialogTitle className="sr-only">{shot.alt}</DialogTitle>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={shot.url}
+            alt={shot.alt}
+            onClick={onClose}
+            className="max-h-[80svh] max-w-full cursor-zoom-out rounded-xl object-contain shadow-lg"
+          />
+          <a
+            href={shot.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md px-1 text-2sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {shot.hrefLabel}
+            <ExternalLink className="size-3" aria-hidden />
+          </a>
+        </DialogContent>
+      ) : null}
+    </Dialog>
+  )
 }
 
 /**
- * 三张样图；点开 Danbooru 原帖。
+ * 三张样图；点一张就地看大图（owner 2026-09-28），原帖链接在大图底下。
  * ⭐ 图**整张看得见**（owner 2026-09-27「预览图看不全」，与参考图「等比、不裁切」同一条）：
  *   桌面每张按自己的比例放在三分之一宽里、居中，⛔ 铺满裁切，也⛔ 塞进灰框缩成小图。
  *   这一排最高 240（与画板里三个 4:3 框同高），屏幕稍矮时整排等比缩 —— 下面的标签那一段
@@ -36,22 +81,24 @@ export function LookupShots({
   phone?: boolean
 }) {
   const slots = [0, 1, 2]
+  const [zoomed, setZoomed] = useState<LookupShot | null>(null)
+  const zoom = <ShotZoom shot={zoomed} onClose={() => setZoomed(null)} />
   if (phone) {
     return (
       <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5">
+        {zoom}
         {slots.map((slot) => {
           const shot = shots[slot]
           const box =
             'relative block aspect-3/4 w-37 shrink-0 overflow-hidden rounded-xl bg-muted'
           return shot ? (
-            <a
+            <button
               key={shot.id}
-              href={shot.href}
-              target="_blank"
-              rel="noreferrer"
+              type="button"
+              onClick={() => setZoomed(shot)}
               className={cn(
                 box,
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               )}
             >
               <Image
@@ -62,7 +109,7 @@ export function LookupShots({
                 sizes="148px"
                 className="object-contain"
               />
-            </a>
+            </button>
           ) : (
             <span key={`empty-${slot}`} className={box} aria-hidden />
           )
@@ -72,16 +119,16 @@ export function LookupShots({
   }
   return (
     <div className="flex h-60 min-h-0 shrink gap-2 short:h-auto short:w-1/2">
+      {zoom}
       {slots.map((slot) => {
         const shot = shots[slot]
         return shot ? (
-          <a
+          <button
             key={shot.id}
-            href={shot.href}
-            target="_blank"
-            rel="noreferrer"
+            type="button"
+            onClick={() => setZoomed(shot)}
             // 矮屏左右排时贴顶，与右边「要加入的标签」同一条顶边。
-            className="flex h-full min-w-0 flex-1 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring short:items-start"
+            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring short:items-start"
           >
             {/* ⚠ 不用 next/image 的 fill：要的是图自己的比例，不是一个固定框 —— 图框就是图，
                 圆角才落在图上。 */}
@@ -91,7 +138,7 @@ export function LookupShots({
               alt={shot.alt}
               className="max-h-full max-w-full animate-in rounded-xl fade-in-0 duration-base ease-linear motion-reduce:animate-none"
             />
-          </a>
+          </button>
         ) : (
           <span key={`empty-${slot}`} className="min-w-0 flex-1" aria-hidden />
         )
@@ -312,23 +359,10 @@ export function LookupDetailSkeleton({ label }: { label: string }) {
   )
 }
 
-/** 右栏还没东西：还没搜时画三块淡淡的占位 + 一句会出现什么。 */
-export function LookupBlank({
-  text,
-  ghosts,
-}: {
-  text?: string
-  ghosts?: boolean
-}) {
+/** 右栏还没东西（或这一个没读出来）：一句话。 */
+export function LookupBlank({ text }: { text?: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2.5 text-center text-xs text-muted-foreground/70">
-      {ghosts ? (
-        <div className="grid grid-cols-3 gap-1.5 opacity-60" aria-hidden>
-          {[0, 1, 2].map((slot) => (
-            <span key={slot} className="aspect-4/3 w-22 rounded-lg bg-muted" />
-          ))}
-        </div>
-      ) : null}
       {text ? <span>{text}</span> : null}
     </div>
   )

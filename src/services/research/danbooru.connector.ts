@@ -1,9 +1,10 @@
 import 'server-only'
 import { z } from 'zod'
-import type {
-  DanbooruCatalog,
-  DanbooruCatalogKind,
-  DanbooruCatalogQuery,
+import {
+  DanbooruCatalogKindSchema,
+  type DanbooruCatalog,
+  type DanbooruCatalogKind,
+  type DanbooruCatalogQuery,
 } from '@/types/danbooru-catalog'
 
 import {
@@ -297,6 +298,7 @@ const CatalogPostsSchema = z.array(
     rating: z.string(),
     tag_string_general: z.string().default(''),
     tag_string_copyright: z.string().default(''),
+    tag_string_character: z.string().default(''),
     preview_file_url: z.string().nullish(),
     large_file_url: z.string().nullish(),
   }),
@@ -306,6 +308,8 @@ type CatalogPost = z.infer<typeof CatalogPostsSchema>[number]
 const CATALOG_CATEGORY: Record<DanbooruCatalogKind, number> = {
   character: DANBOORU_REQUEST.characterTagCategory,
   artist: DANBOORU_REQUEST.artistTagCategory,
+  copyright: DANBOORU_REQUEST.copyrightTagCategory,
+  general: DANBOORU_REQUEST.generalTagCategory,
 }
 
 function readCatalog(path: string, params: Record<string, string>) {
@@ -389,9 +393,9 @@ async function withPreviews(
   kind: DanbooruCatalogKind,
 ): Promise<DanbooruCatalog['candidates']> {
   const limit =
-    kind === 'artist'
-      ? DANBOORU_REQUEST.artistPreviewCount
-      : DANBOORU_REQUEST.catalogSampleSize
+    kind === 'character'
+      ? DANBOORU_REQUEST.catalogSampleSize
+      : DANBOORU_REQUEST.rowPreviewCount
   const samples = await Promise.allSettled(
     tags.map((tag) => safePosts(tag.name, limit)),
   )
@@ -403,11 +407,11 @@ async function withPreviews(
       count: tag.post_count,
       category: tag.category,
       work: kind === 'character' ? topCopyright(posts) : null,
-      // 行上只画得下这么几张（角色一张、画师三张）—— 多拿的样图只拿来推作品。
+      // 行上只画得下这么几张（角色一张、别的页三张）—— 多拿的样图只拿来推作品。
       previews: posts
         .map((post) => donmaiUrl(post.preview_file_url))
         .filter((url): url is string => url !== null)
-        .slice(0, kind === 'artist' ? DANBOORU_REQUEST.artistPreviewCount : 1),
+        .slice(0, kind === 'character' ? 1 : DANBOORU_REQUEST.rowPreviewCount),
     }
   })
 }
@@ -454,17 +458,34 @@ async function matchTags(
   ].filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
 }
 
-/** 画风页「随便看看」：作品最多的画师里随机抽一批，没有全年龄样图的剔掉。 */
-async function randomArtists(): Promise<DanbooruCatalog['candidates']> {
-  const placeholders = new Set<string>(DANBOORU_REQUEST.artistPlaceholderTags)
-  const pool = await cached('top-artists', async () =>
+/**
+ * 「随便看看」：作品最多的那一类 tag 里随机抽一批，没有全年龄样图的剔掉；占位 tag
+ * （unknown_artist、original 之类）不算。特征页从一张全年龄名单里抽（见常量）。
+ */
+async function randomCatalog(
+  kind: DanbooruCatalogKind,
+): Promise<DanbooruCatalog['candidates']> {
+  const placeholders = new Set<string>(DANBOORU_REQUEST.randomPlaceholderTags)
+  const pool = await cached(`top-${kind}`, async () =>
     CatalogTagsSchema.parse(
-      await readCatalog('/tags.json', {
-        'search[category]': String(DANBOORU_REQUEST.artistTagCategory),
-        'search[order]': 'count',
-        limit: String(DANBOORU_REQUEST.randomArtistPool),
-      }),
-    ).filter((tag) => !placeholders.has(tag.name)),
+      await readCatalog(
+        '/tags.json',
+        kind === 'general'
+          ? {
+              'search[name_comma]':
+                DANBOORU_REQUEST.featureRandomPool.join(','),
+              limit: String(DANBOORU_REQUEST.featureRandomPool.length),
+            }
+          : {
+              'search[category]': String(CATALOG_CATEGORY[kind]),
+              'search[order]': 'count',
+              limit: String(DANBOORU_REQUEST.randomPool),
+            },
+      ),
+    ).filter(
+      (tag) =>
+        tag.category === CATALOG_CATEGORY[kind] && !placeholders.has(tag.name),
+    ),
   )
   const draw = [...pool]
   for (let i = draw.length - 1; i > 0; i -= 1) {
@@ -472,12 +493,12 @@ async function randomArtists(): Promise<DanbooruCatalog['candidates']> {
     ;[draw[i], draw[j]] = [draw[j]!, draw[i]!]
   }
   const picked = await withPreviews(
-    draw.slice(0, DANBOORU_REQUEST.randomArtistDraw),
-    'artist',
+    draw.slice(0, DANBOORU_REQUEST.randomDraw),
+    kind,
   )
   return picked
-    .filter((artist) => artist.previews.length > 0)
-    .slice(0, DANBOORU_REQUEST.randomArtistShow)
+    .filter((item) => item.previews.length > 0)
+    .slice(0, DANBOORU_REQUEST.randomShow)
 }
 
 async function readCatalogDetail(
@@ -503,16 +524,24 @@ async function readCatalogDetail(
   const wiki = z
     .array(z.object({ other_names: z.array(z.string()).optional() }))
     .parse(wikiRaw)
-  const generic = new Set<string>(
-    kind === 'character' ? DANBOORU_REQUEST.genericTraitTags : [],
-  )
+  // 作品页数的是里面出场的角色；别的页数的是一起出现的通用 tag。
+  const skip = new Set<string>([
+    tag,
+    ...(kind === 'character' || kind === 'general'
+      ? DANBOORU_REQUEST.genericTraitTags
+      : []),
+  ])
   const counts = new Map<string, number>()
   for (const post of posts)
-    for (const general of new Set(
-      post.tag_string_general.split(' ').filter(Boolean),
+    for (const trait of new Set(
+      (kind === 'copyright'
+        ? post.tag_string_character
+        : post.tag_string_general
+      )
+        .split(' ')
+        .filter(Boolean),
     ))
-      if (!generic.has(general))
-        counts.set(general, (counts.get(general) ?? 0) + 1)
+      if (!skip.has(trait)) counts.set(trait, (counts.get(trait) ?? 0) + 1)
   return {
     ...empty,
     detail: {
@@ -542,7 +571,11 @@ async function readDanbooruCatalog(
 ): Promise<DanbooruCatalog> {
   if (query.tag) return readCatalogDetail(query.tag, query.kind)
   if (!query.query) {
-    return { candidates: await randomArtists(), crossHint: null, detail: null }
+    return {
+      candidates: await randomCatalog(query.kind),
+      crossHint: null,
+      detail: null,
+    }
   }
   const aliases = await aliasTags(query.query)
   const found = await matchTags(
@@ -561,21 +594,27 @@ async function readDanbooruCatalog(
     }
   }
   /**
-   * 这一页一个都没有：顺手问一下另一页（owner 2026-09-27 · fukemachi 在角色页
-   * 落空，其实是画师）。有就回一句跨页提示，⛔ 不把另一页的结果混进这一页。
+   * 这一页一个都没有：按页签顺序问一下别的页（owner 2026-09-27 · fukemachi 在角色页
+   * 落空，其实是画师）。有就回一句跨页提示，⛔ 不把别的页的结果混进这一页。
    */
-  const otherKind: DanbooruCatalogKind =
-    query.kind === 'character' ? 'artist' : 'character'
-  const other = (
-    await matchTags(query.query, CATALOG_CATEGORY[otherKind], aliases)
-  )[0]
-  return {
-    candidates: [],
-    crossHint: other
-      ? { kind: otherKind, name: other.name, count: other.post_count }
-      : null,
-    detail: null,
+  for (const otherKind of DanbooruCatalogKindSchema.options) {
+    if (otherKind === query.kind) continue
+    const other = (
+      await matchTags(query.query, CATALOG_CATEGORY[otherKind], aliases)
+    )[0]
+    if (other) {
+      return {
+        candidates: [],
+        crossHint: {
+          kind: otherKind,
+          name: other.name,
+          count: other.post_count,
+        },
+        detail: null,
+      }
+    }
   }
+  return { candidates: [], crossHint: null, detail: null }
 }
 
 export function fetchDanbooruCatalog(

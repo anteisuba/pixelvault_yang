@@ -155,10 +155,56 @@ const artistDetail = catalog({
   },
 })
 
-/** 角色页搜 miku、画风页随便看看，详情各给一份。 */
+const works = catalog({
+  candidates: [
+    {
+      name: 'genshin_impact',
+      count: 90000,
+      category: 3,
+      work: null,
+      previews: [],
+    },
+  ],
+})
+
+const workDetail = catalog({
+  detail: {
+    tag: 'genshin_impact',
+    count: 90000,
+    work: null,
+    aliases: ['原神'],
+    sampleSize: 20,
+    traits: [{ tag: 'paimon_(genshin_impact)', count: 9 }],
+    images: [],
+  },
+})
+
+const features = catalog({
+  candidates: [
+    { name: 'maid', count: 80000, category: 0, work: null, previews: [] },
+  ],
+})
+
+const featureDetail = catalog({
+  detail: {
+    tag: 'maid',
+    count: 80000,
+    work: null,
+    aliases: [],
+    sampleSize: 20,
+    traits: [{ tag: 'maid_headdress', count: 15 }],
+    images: [],
+  },
+})
+
+/** 角色页搜 miku，别的页随便看看，详情各给一份。 */
 function answerFixtures(request: DanbooruCatalogRequest) {
   if (request.tag === 'hatsune_miku') return { data: mikuDetail }
   if (request.tag === 'mizuiro_sora') return { data: artistDetail }
+  if (request.tag === 'genshin_impact') return { data: workDetail }
+  if (request.tag === 'maid') return { data: featureDetail }
+  if (request.kind === 'copyright') return { data: works }
+  if (request.kind === 'general') return { data: features }
   if (request.kind === 'artist') return { data: artists }
   if (request.query === 'miku') return { data: miku }
   return {}
@@ -182,14 +228,39 @@ beforeEach(() => {
 })
 
 describe('查资料 B · 角色', () => {
-  it('还没搜：一句怎么搜 + 起手词，点一个就搜', () => {
+  it('还没搜：随便看看一批角色，换一批重新抽', () => {
+    mocks.answer = (request) =>
+      request.kind === 'character' && request.random
+        ? request.round === 1
+          ? { loading: true, previous: miku }
+          : { data: miku }
+        : answerFixtures(request)
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
-    expect(screen.getByText('guide')).toBeInTheDocument()
-    expect(screen.getByText('blank')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'miku' }))
+    expect(screen.getByText('randomCharacterTitle(2)')).toBeInTheDocument()
     expect(
-      screen.getByRole('searchbox', { name: 'searchCharacter' }),
-    ).toHaveValue('miku')
+      screen.getByRole('button', { name: /^hatsune miku.*rowWork/ }),
+    ).toHaveAttribute('aria-current', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /reroll/ }))
+    expect(screen.getByText('rerolling')).toBeInTheDocument()
+    expect(screen.getAllByRole('status', { name: 'loading' })).toHaveLength(2)
+  })
+
+  it('点样图就地看大图，原帖链接在大图底下；Esc 只关大图', () => {
+    const onClose = vi.fn()
+    render(<StudioDanbooruPanel onClose={onClose} />)
+    search('miku')
+    fireEvent.click(screen.getByRole('button', { name: 'sample(7)' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('img')).toHaveAttribute(
+      'src',
+      'https://cdn.donmai.us/7.jpg',
+    )
+    expect(
+      within(dialog).getByRole('link', { name: 'openPost' }),
+    ).toHaveAttribute('href', 'https://danbooru.donmai.us/posts/7')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('一搜就选中第一个，右边出详情；角色名默认选上', () => {
@@ -290,9 +361,9 @@ describe('查资料 B · 角色', () => {
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
     search('fukemachi')
     expect(
-      screen.getByText('crossToArtistTitle(fukemachi)'),
+      screen.getByText('crossTitle(tabCharacter|fukemachi)'),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /goStyle/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'goPage(tabStyle)' }))
     expect(screen.getByRole('tab', { name: 'tabStyle' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -403,6 +474,51 @@ describe('查资料 B · 画风', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'tabStyle' }))
     expect(screen.getByText('flower')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /flower/ })).toBeNull()
+  })
+})
+
+describe('查资料 · 作品 / 特征', () => {
+  it('没点过的页不查；点开作品页才随便看看', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    expect(
+      mocks.requests.some((request) => request?.kind === 'copyright'),
+    ).toBe(false)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabWork' }))
+    expect(
+      mocks.requests.some(
+        (request) => request?.kind === 'copyright' && request.random,
+      ),
+    ).toBe(true)
+    expect(screen.getByText('randomWorkTitle(1)')).toBeInTheDocument()
+  })
+
+  it('作品：作品名默认选上，点一个角色一起加进整体', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabWork' }))
+    fireEvent.click(screen.getByRole('button', { name: /paimon/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'addTags(2)' }))
+    expect(mocks.dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: 'genshin impact', weight: 1 },
+          { text: 'paimon (genshin impact)', weight: 1 },
+        ],
+      },
+    })
+  })
+
+  it('特征：常一起出现的可以点选，切页回来选中项还在', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFeature' }))
+    expect(screen.getByText('randomFeatureTitle(1)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /maid headdress/ }))
+    fireEvent.click(screen.getByRole('tab', { name: 'tabWork' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFeature' }))
+    expect(
+      screen.getByRole('button', { name: 'addTags(2)' }),
+    ).toBeInTheDocument()
   })
 })
 

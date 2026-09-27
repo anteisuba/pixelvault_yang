@@ -387,29 +387,93 @@ export const DANBOORU_REQUEST = {
   maxTagCandidates: 5,
   /** 画师 tag 的 danbooru category 编号。 */
   artistTagCategory: 1,
+  /** 作品 tag 的 danbooru category 编号。 */
+  copyrightTagCategory: 3,
+  /** 通用（特征）tag 的 danbooru category 编号。 */
+  generalTagCategory: 0,
   /** 查资料左栏最多列几个候选（每个都要再查样图，多了拖慢且容易被限流）。 */
   catalogCandidateLimit: 6,
   /** 查资料详情：共现特征取样张数。 */
   catalogSampleSize: 20,
-  /** 画师行的缩略样图张数；角色行只要 1 张。 */
-  artistPreviewCount: 3,
+  /** 画风 / 作品 / 特征行的缩略样图张数；角色行只要 1 张。 */
+  rowPreviewCount: 3,
   /**
-   * 画风页「随便看看」：从作品最多的这么多个画师里抽，一次多抽几个 —— 有的画师
-   * 一张全年龄样图都没有，抽出来要剔掉。
+   * 「随便看看」：从作品最多的这么多个里抽，一次多抽几个 —— 有的一张全年龄样图都没有，
+   * 抽出来要剔掉。特征页不按作品数抽（前几百名里混着成人向标签），从下面那张名单抽。
    */
-  randomArtistPool: 200,
-  randomArtistDraw: 10,
-  randomArtistShow: 8,
+  randomPool: 200,
+  randomDraw: 10,
+  randomShow: 8,
   /** 画师名单与样图的服务端缓存时长（作品数排名一天都不怎么动）。 */
   catalogCacheTtlMs: 6 * 60 * 60 * 1000,
-  /** 画师分类里不是真人画师的占位 tag。 */
-  artistPlaceholderTags: [
+  /** 随便看看里剔掉的占位 tag：不是真人画师的画师标签 · 「原创」不是一部作品。 */
+  randomPlaceholderTags: [
     'banned_artist',
     'unknown_artist',
     'anonymous_artist',
+    'original',
+  ],
+  /** 特征页「随便看看」从这里抽：服装 · 发型 · 动作 · 构图 · 背景，全是全年龄的常用写法。 */
+  featureRandomPool: [
+    'school_uniform',
+    'serafuku',
+    'maid',
+    'kimono',
+    'hoodie',
+    'china_dress',
+    'witch_hat',
+    'hair_ribbon',
+    'hairband',
+    'beret',
+    'gothic_lolita',
+    'armor',
+    'scarf',
+    'apron',
+    'twintails',
+    'ponytail',
+    'twin_braids',
+    'side_ponytail',
+    'hair_bun',
+    'ahoge',
+    'bob_cut',
+    'drill_hair',
+    'animal_ears',
+    'cat_ears',
+    'heterochromia',
+    'glasses',
+    'wings',
+    'halo',
+    'peace_sign',
+    'hand_on_own_cheek',
+    'outstretched_arm',
+    'running',
+    'jumping',
+    'reading',
+    'holding_umbrella',
+    'hugging_own_legs',
+    'from_above',
+    'from_below',
+    'from_side',
+    'dutch_angle',
+    'close-up',
+    'wide_shot',
+    'cherry_blossoms',
+    'night_sky',
+    'starry_sky',
+    'underwater',
+    'rain',
+    'snow',
+    'sunset',
+    'classroom',
+    'library',
+    'cityscape',
+    'beach',
+    'forest',
+    'field',
+    'cafe',
   ],
   /**
-   * 角色详情的「常见特征」里剔掉的通用 tag：人数、构图、表情这些几乎每张图都有，
+   * 角色 / 特征详情里剔掉的通用 tag：人数、构图、表情这些几乎每张图都有，
    * 排在最前却说不出这个角色长什么样（画师「常画的」不剔 —— 那正是在说他画什么）。
    */
   genericTraitTags: [
@@ -433,8 +497,6 @@ export const DANBOORU_REQUEST = {
     'standing',
     'sitting',
   ],
-  /** 查资料「角色」页还没搜时给的几个起手词（点一下就搜）。 */
-  lookupExamples: ['初音未来', 'miku', '雪ミク'],
 } as const
 
 /** Serper 时间过滤（🔬 `tbs=qdr:w` 实测生效）。 */

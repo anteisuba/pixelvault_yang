@@ -1,14 +1,15 @@
 'use client'
 
-import type { ReactNode } from 'react'
 import Image from 'next/image'
 
+import type { DanbooruCatalogKind } from '@/types/danbooru-catalog'
 import { Check, ChevronRight, ExternalLink } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
- * 查资料左栏（owner 2026-09-27 查资料 B）：一行一个候选；画风页的行尾是三张小样图。
+ * 查资料左栏（owner 2026-09-27 查资料 B）：一行一个候选；角色行头上一张小样图，
+ * 别的页行尾三张。
  * ⚠ 行底色 120ms 线性：选中 4%、悬停 7%（动效表）。
  */
 export interface LookupRowView {
@@ -27,7 +28,7 @@ export function LookupRows({
   phone,
   onPick,
 }: {
-  kind: 'character' | 'artist'
+  kind: DanbooruCatalogKind
   rows: readonly LookupRowView[]
   addedLabel: string
   phone?: boolean
@@ -71,7 +72,7 @@ export function LookupRows({
                 <Check className="size-3" aria-hidden />
               </span>
             ) : null}
-            {kind === 'artist' ? (
+            {kind !== 'character' ? (
               <span className="grid shrink-0 grid-cols-3 gap-0.75">
                 {[0, 1, 2].map((slot) => (
                   <Thumb
@@ -186,35 +187,6 @@ export function LookupSay({
           <ExternalLink className="size-3" aria-hidden />
         </a>
       ) : null}
-    </div>
-  )
-}
-
-/** 角色页还没搜：一句怎么搜 + 几个起手词。 */
-export function LookupGuide({
-  text,
-  examples,
-  onExample,
-}: {
-  text: string
-  examples: readonly string[]
-  onExample: (query: string) => void
-}): ReactNode {
-  return (
-    <div className="flex animate-in flex-col gap-2.5 px-0.5 pt-1.5 fade-in-0 duration-base ease-linear motion-reduce:animate-none">
-      <p className="text-xs leading-5 text-muted-foreground">{text}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {examples.map((example) => (
-          <button
-            key={example}
-            type="button"
-            onClick={() => onExample(example)}
-            className="inline-flex h-7.5 items-center rounded-full bg-muted px-3 text-xs text-foreground/80 transition-colors duration-fast ease-linear hover:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-          >
-            {example}
-          </button>
-        ))}
-      </div>
     </div>
   )
 }

@@ -30,6 +30,7 @@ import {
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeV4Subtype,
   type NodeWorkflowMediaKind,
@@ -592,6 +593,11 @@ export function applyNodeAssistantOpV4(
         createdAt: now,
         ...(op.shotNo === undefined ? {} : { shotNo: op.shotNo }),
         ...(kind === NODE_MEDIA_KIND_IDS.text ? { body: '' } : {}),
+        ...(op.characterId &&
+        kind === NODE_MEDIA_KIND_IDS.image &&
+        subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character
+          ? { characterId: op.characterId }
+          : {}),
       }
       const parsed = NodeV4DataSchema.safeParse(base)
       if (!parsed.success) return { ok: false, reason: 'invalidSubtype' }
@@ -969,6 +975,45 @@ export function applyNodeAssistantOpV4(
         inverse: {
           kind: 'op',
           op: { op: ids.setSubtype, target: node.id, subtype: previous },
+        },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.setCharacterPicks: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      // 只有会出图 / 出视频、提示词里能 @ 她的卡收这张表。
+      if (
+        node.data.kind !== NODE_MEDIA_KIND_IDS.image &&
+        node.data.kind !== NODE_MEDIA_KIND_IDS.video
+      ) {
+        return { ok: false, reason: 'notAMediaNode' }
+      }
+      const current = node.data.characterPicks ?? {}
+      const previous = current[op.characterId] ?? null
+      const next = { ...current }
+      if (op.picks) next[op.characterId] = [...op.picks]
+      else delete next[op.characterId]
+      // 表空了就整个键拿掉，⛔ 不留一个 `characterPicks: undefined` 落库。
+      const base: Record<string, unknown> = { ...node.data }
+      delete base.characterPicks
+      const parsed = NodeV4DataSchema.safeParse(
+        Object.keys(next).length > 0 ? { ...base, characterPicks: next } : base,
+      )
+      if (!parsed.success) return { ok: false, reason: 'invalidValue' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => parsed.data),
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.setCharacterPicks,
+            target: node.id,
+            characterId: op.characterId,
+            picks: previous,
+          },
         },
         changedNodeIds: [node.id],
         changedEdgeIds: [],

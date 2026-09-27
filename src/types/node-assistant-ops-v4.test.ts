@@ -20,7 +20,8 @@ describe('v4 op 表（spec §5）', () => {
     // +5 = 剪辑台五条（S8）：整表替换 + 四条单段手势。
     // +3 = 字幕三条（S8d）：T 轨上的段是另一种形状，⛔ 不并进上面那五条。
     // +1 = `project_script`（进度表 24）：剧本卡按分镜投影成一排镜头节点。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(32)
+    // +1 = `set_character_picks`（画布用角色 ④）：@ 的角色这一镜带哪几张。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(33)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

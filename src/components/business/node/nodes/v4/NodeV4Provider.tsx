@@ -182,6 +182,17 @@ export function NodeV4Provider({
 
   const onSetModel = engine.setModel
   const onSetMedia = engine.setMedia
+  const onSelectNode = useCallback(
+    (nodeId: string) => {
+      engine.onRfNodesChange([
+        ...engine.selectedNodeIds
+          .filter((id) => id !== nodeId)
+          .map((id) => ({ id, type: 'select' as const, selected: false })),
+        { id: nodeId, type: 'select', selected: true },
+      ])
+    },
+    [engine],
+  )
   const onTidyLayout = engine.tidyLayout
   const onUndo = engine.undo
   const onRedo = engine.redo
@@ -200,6 +211,7 @@ export function NodeV4Provider({
       onSelectSlotVersion,
       onDisconnectSlot,
       onFocusNode: onFocusNode ?? (() => {}),
+      onSelectNode,
       onEditText,
       onDeriveFromText: onDeriveFromText ?? (() => {}),
       onSetPrompt,
@@ -230,6 +242,7 @@ export function NodeV4Provider({
       onSelectSlotVersion,
       onDisconnectSlot,
       onFocusNode,
+      onSelectNode,
       onEditText,
       onDeriveFromText,
       onSetPrompt,

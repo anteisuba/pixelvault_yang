@@ -27,6 +27,7 @@ import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { videoSendMode } from '@/constants/video-node-modes'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
+import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
@@ -54,6 +55,7 @@ import {
   type MentionChipMedia,
   type MentionPickerOption,
 } from '../chrome'
+import { useNodeCharacterMentions } from '../character/use-node-character-mentions'
 import { useNodeV4Canvas } from '../NodeV4Context'
 import { toStudioModelOption } from '../image/image-node-model'
 import { VideoAudioToggle } from './VideoAudioToggle'
@@ -108,6 +110,13 @@ export interface VideoComposer extends Omit<
    */
   readonly audioToggle: ReactNode
   readonly mentionOptions: readonly MentionPickerOption[]
+  /** 正文里 @ 了的角色（画布用角色 ④ 第 2 片）—— 宿主挂在参考轨旁边。 */
+  readonly characterMentions: readonly NodeCharacterMention[]
+  /** 角色勾图的名额：模型收几张参考图（`null` = 没公布上限）、轨上已挂几张。 */
+  readonly characterRail: {
+    readonly capacity: number | null
+    readonly usedImages: number
+  }
   readonly frameTokens: readonly MentionToken[]
   readonly frameCandidates: readonly MentionCandidate[]
   renderPromptValue(value: string): ReactNode
@@ -139,6 +148,17 @@ export function useVideoComposer({
   const generation = useNodeMediaGenerationV4()
 
   const [draft, setDraft] = useState(videoData.prompt ?? '')
+  // 正文里的 @她（画布用角色 ④ 第 2 片）：跟着草稿走，出现在参考轨上。
+  const characterMentions = useNodeCharacterMentions({
+    prompt: draft,
+    ...(videoData.characterPicks
+      ? { characterPicks: videoData.characterPicks }
+      : {}),
+  })
+  const characterImageCount = characterMentions.mentions.reduce(
+    (total, mention) => total + mention.picks.length,
+    0,
+  )
   const [syncedPrompt, setSyncedPrompt] = useState(videoData.prompt ?? '')
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
@@ -283,7 +303,8 @@ export function useVideoComposer({
   const sendMode = videoSendMode({
     firstFrame: railCounts.firstFrame,
     lastFrame: railCounts.lastFrame,
-    referenceImages: railCounts.referenceImages,
+    // @ 了的角色带的图由服务端追加进参考图 —— 端点跟着算「挂了参考项」。
+    referenceImages: railCounts.referenceImages + characterImageCount,
     videos: railCounts.video,
     voices: railCounts.voice,
   })
@@ -342,10 +363,11 @@ export function useVideoComposer({
     group: 'rail',
     ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
   }))
-  const frameTokens = [...railTokens, ...tokens]
-  const frameCandidates = [...railCandidates, ...candidates]
-  const mentionOptions: MentionPickerOption[] = frameCandidates.map(
-    (candidate) => {
+  const frameTokens = [...railTokens, ...tokens, ...characterMentions.tokens]
+  const nodeCandidates = [...railCandidates, ...candidates]
+  const frameCandidates = [...nodeCandidates, ...characterMentions.candidates]
+  const mentionOptions: MentionPickerOption[] = [
+    ...nodeCandidates.map((candidate) => {
       const media = mentionOptionMedia(candidate.name)
       return {
         id: candidate.id,
@@ -353,12 +375,17 @@ export function useVideoComposer({
         groupLabel: candidate.groupLabel ?? tVideo('rail.mentionGroup'),
         ...(media ? { media } : {}),
       }
-    },
-  )
+    }),
+    ...characterMentions.options,
+  ]
 
   const renderPromptValue = (value: string): ReactNode =>
     renderPromptMentions(value, {
-      names: [...railNames, ...tokens.map((token) => token.name)],
+      names: [
+        ...railNames,
+        ...tokens.map((token) => token.name),
+        ...characterMentions.names,
+      ],
       // `@图2` 这类序号项在栏里也带缩略 —— 与轨、与画中框同一份。
       mediaOf: mentionOptionMedia,
     })
@@ -564,6 +591,11 @@ export function useVideoComposer({
     modelChip,
     audioToggle,
     mentionOptions,
+    characterMentions: characterMentions.mentions,
+    characterRail: {
+      capacity: rail.capacity.images,
+      usedImages: railCounts.referenceImages,
+    },
     frameTokens,
     frameCandidates,
     renderPromptValue,

@@ -29,6 +29,7 @@ import {
   parseWorkerJobMetadata,
 } from '@/services/execution-callback.service'
 import { ensureUser } from '@/services/user.service'
+import { withCharacterVideoReferences } from '@/services/cards/card-bus-video.service'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
@@ -96,8 +97,10 @@ export async function submitVideoGeneration(
 
 export async function submitVideoGenerationForUserId(
   userId: string,
-  input: GenerateVideoRequest,
+  request: GenerateVideoRequest,
 ): Promise<VideoSubmitResponseData> {
+  // 卡片总线的视频出口：@ 了角色的镜头，把她勾的图追加进参考图（按本人校验、按端点封顶）。
+  const input = await withCharacterVideoReferences(userId, request)
   const timer = new GenerationStageTimer({
     outputType: 'VIDEO',
     modelId: input.modelId,

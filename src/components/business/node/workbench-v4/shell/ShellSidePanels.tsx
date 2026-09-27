@@ -9,10 +9,11 @@
  * 三个面板各自只做「列出来 + 交出去」：
  * · 节点一览 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
  *   ⛔ 不再写第二个定位器。
- * · 角色 / 风格卡 → `useContextCards()`，拖进画布或在提示词里 `@`。
+ * · 角色 → 角色库（`useCharacterLibrary`，与角色页同一份）。**点一位**放到画布上；
+ *   已经在画布上的点了定位到她（owner 09-27：⛔ 不拖；旧上下文卡不再显示）。
  * · 素材库 → 上传与生成记录合并，复用素材页文件夹，按类型筛、一页一页往下翻。
  *
- * ⚠ 三个列表面板落卡都有**两只手**：拖进画布，或**点一下**落到视口中央。后者不是
+ * ⚠ 素材库与节点一览之外的落卡都有**两只手**：拖进画布，或**点一下**落到视口中央。后者不是
  * 冗余 —— 触屏上根本没有 `dragstart`，桌面上从缩略图起手的拖拽也常被浏览器接管成
  * 「拖一张图片」（owner 2026-09-12 真机：素材拖不进画布）。
  */
@@ -21,7 +22,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type Ref,
@@ -44,7 +44,7 @@ import {
   PanelLeftClose,
   UserRound,
 } from '@/components/icons'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   CANVAS_SHELL_LAYOUT,
@@ -56,7 +56,6 @@ import {
   type CanvasShellLibraryFilter,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
-import { CONTEXT_CARD_KIND_IDS } from '@/constants/context-cards'
 import {
   DURATION_MS,
   EASE_STANDARD,
@@ -70,7 +69,8 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
-import { useContextCards } from '@/hooks/use-context-cards'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
 import {
   AssetPickerFolderNav,
@@ -82,14 +82,18 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Link } from '@/i18n/navigation'
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, cardManagementPath } from '@/constants/routes'
 import { getFolderPath } from '@/lib/folder-tree'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { useGalleryRevision } from '@/lib/gallery-revision'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { cn } from '@/lib/utils'
-import type { GenerationRecord, OutputTypeValue } from '@/types'
+import type {
+  CharacterCardRecord,
+  GenerationRecord,
+  OutputTypeValue,
+} from '@/types'
 import type { NodeV4Data } from '@/types/node-workflow'
 
 import { CastDock } from '../../CastDock'
@@ -355,33 +359,17 @@ function ShellPanelFrame({
 }
 
 function ShellCardsPanel({
-  onPlace,
+  placedCharacterIds,
+  onPlaceCharacter,
 }: {
-  onPlace(payload: ShellMediaPayload): void
+  placedCharacterIds: ReadonlySet<string>
+  onPlaceCharacter(card: CharacterCardRecord): void
 }) {
   const t = useTranslations('StudioNode.shell.panels')
-  const { cards, isLoading } = useContextCards()
-  const groups = useMemo(
-    () => [
-      {
-        id: CONTEXT_CARD_KIND_IDS.character,
-        label: t('cardsCharacters'),
-        cards: cards.filter(
-          (card) => card.kind === CONTEXT_CARD_KIND_IDS.character,
-        ),
-      },
-      {
-        id: CONTEXT_CARD_KIND_IDS.style,
-        label: t('cardsStyles'),
-        cards: cards.filter(
-          (card) => card.kind === CONTEXT_CARD_KIND_IDS.style,
-        ),
-      },
-    ],
-    [cards, t],
-  )
+  const locale = useLocale()
+  const { cards, loaded } = useCharacterLibrary()
 
-  if (isLoading && cards.length === 0) {
+  if (!loaded && cards.length === 0) {
     return (
       <p className="px-3 py-6 text-center text-xs text-node-muted">
         {t('loading')}
@@ -390,82 +378,81 @@ function ShellCardsPanel({
   }
   if (cards.length === 0) {
     return (
-      <p className="px-3 py-6 text-center text-xs text-node-muted">
-        {t('empty')}
-      </p>
+      <div className="flex flex-col items-center gap-2.5 px-3 py-8 text-center">
+        <p className="text-xs text-node-foreground">{t('cardsEmpty')}</p>
+        <p className="text-2xs text-node-muted">{t('cardsEmptyHint')}</p>
+        <a
+          href={`/${locale}${cardManagementPath({ tab: 'characters' })}`}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-surface-fill"
+        >
+          {t('cardsOpenRoster')} ↗
+        </a>
+      </div>
     )
   }
 
   return (
     <div
-      className="flex flex-col gap-1 px-1 pb-2"
+      className="flex flex-col gap-0.5 px-1 pb-2"
       data-testid="shell-cards-panel"
     >
-      {groups.map((group) =>
-        group.cards.length === 0 ? null : (
-          <section key={group.id}>
-            <h3 className="px-2 pb-1 pt-2 text-2xs text-node-muted">
-              {group.label}
-            </h3>
-            {group.cards.map((card) => {
-              const url = card.images[0]?.url
-              return (
-                <div
-                  key={card.id}
-                  data-testid="shell-card-row"
-                  style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
-                  className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-node-panel-inner"
-                  {...(url
-                    ? mediaTileProps(
-                        {
-                          kind: NODE_MEDIA_KIND_IDS.image,
-                          subtype:
-                            card.kind === CONTEXT_CARD_KIND_IDS.character
-                              ? NODE_V4_IMAGE_SUBTYPE_IDS.character
-                              : NODE_V4_IMAGE_SUBTYPE_IDS.background,
-                          url,
-                          name: card.name,
-                        },
-                        onPlace,
-                      )
-                    : {})}
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      width: CANVAS_SHELL_LAYOUT.nodeThumbWidthPx,
-                      height: CANVAS_SHELL_LAYOUT.nodeThumbHeightPx,
-                    }}
-                    className="shrink-0 overflow-hidden rounded-md bg-node-panel-soft"
-                  >
-                    {url ? (
-                      // R2 上的任意用户媒体，与引用 chip 同一条 raw-img 约定。
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={url}
-                        alt=""
-                        draggable={false}
-                        className="size-full object-cover"
-                      />
-                    ) : null}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-xs text-node-foreground">
-                      {card.name}
-                    </span>
-                    <span className="truncate text-2xs text-node-muted">
-                      {card.summary}
-                    </span>
-                  </span>
-                  <kbd className="shrink-0 rounded border border-node-panel-inner px-1 text-2xs text-node-muted">
-                    @
-                  </kbd>
-                </div>
-              )
-            })}
-          </section>
-        ),
-      )}
+      {cards.map((card) => {
+        const url =
+          card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
+          card.referenceSlots[0]?.url ??
+          card.sourceImageUrl ??
+          undefined
+        const onCanvas = placedCharacterIds.has(card.id)
+        const work = characterWork(card, locale).label ?? t('cardsOriginal')
+        return (
+          <button
+            key={card.id}
+            type="button"
+            data-testid="shell-card-row"
+            onClick={() => onPlaceCharacter(card)}
+            style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
+            className={cn(
+              'flex items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              onCanvas && 'bg-node-panel-inner',
+            )}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: CANVAS_SHELL_LAYOUT.nodeThumbWidthPx,
+                height: CANVAS_SHELL_LAYOUT.nodeThumbHeightPx,
+              }}
+              className="shrink-0 overflow-hidden rounded-md bg-node-panel-soft"
+            >
+              {url ? (
+                // R2 上的任意用户媒体，与引用 chip 同一条 raw-img 约定。
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={url}
+                  alt=""
+                  draggable={false}
+                  className="size-full object-cover"
+                />
+              ) : null}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-xs text-node-foreground">
+                {card.name}
+              </span>
+              <span className="truncate text-2xs text-node-muted">
+                {t('cardsMeta', { work, count: card.referenceSlots.length })}
+              </span>
+            </span>
+            {onCanvas ? (
+              <span className="shrink-0 text-2xs text-node-muted">
+                {t('cardsOnCanvas')}
+              </span>
+            ) : null}
+          </button>
+        )
+      })}
       <p className="px-2 pt-2 text-2xs text-node-muted">{t('cardsHint')}</p>
     </div>
   )
@@ -921,6 +908,10 @@ export interface ShellSidePanelsProps {
   onUpload(): void
   /** 点一下某份素材 —— 落到视口中央（拖投之外的第二只手）。 */
   onPlaceMedia(payload: ShellMediaPayload): void
+  /** 画布上已经有卡的角色（一个角色一张）。 */
+  readonly placedCharacterIds: ReadonlySet<string>
+  /** 点一位角色：不在画布上 = 放到视口中央；已在 = 定位到她。 */
+  onPlaceCharacter(card: CharacterCardRecord): void
 }
 
 export function ShellSidePanels({
@@ -930,6 +921,8 @@ export function ShellSidePanels({
   onNodeQueryChange,
   onUpload,
   onPlaceMedia,
+  placedCharacterIds,
+  onPlaceCharacter,
 }: ShellSidePanelsProps) {
   const t = useTranslations('StudioNode.shell.panels')
   const close = useCallback(
@@ -1332,7 +1325,10 @@ export function ShellSidePanels({
                       onQueryChange={onNodeQueryChange}
                     />
                   ) : panel === CANVAS_SHELL_PANEL_IDS.cards ? (
-                    <ShellCardsPanel onPlace={onPlaceMedia} />
+                    <ShellCardsPanel
+                      placedCharacterIds={placedCharacterIds}
+                      onPlaceCharacter={onPlaceCharacter}
+                    />
                   ) : (
                     <ShellLibraryPanel
                       onUpload={onUpload}

@@ -434,3 +434,21 @@ describe('三条路汇到同一份 reconcileStateSlots', () => {
     expect(slotsOf(viaDrop.state)).toEqual(slotsOf(viaConnectReference.state))
   })
 })
+
+describe('resolveMentionsToSlots · 角色卡不连线（画布用角色 ④）', () => {
+  it('@她 指的是画布上那张绑了角色库的角色卡时，不建边、也不报错', () => {
+    const role = node('role-1', {
+      kind: 'image',
+      subtype: 'character',
+      name: 'Denia',
+      characterId: 'denia',
+    })
+    const diff = resolveMentionsToSlots(
+      stateOf([role, shot]),
+      shot.id,
+      '@Denia 在雨里回头',
+    )
+    expect(diff.toConnect).toEqual([])
+    expect(diff.rejected).toEqual([])
+  })
+})

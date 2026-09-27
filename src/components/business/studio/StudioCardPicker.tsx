@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { cardManagementPath } from '@/constants/routes'
-import type { CharacterCardRecord, CharacterImagePick } from '@/types'
+import type { CharacterCardRecord } from '@/types'
 import {
   ArrowUpRight,
   Check,
@@ -14,8 +14,8 @@ import {
   UserRound,
 } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
+import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
 import { useStudioData } from '@/contexts/studio-context'
-import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { Link } from '@/i18n/navigation'
 import { characterWork } from '@/lib/character-works'
 import { filterByQuery } from '@/lib/search-utils'
@@ -32,13 +32,6 @@ import { cn } from '@/lib/utils'
  *   勾不上并写明原因。模型不收参考图时不展开，点一下只是让她在场（名字和标签进文字）。
  * ⚠ 挑的图住在 `characters.imagePicks`；出图时随请求送给卡片总线，服务端按本人校验。
  */
-
-type Pick = CharacterImagePick
-
-const sameTile = (a: Pick, b: Pick) =>
-  'slotId' in a
-    ? 'slotId' in b && a.slotId === b.slotId
-    : 'generationId' in b && a.generationId === b.generationId
 
 function toTimestampMs(value: Date | string | number | null | undefined) {
   if (value instanceof Date) return value.getTime()
@@ -244,7 +237,7 @@ export function StudioCardPicker() {
                     )}
                   </button>
                   {expanded ? (
-                    <CharacterImageGrid
+                    <CharacterImagePickGrid
                       card={card}
                       picks={picks}
                       remaining={remaining}
@@ -259,106 +252,6 @@ export function StudioCardPicker() {
           </ul>
         )}
       </div>
-    </div>
-  )
-}
-
-function CharacterImageGrid({
-  card,
-  picks,
-  remaining,
-  onChange,
-}: {
-  card: CharacterCardRecord
-  picks: readonly Pick[]
-  remaining: number
-  onChange(next: Pick[]): void
-}) {
-  const t = useTranslations('StudioV2')
-  const usage = useCharacterCardUsage(card.id, true)
-  const tiles: { pick: Pick; url: string; badge: string | null }[] = [
-    ...card.referenceSlots.map((slot) => ({
-      pick: { slotId: slot.id } as Pick,
-      url: slot.url,
-      badge: slot.isPrimary ? t('primaryImage') : t('imagesOnCard'),
-    })),
-    ...usage.generations
-      .filter(
-        (generation) =>
-          !card.referenceSlots.some((slot) => slot.url === generation.url),
-      )
-      .map((generation) => ({
-        pick: { generationId: generation.id } as Pick,
-        url: generation.thumbnailUrl ?? generation.url,
-        badge: null,
-      })),
-  ]
-
-  if (tiles.length === 0) {
-    return (
-      <p className="px-3 pb-3 text-xs text-muted-foreground">
-        {usage.isLoading ? t('loadingImages') : t('noCharacterImages')}
-      </p>
-    )
-  }
-
-  return (
-    <div className="px-2 pb-2.5">
-      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-        {tiles.map((tile) => {
-          const on = picks.some((pick) => sameTile(pick, tile.pick))
-          const blocked = !on && remaining <= 0
-          return (
-            <button
-              key={
-                'slotId' in tile.pick
-                  ? tile.pick.slotId
-                  : tile.pick.generationId
-              }
-              type="button"
-              data-testid="card-picker-image"
-              aria-pressed={on}
-              disabled={blocked}
-              title={blocked ? t('referenceLimitReached') : undefined}
-              onClick={() =>
-                onChange(
-                  on
-                    ? picks.filter((pick) => !sameTile(pick, tile.pick))
-                    : [...picks, tile.pick],
-                )
-              }
-              className={cn(
-                'relative aspect-4/5 overflow-hidden rounded-lg bg-muted outline-none transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring',
-                on && 'ring-2 ring-foreground',
-                blocked && 'cursor-not-allowed opacity-40',
-              )}
-            >
-              <Image
-                src={tile.url}
-                alt=""
-                fill
-                sizes="72px"
-                className="object-cover"
-              />
-              {tile.badge ? (
-                <span className="absolute left-1 top-1 rounded-full bg-background/90 px-1.5 text-3xs">
-                  {tile.badge}
-                </span>
-              ) : null}
-              {on ? (
-                <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-foreground text-background">
-                  <Check className="size-3" aria-hidden />
-                </span>
-              ) : null}
-            </button>
-          )
-        })}
-      </div>
-      {remaining <= 0 ? (
-        <p className="mt-1.5 px-0.5 text-xs text-muted-foreground">
-          {t('referenceLimitReached')}
-        </p>
-      ) : null}
     </div>
   )
 }

@@ -9,9 +9,9 @@ import {
   Cpu,
   Film,
   ImagePlus,
+  Layers,
   Link2,
   Link2Off,
-  Layers,
   ListOrdered,
   Mic,
   PenLine,
@@ -22,6 +22,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  UserRound,
   type LucideIcon,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -84,6 +85,7 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.setPrompt]: Type,
   [NODE_ASSISTANT_OP_V4_IDS.setField]: PenLine,
   [NODE_ASSISTANT_OP_V4_IDS.setSubtype]: Shapes,
+  [NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks]: UserRound,
   [NODE_ASSISTANT_OP_V4_IDS.attachAsset]: ImagePlus,
   [NODE_ASSISTANT_OP_V4_IDS.setSlotVersion]: ArrowRightLeft,
   [NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked]: Undo2,
@@ -245,6 +247,10 @@ export function CanvasOpProposalCard({
             target: describeTarget(op.target),
             field: op.field,
             value: op.value === null ? t('unnamed') : String(op.value),
+          })
+        case NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks:
+          return t('describe.setCharacterPicks', {
+            target: describeTarget(op.target),
           })
         case NODE_ASSISTANT_OP_V4_IDS.attachAsset:
           return t('describe.attachAssetSlot', {

@@ -25,6 +25,8 @@ import {
   NODE_V4_IMAGE_SUBTYPES,
 } from '@/constants/node-types'
 import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import {
   EDIT_CLIP_SPEED_MAX,
   EDIT_CLIP_SPEED_MIN,
@@ -392,6 +394,11 @@ export const NodeAssistantAddNodeV4OpSchema = z.object({
   shotNo: z.number().int().min(1).max(999).optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
   name: NodeAssistantOpNameSchema.optional(),
+  /**
+   * 放上来的是角色库里的哪一位（只对 `image.character` 生效，别的子型忽略）。
+   * ⚠ 身份在建卡同一步写进去：建完再补会让撤销拆成两步。
+   */
+  characterId: z.string().trim().min(1).max(160).optional(),
 })
 
 /** ⛔ 载荷里只有节点引用没有 URL（§5 纪律 1）。`slot` 必填。 */
@@ -507,6 +514,18 @@ export const NodeAssistantSetSubtypeOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setSubtype),
   target: NodeAssistantOpTargetSchema,
   subtype: z.enum(NODE_V4_IMAGE_SUBTYPES),
+})
+
+export const NodeAssistantSetCharacterPicksOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks),
+  target: NodeAssistantOpTargetSchema,
+  characterId: z.string().trim().min(1).max(160),
+  /** `null` = 回到默认（主图 1 张）。 */
+  picks: z
+    .array(CharacterImagePickSchema)
+    .min(1)
+    .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS)
+    .nullable(),
 })
 
 export const NodeAssistantSetTextOpSchema = z.object({
@@ -775,6 +794,7 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantSetOutputVersionOpSchema,
   NodeAssistantSplitOutputVersionOpSchema,
   NodeAssistantSetSubtypeOpSchema,
+  NodeAssistantSetCharacterPicksOpSchema,
   NodeAssistantSetTextOpSchema,
   NodeAssistantSetPromptV4OpSchema,
   NodeAssistantSetFieldOpSchema,

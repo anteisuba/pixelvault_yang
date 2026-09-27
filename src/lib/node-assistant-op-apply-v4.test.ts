@@ -123,7 +123,69 @@ function runBatch(
   return { state: next, inverses, changed }
 }
 
+describe('set_character_picks（画布用角色 ④）', () => {
+  it('写进这一镜的勾图表；撤销回到原来那几张（没勾过 = 清掉）', () => {
+    const picks = [{ slotId: 's_main' }, { generationId: 'g_1' }]
+    const first = runBatch(baseState(), [
+      {
+        op: 'set_character_picks',
+        target: 'v_02',
+        characterId: 'denia',
+        picks,
+      },
+    ])
+    const shot = first.state.nodes.find((node) => node.id === 'v_02')!
+    expect(shot.data).toMatchObject({ characterPicks: { denia: picks } })
+
+    const undone = applyInverseV4(
+      first.state,
+      first.inverses[0]!,
+      makeContext(),
+    )
+    const back = undone.nodes.find((node) => node.id === 'v_02')!
+    expect(back.data).not.toHaveProperty('characterPicks')
+  })
+
+  it('文本卡不收', () => {
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      {
+        op: 'set_character_picks',
+        target: 't_02',
+        characterId: 'denia',
+        picks: [{ slotId: 's_main' }],
+      },
+      makeContext(),
+    )
+    expect(result.ok).toBe(false)
+  })
+})
+
 describe('结构 op', () => {
+  it('add_node 带 characterId：只有 image.character 记下她是谁，别的子型忽略', () => {
+    const { state } = runBatch(baseState(), [
+      {
+        op: 'add_node',
+        kind: 'image',
+        subtype: 'character',
+        name: 'Denia',
+        characterId: 'denia',
+      },
+      {
+        op: 'add_node',
+        kind: 'image',
+        subtype: 'reference',
+        characterId: 'denia',
+      },
+    ])
+    const [role, other] = state.nodes.slice(-2)
+    expect(role!.data).toMatchObject({
+      subtype: 'character',
+      characterId: 'denia',
+    })
+    expect(other!.data).not.toHaveProperty('characterId')
+  })
+
   it('add_node 落稳定名与位置，ref 供同批 connect 引用', () => {
     const context = makeContext()
     const { state } = runBatch(

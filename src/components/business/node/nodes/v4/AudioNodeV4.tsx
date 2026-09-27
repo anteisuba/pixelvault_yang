@@ -255,7 +255,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
           fresh.onSetMedia(nodeId, patch)
           // 「建完自动选中新卡」（画板）——选中不改图，跟着同一拍走就行。
+          // ⚠ `onFocusNode` 只平移相机，选中要另外说。
           fresh.onFocusNode(nodeId)
+          fresh.onSelectNode?.(nodeId)
           return
         }
         window.requestAnimationFrame(() => step(attempt + 1))

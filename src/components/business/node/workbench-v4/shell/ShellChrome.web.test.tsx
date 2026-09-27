@@ -25,6 +25,7 @@ globalThis.ResizeObserver ??=
   ResizeObserverStub as unknown as typeof ResizeObserver
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'zh',
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ relativeTime: () => 'relative' }),
 }))
@@ -44,8 +45,11 @@ vi.mock('../../CastDock', () => ({
     <div data-testid="cast-dock">{query}</div>
   ),
 }))
-vi.mock('@/hooks/use-context-cards', () => ({
-  useContextCards: () => ({ cards: [], isLoading: false }),
+const mockLibrary = vi.hoisted(() => ({
+  value: { cards: [] as unknown[], loaded: true },
+}))
+vi.mock('@/hooks/cards/use-character-library', () => ({
+  useCharacterLibrary: () => mockLibrary.value,
 }))
 /**
  * `Command`（cmdk）整包桩成朴素列表。
@@ -207,6 +211,8 @@ describe('ShellSidePanels · 三面板', () => {
       onNodeQueryChange: vi.fn(),
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
+      placedCharacterIds: new Set<string>(),
+      onPlaceCharacter: vi.fn(),
     }
     const view = render(<ShellSidePanels {...props} />)
     return { props, view }
@@ -245,6 +251,59 @@ describe('ShellSidePanels · 三面板', () => {
  * ⚠ jsdom 里没有真实的帧，形状的弹簧跑不完 —— 这正是「后台标签页 rAF 冻结」那条
  * 路：展开得靠兜底定时器落到 `open`，收回只认定时器卸载。两条都必须自己走完。
  */
+describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
+  const DENIA = {
+    id: 'denia',
+    name: 'Denia',
+    referenceSlots: [
+      { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
+    ],
+    sourceImageUrl: null,
+    variants: [],
+    cardTags: {
+      character: ['denia_(wuthering_waves)'],
+      appearance: [],
+      loraTrigger: '',
+    },
+  }
+
+  function renderCards(placed: string[] = []) {
+    mockLibrary.value = { cards: [DENIA], loaded: true }
+    const props = {
+      activePanel: CANVAS_SHELL_PANEL_IDS.cards,
+      onActivePanelChange: vi.fn(),
+      nodeQuery: '',
+      onNodeQueryChange: vi.fn(),
+      onUpload: vi.fn(),
+      onPlaceMedia: vi.fn(),
+      placedCharacterIds: new Set<string>(placed),
+      onPlaceCharacter: vi.fn(),
+    }
+    render(<ShellSidePanels {...props} />)
+    return props
+  }
+
+  afterEach(() => {
+    mockLibrary.value = { cards: [], loaded: true }
+  })
+
+  it('列角色库；点一位 = 交给画布放上去（⛔ 不拖）', () => {
+    const props = renderCards()
+    const row = screen.getByTestId('shell-card-row')
+    expect(row.textContent).toContain('Denia')
+    expect(row.getAttribute('draggable')).toBeNull()
+    fireEvent.click(row)
+    expect(props.onPlaceCharacter).toHaveBeenCalledWith(DENIA)
+  })
+
+  it('已在画布上的那一行写「在画布上」', () => {
+    renderCards(['denia'])
+    expect(screen.getByTestId('shell-card-row').textContent).toContain(
+      'cardsOnCanvas',
+    )
+  })
+})
+
 describe('ShellSidePanels · 液态开合', () => {
   const baseProps = {
     onActivePanelChange: vi.fn(),
@@ -252,6 +311,8 @@ describe('ShellSidePanels · 液态开合', () => {
     onNodeQueryChange: vi.fn(),
     onUpload: vi.fn(),
     onPlaceMedia: vi.fn(),
+    placedCharacterIds: new Set<string>(),
+    onPlaceCharacter: vi.fn(),
   }
 
   function advance(ms: number) {
@@ -580,6 +641,8 @@ describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
       onNodeQueryChange: vi.fn(),
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
+      placedCharacterIds: new Set<string>(),
+      onPlaceCharacter: vi.fn(),
     }
     render(<ShellSidePanels {...props} />)
     return props

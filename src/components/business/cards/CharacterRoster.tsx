@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
@@ -76,7 +77,11 @@ export function CharacterRoster() {
   )
   const flatCards = useMemo(() => items.map((item) => item.card), [items])
 
-  const [openId, setOpenId] = useState<string | null>(null)
+  // 画布「在角色页打开」带 `?character=<id>` 进来：直接打开那一位（找不到就是总览）。
+  const searchParams = useSearchParams()
+  const [openId, setOpenId] = useState<string | null>(() =>
+    searchParams.get('character'),
+  )
   /** 正在淡出的那一位（返回时详情先淡出、淡完才卸载；这期间不接点击）。 */
   const [closingId, setClosingId] = useState<string | null>(null)
   /**

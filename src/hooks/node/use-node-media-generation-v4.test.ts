@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
 import { V4_SLOT_ISSUE_IDS } from '@/lib/node-slot-payload'
+import type { CharacterCardRecord } from '@/types'
 import type {
   NodeV4,
   NodeV4Data,
@@ -242,5 +243,70 @@ describe('planV4Generation · 其余分支', () => {
         i18nKey: 'StudioNode.v4.slotIssue.belowMin',
       },
     ])
+  })
+})
+
+describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）', () => {
+  const DENIA = {
+    id: 'denia',
+    name: 'Denia',
+    referenceSlots: [
+      { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+    ],
+    sourceImageUrl: null,
+    variants: [],
+  } as unknown as CharacterCardRecord
+
+  it('只挂首帧 + @她：带上她和勾的图，端点换成参考变体，正文里的 @ 去掉', () => {
+    const keyframeShot = node('ks', {
+      kind: 'video',
+      subtype: 'shot',
+      label: '回头',
+      prompt: '@Denia 在雨里回头',
+      model: MODEL,
+      characterPicks: { denia: [{ generationId: 'g_1' }] },
+    })
+    const plan = planV4Generation(
+      'ks',
+      {
+        nodes: [first, keyframeShot],
+        edges: [edge('e1', 'first', 'ks', NODE_SLOT_IDS.firstFrame)],
+      },
+      { characterCards: [DENIA] },
+    )!
+    expect(plan.characterCardIds).toEqual(['denia'])
+    expect(plan.characterImagePicks).toEqual({
+      denia: [{ generationId: 'g_1' }],
+    })
+    expect(plan.modelId).toBe('seedance-2.5-reference')
+    expect(plan.prompt).toContain('Denia 在雨里回头')
+    expect(plan.prompt).not.toContain('@Denia')
+  })
+
+  it('图片卡 @她 没勾过：带主图 1 张', () => {
+    const still = node('st', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '@Denia 的半身',
+      model: MODEL,
+    })
+    const plan = planV4Generation(
+      'st',
+      { nodes: [still], edges: [] },
+      { characterCards: [DENIA] },
+    )!
+    expect(plan.characterImagePicks).toEqual({ denia: [{ slotId: 's_main' }] })
+    expect(plan.prompt).toBe('Denia 的半身')
+  })
+
+  it('没给角色库：不认 @，行为与从前一样', () => {
+    const still = node('st2', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '@Denia 的半身',
+      model: MODEL,
+    })
+    const plan = planV4Generation('st2', { nodes: [still], edges: [] })!
+    expect(plan.characterCardIds).toBeUndefined()
   })
 })

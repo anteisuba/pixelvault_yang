@@ -1,4 +1,6 @@
 import { z } from 'zod'
+
+import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import { NovelAiCharacterLayoutSchema } from './novelai'
 
 import {
@@ -743,6 +745,19 @@ const GenerateVideoRequestObjectSchema = z.object({
     .enum([WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, WORKFLOW_IDS.CHARACTER_TO_VIDEO])
     .optional(),
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+  /**
+   * 每位在场角色带哪几张（画布镜头里 @她，owner 09-28）。服务端卡片总线的视频出口
+   * 按本人校验后追加进参考图（`withCharacterVideoReferences`）。
+   */
+  characterImagePicks: z
+    .record(
+      z.string().trim().min(1),
+      z
+        .array(CharacterImagePickSchema)
+        .min(1)
+        .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
+    )
+    .optional(),
   /** 这一枪叫什么（切片 Y）—— 判据与 `StudioGenerateSchema.displayLabel` 同源。 */
   displayLabel: z.string().trim().min(1).max(160).optional(),
 })
@@ -4343,15 +4358,10 @@ export type GenerationSourceSurface = z.infer<
   typeof GenerationSourceSurfaceSchema
 >
 
-/**
- * 工作台「卡片」弹层上**挑的那几张**（owner 09-27：点开角色、挑一张或几张挂上）。
- * 卡上的图按参考槽 id，「用她出的」按生成记录 id；服务端各自按本人校验。
- */
-export const CharacterImagePickSchema = z.union([
-  z.object({ slotId: z.string().trim().min(1).max(64) }),
-  z.object({ generationId: z.string().trim().min(1).max(64) }),
-])
-export type CharacterImagePick = z.infer<typeof CharacterImagePickSchema>
+export {
+  CharacterImagePickSchema,
+  type CharacterImagePick,
+} from '@/types/character-image-pick'
 
 export const StudioGenerateSchema = z
   .object({

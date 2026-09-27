@@ -1393,6 +1393,17 @@ export const NODE_V4_CARD = {
 } as const
 
 /**
+ * 画布上的角色卡（画布用角色 ④，owner 09-27 方向 A）：收起 = 与图片卡同宽的一张主图；
+ * 选中 = 原地变宽到 `NODE_V4_CARD.expandedWidth`，主图变矮，下面是「图片 / 文字」。
+ */
+export const NODE_V4_CHARACTER_CARD = {
+  imageHeight: 400,
+  expandedImageHeight: 300,
+  /** 展开后「图片 / 文字」那一块的最高（超出在块内滚）。 */
+  bodyMaxHeight: 420,
+} as const
+
+/**
  * 节点右键菜单（HIG 定稿 2026-09-08）。宽度是唯一需要具名的几何量——行高 / 内距
  * 走 Tailwind 档位。
  */

@@ -86,6 +86,24 @@ import {
 } from '@/types/seedance-prompt-plan'
 import { ScriptDocSchema, ScriptRefSchema } from '@/types/script-doc'
 import { ReadyCanvasImageEditCapabilityIdSchema } from '@/types/canvas-image-edit'
+import { CharacterImagePickSchema } from '@/types/character-image-pick'
+import { CHARACTER_CARD } from '@/constants/cards/character-card'
+
+/**
+ * 提示词里 @ 了角色库里的哪几位、每位这一镜**带哪几张**（画布用角色 ④ 第 2 片，
+ * owner 09-28）。键 = 角色 id。⭐ 在不在场看正文里有没有 `@她`；这张表只记勾了哪几张，
+ * 没勾过的角色带主图 1 张。⛔ 不建边、不进槽。
+ */
+const NodeV4CharacterPicksSchema = z
+  .record(
+    z.string().trim().min(1).max(160),
+    z
+      .array(CharacterImagePickSchema)
+      .min(1)
+      .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
+  )
+  .optional()
+  .catch(undefined)
 
 export const NodeStatusSchema = z.enum(NODE_STATUSES)
 
@@ -1107,6 +1125,13 @@ export const NodeV4ImageDataSchema = z.object({
    * 对模型无意义，还白占 token。
    */
   contextCardId: z.string().trim().min(1).max(160).optional(),
+  /**
+   * 绑角色库里的哪一位（画布用角色 ④，owner 09-27）。只对 `image.character` 有意义：
+   * 这张卡**就是她**——卡面、图片页、文字页都现读角色库，画布只存这个 id。
+   * ⛔ 不存她的图 / 设定的副本；删了就读不到，卡面换成「已从角色库删除」。
+   */
+  characterId: z.string().trim().min(1).max(160).optional(),
+  characterPicks: NodeV4CharacterPicksSchema,
   /** 候选序号（`kf02-v5` 的 5）。⚠ 不是槽内版本——那个住在 `slots[].versions`。 */
   version: z.number().int().min(1).max(999).optional(),
   mediaReview: z.record(z.string(), NodeMediaReviewSchema).optional(),
@@ -1203,6 +1228,7 @@ export const NodeV4ReferenceSlotSchema = z.object({
 })
 
 const NodeV4VideoShape = {
+  characterPicks: NodeV4CharacterPicksSchema,
   ...NodeV4BaseShape,
   ...NodeV4MediaMetaShape,
   kind: z.literal(NODE_MEDIA_KIND_IDS.video),

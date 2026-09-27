@@ -108,6 +108,8 @@ import {
   toStudioModelOption,
 } from './image/image-node-model'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
+import { CharacterMentionRail } from './character/CharacterMentionRail'
+import { useNodeCharacterMentions } from './character/use-node-character-mentions'
 import { videoRailMentionLabels } from '@/lib/video-node-rail'
 import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
@@ -291,6 +293,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     mediaUrl: imageData.url,
   })
 
+  // 正文里的 @她（画布用角色 ④ 第 2 片）：跟着草稿走，边打字边出现在参考轨上。
+  const characterMentions = useNodeCharacterMentions({
+    prompt: draft,
+    ...(imageData.characterPicks
+      ? { characterPicks: imageData.characterPicks }
+      : {}),
+  })
+
   if (!node) return null
 
   const mentionTokens = buildMentionTokens(canvas.nodes, id).filter(
@@ -318,6 +328,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               }
             : {}),
         })),
+        ...characterMentions.options,
         ...mentionCandidates.map((candidate) => {
           const token = mentionTokens.find(
             (item) => item.name === candidate.name,
@@ -341,6 +352,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const mentionNames = [
     ...refs.items.flatMap((entry) => videoRailMentionLabels(entry)),
     ...mentionTokens.map((token) => token.name),
+    ...characterMentions.names,
   ]
   const mentionMediaOf = (name: string) => {
     const rail = refs.items.find((entry) =>
@@ -790,7 +802,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}
               inputRef={promptInputRef}
               leadingRow={
-                acceptsRefs ? <ImageRefRail {...refs.railProps} /> : null
+                acceptsRefs ? (
+                  <div className="flex min-w-0 max-w-full items-start gap-2">
+                    <ImageRefRail {...refs.railProps} />
+                    <CharacterMentionRail
+                      nodeId={id}
+                      mentions={characterMentions.mentions}
+                      capacity={refs.railProps.capacity}
+                      usedImages={refs.railProps.items.length}
+                      disabled={generating}
+                    />
+                  </div>
+                ) : null
               }
               mentionOptions={
                 acceptsRefs && railMentionOptions.length > 0

@@ -12,6 +12,7 @@ import type {
 } from '@/components/ui/mention-input'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { formatShotDisplayName } from '@/lib/node-display-name'
+import { isCharacterCardNode } from '@/lib/node-mentions-to-slots'
 import type { NodeV4 } from '@/types/node-workflow'
 
 /** 节点 → 胶囊的族。⛔ 不新造族名：这六个就是 `MentionToken.kind` 的全集。 */
@@ -41,6 +42,8 @@ export function buildMentionTokens(
   const tokens: MentionToken[] = []
   for (const node of nodes) {
     if (node.id === selfId) continue
+    // 角色卡不是节点引用：@她 走「角色」那一组（角色库）。
+    if (isCharacterCardNode(node)) continue
     const kind = mentionKindOf(node)
     if (!kind) continue
     const url =
@@ -60,7 +63,7 @@ export function buildMentionCandidates(
   groupLabelOf: (node: NodeV4) => string,
 ): MentionCandidate[] {
   return nodes
-    .filter((node) => node.id !== selfId)
+    .filter((node) => node.id !== selfId && !isCharacterCardNode(node))
     .map((node) => ({
       id: node.id,
       name: mentionNameOf(node),

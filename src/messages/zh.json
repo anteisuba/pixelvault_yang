@@ -5275,7 +5275,8 @@
         "blockVersion": "把「{target}」{slot}的这一版判为不用",
         "unblockVersion": "解除「{target}」{slot}这一版的不用标记",
         "setParamsV4": "改「{target}」的生成档位",
-        "setVoiceProfile": "改「{target}」的音色档"
+        "setVoiceProfile": "改「{target}」的音色档",
+        "setCharacterPicks": "改了「{target}」里角色带的图"
       },
       "params": {
         "duration": "{value} 秒",
@@ -5886,6 +5887,28 @@
         "occupied": "已有{slot} · 替换",
         "connectInto": "连到 {name} 的{slot}",
         "replaceIn": "替换 {name} 的{slot}"
+      },
+      "character": {
+        "imagesTab": "图片",
+        "textTab": "文字",
+        "tabsLabel": "她的两部分",
+        "placeImage": "放到画布",
+        "placedName": "{name} · 图 {index}",
+        "imagesHint": "卡上 {onCard} 张 · 用她出的 {made} 张 · 点一张 = 放到画布上",
+        "imagesLoading": "正在找用她出过的图…",
+        "readOnly": "只读 · 要改去角色页",
+        "noText": "还没写设定",
+        "deleted": "这位已从角色库删除",
+        "noImages": "还没有图",
+        "noImagesHint": "@ 她只带名字和外观描述",
+        "addImages": "去角色页加图"
+      },
+      "characterMention": {
+        "group": "角色",
+        "pickerLabel": "{name} 这一镜带哪几张",
+        "chipLabel": "{name} · 带 {count} 张",
+        "count": "这一镜带 {count} 张",
+        "limit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含轨上挂的）"
       }
     },
     "rerunDownstream": {
@@ -5920,13 +5943,11 @@
       "assistant": "助手",
       "panels": {
         "nodes": "节点一览",
-        "cards": "角色 / 风格卡",
+        "cards": "角色",
         "library": "素材库",
         "searchNodes": "搜节点…",
         "refCount": "{count} 引用",
-        "cardsCharacters": "角色",
-        "cardsStyles": "风格",
-        "cardsHint": "拖进画布成卡，或在提示词里 @",
+        "cardsHint": "点一位 = 放到画布上",
         "libraryHint": "上传与生成 · 最近优先",
         "libraryAll": "全部",
         "libraryImage": "图",
@@ -5939,7 +5960,13 @@
         "close": "收起面板",
         "libraryUpload": "上传",
         "libraryManageFolders": "管理文件夹与素材 ↗",
-        "libraryLoadFailed": "加载失败，点击重试"
+        "libraryLoadFailed": "加载失败，点击重试",
+        "cardsEmpty": "还没有角色",
+        "cardsEmptyHint": "在角色页建一个，这里就会出现。",
+        "cardsOpenRoster": "去角色页",
+        "cardsMeta": "{work} · {count} 张",
+        "cardsOnCanvas": "在画布上",
+        "cardsOriginal": "原创"
       },
       "add": {
         "text": "文本",
@@ -6313,15 +6340,10 @@
     "clearCharacters": "都不带",
     "searchCharactersPlaceholder": "搜角色或作品",
     "referenceLimit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含你自己挂的）",
-    "referenceLimitReached": "已到这个模型的上限，先取消一张再勾",
     "noReferenceImages": "这个模型不收参考图，点一下只带角色的名字和标签",
     "pickedImages": "已挑 {count} 张",
     "autoImages": "自动挑图",
-    "originalWork": "原创",
-    "primaryImage": "主图",
-    "imagesOnCard": "卡上",
-    "loadingImages": "加载中…",
-    "noCharacterImages": "她还没有图，先去角色页挂几张"
+    "originalWork": "原创"
   },
   "StudioTags": {
     "mobileParameters": "采样与高级参数",
@@ -8521,5 +8543,12 @@
     "formNoteAudio": "模型和参数用你现在选的",
     "nowEmptyPrompt": "先写好提示词",
     "nowEmptyTagsPlain": "先写几个标签"
+  },
+  "CharacterImagePick": {
+    "primary": "主图",
+    "onCard": "卡上",
+    "limitReached": "已到这个模型的上限，先取消一张再勾",
+    "loading": "加载中…",
+    "empty": "她还没有图，先去角色页挂几张"
   }
 }

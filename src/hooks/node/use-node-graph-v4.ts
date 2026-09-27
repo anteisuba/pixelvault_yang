@@ -128,6 +128,8 @@ export interface NodeGraphV4AddOptions {
   readonly position?: { readonly x: number; readonly y: number }
   readonly shotNo?: number
   readonly name?: string
+  /** 角色库里的哪一位（只对 `image.character` 生效）。 */
+  readonly characterId?: string
   /**
    * 相对落位。⚠ 与 `position` 同时给时以 `position` 为准（显式坐标最具体）；
    * 参照卡不在图里就当没给（⛔ 不落到 0,0）。
@@ -562,6 +564,7 @@ export function useNodeGraphV4({
         ...(position ? { position } : {}),
         ...(options.shotNo === undefined ? {} : { shotNo: options.shotNo }),
         ...(options.name ? { name: options.name } : {}),
+        ...(options.characterId ? { characterId: options.characterId } : {}),
       })
       return ok ? lastCreatedRef.current : null
     },

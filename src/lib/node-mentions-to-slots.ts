@@ -191,6 +191,14 @@ function buildRailTable(
   return table
 }
 
+/** 画布上的角色卡（绑了角色库）—— 不参与 @ 连线。 */
+export function isCharacterCardNode(node: NodeV4): boolean {
+  return (
+    node.data.kind === NODE_MEDIA_KIND_IDS.image &&
+    Boolean(node.data.characterId)
+  )
+}
+
 /**
  * 可被 @ 的名字表。节点名优先于角色卡名（同名时节点赢：正文里 @ 的多半是画布上
  * 那张卡），同类里先出现的赢并标 `ambiguous`。
@@ -201,6 +209,9 @@ function buildNameTable(
 ): Map<string, NameHit> {
   const table = new Map<string, NameHit>()
   for (const node of state.nodes) {
+    // ⛔ 角色卡（绑了角色库的 `image.character`）不是 @ 的连线来源：@她 走角色库、
+    // 不建边（画布用角色 ④，owner 09-27「连接没有什么用」）。
+    if (isCharacterCardNode(node)) continue
     const name = node.data.name
     const existing = table.get(name)
     if (existing) {

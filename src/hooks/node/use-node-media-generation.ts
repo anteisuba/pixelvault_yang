@@ -23,7 +23,11 @@ import {
   type GenerationPollOutcome,
 } from '@/lib/poll-generation-status'
 import type { AudioEmotion } from '@/constants/voice-cards'
-import type { AdvancedParams, GenerationRecord } from '@/types'
+import type {
+  AdvancedParams,
+  CharacterImagePick,
+  GenerationRecord,
+} from '@/types'
 import type { NodeWorkflowMediaKind } from '@/types/node-workflow'
 
 const NODE_MEDIA_GENERATION_FALLBACK_ERROR = 'Node media generation failed'
@@ -82,6 +86,12 @@ interface NodeMediaGenerationInput {
   /** Reproducibility seed — only consumed by video kind (seed-capable endpoints). */
   seed?: number
   advancedParams?: AdvancedParams
+  /**
+   * 提示词里 @ 了的角色（画布用角色 ④ 第 2 片）与每位带哪几张。图片走卡片总线的
+   * 图片出口、视频走视频出口，都在服务端按本人校验。
+   */
+  characterCardIds?: string[]
+  characterImagePicks?: Record<string, CharacterImagePick[]>
 }
 
 type NodeMediaGenerationResult =
@@ -163,6 +173,12 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             aspectRatio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
             referenceImages: input.referenceImages,
             advancedParams: input.advancedParams,
+            ...(input.characterCardIds?.length
+              ? { characterCardIds: input.characterCardIds }
+              : {}),
+            ...(input.characterImagePicks
+              ? { characterImagePicks: input.characterImagePicks }
+              : {}),
           })
 
           if (!response.success || !response.data) {
@@ -206,6 +222,12 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             negativePrompt: input.negativePrompt,
             generateAudio: input.generateAudio,
             seed: input.seed,
+            ...(input.characterCardIds?.length
+              ? { characterCardIds: input.characterCardIds }
+              : {}),
+            ...(input.characterImagePicks
+              ? { characterImagePicks: input.characterImagePicks }
+              : {}),
           })
 
           if (!response.success || !response.data) {

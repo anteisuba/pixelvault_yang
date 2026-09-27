@@ -456,6 +456,11 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
    * 一个恰好同名的字段值。
    */
   setSubtype: 'set_subtype',
+  /**
+   * 这一镜 @ 的某位角色**带哪几张图**（画布用角色 ④ 第 2 片）。`picks: null` = 回到
+   * 默认（主图 1 张）。⚠ 不并进 `set_field`：值是一张列表，撤销要回到原来那几张。
+   */
+  setCharacterPicks: 'set_character_picks',
   attachAsset: 'attach_asset',
   /** 槽内版本轮播：把某个版本设为当前（§1.4）。指向 blocked 版本时拒绝并给理由。 */
   setSlotVersion: 'set_slot_version',
@@ -540,6 +545,7 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
   NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
   NODE_ASSISTANT_OP_V4_IDS.setSubtype,
+  NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks,
   NODE_ASSISTANT_OP_V4_IDS.setModel,
   NODE_ASSISTANT_OP_V4_IDS.setParams,
   NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
@@ -693,6 +699,12 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: content,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.setSubtype,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setText]: {

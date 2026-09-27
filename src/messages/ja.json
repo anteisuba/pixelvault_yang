@@ -5275,7 +5275,8 @@
         "blockVersion": "「{target}」の{slot}のこのバージョンを不採用にする",
         "unblockVersion": "「{target}」の{slot}のこのバージョンの不採用を解除する",
         "setParamsV4": "「{target}」の生成設定を変更する",
-        "setVoiceProfile": "「{target}」の音声設定を変更する"
+        "setVoiceProfile": "「{target}」の音声設定を変更する",
+        "setCharacterPicks": "「{target}」でキャラクターが使う画像を変更"
       },
       "params": {
         "duration": "{value}秒",
@@ -5886,6 +5887,28 @@
         "occupied": "{slot}あり · 差し替え",
         "connectInto": "{name} の{slot}に接続",
         "replaceIn": "{name} の{slot}を差し替え"
+      },
+      "character": {
+        "imagesTab": "画像",
+        "textTab": "テキスト",
+        "tabsLabel": "キャラクターの内容",
+        "placeImage": "キャンバスに置く",
+        "placedName": "{name} · 画像 {index}",
+        "imagesHint": "カード {onCard} 枚 · このキャラで生成 {made} 枚 · クリックでキャンバスに置く",
+        "imagesLoading": "このキャラで生成した画像を探しています…",
+        "readOnly": "閲覧のみ · 編集はキャラクターページで",
+        "noText": "設定はまだありません",
+        "deleted": "このキャラクターは削除されました",
+        "noImages": "画像がまだありません",
+        "noImagesHint": "@ では名前と外見の説明だけを渡します",
+        "addImages": "キャラクターページで画像を追加"
+      },
+      "characterMention": {
+        "group": "キャラクター",
+        "pickerLabel": "{name} がこのカットで使う画像",
+        "chipLabel": "{name} · {count} 枚",
+        "count": "このカットで {count} 枚",
+        "limit": "このモデルの参照画像は最大 {max} 枚 · 使用中 {used} 枚（レールの画像を含む）"
       }
     },
     "rerunDownstream": {
@@ -5920,13 +5943,11 @@
       "assistant": "アシスタント",
       "panels": {
         "nodes": "ノード一覧",
-        "cards": "キャラ / スタイル",
+        "cards": "キャラクター",
         "library": "素材ライブラリ",
         "searchNodes": "ノードを検索…",
         "refCount": "参照 {count}",
-        "cardsCharacters": "キャラクター",
-        "cardsStyles": "スタイル",
-        "cardsHint": "キャンバスにドラッグするか、プロンプトで @ を入力して選べます",
+        "cardsHint": "クリックでキャンバスに置く",
         "libraryHint": "アップロードと生成 · 新しい順",
         "libraryAll": "すべて",
         "libraryImage": "画像",
@@ -5939,7 +5960,13 @@
         "close": "パネルを閉じる",
         "libraryUpload": "アップロード",
         "libraryManageFolders": "フォルダと素材を管理 ↗",
-        "libraryLoadFailed": "読み込み失敗。クリックして再試行"
+        "libraryLoadFailed": "読み込み失敗。クリックして再試行",
+        "cardsEmpty": "キャラクターはまだいません",
+        "cardsEmptyHint": "キャラクターページで作成するとここに表示されます。",
+        "cardsOpenRoster": "キャラクターページへ",
+        "cardsMeta": "{work} · {count} 枚",
+        "cardsOnCanvas": "キャンバス上",
+        "cardsOriginal": "オリジナル"
       },
       "add": {
         "text": "テキスト",
@@ -6313,15 +6340,10 @@
     "clearCharacters": "すべて外す",
     "searchCharactersPlaceholder": "キャラクターか作品で検索",
     "referenceLimit": "このモデルは参考画像を一度に {max} 枚まで · 使用中 {used} 枚（自分で付けた分を含む）",
-    "referenceLimitReached": "このモデルの上限です。先に 1 枚外してください",
     "noReferenceImages": "このモデルは参考画像を受け取りません。タップすると名前とタグだけが入ります",
     "pickedImages": "{count} 枚選択",
     "autoImages": "画像は自動で選択",
-    "originalWork": "オリジナル",
-    "primaryImage": "メイン",
-    "imagesOnCard": "カード",
-    "loadingImages": "読み込み中…",
-    "noCharacterImages": "まだ画像がありません。キャラクターページで追加してください"
+    "originalWork": "オリジナル"
   },
   "StudioTags": {
     "mobileParameters": "サンプリングと詳細設定",
@@ -8521,5 +8543,12 @@
     "formNoteAudio": "今選んでいるモデルと設定を使います",
     "nowEmptyPrompt": "先にプロンプトを書いてください",
     "nowEmptyTagsPlain": "先にタグをいくつか入れてください"
+  },
+  "CharacterImagePick": {
+    "primary": "メイン",
+    "onCard": "カード",
+    "limitReached": "このモデルの上限です。先に 1 枚外してください",
+    "loading": "読み込み中…",
+    "empty": "まだ画像がありません。キャラクターページで追加してください"
   }
 }

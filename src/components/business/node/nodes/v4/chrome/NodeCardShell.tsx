@@ -40,7 +40,8 @@ export interface NodeCardShellProps {
   readonly editName?: string
   readonly renameAriaLabel: string
   /** 返回 `false` = 被拒（重名/空名），输入框留在编辑态。 */
-  onRename(next: string): boolean
+  /** 不给 = 名字只读（角色卡：名字现读角色库，改了也会被角色库盖回去）。 */
+  onRename?(next: string): boolean
   /** 受控改名入口：这个数每变一次就进一次编辑态（⋯ 菜单的「改名」用）。 */
   readonly renameRequest?: number
   readonly selected?: boolean
@@ -141,22 +142,33 @@ export function NodeCardShell({
     >
       <div className="flex min-w-0 items-center gap-1">
         {nameLeading}
-        <NodeV4EditableLabel
-          value={name}
-          {...(editName === undefined ? {} : { editValue: editName })}
-          ariaLabel={renameAriaLabel}
-          onCommit={onRename}
-          activateOn="doubleClick"
-          {...(renameRequest === undefined ? {} : { renameRequest })}
-          className={cn(
-            'min-w-0 px-1 text-xs',
-            // 选中变深（spec §1.1）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
-            // 对比度（`contrast-check`，2026-09-10）：`foreground` 对卡面 19.80；
-            // `muted-foreground`（实测 #696969）对卡面 5.49 / `--muted` 5.04 /
-            // 画布米纸 4.98，三种底都过 4.5。
-            selected ? 'text-foreground' : 'text-muted-foreground',
-          )}
-        />
+        {onRename ? (
+          <NodeV4EditableLabel
+            value={name}
+            {...(editName === undefined ? {} : { editValue: editName })}
+            ariaLabel={renameAriaLabel}
+            onCommit={onRename}
+            activateOn="doubleClick"
+            {...(renameRequest === undefined ? {} : { renameRequest })}
+            className={cn(
+              'min-w-0 px-1 text-xs',
+              // 选中变深（spec §1.1）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
+              // 对比度（`contrast-check`，2026-09-10）：`foreground` 对卡面 19.80；
+              // `muted-foreground`（实测 #696969）对卡面 5.49 / `--muted` 5.04 /
+              // 画布米纸 4.98，三种底都过 4.5。
+              selected ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          />
+        ) : (
+          <span
+            className={cn(
+              'min-w-0 truncate px-1 text-xs',
+              selected ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            {name}
+          </span>
+        )}
         {changed && (
           <span
             data-node-card-changed

@@ -5275,7 +5275,8 @@
         "blockVersion": "Mark the “{target}” · {slot} version as rejected",
         "unblockVersion": "Clear the rejection for “{target}” · {slot}",
         "setParamsV4": "Change the generation dials of “{target}”",
-        "setVoiceProfile": "Change the voice settings of “{target}”"
+        "setVoiceProfile": "Change the voice settings of “{target}”",
+        "setCharacterPicks": "Changed which character images “{target}” uses"
       },
       "params": {
         "duration": "{value}s",
@@ -5886,6 +5887,28 @@
         "occupied": "Has {slot} · replace",
         "connectInto": "Connect into {slot} of {name}",
         "replaceIn": "Replace {slot} of {name}"
+      },
+      "character": {
+        "imagesTab": "Images",
+        "textTab": "Text",
+        "tabsLabel": "Character sections",
+        "placeImage": "Place on canvas",
+        "placedName": "{name} · Image {index}",
+        "imagesHint": "{onCard} on the card · {made} made with them · click one to place it",
+        "imagesLoading": "Finding images made with this character…",
+        "readOnly": "Read-only · edit on the Characters page",
+        "noText": "No profile written yet",
+        "deleted": "This character was deleted from Characters",
+        "noImages": "No images yet",
+        "noImagesHint": "@ mentions carry only the name and look",
+        "addImages": "Add images on the Characters page"
+      },
+      "characterMention": {
+        "group": "Characters",
+        "pickerLabel": "Which images {name} brings to this shot",
+        "chipLabel": "{name} · {count} images",
+        "count": "{count} images in this shot",
+        "limit": "This model takes up to {max} reference images · {used} in use (including the rail)"
       }
     },
     "rerunDownstream": {
@@ -5920,13 +5943,11 @@
       "assistant": "Assistant",
       "panels": {
         "nodes": "Nodes",
-        "cards": "Characters / styles",
+        "cards": "Characters",
         "library": "Library",
         "searchNodes": "Search nodes…",
         "refCount": "{count} refs",
-        "cardsCharacters": "Characters",
-        "cardsStyles": "Styles",
-        "cardsHint": "Drag onto the canvas, or type @ in a prompt to select it.",
+        "cardsHint": "Click one to place it on the canvas",
         "libraryHint": "Uploads & generations · newest first",
         "libraryAll": "All",
         "libraryImage": "Images",
@@ -5939,7 +5960,13 @@
         "close": "Collapse panel",
         "libraryUpload": "Upload",
         "libraryManageFolders": "Manage folders and assets ↗",
-        "libraryLoadFailed": "Could not load. Click to retry"
+        "libraryLoadFailed": "Could not load. Click to retry",
+        "cardsEmpty": "No characters yet",
+        "cardsEmptyHint": "Create one on the Characters page and it shows up here.",
+        "cardsOpenRoster": "Open Characters",
+        "cardsMeta": "{work} · {count} images",
+        "cardsOnCanvas": "On canvas",
+        "cardsOriginal": "Original"
       },
       "add": {
         "text": "Text",
@@ -6313,15 +6340,10 @@
     "clearCharacters": "Clear",
     "searchCharactersPlaceholder": "Search characters or series",
     "referenceLimit": "This model takes up to {max} reference images · {used} in use (including your own)",
-    "referenceLimitReached": "This model is full — untick one first",
     "noReferenceImages": "This model takes no reference images; a tap brings in only the name and tags",
     "pickedImages": "{count, plural, one {# image} other {# images}} picked",
     "autoImages": "Images picked automatically",
-    "originalWork": "Original",
-    "primaryImage": "Main",
-    "imagesOnCard": "On card",
-    "loadingImages": "Loading…",
-    "noCharacterImages": "No images yet — add some on the Characters page"
+    "originalWork": "Original"
   },
   "StudioTags": {
     "mobileParameters": "Sampling and advanced settings",
@@ -8521,5 +8543,12 @@
     "formNoteAudio": "Uses the model and settings you have selected now",
     "nowEmptyPrompt": "Write a prompt first",
     "nowEmptyTagsPlain": "Add a few tags first"
+  },
+  "CharacterImagePick": {
+    "primary": "Main",
+    "onCard": "On card",
+    "limitReached": "This model is full — untick one first",
+    "loading": "Loading…",
+    "empty": "No images yet — add some on the Characters page"
   }
 }

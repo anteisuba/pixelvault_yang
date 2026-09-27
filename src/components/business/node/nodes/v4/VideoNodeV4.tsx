@@ -97,6 +97,7 @@ import { useVideoComposer } from './video/use-video-composer'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import { formatVideoSeconds, videoCardHeight } from './video/video-node-model'
 import { useNodeCanvasActions } from './NodeV4ActionsBridge'
+import { CharacterMentionRail } from './character/CharacterMentionRail'
 
 /** 「续拍」那一批里的两个别名（只在这一批之内有效）。 */
 const CONTINUE_BATCH_REFS = { tail: 'tail', shot: 'shot' } as const
@@ -207,6 +208,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     modelChip,
     audioToggle,
     mentionOptions,
+    characterMentions,
+    characterRail,
     frameTokens,
     frameCandidates,
     renderPromptValue,
@@ -788,6 +791,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               leadingRow={
                 <>
                   <VideoRefRail {...railProps} />
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={characterMentions}
+                    capacity={characterRail.capacity}
+                    usedImages={characterRail.usedImages}
+                    disabled={generating}
+                  />
                   <VideoScriptRoleSlots slots={scriptRoleSlots} />
                 </>
               }
@@ -877,7 +887,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           })}
           paramsChip={paramsChip}
           modelChip={modelChip}
-          refRail={<VideoRefRail {...railProps} />}
+          refRail={
+            <div className="flex min-w-0 max-w-full items-start gap-2">
+              <VideoRefRail {...railProps} />
+              <CharacterMentionRail
+                nodeId={id}
+                mentions={characterMentions}
+                capacity={characterRail.capacity}
+                usedImages={characterRail.usedImages}
+                disabled={generating}
+              />
+            </div>
+          }
           tokens={frameTokens}
           candidates={frameCandidates}
           onMentionSelect={(candidate, handle) =>

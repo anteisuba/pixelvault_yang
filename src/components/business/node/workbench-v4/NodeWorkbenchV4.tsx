@@ -55,8 +55,11 @@ import {
   NODE_STUDIO_DOCK,
   NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_TOOL_MODE_IDS,
+  NODE_V4_CARD,
+  NODE_V4_CHARACTER_CARD,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
+import type { CharacterCardRecord } from '@/types'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
@@ -655,6 +658,65 @@ function NodeWorkbenchV4Inner() {
       )
     },
     [dnd, screenToFlowPosition],
+  )
+
+  /** 画布上已经有卡的角色（一个角色一张）。 */
+  const placedCharacterIds = useMemo(
+    () =>
+      new Set(
+        graph.nodes.flatMap((node) =>
+          node.data.kind === NODE_MEDIA_KIND_IDS.image && node.data.characterId
+            ? [node.data.characterId]
+            : [],
+        ),
+      ),
+    [graph.nodes],
+  )
+
+  /**
+   * 左栏角色库点一位（画布用角色 ④）：已在画布上 = 定位到她；否则落到视口中央，
+   * 身份（`characterId`）在建卡同一步写进去 —— 一次撤销就能拿掉。
+   */
+  const placeCharacter = useCallback(
+    (card: CharacterCardRecord) => {
+      const existing = graph.nodes.find(
+        (node) =>
+          node.data.kind === NODE_MEDIA_KIND_IDS.image &&
+          node.data.characterId === card.id,
+      )
+      if (existing) {
+        // 画板 S3：平移到她并选中。
+        focusNode(existing.id)
+        graph.onRfNodesChange([
+          ...graph.selectedNodeIds
+            .filter((id) => id !== existing.id)
+            .map((id) => ({ id, type: 'select' as const, selected: false })),
+          { id: existing.id, type: 'select', selected: true },
+        ])
+        return
+      }
+      const rect = canvasRef.current?.getBoundingClientRect()
+      const center = screenToFlowPosition(
+        rect
+          ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+          : { x: 0, y: 0 },
+      )
+      const nameTaken = graph.nodes.some((node) => node.data.name === card.name)
+      const nodeId = graph.addNode(
+        NODE_MEDIA_KIND_IDS.image,
+        NODE_V4_IMAGE_SUBTYPE_IDS.character,
+        {
+          position: {
+            x: center.x - NODE_V4_CARD.collapsedWidth / 2,
+            y: center.y - NODE_V4_CHARACTER_CARD.imageHeight / 2,
+          },
+          characterId: card.id,
+          ...(nameTaken ? {} : { name: card.name }),
+        },
+      )
+      if (nodeId) lastCreatedRef.current = [nodeId]
+    },
+    [focusNode, graph, screenToFlowPosition],
   )
 
   /**
@@ -1314,6 +1376,8 @@ function NodeWorkbenchV4Inner() {
                     onNodeQueryChange={setNodeQuery}
                     onUpload={() => openUpload()}
                     onPlaceMedia={placeMediaAtViewportCenter}
+                    placedCharacterIds={placedCharacterIds}
+                    onPlaceCharacter={placeCharacter}
                   />
                   <ShellBottomBar
                     toolMode={toolMode}

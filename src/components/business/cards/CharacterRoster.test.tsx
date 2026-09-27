@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
@@ -19,6 +19,11 @@ vi.mock('next/image', () => ({
 vi.mock('motion/react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('motion/react')>()),
   useReducedMotion: () => true,
+}))
+
+const mockSearch = vi.hoisted(() => ({ value: '' }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(mockSearch.value),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -133,6 +138,16 @@ function renderRoster() {
 }
 
 describe('CharacterRoster（角色页 · 方向 A）', () => {
+  beforeEach(() => {
+    mockSearch.value = ''
+  })
+
+  it('画布「在角色页打开」带 ?character= 进来：直接打开那一位', () => {
+    mockSearch.value = 'tab=characters&character=rixi'
+    renderRoster()
+    expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
+  })
+
   it('总览按张数列出角色，变体跟在父卡后面并写明是谁的变体', () => {
     renderRoster()
     const tiles = screen.getAllByTestId('roster-tile')

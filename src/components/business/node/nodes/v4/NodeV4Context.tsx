@@ -89,6 +89,11 @@ export interface NodeV4CanvasContextValue {
   onDisconnectSlot(nodeId: string, slot: NodeSlotId, versionId: string): void
   /** 点槽内内容 = 高亮并平移到源节点（不是打开，避免误操作，§3.4）。 */
   onFocusNode(nodeId: string): void
+  /**
+   * **只选中**这一张（其余取消选中），⛔ 不动视口 —— 卡里派生出新卡后「建完自动选中
+   * 新卡」用它（`onFocusNode` 只平移相机，不改选中）。宿主没接 = 不选。
+   */
+  onSelectNode?(nodeId: string): void
   onEditText(nodeId: string, body: string): void
   /** 文本节点工具条的五个派生动作（§8）。 */
   onDeriveFromText(nodeId: string, action: NodeTextDeriveAction): void

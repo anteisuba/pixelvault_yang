@@ -34,7 +34,16 @@ import {
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
-import { AdvancedParamsSchema } from '@/types'
+import {
+  AdvancedParamsSchema,
+  type CharacterCardRecord,
+  type CharacterImagePick,
+} from '@/types'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import {
+  mentionedCharacters,
+  stripCharacterMentionMarks,
+} from '@/lib/node-character-mentions'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
 export interface V4GenerateGraph {
@@ -72,6 +81,11 @@ export interface V4GenerationPlan {
   readonly audioUrls?: readonly string[]
   readonly audioBindings?: readonly { url: string; characterName?: string }[]
   readonly videoUrls?: readonly string[]
+  /** 正文里 @ 了的角色（画布用角色 ④ 第 2 片）与每位带哪几张；服务端卡片总线编进参考图。 */
+  readonly characterCardIds?: readonly string[]
+  readonly characterImagePicks?: Readonly<
+    Record<string, readonly CharacterImagePick[]>
+  >
   /** 空数组 = 可以发。⚠ 调用方**必须**看它：`clip` 少于 2 条这类问题在服务端只会
    *  变成一句泛泛的失败。 */
   readonly issues: readonly V4SlotIssue[]
@@ -92,11 +106,14 @@ function resolveNodeVideoSendModelId(
     readonly videoUrls: readonly string[]
     readonly audioBindings: readonly unknown[]
   },
+  /** @ 了的角色这一镜带几张 —— 服务端会追加进参考图，所以也算「挂了参考项」。 */
+  characterImageCount = 0,
 ): string {
   const hasReference =
     payload.imageUrls.length > payload.keyframeUrls.length ||
     payload.videoUrls.length > 0 ||
-    payload.audioBindings.length > 0
+    payload.audioBindings.length > 0 ||
+    characterImageCount > 0
   return resolveVideoSendModelId(model.modelId, model.adapterType, hasReference)
 }
 
@@ -116,7 +133,11 @@ function parseDuration(value: string | undefined): number | 'auto' | undefined {
 export function planV4Generation(
   nodeId: string,
   graph: V4GenerateGraph,
-  overrides: { readonly prompt?: string } = {},
+  overrides: {
+    readonly prompt?: string
+    /** 角色库（认正文里的 @她）。不给 = 这一次不带角色。 */
+    readonly characterCards?: readonly CharacterCardRecord[]
+  } = {},
 ): V4GenerationPlan | null {
   const node = graph.nodes.find((candidate) => candidate.id === nodeId)
   if (!node) return null
@@ -125,11 +146,42 @@ export function planV4Generation(
   if (!data.model?.modelId) return null
 
   const issues = validateV4Slots(node, graph.edges, graph.nodes)
+  // 正文里的 @她：只有会出图 / 出视频的两类卡认（音频没有参考图这一说）。
+  const characters =
+    data.kind === NODE_MEDIA_KIND_IDS.audio
+      ? []
+      : mentionedCharacters(
+          overrides.prompt ?? data.prompt ?? '',
+          overrides.characterCards ?? [],
+          data.characterPicks,
+        )
+  const characterImageCount = characters.reduce(
+    (total, character) => total + character.picks.length,
+    0,
+  )
+  const pickedCharacters = characters.filter(
+    (character) => character.picks.length > 0,
+  )
   const base = {
     modelId: data.model.modelId,
     ...(data.model.apiKeyId ? { apiKeyId: data.model.apiKeyId } : {}),
+    ...(characters.length > 0
+      ? { characterCardIds: characters.map((character) => character.card.id) }
+      : {}),
+    ...(pickedCharacters.length > 0
+      ? {
+          characterImagePicks: Object.fromEntries(
+            pickedCharacters.map((character) => [
+              character.card.id,
+              [...character.picks],
+            ]),
+          ),
+        }
+      : {}),
     issues,
   }
+  const toModelPrompt = (prompt: string) =>
+    stripCharacterMentionMarks(prompt, characters)
 
   if (data.kind === NODE_MEDIA_KIND_IDS.video) {
     const payload = buildV4VideoPayload({
@@ -140,7 +192,11 @@ export function planV4Generation(
         ? { ownPrompt: overrides.prompt ?? data.prompt }
         : {}),
     })
-    const sendModelId = resolveNodeVideoSendModelId(data.model, payload)
+    const sendModelId = resolveNodeVideoSendModelId(
+      data.model,
+      payload,
+      characterImageCount,
+    )
     const capabilities = getVideoModelCapabilities(sendModelId)
     const requestedDuration = parseDuration(data.params?.duration)
     const duration =
@@ -168,7 +224,7 @@ export function planV4Generation(
       // 到别的端点 —— 回退意味着用户以为在用全能参考、实际发的是首帧请求。
       modelId: sendModelId,
       kind: 'video',
-      prompt: payload.prompt,
+      prompt: toModelPrompt(payload.prompt),
       ...(data.negativePrompt ? { negativePrompt: data.negativePrompt } : {}),
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(resolution ? { resolution } : {}),
@@ -221,7 +277,7 @@ export function planV4Generation(
   return {
     ...base,
     kind: 'image',
-    prompt: payload.prompt,
+    prompt: toModelPrompt(payload.prompt),
     ...(data.params?.aspectRatio
       ? { aspectRatio: data.params.aspectRatio as AspectRatio }
       : {}),
@@ -237,6 +293,8 @@ export function planV4Generation(
 /** v3 那个钩子的 v4 外壳：多一个「按槽装配」的入口，其余原样透传。 */
 export function useNodeMediaGenerationV4() {
   const inner = useNodeMediaGeneration()
+  // 角色库：认正文里的 @她（画布用角色 ④ 第 2 片）。卡片、快捷键、助手三条入口都走这里。
+  const { cards: characterCards } = useCharacterLibrary()
 
   const generateNode = useCallback(
     async (
@@ -255,6 +313,7 @@ export function useNodeMediaGenerationV4() {
     ) => {
       const plan = planV4Generation(nodeId, graph, {
         ...(options.prompt ? { prompt: options.prompt } : {}),
+        characterCards,
       })
       if (!plan) return { success: false as const, error: 'noPlan' }
       // ⚠ 档位在**服务端 schema 上收窄**（`AdvancedParamsSchema`），⛔ 不在这里
@@ -303,6 +362,18 @@ export function useNodeMediaGenerationV4() {
             ...(plan.videoUrls?.length
               ? { videoUrls: [...plan.videoUrls] }
               : {}),
+            ...(plan.characterCardIds?.length
+              ? { characterCardIds: [...plan.characterCardIds] }
+              : {}),
+            ...(plan.characterImagePicks
+              ? {
+                  characterImagePicks: Object.fromEntries(
+                    Object.entries(plan.characterImagePicks).map(
+                      ([id, picks]) => [id, [...picks]],
+                    ),
+                  ),
+                }
+              : {}),
             ...(Object.keys(advancedParams).length > 0
               ? { advancedParams }
               : {}),
@@ -323,7 +394,7 @@ export function useNodeMediaGenerationV4() {
       }
       return last
     },
-    [inner],
+    [inner, characterCards],
   )
 
   return { ...inner, generateNode, planV4Generation }

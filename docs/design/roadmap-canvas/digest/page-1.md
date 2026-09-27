@@ -6,7 +6,7 @@
 
 _PixelVault · 1 总览 · 2026-09-25_
 
-本画布由原 19 页浓缩而来，只留结论。五页：总览 · 业务设计 · UI 总纲 · 进度表 · 厂商速查。代码基线 `392fe80e`（= origin/main = 生产）。仓库里有同内容的 Markdown 镜像：`docs/design/roadmap-canvas/digest/`。
+本画布由原 19 页浓缩而来，只留结论。五页：总览 · 业务设计 · UI 总纲 · 进度表 · 厂商速查。代码基线 `7b2549aa`（= origin/main = 生产）；本地 main 另有 90 个提交待上线。仓库里有同内容的 Markdown 镜像：`docs/design/roadmap-canvas/digest/`。
 
 ### 产品是什么
 

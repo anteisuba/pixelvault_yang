@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import type { NodeWorkflowState } from '@/types/node-workflow'
+import { SCRIPT_DOC_LIMITS } from '@/constants/script-doc'
+import {
+  NodeWorkflowStateV4Schema,
+  type NodeWorkflowState,
+} from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { migrateNodeWorkflowStateToV4 } from './node-workflow-migrate-v4'
@@ -314,6 +318,81 @@ describe('projectScriptDocToGraphV4 · v4 自有形状', () => {
     )
     expect(empty.nodes).toEqual([])
     expect(empty.edges).toEqual([])
+  })
+})
+
+describe('projectScriptDocToGraphV4 · 剧本里合法的长名字，投影后仍能落库', () => {
+  // ScriptDoc 的角色名 / 场景名比节点上的名字字段（`.max(160)`）宽。投影把它们写进
+  // `characterName` / `ownerName` / `name` / `label`，一旦超长，落库闸门
+  // （`NodeWorkflowStateV4Schema`）拒的是整份 project state。
+  it('角色名顶到 roleNameMaxLength：节点名字截短，全名留在 ScriptDoc', () => {
+    const longName = '长'.repeat(SCRIPT_DOC_LIMITS.roleNameMaxLength)
+    const longDoc = {
+      ...doc,
+      roles: [{ id: 'r1', name: longName, description: '' }, doc.roles[1]!],
+      shots: [
+        {
+          ...doc.shots[0]!,
+          // 同一镜两句台词 → 两个音色节点：`S01·` 前缀 + 冲突序号都要算进上限。
+          dialogue: [
+            { id: 'l1', speakerRoleId: 'r1', line: '还有人吗' },
+            { id: 'l2', speakerRoleId: 'r1', line: '有人吗' },
+          ],
+        },
+        doc.shots[1]!,
+      ],
+    } as ScriptDoc
+
+    const projected = projectScriptDocToGraphV4(longDoc, {
+      makeId: makeCounterIds(),
+      now: NOW,
+    })
+
+    expect(NodeWorkflowStateV4Schema.safeParse(projected).success).toBe(true)
+    expect(projected.scriptDoc?.roles[0]?.name).toBe(longName)
+
+    const character = projected.nodes.find(
+      (node) => node.data.kind === 'image' && node.data.subtype === 'character',
+    )!
+    const characterName =
+      character.data.kind === 'image' ? character.data.characterName : ''
+    expect(characterName).toBe('长'.repeat(160))
+    expect(character.data.name).toBe('长'.repeat(160))
+
+    const voices = projected.nodes.filter((node) => node.data.kind === 'audio')
+    expect(voices.map((node) => node.data.name)).toEqual([
+      `S01·${'长'.repeat(156)}`,
+      `S01·${'长'.repeat(155)}2`,
+    ])
+    // 音色卡的「归属角色」拿 `ownerName` 对角色卡的 `characterName`，两边截法一致。
+    expect(
+      voices.map((node) =>
+        node.data.kind === 'audio' ? node.data.ownerName : undefined,
+      ),
+    ).toEqual([characterName, characterName])
+  })
+
+  it('两镜共用一个超长场景名：镜头标签加冲突序号后仍在上限内', () => {
+    const sceneLabel = '雨'.repeat(300)
+    const projected = projectScriptDocToGraphV4(
+      {
+        ...doc,
+        shots: doc.shots.map((shot) => ({ ...shot, sceneLabel })),
+      } as ScriptDoc,
+      { makeId: makeCounterIds(), now: NOW },
+    )
+
+    expect(NodeWorkflowStateV4Schema.safeParse(projected).success).toBe(true)
+    expect(projected.scriptDoc?.shots[1]?.sceneLabel).toBe(sceneLabel)
+    expect(
+      projected.nodes
+        .filter(
+          (node) => node.data.kind === 'video' && node.data.subtype === 'shot',
+        )
+        .map((node) =>
+          node.data.kind === 'video' ? node.data.label : undefined,
+        ),
+    ).toEqual(['雨'.repeat(160), `${'雨'.repeat(159)}2`])
   })
 })
 

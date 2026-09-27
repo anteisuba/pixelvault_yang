@@ -350,6 +350,20 @@ export interface StableNodeNameOptions {
 }
 
 /**
+ * 前缀 + 标签 + 冲突序号，整串不超过显示名上限。
+ *
+ * ⚠ `toNodeDisplayLabel` 只把标签截到上限，前缀（`S01·`）和序号是之后才拼的——
+ * 整串照样冒出上限，落库时整份 state 被拒。所以这里只截**标签**：序号⛔ 不能截，
+ * 截掉它候选名就撞回已占用的那个。放得下时原样返回，已落库的名字一个字都不变。
+ */
+function fitDisplayName(prefix: string, label: string, suffix = ''): string {
+  const room =
+    NODE_STUDIO_DISPLAY_NAME.maxLength - prefix.length - suffix.length
+  const fitted = label.length > room ? label.slice(0, room).trimEnd() : label
+  return `${prefix}${fitted}${suffix}`
+}
+
+/**
  * 新建节点时算一个稳定名。
  *
  * 规则一条（§4.2 两个例子共用同一条）：先试不带序号的基名，被占用就追加最小的
@@ -362,13 +376,14 @@ export function buildStableNodeName(
 ): string {
   const label =
     toNodeDisplayLabel(input.properName) ?? labelOf(input.kind, input.subtype)
-  const base =
+  const prefix =
     input.shotNo === undefined
-      ? label
-      : `${formatShotPrefix(input.shotNo)}${NODE_V4_NAME.separator}${label}`
+      ? ''
+      : `${formatShotPrefix(input.shotNo)}${NODE_V4_NAME.separator}`
+  const base = fitDisplayName(prefix, label)
   if (!taken.has(base)) return base
   for (let n = 2; n <= NODE_V4_NAME.maxConflictSuffix; n += 1) {
-    const candidate = `${base}${n}`
+    const candidate = fitDisplayName(prefix, label, String(n))
     if (!taken.has(candidate)) return candidate
   }
   // 同名到 999 是数据异常，不静默返回一个已占用的名字。
@@ -462,7 +477,7 @@ export function buildShotLabel(
   const base = toNodeDisplayLabel(input.given) ?? deriveShotLabel(input.prompt)
   if (!taken.has(base)) return base
   for (let n = 2; n <= NODE_V4_NAME.maxConflictSuffix; n += 1) {
-    const candidate = `${base}${n}`
+    const candidate = fitDisplayName('', base, String(n))
     if (!taken.has(candidate)) return candidate
   }
   throw new Error(`Cannot allocate a shot label for "${base}"`)

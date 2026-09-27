@@ -4,6 +4,7 @@ import {
   NODE_IMAGE_ROLE_IDS,
   NODE_MEDIA_KIND_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_AUDIO_SUBTYPE_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeImageRole,
@@ -414,6 +415,28 @@ describe('buildStableNodeName', () => {
     )
     expect(name).toHaveLength(160)
   })
+
+  it('镜号前缀与冲突序号也算进上限 —— 截的是专有名，前缀和序号原样保留', () => {
+    const input = {
+      kind: NODE_MEDIA_KIND_IDS.audio,
+      subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+      shotNo: 1,
+      properName: 'x'.repeat(400),
+    }
+    const first = buildStableNodeName(input, { labelOf, taken: new Set() })
+    expect(first).toBe(`S01·${'x'.repeat(156)}`)
+    expect(
+      buildStableNodeName(input, { labelOf, taken: new Set([first]) }),
+    ).toBe(`S01·${'x'.repeat(155)}2`)
+    // 截断点落在空格上时不留尾随空格：schema 的 `.trim()` 会把它削掉，内存里的名字
+    // 就和落库的对不上。
+    expect(
+      buildStableNodeName(
+        { ...input, properName: `${'x'.repeat(155)} ${'y'.repeat(10)}` },
+        { labelOf, taken: new Set() },
+      ),
+    ).toBe(`S01·${'x'.repeat(155)}`)
+  })
 })
 
 describe('renameStableNodeName', () => {
@@ -459,6 +482,14 @@ describe('镜头标签与序号分家（C1 契约修正 1）', () => {
     ).toBe('有人还在')
     expect(buildShotLabel({ given: '有人还在' }, new Set(['有人还在']))).toBe(
       '有人还在2',
+    )
+  })
+
+  it('标签已顶到上限时，重名序号挤掉标签末尾，不越过上限', () => {
+    const first = buildShotLabel({ given: '雨'.repeat(300) }, new Set())
+    expect(first).toBe('雨'.repeat(160))
+    expect(buildShotLabel({ given: '雨'.repeat(300) }, new Set([first]))).toBe(
+      `${'雨'.repeat(159)}2`,
     )
   })
 })

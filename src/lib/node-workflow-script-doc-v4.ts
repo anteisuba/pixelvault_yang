@@ -40,7 +40,11 @@ import {
   NODE_SLOT_OUTPUT_IDS,
   NODE_SLOT_TEXT_ROLE_IDS,
 } from '@/constants/node-slots'
-import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
+import {
+  buildShotLabel,
+  buildStableNodeName,
+  toNodeDisplayLabel,
+} from '@/lib/node-display-name'
 import { composeShotTextBody } from '@/lib/node-workflow-prompt'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
@@ -175,6 +179,9 @@ export function projectScriptDocToGraphV4(
 
   // ── 角色 → 角色卡（`image.character`）─────────────────────────────────
   // ⚠ 不带 `shotNo`：一张角色卡跨镜复用，钉在某一镜的带里就是把复用变成复制。
+  // ⚠ ScriptDoc 的角色名比节点的名字字段长（`roleNameMaxLength` vs `.max(160)`），
+  //   写进 `characterName` / `ownerName` 前都过 `toNodeDisplayLabel`，全名留在
+  //   ScriptDoc。两处截法必须一致：音色卡的「归属角色」拿它对角色卡。
   const roleNodeId = new Map<string, string>()
   const roleNameById = new Map(
     scriptDoc.roles.map((role) => [role.id, role.name] as const),
@@ -194,7 +201,7 @@ export function projectScriptDocToGraphV4(
       kind: NODE_MEDIA_KIND_IDS.image,
       subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
       prompt: visualSeed,
-      characterName: role.name,
+      characterName: toNodeDisplayLabel(role.name),
     })
     roleNodeId.set(role.id, id)
   }
@@ -308,7 +315,7 @@ export function projectScriptDocToGraphV4(
         ),
         kind: NODE_MEDIA_KIND_IDS.audio,
         subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
-        ...(voiceName ? { ownerName: voiceName } : {}),
+        ...(voiceName ? { ownerName: toNodeDisplayLabel(voiceName) } : {}),
       })
       connect(builder, makeId, voiceId, shotId, NODE_SLOT_IDS.voice)
     }

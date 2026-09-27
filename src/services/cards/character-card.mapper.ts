@@ -170,10 +170,13 @@ export function mapCharacterCardRow(
     id: row.id,
     name: row.name,
     description: row.description,
-    sourceImageUrl: row.sourceImageUrl,
-    sourceImages: parseWithFallback(StringArraySchema, row.sourceImages, [
-      row.sourceImageUrl,
-    ]),
+    // 没有图（新建的空角色 / 图全移除了）时旧列是空串：读成 `null`，⛔ 不让空串当一张图。
+    sourceImageUrl: row.sourceImageUrl || null,
+    sourceImages: parseWithFallback(
+      StringArraySchema,
+      row.sourceImages,
+      row.sourceImageUrl ? [row.sourceImageUrl] : [],
+    ),
     sourceImageEntries: parseWithFallback(
       SourceImageEntriesSchema,
       row.sourceImageEntries,

@@ -356,6 +356,34 @@ export async function createCharacterCard(
   // Normalize source images (support both string and SourceImageUpload)
   const normalizedImages = normalizeSourceImages(input.sourceImages)
 
+  // 角色页「新角色」：只有名字、没有图 —— 建一张空角色，⛔ 不上传、不提取属性、不联网搜
+  // （图与设定之后在详情里补，查资料交给卡片助手）。旧的三列非空，写空串，读方映射成 null。
+  if (normalizedImages.length === 0 && !parent) {
+    const empty = await db.$transaction(async (tx) =>
+      tx.characterCard.create({
+        data: {
+          userId: dbUser.id,
+          handle: await allocateHandleForNewCard(
+            tx,
+            dbUser.id,
+            deriveCardHandleBase(input.name),
+          ),
+          name: input.name,
+          description: input.description ?? null,
+          summary: input.summary ?? null,
+          sourceImageUrl: '',
+          sourceStorageKey: '',
+          sourceImages: [],
+          referenceSlots: [],
+          characterPrompt: '',
+          tags: input.tags ?? [],
+          status: 'DRAFT',
+        },
+      }),
+    )
+    return mapCharacterCardRow(empty)
+  }
+
   // Upload all source images to R2
   const uploadResults = await Promise.all(
     normalizedImages.map((img) => uploadSourceImage(img.data, dbUser.id)),

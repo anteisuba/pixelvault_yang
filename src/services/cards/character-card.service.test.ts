@@ -37,8 +37,16 @@ const mockCount = vi.fn()
 const mockCardCreate = vi.fn()
 const mockGenerationFindFirst = vi.fn()
 
+vi.mock('@/services/cards/card-handle.service', () => ({
+  allocateHandleForNewCard: vi.fn().mockResolvedValue('时夜'),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: (fn: (tx: unknown) => unknown) =>
+      fn({
+        characterCard: { create: (...a: unknown[]) => mockCardCreate(...a) },
+      }),
     characterCard: {
       findMany: (...a: unknown[]) => mockFindMany(...a),
       findUnique: (...a: unknown[]) => mockFindUnique(...a),
@@ -52,8 +60,10 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+import { uploadToR2 } from '@/services/storage/r2'
 import {
   buildPromptFromAttributes,
+  createCharacterCard,
   extractCharacterAttributes,
   listCharacterCards,
   getCharacterCard,
@@ -402,5 +412,37 @@ describe('updateCharacterCard · 卡片总线 v3 双写（expand 期）', () => 
     const { data } = mockUpdate.mock.calls[0]![0]
     expect(data.extensions).toEqual({ 'acme.keep': 1, 'pv.note': 'x' })
     expect(data.summary).toBe('雨夜里的侦探')
+  })
+})
+
+describe('createCharacterCard（角色页「新角色」只给名字）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockCount.mockResolvedValue(0)
+    mockCardCreate.mockImplementation(({ data }: { data: object }) =>
+      Promise.resolve({ ...FAKE_CARD, ...data, id: 'card_new' }),
+    )
+  })
+
+  it('没有图 = 建一张空角色：⛔ 不上传、不看图、不联网；读出来没有主图', async () => {
+    const card = await createCharacterCard('clerk_1', {
+      name: '时夜',
+      sourceImages: [],
+    })
+
+    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(mockAnalyzeVisual).not.toHaveBeenCalled()
+    expect(mockCardCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: '时夜',
+        handle: '时夜',
+        referenceSlots: [],
+        sourceImageUrl: '',
+      }),
+    })
+    expect(card.sourceImageUrl).toBeNull()
+    expect(card.referenceSlots).toEqual([])
+    expect(card.sourceImages).toEqual([])
   })
 })

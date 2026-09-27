@@ -55,7 +55,8 @@ export function CharacterDetailHeader({
   card,
   onBack,
 }: {
-  card: CharacterCardRecord
+  /** `null` = 「新角色」草稿：还没建，没有「用她 ▾」。 */
+  card: CharacterCardRecord | null
   onBack(): void
 }) {
   const t = useTranslations('CharacterRoster')
@@ -69,10 +70,57 @@ export function CharacterDetailHeader({
         <ChevronLeft className="size-4" aria-hidden />
         {t('title')}
       </button>
-      <div className="ml-auto flex items-center gap-2">
-        <UseCharacterMenu card={card} />
-      </div>
+      {card ? (
+        <div className="ml-auto flex items-center gap-2">
+          <UseCharacterMenu card={card} />
+        </div>
+      ) : null}
     </>
+  )
+}
+
+/**
+ * **「新角色」草稿**（owner 09-28：直接进一张空的详情页）。版式同详情，光标在名字格；
+ * 名字写好离开那一格才建卡 —— handle 从真名派生（改名不会跟着变，⛔ 不先拿「新角色」
+ * 占位建卡）。图片与设定等她建好再开。空着返回 = 什么都没建。
+ */
+export function CharacterDraftBody({
+  onCreate,
+}: {
+  onCreate(name: string): Promise<boolean>
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <div className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8 sm:pt-7">
+      <section className="mb-7 flex h-5/12 min-h-60 flex-col gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-base font-semibold">{t('imagesTitle')}</h3>
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            0
+          </span>
+        </div>
+        <div className="flex min-h-0 flex-1 pb-1.5">
+          <div
+            aria-disabled
+            className="flex aspect-4/5 h-full shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground opacity-60"
+          >
+            <Plus className="size-5" aria-hidden />
+            {t('addImage')}
+          </div>
+        </div>
+      </section>
+      <div className="flex max-w-3xl flex-col gap-1">
+        <CharacterInlineField
+          autoFocus
+          value=""
+          label={t('fieldName')}
+          placeholder={t('fieldName')}
+          onCommit={onCreate}
+          className="text-3xl font-semibold tracking-tight"
+        />
+        <p className="text-xs text-muted-foreground">{t('draftHint')}</p>
+      </div>
+    </div>
   )
 }
 

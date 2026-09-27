@@ -6,23 +6,17 @@ import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
-import type { CharacterCardRecord, CreateCharacterCardRequest } from '@/types'
+import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
 import { Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
-import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
 import {
   CharacterDetailBody,
   CharacterDetailHeader,
+  CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
 import {
   CharacterOverview,
@@ -90,8 +84,8 @@ export function CharacterRoster() {
    */
   const closeTimer = useRef<number | null>(null)
   const [query, setQuery] = useState('')
-  const [createOpen, setCreateOpen] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
+  /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
+  const [drafting, setDrafting] = useState(false)
 
   const selected = useMemo(
     () => items.find((item) => item.card.id === openId)?.card ?? null,
@@ -203,18 +197,21 @@ export function CharacterRoster() {
       // 叠在上面的弹层（素材库选择器、用她菜单）与正在改的那一格（Esc = 放弃这次改动）
       // 已经处理掉的 Esc 不再收详情。
       if (event.defaultPrevented) return
-      if (event.key === 'Escape' && selected) closeDetail()
+      if (event.key !== 'Escape') return
+      if (drafting) setDrafting(false)
+      else if (selected) closeDetail()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [closeDetail, selected])
+  }, [closeDetail, drafting, selected])
 
-  const handleCreate = async (data: CreateCharacterCardRequest) => {
-    setIsCreating(true)
-    const card = await characters.create(data)
-    setIsCreating(false)
-    if (card) setCreateOpen(false)
-    return card
+  /** 草稿的名字写好了：这才建卡（只有名字，⛔ 不跑旧的上传 + 分析），建好直接打开她。 */
+  const createFromDraft = async (name: string) => {
+    const card = await characters.create({ name, sourceImages: [] })
+    if (!card) return false
+    setDrafting(false)
+    openCharacter(card.id)
+    return true
   }
 
   /** 删掉之后回总览。 */
@@ -234,7 +231,7 @@ export function CharacterRoster() {
     <Button
       type="button"
       className="shrink-0 rounded-full"
-      onClick={() => setCreateOpen(true)}
+      onClick={() => setDrafting(true)}
     >
       <Plus className="size-4" />
       {t('newCharacter')}
@@ -247,7 +244,9 @@ export function CharacterRoster() {
         {/* ⚠ 不等旧的一行退场（AnimatePresence mode="wait" 的退场完成靠 rAF，后台标签页
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
         <motion.div
-          key={selected ? `detail:${selected.id}` : 'overview'}
+          key={
+            drafting ? 'draft' : selected ? `detail:${selected.id}` : 'overview'
+          }
           initial={enter}
           animate={{ opacity: 1, y: 0 }}
           transition={
@@ -257,7 +256,12 @@ export function CharacterRoster() {
           }
           className={cn(ROW_CLASS, !operatorHost.open && ROW_AVATAR_GAP_CLASS)}
         >
-          {selected ? (
+          {drafting ? (
+            <CharacterDetailHeader
+              card={null}
+              onBack={() => setDrafting(false)}
+            />
+          ) : selected ? (
             <CharacterDetailHeader card={selected} onBack={closeDetail} />
           ) : (
             <CharacterOverviewHeader
@@ -272,12 +276,12 @@ export function CharacterRoster() {
 
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background">
           <motion.div
-            inert={selected !== null}
-            animate={{ opacity: selected ? 0 : 1 }}
+            inert={selected !== null || drafting}
+            animate={{ opacity: selected || drafting ? 0 : 1 }}
             transition={
               reducedMotion
                 ? { duration: 0 }
-                : selected
+                : selected || drafting
                   ? { duration: DURATION.fast, ease: EASE_STANDARD }
                   : enterTransition
             }
@@ -297,7 +301,7 @@ export function CharacterRoster() {
                     type="button"
                     size="sm"
                     className="rounded-full"
-                    onClick={() => setCreateOpen(true)}
+                    onClick={() => setDrafting(true)}
                   >
                     {t('newCharacter')}
                   </Button>
@@ -318,6 +322,16 @@ export function CharacterRoster() {
             后台标签页冻结），留下一层透明详情盖住总览、吞掉点击。这里自己管：返回时这一层
             淡出（`closingId`），定时器到点再卸；淡出期间 `pointer-events-none`。
           */}
+          {drafting ? (
+            <motion.div
+              key="draft"
+              initial={enter}
+              animate={{ opacity: 1, y: 0, transition: enterTransition }}
+              className="absolute inset-0 bg-background"
+            >
+              <CharacterDraftBody onCreate={createFromDraft} />
+            </motion.div>
+          ) : null}
           {detailCard ? (
             <motion.div
               key={detailCard.id}
@@ -350,18 +364,6 @@ export function CharacterRoster() {
         </div>
       </div>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-svh overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t('newCharacter')}</DialogTitle>
-          </DialogHeader>
-          <CharacterCardCreateForm
-            onSubmit={handleCreate}
-            onCancel={() => setCreateOpen(false)}
-            isSubmitting={isCreating}
-          />
-        </DialogContent>
-      </Dialog>
       <StudioOperatorDock />
     </StudioOperatorHostProvider>
   )

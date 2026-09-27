@@ -195,15 +195,17 @@ export function CharacterCardItem({
           onClick={handleToggleItemExpand}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border/40">
-            <Image
-              src={card.sourceImageUrl}
-              alt={card.name}
-              fill
-              className="object-cover"
-              sizes="48px"
-              loading="lazy"
-            />
+          <div className="relative size-12 shrink-0 overflow-hidden rounded-md border border-border/40 bg-muted">
+            {card.sourceImageUrl ? (
+              <Image
+                src={card.sourceImageUrl}
+                alt={card.name}
+                fill
+                className="object-cover"
+                sizes="48px"
+                loading="lazy"
+              />
+            ) : null}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">

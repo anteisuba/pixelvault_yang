@@ -89,6 +89,7 @@ function card(
 }
 
 const mockUpdate = vi.fn().mockResolvedValue(true)
+const mockCreate = vi.fn()
 
 const CARDS = [
   card('denia', 'Denia', {
@@ -123,7 +124,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
       CARDS.flatMap((item) => [item, ...item.variants]).find(
         (item) => item.id === id,
       ) ?? null,
-    create: vi.fn(),
+    create: (...a: unknown[]) => mockCreate(...a),
     update: (...a: unknown[]) => mockUpdate(...a),
     remove: vi.fn(),
   }),
@@ -163,6 +164,39 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(detail).toHaveTextContent('图片')
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
+  })
+
+  it('新角色 = 直接进空详情页，光标在名字；名字写好离开才建卡（只有名字、不带图）', async () => {
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValue(card('shiye', '时夜'))
+    renderRoster()
+    fireEvent.click(screen.getByRole('button', { name: /新角色/ }))
+    const name = screen.getByRole('textbox', { name: '名字' })
+    expect(document.activeElement).toBe(name)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.blur(name)
+    expect(mockCreate).not.toHaveBeenCalled()
+    fireEvent.change(name, { target: { value: '时夜' } })
+    fireEvent.blur(name)
+    await vi.waitFor(() =>
+      expect(mockCreate).toHaveBeenCalledWith({
+        name: '时夜',
+        sourceImages: [],
+      }),
+    )
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull(),
+    )
+  })
+
+  it('新角色草稿没起名就返回 = 什么都没建', () => {
+    mockCreate.mockReset()
+    renderRoster()
+    fireEvent.click(screen.getByRole('button', { name: /新角色/ }))
+    fireEvent.click(screen.getByRole('button', { name: '角色' }))
+    expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull()
+    expect(screen.getAllByTestId('roster-tile')).toHaveLength(3)
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it('Esc 收起详情；叠在上面的弹层吃掉的 Esc 不收', () => {

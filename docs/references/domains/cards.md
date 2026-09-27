@@ -117,7 +117,7 @@
 
 **卡片重设计（09-26，画布第 7 页）· 施工第 1 片已写**：人设加 `identity`（身份）与 `backstory`（经历，无固定格式）；扩展键 `pv.tags` = `{ character[], appearance[], loraTrigger }`（`CardTagsSchema`，键名在 `CARD_EXTENSIONS.KEYS`）。编译：NovelAI（多角色布局与文字退路）优先用角色标签 + 外观标签，没有标签才退回视觉文字；LoRA 触发词只在请求挂了 LoRA 时写进正文；LoRA 只存触发词、⛔ 不记对应的 LoRA。坏的 `pv.tags` 编译时当缺席、磁盘上保留。图片出口（09-28）：分到参考图的角色只写名字 + 图例 + 保持指令，⛔ 不写视觉文字（整段描述与场景抢权重、出图杂）；没分到图的角色才用视觉文字认人。
 
-**施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行；A2 起由整页 `CharacterDetail` 取代）；画风卡、背景卡两个页签下线（数据与工作台卡片模式照旧）。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「＋ 新角色」暂时打开旧的新建界面（第 6 片重做）。
+**施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行；A2 起由整页 `CharacterDetail` 取代）；画风卡、背景卡两个页签下线（数据与工作台卡片模式照旧）。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「＋ 新角色」09-28 起 = 直接进一张空的详情页（草稿），光标在名字格；名字写好离开才建卡（只有名字：⛔ 不上传、不提取属性、不联网搜，handle 从真名派生），空着返回什么都不建。旧的新建表单只剩工作台卡片模式在用。没图的角色读出来 `sourceImageUrl = null`。
 
 **施工第 4 片（侧栏里编辑 + 试读）**：「编辑」就在侧栏里换成编辑态（`use-character-card-editor.ts`）：名字、图、一句外观、角色 / 外观标签、LoRA 触发词、身份 / 性格 / 说话方式 / 经历；保存时整份人设合并回去，没改的格不丢。图的基础编辑提前到这一片：设为主图（强制 identity 并排到第一）、移除（主图让给下一张 identity，至少留一张）、每张都能「换一张」（同一格换图，用途与主图不变）；`PATCH` 带 `referenceSlots` 时服务端同时写旧四列（`legacyColumnsFromReferenceSlots`）。设定行的「试读」按设定写两句台词，「不像」直接进编辑。精修（`/refine`）与 AI 渲染卡牌（Cardify）下线，代码删除。
 
@@ -125,7 +125,7 @@
 
 **角色页 · 方向 A（owner 09-26 选 A，参考 Illustash 角色页；原型 https://claude.ai/artifact/QUmgqtBUMP5f5pGfgrGSJc）**：「卡片」改名「角色」（全站字样，单独一片）；角色分两个模块——图片展示 + 文字描述。
 
-- **A1 总览**（`CharacterOverview`）：标题行「N 位角色 · M 部作品」+ 搜索；作品 chip（总览 + 各作品，带张数）；「用得最多」按张数排前 5（第 1 名占 2×2）；作品书架（张数前三位扇形叠放）；点 chip / 书架只看这部作品。**只有一位时不排名次**：一张大图 + 一句提示。
+- **A1 总览**（`CharacterOverview`）：标题行「N 位角色 · M 部作品」+ 搜索；作品 chip（总览 + 各作品，带张数）；「用得最多」按张数排前 5（09-28 起几张一样大）；作品书架（张数前三位扇形叠放，09-28 起 ⛔ 不放重复的图：人不够就用她们卡上别的图补，再不够就少放几张）；点 chip / 书架只看这部作品。**只有一位时不排名次**：一张大图 + 一句提示。
 - **张数** = 卡上的图 + 用她出过的图（`GenerationCharacterCard` 计数，列表接口 `_count.generationLinks` → `generationCount`）。画布里把她的图当参考图发出去的不算（没走角色关联）。
 - **作品**：手改值 `extensions['pv.work']`（`workOverride`，清空 = 删键）→ 第一个角色标签最后一组括号（`denia_(wuthering_waves)` → `wuthering_waves`，三语名表 `constants/cards/character-works.ts`，表外还原成词）→ 原创。分组按显示名认（`lib/character-works.ts`）。
 - **A2 整页详情**（`CharacterDetail`，替掉 K3 侧栏与手机抽屉）：点角色整页从那张卡长出来（`useLiquidReveal`，目标 = 整个舞台，第一拍标题条 72px），「‹ 角色」/ Esc 收回；手机与降级动效直接切。左边**图片**模块：主图 + 瀑布流，「全部 / 卡上 N / 用她出的 N」三档（用她出的一次拿最近 30 张）；右边**设定**模块（桌面 sticky）：一句外观 · 四格设定 · 试读 · 标签 · 作品来源一行（从哪个标签取 / 手填 / 原创）。「编辑」把整页换成编辑态（`CharacterCardEditor`，内容居中 max-w-2xl）。详情开着时总览 `inert`。

@@ -8416,6 +8416,7 @@
   "CharacterRoster": {
     "title": "角色",
     "useCharacter": "用她",
+    "draftHint": "先起个名字，再加图、写设定",
     "useInStudio": "在图片工作台用她",
     "useInStudioHint": "带上主图与标签",
     "useAsPersona": "设为助手人设",

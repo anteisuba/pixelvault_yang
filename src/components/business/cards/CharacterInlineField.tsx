@@ -31,10 +31,21 @@ export const CharacterInlineField = forwardRef<
     multiline?: boolean
     /** 点进去时才出现的一行小字。 */
     hint?: ReactNode
+    /** 一出现就把光标放进来（「新角色」草稿的名字格）。 */
+    autoFocus?: boolean
     className?: string
   }
 >(function CharacterInlineField(
-  { value, placeholder, label, onCommit, multiline = false, hint, className },
+  {
+    value,
+    placeholder,
+    label,
+    onCommit,
+    multiline = false,
+    hint,
+    autoFocus,
+    className,
+  },
   ref,
 ) {
   const [draft, setDraft] = useState<string | null>(null)
@@ -82,6 +93,7 @@ export const CharacterInlineField = forwardRef<
     ) => setDraft(event.target.value),
     onBlur: () => void commit(),
     onKeyDown,
+    autoFocus,
   }
 
   return (

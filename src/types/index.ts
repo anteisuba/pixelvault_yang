@@ -3485,9 +3485,9 @@ export const CreateCharacterCardSchema = z.object({
     .trim()
     .min(1, 'Name is required')
     .max(CHARACTER_CARD.NAME_MAX_LENGTH),
+  /** 可以不给图：角色页「新角色」先只建名字，图在详情里从素材库加。 */
   sourceImages: z
     .array(z.union([sourceImageDataValidator, SourceImageUploadSchema]))
-    .min(1, 'At least one source image is required')
     .max(CHARACTER_CARD.MAX_SOURCE_IMAGES),
   description: z
     .string()
@@ -3597,7 +3597,8 @@ export interface CharacterCardRecord {
   id: string
   name: string
   description: string | null
-  sourceImageUrl: string
+  /** 主图（旧列）。`null` = 这位还没有图（新建的空角色 / 图全移除了）。 */
+  sourceImageUrl: string | null
   sourceImages: string[]
   /** Structured source images with view types (for multi-angle references) */
   sourceImageEntries: SourceImageEntry[]

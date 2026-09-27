@@ -71,12 +71,9 @@ export function breakdownToScriptDoc(
       id: character.id,
       name: clamp(
         character.nameSuggestion || character.label || character.id,
-        SCRIPT_DOC_LIMITS.fieldMaxLength,
+        SCRIPT_DOC_LIMITS.roleNameMaxLength,
       ),
-      description: clamp(
-        character.visualSeed,
-        SCRIPT_DOC_LIMITS.fieldMaxLength,
-      ),
+      description: clamp(character.visualSeed, SCRIPT_DOC_LIMITS.textMaxLength),
     }))
 
   const shots: ScriptDocShot[] = breakdown.shots
@@ -85,13 +82,13 @@ export function breakdownToScriptDoc(
       id: shot.id,
       sceneLabel: clampOptional(
         sceneLabelById.get(shot.sceneId),
-        SCRIPT_DOC_LIMITS.fieldMaxLength,
+        SCRIPT_DOC_LIMITS.textMaxLength,
       ),
       summary: clamp(
         shot.promptSeed || shot.label || shot.id,
-        SCRIPT_DOC_LIMITS.fieldMaxLength,
+        SCRIPT_DOC_LIMITS.textMaxLength,
       ),
-      camera: clampOptional(shot.camera, SCRIPT_DOC_LIMITS.fieldMaxLength),
+      camera: clampOptional(shot.camera, SCRIPT_DOC_LIMITS.textMaxLength),
       // Only keep bindings to characters that became roles; drop danglers.
       roleIds: (shot.characterIds ?? [])
         .filter((id) => knownRoleIds.has(id))
@@ -102,10 +99,10 @@ export function breakdownToScriptDoc(
 
   return {
     title: clamp(breakdown.title, SCRIPT_DOC_LIMITS.titleMaxLength),
-    logline: clamp(breakdown.logline, SCRIPT_DOC_LIMITS.loglineMaxLength),
+    logline: clamp(breakdown.logline, SCRIPT_DOC_LIMITS.textMaxLength),
     styleNote: clampOptional(
       breakdown.referenceIntent,
-      SCRIPT_DOC_LIMITS.styleNoteMaxLength,
+      SCRIPT_DOC_LIMITS.textMaxLength,
     ),
     roles,
     shots,

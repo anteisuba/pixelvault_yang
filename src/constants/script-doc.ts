@@ -13,11 +13,17 @@ import {
   CINEMATIC_EMOTION_GRAMMAR,
   CINEMATIC_SHOT_GRAMMAR,
 } from '@/constants/cinematic-grammar'
+import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
+import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
 
 export const SCRIPT_DOC_LIMITS = {
   /** Conversation turns fed into the structured draft call. */
   maxMessages: 16,
-  maxMessageLength: 4000,
+  /**
+   * 一条对话消息 —— 只剩防滥用护栏（owner 2026-09-27：剧本放开，此前 4000）。
+   * 一次请求装得下多少由 `SCRIPT_DOC_PROMPT_BUDGET` 管，装不下就明说，不截断。
+   */
+  maxMessageLength: PROMPT_TEXT_GUARD_MAX_CHARS,
   maxRoles: 8,
   maxShots: 24,
   /** Dialogue lines per shot — keeps a single shot's voice fan-out sane. */
@@ -33,16 +39,21 @@ export const SCRIPT_DOC_LIMITS = {
   maxClarifyQuestions: 4,
   maxClarifyOptions: 6,
   titleMaxLength: 120,
-  loglineMaxLength: 400,
-  styleNoteMaxLength: 400,
-  /** Optional global world / background / backstory note. */
-  backgroundMaxLength: 600,
+  /** 角色名 —— 名字不放开（owner 2026-09-27）。 */
+  roleNameMaxLength: 700,
+  /**
+   * 剧本正文（梗概 · 风格 · 背景 · 角色描述 / 性格 / 目标 / 声线 · 镜头的场景 /
+   * 摘要 / 机位 / 构图 · 台词）—— owner 2026-09-27 剧本放开，此前各是 400–700。
+   *
+   * ⚠ 取画布节点提示词的落库护栏，⛔ 不能再大：镜头摘要 / 机位会投影成节点提示词，
+   * 超了整份画布存不进库；ScriptDoc 自己在项目状态里是 `.catch(undefined)`，超了
+   * 整份剧本会被悄悄丢掉。
+   */
+  textMaxLength: NODE_V4_PROMPT_MAX_LENGTH,
   /** Optional target duration hint, e.g. "8s" or "12-15s". */
   targetDurationMaxLength: 40,
   /** Optional per-shot dual-emotion tag (surface · undercurrent). */
   emotionMaxLength: 160,
-  fieldMaxLength: 700,
-  lineMaxLength: 600,
   idMaxLength: 80,
   llmTimeoutMs: 60_000,
   maxTokens: 6000,
@@ -116,7 +127,11 @@ export const SCRIPT_DOC_PROMPT_BUDGET = {
   totalChars: 24_000,
   /** Conversation turns kept even when the doc has eaten the budget. */
   minMessages: 2,
-  /** Per-turn cap applied to those surviving turns as a last resort. */
+  /**
+   * Per-turn cap applied to the OLDER surviving turns as a last resort. ⚠ The
+   * latest turn — the creator's instruction — is never cut (owner 2026-09-27):
+   * when it cannot fit, the request fails with `promptTooLong` instead.
+   */
   messageChars: 1_200,
 } as const
 

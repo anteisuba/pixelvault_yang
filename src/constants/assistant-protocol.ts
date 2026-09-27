@@ -69,9 +69,11 @@ export const ASSISTANT_PROTOCOL_MARKER_IDS = {
  *
  * ⚠ 这四个数**不是新拍的** —— 逐个等于 `SCRIPT_DOC_LIMITS` 里画布剧本线用了一个
  * 多月的同名上限（`maxClarifyQuestions` 4 / `maxClarifyOptions` 6 /
- * `idMaxLength` 80 / `fieldMaxLength` 700）。上收到这里是因为反问卡从「只有
- * ScriptDoc 起草时才有」变成了四个域共用，**不是因为要重新定义它们**。
+ * `idMaxLength` 80 / 当时的 `fieldMaxLength` 700）。上收到这里是因为反问卡从
+ * 「只有 ScriptDoc 起草时才有」变成了四个域共用，**不是因为要重新定义它们**。
  * 改这里等于同时改画布那条路，两边故意共命运。
+ * ⚠ 2026-09-27 剧本正文字段放开（`SCRIPT_DOC_LIMITS.textMaxLength`），反问卡的
+ * 700 没跟着放：它限的是助手问题与选项的字，不是创作者写的剧本。
  */
 export const ASSISTANT_CLARIFY_LIMITS = {
   maxQuestions: 4,

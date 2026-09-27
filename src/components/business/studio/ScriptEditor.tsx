@@ -215,7 +215,6 @@ export function ScriptEditor({
                   patchScene(idx, { dialogue: e.target.value || null })
                 }
                 rows={1}
-                maxLength={500}
               />
             </div>
           </li>

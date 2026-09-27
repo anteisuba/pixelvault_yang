@@ -29,41 +29,37 @@ export const ScriptRefSchema = z.object({
 
 export const ScriptDocRoleSchema = z.object({
   id: ScriptDocIdSchema,
-  name: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
+  name: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.roleNameMaxLength),
   /** Visual identity seed — becomes the character node's prompt. */
   description: z
     .string()
     .trim()
-    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
+    .max(SCRIPT_DOC_LIMITS.textMaxLength)
     .default(''),
-  voiceHint: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
+  voiceHint: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
   /** Optional — sharpens dialogue voice (filled per depth). */
   personality: z
     .string()
     .trim()
-    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
+    .max(SCRIPT_DOC_LIMITS.textMaxLength)
     .optional(),
   /** Optional — what the role wants, drives motivation (filled per depth). */
-  goal: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
+  goal: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
 })
 
 export const ScriptDocDialogueLineSchema = z.object({
   id: ScriptDocIdSchema,
   speakerRoleId: ScriptDocIdSchema,
-  line: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.lineMaxLength),
+  line: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.textMaxLength),
 })
 
 export const ScriptDocShotSchema = z.object({
   id: ScriptDocIdSchema,
-  sceneLabel: z
-    .string()
-    .trim()
-    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
-    .optional(),
-  summary: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.fieldMaxLength),
+  sceneLabel: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
+  summary: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.textMaxLength),
   /** Optional dual-emotion tag (surface · undercurrent), filled per depth. */
   emotion: z.string().trim().max(SCRIPT_DOC_LIMITS.emotionMaxLength).optional(),
-  camera: z.string().trim().max(SCRIPT_DOC_LIMITS.fieldMaxLength).optional(),
+  camera: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
   /**
    * 构图。2026-08-02 补 —— 在此之前它**只存在于 shotText 节点上**，而节点是
    * 投影的产物、没有任何人类可达的写入端，却照样参与最终 prompt 拼接
@@ -75,7 +71,7 @@ export const ScriptDocShotSchema = z.object({
   composition: z
     .string()
     .trim()
-    .max(SCRIPT_DOC_LIMITS.fieldMaxLength)
+    .max(SCRIPT_DOC_LIMITS.textMaxLength)
     .optional(),
   /**
    * 每镜显式时长（秒）。画布对齐三梁之一 —— 与 seedance 节点的 `duration`
@@ -111,22 +107,10 @@ export const ScriptDocShotSchema = z.object({
  */
 export const ScriptDocSchema = z.object({
   title: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.titleMaxLength),
-  logline: z
-    .string()
-    .trim()
-    .max(SCRIPT_DOC_LIMITS.loglineMaxLength)
-    .default(''),
-  styleNote: z
-    .string()
-    .trim()
-    .max(SCRIPT_DOC_LIMITS.styleNoteMaxLength)
-    .optional(),
+  logline: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).default(''),
+  styleNote: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
   /** Optional world / setting / backstory (filled per depth). */
-  background: z
-    .string()
-    .trim()
-    .max(SCRIPT_DOC_LIMITS.backgroundMaxLength)
-    .optional(),
+  background: z.string().trim().max(SCRIPT_DOC_LIMITS.textMaxLength).optional(),
   /** Optional target duration hint, e.g. "8s" / "12-15s" (filled per depth). */
   targetDuration: z
     .string()

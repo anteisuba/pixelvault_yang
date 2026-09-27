@@ -6977,7 +6977,7 @@
       "storageRejected": "Image storage rejected the upload. Please retry; if it persists, contact the administrator."
     },
     "scriptDoc": {
-      "promptTooLong": "This script is too long to revise in one request. Shorten the shot summaries, or split it into fewer shots."
+      "promptTooLong": "The script plus this message is too long to revise in one request. Shorten the message or the shot summaries, or split it into fewer shots."
     },
     "vision": {
       "noCapableRoute": "No image-capable model is available right now. Add a Gemini or OpenAI API key to analyze images.",

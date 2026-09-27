@@ -6977,7 +6977,7 @@
       "storageRejected": "图片存储拒绝了本次上传。请重试，若持续请联系管理员。"
     },
     "scriptDoc": {
-      "promptTooLong": "这份剧本太长，一次改不完。请精简镜头描述，或拆成更少的镜头。"
+      "promptTooLong": "剧本加上这条消息太长，一次改不完。请缩短这条消息、精简镜头描述，或拆成更少的镜头。"
     },
     "vision": {
       "noCapableRoute": "现在没有能看图的模型可用。配置 Gemini 或 OpenAI 的 API key 后即可分析图片。",

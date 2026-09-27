@@ -746,7 +746,7 @@ function ScriptDocEditor({
           multiline
           ariaLabel={t('scriptDocFieldLogline')}
           placeholder={t('scriptDocFieldLogline')}
-          maxLength={SCRIPT_DOC_LIMITS.loglineMaxLength}
+          maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
           className="text-xs leading-5 text-node-muted"
         />
         {scriptDoc.styleNote !== undefined ? (
@@ -754,7 +754,7 @@ function ScriptDocEditor({
             {...docField('styleNote', scriptDoc.styleNote)}
             ariaLabel={t('scriptDocFieldStyle')}
             placeholder={t('scriptDocFieldStyle')}
-            maxLength={SCRIPT_DOC_LIMITS.styleNoteMaxLength}
+            maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
             className="text-2xs text-node-subtle"
           />
         ) : null}
@@ -780,7 +780,7 @@ function ScriptDocEditor({
               multiline
               ariaLabel={t('scriptDocBackgroundLabel')}
               placeholder={t('scriptDocBackgroundLabel')}
-              maxLength={SCRIPT_DOC_LIMITS.backgroundMaxLength}
+              maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
               className="text-2xs leading-4 text-node-muted"
             />
           </div>
@@ -862,7 +862,7 @@ function ScriptDocEditor({
                   required
                   ariaLabel={t('scriptDocFieldRoleName')}
                   placeholder={t('scriptDocFieldRoleName')}
-                  maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                  maxLength={SCRIPT_DOC_LIMITS.roleNameMaxLength}
                   className="flex-1 text-sm font-semibold"
                 />
                 <DeleteButton
@@ -877,7 +877,7 @@ function ScriptDocEditor({
                 multiline
                 ariaLabel={t('scriptDocFieldRoleDescription')}
                 placeholder={t('scriptDocFieldRoleDescription')}
-                maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                 className="text-2xs leading-4 text-node-muted"
               />
               {role.personality !== undefined ? (
@@ -886,7 +886,7 @@ function ScriptDocEditor({
                   multiline
                   ariaLabel={t('scriptDocFieldRolePersonality')}
                   placeholder={t('scriptDocFieldRolePersonality')}
-                  maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                  maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                   className="text-2xs leading-4 text-node-subtle"
                 />
               ) : null}
@@ -896,7 +896,7 @@ function ScriptDocEditor({
                   multiline
                   ariaLabel={t('scriptDocFieldRoleGoal')}
                   placeholder={t('scriptDocFieldRoleGoal')}
-                  maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                  maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                   className="text-2xs leading-4 text-node-subtle"
                 />
               ) : null}
@@ -952,7 +952,7 @@ function ScriptDocEditor({
                   multiline
                   ariaLabel={t('scriptDocFieldShotSummary')}
                   placeholder={t('scriptDocFieldShotSummary')}
-                  maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                  maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                   className="flex-1 text-xs leading-5 text-node-foreground"
                 />
                 <FocusButton
@@ -1008,7 +1008,7 @@ function ScriptDocEditor({
                   multiline
                   ariaLabel={t('scriptDocFieldShotCamera')}
                   placeholder={t('scriptDocFieldShotCamera')}
-                  maxLength={SCRIPT_DOC_LIMITS.fieldMaxLength}
+                  maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                   className="text-2xs leading-4 text-node-subtle"
                 />
               ) : null}
@@ -1073,7 +1073,7 @@ function ScriptDocEditor({
                           required
                           ariaLabel={t('scriptDocFieldLine')}
                           placeholder={t('scriptDocFieldLine')}
-                          maxLength={SCRIPT_DOC_LIMITS.lineMaxLength}
+                          maxLength={SCRIPT_DOC_LIMITS.textMaxLength}
                           className="text-2xs leading-4 text-node-muted"
                         />
                       </div>

@@ -4,6 +4,7 @@ import {
   VideoScriptStatus,
   VideoScriptSceneStatus,
 } from '@/lib/generated/prisma/enums'
+import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
 import {
   CAMERA_SHOTS,
   CONSISTENCY_MODES,
@@ -28,8 +29,8 @@ export const VideoScriptSceneSchema = z.object({
     .min(SCENE_DURATION_RANGE.min)
     .max(SCENE_DURATION_RANGE.max),
   cameraShot: z.enum(CAMERA_SHOTS),
-  action: z.string().min(1).max(2000),
-  dialogue: z.string().max(500).nullable().optional(),
+  action: z.string().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
+  dialogue: z.string().max(PROMPT_TEXT_GUARD_MAX_CHARS).nullable().optional(),
   transition: z.enum(TRANSITIONS),
   frameGenerationId: z.string().nullable().optional(), // VS10 — plain string, no FK
   clipGenerationId: z.string().nullable().optional(),
@@ -43,7 +44,7 @@ export type VideoScriptScene = z.infer<typeof VideoScriptSceneSchema>
 export const VideoScriptSchema = z.object({
   id: z.string(),
   userId: z.string(),
-  topic: z.string().min(1).max(1000),
+  topic: z.string().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
   targetDuration: z.union([z.literal(30), z.literal(60), z.literal(120)]),
   totalScenes: z.number().int().min(1),
   status: z.nativeEnum(VideoScriptStatus),
@@ -63,7 +64,7 @@ export type VideoScriptRecord = z.infer<typeof VideoScriptSchema>
 /** POST /api/video-script body. VS6: characterCardId required when mode = character_card. */
 export const CreateVideoScriptInputSchema = z
   .object({
-    topic: z.string().min(1).max(1000),
+    topic: z.string().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
     targetDuration: z.union([z.literal(30), z.literal(60), z.literal(120)]),
     consistencyMode: z.enum(CONSISTENCY_MODES),
     characterCardId: z.string().nullable().optional(),
@@ -150,8 +151,12 @@ export const LLMScriptOutputSchema = z.object({
           .min(SCENE_DURATION_RANGE.min)
           .max(SCENE_DURATION_RANGE.max),
         cameraShot: z.enum(CAMERA_SHOTS),
-        action: z.string().min(1).max(2000),
-        dialogue: z.string().max(500).nullable().optional(),
+        action: z.string().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
+        dialogue: z
+          .string()
+          .max(PROMPT_TEXT_GUARD_MAX_CHARS)
+          .nullable()
+          .optional(),
         transition: z.enum(TRANSITIONS),
       }),
     )

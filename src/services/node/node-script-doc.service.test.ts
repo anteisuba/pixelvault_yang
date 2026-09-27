@@ -536,4 +536,43 @@ describe('createNodeScriptDoc prompt budget', () => {
     // Fail before spending a call — the old path burned one and returned 500.
     expect(mockLlmTextCompletion).not.toHaveBeenCalled()
   })
+
+  // owner 2026-09-27：不悄悄截断用户写的字 —— 最后一招只截旧的那几条。
+  it('caps only the older turns and keeps the latest instruction whole', async () => {
+    const latest = `${padded('now rewrite shot three', 5_000)} LATEST_TAIL_MARKER`
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: [
+        { role: 'user' as const, content: padded('earlier notes', 6_000) },
+        { role: 'user' as const, content: latest },
+      ],
+      scriptDoc: makeDocOfSize(12_000),
+      locale: 'en',
+    })
+
+    const { userPrompt } = lastCall()
+    expect(userPrompt).toContain(latest)
+    expect(userPrompt.length).toBeLessThanOrEqual(
+      SCRIPT_DOC_PROMPT_BUDGET.totalChars,
+    )
+  })
+
+  it('fails loudly instead of cutting a latest instruction that cannot fit', async () => {
+    await expect(
+      createNodeScriptDoc('clerk_user_1', {
+        messages: [
+          {
+            role: 'user' as const,
+            content: padded('a whole treatment pasted in', 23_000),
+          },
+        ],
+        scriptDoc: VALID_SCRIPT_DOC,
+        locale: 'en',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'SCRIPT_DOC_PROMPT_TOO_LONG',
+      i18nKey: 'errors.scriptDoc.promptTooLong',
+    })
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+  })
 })

@@ -77,7 +77,6 @@ export function ScriptTopicInput({
           onChange={(e) => setTopic(e.target.value)}
           placeholder={t('topicPlaceholder')}
           rows={3}
-          maxLength={1000}
         />
       </div>
 

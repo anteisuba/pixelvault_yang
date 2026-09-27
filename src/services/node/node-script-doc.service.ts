@@ -62,9 +62,13 @@ interface ConversationBuild {
  * Fit the conversation into `maxChars`, newest turns first. The ScriptDoc
  * outranks the transcript — the doc IS the accumulated decisions, while the
  * turns mostly carry the latest instruction — so the conversation is what gets
- * squeezed first. Below `minMessages` we stop dropping turns and cap their
- * content instead, because a request without the creator's latest instruction
- * has nothing to act on.
+ * squeezed first. Below `minMessages` we stop dropping turns and cap the OLDER
+ * ones instead, because a request without the creator's latest instruction has
+ * nothing to act on.
+ *
+ * ⚠ The latest turn is never cut (owner 2026-09-27: 不悄悄截断用户写的字) —
+ * trimming it would quietly change what the creator asked for. When it cannot
+ * fit, `buildUserPrompt` fails with `promptTooLong` instead.
  */
 function buildConversation(
   messages: NodeScriptDocRequest['messages'],
@@ -84,10 +88,18 @@ function buildConversation(
     }
   }
 
-  const capped = windowed.slice(-floor).map((message) => ({
-    ...message,
-    content: message.content.slice(0, SCRIPT_DOC_PROMPT_BUDGET.messageChars),
-  }))
+  const kept = windowed.slice(-floor)
+  const capped = kept.map((message, index) =>
+    index === kept.length - 1
+      ? message
+      : {
+          ...message,
+          content: message.content.slice(
+            0,
+            SCRIPT_DOC_PROMPT_BUDGET.messageChars,
+          ),
+        },
+  )
 
   return {
     text: renderMessages(capped),
@@ -136,7 +148,7 @@ function createPromptTooLongError(): ApiRequestError {
     SCRIPT_DOC_ERROR_CODES.promptTooLong,
     SCRIPT_DOC_HTTP_STATUS.promptTooLong,
     'errors.scriptDoc.promptTooLong',
-    'The script is too long to revise in one request. Shorten the summaries or split it into fewer shots.',
+    'The script plus your latest message is too long to revise in one request. Shorten the message or the shot summaries, or split it into fewer shots.',
   )
 }
 

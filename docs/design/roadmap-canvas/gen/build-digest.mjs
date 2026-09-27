@@ -2101,7 +2101,7 @@ const cuFields = `<div style="display:flex;flex-direction:column;gap:8px">${[['�
 const cuOpen = (tab, hover = -1) => `${cuImg(300, 190, 0)}<div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px">${cuSeg(tab)}${tab === 'img' ? `${cuGrid(hover)}<div style="${CU.small}">卡上 3 张 · 用她出的 3 张 · 点一张 = 放到画布上</div>` : cuFields}</div>`
 const cuCap = (no, title, body, rule) => `<div style="display:flex;flex-direction:column;gap:10px;flex:none"><div style="font-size:14px;font-weight:600">${no} ${title}</div>${body}<div style="${MOCK.cap};max-width:${Math.max(300, 0)}px">${rule}</div></div>`
 const cuRow = (items) => `<div style="margin-top:14px;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap">${items.join('')}</div>`
-const cuBarRole = (x, y) => cuBar(x, y, ['↗ 在角色页打开', '⋯'])
+const cuBarRole = (x, y) => cuBar(x, y, ['↗ 在角色页打开'])
 /** 画布卡的「来源没了」：灰底一句话 + 从画布移除（角色库删了她 / 素材库删了这张图同一种长相）。 */
 const cuGone = (w, h, line, sub = '') => `<div style="width:${w}px;height:${h}px;background:#f4f4f4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:0 14px;box-sizing:border-box"><div style="font-size:12px">${line}</div>${sub ? `<div style="${CU.small}">${sub}</div>` : ''}<span style="${CU.line}">从画布移除</span></div>`
 /** 镜头提示词栏里的 @她：头像 + 名字 + 带几张。 */
@@ -2112,8 +2112,8 @@ const cuPickPop = (x, y) => `<div style="${CU.panel};position:absolute;left:${x}
 
 const CU_NODE = cuRow([
   cuCap('N1', '收起（平时）', cuCanvas(430, 360, `${cuCard(125, 70, 180, 225, 'Denia')}`), '卡就是她的主图，名字在卡外上方——与别的图片卡同一种长相，⛔ 没有卡头、没有作品小字（身份不上卡面）。⛔ 没有进出口、不连线：镜头要用她，在镜头的提示词里 @她（U2）。'),
-  cuCap('N2', '选中 · 图片页', cuCanvas(430, 660, `${cuBarRole(128, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('img', 2) })}`), '选中 = 原地变宽展开（180 → 300），⛔ 没有底部提示词面板——她不在画布上出图。工具条两键：在角色页打开 · ⋯（从画布移除）。图是卡上的在前、用她出的在后，悬停一格出「放到画布」。'),
-  cuCap('N3', '选中 · 文字页', cuCanvas(430, 660, `${cuBarRole(128, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('text') })}`), '她的设定只读：身份 · 性格 · 说话方式（经历长时折起）。两颗键把她的设定交给画布助手：写剧本 / 写台词。要改设定去角色页。'),
+  cuCap('N2', '选中 · 图片页', cuCanvas(430, 660, `${cuBarRole(160, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('img', 2) })}`), '选中 = 原地变宽展开（180 → 300），⛔ 没有底部提示词面板——她不在画布上出图。工具条只有一键「在角色页打开」；⛔ 没有 ⋯（她用不上下载 / 复制 / 重跑），从画布移除走 Delete 键或右键菜单。图是卡上的在前、用她出的在后，悬停一格出「放到画布」。'),
+  cuCap('N3', '选中 · 文字页', cuCanvas(430, 660, `${cuBarRole(160, 40)}${cuCard(64, 100, 300, 0, 'Denia', { sel: true, body: cuOpen('text') })}`), '她的设定只读：身份 · 性格 · 说话方式（经历长时折起）。两颗键把她的设定交给画布助手：写剧本 / 写台词。要改设定去角色页。'),
 ])
 
 const CU_USE = cuRow([
@@ -2146,10 +2146,10 @@ const CANVAS_CHAR_UI = {
   title: '画布 · 角色 ④',
   eyebrow: 'PixelVault · 7 卡片重设计 · 画布用角色 · ④ 画板 · 2026-09-27 v2',
   heading: '画布里的角色：原地展开，用 @ 不用线',
-  sub: '✅ owner 09-27 选原型 **A 原地展开**；「图片 / 文字」用液态分段；收起也要有动效。三问全选最简：选中只原地展开 · 挑出来的图不连线 · 旧上下文卡不再显示。**v2（owner 看画板后）**：角色**不连线**——去掉「连到镜头」和进出口，镜头用她只走 **@她**；@她 带哪几张 = **每次 @ 时自己勾**（chip 写张数）；左栏**不拖**，点一位放到画布；来源被删的卡要有设计好的样子，⛔ 不是裂图。',
+  sub: '✅ owner 09-27 选原型 **A 原地展开**；「图片 / 文字」用液态分段；收起也要有动效。三问全选最简：选中只原地展开 · 挑出来的图不连线 · 旧上下文卡不再显示。**v2（owner 看画板后）**：角色**不连线**——去掉「连到镜头」和进出口，镜头用她只走 **@她**；@她 带哪几张 = **每次 @ 时自己勾**（chip 写张数）；左栏**不拖**，点一位放到画布；来源被删的卡要有设计好的样子，⛔ 不是裂图（已修 a2684d4a）；工具条去掉 ⋯，只留「在角色页打开」。',
   blocks: [
     h('① 角色卡：收起 · 选中展开'),
-    { t: 'mock', html: CU_NODE, md: 'N1 收起：卡就是她的主图，名字在卡外上方；没有进出口、不连线，镜头用她走 @。N2 选中 · 图片页：原地变宽 180 → 300，没有底部提示词面板；工具条「在角色页打开 · ⋯」；图卡上的在前、用她出的在后，悬停出「放到画布」。N3 选中 · 文字页：设定只读，「让助手写剧本 / 写台词」交给画布助手，要改去角色页。' },
+    { t: 'mock', html: CU_NODE, md: 'N1 收起：卡就是她的主图，名字在卡外上方；没有进出口、不连线，镜头用她走 @。N2 选中 · 图片页：原地变宽 180 → 300，没有底部提示词面板；工具条只有「在角色页打开」（移除走 Delete / 右键）；图卡上的在前、用她出的在后，悬停出「放到画布」。N3 选中 · 文字页：设定只读，「让助手写剧本 / 写台词」交给画布助手，要改去角色页。' },
     h('② 用起来'),
     { t: 'mock', html: CU_USE, md: 'U1 放到画布：点一张 → 她收回，右边落一张普通图片卡「Denia · 图 3」并选中，不连线。U2 镜头里 @她：@ 列表多一组「角色」（整个角色库），不要求她在画布上、不拉卡、不连线；chip = 头像 + 名字 + 带几张，刚 @ 上带主图 1 张。U3 点 chip 勾图：从 chip 放大出她的全部图，勾一张或几张，每个镜头各记各的，到模型上限勾不上并写原因（同工作台「角色」弹层）。' },
     h('③ 左栏：角色库'),

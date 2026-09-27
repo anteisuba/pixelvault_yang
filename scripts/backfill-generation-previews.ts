@@ -1,346 +1,213 @@
 /**
- * Backfill thumbnail/preview WebP derivatives for historical IMAGE generations.
+ * 一次性清队列：跑完 `IMAGE_PREVIEW_DERIVATIVES` outbox 里积压的缩略图 / 预览图任务。
  *
  * Usage:
- *   npx tsx scripts/backfill-generation-previews.ts --dry-run
- *   npx tsx scripts/backfill-generation-previews.ts --limit=100 --concurrency=3
- *   npx tsx scripts/backfill-generation-previews.ts --force
+ *   npx tsx --conditions=react-server --tsconfig tsconfig.json \
+ *     scripts/backfill-generation-previews.ts                    # 默认只出报告，不写库
+ *   npx tsx --conditions=react-server --tsconfig tsconfig.json \
+ *     scripts/backfill-generation-previews.ts --apply --limit 5  # ⚠ 每次都要 owner 当次授权
  *
- * The script is idempotent by default: it only processes IMAGE rows missing
- * thumbnailUrl or previewUrl. Use --force to regenerate both derivatives.
+ * ⚠ `--conditions=react-server` 不是装饰：处理函数和 `r2.ts` 顶着
+ * `import 'server-only'`，默认条件下加载即抛。
+ *
+ * ── 为什么会积压 ────────────────────────────────────────────────────────
+ * 2026-06-03 图片迁到 execution worker 后，回调只入队不处理，唯一的消费者是每日
+ * sweep cron（每次 5 条）。09-28 起回调在响应之后立刻处理自己那一条；本脚本只清
+ * 存量，在那次修复部署之后跑。
+ *
+ * ⛔ 生成本体是 `processImagePreviewDerivativeOutbox`，与回调、cron 同一条路径，
+ * 脚本不许自己再写一份 sharp / 上传。旧版脚本就是另写的一份：缩略图还是 384px，
+ * 按「缺任一列」筛还会把上传图（按设计只有缩略图）同名覆盖成小图。
+ *
+ * 只动队列里的行：上传图不入队，不会被碰。图已删的行由处理函数标 FAILED，不读写
+ * R2。重跑安全：处理函数先看两列是否已有值；认领是 CAS，和 cron / 回调同时跑也
+ * 不会重复处理。
  */
 
-import { config } from 'dotenv'
-import { resolve } from 'node:path'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
-import sharp from 'sharp'
+import { EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
+import type { ImagePreviewDerivativeProcessResult } from '@/services/image/image-preview-derivative.service'
 
-import { PrismaClient } from '../src/lib/generated/prisma/client'
+const PROCESS_BATCH_SIZE = 5
 
-config({ path: resolve(import.meta.dirname, '..', '.env.local') })
+/* ── CLI 解析（纯函数，可测）──────────────────────────────────────────── */
 
-const THUMBNAIL_MAX_SIZE = 384
-const PREVIEW_MAX_SIZE = 1280
-const WEBP_MIME_TYPE = 'image/webp'
-const DEFAULT_BATCH_SIZE = 50
-const DEFAULT_CONCURRENCY = 3
-const REQUIRED_GENERATION_COLUMNS = [
-  'thumbnailUrl',
-  'thumbnailStorageKey',
-  'previewUrl',
-  'previewStorageKey',
-] as const
-
-interface CliOptions {
-  dryRun: boolean
-  force: boolean
-  limit?: number
-  batchSize: number
-  concurrency: number
+export interface CliOptions {
+  readonly apply: boolean
+  readonly limit?: number
 }
 
-interface BackfillGeneration {
-  id: string
-  url: string
-  storageKey: string
-  mimeType: string
-  thumbnailUrl: string | null
-  previewUrl: string | null
-}
-
-interface DerivativeAssets {
-  thumbnailUrl: string
-  thumbnailStorageKey: string
-  previewUrl: string
-  previewStorageKey: string
-}
-
-function readNumberArg(name: string): number | undefined {
-  const prefix = `--${name}=`
-  const raw = process.argv
-    .find((arg) => arg.startsWith(prefix))
-    ?.slice(prefix.length)
-  if (!raw) return undefined
-  const value = Number.parseInt(raw, 10)
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`Invalid --${name} value: ${raw}`)
-  }
-  return value
-}
-
-function readCliOptions(): CliOptions {
-  return {
-    dryRun: process.argv.includes('--dry-run'),
-    force: process.argv.includes('--force'),
-    limit: readNumberArg('limit'),
-    batchSize: readNumberArg('batch-size') ?? DEFAULT_BATCH_SIZE,
-    concurrency: readNumberArg('concurrency') ?? DEFAULT_CONCURRENCY,
-  }
-}
-
-function requireEnv(name: string): string {
-  const value = process.env[name]
-  if (!value) throw new Error(`${name} is required`)
-  return value
-}
-
-function buildDerivativeStorageKey(
-  sourceKey: string,
-  variant: 'thumbnail' | 'preview',
-): string {
-  const slashIndex = sourceKey.lastIndexOf('/')
-  const directory = slashIndex >= 0 ? sourceKey.slice(0, slashIndex + 1) : ''
-  const filename = slashIndex >= 0 ? sourceKey.slice(slashIndex + 1) : sourceKey
-  const basename = filename.replace(/\.[^.]+$/, '') || filename
-  return `${directory}${basename}.${variant}.webp`
-}
-
-function publicUrlForKey(key: string): string {
-  return `${requireEnv('NEXT_PUBLIC_STORAGE_BASE_URL').replace(/\/$/, '')}/${key}`
-}
-
-async function fetchImageBuffer(url: string): Promise<Buffer> {
-  const parsed = new URL(url)
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error(`Unsupported URL protocol: ${parsed.protocol}`)
-  }
-
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch source image (${response.status})`)
-  }
-
-  return Buffer.from(await response.arrayBuffer())
-}
-
-async function makeWebpDerivative(
-  sourceBuffer: Buffer,
-  maxSize: number,
-  quality: number,
-): Promise<Buffer> {
-  return sharp(sourceBuffer, { animated: false })
-    .rotate()
-    .resize({
-      width: maxSize,
-      height: maxSize,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality, effort: 4 })
-    .toBuffer()
-}
-
-async function uploadObject(params: {
-  r2: S3Client
-  key: string
-  body: Buffer
-}): Promise<void> {
-  await params.r2.send(
-    new PutObjectCommand({
-      Bucket: requireEnv('R2_BUCKET_NAME'),
-      Key: params.key,
-      Body: params.body,
-      ContentType: WEBP_MIME_TYPE,
-      CacheControl: 'public, max-age=31536000, immutable',
-    }),
-  )
-}
-
-async function createDerivatives(params: {
-  r2: S3Client
-  generation: BackfillGeneration
-}): Promise<DerivativeAssets> {
-  const sourceBuffer = await fetchImageBuffer(params.generation.url)
-  const thumbnailStorageKey = buildDerivativeStorageKey(
-    params.generation.storageKey,
-    'thumbnail',
-  )
-  const previewStorageKey = buildDerivativeStorageKey(
-    params.generation.storageKey,
-    'preview',
-  )
-
-  const [thumbnailBuffer, previewBuffer] = await Promise.all([
-    makeWebpDerivative(sourceBuffer, THUMBNAIL_MAX_SIZE, 78),
-    makeWebpDerivative(sourceBuffer, PREVIEW_MAX_SIZE, 82),
-  ])
-
-  await Promise.all([
-    uploadObject({
-      r2: params.r2,
-      key: thumbnailStorageKey,
-      body: thumbnailBuffer,
-    }),
-    uploadObject({
-      r2: params.r2,
-      key: previewStorageKey,
-      body: previewBuffer,
-    }),
-  ])
-
-  return {
-    thumbnailUrl: publicUrlForKey(thumbnailStorageKey),
-    thumbnailStorageKey,
-    previewUrl: publicUrlForKey(previewStorageKey),
-    previewStorageKey,
-  }
-}
-
-async function runPool<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>,
-): Promise<void> {
-  let cursor = 0
-  const runners = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (cursor < items.length) {
-        const item = items[cursor]
-        cursor += 1
-        await worker(item)
+/** ⛔ 认不出来的参数一律抛：一次性回填脚本上「悄悄忽略拼错的 flag」代价太高。 */
+export function parseCliArgs(argv: readonly string[]): CliOptions {
+  let apply = false
+  let limit: number | undefined
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index] as string
+    if (arg === '--apply') {
+      apply = true
+    } else if (arg === '--dry-run') {
+      apply = false
+    } else if (arg === '--limit' || arg.startsWith('--limit=')) {
+      const raw =
+        arg === '--limit' ? argv[(index += 1)] : arg.slice('--limit='.length)
+      const parsed = Number(raw)
+      if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw new Error(`[backfill-previews] --limit 必须是正整数，收到 ${raw}`)
       }
-    },
-  )
-  await Promise.all(runners)
-}
-
-async function main() {
-  const options = readCliOptions()
-  const adapter = new PrismaPg({ connectionString: requireEnv('DATABASE_URL') })
-  const prisma = new PrismaClient({ adapter })
-  const r2 = new S3Client({
-    endpoint: `https://${requireEnv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
-    region: 'auto',
-    credentials: {
-      accessKeyId: requireEnv('R2_ACCESS_KEY_ID'),
-      secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
-    },
-  })
-
-  let processed = 0
-  let updated = 0
-  let skipped = 0
-  let failed = 0
-  let cursorId: string | undefined
-
-  console.log(
-    [
-      '',
-      'Generation preview backfill',
-      options.dryRun ? 'Mode: dry-run' : 'Mode: live',
-      `Batch size: ${options.batchSize}`,
-      `Concurrency: ${options.concurrency}`,
-      options.force ? 'Force: yes' : 'Force: no',
-      options.limit ? `Limit: ${options.limit}` : 'Limit: none',
-      '',
-    ].join('\n'),
-  )
-
-  try {
-    const columns = await prisma.$queryRaw<
-      Array<{ column_name: string }>
-    >`SELECT column_name FROM information_schema.columns WHERE table_name = 'Generation' AND column_name IN ('thumbnailUrl', 'thumbnailStorageKey', 'previewUrl', 'previewStorageKey')`
-    const existingColumns = new Set(columns.map((column) => column.column_name))
-    const missingColumns = REQUIRED_GENERATION_COLUMNS.filter(
-      (column) => !existingColumns.has(column),
-    )
-    if (missingColumns.length > 0) {
-      throw new Error(
-        `Generation preview columns are missing (${missingColumns.join(', ')}). Apply prisma/migrations/20260515194000_add_generation_image_previews before running this backfill.`,
-      )
+      limit = parsed
+    } else {
+      throw new Error(`[backfill-previews] 认不出的参数：${arg}`)
     }
-
-    while (!options.limit || processed < options.limit) {
-      const remaining = options.limit
-        ? Math.max(options.limit - processed, 0)
-        : options.batchSize
-      if (remaining === 0) break
-
-      const generations = await prisma.generation.findMany({
-        where: {
-          outputType: 'IMAGE',
-          ...(options.force
-            ? {}
-            : {
-                OR: [{ thumbnailUrl: null }, { previewUrl: null }],
-              }),
-        },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-        take: Math.min(options.batchSize, remaining),
-        select: {
-          id: true,
-          url: true,
-          storageKey: true,
-          mimeType: true,
-          thumbnailUrl: true,
-          previewUrl: true,
-        },
-      })
-
-      if (generations.length === 0) break
-      cursorId = generations.at(-1)?.id
-
-      await runPool(
-        generations,
-        options.concurrency,
-        async (generation: BackfillGeneration) => {
-          processed += 1
-          if (!generation.mimeType.startsWith('image/')) {
-            skipped += 1
-            console.log(
-              `skip ${generation.id}: unsupported mimeType ${generation.mimeType}`,
-            )
-            return
-          }
-
-          if (options.dryRun) {
-            updated += 1
-            console.log(`dry-run ${generation.id}: ${generation.url}`)
-            return
-          }
-
-          try {
-            const derivatives = await createDerivatives({ r2, generation })
-            await prisma.generation.update({
-              where: { id: generation.id },
-              data: derivatives,
-            })
-            updated += 1
-            console.log(`updated ${generation.id}`)
-          } catch (error) {
-            failed += 1
-            console.error(
-              `failed ${generation.id}: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            )
-          }
-        },
-      )
-    }
-
-    console.log(
-      [
-        '',
-        'Backfill summary',
-        `Processed: ${processed}`,
-        options.dryRun ? `Would update: ${updated}` : `Updated: ${updated}`,
-        `Skipped: ${skipped}`,
-        `Failed: ${failed}`,
-        '',
-      ].join('\n'),
-    )
-
-    if (failed > 0) process.exitCode = 1
-  } finally {
-    await prisma.$disconnect()
   }
+  return limit === undefined ? { apply } : { apply, limit }
 }
 
-main().catch((error) => {
-  console.error('Backfill failed:', error)
-  process.exit(1)
-})
+/* ── 汇总（纯函数，可测）──────────────────────────────────────────────── */
+
+export interface BackfillSummary {
+  readonly generated: number
+  readonly imageDeleted: number
+  readonly failed: number
+  readonly retrying: number
+  readonly skipped: number
+}
+
+/**
+ * 每条 outbox 只按最后一次结果记账：`retrying` 会在下一批被再认领，只是中间态。
+ * FAILED 再按图还在不在分开——图已删是预期的收尾，图还在的失败才要人看。
+ */
+export function summarizeResults(
+  results: readonly ImagePreviewDerivativeProcessResult[],
+  existingGenerationIds: ReadonlySet<string>,
+): BackfillSummary {
+  const lastByOutbox = new Map<string, ImagePreviewDerivativeProcessResult>()
+  for (const result of results) lastByOutbox.set(result.outboxId, result)
+
+  const summary = {
+    generated: 0,
+    imageDeleted: 0,
+    failed: 0,
+    retrying: 0,
+    skipped: 0,
+  }
+  for (const result of lastByOutbox.values()) {
+    if (result.status === 'completed') {
+      summary.generated += 1
+    } else if (result.status === 'retrying') {
+      summary.retrying += 1
+    } else if (result.status === 'failed') {
+      if (
+        result.generationId &&
+        !existingGenerationIds.has(result.generationId)
+      ) {
+        summary.imageDeleted += 1
+      } else {
+        summary.failed += 1
+      }
+    } else {
+      summary.skipped += 1
+    }
+  }
+  return summary
+}
+
+function readGenerationId(payload: unknown): string | null {
+  return typeof payload === 'object' &&
+    payload !== null &&
+    'generationId' in payload &&
+    typeof payload.generationId === 'string'
+    ? payload.generationId
+    : null
+}
+
+function formatResultLine(result: ImagePreviewDerivativeProcessResult): string {
+  const generation = result.generationId
+    ? ` generation=${result.generationId}`
+    : ''
+  const error = result.error ? ` error=${result.error}` : ''
+  return `[backfill-previews] ${result.status} outbox=${result.outboxId}${generation}${error}`
+}
+
+/* ── 真跑 ───────────────────────────────────────────────────────────── */
+
+async function main(): Promise<void> {
+  const options = parseCliArgs(process.argv.slice(2))
+
+  const dotenv = await import('dotenv')
+  dotenv.config({ path: '.env.local' })
+  const { db } = await import('@/lib/db')
+
+  // 写到哪：库主机与预览图 URL 前缀，--apply 之前先对一眼。
+  console.log(`[backfill-previews] MODE ${options.apply ? 'apply' : 'report'}`)
+  console.log(
+    `[backfill-previews] DB ${new URL(process.env.DATABASE_URL ?? '').host} · 预览图前缀 ${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}`,
+  )
+
+  const queued = await db.executionOutbox.findMany({
+    where: {
+      kind: EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES,
+      OR: [
+        { status: 'PENDING' },
+        { status: 'PROCESSING', leaseExpiresAt: { lt: new Date() } },
+      ],
+    },
+    select: { payload: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  })
+  const queuedGenerationIds = queued
+    .map((row) => readGenerationId(row.payload))
+    .filter((id): id is string => id !== null)
+  const alive = await db.generation.count({
+    where: { id: { in: queuedGenerationIds }, outputType: 'IMAGE' },
+  })
+  console.log(
+    `[backfill-previews] QUEUED ${queued.length} · 图还在 ${alive} · 图已删 ${queued.length - alive}`,
+  )
+  const [oldest, newest] = [queued[0], queued.at(-1)]
+  if (oldest && newest) {
+    console.log(
+      `[backfill-previews] 最早 ${oldest.createdAt.toISOString()} · 最新 ${newest.createdAt.toISOString()}`,
+    )
+  }
+
+  if (!options.apply) {
+    await db.$disconnect()
+    return
+  }
+
+  const { processPendingImagePreviewDerivativeOutboxes } =
+    await import('@/services/image/image-preview-derivative.service')
+  const limit = options.limit ?? Number.POSITIVE_INFINITY
+  const results: ImagePreviewDerivativeProcessResult[] = []
+  while (results.length < limit) {
+    const batch = await processPendingImagePreviewDerivativeOutboxes({
+      limit: Math.min(PROCESS_BATCH_SIZE, limit - results.length),
+    })
+    if (batch.length === 0) break
+    for (const result of batch) {
+      results.push(result)
+      console.log(formatResultLine(result))
+    }
+  }
+
+  const failedGenerationIds = results
+    .filter((result) => result.status === 'failed' && result.generationId)
+    .map((result) => result.generationId as string)
+  const existing = await db.generation.findMany({
+    where: { id: { in: failedGenerationIds } },
+    select: { id: true },
+  })
+  const summary = summarizeResults(
+    results,
+    new Set(existing.map((row) => row.id)),
+  )
+  console.log(
+    `\n[backfill-previews] SUMMARY 生成 ${summary.generated} · 图已删 ${summary.imageDeleted} · 失败 ${summary.failed} · 还在重试 ${summary.retrying} · 跳过 ${summary.skipped}`,
+  )
+  if (summary.failed > 0) process.exitCode = 1
+  await db.$disconnect()
+}
+
+// tsx 直跑时才执行；被单测 import 时不跑。
+if (process.argv[1]?.endsWith('backfill-generation-previews.ts')) {
+  void main()
+}

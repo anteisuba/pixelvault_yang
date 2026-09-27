@@ -412,14 +412,23 @@ function getSubmittedVideoPayload(): Record<string, unknown> {
   return video
 }
 
+/** 视频台桌面 = 底部输入框（owner 2026-09-27 视频台 A）：生成键是右下那颗 ① 圆键。 */
+function renderVideoBottom(templates = TEMPLATES) {
+  return render(
+    <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
+      <StudioPromptArea layout="bottom" templates={templates} />
+    </StudioOperatorHostProvider>,
+  )
+}
+
 async function submitVideoFromPromptArea(
   workflowId: WorkflowId,
   overrides: Partial<StudioFormState> = {},
 ) {
   setupStudioForm(workflowId, overrides)
-  renderPromptArea()
+  renderVideoBottom()
 
-  fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^generate · / }))
 
   await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
 }
@@ -763,12 +772,12 @@ describe('StudioPromptArea', () => {
   })
 
   /**
-   * 模板 C 第二片（owner 2026-09-26）：竖排参数栏的「模板」开合的是舞台上那块
-   * 面板（宿主持有开合），⛔ 不再是弹窗；与旁边「剧本」同一种幽灵丸。
+   * 模板 C 第二片（owner 2026-09-26）：视频台的「模板」开合的是舞台上那块面板
+   * （宿主持有开合），⛔ 不再是弹窗。
    */
-  it('竖排参数栏的「模板」开合舞台上的模板面板', () => {
+  it('视频台的「模板」开合舞台上的模板面板', () => {
     setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-    const { rerender } = renderPromptArea()
+    const { rerender } = renderVideoBottom()
     const chip = screen.getByRole('button', { name: 'templatePicker' })
     expect(chip).toHaveAttribute('aria-expanded', 'false')
     expect(chip).not.toHaveAttribute('aria-haspopup')
@@ -777,12 +786,53 @@ describe('StudioPromptArea', () => {
 
     rerender(
       <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-        <StudioPromptArea templates={{ ...TEMPLATES, open: true }} />
+        <StudioPromptArea
+          layout="bottom"
+          templates={{ ...TEMPLATES, open: true }}
+        />
       </StudioOperatorHostProvider>,
     )
     expect(
       screen.getByRole('button', { name: 'templatePicker' }),
     ).toHaveAttribute('aria-controls', STUDIO_TEMPLATES_PANEL_ID)
+  })
+
+  /**
+   * 视频台 A（owner 2026-09-27「素材在输入框里」）：工具行左组是 素材 · 模板 · 剧本，
+   * ⛔ 没有参考图 chip；拖放落点是整个输入框，走视频素材那一个入口。
+   */
+  describe('视频台（底部输入框）', () => {
+    it('工具行左组是 素材 · 模板 · 剧本，⛔ 没有参考图 / 卡片 / 遮罩', () => {
+      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+      renderVideoBottom()
+      // 规格 chip 的无障碍名也叫 `chipLabel`（另一个命名空间），按测试 id 认素材那颗。
+      expect(screen.getByTestId('video-asset-add')).toBeVisible()
+      expect(
+        screen.getByRole('button', { name: 'templatePicker' }),
+      ).toBeVisible()
+      // ReferenceImageChip 的无障碍名是 ImageChip.label。
+      expect(screen.queryByRole('button', { name: 'label' })).toBeNull()
+    })
+
+    it('「剧本」开合剧本面板', () => {
+      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+      renderVideoBottom()
+      fireEvent.click(screen.getByRole('button', { name: 'panelTitle' }))
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'TOGGLE_PANEL',
+        payload: 'script',
+      })
+    })
+
+    it('拖进输入框走视频素材那条，⛔ 不经参考图的 handleDrop', () => {
+      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+      renderVideoBottom()
+      const composer = screen.getByRole('group')
+      fireEvent.drop(composer, {
+        dataTransfer: { files: [], getData: () => '' },
+      })
+      expect(mockImageUploadHandleDrop).not.toHaveBeenCalled()
+    })
   })
 
   it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {

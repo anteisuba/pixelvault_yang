@@ -135,6 +135,7 @@ function StudioImageSpecChip({
 function StudioVideoSpecChip({
   disabled,
   triggerClassName,
+  popoverAlign,
 }: StudioSpecChipProps) {
   const { state, dispatch } = useStudioForm()
   const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
@@ -262,6 +263,7 @@ function StudioVideoSpecChip({
       flashSignal={flashSignal}
       data-testid="studio-spec-chip"
       {...(triggerClassName ? { triggerClassName } : {})}
+      {...(popoverAlign ? { popoverAlign } : {})}
       {...(disabled === undefined ? {} : { disabled })}
       {...(supportsGenerateAudio
         ? {

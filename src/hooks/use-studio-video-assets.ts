@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * 视频工作台左栏的**素材轨**（owner 2026-09-24 视频画板：去掉三个模式，按挂了什么判断）。
+ * 视频工作台的**素材**（owner 2026-09-24 视频画板：去掉三个模式，按挂了什么判断；
+ * 09-27 视频台 A：素材挂在输入框里，「＋」是工具行的「素材」chip，拖放落点是整个输入框）。
  *
  * ⭐ 三条落法**汇到同一处写入**：拖入 / 素材库选择 / 助手 `mount_reference slot`。
  * 前两条走这颗 hook，第三条走宿主（`use-studio-workbench-operator-host.ts` 的
@@ -17,9 +18,13 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { ASSET_DND_MIME } from '@/constants/asset-dnd'
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { parseDroppedAssetIds } from '@/hooks/use-studio-operator-mention'
+import { getOperatorReviewState } from '@/hooks/use-studio-operator-store'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { uploadImageFileAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
@@ -33,6 +38,7 @@ import {
   type StudioVideoImageRole,
   type StudioVideoSend,
 } from '@/lib/studio/video-workbench-slots'
+import type { GenerationRecord } from '@/types'
 
 export interface UseStudioVideoAssetsReturn {
   capacity: StudioVideoCapacity
@@ -51,6 +57,15 @@ export interface UseStudioVideoAssetsReturn {
   uploadImageFile(file: File): Promise<void>
   addVideo(url: string): void
   removeVideo(url: string): void
+  /** 这个型号收不收图（首尾帧或参考，有一样就收）。 */
+  acceptsImages: boolean
+  /**
+   * 拖进输入框的东西（本地图、画廊 / 素材库格子）—— 与「素材」菜单同一个入口；
+   * 「已否」的产物拒收，而且要说话。
+   */
+  acceptTransfer(data: DataTransfer): void
+  /** 素材库挑中的一条：`image` 按型号能力落首帧 / 尾帧 / 参考，`video` 进参考视频。 */
+  acceptGeneration(generation: GenerationRecord, kind: 'image' | 'video'): void
   isUploading: boolean
 }
 
@@ -61,6 +76,8 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
   // ⚠ 与 `use-image-upload` 同一个命名空间：压缩闸 / 上限 / 上传失败说的是同一件事。
   const t = useTranslations('ImageUpload')
   const tErrors = useTranslations('Errors')
+  /** 拒收那一句住在助手的 `reject` 档里 —— 它说的是「助手 / 审核为什么不收」。 */
+  const tOperator = useTranslations('StudioOperator')
   const [isUploading, setIsUploading] = useState(false)
 
   const adapterType = selectedModel?.adapterType as AI_ADAPTER_TYPES | undefined
@@ -248,6 +265,63 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
     [dispatch, videos],
   )
 
+  const acceptsImages = capacity.frames > 0 || acceptsReferences
+
+  /**
+   * ⭐ **拒收「已否」的产物**（切片 Y）—— 客户端先拒，⛔ 不等服务端：标 blocked 说的
+   * 正是「这张不能再开头也不能收尾」。拒的时候**要说话**（toast）。
+   */
+  const allowSource = useCallback(
+    (assetIds: readonly string[]) => {
+      const blocked = assetIds.some(
+        (id) =>
+          getOperatorReviewState(id) === GENERATION_REVIEW_STATE_IDS.blocked,
+      )
+      if (blocked) toast.error(tOperator('reject.blockedSource'))
+      return !blocked
+    },
+    [tOperator],
+  )
+
+  /**
+   * ⚠ 原生 drop：要同时接**本地文件**与画廊格子拖过来的那条 URL —— 画廊格子拖动时
+   *   同时写了 `text/uri-list`，两边都接得住。
+   */
+  const acceptTransfer = useCallback(
+    (data: DataTransfer) => {
+      if (!acceptsImages) return
+      const assetIds = parseDroppedAssetIds(data.getData(ASSET_DND_MIME))
+      if (assetIds.length > 0 && !allowSource(assetIds)) return
+      const files = Array.from(data.files ?? []).filter((file) =>
+        file.type.startsWith('image/'),
+      )
+      if (files.length > 0) {
+        // 一张一张传：编号跟着松手时的顺序走。
+        void (async () => {
+          for (const file of files) await uploadImageFile(file)
+        })()
+        return
+      }
+      const url = data.getData('text/uri-list') || data.getData('text/plain')
+      if (url && /^https?:\/\//.test(url)) addImage(url)
+    },
+    [acceptsImages, allowSource, uploadImageFile, addImage],
+  )
+
+  const acceptGeneration = useCallback(
+    (generation: GenerationRecord, kind: 'image' | 'video') => {
+      if (kind === 'video') {
+        if (generation.outputType === 'VIDEO') addVideo(generation.url)
+        return
+      }
+      if (generation.outputType !== 'IMAGE') return
+      // ⭐ 素材库那条路与拖入同一道闸。
+      if (!allowSource([generation.id])) return
+      addImage(generation.url)
+    },
+    [addImage, addVideo, allowSource],
+  )
+
   return {
     capacity,
     images,
@@ -260,6 +334,9 @@ export function useStudioVideoAssets(): UseStudioVideoAssetsReturn {
     uploadImageFile,
     addVideo,
     removeVideo,
+    acceptsImages,
+    acceptTransfer,
+    acceptGeneration,
     isUploading: isUploading || imageUpload.isUploading,
   }
 }

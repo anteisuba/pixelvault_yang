@@ -7987,7 +7987,6 @@
     "cancelFailed": "キャンセルに失敗しました。処理は続行中です"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "素材 · ドロップまたは ＋",
     "firstFrame": "最初",
     "lastFrame": "最後",
     "image": "画像{n}",
@@ -7998,6 +7997,23 @@
     "setReference": "参照にする",
     "remove": "外す",
     "add": "素材を追加",
+    "chipLabel": "素材",
+    "uploading": "アップロード中",
+    "menu": {
+      "pickModel": "先にモデルを選んでください",
+      "noImage": "{model} は画像を受け付けません",
+      "imagesFull": "{count} 枚添付済み · このモデルは最大 {max} 枚",
+      "noVideo": "{model} は参照動画を受け付けません",
+      "videosFull": "{count} 本添付済み · 最大 {max} 本",
+      "noAudio": "{model} は音声を受け付けません",
+      "audiosFull": "{count} 件添付済み · 最大 {max} 件",
+      "dropHint": "画像や動画は入力欄にドロップしても追加できます"
+    },
+    "drop": {
+      "here": "ドロップして追加",
+      "asReference": "画像はまず参照に。タップで先頭 / 末尾フレームに変更できます",
+      "asFrame": "先頭フレームから、次は末尾フレームに"
+    },
     "uploadImage": "画像をアップロード",
     "pickImage": "素材ライブラリから画像を選ぶ",
     "pickVideo": "素材ライブラリから参照動画を選ぶ",

@@ -1,0 +1,190 @@
+'use client'
+
+import { useRef, useState, type ChangeEvent } from 'react'
+import * as Toolbar from '@radix-ui/react-toolbar'
+import { useTranslations } from 'next-intl'
+
+import { Paperclip } from '@/components/icons'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import {
+  StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
+  useStudioChipClasses,
+} from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioForm } from '@/contexts/studio-context'
+import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
+import { getTranslatedModelLabel } from '@/lib/model-options'
+import { cn } from '@/lib/utils'
+
+interface StudioVideoAssetChipProps {
+  /** 宿主（提示词区）那一份 —— 与输入框里的素材排同一份。 */
+  assets: UseStudioVideoAssetsReturn
+  disabled?: boolean
+}
+
+interface AddItem {
+  key: 'upload' | 'image' | 'video' | 'audio'
+  label: string
+  /** 非 null = 灰着，写为什么（⛔ 不藏：满了加号灰、不藏，与画布视频卡同一条）。 */
+  reason: string | null
+}
+
+/**
+ * 视频台工具行的「素材」chip（owner 2026-09-27 视频台 A）：往这一枪里挂图、参考视频、
+ * 音频的唯一一颗按钮。挂上的东西出现在输入框顶上那一排（`StudioVideoAssetRail`），
+ * 拖进输入框是同一个入口。
+ */
+export function StudioVideoAssetChip({
+  assets,
+  disabled,
+}: StudioVideoAssetChipProps) {
+  const t = useTranslations('StudioVideoSlots')
+  const tModels = useTranslations('Models')
+  const { state, dispatch } = useStudioForm()
+  const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
+  const chip = useStudioChipClasses()
+  const [open, setOpen] = useState(false)
+  const [picker, setPicker] = useState<'image' | 'video' | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { capacity } = assets
+  const model = selectedModel
+    ? getTranslatedModelLabel(tModels, selectedModel.modelId)
+    : ''
+  const audios = state.videoAudioRefs.length
+
+  // 图进哪一格按型号定（`addImage`）：收参考 → 参考；不收 → 首帧、尾帧。满没满也按那一格算。
+  const intoReferences = capacity.references !== 0
+  const imageCount = assets.images.filter((image) =>
+    intoReferences ? image.role === 'reference' : image.role !== 'reference',
+  ).length
+  const imageMax = intoReferences ? capacity.references : capacity.frames
+  // 还没选型号时能力表是空的 —— 说「先选型号」，⛔ 不说某个空名字「不收」。
+  const pickModel = model ? null : t('menu.pickModel')
+  const imageReason =
+    pickModel ??
+    (!assets.acceptsImages
+      ? t('menu.noImage', { model })
+      : imageMax !== null && imageCount >= imageMax
+        ? t('menu.imagesFull', { count: imageCount, max: imageMax })
+        : null)
+  const videoReason =
+    pickModel ??
+    (capacity.videos <= 0
+      ? t('menu.noVideo', { model })
+      : assets.videos.length >= capacity.videos
+        ? t('menu.videosFull', {
+            count: assets.videos.length,
+            max: capacity.videos,
+          })
+        : null)
+  const audioReason =
+    pickModel ??
+    (capacity.audios <= 0
+      ? t('menu.noAudio', { model })
+      : audios >= capacity.audios
+        ? t('menu.audiosFull', { count: audios, max: capacity.audios })
+        : null)
+
+  const items: AddItem[] = [
+    { key: 'upload', label: t('uploadImage'), reason: imageReason },
+    { key: 'image', label: t('pickImage'), reason: imageReason },
+    { key: 'video', label: t('pickVideo'), reason: videoReason },
+    { key: 'audio', label: t('addAudio'), reason: audioReason },
+  ]
+
+  const pick = (key: AddItem['key']) => {
+    if (key === 'upload') {
+      fileInputRef.current?.click()
+      return
+    }
+    setOpen(false)
+    if (key === 'audio') dispatch({ type: 'OPEN_PANEL', payload: 'videoAudio' })
+    else setPicker(key)
+  }
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    setOpen(false)
+    // 一张一张传：编号跟着选的顺序走。
+    void (async () => {
+      for (const file of files) await assets.uploadImageFile(file)
+    })()
+  }
+
+  return (
+    <>
+      <StudioToolSurface open={open} onOpenChange={setOpen}>
+        <StudioToolSurfaceTrigger asChild>
+          <Toolbar.Button
+            type="button"
+            disabled={disabled}
+            aria-label={t('chipLabel')}
+            data-testid="video-asset-add"
+            className={cn(chip.trigger, chip.compact, open && chip.open)}
+          >
+            <Paperclip className="size-4 shrink-0" aria-hidden />
+            <span className={chip.compactLabel}>{t('chipLabel')}</span>
+          </Toolbar.Button>
+        </StudioToolSurfaceTrigger>
+        <StudioToolPopoverContent
+          side="top"
+          align={chip.popoverAlign}
+          sideOffset={chip.popoverSideOffset}
+          label={t('add')}
+          className="w-62 p-1.5"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+            disabled={disabled || imageReason !== null}
+          />
+          <div className="flex flex-col gap-0.5">
+            {items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                disabled={disabled || item.reason !== null}
+                onClick={() => pick(item.key)}
+                className="flex min-h-8.5 flex-col items-start justify-center gap-px rounded-lg px-2.5 py-1.5 text-left text-2sm transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:text-muted-foreground/70 disabled:hover:bg-transparent motion-reduce:transition-none"
+              >
+                {item.label}
+                {item.reason ? (
+                  <small className="text-2xs leading-4 text-muted-foreground/70">
+                    {item.reason}
+                  </small>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <div className="mx-1.5 my-1 h-px bg-border/60" aria-hidden />
+          <p className="px-2.5 pt-0.5 pb-1 text-2xs leading-4 text-muted-foreground">
+            {t('menu.dropHint')}
+          </p>
+        </StudioToolPopoverContent>
+      </StudioToolSurface>
+
+      {/* 素材库 —— 一次落一个（与帧槽、参考视频的消费端同形），⛔ 不为统一改成多选。 */}
+      <AssetSelectorDialog
+        open={picker !== null}
+        onOpenChange={(next) => {
+          if (!next) setPicker(null)
+        }}
+        onSelect={(generation) => {
+          if (picker) assets.acceptGeneration(generation, picker)
+          setPicker(null)
+        }}
+        title={t('libraryTitle')}
+        description={t('libraryDescription')}
+        mediaType={picker === 'video' ? 'video' : 'image'}
+      />
+    </>
+  )
+}

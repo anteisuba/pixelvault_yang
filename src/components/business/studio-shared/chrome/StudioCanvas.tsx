@@ -321,9 +321,15 @@ export const StudioCanvas = memo(function StudioCanvas({
           referenceIndex: activeReferenceIndex,
           referenceTotal: referenceEntries.length,
         }
+  /**
+   * 视频台桌面（底部输入框）没有参考轨：素材在输入框里，舞台只放结果 ——
+   * ⛔ 不把参考图铺上来，也没有「编辑这张」（那是图片的编辑入口）。
+   */
+  const videoWithoutRail = state.outputType === 'video' && !referenceRail
   /** 没有参考轨时，还没出结果的那张参考图撑满舞台（见下方舞台分支）。 */
   const referenceFillsStage =
     !referenceRail &&
+    !videoWithoutRail &&
     !editTarget &&
     activeRun?.mode !== 'compare' &&
     activeRun?.mode !== 'variant' &&
@@ -522,7 +528,10 @@ export const StudioCanvas = memo(function StudioCanvas({
               onCancelAll={cancelAllRunItems}
             />
           )
-        ) : !isGenerating && !lastGeneration && stageReference ? (
+        ) : !isGenerating &&
+          !lastGeneration &&
+          stageReference &&
+          !videoWithoutRail ? (
           /* 还没有结果时，当前参考图占住舞台。有参考轨时位置与编辑入口归轨管，
              这里只负责把那一张放大；没有轨（底部输入框布局）时图按舞台剩下的
              高度等比缩放 —— 舞台高度随输入框伸缩，⛔ 不能按视口算。 */

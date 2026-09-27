@@ -140,6 +140,9 @@ const GHOST_CHIP_CLASSES: StudioChipClasses = {
 export const studioOutlineChipSetClass =
   'border-transparent bg-muted hover:border-foreground/40'
 
+/** 描边药丸「弹层开着（= 正在改它）」那一档 —— 宿主自己画的 chip（剧本、模型）也用它。 */
+export const studioOutlineChipOpenClass = 'border-foreground ring-3 ring-muted'
+
 /**
  * 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip
  * 也用它。两个门槛：自然语言台量输入框卡（`composer`，56rem）；标签台左组多两颗、
@@ -154,7 +157,7 @@ export const studioOutlineChipCompactLabelClass =
 const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   look: 'outline',
   trigger: studioOutlineChipClass,
-  open: 'border-foreground ring-3 ring-muted',
+  open: studioOutlineChipOpenClass,
   set: studioOutlineChipSetClass,
   popoverAlign: 'start',
   popoverSideOffset: 8,

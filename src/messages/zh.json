@@ -7987,7 +7987,6 @@
     "cancelFailed": "取消失败，任务仍在进行"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "素材 · 拖进来或点 ＋",
     "firstFrame": "首帧",
     "lastFrame": "尾帧",
     "image": "图片{n}",
@@ -7998,6 +7997,23 @@
     "setReference": "作为参考",
     "remove": "移除",
     "add": "添加素材",
+    "chipLabel": "素材",
+    "uploading": "上传中",
+    "menu": {
+      "pickModel": "先选一个型号",
+      "noImage": "{model} 不收图片",
+      "imagesFull": "已挂 {count} 张 · 这个型号最多 {max} 张",
+      "noVideo": "{model} 不收参考视频",
+      "videosFull": "已挂 {count} 条 · 最多 {max} 条",
+      "noAudio": "{model} 不收音频",
+      "audiosFull": "已挂 {count} 段 · 最多 {max} 段",
+      "dropHint": "也可以直接把图或视频拖进输入框"
+    },
+    "drop": {
+      "here": "松手挂上",
+      "asReference": "图先当参考，点一下能改成首帧 / 尾帧",
+      "asFrame": "先当首帧，已有首帧就当尾帧"
+    },
     "uploadImage": "上传图片",
     "pickImage": "从素材库选图",
     "pickVideo": "从素材库选参考视频",

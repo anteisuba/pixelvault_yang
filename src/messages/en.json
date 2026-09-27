@@ -7987,7 +7987,6 @@
     "cancelFailed": "Cancel failed — the task is still running"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "Assets · drop in or tap +",
     "firstFrame": "First",
     "lastFrame": "Last",
     "image": "Image {n}",
@@ -7998,6 +7997,23 @@
     "setReference": "Use as reference",
     "remove": "Remove",
     "add": "Add asset",
+    "chipLabel": "Media",
+    "uploading": "Uploading",
+    "menu": {
+      "pickModel": "Pick a model first",
+      "noImage": "{model} doesn’t take images",
+      "imagesFull": "{count} attached · this model takes up to {max}",
+      "noVideo": "{model} doesn’t take reference videos",
+      "videosFull": "{count} of {max} attached",
+      "noAudio": "{model} doesn’t take audio",
+      "audiosFull": "{count} of {max} attached",
+      "dropHint": "You can also drop images or videos into the prompt box"
+    },
+    "drop": {
+      "here": "Drop to attach",
+      "asReference": "images go in as references — tap one to make it the first or last frame",
+      "asFrame": "fills the first frame, then the last"
+    },
     "uploadImage": "Upload image",
     "pickImage": "Pick image from library",
     "pickVideo": "Pick reference video from library",

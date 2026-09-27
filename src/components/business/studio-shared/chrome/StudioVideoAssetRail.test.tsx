@@ -1,22 +1,18 @@
-// ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSET_DND_MIME } from '@/constants/asset-dnd'
-import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
-import { setOperatorReviewState } from '@/hooks/use-studio-operator-store'
 import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
 
 import { StudioVideoAssetRail } from './StudioVideoAssetRail'
 
 /**
- * 视频素材轨（owner 2026-09-24 视频画板 ①）。
+ * 视频台的素材排（owner 2026-09-27 视频台 A「素材在输入框里」）。
  *
  * 钉四件事：
- *  ① 轨上按类型编号（图片N · 视频N · 音频N），首 / 尾帧是图片上的角标；
- *  ② 轨下那行灰字说清这一枪按什么方式发（没有模式分段）；
- *  ③ 拖进来的图走同一个入口（`addImage`），「已否」的产物拒收且要说话；
- *  ④ 型号什么都不收时整块不渲染（⛔ 不留一个空标题）。
+ *  ① 一排按类型编号（图片N · 视频N · 音频N），首 / 尾帧是图片上的角标；
+ *  ② 最右一行灰字说清这一枪按什么方式发（没有模式分段）；
+ *  ③ 什么都没挂时整排不渲染（⛔ 不写「文生视频」）；
+ *  ④ 上传中占一格转圈 —— 与「素材」chip 同一份 assets，看得见对方在传。
  */
 
 vi.mock('next-intl', () => ({
@@ -29,36 +25,20 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-const toastError = vi.hoisted(() => vi.fn())
-vi.mock('sonner', () => ({ toast: { error: toastError } }))
-
-const dispatch = vi.hoisted(() => vi.fn())
+const form = vi.hoisted(() => ({
+  audioRefs: [] as { id: string; url: string; fileName?: string }[],
+}))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
-    state: {
-      videoAudioRefs: [
-        { id: 'a1', url: 'https://cdn.example.com/v.mp3', fileName: 'v.mp3' },
-      ],
-    },
-    dispatch,
+    state: { videoAudioRefs: form.audioRefs },
+    dispatch: vi.fn(),
   }),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
-  AssetSelectorDialog: () => null,
-}))
-
-const assets = vi.hoisted(() => ({
-  current: null as unknown as UseStudioVideoAssetsReturn,
-}))
-vi.mock('@/hooks/use-studio-video-assets', () => ({
-  useStudioVideoAssets: () => assets.current,
-}))
-
-beforeEach(() => {
-  dispatch.mockClear()
-  toastError.mockClear()
-  assets.current = {
+function makeAssets(
+  overrides: Partial<UseStudioVideoAssetsReturn> = {},
+): UseStudioVideoAssetsReturn {
+  return {
     capacity: { frames: 2, references: 9, videos: 3, audios: 3 },
     images: [
       { url: 'https://cdn.example.com/f.png', role: 'first', n: 1 },
@@ -78,26 +58,23 @@ beforeEach(() => {
     uploadImageFile: vi.fn(),
     addVideo: vi.fn(),
     removeVideo: vi.fn(),
+    acceptsImages: true,
+    acceptTransfer: vi.fn(),
+    acceptGeneration: vi.fn(),
     isUploading: false,
+    ...overrides,
   }
-})
-
-function dropUrl(url: string, assetIds?: readonly string[]) {
-  fireEvent.drop(screen.getByTestId('studio-video-asset-rail'), {
-    dataTransfer: {
-      files: [],
-      getData: (type: string) => {
-        if (type === 'text/uri-list') return url
-        if (type === ASSET_DND_MIME && assetIds) return JSON.stringify(assetIds)
-        return ''
-      },
-    },
-  })
 }
 
-describe('视频素材轨', () => {
-  it('按类型编号，首帧是图片上的角标；音频也在同一条轨上', () => {
-    render(<StudioVideoAssetRail />)
+beforeEach(() => {
+  form.audioRefs = [
+    { id: 'a1', url: 'https://cdn.example.com/v.mp3', fileName: 'v.mp3' },
+  ]
+})
+
+describe('视频台 · 素材排', () => {
+  it('按类型编号，首帧是图片上的角标；音频也在同一排', () => {
+    render(<StudioVideoAssetRail assets={makeAssets()} />)
     expect(screen.getByTestId('video-asset-image-1')).toHaveTextContent(
       'image:{"n":1}',
     )
@@ -110,35 +87,39 @@ describe('视频素材轨', () => {
     )
   })
 
-  it('轨下一行灰字说清这一枪怎么发（⛔ 没有模式分段）', () => {
-    render(<StudioVideoAssetRail />)
+  it('最右一行灰字说清这一枪怎么发（⛔ 没有模式分段）', () => {
+    render(<StudioVideoAssetRail assets={makeAssets()} />)
     expect(screen.getByTestId('video-asset-send-mode')).toHaveTextContent(
       'omniReference',
     )
   })
 
-  it('拖一张图进来走同一个入口 addImage', () => {
-    render(<StudioVideoAssetRail />)
-    dropUrl('https://cdn.example.com/new.png')
-    expect(assets.current.addImage).toHaveBeenCalledWith(
-      'https://cdn.example.com/new.png',
+  it('什么都没挂：整排不渲染，也不写「文生视频」', () => {
+    form.audioRefs = []
+    const { container } = render(
+      <StudioVideoAssetRail
+        assets={makeAssets({
+          images: [],
+          send: {
+            modelId: 'seedance-2.0',
+            hasReference: false,
+            mode: 'textToVideo',
+            images: [],
+          },
+        })}
+      />,
     )
-  })
-
-  it('⛔ 「已否」的产物拒收，而且要说话', () => {
-    setOperatorReviewState('gen-blocked', GENERATION_REVIEW_STATE_IDS.blocked)
-    render(<StudioVideoAssetRail />)
-    dropUrl('https://cdn.example.com/blocked.png', ['gen-blocked'])
-    expect(assets.current.addImage).not.toHaveBeenCalled()
-    expect(toastError).toHaveBeenCalledWith('reject.blockedSource')
-  })
-
-  it('型号什么都不收时整块不渲染', () => {
-    assets.current = {
-      ...assets.current,
-      capacity: { frames: 0, references: 0, videos: 0, audios: 0 },
-    }
-    const { container } = render(<StudioVideoAssetRail />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('上传中：占一格转圈，灰字还不出（还没挂上东西）', () => {
+    form.audioRefs = []
+    render(
+      <StudioVideoAssetRail
+        assets={makeAssets({ images: [], isUploading: true })}
+      />,
+    )
+    expect(screen.getByRole('status', { name: 'uploading' })).toBeVisible()
+    expect(screen.queryByTestId('video-asset-send-mode')).toBeNull()
   })
 })

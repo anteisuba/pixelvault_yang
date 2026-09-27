@@ -137,12 +137,16 @@ export function StudioWorkspaceUI() {
     state.outputType === 'image' && state.promptDialect === 'tags'
   /**
    * 图片台（桌面，自然语言与标签两台）= 上面一整块结果舞台 + 底部一条输入框
-   * （owner 2026-09-26 按可点原型拍板）。视频 / 音频 / 手机这一片不动。
+   * （owner 2026-09-26 按可点原型拍板）；视频台桌面同一个外壳（09-27 视频台 A：素材
+   * 挂在输入框里）。音频 / 手机这一片不动。
    */
-  const isBottomComposer = !useMobileComposer && state.outputType === 'image'
-  const isImageBottomComposer = isBottomComposer && !isTagsWorkbench
+  const isBottomComposer =
+    !useMobileComposer &&
+    (state.outputType === 'image' || state.outputType === 'video')
+  /** 底部输入框里装的是 `StudioPromptArea`（自然语言图片台与视频台；标签台装自己的）。 */
+  const isPromptAreaBottom = isBottomComposer && !isTagsWorkbench
   /**
-   * 图片台桌面的助手是**让位**不是覆盖（owner 2026-09-26）：面板外面就是工作台，
+   * 图片 / 视频台桌面的助手是**让位**不是覆盖（owner 2026-09-26）：面板外面就是工作台，
    * 点参数、改标签都是正常操作 —— 与画布同一档，⛔ 点外面不收。收起走头部收起键、
    * 头像与 Esc。面板排成工作台旁边的一列（布局 A「分栏并排」）：上下与舞台 /
    * 输入框对齐，头像留在右上那一行里。
@@ -227,7 +231,7 @@ export function StudioWorkspaceUI() {
   }
   /**
    * 「已套用 · 撤销」挂在哪：有底部输入框 / 底栏的挂在它上沿（`above`）；竖排
-   * 参数栏那一台（桌面视频）没有，浮在舞台底部（`inside`）。
+   * 参数栏那一台（音频）没有，浮在舞台底部（`inside`）。
    */
   const undoToast = (anchor: 'above' | 'inside') =>
     templateApply.appliedName ? (
@@ -254,13 +258,20 @@ export function StudioWorkspaceUI() {
       ? `max(var(--workbench-pad), ${reserve}px)`
       : 'var(--workbench-pad)',
   )
-  /** 底部输入框那两台舞台上方同一行：标题 + 自然语言 / 标签切换。 */
+  /**
+   * 底部输入框那几台舞台上方同一行：标题 + 自然语言 / 标签切换。
+   * ⛔ 写法切换只给图片档：视频没有方言这一说。
+   */
   const workbenchHeader = isBottomComposer ? (
     <div className="flex items-center gap-3.5">
       <h1 className="text-sm font-semibold text-muted-foreground">
-        {tEmptyState('modeLabel.image')}
+        {tEmptyState(
+          state.outputType === 'video' ? 'modeLabel.video' : 'modeLabel.image',
+        )}
       </h1>
-      <StudioDialectHeader disabled={isGenerating} />
+      {state.outputType === 'image' ? (
+        <StudioDialectHeader disabled={isGenerating} />
+      ) : null}
     </div>
   ) : undefined
 
@@ -523,7 +534,7 @@ export function StudioWorkspaceUI() {
                   />
                 ) : (
                   <StudioPromptArea
-                    layout={isImageBottomComposer ? 'bottom' : 'column'}
+                    layout={isPromptAreaBottom ? 'bottom' : 'column'}
                     templates={templatesControl}
                   />
                 )
@@ -542,7 +553,7 @@ export function StudioWorkspaceUI() {
                     renderPanel={() => templatesPanel}
                     renderResults={(motionClass) => (
                       <StudioCanvas
-                        referenceRail={!isImageBottomComposer}
+                        referenceRail={!isPromptAreaBottom}
                         className={motionClass}
                       />
                     )}

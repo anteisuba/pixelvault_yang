@@ -12,6 +12,7 @@ import {
 import {
   Ban,
   ChevronDown,
+  Download,
   FileAudio2,
   FileText,
   Plus,
@@ -51,6 +52,7 @@ import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachme
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioVideoAssetChip } from '@/components/business/studio/StudioVideoAssetChip'
 import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpaintMaskChip'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
@@ -77,11 +79,10 @@ import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   StudioChipLookProvider,
-  studioColumnChipClass,
-  studioColumnChipOpenClass,
   studioOutlineChipClass,
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
+  studioOutlineChipOpenClass,
   studioOutlineChipSetClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -116,10 +117,14 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  * 提示词输入与 `executeGenerate` 绑在一起，是这个组件不能按「参数 / 动作」
  * 拆开的唯一原因。
  *
- * `layout="bottom"`（owner 2026-09-26，图片自然语言台桌面）：同一套控件排成
- * 舞台下方的一条输入框 —— 附件 · 提示词 ·（负面词）· 工具行（左：参考图 /
- * 模板 / 卡片 / 负面词 / 遮罩重绘；右：模型 / 规格 / 专属 / 价格 / ① 圆键）。
- * hook 与生成逻辑一份不多，只换排法。
+ * `layout="bottom"`（owner 2026-09-26，图片自然语言台桌面；09-27 视频台 A 也走它）：
+ * 同一套控件排成舞台下方的一条输入框 —— 附件 · 提示词 ·（负面词）· 工具行（左：参考图 /
+ * 模板 / 卡片 / 负面词 / 遮罩重绘；右：模型 / 规格 / 专属 / 价格 / ① 圆键）。视频台把
+ * 附件换成素材排（`StudioVideoAssetRail`）、左组换成 素材 / 模板 / 剧本（/ 负面词）、
+ * 模型单选。hook 与生成逻辑一份不多，只换排法。
+ *
+ * `layout="column"`（竖排参数栏）如今只剩音频档在用：桌面图片 / 视频走 `bottom`，
+ * 手机图片 / 视频走 `StudioMobileComposer`。
  */
 interface StudioPromptAreaProps {
   layout?: 'column' | 'bottom'
@@ -148,6 +153,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
   const tVideo = useTranslations('VideoGenerate')
+  const tSlots = useTranslations('StudioVideoSlots')
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
       const key = SAMPLE_PROMPT_KEYS[state.selectedWorkflowId]
@@ -204,6 +210,8 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   } = useStudioGenerateAction()
 
   const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
+  /** 视频台：有东西拖到输入框上方（落点亮起来 + 顶上一行「松手挂上」）。 */
+  const [videoDropOver, setVideoDropOver] = useState(false)
   /**
    * 底部输入框的发送口：被挡住时左边出一行缺什么、⛔ 不弹 toast。
    * ⚠ 只给 `bottom` 布局：参数栏那颗整宽键本来就把缺什么写在键上。
@@ -371,14 +379,45 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   if (layout === 'bottom') {
     const imageCount = Math.max(1, runModels.length) * state.imageBatchCount
+    // 视频档：负面词那一行只在这一枪实际跑的端点收这个字段时出现（owner 09-24 ③）。
+    const negativeAvailable = !isVideoMode || videoTakesNegative
     const negativeShown =
-      negativePromptExpanded || negativePromptValue.trim() !== ''
+      negativeAvailable &&
+      (negativePromptExpanded || negativePromptValue.trim() !== '')
     const modelChipLabel =
       runModels.length > 1
         ? t('modelCountSelected', { count: runModels.length })
         : runModels[0]
           ? getTranslatedModelLabel(tModels, runModels[0].modelId)
           : t('noModelHint')
+    /**
+     * 视频台的拖放落点是整个输入框（owner 2026-09-27 视频台 A）：拖进来的图 / 画廊格子与
+     * 「素材」菜单走同一个入口（`acceptTransfer`），⛔ 不走参考图那条（那条不认首尾帧）。
+     */
+    const videoDragOver = (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      if (!isGenerating && videoAssets.acceptsImages) setVideoDropOver(true)
+    }
+    const videoDragLeave = (event: DragEvent<HTMLDivElement>) => {
+      // 在输入框里的子元素之间移动也会触发 leave —— 真离开了才收。
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        return
+      }
+      setVideoDropOver(false)
+    }
+    const videoDrop = (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      setVideoDropOver(false)
+      if (isGenerating) return
+      videoAssets.acceptTransfer(event.dataTransfer)
+      focusStudioPrompt()
+    }
+    const videoPaste = (event: ClipboardEvent<HTMLElement>) => {
+      const imageFile = getImageFileFromDataTransfer(event.clipboardData)
+      if (!imageFile) return
+      event.preventDefault()
+      void videoAssets.uploadImageFile(imageFile)
+    }
     return (
       <>
         {dialogs}
@@ -390,54 +429,95 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
           maxHeight="9rem"
           onSubmit={submitFromComposer}
-          onDragEnter={handlePromptDragEnter}
-          onDragOver={handlePromptDragOver}
-          onDragLeave={handlePromptDragLeave}
-          onDrop={handlePromptDrop}
+          onDragEnter={isVideoMode ? videoDragOver : handlePromptDragEnter}
+          onDragOver={isVideoMode ? videoDragOver : handlePromptDragOver}
+          onDragLeave={isVideoMode ? videoDragLeave : handlePromptDragLeave}
+          onDrop={isVideoMode ? videoDrop : handlePromptDrop}
           role="group"
           disabled={isGenerating}
           className={cn(
             'flex flex-col gap-2 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
-            imageUpload.isDragging &&
+            !isVideoMode &&
+              imageUpload.isDragging &&
               'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+            isVideoMode &&
+              videoDropOver &&
+              'rounded-xl ring-2 ring-foreground ring-offset-4 ring-offset-card',
           )}
         >
-          <ImageAttachmentPreviewStrip
-            entries={imageUpload.referenceEntries}
-            previewAlt={tImageChip('label')}
-            previewLabel={(index) =>
-              tImageChip('previewReferenceImage', { index })
-            }
-            previewDescription={tImageChip('previewReferenceDescription')}
-            previewCloseLabel={tImageChip('closeReferencePreview')}
-            removeLabel={(index) =>
-              tImageChip('removeReferenceImage', { index })
-            }
-            onRemove={imageUpload.removeReferenceImage}
-            overLimitTooltip={tImageChip('disabledOverLimit')}
-            unsupportedTooltip={tImageChip('disabledUnsupported')}
-            variant="composer"
-            dragType={STUDIO_REFERENCE_DRAG_TYPE}
-          />
-          {referenceNotice ? (
-            <p className="text-2xs text-muted-foreground">{referenceNotice}</p>
-          ) : null}
-          {imageUpload.isUploading && (
-            <div
-              role="status"
-              className="flex items-center gap-2 py-1 text-sm text-muted-foreground"
-            >
-              <Spinner aria-hidden="true" className="size-4 shrink-0" />
-              {tImageUpload('uploading')}
-            </div>
+          {isVideoMode ? (
+            <>
+              {videoDropOver ? (
+                <div
+                  role="status"
+                  className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-xl border border-dashed border-foreground/30 bg-background px-3.5 text-2sm text-foreground/80 fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
+                >
+                  <Download className="size-4 shrink-0" aria-hidden />
+                  {tSlots('drop.here')}
+                  {' · '}
+                  {videoAssets.capacity.references !== 0
+                    ? tSlots('drop.asReference')
+                    : tSlots('drop.asFrame')}
+                </div>
+              ) : null}
+              <StudioVideoAssetRail
+                assets={videoAssets}
+                disabled={isGenerating}
+              />
+            </>
+          ) : (
+            <>
+              <ImageAttachmentPreviewStrip
+                entries={imageUpload.referenceEntries}
+                previewAlt={tImageChip('label')}
+                previewLabel={(index) =>
+                  tImageChip('previewReferenceImage', { index })
+                }
+                previewDescription={tImageChip('previewReferenceDescription')}
+                previewCloseLabel={tImageChip('closeReferencePreview')}
+                removeLabel={(index) =>
+                  tImageChip('removeReferenceImage', { index })
+                }
+                onRemove={imageUpload.removeReferenceImage}
+                overLimitTooltip={tImageChip('disabledOverLimit')}
+                unsupportedTooltip={tImageChip('disabledUnsupported')}
+                variant="composer"
+                dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              />
+              {referenceNotice ? (
+                <p className="text-2xs text-muted-foreground">
+                  {referenceNotice}
+                </p>
+              ) : null}
+              {imageUpload.isUploading && (
+                <div
+                  role="status"
+                  className="flex items-center gap-2 py-1 text-sm text-muted-foreground"
+                >
+                  <Spinner aria-hidden="true" className="size-4 shrink-0" />
+                  {tImageUpload('uploading')}
+                </div>
+              )}
+            </>
           )}
-          <StudioReferencePromptInput
-            placeholder={placeholder}
-            disabled={isGenerating}
-            onPaste={handlePromptPaste}
-            onSubmit={submitFromComposer}
-            className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
-          />
+          {isVideoMode ? (
+            // 正文里的素材编号按模型写法渲染成缩略图胶囊（存的仍是原文）。
+            <StudioVideoPromptInput
+              placeholder={placeholder}
+              disabled={isGenerating}
+              onPaste={videoPaste}
+              onSubmit={submitFromComposer}
+              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
+            />
+          ) : (
+            <StudioReferencePromptInput
+              placeholder={placeholder}
+              disabled={isGenerating}
+              onPaste={handlePromptPaste}
+              onSubmit={submitFromComposer}
+              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
+            />
+          )}
           {isImagePromptOverLimit && (
             <span className="text-2xs tabular-nums text-destructive">
               {`${imagePromptLength}/${imagePromptMaxChars}`}
@@ -480,43 +560,77 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               onClick={(event) => event.stopPropagation()}
             >
               <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-                <ReferenceImageChip disabled={isGenerating} />
+                {isVideoMode ? (
+                  <StudioVideoAssetChip
+                    assets={videoAssets}
+                    disabled={isGenerating}
+                  />
+                ) : (
+                  <ReferenceImageChip disabled={isGenerating} />
+                )}
                 <StudioTemplatesChip
                   open={templates.open}
                   onToggle={templates.onToggle}
                   disabled={isGenerating}
                 />
-                <StudioCardsButton disabled={isGenerating} />
-                <Toolbar.Button
-                  type="button"
-                  aria-pressed={negativeShown}
-                  aria-controls="studio-negative-prompt-input"
-                  disabled={isGenerating}
-                  onClick={() => {
-                    if (negativeShown && negativePromptValue.trim() === '') {
-                      setNegativePromptExpanded(false)
-                      return
+                {isVideoMode ? (
+                  <Toolbar.Button
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded={state.panels.script}
+                    disabled={isGenerating}
+                    onClick={() =>
+                      dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
                     }
-                    setNegativePromptExpanded(true)
-                    requestAnimationFrame(() =>
-                      document
-                        .getElementById('studio-negative-prompt-input')
-                        ?.focus(),
-                    )
-                  }}
-                  aria-label={tPromptArea('negativePromptLabel')}
-                  className={cn(
-                    studioOutlineChipClass,
-                    studioOutlineChipCompactClass,
-                    negativeShown && studioOutlineChipSetClass,
-                  )}
-                >
-                  <Ban className="size-4" aria-hidden />
-                  <span className={studioOutlineChipCompactLabelClass}>
-                    {tPromptArea('negativePromptLabel')}
-                  </span>
-                </Toolbar.Button>
-                <StudioInpaintMaskChip disabled={isGenerating} />
+                    aria-label={tScript('panelTitle')}
+                    className={cn(
+                      studioOutlineChipClass,
+                      studioOutlineChipCompactClass,
+                      state.panels.script && studioOutlineChipOpenClass,
+                    )}
+                  >
+                    <FileText className="size-4" aria-hidden />
+                    <span className={studioOutlineChipCompactLabelClass}>
+                      {tScript('panelTitle')}
+                    </span>
+                  </Toolbar.Button>
+                ) : (
+                  <StudioCardsButton disabled={isGenerating} />
+                )}
+                {negativeAvailable ? (
+                  <Toolbar.Button
+                    type="button"
+                    aria-pressed={negativeShown}
+                    aria-controls="studio-negative-prompt-input"
+                    disabled={isGenerating}
+                    onClick={() => {
+                      if (negativeShown && negativePromptValue.trim() === '') {
+                        setNegativePromptExpanded(false)
+                        return
+                      }
+                      setNegativePromptExpanded(true)
+                      requestAnimationFrame(() =>
+                        document
+                          .getElementById('studio-negative-prompt-input')
+                          ?.focus(),
+                      )
+                    }}
+                    aria-label={tPromptArea('negativePromptLabel')}
+                    className={cn(
+                      studioOutlineChipClass,
+                      studioOutlineChipCompactClass,
+                      negativeShown && studioOutlineChipSetClass,
+                    )}
+                  >
+                    <Ban className="size-4" aria-hidden />
+                    <span className={studioOutlineChipCompactLabelClass}>
+                      {tPromptArea('negativePromptLabel')}
+                    </span>
+                  </Toolbar.Button>
+                ) : null}
+                {isVideoMode ? null : (
+                  <StudioInpaintMaskChip disabled={isGenerating} />
+                )}
               </Toolbar.Root>
               <span
                 aria-live="polite"
@@ -532,67 +646,105 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {state.workflowMode === 'quick' ? (
                   <span data-assistant-field="model">
-                    <MainModelPicker
-                      modality="image"
-                      // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
-                      //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
-                      value={null}
-                      onChange={(option) =>
-                        dispatch({
-                          type: 'SET_OPTION_ID',
-                          payload: option.optionId,
-                        })
-                      }
-                      selectedOptionIds={runModelIds}
-                      onToggleOption={handleToggleRunModel}
-                      filterOption={filterModelByDialect}
-                      renderSearchFallback={(query, close) => (
-                        <StudioDialectJumpHint query={query} close={close} />
-                      )}
-                      onRequestSetup={handleOpenQuickSetup}
-                      triggerEmptyLabel={modelChipLabel}
-                      searchPlaceholder={tForm(
-                        'modelSelector.searchPlaceholder',
-                      )}
-                      emptySearchText={tForm('modelSelector.emptySearch')}
-                      popoverSide="top"
-                      popoverAlign="end"
-                      contentClassName="w-80"
-                      className={cn(
-                        'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
-                        runModels.length > 0 && studioOutlineChipSetClass,
-                        // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
-                        'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
-                      )}
-                    />
+                    {isVideoMode ? (
+                      // 视频**单选**：没有对比路径，一枪恒一条（`generateVideo` 恒 single）。
+                      <MainModelPicker
+                        modality="video"
+                        value={state.selectedOptionId ?? null}
+                        onChange={handleSelectSingleModel}
+                        filterOption={filterVideoModelOption}
+                        onRequestSetup={handleOpenQuickSetup}
+                        triggerEmptyLabel={t('noModelHint')}
+                        searchPlaceholder={tForm(
+                          'modelSelector.searchPlaceholder',
+                        )}
+                        emptySearchText={tForm('modelSelector.emptySearch')}
+                        popoverSide="top"
+                        popoverAlign="end"
+                        contentClassName="w-80"
+                        className={cn(
+                          'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                          state.selectedOptionId && studioOutlineChipSetClass,
+                          'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                        )}
+                      />
+                    ) : (
+                      <MainModelPicker
+                        modality="image"
+                        // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                        //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                        value={null}
+                        onChange={(option) =>
+                          dispatch({
+                            type: 'SET_OPTION_ID',
+                            payload: option.optionId,
+                          })
+                        }
+                        selectedOptionIds={runModelIds}
+                        onToggleOption={handleToggleRunModel}
+                        filterOption={filterModelByDialect}
+                        renderSearchFallback={(query, close) => (
+                          <StudioDialectJumpHint query={query} close={close} />
+                        )}
+                        onRequestSetup={handleOpenQuickSetup}
+                        triggerEmptyLabel={modelChipLabel}
+                        searchPlaceholder={tForm(
+                          'modelSelector.searchPlaceholder',
+                        )}
+                        emptySearchText={tForm('modelSelector.emptySearch')}
+                        popoverSide="top"
+                        popoverAlign="end"
+                        contentClassName="w-80"
+                        className={cn(
+                          'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                          runModels.length > 0 && studioOutlineChipSetClass,
+                          // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
+                          'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                        )}
+                      />
+                    )}
                   </span>
                 ) : null}
                 <span data-assistant-field="specs">
                   <StudioSpecChip
                     disabled={isGenerating}
-                    showCount
+                    showCount={!isVideoMode}
                     popoverAlign="end"
                   />
                 </span>
-                <StudioModelCapabilityChips
-                  disabled={isGenerating}
-                  variant="single"
-                />
-                <StudioCostPreview
-                  variant="line"
-                  models={runModels}
-                  basis={{
-                    kind: 'image',
-                    perModelCount: state.imageBatchCount,
-                    aspectRatio: state.aspectRatio,
-                    resolution: state.advancedParams.resolution,
-                    quality: state.advancedParams.quality,
-                    preview: state.advancedParams.preview,
-                  }}
-                />
+                {isVideoMode ? null : (
+                  <StudioModelCapabilityChips
+                    disabled={isGenerating}
+                    variant="single"
+                  />
+                )}
+                {isVideoMode ? (
+                  // ⚠ 视频恒单条 —— 传 `selectedModel`，不是图片矩阵那份 `runModels`。
+                  selectedModel && videoCostBasis ? (
+                    <StudioCostPreview
+                      variant="line"
+                      models={[selectedModel]}
+                      basis={videoCostBasis}
+                    />
+                  ) : null
+                ) : (
+                  <StudioCostPreview
+                    variant="line"
+                    models={runModels}
+                    basis={{
+                      kind: 'image',
+                      perModelCount: state.imageBatchCount,
+                      aspectRatio: state.aspectRatio,
+                      resolution: state.advancedParams.resolution,
+                      quality: state.advancedParams.quality,
+                      preview: state.advancedParams.preview,
+                    }}
+                  />
+                )}
                 <StudioGenerateButton
                   variant="round"
-                  count={imageCount}
+                  // 视频一枪恒一条：没有张数角标，时长写在规格 chip 上。
+                  count={isVideoMode ? 1 : imageCount}
                   ariaLabel={t('generate')}
                   isGenerating={isGenerating}
                   elapsedSeconds={elapsedSeconds}
@@ -600,7 +752,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   disabled={isGenerating || isImagePromptOverLimit}
                   blockedMessage={blockedReason?.message}
                   busyLabel={t('generating')}
-                  label={t('generateCount', { count: imageCount })}
+                  label={
+                    isVideoMode
+                      ? `${tVideo('generateButton')} · ${state.videoDuration}s`
+                      : t('generateCount', { count: imageCount })
+                  }
                   onGenerate={submitFromComposer}
                   onStop={cancelAllRunItems}
                   stopLabel={tCancel('cancelAll')}
@@ -663,11 +819,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
         )}
       >
-        {/* 素材轨 —— **栏首**（owner 09-24 视频画板 ①）：图、视频、音频一条轨，
-            按类型编号（图片1 · 视频1 · 音频1），首 / 尾帧是图片上的角标。这一枪怎么发
-            由挂了什么推出来，写在轨下面一行灰字 —— ⛔ 没有模式分段。 */}
-        {isVideoMode ? <StudioVideoAssetRail disabled={isGenerating} /> : null}
-
         {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
         <div className="flex flex-col gap-1.5">
           <span className="text-2xs font-medium text-muted-foreground/70">
@@ -680,26 +831,23 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
             )}
           >
-            {/* ⚠ 视频档的参考图在素材轨上（带编号与角标），⛔ 不在这里再画一条。 */}
-            {isVideoMode ? null : (
-              <ImageAttachmentPreviewStrip
-                entries={imageUpload.referenceEntries}
-                previewAlt={tImageChip('label')}
-                previewLabel={(index) =>
-                  tImageChip('previewReferenceImage', { index })
-                }
-                previewDescription={tImageChip('previewReferenceDescription')}
-                previewCloseLabel={tImageChip('closeReferencePreview')}
-                removeLabel={(index) =>
-                  tImageChip('removeReferenceImage', { index })
-                }
-                onRemove={imageUpload.removeReferenceImage}
-                overLimitTooltip={tImageChip('disabledOverLimit')}
-                unsupportedTooltip={tImageChip('disabledUnsupported')}
-                variant="composer"
-                dragType={STUDIO_REFERENCE_DRAG_TYPE}
-              />
-            )}
+            <ImageAttachmentPreviewStrip
+              entries={imageUpload.referenceEntries}
+              previewAlt={tImageChip('label')}
+              previewLabel={(index) =>
+                tImageChip('previewReferenceImage', { index })
+              }
+              previewDescription={tImageChip('previewReferenceDescription')}
+              previewCloseLabel={tImageChip('closeReferencePreview')}
+              removeLabel={(index) =>
+                tImageChip('removeReferenceImage', { index })
+              }
+              onRemove={imageUpload.removeReferenceImage}
+              overLimitTooltip={tImageChip('disabledOverLimit')}
+              unsupportedTooltip={tImageChip('disabledUnsupported')}
+              variant="composer"
+              dragType={STUDIO_REFERENCE_DRAG_TYPE}
+            />
             {imageUpload.isUploading && (
               <div
                 role="status"
@@ -711,15 +859,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             )}
             {isImageMode ? (
               <StudioReferencePromptInput
-                placeholder={placeholder}
-                disabled={isGenerating}
-                onPaste={handlePromptPaste}
-                onSubmit={handleGenerate}
-                className="min-h-20 max-h-56 overflow-y-auto px-1 py-1 font-sans text-base leading-6 md:text-sm"
-              />
-            ) : isVideoMode ? (
-              // 视频档：正文里的素材编号按模型写法渲染成缩略图胶囊。
-              <StudioVideoPromptInput
                 placeholder={placeholder}
                 disabled={isGenerating}
                 onPaste={handlePromptPaste}
@@ -778,7 +917,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               （`advancedParams.negativePrompt`），视频那份原本长在「视频设置」
               对话框里，切片 B 把对话框整个退役了，字段的家从此只有这一个。
               音频没有这个字段，所以不渲染。 */}
-        {!isAudioMode && (!isVideoMode || videoTakesNegative) ? (
+        {!isAudioMode ? (
           <div
             className="flex flex-col"
             // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
@@ -863,13 +1002,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
               没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
               within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
-        <Toolbar.Root
-          className={cn(
-            isVideoMode
-              ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
-              : 'flex flex-wrap items-center gap-1.5',
-          )}
-        >
+        <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
           <StudioTemplatesChip
             open={templates.open}
             onToggle={templates.onToggle}
@@ -894,25 +1027,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
               `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
           {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
-          {/* 视频档：「模板 · 剧本」一行两颗（owner 09-24 视频画板 ④）。音频参考
-              进了素材轨的「＋」，⛔ 不再单独一颗。 */}
-          {isVideoMode ? (
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
-              }
-              disabled={isGenerating}
-              // 与「模板」那颗同一种幽灵样式 —— 两颗并排，⛔ 一颗带框一颗不带。
-              className={cn(
-                studioColumnChipClass,
-                state.panels.script && studioColumnChipOpenClass,
-              )}
-            >
-              <FileText className="size-4" />
-              {tScript('panelTitle')}
-            </button>
-          ) : null}
           {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
                 2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
                 抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
@@ -935,13 +1049,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 「换音色」「克隆」都没有意义（Main 板 E7）。判据改成正列语音，
                 新增档位默认不继承语音的栏位。 */}
             {state.audioKind === AUDIO_KIND.SPEECH ? (
-              <Toolbar.Root
-                className={cn(
-                  isVideoMode
-                    ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
-                    : 'flex flex-wrap items-center gap-1.5',
-                )}
-              >
+              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
                 <>
                   {/* ⚠ 音色**不在这一行** —— 它已经是下面「音色」那一栏（形态 3
                       的行），在这里再放一颗丸就是同一条信息一屏两遍。留在这行的
@@ -1004,26 +1112,22 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           </>
         ) : null}
 
-        {/* 模型（视频 / 音频）—— **单选**。这两个模态没有对比路径：
-            `generate()` 里视频那支直接 `generateVideo`（恒 `mode:'single'`），
-            音频只有音效档有 `variantCount`。给它们一份多选名单会画出一个
-            发不出去的矩阵。⚠ 视频还要按「用途」收窄端点（`filterOption`），
-            与工具条上的分段控件同一个源。 */}
-        {state.workflowMode === 'quick' && !isImageMode && (
+        {/* 模型（音频）—— **单选**：音频只有音效档有 `variantCount`，给它一份多选
+            名单会画出一个发不出去的矩阵。 */}
+        {state.workflowMode === 'quick' && isAudioMode && (
           // `data-assistant-field` = 助手改到这一格时闪一次（进度表 21）。
           <div className="flex flex-col gap-1.5" data-assistant-field="model">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {tForm('modelLabel')}
             </span>
             <MainModelPicker
-              modality={isAudioMode ? 'audio' : 'video'}
+              modality="audio"
               value={state.selectedOptionId ?? null}
               onChange={handleSelectSingleModel}
               onRequestSetup={handleOpenQuickSetup}
               triggerEmptyLabel={t('noModelHint')}
               searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
               emptySearchText={tForm('modelSelector.emptySearch')}
-              filterOption={filterVideoModelOption}
               className="w-full justify-start"
               // 与图片那颗同一个宽度与对齐（22f47e25 只修了图片档）。
               popoverAlign="start"
@@ -1102,7 +1206,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             张数 / 声音收进底部「更多」。图片与视频共用同一颗组件，档位各自从
             能力表派生 —— ⛔ 不再是两颗形态相同、数据两套的浮层。
             音频没有规格这一说（时长/变体归音效自己的浮层，切片 D）。 */}
-        {isImageMode || isVideoMode ? (
+        {isImageMode ? (
           <div className="flex flex-col gap-1.5" data-assistant-field="specs">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {t('specLabel')}
@@ -1154,12 +1258,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               }}
             />
           ) : null}
-          {isVideoMode && selectedModel && videoCostBasis ? (
-            <StudioCostPreview
-              models={[selectedModel]}
-              basis={videoCostBasis}
-            />
-          ) : null}
           {/* 生成 —— 按钮上写清这一次会出几张。三个模态与标签台同一颗
               （`StudioGenerateButton`），⛔ 别在宿主里各写一份三态。 */}
           <StudioGenerateButton
@@ -1172,17 +1270,15 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             }
             blockedMessage={blockedReason?.message}
             busyLabel={t('generating')}
-            /* ⚠ 只有图片按「模型数 × 张数」报数。视频恒出 1 条、语音恒出 1 条，
-               给它们印一个乘法结果等于承诺一个发不出去的矩阵。 */
+            /* ⚠ 只有图片按「模型数 × 张数」报数。语音恒出 1 条，给它印一个乘法
+               结果等于承诺一个发不出去的矩阵。 */
             label={
-              isVideoMode
-                ? `${tVideo('generateButton')} · ${state.videoDuration}s`
-                : isAudioMode
-                  ? t('generate')
-                  : t('generateCount', {
-                      count:
-                        Math.max(1, runModels.length) * state.imageBatchCount,
-                    })
+              isAudioMode
+                ? t('generate')
+                : t('generateCount', {
+                    count:
+                      Math.max(1, runModels.length) * state.imageBatchCount,
+                  })
             }
             onGenerate={() => {
               void handleGenerate()

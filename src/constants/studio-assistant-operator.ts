@@ -831,12 +831,6 @@ export type StudioVideoSlotId =
   (typeof STUDIO_VIDEO_SLOT_IDS)[keyof typeof STUDIO_VIDEO_SLOT_IDS]
 
 /**
- * 素材轨一格的边长（px）—— 缩略图与「＋」同尺寸，切换时不跳版。
- * 44 = 288 宽的参数栏里一行放得下 4 格 + 「＋」（视频画板 09-24）。
- */
-export const STUDIO_VIDEO_SLOT_SIZE_PX = 44
-
-/**
  * **断点续跑**（第三期，owner 2026-09-07 定「失败断点续跑 / 只重跑下游」）。
  *
  * ── 为什么这几个数住面板侧而不是协议侧 ────────────────────────────────

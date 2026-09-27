@@ -1,31 +1,25 @@
 'use client'
 
 /**
- * 视频工作台左栏的**素材轨**（owner 2026-09-24 视频画板 ①）。
+ * 视频台的**素材排** —— 挂在输入框顶上（owner 2026-09-27 视频台 A「素材在输入框里」，
+ * 画板「视频台 A · 全部状态」）。
  *
- * ── 一条轨，按类型编号 ─────────────────────────────────────────────
- * 图、视频、音频都进这一条，各自按挂上的顺序编号「图片1 · 视频1 · 音频1」——
+ * ── 一排，按类型编号 ───────────────────────────────────────────────
+ * 图、视频、音频都进这一排，各自按挂上的顺序编号「图片1 · 视频1 · 音频1」——
  * 与助手写进提示词的编号一一对应。首帧 / 尾帧只是图片左上角的角标：点图片 →
  * 设为首帧 / 设为尾帧 / 作为参考 / 移除。
  *
  * ── 没有模式 ──────────────────────────────────────────────────────
- * 「关键帧 / 多图参考 / 全能参考」三个模式已删：这一枪怎么发由挂了什么推出来，
- * 写成轨下面一行只读灰字。判定与画布视频节点同一个函数（`videoSendMode`）。
+ * 这一枪怎么发由挂了什么推出来，写在这一排最右一行只读灰字。判定与画布视频节点
+ * 同一个函数（`videoSendMode`）。
  *
- * ── 三条落法，一处写入 ────────────────────────────────────────────
- * 拖入 · 「＋」· 助手 `mount_reference slot`，最终写的都是同一份状态
- * （见 `use-studio-video-assets.ts` 头注），⛔ 组件里没有第二条写入。
+ * ── 挂了才出现 ────────────────────────────────────────────────────
+ * 什么都没挂时整排不渲染（⛔ 不写「文生视频」）。「＋」是工具行的「素材」chip
+ * （`StudioVideoAssetChip`），拖放落点是整个输入框 —— 这一排里没有第二个入口。
  */
 
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
-import { ASSET_DND_MIME } from '@/constants/asset-dnd'
-import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
-import { STUDIO_VIDEO_SLOT_SIZE_PX } from '@/constants/studio-assistant-operator'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { Plus } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,24 +29,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { useStudioForm } from '@/contexts/studio-context'
-import { getOperatorReviewState } from '@/hooks/use-studio-operator-store'
-import { parseDroppedAssetIds } from '@/hooks/use-studio-operator-mention'
-import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
+import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
 import type { StudioVideoImageRole } from '@/lib/studio/video-workbench-slots'
 import { cn } from '@/lib/utils'
-import type { GenerationRecord } from '@/types'
 
 interface StudioVideoAssetRailProps {
+  /** 宿主（提示词区）那一份 —— 「素材」chip 用的是同一份，上传中的状态两边看得见。 */
+  assets: UseStudioVideoAssetsReturn
   disabled?: boolean
 }
 
-const TILE_STYLE = {
-  width: STUDIO_VIDEO_SLOT_SIZE_PX,
-  height: STUDIO_VIDEO_SLOT_SIZE_PX,
-} as const
-
 const TILE_CLASS =
-  'relative flex items-center justify-center overflow-hidden rounded-lg border border-border transition-colors duration-fast ease-standard hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none'
+  'relative flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border transition-colors duration-fast ease-linear hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none'
 
 function Tile({
   label,
@@ -64,7 +52,10 @@ function Tile({
   testId?: string
 }) {
   return (
-    <span data-testid={testId} className="flex flex-col items-center gap-1">
+    <span
+      data-testid={testId}
+      className="flex shrink-0 animate-in flex-col items-center gap-1 fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+    >
       {children}
       <span className="text-2xs text-muted-foreground">{label}</span>
     </span>
@@ -72,81 +63,19 @@ function Tile({
 }
 
 export function StudioVideoAssetRail({
+  assets,
   disabled = false,
 }: StudioVideoAssetRailProps) {
   const t = useTranslations('StudioVideoSlots')
   const tMode = useTranslations('StudioNode.v4.video.mode')
-  /** 拒绝那一句住在助手的 `reject` 档里 —— 它说的是「助手/审核为什么不收」。 */
-  const tOperator = useTranslations('StudioOperator')
   const { state, dispatch } = useStudioForm()
-  const assets = useStudioVideoAssets()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [picker, setPicker] = useState<'image' | 'video' | null>(null)
-  const [isOver, setIsOver] = useState(false)
-
-  const { capacity } = assets
-  const acceptsImages = capacity.frames > 0 || capacity.references !== 0
-  if (!acceptsImages && capacity.videos <= 0 && capacity.audios <= 0) {
-    return null
-  }
 
   const audioRefs = state.videoAudioRefs
-
-  /**
-   * ⭐ **拒收「已否」的产物**（切片 Y）—— 客户端先拒，⛔ 不等服务端：标 blocked 说的
-   * 正是「这张不能再开头也不能收尾」。拒的时候**要说话**（toast）。
-   */
-  const allowSource = (assetIds: readonly string[]): boolean => {
-    const blocked = assetIds.some(
-      (id) =>
-        getOperatorReviewState(id) === GENERATION_REVIEW_STATE_IDS.blocked,
-    )
-    if (blocked) {
-      toast.error(tOperator('reject.blockedSource'))
-      return false
-    }
-    return true
-  }
-
-  /**
-   * ⚠ 原生 drop：这里要同时接**本地文件**与画廊格子拖过来的那条 URL，
-   * 画廊格子拖动时同时写了 `text/uri-list`，两边都接得住。
-   */
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    setIsOver(false)
-    if (disabled || !acceptsImages) return
-    const assetIds = parseDroppedAssetIds(
-      event.dataTransfer.getData(ASSET_DND_MIME),
-    )
-    if (assetIds.length > 0 && !allowSource(assetIds)) return
-    const file = event.dataTransfer.files?.[0]
-    if (file) {
-      void assets.uploadImageFile(file)
-      return
-    }
-    const url =
-      event.dataTransfer.getData('text/uri-list') ||
-      event.dataTransfer.getData('text/plain')
-    if (url && /^https?:\/\//.test(url)) assets.addImage(url)
-  }
-
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? [])
-    event.target.value = ''
-    for (const file of files) void assets.uploadImageFile(file)
-  }
-
-  const handlePicked = (generation: GenerationRecord) => {
-    if (picker === 'video') {
-      if (generation.outputType === 'VIDEO') assets.addVideo(generation.url)
-      return
-    }
-    if (generation.outputType !== 'IMAGE') return
-    // ⭐ 素材库那条路与拖入同一道闸。
-    if (!allowSource([generation.id])) return
-    assets.addImage(generation.url)
-  }
+  const empty =
+    assets.images.length === 0 &&
+    assets.videos.length === 0 &&
+    audioRefs.length === 0
+  if (empty && !assets.isUploading) return null
 
   const roleLabel: Record<StudioVideoImageRole, string> = {
     first: t('setFirst'),
@@ -155,35 +84,11 @@ export function StudioVideoAssetRail({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-2xs font-medium text-muted-foreground/70">
-        {t('sectionLabel')}
-      </span>
-      <div
-        data-testid="studio-video-asset-rail"
-        data-over={isOver}
-        onDragOver={(event) => {
-          event.preventDefault()
-          if (!disabled) setIsOver(true)
-        }}
-        onDragLeave={() => setIsOver(false)}
-        onDrop={handleDrop}
-        className={cn(
-          'flex flex-wrap items-start gap-2 rounded-lg',
-          isOver &&
-            'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
-        )}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleFileChange}
-          disabled={disabled}
-        />
-
+    <div
+      data-testid="studio-video-asset-rail"
+      className="flex min-w-0 items-start gap-2.5"
+    >
+      <div className="flex min-w-0 flex-wrap items-start gap-2.5">
         {assets.images.map((image) => {
           const roles = assets.rolesFor(image)
           const label = t('image', { n: image.n })
@@ -199,7 +104,6 @@ export function StudioVideoAssetRail({
                     type="button"
                     aria-label={label}
                     className={TILE_CLASS}
-                    style={TILE_STYLE}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -230,6 +134,7 @@ export function StudioVideoAssetRail({
                   ))}
                   {roles.length > 0 ? <DropdownMenuSeparator /> : null}
                   <DropdownMenuItem
+                    variant="destructive"
                     onSelect={() => assets.removeImage(image.url)}
                   >
                     {t('remove')}
@@ -254,7 +159,6 @@ export function StudioVideoAssetRail({
                     type="button"
                     aria-label={label}
                     className={TILE_CLASS}
-                    style={TILE_STYLE}
                   >
                     <video
                       src={url}
@@ -266,7 +170,10 @@ export function StudioVideoAssetRail({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onSelect={() => assets.removeVideo(url)}>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => assets.removeVideo(url)}
+                  >
                     {t('remove')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -290,7 +197,6 @@ export function StudioVideoAssetRail({
                     aria-label={label}
                     title={ref.ownerName ?? ref.fileName}
                     className={cn(TILE_CLASS, 'bg-muted px-1')}
-                    style={TILE_STYLE}
                   >
                     <span className="line-clamp-2 break-all text-3xs text-muted-foreground">
                       {ref.ownerName ?? ref.fileName ?? label}
@@ -305,7 +211,9 @@ export function StudioVideoAssetRail({
                   >
                     {t('editAudio')}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    variant="destructive"
                     onSelect={() =>
                       dispatch({
                         type: 'SET_VIDEO_AUDIO_REFS',
@@ -323,88 +231,34 @@ export function StudioVideoAssetRail({
           )
         })}
 
-        <span className="flex flex-col items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild disabled={disabled}>
-              <button
-                type="button"
-                data-testid="video-asset-add"
-                aria-label={t('add')}
-                className="flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/80 text-muted-foreground transition-colors duration-fast ease-standard hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none"
-                style={TILE_STYLE}
-              >
-                {assets.isUploading ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <Plus className="size-4" aria-hidden />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {acceptsImages ? (
-                <>
-                  <DropdownMenuItem
-                    onSelect={() => fileInputRef.current?.click()}
-                  >
-                    {t('uploadImage')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setPicker('image')}>
-                    {t('pickImage')}
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              {capacity.videos > assets.videos.length ? (
-                <DropdownMenuItem onSelect={() => setPicker('video')}>
-                  {t('pickVideo')}
-                </DropdownMenuItem>
-              ) : null}
-              {capacity.audios > 0 ? (
-                <DropdownMenuItem
-                  onSelect={() =>
-                    dispatch({ type: 'OPEN_PANEL', payload: 'videoAudio' })
-                  }
-                >
-                  {t('addAudio')}
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* 与格子下面的编号行同高，加号不上下错位。 */}
-          <span aria-hidden className="text-2xs text-transparent">
-            ·
-          </span>
-        </span>
+        {assets.isUploading ? (
+          <Tile label={t('uploading')}>
+            <span
+              role="status"
+              aria-label={t('uploading')}
+              className={cn(TILE_CLASS, 'border-dashed')}
+            >
+              <Spinner size="sm" />
+            </span>
+          </Tile>
+        ) : null}
       </div>
 
-      {assets.send ? (
+      {assets.send && !empty ? (
         <span
           data-testid="video-asset-send-mode"
-          className="text-2xs text-muted-foreground"
+          // 与缩略图的中线对齐（下面那一行编号不算）。
+          className="ml-auto shrink-0 self-center pb-4 text-xs text-muted-foreground"
         >
           {t.rich('sendLine', {
             mode: tMode(assets.send.mode),
             reason: t(`reason.${assets.send.mode}`),
             strong: (chunks) => (
-              <span className="text-foreground">{chunks}</span>
+              <span className="font-semibold text-foreground">{chunks}</span>
             ),
           })}
         </span>
       ) : null}
-
-      {/* 素材库 —— 一次落一个（与帧槽、参考视频的消费端同形），⛔ 不为统一改成多选。 */}
-      <AssetSelectorDialog
-        open={picker !== null}
-        onOpenChange={(open) => {
-          if (!open) setPicker(null)
-        }}
-        onSelect={(generation) => {
-          handlePicked(generation)
-          setPicker(null)
-        }}
-        title={t('libraryTitle')}
-        description={t('libraryDescription')}
-        mediaType={picker === 'video' ? 'video' : 'image'}
-      />
     </div>
   )
 }

@@ -31,6 +31,7 @@ import {
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
+import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { cn } from '@/lib/utils'
 
@@ -122,11 +123,35 @@ export function CharacterRoster() {
     },
     [flatCards, update],
   )
+  /**
+   * 候选图卡「挂上勾选的」（卡片助手 C3）：图都已在素材库里，追加到这个角色的参考槽
+   * （已在卡上的不重复挂，满了就停），返回挂上了几张。
+   */
+  const attachImages = useCallback(
+    async (
+      characterId: string,
+      images: readonly {
+        url: string
+        generationId: string
+        origin: 'upload' | 'generation'
+      }[],
+    ) => {
+      const card = flatCards.find((item) => item.id === characterId)
+      if (!card) return null
+      const slots = appendSlotSources(card.referenceSlots, images)
+      const added = slots.length - card.referenceSlots.length
+      if (added === 0) return null
+      const ok = await update(characterId, { referenceSlots: slots })
+      return ok ? added : null
+    },
+    [flatCards, update],
+  )
   /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
   const operatorHost = useCardsOperatorHost({
     cards: flatCards,
     openId: selected?.id ?? null,
     applyProfile,
+    attachImages,
   })
 
   const openCharacter = useCallback((id: string) => {

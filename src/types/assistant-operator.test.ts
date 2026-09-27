@@ -570,6 +570,27 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
+  /** 提议几张角色图 / 交给图片助手（卡片助手 C3）——**读类**：一张都没存。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]: {
+    payload: {
+      characterId: 'denia',
+      images: [
+        { assetId: 'gen-1', reason: '正面半身，脸清楚' },
+        {
+          imageUrl: 'https://wiki.example.com/denia-full.png',
+          reason: '全身，服装完整',
+        },
+      ],
+    },
+    result: { offered: true },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]: {
+    payload: {
+      characterId: 'denia',
+      request: '给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底',
+    },
+    result: { offered: true },
+  },
   /**
    * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）——**读类**：一行库都没写、
    * 一把都没挂，所以没有 `inverse`（挂载那几条 step 是下一轮各自独立的
@@ -762,6 +783,29 @@ describe('操作员工具表', () => {
     expect(schema.safeParse({ url: 'not a url' }).success).toBe(false)
   })
 
+  it('propose_character_profile：模型把 fields 写成按格名做键的对象也收（09-27 实跑）', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile
+      ]
+    const parsed = schema.safeParse({
+      characterId: 'denia',
+      fields: {
+        identity: { text: '星炬学院学生', source: '萌娘百科' },
+        behavior: { text: '先替同学撑伞', source: '萌娘百科' },
+        mood: { text: '不认识的格', source: 'x' },
+      },
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toEqual({
+      characterId: 'denia',
+      fields: [
+        { field: 'identity', text: '星炬学院学生', source: '萌娘百科' },
+        { field: 'behavior', text: '先替同学撑伞', source: '萌娘百科' },
+      ],
+    })
+  })
+
   it('检索类型是 OUTPUT_TYPE_VALUES 的子集', () => {
     for (const kind of ASSISTANT_OPERATOR_SEARCH_KINDS) {
       expect(OUTPUT_TYPE_VALUES).toContain(kind)
@@ -809,7 +853,8 @@ describe('五动词入口', () => {
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
     // 卡片助手 C2 把 44 变成 45（`propose_character_profile`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(45)
+    // 卡片助手 C3 把 45 变成 47（`propose_character_images` · `hand_off_to_image_assistant`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(47)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -917,6 +962,8 @@ describe('五动词入口', () => {
       ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+      ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+      ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
     ])
   })
 

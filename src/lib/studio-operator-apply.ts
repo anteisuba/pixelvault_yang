@@ -236,6 +236,23 @@ export interface StudioOperatorApplyContext {
         text: string
       }[],
     ): Promise<boolean>
+    /**
+     * 把用户在候选卡上勾中的几张挂到这个角色上（C3）。图已经都在素材库里（网上那几张
+     * 由驱动 hook 先存进去）。返回挂上了几张（槽满了会少），失败返回 `null`。
+     */
+    attachImages(
+      characterId: string,
+      images: readonly {
+        url: string
+        generationId: string
+        origin: 'upload' | 'generation'
+      }[],
+    ): Promise<number | null>
+    /**
+     * 交给图片助手（C3）：跳到图片工作台、带上这个角色、把话填进图片助手的输入框。
+     * ⛔ 不替用户发。
+     */
+    handOffToImageAssistant(characterId: string, request: string): void
   }
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
@@ -499,6 +516,9 @@ export function applyOperatorStep(
      * 走角色页的更新（`apply.cards.applyProfile`），⛔ 不在这条应用通道上。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
+    /** ⚠ 提议几张角色图、交给图片助手（C3）同理：那一跳在确认卡上由用户点下去。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
+    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
     /**
      * ⚠ 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）同理：它只是把候选摆出来，
      * 装配台一格都没动。真正挂上那几把是下一轮各自独立的 `mount_lora`，

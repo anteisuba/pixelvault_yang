@@ -62,7 +62,8 @@ interface StudioOperatorConfirmCardProps {
   /**
    * ⚠ **推荐卡那一支不走这里**（lora-assistant §10.3.1）：它是多选 + 一颗提交键
    * 的另一张卡（`StudioOperatorLoraPickCard`），与这三支一个字段都不共用。
-   * 卡片助手的设定提议（`characterProfile`）同理，住在 `StudioOperatorCharacterProfileCard`。
+   * 卡片助手的设定提议（`characterProfile`）同理，住在 `StudioOperatorCharacterProfileCard`；
+   * 候选图（`characterImages`）与交给图片助手（`imageHandoff`）各住各的卡（C3）。
    * ⛔ 别把它加回这份联合去换几行分支 —— 那正是 commit #1 那两个占位分支的下场。
    */
   confirm: Exclude<
@@ -71,6 +72,8 @@ interface StudioOperatorConfirmCardProps {
       kind:
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
+        | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages
+        | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
     }
   >
   /** 多步「开始」。 */

@@ -502,6 +502,26 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   proposeCharacterProfile: 'propose_character_profile',
   /**
+   * **提议几张角色图**（卡片助手 C3，owner 09-27 选「候选卡」）—— 只在卡片域。
+   *
+   * ⭐ 同 `propose_character_profile`：服务端**一行库都不写**，只吐一帧
+   * `confirm(characterImages)`；每张一个勾、一句为什么选它、一行出处。用户点「挂上
+   * 勾选的」才由角色页挂上 —— 网上那几张这时才存进素材库。
+   * ⚠ 只认本轮 `search_assets` / `search_web_images` 真返回过的图（同 `mount_reference`
+   *   的准入表），模型写不出地址；网上标了「仅参考」的不收。
+   * ⚠ 没有 `inverse`：什么都没发生，撤无可撤。
+   */
+  proposeCharacterImages: 'propose_character_images',
+  /**
+   * **交给图片助手**（卡片助手 C3，owner 09-27 选「跳过去，话填好你来发」，画板 S11）。
+   *
+   * ⭐ 素材库和网上都没有合适的图时，卡片助手说清楚缺什么，把要对图片助手说的那句话
+   *   交出来；用户点「交给图片助手」→ 跳到图片工作台、带上这个角色、打开图片助手、
+   *   把话填进输入框，**由用户按发送**。⛔ 卡片助手自己不出图、不报价（价钱在工作台看）。
+   * ⚠ 没有 `inverse`：什么都没发生，撤无可撤。
+   */
+  handOffToImageAssistant: 'hand_off_to_image_assistant',
+  /**
    * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
    *
    * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
@@ -659,6 +679,8 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+  ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
@@ -737,6 +759,9 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   /** ⚠ 提议一份角色设定同归这一档：判据与上一条逐字同源（写入那一跳是用户点下去的）。 */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+  /** ⚠ 提议几张角色图、交给图片助手同归这一档：挂图 / 跳转那一跳都是用户点下去的。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+  ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
   /**
    * ⚠ **摆一张 LoRA 推荐卡也归这一档**（lora-assistant §10.2.2）：判据与
    * `propose_context_card` 逐字同源 —— 服务端一行库都不写、装配台一个字都没动，
@@ -940,6 +965,11 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   /** ⚠ 提议一份角色设定也归**问**：停下来等用户勾、拍一个板，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
+    ASSISTANT_OPERATOR_VERB_IDS.ask,
+  /** ⚠ 提议几张角色图、交给图片助手也归**问**：停下来等用户拍板。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
+    ASSISTANT_OPERATOR_VERB_IDS.ask,
+  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   /**
    * ⚠ 摆推荐卡也归**问**（§10.2.2）：它本质是「这几把你要哪几把」，停下来等
@@ -1274,6 +1304,16 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    * 卡上点「收下勾选的」，走角色页自己的更新（`apply.cards.applyProfile`）。
    */
   characterProfile: 'characterProfile',
+  /**
+   * 卡片助手提议几张角色图（C3）：每张一个勾 + 一颗「挂上勾选的」，判据同上。
+   * ⚠ 挂上那一跳由角色页做（`apply.cards.attachImages`）；网上的图这时才存进素材库。
+   */
+  characterImages: 'characterImages',
+  /**
+   * 卡片助手交给图片助手（C3，画板 S11）：一句「缺什么」+ 两颗键。
+   * ⚠ 点「交给图片助手」只是跳过去并把话填进输入框，⛔ 不替用户发、不花钱。
+   */
+  imageHandoff: 'imageHandoff',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1282,6 +1322,8 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
 ] as const
 
 export type AssistantOperatorConfirmKind =
@@ -1852,6 +1894,9 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
     /** C2 写设定：提议一份设定，用户勾选后由角色页写进去（服务端不写库）。 */
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+    /** C3 查图：提议几张图，用户勾选后由角色页挂上；没有好图就交给图片助手。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
   ],
 }
 
@@ -1937,6 +1982,12 @@ export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
   maxSourceChars: 160,
   /** 一格里最多标几段「助手补的」。 */
   maxAddedSpans: 12,
+  /** 一次最多提议几张图（与角色卡上的参考槽同量级）。 */
+  maxProposedImages: 8,
+  /** 每张图那一句「为什么选它」最多多少字。 */
+  maxImageReasonChars: 120,
+  /** 交给图片助手的那句话最多多少字。 */
+  maxHandoffChars: 600,
 } as const
 
 /**
@@ -2827,6 +2878,10 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
     'OFFER a drafted profile for ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each field with a checkbox and the source line under it, and only the fields they tick are written into the character when they press keep. It ends your turn. "characterId" must be an id from the page snapshot. "fields" holds one to four of identity / behavior / speech / backstory — only the ones you actually drafted. Each field: "text" (what goes into the character, in the creator\'s language; behaviour written as what they DO, not adjectives), "source" (one short line naming where it came from — the wiki page, the official site, or "你写的 + 我补的"), optional "sourceUrl", and for backstory you expanded from the creator\'s own skeleton, "added": the exact phrases YOU added (each must appear verbatim in "text") so the app can shade them and let the creator keep only their own words. For canon characters every field needs a real source you read this conversation; never invent one. Do not write profile text into your message instead of using this — the creator cannot keep it from there.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
+    'OFFER a few images to attach to ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each image with a checkbox, your one-line reason and where it came from; only the ones they tick are attached (images from the web are saved into their library at that moment). It ends your turn. "characterId" must be an id from the page snapshot. "images" holds one to eight picks; each pick is EITHER {"assetId": an id that search_assets returned this turn} OR {"imageUrl": an image URL that search_web_images returned this turn and that is not marked REFERENCE ONLY}, plus "reason": one short line in the creator\'s language saying why this one is good (e.g. 「正面半身，脸清楚」「全身，服装完整」) — do not name the source there, the app already prints it under the reason. Pick images that show this character alone, large and clear, without text over them, in one outfit; say in the reason what view it gives (face / full body / back). Never invent an id or a URL.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
+    'HAND the job to the image assistant when neither the library nor the web has the image this character needs (for example no back view, no clean full body). This SENDS NOTHING and costs nothing on its own: the app shows the creator a line saying what is missing and a button; if they press it, the image workbench opens with this character selected and your request typed into the image assistant\'s box for THEM to send. It ends your turn. "characterId" must be an id from the page snapshot. "request" is the one message the image assistant should receive, in the creator\'s language, naming the character and exactly what to make (e.g. 「给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底，服装与主图一致」). Use it only after you searched and found nothing usable; say in your message what you looked for.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\nNOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:

@@ -1822,11 +1822,121 @@ export const AssistantOperatorCharacterProfileDraftSchema = z.object({
     .max(ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS.length),
 })
 
+/**
+ * 模型把 `fields` 写成**按格名做键的对象**（`{"identity": {...}, "behavior": {...}}`）
+ * 时摊回数组 —— 09-27 实跑 GPT-6 Sol 就这么写，整份设定因为形状被拒、用户什么都没拿到。
+ * ⚠ 只认格名做键；值是对象就把键补成 `field`，值是一段字就当 `text`（缺来源照旧被拒，
+ *   理由写得清楚）。别的形状原样交给 schema 去拒。
+ */
+function normalizeCharacterProfileArgs(input: unknown): unknown {
+  if (!input || typeof input !== 'object') return input
+  const args = input as Record<string, unknown>
+  const fields = args.fields
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields))
+    return input
+  const known = new Set<string>(ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS)
+  return {
+    ...args,
+    fields: Object.entries(fields as Record<string, unknown>)
+      .filter(([key]) => known.has(key))
+      .map(([key, value]) =>
+        value && typeof value === 'object'
+          ? { ...(value as Record<string, unknown>), field: key }
+          : { field: key, text: value },
+      ),
+  }
+}
+
 export type AssistantOperatorCharacterProfileDraft = z.infer<
   typeof AssistantOperatorCharacterProfileDraftSchema
 >
 export type AssistantOperatorCharacterProfileFieldDraft = z.infer<
   typeof AssistantOperatorCharacterProfileFieldSchema
+>
+
+/**
+ * **提议几张角色图**的入参（卡片助手 C3）：每张要么是本轮 `search_assets` 返回过的
+ * `assetId`，要么是本轮 `search_web_images` 返回过的 `imageUrl`，外加一句为什么选它。
+ * ⛔ 模型写不出别的：地址、缩略图、出处都由规划器从本轮的检索结果里查回来。
+ */
+const CharacterImageReasonSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxImageReasonChars)
+
+export const AssistantOperatorCharacterImagePickSchema = z.union([
+  z.object({ assetId: IdSchema, reason: CharacterImageReasonSchema }),
+  z.object({
+    imageUrl: z.string().trim().url().max(4_000),
+    reason: CharacterImageReasonSchema,
+  }),
+])
+
+export const AssistantOperatorCharacterImagesDraftSchema = z.object({
+  characterId: IdSchema,
+  images: z
+    .array(AssistantOperatorCharacterImagePickSchema)
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxProposedImages),
+})
+
+export type AssistantOperatorCharacterImagesDraft = z.infer<
+  typeof AssistantOperatorCharacterImagesDraftSchema
+>
+
+/** 卡上的一张候选（规划器查回来的完整形状）。`key` 是这张卡上认它用的名字。 */
+export const AssistantOperatorCharacterImageCandidateSchema = z.object({
+  key: z.string().min(1),
+  source: z.enum(['library', 'web']),
+  /** 看大图用的地址：素材库那张就是库里的图，网上那张是原图直链。 */
+  url: z.string().url(),
+  thumbnailUrl: z.string().url().optional(),
+  reason: CharacterImageReasonSchema,
+  /** 素材库那张的 id（挂上时就是参考槽的 `generationId`）。 */
+  assetId: IdSchema.optional(),
+  /** 素材库那张是上传的还是生成的（挂上时写进参考槽的 `origin`）。 */
+  origin: z.enum(['upload', 'generation']).optional(),
+  /** 网上那张：原页、站点、发布者、标题（点「挂上」时才存进素材库）。 */
+  pageUrl: z.string().url().optional(),
+  domain: z.string().optional(),
+  publisher: z.string().optional(),
+  title: z.string().optional(),
+  /** 素材库那张的名字（有就写在出处那一行）。 */
+  displayName: z.string().optional(),
+})
+
+export type AssistantOperatorCharacterImageCandidate = z.infer<
+  typeof AssistantOperatorCharacterImageCandidateSchema
+>
+
+export const AssistantOperatorCharacterImagesProposalSchema = z.object({
+  characterId: IdSchema,
+  images: z
+    .array(AssistantOperatorCharacterImageCandidateSchema)
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxProposedImages),
+})
+
+export type AssistantOperatorCharacterImagesProposal = z.infer<
+  typeof AssistantOperatorCharacterImagesProposalSchema
+>
+
+/**
+ * **交给图片助手**（卡片助手 C3，画板 S11）：要对图片助手说的那一句话。
+ * ⚠ 同一个形状既是入参也是 `confirm(imageHandoff)` 的载荷。
+ */
+export const AssistantOperatorImageHandoffSchema = z.object({
+  characterId: IdSchema,
+  request: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars),
+})
+
+export type AssistantOperatorImageHandoff = z.infer<
+  typeof AssistantOperatorImageHandoffSchema
 >
 
 /**
@@ -2346,8 +2456,14 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
     AssistantOperatorContextCardDraftSchema,
-  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]: z.preprocess(
+    normalizeCharacterProfileArgs,
     AssistantOperatorCharacterProfileDraftSchema,
+  ),
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
+    AssistantOperatorCharacterImagesDraftSchema,
+  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
+    AssistantOperatorImageHandoffSchema,
   /**
    * 标一张产物的审核态（切片 X）。
    *
@@ -3570,6 +3686,17 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     AssistantOperatorCharacterProfileDraftSchema,
     z.object({ offered: z.boolean() }),
   ),
+  /** 提议几张角色图 / 交给图片助手（卡片助手 C3）—— 同上：一帧 confirm 加停流。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+    AssistantOperatorCharacterImagesDraftSchema,
+    z.object({ offered: z.boolean() }),
+  ),
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+    AssistantOperatorImageHandoffSchema,
+    z.object({ offered: z.boolean() }),
+  ),
   /**
    * 标一张产物的审核态（切片 X）。
    *
@@ -4000,6 +4127,19 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile),
       profile: AssistantOperatorCharacterProfileDraftSchema,
+    }),
+    /**
+     * **卡片助手提议几张角色图**（C3）—— 每张一个勾、一颗「挂上勾选的」。
+     * ⚠ 服务端到这一帧为止一张都没存：网上的图在用户点下去时才存进素材库。
+     */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages),
+      proposal: AssistantOperatorCharacterImagesProposalSchema,
+    }),
+    /** **交给图片助手**（C3）—— 一句缺什么 + 「交给图片助手 / 先不要」。 */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff),
+      handoff: AssistantOperatorImageHandoffSchema,
     }),
   ]),
 })

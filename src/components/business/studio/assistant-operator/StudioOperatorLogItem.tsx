@@ -34,6 +34,7 @@ import {
   ListChecks,
   Music2,
   NotebookPen,
+  Send,
   Pencil,
   Play,
   RectangleHorizontal,
@@ -171,6 +172,9 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   /** 提议一张卡（§8.1）—— 「要不要把这个记下来」，所以是一颗书签。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]: BookmarkPlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]: NotebookPen,
+  /** 提议几张角色图（C3）—— 挂图；交给图片助手 —— 把话递过去。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]: ImagePlus,
+  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]: Send,
   /**
    * 标审核态（切片 Y）—— ✓/✕ 的那一枚。
    * ⚠ 用 `CheckCheck` 而不是 `Check`：单钩在日志流里与「这一步完成了」那个状态

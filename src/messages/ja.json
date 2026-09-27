@@ -7579,6 +7579,23 @@
         "keep": "選んだものを入れる · {count}",
         "dismiss": "今はいい",
         "kept": "{count} 項目を入れました · {time}"
+      },
+      "characterImages": {
+        "header": "{name} が {count} 枚見つけました",
+        "question": "「{name}」に付けますか？",
+        "fromLibrary": "素材ライブラリ",
+        "fromLibraryNamed": "素材ライブラリ · {name}",
+        "keep": "選んだものを付ける · {count}",
+        "keeping": "付けています…",
+        "dismiss": "今はいい",
+        "kept": "{count} 枚付けました · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · 画像アシスタントに渡す",
+        "hint": "画像ワークベンチを開いて「{name}」を選び、この一文を画像アシスタントの入力欄に入れます。送信はあなたが押します。",
+        "accept": "画像アシスタントに渡す",
+        "dismiss": "今はいい",
+        "accepted": "画像アシスタントに渡しました · {time}"
       }
     },
     "system": {
@@ -7605,7 +7622,12 @@
       "loraPickDismissed": "今回はこれらの LoRA を追加しません：{subject}",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "この設定は入れませんでした：{subject}",
-      "characterProfileSaveFailed": "「{subject}」に書き込めませんでした —— もう一度？"
+      "characterProfileSaveFailed": "「{subject}」に書き込めませんでした —— もう一度？",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "この画像は付けませんでした：{subject}",
+      "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
+      "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
+      "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}"
     },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",

@@ -99,6 +99,12 @@ export function StudioOperatorWebCandidateGrid({
       !picks.some((pick) => pick.imageUrl === image.imageUrl),
   )
   const batch = remaining > 0 ? pendingUsable.slice(0, remaining) : []
+  /**
+   * 宿主**没有参考位**（角色页，卡片助手 C3）：这一行只能看、不能选 —— 那里挑图走
+   * 助手交出来的候选卡（`StudioOperatorCharacterImagesCard`），选中的挂到角色上。
+   * ⛔ 不留一颗点了会导进素材库却挂不到任何地方的「选用」。
+   */
+  const pickable = limit > 0
 
   if (images.length === 0) return null
 
@@ -233,32 +239,34 @@ export function StudioOperatorWebCandidateGrid({
               {/* 选 —— 这一颗才花钱（花的是存储与一次下载）。
                   ⚠ 不可作输入时**禁用而不是移除**：位置留着，理由就地写在下面
                   一行，⛔ 不让用户去别处找「为什么这张点不了」。 */}
-              <button
-                type="button"
-                data-testid="operator-web-candidate-use"
-                data-state={tileState}
-                aria-pressed={imported}
-                disabled={!image.usableAsInput}
-                onClick={() => onToggle(entryId, image)}
-                className={cn(
-                  'rounded-md border px-1 py-0.5 text-xs transition-colors duration-fast ease-standard',
-                  imported
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
-                  failed && 'border-destructive/50 text-destructive',
-                  !image.usableAsInput &&
-                    'cursor-not-allowed border-border/70 text-muted-foreground hover:border-border/70 hover:text-muted-foreground',
-                )}
-              >
-                {!image.usableAsInput
-                  ? t('web.cannotUse')
-                  : imported
-                    ? t('web.used')
-                    : failed
-                      ? t('web.retry')
-                      : t('web.use')}
-              </button>
-              {!image.usableAsInput ? (
+              {pickable ? (
+                <button
+                  type="button"
+                  data-testid="operator-web-candidate-use"
+                  data-state={tileState}
+                  aria-pressed={imported}
+                  disabled={!image.usableAsInput}
+                  onClick={() => onToggle(entryId, image)}
+                  className={cn(
+                    'rounded-md border px-1 py-0.5 text-xs transition-colors duration-fast ease-standard',
+                    imported
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
+                    failed && 'border-destructive/50 text-destructive',
+                    !image.usableAsInput &&
+                      'cursor-not-allowed border-border/70 text-muted-foreground hover:border-border/70 hover:text-muted-foreground',
+                  )}
+                >
+                  {!image.usableAsInput
+                    ? t('web.cannotUse')
+                    : imported
+                      ? t('web.used')
+                      : failed
+                        ? t('web.retry')
+                        : t('web.use')}
+                </button>
+              ) : null}
+              {pickable && !image.usableAsInput ? (
                 <span
                   data-testid="operator-web-candidate-blocked"
                   className="text-xs text-muted-foreground"
@@ -308,29 +316,31 @@ export function StudioOperatorWebCandidateGrid({
             位置留着，旁边那行「已选 n/m」就是理由。
           ⚠ 数量写在按钮上（「挂上 3 张」）——⛔ 不写一句无数字的「全部挂上」：
             用户按之前要知道这一下会花掉几个参考位。 */}
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-1">
-        <p className="text-2sm text-muted-foreground">
-          {usedCount > 0
-            ? t('web.selectedHint', { count: usedCount, limit })
-            : t('web.pickHint')}
-        </p>
-        <button
-          type="button"
-          data-testid="operator-web-use-all"
-          disabled={batch.length === 0}
-          onClick={() => {
-            for (const image of batch) onToggle(entryId, image)
-          }}
-          className={cn(
-            'shrink-0 rounded-md border px-1.5 py-0.5 text-xs transition-colors duration-fast ease-standard',
-            batch.length === 0
-              ? 'cursor-not-allowed border-border/70 text-muted-foreground/60'
-              : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
-          )}
-        >
-          {t('web.useAll', { count: batch.length })}
-        </button>
-      </div>
+      {pickable ? (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1">
+          <p className="text-2sm text-muted-foreground">
+            {usedCount > 0
+              ? t('web.selectedHint', { count: usedCount, limit })
+              : t('web.pickHint')}
+          </p>
+          <button
+            type="button"
+            data-testid="operator-web-use-all"
+            disabled={batch.length === 0}
+            onClick={() => {
+              for (const image of batch) onToggle(entryId, image)
+            }}
+            className={cn(
+              'shrink-0 rounded-md border px-1.5 py-0.5 text-xs transition-colors duration-fast ease-standard',
+              batch.length === 0
+                ? 'cursor-not-allowed border-border/70 text-muted-foreground/60'
+                : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-primary',
+            )}
+          >
+            {t('web.useAll', { count: batch.length })}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

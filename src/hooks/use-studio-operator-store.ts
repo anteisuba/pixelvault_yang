@@ -428,6 +428,36 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
   }
 }
 
+/**
+ * **别的页面递过来的一句话**（卡片助手 C3「交给图片助手」）：跳到目标工作台后，那一页的
+ * 助手把它填进输入框并打开面板，由用户按发送。
+ *
+ * ⚠ 带着**要给哪个域**：发出这句话的那一页（角色页）自己也挂着一个 Dock，⛔ 不能让它
+ *   在跳走之前把话先吞了。只留一句：连点两次，意思是「就这句」。
+ */
+let pendingDraft: { domain: string; text: string } | null = null
+const draftListeners = new Set<() => void>()
+
+export function requestOperatorDraft(domain: string, text: string): void {
+  pendingDraft = { domain, text }
+  for (const listener of draftListeners) listener()
+}
+
+/** 取走并清空 —— 只有域对得上的那一页取得走。 */
+export function takeOperatorDraft(domain: string): string | null {
+  if (!pendingDraft || pendingDraft.domain !== domain) return null
+  const { text } = pendingDraft
+  pendingDraft = null
+  return text
+}
+
+export function subscribeOperatorDraft(listener: () => void): () => void {
+  draftListeners.add(listener)
+  return () => {
+    draftListeners.delete(listener)
+  }
+}
+
 /** 线程条目的 id —— 单调递增，不用 uuid：测试里能直接断言顺序。 */
 export function nextOperatorEntryId(prefix: string): string {
   entrySeq += 1

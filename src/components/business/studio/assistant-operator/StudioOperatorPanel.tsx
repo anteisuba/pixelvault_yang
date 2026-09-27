@@ -21,7 +21,9 @@
 
 import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
+import { StudioOperatorImageHandoffCard } from './StudioOperatorImageHandoffCard'
 import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import {
@@ -407,6 +409,10 @@ export function StudioOperatorPanel({
     dismissLoraPick,
     keepCharacterProfile,
     dismissCharacterProfile,
+    keepCharacterImages,
+    dismissCharacterImages,
+    acceptImageHandoff,
+    dismissImageHandoff,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1279,6 +1285,13 @@ export function StudioOperatorPanel({
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed &&
     lastResultId,
   )
+  /** 卡片助手那几张卡上写的角色名（从宿主快照查；查不到退回 id）。 */
+  const characterNameOf = (characterId: string) =>
+    operatorHost
+      .buildSnapshot()
+      .cards?.characters.find((item) => item.id === characterId)?.name ??
+    characterId
+  const assistantName = persona?.name?.trim() || t('timeline.assistantFallback')
   const renderConfirm = () =>
     confirm ? (
       <StudioOperatorTimelineRow
@@ -1302,6 +1315,28 @@ export function StudioOperatorPanel({
             }
             onKeep={(fields) => void keepCharacterProfile(fields)}
             onDismiss={dismissCharacterProfile}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind ===
+          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages ? (
+          /* ── 候选图卡（卡片助手 C3）：同一个槽位，每张一个勾 ── */
+          <StudioOperatorCharacterImagesCard
+            prompt={confirm}
+            characterName={characterNameOf(confirm.proposal.characterId)}
+            assistantName={assistantName}
+            onKeep={(keys) => void keepCharacterImages(keys)}
+            onDismiss={dismissCharacterImages}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind ===
+          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff ? (
+          /* ── 交给图片助手（卡片助手 C3，画板 S11）── */
+          <StudioOperatorImageHandoffCard
+            prompt={confirm}
+            characterName={characterNameOf(confirm.handoff.characterId)}
+            assistantName={assistantName}
+            onAccept={acceptImageHandoff}
+            onDismiss={dismissImageHandoff}
             formatTime={formatDecidedAt}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (

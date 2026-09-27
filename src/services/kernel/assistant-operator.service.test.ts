@@ -1297,7 +1297,7 @@ describe('read_state', () => {
     expect(prompt).toContain('/Voice-Lines')
     expect(prompt).toContain('Do not hold the proposal back')
     expect(prompt).toContain('· propose_character_profile —')
-    expect(prompt).toContain('you never generate images')
+    expect(prompt).toContain('You never generate images')
     // 卡片域没有表单旋钮：工具表里不列 set_prompt / prime_generate，只有看、查、问。
     expect(prompt).toContain('· verify —')
     expect(prompt).toContain('· find_images —')
@@ -1422,6 +1422,201 @@ describe('read_state', () => {
     expect(toolRingCalls().at(-1)?.userPrompt).toContain(
       'no character with id=nobody',
     )
+  })
+
+  const CARDS_SNAPSHOT = {
+    prompt: '',
+    availableModels: [],
+    cards: {
+      total: 1,
+      characters: [
+        {
+          id: 'denia',
+          name: 'Denia',
+          work: '鸣潮',
+          imageCount: 1,
+          hasProfile: false,
+        },
+      ],
+      open: null,
+    },
+  }
+
+  it('卡片助手提议挂图：只收本轮查到过的图，查回缩略图与出处，吐一帧 characterImages 并停流', async () => {
+    mockGetPublicGenerationPage.mockResolvedValue({
+      generations: [
+        {
+          id: 'gen-1',
+          url: 'https://cdn.example.test/1.png',
+          thumbnailUrl: 'https://cdn.example.test/1-thumb.png',
+          outputType: 'IMAGE',
+          prompt: 'denia portrait',
+          model: 'user-upload',
+          createdAt: new Date('2026-08-01T00:00:00.000Z'),
+        },
+      ],
+      total: 1,
+      hasMore: false,
+      nextCursor: null,
+    })
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/denia-full.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/d.jpg',
+        pageUrl: 'https://example.test/post/denia',
+        domain: 'example.test',
+        title: 'Denia full body',
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+          title: '翻素材库',
+          args: { query: 'denia', kind: 'image', limit: 6 },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: '上网找图',
+          args: { query: 'denia wuthering waves' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: '把好图交给你挑',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+            characterId: 'denia',
+            images: [
+              { assetId: 'gen-1', reason: '正面半身，脸清楚' },
+              {
+                imageUrl: 'https://cdn.example.test/denia-full.jpg',
+                reason: '全身，服装完整',
+              },
+              {
+                imageUrl: 'https://made.up/never-searched.png',
+                reason: '编出来的',
+              },
+            ],
+          },
+        },
+      },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'cards', snapshot: CARDS_SNAPSHOT }),
+      ),
+    )
+    // 角色页上观察要给出原图地址，并指向候选卡而不是「选用」。
+    expect(toolRingCalls().at(-1)?.userPrompt).toContain(
+      'imageUrl https://cdn.example.test/denia-full.jpg',
+    )
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    )
+    expect(confirm).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+        proposal: {
+          characterId: 'denia',
+          images: [
+            {
+              key: 'asset:gen-1',
+              source: 'library',
+              url: 'https://cdn.example.test/1.png',
+              thumbnailUrl: 'https://cdn.example.test/1-thumb.png',
+              reason: '正面半身，脸清楚',
+              assetId: 'gen-1',
+              origin: 'upload',
+              displayName: expect.any(String),
+            },
+            expect.objectContaining({
+              key: 'web:https://cdn.example.test/denia-full.jpg',
+              source: 'web',
+              url: 'https://cdn.example.test/denia-full.jpg',
+              thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/d.jpg',
+              pageUrl: 'https://example.test/post/denia',
+              reason: '全身，服装完整',
+            }),
+          ],
+        },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+  })
+
+  it('卡片助手提议挂图：一张都没查到过就挡回去，不吐确认卡', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: '交图',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+            characterId: 'denia',
+            images: [{ assetId: 'gen-404', reason: '正面' }],
+          },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'cards', snapshot: CARDS_SNAPSHOT }),
+      ),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    expect(toolRingCalls().at(-1)?.userPrompt).toContain(
+      'not returned by search_assets this turn',
+    )
+  })
+
+  it('卡片助手交给图片助手：吐一帧 imageHandoff 并停流，不报价、不出图', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        title: '交给图片助手',
+        args: {
+          action: ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+          characterId: 'denia',
+          request: '给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底',
+        },
+      },
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'cards', snapshot: CARDS_SNAPSHOT }),
+      ),
+    )
+    expect(
+      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+        handoff: {
+          characterId: 'denia',
+          request: '给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底',
+        },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+    expect(systemPrompt()).toContain('Do not quote a price')
   })
 
   it.each([false, true])(

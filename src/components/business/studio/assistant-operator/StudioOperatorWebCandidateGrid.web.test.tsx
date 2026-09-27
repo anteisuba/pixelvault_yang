@@ -262,3 +262,22 @@ describe('候选网格 · 「把能用的都挂上」（2026-09-06）', () => {
     expect(screen.getByTestId('operator-web-use-all')).toBeDisabled()
   })
 })
+
+describe('宿主没有参考位（角色页，卡片助手 C3）', () => {
+  it('候选只能看不能选：没有「选用」也没有「都挂上」，点缩略图照样开灯箱', () => {
+    render(
+      <StudioOperatorWebCandidateGrid
+        entryId="run-1:step-1"
+        images={[USABLE, BLOCKED]}
+        webImport={undefined}
+        limit={0}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('operator-web-candidate-use')).toBeNull()
+    expect(screen.queryByTestId('operator-web-use-all')).toBeNull()
+    expect(screen.queryByTestId('operator-web-candidate-blocked')).toBeNull()
+    fireEvent.click(screen.getAllByTestId('operator-web-candidate')[0]!)
+    expect(openOperatorLightbox).toHaveBeenCalled()
+  })
+})

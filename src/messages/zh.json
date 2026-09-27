@@ -7579,6 +7579,23 @@
         "keep": "收下勾选的 · {count}",
         "dismiss": "不用",
         "kept": "已收下 {count} 格 · {time}"
+      },
+      "characterImages": {
+        "header": "{name} 找了 {count} 张",
+        "question": "挂到「{name}」上？",
+        "fromLibrary": "素材库",
+        "fromLibraryNamed": "素材库 · {name}",
+        "keep": "挂上勾选的 · {count}",
+        "keeping": "正在挂上…",
+        "dismiss": "不用",
+        "kept": "已挂上 {count} 张 · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · 交给图片助手",
+        "hint": "会跳到图片工作台、带上「{name}」，这句话填进图片助手的输入框，你来按发送。",
+        "accept": "交给图片助手",
+        "dismiss": "先不要",
+        "accepted": "已交给图片助手 · {time}"
       }
     },
     "system": {
@@ -7605,7 +7622,12 @@
       "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "没收这份设定：{subject}",
-      "characterProfileSaveFailed": "没能写进「{subject}」—— 再试一次？"
+      "characterProfileSaveFailed": "没能写进「{subject}」—— 再试一次？",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "没挂这几张图：{subject}",
+      "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
+      "imageHandoffAccepted": "已交给图片助手：{subject}",
+      "imageHandoffDeclined": "先不交给图片助手：{subject}"
     },
     "attach": {
       "label": "上传图片 / 音频 / 视频",

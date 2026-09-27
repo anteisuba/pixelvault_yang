@@ -179,6 +179,7 @@ import {
   WEB_IMAGE_SUBJECT_QUERY_SUFFIXES,
 } from '@/constants/web-search'
 import { getAppOrigin } from '@/constants/config'
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
@@ -439,6 +440,11 @@ import {
   type AssistantOperatorCanvasSnapshot,
   type AssistantOperatorCardsSnapshot,
   type AssistantOperatorCharacterProfileDraft,
+  type AssistantOperatorCharacterImageCandidate,
+  type AssistantOperatorCharacterImagesDraft,
+  type AssistantOperatorCharacterImagesProposal,
+  type AssistantOperatorImageHandoff,
+  type AssistantOperatorWebImage,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorSnapshot,
   type AssistantOperatorSnapshotCapability,
@@ -791,7 +797,7 @@ interface OperatorRun {
    * 地址仍然按 `urlNotFromUser` 拒。
    * ⚠ 键是**原图直链**（候选行认自己那一格用的也是它）。
    */
-  webImageIndex: Map<string, { domain?: string; usableAsInput: boolean }>
+  webImageIndex: Map<string, AssistantOperatorWebImage>
   /**
    * 本轮已经发过几次 `research`（2026-09-06）。
    *
@@ -1062,6 +1068,15 @@ type ToolPlan =
   | {
       kind: 'confirmCharacterProfile'
       profile: AssistantOperatorCharacterProfileDraft
+    }
+  /** 卡片助手提议几张角色图 / 交给图片助手（C3）—— 同上：吐一帧、停流，一行库都不写。 */
+  | {
+      kind: 'confirmCharacterImages'
+      proposal: AssistantOperatorCharacterImagesProposal
+    }
+  | {
+      kind: 'confirmImageHandoff'
+      handoff: AssistantOperatorImageHandoff
     }
   /**
    * **把本轮 LoRA 候选摆给创作者挑**（lora-assistant §10.1 / §10.2.2）—— 与
@@ -1362,7 +1377,7 @@ function renderState(
       cards?.open
         ? `Open character: ${JSON.stringify(cards.open)}`
         : 'No character is open — the creator is on the overview.',
-      'You never write into a character directly: to add or change profile fields, send ask/propose_character_profile and the creator ticks what to keep. Never claim you changed a profile, tags or images. Tags and images cannot be changed from here yet.',
+      'You never write into a character directly: to add or change profile fields, send ask/propose_character_profile; to add images, send ask/propose_character_images — the creator ticks what to keep. Never claim you changed a profile, tags or images. Tags cannot be changed from here.',
     ].join('\n')
   }
 
@@ -2194,6 +2209,8 @@ function planSearchWebImages(
       const ruleLine = hasSourceRules(run.sourceRules)
         ? `\nSource list in force — ${describeSourceRules(run.sourceRules)}${blockedByRules > 0 ? `; it ruled out ${blockedByRules} candidate(s) this search` : ''}. Do not go looking for the same picture somewhere else.`
         : ''
+      const forCharacters =
+        run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
       const observation =
         images.length === 0
           ? `find_images ran ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} (${queries.map((query) => `"${query}"`).join(' · ')}) and came back empty.${
@@ -2206,23 +2223,25 @@ function planSearchWebImages(
                 (image, index) =>
                   `  ${index + 1}. ${image.publisher ?? image.domain ?? 'web'}${
                     image.title ? ` · "${image.title}"` : ''
-                  }${image.usableAsInput ? '' : ' · REFERENCE ONLY (this site cannot be used as an input)'}`,
+                  }${image.usableAsInput ? '' : ' · REFERENCE ONLY (this site cannot be used as an input)'}${
+                    // 角色页（卡片助手 C3）：`propose_character_images` 按原图直链认
+                    // 这一张，所以这里要给出地址；那一页没有提示词可以误贴。
+                    forCharacters ? ` · imageUrl ${image.imageUrl}` : ''
+                  }`,
               )
-              .join(
-                '\n',
-              )}\nThese are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.${ruleLine}`
+              .join('\n')}\n${
+              forCharacters
+                ? 'These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep.'
+                : 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
+            }${ruleLine}`
 
       /**
        * ⭐ 进准入名单（2026-09-06）：用户说「挂上」时，助手得有办法指着屏幕上
        * 那几张说「就是这些」。⛔ 它们**不进 `run.searchIndex`** —— 那张表是
        * `mount_reference` 的名单，里面的东西已经是用户的素材；这些还只是地址。
        */
-      for (const image of images) {
-        run.webImageIndex.set(image.imageUrl, {
-          ...(image.domain ? { domain: image.domain } : {}),
-          usableAsInput: image.usableAsInput,
-        })
-      }
+      // ⚠ 存整张候选：卡片助手的 `propose_character_images` 要从这里查回缩略图与出处。
+      for (const image of images) run.webImageIndex.set(image.imageUrl, image)
 
       return { result: { totalFound: images.length, images }, observation }
     },
@@ -7020,6 +7039,140 @@ function planProposeCharacterProfile(
   }
 }
 
+/** 这个 id 是不是这一页上的角色（快照里有）。 */
+function isCharacterOnPage(run: OperatorRun, characterId: string): boolean {
+  const cards = run.state.cards
+  return (
+    cards?.open?.id === characterId ||
+    Boolean(cards?.characters.some((item) => item.id === characterId))
+  )
+}
+
+function notOffered(
+  payload: unknown,
+  tool: string,
+  why: string,
+): Extract<ToolPlan, { kind: 'read' }> {
+  return {
+    kind: 'read',
+    payload,
+    run: async () => ({
+      result: { offered: false },
+      observation: `${tool} did NOT offer anything: ${why}`,
+    }),
+  }
+}
+
+/**
+ * **提议几张角色图**（卡片助手 C3，owner 09-27 选「候选卡」）。
+ *
+ * ⭐ 同 `planProposeCharacterProfile`：吐一帧 `confirm(characterImages)`，挂上由用户在
+ *   卡上点「挂上勾选的」时经角色页完成；网上那几张那时才存进素材库。
+ * ⚠ 只认本轮真返回过的图：素材库的查 `searchIndex`、网上的查 `webImageIndex`（同
+ *   `mount_reference` / `import_user_url` 的准入表）；标了「仅参考」的网图不收。
+ *   对不上的那几张丢掉并在观察里点名，一张都对不上就不出卡。
+ */
+function planProposeCharacterImages(
+  run: OperatorRun,
+  draft: AssistantOperatorCharacterImagesDraft,
+): ToolPlan {
+  const tool = TOOL.proposeCharacterImages
+  if (!isCharacterOnPage(run, draft.characterId)) {
+    return notOffered(
+      draft,
+      tool,
+      `there is no character with id=${draft.characterId} on this page. Use an id from the page snapshot (read_state) — never invent one.`,
+    )
+  }
+  const images: AssistantOperatorCharacterImageCandidate[] = []
+  const dropped: string[] = []
+  const seen = new Set<string>()
+  for (const pick of draft.images) {
+    if ('assetId' in pick) {
+      const asset = run.searchIndex.get(pick.assetId)
+      if (!asset) {
+        dropped.push(
+          `assetId ${pick.assetId} (not returned by search_assets this turn)`,
+        )
+        continue
+      }
+      if (asset.kind !== 'image') {
+        dropped.push(`assetId ${pick.assetId} (not an image)`)
+        continue
+      }
+      if (seen.has(asset.url)) continue
+      seen.add(asset.url)
+      images.push({
+        key: `asset:${asset.assetId}`,
+        source: 'library',
+        url: asset.url,
+        ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
+        reason: pick.reason,
+        assetId: asset.assetId,
+        origin: asset.model === USER_UPLOAD_PROVIDER ? 'upload' : 'generation',
+        ...(asset.displayName ? { displayName: asset.displayName } : {}),
+      })
+      continue
+    }
+    const image = run.webImageIndex.get(pick.imageUrl)
+    if (!image) {
+      dropped.push(
+        `${pick.imageUrl} (not returned by search_web_images this turn)`,
+      )
+      continue
+    }
+    if (!image.usableAsInput) {
+      dropped.push(
+        `${pick.imageUrl} (marked REFERENCE ONLY — that site cannot be used as an input)`,
+      )
+      continue
+    }
+    if (seen.has(image.imageUrl)) continue
+    seen.add(image.imageUrl)
+    images.push({
+      key: `web:${image.imageUrl}`,
+      source: 'web',
+      url: image.imageUrl,
+      ...(image.thumbnailUrl ? { thumbnailUrl: image.thumbnailUrl } : {}),
+      reason: pick.reason,
+      ...(image.pageUrl ? { pageUrl: image.pageUrl } : {}),
+      ...(image.domain ? { domain: image.domain } : {}),
+      ...(image.publisher ? { publisher: image.publisher } : {}),
+      ...(image.title ? { title: image.title } : {}),
+    })
+  }
+  if (images.length === 0) {
+    return notOffered(
+      draft,
+      tool,
+      `none of the picks can be offered — ${dropped.join('; ')}. Offer only ids and URLs your own searches returned this turn (search again if they came from an earlier turn).`,
+    )
+  }
+  return {
+    kind: 'confirmCharacterImages',
+    proposal: { characterId: draft.characterId, images },
+  }
+}
+
+/**
+ * **交给图片助手**（卡片助手 C3，画板 S11）：吐一帧 `confirm(imageHandoff)`。
+ * ⚠ 点下去只是跳到图片工作台、把话填进图片助手的输入框，由用户按发送 ——
+ *   这里没有任何后果，也不报价（价钱在工作台看）。
+ */
+function planHandOffToImageAssistant(
+  run: OperatorRun,
+  handoff: AssistantOperatorImageHandoff,
+): ToolPlan {
+  if (!isCharacterOnPage(run, handoff.characterId)) {
+    return notOffered(
+      handoff,
+      TOOL.handOffToImageAssistant,
+      `there is no character with id=${handoff.characterId} on this page. Use an id from the page snapshot (read_state) — never invent one.`,
+    )
+  }
+  return { kind: 'confirmImageHandoff', handoff }
+}
+
 /**
  * 读一张卡的全文。
  *
@@ -7469,6 +7622,16 @@ async function planTool(
       return planProposeCharacterProfile(
         run,
         parsed.data as AssistantOperatorCharacterProfileDraft,
+      )
+    case TOOL.proposeCharacterImages:
+      return planProposeCharacterImages(
+        run,
+        parsed.data as AssistantOperatorCharacterImagesDraft,
+      )
+    case TOOL.handOffToImageAssistant:
+      return planHandOffToImageAssistant(
+        run,
+        parsed.data as AssistantOperatorImageHandoff,
       )
     default:
       return assertNever(tool)
@@ -8389,7 +8552,7 @@ function buildOperatorSystemPrompt(
 - DELIVERING A PROFILE: when you have drafted fields, hand them over with ask/propose_character_profile — one field per part you actually drafted, each with a one-line source. Do NOT paste the profile into your message for the creator to copy; they cannot keep it from there. Keep the message itself to a line or two about what you found and what is still missing.
 - CANON CHARACTERS: research properly before writing — use verify with depth "deep". Official in-game text is canon: the wiki's character page and its story / backstory and voice-lines pages (for example a Fandom "/Backstory" or "/Voice-Lines" page, or the official wiki's character entry) — read them with read_url instead of stopping at search extracts. A character's own lines are the best evidence for their way of speaking; their character stories for behaviour and history. Encyclopedic wiki write-ups of the canon (the official wiki or 图鉴, Moegirl / 萌娘百科, Fandom, Wikipedia) ARE usable sources — name them as the source; only fan theories, forum speculation and fan works are not. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one. Every proposed field needs a source you actually read in this conversation (put its page in sourceUrl). Do not hold the proposal back waiting for perfect sources: as soon as some parts are supported, propose those parts in the same turn and say in one line which parts are still missing and why — never ask the creator to tell you to propose.
 - ORIGINAL CHARACTERS: do not write a full profile straight away. First ask ONE question with two or three options, each option a direction named in a few words with a one-line description of how the character behaves; after the creator picks, expand that direction and propose it. When the creator wrote a skeleton of the history, keep their words verbatim and list every phrase you added in "added" so the app can shade it; the source line for such a field is "你写的 + 我补的".
-- IMAGES: you never generate images. When the creator needs a new image of this character, say what image is missing and that the image assistant makes it (with a rough price); do not pretend you can. You may search the asset library or the web for existing images and say which ones show the character clearly (single character, large enough, no text, one form).`
+- IMAGES: to find images for a character, search the creator's library first (search_assets), then the web (search_web_images). Good images show this character alone, large and clear, without text over them, in one outfit; say which view each gives (face / full body / back). Hand the good ones over with ask/propose_character_images — never tell the creator to press "use this" on the web grid here, and never claim you attached anything. You never generate images: when neither the library nor the web has what the character needs, say what is missing and send ask/hand_off_to_image_assistant with the one message the image assistant should get. Do not quote a price — the image workbench shows it.`
       : null,
     request.domain === 'lora'
       ? '- LORA VISUAL WORK: use analyze_references to inspect mounted source images before adapting their visual details into a prompt. Reuse complete visual evidence for unchanged image URLs. Separate character identity, composition and rendering style; translate these facts into the selected base family dialect, not @Image tokens in the diffusion prompt. Use critique_result on a result explicitly @-mentioned by the creator, comparing it with source references and the stated goal. Source images are references, never failed generations.'
@@ -10750,6 +10913,51 @@ export async function* runAssistantOperator(
           clerkId,
           userId: user.id,
           todo: `等你决定要不要把这份设定收进「${character}」`,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
+      if (
+        plan.kind === 'confirmCharacterImages' ||
+        plan.kind === 'confirmImageHandoff'
+      ) {
+        /**
+         * **提议几张角色图 / 交给图片助手**（卡片助手 C3）—— 同上：吐一帧、停流；
+         * ⚠ 到这一帧为止一张图都没存、什么都没发，那一跳由用户在卡上点下去。
+         */
+        const characterId =
+          plan.kind === 'confirmCharacterImages'
+            ? plan.proposal.characterId
+            : plan.handoff.characterId
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm:
+            plan.kind === 'confirmCharacterImages'
+              ? {
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+                  proposal: plan.proposal,
+                }
+              : {
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+                  handoff: plan.handoff,
+                },
+        }
+        const character =
+          run.state.cards?.characters.find((item) => item.id === characterId)
+            ?.name ?? characterId
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          todo:
+            plan.kind === 'confirmCharacterImages'
+              ? `等你挑要把哪几张挂到「${character}」上`
+              : `等你决定要不要交给图片助手给「${character}」出图`,
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

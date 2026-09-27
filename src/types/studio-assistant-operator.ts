@@ -28,6 +28,8 @@ import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorAskEvent,
   AssistantOperatorCharacterProfileDraft,
+  AssistantOperatorCharacterImagesProposal,
+  AssistantOperatorImageHandoff,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
@@ -504,6 +506,20 @@ export type StudioOperatorConfirmPrompt = {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
       profile: AssistantOperatorCharacterProfileDraft
       keptCount?: number
+    }
+  /**
+   * 卡片助手提议几张角色图（C3）—— 每张一个勾、「挂上勾选的 / 不用」；判据同上，
+   * 外加挂上了几张（卡收起后那一行写它）。
+   */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages
+      proposal: AssistantOperatorCharacterImagesProposal
+      keptCount?: number
+    }
+  /** 卡片助手交给图片助手（C3，画板 S11）—— 「交给图片助手 / 先不要」。 */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
+      handoff: AssistantOperatorImageHandoff
     }
 )
 

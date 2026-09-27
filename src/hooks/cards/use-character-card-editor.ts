@@ -117,15 +117,20 @@ export function removeSlot(
   return makePrimary(rest, heir.id)
 }
 
+/** 槽里的一张图从哪来：地址 · 素材库里那条的 id · 上传还是生成。 */
+export interface SlotImageSource {
+  url: string
+  generationId: string
+  origin: 'upload' | 'generation'
+}
+
 /** 素材库里的一张 → 槽里的图：记下来源（上传 / 生成）与生成 id。 */
-function slotImage(generation: GenerationRecord) {
+function slotImage(generation: GenerationRecord): SlotImageSource {
   return {
     url: generation.url,
     generationId: generation.id,
     origin:
-      generation.provider === USER_UPLOAD_PROVIDER
-        ? ('upload' as const)
-        : ('generation' as const),
+      generation.provider === USER_UPLOAD_PROVIDER ? 'upload' : 'generation',
   }
 }
 
@@ -148,15 +153,23 @@ export function appendSlotImages(
   slots: CharacterReferenceSlot[],
   generations: GenerationRecord[],
 ): CharacterReferenceSlot[] {
+  return appendSlotSources(slots, generations.map(slotImage))
+}
+
+/** 同上，但手上只有地址与 id（卡片助手挂图那条路，C3）。 */
+export function appendSlotSources(
+  slots: CharacterReferenceSlot[],
+  sources: readonly SlotImageSource[],
+): CharacterReferenceSlot[] {
   const next = [...slots]
-  for (const generation of generations) {
+  for (const source of sources) {
     if (next.length >= CHARACTER_CARD.MAX_REFERENCE_SLOTS) break
-    if (next.some((slot) => slot.url === generation.url)) continue
+    if (next.some((slot) => slot.url === source.url)) continue
     next.push({
       id: nextSlotId(next),
       role: 'identity',
       isPrimary: next.length === 0,
-      ...slotImage(generation),
+      ...source,
     })
   }
   return next

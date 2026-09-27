@@ -112,6 +112,7 @@ import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
+import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
 import {
   createContextCardAPI,
@@ -125,8 +126,12 @@ import {
 } from '@/lib/studio-operator-apply'
 import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
+  describeCharacterImagesDecisionText,
+  describeCharacterImagesProposalText,
   describeCharacterProfileDecisionText,
   describeCharacterProfileProposalText,
+  describeImageHandoffDecisionText,
+  describeImageHandoffProposalText,
   describeContextCardDecisionText,
   describeContextCardProposalText,
   clampPlanAnswer,
@@ -727,6 +732,17 @@ export interface UseAssistantOperatorResult {
   ): Promise<void>
   /** **设定提议卡「不用」** —— 什么都不写，但照样落一行「没收」的账。 */
   dismissCharacterProfile(): void
+  /**
+   * **候选图卡「挂上勾选的」**（卡片助手 C3）—— 网上那几张先存进素材库，再交给角色页
+   * 挂到角色上；成功失败都落一行账。连点两下只挂一次。
+   */
+  keepCharacterImages(keys: readonly string[]): Promise<void>
+  /** **候选图卡「不用」** —— 什么都不存，照样落一行账。 */
+  dismissCharacterImages(): void
+  /** **「交给图片助手」**（C3）—— 跳到图片工作台、话填好，由用户按发送。 */
+  acceptImageHandoff(): void
+  /** **「先不要」** —— 什么都不做，落一行账。 */
+  dismissImageHandoff(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -1481,6 +1497,41 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
                   profile: event.confirm.profile,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              /**
+               * **卡片助手提议几张角色图 / 交给图片助手**（C3）—— 同上：服务端一张都
+               * 没存、什么都没发；挂上（`keepCharacterImages`）与跳转
+               * （`acceptImageHandoff`）都等用户点下去。
+               */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+                  proposal: event.confirm.proposal,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+                  handoff: event.confirm.handoff,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
                 setOperatorStatus('awaitingConfirm')
@@ -2685,6 +2736,200 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     })
   }, [characterProfileDecision])
 
+  /** 这一页上这位角色叫什么（查不到退回 id）。 */
+  const characterName = useCallback(
+    (characterId: string) =>
+      buildSnapshot().cards?.characters.find((item) => item.id === characterId)
+        ?.name ?? characterId,
+    [buildSnapshot],
+  )
+
+  /** 候选图卡那一下的落账两件套（判据同 `characterProfileDecision`）。 */
+  const characterImagesDecision = useCallback(
+    (
+      characterId: string,
+      offered: number,
+      keys: readonly string[],
+      kept: number,
+    ) => {
+      const name = characterName(characterId)
+      const label = describeCharacterImagesDecisionText(name, kept)
+      return {
+        name,
+        userText: label,
+        answered: {
+          questionId: `characterImages:${characterId}`,
+          optionIds: keys.length ? [...keys] : ['decline'],
+          question: describeCharacterImagesProposalText(name, offered),
+          optionLabels: [label],
+        } satisfies AssistantOperatorPlanAnswer,
+      }
+    },
+    [characterName],
+  )
+
+  const keepCharacterImages = useCallback(
+    async (keys: readonly string[]) => {
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle ||
+        keys.length === 0
+      ) {
+        return
+      }
+      const { characterId, images } = confirm.proposal
+      const picked = images.filter((image) => keys.includes(image.key))
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+      /**
+       * 素材库那几张直接挂；网上那几张**这时才**存进素材库（拍板 21：看与选是两件事），
+       * 存成了再挂。存不成的那几张跳过，挂上几张如实落账。
+       */
+      const ready = (
+        await Promise.all(
+          picked.map(async (image) => {
+            if (image.source === 'library' && image.assetId) {
+              return {
+                url: image.url,
+                generationId: image.assetId,
+                origin: image.origin ?? ('generation' as const),
+              }
+            }
+            const response = await importWebImageAPI({
+              imageUrl: image.url,
+              ...(image.pageUrl ? { pageUrl: image.pageUrl } : {}),
+              ...(image.domain ? { domain: image.domain } : {}),
+              ...(image.title ? { title: image.title } : {}),
+            })
+            return response.success
+              ? {
+                  url: response.data.generation.url,
+                  generationId: response.data.generation.id,
+                  origin: 'upload' as const,
+                }
+              : null
+          }),
+        )
+      ).filter((image) => image !== null)
+      const attached =
+        ready.length && applyContext.cards
+          ? await applyContext.cards.attachImages(characterId, ready)
+          : null
+      if (!attached) {
+        // ⛔ 不静默：卡回到 idle，可以再点一次。
+        setOperatorConfirm({
+          ...confirm,
+          status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+        })
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'characterImagesAttachFailed',
+          subject: characterName(characterId),
+        })
+        return
+      }
+      const decision = characterImagesDecision(
+        characterId,
+        images.length,
+        keys,
+        attached,
+      )
+      setOperatorConfirm({
+        ...confirm,
+        keptCount: attached,
+        status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting,
+      })
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'characterImagesAttached',
+        subject: decision.userText,
+        userText: decision.userText,
+        answered: decision.answered,
+      })
+    },
+    [applyContext, characterImagesDecision, characterName],
+  )
+
+  const dismissCharacterImages = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+    const decision = characterImagesDecision(
+      confirm.proposal.characterId,
+      confirm.proposal.images.length,
+      [],
+      0,
+    )
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'characterImagesDeclined',
+      subject: decision.name,
+      userText: decision.userText,
+      answered: decision.answered,
+    })
+  }, [characterImagesDecision])
+
+  /** 交给图片助手那一下（C3）：两颗键都落账，模型下一轮知道用户怎么定的。 */
+  const decideImageHandoff = useCallback(
+    (accepted: boolean) => {
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      const { characterId, request } = confirm.handoff
+      const name = characterName(characterId)
+      const label = describeImageHandoffDecisionText(name, accepted)
+      resolveOperatorConfirm(
+        accepted
+          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+      )
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: accepted ? 'imageHandoffAccepted' : 'imageHandoffDeclined',
+        subject: name,
+        userText: label,
+        answered: {
+          questionId: `imageHandoff:${characterId}`,
+          optionIds: [accepted ? 'accept' : 'decline'],
+          question: describeImageHandoffProposalText(name, request),
+          optionLabels: [label],
+        },
+      })
+      // ⚠ 落完账再跳：跳走之后这一页的助手就卸了。
+      if (accepted)
+        applyContext.cards?.handOffToImageAssistant(characterId, request)
+    },
+    [applyContext, characterName],
+  )
+  const acceptImageHandoff = useCallback(
+    () => decideImageHandoff(true),
+    [decideImageHandoff],
+  )
+  const dismissImageHandoff = useCallback(
+    () => decideImageHandoff(false),
+    [decideImageHandoff],
+  )
+
   /**
    * **推荐卡「挂载所选」**（lora-assistant §10.1 / §10.3.1）—— 勾中的那几把
    * 先在客户端逐把执行，再带候选本体、回执和最新快照进入下一轮。
@@ -2875,6 +3120,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     submitLoraPicks,
     keepCharacterProfile,
     dismissCharacterProfile,
+    keepCharacterImages,
+    dismissCharacterImages,
+    acceptImageHandoff,
+    dismissImageHandoff,
     dismissLoraPick,
     retryGeneration,
     rerunGeneration,

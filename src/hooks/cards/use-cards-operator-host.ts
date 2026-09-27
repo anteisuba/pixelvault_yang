@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { studioImageWithCharacterPath } from '@/constants/routes'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { CharacterCardRecord } from '@/types'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
+import { useRouter } from '@/i18n/navigation'
 import { buildCardsOperatorSnapshot } from '@/lib/cards-operator-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 
@@ -17,8 +20,10 @@ import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
  * （owner 09-26）。
  *
  * ⭐ 快照 = 这页上有谁 + 打开着的那一位的整份设定（`buildCardsOperatorSnapshot`）。
- * ⭐ 落笔的手只有一只（C2）：`apply.cards.applyProfile` —— 设定提议卡上用户点「收下
- *   勾选的」时写进角色。服务端从不写角色（提议卡那一帧之前一行库都没写）。
+ * ⭐ 落笔的手（C2 / C3）：`apply.cards.applyProfile` 与 `attachImages` —— 提议卡 /
+ *   候选图卡上用户点下去时写进角色；服务端从不写角色（那一帧之前一行库都没写）。
+ * ⭐ 交给图片助手（C3）：把话递给图片工作台的助手（`requestOperatorDraft`），再跳到
+ *   带着这个角色的图片工作台；那边填进输入框，由用户按发送。
  * ⚠ 表单那几只手在角色页上无处可去 —— 它们**到不了**（域工具表里没有表单旋钮），
  *   写成空函数只是为了满足契约形状（与画布宿主同一做法）。
  * ⚠ 点页面别处**不收**助手（`collapseOnOutsidePointer: false`）：卡片助手的用法就是
@@ -39,22 +44,40 @@ export interface UseCardsOperatorHostInput {
    * ⚠ 只改勾中的那几格，其余设定原样保留。
    */
   applyProfile: NonNullable<StudioOperatorApplyContext['cards']>['applyProfile']
+  /** 把候选图卡上勾中的几张挂到角色上（C3）—— 返回挂上了几张，失败 `null`。 */
+  attachImages: NonNullable<StudioOperatorApplyContext['cards']>['attachImages']
 }
 
 export function useCardsOperatorHost({
   cards,
   openId,
   applyProfile,
+  attachImages,
 }: UseCardsOperatorHostInput): StudioOperatorHost {
   const t = useTranslations('StudioOperator')
   const locale = useLocale()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
 
   /** ⚠ 快照必须现读（事件循环跨很多次 render）：最新一份放在 ref 里（写在 effect 里，本仓 latest-ref 的既有写法）。 */
-  const latest = useRef({ cards, openId, locale, applyProfile })
+  const latest = useRef({
+    cards,
+    openId,
+    locale,
+    applyProfile,
+    attachImages,
+    router,
+  })
   useEffect(() => {
-    latest.current = { cards, openId, locale, applyProfile }
-  }, [applyProfile, cards, locale, openId])
+    latest.current = {
+      cards,
+      openId,
+      locale,
+      applyProfile,
+      attachImages,
+      router,
+    }
+  }, [applyProfile, attachImages, cards, locale, openId, router])
   const buildSnapshot = useCallback(() => {
     const now = latest.current
     return buildCardsOperatorSnapshot(now.cards, now.openId, now.locale)
@@ -78,6 +101,14 @@ export function useCardsOperatorHost({
       cards: {
         applyProfile: (characterId, fields) =>
           latest.current.applyProfile(characterId, fields),
+        /** C3：候选图卡「挂上勾选的」那只手。 */
+        attachImages: (characterId, images) =>
+          latest.current.attachImages(characterId, images),
+        /** C3：交给图片助手 —— 话先递过去，再跳。 */
+        handOffToImageAssistant: (characterId, request) => {
+          requestOperatorDraft(ASSISTANT_PROTOCOL_DOMAIN_IDS.image, request)
+          latest.current.router.push(studioImageWithCharacterPath(characterId))
+        },
       },
     }
   }, [])

@@ -7579,6 +7579,23 @@
         "keep": "Keep selected · {count}",
         "dismiss": "Not now",
         "kept": "Kept {count, plural, one {# field} other {# fields}} · {time}"
+      },
+      "characterImages": {
+        "header": "{name} found {count, plural, one {# image} other {# images}}",
+        "question": "Attach to {name}?",
+        "fromLibrary": "Library",
+        "fromLibraryNamed": "Library · {name}",
+        "keep": "Attach selected · {count}",
+        "keeping": "Attaching…",
+        "dismiss": "Not now",
+        "kept": "Attached {count, plural, one {# image} other {# images}} · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · hand to the image assistant",
+        "hint": "Opens the image workbench with {name} selected and types this into the image assistant's box — you press send.",
+        "accept": "Hand to the image assistant",
+        "dismiss": "Not now",
+        "accepted": "Handed to the image assistant · {time}"
       }
     },
     "system": {
@@ -7605,7 +7622,12 @@
       "loraPickDismissed": "Skipped these LoRAs: {subject}",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "Didn't keep this profile: {subject}",
-      "characterProfileSaveFailed": "Couldn't save it to {subject} — try again?"
+      "characterProfileSaveFailed": "Couldn't save it to {subject} — try again?",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "Didn't attach these images: {subject}",
+      "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
+      "imageHandoffAccepted": "Handed to the image assistant: {subject}",
+      "imageHandoffDeclined": "Not handed to the image assistant: {subject}"
     },
     "attach": {
       "label": "Upload image / audio / video",

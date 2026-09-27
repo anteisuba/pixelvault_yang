@@ -297,6 +297,12 @@ export function describeOperatorStepDetail(
     /** 提议一份角色设定（卡片助手 C2）—— 详情写**提了几格**。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
       return `${step.payload.fields.length}`
+    /** 提议几张角色图（C3）—— 详情写**提了几张**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
+      return `${step.payload.images.length}`
+    /** 交给图片助手（C3）—— 详情写**要对图片助手说的那句话**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
+      return step.payload.request
     /**
      * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 详情写**摆了几把**：这一步
      * 通常不出 step（产出是确认卡那一帧），落进历史时该说得出摆了多少个候选。
@@ -414,6 +420,43 @@ export function describeCharacterProfileDecisionText(
   return `已把${keptFields
     .map((field) => CHARACTER_PROFILE_FIELD_NAMES[field])
     .join('、')}写进「${named}」`
+}
+
+/** 卡片助手候选图卡那一下的**题面**（C3）—— 同设定提议卡，角色名写在句子里。 */
+export function describeCharacterImagesProposalText(
+  name: string,
+  count: number,
+): string {
+  return `提议给「${name.trim()}」挂 ${count} 张图`
+}
+
+/** 「挂上勾选的」/「不用」那一行的**自包含正文**：挂上了几张要说出来。 */
+export function describeCharacterImagesDecisionText(
+  name: string,
+  kept: number,
+): string {
+  const named = name.trim()
+  return kept === 0
+    ? `没挂这几张图（${named}）`
+    : `已给「${named}」挂上 ${kept} 张图`
+}
+
+/** 交给图片助手那一下的**题面**与**正文**（C3）。 */
+export function describeImageHandoffProposalText(
+  name: string,
+  request: string,
+): string {
+  return `提议交给图片助手给「${name.trim()}」出图：${request.trim()}`
+}
+
+export function describeImageHandoffDecisionText(
+  name: string,
+  accepted: boolean,
+): string {
+  const named = name.trim()
+  return accepted
+    ? `已交给图片助手给「${named}」出图`
+    : `先不交给图片助手（${named}）`
 }
 
 /**

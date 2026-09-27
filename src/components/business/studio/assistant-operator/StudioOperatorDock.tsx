@@ -74,6 +74,8 @@ import {
   removeOperatorMention,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
+  takeOperatorDraft,
+  subscribeOperatorDraft,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
@@ -698,6 +700,21 @@ export function StudioOperatorDock() {
     consume()
     return subscribeOperatorAttachment(consume)
   }, [handleUploaded, setOpen])
+
+  /**
+   * 别的页面递过来的一句话（卡片助手 C3「交给图片助手」）：填进输入框、打开面板，
+   * ⛔ 不替用户发。只认发给**这个域**的那一句。
+   */
+  useEffect(() => {
+    const consume = () => {
+      const text = takeOperatorDraft(hostDomain)
+      if (text === null) return
+      setDraft(text)
+      setOpen(true)
+    }
+    consume()
+    return subscribeOperatorDraft(consume)
+  }, [hostDomain, setOpen])
 
   const webImportedUrls = useRef(new Map<string, string>())
   const handleWebImported = useCallback(

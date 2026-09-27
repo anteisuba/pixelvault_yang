@@ -329,6 +329,16 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'characterProfileDeclined',
   /** 写进角色那一跳没成 —— ⛔ 不静默：用户以为已经写进去了。 */
   'characterProfileSaveFailed',
+  /** **挂上了卡片助手提议的图**（C3）——「已给 Denia 挂上 2 张图」；判据同上。 */
+  'characterImagesAttached',
+  /** **没挂这几张图**（C3）—— 也是一次表态。 */
+  'characterImagesDeclined',
+  /** 存进素材库 / 挂上那一跳没成 —— ⛔ 不静默。 */
+  'characterImagesAttachFailed',
+  /** **交给了图片助手**（C3，画板 S11）——跳去了图片工作台，话已填好。 */
+  'imageHandoffAccepted',
+  /** **先不交给图片助手**（C3）。 */
+  'imageHandoffDeclined',
   /**
    * **在 LoRA 推荐卡上勾了几把并点了「挂载所选」**（lora-assistant §10.1 落账
    * 三件套）——「已选要挂的 LoRA：清宵、overwatch_3d_anima」。

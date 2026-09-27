@@ -167,7 +167,7 @@ export function CharacterOverview({
       ) : entries.length === 1 ? (
         <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <div className="w-full max-w-sm">{tile(entries[0]!, null)}</div>
+            <div className="w-1/2 max-w-52">{tile(entries[0]!, null)}</div>
             <p className="max-w-xs pb-1 text-2sm text-muted-foreground">
               {t('loneHint')}
             </p>
@@ -176,14 +176,10 @@ export function CharacterOverview({
       ) : (
         <>
           <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
-            {/* owner 09-28：几张一样大，⛔ 不再让第一名占两列两行。 */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {ranked.map((entry, index) => (
-                <div key={entry.card.id} className="min-w-0">
-                  {tile(entry, index + 1)}
-                </div>
-              ))}
-            </div>
+            {/* owner 09-28：几张一样大，与作品页 / 搜索同一个网格（卡的大小不随人数变）。 */}
+            <CellGrid>
+              {ranked.map((entry, index) => tile(entry, index + 1))}
+            </CellGrid>
           </Section>
           <Section title={t('works')} hint={t('byImages')}>
             <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
@@ -236,9 +232,13 @@ function Section({
   )
 }
 
+/**
+ * 角色格子的网格。⭐ 列数随屏宽走、⛔ 不随人数走：人少时卡不会被撑大，人多时往下
+ * 一行一行排（owner 09-28「太大了」—— 宽屏一行 8 张，一张约 210 宽）。
+ */
 function CellGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
       {children}
     </div>
   )

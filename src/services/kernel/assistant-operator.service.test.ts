@@ -15924,12 +15924,14 @@ describe('LoRA 域方言与触发词规矩', () => {
     expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.flux.skeleton.subject)
   })
 
-  it('触发词三句进系统提示（chip 编译 / 关着不自己开 / 没有这个工具）', async () => {
+  it('触发词三句进系统提示（写在正文里 / 拿掉的不自己写回 / 写回是创作者的事）', async () => {
     const prompt = await promptForBase('illustrious')
 
-    expect(prompt).toContain('NEVER write a trigger word into the prompt text')
-    expect(prompt).toContain('A MUTED chip was muted on purpose')
-    expect(prompt).toContain('no tool that toggles a trigger chip')
+    expect(prompt).toContain('Trigger words live in the prompt text itself')
+    expect(prompt).toContain(
+      'A trigger marked [not in the prompt] was left out on purpose',
+    )
+    expect(prompt).toContain("Putting a trigger back is the creator's call")
     expect(prompt).toContain(
       'put the correction into the SAME confirmation card',
     )
@@ -15954,17 +15956,17 @@ describe('LoRA 域方言与触发词规矩', () => {
     return lastUserPrompt()
   }
 
-  it('状态块印触发词与方言指纹；chip 开着不印 MUTED', async () => {
+  it('状态块印触发词与方言指纹；在正文里时不另标', async () => {
     const digest = await stateBlockFor(LORA_SNAPSHOT)
 
     expect(digest).toContain('trigger "ink lines"')
-    expect(digest).not.toContain('[MUTED chip]')
+    expect(digest).not.toContain('[not in the prompt]')
     expect(digest).toContain(
       `dialect: ${LORA_PROMPT_DIALECTS.illustrious.fingerprint}`,
     )
   })
 
-  it('chip 关着时印 [MUTED chip]', async () => {
+  it('触发词不在正文里时印 [not in the prompt]', async () => {
     const digest = await stateBlockFor({
       ...LORA_SNAPSHOT,
       loras: {
@@ -15973,7 +15975,7 @@ describe('LoRA 域方言与触发词规矩', () => {
       },
     })
 
-    expect(digest).toContain('trigger "ink lines" [MUTED chip]')
+    expect(digest).toContain('trigger "ink lines" [not in the prompt]')
   })
 
   it('没有触发词时什么都不印（同「无数据不渲染」）', async () => {
@@ -15987,7 +15989,7 @@ describe('LoRA 域方言与触发词规矩', () => {
 
     expect(digest).toContain('Ink Lines')
     expect(digest).not.toContain('trigger "')
-    expect(digest).not.toContain('[MUTED chip]')
+    expect(digest).not.toContain('[not in the prompt]')
   })
 
   it('底模未定时状态块不印方言指纹', async () => {

@@ -544,11 +544,11 @@ export const AssistantOperatorSnapshotLoraSchema = z.object({
    */
   triggerWord: z.string().trim().min(1).max(LIMITS.maxLabelChars).nullable(),
   /**
-   * 那枚触发词 chip 现在是**开**还是**关**（装配台上用户点得动它）。
+   * 这把的触发词现在**在不在正文里**（触发词写在提示词正文里，owner 2026-09-28）。
    *
-   * ⚠ 无触发词时恒 `true`（没有 chip 可关），语义上不参与判断。
-   * ⚠ 真值只在 `LoraWorkbench` 的 `disabledTriggerIds` 手里，沿宿主入参传下来 ——
-   * ⛔ 谁都不许照着挂载栈再算一份：用户点 chip 时只会更新其中一份。
+   * ⚠ 无触发词时恒 `true`（没有可缺的），语义上不参与判断。
+   * ⚠ 真值只在 `LoraWorkbench` 按正文算的 `disabledTriggerIds` 手里，沿宿主入参传
+   * 下来 —— ⛔ 谁都不许照着挂载栈再算一份。
    */
   triggerEnabled: z.boolean(),
   /** 作者推荐提示词（`LoraAssetRecord.recommendedPrompt`）。`null` = 没有。 */

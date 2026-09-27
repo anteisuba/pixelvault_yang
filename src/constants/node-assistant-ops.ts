@@ -30,6 +30,7 @@ import {
 } from '@/constants/canvas-add-catalog'
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
+  NODE_V4_PROMPT_MAX_LENGTH,
   type NodeStudioReferenceRole,
 } from '@/constants/node-studio'
 
@@ -271,25 +272,27 @@ export const NODE_ASSISTANT_OP_LIMITS = {
    */
   maxNameLength: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeLabelLength,
   /**
-   * 提示词长度，同一条对称论据：助手读一个节点时，它的 prompt 按
-   * `maxNodeSummaryLength` 截断后进 payload；那它能写回的也就是这么长。
+   * 提示词长度 = 节点提示词自己的落库护栏（owner 2026-09-27：提示词不设我们自己
+   * 的字数上限）。
    *
-   * ⚠ 这**不是**节点提示词的产品上限 —— `NodeWorkflowNodeDataSchema.prompt` 是
-   * 无界的 `z.string()`，人手输入不受限。这里限的是「一条 op 载荷能有多大」，
-   * 和 `maxOps`「一张卡要看得完」同性质。别把它当成能力承诺往 UI 上印。
+   * ⚠ 此前借的是 `maxNodeSummaryLength`（900）——「读进 payload 截多长，写回就多
+   * 长」。可那是整板快照给每个节点的摘要预算，不是写的上限：助手写一段 1000 字的
+   * 分镜提示词，整批 op 就被 schema 拒掉（schema 拒 = 整批陪葬）。读的那一侧仍是
+   * 摘要预算，没动。⚠ 超过节点 schema 的数就是整份 project state 落不了库，所以
+   * 两边引用同一个常量。
    */
-  maxPromptLength: NODE_STUDIO_ASSISTANT_LIMITS.maxNodeSummaryLength,
+  maxPromptLength: NODE_V4_PROMPT_MAX_LENGTH,
   /** 打回理由。与 `NodeMediaReview.reason` 同一个量级。 */
   maxReasonLength: 300,
   /**
-   * 「改词再来」的增补长度。
+   * 「改词再来」的增补长度 —— 它是要进下一次生成提示词的一段字，和提示词同一个
+   * 落库护栏（2026-09-27 前是 2000）。
    *
-   * ⚠ 这个 2000 必须与 `NodeMediaReviewSchema.promptPatch` 的 `.max(2000)` 一致 ——
-   * 超了不是显示被截断，是**整份 project state 落不了库**。⛔ 不与
-   * `maxReasonLength` 合并：理由是给人读的一句话，增补是要进下一次生成提示词的
-   * 一段字，两者的量级本来就不同。
+   * ⚠ 必须与 `NodeMediaReviewSchema.promptPatch` 同一个数（两边都引用
+   * `NODE_V4_PROMPT_MAX_LENGTH`）—— 超了不是显示被截断，是**整份 project state
+   * 落不了库**。⛔ 不与 `maxReasonLength` 合并：理由是给人读的一句话。
    */
-  maxPromptPatchLength: 2000,
+  maxPromptPatchLength: NODE_V4_PROMPT_MAX_LENGTH,
   /**
    * `set_image_category` 的自定义分类名。
    *

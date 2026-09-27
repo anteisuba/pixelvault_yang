@@ -25,6 +25,7 @@ import {
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
+import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
 
 /**
  * 操作员流的事件名。
@@ -2030,16 +2031,25 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   /** 日志条的标题与理由（拍板 18 的「候选与放弃理由」写在 reason 里）。 */
   maxTitleChars: 80,
   maxReasonChars: 300,
-  /** 一轮对白的长度上限。 */
-  maxMessageChars: 4000,
   /**
-   * 提示词 / 负面提示词载荷的长度上限。
-   *
-   * ⚠ 这**不是**产品上限（表单里人手输入不受此限），只是「一条 op 能有多大」的
-   * DoS 护栏 —— 与 `NODE_ASSISTANT_OP_LIMITS.maxPromptLength` 同性质，别把它当成
-   * 能力承诺印到 UI 上。
+   * 一轮对白的长度上限 —— 与提示词同一道防滥用护栏（owner 2026-09-27：对话不设
+   * 我们自己的字数上限；此前是 4000，用户的长消息存进时间线时被截断）。
    */
-  maxPromptChars: 4000,
+  maxMessageChars: PROMPT_TEXT_GUARD_MAX_CHARS,
+  /**
+   * 提示词 / 负面提示词载荷的长度上限 = 提示词本身的防滥用护栏。
+   *
+   * ⚠ 这**不是**产品上限，只是「一条 op 能有多大」的 DoS 护栏 —— 与
+   * `NODE_ASSISTANT_OP_LIMITS.maxPromptLength` 同性质，别把它当成能力承诺印到 UI
+   * 上。它必须与提示词自己的上限一致：助手读当前提示词按它截、写回的也按它拦，
+   * 此前的 4000 让助手看不见长提示词的后半段、也写不出更长的（owner 2026-09-27）。
+   * ⚠ LoRA 素材的上下文**预算**不跟它走，见下面两格。
+   */
+  maxPromptChars: PROMPT_TEXT_GUARD_MAX_CHARS,
+  /** LoRA 参考素材（作者推荐词 + 来源图提示词）进上下文的总预算 —— 外部素材，不是用户写的字。 */
+  maxLoraMaterialChars: 8000,
+  /** 同上，上下文被拒后压缩重试时的预算 —— 压缩就是要把它收紧。 */
+  maxCompactedLoraMaterialChars: 2000,
   /** 模型 id / 档位值 / 标签这类短字符串。 */
   maxIdChars: 200,
   maxLabelChars: 120,

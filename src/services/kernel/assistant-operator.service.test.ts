@@ -16852,3 +16852,20 @@ describe('视频助手 · 写法 / 素材轨 / 负面项', () => {
     })
   })
 })
+
+describe('读写长提示词（owner 2026-09-27：提示词不设我们自己的字数上限）', () => {
+  it('⭐ 当前提示词给全文 —— 不再截在 4000', async () => {
+    const longPrompt =
+      '雨夜的城市街头，霓虹灯倒映在积水里，镜头缓慢推进。'.repeat(250)
+    queueTurns({ finished: true })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ snapshot: { ...SNAPSHOT, prompt: longPrompt } }),
+      ),
+    )
+
+    expect(toolRingCalls()[0].userPrompt).toContain(`"${longPrompt}"`)
+  })
+})

@@ -18,6 +18,7 @@ import {
   NODE_STUDIO_WORKFLOW_STORAGE,
   NODE_V4_CARD,
   NODE_V4_OUTPUT_VERSION,
+  NODE_V4_PROMPT_MAX_LENGTH,
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
 import {
@@ -110,7 +111,12 @@ export const NodeGenerationSourceSchema = z.enum(NODE_GENERATION_SOURCES)
 export const NodeMediaReviewSchema = z.object({
   state: NodeReviewStateSchema,
   reason: z.string().trim().min(1).max(600).optional(),
-  promptPatch: z.string().trim().min(1).max(2000).optional(),
+  promptPatch: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_V4_PROMPT_MAX_LENGTH)
+    .optional(),
   reviewedAt: z.string().trim().min(1).max(40).optional(),
   /**
    * 进入待审队列的时间（包 6 §4.1）—— **审阅推进的排序依据**。
@@ -935,7 +941,7 @@ export const NodeV4OutputVersionSchema = z.object({
   /** 这一版自己的尺寸 / 体积 / 封面（`NodeV4MediaMetaShape` 的子集）。 */
   meta: z.object(NodeV4MediaFactsShape).optional(),
   /** 出这一版时用的提示词与模型 —— 切回旧版时「当时写的是什么」才答得上来。 */
-  prompt: z.string().max(20_000).optional(),
+  prompt: z.string().max(NODE_V4_PROMPT_MAX_LENGTH).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
   /**
    * 这一版**从哪来**（S5c，spec §4）。⚠ 只有「不是本卡生成出来的」那几条路会写
@@ -1076,8 +1082,13 @@ export const NodeV4ImageDataSchema = z.object({
   subtype: z.enum(NODE_V4_IMAGE_SUBTYPES),
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
-  prompt: z.string().max(20_000).optional(),
-  negativePrompt: z.string().trim().min(1).max(1000).optional(),
+  prompt: z.string().max(NODE_V4_PROMPT_MAX_LENGTH).optional(),
+  negativePrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_V4_PROMPT_MAX_LENGTH)
+    .optional(),
   params: NodeV4GenerationParamsSchema.optional(),
   sourceRef: NodeV4SourceRefSchema.optional(),
   /**
@@ -1112,7 +1123,7 @@ export const NodeV4AudioDataSchema = z.object({
    */
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
-  prompt: z.string().max(20_000).optional(),
+  prompt: z.string().max(NODE_V4_PROMPT_MAX_LENGTH).optional(),
   /** 这条音色属于哪个角色（v3 的 `audioOwnerName`）。⛔ 与 `name` 是两件事。 */
   ownerName: z.string().trim().min(1).max(160).optional(),
   voiceProfile: z
@@ -1163,11 +1174,18 @@ export const NodeV4ScriptShotSchema = z.object({
   scriptNodeId: z.string().trim().min(1).max(160),
   /** 剧本里那一段的稳定键（`lib/node-script-shots.ts` 拆出来的）。diff 靠它配对。 */
   shotKey: z.string().trim().min(1).max(200),
-  /** 上一次同步进来的那段正文 —— diff 的左边。 */
-  projectedText: z.string().max(20_000),
+  /**
+   * 上一次同步进来的那段正文 —— diff 的左边。⚠ 与镜头的 `prompt` 装的是同一段
+   * 字，所以用同一个落库护栏。
+   */
+  projectedText: z.string().max(NODE_V4_PROMPT_MAX_LENGTH),
   state: z.enum(NODE_SCRIPT_SHOT_STATES),
   /** `changed` 时剧本里的新正文。⛔ 只摆着，不落进 `prompt`。 */
-  pendingText: z.string().max(20_000).optional().catch(undefined),
+  pendingText: z
+    .string()
+    .max(NODE_V4_PROMPT_MAX_LENGTH)
+    .optional()
+    .catch(undefined),
 })
 
 /**
@@ -1190,8 +1208,13 @@ const NodeV4VideoShape = {
   kind: z.literal(NODE_MEDIA_KIND_IDS.video),
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
-  prompt: z.string().max(20_000).optional(),
-  negativePrompt: z.string().trim().min(1).max(1000).optional(),
+  prompt: z.string().max(NODE_V4_PROMPT_MAX_LENGTH).optional(),
+  negativePrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(NODE_V4_PROMPT_MAX_LENGTH)
+    .optional(),
   videoMode: z.enum(VIDEO_NODE_MODES).optional(),
   params: NodeV4GenerationParamsSchema.optional(),
   mergeSettings: z

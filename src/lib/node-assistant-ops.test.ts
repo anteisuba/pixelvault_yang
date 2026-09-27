@@ -80,6 +80,24 @@ describe('extractNodeAssistantOps', () => {
     expect(result.malformed).toBe(true)
   })
 
+  // owner 2026-09-27：写回上限是节点提示词自己的落库护栏，不再借整板快照那个 900
+  // 的摘要预算 —— 此前一段 1000 字的分镜提示词会让整批 op 被拒。
+  it('accepts a long node prompt up to the node prompt guard', () => {
+    const prompt = '镜头从雨夜街口缓慢推进，霓虹倒映在积水里。'.repeat(50)
+    const result = extractNodeAssistantOps(
+      wrap(
+        JSON.stringify({
+          ops: [{ op: 'set_prompt', target: 'n1', mode: 'replace', prompt }],
+        }),
+      ),
+      { streamComplete: true },
+    )
+
+    expect(result.malformed).toBe(false)
+    const op = result.batch?.ops[0]
+    expect(op && 'prompt' in op ? op.prompt : '').toBe(prompt)
+  })
+
   it('leaves a plain reply untouched', () => {
     const result = extractNodeAssistantOps('先把小林的定妆图定下来。')
     expect(result).toEqual({

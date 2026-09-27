@@ -224,6 +224,15 @@ export const NODE_STUDIO_ASSISTANT_MESSAGE_ROLES = [
   'assistant',
 ] as const
 
+/**
+ * 画布 v4 节点提示词类字段（正向 / 负面 / 「改词再来」的增补）的**落库护栏**，
+ * ⚠ 不是产品上限（owner 2026-09-27：提示词不设我们自己的字数上限）。
+ *
+ * 节点 schema 在持久化路径上校验，助手 op 载荷上限（`NODE_ASSISTANT_OP_LIMITS`）
+ * 必须与它同一个数 —— 超了不是显示被截断，是整份 project state 落不了库。
+ */
+export const NODE_V4_PROMPT_MAX_LENGTH = 20_000
+
 export const NODE_STUDIO_ASSISTANT_LIMITS = {
   // Conversation has no product UX cap — these are DoS / payload guards only.
   // Keep high enough that multi-turn canvas chats never 400 on stored history.

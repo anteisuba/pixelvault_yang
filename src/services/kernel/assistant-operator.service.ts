@@ -1368,7 +1368,7 @@ function describeCapability(
 
 function renderState(
   run: OperatorRun,
-  materialBudget = LIMITS.maxPromptChars * 2,
+  materialBudget: number = LIMITS.maxLoraMaterialChars,
 ): string {
   const { state, request } = run
   const lines: string[] = []
@@ -8946,7 +8946,7 @@ function buildOperatorUserPrompt(run: OperatorRun, maxLength?: number): string {
   const sections: string[] = []
 
   sections.push(`CURRENT WORKBENCH STATE (the creator is looking at this right now):
-${renderState(run, maxLength === undefined ? undefined : LIMITS.maxPromptChars / 2)}`)
+${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLoraMaterialChars)}`)
 
   if (run.request.mediaAttachments?.length) {
     sections.push(

@@ -346,7 +346,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const tCancel = useTranslations('GenerationCancel')
 
   // 审查 D1：完成提示必须给"去向"——附"查看作品"直达动作，用户不再
-  // 以为结果丢了。以 generation.id 作 toast id，变体/对比多次完成时去重。
+  // 以为结果丢了。以 generation.id 作 toast id，多次完成时去重。
+  // ⚠ 只剩视频 / 音频在用：图片出图就是结果原地出现（加载态 A，owner 2026-09-27），
+  //   ⛔ 再弹这条。
   //
   // ⚠ 台账 L（owner 2026-08-29 真机）：这颗按钮原先是
   // `router.push(galleryGenerationPath(id))`，两处都错 ——
@@ -580,7 +582,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 if (outcome.status === 'completed') {
                   setLastGeneration(outcome.generation)
                   finish()
-                  notifySaved(outcome.generation, tStudio('generateSuccess'))
                   resolve(outcome.generation)
                 } else if (outcome.status === 'failed') {
                   finish(outcome.message, outcome.code)
@@ -610,11 +611,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 const statusData = statusResponse.data
 
                 if (statusData.status === 'COMPLETED') {
+                  // 出图就是结果原地出现（加载态 A，owner 2026-09-27）：⛔ 再弹成功 toast。
                   const generation = statusData.generation
                   setLastGeneration(generation)
                   markActiveRunItemCompleted(itemId, generation)
                   finish()
-                  notifySaved(generation, tStudio('generateSuccess'))
                   resolve(generation)
                   return
                 }
@@ -671,7 +672,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
-      notifySaved,
       startTimer,
       stopTimer,
       finish,
@@ -1057,7 +1057,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
-          notifySaved(firstSuccess, tStudio('variantSuccess'))
         } else if (anyFailed) {
           setError(firstFailure.current?.message ?? tStudio('generateFailed'))
           setErrorCode(firstFailure.current?.code ?? null)
@@ -1075,7 +1074,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
-      notifySaved,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
@@ -1245,7 +1243,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
         if (firstSuccess) {
           setLastGeneration(firstSuccess)
-          notifySaved(firstSuccess, tStudio('compareSuccess'))
         } else if (anyFailed) {
           setError(firstFailure.current?.message ?? tStudio('generateFailed'))
           setErrorCode(firstFailure.current?.code ?? null)
@@ -1263,7 +1260,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
-      notifySaved,
       startTimer,
       stopTimer,
       pollImageJobForRunItem,
@@ -1692,7 +1688,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             // 整轮都失败时挂过的那句原因不再成立（这一轮有图了）。
             setError(null)
             setErrorCode(null)
-            notifySaved(outcome.generation, tStudio('generateSuccess'))
           } else if (outcome.status === 'pending') {
             toast.info(tStudio('stillProcessingHint'))
           }
@@ -1714,7 +1709,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
-      notifySaved,
       updateActiveRunItem,
       pollImageJobForRunItem,
       markActiveRunItemFailed,
@@ -1781,12 +1775,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       if (outputType === 'IMAGE') {
         // 复用 `generateVariants` 排队时用的那条单条轮询；它不碰共享的
         // `pollRef`，完成态直接落在 `markActiveRunItemCompleted` 里，这里只
-        // 补一句 `notifySaved`（单图模式下原来的 toast 走的是 `generateImage`
+        // 补一句 `setLastGeneration`（单图模式下原来走的是 `generateImage`
         // 自己那段内联 promise，取消回滚绕开了那条路径，得手动补上）。
         void pollImageJobForRunItem(jobId, itemId).then((outcome) => {
           if (outcome.status === 'completed') {
             setLastGeneration(outcome.generation)
-            notifySaved(outcome.generation, tStudio('generateSuccess'))
           }
         })
         return

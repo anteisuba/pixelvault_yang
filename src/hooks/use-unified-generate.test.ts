@@ -183,14 +183,9 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.isGenerating).toBe(false)
     expect(result.current.error).toBeNull()
     expect(mockStudioGenerate).toHaveBeenCalledWith(IMAGE_INPUT)
-    // 审查 D1：完成提示必须带"查看作品"直达动作（结果的去向）。
-    expect(toast.success).toHaveBeenCalledWith(
-      'generateSuccess',
-      expect.objectContaining({
-        id: `generation-saved-${FAKE_GENERATION.id}`,
-        action: expect.objectContaining({ label: 'viewInGallery' }),
-      }),
-    )
+    // 出图就是结果原地出现（加载态 A，owner 2026-09-27 取代审查 D1 的完成提示）：
+    // ⛔ 再弹一条成功 toast。
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('routes variantCount > 1 to N independent seeded requests', async () => {

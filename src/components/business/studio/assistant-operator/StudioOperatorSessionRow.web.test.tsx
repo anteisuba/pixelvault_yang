@@ -317,10 +317,9 @@ describe('StudioOperatorSessionRow — 删除两段', () => {
     expect(button).toHaveAttribute('data-confirming', 'true')
     expect(button.className).toContain('bg-status-risk')
     expect(button.textContent).toContain('history.deleteConfirm')
-    // 宽度靠那两个字的 max-width 撑（`width:auto` 过渡不了），⛔ 不是换一颗按钮。
-    expect(button.className).toContain(
-      'transition-[background-color,color,padding]',
-    )
+    // 宽度靠那两个字的 max-width 撑（`width:auto` 过渡不了），⛔ 不是换一颗按钮；
+    // 颜色线性、内距走弹簧（画板动效表）。
+    expect(button.className).toContain('transition-delete-pill')
     expect(
       screen.getByTestId('operator-session-delete-live'),
     ).toHaveTextContent('history.deleteConfirmInline')

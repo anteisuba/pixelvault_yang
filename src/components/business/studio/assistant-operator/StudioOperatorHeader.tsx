@@ -321,8 +321,9 @@ export function StudioOperatorHeader({
                    的浅片读起来是一条输入框，而它是一颗药丸式的下拉触发器。
                  ⚠ 静息底**透明**（D7c ④ 改后）：规格胶囊走了之后标题是这一行里唯一
                    有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
-                   展开两态照旧压底 —— 可点这件事由那两态说。 */
-              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                   展开两态照旧压底 —— 可点这件事由那两态说。
+                 ⚠ 两态同一档 4%（画板「历史会话行」），13px 半粗。 */
+              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />
@@ -343,13 +344,13 @@ export function StudioOperatorHeader({
                ⚠ 宽 300 / 内边距 5（画板 `DesignD7cShell`「历史下拉」）。
                ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
                  ⛔ 不缩放整张菜单（`zoom-in-100` 把原语那档 95 顶掉）；
-                 关 = 只淡出、不位移。原语那份 `origin-(--radix-…)` 照旧贴触发器。
+                 关 = 只淡出、不位移、线性。原语那份 `origin-(--radix-…)` 照旧贴触发器。
                ⚠ 时长曲线走既有 token（`duration-fast` + `ease-standard`，
                  原语已经带着后者），⛔ 不为画板上的 90ms 新开一档。
                ⚠ 降级写 `motion-reduce:animate-none` 不是 `transition-none`：
                  开合走的是 `animate-in` / `animate-out`（keyframes），⛔ 关过渡
                  关不掉动画。 */
-            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
+            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:ease-linear data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
           >
             <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
               {t('history.heading')}
@@ -370,9 +371,14 @@ export function StudioOperatorHeader({
               >
                 {HISTORY_SKELETON_WIDTHS.map((width) => (
                   <div key={width} className="flex h-11 items-center px-2.25">
-                    <span className="flex min-w-0 flex-1 flex-col gap-1.25">
-                      <Skeleton className={cn('h-2.25 rounded-sm', width)} />
-                      <Skeleton className="h-1.75 w-2/5 rounded-sm" />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                      <Skeleton
+                        className={cn(
+                          'h-2.5 animate-skeleton-breathe rounded-sm',
+                          width,
+                        )}
+                      />
+                      <Skeleton className="h-2 w-2/5 animate-skeleton-breathe rounded-sm" />
                     </span>
                   </div>
                 ))}

@@ -81,12 +81,19 @@ const DELETE_CONFIRM_DWELL_MS = 3000
  * ⚠ ⛔ 不继承 `DropdownMenuItem` 的 `px-2 py-1.5`：那一档是给「一行文字菜单项」的，
  * 套在一枚图标上会把 44px 的行撑开。
  */
-/** 删除药丸撑开 / 缩回的节拍（CSS token，与工具行弹层进场同一根弹簧）。 */
+/**
+ * 删除药丸撑开 / 缩回（画板「历史会话行 · 动效表」）：底色与字色 120ms 线性，
+ * 左右内距走 spring-slot。⛔ 颜色不走弹簧 —— 过冲会把颜色推出终点。
+ */
 const DELETE_PILL_MOTION_CLASS =
-  'duration-spring-slot ease-spring-slot motion-reduce:transition-none'
+  'transition-delete-pill motion-reduce:transition-none'
+
+/** 药丸里那两个字：宽度跟着弹簧撑开，字由糊变清 200ms 线性。 */
+const DELETE_PILL_WORD_MOTION_CLASS =
+  'transition-delete-pill-word motion-reduce:transition-none'
 
 const ROW_ICON_BUTTON_CLASS =
-  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0 transition-[background-color,color,padding] duration-fast ease-standard motion-reduce:transition-none'
+  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0'
 
 interface StudioOperatorSessionRowProps {
   session: AssistantConversationSummary
@@ -195,7 +202,7 @@ export function StudioOperatorSessionRow({
          在说「这是当前项」的东西，⛔ 底色对读屏什么都没说。 */
         {...(current ? { 'aria-current': 'true' as const } : {})}
         className={cn(
-          'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-fast ease-standard motion-reduce:transition-none',
+          'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-fast ease-linear motion-reduce:transition-none',
           // 三档底色（见头注）：选中静息 4% < 任意行 hover 7% < 选中且 hover 11%。
           current
             ? 'bg-surface-fill hover:bg-surface-fill-track focus-within:bg-surface-fill-track'
@@ -301,14 +308,14 @@ export function StudioOperatorSessionRow({
             <span
               data-testid="operator-session-actions"
               className={cn(
-                'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-standard group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
+                'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-linear group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
                 confirming && 'opacity-100',
               )}
             >
               <DropdownMenuItem
                 className={cn(
                   ROW_ICON_BUTTON_CLASS,
-                  'w-6 text-muted-foreground',
+                  'w-6 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover focus:text-foreground motion-reduce:transition-none',
                 )}
                 data-testid="operator-session-rename"
                 aria-label={t('history.renameLabel', { title })}
@@ -328,7 +335,7 @@ export function StudioOperatorSessionRow({
                   DELETE_PILL_MOTION_CLASS,
                   confirming
                     ? 'gap-0 bg-status-risk px-1.5 text-white focus:bg-status-risk focus:text-white'
-                    : 'w-6 text-muted-foreground focus:text-status-risk',
+                    : 'min-w-6 text-muted-foreground focus:bg-surface-fill-hover focus:text-status-risk',
                 )}
                 data-testid="operator-session-delete"
                 data-confirming={confirming ? 'true' : 'false'}
@@ -353,11 +360,11 @@ export function StudioOperatorSessionRow({
                   自己从 `max-w-0` 长到 `max-w-20`，左内距写在里层（被裁掉）。 */}
                 <span
                   className={cn(
-                    'overflow-hidden whitespace-nowrap transition-[max-width,opacity,filter]',
-                    DELETE_PILL_MOTION_CLASS,
+                    'overflow-hidden whitespace-nowrap',
+                    DELETE_PILL_WORD_MOTION_CLASS,
                     confirming
                       ? 'max-w-20 opacity-100 blur-none'
-                      : 'max-w-0 opacity-0 blur-xs',
+                      : 'max-w-0 opacity-0 blur-2xs',
                   )}
                 >
                   <span className="pl-1 text-2xs font-medium">

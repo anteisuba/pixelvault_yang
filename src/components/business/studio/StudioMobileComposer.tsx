@@ -32,6 +32,7 @@ import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
@@ -58,7 +59,7 @@ const chipClass = cn(
  * 2026-09-03 方向 A「画布优先」）+ `studio-video-mobile-request.md`（视频，同日
  * 拍板）。两行：
  *   1. 横向可滚的 chip 行
- *      · 图片：模型 ▾（多选名单）/ 规格（`1:1 · ×1`）▾ / 模板 / ＋参考图
+ *      · 图片：模型 ▾（多选名单）/ 规格（`1:1 · ×1`）▾ / 模板 / ＋参考图 / 角色
  *      · 视频：模型 ▾（单选）/ 规格（`5s · 720p · 16:9`）▾ / 🔊 出声 /
  *              ＋参考图 / ♪ 音频参考 / 剧本
  *   2. 单行自增高提示词 + 黑色生成键（图片 44×44 方形 `↑`；视频带时长 `↑ 5s`）
@@ -268,6 +269,9 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
         </button>
         {/* 参考图沿用既有那颗 —— 它自带移动端抽屉宿主，这里不重造。 */}
         <ReferenceImageChip disabled={isGenerating} />
+        {/* 角色 —— 与桌面同一颗（owner 09-27「手机也要」）；触屏上它自己是底部抽屉。
+            视频档不挂：视频的图走素材轨。 */}
+        {!isVideo ? <StudioCardsButton disabled={isGenerating} /> : null}
         {isVideo ? (
           <>
             {/* 音频参考 / 剧本 —— 点开的是**既有**面板（`panels.videoAudio` /

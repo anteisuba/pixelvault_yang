@@ -104,6 +104,15 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ),
 }))
 
+// 角色 chip 自带卡片数据与图墙（它的弹层另有单测 `StudioCardPicker.test`）。
+vi.mock('@/components/business/studio/StudioCardsButton', () => ({
+  StudioCardsButton: () => (
+    <button type="button" data-testid="studio-characters-chip">
+      characters
+    </button>
+  ),
+}))
+
 vi.mock('@/components/business/studio/StudioMobileModelSheet', () => ({
   StudioMobileModelSheet: ({ open }: { open: boolean }) =>
     open ? <div data-testid="model-sheet" /> : null,
@@ -264,6 +273,12 @@ describe('StudioMobileComposer', () => {
     )
   })
 
+  it('挂着与桌面同一颗「角色」chip（owner 09-27「手机也要」）', () => {
+    render(<StudioMobileComposer templates={TEMPLATES} />)
+
+    expect(screen.getByTestId('studio-characters-chip')).toBeInTheDocument()
+  })
+
   it('reserves the measured composer height and updates after resizing', () => {
     // ⚠ 收全部回调：头部那颗写法切换（液态分段）自己也挂一个观察器。
     const callbacks: (() => void)[] = []
@@ -418,6 +433,14 @@ describe('StudioMobileComposer · 视频档', () => {
     expect(
       screen.getByTestId('studio-mobile-model-chip'),
     ).not.toHaveTextContent('modelChipMulti')
+  })
+
+  it('没有「角色」chip —— 视频的图走素材轨', () => {
+    setVideo()
+
+    render(<StudioMobileComposer templates={TEMPLATES} />)
+
+    expect(screen.queryByTestId('studio-characters-chip')).toBeNull()
   })
 
   it('规格走与图片档**同一颗** chip —— 档位按模态自己分，composer 不分支', () => {

@@ -52,9 +52,8 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   const { state, dispatch } = useStudioForm()
   const {
     runModels,
-    runModelIds,
     filterModelByDialect,
-    handleToggleRunModel,
+    handleReplaceRunModel,
     canGenerate,
     blockedReason,
     handleGenerate,
@@ -64,14 +63,11 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   } = useStudioGenerateAction()
 
   /**
-   * 顶栏右边那颗模型 chip —— 一行就把这一轮要跑的型号说完。⚠ `value` 恒为
-   * null：选中状态由 `selectedOptionIds` 说，传进去会让触发器和弹层里的勾选
-   * 写着同一条信息两遍（与自然语言台那颗同一个理由）。
+   * 顶栏右边那颗模型 chip。这一台只能单选（owner 2026-09-27「NAI 这边只能
+   * 单选」）：点一行 = 换成它，⛔ 不再叠加第二个型号。
    */
-  const modelSummary = runModels.length
-    ? runModels
-        .map((option) => getTranslatedModelLabel(tModels, option.modelId))
-        .join(' · ')
+  const modelSummary = runModels[0]
+    ? getTranslatedModelLabel(tModels, runModels[0].modelId)
     : tStudio('noModelHint')
 
   /**
@@ -109,12 +105,8 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
           <MainModelPicker
             modality="image"
             memoryScope="image-tags"
-            value={null}
-            onChange={(option) =>
-              dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-            }
-            selectedOptionIds={runModelIds}
-            onToggleOption={handleToggleRunModel}
+            value={runModels[0]?.optionId ?? null}
+            onChange={handleReplaceRunModel}
             filterOption={filterModelByDialect}
             triggerEmptyLabel={modelSummary}
             searchPlaceholder={tForm('modelSelector.searchPlaceholder')}

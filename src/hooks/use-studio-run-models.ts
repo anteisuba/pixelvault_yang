@@ -9,7 +9,7 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import type { StudioModelOption } from '@/types/model-option'
 
 export interface UseStudioRunModelsReturn {
-  /** 这一轮要跑的模型 = 主模型 + 额外模型，按名单顺序去重。 */
+  /** 这一轮要跑的模型 = 主模型 + 额外模型，按名单顺序去重；标签台只有一个。 */
   runModels: StudioModelOption[]
   runModelIds: ReadonlySet<string>
   /** 模型选择器的方言闸 —— 两台的名单互不相交。 */
@@ -71,6 +71,11 @@ export function useStudioRunModels(): UseStudioRunModelsReturn {
             ) === index
           )
         })
+        /**
+         * 标签台**只跑一个模型**（owner 2026-09-27「NAI 这边只能单选」）：那一台的
+         * 选择器是单选；多选时代留下的、助手挂上的额外模型在这里一律不算。
+         */
+        .slice(0, state.promptDialect === 'tags' ? 1 : undefined)
     )
   }, [
     modelOptions,

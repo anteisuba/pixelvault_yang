@@ -427,6 +427,68 @@ describe('useStudioGenerateAction', () => {
     )
   })
 
+  // 标签台只能单选（owner 2026-09-27）：同系列点一行 = 换成它，参数不归零。
+  it('replaces the run list with one model and keeps same-family parameters', () => {
+    const sibling = {
+      ...IMAGE_OPTION,
+      optionId: 'gpt-2',
+      modelId: 'gpt-image-2',
+    }
+    const third = {
+      ...IMAGE_OPTION,
+      optionId: 'gpt-3',
+      modelId: 'gpt-image-2.5-sunburst',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, sibling, third],
+    })
+    setState({
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [sibling.optionId],
+    })
+    const { result } = renderHook(() => useStudioGenerateAction())
+    act(() => result.current.handleReplaceRunModel(third))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'REMOVE_EXTRA_MODEL',
+      payload: sibling.optionId,
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: third.optionId,
+    })
+    expect(mockDispatch).not.toHaveBeenCalledWith({
+      type: 'RESET_ADVANCED_PARAMS',
+    })
+  })
+
+  it('runs a single model on the tag studio even with extras left over', () => {
+    const naiFull = {
+      ...IMAGE_OPTION,
+      optionId: 'nai-full',
+      modelId: 'nai-diffusion-4-5-full',
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    }
+    const naiCurated = {
+      ...naiFull,
+      optionId: 'nai-curated',
+      modelId: 'nai-diffusion-4-5-curated',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: naiFull,
+      modelOptions: [naiFull, naiCurated],
+    })
+    setState({
+      promptDialect: 'tags',
+      selectedOptionId: naiFull.optionId,
+      extraModelOptionIds: [naiCurated.optionId],
+    })
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels.map((model) => model.optionId)).toEqual([
+      naiFull.optionId,
+    ])
+  })
+
   it('excludes stale cross-family selections from the generation request', async () => {
     const other = { ...IMAGE_OPTION, optionId: 'flux', modelId: 'flux-1' }
     mockUseImageModelOptions.mockReturnValue({

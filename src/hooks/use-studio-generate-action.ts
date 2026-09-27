@@ -608,6 +608,36 @@ export function useStudioGenerateAction() {
     ],
   )
 
+  const isSameFamilyAsPrimary = useCallback(
+    (option: SelectedModelOption) => {
+      const primary = runModels[0]
+      return (
+        Boolean(primary) &&
+        (getModelFamily(primary.modelId) ?? primary.modelId) ===
+          (getModelFamily(option.modelId) ?? option.modelId)
+      )
+    },
+    [runModels],
+  )
+
+  /**
+   * 这一轮**只跑它**：额外模型全清；换到另一个系列时专属参数归零（上一个系列的
+   * 旋钮对它没有意义）。多选里点到别的系列，与标签台的单选（owner 2026-09-27
+   * 「NAI 这边只能单选」）都走这一条。
+   */
+  const handleReplaceRunModel = useCallback(
+    (option: SelectedModelOption) => {
+      for (const id of state.extraModelOptionIds) {
+        dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: id })
+      }
+      if (!isSameFamilyAsPrimary(option)) {
+        dispatch({ type: 'RESET_ADVANCED_PARAMS' })
+      }
+      dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+    },
+    [dispatch, isSameFamilyAsPrimary, state.extraModelOptionIds],
+  )
+
   /**
    * 选择器里点一行 = **在出图名单里加它或去掉它**。
    *
@@ -622,28 +652,23 @@ export function useStudioGenerateAction() {
         handleRemoveRunModel(option.optionId)
         return
       }
-      const primary = runModels[0]
-      const sameFamily =
-        primary &&
-        (getModelFamily(primary.modelId) ?? primary.modelId) ===
-          (getModelFamily(option.modelId) ?? option.modelId)
+      if (!isSameFamilyAsPrimary(option)) {
+        handleReplaceRunModel(option)
+        return
+      }
       for (const id of state.extraModelOptionIds) {
-        if (!sameFamily || !runModelIds.has(id)) {
+        if (!runModelIds.has(id)) {
           dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: id })
         }
-      }
-      if (!sameFamily) {
-        dispatch({ type: 'RESET_ADVANCED_PARAMS' })
-        dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-        return
       }
       dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
     },
     [
       dispatch,
       handleRemoveRunModel,
+      handleReplaceRunModel,
+      isSameFamilyAsPrimary,
       runModelIds,
-      runModels,
       state.extraModelOptionIds,
     ],
   )
@@ -1030,6 +1055,7 @@ export function useStudioGenerateAction() {
     filterVideoModelOption,
     filterModelByDialect,
     handleSelectSingleModel,
+    handleReplaceRunModel,
     handleToggleRunModel,
     handleRemoveRunModel,
     // 模态

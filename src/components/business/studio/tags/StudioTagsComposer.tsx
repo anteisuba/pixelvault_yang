@@ -118,9 +118,8 @@ export function StudioTagsComposer({
   const { cancelAllRunItems } = useStudioGen()
   const {
     runModels,
-    runModelIds,
     filterModelByDialect,
-    handleToggleRunModel,
+    handleReplaceRunModel,
     canGenerate,
     blockedReason,
     handleGenerate,
@@ -141,12 +140,9 @@ export function StudioTagsComposer({
   )?.modelId
   const carry = useTagCarryTranslation(tagModelId)
   const imageCount = Math.max(1, runModels.length) * state.imageBatchCount
-  const modelSummary =
-    runModels.length > 1
-      ? tStudio('modelCountSelected', { count: runModels.length })
-      : runModels[0]
-        ? getTranslatedModelLabel(tModels, runModels[0].modelId)
-        : tStudio('noModelHint')
+  const modelSummary = runModels[0]
+    ? getTranslatedModelLabel(tModels, runModels[0].modelId)
+    : tStudio('noModelHint')
 
   // 正在编辑哪一页：null = 整体，i = 第 i 位角色。
   const activeIndex =
@@ -397,18 +393,12 @@ export function StudioTagsComposer({
             </span>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <span data-assistant-field="model">
+                {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
                 <MainModelPicker
                   modality="image"
                   memoryScope="image-tags"
-                  value={null}
-                  onChange={(option) =>
-                    dispatch({
-                      type: 'SET_OPTION_ID',
-                      payload: option.optionId,
-                    })
-                  }
-                  selectedOptionIds={runModelIds}
-                  onToggleOption={handleToggleRunModel}
+                  value={runModels[0]?.optionId ?? null}
+                  onChange={handleReplaceRunModel}
                   filterOption={filterModelByDialect}
                   renderSearchFallback={(query, close) => (
                     <StudioDialectJumpHint query={query} close={close} />

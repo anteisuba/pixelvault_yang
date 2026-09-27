@@ -11,7 +11,8 @@ import { characterImageCount, characterWork } from '@/lib/character-works'
  * 的整份设定。
  *
  * ⚠ 列表按张数排、封顶 `maxCharacters`（总数另给）；设定只给打开的那一位，每格按
- *   `maxFieldChars` 截断。⛔ 不给图的 URL（见 `AssistantOperatorCardsSnapshotSchema`）。
+ *   `maxFieldChars` 截断。⛔ 不给模型图的 URL（见 `AssistantOperatorCardsSnapshotSchema`）；
+ *   打开那一位的主图地址只给服务端看图用（C3），不进模型读的状态。
  * ⚠ 纯函数：宿主每次 `buildSnapshot()` 现调，读的是那一刻的角色列表。
  */
 
@@ -40,6 +41,15 @@ function summarize(card: CharacterCardRecord, locale: string) {
   }
 }
 
+function primaryImage(card: CharacterCardRecord): string | null {
+  return (
+    card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
+    card.referenceSlots[0]?.url ??
+    card.sourceImageUrl ??
+    null
+  )
+}
+
 export function buildCardsOperatorSnapshot(
   cards: readonly CharacterCardRecord[],
   openId: string | null,
@@ -51,6 +61,7 @@ export function buildCardsOperatorSnapshot(
   const openCard = openId
     ? (cards.find((card) => card.id === openId) ?? null)
     : null
+  const openImage = openCard ? primaryImage(openCard) : null
 
   const snapshot: AssistantOperatorCardsSnapshot = {
     total: cards.length,
@@ -70,6 +81,8 @@ export function buildCardsOperatorSnapshot(
           appearanceTags: tags(openCard.cardTags.appearance),
           loraTrigger: openCard.cardTags.loraTrigger.trim(),
           imagesOnCard: openCard.referenceSlots.length,
+          // 只给服务端看图用（C3），⛔ 服务端不把它写进模型读的状态。
+          ...(openImage ? { primaryImageUrl: openImage } : {}),
         }
       : null,
   }

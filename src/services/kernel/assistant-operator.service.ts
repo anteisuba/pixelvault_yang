@@ -185,6 +185,10 @@ import {
   listAssistantAssetFolders,
 } from '@/services/kernel/assistant-asset-folder-vision.service'
 import {
+  inspectWebImageCandidates,
+  type WebImageVisionItem,
+} from '@/services/kernel/assistant-web-image-vision.service'
+import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
   streamAssistantTextWithContextRetry,
@@ -799,6 +803,11 @@ interface OperatorRun {
    */
   webImageIndex: Map<string, AssistantOperatorWebImage>
   /**
+   * 卡片域里**真看过**的联网候选（C3「搜完先看一眼」）：原图直链 → 看图模型的判断。
+   * `propose_character_images` 据此挡掉「看过、不是她」的那几张。
+   */
+  webImageVision: Map<string, WebImageVisionItem>
+  /**
    * 本轮已经发过几次 `research`（2026-09-06）。
    *
    * ⚠ 它**不能**靠 `executedStepKeys` 代替：那张表按「工具名 + 参数」比对，
@@ -1375,7 +1384,8 @@ function renderState(
       'CHARACTERS PAGE — no prompt form here. You see the characters on this page and the full profile of the one that is open.',
       `Characters (${cards?.total ?? 0} in total, most images first): ${JSON.stringify(cards?.characters ?? [])}`,
       cards?.open
-        ? `Open character: ${JSON.stringify(cards.open)}`
+        ? // ⛔ 主图地址只给看图那一步（C3），不给模型：拿到地址它就会想挂、想贴。
+          `Open character: ${JSON.stringify({ ...cards.open, primaryImageUrl: undefined })}`
         : 'No character is open — the creator is on the overview.',
       'You never write into a character directly: to add or change profile fields, send ask/propose_character_profile; to add images, send ask/propose_character_images — the creator ticks what to keep. Never claim you changed a profile, tags or images. Tags cannot be changed from here.',
     ].join('\n')
@@ -2119,6 +2129,7 @@ function planSearchWebImages(
     preferOfficial?: boolean
     limit?: number
   },
+  userId: string,
 ): ToolPlan {
   if (!isWebImageSearchConfigured()) {
     return reject(
@@ -2211,6 +2222,43 @@ function planSearchWebImages(
         : ''
       const forCharacters =
         run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
+      /**
+       * ⭐ 角色页上**搜完先看一眼**（C3，owner 09-27「像人一样去 Google 搜」）：
+       *   缩略图连同打开那一位的主图交给能看图的模型，逐张判是不是她、什么视角。
+       * ⚠ 看不成不拖垮搜图（`null`）—— 观察里照实说「只有标题」。
+       */
+      const openCharacter = run.state.cards?.open ?? null
+      const seen =
+        forCharacters && images.length > 0
+          ? await inspectWebImageCandidates({
+              userId,
+              ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+              character: {
+                name: openCharacter?.name ?? args.subject ?? args.query,
+                work: openCharacter?.work ?? null,
+                ...(openCharacter?.primaryImageUrl
+                  ? { referenceUrl: openCharacter.primaryImageUrl }
+                  : {}),
+              },
+              thumbnails: images.map(
+                (image) => image.thumbnailUrl ?? image.imageUrl,
+              ),
+            })
+          : null
+      const verdictOf = (index: number) =>
+        seen?.find((item) => item.imageIndex === index) ?? null
+      const describeSeen = (index: number) => {
+        if (!forCharacters) return ''
+        const verdict = verdictOf(index)
+        if (!verdict) return ' · NOT VIEWED'
+        const who =
+          verdict.isCharacter === 'yes'
+            ? 'IS the character'
+            : verdict.isCharacter === 'no'
+              ? 'NOT the character'
+              : 'unsure who'
+        return ` · seen: ${who}, ${verdict.view}${verdict.cluttered ? ', cluttered' : ''} — "${verdict.observation}"`
+      }
       const observation =
         images.length === 0
           ? `find_images ran ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} (${queries.map((query) => `"${query}"`).join(' · ')}) and came back empty.${
@@ -2227,11 +2275,15 @@ function planSearchWebImages(
                     // 角色页（卡片助手 C3）：`propose_character_images` 按原图直链认
                     // 这一张，所以这里要给出地址；那一页没有提示词可以误贴。
                     forCharacters ? ` · imageUrl ${image.imageUrl}` : ''
-                  }`,
+                  }${describeSeen(index)}`,
               )
               .join('\n')}\n${
               forCharacters
-                ? 'These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep.'
+                ? `${
+                    seen
+                      ? `You LOOKED at these thumbnails${openCharacter?.primaryImageUrl ? " next to the character's main image" : ''}: offer only ones seen as the character, write each reason from what was seen, and never offer one seen as NOT the character.`
+                      : 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only.'
+                  } These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
                 : 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
             }${ruleLine}`
 
@@ -2242,6 +2294,10 @@ function planSearchWebImages(
        */
       // ⚠ 存整张候选：卡片助手的 `propose_character_images` 要从这里查回缩略图与出处。
       for (const image of images) run.webImageIndex.set(image.imageUrl, image)
+      images.forEach((image, index) => {
+        const verdict = verdictOf(index)
+        if (verdict) run.webImageVision.set(image.imageUrl, verdict)
+      })
 
       return { result: { totalFound: images.length, images }, observation }
     },
@@ -7127,6 +7183,12 @@ function planProposeCharacterImages(
       )
       continue
     }
+    if (run.webImageVision.get(pick.imageUrl)?.isCharacter === 'no') {
+      dropped.push(
+        `${pick.imageUrl} (you looked at it and it is NOT this character)`,
+      )
+      continue
+    }
     if (seen.has(image.imageUrl)) continue
     seen.add(image.imageUrl)
     images.push({
@@ -7416,6 +7478,7 @@ async function planTool(
           preferOfficial?: boolean
           limit?: number
         },
+        userId,
       )
     case TOOL.research:
       return planResearch(
@@ -9991,6 +10054,7 @@ export async function* runAssistantOperator(
     apiKeyId,
     modelId,
     webImageIndex: new Map(),
+    webImageVision: new Map(),
     evidenceCiteSeq: 1,
     researchRounds: 0,
     evidenceRefSeq: undefined,

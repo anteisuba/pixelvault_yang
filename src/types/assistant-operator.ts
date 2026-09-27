@@ -767,6 +767,11 @@ export const AssistantOperatorCardsOpenCharacterSchema =
     loraTrigger: z.string().max(LIMITS.maxLabelChars),
     /** 卡上挂着几张图（主图算在内）。 */
     imagesOnCard: z.number().int().min(0),
+    /**
+     * 主图地址 —— **只给服务端看图用**（C3：联网候选逐张和她比「是不是她」）。
+     * ⛔ 不渲染进模型读的状态块：模型拿到地址就会想挂、想贴（本节头注那条论据）。
+     */
+    primaryImageUrl: z.string().url().max(4_000).optional(),
   })
 
 export const AssistantOperatorCardsSnapshotSchema = z.object({

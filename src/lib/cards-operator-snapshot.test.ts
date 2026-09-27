@@ -78,7 +78,7 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     )
   })
 
-  it('打开着的那一位带整份设定（按上限截断），不带图的地址', () => {
+  it('打开着的那一位带整份设定（按上限截断）；图的地址只有主图那一张（给服务端看图用）', () => {
     const long = 'x'.repeat(ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars + 50)
     const snapshot = buildCardsOperatorSnapshot(
       [
@@ -118,7 +118,14 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     expect(open?.behavior).toHaveLength(
       ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars,
     )
-    expect(JSON.stringify(snapshot)).not.toContain('https://')
+    expect(snapshot.cards?.open?.primaryImageUrl).toBe(
+      'https://cdn.test/denia.png',
+    )
+    const withoutPrimary = JSON.stringify(snapshot).replace(
+      'https://cdn.test/denia.png',
+      '',
+    )
+    expect(withoutPrimary).not.toContain('https://')
     expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
       true,
     )

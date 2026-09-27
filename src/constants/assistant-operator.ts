@@ -1988,6 +1988,8 @@ export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
   maxImageReasonChars: 120,
   /** 交给图片助手的那句话最多多少字。 */
   maxHandoffChars: 600,
+  /** 联网搜到的候选一次最多看几张（C3「搜完先看一眼」，一次看图调用）。 */
+  maxWebVisionImages: 12,
 } as const
 
 /**

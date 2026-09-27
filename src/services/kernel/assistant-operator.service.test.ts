@@ -92,6 +92,12 @@ vi.mock('@/services/generation.service', () => ({
 
 const mockListAssistantAssetFolders = vi.fn()
 const mockInspectAssistantAssetFolder = vi.fn()
+const mockInspectWebImageCandidates = vi.fn()
+vi.mock('@/services/kernel/assistant-web-image-vision.service', () => ({
+  inspectWebImageCandidates: (...args: unknown[]) =>
+    mockInspectWebImageCandidates(...args),
+}))
+
 vi.mock('@/services/kernel/assistant-asset-folder-vision.service', () => ({
   listAssistantAssetFolders: (...args: unknown[]) =>
     mockListAssistantAssetFolders(...args),
@@ -682,6 +688,7 @@ beforeEach(() => {
    */
   mockListContextCards.mockResolvedValue([])
   mockListAssistantAssetFolders.mockResolvedValue([])
+  mockInspectWebImageCandidates.mockResolvedValue(null)
   mockInspectAssistantAssetFolder.mockResolvedValue({
     folder: {
       folderId: 'hero-folder',
@@ -1551,6 +1558,124 @@ describe('read_state', () => {
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
     })
+  })
+
+  it('卡片助手搜完先看一眼：带着主图看缩略图，观察写出看到了什么，看过不是她的挂不上', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/denia.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/d.jpg',
+        pageUrl: 'https://example.test/denia',
+        domain: 'example.test',
+      },
+      {
+        imageUrl: 'https://cdn.example.test/other.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/o.jpg',
+        pageUrl: 'https://example.test/other',
+        domain: 'example.test',
+      },
+    ])
+    mockInspectWebImageCandidates.mockResolvedValue([
+      {
+        imageIndex: 0,
+        isCharacter: 'yes',
+        view: 'full',
+        cluttered: false,
+        observation: '粉发少女全身立绘，白底',
+      },
+      {
+        imageIndex: 1,
+        isCharacter: 'no',
+        view: 'bust',
+        cluttered: false,
+        observation: '白发的另一个角色',
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: '上网找图',
+          args: { query: 'denia' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: '交图',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+            characterId: 'denia',
+            images: [
+              {
+                imageUrl: 'https://cdn.example.test/denia.jpg',
+                reason: '全身立绘',
+              },
+              {
+                imageUrl: 'https://cdn.example.test/other.jpg',
+                reason: '半身',
+              },
+            ],
+          },
+        },
+      },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'cards',
+          snapshot: {
+            ...CARDS_SNAPSHOT,
+            cards: {
+              ...CARDS_SNAPSHOT.cards,
+              open: {
+                id: 'denia',
+                name: 'Denia',
+                work: '鸣潮',
+                imageCount: 1,
+                hasProfile: false,
+                look: '',
+                identity: '',
+                behavior: '',
+                speech: '',
+                backstory: '',
+                characterTags: [],
+                appearanceTags: [],
+                loraTrigger: '',
+                imagesOnCard: 1,
+                primaryImageUrl: 'https://cdn.example.test/main.png',
+              },
+            },
+          },
+        }),
+      ),
+    )
+    expect(mockInspectWebImageCandidates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        character: expect.objectContaining({
+          name: 'Denia',
+          referenceUrl: 'https://cdn.example.test/main.png',
+        }),
+        thumbnails: [
+          'https://encrypted-tbn0.gstatic.test/d.jpg',
+          'https://encrypted-tbn0.gstatic.test/o.jpg',
+        ],
+      }),
+    )
+    const prompts = toolRingCalls()
+      .map((call) => call.userPrompt)
+      .join('\n')
+    expect(prompts).toContain('seen: IS the character, full')
+    expect(prompts).toContain('seen: NOT the character')
+    // ⛔ 主图地址只给看图那一步，不进模型读的状态。
+    expect(prompts).not.toContain('https://cdn.example.test/main.png')
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    ) as { confirm: { proposal: { images: { url: string }[] } } }
+    expect(confirm.confirm.proposal.images.map((image) => image.url)).toEqual([
+      'https://cdn.example.test/denia.jpg',
+    ])
   })
 
   it('卡片助手提议挂图：一张都没查到过就挡回去，不吐确认卡', async () => {

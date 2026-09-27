@@ -29,6 +29,13 @@ const FOLDER_VISION_SERVICE_PATH = join(
   'src/services/kernel/assistant-asset-folder-vision.service.ts',
 )
 const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
+const WEB_IMAGE_VISION_SOURCE = readFileSync(
+  join(
+    process.cwd(),
+    'src/services/kernel/assistant-web-image-vision.service.ts',
+  ),
+  'utf8',
+)
 const ASSET_WRITE_SERVICE_PATH = join(
   process.cwd(),
   'src/services/asset-library-write.service.ts',
@@ -59,6 +66,12 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 不创建 generation、不写库、不下载文件，也不触发图片 / 视频 / 音频生成。
    */
   '@/services/kernel/assistant-asset-folder-vision.service',
+  /**
+   * 联网候选「搜完先看一眼」（卡片助手 C3）：把搜图拿到的缩略图 URL 交给结构化视觉
+   * 补全，逐张判是不是这个角色。⭐ 判据比文件夹视觉那条还干净：连库都不读 ——
+   * 不建 generation、不扣 credit、不写库、不落字节（下面有一条用例扫它的源码）。
+   */
+  '@/services/kernel/assistant-web-image-vision.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
   // 文本补全的重试策略，工具环每一步都走它。
@@ -305,6 +318,28 @@ describe('⛔ 助手工具环的钱闸', () => {
     }
     expect(FOLDER_VISION_SOURCE).toContain('db.generation.findMany')
     expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
+  })
+
+  it('联网候选看图服务只看缩略图：够不着生成、扣费、写入，连库都不读', () => {
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'generateAudio',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      'uploadToR2',
+      'uploadFromHttpToR2',
+      "from '@/lib/db'",
+      'prisma',
+    ]) {
+      expect(
+        WEB_IMAGE_VISION_SOURCE.includes(identifier),
+        `联网候选看图服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    expect(WEB_IMAGE_VISION_SOURCE).toContain('completeVisionStructured')
   })
 
   /**

@@ -53,7 +53,7 @@ describe('pageAddress', () => {
     withOrigin('https://pixelvault.app')
     const address = pageAddress({ locale: 'ja', path: ROUTES.GALLERY })
 
-    expect(address.openGraph.siteName).toBe('PixelVault')
+    expect(address.openGraph.siteName).toBe('ANTEI')
     expect(address.openGraph.locale).toBe('ja')
   })
 

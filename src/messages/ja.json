@@ -215,7 +215,7 @@
       "volcengine": "VolcEngine",
       "opensource": "オープンソース",
       "replicate": "Replicate",
-      "runner": "PixelVault Runner",
+      "runner": "ANTEI Runner",
       "hyper3d": "Hyper3D",
       "byteplus": "BytePlus"
     },
@@ -534,67 +534,67 @@
     "close": "閉じる"
   },
   "Metadata": {
-    "title": "PixelVault | パーソナルAIギャラリー",
+    "title": "ANTEI | パーソナルAIギャラリー",
     "description": "Gemini・FLUXなど主要AIモデルで画像・動画・音声を生成し、すべての結果をひとつの個人ギャラリーに永久保存。",
     "keywords": "AI画像生成, AIアート, Gemini画像, FLUX AI, パーソナルAIギャラリー, AI動画生成, テキストから画像",
     "studio": {
-      "title": "スタジオ — PixelVault",
+      "title": "スタジオ — ANTEI",
       "description": "複数のAIモデルでひとつのワークスペースから画像や動画を生成。",
       "image": {
-        "title": "画像スタジオ — PixelVault",
+        "title": "画像スタジオ — ANTEI",
         "description": "複数のAIモデルでひとつのワークスペースから画像を生成。"
       },
       "video": {
-        "title": "動画スタジオ — PixelVault",
+        "title": "動画スタジオ — ANTEI",
         "description": "ショット、動き、シーンの展開をAIで動画化。"
       },
       "audio": {
-        "title": "音声スタジオ — PixelVault",
+        "title": "音声スタジオ — ANTEI",
         "description": "テキスト読み上げと音声クローンで音声を生成。"
       },
       "edit": {
-        "title": "画像編集 — PixelVault",
+        "title": "画像編集 — ANTEI",
         "description": "インペイント、超解像、背景除去、要素抽出で生成画像を編集。"
       },
       "node": {
-        "title": "キャンバス — PixelVault",
+        "title": "キャンバス — ANTEI",
         "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"
       },
       "imageTags": {
-        "title": "タグスタジオ — PixelVault",
+        "title": "タグスタジオ — ANTEI",
         "description": "NovelAI と PixAI 向けの danbooru タグプロンプトを組み立てます。"
       }
     },
     "gallery": {
-      "title": "ギャラリー — PixelVault",
+      "title": "ギャラリー — ANTEI",
       "description": "AI生成画像の公開アーカイブを閲覧。"
     },
     "prompts": {
-      "title": "プロンプト設計 — PixelVault",
+      "title": "プロンプト設計 — ANTEI",
       "description": "繰り返し使えるプロンプトテンプレートを管理し、それぞれで作った作品を確認できます。"
     },
     "profile": {
-      "title": "プロフィール — PixelVault",
+      "title": "プロフィール — ANTEI",
       "description": "生成履歴、クレジット、保存済みAPIルートの管理。"
     },
     "assets": {
-      "title": "アセット — PixelVault",
+      "title": "アセット — ANTEI",
       "description": "あなたの作品をまとめて閲覧・管理。プロジェクトとフォルダで整理。"
     },
     "cards": {
-      "title": "カード管理 — PixelVault",
+      "title": "カード管理 — ANTEI",
       "description": "キャラクターカード、スタイルカード、背景カードをひとつの場所で管理。"
     },
     "storyboard": {
-      "title": "ストーリーボード — PixelVault",
+      "title": "ストーリーボード — ANTEI",
       "description": "AI で生成した画像をつなげて、ストーリーを作れます。"
     },
     "signIn": {
-      "title": "ログイン — PixelVault",
+      "title": "ログイン — ANTEI",
       "description": "保存済みアーカイブ、APIキー、生成履歴へ戻るためにログインします。"
     },
     "signUp": {
-      "title": "アカウント作成 — PixelVault",
+      "title": "アカウント作成 — ANTEI",
       "description": "アカウントを作成して、画像・動画・プロンプト・シードを保存しながら生成を始めます。"
     }
   },
@@ -2521,8 +2521,8 @@
     "viewCover": "カバー画像を拡大",
     "coverPreviewBack": "戻る",
     "useExternal": "Civitaiで開く",
-    "externalBadgeHint": "このベースモデルは PixelVault では非対応です — Civitai で生成してください",
-    "externalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Civitai で生成してください。",
+    "externalBadgeHint": "このベースモデルは ANTEI では非対応です — Civitai で生成してください",
+    "externalInspectorHint": "{family} 系の LoRA は ANTEI に対応エンドポイントがありません。下のボタンから Civitai で生成してください。",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
     "librarySourceCivitaiShort": "CIV",
@@ -2551,7 +2551,7 @@
     "huggingFaceFamilyQwenImage": "Qwen Image",
     "huggingFaceFamilyZImage": "Z-Image",
     "huggingFaceFamilyOther": "その他の画像モデル",
-    "huggingFaceUnsupportedFamily": "保存はできますが、PixelVault には現在互換性のある生成ベースがありません",
+    "huggingFaceUnsupportedFamily": "保存はできますが、ANTEI には現在互換性のある生成ベースがありません",
     "communityOpenInCivitai": "Civitai で生成",
     "externalUseRedirect": "Civitai に移動します：{name}",
     "sourceBadgeCivitai": "CIV",
@@ -2563,7 +2563,7 @@
     "licenseAttributionRequired": "要クレジット表記",
     "licenseAttributionRequiredHint": "利用時は作者/出典を明記してください",
     "huggingFaceLicenseLabel": "ライセンス",
-    "huggingFaceExternalInspectorHint": "{family} 系の LoRA は PixelVault に対応エンドポイントがありません。下のボタンから Hugging Face リポジトリを開いてください。",
+    "huggingFaceExternalInspectorHint": "{family} 系の LoRA は ANTEI に対応エンドポイントがありません。下のボタンから Hugging Face リポジトリを開いてください。",
     "showcaseTitle": "サンプル画像",
     "showcaseFillPrompt": "プロンプトに追加",
     "showcaseImageAlt": "{name} サンプル {n}"
@@ -2970,7 +2970,7 @@
     "keyStatusSavedRouteTitle": "この保存済みルートを使用",
     "keyStatusSavedRouteDescription": "{label}（{maskedKey}）がこのルートに使われます。",
     "keyStatusFallbackTitle": "ワークスペース既定ルートを使用",
-    "keyStatusFallbackDescription": "このワークスペースルートは、利用可能な場合に PixelVault の設定済み {provider} エンドポイントとフォールバックキーを使います。",
+    "keyStatusFallbackDescription": "このワークスペースルートは、利用可能な場合に ANTEI の設定済み {provider} エンドポイントとフォールバックキーを使います。",
     "routeSourceLabel": "ルート種別",
     "routeSources": {
       "workspace": "ワークスペース既定",
@@ -3554,7 +3554,7 @@
     "skipStep": "スキップ",
     "steps": {
       "welcome": {
-        "title": "PixelVault へようこそ",
+        "title": "ANTEI へようこそ",
         "description": "API キーなしで、1日5回まで無料で始められます。あとからキーを追加すると全モデルを選べるようになり、1日の無料枠ではなく各プロバイダーの利用枠で生成できます。"
       },
       "model": {
@@ -3690,19 +3690,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious（Runner）",
-      "description": "PixelVault Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
+      "description": "ANTEI Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
-      "description": "PixelVault Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、PixelVault 内で生成できる唯一の経路です。"
+      "description": "ANTEI Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、ANTEI 内で生成できる唯一の経路です。"
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL（Runner）",
-      "description": "PixelVault Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
+      "description": "ANTEI Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0（Runner）",
-      "description": "PixelVault Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
+      "description": "ANTEI Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
     },
     "qwenImage21Runner": {
       "label": "qwen2.1",
@@ -3710,7 +3710,7 @@
     },
     "animaDitRunner": {
       "label": "Anima（Runner）",
-      "description": "PixelVault Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
+      "description": "ANTEI Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
@@ -4040,7 +4040,7 @@
   },
   "CreatorProfile": {
     "metaTitle": "クリエイターポートフォリオ",
-    "metaDescription": "PixelVault で {name} の AI 作品を見てみましょう",
+    "metaDescription": "ANTEI で {name} の AI 作品を見てみましょう",
     "notFound": "プロフィールが見つかりません",
     "works": "作品",
     "likes": "いいね",
@@ -4207,7 +4207,7 @@
       "posterLayout": "SF映画のミニマリストポスター、巨大な惑星を背景にした宇宙飛行士のシルエット",
       "cinematicVideo": "夜明けの霧に包まれた竹林を一人の侍が歩いている、カメラが背後からゆっくり追従",
       "characterToVideo": "キャラクターがカメラに向かって振り返り、温かく微笑む。穏やかな風が髪をなびかせている",
-      "voiceNarration": "PixelVaultへようこそ。AIの力であなたの想像が現実になる場所です"
+      "voiceNarration": "ANTEIへようこそ。AIの力であなたの想像が現実になる場所です"
     }
   },
   "StudioCommandPalette": {
@@ -6849,8 +6849,8 @@
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
       "callbackTimeout": "生成結果をまだ受信できていません。再試行する前に生成履歴を確認してください。",
       "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",
-      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば PixelVault Runner モデル（忠実なレシピ複製）をお試しください。",
-      "runnerMonthlyLimitExceeded": "PixelVault Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
+      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば ANTEI Runner モデル（忠実なレシピ複製）をお試しください。",
+      "runnerMonthlyLimitExceeded": "ANTEI Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
       "runnerLoraUnavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
       "loraDownloadDisabled": "この LoRA は作者が Civitai でダウンロードを無効にしているため、ここでは読み込めません。別の LoRA を選んでください。"
     },

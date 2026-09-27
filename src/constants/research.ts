@@ -355,7 +355,7 @@ export const RESEARCH_BREAKER_OPTIONS = {
  * **不需要也不应该伪装浏览器**。
  */
 export const RESEARCH_USER_AGENT =
-  'PixelVaultResearch/1.0 (https://github.com/pixelvault; AI gallery research connector)'
+  'ANTEIResearch/1.0 (https://github.com/pixelvault; AI gallery research connector)'
 
 /** B站要 Referer 才不被风控页挡（元数据 only，边界 16）。 */
 export const BILIBILI_REQUEST = {

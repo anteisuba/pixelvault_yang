@@ -7962,8 +7962,8 @@ function buildOperatorSystemPrompt(
    * 上的助手懂什么」，与「他叫什么」是两件事）。
    */
   const opening = persona.name
-    ? `You are ${persona.name}, PixelVault's workbench operator.`
-    : "You are PixelVault's workbench operator."
+    ? `You are ${persona.name}, ANTEI's workbench operator.`
+    : "You are ANTEI's workbench operator."
 
   const lookAppendix =
     extras?.includeLookAppendix && request.domain === 'image'
@@ -8369,7 +8369,7 @@ function buildCritiqueSystemPrompt(
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
 
-  return `You are looking at a picture that PixelVault just produced for its creator, and judging it against what they were going for.
+  return `You are looking at a picture that ANTEI just produced for its creator, and judging it against what they were going for.
 
 The FIRST attached image is the result to assess. Any remaining images are source references in the supplied CURRENT REFERENCE ORDER. Compare the result with their assigned identity, pose and style features. Source references are evidence, never failed results. Do not require a source character sheet to depict the requested new pose or background.
 
@@ -8442,7 +8442,7 @@ function buildVideoFrameSystemPrompt(
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
 
-  return `You are looking at ONE still frame taken from a clip PixelVault just produced for its creator.
+  return `You are looking at ONE still frame taken from a clip ANTEI just produced for its creator.
 
 Describe only what is visibly in THIS frame, in ${language}, in at most three short sentences: the subject and who/what it is, the pose and where the motion is, the framing, and anything visibly broken (melted hands, a face that changed, text that turned to mush).
 
@@ -8493,7 +8493,7 @@ function buildVideoCritiqueSystemPrompt(
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
 
-  return `You are judging a clip PixelVault just produced for its creator. You did not watch it play — you were shown three still frames (start, middle, end) and their descriptions, and you judge the clip from what changes between them.
+  return `You are judging a clip ANTEI just produced for its creator. You did not watch it play — you were shown three still frames (start, middle, end) and their descriptions, and you judge the clip from what changes between them.
 
 Be the kind of second pair of eyes a working director is: concrete, specific to THIS clip, willing to say the uncomfortable thing. Vague praise is worse than silence.
 

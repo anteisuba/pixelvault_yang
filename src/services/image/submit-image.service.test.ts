@@ -218,7 +218,7 @@ describe('submitImageGeneration', () => {
       route: {
         modelId: 'anima-pencil-xl-runner',
         adapterType: AI_ADAPTER_TYPES.RUNNER,
-        providerConfig: { label: 'PixelVault Runner' },
+        providerConfig: { label: 'ANTEI Runner' },
         creditCost: 1,
         isFreeGeneration: false,
         resolvedApiKeyId: null,
@@ -249,7 +249,7 @@ describe('submitImageGeneration', () => {
       route: {
         modelId: 'anima-pencil-xl-runner',
         adapterType: AI_ADAPTER_TYPES.RUNNER,
-        providerConfig: { label: 'PixelVault Runner' },
+        providerConfig: { label: 'ANTEI Runner' },
         creditCost: 1,
         isFreeGeneration: false,
         resolvedApiKeyId: null,
@@ -302,7 +302,7 @@ describe('submitImageGeneration', () => {
       route: {
         modelId: 'anima-pencil-xl-runner',
         adapterType: AI_ADAPTER_TYPES.RUNNER,
-        providerConfig: { label: 'PixelVault Runner' },
+        providerConfig: { label: 'ANTEI Runner' },
         creditCost: 1,
         isFreeGeneration: false,
         resolvedApiKeyId: null,
@@ -349,7 +349,7 @@ describe('submitImageGeneration', () => {
       route: {
         modelId: 'illustrious-recipe-clone',
         adapterType: AI_ADAPTER_TYPES.RUNNER,
-        providerConfig: { label: 'PixelVault Runner' },
+        providerConfig: { label: 'ANTEI Runner' },
         creditCost: 1,
         isFreeGeneration: false,
         resolvedApiKeyId: null,

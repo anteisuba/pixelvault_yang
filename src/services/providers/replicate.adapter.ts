@@ -142,7 +142,7 @@ export async function submitReplicateLoraTraining(input: {
       name: destName,
       visibility: 'private',
       hardware: 'cpu',
-      description: `LoRA trained via PixelVault (trigger: ${input.triggerWord})`,
+      description: `LoRA trained via ANTEI (trigger: ${input.triggerWord})`,
     }),
   })
   // 409 = model already exists, that's fine

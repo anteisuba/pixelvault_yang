@@ -9,19 +9,19 @@ const NAVIGATION_SOURCES = ['src/constants/navigation.ts'] as const
 const EXPECTED_COPY = {
   en: {
     label: 'Canvas',
-    metadataTitle: 'Canvas — PixelVault',
+    metadataTitle: 'Canvas — ANTEI',
     guideLabel: 'Canvas guide',
     oldBrand: /Node (?:Studio|Editor|workflow)/,
   },
   ja: {
     label: 'キャンバス',
-    metadataTitle: 'キャンバス — PixelVault',
+    metadataTitle: 'キャンバス — ANTEI',
     guideLabel: 'キャンバスガイド',
     oldBrand: /ノード(?:スタジオ|エディター|ワークフロー)/,
   },
   zh: {
     label: '画布',
-    metadataTitle: '画布 — PixelVault',
+    metadataTitle: '画布 — ANTEI',
     guideLabel: '画布操作教程',
     oldBrand: /节点(?:工作台|编辑器|工作流)/,
   },

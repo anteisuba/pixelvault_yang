@@ -215,7 +215,7 @@
       "volcengine": "火山引擎",
       "opensource": "开源",
       "replicate": "Replicate",
-      "runner": "PixelVault Runner",
+      "runner": "ANTEI Runner",
       "hyper3d": "Hyper3D",
       "byteplus": "BytePlus"
     },
@@ -534,67 +534,67 @@
     "close": "关闭"
   },
   "Metadata": {
-    "title": "PixelVault | 个人 AI 画廊",
+    "title": "ANTEI | 个人 AI 画廊",
     "description": "使用 Gemini、FLUX 等顶级 AI 模型生成图像、视频和音频，并将每次结果永久归档到同一个个人画廊中。",
     "keywords": "AI 图像生成, AI 绘画, Gemini 图像, FLUX AI, 个人 AI 画廊, AI 视频生成, 文字生成图片",
     "studio": {
-      "title": "工作台 — PixelVault",
+      "title": "工作台 — ANTEI",
       "description": "在同一工作区使用多个 AI 模型生成图像和视频。",
       "image": {
-        "title": "图片工作台 — PixelVault",
+        "title": "图片工作台 — ANTEI",
         "description": "在同一工作区使用多个 AI 模型生成图片。"
       },
       "video": {
-        "title": "视频工作台 — PixelVault",
+        "title": "视频工作台 — ANTEI",
         "description": "用 AI 把镜头、动作和场景演变变成视频。"
       },
       "audio": {
-        "title": "音频工作台 — PixelVault",
+        "title": "音频工作台 — ANTEI",
         "description": "用文本转语音和声音克隆生成音频。"
       },
       "edit": {
-        "title": "图片编辑 — PixelVault",
+        "title": "图片编辑 — ANTEI",
         "description": "使用局部重绘、超分、去背景和提取元素编辑生成图片。"
       },
       "node": {
-        "title": "画布 — PixelVault",
+        "title": "画布 — ANTEI",
         "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
       },
       "imageTags": {
-        "title": "标签台 — PixelVault",
+        "title": "标签台 — ANTEI",
         "description": "为 NovelAI 与 PixAI 编写 danbooru 风格的标签提示词。"
       }
     },
     "gallery": {
-      "title": "画廊 — PixelVault",
+      "title": "画廊 — ANTEI",
       "description": "浏览 AI 生成图像的公开档案。"
     },
     "prompts": {
-      "title": "提示词工程 — PixelVault",
+      "title": "提示词工程 — ANTEI",
       "description": "管理可调用的提示词模板，并回看每条模板生成过的素材。"
     },
     "profile": {
-      "title": "个人中心 — PixelVault",
+      "title": "个人中心 — ANTEI",
       "description": "你的生成历史、积分和保存的 API 路由。"
     },
     "assets": {
-      "title": "素材 — PixelVault",
+      "title": "素材 — ANTEI",
       "description": "浏览和管理你的所有生成作品，按项目和文件夹组织。"
     },
     "cards": {
-      "title": "卡片管理 — PixelVault",
+      "title": "卡片管理 — ANTEI",
       "description": "管理角色卡、画风卡和背景卡，统一控制你的生成素材库。"
     },
     "storyboard": {
-      "title": "故事板 — PixelVault",
+      "title": "故事板 — ANTEI",
       "description": "用 AI 生成的图像创建视觉叙事。"
     },
     "signIn": {
-      "title": "登录 — PixelVault",
+      "title": "登录 — ANTEI",
       "description": "登录后回到已保存的档案、API key 和生成历史。"
     },
     "signUp": {
-      "title": "注册 — PixelVault",
+      "title": "注册 — ANTEI",
       "description": "创建账号后开始生成并保存图像、视频、prompt 和 seed。"
     }
   },
@@ -2521,8 +2521,8 @@
     "viewCover": "查看封面大图",
     "coverPreviewBack": "返回",
     "useExternal": "在 Civitai 打开",
-    "externalBadgeHint": "这个基础模型在 PixelVault 不支持，需要去 Civitai 生成",
-    "externalInspectorHint": "{family} 系列 LoRA 在 PixelVault 暂无可用推理端点，点击下方按钮跳转 Civitai 生成。",
+    "externalBadgeHint": "这个基础模型在 ANTEI 不支持，需要去 Civitai 生成",
+    "externalInspectorHint": "{family} 系列 LoRA 在 ANTEI 暂无可用推理端点，点击下方按钮跳转 Civitai 生成。",
     "librarySourceCivitai": "Civitai",
     "librarySourceHuggingFace": "Hugging Face",
     "librarySourceCivitaiShort": "CIV",
@@ -2551,7 +2551,7 @@
     "huggingFaceFamilyQwenImage": "Qwen Image",
     "huggingFaceFamilyZImage": "Z-Image",
     "huggingFaceFamilyOther": "其他图片模型",
-    "huggingFaceUnsupportedFamily": "可以收藏，但 PixelVault 当前没有兼容的生成底模",
+    "huggingFaceUnsupportedFamily": "可以收藏，但 ANTEI 当前没有兼容的生成底模",
     "communityOpenInCivitai": "在 Civitai 生成",
     "externalUseRedirect": "正在跳转 Civitai：{name}",
     "sourceBadgeCivitai": "CIV",
@@ -2563,7 +2563,7 @@
     "licenseAttributionRequired": "需署名",
     "licenseAttributionRequiredHint": "使用时需注明作者/来源",
     "huggingFaceLicenseLabel": "许可证",
-    "huggingFaceExternalInspectorHint": "{family} 系列 LoRA 在 PixelVault 暂无可用推理端点，点击下方按钮打开 Hugging Face 仓库。",
+    "huggingFaceExternalInspectorHint": "{family} 系列 LoRA 在 ANTEI 暂无可用推理端点，点击下方按钮打开 Hugging Face 仓库。",
     "showcaseTitle": "样例参考",
     "showcaseFillPrompt": "填入正文",
     "showcaseImageAlt": "{name} 样例图 {n}"
@@ -2970,7 +2970,7 @@
     "keyStatusSavedRouteTitle": "正在使用这个已保存路由",
     "keyStatusSavedRouteDescription": "这个路由会使用 {label}（{maskedKey}）。",
     "keyStatusFallbackTitle": "正在使用工作区默认路由",
-    "keyStatusFallbackDescription": "这个工作区路由会在可用时调用 PixelVault 配置好的 {provider} 端点和回退密钥。",
+    "keyStatusFallbackDescription": "这个工作区路由会在可用时调用 ANTEI 配置好的 {provider} 端点和回退密钥。",
     "routeSourceLabel": "路由来源",
     "routeSources": {
       "workspace": "工作区默认",
@@ -3554,7 +3554,7 @@
     "skipStep": "跳过",
     "steps": {
       "welcome": {
-        "title": "欢迎来到 PixelVault",
+        "title": "欢迎来到 ANTEI",
         "description": "无需 API 密钥即可免费开始，每天 5 次免费生成。之后绑定自己的密钥即可解锁全部模型和无限使用。"
       },
       "model": {
@@ -3690,19 +3690,19 @@
     },
     "illustriousRecipeClone": {
       "label": "WAI-Illustrious（Runner）",
-      "description": "通过 PixelVault Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
+      "description": "通过 ANTEI Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
     },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
-      "description": "通过 PixelVault Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 PixelVault 内生成它的唯一途径。"
+      "description": "通过 ANTEI Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 ANTEI 内生成它的唯一途径。"
     },
     "ponyDiffusionV6": {
       "label": "Pony Diffusion V6 XL（Runner）",
-      "description": "通过 PixelVault Runner 跑 Pony Diffusion V6 XL——忠实复刻配方，覆盖 Civitai 上体量庞大的 Pony LoRA 生态。"
+      "description": "通过 ANTEI Runner 跑 Pony Diffusion V6 XL——忠实复刻配方，覆盖 Civitai 上体量庞大的 Pony LoRA 生态。"
     },
     "sdxl10Runner": {
       "label": "SDXL 1.0（Runner）",
-      "description": "通过 PixelVault Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
+      "description": "通过 ANTEI Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
     },
     "qwenImage21Runner": {
       "label": "qwen2.1",
@@ -3710,7 +3710,7 @@
     },
     "animaDitRunner": {
       "label": "Anima（Runner）",
-      "description": "通过 PixelVault Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
+      "description": "通过 ANTEI Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
@@ -4040,7 +4040,7 @@
   },
   "CreatorProfile": {
     "metaTitle": "创作者作品集",
-    "metaDescription": "在 PixelVault 探索 {name} 的 AI 生成艺术",
+    "metaDescription": "在 ANTEI 探索 {name} 的 AI 生成艺术",
     "notFound": "未找到该用户",
     "works": "作品",
     "likes": "喜欢",
@@ -4207,7 +4207,7 @@
       "posterLayout": "科幻电影极简海报，巨大行星前的单人宇航员剪影",
       "cinematicVideo": "一位武士独行于拂晓薄雾的竹林中，镜头从背后缓缓跟随",
       "characterToVideo": "角色转身面向镜头，温暖地微笑，轻风吹拂着发丝",
-      "voiceNarration": "欢迎来到 PixelVault，在这里，AI 的力量让你的想象变为现实"
+      "voiceNarration": "欢迎来到 ANTEI，在这里，AI 的力量让你的想象变为现实"
     }
   },
   "StudioCommandPalette": {
@@ -6844,13 +6844,13 @@
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
       "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
       "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / DeepSeek），或缩短提示词。",
-      "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
+      "contextLimitExceeded": "ANTEI 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
       "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",
-      "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 PixelVault Runner 模型（忠实复刻）可用，试试切换过去。",
-      "runnerMonthlyLimitExceeded": "PixelVault Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
+      "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 ANTEI Runner 模型（忠实复刻）可用，试试切换过去。",
+      "runnerMonthlyLimitExceeded": "ANTEI Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
       "runnerLoraUnavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。"
     },

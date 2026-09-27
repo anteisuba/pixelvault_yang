@@ -13,13 +13,13 @@ vi.mock('@/constants/models', async () => {
     {
       id: 'qwen-image-2.1-runner',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
-      providerConfig: { label: 'PixelVault Runner', baseUrl: '' },
+      providerConfig: { label: 'ANTEI Runner', baseUrl: '' },
       cost: 3,
     },
     {
       id: 'runner-only-model',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
-      providerConfig: { label: 'PixelVault Runner', baseUrl: '' },
+      providerConfig: { label: 'ANTEI Runner', baseUrl: '' },
       cost: 3,
       imageKind: IMAGE_KIND.LORA_BASE,
     },

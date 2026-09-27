@@ -294,7 +294,7 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
   outputBudgetExhausted:
     'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.',
   contextLimitExceeded:
-    'The selected model rejected the input because its context window was exceeded. PixelVault already compacted older history and retried once; start a new conversation or remove large references.',
+    'The selected model rejected the input because its context window was exceeded. ANTEI already compacted older history and retried once; start a new conversation or remove large references.',
   timeout:
     'The selected provider did not answer in time. Retry, shorten the conversation, or choose another Agent Key.',
   refused:

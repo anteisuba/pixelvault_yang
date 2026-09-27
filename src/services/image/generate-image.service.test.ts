@@ -285,7 +285,7 @@ describe('resolveGenerationRoute', () => {
       id: 'illustrious-recipe-clone',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: {
-        label: 'PixelVault Runner',
+        label: 'ANTEI Runner',
         baseUrl: 'https://api.runpod.ai/v2',
       },
       cost: 3,

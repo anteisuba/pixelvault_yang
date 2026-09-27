@@ -1,11 +1,12 @@
 import { ImageResponse } from 'next/og'
 import { getTranslations } from 'next-intl/server'
 
+import { SITE_NAME } from '@/constants/config'
 import { BRAND_ACCENT, BRAND_BG, BRAND_FG } from '@/lib/design-tokens'
 import { isAppLocale } from '@/i18n/routing'
 
 export const runtime = 'nodejs'
-export const alt = 'PixelVault — Personal AI Gallery'
+export const alt = `${SITE_NAME} — Personal AI Gallery`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -76,7 +77,7 @@ export default async function OGImage({
           letterSpacing: '-0.03em',
         }}
       >
-        PixelVault
+        {SITE_NAME}
       </div>
 
       {/* Tagline */}

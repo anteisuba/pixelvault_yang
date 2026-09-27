@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
+import { SITE_NAME } from '@/constants/config'
 import { getSharedAssistantConversationAPI } from '@/lib/api-client/assistant-conversation'
 import type { SharedAssistantConversationRecord } from '@/types/assistant-conversation'
 
@@ -70,7 +71,7 @@ export default function AssistantSharePage({
       <div className="mx-auto max-w-3xl">
         <header className="mb-6 border-b border-border/60 pb-4">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            PixelVault · Assistant
+            {SITE_NAME} · Assistant
           </p>
           <h1 className="mt-2 text-xl font-semibold">
             {conversation?.title ?? copy.title}

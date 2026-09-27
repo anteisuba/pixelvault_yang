@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { NextRequest } from 'next/server'
 
+import { SITE_NAME } from '@/constants/config'
 import { getPublicGenerationById } from '@/services/generation.service'
 import { getCreatorProfile } from '@/services/user.service'
 
@@ -14,7 +15,7 @@ import {
   BRAND_MUTED,
 } from '@/lib/design-tokens'
 
-const BRAND = 'PixelVault'
+const BRAND = SITE_NAME
 const BG = BRAND_BG
 const FG = BRAND_FG
 const MUTED = BRAND_MUTED

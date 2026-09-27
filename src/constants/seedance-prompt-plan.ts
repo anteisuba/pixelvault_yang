@@ -74,7 +74,7 @@ ${SEEDANCE_CONTROL_RULES_BODY}
 // model-neutral and shared via CINEMATIC_SHOT_GRAMMAR — the ScriptDoc shot
 // stage uses the same block, so there is one source of truth. Only the framing
 // here (Seedance JSON contract, finalPrompt, @token references) is model-specific.
-export const SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT = `You are PixelVault's Seedance 2.5 video prompt planning agent. Convert a user's rough idea into a structured, cinematic, model-ready video prompt plan.
+export const SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT = `You are ANTEI's Seedance 2.5 video prompt planning agent. Convert a user's rough idea into a structured, cinematic, model-ready video prompt plan.
 
 OUTPUT
 - Return only valid JSON. No markdown fences, commentary, or extra keys.

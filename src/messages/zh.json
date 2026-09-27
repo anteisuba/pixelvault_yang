@@ -8454,6 +8454,8 @@
     "loneHint": "只有一位时不排名次。再建几位角色，这里会按出图张数排成大小格。",
     "works": "作品",
     "byImages": "按张数",
+    "allCharacters": "全部角色",
+    "allCharactersHint": "{count} 位 · 按名字",
     "tileMeta": "{work} · {images} 张",
     "workOriginal": "原创",
     "fieldWork": "作品",

@@ -196,6 +196,22 @@ export function CharacterOverview({
               ))}
             </div>
           </Section>
+          {/* 人一多，「用得最多」只露前几位：这里按名字列全员，翻找用（owner 09-28）。
+              ⚠ 不超过「用得最多」那几位时不出，免得同一批卡摆两遍。 */}
+          {entries.length > RANKED_COUNT ? (
+            <Section
+              title={t('allCharacters')}
+              hint={t('allCharactersHint', { count: entries.length })}
+            >
+              <CellGrid>
+                {[...entries]
+                  .sort((a, b) =>
+                    a.card.name.localeCompare(b.card.name, locale),
+                  )
+                  .map((entry) => tile(entry, null))}
+              </CellGrid>
+            </Section>
+          ) : null}
         </>
       )}
     </div>

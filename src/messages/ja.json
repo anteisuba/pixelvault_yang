@@ -8454,6 +8454,8 @@
     "loneHint": "1 人だけのときは順位を付けません。キャラが増えると枚数順に並びます。",
     "works": "作品",
     "byImages": "枚数順",
+    "allCharacters": "すべてのキャラクター",
+    "allCharactersHint": "{count} 人 · 名前順",
     "tileMeta": "{work} · {images} 枚",
     "workOriginal": "オリジナル",
     "fieldWork": "作品",

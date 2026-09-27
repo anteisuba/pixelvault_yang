@@ -8454,6 +8454,8 @@
     "loneHint": "With one character there’s nothing to rank. Add a few more and this becomes a ranking by image count.",
     "works": "Series",
     "byImages": "By image count",
+    "allCharacters": "All characters",
+    "allCharactersHint": "{count} · by name",
     "tileMeta": "{work} · {images, plural, one {# image} other {# images}}",
     "workOriginal": "Original",
     "fieldWork": "Series",

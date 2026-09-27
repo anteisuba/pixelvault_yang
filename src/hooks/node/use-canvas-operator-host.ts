@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -32,9 +32,14 @@ import {
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { buildCanvasCharacters } from '@/lib/cards-operator-snapshot'
 import { collectDownstream } from '@/lib/node-downstream'
-import { resolveMentionsToSlots } from '@/lib/node-mentions-to-slots'
+import {
+  isCharacterCardNode,
+  resolveMentionsToSlots,
+} from '@/lib/node-mentions-to-slots'
 import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
@@ -208,8 +213,21 @@ export function useCanvasOperatorHost({
     graphRef.current = { ...graphRef.current, currentShotNo }
   }, [currentShotNo])
 
+  /** 角色库：画布助手写剧本 / 台词时 `@` 谁、用谁的口吻（画布用角色 ④ 第 3 片）。 */
+  const library = useCharacterLibrary()
+  const locale = useLocale()
+
   const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
     const graph = graphRef.current
+    const onCanvasIds = new Set(
+      graph.nodes.flatMap((node) =>
+        isCharacterCardNode(node) &&
+        node.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        node.data.characterId
+          ? [node.data.characterId]
+          : [],
+      ),
+    )
     return {
       /**
        * ⚠ 画布上**没有**那张表单，所以 `prompt` 恒空、其余控件一格都不给 ——
@@ -232,9 +250,18 @@ export function useCanvasOperatorHost({
         currentShotNo: graph.currentShotNo,
         selectedNodeIds: graph.selectedNodeIds,
         ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
+        ...(library.cards.length
+          ? {
+              characters: buildCanvasCharacters(
+                library.cards,
+                onCanvasIds,
+                locale,
+              ),
+            }
+          : {}),
       }),
     }
-  }, [availableModelsByNodeId, referenceImages])
+  }, [availableModelsByNodeId, library.cards, locale, referenceImages])
 
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {

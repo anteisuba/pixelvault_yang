@@ -718,6 +718,32 @@ export const AssistantOperatorCanvasShotSchema = z.discriminatedUnion(
   ],
 )
 
+const CardsFieldSchema = z
+  .string()
+  .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars)
+
+/**
+ * 画布快照里的**角色库**（画布用角色 ④ 第 3 片）：写剧本 / 台词时 `@` 谁、用谁的口吻。
+ * 放在这块画布上的几位（`onCanvas`）带设定，其余只有名字。
+ * ⛔ 不给 id、不给图地址：镜头用她只走正文里的 `@名字`，图由卡上勾的那几张自动带上。
+ */
+export const AssistantOperatorCanvasCharacterSchema = z.object({
+  name: LabelSchema,
+  /** 作品显示名；`null` = 原创。 */
+  work: LabelSchema.nullable(),
+  imageCount: z.number().int().min(0),
+  onCanvas: z.boolean(),
+  profile: z
+    .object({
+      look: CardsFieldSchema,
+      identity: CardsFieldSchema,
+      behavior: CardsFieldSchema,
+      speech: CardsFieldSchema,
+      backstory: CardsFieldSchema,
+    })
+    .optional(),
+})
+
 export const AssistantOperatorCanvasSnapshotSchema = z.object({
   /** 焦点所在的那一面镜 —— 展开哪三面由它定。`null` = 还没落焦点。 */
   currentShotNo: z.number().int().min(1).max(999).nullable(),
@@ -729,6 +755,15 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
     .array(IdSchema)
     .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
     .default([]),
+  /** 角色库（列表可能被截，总数另给）。缺席 = 宿主没给。 */
+  characters: z
+    .object({
+      total: z.number().int().min(0),
+      list: z
+        .array(AssistantOperatorCanvasCharacterSchema)
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCharacters),
+    })
+    .optional(),
 })
 
 /**
@@ -737,9 +772,6 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
  * ⚠ 图只给张数、不给 URL：C1 的卡片助手只读；挂图是 C3 的专属工具，摆一串地址只会
  * 诱导模型去编一张不存在的图（与画布快照不给 URL 同一条论据）。
  */
-const CardsFieldSchema = z
-  .string()
-  .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars)
 const CardsTagsSchema = z
   .array(LabelSchema)
   .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxTags)

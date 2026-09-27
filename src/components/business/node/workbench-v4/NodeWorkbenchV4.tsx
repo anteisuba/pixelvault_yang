@@ -677,6 +677,11 @@ function NodeWorkbenchV4Inner() {
    * 左栏角色库点一位（画布用角色 ④）：已在画布上 = 定位到她；否则落到视口中央，
    * 身份（`characterId`）在建卡同一步写进去 —— 一次撤销就能拿掉。
    */
+  /**
+   * 左栏点一位 = 落下**并选中**（画板 L3）。⚠ 新节点要等渲染层在下一次提交里派生
+   * 出来才选得上 —— 同一个事件里选，会被派生那一步覆盖成未选。
+   */
+  const pendingSelectRef = useRef<string | null>(null)
   const placeCharacter = useCallback(
     (card: CharacterCardRecord) => {
       const existing = graph.nodes.find(
@@ -714,10 +719,28 @@ function NodeWorkbenchV4Inner() {
           ...(nameTaken ? {} : { name: card.name }),
         },
       )
-      if (nodeId) lastCreatedRef.current = [nodeId]
+      if (nodeId) {
+        lastCreatedRef.current = [nodeId]
+        pendingSelectRef.current = nodeId
+      }
     },
     [focusNode, graph, screenToFlowPosition],
   )
+  useEffect(() => {
+    const id = pendingSelectRef.current
+    if (!id || !graph.nodes.some((node) => node.id === id)) return
+    pendingSelectRef.current = null
+    graph.onRfNodesChange([
+      ...graph.selectedNodeIds
+        .filter((selected) => selected !== id)
+        .map((selected) => ({
+          id: selected,
+          type: 'select' as const,
+          selected: false,
+        })),
+      { id, type: 'select', selected: true },
+    ])
+  }, [graph])
 
   /**
    * 三条加节点路里那颗**上传**（S7 §7 owner 追加）。

@@ -2037,6 +2037,10 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxAvailableModels: 64,
   /** 一次重跑规划最多列几个下游节点。 */
   maxRerunNodes: 40,
+  /** 快照里的角色库最多列几位（按张数排，总数另给）。 */
+  maxCharacters: 60,
+  /** 放在画布上、带设定的那几位最多几位。 */
+  maxCastProfiles: 6,
 } as const
 
 export const ASSISTANT_OPERATOR_LIMITS = {

@@ -1,6 +1,10 @@
-import { ASSISTANT_OPERATOR_CARDS_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
+  ASSISTANT_OPERATOR_CARDS_LIMITS,
+} from '@/constants/assistant-operator'
 import type { CharacterCardRecord } from '@/types'
 import type {
+  AssistantOperatorCanvasSnapshot,
   AssistantOperatorCardsSnapshot,
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
@@ -99,4 +103,52 @@ export function buildCardsOperatorSnapshot(
   }
   // 角色页上没有提示词框：`prompt` 恒空串（契约要求这一格在）。
   return { prompt: '', availableModels: [], cards: snapshot }
+}
+
+/**
+ * 画布快照里的角色库（画布用角色 ④ 第 3 片）：画布助手写剧本 / 台词时 `@` 谁、用谁的
+ * 口吻。放在这块画布上的几位排最前、带设定（封顶 `maxCastProfiles`）；其余按张数排、
+ * 只给名字。⛔ 不给 id 与图地址（见 `AssistantOperatorCanvasCharacterSchema`）。
+ */
+export function buildCanvasCharacters(
+  cards: readonly CharacterCardRecord[],
+  onCanvasIds: ReadonlySet<string>,
+  locale: string,
+): NonNullable<AssistantOperatorCanvasSnapshot['characters']> {
+  const ranked = [...cards].sort(
+    (a, b) =>
+      Number(onCanvasIds.has(b.id)) - Number(onCanvasIds.has(a.id)) ||
+      characterImageCount(b) - characterImageCount(a),
+  )
+  let profiles = 0
+  return {
+    total: cards.length,
+    list: ranked
+      .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCharacters)
+      .map((card) => {
+        const summary = summarize(card, locale)
+        const onCanvas = onCanvasIds.has(card.id)
+        const withProfile =
+          onCanvas &&
+          profiles < ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCastProfiles
+        if (withProfile) profiles += 1
+        return {
+          name: summary.name,
+          work: summary.work,
+          imageCount: summary.imageCount,
+          onCanvas,
+          ...(withProfile
+            ? {
+                profile: {
+                  look: clip(card.description),
+                  identity: clip(card.persona?.identity),
+                  behavior: clip(card.persona?.behavior),
+                  speech: clip(card.persona?.speech),
+                  backstory: clip(card.persona?.backstory),
+                },
+              }
+            : {}),
+        }
+      }),
+  }
 }

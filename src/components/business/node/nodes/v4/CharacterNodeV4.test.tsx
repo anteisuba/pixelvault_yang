@@ -45,6 +45,11 @@ vi.mock('@/hooks/cards/use-character-library', () => ({
   }),
 }))
 
+const requestOperatorDraft = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/use-studio-operator-store', () => ({
+  requestOperatorDraft,
+}))
+
 vi.mock('@/hooks/cards/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [
@@ -211,6 +216,21 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
       expect(screen.queryByText('fieldSpeech')).toBeNull()
       expect(screen.getByRole('button', { name: /readOnly/ })).toBeTruthy()
     })
+  })
+
+  it('文字页两键：把一句带 @她 的话填进画布助手（⛔ 不替用户发）', async () => {
+    renderRole(harness(), { selected: true })
+    fireEvent.click(screen.getByRole('tab', { name: 'textTab' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'writeScript' }))
+    expect(requestOperatorDraft).toHaveBeenLastCalledWith(
+      'canvas',
+      'writeScriptDraft:Denia',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'writeLines' }))
+    expect(requestOperatorDraft).toHaveBeenLastCalledWith(
+      'canvas',
+      'writeLinesDraft:Denia',
+    )
   })
 
   it('右键菜单只有「整理排布 · 删除」（展开 / 下载 / 克隆对她没意义）', () => {

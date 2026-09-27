@@ -228,7 +228,9 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 | video | `clip`       | 参考片段（叶子源，无入口）                                                                     | ❌                |
 | video | `merge`      | **已退役**（§8.6）：只在存量数据里出现                                                         | —                 |
 
-**角色卡**（画布用角色 ④，owner 2026-09-27 方向 A，画板 `DesignCanvasCharacterUi.dc.html`）：`image.character` + `characterId` 绑角色库里的一位，一个画布一位只有一张。卡面 / 图片页 / 文字页都**现读**角色库（`useCharacterLibrary`），画布只存「是她」。收起 = 她的主图、名字在卡外；选中 = 原地变宽展开（`NODE_V4_CHARACTER_CARD`），「图片 / 文字」液态分段，⛔ 没有底部提示词面板、没有进出口（不连线，镜头用她走 @）、⛔ 没有工具条（owner 09-28）。图片页点一张 = 右边落一张普通 `image.reference` 卡并选中，⛔ 不连线。读不到她 / 她没图是灰底一句话。注册表按 `characterId` 分流到 `CharacterNodeV4`。
+**角色卡**（画布用角色 ④，owner 2026-09-27 方向 A，画板 `DesignCanvasCharacterUi.dc.html`）：`image.character` + `characterId` 绑角色库里的一位，一个画布一位只有一张。卡面 / 图片页 / 文字页都**现读**角色库（`useCharacterLibrary`），画布只存「是她」。收起 = 她的主图、名字在卡外；选中 = 原地变宽展开（`NODE_V4_CHARACTER_CARD`），「图片 / 文字」液态分段，⛔ 没有底部提示词面板、没有进出口（不连线，镜头用她走 @）、⛔ 没有工具条（owner 09-28）。图片页点一张 = 右边落一张普通 `image.reference` 卡并选中，⛔ 不连线。文字页只读，两个按钮「让助手写剧本 / 写台词」把一句带 `@她` 的话填进画布助手的输入框（`requestOperatorDraft`，⛔ 不替用户发）。左栏点一位 = 落在视口中间并选中。读不到她 / 她没图是灰底一句话。注册表按 `characterId` 分流到 `CharacterNodeV4`。
+
+**镜头里的角色**：提示词正文里的 `@名字`（按名字对角色库，同名只认第一位）+ 卡上 `characterPicks[characterId]`（op `set_character_picks`；没勾 = 主图 1 张）。她挂在参考轨上（`CharacterMentionRail`，角标 = 带几张），点开勾图，上限 = 模型参考图上限 − 轨上参考图。出图走卡片总线，视频走 `withCharacterVideoReferences`；分到图的她只写名字 + 图例，⛔ 不写外观长描述。画布助手的快照带角色库（`canvas.characters`：画布上的几位带设定），写剧本 / 台词时照名字写 `@`，多位或对不上先问。
 
 **镜头不是容器节点**：一个镜头 = 一个 `video.shot` 节点 + 它左侧的五个具名入口。镜头带（shot lane）是**布局层按 `data.shotNo` 派生的分组**，不是节点、没有 `parentId`、不折叠。24 镜横排靠节点收起态 + 缩放解决信息密度，⛔ 不再造一层带级折叠状态。
 
@@ -361,7 +363,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 ⚠ **inverse 只删本次新增的那几面镜**，⛔ 不碰「标已变」与「标灰」的旧镜（spec 原文）。所以撤销之后那两种角标**仍然在**——它们说的是「剧本和这一镜对不上」，那句话在撤销之后依然为真。
 
-**角色槽**（`referenceSlots{role,url,cardId}`）：投影按这一镜里的 `@角色` 开出**空位**，显示在参考轨那一行（卡面不显示槽，§1.1）。⚠ 本片只有形状与空态；装填（卡片总线把角色卡的图与音色挂进来）归进度表 35 的 `attach_card`，⛔ 不提前写一半。
+**剧本里的 `@角色`**：原样进这一镜的提示词，参考轨按角色库认人（见 §9.1「镜头里的角色」）。⛔ 不开空角色槽（09-28 删掉 `referenceSlots`：连线装填的方案被「用 @ 不用线」取代）。
 
 **助手看得见**：快照里剧本卡带一份**跨折叠**的投影汇总（`scriptProjection: {shots, projected, changed, dropped}`），镜头卡带 `fromScript: {nodeId, shotKey, state}`。汇总跨折叠统计是有意的——折叠的镜模型看不见，但「还有几面与剧本对不上」这句话它必须知道，否则它会以为投影已经干净了。⛔ 汇总里没有逐镜列表（与分层同一条理由）。
 
@@ -559,7 +561,7 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 边即进度 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
 - 模型选择器：`src/components/business/studio-shared/pickers/ModelPickerPopover.tsx` · `ModelChip.tsx` · `src/lib/resolve-model-channel.ts` · `src/lib/group-models-for-picker.ts` · `src/hooks/use-model-picker-memory.ts` · `src/constants/model-picker.ts`
 - 剪辑台：`src/components/business/node/edit-desk/**` · `src/hooks/node/use-edit-desk.ts` · `src/hooks/node/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
-- 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema` / `NodeV4ReferenceSlotSchema`（`src/types/node-workflow.ts`）
+- 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema`（`src/types/node-workflow.ts`）
 - op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
 - 画布上的助手（§13）：`src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/components/business/studio/assistant-operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
 - 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts`

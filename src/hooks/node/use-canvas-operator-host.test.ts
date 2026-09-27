@@ -9,6 +9,16 @@ vi.mock('next-intl', () => ({
    */
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}|${Object.values(values).join('·')}` : key,
+  useLocale: () => 'zh',
+}))
+
+const mockLibraryCards = vi.hoisted(() => ({ value: [] as unknown[] }))
+vi.mock('@/hooks/cards/use-character-library', () => ({
+  useCharacterLibrary: () => ({
+    cards: mockLibraryCards.value,
+    loaded: true,
+    find: () => null,
+  }),
 }))
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
@@ -182,6 +192,51 @@ describe('canvas assistant image references', () => {
     )
     return { ...hook, applyOp }
   }
+
+  it('快照带上角色库：画布上的那位标 onCanvas 并带设定，其余只有名字', () => {
+    mockLibraryCards.value = [
+      {
+        id: 'denia',
+        name: 'Denia',
+        description: '粉发红眼',
+        sourceImageUrl: null,
+        referenceSlots: [],
+        persona: null,
+        cardTags: { character: [], appearance: [], loraTrigger: '' },
+        workOverride: null,
+        generationCount: 0,
+      },
+      {
+        id: 'rixi',
+        name: 'Rixi',
+        description: null,
+        sourceImageUrl: null,
+        referenceSlots: [],
+        persona: null,
+        cardTags: { character: [], appearance: [], loraTrigger: '' },
+        workOverride: null,
+        generationCount: 3,
+      },
+    ]
+    const placed = {
+      ...image('c_1'),
+      data: {
+        ...image('c_1').data,
+        subtype: 'character',
+        characterId: 'denia',
+      },
+    } as NodeV4
+    const { result } = setup([placed])
+    const characters = result.current.buildSnapshot().canvas?.characters
+    mockLibraryCards.value = []
+    expect(characters?.total).toBe(2)
+    expect(characters?.list[0]).toMatchObject({
+      name: 'Denia',
+      onCanvas: true,
+      profile: { look: '粉发红眼' },
+    })
+    expect(characters?.list[1]).toMatchObject({ name: 'Rixi', onCanvas: false })
+  })
 
   it('exposes existing canvas images without requiring node selection', () => {
     const { result } = setup([

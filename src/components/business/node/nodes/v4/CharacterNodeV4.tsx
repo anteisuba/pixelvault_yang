@@ -20,6 +20,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import type { NodeProps } from '@xyflow/react'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { cardManagementPath } from '@/constants/routes'
 import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -31,10 +32,12 @@ import { NODE_V4_CARD, NODE_V4_CHARACTER_CARD } from '@/constants/node-studio'
 import type { CharacterCardRecord } from '@/types'
 import type { NodeV4ImageData } from '@/types/node-workflow'
 import { ArrowUpRight } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { resolveRelativePlacement } from '@/hooks/node/use-node-graph-v4'
+import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
 import { NodeCardShell } from './chrome'
@@ -108,6 +111,14 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
       'noopener',
     )
   }, [locale, nodeData.characterId])
+
+  const handToAssistant = (key: 'writeScriptDraft' | 'writeLinesDraft') => {
+    if (!card) return
+    requestOperatorDraft(
+      ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      t(key, { name: card.name }),
+    )
+  }
 
   const latest = useRef({ canvas })
   useEffect(() => {
@@ -435,6 +446,32 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                               </div>
                             ))
                           )}
+                          {/* 她的设定交给画布助手：填进输入框、打开面板，⛔ 不替用户发。 */}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="nodrag nopan"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                handToAssistant('writeScriptDraft')
+                              }}
+                            >
+                              {t('writeScript')}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="nodrag nopan"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                handToAssistant('writeLinesDraft')
+                              }}
+                            >
+                              {t('writeLines')}
+                            </Button>
+                          </div>
                           <button
                             type="button"
                             onClick={(event) => {

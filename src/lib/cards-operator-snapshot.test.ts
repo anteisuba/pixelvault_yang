@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { ASSISTANT_OPERATOR_CARDS_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
+  ASSISTANT_OPERATOR_CARDS_LIMITS,
+} from '@/constants/assistant-operator'
 import type { CharacterCardRecord } from '@/types'
-import { AssistantOperatorSnapshotSchema } from '@/types/assistant-operator'
+import {
+  AssistantOperatorCanvasSnapshotSchema,
+  AssistantOperatorSnapshotSchema,
+} from '@/types/assistant-operator'
 
-import { buildCardsOperatorSnapshot } from './cards-operator-snapshot'
+import {
+  buildCanvasCharacters,
+  buildCardsOperatorSnapshot,
+} from './cards-operator-snapshot'
 
 const card = (
   id: string,
@@ -132,6 +141,66 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     expect(withoutPrimary).not.toContain('https://')
     expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
       true,
+    )
+  })
+})
+
+describe('buildCanvasCharacters（画布助手写剧本 / 台词时 @ 谁）', () => {
+  const persona = {
+    identity: '舞台魔术师',
+    behavior: '',
+    speech: '叫对方「观众先生」',
+    catchphrases: [],
+    scenario: '',
+    opening: '',
+    examples: [],
+    backstory: '',
+  }
+
+  it('画布上的几位排最前、带设定；其余只有名字；⛔ 不给 id 与图地址', () => {
+    const characters = buildCanvasCharacters(
+      [
+        card('rixi', { generationCount: 9 }),
+        card('denia', { description: '粉发红眼', persona }),
+      ],
+      new Set(['denia']),
+      'zh',
+    )
+    expect(characters.total).toBe(2)
+    expect(characters.list.map((item) => item.name)).toEqual(['denia', 'rixi'])
+    expect(characters.list[0]).toMatchObject({
+      onCanvas: true,
+      profile: {
+        look: '粉发红眼',
+        identity: '舞台魔术师',
+        speech: '叫对方「观众先生」',
+      },
+    })
+    expect(characters.list[1]).toMatchObject({ onCanvas: false })
+    expect(characters.list[1]).not.toHaveProperty('profile')
+    expect(JSON.stringify(characters)).not.toContain('https://')
+    expect(characters.list[0]).not.toHaveProperty('id')
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse({
+        currentShotNo: null,
+        shots: [],
+        characters,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('带设定的最多 maxCastProfiles 位', () => {
+    const many = Array.from(
+      { length: ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCastProfiles + 2 },
+      (_, index) => card(`c${index}`, { persona }),
+    )
+    const characters = buildCanvasCharacters(
+      many,
+      new Set(many.map((item) => item.id)),
+      'zh',
+    )
+    expect(characters.list.filter((item) => item.profile)).toHaveLength(
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCastProfiles,
     )
   })
 })

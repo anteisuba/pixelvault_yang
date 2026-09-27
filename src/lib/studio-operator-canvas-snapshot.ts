@@ -234,6 +234,8 @@ export interface BuildCanvasSnapshotInput {
    * ⛔ 别在这里另查一份。
    */
   readonly availableModelsByNodeId?: Readonly<Record<string, readonly string[]>>
+  /** 角色库（`buildCanvasCharacters` 现算）；缺席 = 宿主没给。 */
+  readonly characters?: AssistantOperatorCanvasSnapshot['characters']
 }
 
 export function buildCanvasOperatorSnapshot({
@@ -243,6 +245,7 @@ export function buildCanvasOperatorSnapshot({
   currentShotNo,
   selectedNodeIds = [],
   availableModelsByNodeId,
+  characters,
 }: BuildCanvasSnapshotInput): AssistantOperatorCanvasSnapshot {
   const incomingByTarget = new Map<string, NodeWorkflowEdgeV4[]>()
   for (const edge of edges) {
@@ -310,5 +313,6 @@ export function buildCanvasOperatorSnapshot({
       ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot,
     ),
     shots: shots.slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxShotLines),
+    ...(characters ? { characters } : {}),
   }
 }

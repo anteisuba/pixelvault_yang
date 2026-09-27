@@ -1164,24 +1164,4 @@ describe('剧本投影角标与角色空槽（进度表 24）', () => {
     )
     expect(document.querySelector('[data-script-shot-badge]')).toBeNull()
   })
-
-  /** ⚠ 只有空位：装填归进度表 35，本片⛔ 不挂图、不挂音色。 */
-  it('⭐ `@角色` 的空槽渲染在参考轨那一行，且是空的', () => {
-    renderVideo(
-      harness([
-        videoNode('v_1', {
-          ...READY,
-          referenceSlots: [{ role: '小黑' }, { role: '路人' }],
-        }),
-      ]),
-      'v_1',
-      true,
-    )
-    const slots = document.querySelectorAll('[data-script-role-slot]')
-    expect(slots).toHaveLength(2)
-    for (const slot of slots) {
-      expect(slot.getAttribute('data-script-role-slot')).toBe('empty')
-    }
-    expect(slots[0]?.textContent).toContain('小黑')
-  })
 })

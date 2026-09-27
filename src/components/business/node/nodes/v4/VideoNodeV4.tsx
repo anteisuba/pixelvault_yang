@@ -89,10 +89,7 @@ import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
 import { VideoRefRail } from './video/VideoRefRail'
-import {
-  VideoScriptRoleSlots,
-  VideoScriptShotBadge,
-} from './video/VideoScriptShotChips'
+import { VideoScriptShotBadge } from './video/VideoScriptShotChips'
 import { useVideoComposer } from './video/use-video-composer'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import { formatVideoSeconds, videoCardHeight } from './video/video-node-model'
@@ -125,10 +122,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       ? videoData.scriptShot
       : undefined
-  const scriptRoleSlots =
-    videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
-      ? (videoData.referenceSlots ?? [])
-      : []
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
@@ -798,7 +791,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     usedImages={characterRail.usedImages}
                     disabled={generating}
                   />
-                  <VideoScriptRoleSlots slots={scriptRoleSlots} />
                 </>
               }
               value={draft}

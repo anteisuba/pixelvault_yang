@@ -5870,9 +5870,7 @@
         },
         "scriptShot": {
           "changed": "Changed",
-          "dropped": "Cut from script",
-          "roleEmpty": "@{role} not filled",
-          "rolesAriaLabel": "Character slots"
+          "dropped": "Cut from script"
         }
       },
       "connectToShot": {

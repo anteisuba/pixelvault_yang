@@ -426,10 +426,6 @@ function applyScriptProjection(
       shotNo,
       prompt: shot.text,
       scriptShot,
-      // 角色槽只开**空位**（35 未落）：名字来自这一段里的 `@角色`，⛔ 不装填。
-      ...(shot.roles.length === 0
-        ? {}
-        : { referenceSlots: shot.roles.map((role) => ({ role })) }),
       ...(shot.durationSec === undefined
         ? {}
         : { params: { duration: String(shot.durationSec) } }),

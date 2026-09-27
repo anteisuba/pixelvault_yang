@@ -5870,9 +5870,7 @@
         },
         "scriptShot": {
           "changed": "変更あり",
-          "dropped": "脚本から削除",
-          "roleEmpty": "@{role} 未設定",
-          "rolesAriaLabel": "キャラクター枠"
+          "dropped": "脚本から削除"
         }
       },
       "connectToShot": {

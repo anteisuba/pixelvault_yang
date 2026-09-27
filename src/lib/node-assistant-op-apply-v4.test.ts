@@ -976,18 +976,17 @@ describe('project_script · 投影（画板 DesignD7Script ①②）', () => {
     })
   })
 
-  it('`@小黑` 开出角色空槽——只有名字，⛔ 没有 url / cardId（35 未落）', () => {
+  it('`@小黑` 原样留在这一镜的提示词里（参考轨按角色库认人），⛔ 不开空角色槽', () => {
     const run = runBatch(scriptState(), [
       { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
     ])
     const withRole = projectedShots(run.state).find(
       (node) => scriptRefOf(node)?.shotKey === 's2',
     )
-    const slots =
-      withRole?.data.kind === 'video' && withRole.data.subtype === 'shot'
-        ? withRole.data.referenceSlots
-        : undefined
-    expect(slots).toEqual([{ role: '小黑' }])
+    expect(withRole?.data.kind === 'video' && withRole.data.prompt).toContain(
+      '@小黑',
+    )
+    expect(withRole?.data).not.toHaveProperty('referenceSlots')
   })
 
   it('时长写进生成档位（`4s` → params.duration）', () => {

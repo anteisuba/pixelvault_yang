@@ -5870,9 +5870,7 @@
         },
         "scriptShot": {
           "changed": "已变",
-          "dropped": "剧本已删",
-          "roleEmpty": "@{role} 未装填",
-          "rolesAriaLabel": "角色槽"
+          "dropped": "剧本已删"
         }
       },
       "connectToShot": {

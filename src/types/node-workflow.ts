@@ -45,10 +45,7 @@ import {
   NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import {
-  NODE_SCRIPT_PROJECTION,
-  NODE_SCRIPT_SHOT_STATES,
-} from '@/constants/node-script'
+import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import { AUDIO_CLIP_SOURCE_KINDS } from '@/constants/audio-options'
 import {
   EDIT_ASPECTS,
@@ -1213,20 +1210,6 @@ export const NodeV4ScriptShotSchema = z.object({
     .catch(undefined),
 })
 
-/**
- * 角色槽的**形状与空位**（进度表 35 `attach_card` 的前置）。
- *
- * ⚠ 本片只落**类型形状与空态**：投影按这一镜里的 `@角色` 开出对应数量的空位，
- * `url` / `cardId` 一律缺席。装填（卡片总线把角色卡的图与音色挂进来）归 35，
- * ⛔ 不在这里提前写一半。
- */
-export const NodeV4ReferenceSlotSchema = z.object({
-  /** 角色名（`@小黑` 的「小黑」）——空位上显示的就是它。 */
-  role: z.string().trim().min(1).max(160),
-  url: z.string().trim().min(1).max(4000).optional().catch(undefined),
-  cardId: z.string().trim().min(1).max(160).optional().catch(undefined),
-})
-
 const NodeV4VideoShape = {
   characterPicks: NodeV4CharacterPicksSchema,
   ...NodeV4BaseShape,
@@ -1277,16 +1260,6 @@ export const NodeV4VideoShotDataSchema = z.object({
   label: NodeV4ShotLabelSchema,
   /** 这一镜是哪张剧本卡投出来的（进度表 24）。缺席 = 手建的镜，重投影不碰它。 */
   scriptShot: NodeV4ScriptShotSchema.optional().catch(undefined),
-  /**
-   * 角色槽的空位（进度表 35 的前置）。投影按这一镜里的 `@角色` 开位。
-   * ⚠ `.catch(undefined)` 与同族字段同一条安全带：一条坏掉的槽不该让整份 state
-   * 读不出来（v4 读路径不再兜空状态，parse 失败 = 整个项目打不开）。
-   */
-  referenceSlots: z
-    .array(NodeV4ReferenceSlotSchema)
-    .max(NODE_SCRIPT_PROJECTION.maxRolesPerShot)
-    .optional()
-    .catch(undefined),
 })
 
 /** 参考片段 / 成片。标签可选：它们不进镜头带，`@` 指的是节点名。 */
@@ -1474,7 +1447,6 @@ export type NodeV4TextData = z.infer<typeof NodeV4TextDataSchema>
 export type NodeV4ImageData = z.infer<typeof NodeV4ImageDataSchema>
 export type NodeV4AudioData = z.infer<typeof NodeV4AudioDataSchema>
 export type NodeV4ScriptShot = z.infer<typeof NodeV4ScriptShotSchema>
-export type NodeV4ReferenceSlot = z.infer<typeof NodeV4ReferenceSlotSchema>
 export type NodeV4VideoShotData = z.infer<typeof NodeV4VideoShotDataSchema>
 export type NodeV4VideoAuxData = z.infer<typeof NodeV4VideoAuxDataSchema>
 export type NodeV4VideoData = z.infer<typeof NodeV4VideoDataSchema>

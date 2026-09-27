@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { Search } from '@/components/icons'
+import { referenceUrlKey } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
@@ -111,12 +112,11 @@ export function CharacterOverview({
   const activeGroup = groups.find((group) => group.key === workKey) ?? null
   const ranked = [...entries].sort(byImages).slice(0, RANKED_COUNT)
 
-  const tile = (entry: Entry, rank: number | null, hero: boolean) => (
+  const tile = (entry: Entry, rank: number | null) => (
     <CharacterTile
       key={entry.card.id}
       entry={entry}
       rank={rank}
-      hero={hero}
       reducedMotion={reducedMotion}
       onOpen={onOpen}
     />
@@ -150,9 +150,7 @@ export function CharacterOverview({
 
       {matches ? (
         <Section title={t('searchResults', { count: matches.length })}>
-          <CellGrid>
-            {matches.map((entry) => tile(entry, null, false))}
-          </CellGrid>
+          <CellGrid>{matches.map((entry) => tile(entry, null))}</CellGrid>
         </Section>
       ) : activeGroup ? (
         <Section
@@ -163,15 +161,13 @@ export function CharacterOverview({
           })}
         >
           <CellGrid>
-            {activeGroup.entries.map((entry) => tile(entry, null, false))}
+            {activeGroup.entries.map((entry) => tile(entry, null))}
           </CellGrid>
         </Section>
       ) : entries.length === 1 ? (
         <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-            <div className="w-full max-w-sm">
-              {tile(entries[0]!, null, false)}
-            </div>
+            <div className="w-full max-w-sm">{tile(entries[0]!, null)}</div>
             <p className="max-w-xs pb-1 text-2sm text-muted-foreground">
               {t('loneHint')}
             </p>
@@ -180,16 +176,11 @@ export function CharacterOverview({
       ) : (
         <>
           <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
+            {/* owner 09-28：几张一样大，⛔ 不再让第一名占两列两行。 */}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {ranked.map((entry, index) => (
-                <div
-                  key={entry.card.id}
-                  className={cn(
-                    'min-w-0',
-                    index === 0 && 'col-span-2 md:row-span-2',
-                  )}
-                >
-                  {tile(entry, index + 1, index === 0)}
+                <div key={entry.card.id} className="min-w-0">
+                  {tile(entry, index + 1)}
                 </div>
               ))}
             </div>
@@ -308,13 +299,11 @@ function WorkChip({
 function CharacterTile({
   entry,
   rank,
-  hero,
   reducedMotion,
   onOpen,
 }: {
   entry: Entry
   rank: number | null
-  hero: boolean
   reducedMotion: boolean
   onOpen(id: string): void
 }) {
@@ -331,10 +320,7 @@ function CharacterTile({
       transition={LIQUID_SPRING.unfold}
       onClick={() => onOpen(card.id)}
       data-testid="roster-tile"
-      className={cn(
-        'group relative block w-full text-left',
-        hero ? 'aspect-4/3 md:aspect-auto md:h-full' : 'aspect-4/5',
-      )}
+      className="group relative block aspect-4/5 w-full text-left"
     >
       <span className="absolute inset-0 overflow-hidden rounded-2xl bg-muted">
         {cover ? (
@@ -342,23 +328,12 @@ function CharacterTile({
             src={cover}
             alt=""
             fill
-            sizes={
-              hero
-                ? '(min-width: 768px) 50vw, 100vw'
-                : '(min-width: 1024px) 240px, 45vw'
-            }
+            sizes="(min-width: 1024px) 240px, 45vw"
             className="object-cover transition-transform duration-reveal ease-standard group-hover:scale-103"
           />
         ) : null}
         <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
-          <span
-            className={cn(
-              'truncate font-semibold',
-              hero ? 'text-2xl' : 'text-base',
-            )}
-          >
-            {name}
-          </span>
+          <span className="truncate text-base font-semibold">{name}</span>
           <span className="truncate text-xs opacity-85">
             {t('tileMeta', { work: entry.workLabel, images: entry.images })}
           </span>
@@ -366,10 +341,7 @@ function CharacterTile({
         {rank !== null ? (
           <span
             aria-hidden
-            className={cn(
-              'absolute left-3.5 top-1.5 font-mono font-light leading-none text-background/90 tabular-nums',
-              hero ? 'text-7xl' : 'text-4xl',
-            )}
+            className="absolute left-3.5 top-1.5 font-mono text-4xl font-light leading-none text-background/90 tabular-nums"
           >
             {rank}
           </span>
@@ -389,12 +361,23 @@ function WorkShelf({
   summary: string
   onOpen(): void
 }) {
-  const covers = group.entries
-    .slice(0, 3)
-    .map((entry) => coverOf(entry.card))
-    .filter((url): url is string => Boolean(url))
-  // 放最上面的是第一名；左右两张是第二、第三名（不够就重复第一名）。
-  const [front, left = front, right = front] = covers
+  // 放最上面的是第一名；左右两张是第二、第三名。⛔ 不放两张一样的图（owner 09-28）：
+  // 人不够三位就拿这几位卡上的别的图补，还不够就少放几张。
+  const covers: string[] = []
+  const seen = new Set<string>()
+  const push = (url: string | null | undefined) => {
+    if (!url || covers.length >= 3) return
+    const key = referenceUrlKey(url)
+    if (seen.has(key)) return
+    seen.add(key)
+    covers.push(url)
+  }
+  const top = group.entries.slice(0, 3)
+  for (const entry of top) push(coverOf(entry.card))
+  for (const entry of top) {
+    for (const slot of entry.card.referenceSlots) push(slot.url)
+  }
+  const [front, left, right] = covers
   return (
     <button
       type="button"

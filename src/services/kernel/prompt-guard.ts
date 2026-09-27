@@ -19,9 +19,6 @@ import { logger } from '@/lib/logger'
 
 // ─── Constants ──────────────────────────────────────────────────
 
-/** Maximum enhanced/compiled prompt length */
-export const MAX_COMPILED_PROMPT_LENGTH = 8000
-
 /** Patterns that indicate prompt injection attempts */
 const INJECTION_PATTERNS = [
   /\[INST\]/i,
@@ -157,15 +154,6 @@ export function validateCompiledPrompt(
   options: { minKeywordRetention?: number } = {},
 ): { valid: boolean; reason?: string; retentionRate: number } {
   const { minKeywordRetention = 0.3 } = options
-
-  // Length check
-  if (compiled.length > MAX_COMPILED_PROMPT_LENGTH) {
-    return {
-      valid: false,
-      reason: `Compiled prompt too long (${compiled.length} > ${MAX_COMPILED_PROMPT_LENGTH})`,
-      retentionRate: 0,
-    }
-  }
 
   // Empty check
   if (compiled.trim().length === 0) {

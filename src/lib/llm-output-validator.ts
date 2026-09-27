@@ -15,7 +15,6 @@
 import type { z } from 'zod'
 
 import { logger } from '@/lib/logger'
-import { MAX_COMPILED_PROMPT_LENGTH } from '@/services/kernel/prompt-guard'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -78,13 +77,9 @@ export function validateLlmPromptOutput(
     }
   }
 
+  // ⚠ 不截长度（owner 2026-09-27）：此前超过 8000 就悄悄砍掉尾巴。发给模型前
+  // 由生成服务按那一型号声明的上限拦，超了会说出来，而不是丢字。
   let cleaned = cleanLlmOutput(llmOutput)
-
-  // Length check
-  if (cleaned.length > MAX_COMPILED_PROMPT_LENGTH) {
-    cleaned = cleaned.slice(0, MAX_COMPILED_PROMPT_LENGTH)
-    warnings.push('LLM output truncated to max length')
-  }
 
   // Meta-commentary check
   for (const pattern of META_PATTERNS) {
@@ -155,13 +150,8 @@ export function validateRecipeFusion(
     }
   }
 
-  let cleaned = cleanLlmOutput(llmOutput)
-
-  // Length check
-  if (cleaned.length > MAX_COMPILED_PROMPT_LENGTH) {
-    cleaned = cleaned.slice(0, MAX_COMPILED_PROMPT_LENGTH)
-    warnings.push('Fused prompt truncated to max length')
-  }
+  // ⚠ 不截长度（同 `validateLlmPromptOutput`）。
+  const cleaned = cleanLlmOutput(llmOutput)
 
   // Character preservation check — if a character card is provided,
   // key terms should appear in the output

@@ -914,7 +914,6 @@ export function StudioTemplatesPanel({
                 <textarea
                   value={formPrompt}
                   rows={8}
-                  maxLength={5000}
                   onChange={(event) => setFormPrompt(event.target.value)}
                   placeholder={t(
                     tags ? 'tagsPlaceholder' : 'promptPlaceholder',

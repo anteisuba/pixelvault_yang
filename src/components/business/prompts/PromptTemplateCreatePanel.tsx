@@ -230,7 +230,6 @@ export function PromptTemplateCreatePanel({
                   onChange={(event) => setCompiledPrompt(event.target.value)}
                   placeholder={t('createPromptPlaceholder')}
                   className="min-h-40 resize-y rounded-xl text-sm leading-6"
-                  maxLength={5000}
                   required
                 />
               </div>
@@ -335,7 +334,6 @@ export function PromptTemplateCreatePanel({
                     onChange={(event) => setNegativePrompt(event.target.value)}
                     placeholder={t('createNegativePromptPlaceholder')}
                     className="min-h-24 resize-y text-sm leading-6"
-                    maxLength={1000}
                   />
                 </div>
               </div>

@@ -2682,7 +2682,7 @@ export const EnhancePromptRequestSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   style: z.enum(PROMPT_ENHANCE.STYLES),
   /** Current model ID for model-aware enhancement hints */
   modelId: z.string().optional(),
@@ -3039,7 +3039,7 @@ export const PromptFeedbackRequestSchema = z.object({
     .string()
     .trim()
     .min(1, 'Prompt is required')
-    .max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
   context: z.string().max(500).optional(),
   apiKeyId: z.string().optional(),
 })
@@ -3527,7 +3527,11 @@ export const UpdateCharacterCardSchema = z.object({
     .max(CHARACTER_CARD.MAX_TAGS)
     .optional(),
   status: CharacterCardStatusSchema.optional(),
-  characterPrompt: z.string().trim().max(4000).optional(),
+  characterPrompt: z
+    .string()
+    .trim()
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
+    .optional(),
   attributes: CharacterAttributesSchema.optional(),
   variantLabel: z
     .string()
@@ -4036,11 +4040,7 @@ export const CreateBackgroundCardSchema = z.object({
     .trim()
     .max(BACKGROUND_CARD.DESCRIPTION_MAX_LENGTH)
     .optional(),
-  backgroundPrompt: z
-    .string()
-    .trim()
-    .min(1)
-    .max(BACKGROUND_CARD.PROMPT_MAX_LENGTH),
+  backgroundPrompt: z.string().trim().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
   sourceImageData: z.string().optional(),
   attributes: BackgroundAttributesSchema.optional(),
   tags: z
@@ -4071,7 +4071,7 @@ export const UpdateBackgroundCardSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(BACKGROUND_CARD.PROMPT_MAX_LENGTH)
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
     .optional(),
   attributes: BackgroundAttributesSchema.optional(),
   loras: z.array(LoraSchema).max(5).nullable().optional(),
@@ -4139,7 +4139,7 @@ export const CreateStyleCardSchema = z.object({
     .trim()
     .max(STYLE_CARD.DESCRIPTION_MAX_LENGTH)
     .optional(),
-  stylePrompt: z.string().trim().min(1).max(STYLE_CARD.PROMPT_MAX_LENGTH),
+  stylePrompt: z.string().trim().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
   sourceImageData: z.string().optional(),
   attributes: StyleAttributesSchema.optional(),
   modelId: z.nativeEnum(AI_MODELS).optional(),
@@ -4166,7 +4166,7 @@ export const UpdateStyleCardSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .max(STYLE_CARD.PROMPT_MAX_LENGTH)
+    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
     .optional(),
   attributes: StyleAttributesSchema.optional(),
   loras: z.array(LoraSchema).max(5).nullable().optional(),
@@ -5311,9 +5311,9 @@ export const CreateRecipeRequestSchema = z.object({
   /** Structured intent parsed from the user's natural language */
   userIntent: ImageIntentSchema.optional(),
   /** Compiled, model-ready prompt string */
-  compiledPrompt: z.string().min(1).max(5000),
+  compiledPrompt: z.string().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
   /** Negative prompt (optional) */
-  negativePrompt: z.string().max(1000).optional(),
+  negativePrompt: z.string().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   /** AI model ID (AI_MODELS enum value) */
   modelId: z.string().min(1),
   /** Provider adapter identifier */

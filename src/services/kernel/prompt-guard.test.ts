@@ -5,7 +5,6 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import {
-  MAX_COMPILED_PROMPT_LENGTH,
   sanitizePrompt,
   validateCompiledPrompt,
   validatePrompt,
@@ -232,13 +231,11 @@ describe('validateCompiledPrompt', () => {
     expect(result.reason).toMatch(/empty/i)
   })
 
-  it('rejects compiled prompt exceeding MAX_COMPILED_PROMPT_LENGTH', () => {
-    const longCompiled = 'word '.repeat(MAX_COMPILED_PROMPT_LENGTH)
-    const result = validateCompiledPrompt('test', longCompiled)
-    expect(result.valid).toBe(false)
-    expect(result.reason).toMatch(/too long/)
-    expect(result.reason).toContain(String(MAX_COMPILED_PROMPT_LENGTH))
-    expect(result.retentionRate).toBe(0)
+  it('does not cap compiled prompt length (owner 2026-09-27)', () => {
+    const longCompiled = 'neon city at night, '.repeat(1000)
+    const result = validateCompiledPrompt('neon city', longCompiled)
+    expect(result.valid).toBe(true)
+    expect(result.retentionRate).toBe(1)
   })
 
   it('accepts when original has only stopwords (no keywords to check)', () => {

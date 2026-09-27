@@ -488,7 +488,6 @@ export const PROMPT_TEXT_GUARD_MAX_CHARS = 32_000
 
 /** Prompt enhancement configuration */
 export const PROMPT_ENHANCE = {
-  MAX_INPUT_LENGTH: 2000,
   STYLES: ['detailed', 'artistic', 'photorealistic', 'anime', 'lora'] as const,
 } as const
 

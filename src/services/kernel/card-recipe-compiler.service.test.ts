@@ -333,3 +333,29 @@ describe('previewRecipe', () => {
     expect(result).toContain('running in rain')
   })
 })
+
+describe('LLM fusion input', () => {
+  // owner 2026-09-27：每张卡的提示词整段进融合 —— 此前每段只取前 800 字，后面悄悄丢掉。
+  it('sends each card prompt whole — no 800-character cut', async () => {
+    const longCharacter = '银色长发，琥珀色的眼睛，左耳戴着月牙形耳坠。'.repeat(
+      60,
+    )
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ id: 'char-long', characterPrompt: longCharacter }) as never,
+    )
+    mockStyleFind.mockResolvedValue(mkStyleCard({ id: 'style-long' }) as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-long',
+      styleCardId: 'style-long',
+    })
+
+    expect(mockLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining(`CHARACTER: ${longCharacter}\n`),
+      }),
+    )
+  })
+})

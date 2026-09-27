@@ -14,8 +14,6 @@ export const BACKGROUND_CARD = {
   MAX_TAGS: 20,
   TAG_MAX_LENGTH: 30,
   MAX_CARDS_PER_USER: 100,
-  /** Prompt max length for background description */
-  PROMPT_MAX_LENGTH: 2000,
 } as const
 
 /** Style card configuration */
@@ -25,16 +23,12 @@ export const STYLE_CARD = {
   MAX_TAGS: 20,
   TAG_MAX_LENGTH: 30,
   MAX_CARDS_PER_USER: 100,
-  /** Prompt max length for style description */
-  PROMPT_MAX_LENGTH: 2000,
 } as const
 
 /** Card recipe configuration */
 export const CARD_RECIPE = {
   NAME_MAX_LENGTH: 60,
   MAX_RECIPES_PER_USER: 200,
-  /** Token budget per card prompt sent to LLM fusion (characters) */
-  PROMPT_TRUNCATION_LIMIT: 800,
   /** Compiled prompt cache TTL in milliseconds (1 hour) */
   CACHE_TTL_MS: 60 * 60 * 1000,
   /** LLM fusion timeout in milliseconds */

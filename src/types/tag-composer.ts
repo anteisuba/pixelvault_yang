@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { PROMPT_ENHANCE } from '@/constants/config'
+import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
 import { PROMPT_TAG_WEIGHT } from '../constants/prompt-dialects'
 
 /**
@@ -55,7 +55,7 @@ export const TagTemplateParamsSchema = z.object({
  * `modelId` = 这一轮选中的 NAI 型号：有它才顺手过一遍官方联想核对。
  */
 export const PromptToTagsRequestSchema = z.object({
-  prompt: z.string().trim().min(1).max(PROMPT_ENHANCE.MAX_INPUT_LENGTH),
+  prompt: z.string().trim().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
   modelId: z.string().optional(),
 })
 export type PromptToTagsRequest = z.infer<typeof PromptToTagsRequestSchema>

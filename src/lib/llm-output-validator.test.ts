@@ -39,11 +39,13 @@ describe('validateLlmPromptOutput', () => {
     expect(result.reason).toMatch(/system prompt/i)
   })
 
-  it('truncates long output and adds warning', () => {
+  // owner 2026-09-27：不再悄悄砍到 8000 —— 超了由生成服务按型号上限说出来。
+  it('keeps long output whole — no silent truncation', () => {
     const longOutput = 'a detailed scene '.repeat(500)
     const result = validateLlmPromptOutput(longOutput, 'a')
-    expect(result.warnings.some((w) => w.includes('truncated'))).toBe(true)
     expect(result.usable).toBe(true)
+    expect(result.output).toBe(longOutput.trim())
+    expect(result.warnings.some((w) => w.includes('truncated'))).toBe(false)
   })
 
   it('cleans markdown fences from prompt output', () => {
@@ -140,13 +142,14 @@ describe('validateRecipeFusion', () => {
     expect(result.warnings).toEqual(['Low character keyword retention: 33%'])
   })
 
-  it('truncates overly long fusion output and adds warning', () => {
-    const result = validateRecipeFusion('painted scene '.repeat(1000), {
+  it('keeps long fusion output whole — no silent truncation', () => {
+    const longOutput = 'painted scene '.repeat(1000)
+    const result = validateRecipeFusion(longOutput, {
       stylePrompt: 'oil painting',
     })
 
     expect(result.usable).toBe(true)
-    expect(result.warnings).toContain('Fused prompt truncated to max length')
+    expect(result.output).toBe(longOutput.trim())
   })
 
   it('returns usable=false for system prompt leakage in fusion', () => {

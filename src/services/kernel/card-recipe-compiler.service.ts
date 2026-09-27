@@ -229,11 +229,6 @@ function compileWithTemplate(parts: {
   return segments.join(', ')
 }
 
-function truncatePrompt(prompt: string): string {
-  if (prompt.length <= CARD_RECIPE.PROMPT_TRUNCATION_LIMIT) return prompt
-  return prompt.slice(0, CARD_RECIPE.PROMPT_TRUNCATION_LIMIT) + '...'
-}
-
 // ─── Stage 2: LLM Fusion ───────────────────────────────────────
 
 function isTagBasedAdapter(adapterType: string): boolean {
@@ -255,10 +250,12 @@ async function compileWithLlm(
     const route = await resolveLlmTextRoute(userId)
     const systemPrompt = buildFusionSystemPrompt(adapterType)
 
-    // Build style section with structured attributes when available
+    // Build style section with structured attributes when available.
+    // ⚠ 每张卡的提示词**整段**进融合（owner 2026-09-27）：此前每段只取前 800 字、
+    // 后面悄悄丢掉，写长的卡等于白写。
     let styleSection: string | null = null
     if (parts.stylePrompt) {
-      styleSection = `STYLE: ${truncatePrompt(parts.stylePrompt)}`
+      styleSection = `STYLE: ${parts.stylePrompt}`
       const attrs = parts.styleAttributes
       if (attrs) {
         const attrLines = [
@@ -276,16 +273,10 @@ async function compileWithLlm(
     }
 
     const userMessage = [
-      parts.characterPrompt
-        ? `CHARACTER: ${truncatePrompt(parts.characterPrompt)}`
-        : null,
-      parts.backgroundPrompt
-        ? `BACKGROUND: ${truncatePrompt(parts.backgroundPrompt)}`
-        : null,
+      parts.characterPrompt ? `CHARACTER: ${parts.characterPrompt}` : null,
+      parts.backgroundPrompt ? `BACKGROUND: ${parts.backgroundPrompt}` : null,
       styleSection,
-      parts.freePrompt
-        ? `ACTION/SCENE: ${truncatePrompt(parts.freePrompt)}`
-        : null,
+      parts.freePrompt ? `ACTION/SCENE: ${parts.freePrompt}` : null,
     ]
       .filter(Boolean)
       .join('\n\n')

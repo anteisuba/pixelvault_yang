@@ -398,7 +398,6 @@ export function PromptTemplateDetailDialog({
           value={compiledPrompt}
           onChange={(event) => setCompiledPrompt(event.target.value)}
           placeholder={t('createPromptPlaceholder')}
-          maxLength={5000}
           className="h-48 max-h-[42svh] resize-y overflow-y-auto rounded-xl text-sm leading-7"
         />
       </div>
@@ -489,7 +488,6 @@ export function PromptTemplateDetailDialog({
           value={negativePrompt}
           onChange={(event) => setNegativePrompt(event.target.value)}
           placeholder={t('createNegativePromptPlaceholder')}
-          maxLength={1000}
           className="min-h-24 resize-y rounded-xl text-sm leading-7"
         />
       </div>

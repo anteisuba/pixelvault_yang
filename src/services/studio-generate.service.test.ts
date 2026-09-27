@@ -265,7 +265,7 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     ],
   }
 
-  it('卡图排在用户参考图之后，正文前缀带身份句与图例，负面追加在最后', async () => {
+  it('卡图排在用户参考图之后，分到图的角色只写图例不写描述，负面追加在最后', async () => {
     vi.mocked(loadCardBusCharacters).mockResolvedValue([DENIA])
     await compileAndGenerate('clerk-1', {
       ...QUICK_INPUT,
@@ -285,7 +285,8 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
       'https://example.com/pose.png',
       'https://cdn.test/denia.png',
     ])
-    expect(request.prompt).toContain('[Character: @Denia]\nred eyes')
+    expect(request.prompt).toContain('[Character: @Denia]\n\nReference images:')
+    expect(request.prompt).not.toContain('red eyes')
     expect(request.prompt).toContain('Image 2 = @Denia identity (primary)')
     expect(request.prompt).toContain('reference image 1 for the pose')
     expect(request.advancedParams).toMatchObject({

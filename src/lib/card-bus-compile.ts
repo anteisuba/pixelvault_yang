@@ -186,16 +186,19 @@ function tagText(character: CardBusCharacter): string | null {
 
 function characterBlock(
   character: CardBusCharacter,
-  options: { preferTags: boolean; hasLoras: boolean },
+  options: { preferTags: boolean; hasLoras: boolean; hasImages?: boolean },
 ): string {
   const head = `[Character: @${character.handle}${character.name !== character.handle ? ` (${character.name})` : ''}]`
   const trigger =
     options.hasLoras && character.tags.loraTrigger
       ? character.tags.loraTrigger
       : null
-  const body = options.preferTags
-    ? (tagText(character) ?? character.visual)
-    : character.visual
+  // ⭐ 分到参考图的角色靠图认人（owner 09-28：整段描述和场景抢权重，出图杂）。
+  const body = options.hasImages
+    ? null
+    : options.preferTags
+      ? (tagText(character) ?? character.visual)
+      : character.visual
   const text = [trigger, body].filter(Boolean).join(', ')
   return text ? `${head}\n${text}` : head
 }
@@ -203,7 +206,7 @@ function characterBlock(
 /**
  * 把中间形态压成**图片 provider 能收的**：一段正文前缀 + 一串扁平 URL + 负面。
  *
- * - 每个角色的身份句（视觉文字）**各自保留**，不管有没有分到图。
+ * - 分到图的角色只写名字 + 图例 + 保持指令；没分到图的才写视觉文字认人。
  * - 多图模型：配额在角色间轮流分，正文里写图例「Image N = @handle 用途」。
  * - 单图模型：只送第一个（焦点）角色的主图，其余角色只进文字。
  * - NovelAI：⛔ 不送卡图（它的参考图是图生图底图，会把出图变成改卡图）；
@@ -304,10 +307,11 @@ export function compileImageOutlet(
   })
 
   const blocks = characters
-    .map((character) =>
+    .map((character, index) =>
       characterBlock(character, {
         preferTags: false,
         hasLoras: options.hasLoras,
+        hasImages: picked[index]!.length > 0,
       }),
     )
     .join('\n\n')

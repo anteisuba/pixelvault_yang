@@ -257,7 +257,7 @@ describe('compileImageOutlet', () => {
     ).toBe('dnw, denia_(wuthering_waves), pink_hair')
   })
 
-  it('看得到图的模型仍写视觉文字；触发词只在挂了 LoRA 时出现', () => {
+  it('分到图的角色不写视觉文字（靠图认人）；触发词只在挂了 LoRA 时出现', () => {
     const denia = character('Denia', [slot('d1', { isPrimary: true })], {
       tags: {
         character: ['denia_(wuthering_waves)'],
@@ -265,12 +265,12 @@ describe('compileImageOutlet', () => {
         loraTrigger: 'dnw',
       },
     })
-    expect(compileImageOutlet([denia], MULTI).promptPrefix).toContain(
-      '[Character: @Denia]\nDenia looks',
-    )
+    const plain = compileImageOutlet([denia], MULTI).promptPrefix
+    expect(plain).toContain('[Character: @Denia]\n\nReference images:')
+    expect(plain).not.toContain('Denia looks')
     expect(
       compileImageOutlet([denia], { ...MULTI, hasLoras: true }).promptPrefix,
-    ).toContain('[Character: @Denia]\ndnw, Denia looks')
+    ).toContain('[Character: @Denia]\ndnw\n\nReference images:')
   })
 
   it('没有角色时什么都不出', () => {

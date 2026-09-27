@@ -113,7 +113,7 @@
 
 ⑥ 已写：图片出口多给一份与卡图逐位对齐的图例 `referenceLabels`，快速出图拼成与整串参考图对齐的 `referenceImageLabels`（用户挂的图为 `null`）送进 worker；worker 的 Gemini 在每张图前面插一段文字说明（`buildGeminiImageParts`）。长度对不上的整串丢弃 = 旧行为。⚠ worker 要随发布单独部署才生效。
 
-**卡片重设计（09-26，画布第 7 页）· 施工第 1 片已写**：人设加 `identity`（身份）与 `backstory`（经历，无固定格式）；扩展键 `pv.tags` = `{ character[], appearance[], loraTrigger }`（`CardTagsSchema`，键名在 `CARD_EXTENSIONS.KEYS`）。编译：NovelAI（多角色布局与文字退路）优先用角色标签 + 外观标签，没有标签才退回视觉文字；LoRA 触发词只在请求挂了 LoRA 时写进正文；LoRA 只存触发词、⛔ 不记对应的 LoRA。坏的 `pv.tags` 编译时当缺席、磁盘上保留。
+**卡片重设计（09-26，画布第 7 页）· 施工第 1 片已写**：人设加 `identity`（身份）与 `backstory`（经历，无固定格式）；扩展键 `pv.tags` = `{ character[], appearance[], loraTrigger }`（`CardTagsSchema`，键名在 `CARD_EXTENSIONS.KEYS`）。编译：NovelAI（多角色布局与文字退路）优先用角色标签 + 外观标签，没有标签才退回视觉文字；LoRA 触发词只在请求挂了 LoRA 时写进正文；LoRA 只存触发词、⛔ 不记对应的 LoRA。坏的 `pv.tags` 编译时当缺席、磁盘上保留。图片出口（09-28）：分到参考图的角色只写名字 + 图例 + 保持指令，⛔ 不写视觉文字（整段描述与场景抢权重、出图杂）；没分到图的角色才用视觉文字认人。
 
 **施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行；A2 起由整页 `CharacterDetail` 取代）；画风卡、背景卡两个页签下线（数据与工作台卡片模式照旧）。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「＋ 新角色」暂时打开旧的新建界面（第 6 片重做）。
 

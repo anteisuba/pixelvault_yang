@@ -2,10 +2,16 @@ import { z } from 'zod'
 import { ReferenceAnalysisSchema } from '@/types/assistant-reference-analysis'
 
 import {
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_PLAN_CARD_LIMITS,
 } from '@/constants/assistant-operator'
 import {
+  AssistantOperatorCharacterImagesProposalSchema,
+  AssistantOperatorCharacterProfileDraftSchema,
+  AssistantOperatorImageHandoffSchema,
+  AssistantOperatorPlanQuestionSchema,
   AssistantOperatorPlanAnswerSchema,
   AssistantOperatorNegativeFoldedSchema,
   AssistantOperatorTagCheckSchema,
@@ -127,6 +133,42 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     domain: z.enum(ASSISTANT_OPERATOR_DOMAINS),
   }),
 ])
+
+/**
+ * **还没决定的那一下**（owner 09-27：「一刷新助手的状态就没了，我还没来得及判断」）。
+ *
+ * ⭐ 判据仍是本文件头那条「恢复可读性，不恢复对当前表单的控制权」—— 只是把它说准：
+ *   **不依赖当时表单的决定**刷新后留着。反问（不含覆盖三选）、卡片助手的设定提议 /
+ *   候选图 / 交给图片助手，这几样问的都是用户自己的判断，刷新前后是同一个问题；
+ *   ⛔ 生成确认、覆盖三选、多步计划照旧不存 —— 刷新之后表单早就不是那一张。
+ * ⚠ 存在**最后一条消息**的 `operatorPending` 上（不是一条历史条目）：只有它还是
+ *   最后一条时才算没决定；一旦后面有了新东西，它就是过去的事，载回时不理它。
+ * ⚠ 问题组只存题面，⛔ 不存答到一半的那几道：刷新后从第一道重来。
+ */
+export const StudioOperatorPendingSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('question'),
+    questions: z
+      .array(AssistantOperatorPlanQuestionSchema)
+      .min(1)
+      .max(ASSISTANT_PLAN_CARD_LIMITS.maxQuestions),
+    why: z.string().trim().min(1).max(LIMITS.maxMessageChars).optional(),
+  }),
+  z.object({
+    kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile),
+    profile: AssistantOperatorCharacterProfileDraftSchema,
+  }),
+  z.object({
+    kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages),
+    proposal: AssistantOperatorCharacterImagesProposalSchema,
+  }),
+  z.object({
+    kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff),
+    handoff: AssistantOperatorImageHandoffSchema,
+  }),
+])
+
+export type StudioOperatorPending = z.infer<typeof StudioOperatorPendingSchema>
 
 export type StudioOperatorHistoryEntry = z.infer<
   typeof StudioOperatorHistoryEntrySchema

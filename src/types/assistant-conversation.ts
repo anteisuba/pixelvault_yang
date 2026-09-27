@@ -14,7 +14,10 @@ import {
   AssistantSetupBlockSchema,
 } from '@/types/assistant-protocol'
 import { LoraCandidateSchema } from '@/types/lora-candidate'
-import { StudioOperatorHistoryEntrySchema } from '@/types/studio-operator-history'
+import {
+  StudioOperatorHistoryEntrySchema,
+  StudioOperatorPendingSchema,
+} from '@/types/studio-operator-history'
 
 /**
  * 一段对话归谁 —— **每个域一个槽**（A1，owner 2026-08-08 拍板「四档」）。
@@ -151,6 +154,11 @@ export const AssistantConversationMessageSchema = z.object({
    * 里被判非法丢掉 —— 那是「用户的历史凭空少一段」，比少一个图标坏得多。
    */
   operator: StudioOperatorHistoryEntrySchema.optional().catch(undefined),
+  /**
+   * 这条消息之后**还没决定的那一下**（owner 09-27 刷新丢卡）—— 只挂在最后一条上，
+   * 判据见 `StudioOperatorPendingSchema`。⚠ 同上 `.catch(undefined)`：读不出来就当没有。
+   */
+  operatorPending: StudioOperatorPendingSchema.optional().catch(undefined),
 })
 
 export type AssistantConversationMessageStored = z.infer<

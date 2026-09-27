@@ -8,6 +8,8 @@ import {
   fromStoredOperatorMessages,
   historyToOperatorMessages,
   historyToPriorSteps,
+  pendingFromOperatorState,
+  pendingFromStoredMessages,
   readOperatorReferenceProfiles,
   toOperatorHistory,
   toStoredOperatorMessages,
@@ -604,5 +606,100 @@ describe('推荐卡答复的 schema 尺寸（2026-09-12 真机 400）', () => {
     expect(clamped.optionLabels).toHaveLength(4)
     expect(clamped.optionLabels?.[0]).toHaveLength(40)
     expect(clamped.optionLabels?.[1]).toBe('ok')
+  })
+})
+
+describe('还没决定的那一下（owner 09-27：刷新丢卡）', () => {
+  const HISTORY: StudioOperatorHistoryEntry[] = [
+    { kind: 'user', id: 'u1', text: '给她找几张图', attachments: [] },
+    { kind: 'message', id: 'm1', text: '以哪个为准？' },
+  ]
+  const QUESTION = {
+    id: 'q1',
+    questions: [
+      {
+        id: 'question-1',
+        header: '筛图依据',
+        question: '以当前主图为准，还是以网上造型为准？',
+        multiSelect: false,
+        allowOther: true,
+        options: [
+          { id: 'o1', label: '以当前主图为准', description: '只挑一致的' },
+          { id: 'o2', label: '以网上造型为准', description: '按网页重筛' },
+        ],
+      },
+    ],
+    answers: [],
+  }
+  const IMAGES = {
+    id: 'c1',
+    kind: 'characterImages' as const,
+    status: 'idle' as const,
+    proposal: {
+      characterId: 'denia',
+      images: [
+        {
+          key: 'asset:gen-1',
+          source: 'library' as const,
+          url: 'https://cdn.test/1.png',
+          reason: '正面半身',
+          assetId: 'gen-1',
+        },
+      ],
+    },
+  }
+
+  it('反问与卡片助手的卡留得过刷新；覆盖三选、生成确认、已决的卡不留', () => {
+    expect(pendingFromOperatorState(QUESTION, null)).toMatchObject({
+      kind: 'question',
+      questions: QUESTION.questions,
+    })
+    expect(
+      pendingFromOperatorState(
+        {
+          ...QUESTION,
+          overwrite: { field: 'prompt', current: 'x', proposed: 'y' },
+        } as never,
+        null,
+      ),
+    ).toBeNull()
+    expect(pendingFromOperatorState(null, IMAGES)).toEqual({
+      kind: 'characterImages',
+      proposal: IMAGES.proposal,
+    })
+    expect(
+      pendingFromOperatorState(null, { ...IMAGES, status: 'confirmed' }),
+    ).toBeNull()
+    expect(
+      pendingFromOperatorState(null, {
+        id: 'g1',
+        kind: 'generate',
+        status: 'idle',
+        request: {
+          model: { id: 'm', label: 'M' },
+          count: 1,
+          specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+        },
+      }),
+    ).toBeNull()
+  })
+
+  it('挂在最后一条消息上、过得了库的 schema；载回时只认最后一条上的', () => {
+    const pending = pendingFromOperatorState(null, IMAGES)
+    const stored = toStoredOperatorMessages(HISTORY, pending).map((message) =>
+      AssistantConversationMessageSchema.parse(message),
+    )
+    expect(stored[0]).not.toHaveProperty('operatorPending')
+    expect(stored.at(-1)?.operatorPending).toEqual(pending)
+    expect(pendingFromStoredMessages(stored)).toEqual(pending)
+    // 后面又有了新东西：那一下已经是过去的事。
+    expect(
+      pendingFromStoredMessages([
+        ...stored,
+        ...toStoredOperatorMessages([
+          { kind: 'message', id: 'm2', text: '好的' },
+        ]),
+      ]),
+    ).toBeNull()
   })
 })

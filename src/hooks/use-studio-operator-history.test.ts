@@ -84,6 +84,59 @@ function lastUpsertBody(): UpsertAssistantConversationRequest {
 }
 
 describe('会话历史落库', () => {
+  it('一张还没决定的卡跟着会话落库；这段会话载回时它回到面板上（owner 09-27 刷新丢卡）', async () => {
+    await mount()
+    act(() => say('u1', '给她找几张图'))
+    await settleDebounce()
+    const proposal = {
+      characterId: 'denia',
+      images: [
+        {
+          key: 'asset:gen-1',
+          source: 'library' as const,
+          url: 'https://cdn.test/1.png',
+          reason: '正面半身',
+          assetId: 'gen-1',
+        },
+      ],
+    }
+    act(() =>
+      store.setOperatorConfirm({
+        id: 'c1',
+        kind: 'characterImages',
+        status: 'idle',
+        proposal,
+      }),
+    )
+    await settleDebounce()
+    const saved = lastUpsertBody().messages
+    expect(saved.at(-1)?.operatorPending).toEqual({
+      kind: 'characterImages',
+      proposal,
+    })
+
+    // 刷新：同一段会话载回来，卡回到面板上。
+    getMock.mockResolvedValue({
+      success: true,
+      data: { id: 'conv-1', surface: 'IMAGE_STUDIO', messages: saved },
+    })
+    act(() => store.resetOperatorThread())
+    const { result } = await mount()
+    await act(async () => {
+      result.current.selectSession({
+        id: 'conv-1',
+        surface: 'IMAGE_STUDIO',
+      } as never)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(store.getOperatorState().confirm).toMatchObject({
+      kind: 'characterImages',
+      status: 'idle',
+      proposal,
+    })
+    expect(store.getOperatorState().status).toBe('awaitingConfirm')
+  })
+
   it('一轮十几条只写一次库 —— 写入是防抖不是每帧', async () => {
     await mount()
 

@@ -16,6 +16,7 @@
 
 import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
 import {
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -25,7 +26,10 @@ import {
   type AssistantOperatorDomain,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
-import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_HISTORY,
+} from '@/constants/studio-assistant-operator'
 import {
   ASSISTANT_CONVERSATION_LIMITS,
   type AssistantConversationMessageStored,
@@ -36,10 +40,15 @@ import type {
   AssistantOperatorPriorStep,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
-import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorConfirmPrompt,
+  StudioOperatorQuestionPrompt,
+  StudioOperatorThreadEntry,
+} from '@/types/studio-assistant-operator'
 import {
   StudioOperatorHistoryEntrySchema,
   type StudioOperatorHistoryEntry,
+  type StudioOperatorPending,
 } from '@/types/studio-operator-history'
 
 /**
@@ -814,26 +823,30 @@ export function toOperatorHistory(
  */
 export function toStoredOperatorMessages(
   history: readonly StudioOperatorHistoryEntry[],
+  /** 还没决定的那一下 —— 挂在最后一条上（见 `StudioOperatorPendingSchema`）。 */
+  pending: StudioOperatorPending | null = null,
 ): AssistantConversationMessageStored[] {
-  return history
-    .slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
-    .map((entry) => ({
-      id: truncate(entry.id, 160),
-      /**
-       * ⭐ 答题那一行**落成 `user`**（§3.4 落账规则）：它是用户说的话，而不是
-       * 一条 UI 通报。落成 `assistant` 的下场是下一轮读回来时它站在助手那一边，
-       * 「用户已经答过」这件事仍然没有人说得出口。
-       */
-      role:
-        entry.kind === 'user' || (entry.kind === 'system' && entry.userText)
-          ? ('user' as const)
-          : ('assistant' as const),
-      content: truncate(
-        operatorEntryPlainText(entry),
-        ASSISTANT_CONVERSATION_LIMITS.maxContentLength,
-      ),
-      operator: entry,
-    }))
+  const kept = history.slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
+  return kept.map((entry, index) => ({
+    ...(pending && index === kept.length - 1
+      ? { operatorPending: pending }
+      : {}),
+    id: truncate(entry.id, 160),
+    /**
+     * ⭐ 答题那一行**落成 `user`**（§3.4 落账规则）：它是用户说的话，而不是
+     * 一条 UI 通报。落成 `assistant` 的下场是下一轮读回来时它站在助手那一边，
+     * 「用户已经答过」这件事仍然没有人说得出口。
+     */
+    role:
+      entry.kind === 'user' || (entry.kind === 'system' && entry.userText)
+        ? ('user' as const)
+        : ('assistant' as const),
+    content: truncate(
+      operatorEntryPlainText(entry),
+      ASSISTANT_CONVERSATION_LIMITS.maxContentLength,
+    ),
+    operator: entry,
+  }))
 }
 
 function operatorEntryPlainText(entry: StudioOperatorHistoryEntry): string {
@@ -864,6 +877,42 @@ function operatorEntryPlainText(entry: StudioOperatorHistoryEntry): string {
  * 操作员线程只会得到一段没有出处的白文本。（哪条会话属于谁由 `operatorThread`
  * 在列表那一层就分好了，这里是第二道。）
  */
+/**
+ * 此刻面板上**还没决定的那一下**，能不能留过刷新（判据见 `StudioOperatorPendingSchema`）。
+ * `null` = 没有、或者它是对当时表单的控制权（生成确认 / 覆盖三选 / 多步计划）。
+ */
+export function pendingFromOperatorState(
+  question: StudioOperatorQuestionPrompt | null,
+  confirm: StudioOperatorConfirmPrompt | null,
+): StudioOperatorPending | null {
+  if (question && !question.overwrite) {
+    return {
+      kind: 'question',
+      questions: [...question.questions],
+      ...(question.why ? { why: question.why } : {}),
+    }
+  }
+  if (!confirm || confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle)
+    return null
+  switch (confirm.kind) {
+    case ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile:
+      return { kind: confirm.kind, profile: confirm.profile }
+    case ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages:
+      return { kind: confirm.kind, proposal: confirm.proposal }
+    case ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff:
+      return { kind: confirm.kind, handoff: confirm.handoff }
+    default:
+      return null
+  }
+}
+
+/** 载回时：只有**最后一条**消息上挂着的那一下还算没决定。 */
+export function pendingFromStoredMessages(
+  messages: readonly AssistantConversationMessageStored[],
+): StudioOperatorPending | null {
+  return messages.at(-1)?.operatorPending ?? null
+}
+
 export function fromStoredOperatorMessages(
   messages: readonly AssistantConversationMessageStored[],
 ): StudioOperatorHistoryEntry[] {

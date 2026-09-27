@@ -38,6 +38,8 @@ import {
 import { logger } from '@/lib/logger'
 import {
   fromStoredOperatorMessages,
+  pendingFromOperatorState,
+  pendingFromStoredMessages,
   toOperatorHistory,
   toStoredOperatorMessages,
 } from '@/lib/studio-operator-history'
@@ -144,7 +146,7 @@ export function useStudioOperatorHistory(
   )
   const loadIntent = useRef(0)
   const renamePending = useRef(false)
-  const { entries, sessionId } = useStudioOperatorState()
+  const { entries, sessionId, question, confirm } = useStudioOperatorState()
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null,
   )
@@ -266,6 +268,8 @@ export function useStudioOperatorHistory(
           rounds: result.data.rounds,
           sessionId: result.data.id,
           sessionSurface: result.data.surface,
+          // 末尾还没决定的那一下放回面板（owner 09-27：刷新丢卡）。
+          pending: pendingFromStoredMessages(result.data.messages),
         })
         return true
       } catch {
@@ -344,7 +348,10 @@ export function useStudioOperatorHistory(
         ...(current.sessionId ? { id: current.sessionId } : {}),
         surface,
         ...(projectId ? { projectId } : {}),
-        messages: toStoredOperatorMessages(history),
+        messages: toStoredOperatorMessages(
+          history,
+          pendingFromOperatorState(current.question, current.confirm),
+        ),
       })
       if (
         (current.sessionId && removedIds.current.has(current.sessionId)) ||
@@ -392,6 +399,25 @@ export function useStudioOperatorHistory(
     }, STUDIO_OPERATOR_HISTORY.saveDebounceMs)
     return () => clearTimeout(timer)
   }, [entries, save])
+
+  /**
+   * 问题 / 卡片**到货与决定**也要落一次（owner 09-27 刷新丢卡）：它们不在 `entries`
+   * 里，不单独触发的话，一张卡摆出来之后刷新，库里那一份还没有它。
+   * ⚠ 只在线程已经有东西（本页新写的或载回的）时才存 —— 空线程上没有可挂的地方。
+   */
+  const lastDecision = useRef({ question, confirm })
+  useEffect(() => {
+    const previous = lastDecision.current
+    lastDecision.current = { question, confirm }
+    if (previous.question === question && previous.confirm === confirm) return
+    if (entries.length === 0 && sessionId === null) return
+    const timer = setTimeout(() => {
+      void save()
+    }, STUDIO_OPERATOR_HISTORY.saveDebounceMs)
+    return () => clearTimeout(timer)
+    // ⚠ 只认问题 / 卡片本身变了；`entries` 那条防抖归上面那一个 effect 管。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question, confirm, save])
 
   const renameSession = useCallback(
     async (session: AssistantConversationSummary, title: string) => {

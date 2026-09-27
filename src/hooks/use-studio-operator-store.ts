@@ -58,7 +58,10 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
-import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
+import type {
+  StudioOperatorHistoryEntry,
+  StudioOperatorPending,
+} from '@/types/studio-operator-history'
 
 /**
  * **按域分槽**的那三样（P4-A，拍板 8）。
@@ -1069,10 +1072,33 @@ export function loadOperatorThread(args: {
   rounds?: readonly AssistantOperatorRoundSummary[]
   sessionId: string | null
   sessionSurface: AssistantSurfaceId | null
+  /**
+   * 这段会话末尾**还没决定的那一下**（owner 09-27 刷新丢卡）：放回面板上，状态
+   * 回到「等你定」。缺席 = 没有；⚠ 换一段会话时旧的问题 / 卡一并清掉。
+   */
+  pending?: StudioOperatorPending | null
 }): void {
+  const pending = args.pending ?? null
   emit({
     ...state,
-    status: 'idle',
+    status: pending ? 'awaitingConfirm' : 'idle',
+    question:
+      pending?.kind === 'question'
+        ? {
+            id: nextOperatorEntryId('question'),
+            questions: pending.questions,
+            answers: [],
+            ...(pending.why ? { why: pending.why } : {}),
+          }
+        : null,
+    confirm:
+      pending && pending.kind !== 'question'
+        ? {
+            ...pending,
+            id: nextOperatorEntryId('confirm'),
+            status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+          }
+        : null,
     history: args.history,
     historyRounds: args.rounds ?? EMPTY_ROUNDS,
     sessionId: args.sessionId,

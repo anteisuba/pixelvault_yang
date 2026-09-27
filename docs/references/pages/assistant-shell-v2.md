@@ -454,6 +454,8 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ⚠ **卡片助手（第五张脸）**：宿主 `hooks/cards/use-cards-operator-host.ts`，快照是 `cards` 一段（这页上有谁 · 打开着那一位的整份设定，`lib/cards-operator-snapshot.ts`，⛔ 不给图的地址）；会话**单独一份**（surface `CARDS`，只在角色页看得到）；点页面别处不收面板（边聊边翻角色）；手机暂不出（owner 09-26）；记忆落 global。工具只有看 / 查 / 问（读快照、素材库、联网查证带来源、找图、读网页、翻证据本、`propose_character_profile` 设定提议卡），⛔ 没有表单旋钮与花钱档；设定提议卡是 `confirm(characterProfile)` 一支，写进角色由用户在卡上点下去（宿主 `apply.cards.applyProfile`），服务端不写角色。C3 另加两支：`propose_character_images` → `confirm(characterImages)` 候选图卡（每张一个勾 · 为什么选它 · 出处；只收本轮 `search_assets` / `search_web_images` 真返回过的图，网上标「仅参考」的不收；点「挂上勾选的」时网图才存进素材库，宿主 `apply.cards.attachImages` 追加进参考槽）· `hand_off_to_image_assistant` → `confirm(imageHandoff)`（点「交给图片助手」= `requestOperatorDraft('image', …)` + 跳 `/studio/image?character=`，图片台的 Dock 按域取走、填进输入框、打开面板，⛔ 不替用户发、不报价）。角色页宿主没有参考位，所以联网候选网格在这里**只能看**（`limit=0` 不画「选用」），挑图只走候选图卡。
 
+⚠ **还没决定的那一下留得过刷新**（owner 09-27「一刷新助手的状态就没了，我还没来得及判断」）：原则是「恢复可读性，不恢复对当前表单的控制权」——所以**不依赖当时表单的决定**留着：反问（不含覆盖三选）、设定提议卡、候选图卡、交给图片助手；生成确认、覆盖三选、多步计划照旧不存。落法：存在会话最后一条消息的 `operatorPending` 上（`StudioOperatorPendingSchema`），载回时只有它仍在最后一条才放回面板、状态回到「等你定」；答到一半的问题组从第一道重来。
+
 ⚠ LoRA 那张脸是 owner 09-20 **改口后**的那一张：核心是**做出自己想要的图**，三件事都要助手辅助 —— 提示词写对（触发词 · 顺序 · 权重语法）· LoRA 挂对（挑哪几个 · 底模兼容 · 常同挂）· 参数调对（权重 · 比例 · 步数）。⛔ 不是原来的「找风格 / 查冲突」。
 
 #### 空态其余部分

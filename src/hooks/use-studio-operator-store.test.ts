@@ -295,6 +295,39 @@ describe('会话历史 · 载入与新对话', () => {
     expect(result.current.primed).toBe(true)
   })
 
+  it('载回一段会话时，末尾还没决定的卡放回面板、状态回到「等你定」（owner 09-27）', () => {
+    const result = readState()
+    const handoff = {
+      kind: 'imageHandoff' as const,
+      handoff: { characterId: 'denia', request: '给 Denia 出一张背面图' },
+    }
+    act(() =>
+      store.loadOperatorThread({
+        history: HISTORY,
+        sessionId: 'conv-1',
+        sessionSurface: 'CARDS',
+        pending: handoff,
+      }),
+    )
+    expect(result.current.confirm).toMatchObject({
+      ...handoff,
+      status: 'idle',
+    })
+    expect(result.current.question).toBeNull()
+    expect(result.current.status).toBe('awaitingConfirm')
+
+    act(() =>
+      store.loadOperatorThread({
+        history: HISTORY,
+        sessionId: 'conv-2',
+        sessionSurface: 'CARDS',
+      }),
+    )
+    // 换一段会话：上一段的卡不跟过来。
+    expect(result.current.confirm).toBeNull()
+    expect(result.current.status).toBe('idle')
+  })
+
   it('新对话把历史与会话身份一起清掉 —— 否则下一次保存会覆盖上一条会话', () => {
     const result = readState()
     act(() =>

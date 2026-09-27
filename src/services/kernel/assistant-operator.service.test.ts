@@ -92,6 +92,11 @@ vi.mock('@/services/generation.service', () => ({
 
 const mockListAssistantAssetFolders = vi.fn()
 const mockInspectAssistantAssetFolder = vi.fn()
+const mockCheckCharacterLook = vi.fn()
+vi.mock('@/services/kernel/assistant-character-look.service', () => ({
+  checkCharacterLook: (...args: unknown[]) => mockCheckCharacterLook(...args),
+}))
+
 const mockInspectWebImageCandidates = vi.fn()
 vi.mock('@/services/kernel/assistant-web-image-vision.service', () => ({
   inspectWebImageCandidates: (...args: unknown[]) =>
@@ -689,6 +694,7 @@ beforeEach(() => {
   mockListContextCards.mockResolvedValue([])
   mockListAssistantAssetFolders.mockResolvedValue([])
   mockInspectWebImageCandidates.mockResolvedValue(null)
+  mockCheckCharacterLook.mockResolvedValue({ viewed: 0, conflicts: [] })
   mockInspectAssistantAssetFolder.mockResolvedValue({
     folder: {
       folderId: 'hero-folder',
@@ -1676,6 +1682,113 @@ describe('read_state', () => {
     expect(confirm.confirm.proposal.images.map((image) => image.url)).toEqual([
       'https://cdn.example.test/denia.jpg',
     ])
+  })
+
+  it('卡片助手对一下设定和外观：带着卡上的图去看，矛盾写进观察，主图地址不进模型读的状态', async () => {
+    mockCheckCharacterLook.mockResolvedValue({
+      viewed: 2,
+      conflicts: [
+        {
+          field: 'look',
+          claim: '短发',
+          seen: '及腰长发',
+          images: [1, 2],
+        },
+      ],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+          title: '对一下外观',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
+            characterId: 'denia',
+          },
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'cards',
+          snapshot: {
+            ...CARDS_SNAPSHOT,
+            cards: {
+              ...CARDS_SNAPSHOT.cards,
+              open: {
+                id: 'denia',
+                name: 'Denia',
+                work: '鸣潮',
+                imageCount: 2,
+                hasProfile: false,
+                look: '短发少女',
+                identity: '',
+                behavior: '',
+                speech: '',
+                backstory: '',
+                characterTags: [],
+                appearanceTags: ['short_hair'],
+                loraTrigger: '',
+                imagesOnCard: 2,
+                primaryImageUrl: 'https://cdn.example.test/main.png',
+                cardImageUrls: [
+                  'https://cdn.example.test/main.png',
+                  'https://cdn.example.test/2.png',
+                ],
+              },
+            },
+          },
+        }),
+      ),
+    )
+    expect(mockCheckCharacterLook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageUrls: [
+          'https://cdn.example.test/main.png',
+          'https://cdn.example.test/2.png',
+        ],
+        character: expect.objectContaining({
+          look: '短发少女',
+          tags: ['short_hair'],
+        }),
+      }),
+    )
+    const prompts = toolRingCalls()
+      .map((call) => call.userPrompt)
+      .join('\n')
+    expect(prompts).toContain('text says "短发" — images 1, 2 show "及腰长发"')
+    expect(prompts).toContain('Never treat an outfit difference')
+    expect(prompts).not.toContain('https://cdn.example.test/2.png')
+    expect(systemPrompt()).toContain('Outfits are never a mismatch')
+  })
+
+  it('卡片助手对外观：没打开这一位就不看', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+          title: '对一下外观',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
+            characterId: 'denia',
+          },
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'cards', snapshot: CARDS_SNAPSHOT }),
+      ),
+    )
+    expect(mockCheckCharacterLook).not.toHaveBeenCalled()
+    expect(toolRingCalls().at(-1)?.userPrompt).toContain(
+      'only the character that is open on the page can be checked',
+    )
   })
 
   it('卡片助手提议挂图：一张都没查到过就挡回去，不吐确认卡', async () => {

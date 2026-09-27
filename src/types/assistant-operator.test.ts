@@ -112,6 +112,21 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  /** 对一下设定和外观（卡片助手 S14）——**读类**：只看不写。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: {
+    payload: { characterId: 'denia' },
+    result: {
+      viewed: 3,
+      conflicts: [
+        {
+          field: 'look',
+          claim: '短发',
+          seen: '三张图都是及腰长发',
+          images: [1, 2, 3],
+        },
+      ],
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: {
     payload: {
       folderId: 'folder-1',
@@ -854,7 +869,8 @@ describe('五动词入口', () => {
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
     // 卡片助手 C2 把 44 变成 45（`propose_character_profile`）。
     // 卡片助手 C3 把 45 变成 47（`propose_character_images` · `hand_off_to_image_assistant`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(47)
+    // 卡片助手 S14 把 47 变成 48（`check_character_look`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(48)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

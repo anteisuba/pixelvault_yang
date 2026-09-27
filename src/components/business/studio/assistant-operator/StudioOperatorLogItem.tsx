@@ -87,6 +87,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]: Search,
   [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: FolderSearch,
   [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]: ScanEye,
+  /** 对一下设定和外观（卡片助手 S14）—— 同是看图。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: ScanEye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: Globe,
   /**
    * 联网查文字（切片 3b）—— 与搜图的 🌐 **分开**：日志流里这两条常常前后脚出现

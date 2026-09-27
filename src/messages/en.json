@@ -7607,6 +7607,7 @@
         "header": "{name} drafted · {count, plural, one {# field} other {# fields}}",
         "question": "Keep this for {name}?",
         "fields": {
+          "look": "Look",
           "identity": "Identity",
           "behavior": "Personality",
           "speech": "Way of speaking",
@@ -7934,7 +7935,7 @@
         "researchProfile": "Look up a character's profile",
         "originalCharacter": "Help me invent an original character",
         "findImages": "Find a few images of this character",
-        "checkImages": "Which image works as the identity image?"
+        "checkLook": "Check the profile against the images"
       },
       "image": {
         "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",

@@ -83,6 +83,17 @@ export function buildCardsOperatorSnapshot(
           imagesOnCard: openCard.referenceSlots.length,
           // 只给服务端看图用（C3），⛔ 服务端不把它写进模型读的状态。
           ...(openImage ? { primaryImageUrl: openImage } : {}),
+          // 卡上的图（主图在前），同样只给服务端看图用（S14 对一下设定和外观）。
+          ...(openCard.referenceSlots.length
+            ? {
+                cardImageUrls: [
+                  ...openCard.referenceSlots.filter((slot) => slot.isPrimary),
+                  ...openCard.referenceSlots.filter((slot) => !slot.isPrimary),
+                ]
+                  .map((slot) => slot.url)
+                  .slice(0, ASSISTANT_OPERATOR_CARDS_LIMITS.maxLookCheckImages),
+              }
+            : {}),
         }
       : null,
   }

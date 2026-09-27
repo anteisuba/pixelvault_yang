@@ -7607,6 +7607,7 @@
         "header": "{name} の下書き · {count} 項目",
         "question": "「{name}」に入れますか？",
         "fields": {
+          "look": "見た目",
           "identity": "身分",
           "behavior": "性格",
           "speech": "話し方",
@@ -7934,7 +7935,7 @@
         "researchProfile": "キャラの設定を調べて",
         "originalCharacter": "オリジナルキャラを一緒に考えて",
         "findImages": "このキャラの画像を探して",
-        "checkImages": "どの画像を見た目の基準にできる？"
+        "checkLook": "設定と見た目を照らし合わせる"
       },
       "image": {
         "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",

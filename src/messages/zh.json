@@ -7607,6 +7607,7 @@
         "header": "{name} 起草的设定 · {count} 格",
         "question": "收进「{name}」？",
         "fields": {
+          "look": "外观",
           "identity": "身份",
           "behavior": "性格",
           "speech": "说话方式",
@@ -7934,7 +7935,7 @@
         "researchProfile": "帮我查一个角色的设定",
         "originalCharacter": "帮我想一个原创角色",
         "findImages": "给这个角色找几张图",
-        "checkImages": "看看哪张图能当身份图"
+        "checkLook": "对一下设定和外观"
       },
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",

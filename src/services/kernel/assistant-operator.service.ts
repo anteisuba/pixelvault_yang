@@ -184,6 +184,7 @@ import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
 } from '@/services/kernel/assistant-asset-folder-vision.service'
+import { checkCharacterLook } from '@/services/kernel/assistant-character-look.service'
 import {
   inspectWebImageCandidates,
   type WebImageVisionItem,
@@ -1385,7 +1386,7 @@ function renderState(
       `Characters (${cards?.total ?? 0} in total, most images first): ${JSON.stringify(cards?.characters ?? [])}`,
       cards?.open
         ? // ⛔ 主图地址只给看图那一步（C3），不给模型：拿到地址它就会想挂、想贴。
-          `Open character: ${JSON.stringify({ ...cards.open, primaryImageUrl: undefined })}`
+          `Open character: ${JSON.stringify({ ...cards.open, primaryImageUrl: undefined, cardImageUrls: undefined })}`
         : 'No character is open — the creator is on the overview.',
       'You never write into a character directly: to add or change profile fields, send ask/propose_character_profile; to add images, send ask/propose_character_images — the creator ticks what to keep. Never claim you changed a profile, tags or images. Tags cannot be changed from here.',
     ].join('\n')
@@ -7217,6 +7218,77 @@ function planProposeCharacterImages(
 }
 
 /**
+ * **对一下设定和外观**（卡片助手 S14，owner 09-27：用户说了才对，衣服不算矛盾）。
+ * ⚠ 只能对**打开着的那一位**：卡上的图地址只随打开那一位的快照来（只给看图用）。
+ */
+function planCheckCharacterLook(
+  run: OperatorRun,
+  args: { characterId: string },
+  userId: string,
+): ToolPlan {
+  const open = run.state.cards?.open
+  if (!open || open.id !== args.characterId) {
+    return {
+      kind: 'read',
+      payload: args,
+      run: async () => ({
+        result: { viewed: 0, conflicts: [] },
+        observation: `check_character_look did NOT look at anything: only the character that is open on the page can be checked${open ? ` (open now: ${open.name}, id=${open.id})` : ' and none is open'}. Ask the creator to open them first.`,
+      }),
+    }
+  }
+  return {
+    kind: 'read',
+    payload: args,
+    run: async () => {
+      const images = open.cardImageUrls?.length
+        ? open.cardImageUrls
+        : open.primaryImageUrl
+          ? [open.primaryImageUrl]
+          : []
+      const result = await checkCharacterLook({
+        userId,
+        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+        character: {
+          name: open.name,
+          work: open.work,
+          look: open.look,
+          identity: open.identity,
+          backstory: open.backstory,
+          tags: [...open.characterTags, ...open.appearanceTags],
+        },
+        imageUrls: images,
+      })
+      if (!result) {
+        return {
+          result: { viewed: 0, conflicts: [] },
+          observation:
+            'check_character_look could NOT look at the images this time (no vision route or it failed). Tell the creator plainly that the check did not run; do not guess.',
+        }
+      }
+      if (result.viewed === 0) {
+        return {
+          result,
+          observation: `${open.name} has no images on the card, so there is nothing to compare. Say so.`,
+        }
+      }
+      const observation =
+        result.conflicts.length === 0
+          ? `check_character_look viewed ${result.viewed} image(s) of ${open.name}: the written look, profile and tags do not contradict them. Say so in one line. (Outfits were not compared — a character can own many.)`
+          : `check_character_look viewed ${result.viewed} image(s) of ${open.name} and found ${result.conflicts.length} contradiction(s):\n${result.conflicts
+              .map(
+                (conflict, index) =>
+                  `  ${index + 1}. [${conflict.field}] text says "${conflict.claim}" — images${conflict.images.length ? ` ${conflict.images.join(', ')}` : ''} show "${conflict.seen}"`,
+              )
+              .join(
+                '\n',
+              )}\nTell the creator each one in a line (「设定里说……，但图上是……」). For look / identity / backstory, offer the corrected text with ask/propose_character_profile (field "look" is the one-line appearance; source 「对照卡上的图」), changing only the contradicting words. For tags, name the tag to change — you cannot edit tags. Never treat an outfit difference as a contradiction.`
+      return { result, observation }
+    },
+  }
+}
+
+/**
  * **交给图片助手**（卡片助手 C3，画板 S11）：吐一帧 `confirm(imageHandoff)`。
  * ⚠ 点下去只是跳到图片工作台、把话填进图片助手的输入框，由用户按发送 ——
  *   这里没有任何后果，也不报价（价钱在工作台看）。
@@ -7695,6 +7767,12 @@ async function planTool(
       return planHandOffToImageAssistant(
         run,
         parsed.data as AssistantOperatorImageHandoff,
+      )
+    case TOOL.checkCharacterLook:
+      return planCheckCharacterLook(
+        run,
+        parsed.data as { characterId: string },
+        userId,
       )
     default:
       return assertNever(tool)
@@ -8615,6 +8693,7 @@ function buildOperatorSystemPrompt(
 - DELIVERING A PROFILE: when you have drafted fields, hand them over with ask/propose_character_profile — one field per part you actually drafted, each with a one-line source. Do NOT paste the profile into your message for the creator to copy; they cannot keep it from there. Keep the message itself to a line or two about what you found and what is still missing.
 - CANON CHARACTERS: research properly before writing — use verify with depth "deep". Official in-game text is canon: the wiki's character page and its story / backstory and voice-lines pages (for example a Fandom "/Backstory" or "/Voice-Lines" page, or the official wiki's character entry) — read them with read_url instead of stopping at search extracts. A character's own lines are the best evidence for their way of speaking; their character stories for behaviour and history. Encyclopedic wiki write-ups of the canon (the official wiki or 图鉴, Moegirl / 萌娘百科, Fandom, Wikipedia) ARE usable sources — name them as the source; only fan theories, forum speculation and fan works are not. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one. Every proposed field needs a source you actually read in this conversation (put its page in sourceUrl). Do not hold the proposal back waiting for perfect sources: as soon as some parts are supported, propose those parts in the same turn and say in one line which parts are still missing and why — never ask the creator to tell you to propose.
 - ORIGINAL CHARACTERS: do not write a full profile straight away. First ask ONE question with two or three options, each option a direction named in a few words with a one-line description of how the character behaves; after the creator picks, expand that direction and propose it. When the creator wrote a skeleton of the history, keep their words verbatim and list every phrase you added in "added" so the app can shade it; the source line for such a field is "你写的 + 我补的".
+- CHECKING THE LOOK: only when the creator asks whether the profile matches the images, use look/check_character_look on the open character. Outfits are never a mismatch — a character can own many outfits.
 - IMAGES: to find images for a character, search the creator's library first (search_assets), then the web (search_web_images). Good images show this character alone, large and clear, without text over them, in one outfit; say which view each gives (face / full body / back). Hand the good ones over with ask/propose_character_images — never tell the creator to press "use this" on the web grid here, and never claim you attached anything. You never generate images: when neither the library nor the web has what the character needs, say what is missing and send ask/hand_off_to_image_assistant with the one message the image assistant should get. Do not quote a price — the image workbench shows it.`
       : null,
     request.domain === 'lora'

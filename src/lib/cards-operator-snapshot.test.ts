@@ -121,7 +121,11 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     expect(snapshot.cards?.open?.primaryImageUrl).toBe(
       'https://cdn.test/denia.png',
     )
-    const withoutPrimary = JSON.stringify(snapshot).replace(
+    // 卡上的图同样只给服务端看图用（S14）。
+    expect(snapshot.cards?.open?.cardImageUrls).toEqual([
+      'https://cdn.test/denia.png',
+    ])
+    const withoutPrimary = JSON.stringify(snapshot).replaceAll(
       'https://cdn.test/denia.png',
       '',
     )

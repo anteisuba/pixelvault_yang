@@ -459,6 +459,7 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
     case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders:
     case ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder:
+    case ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook:
     /**
      * ⚠ `search_web_images` **必须显式列在这里**，不能靠 switch 漏出去：
      * 本仓没开 `noImplicitReturns`，漏掉的分支会返回 `undefined` 而不是 `null`，
@@ -847,6 +848,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
     case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders:
     case ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder:
+    case ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook:
     // 读类没有 inverse，也就没有东西可撤 —— 联网候选与看图同理
     // （见 `applyOperatorStep`）。
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:

@@ -105,6 +105,11 @@ export function describeOperatorStepDetail(
         )
         .join(' ')
     }
+    /** 对一下设定和外观（S14）—— 详情写**看了几张 · 对不上几处**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook:
+      return step.result
+        ? `${step.result.viewed} · ${step.result.conflicts.length}`
+        : null
     case ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder:
       return [
         step.result?.folder.path,
@@ -402,6 +407,7 @@ export function describeContextCardDecisionText(
 
 /** 设定四格在**对话里**的叫法（写给模型读的自包含正文，与上下文卡那几句同一种写法）。 */
 export const CHARACTER_PROFILE_FIELD_NAMES = {
+  look: '外观',
   identity: '身份',
   behavior: '性格',
   speech: '说话方式',

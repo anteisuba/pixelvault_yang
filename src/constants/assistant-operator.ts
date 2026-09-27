@@ -514,6 +514,15 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   proposeCharacterImages: 'propose_character_images',
   /**
+   * **对一下设定和外观**（卡片助手 S14，owner 09-27）—— 只在卡片域。
+   *
+   * ⭐ 用户说了才对（⛔ 不自动）：把打开那一位卡上的图连同设定一起交给看图模型，
+   *   找**身份级**的矛盾（发色 / 瞳色 / 年龄 / 体型 / 标志物）。
+   * ⚠ 衣服、姿势、表情不同**不算**矛盾（owner：同一个角色本来就可以有好几套衣服）。
+   * ⚠ 读类：只看不写；要改就走 `propose_character_profile`，由用户勾。
+   */
+  checkCharacterLook: 'check_character_look',
+  /**
    * **交给图片助手**（卡片助手 C3，owner 09-27 选「跳过去，话填好你来发」，画板 S11）。
    *
    * ⭐ 素材库和网上都没有合适的图时，卡片助手说清楚缺什么，把要对图片助手说的那句话
@@ -682,6 +691,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
   ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+  ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
@@ -763,6 +773,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   /** ⚠ 提议几张角色图、交给图片助手同归这一档：挂图 / 跳转那一跳都是用户点下去的。 */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
   ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+  /** ⚠ 对一下设定和外观（S14）：只看不写。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   /**
    * ⚠ **摆一张 LoRA 推荐卡也归这一档**（lora-assistant §10.2.2）：判据与
    * `propose_context_card` 逐字同源 —— 服务端一行库都不写、装配台一个字都没动，
@@ -930,6 +942,9 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
   [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  /** 对一下设定和外观（卡片助手 S14）—— 看图，归**看**。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
   [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
@@ -1898,6 +1913,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     /** C3 查图：提议几张图，用户勾选后由角色页挂上；没有好图就交给图片助手。 */
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
     ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+    /** S14：用户说了才对一下设定和外观（只报身份级矛盾，衣服不算）。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   ],
 }
 
@@ -1991,6 +2008,10 @@ export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
   maxHandoffChars: 600,
   /** 联网搜到的候选一次最多看几张（C3「搜完先看一眼」，一次看图调用）。 */
   maxWebVisionImages: 12,
+  /** 对一下设定和外观时最多看卡上几张图（S14，一次看图调用）。 */
+  maxLookCheckImages: 6,
+  /** 一次最多报几处对不上。 */
+  maxLookConflicts: 6,
 } as const
 
 /**
@@ -2889,9 +2910,11 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
     'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
-    'OFFER a drafted profile for ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each field with a checkbox and the source line under it, and only the fields they tick are written into the character when they press keep. It ends your turn. "characterId" must be an id from the page snapshot. "fields" holds one to four of identity / behavior / speech / backstory — only the ones you actually drafted. Each field: "text" (what goes into the character, in the creator\'s language; behaviour written as what they DO, not adjectives), "source" (one short line naming where it came from — the wiki page, the official site, or "你写的 + 我补的"), optional "sourceUrl", and for backstory you expanded from the creator\'s own skeleton, "added": the exact phrases YOU added (each must appear verbatim in "text") so the app can shade them and let the creator keep only their own words. For canon characters every field needs a real source you read this conversation; never invent one. Do not write profile text into your message instead of using this — the creator cannot keep it from there.',
+    'OFFER a drafted profile for ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each field with a checkbox and the source line under it, and only the fields they tick are written into the character when they press keep. It ends your turn. "characterId" must be an id from the page snapshot. "fields" holds one to five of look / identity / behavior / speech / backstory — only the ones you actually drafted ("look" is the one-line appearance, used when fixing a look that contradicts the images). Each field: "text" (what goes into the character, in the creator\'s language; behaviour written as what they DO, not adjectives), "source" (one short line naming where it came from — the wiki page, the official site, or "你写的 + 我补的"), optional "sourceUrl", and for backstory you expanded from the creator\'s own skeleton, "added": the exact phrases YOU added (each must appear verbatim in "text") so the app can shade them and let the creator keep only their own words. For canon characters every field needs a real source you read this conversation; never invent one. Do not write profile text into your message instead of using this — the creator cannot keep it from there.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
     'OFFER a few images to attach to ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each image with a checkbox, your one-line reason and where it came from; only the ones they tick are attached (images from the web are saved into their library at that moment). It ends your turn. "characterId" must be an id from the page snapshot. "images" holds one to eight picks; each pick is EITHER {"assetId": an id that search_assets returned this turn} OR {"imageUrl": an image URL that search_web_images returned this turn and that is not marked REFERENCE ONLY}, plus "reason": one short line in the creator\'s language saying why this one is good (e.g. 「正面半身，脸清楚」「全身，服装完整」) — do not name the source there, the app already prints it under the reason. Pick images that show this character alone, large and clear, without text over them, in one outfit; say in the reason what view it gives (face / full body / back). Never invent an id or a URL.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]:
+    'LOOK at the open character\'s images next to their written look and profile, and find contradictions. Use it ONLY when the creator asks you to check whether the profile matches the images — never on your own. It saves nothing. "characterId" must be the character that is open on the page (only the open one can be checked). It reports each place where the text says one thing and the images show another about who the character IS: hair colour or length, eye colour, skin, age, body type, species, marks such as scars or horns. Different outfits, poses, expressions and art styles are NOT contradictions — a character can own many outfits. For each contradiction, tell the creator in one line (「设定里说……，但图上是……」) and, when the fix belongs in the look line, identity or history, offer the corrected text with ask/propose_character_profile (source 「对照卡上的图」); if it is only in the tags, say which tag to change. If nothing contradicts, say so in one line.',
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     'HAND the job to the image assistant when neither the library nor the web has the image this character needs (for example no back view, no clean full body). This SENDS NOTHING and costs nothing on its own: the app shows the creator a line saying what is missing and a button; if they press it, the image workbench opens with this character selected and your request typed into the image assistant\'s box for THEM to send. It ends your turn. "characterId" must be an id from the page snapshot. "request" is the one message the image assistant should receive, in the creator\'s language, naming the character and exactly what to make (e.g. 「给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底，服装与主图一致」). Use it only after you searched and found nothing usable; say in your message what you looked for.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:

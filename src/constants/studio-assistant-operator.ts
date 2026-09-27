@@ -598,13 +598,13 @@ export const STUDIO_OPERATOR_FACE_PILLS: Record<
   ],
   /**
    * 卡片助手（第五张脸，owner 09-26）：查设定（原作带来源）· 起原创角色（先给方向）·
-   * 找图 · 看哪张能当身份图。⛔ 没有「出图」那颗：它自己不出图。
+   * 找图 · 对一下设定和外观（S14，用户说了才对）。⛔ 没有「出图」那颗：它自己不出图。
    */
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: [
     'researchProfile',
     'originalCharacter',
     'findImages',
-    'checkImages',
+    'checkLook',
   ],
 }
 

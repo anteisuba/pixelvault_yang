@@ -772,6 +772,11 @@ export const AssistantOperatorCardsOpenCharacterSchema =
      * ⛔ 不渲染进模型读的状态块：模型拿到地址就会想挂、想贴（本节头注那条论据）。
      */
     primaryImageUrl: z.string().url().max(4_000).optional(),
+    /** 卡上的图（主图在前）—— 同上，只给服务端看图用（S14 对一下设定和外观）。 */
+    cardImageUrls: z
+      .array(z.string().url().max(4_000))
+      .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxLookCheckImages)
+      .optional(),
   })
 
 export const AssistantOperatorCardsSnapshotSchema = z.object({
@@ -1781,8 +1786,12 @@ export type AssistantOperatorContextCardDraft = z.infer<
   typeof AssistantOperatorContextCardDraftSchema
 >
 
-/** 角色设定里助手能提议的四格（与 `CharacterPersona` 的同名字段一一对应）。 */
+/**
+ * 角色设定里助手能提议的几格：四格与 `CharacterPersona` 的同名字段一一对应；
+ * `look` 是「一句外观」（角色卡的 `description`，S14 对出外观矛盾后改的就是它）。
+ */
 export const ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS = [
+  'look',
   'identity',
   'behavior',
   'speech',
@@ -1925,6 +1934,36 @@ export const AssistantOperatorCharacterImagesProposalSchema = z.object({
 
 export type AssistantOperatorCharacterImagesProposal = z.infer<
   typeof AssistantOperatorCharacterImagesProposalSchema
+>
+
+/**
+ * **对一下设定和外观**的结果（卡片助手 S14）。`viewed` = 这次真看了几张图（0 = 没看成）。
+ * ⚠ 只装身份级矛盾：衣服、姿势、表情、画风不同不算（owner 09-27）。
+ */
+export const AssistantOperatorLookConflictSchema = z.object({
+  /** 矛盾在哪一格：一句外观 / 身份 / 经历 / 标签。 */
+  field: z.enum(['look', 'identity', 'backstory', 'tags']),
+  /** 设定里怎么写的（原话摘一句）。 */
+  claim: z.string().trim().min(1).max(200),
+  /** 图上看到的是什么。 */
+  seen: z.string().trim().min(1).max(200),
+  /** 哪几张图（1 起，按卡上的顺序）。 */
+  images: z.array(z.number().int().min(1)).max(12),
+})
+
+export type AssistantOperatorLookConflict = z.infer<
+  typeof AssistantOperatorLookConflictSchema
+>
+
+export const AssistantOperatorLookCheckResultSchema = z.object({
+  viewed: z.number().int().min(0),
+  conflicts: z
+    .array(AssistantOperatorLookConflictSchema)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxLookConflicts),
+})
+
+export type AssistantOperatorLookCheckResult = z.infer<
+  typeof AssistantOperatorLookCheckResultSchema
 >
 
 /**
@@ -2469,6 +2508,9 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     AssistantOperatorCharacterImagesDraftSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     AssistantOperatorImageHandoffSchema,
+  [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: z.object({
+    characterId: IdSchema,
+  }),
   /**
    * 标一张产物的审核态（切片 X）。
    *
@@ -3701,6 +3743,12 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
     AssistantOperatorImageHandoffSchema,
     z.object({ offered: z.boolean() }),
+  ),
+  /** 对一下设定和外观（卡片助手 S14）—— 读类：看了几张、对不上几处。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
+    z.object({ characterId: IdSchema }),
+    AssistantOperatorLookCheckResultSchema,
   ),
   /**
    * 标一张产物的审核态（切片 X）。

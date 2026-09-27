@@ -29,6 +29,13 @@ const FOLDER_VISION_SERVICE_PATH = join(
   'src/services/kernel/assistant-asset-folder-vision.service.ts',
 )
 const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
+const CHARACTER_LOOK_SOURCE = readFileSync(
+  join(
+    process.cwd(),
+    'src/services/kernel/assistant-character-look.service.ts',
+  ),
+  'utf8',
+)
 const WEB_IMAGE_VISION_SOURCE = readFileSync(
   join(
     process.cwd(),
@@ -72,6 +79,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 不建 generation、不扣 credit、不写库、不落字节（下面有一条用例扫它的源码）。
    */
   '@/services/kernel/assistant-web-image-vision.service',
+  /**
+   * 对一下设定和外观（卡片助手 S14）：判据与上一条逐字同源 —— 只把卡上既有图的 URL
+   * 交给结构化视觉补全，连库都不读（下面同一条用例扫它的源码）。
+   */
+  '@/services/kernel/assistant-character-look.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
   // 文本补全的重试策略，工具环每一步都走它。
@@ -318,6 +330,25 @@ describe('⛔ 助手工具环的钱闸', () => {
     }
     expect(FOLDER_VISION_SOURCE).toContain('db.generation.findMany')
     expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
+  })
+
+  it('对设定和外观的看图服务只看卡上的图：够不着生成、扣费、写入，连库都不读', () => {
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      'uploadToR2',
+      "from '@/lib/db'",
+      'prisma',
+    ]) {
+      expect(
+        CHARACTER_LOOK_SOURCE.includes(identifier),
+        `对外观的看图服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    expect(CHARACTER_LOOK_SOURCE).toContain('completeVisionStructured')
   })
 
   it('联网候选看图服务只看缩略图：够不着生成、扣费、写入，连库都不读', () => {

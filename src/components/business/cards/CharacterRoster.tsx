@@ -118,8 +118,16 @@ export function CharacterRoster() {
         examples: [],
         ...card.persona,
       }
-      for (const { field, text } of fields) persona[field] = text
-      return update(characterId, { persona })
+      // 「一句外观」住在角色卡的 `description` 上，其余几格在设定里（S14 起多了 look）。
+      let description: string | undefined
+      for (const { field, text } of fields) {
+        if (field === 'look') description = text
+        else persona[field] = text
+      }
+      return update(characterId, {
+        persona,
+        ...(description !== undefined ? { description } : {}),
+      })
     },
     [flatCards, update],
   )

@@ -31,7 +31,6 @@ import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { Button } from '@/components/ui/button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Download,
@@ -71,6 +70,7 @@ import type { NodeV4VideoData } from '@/types/node-workflow'
 import {
   NodeCardShell,
   NodeFrameProgress,
+  useNodeGenerationFinish,
   useNodeProgressNarrow,
   NodePromptBar,
   NodeToolbar,
@@ -249,6 +249,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
 
   // 卡宽恒是收起宽度 —— 在提前返回之前取（hook 不能跟着 `node` 有无走）。
   const progressNarrow = useNodeProgressNarrow(NODE_V4_CARD.collapsedWidth)
+  const genFinish = useNodeGenerationFinish({
+    generating,
+    failed: Boolean(failureMessage),
+    mediaUrl: videoData.url,
+  })
 
   if (!node) return null
 
@@ -465,6 +470,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     ],
   ]
 
+  // 失败就地说（加载态 A · owner「画布与工作台都就地说」）：线停住变灰，中间一句
+  // 原因 +「重试」—— ⛔ 红框。草稿是空的就不给重试键（发不出去的键 = 死按钮）。
+  // ⚠ 条件用这个布尔；带重试回调的那个对象只在传给进度层时现拼（回调读 ref，
+  //   ⛔ 拿它当渲染期的判断条件）。
+  const failed = Boolean(failureMessage && !selfUploading)
+
   return (
     <div
       data-node-kind={NODE_MEDIA_KIND_IDS.video}
@@ -533,14 +544,29 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         renameRequest={renameRequest}
         selected={Boolean(selected)}
-        edgeBusy={generating || selfUploading}
+        edgeBusy={generating || selfUploading || failed || genFinish.holding}
         edgeOverlay={
-          generating ? (
+          generating || genFinish.completing || failed ? (
             <NodeFrameProgress
               elapsedSeconds={elapsed}
               stageLabel={tStage(
                 `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
               )}
+              isCompleting={genFinish.completing}
+              onEdgeRelease={genFinish.release}
+              onCompleteAnimationDone={genFinish.finish}
+              failure={
+                failed
+                  ? {
+                      message: t('generateDesk.failed', {
+                        reason: failureMessage ?? '',
+                      }),
+                      shortMessage: t('statuses.failed'),
+                      retryLabel: tVideo('rail.retry'),
+                      ...(draft.trim() ? { onRetry: submitPrompt } : {}),
+                    }
+                  : null
+              }
               hideStageLabel={progressNarrow}
             />
           ) : selfUploading ? (
@@ -590,24 +616,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           dragging: Boolean(dragSource) && dragSource?.id !== id,
         }}
       >
-        {failureMessage && !videoData.url && !selfUploading ? (
+        {failed && !videoData.url ? (
+          // 失败就地说（加载态 A）：原因 +「重试」在卡边那一层，这里只占住卡的高度。
           <div
-            role="alert"
-            className="flex flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 text-center"
+            data-video-surface="failed"
+            className="relative"
             style={{ height }}
-          >
-            <p className="text-sm leading-relaxed break-words">
-              {t('generateDesk.failed', { reason: failureMessage })}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!draft.trim()}
-              onClick={submitPrompt}
-            >
-              {tVideo('frame.regenerate')}
-            </Button>
-          </div>
+          />
         ) : videoData.url || generating || selfUploading ? (
           <div
             data-video-surface={videoData.url ? 'ready' : 'pending'}
@@ -630,7 +645,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 src={posterUrl}
                 alt={displayName}
                 draggable={false}
-                className="size-full rounded-node object-cover corner-squircle"
+                className={cn(
+                  'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+                  // 出图那一拍：线合拢之前新封面压在模糊底下，线淡出时模糊收掉。
+                  genFinish.holding && 'blur-sm',
+                )}
               />
             ) : videoData.url ? (
               // 没有落库封面时，静帧就是这段片子自己的第一帧 —— 一只
@@ -643,7 +662,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 preload="metadata"
                 aria-label={displayName}
                 data-video-still
-                className="size-full rounded-node object-cover corner-squircle"
+                className={cn(
+                  'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+                  genFinish.holding && 'blur-sm',
+                )}
                 onLoadedMetadata={(event) => {
                   const value = event.currentTarget.duration
                   if (Number.isFinite(value) && value > 0) {
@@ -709,19 +731,17 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               </span>
             ) : null}
 
-            {failureMessage && videoData.url && !selfUploading && (
-              <p
-                role="alert"
-                className="absolute inset-x-3 top-3 max-h-[60%] overflow-y-auto rounded-xl border border-destructive/30 bg-card/95 p-3 text-sm leading-relaxed break-words"
-              >
-                {t('generateDesk.failed', { reason: failureMessage })}
-              </p>
-            )}
-
-            {/* 重画已有片：旧片留着，盖一层白纱（加载态 A）；进度线在卡边那一层。 */}
-            {generating && videoData.url && (
-              <div aria-hidden className="absolute inset-0 bg-background/60" />
-            )}
+            {/* 重画 / 出图那一拍 / 失败：片留着，盖一层白纱（加载态 A）；线、原因与
+                「重试」在卡边那一层。出图时白纱跟着线一起淡掉。 */}
+            {videoData.url && (generating || genFinish.completing || failed) ? (
+              <div
+                aria-hidden
+                className={cn(
+                  'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
+                  genFinish.completing && !genFinish.holding && 'opacity-0',
+                )}
+              />
+            ) : null}
           </div>
         ) : undefined}
       </NodeCardShell>

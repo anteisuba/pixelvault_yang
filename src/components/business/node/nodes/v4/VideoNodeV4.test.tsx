@@ -1112,7 +1112,8 @@ it('历史失败节点没有详情时也显示错误，而不是空上传卡', (
     true,
   )
   expect(screen.getByRole('alert')).toHaveTextContent('generateDesk.failed')
-  expect(screen.getByRole('button', { name: 'frame.regenerate' })).toBeEnabled()
+  // 失败就地说（加载态 A）：卡中间「重试」，与画板同一个字。
+  expect(screen.getByRole('button', { name: 'rail.retry' })).toBeEnabled()
   expect(screen.queryByText('chrome.emptyHint')).not.toBeInTheDocument()
 })
 

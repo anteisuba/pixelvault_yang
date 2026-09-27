@@ -62,6 +62,10 @@ export {
   useNodeProgressNarrow,
   type NodeFrameProgressProps,
 } from './NodeFrameProgress'
+export {
+  useNodeGenerationFinish,
+  type NodeGenerationFinish,
+} from './use-node-generation-finish'
 export { QuickLook, type QuickLookProps } from './QuickLook'
 export { NodeFrame, type NodeFrameProps } from './NodeFrame'
 export {

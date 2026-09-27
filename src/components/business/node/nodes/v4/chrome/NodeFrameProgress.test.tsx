@@ -69,7 +69,7 @@ describe('NodeFrameProgress', () => {
       />,
     )
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.getByRole('status')).toHaveTextContent('没出图 · 审核拦下了')
+    expect(screen.getByRole('alert')).toHaveTextContent('没出图 · 审核拦下了')
     screen.getByRole('button', { name: '重试' }).click()
     expect(onRetry).toHaveBeenCalledTimes(1)
   })

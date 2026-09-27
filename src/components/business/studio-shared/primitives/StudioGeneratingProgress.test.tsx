@@ -56,7 +56,7 @@ describe('StudioGeneratingProgress · 加载态 A', () => {
       />,
     )
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getByRole('alert')).toHaveTextContent(
       '没出图 · 服务商的审核拦下了这一张',
     )
     expect(progressPath(container)).toHaveAttribute(
@@ -147,5 +147,71 @@ describe('StudioGeneratingProgress · 加载态 A', () => {
     expect(screen.getByText('没出图')).toHaveClass('@max-4xs/progress:inline')
     // 没给 onRetry 就不画键。
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  /**
+   * 线压在哪一侧：工作台的宿主都裁切自己的图框（`overflow-hidden`），默认收进边内；
+   * 只有画布卡那层不裁切的边（`outside`）才压在选中环上。
+   */
+  describe('线的位置', () => {
+    const restore: Array<() => void> = []
+    beforeEach(() => {
+      const original = globalThis.ResizeObserver
+      globalThis.ResizeObserver = class {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe() {
+          this.callback([], this as unknown as ResizeObserver)
+        }
+        unobserve() {}
+        disconnect() {}
+      } as unknown as typeof ResizeObserver
+      const width = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'clientWidth',
+      )
+      const height = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'clientHeight',
+      )
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+        configurable: true,
+        get: () => 200,
+      })
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => 100,
+      })
+      restore.push(() => {
+        globalThis.ResizeObserver = original
+        if (width)
+          Object.defineProperty(HTMLElement.prototype, 'clientWidth', width)
+        if (height)
+          Object.defineProperty(HTMLElement.prototype, 'clientHeight', height)
+      })
+    })
+    afterEach(() => restore.splice(0).forEach((undo) => undo()))
+
+    it('默认收进盒子边内（工作台宿主都裁切）', () => {
+      const { container } = render(
+        <StudioGeneratingProgress
+          elapsedSeconds={8}
+          stageLabel="正在连接模型"
+        />,
+      )
+      expect(progressPath(container).getAttribute('d')).toMatch(/^M 100 0\.75 /)
+    })
+
+    it('outside：压在盒子边外（画布卡的选中环那一圈）', () => {
+      const { container } = render(
+        <StudioGeneratingProgress
+          elapsedSeconds={8}
+          stageLabel="正在连接模型"
+          edgePlacement="outside"
+        />,
+      )
+      expect(progressPath(container).getAttribute('d')).toMatch(
+        /^M 100 -0\.75 /,
+      )
+    })
   })
 })

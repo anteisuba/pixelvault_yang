@@ -70,6 +70,7 @@ import {
   NodeCardShell,
   portSpecOf,
   NodeFrameProgress,
+  useNodeGenerationFinish,
   useNodeProgressNarrow,
   NodePromptBar,
   NodeToolbar,
@@ -106,6 +107,7 @@ import {
 } from './image/image-node-model'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { videoRailMentionLabels } from '@/lib/video-node-rail'
+import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
@@ -279,6 +281,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       ? collapsedImageWidth(imageData)
       : NODE_V4_CARD.collapsedWidth,
   )
+  const genFinish = useNodeGenerationFinish({
+    generating,
+    failed: Boolean(failureMessage),
+    mediaUrl: imageData.url,
+  })
 
   if (!node) return null
 
@@ -578,6 +585,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     ],
   ]
 
+  // 失败就地说（加载态 A · owner「画布与工作台都就地说」）：线停住变灰，中间一句
+  // 原因 +「重试」—— ⛔ 红框。草稿是空的就不给重试键（发不出去的键 = 死按钮）。
+  // ⚠ 条件用这个布尔；带重试回调的那个对象只在传给进度层时现拼（回调读 ref，
+  //   ⛔ 拿它当渲染期的判断条件）。
+  const failed = Boolean(
+    failureMessage && !pendingUpload && !upload.isUploading,
+  )
+
   return (
     <div
       ref={cardRef}
@@ -621,14 +636,29 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         renameRequest={renameRequest}
         selected={Boolean(selected)}
-        edgeBusy={generating}
+        edgeBusy={generating || failed || genFinish.holding}
         edgeOverlay={
-          generating ? (
+          generating || genFinish.completing || failed ? (
             <NodeFrameProgress
               elapsedSeconds={elapsed}
               stageLabel={tStage(
                 `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
               )}
+              isCompleting={genFinish.completing}
+              onEdgeRelease={genFinish.release}
+              onCompleteAnimationDone={genFinish.finish}
+              failure={
+                failed
+                  ? {
+                      message: t('generateDesk.failed', {
+                        reason: failureMessage ?? '',
+                      }),
+                      shortMessage: t('statuses.failed'),
+                      retryLabel: tImage('rail.retry'),
+                      ...(draft.trim() ? { onRetry: submitPrompt } : {}),
+                    }
+                  : null
+              }
               hideStageLabel={progressNarrow}
             />
           ) : undefined
@@ -642,19 +672,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         changed={canvas.changedNodeIds.includes(id) || flashed}
         portSpec={portSpecOf(node)}
       >
-        {failureMessage &&
-        !imageData.url &&
-        !pendingUpload &&
-        !upload.isUploading ? (
+        {failed && !imageData.url ? (
+          // 失败就地说（加载态 A）：原因 +「重试」在卡边那一层，这里只占住卡的高度。
           <div
-            role="alert"
-            className="flex items-center justify-center overflow-y-auto px-6 py-5 text-center"
+            data-image-surface="failed"
+            className="relative"
             style={{ height: emptyCardHeight(width) }}
-          >
-            <p className="text-sm leading-relaxed break-words">
-              {t('generateDesk.failed', { reason: failureMessage })}
-            </p>
-          </div>
+          />
         ) : imageData.url ? (
           <div
             data-image-surface
@@ -666,24 +690,27 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               src={imageData.url}
               alt={imageData.name}
               draggable={false}
-              className="size-full rounded-node object-cover corner-squircle"
+              className={cn(
+                'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
+                // 出图那一拍：线合拢之前新图压在模糊底下，线淡出时模糊收掉。
+                genFinish.holding && 'blur-sm',
+              )}
               onLoad={(event) => rememberImageSize(event.currentTarget)}
               ref={(image) => {
                 if (image?.complete) rememberImageSize(image)
               }}
             />
-            {failureMessage && !pendingUpload && !upload.isUploading && (
-              <p
-                role="alert"
-                className="absolute inset-x-3 top-3 max-h-full overflow-y-auto rounded-xl border border-status-risk/25 bg-status-risk-surface p-3 text-sm leading-relaxed break-words text-status-risk"
-              >
-                {t('generateDesk.failed', { reason: failureMessage })}
-              </p>
-            )}
-            {/* 重画已有图：旧图留着，盖一层白纱（加载态 A）；进度线在卡边那一层。 */}
-            {generating && (
-              <div aria-hidden className="absolute inset-0 bg-background/60" />
-            )}
+            {/* 重画 / 出图那一拍 / 失败：图留着，盖一层白纱（加载态 A）；线、原因与
+                「重试」在卡边那一层。出图时白纱跟着线一起淡掉。 */}
+            {generating || genFinish.completing || failed ? (
+              <div
+                aria-hidden
+                className={cn(
+                  'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
+                  genFinish.completing && !genFinish.holding && 'opacity-0',
+                )}
+              />
+            ) : null}
           </div>
         ) : pendingUpload || upload.isUploading ? (
           <div

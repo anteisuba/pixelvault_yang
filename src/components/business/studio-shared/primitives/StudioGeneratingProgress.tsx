@@ -72,9 +72,11 @@ export interface StudioGeneratingProgressProps {
    */
   cornerRadiusVar?: '--radius-xl' | '--radius-2xl' | '--radius-node'
   /**
-   * `outside` (default) puts the line just outside the box — where a canvas
-   * card's selected ring is. `inside` is for hosts that clip the whole card
-   * (the phone shot card), where the outer half would be cut off.
+   * `inside` (default): the line sits just inside the box's edge — every
+   * workbench host clips its media box (`overflow-hidden`: the stage, grid
+   * tiles, the LoRA card), and a line outside the edge would be cut off.
+   * `outside`: only for the canvas card's unclipped edge layer, where the
+   * line lands exactly on the card's selected ring.
    */
   edgePlacement?: GenerationEdgePlacement
   className?: string
@@ -105,7 +107,7 @@ export function StudioGeneratingProgress({
   failure = null,
   hideStageLabel = false,
   cornerRadiusVar = '--radius-xl',
-  edgePlacement = 'outside',
+  edgePlacement = 'inside',
   className,
 }: StudioGeneratingProgressProps) {
   const prefersReducedMotion = useReducedMotion()
@@ -224,7 +226,8 @@ export function StudioGeneratingProgress({
   return (
     <div
       ref={rootRef}
-      role={failed ? 'status' : 'progressbar'}
+      // A failed generation is announced assertively (the red box it replaces was an alert too).
+      role={failed ? 'alert' : 'progressbar'}
       {...(failed
         ? {}
         : {

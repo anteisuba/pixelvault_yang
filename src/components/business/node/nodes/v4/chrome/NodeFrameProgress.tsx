@@ -38,7 +38,10 @@ export interface NodeFrameProgressProps {
   readonly failure?: StudioGenerationFailure | null
   /** 画布缩小到卡窄于 160px：只写百分比（画布缩放是 transform，容器查询量不到）。 */
   readonly hideStageLabel?: boolean
-  /** 宿主整块裁切时线收进边内（手机镜头卡）；画布卡默认压在边外，与选中环重合。 */
+  /**
+   * 画布卡默认 `outside`：线画在卡壳不裁切的那一层（`edgeOverlay`），压在边外、与选中环
+   * 重合。宿主整块裁切时传 `inside`（手机镜头卡）。
+   */
   readonly edgePlacement?: 'outside' | 'inside'
   readonly className?: string
 }

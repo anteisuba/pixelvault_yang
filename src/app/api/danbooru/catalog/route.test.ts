@@ -17,6 +17,7 @@ beforeEach(() => {
   >)
   vi.mocked(fetchDanbooruCatalog).mockResolvedValue({
     candidates: [],
+    crossHint: null,
     detail: null,
   })
 })
@@ -47,6 +48,15 @@ describe('catalog API boundary', () => {
       success: true,
       data: { candidates: [] },
     })
+  })
+  it('asks for random artists without a query, but only on the artist page', async () => {
+    expect((await GET(request('kind=artist&random=1'))).status).toBe(200)
+    expect(fetchDanbooruCatalog).toHaveBeenCalledWith({
+      kind: 'artist',
+      random: '1',
+    })
+    expect((await GET(request('kind=character&random=1'))).status).toBe(400)
+    expect((await GET(request('kind=artist'))).status).toBe(400)
   })
   it('reports failed services as errors', async () => {
     vi.mocked(fetchDanbooruCatalog).mockRejectedValue(new Error('offline'))

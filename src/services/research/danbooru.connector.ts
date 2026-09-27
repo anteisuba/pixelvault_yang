@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import type {
   DanbooruCatalog,
+  DanbooruCatalogKind,
   DanbooruCatalogQuery,
 } from '@/types/danbooru-catalog'
 
@@ -279,113 +280,289 @@ export async function fetchDanbooruEvidence(params: {
   return { items }
 }
 
-async function readDanbooruCatalog(
-  query: DanbooruCatalogQuery,
-): Promise<DanbooruCatalog> {
-  const category =
-    query.kind === 'character' ? DANBOORU_REQUEST.characterTagCategory : 1
-  const read = (path: string, params: Record<string, string>) =>
-    researchFetchJson(RESEARCH_SOURCE_IDS.danbooru, danbooruUrl(path, params))
-  const tagSchema = z.array(
-    z.object({
-      name: z.string(),
-      category: z.number(),
-      post_count: z.number(),
-    }),
+/* ── 查资料（标签台 · owner 2026-09-27 B）─────────────────────────────── */
+
+const CatalogTagsSchema = z.array(
+  z.object({
+    name: z.string(),
+    category: z.number(),
+    post_count: z.number(),
+  }),
+)
+type CatalogTag = z.infer<typeof CatalogTagsSchema>[number]
+
+const CatalogPostsSchema = z.array(
+  z.object({
+    id: z.number(),
+    rating: z.string(),
+    tag_string_general: z.string().default(''),
+    tag_string_copyright: z.string().default(''),
+    preview_file_url: z.string().nullish(),
+    large_file_url: z.string().nullish(),
+  }),
+)
+type CatalogPost = z.infer<typeof CatalogPostsSchema>[number]
+
+const CATALOG_CATEGORY: Record<DanbooruCatalogKind, number> = {
+  character: DANBOORU_REQUEST.characterTagCategory,
+  artist: DANBOORU_REQUEST.artistTagCategory,
+}
+
+function readCatalog(path: string, params: Record<string, string>) {
+  return researchFetchJson(
+    RESEARCH_SOURCE_IDS.danbooru,
+    danbooruUrl(path, params),
   )
-  if (!query.tag) {
-    const wiki = z.array(z.object({ title: z.string() })).parse(
-      await read('/wiki_pages.json', {
-        'search[other_names_match]': query.query,
-        limit: String(DANBOORU_REQUEST.maxTagCandidates),
-      }),
-    )
-    const slug = query.query.toLowerCase().replace(/\s+/g, '_')
-    const names = [...new Set(wiki.map((page) => page.title))]
-    const [aliases, matches] = await Promise.all([
-      Promise.all(
-        names.map((name) =>
-          read('/tags.json', { 'search[name]': name, limit: '1' }),
-        ),
-      ).then((values) => values.flatMap((value) => tagSchema.parse(value))),
-      read('/tags.json', {
-        'search[name_matches]': `*${slug}*`,
-        'search[category]': String(category),
-        'search[order]': 'count',
-        limit: '5',
-      }),
-    ])
-    const seen = new Set<string>()
-    return {
-      candidates: [...tagSchema.parse(aliases), ...tagSchema.parse(matches)]
-        .filter(
-          (tag) =>
-            tag.category === category &&
-            !seen.has(tag.name) &&
-            Boolean(seen.add(tag.name)),
-        )
-        .map((tag) => ({
-          name: tag.name,
-          count: tag.post_count,
-          category: tag.category,
-        })),
-      detail: null,
-    }
+}
+
+/** 只放行 Danbooru 自家 CDN 的 https 地址 —— 这些 URL 会直接进 `<img>`。 */
+function donmaiUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' &&
+      (url.hostname === 'donmai.us' || url.hostname.endsWith('.donmai.us'))
+      ? url.href
+      : null
+  } catch {
+    return null
   }
-  const tags = tagSchema.parse(
-    await read('/tags.json', { 'search[name]': query.tag, limit: '1' }),
+}
+
+/**
+ * 服务端小缓存：作品数前几百的画师名单一天都不怎么动，同一个 tag 的样图也是 ——
+ * 「换一批」来回翻、左栏点来点去都不必每次重新问 Danbooru。
+ * ⚠ 进程内的，冷启动就没了；它只省请求，⛔ 不是数据来源。
+ */
+const catalogCache = new Map<string, { at: number; value: unknown }>()
+
+/** 测试之间清掉（同 `resetResearchBreakers`）。 */
+export function resetDanbooruCatalogCache(): void {
+  catalogCache.clear()
+}
+
+async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = catalogCache.get(key)
+  if (hit && Date.now() - hit.at < DANBOORU_REQUEST.catalogCacheTtlMs)
+    return hit.value as T
+  const value = await load()
+  catalogCache.set(key, { at: Date.now(), value })
+  if (catalogCache.size > 500) {
+    const oldest = catalogCache.keys().next().value
+    if (oldest !== undefined) catalogCache.delete(oldest)
+  }
+  return value
+}
+
+/** 这个 tag 的全年龄样图（⚠ 查询里带 `rating:g`，回来的再按 rating 筛一遍）。 */
+function safePosts(tag: string, limit: number): Promise<CatalogPost[]> {
+  return cached(`posts:${tag}:${limit}`, async () =>
+    CatalogPostsSchema.parse(
+      await readCatalog('/posts.json', {
+        tags: `${tag} rating:${DANBOORU_REQUEST.safeRating}`,
+        limit: String(limit),
+      }),
+    ).filter((post) => post.rating === DANBOORU_REQUEST.safeRating),
   )
-  if (!tags.some((tag) => tag.name === query.tag && tag.category === category))
-    return { candidates: [], detail: null }
-  const [wikiRaw, postsRaw] = await Promise.all([
-    read('/wiki_pages.json', { 'search[title]': query.tag, limit: '1' }),
-    read('/posts.json', {
-      tags: `${query.tag} rating:${DANBOORU_REQUEST.safeRating}`,
-      limit: '20',
+}
+
+/** 一串作品标签里出现最多的那一个（角色出自哪部作品）。 */
+function topCopyright(posts: readonly CatalogPost[]): string | null {
+  const counts = new Map<string, number>()
+  for (const post of posts)
+    for (const tag of new Set(
+      post.tag_string_copyright.split(' ').filter(Boolean),
+    ))
+      counts.set(tag, (counts.get(tag) ?? 0) + 1)
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+}
+
+/**
+ * 给左栏每一行配样图：角色一张 + 作品名，画师三张。
+ * ⚠ 一行的样图查不到（限流 / 没有全年龄作品）只让那一行没图，⛔ 不让整张列表失败。
+ */
+async function withPreviews(
+  tags: readonly CatalogTag[],
+  kind: DanbooruCatalogKind,
+): Promise<DanbooruCatalog['candidates']> {
+  const limit = kind === 'artist' ? DANBOORU_REQUEST.artistPreviewCount : 1
+  const samples = await Promise.allSettled(
+    tags.map((tag) => safePosts(tag.name, limit)),
+  )
+  return tags.map((tag, index) => {
+    const sample = samples[index]
+    const posts = sample?.status === 'fulfilled' ? sample.value : []
+    return {
+      name: tag.name,
+      count: tag.post_count,
+      category: tag.category,
+      work: kind === 'character' ? topCopyright(posts) : null,
+      previews: posts
+        .map((post) => donmaiUrl(post.preview_file_url))
+        .filter((url): url is string => url !== null),
+    }
+  })
+}
+
+/**
+ * 这个词对得上的 tag：别名（中日文名走 wiki 的 `other_names`）先，模糊匹配后；
+ * 各自按作品数排。别名反查到的 tag 不分类别，由调用方按页筛。
+ */
+async function aliasTags(text: string): Promise<CatalogTag[]> {
+  const wiki = z.array(z.object({ title: z.string() })).parse(
+    await readCatalog('/wiki_pages.json', {
+      'search[other_names_match]': text,
+      limit: String(DANBOORU_REQUEST.maxTagCandidates),
     }),
+  )
+  const names = [...new Set(wiki.map((page) => page.title))]
+  const found = await Promise.all(
+    names.map((name) =>
+      readCatalog('/tags.json', { 'search[name]': name, limit: '1' }),
+    ),
+  )
+  return found.flatMap((value) => CatalogTagsSchema.parse(value))
+}
+
+async function matchTags(
+  text: string,
+  category: number,
+  aliases: readonly CatalogTag[],
+): Promise<CatalogTag[]> {
+  const slug = text.toLowerCase().replace(/\s+/g, '_')
+  const fuzzy = CatalogTagsSchema.parse(
+    await readCatalog('/tags.json', {
+      'search[name_matches]': `*${slug}*`,
+      'search[category]': String(category),
+      'search[order]': 'count',
+      limit: String(DANBOORU_REQUEST.catalogCandidateLimit),
+    }),
+  )
+  const byCount = (a: CatalogTag, b: CatalogTag) => b.post_count - a.post_count
+  const seen = new Set<string>()
+  return [
+    ...aliases.filter((tag) => tag.category === category).sort(byCount),
+    ...fuzzy.filter((tag) => tag.category === category).sort(byCount),
+  ].filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
+}
+
+/** 画风页「随便看看」：作品最多的画师里随机抽一批，没有全年龄样图的剔掉。 */
+async function randomArtists(): Promise<DanbooruCatalog['candidates']> {
+  const placeholders = new Set<string>(DANBOORU_REQUEST.artistPlaceholderTags)
+  const pool = await cached('top-artists', async () =>
+    CatalogTagsSchema.parse(
+      await readCatalog('/tags.json', {
+        'search[category]': String(DANBOORU_REQUEST.artistTagCategory),
+        'search[order]': 'count',
+        limit: String(DANBOORU_REQUEST.randomArtistPool),
+      }),
+    ).filter((tag) => !placeholders.has(tag.name)),
+  )
+  const draw = [...pool]
+  for (let i = draw.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[draw[i], draw[j]] = [draw[j]!, draw[i]!]
+  }
+  const picked = await withPreviews(
+    draw.slice(0, DANBOORU_REQUEST.randomArtistDraw),
+    'artist',
+  )
+  return picked
+    .filter((artist) => artist.previews.length > 0)
+    .slice(0, DANBOORU_REQUEST.randomArtistShow)
+}
+
+async function readCatalogDetail(
+  tag: string,
+  kind: DanbooruCatalogKind,
+): Promise<DanbooruCatalog> {
+  const empty: DanbooruCatalog = {
+    candidates: [],
+    crossHint: null,
+    detail: null,
+  }
+  const tags = CatalogTagsSchema.parse(
+    await readCatalog('/tags.json', { 'search[name]': tag, limit: '1' }),
+  )
+  const hit = tags.find(
+    (item) => item.name === tag && item.category === CATALOG_CATEGORY[kind],
+  )
+  if (!hit) return empty
+  const [wikiRaw, posts] = await Promise.all([
+    readCatalog('/wiki_pages.json', { 'search[title]': tag, limit: '1' }),
+    safePosts(tag, DANBOORU_REQUEST.catalogSampleSize),
   ])
   const wiki = z
     .array(z.object({ other_names: z.array(z.string()).optional() }))
     .parse(wikiRaw)
-  const posts = z
-    .array(
-      z.object({
-        id: z.number(),
-        rating: z.string(),
-        tag_string_general: z.string(),
-        preview_file_url: z.string().nullish(),
-      }),
-    )
-    .parse(postsRaw)
-    .filter((post) => post.rating === DANBOORU_REQUEST.safeRating)
   const counts = new Map<string, number>()
   for (const post of posts)
-    for (const tag of new Set(
+    for (const general of new Set(
       post.tag_string_general.split(' ').filter(Boolean),
     ))
-      counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      counts.set(general, (counts.get(general) ?? 0) + 1)
   return {
-    candidates: [],
+    ...empty,
     detail: {
-      tag: query.tag,
+      tag,
+      count: hit.post_count,
+      work: kind === 'character' ? topCopyright(posts) : null,
       aliases: wiki[0]?.other_names ?? [],
       sampleSize: posts.length,
       traits: [...counts]
         .sort((a, b) => b[1] - a[1])
         .slice(0, DANBOORU_REQUEST.consensusTopN)
-        .map(([tag, count]) => ({ tag, count })),
+        .map(([name, count]) => ({ tag: name, count })),
       images: posts
         .flatMap((post) => {
-          if (!post.preview_file_url) return []
-          const url = new URL(post.preview_file_url)
-          return url.protocol === 'https:' &&
-            (url.hostname === 'donmai.us' ||
-              url.hostname.endsWith('.donmai.us'))
-            ? [{ id: post.id, url: url.href }]
+          const url = donmaiUrl(post.preview_file_url)
+          return url
+            ? [{ id: post.id, url, large: donmaiUrl(post.large_file_url) }]
             : []
         })
         .slice(0, DANBOORU_REQUEST.maxSampleImages),
     },
+  }
+}
+
+async function readDanbooruCatalog(
+  query: DanbooruCatalogQuery,
+): Promise<DanbooruCatalog> {
+  if (query.tag) return readCatalogDetail(query.tag, query.kind)
+  if (!query.query) {
+    return { candidates: await randomArtists(), crossHint: null, detail: null }
+  }
+  const aliases = await aliasTags(query.query)
+  const found = await matchTags(
+    query.query,
+    CATALOG_CATEGORY[query.kind],
+    aliases,
+  )
+  if (found.length > 0) {
+    return {
+      candidates: await withPreviews(
+        found.slice(0, DANBOORU_REQUEST.catalogCandidateLimit),
+        query.kind,
+      ),
+      crossHint: null,
+      detail: null,
+    }
+  }
+  /**
+   * 这一页一个都没有：顺手问一下另一页（owner 2026-09-27 · fukemachi 在角色页
+   * 落空，其实是画师）。有就回一句跨页提示，⛔ 不把另一页的结果混进这一页。
+   */
+  const otherKind: DanbooruCatalogKind =
+    query.kind === 'character' ? 'artist' : 'character'
+  const other = (
+    await matchTags(query.query, CATALOG_CATEGORY[otherKind], aliases)
+  )[0]
+  return {
+    candidates: [],
+    crossHint: other
+      ? { kind: otherKind, name: other.name, count: other.post_count }
+      : null,
+    detail: null,
   }
 }
 

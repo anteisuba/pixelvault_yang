@@ -41,7 +41,10 @@ describe('Danbooru selection', () => {
   it('does not apply tags until explicitly selected and confirmed', () => {
     mocks.data = {
       candidates: [],
+      crossHint: null,
       detail: {
+        count: null,
+        work: null,
         tag: 'denia_(wuthering_waves)',
         aliases: ['达妮娅'],
         sampleSize: 2,
@@ -76,7 +79,10 @@ describe('Danbooru selection', () => {
   it('clears selected tags when the search changes', () => {
     mocks.data = {
       candidates: [],
+      crossHint: null,
       detail: {
+        count: null,
+        work: null,
         tag: 'denia',
         aliases: [],
         sampleSize: 0,

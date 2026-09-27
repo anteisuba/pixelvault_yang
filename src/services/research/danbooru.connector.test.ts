@@ -12,12 +12,16 @@ vi.mock('@/lib/with-retry', () => ({
 
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
-import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
+import {
+  fetchDanbooruEvidence,
+  resetDanbooruCatalogCache,
+} from '@/services/research/danbooru.connector'
 
 const mockFetch = vi.fn()
 
 beforeEach(() => {
   resetResearchBreakers([RESEARCH_SOURCE_IDS.danbooru])
+  resetDanbooruCatalogCache()
   vi.clearAllMocks()
   vi.stubGlobal('fetch', mockFetch)
 })
@@ -344,12 +348,17 @@ describe('catalog used by the tag workbench', () => {
       tag: 'denia',
     })
     expect(result.detail?.sampleSize).toBe(2)
+    expect(result.detail?.count).toBe(3)
     expect(result.detail?.traits).toEqual([
       { tag: 'long_hair', count: 2 },
       { tag: 'pink_hair', count: 1 },
     ])
     expect(result.detail?.images).toEqual([
-      { id: 1, url: 'https://cdn.donmai.us/1.jpg' },
+      {
+        id: 1,
+        url: 'https://cdn.donmai.us/1.jpg',
+        large: 'https://cdn.donmai.us/1.jpg',
+      },
     ])
     expect(
       mockFetch.mock.calls.some(
@@ -357,6 +366,118 @@ describe('catalog used by the tag workbench', () => {
       ),
     ).toBe(true)
   })
+  it('gives each candidate an all-ages sample and the work it comes from', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.pathname === '/tags.json')
+        return jsonResponse([
+          { name: 'hatsune_miku', category: 4, post_count: 150000 },
+          { name: 'snow_miku', category: 4, post_count: 5000 },
+        ])
+      if (url.searchParams.get('tags') === 'hatsune_miku rating:g')
+        return jsonResponse([
+          {
+            id: 1,
+            rating: 'g',
+            tag_string_general: 'twintails',
+            tag_string_copyright: 'vocaloid',
+            preview_file_url: 'https://cdn.donmai.us/p1.jpg',
+          },
+        ])
+      throw new Error('rate limited')
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'miku',
+      kind: 'character',
+    })
+    expect(result.candidates).toEqual([
+      {
+        name: 'hatsune_miku',
+        count: 150000,
+        category: 4,
+        work: 'vocaloid',
+        previews: ['https://cdn.donmai.us/p1.jpg'],
+      },
+      // 这一行的样图没拿到：只是没图，⛔ 不让整张列表失败。
+      {
+        name: 'snow_miku',
+        count: 5000,
+        category: 4,
+        work: null,
+        previews: [],
+      },
+    ])
+    expect(result.crossHint).toBeNull()
+  })
+
+  it('points to the artist page when a character search finds only an artist', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.searchParams.get('search[category]') === '1')
+        return jsonResponse([
+          { name: 'fukemachi', category: 1, post_count: 260 },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'fukemachi',
+      kind: 'character',
+    })
+    expect(result.candidates).toEqual([])
+    expect(result.crossHint).toEqual({
+      kind: 'artist',
+      name: 'fukemachi',
+      count: 260,
+    })
+  })
+
+  it('draws random top artists that have all-ages samples, never placeholders', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    const pool = [
+      { name: 'banned_artist', category: 1, post_count: 90000 },
+      ...Array.from({ length: 12 }, (_, i) => ({
+        name: `artist_${i}`,
+        category: 1,
+        post_count: 5000 - i,
+      })),
+    ]
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json') return jsonResponse(pool)
+      const tag = url.searchParams.get('tags')?.split(' ')[0] ?? ''
+      // 编号为 0 的那位一张全年龄作品都没有。
+      if (tag === 'artist_0') return jsonResponse([])
+      return jsonResponse(
+        [1, 2, 3].map((n) => ({
+          id: n,
+          rating: 'g',
+          preview_file_url: `https://cdn.donmai.us/${tag}-${n}.jpg`,
+        })),
+      )
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const first = await fetchDanbooruCatalog({ kind: 'artist', random: '1' })
+    expect(first.candidates.length).toBeLessThanOrEqual(8)
+    expect(first.candidates.length).toBeGreaterThan(0)
+    for (const artist of first.candidates) {
+      expect(artist.name).not.toBe('banned_artist')
+      expect(artist.name).not.toBe('artist_0')
+      expect(artist.previews).toHaveLength(3)
+    }
+    await fetchDanbooruCatalog({ kind: 'artist', random: '1' })
+    // 画师名单只问一次（服务端缓存）。
+    expect(
+      mockFetch.mock.calls.filter(([url]) =>
+        String(url).includes('/tags.json'),
+      ),
+    ).toHaveLength(1)
+    vi.mocked(Math.random).mockRestore()
+  })
+
   it('propagates network failures instead of returning a misleading empty search', async () => {
     mockFetch.mockRejectedValue(new Error('offline'))
     const { fetchDanbooruCatalog } = await import('./danbooru.connector')

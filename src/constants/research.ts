@@ -385,6 +385,29 @@ export const DANBOORU_REQUEST = {
   /** 只取全年龄样图当立绘候选。 */
   safeRating: 'g',
   maxTagCandidates: 5,
+  /** 画师 tag 的 danbooru category 编号。 */
+  artistTagCategory: 1,
+  /** 查资料左栏最多列几个候选（每个都要再查样图，多了拖慢且容易被限流）。 */
+  catalogCandidateLimit: 6,
+  /** 查资料详情：共现特征取样张数。 */
+  catalogSampleSize: 20,
+  /** 画师行的缩略样图张数；角色行只要 1 张。 */
+  artistPreviewCount: 3,
+  /**
+   * 画风页「随便看看」：从作品最多的这么多个画师里抽，一次多抽几个 —— 有的画师
+   * 一张全年龄样图都没有，抽出来要剔掉。
+   */
+  randomArtistPool: 200,
+  randomArtistDraw: 10,
+  randomArtistShow: 8,
+  /** 画师名单与样图的服务端缓存时长（作品数排名一天都不怎么动）。 */
+  catalogCacheTtlMs: 6 * 60 * 60 * 1000,
+  /** 画师分类里不是真人画师的占位 tag。 */
+  artistPlaceholderTags: [
+    'banned_artist',
+    'unknown_artist',
+    'anonymous_artist',
+  ],
 } as const
 
 /** Serper 时间过滤（🔬 `tbs=qdr:w` 实测生效）。 */

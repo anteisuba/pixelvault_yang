@@ -294,6 +294,9 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
       return step.payload.name
+    /** 提议一份角色设定（卡片助手 C2）—— 详情写**提了几格**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
+      return `${step.payload.fields.length}`
     /**
      * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 详情写**摆了几把**：这一步
      * 通常不出 step（产出是确认卡那一帧），落进历史时该说得出摆了多少个候选。
@@ -380,6 +383,37 @@ export function describeContextCardDecisionText(
   return named
     ? `已选择「${picked}」（针对${describeContextCardProposalText(named)}）`
     : `已选择「${picked}」`
+}
+
+/** 设定四格在**对话里**的叫法（写给模型读的自包含正文，与上下文卡那几句同一种写法）。 */
+export const CHARACTER_PROFILE_FIELD_NAMES = {
+  identity: '身份',
+  behavior: '性格',
+  speech: '说话方式',
+  backstory: '经历',
+} as const
+
+/**
+ * 卡片助手设定提议卡那一下的**题面**（C2）—— 角色名写在句子里：这句话要去的地方是
+ * 三轮之后的对话，那里没有那张卡（判据与 `describeContextCardProposalText` 同源）。
+ */
+export function describeCharacterProfileProposalText(name: string): string {
+  return `提议把一份设定写进「${name.trim()}」`
+}
+
+/**
+ * 「收下勾选的」/「不用」那一行的**自包含正文**：收了哪几格要说出来，模型下一轮才
+ * 不会把同几格再提一遍。
+ */
+export function describeCharacterProfileDecisionText(
+  name: string,
+  keptFields: readonly (keyof typeof CHARACTER_PROFILE_FIELD_NAMES)[],
+): string {
+  const named = name.trim()
+  if (keptFields.length === 0) return `没收这份设定（${named}）`
+  return `已把${keptFields
+    .map((field) => CHARACTER_PROFILE_FIELD_NAMES[field])
+    .join('、')}写进「${named}」`
 }
 
 /**

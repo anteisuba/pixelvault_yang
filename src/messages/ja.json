@@ -7549,6 +7549,21 @@
           "noWeightFile": "リポジトリに重みファイルがなく、取り込めません",
           "gatedRepo": "制限付きリポジトリのため重みを取得できません"
         }
+      },
+      "characterProfile": {
+        "header": "{name} の下書き · {count} 項目",
+        "question": "「{name}」に入れますか？",
+        "fields": {
+          "identity": "身分",
+          "behavior": "性格",
+          "speech": "話し方",
+          "backstory": "経歴"
+        },
+        "ownWordsOnly": "自分の文だけ残す",
+        "keepAdded": "補足も含める",
+        "keep": "選んだものを入れる · {count}",
+        "dismiss": "今はいい",
+        "kept": "{count} 項目を入れました · {time}"
       }
     },
     "system": {
@@ -7572,7 +7587,10 @@
       "contextCardDeclined": "コンテキストカードは保存しませんでした：{subject}",
       "contextCardSaveFailed": "「{subject}」を保存できませんでした。もう一度お試しください。",
       "loraPickMounted": "追加する LoRA を選びました：{subject}",
-      "loraPickDismissed": "今回はこれらの LoRA を追加しません：{subject}"
+      "loraPickDismissed": "今回はこれらの LoRA を追加しません：{subject}",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "この設定は入れませんでした：{subject}",
+      "characterProfileSaveFailed": "「{subject}」に書き込めませんでした —— もう一度？"
     },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",

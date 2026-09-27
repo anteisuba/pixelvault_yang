@@ -21,6 +21,7 @@
 
 import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import {
@@ -404,6 +405,8 @@ export function StudioOperatorPanel({
     dismissContextCard,
     submitLoraPicks,
     dismissLoraPick,
+    keepCharacterProfile,
+    dismissCharacterProfile,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1282,7 +1285,26 @@ export function StudioOperatorPanel({
         card={STUDIO_OPERATOR_CARD_KINDS.confirm}
         {...(persona ? { persona } : {})}
       >
-        {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
+        {confirm.kind ===
+        ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile ? (
+          /* ── 设定提议卡（卡片助手 C2）：同一个槽位，每格一个勾 ── */
+          <StudioOperatorCharacterProfileCard
+            prompt={confirm}
+            characterName={
+              operatorHost
+                .buildSnapshot()
+                .cards?.characters.find(
+                  (item) => item.id === confirm.profile.characterId,
+                )?.name ?? confirm.profile.characterId
+            }
+            assistantName={
+              persona?.name?.trim() || t('timeline.assistantFallback')
+            }
+            onKeep={(fields) => void keepCharacterProfile(fields)}
+            onDismiss={dismissCharacterProfile}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
           /* ── LoRA 推荐卡（lora-assistant §10.3.1）───────────────
                      ⚠ 与其余三支同一个槽位（帧到即插、不离场、就地换态），
                        ⛔ 不钉到输入框上方 —— 那是问题卡「一次只问一个」的位置，

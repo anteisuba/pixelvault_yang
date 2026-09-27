@@ -7549,6 +7549,21 @@
           "noWeightFile": "仓库里没有权重文件，导不进来",
           "gatedRepo": "仓库受限，取不到权重"
         }
+      },
+      "characterProfile": {
+        "header": "{name} 起草的设定 · {count} 格",
+        "question": "收进「{name}」？",
+        "fields": {
+          "identity": "身份",
+          "behavior": "性格",
+          "speech": "说话方式",
+          "backstory": "经历"
+        },
+        "ownWordsOnly": "只留我写的",
+        "keepAdded": "连补充一起收",
+        "keep": "收下勾选的 · {count}",
+        "dismiss": "不用",
+        "kept": "已收下 {count} 格 · {time}"
       }
     },
     "system": {
@@ -7572,7 +7587,10 @@
       "contextCardDeclined": "没记这张上下文卡：{subject}",
       "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？",
       "loraPickMounted": "已选要挂的 LoRA：{subject}",
-      "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）"
+      "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "没收这份设定：{subject}",
+      "characterProfileSaveFailed": "没能写进「{subject}」—— 再试一次？"
     },
     "attach": {
       "label": "上传图片 / 音频 / 视频",

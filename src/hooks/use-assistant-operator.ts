@@ -125,6 +125,8 @@ import {
 } from '@/lib/studio-operator-apply'
 import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
+  describeCharacterProfileDecisionText,
+  describeCharacterProfileProposalText,
   describeContextCardDecisionText,
   describeContextCardProposalText,
   clampPlanAnswer,
@@ -150,6 +152,7 @@ import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
+  AssistantOperatorCharacterProfileFieldDraft,
   AssistantOperatorConfirmDecision,
   AssistantOperatorContextCardDraft,
   AssistantOperatorGenerationRequest,
@@ -714,6 +717,16 @@ export interface UseAssistantOperatorResult {
   ): void
   /** **推荐卡关掉不点** —— ⛔ 不发请求，但照样落一行「都不挂」的账。 */
   dismissLoraPick(): void
+  /**
+   * **设定提议卡「收下勾选的」**（卡片助手 C2）—— 勾中的那几格（「只留我写的」已在
+   * 卡上去掉助手补的句子）交给角色页写进角色，成功失败都落一行账。
+   * ⚠ 一格都没勾时不写；连点两下只写一次（撞在「卡已经不是 idle」上）。
+   */
+  keepCharacterProfile(
+    fields: readonly AssistantOperatorCharacterProfileFieldDraft[],
+  ): Promise<void>
+  /** **设定提议卡「不用」** —— 什么都不写，但照样落一行「没收」的账。 */
+  dismissCharacterProfile(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -1448,6 +1461,26 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
                   pick: event.confirm.pick,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              /**
+               * **卡片助手提议一份角色设定**（C2）—— 每格一个勾、下面一行来源。
+               * ⚠ 服务端到这一帧为止一行库都没写：写进角色发生在用户点「收下勾选的」
+               *   时（`keepCharacterProfile` → 宿主 `apply.cards.applyProfile`）。
+               */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+                  profile: event.confirm.profile,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
                 setOperatorStatus('awaitingConfirm')
@@ -2545,6 +2578,114 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   }, [])
 
   /**
+   * 设定提议卡那一下的**落账两件套**（判据与 `contextCardDecision` 逐字同源）：一条
+   * 自带题面的正文 + 结构化那一半。少了它们，模型下一轮读到的是一张没人回应的提议，
+   * 于是重提同一份设定。
+   */
+  const characterProfileDecision = useCallback(
+    (
+      characterId: string,
+      kept: readonly AssistantOperatorCharacterProfileFieldDraft[],
+    ) => {
+      const name =
+        buildSnapshot().cards?.characters.find(
+          (item) => item.id === characterId,
+        )?.name ?? characterId
+      const keptFields = kept.map((item) => item.field)
+      const label = describeCharacterProfileDecisionText(name, keptFields)
+      return {
+        name,
+        userText: label,
+        answered: {
+          questionId: `characterProfile:${characterId}`,
+          optionIds: keptFields.length ? keptFields : ['decline'],
+          question: describeCharacterProfileProposalText(name),
+          optionLabels: [label],
+        } satisfies AssistantOperatorPlanAnswer,
+      }
+    },
+    [buildSnapshot],
+  )
+
+  const keepCharacterProfile = useCallback(
+    async (fields: readonly AssistantOperatorCharacterProfileFieldDraft[]) => {
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle ||
+        fields.length === 0
+      ) {
+        return
+      }
+      const applyProfile = applyContext.cards?.applyProfile
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+      const ok = applyProfile
+        ? await applyProfile(
+            confirm.profile.characterId,
+            fields.map((item) => ({ field: item.field, text: item.text })),
+          )
+        : false
+      const decision = characterProfileDecision(
+        confirm.profile.characterId,
+        fields,
+      )
+      if (!ok) {
+        // ⛔ 不静默：用户以为已经写进去了。卡回到 idle，可以再点一次。
+        setOperatorConfirm({
+          ...confirm,
+          status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+        })
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'characterProfileSaveFailed',
+          subject: decision.name,
+        })
+        return
+      }
+      setOperatorConfirm({
+        ...confirm,
+        keptCount: fields.length,
+        status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting,
+      })
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'characterProfileSaved',
+        subject: decision.userText,
+        userText: decision.userText,
+        answered: decision.answered,
+      })
+    },
+    [applyContext, characterProfileDecision],
+  )
+
+  const dismissCharacterProfile = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+    const decision = characterProfileDecision(confirm.profile.characterId, [])
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'characterProfileDeclined',
+      subject: decision.name,
+      userText: decision.userText,
+      answered: decision.answered,
+    })
+  }, [characterProfileDecision])
+
+  /**
    * **推荐卡「挂载所选」**（lora-assistant §10.1 / §10.3.1）—— 勾中的那几把
    * 先在客户端逐把执行，再带候选本体、回执和最新快照进入下一轮。
    *
@@ -2732,6 +2873,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     saveContextCard,
     dismissContextCard,
     submitLoraPicks,
+    keepCharacterProfile,
+    dismissCharacterProfile,
     dismissLoraPick,
     retryGeneration,
     rerunGeneration,

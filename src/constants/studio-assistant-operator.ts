@@ -320,6 +320,16 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   /** 存卡那一跳没成（网络 / 卡表满了）——⛔ 不静默：用户以为已经记下了。 */
   'contextCardSaveFailed',
   /**
+   * **收下了卡片助手提议的设定**（C2）——「已写进 Denia：身份、性格」。
+   * ⭐ 判据与 `contextCardSaved` 逐字同源：这一行同时是一条自带题面的 user 消息，
+   * 模型下一轮才知道哪几格已经收了、⛔ 不再重提。
+   */
+  'characterProfileSaved',
+  /** **没收这份设定**（C2）—— 也是一次表态，⛔ 不落账的下场是模型重提。 */
+  'characterProfileDeclined',
+  /** 写进角色那一跳没成 —— ⛔ 不静默：用户以为已经写进去了。 */
+  'characterProfileSaveFailed',
+  /**
    * **在 LoRA 推荐卡上勾了几把并点了「挂载所选」**（lora-assistant §10.1 落账
    * 三件套）——「已选要挂的 LoRA：清宵、overwatch_3d_anima」。
    *

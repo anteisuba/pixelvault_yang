@@ -27,6 +27,7 @@ import type {
 import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorAskEvent,
+  AssistantOperatorCharacterProfileDraft,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
@@ -493,6 +494,16 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
       pick: AssistantOperatorLoraPickConfirm
+    }
+  /**
+   * 卡片助手提议一份角色设定（C2）—— 每格一个勾、「收下勾选的 / 不用」。
+   * ⚠ 勾选态住在卡自己的组件态里（判据同 `loraPick`）；这里只落「帧带来的东西 +
+   *   已决没决」，外加收下了几格（卡收起后那一行写它）。
+   */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
+      profile: AssistantOperatorCharacterProfileDraft
+      keptCount?: number
     }
 )
 

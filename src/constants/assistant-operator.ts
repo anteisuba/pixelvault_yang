@@ -491,6 +491,17 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   proposeContextCard: 'propose_context_card',
   /**
+   * **提议一份角色设定**（卡片助手 C2，owner 09-27）—— 只在卡片域。
+   *
+   * ⭐ 与 `propose_context_card` 同一条原则：服务端**一行库都不写**，只吐一帧
+   * `confirm(characterProfile)`；每格设定一个勾、下面一行来源，用户点「收下勾选的」
+   * 才由角色页（带着用户自己的会话）写进这个角色。没勾的格原样保留。
+   * ⚠ 扩写的经历要标出**哪几句是助手补的**（`added`），卡上浅底标出，可以「只留
+   *   我写的」（画板 S13）。
+   * ⚠ 没有 `inverse`：什么都没发生，撤无可撤。
+   */
+  proposeCharacterProfile: 'propose_character_profile',
+  /**
    * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
    *
    * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
@@ -647,6 +658,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
@@ -723,6 +735,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 东西可撤（真正入库那一跳是用户在卡上点下去的）。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+  /** ⚠ 提议一份角色设定同归这一档：判据与上一条逐字同源（写入那一跳是用户点下去的）。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   /**
    * ⚠ **摆一张 LoRA 推荐卡也归这一档**（lora-assistant §10.2.2）：判据与
    * `propose_context_card` 逐字同源 —— 服务端一行库都不写、装配台一个字都没动，
@@ -923,6 +937,9 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
    * 要不要记住」，停下来等用户拍一个板，产出是「决定」。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
+    ASSISTANT_OPERATOR_VERB_IDS.ask,
+  /** ⚠ 提议一份角色设定也归**问**：停下来等用户勾、拍一个板，产出是「决定」。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   /**
    * ⚠ 摆推荐卡也归**问**（§10.2.2）：它本质是「这几把你要哪几把」，停下来等
@@ -1249,6 +1266,14 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    * 创作者点「挂载所选」之后的那一轮，逐把过 `planMountLora` 的全部闸。
    */
   loraPick: 'loraPick',
+  /**
+   * 卡片助手提议一份角色设定（C2，owner 09-27，画板 S6 / S13）。
+   *
+   * ⭐ 落在 `confirm`，判据与 `loraPick` 逐字同源：**多选（每格一个勾）+ 一颗提交键
+   * + 之后就地换态**。⚠ 服务端到这一帧为止一行库都没写：写进角色那一跳由用户在
+   * 卡上点「收下勾选的」，走角色页自己的更新（`apply.cards.applyProfile`）。
+   */
+  characterProfile: 'characterProfile',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1256,6 +1281,7 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
 ] as const
 
 export type AssistantOperatorConfirmKind =
@@ -1824,6 +1850,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.research,
     ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
     ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+    /** C2 写设定：提议一份设定，用户勾选后由角色页写进去（服务端不写库）。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   ],
 }
 
@@ -1903,6 +1931,12 @@ export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
   maxFieldChars: 2_000,
   /** 标签最多带几条。 */
   maxTags: 40,
+  /** 提议的设定每格最多多少字（与角色设定本身的上限同量级）。 */
+  maxProposedFieldChars: 2_000,
+  /** 来源那一行最多多少字。 */
+  maxSourceChars: 160,
+  /** 一格里最多标几段「助手补的」。 */
+  maxAddedSpans: 12,
 } as const
 
 /**
@@ -2791,6 +2825,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
     'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
+    'OFFER a drafted profile for ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each field with a checkbox and the source line under it, and only the fields they tick are written into the character when they press keep. It ends your turn. "characterId" must be an id from the page snapshot. "fields" holds one to four of identity / behavior / speech / backstory — only the ones you actually drafted. Each field: "text" (what goes into the character, in the creator\'s language; behaviour written as what they DO, not adjectives), "source" (one short line naming where it came from — the wiki page, the official site, or "你写的 + 我补的"), optional "sourceUrl", and for backstory you expanded from the creator\'s own skeleton, "added": the exact phrases YOU added (each must appear verbatim in "text") so the app can shade them and let the creator keep only their own words. For canon characters every field needs a real source you read this conversation; never invent one. Do not write profile text into your message instead of using this — the creator cannot keep it from there.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\nNOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:

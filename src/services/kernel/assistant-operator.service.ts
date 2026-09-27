@@ -438,6 +438,7 @@ import {
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorCanvasSnapshot,
   type AssistantOperatorCardsSnapshot,
+  type AssistantOperatorCharacterProfileDraft,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorSnapshot,
   type AssistantOperatorSnapshotCapability,
@@ -1055,6 +1056,14 @@ type ToolPlan =
       card: AssistantOperatorContextCardDraft
     }
   /**
+   * 卡片助手提议一份角色设定（C2）—— 形态与 `confirmContextCard` 逐字同构：吐一帧、
+   * 停流，⛔ 服务端一行库都没写。
+   */
+  | {
+      kind: 'confirmCharacterProfile'
+      profile: AssistantOperatorCharacterProfileDraft
+    }
+  /**
    * **把本轮 LoRA 候选摆给创作者挑**（lora-assistant §10.1 / §10.2.2）—— 与
    * `confirmContextCard` 逐字同构：吐一帧确认、停流，⛔ 服务端一把都没挂。
    *
@@ -1353,7 +1362,7 @@ function renderState(
       cards?.open
         ? `Open character: ${JSON.stringify(cards.open)}`
         : 'No character is open — the creator is on the overview.',
-      'You cannot edit a character from here yet: never claim you changed a profile, tags or images. Put drafted profile text in your reply for the creator to copy into Edit.',
+      'You never write into a character directly: to add or change profile fields, send ask/propose_character_profile and the creator ticks what to keep. Never claim you changed a profile, tags or images. Tags and images cannot be changed from here yet.',
     ].join('\n')
   }
 
@@ -6961,6 +6970,57 @@ function planProposeContextCard(
 }
 
 /**
+ * **提议一份角色设定**（卡片助手 C2，owner 09-27）—— ⛔ 一行库都不写。
+ *
+ * ⭐ 与 `planProposeContextCard` 同一条原则：把草稿交出去吐成一帧
+ * `confirm(characterProfile)`；写进角色由用户在卡上点「收下勾选的」时经角色页的
+ * 更新完成（带着用户自己的会话）。
+ * ⚠ 角色必须是**这一页上的**（快照里有）：模型写得出一个 id ⛔ 不等于有这个角色。
+ * ⚠ 同一格只留第一份；`added` 里对不上正文的那几句丢掉（它们本来就该逐字出现在
+ *   `text` 里，对不上的浅底标不出来，留着只会让「只留我写的」删错东西）。
+ */
+function planProposeCharacterProfile(
+  run: OperatorRun,
+  draft: AssistantOperatorCharacterProfileDraft,
+): ToolPlan {
+  const cards = run.state.cards
+  const known =
+    cards?.open?.id === draft.characterId ||
+    Boolean(cards?.characters.some((item) => item.id === draft.characterId))
+  if (!known) {
+    return {
+      kind: 'read',
+      payload: draft,
+      run: async () => ({
+        result: { offered: false },
+        observation: `propose_character_profile did NOT offer anything: there is no character with id=${draft.characterId} on this page. Use an id from the page snapshot (read_state) — never invent one.`,
+      }),
+    }
+  }
+  const seen = new Set<string>()
+  const fields = draft.fields
+    .filter((item) => {
+      if (seen.has(item.field)) return false
+      seen.add(item.field)
+      return true
+    })
+    .map((item) => {
+      const added = item.added?.filter((span) => item.text.includes(span))
+      return {
+        field: item.field,
+        text: item.text,
+        source: item.source,
+        ...(item.sourceUrl ? { sourceUrl: item.sourceUrl } : {}),
+        ...(added?.length ? { added } : {}),
+      }
+    })
+  return {
+    kind: 'confirmCharacterProfile',
+    profile: { characterId: draft.characterId, fields },
+  }
+}
+
+/**
  * 读一张卡的全文。
  *
  * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
@@ -7405,6 +7465,11 @@ async function planTool(
       )
     case TOOL.canvasGenerate:
       return planCanvasGenerate(run, parsed.data as { target: string }, userId)
+    case TOOL.proposeCharacterProfile:
+      return planProposeCharacterProfile(
+        run,
+        parsed.data as AssistantOperatorCharacterProfileDraft,
+      )
     default:
       return assertNever(tool)
   }
@@ -8321,8 +8386,9 @@ function buildOperatorSystemPrompt(
       : null,
     request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
       ? `- CHARACTER PROFILES: A profile has four parts — identity (who they are, one or two lines), behaviour (what they DO in concrete situations, never adjectives: "holds the umbrella over others first" beats "gentle"), way of speaking (how they address people, habits, sample phrasing) and history. Appearance belongs to the images and tags, not the profile.
-- CANON CHARACTERS: research before writing (use research; the wiki and Danbooru are available). Tie every fact to where it came from and say which source each line rests on; write the history the way the source tells it. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one.
-- ORIGINAL CHARACTERS: do not write a full profile straight away. Offer two or three one-line directions that differ in how the character behaves, let the creator pick, then expand. When the creator wrote a skeleton of the history, keep their words and clearly mark what you added.
+- DELIVERING A PROFILE: when you have drafted fields, hand them over with ask/propose_character_profile — one field per part you actually drafted, each with a one-line source. Do NOT paste the profile into your message for the creator to copy; they cannot keep it from there. Keep the message itself to a line or two about what you found and what is still missing.
+- CANON CHARACTERS: research properly before writing — use verify with depth "deep". Official in-game text is canon: the wiki's character page and its story / backstory and voice-lines pages (for example a Fandom "/Backstory" or "/Voice-Lines" page, or the official wiki's character entry) — read them with read_url instead of stopping at search extracts. A character's own lines are the best evidence for their way of speaking; their character stories for behaviour and history. Encyclopedic wiki write-ups of the canon (the official wiki or 图鉴, Moegirl / 萌娘百科, Fandom, Wikipedia) ARE usable sources — name them as the source; only fan theories, forum speculation and fan works are not. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one. Every proposed field needs a source you actually read in this conversation (put its page in sourceUrl). Do not hold the proposal back waiting for perfect sources: as soon as some parts are supported, propose those parts in the same turn and say in one line which parts are still missing and why — never ask the creator to tell you to propose.
+- ORIGINAL CHARACTERS: do not write a full profile straight away. First ask ONE question with two or three options, each option a direction named in a few words with a one-line description of how the character behaves; after the creator picks, expand that direction and propose it. When the creator wrote a skeleton of the history, keep their words verbatim and list every phrase you added in "added" so the app can shade it; the source line for such a field is "你写的 + 我补的".
 - IMAGES: you never generate images. When the creator needs a new image of this character, say what image is missing and that the image assistant makes it (with a rough price); do not pretend you can. You may search the asset library or the web for existing images and say which ones show the character clearly (single character, large enough, no text, one form).`
       : null,
     request.domain === 'lora'
@@ -10654,6 +10720,36 @@ export async function* runAssistantOperator(
           userId: user.id,
           // 这一轮唯一的待办就是它：扳机在用户手上（§5）。
           todo: `等你确认生成 ${plan.request.count} 张`,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'confirmCharacterProfile') {
+        /**
+         * **提议一份角色设定**（卡片助手 C2）—— 与提议上下文卡同构：吐一帧、停流；
+         * ⚠ 到这一帧为止一行库都没写，写进角色由用户点「收下勾选的」完成。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+            profile: plan.profile,
+          },
+        }
+        const character =
+          run.state.cards?.characters.find(
+            (item) => item.id === plan.profile.characterId,
+          )?.name ?? plan.profile.characterId
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          todo: `等你决定要不要把这份设定收进「${character}」`,
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

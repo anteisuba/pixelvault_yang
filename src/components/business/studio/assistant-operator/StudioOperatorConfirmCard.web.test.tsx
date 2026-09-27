@@ -71,7 +71,7 @@ vi.mock('@/components/ui/responsive-popover', async () => {
 /* ⚠ 推荐卡那一支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
 type ConfirmCardPrompt = Exclude<
   StudioOperatorConfirmPrompt,
-  { kind: 'loraPick' }
+  { kind: 'loraPick' | 'characterProfile' }
 >
 
 const MULTISTEP: ConfirmCardPrompt = {

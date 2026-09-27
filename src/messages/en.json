@@ -7549,6 +7549,21 @@
           "noWeightFile": "No weight file in the repo — cannot import",
           "gatedRepo": "Gated repo — the weights cannot be fetched"
         }
+      },
+      "characterProfile": {
+        "header": "{name} drafted · {count, plural, one {# field} other {# fields}}",
+        "question": "Keep this for {name}?",
+        "fields": {
+          "identity": "Identity",
+          "behavior": "Personality",
+          "speech": "Way of speaking",
+          "backstory": "History"
+        },
+        "ownWordsOnly": "Keep only my words",
+        "keepAdded": "Keep the additions too",
+        "keep": "Keep selected · {count}",
+        "dismiss": "Not now",
+        "kept": "Kept {count, plural, one {# field} other {# fields}} · {time}"
       }
     },
     "system": {
@@ -7572,7 +7587,10 @@
       "contextCardDeclined": "Context card not kept: {subject}",
       "contextCardSaveFailed": "Couldn't save “{subject}”. Please try again.",
       "loraPickMounted": "You chose these LoRAs: {subject}",
-      "loraPickDismissed": "Skipped these LoRAs: {subject}"
+      "loraPickDismissed": "Skipped these LoRAs: {subject}",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "Didn't keep this profile: {subject}",
+      "characterProfileSaveFailed": "Couldn't save it to {subject} — try again?"
     },
     "attach": {
       "label": "Upload image / audio / video",

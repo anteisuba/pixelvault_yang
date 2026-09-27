@@ -1776,6 +1776,59 @@ export type AssistantOperatorContextCardDraft = z.infer<
   typeof AssistantOperatorContextCardDraftSchema
 >
 
+/** 角色设定里助手能提议的四格（与 `CharacterPersona` 的同名字段一一对应）。 */
+export const ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS = [
+  'identity',
+  'behavior',
+  'speech',
+  'backstory',
+] as const
+
+export type AssistantOperatorCharacterProfileField =
+  (typeof ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS)[number]
+
+/**
+ * **一份角色设定提议**（卡片助手 C2，owner 09-27，画板 S6 / S13）。
+ *
+ * ⚠ 同一个形状既是 `propose_character_profile` 的入参，也是 `confirm(characterProfile)`
+ * 那一帧的载荷（与上下文卡草稿同一条：⛔ 别写两份）。
+ * ⚠ `added` = 助手补的那几句（每句必须逐字出现在 `text` 里）：卡上浅底标出，
+ *   「只留我写的」就是把它们从 `text` 里去掉。规划器会丢掉对不上的那几句。
+ */
+export const AssistantOperatorCharacterProfileFieldSchema = z.object({
+  field: z.enum(ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS),
+  text: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxProposedFieldChars),
+  source: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxSourceChars),
+  sourceUrl: z.string().trim().url().max(2_000).optional(),
+  added: z
+    .array(z.string().trim().min(1))
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxAddedSpans)
+    .optional(),
+})
+
+export const AssistantOperatorCharacterProfileDraftSchema = z.object({
+  characterId: IdSchema,
+  fields: z
+    .array(AssistantOperatorCharacterProfileFieldSchema)
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS.length),
+})
+
+export type AssistantOperatorCharacterProfileDraft = z.infer<
+  typeof AssistantOperatorCharacterProfileDraftSchema
+>
+export type AssistantOperatorCharacterProfileFieldDraft = z.infer<
+  typeof AssistantOperatorCharacterProfileFieldSchema
+>
+
 /**
  * **`add_project_rule` 的形状容错**（2026-09-12 实测第 9 步）。
  *
@@ -2293,6 +2346,8 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
     AssistantOperatorContextCardDraftSchema,
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
+    AssistantOperatorCharacterProfileDraftSchema,
   /**
    * 标一张产物的审核态（切片 X）。
    *
@@ -3507,6 +3562,15 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ offered: z.boolean() }),
   ),
   /**
+   * 提议一份角色设定（卡片助手 C2）—— 与上一条同一种形状：产出是一帧
+   * `confirm(characterProfile)` 加停流；归读类，⛔ 撤无可撤。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+    AssistantOperatorCharacterProfileDraftSchema,
+    z.object({ offered: z.boolean() }),
+  ),
+  /**
    * 标一张产物的审核态（切片 X）。
    *
    * ⚠ 与 `add_project_rule` 同一档：后果**落在服务端**（写 `Generation.snapshot`），
@@ -3928,6 +3992,14 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick),
       pick: AssistantOperatorLoraPickConfirmSchema,
+    }),
+    /**
+     * **卡片助手提议一份角色设定**（C2）—— 每格一个勾、一颗「收下勾选的」。
+     * ⚠ 服务端到这一帧为止一行库都没写：写进角色由角色页在用户点下去时完成。
+     */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile),
+      profile: AssistantOperatorCharacterProfileDraftSchema,
     }),
   ]),
 })

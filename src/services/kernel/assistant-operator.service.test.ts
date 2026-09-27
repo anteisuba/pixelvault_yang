@@ -1289,16 +1289,139 @@ describe('read_state', () => {
     expect(digest).toContain('CHARACTERS PAGE')
     expect(digest).toContain('里希')
     expect(digest).toContain('先替别人撑好伞')
-    expect(digest).toContain('never claim you changed a profile')
+    expect(digest).toContain('propose_character_profile')
+    expect(digest).toContain('Never claim you changed a profile')
     const prompt = systemPrompt()
     expect(prompt).toContain('CHARACTER PROFILES')
-    expect(prompt).toContain('Offer two or three one-line directions')
+    expect(prompt).toContain('ask ONE question with two or three options')
+    expect(prompt).toContain('/Voice-Lines')
+    expect(prompt).toContain('Do not hold the proposal back')
+    expect(prompt).toContain('· propose_character_profile —')
     expect(prompt).toContain('you never generate images')
     // 卡片域没有表单旋钮：工具表里不列 set_prompt / prime_generate，只有看、查、问。
     expect(prompt).toContain('· verify —')
     expect(prompt).toContain('· find_images —')
     expect(prompt).not.toContain('· set_prompt —')
     expect(prompt).not.toContain('· prime_generate —')
+  })
+
+  it('卡片助手提议设定：吐一帧 characterProfile 确认并停流；对不上正文的「补充」丢掉，同一格只留一份', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        title: '把查到的设定交给你挑',
+        args: {
+          action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+          characterId: 'denia',
+          fields: [
+            {
+              field: 'identity',
+              text: '星炬学院虚质科学部学生',
+              source: '库街区《鸣潮图鉴》',
+              sourceUrl: 'https://wiki.kurobbs.com/mc/item/denia',
+            },
+            {
+              field: 'backstory',
+              text: '幼时被剧团收留。最后一场演出失手，搭档替她挡了一刀。',
+              source: '你写的 + 我补的',
+              added: ['最后一场演出失手，搭档替她挡了一刀。', '编出来的句子'],
+            },
+            { field: 'identity', text: '重复的一格', source: 'x' },
+          ],
+        },
+      },
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'cards',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            cards: {
+              total: 1,
+              characters: [
+                {
+                  id: 'denia',
+                  name: 'Denia',
+                  work: '鸣潮',
+                  imageCount: 1,
+                  hasProfile: false,
+                },
+              ],
+              open: null,
+            },
+          },
+        }),
+      ),
+    )
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    )
+    expect(confirm).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+        profile: {
+          characterId: 'denia',
+          fields: [
+            {
+              field: 'identity',
+              text: '星炬学院虚质科学部学生',
+              source: '库街区《鸣潮图鉴》',
+              sourceUrl: 'https://wiki.kurobbs.com/mc/item/denia',
+            },
+            {
+              field: 'backstory',
+              text: '幼时被剧团收留。最后一场演出失手，搭档替她挡了一刀。',
+              source: '你写的 + 我补的',
+              added: ['最后一场演出失手，搭档替她挡了一刀。'],
+            },
+          ],
+        },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+  })
+
+  it('卡片助手提议设定：角色不在这一页上就挡回去，不吐确认卡', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: '交设定',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+            characterId: 'nobody',
+            fields: [{ field: 'identity', text: '魔术师', source: 'wiki' }],
+          },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'cards',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            cards: { total: 0, characters: [], open: null },
+          },
+        }),
+      ),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    expect(toolRingCalls().at(-1)?.userPrompt).toContain(
+      'no character with id=nobody',
+    )
   })
 
   it.each([false, true])(

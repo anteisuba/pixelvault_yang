@@ -555,6 +555,21 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
+  /** 提议一份角色设定（卡片助手 C2）——**读类**：一行库都没写，撤无可撤。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]: {
+    payload: {
+      characterId: 'denia',
+      fields: [
+        {
+          field: 'identity',
+          text: '星炬学院虚质科学部学生',
+          source: '库街区《鸣潮图鉴》',
+          sourceUrl: 'https://wiki.kurobbs.com/mc/item/denia',
+        },
+      ],
+    },
+    result: { offered: true },
+  },
   /**
    * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）——**读类**：一行库都没写、
    * 一把都没挂，所以没有 `inverse`（挂载那几条 step 是下一轮各自独立的
@@ -793,7 +808,8 @@ describe('五动词入口', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(44)
+    // 卡片助手 C2 把 44 变成 45（`propose_character_profile`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(45)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -900,6 +916,7 @@ describe('五动词入口', () => {
     ).toEqual([
       ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+      ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
     ])
   })
 

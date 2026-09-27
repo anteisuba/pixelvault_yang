@@ -46,6 +46,7 @@ import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
+  AssistantOperatorCharacterProfileField,
   AssistantAssetWriteRevert,
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
@@ -223,6 +224,19 @@ export interface StudioOperatorApplyContext {
   unmountUserUrl(sourceUrl: string): void
   /** 生成键的 primed 态（拍板 2：这是整条链离「生成」最近的地方）。 */
   setPrimed(primed: boolean): void
+  /**
+   * 角色页（卡片助手）那只手：把用户在设定提议卡上勾中的几格写进这个角色。
+   * ⚠ 可选：只有角色页有；返回是否写成，⛔ 失败不静默（驱动 hook 落一行系统行）。
+   */
+  cards?: {
+    applyProfile(
+      characterId: string,
+      fields: readonly {
+        field: AssistantOperatorCharacterProfileField
+        text: string
+      }[],
+    ): Promise<boolean>
+  }
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
    *
@@ -480,6 +494,11 @@ export function applyOperatorStep(
      * `/api/context-cards`，⛔ 不在这条应用通道上（那条改的是工作台上的旋钮）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
+    /**
+     * ⚠ 提议一份角色设定（卡片助手 C2）同理：写进角色那一跳在确认卡上由用户点下去，
+     * 走角色页的更新（`apply.cards.applyProfile`），⛔ 不在这条应用通道上。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
     /**
      * ⚠ 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）同理：它只是把候选摆出来，
      * 装配台一格都没动。真正挂上那几把是下一轮各自独立的 `mount_lora`，

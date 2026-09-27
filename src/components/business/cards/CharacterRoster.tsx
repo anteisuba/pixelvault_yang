@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { CharacterCardRecord, CreateCharacterCardRequest } from '@/types'
+import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
 import { Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -91,10 +92,42 @@ export function CharacterRoster() {
     () => items.find((item) => item.card.id === openId)?.card ?? null,
     [items, openId],
   )
+  /**
+   * 设定提议卡「收下勾选的」（卡片助手 C2）：勾中的几格合进这个角色已有的设定，
+   * 其余格原样保留，再走角色页自己的更新。
+   */
+  const { update } = characters
+  const applyProfile = useCallback(
+    async (
+      characterId: string,
+      fields: readonly {
+        field: AssistantOperatorCharacterProfileField
+        text: string
+      }[],
+    ) => {
+      const card = flatCards.find((item) => item.id === characterId)
+      if (!card) return false
+      const persona = {
+        identity: '',
+        behavior: '',
+        speech: '',
+        backstory: '',
+        catchphrases: [],
+        scenario: '',
+        opening: '',
+        examples: [],
+        ...card.persona,
+      }
+      for (const { field, text } of fields) persona[field] = text
+      return update(characterId, { persona })
+    },
+    [flatCards, update],
+  )
   /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
   const operatorHost = useCardsOperatorHost({
     cards: flatCards,
     openId: selected?.id ?? null,
+    applyProfile,
   })
 
   const openCharacter = useCallback((id: string) => {

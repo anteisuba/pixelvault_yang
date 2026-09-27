@@ -878,7 +878,9 @@ export function StudioOperatorDock() {
   )
 
   /**
-   * 手机上有没有这套外壳 —— **只有工作台那两个域**（图片 / 视频）。
+   * 手机上有没有这套外壳 —— **除了 LoRA 都有**（图片 / 视频 / 画布 / 角色页）。
+   * ⚠ 09-28 owner 真机：原先只放行图片 / 视频，画布点星标、角色页的头像在手机上
+   *   一律什么都不出 —— 后接进来的宿主被这道白名单静默挡掉了。所以写成排除 LoRA。
    *
    * ⛔ LoRA 装配台不在此列：那条路由的小屏助手仍是 `LoraAssistantDock`（旧面板的
    * Drawer 宿主），而「两颗面板永不同屏」那道门就长在 `LoraWorkbench` 里 ——
@@ -886,9 +888,7 @@ export function StudioOperatorDock() {
    * 同时弹出两张面板。LoRA 的收编是第四期（`assistant-shell.md` 四期次序）。
    * ⚠ 判据用**宿主的域**不是路由：域是宿主说了算的（见 `studio-operator-host`）。
    */
-  const hasMobileShell =
-    hostDomain === ASSISTANT_PROTOCOL_DOMAIN_IDS.image ||
-    hostDomain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+  const hasMobileShell = hostDomain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
 
   if (isMobile && !hasMobileShell) return null
 

@@ -442,6 +442,16 @@ describe('StudioOperatorDock · 手机档', () => {
     expect(setOpen).toHaveBeenCalledWith(true)
   })
 
+  it.each(['canvas', 'cards'])(
+    '%s 域在手机上也有这套外壳（⛔ 不再被白名单挡掉）',
+    (domain) => {
+      mobile = true
+      hostDomain = domain
+      render(<StudioOperatorDock />)
+      expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
+    },
+  )
+
   it('LoRA 域在手机上整颗不渲染（装配台仍走 LoraAssistantDock）', () => {
     mobile = true
     hostDomain = 'lora'

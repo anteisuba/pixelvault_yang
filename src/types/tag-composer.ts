@@ -29,6 +29,10 @@ export type TagChip = z.infer<typeof TagChipSchema>
 
 export const TagChipListSchema = z.array(TagChipSchema)
 
+/**
+ * 旧草稿里的「画风串」（提示词块，2026-09-27 取消）。⚠ 只用于读旧草稿：开着的那几块
+ * 接进正向标签，关着的丢掉（`use-studio-draft.ts`）。⛔ 别再拿它存新东西。
+ */
 export const TagPromptBlockSchema = z.object({
   id: z.string(),
   name: z.string().max(100),
@@ -39,8 +43,8 @@ export type TagPromptBlock = z.infer<typeof TagPromptBlockSchema>
 
 /**
  * 标签模板（owner 2026-09-26）：与自然语言模板同一个库（`Recipe`），靠 `params`
- * 里这一格区分，两台各只列自己的。`compiledPrompt` 存整体正向标签（⛔ 不含
- * 画风与画师串那几块），UC 与各角色随 `params.advancedParams` 走。
+ * 里这一格区分，两台各只列自己的。`compiledPrompt` 存整体正向标签，UC 与各角色随
+ * `params.advancedParams` 走。
  */
 export const TagTemplateParamsSchema = z.object({
   promptDialect: z.literal('tags'),

@@ -10,7 +10,7 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
-import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import { parseTagChips } from '@/lib/tag-composer'
 import { ROUTES } from '@/constants/routes'
 import {
   StudioAssistantDock,
@@ -268,10 +268,7 @@ export function StudioWorkspaceUI() {
   const pathname = usePathname()
   const draft = useMemo<StudioDraft>(
     () => ({
-      prompt: state.tagPromptBlocks?.length
-        ? serializeTagChips(state.tagChips)
-        : state.prompt,
-      promptBlocks: state.tagPromptBlocks,
+      prompt: state.prompt,
       negativePrompt: state.advancedParams.negativePrompt ?? '',
       novelAiLayout: state.advancedParams.novelAiLayout,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
@@ -282,8 +279,6 @@ export function StudioWorkspaceUI() {
       state.aspectRatio,
       state.advancedParams.resolution,
       state.prompt,
-      state.tagChips,
-      state.tagPromptBlocks,
       state.advancedParams.negativePrompt,
       state.advancedParams.novelAiLayout,
       imageUpload.referenceEntries,
@@ -294,10 +289,6 @@ export function StudioWorkspaceUI() {
       imageUpload.clearAllImages()
       saved.referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
       dispatch({ type: 'SET_PROMPT', payload: saved.prompt })
-      dispatch({
-        type: 'SET_TAG_PROMPT_BLOCKS',
-        payload: saved.promptBlocks ?? [],
-      })
       dispatch({
         type: 'SET_TAG_CHIPS',
         payload: {

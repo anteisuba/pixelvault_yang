@@ -37,12 +37,11 @@ import {
   type PromptDialect,
 } from '@/constants/prompt-dialects'
 import {
-  compileTagPrompt,
   parseTagChips,
   serializeTagChips,
   wholeSentenceAsTag,
 } from '@/lib/tag-composer'
-import type { TagPromptBlock, TagChip } from '@/types/tag-composer'
+import type { TagChip } from '@/types/tag-composer'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
@@ -160,8 +159,8 @@ export interface StudioFormState {
    * 同时落 chip 列表和它序列化出来的统一串，所以下游（成本预览 · 生成 · 助手
    * 快照 · 草稿）读 `prompt` 就够了，⛔ 不必认识 chip。反方向由 `SET_PROMPT`
    * 兜住：外部改写提示词时按逗号重新切成 chip。
+   * ⚠ 画风串（提示词块）2026-09-27 取消：画师词、风格词就是普通标签。
    */
-  tagPromptBlocks: TagPromptBlock[]
   tagChips: TagChip[]
   tagNegativeChips: TagChip[]
   /**
@@ -333,7 +332,6 @@ export type StudioAction =
    */
   | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
   | { type: 'SET_PROMPT'; payload: string }
-  | { type: 'SET_TAG_PROMPT_BLOCKS'; payload: TagPromptBlock[] }
   /**
    * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格，并记下
    * 它等助手翻成标签（`tagCarrySource`）；负向栏本来就是逗号列表，按逗号切。
@@ -489,7 +487,6 @@ const initialFormState: StudioFormState = {
   prompt: '',
   promptDialect: DEFAULT_PROMPT_DIALECT,
   tagChips: [],
-  tagPromptBlocks: [],
   tagNegativeChips: [],
   tagCarrySource: null,
   activeTagCharacterIndex: null,
@@ -658,29 +655,14 @@ export function studioFormReducer(
       }
     case 'AUTO_SELECT_OPTION_ID':
       return { ...state, selectedOptionId: action.payload }
-    case 'SET_TAG_PROMPT_BLOCKS': {
-      if (!action.payload.length && !state.tagPromptBlocks?.length)
-        return { ...state, tagPromptBlocks: [] }
-      const chips =
-        state.promptDialect === 'tags' || state.tagPromptBlocks?.length
-          ? state.tagChips
-          : parseTagChips(state.prompt)
-      return {
-        ...state,
-        tagChips: chips,
-        tagPromptBlocks: action.payload,
-        prompt: compileTagPrompt(chips, action.payload),
-      }
-    }
     case 'SET_PROMPT':
       return {
         ...state,
         prompt: action.payload,
-        tagPromptBlocks: [],
         tagCarrySource: null,
         // 标签台开着时，外部改写提示词（助手 · 草稿回灌 · 灵感）要在 chip 上
         // 看得见 —— 否则编辑器画的是一份已经被顶掉的旧名单。
-        ...(state.promptDialect === 'tags' || state.tagPromptBlocks?.length
+        ...(state.promptDialect === 'tags'
           ? { tagChips: parseTagChips(action.payload) }
           : {}),
       }
@@ -689,10 +671,9 @@ export function studioFormReducer(
       if (action.payload !== 'tags') {
         return { ...state, promptDialect: action.payload, tagCarrySource: null }
       }
-      const seeded =
-        state.tagChips.length || state.tagPromptBlocks?.length
-          ? null
-          : wholeSentenceAsTag(state.prompt)
+      const seeded = state.tagChips.length
+        ? null
+        : wholeSentenceAsTag(state.prompt)
       return {
         ...state,
         promptDialect: 'tags',
@@ -708,14 +689,6 @@ export function studioFormReducer(
     case 'CARRY_PROMPT_TO_TAGS': {
       const carried = wholeSentenceAsTag(state.prompt)
       if (carried.length === 0) return state
-      // ⚠ 带画风串编过的那一串本来就是标签，原样落成一格，⛔ 不送去翻。
-      if (state.tagPromptBlocks?.length)
-        return {
-          ...state,
-          tagPromptBlocks: [],
-          tagChips: carried,
-          tagCarrySource: null,
-        }
       // 已经在场的同一句不再插第二遍（来回跳两次会攒出两格一样的字）。
       const existing = state.tagChips.filter(
         (chip) => chip.text !== carried[0].text,
@@ -725,7 +698,7 @@ export function studioFormReducer(
         ...state,
         tagChips,
         tagCarrySource: carried[0].text,
-        prompt: compileTagPrompt(tagChips, state.tagPromptBlocks ?? []),
+        prompt: serializeTagChips(tagChips),
       }
     }
     case 'RESOLVE_TAG_CARRY': {
@@ -746,7 +719,7 @@ export function studioFormReducer(
         ...state,
         tagChips,
         tagCarrySource: null,
-        prompt: compileTagPrompt(tagChips, state.tagPromptBlocks ?? []),
+        prompt: serializeTagChips(tagChips),
       }
     }
     case 'SET_TAG_CHIPS': {
@@ -761,10 +734,7 @@ export function studioFormReducer(
           ...state,
           tagChips: action.payload.chips,
           tagCarrySource: carrying ? state.tagCarrySource : null,
-          prompt: compileTagPrompt(
-            action.payload.chips,
-            state.tagPromptBlocks ?? [],
-          ),
+          prompt: text,
         }
       }
       return {
@@ -882,7 +852,6 @@ export function studioFormReducer(
         ...state,
         prompt: '',
         tagChips: [],
-        tagPromptBlocks: [],
         tagNegativeChips: [],
         tagCarrySource: null,
         activeTagCharacterIndex: null,

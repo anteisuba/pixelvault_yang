@@ -6,23 +6,18 @@ import { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioC
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
+import { useStudioGen } from '@/contexts/studio-context'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { StudioTagsPromptArea } from './StudioTagsPromptArea'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
-import { StudioTagBlocks } from './StudioTagBlocks'
 
-export type TagWorkbenchPanel =
-  | 'composition'
-  | 'catalog'
-  | 'blocks'
-  | 'templates'
-/** 标签台自己的三块面板（模板面板自带头部，走 `templates` 那一格）。 */
+export type TagWorkbenchPanel = 'composition' | 'catalog' | 'templates'
+/** 标签台自己的两块面板（模板面板自带头部，走 `templates` 那一格）。 */
 type TagOwnPanel = Exclude<TagWorkbenchPanel, 'templates'>
 
 /**
- * 标签台的舞台：平时是结果区，按需换成查资料 / 构图 / 提示词块 / 模板之一。
+ * 标签台的舞台：平时是结果区，按需换成查资料 / 构图 / 模板之一。
  * 手机两栏（`StudioTagsWorkbench`）与桌面底部输入框（`StudioWorkspaceUI` 直接挂，
  * 与自然语言台同一个 `StudioWorkbenchLayout`，头部那颗写法切换因此跨两台不重挂）
  * 共用这一份。换场走 `StudioStageSwap`（面板淡入上浮 · 收起时结果淡入回来）。
@@ -35,16 +30,12 @@ export function StudioTagsStage({
 }: {
   panel: TagWorkbenchPanel | null
   onClose: () => void
-  /**
-   * 桌面底部输入框：参考图住在输入框的附件行里、舞台不画参考轨；输入框里没有
-   * 「最终画面提示词」的位置，挪进提示词块面板。
-   */
+  /** 桌面底部输入框：参考图住在输入框的附件行里，舞台不画参考轨。 */
   bottom?: boolean
   /** 模板面板（宿主给，它自带头部与「返回结果」）。 */
   templates?: ReactNode
 }) {
   const t = useTranslations('StudioTags.workbench')
-  const { state } = useStudioForm()
   const c = useNovelAiCharacters()
   const { isGenerating } = useStudioGen()
   /** 打开面板的那颗按钮 —— 关掉时焦点回到它身上。 */
@@ -98,20 +89,6 @@ export function StudioTagsStage({
       </div>
       {key === 'catalog' ? (
         <StudioDanbooruPanel />
-      ) : key === 'blocks' ? (
-        <>
-          <StudioTagBlocks />
-          {bottom ? (
-            <details>
-              <summary className="cursor-pointer text-xs text-muted-foreground">
-                {t('compiled')}
-              </summary>
-              <p className="whitespace-pre-wrap break-words py-2 text-sm">
-                {state.prompt}
-              </p>
-            </details>
-          ) : null}
-        </>
       ) : c.mode ? (
         <>
           <label className="flex items-center gap-2 text-sm">

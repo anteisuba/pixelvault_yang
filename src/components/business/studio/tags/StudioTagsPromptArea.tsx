@@ -19,7 +19,6 @@ import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { Button } from '@/components/ui/button'
 import { StudioTagCharacters } from './StudioTagCharacters'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
@@ -169,50 +168,6 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         onCompose={() => onOpenPanel('composition')}
         onLookup={() => onOpenPanel('catalog')}
       />
-      <section className="space-y-2 border-t border-border pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">{t('workbench.blocks')}</h3>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onOpenPanel('blocks')}
-          >
-            {t('workbench.editBlocks')}
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {state.tagPromptBlocks?.map((block) => (
-            <Button
-              key={block.id}
-              variant="outline"
-              size="sm"
-              aria-pressed={block.enabled}
-              disabled={isGenerating}
-              onClick={() =>
-                dispatch({
-                  type: 'SET_TAG_PROMPT_BLOCKS',
-                  payload: state.tagPromptBlocks.map((item) =>
-                    item.id === block.id
-                      ? { ...item, enabled: !item.enabled }
-                      : item,
-                  ),
-                })
-              }
-            >
-              {block.name} ·{' '}
-              {t(block.enabled ? 'workbench.on' : 'workbench.off')}
-            </Button>
-          ))}
-        </div>
-        <details>
-          <summary className="cursor-pointer text-xs text-muted-foreground">
-            {t('workbench.compiled')}
-          </summary>
-          <p className="whitespace-pre-wrap break-words py-2 text-sm">
-            {state.prompt}
-          </p>
-        </details>
-      </section>
       <Toolbar.Root className="flex flex-wrap gap-2 border-t border-border pt-3">
         <ReferenceImageChip disabled={isGenerating} />
         <StudioTemplatesChip

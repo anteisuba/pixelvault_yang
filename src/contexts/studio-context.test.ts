@@ -39,7 +39,6 @@ function makeInitialState(
     prompt: '',
     promptDialect: 'natural',
     tagChips: [],
-    tagPromptBlocks: [],
     tagNegativeChips: [],
     tagCarrySource: null,
     activeTagCharacterIndex: null,
@@ -976,108 +975,5 @@ describe('助手把带过来的那一句翻成标签', () => {
     ] satisfies StudioAction[]) {
       expect(studioFormReducer(inTags, action).tagCarrySource).toBeNull()
     }
-  })
-
-  it('画风串编过的那一串本来就是标签，⛔ 不送去翻', () => {
-    const state = studioFormReducer(
-      makeInitialState({
-        tagPromptBlocks: [
-          { id: 'b1', name: 'Style', text: 'watercolor', enabled: true },
-        ],
-        prompt: 'watercolor',
-      }),
-      { type: 'CARRY_PROMPT_TO_TAGS' },
-    )
-    expect(state.tagCarrySource).toBeNull()
-  })
-})
-
-describe('tag prompt blocks', () => {
-  const block = {
-    id: 'b1',
-    name: 'Style',
-    text: 'watercolor:1.2',
-    enabled: true,
-  }
-  it('compiles enabled blocks without duplicating them when base tags change', () => {
-    const state = studioFormReducer(
-      makeInitialState({
-        promptDialect: 'tags',
-        prompt: '1girl',
-        tagChips: [{ text: '1girl', weight: 1 }],
-      }),
-      { type: 'SET_TAG_PROMPT_BLOCKS', payload: [block] },
-    )
-    expect(state.prompt).toBe('1girl, watercolor:1.2')
-    const changed = studioFormReducer(state, {
-      type: 'SET_TAG_CHIPS',
-      payload: { polarity: 'positive', chips: [{ text: 'solo', weight: 1 }] },
-    })
-    expect(changed.prompt).toBe('solo, watercolor:1.2')
-    expect(
-      studioFormReducer(changed, {
-        type: 'SET_TAG_PROMPT_BLOCKS',
-        payload: [{ ...block, enabled: false }],
-      }).prompt,
-    ).toBe('solo')
-  })
-  it('switching dialects keeps a block-only prompt out of the base tags', () => {
-    const state = studioFormReducer(makeInitialState(), {
-      type: 'SET_TAG_PROMPT_BLOCKS',
-      payload: [block],
-    })
-    const tags = studioFormReducer(state, {
-      type: 'SET_PROMPT_DIALECT',
-      payload: 'tags',
-    })
-    expect(tags.tagChips).toEqual([])
-    expect(
-      studioFormReducer(tags, {
-        type: 'SET_TAG_PROMPT_BLOCKS',
-        payload: [block],
-      }).prompt,
-    ).toBe('watercolor:1.2')
-  })
-  it('replacing a compiled prompt in natural mode drops stale base tags', () => {
-    const state = studioFormReducer(
-      makeInitialState({
-        tagChips: [{ text: 'old', weight: 1 }],
-        tagPromptBlocks: [block],
-      }),
-      {
-        type: 'SET_PROMPT',
-        payload: 'landscape',
-      },
-    )
-    expect(state.tagPromptBlocks).toEqual([])
-    expect(state.tagChips).toEqual([{ text: 'landscape', weight: 1 }])
-  })
-  it('carrying a compiled prompt materializes blocks once', () => {
-    const state = studioFormReducer(makeInitialState(), {
-      type: 'SET_TAG_PROMPT_BLOCKS',
-      payload: [block],
-    })
-    const carried = studioFormReducer(state, { type: 'CARRY_PROMPT_TO_TAGS' })
-    expect(carried.tagPromptBlocks).toEqual([])
-    expect(carried.prompt).toBe('watercolor:1.2')
-    expect(carried.tagChips).toHaveLength(1)
-  })
-  it('removing the last block restores an empty base rather than duplicating compiled text', () => {
-    const state = studioFormReducer(makeInitialState(), {
-      type: 'SET_TAG_PROMPT_BLOCKS',
-      payload: [block],
-    })
-    expect(
-      studioFormReducer(state, { type: 'SET_TAG_PROMPT_BLOCKS', payload: [] })
-        .prompt,
-    ).toBe('')
-  })
-  it('external prompt replacement clears old blocks and synchronizes base tags', () => {
-    const state = studioFormReducer(
-      makeInitialState({ promptDialect: 'tags', tagPromptBlocks: [block] }),
-      { type: 'SET_PROMPT', payload: 'landscape' },
-    )
-    expect(state.tagPromptBlocks).toEqual([])
-    expect(state.tagChips).toEqual([{ text: 'landscape', weight: 1 }])
   })
 })

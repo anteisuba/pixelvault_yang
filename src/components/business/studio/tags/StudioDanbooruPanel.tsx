@@ -34,17 +34,18 @@ export function StudioDanbooruPanel() {
     if (!detail || !selected.length || isGenerating) return
     const incoming = selected.map((value) => value.replaceAll('_', ' '))
     if (kind === 'artist') {
+      const taken = new Set(state.tagChips.map((chip) => chip.text))
       dispatch({
-        type: 'SET_TAG_PROMPT_BLOCKS',
-        payload: [
-          ...(state.tagPromptBlocks ?? []),
-          {
-            id: crypto.randomUUID(),
-            name: detail.tag,
-            text: incoming.join(', '),
-            enabled: true,
-          },
-        ],
+        type: 'SET_TAG_CHIPS',
+        payload: {
+          polarity: 'positive',
+          chips: [
+            ...incoming
+              .filter((text) => !taken.has(text))
+              .map((text) => ({ text, weight: 1 })),
+            ...state.tagChips,
+          ],
+        },
       })
     } else if (target === 'new') {
       if (!c.mode || c.characters.length >= c.max) return

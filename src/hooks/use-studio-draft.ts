@@ -9,11 +9,10 @@ import {
 
 import { isAspectRatio, type AspectRatio } from '@/constants/config'
 import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
-import { TagPromptBlockSchema, type TagPromptBlock } from '@/types/tag-composer'
+import { TagPromptBlockSchema } from '@/types/tag-composer'
 import { logger } from '@/lib/logger'
 
 export interface StudioDraft {
-  promptBlocks?: TagPromptBlock[]
   prompt: string
   negativePrompt: string
   novelAiLayout?: NovelAiCharacterLayout
@@ -92,13 +91,28 @@ export function useStudioDraft({
       const resolution = AdvancedParamsSchema.shape.resolution.safeParse(
         'resolution' in value ? value.resolution : undefined,
       )
+      /**
+       * 画风串 2026-09-27 取消（画师词、风格词就是普通标签）：旧草稿里还带着的那几块，
+       * 开着的接在正向标签后面，关着的丢掉。
+       */
+      const legacyBlocks =
+        TagPromptBlockSchema.array().safeParse(
+          'promptBlocks' in value ? value.promptBlocks : undefined,
+        ).data ?? []
+      const prompt = [
+        value.prompt,
+        ...legacyBlocks
+          .filter((block) => block.enabled && block.text.trim())
+          .map((block) => block.text.trim()),
+      ]
+        .filter(Boolean)
+        .join(', ')
       onRestore({
-        ...value,
+        prompt,
+        negativePrompt: value.negativePrompt,
+        referenceImages: value.referenceImages,
         aspectRatio,
         resolution: resolution.success ? resolution.data : undefined,
-        promptBlocks: TagPromptBlockSchema.array().safeParse(
-          'promptBlocks' in value ? value.promptBlocks : undefined,
-        ).data,
         novelAiLayout: layout.success ? layout.data : undefined,
       } as StudioDraft)
     } catch (error) {

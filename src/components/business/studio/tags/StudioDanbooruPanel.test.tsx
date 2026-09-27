@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
-    state: { tagPromptBlocks: [] },
+    state: { tagChips: [] },
     dispatch: mocks.dispatch,
   }),
   useStudioGen: () => ({ isGenerating: false }),

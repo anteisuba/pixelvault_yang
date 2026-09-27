@@ -23,7 +23,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   │   ├── StudioVideoAssetRail (studio-shared/chrome/ — 视频档素材轨：图片N · 视频N · 音频N，首 / 尾帧是角标；
         │   │   │    轨下一行只读灰字说这一枪怎么发；容量来自发送契约 getStudioVideoCapacity)
         │   │   └── StudioVideoPromptInput (studio/ — 视频档提示词框：按模型写法把素材编号渲染成缩略图胶囊，存储仍是原文)
-        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `hooks/use-studio-template-apply.ts`，模型清单按档取 `hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图 / 提示词块；结果层不卸载只藏)
+        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `hooks/use-studio-template-apply.ts`，模型清单按档取 `hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图；结果层不卸载只藏)
         │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存；`bottom` 布局不画（`referenceRail={false}`），附件在输入框里)
         │       ├── GenerationPreview (studio/ — current result)
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)

@@ -119,14 +119,20 @@ describe('Studio image draft', () => {
   })
 })
 
-it('restores editable prompt blocks without losing disabled content', () => {
+// 画风串 2026-09-27 取消：旧草稿里开着的那几块并进正向标签，关着的丢掉。
+it('folds enabled legacy style blocks into the prompt and drops disabled ones', () => {
   const draft = {
     ...saved,
-    promptBlocks: [{ id: 'style', name: 'Ink', text: 'ink', enabled: false }],
+    prompt: '1girl, solo',
+    promptBlocks: [
+      { id: 'a', name: 'Ink', text: 'ink wash', enabled: true },
+      { id: 'b', name: 'Off', text: 'watercolor', enabled: false },
+    ],
   }
   sessionStorage.setItem('pv:studio-image-draft:user-a', JSON.stringify(draft))
   const view = renderHook(() => useHarness())
-  expect(view.result.current.draft.promptBlocks).toEqual(draft.promptBlocks)
+  expect(view.result.current.draft.prompt).toBe('1girl, solo, ink wash')
+  expect(view.result.current.draft).not.toHaveProperty('promptBlocks')
 })
 
 it('keeps incomplete characters in the draft without making them valid generation input', () => {

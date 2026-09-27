@@ -33,7 +33,6 @@ vi.mock(
 )
 vi.mock('./StudioTagsPromptArea', () => ({ StudioTagsPromptArea: () => null }))
 vi.mock('./StudioDanbooruPanel', () => ({ StudioDanbooruPanel: () => null }))
-vi.mock('./StudioTagBlocks', () => ({ StudioTagBlocks: () => null }))
 vi.mock('./NovelAiCharacterComposer', () => ({
   NovelAiCharacterComposer: () => null,
 }))
@@ -63,7 +62,7 @@ describe('标签台舞台面板', () => {
     expect(screen.getByRole('heading', { name: 'catalog' })).toHaveFocus()
 
     // 面板之间直接切：新那块的标题接过焦点。
-    rerender(<StudioTagsStage panel="blocks" onClose={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'blocks' })).toHaveFocus()
+    rerender(<StudioTagsStage panel="composition" onClose={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'composition' })).toHaveFocus()
   })
 })

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { TagChip, TagPromptBlock } from '@/types/tag-composer'
+import type { TagChip } from '@/types/tag-composer'
 
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
     negativePrompt: string
     enabled?: boolean
   }[],
-  blocks: [] as TagPromptBlock[],
 }))
 
 vi.mock('next-intl', () => ({
@@ -32,7 +31,6 @@ vi.mock('@/contexts/studio-context', () => ({
     state: {
       tagChips: [{ text: 'solo', weight: 1 }],
       tagNegativeChips: [],
-      tagPromptBlocks: mocks.blocks,
       activeTagCharacterIndex: mocks.activeIndex,
       advancedParams: {},
       aspectRatio: '1:1',
@@ -146,7 +144,6 @@ describe('标签台底部输入框 · 编辑谁', () => {
     mocks.activeIndex = null
     mocks.mode = 'grid'
     mocks.characters = [{ prompt: 'red eyes', negativePrompt: '' }]
-    mocks.blocks = []
   })
 
   it('整体页改的是全局标签', () => {
@@ -204,28 +201,11 @@ describe('标签台底部输入框 · 编辑谁', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('画风串收成一颗 chip：写启用了几块，弹层里逐块启停、「提示词块」进舞台面板', () => {
-    mocks.blocks = [
-      { id: 'a', name: 'artist A', text: 'artist:a', enabled: true },
-      { id: 'b', name: 'artist B', text: 'artist:b', enabled: false },
-    ]
-    const onOpenPanel = vi.fn()
-    render(<StudioTagsComposer onOpenPanel={onOpenPanel} />)
-    const chip = screen.getByRole('button', { name: 'workbench.blocks' })
-    expect(chip.textContent).toContain('1')
-
-    fireEvent.click(chip)
-    fireEvent.click(
-      screen.getByRole('button', { name: 'workbench.enableBlock:artist B' }),
-    )
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_TAG_PROMPT_BLOCKS',
-      payload: [mocks.blocks[0], { ...mocks.blocks[1], enabled: true }],
-    })
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'workbench.editBlocks' }),
-    )
-    expect(onOpenPanel).toHaveBeenCalledWith('blocks')
+  // 画风串 2026-09-27 取消：工具行里没有那颗 chip 了。
+  it('工具行没有「画风串」', () => {
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    expect(
+      screen.queryByRole('button', { name: 'workbench.blocks' }),
+    ).not.toBeInTheDocument()
   })
 })

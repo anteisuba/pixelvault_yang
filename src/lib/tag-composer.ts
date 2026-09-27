@@ -232,18 +232,6 @@ export function translateTagPromptText(
   return translateTagChips(parseTagChips(unifiedText), adapterType)
 }
 
-export function compileTagPrompt(
-  chips: readonly TagChip[],
-  blocks: readonly import('@/types/tag-composer').TagPromptBlock[],
-) {
-  return serializeTagChips([
-    ...chips,
-    ...blocks
-      .filter((block) => block.enabled)
-      .flatMap((block) => parseTagChips(block.text)),
-  ])
-}
-
 /** 这条配方是不是标签模板（标签台只列它们，自然语言台只列其余的）。 */
 export function isTagTemplateParams(params: unknown): boolean {
   return TagTemplateParamsSchema.safeParse(params).success

@@ -44,6 +44,10 @@ import {
   type NodeV4Inverse,
 } from '@/lib/node-assistant-op-apply-v4'
 import {
+  applyCanvasBatchV4,
+  applyRailMentionRemaps,
+} from '@/lib/node-canvas-batch-v4'
+import {
   listMentionNames,
   removeMentionsForSource,
   type MentionCastCardRef,
@@ -52,11 +56,7 @@ import { applyMediaPatchOutputs } from '@/lib/node-output-versions'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
-import {
-  planRailMentionRemaps,
-  readVideoRail,
-  remapVideoRailMentions,
-} from '@/lib/video-node-rail'
+import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { ScriptDoc } from '@/types/script-doc'
 import type {
@@ -275,28 +275,6 @@ function mintId(prefix: string): string {
 }
 
 /**
- * 参考轨变了，正文里的 `@图N` 跟着走（owner 2026-09-28）—— 三条提交口（`dispatch`
- * / `dispatchBatch` / `deleteNodes`）共用。改写作为普通 `set_prompt` 落在**同一个
- * 撤销条目**里：一次 ⌘Z 连线与正文一起回来。返回补完的 state 与改写的 inverse（正序）。
- *
- * ⚠ `before` / `after` 都要是 reconcile 过的：轨的顺序读的是槽绑定。
- */
-function applyRailMentionRemaps(
-  before: NodeWorkflowStateV4,
-  after: NodeWorkflowStateV4,
-): { state: NodeWorkflowStateV4; inverses: NodeV4Inverse[] } {
-  let working = after
-  const inverses: NodeV4Inverse[] = []
-  for (const op of planRailMentionRemaps(before, after)) {
-    const result = applyNodeAssistantOpV4(working, op, { mintId })
-    if (!result.ok) continue
-    working = result.state
-    inverses.push(result.inverse)
-  }
-  return { state: working, inverses }
-}
-
-/**
  * 收起态卡宽的估算 —— 让位的位移量。
  *
  * ⚠ 用常量表的两个宽度差，⛔ 不读 DOM：让位要在展开的**同一帧**发生，读 DOM 的
@@ -467,7 +445,7 @@ export function useNodeGraphV4({
       // 整图 reconcile：槽绑定是**边的派生**，每次提交跑一遍才不会让某条路径
       // 上的 `slots` 与边分家（`reconcileStateSlots` 自己保引用相等）。
       const reconciled = reconcileStateSlots(result.state)
-      const remap = applyRailMentionRemaps(stateRef.current, reconciled)
+      const remap = applyRailMentionRemaps(stateRef.current, reconciled, mintId)
       const next =
         remap.inverses.length > 0
           ? reconcileStateSlots(remap.state)
@@ -501,67 +479,30 @@ export function useNodeGraphV4({
    */
   const dispatchBatch = useCallback(
     (ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult => {
-      let working = stateRef.current
-      const inverses: NodeV4Inverse[] = []
-      const refs = new Map<string, string>()
-      const createdNodeIds: string[] = []
-      let applied = 0
-      let skipped = 0
-      let failedConnects = 0
-
-      for (const op of ops) {
-        const result = applyNodeAssistantOpV4(working, op, {
-          mintId,
-          refs,
-          ...(resolveModel ? { resolveModel } : {}),
-          ...(castCards ? { castCards } : {}),
-        })
-        if (!result.ok) {
-          onOpFailed?.(result.reason)
-          skipped += 1
-          // 连线没建成要**单独记账**（台账 K-2）：其余的 skipped 多半是用户自己
-          // 剔掉了引用的节点，而连线失败意味着助手规划的结构没成形 —— 一个只会
-          // 变大的「已落 N 个」恰恰盖住它。
-          if (
-            op.op === NODE_ASSISTANT_OP_V4_IDS.connect ||
-            op.op === NODE_ASSISTANT_OP_V4_IDS.attachAsset
-          ) {
-            failedConnects += 1
-          }
-          continue
-        }
-        working = result.state
-        inverses.push(result.inverse)
-        applied += 1
-        if (op.op === NODE_ASSISTANT_OP_V4_IDS.addNode) {
-          const created = result.changedNodeIds[0]
-          if (created) createdNodeIds.push(created)
-        }
+      // ⚠ 执行本身在纯函数里 —— 服务端 MCP `apply_ops` 调的是同一个
+      // （docs/references/mcp.md §2 第 2 条），⛔ 别在这里另写一份。
+      const batch = applyCanvasBatchV4(stateRef.current, ops, {
+        mintId,
+        ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
+      })
+      for (const failure of batch.failures) onOpFailed?.(failure.reason)
+      const result: NodeGraphV4BatchResult = {
+        applied: batch.applied,
+        skipped: batch.skipped,
+        failedConnects: batch.failedConnects,
+        createdNodeIds: batch.createdNodeIds,
       }
+      if (!batch.inverse) return result
 
-      if (applied === 0)
-        return { applied, skipped, failedConnects, createdNodeIds }
-
-      const reconciled = reconcileStateSlots(working)
-      const remap = applyRailMentionRemaps(stateRef.current, reconciled)
-      inverses.push(...remap.inverses)
-      const next =
-        remap.inverses.length > 0
-          ? reconcileStateSlots(remap.state)
-          : reconciled
+      const inverse = batch.inverse
       setUndoStack((stack) => [
         ...stack,
-        {
-          undo: {
-            kind: 'inverse',
-            inverse: { kind: 'sequence', items: [...inverses].reverse() },
-          },
-          redoState: next,
-        },
+        { undo: { kind: 'inverse', inverse }, redoState: batch.state },
       ])
       setRedoStack([])
-      onStateChange(next)
-      return { applied, skipped, failedConnects, createdNodeIds }
+      onStateChange(batch.state)
+      return result
     },
     [resolveModel, onOpFailed, onStateChange, castCards],
   )
@@ -746,7 +687,7 @@ export function useNodeGraphV4({
       // 才回得来，那不是用户按下那一次删除时的意图。
       // 删掉的是某张镜头挂着的参考：那张镜头正文里的号跟着对（同一个撤销条目）。
       const reconciled = reconcileStateSlots(working)
-      const remap = applyRailMentionRemaps(state, reconciled)
+      const remap = applyRailMentionRemaps(state, reconciled, mintId)
       inverses.push(...remap.inverses)
       const next =
         remap.inverses.length > 0

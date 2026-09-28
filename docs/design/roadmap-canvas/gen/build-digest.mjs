@@ -2591,6 +2591,530 @@ const RUNNER_UI = {
   ],
 }
 
+// ─────────────────────────── 37 剪辑台 × Claude ───────────────────────────
+// ② 流程图（09-28 在对话里给过，这里补上画布）+ ④ 台面三方向 + 令牌页。
+// 台面按真实尺寸 1440 × 820 画、整体缩放；颜色只用脊柱：白 · 地台 #f4f4f1 · 边 #e5e5e5 · 黑主色，你的气泡是输入条象牙。
+
+const EDIT_DESK_MAP = {
+  file: 'DesignEditDeskMap.dc.html',
+  title: '剪辑台 × Claude · ② 流程图',
+  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ② 流程图 · 2026-09-28',
+  heading: '剪辑台：Claude 剪，你看着改',
+  sub: '① 09-28 owner：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」—— 出片到剪片一条线，外部 Claude 走 MCP、站内助手用同一套工具，顺手重排台面。③ 当天「全部按建议」。④ 开画前又定两条：剪辑台里的助手就是画布那块右侧面板（底部排片栏删掉）；Claude 导出成片只在落卡时说一句。契约见 `docs/references/mcp.md`。',
+  blocks: [
+    {
+      t: 'treeLegend',
+      items: [
+        ['已定', 'owner 拍过'],
+        ['已落', '代码已有（S2–S4 均未推 main）'],
+        ['建议', '我的建议，等你点头'],
+        ['依赖', '等别的条目'],
+        ['缺', '还没有'],
+      ],
+    },
+    {
+      t: 'tree',
+      root: '37 · 剪辑台：Claude 剪，你看着改',
+      branches: [
+        {
+          no: '1',
+          title: '目标',
+          kids: [
+            n('已定', '外部 Claude（MCP）和站内助手用同一套工具剪片；你在浏览器里看着，随时接手'),
+            n('已定', '一条线：剧本 → 出镜头 → Claude 初剪 → 你说改哪 → 不行的标重拍 → 你点生成 → 换上新版本 → 导出落回画布'),
+          ],
+        },
+        {
+          no: '2',
+          title: 'Claude 的工具',
+          sub: '一套，MCP 与站内助手共用',
+          kids: [
+            g('看', [
+              n('已落', '`read_project`：镜头表 + 时间线四条轨 + 每张卡当前那一版'),
+              n('已落', '`look_at`：一张卡 / 时间线一段 / 一次渲染，指定几秒 → 每点一张 512 宽的帧（Cloudflare 边缘截帧）'),
+              n('缺', '后置：台词逐字时间点、配乐节拍'),
+            ]),
+            g('改', [
+              n('已落', '`apply_ops`：与站内 `canvas_apply` 同一张改动表，一批 = 你那边一条撤销'),
+              n('已定', '重拍 = 改那一镜的提示词 + 标现有的「打回」；不新造状态'),
+              n('已定', 'MCP 没有任何花钱的工具，生成永远是你在浏览器里点'),
+            ]),
+            g('验', [
+              n('已落', '`render` 小样：480p，不进素材库、不落画布，只给 Claude 回看剪点'),
+              n('已落', '`render` 成片：同剪辑台导出，服务端落回画布成一张卡、连回各段'),
+              n('已落', '`get_render`：进度，完成后给地址和落下的那张卡'),
+            ]),
+          ],
+        },
+        {
+          no: '3',
+          title: '连接与授权',
+          kids: [
+            n('已落', '令牌：整个账号 · 不过期 · 可吊销；库里只存哈希；一条 `claude mcp add` 接进 Claude Code'),
+            n('已定', '令牌管理界面在 /settings「连接 Claude」（④ 令牌页）'),
+            n('依赖', 'OAuth 连接器给 Claude.ai / 桌面聊天（S7）'),
+          ],
+        },
+        {
+          no: '4',
+          title: '你那边：看着它剪',
+          kids: [
+            n('已落', '实时跟随：Claude 在线时每 2 秒问一次，平时 30 秒；只有你也有未存改动时才提示冲突'),
+            n('已落', 'Claude 每改一批 = 一条撤销；⌘Z 撤掉，它下次读到的就是撤回后的'),
+            n('已定', '改到的段闪一下 + 舞台上方一条回执「Claude 改了 3 段 · 撤销」（④ A 关键切片）'),
+            n('已定', 'Claude 导出成片：导出过程台面不显示，落卡时回执说一句'),
+          ],
+        },
+        {
+          no: '5',
+          title: '地基',
+          kids: [
+            n('已落', '导出链三处断已修（c649b02e · b0569e3a）；推 main 时手动部署 render worker，再线上实跑'),
+            n('缺', '配音 / 配乐段有自己的起点，能拖到任意一秒'),
+            n('缺', '配乐真渐弱，替掉「最后几秒降到 35%」'),
+            n('缺', '预览出声、看得到转场'),
+          ],
+        },
+        {
+          no: '6',
+          title: '台面重排',
+          sub: '本轮 ④：A 舞台 · B 三栏 · C 对话列',
+          kids: [
+            n('已定', '助手 = 画布那块右侧面板，顶栏右端同一颗头像；底部排片栏删掉（一个助手一个输入框）'),
+            n('建议', '重心从「亲手剪」变成「看它剪、你微调」：预览更大，时间线默认铺满、一眼看完整条'),
+            n('建议', '一起删：虚线幽灵段 · 提案卡 · 排片便条 · 「写作模型」chip'),
+            n('建议', '段名缺失时显示镜头名（S03·货架特写），不显示 uuid；来源卡被删时写「来源卡已删」'),
+          ],
+        },
+        {
+          no: '7',
+          title: '站内助手（S5）',
+          kids: [
+            n('依赖', '等另一会话把助手内核的改动提交；之后快照加时间线、教剪辑改动、接 `look_at` / `render`'),
+          ],
+        },
+        {
+          no: '8',
+          title: '切片',
+          kids: [
+            n('已落', 'S2 只读 7f077580 · S3 写入与跟随 fcc28bd6 · S4 渲染与服务端落卡 ab485384 / 4d2954bc'),
+            n('依赖', 'S5 站内助手'),
+            n('建议', 'S6 台面重排（④ 09-28 通过，选 A，施工中）；预览出声与转场随后'),
+            n('缺', 'S7 OAuth'),
+          ],
+        },
+        {
+          no: '9',
+          title: '这一轮不做',
+          kids: [
+            n('已定', '经 MCP 触发生成'),
+            n('建议', 'Claude 自己多轮试剪、给成片打分 —— 由你判断，同 D12'),
+            n('建议', '手动缩放时间线：默认铺满整条，剪 5 分钟以上的片子再加'),
+          ],
+        },
+      ],
+    },
+  ],
+}
+
+// ── 台面零件（1440 × 820 真实尺寸）──
+const ED = { W: 1440, H: 820, TOTAL: 24, NOW: 12.4 }
+const edGrad = (tone) =>
+  ['linear-gradient(160deg,#d9dde3,#8e96a3)', 'linear-gradient(160deg,#e6dcd3,#9d8f84)', 'linear-gradient(160deg,#dde2d4,#8a947f)', 'linear-gradient(160deg,#e3d8e2,#958a9b)'][tone % 4]
+const ED_CLIPS = [
+  { id: 's1', name: 'S01·推车进场', from: 0, to: 5, tone: 0 },
+  { id: 's2', name: 'S02·回头', from: 5, to: 10, tone: 1, xfade: true },
+  { id: 's3', name: 'S03·货架特写', from: 10, to: 16, tone: 2 },
+  { id: 's4', name: 'S04·结账', from: 16, to: 24, tone: 3 },
+]
+const edIcon = (ch, on = false) =>
+  `<span style="flex:none;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:15px;color:${on ? '#0a0a0a' : '#525252'};background:${on ? '#f0f0f0' : 'transparent'}">${ch}</span>`
+const edAvatar = (s = 28) => `<span style="flex:none;width:${s}px;height:${s}px;border-radius:999px;background:linear-gradient(135deg,#cdb4d8,#8f83b8)"></span>`
+const edSeg = (items, on) =>
+  `<span style="display:inline-flex;padding:2px;border-radius:8px;background:#f2f2f2;gap:2px">${items.map((t, i) => `<span style="height:24px;padding:0 9px;border-radius:6px;display:inline-flex;align-items:center;font-size:12px;${i === on ? 'background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);color:#0a0a0a' : 'color:#737373'}">${t}</span>`).join('')}</span>`
+const edSwitch = (on) =>
+  `<span style="flex:none;width:30px;height:18px;border-radius:999px;background:${on ? '#0a0a0a' : '#e5e5e5'};position:relative;display:inline-block"><span style="position:absolute;${on ? 'right' : 'left'}:2px;top:2px;width:14px;height:14px;border-radius:999px;background:#fff"></span></span>`
+const edMagnet = `<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#525252;white-space:nowrap">主轨道磁吸${edSwitch(true)}</span>`
+const edTools = `<div style="display:flex;align-items:center;gap:2px">${['✂', '⇄', 'T', '🎙', '♪', '🗑'].map((c) => edIcon(c)).join('')}</div>`
+const edReceipt = (text = 'Claude 改了 3 段', action = '撤销') =>
+  `<span style="display:inline-flex;align-items:center;gap:10px;height:32px;padding:0 5px 0 14px;border-radius:999px;background:#fff;border:1px solid #e5e5e5;box-shadow:0 6px 18px rgba(0,0,0,.08);font-size:13px;white-space:nowrap"><span style="width:7px;height:7px;border-radius:999px;background:#0a0a0a"></span>${text}<span style="height:24px;padding:0 11px;border-radius:999px;background:#f2f2f2;display:inline-flex;align-items:center;font-size:12.5px">${action}</span></span>`
+
+function edTopBar({ avatar = true, avatarOn = false, exporting = false } = {}) {
+  const title = `<b style="font-size:15px;font-weight:600">便利店 · 初剪</b>`
+  const center = exporting
+    ? `<div style="display:flex;align-items:center;gap:12px;font-size:13px">${title}<span style="color:#737373">导出中 · 编码 58%</span><span style="width:150px;height:4px;border-radius:999px;background:#ececec;position:relative;overflow:hidden"><span style="position:absolute;left:0;top:0;bottom:0;width:58%;background:#0a0a0a;border-radius:999px"></span></span><span style="color:#737373">取消</span></div>`
+    : `<div style="display:flex;align-items:baseline;gap:10px">${title}<span style="font-size:13px;color:#737373">24s · 16:9 · 1080p</span></div>`
+  return `<div style="height:48px;flex:none;display:flex;align-items:center;padding:0 12px 0 16px;border-bottom:1px solid #ececec;background:#fff;box-sizing:border-box"><div style="flex:1;font-size:13px;color:#262626">‹ 回画布</div>${center}<div style="flex:1;display:flex;justify-content:flex-end;align-items:center;gap:2px">${edIcon('↶')}${edIcon('⌨')}<span style="margin:0 8px 0 6px;height:32px;padding:0 15px;border-radius:9px;background:#0a0a0a;color:#fff;font-size:13px;display:inline-flex;align-items:center">导出</span>${avatar ? `<span style="display:inline-flex;padding:2px;border-radius:999px;${avatarOn ? 'box-shadow:0 0 0 2px #0a0a0a' : ''}">${edAvatar(28)}</span>` : ''}</div></div>`
+}
+
+function edPreview(w, h, { empty = false, editing = false } = {}) {
+  if (empty)
+    return `<div style="width:${w}px;height:${h}px;border-radius:14px;background:#fff;border:1px dashed #d4d4d4;display:grid;place-items:center;font-size:14px;color:#a3a3a3;box-sizing:border-box">还没有片段</div>`
+  return `<div style="position:relative;width:${w}px;height:${h}px;border-radius:14px;overflow:hidden;background:${edGrad(2)};flex:none"><div style="position:absolute;left:14px;top:12px;font-size:12px;color:#fff;background:rgba(0,0,0,.32);border-radius:6px;padding:3px 8px">S03·货架特写 · 0:02.4 / 0:06.0</div><div style="position:absolute;left:0;right:0;bottom:70px;text-align:center"><span style="font-size:24px;color:#fff;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.45);${editing ? 'outline:2px solid #fff;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 10px' : ''}">这边请${editing ? '<span style="display:inline-block;width:2px;height:22px;background:#fff;vertical-align:-3px;margin-left:2px"></span>' : ''}</span></div><div style="position:absolute;left:14px;right:14px;bottom:14px;height:38px;border-radius:10px;background:rgba(0,0,0,.34);display:flex;align-items:center;gap:12px;padding:0 14px;color:#fff;font-size:12px"><span>▶</span><span style="flex:1;height:3px;border-radius:999px;background:rgba(255,255,255,.35);position:relative"><span style="position:absolute;left:0;top:0;bottom:0;width:52%;background:#fff;border-radius:999px"></span></span><span>0:12.4 / 0:24.0</span><span>🔊</span></div></div>`
+}
+
+function edTimeline(width, height, { flash = [], selected = null, empty = false } = {}) {
+  const labelW = 28
+  const inner = width - labelW - 32
+  const x = (s) => Math.round((s * inner) / ED.TOTAL)
+  const row = (label, h, body) =>
+    `<div style="display:flex;align-items:center;height:${h}px"><span style="width:${labelW}px;flex:none;font-size:11px;color:#a3a3a3">${label}</span><div style="position:relative;flex:1;height:${h}px">${body}</div></div>`
+  const box = (from, to, label, style) =>
+    `<div style="position:absolute;left:${x(from) + 1}px;width:${x(to) - x(from) - 2}px;top:0;bottom:0;border-radius:7px;box-sizing:border-box;display:flex;align-items:center;padding:0 8px;overflow:hidden;white-space:nowrap;font-size:11.5px;${style}">${label}</div>`
+  const ruler = `<div style="position:relative;height:18px;margin-left:${labelW}px">${[0, 5, 10, 15, 20].map((s) => `<span style="position:absolute;left:${x(s)}px;top:0;font-size:10.5px;color:#a3a3a3">${s}s</span>`).join('')}</div>`
+  const wrap = (body) =>
+    `<div style="width:${width}px;height:${height}px;box-sizing:border-box;padding:10px 16px 0;background:#fff;display:flex;flex-direction:column;gap:8px;position:relative;flex:none">${body}</div>`
+  if (empty)
+    return wrap(
+      `${ruler}${row('T', 26, '')}${row('V', 52, `<div style="position:absolute;inset:0;border:1px dashed #d4d4d4;border-radius:8px;display:grid;place-items:center;font-size:12.5px;color:#a3a3a3">把镜头拖进来，或者跟助手说「按剧本排一版」</div>`)}${row('A', 30, '')}${row('M', 30, '')}`,
+    )
+  const v = ED_CLIPS.map((c) => {
+    // 选中 = 黑环（沿用现状）；闪 = 整段提亮 + 外晕，到顶的那一帧 —— 两者一眼分得开。
+    const lit = flash.includes(c.id)
+    const ring = selected === c.id ? 'box-shadow:0 0 0 2px #0a0a0a;' : lit ? 'box-shadow:0 0 0 5px rgba(10,10,10,.16);' : ''
+    return `${box(c.from, c.to, `${lit ? '<span style="position:absolute;inset:0;background:rgba(255,255,255,.42)"></span>' : ''}<span style="position:relative;margin-top:auto;margin-bottom:6px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)">${c.name}</span>`, `background:${edGrad(c.tone)};align-items:flex-end;${ring}`)}${c.xfade ? `<span style="position:absolute;left:${x(c.to) - 6}px;top:20px;width:12px;height:12px;transform:rotate(45deg);background:#0a0a0a;border-radius:2px"></span>` : ''}`
+  }).join('')
+  const t = [['t1', 1, 3.5, 'T 欢迎光临'], ['t2', 11, 13.5, 'T 这边请']].map(([id, a, b, l]) => box(a, b, l, `border:1px solid #d4d4d4;background:#fff;${selected === id ? 'box-shadow:0 0 0 2px #0a0a0a;' : ''}`)).join('')
+  const a = [[1.2, 3.2, '台词·欢迎光临'], [18.5, 21, '台词·找零']].map(([s, e, l]) => box(s, e, l, 'background:#eef0f3;color:#525252')).join('')
+  const m = box(0, 24, '配乐·午后', 'background:linear-gradient(90deg,#f1efe9 88%,#fbfaf7);color:#525252')
+  const head = `<span style="position:absolute;left:${labelW + 16 + x(ED.NOW)}px;top:10px;bottom:14px;width:2px;background:#0a0a0a"></span>`
+  return wrap(`${ruler}${row('T', 26, t)}${row('V', 52, v)}${row('A', 30, a)}${row('M', 30, m)}${head}`)
+}
+
+function edAssistant(width, height, { floating = false, collapse = false, extra = '', receipt = false, fresh = false } = {}) {
+  const shell = floating
+    ? `border:1px solid #e5e5e5;border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.14)`
+    : 'border-left:1px solid #ececec'
+  const msg = (text) => `<div style="font-size:13px;line-height:1.7;color:#262626">${text}</div>`
+  const fold = (text) => `<div style="font-size:12px;color:#737373">${text} <span style="color:#a3a3a3">▸</span> · <span style="color:#525252">撤销</span></div>`
+  const start = `<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center">${edAvatar(40)}<div style="font-size:13px;line-height:1.7;color:#525252">把镜头拖进时间线，或者直接跟我说怎么剪。</div><div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px">${['按剧本排一版', '每镜取中间 5 秒', '配乐铺满整条'].map((t) => `<span style="height:30px;padding:0 12px;border-radius:999px;border:1px solid #e5e5e5;font-size:12.5px;display:inline-flex;align-items:center">${t}</span>`).join('')}</div></div>`
+  const body = fresh ? start : `<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">${extra}<div style="align-self:flex-end;max-width:80%;background:#f3f1ea;border-radius:16px 4px 16px 16px;padding:9px 12px;font-size:13px;line-height:1.6">按剧本顺序拼一版，每镜取中间 5 秒，结账那镜留长一点</div><div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600">${edAvatar(20)}助手</div>${msg('排好了：S01 → S04 按剧本顺序，每镜取中间 5 秒，S04 留 8 秒；S02 → S03 接叠化。')}${fold('改了 5 处')}${msg('出了一版小样看剪点：S02 开头有半秒黑帧，往后挪了 0.5 秒。')}${fold('改了 1 处')}${receipt ? `<div style="display:flex;justify-content:center"><span style="font-size:12px;color:#737373;background:#f7f7f7;border-radius:999px;padding:4px 12px">Claude Code 改了 3 段 · <span style="color:#262626">撤销</span></span></div>` : ''}</div>`
+  const composer = `<div style="padding:12px;border-top:1px solid #f4f4f4"><div style="border:1px solid #e5e5e5;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:10px"><span style="font-size:13px;color:#a3a3a3">继续说，或把镜头拖进来…</span><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#525252"><span>📎</span><span>Claude Sonnet 5 ▾</span><span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px">自动生成${edSwitch(false)}</span><span style="width:28px;height:28px;border-radius:999px;background:#0a0a0a;color:#fff;display:grid;place-items:center">↑</span></div></div></div>`
+  return `<div style="width:${width}px;height:${height}px;flex:none;box-sizing:border-box;background:#fff;display:flex;flex-direction:column;overflow:hidden;${shell}"><div style="height:48px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid #f4f4f4">${edAvatar(22)}<span style="font-size:13px;font-weight:600">剪辑 · 新对话 ▾</span><span style="margin-left:auto;color:#a3a3a3;font-size:14px">⋯</span><span style="color:#a3a3a3;font-size:14px">${collapse ? '⇥' : '×'}</span></div>${body}${composer}</div>`
+}
+
+const ED_PROPS = [
+  ['入点', '0:01.0'],
+  ['出点', '0:07.0'],
+  ['速度', edSeg(['0.5×', '1×', '2×'], 1)],
+  ['原声', edSwitch(true)],
+  ['转场 →', edSeg(['无', '叠化', '黑场'], 0)],
+]
+const edSource = `<div style="display:flex;align-items:center;gap:10px"><span style="width:44px;height:28px;border-radius:6px;background:${edGrad(2)};flex:none"></span><div style="min-width:0"><div style="font-size:13px;font-weight:600">S03·货架特写</div><div style="font-size:11.5px;color:#737373">来源卡 · 第 2 版</div></div></div>`
+const edBackToNode = `<span style="font-size:12.5px;color:#525252">↗ 回节点重生成这段</span>`
+const edInspectorColumn = (w, h) =>
+  `<div style="width:${w}px;height:${h}px;flex:none;box-sizing:border-box;border-left:1px solid #ececec;background:#fff;padding:18px 16px;display:flex;flex-direction:column;gap:14px">${edSource}${ED_PROPS.map(([k, v]) => `<div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#404040">${k}${v.startsWith('<') ? v : `<span style="color:#0a0a0a">${v}</span>`}</div>`).join('')}<div style="margin-top:auto">${edBackToNode}</div></div>`
+const edInspectorEmpty = (w, h) =>
+  `<div style="width:${w}px;height:${h}px;flex:none;box-sizing:border-box;border-left:1px solid #ececec;background:#fff;padding:18px 16px;font-size:13px;color:#a3a3a3">选中一段看它的属性</div>`
+const edInspectorRow = `<div style="display:flex;align-items:center;gap:14px;font-size:12.5px;color:#404040;white-space:nowrap"><b style="font-weight:600;color:#0a0a0a">S03·货架特写</b><span>入 0:01.0</span><span>出 0:07.0</span>${edSeg(['0.5×', '1×', '2×'], 1)}<span style="display:inline-flex;align-items:center;gap:6px">原声${edSwitch(true)}</span>${edSeg(['无', '叠化', '黑场'], 0)}<span style="color:#525252">↗ 回节点</span></div>`
+const edInspectorCard = `<div style="border:1px solid #e5e5e5;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fafafa"><div style="display:flex;align-items:center;justify-content:space-between">${edSource}<span style="color:#a3a3a3">×</span></div><div style="display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:12.5px;color:#404040">${ED_PROPS.map(([k, v]) => `<span>${k}</span><span style="justify-self:end">${v.startsWith('<') ? v : `<span style="color:#0a0a0a">${v}</span>`}</span>`).join('')}</div>${edBackToNode}</div>`
+
+const edRail = (active = 0) =>
+  `<div style="width:44px;flex:none;border-right:1px solid #ececec;background:#fff;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:10px;box-sizing:border-box">${['▦', '⧉', '♪', 'T', '⇄'].map((c, i) => edIcon(c, i === active)).join('')}</div>`
+const edMaterials = (w, h, floating = false) =>
+  `<div style="width:${w}px;height:${h}px;flex:none;box-sizing:border-box;background:#fff;padding:14px;display:flex;flex-direction:column;gap:12px;${floating ? 'border:1px solid #e5e5e5;border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.12)' : 'border-right:1px solid #ececec'}"><div style="display:flex;justify-content:space-between;font-size:13px"><b style="font-weight:600">画布素材</b><span style="color:#737373;font-size:12px">拖进时间线</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 10px">${['S01·推车进场', 'S02·回头', 'S03·货架特写', 'S04·结账', 'S05·出门', '台词·找零'].map((nm, i) => `<div style="display:flex;flex-direction:column;gap:5px"><span style="height:58px;border-radius:8px;background:${i === 5 ? '#eef0f3' : edGrad(i)}"></span><span style="font-size:11.5px;color:#404040;white-space:nowrap;overflow:hidden">${nm}</span></div>`).join('')}</div></div>`
+
+const edFrame = (inner) =>
+  `<div style="width:${ED.W}px;height:${ED.H}px;display:flex;flex-direction:column;background:#fff;font-family:Geist,'Noto Sans SC',system-ui,sans-serif;color:#0a0a0a;position:relative;overflow:hidden">${inner}</div>`
+const edScale = (html, scale) =>
+  `<div style="width:${Math.round(ED.W * scale)}px;height:${Math.round(ED.H * scale)}px;overflow:hidden;border-radius:14px;border:1px solid #d4d4d4;flex:none;background:#fff"><div style="width:${ED.W}px;height:${ED.H}px;transform:scale(${scale});transform-origin:0 0">${html}</div></div>`
+
+// ── 方向 A 舞台：素材收成图标（点开飞出）· 属性是预览下的一行 · 助手贴右推开舞台 ──
+const edTextRow = `<div style="display:flex;align-items:center;gap:12px;font-size:12.5px;color:#404040;white-space:nowrap"><b style="font-weight:600;color:#0a0a0a">T 这边请</b><span>入 0:11.0</span><span>出 0:13.5</span>${['位置 ▾', '字号 · 中 ▾', '颜色 · 白 ▾', '淡入淡出 · 0.3s ▾'].map((t, i) => `<span style="height:28px;padding:0 10px;border-radius:8px;border:1px solid ${i === 0 ? '#0a0a0a' : '#e5e5e5'};display:inline-flex;align-items:center">${t}</span>`).join('')}</div>`
+const edAnchorPop = `<div style="background:#fff;border:1px solid #e5e5e5;border-radius:12px;box-shadow:0 14px 36px rgba(0,0,0,.12);padding:10px;display:grid;grid-template-columns:repeat(3,28px);gap:4px">${Array.from({ length: 9 }, (_, i) => `<span style="width:28px;height:22px;border-radius:5px;background:#f2f2f2;display:grid;place-items:center"><span style="width:6px;height:6px;border-radius:999px;background:${i === 7 ? '#0a0a0a' : '#c4c4c4'}"></span></span>`).join('')}</div>`
+function deskA({ assistant = true, selected = 's3', flash = [], receipt = false, empty = false, exporting = false, flyout = false, textSel = false } = {}) {
+  const bodyH = ED.H - 48
+  const stageW = ED.W - 44 - (assistant ? 380 : 0)
+  const tlH = 236
+  const rowH = 48
+  const areaH = bodyH - tlH - rowH
+  const pvH = areaH - 48
+  const pvW = Math.min(Math.round((pvH * 16) / 9), stageW - 64)
+  const rowBody = textSel ? edTextRow : selected && !empty ? edInspectorRow : `<span style="font-size:12.5px;color:#a3a3a3">选中一段，属性出现在这一行</span>`
+  const row = `<div style="height:${rowH}px;flex:none;box-sizing:border-box;border-top:1px solid #ececec;background:#fff;display:flex;align-items:center;gap:18px;padding:0 12px">${edTools}<span style="width:1px;height:20px;background:#ececec"></span>${rowBody}<span style="margin-left:auto">${edMagnet}</span></div>`
+  const pop = textSel ? `<div style="position:absolute;left:432px;bottom:${tlH + rowH + 4}px;z-index:2">${edAnchorPop}</div>` : ''
+  const stage = `<div style="width:${stageW}px;display:flex;flex-direction:column;flex:none;position:relative">${pop}<div style="height:${areaH}px;background:#f4f4f1;display:grid;place-items:center;position:relative">${edPreview(pvW, pvH, { empty, editing: textSel })}${receipt ? `<div style="position:absolute;top:12px;left:0;right:0;display:flex;justify-content:center">${edReceipt()}</div>` : ''}</div>${row}${edTimeline(stageW, tlH, { flash, selected: empty ? null : textSel ? 't2' : selected, empty })}${flyout ? `<div style="position:absolute;left:8px;top:8px">${edMaterials(236, 470, true)}</div>` : ''}</div>`
+  return edFrame(`${edTopBar({ avatarOn: assistant, exporting })}<div style="display:flex;height:${bodyH}px">${edRail(flyout ? 0 : -1)}${stage}${assistant ? edAssistant(380, bodyH) : ''}</div>`)
+}
+
+// ── 方向 B 三栏：素材常驻左栏 · 属性常驻右栏 · 助手像画布那样浮在右侧 ──
+function deskB({ assistant = true, selected = 's3', flash = [], receipt = false, empty = false, exporting = false } = {}) {
+  const bodyH = ED.H - 48
+  const tlH = 226
+  const barH = 44
+  const upH = bodyH - tlH - barH
+  const centerW = ED.W - 44 - 220 - 272
+  const pvH = upH - 44
+  const pvW = Math.min(Math.round((pvH * 16) / 9), centerW - 48)
+  const bar = `<div style="height:${barH}px;flex:none;box-sizing:border-box;border-top:1px solid #ececec;background:#fff;display:flex;align-items:center;gap:12px;padding:0 12px">${edTools}<span style="margin-left:auto;display:flex;align-items:center;gap:16px">${receipt ? edReceipt() : ''}${edMagnet}</span></div>`
+  const upper = `<div style="height:${upH}px;display:flex">${edMaterials(220, upH)}<div style="width:${centerW}px;background:#f4f4f1;display:grid;place-items:center">${edPreview(pvW, pvH, { empty })}</div>${selected && !empty ? edInspectorColumn(272, upH) : edInspectorEmpty(272, upH)}</div>`
+  const main = `<div style="flex:1;display:flex;flex-direction:column">${upper}${bar}${edTimeline(ED.W - 44, tlH, { flash, selected: empty ? null : selected, empty })}</div>`
+  return edFrame(`${edTopBar({ avatarOn: assistant, exporting })}<div style="display:flex;height:${bodyH}px;position:relative">${edRail(0)}${main}${assistant ? `<div style="position:absolute;right:12px;top:12px">${edAssistant(380, bodyH - 24, { floating: true })}</div>` : ''}</div>`)
+}
+
+// ── 方向 C 对话列：右边整列就是助手，选中段的属性钉在对话上方 · 素材收成图标 ──
+function deskC({ assistant = true, selected = 's3', flash = [], receipt = false, empty = false, exporting = false, flyout = false } = {}) {
+  const bodyH = ED.H - 48
+  const colW = assistant ? 380 : 48
+  const mainW = ED.W - 44 - colW
+  const tlH = 236
+  const barH = 44
+  const areaH = bodyH - tlH - barH
+  const pvH = areaH - 48
+  const pvW = Math.min(Math.round((pvH * 16) / 9), mainW - 64)
+  const bar = `<div style="height:${barH}px;flex:none;box-sizing:border-box;border-top:1px solid #ececec;background:#fff;display:flex;align-items:center;gap:12px;padding:0 12px">${edTools}<span style="margin-left:auto">${edMagnet}</span></div>`
+  const main = `<div style="width:${mainW}px;flex:none;display:flex;flex-direction:column;position:relative"><div style="height:${areaH}px;background:#f4f4f1;display:grid;place-items:center">${edPreview(pvW, pvH, { empty })}</div>${bar}${edTimeline(mainW, tlH, { flash, selected: empty ? null : selected, empty })}${flyout ? `<div style="position:absolute;left:8px;top:8px">${edMaterials(236, 470, true)}</div>` : ''}</div>`
+  const col = assistant
+    ? edAssistant(380, bodyH, { collapse: true, extra: selected && !empty ? edInspectorCard : '', receipt, fresh: empty })
+    : `<div style="width:48px;flex:none;border-left:1px solid #ececec;background:#fff;display:flex;flex-direction:column;align-items:center;padding-top:12px;gap:10px">${edAvatar(28)}${receipt ? '<span style="width:8px;height:8px;border-radius:999px;background:#0a0a0a"></span>' : ''}</div>`
+  return edFrame(`${edTopBar({ avatar: false, exporting })}<div style="display:flex;height:${bodyH}px">${edRail(flyout ? 0 : -1)}${main}${col}</div>`)
+}
+
+const edCap = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:10px"><div style="font-size:14px;font-weight:600">${no} ${name}</div>${body}<div style="font-size:12.5px;line-height:1.6;color:#525252;max-width:620px">${rule}</div></div>`
+const edMain = (html) => `<div style="margin-top:16px">${edScale(html, 0.9)}</div>`
+const edStates = (items) =>
+  `<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:28px 24px">${items.map(([no, name, html, rule]) => edCap(no, name, edScale(html, 0.44), rule)).join('')}</div>`
+
+const ED_VERDICT = {
+  A: '✅ **owner 09-28 选 A**，并补「字幕在预览上双击改、那一行只放四个小按钮」；关键切片与可点原型见下一张。',
+  B: '未选（owner 09-28 选 A），留作对比。',
+  C: '未选（owner 09-28 选 A），留作对比。',
+}
+const edDirBoard = (key, file, name, line, main, mainMd, states, statesMd, pros, motion) => ({
+  file,
+  title: `剪辑台 · ④ 方向 ${key}`,
+  eyebrow: `PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ 台面三方向 · ${key} · 2026-09-28`,
+  heading: `方向 ${key} · ${name}`,
+  sub: `${ED_VERDICT[key]} ${line} 三个方向同一份内容：「便利店 · 初剪」四镜 24 秒，站内助手刚排完一版，外部 Claude Code 也连着。三个方向共用的已定项：顶栏右端是和画布同一颗助手头像；底部排片栏、幽灵段、提案卡删掉；时间线默认铺满整条。手机只读剪辑台三个方向都不动。`,
+  blocks: [
+    h('① 主状态', '站内助手开着 · 选中 S03 · 1440 × 820 按 0.9 缩放'),
+    { t: 'mock', html: edMain(main), md: mainMd },
+    h('② 其余状态', '同一副骨架，按 0.44 缩放'),
+    { t: 'mock', html: edStates(states), md: statesMd },
+    h('③ 空间与取舍'),
+    table(['', '说明'], pros, { widths: ['120px', null] }),
+    h('④ 动效'),
+    table(['动作', '时长 · 曲线', '动什么', '⛔'], motion, { firstStrong: false }),
+  ],
+})
+
+const ED_COMMON_MOTION = [
+  ['段闪（Claude 改到的段）', '320ms 一次 · ease-out', '整段提亮 + 外沿一圈浅晕，到顶即退（和「选中」的黑环分得开）', '⛔ 不闪整条轨；⛔ 不连闪；新加的段不闪（出现本身就是反馈）；reduced-motion 1ms'],
+  ['回执出现 / 消失', '180ms 淡入上移 4px · 8s 无新改动后 180ms 淡出', '回执那一行', '⛔ 不弹 toast 堆叠；新一批改动更新同一条的数字'],
+]
+
+const EDIT_DESK_A = edDirBoard(
+  'A',
+  'DesignEditDeskA.dc.html',
+  '舞台',
+  '预览是主角：左边素材收成一列图标，点开才飞出；选中段的属性不占一栏，变成预览下面那一行；助手贴在右边，打开时把舞台推窄而不是盖住它。',
+  deskA({ flash: ['s2'] }),
+  '主状态：左 44 图标列（素材点开才飞出）· 中间地台上大预览 · 预览下一行 = 工具 + 选中段属性（入出点 · 速度 · 原声 · 转场 · 回节点）· 底部时间线铺满 · 右 380 助手面板贴边、推开舞台。S02 刚被助手挪过，外沿闪一下。',
+  [
+    ['A1', '空台', deskA({ assistant: false, empty: true }), '没有段：预览是一块虚线框，时间线一句话 —— 拖进来，或者跟助手说。'],
+    ['A2', '你在剪 · 助手收起', deskA({ assistant: false, flyout: true }), '助手收起只剩顶栏头像，舞台回到全宽；素材从图标列飞出、盖在舞台左上，拖完自己收回。'],
+    ['A3', '外部 Claude 在剪', deskA({ assistant: false, selected: null, flash: ['s2', 's3', 's4'], receipt: true }), '回执浮在舞台正上方：「Claude 改了 3 段 · 撤销」；改到的三段闪一下。'],
+    ['A4', '导出中', deskA({ assistant: false, selected: null, exporting: true }), '进度收在顶栏标题旁（沿用现状），台面照常能剪。'],
+  ],
+  'A1 空台（虚线预览 + 时间线一句话）· A2 助手收起、素材飞出 · A3 外部 Claude 在剪：回执浮在舞台正上方 + 三段闪 · A4 导出进度在顶栏。',
+  [
+    ['空间', '预览约 1000 宽（助手收起时）/ 760 宽（助手开着）；时间线与舞台同宽；没有常驻侧栏。'],
+    ['好在', '看片的面积最大；属性一行看完，选中哪段、改了什么都在预览正下方；助手开合不遮任何东西。'],
+    ['代价', '属性只有一行，以后段属性变多（比如音量曲线）要换成展开式；素材每次都要点开；助手开合时舞台宽度会变。'],
+    ['适合', '以「看它剪、你点评」为主，亲手剪只是微调。'],
+  ],
+  [
+    ['助手开 / 合', '弹簧 · 中档（同画布助手展开 B）', '右栏宽 0 ↔ 380，舞台同步变窄 / 变宽', '⛔ 预览在动画中途不重新居中跳一下'],
+    ['素材飞出 / 收回', '220ms ease-out / 160ms ease-in', '面板从图标列右侧展开', '⛔ 不推开舞台'],
+    ['属性行切换', '160ms 交叉淡化', '「选中一段…」↔ 那一段的属性', '⛔ 行高不变'],
+    ...ED_COMMON_MOTION,
+  ],
+)
+
+const EDIT_DESK_B = edDirBoard(
+  'B',
+  'DesignEditDeskB.dc.html',
+  '三栏',
+  '沿用剪辑软件的老布局：素材常驻左栏，属性常驻右栏，预览夹在中间；助手和画布上一样浮在右侧，打开时盖住属性栏，关掉才看得到属性。',
+  deskB({ flash: ['s2'] }),
+  '主状态：左 44 图标列 + 220 素材栏 · 中间预览 · 右 272 属性栏 · 下面一行工具 + 时间线铺满整宽 · 助手面板和画布一样浮在右侧（盖住属性栏与时间线右端）。',
+  [
+    ['B1', '空台', deskB({ assistant: false, empty: true }), '三栏都在，只是中间和时间线是空的；属性栏写「选中一段看它的属性」。'],
+    ['B2', '你在剪 · 助手收起', deskB({ assistant: false }), '收起助手，属性栏露出来；素材一直在左栏，拖就行。'],
+    ['B3', '外部 Claude 在剪', deskB({ assistant: false, selected: null, flash: ['s2', 's3', 's4'], receipt: true }), '回执在工具行右端、磁吸开关旁：「Claude 改了 3 段 · 撤销」。'],
+    ['B4', '导出中', deskB({ assistant: false, selected: null, exporting: true }), '进度收在顶栏标题旁（沿用现状）。'],
+  ],
+  'B1 空台 · B2 助手收起、属性栏露出 · B3 外部 Claude 在剪：回执在工具行右端 + 三段闪 · B4 导出进度在顶栏。',
+  [
+    ['空间', '预览约 760 宽，不随助手开合变化；时间线全宽；三栏常驻。'],
+    ['好在', '和 PR / 剪映的肌肉记忆一致；属性一直看得见（助手收起时）；助手开合不改变台面布局。'],
+    ['代价', '预览最小；助手开着就挡住属性和时间线右端（正好是后面的段）；两块侧栏常驻，「看它剪」时大半是闲置面积。'],
+    ['适合', '你自己动手剪的时间多于看它剪。'],
+  ],
+  [
+    ['助手开 / 合', '同画布助手展开 B', '浮动面板从右侧滑入 / 滑出', '⛔ 不推开台面'],
+    ['属性栏换段', '140ms 交叉淡化', '栏内内容', '⛔ 栏宽不变'],
+    ...ED_COMMON_MOTION,
+  ],
+)
+
+const EDIT_DESK_C = edDirBoard(
+  'C',
+  'DesignEditDeskC.dc.html',
+  '对话列',
+  '右边整列就是助手，和台面并排常驻；选中一段，它的属性以一张小卡钉在对话上方，关掉就回到对话；外部 Claude 的改动也作为一行写进这列对话里。',
+  deskC({ flash: ['s2'] }),
+  '主状态：左 44 图标列（素材点开飞出）· 中间预览 + 工具行 + 时间线 · 右 380 对话列常驻：顶部钉着选中段的属性卡（来源 · 入出点 · 速度 · 原声 · 转场 · 回节点），下面是对话和输入框。',
+  [
+    ['C1', '空台', deskC({ empty: true, selected: null }), '对话列照常在，空台时它就是起点：一句话 + 三个常用说法。'],
+    ['C2', '你在剪 · 列收起', deskC({ assistant: false, flyout: true }), '列可以收成一条 48 宽的竖条（头像在上）；这时选中段看不到属性，要展开列。'],
+    ['C3', '外部 Claude 在剪', deskC({ selected: null, flash: ['s2', 's3', 's4'], receipt: true }), '外部 Claude 的改动写成对话里的一行：「Claude Code 改了 3 段 · 撤销」，和站内助手的回执排在一起。'],
+    ['C4', '导出中', deskC({ selected: null, exporting: true }), '进度收在顶栏标题旁（沿用现状）。'],
+  ],
+  'C1 空台：对话列就是起点 · C2 列收成 48 竖条、素材飞出 · C3 外部 Claude 的改动写进对话 + 三段闪 · C4 导出进度在顶栏。',
+  [
+    ['空间', '预览约 760 宽，固定；右列 380 常驻，是台面的一部分而不是浮层。'],
+    ['好在', '所有「谁改了什么」都在一条时间线上（站内助手 + 外部 Claude）；属性和对话在同一列，眼睛只看一边。'],
+    ['代价', '这是和画布不一样的助手形态（画布上是浮层）；收起列就看不到属性；属性卡会把对话往下挤。'],
+    ['适合', '把剪辑台当成「和助手一起剪」的工作间，对话是主线。'],
+  ],
+  [
+    ['列展开 / 收起', '弹簧 · 中档', '列宽 48 ↔ 380，台面同步变宽 / 变窄', '⛔ 收起不是隐藏，头像和未读点留在竖条上'],
+    ['属性卡钉上 / 取下', '200ms 高度展开 + 淡入', '卡片从对话顶部展开，对话整体下移', '⛔ 不遮对话；⛔ 不跳动滚动位置'],
+    ...ED_COMMON_MOTION,
+  ],
+)
+
+// ── A 关键切片：字幕那一行 · 回执与段闪 · 手机 ──
+const ED_PROTOTYPE = 'https://claude.ai/artifact/H27XAfxKNStaK7h8auM633'
+const edPhone = `<div style="display:flex;gap:24px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:24px;border:1px solid #d4d4d4;background:#fff;overflow:hidden;display:flex;flex-direction:column"><div style="height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid #ececec;font-size:13px"><span>‹</span><b style="font-weight:600">便利店 · 初剪</b></div><div style="background:#f4f4f1;padding:10px;position:relative"><div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;background:${edGrad(2)}"><div style="position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:14px;color:#fff;font-weight:600">这边请</div><div style="position:absolute;left:8px;right:8px;bottom:8px;height:18px;border-radius:6px;background:rgba(0,0,0,.34)"></div></div><div style="position:absolute;top:16px;left:0;right:0;display:flex;justify-content:center;transform:scale(.86)">${edReceipt()}</div></div><div style="padding:10px 12px 14px;display:flex;gap:3px">${ED_CLIPS.map((c) => `<span style="flex:${c.to - c.from};height:34px;border-radius:6px;background:${edGrad(c.tone)};position:relative;${['s2', 's3', 's4'].includes(c.id) ? 'box-shadow:0 0 0 4px rgba(10,10,10,.14)' : ''}">${['s2', 's3', 's4'].includes(c.id) ? '<span style="position:absolute;inset:0;border-radius:6px;background:rgba(255,255,255,.42)"></span>' : ''}</span>`).join('')}</div><div style="padding:0 12px 14px;font-size:11.5px;color:#737373;line-height:1.6">手机只看不剪：预览、跟着改、导出进度与下载。</div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机（&lt; 768）沿用只读剪辑台，⛔ 不渲染剪辑入口。跟随照常：回执浮在预览上方，改到的段在下面那条镜头带上闪一下；「撤销」在手机上也能点（撤销不是剪辑，是把别人的改动退回去）。</div></div>`
+const EDIT_DESK_A_SLICE = {
+  file: 'DesignEditDeskASlice.dc.html',
+  title: '剪辑台 · ④ A 关键切片',
+  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ A 关键切片 · 2026-09-28',
+  heading: 'A 舞台 · 关键切片：字幕那一行 · 回执与段闪 · 手机',
+  sub: 'owner 09-28 选 A。这一张只深化三处最容易出问题的地方；手感在下面的可点原型里试（开合助手、选段、双击字幕改字、三种回执、段闪、撤销）。',
+  blocks: [
+    { t: 'mock', html: `<p style="margin:10px 0 0;font-size:13px;line-height:1.6;word-break:break-all">可点原型：<a href="${ED_PROTOTYPE}" style="color:#0a0a0a">${ED_PROTOTYPE}</a></p>`, md: `可点原型：${ED_PROTOTYPE}` },
+    h('① 字幕段：内容在预览上改，那一行只放四个小按钮', '选中 T 段 · 位置弹层开着 · 1440 × 820 按 0.9 缩放'),
+    { t: 'mock', html: edMain(deskA({ assistant: false, textSel: true })), md: '选中字幕段：预览里那句字幕进入编辑（白框 + 光标），双击预览里的字幕或点行首的字都能进；Enter 确认、Esc 放弃。那一行 = 字 · 入 / 出 · 位置 ▾（九宫小弹层）· 字号 ▾ · 颜色 ▾ · 淡入淡出 ▾。' },
+    ul(
+      '双击预览里的字幕 = 原地改字；单击 = 选中这段（那一行换成字幕的属性）。',
+      'Enter 确认、Esc 放弃、点别处确认；空字不收（回到原文）。',
+      '四个小按钮各开一个小弹层，一次只开一个，点别处收起；弹层里改了预览立刻跟着变。',
+      '视频段、配音 / 配乐段的那一行沿用同一写法：视频 = 入 / 出 · 速度 · 原声 · 转场 · 回节点；声音 = 起点 · 长度 · 音量 · 回节点。',
+    ),
+    h('② 回执与段闪'),
+    {
+      t: 'mock',
+      html: `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:20px 24px">${[
+        ['R1', '外部 Claude 改了', edReceipt('Claude 改了 3 段'), '经 MCP 来的改动。同一来源连着改，数字累加在同一条上；「撤销」退回这一条里的全部。'],
+        ['R2', '站内助手改了（面板收着）', edReceipt('助手改了 1 段'), '面板开着时回执就在面板里（沿用「改了 N 处 · 撤销」），台面不重复。'],
+        ['R3', 'Claude 导出成片落卡', edReceipt('Claude 导出了成片 · 已落到画布', '看看'), '「看看」= 回画布并选中那张卡。导出过程台面不显示（owner 09-28 定）。'],
+        ['R4', '撤销之后', edReceipt('已撤销', '好'), '1.4 秒后自己收起。顶栏 ↶ 同样能撤，撤掉后回执随之收起。'],
+      ]
+        .map(([no, name, body, rule]) => edCap(no, name, `<div style="padding:18px;border-radius:14px;background:#f4f4f1;display:flex;justify-content:center">${body}</div>`, rule))
+        .join('')}</div>`,
+      md: 'R1 外部 Claude：「Claude 改了 3 段 · 撤销」，同一来源连着改累加在同一条 · R2 站内助手（面板收着时）：「助手改了 1 段 · 撤销」，面板开着则只在面板里 · R3 Claude 导出成片落卡：「Claude 导出了成片 · 已落到画布 · 看看」· R4 撤销后「已撤销」1.4s 收起。',
+    },
+    ul(
+      '位置：舞台正上方居中，浮在预览上沿；⛔ 不弹 toast、不堆叠，永远只有一条。',
+      '8 秒没有新改动自己淡出；鼠标悬停时不走计时。',
+      '段闪 = 被改到的段整段提亮一下 + 外圈浅晕（和「选中」的黑框分得开），320ms 一次；新加的段不闪（出现本身就是反馈）；段在视野外时时间线不自动滚过去。',
+      '你自己点导出、落卡后：沿用这一条回执「「便利店 · 初剪」已落到画布 · 回画布看」，⛔ 不再自动退出剪辑台（owner 09-28 定）。',
+    ),
+    h('③ 手机'),
+    { t: 'mock', html: `<div style="margin-top:14px">${edPhone}</div>`, md: '手机只读剪辑台：回执浮在预览上方，改到的段在镜头带上闪；撤销可点；不渲染剪辑入口。' },
+    h('④ 动效'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['助手开 / 合', '380ms · cubic-bezier(.32,.72,0,1)（同画布助手展开 B）', '右栏宽 0 ↔ 380，舞台与时间线同步变宽 / 变窄', '⛔ 预览尺寸按高度定，开合时它不变大小、不跳'],
+        ['素材飞出 / 收回', '220ms ease-out / 160ms ease-in', '面板从图标列右侧展开，盖在舞台左上', '⛔ 不推开舞台'],
+        ['属性行换段', '160ms 交叉淡化', '「选中一段…」↔ 那一段的属性', '⛔ 行高不变'],
+        ['行内小弹层', '220ms 淡入 + 上移 4px', '弹层', '⛔ 一次只开一个'],
+        ['字幕原地改', '—', '白框 + 光标立刻出现', '⛔ 不弹输入框'],
+        ['段闪', '320ms · ease-out，一次', '整段提亮 + 外晕', '⛔ 不连闪；⛔ 新加的段不闪'],
+        ['回执', '180ms 淡入上移 4px；8s 后 180ms 淡出', '那一条', '⛔ 不堆叠'],
+        ['`prefers-reduced-motion`', '—', '以上全部 1ms', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
+// ── 令牌页：/settings 多一节「连接 Claude」（与 API key 行同一写法，没有结构分歧，只画一个方向）──
+const TK = {
+  page: 'box-sizing:border-box;width:100%;border:1px solid #d4d4d4;border-radius:16px;background:#fff;display:flex;overflow:hidden',
+  nav: 'width:190px;flex:none;border-right:1px solid #ececec;padding:24px 14px;display:flex;flex-direction:column;gap:4px',
+  navItem: (on) => `height:34px;padding:0 10px;border-radius:8px;display:flex;align-items:center;font-size:13.5px;${on ? 'background:#f2f2f2;font-weight:600' : 'color:#404040'}`,
+  main: 'flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:16px',
+  row: 'display:flex;align-items:center;gap:16px;height:56px;padding:0 16px;border:1px solid #e5e5e5;border-radius:12px;font-size:13.5px',
+  primary: 'display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:9px;background:#0a0a0a;color:#fff;font-size:13px;white-space:nowrap',
+  secondary: 'display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:9px;border:1px solid #e5e5e5;background:#fff;font-size:13px;white-space:nowrap',
+  code: "font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;line-height:1.6;background:#f7f7f7;border-radius:10px;padding:12px 14px;word-break:break-all",
+  dialog: 'box-sizing:border-box;width:520px;border:1px solid #e5e5e5;border-radius:16px;background:#fff;box-shadow:0 24px 60px rgba(0,0,0,.14);padding:24px;display:flex;flex-direction:column;gap:14px',
+  muted: 'font-size:12.5px;line-height:1.6;color:#737373',
+}
+const tkNav = `<div style="${TK.nav}"><div style="font-size:16px;font-weight:600;padding:0 10px 10px">设置</div>${['API key', '用量', '偏好', '助手', '连接 Claude'].map((t, i) => `<div style="${TK.navItem(i === 4)}">${t}</div>`).join('')}</div>`
+const tkHead = `<div style="display:flex;align-items:flex-start;gap:16px"><div><div style="font-size:20px;font-weight:600">连接 Claude</div><div style="${TK.muted};margin-top:4px">让 Claude Code 读写你的画布项目、帮你剪片。令牌对整个账号有效、不会过期；不用了就吊销。它不能花钱，生成永远要你自己点。</div></div><span style="margin-left:auto;${TK.primary}">生成令牌</span></div>`
+const tkRow = (name, last4, used, extra = '') =>
+  `<div style="${TK.row}"><span style="width:8px;height:8px;border-radius:999px;background:${used.includes('分钟') ? '#16794c' : '#d4d4d4'}"></span><b style="font-weight:600;min-width:170px">${name}</b><span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#737373">pvmcp_…${last4}</span><span style="color:#737373;font-size:12.5px">${used}</span><span style="margin-left:auto;font-size:13px;color:#525252">${extra || '吊销'}</span></div>`
+const TK_CMD = 'claude mcp add --transport http --scope user pixelvault https://www.anteisuba.com/api/mcp --header "Authorization: Bearer pvmcp_Qx7…a3F9"'
+const tkList = `<div style="display:flex;flex-direction:column;gap:10px">${tkRow('MacBook · Claude Code', 'a3F9', '3 分钟前用过')}${tkRow('公司台式机', 'K2mP', '9 月 21 日用过')}</div><div style="${TK.muted}">最多 10 个。连不上的时候先看令牌还在不在 —— 吊销后要重新生成、重新贴。</div>`
+const TK_MAIN = `<div style="${TK.page}">${tkNav}<div style="${TK.main}">${tkHead}${tkList}</div></div>`
+const tkDialogName = `<div style="${TK.dialog}"><div style="font-size:16px;font-weight:600">生成令牌</div><div style="${TK.muted}">起个名字，方便以后认出是哪台电脑。</div><div style="height:38px;border:1px solid #d4d4d4;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:13.5px">MacBook · Claude Code</div><div style="display:flex;justify-content:flex-end;gap:10px"><span style="${TK.secondary}">取消</span><span style="${TK.primary}">生成</span></div></div>`
+const tkDialogShow = `<div style="${TK.dialog}"><div style="font-size:16px;font-weight:600">令牌只显示这一次</div><div style="${TK.muted}">在终端里跑这一条就接好了（令牌已经填在里面）：</div><div style="${TK.code}">${TK_CMD}</div><div style="display:flex;gap:10px"><span style="${TK.primary}">复制命令</span><span style="${TK.secondary}">只复制令牌</span><span style="margin-left:auto;${TK.secondary}">完成</span></div></div>`
+const tkRevoke = `<div style="display:flex;flex-direction:column;gap:10px;width:100%">${tkRow('MacBook · Claude Code', 'a3F9', '3 分钟前用过', `<span style="display:inline-flex;align-items:center;gap:10px"><span style="color:#b3261e">用它的 Claude 会立刻连不上</span><span style="${TK.secondary};height:28px;color:#b3261e;border-color:#f0c8c4">吊销</span><span style="color:#737373">取消</span></span>`)}</div>`
+const tkEmpty = `<div style="${TK.page};width:100%"><div style="${TK.main};align-items:flex-start"><div style="font-size:20px;font-weight:600">连接 Claude</div><div style="width:100%;border:1px dashed #d4d4d4;border-radius:12px;padding:36px;display:flex;flex-direction:column;align-items:center;gap:10px;box-sizing:border-box"><div style="font-size:14px;font-weight:600">还没有令牌</div><div style="${TK.muted}">生成一个，贴一条命令，Claude Code 就能打开你的画布项目。</div><span style="${TK.primary}">生成令牌</span></div></div></div>`
+const tkLimit = `<div style="display:flex;flex-direction:column;gap:10px;width:100%"><div style="display:flex;align-items:center;gap:12px;border-radius:12px;background:#fdf1e3;color:#7a3c00;padding:12px 14px;font-size:13px">已经有 10 个令牌了。先吊销一个不用的，再生成新的。</div></div>`
+const tkPhone = `<div style="display:flex;gap:24px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:24px;border:1px solid #d4d4d4;background:#fff;padding:20px 16px;display:flex;flex-direction:column;gap:12px"><div style="font-size:18px;font-weight:600">连接 Claude</div><div style="${TK.muted}">让 Claude Code 读写你的画布项目。令牌不会过期，不用了就吊销。</div>${[['MacBook · Claude Code', 'a3F9', '3 分钟前'], ['公司台式机', 'K2mP', '9 月 21 日']].map(([nm, l4, u]) => `<div style="border:1px solid #e5e5e5;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600">${nm}<span style="font-weight:400;color:#525252;font-size:13px">吊销</span></div><div style="font-size:12px;color:#737373">pvmcp_…${l4} · ${u}用过</div></div>`).join('')}<span style="${TK.primary};justify-content:center;height:44px">生成令牌</span></div><div style="width:300px;flex:none;border-radius:24px;border:1px solid #d4d4d4;background:#e9e9e6;padding:8px 8px 0;display:flex;flex-direction:column;justify-content:flex-end;min-height:420px"><div style="border-radius:18px 18px 0 0;background:#fff;padding:10px 16px 20px;display:flex;flex-direction:column;gap:12px"><div style="display:grid;place-items:center"><span style="width:36px;height:4px;border-radius:999px;background:#d4d4d4"></span></div><div style="font-size:16px;font-weight:600">令牌只显示这一次</div><div style="${TK.code}">${TK_CMD}</div><span style="${TK.primary};justify-content:center;height:44px">复制命令</span><span style="${TK.secondary};justify-content:center;height:44px">完成</span></div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：行改成两行卡片（名字 + 吊销 / 末 4 位 + 最近使用），「生成令牌」是底部整宽按钮；生成后的明文与命令在底部 Sheet 里，按钮高 44。手机上多半不会跑 Claude Code，这页主要用来吊销。</div></div>`
+
+const MCP_TOKENS = {
+  file: 'DesignMcpTokens.dc.html',
+  title: '剪辑台 · ④ 令牌页',
+  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ 令牌页 · 2026-09-28',
+  heading: '/settings 多一节「连接 Claude」',
+  sub: '接口 S2 已落（列出 / 生成 / 吊销）。这一页与「API key」同一写法：一行一个、右端一个动作，没有结构分歧，所以只画一个方向。明文只在生成那一刻出现一次，直接给整条 `claude mcp add` 命令（令牌已填好），复制一次就接上。',
+  blocks: [
+    h('① 主画面'),
+    { t: 'mock', html: `<div style="margin-top:14px">${TK_MAIN}</div>`, md: '主画面：设置左栏多一项「连接 Claude」；页头一句说明（整账号 · 不过期 · 可吊销 · 不能花钱）+「生成令牌」；下面一行一个令牌：状态点（最近 2 分钟用过为绿）· 名字 · pvmcp_…末 4 位 · 最近使用 · 吊销；底部一行小字「最多 10 个」与连不上时先查什么。' },
+    h('② 状态'),
+    {
+      t: 'mock',
+      html: `<div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:28px 24px">${[
+        ['T1', '空态', tkEmpty, '一句话 + 一个按钮，沿用全站空态原语。'],
+        ['T2', '生成 · 起名', `<div style="display:flex;justify-content:center;padding:20px;border-radius:14px;background:#f4f4f1">${tkDialogName}</div>`, '名字默认「设备 · Claude Code」，可改；回车即生成。'],
+        ['T3', '生成 · 只显示一次', `<div style="display:flex;justify-content:center;padding:20px;border-radius:14px;background:#f4f4f1">${tkDialogShow}</div>`, '给整条命令而不是裸令牌：贴进终端就接好；关掉后再也看不到明文。'],
+      ]
+        .map(([no, name, body, rule]) => edCap(no, name, body, rule))
+        .join('')}</div><div style="margin-top:28px;display:flex;flex-direction:column;gap:28px;max-width:860px">${[
+        ['T4', '吊销 · 行内确认', tkRevoke, '点「吊销」原地展开一句后果 + 红色确认，⛔ 不弹对话框。吊销后这一行淡出。'],
+        ['T5', '满 10 个', tkLimit, '点「生成令牌」时才出现这条提示，⛔ 不把按钮置灰。'],
+      ]
+        .map(([no, name, body, rule]) => edCap(no, name, body, rule))
+        .join('')}</div>`,
+      md: 'T1 空态（一句话 + 生成）· T2 起名（默认「设备 · Claude Code」）· T3 只显示一次：整条 `claude mcp add` 命令 + 复制命令 / 只复制令牌 / 完成 · T4 吊销行内确认（后果一句 + 红色确认）· T5 满 10 个：点生成时才提示，不置灰。',
+    },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:14px">${tkPhone}</div>`, md: '手机：行变两行卡片；生成令牌为底部整宽按钮；明文与命令在底部 Sheet；触控高 44。' },
+    h('动效'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['生成对话框开 / 关', '200ms 淡入 + 缩放 0.98→1 / 150ms 淡出', '对话框', '⛔ 起名 → 显示明文是同一个框里换内容，不关了再开'],
+        ['起名 → 显示明文', '160ms 交叉淡化，框高度弹簧跟随', '框内内容', '—'],
+        ['复制', '按钮文字换成「已复制」1.5s', '按钮', '⛔ 不弹 toast'],
+        ['吊销确认展开', '160ms 行内展开', '行尾那一段', '⛔ 行高不变'],
+        ['吊销后', '220ms 淡出 + 高度收起', '那一行', '—'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
 // ─────────────────────────── 汇总与输出 ───────────────────────────
 export const PAGES = [
   { id: 'page-1', name: '1 · 总览', boards: [OVERVIEW] },
@@ -2606,7 +3130,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI, RUNNER_MAP, RUNNER_UI] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI, RUNNER_MAP, RUNNER_UI, EDIT_DESK_MAP, EDIT_DESK_A, EDIT_DESK_A_SLICE, EDIT_DESK_B, EDIT_DESK_C, MCP_TOKENS] },
   { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP, CARD_UI, CANVAS_CHAR_MAP, CANVAS_CHAR_UI] },
 ]
 

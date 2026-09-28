@@ -131,7 +131,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 4285,
+      "h": 4302,
       "title": "进度表",
       "page": "page-4"
     },
@@ -302,17 +302,71 @@
       "x": 0,
       "y": 33816,
       "w": 1400,
-      "h": 1401,
+      "h": 1421,
       "title": "Runner 底模 · ②③ 思维导图",
       "page": "page-6"
     },
     {
       "file": "DesignRunnerUI.dc.html",
       "x": 0,
-      "y": 35317,
+      "y": 35337,
       "w": 1400,
       "h": 3198,
       "title": "Runner 底模 · ④ 画板",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskMap.dc.html",
+      "x": 0,
+      "y": 38635,
+      "w": 1400,
+      "h": 1441,
+      "title": "剪辑台 × Claude · ② 流程图",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskA.dc.html",
+      "x": 0,
+      "y": 40176,
+      "w": 1400,
+      "h": 2561,
+      "title": "剪辑台 · ④ 方向 A",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskASlice.dc.html",
+      "x": 0,
+      "y": 42837,
+      "w": 1400,
+      "h": 2364,
+      "title": "剪辑台 · ④ A 关键切片",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskB.dc.html",
+      "x": 0,
+      "y": 45301,
+      "w": 1400,
+      "h": 2525,
+      "title": "剪辑台 · ④ 方向 B",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskC.dc.html",
+      "x": 0,
+      "y": 47926,
+      "w": 1400,
+      "h": 2525,
+      "title": "剪辑台 · ④ 方向 C",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignMcpTokens.dc.html",
+      "x": 0,
+      "y": 50551,
+      "w": 1400,
+      "h": 2450,
+      "title": "剪辑台 · ④ 令牌页",
       "page": "page-6"
     },
     {

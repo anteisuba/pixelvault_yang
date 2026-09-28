@@ -151,12 +151,12 @@ trigger "<word>" [not in the prompt]   ← 有触发词时才印；不在正文�
 
 ```
 LoraBaseModel 加一格 distilled: boolean      // 必填，指**步数蒸馏**（turbo / lightning / hyper / LCM / schnell）；FLUX.1-dev 那种 guidance 蒸馏不算，填 false
-LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
+LORA_STACK_WEIGHT_BUDGET = { default: 2.0, distilled: 1.0 }
 ```
 
 ⚠ **`distilled` 是必填，⛔ 不写成 `distilled?:`**：可选的那一版让「没想过」和「不是蒸馏」长得一模一样，加新底模的人可以整格不填就过 typecheck。必填等于把这个问题摆到每一条目录面前。今天 11 条**全填 `false`**。
 
-⚠ **两档阈值的判断逻辑一次写到位**（非蒸馏 > 1.5、蒸馏 > 1.0），⛔ 不因为今天没有蒸馏底模就先只写一档：接 **Z-Image Turbo / FLUX schnell** 这类蒸馏底模时，只需要把目录里那一条置 `distilled: true`，护栏自动走 1.0 档，⛔ 不必回头改判据、也不必再动这份文档。
+⚠ **两档阈值的判断逻辑一次写到位**（非蒸馏 > 2.0、蒸馏 > 1.0），⛔ 不因为今天没有蒸馏底模就先只写一档：接 **Z-Image Turbo / FLUX schnell** 这类蒸馏底模时，只需要把目录里那一条置 `distilled: true`，护栏自动走 1.0 档，⛔ 不必回头改判据、也不必再动这份文档。
 
 ⛔ 别用名字含 "turbo" 去嗅——`constants/lora.ts:443`–`:458` 那批 Turbo 字样说的是 **LoRA 的 baseModel 值**（Civitai 浏览分桶），不是我们出图用的底模。
 
@@ -164,7 +164,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 栈总权重 = **启用中**（`enabled !== false`）的挂载权重之和。⚠ 与 `handleGenerate` 的 `.filter(entry => entry.enabled !== false)` 同口径；静音的那把不进出图，也就不该计进预算。
 
-阈值按**当前底模**那一条的 `distilled` 取：`true` → 1.0，`false` → 1.5。⚠ 底模未定（`baseFamily` 为 null）时**不判**——没有底模就没有预算，同 `isLoraCompatibleWithBase` 在底模未定时不下判断那条判据。
+阈值按**当前底模**那一条的 `distilled` 取：`true` → 1.0，`false` → 2.0（owner 2026-09-28 从 1.5 抬上来：真实配方里「角色 + 画风」合计的 p75 约 2.0，1.5 会让六到八成热门配方标红；叠细节 / 滑杆的仍约一半会提醒，见 [`../domains/lora.md` §7.1.1](../domains/lora.md)）。⚠ 底模未定（`baseFamily` 为 null）时**不判**——没有底模就没有预算，同 `isLoraCompatibleWithBase` 在底模未定时不下判断那条判据。
 
 超过阈值时：
 
@@ -265,7 +265,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 | #   | 验的是                                                                                                                                                    | 文件                                                                                    |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 1.5 / 蒸馏 1.0，蒸馏档用构造条目验）                                                           | `src/constants/lora-base-models.test.ts`                                                |
+| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 2.0 / 蒸馏 1.0，蒸馏档用构造条目验）                                                           | `src/constants/lora-base-models.test.ts`                                                |
 | 2   | 方言表全覆盖；Pony 有 `_up` 前缀、Anima DiT 用模型页的 `score_7`（⛔ `_up`）、IL / SDXL 质量词在前；FLUX 负面为空；词序全族有、参数只在有 Runner 底模的族 | `src/constants/lora-prompt-dialects.test.ts`                                            |
 | 3   | `buildLoraPromptTemplate` 按家族换骨架；作者推荐仍然优先；家族归一不出时回落                                                                              | `src/lib/lora-prompt-template.test.ts`                                                  |
 | 4   | 负面来自方言表；`isAnimeLikeLora` 全仓零命中；`reliable` 语义不变                                                                                         | `src/lib/lora-source-match-prompt.test.ts`                                              |

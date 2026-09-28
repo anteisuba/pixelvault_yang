@@ -315,9 +315,13 @@ export function getLoraBaseArchitectureGroup(
   return LORA_BASE_DIT_FAMILIES.includes(family) ? 'dit' : 'sdxl'
 }
 
-/** LoRA 栈总权重护栏：非蒸馏底模 1.5、蒸馏底模（turbo/lightning/hyper/LCM/schnell）1.0。 */
+/**
+ * LoRA 栈总权重护栏：非蒸馏底模 2.0、蒸馏底模（turbo/lightning/hyper/LCM/schnell）1.0。
+ * 2.0 = 真实配方里「角色 + 画风」合计的 p75（owner 2026-09-28 从 1.5 抬上来：
+ * 1.5 会让六到八成热门配方标红）。
+ */
 export const LORA_STACK_WEIGHT_BUDGET = {
-  default: 1.5,
+  default: 2.0,
   distilled: 1.0,
 } as const
 

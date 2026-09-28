@@ -348,13 +348,13 @@ describe('useLoraOperatorHost 的栈总权重护栏', () => {
       useLoraOperatorHost(
         budgetInput([
           { asset: asset() },
-          { asset: asset({ id: 'lora-2' }), scale: 0.8 },
+          { asset: asset({ id: 'lora-2' }), scale: 1.2 },
         ]),
       ),
     )
-    // 0.9（这一手）+ 0.8 = 1.7，非蒸馏底模的预算是 1.5。
+    // 0.9（这一手）+ 1.2 = 2.1，非蒸馏底模的预算是 2。
     setWeight(result.current, 'lora-1', 0.9)
-    expect(systemCodes()).toEqual([['loraWeightOverBudget', '1.7 / 1.5']])
+    expect(systemCodes()).toEqual([['loraWeightOverBudget', '2.1 / 2']])
   })
 
   it('还在预算内时一行都不插（⛔ 不逢改必念）', () => {
@@ -736,13 +736,13 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
   it('一轮三把只插一条超预算行，且总权重是三把之和', async () => {
     const { result } = renderHook(() => useLoraOperatorHost(hostInput([])))
 
-    mount(result.current, 'c-1', 0.6)
-    mount(result.current, 'c-2', 0.6)
-    mount(result.current, 'c-3', 0.6)
+    mount(result.current, 'c-1', 0.8)
+    mount(result.current, 'c-2', 0.8)
+    mount(result.current, 'c-3', 0.8)
     await waitFor(() => expect(budgetLines()).toHaveLength(1))
 
-    // 0.6 × 3 = 1.8，非蒸馏底模的预算是 1.5。
-    expect(budgetLines()).toEqual(['1.8 / 1.5'])
+    // 0.8 × 3 = 2.4，非蒸馏底模的预算是 2。
+    expect(budgetLines()).toEqual(['2.4 / 2'])
   })
 
   /** ⚠ 整批算完还在预算内就一行都不插（⛔ 不逢挂必念）。 */
@@ -781,13 +781,13 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
   it('栈上原有的那几把照样进总数', async () => {
     const { result } = renderHook(() =>
       useLoraOperatorHost(
-        hostInput([{ asset: asset('lora-old', 0.8), scale: 1 }]),
+        hostInput([{ asset: asset('lora-old', 0.8), scale: 1.5 }]),
       ),
     )
 
     mount(result.current, 'c-1', 0.6)
     await waitFor(() => expect(budgetLines()).toHaveLength(1))
-    expect(budgetLines()).toEqual(['1.6 / 1.5'])
+    expect(budgetLines()).toEqual(['2.1 / 2'])
   })
 })
 

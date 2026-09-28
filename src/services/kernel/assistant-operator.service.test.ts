@@ -5519,7 +5519,7 @@ describe('LoRA 装配台域（P4-C）', () => {
     // 卡头右侧那一格由**服务端**填 —— ⛔ 模型说了不算。
     expect(pick.baseFamilyLabel).toBe('illustrious')
     // 底部读数：X = 栈里启用中的权重之和（Ink Lines 0.8），Y = 这条底模的阈值。
-    expect(pick.budget).toEqual({ total: 0.8, limit: 1.5 })
+    expect(pick.budget).toEqual({ total: 0.8, limit: 2 })
     expect(pick.groups).toEqual([
       { title: '画风', candidateIds: ['civitai:12345:67890'] },
       { candidateIds: ['civitai:222:333'] },
@@ -6234,17 +6234,39 @@ describe('LoRA 装配台域（P4-C）', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
           title: 'tune',
-          args: { loraId: 'lora-asset-1', weight: 1.8 },
+          args: { loraId: 'lora-asset-1', weight: 1.5 },
         },
       },
       { finished: true },
     )
+    // 1.5（这一手）+ 0.8 = 2.3，非蒸馏底模的预算是 2。
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            snapshot: {
+              ...LORA_SNAPSHOT,
+              loras: {
+                ...LORA_SNAPSHOT.loras!,
+                items: [
+                  LORA_SNAPSHOT.loras!.items[0],
+                  {
+                    ...LORA_SNAPSHOT.loras!.items[0],
+                    id: 'lora-asset-2',
+                    name: 'Second One',
+                    weight: 0.8,
+                  },
+                ],
+              },
+            },
+          }),
+        ),
+      ),
     )
-    expect(steps[1]).toMatchObject({ payload: { weight: 1.8 } })
+    expect(steps[1]).toMatchObject({ payload: { weight: 1.5 } })
     const observed = lastUserPrompt()
-    expect(observed).toContain('1.8')
+    expect(observed).toContain('add up to 2.3')
     expect(observed).toContain('I did not touch any weight')
   })
 
@@ -10493,7 +10515,7 @@ describe('LoRA 搭配卡（lora-assistant §12，plan_lora_setup）', () => {
       previous: { steps: 25 },
     })
     // 应用之后：Ink Lines 0.5 + 新挂 0.6。
-    expect(setup?.budget).toEqual({ total: 1.1, limit: 1.5 })
+    expect(setup?.budget).toEqual({ total: 1.1, limit: 2 })
     expect(events.at(-1)).toMatchObject({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,

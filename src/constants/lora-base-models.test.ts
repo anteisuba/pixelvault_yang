@@ -198,7 +198,8 @@ describe('LORA_BASE_MODELS catalog', () => {
 })
 
 describe('resolveLoraStackWeightBudget', () => {
-  it('resolves the non-distilled budget (1.5)', () => {
+  it('resolves the non-distilled budget (2.0)', () => {
+    expect(LORA_STACK_WEIGHT_BUDGET.default).toBe(2)
     expect(resolveLoraStackWeightBudget({ distilled: false })).toBe(
       LORA_STACK_WEIGHT_BUDGET.default,
     )

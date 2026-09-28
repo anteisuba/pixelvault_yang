@@ -8,6 +8,7 @@
 
 import * as React from 'react'
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -46,6 +47,7 @@ import {
   EDIT_DESK_TRANSITION_DRAG_MIME,
 } from '@/constants/edit-desk'
 import { applyNodeAssistantOpV4 } from '@/lib/node-assistant-op-apply-v4'
+import type { NodeWorkflowRemoteChange } from '@/hooks/node/use-node-workflow-store'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
@@ -130,9 +132,26 @@ function renderDesk(
   const onUndo = vi.fn()
   const addNode = vi.fn()
   const setMedia = vi.fn()
+  const remoteListeners = new Set<(change: NodeWorkflowRemoteChange) => void>()
+  let setHostState: (next: NodeWorkflowStateV4) => void = () => undefined
+
+  /** 外部改动换进来（store 那一步）+ 通知台面 —— 与 `NodeWorkbenchV4` 同一个顺序。 */
+  const pushRemote = (after: NodeWorkflowStateV4, byClaude = true): void => {
+    const before = state
+    act(() => {
+      state = after
+      setHostState(after)
+      for (const listener of remoteListeners) {
+        listener({ projectId: 'proj_test', before, after, byClaude })
+      }
+    })
+  }
 
   function Host() {
     const [current, setCurrent] = React.useState(state)
+    React.useEffect(() => {
+      setHostState = setCurrent
+    }, [])
     const dispatchBatch = (ops: readonly NodeAssistantOpV4[]) => {
       let next = current
       let applied = 0
@@ -206,6 +225,16 @@ function renderDesk(
           onUndo={onUndo}
           onExit={onExit}
           onBackToNode={onBackToNode}
+          subscribeRemoteChange={(listener) => {
+            remoteListeners.add(listener)
+            return () => {
+              remoteListeners.delete(listener)
+            }
+          }}
+          restoreState={(target) => {
+            state = target
+            setCurrent(target)
+          }}
           {...overrides}
         />
       </NextIntlClientProvider>
@@ -213,7 +242,7 @@ function renderDesk(
   }
 
   const view = render(<Host />)
-  return { view, onExit, onBackToNode, onUndo, read: () => state }
+  return { view, onExit, onBackToNode, onUndo, pushRemote, read: () => state }
 }
 
 /** 素材面板默认收着（④ 方向 A）：要用素材格先点「画布素材」图标把它飞出来。 */
@@ -740,5 +769,110 @@ describe('剪辑台 · 快捷键预设', () => {
     expect(read().edit?.tracks.video.length).toBeGreaterThan(1)
     // 时间线数据里没有预设这回事
     expect(JSON.stringify(read().edit)).not.toContain('finalCut')
+  })
+})
+
+/* ─── 回执与段闪（④ A 关键切片 · node-canvas-v2 §6）──────────────────── */
+
+describe('剪辑台 · 回执与段闪', () => {
+  /** 把 V 轨第一段的速度改掉 —— 一次「外部 Claude 改了 1 段」。 */
+  function withFirstClipSpeed(
+    current: NodeWorkflowStateV4,
+    speed: number,
+  ): NodeWorkflowStateV4 {
+    const edit = current.edit
+    if (!edit) throw new Error('no timeline')
+    const [first, ...rest] = edit.tracks.video
+    if (!first) throw new Error('no clip')
+    return {
+      ...current,
+      edit: {
+        ...edit,
+        tracks: { ...edit.tracks, video: [{ ...first, speed }, ...rest] },
+      },
+    }
+  }
+
+  function withOneClip() {
+    const desk = renderDesk(emptyState)
+    openMaterials()
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    return desk
+  }
+
+  it('Claude 改了一段 → 舞台上方一条回执，连着改数字累加；撤销退回这一条里的全部', async () => {
+    const { pushRemote, read } = withOneClip()
+    const original = read()
+    const clipId = original.edit?.tracks.video[0]?.id
+
+    pushRemote(withFirstClipSpeed(read(), 2))
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toBe(
+      'Claude 改了 1 段',
+    )
+    // 改到的段闪一下（下一帧挂上 class）
+    await waitFor(() =>
+      expect(
+        screen.getByTestId(`edit-desk-clip-${clipId}`).className,
+      ).toContain('edit-clip-touched'),
+    )
+
+    pushRemote(withFirstClipSpeed(read(), 0.5))
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toBe(
+      'Claude 改了 2 段',
+    )
+
+    fireEvent.click(screen.getByTestId('edit-desk-receipt-action'))
+    expect(read()).toBe(original)
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toBe(
+      '已撤销',
+    )
+  })
+
+  it('你自己又改了一笔 → 那条回执收起（⛔ 留一颗会把你的改动一起退掉的撤销）', async () => {
+    const { pushRemote, read } = withOneClip()
+    const clipId = read().edit?.tracks.video[0]?.id
+    pushRemote(withFirstClipSpeed(read(), 2))
+    expect(screen.getByTestId('edit-desk-receipt')).toBeInTheDocument()
+
+    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
+    fireEvent.click(screen.getByTestId('edit-desk-transition-crossfade'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-receipt')).toBeNull(),
+    )
+  })
+
+  it('不是 Claude（同账号另一个标签页）→ 只跟上，不出回执', () => {
+    const { pushRemote, read } = withOneClip()
+    pushRemote(withFirstClipSpeed(read(), 2), false)
+    expect(screen.queryByTestId('edit-desk-receipt')).toBeNull()
+  })
+
+  it('Claude 导出的成片落卡 →「看看」回画布并选中那张卡', () => {
+    const { pushRemote, read, onBackToNode } = renderDesk(emptyState)
+    const landed = {
+      ...videoNode('render_1'),
+      data: {
+        ...videoNode('render_1').data,
+        outputs: {
+          versions: [
+            {
+              id: 'ov_render',
+              url: 'https://example.test/cut.mp4',
+              createdAt: NOW,
+              generationId: 'gen_claude',
+              source: { kind: 'render', label: '来自剪辑台 · 成片' },
+            },
+          ],
+          cur: 0,
+        },
+      },
+    } as NodeV4
+    pushRemote({ ...read(), nodes: [...read().nodes, landed] })
+
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toBe(
+      'Claude 导出了成片 · 已落到画布',
+    )
+    fireEvent.click(screen.getByTestId('edit-desk-receipt-action'))
+    expect(onBackToNode).toHaveBeenCalledWith('render_1')
   })
 })

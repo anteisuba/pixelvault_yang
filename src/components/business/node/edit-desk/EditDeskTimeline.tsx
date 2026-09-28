@@ -74,6 +74,7 @@ import {
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
+import { EDIT_CLIP_FLASH_ATTRIBUTE } from './edit-desk-flash'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 
 const TOOL_ICONS: Record<EditToolId, LucideIcon> = {
@@ -515,6 +516,7 @@ function TextClipView({
       tabIndex={0}
       aria-pressed={selected}
       data-testid={`edit-desk-text-clip-${clip.id}`}
+      {...{ [EDIT_CLIP_FLASH_ATTRIBUTE]: clip.id }}
       onPointerDown={startDrag('move')}
       onKeyDown={(event) => {
         if (event.key === 'Enter') desk.selectText(clip.id)
@@ -733,6 +735,7 @@ function ClipView({
         tabIndex={0}
         aria-pressed={selected}
         data-testid={`edit-desk-clip-${clip.id}`}
+        {...{ [EDIT_CLIP_FLASH_ATTRIBUTE]: clip.id }}
         data-clip-index={row.index}
         draggable
         onDragStart={(event) => {

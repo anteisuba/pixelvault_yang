@@ -179,6 +179,39 @@
   }
 }
 
+/* 剪辑台段闪（④ A 关键切片）：外部改到的段整段提亮一下 + 外圈浅晕，到顶即退。
+   ⚠ 与「选中」的黑环分得开：这里只动一层白罩与 box-shadow，⛔ 不碰 outline。 */
+@keyframes edit-clip-halo {
+  40% {
+    box-shadow: 0 0 0 6px
+      color-mix(in oklab, var(--foreground) 16%, transparent);
+  }
+}
+@keyframes edit-clip-lit {
+  40% {
+    opacity: 0.45;
+  }
+}
+.edit-clip-touched {
+  animation: edit-clip-halo 320ms var(--ease-standard);
+}
+.edit-clip-touched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  animation: edit-clip-lit 320ms var(--ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .edit-clip-touched,
+  .edit-clip-touched::after {
+    animation-duration: 1ms;
+  }
+}
+
 .node-ingest-reject {
   transition: outline-color 180ms var(--ease-standard);
   outline: 2px solid var(--node-status-failed);

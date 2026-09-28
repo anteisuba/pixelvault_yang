@@ -20,6 +20,11 @@
  * 滑入、舞台同一根弹簧让位（`studioOperatorYield`，与图片台布局 A 同一套）。⛔ 没有
  * 底部排片栏：一个助手一个输入框。
  *
+ * ── 回执与段闪（④ A 关键切片）──────────────────────────────────────────
+ * 外部 Claude 经 MCP 改了时间线 → 舞台正上方一条回执「Claude 改了 N 段 · 撤销」+
+ * 改到的段闪一下；成片落卡（Claude 的或你自己的）也只出这一条回执，⛔ 不自动退出
+ * 剪辑台。永远只有一条：同一来源连着改累加在同一条上，8 秒没新改动自己收起。
+ *
  * ── 为什么整块 portal 到 body ────────────────────────────────────────────
  * 全屏模式必须盖住**画布外壳的全部** —— 包括右侧助手那条窄条。而外壳的舞台
  * (`CanvasWorkspaceLayout` 的 `.stage`) 带 `isolate`，把里面的 z 全封在自己那一层，
@@ -47,6 +52,7 @@ import {
   EDIT_AUDIO_FILTER_IDS,
   EDIT_FLYOUT_MOTION,
   EDIT_PANEL_IDS,
+  EDIT_RECEIPT_MOTION,
   EDIT_SHORTCUT_SPLIT_CODE,
   EDIT_TOOL_IDS,
   EDIT_TRACK_IDS,
@@ -59,8 +65,14 @@ import {
 } from '@/constants/edit-desk'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  diffEditTimeline,
+  findLandedRender,
+  findNodeByGenerationId,
+} from '@/lib/edit-desk-receipt'
 import { clipIndexAt, currentUrlOf, RenderPlanError } from '@/lib/edit-project'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
+import type { NodeWorkflowRemoteChange } from '@/hooks/node/use-node-workflow-store'
 import { useEditShortcutPreset } from '@/hooks/node/use-edit-shortcut-preset'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -75,10 +87,15 @@ import {
 import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
-import { EditDeskRenderBar, EditDeskResumeBar } from './EditDeskRenderBar'
+import { EditDeskReceipt, type EditDeskReceiptState } from './EditDeskReceipt'
+import { EditDeskRenderStatus, EditDeskResumeBar } from './EditDeskRenderBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
-import { useEditDeskRender } from './use-edit-desk-render'
+import { flashEditClips } from './edit-desk-flash'
+import {
+  isTerminalRenderStatus,
+  useEditDeskRender,
+} from './use-edit-desk-render'
 
 /**
  * 素材库落卡最多等几帧。⚠ 是**安全带**不是节流：正常路径上两帧就到位了，等不到
@@ -140,7 +157,37 @@ export interface EditDeskProps {
    * 不丢。⚠ 挂在台面这棵子树里，它的 `fixed` 面板与头像才叠在台面之上。
    */
   readonly assistant?: ReactNode
+  /**
+   * 外部改动（外部 Claude 经 MCP）换进来时通知台面 —— 回执 + 段闪。返回退订。
+   * 缺席 = 台面不出回执（外部改动照样跟上，只是不说）。
+   */
+  subscribeRemoteChange?(
+    listener: (change: NodeWorkflowRemoteChange) => void,
+  ): () => void
+  /**
+   * 回执上的「撤销」：把项目退回这一条回执之前那一份，记成**一条**撤销。
+   * ⚠ 一条回执可能累加了好几批外部改动，⛔ 不是连按几次 ⌘Z。
+   */
+  restoreState?(target: NodeWorkflowStateV4): void
 }
+
+/**
+ * 台面持有的回执（`EditDeskReceiptState` 之外还带着撤销与「看看」要的东西）。
+ * `seq` 换一次 = 换了一条回执（重播进场）；累加数字不换。
+ */
+type DeskReceipt = EditDeskReceiptState & { readonly seq: number } & (
+    | {
+        readonly kind: 'changes'
+        readonly before: NodeWorkflowStateV4
+        readonly after: NodeWorkflowStateV4
+      }
+    | { readonly kind: 'undone' }
+    | {
+        readonly kind: 'landed'
+        readonly nodeId: string | null
+        readonly generationId?: string
+      }
+  )
 
 export function EditDesk({
   state,
@@ -158,6 +205,8 @@ export function EditDesk({
   onInitialConsumed,
   readOnly = false,
   assistant,
+  subscribeRemoteChange,
+  restoreState,
 }: EditDeskProps) {
   const t = useTranslations('StudioNode.editDesk')
   const locale = useLocale()
@@ -200,6 +249,23 @@ export function EditDesk({
    * 走开了 / 别处删了它，就当没在改 —— ⛔ 不留一个看不见的编辑态。
    */
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
+
+  const [receipt, setReceipt] = useState<DeskReceipt | null>(null)
+  /** 落好卡的那一单：顶栏不再挂它（结果由回执说），⛔ 两处说同一件事。 */
+  const [landedJobId, setLandedJobId] = useState<string | null>(null)
+  /** 你自己导出落下的成片（按 `generationId`）—— 它们换进来时 ⛔ 不说成 Claude 的。 */
+  const ownGenerationsRef = useRef(new Set<string>())
+  const [receiptHovered, setReceiptHovered] = useState(false)
+  const receiptSeqRef = useRef(0)
+  /**
+   * 「Claude 改了 N 段」只在项目**还停在那批改动之后**时才算数：你自己又改了一笔、
+   * 或按了 ⌘Z，这条回执的「撤销」就对不上了 —— 收起，⛔ 不留一颗会把你的改动一起
+   * 退掉的按钮。
+   */
+  const shownReceipt =
+    receipt && (receipt.kind !== 'changes' || receipt.after === state)
+      ? receipt
+      : null
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -374,12 +440,26 @@ export function EditDesk({
    * ⛔ 不在浏览器里再建一次卡：两条路会落两张卡。
    */
   const onRenderCompleted = useCallback(
-    (job: { readonly name: string }) => {
+    (job: {
+      readonly jobId: string
+      readonly name: string
+      readonly generationId?: string
+    }) => {
+      if (job.generationId) ownGenerationsRef.current.add(job.generationId)
+      setLandedJobId(job.jobId)
       refreshProject()
-      toast.success(t('render.landed', { name: job.name }))
-      onExit()
+      // 只出回执，⛔ 不自动退出剪辑台（owner 2026-09-28）。
+      receiptSeqRef.current += 1
+      setReceipt({
+        kind: 'landed',
+        by: 'you',
+        name: job.name,
+        nodeId: null,
+        ...(job.generationId ? { generationId: job.generationId } : {}),
+        seq: receiptSeqRef.current,
+      })
     },
-    [refreshProject, onExit, t],
+    [refreshProject],
   )
 
   /**
@@ -482,6 +562,101 @@ export function EditDesk({
   })
 
   const { submit: submitRender } = render
+
+  /**
+   * 你自己有一单成片**在跑**时，服务端落进来的那张成片卡是你的（服务端先落卡、
+   * 再标完成，所以卡可能比「完成」先到）：⛔ 不说成「Claude 导出了成片」。在跑时
+   * 还不知道 `generationId`，所以在跑 = 一律算你的；跑完的按 `generationId` 认。
+   */
+  const ownRenderRef = useRef(render.job)
+  useEffect(() => {
+    ownRenderRef.current = render.job
+  })
+
+  /* ── 回执与段闪（外部改动）─────────────────────────────────────────── */
+  useEffect(() => {
+    if (!subscribeRemoteChange) return undefined
+    return subscribeRemoteChange((change) => {
+      const touch = diffEditTimeline(change.before.edit, change.after.edit)
+      if (touch.changedIds.length > 0) {
+        window.requestAnimationFrame(() => flashEditClips(touch.changedIds))
+      }
+      if (!change.byClaude) return
+
+      const landed = findLandedRender(change.before, change.after)
+      const own = ownRenderRef.current
+      const ownInFlight = own !== null && !isTerminalRenderStatus(own.status)
+      const ownLanded =
+        landed?.generationId !== undefined &&
+        ownGenerationsRef.current.has(landed.generationId)
+      if (landed && !ownInFlight && !ownLanded) {
+        receiptSeqRef.current += 1
+        setReceipt({
+          kind: 'landed',
+          by: 'claude',
+          name: '',
+          nodeId: landed.nodeId,
+          seq: receiptSeqRef.current,
+        })
+        return
+      }
+      if (touch.count === 0) return
+      setReceipt((current) => {
+        // 同一来源连着改：数字累加在同一条上，撤销退回这一条里的全部。
+        if (current?.kind === 'changes' && current.after === change.before) {
+          return {
+            ...current,
+            count: current.count + touch.count,
+            after: change.after,
+          }
+        }
+        receiptSeqRef.current += 1
+        return {
+          kind: 'changes',
+          count: touch.count,
+          before: change.before,
+          after: change.after,
+          seq: receiptSeqRef.current,
+        }
+      })
+    })
+  }, [subscribeRemoteChange])
+
+  /** 8 秒没有新改动自己收起；「已撤销」停 1.4 秒；悬停时不计时。 */
+  useEffect(() => {
+    if (!receipt || receiptHovered) return undefined
+    const timer = window.setTimeout(
+      () => setReceipt(null),
+      receipt.kind === 'undone'
+        ? EDIT_RECEIPT_MOTION.undoneMs
+        : EDIT_RECEIPT_MOTION.idleMs,
+    )
+    return () => window.clearTimeout(timer)
+  }, [receipt, receiptHovered])
+
+  const undoReceipt = () => {
+    if (shownReceipt?.kind !== 'changes') return
+    if (restoreState) restoreState(shownReceipt.before)
+    else onUndo()
+    // 同一条回执原地换字（⛔ 不换 seq：不重播进场）。
+    setReceipt({ kind: 'undone', seq: shownReceipt.seq })
+  }
+
+  /** 「看看」/「回画布看」：回画布并选中那张成片卡（找不到就只回画布）。 */
+  const lookAtLanded = () => {
+    if (shownReceipt?.kind !== 'landed') return
+    const nodeId =
+      shownReceipt.nodeId ??
+      (shownReceipt.generationId
+        ? findNodeByGenerationId(
+            latest.current.state,
+            shownReceipt.generationId,
+          )
+        : null)
+    setReceipt(null)
+    if (nodeId) onBackToNode(nodeId)
+    else onExit()
+  }
   const { exportTimeline } = desk
   const onExport = useCallback(
     (options: {
@@ -557,16 +732,19 @@ export function EditDesk({
         reserveAssistantSlot={Boolean(assistant)}
         shortcutPreset={shortcutPreset}
         onShortcutPresetChange={setShortcutPreset}
+        status={
+          render.job && render.job.jobId !== landedJobId ? (
+            <EditDeskRenderStatus
+              job={render.job}
+              onCancel={() => void render.cancel()}
+              onClear={render.clear}
+              onDownload={onDownload}
+            />
+          ) : null
+        }
       />
 
-      {render.job ? (
-        <EditDeskRenderBar
-          job={render.job}
-          onCancel={() => void render.cancel()}
-          onClear={render.clear}
-          onDownload={onDownload}
-        />
-      ) : render.resumable ? (
+      {render.resumable && !render.job ? (
         <EditDeskResumeBar
           job={render.resumable}
           onResume={render.resume}
@@ -598,6 +776,14 @@ export function EditDesk({
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative flex min-h-0 flex-1 gap-4 bg-surface-workbench p-4">
+            <EditDeskReceipt
+              receipt={shownReceipt}
+              receiptKey={String(shownReceipt?.seq ?? 0)}
+              onUndo={undoReceipt}
+              onDismiss={() => setReceipt(null)}
+              onLook={lookAtLanded}
+              onHoverChange={setReceiptHovered}
+            />
             {/* 素材面板飞出来盖在舞台左上：⛔ 不推开舞台，高度只到舞台为止（⛔ 不盖
                 时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。 */}
             <AnimatePresence>

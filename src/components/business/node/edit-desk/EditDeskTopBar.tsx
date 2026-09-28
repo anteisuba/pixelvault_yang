@@ -8,7 +8,7 @@
  * 为了剪一条片子，⛔ 不把外壳的东西再摆一遍。
  */
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, Keyboard, Undo2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -50,6 +50,11 @@ export interface EditDeskTopBarProps {
   /** 当前快捷键预设（S8d）。 */
   readonly shortcutPreset: EditShortcutPresetId
   onShortcutPresetChange(preset: EditShortcutPresetId): void
+  /**
+   * 导出中（④ A：「时长 / 比例 / 清晰度」那一格换成进度 + 取消）。缺席 = 读数。
+   * ⛔ 不再在顶栏下面另起一条进度栏。
+   */
+  readonly status?: ReactNode
 }
 
 export function EditDeskTopBar({
@@ -63,6 +68,7 @@ export function EditDeskTopBar({
   reserveAssistantSlot = false,
   shortcutPreset,
   onShortcutPresetChange,
+  status,
 }: EditDeskTopBarProps) {
   const t = useTranslations('StudioNode.editDesk')
   const [editing, setEditing] = useState(false)
@@ -129,16 +135,18 @@ export function EditDeskTopBar({
             {project.name}
           </button>
         )}
-        <span
-          data-testid="edit-desk-readout"
-          className="text-xs tabular-nums text-muted-foreground"
-        >
-          {t('readout', {
-            duration: formatEditDurationShort(durationSec),
-            aspect: project.settings.aspect,
-            resolution: project.settings.resolution,
-          })}
-        </span>
+        {status ?? (
+          <span
+            data-testid="edit-desk-readout"
+            className="text-xs tabular-nums text-muted-foreground"
+          >
+            {t('readout', {
+              duration: formatEditDurationShort(durationSec),
+              aspect: project.settings.aspect,
+              resolution: project.settings.resolution,
+            })}
+          </span>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">

@@ -6303,7 +6303,7 @@
       },
       "clipClock": "クリップ {at} / {total}",
       "render": {
-        "step": "{step} · {percent}%",
+        "exporting": "書き出し中 · {step} {percent}%",
         "done": "カットができました",
         "cancel": "キャンセル",
         "dismiss": "閉じる",
@@ -6337,6 +6337,15 @@
           "tooManySegments": "クリップが多すぎます。いくつか減らしてから書き出してください。",
           "tooLong": "一度のレンダリングの上限より長いカットです。"
         }
+      },
+      "receipt": {
+        "claudeChanged": "Claude が {count} クリップを変更しました",
+        "undo": "元に戻す",
+        "undone": "元に戻しました",
+        "ok": "OK",
+        "claudeExported": "Claude がカットを書き出しました · キャンバスに置きました",
+        "look": "見る",
+        "backToCanvas": "キャンバスで見る"
       },
       "audioFilters": {
         "all": "すべて",

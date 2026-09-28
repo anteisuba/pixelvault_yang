@@ -339,11 +339,30 @@ function NodeWorkbenchV4Inner() {
     historyKey: `${store.currentProject.id}:${store.stateEpoch}`,
   })
 
+  /**
+   * 剪辑台开着时也要知道外部改动（回执 + 段闪，④ A）。⚠ 台面只在模式开着时存在，
+   * 所以是订阅不是回调：台面挂上时订、卸下时退。
+   */
+  const deskRemoteListenersRef = useRef(
+    new Set<(change: NodeWorkflowRemoteChange) => void>(),
+  )
+  const subscribeDeskRemoteChange = useCallback(
+    (listener: (change: NodeWorkflowRemoteChange) => void) => {
+      const listeners = deskRemoteListenersRef.current
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    [],
+  )
+
   // 外部改动 = 一条撤销 + 改到的卡闪一下（与助手改卡同一个闪法）。
   const { recordExternalChange } = rawGraph
   useEffect(() => {
     remoteChangeRef.current = (change) => {
       recordExternalChange(change.before, change.after)
+      for (const listener of deskRemoteListenersRef.current) listener(change)
       const touched = changedNodeIds(change.before, change.after)
       if (touched.length === 0) return
       window.requestAnimationFrame(() => {
@@ -354,6 +373,18 @@ function NodeWorkbenchV4Inner() {
       remoteChangeRef.current = null
     }
   }, [recordExternalChange])
+
+  /**
+   * 剪辑台回执上的「撤销」：退回那条回执之前那一份，记成**一条**撤销（快照档，与
+   * 外部改动同一个形状）。⚠ 一条回执可能累加了好几批，⛔ 不是连按几次 ⌘Z。
+   */
+  const restoreDeskState = useCallback(
+    (target: NodeWorkflowStateV4) => {
+      recordExternalChange(store.state, target)
+      commitState(target)
+    },
+    [recordExternalChange, store.state, commitState],
+  )
 
   /**
    * §2.7 墨线签署 / 解绑反放。写入方是**连边 / 断边**这两个动作，所以在这里包一层
@@ -1420,6 +1451,8 @@ function NodeWorkbenchV4Inner() {
                   onBackToNode={backToNodeFromEditDesk}
                   initialNodeIds={editDeskSeed}
                   onInitialConsumed={() => setEditDeskSeed([])}
+                  subscribeRemoteChange={subscribeDeskRemoteChange}
+                  restoreState={restoreDeskState}
                 />
               ) : null}
               {projectDialogs}
@@ -1622,6 +1655,8 @@ function NodeWorkbenchV4Inner() {
                     initialNodeIds={editDeskSeed}
                     onInitialConsumed={() => setEditDeskSeed([])}
                     assistant={<StudioOperatorDock />}
+                    subscribeRemoteChange={subscribeDeskRemoteChange}
+                    restoreState={restoreDeskState}
                   />
                 ) : null}
                 {projectDialogs}

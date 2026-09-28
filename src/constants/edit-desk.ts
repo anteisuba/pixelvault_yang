@@ -186,6 +186,18 @@ export const EDIT_TIMELINE_TICK_MIN_PX = 64
 /** 素材面板飞出 / 收回（④ A 关键切片动效表：220ms ease-out / 160ms ease-in）。 */
 export const EDIT_FLYOUT_MOTION = { inS: 0.22, outS: 0.16 } as const
 
+/**
+ * 舞台上方那条回执（④ A 关键切片动效表：180ms 淡入上移 4px / 180ms 淡出）。
+ * `idleMs` = 没有新改动多久自己收起（悬停不计时）；`undoneMs` = 「已撤销」停多久。
+ */
+export const EDIT_RECEIPT_MOTION = {
+  inS: 0.18,
+  outS: 0.18,
+  riseY: 4,
+  idleMs: 8000,
+  undoneMs: 1400,
+} as const
+
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2
 

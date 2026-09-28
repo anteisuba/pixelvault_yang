@@ -6303,7 +6303,7 @@
       },
       "clipClock": "Clip {at} / {total}",
       "render": {
-        "step": "{step} · {percent}%",
+        "exporting": "Exporting · {step} {percent}%",
         "done": "The cut is ready",
         "cancel": "Cancel",
         "dismiss": "Dismiss",
@@ -6337,6 +6337,15 @@
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
         }
+      },
+      "receipt": {
+        "claudeChanged": "Claude changed {count, plural, one {# clip} other {# clips}}",
+        "undo": "Undo",
+        "undone": "Undone",
+        "ok": "OK",
+        "claudeExported": "Claude exported the cut · it’s on the canvas",
+        "look": "Show me",
+        "backToCanvas": "View on canvas"
       },
       "audioFilters": {
         "all": "All",

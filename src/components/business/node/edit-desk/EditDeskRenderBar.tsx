@@ -1,10 +1,12 @@
 'use client'
 
 /**
- * 顶栏下的**渲染进度条**（S9 · spec §6「导出」）。
+ * 导出进度 —— **顶栏正中那一格**（④ A 关键切片 A4：「时长 / 比例 / 清晰度」换成
+ * 「导出中 · 编码 58% ▬▬ 取消」）。⛔ 不在顶栏下面另起一条进度栏。
  *
- * 一条脊柱线性进度 + 一行「第几步 · 百分比」+ 取消。完成之后变成「打开 / 下载 /
- * 收起」，⛔ 不自动消失：一条片子渲了两分钟，结果自己滑走等于没交付。
+ * 完成之后：勾了「导出到画布」的由舞台上方那条回执说（这一格回到读数）；没勾的
+ * 变成「成片已就绪 · 下载 · ×」，⛔ 不自动消失 —— 一条片子渲了两分钟，结果自己
+ * 滑走等于没交付。
  *
  * ⚠ 进度按**步骤**报（`RENDER_STEPS` 六步），⛔ 不做匀速假条 —— 编码那一步会停很久。
  */
@@ -16,7 +18,7 @@ import { RENDER_JOB_STATUS_IDS } from '@/constants/render-video'
 import { cn } from '@/lib/utils'
 import type { RenderJobResponse } from '@/lib/api-client'
 
-export interface EditDeskRenderBarProps {
+export interface EditDeskRenderStatusProps {
   readonly job: RenderJobResponse
   onCancel(): void
   onClear(): void
@@ -24,12 +26,12 @@ export interface EditDeskRenderBarProps {
   onDownload(url: string): void
 }
 
-export function EditDeskRenderBar({
+export function EditDeskRenderStatus({
   job,
   onCancel,
   onClear,
   onDownload,
-}: EditDeskRenderBarProps) {
+}: EditDeskRenderStatusProps) {
   const t = useTranslations('StudioNode.editDesk.render')
   const done = job.status === RENDER_JOB_STATUS_IDS.completed
   const failed =
@@ -42,26 +44,40 @@ export function EditDeskRenderBar({
     <div
       data-testid="edit-desk-render-bar"
       role="status"
-      className="relative flex shrink-0 items-center gap-3 border-b border-border bg-card px-3 py-1.5"
+      className="flex min-w-0 items-center gap-3 text-xs"
     >
-      <span className="truncate text-xs text-foreground">{job.name}</span>
       <span
         data-testid="edit-desk-render-status"
-        className="shrink-0 text-2xs tabular-nums text-muted-foreground"
+        className={cn(
+          'truncate tabular-nums',
+          failed ? 'text-status-warning' : 'text-muted-foreground',
+        )}
       >
         {done
           ? t('done')
           : failed
             ? (job.error ?? t(`status.${job.status}`))
-            : t('step', {
+            : t('exporting', {
                 step: job.step ? t(`steps.${job.step}`) : t('steps.download'),
                 percent,
               })}
       </span>
 
-      <div className="min-w-0 flex-1" />
+      {running ? (
+        // 脊柱线性进度，⛔ 不用圆环（它读不出「还有多久」）。
+        <span
+          aria-hidden
+          className="relative h-1 w-36 shrink-0 overflow-hidden rounded-full bg-surface-fill-track"
+        >
+          <span
+            data-testid="edit-desk-render-progress"
+            className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-slow motion-reduce:transition-none"
+            style={{ width: `${percent}%` }}
+          />
+        </span>
+      ) : null}
 
-      {done ? (
+      {done && job.url ? (
         <button
           type="button"
           data-testid="edit-desk-render-download"
@@ -77,7 +93,7 @@ export function EditDeskRenderBar({
           type="button"
           data-testid="edit-desk-render-cancel"
           onClick={onCancel}
-          className="inline-flex h-7 shrink-0 items-center rounded-lg px-2 text-2xs text-muted-foreground transition-colors duration-fast hover:bg-muted"
+          className="inline-flex h-7 shrink-0 items-center rounded-lg px-2 text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground"
         >
           {t('cancel')}
         </button>
@@ -92,21 +108,6 @@ export function EditDeskRenderBar({
           <X className="size-3.5" aria-hidden />
         </button>
       )}
-
-      {/* 脊柱线性进度 —— 贴在这条的下沿，⛔ 不用圆环（它读不出「还有多久」）。 */}
-      <span
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 h-0.5 bg-surface-fill-track"
-      >
-        <span
-          data-testid="edit-desk-render-progress"
-          className={cn(
-            'block h-full transition-[width] duration-slow motion-reduce:transition-none',
-            failed ? 'bg-status-warning' : 'bg-primary',
-          )}
-          style={{ width: `${done ? 100 : percent}%` }}
-        />
-      </span>
     </div>
   )
 }

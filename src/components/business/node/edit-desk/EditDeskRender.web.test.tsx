@@ -6,7 +6,14 @@
  */
 
 import * as React from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -196,7 +203,7 @@ describe('导出确认 → 请求体', () => {
 })
 
 describe('顶栏进度', () => {
-  it('入队后出进度条；轮询推进度', async () => {
+  it('入队后顶栏读数换成进度（⛔ 不另起一条栏）；轮询推进度', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockSubmit.mockResolvedValue({
       success: true,
@@ -216,22 +223,27 @@ describe('顶栏进度', () => {
     confirmExport()
 
     await waitFor(() =>
-      expect(screen.getByTestId('edit-desk-render-bar')).toBeTruthy(),
+      expect(
+        within(screen.getByTestId('edit-desk-top-bar')).getByTestId(
+          'edit-desk-render-bar',
+        ),
+      ).toBeTruthy(),
     )
+    expect(screen.queryByTestId('edit-desk-readout')).toBeNull()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_200)
     })
     await waitFor(() =>
-      expect(
-        screen.getByTestId('edit-desk-render-status').textContent,
-      ).toContain('58%'),
+      expect(screen.getByTestId('edit-desk-render-status').textContent).toBe(
+        '导出中 · 编码 58%',
+      ),
     )
     expect(screen.getByTestId('edit-desk-render-progress').style.width).toBe(
       '58%',
     )
   })
 
-  it('完成 + 导出到画布 → 拉回服务端落好的卡、说一声、回画布；⛔ 浏览器不自己建卡', async () => {
+  it('完成 + 导出到画布 → 拉回服务端落好的卡、回执说一声；⛔ 不自动退出，⛔ 浏览器不自己建卡', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockSubmit.mockResolvedValue({
       success: true,
@@ -256,10 +268,20 @@ describe('顶栏进度', () => {
     })
 
     await waitFor(() => expect(refreshProject).toHaveBeenCalledTimes(1))
-    expect(toastSuccess).toHaveBeenCalled()
-    expect(onExit).toHaveBeenCalled()
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toContain(
+      '我的成片',
+    )
+    // owner 2026-09-28：留在剪辑台，⛔ 不自动回画布。
+    expect(onExit).not.toHaveBeenCalled()
+    // 结果由回执说：顶栏那一格回到读数（⛔ 两处说同一件事）。
+    expect(screen.queryByTestId('edit-desk-render-bar')).toBeNull()
+    expect(screen.getByTestId('edit-desk-readout')).toBeInTheDocument()
     // ⚠ 服务端已经落了一张（在把任务标成完成之前）—— 这边再建就是两张。
     expect(addNode).not.toHaveBeenCalled()
+
+    // 「回画布看」= 回画布；这里还没拉回那张卡，就只回画布。
+    fireEvent.click(screen.getByTestId('edit-desk-receipt-action'))
+    expect(onExit).toHaveBeenCalled()
   })
 })
 

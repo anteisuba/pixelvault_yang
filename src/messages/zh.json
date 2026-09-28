@@ -6303,7 +6303,7 @@
       },
       "clipClock": "段 {at} / {total}",
       "render": {
-        "step": "{step} · {percent}%",
+        "exporting": "导出中 · {step} {percent}%",
         "done": "成片已就绪",
         "cancel": "取消",
         "dismiss": "收起",
@@ -6337,6 +6337,15 @@
           "tooManySegments": "段太多了，先删掉一些再导出。",
           "tooLong": "成片太长了，超过一次渲染的上限。"
         }
+      },
+      "receipt": {
+        "claudeChanged": "Claude 改了 {count} 段",
+        "undo": "撤销",
+        "undone": "已撤销",
+        "ok": "好",
+        "claudeExported": "Claude 导出了成片 · 已落到画布",
+        "look": "看看",
+        "backToCanvas": "回画布看"
       },
       "audioFilters": {
         "all": "全部",

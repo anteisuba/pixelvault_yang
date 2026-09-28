@@ -13,6 +13,7 @@
 | testing.md       | vitest / playwright 策略 / 视觉基线双 OS（✅ 已写）                                                                              | `vitest.config.*` · `e2e/`                                               |
 | seo.md           | **页面地址与索引信号契约**：canonical 自指 / hreflang / sitemap 一致 / noindex 边界（✅ 2026-09-20）                             | `src/lib/page-address.ts` · `src/app/sitemap.ts`                         |
 | providers.md     | AI provider 接入契约 / BYOK / 错误信息全链路（✅ 已写）                                                                          | `src/constants/providers.ts`                                             |
+| mcp.md           | **外部 Claude 经 MCP 剪片**：令牌 / OAuth · 六个工具 · 服务端执行 · 浏览器实时跟随（施工基准 2026-09-28，未开工）                | `src/app/api/mcp/`（待建）· `CANVAS_APPLY_OP_IDS`                        |
 | product.md       | 产品边界与主线（✅ 已写，2026-07-10 四项重核更新）                                                                               | 本文件即现行契约；详版 `archive/product/` 已删 2026-08-07，见 git 历史   |
 | loading.md       | **加载态与生成进度契约**：spinner 三档 / 混合阶段进度区间（✅ 2026-08-07 由三份任务包合并沉淀）                                  | `src/components/ui/spinner.tsx` · `src/constants/generation-progress.ts` |
 | interaction.md   | **全局交互/动效脊柱**：跟手、场景分档惯性、时长 token、工程页仅 Motion、GSAP 仅首页（✅ 2026-07-30）                             | brand-dna · CLAUDE 动画分工 · research 丝滑调研                          |

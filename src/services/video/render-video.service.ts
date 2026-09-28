@@ -14,6 +14,7 @@ import {
 import {
   RENDER_DRAFT_R2_PREFIX,
   RENDER_DRAFT_RESOLUTION,
+  RENDER_DRAFT_SHORT_SIDE,
   RENDER_MAX_DURATION_SEC,
   RENDER_MAX_SEGMENTS,
   RENDER_PLAN_VERSION,
@@ -44,9 +45,10 @@ import {
  * 三件事：**入队**（建 `GenerationJob` → 签名派发给 `render-video` worker）、
  * **查状态**、**取消**；外加 worker 回调时的**回写**。
  *
- * ⛔ 这一层不算时间线：`RenderPlan` 由浏览器用 `toRenderPlan()` 算好交上来，这里
- * 只 Zod 校验 + 入队。理由是那份算术要被单测逐条钉住，而服务层跑不了纯函数测试的
- * 那种密度。⚠ 但**校验不能省** —— 载荷来自浏览器，`RenderPlan` 是不可信输入。
+ * ⛔ 这一层不算时间线：`RenderPlan` 由调用方用同一个纯函数 `toRenderPlan()` 算好
+ * 交上来（剪辑台在浏览器里算，MCP `render` 在服务端算），这里只 Zod 校验 + 入队。
+ * 理由是那份算术要被单测逐条钉住，而服务层跑不了纯函数测试的那种密度。⚠ 但**校验
+ * 不能省** —— 浏览器来的载荷是不可信输入，服务端算的也过同一道。
  *
  * ⛔ 渲染一期**不扣积分**（owner 定）：成本 ≈ $0.007 / 2 分钟成片（CF Container
  * standard-3，调研 `video-edit-models.md` §1.3），量级上不值得为它做一套计费。
@@ -133,6 +135,34 @@ export const RenderPlanSchema = z.object({
 })
 
 export type RenderPlanInput = z.infer<typeof RenderPlanSchema>
+
+/**
+ * 成片计划 → 480p 小样计划（docs/references/mcp.md §7）：画面按短边缩到 480，字幕
+ * 字号与边距同比缩；段、入出点、转场、声音一字不动 —— 小样与成片剪点完全一致。
+ */
+export function toDraftRenderPlan(plan: RenderPlanInput): RenderPlanInput {
+  const { width, height } = plan.output
+  const scale = Math.min(1, RENDER_DRAFT_SHORT_SIDE / Math.min(width, height))
+  // ⚠ 偶数化：H.264 的 4:2:0 采样要求两边都是偶数（与 `renderOutputDimensions` 同理）。
+  const even = (value: number): number => {
+    const rounded = Math.round(value * scale)
+    return rounded - (rounded % 2)
+  }
+  return {
+    ...plan,
+    output: {
+      ...plan.output,
+      resolution: RENDER_DRAFT_RESOLUTION,
+      width: even(width),
+      height: even(height),
+    },
+    texts: plan.texts.map((text) => ({
+      ...text,
+      fontSizePx: Math.max(1, Math.round(text.fontSizePx * scale)),
+      marginPx: Math.round(text.marginPx * scale),
+    })),
+  }
+}
 
 export const RenderSubmitSchema = z.object({
   plan: RenderPlanSchema,
@@ -452,8 +482,9 @@ export async function getRenderJob(
     include: { generation: true },
   })
   // ⚠ 归属校验在服务端：不是自己的任务一律当成「没有」，⛔ 不回 403（那等于确认
-  // 这个 id 存在）。
-  if (!job || job.userId !== user.id) return null
+  // 这个 id 存在）。同一张表里还有生成任务 —— 不是渲染任务也当成没有。
+  if (!job || job.userId !== user.id || job.adapterType !== RENDER_JOB_ADAPTER)
+    return null
 
   const { step, progress } = decodeProgress(job.providerJobId)
   const generation = job.generation
@@ -511,7 +542,9 @@ export async function cancelRenderJob(
   if (!user) return null
 
   const job = await db.generationJob.findUnique({ where: { id: jobId } })
-  if (!job || job.userId !== user.id) return null
+  // ⚠ 只取消渲染任务：同一张表里的生成任务不归这条路管。
+  if (!job || job.userId !== user.id || job.adapterType !== RENDER_JOB_ADAPTER)
+    return null
 
   // 先落库再通知 worker：DB 是真理，worker 那一刀是 best-effort。
   const updated = await db.generationJob.updateMany({

@@ -7,11 +7,14 @@
 
 import { z } from 'zod'
 
+import { EDIT_RESOLUTIONS } from '@/constants/edit-desk'
 import {
   MCP_APPLY_OPS_MAX,
   MCP_LOOK_AT_MAX_TIMES,
+  MCP_RENDER_KINDS,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
+import { LOCALES } from '@/i18n/routing'
 import { CANVAS_APPLY_OP_IDS } from '@/types/assistant-operator'
 import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
 
@@ -41,6 +44,8 @@ export const CreatedMcpTokenSchema = McpTokenRecordSchema.extend({
 export type CreatedMcpToken = z.infer<typeof CreatedMcpTokenSchema>
 
 /* ─── 工具入参（§4）────────────────────────────────────────────────────── */
+
+const IdSchema = z.string().trim().min(1).max(160)
 
 const ProjectIdSchema = z
   .string()
@@ -87,6 +92,9 @@ export const McpLookAtInputSchema = z
       .describe(
         'A video clip on the edit timeline. Times are seconds on the timeline; they are mapped into the source for you.',
       ),
+    renderJobId: IdSchema.optional().describe(
+      'A finished render from get_render. Times are seconds into the rendered cut.',
+    ),
     times: z
       .array(z.number().min(0).max(36_000))
       .min(1)
@@ -96,9 +104,12 @@ export const McpLookAtInputSchema = z
         `Seconds to look at (up to ${MCP_LOOK_AT_MAX_TIMES}). Required for video; ignored for an image node.`,
       ),
   })
-  .refine((input) => Boolean(input.nodeId) !== Boolean(input.clipId), {
-    message: 'Pass exactly one of nodeId or clipId.',
-  })
+  .refine(
+    (input) =>
+      [input.nodeId, input.clipId, input.renderJobId].filter(Boolean).length ===
+      1,
+    { message: 'Pass exactly one of nodeId, clipId or renderJobId.' },
+  )
 
 export type McpLookAtInput = z.infer<typeof McpLookAtInputSchema>
 
@@ -136,6 +147,60 @@ export const McpApplyOpsInputSchema = z.object({
 })
 
 export type McpApplyOpsInput = z.infer<typeof McpApplyOpsInputSchema>
+
+/* ─── 渲染（§7）────────────────────────────────────────────────────────── */
+
+export const McpRenderInputSchema = z
+  .object({
+    projectId: ProjectIdSchema,
+    kind: z
+      .enum(MCP_RENDER_KINDS)
+      .describe(
+        'draft: a 480p preview for you to check the cut; it is not added to the library or the canvas. final: the same as the edit desk export; it lands on the canvas as a video card linked to its source shots.',
+      ),
+    fromSec: z
+      .number()
+      .min(0)
+      .max(36_000)
+      .optional()
+      .describe('Start of the range in timeline seconds (default: 0).'),
+    toSec: z
+      .number()
+      .min(0)
+      .max(36_000)
+      .optional()
+      .describe('End of the range in timeline seconds (default: the end).'),
+    clipId: IdSchema.optional().describe(
+      'Render just this timeline clip instead of a range.',
+    ),
+    resolution: z
+      .enum(EDIT_RESOLUTIONS)
+      .optional()
+      .describe(
+        'final only: output resolution (default: the timeline setting). Drafts are always 480p.',
+      ),
+    locale: z
+      .enum(LOCALES)
+      .optional()
+      .describe(
+        "final only: language of the user's interface, for the source line on the landed card (default: en).",
+      ),
+  })
+  .refine(
+    (input) =>
+      !input.clipId ||
+      (input.fromSec === undefined && input.toSec === undefined),
+    { message: 'Pass either clipId or fromSec/toSec, not both.' },
+  )
+
+export type McpRenderInput = z.infer<typeof McpRenderInputSchema>
+
+export const McpGetRenderInputSchema = z.object({
+  projectId: ProjectIdSchema,
+  jobId: IdSchema.describe('The jobId render returned.'),
+})
+
+export type McpGetRenderInput = z.infer<typeof McpGetRenderInputSchema>
 
 /* ─── 浏览器实时跟随（§6）─────────────────────────────────────────────── */
 

@@ -24,6 +24,8 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
   readProjectForMcp: (...args: unknown[]) => mockRead(...args),
   lookAtForMcp: (...args: unknown[]) => mockLookAt(...args),
   applyOpsForMcp: (...args: unknown[]) => mockApply(...args),
+  renderForMcp: vi.fn(),
+  getRenderForMcp: vi.fn(),
 }))
 
 import { McpToolError } from '@/services/mcp/mcp-tools.service'
@@ -96,7 +98,7 @@ describe('/api/mcp', () => {
     expect((await rpc('tools/list')).status).toBe(401)
   })
 
-  it('lists the three read tools and the one write tool', async () => {
+  it('lists the read tools, the write tool and the two render tools', async () => {
     const { status, body } = await rpc('tools/list')
 
     expect(status).toBe(200)
@@ -104,7 +106,14 @@ describe('/api/mcp', () => {
       resultOf(body)
         .tools?.map((tool) => tool.name)
         .sort(),
-    ).toEqual(['apply_ops', 'list_projects', 'look_at', 'read_project'])
+    ).toEqual([
+      'apply_ops',
+      'get_render',
+      'list_projects',
+      'look_at',
+      'read_project',
+      'render',
+    ])
   })
 
   it('runs a tool as the token’s owner', async () => {

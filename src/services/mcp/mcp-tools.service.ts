@@ -1,7 +1,14 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { currentUrlOf, projectDurationSec } from '@/lib/edit-project'
+import {
+  currentUrlOf,
+  projectDurationSec,
+  RenderPlanError,
+  toRenderPlan,
+  type RenderPlanRange,
+} from '@/lib/edit-project'
+import { ApiRequestError } from '@/lib/errors'
 import {
   buildTimelineSnapshot,
   findTimelineClip,
@@ -13,6 +20,7 @@ import {
   upgradeNodeWorkflowStateToV4,
 } from '@/lib/node-workflow-v4-upgrade'
 import { applyCanvasBatchV4, mintCanvasId } from '@/lib/node-canvas-batch-v4'
+import { readOutputVersions } from '@/lib/node-output-versions'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import { getImagePreviewUrl, getVideoFrameUrl } from '@/lib/video-poster'
 import {
@@ -22,19 +30,37 @@ import {
   updateNodeWorkflowProject,
 } from '@/services/node/node-workflow.service'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
-import { EDIT_TRACK_IDS } from '@/constants/edit-desk'
+import {
+  getRenderJob,
+  RenderSubmitSchema,
+  submitRenderJob,
+  toDraftRenderPlan,
+} from '@/services/video/render-video.service'
+import {
+  EDIT_EXPORT_RANGE_IDS,
+  EDIT_TRACK_IDS,
+  type EditResolution,
+} from '@/constants/edit-desk'
 import {
   MCP_LIST_PROJECTS_LIMIT,
   MCP_LOOK_AT_FETCH_TIMEOUT_MS,
   MCP_LOOK_AT_FRAME_WIDTH,
+  type McpRenderKind,
 } from '@/constants/mcp'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  RENDER_JOB_STATUS_IDS,
+  type RenderJobStatusId,
+  type RenderStepId,
+} from '@/constants/render-video'
 import type { AssistantOperatorCanvasSnapshot } from '@/types/assistant-operator'
 import type {
   McpApplyOpsInput,
+  McpGetRenderInput,
   McpLookAtInput,
   McpReadProjectInput,
+  McpRenderInput,
 } from '@/types/mcp'
 import {
   EditProjectSchema,
@@ -42,7 +68,7 @@ import {
 } from '@/types/node-workflow'
 
 /**
- * MCP 的工具（`docs/references/mcp.md` §4）：S2 三个只读 + S3 `apply_ops`。
+ * MCP 的工具（`docs/references/mcp.md` §4）：S2 三个只读 + S3 `apply_ops` + S4 渲染。
  *
  * ⚠ 每个工具都从令牌主人的 Clerk id 出发、走现成的按归属取项目的服务 ——
  * ⛔ 不在这里另写一条「按 id 取项目」的查询，归属校验只有一份。
@@ -332,11 +358,45 @@ async function fetchFrame(plan: FramePlan): Promise<McpFrame> {
   }
 }
 
+/** 渲染出来的片子：小样 / 成片都在自家 CDN 上，截帧与看镜头同一条路。 */
+async function planRenderFrames(
+  owner: McpTokenOwner,
+  jobId: string,
+  times: readonly number[] | undefined,
+): Promise<FramePlan[]> {
+  const job = await getRenderJob(owner.clerkId, jobId)
+  if (!job) {
+    throw new McpToolError(`No render ${jobId}. Use the jobId render returned.`)
+  }
+  const url = job.url
+  if (job.status !== RENDER_JOB_STATUS_IDS.completed || !url) {
+    throw new McpToolError(
+      `This render is ${job.status}, not finished. Poll get_render until it completes.`,
+    )
+  }
+  if (!times) {
+    throw new McpToolError(
+      'Pass times (seconds into the render) to look at it.',
+    )
+  }
+  return times.map((time) => {
+    const label = `${formatSec(time)} into the render`
+    const frameUrl = getVideoFrameUrl(url, time, MCP_LOOK_AT_FRAME_WIDTH)
+    return frameUrl
+      ? { label, url: frameUrl }
+      : { label, url: null, reason: NOT_ON_CDN }
+  })
+}
+
 /** 每一帧各自成败，⛔ 一帧失败不连累同批其它帧。 */
 export async function lookAtForMcp(
   owner: McpTokenOwner,
   input: McpLookAtInput,
 ): Promise<McpFrame[]> {
+  if (input.renderJobId) {
+    const plans = await planRenderFrames(owner, input.renderJobId, input.times)
+    return Promise.all(plans.map(fetchFrame))
+  }
   const project = await loadProject(owner, input.projectId)
   return Promise.all(planFrames(project.state, input).map(fetchFrame))
 }
@@ -430,5 +490,176 @@ export async function applyOpsForMcp(
     skipped,
     changedNodeIds: batch.changedNodeIds,
     createdNodeIds: batch.createdNodeIds,
+  }
+}
+
+/* ─── render / get_render（S4）────────────────────────────────────────── */
+
+/** 小样先按这一档算计划、再整份缩到 480p（字幕字号跟着缩）。 */
+const DRAFT_BASE_RESOLUTION: EditResolution = '720p'
+
+export interface McpRenderStarted {
+  readonly jobId: string
+  readonly kind: McpRenderKind
+  readonly status: RenderJobStatusId
+  /** 这一刀出来多长（秒）。 */
+  readonly durationSec: number
+}
+
+/**
+ * 范围 → 时间线窗口。⚠ 单段也折成「区间」：与剪辑台的「单段」同一个窗口，但不必
+ * 区分它在哪条轨上。
+ */
+function renderRangeOf(
+  state: NodeWorkflowStateV4,
+  input: McpRenderInput,
+): RenderPlanRange {
+  if (input.clipId) {
+    const hit = findTimelineClip(state.edit, input.clipId)
+    if (!hit) {
+      throw new McpToolError(
+        `No timeline clip ${input.clipId}. Read the project to see clip ids.`,
+      )
+    }
+    return {
+      range: EDIT_EXPORT_RANGE_IDS.inOut,
+      inPointSec: hit.startSec,
+      outPointSec: hit.startSec + hit.durationSec,
+    }
+  }
+  if (input.fromSec !== undefined || input.toSec !== undefined) {
+    return {
+      range: EDIT_EXPORT_RANGE_IDS.inOut,
+      inPointSec: input.fromSec ?? null,
+      outPointSec: input.toSec ?? null,
+    }
+  }
+  return { range: EDIT_EXPORT_RANGE_IDS.all }
+}
+
+/**
+ * 出片（§7）：计划由服务端用剪辑台同一个纯函数 `toRenderPlan` 算，走同一个渲染任务
+ * 与在飞上限。⚠ 渲染不扣积分 —— 「MCP 不能花钱」这条不受影响。
+ */
+export async function renderForMcp(
+  owner: McpTokenOwner,
+  input: McpRenderInput,
+): Promise<McpRenderStarted> {
+  const project = await loadProject(owner, input.projectId)
+  const edit = project.state.edit
+  if (!edit) {
+    throw new McpToolError(
+      'This project has no edit timeline yet. Put clips on it with apply_ops first.',
+    )
+  }
+  const draft = input.kind === 'draft'
+
+  let plan
+  try {
+    plan = toRenderPlan(
+      edit,
+      project.state.nodes,
+      renderRangeOf(project.state, input),
+      {
+        projectId: input.projectId,
+        ...(draft
+          ? { resolution: DRAFT_BASE_RESOLUTION }
+          : input.resolution
+            ? { resolution: input.resolution }
+            : {}),
+      },
+    )
+  } catch (error) {
+    if (error instanceof RenderPlanError) throw new McpToolError(error.message)
+    throw error
+  }
+
+  // ⚠ 过一遍与剪辑台导出同一份入参校验（地址只收 http(s) 等），⛔ 服务端算的也不免检。
+  const parsed = RenderSubmitSchema.safeParse({
+    plan,
+    toCanvas: !draft,
+    ...(input.locale ? { locale: input.locale } : {}),
+  })
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    throw new McpToolError(
+      `This cut cannot be rendered (${issue?.path.join('.') ?? 'plan'}: ${issue?.message ?? 'invalid'}). Read the project and fix that clip.`,
+    )
+  }
+  const submitInput = draft
+    ? { ...parsed.data, plan: toDraftRenderPlan(parsed.data.plan) }
+    : parsed.data
+
+  try {
+    const view = await submitRenderJob(owner.clerkId, submitInput, { draft })
+    return {
+      jobId: view.jobId,
+      kind: input.kind,
+      status: view.status,
+      durationSec: Math.round(plan.totalDurationSec * 1000) / 1000,
+    }
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw new McpToolError(`Could not start the render: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+export interface McpRenderView {
+  readonly jobId: string
+  readonly kind: McpRenderKind
+  readonly status: RenderJobStatusId
+  readonly name: string
+  readonly step?: RenderStepId
+  readonly progress?: number
+  readonly url?: string
+  readonly thumbnailUrl?: string
+  readonly durationSec?: number
+  readonly error?: string
+  /** 成片落回画布的那张卡。 */
+  readonly landedNodeId?: string
+}
+
+export async function getRenderForMcp(
+  owner: McpTokenOwner,
+  input: McpGetRenderInput,
+): Promise<McpRenderView> {
+  const job = await getRenderJob(owner.clerkId, input.jobId)
+  if (!job) {
+    throw new McpToolError(
+      `No render ${input.jobId}. Use the jobId render returned.`,
+    )
+  }
+
+  // 落回画布的卡：成片那一版带着这次的 generationId（服务端落卡时写的）。
+  let landedNodeId: string | undefined
+  const generationId = job.generationId
+  if (!job.draft && generationId) {
+    const project = await loadProject(owner, input.projectId).catch(
+      (error: unknown) => {
+        if (error instanceof McpToolError) return null
+        throw error
+      },
+    )
+    landedNodeId = project?.state.nodes.find((node) =>
+      readOutputVersions(node.data).some(
+        (version) => version.generationId === generationId,
+      ),
+    )?.id
+  }
+
+  return {
+    jobId: job.jobId,
+    kind: job.draft ? 'draft' : 'final',
+    status: job.status,
+    name: job.name,
+    ...(job.step ? { step: job.step } : {}),
+    ...(job.progress !== undefined ? { progress: job.progress } : {}),
+    ...(job.url ? { url: job.url } : {}),
+    ...(job.thumbnailUrl ? { thumbnailUrl: job.thumbnailUrl } : {}),
+    ...(job.durationSec ? { durationSec: job.durationSec } : {}),
+    ...(job.error ? { error: job.error } : {}),
+    ...(landedNodeId ? { landedNodeId } : {}),
   }
 }

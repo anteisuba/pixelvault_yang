@@ -15,17 +15,21 @@ import {
 } from '@/services/mcp/mcp-token.service'
 import {
   applyOpsForMcp,
+  getRenderForMcp,
   listProjectsForMcp,
   lookAtForMcp,
   McpToolError,
   readProjectForMcp,
+  renderForMcp,
 } from '@/services/mcp/mcp-tools.service'
 import { MCP_RATE_LIMIT, MCP_TOOL_IDS } from '@/constants/mcp'
 import {
   McpApplyOpsInputSchema,
+  McpGetRenderInputSchema,
   McpListProjectsInputSchema,
   McpLookAtInputSchema,
   McpReadProjectInputSchema,
+  McpRenderInputSchema,
 } from '@/types/mcp'
 
 /**
@@ -140,7 +144,7 @@ export function registerMcpTools(server: McpServer): void {
     {
       title: 'Look at frames',
       description:
-        'Shows actual frames: a video card at given seconds of its current take, a timeline clip at given timeline seconds, or an image card. Returns one 512px-wide JPEG per time.',
+        'Shows actual frames: a video card at given seconds of its current take, a timeline clip at given timeline seconds, a finished render at given seconds of the cut, or an image card. Returns one 512px-wide JPEG per time.',
       inputSchema: McpLookAtInputSchema,
       annotations: { readOnlyHint: true },
     },
@@ -185,6 +189,40 @@ export function registerMcpTools(server: McpServer): void {
     async (input, ctx) =>
       guard(MCP_TOOL_IDS.applyOps, ctx.http?.authInfo, async (owner) =>
         jsonResult(await applyOpsForMcp(owner, input)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.render,
+    {
+      title: 'Render the edit timeline',
+      description:
+        'Renders the edit timeline, whole or a range (fromSec/toSec in timeline seconds) or one clip. draft: a 480p preview only you look at; it is not added to the library or the canvas. final: the same as the edit desk export; when it finishes it lands on the canvas as a video card linked to its source shots. Rendering is free, but only a couple can run at once. Returns a jobId to poll with get_render.',
+      inputSchema: McpRenderInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.render, ctx.http?.authInfo, async (owner) =>
+        jsonResult(await renderForMcp(owner, input)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.getRender,
+    {
+      title: 'Check a render',
+      description:
+        'Status of a render: queued / running (with step and progress) / completed / failed / cancelled. When completed it gives the video url and poster, and for a final render the id of the card it landed on the canvas. Then use look_at with renderJobId to check the cut points.',
+      inputSchema: McpGetRenderInputSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.getRender, ctx.http?.authInfo, async (owner) =>
+        jsonResult(await getRenderForMcp(owner, input)),
       ),
   )
 }

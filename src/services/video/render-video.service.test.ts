@@ -77,6 +77,7 @@ const {
   handleRenderCallback,
   RENDER_DRAFT_JOB_MODEL,
   submitRenderJob,
+  toDraftRenderPlan,
 } = await import('@/services/video/render-video.service')
 
 function dispatched(fetchMock: ReturnType<typeof vi.fn>) {
@@ -288,10 +289,21 @@ describe('getRenderJob', () => {
     expect(await getRenderJob('clerk_1', 'job_1')).toBeNull()
   })
 
+  it('同一张表里的生成任务不是渲染 —— 当成没有', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_1',
+      adapterType: 'fal',
+      status: 'COMPLETED',
+    })
+    expect(await getRenderJob('clerk_1', 'job_1')).toBeNull()
+  })
+
   it('带出进度与产物', async () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
       prompt: '成片',
       providerJobId: 'encode:0.58',
@@ -322,6 +334,7 @@ describe('getRenderJob · 小样', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'COMPLETED',
       prompt: '成片',
       modelId: RENDER_DRAFT_JOB_MODEL,
@@ -340,6 +353,7 @@ describe('getRenderJob · 小样', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
       prompt: '成片',
       modelId: RENDER_DRAFT_JOB_MODEL,
@@ -349,6 +363,63 @@ describe('getRenderJob · 小样', () => {
     const view = await getRenderJob('clerk_1', 'job_1')
     expect(view?.url).toBeUndefined()
     expect(view?.draft).toBe(true)
+  })
+})
+
+describe('toDraftRenderPlan', () => {
+  it('短边缩到 480、两边偶数，字幕同比缩；段一字不动', () => {
+    const base = RenderPlanSchema.parse(
+      plan({
+        output: {
+          aspect: '16:9',
+          resolution: '720p',
+          width: 1280,
+          height: 720,
+          fps: 25,
+        },
+        texts: [
+          {
+            id: 't1',
+            text: '你好',
+            startSec: 0,
+            durationSec: 2,
+            anchor: 'bc',
+            fontSizePx: 36,
+            marginPx: 45,
+            tone: 'light',
+            fadeSec: 0,
+          },
+        ],
+      }),
+    )
+    const draft = toDraftRenderPlan(base)
+    expect(draft.output).toEqual({
+      aspect: '16:9',
+      resolution: '480p',
+      width: 852,
+      height: 480,
+      fps: 25,
+    })
+    expect(draft.texts[0]).toMatchObject({ fontSizePx: 24, marginPx: 30 })
+    expect(draft.video).toEqual(base.video)
+    expect(RenderPlanSchema.safeParse(draft).success).toBe(true)
+  })
+
+  it('竖屏也按短边缩', () => {
+    const draft = toDraftRenderPlan(
+      RenderPlanSchema.parse(
+        plan({
+          output: {
+            aspect: '9:16',
+            resolution: '720p',
+            width: 720,
+            height: 1280,
+            fps: 25,
+          },
+        }),
+      ),
+    )
+    expect(draft.output).toMatchObject({ width: 480, height: 852 })
   })
 })
 
@@ -368,6 +439,7 @@ describe('cancelRenderJob', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
       prompt: '成片',
       generation: null,
@@ -390,6 +462,7 @@ describe('handleRenderCallback', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'QUEUED',
       startedAt: null,
     })
@@ -416,6 +489,7 @@ describe('handleRenderCallback', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
       prompt: '我的成片',
     })
@@ -458,6 +532,7 @@ describe('handleRenderCallback', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'CANCELLED',
     })
     const result = await handleRenderCallback({
@@ -475,6 +550,7 @@ describe('handleRenderCallback', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
     })
     const result = await handleRenderCallback({
@@ -519,6 +595,7 @@ describe('handleRenderCallback · 落卡', () => {
     mockFindUnique.mockResolvedValue({
       id: 'job_1',
       userId: 'user_1',
+      adapterType: 'render-video',
       status: 'RUNNING',
       prompt: '我的成片',
     })

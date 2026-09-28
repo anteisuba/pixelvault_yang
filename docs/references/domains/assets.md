@@ -6,9 +6,10 @@
 
 - `/assets` → `KreaAssetBrowser`（2026-08-09 复核为 **2198 行单体组件**，改动谨慎）。
 - **双维组织**（产品事实，不能破坏）：①系统分类区块（全部/收藏/已发布/本地素材/未分类）②私人项目文件夹树（右栏 TreeView）。
+  - 2026-09-28 起：文件夹是页面**左边一列**（文件夹 B）；**一张图可以同时在好几个夹里**（归属表 `ProjectItem`，旧的 `Generation.projectId` 分两次删、代码已不读写）；夹只有两层、顺序由用户自己排（`Project.sortOrder` / `pinnedOrder`）；「未分类」改叫**未归档**（一个活夹都不在）。契约见 [`../pages/assets.md`](../pages/assets.md) §3–§4。
 - 过滤：媒体类型 toggle；**搜索/排序/时间过滤引擎已存在**（`use-gallery.ts` 的 GalleryFilters 支持 search/model/sort/timeRange/provider）**但 UI 未露出**——这是 P0 优化方向之一。
 - 网格：密度 4/6/8（localStorage 持久化）+ 哨兵无限滚动；无虚拟化、无 blur-up。
-- 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。
+- 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。（2026-09-28 起「移动」改成「加入文件夹」，拖到左栏一行 = 也放进那个夹。）
 - 详情：`AssetDetailSheet`（remix/移动/删除/发布/收藏/下载/存提示词模板）；图片详情可在当前已加载、当前筛选结果的图片之间前后切换，首尾不循环。
 - 媒体表达：Generation 已有图片/视频宽高与音频时长；当前列表统一正方形裁切。声音已有详情设置封面 API 与默认图回退链，但封面规则尚未成为页面契约。
 - 上传：完整素材页接受 JPG / PNG / WebP / GIF、MP4 / MOV / WebM，以及 MP3 / WAV / M4A / FLAC / OGG / audio-WebM。图片沿既有压缩/直传链；视频与音频由浏览器直接 PUT R2，分别按 `VIDEO` / `AUDIO` Generation 归档，视频额外保存客户端截取的 poster。大媒体单 PUT 上限 5 GiB、签名 1 小时；完成端以 HEAD 核对对象大小并只 Range 读取前 4 KiB 做容器签名校验。音频上传队列使用方形音频占位，不再误走图片解码/压缩。素材选择器仍保持图片上传入口。
@@ -22,6 +23,8 @@
 
 **Owner 2026-08-09 确认共享边界**：`/assets` 与 picker 不再保持同构。两者共享数据、筛选、网格、选择、上传等行为/API/状态/可访问性契约；完整素材页使用管理型 shell，picker 使用任务型 shell，不再把完整素材页缩进弹窗。该结论不锁定 shell 的具体结构或皮肤。
 
+**⚠ Owner 2026-09-28 文件夹 B**：门牌行与文件夹总览页退役，改成页面左边一列可收起的文件夹栏（推翻下一段里的「无第二左栏」）。
+
 **⚠ Owner 2026-08-11 改定结构方向（推翻下一段的 Dock 方案）**：选定 **B「大厅与展馆」** —— 首页两段（**文件夹门牌行 → 全部素材 justified 大河**），无右侧 Dock、无第二左栏；文件夹靠「门牌 chips 直达 / 夹内页下钻 / 搜索直达」三条路径，规模化靠「门牌行只放头部 + 文件夹总览页 + pin + 搜索兜底」。页面契约已成文：**[`../pages/assets.md`](../pages/assets.md)（唯一实现依据）**（施工切片账本 `assets-cf-task-packet-2026-08-11.md` 已随任务包清理，git 历史可取）。
 
 ~~**Owner 2026-08-09 选定管理页结构方向**：已有全局左侧导航时不再增加第二左栏；`/assets` 采用内容优先的中央工作区与可折叠右侧 `目录 / 详情` 上下文 Dock，顶部范围选择器负责快速换范围，多选常规整理走“移动到…”overlay。~~ **← 已于 2026-08-11 被上一段取代，只留作历史。**
@@ -30,8 +33,8 @@
 
 工作台助手可按名称列出当前用户的素材文件夹，并实际查看选定文件夹中的图片。它复用 Assets 的私有所有权与文件夹归属，但不是新的素材管理入口：
 
-- 文件夹查询返回真实 id、完整路径和已完成图片数；检查只接受本轮列举过的 id。
-- 只检查该文件夹直接归属的已完成图片，不包含子文件夹，不处理视频 / 音频 / 3D；最新优先，最多 24 张，按 8 张分批。
+- 文件夹查询返回真实 id、完整路径和图片数（与素材页左栏同一口径：连子夹、同一张只算一次），顺序与左栏一致；检查只接受本轮列举过的 id。
+- 检查的范围与素材页打开这个夹看到的一样：**这个夹连同子夹**里的已完成图片（2026-09-28 从「只看直接归属」改来 —— 助手说的张数要和用户在左栏看到的一致），不处理视频 / 音频 / 3D；最新优先，最多 24 张，按 8 张分批。
 - 服务端逐批校验视觉输出是否完整覆盖输入，并对外返回实际检查数、总数与是否截断；日志证据只来自实际检查过的素材。
 - 全链只读：不移动、不收藏、不删除、不上传、不生成、不创建 Generation，也不修改文件夹。
 
@@ -47,16 +50,17 @@
 
 ## Source of Truth
 
-`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `AssetFolderTree.tsx` · `src/hooks/use-gallery.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
+`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `assets/AssetFolderSidebar.tsx` · `assets/AssetAddToFolderPanel.tsx` · `src/services/asset-folder.service.ts` · `src/hooks/use-gallery.ts` · `src/hooks/use-asset-folders.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
 - **完整**。`/assets` 是浏览与整理面，手机是主要场景之一。
-- 375px：图墙 2 列；右栏「目录 / 详情」Dock 改为底部 vaul 抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；拖拽入文件夹在触屏上降为「移动到…」overlay（已有）；`AssetDetailSheet` 走 `ResponsiveDialog` 底部抽屉。
-- 验收：`checklists/ui.md` 第 3、4 项，375 图能完成「筛选 → 选中 → 移动到文件夹」主路径。
+- 375px：图墙 2 列；文件夹栏收成顶栏一颗键 + 范围胶囊，点了从左边拉出抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；触屏上用「加入文件夹」面板代替拖拽；`AssetDetailSheet` 走 `ResponsiveDialog` 底部抽屉。
+- 验收：`checklists/ui.md` 第 3、4 项，375 图能完成「筛选 → 选中 → 加入文件夹」主路径。
 
 ## Last Verified
 
+- 2026-09-28 · 文件夹 B：多夹归属（`ProjectItem`）、两层、手动排序与置顶、未归档、左栏与窄屏抽屉；助手看文件夹改成连子夹（与左栏同一口径），`move_assets` 改名 `add_to_folder`（只加）。
 - 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 - 2026-08-31 · 工作台助手文件夹视觉检查落地：真实文件夹 id / 完整路径准入、当前文件夹非递归、仅图片、最新 24 张、8 张分批、覆盖率与只读钱闸已由定向测试锁定。
 - 2026-08-30 · 图片详情补齐左右箭头与键盘方向键浏览；切换仅遍历当前已加载、当前筛选结果中的图片，首尾禁用，并使用遵循 reduced-motion 的方向淡入过渡。

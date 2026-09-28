@@ -112,34 +112,36 @@ export function EditDeskRenderStatus({
   )
 }
 
-export interface EditDeskResumeBarProps {
+export interface EditDeskResumeStatusProps {
   readonly job: RenderJobResponse
   onResume(): void
   onDismiss(): void
 }
 
-/** 「上次导出未完成 · 继续 / 重来」（spec §6「断点续传」的用户可见面）。 */
-export function EditDeskResumeBar({
+/**
+ * 「上次导出未完成 · 继续 / 重来」（spec §6「断点续传」的用户可见面）—— 也住在头部读数
+ * 那一格，⛔ 不另起一条栏。
+ */
+export function EditDeskResumeStatus({
   job,
   onResume,
   onDismiss,
-}: EditDeskResumeBarProps) {
+}: EditDeskResumeStatusProps) {
   const t = useTranslations('StudioNode.editDesk.render')
   return (
     <div
       data-testid="edit-desk-resume-bar"
       role="status"
-      className="flex shrink-0 items-center gap-3 border-b border-border bg-muted px-3 py-1.5"
+      className="flex min-w-0 items-center gap-2 text-xs"
     >
-      <span className="truncate text-xs text-foreground">
+      <span className="truncate text-muted-foreground">
         {t('resume', { name: job.name })}
       </span>
-      <div className="min-w-0 flex-1" />
       <button
         type="button"
         data-testid="edit-desk-resume-continue"
         onClick={onResume}
-        className="inline-flex h-7 shrink-0 items-center rounded-lg bg-primary px-3 text-2xs font-medium text-primary-foreground"
+        className="inline-flex h-7 shrink-0 items-center rounded-full bg-primary px-3 text-2xs font-medium text-primary-foreground"
       >
         {t('resumeContinue')}
       </button>
@@ -147,7 +149,7 @@ export function EditDeskResumeBar({
         type="button"
         data-testid="edit-desk-resume-restart"
         onClick={onDismiss}
-        className="inline-flex h-7 shrink-0 items-center rounded-lg px-2 text-2xs text-muted-foreground transition-colors duration-fast hover:bg-muted"
+        className="inline-flex h-7 shrink-0 items-center rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
       >
         {t('resumeRestart')}
       </button>

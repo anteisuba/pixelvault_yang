@@ -179,6 +179,15 @@
   }
 }
 
+/* 剪辑台：来源卡被删的画面段 —— 斜纹底（画板「来源卡被删的段」），⛔ 不画裂图。 */
+.edit-clip-gone {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--muted) 0 8px,
+    var(--surface-fill) 8px 16px
+  );
+}
+
 /* 剪辑台段闪（④ A 关键切片）：外部改到的段整段提亮一下 + 外圈浅晕，到顶即退。
    ⚠ 与「选中」的黑环分得开：这里只动一层白罩与 box-shadow，⛔ 不碰 outline。 */
 @keyframes edit-clip-halo {

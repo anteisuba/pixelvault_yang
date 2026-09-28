@@ -6257,14 +6257,15 @@
         "textEmpty": "画布上还没有文本卡",
         "loading": "加载中…",
         "loadMore": "加载更多",
-        "libraryEmpty": "素材库里还没有视频或音频"
+        "libraryEmpty": "素材库里还没有视频或音频",
+        "title": "素材"
       },
       "tracks": {
-        "video": "V",
-        "audio": "A",
-        "music": "M",
+        "video": "画面",
+        "audio": "配音",
+        "music": "配乐",
         "empty": "把素材拖到这里",
-        "text": "T",
+        "text": "字幕",
         "textEmpty": "按「文字」在播放头处落一段"
       },
       "tools": {
@@ -6281,6 +6282,22 @@
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",
       "previewEmpty": "播放头下没有片段",
+      "stage": "预览",
+      "stageEmpty": "还没有片段",
+      "stageEmptyAction": "从画布素材加镜头",
+      "play": "播放",
+      "pause": "暂停",
+      "scrub": "成片进度",
+      "mute": "静音",
+      "unmute": "打开声音",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · 长 {length}s",
+      "zoom": {
+        "label": "时间线缩放",
+        "in": "放大",
+        "out": "缩小",
+        "fit": "铺满"
+      },
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "选中一段看它的属性",
@@ -6314,7 +6331,7 @@
         "confirm": "开始导出",
         "pending": "渲染层还在路上（S9）——「{range}」的导出很快就能按下去"
       },
-      "clipClock": "段 {at} / {total}",
+      "clipBadge": "{name} · {at} / {total}",
       "render": {
         "exporting": "导出中 · {step} {percent}%",
         "done": "成片已就绪",

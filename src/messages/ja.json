@@ -6257,14 +6257,15 @@
         "textEmpty": "キャンバスにテキストカードがまだありません",
         "loading": "読み込み中…",
         "loadMore": "もっと読み込む",
-        "libraryEmpty": "素材ライブラリに動画も音声もまだありません"
+        "libraryEmpty": "素材ライブラリに動画も音声もまだありません",
+        "title": "素材"
       },
       "tracks": {
-        "video": "V",
-        "audio": "A",
-        "music": "M",
+        "video": "映像",
+        "audio": "ボイス",
+        "music": "音楽",
         "empty": "ここに素材をドロップ",
-        "text": "T",
+        "text": "字幕",
         "textEmpty": "「テキスト」で再生ヘッド位置に字幕を置く"
       },
       "tools": {
@@ -6281,6 +6282,22 @@
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",
       "previewEmpty": "再生ヘッドの位置にクリップがありません",
+      "stage": "プレビュー",
+      "stageEmpty": "まだクリップがありません",
+      "stageEmptyAction": "キャンバスの素材からショットを追加",
+      "play": "再生",
+      "pause": "一時停止",
+      "scrub": "カットの進行",
+      "mute": "ミュート",
+      "unmute": "ミュート解除",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · 長さ {length}s",
+      "zoom": {
+        "label": "タイムラインのズーム",
+        "in": "拡大",
+        "out": "縮小",
+        "fit": "全体表示"
+      },
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "クリップを選ぶと設定が出ます",
@@ -6314,7 +6331,7 @@
         "confirm": "書き出し開始",
         "pending": "「{range}」の書き出しは、まだ準備中です。"
       },
-      "clipClock": "クリップ {at} / {total}",
+      "clipBadge": "{name} · {at} / {total}",
       "render": {
         "exporting": "書き出し中 · {step} {percent}%",
         "done": "カットができました",

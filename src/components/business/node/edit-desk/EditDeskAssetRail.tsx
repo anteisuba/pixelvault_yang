@@ -40,7 +40,6 @@ import {
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import {
   EDIT_AUDIO_FILTER_IDS,
   EDIT_DESK_LAYOUT,
@@ -75,8 +74,7 @@ import type { GenerationRecord, OutputTypeValue } from '@/types'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
-import { Segmented } from './EditDeskInspector'
-import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 
 const PANEL_ICONS: Record<EditPanelId, LucideIcon> = {
@@ -163,23 +161,38 @@ export function EditDeskAssetRail({
 }: EditDeskAssetRailProps) {
   const t = useTranslations('StudioNode.editDesk')
   return (
-    <div
+    // 工作台左导航那一列的长相（画板 `.nav` / `.navi`）：壳底色一列，36 的圆角格，
+    // 当前那格是白的。
+    <nav
       data-testid="edit-desk-rail"
       data-edit-desk-rail
-      style={{ width: CANVAS_SHELL_LAYOUT.railWidthPx }}
-      className="flex shrink-0 flex-col items-center gap-1.5 border-r border-border bg-card pt-2"
+      aria-label={t('panels.title')}
+      className="flex w-13 shrink-0 flex-col items-center gap-1.5 bg-surface-sunken pt-4.5"
     >
-      {EDIT_PANELS.map((panel) => (
-        <ShellIconButton
-          key={panel}
-          icon={PANEL_ICONS[panel]}
-          label={t(`panels.${panel}`)}
-          active={open && activePanel === panel}
-          testId={`edit-desk-panel-${panel}`}
-          onClick={() => onPanelClick(panel)}
-        />
-      ))}
-    </div>
+      {EDIT_PANELS.map((panel) => {
+        const Icon = PANEL_ICONS[panel]
+        const active = open && activePanel === panel
+        return (
+          <button
+            key={panel}
+            type="button"
+            data-testid={`edit-desk-panel-${panel}`}
+            aria-label={t(`panels.${panel}`)}
+            title={t(`panels.${panel}`)}
+            aria-pressed={active}
+            onClick={() => onPanelClick(panel)}
+            className={cn(
+              'grid size-9 place-items-center rounded-lg transition-colors duration-fast',
+              active
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-card/60 hover:text-foreground',
+            )}
+          >
+            <Icon className="size-4.5" aria-hidden />
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
@@ -406,17 +419,19 @@ function AudioFilterTabs({
 }) {
   const t = useTranslations('StudioNode.editDesk')
   return (
-    <Segmented
-      testId="edit-desk-audio-filter"
-      options={[
+    <LiquidSegmented
+      ariaLabel={t('panels.audio')}
+      semantics="radio"
+      fill
+      value={value}
+      onChange={onChange}
+      items={[
         EDIT_AUDIO_FILTER_IDS.all,
         EDIT_AUDIO_FILTER_IDS.voice,
         EDIT_AUDIO_FILTER_IDS.music,
       ].map((filter) => ({
-        id: filter,
+        value: filter,
         label: t(`audioFilters.${filter}`),
-        active: value === filter,
-        onSelect: () => onChange(filter),
       }))}
     />
   )
@@ -507,20 +522,22 @@ function EditDeskLibraryPanel() {
 
   return (
     <div className="flex flex-col gap-2.5" data-testid="edit-desk-library">
-      <Segmented
-        testId="edit-desk-library-filter"
-        options={[
+      <LiquidSegmented
+        ariaLabel={t('panels.library')}
+        semantics="radio"
+        fill
+        value={filter}
+        onChange={(entry) => {
+          setFilter(entry)
+          reset()
+        }}
+        items={[
           EDIT_DESK_LIBRARY_FILTER_IDS.all,
           EDIT_DESK_LIBRARY_FILTER_IDS.video,
           EDIT_DESK_LIBRARY_FILTER_IDS.audio,
         ].map((entry) => ({
-          id: entry,
+          value: entry,
           label: t(`libraryFilters.${entry}`),
-          active: filter === entry,
-          onSelect: () => {
-            setFilter(entry)
-            reset()
-          },
         }))}
       />
 

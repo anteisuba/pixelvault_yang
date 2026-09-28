@@ -16,7 +16,7 @@ import {
   within,
 } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 /** 素材库那一页拉的是用户自己的产物 —— 组件不 fetch，桩掉 api-client 那一条。 */
 const fetchGalleryImages = vi.fn(async () => ({
@@ -52,6 +52,18 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 import { EditDesk } from './EditDesk'
+
+// jsdom 没有 ResizeObserver：Radix 的滑杆（缩放 / 音量）挂载时要它。
+beforeAll(() => {
+  if (!('ResizeObserver' in globalThis)) {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  }
+})
 
 const NOW = '2026-09-10T00:00:00.000Z'
 
@@ -313,11 +325,10 @@ describe('剪辑台 · 台面', () => {
 
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
     const inspector = screen.getByTestId('edit-desk-inspector')
-    expect(
-      within(inspector).getByTestId('edit-desk-speed-2'),
-    ).toBeInTheDocument()
+    const fast = within(inspector).getByRole('radio', { name: '2×' })
+    expect(fast).toBeInTheDocument()
 
-    fireEvent.click(within(inspector).getByTestId('edit-desk-speed-2'))
+    fireEvent.click(fast)
     expect(read().edit?.tracks.video[0]?.speed).toBe(2)
   })
 
@@ -327,7 +338,7 @@ describe('剪辑台 · 台面', () => {
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
-    fireEvent.click(screen.getByTestId('edit-desk-transition-crossfade'))
+    fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
     expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
   })
 
@@ -395,25 +406,29 @@ describe('剪辑台 · 台面', () => {
     })
 
     fireEvent.click(screen.getByTestId('edit-desk-tool-voice'))
-    expect(screen.getByTestId('edit-desk-audio-filter-voice')).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('radio', { name: '语音' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
     expect(screen.getByTestId('edit-desk-asset-a1')).toBeInTheDocument()
-    expect(screen.getByTestId('edit-desk-track-audio').className).toContain(
-      'outline-primary',
-    )
+    expect(
+      screen
+        .getByTestId('edit-desk-track-audio')
+        .querySelector('.ring-primary'),
+    ).not.toBeNull()
 
     fireEvent.click(screen.getByTestId('edit-desk-tool-music'))
-    expect(screen.getByTestId('edit-desk-audio-filter-music')).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('radio', { name: '配乐' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
     // 语音卡在「配乐」这一档里筛掉了
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
-    expect(screen.getByTestId('edit-desk-track-music').className).toContain(
-      'outline-primary',
-    )
+    expect(
+      screen
+        .getByTestId('edit-desk-track-music')
+        .querySelector('.ring-primary'),
+    ).not.toBeNull()
   })
 
   it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {
@@ -461,6 +476,32 @@ describe('剪辑台 · 台面', () => {
     const { read } = renderDesk(emptyState)
     fireEvent.click(screen.getByTestId('edit-desk-magnetic'))
     expect(read().edit?.settings.magnetic).toBe(false)
+  })
+
+  it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {
+    renderDesk(emptyState)
+    openMaterials()
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    const canvas = screen.getByTestId('edit-desk-timeline-scroll')
+      .firstElementChild as HTMLElement
+    const fitWidth = parseFloat(canvas.style.width)
+
+    fireEvent.click(screen.getByTestId('edit-desk-zoom-in'))
+    fireEvent.click(screen.getByTestId('edit-desk-zoom-in'))
+    expect(parseFloat(canvas.style.width)).toBeGreaterThan(fitWidth)
+    expect(screen.getByTestId('edit-desk-zoom-fit')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+
+    fireEvent.click(screen.getByTestId('edit-desk-zoom-fit'))
+    expect(parseFloat(canvas.style.width)).toBe(fitWidth)
+
+    // 标尺上按下即落播放头（拖动的每一帧走同一条路）
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-ruler'), {
+      clientX: 80,
+    })
+    expect(screen.getByTestId('edit-desk-playhead').style.left).toBe('80px')
   })
 
   it('导出只出对话框，点确认不发请求（S9 占位）', () => {
@@ -647,9 +688,9 @@ describe('剪辑台 · 文字段', () => {
     fireEvent.click(screen.getByTestId('edit-desk-text-anchor-trigger'))
     fireEvent.click(screen.getByTestId('edit-desk-text-anchor-tc'))
     fireEvent.click(screen.getByTestId('edit-desk-text-size-trigger'))
-    fireEvent.click(screen.getByTestId('edit-desk-text-size-l'))
+    fireEvent.click(screen.getByRole('radio', { name: '大' }))
     fireEvent.click(screen.getByTestId('edit-desk-text-fade-trigger'))
-    fireEvent.click(screen.getByTestId('edit-desk-text-fade-0.3'))
+    fireEvent.click(screen.getByRole('radio', { name: '0.3s' }))
 
     expect((read().edit?.tracks.text ?? [])[0]).toMatchObject({
       text: '她转身走向站台尽头',
@@ -737,8 +778,8 @@ describe('剪辑台 · 快捷键预设', () => {
   it('弹层给二选一 + 当前预设的只读键位表', () => {
     renderDesk(emptyState)
     fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
-    expect(screen.getByTestId('edit-desk-preset-premiere')).toHaveAttribute(
-      'aria-pressed',
+    expect(screen.getByRole('radio', { name: 'Premiere' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
     expect(screen.getByTestId('edit-desk-shortcut-split').textContent).toBe(
@@ -752,7 +793,7 @@ describe('剪辑台 · 快捷键预设', () => {
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
-    fireEvent.click(screen.getByTestId('edit-desk-preset-finalCut'))
+    fireEvent.click(screen.getByRole('radio', { name: 'Final Cut' }))
     expect(window.localStorage.getItem('pixelvault:edit-shortcut-preset')).toBe(
       'finalCut',
     )
@@ -835,7 +876,7 @@ describe('剪辑台 · 回执与段闪', () => {
     expect(screen.getByTestId('edit-desk-receipt')).toBeInTheDocument()
 
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
-    fireEvent.click(screen.getByTestId('edit-desk-transition-crossfade'))
+    fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
     await waitFor(() =>
       expect(screen.queryByTestId('edit-desk-receipt')).toBeNull(),
     )

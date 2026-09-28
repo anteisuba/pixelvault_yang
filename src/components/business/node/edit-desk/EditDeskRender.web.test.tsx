@@ -15,7 +15,15 @@ import {
   within,
 } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
 import messages from '@/messages/zh.json'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
@@ -41,6 +49,18 @@ vi.mock('sonner', () => ({
 }))
 
 const { EditDesk } = await import('./EditDesk')
+
+// jsdom 没有 ResizeObserver：Radix 的滑杆（缩放 / 音量）挂载时要它。
+beforeAll(() => {
+  if (!('ResizeObserver' in globalThis)) {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  }
+})
 
 const NOW = '2026-09-10T00:00:00.000Z'
 

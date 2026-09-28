@@ -50,7 +50,6 @@ import { toast } from 'sonner'
 
 import {
   EDIT_AUDIO_FILTER_IDS,
-  EDIT_FLYOUT_MOTION,
   EDIT_PANEL_IDS,
   EDIT_RECEIPT_MOTION,
   EDIT_SHORTCUT_SPLIT_CODE,
@@ -64,6 +63,7 @@ import {
   type EditTrackId,
 } from '@/constants/edit-desk'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
+import { CHIP_POPOVER, DURATION, SPRING } from '@/constants/motion'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   diffEditTimeline,
@@ -88,7 +88,7 @@ import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
 import { EditDeskReceipt, type EditDeskReceiptState } from './EditDeskReceipt'
-import { EditDeskRenderStatus, EditDeskResumeBar } from './EditDeskRenderBar'
+import { EditDeskRenderStatus, EditDeskResumeStatus } from './EditDeskRenderBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
 import { flashEditClips } from './edit-desk-flash'
@@ -719,63 +719,69 @@ export function EditDesk({
       data-testid="edit-desk"
       role="region"
       aria-label={t('title')}
-      className="fixed inset-0 z-canvas-workspace flex flex-col bg-node-panel-soft"
+      className="fixed inset-0 z-canvas-workspace flex bg-surface-workbench"
     >
-      <EditDeskTopBar
-        project={desk.project}
-        durationSec={desk.durationSec}
-        canUndo={canUndo}
-        onUndo={onUndo}
-        onBack={onExit}
-        onRename={desk.rename}
-        onExport={() => setExportOpen(true)}
-        reserveAssistantSlot={Boolean(assistant)}
-        shortcutPreset={shortcutPreset}
-        onShortcutPresetChange={setShortcutPreset}
-        status={
-          render.job && render.job.jobId !== landedJobId ? (
-            <EditDeskRenderStatus
-              job={render.job}
-              onCancel={() => void render.cancel()}
-              onClear={render.clear}
-              onDownload={onDownload}
-            />
-          ) : null
-        }
-      />
-
-      {render.resumable && !render.job ? (
-        <EditDeskResumeBar
-          job={render.resumable}
-          onResume={render.resume}
-          onDismiss={render.dismissResumable}
+      {/* 左边一列 = 素材入口（工作台左导航的长相）；手机只看不剪，不出。 */}
+      {readOnly ? null : (
+        <EditDeskAssetRail
+          activePanel={activePanel}
+          open={materialsOpen}
+          onPanelClick={(panel) => {
+            // 同一页再点 = 收回；别的页 = 换页并飞出。
+            if (materialsOpen && panel === activePanel) {
+              setMaterialsOpen(false)
+              return
+            }
+            setActivePanel(panel)
+            setMaterialsOpen(true)
+            // 自己去别的页了 = 刚才那条指路已经没意义。
+            if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
+          }}
         />
-      ) : null}
+      )}
 
+      {/* 助手开着时整块地台同一根弹簧让位（与图片台布局 A 同一套）。 */}
       <motion.div
         style={{ paddingRight: operatorYield }}
-        className="flex min-h-0 flex-1"
+        className="flex min-w-0 flex-1"
       >
-        {readOnly ? null : (
-          <EditDeskAssetRail
-            activePanel={activePanel}
-            open={materialsOpen}
-            onPanelClick={(panel) => {
-              // 同一页再点 = 收回；别的页 = 换页并飞出。
-              if (materialsOpen && panel === activePanel) {
-                setMaterialsOpen(false)
-                return
-              }
-              setActivePanel(panel)
-              setMaterialsOpen(true)
-              // 自己去别的页了 = 刚才那条指路已经没意义。
-              if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
-            }}
+        {/* 工作台地台：头部 `h-9` · 舞台白卡 · 时间线白卡（画板「剪辑台 A · 全部状态」）。
+            ⚠ 行距 `gap-3` 与头部高度是助手面板落点的依据（`EDIT_DESK_OPERATOR_ANCHOR`）。 */}
+        <div className="workbench-ground flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <EditDeskTopBar
+            project={desk.project}
+            durationSec={desk.durationSec}
+            canUndo={canUndo}
+            onUndo={onUndo}
+            onBack={onExit}
+            onRename={desk.rename}
+            onExport={() => setExportOpen(true)}
+            reserveAssistantSlot={Boolean(assistant)}
+            shortcutPreset={shortcutPreset}
+            onShortcutPresetChange={setShortcutPreset}
+            status={
+              render.job && render.job.jobId !== landedJobId ? (
+                <EditDeskRenderStatus
+                  job={render.job}
+                  onCancel={() => void render.cancel()}
+                  onClear={render.clear}
+                  onDownload={onDownload}
+                />
+              ) : render.resumable && !render.job ? (
+                <EditDeskResumeStatus
+                  job={render.resumable}
+                  onResume={render.resume}
+                  onDismiss={render.dismissResumable}
+                />
+              ) : null
+            }
           />
-        )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="relative flex min-h-0 flex-1 gap-4 bg-surface-workbench p-4">
+          <section
+            data-testid="edit-desk-stage"
+            aria-label={t('stage')}
+            className="workbench-card"
+          >
             <EditDeskReceipt
               receipt={shownReceipt}
               receiptKey={String(shownReceipt?.seq ?? 0)}
@@ -784,33 +790,35 @@ export function EditDesk({
               onLook={lookAtLanded}
               onHoverChange={setReceiptHovered}
             />
-            {/* 素材面板飞出来盖在舞台左上：⛔ 不推开舞台，高度只到舞台为止（⛔ 不盖
-                时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。 */}
+            {/* 素材面板从左列那颗图标处长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
+                为止（⛔ 不盖时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。
+                开合沿用工具行弹层那一套：0.72 → 1、由糊变清（`CHIP_POPOVER`）。 */}
             <AnimatePresence>
               {!readOnly && materialsOpen ? (
                 <motion.div
                   ref={materialsRef}
                   key="materials"
-                  initial={{ opacity: 0, x: -6, scale: 0.98 }}
+                  initial={{
+                    opacity: 0,
+                    scale: CHIP_POPOVER.fromScale,
+                    filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                  }}
                   animate={{
                     opacity: 1,
-                    x: 0,
                     scale: 1,
-                    transition: {
-                      duration: reduceMotion ? 0 : EDIT_FLYOUT_MOTION.inS,
-                      ease: 'easeOut',
-                    },
+                    filter: 'blur(0px)',
+                    transition: reduceMotion ? { duration: 0 } : SPRING.slot,
                   }}
                   exit={{
                     opacity: 0,
-                    x: -6,
-                    scale: 0.98,
+                    scale: CHIP_POPOVER.fromScale,
+                    filter: `blur(${CHIP_POPOVER.blurPx}px)`,
                     transition: {
-                      duration: reduceMotion ? 0 : EDIT_FLYOUT_MOTION.outS,
+                      duration: reduceMotion ? 0 : DURATION.base,
                       ease: 'easeIn',
                     },
                   }}
-                  className="absolute bottom-2 left-2 top-2 z-30 flex origin-top-left"
+                  className="absolute bottom-3 left-3 top-3 z-30 flex origin-top-left"
                 >
                   {/* ⚠ HTML5 的 `dragend` 挂在普通 div 上：motion 元素的 `onDragEnd`
                       是它自己的拖拽手势，接不到素材格的拖投。 */}
@@ -845,6 +853,10 @@ export function EditDesk({
               {...(readOnly
                 ? {}
                 : {
+                    onOpenMaterials: () => {
+                      setActivePanel(EDIT_PANEL_IDS.canvas)
+                      setMaterialsOpen(true)
+                    },
                     textEditing: {
                       selectedId: desk.selectedTextClip?.id ?? null,
                       editingId: editingTextVisibleId,
@@ -854,7 +866,7 @@ export function EditDesk({
                     },
                   })}
             />
-          </div>
+          </section>
 
           {/* 只看不剪：时间线仍然画（要看得见排片），但整块不接手势 ——
               `inert` 连键盘焦点一起挡掉，⛔ 不只是 `pointer-events-none`。 */}
@@ -869,6 +881,7 @@ export function EditDesk({
               onTool={onTool}
               onDropLibraryAsset={onDropLibraryAsset}
               highlightTrack={highlightTrack}
+              onScrubStart={() => setPlaying(false)}
               props={
                 <EditDeskInspector
                   desk={desk}

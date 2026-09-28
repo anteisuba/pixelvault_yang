@@ -1,10 +1,13 @@
 'use client'
 
 /**
- * 中间的预览（画板 `EditDesk.dc.html` 中列）。
+ * 舞台卡里的预览（画板「剪辑台 A · 全部状态」）：画面按高度定尺寸居中；画面上只有
+ * **左上一枚读数（镜头名 · 段内时间）** 和 **底部一条半透明播放条**（播放 · 整条进度 ·
+ * 时间 · 声音），与视频台的结果播放器同一个样子。
  *
- * 播放头落在哪一段，就把那一段的来源 url 交给 `VideoPlayer`（S6 那一只，⛔ 不
- * 另写一个播放器）。
+ * 播放头落在哪一段，就把那一段的来源 url 放进这一只 `<video>`。⚠ 播放条管的是**整条
+ * 成片**（进度 = 播放头 / 总长，点哪儿播放头就去哪儿），⛔ 不是这一段的原片 ——
+ * 所以这里不借节点卡那只 `VideoPlayer`（它的条是单个文件的）。
  *
  * ── 播放头 ↔ 预览是**同一根轴**（S8b 修 S8 遗留）────────────────────────
  * S8 那一版两边各走各的：拖播放头预览不动，按空格是「跳到下一段段首」而不是播放。
@@ -24,7 +27,14 @@
  * ⛔ 不放一个点了没反应的播放钮。
  */
 
-import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
+import { Pause, Play, Volume2, VolumeX } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -44,8 +54,6 @@ import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditProject, EditTextClip } from '@/types/node-workflow'
-
-import { VideoPlayer } from '../nodes/v4/video/VideoPlayer'
 
 export interface EditDeskPreviewProps {
   readonly project: EditProject
@@ -70,6 +78,8 @@ export interface EditDeskPreviewProps {
    * （手机档）：字幕仍是画面的一部分，⛔ 不接点击。
    */
   readonly textEditing?: PreviewTextEditing
+  /** 还没有片段时那颗「从画布素材加镜头」（手机只看不剪时缺席）。 */
+  onOpenMaterials?(): void
 }
 
 export interface PreviewTextEditing {
@@ -127,9 +137,11 @@ export function EditDeskPreview({
   onPlayheadChange,
   textClips,
   textEditing,
+  onOpenMaterials,
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [muted, setMuted] = useState(false)
   const node = row?.source.node
   const data = node?.data
   const url = row?.source.url
@@ -226,45 +238,80 @@ export function EditDeskPreview({
     if (!row && playing) onPlayingChange(false)
   }, [row, playing, onPlayingChange])
 
+  const aspect = project.settings.aspect
+  const progress = durationSec > 0 ? Math.min(1, playheadSec / durationSec) : 0
+  const sourceData = row?.source.node?.data
+  const shotName =
+    sourceData && sourceData.kind === NODE_MEDIA_KIND_IDS.video
+      ? (sourceData.label ?? sourceData.name)
+      : (sourceData?.name ?? '')
+
+  // 还没有片段：舞台上是一句话 + 一颗起手的键（与视频台的起手屏同一个样子）。
+  if (durationSec <= 0) {
+    return (
+      <div
+        data-testid="edit-desk-preview"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 text-center"
+      >
+        <span className="text-2xs font-semibold uppercase tracking-nav text-muted-foreground">
+          {t('title')}
+        </span>
+        <p className="text-md text-muted-foreground">{t('stageEmpty')}</p>
+        {onOpenMaterials ? (
+          <button
+            type="button"
+            data-testid="edit-desk-stage-open-materials"
+            onClick={onOpenMaterials}
+            className="h-9 rounded-full border border-border bg-muted px-4 text-2sm transition-colors duration-fast hover:bg-surface-fill"
+          >
+            {t('stageEmptyAction')}
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div
       data-testid="edit-desk-preview"
-      className="flex min-h-0 flex-1 items-center justify-center"
+      className="flex min-h-0 flex-1 items-center justify-center px-6 pb-5 pt-5.5"
       // 外层量尺寸：里面那只盒子用 `cqh` 按**预览区高**推宽，占满两个方向里先到顶的那个。
       style={{ containerType: 'size' }}
     >
       <div
-        className="relative max-h-full max-w-full overflow-hidden rounded-xl bg-muted"
+        className="relative max-h-full max-w-full overflow-hidden rounded-xl bg-neutral-950"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
-        // ⚠ 盒子**占满预览区**（owner 2026-09-11：「至少适配，不要浪费空间，最好占满」）：
-        // 宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个方向先到顶就贴哪个方向，
-        // 永远不出区（此前按宽撑 16:9 会顶穿顶栏）。
+        // ⚠ 盒子按预览区的高定尺寸：宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个
+        // 方向先到顶就贴哪个方向，永远不出区；助手开合时它不变大小，只多出两侧留白。
         style={{
-          aspectRatio: ASPECT_CSS[project.settings.aspect],
-          width: `min(100%, calc(100cqh * ${ASPECT_RATIO[project.settings.aspect]}))`,
+          aspectRatio: ASPECT_CSS[aspect],
+          width: `min(100%, calc(100cqh * ${ASPECT_RATIO[aspect]}))`,
           containerType: 'size',
         }}
       >
         {url ? (
-          <VideoPlayer
+          <video
             key={url}
-            url={url}
-            {...(poster ? { posterUrl: poster } : {})}
-            videoRef={videoRef}
-            title={t('previewTitle', { name: project.name })}
-            className="size-full"
+            ref={videoRef}
+            src={url}
+            {...(poster ? { poster } : {})}
+            muted={muted}
+            playsInline
+            preload="metadata"
+            aria-label={t('previewTitle', { name: project.name })}
+            className="size-full object-contain"
           />
         ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-1">
-            <p className="text-xs text-muted-foreground">{t('previewEmpty')}</p>
+          <div className="flex size-full items-center justify-center">
+            <p className="text-xs text-white/70">{t('previewEmpty')}</p>
           </div>
         )}
         {/*
-          字幕叠字（S8d · 画板左上那块预览）。⚠ 用**画面高的百分比**排字号与边距，
-          与渲染层同一套比例（`EDIT_TEXT_SIZE_SCALE`）—— 预览与成片不一致的字幕比
-          没有预览更糟：用户会照着预览摆，导出才发现字压在别处。
-          ⚠ 外层定位那一格 `pointer-events-none`（它可能横跨整幅画面，⛔ 不抢播放器
+          字幕叠字（S8d）。⚠ 用**画面高的百分比**排字号与边距，与渲染层同一套比例
+          （`EDIT_TEXT_SIZE_SCALE`）—— 预览与成片不一致的字幕比没有预览更糟：用户会
+          照着预览摆，导出才发现字压在别处。
+          ⚠ 外层定位那一格 `pointer-events-none`（它可能横跨整幅画面，⛔ 不抢播放条
           的点击）；只有字本身能点。
         */}
         {textClips.map((clip) => (
@@ -300,37 +347,86 @@ export function EditDeskPreview({
             )}
           </div>
         ))}
-        {/*
-          两个读数**分开放**（S9 修 S8 遗留）：
-          - 右上 = **整条时间线**的位置（播放头 / 成片总长）；
-          - 左上 = **当前段**的位置（段内已播 / 段长）。
-          S8 那一版把段读数也挤在右下，与播放器自己的时间码叠在同一格上，1440
-          以下直接糊成一团。⚠ 播放器**底部那一条**（transport + 它自己的时间码）
-          是它自己的，所以两个读数都走顶部 —— ⛔ 别塞回底部去跟 transport 抢那一行。
-        */}
-        <span
-          data-testid="edit-desk-clock"
-          className="canvas-glass pointer-events-none absolute right-3 top-2 rounded-full px-2 py-0.5 text-2xs tabular-nums"
-        >
-          {t('clock', {
-            at: formatEditClock(playheadSec, true),
-            total: formatEditClock(durationSec),
-          })}
-        </span>
+
+        {/* 左上一枚读数：这一段是哪一镜、段内走到哪儿。压在画面上的 chrome 固定明暗
+            （ui-defaults §2.4 媒体 chrome 例外）。 */}
         {row ? (
           <span
             data-testid="edit-desk-clip-clock"
-            className="canvas-glass pointer-events-none absolute left-3 top-2 rounded-full px-2 py-0.5 text-2xs tabular-nums"
+            className="pointer-events-none absolute left-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 font-mono text-2xs leading-5.5 text-white backdrop-blur-md"
           >
-            {t('clipClock', {
+            {t('clipBadge', {
+              name: shotName,
               at: formatEditClock(
                 Math.max(0, playheadSec - row.startSec),
                 true,
               ),
-              total: formatEditClock(row.durationSec),
+              total: formatEditClock(row.durationSec, true),
             })}
           </span>
         ) : null}
+
+        {/* 底部播放条：播放 · 整条成片的进度（点哪儿播放头去哪儿）· 时间 · 声音。 */}
+        <div className="absolute inset-x-3 bottom-3 flex h-8.5 items-center gap-2.5 rounded-xl bg-neutral-950/45 px-3 text-white backdrop-blur-md">
+          <button
+            type="button"
+            data-testid="edit-desk-play"
+            aria-label={playing ? t('pause') : t('play')}
+            onClick={() => onPlayingChange(!playing)}
+            disabled={!url}
+            className="grid size-6 shrink-0 place-items-center rounded-md transition-colors duration-fast hover:bg-white/15 disabled:opacity-50"
+          >
+            {playing ? (
+              <Pause className="size-3.5" aria-hidden />
+            ) : (
+              <Play className="size-3.5" aria-hidden />
+            )}
+          </button>
+          <div
+            data-testid="edit-desk-scrub"
+            role="slider"
+            aria-label={t('scrub')}
+            aria-valuemin={0}
+            aria-valuemax={Math.round(durationSec * 10) / 10}
+            aria-valuenow={Math.round(playheadSec * 10) / 10}
+            tabIndex={0}
+            onPointerDown={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect()
+              if (rect.width <= 0) return
+              const ratio = (event.clientX - rect.left) / rect.width
+              onPlayheadChange(Math.max(0, Math.min(1, ratio)) * durationSec)
+            }}
+            className="relative h-4 min-w-0 flex-1 cursor-pointer"
+          >
+            <span className="absolute inset-x-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white/30" />
+            <span
+              className="absolute left-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white"
+              style={{ width: `${progress * 100}%` }}
+            />
+          </div>
+          <span
+            data-testid="edit-desk-clock"
+            className="shrink-0 font-mono text-2xs tabular-nums"
+          >
+            {t('clock', {
+              at: formatEditClock(playheadSec, true),
+              total: formatEditClock(durationSec, true),
+            })}
+          </span>
+          <button
+            type="button"
+            aria-label={muted ? t('unmute') : t('mute')}
+            aria-pressed={muted}
+            onClick={() => setMuted((current) => !current)}
+            className="grid size-6 shrink-0 place-items-center rounded-md transition-colors duration-fast hover:bg-white/15"
+          >
+            {muted ? (
+              <VolumeX className="size-3.5" aria-hidden />
+            ) : (
+              <Volume2 className="size-3.5" aria-hidden />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )

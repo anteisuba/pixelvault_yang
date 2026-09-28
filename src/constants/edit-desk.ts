@@ -8,7 +8,7 @@
  */
 
 import {
-  STUDIO_OPERATOR_SHELL,
+  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 
@@ -115,26 +115,31 @@ export const EDIT_PANELS: readonly EditPanelId[] = [
   EDIT_PANEL_IDS.transition,
 ]
 
-/** 画板上的几何。⚠ 每个数都能在 `EditDesk.dc.html` 里指出出处。 */
+/**
+ * 台面几何（「剪辑台 A · 全部状态」画板，owner 2026-09-28 定稿：工作台那一套卡片语言）。
+ * ⚠ 每一条轨是一道轨槽，段在槽里上下各让 `laneInsetPx`：段高 + 两倍让位 = 轨高。
+ */
 export const EDIT_DESK_LAYOUT = {
-  /** 顶栏高（画板 height:48）。 */
-  topBarHeightPx: 48,
-  /** 左侧面板宽（画板 width:236）。 */
+  /** 素材面板宽（画板 `.ed-fly` 268 减去内边距后的内容宽，沿用 236 的两列格）。 */
   panelWidthPx: 236,
-  /** 段高（画板 `.clip { height:52 }`，与 spec §6「段高 52」同一个数）。 */
+  /** 画面段高（spec §6「段高 52」）。画面轨 = 52 + 3 × 2。 */
   clipHeightPx: 52,
-  /** 音轨波形条高（画板 `.wave { height:26 }`）。 */
-  waveHeightPx: 26,
-  /** 轨道名列宽（画板 `.lbl { width:32 }`）。 */
-  trackLabelWidthPx: 32,
+  /** 配音 / 配乐段高。声音轨 = 30 + 3 × 2。 */
+  waveHeightPx: 30,
+  /** 段在轨槽里上下各让多少。 */
+  laneInsetPx: 3,
+  /** 左边轨道名那一列宽（画板 `.ed-heads`）。 */
+  trackHeadWidthPx: 64,
+  /** 标尺高（画板 `.ed-rul`）。 */
+  rulerHeightPx: 22,
   /** 素材缩略高（画板 `.ptile { height:64 }`）。 */
   assetTileHeightPx: 64,
   /** 播放头宽（画板 width:2）。 */
   playheadWidthPx: 2,
   /** 段之间的空隙（画板 gap:4）。 */
   clipGapPx: 4,
-  /** 裁剪手柄宽（画板 `.handle { width:7 }`）。 */
-  handleWidthPx: 7,
+  /** 裁剪手柄宽（画板 `.hl` / `.hr`）。 */
+  handleWidthPx: 9,
   /** 转场菱形边长（画板 12）。 */
   transitionMarkPx: 12,
   /**
@@ -183,8 +188,17 @@ export const EDIT_TIMELINE_FIT = {
 export const EDIT_TIMELINE_TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120] as const
 export const EDIT_TIMELINE_TICK_MIN_PX = 64
 
-/** 素材面板飞出 / 收回（④ A 关键切片动效表：220ms ease-out / 160ms ease-in）。 */
-export const EDIT_FLYOUT_MOTION = { inS: 0.22, outS: 0.16 } as const
+/**
+ * 时间线缩放（owner 2026-09-28 画板「时间线放大 · 横向滚动」）：1 = 铺满整条；放大后
+ * 横向滚动，以播放头为中心。`maxPxPerSecond` 管放大的上限（铺满那一档仍按
+ * `EDIT_TIMELINE_FIT` 夹）。
+ */
+export const EDIT_TIMELINE_ZOOM = {
+  min: 1,
+  max: 6,
+  step: 0.5,
+  maxPxPerSecond: 720,
+} as const
 
 /**
  * 舞台上方那条回执（④ A 关键切片动效表：180ms 淡入上移 4px / 180ms 淡出）。
@@ -305,21 +319,13 @@ export type EditDeskLibraryFilterId =
  * 模式（而不是页）的全部理由。
  */
 /**
- * 剪辑台里助手面板的落点（④ 方向 A「舞台」，owner 2026-09-28）：头像留在顶栏最右那
- * 一格当开关，面板是舞台右边一列、从右侧滑入，舞台同一根弹簧让位（与图片台布局 A
- * 同一套 `avatarStays`）。四个数都是距视口上缘 / 右缘的 px。
- * ⚠ 头像那一格与 `globals.css` 的 `--spacing-edit-desk-avatar-slot`（60 = 12 + 36 + 12）
- *   同源，改一边必须改另一边。
+ * 剪辑台里助手面板的落点：**就是图片台布局 A 那一个**（画板「剪辑台 A · 全部状态」
+ * 用工作台的地台几何：内边距 18 · 头部 `h-9` · 行距 `gap-3`）。头像留在头部最右那
+ * 一格当开关，面板贴舞台右边滑入、舞台同一根弹簧让位。
+ * ⚠ 台面改地台几何时，这里跟着 `StudioWorkbenchLayout` 的 `bottom` 分支一起改。
  */
-export const EDIT_DESK_OPERATOR_ANCHOR: StudioOperatorShellAnchor = {
-  avatarTopPx:
-    (EDIT_DESK_LAYOUT.topBarHeightPx - STUDIO_OPERATOR_SHELL.avatarSizePx) / 2,
-  avatarRightPx: 12,
-  panelTopPx: EDIT_DESK_LAYOUT.topBarHeightPx + 12,
-  panelRightPx: 12,
-  panelBottomPx: 12,
-  avatarStays: true,
-}
+export const EDIT_DESK_OPERATOR_ANCHOR: StudioOperatorShellAnchor =
+  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR
 
 export const EDIT_DESK_MODE_PARAM = 'mode'
 export const EDIT_DESK_MODE_VALUE = 'edit'
@@ -476,8 +482,8 @@ export const EDIT_TEXT_CLIP_MIN_DURATION_SEC = EDIT_CLIP_MIN_DURATION_SEC
 export const EDIT_TEXT_MAX_LENGTH = 500
 
 /** T 段高 / T 轨行高（画板 `.tclip { height:32 }` / `.lane { height:44 }`）。 */
-export const EDIT_TEXT_CLIP_HEIGHT_PX = 32
-export const EDIT_TEXT_LANE_HEIGHT_PX = 44
+export const EDIT_TEXT_CLIP_HEIGHT_PX = 24
+export const EDIT_TEXT_LANE_HEIGHT_PX = 30
 
 /* ─── 快捷键预设（S8d · spec §6「快捷键」）─────────────────────────────── */
 

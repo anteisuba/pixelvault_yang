@@ -6257,14 +6257,15 @@
         "textEmpty": "No text cards on the canvas yet",
         "loading": "Loading…",
         "loadMore": "Load more",
-        "libraryEmpty": "No video or audio in your library yet"
+        "libraryEmpty": "No video or audio in your library yet",
+        "title": "Materials"
       },
       "tracks": {
-        "video": "V",
-        "audio": "A",
-        "music": "M",
+        "video": "Picture",
+        "audio": "Voice",
+        "music": "Music",
         "empty": "Drop media here",
-        "text": "T",
+        "text": "Captions",
         "textEmpty": "Press “Text” to drop a caption at the playhead"
       },
       "tools": {
@@ -6281,6 +6282,22 @@
       "clipTag": "{name} · {duration}",
       "previewTitle": "Preview · {name}",
       "previewEmpty": "No clip under the playhead",
+      "stage": "Preview",
+      "stageEmpty": "No clips yet",
+      "stageEmptyAction": "Add shots from the canvas",
+      "play": "Play",
+      "pause": "Pause",
+      "scrub": "Cut progress",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · {length}s long",
+      "zoom": {
+        "label": "Timeline zoom",
+        "in": "Zoom in",
+        "out": "Zoom out",
+        "fit": "Fit"
+      },
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "Select a clip to see its settings",
@@ -6314,7 +6331,7 @@
         "confirm": "Start export",
         "pending": "Exporting “{range}” isn't available yet."
       },
-      "clipClock": "Clip {at} / {total}",
+      "clipBadge": "{name} · {at} / {total}",
       "render": {
         "exporting": "Exporting · {step} {percent}%",
         "done": "The cut is ready",

@@ -128,9 +128,6 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-  /* 剪辑台顶栏右端给助手头像留的那一格（④ 方向 A，owner 2026-09-28）：头像 36 +
-     距右缘 12 + 与导出键的间距 12，与 `EDIT_DESK_OPERATOR_ANCHOR` 同源。 */
-  --spacing-edit-desk-avatar-slot: 3.75rem;
   /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板浮在它右侧。
      渠道面板 220px（owner 09-24：190px 时「MiniMax China」被截成「MiniMax (…」，
      价格一栏占掉一半，两条渠道分不清）。 */

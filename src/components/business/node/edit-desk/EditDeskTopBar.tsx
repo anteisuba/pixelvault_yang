@@ -1,11 +1,12 @@
 'use client'
 
 /**
- * 剪辑台顶栏（画板 `EditDesk.dc.html` 第一条 48 高）：
- * **回画布 · 成片名（可改）· 读数 · 撤销 · 导出**。
+ * 剪辑台头部那一行（画板「剪辑台 A · 全部状态」：工作台地台上的 `h-9` 头部，⛔ 不再是
+ * 一条带底边的白色顶栏）：**回画布 · 成片名（可改）· 读数 / 导出进度 · 撤销 · 快捷键 ·
+ * 导出**，最右那一格留给助手头像。
  *
- * ⚠ 只有这五样。画布顶栏的项目胶囊 / 助手不在这里 —— 剪辑台是全屏模式，进来就是
- * 为了剪一条片子，⛔ 不把外壳的东西再摆一遍。
+ * ⚠ 只有这几样。画布顶栏的项目胶囊不在这里 —— 剪辑台是全屏模式，进来就是为了剪一条
+ * 片子，⛔ 不把外壳的东西再摆一遍。
  */
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -13,7 +14,6 @@ import { ChevronLeft, Keyboard, Undo2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
-  EDIT_DESK_LAYOUT,
   EDIT_PROJECT_NAME_MAX_LENGTH,
   EDIT_SHORTCUT_ACTIONS,
   EDIT_SHORTCUT_POPOVER_WIDTH_PX,
@@ -25,13 +25,13 @@ import { formatEditDurationShort } from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
 import type { EditProject } from '@/types/node-workflow'
 
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
 
-import { Segmented } from './EditDeskInspector'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
 
 export interface EditDeskTopBarProps {
@@ -43,16 +43,16 @@ export interface EditDeskTopBarProps {
   onRename(name: string): void
   onExport(): void
   /**
-   * 给助手头像留出最右那一格（④ 方向 A）：头像是 Dock 自己那颗 `fixed` 开关，落在
-   * `EDIT_DESK_OPERATOR_ANCHOR` 的位置，顶栏只负责不在它底下摆东西。
+   * 给助手头像留出最右那一格：头像是 Dock 自己那颗 `fixed` 开关，落在
+   * `EDIT_DESK_OPERATOR_ANCHOR`（= 图片台布局 A）的位置，头部只负责不在它底下摆东西。
    */
   readonly reserveAssistantSlot?: boolean
   /** 当前快捷键预设（S8d）。 */
   readonly shortcutPreset: EditShortcutPresetId
   onShortcutPresetChange(preset: EditShortcutPresetId): void
   /**
-   * 导出中（④ A：「时长 / 比例 / 清晰度」那一格换成进度 + 取消）。缺席 = 读数。
-   * ⛔ 不再在顶栏下面另起一条进度栏。
+   * 导出中 / 上次没跑完（「时长 / 比例 / 清晰度」那一格换成进度或一句话 + 键）。
+   * 缺席 = 读数。⛔ 不在头部下面另起一条栏。
    */
   readonly status?: ReactNode
 }
@@ -87,17 +87,17 @@ export function EditDeskTopBar({
   return (
     <div
       data-testid="edit-desk-top-bar"
-      style={{ height: EDIT_DESK_LAYOUT.topBarHeightPx }}
       className={cn(
-        'flex shrink-0 items-center gap-3 border-b border-border bg-card pl-2',
-        reserveAssistantSlot ? 'pr-edit-desk-avatar-slot' : 'pr-3',
+        'flex h-9 shrink-0 items-center gap-3',
+        // 头像 36 + 与导出键的间距 12（头像本身住在地台内边距那 18 里）。
+        reserveAssistantSlot && 'pr-12',
       )}
     >
       <button
         type="button"
         data-testid="edit-desk-back"
         onClick={onBack}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md pl-1.5 pr-2.5 text-xs text-foreground transition-colors duration-fast hover:bg-muted"
+        className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg pl-1.5 pr-3 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
       >
         <ChevronLeft className="size-4 shrink-0" aria-hidden />
         <span>{t('back')}</span>
@@ -120,7 +120,7 @@ export function EditDeskTopBar({
               }
               event.stopPropagation()
             }}
-            className="h-7 max-w-56 rounded-md border border-input bg-background px-2 text-sm font-semibold text-foreground outline-none"
+            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-md font-semibold text-foreground outline-none"
           />
         ) : (
           <button
@@ -130,7 +130,7 @@ export function EditDeskTopBar({
               setDraft(project.name)
               setEditing(true)
             }}
-            className="max-w-56 truncate rounded-md px-1 text-sm font-semibold text-foreground transition-colors duration-fast hover:bg-muted"
+            className="max-w-56 truncate rounded-md px-1 text-md font-semibold text-foreground transition-colors duration-fast hover:bg-surface-fill"
           >
             {project.name}
           </button>
@@ -138,7 +138,7 @@ export function EditDeskTopBar({
         {status ?? (
           <span
             data-testid="edit-desk-readout"
-            className="text-xs tabular-nums text-muted-foreground"
+            className="font-mono text-xs tabular-nums text-muted-foreground"
           >
             {t('readout', {
               duration: formatEditDurationShort(durationSec),
@@ -149,7 +149,7 @@ export function EditDeskTopBar({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5">
         <ShellIconButton
           icon={Undo2}
           label={t('undo')}
@@ -165,7 +165,7 @@ export function EditDeskTopBar({
           type="button"
           data-testid="edit-desk-export"
           onClick={onExport}
-          className="inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
+          className="ml-1.5 inline-flex h-8 items-center rounded-full bg-primary px-4 text-2sm font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
         >
           {t('export')}
         </button>
@@ -199,7 +199,7 @@ function ShortcutPresetPopover({
           aria-label={t('title')}
           title={t('title')}
           data-testid="edit-desk-shortcuts"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
         >
           <Keyboard className="size-4" aria-hidden />
         </button>
@@ -210,13 +210,15 @@ function ShortcutPresetPopover({
         style={{ width: EDIT_SHORTCUT_POPOVER_WIDTH_PX }}
         className="flex flex-col gap-2.5 p-3"
       >
-        <Segmented
-          testId="edit-desk-preset"
-          options={EDIT_SHORTCUT_PRESETS.map((candidate) => ({
-            id: candidate,
+        <LiquidSegmented
+          ariaLabel={t('title')}
+          semantics="radio"
+          fill
+          value={preset}
+          onChange={onPresetChange}
+          items={EDIT_SHORTCUT_PRESETS.map((candidate) => ({
+            value: candidate,
             label: t(`presets.${candidate}`),
-            active: candidate === preset,
-            onSelect: () => onPresetChange(candidate),
           }))}
         />
         <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 text-2xs">
@@ -225,7 +227,7 @@ function ShortcutPresetPopover({
               <dt className="text-foreground">{t(`actions.${action}`)}</dt>
               <dd
                 data-testid={`edit-desk-shortcut-${action}`}
-                className="justify-self-end rounded-md border border-border px-1.5 py-px text-3xs text-muted-foreground"
+                className="justify-self-end rounded-md border border-border px-1.5 py-px font-mono text-3xs text-muted-foreground"
               >
                 {keys[action]}
               </dd>

@@ -116,13 +116,12 @@
   fork 仓库 HEAD `c1dbf58`（2026-07-18）。要切生产得走 fork 构建 + template + 端点滚动。
 - **Krea 2** 当前 `generatability = 'external'`，且 `normalizeToLoraBaseFamily` **故意**对它返回 null
   —— 加分类只开浏览、不开生成，这是有意为之，别"顺手修正"。
-  - **闸是版本，不是意愿**：Krea 2 原生支持要 ComfyUI **≥ 0.27**，而 runner 基础镜像 `worker-comfyui 5.8.6`
-    内置 **0.25.0**。upstream main 已把 ComfyUI 钉到 **0.29.0 但尚未发版** —— 所以这条从「时间不可控」
-    降级成「只差发版」。⚠ 查进度**只看 tag 会误判**，要看 upstream main 的版本声明 + `.changeset/`。
-  - 发版后接通 r4b 管线（fork 构建 → template → 端点滚动，同 r4a 那条路），届时把
-    `CIVITAI_BASE_MODEL_GENERATABILITY['Krea 2']` 翻成 `'native'`。在那之前 UI 引导去 Civitai。
-- hosted 后端挂社区 LoRA 会报 `layer ... not supported`（illustrious-xl 走 Replicate 托管端点时实测），
-  这是**托管后端的能力边界**，不是配置问题 —— 能力路由把这类请求升到 runner 就是为了它。
+  - 版本闸已开：Krea 2 原生支持要 ComfyUI **≥ 0.27**，生产 2026-09-28 已换官方 5.10 底座（0.34）。
+    owner 定 Krea 2 放在下一轮；接通时把 `CIVITAI_BASE_MODEL_GENERATABILITY['Krea 2']` 翻成
+    `'native'`，在那之前 UI 引导去 Civitai。
+- 托管 LoRA 底模 2026-09-17 全部退役。它们挂社区 LoRA 报的 `layer ... not supported`（错误码
+  `lora_incompatible_hosted`）只为历史记录的文案保留；为它而设的「能力路由」（托管 Illustrious 遇到
+  白名单 LoRA 升到 Runner）与 LoRA 白名单 2026-09-28 删除——任意 LoRA 早已按需从 R2 下到卷上。
 
 ---
 

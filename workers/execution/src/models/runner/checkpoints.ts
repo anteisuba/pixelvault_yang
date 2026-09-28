@@ -1,12 +1,11 @@
 /**
- * Comfy Runner (RunPod Serverless ComfyUI) checkpoint + LoRA manifest —
- * Worker-side copy.
+ * Comfy Runner (RunPod Serverless ComfyUI) checkpoint manifest — Worker-side
+ * copy.
  *
  * Mirrors `src/constants/runner-checkpoints.ts` on the Next.js side. This
  * worker is a separate package/build target (Cloudflare Workers runtime, no
  * access to `@/constants`), so the manifest is duplicated by hand. If you
- * add/remove a checkpoint or allowlisted LoRA on one side, mirror the change
- * on the other.
+ * add/remove a checkpoint on one side, mirror the change on the other.
  *
  * Volume 布局与预置资产清单见 docs/references/domains/runner.md §3。
  */
@@ -105,47 +104,4 @@ export function getRunnerCheckpointById(
   id: string,
 ): RunnerCheckpointDefinition | undefined {
   return RUNNER_CHECKPOINTS.find((checkpoint) => checkpoint.id === id)
-}
-
-/**
- * LoRAs known to be pre-baked on the RunPod Network Volume, keyed by Civitai
- * modelVersionId. RunPod's stock `worker-comfyui` image can't download LoRAs
- * at request time (HANDOFF §2.3/§10) — only a LoRA already on the Volume and
- * listed here can be mounted. Anything else must fail loudly.
- */
-export interface RunnerLoraAllowlistEntry {
-  civitaiModelVersionId: number
-  /** Exact filename on the Volume (`models/loras/<filename>`). */
-  filename: string
-}
-
-export const RUNNER_LORA_ALLOWLIST: readonly RunnerLoraAllowlistEntry[] = [
-  {
-    civitaiModelVersionId: 1672783,
-    filename: 'tutenstein-cleo-carter-v1.safetensors',
-  },
-]
-
-const CIVITAI_DOWNLOAD_MODEL_VERSION_PATTERN =
-  /civitai\.com\/api\/download\/models\/(\d+)/
-
-export function extractCivitaiModelVersionId(url: string): number | null {
-  const match = url.match(CIVITAI_DOWNLOAD_MODEL_VERSION_PATTERN)
-  if (!match) return null
-  const versionId = Number(match[1])
-  return Number.isFinite(versionId) ? versionId : null
-}
-
-/**
- * Resolves a LoRA download URL to its allowlisted Volume filename, or `null`
- * if it isn't pre-baked (not an error by itself — callers decide whether to
- * fail or silently skip based on context).
- */
-export function resolveRunnerLoraFilename(loraUrl: string): string | null {
-  const versionId = extractCivitaiModelVersionId(loraUrl)
-  if (versionId == null) return null
-  const entry = RUNNER_LORA_ALLOWLIST.find(
-    (candidate) => candidate.civitaiModelVersionId === versionId,
-  )
-  return entry?.filename ?? null
 }

@@ -1,15 +1,14 @@
 /**
- * Comfy Runner (RunPod Serverless ComfyUI) checkpoint + LoRA manifest.
+ * Comfy Runner (RunPod Serverless ComfyUI) checkpoint manifest.
  *
- * Single source of truth for "what's actually on the RunPod Network Volume"
- * on the Next.js side — used for route/capability decisions (which model id
- * maps to which checkpoint, which LoRAs are safe to send to the runner).
+ * Single source of truth on the Next.js side for which model id maps to which
+ * checkpoint and its own sampling defaults. LoRAs are not listed: any Civitai /
+ * Hugging Face LoRA is fetched at request time (R2 → Volume).
  *
  * The Cloudflare Worker (`workers/execution/src/models/runner/checkpoints.ts`)
  * keeps an equivalent manifest — it's a separate package/build target and
  * can't import from `src/constants`, so the two are kept in sync by hand.
- * If you add/remove a checkpoint or allowlisted LoRA here, mirror the change
- * there too.
+ * If you add/remove a checkpoint here, mirror the change there too.
  *
  * See docs/references/domains/runner.md.
  */
@@ -185,56 +184,4 @@ export function isRunnerNegativePromptInert(
   cfgOverride?: number | null,
 ): boolean {
   return Math.abs(resolveRunnerCfg(checkpointId, cfgOverride) - 1) < 1e-9
-}
-
-/**
- * LoRAs known to be present on the RunPod Network Volume, keyed by Civitai
- * modelVersionId. v1 uses RunPod's stock `worker-comfyui` image, which does
- * NOT support downloading LoRAs at request time (see HANDOFF §2.3/§10) — a
- * LoRA can only be mounted on a runner generation if it's pre-baked into the
- * Volume and listed here. Anything else must fail loudly rather than silently
- * generating without the requested LoRA.
- */
-export interface RunnerLoraAllowlistEntry {
-  civitaiModelVersionId: number
-  /** Exact filename on the Volume (`models/loras/<filename>`). */
-  filename: string
-  family: RunnerCheckpointFamily
-  displayName: string
-}
-
-export const RUNNER_LORA_ALLOWLIST: readonly RunnerLoraAllowlistEntry[] = [
-  {
-    civitaiModelVersionId: 1672783,
-    filename: 'tutenstein-cleo-carter-v1.safetensors',
-    family: 'illustrious',
-    displayName: 'Tutenstein Cleo Carter V1',
-  },
-] as const
-
-const CIVITAI_DOWNLOAD_MODEL_VERSION_PATTERN =
-  /civitai\.com\/api\/download\/models\/(\d+)/
-
-/** Extracts the Civitai modelVersionId from a LoRA download URL, if present. */
-export function extractCivitaiModelVersionId(url: string): number | null {
-  const match = url.match(CIVITAI_DOWNLOAD_MODEL_VERSION_PATTERN)
-  if (!match) return null
-  const versionId = Number(match[1])
-  return Number.isFinite(versionId) ? versionId : null
-}
-
-/** Resolves a LoRA URL to its allowlisted runner manifest entry, if any. */
-export function findRunnerLoraAllowlistEntry(
-  loraUrl: string,
-): RunnerLoraAllowlistEntry | undefined {
-  const versionId = extractCivitaiModelVersionId(loraUrl)
-  if (versionId == null) return undefined
-  return RUNNER_LORA_ALLOWLIST.find(
-    (entry) => entry.civitaiModelVersionId === versionId,
-  )
-}
-
-/** Whether a LoRA URL is currently mountable on the runner (pre-baked on the Volume). */
-export function isRunnerLoraAvailable(loraUrl: string): boolean {
-  return findRunnerLoraAllowlistEntry(loraUrl) !== undefined
 }

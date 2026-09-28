@@ -27,7 +27,6 @@ import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
-import { resolveRunnerCapableModelId } from '@/services/image/runner-capability-routing.service'
 import { getProviderAdapter } from '@/services/providers/registry'
 import {
   fetchAsBuffer,
@@ -479,24 +478,11 @@ export async function resolveImageRouteAndValidate(
     }
   }
 
-  // Capability routing (HANDOFF §4.2): a hosted model that can't load the
-  // attached LoRA (known via the runner allowlist) transparently upgrades to
-  // its runner-backed counterpart instead of failing with the hosted
-  // provider's raw "layer not supported" error. No-op unless both the
-  // upgrade target exists and is flag-enabled.
-  const effectiveModelId = resolveRunnerCapableModelId(
-    input.modelId,
-    input.advancedParams?.loras,
-  )
-
-  const resolvedRoute = await resolveRouteFn(ensuredUser.id, {
-    ...input,
-    modelId: effectiveModelId,
-  })
+  const resolvedRoute = await resolveRouteFn(ensuredUser.id, input)
 
   if (
     input.advancedParams?.novelAiLayout &&
-    !supportsNovelAiCharacters(effectiveModelId)
+    !supportsNovelAiCharacters(input.modelId)
   ) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
@@ -507,7 +493,7 @@ export async function resolveImageRouteAndValidate(
 
   // 人数上限**逐模型**不同（V5 22 人自由定位 / V4.5 6 人 5×5 网格）。schema 卡的
   // 是名册里最大的那个数，所以真上限只能在这里按型号判。
-  const maxCharacters = getNovelAiMaxCharacters(effectiveModelId)
+  const maxCharacters = getNovelAiMaxCharacters(input.modelId)
   if (
     input.advancedParams?.novelAiLayout &&
     input.advancedParams.novelAiLayout.characters.length > maxCharacters
@@ -519,7 +505,7 @@ export async function resolveImageRouteAndValidate(
     )
   }
 
-  const builtInModel = getModelByIdFn(effectiveModelId)
+  const builtInModel = getModelByIdFn(input.modelId)
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
@@ -545,10 +531,7 @@ export async function resolveImageRouteAndValidate(
     resolvedRoute.adapterType === AI_ADAPTER_TYPES.BYTEPLUS ||
     resolvedRoute.adapterType === AI_ADAPTER_TYPES.PIXAI
   ) {
-    const config = getCapabilityConfig(
-      resolvedRoute.adapterType,
-      effectiveModelId,
-    )
+    const config = getCapabilityConfig(resolvedRoute.adapterType, input.modelId)
     for (const [field, options] of [
       ['quality', config.qualityOptions],
       ['inputFidelity', config.inputFidelityOptions],
@@ -610,7 +593,7 @@ export async function resolveImageRouteAndValidate(
   {
     const naiConfig = getCapabilityConfig(
       resolvedRoute.adapterType,
-      effectiveModelId,
+      input.modelId,
     )
     const declared = new Set(naiConfig.capabilities)
     for (const [field, options] of [
@@ -702,7 +685,7 @@ export async function resolveImageRouteAndValidate(
   // over-cap array. Reject before reaching the provider so users get a
   // structured error rather than a 4xx from the upstream service.
   const refCap = getReferenceCapabilityMax(
-    getImageReferenceCapability(resolvedRoute.adapterType, effectiveModelId),
+    getImageReferenceCapability(resolvedRoute.adapterType, input.modelId),
   )
   if (hasReferenceImage && refCap === 0) {
     throw new GenerateImageServiceError(

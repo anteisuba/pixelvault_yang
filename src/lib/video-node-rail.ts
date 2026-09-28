@@ -10,10 +10,16 @@
  * 所以序号只能由这一份读函数发，⛔ 组件里不另数一遍（数两遍就会与 @ 对不上）。
  */
 
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { readSlotSources } from '@/lib/node-slot-payload'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
+import type {
+  NodeV4,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowStateV4,
+} from '@/types/node-workflow'
 
 export const VIDEO_RAIL_GROUP_IDS = {
   image: 'image',
@@ -166,4 +172,181 @@ export function videoRailCounts(entries: readonly VideoRailEntry[]): {
       (entry) => entry.slot === NODE_SLOT_IDS.reference,
     ).length,
   }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * 轨变了，正文里的号跟着走（owner 2026-09-28）
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+const RAIL_PREFIX_GROUP = new Map<string, VideoRailGroupId>(
+  VIDEO_RAIL_GROUPS.flatMap((group) =>
+    VIDEO_RAIL_MENTION_PREFIXES[group].map(
+      (prefix) => [prefix.toLowerCase(), group] as const,
+    ),
+  ),
+)
+
+/**
+ * `@图2`：前缀 + 序号，序号后面不能紧跟数字（`@图12` 不是 `@图1`）。尾随的一个
+ * 空格一并捕获 —— 删掉一项时连它一起删，⛔ 不在正文里留两个空格。
+ */
+const RAIL_MENTION_PATTERN = new RegExp(
+  `@(${[...RAIL_PREFIX_GROUP.keys()].join('|')})(\\d+)(?!\\d)( ?)`,
+  'giu',
+)
+
+/** 认人的键：组 + 源节点；同一张在组里出现两次，按出现次序各算一个。 */
+function railIdentityKeys(
+  entries: readonly VideoRailEntry[],
+): Map<string, string> {
+  const seen = new Map<string, number>()
+  const keys = new Map<string, string>()
+  for (const entry of entries) {
+    const base = `${entry.group}:${entry.sourceNodeId}`
+    const occurrence = (seen.get(base) ?? 0) + 1
+    seen.set(base, occurrence)
+    keys.set(`${entry.group}:${entry.index}`, `${base}#${occurrence}`)
+  }
+  return keys
+}
+
+/**
+ * 轨变了之后，把正文里的 `@图N` / `@视频N` / `@语音N` 按「**是哪一张**」对回去。
+ *
+ * 为什么要有它：序号由 `readVideoRail` 现发，删一项后面顺位、把一张图设成首帧整组
+ * 后移 —— 正文不跟着改，`@图2` 就悄悄指到了另一张图，发出去的也跟着错。
+ *
+ * - 认人按「组 + 源节点」，⛔ 不按序号；前缀原样保留（打的是 `@image2` 就还写 image）。
+ * - 这一项被拿掉了：它的 `@` 连同尾随空格一起删（与 `removeMentionsForSource` 同一
+ *   条理由：留着就会指向别人）。
+ * - 轨上本来就没有的号（`@图9` 而轨上只有 3 张）原样不动 —— 那不是这一次改动造成的。
+ */
+export function remapVideoRailMentions(
+  text: string,
+  before: readonly VideoRailEntry[],
+  after: readonly VideoRailEntry[],
+): string {
+  if (!text.includes('@')) return text
+  const beforeKeys = railIdentityKeys(before)
+  const afterIndexByKey = new Map<string, number>()
+  for (const [slotKey, identity] of railIdentityKeys(after)) {
+    afterIndexByKey.set(identity, Number(slotKey.split(':')[1]))
+  }
+  let changed = false
+  const next = text.replace(
+    RAIL_MENTION_PATTERN,
+    (match, prefix: string, digits: string, space: string) => {
+      const group = RAIL_PREFIX_GROUP.get(prefix.toLowerCase())
+      const identity = group
+        ? beforeKeys.get(`${group}:${Number(digits)}`)
+        : undefined
+      if (!identity) return match
+      const index = afterIndexByKey.get(identity)
+      if (index === undefined) {
+        changed = true
+        return ''
+      }
+      if (index === Number(digits)) return match
+      changed = true
+      return `@${prefix}${index}${space}`
+    },
+  )
+  return changed ? next : text
+}
+
+/** 两份轨是不是同一批东西按同一个顺序挂着（只看「是哪一张」，不看缩略图）。 */
+export function sameVideoRailOrder(
+  a: readonly VideoRailEntry[],
+  b: readonly VideoRailEntry[],
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (entry, index) =>
+        entry.group === b[index]?.group &&
+        entry.sourceNodeId === b[index]?.sourceNodeId,
+    )
+  )
+}
+
+/**
+ * 一次提交前后，哪些卡的轨变了、正文里的号要改 —— 返回补在**同一个撤销条目**里的
+ * `set_prompt`。**纯函数**（图引擎 `dispatch` / `dispatchBatch` / 删节点三条提交口
+ * 共用）。
+ *
+ * ⚠ 这一批里已经改过这张卡正文的，**不动**：那段正文是按新轨写的（助手先连线再写
+ *   提示词；`disconnect` 删 chip 时自己已经顺手对过号），再对一遍会把对的改错。
+ * ⚠ 只看图 / 视频卡：文本卡没有轨，音频卡的入口不是轨。
+ */
+export function planRailMentionRemaps(
+  before: NodeWorkflowStateV4,
+  after: NodeWorkflowStateV4,
+): NodeAssistantOpV4[] {
+  const ops: NodeAssistantOpV4[] = []
+  for (const node of after.nodes) {
+    const data = node.data
+    if (
+      data.kind !== NODE_MEDIA_KIND_IDS.video &&
+      data.kind !== NODE_MEDIA_KIND_IDS.image
+    ) {
+      continue
+    }
+    const prompt = data.prompt ?? ''
+    if (!prompt.includes('@')) continue
+    const previous = before.nodes.find((item) => item.id === node.id)
+    if (
+      !previous ||
+      previous.data.kind === NODE_MEDIA_KIND_IDS.text ||
+      (previous.data.prompt ?? '') !== prompt
+    ) {
+      continue
+    }
+    const railBefore = readVideoRail(previous, before.edges, before.nodes)
+    const railAfter = readVideoRail(node, after.edges, after.nodes)
+    if (sameVideoRailOrder(railBefore, railAfter)) continue
+    const remapped = remapVideoRailMentions(prompt, railBefore, railAfter)
+    if (remapped === prompt) continue
+    ops.push({
+      op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+      target: node.id,
+      prompt: remapped.trim().length > 0 ? remapped : ' ',
+      mode: 'replace',
+    })
+  }
+  return ops
+}
+
+/**
+ * 提示词栏那份**还没发出去**的草稿，在「已保存正文变了 / 参考轨变了」之后该是什么
+ * （视频卡 `use-video-composer` 与图片卡 `ImageNodeV4` 共用，渲染期同步调它）。
+ *
+ * - 已保存正文变了、且**不是**这次轨变带来的对号（助手写词等）：草稿整段跟上（原行为）。
+ * - 已保存正文的变化**正好就是**图引擎那次对号：⛔ 不整段盖掉用户正在打的字，
+ *   只给草稿按同一张轨对号。
+ * - 只有轨变了：草稿对号。
+ * `syncedRail === null` = 第一次同步，没有「之前的轨」可对。
+ */
+export function nextPromptDraft(input: {
+  readonly draft: string
+  readonly syncedPrompt: string
+  readonly currentPrompt: string
+  readonly syncedRail: readonly VideoRailEntry[] | null
+  readonly rail: readonly VideoRailEntry[]
+}): string {
+  const { draft, syncedPrompt, currentPrompt, syncedRail, rail } = input
+  const previousRail =
+    syncedRail !== null && !sameVideoRailOrder(syncedRail, rail)
+      ? syncedRail
+      : null
+  if (
+    syncedPrompt !== currentPrompt &&
+    (previousRail === null ||
+      remapVideoRailMentions(syncedPrompt, previousRail, rail) !==
+        currentPrompt)
+  ) {
+    return currentPrompt
+  }
+  return previousRail
+    ? remapVideoRailMentions(draft, previousRail, rail)
+    : draft
 }

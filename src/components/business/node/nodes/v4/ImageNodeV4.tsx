@@ -94,6 +94,11 @@ import {
   ImageMoreMenuItems,
 } from './image/ImageNodeMenus'
 import { readOutputIndex } from '@/lib/node-output-versions'
+import {
+  nextPromptDraft,
+  sameVideoRailOrder,
+  type VideoRailEntry,
+} from '@/lib/video-node-rail'
 
 import { ImageRefRail } from './image/ImageRefRail'
 import { useImageRefBinding } from './image/use-image-ref-binding'
@@ -151,6 +156,10 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     useState<ReadyCanvasImageEditCapabilityId | null>(null)
   const [draft, setDraft] = useState(imageData.prompt ?? '')
   const [syncedPrompt, setSyncedPrompt] = useState(imageData.prompt ?? '')
+  /** 上一次同步时的参考轨（`null` = 还没同步过）—— 轨变了草稿里的号跟着走。 */
+  const [syncedRail, setSyncedRail] = useState<
+    readonly VideoRailEntry[] | null
+  >(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const submissionRef = useRef<{ cancelled: boolean } | null>(null)
   const [elapsed, setElapsed] = useState(0)
@@ -165,11 +174,26 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     disabled: Boolean(imageData.mediaJobId),
   })
 
-  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里
+  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
+  // 参考轨变了（owner 09-28）：与视频卡同一条（`use-video-composer`）—— 已保存正文
+  // 的变化正好就是图引擎那次对号时，只给草稿对号，⛔ 不整段盖掉没发出去的字。
   const currentPrompt = imageData.prompt ?? ''
-  if (syncedPrompt !== currentPrompt) {
+  const railItems = refs.railProps.items
+  if (
+    syncedPrompt !== currentPrompt ||
+    syncedRail === null ||
+    !sameVideoRailOrder(syncedRail, railItems)
+  ) {
+    const nextDraft = nextPromptDraft({
+      draft,
+      syncedPrompt,
+      currentPrompt,
+      syncedRail,
+      rail: railItems,
+    })
+    if (nextDraft !== draft) setDraft(nextDraft)
     setSyncedPrompt(currentPrompt)
-    setDraft(currentPrompt)
+    setSyncedRail(railItems)
   }
 
   const generating = Boolean(imageData.mediaJobId) || startedAt !== null

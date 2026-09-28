@@ -52,6 +52,11 @@ import { applyMediaPatchOutputs } from '@/lib/node-output-versions'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
+import {
+  planRailMentionRemaps,
+  readVideoRail,
+  remapVideoRailMentions,
+} from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { ScriptDoc } from '@/types/script-doc'
 import type {
@@ -264,6 +269,28 @@ function mintId(prefix: string): string {
 }
 
 /**
+ * 参考轨变了，正文里的 `@图N` 跟着走（owner 2026-09-28）—— 三条提交口（`dispatch`
+ * / `dispatchBatch` / `deleteNodes`）共用。改写作为普通 `set_prompt` 落在**同一个
+ * 撤销条目**里：一次 ⌘Z 连线与正文一起回来。返回补完的 state 与改写的 inverse（正序）。
+ *
+ * ⚠ `before` / `after` 都要是 reconcile 过的：轨的顺序读的是槽绑定。
+ */
+function applyRailMentionRemaps(
+  before: NodeWorkflowStateV4,
+  after: NodeWorkflowStateV4,
+): { state: NodeWorkflowStateV4; inverses: NodeV4Inverse[] } {
+  let working = after
+  const inverses: NodeV4Inverse[] = []
+  for (const op of planRailMentionRemaps(before, after)) {
+    const result = applyNodeAssistantOpV4(working, op, { mintId })
+    if (!result.ok) continue
+    working = result.state
+    inverses.push(result.inverse)
+  }
+  return { state: working, inverses }
+}
+
+/**
  * 收起态卡宽的估算 —— 让位的位移量。
  *
  * ⚠ 用常量表的两个宽度差，⛔ 不读 DOM：让位要在展开的**同一帧**发生，读 DOM 的
@@ -424,10 +451,22 @@ export function useNodeGraphV4({
           : null
       // 整图 reconcile：槽绑定是**边的派生**，每次提交跑一遍才不会让某条路径
       // 上的 `slots` 与边分家（`reconcileStateSlots` 自己保引用相等）。
-      const next = reconcileStateSlots(result.state)
+      const reconciled = reconcileStateSlots(result.state)
+      const remap = applyRailMentionRemaps(stateRef.current, reconciled)
+      const next =
+        remap.inverses.length > 0
+          ? reconcileStateSlots(remap.state)
+          : reconciled
+      const inverse: NodeV4Inverse =
+        remap.inverses.length > 0
+          ? {
+              kind: 'sequence',
+              items: [result.inverse, ...remap.inverses].reverse(),
+            }
+          : result.inverse
       setUndoStack((stack) => [
         ...stack,
-        { undo: { kind: 'inverse', inverse: result.inverse }, redoState: next },
+        { undo: { kind: 'inverse', inverse }, redoState: next },
       ])
       setRedoStack([])
       onStateChange(next)
@@ -488,7 +527,13 @@ export function useNodeGraphV4({
       if (applied === 0)
         return { applied, skipped, failedConnects, createdNodeIds }
 
-      const next = reconcileStateSlots(working)
+      const reconciled = reconcileStateSlots(working)
+      const remap = applyRailMentionRemaps(stateRef.current, reconciled)
+      inverses.push(...remap.inverses)
+      const next =
+        remap.inverses.length > 0
+          ? reconcileStateSlots(remap.state)
+          : reconciled
       setUndoStack((stack) => [
         ...stack,
         {
@@ -618,12 +663,31 @@ export function useNodeGraphV4({
       const data = target.data
       const isText = data.kind === NODE_MEDIA_KIND_IDS.text
       const body = isText ? data.body : (data.prompt ?? '')
-      const stripped = removeMentionsForSource(body, {
+      const removed = removeMentionsForSource(body, {
         sourceName: source.data.name,
         slot: edge.slot,
         names: listMentionNames(state, castCards ?? []),
       })
-      if (stripped === null) return dispatch(disconnectOp)
+      if (removed === null) return dispatch(disconnectOp)
+      // 这一批改了正文，通用的轨号对位会跳过它（见 `planRailMentionRemaps`）——
+      // 所以轨上的 `@图N` 在这里一并对好，⛔ 不留一个指向别人的号。
+      const simulated = isText
+        ? null
+        : applyNodeAssistantOpV4(state, disconnectOp, { mintId })
+      const afterState = simulated?.ok
+        ? reconcileStateSlots(simulated.state)
+        : null
+      const afterTarget = afterState?.nodes.find(
+        (node) => node.id === target.id,
+      )
+      const stripped =
+        afterState && afterTarget
+          ? remapVideoRailMentions(
+              removed,
+              readVideoRail(target, state.edges, state.nodes),
+              readVideoRail(afterTarget, afterState.edges, afterState.nodes),
+            )
+          : removed
 
       const rewrite: NodeAssistantOpV4 = isText
         ? {
@@ -665,7 +729,14 @@ export function useNodeGraphV4({
       if (applied === 0) return 0
       // 一次多选删除 = **一个**撤销条目（逆序回放）：框选删 8 张卡要按 8 次撤销
       // 才回得来，那不是用户按下那一次删除时的意图。
-      const next = reconcileStateSlots(working)
+      // 删掉的是某张镜头挂着的参考：那张镜头正文里的号跟着对（同一个撤销条目）。
+      const reconciled = reconcileStateSlots(working)
+      const remap = applyRailMentionRemaps(state, reconciled)
+      inverses.push(...remap.inverses)
+      const next =
+        remap.inverses.length > 0
+          ? reconcileStateSlots(remap.state)
+          : reconciled
       setUndoStack((stack) => [
         ...stack,
         {

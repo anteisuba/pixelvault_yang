@@ -34,8 +34,11 @@ import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { readSlotSources } from '@/lib/node-slot-payload'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import {
+  nextPromptDraft,
+  sameVideoRailOrder,
   videoRailMentionLabels,
   VIDEO_RAIL_GROUP_IDS,
+  type VideoRailEntry,
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
 import { videoRailCounts } from '@/lib/video-node-rail'
@@ -160,6 +163,10 @@ export function useVideoComposer({
     0,
   )
   const [syncedPrompt, setSyncedPrompt] = useState(videoData.prompt ?? '')
+  /** 上一次同步时的参考轨（`null` = 还没同步过）—— 轨变了草稿里的号跟着走。 */
+  const [syncedRail, setSyncedRail] = useState<
+    readonly VideoRailEntry[] | null
+  >(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const runRef = useRef(0)
@@ -218,13 +225,6 @@ export function useVideoComposer({
     } finally {
       cancellingRef.current = false
     }
-  }
-
-  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
-  const currentPrompt = videoData.prompt ?? ''
-  if (syncedPrompt !== currentPrompt) {
-    setSyncedPrompt(currentPrompt)
-    setDraft(currentPrompt)
   }
 
   const generating = Boolean(videoData.mediaJobId) || startedAt !== null
@@ -299,6 +299,28 @@ export function useVideoComposer({
 
   /* ── 参考轨派生（模式 / @ 序号 / 读数）───────────────────────────────── */
   const railItems = rail.items
+
+  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
+  // 参考轨变了（owner 09-28）：图引擎已把**已保存**的正文对过号，这里对的是还没
+  // 发出去的草稿。已保存正文的变化**正好就是**这次对号时，只给草稿对号，⛔ 不整段
+  // 盖掉用户正在打的字；别的来源（助手写词）照旧整段跟上。
+  const currentPrompt = videoData.prompt ?? ''
+  if (
+    syncedPrompt !== currentPrompt ||
+    syncedRail === null ||
+    !sameVideoRailOrder(syncedRail, railItems)
+  ) {
+    const nextDraft = nextPromptDraft({
+      draft,
+      syncedPrompt,
+      currentPrompt,
+      syncedRail,
+      rail: railItems,
+    })
+    if (nextDraft !== draft) setDraft(nextDraft)
+    setSyncedPrompt(currentPrompt)
+    setSyncedRail(railItems)
+  }
   const railCounts = videoRailCounts(railItems)
   const sendMode = videoSendMode({
     firstFrame: railCounts.firstFrame,

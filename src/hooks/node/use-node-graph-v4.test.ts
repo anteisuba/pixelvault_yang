@@ -546,3 +546,126 @@ it('失败原因经过项目序列化保留，开始新任务和上传成功时�
     generationFailure: undefined,
   })
 })
+
+describe('useNodeGraphV4 · 参考轨变了，正文里的 @图N 跟着走（owner 09-28）', () => {
+  const refs = ['a', 'b', 'c'].map((id) =>
+    node(`ref-${id}`, {
+      kind: 'image',
+      subtype: 'reference',
+      name: `参考${id}`,
+      url: `https://cdn/${id}.png`,
+    }),
+  )
+  const railShot = node(
+    'shot-r',
+    {
+      kind: 'video',
+      subtype: 'shot',
+      name: '回头',
+      label: '回头',
+      prompt: '@图1 的人穿 @图3 的外套走过 @图2 的街',
+    },
+    { x: 400, y: 0 },
+  )
+  const initial = stateOf(
+    [...refs, railShot],
+    refs.map((ref, index) =>
+      edge(`r${index}`, ref.id, 'shot-r', NODE_SLOT_IDS.reference),
+    ),
+  )
+
+  const promptOf = (state: NodeWorkflowStateV4) => {
+    const data = state.nodes.find((item) => item.id === 'shot-r')?.data
+    return data?.kind === 'video' ? data.prompt : undefined
+  }
+
+  it('拿掉第 2 张：它的号删掉、后面的号前移；一次撤销连线与正文一起回来', () => {
+    const { view } = renderGraph(initial)
+    act(() => {
+      view.result.current.disconnect('r1')
+    })
+    expect(promptOf(view.result.current.state)).toBe(
+      '@图1 的人穿 @图2 的外套走过 的街',
+    )
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(promptOf(view.result.current.state)).toBe(
+      '@图1 的人穿 @图3 的外套走过 @图2 的街',
+    )
+    expect(view.result.current.state.edges).toHaveLength(3)
+  })
+
+  it('把第 3 张设成首帧（整组后移）：号按「是哪一张」对回去', () => {
+    const { view } = renderGraph(initial)
+    act(() => {
+      view.result.current.dispatchBatch([
+        { op: 'disconnect', edgeId: 'r2' },
+        {
+          op: 'connect',
+          source: 'ref-c',
+          target: 'shot-r',
+          slot: NODE_SLOT_IDS.firstFrame,
+        },
+      ])
+    })
+    // 首帧排在图组最前：c 变成 图1，a、b 顺延成 图2、图3。
+    expect(promptOf(view.result.current.state)).toBe(
+      '@图2 的人穿 @图1 的外套走过 @图3 的街',
+    )
+  })
+
+  it('删掉被挂着的那张卡：同样对号（同一个撤销条目）', () => {
+    const { view } = renderGraph(initial)
+    act(() => {
+      view.result.current.deleteNodes(['ref-a'])
+    })
+    expect(promptOf(view.result.current.state)).toBe(
+      '的人穿 @图2 的外套走过 @图1 的街',
+    )
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(promptOf(view.result.current.state)).toBe(
+      '@图1 的人穿 @图3 的外套走过 @图2 的街',
+    )
+  })
+
+  it('往后追加参考不动正文（号没变）', () => {
+    const extra = node('ref-d', {
+      kind: 'image',
+      subtype: 'reference',
+      url: 'https://cdn/d.png',
+    })
+    const { view } = renderGraph(
+      stateOf([...initial.nodes, extra], initial.edges),
+    )
+    act(() => {
+      view.result.current.dispatch({
+        op: 'connect',
+        source: 'ref-d',
+        target: 'shot-r',
+        slot: NODE_SLOT_IDS.reference,
+      })
+    })
+    expect(promptOf(view.result.current.state)).toBe(
+      '@图1 的人穿 @图3 的外套走过 @图2 的街',
+    )
+  })
+
+  it('同一批里已经改过这张卡的正文：不再对号（那段是按新轨写的）', () => {
+    const { view } = renderGraph(initial)
+    act(() => {
+      view.result.current.dispatchBatch([
+        { op: 'disconnect', edgeId: 'r0' },
+        {
+          op: 'set_prompt',
+          target: 'shot-r',
+          prompt: '@图1 在前，@图2 在后',
+          mode: 'replace',
+        },
+      ])
+    })
+    expect(promptOf(view.result.current.state)).toBe('@图1 在前，@图2 在后')
+  })
+})

@@ -4,7 +4,7 @@ import {
   type LoraBaseFamily,
 } from '@/constants/lora-base-models'
 
-type LoraArchitecture = 'sdxl' | 'dit' | 'flux'
+type LoraArchitecture = 'sdxl' | 'anima-dit' | 'z-image' | 'flux'
 
 /**
  * Weight architecture per fine-grained family. Mount compatibility is decided
@@ -22,7 +22,9 @@ const LORA_FAMILY_ARCHITECTURE: Record<
   illustrious: 'sdxl',
   pony: 'sdxl',
   anima: 'sdxl',
-  'anima-dit': 'dit',
+  'anima-dit': 'anima-dit',
+  // Z-Image 与 Anima 同为 DiT，但权重结构各一套，互不通。
+  'z-image': 'z-image',
   flux: 'flux',
   sd15: null,
 }

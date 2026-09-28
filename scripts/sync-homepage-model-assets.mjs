@@ -48,6 +48,8 @@ const SOURCES = {
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/8f9573d7-5616-4260-a967-53343afd5e33/original=true/1777436.jpeg',
     'anima-dit-runner':
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/bb377487-c631-4a5d-a37d-eb3b8cb086ce/original=true/130697922.jpeg',
+    'z-image-turbo-runner':
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/3ab86051-9dd2-4279-be8b-7faa43e4b704/original=true/111679197.jpeg',
   },
   video: {
     'seedance-2.0-fast':

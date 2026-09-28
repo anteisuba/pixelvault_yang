@@ -95,6 +95,30 @@ describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
     expect(
       within(turbo).getByText('LoraWorkbench:familyLabel.anima'),
     ).toBeInTheDocument()
+    // SDXL 系 4 张 + DiT 系 3 张（Base · Turbo · Z-Image Turbo）。
+    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(6)
+    const zImage = card(/Z-Image Turbo/)
+    expect(
+      within(zImage).getByText('LoraWorkbench:familyLabel.zImage'),
+    ).toBeInTheDocument()
+    expect(
+      within(zImage).getByText('LoraWorkbench:baseModal.recommended'),
+    ).toBeInTheDocument()
+    expect(
+      within(zImage).getByText('LoraWorkbench:baseModal.fast'),
+    ).toBeInTheDocument()
+  })
+
+  it('M3 挂了 Z-Image 的 LoRA：只有 Z-Image Turbo 一张', () => {
+    renderModal({
+      compatibleBases: getCompatibleBases('ZImageTurbo'),
+      selectedBaseId: 'z-image-turbo-runner',
+      hasMountedLora: true,
+    })
+
+    expect(card(/Z-Image Turbo/)).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryAllByRole('button', { pressed: false })).toHaveLength(0)
+    expect(screen.queryByText('LoraWorkbench:spine.baseGroupSdxl')).toBe(null)
   })
 
   it('M2 挂了 Anima 的 LoRA：只剩 DiT 三张，「自动」推荐、Turbo 不推荐', () => {

@@ -68,8 +68,10 @@ import {
   parseRunnerModelEvidence,
   type RunnerModelEvidence,
   RunnerUnknownCheckpointError,
+  isDitArchitecture,
   type RunnerArchitecture,
 } from './models/runner/request-builder'
+import type { DitArchitecture } from './models/runner/dit-workflow-builder'
 import {
   isRunnerSampler,
   isRunnerScheduler,
@@ -4957,55 +4959,102 @@ function getRunnerCheckpointSpec(
   }
 }
 
-// v4 Anima DiT 共享配件（circlestone-labs/Anima 的 HF 仓）。fork 首次 Anima 作业从
-// 这里拉到卷（缺则下、有则跳＝永久缓存）：Qwen 文本编码器→models/clip、VAE→models/vae；
-// 没有来源图精确底模时再加清单里选中的那一档（Base / Turbo）→models/unet。
-// v9：钉 HF commit + 每个文件的 SHA-256（HF LFS oid，2026-09-28 回读），fork 落盘前核对——
+// DiT 配件：fork 首次作业从 HF 拉到卷（缺则下、有则跳＝永久缓存）：文本编码器→models/clip、
+// VAE→models/vae；没有来源图精确底模时再加清单里选中的那一档→models/unet。
+// v9：钉 HF commit + 每个文件的 SHA-256（HF LFS oid，回读日期见注释），fork 落盘前核对——
 // `main` 上换了文件也不会悄悄换掉我们出图用的权重。
+interface RunnerCompanion {
+  filename: string
+  url: string
+  target_dir: 'unet' | 'clip' | 'vae'
+  source: 'huggingface'
+  sha256: string
+}
+
+// circlestone-labs/Anima（2026-09-28 回读）。
 const ANIMA_HF_REVISION = 'f973fc41ec7545364ac9776c2440285f43ff2a30'
 const ANIMA_HF_BASE = `https://huggingface.co/circlestone-labs/Anima/resolve/${ANIMA_HF_REVISION}/split_files`
-const ANIMA_SHARED_COMPANIONS = [
-  {
-    filename: 'qwen_3_06b_base.safetensors',
-    url: `${ANIMA_HF_BASE}/text_encoders/qwen_3_06b_base.safetensors`,
-    target_dir: 'clip',
-    source: 'huggingface' as const,
-    sha256: 'cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba',
-  },
-  {
-    filename: 'qwen_image_vae.safetensors',
-    url: `${ANIMA_HF_BASE}/vae/qwen_image_vae.safetensors`,
-    target_dir: 'vae',
-    source: 'huggingface' as const,
-    sha256: 'a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f',
-  },
-] as const
-// 键 = 清单 id（externalModelId）；文件名与 checkpoints.ts 那一条一致。
-const ANIMA_CHECKPOINT_COMPANIONS: Readonly<
+// Comfy-Org/z_image_turbo（官方 ComfyUI 分包，2026-09-28 回读）。
+const ZIMAGE_HF_REVISION = '6fc90a3b1b653e935a0d175e260736de25b84df5'
+const ZIMAGE_HF_BASE = `https://huggingface.co/Comfy-Org/z_image_turbo/resolve/${ZIMAGE_HF_REVISION}/split_files`
+
+const RUNNER_DIT_COMPANIONS: Readonly<
   Record<
-    string,
+    DitArchitecture,
     {
-      filename: string
-      url: string
-      target_dir: 'unet'
-      source: 'huggingface'
-      sha256: string
+      shared: readonly RunnerCompanion[]
+      /** 键 = 清单 id（externalModelId）；文件名与 checkpoints.ts 那一条一致。 */
+      checkpoints: Readonly<Record<string, RunnerCompanion>>
     }
   >
 > = {
-  animaBase_v10: {
-    filename: 'anima-base-v1.0.safetensors',
-    url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
-    target_dir: 'unet',
-    source: 'huggingface',
-    sha256: 'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
+  anima: {
+    shared: [
+      {
+        filename: 'qwen_3_06b_base.safetensors',
+        url: `${ANIMA_HF_BASE}/text_encoders/qwen_3_06b_base.safetensors`,
+        target_dir: 'clip',
+        source: 'huggingface',
+        sha256:
+          'cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba',
+      },
+      {
+        filename: 'qwen_image_vae.safetensors',
+        url: `${ANIMA_HF_BASE}/vae/qwen_image_vae.safetensors`,
+        target_dir: 'vae',
+        source: 'huggingface',
+        sha256:
+          'a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f',
+      },
+    ],
+    checkpoints: {
+      animaBase_v10: {
+        filename: 'anima-base-v1.0.safetensors',
+        url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
+        target_dir: 'unet',
+        source: 'huggingface',
+        sha256:
+          'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
+      },
+      animaTurbo_v11: {
+        filename: 'anima-turbo-v1.1.safetensors',
+        url: `${ANIMA_HF_BASE}/diffusion_models/anima-turbo-v1.1.safetensors`,
+        target_dir: 'unet',
+        source: 'huggingface',
+        sha256:
+          'fba11953276b57edf59d1dc4f1857ac05aa079c56f982b4d7c20298d57d3f7eb',
+      },
+    },
   },
-  animaTurbo_v11: {
-    filename: 'anima-turbo-v1.1.safetensors',
-    url: `${ANIMA_HF_BASE}/diffusion_models/anima-turbo-v1.1.safetensors`,
-    target_dir: 'unet',
-    source: 'huggingface',
-    sha256: 'fba11953276b57edf59d1dc4f1857ac05aa079c56f982b4d7c20298d57d3f7eb',
+  zimage: {
+    shared: [
+      {
+        filename: 'qwen_3_4b.safetensors',
+        url: `${ZIMAGE_HF_BASE}/text_encoders/qwen_3_4b.safetensors`,
+        target_dir: 'clip',
+        source: 'huggingface',
+        sha256:
+          '6c671498573ac2f7a5501502ccce8d2b08ea6ca2f661c458e708f36b36edfc5a',
+      },
+      {
+        filename: 'ae.safetensors',
+        url: `${ZIMAGE_HF_BASE}/vae/ae.safetensors`,
+        target_dir: 'vae',
+        source: 'huggingface',
+        sha256:
+          'afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38',
+      },
+    ],
+    checkpoints: {
+      zImageTurbo_bf16: {
+        filename: 'z_image_turbo_bf16.safetensors',
+        url: `${ZIMAGE_HF_BASE}/diffusion_models/z_image_turbo_bf16.safetensors`,
+        target_dir: 'unet',
+        source: 'huggingface',
+        sha256:
+          '2407613050b809ffdff18a4ac99af83ea6b95443ecebdf80e064a79c825574a6',
+      },
+    },
   },
 }
 
@@ -6173,7 +6222,9 @@ function getRunnerDefaultDimensions(
   aspectRatio: string,
   architecture: RunnerArchitecture,
 ): { width: number; height: number } {
-  if (architecture !== 'anima') return getStandardImageDimensions(aspectRatio)
+  // DiT（Anima · Z-Image）按约 1MP 的表出，SDXL 系沿用通用尺寸。
+  if (!isDitArchitecture(architecture))
+    return getStandardImageDimensions(aspectRatio)
   switch (aspectRatio) {
     case '16:9':
       return { width: 1344, height: 768 }
@@ -6198,6 +6249,7 @@ function getRunnerDimensions(
   if (width == null && height == null) {
     return getRunnerDefaultDimensions(aspectRatio, architecture)
   }
+  // Anima 沿用 1536 的上限；Z-Image 与 SDXL 到 2048。
   const max = architecture === 'anima' ? 1536 : 2048
   if (
     width == null ||
@@ -6424,23 +6476,24 @@ export async function submitRunnerImageJob(
       ...(runnerCheckpoint.sha256 ? { sha256: runnerCheckpoint.sha256 } : {}),
     }
   }
-  // v4：Anima DiT 作业带上共享配件（Qwen 编码器/VAE），fork 首次从 HF 拉入卷后缓存。
+  // v4：DiT 作业带上共享配件（文本编码器 / VAE），fork 首次从 HF 拉入卷后缓存。
   // 无 per-recipe 精确底模时再加清单里那一档到 models/unet/。
-  if (architecture === 'anima') {
+  if (isDitArchitecture(architecture)) {
+    const companions = RUNNER_DIT_COMPANIONS[architecture]
     const checkpointCompanion = runnerCheckpoint
       ? null
-      : ANIMA_CHECKPOINT_COMPANIONS[context.providerInput.externalModelId]
+      : companions.checkpoints[context.providerInput.externalModelId]
     if (!runnerCheckpoint && !checkpointCompanion) {
       throw new WorkerProviderError({
-        message: `No Anima companion for Runner checkpoint: ${context.providerInput.externalModelId}`,
+        message: `No DiT companion for Runner checkpoint: ${context.providerInput.externalModelId}`,
         provider: 'runner',
         phase: 'workflow_build',
         errorCode: 'model_unavailable',
       })
     }
     runpodInput.companions_to_fetch = checkpointCompanion
-      ? [...ANIMA_SHARED_COMPANIONS, checkpointCompanion]
-      : ANIMA_SHARED_COMPANIONS
+      ? [...companions.shared, checkpointCompanion]
+      : companions.shared
   }
   if (upscaler) {
     runpodInput.upscaler_to_fetch = {

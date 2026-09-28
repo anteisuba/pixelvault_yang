@@ -2526,7 +2526,7 @@ describe('provider submit reports providerJobId', () => {
     expect(body.data).toEqual({ providerJobId: 'runpod-job-1' })
   })
 
-  it('Anima fetches the fixed checkpoint it runs on, pinned by SHA-256', async () => {
+  it('DiT bases fetch the fixed checkpoint they run on, pinned by SHA-256', async () => {
     const runs: Array<Record<string, unknown>> = []
     vi.stubGlobal(
       'fetch',
@@ -2542,7 +2542,11 @@ describe('provider submit reports providerJobId', () => {
       INTERNAL_CALLBACK_SECRET: 'secret-1',
       RUNPOD_ENDPOINT: 'runner-endpoint',
     } as unknown as Parameters<typeof submitRunnerImageJob>[1]
-    for (const externalModelId of ['animaTurbo_v11', 'animaBase_v10']) {
+    for (const externalModelId of [
+      'animaTurbo_v11',
+      'animaBase_v10',
+      'zImageTurbo_bf16',
+    ]) {
       const context = makeFalImageContext({
         externalModelId,
         aspectRatio: '1:1',
@@ -2563,7 +2567,29 @@ describe('provider submit reports providerJobId', () => {
         }),
       ],
       [expect.objectContaining({ filename: 'anima-base-v1.0.safetensors' })],
+      [
+        expect.objectContaining({
+          filename: 'z_image_turbo_bf16.safetensors',
+          sha256:
+            '2407613050b809ffdff18a4ac99af83ea6b95443ecebdf80e064a79c825574a6',
+        }),
+      ],
     ])
+    // Z-Image brings its own encoder / VAE (not Anima's), pinned to one HF commit.
+    expect(
+      (runs[2].companions_to_fetch as Array<{ filename: string; url: string }>)
+        .filter(
+          (companion) =>
+            companion.filename !== 'z_image_turbo_bf16.safetensors',
+        )
+        .map((companion) => companion.filename),
+    ).toEqual(['qwen_3_4b.safetensors', 'ae.safetensors'])
+    for (const companion of runs[2].companions_to_fetch as Array<{
+      url: string
+    }>)
+      expect(companion.url).toContain(
+        'Comfy-Org/z_image_turbo/resolve/6fc90a3b1b653e935a0d175e260736de25b84df5/',
+      )
   })
 
   it('Qwen submits all references to the evaluation endpoint and preserves its route for polling and cancel', async () => {

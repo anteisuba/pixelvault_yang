@@ -552,6 +552,13 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     enhanceHint:
       'Anima Turbo v1.1 (step-distilled Cosmos-Predict2 DiT) on the Comfy runner. Same dialect as Anima: danbooru tags first, then a clause or two of scene description, English vocabulary. It samples at CFG 1, where the negative prompt has no effect — put everything that matters into the positive prompt and do not propose negatives unless the creator raises CFG above 1.',
   },
+  [AI_MODELS.Z_IMAGE_TURBO_RUNNER]: {
+    bestFor: ['photorealistic', 'general', 'illustration', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'Z-Image Turbo (step-distilled, Qwen3 text encoder) on the Comfy runner. Write a long natural-language description in full sentences — the medium and shot first, then the subject, clothing, style, composition, background and light; English, or Chinese. No tag wall, no quality or score prefix, no parenthesis weighting. It samples at CFG 1, where the negative prompt has no effect — do not propose negatives unless the creator raises CFG above 1.',
+  },
 }
 /**
  * Get the enhancement hint for a model, falling back to adapter-level hint.

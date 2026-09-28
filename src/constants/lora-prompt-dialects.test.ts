@@ -55,17 +55,19 @@ describe('lora prompt dialects', () => {
     }
   })
 
-  it('turns parenthesis weighting off for flux only', () => {
+  it('turns parenthesis weighting off for the sentence families (flux, z-image)', () => {
     expect(LORA_PROMPT_DIALECTS.flux.weightedParens).toBe(false)
+    expect(LORA_PROMPT_DIALECTS['z-image'].weightedParens).toBe(false)
     expect(LORA_PROMPT_DIALECTS['anima-dit'].weightedParens).toBe(true)
     expect(LORA_PROMPT_DIALECTS.pony.weightedParens).toBe(true)
     expect(LORA_PROMPT_DIALECTS.illustrious.weightedParens).toBe(true)
   })
 
-  it('recommends a negative for every family but flux, which runs without one', () => {
+  it('recommends a negative for every family but the CFG 1 routes (flux, z-image), which run without one', () => {
     for (const family of LORA_BASE_FAMILIES) {
       const { negative } = LORA_PROMPT_DIALECTS[family]
-      if (family === 'flux') expect(negative).toEqual([])
+      if (family === 'flux' || family === 'z-image')
+        expect(negative).toEqual([])
       else expect(negative.length).toBeGreaterThan(0)
     }
     expect(LORA_PROMPT_DIALECTS.pony.negative.slice(0, 3)).toEqual([
@@ -104,6 +106,18 @@ describe('lora prompt dialects', () => {
         'anima-dit',
         'score_9, score_8, hoshigetsu, @nnn yryr, (detailed eyes:1.3)',
       ),
+    ).toEqual([])
+  })
+
+  it('flags score and NoobAI / Anima tags on z-image, but not a sentence that merely says newest', () => {
+    expect(
+      findForbiddenDialectHits('z-image', 'score_9, a girl').length,
+    ).toBeGreaterThan(0)
+    expect(
+      findForbiddenDialectHits('z-image', 'masterpiece, newest, a girl').length,
+    ).toBeGreaterThan(0)
+    expect(
+      findForbiddenDialectHits('z-image', 'the newest skyscraper at dusk'),
     ).toEqual([])
   })
 

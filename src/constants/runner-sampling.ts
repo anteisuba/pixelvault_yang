@@ -26,6 +26,7 @@ export const RUNNER_SAMPLERS = [
   'ddim',
   'uni_pc',
   'uni_pc_bh2',
+  'res_multistep',
 ] as const
 
 export type RunnerSampler = (typeof RUNNER_SAMPLERS)[number]

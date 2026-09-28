@@ -39,6 +39,7 @@ const BASE_FAMILY_LABEL_KEYS: Record<LoraBaseFamily, string> = {
   pony: 'pony',
   anima: 'animaPencil',
   'anima-dit': 'anima',
+  'z-image': 'zImage',
   flux: 'flux',
   sd15: 'sd15',
 }

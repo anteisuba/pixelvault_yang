@@ -28,9 +28,10 @@ export interface RunnerCheckpointDefinition {
   clipSkip: number
   /**
    * Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple graph).
-   * 'anima' = DiT (UNETLoader + shared Qwen CLIP/VAE + ModelSamplingAuraFlow).
+   * 'anima' / 'zimage' = DiT (UNETLoader + shared text encoder / VAE +
+   * ModelSamplingAuraFlow; per-family pieces in DIT_WORKFLOW_PROFILES).
    */
-  architecture?: 'sdxl' | 'anima'
+  architecture?: 'sdxl' | 'anima' | 'zimage'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
@@ -85,6 +86,18 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
     recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'anima',
+  },
+  // Z-Image Turbo（Tongyi-MAI，Apache-2.0）满精度：采样照 Comfy-Org 官方模板
+  // （res_multistep · simple · CFG 1 · shift 3），步数 owner 09-28 定 9。
+  {
+    id: 'zImageTurbo_bf16',
+    filename: 'z_image_turbo_bf16.safetensors',
+    recommendedSampler: 'res_multistep',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 9,
+    recommendedCfg: 1,
+    clipSkip: 1,
+    architecture: 'zimage',
   },
 ]
 

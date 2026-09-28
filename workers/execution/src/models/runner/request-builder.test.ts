@@ -491,6 +491,21 @@ describe('buildRunnerWorkflowFromRequest', () => {
       })
     })
 
+    it('keeps the encoded empty negative on Anima (its authored workflow encodes one)', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow['negative-prompt']).toEqual({
+        class_type: 'CLIPTextEncode',
+        inputs: { clip: ['clip-loader', 0], text: '' },
+      })
+      expect(workflow.latent.class_type).toBe('EmptyLatentImage')
+    })
+
     it('chains the Anima LoRA model-only (no clip strength) and threads load evidence', () => {
       const workflow = buildRunnerWorkflowFromRequest(
         baseRequest({
@@ -513,5 +528,83 @@ describe('buildRunnerWorkflowFromRequest', () => {
       // ModelSamplingAuraFlow wraps the LoRA-patched model.
       expect(workflow['model-sampling'].inputs.model).toEqual(['lora-0', 0])
     })
+  })
+})
+
+describe('Z-Image Turbo dispatch (architecture: "zimage")', () => {
+  it('mirrors the official Comfy-Org template: lumina2 CLIP, ae VAE, SD3 latent, zeroed negative', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        architecture: 'zimage',
+        externalModelId: 'zImageTurbo_bf16',
+      }),
+      fixedRandomSeed,
+    )
+    expect(workflow.unet.class_type).toBe('PixelVaultUNETLoader')
+    expect(workflow.unet.inputs.unet_name).toBe(
+      'z_image_turbo_bf16.safetensors',
+    )
+    expect(workflow['clip-loader'].inputs).toMatchObject({
+      clip_name: 'qwen_3_4b.safetensors',
+      type: 'lumina2',
+    })
+    expect(workflow['vae-loader'].inputs.vae_name).toBe('ae.safetensors')
+    expect(workflow.latent.class_type).toBe('EmptySD3LatentImage')
+    expect(workflow['model-sampling'].inputs.shift).toBe(3.0)
+    expect(workflow['negative-prompt']).toEqual({
+      class_type: 'ConditioningZeroOut',
+      inputs: { conditioning: ['positive-prompt', 0] },
+    })
+    // Sampling from the manifest: res_multistep · simple · 9 steps (owner) · CFG 1.
+    expect(workflow.sampler.inputs).toMatchObject({
+      sampler_name: 'res_multistep',
+      scheduler: 'simple',
+      steps: 9,
+      cfg: 1,
+    })
+  })
+
+  it('encodes a written negative (sent only when CFG is above 1)', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        architecture: 'zimage',
+        externalModelId: 'zImageTurbo_bf16',
+        negativePrompt: 'blurry',
+        cfg: 3,
+      }),
+      fixedRandomSeed,
+    )
+    expect(workflow['negative-prompt']).toEqual({
+      class_type: 'CLIPTextEncode',
+      inputs: { clip: ['clip-loader', 0], text: 'blurry' },
+    })
+    expect(workflow.sampler.inputs.cfg).toBe(3)
+  })
+
+  it('mounts Z-Image LoRAs model-only and threads load evidence', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        architecture: 'zimage',
+        externalModelId: 'zImageTurbo_bf16',
+        loras: [{ filename: 'civitai-2500000.safetensors', scale: 0.8 }],
+      }),
+      fixedRandomSeed,
+    )
+    expect(workflow['lora-0'].class_type).toBe('PixelVaultLoraLoaderModelOnly')
+    expect(workflow['lora-0'].inputs.strength_model).toBe(0.8)
+    expect(workflow['save-image'].inputs.audit).toEqual(['lora-0', 1])
+  })
+
+  it('refuses latent hires (SDXL only)', () => {
+    expect(() =>
+      buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'zimage',
+          externalModelId: 'zImageTurbo_bf16',
+          hires: { width: 1536, height: 1536, denoise: 0.4 },
+        }),
+        fixedRandomSeed,
+      ),
+    ).toThrow(/SDXL/)
   })
 })

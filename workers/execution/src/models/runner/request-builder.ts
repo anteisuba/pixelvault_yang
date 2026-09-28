@@ -5,12 +5,11 @@
  */
 
 import {
-  ANIMA_MODEL_SAMPLING_SHIFT,
-  ANIMA_TEXT_ENCODER_FILENAME,
-  ANIMA_VAE_FILENAME,
-  buildAnimaWorkflow,
-  type AnimaWorkflowLora,
-} from './anima-workflow-builder'
+  DIT_WORKFLOW_PROFILES,
+  buildDitWorkflow,
+  type DitArchitecture,
+  type DitWorkflowLora,
+} from './dit-workflow-builder'
 import {
   getRunnerCheckpointById,
   type RunnerCheckpointDefinition,
@@ -22,8 +21,14 @@ import {
   type RunnerWorkflowLora,
 } from './workflow-builder'
 
-/** Runner 工作流架构：SDXL 系（CheckpointLoaderSimple 一套图）vs Anima DiT。 */
-export type RunnerArchitecture = 'sdxl' | 'anima'
+/** Runner 工作流架构：SDXL 系（CheckpointLoaderSimple 一套图）vs DiT（Anima · Z-Image）。 */
+export type RunnerArchitecture = 'sdxl' | DitArchitecture
+
+export function isDitArchitecture(
+  architecture: RunnerArchitecture,
+): architecture is DitArchitecture {
+  return architecture !== 'sdxl'
+}
 
 const DEFAULT_STEPS = 30
 const DEFAULT_CFG = 7.5
@@ -32,8 +37,8 @@ const DEFAULT_CFG = 7.5
 const OVERRIDE_SAMPLER = 'euler_ancestral'
 const OVERRIDE_SCHEDULER = 'normal'
 const OVERRIDE_CLIP_SKIP = 2
-// Anima DiT 覆盖档默认（HF 卡：30-50 步 CFG 4-5，er_sde 中性默认）。清单档用各自的
-// recommendedSteps / recommendedCfg。
+// DiT 覆盖档（来源图精确底模，只有 Anima 有）默认（Anima HF 卡：30-50 步 CFG 4-5，
+// er_sde 中性默认）。清单档用各自的 recommendedSteps / recommendedCfg。
 const ANIMA_DEFAULT_STEPS = 30
 const ANIMA_DEFAULT_CFG = 4
 const ANIMA_OVERRIDE_SAMPLER = 'er_sde'
@@ -85,7 +90,7 @@ export interface RunnerGenerationRequestInput {
    */
   checkpointOverrideDefaultsId?: string
   /**
-   * v4：底模架构。'anima' → DiT 工作流（UNETLoader + 独立 Qwen CLIP/VAE +
+   * v4：底模架构。'anima' / 'zimage' → DiT 工作流（UNETLoader + 独立文本编码器 / VAE +
    * ModelSamplingAuraFlow）。缺省 'sdxl' 走原 CheckpointLoaderSimple 图（向后兼容）。
    */
   architecture?: RunnerArchitecture
@@ -152,11 +157,12 @@ export function buildRunnerWorkflowFromRequest(
   input: RunnerGenerationRequestInput,
   randomSeed: () => number,
 ): ComfyWorkflow {
-  // v4：Anima DiT 走独立工作流（UNETLoader + Qwen 配件）。缺省 SDXL 走下方原图。
-  if ((input.architecture ?? 'sdxl') === 'anima') {
+  // v4：DiT（Anima · Z-Image）走独立工作流（UNETLoader + 配件）。缺省 SDXL 走下方原图。
+  const architecture = input.architecture ?? 'sdxl'
+  if (isDitArchitecture(architecture)) {
     if (input.hires)
       throw new Error('Latent hires is only supported by SDXL Runner.')
-    return buildAnimaWorkflowFromRequest(input, randomSeed)
+    return buildDitWorkflowFromRequest(input, architecture, randomSeed)
   }
 
   // v3 T1：app 解析出的精确底模（fork 已从 Civitai 下载）覆盖预烤底模；否则按
@@ -217,12 +223,13 @@ export function buildRunnerWorkflowFromRequest(
 }
 
 /**
- * Anima DiT 组装：底模落在 diffusion_models（override = fork 已下的精确 Anima
- * checkpoint；否则 manifest 的 anima 默认档），Qwen 文本编码器/VAE 是入卷的共享配件
- * （固定文件名，不下载），LoRA 走 model-only。
+ * DiT 组装：底模落在 diffusion_models（override = fork 已下的精确 Anima checkpoint；
+ * 否则清单那一档），文本编码器 / VAE 是按架构入卷的共享配件（固定文件名），LoRA 走
+ * model-only。
  */
-function buildAnimaWorkflowFromRequest(
+function buildDitWorkflowFromRequest(
   input: RunnerGenerationRequestInput,
+  architecture: DitArchitecture,
   randomSeed: () => number,
 ): ComfyWorkflow {
   let diffusionModelFilename: string
@@ -249,15 +256,14 @@ function buildAnimaWorkflowFromRequest(
     defaults?.recommendedScheduler ??
     ANIMA_OVERRIDE_SCHEDULER
 
-  const loras: AnimaWorkflowLora[] = input.loras.map((lora) => ({
+  const loras: DitWorkflowLora[] = input.loras.map((lora) => ({
     filename: lora.filename,
     strengthModel: lora.scale ?? 1,
   }))
 
-  return buildAnimaWorkflow({
+  return buildDitWorkflow({
+    profile: DIT_WORKFLOW_PROFILES[architecture],
     diffusionModelFilename,
-    textEncoderFilename: ANIMA_TEXT_ENCODER_FILENAME,
-    vaeFilename: ANIMA_VAE_FILENAME,
     positivePrompt: input.prompt,
     negativePrompt: input.negativePrompt,
     width: input.width,
@@ -267,7 +273,6 @@ function buildAnimaWorkflowFromRequest(
     cfg: input.cfg ?? defaults?.recommendedCfg ?? ANIMA_DEFAULT_CFG,
     samplerName,
     scheduler,
-    modelSamplingShift: ANIMA_MODEL_SAMPLING_SHIFT,
     loras,
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,

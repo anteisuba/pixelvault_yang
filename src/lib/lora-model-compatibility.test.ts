@@ -31,6 +31,15 @@ describe('isLoraBaseModelMountCompatible', () => {
     expect(isLoraBaseModelMountCompatible('Anima', 'anima-dit')).toBe(true)
   })
 
+  it('keeps the two DiT families apart: Z-Image LoRAs load on Z-Image only', () => {
+    expect(isLoraBaseModelMountCompatible('ZImageTurbo', 'z-image')).toBe(true)
+    expect(isLoraBaseModelMountCompatible('ZImageBase', 'z-image')).toBe(true)
+    expect(isLoraBaseModelMountCompatible('ZImageTurbo', 'anima-dit')).toBe(
+      false,
+    )
+    expect(isLoraBaseModelMountCompatible('Anima', 'z-image')).toBe(false)
+  })
+
   it('blocks cross-architecture LoRAs that corrupt the checkpoint', () => {
     // The exact failure the user hit: an SD1.5/Flux "hands" LoRA on the
     // WAI-Illustrious-SDXL runner base → melted output.

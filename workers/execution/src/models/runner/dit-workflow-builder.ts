@@ -1,38 +1,75 @@
 /**
- * Anima (DiT) recipe → ComfyUI API-format workflow — pure mapping function.
+ * DiT recipe (Anima · Z-Image) → ComfyUI API-format workflow — pure mapping function.
  *
- * Anima (circlestone-labs/Anima) is a Cosmos-Predict2-2B DiT, NOT SDXL: the
- * weights are UNET/diffusion-model-only (no baked CLIP/VAE), so it needs a
+ * Both are UNET/diffusion-model-only weights (no baked CLIP/VAE), so they need a
  * different graph than `buildComfyWorkflow` (which uses CheckpointLoaderSimple):
  *
- *   PixelVaultUNETLoader(diffusion_models/<anima>) ─MODEL─▶ PixelVaultLoraLoaderModelOnly chain
+ *   PixelVaultUNETLoader(diffusion_models/<model>) ─MODEL─▶ PixelVaultLoraLoaderModelOnly chain
  *     ─▶ ModelSamplingAuraFlow(shift) ─MODEL─▶ KSampler
  *   (the PixelVault loaders also thread a load-evidence STRING into PixelVaultSaveImage —
  *    same contract as the SDXL graph; nodes live in the fork's model_evidence.py)
- *   CLIPLoader(text_encoders/qwen_3_06b, type="stable_diffusion") ─CLIP─▶ CLIPTextEncode ×2
- *   VAELoader(vae/qwen_image_vae) ─VAE─▶ VAEDecode
- *   EmptyLatentImage (or img2img LoadImage→ImageScale→VAEEncode) ─LATENT─▶ KSampler
+ *   CLIPLoader(text_encoders/<encoder>, type=<profile>) ─CLIP─▶ CLIPTextEncode
+ *   VAELoader(vae/<vae>) ─VAE─▶ VAEDecode
+ *   <empty latent> (or img2img LoadImage→ImageScale→VAEEncode) ─LATENT─▶ KSampler
  *
- * Node graph + exact params mirror circlestone-labs/Anima's `anima_comparison.json`
- * ComfyUI workflow. Runner infrastructure: docs/references/domains/runner.md.
+ * The per-family pieces live in `DIT_WORKFLOW_PROFILES`: Anima mirrors
+ * circlestone-labs/Anima's `anima_comparison.json`; Z-Image mirrors Comfy-Org's
+ * `image_z_image_turbo.json` template (lumina2 CLIP type, EmptySD3LatentImage, an
+ * empty negative zeroed out instead of encoded). Runner infrastructure:
+ * docs/references/domains/runner.md.
  */
 
 import type { ComfyWorkflow } from './workflow-builder'
 
-/** Anima LoRAs patch the diffusion model only (README: don't train the LLM adapter). */
-export interface AnimaWorkflowLora {
+/** DiT LoRAs patch the diffusion model only (Anima README: don't train the LLM adapter). */
+export interface DitWorkflowLora {
   /** Exact filename on the Volume (`models/loras/<filename>`). */
   filename: string
   strengthModel: number
 }
 
-export interface AnimaWorkflowInput {
+export interface DitWorkflowProfile {
+  /** ComfyUI CLIPLoader `type` for the family's text encoder. */
+  clipType: string
+  /** Shared companion in `models/text_encoders/`. */
+  textEncoderFilename: string
+  /** Shared companion in `models/vae/`. */
+  vaeFilename: string
+  /** txt2img latent node. */
+  emptyLatentClass: 'EmptyLatentImage' | 'EmptySD3LatentImage'
+  /** No negative text: encode an empty string, or zero out the positive conditioning. */
+  emptyNegative: 'encode' | 'zero-out'
+  /** ModelSamplingAuraFlow shift. */
+  modelSamplingShift: number
+}
+
+export const DIT_WORKFLOW_PROFILES = {
+  // ⚠ "stable_diffusion" for a Qwen encoder is counter-intuitive, but it is what the
+  // authored Anima workflow uses — ComfyUI packages qwen_3_06b_base to load under it.
+  anima: {
+    clipType: 'stable_diffusion',
+    textEncoderFilename: 'qwen_3_06b_base.safetensors',
+    vaeFilename: 'qwen_image_vae.safetensors',
+    emptyLatentClass: 'EmptyLatentImage',
+    emptyNegative: 'encode',
+    modelSamplingShift: 3.0,
+  },
+  zimage: {
+    clipType: 'lumina2',
+    textEncoderFilename: 'qwen_3_4b.safetensors',
+    vaeFilename: 'ae.safetensors',
+    emptyLatentClass: 'EmptySD3LatentImage',
+    emptyNegative: 'zero-out',
+    modelSamplingShift: 3.0,
+  },
+} as const satisfies Record<string, DitWorkflowProfile>
+
+export type DitArchitecture = keyof typeof DIT_WORKFLOW_PROFILES
+
+export interface DitWorkflowInput {
+  profile: DitWorkflowProfile
   /** Exact filename on the Volume (`models/diffusion_models/<filename>`). */
   diffusionModelFilename: string
-  /** Shared companion in `models/text_encoders/` (Qwen3 0.6B). */
-  textEncoderFilename: string
-  /** Shared companion in `models/vae/` (Qwen-Image VAE). */
-  vaeFilename: string
   positivePrompt: string
   negativePrompt?: string
   width: number
@@ -43,9 +80,7 @@ export interface AnimaWorkflowInput {
   cfg: number
   samplerName: string
   scheduler: string
-  /** ModelSamplingAuraFlow shift — Anima default 3.0. */
-  modelSamplingShift: number
-  loras: readonly AnimaWorkflowLora[]
+  loras: readonly DitWorkflowLora[]
   /** SaveImage filename_prefix — defaults to 'pixelvault'. */
   filenamePrefix?: string
   /** img2img: reference image filename (RunPod `input.images[].name`). */
@@ -55,17 +90,6 @@ export interface AnimaWorkflowInput {
   /** Optional post-decode super-resolution model in models/upscale_models/. */
   upscalerModelFilename?: string
 }
-
-/**
- * ComfyUI CLIPLoader `type` for Anima's Qwen text encoder. Counter-intuitive
- * ("stable_diffusion" for a Qwen encoder) but this is what the authored Anima
- * workflow uses — ComfyUI packages qwen_3_06b_base to load under this type.
- */
-export const ANIMA_CLIP_TYPE = 'stable_diffusion'
-export const ANIMA_MODEL_SAMPLING_SHIFT = 3.0
-/** Shared companion filenames on the Volume (seeded once, reused by every Anima gen). */
-export const ANIMA_TEXT_ENCODER_FILENAME = 'qwen_3_06b_base.safetensors'
-export const ANIMA_VAE_FILENAME = 'qwen_image_vae.safetensors'
 
 const NODE_ID = {
   unet: 'unet',
@@ -89,7 +113,8 @@ function loraNodeId(index: number): string {
   return `lora-${index}`
 }
 
-export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
+export function buildDitWorkflow(input: DitWorkflowInput): ComfyWorkflow {
+  const { profile } = input
   const workflow: ComfyWorkflow = {
     [NODE_ID.unet]: {
       class_type: 'PixelVaultUNETLoader',
@@ -101,14 +126,14 @@ export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
     [NODE_ID.clip]: {
       class_type: 'CLIPLoader',
       inputs: {
-        clip_name: input.textEncoderFilename,
-        type: ANIMA_CLIP_TYPE,
+        clip_name: profile.textEncoderFilename,
+        type: profile.clipType,
         device: 'default',
       },
     },
     [NODE_ID.vae]: {
       class_type: 'VAELoader',
-      inputs: { vae_name: input.vaeFilename },
+      inputs: { vae_name: profile.vaeFilename },
     },
   }
 
@@ -131,24 +156,34 @@ export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
     auditSource = [nodeId, 1]
   })
 
-  // Anima's AuraFlow-style sampling shift wraps the (LoRA-patched) model.
+  // AuraFlow-style sampling shift wraps the (LoRA-patched) model.
   workflow[NODE_ID.modelSampling] = {
     class_type: 'ModelSamplingAuraFlow',
-    inputs: { model: modelSource, shift: input.modelSamplingShift },
+    inputs: { model: modelSource, shift: profile.modelSamplingShift },
   }
 
   workflow[NODE_ID.positivePrompt] = {
     class_type: 'CLIPTextEncode',
     inputs: { clip: [NODE_ID.clip, 0], text: input.positivePrompt },
   }
-  workflow[NODE_ID.negativePrompt] = {
-    class_type: 'CLIPTextEncode',
-    inputs: { clip: [NODE_ID.clip, 0], text: input.negativePrompt ?? '' },
-  }
+  // Z-Image's template zeroes the positive conditioning when there is no negative
+  // (it runs at CFG 1, where the negative branch is skipped anyway); a written
+  // negative — only sent when CFG is above 1 — is encoded like everywhere else.
+  const negativeText = input.negativePrompt?.trim() ?? ''
+  workflow[NODE_ID.negativePrompt] =
+    !negativeText && profile.emptyNegative === 'zero-out'
+      ? {
+          class_type: 'ConditioningZeroOut',
+          inputs: { conditioning: [NODE_ID.positivePrompt, 0] },
+        }
+      : {
+          class_type: 'CLIPTextEncode',
+          inputs: { clip: [NODE_ID.clip, 0], text: input.negativePrompt ?? '' },
+        }
 
-  // Latent source: img2img (LoadImage → ImageScale → VAEEncode with the Qwen
-  // VAE) when a reference is supplied, else txt2img (EmptyLatentImage). Mirrors
-  // the SDXL builder's reference handling.
+  // Latent source: img2img (LoadImage → ImageScale → VAEEncode with the family's
+  // VAE) when a reference is supplied, else txt2img (the profile's empty latent).
+  // Mirrors the SDXL builder's reference handling.
   let latentSource: [string, number]
   let denoise: number
   if (input.referenceImageName) {
@@ -177,7 +212,7 @@ export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
     denoise = input.denoise ?? 1.0
   } else {
     workflow[NODE_ID.latent] = {
-      class_type: 'EmptyLatentImage',
+      class_type: profile.emptyLatentClass,
       inputs: { width: input.width, height: input.height, batch_size: 1 },
     }
     latentSource = [NODE_ID.latent, 0]

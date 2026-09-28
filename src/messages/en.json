@@ -3892,6 +3892,10 @@
       "label": "Anima Turbo (Runner)",
       "description": "Anima's step-distilled cut via ANTEI Runner — 10 steps at CFG 1, so it is fast; negative prompts have no effect at CFG 1."
     },
+    "zImageTurboRunner": {
+      "label": "Z-Image Turbo (Runner)",
+      "description": "Tongyi-MAI's step-distilled Z-Image via ANTEI Runner — 9 steps at CFG 1, strong at photoreal images and English / Chinese text; Apache-2.0. Negative prompts have no effect at CFG 1."
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
       "description": "A recommended choice for finished voice work, with 83 languages, emotion tags, and voice cloning."

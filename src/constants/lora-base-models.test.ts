@@ -49,6 +49,12 @@ describe('normalizeToLoraBaseFamily', () => {
     expect(normalizeToLoraBaseFamily('Animagine XL v3')).toBe('anima')
   })
 
+  it('folds the Z-Image spellings (Civitai ZImageBase / ZImageTurbo, library Z-Image, HF z-image) into one family', () => {
+    for (const raw of ['ZImageTurbo', 'ZImageBase', 'Z-Image', 'z-image']) {
+      expect(normalizeToLoraBaseFamily(raw)).toBe('z-image')
+    }
+  })
+
   it('keeps Pony V7 (AuraFlow arch) out of the SDXL-based pony family', () => {
     expect(normalizeToLoraBaseFamily('Pony V7')).toBeNull()
     expect(normalizeToLoraBaseFamily('Pony Diffusion V7')).toBeNull()
@@ -72,6 +78,14 @@ describe('getCompatibleBases', () => {
     // 09-17 托管通道退役、SD 1.5 07-07 定过不进 Runner：只剩归类，没有「即将」占位。
     expect(getCompatibleBases('Flux.1 D')).toEqual([])
     expect(getCompatibleBases('SD 1.5')).toEqual([])
+  })
+
+  it('mounts both Z-Image LoRA kinds on Z-Image Turbo only', () => {
+    for (const raw of ['ZImageTurbo', 'ZImageBase']) {
+      expect(getCompatibleBases(raw).map((b) => b.id)).toEqual([
+        'z-image-turbo-runner',
+      ])
+    }
   })
 
   it('returns empty for an unknown family', () => {
@@ -139,15 +153,18 @@ describe('pure-base generation catalog', () => {
 })
 
 describe('getLoraBaseArchitectureGroup', () => {
-  it('routes anima-dit to the DiT group', () => {
+  it('routes anima-dit and z-image to the DiT group', () => {
     expect(getLoraBaseArchitectureGroup('anima-dit')).toBe('dit')
+    expect(getLoraBaseArchitectureGroup('z-image')).toBe('dit')
   })
 
   it('routes every other known family to the SDXL group', () => {
     // §4.4 底模 Select 分组：anima-dit 是唯一的 DiT 家族，其余（含 SDXL 系的
     // "anima" = Anima Pencil XL）全部落 SDXL 桶——新增架构默认也走这条路，
     // 除非显式加进 LORA_BASE_DIT_FAMILIES。
-    const nonDit = LORA_BASE_FAMILIES.filter((f) => f !== 'anima-dit')
+    const nonDit = LORA_BASE_FAMILIES.filter(
+      (f) => f !== 'anima-dit' && f !== 'z-image',
+    )
     expect(nonDit.length).toBeGreaterThan(0)
     for (const family of nonDit) {
       expect(getLoraBaseArchitectureGroup(family)).toBe('sdxl')
@@ -199,7 +216,7 @@ describe('LORA_BASE_MODELS catalog', () => {
     }
     expect(
       LORA_BASE_MODELS.filter((base) => base.distilled).map((base) => base.id),
-    ).toEqual(['anima-dit-turbo-v11-runner'])
+    ).toEqual(['anima-dit-turbo-v11-runner', 'z-image-turbo-runner'])
   })
 })
 

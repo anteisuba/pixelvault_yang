@@ -545,7 +545,8 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   // docs/references/domains/runner.md §5。
   'Krea 2': 'external',
   Qwen: 'external',
-  'Z-Image': 'external',
+  // 2026-09-28 接通：Z-Image Turbo 上 Runner（ZImageBase / ZImageTurbo 的 LoRA 都挂它）。
+  'Z-Image': 'native',
   Chroma: 'external',
 } as const satisfies Record<
   Exclude<CivitaiLoraBaseModel, 'all' | 'other'>,

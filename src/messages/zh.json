@@ -3892,6 +3892,10 @@
       "label": "Anima Turbo（Runner）",
       "description": "通过 ANTEI Runner 跑 Anima 的步数蒸馏档——10 步、CFG 1，出图快；CFG 1 下负面词不起作用。"
     },
+    "zImageTurboRunner": {
+      "label": "Z-Image Turbo（Runner）",
+      "description": "通过 ANTEI Runner 跑通义 Z-Image 的步数蒸馏档——9 步、CFG 1，擅长写实与中英文字，Apache-2.0；CFG 1 下负面词不起作用。"
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
       "description": "官方推荐生产 TTS — 83 语言、自然语言情绪标签、声音克隆"

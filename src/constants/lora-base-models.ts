@@ -24,6 +24,9 @@ export const LORA_BASE_FAMILIES = [
   // v4：DiT「Anima」（Cosmos-Predict2，baseModel 值精确为 "Anima"）——独立架构，走
   // runner 的 Qwen-Image 工作流。与上面的 SDXL 'anima' 是两回事。
   'anima-dit',
+  // Z-Image（Tongyi-MAI）：Civitai 的 ZImageBase / ZImageTurbo 两个值同一套权重结构，
+  // 都挂 Z-Image Turbo 出图。
+  'z-image',
 ] as const
 export type LoraBaseFamily = (typeof LORA_BASE_FAMILIES)[number]
 
@@ -138,6 +141,18 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
     distilled: true,
   },
+  {
+    id: 'z-image-turbo-runner',
+    displayName: 'Z-Image Turbo',
+    family: 'z-image',
+    available: runnerAvailable(AI_MODELS.Z_IMAGE_TURBO_RUNNER),
+    providerModelId: AI_MODELS.Z_IMAGE_TURBO_RUNNER,
+    runnerCheckpointId: 'zImageTurbo_bf16',
+    recipeCheckpointMode: 'fixed',
+    recommended: true,
+    coverImage: '/homepage/production/models/image/z-image-turbo-runner.webp',
+    distilled: true,
+  },
 ]
 
 /**
@@ -191,6 +206,8 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   // 判据用**精确值** s === 'anima'（Civitai 的 DiT baseModel 枚举值），不碰子串，
   // 免误杀 Animagine（超热门 SDXL，名字含 "anima"）。
   if (s === 'anima' || s === 'anima-dit') return 'anima-dit'
+  // Civitai 'ZImageBase' / 'ZImageTurbo'，库的家族桶 'Z-Image'，HF 的 'z-image'。
+  if (s.replace(/[\s_-]/g, '').startsWith('zimage')) return 'z-image'
   if (s.includes('anima')) return 'anima'
   if (s.includes('flux')) return 'flux'
   if (
@@ -224,12 +241,14 @@ export function getDefaultBase(rawBaseModel: string): LoraBaseModel | null {
 }
 
 /**
- * §4.4 底模选择器分组：runner 组内再按架构系分「SDXL 系 / DiT 系」。DiT 家族
- * 显式列举（目前只有 `anima-dit`——Cosmos-Predict2，UNET-only 无 CLIP/VAE，
- * 跑不了 SDXL 的 CheckpointLoaderSimple 图）；其余全部归 SDXL 系，新增架构
- * 家族默认落 SDXL 桶，除非显式加进这张表。
+ * §4.4 底模选择器分组：按架构系分「SDXL 系 / DiT 系」。DiT 家族显式列举（`anima-dit`
+ * 与 `z-image`——UNET-only 无 CLIP/VAE，跑不了 SDXL 的 CheckpointLoaderSimple 图）；
+ * 其余全部归 SDXL 系，新增架构家族默认落 SDXL 桶，除非显式加进这张表。
  */
-export const LORA_BASE_DIT_FAMILIES: readonly LoraBaseFamily[] = ['anima-dit']
+export const LORA_BASE_DIT_FAMILIES: readonly LoraBaseFamily[] = [
+  'anima-dit',
+  'z-image',
+]
 
 export type LoraBaseArchitectureGroup = 'sdxl' | 'dit'
 

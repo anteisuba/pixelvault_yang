@@ -93,6 +93,8 @@ export enum AI_MODELS {
   ANIMA_DIT_RUNNER = 'anima-dit-runner',
   /** Comfy Runner — Anima Turbo v1.1 (step-distilled; the pure-base default). */
   ANIMA_TURBO_RUNNER = 'anima-turbo-runner',
+  /** Comfy Runner — Z-Image Turbo (Tongyi-MAI, step-distilled, Apache-2.0). */
+  Z_IMAGE_TURBO_RUNNER = 'z-image-turbo-runner',
   QWEN_IMAGE_21_RUNNER = 'qwen-image-2.1-runner',
 
   // Audio models

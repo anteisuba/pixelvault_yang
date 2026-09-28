@@ -612,4 +612,21 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
+  // Z-Image Turbo——自己一套编码器 / VAE 的 DiT（Worker 按 architecture:'zimage' 分派），
+  // 9 步 · CFG 1。Apache-2.0，Z-Image 系 LoRA（ZImageBase / ZImageTurbo）都挂它。
+  {
+    id: AI_MODELS.Z_IMAGE_TURBO_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('zImageTurbo_bf16')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    officialUrl: 'https://huggingface.co/Tongyi-MAI/Z-Image-Turbo',
+    qualityTier: 'standard',
+    styleTag: 'general',
+    imageKind: IMAGE_KIND.LORA_BASE,
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
 ]

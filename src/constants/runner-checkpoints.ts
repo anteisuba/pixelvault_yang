@@ -22,6 +22,8 @@ export const RUNNER_CHECKPOINT_FAMILIES = [
   // v4：DiT「Anima」（Cosmos-Predict2）——与 SDXL 的 anima_pencil（family 'anima'）
   // 是两套架构，独立家族。
   'anima-dit',
+  // Z-Image（Tongyi-MAI，S3-DiT）——自己一套编码器 / VAE 的 DiT。
+  'z-image',
 ] as const
 
 export type RunnerCheckpointFamily = (typeof RUNNER_CHECKPOINT_FAMILIES)[number]
@@ -46,8 +48,8 @@ export interface RunnerCheckpointManifestEntry {
   clipSkip: number
   /** Prefixed onto the positive prompt for checkpoints with quality-tag conventions (e.g. Pony's score_9 tags). */
   recommendedPositivePrefix?: string
-  /** Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple). 'anima' = DiT. */
-  architecture?: 'sdxl' | 'anima'
+  /** Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple). 'anima' / 'zimage' = DiT. */
+  architecture?: 'sdxl' | 'anima' | 'zimage'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
@@ -122,6 +124,21 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'anima',
+  },
+  // Z-Image Turbo 满精度（Comfy-Org 官方分包，与 Civitai 官方页同一文件）：采样照官方模板
+  // res_multistep · simple · CFG 1 · shift 3，步数 owner 09-28 定 9。编码器 / VAE 另下。
+  {
+    id: 'zImageTurbo_bf16',
+    family: 'z-image',
+    displayName: 'Z-Image Turbo',
+    filename: 'z_image_turbo_bf16.safetensors',
+    civitaiModelVersionId: 2442439,
+    recommendedSampler: 'res_multistep',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 9,
+    recommendedCfg: 1,
+    clipSkip: 1,
+    architecture: 'zimage',
   },
 ] as const
 

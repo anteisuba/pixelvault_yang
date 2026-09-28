@@ -146,6 +146,37 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
       },
     ],
   },
+  // Z-Image Turbo (Qwen3 text encoder, step-distilled): 250 real recipes (2026-09-28) —
+  // median 114 words, 77% plain sentences, 9% Chinese; CFG 1 in 91%, negative empty in 77%.
+  'z-image': {
+    fingerprint:
+      'a long natural-language description — several full sentences, often 80–150 words; English (Chinese also works); no tag wall, no quality prefix, no parenthesis weighting, no negative',
+    order:
+      'character trigger → an opening sentence naming the medium and shot → how many people, appearance, expression, action → clothing → style → composition → background → light; quality words, if any, go last',
+    skeleton: {
+      subject:
+        '{trigger}, a close-up photograph of {subject} with a calm, natural expression; the shot is framed at eye level, soft window light falls across the face from one side, and the background fades into a gentle blur',
+      style:
+        '{trigger}, a wide scenic view rendered in {style}; the composition leads the eye to one clear focal point, the background is rich with atmospheric detail, and soft cinematic light shapes the whole scene',
+    },
+    weightedParens: false,
+    sourceMatchTags: [],
+    sourceMatchNegative: [],
+    // Z-Image Turbo runs at CFG 1, where ComfyUI skips the negative branch entirely.
+    negative: [],
+    parameters:
+      'euler or res_multistep + simple, 9 steps (8–10), CFG 1, 832×1216 portrait',
+    forbidden: [
+      {
+        pattern: SCORE_PREFIX_PATTERN,
+        why: 'score_N tags are Pony and Anima conventions and do nothing on Z-Image.',
+      },
+      {
+        pattern: /(?:^|,)\s*(?:very awa|newest|year 20\d\d)\s*(?=,|$)/i,
+        why: 'very awa / newest / year tags are NoobAI and Anima conventions; Z-Image reads them as noise.',
+      },
+    ],
+  },
   sdxl: SDXL_BASE_DIALECT,
   illustrious: SDXL_DIALECT,
   pony: {

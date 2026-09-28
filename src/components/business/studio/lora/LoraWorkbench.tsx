@@ -67,6 +67,7 @@ import {
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
+  getLoraBaseArchitectureGroup,
   LORA_BASE_MODELS,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
@@ -684,11 +685,12 @@ function parseOptionalRunnerNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+// 与 Worker 的默认尺寸同一张表：DiT 系（Anima · Z-Image）约 1MP，SDXL 系沿用通用尺寸。
 function getRunnerPreviewDimensions(
   aspectRatio: AspectRatio,
-  isAnima: boolean,
+  isDit: boolean,
 ): { width: number; height: number } {
-  if (isAnima) {
+  if (isDit) {
     switch (aspectRatio) {
       case '16:9':
         return { width: 1344, height: 768 }
@@ -1302,7 +1304,8 @@ function GenerateBranch({
     }
     return getRunnerPreviewDimensions(
       aspectRatio,
-      selectedBase?.family === 'anima-dit',
+      selectedBase != null &&
+        getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
     )
   }, [
     aspectRatio,
@@ -2399,7 +2402,8 @@ function GenerateBranch({
       if (isRunnerBase) {
         const dimensions = getRunnerPreviewDimensions(
           ratio,
-          selectedBase?.family === 'anima-dit',
+          selectedBase != null &&
+            getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
         )
         setRunnerWidth(String(dimensions.width))
         setRunnerHeight(String(dimensions.height))

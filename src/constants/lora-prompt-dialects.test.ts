@@ -13,14 +13,35 @@ describe('lora prompt dialects', () => {
     )
   })
 
-  it('keeps the score prefix on pony only', () => {
-    expect(LORA_PROMPT_DIALECTS.pony.skeleton.subject).toContain('score_9')
-    expect(LORA_PROMPT_DIALECTS.pony.skeleton.style).toContain('score_9')
+  it("keeps Pony's score_N_up prefix on pony; Anima writes its own score_N", () => {
+    expect(LORA_PROMPT_DIALECTS.pony.skeleton.subject).toContain(
+      'score_9, score_8_up',
+    )
+    expect(LORA_PROMPT_DIALECTS.pony.skeleton.style).toContain(
+      'score_9, score_8_up',
+    )
 
-    for (const family of ['illustrious', 'flux', 'anima-dit'] as const) {
+    for (const family of ['illustrious', 'sdxl', 'flux'] as const) {
       const { skeleton } = LORA_PROMPT_DIALECTS[family]
       expect(skeleton.subject).not.toContain('score_')
       expect(skeleton.style).not.toContain('score_')
+    }
+
+    // The Anima model page's own prefix: score_7 without `_up`.
+    const anima = LORA_PROMPT_DIALECTS['anima-dit'].skeleton
+    expect(
+      anima.subject.startsWith('masterpiece, best quality, score_7, safe'),
+    ).toBe(true)
+    expect(anima.subject).not.toContain('_up')
+  })
+
+  it('puts the quality tags first on the tag families', () => {
+    for (const family of ['illustrious', 'sdxl', 'anima'] as const) {
+      const { skeleton } = LORA_PROMPT_DIALECTS[family]
+      expect(skeleton.subject.startsWith('masterpiece, best quality')).toBe(
+        true,
+      )
+      expect(skeleton.style.startsWith('masterpiece, best quality')).toBe(true)
     }
   })
 
@@ -34,16 +55,35 @@ describe('lora prompt dialects', () => {
     }
   })
 
-  it('turns parenthesis weighting off for flux and anima-dit', () => {
+  it('turns parenthesis weighting off for flux only', () => {
     expect(LORA_PROMPT_DIALECTS.flux.weightedParens).toBe(false)
-    expect(LORA_PROMPT_DIALECTS['anima-dit'].weightedParens).toBe(false)
+    expect(LORA_PROMPT_DIALECTS['anima-dit'].weightedParens).toBe(true)
     expect(LORA_PROMPT_DIALECTS.pony.weightedParens).toBe(true)
     expect(LORA_PROMPT_DIALECTS.illustrious.weightedParens).toBe(true)
   })
 
-  it('recommends a negative for every family', () => {
+  it('recommends a negative for every family but flux, which runs without one', () => {
     for (const family of LORA_BASE_FAMILIES) {
-      expect(LORA_PROMPT_DIALECTS[family].negative.length).toBeGreaterThan(0)
+      const { negative } = LORA_PROMPT_DIALECTS[family]
+      if (family === 'flux') expect(negative).toEqual([])
+      else expect(negative.length).toBeGreaterThan(0)
+    }
+    expect(LORA_PROMPT_DIALECTS.pony.negative.slice(0, 3)).toEqual([
+      'score_6',
+      'score_5',
+      'score_4',
+    ])
+    expect(LORA_PROMPT_DIALECTS['anima-dit'].negative).toEqual(
+      expect.arrayContaining(['score_1', 'score_2', 'score_3', 'artist name']),
+    )
+  })
+
+  it('names an order for every family, and Runner parameters only where a Runner base serves it', () => {
+    for (const family of LORA_BASE_FAMILIES) {
+      const { order, parameters } = LORA_PROMPT_DIALECTS[family]
+      expect(order.length).toBeGreaterThan(0)
+      if (family === 'flux' || family === 'sd15') expect(parameters).toBeNull()
+      else expect(parameters).toEqual(expect.stringContaining('steps'))
     }
   })
 
@@ -55,10 +95,16 @@ describe('lora prompt dialects', () => {
     expect(findForbiddenDialectHits('pony', 'score_9, 1girl')).toEqual([])
   })
 
-  it('flags parenthesis weighting on anima-dit', () => {
+  it("flags Pony's score_N_up on anima-dit, but lets its own score_N and weighting through", () => {
     expect(
-      findForbiddenDialectHits('anima-dit', 'hoshigetsu, (detailed eyes:1.3)'),
+      findForbiddenDialectHits('anima-dit', 'score_9, score_8_up, hoshigetsu'),
     ).toHaveLength(1)
+    expect(
+      findForbiddenDialectHits(
+        'anima-dit',
+        'score_9, score_8, hoshigetsu, @nnn yryr, (detailed eyes:1.3)',
+      ),
+    ).toEqual([])
   })
 
   it('returns no hits for clean text', () => {

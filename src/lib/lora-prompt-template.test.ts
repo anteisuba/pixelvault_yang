@@ -22,7 +22,7 @@ describe('buildLoraPromptTemplate', () => {
       recommendedPrompt: '   ',
     })
     expect(out).toBe(
-      'denia, portrait, dynamic pose, soft cinematic lighting, masterpiece, best quality',
+      'masterpiece, best quality, denia, portrait, dynamic pose, soft cinematic lighting',
     )
   })
 
@@ -34,7 +34,18 @@ describe('buildLoraPromptTemplate', () => {
       recommendedPrompt: null,
     })
     expect(out).toBe(
-      '@bxz, beautiful scenery, soft cinematic lighting, highly detailed, masterpiece, best quality',
+      'masterpiece, best quality, @bxz, beautiful scenery, soft cinematic lighting, highly detailed',
+    )
+  })
+
+  it("leads with the Anima model page's own prefix for an Anima DiT LoRA", () => {
+    const out = buildLoraPromptTemplate({
+      triggerWord: 'hoshigetsu',
+      type: 'subject',
+      baseModelFamily: 'Anima',
+    })
+    expect(out).toBe(
+      'masterpiece, best quality, score_7, safe, hoshigetsu, portrait, dynamic pose, soft cinematic lighting',
     )
   })
 

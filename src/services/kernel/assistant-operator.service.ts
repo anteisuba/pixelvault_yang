@@ -9024,13 +9024,19 @@ function buildLoraDialectRule(rawBaseFamily: string | null): string {
     `- PROMPT DIALECT — the base on the bench is ${rawBaseFamily}, and this is the only dialect that applies here:`,
     `  · a subject prompt reads like: ${dialect.skeleton.subject}`,
     `  · a style prompt reads like: ${dialect.skeleton.style}`,
+    `  · real recipes on this family line things up as: ${dialect.order}`,
     dialect.weightedParens
       ? '  · (tag:1.2) parenthesis weighting works on this family.'
       : '  · (tag:1.2) parenthesis weighting does NOT work on this family — write the word plainly instead.',
   ]
-  if (dialect.negative.length > 0) {
+  lines.push(
+    dialect.negative.length > 0
+      ? `  · the negative staples here are: ${dialect.negative.join(', ')}`
+      : '  · this family does not use a negative prompt — leave it empty.',
+  )
+  if (dialect.parameters) {
     lines.push(
-      `  · the negative staples here are: ${dialect.negative.join(', ')}`,
+      `  · real recipes on this family usually run ${dialect.parameters} — start from these when Runner parameters go on a setup card.`,
     )
   }
   for (const rule of dialect.forbidden) {
@@ -9181,7 +9187,8 @@ function buildOperatorSystemPrompt(
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
 - Nothing gets mounted before the creator has seen it on a card. Once ${TOOL.searchLoras} comes back, there are two cards: when they are choosing among options, go through ${TOOL.planLoraPick} and let them tick what to mount (even when only one candidate came back, even when they named a LoRA themselves); when YOU compose the setup — which LoRAs, their weights, the Runner parameters — put the whole thing on ONE ${TOOL.planLoraSetup} card and they apply it with one click. Never both cards for the same LoRAs. Don't list candidates in your reply and ask them to answer in words — the card is how they decide.
 - Your own numbers go on a card too: weight or parameter advice ("the face is muddy — lower these two", "try 30 steps at CFG 6") is a ${TOOL.planLoraSetup} card with just those rows, and your reply says why each one changes. Apply a value directly with ${TOOL.setLoraWeight} / ${TOOL.setLoraParameters} ONLY when the creator dictated that exact value.
-- When you compose a setup, give each LoRA a job and weigh it by that job: the character or subject LoRA carries the most, a style LoRA sits under it, detail and slider LoRAs stay light. Keep the enabled total inside this base's budget unless you say why it has to go over.
+- When you compose a setup, give each LoRA a job and weigh it by that job, the way real recipes do: a character or subject LoRA at 0.8–1.0 (1.0 is the most common), a style LoRA under it at 0.6–0.9, a detail LoRA around 0.3–1.0; a slider follows its author's range and may go negative. Two to four LoRAs is the usual stack. Keep the enabled total inside this base's budget unless you say why it has to go over.
+- Turning a picture into a prompt here — a source image you adapt, or "reverse it" / "give me its tags" — write only what the picture shows: how many people, appearance, clothing, pose and gaze, expression, framing, background, light, the broad medium, in this family's order. The quality tags and the negative come from the dialect, not from the picture. Never guess an artist or character name you cannot recognise — the mounted LoRA's trigger carries the identity. When they only want the text, answer with it in ONE fenced code block and change nothing on the bench.
 - Three things on that card are your call: the one line above the list (say why these ones), the grouping by what they are for (characters and styles do not belong in one pile), and at most one marked as recommended. Candidates that cannot be mounted on the selected base go on the card too — the app greys them out and says why; filtering them out reads as "nothing found".
 - Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
 - Trigger words live in the prompt text itself: mounting writes a LoRA's trigger at the front, and nothing adds it again at send time. When you rewrite the prompt, keep every trigger that is already there, exactly once — a second copy is sent twice.

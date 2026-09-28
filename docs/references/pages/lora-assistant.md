@@ -190,29 +190,35 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 按 `LoraBaseFamily` 全覆盖（`Record<LoraBaseFamily, LoraPromptDialect>`，⛔ 不用 `Partial`——漏一族的表现是那一族静默回落到别人的方言）：
 
-| 字段             | 语义                                                                            |
-| ---------------- | ------------------------------------------------------------------------------- |
-| `skeleton`       | 正向骨架：`subject` / `style` 两支（与 `buildLoraPromptTemplate` 现有两支对齐） |
-| `weightedParens` | 这一族习不习惯 `(tag:1.2)` 括号权重                                             |
-| `negative`       | 推荐负面（数组，逗号连接）                                                      |
-| `forbidden`      | 这一族**不能出现**的东西 + 一句为什么                                           |
+| 字段             | 语义                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `skeleton`       | 正向骨架：`subject` / `style` 两支（与 `buildLoraPromptTemplate` 现有两支对齐）       |
+| `order`          | 真实配方的词序一行：助手写提示词、反推都照它                                          |
+| `weightedParens` | 这一族习不习惯 `(tag:1.2)` 括号权重                                                   |
+| `negative`       | 推荐负面（数组，逗号连接）；空数组 = 这一族不写负面                                   |
+| `parameters`     | 这一族常用的 Runner 参数一行（Runner 的采样器 / 调度器名）；`null` = 没有 Runner 底模 |
+| `forbidden`      | 这一族**不能出现**的东西 + 一句为什么                                                 |
 
 逐族取值，事实源 [`../domains/lora.md` §7.1.1](../domains/lora.md)（⛔ 本文不复述结论，只落成表）：
 
-| family                        | 正向                                                   | 括号权重 | 负面               | 禁忌                                                   |
-| ----------------------------- | ------------------------------------------------------ | -------- | ------------------ | ------------------------------------------------------ |
-| `pony`                        | `score_9, score_8_up, score_7_up` 前缀 + Danbooru 标签 | 是       | 按模型页推荐       | 缺 score 前缀质量会塌                                  |
-| `illustrious`                 | Danbooru 标签 + `masterpiece, best quality` 词序       | 是       | 标准质量 neg       | ⛔ 不加 score 前缀（那是 Pony 的）                     |
-| `sdxl` / `anima`（Pencil XL） | 同 Illustrious 一档（SDXL 系通用质量词）               | 是       | 标准质量 neg       | ⛔ 不加 score 前缀                                     |
-| `flux`                        | 自然语言长句，触发词仍保留                             | **否**   | 较短 / 按模型页    | ⛔ 少用括号权重、⛔ 不套 Danbooru 词墙                 |
-| `anima-dit`                   | 跟 Anima / Qwen-Image 工作流与触发词                   | 否       | 按 runner / 模型页 | ⛔ 不套 Pony score 前缀；⚠ Anima DiT ≠ Anima Pencil XL |
-| `sd15`                        | 保留一档兜底（本仓 runner 范围外）                     | 是       | 标准质量 neg       | —                                                      |
+| family               | 正向                                                                  | 括号权重         | 负面                                       | 禁忌                                                   |
+| -------------------- | --------------------------------------------------------------------- | ---------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `pony`               | `score_9, score_8_up, score_7_up` 前缀 + Danbooru 标签                | 是               | `score_6, score_5, score_4` + 标准质量 neg | 缺 score 前缀质量会塌                                  |
+| `illustrious`        | Danbooru 标签，`masterpiece, best quality` 放最前                     | 是               | 标准质量 neg                               | ⛔ 不加 score 前缀（那是 Pony 的）                     |
+| `sdxl`（原版）       | 动漫写标签；照片一句描述 + 细节词                                     | 是               | 标准质量 neg                               | ⛔ 不加 score 前缀                                     |
+| `anima`（Pencil XL） | 同 Illustrious                                                        | 是               | 标准质量 neg                               | ⛔ 不加 score 前缀                                     |
+| `flux`               | 几句完整的自然语言，触发词仍保留                                      | **否**           | 不写                                       | ⛔ 括号权重、⛔ Danbooru 词墙、⛔ score 前缀           |
+| `anima-dit`          | 模型页写法：`masterpiece, best quality, score_7, safe` 在前 · `@画师` | 是，要比 SDXL 高 | 模型页负面（含 `score_1`–`3`）             | ⛔ Pony 的 `score_N_up`；⚠ Anima DiT ≠ Anima Pencil XL |
+| `sd15`               | 保留一档兜底（本仓 runner 范围外）                                    | 是               | 标准质量 neg                               | —                                                      |
+
+2026-09-28 按真实配方与 Anima 模型页修正（事实见 [`../domains/lora.md` §7.1.1](../domains/lora.md)）：Anima DiT 原先「禁 score、禁括号权重」两条与模型页相反，已改；IL / SDXL 骨架的质量词从句尾挪到最前；FLUX 不再给负面。
 
 ### 6.3 两个消费者
 
 1. **`buildLoraPromptTemplate`**（`src/lib/lora-prompt-template.ts`）签名加 `baseModelFamily: string`，内部 `normalizeToLoraBaseFamily` → 取骨架。⚠ 优先级**不变**：作者推荐 prompt 仍然优先于骨架（原头注那条判据一个字没变），方言只换**兜底那一支**。归一不出家族时用今天这两条写死骨架，⛔ 不猜。
 2. **`buildSourceMatchedLoraPrompt`**（`src/lib/lora-source-match-prompt.ts`）的负面：现在是一张写死的 anime 表 + `isAnimeLikeLora` 子串嗅探（`:186`）。改成查方言表的 `negative`，⛔ 删掉 `isAnimeLikeLora`（过时实现直接删，不留兼容层）。正向那条 `ANIME_SOURCE_MATCH_TAGS` 追加同理并进方言表。
-3. **LoRA 域系统提示**：按**当前底模家族**注入一段方言（`assistant-operator.service.ts:5994` 那一块），只注入当前那一族，⛔ 不把六族全倒进上下文。底模未定时注入「底模还没定，先别按任何一族的习惯写」。
+3. **LoRA 域系统提示**：按**当前底模家族**注入一段方言（`assistant-operator.service.ts:5994` 那一块），只注入当前那一族，⛔ 不把六族全倒进上下文。底模未定时注入「底模还没定，先别按任何一族的习惯写」。这一段除骨架 / 括号权重 / 负面 / 禁忌外，还印真实配方的词序与常用参数（`null` 不印）；负面为空的族明说「不写负面」。
+4. **同一块规矩里的两句**（数字来自 §7.1.1 的真实配方）：按用途给权重（角色 0.8–1.0 · 画风 0.6–0.9 · 细节 0.3–1.0 · 滑杆按作者范围，常挂 2–4 把）；反推只写看得见的 —— 质量词与负面走方言，认不出的画师 / 角色名不猜（身份交给挂着的 LoRA 触发词），只要文字时一个代码块作答、台上什么都不动。
 
 ---
 
@@ -257,22 +263,22 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 ## 8. 测试清单
 
-| #   | 验的是                                                                                                 | 文件                                                                                    |
-| --- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 1.5 / 蒸馏 1.0，蒸馏档用构造条目验）        | `src/constants/lora-base-models.test.ts`                                                |
-| 2   | 方言表六族全覆盖；Pony 有 score 前缀、IL/FLUX/Anima DiT 各自没有                                       | `src/constants/lora-prompt-dialects.test.ts`（新）                                      |
-| 3   | `buildLoraPromptTemplate` 按家族换骨架；作者推荐仍然优先；家族归一不出时回落                           | `src/lib/lora-prompt-template.test.ts`                                                  |
-| 4   | 负面来自方言表；`isAnimeLikeLora` 全仓零命中；`reliable` 语义不变                                      | `src/lib/lora-source-match-prompt.test.ts`                                              |
-| 5   | 快照三格：`triggerWord` null 与空串之分、不在正文里时 `triggerEnabled=false`、`recommendedPrompt` 截断 | `src/lib/studio-operator-snapshot.test.ts` · `src/hooks/use-lora-operator-host.test.ts` |
-| 6   | 快照 schema 三格的校验与上限                                                                           | `src/types/assistant-operator.test.ts`                                                  |
-| 7   | 跨族挂载被拒 + 拒绝理由里有两个 family 与「去搜同族」                                                  | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 8   | 挂载详情三行恒印（家族 / 兼容 / 权重），observation 里同一份三行                                       | `src/lib/studio-operator-history.test.ts`                                               |
-| 9   | 超预算 observation 出现且**权重没被改**；不超时不出这句；底模未定时不判                                | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 10  | 系统行 `loraWeightOverBudget` 插得进线程                                                               | `src/hooks/use-lora-operator-host.test.ts`                                              |
-| 11  | 系统提示：当前家族的方言在、别族的不在；底模未定时那一句在                                             | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 12  | 取材阶梯三档 + `reliable=false` 落第 3 档 + 自训如实说                                                 | `src/services/kernel/assistant-operator.service.test.ts`                                |
-| 13  | `overwrite.sourceNotes` / `negativeDiff` 渲染                                                          | `.../assistant-operator/StudioOperatorQuestionCard.web.test.tsx`                        |
-| 14  | 三语键齐                                                                                               | `/i18n-check`                                                                           |
+| #   | 验的是                                                                                                                                                    | 文件                                                                                    |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | `distilled` 必填且 11 条全 `false`；阈值两档都可判（非蒸馏 1.5 / 蒸馏 1.0，蒸馏档用构造条目验）                                                           | `src/constants/lora-base-models.test.ts`                                                |
+| 2   | 方言表全覆盖；Pony 有 `_up` 前缀、Anima DiT 用模型页的 `score_7`（⛔ `_up`）、IL / SDXL 质量词在前；FLUX 负面为空；词序全族有、参数只在有 Runner 底模的族 | `src/constants/lora-prompt-dialects.test.ts`                                            |
+| 3   | `buildLoraPromptTemplate` 按家族换骨架；作者推荐仍然优先；家族归一不出时回落                                                                              | `src/lib/lora-prompt-template.test.ts`                                                  |
+| 4   | 负面来自方言表；`isAnimeLikeLora` 全仓零命中；`reliable` 语义不变                                                                                         | `src/lib/lora-source-match-prompt.test.ts`                                              |
+| 5   | 快照三格：`triggerWord` null 与空串之分、不在正文里时 `triggerEnabled=false`、`recommendedPrompt` 截断                                                    | `src/lib/studio-operator-snapshot.test.ts` · `src/hooks/use-lora-operator-host.test.ts` |
+| 6   | 快照 schema 三格的校验与上限                                                                                                                              | `src/types/assistant-operator.test.ts`                                                  |
+| 7   | 跨族挂载被拒 + 拒绝理由里有两个 family 与「去搜同族」                                                                                                     | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 8   | 挂载详情三行恒印（家族 / 兼容 / 权重），observation 里同一份三行                                                                                          | `src/lib/studio-operator-history.test.ts`                                               |
+| 9   | 超预算 observation 出现且**权重没被改**；不超时不出这句；底模未定时不判                                                                                   | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 10  | 系统行 `loraWeightOverBudget` 插得进线程                                                                                                                  | `src/hooks/use-lora-operator-host.test.ts`                                              |
+| 11  | 系统提示：当前家族的方言在、别族的不在；底模未定时那一句在；词序 / 参数 / 按用途权重 / 反推两句在                                                         | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 12  | 取材阶梯三档 + `reliable=false` 落第 3 档 + 自训如实说                                                                                                    | `src/services/kernel/assistant-operator.service.test.ts`                                |
+| 13  | `overwrite.sourceNotes` / `negativeDiff` 渲染                                                                                                             | `.../assistant-operator/StudioOperatorQuestionCard.web.test.tsx`                        |
+| 14  | 三语键齐                                                                                                                                                  | `/i18n-check`                                                                           |
 
 ⚠ 触及共享类型（`types/assistant-operator.ts`）与 kernel 服务：合并前按 [WORKFLOW](../../WORKFLOW.md) 影响面表跑**全量 Vitest + 全量 typecheck**（`full-gate`）。
 

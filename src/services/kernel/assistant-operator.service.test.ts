@@ -16384,6 +16384,39 @@ describe('LoRA 域方言与触发词规矩', () => {
     expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.pony.skeleton.subject)
   })
 
+  /**
+   * 配方调研（2026-09-28，1,964 条社区配方）+ Anima 模型页：词序、常用参数、
+   * 负面照这一族的真实写法。⛔ 没有 Runner 底模的族不印参数那一行。
+   */
+  it('底模是 anima-dit 时印模型页的词序、负面与常用参数', async () => {
+    const prompt = await promptForBase('Anima')
+    const dialect = LORA_PROMPT_DIALECTS['anima-dit']
+
+    expect(prompt).toContain(
+      `real recipes on this family line things up as: ${dialect.order}`,
+    )
+    expect(prompt).toContain(`usually run ${dialect.parameters}`)
+    expect(prompt).toContain('score_1, score_2, score_3, artist name')
+    expect(prompt).toContain('(tag:1.2) parenthesis weighting works')
+  })
+
+  it('底模是 flux 时说「不写负面」，⛔ 不印参数那一行', async () => {
+    const prompt = await promptForBase('flux')
+
+    expect(prompt).toContain('does not use a negative prompt')
+    expect(prompt).not.toContain('negative staples')
+    expect(prompt).not.toContain('usually run')
+  })
+
+  it('按用途给权重、反推只写看得见的，两条都有真实配方的数', async () => {
+    const prompt = await promptForBase('illustrious')
+
+    expect(prompt).toContain('a character or subject LoRA at 0.8–1.0')
+    expect(prompt).toContain('Two to four LoRAs is the usual stack')
+    expect(prompt).toContain('write only what the picture shows')
+    expect(prompt).toContain("the mounted LoRA's trigger carries the identity")
+  })
+
   it('底模未定时不猜任何一族，只说「先别按任何一族的习惯写」', async () => {
     const prompt = await promptForBase(null)
 

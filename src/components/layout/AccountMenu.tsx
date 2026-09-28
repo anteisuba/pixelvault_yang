@@ -74,7 +74,7 @@ export function AccountMenu({
         motionPreset="lift"
         /* ⚠ 视口夹取不是装饰：手机档这颗菜单从顶栏右端往下开，216 的固定宽在
            窄屏会顶出右边缘。夹取写在代码里，窄屏溢出就不可能（仓库先例：
-           `PromptTemplatePicker` / `LoraLibraryFilterCombobox`）。 */
+           `LoraLibraryFilterCombobox`）。 */
         className="w-54 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
       >
         <AccountMenuHeader />

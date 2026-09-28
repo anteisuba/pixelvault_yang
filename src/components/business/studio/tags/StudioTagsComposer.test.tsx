@@ -91,9 +91,6 @@ vi.mock('@/lib/model-options', () => ({
 vi.mock('@/components/business/studio-shared/pickers', () => ({
   MainModelPicker: () => null,
 }))
-vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
-  PromptTemplatePicker: () => null,
-}))
 vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => null,
 }))

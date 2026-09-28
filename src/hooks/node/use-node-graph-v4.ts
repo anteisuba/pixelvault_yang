@@ -264,6 +264,16 @@ export interface NodeGraphV4 {
   readonly canRedo: boolean
   undo(): void
   redo(): void
+  /**
+   * 外部换进来的一份 state（外部 Claude 经 MCP / 同账号的别的标签页，
+   * docs/references/mcp.md §6）记成**一条**撤销：快照档（`kind: 'state'`）。
+   * ⚠ 不调 `onStateChange` —— 那份 state 已经由 store 换进来了；⛔ 也不清栈：
+   * 外部改动是「在当前这份上又改了一步」，与切项目 / 载入最新不是一回事。
+   */
+  recordExternalChange(
+    before: NodeWorkflowStateV4,
+    after: NodeWorkflowStateV4,
+  ): void
 
   /* ── 剧本投影（单向）──────────────────────────────────────────────── */
   projectScriptDoc(doc: ScriptDoc, shotStills?: boolean): NodeGraphV4Projection
@@ -545,6 +555,18 @@ export function useNodeGraphV4({
     ])
     onStateChange(entry.redoState)
   }, [redoStack, state, onStateChange])
+
+  const recordExternalChange = useCallback(
+    (before: NodeWorkflowStateV4, after: NodeWorkflowStateV4) => {
+      // 与 `redo` 同一个理由存整份快照：这一步不是 op 算出来的，没有 inverse。
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'state', state: before }, redoState: after },
+      ])
+      setRedoStack([])
+    },
+    [],
+  )
 
   /* ── 图动作 ────────────────────────────────────────────────────────── */
   const addNode = useCallback(
@@ -1001,6 +1023,7 @@ export function useNodeGraphV4({
     canRedo: redoStack.length > 0,
     undo,
     redo,
+    recordExternalChange,
     projectScriptDoc,
   }
 }

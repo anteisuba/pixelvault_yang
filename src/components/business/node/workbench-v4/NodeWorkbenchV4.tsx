@@ -93,8 +93,15 @@ import {
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeGenerationReconcileV4 } from '@/hooks/node/use-node-generation-reconcile-v4'
 import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
-import { useNodeWorkflowStore } from '@/hooks/node/use-node-workflow-store'
-import { prefersReducedMotion } from '@/hooks/node/node-ingest-dom'
+import {
+  useNodeWorkflowStore,
+  type NodeWorkflowRemoteChange,
+} from '@/hooks/node/use-node-workflow-store'
+import {
+  flashAssistantTouchedNode,
+  prefersReducedMotion,
+} from '@/hooks/node/node-ingest-dom'
+import { changedNodeIds } from '@/lib/node-state-diff'
 import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
@@ -273,9 +280,20 @@ function NodeWorkbenchV4Inner() {
   // Clerk userId 给 store 划分本地槽与服务端调用；未加载时传 null = 停在空态，
   // ⛔ 不泄漏上一个账号的快照。
   const { isLoaded, userId } = useAuth()
+  /**
+   * 外部改动（外部 Claude 经 MCP / 同账号别的标签页）换进来之后交给图引擎：
+   * store 先建、引擎后建，所以经一个 ref 接上（docs/references/mcp.md §6）。
+   */
+  const remoteChangeRef = useRef<
+    ((change: NodeWorkflowRemoteChange) => void) | null
+  >(null)
+  const onRemoteChange = useCallback((change: NodeWorkflowRemoteChange) => {
+    remoteChangeRef.current?.(change)
+  }, [])
   const store = useNodeWorkflowStore({
     defaultProjectName: t('projectUntitled'),
     clerkId: isLoaded ? userId : null,
+    onRemoteChange,
   })
 
   const commitState = useCallback(
@@ -320,6 +338,22 @@ function NodeWorkbenchV4Inner() {
     // 切项目 / 载入最新 = 换了一段历史：撤销栈清空（旧的 inverse 会改到别的项目）。
     historyKey: `${store.currentProject.id}:${store.stateEpoch}`,
   })
+
+  // 外部改动 = 一条撤销 + 改到的卡闪一下（与助手改卡同一个闪法）。
+  const { recordExternalChange } = rawGraph
+  useEffect(() => {
+    remoteChangeRef.current = (change) => {
+      recordExternalChange(change.before, change.after)
+      const touched = changedNodeIds(change.before, change.after)
+      if (touched.length === 0) return
+      window.requestAnimationFrame(() => {
+        for (const nodeId of touched) flashAssistantTouchedNode(nodeId)
+      })
+    }
+    return () => {
+      remoteChangeRef.current = null
+    }
+  }, [recordExternalChange])
 
   /**
    * §2.7 墨线签署 / 解绑反放。写入方是**连边 / 断边**这两个动作，所以在这里包一层

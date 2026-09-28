@@ -29,11 +29,16 @@ import {
   NODE_STUDIO_WORKFLOW_STORAGE,
 } from '@/constants/node-studio'
 import {
+  MCP_FOLLOW_POLL_ACTIVE_MS,
+  MCP_FOLLOW_POLL_IDLE_MS,
+} from '@/constants/mcp'
+import {
   activateNodeWorkflowProjectAPI,
   backupNodeWorkflowV3StateAPI,
   createNodeWorkflowProjectAPI,
   deleteNodeWorkflowProjectAPI,
   getNodeWorkflowProjectAPI,
+  getNodeWorkflowProjectVersionAPI,
   listNodeWorkflowProjectsAPI,
   updateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
@@ -143,6 +148,18 @@ export function createWorkflowId(prefix: string): string {
 
 export function createWorkflowTimestamp(): string {
   return new Date().toISOString()
+}
+
+/**
+ * 服务端版本号（`updatedAt`，只在写 state 时变）是不是比这边知道的**更新**。
+ * ⚠ 不是「不相等」：一次在本地保存之前出发、之后才回来的查询带回的是旧版号，
+ * 拿它当外部改动会把用户刚存的内容换回去。读不出时间就退回「不相等」。
+ */
+export function isNewerVersion(candidate: string, known: string): boolean {
+  const next = Date.parse(candidate)
+  const current = Date.parse(known)
+  if (Number.isNaN(next) || Number.isNaN(current)) return candidate !== known
+  return next > current
 }
 
 export function normalizeProjectName(
@@ -573,10 +590,24 @@ function purgeLegacyGlobalStorage(): void {
   }
 }
 
+/**
+ * 外部改动被换进当前项目的那一刻（docs/references/mcp.md §6）。图引擎据此记**一条**
+ * 快照撤销、闪一下改到的卡。
+ */
+export interface NodeWorkflowRemoteChange {
+  readonly projectId: string
+  readonly before: NodeWorkflowStateV4
+  readonly after: NodeWorkflowStateV4
+  /** 这个账号的 Claude 正在剪（令牌 2 分钟内用过）—— 回执据此说「Claude 改了」。 */
+  readonly byClaude: boolean
+}
+
 export interface UseNodeWorkflowStoreOptions {
   defaultProjectName: string
   /** Clerk user id; `null` parks the store (no storage reads, no API calls). */
   clerkId: string | null
+  /** 外部改动换进来之后（⛔ 不 bump `stateEpoch`：撤销栈要留着）。 */
+  onRemoteChange?(change: NodeWorkflowRemoteChange): void
 }
 
 export interface NodeWorkflowStoreValue {
@@ -619,7 +650,12 @@ export interface NodeWorkflowStoreValue {
 export function useNodeWorkflowStore({
   defaultProjectName,
   clerkId,
+  onRemoteChange,
 }: UseNodeWorkflowStoreOptions): NodeWorkflowStoreValue {
+  const onRemoteChangeRef = useRef(onRemoteChange)
+  useEffect(() => {
+    onRemoteChangeRef.current = onRemoteChange
+  }, [onRemoteChange])
   const tToasts = useTranslations('StudioNode.toasts')
   const tToastsRef = useRef(tToasts)
   const tShell = useTranslations('StudioNode.shell')
@@ -768,6 +804,11 @@ export function useNodeWorkflowStore({
   const syncedStateRef = useRef<Map<string, NodeWorkflowStateV4>>(new Map())
   /** 在飞的服务端写入数（项目胶囊那颗保存点读它，⛔ 不再只看上传）。 */
   const [pendingServerWrites, setPendingServerWrites] = useState(0)
+  /**
+   * 同一个数的 ref 版：实时跟随在异步回调里判「这边有没有写入在路上」，读 state 会
+   * 拿到闭包里的旧值 —— 表现是把自己刚存的那一版当成外部改动再拉一遍。
+   */
+  const pendingWritesRef = useRef(0)
   /**
    * 「载入最新」换过几次内容。图引擎的撤销栈认它（`historyKey`）：换进来的这份
    * 不是从上一份改出来的，旧的 inverse 一条都不能再用。
@@ -1067,6 +1108,7 @@ export function useNodeWorkflowStore({
         // 排队期间可能已经判了冲突 / 只读：⛔ 那之后一个字都不写。
         if (readOnlyRef.current[projectId]) return false
         const baseUpdatedAt = serverVersionRef.current.get(projectId)
+        pendingWritesRef.current += 1
         setPendingServerWrites((count) => count + 1)
         try {
           const response = await updateNodeWorkflowProjectAPI(projectId, {
@@ -1092,6 +1134,7 @@ export function useNodeWorkflowStore({
           )
           return false
         } finally {
+          pendingWritesRef.current -= 1
           setPendingServerWrites((count) => count - 1)
         }
       }
@@ -1312,6 +1355,118 @@ export function useNodeWorkflowStore({
     },
     [clearReadOnly, markReadOnly, setWorkflowStorage],
   )
+
+  /**
+   * 把外部改动换进来（docs/references/mcp.md §6）—— 与「载入最新」同一条读路径，
+   * 差别只有两处：⛔ 不 bump `stateEpoch`（撤销栈要留着，这一步由图引擎记成一条
+   * 快照撤销），以及**拉取期间这边动过就作罢**（交给保存那条：409 → 载入最新 /
+   * 另存副本），⛔ 不拿远端那份盖掉用户刚改的。
+   */
+  const pullRemoteProject = useCallback(
+    async (projectId: string, byClaude: boolean): Promise<void> => {
+      const knownVersion = serverVersionRef.current.get(projectId)
+      const response = await getNodeWorkflowProjectAPI(projectId)
+      if (!response.success || !response.data) return
+      const record = response.data
+      // 只认**更新**的版本：一次在本地保存之前出发、之后才回来的请求，带回的是旧版。
+      if (knownVersion && !isNewerVersion(record.updatedAt, knownVersion))
+        return
+
+      const upgraded = await upgradeServerRecord(record, {
+        backupAllowed: false,
+      })
+      if (upgraded.readOnly) return
+
+      const current = storageRef.current.projects.find(
+        (project) => project.id === projectId,
+      )
+      if (
+        !current ||
+        readOnlyRef.current[projectId] ||
+        pendingWritesRef.current > 0 ||
+        serverVersionRef.current.get(projectId) !== knownVersion ||
+        syncedStateRef.current.get(projectId) !== current.state
+      ) {
+        return
+      }
+
+      setWorkflowStorage((currentStorage) => ({
+        ...currentStorage,
+        projects: currentStorage.projects.map((project) =>
+          project.id === projectId ? upgraded.project : project,
+        ),
+      }))
+      serverVersionRef.current.set(projectId, record.updatedAt)
+      syncedStateRef.current.set(projectId, upgraded.project.state)
+      onRemoteChangeRef.current?.({
+        projectId,
+        before: current.state,
+        after: upgraded.project.state,
+        byClaude,
+      })
+    },
+    [setWorkflowStorage],
+  )
+
+  /**
+   * 实时跟随：只盯**当前项目** —— 标签页可见、已水化、服务端确认过、非只读、没有
+   * 写入在路上时，隔一会儿问一次版本号（Claude 在剪 2 秒，平时 30 秒）；变新了就
+   * 拉整份换进来。标签页藏起来就停，回到前台立刻问一次。
+   */
+  const currentProjectId = storageState.currentProjectId
+  useEffect(() => {
+    if (!isHydrated || !currentProjectId) return undefined
+    let cancelled = false
+    let running = false
+    let timer: number | undefined
+
+    const schedule = (ms: number) => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => void tick(), ms)
+    }
+
+    const tick = async (): Promise<void> => {
+      if (cancelled || running) return
+      if (document.visibilityState !== 'visible') return
+      if (
+        !serverConfirmedProjectIds.current.has(currentProjectId) ||
+        readOnlyRef.current[currentProjectId] ||
+        pendingWritesRef.current > 0
+      ) {
+        schedule(MCP_FOLLOW_POLL_ACTIVE_MS)
+        return
+      }
+      running = true
+      let active = false
+      try {
+        const response =
+          await getNodeWorkflowProjectVersionAPI(currentProjectId)
+        if (cancelled) return
+        const status = response.success ? response.data : undefined
+        active = status?.mcpActive ?? false
+        const known = serverVersionRef.current.get(currentProjectId)
+        if (status && known && isNewerVersion(status.updatedAt, known)) {
+          await pullRemoteProject(currentProjectId, status.mcpActive)
+        }
+      } finally {
+        running = false
+      }
+      if (!cancelled) {
+        schedule(active ? MCP_FOLLOW_POLL_ACTIVE_MS : MCP_FOLLOW_POLL_IDLE_MS)
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    schedule(MCP_FOLLOW_POLL_ACTIVE_MS)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [currentProjectId, isHydrated, pullRemoteProject])
 
   /**
    * 「另存为副本」：这边手上这份存成一个新项目（⛔ 不碰别处存的那一版），并切过去

@@ -707,3 +707,33 @@ describe('useNodeGraphV4 · historyKey（切项目 / 载入最新 = 换一段历
     expect(view.result.current.canRedo).toBe(false)
   })
 })
+
+describe('useNodeGraphV4 · 外部改动记成一条撤销（docs/references/mcp.md §6）', () => {
+  it('⌘Z 回到换进来之前；⛔ 不清掉在它之前的撤销', () => {
+    const { view } = renderGraph(stateOf([firstFrame]))
+    act(() => {
+      view.result.current.addNode('image', 'result')
+    })
+    const beforeRemote = view.result.current.state
+    const remote = stateOf([firstFrame, shot])
+
+    // store 已经把远端那份换进来了：引擎只记账，不再写 state。
+    view.rerender({ state: remote })
+    act(() => {
+      view.result.current.recordExternalChange(beforeRemote, remote)
+    })
+    expect(view.result.current.canRedo).toBe(false)
+
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.state).toBe(beforeRemote)
+
+    // 更早那一步（加卡）还在栈里。
+    expect(view.result.current.canUndo).toBe(true)
+    act(() => {
+      view.result.current.redo()
+    })
+    expect(view.result.current.state).toBe(remote)
+  })
+})

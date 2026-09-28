@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
+import type { ProjectFollowStatus } from '@/types/mcp'
 import type {
   CreateNodeWorkflowProjectRequest,
   NodeWorkflowProjectRecord,
@@ -137,6 +138,33 @@ export async function getNodeWorkflowProjectAPI(
 ): Promise<NodeWorkflowApiResponse<NodeWorkflowProjectRecord>> {
   try {
     const response = await fetch(endpointWithId(id), { cache: 'no-store' })
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}
+
+/**
+ * 开着的画布跟上外部改动（docs/references/mcp.md §6）：只要版本号与「Claude 是否
+ * 在剪」，⛔ 不拉整份 state —— 这个口每 2～30 秒被问一次。
+ */
+export async function getNodeWorkflowProjectVersionAPI(
+  id: string,
+): Promise<NodeWorkflowApiResponse<ProjectFollowStatus>> {
+  try {
+    const response = await fetch(`${endpointWithId(id)}/version`, {
+      cache: 'no-store',
+    })
     if (!response.ok) {
       return {
         success: false,

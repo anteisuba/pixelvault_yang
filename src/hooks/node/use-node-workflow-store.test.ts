@@ -35,6 +35,7 @@ const api = vi.hoisted(() => ({
   activate: vi.fn(),
   remove: vi.fn(),
   backup: vi.fn(),
+  version: vi.fn(),
 }))
 vi.mock('@/lib/api-client', () => ({
   listNodeWorkflowProjectsAPI: (...args: unknown[]) => api.list(...args),
@@ -44,12 +45,18 @@ vi.mock('@/lib/api-client', () => ({
   activateNodeWorkflowProjectAPI: (...args: unknown[]) => api.activate(...args),
   deleteNodeWorkflowProjectAPI: (...args: unknown[]) => api.remove(...args),
   backupNodeWorkflowV3StateAPI: (...args: unknown[]) => api.backup(...args),
+  getNodeWorkflowProjectVersionAPI: (...args: unknown[]) =>
+    api.version(...args),
 }))
 
+import { MCP_FOLLOW_POLL_ACTIVE_MS } from '@/constants/mcp'
+
 import {
+  isNewerVersion,
   NODE_WORKFLOW_READ_ONLY_REASONS,
   SERVER_WRITE_DEBOUNCE_MS,
   useNodeWorkflowStore,
+  type NodeWorkflowRemoteChange,
 } from './use-node-workflow-store'
 
 const V1 = '2026-09-28T00:00:00.000Z'
@@ -99,9 +106,17 @@ async function flush(ms = 0) {
   })
 }
 
-async function renderHydratedStore() {
+async function renderHydratedStore(
+  options: {
+    readonly onRemoteChange?: (change: NodeWorkflowRemoteChange) => void
+  } = {},
+) {
   const view = renderHook(() =>
-    useNodeWorkflowStore({ defaultProjectName: '未命名', clerkId: 'user_1' }),
+    useNodeWorkflowStore({
+      defaultProjectName: '未命名',
+      clerkId: 'user_1',
+      ...options,
+    }),
   )
   await flush()
   await flush()
@@ -128,6 +143,8 @@ beforeEach(() => {
       Promise.resolve({ success: true, data: record(V2, body.state) }),
   )
   api.activate.mockResolvedValue({ success: true, data: null })
+  // 实时跟随默认问不到版本号 = 什么都不拉（下面那组测试自己给）。
+  api.version.mockResolvedValue({ success: false })
 })
 
 afterEach(() => {
@@ -275,5 +292,76 @@ describe('useNodeWorkflowStore · 保存冲突保护（owner 2026-09-28）', () 
     release?.()
     await flush()
     expect(view.result.current.isSaving).toBe(false)
+  })
+})
+
+describe('useNodeWorkflowStore · 实时跟随（docs/references/mcp.md §6）', () => {
+  it('远端出了更新的版本、这边没有未存的改动：换进来，撤销历史不断', async () => {
+    api.version.mockResolvedValue({
+      success: true,
+      data: { updatedAt: V2, mcpActive: true },
+    })
+    api.get.mockResolvedValue({
+      success: true,
+      data: record(V2, stateWith('Claude 改过')),
+    })
+    const onRemoteChange = vi.fn()
+    const view = await renderHydratedStore({ onRemoteChange })
+    const epoch = view.result.current.stateEpoch
+
+    await flush(MCP_FOLLOW_POLL_ACTIVE_MS)
+
+    expect(view.result.current.state).toEqual(stateWith('Claude 改过'))
+    // ⛔ 不 bump：这一步由图引擎记成一条撤销，不是换了一段历史。
+    expect(view.result.current.stateEpoch).toBe(epoch)
+    expect(onRemoteChange).toHaveBeenCalledWith({
+      projectId: 'p1',
+      before: stateWith('开场'),
+      after: stateWith('Claude 改过'),
+      byClaude: true,
+    })
+
+    // 换进来的就是服务端那一份：不再写回去。
+    await flush(SERVER_WRITE_DEBOUNCE_MS * 2)
+    expect(api.update).not.toHaveBeenCalled()
+  })
+
+  it('版本没变新：连整份都不拉', async () => {
+    api.version.mockResolvedValue({
+      success: true,
+      data: { updatedAt: V1, mcpActive: true },
+    })
+    await renderHydratedStore()
+
+    await flush(MCP_FOLLOW_POLL_ACTIVE_MS * 3)
+
+    expect(api.get).not.toHaveBeenCalled()
+  })
+
+  it('这边有没存的改动：不抢（交给保存那条去报冲突）', async () => {
+    api.version.mockResolvedValue({
+      success: true,
+      data: { updatedAt: V3, mcpActive: true },
+    })
+    api.get.mockResolvedValue({
+      success: true,
+      data: record(V3, stateWith('远端')),
+    })
+    const onRemoteChange = vi.fn()
+    const view = await renderHydratedStore({ onRemoteChange })
+    edit(view, '这边还没存')
+
+    await flush(MCP_FOLLOW_POLL_ACTIVE_MS)
+
+    expect(view.result.current.state).toEqual(stateWith('这边还没存'))
+    expect(onRemoteChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('isNewerVersion', () => {
+  it('只认更新的版本号，⛔ 不是「不相等」', () => {
+    expect(isNewerVersion(V2, V1)).toBe(true)
+    expect(isNewerVersion(V1, V2)).toBe(false)
+    expect(isNewerVersion(V1, V1)).toBe(false)
   })
 })

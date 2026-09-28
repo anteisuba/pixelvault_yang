@@ -136,3 +136,14 @@ export const McpApplyOpsInputSchema = z.object({
 })
 
 export type McpApplyOpsInput = z.infer<typeof McpApplyOpsInputSchema>
+
+/* ─── 浏览器实时跟随（§6）─────────────────────────────────────────────── */
+
+export const ProjectFollowStatusSchema = z.object({
+  /** 画布内容的版本号（与保存用的 `baseUpdatedAt` 同一个）。 */
+  updatedAt: z.string(),
+  /** 这个账号的令牌最近用过 —— 开着的画布据此加快轮询，并把别处来的改动记成 Claude 的。 */
+  mcpActive: z.boolean(),
+})
+
+export type ProjectFollowStatus = z.infer<typeof ProjectFollowStatusSchema>

@@ -78,18 +78,18 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 - 读：按归属取项目 → v4 解析 + 槽位规整（与浏览器载入同一条 `upgradeNodeWorkflowStateToV4` 的 v4 分支）。
 - 写：同上取到 state → 抽出来的批量执行纯函数 → 条件更新（`updatedAt = baseVersion`）。执行上下文在服务端补齐：
   - 模型解析：**不给**。「型号 → 完整选择（渠道 / key）」要用户的 key 与渠道健康状态，那是浏览器里 `useWorkflowModelOptions` 的活；在服务端另拼一份就是第二份真相。执行器的规矩是不给就失败可见，`set_model` 因此回一句「请用户在浏览器里选」。⛔ 不让 Claude 编 adapter 或渠道。
-  - 角色名单：从角色卡库读（与画布 `@` 同源）。
+  - 角色名单：不给 —— 浏览器那边今天也没给图引擎（正文里的 `@` 只认节点名），两边保持一致；画布接上角色名单时两边一起加。
   - 新节点 id：服务端铸。
-- 记来源：`NodeWorkflowProject` 加一列 `lastWriter`（浏览器保存写 `app`、MCP 写 `mcp`、渲染落卡写 `render`），浏览器据此决定回执怎么说。
+- 「是不是 Claude 改的」**不另存一列**：令牌 2 分钟内用过 = Claude 在线，这期间别处来的改动就当作它的。代价是那段时间里同账号另一个标签页的改动也会被这么说（只影响回执措辞）；换来的是不改画布项目表 —— 本地 dev 连的就是生产库，加列就得先动生产库的结构。
 - 限流：每用户每分钟 60 次调用（`src/lib/rate-limit.ts`），`look_at` 一次最多 8 帧，`apply_ops` 一批最多 50 条。
 - 日志：⛔ 不记令牌明文；记 userId · 工具名 · 项目 id · 耗时 · 结果。
 
 ## 6. 浏览器实时跟随（S3）
 
-- 新接口：取当前项目的 `{updatedAt, lastWriter, mcpActive}`，`mcpActive` = 这个用户任一令牌 2 分钟内用过。
+- 新接口：取当前项目的 `{updatedAt, mcpActive}`，`mcpActive` = 这个用户任一令牌 2 分钟内用过。
 - 轮询：只查**当前项目**、标签页可见、已水化、非只读、没有写入在路上。`mcpActive` 时每 2 秒，否则每 30 秒（顺带让同一账号的另一个标签页 / 设备的改动也跟得上）。标签页回到前台立即查一次。
-- 版本变了：
-  - **本地没有未存的改动** → 拉整份、换进来，**⛔ 不清撤销栈**：图引擎把这次替换记成一条快照档撤销（`kind: 'state'`，已有的形状），改到的节点与段闪一下；来源是 `mcp` 时台面给一行回执「Claude 改了 N 处 · 撤销」（样子归第 ④ 步画板）。
+- 版本**变新**了（⚠ 不是「不相等」：一次在本地保存之前出发、之后才回来的查询带回的是旧版号）：
+  - **本地没有未存的改动** → 拉整份、换进来，**⛔ 不清撤销栈**：图引擎把这次替换记成一条快照档撤销（`kind: 'state'`，已有的形状），改到的卡闪一下（剪辑台里段的闪归第 ④ 步画板）；Claude 在线时台面给一行回执「Claude 改了 N 处 · 撤销」（样子归第 ④ 步画板）。
   - **本地有未存的改动** → 不抢，走现有流程：下一次自动保存会 409，提示「载入最新 / 另存为副本」。
 - 两次轮询之间 Claude 连写几批，会并成一条撤销。撤销 = 本地回到拉取前，自动保存带着新版本号写回，Claude 下次读到的就是撤回后的。
 - 剪辑台与画布同一条（时间线在 `state.edit` 里）；手机的只读剪辑台同样跟随。
@@ -111,13 +111,13 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 | 片  | 内容                                                                                                                    | 验收                                                                                                                                                                                               |
 | --- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | S2  | 令牌表 + 迁移 · 令牌接口 · `/api/mcp` 骨架与令牌认证 · proxy 公开 + 测试 · `list_projects` / `read_project` / `look_at` | 上线前：进程内跑真实 `mcp-handler` 的路由测试 + 预演脚本验迁移（本地 dev 连的就是生产库，令牌表上线前本地连不上）；上线后：Claude Code 连线上，读出一个项目的镜头与时间线，看到某一镜第 2 秒的画面 |
-| S3  | 抽出批量执行纯函数（图引擎改调它）· `lastWriter` 列 · `apply_ops` · 版本接口 · 浏览器跟随与撤销                         | Claude 挪一段、改一句提示词、标一镜打回；开着的剪辑台 2 秒内跟上并闪，⌘Z 撤回后 Claude 重读得到撤回后的                                                                                            |
+| S3  | 抽出批量执行纯函数（图引擎改调它）· `apply_ops` · 版本接口 · 浏览器跟随与撤销                                           | Claude 挪一段、改一句提示词、标一镜打回；开着的剪辑台 2 秒内跟上并闪，⌘Z 撤回后 Claude 重读得到撤回后的                                                                                            |
 | S4  | `render` / `get_render` · 服务端落卡 · 小样前缀与生命周期                                                               | Claude 出小样、截剪点看；导出成片落回画布成一张卡并连回各段                                                                                                                                        |
 | S5  | 站内助手：快照加时间线 · 教 op · `look_at`                                                                              | 站内助手一句话把几镜排成初剪，直接生效、可撤销                                                                                                                                                     |
 | S7  | Clerk OAuth · 受保护资源元数据 · 401 指引                                                                               | Claude.ai 加自定义连接器 → Clerk 同意页 → 能读项目                                                                                                                                                 |
 
 - S1（剪辑台地基：导出实跑 · 声音段起点 · 配乐真渐弱 · 预览出声与转场）与 S6（台面重排）归剪辑台本身，见 `node-canvas-v2.md` §6 与第 ④ 步画板。
-- 迁移分两条（owner 已授权，随推 main 由生产构建执行）：S2 只建令牌表，S3 再给 `NodeWorkflowProject` 加 `lastWriter`。⚠ 本地 dev 连的就是生产库，Prisma 默认会 SELECT 模型上的每一列——客户端先认得一列、库里还没有，所有画布读写当场报错；新表不改任何现有查询，所以能先行。加列那条要和「生产库先有这一列」一起安排。令牌管理界面、回执、段的闪烁属于第 ④ 步画板，画板通过前后端先行（owner 09-28 准许非界面片并行）。
+- 只有一条迁移（S2 的令牌表，owner 已授权，随推 main 由生产构建执行）。⚠ 本地 dev 连的就是生产库，Prisma 默认会 SELECT 模型上的每一列 —— 客户端先认得一列、库里还没有，所有画布读写当场报错；这也是 S3 不加 `lastWriter` 列的原因之一。
 
 ## 10. 不做
 
@@ -134,7 +134,7 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 - 服务：`src/services/mcp/`（令牌 · 工具 · 截帧）
 - 纯函数：批量执行（从 `src/hooks/node/use-node-graph-v4.ts` 抽出）· 时间线快照构建 · `src/lib/studio-operator-canvas-snapshot.ts`
 - 常量：`src/constants/mcp.ts`（前缀 · 上限 · 轮询间隔）
-- 数据：`prisma/schema.prisma` 的令牌表与 `NodeWorkflowProject.lastWriter`
+- 数据：`prisma/schema.prisma` 的令牌表 `McpToken`
 - 已有、复用：`CANVAS_APPLY_OP_IDS`（`src/types/assistant-operator.ts`）· `node-workflow.service.ts` 的版本号条件写 · `use-node-workflow-store.ts` 的保存与冲突 · `src/constants/media-transformations.ts` · `render-video.service.ts`
 
 ## Last Verified

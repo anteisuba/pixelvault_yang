@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LoraAssemblyColumn } from './LoraAssemblyColumn'
@@ -13,6 +13,7 @@ vi.mock('@/components/business/studio/lora/LoraBaseModelModal', () => ({
   LoraBaseModelModal: () => null,
 }))
 
+let mockScale = 0.8
 vi.mock('@/hooks/use-active-lora-stack', () => ({
   useActiveLoraStack: () => ({
     items: [
@@ -25,7 +26,7 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
           coverImageUrl: null,
           defaultScale: 1,
         },
-        scale: 0.8,
+        scale: mockScale,
       },
     ],
     mountEvent: null,
@@ -36,8 +37,8 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
   }),
 }))
 
-function renderColumn(props: { onReturn?: () => void } = {}) {
-  const all = {
+function columnProps(props: { onReturn?: () => void } = {}) {
+  return {
     compatibleBases: [],
     selectedBase: null,
     onSelectBase: vi.fn(),
@@ -49,6 +50,10 @@ function renderColumn(props: { onReturn?: () => void } = {}) {
     onCollapsedChange: vi.fn(),
     ...props,
   }
+}
+
+function renderColumn(props: { onReturn?: () => void } = {}) {
+  const all = columnProps(props)
   render(<LoraAssemblyColumn {...all} />)
   return all
 }
@@ -60,6 +65,7 @@ const stripButton = () =>
 describe('LoraAssemblyColumn · 竖条', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockScale = 0.8
   })
 
   it('floats the whole column over the library from anywhere on the strip, and tucks it back on a click outside', () => {
@@ -116,5 +122,15 @@ describe('LoraAssemblyColumn · 竖条', () => {
 
     fireEvent.click(stripButton())
     expect(props.onCollapsedChange).toHaveBeenCalledWith(false)
+  })
+
+  it('权重被别处改了（助手搭配卡 / 撤销）读数走到新值', async () => {
+    const props = columnProps()
+    const { rerender } = render(<LoraAssemblyColumn {...props} />)
+    expect(screen.getByText('×0.80')).toBeInTheDocument()
+
+    mockScale = 0.5
+    rerender(<LoraAssemblyColumn {...props} />)
+    await waitFor(() => expect(screen.getByText('×0.50')).toBeInTheDocument())
   })
 })

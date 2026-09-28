@@ -59,6 +59,9 @@ import {
   OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
   OPERATOR_LORA_PICK_CHOICE_IDS,
   OPERATOR_LORA_PICK_DISMISS_LABEL,
+  OPERATOR_LORA_SETUP_CHOICE_IDS,
+  OPERATOR_LORA_SETUP_CHOICE_LABELS,
+  loraSetupAnswerId,
   overwriteAnswerId,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
@@ -123,6 +126,7 @@ import {
   applyOperatorStep,
   buildGenerationKnobSteps,
   describeOperatorInverse,
+  getOperatorStepField,
 } from '@/lib/studio-operator-apply'
 import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
@@ -138,6 +142,7 @@ import {
   describeLoraPickDecisionText,
   describeLoraPickOptionLabels,
   describeLoraPickSelectionLabel,
+  describeLoraSetupDecisionText,
   describeQuestionAnswerText,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -156,7 +161,9 @@ import {
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 import type { PromptAssistantResponseLanguage } from '@/types'
+import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import type {
+  AssistantLoraParameters,
   AssistantOperatorCharacterProfileFieldDraft,
   AssistantOperatorConfirmDecision,
   AssistantOperatorContextCardDraft,
@@ -562,6 +569,26 @@ function loraPickDecision(
 }
 
 /**
+ * 搭配卡那一下的**落账两件套**（lora-assistant §12）—— 判据与 `loraPickDecision`
+ * 逐字同源：一条自带题面的正文 + 结构化那一半。
+ */
+function loraSetupDecision(
+  question: string,
+  choice: (typeof OPERATOR_LORA_SETUP_CHOICE_IDS)[keyof typeof OPERATOR_LORA_SETUP_CHOICE_IDS],
+): { userText: string; answered: AssistantOperatorPlanAnswer } {
+  const label = OPERATOR_LORA_SETUP_CHOICE_LABELS[choice]
+  return {
+    userText: describeLoraSetupDecisionText(question, label),
+    answered: clampPlanAnswer({
+      questionId: loraSetupAnswerId(question),
+      optionIds: [choice],
+      question,
+      optionLabels: [label],
+    }),
+  }
+}
+
+/**
  * **提议一到就写成一行「待确认」**（v2 §8.1，owner 2026-09-11）。
  *
  * ⭐ 为什么客户端写而不是服务端写：写库这一跳必须**长在用户那一侧**——服务端
@@ -722,6 +749,14 @@ export interface UseAssistantOperatorResult {
   ): void
   /** **推荐卡关掉不点** —— ⛔ 不发请求，但照样落一行「都不挂」的账。 */
   dismissLoraPick(): void
+  /**
+   * **搭配卡「应用这套搭配」**（lora-assistant §12）—— 客户端逐行应用（卸下 → 权重 →
+   * 参数 → 新挂），每行一条带 `inverse` 的 step（这一轮的「撤销」撤在它们身上），
+   * 落一行账。⛔ 不新开一轮。连点两下只应用一次。
+   */
+  applyLoraSetup(): Promise<void>
+  /** **搭配卡「先不用」** —— 什么都不动，照样落一行账。 */
+  dismissLoraSetup(): void
   /**
    * **设定提议卡「收下勾选的」**（卡片助手 C2）—— 勾中的那几格（「只留我写的」已在
    * 卡上去掉助手补的句子）交给角色页写进角色，成功失败都落一行账。
@@ -1477,6 +1512,26 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
                   pick: event.confirm.pick,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              /**
+               * **摆一张搭配卡**（lora-assistant §12）—— 助手自己搭好的一套，一行一处
+               * 变化。⚠ 服务端到这一帧为止一把都没挂、一格都没改：应用发生在创作者
+               * 点「应用这套搭配」时（`applyLoraSetup`），⛔ 不新开一轮。
+               */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup,
+                  setup: event.confirm.setup,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
                 setOperatorStatus('awaitingConfirm')
@@ -3025,6 +3080,236 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     })
   }, [])
 
+  /**
+   * **搭配卡「应用这套搭配」**（lora-assistant §12，owner 2026-09-28「一张卡全包」）。
+   *
+   * ⭐ 客户端逐行应用，**每一行一条带 `inverse` 的 step**（与服务端那几条工具同一种
+   * 形状：`unmount_lora` / `set_lora_weight` / `set_lora_parameters` /
+   * `mount_lora`），同一个 runKey —— 过程行上那颗「撤销」一次撤回整套。
+   * ⚠ 顺序：卸下 → 权重 → 参数 → 新挂。新挂要过下载闸与导入（慢、可能失败），放
+   *   最后；前面几行是同步的，先落地。
+   * ⚠ 撤销用的原值按**这一刻**的装配台现取（⛔ 用卡上那一格「原值」）：卡摆出来之后
+   *   创作者自己动过滑杆，撤销该回到他动过之后的样子。
+   * ⚠ 已经不在台上的那一行（卡摆出来之后被手动卸掉了）跳过并记一处没成，⛔ 不报错
+   *   整张 —— 其余几行照常应用。
+   * ⛔ **不新开一轮**：这张卡是助手搭好的整套，应用就是终点；创作者下一句话照常带着
+   *   最新快照与这一行账进下一轮。
+   */
+  const applyLoraSetup = useCallback(async () => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    const lora = applyContext.lora
+    if (!lora) return
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+    const { setup } = confirm
+    const runKey = nextOperatorEntryId('run')
+    const bench = buildSnapshot().loras?.items ?? []
+    let index = 0
+    let failed = 0
+    const nextStepId = () => {
+      index += 1
+      return `setup-${index}`
+    }
+    const land = (step: AssistantOperatorStep) => {
+      upsertOperatorStep(step, runKey)
+      if (step.status !== 'done') return
+      applyOperatorStep(step, applyContext)
+      const field = getOperatorStepField(step)
+      if (!field) return
+      recordOperatorChange({
+        field,
+        stepId: operatorStepEntryId(runKey, step.id),
+        firstInverse: step,
+        previousLabel: describeOperatorInverse(step),
+      })
+    }
+
+    for (const row of setup.unmounts) {
+      const current = bench.find((item) => item.id === row.loraId)
+      if (!current) {
+        failed += 1
+        continue
+      }
+      land({
+        id: nextStepId(),
+        title: row.name,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+        verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+          ASSISTANT_OPERATOR_TOOL_IDS.unmountLora
+        ],
+        status: 'done',
+        payload: { loraId: row.loraId, name: row.name },
+        inverse: { loraId: row.loraId, weight: current.weight },
+      })
+    }
+
+    for (const row of setup.weights) {
+      const current = bench.find((item) => item.id === row.loraId)
+      if (!current) {
+        failed += 1
+        continue
+      }
+      land({
+        id: nextStepId(),
+        title: row.name,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+        verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+          ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight
+        ],
+        status: 'done',
+        payload: { loraId: row.loraId, name: row.name, weight: row.to },
+        inverse: { loraId: row.loraId, weight: current.weight },
+      })
+    }
+
+    if (setup.parameters) {
+      const current = buildSnapshot().loraParameters
+      if (!current || !lora.setParameters) {
+        failed += 1
+      } else {
+        const previous = Object.fromEntries(
+          Object.keys(AssistantLoraParametersSchema.shape).map((key) => [
+            key,
+            current[key as keyof AssistantLoraParameters] ?? null,
+          ]),
+        ) as AssistantLoraParameters
+        land({
+          id: nextStepId(),
+          title: OPERATOR_LORA_SETUP_CHOICE_LABELS.apply,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+          verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+            ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters
+          ],
+          status: 'done',
+          payload: setup.parameters.patch,
+          inverse: previous,
+        })
+      }
+    }
+
+    for (const row of setup.mounts) {
+      const candidate = row.candidate
+      const base = {
+        id: nextStepId(),
+        title: candidate.name,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+        verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+          ASSISTANT_OPERATOR_TOOL_IDS.mountLora
+        ],
+      }
+      const importPayload = candidate.importPayload
+      if (!importPayload) {
+        failed += 1
+        continue
+      }
+      const payload = {
+        candidateId: candidate.candidateId,
+        name: candidate.name,
+        weight: row.weight,
+        triggerWords: candidate.triggerWords,
+        family: candidate.family,
+        compatible: true,
+        importPayload,
+      }
+      upsertOperatorStep(
+        {
+          ...base,
+          status: 'running',
+          payload,
+          inverse: { candidateId: candidate.candidateId },
+        },
+        runKey,
+      )
+      let detail = 'Mount did not complete'
+      let mounted = false
+      try {
+        const outcome = await lora.mount(payload)
+        mounted = Boolean(outcome.mounted && outcome.asset)
+        if (outcome.error) detail = outcome.error
+      } catch (error) {
+        if (error instanceof Error) detail = error.message
+      }
+      if (mounted) {
+        // ⚠ 挂载那一跳已经由上面的 `lora.mount` 做完 —— 这里只落步与账，⛔ 不经
+        //   `land`（它会再 `applyOperatorStep` 一次，等于挂两遍）。
+        const step: AssistantOperatorStep = {
+          ...base,
+          status: 'done',
+          payload,
+          inverse: { candidateId: candidate.candidateId },
+        }
+        upsertOperatorStep(step, runKey)
+        recordOperatorChange({
+          field: STUDIO_OPERATOR_FIELD_IDS.loras,
+          stepId: operatorStepEntryId(runKey, step.id),
+          firstInverse: step,
+          previousLabel: describeOperatorInverse(step),
+        })
+      } else {
+        failed += 1
+        upsertOperatorStep(
+          {
+            ...base,
+            status: 'error',
+            error: {
+              reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraNotImportable,
+              detail: detail.slice(0, ASSISTANT_OPERATOR_LIMITS.maxPromptChars),
+            },
+          },
+          runKey,
+        )
+      }
+    }
+
+    setOperatorConfirm({
+      ...confirm,
+      ...(failed > 0 ? { failedCount: failed } : {}),
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting,
+    })
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+    setOperatorStatus('idle')
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'loraSetupApplied',
+      subject: setup.question,
+      ...loraSetupDecision(
+        setup.question,
+        OPERATOR_LORA_SETUP_CHOICE_IDS.apply,
+      ),
+    })
+  }, [applyContext, buildSnapshot])
+
+  /** **搭配卡「先不用」** —— ⛔ 什么都不动、不发请求，但**落账**（同推荐卡）。 */
+  const dismissLoraSetup = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'loraSetupDismissed',
+      subject: confirm.setup.question,
+      ...loraSetupDecision(
+        confirm.setup.question,
+        OPERATOR_LORA_SETUP_CHOICE_IDS.dismiss,
+      ),
+    })
+  }, [])
+
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
   useEffect(() => {
     confirmGenerationRef.current = confirmGeneration
@@ -3135,6 +3420,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     acceptImageHandoff,
     dismissImageHandoff,
     dismissLoraPick,
+    applyLoraSetup,
+    dismissLoraSetup,
     retryGeneration,
     rerunGeneration,
     newThread,

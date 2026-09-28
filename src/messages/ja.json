@@ -7831,6 +7831,28 @@
           "gatedRepo": "制限付きリポジトリのため重みを取得できません"
         }
       },
+      "loraSetup": {
+        "apply": "この構成を適用",
+        "applying": "適用中…",
+        "applied": "適用済み · {time}",
+        "appliedPartial": "適用済み · {time} · {count} 件は反映できず",
+        "dismiss": "今はやめておく",
+        "unmount": "外す",
+        "mountSr": "追加",
+        "parameters": "パラメータ",
+        "paramDefault": "既定",
+        "paramRandom": "ランダム",
+        "tally": "適用後の合計ウェイト",
+        "overBudget": "合計ウェイトが {limit} を超えます —— 画面がにごるかもしれません。どれか一つを下げてみてください。",
+        "param": {
+          "runnerSampler": "サンプラー",
+          "runnerScheduler": "スケジューラ",
+          "steps": "ステップ",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "サイズ"
+        }
+      },
       "characterProfile": {
         "header": "{name} の下書き · {count} 項目",
         "question": "「{name}」に入れますか？",
@@ -7887,6 +7909,8 @@
       "contextCardSaveFailed": "「{subject}」を保存できませんでした。もう一度お試しください。",
       "loraPickMounted": "追加する LoRA を選びました：{subject}",
       "loraPickDismissed": "今回はこれらの LoRA を追加しません：{subject}",
+      "loraSetupApplied": "構成を適用しました：{subject}",
+      "loraSetupDismissed": "この構成は今は使いません（{subject}）",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "この設定は入れませんでした：{subject}",
       "characterProfileSaveFailed": "「{subject}」に書き込めませんでした —— もう一度？",

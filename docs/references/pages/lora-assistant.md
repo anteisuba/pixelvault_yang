@@ -498,6 +498,40 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 
 外部原理核验（2026-09-12）：[Diffusers LoRA 加载文档](https://huggingface.co/docs/diffusers/main/using-diffusers/loading_adapters)说明底模、实际加载权重及 scale 各自参与执行；[可复现性文档](https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds)说明随机状态与执行环境会影响复现，即使相同 seed 也不保证跨环境一致。这些是原理依据，不是本仓 Comfy Runner 的端到端验证。
 
+## 12. 搭配卡（owner 2026-09-28「一张卡全包」）
+
+助手**自己搭好的一套**—— 要新挂的几把、要卸下的、权重 a→b、Runner 参数 a→b —— 摆成一张卡，创作者点「应用这套搭配」一起生效；这一轮过程行上的「撤销」一次撤回。它是生成台 B「应用这组权重」卡（`lora-generate.md` §2.5）的全包版。⚠ 本节新增一条工具 `plan_lora_setup`，§1「不加新工具 / 仅此一条」说的是 09-12 那一轮，以本节为准。
+
+### 12.1 两张卡的分工
+
+| 场景                                                | 卡                                             |
+| --------------------------------------------------- | ---------------------------------------------- |
+| 创作者要**自己挑**（搜出一批，他来勾）              | 推荐卡 `plan_lora_pick`（§10）                 |
+| 助手**自己搭好了**（哪几把 · 各多重 · 参数）        | 搭配卡 `plan_lora_setup`                       |
+| 助手给的**权重 / 参数建议**（「脸糊，这两把调低」） | 搭配卡，只放那几行                             |
+| 创作者**说定了一个值**（「把祀调到 0.7」）          | 直接 `set_lora_weight` / `set_lora_parameters` |
+
+⛔ 同一批 LoRA 两张卡各出一次；⛔ 挂载前不上卡。系统提示与三条工具说明都按这张表写。
+
+### 12.2 服务端（`planLoraSetup`）
+
+- 行都按快照算好：名字、原值、装不装得上、导不导得进，⛔ 让模型写；与现状相同的权重 / 参数剥掉，剥完一处不剩就拒（`malformedArgs`）。
+- 新挂只收本轮 `search_loras` 回过的 candidateId（`unknownLora`）；装不上当前底模（`loraIncompatibleBase`）、导不进库（`loraNotImportable`）直接拒并说出路 —— ⛔ 像推荐卡那样灰着摆上去：这张卡是「替你搭好了」，搭进一把装不上的就是搭错了。已经挂着的候选跳过（调它走权重）。
+- 卸下 / 权重只收台上的挂载 id（`loraNotMounted`，理由里把台上的 id 原样列回去）；同一把又卸又调按 `malformedArgs` 拒。
+- 参数与 `set_lora_parameters` 共用一份判据（`checkLoraParameters`）：非 Runner 底模 `noSuchControl`，宽高成对、8 的倍数、上下限。
+- 卡底读数 = **应用之后**启用中的总权重 / 这条底模的阈值（§5）；超了只标红不拦。
+- 吐一帧 `confirm(loraSetup)`、停流，⛔ 一把都没挂、一格都没改。
+
+### 12.3 客户端（`applyLoraSetup`）
+
+- 点「应用」由客户端逐行做，顺序：卸下 → 权重 → 参数 → 新挂（新挂要过下载闸与导入，慢、可能失败，放最后）。
+- 每一行一条带 `inverse` 的 step（与服务端那几条工具同形），同一个 runKey —— 过程行上那颗「撤销」一次撤回整套（撤回只有这一个入口，owner 09-24）。
+- 撤销用的原值按**点下去那一刻**的装配台现取：卡摆出来之后创作者自己动过滑杆，撤销回到他动过之后的样子。
+- 已经不在台上的那一行跳过；新挂没成的那一步记错；卡就地收成「已应用 · 11:24 · N 处没成」。
+- ⛔ 不新开一轮：应用就是终点，落一行账（`loraSetupApplied`，自带题面的 user 消息）；「先不用」同样落账（`loraSetupDismissed`）。
+- 左列滑杆与数字 240 线性走到新值（拖滑杆时跟手）；⛔ 出图。
+- 与画板的一处差：画板写「搭配条同一拍记一条可撤销」—— 不做，撤回只留过程行上那一个入口。
+
 ## Source of Truth / Last Verified
 
 ### Source of Truth
@@ -511,6 +545,8 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 - **代码**：`src/constants/lora-base-models.ts` · `src/constants/assistant-operator.ts` · `src/constants/studio-assistant-operator.ts` · `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/lora-model-compatibility.ts` · `src/lib/lora-prompt-template.ts` · `src/lib/lora-source-match-prompt.ts` · `src/lib/studio-operator-snapshot.ts` · `src/lib/studio-operator-history.ts` · `src/hooks/use-lora-operator-host.ts` · `src/hooks/use-assistant-operator.ts` · `src/types/lora-candidate.ts` · `src/types/assistant-conversation.ts` · `src/components/business/studio/lora/LoraWorkbench.tsx` · `src/components/business/studio/assistant-operator/**`
 
 ### Last Verified
+
+- **2026-09-28 · §12 搭配卡**：owner 选「一张卡全包」（新挂 / 卸下 / 权重 / 参数一张卡、一键应用、这一轮撤销一键回退、新 LoRA 不再单独走推荐卡勾选）。新工具 `plan_lora_setup` + 确认帧 `loraSetup` + 客户端逐行应用；系统提示与三条工具说明改成两张卡的分工表（§12.1）。
 
 - **2026-09-19 · 进度表 22 落地当日的两条补记**（代码已这样）：① 空态三颗起手药丸的第三颗改成触发词那一问，en/ja/zh 同步；② LoRA 域的「改」**保留**（`set_lora_parameters` 等），D7 Q5 那句「op 表为空集」作废。统一 dock 的壳、收起态与问题卡形状见 [`assistant-shell-v2.md`](assistant-shell-v2.md) §4.3 / §3.4——本文不重抄。
 

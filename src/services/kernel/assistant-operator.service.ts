@@ -434,6 +434,7 @@ import {
   type AssistantOperatorLoraCandidate,
   type AssistantOperatorLoraPickCandidate,
   type AssistantOperatorLoraPickConfirm,
+  type AssistantOperatorLoraSetupConfirm,
   type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
@@ -1099,6 +1100,15 @@ type ToolPlan =
   | {
       kind: 'confirmLoraPick'
       pick: AssistantOperatorLoraPickConfirm
+    }
+  /**
+   * **把助手自己搭好的一套摆给创作者**（lora-assistant §12）—— 同上：吐一帧确认、
+   * 停流，⛔ 服务端一把都没挂、一格都没改。应用那几行由客户端在创作者点下去时做，
+   * 每一行一条带 `inverse` 的 step，撤销撤在它们身上。
+   */
+  | {
+      kind: 'confirmLoraSetup'
+      setup: AssistantOperatorLoraSetupConfirm
     }
   /**
    * **歧义反问**（§3.3 第 5 行 / §7，切片 3a）—— 「你说的是哪一张？」
@@ -4369,23 +4379,31 @@ function planSpecsPrecondition(run: OperatorRun): ToolPlan | null {
       )
 }
 
-/** ⚠ 只从 `planTool` 来，且 `planSpecsPrecondition` 已经放行 —— 档位表非空。 */
-function planSetLoraParameters(
+/**
+ * Runner 参数那几格**合不合法** —— `set_lora_parameters` 与搭配卡（§12）共用一份
+ * 判据，⛔ 各写一遍（两处分叉的表现是「助手直接设 832 合法、摆进卡里被拒」）。
+ */
+function checkLoraParameters(
   run: OperatorRun,
   args: AssistantLoraParameters,
-): ToolPlan {
+):
+  | { ok: true; patch: AssistantLoraParameters; next: AssistantLoraParameters }
+  | { ok: false; plan: ToolPlan } {
   const base = LORA_BASE_MODELS.find((item) => item.id === run.state.modelId)
   if (!run.state.loraParameters || base?.backend !== 'runner')
-    return reject(REJECT.noSuchControl)
+    return { ok: false, plan: reject(REJECT.noSuchControl) }
   const parsed = AssistantLoraParametersSchema.safeParse(args)
   if (!parsed.success || Object.keys(parsed.data).length === 0)
-    return reject(REJECT.unknownValue)
+    return { ok: false, plan: reject(REJECT.unknownValue) }
   const next = { ...run.state.loraParameters, ...parsed.data }
   if ((next.runnerWidth == null) !== (next.runnerHeight == null))
-    return reject(
-      REJECT.unknownValue,
-      'Width and height must both be set or both reset.',
-    )
+    return {
+      ok: false,
+      plan: reject(
+        REJECT.unknownValue,
+        'Width and height must both be set or both reset.',
+      ),
+    }
   const max = base.family === 'anima-dit' ? 1536 : 2048
   if (
     [next.runnerWidth, next.runnerHeight].some(
@@ -4393,10 +4411,24 @@ function planSetLoraParameters(
         value != null && (value < 512 || value > max || value % 8 !== 0),
     )
   )
-    return reject(
-      REJECT.unknownValue,
-      `Dimensions must be multiples of 8 between 512 and ${max}.`,
-    )
+    return {
+      ok: false,
+      plan: reject(
+        REJECT.unknownValue,
+        `Dimensions must be multiples of 8 between 512 and ${max}.`,
+      ),
+    }
+  return { ok: true, patch: parsed.data, next }
+}
+
+/** ⚠ 只从 `planTool` 来，且 `planSpecsPrecondition` 已经放行 —— 档位表非空。 */
+function planSetLoraParameters(
+  run: OperatorRun,
+  args: AssistantLoraParameters,
+): ToolPlan {
+  const checked = checkLoraParameters(run, args)
+  if (!checked.ok) return checked.plan
+  const { patch, next } = checked
   const previous = Object.fromEntries(
     Object.keys(AssistantLoraParametersSchema.shape).map((key) => [
       key,
@@ -4405,9 +4437,9 @@ function planSetLoraParameters(
   )
   return {
     kind: 'mutate',
-    payload: parsed.data,
+    payload: patch,
     inverse: previous,
-    observation: `Updated visible Runner parameters: ${JSON.stringify(parsed.data)}. Generation has not started.`,
+    observation: `Updated visible Runner parameters: ${JSON.stringify(patch)}. Generation has not started.`,
     apply: () => {
       run.state.loraParameters = next
     },
@@ -5328,6 +5360,198 @@ function planLoraPick(
         limit === null ? null : { total: Math.round(total * 100) / 100, limit },
       groups,
       candidates,
+    },
+  }
+}
+
+/**
+ * **把助手自己搭好的一套摆给创作者**（lora-assistant §12，owner 2026-09-28「一张卡
+ * 全包」）：新挂几把 · 卸下哪几把 · 权重 a→b · 参数 a→b，一张卡、一颗「应用」。
+ *
+ * ⭐ 行都在这里按**快照**算好（名字、原值、装不装得上），⛔ 不让模型写；只列真的
+ * 会变的那几处（与现状相同的权重 / 参数剥掉），剥完一处都不剩就拒 —— 一张什么都
+ * 不会发生的卡只会让人白点一下。
+ * ⚠ 助手那只手的闸与挂载同一套：装不上当前底模的（§4.2）、导不进库的，拒并说清
+ *   出路；⛔ 不像推荐卡那样灰着摆上去 —— 推荐卡是「你来挑」，这张是「我替你搭好
+ *   了」，搭进去一把装不上的就是搭错了。
+ * ⚠ 已经挂着的候选不再「新挂」一遍：要调它的权重走 `weights`。
+ */
+function planLoraSetup(
+  run: OperatorRun,
+  args: {
+    question: string
+    mounts?: { candidateId: string; weight?: number }[]
+    unmounts?: { loraId: string }[]
+    weights?: { loraId: string; weight: number }[]
+    parameters?: AssistantLoraParameters
+  },
+): ToolPlan {
+  if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
+
+  const baseFamily = run.state.loraBaseFamily
+  const min = run.state.loraMinWeight
+  const max = run.state.loraMaxWeight
+  const rangeReject = () =>
+    reject(REJECT.unknownValue, `Weight must be between ${min} and ${max}.`)
+  const inRange = (weight: number) =>
+    Number.isFinite(weight) && weight >= min && weight <= max
+  const round = (weight: number) => Math.round(weight * 100) / 100
+  const benchIds = () =>
+    run.state.loras.length === 0
+      ? ' Nothing is on the bench right now.'
+      : ` On the bench right now (copy the id verbatim): ${run.state.loras
+          .map(
+            (item) => `${item.id} · ${clamp(item.name, LIMITS.maxLabelChars)}`,
+          )
+          .join(' | ')}.`
+
+  const mounts: AssistantOperatorLoraSetupConfirm['mounts'] = []
+  const seenCandidates = new Set<string>()
+  for (const entry of args.mounts ?? []) {
+    const candidate = run.loraIndex.get(entry.candidateId)
+    if (!candidate) {
+      return reject(
+        REJECT.unknownLora,
+        `"${clamp(entry.candidateId, LIMITS.maxLabelChars)}" is not one of the candidates ${TOOL.searchLoras} returned this turn. Only ids from this turn's search results can go on the card — search again if the one you have in mind is not among them.`,
+      )
+    }
+    if (seenCandidates.has(candidate.candidateId)) continue
+    seenCandidates.add(candidate.candidateId)
+    const projection = {
+      ...(toLoraCandidateProjection(
+        candidate,
+        baseFamily,
+      ) as AssistantOperatorLoraCandidate),
+      importPayload: candidate.importPayload,
+      recommended: false,
+    } as AssistantOperatorLoraPickCandidate
+    const name = clamp(candidate.name, LIMITS.maxLabelChars)
+    if (projection.alreadyMounted) continue
+    if (!projection.importable || !candidate.importPayload) {
+      return reject(
+        REJECT.loraNotImportable,
+        `"${name}" cannot be filed into the library, so it cannot go on the setup. Leave it out, or point the creator to its source page.`,
+      )
+    }
+    if (!projection.compatible) {
+      return reject(
+        REJECT.loraIncompatibleBase,
+        `"${name}" was built for ${clamp(candidate.baseModelFamily ?? 'another family', LIMITS.maxLabelChars)}, and the selected base is ${baseFamily ?? 'not set'} — it will not load. Search again within that family, or suggest switching the base first.`,
+      )
+    }
+    const weight = entry.weight ?? projection.defaultWeight
+    if (!inRange(weight)) return rangeReject()
+    mounts.push({ candidate: projection, weight: round(weight) })
+  }
+
+  const unmounts: AssistantOperatorLoraSetupConfirm['unmounts'] = []
+  const unmountIds = new Set<string>()
+  for (const entry of args.unmounts ?? []) {
+    const mounted = run.state.loras.find((item) => item.id === entry.loraId)
+    if (!mounted) {
+      return reject(
+        REJECT.loraNotMounted,
+        `That LoRA is not on the bench — the ids you can take off are the mounted-item ids in the state block.${benchIds()}`,
+      )
+    }
+    if (unmountIds.has(mounted.id)) continue
+    unmountIds.add(mounted.id)
+    unmounts.push({
+      loraId: mounted.id,
+      name: clamp(mounted.name, LIMITS.maxLabelChars),
+    })
+  }
+
+  const weights: AssistantOperatorLoraSetupConfirm['weights'] = []
+  const weightIds = new Set<string>()
+  for (const entry of args.weights ?? []) {
+    const mounted = run.state.loras.find((item) => item.id === entry.loraId)
+    if (!mounted) {
+      return reject(
+        REJECT.loraNotMounted,
+        `That LoRA is not on the bench — the ids you can re-weight are the mounted-item ids in the state block.${benchIds()}`,
+      )
+    }
+    if (unmountIds.has(mounted.id)) {
+      return reject(
+        REJECT.malformedArgs,
+        `"${clamp(mounted.name, LIMITS.maxLabelChars)}" is both taken off and re-weighted on the same card — keep one of the two.`,
+      )
+    }
+    if (!inRange(entry.weight)) return rangeReject()
+    if (weightIds.has(mounted.id)) continue
+    weightIds.add(mounted.id)
+    const to = round(entry.weight)
+    if (to === mounted.weight) continue
+    weights.push({
+      loraId: mounted.id,
+      name: clamp(mounted.name, LIMITS.maxLabelChars),
+      from: mounted.weight,
+      to,
+    })
+  }
+
+  let parameters: AssistantOperatorLoraSetupConfirm['parameters'] = null
+  if (args.parameters && Object.keys(args.parameters).length > 0) {
+    const checked = checkLoraParameters(run, args.parameters)
+    if (!checked.ok) return checked.plan
+    const patch: Record<string, unknown> = {}
+    const previous: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(checked.patch)) {
+      const before =
+        run.state.loraParameters?.[key as keyof AssistantLoraParameters] ?? null
+      if ((value ?? null) === before) continue
+      patch[key] = value ?? null
+      previous[key] = before
+    }
+    if (Object.keys(patch).length > 0) {
+      parameters = {
+        patch: patch as AssistantLoraParameters,
+        previous: previous as AssistantLoraParameters,
+      }
+    }
+  }
+
+  if (
+    mounts.length + unmounts.length + weights.length === 0 &&
+    parameters === null
+  ) {
+    return reject(
+      REJECT.malformedArgs,
+      'Nothing on this card would change anything — every row already matches the bench. Put only what actually changes, or tell the creator it is fine as it is.',
+    )
+  }
+
+  /**
+   * 卡底那行读数：**应用之后**启用中的总权重 vs 这条底模的阈值（§5）。⚠ 底模未定 →
+   * 整块缺席；超了只标红不拦（§5.2）。
+   */
+  const limit = resolveLoraStackWeightBudget(
+    baseFamily ? getDefaultBase(baseFamily) : null,
+  )
+  const nextWeight = new Map(weights.map((row) => [row.loraId, row.to]))
+  const total =
+    run.state.loras.reduce(
+      (sum, item) =>
+        item.enabled === false || unmountIds.has(item.id)
+          ? sum
+          : sum + (nextWeight.get(item.id) ?? item.weight),
+      0,
+    ) + mounts.reduce((sum, row) => sum + row.weight, 0)
+
+  return {
+    kind: 'confirmLoraSetup',
+    setup: {
+      question: args.question,
+      baseFamilyLabel: baseFamily
+        ? clamp(baseFamily, LIMITS.maxLabelChars)
+        : null,
+      budget:
+        limit === null ? null : { total: Math.round(total * 100) / 100, limit },
+      mounts,
+      unmounts,
+      weights,
+      parameters,
     },
   }
 }
@@ -7908,6 +8132,11 @@ async function planTool(
           recommendedCandidateId?: string
         },
       )
+    case TOOL.planLoraSetup:
+      return planLoraSetup(
+        run,
+        parsed.data as Parameters<typeof planLoraSetup>[1],
+      )
     case TOOL.proposeContextCard:
       return planProposeContextCard(
         run,
@@ -8950,7 +9179,9 @@ function buildOperatorSystemPrompt(
       ? `- A mounted LoRA already owns part of the picture — the character's face, hair and body type are decided by it. Help the creator change the layer they are actually changing (outfit, scene, light, pose), and say plainly when a request fights the mounted LoRA.
 - Never recommend a LoRA the creator cannot actually use without saying so in the same sentence. Two things make one unusable and search_loras tells you both: it cannot be filed into the library at all, or it was built for a different base-model architecture and will not load on the base that is selected. "Switch the base model" is a legitimate suggestion; quietly recommending an incompatible one is not.
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
-- Put the candidates in front of the creator before anything is mounted: once ${TOOL.searchLoras} comes back, go through ${TOOL.planLoraPick} and let them tick what to mount. Do this even when only one candidate came back, and even when they named a LoRA themselves — they have not laid eyes on it yet, and a wrong one only surfaces when they undo it. Don't list the candidates in your reply and ask them to answer in words — the card is how they pick.
+- Nothing gets mounted before the creator has seen it on a card. Once ${TOOL.searchLoras} comes back, there are two cards: when they are choosing among options, go through ${TOOL.planLoraPick} and let them tick what to mount (even when only one candidate came back, even when they named a LoRA themselves); when YOU compose the setup — which LoRAs, their weights, the Runner parameters — put the whole thing on ONE ${TOOL.planLoraSetup} card and they apply it with one click. Never both cards for the same LoRAs. Don't list candidates in your reply and ask them to answer in words — the card is how they decide.
+- Your own numbers go on a card too: weight or parameter advice ("the face is muddy — lower these two", "try 30 steps at CFG 6") is a ${TOOL.planLoraSetup} card with just those rows, and your reply says why each one changes. Apply a value directly with ${TOOL.setLoraWeight} / ${TOOL.setLoraParameters} ONLY when the creator dictated that exact value.
+- When you compose a setup, give each LoRA a job and weigh it by that job: the character or subject LoRA carries the most, a style LoRA sits under it, detail and slider LoRAs stay light. Keep the enabled total inside this base's budget unless you say why it has to go over.
 - Three things on that card are your call: the one line above the list (say why these ones), the grouping by what they are for (characters and styles do not belong in one pile), and at most one marked as recommended. Candidates that cannot be mounted on the selected base go on the card too — the app greys them out and says why; filtering them out reads as "nothing found".
 - Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
 - Trigger words live in the prompt text itself: mounting writes a LoRA's trigger at the front, and nothing adds it again at send time. When you rewrite the prompt, keep every trigger that is already there, exactly once — a second copy is sent twice.
@@ -11375,6 +11606,33 @@ export async function* runAssistantOperator(
           userId: user.id,
           // 这一轮唯一的待办就是它：挂哪几把在创作者手上（§10.1）。
           todo: '等你挑要挂的 LoRA',
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'confirmLoraSetup') {
+        /**
+         * **搭配卡**（lora-assistant §12）—— 与推荐卡逐字同构：吐一帧、停流。
+         * ⚠ 到这一帧为止一把都没挂、一格都没改：创作者点「应用这套搭配」时由客户端
+         * 逐行应用（每行一条带 `inverse` 的 step），⛔ 不再新开一轮。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup,
+            setup: plan.setup,
+          },
+        }
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          todo: '等你决定要不要应用这套搭配',
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

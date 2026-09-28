@@ -618,6 +618,11 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
+  /** 搭配卡（§12）同理：到这一帧为止什么都没动。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: {
+    payload: { question: '给你搭了一套' },
+    result: { offered: true },
+  },
   /** 切片 X：`inverse` 里是**旧值**，撤销 = 写回去。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: {
     payload: {
@@ -863,14 +868,15 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 39 条，recall_evidence 归「查」组（§7.3）', () => {
+  it('⭐ 工具表是 49 条，recall_evidence 归「查」组（§7.3）', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
     // 卡片助手 C2 把 44 变成 45（`propose_character_profile`）。
     // 卡片助手 C3 把 45 变成 47（`propose_character_images` · `hand_off_to_image_assistant`）。
     // 卡片助手 S14 把 47 变成 48（`check_character_look`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(48)
+    // lora-assistant §12 把 48 变成 49（`plan_lora_setup`，搭配卡）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(49)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -976,6 +982,7 @@ describe('五动词入口', () => {
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
     ).toEqual([
       ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
+      ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,

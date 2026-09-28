@@ -7831,6 +7831,28 @@
           "gatedRepo": "Gated repo — the weights cannot be fetched"
         }
       },
+      "loraSetup": {
+        "apply": "Apply this setup",
+        "applying": "Applying…",
+        "applied": "Applied · {time}",
+        "appliedPartial": "Applied · {time} · {count, plural, one {# change} other {# changes}} didn't land",
+        "dismiss": "Not now",
+        "unmount": "Remove",
+        "mountSr": "Add",
+        "parameters": "Parameters",
+        "paramDefault": "default",
+        "paramRandom": "random",
+        "tally": "Total weight after",
+        "overBudget": "Total weight goes over {limit} — the picture may turn muddy; consider easing one of them.",
+        "param": {
+          "runnerSampler": "Sampler",
+          "runnerScheduler": "Scheduler",
+          "steps": "Steps",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "Size"
+        }
+      },
       "characterProfile": {
         "header": "{name} drafted · {count, plural, one {# field} other {# fields}}",
         "question": "Keep this for {name}?",
@@ -7887,6 +7909,8 @@
       "contextCardSaveFailed": "Couldn't save “{subject}”. Please try again.",
       "loraPickMounted": "You chose these LoRAs: {subject}",
       "loraPickDismissed": "Skipped these LoRAs: {subject}",
+      "loraSetupApplied": "Applied the setup: {subject}",
+      "loraSetupDismissed": "Left this setup unapplied ({subject})",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "Didn't keep this profile: {subject}",
       "characterProfileSaveFailed": "Couldn't save it to {subject} — try again?",

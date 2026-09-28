@@ -2470,6 +2470,28 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .max(LIMITS.maxLoraResults),
     recommendedCandidateId: IdSchema.optional(),
   }),
+  /**
+   * 摆一张搭配卡（lora-assistant §12）—— 四块各自可缺席，**至少要有一处变化**
+   * （规划器收：全空的卡是一颗点了什么都不会发生的「应用」）。
+   * ⚠ 与推荐卡同一条：`candidateId` / `loraId` 的值域、权重区间、参数合法性都
+   * **留在规划器**收，⛔ 不写进 schema —— 规划器拒的那一句助手读得懂、改得过来。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: z.object({
+    question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
+    mounts: z
+      .array(z.object({ candidateId: IdSchema, weight: z.number().optional() }))
+      .max(LIMITS.maxLoraResults)
+      .optional(),
+    unmounts: z
+      .array(z.object({ loraId: IdSchema }))
+      .max(LIMITS.maxLoraSetupChanges)
+      .optional(),
+    weights: z
+      .array(z.object({ loraId: IdSchema, weight: z.number() }))
+      .max(LIMITS.maxLoraSetupChanges)
+      .optional(),
+    parameters: AssistantLoraParametersSchema.optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: z.object({
     candidateId: IdSchema,
     weight: z.number().optional(),
@@ -3753,6 +3775,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ offered: z.boolean() }),
   ),
   /**
+   * 摆一张搭配卡（lora-assistant §12）—— 同上：这条路上通常不出 step，产出是一帧
+   * `confirm(loraSetup)` 加停流。⚠ 归读类：一把都没挂、一格都没改；应用那几行是
+   * 创作者点下去之后各自一条带 `inverse` 的 step。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
+    z.object({
+      question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
+    }),
+    z.object({ offered: z.boolean() }),
+  ),
+  /**
    * 提议一张卡（§8.1）—— 与 `request_generation` 同一种形状：**这条路上通常不出
    * step**，它的产出是一帧 `confirm(contextCard)` 加停流。契约照旧写在这里，
    * 因为「每条工具都有一份合法 step」是这份判别联合的完备性要求。
@@ -4167,6 +4201,82 @@ export type AssistantOperatorLoraPickConfirm = z.infer<
 >
 
 /**
+ * **搭配卡那一帧**（lora-assistant §12，`plan_lora_setup`）—— 助手自己搭好的一套：
+ * 新挂 / 卸下 / 权重 a→b / 参数 a→b，一行一处，一颗「应用这套搭配」。
+ *
+ * ⭐ 行都由**服务端**按快照算好（名字、原值都从状态块里现取，⛔ 不让模型写）；
+ * 新挂那几把带着候选本体走（`importPayload` 必填，同推荐卡：索引只活一轮，而
+ * 「应用」发生在流结束之后）。
+ * ⚠ 「原值」只用于卡上那一格读数：点「应用」时客户端按**那一刻**的装配台算撤销
+ * 用的原值 —— 卡摆出来之后用户自己动过滑杆，撤销该回到他动过之后的样子。
+ */
+export const AssistantOperatorLoraSetupConfirmSchema = z
+  .object({
+    /** 卡头那一句，模型写。 */
+    question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
+    /** 当前底模家族（卡头右侧的 mono），服务端填；`null` = 底模未定。 */
+    baseFamilyLabel: LabelSchema.nullable(),
+    /**
+     * **应用之后**启用中的总权重与阈值（§5.1）。⚠ `null` = 底模未定；超了只标红
+     * 不拦（§5.2），按钮照旧可点。
+     */
+    budget: z
+      .object({
+        total: z.number().nonnegative(),
+        limit: z.number().positive(),
+      })
+      .nullable(),
+    mounts: z
+      .array(
+        z.object({
+          candidate: AssistantOperatorLoraPickCandidateSchema,
+          weight: z.number(),
+        }),
+      )
+      .max(LIMITS.maxLoraResults),
+    /** ⚠ 带着摘下时的权重：卡上不画，撤销挂回去用的是客户端那一刻的值。 */
+    unmounts: z
+      .array(z.object({ loraId: IdSchema, name: LabelSchema }))
+      .max(LIMITS.maxLoraSetupChanges),
+    weights: z
+      .array(
+        z.object({
+          loraId: IdSchema,
+          name: LabelSchema,
+          from: z.number(),
+          to: z.number(),
+        }),
+      )
+      .max(LIMITS.maxLoraSetupChanges),
+    /**
+     * 参数那一行：`patch` 只有**真的变了**的几格；`previous` 同几格的原值（`null` =
+     * 没设过，跟底模默认）。⚠ 整块 `null` = 这一套不动参数。
+     */
+    parameters: z
+      .object({
+        patch: AssistantLoraParametersSchema,
+        previous: AssistantLoraParametersSchema,
+      })
+      .nullable(),
+  })
+  .superRefine((value, ctx) => {
+    const changes =
+      value.mounts.length +
+      value.unmounts.length +
+      value.weights.length +
+      (value.parameters ? 1 : 0)
+    if (changes > 0) return
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'A setup card needs at least one change.',
+    })
+  })
+
+export type AssistantOperatorLoraSetupConfirm = z.infer<
+  typeof AssistantOperatorLoraSetupConfirmSchema
+>
+
+/**
  * **等你拍板才往下走**（v2 §3.3 + §8.1 + lora-assistant §10.1）—— 一帧四支。
  *
  * ⚠ 支放在 `confirm` 这一格里（按 `kind` 判别）而不是摊平到帧上：各支的必填字段
@@ -4212,6 +4322,14 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick),
       pick: AssistantOperatorLoraPickConfirmSchema,
+    }),
+    /**
+     * **助手自己搭好的一套**（lora-assistant §12）—— 一行一处变化 + 「应用这套搭配」。
+     * ⚠ 服务端到这一帧为止一把都没挂、一格都没改：应用由客户端在创作者点下去时做。
+     */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup),
+      setup: AssistantOperatorLoraSetupConfirmSchema,
     }),
     /**
      * **卡片助手提议一份角色设定**（C2）—— 每格一个勾、一颗「收下勾选的」。

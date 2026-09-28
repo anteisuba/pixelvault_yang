@@ -155,6 +155,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    * 所以是一张勾选清单。⚠ 与上面的搜索放一对：日志流里这两条前后脚出现。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ListChecks,
+  /** 摆一张搭配卡（§12）—— 一叠一起换的东西。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: Layers,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: Blocks,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: Unplug,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: SlidersHorizontal,

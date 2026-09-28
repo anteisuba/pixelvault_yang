@@ -5758,15 +5758,16 @@ describe('LoRA 装配台域（P4-C）', () => {
 
     const prompt = systemPrompt()
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick)
+    // owner 2026-09-28：两张卡（让创作者挑 / 助手搭好的一套），挂载前一定先上卡。
     expect(prompt).toContain(
-      'Put the candidates in front of the creator before anything is mounted',
+      'Nothing gets mounted before the creator has seen it on a card',
     )
     // 「哪怕只有一把、哪怕创作者指名」那半句。
     expect(prompt).toContain('even when only one candidate came back')
     expect(prompt).toContain('even when they named a LoRA themselves')
     // ⛔ 不许在正文里列候选让创作者用文字选。
     expect(prompt).toContain(
-      "Don't list the candidates in your reply and ask them to answer in words",
+      "Don't list candidates in your reply and ask them to answer in words",
     )
     // 卡上那三样是模型的判断。
     expect(prompt).toContain('Three things on that card are your call')
@@ -10392,6 +10393,203 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       ) as { confirm: { request?: { label?: string } } } | undefined
       expect(confirm?.confirm.request?.label).toBe('主视觉')
     })
+  })
+})
+
+describe('LoRA 搭配卡（lora-assistant §12，plan_lora_setup）', () => {
+  const runnerSnapshot: AssistantOperatorRequest['snapshot'] = {
+    ...LORA_SNAPSHOT,
+    model: { id: 'illustrious-runner', label: 'Illustrious Runner' },
+    loraParameters: {
+      steps: 25,
+      guidanceScale: 7,
+      runnerSeed: null,
+      runnerWidth: null,
+      runnerHeight: null,
+      runnerSampler: null,
+      runnerScheduler: null,
+    },
+  }
+
+  function searchThen(args: Record<string, unknown>) {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'wuwa',
+      candidates: [
+        loraCandidate(),
+        loraCandidate({
+          candidateId: 'civitai:888:999',
+          name: 'Pony Only',
+          baseModelFamily: 'pony',
+        }),
+      ],
+      sources: [{ source: 'civitai', status: 'ok', count: 2, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'wuwa' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: 'propose the setup',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
+            question: '给你搭了一套',
+            ...args,
+          },
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  function setupOf(events: AssistantOperatorEvent[]) {
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    ) as Extract<AssistantOperatorEvent, { type: 'confirm' }> | undefined
+    if (confirm?.confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup)
+      return null
+    return confirm.confirm.setup
+  }
+
+  it('摆一张搭配卡并停流：行由服务端按快照算好，⛔ 一把都没挂、一格都没改', async () => {
+    searchThen({
+      mounts: [{ candidateId: 'civitai:12345:67890', weight: 0.6 }],
+      weights: [{ loraId: 'lora-asset-1', weight: 0.5 }],
+      parameters: { steps: 30, guidanceScale: 7 },
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({ snapshot: runnerSnapshot }),
+      ),
+    )
+    const setup = setupOf(events)
+    expect(setup).not.toBeNull()
+    expect(setup?.question).toBe('给你搭了一套')
+    expect(setup?.baseFamilyLabel).toBe('illustrious')
+    expect(setup?.mounts).toHaveLength(1)
+    expect(setup?.mounts[0]).toMatchObject({
+      weight: 0.6,
+      candidate: {
+        candidateId: 'civitai:12345:67890',
+        name: 'Watercolor Storybook',
+        compatible: true,
+      },
+    })
+    // ⭐ 导入载荷跟着帧走：「应用」发生在流结束之后。
+    expect(setup?.mounts[0]?.candidate.importPayload).not.toBeNull()
+    // 原值由服务端从快照里取，⛔ 模型说了不算。
+    expect(setup?.weights).toEqual([
+      { loraId: 'lora-asset-1', name: 'Ink Lines', from: 0.8, to: 0.5 },
+    ])
+    // CFG 与现状相同 → 剥掉，只剩真的会变的那一格。
+    expect(setup?.parameters).toEqual({
+      patch: { steps: 30 },
+      previous: { steps: 25 },
+    })
+    // 应用之后：Ink Lines 0.5 + 新挂 0.6。
+    expect(setup?.budget).toEqual({ total: 1.1, limit: 1.5 })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+    expect(
+      stepsOf(events).filter((step) =>
+        [
+          ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+          ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+        ].includes((step as { tool: string }).tool as never),
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('装不上当前底模的那把被拒，⛔ 搭进卡里', async () => {
+    searchThen({ mounts: [{ candidateId: 'civitai:888:999' }] })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest()),
+    )
+    expect(setupOf(events)).toBeNull()
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          error: expect.objectContaining({
+            reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
+          }),
+        }),
+      ]),
+    )
+  })
+
+  it('本轮没搜到的 candidateId 与台上没有的 loraId 各自按原因拒', async () => {
+    searchThen({ mounts: [{ candidateId: 'civitai:made:up' }] })
+    const unknown = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest()),
+    )
+    expect(stepsOf(unknown)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          error: expect.objectContaining({
+            reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownLora,
+          }),
+        }),
+      ]),
+    )
+
+    searchThen({ weights: [{ loraId: 'not-on-bench', weight: 0.5 }] })
+    const missing = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest()),
+    )
+    expect(stepsOf(missing)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          error: expect.objectContaining({
+            reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraNotMounted,
+          }),
+        }),
+      ]),
+    )
+    // 拒绝理由里把台上的 id 原样列回去 —— 助手改得过来。
+    expect(lastUserPrompt()).toContain('lora-asset-1')
+  })
+
+  it('一处都不会变的卡被拒（全与现状相同）', async () => {
+    searchThen({ weights: [{ loraId: 'lora-asset-1', weight: 0.8 }] })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest()),
+    )
+    expect(setupOf(events)).toBeNull()
+    expect(lastUserPrompt()).toContain('Nothing on this card would change')
+  })
+
+  it('非 Runner 底模上摆参数行按 noSuchControl 拒', async () => {
+    searchThen({ parameters: { steps: 30 } })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest()),
+    )
+    expect(setupOf(events)).toBeNull()
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          error: expect.objectContaining({
+            reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+          }),
+        }),
+      ]),
+    )
+  })
+
+  it('系统提示把两张卡的分工说清：自己搭的走搭配卡，你的数也上卡', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildLoraRequest()))
+    const prompt = systemPrompt()
+    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup)
+    expect(prompt).toContain('ONLY when the creator dictated that exact value')
   })
 })
 

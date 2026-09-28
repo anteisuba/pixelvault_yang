@@ -526,6 +526,8 @@ export function applyOperatorStep(
      * 应用与撤销都发生在那条上。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
+    /** ⚠ 搭配卡（§12）同理：应用那几行各自是一条带 `inverse` 的 step。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
     /**
      * ⚠ 素材库四条（§10）也**不动表单**：它们改的是用户库里那几件东西的标签 /
      * 星 / 归属夹，工作台上一格旋钮都没动。返回 null = 登记簿不记账、归属标记（✦）

@@ -90,6 +90,9 @@ vi.mock('next-intl', () => {
 const triggerGeneration = vi.hoisted(() => vi.fn())
 const dispatch = vi.hoisted(() => vi.fn())
 const mountLora = vi.hoisted(() => vi.fn())
+const unmountLora = vi.hoisted(() => vi.fn())
+const setLoraWeight = vi.hoisted(() => vi.fn())
+const setLoraParameters = vi.hoisted(() => vi.fn())
 /**
  * 宿主上那份**可选**的四颗旋钮真值（#9 / §5.2）—— 逐例现填。
  * ⚠ 默认 `null`（缺席）：那一档验的正是「宿主不给就照载荷走」的既有行为。
@@ -147,9 +150,10 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       lora: {
         mount: mountLora,
         unmountByCandidateId: vi.fn(),
-        unmount: vi.fn(),
+        unmount: unmountLora,
         remount: vi.fn(),
-        setWeight: vi.fn(),
+        setWeight: setLoraWeight,
+        setParameters: setLoraParameters,
       },
     },
   }),
@@ -3335,5 +3339,235 @@ describe('LoRA 推荐卡（lora-assistant §10.1）', () => {
 
     expect(streams).toHaveLength(1)
     expect(store.getOperatorState().confirm?.status).toBe('idle')
+  })
+
+  /**
+   * **搭配卡「应用这套搭配」**（lora-assistant §12）—— 客户端逐行应用，⛔ 不新开一轮。
+   *
+   * ⭐ 钉三件事：① 顺序（卸下 → 权重 → 参数 → 新挂）与宿主那几只手真被调到；
+   * ② 每行一条带 `inverse` 的 step，原值按**那一刻**的装配台现取；③ 落账（系统行 +
+   * 折成 user 消息的正文），卡就地换「已应用」。
+   */
+  describe('搭配卡（§12）', () => {
+    const SETUP_QUESTION = '给你搭了一套'
+
+    function setupEvent(): AssistantOperatorEvent {
+      return {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: 'loraSetup',
+          setup: {
+            question: SETUP_QUESTION,
+            baseFamilyLabel: 'illustrious',
+            budget: { total: 1.1, limit: 1.5 },
+            mounts: [
+              { candidate: candidate('civitai:1', '清宵'), weight: 0.6 },
+            ],
+            unmounts: [{ loraId: 'asset-old', name: '旧画风' }],
+            weights: [
+              { loraId: 'asset-ink', name: 'Ink Lines', from: 0.8, to: 0.5 },
+            ],
+            parameters: { patch: { steps: 30 }, previous: { steps: 25 } },
+          },
+        },
+      }
+    }
+
+    const benchItem = (id: string, name: string, weight: number) => ({
+      id,
+      name,
+      weight,
+      enabled: true,
+      family: 'illustrious',
+      compatible: true,
+      triggerWord: null,
+      triggerEnabled: true,
+      recommendedPrompt: null,
+      sourcePrompts: [],
+    })
+
+    async function raiseSetup(): Promise<ReturnType<typeof render>['result']> {
+      hostSnapshot.current = {
+        ...hostSnapshot.current,
+        loras: {
+          items: [
+            benchItem('asset-old', '旧画风', 0.7),
+            // ⚠ 卡上写的原值是 0.8，创作者之后自己拉到了 0.9 —— 撤销该回 0.9。
+            benchItem('asset-ink', 'Ink Lines', 0.9),
+          ],
+          baseFamily: 'illustrious',
+          minWeight: 0,
+          maxWeight: 2,
+        },
+        loraParameters: {
+          steps: 25,
+          guidanceScale: 7,
+          runnerSeed: null,
+          runnerWidth: null,
+          runnerHeight: null,
+          runnerSampler: null,
+          runnerScheduler: null,
+        },
+      }
+      const { result } = render()
+      act(() => {
+        result.current.send('脸有点糊，帮我搭一套')
+      })
+      await settle()
+      streams[0].emit(setupEvent())
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: 'awaiting_confirm',
+      })
+      streams[0].close()
+      await settle()
+      return result
+    }
+
+    beforeEach(() => {
+      unmountLora.mockReset()
+      setLoraWeight.mockReset()
+      setLoraParameters.mockReset()
+    })
+
+    it('confirm(loraSetup) → 卡就位、状态是「等你拍板」', async () => {
+      await raiseSetup()
+      const confirm = store.getOperatorState().confirm
+      expect(confirm?.kind).toBe('loraSetup')
+      expect(confirm?.status).toBe('idle')
+      expect(store.getOperatorState().status).toBe('awaitingConfirm')
+    })
+
+    it('⭐ 「应用」逐行落地、每行一条带 inverse 的 step、⛔ 不新开一轮', async () => {
+      const result = await raiseSetup()
+      const calls: string[] = []
+      unmountLora.mockImplementation(() => calls.push('unmount'))
+      setLoraWeight.mockImplementation(() => calls.push('weight'))
+      setLoraParameters.mockImplementation(() => calls.push('params'))
+      mountLora.mockImplementation(async (input) => {
+        calls.push('mount')
+        return finishMount(input)
+      })
+
+      await act(async () => {
+        await result.current.applyLoraSetup()
+      })
+      await settle()
+
+      expect(calls).toEqual(['unmount', 'weight', 'params', 'mount'])
+      expect(unmountLora).toHaveBeenCalledWith('asset-old')
+      expect(setLoraWeight).toHaveBeenCalledWith('asset-ink', 0.5)
+      expect(setLoraParameters).toHaveBeenCalledWith({ steps: 30 })
+      expect(mountLora).toHaveBeenCalledWith(
+        expect.objectContaining({ candidateId: 'civitai:1', weight: 0.6 }),
+      )
+      // ⛔ 不新开一轮。
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledOnce()
+
+      const steps = store
+        .getOperatorState()
+        .entries.flatMap((entry) => (entry.kind === 'step' ? [entry] : []))
+      expect(new Set(steps.map((entry) => entry.runKey)).size).toBe(1)
+      expect(steps.map((entry) => entry.step.tool)).toEqual([
+        ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+        ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+        ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+        ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+      ])
+      // 原值按那一刻的装配台现取：Ink Lines 撤回 0.9，⛔ 卡上写的 0.8。
+      expect(steps[1]?.step).toMatchObject({
+        status: 'done',
+        inverse: { loraId: 'asset-ink', weight: 0.9 },
+      })
+      expect(steps[0]?.step).toMatchObject({
+        inverse: { loraId: 'asset-old', weight: 0.7 },
+      })
+      expect(steps[2]?.step).toMatchObject({
+        inverse: expect.objectContaining({ steps: 25, guidanceScale: 7 }),
+      })
+
+      expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+      const system = store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraSetupApplied',
+        )
+      expect(system).toMatchObject({
+        subject: SETUP_QUESTION,
+        userText: '已选择「应用这套搭配」（针对搭配卡「给你搭了一套」）',
+        answered: {
+          questionId: 'loraSetup:给你搭了一套',
+          optionIds: ['apply'],
+        },
+      })
+    })
+
+    it('新挂那一把没挂上 → 那一步记错、卡上写有几处没成，其余照常应用', async () => {
+      const result = await raiseSetup()
+      mountLora.mockImplementation(async () => ({
+        status: 'failed' as const,
+        imported: false,
+        mounted: false,
+        triggerWordsApplied: false,
+        error: 'Model download is unavailable',
+      }))
+
+      await act(async () => {
+        await result.current.applyLoraSetup()
+      })
+      await settle()
+
+      expect(setLoraWeight).toHaveBeenCalledOnce()
+      const confirm = store.getOperatorState().confirm
+      expect(confirm).toMatchObject({ status: 'confirmed', failedCount: 1 })
+      const mountStep = store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'step' &&
+            entry.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+        )
+      expect(mountStep).toMatchObject({ step: { status: 'error' } })
+    })
+
+    it('「先不用」什么都不动，但照样落账', async () => {
+      const result = await raiseSetup()
+
+      act(() => {
+        result.current.dismissLoraSetup()
+      })
+      await settle()
+
+      expect(unmountLora).not.toHaveBeenCalled()
+      expect(setLoraWeight).not.toHaveBeenCalled()
+      expect(mountLora).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+      expect(
+        store
+          .getOperatorState()
+          .entries.find(
+            (entry) =>
+              entry.kind === 'system' && entry.code === 'loraSetupDismissed',
+          ),
+      ).toMatchObject({
+        userText: '已选择「先不用」（针对搭配卡「给你搭了一套」）',
+      })
+    })
+
+    it('连点两下只应用一次', async () => {
+      const result = await raiseSetup()
+
+      await act(async () => {
+        await Promise.all([
+          result.current.applyLoraSetup(),
+          result.current.applyLoraSetup(),
+        ])
+      })
+      await settle()
+
+      expect(setLoraWeight).toHaveBeenCalledOnce()
+      expect(mountLora).toHaveBeenCalledOnce()
+    })
   })
 })

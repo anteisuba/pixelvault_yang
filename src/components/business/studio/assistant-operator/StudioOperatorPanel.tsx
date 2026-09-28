@@ -25,6 +25,7 @@ import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImag
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import { StudioOperatorImageHandoffCard } from './StudioOperatorImageHandoffCard'
 import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
+import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import {
   Fragment,
@@ -407,6 +408,8 @@ export function StudioOperatorPanel({
     dismissContextCard,
     submitLoraPicks,
     dismissLoraPick,
+    applyLoraSetup,
+    dismissLoraSetup,
     keepCharacterProfile,
     dismissCharacterProfile,
     keepCharacterImages,
@@ -1361,6 +1364,14 @@ export function StudioOperatorPanel({
             onOpenDetail={setLoraDetailCandidateId}
             detailCandidateId={loraDetailCandidateId}
             onCloseDetail={() => setLoraDetailCandidateId(null)}
+          />
+        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (
+          /* ── 搭配卡（lora-assistant §12）：同一个槽位，一颗「应用这套搭配」 ── */
+          <StudioOperatorLoraSetupCard
+            prompt={confirm}
+            onApply={() => void applyLoraSetup()}
+            onDismiss={dismissLoraSetup}
+            formatTime={formatDecidedAt}
           />
         ) : (
           <StudioOperatorConfirmCard

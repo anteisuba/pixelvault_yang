@@ -7831,6 +7831,28 @@
           "gatedRepo": "仓库受限，取不到权重"
         }
       },
+      "loraSetup": {
+        "apply": "应用这套搭配",
+        "applying": "应用中…",
+        "applied": "已应用 · {time}",
+        "appliedPartial": "已应用 · {time} · {count} 处没成",
+        "dismiss": "先不用",
+        "unmount": "卸下",
+        "mountSr": "新挂",
+        "parameters": "参数",
+        "paramDefault": "默认",
+        "paramRandom": "随机",
+        "tally": "应用后总权重",
+        "overBudget": "总权重超过 {limit} 了 —— 画面可能糊，可以把哪一把调低一点。",
+        "param": {
+          "runnerSampler": "采样器",
+          "runnerScheduler": "调度器",
+          "steps": "步数",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "尺寸"
+        }
+      },
       "characterProfile": {
         "header": "{name} 起草的设定 · {count} 格",
         "question": "收进「{name}」？",
@@ -7887,6 +7909,8 @@
       "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？",
       "loraPickMounted": "已选要挂的 LoRA：{subject}",
       "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）",
+      "loraSetupApplied": "已应用搭配：{subject}",
+      "loraSetupDismissed": "这套搭配先不用（{subject}）",
       "characterProfileSaved": "{subject}",
       "characterProfileDeclined": "没收这份设定：{subject}",
       "characterProfileSaveFailed": "没能写进「{subject}」—— 再试一次？",

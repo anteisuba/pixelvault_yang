@@ -34,6 +34,7 @@ import type {
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorLoraPickConfirm,
+  AssistantOperatorLoraSetupConfirm,
   AssistantOperatorPlanAnswer,
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
@@ -496,6 +497,17 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
       pick: AssistantOperatorLoraPickConfirm
+    }
+  /**
+   * 助手自己搭好的一套（lora-assistant §12）—— 新挂 / 卸下 / 权重 a→b / 参数 a→b，
+   * 一颗「应用这套搭配」。⚠ 应用由客户端在点下去时逐行做，每一行一条带 `inverse`
+   * 的 step；这份 prompt 只落「帧带来的东西 + 已决没决」，外加有几行没应用成
+   * （卡收起后那一行写它）。
+   */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup
+      setup: AssistantOperatorLoraSetupConfirm
+      failedCount?: number
     }
   /**
    * 卡片助手提议一份角色设定（C2）—— 每格一个勾、「收下勾选的 / 不用」。

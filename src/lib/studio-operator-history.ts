@@ -323,6 +323,9 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
       return `${step.payload.candidateIds.length}`
+    /** 摆一张搭配卡（§12）—— 卡头那一句就是它摆了什么。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
+      return step.payload.question
     /**
      * 标审核态（切片 Y）—— 详情写**理由**，⛔ 不写 assetId：那串 uuid 用户核对
      * 不了，而「为什么否掉」正是他事后要读的那一句。没给理由时不画详情行。
@@ -588,6 +591,26 @@ export function describeLoraPickDecisionText(
   const picked = label.trim()
   return asked
     ? `已选择「${picked}」（针对${describeLoraPickProposalText(asked)}）`
+    : `已选择「${picked}」`
+}
+
+/** 搭配卡在**对话里**的身份 —— 「搭配卡「给你搭了一套」」。 */
+export function describeLoraSetupProposalText(question: string): string {
+  return `搭配卡「${question.trim()}」`
+}
+
+/**
+ * 「应用这套搭配」/「先不用」那一行的**自包含正文**（lora-assistant §12）—— 判据
+ * 与 `describeLoraPickDecisionText` 逐字同源。
+ */
+export function describeLoraSetupDecisionText(
+  question: string,
+  label: string,
+): string {
+  const asked = question.trim()
+  const picked = label.trim()
+  return asked
+    ? `已选择「${picked}」（针对${describeLoraSetupProposalText(asked)}）`
     : `已选择「${picked}」`
 }
 

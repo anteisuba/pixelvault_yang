@@ -123,21 +123,22 @@
 
 ## 4. LoRA op 表
 
-LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 的「图视」行，`set_specs` / `set_count` / `request_generation` 三条除外；`set_capability` / `unmount_reference` 两条新件也**只给两台工作台**，判据见 §6-1 / §6-2）+ 下面这八条域专属。
+LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 的「图视」行，`set_specs` / `set_count` / `request_generation` 三条除外；`set_capability` / `unmount_reference` 两条新件也**只给两台工作台**，判据见 §6-1 / §6-2）+ 下面这九条域专属。
 
-| op id                    | 动词组 | 参数要点                                                                                                                              | inverse                     | 费用 / 可逆 | 落点                       |
-| ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- | -------------------------- |
-| `search_loras`           | 查     | `query` · `limit?`；复用双源检索（Civitai + HF），单源失败不拖垮另一源                                                                | —（只读）                   | free · —    | 候选列表（不落任何字节）   |
-| `plan_lora_pick`         | 问     | `question` · `groups[{title?, candidateIds[]}]` · `recommendedCandidateId?`；只收本轮 `search_loras` 回过的 id                        | —（什么都没发生）           | free · —    | 推荐卡（停流等创作者拍板） |
-| `mount_lora`             | 改     | `candidateId`（⛔ 模型不写下载地址）· `weight?`；导入载荷服务端查填                                                                   | `{ candidateId }`           | free · 可逆 | `loras` 装配台挂载栈       |
-| `unmount_lora`           | 改     | `loraId` —— 只能是快照里的**已挂载项**，⛔ 不是候选 id                                                                                | `{ loraId, weight }`        | free · 可逆 | `loras` 装配台挂载栈       |
-| `set_lora_weight`        | 改     | `loraId` · `weight`（值域借 `ASSISTANT_LORA_PICK_LIMITS` 的 0.1–2）                                                                   | `{ loraId, weight }` 旧权重 | free · 可逆 | `loras` 的 `LoraScaleChip` |
-| `set_lora_parameters`    | 改     | `steps?` · `guidanceScale?` · `runnerSeed?` · `runnerWidth?` · `runnerHeight?` · `runnerSampler?` · `runnerScheduler?`（`.strict()`） | 同形状的旧值                | free · 可逆 | `specs` 高级参数           |
-| `analyze_references`     | 看     | `imageIndices?`                                                                                                                       | —（只读）                   | free · —    | 无（产出是一段事实）       |
-| `critique_result`        | 看     | `goal?` · `targetIds?`；图来自请求里的 `result`，⛔ 模型不给地址                                                                      | —（只读）                   | free · —    | 无（产出是一段评价）       |
-| ~~`set_specs`~~          | —      | **域表里缺席**：装配台有比例（`LoraAspectRatioChip`）却没有清晰度，而 `set_specs` 两字段必填                                          | —                           | —           | 比例这颗旋钮本域够不着     |
-| ~~`set_count`~~          | —      | **域表里缺席**：装配台是单次出图，界面上没有张数控件                                                                                  | —                           | —           | —                          |
-| ~~`request_generation`~~ | —      | **域表里缺席**：出图键住在 `GenerateBranch` 的局部 state，宿主契约上没有 `triggerGeneration`                                          | —                           | —           | —                          |
+| op id                    | 动词组 | 参数要点                                                                                                                              | inverse                     | 费用 / 可逆 | 落点                         |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------- | ---------------------------- |
+| `search_loras`           | 查     | `query` · `limit?`；复用双源检索（Civitai + HF），单源失败不拖垮另一源                                                                | —（只读）                   | free · —    | 候选列表（不落任何字节）     |
+| `plan_lora_pick`         | 问     | `question` · `groups[{title?, candidateIds[]}]` · `recommendedCandidateId?`；只收本轮 `search_loras` 回过的 id                        | —（什么都没发生）           | free · —    | 推荐卡（停流等创作者拍板）   |
+| `plan_lora_setup`        | 问     | `question` · `mounts[{candidateId, weight?}]?` · `unmounts[{loraId}]?` · `weights[{loraId, weight}]?` · `parameters?`；至少一处真变化 | —（什么都没发生）           | free · —    | 搭配卡（lora-assistant §12） |
+| `mount_lora`             | 改     | `candidateId`（⛔ 模型不写下载地址）· `weight?`；导入载荷服务端查填                                                                   | `{ candidateId }`           | free · 可逆 | `loras` 装配台挂载栈         |
+| `unmount_lora`           | 改     | `loraId` —— 只能是快照里的**已挂载项**，⛔ 不是候选 id                                                                                | `{ loraId, weight }`        | free · 可逆 | `loras` 装配台挂载栈         |
+| `set_lora_weight`        | 改     | `loraId` · `weight`（值域借 `ASSISTANT_LORA_PICK_LIMITS` 的 0.1–2）                                                                   | `{ loraId, weight }` 旧权重 | free · 可逆 | `loras` 的 `LoraScaleChip`   |
+| `set_lora_parameters`    | 改     | `steps?` · `guidanceScale?` · `runnerSeed?` · `runnerWidth?` · `runnerHeight?` · `runnerSampler?` · `runnerScheduler?`（`.strict()`） | 同形状的旧值                | free · 可逆 | `specs` 高级参数             |
+| `analyze_references`     | 看     | `imageIndices?`                                                                                                                       | —（只读）                   | free · —    | 无（产出是一段事实）         |
+| `critique_result`        | 看     | `goal?` · `targetIds?`；图来自请求里的 `result`，⛔ 模型不给地址                                                                      | —（只读）                   | free · —    | 无（产出是一段评价）         |
+| ~~`set_specs`~~          | —      | **域表里缺席**：装配台有比例（`LoraAspectRatioChip`）却没有清晰度，而 `set_specs` 两字段必填                                          | —                           | —           | 比例这颗旋钮本域够不着       |
+| ~~`set_count`~~          | —      | **域表里缺席**：装配台是单次出图，界面上没有张数控件                                                                                  | —                           | —           | —                            |
+| ~~`request_generation`~~ | —      | **域表里缺席**：出图键住在 `GenerateBranch` 的局部 state，宿主契约上没有 `triggerGeneration`                                          | —                           | —           | —                            |
 
 ⚠ 缺席**不是遗漏**，是「摆一条这个域里无解的工具」的反面 —— 论据逐条写在 `ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]` 的头注上。要补，补的是控件或宿主契约，不是工具表。
 

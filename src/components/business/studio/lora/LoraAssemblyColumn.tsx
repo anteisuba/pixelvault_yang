@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+} from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -28,6 +35,8 @@ import { cn } from '@/lib/utils'
 
 /** 竖条上挂载数「跳一下」的时长（动效表：240）。 */
 const DURATION_BUMP_S = 0.24
+/** 权重读数与滑杆走到新值的时长（lora-generate §4「应用这组权重」：240 线性）。 */
+const DURATION_WEIGHT_S = 0.24
 
 /** 家族 slug → `LoraWorkbench.familyLabel.*`；表外的原样显示。 */
 const FAMILY_LABEL_KEYS: Record<string, string> = {
@@ -346,132 +355,39 @@ export function LoraAssemblyColumn({
         <ul className="flex flex-col gap-2">
           {stack.items.map((item) => {
             const id = item.asset.id
-            const enabled = item.enabled !== false
             const compatible = compatibleWithBase(item.asset.baseModelFamily)
-            const bad = compatible === false
-            const scale = item.scale ?? item.asset.defaultScale
             return (
-              <li
+              <LoraAssemblyRow
                 key={id}
-                draggable={armedId === id}
-                onDragStart={(event) => {
-                  setDragId(id)
-                  event.dataTransfer.effectAllowed = 'move'
+                name={item.asset.name}
+                scale={item.scale ?? item.asset.defaultScale}
+                enabled={item.enabled !== false}
+                compatible={compatible}
+                familyLabel={familyName(item.asset.baseModelFamily)}
+                cover={loraCover(item.asset.coverImageUrl, 'size-7.5')}
+                loraScaleConfig={loraScaleConfig}
+                armed={armedId === id}
+                dragging={dragId === id}
+                over={overId === id && dragId !== id}
+                onArm={() => setArmedId(id)}
+                onDisarm={() =>
+                  setArmedId((current) => (current === id ? null : current))
+                }
+                onDragStart={() => setDragId(id)}
+                onDragOver={() => {
+                  if (!dragId || dragId === id) return false
+                  if (overId !== id) setOverId(id)
+                  return true
                 }}
-                onDragOver={(event) => {
-                  if (dragId && dragId !== id) {
-                    event.preventDefault()
-                    if (overId !== id) setOverId(id)
-                  }
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
+                onDrop={() => {
                   if (dragId && dragId !== id) stack.reorder(dragId, id)
                   endDrag()
                 }}
                 onDragEnd={endDrag}
-                className={cn(
-                  'group relative flex flex-col gap-1.75 rounded-xl p-2 transition-[background-color,box-shadow,opacity] duration-fast',
-                  bad
-                    ? 'bg-status-warning-surface ring-1 ring-inset ring-status-warning/25'
-                    : 'bg-muted/60',
-                  dragId === id && 'opacity-50',
-                  overId === id && dragId !== id && 'ring-1 ring-foreground/40',
-                )}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <span
-                    title={t('spine.dragReorder')}
-                    onPointerDown={() => setArmedId(id)}
-                    onPointerUp={() =>
-                      setArmedId((current) => (current === id ? null : current))
-                    }
-                    className={cn(
-                      'cursor-grab transition-opacity duration-fast active:cursor-grabbing',
-                      !enabled && 'opacity-45',
-                    )}
-                  >
-                    {loraCover(item.asset.coverImageUrl, 'size-7.5')}
-                  </span>
-                  <span
-                    className={cn(
-                      'min-w-0 flex-1 truncate text-xs font-semibold text-foreground transition-opacity duration-fast',
-                      !enabled && 'opacity-45',
-                    )}
-                    title={item.asset.name}
-                  >
-                    {item.asset.name}
-                  </span>
-                  {compatible !== null ? (
-                    <span
-                      role="img"
-                      aria-label={
-                        bad
-                          ? t('spine.compatDotWarning')
-                          : t('spine.compatDotOk')
-                      }
-                      title={
-                        bad
-                          ? t('spine.compatDotWarning')
-                          : t('spine.compatDotOk')
-                      }
-                      className={cn(
-                        'size-1.75 shrink-0 rounded-full',
-                        bad ? 'bg-status-warning' : 'bg-status-applied/60',
-                      )}
-                    />
-                  ) : null}
-                  <span className="min-w-8 text-right font-mono text-xs font-semibold tabular-nums text-foreground">
-                    {loraScaleConfig
-                      ? scale.toFixed(2)
-                      : `×${scale.toFixed(2)}`}
-                  </span>
-                  <Switch
-                    checked={enabled}
-                    onCheckedChange={(value) => stack.setEnabled(id, value)}
-                    aria-label={t(
-                      enabled ? 'spine.disableLora' : 'spine.enableLora',
-                      { name: item.asset.name },
-                    )}
-                  />
-                </div>
-                {loraScaleConfig ? (
-                  <Slider
-                    aria-label={t('spine.weightBarLabel', {
-                      name: item.asset.name,
-                    })}
-                    min={loraScaleConfig.min}
-                    max={loraScaleConfig.max}
-                    step={loraScaleConfig.step}
-                    value={[scale]}
-                    onValueChange={([value]) => stack.setScale(id, value)}
-                    disabled={!enabled}
-                    trackClassName="data-[orientation=horizontal]:h-1 bg-surface-fill-track"
-                    rangeClassName={bad ? 'bg-muted-foreground/40' : undefined}
-                    thumbClassName="size-3.5 border-0 bg-background shadow-sm ring-1 ring-foreground/20"
-                  />
-                ) : null}
-                {bad ? (
-                  <span className="flex items-center gap-1.5 text-2xs leading-4 text-status-warning">
-                    <span
-                      aria-hidden
-                      className="size-1.75 shrink-0 rounded-full bg-status-warning"
-                    />
-                    {t('spine.incompatibleLine', {
-                      family: familyName(item.asset.baseModelFamily),
-                    })}
-                  </span>
-                ) : null}
-                {/* 卸下是次要动作：悬停 / 键盘进到这一行才出现；触屏常显。 */}
-                <button
-                  type="button"
-                  onClick={() => stack.remove(id)}
-                  aria-label={t('spine.removeLora', { name: item.asset.name })}
-                  className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-opacity duration-fast hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100 coarse:opacity-100"
-                >
-                  <X className="size-3" aria-hidden />
-                </button>
-              </li>
+                onEnabledChange={(value) => stack.setEnabled(id, value)}
+                onScaleChange={(value) => stack.setScale(id, value)}
+                onRemove={() => stack.remove(id)}
+              />
             )
           })}
         </ul>
@@ -659,5 +575,186 @@ export function LoraAssemblyColumn({
         hasMountedLora={stack.items.length > 0}
       />
     </>
+  )
+}
+
+interface LoraAssemblyRowProps {
+  name: string
+  scale: number
+  enabled: boolean
+  /** `null` = 底模未定，不画兼容点。 */
+  compatible: boolean | null
+  familyLabel: string
+  cover: ReactNode
+  loraScaleConfig: NumericRange | undefined
+  armed: boolean
+  dragging: boolean
+  over: boolean
+  onArm(): void
+  onDisarm(): void
+  onDragStart(): void
+  /** 返回 true = 这一行接得住拖过来的那把（要 `preventDefault`）。 */
+  onDragOver(): boolean
+  onDrop(): void
+  onDragEnd(): void
+  onEnabledChange(enabled: boolean): void
+  onScaleChange(scale: number): void
+  onRemove(): void
+}
+
+/**
+ * 装配列的一行（lora-generate.md §2.1）：封面 · 名字 · 兼容点 · 权重数 · 启停，下面
+ * 一条权重滑杆。
+ *
+ * ⭐ 权重的读数与滑杆**不是你手上拖的变化**（助手搭配卡「应用」、这一轮撤销）240
+ *   线性走到新值（§4 动效表「应用这组权重」）；拖滑杆时读数跟手，⛔ 追着手慢 240。
+ *   减少动态效果时直接到终值。
+ */
+function LoraAssemblyRow({
+  name,
+  scale,
+  enabled,
+  compatible,
+  familyLabel,
+  cover,
+  loraScaleConfig,
+  armed,
+  dragging,
+  over,
+  onArm,
+  onDisarm,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onEnabledChange,
+  onScaleChange,
+  onRemove,
+}: LoraAssemblyRowProps) {
+  const t = useTranslations('LoraWorkbench')
+  const reducedMotion = useReducedMotion()
+  const bad = compatible === false
+  const shown = useMotionValue(scale)
+  const [display, setDisplay] = useState(scale)
+  const [sliding, setSliding] = useState(false)
+  useMotionValueEvent(shown, 'change', setDisplay)
+  useEffect(() => {
+    if (sliding || reducedMotion) {
+      shown.jump(scale)
+      return
+    }
+    const controls = animate(shown, scale, {
+      duration: DURATION_WEIGHT_S,
+      ease: 'linear',
+    })
+    return () => controls.stop()
+  }, [reducedMotion, scale, shown, sliding])
+
+  return (
+    <li
+      draggable={armed}
+      onDragStart={(event) => {
+        onDragStart()
+        event.dataTransfer.effectAllowed = 'move'
+      }}
+      onDragOver={(event) => {
+        if (onDragOver()) event.preventDefault()
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        onDrop()
+      }}
+      onDragEnd={onDragEnd}
+      className={cn(
+        'group relative flex flex-col gap-1.75 rounded-xl p-2 transition-[background-color,box-shadow,opacity] duration-fast',
+        bad
+          ? 'bg-status-warning-surface ring-1 ring-inset ring-status-warning/25'
+          : 'bg-muted/60',
+        dragging && 'opacity-50',
+        over && 'ring-1 ring-foreground/40',
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          title={t('spine.dragReorder')}
+          onPointerDown={onArm}
+          onPointerUp={onDisarm}
+          className={cn(
+            'cursor-grab transition-opacity duration-fast active:cursor-grabbing',
+            !enabled && 'opacity-45',
+          )}
+        >
+          {cover}
+        </span>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-xs font-semibold text-foreground transition-opacity duration-fast',
+            !enabled && 'opacity-45',
+          )}
+          title={name}
+        >
+          {name}
+        </span>
+        {compatible !== null ? (
+          <span
+            role="img"
+            aria-label={
+              bad ? t('spine.compatDotWarning') : t('spine.compatDotOk')
+            }
+            title={bad ? t('spine.compatDotWarning') : t('spine.compatDotOk')}
+            className={cn(
+              'size-1.75 shrink-0 rounded-full',
+              bad ? 'bg-status-warning' : 'bg-status-applied/60',
+            )}
+          />
+        ) : null}
+        <span className="min-w-8 text-right font-mono text-xs font-semibold tabular-nums text-foreground">
+          {loraScaleConfig ? display.toFixed(2) : `×${display.toFixed(2)}`}
+        </span>
+        <Switch
+          checked={enabled}
+          onCheckedChange={onEnabledChange}
+          aria-label={t(enabled ? 'spine.disableLora' : 'spine.enableLora', {
+            name,
+          })}
+        />
+      </div>
+      {loraScaleConfig ? (
+        <Slider
+          aria-label={t('spine.weightBarLabel', { name })}
+          min={loraScaleConfig.min}
+          max={loraScaleConfig.max}
+          step={loraScaleConfig.step}
+          value={[display]}
+          onPointerDown={() => setSliding(true)}
+          onValueChange={([value]) => {
+            if (value !== undefined) onScaleChange(value)
+          }}
+          onValueCommit={() => setSliding(false)}
+          disabled={!enabled}
+          trackClassName="data-[orientation=horizontal]:h-1 bg-surface-fill-track"
+          rangeClassName={bad ? 'bg-muted-foreground/40' : undefined}
+          thumbClassName="size-3.5 border-0 bg-background shadow-sm ring-1 ring-foreground/20"
+        />
+      ) : null}
+      {bad ? (
+        <span className="flex items-center gap-1.5 text-2xs leading-4 text-status-warning">
+          <span
+            aria-hidden
+            className="size-1.75 shrink-0 rounded-full bg-status-warning"
+          />
+          {t('spine.incompatibleLine', { family: familyLabel })}
+        </span>
+      ) : null}
+      {/* 卸下是次要动作：悬停 / 键盘进到这一行才出现；触屏常显。 */}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={t('spine.removeLora', { name })}
+        className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-opacity duration-fast hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100 coarse:opacity-100"
+      >
+        <X className="size-3" aria-hidden />
+      </button>
+    </li>
   )
 }

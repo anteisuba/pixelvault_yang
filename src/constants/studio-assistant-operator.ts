@@ -358,6 +358,15 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * ⚠ `subject` 是那张卡的**题面**：一次检索一张卡，题面是它在时间线上的身份。
    */
   'loraPickDismissed',
+  /**
+   * **应用了助手搭的那一套**（lora-assistant §12）——「已应用搭配：{卡头那一句}」。
+   * ⭐ 同 `loraPickMounted`：这一行同时是一条自带题面的 user 消息，少了它模型下一轮
+   * 读到的是一张没人回应的搭配卡，于是重提同一套。
+   * ⚠ 应用成了哪几处由那一轮的步骤行说（每行一条，可撤销）；有几行没成，卡上写。
+   */
+  'loraSetupApplied',
+  /** **没应用这套搭配**（「先不用」）—— 也是一次表态，同 `loraPickDismissed`。 */
+  'loraSetupDismissed',
 ] as const
 
 export type StudioOperatorSystemCode =

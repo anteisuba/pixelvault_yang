@@ -217,7 +217,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 2.0, distilled: 1.0 }
 
 1. **`buildLoraPromptTemplate`**（`src/lib/lora-prompt-template.ts`）签名加 `baseModelFamily: string`，内部 `normalizeToLoraBaseFamily` → 取骨架。⚠ 优先级**不变**：作者推荐 prompt 仍然优先于骨架（原头注那条判据一个字没变），方言只换**兜底那一支**。归一不出家族时用今天这两条写死骨架，⛔ 不猜。
 2. **`buildSourceMatchedLoraPrompt`**（`src/lib/lora-source-match-prompt.ts`）的负面：现在是一张写死的 anime 表 + `isAnimeLikeLora` 子串嗅探（`:186`）。改成查方言表的 `negative`，⛔ 删掉 `isAnimeLikeLora`（过时实现直接删，不留兼容层）。正向那条 `ANIME_SOURCE_MATCH_TAGS` 追加同理并进方言表。
-3. **LoRA 域系统提示**：按**当前底模家族**注入一段方言（`assistant-operator.service.ts:5994` 那一块），只注入当前那一族，⛔ 不把六族全倒进上下文。底模未定时注入「底模还没定，先别按任何一族的习惯写」。这一段除骨架 / 括号权重 / 负面 / 禁忌外，还印真实配方的词序与常用参数（`null` 不印）；负面为空的族明说「不写负面」。
+3. **LoRA 域系统提示**：按**当前底模家族**注入一段方言（`assistant-operator.service.ts:5994` 那一块），只注入当前那一族，⛔ 不把六族全倒进上下文。底模未定时注入「底模还没定，先别按任何一族的习惯写」。这一段除骨架 / 括号权重 / 负面 / 禁忌外，还印真实配方的词序与常用参数（`null` 不印）；负面为空的族明说「不写负面」。参数行优先写**选中那条底模自己的出图默认**（Runner 清单写了 `recommendedSteps` 才有，来源图底模那一档照旧按家族配方）；选中的底模 CFG 恰好是 1（步数蒸馏档，或参数里调成 1）时负面那一支 ComfyUI 整个跳过 —— 方言段改说「负面留空」、⛔ 再催补这一族的负面主力，判据与装配台负面 chip 让开同一个（`isRunnerNegativePromptInert`）。
 4. **同一块规矩里的两句**（数字来自 §7.1.1 的真实配方）：按用途给权重（角色 0.8–1.0 · 画风 0.6–0.9 · 细节 0.3–1.0 · 滑杆按作者范围，常挂 2–4 把）；反推只写看得见的 —— 质量词与负面走方言，认不出的画师 / 角色名不猜（身份交给挂着的 LoRA 触发词），只要文字时一个代码块作答、台上什么都不动。
 
 ---

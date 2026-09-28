@@ -400,6 +400,11 @@ import {
   LORA_PROMPT_DIALECTS,
   type LoraPromptDialect,
 } from '@/constants/lora-prompt-dialects'
+import {
+  getRunnerCheckpointById,
+  isRunnerNegativePromptInert,
+  RUNNER_DEFAULT_CFG,
+} from '@/constants/runner-checkpoints'
 import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 /**
  * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
@@ -8874,6 +8879,40 @@ function resolveLoraDialect(
   return family ? LORA_PROMPT_DIALECTS[family] : null
 }
 
+/** 装配台上选中的那一条底模与这一刻的 CFG（用户没填 = `null`，按底模默认）。 */
+interface LoraBenchBase {
+  baseId: string | null
+  cfg: number | null | undefined
+}
+
+/**
+ * 这台底模上负面词起不起作用：CFG 恰好是 1（步数蒸馏档，或参数里调成 1）时 ComfyUI
+ * 整个跳过负面那一支。⭐ 与装配台负面 chip 让开**同一个判据**
+ * （`isRunnerNegativePromptInert`，checkpoint 取底模条目的 `runnerCheckpointId`）。
+ */
+function isLoraNegativeInert({ baseId, cfg }: LoraBenchBase): boolean {
+  const base = baseId
+    ? LORA_BASE_MODELS.find((item) => item.id === baseId)
+    : undefined
+  return base
+    ? isRunnerNegativePromptInert(base.runnerCheckpointId, cfg)
+    : false
+}
+
+/**
+ * 这条底模自己的出图默认（清单写了才有）。来源图底模那一档的实际默认看来源图，⛔ 不写 ——
+ * 与装配台参数 chip 写的底模默认同一个口径。
+ */
+function loraBaseSamplingDefaults(baseId: string | null): string | null {
+  const base = baseId
+    ? LORA_BASE_MODELS.find((item) => item.id === baseId)
+    : undefined
+  if (!base || base.recipeCheckpointMode === 'source') return null
+  const checkpoint = getRunnerCheckpointById(base.runnerCheckpointId)
+  if (checkpoint?.recommendedSteps == null) return null
+  return `${checkpoint.recommendedSampler} + ${checkpoint.recommendedScheduler}, ${checkpoint.recommendedSteps} steps, CFG ${checkpoint.recommendedCfg ?? RUNNER_DEFAULT_CFG}`
+}
+
 interface LoraPromptMaterial {
   sourceNotes: string[]
   negativeDiff: string[]
@@ -8952,14 +8991,20 @@ function buildLoraPromptMaterial(
     if (hit) notes.push(texts.dialectFix(familyLabel, hit.why))
   }
 
+  // CFG 1 的底模上负面词不起作用：⛔ 再催它补这一族的负面主力。
+  const negativeInert = isLoraNegativeInert({
+    baseId: run.state.modelId,
+    cfg: run.state.loraParameters?.guidanceScale,
+  })
   return {
     sourceNotes: notes.map((note) => clamp(note, LIMITS.maxSourceNoteChars)),
-    negativeDiff: family
-      ? loraNegativeDiff(
-          run.state.negativePrompt ?? '',
-          LORA_PROMPT_DIALECTS[family].negative,
-        )
-      : [],
+    negativeDiff:
+      family && !negativeInert
+        ? loraNegativeDiff(
+            run.state.negativePrompt ?? '',
+            LORA_PROMPT_DIALECTS[family].negative,
+          )
+        : [],
   }
 }
 
@@ -9015,7 +9060,10 @@ function loraMaterialObservation(material: LoraPromptMaterial | null): string {
  * 「因为上面也写着」—— 一段读得到的别族习惯就是一条它会去试的路。
  * 底模未定时不猜，明说「先别按任何一族的习惯写」。
  */
-function buildLoraDialectRule(rawBaseFamily: string | null): string {
+function buildLoraDialectRule(
+  rawBaseFamily: string | null,
+  bench: LoraBenchBase,
+): string {
   const dialect = resolveLoraDialect(rawBaseFamily)
   if (!dialect) {
     return "- PROMPT DIALECT: no base model is settled yet, so do not write in any family's habits yet — settle the base first, then write in that family's dialect."
@@ -9030,11 +9078,18 @@ function buildLoraDialectRule(rawBaseFamily: string | null): string {
       : '  · (tag:1.2) parenthesis weighting does NOT work on this family — write the word plainly instead.',
   ]
   lines.push(
-    dialect.negative.length > 0
-      ? `  · the negative staples here are: ${dialect.negative.join(', ')}`
-      : '  · this family does not use a negative prompt — leave it empty.',
+    isLoraNegativeInert(bench)
+      ? '  · the selected base runs at CFG 1, where the negative prompt is skipped entirely — leave it empty and do not propose negative tags.'
+      : dialect.negative.length > 0
+        ? `  · the negative staples here are: ${dialect.negative.join(', ')}`
+        : '  · this family does not use a negative prompt — leave it empty.',
   )
-  if (dialect.parameters) {
+  const ownDefaults = loraBaseSamplingDefaults(bench.baseId)
+  if (ownDefaults) {
+    lines.push(
+      `  · the selected base's own defaults are ${ownDefaults} — start from these when Runner parameters go on a setup card.`,
+    )
+  } else if (dialect.parameters) {
     lines.push(
       `  · real recipes on this family usually run ${dialect.parameters} — start from these when Runner parameters go on a setup card.`,
     )
@@ -9197,7 +9252,10 @@ function buildOperatorSystemPrompt(
 - Before you rewrite the prompt, look at the family first: when the current text carries something this family's dialect forbids, put the correction into the SAME confirmation card as the rewrite — never a separate round, never a silent swap, never a verbal note while you write it the old way anyway.`
       : null,
     isAssistantOperatorToolInDomain(TOOL.mountLora, request.domain)
-      ? buildLoraDialectRule(request.snapshot.loras?.baseFamily ?? null)
+      ? buildLoraDialectRule(request.snapshot.loras?.baseFamily ?? null, {
+          baseId: request.snapshot.model?.id ?? null,
+          cfg: request.snapshot.loraParameters?.guidanceScale,
+        })
       : null,
   ]
     .filter((rule): rule is string => rule !== null)

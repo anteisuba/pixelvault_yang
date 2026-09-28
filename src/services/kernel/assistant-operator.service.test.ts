@@ -16430,6 +16430,47 @@ describe('LoRA 域方言与触发词规矩', () => {
     expect(prompt).not.toContain('usually run')
   })
 
+  /**
+   * 步数蒸馏档（Anima Turbo · CFG 1）：负面那一支 ComfyUI 整个跳过 —— 与装配台负面 chip
+   * 让开同一个判据；参数按这条底模自己的清单默认写，⛔ 用这一族非蒸馏配方的数。
+   */
+  async function promptForTurbo(
+    loraParameters?: AssistantOperatorRequest['snapshot']['loraParameters'],
+  ): Promise<string> {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          snapshot: {
+            ...loraSnapshotWithBase('Anima'),
+            model: { id: 'anima-dit-turbo-v11-runner', label: 'Anima Turbo' },
+            ...(loraParameters ? { loraParameters } : {}),
+          },
+        }),
+      ),
+    )
+    return systemPrompt()
+  }
+
+  it('选中 CFG 1 的底模：负面留空，参数写这条底模自己的默认', async () => {
+    const prompt = await promptForTurbo()
+
+    expect(prompt).toContain('runs at CFG 1')
+    expect(prompt).not.toContain('negative staples')
+    expect(prompt).toContain(
+      "the selected base's own defaults are euler + simple, 10 steps, CFG 1",
+    )
+    expect(prompt).not.toContain('usually run')
+  })
+
+  it('CFG 调到 1 以上，负面主力回来', async () => {
+    const prompt = await promptForTurbo({ guidanceScale: 3.5 })
+
+    expect(prompt).not.toContain('runs at CFG 1')
+    expect(prompt).toContain('negative staples')
+  })
+
   it('按用途给权重、反推只写看得见的，两条都有真实配方的数', async () => {
     const prompt = await promptForBase('illustrious')
 
@@ -16703,6 +16744,18 @@ describe('LoRA 域 set_prompt 的可用参考材料', () => {
         (tag) => tag !== 'lowres',
       ),
     )
+  })
+
+  it('CFG 1 的底模上 ⛔ 再催补负面主力（负面那一支不起作用）', async () => {
+    const ask = await askFor({
+      ...snapshotWith(
+        { recommendedPrompt: 'ink lines, rooftop' },
+        { baseFamily: 'Anima' },
+      ),
+      model: { id: 'anima-dit-turbo-v11-runner', label: 'Anima Turbo' },
+    })
+
+    expect(ask.overwrite?.negativeDiff).toBeUndefined()
   })
 
   it('底模未定时不判方言：没有负面增量，骨架那一行也不认任何一族', async () => {

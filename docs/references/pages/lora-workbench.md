@@ -208,7 +208,7 @@ UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（
 
 ### 4.4 底模选择器分组（2026-07-17 owner 拍板追加；2026-09-28 收成一层）
 
-09-17 托管通道退役后底模全是 Runner，「云端 API / Runner」那一层与「忠实 / 快」标注一起去掉（2026-09-28，进度表 45 ④ 画板）。现在只按架构系分两组：**SDXL 系 / DiT 系**（数据来源 `LoraBaseModel.family`，`anima-dit` 归 DiT，其余归 SDXL；新增架构自动成组）。换底模弹层的卡片写法见 [`lora-generate.md`](lora-generate.md) §2.1。
+09-17 托管通道退役后底模全是 Runner，「云端 API / Runner」那一层与「忠实 / 快」标注一起去掉（2026-09-28，进度表 45 ④ 画板）。现在只按架构系分两组：**SDXL 系 / DiT 系**（数据来源 `LoraBaseModel.family`，`anima-dit` 与 `z-image` 归 DiT，其余归 SDXL；新增 DiT 家族要加进 `LORA_BASE_DIT_FAMILIES`）。换底模弹层的卡片写法见 [`lora-generate.md`](lora-generate.md) §2.1。
 
 - 兼容过滤逻辑不变（仍只列 `getCompatibleBases(loraFamily)` 结果）；分组是纯展示层，空组不渲染。
 - 2026-07-28 owner 追加：底模目录每项维护一个本地 `coverImage`，换底模弹层、Generate

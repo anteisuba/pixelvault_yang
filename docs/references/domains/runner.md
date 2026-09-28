@@ -76,6 +76,12 @@
 - 出图默认按清单条目走（`recommendedSteps` / `recommendedCfg`，两边清单同步）：Turbo euler · simple · 10 步 · CFG 1 · shift 3；Base er_sde · simple · 30 步 · CFG 4；SDXL 系没写 = 30 步 · CFG 7.5。来源图底模的 Civitai 版本名带 turbo 时，应用在 `runnerCheckpoint.defaultsCheckpointId` 里写 `animaTurbo_v11`，Worker 按它的默认出。
 - ⚠ 卷上会有两份同一个 Turbo 文件：回归时从 Civitai 下的 `civitai-ckpt-3263843.safetensors`（受 LRU 管）与这份 `anima-turbo-v1.1.safetensors`（companion，不进 LRU）。前者被清掉不影响出图。
 
+### 底模插槽 · Z-Image Turbo（2026-09-28，进度表 45 ③）
+
+- 清单 id `zImageTurbo_bf16`（应用模型 `z-image-turbo-runner`，Civitai 官方页版本 `2442439`，同一文件）：三份文件钉 HF `Comfy-Org/z_image_turbo` revision `6fc90a3b…`，按需作为 companion 下——`diffusion_models/z_image_turbo_bf16.safetensors`（12,309,866,400 B，SHA `24076130…74a6`）→ `models/unet/`、`text_encoders/qwen_3_4b.safetensors`（8,044,982,048 B，SHA `6c671498…fc5a`）→ `models/clip/`、`vae/ae.safetensors`（335,304,388 B，SHA `afc8e282…9e38`）→ `models/vae/`。共约 20.7G，不进 LRU。
+- 工作流照 Comfy-Org 官方模板 `image_z_image_turbo.json`：CLIPLoader `type=lumina2` · `EmptySD3LatentImage` · ModelSamplingAuraFlow shift 3 · 负面为空时 `ConditioningZeroOut`；与 Anima 共用一个 DiT 构图（`dit-workflow-builder.ts` 的 `DIT_WORKFLOW_PROFILES`）。默认 res_multistep · simple · **9 步**（owner 09-28 定；官方模板 8 步）· CFG 1；尺寸按 DiT 约 1MP 表，精确尺寸上限 2048。LoRA 走 model-only；采样器表新增 `res_multistep`。
+- 只有固定档：ZImageBase / ZImageTurbo 两种 LoRA 都挂它，没有「来源图底模（自动）」。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。

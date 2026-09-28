@@ -30,6 +30,7 @@ import {
 } from '@/components/business/studio/lora/LoraRecipeViewer'
 import { useLoraStage } from '@/components/business/studio/lora/lora-stage-context'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useCivitaiModelDetail } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import {
@@ -37,10 +38,15 @@ import {
   proxyCivitaiImageUrl,
 } from '@/lib/civitai-image-url'
 import { formatCompactNumber } from '@/lib/format-compact-number'
+import { parseHuggingFaceLoraSourceUrl } from '@/lib/huggingface-lora-source'
 import { extraLoraKey } from '@/lib/lora-recipe-extra-mount'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { cn } from '@/lib/utils'
-import type { CivitaiImageRecipe, CivitaiLoraLibraryItem } from '@/types'
+import type {
+  CivitaiImageRecipe,
+  CivitaiLoraLibraryItem,
+  LoraCandidateLicense,
+} from '@/types'
 
 /** 复制成功后那颗键写「已复制」多久（动效表：1.2 秒）。 */
 const COPIED_MS = 1200
@@ -51,6 +57,50 @@ export interface LoraLibraryDetailMenuItem {
   readonly label: string
   readonly danger?: boolean
   readonly onSelect: () => void
+}
+
+/**
+ * 这一页讲的是哪一种 LoRA —— 决定样例从哪取、许可怎么写、作者主页指向哪：
+ * Civitai（版本 + 逐图配方）/ Hugging Face（仓库里的文件 + README 图 + 许可名）/
+ * 自训（自带预览图，没有来源、许可与收藏）。
+ */
+export type LoraLibraryDetailOrigin = 'civitai' | 'huggingface' | 'trained'
+
+/** 版本的身份：Civitai 按版本号认（收藏记录与取回的条目 id 不是一套），其余按 id。 */
+function versionKey(version: CivitaiLoraLibraryItem): string {
+  return version.modelVersionId > 0
+    ? `version:${version.modelVersionId}`
+    : version.id
+}
+
+const UNKNOWN_LICENSE: LoraCandidateLicense = {
+  label: null,
+  commercialUse: null,
+  allowDerivatives: null,
+  allowNoCredit: null,
+  known: false,
+}
+
+/**
+ * 许可如实写：有出处快照就用快照；Civitai 列表条目用作者勾的权限位；收藏记录没快照
+ * 的写「许可未知」—— ⛔ 从空数组推成「仅限个人使用」。自训的不画这一格。
+ */
+function licenseFacts(
+  item: CivitaiLoraLibraryItem,
+  origin: LoraLibraryDetailOrigin,
+): LoraCandidateLicense | null {
+  if (origin === 'trained') return null
+  if (item.sourceSnapshot) return item.sourceSnapshot.license
+  if (origin === 'civitai' && !item.isOwn) {
+    return {
+      label: null,
+      commercialUse: item.allowCommercialUse,
+      allowDerivatives: item.allowDerivatives,
+      allowNoCredit: item.allowNoCredit ?? null,
+      known: true,
+    }
+  }
+  return UNKNOWN_LICENSE
 }
 
 interface LoraLibraryDetailPageProps {
@@ -68,11 +118,14 @@ interface LoraLibraryDetailPageProps {
   /** 各版本封面按这一档分级限定（与列表同一档）。 */
   nsfwFilter: LoraNsfwFilter
   onClose: () => void
-  /** 头部那颗来源标签（缺省 Civitai；自训 / Hugging Face 由宿主给）。 */
-  sourceLabel?: string
+  /** 缺省 Civitai。 */
+  origin?: LoraLibraryDetailOrigin
+  /**
+   * 宿主已经有的可挂条目（Hugging Face 仓库里的每个文件）。不给 = Civitai 从模型
+   * 详情取版本。
+   */
+  versions?: readonly CivitaiLoraLibraryItem[]
   extraMenu?: readonly LoraLibraryDetailMenuItem[]
-  /** 自训的没有「收藏」这回事：不给就不画那颗键。 */
-  canFavorite?: boolean
 }
 
 interface Sample {
@@ -99,9 +152,9 @@ export function LoraLibraryDetailPage({
   onToggleFavorite,
   nsfwFilter,
   onClose,
-  sourceLabel,
+  origin = 'civitai',
+  versions: givenVersions,
   extraMenu = [],
-  canFavorite = true,
 }: LoraLibraryDetailPageProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
@@ -109,14 +162,32 @@ export function LoraLibraryDetailPage({
   const reducedMotion = useReducedMotion()
   const stage = useLoraStage()
   const stack = useActiveLoraStack()
-  const detail = useCivitaiModelDetail(item.modelId, nsfwFilter)
-  const versions = detail.versions.length > 0 ? detail.versions : [item]
-  const [versionNumber, setVersionNumber] = useState(item.modelVersionId)
+  const isCivitai = origin === 'civitai'
+  const detail = useCivitaiModelDetail(
+    isCivitai ? item.modelId : null,
+    nsfwFilter,
+  )
+  const huggingFaceSource = useMemo(
+    () =>
+      origin === 'huggingface'
+        ? parseHuggingFaceLoraSourceUrl(item.loraUrl)
+        : null,
+    [item.loraUrl, origin],
+  )
+  const showcase = useHuggingFaceLoraShowcase(huggingFaceSource)
+  const versions =
+    givenVersions ?? (detail.versions.length > 0 ? detail.versions : [item])
+  const [selectedKey, setSelectedKey] = useState(() => versionKey(item))
   const current =
-    versions.find((version) => version.modelVersionId === versionNumber) ?? item
-  const mined = useCivitaiMinedPrompts(current)
+    versions.find((version) => versionKey(version) === selectedKey) ?? item
+  const currentKey = versionKey(current)
+  const mined = useCivitaiMinedPrompts(isCivitai ? current : null)
   const mounted = isMounted(current)
   const favorited = isFavorited(current)
+  const canFavorite = origin !== 'trained'
+  const license = licenseFacts(current, origin)
+  // 分级只有 Civitai 条目带；收藏记录与 Hugging Face 没有就不写，⛔ 默认成「安全」。
+  const rating = typeof current.isNsfw === 'boolean' ? current.isNsfw : null
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -162,7 +233,7 @@ export function LoraLibraryDetailPage({
     copiedTimer.current = setTimeout(() => setCopied(null), COPIED_MS)
   }
 
-  // 样例：带配方的逐图配方优先；没配方的是作者示例图，只看图。
+  // 样例：带配方的逐图配方优先；没配方的是作者示例图（Hugging Face 是 README 里的图），只看图。
   const samples = useMemo<readonly Sample[]>(() => {
     if (mined.recipes.length > 0) {
       return mined.recipes.map((recipe) => ({
@@ -175,9 +246,17 @@ export function LoraLibraryDetailPage({
     const previews =
       mined.previewImages.length > 0
         ? mined.previewImages.map((image) => image.imageUrl)
-        : current.previewImageUrls
+        : showcase.images.length > 0
+          ? showcase.images
+          : current.previewImageUrls
     return previews.map((url) => ({ url, hasRecipe: false, ratio: null }))
-  }, [current.previewImageUrls, mined.previewImages, mined.recipes])
+  }, [
+    current.previewImageUrls,
+    mined.previewImages,
+    mined.recipes,
+    showcase.images,
+  ])
+  const samplesLoading = mined.isLoading || showcase.isLoading
   // 查看器吃的是「配方」：没配方的样例补成只有图的一条（右栏写「这张没有公开配方」）。
   const viewerRecipes = useMemo<readonly CivitaiImageRecipe[]>(
     () =>
@@ -220,7 +299,7 @@ export function LoraLibraryDetailPage({
     compatible === false && stage.base
       ? versions.find(
           (version) =>
-            version.id !== current.id &&
+            versionKey(version) !== currentKey &&
             isLoraBaseModelMountCompatible(
               version.baseModelFamily,
               stage.base?.family ?? '',
@@ -230,7 +309,6 @@ export function LoraLibraryDetailPage({
   const triggers = [current.triggerWord, ...current.triggerAlternates].filter(
     (word, index, all) => word.trim() && all.indexOf(word) === index,
   )
-  const commercial = isCivitaiLoraCommerciallyUsable(current.allowCommercialUse)
   const publishedAt = current.createdAt ? new Date(current.createdAt) : null
   const fileSize =
     typeof current.fileSizeBytes === 'number'
@@ -265,6 +343,7 @@ export function LoraLibraryDetailPage({
   const ghost =
     'inline-flex h-8.5 items-center gap-1.5 rounded-full border border-border px-3.5 text-2sm text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
   const blockTitle = 'text-xs font-semibold text-muted-foreground'
+  const chip = 'rounded-full bg-muted px-2 py-0.5 text-foreground/80'
   const menuItem =
     'flex h-8.5 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none'
 
@@ -302,7 +381,11 @@ export function LoraLibraryDetailPage({
               {current.baseModelFamily}
             </span>
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-foreground/80">
-              {sourceLabel ?? t('librarySourceCivitai')}
+              {origin === 'huggingface'
+                ? t('librarySourceHuggingFace')
+                : origin === 'trained'
+                  ? t('myLorasTrainedSection')
+                  : t('librarySourceCivitai')}
             </span>
             <span className="truncate font-mono">
               {[
@@ -412,18 +495,23 @@ export function LoraLibraryDetailPage({
                 style={{ transformOrigin: 'calc(100% - 17px) 0' }}
                 className="absolute right-0 top-11 z-30 flex w-47 flex-col rounded-xl bg-popover p-1.5 shadow-overlay ring-1 ring-border/70"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => void copy('styleCode', current.styleCode)}
-                  className={menuItem}
-                >
-                  <Copy
-                    className="size-3.5 text-muted-foreground"
-                    aria-hidden
-                  />
-                  {copied === 'styleCode' ? tb('copied') : tb('copyStyleCode')}
-                </button>
+                {/* 风格码是收进来以后才有的（Hugging Face 列表条目还没有）。 */}
+                {current.styleCode ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void copy('styleCode', current.styleCode)}
+                    className={menuItem}
+                  >
+                    <Copy
+                      className="size-3.5 text-muted-foreground"
+                      aria-hidden
+                    />
+                    {copied === 'styleCode'
+                      ? tb('copied')
+                      : tb('copyStyleCode')}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   role="menuitem"
@@ -486,7 +574,7 @@ export function LoraLibraryDetailPage({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4.5">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={current.modelVersionId || current.id}
+            key={currentKey}
             initial={{ opacity: 0 }}
             animate={{
               opacity: 1,
@@ -499,7 +587,7 @@ export function LoraLibraryDetailPage({
             className="flex gap-6 pb-5"
           >
             <div className="min-w-0 flex-1">
-              {mined.isLoading && samples.length === 0 ? (
+              {samplesLoading && samples.length === 0 ? (
                 <div className="columns-3 gap-3" aria-hidden>
                   {[3 / 4, 2 / 3, 1, 4 / 5, 2 / 3, 3 / 4].map(
                     (ratio, index) => (
@@ -560,7 +648,9 @@ export function LoraLibraryDetailPage({
               className="flex w-75 shrink-0 flex-col gap-4.5"
             >
               <section className="flex flex-col gap-2">
-                <h5 className={blockTitle}>{tb('versions')}</h5>
+                <h5 className={blockTitle}>
+                  {origin === 'huggingface' ? tb('files') : tb('versions')}
+                </h5>
                 <div className="flex flex-col gap-0.5">
                   {versions.map((version) => {
                     const fits = stage.base
@@ -576,17 +666,16 @@ export function LoraLibraryDetailPage({
                             { maximumFractionDigits: 0 },
                           )} MB`
                         : null
+                    const key = versionKey(version)
                     return (
                       <button
-                        key={version.id}
+                        key={key}
                         type="button"
-                        aria-pressed={version.id === current.id}
-                        onClick={() => setVersionNumber(version.modelVersionId)}
+                        aria-pressed={key === currentKey}
+                        onClick={() => setSelectedKey(key)}
                         className={cn(
                           'flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-2sm transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          version.id === current.id
-                            ? 'bg-muted'
-                            : 'hover:bg-muted/50',
+                          key === currentKey ? 'bg-muted' : 'hover:bg-muted/50',
                         )}
                       >
                         {fits !== null ? (
@@ -600,7 +689,10 @@ export function LoraLibraryDetailPage({
                             )}
                           />
                         ) : null}
-                        <b className="min-w-0 truncate font-semibold text-foreground">
+                        <b
+                          title={version.versionName}
+                          className="min-w-0 truncate font-semibold text-foreground"
+                        >
                           {version.versionName}
                         </b>
                         <span className="shrink-0 text-muted-foreground">
@@ -642,7 +734,7 @@ export function LoraLibraryDetailPage({
                         <button
                           type="button"
                           onClick={() =>
-                            setVersionNumber(compatibleVersion.modelVersionId)
+                            setSelectedKey(versionKey(compatibleVersion))
                           }
                           className="whitespace-nowrap font-semibold hover:underline"
                         >
@@ -697,24 +789,40 @@ export function LoraLibraryDetailPage({
                 )}
               </section>
 
-              <section className="flex flex-col gap-2">
-                <h5 className={blockTitle}>{tb('ratingLicense')}</h5>
-                <div className="flex flex-wrap gap-1.5 text-xs">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-foreground/80">
-                    {current.isNsfw ? tb('ratingMature') : tb('ratingSafe')}
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-foreground/80">
-                    {commercial
-                      ? t('licenseCommercial')
-                      : t('licensePersonalUse')}
-                  </span>
-                  {current.allowNoCredit === false ? (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-foreground/80">
-                      {t('licenseAttributionRequired')}
-                    </span>
-                  ) : null}
-                </div>
-              </section>
+              {rating !== null || license ? (
+                <section className="flex flex-col gap-2">
+                  <h5 className={blockTitle}>
+                    {rating !== null ? tb('ratingLicense') : tb('license')}
+                  </h5>
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    {rating !== null ? (
+                      <span className={chip}>
+                        {rating ? tb('ratingMature') : tb('ratingSafe')}
+                      </span>
+                    ) : null}
+                    {license && !license.known ? (
+                      <span className={chip}>{tb('licenseUnknown')}</span>
+                    ) : null}
+                    {license?.label ? (
+                      <span className={cn(chip, 'font-mono')}>
+                        {license.label}
+                      </span>
+                    ) : null}
+                    {license?.commercialUse ? (
+                      <span className={chip}>
+                        {isCivitaiLoraCommerciallyUsable(license.commercialUse)
+                          ? t('licenseCommercial')
+                          : t('licensePersonalUse')}
+                      </span>
+                    ) : null}
+                    {license?.allowNoCredit === false ? (
+                      <span className={chip}>
+                        {t('licenseAttributionRequired')}
+                      </span>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
 
               {current.creatorName ? (
                 <section className="flex flex-col gap-2">
@@ -737,7 +845,11 @@ export function LoraLibraryDetailPage({
                       {current.creatorName}
                     </b>
                     <a
-                      href={`https://civitai.com/user/${encodeURIComponent(current.creatorName)}`}
+                      href={
+                        origin === 'huggingface'
+                          ? `https://huggingface.co/${encodeURIComponent(current.creatorName)}`
+                          : `https://civitai.com/user/${encodeURIComponent(current.creatorName)}`
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className="ml-auto shrink-0 text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"

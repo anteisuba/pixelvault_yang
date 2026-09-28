@@ -52,11 +52,10 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }))
 
-// <1024 时结果区换成封面网格 + 底部详情抽屉；桌面仍是行 + 原位展开。默认桌面，
-// 单个用例把它翻成 true 来验移动端形态。
-let mockIsMobile = false
+// 这个面板只剩手机（<1024）：封面网格 + 底部详情抽屉 + 筛选 sheet。桌面是库 B
+// （LoraHuggingFaceBrowse.test.tsx）。
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => mockIsMobile,
+  useIsMobile: () => true,
 }))
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({
@@ -137,20 +136,16 @@ function libraryState(item = makeItem()) {
 function renderLibrary(
   isFavorited: (loraUrl: string) => boolean = () => false,
 ) {
-  // R1：搜索/排序/刷新挪去调用方（LoraLibraryTabs/LoraWorkbench）持有的常驻
-  // 顶栏槽，通过 portal 挂进去——测试里手动接真实 DOM 节点当槽位，内容仍落
-  // 在 document 里，screen 查询照常命中。
+  // 搜索框 portal 进 LoraWorkbench 卡内那一格 —— 测试里手动接一个真实 DOM 节点当
+  // 槽位，内容仍落在 document 里，screen 查询照常命中。
   const searchSlotNode = document.createElement('div')
   document.body.appendChild(searchSlotNode)
-  const controlsSlotNode = document.createElement('div')
-  document.body.appendChild(controlsSlotNode)
   return render(
     <HuggingFaceLoraLibrary
       onImport={mockImport}
       onUnfavoriteByUrl={mockUnfavoriteByUrl}
       isFavorited={isFavorited}
       searchSlotNode={searchSlotNode}
-      controlsSlotNode={controlsSlotNode}
       source="huggingface"
       onSourceChange={mockSetSource}
     />,
@@ -172,7 +167,6 @@ describe('HuggingFaceLoraLibrary', () => {
         ResizeObserverStub as unknown as typeof ResizeObserver
     }
     mockLibraryQuery = ''
-    mockIsMobile = false
     mockImport.mockReset().mockResolvedValue(null)
     mockUnfavoriteByUrl.mockReset().mockResolvedValue(true)
     mockStackPush.mockReset()
@@ -183,7 +177,7 @@ describe('HuggingFaceLoraLibrary', () => {
     mockUseHuggingFaceLoraLibrary.mockReset().mockReturnValue(libraryState())
   })
 
-  it('opens desktop grid cards in the detail drawer', () => {
+  it('opens grid cards in the detail drawer', () => {
     renderLibrary()
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -203,7 +197,6 @@ describe('HuggingFaceLoraLibrary', () => {
   })
 
   it('opens the detail in a bottom drawer (not in place) on mobile, keeping the same primary action', async () => {
-    mockIsMobile = true
     renderLibrary()
 
     // 网格形态：整张卡是一个按钮，卡上没有第二动作。
@@ -232,7 +225,6 @@ describe('HuggingFaceLoraLibrary', () => {
   // 「移动端」）。桌面的类型/底模下拉与排序 Select 在这一档必须**不渲染**——
   // 渲染就等于头部又长回去，本轮改动的全部理由就没了。
   it('collapses the desktop filter rows into a single chip row on mobile', () => {
-    mockIsMobile = true
     renderLibrary()
 
     expect(
@@ -266,7 +258,6 @@ describe('HuggingFaceLoraLibrary', () => {
   })
 
   it('opens the filter sheet from the chip row and applies a type immediately (no draft state)', async () => {
-    mockIsMobile = true
     renderLibrary()
 
     fireEvent.click(
@@ -299,7 +290,6 @@ describe('HuggingFaceLoraLibrary', () => {
   })
 
   it('shows the non-default filter count on the filter chip', () => {
-    mockIsMobile = true
     mockUseHuggingFaceLoraLibrary.mockReturnValue({
       ...libraryState(),
       contentType: 'style' as const,
@@ -359,50 +349,6 @@ describe('HuggingFaceLoraLibrary', () => {
 
     expect(
       screen.getByText(/LoraWorkbench:huggingFaceNoTrigger/),
-    ).toBeInTheDocument()
-  })
-
-  it('maps the base-model dropdown selection to the hub family slug', () => {
-    renderLibrary()
-
-    // R1: family filter is a searchable dropdown now (not a chip row). Open it
-    // and pick the Anima option → hook receives the source-specific family.
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraWorkbench:baseModelFilterLabel/,
-      }),
-    )
-    fireEvent.click(
-      screen.getByRole('option', {
-        name: 'LoraWorkbench:familyLabel.anima',
-      }),
-    )
-    expect(mockSetBaseModelFamily).toHaveBeenCalledWith('anima-dit')
-  })
-
-  it('renders a sort control that maps to the Hub sort values', () => {
-    renderLibrary()
-
-    // Default sort ('downloads') shows as the closed trigger's value.
-    expect(
-      screen.getByRole('combobox', {
-        name: 'LoraWorkbench:communitySortFilter',
-      }),
-    ).toHaveTextContent('LoraWorkbench:sortMostDownloaded')
-
-    // civitai 排序三值复用的 labelKey：推荐/最多下载/最新——open the popover
-    // to confirm all three options are present (Radix only renders option
-    // text once open).
-    fireEvent.click(
-      screen.getByRole('combobox', {
-        name: 'LoraWorkbench:communitySortFilter',
-      }),
-    )
-    expect(
-      screen.getByRole('option', { name: 'LoraWorkbench:sortHighestRated' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('option', { name: 'LoraWorkbench:sortNewest' }),
     ).toBeInTheDocument()
   })
 

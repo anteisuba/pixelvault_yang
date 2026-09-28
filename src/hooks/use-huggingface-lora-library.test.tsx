@@ -139,6 +139,61 @@ describe('useHuggingFaceLoraLibrary', () => {
     })
   })
 
+  it('appends the next segment in accumulate mode instead of replacing the page', async () => {
+    mockListHuggingFaceLoraAssetsAPI
+      .mockResolvedValueOnce(
+        resultData('page-one', {
+          hasNextPage: true,
+          nextCursor: 'cursor-page-two',
+        }),
+      )
+      .mockResolvedValueOnce(resultData('page-two', { page: 2 }))
+
+    const { result } = renderHook(() =>
+      useHuggingFaceLoraLibrary({ accumulate: true }),
+    )
+    await waitFor(() => {
+      expect(result.current.hasNextPage).toBe(true)
+    })
+
+    act(() => {
+      result.current.loadMore()
+    })
+    expect(result.current.isLoadingMore).toBe(true)
+
+    await waitFor(() => {
+      expect(result.current.items.map((item) => item.name)).toEqual([
+        'page-one',
+        'page-two',
+      ])
+    })
+    expect(result.current.isLoadingMore).toBe(false)
+  })
+
+  it('commits a search term at once — no debounce, first page, old results kept while replacing', async () => {
+    const { result } = renderHook(() =>
+      useHuggingFaceLoraLibrary({ accumulate: true }),
+    )
+    await waitFor(() => {
+      expect(result.current.items).toHaveLength(1)
+    })
+    mockListHuggingFaceLoraAssetsAPI.mockResolvedValueOnce(resultData('roccia'))
+
+    act(() => {
+      result.current.commitSearch('  roccia ')
+    })
+    expect(result.current.debouncedSearch).toBe('roccia')
+    expect(result.current.isReplacing).toBe(true)
+    expect(result.current.items[0]?.name).toBe('popular-image-lora')
+
+    await waitFor(() => {
+      expect(result.current.items[0]?.name).toBe('roccia')
+    })
+    expect(mockListHuggingFaceLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: 'roccia', page: 1, cursor: undefined }),
+    )
+  })
+
   it('resets pagination when the base-model family changes', async () => {
     const { result } = renderHook(() => useHuggingFaceLoraLibrary())
     await waitFor(() => {

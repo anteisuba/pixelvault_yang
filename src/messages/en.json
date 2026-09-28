@@ -2626,6 +2626,7 @@
     "huggingFaceUnsupportedFamily": "You can save this LoRA, but ANTEI does not currently have a compatible generation base",
     "communityOpenInCivitai": "Generate on Civitai",
     "externalUseRedirect": "Opening on Civitai: {name}",
+    "huggingFaceUseRedirect": "Opening on Hugging Face: {name}",
     "sourceBadgeCivitai": "CIV",
     "sourceBadgeHuggingFace": "HF",
     "hfSelectFileFirst": "Select a weight file first",
@@ -2715,7 +2716,15 @@
       "samplesWithRecipe": "{count} · all with recipes",
       "samplesCount": "{count}",
       "mineCountQuery": "{count, plural, one {# item} other {# items}} in {section} match “{query}”",
-      "mineCountUnit": "{count, plural, one {item} other {items}} in {section}"
+      "mineCountUnit": "{count, plural, one {item} other {items}} in {section}",
+      "files": "Files",
+      "license": "License",
+      "licenseUnknown": "License unknown",
+      "shownCount": "{count} shown",
+      "loadingMoreShown": "Fetching the next batch · {shown} shown",
+      "emptyBodyLoosen": "Nothing in {scope}. Try loosening one filter:",
+      "mountChoose": "Mount…",
+      "mountChooseLabel": "Mount {name} (choose a file first)"
     }
   },
   "UseLoraButton": {

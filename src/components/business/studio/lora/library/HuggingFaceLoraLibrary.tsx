@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useSearchParams } from 'next/navigation'
-import { RefreshCw, Search } from '@/components/icons'
+import { Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -11,13 +10,9 @@ import {
   DEFAULT_LORA_CONTENT_TYPE,
   HUGGINGFACE_LORA_SORT_OPTIONS,
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
-  LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE,
   LORA_LIBRARY_MOBILE_GRID_CLASS,
-  LORA_LIBRARY_SEARCH_PARAM,
-  LORA_LIBRARY_SORT_PARAM,
   LORA_LIBRARY_SOURCES,
-  LORA_LIBRARY_TYPE_PARAM,
   LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
@@ -25,17 +20,14 @@ import {
   getLoraContentTypeDefinition,
   huggingFaceFamilyToFamilySlug,
   isHuggingFaceLoraSort,
-  parseLoraLibraryFamilyParam,
-  parseLoraLibraryTypeParam,
   type LoraLibrarySource,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
 import { ROUTES } from '@/constants/routes'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
-import { useHuggingFaceLoraLibrary } from '@/hooks/use-huggingface-lora-library'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { buildHuggingFaceSourceSnapshot } from '@/lib/lora-source-snapshot'
+import { useHuggingFaceLoraLibraryWithUrl } from '@/hooks/use-huggingface-lora-library-url'
+import { buildHuggingFaceFavoriteRequest } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
 import type {
   FavoriteLoraRequest,
@@ -46,17 +38,9 @@ import type {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { LoraCoverPreviewDialog } from './LoraCoverPreviewDialog'
 import { LoraLibraryGridCard } from './LoraLibraryCard'
 import { LoraLibraryDetailDrawer } from './LoraLibraryDetailDrawer'
-import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibraryMobileFilters } from './LoraLibraryMobileFilters'
 import { LoraLibraryPagination } from './LoraLibraryPagination'
 import { LoraLibraryRowDetail } from './LoraLibraryRowDetail'
@@ -73,48 +57,29 @@ interface HuggingFaceLoraLibraryProps {
   onImport: (input: FavoriteLoraRequest) => Promise<LoraAssetRecord | null>
   onUnfavoriteByUrl: (loraUrl: string) => Promise<boolean>
   isFavorited: (loraUrl: string) => boolean
-  /** R1 顶栏槽（LoraLibraryTabs → LoraWorkbench 常驻顶栏）：搜索框 portal 进
-   *  searchSlot；排序/刷新 portal 进 controlsSlot。HF 无分级数据，不渲染 NSFW。 */
+  /** 手机：搜索框 portal 进 LoraWorkbench 卡内那一格。HF 无分级数据，不渲染 NSFW。 */
   searchSlotNode: HTMLDivElement | null
-  controlsSlotNode: HTMLDivElement | null
-  /** 源切换：桌面走顶栏 segmented，手机走筛选 sheet 的「来源」分区。 */
+  /** 源切换在筛选 sheet 的「来源」分区。 */
   source: LoraLibrarySource
   onSourceChange: (value: LoraLibrarySource) => void
 }
 
+/**
+ * 手机（<1024）的 Hugging Face 库：封面网格 + 底部详情抽屉 + 翻页（lora-library.md §8）。
+ * 桌面是库 B（`LoraHuggingFaceBrowse`），不走这里。
+ */
 export function HuggingFaceLoraLibrary({
   onImport,
   onUnfavoriteByUrl,
   isFavorited,
   searchSlotNode,
-  controlsSlotNode,
   source,
   onSourceChange,
 }: HuggingFaceLoraLibraryProps) {
   const t = useTranslations('LoraWorkbench')
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const stack = useActiveLoraStack()
-
-  const initialFamilySlug = parseLoraLibraryFamilyParam(
-    searchParams.get(LORA_LIBRARY_FAMILY_PARAM),
-  )
-  const initialSortParam = searchParams.get(LORA_LIBRARY_SORT_PARAM)
-  const initialContentType = parseLoraLibraryTypeParam(
-    searchParams.get(LORA_LIBRARY_TYPE_PARAM),
-  )
-  const library = useHuggingFaceLoraLibrary({
-    initialSearch:
-      searchParams.get(LORA_LIBRARY_SEARCH_PARAM)?.trim() || undefined,
-    initialBaseModelFamily: familySlugToHuggingFaceFamily(initialFamilySlug),
-    initialSort:
-      initialSortParam && isHuggingFaceLoraSort(initialSortParam)
-        ? initialSortParam
-        : undefined,
-    initialContentType:
-      initialContentType === 'all' ? undefined : initialContentType,
-  })
+  const library = useHuggingFaceLoraLibraryWithUrl()
 
   // R1 库聚焦浏览：详情从按需抽屉改成原位置展开——selectedItem + detailOpen。
   const [selectedItem, setSelectedItem] =
@@ -124,47 +89,6 @@ export function HuggingFaceLoraLibrary({
     url: string
     name: string
   } | null>(null)
-  // <1024：结果区改成封面网格 + 底部详情抽屉（与 Civitai pane 同一形制）。
-  const isMobile = useIsMobile()
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    const familySlug = huggingFaceFamilyToFamilySlug(library.baseModelFamily)
-    if (familySlug === 'all') {
-      params.delete(LORA_LIBRARY_FAMILY_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_FAMILY_PARAM, familySlug)
-    }
-    if (library.debouncedSearch) {
-      params.set(LORA_LIBRARY_SEARCH_PARAM, library.debouncedSearch)
-    } else {
-      params.delete(LORA_LIBRARY_SEARCH_PARAM)
-    }
-    if (library.sort === 'downloads') {
-      params.delete(LORA_LIBRARY_SORT_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_SORT_PARAM, library.sort)
-    }
-    if (library.contentType === DEFAULT_LORA_CONTENT_TYPE) {
-      params.delete(LORA_LIBRARY_TYPE_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_TYPE_PARAM, library.contentType)
-    }
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
-    const currentQuery = searchParams.toString()
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
-    if (nextUrl === currentUrl) return
-    router.replace(nextUrl, { scroll: false })
-  }, [
-    library.baseModelFamily,
-    library.sort,
-    library.debouncedSearch,
-    library.contentType,
-    pathname,
-    router,
-    searchParams,
-  ])
 
   const handleOpenItem = useCallback((item: HuggingFaceLoraSearchItem) => {
     setSelectedItem(item)
@@ -183,21 +107,13 @@ export function HuggingFaceLoraLibrary({
     (
       item: HuggingFaceLoraSearchItem,
       file: HuggingFaceLoraFile,
-    ): FavoriteLoraRequest => ({
-      name: item.name,
-      triggerWord: item.triggerWord,
-      loraUrl: file.downloadUrl,
-      type: item.type,
-      baseModelFamily: file.baseModelFamily,
-      provider: 'huggingface',
-      coverImageUrl: item.coverImageUrl,
+    ): FavoriteLoraRequest =>
       // 抓取时刻 = 这批结果回来的那一刻，不是点击时刻。
-      sourceSnapshot: buildHuggingFaceSourceSnapshot({
+      buildHuggingFaceFavoriteRequest({
         item,
         file,
         retrievedAt: library.retrievedAt,
       }),
-    }),
     [library.retrievedAt],
   )
 
@@ -209,7 +125,7 @@ export function HuggingFaceLoraLibrary({
         !getCompatibleBases(file.baseModelFamily).some((base) => base.available)
       ) {
         window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-        toast.info(t('externalUseRedirect', { name: item.name }), {
+        toast.info(t('huggingFaceUseRedirect', { name: item.name }), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return
@@ -300,70 +216,34 @@ export function HuggingFaceLoraLibrary({
     (library.baseModelFamily !== 'all' ? 1 : 0)
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col lg:block lg:space-y-3">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:gap-3">
-        {/* <1024：来源/排序/类型/底模/刷新收成一行 chip + 底部 sheet（与
-            Civitai pane 同一组件，只是没有「安全」分区）。 */}
-        {isMobile ? (
-          <LoraLibraryMobileFilters
-            source={source}
-            onSourceChange={onSourceChange}
-            sortValue={library.sort}
-            sortOptions={sortOptions}
-            onSortChange={(value) => {
-              if (isHuggingFaceLoraSort(value)) library.setSort(value)
-            }}
-            contentType={library.contentType}
-            typeOptions={typeOptions}
-            onContentTypeChange={library.setContentType}
-            familySlug={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
-            familyOptions={familyOptions}
-            onFamilyChange={(slug) =>
-              library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
-            }
-            nsfwFilter={null}
-            nsfwOptions={[]}
-            onNsfwFilterChange={() => {}}
-            total={library.total}
-            activeFilterCount={activeFilterCount}
-            onClearFilters={handleClearFilters}
-            onRefresh={() => void library.refresh()}
-          />
-        ) : (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <LoraLibraryFilterCombobox
-              label={t('libraryTypeFilter')}
-              ariaLabel={t('typeFilterLabel')}
-              value={library.contentType}
-              options={typeOptions}
-              onChange={library.setContentType}
-            />
-            <LoraLibraryFilterCombobox
-              label={t('libraryFamilyFilter')}
-              ariaLabel={t('baseModelFilterLabel')}
-              value={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
-              options={familyOptions}
-              onChange={(slug) =>
-                library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
-              }
-              searchable
-              searchPlaceholder={t('baseModelSearchPlaceholder')}
-              emptyText={t('baseModelSearchEmpty')}
-            />
-            {/* 刷新推到最右：它不是筛选条件，是「按当前条件重拉」的动作。与
-              Civitai 源那一行同构（那边多一个安全档，HF 没有分级筛选）。 */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => void library.refresh()}
-              aria-label={t('refresh')}
-              className="ml-auto shrink-0"
-            >
-              <RefreshCw className="size-3.5" aria-hidden />
-            </Button>
-          </div>
-        )}
+    <section className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {/* 来源/排序/类型/底模/刷新收成一行 chip + 底部 sheet（与 Civitai pane 同一
+            组件，只是没有「安全」分区）。 */}
+        <LoraLibraryMobileFilters
+          source={source}
+          onSourceChange={onSourceChange}
+          sortValue={library.sort}
+          sortOptions={sortOptions}
+          onSortChange={(value) => {
+            if (isHuggingFaceLoraSort(value)) library.setSort(value)
+          }}
+          contentType={library.contentType}
+          typeOptions={typeOptions}
+          onContentTypeChange={library.setContentType}
+          familySlug={huggingFaceFamilyToFamilySlug(library.baseModelFamily)}
+          familyOptions={familyOptions}
+          onFamilyChange={(slug) =>
+            library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
+          }
+          nsfwFilter={null}
+          nsfwOptions={[]}
+          onNsfwFilterChange={() => {}}
+          total={library.total}
+          activeFilterCount={activeFilterCount}
+          onClearFilters={handleClearFilters}
+          onRefresh={() => void library.refresh()}
+        />
 
         {library.error ? (
           <div className="flex flex-col gap-2 rounded-xl border border-status-risk/30 bg-status-risk-surface px-3 py-2 text-xs text-status-risk sm:flex-row sm:items-center sm:justify-between">
@@ -379,7 +259,7 @@ export function HuggingFaceLoraLibrary({
           </div>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:flex-none lg:overflow-visible">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {library.isLoading ? (
             <div
               className="flex min-h-40 items-center justify-center text-sm text-muted-foreground"
@@ -449,7 +329,7 @@ export function HuggingFaceLoraLibrary({
         />
       </div>
 
-      {/* 搜索框：portal 进 LoraWorkbench 顶栏搜索槽（占左侧主位）。 */}
+      {/* 搜索框：portal 进 LoraWorkbench 卡内那一格。 */}
       {searchSlotNode
         ? createPortal(
             <div className="relative w-full min-w-0">
@@ -473,38 +353,6 @@ export function HuggingFaceLoraLibrary({
               ) : null}
             </div>,
             searchSlotNode,
-          )
-        : null}
-
-      {/* 顶栏右端控件：排序 Select + 刷新，portal 进控件槽。HF 无 NSFW。
-          手机上排序进筛选 sheet，这里不渲染。 */}
-      {!isMobile && controlsSlotNode
-        ? createPortal(
-            <>
-              <Select
-                value={library.sort}
-                onValueChange={(value) => {
-                  if (isHuggingFaceLoraSort(value)) library.setSort(value)
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="w-full border-border/60 text-xs sm:w-40"
-                  aria-label={t('communitySortFilter')}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HUGGINGFACE_LORA_SORT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {t(option.labelKey)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* 刷新已下沉到类型/底模那一行——见上方筛选行的注释。顶栏只剩排序。 */}
-            </>,
-            controlsSlotNode,
           )
         : null}
 

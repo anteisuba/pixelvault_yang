@@ -398,12 +398,12 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 四个 tab（`?section=` — `generate` / `community` / `mine` / `train`）共用 `LoraWorkbench.tsx` 那张 workbench-card，但身体各在各的文件里（库 / 收藏两行 2026-09-28 按库 B 更新，见 [LoRA 库](lora-library.md)）：
 
-| tab      | 渲染什么                                                                                                  | 住在哪                                                                             |
-| -------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 生成     | `GenerateBranch` + `LoraSpineBar`                                                                         | 仍在 `LoraWorkbench.tsx` 内                                                        |
-| 库       | 桌面 `LoraLibraryStage`（住在生成台舞台里，Civitai 走 `LoraLibraryBrowse`）；手机 `CommunitySourceBranch` | `lora/library/LoraLibraryStage.tsx` · `LoraLibraryTabs.tsx`                        |
-| 收藏     | 桌面 `LoraFavoritesBrowse`（同一副舞台）；手机 `MyLoraBranch`                                             | `lora/library/LoraFavoritesBrowse.tsx`；`MyLoraBranch` 仍在 `LoraWorkbench.tsx` 内 |
-| **训练** | **`TrainWizard`**（两步向导 + 历史栏，手机走 Sheet）                                                      | **`lora/training/TrainWizard.tsx`** + `hooks/use-lora-train-wizard.ts`             |
+| tab      | 渲染什么                                                                                                                                           | 住在哪                                                                             |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 生成     | `GenerateBranch` + `LoraSpineBar`                                                                                                                  | 仍在 `LoraWorkbench.tsx` 内                                                        |
+| 库       | 桌面 `LoraLibraryStage`（住在生成台舞台里，Civitai 走 `LoraLibraryBrowse`、Hugging Face 走 `LoraHuggingFaceBrowse`）；手机 `CommunitySourceBranch` | `lora/library/LoraLibraryStage.tsx` · `LoraLibraryTabs.tsx`                        |
+| 收藏     | 桌面 `LoraFavoritesBrowse`（同一副舞台）；手机 `MyLoraBranch`                                                                                      | `lora/library/LoraFavoritesBrowse.tsx`；`MyLoraBranch` 仍在 `LoraWorkbench.tsx` 内 |
+| **训练** | **`TrainWizard`**（两步向导 + 历史栏，手机走 Sheet）                                                                                               | **`lora/training/TrainWizard.tsx`** + `hooks/use-lora-train-wizard.ts`             |
 
 训练这一刀（进度表 34）：`TrainingBranch` · `PresetRailPanel` · `StepBadge` 三个局部函数与 `LoraTrainingForm` / `LoraTrainingHistorySidebar` / `PresetGrid` / `MobileTrainingSheet` 四条 import **整体搬出**，`LoraWorkbench.tsx` 里只剩 tab 分派那一行 `<TrainWizard />`，⛔ 没有 re-export 垫片。向导只持有步骤之间那点状态（选中的预设 + 滚回第 1 步），上传 / 配置 / 提交 / 任务轮询整套状态机仍在 `LoraTrainingDialog` 里 —— ⛔ 不在向导里复刻第二份。
 

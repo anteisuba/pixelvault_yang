@@ -5,6 +5,7 @@ import {
   LORA_METADATA_COMPLETENESS_THRESHOLDS,
 } from '@/constants/lora-candidate'
 import type {
+  FavoriteLoraRequest,
   HuggingFaceLoraFile,
   HuggingFaceLoraSearchItem,
   LoraCandidateLicense,
@@ -175,4 +176,27 @@ export function buildHuggingFaceSourceSnapshot(input: {
     }),
     retrievedAt,
   })
+}
+
+/**
+ * HF 仓库里的一个权重文件 → 收藏（导入）载荷，带出处快照。库 B、手机库、库 modal
+ * 三个入口同一份 —— 少接一处快照，那一处收进来的行就看不出作者 / 许可 / commit。
+ * ⚠ `retrievedAt` 是这批结果回到浏览器的时刻，⛔ 点击时刻。
+ */
+export function buildHuggingFaceFavoriteRequest(input: {
+  item: HuggingFaceLoraSearchItem
+  file: HuggingFaceLoraFile
+  retrievedAt: string
+}): FavoriteLoraRequest {
+  const { item, file } = input
+  return {
+    name: item.name,
+    triggerWord: item.triggerWord,
+    loraUrl: file.downloadUrl,
+    type: item.type,
+    baseModelFamily: file.baseModelFamily,
+    provider: 'huggingface',
+    coverImageUrl: item.coverImageUrl,
+    sourceSnapshot: buildHuggingFaceSourceSnapshot(input),
+  }
 }

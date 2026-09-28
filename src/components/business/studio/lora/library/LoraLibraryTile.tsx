@@ -19,6 +19,13 @@ interface LoraLibraryTileProps {
   onOpen: () => void
   /** 不给 = 这张卡没有「挂载」（例如只能在 Civitai 站内出图的）。 */
   onMount?: () => void
+  /** 封面还在找（Hugging Face 的 README 首图懒取）：只铺底色，⛔ 先闪占位图标。 */
+  coverPending?: boolean
+  /**
+   * 挂哪一个要先选（Hugging Face 一个仓库里有好几个权重文件）：键写「挂载…」，
+   * 点了由宿主打开详情页选文件 —— ⛔ 替用户挑第一个。
+   */
+  mountChooses?: boolean
 }
 
 /**
@@ -38,6 +45,8 @@ export function LoraLibraryTile({
   mounting = false,
   onOpen,
   onMount,
+  coverPending = false,
+  mountChooses = false,
 }: LoraLibraryTileProps) {
   const t = useTranslations('LoraWorkbench.browse')
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
@@ -73,7 +82,7 @@ export function LoraLibraryTile({
               loaded ? 'opacity-100' : 'scale-118 opacity-0 blur-md',
             )}
           />
-        ) : (
+        ) : coverPending ? null : (
           <span className="absolute inset-0 grid place-items-center text-muted-foreground">
             <Sparkles className="size-6" aria-hidden />
           </span>
@@ -96,7 +105,11 @@ export function LoraLibraryTile({
             aria-disabled={mounted || mounting || undefined}
             aria-busy={mounting || undefined}
             aria-label={
-              mounted ? t('mountedLabel', { name }) : t('mountLabel', { name })
+              mounted
+                ? t('mountedLabel', { name })
+                : mountChooses
+                  ? t('mountChooseLabel', { name })
+                  : t('mountLabel', { name })
             }
             className={cn(
               'pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 items-center gap-1 rounded-full px-2.75 text-xs font-semibold shadow-md transition-[opacity,translate,background-color,color] ease-standard',
@@ -112,7 +125,11 @@ export function LoraLibraryTile({
             ) : (
               <Plus className="size-3" aria-hidden />
             )}
-            {mounted ? t('mounted') : t('mount')}
+            {mounted
+              ? t('mounted')
+              : mountChooses
+                ? t('mountChoose')
+                : t('mount')}
           </button>
         ) : null}
       </span>

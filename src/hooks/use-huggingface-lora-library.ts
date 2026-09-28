@@ -23,6 +23,12 @@ export interface UseHuggingFaceLoraLibraryOptions {
   /** S2 内容类型筛选（lora-workbench.md §3）。 */
   initialContentType?: LoraContentType
   limit?: number
+  /**
+   * 库 B（桌面，lora-library.md §3）：往下滚着接 —— `loadMore` 把下一段接在后面；
+   * 换筛选 / 搜新词时旧结果留在原地（调用方把它变淡），新的第一段到了整批换掉。
+   * 不给 = 手机那种一页换一页。只在挂载时读一次。
+   */
+  accumulate?: boolean
 }
 
 export interface UseHuggingFaceLoraLibraryReturn {
@@ -46,15 +52,31 @@ export interface UseHuggingFaceLoraLibraryReturn {
    * 十分钟），而这个时刻只有发请求的这一层知道。
    */
   retrievedAt: string
+  /**
+   * 某个仓库**那一批**回到浏览器的时刻。`accumulate` 下前后几段是不同时刻取回的，
+   * 导入时按条目取这一个（⛔ 拿最后一段的时刻冒充前面几段的）。
+   */
+  retrievedAtFor: (repoId: string) => string
   isLoading: boolean
   isRevalidating: boolean
   error: string | null
   setSearch: (value: string) => void
+  /**
+   * 回车 / 点放大镜：这个词**当场**生效（不等防抖）。库 B 的输入框自己持有正在敲的字，
+   * 只在提交时交给这里 —— 敲字期间 ⛔ 发请求。
+   */
+  commitSearch: (term: string) => void
   setBaseModelFamily: (value: HuggingFaceLoraFamily) => void
   setSort: (value: HuggingFaceLoraSort) => void
   setContentType: (value: LoraContentType) => void
   nextPage: () => void
   previousPage: () => void
+  /** `accumulate` 下把下一段接在后面（同 `nextPage` 的闸）。 */
+  loadMore: () => void
+  /** `accumulate` 下正在接下一段。 */
+  isLoadingMore: boolean
+  /** `accumulate` 下换筛选 / 搜新词、旧结果还在屏上等新的第一段。 */
+  isReplacing: boolean
   refresh: () => Promise<void>
 }
 
@@ -65,9 +87,13 @@ export interface UseHuggingFaceLoraLibraryReturn {
 export function useHuggingFaceLoraLibrary(
   options: UseHuggingFaceLoraLibraryOptions = {},
 ): UseHuggingFaceLoraLibraryReturn {
+  const [accumulate] = useState(options.accumulate ?? false)
   const [items, setItems] = useState<HuggingFaceLoraSearchItem[]>([])
   // 首帧的值只在 items 还空着时存在（那时无从导入），首次成功拉取立即覆盖。
   const [retrievedAt, setRetrievedAt] = useState(() => new Date().toISOString())
+  const [retrievedAtByRepo, setRetrievedAtByRepo] = useState<
+    ReadonlyMap<string, string>
+  >(() => new Map())
   const [search, setSearchValue] = useState(options.initialSearch ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(
     options.initialSearch ?? '',
@@ -117,9 +143,27 @@ export function useHuggingFaceLoraLibrary(
     if (requestIdRef.current !== requestId) return
 
     if (response.success && response.data) {
-      setItems(response.data.items)
+      const incoming = response.data.items
+      const appending = accumulate && page > 1
+      if (appending) {
+        // 接在后面；同一个仓库只出现一次。
+        setItems((prev) => {
+          const seen = new Set(prev.map((item) => item.repoId))
+          return [...prev, ...incoming.filter((item) => !seen.has(item.repoId))]
+        })
+      } else {
+        setItems(incoming)
+      }
       // 与 items 同一跳落地 —— 快照里的「上游是什么时候这么说的」就是这一刻。
-      setRetrievedAt(new Date().toISOString())
+      const now = new Date().toISOString()
+      setRetrievedAt(now)
+      setRetrievedAtByRepo((prev) => {
+        const next = new Map(appending ? prev : [])
+        for (const item of incoming) {
+          if (!next.has(item.repoId)) next.set(item.repoId, now)
+        }
+        return next
+      })
       setTotal(response.data.total)
       setHasNextPage(response.data.hasNextPage)
       if (response.data.nextCursor) {
@@ -132,7 +176,15 @@ export function useHuggingFaceLoraLibrary(
     }
     setIsRevalidating(false)
     setHasResolvedOnce(true)
-  }, [baseModelFamily, contentType, debouncedSearch, options.limit, page, sort])
+  }, [
+    accumulate,
+    baseModelFamily,
+    contentType,
+    debouncedSearch,
+    options.limit,
+    page,
+    sort,
+  ])
 
   useEffect(() => {
     const trimmed = search.trim()
@@ -155,6 +207,24 @@ export function useHuggingFaceLoraLibrary(
     setSearchValue(value)
     setIsRevalidating(true)
   }, [])
+
+  const commitSearch = useCallback(
+    (term: string) => {
+      setSearchValue(term)
+      const trimmed = term.trim()
+      if (trimmed === debouncedSearch) return
+      cursorsByPageRef.current = new Map([[1, undefined]])
+      setPage(1)
+      setDebouncedSearch(trimmed)
+      setIsRevalidating(true)
+    },
+    [debouncedSearch],
+  )
+
+  const retrievedAtFor = useCallback(
+    (repoId: string) => retrievedAtByRepo.get(repoId) ?? retrievedAt,
+    [retrievedAt, retrievedAtByRepo],
+  )
 
   const setBaseModelFamily = useCallback((value: HuggingFaceLoraFamily) => {
     cursorsByPageRef.current = new Map([[1, undefined]])
@@ -200,6 +270,7 @@ export function useHuggingFaceLoraLibrary(
     page,
     hasNextPage,
     retrievedAt,
+    retrievedAtFor,
     // See `hasResolvedOnce` above — the `!hasResolvedOnce` half keeps the
     // loader up during the initial mount fetch, before `isRevalidating` has
     // committed true, so the empty state never flashes over an in-flight
@@ -208,11 +279,15 @@ export function useHuggingFaceLoraLibrary(
     isRevalidating,
     error,
     setSearch,
+    commitSearch,
     setBaseModelFamily,
     setSort,
     setContentType,
     nextPage,
     previousPage,
+    loadMore: nextPage,
+    isLoadingMore: accumulate && isRevalidating && page > 1,
+    isReplacing: accumulate && isRevalidating && page === 1 && items.length > 0,
     refresh,
   }
 }

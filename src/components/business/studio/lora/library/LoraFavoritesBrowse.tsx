@@ -105,8 +105,9 @@ function assetToLibraryItem(asset: LoraAssetRecord): CivitaiLoraLibraryItem {
  * 详情页，挂载留在原地。
  *
  * ⚠ 全在本机筛：收藏与自训一次就取齐了，⛔ 为搜索再打服务端。
- * ⚠ 自训的详情页不取版本与来源图（没有 Civitai 模型），样例是它自带的预览图；
- *   ⋯ 里多「设为公开 / 私有」与「删除」（删除要再确认一次）。
+ * ⚠ 详情页按来源取样例：Civitai 取回版本与逐图配方，Hugging Face 取 README 里的图，
+ *   自训的只有它自带的预览图；自训的 ⋯ 里多「设为公开 / 私有」与「删除」（删除要再
+ *   确认一次）。
  */
 export function LoraFavoritesBrowse({
   trained,
@@ -456,14 +457,13 @@ export function LoraFavoritesBrowse({
             }}
             nsfwFilter={nsfwFilter}
             onClose={() => setOpenAsset(null)}
-            sourceLabel={
+            origin={
               openIsTrained
-                ? t('myLorasTrainedSection')
+                ? 'trained'
                 : openAsset.provider === 'huggingface'
-                  ? t('librarySourceHuggingFace')
-                  : t('librarySourceCivitai')
+                  ? 'huggingface'
+                  : 'civitai'
             }
-            canFavorite={!openIsTrained}
             extraMenu={extraMenu}
           />
         ) : null}

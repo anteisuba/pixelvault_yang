@@ -30,6 +30,14 @@ vi.mock('@/hooks/prompts/use-civitai-model-description', () => ({
     isLoading: false,
   }),
 }))
+let mockShowcaseImages: string[] = []
+vi.mock('@/hooks/use-huggingface-lora-showcase', () => ({
+  useHuggingFaceLoraShowcase: (source: unknown) => ({
+    images: source ? mockShowcaseImages : [],
+    prompts: [],
+    isLoading: false,
+  }),
+}))
 vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
   useCivitaiMinedPrompts: () => ({
     recipes: [],
@@ -84,7 +92,11 @@ function makeVersion(
 const illustriousBase =
   LORA_BASE_MODELS.find((base) => base.family === 'illustrious') ?? null
 
-function renderPage(item: CivitaiLoraLibraryItem, onMount = vi.fn()) {
+function renderPage(
+  item: CivitaiLoraLibraryItem,
+  onMount = vi.fn(),
+  extra: Partial<Parameters<typeof LoraLibraryDetailPage>[0]> = {},
+) {
   render(
     <LoraStageProvider value={{ base: illustriousBase, baseLabel: 'WAI' }}>
       <LoraLibraryDetailPage
@@ -96,6 +108,7 @@ function renderPage(item: CivitaiLoraLibraryItem, onMount = vi.fn()) {
         onToggleFavorite={vi.fn()}
         nsfwFilter="safe"
         onClose={vi.fn()}
+        {...extra}
       />
     </LoraStageProvider>,
   )
@@ -105,6 +118,7 @@ function renderPage(item: CivitaiLoraLibraryItem, onMount = vi.fn()) {
 describe('LoraLibraryDetailPage（库 B 详情页）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockShowcaseImages = []
   })
 
   it('mounts whichever version is picked', () => {
@@ -157,5 +171,71 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
     expect(
       await screen.findByText('LoraWorkbench.browse:copied'),
     ).toBeInTheDocument()
+  })
+
+  it('shows a Hugging Face file as it is: README images, its license name, the hub author page, no rating', () => {
+    mockVersions = []
+    mockShowcaseImages = [
+      'https://huggingface.co/example/anima/resolve/abc/a.png',
+    ]
+    const file: CivitaiLoraLibraryItem = {
+      ...makeVersion(0, 'Illustrious', 'anima style'),
+      id: 'huggingface:example/anima:anima.safetensors',
+      styleCode: '',
+      provider: 'huggingface',
+      modelId: 0,
+      modelVersionId: 0,
+      versionName: 'anima.safetensors',
+      creatorName: 'example',
+      loraUrl:
+        'https://huggingface.co/example/anima/resolve/abc/anima.safetensors',
+      modelPageUrl: 'https://huggingface.co/example/anima',
+      createdAt: '',
+      sourceSnapshot: {
+        source: 'huggingface',
+        author: 'example',
+        license: {
+          label: 'apache-2.0',
+          commercialUse: null,
+          allowDerivatives: null,
+          allowNoCredit: null,
+          known: true,
+        },
+        pageUrl: 'https://huggingface.co/example/anima',
+        revision: 'abc',
+        retrievedAt: '2026-09-28T00:00:00.000Z',
+        fileSizeBytes: 1024,
+        metadataCompleteness: 'partial',
+      },
+    }
+    renderPage(file, vi.fn(), { origin: 'huggingface', versions: [file] })
+
+    expect(screen.getByText('LoraWorkbench.browse:files')).toBeInTheDocument()
+    expect(screen.getByText('apache-2.0')).toBeInTheDocument()
+    expect(screen.getByText('LoraWorkbench.browse:license')).toBeInTheDocument()
+    expect(screen.queryByText('LoraWorkbench.browse:ratingSafe')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'LoraWorkbench.browse:authorHome' }),
+    ).toHaveAttribute('href', 'https://huggingface.co/example')
+    expect(
+      screen.getAllByRole('button', { name: /LoraWorkbench:viewer\.imageAlt/ }),
+    ).toHaveLength(1)
+  })
+
+  it('says the license is unknown for a favorite saved without a snapshot — never “personal use”', () => {
+    mockVersions = []
+    const favorite: CivitaiLoraLibraryItem = {
+      ...makeVersion(2, 'Illustrious', 'roccia'),
+      isOwn: true,
+      allowCommercialUse: [],
+      sourceSnapshot: null,
+    }
+    renderPage(favorite)
+
+    expect(
+      screen.getByText('LoraWorkbench.browse:licenseUnknown'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('LoraWorkbench:licensePersonalUse')).toBeNull()
+    expect(screen.queryByText('LoraWorkbench.browse:ratingSafe')).toBeNull()
   })
 })

@@ -123,6 +123,7 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 ## 9. 拍板状态（2026-08-05 更新）
 
 > ⚠ 2026-09-27 owner 改选 Generate 方向 B「装配一列在舞台里」（与图片台同一副外壳）：下面凡是讲 Generate 桌面结构、顶部层级、输入层级的条目，以 [`../pages/lora-generate.md`](../pages/lora-generate.md) 为准。
+> ⚠ 同日库定 B「库占满舞台」：挂载留在原地（⛔ 跳到生成台）、详情是一页 —— 下面「Library 选择语义」「跨空间主流程」两条以 [`../pages/lora-library.md`](../pages/lora-library.md) 为准。
 
 - ✅ **设计范围已确认**：`/studio/lora` 作为一个完整业务域建立一套域级视觉身份，覆盖 Generate、Library、Train。
 - ✅ **一致性的边界已确认**：三个工作空间共享域级身份，但允许根据各自任务采用明显不同的空间结构，不要求复制同一页面骨架。

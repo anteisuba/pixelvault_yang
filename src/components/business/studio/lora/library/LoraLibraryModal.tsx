@@ -36,7 +36,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
-import { buildHuggingFaceSourceSnapshot } from '@/lib/lora-source-snapshot'
+import { buildHuggingFaceFavoriteRequest } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
 import { LoraLibraryCard } from './LoraLibraryCard'
 import { LoraLibraryChipRow } from './LoraLibraryChipRow'
@@ -183,27 +183,15 @@ export function LoraLibraryModal({
         item.files[0] ??
         null
       if (!file) return
-      const record = await favoriteExternalLora({
-        name: item.name,
-        triggerWord: item.triggerWord,
-        loraUrl: file.downloadUrl,
-        type: item.type,
-        baseModelFamily: file.baseModelFamily,
-        provider: 'huggingface',
-        coverImageUrl: item.coverImageUrl,
-        // 出处快照（策略 C）：作者 / 许可 / **commit sha** / 抓取时刻 / 体积 /
-        // 完整度。没有它，这条老路收藏进来的行看不出是谁做的、什么许可、
-        // 锁的哪个 commit —— 而 HF 那三个 civitai 标识符在这条路上全是 null，
-        // 快照是唯一能记住这些的地方。构造走 `lib/lora-source-snapshot`，
-        // 与助手推荐卡的导入链是同一份，⛔ 别在这里手搓第二套。
-        // ⚠ `retrievedAt` 用**这批结果回来的那一刻**（hook 记的），不是点击时刻
-        //   —— 用户可能翻了十分钟才点，那期间上游说的话没变过。
-        sourceSnapshot: buildHuggingFaceSourceSnapshot({
+      // 出处快照（策略 C）随载荷一起：构造走 `lib/lora-source-snapshot`，⛔ 手搓第二套。
+      // ⚠ `retrievedAt` 用**这批结果回来的那一刻**（hook 记的），不是点击时刻。
+      const record = await favoriteExternalLora(
+        buildHuggingFaceFavoriteRequest({
           item,
           file,
           retrievedAt: hf.retrievedAt,
         }),
-      })
+      )
       if (!record) return
       stack.push(record)
       toast.success(t('library.mountedToast', { name: record.name }), {

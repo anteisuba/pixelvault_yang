@@ -8,12 +8,11 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { useAuth } from '@clerk/nextjs'
 import { AnimatePresence } from 'motion/react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AlertCircle, History, Search, X } from '@/components/icons'
+import { AlertCircle } from '@/components/icons'
 import {
   CIVITAI_LORA_SORT_OPTIONS,
   CIVITAI_SEARCH_TOTAL_HITS_CAP,
@@ -35,14 +34,10 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibraryWithUrl } from '@/hooks/use-civitai-lora-library-url'
+import { useLoadMoreOnScroll } from '@/hooks/use-load-more-on-scroll'
+import { useLoraSearchHistory } from '@/hooks/use-lora-search-history'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
-import {
-  clearSearchHistory,
-  readSearchHistory,
-  recordSearchTerm,
-} from '@/lib/civitai-search-history'
-import { deferEffectTask } from '@/lib/defer-effect-task'
 import { formatCompactNumber } from '@/lib/format-compact-number'
 import { cn } from '@/lib/utils'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
@@ -54,6 +49,7 @@ import {
   LORA_LIBRARY_FAMILY_LABEL_KEYS,
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
+import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
 import { LoraLibraryTile } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
@@ -109,73 +105,31 @@ export function LoraLibraryBrowse({
     accumulate: true,
     pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
   })
-  const { isLoaded, userId } = useAuth()
-  const activeClerkId: string | null = isLoaded ? userId : null
-
-  const [history, setHistory] = useState<string[]>([])
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const searchWrapperRef = useRef<HTMLDivElement>(null)
+  const searchHistory = useLoraSearchHistory()
   const [mountingId, setMountingId] = useState<string | null>(null)
   // 打开的详情页：存这一项本身（往下滚接了新的一段、或换了筛选，它都还在）。
   const [openItem, setOpenItem] = useState<CivitaiLoraLibraryItem | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    return deferEffectTask(() => {
-      setHistory(readSearchHistory(activeClerkId))
-    })
-  }, [activeClerkId])
+  useLoadMoreOnScroll({
+    scrollRef,
+    sentinelRef,
+    hasNextPage: library.hasNextPage,
+    itemCount: library.items.length,
+    loadMore: library.loadMore,
+  })
 
-  useEffect(() => {
-    if (!historyOpen) return
-    const handler = (event: MouseEvent) => {
-      if (!searchWrapperRef.current?.contains(event.target as Node)) {
-        setHistoryOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [historyOpen])
-
-  // 往下滚：离底 1.5 屏就取下一段。接完一段重新观察一次 —— 结果不满一屏时哨兵还
-  // 在视野里，不重挂就收不到第二次「进入视野」。
-  const { loadMore, hasNextPage } = library
-  const itemCount = library.items.length
-  useEffect(() => {
-    const root = scrollRef.current
-    const target = sentinelRef.current
-    if (!root || !target || typeof IntersectionObserver === 'undefined') return
-    if (!hasNextPage) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) loadMore()
-      },
-      { root, rootMargin: '0px 0px 150% 0px' },
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [hasNextPage, itemCount, loadMore])
-
-  const rememberSearch = useCallback(
-    (term: string) => {
-      const trimmed = term.trim()
-      if (trimmed.length < 2) return
-      setHistory(recordSearchTerm(trimmed, activeClerkId))
-    },
-    [activeClerkId],
-  )
+  const rememberSearch = searchHistory.remember
   const handleSearchSubmit = useCallback(() => {
     library.submitSearch()
     rememberSearch(library.search)
-    setHistoryOpen(false)
   }, [library, rememberSearch])
   const handleHistoryPick = useCallback(
     (term: string) => {
       library.setSearch(term)
       library.commitSearchTerm(term)
       rememberSearch(term)
-      setHistoryOpen(false)
     },
     [library, rememberSearch],
   )
@@ -380,89 +334,17 @@ export function LoraLibraryBrowse({
     <div className="relative flex min-h-0 flex-1 flex-col">
       {/* 一行筛选：搜索占满，其余按内容宽。 */}
       <div className="flex shrink-0 items-center gap-2 px-5 pt-4">
-        <div ref={searchWrapperRef} className="relative min-w-0 flex-1">
-          <div className="relative flex h-9 items-center gap-2 overflow-hidden rounded-xl border border-border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40">
-            <button
-              type="button"
-              onClick={handleSearchSubmit}
-              aria-label={t('communitySearchSubmit')}
-              className={cn(
-                'shrink-0 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                hasPendingSearch ? 'text-foreground' : 'text-muted-foreground',
-              )}
-            >
-              <Search className="size-3.5" aria-hidden />
-            </button>
-            <input
-              value={library.search}
-              onChange={(event) => library.setSearch(event.target.value)}
-              onFocus={() => setHistoryOpen(true)}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter') return
-                event.preventDefault()
-                handleSearchSubmit()
-              }}
-              enterKeyHint="search"
-              placeholder={t('communitySearch')}
-              aria-label={t('communitySearch')}
-              className="h-full min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground/70"
-            />
-            {library.search ? (
-              <button
-                type="button"
-                onClick={() => library.setSearch('')}
-                aria-label={tb('searchClear')}
-                className="shrink-0 text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <X className="size-3.5" aria-hidden />
-              </button>
-            ) : null}
-            {/* 边即进度：搜着的时候底边一截黑线来回走。 */}
-            {searching ? (
-              <span aria-hidden className="lora-search-run" />
-            ) : null}
-          </div>
-          {historyOpen && history.length > 0 ? (
-            <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-border bg-popover p-1 text-xs shadow-lg">
-              <div className="flex items-center justify-between px-2 py-1 text-2xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <History className="size-3" aria-hidden />
-                  {t('searchHistoryTitle')}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHistory(clearSearchHistory(activeClerkId))
-                    setHistoryOpen(false)
-                  }}
-                  className="text-2xs text-muted-foreground hover:text-foreground"
-                >
-                  {t('searchHistoryClear')}
-                </button>
-              </div>
-              <ul className="max-h-48 overflow-y-auto">
-                {history.map((entry) => (
-                  <li key={entry}>
-                    <button
-                      type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault()
-                        handleHistoryPick(entry)
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-muted"
-                    >
-                      <Search
-                        className="size-3 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <span className="truncate">{entry}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
+        <LoraLibrarySearchBox
+          value={library.search}
+          onChange={library.setSearch}
+          onSubmit={handleSearchSubmit}
+          onPickHistory={handleHistoryPick}
+          history={searchHistory.history}
+          onClearHistory={searchHistory.clear}
+          pending={hasPendingSearch}
+          searching={searching}
+          placeholder={t('communitySearch')}
+        />
         {sourceSwitch}
         <LoraLibraryFilterCombobox
           variant="bar"

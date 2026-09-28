@@ -2626,6 +2626,7 @@
     "huggingFaceUnsupportedFamily": "可以收藏，但 ANTEI 当前没有兼容的生成底模",
     "communityOpenInCivitai": "在 Civitai 生成",
     "externalUseRedirect": "正在跳转 Civitai：{name}",
+    "huggingFaceUseRedirect": "正在跳转 Hugging Face：{name}",
     "sourceBadgeCivitai": "CIV",
     "sourceBadgeHuggingFace": "HF",
     "hfSelectFileFirst": "先选择权重文件",
@@ -2715,7 +2716,15 @@
       "samplesWithRecipe": "{count} 张 · 都带配方",
       "samplesCount": "{count} 张",
       "mineCountQuery": "{count} 个{section}里有「{query}」",
-      "mineCountUnit": "个{section}"
+      "mineCountUnit": "个{section}",
+      "files": "文件",
+      "license": "授权",
+      "licenseUnknown": "许可未知",
+      "shownCount": "已显示 {count} 个",
+      "loadingMoreShown": "正在接着取下一段 · 已显示 {shown}",
+      "emptyBodyLoosen": "在 {scope} 里一个都没有。放宽一项试试：",
+      "mountChoose": "挂载…",
+      "mountChooseLabel": "挂载 {name}（先选文件）"
     }
   },
   "UseLoraButton": {

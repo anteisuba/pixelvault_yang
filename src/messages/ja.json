@@ -2626,6 +2626,7 @@
     "huggingFaceUnsupportedFamily": "保存はできますが、ANTEI には現在互換性のある生成ベースがありません",
     "communityOpenInCivitai": "Civitai で生成",
     "externalUseRedirect": "Civitai に移動します：{name}",
+    "huggingFaceUseRedirect": "Hugging Face に移動します：{name}",
     "sourceBadgeCivitai": "CIV",
     "sourceBadgeHuggingFace": "HF",
     "hfSelectFileFirst": "先に重みファイルを選択してください",
@@ -2715,7 +2716,15 @@
       "samplesWithRecipe": "{count} 枚 · すべてレシピあり",
       "samplesCount": "{count} 枚",
       "mineCountQuery": "{section}のうち「{query}」を含むもの {count} 件",
-      "mineCountUnit": "件の{section}"
+      "mineCountUnit": "件の{section}",
+      "files": "ファイル",
+      "license": "ライセンス",
+      "licenseUnknown": "ライセンス不明",
+      "shownCount": "{count} 件を表示中",
+      "loadingMoreShown": "続きを取得中 · {shown} 件を表示",
+      "emptyBodyLoosen": "{scope} には一件もありません。条件を一つゆるめてみてください：",
+      "mountChoose": "マウント…",
+      "mountChooseLabel": "{name} をマウント（先にファイルを選ぶ）"
     }
   },
   "UseLoraButton": {

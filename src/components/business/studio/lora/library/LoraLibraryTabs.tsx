@@ -79,7 +79,6 @@ export function CommunitySourceBranch({
           onUnfavoriteByUrl={onUnfavoriteByUrl}
           isFavorited={isFavorited}
           searchSlotNode={searchSlotNode}
-          controlsSlotNode={null}
           source={source}
           onSourceChange={setSource}
         />

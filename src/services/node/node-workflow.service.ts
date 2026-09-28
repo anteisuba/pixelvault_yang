@@ -59,6 +59,14 @@ export class NodeWorkflowProjectNotFoundError extends Error {
   }
 }
 
+/** 保存时带的版本号对不上：别处已经改过这张画布（路由映射成 409）。 */
+export class NodeWorkflowProjectConflictError extends Error {
+  constructor(projectId: string) {
+    super(`Node workflow project ${projectId} was changed elsewhere`)
+    this.name = 'NodeWorkflowProjectConflictError'
+  }
+}
+
 /**
  * 读端坏数据。⛔ 故意不兜空：兜空 = 用户下一次打开就看见空画布，而防抖写入紧接着
  * 把那份空图存回去。报错可见比静默清空好一万倍（node-canvas-v2 §14.2）。
@@ -280,17 +288,37 @@ export async function updateNodeWorkflowProject(
     })
   }
 
-  const row = await db.nodeWorkflowProject.update({
-    where: { id: projectId },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.state !== undefined && !refusesEmptyOverwrite
-        ? { state: toPrismaJson(input.state) }
-        : {}),
-      lastActiveAt: new Date(),
-    },
-  })
-  return toRecord(row)
+  // ── 版本号（保存冲突保护，owner 2026-09-28）─────────────────────────────
+  // `updatedAt` 是这张画布**内容**的版本号：只有这里写 state 时它才变，改名 /
+  // 打开项目都显式保持原值（下面与 `touchNodeWorkflowProject`）。客户端带上它上
+  // 次看到的版本，条件写在同一条 UPDATE 的 where 里 —— 读到写之间被别处改了也拦
+  // 得住（对不上 = P2025）。⛔ 不静默覆盖别的标签页 / 设备刚存的内容。
+  const writesState = input.state !== undefined && !refusesEmptyOverwrite
+  const guarded = writesState && input.baseUpdatedAt !== undefined
+  try {
+    const row = await db.nodeWorkflowProject.update({
+      where: guarded
+        ? { id: projectId, updatedAt: new Date(input.baseUpdatedAt!) }
+        : { id: projectId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(writesState && input.state
+          ? { state: toPrismaJson(input.state) }
+          : { updatedAt: existing.updatedAt }),
+        lastActiveAt: new Date(),
+      },
+    })
+    return toRecord(row)
+  } catch (error) {
+    if (
+      guarded &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      throw new NodeWorkflowProjectConflictError(projectId)
+    }
+    throw error
+  }
 }
 
 export async function deleteNodeWorkflowProject(
@@ -331,6 +359,8 @@ export async function touchNodeWorkflowProject(
   }
   await db.nodeWorkflowProject.update({
     where: { id: projectId },
-    data: { lastActiveAt: new Date() },
+    // ⚠ 显式保持 `updatedAt`：它是内容版本号（见 `updateNodeWorkflowProject`），
+    // 另一台设备只是打开了这个项目，不能让这边下一次保存被判成冲突。
+    data: { lastActiveAt: new Date(), updatedAt: existing.updatedAt },
   })
 }

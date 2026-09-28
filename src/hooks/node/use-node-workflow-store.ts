@@ -33,6 +33,7 @@ import {
   backupNodeWorkflowV3StateAPI,
   createNodeWorkflowProjectAPI,
   deleteNodeWorkflowProjectAPI,
+  getNodeWorkflowProjectAPI,
   listNodeWorkflowProjectsAPI,
   updateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
@@ -76,6 +77,9 @@ export const EMPTY_NODE_WORKFLOW_STATE_V4: NodeWorkflowStateV4 = {
  */
 export const SERVER_WRITE_DEBOUNCE_MS = 5000
 
+/** 保存冲突那条常驻提示的 id 前缀（按项目一条，重复叫只刷新不叠加）。 */
+const CONFLICT_TOAST_ID_PREFIX = 'node-workflow-conflict:'
+
 /**
  * Which server call failed. Only ever a log field, but named here so the
  * fire-and-forget call sites can't drift into free-form strings — and so a
@@ -114,6 +118,12 @@ export const NODE_WORKFLOW_READ_ONLY_REASONS = {
    * 连当前打开的 v4 项目也跟着吃一条「画布暂时只读」的 toast。
    */
   pendingUpgrade: 'pendingUpgrade',
+  /**
+   * 保存冲突（owner 2026-09-28）：这个项目在别处（另一个标签页 / 另一台设备）
+   * 已经存过更新的版本，这边手里这份是旧的。⛔ 不再自动写回（那就是静默覆盖）；
+   * 常驻提示让用户二选一：载入最新 / 另存为副本。
+   */
+  conflict: 'conflict',
 } as const
 
 export type NodeWorkflowReadOnlyReason =
@@ -579,6 +589,13 @@ export interface NodeWorkflowStoreValue {
   projects: NodeWorkflowProjectSummary[]
   /** 当前项目为什么只读；`null` = 可写。 */
   readOnlyReason: NodeWorkflowReadOnlyReason | null
+  /** 有写入正在发往服务端（项目胶囊那颗保存点）。 */
+  isSaving: boolean
+  /**
+   * 「载入最新」换过几次内容。图引擎撤销栈的 `historyKey` 带上它：换进来的这份
+   * 不是从上一份改出来的，旧的撤销记录一条都不能用。
+   */
+  stateEpoch: number
   /** 升级前的 v3 原件（按项目）。v3 投影视图靠它带回 v4 没有落点的字段。 */
   originV3Ref: React.RefObject<Map<string, NodeWorkflowState>>
   /** ⚠ 当前项目 state 的**唯一**写入口。返回写完之后的 v4。 */
@@ -605,9 +622,12 @@ export function useNodeWorkflowStore({
 }: UseNodeWorkflowStoreOptions): NodeWorkflowStoreValue {
   const tToasts = useTranslations('StudioNode.toasts')
   const tToastsRef = useRef(tToasts)
+  const tShell = useTranslations('StudioNode.shell')
+  const tShellRef = useRef(tShell)
   useEffect(() => {
     tToastsRef.current = tToasts
-  }, [tToasts])
+    tShellRef.current = tShell
+  }, [tToasts, tShell])
 
   /**
    * 「本地暂存写不进去」一个会话只说一次。本地写入是 400ms 的 debounce——
@@ -703,6 +723,8 @@ export function useNodeWorkflowStore({
       if (currentReason === NODE_WORKFLOW_READ_ONLY_REASONS.pendingUpgrade) {
         return
       }
+      // 冲突有自己那条带两个去处的提示（`reportConflict`），⛔ 不说成「备份失败」。
+      if (currentReason === NODE_WORKFLOW_READ_ONLY_REASONS.conflict) return
       if (hasReportedReadOnly.current) return
       hasReportedReadOnly.current = true
       toast.error(tToastsRef.current('v3UpgradeReadOnly'))
@@ -734,6 +756,23 @@ export function useNodeWorkflowStore({
   const warnedUnconfirmedProjectIds = useRef<Set<string>>(new Set())
   /** 「这个项目的空，是用户自己删空的」。服务端的空覆盖闸靠它放行。 */
   const locallyClearedProjectIds = useRef<Set<string>>(new Set())
+  /**
+   * 保存冲突保护（owner 2026-09-28）。
+   * · `serverVersionRef`：每个项目这边上一次看到的服务端版本（`updatedAt` 原样，
+   *   服务端只在写 state 时改它）。写回时带上，对不上服务端回 409。
+   * · `syncedStateRef`：每个项目「与服务端一致」的那一份 state（按引用比）。
+   *   ⚠ 内容没变就不写 —— 切到一个项目、标签页回到前台这类「什么都没改」的时刻，
+   *   以前也会把这边内存里那份整份推上去，而它可能早就旧了。
+   */
+  const serverVersionRef = useRef<Map<string, string>>(new Map())
+  const syncedStateRef = useRef<Map<string, NodeWorkflowStateV4>>(new Map())
+  /** 在飞的服务端写入数（项目胶囊那颗保存点读它，⛔ 不再只看上传）。 */
+  const [pendingServerWrites, setPendingServerWrites] = useState(0)
+  /**
+   * 「载入最新」换过几次内容。图引擎的撤销栈认它（`historyKey`）：换进来的这份
+   * 不是从上一份改出来的，旧的 inverse 一条都不能再用。
+   */
+  const [stateEpoch, setStateEpoch] = useState(0)
   /**
    * **服务端水化之前**在本地被改过的项目 id（首屏那一小段窗口）。
    * 服务端列表回来时靠它决定「本地这份要不要顶掉服务端那份」——⛔ 不用时间戳去赌
@@ -891,6 +930,8 @@ export function useNodeWorkflowStore({
     ): Promise<boolean> => {
       const projects: NodeWorkflowProjectV4[] = []
       const readOnly: Record<string, NodeWorkflowReadOnlyReason> = {}
+      /** 库里本来就是 v4 的那几份：水化进来的 state 就是服务端原样。 */
+      const storedAsV4 = new Set<string>()
       // 服务端按 lastActiveAt 排序，第 0 条就是马上要打开的那个项目 —— 也是
       // 本次 hydration 里**唯一**允许发备份请求的那个。
       const activeRecordId = records[0]?.id ?? null
@@ -903,8 +944,11 @@ export function useNodeWorkflowStore({
         if (upgraded.readOnly) readOnly[record.id] = upgraded.readOnly
         if (upgraded.originV3) {
           originV3Ref.current.set(record.id, upgraded.originV3)
+        } else if (!upgraded.readOnly) {
+          storedAsV4.add(record.id)
         }
         serverConfirmedProjectIds.current.add(record.id)
+        serverVersionRef.current.set(record.id, record.updatedAt)
       }
       // ⚠ **合并，不是替换**：首屏那一小段窗口里建的节点、以及上一次会话写了盘
       // 但没 PUT 上去的改动，都要活下来；当前项目也不许跳（`mergeAdoptedProjects`）。
@@ -915,6 +959,15 @@ export function useNodeWorkflowStore({
         editedBeforeHydration: editedBeforeServerHydration.current,
         readOnlyIds: new Set(Object.keys(readOnly)),
       })
+      // 合并之后仍是服务端那一份的项目 = 与服务端一致：不改就不写回。本地那份
+      // 胜出的（首屏窗口里改过 / 本地更新）不记，下一次写入照常把它推上去。
+      for (const project of projects) {
+        if (!storedAsV4.has(project.id)) continue
+        const kept = nextStorage.projects.find((item) => item.id === project.id)
+        if (kept?.state === project.state) {
+          syncedStateRef.current.set(project.id, project.state)
+        }
+      }
       storageRef.current = nextStorage
       setStorageState(nextStorage)
       markReadOnly(readOnly)
@@ -992,6 +1045,64 @@ export function useNodeWorkflowStore({
     storageState,
   ])
 
+  /**
+   * 409 之后怎么办 —— 实现在 `duplicateProject` 之后（「另存为副本」要用它），
+   * 写入路径只认这个口。
+   */
+  const onConflictRef = useRef<(projectId: string) => void>(() => {})
+  /**
+   * 同一个项目的写入**排队**：上一枪回来、版本号更新了，下一枪才出发。
+   * ⚠ 不排队的话，一次超过 5s 的慢请求还在路上时，下一次防抖写入会带着旧版本号
+   *   出发，被自己刚写进去的那一版判成冲突。
+   */
+  const writeChainRef = useRef<Map<string, Promise<boolean>>>(new Map())
+
+  /**
+   * 把一个项目的 state 写回服务端 —— 自动保存与「立即保存」共用这一条（⛔ 不留第二条
+   * 不带版本号的写法）。成功：记下新版本与这一份 state；409：别处改过 → 停写、让用户选。
+   */
+  const pushProjectState = useCallback(
+    (projectId: string, state: NodeWorkflowStateV4): Promise<boolean> => {
+      const send = async (): Promise<boolean> => {
+        // 排队期间可能已经判了冲突 / 只读：⛔ 那之后一个字都不写。
+        if (readOnlyRef.current[projectId]) return false
+        const baseUpdatedAt = serverVersionRef.current.get(projectId)
+        setPendingServerWrites((count) => count + 1)
+        try {
+          const response = await updateNodeWorkflowProjectAPI(projectId, {
+            state,
+            allowEmptyState: locallyClearedProjectIds.current.has(projectId),
+            ...(baseUpdatedAt ? { baseUpdatedAt } : {}),
+          })
+          if (response.success) {
+            if (response.data) {
+              serverVersionRef.current.set(projectId, response.data.updatedAt)
+            }
+            syncedStateRef.current.set(projectId, state)
+            return true
+          }
+          if (response.status === 409) {
+            onConflictRef.current(projectId)
+            return false
+          }
+          reportServerWriteFailure(
+            SERVER_WRITE_OPERATIONS.update,
+            response.error,
+            response.status,
+          )
+          return false
+        } finally {
+          setPendingServerWrites((count) => count - 1)
+        }
+      }
+      const previous = writeChainRef.current.get(projectId)
+      const next = previous ? previous.then(send, send) : send()
+      writeChainRef.current.set(projectId, next)
+      return next
+    },
+    [reportServerWriteFailure],
+  )
+
   // Debounced server write — pushes the CURRENT project's state up every
   // ~5s of inactivity.
   useEffect(() => {
@@ -1003,8 +1114,21 @@ export function useNodeWorkflowStore({
     const current = storageState.projects.find((p) => p.id === currentId)
     if (!current) return
 
+    // 冲突了还在改：提示要看得见（同一个 id，只会刷新那一条，不会刷屏）。
+    if (
+      readOnlyRef.current[currentId] ===
+        NODE_WORKFLOW_READ_ONLY_REASONS.conflict &&
+      current.state !== syncedStateRef.current.get(currentId)
+    ) {
+      onConflictRef.current(currentId)
+      return
+    }
     // ⛔ 备份没成功的项目一个字都不写回去。
     if (readOnlyRef.current[currentId]) return
+
+    // 内容没变就不写：切到一个项目、标签页回到前台这类「什么都没改」的时刻，
+    // ⛔ 不再把这边内存里那份（可能早就旧了）整份推上去。
+    if (syncedStateRef.current.get(currentId) === current.state) return
 
     // ⚠ 覆写链的客户端这一头：只有服务端本会话亲口确认过的项目才允许被写回去。
     if (!serverConfirmedProjectIds.current.has(currentId)) {
@@ -1019,22 +1143,11 @@ export function useNodeWorkflowStore({
     }
 
     const timeoutId = window.setTimeout(() => {
-      void updateNodeWorkflowProjectAPI(currentId, {
-        state: current.state,
-        allowEmptyState: locallyClearedProjectIds.current.has(currentId),
-      }).then((response) => {
-        if (!response.success) {
-          reportServerWriteFailure(
-            SERVER_WRITE_OPERATIONS.update,
-            response.error,
-            response.status,
-          )
-        }
-      })
+      void pushProjectState(currentId, current.state)
     }, SERVER_WRITE_DEBOUNCE_MS)
 
     return () => window.clearTimeout(timeoutId)
-  }, [clerkId, readOnlyProjectIds, reportServerWriteFailure, storageState])
+  }, [clerkId, pushProjectState, readOnlyProjectIds, storageState])
 
   const currentProject = useMemo(
     () => getCurrentProject(storageState, defaultProjectName),
@@ -1090,6 +1203,8 @@ export function useNodeWorkflowStore({
 
         const serverId = response.data.id
         serverConfirmedProjectIds.current.add(serverId)
+        serverVersionRef.current.set(serverId, response.data.updatedAt)
+        syncedStateRef.current.set(serverId, project.state)
         if (serverId === project.id) return
 
         setWorkflowStorage((currentStorage) => ({
@@ -1161,6 +1276,99 @@ export function useNodeWorkflowStore({
     },
     [canCallServerNow, createProjectOnServer, setWorkflowStorage],
   )
+
+  /**
+   * 「载入最新」：把服务端那一份原样换进来，这边没存上的改动放弃（用户选的）。
+   * ⚠ 换进来的不是从手上这份改出来的 —— `stateEpoch` +1，图引擎据此清空撤销栈。
+   */
+  const loadLatestFromServer = useCallback(
+    async (projectId: string): Promise<boolean> => {
+      const response = await getNodeWorkflowProjectAPI(projectId)
+      if (!response.success || !response.data) {
+        toast.error(tToastsRef.current('conflictLoadFailed'))
+        return false
+      }
+      const record = response.data
+      const upgraded = await upgradeServerRecord(record, {
+        backupAllowed: false,
+      })
+      // 库里那份不是能直接用的 v4（v3 / 读不出来）：⛔ 不猜，保持只读。
+      if (upgraded.readOnly) {
+        markReadOnly({ [projectId]: upgraded.readOnly })
+        return false
+      }
+      setWorkflowStorage((currentStorage) => ({
+        ...currentStorage,
+        projects: currentStorage.projects.map((project) =>
+          project.id === projectId ? upgraded.project : project,
+        ),
+      }))
+      serverVersionRef.current.set(projectId, record.updatedAt)
+      syncedStateRef.current.set(projectId, upgraded.project.state)
+      clearReadOnly(projectId)
+      toast.dismiss(`${CONFLICT_TOAST_ID_PREFIX}${projectId}`)
+      setStateEpoch((epoch) => epoch + 1)
+      return true
+    },
+    [clearReadOnly, markReadOnly, setWorkflowStorage],
+  )
+
+  /**
+   * 「另存为副本」：这边手上这份存成一个新项目（⛔ 不碰别处存的那一版），并切过去
+   * 接着改；原项目随后换回服务端那一份，下次打开看到的就是最新的。
+   */
+  const saveConflictAsCopy = useCallback(
+    (projectId: string) => {
+      const source = storageRef.current.projects.find(
+        (project) => project.id === projectId,
+      )
+      if (!source) return
+      const copyId = duplicateProject(
+        projectId,
+        tShellRef.current('project.duplicateSuffix', { name: source.name }),
+      )
+      if (!copyId) return
+      toast.dismiss(`${CONFLICT_TOAST_ID_PREFIX}${projectId}`)
+      void loadLatestFromServer(projectId)
+    },
+    [duplicateProject, loadLatestFromServer],
+  )
+
+  /**
+   * 409：这个项目别处存过更新的版本。停写（只读闸），并给一句话 + 两个去处。
+   * 同一个 id 的提示只会刷新那一条；⚠ 不是当前项目就先不出声，切回来、或者在它上
+   * 面继续改时再说（写入口那一处会再叫一次）。
+   */
+  const reportConflict = useCallback(
+    (projectId: string) => {
+      if (
+        readOnlyRef.current[projectId] !==
+        NODE_WORKFLOW_READ_ONLY_REASONS.conflict
+      ) {
+        logger.warn('[node-workflow] save conflict: changed elsewhere', {
+          projectId,
+        })
+        markReadOnly({ [projectId]: NODE_WORKFLOW_READ_ONLY_REASONS.conflict })
+      }
+      if (storageRef.current.currentProjectId !== projectId) return
+      toast.warning(tToastsRef.current('conflict'), {
+        id: `${CONFLICT_TOAST_ID_PREFIX}${projectId}`,
+        duration: Number.POSITIVE_INFINITY,
+        action: {
+          label: tToastsRef.current('conflictLoadLatest'),
+          onClick: () => void loadLatestFromServer(projectId),
+        },
+        cancel: {
+          label: tToastsRef.current('conflictSaveAsCopy'),
+          onClick: () => saveConflictAsCopy(projectId),
+        },
+      })
+    },
+    [loadLatestFromServer, markReadOnly, saveConflictAsCopy],
+  )
+  useEffect(() => {
+    onConflictRef.current = reportConflict
+  }, [reportConflict])
 
   /**
    * 补做一个 `pendingUpgrade` 项目的 v3 备份 —— 「打开它」就是升级的触发点。
@@ -1357,12 +1565,9 @@ export function useNodeWorkflowStore({
       )
       return false
     }
-    const response = await updateNodeWorkflowProjectAPI(currentId, {
-      state: current.state,
-      allowEmptyState: locallyClearedProjectIds.current.has(currentId),
-    })
-    return response.success
-  }, [canCallServerNow])
+    // 与自动保存同一条：带版本号、排队、冲突停写（⛔ 手动点的不能绕过冲突保护）。
+    return pushProjectState(currentId, current.state)
+  }, [canCallServerNow, pushProjectState])
 
   return useMemo(
     () => ({
@@ -1372,6 +1577,8 @@ export function useNodeWorkflowStore({
       state: currentProject.state,
       projects,
       readOnlyReason: readOnlyProjectIds[currentProject.id] ?? null,
+      isSaving: pendingServerWrites > 0,
+      stateEpoch,
       originV3Ref,
       commitCurrentProjectState,
       createProject,
@@ -1388,10 +1595,12 @@ export function useNodeWorkflowStore({
       deleteProject,
       duplicateProject,
       isHydrated,
+      pendingServerWrites,
       projects,
       readOnlyProjectIds,
       renameCurrentProject,
       saveNow,
+      stateEpoch,
       switchProject,
     ],
   )

@@ -5294,7 +5294,11 @@
       "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
       "v3UpgradeReadOnly": "This project's legacy data hasn't been backed up yet, so the canvas is read-only to avoid overwriting the original. Refresh to retry; contact support if it keeps failing.",
-      "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below."
+      "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below.",
+      "conflict": "This canvas was saved elsewhere (another tab or device) with newer changes, so saving here is paused.",
+      "conflictLoadLatest": "Load latest",
+      "conflictSaveAsCopy": "Save as copy",
+      "conflictLoadFailed": "Couldn't load the latest version. Check your connection and try again."
     },
     "quickEdit": {
       "placeholder": "Describe how you want to edit this image",

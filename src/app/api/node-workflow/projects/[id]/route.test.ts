@@ -25,6 +25,16 @@ const FakeStateCorruptError = vi.hoisted(
     },
 )
 
+const FakeConflictError = vi.hoisted(
+  () =>
+    class NodeWorkflowProjectConflictError extends Error {
+      constructor() {
+        super('Node workflow project p1 was changed elsewhere')
+        this.name = 'NodeWorkflowProjectConflictError'
+      }
+    },
+)
+
 const mockGet = vi.fn()
 const mockUpdate = vi.fn()
 const mockDelete = vi.fn()
@@ -34,6 +44,7 @@ vi.mock('@/services/node/node-workflow.service', () => ({
   updateNodeWorkflowProject: (...args: unknown[]) => mockUpdate(...args),
   deleteNodeWorkflowProject: (...args: unknown[]) => mockDelete(...args),
   NodeWorkflowStateCorruptError: FakeStateCorruptError,
+  NodeWorkflowProjectConflictError: FakeConflictError,
 }))
 
 import { GET, PUT } from '@/app/api/node-workflow/projects/[id]/route'
@@ -155,5 +166,39 @@ describe('PUT /api/node-workflow/projects/[id] — 写端', () => {
 
     expect(res.status).toBe(422)
     expect(body.errorCode).toBe('NODE_WORKFLOW_STATE_CORRUPT')
+  })
+})
+
+describe('PUT /api/node-workflow/projects/[id] — 保存冲突（owner 09-28）', () => {
+  it('版本号对不上 → 409 带 code，客户端据此停写、让用户二选一', async () => {
+    mockUpdate.mockRejectedValue(new FakeConflictError())
+
+    const res = await PUT(
+      createPUT(`/api/node-workflow/projects/${PROJECT_ID}`, {
+        state: V4_STATE,
+        baseUpdatedAt: '2026-09-28T00:00:00.000Z',
+      }),
+      params,
+    )
+    const body = await parseJSON<{ errorCode?: string }>(res)
+
+    expect(res.status).toBe(409)
+    expect(body.errorCode).toBe('NODE_WORKFLOW_CONFLICT')
+  })
+
+  it('版本号原样交给 service（⛔ 路由层不自己判）', async () => {
+    await PUT(
+      createPUT(`/api/node-workflow/projects/${PROJECT_ID}`, {
+        state: V4_STATE,
+        baseUpdatedAt: '2026-09-28T00:00:00.000Z',
+      }),
+      params,
+    )
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({ baseUpdatedAt: '2026-09-28T00:00:00.000Z' }),
+    )
   })
 })

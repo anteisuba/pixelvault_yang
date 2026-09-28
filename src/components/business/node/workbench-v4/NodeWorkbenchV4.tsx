@@ -317,6 +317,8 @@ function NodeWorkbenchV4Inner() {
     onStateChange: commitState,
     onOpFailed,
     resolveModel,
+    // 切项目 / 载入最新 = 换了一段历史：撤销栈清空（旧的 inverse 会改到别的项目）。
+    historyKey: `${store.currentProject.id}:${store.stateEpoch}`,
   })
 
   /**
@@ -1351,7 +1353,7 @@ function NodeWorkbenchV4Inner() {
                     projectName={store.currentProject.name}
                     projects={store.projects}
                     currentProjectId={store.currentProject.id}
-                    isSaving={dnd.isUploading}
+                    isSaving={dnd.isUploading || store.isSaving}
                     onSwitchProject={store.switchProject}
                     onCreateProject={() => setProjectDialogMode('create')}
                     onRenameProject={() => setProjectDialogMode('rename')}
@@ -1470,7 +1472,7 @@ function NodeWorkbenchV4Inner() {
                     projectName={store.currentProject.name}
                     projects={store.projects}
                     currentProjectId={store.currentProject.id}
-                    isSaving={dnd.isUploading}
+                    isSaving={dnd.isUploading || store.isSaving}
                     onSwitchProject={store.switchProject}
                     onCreateProject={() => setProjectDialogMode('create')}
                     onRenameProject={() => setProjectDialogMode('rename')}

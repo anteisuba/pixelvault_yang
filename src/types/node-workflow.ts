@@ -1556,6 +1556,14 @@ export const UpdateNodeWorkflowProjectRequestSchema = z.object({
    * localStorage 的那一份）时一律不带这个标记。
    */
   allowEmptyState: z.boolean().optional(),
+  /**
+   * 这个标签页**上一次看到的服务端版本**（服务端回的 `updatedAt` 原样带回来）。
+   *
+   * 保存冲突保护（owner 2026-09-28）：`updatedAt` 只在写 `state` 时变，所以它就是
+   * 画布内容的版本号。带了且对不上 = 别处（另一个标签页 / 另一台设备）已经改过，
+   * 这一份是旧的 → 409，⛔ 不静默覆盖。不带 = 旧客户端，照旧整份覆盖。
+   */
+  baseUpdatedAt: z.string().datetime().optional(),
 })
 
 export type NodeWorkflowProjectRecord = z.infer<

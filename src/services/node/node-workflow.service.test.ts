@@ -35,11 +35,14 @@ import {
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { NODE_STUDIO_PROJECTS } from '@/constants/node-studio'
+import { Prisma } from '@/lib/generated/prisma/client'
 import {
   getNodeWorkflowProject,
   listNodeWorkflowProjectsForUser,
   listRecentNodeWorkflowProjectsForUser,
+  NodeWorkflowProjectConflictError,
   NodeWorkflowStateCorruptError,
+  touchNodeWorkflowProject,
   updateNodeWorkflowProject,
 } from '@/services/node/node-workflow.service'
 import { NodeWorkflowStateV4Schema } from '@/types/node-workflow'
@@ -328,5 +331,86 @@ describe('写端 · v4 状态', () => {
     await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, { state: V4_STATE })
 
     expect(updateData().state).toEqual(V4_STATE)
+  })
+})
+
+// ─── 保存冲突保护（owner 2026-09-28）─────────────────────────────────
+// `updatedAt` = 画布内容的版本号：只在写 state 时变，改名 / 打开项目保持原值。
+describe('updateNodeWorkflowProject — 版本号（保存冲突保护）', () => {
+  const BASE = '2026-08-25T00:00:00.000Z'
+
+  function updateArgs(): {
+    where: Record<string, unknown>
+    data: Record<string, unknown>
+  } {
+    const call = mockUpdate.mock.calls[0]?.[0] as
+      | { where: Record<string, unknown>; data: Record<string, unknown> }
+      | undefined
+    expect(call).toBeDefined()
+    return call!
+  }
+
+  it('带了版本号：版本号进同一条 UPDATE 的 where（读到写之间被改也拦得住）', async () => {
+    mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
+
+    await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
+      state: V4_STATE,
+      baseUpdatedAt: BASE,
+    })
+
+    expect(updateArgs().where).toEqual({
+      id: PROJECT_ID,
+      updatedAt: new Date(BASE),
+    })
+    expect(updateArgs().data.state).toEqual(V4_STATE)
+  })
+
+  it('版本号对不上（P2025）：抛冲突，⛔ 不静默覆盖', async () => {
+    mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
+    mockUpdate.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+      }),
+    )
+
+    await expect(
+      updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
+        state: V4_STATE,
+        baseUpdatedAt: '2026-08-24T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(NodeWorkflowProjectConflictError)
+  })
+
+  it('没带版本号（旧客户端）：照旧按 id 整份覆盖', async () => {
+    mockFindFirst.mockResolvedValue(projectRow({ nodes: [A_NODE], edges: [] }))
+
+    await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, { state: V4_STATE })
+
+    expect(updateArgs().where).toEqual({ id: PROJECT_ID })
+  })
+
+  it('只改名：保持 updatedAt（内容没变，别让别的标签页下一次保存被判冲突）', async () => {
+    const row = projectRow({ nodes: [A_NODE], edges: [] })
+    mockFindFirst.mockResolvedValue(row)
+
+    await updateNodeWorkflowProject(CLERK_ID, PROJECT_ID, {
+      name: 'Renamed',
+      baseUpdatedAt: BASE,
+    })
+
+    expect(updateArgs().where).toEqual({ id: PROJECT_ID })
+    expect(updateArgs().data.updatedAt).toBe(row.updatedAt)
+    expect(updateArgs().data).not.toHaveProperty('state')
+  })
+
+  it('打开项目（touch）：只动 lastActiveAt，updatedAt 保持原值', async () => {
+    const row = projectRow({ nodes: [A_NODE], edges: [] })
+    mockFindFirst.mockResolvedValue(row)
+
+    await touchNodeWorkflowProject(CLERK_ID, PROJECT_ID)
+
+    expect(updateArgs().data.updatedAt).toBe(row.updatedAt)
+    expect(updateArgs().data.lastActiveAt).toBeInstanceOf(Date)
   })
 })

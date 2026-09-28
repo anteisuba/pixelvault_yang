@@ -669,3 +669,41 @@ describe('useNodeGraphV4 · 参考轨变了，正文里的 @图N 跟着走（own
     expect(promptOf(view.result.current.state)).toBe('@图1 在前，@图2 在后')
   })
 })
+
+describe('useNodeGraphV4 · historyKey（切项目 / 载入最新 = 换一段历史）', () => {
+  it('换了 key：撤销与重做一起清空，⛔ 旧的 inverse 不许套到新内容上', () => {
+    const onOpFailed = vi.fn()
+    const view = renderHook(
+      ({
+        state,
+        historyKey,
+      }: {
+        state: NodeWorkflowStateV4
+        historyKey: string
+      }) =>
+        useNodeGraphV4({
+          state,
+          historyKey,
+          onStateChange: (next) => view.rerender({ state: next, historyKey }),
+          onOpFailed,
+        }),
+      { initialProps: { state: stateOf([]), historyKey: 'p1:0' } },
+    )
+    act(() => {
+      view.result.current.addNode('image', 'result')
+    })
+    act(() => {
+      view.result.current.addNode('image', 'result')
+    })
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.canUndo).toBe(true)
+    expect(view.result.current.canRedo).toBe(true)
+
+    view.rerender({ state: stateOf([firstFrame]), historyKey: 'p2:0' })
+
+    expect(view.result.current.canUndo).toBe(false)
+    expect(view.result.current.canRedo).toBe(false)
+  })
+})

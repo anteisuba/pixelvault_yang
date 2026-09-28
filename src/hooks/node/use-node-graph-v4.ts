@@ -193,6 +193,12 @@ export interface UseNodeGraphV4Options {
    * 从外面给；卡绑的图 / 音色仍从图上反查。不给 = 正文里只认节点名。
    */
   castCards?: readonly MentionCastCardRef[]
+  /**
+   * 这份 `state` 属于哪一段历史。**换了 = 撤销 / 重做栈清空**：切项目、从服务端
+   * 「载入最新」换进来的内容都不是从上一份改出来的 —— 旧的 inverse 套上去会改到
+   * 别的项目，重做甚至会把上一个项目的整份内容写进这一个。不给 = 一直是同一段。
+   */
+  historyKey?: string
 }
 
 export interface NodeGraphV4 {
@@ -346,6 +352,7 @@ export function useNodeGraphV4({
   onOpFailed,
   selectedNodeIds: selectedNodeIdsOverride,
   castCards,
+  historyKey,
 }: UseNodeGraphV4Options): NodeGraphV4 {
   const stateRef = useRef(state)
   const reportStateChangeRef = useRef(reportStateChange)
@@ -364,6 +371,14 @@ export function useNodeGraphV4({
   const [redoStack, setRedoStack] = useState<
     readonly { readonly redoState: NodeWorkflowStateV4 }[]
   >([])
+  // 换了一段历史（切项目 / 载入最新）：两份栈一起清空 —— 渲染期同步，⛔ 不放 effect
+  // 里（effect 版会留一帧能按的旧撤销）。
+  const [historyOf, setHistoryOf] = useState(historyKey)
+  if (historyOf !== historyKey) {
+    setHistoryOf(historyKey)
+    setUndoStack([])
+    setRedoStack([])
+  }
   const clipboardRef = useRef<NodeGraphV4ClipboardShape | null>(null)
   const [clipboard, setClipboard] = useState<NodeGraphV4ClipboardShape | null>(
     null,

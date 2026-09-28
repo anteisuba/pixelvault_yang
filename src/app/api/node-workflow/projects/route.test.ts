@@ -37,6 +37,7 @@ vi.mock('@/services/node/node-workflow.service', () => ({
   listRecentNodeWorkflowProjectsForUser: (...args: unknown[]) =>
     mockListRecent(...args),
   NodeWorkflowProjectLimitError: class extends Error {},
+  NodeWorkflowProjectConflictError: class extends Error {},
   NodeWorkflowStateCorruptError: FakeStateCorruptError,
 }))
 

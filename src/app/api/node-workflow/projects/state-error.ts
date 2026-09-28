@@ -1,14 +1,26 @@
 import 'server-only'
 
 import { ApiRequestError } from '@/lib/errors'
-import { NodeWorkflowStateCorruptError } from '@/services/node/node-workflow.service'
+import {
+  NodeWorkflowProjectConflictError,
+  NodeWorkflowStateCorruptError,
+} from '@/services/node/node-workflow.service'
 
 /**
  * 读端坏数据 → 422 带 code。⛔ 不再兜成空图（node-canvas-v2 §14.2）：
  * 客户端拿到显式错误才知道「这份图读不出来、别写回去」，兜空则是静默清空。
+ * 保存时版本号对不上 → 409 带 code：客户端据此停写这个项目、让用户二选一。
  * 非本类错误原样抛出，交给路由工厂按原状态码处理。
  */
 export function rethrowNodeWorkflowStateError(error: unknown): never {
+  if (error instanceof NodeWorkflowProjectConflictError) {
+    throw new ApiRequestError(
+      'NODE_WORKFLOW_CONFLICT',
+      409,
+      'errors.nodeWorkflow.conflict',
+      'This canvas was changed elsewhere',
+    )
+  }
   if (error instanceof NodeWorkflowStateCorruptError) {
     throw new ApiRequestError(
       'NODE_WORKFLOW_STATE_CORRUPT',

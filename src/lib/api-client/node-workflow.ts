@@ -131,6 +131,28 @@ export async function updateNodeWorkflowProjectAPI(
   }
 }
 
+/** 单个项目的服务端现状（保存冲突后「载入最新」用）。 */
+export async function getNodeWorkflowProjectAPI(
+  id: string,
+): Promise<NodeWorkflowApiResponse<NodeWorkflowProjectRecord>> {
+  try {
+    const response = await fetch(endpointWithId(id), { cache: 'no-store' })
+    if (!response.ok) {
+      return {
+        success: false,
+        status: response.status,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: unexpectedError(error) }
+  }
+}
+
 export async function deleteNodeWorkflowProjectAPI(
   id: string,
 ): Promise<NodeWorkflowApiResponse<null>> {

@@ -60,7 +60,7 @@ const OVERVIEW = {
             { name: '卡片', status: '可开工', note: 'v2 字段已落；卡片总线 35 契约 09-24 定（只认角色卡 · 角色与背景共用 @ 名单 · 三次部署已授权），之后 D6 设计 —— **挡着画布**' },
             { name: '图片', status: '部分', note: '两台已落；NAI 角色图用 V5 Full；编辑线等 D4' },
             { name: '视频', status: '部分', note: '模型接入已落；视频助手 + 左栏 09-24 已上线，BytePlus 2.5 与 Wan 3.0 实跑出片；分镜 / 白模动作等 D4' },
-            { name: 'LoRA / Runner', status: '部分', note: '工作台 + 训练向导已落；运行时下载 LoRA 待 spec' },
+            { name: 'LoRA / Runner', status: '部分', note: '工作台 + 训练向导 + 运行时下载 LoRA 已落；底模插槽 Anima Turbo · Z-Image 在设计' },
             { name: '素材与去处', status: '部分', note: '详情路由 / 文件夹已落；页头与统一参考入口等 D5' },
           ],
         },
@@ -346,7 +346,7 @@ const BIZ_LORA = biz(
       ['#', '项', '说明', '状态'],
       [
         ['34', '画廊卡减负 · Train 向导页', 'LoraWorkbench 仍 4625 行：GenerateBranch 约 3300 行没拆，不在当时授权内', '已落'],
-        ['45', '运行时下载 LoRA + 底模插槽 + 护栏', '白名单只有 1 条；fork 里按 Civitai URL 运行时下载 + SHA + LRU，收益最大', '待 spec'],
+        ['45', '底模插槽 + 下载护栏', '运行时下载 LoRA 早已接通；这轮 Anima Turbo · Z-Image Turbo · SHA 核对 · 官方 5.10 底座（ComfyUI 0.34）· Volume 150G（第 6 页 ②③ 思维导图）', '进行中'],
         ['—', 'LoRA 设置补齐', 'strength_model / clip 分离 · clip skip 可覆盖 · 采样器选择器 · 负面 embedding · hires fix · ADetailer', '可开工'],
         ['—', 'GenerateBranch 拆分', '', '待 owner'],
       ],
@@ -596,7 +596,7 @@ const PROGRESS = {
     ]),
     h('层 1 · LoRA / Runner'),
     ptable([
-      P('45', '运行时下载 LoRA（Civitai URL + SHA + LRU）+ 底模插槽 Anima 新档 → Krea 2 → Z-Image + 护栏', '—', '待 spec'),
+      P('45', '底模插槽 Anima Turbo · Z-Image Turbo + 下载核对 SHA + 官方 5.10 底座（ComfyUI 0.34）+ Volume 150G（Krea 2 下一轮；运行时下载 LoRA 早已接通）', '—', '① 底座 ② Anima Turbo 已落 · ③ Z-Image 下一片'),
       P('—', 'LoRA 设置补齐：strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · ADetailer', '—', '可开工'),
       P('34b', 'LoraWorkbench GenerateBranch（约 3300 行）拆分', '—', '待 owner'),
     ]),
@@ -743,13 +743,13 @@ const VENDOR_RUNNER = {
   sub: '全文在 `research/runner-lora.md` 与仓库 `docs/references/domains/runner.md`。',
   blocks: [
     table(['项', '事实'], [
-      ['主端点', '`dt0wyuid7lywic`：Active 0 · Max 2 · Idle 5s · GPU 24 GB + 24 GB Pro；「standby = $803 / 月」不成立'],
+      ['主端点', '`dt0wyuid7lywic`：Min 0 · Max 2 · Idle 60s · 执行超时 600s · GPU 4090 / A5000 / L4 / 3090 全是 24G（09-28 REST 回读）；「standby = $803 / 月」不成立'],
       ['Qwen 端点', '`ok6riemrmpdiic`：Min 0 · Max 1 · Idle 5s；ComfyUI 0.37 评估镜像'],
       ['幻影 idle', 'health 报 idle 而队列卡死，遇到再抓 health 快照'],
-      ['ComfyUI', 'fork 基于 worker-comfyui 5.8.6（= ComfyUI 0.25）；5.10 = 0.34 已满足 Krea 2 ≥ 0.27，升级后必须重测 VAEDecode → Upscale 空结果坑'],
+      ['ComfyUI', '生产镜像 `92ef778` = 0.25（已支持 Z-Image）；09-28 定主端点换官方 5.10 底座 = CUDA 12.8 + 0.34（满足 Krea 2 ≥ 0.27）；5.8.6 上切 0.37 会拉 PyTorch 2.12 + CUDA 13，只留给 Qwen 端点；升级后必须重测 VAEDecode → Upscale 空结果坑'],
       ['Volume', '80G 已用 47.4G；换 checkpoint 要重载 6.9G，产品侧默认底模收到 1–2 个最管用'],
       ['底模候选', 'Anima 新档（非商用，最低成本最高回报）· Krea 2 Turbo（最该加）· Z-Image Turbo（Apache-2.0，唯一真商用，扩容后）'],
-      ['LoRA 缺的设置', '白名单只 1 条（运行时下载收益超其余之和）· strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · CFG rescale · ADetailer · IP-Adapter（r4a 施工完未切生产）'],
+      ['LoRA 缺的设置', 'strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · CFG rescale · ADetailer · IP-Adapter（r4a 施工完未切生产）'],
     ]),
   ],
 }
@@ -2346,6 +2346,251 @@ const VIDEO_ASSISTANT = {
   ],
 }
 
+// ②③ 思维导图：45 Runner 底模插槽 + 下载护栏（owner 09-28 ① 两轮反问 + 二次调查后 ③ 确认）。
+const RUNNER_MAP = {
+  file: 'DesignRunnerMap.dc.html',
+  title: 'Runner 底模 · ②③ 思维导图',
+  eyebrow: 'PixelVault · 6 在设计 · 45 Runner 底模 · ②③ 思维导图 · 2026-09-28',
+  heading: 'Runner：多两个底模插槽，下载更稳',
+  sub: '盘点先纠正一件事：进度表 45 写的「白名单只 1 条、要做运行时下载」**已过时**——运行时下载 LoRA 与来源底模按需下载早就接通了。这一轮做：**Anima Turbo 与 Z-Image Turbo 两个插槽、下载核对 SHA、DiT 也记加载证据、主端点换官方 worker-comfyui 5.10 底座（ComfyUI 0.34）、Volume 扩到 150G**。Krea 2 下一轮。owner 09-28 ① 两轮反问、二次调查（一手来源 + 端点只读回读）后 ③ 全部确认；下一步 ④ 只画界面上变的两处。',
+  blocks: [
+    {
+      t: 'treeLegend',
+      items: [
+        ['已定', 'owner 拍过'],
+        ['已落', '代码已有 / 已实查'],
+        ['缺', '现在没有'],
+        ['依赖', '等别的条目'],
+      ],
+    },
+    {
+      t: 'tree',
+      root: '45 · Runner 底模：多两个插槽，下载更稳',
+      branches: [
+        {
+          no: '1',
+          title: '现状（09-28 读码 + 端点只读回读）',
+          kids: [
+            n('已落', '运行时下载 LoRA：Civitai / HF → 先存进 R2 → 预签名链接 → fork 下到 Volume；满了按最久没用的先清，留 8G 余量；提交前等 ComfyUI 看得见这个文件'),
+            n('已落', '来源配方的精确底模按需从 Civitai 下；Anima 的文本编码器 / VAE 按需从 HF 下'),
+            n('已落', '主端点：镜像 `92ef778`（ComfyUI 0.25）· GPU 池全是 24G（4090 / A5000 / L4 / 3090）· Volume 80G 在 EU-RO-1'),
+            n('缺', '下载的 LoRA / 底模不核对来源公布的 SHA；HF 配件不钉版本；加载证据只覆盖 SDXL，Anima 成图里没有'),
+            n('已定', '白名单（1 条）只剩「旧托管 Illustrious 升级到 Runner」一处用途，托管 09-17 已退役 → 这轮删掉'),
+          ],
+        },
+        {
+          no: '2',
+          title: '底模插槽',
+          kids: [
+            g('Anima Turbo v1.1（Civitai 3263843 · 4.2G）', [
+              n('已定', '只加 Turbo 一档；Base v1.0 保留（LoRA 都在它上面训，也是来源底模的替身）'),
+              n('已定', '纯底模出图默认改 Turbo；挂了 LoRA 仍是「来源图底模（自动）」'),
+              n('已定', 'euler · simple · 10 步 · CFG 1 · shift 3（作者：CFG 1、8–12 步，euler 适合 Turbo；shift 3 取自作者的对比工作流）；蒸馏档，权重预算按 1.0；固定名字放 unet/，不会被缓存清掉'),
+              n('已落', 'Volume 上已有的是 turbo v1.0（3108589），按缓存自然清掉'),
+            ]),
+            g('Z-Image Turbo（20.7G：主模型 12.3 + 编码器 8.0 + VAE 0.3）', [
+              n('已定', '这轮一起做；Apache-2.0，唯一真可商用'),
+              n('已定', '满精度：9 步（owner 09-28 定；官方模板写 8 步，LoRA 配方里九成用 9 步）· CFG 1 · res_multistep / simple · shift 3；三份文件钉 HF 版本 + SHA，按需下（官方 5.10 的 Z-Image 镜像用的正是这三份）'),
+              n('已定', '库里 Z-Image 的 LoRA 从「去 Civitai」改成可挂；ZImageBase / ZImageTurbo 两种都归这一族、都用 Turbo 出图（Base 训的够不够像，回归时实挂一把看）'),
+              n('已定', '提示词方言：自然语言长句，中英都认；⛔ 不套 score / 质量标签前缀；助手方言表同步加一行'),
+            ]),
+            n('已定', '每个底模带自己的默认步数 / CFG；「来源图底模（自动）」下到版本名含 turbo 的档时用 Turbo 那套（不然会按 30 步 CFG 4 跑糊）'),
+            n('已定', 'Krea 2 这次不接；0.34 已满足它要的 ≥ 0.27，下轮只差插槽'),
+          ],
+        },
+        {
+          no: '3',
+          title: '界面（只动三处）',
+          kids: [
+            n('已定', '「负面」chip：CFG 1 的底模变虚线、点不动，悬停说原因（与没挂 LoRA 的「还原」同一写法）；写过的保留，参数里 CFG 调到 1 以上就恢复'),
+            n('已定', '换底模弹层：Runner · DiT 组多两张卡；Anima Turbo 沿用 Anima 封面，Z-Image 要一张新封面'),
+            n('已定', '首次用某个底模要先下载（Z-Image 20G）：沿用生成中那句「先加载底模」，⛔ 不另做下载进度；切生产前我先出一张图把文件预下好'),
+            n('已落', '蒸馏底模权重预算 1.0 已在常量里，界面沿用现有提示，不新增'),
+          ],
+        },
+        {
+          no: '4',
+          title: '护栏：下载与容量',
+          kids: [
+            n('已定', '选的是下载与容量这一种（权重护栏 09-12 已定「只提醒」，不动）'),
+            n('已定', 'SHA：LoRA 存进 R2 时对 Civitai / HF 公布的值；来源底模由 fork 下完对 Civitai 的值；配件与固定底模钉 HF 版本 + SHA（同 Qwen 那套）'),
+            n('已定', '对不上 → 删掉那份、这次不出图，失败句说「下载的文件和来源公布的不一致」；来源没公布 SHA 照下，加载证据里记实际值'),
+            n('已定', '加载证据补到 DiT：UNETLoader / LoraLoaderModelOnly 各包一层，与 SDXL 同一套；Anima 与 Z-Image 成图也记文件 SHA 与权重'),
+            n('已定', 'Volume 80 → 150G（约 $4.9 / 月）；下轮 Krea 2 的 18G 不用再扩'),
+            n('已定', '清缓存仍只清动态下载的；清完还放不下 → 失败句说「Runner 存储满」，⛔ 静默失败'),
+          ],
+        },
+        {
+          no: '5',
+          title: 'ComfyUI：换官方 5.10 底座（0.34）',
+          kids: [
+            n('已定', '主端点换 `runpod/worker-comfyui:5.10.0-base`：CUDA 12.8 + ComfyUI 0.34，官方测过的组合（owner 09-28 改选：原定 5.8.6 底座上切 0.37 会把 PyTorch 拉到 2.12 + CUDA 13，主端点又绑在 EU-RO-1 一个机房，可用机器太少）'),
+            n('已定', '端点限定 CUDA ≥ 12.8；Qwen 评估镜像照旧钉 0.37，不动'),
+            n('已落', '读码核实：0.34 的 LoRA 加载认 Z-Image 与 Krea 2 的三种命名格式；5.10 的 start.sh 仍带 `--disable-metadata`（fork 照旧去掉）、handler 仍有 `__main__` 卫'),
+            n('已定', '先建测试端点回归：SDXL 出图 · 来源精修二次采样 · 放大（重测「VAEDecode 直连放大 → 空结果」老坑）· Anima Base / Turbo · Z-Image + 两三把热门 LoRA（看 LoRA 键是否全认）· 加载证据 · 首次用的 LoRA 一次成功'),
+            n('已定', '上线顺序照旧：fork 构建 → 测试端点绿 → 改生产 template → 再发 Worker 与应用'),
+          ],
+        },
+        {
+          no: '6',
+          title: '施工切片',
+          kids: [
+            n('已定', '① fork：换 5.10 底座 + SHA 核对 + 配件钉版本 + DiT 加载证据 → 测试端点回归'),
+            n('已定', '② Anima Turbo 插槽 + 纯底模默认 Turbo + 按底模默认参数 + 负面虚线'),
+            n('已定', '③ Z-Image：工作流 + 家族可挂 + 方言'),
+            n('已定', '④ 扩 Volume → 切生产 → 真实出图验收（每个底模一张 + 一把 LoRA）'),
+            n('已定', '⑤ 删白名单死代码 + 回写 runner.md / lora.md / 进度表 45'),
+            n('依赖', '②③ 的界面改动碰 studio/lora：动之前和 LoRA 会话（组件效果实现）对一次；它 09-28 回复两处文件都干净、没计划动'),
+          ],
+        },
+      ],
+    },
+  ],
+}
+
+// ④ 画板：45 Runner 底模——换底模弹层（加两张卡 + 清掉退役项）与「负面」chip 的 CFG 1 态（owner 09-28：一个方向 + 全状态 + 手机 + 动效表）。
+const RB = {
+  cover: {
+    wai: 'linear-gradient(160deg,#a9dcf3,#2f6fb3)',
+    sdxl: 'linear-gradient(160deg,#e2c09c,#8a5a3c)',
+    pony: 'linear-gradient(160deg,#e0474c,#3a2a55)',
+    pencil: 'linear-gradient(160deg,#f3e9e4,#c25a3a)',
+    anima: 'linear-gradient(160deg,#c2323a,#2a1f3d)',
+  },
+  chip: (text, tone) =>
+    `<span style="display:inline-flex;align-items:center;border-radius:999px;padding:1px 7px;font-size:10.5px;line-height:1.5;${
+      tone === 'rec'
+        ? 'border:1px solid rgba(10,10,10,.25);background:rgba(10,10,10,.06);color:#0a0a0a'
+        : 'border:1px solid #e5e5e5;color:#525252'
+    }">${text}</span>`,
+  card: ({ name, fam, cover, chips = [], state = '' }) => {
+    const sel = state === 'sel'
+    const coverHtml = cover
+      ? `<span style="width:64px;flex:none;background:${cover}"></span>`
+      : `<span style="width:64px;flex:none;display:flex;align-items:center;justify-content:center;border-right:1px dashed #d4d4d4;background:#fafafa;font-size:10px;color:#a3a3a3;text-align:center;line-height:1.3">新封面</span>`
+    return `<div style="display:flex;min-height:88px;border-radius:12px;overflow:hidden;background:#fff;${
+      sel ? 'border:1px solid #0a0a0a;box-shadow:0 0 0 1px rgba(10,10,10,.35)' : 'border:1px solid #e5e5e5'
+    }">${coverHtml}<span style="flex:1;min-width:0;padding:9px 10px;display:flex;flex-direction:column;gap:4px"><span style="display:flex;justify-content:space-between;gap:6px"><b style="font-size:12px;line-height:1.35;color:#0a0a0a">${name}</b>${
+      sel ? '<span style="font-size:12px;color:#0a0a0a">✓</span>' : ''
+    }</span><span style="font-size:10.5px;color:#737373">${fam}</span><span style="margin-top:auto;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${chips.join('')}${
+      state === 'bad' ? '<span style="font-size:10.5px;color:#a04f00">和当前挂载装不上</span>' : ''
+    }</span></span></div>`
+  },
+  group: (label, cards, cols = 3) =>
+    `<div style="margin-top:10px"><div style="font-size:10.5px;letter-spacing:.04em;color:#737373;margin-bottom:6px">${label}</div><div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:8px">${cards.join('')}</div></div>`,
+  toggle: (on) =>
+    `<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#525252"><span style="width:26px;height:15px;border-radius:999px;background:${on ? '#0a0a0a' : '#d4d4d4'};position:relative"><span style="position:absolute;top:2px;${on ? 'right:2px' : 'left:2px'};width:11px;height:11px;border-radius:999px;background:#fff"></span></span>只看兼容的</span>`,
+  modal: ({ tag, sub, toggle, body, width = 630 }) =>
+    `<div style="flex:none;width:${width}px"><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#737373;margin-bottom:6px">${tag}</div><div style="border-radius:16px;border:1px solid #e5e5e5;background:#fff;box-shadow:0 12px 32px rgba(0,0,0,.08)"><div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #f0f0f0"><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">换底模</div><div style="font-size:11px;color:#737373">${sub}</div></div>${
+      toggle == null ? '' : RB.toggle(toggle)
+    }<span style="width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#525252;font-size:14px">✕</span></div><div style="padding:4px 14px 14px">${body}</div></div></div>`,
+}
+RB.cards = {
+  wai: (st) => RB.card({ name: 'WAI-Illustrious-SDXL v15.0', fam: 'Illustrious', cover: RB.cover.wai, state: st }),
+  sdxl: (st) => RB.card({ name: 'SDXL 1.0（VAE Fix）', fam: 'SDXL', cover: RB.cover.sdxl, state: st }),
+  pony: (st) => RB.card({ name: 'Pony Diffusion V6', fam: 'Pony', cover: RB.cover.pony, chips: [RB.chip('推荐', 'rec')], state: st }),
+  pencil: (st) => RB.card({ name: 'Anima Pencil-XL v5.0.0', fam: 'Anima Pencil', cover: RB.cover.pencil, chips: [RB.chip('推荐', 'rec')], state: st }),
+  auto: (st) => RB.card({ name: '来源图底模（自动）', fam: 'Anima', cover: RB.cover.anima, chips: [RB.chip('推荐', 'rec')], state: st }),
+  base: (st) => RB.card({ name: 'Anima Base v1.0', fam: 'Anima', cover: RB.cover.anima, state: st }),
+  turbo: (st, rec) => RB.card({ name: 'Anima Turbo v1.1', fam: 'Anima', cover: RB.cover.anima, chips: [...(rec ? [RB.chip('推荐', 'rec')] : []), RB.chip('快出')], state: st }),
+  zimage: (st) => RB.card({ name: 'Z-Image Turbo', fam: 'Z-Image', cover: null, chips: [RB.chip('推荐', 'rec'), RB.chip('快出')], state: st }),
+}
+const RB_MODALS = `<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;margin-top:12px">${[
+  RB.modal({
+    tag: 'M1 没挂 LoRA（纯底模）· 默认选中 Anima Turbo',
+    sub: '没挂 LoRA，任选一个底模直接出图',
+    toggle: null,
+    body:
+      RB.group('SDXL 系', [RB.cards.wai(), RB.cards.sdxl(), RB.cards.pony(), RB.cards.pencil()]) +
+      RB.group('DiT 系', [RB.cards.base(), RB.cards.turbo('sel', true), RB.cards.zimage()]),
+  }),
+  RB.modal({
+    tag: 'M2 挂了 Anima 的 LoRA · 只看兼容的（默认开）',
+    sub: '挂 LoRA 时已自动选好兼容底模，这里用于改选',
+    toggle: true,
+    body: RB.group('DiT 系', [RB.cards.auto('sel'), RB.cards.base(), RB.cards.turbo('')]),
+  }),
+  RB.modal({
+    tag: 'M3 挂了 Z-Image 的 LoRA · 只有一个兼容底模',
+    sub: '挂 LoRA 时已自动选好兼容底模，这里用于改选',
+    toggle: true,
+    body: RB.group('DiT 系', [RB.cards.zimage('sel')]),
+  }),
+  RB.modal({
+    tag: 'M4 挂了 Anima 的 LoRA · 关掉「只看兼容的」',
+    sub: '挂 LoRA 时已自动选好兼容底模，这里用于改选',
+    toggle: false,
+    body:
+      RB.group('SDXL 系', [RB.cards.wai('bad'), RB.cards.sdxl('bad'), RB.cards.pony('bad'), RB.cards.pencil('bad')]) +
+      RB.group('DiT 系', [RB.cards.auto('sel'), RB.cards.base(), RB.cards.turbo(''), RB.cards.zimage('bad')]),
+  }),
+].join('')}</div>`
+
+const RB_BEFORE = `<div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px 24px;font-size:12.5px;line-height:1.6;color:#404040">${[
+  ['「云端 API · 自备 KEY」一组 4 张「即将」卡', '去掉（09-17 托管通道已全部退役）'],
+  ['SD 1.5「即将」卡', '去掉（07-07 定过不进 Runner，不会「即将」）'],
+  ['页脚「忠实 = Runner 原生 checkpoint，快 = 云端 API」', '去掉（契约：界面不暗示有「快」档）'],
+  ['每张卡都有的「忠实还原」', '换成蒸馏档才有的「快出」（CFG 1 · 少步数）'],
+  ['卡上第二行「SDXL 系 · Runner」', '改写家族（Anima / Pony / Z-Image），架构已在分组标题里'],
+  ['右上开关的字压住关闭键', '开关与 ✕ 分开排，✕ 不再绝对定位盖在上面'],
+  ['没挂 LoRA 时也列出「来源图底模（自动）」', '纯底模时不列（它要靠来源图配方才有意义）'],
+].map(([a, b]) => `<div><span style="color:#a3a3a3;text-decoration:line-through">${a}</span><br>→ ${b}</div>`).join('')}</div>`
+
+const RB_CHIPS = {
+  row: (neg, extra = '') =>
+    `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${[
+      '<span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:1px solid #e5e5e5;font-size:12px">▣ 参考图</span>',
+      '<span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:1px solid #e5e5e5;font-size:12px">✦ 还原</span>',
+      neg,
+    ].join('')}<span style="margin-left:auto;display:inline-flex;gap:8px"><span style="display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid #e5e5e5;font-size:12px">1:1 ⌄</span><span style="display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;border:1px solid #e5e5e5;font-size:12px">${extra || '默认参数'} ⌄</span><span style="width:30px;height:30px;border-radius:999px;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px">↑</span></span></div>`,
+  negOn: '<span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:1px solid #0a0a0a;background:#f5f5f5;font-size:12px">⊘ 负面</span>',
+  negOff: '<span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;border:1px dashed #d4d4d4;color:#a3a3a3;font-size:12px;position:relative">⊘ 负面</span>',
+  tip: '<div style="position:absolute;left:130px;bottom:50px;max-width:260px;box-shadow:0 6px 16px rgba(0,0,0,.18);border-radius:10px;background:#0a0a0a;color:#fff;font-size:11.5px;line-height:1.5;padding:7px 10px">这个底模 CFG 1，负面词不起作用；写的内容留着，换回来还在</div>',
+  box: (inner) => `<div style="border-radius:16px;border:1px solid #e5e5e5;background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:10px;position:relative">${inner}</div>`,
+  prompt: '<div style="font-size:14px;color:#0a0a0a;line-height:1.6;min-height:44px">roxy migurdia, 1girl, smile, library, window light</div>',
+  neg: '<div style="border-top:1px solid #f0f0f0;padding-top:8px;font-size:12.5px;color:#525252"><span style="color:#a3a3a3;margin-right:8px">负面</span>worst quality, low quality, blurry</div>',
+}
+const RB_NEG = `<div style="margin-top:12px;display:grid;grid-template-columns:1fr;gap:18px;max-width:860px">${[
+  ['N1 普通底模（CFG > 1）· 负面写了内容', RB_CHIPS.box(RB_CHIPS.prompt + RB_CHIPS.neg + RB_CHIPS.row(RB_CHIPS.negOn))],
+  ['N2 换到 Anima Turbo / Z-Image Turbo（CFG 1）· 悬停 chip', RB_CHIPS.box(RB_CHIPS.prompt + RB_CHIPS.tip + RB_CHIPS.row(RB_CHIPS.negOff, 'euler · 10 步'))],
+  ['N3 参数里把 CFG 调到 1 以上，或换回普通底模', RB_CHIPS.box(RB_CHIPS.prompt + RB_CHIPS.neg + RB_CHIPS.row(RB_CHIPS.negOn, 'CFG 3'))],
+].map(([t, b]) => `<div><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#737373;margin-bottom:6px">${t}</div>${b}</div>`).join('')}</div>`
+
+const RB_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start;margin-top:12px"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#e9e9e6;padding:8px;height:560px;display:flex;flex-direction:column;justify-content:flex-end"><div style="border-radius:18px 18px 12px 12px;background:#fff;padding:8px 12px 12px;height:470px;overflow:hidden"><div style="width:36px;height:4px;border-radius:999px;background:#d4d4d4;margin:0 auto 8px"></div><div style="font-size:13.5px;font-weight:600">换底模</div><div style="font-size:11px;color:#737373;margin-bottom:2px">没挂 LoRA，任选一个底模直接出图</div>${RB.group('DiT 系', [RB.cards.base(), RB.cards.turbo('sel', true), RB.cards.zimage()], 1)}${RB.group('SDXL 系', [RB.cards.wai(), RB.cards.sdxl()], 1)}</div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：弹层仍走现有的底部抽屉（近全屏，内容区自己滚），卡片改成一列（现在两列在 375 宽下名字折成三四行）；排在前面的是当前选中底模所在的一组。每张卡整张是点击区（≥ 44 高）。负面 chip 在手机上同一套规则：CFG 1 底模时虚线、点不动，点一下（触屏没有悬停）在 chip 上方出同一句说明，2 秒后自己消失。</div></div>`
+
+const RUNNER_UI = {
+  file: 'DesignRunnerUI.dc.html',
+  title: 'Runner 底模 · ④ 画板',
+  eyebrow: 'PixelVault · 6 在设计 · 45 Runner 底模 · ④ 画板 · 2026-09-28',
+  heading: '换底模弹层多两张卡，负面词遇到 CFG 1 让开',
+  sub: 'owner 09-28：画一个方向 + 全状态 + 手机 + 动效表（两处都沿用现有写法，没有结构分歧）；弹层里 09-17 退役的东西这次一起清；负面那行在 CFG 1 底模时收起、内容留着。画前在真机（owner 的 Chrome，localhost:3000）看过现状：Pony 底模 + Roxy LoRA。封面是占位色块，Z-Image 的封面待出。',
+  blocks: [
+    h('① 换底模弹层 · 这次改什么'),
+    { t: 'mock', html: RB_BEFORE, md: '清理：去掉云端 4 张「即将」卡与 SD 1.5「即将」卡；去掉页脚「忠实 = Runner，快 = 云端 API」；「忠实还原」chip 换成蒸馏档才有的「快出」；卡上第二行改写家族；右上开关与 ✕ 分开排；纯底模时不列「来源图底模（自动）」。' },
+    h('② 换底模弹层 · 四个状态'),
+    { t: 'mock', html: RB_MODALS, md: 'M1 没挂 LoRA：SDXL 系 4 张 + DiT 系 3 张（Anima Base · Anima Turbo 默认选中 · Z-Image Turbo），没有「只看兼容的」开关。M2 挂了 Anima 的 LoRA：只剩 DiT 系三张（来源图底模（自动）选中 · Base · Turbo）。M3 挂了 Z-Image 的 LoRA：只有 Z-Image Turbo 一张。M4 关掉开关：全部列出，装不上的卡写「和当前挂载装不上」。' },
+    h('③ 输入框 · 负面 chip'),
+    { t: 'mock', html: RB_NEG, md: 'N1 普通底模：负面 chip 常态，负面那行展开。N2 换到 CFG 1 底模：负面那行收起（内容留着），chip 虚线灰字点不动，悬停说「这个底模 CFG 1，负面词不起作用；写的内容留着，换回来还在」；参数 chip 写「euler · 10 步」。N3 CFG 调到 1 以上或换回：chip 恢复，那行原样展开回来。' },
+    h('手机'),
+    { t: 'mock', html: RB_PHONE, md: '手机：底部抽屉、卡片一列、当前选中那组在前；负面 chip 同一规则，触屏点一下出说明，2 秒自己消失。' },
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['弹层开 / 关', '沿用现有（桌面 Dialog · 手机抽屉）', '不改', '—'],
+        ['点一张卡', '120 · 线性', '勾与描边淡入，弹层随即关；底模卡换名字与封面交叉淡 200', '不先关弹层再换卡（看不到选中）'],
+        ['「只看兼容的」开 / 关', '开关 120 线性；卡片 200 · `ease-standard`', '离开的卡 120 淡出，剩下的卡位移到新格子，进来的卡 200 淡入；弹层高度跟着变', '不整块闪一下重排'],
+        ['负面 chip 变虚线 / 恢复', '120 · 线性', '边框从实线换虚线、文字变灰（恢复反过来）', '不抖、不闪'],
+        ['负面那行收起（换到 CFG 1 底模）', '同现有原位收起：120 淡出 · 200 收回', '输入框跟着变矮', '不直接消失'],
+        ['负面那行展开回来', '同现有原位展开：200 长高 + 淡入', '内容原样回来', '不从空白重新长'],
+        ['悬停 / 点按说明', '沿用现有 tooltip', '—', '—'],
+        ['`prefers-reduced-motion`', '—', '位移与高度换成 120 淡入淡出；其余直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
 // ─────────────────────────── 汇总与输出 ───────────────────────────
 export const PAGES = [
   { id: 'page-1', name: '1 · 总览', boards: [OVERVIEW] },
@@ -2361,7 +2606,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI, RUNNER_MAP, RUNNER_UI] },
   { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP, CARD_UI, CANVAS_CHAR_MAP, CANVAS_CHAR_UI] },
 ]
 

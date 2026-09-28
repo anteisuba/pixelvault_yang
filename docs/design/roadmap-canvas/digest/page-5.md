@@ -80,12 +80,12 @@ _PixelVault · 5 厂商速查 · 5 / 5 · 2026-09-17 控制台实看_
 
 全文在 `research/runner-lora.md` 与仓库 `docs/references/domains/runner.md`。
 
-| 项            | 事实                                                                                                                                                                    |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 主端点        | `dt0wyuid7lywic`：Active 0 · Max 2 · Idle 5s · GPU 24 GB + 24 GB Pro；「standby = $803 / 月」不成立                                                                     |
-| Qwen 端点     | `ok6riemrmpdiic`：Min 0 · Max 1 · Idle 5s；ComfyUI 0.37 评估镜像                                                                                                        |
-| 幻影 idle     | health 报 idle 而队列卡死，遇到再抓 health 快照                                                                                                                         |
-| ComfyUI       | fork 基于 worker-comfyui 5.8.6（= ComfyUI 0.25）；5.10 = 0.34 已满足 Krea 2 ≥ 0.27，升级后必须重测 VAEDecode → Upscale 空结果坑                                         |
-| Volume        | 80G 已用 47.4G；换 checkpoint 要重载 6.9G，产品侧默认底模收到 1–2 个最管用                                                                                              |
-| 底模候选      | Anima 新档（非商用，最低成本最高回报）· Krea 2 Turbo（最该加）· Z-Image Turbo（Apache-2.0，唯一真商用，扩容后）                                                         |
-| LoRA 缺的设置 | 白名单只 1 条（运行时下载收益超其余之和）· strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · CFG rescale · ADetailer · IP-Adapter（r4a 施工完未切生产） |
+| 项            | 事实                                                                                                                                                                                                                             |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 主端点        | `dt0wyuid7lywic`：Min 0 · Max 2 · Idle 60s · 执行超时 600s · GPU 4090 / A5000 / L4 / 3090 全是 24G（09-28 REST 回读）；「standby = $803 / 月」不成立                                                                             |
+| Qwen 端点     | `ok6riemrmpdiic`：Min 0 · Max 1 · Idle 5s；ComfyUI 0.37 评估镜像                                                                                                                                                                 |
+| 幻影 idle     | health 报 idle 而队列卡死，遇到再抓 health 快照                                                                                                                                                                                  |
+| ComfyUI       | 生产镜像 `92ef778` = 0.25（已支持 Z-Image）；09-28 定主端点换官方 5.10 底座 = CUDA 12.8 + 0.34（满足 Krea 2 ≥ 0.27）；5.8.6 上切 0.37 会拉 PyTorch 2.12 + CUDA 13，只留给 Qwen 端点；升级后必须重测 VAEDecode → Upscale 空结果坑 |
+| Volume        | 80G 已用 47.4G；换 checkpoint 要重载 6.9G，产品侧默认底模收到 1–2 个最管用                                                                                                                                                       |
+| 底模候选      | Anima 新档（非商用，最低成本最高回报）· Krea 2 Turbo（最该加）· Z-Image Turbo（Apache-2.0，唯一真商用，扩容后）                                                                                                                  |
+| LoRA 缺的设置 | strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · CFG rescale · ADetailer · IP-Adapter（r4a 施工完未切生产）                                                                                                     |

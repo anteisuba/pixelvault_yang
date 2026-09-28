@@ -176,7 +176,7 @@
       "x": 1500,
       "y": 758,
       "w": 1400,
-      "h": 520,
+      "h": 542,
       "title": "Runner / RunPod",
       "page": "page-5"
     },
@@ -295,6 +295,24 @@
       "w": 1400,
       "h": 2386,
       "title": "助手对话框 · ④ 全状态",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignRunnerMap.dc.html",
+      "x": 0,
+      "y": 33816,
+      "w": 1400,
+      "h": 1401,
+      "title": "Runner 底模 · ②③ 思维导图",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignRunnerUI.dc.html",
+      "x": 0,
+      "y": 35317,
+      "w": 1400,
+      "h": 3198,
+      "title": "Runner 底模 · ④ 画板",
       "page": "page-6"
     },
     {

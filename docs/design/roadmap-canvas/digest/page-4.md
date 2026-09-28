@@ -89,11 +89,11 @@ _09-26 起「卡片」改叫「角色」；一个角色三处用：出图 · 画
 
 ### 层 1 · LoRA / Runner
 
-| #   | 改什么                                                                                     | 依赖 | 状态     |
-| --- | ------------------------------------------------------------------------------------------ | ---- | -------- |
-| 45  | 运行时下载 LoRA（Civitai URL + SHA + LRU）+ 底模插槽 Anima 新档 → Krea 2 → Z-Image + 护栏  | —    | 待 spec  |
-| —   | LoRA 设置补齐：strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · ADetailer | —    | 可开工   |
-| 34b | LoraWorkbench GenerateBranch（约 3300 行）拆分                                             | —    | 待 owner |
+| #   | 改什么                                                                                                                                       | 依赖 | 状态                                         |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------- |
+| 45  | 底模插槽 Anima Turbo · Z-Image Turbo + 下载核对 SHA + 官方 5.10 底座（ComfyUI 0.34）+ Volume 150G（Krea 2 下一轮；运行时下载 LoRA 早已接通） | —    | ① 底座 ② Anima Turbo 已落 · ③ Z-Image 下一片 |
+| —   | LoRA 设置补齐：strength 分离 · clip skip · 采样器 · 负面 embedding · hires fix · ADetailer                                                   | —    | 可开工                                       |
+| 34b | LoraWorkbench GenerateBranch（约 3300 行）拆分                                                                                               | —    | 待 owner                                     |
 
 ### 层 1 · 素材与去处
 

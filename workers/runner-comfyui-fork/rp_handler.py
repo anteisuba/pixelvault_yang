@@ -14,6 +14,9 @@ job 交给官方 handler 之前：
   /runpod-volume/models/checkpoints/（同样缓存）。
 - v6：把 allowlist 中的后处理放大模型从 **Hugging Face** 拉到
   /runpod-volume/models/upscale_models/，并在落盘前校验 SHA-256。
+- v9：checkpoint_to_fetch / companions_to_fetch 带了来源公布的 `sha256` 就在落盘前核对，
+  对不上删掉 `.part`、这次不出图（错误里写 `SHA-256 mismatch`，app 据此说清原因）；
+  没带 = 来源没公布，照下，实际 SHA 由加载证据节点记进成图。
 下载完成**不等于** ComfyUI 看得见：folder_paths 的文件清单缓存活在 ComfyUI 自己的进程里
 （按目录 mtime 失效），而模型目录是网络卷，属性还有客户端缓存。2026-09-04 生产上首次使用
 的 LoRA 就因此被 `value_not_in_list` 挡回，原样重点一次即成功。所以交给官方 handler 之前
@@ -46,6 +49,7 @@ from runner_payload import (
     attach_model_evidence,
     build_input_image_specs,
     normalize_workflow_seeds,
+    optional_sha256,
     safe_basename,
 )
 from cache_policy import cache_inventory, ensure_cache_capacity, touch_cache_hit
@@ -233,7 +237,8 @@ def _verify_sha256(path: str, expected_sha256: str) -> None:
     actual = digest.hexdigest()
     if actual.lower() != expected_sha256.lower():
         raise ValueError(
-            f"SHA-256 mismatch for {os.path.basename(path)!r}: {actual}"
+            f"SHA-256 mismatch for {os.path.basename(path).removesuffix('.part')!r}: "
+            f"expected {expected_sha256.lower()}, got {actual}"
         )
 
 
@@ -252,6 +257,7 @@ def ensure_checkpoint(spec, protected_paths=()) -> None:
         raise ValueError(
             f"Refusing checkpoint from non-civitai url (SSRF blocked): {url!r}"
         )
+    expected_sha256 = optional_sha256(spec.get("sha256"), f"checkpoint {filename!r}")
     # v4：按 target_dir 白名单选落盘目录（缺省 checkpoints/；Anima DiT→diffusion_models/）。
     target_dir_key = spec.get("target_dir") or "checkpoints"
     target_dir = CHECKPOINT_TARGET_DIRS.get(target_dir_key)
@@ -272,6 +278,7 @@ def ensure_checkpoint(spec, protected_paths=()) -> None:
         timeout=CHECKPOINT_DL_TIMEOUT_SECONDS,
         headers=headers,
         protected_paths=protected_paths,
+        expected_sha256=expected_sha256,
     )
     _record_cache_event(
         action="downloaded",
@@ -284,8 +291,8 @@ def ensure_checkpoint(spec, protected_paths=()) -> None:
 
 
 def ensure_companions(companions_to_fetch, protected_paths=()) -> None:
-    """v4：把 Anima DiT 的共享配件（Qwen 文本编码器/VAE）+ 默认底模从 HuggingFace 拉到
-    对应目录（缺则下、有则跳＝一次入卷永久缓存）。公开文件无需鉴权。"""
+    """v4：把 DiT 的共享配件（文本编码器/VAE）+ 固定底模从 HuggingFace 拉到对应目录
+    （缺则下、有则跳＝一次入卷永久缓存）。公开文件无需鉴权；v9 起 app 钉 HF 版本并带 sha256。"""
     if not companions_to_fetch:
         return
     for spec in companions_to_fetch:
@@ -300,6 +307,9 @@ def ensure_companions(companions_to_fetch, protected_paths=()) -> None:
             raise ValueError(
                 f"Refusing companion from non-huggingface url (SSRF blocked): {url!r}"
             )
+        expected_sha256 = optional_sha256(
+            spec.get("sha256"), f"companion {filename!r}"
+        )
         dir_key = spec.get("target_dir")
         target_dir = COMPANION_TARGET_DIRS.get(dir_key)
         if target_dir is None:
@@ -315,6 +325,7 @@ def ensure_companions(companions_to_fetch, protected_paths=()) -> None:
             dest,
             timeout=CHECKPOINT_DL_TIMEOUT_SECONDS,
             protected_paths=protected_paths,
+            expected_sha256=expected_sha256,
         )
         _record_cache_event(
             action="downloaded",

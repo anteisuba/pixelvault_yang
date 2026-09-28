@@ -43,6 +43,16 @@ class ModelEvidenceTest(unittest.TestCase):
                     owner.path.write_bytes(b'changed-lora')
                 return ('patched-model', 'patched-clip')
 
+        class Unet:
+            def load_unet(self, name, weight_dtype):
+                if owner.mutate_on_load:
+                    owner.path.write_bytes(b'changed-unet')
+                return ('dit-model',)
+
+        class LoraModelOnly(Lora):
+            def load_lora_model_only(self, model, name, strength_model):
+                return (self.load_lora(model, None, name, strength_model, 0)[0],)
+
         class Save:
             @classmethod
             def INPUT_TYPES(cls):
@@ -59,7 +69,10 @@ class ModelEvidenceTest(unittest.TestCase):
 
         self.args = types.SimpleNamespace(disable_metadata=False)
         modules = {
-            'nodes': types.SimpleNamespace(CheckpointLoaderSimple=Checkpoint, LoraLoader=Lora, SaveImage=Save),
+            'nodes': types.SimpleNamespace(
+                CheckpointLoaderSimple=Checkpoint, LoraLoader=Lora, SaveImage=Save,
+                UNETLoader=Unet, LoraLoaderModelOnly=LoraModelOnly,
+            ),
             'folder_paths': types.SimpleNamespace(get_full_path_or_raise=lambda folder, name: str(self.path)),
             'comfy': types.ModuleType('comfy'),
             'comfy.cli_args': types.SimpleNamespace(args=self.args),
@@ -116,6 +129,39 @@ class ModelEvidenceTest(unittest.TestCase):
         self.mutate_on_load = True
         with self.assertRaisesRegex(RuntimeError, 'changed during loading'):
             self.module.PixelVaultLoraLoader().load_verified('m', 'c', 'model.safetensors', 1, 1, '[]')
+
+    def test_unet_records_diffusion_model_digest(self):
+        result = self.module.PixelVaultUNETLoader().load_verified('model.safetensors', 'default')
+        self.assertEqual(result[0], 'dit-model')
+        self.assertEqual(json.loads(result[1]), [{
+            'kind': 'diffusion_model', 'filename': 'model.safetensors',
+            'sha256': hashlib.sha256(self.path.read_bytes()).hexdigest(),
+            'sizeBytes': self.path.stat().st_size,
+        }])
+
+    def test_unet_mutated_during_load_is_rejected(self):
+        self.mutate_on_load = True
+        with self.assertRaisesRegex(RuntimeError, 'changed during loading'):
+            self.module.PixelVaultUNETLoader().load_verified('model.safetensors', 'default')
+
+    def test_model_only_lora_records_model_strength_and_preserves_upstream_audit(self):
+        upstream = [{'kind': 'diffusion_model', 'filename': 'anima.safetensors'}]
+        loader = self.module.PixelVaultLoraLoaderModelOnly()
+        loader.loaded_lora = 'stale tensors'
+        result = loader.load_verified('m', 'model.safetensors', 0.7, json.dumps(upstream))
+        self.assertEqual(result[0], 'patched-model')
+        records = json.loads(result[1])
+        self.assertEqual(records[0], upstream[0])
+        self.assertEqual(records[1]['kind'], 'lora')
+        self.assertEqual(records[1]['strengthModel'], 0.7)
+        self.assertNotIn('strengthClip', records[1])
+        self.assertEqual(self.lora_calls, 1)
+
+    def test_zero_strength_model_only_lora_never_claims_a_load(self):
+        self.path.unlink()
+        result = self.module.PixelVaultLoraLoaderModelOnly().load_verified('m', 'missing.safetensors', 0, '[]')
+        self.assertEqual(result, ('m', '[]'))
+        self.assertEqual(self.lora_calls, 0)
 
     def test_save_embeds_loader_audit_in_actual_png(self):
         audit = self.module.PixelVaultCheckpointLoader().load_verified('model.safetensors')[3]

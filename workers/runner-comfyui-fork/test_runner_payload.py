@@ -10,8 +10,22 @@ from runner_payload import (
     attach_model_evidence,
     build_input_image_specs,
     normalize_workflow_seeds,
+    optional_sha256,
     safe_basename,
 )
+
+
+class OptionalSha256Test(unittest.TestCase):
+    def test_missing_digest_means_source_did_not_publish_one(self):
+        self.assertIsNone(optional_sha256(None, "checkpoint 'x'"))
+
+    def test_digest_is_normalized_to_lowercase(self):
+        self.assertEqual(optional_sha256("AB" * 32, "companion 'x'"), "ab" * 32)
+
+    def test_malformed_digest_is_refused(self):
+        for value in ("abc", "g" * 64, 123, "a" * 65):
+            with self.assertRaisesRegex(ValueError, "malformed sha256"):
+                optional_sha256(value, "checkpoint 'x'")
 
 
 class NormalizeWorkflowSeedsTest(unittest.TestCase):

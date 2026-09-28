@@ -1,4 +1,4 @@
-"""Bind loaded SDXL model file identities to the generated PNG."""
+"""Bind loaded model file identities (SDXL checkpoints, DiT diffusion models, LoRAs) to the generated PNG."""
 
 import hashlib
 import json
@@ -26,11 +26,18 @@ def file_digest(path, signature):
     return digest.hexdigest()
 
 
+KIND_BY_FOLDER = {
+    "checkpoints": "checkpoint",
+    "diffusion_models": "diffusion_model",
+    "loras": "lora",
+}
+
+
 def identify(folder, name):
     path = folder_paths.get_full_path_or_raise(folder, name)
     signature = fingerprint(path)
     return path, signature, {
-        "kind": "checkpoint" if folder == "checkpoints" else "lora",
+        "kind": KIND_BY_FOLDER[folder],
         "filename": name,
         "sha256": file_digest(path, signature),
         "sizeBytes": signature[2],
@@ -86,6 +93,54 @@ class PixelVaultLoraLoader(nodes.LoraLoader):
         return (*loaded, json.dumps([*records, record]))
 
 
+class PixelVaultUNETLoader(nodes.UNETLoader):
+    """DiT（Anima / Z-Image）底模：UNET-only，文本编码器与 VAE 另由各自的 loader 读。"""
+
+    RETURN_TYPES = ("MODEL", "STRING")
+    FUNCTION = "load_verified"
+
+    @classmethod
+    def IS_CHANGED(cls, unet_name, **kwargs):
+        path = folder_paths.get_full_path_or_raise("diffusion_models", unet_name)
+        return file_digest(path, fingerprint(path))
+
+    def load_verified(self, unet_name, weight_dtype):
+        path, signature, record = identify("diffusion_models", unet_name)
+        loaded = super().load_unet(unet_name, weight_dtype)
+        assert_unchanged(path, signature)
+        return (loaded[0], json.dumps([record]))
+
+
+class PixelVaultLoraLoaderModelOnly(nodes.LoraLoaderModelOnly):
+    """DiT 的 LoRA 只改扩散模型（CLIP 来自单独的 CLIPLoader），证据只记 strengthModel。"""
+
+    RETURN_TYPES = ("MODEL", "STRING")
+    FUNCTION = "load_verified"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        inputs = super().INPUT_TYPES()
+        inputs["required"]["audit"] = ("STRING", {"forceInput": True})
+        return inputs
+
+    @classmethod
+    def IS_CHANGED(cls, lora_name, **kwargs):
+        path = folder_paths.get_full_path_or_raise("loras", lora_name)
+        return file_digest(path, fingerprint(path))
+
+    def load_verified(self, model, lora_name, strength_model, audit):
+        records = json.loads(audit)
+        if strength_model == 0:
+            return (model, audit)
+        path, signature, record = identify("loras", lora_name)
+        # ComfyUI caches node outputs; an executed node must not reuse stale file tensors.
+        self.loaded_lora = None
+        loaded = super().load_lora_model_only(model, lora_name, strength_model)
+        assert_unchanged(path, signature)
+        record.update(strengthModel=strength_model)
+        return (loaded[0], json.dumps([*records, record]))
+
+
 class PixelVaultSaveImage(nodes.SaveImage):
     FUNCTION = "save_verified"
 
@@ -108,5 +163,7 @@ class PixelVaultSaveImage(nodes.SaveImage):
 NODE_CLASS_MAPPINGS = {
     "PixelVaultCheckpointLoader": PixelVaultCheckpointLoader,
     "PixelVaultLoraLoader": PixelVaultLoraLoader,
+    "PixelVaultUNETLoader": PixelVaultUNETLoader,
+    "PixelVaultLoraLoaderModelOnly": PixelVaultLoraLoaderModelOnly,
     "PixelVaultSaveImage": PixelVaultSaveImage,
 }

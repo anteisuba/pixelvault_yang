@@ -12,6 +12,19 @@ def safe_basename(name):
     return name
 
 
+def optional_sha256(value, label):
+    """来源公布的 SHA-256（可缺省）：缺省 = 来源没公布，照下不核对；给了就必须是 64 位十六进制。"""
+    if value is None:
+        return None
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(char not in "0123456789abcdefABCDEF" for char in value)
+    ):
+        raise ValueError(f"Refusing {label} with malformed sha256")
+    return value.lower()
+
+
 def build_input_image_specs(images_to_fetch):
     """Validate `input.images_to_fetch` into `(name, url)` pairs ready to download.
 

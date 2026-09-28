@@ -26,6 +26,8 @@ RunPod 网络卷（属性有客户端缓存）——我们写完文件那一刻�
 MODEL_FILE_FIELDS = {
     "PixelVaultCheckpointLoader": "ckpt_name",
     "PixelVaultLoraLoader": "lora_name",
+    "PixelVaultUNETLoader": "unet_name",
+    "PixelVaultLoraLoaderModelOnly": "lora_name",
     "CheckpointLoaderSimple": "ckpt_name",
     "UNETLoader": "unet_name",
     "CLIPLoader": "clip_name",

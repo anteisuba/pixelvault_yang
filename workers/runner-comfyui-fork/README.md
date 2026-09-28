@@ -6,7 +6,7 @@
 
 设计全文：`docs/references/domains/runner.md`。
 
-## 它怎么接进官方镜像（已按 worker-comfyui 5.8.6 核对）
+## 它怎么接进官方镜像（已按 worker-comfyui 5.8.6 / 5.10.0 核对，两版 handler.py 逐字相同）
 
 官方镜像的入口是 `CMD ["/start.sh"]`：start.sh 先**后台**起 ComfyUI（`python /comfyui/main.py &`），
 再跑 `python -u /handler.py`（handler 通过 `127.0.0.1:8188` 和 ComfyUI 通信）。所以本 fork
@@ -17,14 +17,21 @@ handler 包一层下载再 `serverless.start`。
 > ⚠ 若曾把 `CMD` 改成直接 `python /rp_handler.py`＝**盖掉 start.sh、ComfyUI 不启动**，每个
 > job 都会「ComfyUI server (127.0.0.1:8188) not reachable」。别这么做。
 
-| 事实（5.8.6 已确认）    | 值                                                         | 出处                                     |
-| ----------------------- | ---------------------------------------------------------- | ---------------------------------------- |
-| base 镜像               | `runpod/worker-comfyui:5.8.6-base`                         | Dockerfile `FROM`                        |
-| 官方 handler 路径       | `/handler.py`（WORKDIR `/`）                               | 官方 Dockerfile `ADD … handler.py ./`    |
-| `serverless.start` 有卫 | `if __name__ == "__main__":`（第 900 行）→ import 安全复用 | 官方 handler.py 尾                       |
-| 入口                    | `CMD ["/start.sh"]`（后台起 ComfyUI + 跑 handler）         | 官方 Dockerfile / start.sh               |
-| LoRA 目录               | `/runpod-volume/models/loras/`                             | `extra_model_paths.yaml`（base_path 卷） |
-| 新下载的 LoRA 当次可见  | ⚠ 不自动成立——提交前由 wrapper 轮询 `/object_info` 验收    | 见下「模型可见性闸」                     |
+| 事实（5.8.6 / 5.10.0 已确认） | 值                                                                                                                          | 出处                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| base 镜像                     | `final`：`runpod/worker-comfyui:5.10.0-base`（CUDA 12.8 + ComfyUI 0.34）；`qwen-evaluation`：`5.8.6-base` + 钉 ComfyUI 0.37 | Dockerfile `FROM`                        |
+| 官方 handler 路径             | `/handler.py`（WORKDIR `/`）                                                                                                | 官方 Dockerfile `ADD … handler.py ./`    |
+| `serverless.start` 有卫       | `if __name__ == "__main__":`（第 900 行）→ import 安全复用                                                                  | 官方 handler.py 尾                       |
+| 入口                          | `CMD ["/start.sh"]`（后台起 ComfyUI + 跑 handler）                                                                          | 官方 Dockerfile / start.sh               |
+| LoRA 目录                     | `/runpod-volume/models/loras/`                                                                                              | `extra_model_paths.yaml`（base_path 卷） |
+| 新下载的 LoRA 当次可见        | ⚠ 不自动成立——提交前由 wrapper 轮询 `/object_info` 验收                                                                     | 见下「模型可见性闸」                     |
+
+### 为什么主端点换 5.10.0-base（2026-09-28）
+
+owner 定：主端点用官方 5.10.0-base（CUDA 12.8 + ComfyUI 0.34，官方测过的组合），满足 Krea 2
+要的 ≥ 0.27 与 Z-Image。⛔ 别在 5.8.6 上 `git checkout` 0.37 给主端点用：0.37 的依赖会把
+PyTorch 拉到 2.12 + cu130，只能跑在 CUDA 13 驱动的机器上，而主端点绑着 EU-RO-1 的 Volume，
+再限 CUDA 13 可用机器太少。换底座后端点要限定 CUDA ≥ 12.8。
 
 ## 契约（Cloudflare Worker 发的 job input）
 
@@ -55,6 +62,17 @@ handler 包一层下载再 `serverless.start`。
 - `filename` 由 app `prepareRunnerLoras` 派生（Civitai 使用 version id，HF 使用来源哈希 + 文件名），workflow 的
   LoraLoader 也用它。
 - `source` 恒为 `"r2"`——handler 拒绝其它来源（防 SSRF）；文件名须纯 basename（防目录穿越）。
+
+### 下载核对与 DiT 加载证据（v9）
+
+- `checkpoint_to_fetch` / `companions_to_fetch` 可带 `sha256`（来源公布的值，64 位十六进制）：
+  落盘前核对，对不上删掉 `.part` 并抛 `SHA-256 mismatch …`（app 据此告诉用户「下载的文件和
+  来源公布的不一致」）。不带 = 来源没公布，照下。字段可缺省，所以新 fork 兼容旧 Worker。
+- LoRA 在 app 存 R2 时就已按 Civitai / HF 公布的 SHA-256 核对过，fork 不再重复。
+- 加载证据节点四个：`PixelVaultCheckpointLoader` · `PixelVaultLoraLoader`（SDXL）·
+  `PixelVaultUNETLoader` · `PixelVaultLoraLoaderModelOnly`（DiT），经 `PixelVaultSaveImage`
+  写进 PNG。DiT 的底模记 `kind: diffusion_model`，LoRA 只记 `strengthModel`。
+  ⚠ Worker 的 Anima 工作流用了 DiT 两个节点——新 fork 必须先上线。
 
 ### 模型可见性闸（v8）
 
@@ -106,7 +124,7 @@ Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条�
 
 ## Qwen-Image-2.1 内部评估镜像（2026-09-21）
 
-Dockerfile 在 5.8.6 handler 基础上将 ComfyUI 固定到 v0.37.0 的
+`qwen-evaluation` 这一支在 5.8.6-base 上将 ComfyUI 固定到 v0.37.0 的
 `73c9bad4d21e7addbe1d13bc92eee0f1431b017d`，同步运行环境依赖，并在构建中做 CPU 启动检查。
 默认 `final` target 不带 Qwen 权重；显式构建 `qwen-evaluation` target 才包含
 INT8 diffusion model、INT8 Qwen3-VL 8B 编码器及专用 BF16 VAE（合计约 17.3 GB）。
@@ -154,12 +172,12 @@ python qwen_workflow.py --prompt '把 <image1> 的杯子改成蓝色，保留文
 ## 改了 fork 代码，怎么上线
 
 1. 同步改动到小仓，push `main` → Actions 构建，产出
-   `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-<commit-sha>`。
+   `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-<commit-sha>`（`build.yml` 的 tag 前缀随底座改）。
 2. 等 Actions 绿（约 7 分钟，大头是拉 base 镜像）。
 3. 把 template 的镜像指向那个 sha（REST）：
 
    ```bash
-   curl -X PATCH -H "Authorization: Bearer $RUNPOD_KEY" -H "Content-Type: application/json" -d "{\"imageName\":\"ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-<sha>\"}" https://rest.runpod.io/v1/templates/pmh4gs9eht
+   curl -X PATCH -H "Authorization: Bearer $RUNPOD_KEY" -H "Content-Type: application/json" -d "{\"imageName\":\"ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-<sha>\"}" https://rest.runpod.io/v1/templates/pmh4gs9eht
    ```
 
    控制台等价操作：Serverless → 端点 → ⋮ Edit Endpoint → Container Image。

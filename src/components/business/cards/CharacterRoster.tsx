@@ -263,7 +263,9 @@ export function CharacterRoster() {
             selected || drafting
               ? !operatorHost.open && ROW_AVATAR_GAP_CLASS
               : [
-                  'max-sm:h-auto max-sm:flex-wrap max-sm:gap-y-3',
+                  // pt-2.5：头像固定在视口上缘 64，这一行在手机顶栏 44（`MobileShell`
+                  // h-11）+ 地台 10 = 54 处，下移 10 让「＋」与头像同一条中线。
+                  'max-sm:h-auto max-sm:flex-wrap max-sm:gap-y-3 max-sm:pt-2.5',
                   !operatorHost.open && 'sm:pr-12',
                 ],
           )}

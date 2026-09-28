@@ -260,6 +260,10 @@ export function EditDeskPreview({
     if (!video || !clip || !row) return
 
     const onTimeUpdate = () => {
+      // ⚠ 停着的时候播放头说了算，画面只跟、⛔ 不回写：seek 落地也会发一次
+      // `timeupdate`，报的是**上一个**目标 —— 回写的话播放头被拽回去、又触发一次
+      // seek，两个位置来回跳个不停（owner 2026-09-29「不断卡动」）。
+      if (video.paused) return
       // 到段尾：推过这一段的尾巴，下一段由 `row` 换成新的那一段自然接上。
       if (video.currentTime >= clip.out - PREVIEW_CLIP_ADVANCE_SEC) {
         onPlayheadChange(

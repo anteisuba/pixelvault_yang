@@ -534,6 +534,18 @@ describe('剪辑台 · 台面', () => {
     expect(next).toHaveAttribute('preload', 'auto')
   })
 
+  it('停着时画面 seek 落地 ⛔ 不回写播放头（否则两个位置来回跳）', () => {
+    renderDesk(emptyState, { initialNodeIds: ['v1'] })
+    const before = screen.getByTestId('edit-desk-playhead').style.left
+    const video = screen.getByTestId('edit-desk-preview-video')
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      value: 3,
+    })
+    fireEvent(video, new Event('timeupdate'))
+    expect(screen.getByTestId('edit-desk-playhead').style.left).toBe(before)
+  })
+
   it('点轨道空白 = 取消选中（⛔ 不再挪播放头）', () => {
     const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
     const clipId = read().edit?.tracks.video[0]?.id

@@ -59,6 +59,15 @@
 
 契约核对：[ComfyUI nodes](https://github.com/comfyanonymous/ComfyUI/blob/master/nodes.py)、[Forge Latent 插值](https://github.com/lllyasviel/stable-diffusion-webui-forge/blob/main/modules/shared.py)、[RunPod 5.8.6 handler](https://github.com/runpod-workers/worker-comfyui/blob/5.8.6/handler.py)。
 
+### 5.10 底座 · 下载核对 · DiT 加载证据（2026-09-28 GPU 回归通过，未切生产）
+
+- 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-2f1eb8ec295464fd275027f57fca49e4b09a4c29`：官方 `worker-comfyui:5.10.0-base`（CUDA 12.8 + ComfyUI 0.34）。主仓提交 `04d7f4f7` · `cd43f24e` · `7e38067d`，小仓 `a414072` · `2f1eb8e`；`build.yml` 的 final tag 前缀已改为 `5.10.0`。生产端点仍是上面的 `92ef778`（0.25）。
+- 回归用临时端点（同一 Volume、4090 / A5000 / L4 / 3090、CUDA 12.8 / 12.9 / 13.0、Max 1）直接发作业，跑完已删；测试模板 `zx61alrcs3` 保留，可复用。6 项全过：SDXL + LoRA + 来源精修 968×1424（与首跑逐字节相同）· Pony 直出 + 4x-AnimeSharp 512×640 → 2048×2560（「VAEDecode 直连放大 → 空结果」在 0.34 **未复现**）· Anima Base + 已缓存 LoRA · Anima Base + 首次使用的 LoRA（一次成功）· 从 Civitai 现下 Anima Turbo v1.1 并核对 SHA 后出图 · 给错 SHA 的配件被拦下（`SHA-256 mismatch`）。冷启动排队 57–141s，执行 22–64s（含 4.2G 下载）。
+- 升级抓到的坑：0.34 的 `UpscaleModelLoader` 是 V3 节点，`/object_info` 里的文件清单变成 `["COMBO", {"options": [...]}]`，可见性闸原先认不出、所有放大作业提交前即失败；`7e38067d` 已修。
+- Civitai 公布的 `SHA256` 就是下载到的文件本体（R2 里 7 把 LoRA 与 Anima Turbo 实测一致）；DiT 加载证据里 Anima Base 的 SHA 与 HF LFS oid 一致。
+- 切生产顺序：`PATCH` 生产 template `pmh4gs9eht` 指向上面的镜像，并把端点 `allowedCudaVersions` 限定为 12.8 / 12.9 / 13.0 → 真实出图验收 → 再发 Execution Worker（其 Anima 工作流依赖新节点）→ 应用。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
+- 本次回归留在 Volume 上的：`civitai-ckpt-3263843.safetensors`（Anima Turbo v1.1，4.2G，受 LRU 管理）与 LoRA `civitai-3340256.safetensors`；后者也按应用规则进了 R2 `runner-loras/`。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。
@@ -89,8 +98,9 @@
 
 ## 5. 已知坑与未竟
 
-- ⚠ **可复现 bug**：workflow 里 `VAEDecode` 直连 `ImageUpscaleWithModel` 时，job 返回
+- ⚠ **可复现 bug**（生产 0.25）：workflow 里 `VAEDecode` 直连 `ImageUpscaleWithModel` 时，job 返回
   `COMPLETED` 但**既无 output 也无 error** —— 静默空结果。改 hires-fix 相关 workflow 前先绕开。
+  2026-09-28 在 5.10 底座（0.34）上同一连法出图正常，切生产后可删这一条。
 - **r4a（multi-reference IPAdapter）已施工完成、测试端点验证绿，生产未切换**。
   fork 仓库 HEAD `c1dbf58`（2026-07-18）。要切生产得走 fork 构建 + template + 端点滚动。
 - **Krea 2** 当前 `generatability = 'external'`，且 `normalizeToLoraBaseFamily` **故意**对它返回 null

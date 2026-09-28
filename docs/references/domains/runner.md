@@ -16,7 +16,7 @@
 | Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                                                                    |
 | Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-f3b77c521de6c8caf44e6054497f053ba459fe4e`（2026-09-28 切换；回滚目标 `5.8.6-92ef778…`） |
 | 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4；`allowedCudaVersions` 12.8 / 12.9 / 13.0（5.10 底座要求）                                                  |
-| GPU 型号        | 本轮 CLI 响应未包含具体型号                                          | 不把旧文档的 GPU 档位当成实查结果                                                                                                             |
+| GPU 型号        | 4090 → A5000 / L4 / 3090 → A40 / A6000（优先级顺序）                 | 2026-09-28 REST 回读；48G 档是当天加的回退，见「5.10 底座」一节「没机器可用」                                                                 |
 | API 凭证        | 应用 resolve-key 提供 `RUNPOD_KEY`；CLI 使用 `~/.runpod/config.toml` | 不记录值；本地开发凭证可访问评估端点，旧 CLI 凭证权限不足                                                                                     |
 | 端点配置真值    | `workers/execution/wrangler.jsonc`                                   | 本机环境变量可能过时，不用它判断生产端点                                                                                                      |
 
@@ -66,6 +66,7 @@
 - 升级抓到的坑：0.34 的 `UpscaleModelLoader` 是 V3 节点，`/object_info` 里的文件清单变成 `["COMBO", {"options": [...]}]`，可见性闸原先认不出、所有放大作业提交前即失败；`7e38067d` 已修。
 - Civitai 公布的 `SHA256` 就是下载到的文件本体（R2 里 7 把 LoRA 与 Anima Turbo 实测一致）；DiT 加载证据里 Anima Base 的 SHA 与 HF LFS oid 一致。
 - 切生产（2026-09-28 已做）：`PATCH` template `pmh4gs9eht` 的 `imageName`（只改这一个字段，env 里的 `CIVITAI_KEY` 不动；`RUNNER_VOLUME_QUOTA_BYTES=150000000000` 由 owner 在控制台加）+ 端点 `allowedCudaVersions` 12.8 / 12.9 / 13.0。⚠ 改完模板后旧镜像的 worker 仍被 FlashBoot 秒恢复、继续接活（第一批新镜像 worker 很可能在 CUDA 限定生效前被分到旧驱动机器、起不来退出）；把 `workersMax` 临时设 0 清空 worker 再设回 2 后，新镜像才接手（新机器首次拉镜像约 7 分钟）。验收：生产端点直接发 SDXL + LoRA + 精修、Anima + LoRA 各一个，出图与测试端点逐字节相同，DiT 证据齐全。新 fork 兼容线上旧 Worker（旧工作流用原生节点、不带 sha256）；新 Worker（Anima 用 DiT 证据节点）与应用尚未发布。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
+- **没机器可用（owner：以前就常卡在排队）**：Volume 把 worker 锁在 EU-RO-1 一个机房，这里的 24G 卡一紧张就全体 throttled；限定 CUDA ≥ 12.8 后更少。09-28 实测清 worker 后首个作业排队 676s。当天 owner 定：端点 GPU 加 48G 档（A40 / A6000，$0.00034/s，与 4090 PRO $0.00031/s 相近）作回退，现为 4090 → A5000 / L4 / 3090 → A40 / A6000（RunPod 文档：最多选三档，按优先级回退，少于 5 个 worker 时只用最高优先级的可用档）。**下一项**：在另一个有卡的机房开第二个 Volume 让 worker 跨机房调度（需先验证一个端点能否挂多个机房的 Volume，并复制约 30G 预置底模）。
 - **Volume 满（2026-09-27 生产实见）**：80 GB 配额写满，Anima 作业下载底模撞 `[Errno 122] Disk quota exceeded`，且被 `quota.*exceeded` 规则说成「Agent Key 余额不足」。根因是网络卷配额从文件系统剩余量里看不出来，LRU 从未触发。09-28 已扩到 150 GB；fork 改为按 `RUNNER_VOLUME_QUOTA_BYTES`（切生产时在 template 配 `150000000000`）与卷上实际文件大小判断清缓存，写盘撞配额报「存储已满」；app 同时把该原话归到 `runner_storage_full`。
 - 本次回归留在 Volume 上的：`civitai-ckpt-3263843.safetensors`（Anima Turbo v1.1，4.2G，受 LRU 管理）与 LoRA `civitai-3340256.safetensors`；后者也按应用规则进了 R2 `runner-loras/`。
 

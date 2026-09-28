@@ -93,9 +93,10 @@ def collect_model_requirements(workflow):
 def extract_combo_options(object_info, class_type, field):
     """从 `/object_info/<class_type>` 的响应里取出该字段的候选清单。
 
-    ComfyUI 的 combo 规格历史上有两种形状：老的 `[[...选项...], {...配置...}]`，新的
-    `[{"type": "COMBO", "options": [...]}]`。两种都认；认不出就抛——静默当成空清单会
-    把「ComfyUI 改了响应格式」伪装成「模型没就绪」，等满超时才失败。
+    ComfyUI 的 combo 规格有三种形状：老的 `[[...选项...], {...配置...}]`、
+    `[{"type": "COMBO", "options": [...]}]`，以及 V3 节点的 `["COMBO", {"options": [...]}]`
+    （0.34 的 UpscaleModelLoader 已是这种，2026-09-28 回归实测）。都认；认不出就抛——
+    静默当成空清单会把「ComfyUI 改了响应格式」伪装成「模型没就绪」，等满超时才失败。
     """
     node = (object_info or {}).get(class_type)
     if not isinstance(node, dict):
@@ -117,6 +118,13 @@ def extract_combo_options(object_info, class_type, field):
         return [option for option in head if isinstance(option, str)]
     if isinstance(head, dict) and isinstance(head.get("options"), (list, tuple)):
         return [option for option in head["options"] if isinstance(option, str)]
+    config = spec[1] if isinstance(spec, (list, tuple)) and len(spec) > 1 else None
+    if (
+        head == "COMBO"
+        and isinstance(config, dict)
+        and isinstance(config.get("options"), (list, tuple))
+    ):
+        return [option for option in config["options"] if isinstance(option, str)]
     raise ValueError(
         f"Unrecognized combo spec for {class_type!r}.{field!r}: {spec!r}"
     )

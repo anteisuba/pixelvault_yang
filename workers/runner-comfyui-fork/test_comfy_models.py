@@ -110,6 +110,25 @@ class ExtractComboOptionsTest(unittest.TestCase):
             extract_combo_options(info, "LoraLoader", "lora_name"), [FRESH_LORA]
         )
 
+    def test_reads_v3_combo_spec(self):
+        # ComfyUI 0.34 的 UpscaleModelLoader（V3 节点）原样返回的形状。
+        info = {
+            "UpscaleModelLoader": {
+                "input": {
+                    "required": {
+                        "model_name": [
+                            "COMBO",
+                            {"multiselect": False, "options": ["4x-AnimeSharp.pth"]},
+                        ]
+                    }
+                }
+            }
+        }
+        self.assertEqual(
+            extract_combo_options(info, "UpscaleModelLoader", "model_name"),
+            ["4x-AnimeSharp.pth"],
+        )
+
     def test_raises_on_unrecognized_shape(self):
         info = {"LoraLoader": {"input": {"required": {"lora_name": "STRING"}}}}
         with self.assertRaises(ValueError):

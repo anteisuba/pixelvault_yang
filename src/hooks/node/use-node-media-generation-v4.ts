@@ -15,6 +15,8 @@
  */
 
 import { useCallback } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import type { AspectRatio } from '@/constants/config'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
@@ -24,13 +26,20 @@ import {
   snapVideoDuration,
   snapVideoResolution,
 } from '@/constants/video-model-capabilities'
+import {
+  getVideoModelSendContract,
+  type ReferenceClipSeconds,
+  type VideoReferenceSlots,
+} from '@/constants/video-model-send-plan'
 import { resolveVideoSendModelId } from '@/constants/video-node-modes'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
+import { probeMediaDuration } from '@/lib/media-probe'
 import {
   buildV4AudioPayload,
   buildV4ImagePayload,
   buildV4VideoPayload,
+  readNodeUrl,
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
@@ -43,6 +52,7 @@ import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import {
   mentionedCharacters,
   stripCharacterMentionMarks,
+  type NodeCharacterMention,
 } from '@/lib/node-character-mentions'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
@@ -89,7 +99,57 @@ export interface V4GenerationPlan {
   /** 空数组 = 可以发。⚠ 调用方**必须**看它：`clip` 少于 2 条这类问题在服务端只会
    *  变成一句泛泛的失败。 */
   readonly issues: readonly V4SlotIssue[]
+  /**
+   * 视频：这一次发送端点的参考容量与时长约束（`getVideoModelSendContract`）。
+   * 发送前校验按它数（`preflightV4Plan`），⛔ 不另抄一份上限。
+   */
+  readonly referenceSlots?: VideoReferenceSlots
+  /**
+   * 视频：@ 了的角色这一次**额外**带进参考图的张数 —— 与参考轨上已有的同一张图不
+   * 重复计（按 url 比；按生成记录挑的图认不出 url，按一张算）。服务端卡片总线在
+   * 满额时是**静默不带**她的图，所以要在发送前数清楚。
+   */
+  readonly characterImageExtras?: readonly {
+    readonly name: string
+    readonly images: number
+  }[]
 }
+
+/** 参考视频 / 音频的一段：给人看的名字 + 时长（不知道 = undefined，不拦）。 */
+export interface V4PreflightClip {
+  readonly name: string
+  readonly seconds?: number
+}
+
+/**
+ * 发送前校验没过的一条。**不发、不扣钱、不改卡**，toast 说清是哪一项、差多少
+ * （owner 2026-09-28）。
+ */
+export type V4PreflightBlocker =
+  | { readonly kind: 'slot'; readonly issue: V4SlotIssue }
+  | {
+      readonly kind: 'tooMany'
+      readonly media: 'image' | 'video' | 'audio' | 'total'
+      readonly count: number
+      readonly max: number
+      /** 其中有几张是 @ 的角色带进来的、是谁（只在 image / total 时给）。 */
+      readonly characterImages?: number
+      readonly characterNames?: readonly string[]
+    }
+  | { readonly kind: 'audioOnly' }
+  | {
+      readonly kind: 'clipTooLong' | 'clipTooShort'
+      readonly media: 'video' | 'audio'
+      readonly name: string
+      readonly seconds: number
+      readonly limit: number
+    }
+  | {
+      readonly kind: 'totalTooLong'
+      readonly media: 'video' | 'audio'
+      readonly seconds: number
+      readonly max: number
+    }
 
 /**
  * 这一次实际要跑的端点。判据只有一条：**载荷里有没有参考项**（参考图 = 除首尾帧
@@ -234,6 +294,14 @@ export function planV4Generation(
         ? {}
         : { generateAudio: data.params.generateAudio }),
       referenceImages: payload.imageUrls,
+      referenceSlots: getVideoModelSendContract(
+        sendModelId,
+        data.model.adapterType,
+      ).slots,
+      characterImageExtras: countCharacterImageExtras(
+        characters,
+        payload.imageUrls,
+      ),
       videoUrls: payload.videoUrls,
       audioUrls: payload.audioBindings.map((binding) => binding.url),
       audioBindings: payload.audioBindings.map((binding) => ({
@@ -290,11 +358,253 @@ export function planV4Generation(
   }
 }
 
+/**
+ * @ 了的角色这一次**额外**带进参考图几张：与参考轨上已有的同一张图不重复计。
+ * ⚠ 按生成记录挑的图（`generationId`）在客户端认不出 url，按一张算 —— 宁可多数
+ *   一张让用户看一眼，⛔ 不少数（少数的下场是服务端静默丢图）。
+ */
+function countCharacterImageExtras(
+  characters: readonly NodeCharacterMention[],
+  referenceUrls: readonly string[],
+): { name: string; images: number }[] {
+  const attached = new Set(referenceUrls)
+  return characters.map((character) => ({
+    name: character.card.name,
+    images: character.picks.filter((pick) => {
+      if (!('slotId' in pick)) return true
+      const url = character.card.referenceSlots.find(
+        (slot) => slot.id === pick.slotId,
+      )?.url
+      return !url || !attached.has(url)
+    }).length,
+  }))
+}
+
+/**
+ * 参考素材的时长差多少才算超 —— 容器时长常带几十毫秒的尾数（15.02s），把它算成
+ * 超限会拦下服务商其实会收的片子。边界上的交给服务商判。
+ */
+const CLIP_SECONDS_TOLERANCE = 0.05
+
+function checkClipSeconds(
+  media: 'video' | 'audio',
+  clips: readonly V4PreflightClip[],
+  limits: ReferenceClipSeconds | undefined,
+): V4PreflightBlocker[] {
+  if (!limits || clips.length === 0) return []
+  const blockers: V4PreflightBlocker[] = []
+  let total = 0
+  let known = 0
+  for (const clip of clips) {
+    if (clip.seconds === undefined) continue
+    total += clip.seconds
+    known += 1
+    if (clip.seconds > limits.perClipMax + CLIP_SECONDS_TOLERANCE) {
+      blockers.push({
+        kind: 'clipTooLong',
+        media,
+        name: clip.name,
+        seconds: clip.seconds,
+        limit: limits.perClipMax,
+      })
+    } else if (clip.seconds < limits.perClipMin - CLIP_SECONDS_TOLERANCE) {
+      blockers.push({
+        kind: 'clipTooShort',
+        media,
+        name: clip.name,
+        seconds: clip.seconds,
+        limit: limits.perClipMin,
+      })
+    }
+  }
+  // 只加读得出来的那几段：加起来已经超了就一定超，读不出的不会让它变少。
+  // ⚠ 只有一段、而它已经单段超长时不再报「总长超了」—— 同一个原因不说两遍。
+  const onlyClipTooLong =
+    known === 1 && blockers.some((blocker) => blocker.kind === 'clipTooLong')
+  if (total > limits.total + CLIP_SECONDS_TOLERANCE && !onlyClipTooLong) {
+    blockers.push({
+      kind: 'totalTooLong',
+      media,
+      seconds: total,
+      max: limits.total,
+    })
+  }
+  return blockers
+}
+
+/**
+ * 发送前校验（owner 2026-09-28：不发送 + 说清哪一项超了多少）。**纯函数**。
+ *
+ * 返回**全部**问题（与 `validateV4Slots` 同一条理由：一次看完还差什么）。
+ * ⚠ 数量与时长只查视频：图片卡的角色超额有设计好的降级（改写外观描述，见
+ *   `card-bus-compile` 的 `budget`），视频出口满额却是静默不带她的图。
+ * ⚠ 上限一律读 `plan.referenceSlots`（发送合同），⛔ 不在这里另抄数字；合同没写
+ *   的（`images: undefined` / 没有时长约束）就不查。
+ */
+export function preflightV4Plan(
+  plan: V4GenerationPlan,
+  clips: {
+    readonly video?: readonly V4PreflightClip[]
+    readonly audio?: readonly V4PreflightClip[]
+  } = {},
+): V4PreflightBlocker[] {
+  const blockers: V4PreflightBlocker[] = plan.issues.map((issue) => ({
+    kind: 'slot' as const,
+    issue,
+  }))
+  const slots = plan.referenceSlots
+  if (plan.kind !== 'video' || !slots) return blockers
+
+  const extras = (plan.characterImageExtras ?? []).filter(
+    (entry) => entry.images > 0,
+  )
+  const characterImages = extras.reduce((sum, entry) => sum + entry.images, 0)
+  const characterNames = extras.map((entry) => entry.name)
+  const withCharacters =
+    characterImages > 0 ? { characterImages, characterNames } : {}
+  const images = (plan.referenceImages?.length ?? 0) + characterImages
+  const videos = plan.videoUrls?.length ?? 0
+  const audio = plan.audioUrls?.length ?? 0
+
+  if (slots.images !== undefined && images > slots.images) {
+    blockers.push({
+      kind: 'tooMany',
+      media: 'image',
+      count: images,
+      max: slots.images,
+      ...withCharacters,
+    })
+  }
+  if (videos > slots.videos) {
+    blockers.push({
+      kind: 'tooMany',
+      media: 'video',
+      count: videos,
+      max: slots.videos,
+    })
+  }
+  if (audio > slots.audio) {
+    blockers.push({
+      kind: 'tooMany',
+      media: 'audio',
+      count: audio,
+      max: slots.audio,
+    })
+  }
+  const total = images + videos + audio
+  if (slots.total !== undefined && total > slots.total) {
+    blockers.push({
+      kind: 'tooMany',
+      media: 'total',
+      count: total,
+      max: slots.total,
+      ...withCharacters,
+    })
+  }
+  if (slots.audioRequiresVisual && audio > 0 && images + videos === 0) {
+    blockers.push({ kind: 'audioOnly' })
+  }
+  return [
+    ...blockers,
+    ...checkClipSeconds('video', clips.video ?? [], slots.videoSeconds),
+    ...checkClipSeconds('audio', clips.audio ?? [], slots.audioSeconds),
+  ]
+}
+
+/**
+ * 这一枪的参考视频 / 音频各是哪一段、多长 —— 按发送顺序，名字用卡上的名字。
+ *
+ * ⚠ 只在合同有时长约束时才去读：没有约束的模型不值得为它多打一次网络。
+ * 节点身上有 `durationSec` 就用它；没有（手传的片子）就现读元数据，读不出 = 不知道。
+ */
+async function resolvePreflightClips(
+  plan: V4GenerationPlan,
+  nodes: readonly NodeV4[],
+): Promise<{ video: V4PreflightClip[]; audio: V4PreflightClip[] }> {
+  const slots = plan.referenceSlots
+  const read = async (
+    urls: readonly string[] | undefined,
+    kind: 'video' | 'audio',
+    wanted: boolean,
+  ): Promise<V4PreflightClip[]> => {
+    if (!wanted || !urls?.length) return []
+    return Promise.all(
+      urls.map(async (url, index) => {
+        const source = nodes.find((node) => readNodeUrl(node.data) === url)
+        const known =
+          source && 'durationSec' in source.data
+            ? source.data.durationSec
+            : undefined
+        const seconds =
+          typeof known === 'number' && known > 0
+            ? known
+            : ((await probeMediaDuration(url, kind)) ?? undefined)
+        return {
+          name: source?.data.name ?? `#${index + 1}`,
+          ...(seconds === undefined ? {} : { seconds }),
+        }
+      }),
+    )
+  }
+  const [video, audio] = await Promise.all([
+    read(plan.videoUrls, 'video', Boolean(slots?.videoSeconds)),
+    read(plan.audioUrls, 'audio', Boolean(slots?.audioSeconds)),
+  ])
+  return { video, audio }
+}
+
 /** v3 那个钩子的 v4 外壳：多一个「按槽装配」的入口，其余原样透传。 */
 export function useNodeMediaGenerationV4() {
   const inner = useNodeMediaGeneration()
   // 角色库：认正文里的 @她（画布用角色 ④ 第 2 片）。卡片、快捷键、助手三条入口都走这里。
   const { cards: characterCards } = useCharacterLibrary()
+  const t = useTranslations('StudioNode.v4')
+
+  /** 一条发送前拦截 → 用户看得懂的一句（哪一项、差多少）。 */
+  const describeBlocker = useCallback(
+    (blocker: V4PreflightBlocker): string => {
+      const seconds = (value: number) => Math.round(value * 10) / 10
+      switch (blocker.kind) {
+        case 'slot':
+          return t(`preflight.slot.${blocker.issue.issue}`, {
+            slot: t(`slots.${blocker.issue.slot}`),
+          })
+        case 'tooMany':
+          // 上限是 0 = 这个端点压根不收这类参考（关键帧档挂了视频）：说「不收」，
+          // ⛔ 不说「最多收 0 段」。
+          if (blocker.max === 0)
+            return t(`preflight.unsupported.${blocker.media}`)
+          return blocker.characterImages
+            ? t(`preflight.tooManyWithCharacters.${blocker.media}`, {
+                count: blocker.count,
+                max: blocker.max,
+                characterImages: blocker.characterImages,
+                names: (blocker.characterNames ?? [])
+                  .map((name) => `@${name}`)
+                  .join(t('preflight.nameSeparator')),
+              })
+            : t(`preflight.tooMany.${blocker.media}`, {
+                count: blocker.count,
+                max: blocker.max,
+              })
+        case 'audioOnly':
+          return t('preflight.audioOnly')
+        case 'clipTooLong':
+        case 'clipTooShort':
+          return t(`preflight.${blocker.kind}.${blocker.media}`, {
+            name: blocker.name,
+            seconds: seconds(blocker.seconds),
+            limit: blocker.limit,
+          })
+        case 'totalTooLong':
+          return t(`preflight.totalTooLong.${blocker.media}`, {
+            seconds: seconds(blocker.seconds),
+            max: blocker.max,
+          })
+      }
+    },
+    [t],
+  )
 
   const generateNode = useCallback(
     async (
@@ -316,6 +626,31 @@ export function useNodeMediaGenerationV4() {
         characterCards,
       })
       if (!plan) return { success: false as const, error: 'noPlan' }
+      // ⭐ 发送前校验（owner 2026-09-28）：没过就**不发、不扣钱、不改卡**，一闪而过
+      // 的提示说清哪一项、差多少。⚠ 在这里拦而不是在各个调用方：卡片提示词栏、
+      // 快捷键、助手、审阅重跑都走这一个入口，拦在调用方总会漏一条。
+      // ⚠ 被拦下时**不叫 `onEach`**：调用方的失败分支都写在那里（会把错误钉在卡上），
+      //   而这不是一次失败的生成 —— 它根本没发出去。
+      const blockers = preflightV4Plan(
+        plan,
+        await resolvePreflightClips(plan, graph.nodes),
+      )
+      if (blockers.length > 0) {
+        const first = describeBlocker(blockers[0]!)
+        toast.warning(
+          blockers.length > 1
+            ? t('preflight.blockedMore', {
+                reason: first,
+                more: blockers.length - 1,
+              })
+            : t('preflight.blocked', { reason: first }),
+        )
+        return {
+          success: false as const,
+          error: 'blocked',
+          blocked: blockers,
+        }
+      }
       // ⚠ 档位在**服务端 schema 上收窄**（`AdvancedParamsSchema`），⛔ 不在这里
       // 抄一份档位表：节点上的 `quality` 是自由串（值域跟着模型能力表走），而
       // 发出去的那一份必须落在服务端认的枚举里。收不进去的档**整个不发** ——
@@ -394,7 +729,7 @@ export function useNodeMediaGenerationV4() {
       }
       return last
     },
-    [inner, characterCards],
+    [inner, characterCards, describeBlocker, t],
   )
 
   return { ...inner, generateNode, planV4Generation }

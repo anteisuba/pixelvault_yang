@@ -451,6 +451,7 @@ function NodeWorkbenchV4Inner() {
           toast.info(tV4('generateDesk.noGenerate'))
           continue
         }
+        const statusBefore = node?.data.status ?? NODE_STATUS_IDS.idle
         graph.setRunState(nodeId, NODE_STATUS_IDS.running)
         void generation
           .generateNode(
@@ -475,6 +476,12 @@ function NodeWorkbenchV4Inner() {
                   : {}),
               })
               graph.setRunState(nodeId, NODE_STATUS_IDS.done)
+              return
+            }
+            // ⚠ 发送前校验拦下的不是失败：没发出去、没扣钱，提示已在生成入口弹过。
+            // 运行态回到发之前，⛔ 不写 `generationFailure`（owner 09-28：不改卡）。
+            if ('blocked' in result) {
+              graph.setRunState(nodeId, statusBefore)
               return
             }
             // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，

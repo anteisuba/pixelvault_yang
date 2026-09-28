@@ -9,7 +9,11 @@ import type {
   NodeWorkflowEdgeV4,
 } from '@/types/node-workflow'
 
-import { planV4Generation } from './use-node-media-generation-v4'
+import {
+  planV4Generation,
+  preflightV4Plan,
+  type V4GenerationPlan,
+} from './use-node-media-generation-v4'
 
 const NOW = '2026-09-07T00:00:00.000Z'
 const MODEL = {
@@ -308,5 +312,216 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
     })
     const plan = planV4Generation('st2', { nodes: [still], edges: [] })!
     expect(plan.characterCardIds).toBeUndefined()
+  })
+})
+
+describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清哪项超了多少）', () => {
+  const SEEDANCE_20 = {
+    optionId: 'opt',
+    modelId: 'seedance-2.0',
+    adapterType: 'fal',
+    apiKeyId: 'key-1',
+  } as typeof MODEL
+  const DENIA = {
+    id: 'denia',
+    name: 'Denia',
+    referenceSlots: [
+      { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+    ],
+    sourceImageUrl: null,
+    variants: [],
+  } as unknown as CharacterCardRecord
+
+  /** 一张挂了 n 张参考图的 2.0 镜头（参考槽，全部走参考端点）。 */
+  function shotWithImages(count: number, prompt = '她回头') {
+    const images = Array.from({ length: count }, (_, index) =>
+      node(`img${index}`, {
+        kind: 'image',
+        subtype: 'reference',
+        url: `https://cdn/ref${index}.png`,
+      }),
+    )
+    const target = node('s20', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt,
+      model: SEEDANCE_20,
+    })
+    return {
+      nodes: [...images, target],
+      edges: images.map((image, index) =>
+        edge(`r${index}`, image.id, 's20', NODE_SLOT_IDS.reference),
+      ),
+    }
+  }
+
+  it('填满且都在上限内：没有拦截', () => {
+    const plan = planV4Generation('shot', graph)!
+    expect(preflightV4Plan(plan)).toEqual([])
+  })
+
+  it('发送合同是这一枪的端点：2.0 参考档 9/3/3、合计 12，时长 2–15s', () => {
+    const plan = planV4Generation('s20', shotWithImages(2))!
+    expect(plan.modelId).toBe('seedance-2.0-reference')
+    expect(plan.referenceSlots).toMatchObject({
+      images: 9,
+      videos: 3,
+      audio: 3,
+      total: 12,
+      videoSeconds: { perClipMin: 2, perClipMax: 15, total: 15 },
+    })
+  })
+
+  it('参考图超过模型上限：拦下并给出张数与上限', () => {
+    const plan = planV4Generation('s20', shotWithImages(10))!
+    expect(preflightV4Plan(plan)).toEqual([
+      { kind: 'tooMany', media: 'image', count: 10, max: 9 },
+    ])
+  })
+
+  it('@她 让参考图超额：算上她的图并点名 —— 服务端满额时是静默不带她', () => {
+    const plan = planV4Generation('s20', shotWithImages(9, '@Denia 回头'), {
+      characterCards: [DENIA],
+    })!
+    expect(plan.characterImageExtras).toEqual([{ name: 'Denia', images: 1 }])
+    expect(preflightV4Plan(plan)).toEqual([
+      {
+        kind: 'tooMany',
+        media: 'image',
+        count: 10,
+        max: 9,
+        characterImages: 1,
+        characterNames: ['Denia'],
+      },
+    ])
+  })
+
+  it('她的图已经挂在参考轨上：不重复计，满 9 张照常发', () => {
+    const graphWithDenia = shotWithImages(8, '@Denia 回头')
+    const deniaOnRail = node('denia-img', {
+      kind: 'image',
+      subtype: 'reference',
+      url: 'https://cdn/denia.png',
+    })
+    const plan = planV4Generation(
+      's20',
+      {
+        nodes: [deniaOnRail, ...graphWithDenia.nodes],
+        edges: [
+          edge('rd', 'denia-img', 's20', NODE_SLOT_IDS.reference),
+          ...graphWithDenia.edges,
+        ],
+      },
+      { characterCards: [DENIA] },
+    )!
+    expect(plan.referenceImages).toHaveLength(9)
+    expect(plan.characterImageExtras).toEqual([{ name: 'Denia', images: 0 }])
+    expect(preflightV4Plan(plan)).toEqual([])
+  })
+
+  const base: V4GenerationPlan = {
+    kind: 'video',
+    modelId: 'seedance-2.0-reference',
+    prompt: 'x',
+    issues: [],
+    referenceImages: ['https://cdn/a.png'],
+    videoUrls: ['https://cdn/dance.mp4'],
+    audioUrls: [],
+    referenceSlots: {
+      images: 9,
+      videos: 3,
+      audio: 3,
+      total: 12,
+      audioRequiresVisual: true,
+      videoSeconds: { perClipMin: 2, perClipMax: 15, total: 15 },
+      audioSeconds: { perClipMin: 2, perClipMax: 15, total: 15 },
+    },
+  }
+
+  it('参考视频单段超长：说是哪一段、多长、上限多少；只有一段时不重复报总长', () => {
+    expect(
+      preflightV4Plan(base, { video: [{ name: '跳舞', seconds: 16.3 }] }),
+    ).toEqual([
+      {
+        kind: 'clipTooLong',
+        media: 'video',
+        name: '跳舞',
+        seconds: 16.3,
+        limit: 15,
+      },
+    ])
+  })
+
+  it('两段各自合规、加起来超了：报总长', () => {
+    expect(
+      preflightV4Plan(
+        { ...base, videoUrls: ['https://cdn/a.mp4', 'https://cdn/b.mp4'] },
+        {
+          video: [
+            { name: 'A', seconds: 9 },
+            { name: 'B', seconds: 8 },
+          ],
+        },
+      ),
+    ).toEqual([{ kind: 'totalTooLong', media: 'video', seconds: 17, max: 15 }])
+  })
+
+  it('太短也拦（官方单段下限 2s）；容器尾数不算超', () => {
+    expect(
+      preflightV4Plan(base, { video: [{ name: '闪', seconds: 1.2 }] }),
+    ).toEqual([
+      {
+        kind: 'clipTooShort',
+        media: 'video',
+        name: '闪',
+        seconds: 1.2,
+        limit: 2,
+      },
+    ])
+    expect(
+      preflightV4Plan(base, { video: [{ name: '贴边', seconds: 15.02 }] }),
+    ).toEqual([])
+  })
+
+  it('时长读不出来：放行，⛔ 不拿不知道的数去拦', () => {
+    expect(preflightV4Plan(base, { video: [{ name: '未知' }] })).toEqual([])
+  })
+
+  it('只带参考音频、模型要求音频搭配画面：拦下', () => {
+    expect(
+      preflightV4Plan({
+        ...base,
+        referenceImages: [],
+        videoUrls: [],
+        audioUrls: ['https://cdn/v.mp3'],
+      }),
+    ).toEqual([{ kind: 'audioOnly' }])
+  })
+
+  it('关键帧端点挂了参考视频：上限是 0，照样拦（文案说「不收」）', () => {
+    expect(
+      preflightV4Plan({
+        ...base,
+        referenceSlots: { images: 1, videos: 0, audio: 0 },
+      }),
+    ).toEqual([{ kind: 'tooMany', media: 'video', count: 1, max: 0 }])
+  })
+
+  it('槽问题三类卡都拦；图片卡不查数量（超额有设计好的降级）', () => {
+    const issue = {
+      slot: NODE_SLOT_IDS.firstFrame,
+      issue: V4_SLOT_ISSUE_IDS.currentMissing,
+    }
+    const imagePlan: V4GenerationPlan = {
+      kind: 'image',
+      modelId: 'gpt-image-2',
+      prompt: 'x',
+      issues: [issue],
+      referenceImages: Array.from(
+        { length: 40 },
+        (_, i) => `https://cdn/${i}.png`,
+      ),
+    }
+    expect(preflightV4Plan(imagePlan)).toEqual([{ kind: 'slot', issue }])
   })
 })

@@ -5544,6 +5544,45 @@
       "slotIssue": {
         "belowMin": "{slot} 还没填够，暂时不能生成"
       },
+      "preflight": {
+        "blocked": "没发出去：{reason}",
+        "blockedMore": "没发出去：{reason}（还有 {more} 处要改）",
+        "nameSeparator": "、",
+        "slot": {
+          "belowMin": "{slot}还没填够",
+          "currentMissing": "{slot}还没选当前用哪一版",
+          "blockedSource": "{slot}里有一张标成不能用的素材，换掉或断开"
+        },
+        "tooMany": {
+          "image": "参考图 {count} 张，这个模型最多收 {max} 张",
+          "video": "参考视频 {count} 段，这个模型最多收 {max} 段",
+          "audio": "参考音频 {count} 段，这个模型最多收 {max} 段",
+          "total": "参考素材一共 {count} 个，这个模型最多收 {max} 个"
+        },
+        "tooManyWithCharacters": {
+          "image": "参考图 {count} 张（含 {names} 的 {characterImages} 张），这个模型最多收 {max} 张",
+          "total": "参考素材一共 {count} 个（含 {names} 的 {characterImages} 张图），这个模型最多收 {max} 个"
+        },
+        "unsupported": {
+          "image": "这个模型不收参考图，先断开或换一个模型",
+          "video": "这个模型不收参考视频，先断开或换一个支持参考的模型",
+          "audio": "这个模型不收参考音频，先断开或换一个支持参考的模型",
+          "total": "这个模型不收参考素材"
+        },
+        "audioOnly": "这个模型不能只带参考音频，再挂一张图或一段视频",
+        "clipTooLong": {
+          "video": "「{name}」{seconds} 秒，这个模型的参考视频单段最长 {limit} 秒",
+          "audio": "「{name}」{seconds} 秒，这个模型的参考音频单段最长 {limit} 秒"
+        },
+        "clipTooShort": {
+          "video": "「{name}」只有 {seconds} 秒，这个模型的参考视频单段至少 {limit} 秒",
+          "audio": "「{name}」只有 {seconds} 秒，这个模型的参考音频单段至少 {limit} 秒"
+        },
+        "totalTooLong": {
+          "video": "参考视频加起来 {seconds} 秒，这个模型最多 {max} 秒",
+          "audio": "参考音频加起来 {seconds} 秒，这个模型最多 {max} 秒"
+        }
+      },
       "generateDesk": {
         "failed": "生成失败：{reason}",
         "noModel": "先选一个模型",

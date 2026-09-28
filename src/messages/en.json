@@ -5544,6 +5544,45 @@
       "slotIssue": {
         "belowMin": "{slot} is not filled yet — cannot generate"
       },
+      "preflight": {
+        "blocked": "Not sent: {reason}",
+        "blockedMore": "Not sent: {reason} ({more, plural, one {# more thing to fix} other {# more things to fix}})",
+        "nameSeparator": ", ",
+        "slot": {
+          "belowMin": "{slot} isn't filled yet",
+          "currentMissing": "Pick which version {slot} should use",
+          "blockedSource": "{slot} holds an asset marked as unusable — swap it out or disconnect it"
+        },
+        "tooMany": {
+          "image": "{count, plural, one {# reference image} other {# reference images}}; this model takes at most {max}",
+          "video": "{count, plural, one {# reference video} other {# reference videos}}; this model takes at most {max}",
+          "audio": "{count, plural, one {# reference audio clip} other {# reference audio clips}}; this model takes at most {max}",
+          "total": "{count, plural, one {# reference} other {# references}} in total; this model takes at most {max}"
+        },
+        "tooManyWithCharacters": {
+          "image": "{count, plural, one {# reference image} other {# reference images}}, including {characterImages} from {names}; this model takes at most {max}",
+          "total": "{count, plural, one {# reference} other {# references}} in total, including {characterImages} images from {names}; this model takes at most {max}"
+        },
+        "unsupported": {
+          "image": "This model doesn't take reference images — disconnect them or pick another model",
+          "video": "This model doesn't take reference videos — disconnect them or pick a model that does",
+          "audio": "This model doesn't take reference audio — disconnect it or pick a model that does",
+          "total": "This model doesn't take references"
+        },
+        "audioOnly": "This model can't take reference audio on its own — add an image or a video",
+        "clipTooLong": {
+          "video": "“{name}” runs {seconds}s; this model takes reference videos up to {limit}s each",
+          "audio": "“{name}” runs {seconds}s; this model takes reference audio up to {limit}s each"
+        },
+        "clipTooShort": {
+          "video": "“{name}” is only {seconds}s; this model needs reference videos of at least {limit}s",
+          "audio": "“{name}” is only {seconds}s; this model needs reference audio of at least {limit}s"
+        },
+        "totalTooLong": {
+          "video": "Reference videos add up to {seconds}s; this model takes at most {max}s",
+          "audio": "Reference audio adds up to {seconds}s; this model takes at most {max}s"
+        }
+      },
       "generateDesk": {
         "failed": "Generation failed: {reason}",
         "noModel": "Pick a model first",

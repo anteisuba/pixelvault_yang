@@ -27,6 +27,18 @@ export interface VideoReferenceSlots {
   total?: number
   /** Audio references cannot be the only input for this model. */
   audioRequiresVisual?: boolean
+  /**
+   * 参考视频 / 参考音频的时长约束（秒）。undefined = 服务商没公布，⛔ 不编数字、
+   * 不拿别家的套。发送前校验按它拦（`preflightV4Plan`），超了就不发、不扣钱。
+   */
+  videoSeconds?: ReferenceClipSeconds
+  audioSeconds?: ReferenceClipSeconds
+}
+
+export interface ReferenceClipSeconds {
+  readonly perClipMin: number
+  readonly perClipMax: number
+  readonly total: number
 }
 
 export interface VideoParameterSupport {
@@ -105,6 +117,25 @@ const FIRST_LAST_FRAME_MODEL_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_25_BYTEPLUS,
 ])
 
+/**
+ * 参考视频 / 音频的时长约束。出处：火山方舟「Seedance 视频生成入门使用教程」
+ * 素材要求段（docs.volcengine.com/docs/82379/2298881，2026-09-28 核）：
+ * 2.0 系列单段 [2, 15] s、总时长 ≤ 15 s；2.5（非视频编辑任务）单段 [2, 30] s、
+ * 总时长 ≤ 30 s。视频与音频同一组数。fal 的 2.0 口径与之一致（单段 ≤ 15、合计
+ * ≤ 15，见 `video-reference.service.ts` 头注）。
+ */
+const SEEDANCE_20_CLIP_SECONDS: ReferenceClipSeconds = {
+  perClipMin: 2,
+  perClipMax: 15,
+  total: 15,
+}
+
+const SEEDANCE_25_CLIP_SECONDS: ReferenceClipSeconds = {
+  perClipMin: 2,
+  perClipMax: 30,
+  total: 30,
+}
+
 /** Seedance 2.0 系列：图 0-9 + 视频 0-3 + 音频 0-3，音频必须搭配图或视频。 */
 const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
   images: 9,
@@ -112,6 +143,8 @@ const SEEDANCE_20_REFERENCE_SLOTS: VideoReferenceSlots = {
   audio: 3,
   total: 12,
   audioRequiresVisual: true,
+  videoSeconds: SEEDANCE_20_CLIP_SECONDS,
+  audioSeconds: SEEDANCE_20_CLIP_SECONDS,
 }
 
 /**
@@ -128,6 +161,8 @@ const SEEDANCE_25_REFERENCE_SLOTS: VideoReferenceSlots = {
   audio: VIDEO_REFERENCE_LIMITS.AUDIO,
   total: 50,
   audioRequiresVisual: false,
+  videoSeconds: SEEDANCE_25_CLIP_SECONDS,
+  audioSeconds: SEEDANCE_25_CLIP_SECONDS,
 }
 
 // fal's public 2.5 OpenAPI keeps the same 30/10/10/50 limits but requires

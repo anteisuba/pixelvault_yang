@@ -5544,6 +5544,45 @@
       "slotIssue": {
         "belowMin": "{slot} がまだ足りません。生成できません"
       },
+      "preflight": {
+        "blocked": "送信していません：{reason}",
+        "blockedMore": "送信していません：{reason}（ほかに {more} 件）",
+        "nameSeparator": "、",
+        "slot": {
+          "belowMin": "{slot}がまだ足りません",
+          "currentMissing": "{slot}で使うバージョンを選んでください",
+          "blockedSource": "{slot}に使用不可の素材があります。差し替えるか接続を外してください"
+        },
+        "tooMany": {
+          "image": "参考画像が {count} 枚あります。このモデルは最大 {max} 枚です",
+          "video": "参考動画が {count} 本あります。このモデルは最大 {max} 本です",
+          "audio": "参考音声が {count} 本あります。このモデルは最大 {max} 本です",
+          "total": "参考素材が合計 {count} 件あります。このモデルは最大 {max} 件です"
+        },
+        "tooManyWithCharacters": {
+          "image": "参考画像が {count} 枚あります（{names} の {characterImages} 枚を含む）。このモデルは最大 {max} 枚です",
+          "total": "参考素材が合計 {count} 件あります（{names} の画像 {characterImages} 枚を含む）。このモデルは最大 {max} 件です"
+        },
+        "unsupported": {
+          "image": "このモデルは参考画像を受け付けません。接続を外すか別のモデルを選んでください",
+          "video": "このモデルは参考動画を受け付けません。接続を外すか対応モデルを選んでください",
+          "audio": "このモデルは参考音声を受け付けません。接続を外すか対応モデルを選んでください",
+          "total": "このモデルは参考素材を受け付けません"
+        },
+        "audioOnly": "このモデルは参考音声だけでは送れません。画像か動画を追加してください",
+        "clipTooLong": {
+          "video": "「{name}」は {seconds} 秒です。このモデルの参考動画は 1 本 {limit} 秒までです",
+          "audio": "「{name}」は {seconds} 秒です。このモデルの参考音声は 1 本 {limit} 秒までです"
+        },
+        "clipTooShort": {
+          "video": "「{name}」は {seconds} 秒しかありません。このモデルの参考動画は 1 本 {limit} 秒以上必要です",
+          "audio": "「{name}」は {seconds} 秒しかありません。このモデルの参考音声は 1 本 {limit} 秒以上必要です"
+        },
+        "totalTooLong": {
+          "video": "参考動画の合計が {seconds} 秒です。このモデルは合計 {max} 秒までです",
+          "audio": "参考音声の合計が {seconds} 秒です。このモデルは合計 {max} 秒までです"
+        }
+      },
       "generateDesk": {
         "failed": "生成に失敗：{reason}",
         "noModel": "まずモデルを選択",

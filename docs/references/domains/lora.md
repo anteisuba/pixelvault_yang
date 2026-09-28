@@ -107,7 +107,8 @@ LoRA 的核心承诺是：
 配套硬事实：
 
 - **跨族挂载**（IL ↔ Pony）默认拦截（2026-09-11 owner 拍板）——能出图但易糊 / 伪影；判据 `isLoraBaseModelMountCompatible`。
-- **2026-09-17 起没有任何 hosted 快通道**：`FLUX_LORA` 与 `ILLUSTRIOUS_XL` 退役后，全部底模都是 Runner 忠实通道，UI 不能再暗示存在「快」档；`flux` 家族无可用底模（无 runner 后继）。
+- **2026-09-17 起没有任何 hosted 快通道**：`FLUX_LORA` 与 `ILLUSTRIOUS_XL` 退役后，全部底模都是 Runner 忠实通道，UI 不能再暗示存在「快」档；`flux` 家族无可用底模（无 runner 后继）。2026-09-28 底模目录删掉了云端条目与 SD 1.5（`backend` / `fidelity` 两格一起去掉），flux / sd15 只剩给 LoRA 归类。
+- **纯底模默认 Anima Turbo v1.1**（owner 2026-09-28）：步数蒸馏档，10 步 · CFG 1，`distilled: true` 走 1.0 的权重预算；挂 LoRA 时仍按家族推荐（Anima 系是「来源图底模（自动）」）。来源图底模的 Civitai 版本名带 turbo 时，Worker 也按 Turbo 的默认出（`defaultsCheckpointId`）。CFG 1 时负面词不起作用，判据 `isRunnerNegativePromptInert`。
 - 社区常挂 **2–4 张** LoRA；本仓容量 = 全局 cap ∩ provider max。
 - **真实配方怎么搭**（2026-09-28 读 Civitai 8 族 1,964 条社区配方；Anima 另对照模型页 2458426）：
   - 权重按用途给：角色 0.8–1.0（1.0 最多）、画风 0.6–0.9、细节 0.3–1.0；滑杆按作者给的范围，可以是负数。

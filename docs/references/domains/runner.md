@@ -70,6 +70,12 @@
 - **Volume 满（2026-09-27 生产实见）**：80 GB 配额写满，Anima 作业下载底模撞 `[Errno 122] Disk quota exceeded`，且被 `quota.*exceeded` 规则说成「Agent Key 余额不足」。根因是网络卷配额从文件系统剩余量里看不出来，LRU 从未触发。09-28 已扩到 150 GB；fork 改为按 `RUNNER_VOLUME_QUOTA_BYTES`（切生产时在 template 配 `150000000000`）与卷上实际文件大小判断清缓存，写盘撞配额报「存储已满」；app 同时把该原话归到 `runner_storage_full`。
 - 本次回归留在 Volume 上的：`civitai-ckpt-3263843.safetensors`（Anima Turbo v1.1，4.2G，受 LRU 管理）与 LoRA `civitai-3340256.safetensors`；后者也按应用规则进了 R2 `runner-loras/`。
 
+### 底模插槽 · Anima Turbo v1.1（2026-09-28，进度表 45 ②）
+
+- 清单 id `animaTurbo_v11`（应用模型 `anima-turbo-runner`，Civitai 版本 `3263843`）：权重从 HF `circlestone-labs/Anima` 钉住的 revision `f973fc41…` 拉 `split_files/diffusion_models/anima-turbo-v1.1.safetensors`（4,182,230,656 B，SHA-256 `fba11953…d3f7eb`，与 Civitai 公布值一致），作为 companion 落 `models/unet/`，与 Base 共用 Qwen 编码器 / VAE。Worker 按清单 id 挑这一档的配件（`ANIMA_CHECKPOINT_COMPANIONS`），来源图精确底模时不带。
+- 出图默认按清单条目走（`recommendedSteps` / `recommendedCfg`，两边清单同步）：Turbo euler · simple · 10 步 · CFG 1 · shift 3；Base er_sde · simple · 30 步 · CFG 4；SDXL 系没写 = 30 步 · CFG 7.5。来源图底模的 Civitai 版本名带 turbo 时，应用在 `runnerCheckpoint.defaultsCheckpointId` 里写 `animaTurbo_v11`，Worker 按它的默认出。
+- ⚠ 卷上会有两份同一个 Turbo 文件：回归时从 Civitai 下的 `civitai-ckpt-3263843.safetensors`（受 LRU 管）与这份 `anima-turbo-v1.1.safetensors`（companion，不进 LRU）。前者被清掉不影响出图。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。

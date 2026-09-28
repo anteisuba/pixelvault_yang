@@ -50,7 +50,7 @@ OpenAI 已升级为 GPT-6 Sol / Luna，并保留 Astra；助手与规划默认 S
 
 ⚠ **2026-09-17 两条 hosted LoRA 底模退役**：`FLUX_LORA`（fal-ai/flux-lora）与 `ILLUSTRIOUS_XL`（delta-lock/noobai-xl，replicate）已 `available: false` + 进 `RETIRED_MODEL_IDS`，条目仍在（历史作品要解析标签）。连带后果两条：① **Replicate 两条目录条目全部退役**，`ACTIVE_API_KEY_ADAPTER_OPTIONS` 自动把它排除出 key 选择器（与 HuggingFace / Runway 同处境）；adapter、enum 与 key 校验保留，存量 Replicate key 仍可查看/校验/删除。② **LoRA 工作台从此只剩 Runner 底模**，`flux` 家族无任何可用底模（无 runner 后继）。
 
-Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。退役后这一族是**唯一**的 LoRA 底模线。
+Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER · ANIMA_TURBO_RUNNER（2026-09-28，Anima Turbo v1.1，纯底模默认）。退役后这一族是**唯一**的 LoRA 底模线。
 
 ### 视频（28 个 available）
 

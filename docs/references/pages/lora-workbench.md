@@ -206,28 +206,14 @@ UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（
 - 出图前置（2026-07-17 owner 拍板加码：**警示 + 给出建议底模**）：存在不兼容挂载时，纸上出图键不阻断，其上方追加一行琥珀警示（与 runner 额度提示同区、同形制）：「{n} 个挂载与当前底模不兼容，将被忽略」+ **文字链动作「切到 {建议底模}」**——建议值来自该 LoRA 家族的默认底模（`getDefaultBase(family)`，引擎已有），点击即切换并重算。多挂载家族互斥（如 Illustrious + Flux 同挂）时无单一解，动作退化为提示「两个挂载家族互斥，请卸载其一」，不给假建议。
 - 联动：切换底模 Select 时圆点/警示行即时重算。
 
-### 4.4 底模选择器分组（2026-07-17 owner 拍板追加）
+### 4.4 底模选择器分组（2026-07-17 owner 拍板追加；2026-09-28 收成一层）
 
-现状底模 Select 是扁平列表 + 「免费额度/需 API Key」徽标，owner 判「分类不明确」。改**两层分组**：
+09-17 托管通道退役后底模全是 Runner，「云端 API / Runner」那一层与「忠实 / 快」标注一起去掉（2026-09-28，进度表 45 ④ 画板）。现在只按架构系分两组：**SDXL 系 / DiT 系**（数据来源 `LoraBaseModel.family`，`anima-dit` 归 DiT，其余归 SDXL；新增架构自动成组）。换底模弹层的卡片写法见 [`lora-generate.md`](lora-generate.md) §2.1。
 
-```
-底模 ▾
-├─ 云端 API · 自备 key        ← backend ≠ runner（fal / Replicate hosted）
-│    FLUX.1-dev · 快
-│    NoobAI XL · 忠实
-└─ Runner · 平台免费额度      ← backend === 'runner'
-   ├─ SDXL 系
-   │    WAI Illustrious · 忠实 / animaPencil XL / Pony V6 / SDXL 1.0
-   └─ DiT 系
-        Anima · 忠实
-```
-
-- 第一层按 `backend`（云端 API vs runner）分组（`SelectGroup` + `SelectLabel`）；**runner 组内再分一层**：按架构系（SDXL 系 / DiT 系——数据来源 `LoraBaseModel.family`，`anima-dit` 归 DiT，其余归 SDXL；新增架构自动成组）。
-- 现有「免费额度/需 API Key」徽标随分组标题上移（组级信息不逐项重复），组内项只留 名称 · 忠实/快 · Coming Soon 态。
 - 兼容过滤逻辑不变（仍只列 `getCompatibleBases(loraFamily)` 结果）；分组是纯展示层，空组不渲染。
 - 2026-07-28 owner 追加：底模目录每项维护一个本地 `coverImage`，换底模弹层、Generate
-  装配栏当前底模卡和折叠态按钮必须复用同一张素材；名称、family、执行通道和忠实度仍是
-  可访问文本，图片只增强识别，不成为唯一信息来源。
+  装配栏当前底模卡和折叠态按钮必须复用同一张素材；名称、family 仍是可访问文本，图片
+  只增强识别，不成为唯一信息来源。
 
 ### 4.2 「常与它同挂」推荐行
 

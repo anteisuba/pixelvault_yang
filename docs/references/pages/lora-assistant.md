@@ -58,7 +58,7 @@
 | 正文不 prefill 触发词 | `lora-workbench.md` §4.3                                                                  | 触发词是「挂载的属性」不是「用户写的词」，编译顺序 chips → tray tags → 正文（⚠ 2026-09-28 作废，见 §3.3）                                                 |
 | 起手提示词模板        | `src/lib/lora-prompt-template.ts:20` `buildLoraPromptTemplate`                            | 两条写死骨架（style / 其余），**与家族无关**；唯一调用方是 `lora-source-match-prompt.ts:109`                                                              |
 | 来源配方              | `src/lib/lora-source-match-prompt.ts:60` `buildSourceMatchedLoraPrompt`                   | 作者推荐 → 挖到的来源图 prompt → 兜底骨架；`reliable=false` = 只有裸触发词；负面是**一张写死的 anime 表**                                                 |
-| 底模目录              | `src/constants/lora-base-models.ts`                                                       | 11 条 `底模×后端`，字段 family/backend/fidelity/available/…                                                                                               |
+| 底模目录              | `src/constants/lora-base-models.ts`                                                       | 7 条 Runner 底模（2026-09-28 删掉云端与 SD 1.5，`backend` / `fidelity` 两格一起去掉），字段 family/available/runnerCheckpointId/distilled/…               |
 | 系统行（客户端卡型）  | `src/constants/studio-assistant-operator.ts:251`–`:331`                                   | 18 个码，其中 `loraMountFailed`（`:296`）就是「助手做的事在助手线程里交代」的先例                                                                         |
 | `rule_hit` 帧         | `src/constants/assistant-operator.ts:92` · `src/types/assistant-operator.ts:2939`         | 载荷是 `ruleId` + **规则原文** + `source`（`assistant` / `creator`）+ `createdAt`，绑一条真的项目规则行                                                   |
 
@@ -154,7 +154,7 @@ LoraBaseModel 加一格 distilled: boolean      // 必填，指**步数蒸馏**�
 LORA_STACK_WEIGHT_BUDGET = { default: 2.0, distilled: 1.0 }
 ```
 
-⚠ **`distilled` 是必填，⛔ 不写成 `distilled?:`**：可选的那一版让「没想过」和「不是蒸馏」长得一模一样，加新底模的人可以整格不填就过 typecheck。必填等于把这个问题摆到每一条目录面前。今天 11 条**全填 `false`**。
+⚠ **`distilled` 是必填，⛔ 不写成 `distilled?:`**：可选的那一版让「没想过」和「不是蒸馏」长得一模一样，加新底模的人可以整格不填就过 typecheck。必填等于把这个问题摆到每一条目录面前。2026-09-28 起 Anima Turbo v1.1 是第一条 `true`（测试锁住：`distilled` 与清单 CFG 默认是 1 同源）。
 
 ⚠ **两档阈值的判断逻辑一次写到位**（非蒸馏 > 2.0、蒸馏 > 1.0），⛔ 不因为今天没有蒸馏底模就先只写一档：接 **Z-Image Turbo / FLUX schnell** 这类蒸馏底模时，只需要把目录里那一条置 `distilled: true`，护栏自动走 1.0 档，⛔ 不必回头改判据、也不必再动这份文档。
 

@@ -22,6 +22,7 @@ import {
   buildPosterCommand,
 } from './lib/ffmpeg-commands'
 import type { FgPlan } from './lib/filtergraph'
+import { waitUntilListening } from './lib/container-ready'
 import { createSignedRequestHeaders, verifySignedBody } from './lib/signature'
 
 const SUBMIT_PATH = '/workflows/render-video'
@@ -29,6 +30,19 @@ const CANCEL_PATH = '/cancel'
 const STATUS_PATH = '/status'
 const HEALTH_PATH = '/health'
 const CONTAINER_PORT = 8080
+/** 冷启动等多久（首次在一台新宿主上拉镜像会慢一些）。 */
+const CONTAINER_READY_TIMEOUT_MS = 90_000
+const CONTAINER_READY_POLL_MS = 500
+/**
+ * 整条流水线那一步的重试与超时。
+ *
+ * ⚠ 不用引擎默认（5 次 · 指数退避 · 10 分钟）：一次失败要重下全部素材、重编整条，
+ * 默认那套要拖十几分钟才把「失败」告诉用户。超时按成片上限（15 分钟片）给足。
+ */
+const RENDER_STEP_CONFIG = {
+  retries: { limit: 2, delay: '15 seconds', backoff: 'constant' },
+  timeout: '30 minutes',
+} as const
 /** 与 `src/constants/render-video.ts` 的 `RENDER_STEPS` 同源。 */
 const RENDER_STEPS = [
   'download',
@@ -129,8 +143,8 @@ export interface RenderRunContext {
  * ffmpeg 容器的门房。
  *
  * ⚠ **一个 job 一个实例**（`idFromName(jobId)`）：中间件落在容器自己的盘上，换实例
- * 等于换盘，断点续传就断了。同一个 jobId 重跑时会命中同一个实例（只要它还没被
- * `sleepAfter` 回收），已完成的中间件直接复用。
+ * 等于换盘。所以整条流水线在**同一个 step 里一口气跑完**（见 `RenderVideoWorkflow`），
+ * ⛔ 不指望两个 step 之间容器还活着。
  */
 export class RenderContainer extends DurableObject<RenderEnv> {
   async fetch(request: Request): Promise<Response> {
@@ -143,10 +157,22 @@ export class RenderContainer extends DurableObject<RenderEnv> {
       )
     }
     if (!container.running) {
+      // 没在跑就没有东西可停 —— ⛔ 不为一次取消冷启动一台容器。
+      if (new URL(request.url).pathname === '/cancel') {
+        return Response.json({ ok: true })
+      }
       // `enableInternet` 是必须的：容器要去 CDN 拉素材。
       container.start({ enableInternet: true })
     }
-    return container.getTcpPort(CONTAINER_PORT).fetch(request)
+    const port = container.getTcpPort(CONTAINER_PORT)
+    await waitUntilListening(
+      () => port.fetch(new Request(`http://container${HEALTH_PATH}`)),
+      {
+        timeoutMs: CONTAINER_READY_TIMEOUT_MS,
+        intervalMs: CONTAINER_READY_POLL_MS,
+      },
+    )
+    return port.fetch(request)
   }
 }
 
@@ -198,29 +224,34 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
     }
 
     try {
-      /* 1. 下载素材（同一个 url 只拉一次）。 */
-      const sources = await step.do('download', async () => {
-        const unique = new Map<string, string>()
+      /*
+       * 下载 → 规格化 → 编码 → 封面 → 回写 R2，**全在一个 step 里**。
+       * ⚠ 中间件落在容器自己的盘上：拆成几个 step 时，两步之间（尤其重试的退避里）
+       * 容器会被回收，下一步换一台新容器、盘上什么都没有（2026-09-28 线上实跑）。
+       * 代价是失败时整条从头来 —— 对 15 分钟以内的片子，比续传到一台空盘可靠。
+       */
+      const outputPath = `${work}/out.mp4`
+      const posterPath = `${work}/poster.jpg`
+      const uploaded = await step.do('render', RENDER_STEP_CONFIG, async () => {
+        /* 1. 下载素材（同一个 url 只拉一次）。 */
+        const sources = new Map<string, string>()
         const all = [...plan.video, ...plan.audio, ...plan.music]
         for (let index = 0; index < all.length; index += 1) {
           const src = all[index]!.src
-          if (unique.has(src)) continue
-          unique.set(src, `${work}/src/${index}-${fileNameOf(src)}`)
+          if (sources.has(src)) continue
+          sources.set(src, `${work}/src/${index}-${fileNameOf(src)}`)
         }
-        for (const [url, dest] of unique) {
+        for (const [url, dest] of sources) {
           await callContainer(this.env, jobId, '/download', {
             jobId,
             url,
             name: dest.slice(`${work}/src/`.length),
           })
         }
-        return Object.fromEntries(unique)
-      })
-      await report('download', 1)
+        await report('download', 1)
 
-      /* 2. 规格化 —— xfade 要求同分辨率 / 帧率 / 像素格式 / timebase。 */
-      const normalized = await step.do('normalize', async () => {
-        const outputs: string[] = []
+        /* 2. 规格化 —— xfade 要求同分辨率 / 帧率 / 像素格式 / timebase。 */
+        const normalized: string[] = []
         for (let index = 0; index < plan.video.length; index += 1) {
           const segment = plan.video[index]!
           const dest = `${work}/norm/${index}.mp4`
@@ -228,7 +259,7 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
             jobId,
             dest,
             args: buildNormalizeCommand({
-              src: sources[segment.src] ?? segment.src,
+              src: sources.get(segment.src) ?? segment.src,
               dest,
               in: segment.in,
               out: segment.out,
@@ -238,16 +269,12 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
               fps: plan.output.fps,
             }),
           })
-          outputs.push(dest)
+          normalized.push(dest)
         }
-        return outputs
-      })
-      await report('normalize', 1)
+        await report('normalize', 1)
 
-      /* 3 + 4. 建图 → 编码（一次 ffmpeg）。 */
-      const outputPath = `${work}/out.mp4`
-      await report('compose', 1)
-      await step.do('encode', async () => {
+        /* 3 + 4. 建图 → 编码（一次 ffmpeg）。 */
+        await report('compose', 1)
         const graphPlan: FgPlan = {
           video: plan.video.map((segment) => ({
             id: segment.id,
@@ -261,8 +288,12 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
         }
         const inputs = [
           ...normalized,
-          ...plan.audio.map((segment) => sources[segment.src] ?? segment.src),
-          ...plan.music.map((segment) => sources[segment.src] ?? segment.src),
+          ...plan.audio.map(
+            (segment) => sources.get(segment.src) ?? segment.src,
+          ),
+          ...plan.music.map(
+            (segment) => sources.get(segment.src) ?? segment.src,
+          ),
         ]
         await callContainer(this.env, jobId, '/run', {
           jobId,
@@ -275,13 +306,9 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
             progressPath: 'pipe:1',
           }),
         })
-        return outputPath
-      })
-      await report('encode', 1)
+        await report('encode', 1)
 
-      /* 5. 封面。 */
-      const posterPath = `${work}/poster.jpg`
-      await step.do('poster', async () => {
+        /* 5. 封面。 */
         await callContainer(this.env, jobId, '/run', {
           jobId,
           dest: posterPath,
@@ -291,12 +318,9 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
             Math.min(1, plan.totalDurationSec / 2),
           ),
         })
-        return posterPath
-      })
-      await report('poster', 1)
+        await report('poster', 1)
 
-      /* 6. 回写 R2 + 回调。 */
-      const uploaded = await step.do('upload', async () => {
+        /* 6. 回写 R2。 */
         const base = `renders/${plan.projectId}/${jobId}`
         const videoKey = `${base}.mp4`
         const posterKey = `${base}.jpg`

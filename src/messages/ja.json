@@ -7730,6 +7730,7 @@
       "generate": {
         "title": "{count} 枚を生成しますか？",
         "titleVideo": "この {seconds} 秒の動画を生成しますか？",
+        "titleNode": "「{name}」を生成しますか？",
         "count": "{count} 枚",
         "countVideo": "{count, plural, =1 {{seconds}秒の動画} other {{seconds}秒の動画 # 本}}",
         "countLabel": "枚数",

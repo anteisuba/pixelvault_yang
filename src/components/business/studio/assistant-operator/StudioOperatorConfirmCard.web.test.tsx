@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
+import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import type { StudioOperatorGenerateKnob } from '@/constants/studio-assistant-operator'
 import type {
   StudioOperatorConfirmPrompt,
@@ -98,6 +99,22 @@ const GENERATE: ConfirmCardPrompt = {
       durationSeconds: null,
     },
     label: '胶片质感',
+  },
+}
+
+/**
+ * 画布那一枪（`canvas_generate`，node-canvas-v2 §13.2.1）—— 同一张卡、同一支。
+ * ⚠ 画布快照只给模型 id，所以载荷里的 `label` 就是 id。
+ */
+const CANVAS_GENERATE: ConfirmCardPrompt = {
+  id: 'c4',
+  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+  request: {
+    model: { id: AI_MODELS.FLUX_2_FLASH, label: AI_MODELS.FLUX_2_FLASH },
+    count: 1,
+    specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+    canvasNode: { id: 'shot-1', name: '主角正面' },
   },
 }
 
@@ -447,6 +464,35 @@ describe('StudioOperatorConfirmCard', () => {
         .getAllByTestId('operator-confirm-knob')
         .map((node) => node.dataset.knob),
     ).toEqual(['model', 'aspect'])
+  })
+
+  /**
+   * ⭐ 画布那一枪：标题写那张画布卡的名字（它可能是视频 / 音频，⛔ 不写「N 张」），
+   * 模型写显示名（⛔ 不是快照里那个 id），扳机仍是同一颗「确认生成」。
+   */
+  it('⭐ 画布那一枪：标题写卡名，模型写显示名，⛔ 不画张数', () => {
+    const handlers = renderCard(CANVAS_GENERATE)
+    expect(screen.getByTestId('operator-confirm-title')).toHaveTextContent(
+      'confirm.generate.titleNode:主角正面',
+    )
+    const knobs = screen.getAllByTestId('operator-confirm-knob')
+    expect(knobs.map((node) => node.dataset.knob)).toEqual(['model'])
+    expect(knobs[0]).toHaveTextContent(
+      `${getModelMessageKey(AI_MODELS.FLUX_2_FLASH)}.label`,
+    )
+    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
+    expect(handlers.onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('画布那一枪 · 已确认：那一行写「卡名 · 模型」', () => {
+    renderCard({
+      ...CANVAS_GENERATE,
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed,
+      decidedAt: '2026-09-28T03:24:00.000Z',
+    })
+    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
+      `主角正面 · ${getModelMessageKey(AI_MODELS.FLUX_2_FLASH)}.label`,
+    )
   })
 
   it('⚠ 没有 controls（LoRA 装配台）：退回只读读数，⛔ 没有下拉可点', () => {

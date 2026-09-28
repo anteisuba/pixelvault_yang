@@ -128,6 +128,7 @@ import {
 import {
   NODE_ASSISTANT_OP_V4_IDS,
   NODE_ASSISTANT_OP_V4_SPECS,
+  NODE_ASSISTANT_OP_V4_TIER_IDS,
 } from '@/constants/node-assistant-ops'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
@@ -6664,6 +6665,187 @@ async function checkCanvasReferencePrompt(
   })
 }
 
+/**
+ * **`confirm` 档的画布 op 先问一句**（node-canvas-v2 §13.2：`delete` / `project_script`，
+ * 一句话能删掉或长出一整排卡）。
+ *
+ * ⭐ 走问题块（`ask`，规划期反问那一条）：吐一帧、停流，答完带 `planAnswers` 重发，
+ *   模型再发一次同一条 op 才落。⛔ 不新增卡类型。
+ * ⚠ 题 id 按**这一条 op** 算（同参才同题）：点头删 A 不等于点头删 B。
+ * ⚠ 哪几条要问只读 spec 表的 `tier`；下面那张文案表按它派生键，档位表加一条而
+ *   文案漏写时编译期就红。
+ */
+type CanvasConfirmTierOpId = {
+  [K in keyof typeof NODE_ASSISTANT_OP_V4_SPECS]: (typeof NODE_ASSISTANT_OP_V4_SPECS)[K]['tier'] extends typeof NODE_ASSISTANT_OP_V4_TIER_IDS.confirm
+    ? K
+    : never
+}[keyof typeof NODE_ASSISTANT_OP_V4_SPECS]
+type CanvasConfirmTierOp = Extract<
+  NodeAssistantOpV4,
+  { op: CanvasConfirmTierOpId }
+>
+
+const CANVAS_CONFIRM_QUESTION_ID = 'canvas-confirm'
+const CANVAS_CONFIRM_APPLY_ID = 'apply'
+const CANVAS_CONFIRM_KEEP_ID = 'keep'
+
+type CanvasConfirmOption = { label: string; description: string }
+
+const CANVAS_CONFIRM_ASK_TEXTS: Record<
+  PromptAssistantResponseLanguage,
+  Record<
+    CanvasConfirmTierOpId,
+    {
+      header: string
+      question: (name: string) => string
+      apply: CanvasConfirmOption
+      keep: CanvasConfirmOption
+    }
+  >
+> = {
+  english: {
+    delete: {
+      header: 'Delete card',
+      question: (name) => `Delete “${name}”? Its wires go with it.`,
+      apply: {
+        label: 'Delete it',
+        description: 'Removes the card and its wires; you can still undo it.',
+      },
+      keep: {
+        label: 'Keep it',
+        description: 'The card stays; nothing on the board changes.',
+      },
+    },
+    project_script: {
+      header: 'Project script',
+      question: (name) =>
+        `Turn the script “${name}” into shots? A row of shot cards appears on the board.`,
+      apply: {
+        label: 'Project it',
+        description: 'Adds the shot cards; you can still undo it.',
+      },
+      keep: {
+        label: 'Not now',
+        description: 'The script stays as it is; no shots are added.',
+      },
+    },
+  },
+  japanese: {
+    delete: {
+      header: 'カードを削除',
+      question: (name) =>
+        `「${name}」を削除しますか？つながっている線も一緒に外れます。`,
+      apply: {
+        label: '削除する',
+        description: 'カードと線を消します。あとで元に戻せます。',
+      },
+      keep: {
+        label: '残す',
+        description: 'カードはそのまま。ボードは何も変わりません。',
+      },
+    },
+    project_script: {
+      header: '台本を展開',
+      question: (name) =>
+        `台本「${name}」をショットに展開しますか？ボードにショットカードが一列並びます。`,
+      apply: {
+        label: '展開する',
+        description: 'ショットカードを追加します。あとで元に戻せます。',
+      },
+      keep: {
+        label: '今はしない',
+        description: '台本はそのまま。ショットは増えません。',
+      },
+    },
+  },
+  chinese: {
+    delete: {
+      header: '删除卡片',
+      question: (name) => `删掉「${name}」？连到它的线会一起断开。`,
+      apply: {
+        label: '删掉',
+        description: '删掉这张卡和它的连线，之后还能撤销。',
+      },
+      keep: {
+        label: '先留着',
+        description: '这张卡不动，画布上什么都不变。',
+      },
+    },
+    project_script: {
+      header: '投影剧本',
+      question: (name) => `把剧本「${name}」投成镜头？画布上会新建一排镜头卡。`,
+      apply: {
+        label: '投影',
+        description: '按剧本新建镜头卡，之后还能撤销。',
+      },
+      keep: {
+        label: '先不投',
+        description: '剧本卡保持原样，不新建镜头。',
+      },
+    },
+  },
+}
+
+function isCanvasConfirmTierOp(
+  op: NodeAssistantOpV4,
+): op is CanvasConfirmTierOp {
+  return (
+    NODE_ASSISTANT_OP_V4_SPECS[op.op].tier ===
+    NODE_ASSISTANT_OP_V4_TIER_IDS.confirm
+  )
+}
+
+function planCanvasConfirm(
+  run: OperatorRun,
+  canvas: AssistantOperatorCanvasSnapshot,
+  op: CanvasConfirmTierOp,
+): ToolPlan | null {
+  const id = `${CANVAS_CONFIRM_QUESTION_ID}-${createHash('sha256')
+    .update(operatorStepKey(TOOL.canvasApply, op))
+    .digest('hex')
+    .slice(0, 24)}`
+  const decision = collectSettledAnswers(run.request).findLast(
+    (entry) => entry.questionId === id,
+  )
+  if (decision?.optionIds.includes(CANVAS_CONFIRM_APPLY_ID)) return null
+  const target = canvasOpTargets(op)[0] ?? op.op
+  const name =
+    canvas.shots
+      .flatMap((shot) => (shot.expanded ? shot.nodes : []))
+      .find((node) => node.id === target)?.name ?? target
+  if (decision?.optionIds.includes(CANVAS_CONFIRM_KEEP_ID)) {
+    return reject(
+      REJECT.userDeclined,
+      `The creator chose to leave ${name} as it is. Do not run ${op.op} on it and do not ask again; carry on with the rest of the request.`,
+    )
+  }
+  const texts =
+    CANVAS_CONFIRM_ASK_TEXTS[resolveResponseLanguage(run.request, run.persona)][
+      op.op
+    ]
+  const question = clamp(texts.question(name), PLAN_LIMITS.maxQuestionChars)
+  const option = (optionId: string, text: CanvasConfirmOption) => ({
+    id: optionId,
+    label: clamp(text.label, PLAN_LIMITS.maxOptionLabelChars),
+    description: clamp(text.description, PLAN_LIMITS.maxOptionDescriptionChars),
+  })
+  return {
+    kind: 'ask',
+    question: {
+      id,
+      header: clamp(texts.header, PLAN_LIMITS.maxHeaderChars),
+      question,
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        option(CANVAS_CONFIRM_APPLY_ID, texts.apply),
+        option(CANVAS_CONFIRM_KEEP_ID, texts.keep),
+      ],
+    },
+    todo: question,
+  }
+}
+
 async function planCanvasApply(
   run: OperatorRun,
   op: NodeAssistantOpV4,
@@ -6683,6 +6865,11 @@ async function planCanvasApply(
       REJECT.noSuchControl,
       `No card on the board has the id ${missing.join(', ')}. Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
     )
+  }
+
+  if (isCanvasConfirmTierOp(op)) {
+    const asked = planCanvasConfirm(run, canvas, op)
+    if (asked) return asked
   }
 
   if (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt) {
@@ -6751,6 +6938,18 @@ function planCanvasPlanRerun(
   }
 }
 
+/**
+ * 画布那一枪（node-canvas-v2 §13.2.1）—— 与 `planRequestGeneration` 同一条纪律：
+ * **一律出生成确认卡**，扳机在卡上（或本会话的自动生成开关），扣的是那张画布卡
+ * 自己的生成键（客户端 `canvas.generate`）。
+ *
+ * ⛔ 别规划成 `mutate`：改动型出流就是 `done`，客户端 `applyOperatorStep` 当场落地
+ *   —— 2026-09-28 读码实证，那等于一张卡都没出就花了钱。
+ * ⚠ 没有模型就没有卡可画（判据同 `planRequestGeneration`）：文字卡本来就不出图，
+ *   媒体卡要先 `set_model`。
+ * ⚠ 载荷从快照现取：一次跑一张卡（张数恒 1）；比例 / 清晰度住在那张卡身上、
+ *   快照里没有，一律 `null`（卡上不画）。
+ */
 async function planCanvasGenerate(
   run: OperatorRun,
   args: { target: string },
@@ -6769,27 +6968,31 @@ async function planCanvasGenerate(
       `No card on the board has the id ${args.target}.`,
     )
   }
+  // ⚠ 准入名单只收展开的镜，所以过了上面那一条这里一定找得到。
   const node = canvas.shots
     .flatMap((shot) => (shot.expanded ? shot.nodes : []))
     .find((candidate) => candidate.id === args.target)
-  if (node) {
-    const blocked = await checkCanvasReferencePrompt(
-      run,
-      node,
-      node.text ?? '',
-      userId,
+  if (!node?.model) {
+    return reject(
+      REJECT.noModelSelected,
+      `The card ${args.target} has no model to run. Text cards never generate; for a media card set its model with canvas_apply set_model first.`,
     )
-    if (blocked) return blocked
   }
-  /**
-   * 服务端完成参考复核后只提交生成提案；媒体生成仍由宿主确认后触发。
-   */
+  const blocked = await checkCanvasReferencePrompt(
+    run,
+    node,
+    node.text ?? '',
+    userId,
+  )
+  if (blocked) return blocked
   return {
-    kind: 'mutate',
-    payload: { target: args.target },
-    inverse: { op: NODE_ASSISTANT_OP_V4_IDS.generate, nodeRef: args.target },
-    observation: `Offered to run the card ${args.target}. The creator confirms before media generation starts.`,
-    apply: () => {},
+    kind: 'confirmGenerate',
+    request: {
+      model: { id: node.model, label: node.model },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+      canvasNode: { id: node.id, name: node.name },
+    },
   }
 }
 
@@ -11026,7 +11229,9 @@ export async function* runAssistantOperator(
           clerkId,
           userId: user.id,
           // 这一轮唯一的待办就是它：扳机在用户手上（§5）。
-          todo: `等你确认生成 ${plan.request.count} 张`,
+          todo: plan.request.canvasNode
+            ? `等你确认生成「${plan.request.canvasNode.name}」`
+            : `等你确认生成 ${plan.request.count} 张`,
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

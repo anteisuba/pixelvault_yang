@@ -605,6 +605,37 @@ describe('applyOperatorStep', () => {
     expect(triggered).toHaveLength(0)
   })
 
+  /**
+   * ⛔ 画布那一枪的扳机只在生成确认卡上（node-canvas-v2 §13.2.1）。
+   * 🔬 2026-09-28：一条 `done` 的 `canvas_generate` 步曾在这里直接 `canvas.generate`，
+   * 一张卡都没出就花了钱。
+   */
+  it('⛔ canvas_generate 步落到这里不扣扳机', () => {
+    const { ctx, triggered } = makeContext()
+    const generate = vi.fn()
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+          verb: 'request_generation',
+          payload: { target: 'shot-1' },
+        } satisfies AssistantOperatorAppliedStep,
+        {
+          ...ctx,
+          canvas: {
+            applyOp: () => true,
+            revertOp: () => {},
+            generate,
+            planRerunDownstream: () => [],
+          },
+        },
+      ),
+    ).toBeNull()
+    expect(generate).not.toHaveBeenCalled()
+    expect(triggered).toHaveLength(0)
+  })
+
   it('读类工具不产生任何改动', () => {
     const { ctx, dispatched } = makeContext()
     expect(

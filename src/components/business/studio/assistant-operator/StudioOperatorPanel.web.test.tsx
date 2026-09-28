@@ -116,11 +116,12 @@ const HOST_RESULTS = [
 ]
 
 /**
- * 这个宿主有没有生成旋钮（`generationControls`）—— 规格行能不能就地调、自动生成
- * 开关画不画都看它（D12 B6 / S-C）。
+ * 这个宿主有没有生成旋钮（`generationControls`）—— 规格行能不能就地调看它（D12 B6）；
+ * 有没有扳机（`trigger`）—— 自动生成开关画不画看它（D12 S-C）：工作台那颗生成键、
+ * 画布卡自己那颗（`canvas_generate`，node-canvas-v2 §13.2.1），或者都没有。
  *
- * ⚠ 可变盒子：工作台有、画布与 LoRA 装配台没有 —— 两档都要能验，而 mock 工厂
- * 只跑一次。
+ * ⚠ 可变盒子：工作台两样都有、画布只有扳机、LoRA 装配台两样都没有 —— 几档都要
+ * 能验，而 mock 工厂只跑一次。
  */
 const HOST_SPEC = vi.hoisted(() => ({
   controls: null as null | {
@@ -134,6 +135,7 @@ const HOST_SPEC = vi.hoisted(() => ({
       { aspectRatios: string[]; resolutions: string[]; counts: number[] }
     >
   },
+  trigger: null as null | 'workbench' | 'canvas',
 }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
@@ -167,6 +169,12 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     apply: {
       getState: () => ({ prompt: '原始提示词' }),
       dispatch: applyDispatch,
+      ...(HOST_SPEC.trigger === 'workbench'
+        ? { triggerGeneration: vi.fn() }
+        : {}),
+      ...(HOST_SPEC.trigger === 'canvas'
+        ? { canvas: { generate: vi.fn() } }
+        : {}),
     },
   }),
 }))
@@ -1511,7 +1519,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     )
   })
 
-  it('S-C：有生成旋钮时发送键左边有自动生成开关，拨一下只改会话里那一格', () => {
+  it('S-C：有生成键时发送键左边有自动生成开关，拨一下只改会话里那一格', () => {
     HOST_SPEC.controls = {
       model: null,
       models: [],
@@ -1520,6 +1528,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
       count: 1,
       choicesByModel: {},
     }
+    HOST_SPEC.trigger = 'workbench'
     renderPanel()
     const toggle = screen.getByTestId('operator-auto-generate')
     expect(
@@ -1530,9 +1539,17 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     fireEvent.click(toggle)
     expect(store.getOperatorState().autoGenerate).toBe(true)
     HOST_SPEC.controls = null
+    HOST_SPEC.trigger = null
   })
 
-  it('没有生成旋钮的宿主不画自动生成开关', () => {
+  it('S-C：画布没有生成旋钮，但画布卡有自己的生成键 → 同样画自动生成开关', () => {
+    HOST_SPEC.trigger = 'canvas'
+    renderPanel()
+    expect(screen.getByTestId('operator-auto-generate')).toBeInTheDocument()
+    HOST_SPEC.trigger = null
+  })
+
+  it('没有生成键的宿主（装配台 / 角色页）不画自动生成开关', () => {
     renderPanel()
     expect(screen.queryByTestId('operator-auto-generate')).toBeNull()
   })

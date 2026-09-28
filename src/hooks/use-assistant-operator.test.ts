@@ -106,6 +106,8 @@ const hostSnapshot = vi.hoisted(() => ({
   current: { prompt: '', availableModels: [] } as Record<string, unknown>,
 }))
 const canvasApply = vi.hoisted(() => vi.fn(() => true))
+/** 画布那一枪的扳机（`StudioOperatorCanvasContext.generate`）。 */
+const canvasGenerate = vi.hoisted(() => vi.fn())
 const canvasInputSync = vi.hoisted(() => ({ current: false }))
 const hostDomain = vi.hoisted(() => ({ current: 'image' }))
 
@@ -128,6 +130,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
             ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
             : '模型无法解析，请重新选择模型',
         needsPromptInputSync: () => canvasInputSync.current,
+        generate: canvasGenerate,
       },
       triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
@@ -1683,6 +1686,108 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       result.current.newThread()
     })
     expect(store.getOperatorState().confirm).toBeNull()
+  })
+
+  /**
+   * ⭐ 画布那一枪（node-canvas-v2 §13.2.1）—— 与工作台同一张卡、同一条纪律：扳机在
+   * 卡上（或本会话的自动生成开关），扣的是那张画布卡自己的生成键。
+   * 🔬 由来（2026-09-28 读码）：`done` 的 `canvas_generate` 步一到就被
+   * `applyOperatorStep` 交给 `canvas.generate`，一张卡都没出就花了钱。
+   */
+  describe('画布那一枪', () => {
+    const CANVAS_REQUEST = {
+      model: { id: 'seedream-4', label: 'seedream-4' },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+      canvasNode: { id: 'shot-1', name: '主角正面' },
+    } as const
+
+    async function proposeOnCanvas(autoGenerate = false) {
+      hostDomain.current = 'canvas'
+      const hook = render()
+      if (autoGenerate) act(() => store.setOperatorAutoGenerate(true))
+      act(() => {
+        hook.result.current.send('跑一下主角正面')
+      })
+      await settle()
+      streams[0].emit(generateConfirmEvent(CANVAS_REQUEST))
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: 'awaiting_confirm',
+      })
+      streams[0].close()
+      await settle()
+      return hook
+    }
+
+    it('⛔ 流里一条 done 的 canvas_generate 步不扣扳机（扳机只在确认卡上）', async () => {
+      hostDomain.current = 'canvas'
+      const { result } = render()
+      act(() => {
+        result.current.send('跑一下主角正面')
+      })
+      await settle()
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.step,
+        step: {
+          id: 'step-1',
+          title: '跑主角正面',
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+          verb: 'request_generation',
+          status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+          payload: { target: 'shot-1' },
+        },
+      })
+      streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+      streams[0].close()
+      await settle()
+
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(triggerGeneration).not.toHaveBeenCalled()
+    })
+
+    it('卡到了先不扣；点「确认生成」扣的是那张画布卡，⛔ 不落结果卡', async () => {
+      const { result } = await proposeOnCanvas()
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('idle')
+
+      act(() => {
+        result.current.confirmGeneration()
+      })
+      await settle()
+
+      expect(canvasGenerate).toHaveBeenCalledTimes(1)
+      expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
+      expect(triggerGeneration).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+      // 产出落在那张画布卡自己的版本表里：面板里不该有一张永远转圈的结果卡。
+      expect(store.getOperatorState().pendingResultId).toBeNull()
+      expect(
+        store
+          .getOperatorState()
+          .entries.some((entry) => entry.kind === 'result'),
+      ).toBe(false)
+    })
+
+    it('「先不要」一分钱都不花', async () => {
+      const { result } = await proposeOnCanvas()
+      act(() => {
+        result.current.cancelGeneration()
+      })
+      await settle()
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    })
+
+    it('⭐ 自动生成开关开着 → 画布那张卡也由客户端替你按下', async () => {
+      await proposeOnCanvas(true)
+      expect(canvasGenerate).toHaveBeenCalledTimes(1)
+      expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
+      expect(store.getOperatorState().confirm).toMatchObject({
+        status: 'confirmed',
+        auto: true,
+      })
+    })
   })
 })
 

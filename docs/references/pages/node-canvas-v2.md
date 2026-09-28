@@ -427,6 +427,10 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 | `canvas_plan_rerun` | 看         | 算下游名单，一个字不改一分钱不花；`includeSelf` 默认 false                                               |
 | `canvas_generate`   | 请求生成   | 板上唯一那条指向花钱的路。**服务端只吐载荷**，扳机在宿主手上——与工作台的 `request_generation` 同一条纪律 |
 
+**`canvas_generate` 与 `request_generation` 走同一张生成确认卡**（2026-09-28）：流停在卡上（`awaiting_confirm`），⛔ 不出 `done` 步——客户端 `applyOperatorStep` 见到 `canvas_generate` 步什么都不做。载荷多一格 `canvasNode`（卡名 + id），卡上写卡名与模型显示名、不写张数；「确认生成」或本会话的自动生成开关扣的是那张画布卡自己的生成键（`canvas.generate`），⛔ 不落结果卡（产出落在卡自己的版本表里）。没有模型的卡（含文字卡）在规划期以 `noModelSelected` 拒掉。一轮只提一张卡。
+
+**`confirm` 档的 op 先问一句**（`delete` / `project_script`，2026-09-28）：走问题块（「删掉 / 先留着」），答复只对同一条 op 算数；答应后模型原样再发一次才落，答「先留着」该条以 `userDeclined` 拒掉。⛔ 不另开确认卡——助手规范 §3.3 的确认卡只有多步与生成两种来源。
+
 **为什么是三条而不是十一条**：v4 的 op 词表（§13.2）本来就是一张**闭合真值表**，带自己的确认档与 inverse 形状，板上的执行器也是逐 op 读它的。再抄一份工具进去就是第二处定义。
 
 `canvas_apply` 收得下哪几条 op 由 `CANVAS_APPLY_OP_IDS` **从 spec 表现算**：`inverse !== null`（撤得掉）**且不是** `generate`。撤不掉的两类各有去处——读类归「看」，`generate` 归花钱档。⛔ 别把它改成手抄的字面量清单：v4 词表加一条而这里漏了，表现是「画布上做得到的事助手做不到」，而那是安静的。
@@ -572,6 +576,8 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）
 
 ## Last Verified
+
+- **2026-09-28 · 画布助手的两道闸补上**：读码发现 `canvas_generate` 规划成改动型、流里直接出 `done`，客户端当场扣扳机（一张卡都没出就花钱）；`delete` / `project_script` 从不读 `tier`，一句话就落。现在前者走生成确认卡（§13.2.1），后者先问一句；有服务端流、hook、apply 与卡片的回归用例。
 
 - **2026-09-19 · 剧本节点 + `project_script`（进度表 24）**：新增 §12.1。画布上的 `text.script` 卡自带分镜列表与「确认 · 投影 N 镜」；`project_script`（structure · **confirm** 档 · free · 可逆）两档 `create` / `reproject`，重投影 diff 三类（新增建 / 已变标 / 删掉标灰，⛔ 不覆盖用户已改内容），inverse **只删本次新增**。拆镜确定性（`lib/node-script-shots.ts`，⛔ LLM 拆镜未接）。镜头节点新增 `scriptShot` 与 `referenceSlots`（**只有形状与空态**，装填归 35）。助手快照新增 `scriptProjection` / `fromScript` 两格。⚠ 已知缺口记在文里：`text.script` 卡不再有那只高文本框（正文改动走全屏文档 / 助手 `set_text`）；`project_script` 的确认卡走 `tier: confirm` 的通用路径，⛔ 没有为它专门写一张「要建 N 面镜」的确认卡。
 

@@ -7730,6 +7730,7 @@
       "generate": {
         "title": "确认生成 {count} 张？",
         "titleVideo": "确认生成这段 {seconds} 秒视频？",
+        "titleNode": "确认生成「{name}」？",
         "count": "{count} 张",
         "countVideo": "{count, plural, =1 {{seconds} 秒视频} other {# 段 {seconds} 秒视频}}",
         "countLabel": "张数",

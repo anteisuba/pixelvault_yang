@@ -11266,13 +11266,25 @@ describe('current reference image bindings', () => {
         const events = await collect(
           runAssistantOperator('clerk-1', canvasRequest(node)),
         )
-        const tool =
-          action === 'write'
-            ? ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
-            : ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate
-        expect(stepsOf(events)).toContainEqual(
-          expect.objectContaining({ tool, status: 'done' }),
-        )
+        if (action === 'write')
+          expect(stepsOf(events)).toContainEqual(
+            expect.objectContaining({
+              tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+              status: 'done',
+            }),
+          )
+        // 生成那一支停在确认卡上（§13.2.1），⛔ 不出 done 步。
+        else
+          expect(
+            events.find(
+              (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+            ),
+          ).toMatchObject({
+            confirm: {
+              kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+              request: { canvasNode: { id: node.id } },
+            },
+          })
         expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
         expect(referenceCalls('Check an image-generation prompt')).toHaveLength(
           0,
@@ -11315,15 +11327,16 @@ describe('current reference image bindings', () => {
             'PROPOSED COMPLETE PROMPT:\n',
           )[1],
         ).toBe(node.text)
-        const proposals = stepsOf(events).filter(
-          (step) =>
-            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate &&
-            step.status === 'done',
+        const proposals = events.flatMap((event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.confirm &&
+          event.confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+            ? [event.confirm.request]
+            : [],
         )
         expect(proposals).toHaveLength(supported ? 1 : 0)
         expect(events.some((event) => event.type === 'ask')).toBe(false)
         if (supported)
-          expect(proposals[0]?.payload).toMatchObject({ target: node.id })
+          expect(proposals[0]?.canvasNode).toMatchObject({ id: node.id })
       },
     )
 
@@ -11431,6 +11444,263 @@ describe('current reference image bindings', () => {
         }
       },
     )
+  })
+
+  /**
+   * 画布上**先问再落**的两档（node-canvas-v2 §13.2 / §13.2.1）：花钱那一枪走生成
+   * 确认卡（与工作台 `request_generation` 同一张），`confirm` 档的 op 走问题块。
+   * 🔬 由来（2026-09-28 读码）：`canvas_generate` 规划成 `mutate`，流里直接吐
+   * `done`，客户端 `applyOperatorStep` 当场扣扳机 —— 一张卡都没出就花了钱；
+   * `delete` / `project_script` 也从不读 tier，助手一句话就删了。
+   */
+  describe('canvas asks before it spends or deletes', () => {
+    const shot: AssistantOperatorCanvasNode = {
+      id: 'shot-1',
+      name: '主角正面',
+      kind: 'image',
+      model: 'seedream-4',
+      text: 'A half-body portrait on a white background.',
+      referenceUrls: [],
+    }
+    const other: AssistantOperatorCanvasNode = {
+      id: 'shot-2',
+      name: '主角侧面',
+      kind: 'image',
+      model: 'seedream-4',
+      text: 'The same character in profile.',
+      referenceUrls: [],
+    }
+
+    function boardRequest(
+      nodes: AssistantOperatorCanvasNode[] = [shot, other],
+      overrides: Partial<AssistantOperatorRequest> = {},
+    ) {
+      return buildRequest({
+        domain: 'canvas',
+        responseLanguage: 'chinese',
+        messages: [{ role: 'user', content: '处理一下主角正面' }],
+        ...overrides,
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          references: { items: [], limit: 4 },
+          canvas: {
+            currentShotNo: null,
+            selectedNodeIds: [],
+            shots: [
+              { expanded: true, shotNo: null, title: 'Unassigned', nodes },
+            ],
+          },
+        },
+      })
+    }
+
+    const generateTurn = (target: string) => ({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+        args: { target },
+      },
+    })
+    const deleteTurn = (target: string) => ({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        args: { op: 'delete', target },
+      },
+    })
+
+    it('canvas_generate stops on the generate confirm card instead of emitting a step the client would fire', async () => {
+      queueTurns({ ...generateTurn(shot.id), message: '主角正面准备好了。' })
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+
+      // ⛔ 没有任何一条 canvas_generate 步到得了客户端的 applyOperatorStep。
+      expect(
+        stepsOf(events).filter(
+          (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+        ),
+      ).toEqual([])
+      expect(
+        events.find(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+        ),
+      ).toEqual({
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+          request: {
+            model: { id: 'seedream-4', label: 'seedream-4' },
+            count: 1,
+            specs: {
+              aspectRatio: null,
+              resolution: null,
+              durationSeconds: null,
+            },
+            canvasNode: { id: shot.id, name: shot.name },
+          },
+        },
+      })
+      expect(events.at(-1)).toMatchObject({
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+      })
+    })
+
+    it('canvas_generate on a card without a model is refused before any card is shown', async () => {
+      queueTurns(generateTurn(shot.id), { finished: true })
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest([{ ...shot, model: undefined }]),
+        ),
+      )
+      expect(
+        stepsOf(events).find(
+          (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+        ),
+      ).toMatchObject({
+        status: 'error',
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noModelSelected },
+      })
+      expect(
+        events.some(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+        ),
+      ).toBe(false)
+    })
+
+    it.each([
+      ['delete', deleteTurn(shot.id)],
+      [
+        'project_script',
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+            args: { op: 'project_script', scriptNodeId: shot.id },
+          },
+        },
+      ],
+    ])(
+      'a confirm-tier %s asks the creator before it lands',
+      async (_op, turn) => {
+        queueTurns(turn)
+        const events = await collect(
+          runAssistantOperator('clerk-1', boardRequest()),
+        )
+        expect(
+          stepsOf(events).filter(
+            (step) =>
+              step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
+              step.status === 'done',
+          ),
+        ).toEqual([])
+        const ask = events.find(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+        )
+        if (!ask || ask.type !== ASSISTANT_OPERATOR_EVENTS.ask)
+          throw new Error('Expected the op to ask first')
+        expect(ask.questions).toHaveLength(1)
+        expect(ask.questions[0]?.question).toContain(shot.name)
+        expect(ask.questions[0]?.options.map((option) => option.id)).toEqual([
+          'apply',
+          'keep',
+        ])
+        expect(events.at(-1)).toMatchObject({
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+        })
+      },
+    )
+
+    async function askDelete(target: string) {
+      queueTurns(deleteTurn(target))
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const ask = events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+      )
+      if (!ask || ask.type !== ASSISTANT_OPERATOR_EVENTS.ask)
+        throw new Error('Expected the delete to ask first')
+      return ask.questions[0]!
+    }
+
+    it.each([
+      ['apply', 'done'],
+      ['keep', 'error'],
+    ] as const)(
+      'answering %s lands or refuses exactly that op, without asking again',
+      async (optionId, status) => {
+        const question = await askDelete(shot.id)
+        queueTurns(deleteTurn(shot.id), { finished: true })
+        const events = await collect(
+          runAssistantOperator(
+            'clerk-1',
+            boardRequest(undefined, {
+              planAnswers: [
+                {
+                  questionId: question.id,
+                  question: question.question,
+                  optionIds: [optionId],
+                },
+              ],
+            }),
+          ),
+        )
+        expect(
+          events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+        ).toBe(false)
+        const step = stepsOf(events).findLast(
+          (candidate) =>
+            candidate.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        )
+        expect(step?.status).toBe(status)
+        if (status === 'done') {
+          expect(step?.payload).toEqual({ op: 'delete', target: shot.id })
+          expect(events.at(-1)).toEqual({
+            type: ASSISTANT_OPERATOR_EVENTS.stopped,
+            reason: ASSISTANT_OPERATOR_STOP_REASONS.canvasSync,
+          })
+        } else {
+          expect(step?.error?.reason).toBe(
+            ASSISTANT_OPERATOR_REJECT_REASON_IDS.userDeclined,
+          )
+        }
+      },
+    )
+
+    it('an approval covers only the card it named', async () => {
+      const question = await askDelete(shot.id)
+      queueTurns(deleteTurn(other.id))
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest(undefined, {
+            planAnswers: [
+              {
+                questionId: question.id,
+                question: question.question,
+                optionIds: ['apply'],
+              },
+            ],
+          }),
+        ),
+      )
+      const ask = events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+      )
+      if (!ask || ask.type !== ASSISTANT_OPERATOR_EVENTS.ask)
+        throw new Error('Expected a fresh question for the other card')
+      expect(ask.questions[0]?.id).not.toBe(question.id)
+      expect(ask.questions[0]?.question).toContain(other.name)
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
+            step.status === 'done',
+        ),
+      ).toBe(false)
+    })
   })
 
   it('does not attach references mentioned only in older conversation', async () => {

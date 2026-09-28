@@ -2481,6 +2481,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         auto: options.auto,
       })
       setOperatorStatus('idle')
+      /**
+       * ⭐ **画布那一枪**（node-canvas-v2 §13.2.1）：扳机是那张画布卡自己的生成键，
+       * ⛔ 不是工作台的 `triggerGeneration`。
+       * ⚠ 不落结果卡：画布的产出落在那张卡自己的版本表里（宿主 `results` 恒空），
+       *   落了只会在认领超时后报一句假的「这一批没有出图」。
+       */
+      if (confirm.request.canvasNode) {
+        applyContext.canvas?.generate(confirm.request.canvasNode.id)
+        return
+      }
       if (confirm.request.label)
         applyContext.setGenerationLabel?.(confirm.request.label)
       /**

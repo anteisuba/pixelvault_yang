@@ -1099,6 +1099,8 @@ export const AssistantOperatorGenerationSpecsSchema = z.object({
  *  · `confirm` 帧的 `generate` 支（确认卡据它画模型 / 张数 / 规格）。
  * ⛔ 别抄成两份：卡上写的和真的发出去的必须是同一个对象，否则「确认了 4 张、
  * 发出去 1 张」这种事没有任何东西拦得住。
+ * ⚠ 画布的 `canvas_generate` 走同一张确认卡（node-canvas-v2 §13.2.1），差别只有
+ *   `canvasNode` 那一格。
  */
 export const AssistantOperatorGenerationRequestSchema = z.object({
   model: z.object({ id: IdSchema, label: LabelSchema }),
@@ -1116,6 +1118,12 @@ export const AssistantOperatorGenerationRequestSchema = z.object({
     .min(1)
     .max(LIMITS.maxGenerationLabelChars)
     .optional(),
+  /**
+   * 画布那一枪打在哪张卡上（`canvas_generate`）。扳机是那张卡自己的生成键
+   * （`StudioOperatorCanvasContext.generate`），⛔ 不是工作台的 `triggerGeneration`。
+   * ⚠ 缺席 = 工作台那颗生成键（`request_generation`）。
+   */
+  canvasNode: z.object({ id: IdSchema, name: LabelSchema }).optional(),
 })
 
 export type AssistantOperatorGenerationRequest = z.infer<

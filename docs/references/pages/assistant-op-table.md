@@ -76,10 +76,10 @@
 | `add_node`              | structure | free            | `delete`                | 是             | `canvas_apply`                   |
 | `connect`               | structure | free            | `disconnect`            | 是             | `canvas_apply`                   |
 | `disconnect`            | structure | free            | `connect`               | 是             | `canvas_apply`                   |
-| `delete`                | structure | **confirm**     | `add_node`              | **否**         | `canvas_apply`（先出就地确认卡） |
+| `delete`                | structure | **confirm**     | `add_node`              | **否**         | `canvas_apply`（先问一句）       |
 | `move_to_shot`          | structure | free            | `move_to_shot`          | 是             | `canvas_apply`                   |
 | `reorder_shot`          | structure | free            | `reorder_shot`          | 是             | `canvas_apply`                   |
-| `project_script`        | structure | **confirm**     | `delete`（批量）        | **否**         | `canvas_apply`（先出就地确认卡） |
+| `project_script`        | structure | **confirm**     | `delete`（批量）        | **否**         | `canvas_apply`（先问一句）       |
 | `set_slot_version`      | structure | free            | `set_slot_version`      | 是             | `canvas_apply`                   |
 | `mark_version_blocked`  | structure | free            | `mark_version_blocked`  | 是             | `canvas_apply`                   |
 | `set_output_version`    | structure | free            | `set_output_version`    | 是             | `canvas_apply`                   |

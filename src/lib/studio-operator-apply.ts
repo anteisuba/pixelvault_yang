@@ -823,11 +823,13 @@ export function applyOperatorStep(
       return null
 
     /**
-     * 画布：那一枪（花钱档）—— 这一跳就是「客户端扣扳机」本身。
-     * ⚠ 返回 `null`：与 `request_generation` 逐字同源，它撤不掉，所以不记账。
+     * 画布：那一枪（花钱档）—— ⛔ **扳机不在这里**（node-canvas-v2 §13.2.1）。
+     * 服务端对 `canvas_generate` 只出生成确认卡，扣扳机的是卡上那一下
+     * （`useAssistantOperator.confirmGeneration` → `canvas.generate`）。
+     * ⚠ 这一支留着只为让 switch 覆盖全部 step 形状（存量会话里还躺着旧步）；
+     *   一条 `done` 的步到这里什么都不做 —— 2026-09-28 它曾在这里当场花钱。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
-      ctx.canvas?.generate(step.payload.target)
       return null
   }
 }

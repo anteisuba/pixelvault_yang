@@ -48,6 +48,7 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   buildOperatorKnobSpecs,
   type StudioOperatorKnobSpec,
@@ -108,23 +109,12 @@ interface StudioOperatorConfirmCardProps {
 
 type KnobSpec = StudioOperatorKnobSpec
 
-/** 生成那一支的一行摘要 —— 三态（确认中 / 已确认 / 已取消）都写它。 */
-function generateSummary(
-  confirm: Extract<
-    StudioOperatorConfirmPrompt,
-    { kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate }
-  >,
-  countLabel: string,
-  controls?: StudioOperatorGenerationControls,
-): string {
-  /**
-   * ⚠ 模型一律写**显示名**（D12 B5）：载荷里的 `label` 有时就是原始 id
-   * （`flux-2-flash`），按工作台的模型表翻一次。
-   */
-  const modelLabel =
-    controls?.models.find((model) => model.id === confirm.request.model.id)
-      ?.label ?? confirm.request.model.label
-  return [countLabel, modelLabel].filter((value) => Boolean(value)).join(' · ')
+/**
+ * 生成那一支的一行摘要 —— 三态（确认中 / 已确认 / 已取消）都写它。
+ * `lead` 是张数（工作台）或那张画布卡的名字（`canvas_generate`）。
+ */
+function generateSummary(lead: string, modelLabel: string): string {
+  return [lead, modelLabel].filter((value) => Boolean(value)).join(' · ')
 }
 
 export function StudioOperatorConfirmCard({
@@ -143,6 +133,8 @@ export function StudioOperatorConfirmCard({
   const t = useTranslations('StudioOperator')
   /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
   const tCards = useTranslations('ContextCards')
+  /** 模型显示名与模型选择器同一张词表（`Models.<key>.label`）。 */
+  const tModels = useTranslations('Models')
   /**
    * 哪一颗的下拉开着 —— 一次只开一颗（画板「模型下拉展开」那一张）。
    * ⚠ 这是**弹层开合**，不是参数：参数一个字都不住在卡里（见文件头注）。
@@ -181,6 +173,22 @@ export function StudioOperatorConfirmCard({
    */
   const countLabel = (count: number) => t('confirm.generate.count', { count })
   /**
+   * ⚠ 模型一律写**显示名**（D12 B5 / §5.1）：先按工作台的模型表翻；载荷里的
+   * `label` 就是 id 时（画布快照只给 id）按模型选择器那张词表翻一次。
+   */
+  const modelLabel = generate
+    ? (controls?.models.find((model) => model.id === generate.request.model.id)
+        ?.label ??
+      (generate.request.model.label === generate.request.model.id
+        ? getTranslatedModelLabel(tModels, generate.request.model.id)
+        : generate.request.model.label))
+    : ''
+  /**
+   * 画布那一枪（`canvas_generate`）打在哪张卡上。⚠ 它不写「N 张」：那张卡可能是
+   * 视频 / 音频，跑一次就是一次，卡名才是用户要核对的那件事。
+   */
+  const canvasNode = generate?.request.canvasNode
+  /**
    * ⚠ 读数空的也不画（2026-09-12 实测第 5 步）：该模型有清晰度档、而工作台那一格
    * 还没有值时，一颗什么都没写的旋钮比没有这颗旋钮更难读（判据在
    * `buildOperatorKnobSpecs`，规格行与这张卡共用）。
@@ -193,7 +201,7 @@ export function StudioOperatorConfirmCard({
           [
             {
               id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
-              value: generate.request.model.label,
+              value: modelLabel,
               current: generate.request.model.id,
               options: [],
             },
@@ -205,7 +213,7 @@ export function StudioOperatorConfirmCard({
             },
             {
               id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
-              value: countLabel(generate.request.count),
+              value: canvasNode ? '' : countLabel(generate.request.count),
               current: String(generate.request.count),
               options: [],
             },
@@ -234,21 +242,23 @@ export function StudioOperatorConfirmCard({
       data-kind={kind}
       data-status={confirm.status}
       aria-label={
-        confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
-        confirm.request.specs.durationSeconds !== null
-          ? t('confirm.generate.titleVideo', {
-              seconds: confirm.request.specs.durationSeconds,
-            })
-          : t(`confirm.${kind}.title`, {
-              count:
-                confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? confirm.steps.length
-                  : confirm.kind ===
-                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-                    ? confirm.request.count
-                    : 1,
-              name: contextCard ? contextCard.card.name : '',
-            })
+        canvasNode
+          ? t('confirm.generate.titleNode', { name: canvasNode.name })
+          : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+              confirm.request.specs.durationSeconds !== null
+            ? t('confirm.generate.titleVideo', {
+                seconds: confirm.request.specs.durationSeconds,
+              })
+            : t(`confirm.${kind}.title`, {
+                count:
+                  confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                    ? confirm.steps.length
+                    : confirm.kind ===
+                        ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+                      ? confirm.request.count
+                      : 1,
+                name: contextCard ? contextCard.card.name : '',
+              })
       }
       /* D12 S6 / P6：定下来之后**不再是一张卡**，就地收成一行灰字
          「已确认 · 11:24」+ 淡一档的「1 张 · 模型」。待决时是白底块。
@@ -283,16 +293,17 @@ export function StudioOperatorConfirmCard({
                 }`
               : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
                 ? generateSummary(
-                    confirm,
-                    confirm.request.specs.durationSeconds !== null
-                      ? t('confirm.generate.countVideo', {
-                          count: confirm.request.count,
-                          seconds: confirm.request.specs.durationSeconds,
-                        })
-                      : t('confirm.generate.count', {
-                          count: confirm.request.count,
-                        }),
-                    controls,
+                    canvasNode
+                      ? canvasNode.name
+                      : confirm.request.specs.durationSeconds !== null
+                        ? t('confirm.generate.countVideo', {
+                            count: confirm.request.count,
+                            seconds: confirm.request.specs.durationSeconds,
+                          })
+                        : t('confirm.generate.count', {
+                            count: confirm.request.count,
+                          }),
+                    modelLabel,
                   )
                 : t('confirm.multistep.title', {
                     count: confirm.steps.length,
@@ -323,14 +334,16 @@ export function StudioOperatorConfirmCard({
                 : confirm.kind ===
                     ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
                   ? t('confirm.contextCard.title')
-                  : confirm.request.specs.durationSeconds !== null
-                    ? // 视频恒单条：说「这段 N 秒视频」，⛔ 不说「1 张」。
-                      t('confirm.generate.titleVideo', {
-                        seconds: confirm.request.specs.durationSeconds,
-                      })
-                    : t('confirm.generate.title', {
-                        count: confirm.request.count,
-                      })}
+                  : canvasNode
+                    ? t('confirm.generate.titleNode', { name: canvasNode.name })
+                    : confirm.request.specs.durationSeconds !== null
+                      ? // 视频恒单条：说「这段 N 秒视频」，⛔ 不说「1 张」。
+                        t('confirm.generate.titleVideo', {
+                          seconds: confirm.request.specs.durationSeconds,
+                        })
+                      : t('confirm.generate.title', {
+                          count: confirm.request.count,
+                        })}
             </p>
           </div>
 

@@ -598,7 +598,8 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * **就地算出 inverse**（删一个节点的 inverse 要整份 data 快照 + 边表，服务端手上
    * 根本没有这些）。所以 step 上那份 `inverse` 只是一个**指路条**，形态与
    * `mount_lora` 逐字同源 —— 真正的撤销载荷在客户端那一侧扣着。
-   * ⚠ 免费档直接落，`confirm` 档（`delete`）先出确认卡：判据读
+   * ⚠ 免费档直接落，`confirm` 档（`delete` / `project_script`）先问一句（问题块，
+   *   答复只对同一条 op 算数，见服务端 `planCanvasConfirm`）：判据读
    *   `NODE_ASSISTANT_OP_V4_SPECS[op].tier`，⛔ 别在这里再抄一张分档表。
    */
   canvasApply: 'canvas_apply',
@@ -2937,11 +2938,11 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   // ⚠ 逐条 op 的说明照旧从 `NODE_ASSISTANT_OP_V4_HINTS` 里取（真值只有一份），
   //   这里只写「什么时候用这个入口」。
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]:
-    "change one thing on the board — add a card, wire two cards together, rewrite a prompt, switch a model, hang one card's picture onto another, retag a frame, or work out what has gone stale downstream. One call changes one thing, so a wrong one costs one retry and one undo. Every node id comes from the board snapshot you read; a made-up id is refused. Deleting a card asks the creator first, because its wires go with it.",
+    "change one thing on the board — add a card, wire two cards together, rewrite a prompt, switch a model, hang one card's picture onto another, retag a frame, or work out what has gone stale downstream. One call changes one thing, so a wrong one costs one retry and one undo. Every node id comes from the board snapshot you read; a made-up id is refused. Deleting a card or projecting a script asks the creator first (a card's wires go with it; a projection adds a whole row of shots) — once they say yes, send that same call again and it lands.",
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     'work out which cards downstream of one card are now out of date, after something upstream changed. It fires nothing and spends nothing — it hands the creator a list so they can decide what to run again. Never write the list yourself; this walks the wires for you.',
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
-    'ask to run one card on the board. This is the only thing here that costs credits, so it never happens on its own: it puts a confirmation in front of the creator and they pull the trigger. Check the prompt, the model and the references on that card first.',
+    'ask to run one card on the board. This is the only thing here that costs credits, so it never happens on its own: it puts a confirmation in front of the creator and they pull the trigger. Check the prompt, the model and the references on that card first. Your turn ends on that confirmation, so offer one card per round and name any other cards still waiting to run.',
 }
 
 /**

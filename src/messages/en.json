@@ -7730,6 +7730,7 @@
       "generate": {
         "title": "Generate {count, plural, one {# image} other {# images}}?",
         "titleVideo": "Generate this {seconds}s clip?",
+        "titleNode": "Generate “{name}”?",
         "count": "{count, plural, one {# image} other {# images}}",
         "countVideo": "{count, plural, =1 {{seconds}s video} other {# × {seconds}s videos}}",
         "countLabel": "Count",

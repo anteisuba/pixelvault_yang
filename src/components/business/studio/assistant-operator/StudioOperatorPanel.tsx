@@ -2642,9 +2642,11 @@ export function StudioOperatorPanel({
             {/*
               ⭐ **自动生成开关**（D12 S-C）：发送键左边，只管当前这段会话。开着时
                 生成确认卡一到就由客户端替你按下，卡直接收成「已自动生成」一行。
-              ⚠ 只在有生成键的宿主上画（图片 / 视频档），⛔ 不摆一颗没用的开关。
+              ⚠ 只在有生成键的宿主上画：工作台那颗（图片 / 视频档）或画布卡自己那颗
+                （`canvas_generate` 同一张卡，node-canvas-v2 §13.2.1）。⛔ 不摆一颗没用的开关。
             */}
-            {operatorHost.generationControls ? (
+            {operatorHost.apply.triggerGeneration ||
+            operatorHost.apply.canvas ? (
               // ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
               //   让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
               <label className="mr-1 flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground select-none">

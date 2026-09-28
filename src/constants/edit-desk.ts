@@ -181,8 +181,27 @@ export const EDIT_DESK_CLIP_FRAME_MAX = 12
  */
 export const EDIT_TIMELINE_PX_PER_SECOND = 40
 
-/** 标尺刻度间隔（画板 0 / 5s / 10s …）。 */
-export const EDIT_TIMELINE_TICK_SECONDS = 5
+/**
+ * 时间线**默认铺满整条**（④ 方向 A，owner 2026-09-28）：每秒多少像素按时间线区的
+ * 宽度现算，一眼看完整条片子。⚠ 上面那个 40 只剩量不到宽度时（首帧 / 测试环境）的
+ * 兜底。手动缩放不做 —— 剪 5 分钟以上的片子再加。
+ */
+export const EDIT_TIMELINE_FIT = {
+  /** 空台或很短的片子也按至少这么长铺，⛔ 不把 2 秒拉满一屏。 */
+  minSpanSec: 10,
+  /** 末尾留一点空（整条的 4%），最后一段不贴着右缘。 */
+  tailRatio: 1.04,
+  /** 每秒像素的上下限：再窄就横向滚，再宽也不放大。 */
+  minPxPerSecond: 4,
+  maxPxPerSecond: 160,
+} as const
+
+/** 标尺刻度候选（秒）：取第一档让相邻两格至少隔 `EDIT_TIMELINE_TICK_MIN_PX`。 */
+export const EDIT_TIMELINE_TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120] as const
+export const EDIT_TIMELINE_TICK_MIN_PX = 64
+
+/** 素材面板飞出 / 收回（④ A 关键切片动效表：220ms ease-out / 160ms ease-in）。 */
+export const EDIT_FLYOUT_MOTION = { inS: 0.22, outS: 0.16 } as const
 
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2

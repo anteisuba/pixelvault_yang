@@ -1,7 +1,13 @@
 'use client'
 
 /**
- * 左侧 **图标栏 + 236 面板**（画板 `EditDesk.dc.html` 左半）。
+ * 左侧 **图标栏** + 点图标才飞出的 **236 面板**（画板 `EditDesk.dc.html` 左半；
+ * ④ 方向 A「舞台」owner 2026-09-28：⛔ 面板不常驻，飞出来盖在舞台左上、不推开舞台，
+ * 拖完 / 点别处 / Esc 收回 —— 看 Claude 剪的时候舞台要最大）。
+ *
+ * 两块分开导出：`EditDeskAssetRail` 是图标列（常驻），`EditDeskAssetPanel` 是面板
+ * 本身，由台面挂在**舞台那一格**里 —— 它的高度只到舞台为止，⛔ 不盖时间线（要能往
+ * 时间线上拖）。
  *
  * 图标栏五项：画布素材 / 素材库 / 音频 / 文字 / 转场。
  * - **画布素材** 是唯一一条与时间线数据相通的路（拖进去就是一段）；
@@ -144,7 +150,41 @@ export function parseEditDeskLibraryAsset(
 
 export interface EditDeskAssetRailProps {
   readonly activePanel: EditPanelId
-  onActivePanelChange(panel: EditPanelId): void
+  /** 面板飞出来了没有（图标只在飞出时点亮）。 */
+  readonly open: boolean
+  /** 点图标：同一页再点 = 收回，别的页 = 换页并飞出。 */
+  onPanelClick(panel: EditPanelId): void
+}
+
+export function EditDeskAssetRail({
+  activePanel,
+  open,
+  onPanelClick,
+}: EditDeskAssetRailProps) {
+  const t = useTranslations('StudioNode.editDesk')
+  return (
+    <div
+      data-testid="edit-desk-rail"
+      data-edit-desk-rail
+      style={{ width: CANVAS_SHELL_LAYOUT.railWidthPx }}
+      className="flex shrink-0 flex-col items-center gap-1.5 border-r border-border bg-card pt-2"
+    >
+      {EDIT_PANELS.map((panel) => (
+        <ShellIconButton
+          key={panel}
+          icon={PANEL_ICONS[panel]}
+          label={t(`panels.${panel}`)}
+          active={open && activePanel === panel}
+          testId={`edit-desk-panel-${panel}`}
+          onClick={() => onPanelClick(panel)}
+        />
+      ))}
+    </div>
+  )
+}
+
+export interface EditDeskAssetPanelProps {
+  readonly activePanel: EditPanelId
   readonly assets: readonly NodeV4[]
   /** 画布上的文本卡（「文字」页读它 —— 只读，⛔ 不进时间线）。 */
   readonly textNodes: readonly NodeV4[]
@@ -155,15 +195,14 @@ export interface EditDeskAssetRailProps {
   onAudioFilterChange(filter: EditAudioFilterId): void
 }
 
-export function EditDeskAssetRail({
+export function EditDeskAssetPanel({
   activePanel,
-  onActivePanelChange,
   assets,
   textNodes,
   onAppend,
   audioFilter,
   onAudioFilterChange,
-}: EditDeskAssetRailProps) {
+}: EditDeskAssetPanelProps) {
   const t = useTranslations('StudioNode.editDesk')
 
   const audioAssets = assets.filter(
@@ -181,75 +220,54 @@ export function EditDeskAssetRail({
     tiles !== null || activePanel === EDIT_PANEL_IDS.library
 
   return (
-    <>
-      <div
-        data-testid="edit-desk-rail"
-        style={{ width: CANVAS_SHELL_LAYOUT.railWidthPx }}
-        className="flex shrink-0 flex-col items-center gap-1.5 border-r border-border bg-card pt-2"
-      >
-        {EDIT_PANELS.map((panel) => (
-          <ShellIconButton
-            key={panel}
-            icon={PANEL_ICONS[panel]}
-            label={t(`panels.${panel}`)}
-            active={activePanel === panel}
-            testId={`edit-desk-panel-${panel}`}
-            onClick={() => onActivePanelChange(panel)}
-          />
-        ))}
-      </div>
-
-      <div
-        data-testid="edit-desk-panel"
-        style={{ width: EDIT_DESK_LAYOUT.panelWidthPx }}
-        className="flex shrink-0 flex-col gap-2.5 overflow-y-auto border-r border-border bg-card p-3"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-foreground">
-            {t(`panels.${activePanel}`)}
+    <div
+      data-testid="edit-desk-panel"
+      style={{ width: EDIT_DESK_LAYOUT.panelWidthPx }}
+      className="flex max-h-full flex-col gap-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-3 shadow-float"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-foreground">
+          {t(`panels.${activePanel}`)}
+        </span>
+        {draggablePanel ? (
+          <span className="text-2xs text-muted-foreground">
+            {t('panels.dragHint')}
           </span>
-          {draggablePanel ? (
-            <span className="text-2xs text-muted-foreground">
-              {t('panels.dragHint')}
-            </span>
-          ) : null}
-        </div>
-
-        {activePanel === EDIT_PANEL_IDS.audio ? (
-          <AudioFilterTabs value={audioFilter} onChange={onAudioFilterChange} />
         ) : null}
-
-        {tiles ? (
-          tiles.length === 0 ? (
-            <p className="text-2xs text-muted-foreground">
-              {t('panels.empty')}
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {tiles.map((node) => (
-                <AssetTile key={node.id} node={node} onAppend={onAppend} />
-              ))}
-            </div>
-          )
-        ) : activePanel === EDIT_PANEL_IDS.text ? (
-          textNodes.length === 0 ? (
-            <p className="text-2xs text-muted-foreground">
-              {t('panels.textEmpty')}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {textNodes.map((node) => (
-                <TextRow key={node.id} node={node} />
-              ))}
-            </div>
-          )
-        ) : activePanel === EDIT_PANEL_IDS.library ? (
-          <EditDeskLibraryPanel />
-        ) : (
-          <EditDeskTransitionPanel />
-        )}
       </div>
-    </>
+
+      {activePanel === EDIT_PANEL_IDS.audio ? (
+        <AudioFilterTabs value={audioFilter} onChange={onAudioFilterChange} />
+      ) : null}
+
+      {tiles ? (
+        tiles.length === 0 ? (
+          <p className="text-2xs text-muted-foreground">{t('panels.empty')}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {tiles.map((node) => (
+              <AssetTile key={node.id} node={node} onAppend={onAppend} />
+            ))}
+          </div>
+        )
+      ) : activePanel === EDIT_PANEL_IDS.text ? (
+        textNodes.length === 0 ? (
+          <p className="text-2xs text-muted-foreground">
+            {t('panels.textEmpty')}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {textNodes.map((node) => (
+              <TextRow key={node.id} node={node} />
+            ))}
+          </div>
+        )
+      ) : activePanel === EDIT_PANEL_IDS.library ? (
+        <EditDeskLibraryPanel />
+      ) : (
+        <EditDeskTransitionPanel />
+      )}
+    </div>
   )
 }
 

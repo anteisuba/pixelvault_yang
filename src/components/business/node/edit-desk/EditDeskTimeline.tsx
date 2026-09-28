@@ -17,7 +17,15 @@
  * 手柄发 60 条 op 会把撤销栈冲成 60 步。
  */
 
-import { useCallback, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   Music,
   Scissors,
@@ -38,7 +46,10 @@ import {
   EDIT_TEXT_CLIP_HEIGHT_PX,
   EDIT_TEXT_CLIP_MIN_DURATION_SEC,
   EDIT_TEXT_LANE_HEIGHT_PX,
-  EDIT_TIMELINE_TICK_SECONDS,
+  EDIT_TIMELINE_FIT,
+  EDIT_TIMELINE_PX_PER_SECOND,
+  EDIT_TIMELINE_TICK_MIN_PX,
+  EDIT_TIMELINE_TICK_STEPS,
   EDIT_TOOLS,
   EDIT_TOOL_IDS,
   EDIT_TRACKS,
@@ -50,12 +61,7 @@ import {
   type EditTransitionId,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import {
-  currentUrlOf,
-  formatEditDurationShort,
-  pxToSeconds,
-  secondsToPx,
-} from '@/lib/edit-project'
+import { currentUrlOf, formatEditDurationShort } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
@@ -105,6 +111,49 @@ export interface EditDeskTimelineProps {
   readonly readOnly?: boolean
 }
 
+/**
+ * 时间线的缩放：每秒多少像素（④ 方向 A「默认铺满整条」）。
+ *
+ * ⚠ 由 `EditDeskTimeline` 按时间线区的宽度现算、经 context 往下给：段宽、裁剪手势、
+ *   标尺、播放头读的是**同一个**数，⛔ 各算各的会在缩放时对不齐。
+ * 量不到宽度时（首帧 / 测试环境）用 `EDIT_TIMELINE_PX_PER_SECOND` 兜底。
+ */
+interface TimelineScale {
+  readonly pxPerSecond: number
+  toPx(seconds: number): number
+  toSeconds(px: number): number
+}
+
+function makeTimelineScale(pxPerSecond: number): TimelineScale {
+  return {
+    pxPerSecond,
+    toPx: (seconds) => seconds * pxPerSecond,
+    toSeconds: (px) => px / pxPerSecond,
+  }
+}
+
+const TimelineScaleContext = createContext<TimelineScale>(
+  makeTimelineScale(EDIT_TIMELINE_PX_PER_SECOND),
+)
+
+function useTimelineScale(): TimelineScale {
+  return useContext(TimelineScaleContext)
+}
+
+/** 时间线最右一刻：四条轨里最晚结束的那一段（字幕段有自己的绝对起点）。 */
+function timelineEndSec(desk: EditDesk): number {
+  let end = desk.durationSec
+  for (const track of EDIT_TRACKS) {
+    for (const row of desk.rows[track]) {
+      end = Math.max(end, row.startSec + row.durationSec)
+    }
+  }
+  for (const clip of desk.project.tracks.text) {
+    end = Math.max(end, clip.startSec + clip.durationSec)
+  }
+  return end
+}
+
 export function EditDeskTimeline({
   desk,
   onTool,
@@ -115,15 +164,50 @@ export function EditDeskTimeline({
   const t = useTranslations('StudioNode.editDesk')
   const laneRef = useRef<HTMLDivElement | null>(null)
 
-  const tickCount =
-    Math.max(1, Math.ceil(desk.durationSec / EDIT_TIMELINE_TICK_SECONDS) + 1) +
-    1
-
-  const secondsFromEvent = useCallback((clientX: number): number => {
-    const rect = laneRef.current?.getBoundingClientRect()
-    if (!rect) return 0
-    return Math.max(0, pxToSeconds(clientX - rect.left))
+  /** 时间线区（可横向滚的那一块）的内宽 —— 缩放按它算。0 = 还没量到。 */
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const [viewportPx, setViewportPx] = useState(0)
+  useEffect(() => {
+    const element = viewportRef.current
+    if (!element || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(([entry]) => {
+      setViewportPx(entry?.contentRect.width ?? 0)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
   }, [])
+
+  const spanSec = Math.max(
+    EDIT_TIMELINE_FIT.minSpanSec,
+    timelineEndSec(desk) * EDIT_TIMELINE_FIT.tailRatio,
+  )
+  const usablePx = viewportPx - EDIT_DESK_LAYOUT.trackLabelWidthPx - 8
+  const scale = useMemo(
+    () =>
+      makeTimelineScale(
+        usablePx > 0
+          ? Math.min(
+              EDIT_TIMELINE_FIT.maxPxPerSecond,
+              Math.max(EDIT_TIMELINE_FIT.minPxPerSecond, usablePx / spanSec),
+            )
+          : EDIT_TIMELINE_PX_PER_SECOND,
+      ),
+    [usablePx, spanSec],
+  )
+  const tickSec =
+    EDIT_TIMELINE_TICK_STEPS.find(
+      (step) => scale.toPx(step) >= EDIT_TIMELINE_TICK_MIN_PX,
+    ) ?? EDIT_TIMELINE_TICK_STEPS[EDIT_TIMELINE_TICK_STEPS.length - 1]
+  const tickCount = Math.max(1, Math.floor(spanSec / tickSec) + 1)
+
+  const secondsFromEvent = useCallback(
+    (clientX: number): number => {
+      const rect = laneRef.current?.getBoundingClientRect()
+      if (!rect) return 0
+      return Math.max(0, scale.toSeconds(clientX - rect.left))
+    },
+    [scale],
+  )
 
   const onToolClick = (tool: EditToolId) => {
     if (tool === EDIT_TOOL_IDS.split) {
@@ -203,75 +287,77 @@ export function EditDeskTimeline({
       )}
 
       {/* 标尺 + 三轨 + 播放头 */}
-      <div className="relative flex-1 overflow-x-auto overflow-y-hidden px-3 pb-2 pt-5">
+      <TimelineScaleContext.Provider value={scale}>
         <div
-          className="relative min-w-full"
-          style={{
-            width:
-              secondsToPx(tickCount * EDIT_TIMELINE_TICK_SECONDS) +
-              EDIT_DESK_LAYOUT.trackLabelWidthPx,
-          }}
+          ref={viewportRef}
+          className="relative flex-1 overflow-x-auto overflow-y-hidden px-3 pb-2 pt-5"
         >
           <div
-            className="flex"
-            style={{ marginLeft: EDIT_DESK_LAYOUT.trackLabelWidthPx + 8 }}
+            className="relative min-w-full"
+            style={{
+              width:
+                scale.toPx(spanSec) + EDIT_DESK_LAYOUT.trackLabelWidthPx + 8,
+            }}
           >
-            {Array.from({ length: tickCount }).map((_, index) => (
-              <div
-                key={index}
-                className="relative h-2 border-l border-border"
-                style={{
-                  width: secondsToPx(EDIT_TIMELINE_TICK_SECONDS),
-                  flex: '0 0 auto',
-                }}
-              >
-                <span className="absolute -top-4 left-1 text-3xs text-muted-foreground">
-                  {index === 0
-                    ? '0'
-                    : formatEditDurationShort(
-                        index * EDIT_TIMELINE_TICK_SECONDS,
-                      )}
-                </span>
-              </div>
-            ))}
-          </div>
+            <div
+              className="flex"
+              style={{ marginLeft: EDIT_DESK_LAYOUT.trackLabelWidthPx + 8 }}
+            >
+              {Array.from({ length: tickCount }).map((_, index) => (
+                <div
+                  key={index}
+                  className="relative h-2 border-l border-border"
+                  style={{
+                    width: scale.toPx(tickSec),
+                    flex: '0 0 auto',
+                  }}
+                >
+                  <span className="absolute -top-4 left-1 text-3xs text-muted-foreground">
+                    {index === 0
+                      ? '0'
+                      : formatEditDurationShort(index * tickSec)}
+                  </span>
+                </div>
+              ))}
+            </div>
 
-          <div className="mt-2 flex flex-col gap-2">
-            {/*
+            <div className="mt-2 flex flex-col gap-2">
+              {/*
               T 轨在 V 之上（spec §6「文字段」）。⚠ 它**不参与磁吸主轨**，所以段是
               绝对定位（left = 起点秒）而不是首尾相接的一排 —— 字幕钉在画面的某一刻，
               画面换了序它不该跟着挪。
             */}
-            <TextLane desk={desk} secondsFromEvent={secondsFromEvent} />
-            {EDIT_TRACKS.map((track) => (
-              <TrackLane
-                key={track}
-                track={track}
-                rows={desk.rows[track]}
-                desk={desk}
-                laneRef={track === EDIT_TRACK_IDS.video ? laneRef : undefined}
-                secondsFromEvent={secondsFromEvent}
-                onDropLibraryAsset={onDropLibraryAsset}
-                highlighted={highlightTrack === track}
-              />
-            ))}
-          </div>
+              <TextLane desk={desk} secondsFromEvent={secondsFromEvent} />
+              {EDIT_TRACKS.map((track) => (
+                <TrackLane
+                  key={track}
+                  track={track}
+                  rows={desk.rows[track]}
+                  desk={desk}
+                  laneRef={track === EDIT_TRACK_IDS.video ? laneRef : undefined}
+                  secondsFromEvent={secondsFromEvent}
+                  onDropLibraryAsset={onDropLibraryAsset}
+                  highlighted={highlightTrack === track}
+                />
+              ))}
+            </div>
 
-          {/* 播放头 —— 三轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
-          <div
-            data-testid="edit-desk-playhead"
-            aria-hidden
-            className="pointer-events-none absolute bottom-0 top-0 z-10 bg-primary"
-            style={{
-              width: EDIT_DESK_LAYOUT.playheadWidthPx,
-              left:
-                EDIT_DESK_LAYOUT.trackLabelWidthPx +
-                8 +
-                secondsToPx(desk.playheadSec),
-            }}
-          />
+            {/* 播放头 —— 三轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
+            <div
+              data-testid="edit-desk-playhead"
+              aria-hidden
+              className="pointer-events-none absolute bottom-0 top-0 z-10 bg-primary"
+              style={{
+                width: EDIT_DESK_LAYOUT.playheadWidthPx,
+                left:
+                  EDIT_DESK_LAYOUT.trackLabelWidthPx +
+                  8 +
+                  scale.toPx(desk.playheadSec),
+              }}
+            />
+          </div>
         </div>
-      </div>
+      </TimelineScaleContext.Provider>
     </div>
   )
 }
@@ -339,6 +425,7 @@ function TextClipView({
   readonly desk: EditDesk
   secondsFromEvent(clientX: number): number
 }) {
+  const scale = useTimelineScale()
   const selected = desk.textSelectionId === clip.id
   const [preview, setPreview] = useState<{
     startSec: number
@@ -425,9 +512,9 @@ function TextClipView({
         if (event.key === 'Enter') desk.selectText(clip.id)
       }}
       style={{
-        left: secondsToPx(shown.startSec),
+        left: scale.toPx(shown.startSec),
         width: Math.max(
-          secondsToPx(shown.durationSec),
+          scale.toPx(shown.durationSec),
           EDIT_DESK_LAYOUT.handleWidthPx * 4,
         ),
         height: EDIT_TEXT_CLIP_HEIGHT_PX,
@@ -577,10 +664,10 @@ function ClipView({
   readonly track: EditTrackId
   readonly desk: EditDesk
   readonly isVideo: boolean
-  /** 提案期间现有段变灰（画板：幽灵段是主角，现有段退到背景）。 */
   readonly showTransitionAfter: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
+  const scale = useTimelineScale()
   const clip = row.clip
   const selected = desk.selection?.clipId === clip.id
   /** 拖手柄时的本地预览（⛔ 不落 op，见文件头）。 */
@@ -589,7 +676,7 @@ function ClipView({
   )
   const shown = preview ?? { in: clip.in, out: clip.out }
   const widthPx = Math.max(
-    secondsToPx((shown.out - shown.in) / (clip.speed || 1)),
+    scale.toPx((shown.out - shown.in) / (clip.speed || 1)),
     EDIT_DESK_LAYOUT.handleWidthPx * 3,
   )
 
@@ -606,7 +693,7 @@ function ClipView({
 
       const move = (moveEvent: PointerEvent) => {
         const delta =
-          pxToSeconds(moveEvent.clientX - originX) * (clip.speed || 1)
+          scale.toSeconds(moveEvent.clientX - originX) * (clip.speed || 1)
         setPreview(
           edge === 'in'
             ? { in: Math.max(0, origin.in + delta), out: origin.out }
@@ -616,7 +703,8 @@ function ClipView({
       const up = (upEvent: PointerEvent) => {
         target.removeEventListener('pointermove', move)
         target.removeEventListener('pointerup', up)
-        const delta = pxToSeconds(upEvent.clientX - originX) * (clip.speed || 1)
+        const delta =
+          scale.toSeconds(upEvent.clientX - originX) * (clip.speed || 1)
         setPreview(null)
         desk.updateClip(
           track,

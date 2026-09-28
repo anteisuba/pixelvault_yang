@@ -216,6 +216,11 @@ function renderDesk(
   return { view, onExit, onBackToNode, onUndo, read: () => state }
 }
 
+/** 素材面板默认收着（④ 方向 A）：要用素材格先点「画布素材」图标把它飞出来。 */
+function openMaterials(): void {
+  fireEvent.click(screen.getByTestId('edit-desk-panel-canvas'))
+}
+
 const emptyState: NodeWorkflowStateV4 = {
   version: 4,
   nodes: [videoNode('v1'), videoNode('v2')],
@@ -227,6 +232,9 @@ describe('剪辑台 · 台面', () => {
     renderDesk(emptyState)
     expect(screen.getByTestId('edit-desk-top-bar')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-rail')).toBeInTheDocument()
+    // 素材面板默认收着，点图标才飞出来。
+    expect(screen.queryByTestId('edit-desk-panel')).toBeNull()
+    openMaterials()
     expect(screen.getByTestId('edit-desk-panel')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-preview')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-inspector')).toBeInTheDocument()
@@ -241,6 +249,7 @@ describe('剪辑台 · 台面', () => {
 
   it('画布素材只列有产物的卡，拖进 V 轨即建段', () => {
     const { read } = renderDesk(emptyState)
+    openMaterials()
     expect(screen.getByTestId('edit-desk-asset-v1')).toBeInTheDocument()
 
     const lane = screen.getByTestId('edit-desk-track-video')
@@ -264,6 +273,7 @@ describe('剪辑台 · 台面', () => {
 
   it('双击素材 = 追加；点段出属性；改速度落回 state', () => {
     const { read } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     expect(clipId).toBeTruthy()
@@ -280,6 +290,7 @@ describe('剪辑台 · 台面', () => {
 
   it('转场三档从属性栏落回段上', () => {
     const { read } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
@@ -322,6 +333,7 @@ describe('剪辑台 · 台面', () => {
 
   it('转场页：拖一个预设到两段之间的缝上 = 设前一段的转场', () => {
     const { read } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v2'))
     const first = read().edit?.tracks.video[0]
@@ -437,8 +449,9 @@ describe('剪辑台 · 台面', () => {
     ).toBeChecked()
   })
 
-  it('快捷键：S 分割 · ⌫ 删段 · Esc 回画布 · ⌘Z 走同一份撤销栈', () => {
+  it('快捷键：S 分割 · ⌫ 删段 · Esc 回画布 · ⌘Z 走同一份撤销栈', async () => {
     const { read, onExit, onUndo } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
@@ -454,12 +467,22 @@ describe('剪辑台 · 台面', () => {
     fireEvent.keyDown(window, { key: 'z', metaKey: true })
     expect(onUndo).toHaveBeenCalled()
 
+    // 点段那一下已经把素材面板收了（点别处收回）。重新飞出来，验 Esc 梯：
+    // 先收飞出来的素材面板，再回画布。
+    openMaterials()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    // 收回有一段退场动效，等它走完。
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-panel')).toBeNull(),
+    )
+    expect(onExit).not.toHaveBeenCalled()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onExit).toHaveBeenCalled()
   })
 
   it('「回节点重生成这段」把来源卡 id 交回外壳', () => {
     const { read, onBackToNode } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
@@ -492,6 +515,7 @@ describe('剪辑台 · 台面', () => {
       )
     }
     render(<Probe />)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     expect(ops).toHaveLength(1)
     expect(ops[0]?.[0]?.op).toBe(NODE_ASSISTANT_OP_V4_IDS.editSetTimeline)
@@ -524,6 +548,7 @@ describe('剪辑台 · 素材与段的长相', () => {
 
   it('视频素材格出封面图，音频素材格出波形', () => {
     renderDesk(posterState)
+    openMaterials()
     const videoTile = screen.getByTestId('edit-desk-asset-v1')
     expect(videoTile.querySelector('img')).toHaveAttribute(
       'src',
@@ -535,6 +560,7 @@ describe('剪辑台 · 素材与段的长相', () => {
 
   it('时间线上的段带缩略帧条，右栏来源也出图', () => {
     renderDesk(posterState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     // ⚠ 按 `data-clip-index` 找，⛔ 不按 testid 前缀 —— `edit-desk-clip-clock`
     // （预览左上那个段读数）会一起命中。
@@ -621,6 +647,7 @@ describe('剪辑台 · 文字段', () => {
 
   it('⌫ 删的是选中的那一段字幕（⛔ 不误伤 V 轨）', () => {
     const { read } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
     expect(read().edit?.tracks.text).toHaveLength(1)
@@ -647,6 +674,7 @@ describe('剪辑台 · 快捷键预设', () => {
   it('切到 Final Cut：⌘B 分割，选择记进 localStorage（⛔ 不进时间线）', () => {
     window.localStorage.clear()
     const { read } = renderDesk(emptyState)
+    openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
     fireEvent.click(screen.getByTestId('edit-desk-preset-finalCut'))

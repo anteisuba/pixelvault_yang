@@ -40,11 +40,12 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
 import {
   EDIT_AUDIO_FILTER_IDS,
+  EDIT_FLYOUT_MOTION,
   EDIT_PANEL_IDS,
   EDIT_SHORTCUT_SPLIT_CODE,
   EDIT_TOOL_IDS,
@@ -67,6 +68,7 @@ import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'
 
 import {
+  EditDeskAssetPanel,
   EditDeskAssetRail,
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
@@ -172,6 +174,13 @@ export function EditDesk({
   const [activePanel, setActivePanel] = useState<EditPanelId>(
     EDIT_PANEL_IDS.canvas,
   )
+  /**
+   * 素材面板飞出来了没有（④ 方向 A）：⛔ 默认收着 —— 看 Claude 剪的时候舞台要最大。
+   * 点图标飞出，拖完 / 点别处 / Esc 收回。
+   */
+  const [materialsOpen, setMaterialsOpen] = useState(false)
+  const materialsRef = useRef<HTMLDivElement | null>(null)
+  const reduceMotion = useReducedMotion()
   const [exportOpen, setExportOpen] = useState(false)
   /** 预览在不在播 —— 空格与播放器那颗钮共用这一份（spec §6「空格播放」）。 */
   const [playing, setPlaying] = useState(false)
@@ -224,6 +233,11 @@ export function EditDesk({
 
       if (event.key === 'Escape') {
         event.preventDefault()
+        // Esc 梯：先收飞出来的素材面板，再回画布。
+        if (materialsOpen) {
+          setMaterialsOpen(false)
+          return
+        }
         onExit()
         return
       }
@@ -290,9 +304,25 @@ export function EditDesk({
     splitAtPlayhead,
     setPlayhead,
     shortcutPreset,
+    materialsOpen,
     onExit,
     onUndo,
   ])
+
+  /** 点别处收回素材面板（图标列与面板自己除外）。 */
+  useEffect(() => {
+    if (!materialsOpen) return undefined
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      if (!target) return
+      if (materialsRef.current?.contains(target)) return
+      if (target.closest('[data-edit-desk-rail]')) return
+      setMaterialsOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () =>
+      document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [materialsOpen])
 
   /**
    * 「最新值 ref」——每渲染一次刷一遍（⛔ 不在渲染期直接写 `.current`）。
@@ -396,6 +426,7 @@ export function EditDesk({
       if (tool === EDIT_TOOL_IDS.voice || tool === EDIT_TOOL_IDS.music) {
         const voice = tool === EDIT_TOOL_IDS.voice
         setActivePanel(EDIT_PANEL_IDS.audio)
+        setMaterialsOpen(true)
         setAudioFilter(
           voice ? EDIT_AUDIO_FILTER_IDS.voice : EDIT_AUDIO_FILTER_IDS.music,
         )
@@ -519,24 +550,72 @@ export function EditDesk({
         {readOnly ? null : (
           <EditDeskAssetRail
             activePanel={activePanel}
-            onActivePanelChange={(panel) => {
+            open={materialsOpen}
+            onPanelClick={(panel) => {
+              // 同一页再点 = 收回；别的页 = 换页并飞出。
+              if (materialsOpen && panel === activePanel) {
+                setMaterialsOpen(false)
+                return
+              }
               setActivePanel(panel)
+              setMaterialsOpen(true)
               // 自己去别的页了 = 刚才那条指路已经没意义。
               if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
             }}
-            assets={desk.assets}
-            textNodes={textNodes}
-            onAppend={(nodeId) => {
-              desk.addClips([nodeId])
-              setHighlightTrack(null)
-            }}
-            audioFilter={audioFilter}
-            onAudioFilterChange={setAudioFilter}
           />
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1 gap-4 p-4">
+          <div className="relative flex min-h-0 flex-1 gap-4 bg-surface-workbench p-4">
+            {/* 素材面板飞出来盖在舞台左上：⛔ 不推开舞台，高度只到舞台为止（⛔ 不盖
+                时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。 */}
+            <AnimatePresence>
+              {!readOnly && materialsOpen ? (
+                <motion.div
+                  ref={materialsRef}
+                  key="materials"
+                  initial={{ opacity: 0, x: -6, scale: 0.98 }}
+                  animate={{
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    transition: {
+                      duration: reduceMotion ? 0 : EDIT_FLYOUT_MOTION.inS,
+                      ease: 'easeOut',
+                    },
+                  }}
+                  exit={{
+                    opacity: 0,
+                    x: -6,
+                    scale: 0.98,
+                    transition: {
+                      duration: reduceMotion ? 0 : EDIT_FLYOUT_MOTION.outS,
+                      ease: 'easeIn',
+                    },
+                  }}
+                  className="absolute bottom-2 left-2 top-2 z-30 flex origin-top-left"
+                >
+                  {/* ⚠ HTML5 的 `dragend` 挂在普通 div 上：motion 元素的 `onDragEnd`
+                      是它自己的拖拽手势，接不到素材格的拖投。 */}
+                  <div
+                    className="flex max-h-full"
+                    onDragEnd={() => setMaterialsOpen(false)}
+                  >
+                    <EditDeskAssetPanel
+                      activePanel={activePanel}
+                      assets={desk.assets}
+                      textNodes={textNodes}
+                      onAppend={(nodeId) => {
+                        desk.addClips([nodeId])
+                        setHighlightTrack(null)
+                      }}
+                      audioFilter={audioFilter}
+                      onAudioFilterChange={setAudioFilter}
+                    />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
             <EditDeskPreview
               project={desk.project}
               row={previewRow}

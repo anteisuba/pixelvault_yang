@@ -48,6 +48,8 @@ import {
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
 
+import { useBrokenThumbs } from '../chrome/NodeMediaMissing'
+
 /**
  * 轨上每项 48px（画板 `VideoRefs.dc.html` `.th`，2026-09-10 owner 真机反馈把
  * 32 抬到 48：32px 的缩略认不出画面，「挂了什么」这件事就白摆了）。
@@ -171,6 +173,8 @@ export function VideoRefRail({
 }: VideoRefRailProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
+  // 素材删了：缩略图退回「没封面」的占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
 
   const limitOf = (group: VideoRailGroupId): number | null =>
     group === VIDEO_RAIL_GROUP_IDS.image
@@ -253,13 +257,14 @@ export function VideoRefRail({
                             {item.sourceName.slice(0, VOICE_INITIALS)}
                           </span>
                         </span>
-                      ) : item.thumbnailUrl ? (
+                      ) : thumbs.usable(item.thumbnailUrl) ? (
                         <Image
-                          src={item.thumbnailUrl}
+                          src={item.thumbnailUrl!}
                           alt=""
                           width={RAIL_THUMB_PX}
                           height={RAIL_THUMB_PX}
                           unoptimized
+                          onError={() => thumbs.markBroken(item.thumbnailUrl!)}
                           className="size-full rounded-node-thumb object-cover"
                         />
                       ) : item.group === VIDEO_RAIL_GROUP_IDS.video ? (
@@ -451,13 +456,16 @@ export function VideoRefRail({
                           data-video-rail-candidate={candidate.id}
                           onSelect={() => onPickFromCanvas(group, candidate.id)}
                         >
-                          {candidate.thumbnailUrl ? (
+                          {thumbs.usable(candidate.thumbnailUrl) ? (
                             <Image
-                              src={candidate.thumbnailUrl}
+                              src={candidate.thumbnailUrl!}
                               alt=""
                               width={32}
                               height={32}
                               unoptimized
+                              onError={() =>
+                                thumbs.markBroken(candidate.thumbnailUrl!)
+                              }
                               className="size-8 shrink-0 rounded-md object-cover"
                             />
                           ) : group === VIDEO_RAIL_GROUP_IDS.voice ? (

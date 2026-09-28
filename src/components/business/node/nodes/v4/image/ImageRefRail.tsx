@@ -28,6 +28,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import type { VideoRailEntry } from '@/lib/video-node-rail'
 
+import { useBrokenThumbs } from '../chrome/NodeMediaMissing'
+
 const RAIL_THUMB_PX = 48
 
 export interface ImageRailCandidate {
@@ -97,6 +99,8 @@ export function ImageRefRail({
 }: ImageRefRailProps) {
   const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
+  // 素材删了：缩略图退回「没封面」的占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const occupied = items.length + pending.filter((item) => !item.error).length
   const full =
     occupied >= capacity ? tImage('rail.full', { limit: capacity }) : null
@@ -137,13 +141,14 @@ export function ImageRefRail({
                   'disabled:pointer-events-none disabled:opacity-60',
                 )}
               >
-                {item.thumbnailUrl ? (
+                {thumbs.usable(item.thumbnailUrl) ? (
                   <Image
-                    src={item.thumbnailUrl}
+                    src={item.thumbnailUrl!}
                     alt=""
                     width={RAIL_THUMB_PX}
                     height={RAIL_THUMB_PX}
                     unoptimized
+                    onError={() => thumbs.markBroken(item.thumbnailUrl!)}
                     className="size-full rounded-node-thumb object-cover"
                   />
                 ) : (
@@ -269,13 +274,14 @@ export function ImageRefRail({
                   data-image-rail-candidate={candidate.id}
                   onSelect={() => onPickFromCanvas(candidate.id)}
                 >
-                  {candidate.thumbnailUrl ? (
+                  {thumbs.usable(candidate.thumbnailUrl) ? (
                     <Image
-                      src={candidate.thumbnailUrl}
+                      src={candidate.thumbnailUrl!}
                       alt=""
                       width={32}
                       height={32}
                       unoptimized
+                      onError={() => thumbs.markBroken(candidate.thumbnailUrl!)}
                       className="size-8 shrink-0 rounded-md object-cover"
                     />
                   ) : (

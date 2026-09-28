@@ -34,6 +34,8 @@ import {
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 
+import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
+
 export interface MobileRefStripProps {
   readonly items: readonly VideoRailEntry[]
   /** 长按移除（断边）。 */
@@ -73,6 +75,8 @@ export function MobileRefStrip({
 }: MobileRefStripProps) {
   const tVideo = useTranslations('StudioNode.v4.video')
   const tRail = useTranslations('StudioNode.mobileRail')
+  // 素材删了：退回「没封面」的占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const longPress = useRef<number | null>(null)
 
   /**
@@ -139,13 +143,14 @@ export function MobileRefStrip({
                       {item.sourceName.slice(0, VOICE_INITIALS)}
                     </span>
                   </span>
-                ) : item.thumbnailUrl ? (
+                ) : thumbs.usable(item.thumbnailUrl) ? (
                   <Image
-                    src={item.thumbnailUrl}
+                    src={item.thumbnailUrl!}
                     alt=""
                     width={NODE_MOBILE_RAIL.stripThumbSize}
                     height={NODE_MOBILE_RAIL.stripThumbSize}
                     unoptimized
+                    onError={() => thumbs.markBroken(item.thumbnailUrl!)}
                     className="size-full rounded-node-thumb object-cover"
                   />
                 ) : (

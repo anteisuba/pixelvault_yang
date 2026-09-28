@@ -18,6 +18,8 @@ import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { NODE_SLOT_IDS, type NodeMentionRole } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 
+import { useBrokenThumbs } from './NodeMediaMissing'
+
 export type MentionChipMedia =
   | { readonly kind: 'image' | 'video'; readonly thumbnailUrl?: string }
   | { readonly kind: 'audio' }
@@ -56,6 +58,11 @@ export function MentionChip({
   const t = useTranslations('StudioNode.v4')
   const roleLabel = t(`slots.${role}`)
   const size = NODE_V4_CHROME.mentionThumbSize
+  // 素材删了：退回灰块占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
+  const thumbUrl = thumbs.usable(
+    media && 'thumbnailUrl' in media ? media.thumbnailUrl : undefined,
+  )
 
   return (
     <span
@@ -67,13 +74,14 @@ export function MentionChip({
     >
       {media?.kind === 'audio' ? (
         <WaveformGlyph />
-      ) : media && 'thumbnailUrl' in media && media.thumbnailUrl ? (
+      ) : thumbUrl ? (
         <Image
-          src={media.thumbnailUrl}
+          src={thumbUrl}
           alt=""
           width={size}
           height={size}
           unoptimized
+          onError={() => thumbs.markBroken(thumbUrl)}
           className="size-4 shrink-0 rounded-xs object-cover"
         />
       ) : media ? (

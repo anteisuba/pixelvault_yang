@@ -37,6 +37,7 @@ import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
+import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 
 export interface EditDeskInspectorProps {
   readonly desk: EditDesk
@@ -173,6 +174,8 @@ export function EditDeskInspector({
  * 都抓不到才退回空块。
  */
 function SourceThumb({ row }: { readonly row: EditTimelineRow }) {
+  // 源文件删了：只剩底色，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const node = row.source.node
   const data = node?.data
   const isAudio = data?.kind === NODE_MEDIA_KIND_IDS.audio
@@ -183,6 +186,7 @@ function SourceThumb({ row }: { readonly row: EditTimelineRow }) {
       ? data.videoThumbnailUrl
       : undefined,
   )
+  const shownPoster = thumbs.usable(poster ?? undefined)
 
   return (
     <div
@@ -199,9 +203,14 @@ function SourceThumb({ row }: { readonly row: EditTimelineRow }) {
           barCount={EDIT_DESK_SOURCE_THUMB_WAVE_BARS}
           height={EDIT_DESK_LAYOUT.waveHeightPx - 6}
         />
-      ) : poster ? (
+      ) : shownPoster ? (
         // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
-        <img src={poster} alt="" className="size-full object-cover" />
+        <img
+          src={shownPoster}
+          alt=""
+          className="size-full object-cover"
+          onError={() => thumbs.markBroken(shownPoster)}
+        />
       ) : null}
     </div>
   )

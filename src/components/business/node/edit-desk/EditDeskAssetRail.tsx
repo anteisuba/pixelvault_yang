@@ -71,6 +71,7 @@ import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 import { Segmented } from './EditDeskInspector'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
+import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 
 const PANEL_ICONS: Record<EditPanelId, LucideIcon> = {
   [EDIT_PANEL_IDS.canvas]: Layers,
@@ -287,6 +288,8 @@ function AssetTile({
   readonly node: NodeV4
   onAppend(nodeId: string): void
 }) {
+  // 源文件删了：退回占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const data = node.data
   const isAudio = data.kind === NODE_MEDIA_KIND_IDS.audio
   const url = currentUrlOf(node)
@@ -296,6 +299,7 @@ function AssetTile({
       ? data.videoThumbnailUrl
       : undefined,
   )
+  const shownPoster = thumbs.usable(poster ?? undefined)
   const duration =
     'durationSec' in data && data.durationSec ? data.durationSec : 0
   const name =
@@ -337,13 +341,14 @@ function AssetTile({
               className="w-full justify-center"
             />
           </div>
-        ) : poster ? (
+        ) : shownPoster ? (
           // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
           <img
-            src={poster}
+            src={shownPoster}
             alt=""
             className="size-full object-cover"
             draggable={false}
+            onError={() => thumbs.markBroken(shownPoster)}
           />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">
@@ -530,6 +535,8 @@ function EditDeskLibraryPanel() {
 
 /** 素材库一格 —— 与画布素材那一格**同一份长相**（封面 / 波形 · 时长 · 名）。 */
 function LibraryTile({ record }: { readonly record: GenerationRecord }) {
+  // 源文件删了：退回占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const plan = planNodeForOutput(record.outputType)
   const isAudio = plan.kind === NODE_MEDIA_KIND_IDS.audio
   const name = resolveGenerationDisplayName(record)
@@ -538,6 +545,7 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
     isAudio ? undefined : record.url,
     record.thumbnailUrl ?? undefined,
   )
+  const shownPoster = thumbs.usable(poster ?? undefined)
   const payload: EditDeskLibraryAsset = {
     ...plan,
     url: record.url,
@@ -573,13 +581,14 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
               className="w-full justify-center"
             />
           </div>
-        ) : poster ? (
+        ) : shownPoster ? (
           // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
           <img
-            src={poster}
+            src={shownPoster}
             alt=""
             className="size-full object-cover"
             draggable={false}
+            onError={() => thumbs.markBroken(shownPoster)}
           />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">

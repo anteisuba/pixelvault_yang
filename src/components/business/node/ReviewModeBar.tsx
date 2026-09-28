@@ -13,6 +13,7 @@ import {
 import { findPreviousVersionUrl } from '@/lib/node-review-queue'
 import { cn } from '@/lib/utils'
 
+import { useBrokenThumbs } from './nodes/v4/chrome/NodeMediaMissing'
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 
 interface ReviewDraft {
@@ -41,6 +42,8 @@ export function ReviewModeBar() {
   const { reviewMode, applyOp, regenerateForReview } = useNodeCanvasActions()
   const [draft, setDraft] = useState<ReviewDraft | null>(null)
   const [regenerating, setRegenerating] = useState(false)
+  // 被比的那一版文件删了：不画那一格图，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
 
   const current = reviewMode?.current ?? null
   const node = reviewMode?.currentNode ?? null
@@ -143,13 +146,25 @@ export function ReviewModeBar() {
           {previousUrl ? (
             <div className="flex items-start gap-2">
               <figure className="canvas-review-compare">
-                {/* eslint-disable-next-line @next/next/no-img-element -- R2 url, not a static app asset */}
-                <img src={previousUrl} alt="" />
+                {thumbs.usable(previousUrl) ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- R2 url, not a static app asset
+                  <img
+                    src={previousUrl}
+                    alt=""
+                    onError={() => thumbs.markBroken(previousUrl)}
+                  />
+                ) : null}
                 <figcaption>{t('previousVersion')}</figcaption>
               </figure>
               <figure className="canvas-review-compare">
-                {/* eslint-disable-next-line @next/next/no-img-element -- R2 url, not a static app asset */}
-                <img src={current.url} alt="" />
+                {thumbs.usable(current.url) ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- R2 url, not a static app asset
+                  <img
+                    src={current.url}
+                    alt=""
+                    onError={() => thumbs.markBroken(current.url)}
+                  />
+                ) : null}
                 <figcaption>{t('currentVersion')}</figcaption>
               </figure>
             </div>

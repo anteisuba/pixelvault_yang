@@ -43,6 +43,30 @@ export function useMediaProblem(url: string | undefined) {
 }
 
 /**
+ * 小缩略图（参考轨 48px / @ 胶囊 16px / 列表 / 剪辑台）读不出来时的兜底：记下读
+ * 失败的地址，调用方退回它本来就有的「没封面」那一档占位（没有占位的就不画这张图）。
+ * ⛔ 不画裂图（owner 09-28：素材库删了，画布上哪儿都不许出裂图）。
+ *
+ * 大卡面用 `useMediaProblem`（它会问一次 CDN、说「已删除」并给去处）；缩略图太小装
+ * 不下一句话，只负责不裂。
+ */
+export function useBrokenThumbs() {
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set())
+  /** 这张能不能画：没有地址 / 读失败过 → `undefined`（走占位）。 */
+  const usable = useCallback(
+    (url: string | undefined): string | undefined =>
+      url && !broken.has(url) ? url : undefined,
+    [broken],
+  )
+  const markBroken = useCallback((url: string) => {
+    setBroken((current) =>
+      current.has(url) ? current : new Set(current).add(url),
+    )
+  }, [])
+  return { usable, markBroken }
+}
+
+/**
  * 来源没了的卡面（画板「画布 · 角色 ④」S6）：灰底一句话 + 一个去处。
  * 已删除 →「从画布移除」；暂时读不到 →「重试」。⛔ 不画裂图、不抖、不红框。
  * `row` 给矮卡（音频）用：一行排开。

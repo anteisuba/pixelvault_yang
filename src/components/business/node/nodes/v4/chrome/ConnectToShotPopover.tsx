@@ -25,6 +25,8 @@ import { NODE_V4_CONNECT_TO_SHOT } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { cn } from '@/lib/utils'
 
+import { useBrokenThumbs } from './NodeMediaMissing'
+
 /** 这颗键长在哪一类卡上 —— 它决定连过去落哪个槽。 */
 export type ConnectToShotSourceKind =
   | typeof NODE_MEDIA_KIND_IDS.audio
@@ -76,6 +78,8 @@ export function ConnectToShotPopover({
 }: ConnectToShotPopoverProps) {
   const t = useTranslations('StudioNode.v4.connectToShot')
   const tSlots = useTranslations('StudioNode.v4.slots')
+  // 封面删了：退回占位，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const [search, setSearch] = useState('')
   /** 图片卡：每一行各自选 首帧 / 尾帧（默认首帧，画板上那一段是行内的）。 */
   const [frameByTarget, setFrameByTarget] = useState<
@@ -165,13 +169,14 @@ export function ConnectToShotPopover({
                   onClick={() => onConnect(target.id, slot)}
                   className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  {target.thumbnailUrl ? (
+                  {thumbs.usable(target.thumbnailUrl) ? (
                     <Image
-                      src={target.thumbnailUrl}
+                      src={target.thumbnailUrl!}
                       alt=""
                       width={NODE_V4_CONNECT_TO_SHOT.thumbWidth}
                       height={NODE_V4_CONNECT_TO_SHOT.thumbHeight}
                       unoptimized
+                      onError={() => thumbs.markBroken(target.thumbnailUrl!)}
                       style={{
                         width: NODE_V4_CONNECT_TO_SHOT.thumbWidth,
                         height: NODE_V4_CONNECT_TO_SHOT.thumbHeight,

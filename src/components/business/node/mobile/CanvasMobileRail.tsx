@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
+import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 import { toStudioModelOption } from '../nodes/v4/image/image-node-model'
 import { useNodeV4Canvas } from '../nodes/v4/NodeV4Context'
 import { MobileNodeSheet } from './MobileNodeSheet'
@@ -71,6 +72,8 @@ function MediaRow({
   readonly character?: { readonly name: string; readonly image?: string }
 }) {
   const data = node.data
+  // 素材删了：只剩底色，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const thumbnailUrl = character
     ? character.image
     : data.kind === NODE_MEDIA_KIND_IDS.image
@@ -92,13 +95,14 @@ function MediaRow({
       className="flex min-h-16 w-full items-center gap-3 rounded-node bg-card p-2.5 text-left corner-squircle shadow-node-chrome focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <span className="relative size-11 shrink-0 overflow-hidden rounded-node-thumb bg-surface-fill">
-        {thumbnailUrl ? (
+        {thumbs.usable(thumbnailUrl) ? (
           <Image
-            src={thumbnailUrl}
+            src={thumbnailUrl!}
             alt=""
             width={44}
             height={44}
             unoptimized
+            onError={() => thumbs.markBroken(thumbnailUrl!)}
             className="size-full object-cover"
           />
         ) : null}

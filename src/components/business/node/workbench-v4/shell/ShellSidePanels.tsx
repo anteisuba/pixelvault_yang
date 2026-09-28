@@ -97,6 +97,7 @@ import type {
 import type { NodeV4Data } from '@/types/node-workflow'
 
 import { CastDock } from '../../CastDock'
+import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
 import { ShellIconButton } from './ShellIconButton'
 
 const PANEL_ICONS = {
@@ -368,6 +369,8 @@ function ShellCardsPanel({
   const t = useTranslations('StudioNode.shell.panels')
   const locale = useLocale()
   const { cards, loaded } = useCharacterLibrary()
+  // 源图删了：只剩底色，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
 
   if (!loaded && cards.length === 0) {
     return (
@@ -426,13 +429,14 @@ function ShellCardsPanel({
               }}
               className="shrink-0 overflow-hidden rounded-md bg-node-panel-soft"
             >
-              {url ? (
+              {thumbs.usable(url) ? (
                 // R2 上的任意用户媒体，与引用 chip 同一条 raw-img 约定。
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={url}
                   alt=""
                   draggable={false}
+                  onError={() => url && thumbs.markBroken(url)}
                   className="size-full object-cover"
                 />
               ) : null}
@@ -466,6 +470,8 @@ function ShellLibraryPanel({
   onPlace(payload: ShellMediaPayload): void
 }) {
   const t = useTranslations('StudioNode.shell.panels')
+  // 记录的文件删了而列表还没刷新：只剩底色，⛔ 不画裂图（owner 09-28）。
+  const thumbs = useBrokenThumbs()
   const [filter, setFilter] = useState<CanvasShellLibraryFilter>(
     CANVAS_SHELL_LIBRARY_FILTER_IDS.all,
   )
@@ -618,15 +624,20 @@ function ShellLibraryPanel({
                   onPlace,
                 )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={record.thumbnailUrl ?? record.url}
-                  alt=""
-                  // ⚠ 缩略图自己是可拖的：不关掉它，从图上起手的拖拽会被浏览器
-                  // 接管成「拖一张图片」，我们的载荷压根没上车。
-                  draggable={false}
-                  className="size-full object-cover"
-                />
+                {thumbs.usable(record.thumbnailUrl ?? record.url) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={record.thumbnailUrl ?? record.url}
+                    alt=""
+                    // ⚠ 缩略图自己是可拖的：不关掉它，从图上起手的拖拽会被浏览器
+                    // 接管成「拖一张图片」，我们的载荷压根没上车。
+                    draggable={false}
+                    onError={() =>
+                      thumbs.markBroken(record.thumbnailUrl ?? record.url)
+                    }
+                    className="size-full object-cover"
+                  />
+                ) : null}
               </div>
             )
           })}

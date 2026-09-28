@@ -17,7 +17,7 @@ import type {
  *
  * ── 为什么是 `lib/` 而不是留在候选服务里 ──────────────────────────
  * 导入 LoRA 有两条入口：助手推荐卡（`services/lora/lora-candidates.service.ts`，
- * 服务端）与库 modal 的「使用」按钮（`LoraLibraryModal`，客户端）。两条都要
+ * 服务端）与库里的「收藏」（库 B 的详情页，客户端）。两条都要
  * 写同一个 `LoraAsset.sourceSnapshot`。构造逻辑留在 `server-only` 的服务里，
  * 客户端那条就只能自己抄一份 —— 而抄出来的第二份**必然漂**：作者是从 `repoId`
  * 前缀切的、许可要压成结构、完整度是六个信号数出来的，任何一处不一致，

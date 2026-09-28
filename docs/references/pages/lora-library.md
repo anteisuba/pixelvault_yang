@@ -85,7 +85,7 @@
 
 ## 8. 手机（<1024，2026-09-03 owner 拍板，本轮不动）
 
-范围仅限 Library **标签页**（`LoraLibraryModal` picker 本轮不动，但网格收敛到 `LoraLibraryCard` 供日后统一）。落卡见 [`lora-library-mobile-request.md`](lora-library-mobile-request.md)。
+范围仅限 Library **标签页**（网格收敛到 `LoraLibraryCard`）。旧的库弹窗（`LoraLibraryModal` picker）2026-09-28 删掉：装配列「＋ 添加 LoRA」桌面切到库 B、手机切到「库」这一栏（库 B 三方向共同约定 ⑤「不再另开库弹窗」）。
 
 - **结果区**：2 列封面卡网格（640px 起 3 列），3:4 封面取列表 payload 的 `cardImageUrl`（Civitai）/ showcase 封面（HF），封面叠来源 + 底模 chip，名称 2 行 clamp，紧凑 ↓/♥ 计数。桌面见上文 B。
 - **详情**：点卡打开底部抽屉（vaul，~92%），内容序＝样例轮播 → 标题+badges → 数据 → 触发词（+推断 pill，可复制）→ 底模/授权/安全 → description → 作者；sticky 动作栏 使用此 LoRA（主）/ 收藏 / 打开来源。关闭回到原滚动位置。详情数据（mined prompts、description）只在打开时经 `selectItem` 拉取，不预取。收藏详情也在打开时按已保存的 Civitai 模型/版本 ID 加载同一份样图，点击缩略图切换大图；尚未加载或无来源样图时展示收藏记录中的图片。

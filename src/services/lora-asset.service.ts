@@ -512,8 +512,8 @@ export async function favoriteExternalLora(
     userId: user.id,
     styleCode,
     loraUrl: input.loraUrl,
-    // 快照缺失要在日志里看得见：HF 那条老路（LoraLibraryModal）至今不传，
-    // 补它是 UI 那一批的活，别让它悄悄一直缺着。
+    // 快照缺失要在日志里看得见：手机库那几条老路（CivitaiLibraryPane /
+    // HuggingFaceLoraLibrary）至今不传，补它是手机那一批的活，别让它悄悄一直缺着。
     hasSourceSnapshot: Boolean(input.sourceSnapshot),
   })
 

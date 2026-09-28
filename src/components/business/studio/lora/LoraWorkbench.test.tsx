@@ -1350,6 +1350,21 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
   })
 
+  it('「＋ 添加 LoRA」切到库（库 B 定案：⛔ 另开库弹窗）', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+
+    render(<LoraWorkbench />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench:spine.addLoraFull' }),
+    )
+
+    expect(mockRouterReplace).toHaveBeenCalledWith(
+      '/studio/lora?section=community',
+      { scroll: false },
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   describe('LoRA 模板（pages/prompts.md）', () => {
     const sueAsset = {
       id: 'civitai:1',

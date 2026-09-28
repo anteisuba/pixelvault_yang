@@ -47,7 +47,7 @@
    | 生成失败                   | 该结果格显示失败原因 + 「重试」按钮                        | `error-alert.tsx` 既有样式                                   | 点「重试」重新提交同一请求，composer 状态不变                             |
 
 7. 非目标： 不改 `StudioOperatorDock`（移动端继续 `return null`）；不做视频/音频/enhance/analyze 模式的移动端专项验收（同壳复用但本轮只验证图片）；不改 `LoraWorkbench`（已完成）；不改桌面 `≥1024` 布局；不新增默认模型的选型算法之外的持久化机制（localStorage key 待在 `src/constants` 定义，命名遵循现有 SCREAMING_SNAKE 常量风格）；不碰 service/API 契约。
-8. 参考（可选）： 本卡的模型抽屉 `layout="drill"` 复用 `docs/references/pages/lora-library-mobile-request.md` 已验证的 vaul 抽屉与 sheet 分层方法（不借视觉皮肤，只借结构）。
+8. 参考（可选）： 本卡的模型抽屉 `layout="drill"` 复用 LoRA 库手机端（[`lora-library.md`](lora-library.md) §8）已验证的 vaul 抽屉与 sheet 分层方法（不借视觉皮肤，只借结构）。
 
 ## 默认模型选型规则（owner 2026-09-03 拍板，写入 constants 层）
 

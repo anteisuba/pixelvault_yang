@@ -2170,11 +2170,6 @@
       "public": "Public",
       "use": "Use",
       "mounted": "Added",
-      "searchPlaceholder": "Search LoRAs, triggers, authors…",
-      "safeMode": "Safe mode",
-      "mineEmpty": "No favorited or trained LoRAs yet",
-      "mountedToast": "Added {name}",
-      "mountedNoBase": "Added {name}. There's no compatible base model available to generate with yet.",
       "mountBlockedDownloadDisabled": "{name} can't be added because its creator has disabled downloads on Civitai. You can only use it in Civitai's generator."
     },
     "baseModal": {

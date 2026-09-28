@@ -2170,11 +2170,6 @@
       "public": "公开",
       "use": "使用",
       "mounted": "已挂",
-      "searchPlaceholder": "搜索 LoRA、触发词、作者…",
-      "safeMode": "安全模式",
-      "mineEmpty": "还没有收藏或训练的 LoRA",
-      "mountedToast": "已挂载 {name}",
-      "mountedNoBase": "已挂载 {name} · 该族暂无可出图底模",
       "mountBlockedDownloadDisabled": "{name} 挂不了 —— 作者在 Civitai 关掉了下载，任何后端都取不到权重，它只能在 Civitai 站内出图。"
     },
     "baseModal": {

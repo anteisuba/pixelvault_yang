@@ -96,19 +96,8 @@ import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompt
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
-import dynamic from 'next/dynamic'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
-// S3 库 modal 懒加载：只在＋添加唤起时才拉进来（含 useCivitaiLoraLibrary /
-// dialog / 卡片链），不进生成页主 bundle——既是代码分割优化，也避免主 workbench
-// 的 eager import 图变重（会拖慢测试里临界的过渡计时断言）。
-const LoraLibraryModal = dynamic(
-  () =>
-    import('@/components/business/studio/lora/library/LoraLibraryModal').then(
-      (m) => m.LoraLibraryModal,
-    ),
-  { ssr: false },
-)
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
 import { LoraParamsChip } from '@/components/business/studio/lora/LoraParamsChip'
@@ -418,6 +407,7 @@ export function LoraWorkbench() {
     <GenerateBranch
       assistantOpen={assistantOpen}
       onAssistantOpenChange={setAssistantOpen}
+      onOpenLibrary={() => setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
     />
   ) : null
 
@@ -467,6 +457,10 @@ export function LoraWorkbench() {
             <GenerateBranch
               assistantOpen={assistantOpen}
               onAssistantOpenChange={setAssistantOpen}
+              onOpenLibrary={() => {
+                setPendingSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
+                setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
+              }}
               library={
                 isLibrary
                   ? {
@@ -756,6 +750,10 @@ interface GenerateBranchProps {
   library?: { key: string; content: ReactNode } | null
   /** 竖条顶上那颗「回到生成」。 */
   onReturnToGenerate?: () => void
+  /**
+   * 装配列「＋ 添加 LoRA」= 切到「库」（库 B 定案：⛔ 另开库弹窗）。手机切到库那一栏。
+   */
+  onOpenLibrary: () => void
 }
 
 function GenerateBranch({
@@ -763,6 +761,7 @@ function GenerateBranch({
   onAssistantOpenChange,
   library = null,
   onReturnToGenerate,
+  onOpenLibrary,
 }: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
@@ -1860,9 +1859,6 @@ function GenerateBranch({
   // ── 助手（P4-C 起是**操作员面板**，见下方 `operatorHost`）────────────────
   // 开关状态在 root（按钮在模块 tab 行最右），这里只收 props；面板宽度由
   // `StudioOperatorDock` 自己订阅（正文不按宽度让位，见下方「恒覆盖态」注）。
-  // S3 库 modal：＋添加 LoRA / 空态「去库」唤起分类库对话框（覆盖生成页·即筛
-  // 即挂），取代原先跳转到「库」tab。库 tab 仍在（HF/我的 全量浏览）。
-  const [libraryModalOpen, setLibraryModalOpen] = useState(false)
   // S7：移动端装配 sheet（紧凑摘要条唤起）。
   const [assemblySheetOpen, setAssemblySheetOpen] = useState(false)
   // 装配列收起成 48px 竖条（桌面，lora-generate.md §2.1）；手机装配抽屉里那条
@@ -2862,7 +2858,7 @@ function GenerateBranch({
         loraScaleConfig={loraScaleConfig}
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
-        onAddLora={() => setLibraryModalOpen(true)}
+        onAddLora={onOpenLibrary}
         triggerEntries={triggerChipEntries}
         disabledTriggerIds={disabledTriggerIds}
         onToggleTrigger={handleToggleTriggerChip}
@@ -3056,13 +3052,6 @@ function GenerateBranch({
           ) : null}
         </DialogContent>
       </Dialog>
-
-      {/* S3 库 modal（＋添加 LoRA / 空态「去库」唤起）——覆盖生成页即筛即挂。
-        只在打开时挂载：useCivitaiLoraLibrary 一挂就拉数据，常驻会让每次进
-        生成页都后台打 Civitai（浪费 + 撞限流），故按需挂载（代价=无退场动画）。 */}
-      {libraryModalOpen ? (
-        <LoraLibraryModal open onOpenChange={setLibraryModalOpen} />
-      ) : null}
     </>
   )
 
@@ -3971,7 +3960,7 @@ function GenerateBranch({
             workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
           }
           loraScaleConfig={loraScaleConfig}
-          onAddLora={() => setLibraryModalOpen(true)}
+          onAddLora={onOpenLibrary}
           // 在库里整列让成竖条；回到生成台时回到你自己收没收的那一档。
           collapsed={libraryActive || assemblyCollapsed}
           onCollapsedChange={setAssemblyCollapsed}

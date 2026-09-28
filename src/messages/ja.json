@@ -2170,11 +2170,6 @@
       "public": "公開",
       "use": "使用",
       "mounted": "追加済み",
-      "searchPlaceholder": "LoRA・トリガー・作者を検索…",
-      "safeMode": "セーフモード",
-      "mineEmpty": "お気に入り・学習済みの LoRA はまだありません",
-      "mountedToast": "{name} を追加しました",
-      "mountedNoBase": "{name} を追加しました。この系統で生成できるベースモデルはまだありません",
       "mountBlockedDownloadDisabled": "{name} は作者がダウンロードを無効にしているため、追加できません。Civitai 内の生成機能でのみ使えます。"
     },
     "baseModal": {

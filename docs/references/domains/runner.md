@@ -10,15 +10,15 @@
 
 ## 1. 基础设施标识
 
-| 项              | 当前生产值                                                           | 核验范围                                                                                       |
-| --------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 150 GB · EU-RO-1        | 2026-09-28 从 80 GB 扩容（80 GB 已写满，见下「5.10 底座」一节）；API 回读确认                  |
-| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                     |
-| Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-92ef778b5d6bab2cf1981b2eecb8311a92460a12` |
-| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4                                                              |
-| GPU 型号        | 本轮 CLI 响应未包含具体型号                                          | 不把旧文档的 GPU 档位当成实查结果                                                              |
-| API 凭证        | 应用 resolve-key 提供 `RUNPOD_KEY`；CLI 使用 `~/.runpod/config.toml` | 不记录值；本地开发凭证可访问评估端点，旧 CLI 凭证权限不足                                      |
-| 端点配置真值    | `workers/execution/wrangler.jsonc`                                   | 本机环境变量可能过时，不用它判断生产端点                                                       |
+| 项              | 当前生产值                                                           | 核验范围                                                                                                                                      |
+| --------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 150 GB · EU-RO-1        | 2026-09-28 从 80 GB 扩容（80 GB 已写满，见下「5.10 底座」一节）；API 回读确认                                                                 |
+| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                                                                    |
+| Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-f3b77c521de6c8caf44e6054497f053ba459fe4e`（2026-09-28 切换；回滚目标 `5.8.6-92ef778…`） |
+| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4；`allowedCudaVersions` 12.8 / 12.9 / 13.0（5.10 底座要求）                                                  |
+| GPU 型号        | 本轮 CLI 响应未包含具体型号                                          | 不把旧文档的 GPU 档位当成实查结果                                                                                                             |
+| API 凭证        | 应用 resolve-key 提供 `RUNPOD_KEY`；CLI 使用 `~/.runpod/config.toml` | 不记录值；本地开发凭证可访问评估端点，旧 CLI 凭证权限不足                                                                                     |
+| 端点配置真值    | `workers/execution/wrangler.jsonc`                                   | 本机环境变量可能过时，不用它判断生产端点                                                                                                      |
 
 2026-09-21 Qwen 评估部署未改动上述生产端点。当前价格与显存／耗时须实测，旧的每图费用估算不再作为现行依据。
 
@@ -59,13 +59,13 @@
 
 契约核对：[ComfyUI nodes](https://github.com/comfyanonymous/ComfyUI/blob/master/nodes.py)、[Forge Latent 插值](https://github.com/lllyasviel/stable-diffusion-webui-forge/blob/main/modules/shared.py)、[RunPod 5.8.6 handler](https://github.com/runpod-workers/worker-comfyui/blob/5.8.6/handler.py)。
 
-### 5.10 底座 · 下载核对 · DiT 加载证据（2026-09-28 GPU 回归通过，未切生产）
+### 5.10 底座 · 下载核对 · DiT 加载证据（2026-09-28 回归通过并已切生产）
 
-- 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-2f1eb8ec295464fd275027f57fca49e4b09a4c29`：官方 `worker-comfyui:5.10.0-base`（CUDA 12.8 + ComfyUI 0.34）。主仓提交 `04d7f4f7` · `cd43f24e` · `7e38067d`，小仓 `a414072` · `2f1eb8e`；`build.yml` 的 final tag 前缀已改为 `5.10.0`。生产端点仍是上面的 `92ef778`（0.25）。
+- 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-2f1eb8ec295464fd275027f57fca49e4b09a4c29`：官方 `worker-comfyui:5.10.0-base`（CUDA 12.8 + ComfyUI 0.34）。主仓提交 `04d7f4f7` · `cd43f24e` · `7e38067d` · `b257f659`，小仓 `a414072` · `2f1eb8e` · `f3b77c5`；`build.yml` 的 final tag 前缀已改为 `5.10.0`。回归跑在 `2f1eb8e`，生产用的是加了配额修复的 `f3b77c5`。
 - 回归用临时端点（同一 Volume、4090 / A5000 / L4 / 3090、CUDA 12.8 / 12.9 / 13.0、Max 1）直接发作业，跑完已删；测试模板 `zx61alrcs3` 保留，可复用。6 项全过：SDXL + LoRA + 来源精修 968×1424（与首跑逐字节相同）· Pony 直出 + 4x-AnimeSharp 512×640 → 2048×2560（「VAEDecode 直连放大 → 空结果」在 0.34 **未复现**）· Anima Base + 已缓存 LoRA · Anima Base + 首次使用的 LoRA（一次成功）· 从 Civitai 现下 Anima Turbo v1.1 并核对 SHA 后出图 · 给错 SHA 的配件被拦下（`SHA-256 mismatch`）。冷启动排队 57–141s，执行 22–64s（含 4.2G 下载）。
 - 升级抓到的坑：0.34 的 `UpscaleModelLoader` 是 V3 节点，`/object_info` 里的文件清单变成 `["COMBO", {"options": [...]}]`，可见性闸原先认不出、所有放大作业提交前即失败；`7e38067d` 已修。
 - Civitai 公布的 `SHA256` 就是下载到的文件本体（R2 里 7 把 LoRA 与 Anima Turbo 实测一致）；DiT 加载证据里 Anima Base 的 SHA 与 HF LFS oid 一致。
-- 切生产顺序：`PATCH` 生产 template `pmh4gs9eht` 指向上面的镜像、env 加 `RUNNER_VOLUME_QUOTA_BYTES=150000000000`，并把端点 `allowedCudaVersions` 限定为 12.8 / 12.9 / 13.0 → 真实出图验收 → 再发 Execution Worker（其 Anima 工作流依赖新节点）→ 应用。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
+- 切生产（2026-09-28 已做）：`PATCH` template `pmh4gs9eht` 的 `imageName`（只改这一个字段，env 里的 `CIVITAI_KEY` 不动；`RUNNER_VOLUME_QUOTA_BYTES=150000000000` 由 owner 在控制台加）+ 端点 `allowedCudaVersions` 12.8 / 12.9 / 13.0。⚠ 改完模板后旧镜像的 worker 仍被 FlashBoot 秒恢复、继续接活（第一批新镜像 worker 很可能在 CUDA 限定生效前被分到旧驱动机器、起不来退出）；把 `workersMax` 临时设 0 清空 worker 再设回 2 后，新镜像才接手（新机器首次拉镜像约 7 分钟）。验收：生产端点直接发 SDXL + LoRA + 精修、Anima + LoRA 各一个，出图与测试端点逐字节相同，DiT 证据齐全。新 fork 兼容线上旧 Worker（旧工作流用原生节点、不带 sha256）；新 Worker（Anima 用 DiT 证据节点）与应用尚未发布。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
 - **Volume 满（2026-09-27 生产实见）**：80 GB 配额写满，Anima 作业下载底模撞 `[Errno 122] Disk quota exceeded`，且被 `quota.*exceeded` 规则说成「Agent Key 余额不足」。根因是网络卷配额从文件系统剩余量里看不出来，LRU 从未触发。09-28 已扩到 150 GB；fork 改为按 `RUNNER_VOLUME_QUOTA_BYTES`（切生产时在 template 配 `150000000000`）与卷上实际文件大小判断清缓存，写盘撞配额报「存储已满」；app 同时把该原话归到 `runner_storage_full`。
 - 本次回归留在 Volume 上的：`civitai-ckpt-3263843.safetensors`（Anima Turbo v1.1，4.2G，受 LRU 管理）与 LoRA `civitai-3340256.safetensors`；后者也按应用规则进了 R2 `runner-loras/`。
 
@@ -99,9 +99,6 @@
 
 ## 5. 已知坑与未竟
 
-- ⚠ **可复现 bug**（生产 0.25）：workflow 里 `VAEDecode` 直连 `ImageUpscaleWithModel` 时，job 返回
-  `COMPLETED` 但**既无 output 也无 error** —— 静默空结果。改 hires-fix 相关 workflow 前先绕开。
-  2026-09-28 在 5.10 底座（0.34）上同一连法出图正常，切生产后可删这一条。
 - **r4a（multi-reference IPAdapter）已施工完成、测试端点验证绿，生产未切换**。
   fork 仓库 HEAD `c1dbf58`（2026-07-18）。要切生产得走 fork 构建 + template + 端点滚动。
 - **Krea 2** 当前 `generatability = 'external'`，且 `normalizeToLoraBaseFamily` **故意**对它返回 null

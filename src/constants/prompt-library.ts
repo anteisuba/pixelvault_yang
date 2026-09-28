@@ -1,15 +1,14 @@
 import type { OutputType } from '@/types'
 
 /**
- * Output types a prompt template can be created/edited with.
- * MODEL_3D was removed from the template taxonomy (2026-07-05) — prompt
- * templates cover image / video / audio only. Legacy MODEL_3D recipes are
- * still rendered via PROMPT_OUTPUT_TYPE_LABEL_KEYS for backward compat.
+ * Output types a prompt template can be created with on the prompts page.
+ * MODEL_3D left the taxonomy on 2026-07-05; AUDIO on 2026-09-28 (owner:
+ * audio prompts are not worth keeping as templates — pages/prompts.md).
+ * Existing audio / 3D recipes still render via PROMPT_OUTPUT_TYPE_LABEL_KEYS.
  */
 export const PROMPT_TEMPLATE_OUTPUT_TYPES = [
   'IMAGE',
   'VIDEO',
-  'AUDIO',
 ] as const satisfies readonly OutputType[]
 
 export type PromptTemplateOutputType =
@@ -49,6 +48,5 @@ export const PROMPT_OUTPUT_TYPE_LABEL_KEYS: Record<OutputType, string> = {
 export function toPromptTemplateOutputType(
   outputType: OutputType | undefined,
 ): PromptTemplateOutputType {
-  if (outputType === 'VIDEO' || outputType === 'AUDIO') return outputType
-  return 'IMAGE'
+  return outputType === 'VIDEO' ? 'VIDEO' : 'IMAGE'
 }

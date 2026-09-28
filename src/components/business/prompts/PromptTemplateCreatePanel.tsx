@@ -57,7 +57,12 @@ interface PromptTemplateCreatePanelProps {
 
 const DEFAULT_MODEL_ID = AI_MODELS.OPENAI_GPT_IMAGE_2
 const DEFAULT_PROVIDER = getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI).label
-const MODEL_CHOICES = MODEL_OPTIONS.filter((option) => option.available)
+/** 新建只给图片 / 视频（音频 2026-09-28 拿掉，pages/prompts.md）。 */
+const MODEL_CHOICES = MODEL_OPTIONS.filter(
+  (option) =>
+    option.available &&
+    (option.outputType === 'IMAGE' || option.outputType === 'VIDEO'),
+)
 
 function getModelOption(modelId: string) {
   return MODEL_OPTIONS.find((option) => option.id === modelId)

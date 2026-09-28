@@ -648,7 +648,8 @@ export const GenerationPreview = memo(function GenerationPreview({
           variant={variant}
         />
       ) : null}
-      {onSaveRecipe && generation && (
+      {/* 音频不再存成提示词模板（pages/prompts.md，owner 2026-09-28）。 */}
+      {onSaveRecipe && generation && generation.outputType !== 'AUDIO' && (
         <CanvasToolButton
           icon={BookmarkPlus}
           label={t('toolSaveRecipe')}

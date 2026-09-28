@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const protect = vi.fn()
@@ -80,6 +83,43 @@ describe('proxy internal execution routes', () => {
       // ⚠ 症状是 **404 不是 401**：auth.protect() 只对页面请求 redirect，非页面
       // 请求走 notFound()。查日志要找 404。
       // （2026-08-20 civitai-mirror/sync 就是这么漏的。）
+      await middleware(
+        {
+          nextUrl: { pathname, origin: 'https://pixelvault.example.com' },
+        } as never,
+        {} as never,
+      )
+
+      expect(protect).not.toHaveBeenCalled()
+    },
+  )
+
+  /**
+   * 凡是用 `createApiInternalRoute` 的路由都是**机器调机器**、自己验签，调用方没有
+   * Clerk 会话。漏进公开表的症状与上面 cron 那条一样：100% 被拦成 404、够不到验签、
+   * 不进 logger（2026-09-28 剪辑台导出线上实跑：render-video worker 的每一帧回调都
+   * 404，任务永远停在「拉取素材 · 0%」）。⚠ 扫源码而不是手抄列表 —— 手抄列表正是
+   * 漏掉它的那张表。
+   */
+  const SIGNED_ROUTES = readdirSync(join(process.cwd(), 'src/app'), {
+    recursive: true,
+    encoding: 'utf8',
+  })
+    .filter((file) => file.endsWith('route.ts'))
+    .filter((file) =>
+      readFileSync(join(process.cwd(), 'src/app', file), 'utf8').includes(
+        'createApiInternalRoute',
+      ),
+    )
+    .map((file) => `/${dirname(file)}`)
+
+  it('finds the signed internal routes to check', () => {
+    expect(SIGNED_ROUTES).toContain('/api/studio/render/callback')
+  })
+
+  it.each(SIGNED_ROUTES)(
+    'lets the signed route %s reach its own signature check',
+    async (pathname) => {
       await middleware(
         {
           nextUrl: { pathname, origin: 'https://pixelvault.example.com' },

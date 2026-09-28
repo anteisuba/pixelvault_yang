@@ -49,6 +49,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/internal/execution/callback',
   '/api/internal/execution/resolve-key',
   '/api/internal/execution/long-video/advance',
+  // render-video worker（剪辑台导出）的进度 / 成片回调，同样自己验签。
+  '/api/studio/render/callback',
   // Vercel Cron authenticates with Authorization: Bearer CRON_SECRET inside
   // the route; it has no Clerk session and must reach that verifier first.
   '/api/internal/execution/sweep',

@@ -17,11 +17,13 @@ vi.mock('@/services/mcp/mcp-token.service', () => ({
 const mockList = vi.fn()
 const mockRead = vi.fn()
 const mockLookAt = vi.fn()
+const mockApply = vi.fn()
 vi.mock('@/services/mcp/mcp-tools.service', () => ({
   McpToolError: class McpToolError extends Error {},
   listProjectsForMcp: (...args: unknown[]) => mockList(...args),
   readProjectForMcp: (...args: unknown[]) => mockRead(...args),
   lookAtForMcp: (...args: unknown[]) => mockLookAt(...args),
+  applyOpsForMcp: (...args: unknown[]) => mockApply(...args),
 }))
 
 import { McpToolError } from '@/services/mcp/mcp-tools.service'
@@ -68,7 +70,7 @@ async function rpc(
 
 function resultOf(body: Record<string, unknown> | null) {
   return body?.result as {
-    tools?: { name: string }[]
+    tools?: { name: string; inputSchema?: unknown }[]
     content?: { type: string; text?: string; data?: string }[]
     isError?: boolean
   }
@@ -94,7 +96,7 @@ describe('/api/mcp', () => {
     expect((await rpc('tools/list')).status).toBe(401)
   })
 
-  it('lists the three read-only tools', async () => {
+  it('lists the three read tools and the one write tool', async () => {
     const { status, body } = await rpc('tools/list')
 
     expect(status).toBe(200)
@@ -102,7 +104,7 @@ describe('/api/mcp', () => {
       resultOf(body)
         .tools?.map((tool) => tool.name)
         .sort(),
-    ).toEqual(['list_projects', 'look_at', 'read_project'])
+    ).toEqual(['apply_ops', 'list_projects', 'look_at', 'read_project'])
   })
 
   it('runs a tool as the token’s owner', async () => {
@@ -180,5 +182,69 @@ describe('/api/mcp', () => {
 
     expect(resultOf(body).isError).toBe(true)
     expect(mockList).not.toHaveBeenCalled()
+  })
+})
+
+describe('/api/mcp apply_ops', () => {
+  it('offers no op that generates or only reads', async () => {
+    const { body } = await rpc('tools/list')
+    const applyTool = resultOf(body).tools?.find(
+      (tool) => tool.name === 'apply_ops',
+    )
+    const schema = JSON.stringify(applyTool?.inputSchema)
+
+    expect(schema).toContain('"edit_update_clip"')
+    expect(schema).toContain('"set_review_state"')
+    expect(schema).not.toContain('"generate"')
+    expect(schema).not.toContain('"read_canvas"')
+  })
+
+  it('applies a batch as the token’s owner', async () => {
+    mockApply.mockResolvedValue({
+      version: 'v2',
+      applied: 1,
+      skipped: [],
+      changedNodeIds: [],
+      createdNodeIds: [],
+    })
+
+    const { body } = await rpc('tools/call', {
+      name: 'apply_ops',
+      arguments: {
+        projectId: 'p1',
+        baseVersion: 'v1',
+        ops: [
+          {
+            op: 'edit_update_clip',
+            track: 'video',
+            clipId: 'c1',
+            patch: { speed: 2 },
+          },
+        ],
+      },
+    })
+
+    expect(mockApply).toHaveBeenCalledWith(
+      OWNER,
+      expect.objectContaining({ projectId: 'p1', baseVersion: 'v1' }),
+    )
+    expect(JSON.parse(resultOf(body).content?.[0]?.text ?? '')).toMatchObject({
+      version: 'v2',
+      applied: 1,
+    })
+  })
+
+  it('refuses a generate op before any service runs', async () => {
+    const { body } = await rpc('tools/call', {
+      name: 'apply_ops',
+      arguments: {
+        projectId: 'p1',
+        baseVersion: 'v1',
+        ops: [{ op: 'generate', target: 'v1' }],
+      },
+    })
+
+    expect(mockApply).not.toHaveBeenCalled()
+    expect(resultOf(body)?.isError ?? body?.error).toBeTruthy()
   })
 })

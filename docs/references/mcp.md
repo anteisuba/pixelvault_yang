@@ -64,6 +64,7 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 - **画布**：复用站内助手的分层快照 `buildCanvasOperatorSnapshot`（焦点镜与左右各一镜完整展开，其余每镜一行），⛔ 不另写一份给 MCP。准入：站内助手只许改展开的那几镜；MCP 是无状态的，记不住它看过什么，所以准入放宽到**整个项目的节点**——它想改哪镜，先把焦点挪过去读一次，这是 instructions 里的原则而不是服务端闸。
 - **时间线**：每段 = 段 id · 轨 · 序号 · 来源节点（id + 名字）· 时间线起止秒 · 素材入出点 · 倍速 · 段尾转场 · 原声 · 增益 · 「上游已更新」；字幕段 = 内容 · 起止 · 位置 · 字号 · 颜色 · 淡入淡出；另给总长、比例、清晰度。**同一个构建函数给站内快照用**（S5），⛔ 不写两份形状。
 - 版本号：`read_project` 给出的 `version` 原样带回 `apply_ops`。
+- **每张媒体卡当前那一版的地址**（`takes`）：`set_review_state` 要用它指明打回的是哪一版（防止把后来新出的一版一起打回），画布快照只说「有没有产出」，所以单独给。
 
 ### 4.2 看片段怎么截帧
 
@@ -76,7 +77,7 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 
 - 读：按归属取项目 → v4 解析 + 槽位规整（与浏览器载入同一条 `upgradeNodeWorkflowStateToV4` 的 v4 分支）。
 - 写：同上取到 state → 抽出来的批量执行纯函数 → 条件更新（`updatedAt = baseVersion`）。执行上下文在服务端补齐：
-  - 模型解析：同一个 `resolveModelChannel` + 库里这个用户的 key，⛔ 不让 Claude 编 adapter 或渠道。
+  - 模型解析：**不给**。「型号 → 完整选择（渠道 / key）」要用户的 key 与渠道健康状态，那是浏览器里 `useWorkflowModelOptions` 的活；在服务端另拼一份就是第二份真相。执行器的规矩是不给就失败可见，`set_model` 因此回一句「请用户在浏览器里选」。⛔ 不让 Claude 编 adapter 或渠道。
   - 角色名单：从角色卡库读（与画布 `@` 同源）。
   - 新节点 id：服务端铸。
 - 记来源：`NodeWorkflowProject` 加一列 `lastWriter`（浏览器保存写 `app`、MCP 写 `mcp`、渲染落卡写 `render`），浏览器据此决定回执怎么说。

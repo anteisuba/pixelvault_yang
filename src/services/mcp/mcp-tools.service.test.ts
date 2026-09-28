@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetProject = vi.fn()
+const mockUpdateProject = vi.fn()
+const { MockConflictError } = vi.hoisted(() => ({
+  MockConflictError: class MockConflictError extends Error {},
+}))
 vi.mock('@/services/node/node-workflow.service', () => ({
   getNodeWorkflowProject: (...args: unknown[]) => mockGetProject(...args),
+  updateNodeWorkflowProject: (...args: unknown[]) => mockUpdateProject(...args),
   NodeWorkflowStateCorruptError: class NodeWorkflowStateCorruptError extends Error {},
+  NodeWorkflowProjectConflictError: MockConflictError,
 }))
 
 const mockFindMany = vi.fn()
@@ -16,6 +22,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  applyOpsForMcp,
   listProjectsForMcp,
   lookAtForMcp,
   McpToolError,
@@ -237,5 +244,111 @@ describe('lookAtForMcp', () => {
     })
 
     expect(frames.map((frame) => frame.ok)).toEqual([false, true])
+  })
+})
+
+describe('readProjectForMcp takes', () => {
+  it('names the current take of each media card for set_review_state', async () => {
+    const view = await readProjectForMcp(OWNER, { projectId: 'p1' })
+
+    expect(view.takes).toEqual([
+      { nodeId: 'v1', url: `${CDN}/shots/v1.mp4` },
+      { nodeId: 'v2', url: 'https://fal.media/v2.mp4' },
+      { nodeId: 'i1', url: `${CDN}/images/i1.png` },
+    ])
+  })
+})
+
+describe('applyOpsForMcp', () => {
+  const speedUp = {
+    op: 'edit_update_clip' as const,
+    track: 'video' as const,
+    clipId: 'c1',
+    patch: { speed: 2 },
+  }
+
+  beforeEach(() => {
+    mockUpdateProject.mockImplementation(async (_clerkId, _id, input) => ({
+      ...record(input.state),
+      updatedAt: '2026-09-28T04:00:00.000Z',
+    }))
+  })
+
+  it('writes the batch conditioned on the version Claude read', async () => {
+    const result = await applyOpsForMcp(OWNER, {
+      projectId: 'p1',
+      baseVersion: VERSION,
+      ops: [speedUp],
+    })
+
+    expect(result).toMatchObject({
+      version: '2026-09-28T04:00:00.000Z',
+      applied: 1,
+      skipped: [],
+    })
+    const [clerkId, projectId, input] = mockUpdateProject.mock.calls[0]!
+    expect([clerkId, projectId, input.baseUpdatedAt]).toEqual([
+      OWNER.clerkId,
+      'p1',
+      VERSION,
+    ])
+    expect(input.state.edit.tracks.video[0].speed).toBe(2)
+  })
+
+  it('refuses a stale version without writing anything', async () => {
+    await expect(
+      applyOpsForMcp(OWNER, {
+        projectId: 'p1',
+        baseVersion: '2026-01-01T00:00:00.000Z',
+        ops: [speedUp],
+      }),
+    ).rejects.toThrow(/Read it again/)
+    expect(mockUpdateProject).not.toHaveBeenCalled()
+  })
+
+  it('turns a write that lost the race into the same read-again answer', async () => {
+    mockUpdateProject.mockRejectedValue(new MockConflictError())
+
+    await expect(
+      applyOpsForMcp(OWNER, {
+        projectId: 'p1',
+        baseVersion: VERSION,
+        ops: [speedUp],
+      }),
+    ).rejects.toThrow(/Read it again/)
+  })
+
+  it('does not write when nothing landed, and says why each op was skipped', async () => {
+    const result = await applyOpsForMcp(OWNER, {
+      projectId: 'p1',
+      baseVersion: VERSION,
+      ops: [
+        { ...speedUp, clipId: 'nope' },
+        { op: 'set_model', target: 'v1', modelId: 'some-model' },
+      ],
+    })
+
+    expect(mockUpdateProject).not.toHaveBeenCalled()
+    expect(result.version).toBe(VERSION)
+    expect(result.applied).toBe(0)
+    expect(result.skipped.map((skip) => [skip.index, skip.op])).toEqual([
+      [0, 'edit_update_clip'],
+      [1, 'set_model'],
+    ])
+    expect(result.skipped[1]?.reason).toMatch(/browser/)
+  })
+
+  it('will not empty the canvas', async () => {
+    await expect(
+      applyOpsForMcp(OWNER, {
+        projectId: 'p1',
+        baseVersion: VERSION,
+        ops: ['v1', 'v2', 'i1'].map((target) => ({
+          op: 'delete' as const,
+          target,
+        })),
+      }),
+    ).rejects.toThrow(/empty/)
+    expect(mockUpdateProject).not.toHaveBeenCalled()
   })
 })

@@ -8,9 +8,12 @@
 import { z } from 'zod'
 
 import {
+  MCP_APPLY_OPS_MAX,
   MCP_LOOK_AT_MAX_TIMES,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
+import { CANVAS_APPLY_OP_IDS } from '@/types/assistant-operator'
+import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
 
 /* ─── 令牌（§3.1）──────────────────────────────────────────────────────── */
 
@@ -98,3 +101,38 @@ export const McpLookAtInputSchema = z
   })
 
 export type McpLookAtInput = z.infer<typeof McpLookAtInputSchema>
+
+/**
+ * `apply_ops` 收的 op：v4 op 表里**站内 `canvas_apply` 准入的那一部分**（能撤销 ∧
+ * 不是 `generate`）。⚠ 从同一份 `NodeAssistantOpV4Schema` 按 `CANVAS_APPLY_OP_IDS`
+ * 过滤出来，⛔ 不手抄第二份（docs/references/mcp.md §2 第 1 条）—— 也因此生成与
+ * 只读 op 根本不出现在工具的 JSON Schema 里。
+ */
+type McpApplyOpSchemaMember = (typeof NodeAssistantOpV4Schema.options)[number]
+
+const MCP_APPLY_OP_SCHEMAS = NodeAssistantOpV4Schema.options.filter((schema) =>
+  (CANVAS_APPLY_OP_IDS as readonly string[]).includes(schema.shape.op.value),
+) as [McpApplyOpSchemaMember, ...McpApplyOpSchemaMember[]]
+
+export const McpApplyOpSchema = z.discriminatedUnion('op', MCP_APPLY_OP_SCHEMAS)
+
+export const McpApplyOpsInputSchema = z.object({
+  projectId: ProjectIdSchema,
+  baseVersion: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .describe(
+      'The version read_project returned. If the project changed since, nothing is written and you are asked to read again.',
+    ),
+  ops: z
+    .array(McpApplyOpSchema)
+    .min(1)
+    .max(MCP_APPLY_OPS_MAX)
+    .describe(
+      'Edits applied in order as one batch (one undo step for the user). Later ops can target a node an earlier add_node created through its ref.',
+    ),
+})
+
+export type McpApplyOpsInput = z.infer<typeof McpApplyOpsInputSchema>

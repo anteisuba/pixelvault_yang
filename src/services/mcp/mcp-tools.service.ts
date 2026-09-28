@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
+
 import { db } from '@/lib/db'
 import { currentUrlOf, projectDurationSec } from '@/lib/edit-project'
 import {
@@ -12,11 +14,14 @@ import {
   NODE_V4_UPGRADE_OUTCOMES,
   upgradeNodeWorkflowStateToV4,
 } from '@/lib/node-workflow-v4-upgrade'
+import { applyCanvasBatchV4 } from '@/lib/node-canvas-batch-v4'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import { getImagePreviewUrl, getVideoFrameUrl } from '@/lib/video-poster'
 import {
   getNodeWorkflowProject,
+  NodeWorkflowProjectConflictError,
   NodeWorkflowStateCorruptError,
+  updateNodeWorkflowProject,
 } from '@/services/node/node-workflow.service'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
 import { EDIT_TRACK_IDS } from '@/constants/edit-desk'
@@ -25,16 +30,21 @@ import {
   MCP_LOOK_AT_FETCH_TIMEOUT_MS,
   MCP_LOOK_AT_FRAME_WIDTH,
 } from '@/constants/mcp'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { AssistantOperatorCanvasSnapshot } from '@/types/assistant-operator'
-import type { McpLookAtInput, McpReadProjectInput } from '@/types/mcp'
+import type {
+  McpApplyOpsInput,
+  McpLookAtInput,
+  McpReadProjectInput,
+} from '@/types/mcp'
 import {
   EditProjectSchema,
   type NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
 /**
- * MCP 的只读工具（S2 · `docs/references/mcp.md` §4）。
+ * MCP 的工具（`docs/references/mcp.md` §4）：S2 三个只读 + S3 `apply_ops`。
  *
  * ⚠ 每个工具都从令牌主人的 Clerk id 出发、走现成的按归属取项目的服务 ——
  * ⛔ 不在这里另写一条「按 id 取项目」的查询，归属校验只有一份。
@@ -164,6 +174,11 @@ export interface McpProjectView {
   readonly version: string
   readonly canvas: AssistantOperatorCanvasSnapshot
   readonly timeline: TimelineSnapshot | null
+  /**
+   * 每张媒体卡当前那一版的地址。`set_review_state` 要它指明打回的是**哪一版**
+   * （防止把后来新出的一版一起打回）；画布快照只说「有没有产出」，所以单独给。
+   */
+  readonly takes: readonly { readonly nodeId: string; readonly url: string }[]
 }
 
 export async function readProjectForMcp(
@@ -182,6 +197,10 @@ export async function readProjectForMcp(
       currentShotNo: input.focusShot ?? null,
     }),
     timeline: buildTimelineSnapshot(project.state.edit, project.state.nodes),
+    takes: project.state.nodes.flatMap((node) => {
+      const url = currentUrlOf(node)
+      return url ? [{ nodeId: node.id, url }] : []
+    }),
   }
 }
 
@@ -322,4 +341,101 @@ export async function lookAtForMcp(
 ): Promise<McpFrame[]> {
   const project = await loadProject(owner, input.projectId)
   return Promise.all(planFrames(project.state, input).map(fetchFrame))
+}
+
+/* ─── apply_ops（S3）──────────────────────────────────────────────────── */
+
+export interface McpApplyResult {
+  /** 下一次写入带这个。一条都没落时不变。 */
+  readonly version: string
+  readonly applied: number
+  readonly skipped: readonly {
+    readonly index: number
+    readonly op: string
+    readonly reason: string
+  }[]
+  readonly changedNodeIds: readonly string[]
+  readonly createdNodeIds: readonly string[]
+}
+
+const STALE_VERSION =
+  'The project changed since you read it (the user or another tab edited it). Nothing was written. Read it again and redo your change on the new version.'
+
+/** 与图引擎的 `mintId` 同一个形状（前缀 + uuid）。 */
+function mintServerId(prefix: string): string {
+  return `${prefix}${randomUUID()}`
+}
+
+/**
+ * ⚠ 服务端**不给** `resolveModel`：「型号 → 完整选择（渠道 / key）」要用户的 key
+ * 与渠道健康状态，那是浏览器里 `useWorkflowModelOptions` 的活。执行器的规矩是
+ * 不给就**失败可见**、不静默半写 —— 这里把那条失败翻成一句 Claude 能照着说的话。
+ */
+function explainSkip(op: string, reason: string): string {
+  return op === NODE_ASSISTANT_OP_V4_IDS.setModel
+    ? 'Changing a card’s model is not available here; ask the user to pick it in the browser.'
+    : reason
+}
+
+/**
+ * 一批改动落库（docs/references/mcp.md §5）：与图引擎同一个批量纯函数 → 按版本号
+ * 条件写。⛔ 冲突时不在服务端自动重放 —— 用户刚改过的内容会被 Claude 的旧意图盖掉。
+ */
+export async function applyOpsForMcp(
+  owner: McpTokenOwner,
+  input: McpApplyOpsInput,
+): Promise<McpApplyResult> {
+  const project = await loadProject(owner, input.projectId)
+  if (input.baseVersion !== project.version)
+    throw new McpToolError(STALE_VERSION)
+
+  const batch = applyCanvasBatchV4(project.state, input.ops, {
+    mintId: mintServerId,
+  })
+  const skipped = batch.failures.map((failure) => {
+    const op = input.ops[failure.index]?.op ?? 'unknown'
+    return {
+      index: failure.index,
+      op,
+      reason: explainSkip(op, failure.reason),
+    }
+  })
+  if (!batch.inverse) {
+    return {
+      version: project.version,
+      applied: 0,
+      skipped,
+      changedNodeIds: [],
+      createdNodeIds: [],
+    }
+  }
+
+  // 空覆盖闸在服务层是「静默跳过 state」（它防的是客户端的陈旧空快照），对 Claude
+  // 那等于说「写了」其实没写 —— 这里先挡住并直说。
+  if (batch.state.nodes.length === 0 && project.state.nodes.length > 0) {
+    throw new McpToolError(
+      'This batch would leave the canvas empty; that is not allowed from here. Nothing was written.',
+    )
+  }
+
+  let record
+  try {
+    record = await updateNodeWorkflowProject(owner.clerkId, input.projectId, {
+      state: batch.state,
+      baseUpdatedAt: project.version,
+    })
+  } catch (error) {
+    if (error instanceof NodeWorkflowProjectConflictError) {
+      throw new McpToolError(STALE_VERSION)
+    }
+    throw error
+  }
+
+  return {
+    version: record.updatedAt,
+    applied: batch.applied,
+    skipped,
+    changedNodeIds: batch.changedNodeIds,
+    createdNodeIds: batch.createdNodeIds,
+  }
 }

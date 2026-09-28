@@ -14,6 +14,7 @@ import {
   type McpTokenOwner,
 } from '@/services/mcp/mcp-token.service'
 import {
+  applyOpsForMcp,
   listProjectsForMcp,
   lookAtForMcp,
   McpToolError,
@@ -21,6 +22,7 @@ import {
 } from '@/services/mcp/mcp-tools.service'
 import { MCP_RATE_LIMIT, MCP_TOOL_IDS } from '@/constants/mcp'
 import {
+  McpApplyOpsInputSchema,
   McpListProjectsInputSchema,
   McpLookAtInputSchema,
   McpReadProjectInputSchema,
@@ -165,5 +167,24 @@ export function registerMcpTools(server: McpServer): void {
           ),
         }
       }),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.applyOps,
+    {
+      title: 'Edit a canvas project',
+      description:
+        'Applies a batch of edits: the same operations the in-app canvas assistant uses, minus anything that generates. Timeline: edit_add_clip, edit_update_clip (trim, speed, transition, mute, gain), edit_move_clip, edit_remove_clip, edit_add_text / edit_update_text / edit_remove_text, edit_set_timeline. Cards: set_prompt, set_text, set_review_state, add_node, connect and the rest. Pass baseVersion from read_project; the whole batch is one undo step for the user, and the open canvas follows it. Returns the new version and any op that was skipped with its reason.',
+      inputSchema: McpApplyOpsInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.applyOps, ctx.http?.authInfo, async (owner) =>
+        jsonResult(await applyOpsForMcp(owner, input)),
+      ),
   )
 }

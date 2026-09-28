@@ -227,14 +227,16 @@ export function CharacterRoster() {
     ? { duration: 0 }
     : { duration: DURATION.base, delay: DURATION.fast, ease: EASE_STANDARD }
 
+  /** 手机上收成一颗圆形 ＋（字留给读屏），桌面照旧带字。 */
   const newCharacterButton = (
     <Button
       type="button"
-      className="shrink-0 rounded-full"
+      aria-label={t('newCharacter')}
+      className="shrink-0 rounded-full max-sm:size-9 max-sm:px-0"
       onClick={() => setDrafting(true)}
     >
       <Plus className="size-4" />
-      {t('newCharacter')}
+      <span className="max-sm:sr-only">{t('newCharacter')}</span>
     </Button>
   )
 
@@ -254,7 +256,17 @@ export function CharacterRoster() {
               ? { duration: 0 }
               : { duration: DURATION.base, ease: EASE_STANDARD }
           }
-          className={cn(ROW_CLASS, !operatorHost.open && ROW_AVATAR_GAP_CLASS)}
+          className={cn(
+            ROW_CLASS,
+            // 总览在手机上是两行（搜索在第二行、满宽）：头像的让位只给第一行，由那一行
+            // 右端的按钮自己留（`CharacterOverviewHeader`），⛔ 不压窄第二行的搜索框。
+            selected || drafting
+              ? !operatorHost.open && ROW_AVATAR_GAP_CLASS
+              : [
+                  'max-sm:h-auto max-sm:flex-wrap max-sm:gap-y-3',
+                  !operatorHost.open && 'sm:pr-12',
+                ],
+          )}
         >
           {drafting ? (
             <CharacterDetailHeader

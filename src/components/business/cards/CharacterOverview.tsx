@@ -473,7 +473,8 @@ export function CharacterOverviewHeader({
       <span className="hidden text-2sm text-muted-foreground sm:inline">
         {t('overviewCount', { characters, works })}
       </span>
-      <label className="ml-auto flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground sm:w-72 sm:flex-none">
+      {/* 手机上搜索换到第二行、满宽（owner 09-28「太挤」，iOS 通讯录的排法）。 */}
+      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground max-sm:order-last max-sm:basis-full sm:ml-auto sm:w-72 sm:flex-none">
         <Search className="size-4 shrink-0" aria-hidden />
         <input
           id="character-search"
@@ -485,7 +486,8 @@ export function CharacterOverviewHeader({
           className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
-      {actions}
+      {/* 手机上这一格顶着第一行右端：让出右上角的助手头像（36 + 12）。 */}
+      <div className="flex shrink-0 max-sm:ml-auto max-sm:mr-12">{actions}</div>
     </>
   )
 }

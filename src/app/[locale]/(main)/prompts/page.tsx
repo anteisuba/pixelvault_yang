@@ -72,34 +72,41 @@ export default async function PromptsPage({
   const currentTab: PromptLibraryTab =
     query?.tab === 'inspiration' ? 'inspiration' : 'mine'
 
+  // 提示词页 A（pages/prompts.md）：灰底地台 + 顶行（标题 · 分段 · 新建）+ 一张白卡舞台，
+  // 与 LoRA 台同一副外壳。
   return (
-    <main className="min-h-full bg-background p-4 lg:p-6">
-      <h1 className="sr-only">{t('title')}</h1>
-      <div className="mx-auto max-w-gallery space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PromptLibraryTabs currentTab={currentTab} />
-          {clerkId && currentTab === 'mine' && (
-            <PromptTemplateCreatePanel
-              initialOpen={query?.create === '1'}
-              initialValues={{
-                name: query?.name,
-                compiledPrompt: query?.prompt,
-                negativePrompt: query?.negativePrompt,
-                modelId: query?.model,
-                provider: query?.provider,
-                outputType: query?.outputType,
-                parentGenerationId: query?.generationId,
-              }}
-            />
-          )}
-        </div>
+    <main className="workbench-ground h-page flex-col text-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-3.5">
+        <h1 className="text-sm font-semibold text-muted-foreground">
+          {t('pageTitle')}
+        </h1>
+        <PromptLibraryTabs currentTab={currentTab} />
+        <span className="flex-1" />
+        {clerkId && currentTab === 'mine' && (
+          <PromptTemplateCreatePanel
+            initialOpen={query?.create === '1'}
+            initialValues={{
+              name: query?.name,
+              compiledPrompt: query?.prompt,
+              negativePrompt: query?.negativePrompt,
+              modelId: query?.model,
+              provider: query?.provider,
+              outputType: query?.outputType,
+              parentGenerationId: query?.generationId,
+            }}
+          />
+        )}
+      </div>
 
+      <section aria-label={t('title')} className="workbench-card">
         {currentTab === 'inspiration' ? (
-          <InspirationGrid />
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <InspirationGrid />
+          </div>
         ) : (
           <MineTab clerkId={clerkId} locale={locale} t={t} />
         )}
-      </div>
+      </section>
     </main>
   )
 }
@@ -111,20 +118,13 @@ type MineTabProps = {
 }
 
 async function MineTab({ clerkId, locale, t }: MineTabProps) {
-  const getOutputTypeLabel = (outputType: string) => {
-    if (outputType === 'VIDEO') return t('outputTypeVideo')
-    if (outputType === 'AUDIO') return t('outputTypeAudio')
-    if (outputType === 'MODEL_3D') return t('outputType3d')
-    return t('outputTypeImage')
-  }
-
   if (!clerkId) {
     return (
-      <div className="editorial-panel text-center">
+      <div className="grid flex-1 place-items-center p-5 text-center">
         <div className="mx-auto max-w-xl space-y-4">
-          <h1 className="text-3xl font-medium tracking-tight">
+          <h2 className="text-2xl font-medium tracking-tight">
             {t('emptyTitle')}
-          </h1>
+          </h2>
           <p className="text-sm leading-7 text-muted-foreground">
             {t('emptyDescription')}
           </p>
@@ -141,7 +141,7 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
   return (
     <>
       {recipes.length === 0 ? (
-        <section className="editorial-panel">
+        <section className="grid flex-1 place-items-center p-5">
           <div className="mx-auto max-w-xl space-y-4 text-center">
             <FileText className="mx-auto size-10 text-primary/75" />
             <h2 className="text-2xl font-medium">{t('emptyTitle')}</h2>
@@ -170,8 +170,10 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
             version: recipe.version,
             visibility: recipe.visibility,
             createdAt: recipe.createdAt.toISOString(),
-            outputTypeLabel: getOutputTypeLabel(recipe.outputType),
             coverThumbnailUrl: recipe.coverThumbnailUrl,
+            templateKind: recipe.templateKind,
+            lora: recipe.lora,
+            lastUsedAt: recipe.lastUsedAt?.toISOString() ?? null,
           }))}
         />
       )}

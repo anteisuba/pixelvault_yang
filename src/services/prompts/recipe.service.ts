@@ -11,7 +11,10 @@ import {
   readRecipeLoraSetup,
   type RecipeLoraRead,
 } from '@/lib/recipe-lora-setup'
-import { getRecipeTemplateKind } from '@/lib/recipe-template-kind'
+import {
+  getRecipeTemplateKind,
+  type RecipeTemplateKind,
+} from '@/lib/recipe-template-kind'
 import {
   GenerationSnapshotSchema,
   type CreateRecipeFromGenerationRequest,
@@ -52,7 +55,7 @@ export type RecipeSummaryWithCover = RecipeListItem & {
   coverThumbnailUrl: string | null
   lastUsedAt: Date | null
   /** 四格类型的判据（`getRecipeTemplateKind`）：LoRA 模板是 `LORA`。 */
-  templateKind: ReturnType<typeof getRecipeTemplateKind>
+  templateKind: RecipeTemplateKind
   lora: RecipeLoraSummary | null
 }
 

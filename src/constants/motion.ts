@@ -109,6 +109,12 @@ export const LIQUID_TIMING = {
 export const TAG_ADD_ACK_MS = 1200
 
 /**
+ * 复制成功后那颗键写「已复制」多久（LoRA 库 B 与提示词页 A 的动效表都是 1.2 秒），
+ * ⛔ 弹 toast。
+ */
+export const COPIED_ACK_MS = 1200
+
+/**
  * 工具行 chip 弹层 ②「从 chip 放大」（owner 2026-09-26 画板 PopZoom）的起止形态；
  * 节拍走 CSS token，见 `useStudioChipPopoverMotion`。
  */

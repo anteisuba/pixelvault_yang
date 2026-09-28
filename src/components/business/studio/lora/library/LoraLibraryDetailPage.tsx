@@ -23,7 +23,7 @@ import {
   isCivitaiLoraCommerciallyUsable,
   type LoraNsfwFilter,
 } from '@/constants/lora'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { COPIED_ACK_MS, DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
   LoraRecipeViewer,
   type LoraRecipeViewerOrigin,
@@ -47,9 +47,6 @@ import type {
   CivitaiLoraLibraryItem,
   LoraCandidateLicense,
 } from '@/types'
-
-/** 复制成功后那颗键写「已复制」多久（动效表：1.2 秒）。 */
-const COPIED_MS = 1200
 
 /** ⋯ 菜单里宿主自己加的项（收藏里的自训：公开 / 私有、删除）。 */
 export interface LoraLibraryDetailMenuItem {
@@ -230,7 +227,7 @@ export function LoraLibraryDetailPage({
     }
     setCopied(key)
     if (copiedTimer.current) clearTimeout(copiedTimer.current)
-    copiedTimer.current = setTimeout(() => setCopied(null), COPIED_MS)
+    copiedTimer.current = setTimeout(() => setCopied(null), COPIED_ACK_MS)
   }
 
   // 样例：带配方的逐图配方优先；没配方的是作者示例图（Hugging Face 是 README 里的图），只看图。

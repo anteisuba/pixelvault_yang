@@ -4,9 +4,12 @@ import { readRecipeLoraSetup } from '@/lib/recipe-lora-setup'
 import { isTagTemplateParams } from '@/lib/tag-composer'
 import type { OutputType, RecipeRecord } from '@/types'
 
+/** 模板的类型：出图类型之外多一个 `LORA`（带 LoRA 整套的图片模板）。 */
+export type RecipeTemplateKind = RecipeRecord['outputType'] | 'LORA'
+
 export function getRecipeTemplateKind(
   recipe: Pick<RecipeRecord, 'outputType' | 'modelId' | 'params'>,
-): RecipeRecord['outputType'] | 'LORA' {
+): RecipeTemplateKind {
   if (recipe.outputType !== 'IMAGE') return recipe.outputType
   const model = getModelById(recipe.modelId)
   if (model && resolveImageKind(model) === IMAGE_KIND.LORA_BASE) return 'LORA'

@@ -2558,6 +2558,15 @@ html:lang(ja) {
    右键菜单 / transport / 移动端条），卡面用不透明 `bg-card`。
    `corner-squircle`：连续圆角，Chromium 才有；不支持的浏览器自动退回同值普通
    圆角（形状差、布局不差），所以永远与 `rounded-node` 一起写。 */
+/* 占满一屏的页面高度：手机顶栏（3rem）之下 / 桌面整屏。工作台地台页用它，
+   ⛔ 各页再写一遍 `h-[calc(100svh-3rem)]`。 */
+@utility h-page {
+  height: calc(100svh - 3rem);
+  @media (width >= 64rem) {
+    height: 100svh;
+  }
+}
+
 @utility surface-glass {
   background-color: var(--surface-glass);
   -webkit-backdrop-filter: saturate(180%) blur(24px);

@@ -194,6 +194,7 @@ export function PromptTemplateCreatePanel({
     <div className="flex justify-end">
       <Button
         type="button"
+        className="rounded-full"
         onClick={() => {
           setFormError(null)
           setIsOpen(true)

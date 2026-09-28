@@ -1,41 +1,36 @@
 'use client'
+/* eslint-disable @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */
 
-import { useEffect, useMemo, useState } from 'react'
-import { Globe, Pencil, Search, Trash2 } from '@/components/icons'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import {
-  PROMPT_TEMPLATE_OUTPUT_TYPES,
-  PROMPT_OUTPUT_TYPE_LABEL_KEYS,
-  RECIPE_VISIBILITY,
-  type PromptTemplateOutputType,
-} from '@/constants/prompt-library'
-import { deleteRecipeAPI } from '@/lib/api-client/recipes'
+import { Globe, Search, X } from '@/components/icons'
+import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
+import { ROUTES } from '@/constants/routes'
+import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
+import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
+import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
+import type { RecipeTemplateKind } from '@/lib/recipe-template-kind'
+import { cn } from '@/lib/utils'
 import type { OutputType } from '@/types'
-import { OutputTypeChip } from './OutputTypeChip'
-import { PromptFilterChip } from './PromptFilterChip'
-import { PromptTemplateDetailDialog } from '@/components/business/prompts/PromptTemplateDetailDialog'
-import { CopyPromptButton } from './CopyPromptButton'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { CopyPromptButton } from './CopyPromptButton'
+import { PromptFilterMenu } from './PromptFilterMenu'
+import { PromptTemplateDetailPage } from './PromptTemplateDetailPage'
+import { PromptTemplateKindBadge } from './PromptTemplateKindBadge'
+
+/** 卡片上那一行「名字 权重」（旧存的补不到名字就是 `null`）。 */
+export interface PromptTemplateLoraMix {
+  baseId: string | null
+  items: { name: string | null; scale: number }[]
+}
 
 export interface PromptTemplateListItem {
   id: string
   outputType: OutputType
-  outputTypeLabel: string
   name: string
   compiledPrompt: string
   modelId: string
@@ -45,6 +40,9 @@ export interface PromptTemplateListItem {
   createdAt: string
   /** First image generated with this template (cover). Null → text fallback. */
   coverThumbnailUrl?: string | null
+  templateKind: RecipeTemplateKind
+  lora: PromptTemplateLoraMix | null
+  lastUsedAt: string | null
 }
 
 interface PromptTemplateListProps {
@@ -52,292 +50,437 @@ interface PromptTemplateListProps {
   recipes: PromptTemplateListItem[]
 }
 
-type TypeFilter = PromptTemplateOutputType | 'ALL'
+/** 四格类型（pages/prompts.md）：⛔ 音频那一格去掉，音频模板只在「全部」里。 */
+type TypeFilter = 'ALL' | 'IMAGE' | 'VIDEO' | 'LORA'
+type SortMode = 'recent' | 'created'
 
+const TYPE_FILTERS: readonly TypeFilter[] = ['ALL', 'IMAGE', 'VIDEO', 'LORA']
+
+function byCreated(a: PromptTemplateListItem, b: PromptTemplateListItem) {
+  return b.createdAt.localeCompare(a.createdAt)
+}
+
+/** 「最近用过」：用过的按使用时间排前面，没用过的按新建时间排在后面。 */
+function byRecent(a: PromptTemplateListItem, b: PromptTemplateListItem) {
+  if (a.lastUsedAt && b.lastUsedAt)
+    return b.lastUsedAt.localeCompare(a.lastUsedAt)
+  if (a.lastUsedAt) return -1
+  if (b.lastUsedAt) return 1
+  return byCreated(a, b)
+}
+
+/**
+ * 提示词页 A「网格 + 详情一页」（pages/prompts.md，与 LoRA 库 B 同一个样子）：一行
+ * 筛选（搜索 · 类型 · 排序）、真实数量、4 列卡片；点一张，详情从下往上升盖住这一块。
+ * 筛选与搜索都在本地，结果立刻换。
+ */
 export function PromptTemplateList({
   locale,
   recipes,
 }: PromptTemplateListProps) {
   const t = useTranslations('PromptLibrary')
   const [items, setItems] = useState(recipes)
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
   const [query, setQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
+  const [sort, setSort] = useState<SortMode>('recent')
+  const [openId, setOpenId] = useState<string | null>(null)
+  const openButtons = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     setItems(recipes)
   }, [recipes])
 
-  const handleDeleted = (id: string) => {
-    setItems((prev) => prev.filter((recipe) => recipe.id !== id))
-  }
-
-  const visibleItems = useMemo(
-    () =>
-      items.filter(
-        (recipe) =>
-          (typeFilter === 'ALL' || recipe.outputType === typeFilter) &&
-          `${recipe.name} ${recipe.compiledPrompt}`
-            .toLocaleLowerCase(locale)
-            .includes(query.trim().toLocaleLowerCase(locale)),
-      ),
-    [items, typeFilter, query, locale],
+  const typeLabel = useCallback(
+    (type: TypeFilter) =>
+      type === 'ALL'
+        ? t('typeFilterAll')
+        : type === 'LORA'
+          ? t('typeLora')
+          : t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type]),
+    [t],
   )
+
+  const shown = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase(locale)
+    return items
+      .filter(
+        (recipe) =>
+          (typeFilter === 'ALL' || recipe.templateKind === typeFilter) &&
+          (!needle ||
+            `${recipe.name} ${recipe.compiledPrompt}`
+              .toLocaleLowerCase(locale)
+              .includes(needle)),
+      )
+      .sort(sort === 'recent' ? byRecent : byCreated)
+  }, [items, locale, query, sort, typeFilter])
+
+  const openItem = openId
+    ? (items.find((recipe) => recipe.id === openId) ?? null)
+    : null
+
+  const closeDetail = useCallback(() => {
+    const id = openId
+    setOpenId(null)
+    // 焦点回到点开它的那张卡（详情关上之后网格还在原来滚到的位置）。
+    if (id) requestAnimationFrame(() => openButtons.current.get(id)?.focus())
+  }, [openId])
+
+  const handleDeleted = useCallback((id: string) => {
+    setOpenId(null)
+    setItems((prev) => prev.filter((recipe) => recipe.id !== id))
+  }, [])
+
+  const handleChanged = useCallback(
+    (patch: Partial<PromptTemplateListItem> & { id: string }) => {
+      setItems((prev) =>
+        prev.map((recipe) =>
+          recipe.id === patch.id ? { ...recipe, ...patch } : recipe,
+        ),
+      )
+    },
+    [],
+  )
+
+  const handleUsed = useCallback((id: string) => {
+    const now = new Date().toISOString()
+    setItems((prev) =>
+      prev.map((recipe) =>
+        recipe.id === id ? { ...recipe, lastUsedAt: now } : recipe,
+      ),
+    )
+  }, [])
 
   return (
-    <section className="@container space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex w-full max-w-md items-center gap-2 rounded-xl border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
-          <Search
-            aria-hidden
-            className="size-4 shrink-0 text-muted-foreground"
-          />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label={t('searchTemplates')}
-            placeholder={t('searchTemplates')}
-            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
-        </label>
-        <nav
-          aria-label={t('typeFilterLabel')}
-          className="flex flex-wrap gap-1.5"
-        >
-          <PromptFilterChip
-            label={t('typeFilterAll')}
-            active={typeFilter === 'ALL'}
-            onClick={() => setTypeFilter('ALL')}
-          />
-          {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
-            <PromptFilterChip
-              key={type}
-              label={t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
-              active={typeFilter === type}
-              onClick={() => setTypeFilter(type)}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div inert={openItem !== null} className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center gap-2 px-5 pt-4">
+          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40">
+            <Search
+              aria-hidden
+              className="size-3.5 shrink-0 text-muted-foreground"
             />
-          ))}
-        </nav>
-      </div>
-
-      {visibleItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm leading-6 text-muted-foreground">
-          {t('typeFilterEmpty')}
-          {(query || typeFilter !== 'ALL') && (
-            <div className="mt-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setQuery('')
-                  setTypeFilter('ALL')
-                }}
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              enterKeyHint="search"
+              aria-label={t('searchTemplates')}
+              placeholder={t('searchTemplates')}
+              className="h-full min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground/70"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label={t('clearSearch')}
+                className="shrink-0 text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {t('clearFilters')}
-              </Button>
-            </div>
+                <X aria-hidden className="size-3.5" />
+              </button>
+            ) : null}
+          </label>
+          <PromptFilterMenu
+            label={t('typeFilterShort')}
+            value={typeFilter}
+            options={TYPE_FILTERS.map((type) => ({
+              value: type,
+              label: typeLabel(type),
+            }))}
+            onChange={setTypeFilter}
+            changed={typeFilter !== 'ALL'}
+          />
+          <PromptFilterMenu
+            label={t('sortLabel')}
+            value={sort}
+            options={[
+              { value: 'recent', label: t('sortRecent') },
+              { value: 'created', label: t('sortCreated') },
+            ]}
+            onChange={setSort}
+            changed={sort !== 'recent'}
+          />
+        </div>
+        <p className="shrink-0 px-5 pb-2.5 pt-3 text-xs text-muted-foreground">
+          {t.rich('countLine', {
+            count: shown.length,
+            n: (chunks) => (
+              <b className="mr-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">
+                {chunks}
+              </b>
+            ),
+          })}
+        </p>
+        <div className="@container min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+          {shown.length === 0 ? (
+            <PromptTemplateListEmpty
+              query={query.trim()}
+              typeFilter={typeFilter}
+              typeLabel={typeLabel(typeFilter)}
+              hasAny={items.length > 0}
+              hasLora={items.some((recipe) => recipe.templateKind === 'LORA')}
+              onClearQuery={() => setQuery('')}
+              onClearType={() => setTypeFilter('ALL')}
+            />
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+              {shown.map((recipe) => (
+                <PromptTemplateCard
+                  key={recipe.id}
+                  locale={locale}
+                  recipe={recipe}
+                  onOpen={() => setOpenId(recipe.id)}
+                  onUsed={() => handleUsed(recipe.id)}
+                  openRef={(node) => {
+                    if (node) openButtons.current.set(recipe.id, node)
+                    else openButtons.current.delete(recipe.id)
+                  }}
+                />
+              ))}
+            </ul>
           )}
         </div>
-      ) : (
-        <div className="columns-1 gap-4 @xl:columns-2 @4xl:columns-3">
-          {visibleItems.map((recipe) => (
-            <PromptTemplateCard
-              key={recipe.id}
-              locale={locale}
-              recipe={recipe}
-              onDeleted={handleDeleted}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+      </div>
+
+      <AnimatePresence>
+        {openItem ? (
+          <PromptTemplateDetailPage
+            key={openItem.id}
+            recipe={openItem}
+            locale={locale}
+            onClose={closeDetail}
+            onDeleted={handleDeleted}
+            onChanged={handleChanged}
+            onUsed={() => handleUsed(openItem.id)}
+          />
+        ) : null}
+      </AnimatePresence>
+    </div>
   )
 }
 
-/* Static per-modality classes for the no-cover fallback wash — Tailwind
-   requires literal class names. Exported so other "pick a prompt template"
-   surfaces (e.g. the canvas prompt bar's template popover — 无封面走
-   /prompts 现有的字形兜底) reuse
-   the exact same fallback instead of re-deriving their own palette. */
-export const FALLBACK_WASH_CLASSES: Record<OutputType, string> = {
-  IMAGE: 'bg-modality-image/10',
-  VIDEO: 'bg-modality-video/10',
-  AUDIO: 'bg-modality-audio/10',
-  MODEL_3D: 'bg-muted/30',
-}
-
-export const FALLBACK_ICON_CLASSES: Record<OutputType, string> = {
-  IMAGE: 'text-modality-image/80',
-  VIDEO: 'text-modality-video/80',
-  AUDIO: 'text-modality-audio/80',
-  MODEL_3D: 'text-muted-foreground/70',
+/** 卡片与详情里那一行「名字 权重」。 */
+export function PromptTemplateLoraMixLine({
+  mix,
+  className,
+}: {
+  mix: PromptTemplateLoraMix
+  className?: string
+}) {
+  const t = useTranslations('PromptLibrary')
+  return (
+    <p
+      className={cn(
+        'flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground',
+        className,
+      )}
+    >
+      {mix.items.map((item, index) => (
+        <span key={index} className="whitespace-nowrap">
+          {item.name ?? t('loraUnnamed')}
+          <b className="ml-1 font-mono text-2xs font-semibold tabular-nums text-foreground">
+            {item.scale.toFixed(2)}
+          </b>
+        </span>
+      ))}
+    </p>
+  )
 }
 
 interface PromptTemplateCardProps {
   locale: AppLocale
   recipe: PromptTemplateListItem
-  onDeleted: (id: string) => void
+  onOpen: () => void
+  onUsed: () => void
+  openRef: (node: HTMLButtonElement | null) => void
 }
 
 function PromptTemplateCard({
   locale,
   recipe,
-  onDeleted,
+  onOpen,
+  onUsed,
+  openRef,
 }: PromptTemplateCardProps) {
   const t = useTranslations('PromptLibrary')
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [detailMode, setDetailMode] = useState<'view' | 'edit' | 'use'>('view')
-  const [imageFailed, setImageFailed] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const title = recipe.name || recipe.modelId
-  const formattedDate = new Intl.DateTimeFormat(locale, {
+  const modelLabel = usePromptTemplateModelLabel()
+  const openTemplate = usePromptTemplateUse()
+  const [coverFailed, setCoverFailed] = useState(false)
+  const label = modelLabel(recipe)
+  const title = recipe.name || label
+  const cover =
+    recipe.coverThumbnailUrl && !coverFailed ? recipe.coverThumbnailUrl : null
+  const date = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
   }).format(new Date(recipe.createdAt))
 
-  const handleDelete = async () => {
-    setIsDeleting(true)
-    try {
-      const result = await deleteRecipeAPI(recipe.id)
-      if (result.success) {
-        toast.success(t('deleteSuccess'))
-        onDeleted(recipe.id)
-        return
-      }
-      toast.error(result.error ?? t('deleteFailed'))
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
   return (
-    <>
-      <article className="group relative mb-4 flex break-inside-avoid flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-fast hover:border-foreground/30">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('deleteAction')}
-              className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-background/90 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:size-11"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('deleteConfirmDescription')}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>
-                {t('deleteCancel')}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={() => void handleDelete()}
-              >
-                {t('deleteConfirmAction')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-        {recipe.coverThumbnailUrl && !imageFailed && (
-          <button
-            type="button"
-            aria-label={`${t('viewDetail')}: ${title}`}
-            onClick={() => {
-              setDetailMode('view')
-              setDetailOpen(true)
-            }}
-            className="aspect-video overflow-hidden bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */}
+    <li className="min-w-0">
+      <article className="group relative flex h-full flex-col gap-2 rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] duration-fast ease-linear hover:border-foreground/20 hover:shadow-float">
+        {/* 整张卡 = 开详情；「复制 · 使用」在它上面一层。 */}
+        <button
+          ref={openRef}
+          type="button"
+          onClick={onOpen}
+          aria-label={`${t('viewDetail')}: ${title}`}
+          className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+        />
+        {cover ? (
+          <span className="pointer-events-none relative block aspect-4/3 overflow-hidden rounded-xl bg-muted">
             <img
-              src={recipe.coverThumbnailUrl}
-              alt={title}
+              src={cover}
+              alt=""
               loading="lazy"
-              onError={() => setImageFailed(true)}
+              onError={() => setCoverFailed(true)}
               className="size-full object-cover"
             />
-          </button>
-        )}
-
-        <div className="flex flex-1 flex-col gap-3 p-5">
-          <OutputTypeChip
-            outputType={recipe.outputType}
-            label={recipe.outputTypeLabel}
-            className="w-fit"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setDetailMode('view')
-              setDetailOpen(true)
-            }}
-            className="space-y-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`${t('viewDetail')}: ${title}`}
-          >
-            <h2 className="line-clamp-2 pr-5 text-base font-semibold">
-              {title}
-            </h2>
-            <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {recipe.compiledPrompt}
-            </p>
-          </button>
-          <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span>
-              {t('templateMeta', {
-                model: recipe.modelId,
-                version: recipe.version,
-              })}
+          </span>
+        ) : null}
+        <div className="pointer-events-none flex items-center gap-1.5">
+          <PromptTemplateKindBadge kind={recipe.templateKind} />
+          {recipe.visibility === 'PUBLIC' ? (
+            <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground">
+              <Globe aria-hidden className="size-3" />
+              {t('publishedBadge')}
             </span>
-            <span aria-hidden>·</span>
-            <span>{formattedDate}</span>
-            {recipe.visibility === RECIPE_VISIBILITY.PUBLIC && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary">
-                <Globe className="size-3" />
-                {t('publishedBadge')}
-              </span>
-            )}
-          </div>
+          ) : null}
         </div>
-        <footer className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('editAction')}
-            onClick={() => {
-              setDetailMode('edit')
-              setDetailOpen(true)
-            }}
-          >
-            <Pencil className="size-4" />
-          </Button>
+        <h3 className="pointer-events-none line-clamp-2 text-sm font-semibold leading-5 text-foreground">
+          {title}
+        </h3>
+        {recipe.lora ? (
+          <PromptTemplateLoraMixLine
+            mix={recipe.lora}
+            className="pointer-events-none"
+          />
+        ) : null}
+        {cover ? null : (
+          <p className="pointer-events-none line-clamp-5 whitespace-pre-wrap text-2sm leading-5 text-muted-foreground">
+            {recipe.compiledPrompt}
+          </p>
+        )}
+        <p className="pointer-events-none mt-auto truncate font-mono text-2xs text-muted-foreground">
+          {t('templateMeta', { model: label, version: recipe.version })} ·{' '}
+          {date}
+        </p>
+        <div className="relative z-10 flex gap-1.5 opacity-0 transition-opacity duration-fast ease-linear group-focus-within:opacity-100 group-hover:opacity-100 coarse:opacity-100 motion-reduce:transition-none">
           <CopyPromptButton
+            quiet
             prompt={recipe.compiledPrompt}
-            className="ml-auto"
+            label={t('copyShort')}
+            className="h-7.5 rounded-full px-3 text-2sm"
           />
           <Button
-            variant="secondary"
+            type="button"
+            className="h-7.5 rounded-full px-3 text-2sm font-semibold"
             onClick={() => {
-              setDetailMode('use')
-              setDetailOpen(true)
+              if (openTemplate(recipe)) onUsed()
+              else toast.error(t('useFailed'))
             }}
           >
             {t('useAction')}
           </Button>
-        </footer>
+        </div>
       </article>
+    </li>
+  )
+}
 
-      <PromptTemplateDetailDialog
-        recipe={recipe}
-        locale={locale}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        onDeleted={onDeleted}
-        initialMode={detailMode}
-      />
-    </>
+interface PromptTemplateListEmptyProps {
+  query: string
+  typeFilter: TypeFilter
+  typeLabel: string
+  hasAny: boolean
+  hasLora: boolean
+  onClearQuery: () => void
+  onClearType: () => void
+}
+
+/**
+ * 搜不到 = 写明是哪个条件没有 + 放宽的出路；一个 LoRA 模板都没有 = 说明它从 LoRA 台
+ * 「存成模板」来（pages/prompts.md「空态」）。
+ */
+function PromptTemplateListEmpty({
+  query,
+  typeFilter,
+  typeLabel,
+  hasAny,
+  hasLora,
+  onClearQuery,
+  onClearType,
+}: PromptTemplateListEmptyProps) {
+  const t = useTranslations('PromptLibrary')
+
+  if (typeFilter === 'LORA' && !hasLora && !query) {
+    return (
+      <div className="grid min-h-80 place-items-center">
+        <div className="flex max-w-md flex-col items-center gap-2.5 text-center">
+          <h4 className="text-base font-semibold">{t('loraEmptyTitle')}</h4>
+          <p className="text-2sm leading-5 text-muted-foreground">
+            {t('loraEmptyDescription')}
+          </p>
+          <Button asChild className="mt-1 rounded-full">
+            <Link href={ROUTES.STUDIO_LORA}>{t('openLoraStudio')}</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasAny) {
+    return (
+      <div className="grid min-h-80 place-items-center">
+        <div className="flex max-w-md flex-col items-center gap-2.5 text-center">
+          <h4 className="text-base font-semibold">{t('emptyTitle')}</h4>
+          <p className="text-2sm leading-5 text-muted-foreground">
+            {t('emptyDescription')}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const typed = typeFilter !== 'ALL'
+  return (
+    <div className="grid min-h-80 place-items-center">
+      <div className="flex max-w-md flex-col items-center gap-2.5 text-center">
+        <h4 className="text-base font-semibold">
+          {query && typed
+            ? t('emptyQueryType', { query, type: typeLabel })
+            : query
+              ? t('emptyQuery', { query })
+              : t('emptyType', { type: typeLabel })}
+        </h4>
+        <p className="text-2sm leading-5 text-muted-foreground">
+          {t('emptyFilteredHint')}
+        </p>
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          {typed ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={onClearType}
+            >
+              {t('removeTypeFilter', { type: typeLabel })}
+            </Button>
+          ) : null}
+          {query ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={onClearQuery}
+            >
+              {t('clearSearch')}
+            </Button>
+          ) : null}
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href={`${ROUTES.PROMPTS}?tab=inspiration`}>
+              {t('goInspiration')}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }

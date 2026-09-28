@@ -28,6 +28,10 @@ import {
   type GenerationReviewState,
 } from '@/constants/assistant-operator'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
+import {
+  countFolderItems,
+  folderScopeWhere,
+} from '@/services/asset-folder.service'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 
 // ─── Input Types ──────────────────────────────────────────────────
@@ -38,7 +42,12 @@ import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
  */
 type GenerationMutationClient = Pick<
   typeof db,
-  'generation' | 'generationCharacterCard' | 'generationLayer' | '$queryRaw'
+  | 'generation'
+  | 'generationCharacterCard'
+  | 'generationLayer'
+  | 'project'
+  | 'projectItem'
+  | '$queryRaw'
 >
 
 interface GenerationStorageKeyFields {
@@ -91,7 +100,7 @@ export interface CreateGenerationInput {
   userId?: string
   /** Character card IDs to link via join table (multi-card) */
   characterCardIds?: string[]
-  /** Project ID to associate this generation with */
+  /** 落进哪个文件夹（生成台当前夹 / 上传目标夹）。只认这个用户自己的活夹。 */
   projectId?: string
   /** B0: Full input parameter snapshot (JSON) */
   snapshot?: Prisma.InputJsonValue
@@ -156,10 +165,10 @@ export interface GalleryQueryOptions {
   /** When set, include isLiked for this viewer */
   viewerUserId?: string
   /**
-   * Optional project filter:
-   * - undefined  → no project filter (all projects)
-   * - "none"     → only generations with projectId = null
-   * - "<uuid>"   → only generations belonging to that project
+   * Optional folder filter:
+   * - undefined  → no folder filter
+   * - "none"     → 未归档（一个活夹都不在）
+   * - "<uuid>"   → 在这个夹或它的子夹里
    */
   projectId?: string
   /**
@@ -214,7 +223,6 @@ export const LIST_GENERATION_SELECT = {
   isPromptPublic: true,
   isFeatured: true,
   userId: true,
-  projectId: true,
   characterCardId: true,
   cardRecipeId: true,
   runGroupId: true,
@@ -315,12 +323,12 @@ function buildGalleryWhere(options: {
     where.isPublic = true
   }
 
-  // Project scoping: caller passes either a UUID, the literal "none" for
-  // unassigned generations, or omits to disable the filter.
-  if (options.projectId === 'none') {
-    where.projectId = null
-  } else if (options.projectId) {
-    where.projectId = options.projectId
+  // 文件夹范围：夹 id（连子夹）/ "none"（未归档）/ 不传 = 不限。
+  if (options.projectId) {
+    Object.assign(
+      where,
+      folderScopeWhere(options.projectId === 'none' ? null : options.projectId),
+    )
   }
 
   if (options.search) {
@@ -575,7 +583,6 @@ async function createGenerationWithin(
       isPublic: input.isPublic ?? false,
       isPromptPublic: input.isPromptPublic ?? false,
       userId: input.userId,
-      projectId: input.projectId,
       recipeSnapshot: input.recipeSnapshot,
       seed: input.seed,
       runGroupId: input.runGroupId,
@@ -600,6 +607,19 @@ async function createGenerationWithin(
         boundingBox: layer.boundingBox,
       })),
     })
+  }
+
+  // 落夹。⚠ 陈旧或别人的夹 id 静默不放 —— ⛔ 不因此让整件产物落库失败。
+  if (input.projectId && input.userId) {
+    const folder = await client.project.findFirst({
+      where: { id: input.projectId, userId: input.userId, isDeleted: false },
+      select: { id: true },
+    })
+    if (folder) {
+      await client.projectItem.create({
+        data: { projectId: folder.id, generationId: generation.id },
+      })
+    }
   }
 
   // Link character cards via join table (multi-card support)
@@ -1282,11 +1302,10 @@ export async function countUserGenerationsByType(
 }
 
 /**
- * Aggregate counts powering the /assets right-sidebar with one grouped
- * dimension query and one favorites count.
+ * Aggregate counts powering the /assets toolbar facets and folder column.
  *
- * `byProject` is keyed by project UUID; `unassigned` is the projectId=null
- * bucket pulled out of the same groupBy.
+ * `byProject`（连子夹去重）与 `unassigned`（一个活夹都不在）走归属表，
+ * 其余维度仍是一次 groupBy。
  */
 export async function getAssetSectionCounts(
   userId: string,
@@ -1301,15 +1320,19 @@ export async function getAssetSectionCounts(
     ? { outputType: { in: outputTypes } }
     : {}
 
-  const [groups, favorites] = await Promise.all([
+  const [groups, favorites, unassigned, byProject] = await Promise.all([
     db.generation.groupBy({
-      by: ['outputType', 'projectId', 'model', 'isPublic'],
+      by: ['outputType', 'model', 'isPublic'],
       where: { userId },
       _count: { _all: true },
     }),
     db.generation.count({
       where: { userId, likes: { some: { userId } }, ...typeScope },
     }),
+    db.generation.count({
+      where: { userId, ...typeScope, ...folderScopeWhere(null) },
+    }),
+    countFolderItems(userId, outputTypes),
   ])
 
   const counts: AssetSectionCounts = {
@@ -1320,8 +1343,8 @@ export async function getAssetSectionCounts(
     video: 0,
     audio: 0,
     model_3d: 0,
-    unassigned: 0,
-    byProject: {},
+    unassigned,
+    byProject,
     byModel: {},
   }
 
@@ -1336,10 +1359,6 @@ export async function getAssetSectionCounts(
     if (outputTypes.length && !outputTypes.includes(row.outputType)) continue
     counts.all += n
     if (row.isPublic) counts.published += n
-    if (row.projectId === null) counts.unassigned += n
-    else
-      counts.byProject[row.projectId] =
-        (counts.byProject[row.projectId] ?? 0) + n
     if (row.model)
       counts.byModel[row.model] = (counts.byModel[row.model] ?? 0) + n
   }
@@ -1428,26 +1447,6 @@ export async function batchUpdateVisibility(
   if (field === 'isPublic' && result.count > 0) {
     invalidatePublicGalleryCache()
   }
-  return result.count
-}
-
-export async function batchAssignProject(
-  ids: string[],
-  userId: string,
-  projectId: string | null,
-): Promise<number | null> {
-  if (projectId !== null) {
-    const project = await db.project.findFirst({
-      where: { id: projectId, userId, isDeleted: false },
-      select: { id: true },
-    })
-    if (!project) return null
-  }
-
-  const result = await db.generation.updateMany({
-    where: { id: { in: ids }, userId },
-    data: { projectId },
-  })
   return result.count
 }
 

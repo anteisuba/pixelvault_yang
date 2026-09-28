@@ -28,8 +28,9 @@ const FAKE_PROJECT = {
   name: 'Test Project',
   description: null,
   parentId: null,
-  generationCount: 5,
-  coverUrls: [],
+  sortOrder: 0,
+  pinnedOrder: null,
+  coverUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 }
@@ -78,6 +79,23 @@ describe('PUT /api/projects/[id]', () => {
     )
   })
 
+  it('returns 404 when the folder is not theirs', async () => {
+    mockUpdateProject.mockResolvedValue(null)
+    const req = createPUT('/api/projects/proj_123', { name: 'Renamed' })
+    const res = await PUT(req, routeParams('proj_123'))
+    expect(res.status).toBe(404)
+  })
+
+  it('passes pinning through', async () => {
+    const req = createPUT('/api/projects/proj_123', { pinned: true })
+    await PUT(req, routeParams('proj_123'))
+    expect(mockUpdateProject).toHaveBeenCalledWith(
+      'clerk_test_user',
+      'proj_123',
+      { pinned: true },
+    )
+  })
+
   it('returns 500 when service throws', async () => {
     mockUpdateProject.mockRejectedValue(new Error('Not found'))
     const req = createPUT('/api/projects/proj_123', { name: 'Renamed' })
@@ -95,7 +113,7 @@ describe('DELETE /api/projects/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()
-    mockDeleteProject.mockResolvedValue(undefined)
+    mockDeleteProject.mockResolvedValue(true)
   })
 
   it('returns 401 when unauthenticated', async () => {
@@ -114,6 +132,13 @@ describe('DELETE /api/projects/[id]', () => {
       'clerk_test_user',
       'proj_123',
     )
+  })
+
+  it('returns 404 when the folder is not theirs', async () => {
+    mockDeleteProject.mockResolvedValue(false)
+    const req = createDELETE('/api/projects/proj_123')
+    const res = await DELETE(req, routeParams('proj_123'))
+    expect(res.status).toBe(404)
   })
 
   it('returns 500 when service throws', async () => {

@@ -82,14 +82,9 @@ const CAPTURE_REASON_KEYS: Record<VideoFrameCaptureReason, string> = {
 interface VideoAnalysisPanelProps {
   /** 视频本体的 URL。必须是 R2 / CDN 直链 —— 抽帧要它带 CORS 头。 */
   videoUrl: string
-  /** 落 `ResearchRun.projectId`，回看时按文件夹找得到这一轮。 */
-  projectId?: string | null
 }
 
-export function VideoAnalysisPanel({
-  videoUrl,
-  projectId,
-}: VideoAnalysisPanelProps) {
+export function VideoAnalysisPanel({ videoUrl }: VideoAnalysisPanelProps) {
   const t = useTranslations('VideoAnalysis')
   const tErrors = useTranslations('Errors')
   const [task, setTask] = useState<VisionTask>(VISION_TASKS.qualityReview)
@@ -105,9 +100,8 @@ export function VideoAnalysisPanel({
       //   要 migration）。视频分析归到 VIDEO_STUDIO —— 它就是视频域的活，
       //   ⛔ 别为了「素材页」这三个字造第五个 surface。
       surface: ASSISTANT_SURFACE_IDS.videoStudio,
-      ...(projectId ? { projectId } : {}),
     })
-  }, [projectId, run, task, videoUrl])
+  }, [run, task, videoUrl])
 
   return (
     <section className="mt-5 space-y-3 border-t border-border/60 pt-5">

@@ -1563,18 +1563,13 @@ describe('素材库四条写操作（§10）', () => {
     {
       ...BASE,
       verb: 'apply',
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
       payload: {
         targetFolderId: 'folder-1',
         targetFolderName: '角色参考',
         assetIds: ['a1', 'a2'],
       },
-      inverse: {
-        entries: [
-          { assetId: 'a1', folderId: null },
-          { assetId: 'a2', folderId: 'folder-9' },
-        ],
-      },
+      inverse: { folderId: 'folder-1', assetIds: ['a1', 'a2'] },
     },
   ] as unknown as AssistantOperatorAppliedStep[]
 
@@ -1613,11 +1608,10 @@ describe('素材库四条写操作（§10）', () => {
         folderId: 'folder-1',
       },
       {
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
-        entries: [
-          { assetId: 'a1', folderId: null },
-          { assetId: 'a2', folderId: 'folder-9' },
-        ],
+        // 放进夹的撤销只拿出这一步新放进去的那几张（别的夹里照旧）。
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+        folderId: 'folder-1',
+        assetIds: ['a1', 'a2'],
       },
     ])
   })

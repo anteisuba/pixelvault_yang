@@ -193,7 +193,7 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: Tags,
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: Star,
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: FolderPlus,
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: FolderInput,
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: FolderInput,
   /**
    * 画布三条（进度表 22）。⚠ 三个图标**互不相同**：日志流里它们常常前后脚出现
    * （改一格 → 算下游 → 跑一枪），长一样就分不出哪条是哪条。

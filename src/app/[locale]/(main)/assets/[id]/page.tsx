@@ -72,7 +72,7 @@ export default async function AssetDetailPage({
     <AssetDetailContent
       layout="page"
       generation={generation}
-      projects={projects}
+      folders={projects}
     />
   )
 }

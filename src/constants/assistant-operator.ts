@@ -578,20 +578,21 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   favoriteAsset: 'favorite_asset',
   /**
-   * 建一个素材文件夹（§10）—— 落的是 `Project` 那张表（素材库右栏的文件夹树
-   * 就是它，见 `AssetFolderTree`）。
+   * 建一个素材文件夹（§10）—— 落的是 `Project` 那张表（素材页左边那一列文件夹
+   * 就是它，见 `AssetFolderSidebar`）。
    *
    * ⚠ `inverse` = 删掉刚建的那个，**且仅当它是空的**：撤销发生在几步之后，
    * 中间用户可能已经往里丢了东西，那时删掉就不是「撤销」而是「毁数据」。
    */
   createFolder: 'create_folder',
   /**
-   * 把素材挪进一个文件夹（§10）。
+   * 把素材放进一个文件夹（§10）。一张图可以同时在好几个夹里，所以这是「加」，
+   * 别的夹里照旧。
    *
-   * ⚠ `inverse` **逐张记原文件夹**（`null` = 原来没归档），理由与 `favorite_asset`
-   * 逐字同源：一批里各自来处不同，统一挪回一个地方就是在重排用户的库。
+   * ⚠ `inverse` = 目标夹 + **这一步真的新放进去**的那几张，理由与 `tag_asset`
+   * 逐字同源：本来就在里面的不是这一步的后果，撤销时不该被拿出来。
    */
-  moveAssets: 'move_assets',
+  addToFolder: 'add_to_folder',
 
   // ── 画布域那两条（进度表 22「一张脸」）──────────────────────────────
   //
@@ -712,7 +713,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
-  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
@@ -883,7 +884,7 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
-  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
   /**
    * **画布那一条**（进度表 22）—— 后果落在**客户端的画布图**上，与工作台那批
    * 「吐 op 让客户端应用」同形，⛔ 不是服务端写库那一类。
@@ -1051,7 +1052,7 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: ASSISTANT_OPERATOR_VERB_IDS.apply,
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
@@ -1720,7 +1721,7 @@ const COMMON_DOMAIN_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
-  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
 ] as const satisfies readonly AssistantOperatorTool[]
 
 /**
@@ -1921,7 +1922,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
     ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
     ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
-    ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
@@ -2971,9 +2972,9 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
     'star or unstar the creator\'s own assets — up to 20 in one call. Pass value true to favourite, false to remove the star. Anything already in the wanted state is left alone. Use it when they say "keep these" or "these are the good ones"; never unstar in bulk unless they asked for exactly that.',
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]:
-    "make ONE new folder in the creator's asset library. Give it a name in their words; pass parentId (a real folder id from list_asset_folders) only when they asked for it to sit inside another folder. This creates an EMPTY folder — putting things in it is a separate move_assets call. Never make a folder they did not ask for, and never make a second one with the same name.",
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]:
-    "file up to 20 of the creator's own assets into one folder. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Assets keep their tags and stars; this only changes which folder they live in. Undoing puts each one back exactly where it came from, so a wrong move is cheap — but a move the creator did not ask for is still a mess in their library.",
+    "make ONE new folder in the creator's asset library. Give it a name in their words; pass parentId (a real folder id from list_asset_folders) only when they asked for it to sit inside another folder. This creates an EMPTY folder — putting things in it is a separate add_to_folder call. Folders only go two levels deep: a parentId must be a top-level folder. Never make a folder they did not ask for, and never make a second one with the same name.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]:
+    "put up to 20 of the creator's own assets into one folder. An asset can sit in several folders at once, so this only ADDS: it never takes anything out of another folder, and assets keep their tags and stars. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Undoing takes out exactly the ones this call put in (ones already there stay), so a wrong one is cheap — but filing the creator did not ask for is still a mess in their library.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
   // ── 画布两条 ────────────────────────────────────────────────────────

@@ -472,7 +472,7 @@ describe('⛔ 助手工具环的钱闸', () => {
       'tag_asset',
       'favorite_asset',
       'create_folder',
-      'move_assets',
+      'add_to_folder',
     ]) {
       expect(ASSISTANT_OPERATOR_TOOLS).toContain(tool)
       // 每一条都必须撤得掉（schema 层把 `inverse` 写成必填）。
@@ -483,7 +483,7 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(SOURCE).toContain('planTagAsset')
     expect(SOURCE).toContain('planFavoriteAsset')
     expect(SOURCE).toContain('planCreateFolder')
-    expect(SOURCE).toContain('planMoveAssets')
+    expect(SOURCE).toContain('planAddToFolder')
     expect(SOURCE).toContain('@/services/asset-library-write.service')
     // ……而那个模块里没有任何一条能花钱 / 毁数据的路。
     for (const identifier of [

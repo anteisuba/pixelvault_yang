@@ -19,8 +19,6 @@ import { ensureUser } from '@/services/user.service'
 
 const AssetsPageSearchSchema = GallerySearchSchema.extend({
   generationId: z.string().trim().max(64).optional(),
-  /** `?view=folders` = 文件夹总览页（治理 2）。刷新/分享都落回同一页。 */
-  view: z.enum(['library', 'folders']).optional(),
 })
 
 interface AssetsPageProps {
@@ -33,7 +31,6 @@ interface AssetsPageProps {
     projectId?: string
     published?: string
     generationId?: string
-    view?: string
   }>
 }
 
@@ -127,7 +124,7 @@ export default async function AssetsPage({
     ]
 
     return (
-      <div className="flex h-[calc(100svh-3rem)] flex-col bg-surface-workbench">
+      <div className="flex h-page flex-col bg-surface-workbench">
         <div className="relative flex min-h-0 flex-1 gap-4 px-2 sm:px-6">
           {/* ─── Main grid preview (blurred) ──────────────────── */}
           <main
@@ -271,11 +268,6 @@ export default async function AssetsPage({
       initialTotal={filteredTotal}
       initialFilters={initialFilters}
       initialSelectedGeneration={initialSelectedGeneration}
-      initialView={
-        filterResult.success && filterResult.data.view === 'folders'
-          ? 'folders'
-          : 'library'
-      }
     />
   )
 }

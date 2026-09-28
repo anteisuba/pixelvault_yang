@@ -202,7 +202,7 @@ export const STUDIO_OPERATOR_CHANGE_SUBJECT_BY_TOOL: Readonly<
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: 'assetTags',
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: 'assetFavorite',
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: 'assetFolder',
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: 'assetMove',
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: 'assetAddToFolder',
 }
 
 /** 这一步的后果在库里（表单没动）—— 还原按钮与薄卡标签共用这一条判据。 */

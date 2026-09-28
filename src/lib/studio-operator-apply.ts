@@ -538,7 +538,7 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
-    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+    case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
@@ -785,7 +785,7 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
-    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+    case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       return null
 
     /**
@@ -1088,10 +1088,11 @@ export function revertOperatorStep(
       })
       return
 
-    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+    case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       ctx.revertAssetWrite?.({
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
-        entries: step.inverse.entries,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+        folderId: step.inverse.folderId,
+        assetIds: step.inverse.assetIds,
       })
       return
   }

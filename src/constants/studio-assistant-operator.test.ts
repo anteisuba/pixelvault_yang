@@ -33,8 +33,8 @@ describe('库里那一档改动的标签表', () => {
       studioOperatorChangeSubject(ASSISTANT_OPERATOR_TOOL_IDS.createFolder),
     ).toBe('assetFolder')
     expect(
-      studioOperatorChangeSubject(ASSISTANT_OPERATOR_TOOL_IDS.moveAssets),
-    ).toBe('assetMove')
+      studioOperatorChangeSubject(ASSISTANT_OPERATOR_TOOL_IDS.addToFolder),
+    ).toBe('assetAddToFolder')
   })
 
   it('⛔ 动表单的那些不在表里 —— 它们走登记簿的 field.*', () => {

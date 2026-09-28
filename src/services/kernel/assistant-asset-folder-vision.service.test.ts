@@ -4,6 +4,8 @@ vi.mock('server-only', () => ({}))
 
 const mockProjectFindMany = vi.fn()
 const mockGenerationFindMany = vi.fn()
+/** 每个夹连子夹去重后的张数（`countFolderItems` 那一条 SQL 的回答）。 */
+const mockQueryRaw = vi.fn()
 vi.mock('@/lib/db', () => ({
   db: {
     project: {
@@ -12,6 +14,7 @@ vi.mock('@/lib/db', () => ({
     generation: {
       findMany: (...args: unknown[]) => mockGenerationFindMany(...args),
     },
+    $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
   },
 }))
 
@@ -38,25 +41,20 @@ const USER_ID = 'user-db-1'
 
 function projectRows() {
   return [
-    {
-      id: 'characters',
-      name: 'Characters',
-      parentId: null,
-      _count: { generations: 2 },
-    },
-    {
-      id: 'hero-child',
-      name: 'Hero',
-      parentId: 'characters',
-      _count: { generations: 17 },
-    },
-    {
-      id: 'hero-root',
-      name: 'Hero',
-      parentId: null,
-      _count: { generations: 4 },
-    },
+    { id: 'characters', name: 'Characters', parentId: null },
+    { id: 'hero-child', name: 'Hero', parentId: 'characters' },
+    { id: 'hero-root', name: 'Hero', parentId: null },
   ]
+}
+
+function folderCounts(overrides: Record<string, number> = {}) {
+  const counts: Record<string, number> = {
+    characters: 2,
+    'hero-child': 17,
+    'hero-root': 4,
+    ...overrides,
+  }
+  return Object.entries(counts).map(([folderId, n]) => ({ folderId, n }))
 }
 
 function generationRows(count: number) {
@@ -71,6 +69,7 @@ function generationRows(count: number) {
 beforeEach(() => {
   vi.clearAllMocks()
   mockProjectFindMany.mockResolvedValue(projectRows())
+  mockQueryRaw.mockResolvedValue(folderCounts())
   mockGenerationFindMany.mockResolvedValue([])
   mockResolveVisionRoute.mockResolvedValue({
     route: {
@@ -135,11 +134,7 @@ describe('listAssistantAssetFolders', () => {
 
 describe('inspectAssistantAssetFolder', () => {
   it('checks at most 24 images in deterministic batches of 8 and reports coverage honestly', async () => {
-    mockProjectFindMany.mockResolvedValue(
-      projectRows().map((row) =>
-        row.id === 'hero-child' ? { ...row, _count: { generations: 30 } } : row,
-      ),
-    )
+    mockQueryRaw.mockResolvedValue(folderCounts({ 'hero-child': 30 }))
     mockGenerationFindMany.mockResolvedValue(
       generationRows(ASSISTANT_OPERATOR_LIMITS.maxFolderVisionImages),
     )
@@ -171,7 +166,15 @@ describe('inspectAssistantAssetFolder', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: USER_ID,
-          projectId: 'hero-child',
+          // 与素材页同一个范围：这个夹连子夹。
+          folders: {
+            some: {
+              project: {
+                isDeleted: false,
+                OR: [{ id: 'hero-child' }, { parentId: 'hero-child' }],
+              },
+            },
+          },
           outputType: 'IMAGE',
           status: 'COMPLETED',
         }),
@@ -200,11 +203,7 @@ describe('inspectAssistantAssetFolder', () => {
   })
 
   it('does not borrow a visual route or call a model for an empty folder', async () => {
-    mockProjectFindMany.mockResolvedValue(
-      projectRows().map((row) =>
-        row.id === 'hero-child' ? { ...row, _count: { generations: 0 } } : row,
-      ),
-    )
+    mockQueryRaw.mockResolvedValue(folderCounts({ 'hero-child': 0 }))
     mockGenerationFindMany.mockResolvedValue([])
 
     const result = await inspectAssistantAssetFolder({

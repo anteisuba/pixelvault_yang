@@ -87,37 +87,24 @@ export const ASSET_GRID_SKELETON_ASPECT_RATIOS: readonly number[] = [
 /** picker 首格内联上传格的比例（原型 `layoutPk` 的 `extra*0.8`）。 */
 export const ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO = 0.8
 
-// ─── 文件夹门牌（page §3 段一 / §4）──────────────────────────────
+// ─── 文件夹栏（文件夹 B）──────────────────────────────────────────
 
-/** 门牌卡宽度（page §3 段一：宽 168、`rounded-xl` + 1px border）。 */
-export const FOLDER_PLAQUE_WIDTH = 168
+/** 左边那一列文件夹栏的宽度（画板 `AfB`：236）。收起 / 展开时宽度在 0 与它之间走。 */
+export const ASSET_FOLDER_RAIL_WIDTH = 236
 
-/** <768 手机上门牌改固定宽横滚（page §9：文件夹门牌 132 宽横滚）。 */
-export const FOLDER_PLAQUE_MOBILE_WIDTH = 132
+/** 栏与大河之间的空隙（画板 `af-split`：20）。收起时连它一起收掉。 */
+export const ASSET_FOLDER_RAIL_GAP = 20
 
-/** 门牌之间的间距。 */
-export const FOLDER_PLAQUE_GAP = 8
-
-/** 门牌卡上「最近 N 张真实素材」拼成 2×2。 */
-export const PROJECT_COVER_TILE_COUNT = 4
-
-/**
- * 拼贴区的**固定高度**（px）。⚠ 别改成「按比例」：门牌是 `flex-grow` 吃余量的，
- * 夹一少每张卡就会变得很宽，比例一挂高度立刻跟着膨胀成巨幅横幅（实拍见过
- * 740×370 的门牌）。固定高度则无论卡多宽，整行高度都恒定。
- */
-export const PLAQUE_COVER_HEIGHT = 88
-
-/** 门牌卡上直接列出的子夹 chip 数，超出折叠成 `+N`（page §4 路径一）。 */
-export const FOLDER_PLAQUE_MAX_SUBFOLDER_CHIPS = 2
+/** 桌面上栏收起 / 展开记在本机（`closed` = 收起）。 */
+export const ASSET_FOLDER_RAIL_STORAGE_KEY = 'pv:assets:folder-rail'
 
 // ─── 上传队列 / 占位瓦片（page §7 / §7.3）──────────────────────────
 
 /** 本地读不到宽高时占位瓦片的兜底比例（page §7.3.6 明写 4:5）。 */
 export const ASSET_UPLOAD_FALLBACK_ASPECT_RATIO = 4 / 5
 
-/** 「已移动 N 项 · 撤销」toast 的存活时长（page §7.2 明写 6 秒）。 */
-export const BULK_MOVE_UNDO_DURATION_MS = 6000
+/** 「已放进「三视图」· 撤销」toast 的存活时长（动效表：6 秒）。 */
+export const ASSET_FOLDER_UNDO_DURATION_MS = 6000
 
 // ─── 列表降载（离屏瓦片）───────────────────────────────────────────
 

@@ -252,8 +252,8 @@ import {
  */
 import {
   AssetFolderLimitError,
+  addAssetsToFolder,
   createAssetFolder,
-  moveAssetsToFolder,
   setAssetFavorites,
   tagAssets,
 } from '@/services/asset-library-write.service'
@@ -7307,8 +7307,8 @@ async function planFavoriteAsset(
 /**
  * 建一个素材文件夹（§10）。
  *
- * ⚠ 它建的是一个**空夹子** —— 往里放东西是 `move_assets` 的事。合成一条工具的
- * 代价是撤销没有粒度：撤一次到底该删夹子还是把素材挪回去？
+ * ⚠ 它建的是一个**空夹子** —— 往里放东西是 `add_to_folder` 的事。合成一条工具的
+ * 代价是撤销没有粒度：撤一次到底该删夹子还是把素材拿出来？
  */
 async function planCreateFolder(
   args: { name: string; parentId?: string },
@@ -7345,33 +7345,33 @@ async function planCreateFolder(
     inverse: { folderId: folder.folderId },
     observation: `create_folder made an EMPTY folder "${folder.name}" (id=${folder.folderId})${
       args.parentId && !folder.parentId
-        ? ' at the top level — the parent id you gave is not one of theirs'
+        ? ' at the top level — the parent id you gave is not one of their top-level folders (folders only go two levels deep)'
         : ''
-    }. Use move_assets with that id to actually file anything into it.`,
+    }. Use add_to_folder with that id to actually put anything into it.`,
     apply: () => {},
   }
 }
 
-async function planMoveAssets(
+async function planAddToFolder(
   args: { assetIds: string[]; targetFolderId: string },
   userId: string,
 ): Promise<ToolPlan> {
-  const moved = await moveAssetsToFolder(
+  const filed = await addAssetsToFolder(
     userId,
     args.assetIds,
     args.targetFolderId,
   )
-  if (!moved) {
+  if (!filed) {
     return reject(
       REJECT.unknownFolder,
       'No folder of theirs has that id. Call list_asset_folders to get a real one, or make one with create_folder first.',
     )
   }
 
-  if (moved.entries.length === 0) {
+  if (filed.added.length === 0) {
     return reject(
       REJECT.unknownAsset,
-      `None of those ids belong to this creator, or every one of them is already in "${moved.folderName}". Say which it is instead of moving again.`,
+      `None of those ids belong to this creator, or every one of them is already in "${filed.folderName}". Say which it is instead of adding again.`,
     )
   }
 
@@ -7379,16 +7379,16 @@ async function planMoveAssets(
     kind: 'mutate',
     payload: {
       targetFolderId: args.targetFolderId,
-      targetFolderName: moved.folderName,
-      assetIds: moved.entries.map((entry) => entry.assetId),
+      targetFolderName: filed.folderName,
+      assetIds: filed.added,
     },
-    // ⚠ 原文件夹**逐条**（`null` = 原来没归档），撤销 = 各回各家（§10）。
-    inverse: { entries: moved.entries },
-    observation: `move_assets filed ${moved.entries.length} asset(s) into "${moved.folderName}"${
-      moved.entries.length < args.assetIds.length
-        ? `; ${args.assetIds.length - moved.entries.length} were skipped (not this creator's, or already there) — say so`
+    // ⚠ 只记**这一步新放进去**的那几张：撤销 = 从这个夹里拿出它们（§10）。
+    inverse: { folderId: args.targetFolderId, assetIds: filed.added },
+    observation: `add_to_folder put ${filed.added.length} asset(s) into "${filed.folderName}"${
+      filed.added.length < args.assetIds.length
+        ? `; ${args.assetIds.length - filed.added.length} were skipped (not this creator's, or already there) — say so`
         : ''
-    }. Their tags and stars are untouched.`,
+    }. They stay in any other folders they were in; their tags and stars are untouched.`,
     apply: () => {},
   }
 }
@@ -8176,8 +8176,8 @@ async function planTool(
         parsed.data as { name: string; parentId?: string },
         userId,
       )
-    case TOOL.moveAssets:
-      return planMoveAssets(
+    case TOOL.addToFolder:
+      return planAddToFolder(
         parsed.data as { assetIds: string[]; targetFolderId: string },
         userId,
       )

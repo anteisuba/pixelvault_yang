@@ -1,25 +1,41 @@
 import 'server-only'
 
+import { Prisma } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
 import { PROJECT } from '@/constants/config'
-import { PROJECT_COVER_TILE_COUNT } from '@/constants/assets-grid'
 import type {
   CreateProjectRequest,
   UpdateProjectRequest,
+  ReorderProjectsRequest,
   ProjectRecord,
   GenerationRecord,
+  FolderItemsResult,
 } from '@/types'
+import {
+  addGenerationsToFolder,
+  folderScopeWhere,
+  removeGenerationsFromFolder,
+  topSortOrder,
+} from '@/services/asset-folder.service'
 import { ensureUser } from '@/services/user.service'
+
+/**
+ * 素材文件夹（`Project`）——`docs/references/pages/assets.md` 左栏那一列。
+ *
+ * - 一张图可以同时在好几个夹里：归属只在 `ProjectItem`。⛔ 不读写
+ *   `Generation.projectId`（旧的单值归属，分两次删，见 schema 注释）。
+ * - 只有两层：父夹必须在最外层；有子夹的夹不能再挂到别的夹下面。
+ * - 顺序是用户自己排的：同一层按 `sortOrder`，置顶组按 `pinnedOrder`；
+ *   新建 / 新挪进来 / 新置顶的都排在最前面。
+ */
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**
- * 门牌卡要的是**最近 4 张真实素材**拼出 2×2 的贴片
- * （`docs/references/pages/assets.md` §3 段一）。
+ * 左栏那一行的小封面只能用派生图或图片本身。
  *
- * ⚠ 视频/音频/3D 的 `url` 是媒体文件，塞进 `<img>` 什么也画不出来 —— 只有
- * 派生图能当封面。所以非图片类型缺派生图时**直接跳过**，宁可拼贴少一格，
- * 也不放一个永远加载失败的地址。
+ * ⚠ 视频/音频/3D 的 `url` 是媒体文件，塞进 `<img>` 什么也画不出来 —— 缺派生图时
+ * **直接跳过**，宁可没有封面，也不放一个永远加载失败的地址。
  */
 function toCoverUrl(generation: {
   url: string
@@ -32,56 +48,65 @@ function toCoverUrl(generation: {
   return generation.outputType === 'IMAGE' ? generation.url : null
 }
 
-function toProjectRecord(project: {
-  id: string
-  name: string
-  description: string | null
-  parentId: string | null
-  createdAt: Date
-  updatedAt: Date
-  _count: { generations: number }
-  generations: {
-    url: string
-    thumbnailUrl: string | null
-    previewUrl: string | null
-    outputType: string
-  }[]
-}): ProjectRecord {
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description,
-    parentId: project.parentId,
-    generationCount: project._count.generations,
-    coverUrls: project.generations
-      .map(toCoverUrl)
-      .filter((url): url is string => Boolean(url)),
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
-  }
-}
-
 const projectSelect = {
   id: true,
   name: true,
   description: true,
   parentId: true,
+  sortOrder: true,
+  pinnedOrder: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { generations: true } },
-  generations: {
+  items: {
     select: {
-      url: true,
-      thumbnailUrl: true,
-      previewUrl: true,
-      outputType: true,
+      generation: {
+        select: {
+          url: true,
+          thumbnailUrl: true,
+          previewUrl: true,
+          outputType: true,
+        },
+      },
     },
-    orderBy: { createdAt: 'desc' as const },
-    // 门牌卡的 2×2 拼贴要 4 张。
-    take: PROJECT_COVER_TILE_COUNT,
+    orderBy: { addedAt: 'desc' as const },
+    // 最近放进来的几张里挑第一张画得出来的（缺派生图的视频会被跳过）。
+    take: 4,
   },
 } as const
 
+type ProjectRow = Prisma.ProjectGetPayload<{ select: typeof projectSelect }>
+
+function toProjectRecord(project: ProjectRow): ProjectRecord {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    parentId: project.parentId,
+    sortOrder: project.sortOrder,
+    pinnedOrder: project.pinnedOrder,
+    coverUrl:
+      project.items
+        .map((item) => toCoverUrl(item.generation))
+        .find((url): url is string => Boolean(url)) ?? null,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  }
+}
+
+async function topPinnedOrder(userId: string): Promise<number> {
+  const { _min } = await db.project.aggregate({
+    where: { userId, isDeleted: false, pinnedOrder: { not: null } },
+    _min: { pinnedOrder: true },
+  })
+  return (_min.pinnedOrder ?? 1) - 1
+}
+
+/**
+ * 父夹校验：只两层。
+ *
+ * ⚠ 父夹必须是这个用户的活夹、而且自己在最外层；挪动一个夹时，它自己不能有
+ * 子夹（否则就出现第三层），也不能挂到自己下面。
+ */
 async function resolveProjectParentId(
   userId: string,
   parentId: string | null | undefined,
@@ -94,32 +119,60 @@ async function resolveProjectParentId(
     throw new Error('A folder cannot be moved into itself')
   }
 
-  let cursor = await db.project.findFirst({
+  const parent = await db.project.findFirst({
     where: { id: parentId, userId, isDeleted: false },
     select: { id: true, parentId: true },
   })
-
-  if (!cursor) {
+  if (!parent) {
     throw new Error('Parent folder not found')
   }
+  if (parent.parentId) {
+    throw new Error('Folders only nest two levels deep')
+  }
 
-  let depth = 0
-  while (cursor.parentId) {
-    if (cursor.parentId === projectId) {
-      throw new Error('A folder cannot be moved into its own child')
-    }
-    depth += 1
-    if (depth > PROJECT.MAX_PROJECTS_PER_USER) {
-      throw new Error('Folder hierarchy is invalid')
-    }
-    cursor = await db.project.findFirst({
-      where: { id: cursor.parentId, userId, isDeleted: false },
-      select: { id: true, parentId: true },
+  if (projectId) {
+    const childCount = await db.project.count({
+      where: { parentId: projectId, userId, isDeleted: false },
     })
-    if (!cursor) break
+    if (childCount > 0) {
+      throw new Error('A folder with subfolders stays at the top level')
+    }
   }
 
   return parentId
+}
+
+/**
+ * 按给定顺序整层重排（从 0 起）。一条语句写完 —— 开发机到库一次往返两百多毫秒，
+ * 逐条 update 排二十个夹就是好几秒。
+ */
+async function writeOrder(
+  userId: string,
+  column: 'sortOrder' | 'pinnedOrder',
+  ids: readonly string[],
+  client: Pick<typeof db, '$executeRaw'> = db,
+): Promise<void> {
+  if (ids.length === 0) return
+  const values = Prisma.join(
+    ids.map((id, index) => Prisma.sql`(${id}::text, ${index}::int)`),
+  )
+  await client.$executeRaw`
+    UPDATE "Project" AS p
+    SET ${Prisma.raw(`"${column}"`)} = v."ord"
+    FROM (VALUES ${values}) AS v("id", "ord")
+    WHERE p."id" = v."id" AND p."userId" = ${userId}
+  `
+}
+
+/** 客户端给的顺序在前（只认真的兄弟），它没提到的兄弟按原顺序接在后面。 */
+function mergeOrder(
+  requested: readonly string[],
+  current: readonly string[],
+): string[] {
+  const known = new Set(current)
+  const head = [...new Set(requested)].filter((id) => known.has(id))
+  const seen = new Set(head)
+  return [...head, ...current.filter((id) => !seen.has(id))]
 }
 
 // ─── CRUD ────────────────────────────────────────────────────────
@@ -129,9 +182,22 @@ export async function listProjects(clerkId: string): Promise<ProjectRecord[]> {
   const projects = await db.project.findMany({
     where: { userId: dbUser.id, isDeleted: false },
     select: projectSelect,
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   })
-  return projects.map(toProjectRecord)
+  const records = projects.map(toProjectRecord)
+
+  // 父夹自己没放图时借第一个有封面的子夹 —— 它的数字本来就连子夹一起算。
+  return records.map((record) =>
+    record.coverUrl || record.parentId
+      ? record
+      : {
+          ...record,
+          coverUrl:
+            records.find(
+              (child) => child.parentId === record.id && child.coverUrl,
+            )?.coverUrl ?? null,
+        },
+  )
 }
 
 export async function createProject(
@@ -140,7 +206,6 @@ export async function createProject(
 ): Promise<ProjectRecord> {
   const dbUser = await ensureUser(clerkId)
 
-  // Enforce max projects limit
   const count = await db.project.count({
     where: { userId: dbUser.id, isDeleted: false },
   })
@@ -148,65 +213,199 @@ export async function createProject(
     throw new Error(`Maximum ${PROJECT.MAX_PROJECTS_PER_USER} projects allowed`)
   }
 
-  const parentId = await resolveProjectParentId(dbUser.id, data.parentId)
+  const parentId =
+    (await resolveProjectParentId(dbUser.id, data.parentId)) ?? null
   const project = await db.project.create({
     data: {
       userId: dbUser.id,
       name: data.name,
       description: data.description,
-      parentId: parentId ?? null,
+      parentId,
+      sortOrder: await topSortOrder(dbUser.id, parentId),
     },
     select: projectSelect,
   })
   return toProjectRecord(project)
 }
 
+/** 改名 / 挪层级 / 置顶。夹不在（或不是他的）→ `null`，路由回 404。 */
 export async function updateProject(
   clerkId: string,
   projectId: string,
   data: UpdateProjectRequest,
-): Promise<ProjectRecord> {
+): Promise<ProjectRecord | null> {
   const dbUser = await ensureUser(clerkId)
+  const current = await db.project.findFirst({
+    where: { id: projectId, userId: dbUser.id, isDeleted: false },
+    select: { parentId: true, pinnedOrder: true },
+  })
+  if (!current) return null
+
   const parentId = await resolveProjectParentId(
     dbUser.id,
     data.parentId,
     projectId,
   )
+  const moving = parentId !== undefined && parentId !== current.parentId
+  const pinnedOrder =
+    data.pinned === undefined
+      ? undefined
+      : data.pinned
+        ? (current.pinnedOrder ?? (await topPinnedOrder(dbUser.id)))
+        : null
+
   const project = await db.project.update({
     where: { id: projectId, userId: dbUser.id, isDeleted: false },
     data: {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.description !== undefined && { description: data.description }),
-      ...(parentId !== undefined && { parentId }),
+      ...(moving && {
+        parentId,
+        sortOrder: await topSortOrder(dbUser.id, parentId ?? null),
+      }),
+      ...(pinnedOrder !== undefined && { pinnedOrder }),
     },
     select: projectSelect,
   })
   return toProjectRecord(project)
 }
 
+/** 拖动排序：同一层（`tree`）或置顶组（`pins`）整组重写顺序。 */
+export async function reorderProjects(
+  clerkId: string,
+  input: ReorderProjectsRequest,
+): Promise<void> {
+  const dbUser = await ensureUser(clerkId)
+
+  if (input.kind === 'pins') {
+    const pinned = await db.project.findMany({
+      where: {
+        userId: dbUser.id,
+        isDeleted: false,
+        pinnedOrder: { not: null },
+      },
+      select: { id: true },
+      orderBy: [{ pinnedOrder: 'asc' }, { createdAt: 'asc' }],
+    })
+    await writeOrder(
+      dbUser.id,
+      'pinnedOrder',
+      mergeOrder(
+        input.ids,
+        pinned.map((row) => row.id),
+      ),
+    )
+    return
+  }
+
+  const siblings = await db.project.findMany({
+    where: { userId: dbUser.id, isDeleted: false, parentId: input.parentId },
+    select: { id: true },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  })
+  await writeOrder(
+    dbUser.id,
+    'sortOrder',
+    mergeOrder(
+      input.ids,
+      siblings.map((row) => row.id),
+    ),
+  )
+}
+
+/**
+ * 删夹（软删）—— ⛔ 不删图：只清掉这个夹的归属行；只在这个夹里的图自然回到
+ * 「未归档」。子夹移到最外层，接在父夹原来的位置上。
+ */
 export async function deleteProject(
   clerkId: string,
   projectId: string,
-): Promise<void> {
+): Promise<boolean> {
   const dbUser = await ensureUser(clerkId)
-  // Soft delete — generations are moved back to "no project" (null)
-  await db.$transaction([
-    db.generation.updateMany({
-      where: { projectId, userId: dbUser.id },
-      data: { projectId: null },
-    }),
-    db.project.updateMany({
-      where: { parentId: projectId, userId: dbUser.id, isDeleted: false },
+  const folder = await db.project.findFirst({
+    where: { id: projectId, userId: dbUser.id, isDeleted: false },
+    select: { id: true, parentId: true },
+  })
+  if (!folder) return false
+
+  const children = folder.parentId
+    ? []
+    : await db.project.findMany({
+        where: { parentId: folder.id, userId: dbUser.id, isDeleted: false },
+        select: { id: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      })
+  const roots =
+    children.length > 0
+      ? await db.project.findMany({
+          where: { parentId: null, userId: dbUser.id, isDeleted: false },
+          select: { id: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        })
+      : []
+  const rootOrder = roots.flatMap((root) =>
+    root.id === folder.id ? children.map((child) => child.id) : [root.id],
+  )
+
+  await db.$transaction(async (tx) => {
+    await tx.projectItem.deleteMany({ where: { projectId: folder.id } })
+    await tx.project.updateMany({
+      where: { parentId: folder.id, userId: dbUser.id, isDeleted: false },
       data: { parentId: null },
-    }),
-    db.project.update({
-      where: { id: projectId, userId: dbUser.id, isDeleted: false },
-      data: { isDeleted: true },
-    }),
-  ])
+    })
+    await tx.project.update({
+      where: { id: folder.id, userId: dbUser.id },
+      data: { isDeleted: true, pinnedOrder: null },
+    })
+    await writeOrder(dbUser.id, 'sortOrder', rootOrder, tx)
+  })
+  return true
 }
 
-// ─── Project History (generations in a project) ──────────────────
+// ─── Folder items (membership) ───────────────────────────────────
+
+/** `PATCH /api/projects/[id]/items`：一次既能放进也能拿出。 */
+export async function updateFolderItems(
+  clerkId: string,
+  folderId: string,
+  input: { add?: string[]; remove?: string[] },
+): Promise<FolderItemsResult | null> {
+  const dbUser = await ensureUser(clerkId)
+  const added = input.add?.length
+    ? await addGenerationsToFolder(dbUser.id, folderId, input.add)
+    : null
+  const removed = input.remove?.length
+    ? await removeGenerationsFromFolder(dbUser.id, folderId, input.remove)
+    : null
+  if ((input.add?.length && !added) || (input.remove?.length && !removed)) {
+    return null
+  }
+  return { added: added?.added ?? [], removed: removed?.removed ?? [] }
+}
+
+/** 这几张各自在哪些活夹里（加入文件夹面板的勾 / 半勾要用）。 */
+export async function getFolderMemberships(
+  clerkId: string,
+  generationIds: readonly string[],
+): Promise<Record<string, string[]>> {
+  const dbUser = await ensureUser(clerkId)
+  const ids = [...new Set(generationIds)]
+  const rows = await db.projectItem.findMany({
+    where: {
+      generationId: { in: ids },
+      generation: { userId: dbUser.id },
+      project: { userId: dbUser.id, isDeleted: false },
+    },
+    select: { generationId: true, projectId: true },
+  })
+  const memberships: Record<string, string[]> = Object.fromEntries(
+    ids.map((id) => [id, [] as string[]]),
+  )
+  for (const row of rows) memberships[row.generationId]?.push(row.projectId)
+  return memberships
+}
+
+// ─── Project History (Studio) ────────────────────────────────────
 
 export async function getProjectHistory(
   clerkId: string,
@@ -220,9 +419,9 @@ export async function getProjectHistory(
   hasMore: boolean
 }> {
   const dbUser = await ensureUser(clerkId)
-  const where = {
+  const where: Prisma.GenerationWhereInput = {
     userId: dbUser.id,
-    projectId: projectId,
+    ...folderScopeWhere(projectId),
     ...(outputType && { outputType }),
   }
 
@@ -271,18 +470,4 @@ export async function getProjectHistory(
     total,
     hasMore,
   }
-}
-
-// ─── Assign generation to project ────────────────────────────────
-
-export async function assignGenerationToProject(
-  clerkId: string,
-  generationId: string,
-  projectId: string | null,
-): Promise<void> {
-  const dbUser = await ensureUser(clerkId)
-  await db.generation.update({
-    where: { id: generationId, userId: dbUser.id },
-    data: { projectId },
-  })
 }

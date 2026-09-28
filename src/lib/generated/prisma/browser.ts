@@ -69,6 +69,11 @@ export type NodeWorkflowProject = Prisma.NodeWorkflowProjectModel
  */
 export type Project = Prisma.ProjectModel
 /**
+ * Model ProjectItem
+ * 
+ */
+export type ProjectItem = Prisma.ProjectItemModel
+/**
  * Model UserApiKey
  * 
  */

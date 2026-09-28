@@ -59,6 +59,7 @@ export const ModelName = {
   ResearchRun: 'ResearchRun',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
+  ProjectItem: 'ProjectItem',
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
@@ -236,11 +237,22 @@ export const ProjectScalarFieldEnum = {
   description: 'description',
   parentId: 'parentId',
   isDeleted: 'isDeleted',
+  sortOrder: 'sortOrder',
+  pinnedOrder: 'pinnedOrder',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ProjectItemScalarFieldEnum = {
+  projectId: 'projectId',
+  generationId: 'generationId',
+  addedAt: 'addedAt'
+} as const
+
+export type ProjectItemScalarFieldEnum = (typeof ProjectItemScalarFieldEnum)[keyof typeof ProjectItemScalarFieldEnum]
 
 
 export const UserApiKeyScalarFieldEnum = {

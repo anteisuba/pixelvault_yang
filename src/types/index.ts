@@ -2410,8 +2410,6 @@ export interface GenerationRecord {
   isPromptPublic: boolean
   isFeatured?: boolean
   userId?: string | null
-  /** Project (folder) the generation belongs to. `null` means Unassigned. */
-  projectId?: string | null
   /** Creator info — present in gallery context */
   creator?: {
     username: string
@@ -2661,8 +2659,9 @@ export interface AssetSectionCounts {
   audio: number
   /** Optional — only populated once the section-counts service knows about MODEL_3D. */
   model_3d?: number
+  /** 一个活夹都不在的（「未归档」）。 */
   unassigned: number
-  /** Keyed by project UUID. */
+  /** Keyed by project UUID —— 连子夹一起、同一张只算一次。 */
   byProject: Record<string, number>
   /**
    * Keyed by `Generation.model` —— 「模型」分面的选项表就是它。
@@ -3164,21 +3163,64 @@ export const UpdateProjectSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   description: z.string().trim().max(500).nullable().optional(),
   parentId: z.string().trim().min(1).max(64).nullable().optional(),
+  /** 置顶 / 取消置顶（新置顶的排在置顶组最前面）。 */
+  pinned: z.boolean().optional(),
 })
 
 export type UpdateProjectRequest = z.infer<typeof UpdateProjectSchema>
+
+/** 拖动排序：同一层（`tree` + 父夹）或置顶组（`pins`）。`ids` = 新顺序。 */
+export const ReorderProjectsSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('tree'),
+    parentId: z.string().trim().min(1).max(64).nullable(),
+    ids: z.array(z.string().trim().min(1).max(64)).max(100),
+  }),
+  z.object({
+    kind: z.literal('pins'),
+    ids: z.array(z.string().trim().min(1).max(64)).max(100),
+  }),
+])
+
+export type ReorderProjectsRequest = z.infer<typeof ReorderProjectsSchema>
+
+/** 放进 / 拿出（一张图可以同时在好几个夹里）。 */
+export const UpdateFolderItemsSchema = z
+  .object({
+    add: z.array(z.string().trim().min(1).max(64)).max(500).optional(),
+    remove: z.array(z.string().trim().min(1).max(64)).max(500).optional(),
+  })
+  .refine((value) => Boolean(value.add?.length || value.remove?.length), {
+    message: 'Nothing to add or remove',
+  })
+
+export type UpdateFolderItemsRequest = z.infer<typeof UpdateFolderItemsSchema>
+
+export interface FolderItemsResult {
+  /** 真的新放进去的（原来就在的不算）。 */
+  added: string[]
+  /** 真的拿出来的。 */
+  removed: string[]
+}
+
+export const FolderMembershipsSchema = z.object({
+  generationIds: z.array(z.string().trim().min(1).max(64)).min(1).max(500),
+})
 
 export interface ProjectRecord {
   id: string
   name: string
   description: string | null
   parentId: string | null
-  generationCount: number
+  /** 同一层里的手动顺序（从小到大）。 */
+  sortOrder: number
+  /** 置顶顺序；`null` = 没置顶。 */
+  pinnedOrder: number | null
   /**
-   * 门牌卡的 2×2 拼贴用的最近素材封面（最多 4 张，按新→旧）。
+   * 左栏那一行的小封面：这个夹里最近放进来的一张（父夹自己没有就借子夹的）。
    * ⚠ 缺派生图的视频/音频不会出现在这里 —— 见 `toCoverUrl`。
    */
-  coverUrls: string[]
+  coverUrl: string | null
   createdAt: Date
   updatedAt: Date
 }

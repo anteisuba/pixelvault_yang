@@ -15,7 +15,6 @@ import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
 interface FakeGeneration {
   id: string
   userId: string
-  projectId: string | null
   isPublic: boolean
   snapshot: Record<string, unknown> | null
 }
@@ -26,11 +25,19 @@ interface FakeProject {
   name: string
   parentId: string | null
   isDeleted: boolean
+  sortOrder?: number
+}
+
+/** 文件夹 ↔ 素材（`ProjectItem`）：一张图可以同时在好几个夹里。 */
+interface FakeItem {
+  projectId: string
+  generationId: string
 }
 
 const store = {
   generations: [] as FakeGeneration[],
   projects: [] as FakeProject[],
+  items: [] as FakeItem[],
   likes: new Set<string>(),
   projectSeq: 0,
   /**
@@ -64,9 +71,11 @@ function snapshotOfWorld() {
   return JSON.stringify({
     generations: store.generations.map((row) => ({
       id: row.id,
-      projectId: row.projectId,
       snapshot: row.snapshot,
     })),
+    items: store.items
+      .map((item) => `${item.projectId}<-${item.generationId}`)
+      .sort(),
     /**
      * ⚠ 软删的那些**不算在「原状」里**：`Project` 是软删表，撤销之后库里照旧留着
      * 一行 `isDeleted: true` —— 而用户看到的、素材库列出来的、这四条工具够得着的
@@ -93,6 +102,12 @@ interface ProjectWhere {
   userId?: string
   isDeleted?: boolean
   parentId?: string | null
+}
+
+interface ItemWhere {
+  projectId?: string
+  generationId?: IdFilter
+  generation?: { userId?: string }
 }
 
 interface LikeWhere {
@@ -157,19 +172,31 @@ vi.mock('@/lib/db', () => {
         (item) =>
           item.id === where.id &&
           item.userId === where.userId &&
-          item.isDeleted === false,
+          item.isDeleted === false &&
+          (where.parentId === undefined || item.parentId === where.parentId),
       )
       if (!row) return null
       return {
         ...row,
         _count: {
-          generations: store.generations.filter(
-            (gen) => gen.projectId === row.id,
-          ).length,
+          items: store.items.filter((item) => item.projectId === row.id).length,
           children: store.projects.filter(
             (child) => child.parentId === row.id && !child.isDeleted,
           ).length,
         },
+      }
+    },
+    aggregate: async ({ where }: { where: ProjectWhere }) => {
+      const orders = store.projects
+        .filter(
+          (row) =>
+            row.userId === where.userId &&
+            row.isDeleted === false &&
+            row.parentId === (where.parentId ?? null),
+        )
+        .map((row) => row.sortOrder ?? 0)
+      return {
+        _min: { sortOrder: orders.length > 0 ? Math.min(...orders) : null },
       }
     },
     findMany: async ({ where }: { where: ProjectWhere }) =>
@@ -184,7 +211,12 @@ vi.mock('@/lib/db', () => {
     create: async ({
       data,
     }: {
-      data: { userId: string; name: string; parentId: string | null }
+      data: {
+        userId: string
+        name: string
+        parentId: string | null
+        sortOrder?: number
+      }
     }) => {
       store.projectSeq += 1
       const row: FakeProject = {
@@ -193,6 +225,7 @@ vi.mock('@/lib/db', () => {
         name: data.name,
         parentId: data.parentId ?? null,
         isDeleted: false,
+        sortOrder: data.sortOrder ?? 0,
       }
       store.projects.push(row)
       return { ...row }
@@ -210,6 +243,48 @@ vi.mock('@/lib/db', () => {
       if (!row) throw new Error('project not found')
       Object.assign(row, data)
       return { ...row }
+    },
+  }
+
+  const projectItem = {
+    findMany: async ({ where }: { where: ItemWhere }) =>
+      store.items
+        .filter(
+          (item) =>
+            (where.projectId === undefined ||
+              item.projectId === where.projectId) &&
+            (where.generationId === undefined ||
+              matches(item.generationId, where.generationId)) &&
+            (where.generation?.userId === undefined ||
+              store.generations.find((gen) => gen.id === item.generationId)
+                ?.userId === where.generation.userId),
+        )
+        .map((item) => ({ ...item })),
+    createMany: async ({ data }: { data: FakeItem[] }) => {
+      let count = 0
+      for (const entry of data) {
+        const exists = store.items.some(
+          (item) =>
+            item.projectId === entry.projectId &&
+            item.generationId === entry.generationId,
+        )
+        if (!exists) {
+          store.items.push({ ...entry })
+          count += 1
+        }
+      }
+      return { count }
+    },
+    deleteMany: async ({ where }: { where: ItemWhere }) => {
+      const before = store.items.length
+      store.items = store.items.filter(
+        (item) =>
+          !(
+            item.projectId === where.projectId &&
+            matches(item.generationId, where.generationId)
+          ),
+      )
+      return { count: before - store.items.length }
     },
   }
 
@@ -257,6 +332,7 @@ vi.mock('@/lib/db', () => {
     db: {
       generation,
       project,
+      projectItem,
       userLike,
       /**
        * `applyTagUnion` / `applyTagRemoval` 那两条 —— 都是「锁行 → 算 → 写 →
@@ -320,9 +396,9 @@ vi.mock('@/services/user.service', () => ({
 
 import {
   AssetFolderLimitError,
+  addAssetsToFolder,
   createAssetFolder,
   deleteEmptyAssetFolder,
-  moveAssetsToFolder,
   revertAssistantAssetWrite,
   setAssetFavorites,
   tagAssets,
@@ -333,23 +409,23 @@ const OTHER = 'user-2'
 
 beforeEach(() => {
   store.generations = [
-    { id: 'a1', userId: USER, projectId: null, isPublic: false, snapshot: {} },
+    { id: 'a1', userId: USER, isPublic: false, snapshot: {} },
     {
       id: 'a2',
       userId: USER,
-      projectId: 'folder-old',
       isPublic: false,
       snapshot: { tags: ['线稿'] },
     },
     {
       id: 'a3',
       userId: USER,
-      projectId: null,
       isPublic: false,
       snapshot: null,
     },
-    { id: 'x1', userId: OTHER, projectId: null, isPublic: true, snapshot: {} },
+    { id: 'x1', userId: OTHER, isPublic: true, snapshot: {} },
   ]
+  // a2 原来在旧夹里 —— 放进新夹之后它两边都在。
+  store.items = [{ projectId: 'folder-old', generationId: 'a2' }]
   store.projects = [
     {
       id: 'folder-old',
@@ -515,7 +591,7 @@ describe('create_folder', () => {
   /** ⛔ 撤销之前用户往里丢了东西 → 删掉就不是撤销，是毁数据。 */
   it('夹子里后来有了东西就不删，并如实回报', async () => {
     const folder = await createAssetFolder(USER, { name: '角色参考' })
-    await moveAssetsToFolder(USER, ['a1'], folder.folderId)
+    await addAssetsToFolder(USER, ['a1'], folder.folderId)
 
     const result = await revertAssistantAssetWrite(USER, {
       tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
@@ -527,6 +603,20 @@ describe('create_folder', () => {
     expect(
       store.projects.find((row) => row.id === folder.folderId)?.isDeleted,
     ).toBe(false)
+  })
+
+  it('父夹自己是子夹（会出第三层）→ 建在最外层', async () => {
+    const kid = await createAssetFolder(USER, {
+      name: '子夹',
+      parentId: 'folder-old',
+    })
+    expect(kid.parentId).toBe('folder-old')
+
+    const grandchild = await createAssetFolder(USER, {
+      name: '孙夹',
+      parentId: kid.folderId,
+    })
+    expect(grandchild.parentId).toBeNull()
   })
 
   it('别人的父夹当作没给，⛔ 不整条失败', async () => {
@@ -553,53 +643,68 @@ describe('create_folder', () => {
   })
 })
 
-describe('move_assets', () => {
-  /** ⭐ a1 原来没归档、a2 原来在旧夹里 —— 撤销要各回各家。 */
-  it('做 → 撤 → 回到原状（一批里原位不同）', async () => {
+describe('add_to_folder', () => {
+  /** ⭐ 一张图可以同时在好几个夹里：放进新夹不把 a2 从旧夹里拿走。 */
+  it('做 → 撤 → 回到原状（放进去是加，不是挪）', async () => {
     const before = snapshotOfWorld()
     const folder = await createAssetFolder(USER, { name: '角色参考' })
 
-    const moved = await moveAssetsToFolder(
+    const filed = await addAssetsToFolder(
       USER,
       ['a1', 'a2', 'x1'],
       folder.folderId,
     )
 
-    expect(moved?.entries).toEqual([
-      { assetId: 'a1', folderId: null },
-      { assetId: 'a2', folderId: 'folder-old' },
-    ])
-    expect(store.generations[0].projectId).toBe(folder.folderId)
-
-    await revertAssistantAssetWrite(USER, {
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
-      entries: moved!.entries,
+    expect(filed?.added).toEqual(['a1', 'a2'])
+    expect(store.items).toContainEqual({
+      projectId: 'folder-old',
+      generationId: 'a2',
     })
+
+    const result = await revertAssistantAssetWrite(USER, {
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+      folderId: folder.folderId,
+      assetIds: filed!.added,
+    })
+    expect(result).toEqual({ revertedCount: 2, skipped: 0 })
     await deleteEmptyAssetFolder(USER, folder.folderId)
 
-    expect(store.generations[0].projectId).toBeNull()
-    expect(store.generations[1].projectId).toBe('folder-old')
     expect(snapshotOfWorld()).toBe(before)
   })
 
-  it('目标夹不是他的 → null（调用方按 unknownFolder 拒）', async () => {
-    expect(await moveAssetsToFolder(USER, ['a1'], 'folder-theirs')).toBeNull()
-    expect(store.generations[0].projectId).toBeNull()
-  })
-
-  /** 原文件夹后来没了 → 回落成「未归档」，⛔ 不挪回一个不存在的夹子。 */
-  it('撤销时原文件夹已被删 → 回落未归档', async () => {
-    const folder = await createAssetFolder(USER, { name: '角色参考' })
-    const moved = await moveAssetsToFolder(USER, ['a2'], folder.folderId)
-
-    const old = store.projects.find((row) => row.id === 'folder-old')!
-    old.isDeleted = true
+  /** 本来就在里面的不是这一步的后果 —— 撤销时不该被拿出来。 */
+  it('已经在里面的不算：撤销只拿出新放进去的', async () => {
+    const filed = await addAssetsToFolder(USER, ['a1', 'a2'], 'folder-old')
+    expect(filed?.added).toEqual(['a1'])
 
     await revertAssistantAssetWrite(USER, {
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
-      entries: moved!.entries,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+      folderId: 'folder-old',
+      assetIds: filed!.added,
     })
 
-    expect(store.generations[1].projectId).toBeNull()
+    expect(store.items).toEqual([
+      { projectId: 'folder-old', generationId: 'a2' },
+    ])
+  })
+
+  it('目标夹不是他的 → null（调用方按 unknownFolder 拒）', async () => {
+    expect(await addAssetsToFolder(USER, ['a1'], 'folder-theirs')).toBeNull()
+    expect(store.items).toHaveLength(1)
+  })
+
+  /** 夹后来被删了：删夹已经清掉了它的归属，撤销无事可做，如实记作跳过。 */
+  it('撤销时夹已被删 → 记作跳过', async () => {
+    const folder = await createAssetFolder(USER, { name: '角色参考' })
+    const filed = await addAssetsToFolder(USER, ['a1'], folder.folderId)
+    store.projects.find((row) => row.id === folder.folderId)!.isDeleted = true
+
+    const result = await revertAssistantAssetWrite(USER, {
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+      folderId: folder.folderId,
+      assetIds: filed!.added,
+    })
+
+    expect(result).toEqual({ revertedCount: 0, skipped: 1 })
   })
 })

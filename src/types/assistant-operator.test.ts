@@ -663,18 +663,13 @@ const STEP_FIXTURES: Record<
     payload: { folderId: 'folder-1', name: '角色参考', parentId: null },
     inverse: { folderId: 'folder-1' },
   },
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: {
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: {
     payload: {
       targetFolderId: 'folder-1',
       targetFolderName: '角色参考',
       assetIds: ['gen-1', 'gen-2'],
     },
-    inverse: {
-      entries: [
-        { assetId: 'gen-1', folderId: null },
-        { assetId: 'gen-2', folderId: 'folder-9' },
-      ],
-    },
+    inverse: { folderId: 'folder-1', assetIds: ['gen-1', 'gen-2'] },
   },
   // ── 画布三条（进度表 22）──────────────────────────────────────────
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: {

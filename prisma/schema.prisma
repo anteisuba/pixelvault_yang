@@ -369,10 +369,17 @@ model Project {
   parent      Project?  @relation("ProjectTree", fields: [parentId], references: [id], onDelete: SetNull)
   children    Project[] @relation("ProjectTree")
   isDeleted   Boolean   @default(false)
+  // 手动排序：同一层（同一个 parentId）里从小到大；新建的夹排在它那一层最前面。
+  sortOrder   Int       @default(0)
+  // 置顶：null = 没置顶；置顶组里从小到大。
+  pinnedOrder Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // ⚠ 旧的单值归属（`Generation.projectId`）分两次删：代码已只读写 `items`，
+  //   这一侧和那一列等上线稳定后由单独一条迁移删掉。
   generations     Generation[]
+  items           ProjectItem[]
   characterCards  CharacterCard[]
   backgroundCards BackgroundCard[]
   styleCards      StyleCard[]
@@ -380,6 +387,19 @@ model Project {
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, parentId, isDeleted, updatedAt(sort: Desc)])
+}
+
+// 文件夹 ↔ 素材（多对多）：一张图可以同时在好几个夹里。
+// 删夹是软删，由服务端连带清掉这个夹的行；删图走级联。
+model ProjectItem {
+  projectId    String
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  addedAt      DateTime   @default(now())
+
+  @@id([projectId, generationId])
+  @@index([generationId])
 }
 
 model UserApiKey {
@@ -496,6 +516,7 @@ model Generation {
   storyPanels       StoryPanel[]
   likes             UserLike[]
   collectionItems   CollectionItem[]
+  folders           ProjectItem[]
   videoPipeline     VideoPipeline?
   extractedElements ExtractedElement[] @relation("ExtractedElementSource")
   layers            GenerationLayer[]  @relation("GenerationLayers")

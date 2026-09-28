@@ -165,23 +165,13 @@ const AssetFavoriteEntrySchema = z.object({
   value: z.boolean(),
 })
 
-const AssetFolderEntrySchema = z.object({
-  assetId: IdSchema,
-  /** `null` = 它原来不在任何文件夹里（素材库里的「未归档」）。 */
-  folderId: IdSchema.nullable(),
-})
-
 export const AssistantOperatorAssetTagEntrySchema = AssetTagEntrySchema
 export const AssistantOperatorAssetFavoriteEntrySchema =
   AssetFavoriteEntrySchema
-export const AssistantOperatorAssetFolderEntrySchema = AssetFolderEntrySchema
 
 export type AssistantOperatorAssetTagEntry = z.infer<typeof AssetTagEntrySchema>
 export type AssistantOperatorAssetFavoriteEntry = z.infer<
   typeof AssetFavoriteEntrySchema
->
-export type AssistantOperatorAssetFolderEntry = z.infer<
-  typeof AssetFolderEntrySchema
 >
 
 export const AssistantOperatorDomainSchema = z.enum(ASSISTANT_OPERATOR_DOMAINS)
@@ -2613,11 +2603,11 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     parentId: IdSchema.optional(),
   }),
   /**
-   * ⚠ `targetFolderId` **必填且不可为 null**：「挪出文件夹」不是这条工具的活
-   * （那是用户在素材库里自己拖的），而一个可空的目标会让模型把「不确定放哪」
-   * 写成 `null`，结果是一批素材被静默地从文件夹里拿出来。
+   * ⚠ `targetFolderId` **必填且不可为 null**：「拿出文件夹」不是这条工具的活
+   * （那是用户在素材库里自己点的），而一个可空的目标会让模型把「不确定放哪」
+   * 写成 `null`。一张图可以同时在好几个夹里，所以这条只「加」，别的夹里照旧。
    */
-  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: z.object({
+  [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: z.object({
     assetIds: AssetIdListSchema,
     targetFolderId: IdSchema,
   }),
@@ -3853,7 +3843,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
    *  · 打标签 → 这一步**真的新加上去**的那几个（本来就有的不动）；
    *  · 收藏   → 每张的**原收藏态**（⛔ 不是取反）；
    *  · 建夹子 → 刚建那个的 id（删它时服务端还要再确认一次它是空的）；
-   *  · 移动   → 每张的**原文件夹**（`null` = 原来没归档）。
+   *  · 放进夹 → 目标夹 + **这一步真的新放进去**的那几张（本来就在的不拿出来）。
    * ⚠ 载荷里带 `count` / `name` 这类给人看的字段：日志条要写得出「它替你动了
    * 几张、放进了哪个夹子」，而客户端此刻未必手上有这几条素材。
    */
@@ -3892,16 +3882,15 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ folderId: IdSchema }),
   ),
   mutatingStep(
-    ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
     z.object({
       targetFolderId: IdSchema,
       targetFolderName: LabelSchema,
       assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
     }),
     z.object({
-      entries: z
-        .array(AssetFolderEntrySchema)
-        .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+      folderId: IdSchema,
+      assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
     }),
   ),
   /**
@@ -4491,9 +4480,10 @@ export const AssistantAssetWriteRevertSchema = z.discriminatedUnion('tool', [
     folderId: z.string().trim().min(1).max(LIMITS.maxIdChars),
   }),
   z.object({
-    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.moveAssets),
-    entries: z
-      .array(AssistantOperatorAssetFolderEntrySchema)
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.addToFolder),
+    folderId: z.string().trim().min(1).max(LIMITS.maxIdChars),
+    assetIds: z
+      .array(z.string().trim().min(1).max(LIMITS.maxIdChars))
       .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
   }),
 ])

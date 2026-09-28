@@ -11,6 +11,7 @@ const mockGenerationUpdateMany = vi.hoisted(() => vi.fn())
 const mockGenerationDelete = vi.hoisted(() => vi.fn())
 const mockGenerationDeleteMany = vi.hoisted(() => vi.fn())
 const mockProjectFindFirst = vi.hoisted(() => vi.fn())
+const mockProjectItemCreate = vi.hoisted(() => vi.fn())
 const mockGenerationCharacterCardCreateMany = vi.hoisted(() => vi.fn())
 const mockDbTransaction = vi.hoisted(() => vi.fn())
 const mockQueryRaw = vi.hoisted(() => vi.fn())
@@ -51,7 +52,6 @@ vi.mock('@/lib/db', () => ({
 
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import {
-  batchAssignProject,
   batchDeleteGenerations,
   batchUpdateVisibility,
   countPublicGenerations,
@@ -120,6 +120,8 @@ describe('generation.service', () => {
           generationCharacterCard: {
             createMany: mockGenerationCharacterCardCreateMany,
           },
+          project: { findFirst: mockProjectFindFirst },
+          projectItem: { create: mockProjectItemCreate },
           $queryRaw: mockQueryRaw,
         }),
     )
@@ -154,6 +156,64 @@ describe('generation.service', () => {
         }),
       })
       expect(mockGenerationCharacterCardCreateMany).not.toHaveBeenCalled()
+    })
+
+    it('files the new asset into the folder it was made for', async () => {
+      mockGenerationCreate.mockResolvedValue({
+        ...BASE_GENERATION,
+        id: 'gen-3',
+      })
+      mockProjectFindFirst.mockResolvedValue({ id: 'proj-1' })
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        userId: 'user-1',
+        projectId: 'proj-1',
+      })
+
+      expect(mockProjectFindFirst).toHaveBeenCalledWith({
+        where: { id: 'proj-1', userId: 'user-1', isDeleted: false },
+        select: { id: true },
+      })
+      expect(mockProjectItemCreate).toHaveBeenCalledWith({
+        data: { projectId: 'proj-1', generationId: 'gen-3' },
+      })
+      // ⛔ 旧的单值归属不再写。
+      expect(mockGenerationCreate.mock.calls[0][0].data).not.toHaveProperty(
+        'projectId',
+      )
+    })
+
+    it('skips a stale or foreign folder instead of failing the asset', async () => {
+      mockGenerationCreate.mockResolvedValue({
+        ...BASE_GENERATION,
+        id: 'gen-4',
+      })
+      mockProjectFindFirst.mockResolvedValue(null)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        userId: 'user-1',
+        projectId: 'theirs',
+      })
+
+      expect(mockProjectItemCreate).not.toHaveBeenCalled()
     })
 
     it('links character cards when characterCardIds are provided', async () => {
@@ -1012,44 +1072,43 @@ describe('generation.service', () => {
     const groups = [
       {
         outputType: 'IMAGE',
-        projectId: null,
         model: 'sdxl',
         isPublic: false,
         _count: { _all: 2 },
       },
       {
         outputType: 'IMAGE',
-        projectId: 'proj-a',
         model: 'sdxl',
         isPublic: true,
         _count: { _all: 3 },
       },
       {
         outputType: 'IMAGE',
-        projectId: 'proj-a',
         model: 'sdxl',
         isPublic: false,
         _count: { _all: 2 },
       },
       {
         outputType: 'VIDEO',
-        projectId: 'proj-b',
         model: 'video-model',
         isPublic: true,
         _count: { _all: 3 },
       },
       {
         outputType: 'AUDIO',
-        projectId: null,
         model: 'audio-model',
         isPublic: true,
         _count: { _all: 2 },
       },
     ]
 
-    it('aggregates all dimensions with one grouped query and one favorites query', async () => {
+    it('aggregates the dimensions, then folders from the membership table', async () => {
       mockGenerationGroupBy.mockResolvedValueOnce(groups)
-      mockGenerationCount.mockResolvedValueOnce(6)
+      mockGenerationCount.mockResolvedValueOnce(6).mockResolvedValueOnce(4)
+      mockQueryRaw.mockResolvedValueOnce([
+        { folderId: 'proj-a', n: 5 },
+        { folderId: 'proj-b', n: 3 },
+      ])
       await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
         all: 12,
         favorites: 6,
@@ -1063,18 +1122,26 @@ describe('generation.service', () => {
         byModel: { sdxl: 7, 'video-model': 3, 'audio-model': 2 },
       })
       expect(mockGenerationGroupBy).toHaveBeenCalledExactlyOnceWith({
-        by: ['outputType', 'projectId', 'model', 'isPublic'],
+        by: ['outputType', 'model', 'isPublic'],
         where: { userId: 'user-1' },
         _count: { _all: true },
       })
-      expect(mockGenerationCount).toHaveBeenCalledExactlyOnceWith({
+      expect(mockGenerationCount).toHaveBeenNthCalledWith(1, {
         where: { userId: 'user-1', likes: { some: { userId: 'user-1' } } },
+      })
+      // 未归档 = 一个活夹都不在
+      expect(mockGenerationCount).toHaveBeenNthCalledWith(2, {
+        where: {
+          userId: 'user-1',
+          folders: { none: { project: { isDeleted: false } } },
+        },
       })
     })
 
     it('returns zeroed buckets when the user has no generations', async () => {
       mockGenerationGroupBy.mockResolvedValueOnce([])
-      mockGenerationCount.mockResolvedValueOnce(0)
+      mockGenerationCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0)
+      mockQueryRaw.mockResolvedValueOnce([])
       await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
         all: 0,
         favorites: 0,
@@ -1120,7 +1187,12 @@ describe('generation.service', () => {
         enums,
       }) => {
         mockGenerationGroupBy.mockResolvedValueOnce(groups)
-        mockGenerationCount.mockResolvedValueOnce(2)
+        mockGenerationCount
+          .mockResolvedValueOnce(2)
+          .mockResolvedValueOnce(unassigned)
+        mockQueryRaw.mockResolvedValueOnce(
+          Object.entries(byProject).map(([folderId, n]) => ({ folderId, n })),
+        )
         await expect(
           getAssetSectionCounts('user-1', [...types]),
         ).resolves.toEqual({
@@ -1136,15 +1208,22 @@ describe('generation.service', () => {
           byModel,
         })
         expect(mockGenerationGroupBy).toHaveBeenCalledExactlyOnceWith({
-          by: ['outputType', 'projectId', 'model', 'isPublic'],
+          by: ['outputType', 'model', 'isPublic'],
           where: { userId: 'user-1' },
           _count: { _all: true },
         })
-        expect(mockGenerationCount).toHaveBeenCalledExactlyOnceWith({
+        expect(mockGenerationCount).toHaveBeenNthCalledWith(1, {
           where: {
             userId: 'user-1',
             likes: { some: { userId: 'user-1' } },
             outputType: { in: [...enums] },
+          },
+        })
+        expect(mockGenerationCount).toHaveBeenNthCalledWith(2, {
+          where: {
+            userId: 'user-1',
+            outputType: { in: [...enums] },
+            folders: { none: { project: { isDeleted: false } } },
           },
         })
       },
@@ -1252,45 +1331,6 @@ describe('generation.service', () => {
       expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
         where: { id: { in: ['gen-1', 'gen-2'] }, userId: 'user-1' },
         data: { isPublic: true },
-      })
-    })
-
-    it('batch assigns owned generations to an owned project', async () => {
-      mockProjectFindFirst.mockResolvedValue({ id: 'proj-1' })
-      mockGenerationUpdateMany.mockResolvedValue({ count: 2 })
-
-      await expect(
-        batchAssignProject(['gen-1', 'gen-2'], 'user-1', 'proj-1'),
-      ).resolves.toBe(2)
-      expect(mockProjectFindFirst).toHaveBeenCalledWith({
-        where: { id: 'proj-1', userId: 'user-1', isDeleted: false },
-        select: { id: true },
-      })
-      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['gen-1', 'gen-2'] }, userId: 'user-1' },
-        data: { projectId: 'proj-1' },
-      })
-    })
-
-    it('returns null when the target project is not owned by the user', async () => {
-      mockProjectFindFirst.mockResolvedValue(null)
-
-      await expect(
-        batchAssignProject(['gen-1'], 'user-1', 'proj-1'),
-      ).resolves.toBeNull()
-      expect(mockGenerationUpdateMany).not.toHaveBeenCalled()
-    })
-
-    it('batch moves owned generations back to unassigned', async () => {
-      mockGenerationUpdateMany.mockResolvedValue({ count: 1 })
-
-      await expect(batchAssignProject(['gen-1'], 'user-1', null)).resolves.toBe(
-        1,
-      )
-      expect(mockProjectFindFirst).not.toHaveBeenCalled()
-      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
-        where: { id: { in: ['gen-1'] }, userId: 'user-1' },
-        data: { projectId: null },
       })
     })
   })

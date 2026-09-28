@@ -343,7 +343,7 @@ export function describeOperatorStepDetail(
       return `${step.payload.value ? '★' : '☆'} ${step.payload.assetIds.length}`
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
       return step.payload.name
-    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+    case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       return `${step.payload.targetFolderName} · ${step.payload.assetIds.length}`
     /**
      * 画布三条（进度表 22）—— 日志条右侧那半句。

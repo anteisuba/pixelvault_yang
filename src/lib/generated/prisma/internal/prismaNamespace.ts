@@ -392,6 +392,7 @@ export const ModelName = {
   ResearchRun: 'ResearchRun',
   NodeWorkflowProject: 'NodeWorkflowProject',
   Project: 'Project',
+  ProjectItem: 'ProjectItem',
   UserApiKey: 'UserApiKey',
   Generation: 'Generation',
   GenerationJob: 'GenerationJob',
@@ -447,7 +448,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1040,6 +1041,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ProjectCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ProjectCountAggregateOutputType> | number
+        }
+      }
+    }
+    ProjectItem: {
+      payload: Prisma.$ProjectItemPayload<ExtArgs>
+      fields: Prisma.ProjectItemFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProjectItemFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProjectItemFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        findFirst: {
+          args: Prisma.ProjectItemFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProjectItemFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        findMany: {
+          args: Prisma.ProjectItemFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>[]
+        }
+        create: {
+          args: Prisma.ProjectItemCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        createMany: {
+          args: Prisma.ProjectItemCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProjectItemCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>[]
+        }
+        delete: {
+          args: Prisma.ProjectItemDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        update: {
+          args: Prisma.ProjectItemUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProjectItemDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProjectItemUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProjectItemUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>[]
+        }
+        upsert: {
+          args: Prisma.ProjectItemUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProjectItemPayload>
+        }
+        aggregate: {
+          args: Prisma.ProjectItemAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProjectItem>
+        }
+        groupBy: {
+          args: Prisma.ProjectItemGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectItemGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProjectItemCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProjectItemCountAggregateOutputType> | number
         }
       }
     }
@@ -4161,11 +4236,22 @@ export const ProjectScalarFieldEnum = {
   description: 'description',
   parentId: 'parentId',
   isDeleted: 'isDeleted',
+  sortOrder: 'sortOrder',
+  pinnedOrder: 'pinnedOrder',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ProjectItemScalarFieldEnum = {
+  projectId: 'projectId',
+  generationId: 'generationId',
+  addedAt: 'addedAt'
+} as const
+
+export type ProjectItemScalarFieldEnum = (typeof ProjectItemScalarFieldEnum)[keyof typeof ProjectItemScalarFieldEnum]
 
 
 export const UserApiKeyScalarFieldEnum = {
@@ -5477,6 +5563,7 @@ export type GlobalOmitConfig = {
   researchRun?: Prisma.ResearchRunOmit
   nodeWorkflowProject?: Prisma.NodeWorkflowProjectOmit
   project?: Prisma.ProjectOmit
+  projectItem?: Prisma.ProjectItemOmit
   userApiKey?: Prisma.UserApiKeyOmit
   generation?: Prisma.GenerationOmit
   generationJob?: Prisma.GenerationJobOmit

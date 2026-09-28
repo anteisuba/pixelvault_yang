@@ -174,7 +174,7 @@ describe('VideoAnalysisPanel', () => {
     mockCapture.mockResolvedValue(CAPTURED)
     mockAnalyze.mockResolvedValue(analysisResult())
 
-    render(<VideoAnalysisPanel videoUrl={VIDEO_URL} projectId="proj_1" />)
+    render(<VideoAnalysisPanel videoUrl={VIDEO_URL} />)
     fireEvent.click(screen.getByRole('button', { name: 'VideoAnalysis:run' }))
 
     await waitFor(() => {
@@ -185,7 +185,6 @@ describe('VideoAnalysisPanel', () => {
         videoUrl: VIDEO_URL,
         task: VISION_TASKS.qualityReview,
         surface: ASSISTANT_SURFACE_IDS.videoStudio,
-        projectId: 'proj_1',
         durationSeconds: 16,
       }),
     )

@@ -11,31 +11,40 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   CheckCircle2,
+  ChevronDown,
+  Folder,
   FolderInput,
-  FolderPlus,
   Globe,
   Heart,
   Image as ImageIcon,
+  LayoutGrid,
+  FolderX,
+  MoreHorizontal,
+  PanelLeft,
+  Pin,
   Trash2,
   UploadCloud,
   X,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
-import { motion, useReducedMotion } from 'motion/react'
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react'
 import { toast } from 'sonner'
 
 import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
+import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
+import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
 import {
-  AssetFolderBreadcrumb,
-  type BreadcrumbCrumb,
-} from '@/components/business/assets/AssetFolderBreadcrumb'
-import { AssetFolderOverview } from '@/components/business/assets/AssetFolderOverview'
-import { AssetFolderRail } from '@/components/business/assets/AssetFolderRail'
-import {
-  AssetMoveTargetPicker,
-  rememberMoveTarget,
-} from '@/components/business/assets/AssetMoveTargetPicker'
+  AssetFolderSidebar,
+  type AssetFolderEdit,
+  type AssetFolderScope,
+} from '@/components/business/assets/AssetFolderSidebar'
 import { AssetTile } from '@/components/business/assets/AssetTile'
 import {
   AssetEmptyFolder,
@@ -59,9 +68,15 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
+import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import {
@@ -73,10 +88,14 @@ import {
   useAssetGridViewport,
   useJustifiedGrid,
 } from '@/hooks/use-justified-grid'
-import { useProjects } from '@/hooks/use-projects'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { ROUTES } from '@/constants/routes'
-import { motionTransition } from '@/constants/motion'
+import { PROJECT } from '@/constants/config'
+import {
+  DURATION_MS,
+  LIQUID_SPRING,
+  motionTransition,
+} from '@/constants/motion'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
@@ -84,8 +103,11 @@ import {
 } from '@/constants/asset-previews'
 import {
   ASSET_BROWSER_PAGE_SIZE,
+  ASSET_FOLDER_RAIL_GAP,
+  ASSET_FOLDER_RAIL_STORAGE_KEY,
+  ASSET_FOLDER_RAIL_WIDTH,
+  ASSET_FOLDER_UNDO_DURATION_MS,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
-  BULK_MOVE_UNDO_DURATION_MS,
   ASSET_GRID_DEFAULT_DENSITY,
   ASSET_GRID_DENSITIES,
   ASSET_GRID_DENSITY_STORAGE_KEY,
@@ -94,7 +116,6 @@ import {
   ASSET_GRID_SKELETON_ASPECT_RATIOS,
   ASSET_GRID_TARGET_ROW_HEIGHT,
   ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO,
-  PROJECT_COVER_TILE_COUNT,
   type AssetGridDensity,
 } from '@/constants/assets-grid'
 import {
@@ -108,12 +129,12 @@ import {
 } from '@/constants/uploads'
 import { Link, useRouter } from '@/i18n/navigation'
 import {
-  batchAssignProjectAPI,
   batchDeleteGenerationsAPI,
   batchSetLikeAPI,
   batchUpdateVisibilityAPI,
   fetchAssetSectionCounts,
 } from '@/lib/api-client/gallery'
+import { updateFolderItemsAPI } from '@/lib/api-client/projects'
 import {
   uploadAudioFileAPI,
   uploadImageFileAPI,
@@ -123,14 +144,7 @@ import { readAudioFileMetadata } from '@/lib/audio-metadata'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { clearGalleryCache } from '@/lib/gallery-cache'
-import {
-  DEFAULT_FOLDER_SORT_MODE,
-  FOLDER_SORT_STORAGE_KEY,
-  getChildFolders,
-  getFolderPath,
-  isFolderSortMode,
-  type FolderSortMode,
-} from '@/lib/folder-tree'
+import { getChildFolders } from '@/lib/folder-tree'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
@@ -154,13 +168,8 @@ interface KreaAssetBrowserProps {
   initialNextCursor?: string | null
   initialTotal?: number
   initialFilters?: GalleryFilters
-  /** 首屏落在哪个视图 —— 由 `?view=folders` 决定（刷新不丢位置）。 */
-  initialView?: AssetsView
   className?: string
 }
-
-/** `library` = 大厅/夹内页（有网格）；`folders` = 文件夹总览页（只有门牌）。 */
-export type AssetsView = 'library' | 'folders'
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
@@ -173,14 +182,6 @@ const DEFAULT_FILTERS: GalleryFilters = {
   projectId: '',
   provider: '',
 }
-
-type Section =
-  | { kind: 'all' }
-  | { kind: 'favorites' }
-  | { kind: 'published' }
-  | { kind: 'uploads' }
-  | { kind: 'unassigned' }
-  | { kind: 'project'; id: string }
 
 const USER_UPLOAD_ACCEPT = USER_UPLOAD_ACCEPTED_MIME_TYPES.join(',')
 
@@ -234,13 +235,16 @@ function getActiveMediaType(filters: GalleryFilters): LockedMediaType | null {
   return filters.types.length === 1 ? filters.types[0] : null
 }
 
-function sectionFromFilters(filters: GalleryFilters): Section {
-  if (filters.liked) return { kind: 'favorites' }
-  if (filters.published) return { kind: 'published' }
-  if (filters.provider === USER_UPLOAD_PROVIDER) return { kind: 'uploads' }
+/** 文件夹范围 ⇄ 地址栏 `?projectId=`（`none` = 未归档）。 */
+function folderScopeFromFilters(filters: GalleryFilters): AssetFolderScope {
   if (filters.projectId === 'none') return { kind: 'unassigned' }
-  if (filters.projectId) return { kind: 'project', id: filters.projectId }
+  if (filters.projectId) return { kind: 'folder', id: filters.projectId }
   return { kind: 'all' }
+}
+
+function folderScopeParam(scope: AssetFolderScope): string {
+  if (scope.kind === 'unassigned') return 'none'
+  return scope.kind === 'folder' ? scope.id : ''
 }
 
 function outputTypeMatchesMediaType(
@@ -254,51 +258,26 @@ function outputTypeMatchesMediaType(
   return false
 }
 
+/**
+ * 改了收藏 / 发布 / 类型之后，这一件还留不留在当前筛选里。
+ * ⚠ 文件夹不在这里判：归属只由「加入文件夹」改，那一路自己算谁离开当前范围。
+ */
 function shouldKeepAssetAfterPatch(
-  section: Section,
+  filters: GalleryFilters,
   generation: GenerationRecord,
-  /** 生效的类型分面；空数组 = 不限类型，什么都留得住。 */
-  allowedTypes: readonly LockedMediaType[],
 ): boolean {
   if (
-    allowedTypes.length > 0 &&
-    !allowedTypes.some((type) =>
+    filters.types.length > 0 &&
+    !filters.types.some((type) =>
       outputTypeMatchesMediaType(generation.outputType, type),
     )
   ) {
     return false
   }
-
-  switch (section.kind) {
-    case 'all':
-      return true
-    case 'favorites':
-      return !!generation.isLiked
-    case 'published':
-      return generation.isPublic
-    case 'uploads':
-      return generation.provider === USER_UPLOAD_PROVIDER
-    case 'unassigned':
-      return generation.projectId == null
-    case 'project':
-      return generation.projectId === section.id
-  }
-}
-
-function shouldKeepAssetAfterProjectMove(
-  section: Section,
-  projectId: string | null,
-): boolean {
-  if (
-    section.kind === 'all' ||
-    section.kind === 'favorites' ||
-    section.kind === 'published' ||
-    section.kind === 'uploads'
-  ) {
-    return true
-  }
-  if (section.kind === 'unassigned') return projectId === null
-  return section.id === projectId
+  if (filters.liked && !generation.isLiked) return false
+  if (filters.published && !generation.isPublic) return false
+  if (filters.provider && generation.provider !== filters.provider) return false
+  return true
 }
 
 function getVisibilityDelta(
@@ -347,7 +326,6 @@ export function KreaAssetBrowser({
   initialNextCursor = null,
   initialTotal = 0,
   initialFilters = DEFAULT_FILTERS,
-  initialView = 'library',
   className,
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
@@ -408,13 +386,16 @@ export function KreaAssetBrowser({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const {
-    projects,
-    refresh: refreshProjects,
-    update: updateProject,
-    remove: removeProject,
-  } = useProjects({ loadHistoryOnMount: false })
-  const section = useMemo(() => sectionFromFilters(filters), [filters])
+  const folderStore = useAssetFolders()
+  const { folders, refresh: refreshFolders } = folderStore
+  const folderScope = useMemo(() => folderScopeFromFilters(filters), [filters])
+  const scopeFolder =
+    folderScope.kind === 'folder'
+      ? (folders.find((folder) => folder.id === folderScope.id) ?? null)
+      : null
+  const scopeParent = scopeFolder?.parentId
+    ? (folders.find((folder) => folder.id === scopeFolder.parentId) ?? null)
+    : null
   const activeMediaType = getActiveMediaType(filters)
   /** 生效的类型口径 = 类型分面本身（空 = 不限）。 */
   const scopedTypes: LockedMediaType[] = filters.types
@@ -517,6 +498,11 @@ export function KreaAssetBrowser({
   useEffect(() => {
     generationsRef.current = generations
   }, [generations])
+  /** popstate 在 effect 里读当前筛选 —— 不能读渲染期闭包。 */
+  const filtersRef = useRef(filters)
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Off-screen element used as a custom drag image when dragging a multi-select
@@ -525,7 +511,12 @@ export function KreaAssetBrowser({
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
   const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
-  const [isBulkMoving, setIsBulkMoving] = useState(false)
+  /** 大河里正拖着几张（拖到左栏一行上时写「+ 加入 N 张」）。 */
+  const [draggingCount, setDraggingCount] = useState(0)
+  /** 刚离开当前范围、正在缩小淡出的那几张（200 后才从列表里拿掉）。 */
+  const [leavingIds, setLeavingIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
 
   // ── Confirm action state ──────────────────────────────────────
   // One AlertDialog handles every destructive flow (bulk delete, publish,
@@ -535,7 +526,7 @@ export function KreaAssetBrowser({
     | { kind: 'delete-bulk'; count: number }
     | { kind: 'publish-bulk'; count: number }
     | { kind: 'favorite-bulk'; count: number }
-    | { kind: 'delete-folder'; id: string; name: string }
+    | { kind: 'delete-folder'; folder: ProjectRecord }
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
   const toggleSelection = useCallback((id: string) => {
@@ -704,100 +695,109 @@ export function KreaAssetBrowser({
     }
   }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
 
-  // Core move: reassign a set of assets to a project (or unassigned) and
-  // reconcile the grid + sidebar counts. Shared by the bulk-action bar and
-  // the drag-to-folder drop target.
-  const moveAssets = useCallback(
-    async (ids: string[], projectId: string | null) => {
+  /** 那几张缩小淡出 200，再从大河里拿掉（动效表「从这个夹拿出」）。 */
+  const removeLeaving = useCallback(
+    (ids: string[]) => {
       if (ids.length === 0) return
-      // ⛔ 撤销**必须按每一项原来的 projectId 分别回写**（§7.2）：选中的 4 项
-      // 可能来自 4 个不同的夹，写成「全部丢回未分类」就是数据损坏。
-      const originById = new Map(
-        ids.map((id) => [
-          id,
-          generationsRef.current.find((generation) => generation.id === id)
-            ?.projectId ?? null,
-        ]),
+      setLeavingIds((prev) => new Set([...prev, ...ids]))
+      window.setTimeout(
+        () => {
+          ids.forEach((id) => removeGeneration(id))
+          setLeavingIds((prev) => {
+            const next = new Set(prev)
+            ids.forEach((id) => next.delete(id))
+            return next
+          })
+        },
+        reducedMotion ? 0 : DURATION_MS.base,
       )
-      const result = await batchAssignProjectAPI(ids, projectId)
-      if (!result.success) {
-        toast.error(result.error ?? t('bulkMoveFailed'))
+    },
+    [removeGeneration, reducedMotion],
+  )
+
+  /**
+   * 加入 / 拿出落库之后：计数与封面跟着变；已经不在当前范围里的那几张退出大河。
+   * `memberships` = 这几张现在各在哪些夹里（面板刚读过、刚改过的那一份）。
+   */
+  const handleMembershipsChanged = useCallback(
+    (memberships: Record<string, string[]>) => {
+      clearGalleryCache()
+      void refreshCounts()
+      void refreshFolders()
+      if (folderScope.kind === 'all') return
+      const scopeIds =
+        folderScope.kind === 'folder'
+          ? new Set([
+              folderScope.id,
+              ...getChildFolders(folders, folderScope.id).map(
+                (child) => child.id,
+              ),
+            ])
+          : null
+      const leaving = Object.entries(memberships)
+        .filter(([, folderIds]) =>
+          scopeIds
+            ? !folderIds.some((folderId) => scopeIds.has(folderId))
+            : folderIds.length > 0,
+        )
+        .map(([id]) => id)
+      removeLeaving(leaving)
+    },
+    [folderScope, folders, refreshCounts, refreshFolders, removeLeaving],
+  )
+
+  /** 撤销落库之后：谁回来了算不清，大河整页重拉。 */
+  const handleFolderUndone = useCallback(() => {
+    clearGalleryCache()
+    void refreshCounts()
+    void refreshFolders()
+    retryGallery()
+  }, [refreshCounts, refreshFolders, retryGallery])
+
+  /** 把图拖到左栏一行上 = 也放进那个夹（⛔ 不是挪：图不离开原位）。 */
+  const handleDropAssetsOnFolder = useCallback(
+    async (folderId: string, ids: string[]) => {
+      if (ids.length === 0) return
+      const folderName =
+        folders.find((folder) => folder.id === folderId)?.name ?? ''
+      const response = await updateFolderItemsAPI(folderId, { add: ids })
+      if (!response.success || !response.data) {
+        toast.error(response.error ?? t('addToFolderFailed'))
         return
       }
-      const updatedCount = result.data?.updatedCount ?? ids.length
-      const shouldKeep = shouldKeepAssetAfterProjectMove(section, projectId)
+      const added = response.data.added
       clearGalleryCache()
-      ids.forEach((id) => {
-        if (shouldKeep) updateGeneration(id, { projectId })
-        else removeGeneration(id)
-      })
       void refreshCounts()
-      rememberMoveTarget(projectId)
-
-      const undo = async () => {
-        // 按「原夹」分组，一组一次请求。
-        const byOrigin = new Map<string | null, string[]>()
-        originById.forEach((origin, id) => {
-          const bucket = byOrigin.get(origin) ?? []
-          bucket.push(id)
-          byOrigin.set(origin, bucket)
-        })
-        for (const [origin, groupIds] of byOrigin) {
-          await batchAssignProjectAPI(groupIds, origin)
-        }
-        clearGalleryCache()
-        void refreshCounts()
-        retryGallery()
-        toast.success(t('bulkMoveUndone'))
-      }
-      toast.success(t('bulkMoveSuccess', { count: updatedCount }), {
-        duration: BULK_MOVE_UNDO_DURATION_MS,
-        action: { label: t('bulkMoveUndo'), onClick: () => void undo() },
+      void refreshFolders()
+      // 未归档里拖出去的那几张已经归档了 —— 离开这一页。
+      if (folderScope.kind === 'unassigned') removeLeaving(added)
+      if (added.length === 0) return
+      toast.success(t('addToFolderDone', { name: folderName }), {
+        duration: ASSET_FOLDER_UNDO_DURATION_MS,
+        action: {
+          label: t('addToFolderUndo'),
+          onClick: () => {
+            void (async () => {
+              const undone = await updateFolderItemsAPI(folderId, {
+                remove: added,
+              })
+              if (!undone.success) toast.error(t('addToFolderFailed'))
+              else toast.success(t('addToFolderUndone'))
+              handleFolderUndone()
+            })()
+          },
+        },
       })
     },
     [
-      section,
+      folders,
+      folderScope,
       t,
-      updateGeneration,
-      removeGeneration,
       refreshCounts,
-      retryGallery,
+      refreshFolders,
+      removeLeaving,
+      handleFolderUndone,
     ],
-  )
-
-  const performBulkMove = useCallback(
-    async (projectId: string | null) => {
-      const ids = Array.from(selectedIds)
-      if (ids.length === 0) return
-      setIsBulkMoving(true)
-      try {
-        await moveAssets(ids, projectId)
-        exitSelectionMode()
-      } finally {
-        setIsBulkMoving(false)
-      }
-    },
-    [selectedIds, moveAssets, exitSelectionMode],
-  )
-
-  const handleDropAssetsOnFolder = useCallback(
-    (projectId: string | null, ids: string[]) => {
-      void moveAssets(ids, projectId)
-    },
-    [moveAssets],
-  )
-
-  // Folder reassignment may push the asset out of the current section
-  // (e.g. user is viewing "Unassigned" and moves into a folder). Drop
-  // it locally so the grid reflects the move without a refetch, then
-  // refresh the sidebar counts so both buckets update.
-  const handleAssetMoved = useCallback(
-    (id: string) => {
-      clearGalleryCache()
-      removeGeneration(id)
-      void refreshCounts()
-    },
-    [removeGeneration, refreshCounts],
   )
 
   const handleAssetUpdated = useCallback(
@@ -816,7 +816,6 @@ export function KreaAssetBrowser({
       const changesSectionMembership =
         'isPublic' in patch ||
         'isLiked' in patch ||
-        'projectId' in patch ||
         'provider' in patch ||
         'outputType' in patch
 
@@ -827,7 +826,7 @@ export function KreaAssetBrowser({
         )
       }
 
-      if (!shouldKeepAssetAfterPatch(section, nextGeneration, scopedTypes)) {
+      if (!shouldKeepAssetAfterPatch(filters, nextGeneration)) {
         removeGeneration(id)
         setSelectedGeneration((prev) => (prev?.id === id ? null : prev))
         void refreshCounts()
@@ -846,8 +845,7 @@ export function KreaAssetBrowser({
     [
       generations,
       selectedGeneration,
-      section,
-      scopedTypes,
+      filters,
       updateGeneration,
       removeGeneration,
       refreshCounts,
@@ -864,119 +862,88 @@ export function KreaAssetBrowser({
     : ASSET_GRID_DEFAULT_DENSITY
   const changeDensity = setStoredDensity
 
-  const filtersForSection = useCallback(
-    (next: Section): GalleryFilters => {
-      const base: GalleryFilters = {
-        ...filters,
-        // 文件夹范围只改范围。类型是独立的可叠加维度，切范围不该把它清掉
-        // ——「收藏 + 视频」「某个夹 + 图片」都要能同时成立。
-        liked: false,
-        published: false,
-        projectId: '',
-        provider: '',
-        types: filters.types,
-      }
-      switch (next.kind) {
-        case 'all':
-          return base
-        case 'favorites':
-          return { ...base, liked: true }
-        case 'published':
-          return { ...base, published: true }
-        case 'uploads':
-          return { ...base, provider: USER_UPLOAD_PROVIDER }
-        case 'unassigned':
-          return { ...base, projectId: 'none' }
-        case 'project':
-          return { ...base, projectId: next.id }
-      }
-    },
-    [filters],
+  // ── 文件夹（文件夹 B：左边一列）───────────────────────────────
+  // ⚠ 文件夹范围与收藏 / 发布 / 类型等筛选**叠加**（page §2「可叠加维度」）：
+  //   换夹只改 `projectId`，其余筛选原样留着。地址栏跟着走，后退可用、刷新不丢。
+  const [storedRail, setStoredRail] = useLocalPreference(
+    ASSET_FOLDER_RAIL_STORAGE_KEY,
   )
-
-  const setSection = useCallback(
-    (next: Section) => {
-      setFilters(filtersForSection(next))
-    },
-    [filtersForSection, setFilters],
-  )
-
-  // ── 文件夹体系：门牌行 / 夹内页 / 总览页（page §3 末 + §4）──────
-  // ⚠ 夹内页与总览页是**路由**，不是 overlay：全局左侧导航始终可见，
-  // 浏览器后退可用、URL 可分享、刷新不丢位置。
-  const [view, setView] = useState<AssetsView>(initialView)
-  const [storedFolderSort, setStoredFolderSort] = useLocalPreference(
-    FOLDER_SORT_STORAGE_KEY,
-  )
-  const folderSortMode: FolderSortMode = isFolderSortMode(storedFolderSort)
-    ? storedFolderSort
-    : DEFAULT_FOLDER_SORT_MODE
-  // `undefined` = 弹窗关着；`null`/id = 开着并指定父夹。
-  const [createFolderParentId, setCreateFolderParentId] = useState<
-    string | null | undefined
-  >(undefined)
-  const isFolderScoped =
-    section.kind === 'project' || section.kind === 'unassigned'
-
-  // ⚠ 排序档以前是纯 useState，刷新就掉回默认（page §4.1 的「另一处小缺陷」）。
-  const changeFolderSortMode = setStoredFolderSort
+  const railOpen = storedRail !== 'closed'
+  const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
+  const [folderEdit, setFolderEdit] = useState<AssetFolderEdit | null>(null)
+  const [isRenamingScope, setIsRenamingScope] = useState(false)
 
   /** 把当前范围写进地址栏（用户点出来的都 push，后退才有东西可回）。 */
-  const pushAssetsUrl = useCallback(
-    (next: { projectId?: string; view?: AssetsView }) => {
-      const params = new URLSearchParams(window.location.search)
-      if (next.projectId) params.set('projectId', next.projectId)
-      else params.delete('projectId')
-      if (next.view === 'folders') params.set('view', 'folders')
-      else params.delete('view')
-      const query = params.toString()
-      window.history.pushState(
-        null,
-        '',
-        query
-          ? `${window.location.pathname}?${query}`
-          : window.location.pathname,
-      )
+  const pushAssetsUrl = useCallback((projectId: string) => {
+    const params = new URLSearchParams(window.location.search)
+    if (projectId) params.set('projectId', projectId)
+    else params.delete('projectId')
+    params.delete('view')
+    const query = params.toString()
+    window.history.pushState(
+      null,
+      '',
+      query ? `${window.location.pathname}?${query}` : window.location.pathname,
+    )
+  }, [])
+
+  const openScope = useCallback(
+    (scope: AssetFolderScope) => {
+      const projectId = folderScopeParam(scope)
+      setFilters({ ...filters, projectId })
+      pushAssetsUrl(projectId)
+      setIsFolderDrawerOpen(false)
     },
-    [],
+    [filters, setFilters, pushAssetsUrl],
   )
 
-  const openFolder = useCallback(
-    (projectId: string) => {
-      setView('library')
-      setSection({ kind: 'project', id: projectId })
-      pushAssetsUrl({ projectId })
-    },
-    [setSection, pushAssetsUrl],
+  /**
+   * 栏的收起 / 展开（与图片台助手列让位同一套，owner 09-26 定）：点下去那一刻布局
+   * 直接切到终态（大河只重排这一次），之后栏与大河**同一根弹簧**一起滑 —— 栏从左缘
+   * 滑出 / 滑进，大河跟着让位，两者之间那 20 的空隙全程不变。⛔ 不逐帧改宽度：
+   * justified 大河每帧重排会让图在行与行之间来回跳。
+   */
+  const railReserve = ASSET_FOLDER_RAIL_WIDTH + ASSET_FOLDER_RAIL_GAP
+  const railProgress = useMotionValue(railOpen ? 1 : 0)
+  const railLayoutLeft = useMotionValue(railOpen ? railReserve : 0)
+  const railSettledRef = useRef(railOpen)
+  useLayoutEffect(() => {
+    if (railSettledRef.current === railOpen) return
+    railSettledRef.current = railOpen
+    railLayoutLeft.set(railOpen ? railReserve : 0)
+    if (reducedMotion) {
+      railProgress.jump(railOpen ? 1 : 0)
+      return
+    }
+    const controls = animate(
+      railProgress,
+      railOpen ? 1 : 0,
+      railOpen ? LIQUID_SPRING.unfold : LIQUID_SPRING.retract,
+    )
+    return () => controls.stop()
+  }, [railOpen, railReserve, reducedMotion, railProgress, railLayoutLeft])
+  const railX = useTransform(railProgress, (p) => (p - 1) * railReserve)
+  const riverX = useTransform(
+    [railProgress, railLayoutLeft],
+    ([p, left]: number[]) => p * railReserve - left,
   )
-  const openUnassigned = useCallback(() => {
-    setView('library')
-    setSection({ kind: 'unassigned' })
-    pushAssetsUrl({ projectId: 'none' })
-  }, [setSection, pushAssetsUrl])
-  const openFolderOverview = useCallback(() => {
-    setView('folders')
-    pushAssetsUrl({ view: 'folders' })
-  }, [pushAssetsUrl])
-  const openLibrary = useCallback(() => {
-    setView('library')
-    setSection({ kind: 'all' })
-    pushAssetsUrl({})
-  }, [setSection, pushAssetsUrl])
+
+  /** 顶栏那颗键：桌面上展开栏，窄屏拉出左边抽屉。 */
+  const revealFolders = useCallback(() => {
+    if (window.matchMedia('(min-width: 768px)').matches) setStoredRail('open')
+    else setIsFolderDrawerOpen(true)
+  }, [setStoredRail])
 
   // 后退/前进：从地址栏读回范围，⛔ 不再 push（否则历史会自乘）。
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search)
-      const projectId = params.get('projectId')
-      setView(params.get('view') === 'folders' ? 'folders' : 'library')
-      if (projectId === 'none') setSection({ kind: 'unassigned' })
-      else if (projectId) setSection({ kind: 'project', id: projectId })
-      else setSection({ kind: 'all' })
+      const projectId =
+        new URLSearchParams(window.location.search).get('projectId') ?? ''
+      setFilters({ ...filtersRef.current, projectId })
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [setSection])
+  }, [setFilters])
 
   // ⛔ hover 预取随移动分组 chips 一起退役：门牌行/分面栏都是点了才切范围，
   // 没有「鼠标悬停在候选上」这个前置动作可用来预热缓存了。
@@ -1109,12 +1076,14 @@ export function KreaAssetBrowser({
     (generation: GenerationRecord) => {
       clearGalleryCache()
       // 只有属于当前视图的才插网格（§7.3.5）；不属于的由队列项给「查看」跳过去。
-      if (shouldKeepAssetAfterPatch(section, generation, scopedTypes)) {
+      // ⚠ 文件夹不用判：上传的落夹目标就是当前范围。
+      if (shouldKeepAssetAfterPatch(filters, generation)) {
         prependGeneration(generation)
       }
       void refreshCounts()
+      void refreshFolders()
     },
-    [section, scopedTypes, prependGeneration, refreshCounts],
+    [filters, prependGeneration, refreshCounts, refreshFolders],
   )
 
   const uploadQueue = useAssetUploadQueue({
@@ -1124,7 +1093,8 @@ export function KreaAssetBrowser({
   const isUploading = uploadQueue.isUploading
 
   /** 上传落夹目标 = 当前范围（§7.3.4）。 */
-  const uploadTargetProjectId = section.kind === 'project' ? section.id : null
+  const uploadTargetProjectId =
+    folderScope.kind === 'folder' ? folderScope.id : null
 
   const processUploadFiles = useCallback(
     (files: File[]) => {
@@ -1163,11 +1133,7 @@ export function KreaAssetBrowser({
   const isPickerMode = false
   const hasFilePayload = (dataTransfer: DataTransfer) =>
     Array.from(dataTransfer.types).includes('Files')
-  const uploadTargetLabel =
-    section.kind === 'project'
-      ? (projects.find((project) => project.id === section.id)?.name ??
-        t('sidebarUnassigned'))
-      : t('sidebarUnassigned')
+  const uploadTargetLabel = scopeFolder?.name ?? t('sidebarUnassigned')
 
   const handleRootDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
     if (!uploadDropEnabled || !hasFilePayload(event.dataTransfer)) return
@@ -1217,46 +1183,55 @@ export function KreaAssetBrowser({
     return () => window.removeEventListener('paste', handlePaste)
   }, [uploadDropEnabled, processUploadFiles])
 
-  const handleRenameProject = useCallback(
-    async (id: string, newName: string) => {
-      const ok = await updateProject(id, { name: newName })
-      if (ok) void refreshCounts()
-      return ok
+  const createFolder = useCallback(
+    async (name: string, parentId: string | null) => {
+      const folder = await folderStore.create(name, parentId)
+      if (folder) void refreshCounts()
+      return folder
     },
-    [updateProject, refreshCounts],
+    [folderStore, refreshCounts],
   )
 
-  const requestDeleteProject = (id: string, name: string) => {
-    setConfirmAction({ kind: 'delete-folder', id, name })
-  }
+  const performDeleteFolder = useCallback(
+    async (folder: ProjectRecord) => {
+      // 正在看的就是它（或它的子夹）→ 大河回到「全部素材」。
+      const viewingIt =
+        folderScope.kind === 'folder' &&
+        (folderScope.id === folder.id || scopeFolder?.parentId === folder.id)
+      if (viewingIt) openScope({ kind: 'all' })
+      const ok = await folderStore.remove(folder.id)
+      if (ok) void refreshCounts()
+    },
+    [folderScope, scopeFolder, openScope, folderStore, refreshCounts],
+  )
 
-  const handleProjectCreated = (project: ProjectRecord) => {
-    void refreshProjects()
-    void refreshCounts()
-    setCreateFolderParentId(undefined)
-    // 新建完直接进这个夹 —— 用户下一步多半就是往里放东西。
-    openFolder(project.id)
-  }
+  const folderMenuActions = (folder: ProjectRecord) => ({
+    onRename: () => setFolderEdit({ kind: 'rename', id: folder.id }),
+    onTogglePin: () =>
+      void folderStore.setPinned(folder.id, folder.pinnedOrder === null),
+    onCreateChild: () => {
+      setStoredRail('open')
+      setFolderEdit({ kind: 'create', parentId: folder.id })
+    },
+    onMove: (parentId: string | null) =>
+      void folderStore.moveTo(folder.id, parentId),
+    onDelete: () => setConfirmAction({ kind: 'delete-folder', folder }),
+  })
 
-  const performDeleteProject = async (id: string) => {
-    const ok = await removeProject(id)
-    if (!ok) return
-    // If the user was viewing this folder, snap them back to All.
-    if (section.kind === 'project' && section.id === id) {
-      setSection({ kind: 'all' })
-    }
-    void refreshCounts()
-  }
+  /** 删夹确认那一句：图不删；有子夹就说它们移到最外层（画板 `AfB_Delete`）。 */
+  const folderDeleteDescription = (folder: ProjectRecord) =>
+    t('folderDeleteBody', {
+      count: counts?.byProject[folder.id] ?? 0,
+      children: getChildFolders(folders, folder.id).length,
+    })
 
   const isEmpty = !isLoading && generations.length === 0
   /**
    * 空库 = 没有任何筛选、也不在某个夹里，却还是零素材。
    * §7 明写这种情况下**文件夹段一并隐藏** —— 一个新用户不该先看见一排空门牌。
    */
-  const isLibraryEmpty =
-    isEmpty && section.kind === 'all' && projects.length === 0
   const isBulkActionPending =
-    isBulkDeleting || isBulkPublishing || isBulkFavoriting || isBulkMoving
+    isBulkDeleting || isBulkPublishing || isBulkFavoriting
 
   // ── justified 真实比例网格（page §5）────────────────────────────
   // 密度控制的是目标行高，行高刻度按视口断点各有一套。picker 的小网格自成
@@ -1344,7 +1319,7 @@ export function KreaAssetBrowser({
     observer.observe(scroller)
     observer.observe(grid)
     return () => observer.disconnect()
-  }, [gridRows, view, isEmpty])
+  }, [gridRows, isEmpty])
 
   const rowVirtualizer = useVirtualizer({
     count: gridRows.length,
@@ -1368,9 +1343,9 @@ export function KreaAssetBrowser({
     ? counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
     : total
   const favoritesCount =
-    counts?.favorites ?? (section.kind === 'favorites' ? total : undefined)
+    counts?.favorites ?? (filters.liked ? total : undefined)
   const publishedCount =
-    counts?.published ?? (section.kind === 'published' ? total : undefined)
+    counts?.published ?? (filters.published ? total : undefined)
   const imageCount =
     counts?.image ?? (activeMediaType === 'image' ? total : undefined)
   const videoCount =
@@ -1379,61 +1354,22 @@ export function KreaAssetBrowser({
     counts?.audio ?? (activeMediaType === 'audio' ? total : undefined)
   const model3DCount =
     counts?.model_3d ?? (activeMediaType === 'model_3d' ? total : undefined)
-  const unassignedCount =
-    counts?.unassigned ?? (section.kind === 'unassigned' ? total : undefined)
-  const projectCount = useCallback(
-    (id: string): number | undefined =>
-      counts?.byProject[id] ??
-      (section.kind === 'project' && section.id === id ? total : undefined),
-    [counts, section, total],
+  /** 左栏的数字跟着类型口径走（与大河同一口径），连子夹、同一张只算一次。 */
+  const folderCounts = useMemo(
+    () => ({
+      all: counts?.all,
+      unassigned: counts?.unassigned,
+      byProject: counts?.byProject ?? {},
+    }),
+    [counts],
   )
 
-  /**
-   * 「未分类」不是 Project，服务端不会给它 `coverUrls` —— 用当前列表里
-   * 未归夹的素材凑 2×2（它们本来就在屏上，零额外请求）。
-   */
-  const unassignedCovers = useMemo(
-    () =>
-      generations
-        .filter((generation) => generation.projectId == null)
-        .map(
-          (generation) =>
-            generation.thumbnailUrl ??
-            generation.previewUrl ??
-            (generation.outputType === 'IMAGE' ? generation.url : null),
-        )
-        .filter((url): url is string => Boolean(url))
-        .slice(0, PROJECT_COVER_TILE_COUNT),
-    [generations],
-  )
-
-  // ── 面包屑 `素材 › 鸣潮 › 弗洛洛`（page §3 末）───────────────────
-  const currentFolderPath = useMemo(
-    () =>
-      section.kind === 'project' ? getFolderPath(projects, section.id) : [],
-    [projects, section],
-  )
-  const currentFolderChildren = useMemo(
-    () =>
-      section.kind === 'project' ? getChildFolders(projects, section.id) : [],
-    [projects, section],
-  )
-  const breadcrumbCrumbs: BreadcrumbCrumb[] = [
-    { key: 'library', label: t('title'), onClick: openLibrary },
-    ...(view === 'folders'
-      ? []
-      : currentFolderPath.slice(0, -1).map((folder) => ({
-          key: folder.id,
-          label: folder.name,
-          onClick: () => openFolder(folder.id),
-        }))),
-  ]
-  const breadcrumbCurrent =
-    view === 'folders'
-      ? t('sidebarFolders')
-      : section.kind === 'unassigned'
+  const scopeTitle =
+    folderScope.kind === 'folder'
+      ? (scopeFolder?.name ?? '')
+      : folderScope.kind === 'unassigned'
         ? t('sidebarUnassigned')
-        : (currentFolderPath[currentFolderPath.length - 1]?.name ?? t('title'))
+        : t('sectionAllAssets')
 
   /** 「搜索无结果」要回显当前全部生效筛选（§7）。 */
   const activeFilterLabels = useMemo(() => {
@@ -1473,10 +1409,9 @@ export function KreaAssetBrowser({
     })
   }, [filters, setFilters])
 
-  /** `Esc` = 返回上一级（子夹 → 父夹 → 素材大厅）。 */
+  /** `Esc` = 返回上一级（子夹 → 父夹 → 全部素材）。 */
   useEffect(() => {
-    if (isPickerMode) return
-    if (view !== 'folders' && !isFolderScoped) return
+    if (folderScope.kind === 'all') return
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
       const target = event.target as HTMLElement | null
@@ -1488,39 +1423,51 @@ export function KreaAssetBrowser({
       ) {
         return
       }
-      const parent = currentFolderPath[currentFolderPath.length - 2]
-      if (view === 'library' && parent) openFolder(parent.id)
-      else openLibrary()
+      if (scopeParent) openScope({ kind: 'folder', id: scopeParent.id })
+      else openScope({ kind: 'all' })
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [
-    isPickerMode,
-    view,
-    isFolderScoped,
-    currentFolderPath,
-    openFolder,
-    openLibrary,
-  ])
+  }, [folderScope, scopeParent, openScope])
 
-  /** 拖门牌进门牌 = 变子夹（环形父子由 service 兜底拒绝）。 */
-  const handleMoveFolder = useCallback(
-    async (folderId: string, parentId: string | null) => {
-      const ok = await updateProject(folderId, { parentId })
-      if (ok) {
-        void refreshProjects()
-        void refreshCounts()
-      }
-    },
-    [updateProject, refreshProjects, refreshCounts],
-  )
+  // 拖着的图松手（落在哪都算）→ 左栏的「+ 加入 N 张」收掉。
+  useEffect(() => {
+    if (draggingCount === 0) return
+    const reset = () => setDraggingCount(0)
+    window.addEventListener('dragend', reset)
+    window.addEventListener('drop', reset)
+    return () => {
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('drop', reset)
+    }
+  }, [draggingCount])
+
+  const sidebarProps = {
+    folders,
+    isLoading: folderStore.isLoading,
+    counts: folderCounts,
+    scope: folderScope,
+    onScopeChange: openScope,
+    edit: folderEdit,
+    onEditChange: setFolderEdit,
+    onCreate: createFolder,
+    onRename: (id: string, name: string) => void folderStore.rename(id, name),
+    onTogglePin: (folder: ProjectRecord) =>
+      void folderStore.setPinned(folder.id, folder.pinnedOrder === null),
+    onMove: (id: string, parentId: string | null) =>
+      void folderStore.moveTo(id, parentId),
+    onRequestDelete: (folder: ProjectRecord) =>
+      setConfirmAction({ kind: 'delete-folder', folder }),
+    onReorder: (input: Parameters<typeof folderStore.reorder>[0]) =>
+      void folderStore.reorder(input),
+    draggingCount,
+    onDropAssets: (folderId: string, ids: string[]) =>
+      void handleDropAssetsOnFolder(folderId, ids),
+  }
 
   return (
     <div
-      className={cn(
-        'flex h-[calc(100svh-3rem)] flex-col bg-surface-workbench',
-        className,
-      )}
+      className={cn('flex h-page flex-col bg-surface-workbench', className)}
       onDragEnter={handleRootDragEnter}
       onDragOver={handleRootDragOver}
       onDragLeave={handleRootDragLeave}
@@ -1539,440 +1486,478 @@ export function KreaAssetBrowser({
           </div>
         </div>
       )}
-      <div className="flex flex-1 min-h-0 gap-4 px-2 sm:px-6">
-        {/* ─── Main grid area ────────────────────────────────────── */}
-        {/* `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
-            的 justified 行挤成横向溢出（page §5.7）。 */}
-        <main
-          ref={scrollElementRef}
-          className="studio-scrollbar assets-scroll-gutter flex-1 min-w-0 overflow-x-hidden overflow-y-auto py-4"
-          onScroll={(event) => {
-            setIsToolbarStuck(event.currentTarget.scrollTop > 8)
-          }}
-        >
-          {/* ─── 顶栏（默认单行）──────────────────────────────────
-              page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
-              条件生效时，可删除的筛选 chips 留在同一个吸顶框内并自然增加一行。 */}
-          <motion.div
-            initial={
-              reducedMotion ? false : { opacity: 0, y: -6, scale: 0.995 }
-            }
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={motionTransition('slow', reducedMotion)}
-            data-stuck={isToolbarStuck || undefined}
-            className={cn(
-              'sticky top-0 z-30 mx-auto mb-3 flex min-h-14 w-full flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard sm:w-11/12 sm:max-w-screen-2xl',
-              isToolbarStuck
-                ? 'border-border shadow-md'
-                : 'border-border/70 shadow-sm',
-            )}
-          >
-            <div className="flex min-w-0 items-center gap-1.5">
-              <h1 className="truncate text-base font-semibold text-foreground">
-                {t('title')}
-              </h1>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {libraryTotal}
-              </span>
-            </div>
-
-            {!isPickerMode && (
-              <AssetFacetBar
-                filters={filters}
-                onFiltersChange={setFilters}
-                typeCounts={{
-                  image: imageCount,
-                  video: videoCount,
-                  audio: audioCount,
-                  model_3d: model3DCount,
-                }}
-                statusCounts={{
-                  favorites: favoritesCount,
-                  published: publishedCount,
-                }}
-                modelCounts={counts?.byModel ?? {}}
-                className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
-              />
-            )}
-
-            {!isPickerMode && (
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleUploadClick}
-                  disabled={isUploading}
-                  className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-fast ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
-                >
-                  {isUploading ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <UploadCloud className="size-3.5" />
-                  )}
-                  <span>
-                    {isUploading ? t('uploading') : t('uploadButton')}
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={selectionMode ? 'secondary' : 'outline'}
-                  aria-pressed={selectionMode}
-                  onClick={() => {
-                    if (selectionMode) exitSelectionMode()
-                    else setSelectionMode(true)
-                  }}
-                  className={cn(
-                    'h-9 rounded-lg px-4 transition-transform duration-fast ease-standard hover:-translate-y-px active:translate-y-0',
-                    selectionMode &&
-                      'border-foreground/20 bg-muted text-foreground hover:bg-muted/80',
-                  )}
-                >
-                  {selectionMode ? (
-                    <>
-                      <X className="size-3.5" />
-                      {t('selectExit')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="size-3.5" />
-                      {t('selectMode')}
-                    </>
-                  )}
-                </Button>
-                <DensityToggle density={density} onChange={changeDensity} />
-              </div>
-            )}
-          </motion.div>
-
-          {/* ─── 段一 · 文件夹门牌行（page §3 / §4）──────────────────
-              ⚠ 夹内页/总览页**不是全屏 overlay** —— 它们就在这块内容区里换一段，
-              全局左侧导航始终可见；URL 跟着走，后退可用、刷新不丢位置。 */}
-          {!isPickerMode &&
-            !isFolderScoped &&
-            view === 'library' &&
-            !isLibraryEmpty && (
-              <AssetFolderRail
-                projects={projects}
-                sortMode={folderSortMode}
-                unassignedCount={unassignedCount}
-                unassignedCovers={unassignedCovers}
-                countFor={projectCount}
-                activeProjectId={null}
-                isUnassignedActive={false}
-                onOpenFolder={(id) => openFolder(id)}
-                onOpenUnassigned={openUnassigned}
-                onOpenOverview={openFolderOverview}
-                onCreateFolder={() => setCreateFolderParentId(null)}
-                onDropAssets={handleDropAssetsOnFolder}
-                className="mb-3"
-              />
-            )}
-
-          {/* 夹内页 / 总览页的面包屑（每级可点回；`Esc` 等价于返回上一级）。 */}
-          {!isPickerMode && (view === 'folders' || isFolderScoped) && (
-            <div className="mb-3 grid gap-3">
-              <AssetFolderBreadcrumb
-                crumbs={breadcrumbCrumbs}
-                current={breadcrumbCurrent}
-                count={view === 'folders' ? projects.length : total}
-                action={
-                  view === 'library' && section.kind === 'project' ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setCreateFolderParentId(section.id)}
-                      className="h-8 rounded-lg px-3"
-                    >
-                      <FolderPlus className="size-3.5" />
-                      {t('folderCreate')}
-                    </Button>
-                  ) : undefined
-                }
-              />
-              {/* 路径二：子夹小门牌置顶。 */}
-              {view === 'library' && currentFolderChildren.length > 0 && (
-                <AssetFolderRail
-                  projects={projects}
-                  folders={currentFolderChildren}
-                  sortMode={folderSortMode}
-                  showUnassigned={false}
-                  showViewAll={false}
-                  countFor={projectCount}
-                  activeProjectId={
-                    section.kind === 'project' ? section.id : null
-                  }
-                  onOpenFolder={(id) => openFolder(id)}
-                  onCreateFolder={() =>
-                    setCreateFolderParentId(
-                      section.kind === 'project' ? section.id : null,
-                    )
-                  }
-                  onDropAssets={handleDropAssetsOnFolder}
-                />
-              )}
-            </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6">
+        {/* ─── 顶栏（默认单行）────────────────────────────────────
+            page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
+            文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时左端多一颗键，
+            标题旁写着当前范围，点它把栏拿回来。 */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: -6, scale: 0.995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={motionTransition('slow', reducedMotion)}
+          data-stuck={isToolbarStuck || undefined}
+          className={cn(
+            'relative z-30 flex min-h-14 w-full shrink-0 flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard',
+            isToolbarStuck
+              ? 'border-border shadow-md'
+              : 'border-border/70 shadow-sm',
           )}
+        >
+          <div className="flex min-w-0 items-center gap-1.5">
+            {/* 栏收起（或窄屏）时才在：宽度与透明度跟着栏一起走，⛔ 不突然冒出来。 */}
+            <button
+              type="button"
+              aria-label={t('folderRailExpand')}
+              onClick={revealFolders}
+              className={cn(
+                'mr-1 grid size-9 max-w-9 shrink-0 place-items-center overflow-hidden rounded-xl text-muted-foreground ring-1 ring-inset ring-border transition-[max-width,margin,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted hover:text-foreground motion-reduce:transition-none',
+                railOpen &&
+                  'md:invisible md:mr-0 md:max-w-0 md:opacity-0 md:ring-0',
+              )}
+            >
+              <PanelLeft className="size-4" />
+            </button>
+            <h1 className="truncate text-base font-semibold text-foreground">
+              {t('title')}
+            </h1>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {libraryTotal}
+            </span>
+            <button
+              type="button"
+              onClick={revealFolders}
+              aria-label={t('folderScopeChip', { name: scopeTitle })}
+              className={cn(
+                'ml-1.5 inline-flex h-9 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-xl bg-muted pl-2 pr-2.5 text-2sm font-semibold whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-accent motion-reduce:transition-none',
+                railOpen &&
+                  'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
+              )}
+            >
+              {folderScope.kind === 'folder' ? (
+                scopeFolder?.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
+                  <img
+                    src={scopeFolder.coverUrl}
+                    alt=""
+                    className="size-4.5 shrink-0 rounded-sm object-cover"
+                  />
+                ) : (
+                  <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                )
+              ) : folderScope.kind === 'unassigned' ? (
+                <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <span className="truncate">{scopeTitle}</span>
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+            </button>
+          </div>
 
-          {/* 文件夹总览页（治理 2）—— 全部夹的门牌网格，夹的专属管理页。 */}
-          {!isPickerMode && view === 'folders' && (
-            <AssetFolderOverview
-              projects={projects}
-              sortMode={folderSortMode}
-              onSortModeChange={changeFolderSortMode}
-              countFor={projectCount}
-              unassignedCount={unassignedCount}
-              activeProjectId={section.kind === 'project' ? section.id : null}
-              onOpenFolder={(id) => openFolder(id)}
-              onOpenUnassigned={openUnassigned}
-              onCreateFolder={() => setCreateFolderParentId(null)}
-              onDropAssets={handleDropAssetsOnFolder}
-              onMoveFolder={handleMoveFolder}
-              onRenameFolder={handleRenameProject}
-              onRequestDeleteFolder={requestDeleteProject}
+          {!isPickerMode && (
+            <AssetFacetBar
+              filters={filters}
+              onFiltersChange={setFilters}
+              typeCounts={{
+                image: imageCount,
+                video: videoCount,
+                audio: audioCount,
+                model_3d: model3DCount,
+              }}
+              statusCounts={{
+                favorites: favoritesCount,
+                published: publishedCount,
+              }}
+              modelCounts={counts?.byModel ?? {}}
+              className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
             />
           )}
 
-          {/* ─── 段二段头（page §3.1）──────────────────────────────
-              分面筛选已合入吸顶顶栏，这里只保留当前内容口径。 */}
-          {!isPickerMode && view === 'library' && !isFolderScoped && (
-            <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h2 className="text-sm font-medium text-foreground">
-                {t('sectionAllAssets')}
-              </h2>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {total}
-              </span>
+          {!isPickerMode && (
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleUploadClick}
+                disabled={isUploading}
+                className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-fast ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
+              >
+                {isUploading ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <UploadCloud className="size-3.5" />
+                )}
+                <span>{isUploading ? t('uploading') : t('uploadButton')}</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={selectionMode ? 'secondary' : 'outline'}
+                aria-pressed={selectionMode}
+                onClick={() => {
+                  if (selectionMode) exitSelectionMode()
+                  else setSelectionMode(true)
+                }}
+                className={cn(
+                  'h-9 rounded-lg px-4 transition-transform duration-fast ease-standard hover:-translate-y-px active:translate-y-0',
+                  selectionMode &&
+                    'border-foreground/20 bg-muted text-foreground hover:bg-muted/80',
+                )}
+              >
+                {selectionMode ? (
+                  <>
+                    <X className="size-3.5" />
+                    {t('selectExit')}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-3.5" />
+                    {t('selectMode')}
+                  </>
+                )}
+              </Button>
+              <DensityToggle density={density} onChange={changeDensity} />
             </div>
           )}
+        </motion.div>
 
-          {/* ⛔ 移动端那个「分组」折叠器已退役：视图那组并进了分面栏（§3.1
-              「不另做一套移动 chips」），文件夹那组由门牌行承担（它在 <768
-              本来就是固定宽横滚）。 */}
-          {/* Hidden upload input — rendered wherever uploading is allowed
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* ─── 左栏（≥768）：宽度在点下去那一刻就落到终态，栏卡片按弹簧从左缘
+              滑进 / 滑出（见 `railProgress`）。 */}
+          <div
+            className="hidden shrink-0 md:block"
+            style={{ width: railOpen ? railReserve : 0 }}
+          >
+            <motion.div
+              inert={!railOpen}
+              className="h-full pb-4"
+              style={{ width: ASSET_FOLDER_RAIL_WIDTH, x: railX }}
+            >
+              <AssetFolderSidebar
+                {...sidebarProps}
+                onCollapse={() => setStoredRail('closed')}
+                className="h-full rounded-2xl border border-border/70 bg-background px-2 pb-2 pt-2.5 shadow-sm"
+              />
+            </motion.div>
+          </div>
+
+          {/* ─── 大河 ────────────────────────────────────────────────
+              `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
+              的 justified 行挤成横向溢出（page §5.7）。 */}
+          <motion.main
+            ref={scrollElementRef}
+            style={{ x: riverX }}
+            className="studio-scrollbar assets-scroll-gutter min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
+            onScroll={(event) => {
+              setIsToolbarStuck(event.currentTarget.scrollTop > 8)
+            }}
+          >
+            {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
+            <div className="mb-3 flex min-h-8.5 flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
+              {isRenamingScope && scopeFolder ? (
+                <ScopeNameInput
+                  initial={scopeFolder.name}
+                  onCommit={(name) => {
+                    setIsRenamingScope(false)
+                    if (name && name !== scopeFolder.name) {
+                      void folderStore.rename(scopeFolder.id, name)
+                    }
+                  }}
+                />
+              ) : (
+                <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground">
+                  <span className="truncate">{scopeTitle}</span>
+                  <span className="font-mono text-2sm font-normal text-muted-foreground tabular-nums">
+                    {total}
+                  </span>
+                </h2>
+              )}
+              {scopeParent ? (
+                <span className="text-2sm text-muted-foreground">
+                  {t('folderInParent', { name: scopeParent.name })}
+                </span>
+              ) : null}
+              <span className="flex-1" />
+              {scopeFolder ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-pressed={scopeFolder.pinnedOrder !== null}
+                    onClick={() =>
+                      void folderStore.setPinned(
+                        scopeFolder.id,
+                        scopeFolder.pinnedOrder === null,
+                      )
+                    }
+                    className="h-8 rounded-lg px-3"
+                  >
+                    <Pin className="size-3.5" />
+                    {scopeFolder.pinnedOrder === null
+                      ? t('folderPin')
+                      : t('folderPinned')}
+                  </Button>
+                  <AssetFolderMenu
+                    folder={scopeFolder}
+                    folders={folders}
+                    align="end"
+                    {...folderMenuActions(scopeFolder)}
+                    onRename={() => setIsRenamingScope(true)}
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t('folderMenu')}
+                        className="size-8 rounded-lg"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    }
+                  />
+                </>
+              ) : null}
+            </div>
+
+            {/* Hidden upload input — rendered wherever uploading is allowed
               (main page always, media picker) so both the top-bar upload
               button and the picker's inline dashed cell can trigger it. */}
-          {uploadDropEnabled && (
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={USER_UPLOAD_ACCEPT}
-              multiple
-              className="sr-only"
-              aria-label={t('uploadInputLabel')}
-              onChange={handleFileChange}
-            />
-          )}
+            {uploadDropEnabled && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={USER_UPLOAD_ACCEPT}
+                multiple
+                className="sr-only"
+                aria-label={t('uploadInputLabel')}
+                onChange={handleFileChange}
+              />
+            )}
 
-          {/* Krea-style switching: useGallery serves cached snapshots
+            {/* Krea-style switching: useGallery serves cached snapshots
               instantly (0ms) and falls through to the grid skeleton on
               the genuinely-uncached miss. No top banner / pill — the
               skeleton is the feedback. Errored fetches still show via
-              the existing error path below.
-              ⚠ 总览页是「夹的管理页」，本来就没有素材网格。 */}
-          {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
-          {galleryError && !isPickerMode && (
-            <AssetPageError
-              message={galleryError}
-              onRetry={retryGallery}
-              className="mb-3"
-            />
-          )}
-          {view === 'folders' ? null : isEmpty ? (
-            isPickerMode ? (
-              <EmptyState />
-            ) : hasActiveFilters ? (
-              <AssetEmptySearch
-                activeFilterLabels={activeFilterLabels}
-                onClearFilters={clearAllFilters}
+              the existing error path below. */}
+            {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
+            {galleryError && !isPickerMode && (
+              <AssetPageError
+                message={galleryError}
+                onRetry={retryGallery}
+                className="mb-3"
               />
-            ) : section.kind === 'project' ? (
-              <AssetEmptyFolder
-                folderName={breadcrumbCurrent}
-                onUpload={handleUploadClick}
-              />
+            )}
+            {isEmpty ? (
+              isPickerMode ? (
+                <EmptyState />
+              ) : hasActiveFilters ? (
+                <AssetEmptySearch
+                  activeFilterLabels={activeFilterLabels}
+                  onClearFilters={clearAllFilters}
+                />
+              ) : folderScope.kind === 'folder' ? (
+                <AssetEmptyFolder
+                  folderName={scopeTitle}
+                  onUpload={handleUploadClick}
+                />
+              ) : (
+                <AssetEmptyLibrary onUpload={handleUploadClick} />
+              )
             ) : (
-              <AssetEmptyLibrary onUpload={handleUploadClick} />
-            )
-          ) : (
-            <div
-              ref={setGridElement}
-              className="relative"
-              style={{ height: rowVirtualizer.getTotalSize() }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const row = gridRows[virtualRow.index]
-                if (!row) return null
-                return (
-                  <div
-                    key={virtualRow.index}
-                    className="absolute top-0 left-0 flex w-full"
-                    style={{
-                      gap: ASSET_GRID_GAP,
-                      height: row.height,
-                      transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
-                    }}
-                  >
-                    {row.boxes.map((box) => {
-                      // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
-                      // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
-                      const boxStyle = { width: box.width, height: box.height }
-                      if (showSkeleton) {
-                        return (
-                          <div
-                            key={`skeleton-${box.index}`}
-                            style={boxStyle}
-                            className="shrink-0 animate-pulse rounded-lg bg-muted/40"
-                          />
-                        )
-                      }
-                      const item = gridItems[box.index]
-                      if (!item) return null
-                      if (item.kind === 'pending') {
-                        return (
-                          <AssetUploadTile
-                            key={item.item.id}
-                            item={item.item}
+              <div
+                ref={setGridElement}
+                className="relative"
+                style={{ height: rowVirtualizer.getTotalSize() }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = gridRows[virtualRow.index]
+                  if (!row) return null
+                  return (
+                    <div
+                      key={virtualRow.index}
+                      className="absolute top-0 left-0 flex w-full"
+                      style={{
+                        gap: ASSET_GRID_GAP,
+                        height: row.height,
+                        transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
+                      }}
+                    >
+                      {row.boxes.map((box) => {
+                        // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
+                        // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
+                        const boxStyle = {
+                          width: box.width,
+                          height: box.height,
+                        }
+                        if (showSkeleton) {
+                          return (
+                            <div
+                              key={`skeleton-${box.index}`}
+                              style={boxStyle}
+                              className="shrink-0 animate-pulse rounded-lg bg-muted/40"
+                            />
+                          )
+                        }
+                        const item = gridItems[box.index]
+                        if (!item) return null
+                        if (item.kind === 'pending') {
+                          return (
+                            <AssetUploadTile
+                              key={item.item.id}
+                              item={item.item}
+                              width={box.width}
+                              height={box.height}
+                              onRetry={uploadQueue.retry}
+                              onRemove={uploadQueue.remove}
+                            />
+                          )
+                        }
+                        // Picker inline upload: drop/click uploads an image and
+                        // selects it, so users don't have to leave the dialog.
+                        if (item.kind === 'upload') {
+                          return (
+                            <button
+                              key="upload-cell"
+                              type="button"
+                              onClick={handleUploadClick}
+                              disabled={isUploading}
+                              aria-label={t('uploadButton')}
+                              style={boxStyle}
+                              className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                            >
+                              {isUploading ? (
+                                <Spinner size="lg" />
+                              ) : (
+                                <UploadCloud className="size-5" />
+                              )}
+                              <span className="text-2xs font-medium">
+                                {t('uploadButton')}
+                              </span>
+                            </button>
+                          )
+                        }
+                        const gen = item.generation
+                        const isSelected = selectedIds.has(gen.id)
+                        const audioCoverUrl = getAudioPreviewCandidates(
+                          gen,
+                        ).find((url) => !failedAudioPreviewUrls.has(url))
+                        const handleTileClick = (
+                          event: React.MouseEvent<HTMLButtonElement>,
+                        ) => {
+                          if (selectionMode) {
+                            // Shift 点 = 从锚点到这里整段选中（§7.1）。
+                            if (event.shiftKey) selectRangeTo(gen.id)
+                            else toggleSelection(gen.id)
+                            return
+                          }
+                          setSelectedOriginRect(
+                            toMediaTransitionOrigin(
+                              event.currentTarget.getBoundingClientRect(),
+                            ),
+                          )
+                          setImageNavigationDirection(1)
+                          setSelectedGeneration(gen)
+                        }
+                        const handleTileContextMenu = (
+                          e: React.MouseEvent<HTMLButtonElement>,
+                        ) => {
+                          e.preventDefault()
+                          if (selectionMode) toggleSelection(gen.id)
+                          else enterSelectionWith(gen.id)
+                        }
+                        // Drag-to-folder: outside picker mode a tile can be dragged
+                        // onto a folder in the sidebar. Dragging a selected tile
+                        // carries the whole selection; otherwise just this asset.
+                        const handleTileDragStart = (
+                          event: React.DragEvent<HTMLButtonElement>,
+                        ) => {
+                          const ids =
+                            selectionMode && isSelected
+                              ? Array.from(selectedIds)
+                              : [gen.id]
+                          event.dataTransfer.setData(
+                            ASSET_DND_MIME,
+                            JSON.stringify(ids),
+                          )
+                          event.dataTransfer.setData(
+                            'text/plain',
+                            ids.join(','),
+                          )
+                          // 拖到左栏 = 也放进那个夹（加，不是挪）。
+                          event.dataTransfer.effectAllowed = 'copy'
+                          setDraggingCount(ids.length)
+                          // Multi-select batch: show a "N selected" chip instead of
+                          // a single tile ghost so the user sees the drag scope.
+                          if (ids.length > 1 && dragGhostRef.current) {
+                            dragGhostRef.current.textContent = t(
+                              'selectedCount',
+                              {
+                                count: ids.length,
+                              },
+                            )
+                            event.dataTransfer.setDragImage(
+                              dragGhostRef.current,
+                              16,
+                              16,
+                            )
+                          }
+                        }
+                        const tile = (
+                          <AssetTile
+                            generation={gen}
                             width={box.width}
                             height={box.height}
-                            onRetry={uploadQueue.retry}
-                            onRemove={uploadQueue.remove}
+                            selected={isSelected}
+                            showSelectionMark={selectionMode}
+                            selectionMode={selectionMode}
+                            draggable={!isPickerMode && !isTouchPrimary()}
+                            audioCoverUrl={audioCoverUrl}
+                            onAudioCoverError={handleAudioPreviewError}
+                            onClick={handleTileClick}
+                            onContextMenu={handleTileContextMenu}
+                            onDragStart={
+                              isPickerMode ? undefined : handleTileDragStart
+                            }
                           />
                         )
-                      }
-                      // Picker inline upload: drop/click uploads an image and
-                      // selects it, so users don't have to leave the dialog.
-                      if (item.kind === 'upload') {
+                        // 从当前夹里拿出去的那几张：缩小淡出 200 再离开。
                         return (
-                          <button
-                            key="upload-cell"
-                            type="button"
-                            onClick={handleUploadClick}
-                            disabled={isUploading}
-                            aria-label={t('uploadButton')}
-                            style={boxStyle}
-                            className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-                          >
-                            {isUploading ? (
-                              <Spinner size="lg" />
-                            ) : (
-                              <UploadCloud className="size-5" />
+                          <div
+                            key={gen.id}
+                            className={cn(
+                              'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',
+                              leavingIds.has(gen.id) && 'scale-95 opacity-0',
                             )}
-                            <span className="text-2xs font-medium">
-                              {t('uploadButton')}
-                            </span>
-                          </button>
+                          >
+                            {tile}
+                          </div>
                         )
-                      }
-                      const gen = item.generation
-                      const isSelected = selectedIds.has(gen.id)
-                      const audioCoverUrl = getAudioPreviewCandidates(gen).find(
-                        (url) => !failedAudioPreviewUrls.has(url),
-                      )
-                      const handleTileClick = (
-                        event: React.MouseEvent<HTMLButtonElement>,
-                      ) => {
-                        if (selectionMode) {
-                          // Shift 点 = 从锚点到这里整段选中（§7.1）。
-                          if (event.shiftKey) selectRangeTo(gen.id)
-                          else toggleSelection(gen.id)
-                          return
-                        }
-                        setSelectedOriginRect(
-                          toMediaTransitionOrigin(
-                            event.currentTarget.getBoundingClientRect(),
-                          ),
-                        )
-                        setImageNavigationDirection(1)
-                        setSelectedGeneration(gen)
-                      }
-                      const handleTileContextMenu = (
-                        e: React.MouseEvent<HTMLButtonElement>,
-                      ) => {
-                        e.preventDefault()
-                        if (selectionMode) toggleSelection(gen.id)
-                        else enterSelectionWith(gen.id)
-                      }
-                      // Drag-to-folder: outside picker mode a tile can be dragged
-                      // onto a folder in the sidebar. Dragging a selected tile
-                      // carries the whole selection; otherwise just this asset.
-                      const handleTileDragStart = (
-                        event: React.DragEvent<HTMLButtonElement>,
-                      ) => {
-                        const ids =
-                          selectionMode && isSelected
-                            ? Array.from(selectedIds)
-                            : [gen.id]
-                        event.dataTransfer.setData(
-                          ASSET_DND_MIME,
-                          JSON.stringify(ids),
-                        )
-                        event.dataTransfer.setData('text/plain', ids.join(','))
-                        event.dataTransfer.effectAllowed = 'move'
-                        // Multi-select batch: show a "N selected" chip instead of
-                        // a single tile ghost so the user sees the drag scope.
-                        if (ids.length > 1 && dragGhostRef.current) {
-                          dragGhostRef.current.textContent = t(
-                            'selectedCount',
-                            {
-                              count: ids.length,
-                            },
-                          )
-                          event.dataTransfer.setDragImage(
-                            dragGhostRef.current,
-                            16,
-                            16,
-                          )
-                        }
-                      }
-                      return (
-                        <AssetTile
-                          key={gen.id}
-                          generation={gen}
-                          width={box.width}
-                          height={box.height}
-                          selected={isSelected}
-                          showSelectionMark={selectionMode}
-                          selectionMode={selectionMode}
-                          draggable={!isPickerMode && !isTouchPrimary()}
-                          audioCoverUrl={audioCoverUrl}
-                          onAudioCoverError={handleAudioPreviewError}
-                          onClick={handleTileClick}
-                          onContextMenu={handleTileContextMenu}
-                          onDragStart={
-                            isPickerMode ? undefined : handleTileDragStart
-                          }
-                        />
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
-          {view === 'library' && appendError && (
-            <AssetPaginationError
-              message={appendError}
-              onRetry={retryLoadMore}
-              className="mt-3"
-            />
-          )}
-          {view === 'library' && hasMore && !appendError && (
-            <div ref={sentinelRef} className="h-2" />
-          )}
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
+            {appendError && (
+              <AssetPaginationError
+                message={appendError}
+                onRetry={retryLoadMore}
+                className="mt-3"
+              />
+            )}
+            {hasMore && !appendError && (
+              <div ref={sentinelRef} className="h-2" />
+            )}
 
-          {isLoading && generations.length > 0 && (
-            <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-              <Spinner size="md" />
-            </div>
-          )}
-        </main>
-
-        {/* ⛔ 常驻右栏文件夹树已退役（page §2：不增加第二个永久左/右栏）。
-            文件夹现在走「段一门牌行 → 夹内页 → 总览页」三段式，CRUD 收进
-            总览页。picker 的文件夹导航栏是另一件事，见切片 6b。 */}
+            {isLoading && generations.length > 0 && (
+              <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+                <Spinner size="md" />
+              </div>
+            )}
+          </motion.main>
+        </div>
       </div>
       {!isPickerMode && (
         <AssetDetailSheet
@@ -1984,9 +1969,11 @@ export function KreaAssetBrowser({
               setImageNavigationDirection(1)
             }
           }}
-          projects={projects}
+          folders={folders}
+          onCreateFolder={(name) => createFolder(name, null)}
+          onFoldersChanged={handleMembershipsChanged}
+          onFoldersUndone={handleFolderUndone}
           onDeleted={handleAssetDeleted}
-          onMoved={handleAssetMoved}
           onUpdated={handleAssetUpdated}
           transitionOrigin={selectedOriginRect}
           imageNavigation={
@@ -2007,7 +1994,7 @@ export function KreaAssetBrowser({
           items={uploadQueue.items}
           doneCount={uploadQueue.doneCount}
           errorCount={uploadQueue.errorCount}
-          projects={projects}
+          projects={folders}
           targetProjectId={
             uploadQueue.pendingItems[0]?.targetProjectId ??
             uploadTargetProjectId
@@ -2017,23 +2004,35 @@ export function KreaAssetBrowser({
           onRetryAll={uploadQueue.retryAll}
           onRemove={uploadQueue.remove}
           onClearCompleted={uploadQueue.clearCompleted}
-          onReveal={(item) => {
-            if (item.targetProjectId) openFolder(item.targetProjectId)
-            else openUnassigned()
-          }}
+          onReveal={(item) =>
+            openScope(
+              item.targetProjectId
+                ? { kind: 'folder', id: item.targetProjectId }
+                : { kind: 'unassigned' },
+            )
+          }
         />
       )}
-      {/* 门牌行 / 总览页的「新建文件夹」卡是布局里的一格，塞不进
-          DialogTrigger，所以这里用受控实例，由那两处直接开。 */}
+      {/* 窄屏（<768）：文件夹栏从左边拉出来，同一列内容（⋯ 常显、不拖动排序）。 */}
       {!isPickerMode && (
-        <ProjectCreateDialog
-          open={createFolderParentId !== undefined}
-          onOpenChange={(next) => {
-            if (!next) setCreateFolderParentId(undefined)
-          }}
-          parentId={createFolderParentId ?? null}
-          onCreated={handleProjectCreated}
-        />
+        <Sheet open={isFolderDrawerOpen} onOpenChange={setIsFolderDrawerOpen}>
+          <SheetContent
+            side="left"
+            showCloseButton={false}
+            className="gap-0 px-3 pb-3 pt-4"
+          >
+            <SheetTitle className="sr-only">{t('sidebarFolders')}</SheetTitle>
+            <SheetDescription className="sr-only">
+              {t('folderDrawerDescription')}
+            </SheetDescription>
+            <AssetFolderSidebar
+              {...sidebarProps}
+              touch
+              onCollapse={() => setIsFolderDrawerOpen(false)}
+              className="h-full"
+            />
+          </SheetContent>
+        </Sheet>
       )}
       {/* Off-screen custom drag image for multi-select folder drags. */}
       <div
@@ -2079,24 +2078,22 @@ export function KreaAssetBrowser({
               {t('selectClear')}
             </button>
             <span className="h-4 w-px bg-border/60" />
-            {/* §7.2：扁平下拉 → 可搜索目标选择器（搜索 / 最近移入过 / 移出 /
-                全部文件夹 / 新建并移入）。 */}
-            <AssetMoveTargetPicker
-              projects={projects}
-              onMove={(projectId) => void performBulkMove(projectId)}
-              onCreateAndMove={() => setCreateFolderParentId(null)}
+            {/* 加入文件夹（一张图可以同时在好几个夹里）：勾上 = 放进去，再点 = 拿出。 */}
+            <AssetAddToFolderPanel
+              assetIds={Array.from(selectedIds)}
+              folders={folders}
+              counts={folderCounts.byProject}
+              onCreateFolder={(name) => createFolder(name, null)}
+              onChanged={handleMembershipsChanged}
+              onUndone={handleFolderUndone}
               trigger={
                 <button
                   type="button"
                   disabled={isBulkActionPending || selectedIds.size === 0}
-                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40"
+                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
                 >
-                  {isBulkMoving ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <FolderInput className="size-3.5" />
-                  )}
-                  {t('bulkMove')}
+                  <FolderInput className="size-3.5" />
+                  {t('addToFolder')}
                 </button>
               }
             />
@@ -2161,7 +2158,9 @@ export function KreaAssetBrowser({
                       ? t('bulkPublish')
                       : confirmAction.kind === 'favorite-bulk'
                         ? t('bulkFavorite')
-                        : t('folderDelete')}
+                        : t('folderDeleteTitle', {
+                            name: confirmAction.folder.name,
+                          })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {confirmAction.kind === 'delete-bulk'
@@ -2172,11 +2171,15 @@ export function KreaAssetBrowser({
                         ? t('bulkFavoriteConfirm', {
                             count: confirmAction.count,
                           })
-                        : t('folderDeleteConfirm')}
+                        : folderDeleteDescription(confirmAction.folder)}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>{t('selectExit')}</AlertDialogCancel>
+                <AlertDialogCancel>
+                  {confirmAction.kind === 'delete-folder'
+                    ? t('folderDeleteCancel')
+                    : t('selectExit')}
+                </AlertDialogCancel>
                 <AlertDialogAction
                   variant={
                     confirmAction.kind === 'publish-bulk' ||
@@ -2194,7 +2197,7 @@ export function KreaAssetBrowser({
                     } else if (action.kind === 'favorite-bulk') {
                       void performBulkFavorite()
                     } else {
-                      void performDeleteProject(action.id)
+                      void performDeleteFolder(action.folder)
                     }
                   }}
                 >
@@ -2210,6 +2213,44 @@ export function KreaAssetBrowser({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+/** 段头上就地改名：回车存、Esc 或空着 = 不改。 */
+function ScopeNameInput({
+  initial,
+  onCommit,
+}: {
+  initial: string
+  onCommit: (name: string | null) => void
+}) {
+  const t = useTranslations('AssetsPage')
+  const doneRef = useRef(false)
+  const finish = (value: string) => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onCommit(value.trim() || null)
+  }
+  return (
+    <input
+      autoFocus
+      defaultValue={initial}
+      maxLength={PROJECT.NAME_MAX_LENGTH}
+      aria-label={t('folderRenameInput')}
+      onFocus={(event) => event.currentTarget.select()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          finish(event.currentTarget.value)
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          finish('')
+        }
+      }}
+      onBlur={(event) => finish(event.currentTarget.value)}
+      className="h-8.5 min-w-0 rounded-lg bg-background px-2 text-base font-semibold text-foreground outline-none ring-2 ring-inset ring-foreground"
+    />
   )
 }
 

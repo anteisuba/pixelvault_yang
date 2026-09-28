@@ -9,7 +9,6 @@ import {
   Link2,
   FileText,
   FolderInput,
-  Folder,
   Globe,
   GlobeLock,
   Heart,
@@ -33,13 +32,6 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -50,7 +42,7 @@ import {
 import { assetDetailPath, ROUTES } from '@/constants/routes'
 import { Link, useRouter } from '@/i18n/navigation'
 import {
-  assignGenerationProjectAPI,
+  createProjectAPI,
   createRecipeFromGenerationAPI,
   deleteGenerationAPI,
   downloadRemoteAsset,
@@ -58,8 +50,8 @@ import {
   setGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
-import { getFolderPath } from '@/lib/folder-tree'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
   getGenerationModel3DVisualUrl,
@@ -77,12 +69,16 @@ export interface AssetDetailContentProps {
   layout?: 'sheet' | 'page'
   /** 抽屉关闭回调。整页形态不需要。 */
   onOpenChange?: (open: boolean) => void
-  /** Folders the user can move this generation into. */
-  projects: ProjectRecord[]
+  /** 这个用户的文件夹（「加入文件夹」面板列的就是它们）。 */
+  folders: ProjectRecord[]
+  /** 面板里「新建文件夹并放进去」。不给就直接建（`/assets/[id]` 整页）。 */
+  onCreateFolder?: (name: string) => Promise<ProjectRecord | null>
+  /** 放进 / 拿出落库之后（素材页据此改计数、把离开当前范围的那一张拿掉）。 */
+  onFoldersChanged?: (memberships: Record<string, string[]>) => void
+  /** 撤销落库之后。 */
+  onFoldersUndone?: () => void
   /** Called after a successful delete so the parent can prune the grid + refresh counts. */
   onDeleted?: (id: string) => void
-  /** Called after a successful folder move so the parent can refresh the affected counts. */
-  onMoved?: (id: string, projectId: string | null) => void
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
   transitionOrigin?: MediaTransitionOrigin | null
@@ -153,9 +149,11 @@ export function AssetDetailContent({
   generation,
   layout = 'sheet',
   onOpenChange,
-  projects,
+  folders,
+  onCreateFolder,
+  onFoldersChanged,
+  onFoldersUndone,
   onDeleted,
-  onMoved,
   onUpdated,
   transitionOrigin,
   imageNavigation,
@@ -168,7 +166,22 @@ export function AssetDetailContent({
   const router = useRouter()
   const isPage = layout === 'page'
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isMoving, setIsMoving] = useState(false)
+  /** 整页形态里新建的夹（素材页形态由父级的列表带回来）。 */
+  const [createdFolders, setCreatedFolders] = useState<ProjectRecord[]>([])
+  const panelFolders = [
+    ...folders,
+    ...createdFolders.filter(
+      (created) => !folders.some((folder) => folder.id === created.id),
+    ),
+  ]
+  const createFolderForPanel = async (name: string) => {
+    if (onCreateFolder) return onCreateFolder(name)
+    const response = await createProjectAPI({ name, parentId: null })
+    if (!response.success || !response.data) return null
+    const created = response.data
+    setCreatedFolders((prev) => [...prev, created])
+    return created
+  }
   const [isPublishing, setIsPublishing] = useState(false)
   const [isFavoriting, setIsFavoriting] = useState(false)
   const [isSavingRecipe, setIsSavingRecipe] = useState(false)
@@ -215,32 +228,6 @@ export function AssetDetailContent({
     const param = mode === '3d' ? 'gen' : 'remix'
     router.push(`/studio/${mode}?${param}=${generation.id}`)
     if (!isPage) onOpenChange?.(false)
-  }
-
-  const handleMove = async (projectId: string | null) => {
-    if (!generation || isMoving) return
-    if (generation.projectId === projectId) {
-      if (!isPage) onOpenChange?.(false)
-      return
-    }
-    setIsMoving(true)
-    try {
-      const response = await assignGenerationProjectAPI(
-        generation.id,
-        projectId,
-      )
-      if (response.success) {
-        toast.success(t('detailMoved'))
-        onMoved?.(generation.id, projectId)
-        if (!isPage) onOpenChange?.(false)
-      } else {
-        toast.error(response.error ?? t('detailMoveFailed'))
-      }
-    } catch {
-      toast.error(t('detailMoveFailed'))
-    } finally {
-      setIsMoving(false)
-    }
   }
 
   const handleDelete = async () => {
@@ -490,11 +477,7 @@ export function AssetDetailContent({
        * ⛔ 不能把上一条视频的观察留在屏幕上。
        */}
       {isVideoAsset ? (
-        <VideoAnalysisPanel
-          key={generation.id}
-          videoUrl={generation.url}
-          projectId={generation.projectId}
-        />
+        <VideoAnalysisPanel key={generation.id} videoUrl={generation.url} />
       ) : null}
     </>
   )
@@ -510,69 +493,25 @@ export function AssetDetailContent({
         {t('detailRemix')}
       </Button>
       <div className="flex flex-wrap items-center gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <AssetAddToFolderPanel
+          assetIds={[generation.id]}
+          folders={panelFolders}
+          onCreateFolder={createFolderForPanel}
+          onChanged={(memberships) => onFoldersChanged?.(memberships)}
+          onUndone={() => onFoldersUndone?.()}
+          side="top"
+          align="start"
+          trigger={
             <Button
               variant="ghost"
               size="icon"
-              aria-label={t('detailMoveTo')}
-              title={t('detailMoveTo')}
-              disabled={isMoving}
+              aria-label={t('addToFolder')}
+              title={t('addToFolder')}
             >
-              {isMoving ? (
-                <Spinner size="md" />
-              ) : (
-                <FolderInput className="size-4" />
-              )}
+              <FolderInput className="size-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-64 overflow-y-auto overscroll-contain"
-          >
-            <DropdownMenuItem
-              onClick={() => void handleMove(null)}
-              className={cn(
-                'gap-2',
-                generation.projectId == null && 'font-medium',
-              )}
-            >
-              <span className="flex w-4 shrink-0 items-center justify-center">
-                {generation.projectId == null && <Check className="size-3.5" />}
-              </span>
-              {t('detailMoveUnassigned')}
-            </DropdownMenuItem>
-            {projects.length > 0 && <DropdownMenuSeparator />}
-            {projects.map((project) => (
-              <DropdownMenuItem
-                key={project.id}
-                onClick={() => void handleMove(project.id)}
-                className={cn(
-                  'gap-2',
-                  generation.projectId === project.id && 'font-medium',
-                )}
-              >
-                <span className="flex w-4 shrink-0 items-center justify-center">
-                  {generation.projectId === project.id && (
-                    <Check className="size-3.5" />
-                  )}
-                </span>
-                <Folder className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">
-                  <span className="block truncate">{project.name}</span>
-                  {project.parentId && (
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {getFolderPath(projects, project.id)
-                        .slice(0, -1)
-                        .map((parent) => parent.name)
-                        .join(' / ')}
-                    </span>
-                  )}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          }
+        />
         <Button
           variant="ghost"
           size="icon"
@@ -614,7 +553,8 @@ export function AssetDetailContent({
             <Spinner size="md" />
           ) : (
             <Heart
-              className={cn('size-4', generation.isLiked && 'fill-current')}
+              weight={generation.isLiked ? 'fill' : 'bold'}
+              className="size-4"
             />
           )}
         </Button>

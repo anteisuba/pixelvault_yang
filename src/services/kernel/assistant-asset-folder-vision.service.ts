@@ -10,6 +10,10 @@ import { PROJECT } from '@/constants/config'
 import { ApiRequestError } from '@/lib/errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import {
+  countFolderItems,
+  folderScopeWhere,
+} from '@/services/asset-folder.service'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   resolveVisionRoute,
@@ -31,7 +35,6 @@ interface FolderRow {
   id: string
   name: string
   parentId: string | null
-  _count: { generations: number }
 }
 
 interface FolderImageRow {
@@ -129,29 +132,22 @@ function buildFolderPath(
 async function loadFolderCandidates(
   userId: string,
 ): Promise<AssistantAssetFolderCandidate[]> {
-  const rows: FolderRow[] = await db.project.findMany({
-    where: { userId, isDeleted: false },
-    select: {
-      id: true,
-      name: true,
-      parentId: true,
-      _count: {
-        select: {
-          generations: {
-            where: { outputType: 'IMAGE', status: 'COMPLETED' },
-          },
-        },
-      },
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: PROJECT.MAX_PROJECTS_PER_USER,
-  })
+  // 顺序与素材页左栏一致（用户自己排的）；张数与左栏同一口径：连子夹、同一张只算一次。
+  const [rows, imageCounts] = await Promise.all([
+    db.project.findMany({
+      where: { userId, isDeleted: false },
+      select: { id: true, name: true, parentId: true },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      take: PROJECT.MAX_PROJECTS_PER_USER,
+    }),
+    countFolderItems(userId, ['IMAGE']),
+  ])
   const byId = new Map(rows.map((row) => [row.id, row]))
   return rows.map((row) => ({
     folderId: row.id,
     name: row.name,
     path: buildFolderPath(row, byId),
-    imageCount: row._count.generations,
+    imageCount: imageCounts[row.id] ?? 0,
   }))
 }
 
@@ -295,7 +291,7 @@ export async function inspectAssistantAssetFolder({
   const images: FolderImageRow[] = await db.generation.findMany({
     where: {
       userId,
-      projectId: folderId,
+      ...folderScopeWhere(folderId),
       outputType: 'IMAGE',
       status: 'COMPLETED',
     },

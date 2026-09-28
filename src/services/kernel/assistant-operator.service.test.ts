@@ -336,7 +336,7 @@ vi.mock('@/services/project-rule.service', async () => {
 const mockTagAssets = vi.fn()
 const mockSetAssetFavorites = vi.fn()
 const mockCreateAssetFolder = vi.fn()
-const mockMoveAssetsToFolder = vi.fn()
+const mockAddAssetsToFolder = vi.fn()
 vi.mock('@/services/asset-library-write.service', async () => {
   const actual = await vi.importActual<
     typeof import('@/services/asset-library-write.service')
@@ -346,7 +346,7 @@ vi.mock('@/services/asset-library-write.service', async () => {
     tagAssets: (...args: unknown[]) => mockTagAssets(...args),
     setAssetFavorites: (...args: unknown[]) => mockSetAssetFavorites(...args),
     createAssetFolder: (...args: unknown[]) => mockCreateAssetFolder(...args),
-    moveAssetsToFolder: (...args: unknown[]) => mockMoveAssetsToFolder(...args),
+    addAssetsToFolder: (...args: unknown[]) => mockAddAssetsToFolder(...args),
   }
 })
 
@@ -7334,9 +7334,9 @@ describe('素材库四条写操作（§10）', () => {
       name: '角色参考',
       parentId: null,
     })
-    mockMoveAssetsToFolder.mockResolvedValue({
+    mockAddAssetsToFolder.mockResolvedValue({
       folderName: '角色参考',
-      entries: [],
+      added: [],
     })
   })
 
@@ -7445,15 +7445,55 @@ describe('素材库四条写操作（§10）', () => {
     )
   })
 
-  /** 目标夹不是他的 → `unknownFolder`（与「id 编错了」分开说）。 */
-  it('move_assets 的目标夹不是他的 → 按 unknownFolder 拒', async () => {
-    mockMoveAssetsToFolder.mockResolvedValue(null)
+  /**
+   * 放进夹是「加」：inverse 只记这一步新放进去的那几张（本来就在的撤销时不拿出来），
+   * 并告诉模型它们在别的夹里照旧。
+   */
+  it('add_to_folder 的 inverse = 目标夹 + 新放进去的那几张', async () => {
+    mockAddAssetsToFolder.mockResolvedValue({
+      folderName: '角色参考',
+      added: ['a1'],
+    })
     queueTurns(
       {
         tool: {
           name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
           args: {
-            action: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+            action: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+            assetIds: ['a1', 'a2'],
+            targetFolderId: 'folder-9',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addToFolder &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(mockAddAssetsToFolder).toHaveBeenCalledWith(
+      'user-db-1',
+      ['a1', 'a2'],
+      'folder-9',
+    )
+    expect(done?.inverse).toEqual({ folderId: 'folder-9', assetIds: ['a1'] })
+    expect(done?.payload).toMatchObject({ assetIds: ['a1'] })
+  })
+
+  /** 目标夹不是他的 → `unknownFolder`（与「id 编错了」分开说）。 */
+  it('add_to_folder 的目标夹不是他的 → 按 unknownFolder 拒', async () => {
+    mockAddAssetsToFolder.mockResolvedValue(null)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
             assetIds: ['a1'],
             targetFolderId: 'folder-theirs',
           },

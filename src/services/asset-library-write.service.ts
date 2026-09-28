@@ -6,13 +6,17 @@ import {
   ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
+import {
+  addGenerationsToFolder,
+  removeGenerationsFromFolder,
+  topSortOrder,
+} from '@/services/asset-folder.service'
 import { batchSetLike, getUserLikes } from '@/services/like.service'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantAssetWriteRevert,
   AssistantAssetWriteRevertResult,
   AssistantOperatorAssetFavoriteEntry,
-  AssistantOperatorAssetFolderEntry,
   AssistantOperatorAssetTagEntry,
 } from '@/types/assistant-operator'
 
@@ -166,10 +170,11 @@ export class AssetFolderLimitError extends Error {
 /**
  * 建一个素材文件夹。
  *
- * ⚠ 落的是 `Project`（素材库右栏那棵树就是它，见 `AssetFolderTree`）——
+ * ⚠ 落的是 `Project`（素材页左边那一列就是它）——
  * ⛔ 不新造一张表：用户心里「素材库里的文件夹」和工作台的项目本来就是同一个东西。
- * ⚠ `parentId` 按 userId 核一遍；不是他的就当没给（挂到根上），⛔ 不整条失败：
- * 模型偶尔写错一个父夹 id，代价该是「建在外面了」而不是「什么都没建」。
+ * ⚠ `parentId` 按 userId 核一遍；不是他的、或它自己已是子夹（只有两层）就当没给
+ * （挂到最外层），⛔ 不整条失败：模型偶尔写错一个父夹 id，代价该是「建在外面了」
+ * 而不是「什么都没建」。新夹排在它那一层最前面（与页面上新建的同一条规矩）。
  */
 export async function createAssetFolder(
   userId: string,
@@ -185,14 +190,24 @@ export async function createAssetFolder(
   const parentId = input.parentId
     ? ((
         await db.project.findFirst({
-          where: { id: input.parentId, userId, isDeleted: false },
+          where: {
+            id: input.parentId,
+            userId,
+            isDeleted: false,
+            parentId: null,
+          },
           select: { id: true },
         })
       )?.id ?? null)
     : null
 
   const folder = await db.project.create({
-    data: { userId, name: input.name.trim(), parentId },
+    data: {
+      userId,
+      name: input.name.trim(),
+      parentId,
+      sortOrder: await topSortOrder(userId, parentId),
+    },
     select: { id: true, name: true, parentId: true },
   })
 
@@ -215,11 +230,13 @@ export async function deleteEmptyAssetFolder(
     where: { id: folderId, userId, isDeleted: false },
     select: {
       id: true,
-      _count: { select: { generations: true, children: true } },
+      _count: {
+        select: { items: true, children: { where: { isDeleted: false } } },
+      },
     },
   })
   if (!folder) return false
-  if (folder._count.generations > 0 || folder._count.children > 0) return false
+  if (folder._count.items > 0 || folder._count.children > 0) return false
 
   await db.project.update({
     where: { id: folderId, userId },
@@ -229,92 +246,33 @@ export async function deleteEmptyAssetFolder(
 }
 
 /**
- * 把素材挪进一个文件夹 —— 返回**每件的原文件夹**（`null` = 原来没归档）。
+ * 把素材放进一个文件夹 —— 一张图可以同时在好几个夹里，所以这是「加」不是「挪」：
+ * 它在别的夹里照旧。返回**真的新放进去的那几张**（已经在里面的不是这一步的后果，
+ * 撤销时不该被拿出来）。
  *
  * ⚠ 目标夹按 userId 核：不是他的 → 返回 `null`，调用方按 `unknownFolder` 拒。
- * ⚠ 逐件更新而不是一条 `updateMany`：`updateMany` 快，但它换不来这份原位记录，
- * 而没有原位记录这条工具就撤不干净（§10 的判据）。20 件是上限，账算得过来。
  */
-export async function moveAssetsToFolder(
+export async function addAssetsToFolder(
   userId: string,
   assetIds: readonly string[],
   targetFolderId: string,
-): Promise<{
-  folderName: string
-  entries: AssistantOperatorAssetFolderEntry[]
-} | null> {
-  const folder = await db.project.findFirst({
-    where: { id: targetFolderId, userId, isDeleted: false },
-    select: { id: true, name: true },
-  })
-  if (!folder) return null
-
-  const rows = await db.generation.findMany({
-    where: { id: { in: dedupe(assetIds) }, userId },
-    select: { id: true, projectId: true },
-  })
-
-  const entries: AssistantOperatorAssetFolderEntry[] = []
-  for (const row of rows) {
-    // 已经在目标夹里的那几件不算这一步的后果 —— 撤销时不该被挪走。
-    if (row.projectId === folder.id) continue
-    await db.generation.update({
-      where: { id: row.id, userId },
-      data: { projectId: folder.id },
-    })
-    entries.push({ assetId: row.id, folderId: row.projectId })
-  }
-
-  return { folderName: folder.name, entries }
+): Promise<{ folderName: string; added: string[] } | null> {
+  return addGenerationsToFolder(userId, targetFolderId, assetIds)
 }
 
 /**
- * 撤销移动 —— **逐件挪回各自的原处**。
+ * 撤销放进 —— **只把那一步新放进去的拿出来**（⛔ 不删图）。
  *
- * ⚠ 原文件夹后来被删掉时回落成「未归档」（`null`）：把素材挪回一个已经不存在的
- * 夹子，结果是它在素材库里凭空消失。
+ * ⚠ 夹后来被删掉时什么都不用做（删夹已经清掉了它的归属），记作跳过。
  */
-export async function restoreAssetFolders(
+export async function removeAssetsFromFolder(
   userId: string,
-  entries: readonly AssistantOperatorAssetFolderEntry[],
+  folderId: string,
+  assetIds: readonly string[],
 ): Promise<{ revertedCount: number; skipped: number }> {
-  const owned = new Set(
-    await ownedAssetIds(
-      userId,
-      entries.map((entry) => entry.assetId),
-    ),
-  )
-
-  const folderIds = dedupe(
-    entries
-      .map((entry) => entry.folderId)
-      .filter((folderId): folderId is string => Boolean(folderId)),
-  )
-  const aliveFolders = new Set(
-    (
-      await db.project.findMany({
-        where: { id: { in: folderIds }, userId, isDeleted: false },
-        select: { id: true },
-      })
-    ).map((folder) => folder.id),
-  )
-
-  let revertedCount = 0
-  let skipped = 0
-  for (const entry of entries) {
-    if (!owned.has(entry.assetId)) {
-      skipped += 1
-      continue
-    }
-    const target =
-      entry.folderId && aliveFolders.has(entry.folderId) ? entry.folderId : null
-    await db.generation.update({
-      where: { id: entry.assetId, userId },
-      data: { projectId: target },
-    })
-    revertedCount += 1
-  }
-  return { revertedCount, skipped }
+  const result = await removeGenerationsFromFolder(userId, folderId, assetIds)
+  const revertedCount = result?.removed.length ?? 0
+  return { revertedCount, skipped: dedupe(assetIds).length - revertedCount }
 }
 
 /**
@@ -337,8 +295,8 @@ export async function revertAssistantAssetWrite(
       const deleted = await deleteEmptyAssetFolder(userId, input.folderId)
       return { revertedCount: deleted ? 1 : 0, skipped: deleted ? 0 : 1 }
     }
-    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
-      return restoreAssetFolders(userId, input.entries)
+    case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
+      return removeAssetsFromFolder(userId, input.folderId, input.assetIds)
   }
 }
 

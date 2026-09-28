@@ -20,8 +20,20 @@ export type ProjectModel = runtime.Types.Result.DefaultSelection<Prisma.$Project
 
 export type AggregateProject = {
   _count: ProjectCountAggregateOutputType | null
+  _avg: ProjectAvgAggregateOutputType | null
+  _sum: ProjectSumAggregateOutputType | null
   _min: ProjectMinAggregateOutputType | null
   _max: ProjectMaxAggregateOutputType | null
+}
+
+export type ProjectAvgAggregateOutputType = {
+  sortOrder: number | null
+  pinnedOrder: number | null
+}
+
+export type ProjectSumAggregateOutputType = {
+  sortOrder: number | null
+  pinnedOrder: number | null
 }
 
 export type ProjectMinAggregateOutputType = {
@@ -31,6 +43,8 @@ export type ProjectMinAggregateOutputType = {
   description: string | null
   parentId: string | null
   isDeleted: boolean | null
+  sortOrder: number | null
+  pinnedOrder: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -42,6 +56,8 @@ export type ProjectMaxAggregateOutputType = {
   description: string | null
   parentId: string | null
   isDeleted: boolean | null
+  sortOrder: number | null
+  pinnedOrder: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -53,11 +69,23 @@ export type ProjectCountAggregateOutputType = {
   description: number
   parentId: number
   isDeleted: number
+  sortOrder: number
+  pinnedOrder: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type ProjectAvgAggregateInputType = {
+  sortOrder?: true
+  pinnedOrder?: true
+}
+
+export type ProjectSumAggregateInputType = {
+  sortOrder?: true
+  pinnedOrder?: true
+}
 
 export type ProjectMinAggregateInputType = {
   id?: true
@@ -66,6 +94,8 @@ export type ProjectMinAggregateInputType = {
   description?: true
   parentId?: true
   isDeleted?: true
+  sortOrder?: true
+  pinnedOrder?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -77,6 +107,8 @@ export type ProjectMaxAggregateInputType = {
   description?: true
   parentId?: true
   isDeleted?: true
+  sortOrder?: true
+  pinnedOrder?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -88,6 +120,8 @@ export type ProjectCountAggregateInputType = {
   description?: true
   parentId?: true
   isDeleted?: true
+  sortOrder?: true
+  pinnedOrder?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -131,6 +165,18 @@ export type ProjectAggregateArgs<ExtArgs extends runtime.Types.Extensions.Intern
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: ProjectAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: ProjectSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: ProjectMinAggregateInputType
@@ -161,6 +207,8 @@ export type ProjectGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   _count?: ProjectCountAggregateInputType | true
+  _avg?: ProjectAvgAggregateInputType
+  _sum?: ProjectSumAggregateInputType
   _min?: ProjectMinAggregateInputType
   _max?: ProjectMaxAggregateInputType
 }
@@ -172,9 +220,13 @@ export type ProjectGroupByOutputType = {
   description: string | null
   parentId: string | null
   isDeleted: boolean
+  sortOrder: number
+  pinnedOrder: number | null
   createdAt: Date
   updatedAt: Date
   _count: ProjectCountAggregateOutputType | null
+  _avg: ProjectAvgAggregateOutputType | null
+  _sum: ProjectSumAggregateOutputType | null
   _min: ProjectMinAggregateOutputType | null
   _max: ProjectMaxAggregateOutputType | null
 }
@@ -204,12 +256,15 @@ export type ProjectWhereInput = {
   description?: Prisma.StringNullableFilter<"Project"> | string | null
   parentId?: Prisma.StringNullableFilter<"Project"> | string | null
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
+  sortOrder?: Prisma.IntFilter<"Project"> | number
+  pinnedOrder?: Prisma.IntNullableFilter<"Project"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   parent?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   children?: Prisma.ProjectListRelationFilter
   generations?: Prisma.GenerationListRelationFilter
+  items?: Prisma.ProjectItemListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
@@ -223,12 +278,15 @@ export type ProjectOrderByWithRelationInput = {
   description?: Prisma.SortOrderInput | Prisma.SortOrder
   parentId?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   parent?: Prisma.ProjectOrderByWithRelationInput
   children?: Prisma.ProjectOrderByRelationAggregateInput
   generations?: Prisma.GenerationOrderByRelationAggregateInput
+  items?: Prisma.ProjectItemOrderByRelationAggregateInput
   characterCards?: Prisma.CharacterCardOrderByRelationAggregateInput
   backgroundCards?: Prisma.BackgroundCardOrderByRelationAggregateInput
   styleCards?: Prisma.StyleCardOrderByRelationAggregateInput
@@ -245,12 +303,15 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   description?: Prisma.StringNullableFilter<"Project"> | string | null
   parentId?: Prisma.StringNullableFilter<"Project"> | string | null
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
+  sortOrder?: Prisma.IntFilter<"Project"> | number
+  pinnedOrder?: Prisma.IntNullableFilter<"Project"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   parent?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   children?: Prisma.ProjectListRelationFilter
   generations?: Prisma.GenerationListRelationFilter
+  items?: Prisma.ProjectItemListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   backgroundCards?: Prisma.BackgroundCardListRelationFilter
   styleCards?: Prisma.StyleCardListRelationFilter
@@ -264,11 +325,15 @@ export type ProjectOrderByWithAggregationInput = {
   description?: Prisma.SortOrderInput | Prisma.SortOrder
   parentId?: Prisma.SortOrderInput | Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ProjectCountOrderByAggregateInput
+  _avg?: Prisma.ProjectAvgOrderByAggregateInput
   _max?: Prisma.ProjectMaxOrderByAggregateInput
   _min?: Prisma.ProjectMinOrderByAggregateInput
+  _sum?: Prisma.ProjectSumOrderByAggregateInput
 }
 
 export type ProjectScalarWhereWithAggregatesInput = {
@@ -281,6 +346,8 @@ export type ProjectScalarWhereWithAggregatesInput = {
   description?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   parentId?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   isDeleted?: Prisma.BoolWithAggregatesFilter<"Project"> | boolean
+  sortOrder?: Prisma.IntWithAggregatesFilter<"Project"> | number
+  pinnedOrder?: Prisma.IntNullableWithAggregatesFilter<"Project"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
 }
@@ -290,12 +357,15 @@ export type ProjectCreateInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -309,10 +379,13 @@ export type ProjectUncheckedCreateInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -324,12 +397,15 @@ export type ProjectUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -343,10 +419,13 @@ export type ProjectUncheckedUpdateInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -360,6 +439,8 @@ export type ProjectCreateManyInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -369,6 +450,8 @@ export type ProjectUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -380,6 +463,8 @@ export type ProjectUncheckedUpdateManyInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -406,8 +491,15 @@ export type ProjectCountOrderByAggregateInput = {
   description?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ProjectAvgOrderByAggregateInput = {
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrder
 }
 
 export type ProjectMaxOrderByAggregateInput = {
@@ -417,6 +509,8 @@ export type ProjectMaxOrderByAggregateInput = {
   description?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -428,8 +522,20 @@ export type ProjectMinOrderByAggregateInput = {
   description?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ProjectSumOrderByAggregateInput = {
+  sortOrder?: Prisma.SortOrder
+  pinnedOrder?: Prisma.SortOrder
+}
+
+export type ProjectScalarRelationFilter = {
+  is?: Prisma.ProjectWhereInput
+  isNot?: Prisma.ProjectWhereInput
 }
 
 export type ProjectCreateNestedManyWithoutUserInput = {
@@ -494,6 +600,14 @@ export type ProjectUncheckedCreateNestedManyWithoutParentInput = {
   connect?: Prisma.ProjectWhereUniqueInput | Prisma.ProjectWhereUniqueInput[]
 }
 
+export type NullableIntFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type ProjectUpdateOneWithoutChildrenNestedInput = {
   create?: Prisma.XOR<Prisma.ProjectCreateWithoutChildrenInput, Prisma.ProjectUncheckedCreateWithoutChildrenInput>
   connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutChildrenInput
@@ -530,6 +644,20 @@ export type ProjectUncheckedUpdateManyWithoutParentNestedInput = {
   update?: Prisma.ProjectUpdateWithWhereUniqueWithoutParentInput | Prisma.ProjectUpdateWithWhereUniqueWithoutParentInput[]
   updateMany?: Prisma.ProjectUpdateManyWithWhereWithoutParentInput | Prisma.ProjectUpdateManyWithWhereWithoutParentInput[]
   deleteMany?: Prisma.ProjectScalarWhereInput | Prisma.ProjectScalarWhereInput[]
+}
+
+export type ProjectCreateNestedOneWithoutItemsInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutItemsInput, Prisma.ProjectUncheckedCreateWithoutItemsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutItemsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+}
+
+export type ProjectUpdateOneRequiredWithoutItemsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProjectCreateWithoutItemsInput, Prisma.ProjectUncheckedCreateWithoutItemsInput>
+  connectOrCreate?: Prisma.ProjectCreateOrConnectWithoutItemsInput
+  upsert?: Prisma.ProjectUpsertWithoutItemsInput
+  connect?: Prisma.ProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProjectUpdateToOneWithWhereWithoutItemsInput, Prisma.ProjectUpdateWithoutItemsInput>, Prisma.ProjectUncheckedUpdateWithoutItemsInput>
 }
 
 export type ProjectCreateNestedOneWithoutGenerationsInput = {
@@ -617,11 +745,14 @@ export type ProjectCreateWithoutUserInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -634,10 +765,13 @@ export type ProjectUncheckedCreateWithoutUserInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -680,6 +814,8 @@ export type ProjectScalarWhereInput = {
   description?: Prisma.StringNullableFilter<"Project"> | string | null
   parentId?: Prisma.StringNullableFilter<"Project"> | string | null
   isDeleted?: Prisma.BoolFilter<"Project"> | boolean
+  sortOrder?: Prisma.IntFilter<"Project"> | number
+  pinnedOrder?: Prisma.IntNullableFilter<"Project"> | number | null
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
 }
@@ -689,11 +825,14 @@ export type ProjectCreateWithoutChildrenInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -707,9 +846,12 @@ export type ProjectUncheckedCreateWithoutChildrenInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -726,11 +868,14 @@ export type ProjectCreateWithoutParentInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -743,10 +888,13 @@ export type ProjectUncheckedCreateWithoutParentInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -779,11 +927,14 @@ export type ProjectUpdateWithoutChildrenInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -797,9 +948,12 @@ export type ProjectUncheckedUpdateWithoutChildrenInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -822,16 +976,111 @@ export type ProjectUpdateManyWithWhereWithoutParentInput = {
   data: Prisma.XOR<Prisma.ProjectUpdateManyMutationInput, Prisma.ProjectUncheckedUpdateManyWithoutParentInput>
 }
 
-export type ProjectCreateWithoutGenerationsInput = {
+export type ProjectCreateWithoutItemsInput = {
   id?: string
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
+  generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
+  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
+  styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
+  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectUncheckedCreateWithoutItemsInput = {
+  id?: string
+  userId: string
+  name: string
+  description?: string | null
+  parentId?: string | null
+  isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
+  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
+  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
+}
+
+export type ProjectCreateOrConnectWithoutItemsInput = {
+  where: Prisma.ProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutItemsInput, Prisma.ProjectUncheckedCreateWithoutItemsInput>
+}
+
+export type ProjectUpsertWithoutItemsInput = {
+  update: Prisma.XOR<Prisma.ProjectUpdateWithoutItemsInput, Prisma.ProjectUncheckedUpdateWithoutItemsInput>
+  create: Prisma.XOR<Prisma.ProjectCreateWithoutItemsInput, Prisma.ProjectUncheckedCreateWithoutItemsInput>
+  where?: Prisma.ProjectWhereInput
+}
+
+export type ProjectUpdateToOneWithWhereWithoutItemsInput = {
+  where?: Prisma.ProjectWhereInput
+  data: Prisma.XOR<Prisma.ProjectUpdateWithoutItemsInput, Prisma.ProjectUncheckedUpdateWithoutItemsInput>
+}
+
+export type ProjectUpdateWithoutItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
+  parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
+  children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
+  generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
+  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
+  styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
+  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectUncheckedUpdateWithoutItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
+  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
+  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
+}
+
+export type ProjectCreateWithoutGenerationsInput = {
+  id?: string
+  name: string
+  description?: string | null
+  isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutProjectsInput
+  parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
+  children?: Prisma.ProjectCreateNestedManyWithoutParentInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -845,9 +1094,12 @@ export type ProjectUncheckedCreateWithoutGenerationsInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -875,11 +1127,14 @@ export type ProjectUpdateWithoutGenerationsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -893,9 +1148,12 @@ export type ProjectUncheckedUpdateWithoutGenerationsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -907,12 +1165,15 @@ export type ProjectCreateWithoutCharacterCardsInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
@@ -925,10 +1186,13 @@ export type ProjectUncheckedCreateWithoutCharacterCardsInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
@@ -955,12 +1219,15 @@ export type ProjectUpdateWithoutCharacterCardsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
@@ -973,10 +1240,13 @@ export type ProjectUncheckedUpdateWithoutCharacterCardsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
@@ -987,12 +1257,15 @@ export type ProjectCreateWithoutBackgroundCardsInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
@@ -1005,10 +1278,13 @@ export type ProjectUncheckedCreateWithoutBackgroundCardsInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
@@ -1035,12 +1311,15 @@ export type ProjectUpdateWithoutBackgroundCardsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
@@ -1053,10 +1332,13 @@ export type ProjectUncheckedUpdateWithoutBackgroundCardsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
@@ -1067,12 +1349,15 @@ export type ProjectCreateWithoutStyleCardsInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutProjectInput
@@ -1085,10 +1370,13 @@ export type ProjectUncheckedCreateWithoutStyleCardsInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutProjectInput
@@ -1115,12 +1403,15 @@ export type ProjectUpdateWithoutStyleCardsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUpdateManyWithoutProjectNestedInput
@@ -1133,10 +1424,13 @@ export type ProjectUncheckedUpdateWithoutStyleCardsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutProjectNestedInput
@@ -1147,12 +1441,15 @@ export type ProjectCreateWithoutCardRecipesInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectsInput
   parent?: Prisma.ProjectCreateNestedOneWithoutChildrenInput
   children?: Prisma.ProjectCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardCreateNestedManyWithoutProjectInput
@@ -1165,10 +1462,13 @@ export type ProjectUncheckedCreateWithoutCardRecipesInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   children?: Prisma.ProjectUncheckedCreateNestedManyWithoutParentInput
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutProjectInput
+  items?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutProjectInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutProjectInput
   backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutProjectInput
   styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutProjectInput
@@ -1195,12 +1495,15 @@ export type ProjectUpdateWithoutCardRecipesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -1213,10 +1516,13 @@ export type ProjectUncheckedUpdateWithoutCardRecipesInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -1228,6 +1534,8 @@ export type ProjectCreateManyUserInput = {
   description?: string | null
   parentId?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1237,11 +1545,14 @@ export type ProjectUpdateWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   parent?: Prisma.ProjectUpdateOneWithoutChildrenNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -1254,10 +1565,13 @@ export type ProjectUncheckedUpdateWithoutUserInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -1270,6 +1584,8 @@ export type ProjectUncheckedUpdateManyWithoutUserInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1280,6 +1596,8 @@ export type ProjectCreateManyParentInput = {
   name: string
   description?: string | null
   isDeleted?: boolean
+  sortOrder?: number
+  pinnedOrder?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1289,11 +1607,14 @@ export type ProjectUpdateWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectsNestedInput
   children?: Prisma.ProjectUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUpdateManyWithoutProjectNestedInput
@@ -1306,10 +1627,13 @@ export type ProjectUncheckedUpdateWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   children?: Prisma.ProjectUncheckedUpdateManyWithoutParentNestedInput
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutProjectNestedInput
+  items?: Prisma.ProjectItemUncheckedUpdateManyWithoutProjectNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutProjectNestedInput
   backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectNestedInput
   styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutProjectNestedInput
@@ -1322,6 +1646,8 @@ export type ProjectUncheckedUpdateManyWithoutParentInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  pinnedOrder?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1334,6 +1660,7 @@ export type ProjectUncheckedUpdateManyWithoutParentInput = {
 export type ProjectCountOutputType = {
   children: number
   generations: number
+  items: number
   characterCards: number
   backgroundCards: number
   styleCards: number
@@ -1343,6 +1670,7 @@ export type ProjectCountOutputType = {
 export type ProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   children?: boolean | ProjectCountOutputTypeCountChildrenArgs
   generations?: boolean | ProjectCountOutputTypeCountGenerationsArgs
+  items?: boolean | ProjectCountOutputTypeCountItemsArgs
   characterCards?: boolean | ProjectCountOutputTypeCountCharacterCardsArgs
   backgroundCards?: boolean | ProjectCountOutputTypeCountBackgroundCardsArgs
   styleCards?: boolean | ProjectCountOutputTypeCountStyleCardsArgs
@@ -1371,6 +1699,13 @@ export type ProjectCountOutputTypeCountChildrenArgs<ExtArgs extends runtime.Type
  */
 export type ProjectCountOutputTypeCountGenerationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.GenerationWhereInput
+}
+
+/**
+ * ProjectCountOutputType without action
+ */
+export type ProjectCountOutputTypeCountItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProjectItemWhereInput
 }
 
 /**
@@ -1409,12 +1744,15 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   description?: boolean
   parentId?: boolean
   isDeleted?: boolean
+  sortOrder?: boolean
+  pinnedOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   parent?: boolean | Prisma.Project$parentArgs<ExtArgs>
   children?: boolean | Prisma.Project$childrenArgs<ExtArgs>
   generations?: boolean | Prisma.Project$generationsArgs<ExtArgs>
+  items?: boolean | Prisma.Project$itemsArgs<ExtArgs>
   characterCards?: boolean | Prisma.Project$characterCardsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.Project$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.Project$styleCardsArgs<ExtArgs>
@@ -1429,6 +1767,8 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   description?: boolean
   parentId?: boolean
   isDeleted?: boolean
+  sortOrder?: boolean
+  pinnedOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1442,6 +1782,8 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   description?: boolean
   parentId?: boolean
   isDeleted?: boolean
+  sortOrder?: boolean
+  pinnedOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1455,16 +1797,19 @@ export type ProjectSelectScalar = {
   description?: boolean
   parentId?: boolean
   isDeleted?: boolean
+  sortOrder?: boolean
+  pinnedOrder?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "description" | "parentId" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "description" | "parentId" | "isDeleted" | "sortOrder" | "pinnedOrder" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   parent?: boolean | Prisma.Project$parentArgs<ExtArgs>
   children?: boolean | Prisma.Project$childrenArgs<ExtArgs>
   generations?: boolean | Prisma.Project$generationsArgs<ExtArgs>
+  items?: boolean | Prisma.Project$itemsArgs<ExtArgs>
   characterCards?: boolean | Prisma.Project$characterCardsArgs<ExtArgs>
   backgroundCards?: boolean | Prisma.Project$backgroundCardsArgs<ExtArgs>
   styleCards?: boolean | Prisma.Project$styleCardsArgs<ExtArgs>
@@ -1487,6 +1832,7 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     parent: Prisma.$ProjectPayload<ExtArgs> | null
     children: Prisma.$ProjectPayload<ExtArgs>[]
     generations: Prisma.$GenerationPayload<ExtArgs>[]
+    items: Prisma.$ProjectItemPayload<ExtArgs>[]
     characterCards: Prisma.$CharacterCardPayload<ExtArgs>[]
     backgroundCards: Prisma.$BackgroundCardPayload<ExtArgs>[]
     styleCards: Prisma.$StyleCardPayload<ExtArgs>[]
@@ -1499,6 +1845,8 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     description: string | null
     parentId: string | null
     isDeleted: boolean
+    sortOrder: number
+    pinnedOrder: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["project"]>
@@ -1899,6 +2247,7 @@ export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends runtime.
   parent<T extends Prisma.Project$parentArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$parentArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   children<T extends Prisma.Project$childrenArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$childrenArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   generations<T extends Prisma.Project$generationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$generationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  items<T extends Prisma.Project$itemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   characterCards<T extends Prisma.Project$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   backgroundCards<T extends Prisma.Project$backgroundCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$backgroundCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BackgroundCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   styleCards<T extends Prisma.Project$styleCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Project$styleCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -1938,6 +2287,8 @@ export interface ProjectFieldRefs {
   readonly description: Prisma.FieldRef<"Project", 'String'>
   readonly parentId: Prisma.FieldRef<"Project", 'String'>
   readonly isDeleted: Prisma.FieldRef<"Project", 'Boolean'>
+  readonly sortOrder: Prisma.FieldRef<"Project", 'Int'>
+  readonly pinnedOrder: Prisma.FieldRef<"Project", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Project", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Project", 'DateTime'>
 }
@@ -2405,6 +2756,30 @@ export type Project$generationsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.GenerationScalarFieldEnum | Prisma.GenerationScalarFieldEnum[]
+}
+
+/**
+ * Project.items
+ */
+export type Project$itemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProjectItem
+   */
+  select?: Prisma.ProjectItemSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProjectItem
+   */
+  omit?: Prisma.ProjectItemOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProjectItemInclude<ExtArgs> | null
+  where?: Prisma.ProjectItemWhereInput
+  orderBy?: Prisma.ProjectItemOrderByWithRelationInput | Prisma.ProjectItemOrderByWithRelationInput[]
+  cursor?: Prisma.ProjectItemWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProjectItemScalarFieldEnum | Prisma.ProjectItemScalarFieldEnum[]
 }
 
 /**

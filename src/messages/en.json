@@ -2324,7 +2324,12 @@
       },
       "paramsDefaultShort": "Default",
       "oftenMountedShort": "Often paired",
-      "triggerAdd": "Add “{word}” to the prompt"
+      "triggerAdd": "Add “{word}” to the prompt",
+      "saveTemplate": "Save as template",
+      "templateSaved": "Saved as a template",
+      "templateSavedOpen": "Open",
+      "templateSaveFailed": "Couldn't save it — try again",
+      "templateLoadFailed": "This template couldn't be opened (it may have been deleted)"
     },
     "spine": {
       "sourceCheckpointAuto": "Source image checkpoint (Auto)",

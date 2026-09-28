@@ -8,10 +8,16 @@ import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
 import type { RecipeVisibility } from '@/constants/prompt-library'
 import {
+  readRecipeLoraSetup,
+  type RecipeLoraRead,
+} from '@/lib/recipe-lora-setup'
+import { getRecipeTemplateKind } from '@/lib/recipe-template-kind'
+import {
   GenerationSnapshotSchema,
   type CreateRecipeFromGenerationRequest,
   type CreateRecipeRequest,
   type GenerationRecord,
+  type RecipeLoraSetup,
   type RecipeUsage,
 } from '@/types'
 
@@ -36,8 +42,18 @@ export type RecipeListItem = Pick<
   | 'createdAt'
 >
 
+/** 卡片上那一行「名字 权重」：旧存的补不到名字就是 `null`。 */
+export interface RecipeLoraSummary {
+  baseId: string | null
+  items: { name: string | null; scale: number }[]
+}
+
 export type RecipeSummaryWithCover = RecipeListItem & {
   coverThumbnailUrl: string | null
+  lastUsedAt: Date | null
+  /** 四格类型的判据（`getRecipeTemplateKind`）：LoRA 模板是 `LORA`。 */
+  templateKind: ReturnType<typeof getRecipeTemplateKind>
+  lora: RecipeLoraSummary | null
 }
 
 const RECIPE_LIST_ITEM_SELECT = {
@@ -124,6 +140,68 @@ function getGenerationRecipeParams(generation: {
   return {
     aspectRatio: parsed.data.aspectRatio,
     advancedParams: parsed.data.advancedParams,
+  }
+}
+
+/**
+ * LoRA 台「存成模板」带来的整套要和这张图**实际发出去**的那几把对得上（链接逐一
+ * 相同，多少也相同）：客户端手里那一份可能是出图之后又动过的装配台。
+ */
+function checkLoraSetupMatchesGeneration(
+  setup: RecipeLoraSetup,
+  generation: { snapshot?: unknown },
+): void {
+  const parsed = GenerationSnapshotSchema.safeParse(generation.snapshot)
+  const sent = (parsed.success ? parsed.data.advancedParams?.loras : null) ?? []
+  const saved = setup.items.map((item) => item.asset.loraUrl).sort()
+  const expected = sent.map((lora) => lora.url).sort()
+  if (
+    saved.length !== expected.length ||
+    saved.some((url, index) => url !== expected[index])
+  ) {
+    throw new ApiRequestError(
+      'RECIPE_LORA_SETUP_MISMATCH',
+      400,
+      'errors.recipes.loraSetupMismatch',
+      'The LoRA setup does not match this image',
+    )
+  }
+}
+
+/** 旧存的那几把没有名字：按链接去这个人的（与平台的）LoRA 记录里补。 */
+async function resolveLegacyLoraNames(
+  userId: string,
+  reads: readonly (RecipeLoraRead | null)[],
+): Promise<Map<string, string>> {
+  const urls = new Set<string>()
+  for (const read of reads) {
+    for (const item of read?.items ?? []) {
+      if (!item.asset) urls.add(item.url)
+    }
+  }
+  if (urls.size === 0) return new Map()
+
+  const assets = await db.loraAsset.findMany({
+    where: {
+      loraUrl: { in: [...urls] },
+      OR: [{ userId }, { userId: null }],
+    },
+    select: { loraUrl: true, name: true },
+  })
+  return new Map(assets.map((asset) => [asset.loraUrl, asset.name]))
+}
+
+function summarizeRecipeLora(
+  read: RecipeLoraRead | null,
+  legacyNames: ReadonlyMap<string, string>,
+): RecipeLoraSummary | null {
+  if (!read) return null
+  return {
+    baseId: read.baseId,
+    items: read.items.map((item) => ({
+      name: item.asset?.name ?? legacyNames.get(item.url) ?? null,
+      scale: item.scale,
+    })),
   }
 }
 
@@ -465,6 +543,8 @@ export async function listRecipeSummaries(
       ...RECIPE_LIST_ITEM_SELECT,
       parentGenerationId: true,
       userIntent: true,
+      params: true,
+      lastUsedAt: true,
     },
     orderBy: { createdAt: 'desc' },
     skip,
@@ -473,9 +553,13 @@ export async function listRecipeSummaries(
 
   if (recipes.length === 0) return []
 
-  const coverByRecipeId = await resolveRecipeCovers(user.id, recipes)
+  const loraReads = recipes.map((recipe) => readRecipeLoraSetup(recipe.params))
+  const [coverByRecipeId, legacyNames] = await Promise.all([
+    resolveRecipeCovers(user.id, recipes),
+    resolveLegacyLoraNames(user.id, loraReads),
+  ])
 
-  return recipes.map((recipe) => ({
+  return recipes.map((recipe, index) => ({
     id: recipe.id,
     outputType: recipe.outputType,
     name: recipe.name,
@@ -485,7 +569,27 @@ export async function listRecipeSummaries(
     visibility: recipe.visibility,
     createdAt: recipe.createdAt,
     coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
+    lastUsedAt: recipe.lastUsedAt,
+    templateKind: getRecipeTemplateKind(recipe),
+    lora: summarizeRecipeLora(loraReads[index], legacyNames),
   }))
+}
+
+/**
+ * 「使用」记一次最近使用时间（pages/prompts.md：「最近用过」按它排）。⚠ 只动
+ * `lastUsedAt`：`usageCount` 另有语义（别人 clone 你公开的模板才 +1），⛔ 混进来。
+ */
+export async function markRecipeUsed(
+  clerkId: string,
+  id: string,
+): Promise<{ id: string; lastUsedAt: Date } | null> {
+  const user = await ensureUser(clerkId)
+  const lastUsedAt = new Date()
+  const result = await db.recipe.updateMany({
+    where: { id, userId: user.id, isDeleted: false },
+    data: { lastUsedAt },
+  })
+  return result.count > 0 ? { id, lastUsedAt } : null
 }
 
 /**
@@ -532,6 +636,9 @@ export async function createRecipeFromGeneration(
       'Generation not found',
     )
   }
+  if (data.loraSetup)
+    checkLoraSetupMatchesGeneration(data.loraSetup, generation)
+  const generationParams = getGenerationRecipeParams(generation)
 
   const recipe = await db.recipe.create({
     data: {
@@ -547,7 +654,11 @@ export async function createRecipeFromGeneration(
       negativePrompt: generation.negativePrompt,
       modelId: generation.model,
       provider: generation.provider,
-      params: toPrismaJson(getGenerationRecipeParams(generation)),
+      params: toPrismaJson(
+        data.loraSetup
+          ? { ...generationParams, loraSetup: data.loraSetup }
+          : generationParams,
+      ),
       referenceAssets: toPrismaJson(getGenerationReferenceAssets(generation)),
       seed: typeof generation.seed === 'bigint' ? generation.seed : undefined,
       parentGenerationId: generation.id,

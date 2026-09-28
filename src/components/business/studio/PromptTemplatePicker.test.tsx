@@ -369,7 +369,13 @@ describe('PromptTemplatePicker', () => {
     const lora = makeRecipe({
       id: 'lora',
       name: 'LoRA template',
-      params: { advancedParams: { loras: [{ id: 'asset', weight: 1 }] } },
+      params: {
+        advancedParams: {
+          loras: [
+            { url: 'https://civitai.com/api/download/models/1', scale: 1 },
+          ],
+        },
+      },
     })
     const tags = makeRecipe({
       id: 'tags',

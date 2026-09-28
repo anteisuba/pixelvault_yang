@@ -163,6 +163,33 @@ export async function updateRecipeAPI(
   }
 }
 
+/** 「使用」记一次最近使用时间（pages/prompts.md）。 */
+export async function markRecipeUsedAPI(
+  id: string,
+): Promise<RecipeApiResponse<{ id: string; lastUsedAt: string }>> {
+  try {
+    const response = await fetch(`${getRecipeUrl(id)}/use`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}
+
 export async function setRecipeVisibilityAPI(
   id: string,
   visibility: RecipeVisibility,

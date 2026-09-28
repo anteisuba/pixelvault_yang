@@ -3,11 +3,12 @@
 import type { CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { Bot, X } from '@/components/icons'
+import { BookmarkPlus, Bot, Check, X } from '@/components/icons'
 import {
   StudioGeneratingProgress,
   type StudioGenerationFailure,
 } from '@/components/business/studio-shared'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 export interface LoraResultRoundItem {
@@ -37,6 +38,11 @@ interface LoraResultStageProps {
   onCancel?: () => void
   onOpenPreview: () => void
   onAskAssistant: () => void
+  /**
+   * 「存成模板」（pages/prompts.md）：这一张出图那一刻的整套存进提示词页。只有结果条里
+   * 有这一张（记着它的整套）时才给；存过的这一轮换成「已存成模板」。
+   */
+  templateSave?: { state: 'idle' | 'saving' | 'saved'; onSave: () => void }
   /** 没出过图时舞台中间那一句。 */
   hint: string
   round: readonly LoraResultRoundItem[]
@@ -50,6 +56,10 @@ interface LoraResultStageProps {
 
 const fitStyle = (ratio: number) =>
   ({ '--studio-fit-ratio': ratio }) as CSSProperties
+
+/** 图上右上角那几颗小圆键（问助手 · 存成模板）：贴在媒体上的固定亮底。 */
+const mediaButton =
+  'grid size-7.5 place-items-center rounded-full bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default'
 
 /**
  * 生成台 B 的结果区（lora-generate.md §2.3）：图按舞台剩下的地方等比放到最大，
@@ -76,6 +86,7 @@ export function LoraResultStage({
   onCancel,
   onOpenPreview,
   onAskAssistant,
+  templateSave,
   hint,
   round,
   selectedId,
@@ -155,15 +166,48 @@ export function LoraResultStage({
               </button>
             ) : null}
             {resultUrl && !busy ? (
-              <button
-                type="button"
-                onClick={onAskAssistant}
-                aria-label={tStudio('toolAskAssistant')}
-                title={tStudio('toolAskAssistant')}
-                className="absolute right-3 top-3 z-10 grid size-7.5 place-items-center rounded-full bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Bot className="size-3.5" aria-hidden />
-              </button>
+              <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+                {templateSave ? (
+                  <button
+                    type="button"
+                    data-testid="lora-save-template"
+                    onClick={templateSave.onSave}
+                    disabled={templateSave.state !== 'idle'}
+                    aria-busy={templateSave.state === 'saving' || undefined}
+                    aria-label={
+                      templateSave.state === 'saved'
+                        ? t('generate.templateSaved')
+                        : t('generate.saveTemplate')
+                    }
+                    title={
+                      templateSave.state === 'saved'
+                        ? t('generate.templateSaved')
+                        : t('generate.saveTemplate')
+                    }
+                    className={cn(
+                      mediaButton,
+                      templateSave.state === 'saved' && 'text-foreground',
+                    )}
+                  >
+                    {templateSave.state === 'saving' ? (
+                      <Spinner size="sm" />
+                    ) : templateSave.state === 'saved' ? (
+                      <Check className="size-3.5" aria-hidden />
+                    ) : (
+                      <BookmarkPlus className="size-3.5" aria-hidden />
+                    )}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onAskAssistant}
+                  aria-label={tStudio('toolAskAssistant')}
+                  title={tStudio('toolAskAssistant')}
+                  className={mediaButton}
+                >
+                  <Bot className="size-3.5" aria-hidden />
+                </button>
+              </div>
             ) : null}
           </div>
         </div>

@@ -67,20 +67,25 @@ import {
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
+  LORA_BASE_MODELS,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
+import { ROUTES } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
 import {
   AdvancedParamsSchema,
+  RecipeLoraSetupSchema,
   RunnerSeedStringSchema,
   type AdvancedParams,
   type CivitaiImageRecipe,
   type CivitaiRecipeExtraLora,
   type LoraAssetRecord,
+  type RecipeLoraSetup,
+  type RecipeRecord,
 } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
@@ -147,6 +152,17 @@ import {
   buildCivitaiRecipeGenerationPlan,
 } from '@/lib/civitai-recipe-to-generation'
 import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
+import {
+  createRecipeFromGenerationAPI,
+  getRecipeAPI,
+} from '@/lib/api-client/recipes'
+import {
+  buildRecipeLoraSetup,
+  readRecipeAspectRatio,
+  readRecipeLoraSetup,
+  readRecipeRunnerParameters,
+  templateLoraAssetFromUrl,
+} from '@/lib/recipe-lora-setup'
 import {
   aggregateOftenMountedExtras,
   extraLoraKey,
@@ -621,6 +637,8 @@ interface LoraResultHistoryItem {
   cfg: number | null
   baseName: string | null
   loraName: string | null
+  /** 这一张出图那一刻的整套（「存成模板」存它，⛔ 读当前装配台 —— pages/prompts.md）。 */
+  setup: RecipeLoraSetup | null
 }
 
 /** Preserve exact uint64 seeds in the filmstrip instead of rounding via Number. */
@@ -748,6 +766,8 @@ function GenerateBranch({
 }: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
+  const router = useRouter()
+  const pathname = usePathname()
   // 做同款 / 补挂额外 LoRA 的结果 toast（文案与旧 inline 配方面板共用）。
   const tExtra = useTranslations('LoraPromptControl.generate')
   // 输入框里的参考图条（与图片台同一套文案）。
@@ -1404,6 +1424,92 @@ function GenerateBranch({
       setSeed(Number(seedParam))
     }
   }, [replaySearchParams])
+
+  // 提示词页「使用」一个 LoRA 模板 → `?template=<id>`（pages/prompts.md）：底模 · 挂载 ·
+  // 权重 · 参数 · 提示词 · 负面原样装好，⛔ 不出图、⛔ 不带种子（回到随机）。挂载栈
+  // 整个换掉，触发词的增删交给上面那段同步：旧的那几把从正文里拿掉，新的缺哪段补回
+  // 开头，已经在模板正文里的不重写。
+  const applyLoraTemplate = useCallback(
+    (recipe: RecipeRecord) => {
+      const read = readRecipeLoraSetup(recipe.params)
+      const base =
+        LORA_BASE_MODELS.find((entry) => entry.id === read?.baseId) ??
+        LORA_BASE_MODELS.find(
+          (entry) =>
+            entry.providerModelId === recipe.modelId && entry.available,
+        ) ??
+        LORA_BASE_MODELS.find(
+          (entry) => entry.providerModelId === recipe.modelId,
+        ) ??
+        null
+      stack.clear()
+      for (const item of read?.items ?? []) {
+        stack.push(
+          item.asset ??
+            templateLoraAssetFromUrl({
+              url: item.url,
+              scale: item.scale,
+              name: null,
+              baseModelFamily: base?.family ?? 'unknown',
+            }),
+          item.scale,
+        )
+      }
+      if (base) setSelectedBaseId(base.id)
+      setAppliedRecipe(null)
+      setPrompt(recipe.compiledPrompt)
+      const negative = recipe.negativePrompt?.trim() ?? ''
+      setNegativePrompt(negative)
+      setNegativePromptExpanded(negative.length > 0)
+      const ratio = readRecipeAspectRatio(recipe.params)
+      if (ratio && REPLAY_ASPECT_RATIOS.includes(ratio as AspectRatio)) {
+        setAspectRatio(ratio as AspectRatio)
+      }
+      const parameters = readRecipeRunnerParameters(recipe.params)
+      setRunnerSteps(parameters.steps == null ? '' : String(parameters.steps))
+      setRunnerCfg(
+        parameters.guidanceScale == null
+          ? ''
+          : String(parameters.guidanceScale),
+      )
+      setRunnerSampler(parameters.runnerSampler ?? '')
+      setRunnerScheduler(parameters.runnerScheduler ?? '')
+      setRunnerWidth(
+        parameters.runnerWidth == null ? '' : String(parameters.runnerWidth),
+      )
+      setRunnerHeight(
+        parameters.runnerHeight == null ? '' : String(parameters.runnerHeight),
+      )
+      setRunnerUpscaler(parameters.runnerUpscaler ?? 'none')
+      setRunnerSeed('')
+      setSeed(undefined)
+    },
+    [stack],
+  )
+  const templateParam = replaySearchParams.get('template')
+  const appliedTemplateRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!templateParam || appliedTemplateRef.current === templateParam) return
+    appliedTemplateRef.current = templateParam
+    void getRecipeAPI(templateParam).then((response) => {
+      // 装一次就把 `?template=` 拿掉：刷新不再重装一遍、盖掉后来的改动。
+      const query = new URLSearchParams(replaySearchParams.toString())
+      query.delete('template')
+      const rest = query.toString()
+      router.replace(rest ? `${pathname}?${rest}` : pathname, {
+        scroll: false,
+      })
+      if (response.success && response.data) applyLoraTemplate(response.data)
+      else toast.error(t('generate.templateLoadFailed'))
+    })
+  }, [
+    applyLoraTemplate,
+    pathname,
+    replaySearchParams,
+    router,
+    t,
+    templateParam,
+  ])
 
   // 一键补挂配方里叠加的其他 LoRA：解析（本地库→Civitai）→ push 进挂载栈，
   // 状态（loading/mounted/failed）回写驱动「常与它同挂」行内反馈 + toast。
@@ -2068,12 +2174,16 @@ function GenerateBranch({
     )
     // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
     // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
-    const loras = stack.items
+    const enabledEntries = stack.items
       .filter((entry) => entry.enabled !== false)
       .map((entry) => ({
-        url: entry.asset.loraUrl,
+        asset: entry.asset,
         scale: entry.scale ?? entry.asset.defaultScale,
       }))
+    const loras = enabledEntries.map((entry) => ({
+      url: entry.asset.loraUrl,
+      scale: entry.scale,
+    }))
     // 「自己搭配」选中的标签在这里并入最终 prompt——compiler 只读不写
     // selections，负向标签走 compiledNegativePrompt，和已有的 negativePrompt
     // 文本框合并去重，不互相覆盖。触发词已经在正文里，⛔ 这里不再拼。
@@ -2207,6 +2317,10 @@ function GenerateBranch({
               : null,
             baseName: selectedBase?.displayName ?? null,
             loraName: stack.items[0]?.asset.name ?? null,
+            setup: buildRecipeLoraSetup(
+              selectedBase?.id ?? null,
+              enabledEntries,
+            ),
           },
           ...prev.filter((item) => item.id !== record.id),
         ].slice(0, LORA_RESULT_HISTORY_MAX),
@@ -2276,6 +2390,40 @@ function GenerateBranch({
     resultHistory[0] ??
     null
   const displayedResultUrl = selectedResult?.url ?? lastGeneration?.url ?? null
+
+  // 「存成模板」（pages/prompts.md）：存的是这一张出图那一刻的整套；这一轮存过的
+  // 记着，键换成「已存成模板」。整套对不上（旧记录缺格）就只存链接与权重。
+  const [templateSaves, setTemplateSaves] = useState<
+    Record<string, 'saving' | 'saved'>
+  >({})
+  const handleSaveTemplate = useCallback(
+    async (item: LoraResultHistoryItem) => {
+      if (templateSaves[item.id]) return
+      setTemplateSaves((prev) => ({ ...prev, [item.id]: 'saving' }))
+      const setup = RecipeLoraSetupSchema.safeParse(item.setup)
+      const response = await createRecipeFromGenerationAPI({
+        generationId: item.id,
+        ...(setup.success ? { loraSetup: setup.data } : {}),
+      })
+      if (response.success) {
+        setTemplateSaves((prev) => ({ ...prev, [item.id]: 'saved' }))
+        toast.success(t('generate.templateSaved'), {
+          action: {
+            label: t('generate.templateSavedOpen'),
+            onClick: () => router.push(ROUTES.PROMPTS),
+          },
+        })
+        return
+      }
+      setTemplateSaves((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+      toast.error(response.error ?? t('generate.templateSaveFailed'))
+    },
+    [router, t, templateSaves],
+  )
 
   /**
    * 移动端自动滚动（owner 2026-09-03「结果在眼前、输入在拇指区」）。
@@ -3905,6 +4053,14 @@ function GenerateBranch({
               onAskAssistant={() =>
                 displayedResultUrl &&
                 handleAskAssistantAboutResult(displayedResultUrl)
+              }
+              templateSave={
+                selectedResult && selectedResult.url === displayedResultUrl
+                  ? {
+                      state: templateSaves[selectedResult.id] ?? 'idle',
+                      onSave: () => void handleSaveTemplate(selectedResult),
+                    }
+                  : undefined
               }
               hint={
                 hasLora ? t('generate.hintWithLora') : t('generate.hintPure')

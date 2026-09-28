@@ -2324,7 +2324,12 @@
       },
       "paramsDefaultShort": "默认",
       "oftenMountedShort": "常与它同挂",
-      "triggerAdd": "把「{word}」写进提示词"
+      "triggerAdd": "把「{word}」写进提示词",
+      "saveTemplate": "存成模板",
+      "templateSaved": "已存成模板",
+      "templateSavedOpen": "去看看",
+      "templateSaveFailed": "没存成，再试一次",
+      "templateLoadFailed": "这个模板打不开了（可能已经删掉）"
     },
     "spine": {
       "sourceCheckpointAuto": "来源图底模（自动）",

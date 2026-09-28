@@ -10,6 +10,8 @@ const mockFindMany = vi.fn()
 const mockCount = vi.fn()
 const mockFindFirst = vi.fn()
 const mockUpdate = vi.fn()
+const mockUpdateMany = vi.fn()
+const mockLoraAssetFindMany = vi.fn()
 const mockGenerationFindFirst = vi.fn()
 const mockGenerationFindMany = vi.fn()
 const mockInspirationPromptFindMany = vi.fn()
@@ -33,6 +35,10 @@ vi.mock('@/lib/db', () => ({
       count: (...args: unknown[]) => mockCount(...args),
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
+      updateMany: (...args: unknown[]) => mockUpdateMany(...args),
+    },
+    loraAsset: {
+      findMany: (...args: unknown[]) => mockLoraAssetFindMany(...args),
     },
     generation: {
       findFirst: (...args: unknown[]) => mockGenerationFindFirst(...args),
@@ -55,6 +61,7 @@ import {
   listRecipeSummaries,
   getRecipe,
   deleteRecipe,
+  markRecipeUsed,
   setRecipeVisibility,
 } from '@/services/prompts/recipe.service'
 
@@ -332,6 +339,85 @@ describe('createRecipeFromGeneration', () => {
       httpStatus: 404,
     })
   })
+
+  describe('LoRA 台「存成模板」带上整套', () => {
+    const SUE_URL = 'https://civitai.com/api/download/models/111'
+    const EYES_URL = 'https://civitai.com/api/download/models/222'
+    const loraAsset = (id: string, name: string, loraUrl: string) => ({
+      id,
+      styleCode: '',
+      name,
+      source: 'imported' as const,
+      type: 'subject' as const,
+      baseModelFamily: 'Illustrious',
+      provider: 'civitai',
+      triggerWord: 'sue',
+      loraUrl,
+      coverImageUrl: null,
+      previewImageUrls: [],
+      defaultScale: 1,
+      isPublic: false,
+      isOwn: false,
+      createdAt: '2026-09-28T00:00:00.000Z',
+    })
+    const LORA_SETUP = {
+      baseId: 'illustrious-runner',
+      items: [
+        { asset: loraAsset('civitai:1', '祀 (Sue)', SUE_URL), scale: 0.9 },
+        {
+          asset: loraAsset('civitai:2', 'Enchanting Eyes', EYES_URL),
+          scale: 0.8,
+        },
+      ],
+    }
+    const loraGeneration = (urls: string[]) => ({
+      ...FAKE_GENERATION,
+      snapshot: {
+        ...FAKE_GENERATION.snapshot,
+        advancedParams: {
+          seed: 123,
+          loras: urls.map((url) => ({ url, scale: 0.8 })),
+        },
+      },
+    })
+
+    it('存进 params.loraSetup，与这张图发出去的参数放在一起', async () => {
+      mockGenerationFindFirst.mockResolvedValueOnce(
+        loraGeneration([EYES_URL, SUE_URL]),
+      )
+
+      await createRecipeFromGeneration('clerk_test_user', {
+        generationId: 'gen_source',
+        loraSetup: LORA_SETUP,
+      })
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            params: expect.objectContaining({
+              aspectRatio: '16:9',
+              loraSetup: LORA_SETUP,
+            }),
+          }),
+        }),
+      )
+    })
+
+    it('和这张图实际用的对不上就拒（出图之后装配台又动过）', async () => {
+      mockGenerationFindFirst.mockResolvedValueOnce(loraGeneration([SUE_URL]))
+
+      await expect(
+        createRecipeFromGeneration('clerk_test_user', {
+          generationId: 'gen_source',
+          loraSetup: LORA_SETUP,
+        }),
+      ).rejects.toMatchObject({
+        errorCode: 'RECIPE_LORA_SETUP_MISMATCH',
+        httpStatus: 400,
+      })
+      expect(mockCreate).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('buildRecipeSnapshotForUser', () => {
@@ -557,6 +643,8 @@ describe('listRecipeSummaries', () => {
           createdAt: true,
           parentGenerationId: true,
           userIntent: true,
+          params: true,
+          lastUsedAt: true,
         },
         where: {
           userId: 'db_user_123',
@@ -565,6 +653,98 @@ describe('listRecipeSummaries', () => {
       }),
     )
     expect(mockCount).not.toHaveBeenCalled()
+    expect(result[0]).toMatchObject({ templateKind: 'IMAGE', lora: null })
+    // 没有旧存的 LoRA 要补名字 → ⛔ 多查一次库。
+    expect(mockLoraAssetFindMany).not.toHaveBeenCalled()
+  })
+
+  it('LoRA 模板带「名字 权重」：新存的读整套，旧存的按链接补名字', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      {
+        ...FAKE_RECIPE,
+        id: 'recipe_new',
+        params: {
+          loraSetup: {
+            baseId: 'illustrious-runner',
+            items: [
+              {
+                asset: {
+                  id: 'civitai:1',
+                  styleCode: '',
+                  name: '祀 (Sue)',
+                  source: 'imported',
+                  type: 'subject',
+                  baseModelFamily: 'Illustrious',
+                  provider: 'civitai',
+                  triggerWord: 'sue',
+                  loraUrl: 'https://civitai.com/api/download/models/111',
+                  coverImageUrl: null,
+                  previewImageUrls: [],
+                  defaultScale: 1,
+                  isPublic: false,
+                  isOwn: false,
+                  createdAt: '2026-09-28T00:00:00.000Z',
+                },
+                scale: 0.9,
+              },
+            ],
+          },
+        },
+      },
+      {
+        ...FAKE_RECIPE,
+        id: 'recipe_old',
+        params: {
+          advancedParams: {
+            loras: [
+              {
+                url: 'https://civitai.com/api/download/models/222',
+                scale: 0.6,
+              },
+              { url: 'https://civitai.com/api/download/models/333' },
+            ],
+          },
+        },
+      },
+    ])
+    mockLoraAssetFindMany.mockResolvedValueOnce([
+      {
+        loraUrl: 'https://civitai.com/api/download/models/222',
+        name: 'Watercolor',
+      },
+    ])
+
+    const [fresh, legacy] = await listRecipeSummaries('clerk_test_user', 1, 20)
+
+    expect(fresh).toMatchObject({
+      templateKind: 'LORA',
+      lora: {
+        baseId: 'illustrious-runner',
+        items: [{ name: '祀 (Sue)', scale: 0.9 }],
+      },
+    })
+    expect(legacy).toMatchObject({
+      templateKind: 'LORA',
+      lora: {
+        baseId: null,
+        items: [
+          { name: 'Watercolor', scale: 0.6 },
+          { name: null, scale: 1 },
+        ],
+      },
+    })
+    expect(mockLoraAssetFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          loraUrl: {
+            in: [
+              'https://civitai.com/api/download/models/222',
+              'https://civitai.com/api/download/models/333',
+            ],
+          },
+        }),
+      }),
+    )
   })
 
   it('uses the earliest generated image as the cover', async () => {
@@ -754,5 +934,30 @@ describe('setRecipeVisibility', () => {
 
     expect(result).toBeNull()
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+})
+
+describe('markRecipeUsed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+  })
+
+  it('只记最近使用时间，⛔ 动 usageCount（那是别人 clone 的计数）', async () => {
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 })
+
+    const result = await markRecipeUsed('clerk_test_user', 'recipe_abc')
+
+    expect(result?.id).toBe('recipe_abc')
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'recipe_abc', userId: 'db_user_123', isDeleted: false },
+      data: { lastUsedAt: expect.any(Date) },
+    })
+  })
+
+  it('不是自己的 / 已删的返回 null（路由回 404）', async () => {
+    mockUpdateMany.mockResolvedValueOnce({ count: 0 })
+
+    expect(await markRecipeUsed('clerk_test_user', 'nope')).toBeNull()
   })
 })

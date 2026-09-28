@@ -93,7 +93,11 @@ const VIDEO = recipe({ id: 'video', name: 'Video one', outputType: 'VIDEO' })
 const LORA = recipe({
   id: 'lora',
   name: 'LoRA one',
-  params: { advancedParams: { loras: [{ id: 'style', weight: 1 }] } },
+  params: {
+    advancedParams: {
+      loras: [{ url: 'https://civitai.com/api/download/models/2', scale: 1 }],
+    },
+  },
 })
 const TAGS = recipe({
   id: 'tags',

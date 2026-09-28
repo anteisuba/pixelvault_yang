@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from 'vitest'
+import { toast } from 'sonner'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
@@ -71,6 +72,9 @@ const mockUseHuggingFaceLoraShowcase = vi.hoisted(() => vi.fn())
 // 走 stack.push / 解析走 resolveCivitaiLoraAPI —— 两者都要是**跨渲染稳定**的
 // mock，否则断言拿到的是上一帧那个已经被丢弃的 vi.fn()。
 const mockStackPush = vi.hoisted(() => vi.fn())
+const mockStackClear = vi.hoisted(() => vi.fn())
+const mockGetRecipe = vi.hoisted(() => vi.fn())
+const mockCreateRecipeFromGeneration = vi.hoisted(() => vi.fn())
 const mockStackSetScale = vi.hoisted(() => vi.fn())
 const mockResolveCivitaiLora = vi.hoisted(() => vi.fn())
 const captureOperatorHostInput = vi.hoisted(() => vi.fn())
@@ -133,8 +137,10 @@ vi.mock('sonner', () => ({
   },
 }))
 
+// 提示词页「使用」LoRA 模板会带 `?template=`（pages/prompts.md）；默认只有 section。
+let mockSearch = 'section=generate'
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams('section=generate'),
+  useSearchParams: () => new URLSearchParams(mockSearch),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -209,7 +215,7 @@ vi.mock('@/hooks/use-active-lora-stack', () => {
     setScale: mockStackSetScale,
     setEnabled: vi.fn(),
     remove: vi.fn(),
-    clear: vi.fn(),
+    clear: mockStackClear,
   })
   return {
     useActiveLoraStack: stack,
@@ -231,6 +237,12 @@ vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => {
 
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: mockUseApiKeysContext,
+}))
+
+vi.mock('@/lib/api-client/recipes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/recipes')>()),
+  getRecipeAPI: mockGetRecipe,
+  createRecipeFromGenerationAPI: mockCreateRecipeFromGeneration,
 }))
 
 // H：挂载**不设上限**。默认透传真实能力表；无上限用例把 maxLoras 压到一个极小值
@@ -455,7 +467,13 @@ beforeEach(() => {
   mockStackItems = [{ asset: stackAsset, scale: 1 }]
   mockTraySelections = []
   mockStackPush.mockReset()
+  mockStackClear.mockReset()
   mockStackSetScale.mockReset()
+  mockSearch = 'section=generate'
+  mockGetRecipe.mockReset()
+  mockCreateRecipeFromGeneration
+    .mockReset()
+    .mockResolvedValue({ success: true, data: { id: 'recipe-new' } })
   mockResolveCivitaiLora.mockReset().mockResolvedValue({ success: false })
   mockMaxLorasOverride = undefined
   mockUseHuggingFaceLoraShowcase.mockReset().mockReturnValue({
@@ -1330,6 +1348,167 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     fireEvent.click(options[1])
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
     expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
+  })
+
+  describe('LoRA 模板（pages/prompts.md）', () => {
+    const sueAsset = {
+      id: 'civitai:1',
+      styleCode: '',
+      name: '祀 (Sue)',
+      source: 'imported' as const,
+      type: 'subject' as const,
+      baseModelFamily: 'illustrious',
+      provider: 'civitai',
+      triggerWord: 'sue',
+      // 作者认过的触发词：挂上就写进正文（出图键才有内容可发）。
+      triggerSource: 'official' as const,
+      loraUrl: 'https://civitai.com/api/download/models/111',
+      coverImageUrl: null,
+      previewImageUrls: ['https://image.civitai.com/sample.jpeg'],
+      defaultScale: 1,
+      isPublic: false,
+      isOwn: false,
+      createdAt: '2026-09-28T00:00:00.000Z',
+    }
+    const withKey = () =>
+      mockUseApiKeysContext.mockReturnValue({
+        keys: [
+          {
+            id: 'key-1',
+            modelId: AI_MODELS.ILLUSTRIOUS_XL,
+            adapterType: AI_ADAPTER_TYPES.REPLICATE,
+            providerConfig: { label: 'Replicate', baseUrl: '' },
+            label: 'My Replicate key',
+            maskedKey: '****abcd',
+            isActive: true,
+            createdAt: new Date(),
+          },
+        ],
+        healthMap: { 'key-1': 'available' },
+      })
+
+    it('「存成模板」存的是这一张出图那一刻的整套', async () => {
+      withKey()
+      mockStackItems = [
+        { asset: sueAsset as unknown as MockStackAsset, scale: 0.9 },
+      ]
+      mockGenerate.mockResolvedValueOnce({
+        id: 'gen-1',
+        url: 'https://example.com/1.png',
+        seed: 111,
+      })
+
+      render(<LoraWorkbench />)
+      fireEvent.click(
+        screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+      )
+      fireEvent.click(await screen.findByTestId('lora-save-template'))
+
+      await waitFor(() =>
+        expect(mockCreateRecipeFromGeneration).toHaveBeenCalledWith({
+          generationId: 'gen-1',
+          loraSetup: {
+            baseId: expect.any(String),
+            items: [
+              {
+                asset: expect.objectContaining({
+                  id: 'civitai:1',
+                  triggerWord: 'sue',
+                  // 用不上的样例图地址不进模板。
+                  previewImageUrls: [],
+                }),
+                scale: 0.9,
+              },
+            ],
+          },
+        }),
+      )
+      const saved = await screen.findByRole('button', {
+        name: 'LoraWorkbench:generate.templateSaved',
+      })
+      expect(saved).toBeDisabled()
+    })
+
+    it('装配台那一份记录缺格时只存链接与权重（⛔ 整个存不成）', async () => {
+      withKey()
+      mockGenerate.mockResolvedValueOnce({
+        id: 'gen-1',
+        url: 'https://example.com/1.png',
+        seed: 111,
+      })
+
+      render(<LoraWorkbench />)
+      fireEvent.click(
+        screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+      )
+      fireEvent.click(await screen.findByTestId('lora-save-template'))
+
+      await waitFor(() =>
+        expect(mockCreateRecipeFromGeneration).toHaveBeenCalledWith({
+          generationId: 'gen-1',
+        }),
+      )
+    })
+
+    it('?template= 按整套装回来：清栈挂回、提示词与负面、参数照存的，种子回随机，装完拿掉 param', async () => {
+      mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+      mockSearch = 'section=generate&template=recipe-1'
+      mockGetRecipe.mockResolvedValue({
+        success: true,
+        data: {
+          id: 'recipe-1',
+          compiledPrompt: 'sue, 1girl, city at dusk',
+          negativePrompt: 'worst quality',
+          modelId: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
+          params: {
+            aspectRatio: '3:4',
+            advancedParams: {
+              steps: 28,
+              guidanceScale: 5,
+              runnerSampler: 'euler_ancestral',
+            },
+            loraSetup: {
+              baseId: 'illustrious-runner',
+              items: [{ asset: sueAsset, scale: 0.9 }],
+            },
+          },
+        },
+      })
+
+      render(<LoraWorkbench />)
+
+      await waitFor(() =>
+        expect(mockStackPush).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'civitai:1', name: '祀 (Sue)' }),
+          0.9,
+        ),
+      )
+      expect(mockGetRecipe).toHaveBeenCalledWith('recipe-1')
+      expect(mockStackClear).toHaveBeenCalled()
+      expect(promptBox()).toHaveValue('sue, 1girl, city at dusk')
+      expect(mockRouterReplace).toHaveBeenCalledWith(
+        '/studio/lora?section=generate',
+        { scroll: false },
+      )
+      // 只装一次：再渲染也不再去取。
+      expect(mockGetRecipe).toHaveBeenCalledTimes(1)
+    })
+
+    it('模板打不开（已删）就说一句，台上什么都不动', async () => {
+      mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+      mockSearch = 'section=generate&template=gone'
+      mockGetRecipe.mockResolvedValue({ success: false, error: 'Not found' })
+
+      render(<LoraWorkbench />)
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          'LoraWorkbench:generate.templateLoadFailed',
+        ),
+      )
+      expect(mockStackClear).not.toHaveBeenCalled()
+      expect(mockStackPush).not.toHaveBeenCalled()
+    })
   })
 
   it('opens a picture-frame preview when clicking the generated result image', () => {

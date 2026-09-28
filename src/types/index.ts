@@ -5370,10 +5370,32 @@ export const CreateRecipeRequestSchema = z.object({
 
 export type CreateRecipeRequest = z.infer<typeof CreateRecipeRequestSchema>
 
+/**
+ * LoRA 模板的整套搭配（pages/prompts.md「LoRA 模板存整套」）。
+ *
+ * 挂载的那几把存装配台手里那一份记录原样：「使用」时原样推回挂载栈，⛔ 不再按链接
+ * 去库里找（挂载不一定收藏过，库里未必有这一行）。底模存 LoRA 底模目录的 id ——
+ * 同一个出图模型可能对应两条目录，只存模型 id 分不出是哪一条。
+ */
+export const RecipeLoraSetupSchema = z.object({
+  baseId: z.string().trim().min(1).max(100),
+  items: z
+    .array(z.object({ asset: LoraAssetRecordSchema, scale: z.number() }))
+    .min(1)
+    .max(20),
+})
+
+export type RecipeLoraSetup = z.infer<typeof RecipeLoraSetupSchema>
+
 export const CreateRecipeFromGenerationSchema = z.object({
   generationId: z.string().trim().min(1),
   name: z.string().trim().max(200).optional(),
+  /** LoRA 台「存成模板」带上这一张出图那一刻的整套；别处存的不带。 */
+  loraSetup: RecipeLoraSetupSchema.optional(),
 })
+
+/** 「使用」记一次最近使用时间 —— 没有要带的字段。 */
+export const MarkRecipeUsedRequestSchema = z.object({}).strict()
 
 export type CreateRecipeFromGenerationRequest = z.infer<
   typeof CreateRecipeFromGenerationSchema

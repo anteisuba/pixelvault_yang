@@ -2324,7 +2324,12 @@
       },
       "paramsDefaultShort": "既定",
       "oftenMountedShort": "よく一緒に使う",
-      "triggerAdd": "「{word}」をプロンプトに入れる"
+      "triggerAdd": "「{word}」をプロンプトに入れる",
+      "saveTemplate": "テンプレートとして保存",
+      "templateSaved": "テンプレートに保存しました",
+      "templateSavedOpen": "見に行く",
+      "templateSaveFailed": "保存できませんでした。もう一度お試しください",
+      "templateLoadFailed": "このテンプレートを開けませんでした（削除された可能性があります）"
     },
     "spine": {
       "sourceCheckpointAuto": "ソース画像のチェックポイント（自動）",

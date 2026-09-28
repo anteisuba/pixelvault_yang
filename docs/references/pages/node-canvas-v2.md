@@ -70,6 +70,8 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 12. 动效：展开 / 收起 / 让位走弹簧三档，hover 与颜色走 `--duration-fast|base`；**浮层用玻璃材质，卡面不透明**——画布上可能同时有上百张卡，`backdrop-filter` 只给浮层（工具条 / 右键菜单 / 媒体 transport / 提示词栏 / 移动端浮动条）。
 13. **连线（2026-09-10 owner 定，画板 `ConnectLines.dc.html` 方向 A）**：每张卡**左一入口、右一出口**（12px 白底黑边圆点），平时只在悬停或拖线时显出；拖线时光标带「+」，合法目标整卡发光、非法目标变淡；线松在卡上**任何位置**都算连上，落进哪个槽由来源种类决定（图 → 参考，视频 → 参考，语音 → 语音，文本 → 说明），角色之后在参考轨上改；整张卡拖到视频卡上 = 同样连上。已连的线 1.5px 灰、不按家族分色，悬停或选中卡时变黑，线中点浮出槽名胶囊（点「首帧」弹 作首帧 / 作尾帧 / 作参考；× 断开）。出口只有一个：续拍走工具条「续拍」，不再有 tailFrame 第二个口（读端仍认旧边）。
 14. **「连到镜头」弹层**（音频 / 图片 / 文本三类卡工具条上的那颗键）：顶行「新建镜头」（在右侧落视频卡并连线），下面按镜头带顺序列出画布上已有的视频卡（缩略 · 名 · 时长），点一张即连——音频连成音轨，图片再选首帧 / 尾帧，文本连成镜头说明；目标槽已有内容时显示「替换」而不是静默覆盖；连完目标卡短暂高亮并滚到可见。与拉线（自动落槽）、视频卡 + 菜单 / @ 三条路汇到同一份槽绑定。
+15. **发送前那道闸（owner 2026-09-28）**：生成入口先拿计划对一遍模型的发送契约。四类卡都核槽：没填够 / 没选当前用哪一版 / 挂着标成不能用的素材；视频卡另核：参考图 / 视频 / 音频超出上限（`@` 角色带进来的图算在内）、只挂了参考音频、参考片段时长（Seedance 2.0 单段 2–15s、合计 15s，2.5 单段 2–30s、合计 30s，火山官方）。拦下 = **不发、不扣钱**，一条 toast 说清哪项超了多少（多处时带「还有 N 处」），运行态回到发之前；⛔ 不记成失败、不改卡（`preflightV4Plan`，契约在 `video-model-send-plan.ts`）。
+16. **媒体读不出来 ⛔ 裂图**：大卡面先问一次 CDN，确认 404 说「已删除」+「从画布移除」，其余说「暂时读不到」+「重试」（`NodeMediaMissing`）；小缩略（参考轨 / `@` chip / 连到镜头 / 侧栏 / 手机镜头带 / 剪辑台 / 审阅条）装不下一句话，只退回它本来就有的「没封面」占位（`useBrokenThumbs`）。
 
 ## 2. 文本节点
 
@@ -100,7 +102,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 - 一个节点兼上传 / 生成；16:9 空卡；有片时卡即封面，右下角只有时长；悬停静音自动播 + 底部细进度线 + 右上静音标。
 - 连线 / 拖放 / 上传 / 素材库都落进**参考轨**（2026-09-10 owner 定）：图默认作参考，视频 = 参考视频，语音 = 音轨；首帧 / 尾帧是图的**角色**，点轨上的图改（作首帧 / 作尾帧 / 作参考 / 打开 / 移除）。卡面不显示槽。
-- 参考轨 = 提示词栏首行，图 / 视频 / 语音合在同一条横向滚动缩略条，每项 48px 编号缩略与来源名（图角标 首 / 尾）；末尾统一加号 → 素材类型 → 上传 / 从素材库 / 画布已有素材（图像与视频候选带可用封面）。上限按模型能力表，满额或不支持的类型在添加菜单中禁用并说明原因；组内序号就是 @ 的号：`@图1` / `@视频1` / `@语音1`，删一项后面顺位。展开态的画中框在播放器与说明之间摆同一条轨。收起提示词栏与展开正文共用一份受控草稿，切换不丢未发送内容，生成读取最新草稿。
+- 参考轨 = 提示词栏首行，图 / 视频 / 语音合在同一条横向滚动缩略条，每项 48px 编号缩略与来源名（图角标 首 / 尾）；末尾统一加号 → 素材类型 → 上传 / 从素材库 / 画布已有素材（图像与视频候选带可用封面）。上限按模型能力表，满额或不支持的类型在添加菜单中禁用并说明原因；组内序号就是 @ 的号：`@图1` / `@视频1` / `@语音1`，删一项后面顺位。**号跟着轨走**（2026-09-28，图片卡的参考轨同一条）：移除 / 删掉挂着的卡 / 新首帧把整组后移时，引擎把已保存正文里的号按「是哪一张」对回去，落在与改轨**同一个撤销条目**里，被移走那项的号删掉；没发出去的草稿同一套对号，⛔ 不整段盖掉（`planRailMentionRemaps` / `nextPromptDraft`）。展开态的画中框在播放器与说明之间摆同一条轨。收起提示词栏与展开正文共用一份受控草稿，切换不丢未发送内容，生成读取最新草稿。
 - **不设模式页签**：由挂了什么推出来——有任何参考项（参考图 / 视频 / 语音）→ 全能参考；首 + 尾 → 首尾帧；只有首帧 → 图生视频；什么都没挂 → 文生视频。推出的模式写在参数 chip 首位，弹层顶部「这次按 ×」可看不可改；发送层按它选模型变体（参考变体 / 首尾帧变体）。
 - 选中：工具条 `展开 · 续拍 · 抽帧 · 下载 · ⋯`（展开 = 画中框，右键菜单同项保留）。续拍 = 以最后一帧为首帧新建下一段并连线；抽帧 = 截当前画面落成图片节点并连线指回。⋯ = 改名 / 复制这张视频卡 / 拆出当前版本 / **来源（只读）** / 删除——「来源」与音频卡同一条规矩（§4 末），今天写它的只有剪辑台成片（`source.kind = 'render'`）。
 - 提示词栏：`+`（上传 / 图 / 视频 / 语音 / @ / 素材库）· 词 · chip `全能参考 · 15s · 16:9 · 720p`（模式只读 / **时长滑杆**（按模型档位吸附、两端写最小最大、拇指带读数；⛔ 不做分段控件）/ 比例 / 清晰度 / **生成声音开关**，开着时 chip 尾显示「· 有声」；底部读数带每组 已挂 / 上限）· chip `模型`。**参数 chip 永不为空**：新卡即带默认模型（与图片卡同一条 `resolveModelChannel`），没模型时 chip 写「选模型」、点开就是模型选择器；模型没有的档灰掉不藏。
@@ -324,6 +326,8 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 撤销栈只有一份（图引擎持有，Provider 消费）——两份栈会让「卡里点的」和「工具栏点的」各撤各的。**助手的一轮 = 一个撤销条目**，撤销时按 inverse **逆序**回放。
 
+**切项目 / 载入最新 = 换一段历史**：撤销与重做栈一起清空（`historyKey` = 项目 id + 载入代次）。旧的 inverse 套到新内容上会改到别的项目，重做甚至会把上一个项目整份写进这一个。
+
 **不发 op、不进撤销栈的只有四类**，每一类都因为它根本不是「用户的一步意图」：
 
 1. `moveNodes`（拖动坐标）——进栈等于把一次拖拽拆成几十条记录；
@@ -522,6 +526,15 @@ v3 记录 → POST /api/studio/node-workflow/[id]/backup 成功 → upgradeNodeW
 - `id` / `createdAt` 永远是服务端的身份，本地只贡献 `name` / `state` / `updatedAt`。
 - 覆写链的另一头不变：**只有服务端本会话亲口确认过的项目才允许被写回去**（`serverConfirmedProjectIds`）。
 
+### 14.5 保存冲突：`updatedAt` 就是内容版本（2026-09-28）
+
+另一个标签页 / 设备存过更新的版本时，这边 ⛔ 不许整份盖回去。不加列：
+
+- 服务端 `updatedAt` **只在写 `state` 时变**；touch（`lastActiveAt`）与改名显式保持原值。⚠ 新增的写路径若顺手改了它，别处的标签页会被误判成冲突。
+- 客户端写 `state` 时带 `baseUpdatedAt`（这边最后一次看到的服务端版本），服务端按它做条件更新；对不上 → 409 `NODE_WORKFLOW_CONFLICT`。不带则不校验。
+- 409 → 停写（只读原因 `conflict`）+ 一条常驻 toast 二选一：「载入最新」（取服务端整份换进来，撤销历史换段，见 §11.3）/「另存为副本」（这边这份另建一个项目，原项目再载入最新）。
+- 内容没变不写（水化后不把手上这份推回去）；同一项目的写入**排队**，慢请求回来之前下一枪不带旧版本出发；顶栏保存点读的是真实在飞的写入。
+
 ### 14.4 回填脚本与 v3 读端删除条件
 
 ```bash
@@ -569,13 +582,16 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema`（`src/types/node-workflow.ts`）
 - op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
 - 画布上的助手（§13）：`src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/components/business/studio/assistant-operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
-- 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts`
+- 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts` · `src/lib/video-node-rail.ts`（参考轨与轨号对位）
+- 发送前校验（§1.15）：`src/hooks/node/use-node-media-generation-v4.ts`（`preflightV4Plan`）· `src/constants/video-model-send-plan.ts`（上限与参考时长）· `src/lib/media-probe.ts`（`probeMediaDuration`）
 - 图引擎与存储：`src/hooks/node/use-node-graph-v4.ts` · `use-node-workflow-store.ts` · `use-cast-ingest-engine-v4.ts` · `use-node-generation-reconcile-v4.ts` · `src/lib/node-workflow-adopt-merge.ts` · `src/services/node/node-workflow.service.ts` · `prisma/schema.prisma`（`NodeWorkflowProject.state`）
 - 迁移：`src/lib/node-workflow-migrate-v4.ts`（含 `migrateRetireVideoMergeV4`）· `src/lib/node-workflow-v4-upgrade.ts` · `src/lib/node-v4-merge.ts` · `scripts/migrate-node-workflow-v4.ts`
 - 投影：`src/lib/node-workflow-script-doc-v4.ts`
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）
 
 ## Last Verified
+
+- **2026-09-28 · 对照 BeefTV 补的四道闸**：§1.15 发送前校验、§5 轨号跟着轨走、§14.5 保存冲突 + §11.3 换项目清撤销栈（修掉「切项目后重做把 A 的内容写进 B」）、§1.16 小缩略不裂图。有 hook / service / 路由 / 纯函数回归用例，全量 Vitest 与 typecheck 绿；⚠ **未做浏览器实测**（冲突提示、拦截 toast、缩略兜底都只在测试里走过）。
 
 - **2026-09-28 · 画布助手的两道闸补上**：读码发现 `canvas_generate` 规划成改动型、流里直接出 `done`，客户端当场扣扳机（一张卡都没出就花钱）；`delete` / `project_script` 从不读 `tier`，一句话就落。现在前者走生成确认卡（§13.2.1），后者先问一句；有服务端流、hook、apply 与卡片的回归用例。
 

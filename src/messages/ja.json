@@ -2367,6 +2367,7 @@
       "loraLabel": "LoRA",
       "swapBase": "ベースモデルを変更",
       "stripLabel": "構成（折りたたみ中）",
+      "editAssembly": "組み立てを編集",
       "stripMounted": "LoRA {count} 個を装着",
       "incompatibleLine": "{family} · このベースモデルには合わず、生成時は無効",
       "compatDotOk": "現在のベースモデルで使えます"

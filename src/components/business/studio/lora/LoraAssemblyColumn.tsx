@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -57,8 +57,9 @@ interface LoraAssemblyColumnProps {
   collapsed: boolean
   onCollapsedChange: (collapsed: boolean) => void
   /**
-   * 在库 / 收藏里：整列让开成竖条，竖条顶上那颗键是「回到生成」（lora-library.md
-   * §2）。不给 = 在生成台，那颗键是「展开装配」。
+   * 在库 / 收藏里：整列让开成竖条，竖条顶上那颗键是「回到生成」；点竖条别处，整列
+   * 浮在库上面改，点库或 Esc 缩回（lora-library.md §2）。不给 = 在生成台，那颗键与
+   * 竖条别处都是「展开装配」。
    */
   onReturn?: () => void
   /** 「常与它同挂」那一排 chip（数据不足时它自己不渲染）。 */
@@ -96,6 +97,67 @@ export function LoraAssemblyColumn({
   const reducedMotion = useReducedMotion()
   const stack = useActiveLoraStack()
   const [baseModalOpen, setBaseModalOpen] = useState(false)
+  // 库 / 收藏里浮出来的整列（owner 09-28「浮出整列，默认收起」）：库不重排，整列从
+  // 竖条长出来盖在库上面。离开库就收回。
+  const inLibrary = onReturn !== undefined
+  const [floatOpen, setFloatOpen] = useState(false)
+  const [trackedInLibrary, setTrackedInLibrary] = useState(inLibrary)
+  if (trackedInLibrary !== inLibrary) {
+    setTrackedInLibrary(inLibrary)
+    setFloatOpen(false)
+  }
+  const floating = inLibrary && floatOpen
+  const panelOpen = !collapsed || floating
+  const panelRef = useRef<HTMLDivElement>(null)
+  const collapseButtonRef = useRef<HTMLButtonElement>(null)
+  const stripButtonRef = useRef<HTMLButtonElement>(null)
+  // 用键盘 / 收起键收回时焦点回到竖条；点库收回时焦点跟着那一下走。
+  const returnFocusRef = useRef(false)
+  const closeFloat = (returnFocus: boolean) => {
+    returnFocusRef.current = returnFocus
+    setFloatOpen(false)
+  }
+
+  useEffect(() => {
+    if (floating) {
+      collapseButtonRef.current?.focus({ preventScroll: true })
+      return
+    }
+    if (returnFocusRef.current) {
+      returnFocusRef.current = false
+      stripButtonRef.current?.focus({ preventScroll: true })
+    }
+  }, [floating])
+
+  // 点库 / 焦点移到库（整列以外、不在弹层里）或 Esc 缩回。⚠ Esc 抢在详情页前面：
+  // 第一下只收整列。
+  useEffect(() => {
+    if (!floating) return
+    const onOutside = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (panelRef.current?.contains(target)) return
+      // 换底模 / 添加 LoRA 是从这一列开出去的弹层，点在里面不算点库。
+      if (target.closest('[role="dialog"]')) return
+      returnFocusRef.current = false
+      setFloatOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (document.querySelector('[role="dialog"]')) return
+      event.preventDefault()
+      returnFocusRef.current = true
+      setFloatOpen(false)
+    }
+    document.addEventListener('pointerdown', onOutside, true)
+    document.addEventListener('focusin', onOutside, true)
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onOutside, true)
+      document.removeEventListener('focusin', onOutside, true)
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [floating])
   // 拖动排序：只从封面起手（按下封面才把这一行设成可拖），滑杆和开关不会误触发。
   const [armedId, setArmedId] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -191,22 +253,25 @@ export function LoraAssemblyColumn({
   const full = (
     <aside
       aria-label={t('spine.assemblyTitle')}
-      aria-hidden={collapsed}
-      inert={collapsed}
+      aria-hidden={!panelOpen}
+      inert={!panelOpen}
       data-testid="lora-assembly-column"
       style={{ width: LORA_ASSEMBLY_COLUMN_PX.open }}
       className={cn(
         'absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-y-auto py-5 pl-5 pr-4.5 transition-opacity ease-linear',
-        collapsed
-          ? 'pointer-events-none opacity-0 duration-fast'
-          : 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast',
+        panelOpen
+          ? 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast'
+          : 'pointer-events-none opacity-0 duration-fast',
       )}
     >
       <div className="flex items-center justify-between gap-2 text-xs font-semibold text-foreground/80">
         <span>{t('spine.baseModel')}</span>
         <button
+          ref={collapseButtonRef}
           type="button"
-          onClick={() => onCollapsedChange(true)}
+          onClick={() =>
+            floating ? closeFloat(true) : onCollapsedChange(true)
+          }
           aria-label={t('spine.collapseAssembly')}
           title={t('spine.collapseAssembly')}
           className="-my-1 -mr-1 grid size-6 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -434,14 +499,14 @@ export function LoraAssemblyColumn({
   const strip = (
     <aside
       aria-label={t('spine.stripLabel')}
-      aria-hidden={!collapsed}
-      inert={!collapsed}
+      aria-hidden={panelOpen}
+      inert={panelOpen}
       style={{ width: LORA_ASSEMBLY_COLUMN_PX.strip }}
       className={cn(
         'absolute inset-y-0 left-0 flex flex-col items-center gap-3 overflow-y-auto py-3 transition-opacity ease-linear',
-        collapsed
-          ? 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast'
-          : 'pointer-events-none opacity-0 duration-fast',
+        panelOpen
+          ? 'pointer-events-none opacity-0 duration-fast'
+          : 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast',
       )}
     >
       <button
@@ -457,85 +522,94 @@ export function LoraAssemblyColumn({
       >
         <PanelLeftOpen className="size-3.5" aria-hidden />
       </button>
+      {/* 竖条其余整块是一颗键：在库里浮出整列改，在生成台展开整列（owner 09-28）。 */}
       <button
+        ref={stripButtonRef}
         type="button"
-        onClick={() => setBaseModalOpen(true)}
-        aria-label={
-          selectedBase ? baseName(selectedBase) : t('spine.baseModelPending')
+        onClick={() =>
+          inLibrary ? setFloatOpen(true) : onCollapsedChange(false)
         }
-        title={selectedBase ? baseName(selectedBase) : undefined}
-        className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={t('spine.editAssembly')}
+        aria-expanded={inLibrary ? floating : undefined}
+        className="flex w-10 flex-1 flex-col items-center gap-3 rounded-xl py-1.5 transition-colors duration-fast ease-linear hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {baseCover('size-7')}
-      </button>
-      {/* 挂了几个：在库里点「挂载」时数字跳一下（240）。 */}
-      <motion.span
-        key={freshMount?.at ?? 'rest'}
-        initial={false}
-        animate={
-          freshMount && !reducedMotion ? { scale: [1, 1.18, 1] } : undefined
-        }
-        transition={{
-          duration: DURATION_BUMP_S,
-          times: [0, 0.4, 1],
-          ease: EASE_STANDARD,
-        }}
-        title={t('spine.stripMounted', { count: stack.items.length })}
-        className="h-5.5 min-w-5.5 shrink-0 rounded-full bg-muted px-1.5 text-center font-mono text-2xs font-semibold leading-5.5 tabular-nums text-foreground"
-      >
-        {stack.items.length}
-      </motion.span>
-      <AnimatePresence initial={false}>
-        {stack.items.map((item) => (
-          // 在库里刚挂上的那一个从 0.6 弹到 1（320）；卸下的缩回去淡掉（120）。
-          // ⚠ 只有 `freshMount` 那一个演入场 —— 挂载栈在首帧之后才从本地读回，
-          // 读回的那几个在这里也是「新来的」，⛔ 让它们跟着弹。
-          <motion.span
-            key={item.asset.id}
-            layout={!reducedMotion}
-            initial={
-              item.asset.id !== freshMount?.assetId
-                ? false
-                : reducedMotion
-                  ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.6 }
-            }
-            animate={{ opacity: 1, scale: 1 }}
-            exit={
-              reducedMotion
-                ? { opacity: 0, transition: { duration: DURATION.fast } }
-                : {
-                    opacity: 0,
-                    scale: 0.6,
-                    transition: { duration: DURATION.fast },
-                  }
-            }
-            transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
-            title={item.asset.name}
-            className="relative shrink-0"
-          >
-            <span
-              className={cn(
-                'block transition-opacity duration-fast',
-                item.enabled === false && 'opacity-45',
-              )}
+        <span
+          title={selectedBase ? baseName(selectedBase) : undefined}
+          className="shrink-0"
+        >
+          {baseCover('size-7')}
+        </span>
+        {/* 挂了几个：在库里点「挂载」时数字跳一下（240）。 */}
+        <motion.span
+          key={freshMount?.at ?? 'rest'}
+          initial={false}
+          animate={
+            freshMount && !reducedMotion ? { scale: [1, 1.18, 1] } : undefined
+          }
+          transition={{
+            duration: DURATION_BUMP_S,
+            times: [0, 0.4, 1],
+            ease: EASE_STANDARD,
+          }}
+          title={t('spine.stripMounted', { count: stack.items.length })}
+          className="h-5.5 min-w-5.5 shrink-0 rounded-full bg-muted px-1.5 text-center font-mono text-2xs font-semibold leading-5.5 tabular-nums text-foreground"
+        >
+          {stack.items.length}
+        </motion.span>
+        <AnimatePresence initial={false}>
+          {stack.items.map((item) => (
+            // 在库里刚挂上的那一个从 0.6 弹到 1（320）；卸下的缩回去淡掉（120）。
+            // ⚠ 只有 `freshMount` 那一个演入场 —— 挂载栈在首帧之后才从本地读回，
+            // 读回的那几个在这里也是「新来的」，⛔ 让它们跟着弹。
+            <motion.span
+              key={item.asset.id}
+              layout={!reducedMotion}
+              initial={
+                item.asset.id !== freshMount?.assetId
+                  ? false
+                  : reducedMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, scale: 0.6 }
+              }
+              animate={{ opacity: 1, scale: 1 }}
+              exit={
+                reducedMotion
+                  ? { opacity: 0, transition: { duration: DURATION.fast } }
+                  : {
+                      opacity: 0,
+                      scale: 0.6,
+                      transition: { duration: DURATION.fast },
+                    }
+              }
+              transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
+              title={item.asset.name}
+              className="relative shrink-0"
             >
-              {loraCover(item.asset.coverImageUrl, 'size-7')}
-            </span>
-            {compatibleWithBase(item.asset.baseModelFamily) === false ? (
               <span
-                aria-hidden
-                className="absolute -right-0.5 -top-0.5 size-1.75 rounded-full bg-status-warning ring-2 ring-card"
-              />
-            ) : null}
-          </motion.span>
-        ))}
-      </AnimatePresence>
+                className={cn(
+                  'block transition-opacity duration-fast',
+                  item.enabled === false && 'opacity-45',
+                )}
+              >
+                {loraCover(item.asset.coverImageUrl, 'size-7')}
+              </span>
+              {compatibleWithBase(item.asset.baseModelFamily) === false ? (
+                <span
+                  aria-hidden
+                  className="absolute -right-0.5 -top-0.5 size-1.75 rounded-full bg-status-warning ring-2 ring-card"
+                />
+              ) : null}
+            </motion.span>
+          ))}
+        </AnimatePresence>
+      </button>
     </aside>
   )
 
   return (
     <>
+      {/* 外框占的宽（生成台收放时推开舞台）与里面这一块的宽分开：库里浮出整列时
+          外框仍是竖条宽，整列盖在库上面，⛔ 推开库重排。 */}
       <motion.div
         initial={false}
         animate={{
@@ -550,10 +624,31 @@ export function LoraAssemblyColumn({
               ? LIQUID_SPRING.retract
               : LIQUID_SPRING.unfold
         }
-        className="relative shrink-0 overflow-hidden border-r border-border/70"
+        className="relative z-30 shrink-0"
       >
-        {full}
-        {strip}
+        <motion.div
+          ref={panelRef}
+          initial={false}
+          animate={{
+            width: panelOpen
+              ? LORA_ASSEMBLY_COLUMN_PX.open
+              : LORA_ASSEMBLY_COLUMN_PX.strip,
+          }}
+          transition={
+            reducedMotion
+              ? { duration: 0 }
+              : panelOpen
+                ? LIQUID_SPRING.unfold
+                : LIQUID_SPRING.retract
+          }
+          className={cn(
+            'absolute inset-y-0 left-0 overflow-hidden border-r border-border/70 bg-card transition-shadow duration-base ease-linear',
+            floating && 'shadow-float',
+          )}
+        >
+          {full}
+          {strip}
+        </motion.div>
       </motion.div>
       <LoraBaseModelModal
         open={baseModalOpen}

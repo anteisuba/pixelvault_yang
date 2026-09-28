@@ -2367,6 +2367,7 @@
       "loraLabel": "LoRA",
       "swapBase": "换底模",
       "stripLabel": "装配（已收起）",
+      "editAssembly": "修改装配",
       "stripMounted": "挂了 {count} 个 LoRA",
       "incompatibleLine": "{family} · 和底模装不上，出图时不生效",
       "compatDotOk": "和当前底模装得上"

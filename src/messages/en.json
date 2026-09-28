@@ -2367,6 +2367,7 @@
       "loraLabel": "LoRA",
       "swapBase": "Change base model",
       "stripLabel": "Assembly (collapsed)",
+      "editAssembly": "Edit assembly",
       "stripMounted": "{count} LoRA mounted",
       "incompatibleLine": "{family} · doesn't fit this base model, skipped when generating",
       "compatDotOk": "Fits the current base model"

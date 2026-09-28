@@ -24,12 +24,13 @@
  * ⛔ 不放一个点了没反应的播放钮。
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
   EDIT_ASPECTS,
   EDIT_TEXT_MARGIN_SCALE,
+  EDIT_TEXT_MAX_LENGTH,
   EDIT_TEXT_SIZE_SCALE,
   type EditTextAnchor,
 } from '@/constants/edit-desk'
@@ -64,6 +65,23 @@ export interface EditDeskPreviewProps {
    * 数组，于是「不在段内不显示」这条规则只有一处实现（纯函数那一处）。
    */
   readonly textClips: readonly EditTextClip[]
+  /**
+   * 字幕在画面上怎么点（④ A：**字在预览上原地改**，owner 09-28）。缺席 = 只看
+   * （手机档）：字幕仍是画面的一部分，⛔ 不接点击。
+   */
+  readonly textEditing?: PreviewTextEditing
+}
+
+export interface PreviewTextEditing {
+  readonly selectedId: string | null
+  /** 正在原地改的那一段（`null` = 没在改）。 */
+  readonly editingId: string | null
+  /** 单击 = 选中这段（那一行换成字幕的属性）。 */
+  onSelect(clipId: string): void
+  /** 双击 = 原地改字。 */
+  onStartEdit(clipId: string): void
+  /** 改完：`text` = 要落的字；`null` = 放弃（Esc / 空字 / 没改）。 */
+  onEndEdit(clipId: string, text: string | null): void
 }
 
 /** 九宫 → 画面里的定位（与渲染层的 `drawtext` 表达式一一对应）。 */
@@ -108,6 +126,7 @@ export function EditDeskPreview({
   onPlayingChange,
   onPlayheadChange,
   textClips,
+  textEditing,
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -245,35 +264,41 @@ export function EditDeskPreview({
           字幕叠字（S8d · 画板左上那块预览）。⚠ 用**画面高的百分比**排字号与边距，
           与渲染层同一套比例（`EDIT_TEXT_SIZE_SCALE`）—— 预览与成片不一致的字幕比
           没有预览更糟：用户会照着预览摆，导出才发现字压在别处。
-          ⚠ `pointer-events-none`：字幕是画面的一部分，⛔ 不抢播放器的点击。
+          ⚠ 外层定位那一格 `pointer-events-none`（它可能横跨整幅画面，⛔ 不抢播放器
+          的点击）；只有字本身能点。
         */}
         {textClips.map((clip) => (
-          <span
+          <div
             key={clip.id}
-            data-testid={`edit-desk-preview-text-${clip.id}`}
-            style={{
-              fontSize: `${EDIT_TEXT_SIZE_SCALE[clip.size] * 100}cqh`,
-              padding: `0 ${EDIT_TEXT_MARGIN_SCALE * 100}cqh`,
-              marginBottom: clip.anchor.startsWith('b')
-                ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
-                : undefined,
-              marginTop: clip.anchor.startsWith('t')
-                ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
-                : undefined,
-              // 描边的浅色版：⛔ 不写进 class（Tailwind 4 没有 text-shadow 档）。
-              textShadow:
-                clip.tone === 'light'
-                  ? '0 1px 3px rgb(0 0 0 / 0.75)'
-                  : '0 1px 3px rgb(255 255 255 / 0.75)',
-            }}
+            style={subtitleBoxStyle(clip)}
             className={cn(
               'pointer-events-none absolute whitespace-pre-wrap font-semibold leading-tight',
               TEXT_ANCHOR_CLASS[clip.anchor],
               clip.tone === 'light' ? 'text-white' : 'text-black',
             )}
           >
-            {clip.text}
-          </span>
+            {textEditing?.editingId === clip.id ? (
+              <EditingSubtitle clip={clip} onEnd={textEditing.onEndEdit} />
+            ) : (
+              <span
+                data-testid={`edit-desk-preview-text-${clip.id}`}
+                {...(textEditing
+                  ? {
+                      title: t('text.doubleClickHint'),
+                      onClick: () => textEditing.onSelect(clip.id),
+                      onDoubleClick: () => textEditing.onStartEdit(clip.id),
+                    }
+                  : {})}
+                className={cn(
+                  'rounded-md px-2 py-0.5',
+                  textEditing && 'pointer-events-auto cursor-text',
+                  textEditing?.selectedId === clip.id && 'ring-1 ring-white/90',
+                )}
+              >
+                {clip.text}
+              </span>
+            )}
+          </div>
         ))}
         {/*
           两个读数**分开放**（S9 修 S8 遗留）：
@@ -308,5 +333,91 @@ export function EditDeskPreview({
         ) : null}
       </div>
     </div>
+  )
+}
+
+/** 一段字幕在画面里的那一格（字号 / 边距跟画面高走，与渲染层同一套比例）。 */
+function subtitleBoxStyle(clip: EditTextClip): CSSProperties {
+  return {
+    fontSize: `${EDIT_TEXT_SIZE_SCALE[clip.size] * 100}cqh`,
+    padding: `0 ${EDIT_TEXT_MARGIN_SCALE * 100}cqh`,
+    marginBottom: clip.anchor.startsWith('b')
+      ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
+      : undefined,
+    marginTop: clip.anchor.startsWith('t')
+      ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
+      : undefined,
+    // 描边的浅色版：⛔ 不写进 class（Tailwind 4 没有 text-shadow 档）。
+    textShadow:
+      clip.tone === 'light'
+        ? '0 1px 3px rgb(0 0 0 / 0.75)'
+        : '0 1px 3px rgb(255 255 255 / 0.75)',
+  }
+}
+
+/**
+ * 原地改字（④ A 关键切片：白框 + 光标立刻出现，⛔ 不弹输入框）。
+ *
+ * Enter 确认 · Shift+Enter 换行 · Esc 放弃 · 点别处确认；空字不收（回到原文）。
+ * ⚠ 字由 DOM 自己管（挂上时写一次），⛔ 不让 React 在打字时重画 children ——
+ *   别处（Claude / 撤销）同时改了这段也不会把光标冲掉，确认时以这里的字为准。
+ * ⚠ Enter / Esc `stopPropagation`：台面的快捷键挂在 window 上，Esc 冒上去 = 退出
+ *   剪辑台。
+ */
+function EditingSubtitle({
+  clip,
+  onEnd,
+}: {
+  readonly clip: EditTextClip
+  onEnd(clipId: string, text: string | null): void
+}) {
+  const ref = useRef<HTMLSpanElement | null>(null)
+  const endedRef = useRef(false)
+  const original = clip.text
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.textContent = original
+    el.focus()
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    // 只在挂上时写一次（见头注）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const end = (commit: boolean) => {
+    if (endedRef.current) return
+    endedRef.current = true
+    const raw = ref.current?.innerText ?? ref.current?.textContent ?? ''
+    const next = raw.trim().slice(0, EDIT_TEXT_MAX_LENGTH)
+    onEnd(clip.id, commit && next && next !== original ? next : null)
+  }
+
+  return (
+    <span
+      ref={ref}
+      role="textbox"
+      aria-multiline="true"
+      data-testid={`edit-desk-preview-text-editing-${clip.id}`}
+      contentEditable="plaintext-only"
+      suppressContentEditableWarning
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault()
+          event.stopPropagation()
+          end(true)
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          end(false)
+        }
+      }}
+      onBlur={() => end(true)}
+      className="pointer-events-auto inline-block min-w-4 cursor-text rounded-md bg-black/25 px-2 py-0.5 outline-2 outline-white"
+    />
   )
 }

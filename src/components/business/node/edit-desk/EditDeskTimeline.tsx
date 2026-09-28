@@ -25,6 +25,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react'
 import {
   Music,
@@ -109,6 +110,11 @@ export interface EditDeskTimelineProps {
    * ⛔ 不是置灰 —— 手机上剪辑本来就做不了，一排灰键只会让人反复去点。
    */
   readonly readOnly?: boolean
+  /**
+   * 选中段的属性行（④ A：工具条右边那一格，⛔ 不再有右侧属性栏）。由台面给 ——
+   * 「回节点」「到预览里改字」都要碰台面的状态。
+   */
+  readonly props?: ReactNode
 }
 
 /**
@@ -160,6 +166,7 @@ export function EditDeskTimeline({
   onDropLibraryAsset,
   highlightTrack,
   readOnly = false,
+  props,
 }: EditDeskTimelineProps) {
   const t = useTranslations('StudioNode.editDesk')
   const laneRef = useRef<HTMLDivElement | null>(null)
@@ -240,13 +247,13 @@ export function EditDeskTimeline({
   return (
     <div
       data-testid="edit-desk-timeline"
-      style={{ height: EDIT_DESK_LAYOUT.timelineHeightPx }}
       className="relative flex shrink-0 flex-col border-t border-border bg-card"
     >
-      {/* 工具条 + 磁吸开关（只看不剪时整条不出） */}
+      {/* 工具条 · 属性行 · 磁吸开关（只看不剪时整条不出）。高度跟轨道走：⛔ 不写死
+          一个总高 —— 加一条轨就把最下面那条挤出去（S8d 真机「配乐轨不见了」）。 */}
       {readOnly ? null : (
-        <div className="flex items-center gap-2 px-3 pt-2">
-          <div className="inline-flex gap-0.5">
+        <div className="flex h-11 items-center gap-2 px-3 pt-2">
+          <div className="inline-flex shrink-0 gap-0.5">
             {EDIT_TOOLS.map((tool) => (
               <ShellIconButton
                 key={tool}
@@ -257,8 +264,9 @@ export function EditDeskTimeline({
               />
             ))}
           </div>
-          <div className="flex-1" />
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="h-5 w-px shrink-0 bg-border" aria-hidden />
+          {props ?? <div className="flex-1" />}
+          <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span>{t('magnetic')}</span>
             <button
               type="button"

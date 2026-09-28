@@ -28,6 +28,8 @@ import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import {
+  EDIT_CLIP_GAIN_MAX,
+  EDIT_CLIP_GAIN_MIN,
   EDIT_CLIP_SPEED_MAX,
   EDIT_CLIP_SPEED_MIN,
   EDIT_TEXT_ANCHORS_TUPLE,
@@ -727,7 +729,7 @@ export const NodeAssistantEditUpdateClipOpSchema = z.object({
       .optional(),
     muted: z.boolean().optional(),
     transitionOut: z.enum(EDIT_TRANSITIONS_TUPLE).optional(),
-    gain: z.number().min(0).max(2).optional(),
+    gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
     /** 「上游已更新 → 一点换新」写的就是它。 */
     sourceVersionId: z.string().trim().min(1).max(160).optional(),
   }),

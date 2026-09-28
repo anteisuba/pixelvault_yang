@@ -6271,23 +6271,21 @@
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "Select a clip to see its settings",
-        "selected": "Selected · {name}",
-        "source": "Source: {name}",
-        "sourceLive": "From the canvas",
-        "sourceVersion": "Version {index}/{total}",
         "sourceGone": "Source card deleted",
         "inPoint": "Start",
         "outPoint": "End",
         "speed": "Speed",
         "speedOption": "{speed}×",
         "sound": "Original audio",
+        "gain": "Volume",
         "transition": "Transition →",
         "transitions": {
           "none": "None",
           "crossfade": "Crossfade",
           "black": "To black"
         },
-        "backToNode": "Regenerate this shot on its node"
+        "backToNode": "Regenerate this shot on its node",
+        "backToNodeShort": "Back to node"
       },
       "exportDialog": {
         "title": "Export the cut",
@@ -6359,9 +6357,9 @@
         "landFailed": "That asset could not land on the canvas. Try again."
       },
       "text": {
-        "title": "Caption",
         "placeholder": "Double-click to edit",
-        "content": "Content",
+        "editInPreview": "Edit on the preview",
+        "doubleClickHint": "Double-click to edit",
         "anchor": "Position",
         "anchors": {
           "tl": "Top left",

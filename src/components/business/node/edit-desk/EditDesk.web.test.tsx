@@ -228,7 +228,7 @@ const emptyState: NodeWorkflowStateV4 = {
 }
 
 describe('剪辑台 · 台面', () => {
-  it('布局到齐：顶栏 · 图标栏 + 面板 · 预览 · 属性 · 时间线，⛔ 没有排片栏', () => {
+  it('布局到齐：顶栏 · 图标栏 + 面板 · 预览 · 时间线（属性行在工具条上），⛔ 没有排片栏', () => {
     renderDesk(emptyState)
     expect(screen.getByTestId('edit-desk-top-bar')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-rail')).toBeInTheDocument()
@@ -237,8 +237,12 @@ describe('剪辑台 · 台面', () => {
     openMaterials()
     expect(screen.getByTestId('edit-desk-panel')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-preview')).toBeInTheDocument()
-    expect(screen.getByTestId('edit-desk-inspector')).toBeInTheDocument()
-    expect(screen.getByTestId('edit-desk-timeline')).toBeInTheDocument()
+    // ④ A：⛔ 没有右侧属性栏 —— 属性是时间线工具条上那一行。
+    expect(
+      within(screen.getByTestId('edit-desk-timeline')).getByTestId(
+        'edit-desk-inspector',
+      ),
+    ).toBeInTheDocument()
     // ④ 方向 A：一个助手一个输入框 —— 底部排片栏已删。
     expect(screen.queryByTestId('edit-desk-plan-model')).toBeNull()
     // 三轨都在
@@ -288,7 +292,7 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.speed).toBe(2)
   })
 
-  it('转场三档从属性栏落回段上', () => {
+  it('转场三档从属性行落回段上', () => {
     const { read } = renderDesk(emptyState)
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
@@ -480,7 +484,7 @@ describe('剪辑台 · 台面', () => {
     expect(onExit).toHaveBeenCalled()
   })
 
-  it('「回节点重生成这段」把来源卡 id 交回外壳', () => {
+  it('「回节点」把来源卡 id 交回外壳', () => {
     const { read, onBackToNode } = renderDesk(emptyState)
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
@@ -558,7 +562,7 @@ describe('剪辑台 · 素材与段的长相', () => {
     expect(audioTile.querySelector('[data-audio-waveform]')).not.toBeNull()
   })
 
-  it('时间线上的段带缩略帧条，右栏来源也出图', () => {
+  it('时间线上的段带缩略帧条', () => {
     renderDesk(posterState)
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
@@ -568,13 +572,6 @@ describe('剪辑台 · 素材与段的长相', () => {
     expect(clip).not.toBeNull()
     if (!clip) throw new Error('no clip')
     expect(clip.querySelector('[style*="poster.jpg"]')).not.toBeNull()
-
-    fireEvent.pointerDown(clip)
-    const thumb = screen.getByTestId('edit-desk-source-thumb')
-    expect(thumb.querySelector('img')).toHaveAttribute(
-      'src',
-      'https://example.test/poster.jpg',
-    )
   })
 
   it('「文字」页列文本卡的首行', () => {
@@ -589,7 +586,7 @@ describe('剪辑台 · 素材与段的长相', () => {
 /* ─── 文字段与快捷键预设（S8d · spec §6，画板 `EditDeskText.dc.html`）───── */
 
 describe('剪辑台 · 文字段', () => {
-  it('工具条「文字」= 在播放头处落一段，段上写内容首行，右栏出属性', () => {
+  it('工具条「文字」= 在播放头处落一段，段上写内容首行，属性行换成字幕', () => {
     const { read } = renderDesk(emptyState)
     fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
 
@@ -600,22 +597,29 @@ describe('剪辑台 · 文字段', () => {
     const clipId = text[0]!.id
     const onTrack = screen.getByTestId(`edit-desk-text-clip-${clipId}`)
     expect(onTrack.textContent).toContain(text[0]!.text)
-    // 落下即选中 —— 右栏直接可以改内容
-    expect(screen.getByTestId('edit-desk-text-content')).toHaveValue(
+    // 落下即选中 —— 那一行换成字幕的属性，行首是字
+    expect(screen.getByTestId('edit-desk-text-edit').textContent).toContain(
       text[0]!.text,
     )
   })
 
-  it('改内容 / 位置 / 字号 → 落 op；预览按九宫叠字', () => {
+  it('预览上双击字幕原地改字（Enter 确认）；四颗小按钮改位置 / 字号 / 淡入淡出', () => {
     const { read } = renderDesk(emptyState)
     fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
     const clipId = (read().edit?.tracks.text ?? [])[0]!.id
 
-    const box = screen.getByTestId('edit-desk-text-content')
-    fireEvent.change(box, { target: { value: '她转身走向站台尽头' } })
-    fireEvent.blur(box)
+    fireEvent.doubleClick(
+      screen.getByTestId(`edit-desk-preview-text-${clipId}`),
+    )
+    const box = screen.getByTestId(`edit-desk-preview-text-editing-${clipId}`)
+    box.textContent = '她转身走向站台尽头'
+    fireEvent.keyDown(box, { key: 'Enter' })
+
+    fireEvent.click(screen.getByTestId('edit-desk-text-anchor-trigger'))
     fireEvent.click(screen.getByTestId('edit-desk-text-anchor-tc'))
+    fireEvent.click(screen.getByTestId('edit-desk-text-size-trigger'))
     fireEvent.click(screen.getByTestId('edit-desk-text-size-l'))
+    fireEvent.click(screen.getByTestId('edit-desk-text-fade-trigger'))
     fireEvent.click(screen.getByTestId('edit-desk-text-fade-0.3'))
 
     expect((read().edit?.tracks.text ?? [])[0]).toMatchObject({
@@ -628,6 +632,48 @@ describe('剪辑台 · 文字段', () => {
     // 播放头在 0，段是 0–3 → 预览上叠着这一句
     const overlay = screen.getByTestId(`edit-desk-preview-text-${clipId}`)
     expect(overlay.textContent).toBe('她转身走向站台尽头')
+  })
+
+  it('Esc 放弃改字：原文不变，⛔ 不退出剪辑台；空字不收', () => {
+    const { read, onExit } = renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    const original = (read().edit?.tracks.text ?? [])[0]!
+    const clipId = original.id
+
+    fireEvent.doubleClick(
+      screen.getByTestId(`edit-desk-preview-text-${clipId}`),
+    )
+    let box = screen.getByTestId(`edit-desk-preview-text-editing-${clipId}`)
+    box.textContent = '不要这句'
+    fireEvent.keyDown(box, { key: 'Escape' })
+    expect(onExit).not.toHaveBeenCalled()
+    expect((read().edit?.tracks.text ?? [])[0]?.text).toBe(original.text)
+    expect(
+      screen.queryByTestId(`edit-desk-preview-text-editing-${clipId}`),
+    ).toBeNull()
+
+    // 行首那颗字也能进；清空后点别处 = 回到原文
+    fireEvent.click(screen.getByTestId('edit-desk-text-edit'))
+    box = screen.getByTestId(`edit-desk-preview-text-editing-${clipId}`)
+    box.textContent = '   '
+    fireEvent.blur(box)
+    expect((read().edit?.tracks.text ?? [])[0]?.text).toBe(original.text)
+  })
+
+  it('别人已经接过的 Esc（弹层 / 对话框关自己）⛔ 不再退出剪辑台', () => {
+    const { onExit } = renderDesk(emptyState)
+    // Radix 的层在捕获阶段关掉自己并 `preventDefault` —— 这里照样做一遍。
+    const layer = (event: KeyboardEvent) => event.preventDefault()
+    document.addEventListener('keydown', layer, { capture: true })
+    try {
+      fireEvent.keyDown(document.body, { key: 'Escape' })
+    } finally {
+      document.removeEventListener('keydown', layer, { capture: true })
+    }
+    expect(onExit).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(onExit).toHaveBeenCalled()
   })
 
   it('播放头走出段外就不显示（⛔ 不留一句一直挂着的字幕）', () => {

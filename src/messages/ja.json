@@ -6271,23 +6271,21 @@
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "クリップを選ぶと設定が出ます",
-        "selected": "選択中 · {name}",
-        "source": "ソース：{name}",
-        "sourceLive": "キャンバスから",
-        "sourceVersion": "バージョン {index}/{total}",
         "sourceGone": "ソースカードは削除済み",
         "inPoint": "開始位置",
         "outPoint": "終了位置",
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "元の音声",
+        "gain": "音量",
         "transition": "トランジション →",
         "transitions": {
           "none": "なし",
           "crossfade": "クロスフェード",
           "black": "暗転"
         },
-        "backToNode": "このカットをノードで再生成"
+        "backToNode": "このカットをノードで再生成",
+        "backToNodeShort": "ノードへ"
       },
       "exportDialog": {
         "title": "カットを書き出す",
@@ -6359,9 +6357,9 @@
         "landFailed": "この素材をキャンバスに配置できませんでした。もう一度お試しください。"
       },
       "text": {
-        "title": "字幕",
         "placeholder": "ダブルクリックで編集",
-        "content": "内容",
+        "editInPreview": "プレビュー上で編集",
+        "doubleClickHint": "ダブルクリックで編集",
         "anchor": "位置",
         "anchors": {
           "tl": "左上",

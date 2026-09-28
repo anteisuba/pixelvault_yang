@@ -121,17 +121,6 @@ export const EDIT_DESK_LAYOUT = {
   topBarHeightPx: 48,
   /** 左侧面板宽（画板 width:236）。 */
   panelWidthPx: 236,
-  /** 右侧属性栏宽（画板 width:240）。 */
-  inspectorWidthPx: 240,
-  /**
-   * 时间线区总高（画板 `EditDesk.dc.html` height:300 + S8d 的 T 轨那一行 80）。
-   *
-   * ⚠ 300 是**三轨**时代的数：`EditDeskText.dc.html` 在 V 之上又加了一条 44 高的
-   * T 轨，仍按 300 算的话 A / M 会被挤出这块（本块 `overflow-y` 是 hidden）——
-   * 真机上就是「配乐轨不见了」。⛔ 不改成可竖向滚动：一条要滚才看得全的时间线
-   * 读不出「这条片子长什么样」。
-   */
-  timelineHeightPx: 380,
   /** 段高（画板 `.clip { height:52 }`，与 spec §6「段高 52」同一个数）。 */
   clipHeightPx: 52,
   /** 音轨波形条高（画板 `.wave { height:26 }`）。 */
@@ -142,9 +131,6 @@ export const EDIT_DESK_LAYOUT = {
   assetTileHeightPx: 64,
   /** 播放头宽（画板 width:2）。 */
   playheadWidthPx: 2,
-  /** 一句话排片栏高 / 圆角（画板 44 / 16）。 */
-  promptBarHeightPx: 44,
-  promptBarRadiusPx: 16,
   /** 段之间的空隙（画板 gap:4）。 */
   clipGapPx: 4,
   /** 裁剪手柄宽（画板 `.handle { width:7 }`）。 */
@@ -156,9 +142,6 @@ export const EDIT_DESK_LAYOUT = {
    * 段有多宽就画几根，⛔ 不固定根数 —— 固定根数的短段会挤成一团。
    */
   waveBarPitchPx: 5,
-  /** 右栏来源缩略（画板 `.ptile { width:56; height:36 }`）。 */
-  sourceThumbWidthPx: 56,
-  sourceThumbHeightPx: 36,
 } as const
 
 /** 左栏音频素材格里那条波形画几根柱（236 面板两列，一格约 106px 宽）。 */
@@ -218,6 +201,11 @@ export const EDIT_PROJECT_FALLBACK_NAME = 'Untitled cut'
 /** 倍速的落库区间 —— schema 只守它，档位词表见 `EDIT_CLIP_SPEEDS`。 */
 export const EDIT_CLIP_SPEED_MIN = 0.25
 export const EDIT_CLIP_SPEED_MAX = 4
+
+/** 音量增益的落库区间（1 = 原样）；属性行那根滑杆按 `STEP` 走。 */
+export const EDIT_CLIP_GAIN_MIN = 0
+export const EDIT_CLIP_GAIN_MAX = 2
+export const EDIT_CLIP_GAIN_STEP = 0.05
 
 /**
  * `z.enum` 要的**元组**形态（`readonly T[]` 装不进去）。

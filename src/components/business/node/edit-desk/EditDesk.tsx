@@ -195,6 +195,11 @@ export function EditDesk({
    * ⛔ 不留一条一直亮着的轨，那会被读成「这条轨被选中了」。
    */
   const [highlightTrack, setHighlightTrack] = useState<EditTrackId | null>(null)
+  /**
+   * 正在预览上原地改字的那段字幕（④ A）。⚠ 只在它还叠在画面上时算数：播放头
+   * 走开了 / 别处删了它，就当没在改 —— ⛔ 不留一个看不见的编辑态。
+   */
+  const [editingTextId, setEditingTextId] = useState<string | null>(null)
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -214,11 +219,37 @@ export function EditDesk({
     onInitialConsumed?.()
   }, [initialNodeIds, addClips, onInitialConsumed])
 
+  const editingTextVisibleId =
+    editingTextId &&
+    desk.activeTextClips.some((clip) => clip.id === editingTextId)
+      ? editingTextId
+      : null
+
+  /** 原地改字：选中它、停播；播放头不在这段里就先挪进来（行首那颗字也走这里）。 */
+  const startEditText = (clipId: string) => {
+    const clip = desk.project.tracks.text.find((item) => item.id === clipId)
+    if (!clip) return
+    desk.selectText(clipId)
+    setPlaying(false)
+    if (!desk.activeTextClips.some((item) => item.id === clipId)) {
+      desk.setPlayhead(clip.startSec)
+    }
+    setEditingTextId(clipId)
+  }
+
+  const endEditText = (clipId: string, text: string | null) => {
+    setEditingTextId(null)
+    if (text !== null) desk.updateTextClip(clipId, { text })
+  }
+
   /* ── 快捷键 ───────────────────────────────────────────────────────── */
   const { markIn, markOut, removeSelected, splitAtPlayhead, setPlayhead } = desk
   const playheadSec = desk.playheadSec
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // 已经有人接过这一键（弹层 / 对话框的 Esc 由 Radix 在捕获阶段关掉自己并
+      // `preventDefault`）—— ⛔ 再冒到这里就是「关个小弹层把整个剪辑台也退了」。
+      if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       // 打字时全部让开 —— 空格与 S 在输入框里是字，不是命令。
       if (
@@ -625,10 +656,18 @@ export function EditDesk({
               onPlayingChange={setPlaying}
               onPlayheadChange={setPlayhead}
               textClips={desk.activeTextClips}
+              {...(readOnly
+                ? {}
+                : {
+                    textEditing: {
+                      selectedId: desk.selectedTextClip?.id ?? null,
+                      editingId: editingTextVisibleId,
+                      onSelect: desk.selectText,
+                      onStartEdit: startEditText,
+                      onEndEdit: endEditText,
+                    },
+                  })}
             />
-            {readOnly ? null : (
-              <EditDeskInspector desk={desk} onBackToNode={onBackToNode} />
-            )}
           </div>
 
           {/* 只看不剪：时间线仍然画（要看得见排片），但整块不接手势 ——
@@ -644,6 +683,13 @@ export function EditDesk({
               onTool={onTool}
               onDropLibraryAsset={onDropLibraryAsset}
               highlightTrack={highlightTrack}
+              props={
+                <EditDeskInspector
+                  desk={desk}
+                  onBackToNode={onBackToNode}
+                  onEditText={startEditText}
+                />
+              }
             />
           </div>
         </div>

@@ -51,6 +51,8 @@ import {
   EDIT_ASPECTS,
   EDIT_ASPECT_DEFAULT,
   EDIT_CLIP_SPEED_DEFAULT,
+  EDIT_CLIP_GAIN_MAX,
+  EDIT_CLIP_GAIN_MIN,
   EDIT_CLIP_SPEED_MAX,
   EDIT_CLIP_SPEED_MIN,
   EDIT_PROJECT_NAME_MAX_LENGTH,
@@ -1348,7 +1350,7 @@ export const EditClipSchema = z.object({
   /** 段尾接下一段的转场。缺席 = `none`。 */
   transitionOut: z.enum(EDIT_TRANSITIONS).optional(),
   /** 音量增益（0..2，1 = 原样）。 */
-  gain: z.number().min(0).max(2).optional(),
+  gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
 })
 
 /**

@@ -1,53 +1,66 @@
 'use client'
 
 /**
- * 右侧 240 属性栏（画板 `EditDesk.dc.html` 右列）。
+ * 选中段的属性 —— **预览下面那一行**（④ 方向 A「舞台」，owner 2026-09-28；画板
+ * 「剪辑台 · ④ A 关键切片」）。⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，
+ * 一段的属性一行看完。
  *
- * 选中一段时它就是这一段的全貌：**来源节点 · 入点 / 出点 · 速度 · 原声 · 转场 →
- * · 回节点重生成这段**。没选中时是一句话 —— ⛔ 不摆一堆灰掉的控件。
+ * 三种段各一行：
+ * - 视频段：来源名 · 入点 · 出点 · 速度 · 原声 · 转场 · 回节点；
+ * - 配音 / 配乐段：来源名 · 入点 · 出点 · 音量 · 回节点；
+ * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
+ *   四颗小按钮，各开一个小弹层，一次只开一个。
+ * 没选中时是一句话 —— ⛔ 不摆一排灰掉的控件。
  *
- * ⚠ 「回节点重生成这段」**不在剪辑台开生成入口**（spec §6）：它关掉全屏模式、
- * 回画布并选中来源卡，改画面的事在那张卡上做。
+ * ⚠ 「回节点」**不在剪辑台开生成入口**（spec §6）：它关掉全屏模式、回画布并选中
+ * 来源卡，改画面的事在那张卡上做。
+ * ⚠ 入出点是**读数**不是输入框：改时间用轨道上的手柄，⛔ 不给两个能互相打架的入口。
  */
 
-import { useState } from 'react'
-import { Sparkles } from '@/components/icons'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
+  EDIT_CLIP_GAIN_MAX,
+  EDIT_CLIP_GAIN_MIN,
+  EDIT_CLIP_GAIN_STEP,
   EDIT_CLIP_SPEEDS,
-  EDIT_DESK_LAYOUT,
   EDIT_TEXT_ANCHORS,
   EDIT_TEXT_ANCHOR_CELL,
   EDIT_TEXT_FADES,
-  EDIT_TEXT_MAX_LENGTH,
   EDIT_TEXT_SIZES,
   EDIT_TEXT_TONES,
+  EDIT_TRACK_IDS,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { currentUrlOf, formatEditClock } from '@/lib/edit-project'
-import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
+import { formatEditClock } from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditTextClip } from '@/types/node-workflow'
 
-import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
-
-import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
-import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Slider } from '@/components/ui/slider'
 
 export interface EditDeskInspectorProps {
   readonly desk: EditDesk
-  /** 「回节点重生成这段」：关模式 + 选中来源卡。 */
+  /** 「回节点」：关模式 + 选中来源卡。 */
   onBackToNode(nodeId: string): void
+  /** 字幕段行首那颗字：到预览里原地改这一段。 */
+  onEditText(clipId: string): void
 }
 
 export function EditDeskInspector({
   desk,
   onBackToNode,
+  onEditText,
 }: EditDeskInspectorProps) {
   const t = useTranslations('StudioNode.editDesk.inspector')
   const textClip = desk.selectedTextClip
@@ -58,107 +71,107 @@ export function EditDeskInspector({
   return (
     <div
       data-testid="edit-desk-inspector"
-      style={{ width: EDIT_DESK_LAYOUT.inspectorWidthPx }}
-      className="flex shrink-0 flex-col gap-2.5 overflow-y-auto rounded-xl border border-border bg-card p-3.5"
+      className="flex min-w-0 flex-1 items-center gap-3.5 overflow-hidden whitespace-nowrap text-xs text-muted-foreground"
     >
       {textClip ? (
-        // ⚠ `key` = 段 id：换一段就重挂，内容草稿跟着归零 —— ⛔ 不用 ref 在渲染期
-        // 比对上一段（那正是 `react-hooks/refs` 拦的那条）。
-        <TextClipFields key={textClip.id} clip={textClip} desk={desk} />
+        <TextClipFields clip={textClip} desk={desk} onEditText={onEditText} />
       ) : !row || !clip || !selection ? (
-        <p className="text-2xs text-muted-foreground">{t('empty')}</p>
+        <span data-testid="edit-desk-inspector-empty">{t('empty')}</span>
       ) : (
         <>
-          <span className="text-3xs uppercase text-muted-foreground">
-            {t('selected', { name: sourceName(row) })}
+          <span
+            className="max-w-44 truncate font-semibold text-foreground"
+            title={sourceName(row)}
+          >
+            {sourceName(row)}
           </span>
+          {row.source.exists ? null : (
+            <span className="text-status-risk">{t('sourceGone')}</span>
+          )}
+          <Reading
+            label={t('inPoint')}
+            value={formatEditClock(clip.in, true)}
+          />
+          <Reading
+            label={t('outPoint')}
+            value={formatEditClock(clip.out, true)}
+          />
 
-          <div className="flex items-center gap-2">
-            <SourceThumb row={row} />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-xs text-foreground">
-                {t('source', { name: sourceName(row) })}
-              </span>
-              <span className="truncate text-3xs text-muted-foreground">
-                {row.source.exists ? sourceMeta(row, t) : t('sourceGone')}
-              </span>
-            </div>
-          </div>
-
-          <span className="h-px bg-border" />
-
-          <Row label={t('inPoint')} value={formatEditClock(clip.in, true)} />
-          <Row label={t('outPoint')} value={formatEditClock(clip.out, true)} />
-
-          <div className="flex items-center justify-between text-xs">
-            <span>{t('speed')}</span>
-            <Segmented
-              testId="edit-desk-speed"
-              options={EDIT_CLIP_SPEEDS.map((speed) => ({
-                id: String(speed),
-                label: t('speedOption', { speed }),
-                active: (clip.speed || 1) === speed,
-                onSelect: () =>
-                  desk.updateClip(selection.track, clip.id, { speed }),
-              }))}
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs">
-            <span>{t('sound')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={!clip.muted}
-              data-testid="edit-desk-muted"
-              onClick={() =>
-                desk.updateClip(selection.track, clip.id, {
-                  muted: !clip.muted,
-                })
-              }
-              className={cn(
-                'relative h-5 w-[34px] rounded-full transition-colors duration-fast motion-reduce:transition-none',
-                clip.muted ? 'bg-surface-fill-track' : 'bg-primary',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 size-4 rounded-full bg-background transition-[left] duration-fast motion-reduce:transition-none',
-                  clip.muted ? 'left-0.5' : 'left-[16px]',
-                )}
+          {selection.track === EDIT_TRACK_IDS.video ? (
+            <>
+              <Segmented
+                testId="edit-desk-speed"
+                ariaLabel={t('speed')}
+                options={EDIT_CLIP_SPEEDS.map((speed) => ({
+                  id: String(speed),
+                  label: t('speedOption', { speed }),
+                  active: (clip.speed || 1) === speed,
+                  onSelect: () =>
+                    desk.updateClip(selection.track, clip.id, { speed }),
+                }))}
               />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between text-xs">
-            <span>{t('transition')}</span>
-            <Segmented
-              testId="edit-desk-transition"
-              options={EDIT_TRANSITIONS.map((transition) => ({
-                id: transition,
-                label: t(`transitions.${transition}`),
-                active:
-                  (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
-                  transition,
-                onSelect: () =>
-                  desk.updateClip(selection.track, clip.id, {
-                    transitionOut: transition,
-                  }),
-              }))}
+              <label className="inline-flex items-center gap-1.5">
+                <span>{t('sound')}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!clip.muted}
+                  data-testid="edit-desk-muted"
+                  onClick={() =>
+                    desk.updateClip(selection.track, clip.id, {
+                      muted: !clip.muted,
+                    })
+                  }
+                  className={cn(
+                    'relative h-5 w-[34px] shrink-0 rounded-full transition-colors duration-fast motion-reduce:transition-none',
+                    clip.muted ? 'bg-surface-fill-track' : 'bg-primary',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 size-4 rounded-full bg-background transition-[left] duration-fast motion-reduce:transition-none',
+                      clip.muted ? 'left-0.5' : 'left-[16px]',
+                    )}
+                  />
+                </button>
+              </label>
+              <Segmented
+                testId="edit-desk-transition"
+                ariaLabel={t('transition')}
+                options={EDIT_TRANSITIONS.map((transition) => ({
+                  id: transition,
+                  label: t(`transitions.${transition}`),
+                  active:
+                    (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
+                    transition,
+                  onSelect: () =>
+                    desk.updateClip(selection.track, clip.id, {
+                      transitionOut: transition,
+                    }),
+                }))}
+              />
+            </>
+          ) : (
+            <GainSlider
+              key={clip.id}
+              value={clip.gain ?? 1}
+              label={t('gain')}
+              onCommit={(gain) =>
+                desk.updateClip(selection.track, clip.id, { gain })
+              }
             />
-          </div>
-
-          <span className="h-px bg-border" />
+          )}
 
           <button
             type="button"
             data-testid="edit-desk-back-to-node"
             disabled={!row.source.exists}
+            title={t('backToNode')}
             onClick={() => onBackToNode(clip.sourceNodeId)}
-            className="inline-flex h-8 items-center gap-2 rounded-md bg-muted px-2.5 text-xs text-foreground transition-colors duration-fast hover:bg-accent disabled:opacity-50"
+            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-foreground transition-colors duration-fast hover:bg-muted disabled:opacity-50"
           >
-            <Sparkles className="size-4 shrink-0" aria-hidden />
-            <span>{t('backToNode')}</span>
+            <Sparkles className="size-3.5 shrink-0" aria-hidden />
+            <span>{t('backToNodeShort')}</span>
           </button>
         </>
       )}
@@ -166,62 +179,7 @@ export function EditDeskInspector({
   )
 }
 
-/**
- * 来源缩略（画板 `.ptile` 56×36）。
- *
- * ⚠ S8 那一版是**一块空灰块** —— 右栏于是回答不了「我选中的到底是哪一段」，
- * 而这正是右栏存在的理由（owner 真机 2026-09-10）。视频给封面帧，音频给波形，
- * 都抓不到才退回空块。
- */
-function SourceThumb({ row }: { readonly row: EditTimelineRow }) {
-  // 源文件删了：只剩底色，⛔ 不画裂图（owner 09-28）。
-  const thumbs = useBrokenThumbs()
-  const node = row.source.node
-  const data = node?.data
-  const isAudio = data?.kind === NODE_MEDIA_KIND_IDS.audio
-  const url = node ? currentUrlOf(node) : undefined
-  const poster = useVideoPoster(
-    isAudio ? undefined : url,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
-  )
-  const shownPoster = thumbs.usable(poster ?? undefined)
-
-  return (
-    <div
-      data-testid="edit-desk-source-thumb"
-      style={{
-        width: EDIT_DESK_LAYOUT.sourceThumbWidthPx,
-        height: EDIT_DESK_LAYOUT.sourceThumbHeightPx,
-      }}
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
-    >
-      {isAudio ? (
-        <AudioWaveform
-          seed={url ?? row.clip.sourceNodeId}
-          barCount={EDIT_DESK_SOURCE_THUMB_WAVE_BARS}
-          height={EDIT_DESK_LAYOUT.waveHeightPx - 6}
-        />
-      ) : shownPoster ? (
-        // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
-        <img
-          src={shownPoster}
-          alt=""
-          className="size-full object-cover"
-          onError={() => thumbs.markBroken(shownPoster)}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-/** 56px 宽的缩略里放几根柱（`waveBarPitchPx` 除得下的根数）。 */
-const EDIT_DESK_SOURCE_THUMB_WAVE_BARS = Math.floor(
-  (EDIT_DESK_LAYOUT.sourceThumbWidthPx - 8) / EDIT_DESK_LAYOUT.waveBarPitchPx,
-)
-
-function Row({
+function Reading({
   label,
   value,
 }: {
@@ -229,21 +187,62 @@ function Row({
   readonly value: string
 }) {
   return (
-    <div className="flex items-center justify-between text-xs">
-      <span>{label}</span>
-      <span className="tabular-nums text-muted-foreground">{value}</span>
-    </div>
+    <span className="shrink-0">
+      {label} <span className="tabular-nums text-foreground">{value}</span>
+    </span>
   )
 }
 
 /**
- * 分段控件（画板 `.seg`）。⚠ 右栏三处 + 左栏两张筛共用这一颗，⛔ 不各写一份。
+ * 配音 / 配乐的音量。⚠ 拖动时只改本地、**松手才落**一条 op：每一帧都落会把撤销栈
+ * 冲成几十步（与改成片名、改字幕同一条手法）。
+ */
+function GainSlider({
+  value,
+  label,
+  onCommit,
+}: {
+  readonly value: number
+  readonly label: string
+  onCommit(gain: number): void
+}) {
+  const [draft, setDraft] = useState(value)
+  return (
+    <label className="inline-flex shrink-0 items-center gap-2">
+      <span>{label}</span>
+      <Slider
+        data-testid="edit-desk-gain"
+        aria-label={label}
+        className="w-24"
+        min={EDIT_CLIP_GAIN_MIN}
+        max={EDIT_CLIP_GAIN_MAX}
+        step={EDIT_CLIP_GAIN_STEP}
+        value={[draft]}
+        onValueChange={([next]) => {
+          if (next !== undefined) setDraft(next)
+        }}
+        onValueCommit={([next]) => {
+          if (next !== undefined) onCommit(next)
+        }}
+      />
+      <span className="w-9 tabular-nums text-foreground">
+        {Math.round(draft * 100)}%
+      </span>
+    </label>
+  )
+}
+
+/**
+ * 分段控件（画板 `.seg`）。⚠ 属性行 + 左栏两张筛 + 快捷键弹层共用这一颗，⛔ 不各写
+ * 一份。
  */
 export function Segmented({
   testId,
+  ariaLabel,
   options,
 }: {
   readonly testId: string
+  readonly ariaLabel?: string
   readonly options: readonly {
     readonly id: string
     readonly label: string
@@ -252,7 +251,11 @@ export function Segmented({
   }[]
 }) {
   return (
-    <div className="inline-flex gap-0.5 rounded-lg bg-surface-fill p-0.5">
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className="inline-flex shrink-0 gap-0.5 rounded-lg bg-surface-fill p-0.5"
+    >
       {options.map((option) => (
         <button
           key={option.id}
@@ -274,33 +277,6 @@ export function Segmented({
   )
 }
 
-/**
- * 来源那一行的第二句（画板 `EditDesk.dc.html` 右栏「Seedance 2.0 · 版本 2/3」）。
- *
- * 卡上没记模型（上传进来的、或从素材库直接落进来的）时只报版本；两样都没有就
- * 退回一句「来自画布」—— ⛔ 不留空行。
- */
-function sourceMeta(
-  row: EditTimelineRow,
-  t: (key: string, values?: Record<string, string | number>) => string,
-): string {
-  const data = row.source.node?.data
-  if (!data) return t('sourceLive')
-  const model = 'model' in data ? data.model?.modelId : undefined
-  const versions = readOutputVersions(data)
-  const parts: string[] = []
-  if (model) parts.push(model)
-  if (versions.length > 0) {
-    parts.push(
-      t('sourceVersion', {
-        index: readOutputIndex(data) + 1,
-        total: versions.length,
-      }),
-    )
-  }
-  return parts.length > 0 ? parts.join(' · ') : t('sourceLive')
-}
-
 function sourceName(row: EditTimelineRow): string {
   const data = row.source.node?.data
   if (!data) return row.clip.sourceNodeId
@@ -309,58 +285,41 @@ function sourceName(row: EditTimelineRow): string {
 }
 
 /**
- * 选中一段字幕时右栏的样子（S8d · 画板 `EditDeskText.dc.html` 右卡）：
- * **内容 / 位置九宫 / 字号 / 颜色 / 入出点 / 淡入淡出**。
- *
- * ⚠ 内容框是**受控 textarea 直落**：每敲一个字发一条 op 会把撤销栈冲成一字一步，
- * 所以本地存草稿，`blur` 才落 —— 与顶栏改成片名同一条手法。
- * ⚠ 入出点是**读数**不是输入框（画板上那两颗是 `.kbd`）：改时间用轨道上的手柄，
- * ⛔ 不给两个能互相打架的入口。
+ * 字幕段那一行（④ A 关键切片）：**字在预览上原地改**，这一行只放读数与四颗小按钮。
  */
 function TextClipFields({
   clip,
   desk,
+  onEditText,
 }: {
   readonly clip: EditTextClip
   readonly desk: EditDesk
+  onEditText(clipId: string): void
 }) {
   const t = useTranslations('StudioNode.editDesk.text')
-  const [draft, setDraft] = useState(clip.text)
-
-  const commit = () => {
-    const next = draft.trim()
-    if (!next || next === clip.text) {
-      setDraft(clip.text)
-      return
-    }
-    desk.updateTextClip(clip.id, { text: next })
-  }
+  const firstLine = clip.text.split('\n')[0] ?? ''
 
   return (
     <>
-      <span className="text-3xs uppercase text-muted-foreground">
-        {t('title')}
-      </span>
+      <button
+        type="button"
+        data-testid="edit-desk-text-edit"
+        title={t('editInPreview')}
+        onClick={() => onEditText(clip.id)}
+        className="max-w-44 shrink-0 truncate rounded-md px-1 text-left font-semibold text-foreground transition-colors duration-fast hover:bg-muted"
+      >
+        T {firstLine}
+      </button>
+      <Reading
+        label={t('inPoint')}
+        value={formatEditClock(clip.startSec, true)}
+      />
+      <Reading
+        label={t('outPoint')}
+        value={formatEditClock(clip.startSec + clip.durationSec, true)}
+      />
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-3xs text-muted-foreground">{t('content')}</span>
-        <textarea
-          data-testid="edit-desk-text-content"
-          value={draft}
-          rows={2}
-          maxLength={EDIT_TEXT_MAX_LENGTH}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={commit}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setDraft(clip.text)
-            event.stopPropagation()
-          }}
-          className="min-h-11 resize-none rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground outline-none"
-        />
-      </label>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-3xs text-muted-foreground">{t('anchor')}</span>
+      <RowPopover testId="edit-desk-text-anchor" label={t('anchor')}>
         <div
           role="radiogroup"
           aria-label={t('anchor')}
@@ -388,12 +347,15 @@ function TextClipFields({
             />
           ))}
         </div>
-      </div>
+      </RowPopover>
 
-      <div className="flex items-center justify-between text-xs">
-        <span>{t('size')}</span>
+      <RowPopover
+        testId="edit-desk-text-size"
+        label={`${t('size')} · ${t(`sizes.${clip.size}`)}`}
+      >
         <Segmented
           testId="edit-desk-text-size"
+          ariaLabel={t('size')}
           options={EDIT_TEXT_SIZES.map((size) => ({
             id: size,
             label: t(`sizes.${size}`),
@@ -401,12 +363,15 @@ function TextClipFields({
             onSelect: () => desk.updateTextClip(clip.id, { size }),
           }))}
         />
-      </div>
+      </RowPopover>
 
-      <div className="flex items-center justify-between text-xs">
-        <span>{t('tone')}</span>
+      <RowPopover
+        testId="edit-desk-text-tone"
+        label={`${t('tone')} · ${t(`tones.${clip.tone}`)}`}
+      >
         <Segmented
           testId="edit-desk-text-tone"
+          ariaLabel={t('tone')}
           options={EDIT_TEXT_TONES.map((tone) => ({
             id: tone,
             label: t(`tones.${tone}`),
@@ -414,18 +379,19 @@ function TextClipFields({
             onSelect: () => desk.updateTextClip(clip.id, { tone }),
           }))}
         />
-      </div>
+      </RowPopover>
 
-      <Row label={t('inPoint')} value={formatEditClock(clip.startSec, true)} />
-      <Row
-        label={t('outPoint')}
-        value={formatEditClock(clip.startSec + clip.durationSec, true)}
-      />
-
-      <div className="flex items-center justify-between text-xs">
-        <span>{t('fade')}</span>
+      <RowPopover
+        testId="edit-desk-text-fade"
+        label={`${t('fade')} · ${
+          clip.fadeSec === 0
+            ? t('fadeNone')
+            : t('fadeSeconds', { fadeSec: clip.fadeSec })
+        }`}
+      >
         <Segmented
           testId="edit-desk-text-fade"
+          ariaLabel={t('fade')}
           options={EDIT_TEXT_FADES.map((fadeSec) => ({
             id: String(fadeSec),
             label:
@@ -434,7 +400,39 @@ function TextClipFields({
             onSelect: () => desk.updateTextClip(clip.id, { fadeSec }),
           }))}
         />
-      </div>
+      </RowPopover>
     </>
+  )
+}
+
+/**
+ * 属性行上的一颗小按钮 + 它的小弹层。开合走全站 Popover 的内置动效（ui-defaults §4
+ * 「不要覆盖」）；一次只开一个是 Popover 自己的行为（点另一颗 = 先关这颗）。
+ */
+function RowPopover({
+  testId,
+  label,
+  children,
+}: {
+  readonly testId: string
+  readonly label: string
+  readonly children: ReactNode
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-testid={`${testId}-trigger`}
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-border px-2.5 text-xs text-foreground transition-colors duration-fast hover:bg-muted data-[state=open]:border-foreground"
+        >
+          {label}
+          <ChevronDown className="size-3 text-muted-foreground" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-auto p-2.5">
+        {children}
+      </PopoverContent>
+    </Popover>
   )
 }

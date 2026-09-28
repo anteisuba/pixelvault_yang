@@ -6271,23 +6271,21 @@
       "clock": "{at} / {total}",
       "inspector": {
         "empty": "选中一段看它的属性",
-        "selected": "选中 · {name}",
-        "source": "来源：{name}",
-        "sourceLive": "来自画布",
-        "sourceVersion": "版本 {index}/{total}",
         "sourceGone": "来源卡已删除",
         "inPoint": "入点",
         "outPoint": "出点",
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "原声",
+        "gain": "音量",
         "transition": "转场 →",
         "transitions": {
           "none": "无",
           "crossfade": "叠化",
           "black": "黑场"
         },
-        "backToNode": "回节点重生成这段"
+        "backToNode": "回节点重生成这段",
+        "backToNodeShort": "回节点"
       },
       "exportDialog": {
         "title": "导出成片",
@@ -6359,9 +6357,9 @@
         "landFailed": "这条素材没能落到画布上，再试一次。"
       },
       "text": {
-        "title": "文字段",
         "placeholder": "双击改文字",
-        "content": "内容",
+        "editInPreview": "在预览上改字",
+        "doubleClickHint": "双击直接改字",
         "anchor": "位置",
         "anchors": {
           "tl": "左上",

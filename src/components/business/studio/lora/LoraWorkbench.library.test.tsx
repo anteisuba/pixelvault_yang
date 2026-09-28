@@ -10,6 +10,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CivitaiLoraLibraryItem } from '@/types'
 
 import { LoraWorkbench } from './LoraWorkbench'
+import { CivitaiCommunityBranch } from './library/CivitaiLibraryPane'
+
+function renderDesktopPane() {
+  mockIsMobile = false
+  return render(
+    <CivitaiCommunityBranch
+      onFavorite={vi.fn()}
+      onUnfavoriteByUrl={vi.fn()}
+      isFavorited={() => false}
+      searchSlotNode={null}
+      controlsSlotNode={null}
+      source="civitai"
+      onSourceChange={vi.fn()}
+    />,
+  )
+}
 
 // ── 库模块重做（lora-domain-wireframes.md §4）：公开库从行列表 + 常驻
 // 详情栏改成封面网格 + 按需 Sheet/Drawer。这个文件之前完全没有测试基础
@@ -77,8 +93,12 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }))
 
+// 库面板这一套（封面网格 + 抽屉 + 翻页）现在只在手机上由 LoraWorkbench 渲染；
+// 桌面的库挂在生成台那副舞台里（库 B，lora-library.md §2），不在这里测。
+// 只验桌面那排筛选按钮的几条直接渲染面板本身（见 renderDesktopPane）。
+let mockIsMobile = true
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mockIsMobile,
 }))
 
 vi.mock('@/hooks/use-lora-assets', () => ({
@@ -190,6 +210,7 @@ function makeLibraryItem(
 
 describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail drawer', () => {
   beforeEach(() => {
+    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockFavoriteCivitaiLora.mockReset()
@@ -415,6 +436,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail drawer', 
 
 describe('LoraWorkbench CivitaiCommunityBranch — 显式提交检索', () => {
   beforeEach(() => {
+    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockLibraryItems = []
@@ -471,6 +493,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — 显式提交检索', () => {
 
 describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
   beforeEach(() => {
+    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockUseCivitaiLoraLibrary.mockReset()
@@ -546,6 +569,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
 
 describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear filters', () => {
   beforeEach(() => {
+    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockSetSearch.mockReset()
@@ -600,7 +624,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     mockLibraryNsfwFilter = 'unrestricted'
     mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
 
-    render(<LoraWorkbench />)
+    renderDesktopPane()
 
     const toggle = screen.getByRole('button', {
       name: /LoraWorkbench:nsfwToggleHint/,
@@ -617,7 +641,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     mockLibraryNsfwFilter = 'nsfwOnly'
     mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
 
-    render(<LoraWorkbench />)
+    renderDesktopPane()
 
     const toggle = screen.getByRole('button', {
       name: /LoraWorkbench:nsfwToggleHint/,
@@ -634,7 +658,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     mockLibraryNsfwFilter = 'safe'
     mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
 
-    render(<LoraWorkbench />)
+    renderDesktopPane()
 
     const toggle = screen.getByRole('button', {
       name: /LoraWorkbench:nsfwToggleHint/,
@@ -678,6 +702,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
 // （Pony）行照常渲染、不崩，且行内不带收藏心（收藏在展开详情里）。
 describe('LoraWorkbench CivitaiCommunityBranch — cover grid visuals', () => {
   beforeEach(() => {
+    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockUseCivitaiLoraLibrary.mockReset()
@@ -745,7 +770,7 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid visuals', () => {
   })
 
   it('surfaces the type and base-model filters as dropdown triggers', () => {
-    render(<LoraWorkbench />)
+    renderDesktopPane()
 
     expect(
       screen.getByRole('button', {

@@ -130,12 +130,10 @@ interface StoredEnvelope {
  * 最近一次"新 LoRA 进入挂载栈"事件（workbench push 或 ?style= 分享链接
  * 解析）。
  *
- * ⚠️ 2026-07-02：原消费方 LoraPromptControlButton 已删除（Image Studio
- * LoRA 清理，见 docs/references/domains/lora.md），当前没有
- * 组件读取 mountEvent/acknowledgeMountEvent —— 这条一次性反馈通路已是
- * 死状态，只是没删（删 mountEvent 字段需要单独评估，不在本次清理范围内）。
- * Provider 现在只包 /studio/lora（见 studio/lora/layout.tsx），不再跨
- * Image Studio 存活。
+ * 消费方：LoRA 库 B 左侧竖条（`LoraAssemblyColumn`）——在库里点「挂载」时，
+ * 只让这一个的小封面弹出来、数字跳一下；刷新时读回的挂载栈不写这个事件，所以
+ * 不会跟着演。竖条只读不清（不调 `acknowledgeMountEvent`），靠自己记下「在场
+ * 之后才发生的」那一次。Provider 只包 /studio/lora（见 studio/lora/layout.tsx）。
  */
 export interface LoraMountEvent {
   assetId: string

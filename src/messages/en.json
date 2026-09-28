@@ -2362,6 +2362,7 @@
       "triggerWords": "Trigger words",
       "collapseAssembly": "Collapse assembly",
       "expandAssembly": "Expand assembly",
+      "returnToGenerate": "Back to Generate",
       "toggleTriggerWord": "Toggle trigger word {word}",
       "loraLabel": "LoRA",
       "swapBase": "Change base model",

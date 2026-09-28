@@ -2362,6 +2362,7 @@
       "triggerWords": "触发词",
       "collapseAssembly": "收起装配栏",
       "expandAssembly": "展开装配栏",
+      "returnToGenerate": "回到生成",
       "toggleTriggerWord": "停用/启用触发词 {word}",
       "loraLabel": "LoRA",
       "swapBase": "换底模",

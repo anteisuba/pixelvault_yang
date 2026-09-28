@@ -2362,6 +2362,7 @@
       "triggerWords": "トリガーワード",
       "collapseAssembly": "組み立て台を畳む",
       "expandAssembly": "組み立て台を開く",
+      "returnToGenerate": "生成に戻る",
       "toggleTriggerWord": "トリガーワード {word} を切替",
       "loraLabel": "LoRA",
       "swapBase": "ベースモデルを変更",

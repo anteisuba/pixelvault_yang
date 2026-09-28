@@ -9,7 +9,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { motion, useTransform } from 'motion/react'
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react'
 import {
   AlertCircle,
   AlertTriangle,
@@ -64,6 +69,7 @@ import {
   getDefaultBase,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -469,12 +475,30 @@ export function LoraWorkbench() {
             }}
           />
         </div>
-        {isGenerate ? (
-          <div
-            key={bodyKey}
-            className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200"
-          >
-            {generateBranch}
+        {isGenerate || isLibrary ? (
+          // 生成 ↔ 库 / 收藏 是同一副舞台（lora-library.md §2）：⛔ 不按 section 重挂，
+          // 换场由 GenerateBranch 自己演（竖条 · 交叉淡 · 输入框收起）。
+          <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
+            <GenerateBranch
+              assistantOpen={assistantOpen}
+              onAssistantOpenChange={setAssistantOpen}
+              library={
+                isLibrary
+                  ? {
+                      key: activeSection,
+                      content: (
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                          {libraryBody}
+                        </div>
+                      ),
+                    }
+                  : null
+              }
+              onReturnToGenerate={() => {
+                setPendingSection(LORA_WORKBENCH_SECTIONS.GENERATE)
+                setActiveSection(LORA_WORKBENCH_SECTIONS.GENERATE)
+              }}
+            />
           </div>
         ) : (
           <div
@@ -482,10 +506,7 @@ export function LoraWorkbench() {
             className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
           >
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {libraryBody}
-              {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
-                <TrainWizard />
-              ) : null}
+              <TrainWizard />
             </div>
           </div>
         )}
@@ -711,11 +732,21 @@ interface GenerateBranchProps {
   /** 助手面板开关——手机那颗按钮在卡内页头（root 持有状态），面板本体在这里。 */
   assistantOpen: boolean
   onAssistantOpenChange: (open: boolean) => void
+  /**
+   * 库 / 收藏（lora-library.md §2，只桌面）：给了就在同一张舞台卡里换成库 ——
+   * 装配列让成竖条、来源图带与结果淡出、输入框收起；`key` 换了（库 ↔ 收藏）
+   * 内容先淡出再淡入另一边的。⭐ 生成台不卸载：提示词、这一轮的图都还在。
+   */
+  library?: { key: string; content: ReactNode } | null
+  /** 竖条顶上那颗「回到生成」。 */
+  onReturnToGenerate?: () => void
 }
 
 function GenerateBranch({
   assistantOpen,
   onAssistantOpenChange,
+  library = null,
+  onReturnToGenerate,
 }: GenerateBranchProps) {
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
@@ -2764,6 +2795,17 @@ function GenerateBranch({
   const stageRightRef = useRef<HTMLDivElement | null>(null)
   const [viewerOpen, setViewerOpen] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(0)
+  // 库 / 收藏在场（lora-library.md §2）：进库那一拍把样例大图关掉 —— 它挂在看不见
+  // 的那一层里，还开着就还在吃 Esc / ← →。
+  const libraryActive = library !== null
+  const [libraryWasActive, setLibraryWasActive] = useState(libraryActive)
+  if (libraryWasActive !== libraryActive) {
+    setLibraryWasActive(libraryActive)
+    if (libraryActive) setViewerOpen(false)
+  }
+  // 输入框收起 / 长回（320）的那一段里裁掉溢出（卡片阴影平时要露出来）。
+  const [composerFolding, setComposerFolding] = useState(false)
+  const reduceMotion = useReducedMotion()
   const [viewerOrigin, setViewerOrigin] = useState<LoraRecipeViewerOrigin>({
     x: 0,
     y: 0,
@@ -3776,8 +3818,10 @@ function GenerateBranch({
           }
           loraScaleConfig={loraScaleConfig}
           onAddLora={() => setLibraryModalOpen(true)}
-          collapsed={assemblyCollapsed}
+          // 在库里整列让成竖条；回到生成台时回到你自己收没收的那一档。
+          collapsed={libraryActive || assemblyCollapsed}
           onCollapsedChange={setAssemblyCollapsed}
+          onReturn={libraryActive ? onReturnToGenerate : undefined}
           oftenMounted={
             <LoraOftenMountedWithRow
               variant="column"
@@ -3788,491 +3832,578 @@ function GenerateBranch({
           }
           budget={runnerBudgetNote ?? undefined}
         />
-        <div
-          ref={stageRightRef}
-          className="relative flex min-w-0 flex-1 flex-col"
-        >
-          <LoraSourceBand
-            mode={bandMode}
-            onExpand={() => setBandExpanded(true)}
-            onFold={() => setBandExpanded(false)}
-            canFold={displayedResultUrl !== null}
-            groups={stack.items.map((item) => ({
-              id: item.asset.id,
-              name: item.asset.name,
-              cover: item.asset.coverImageUrl ?? null,
-            }))}
-            activeGroupId={recipeGroupKey}
-            onSelectGroup={setRecipeGroupAssetId}
-            count={bandKind === 'loading' ? null : bandImages.length}
-            note={
-              bandKind === 'recipes'
-                ? t('generate.band.noteRecipe')
-                : bandKind === 'showcase' || bandKind === 'previews'
-                  ? t('generate.band.noteShowcase')
-                  : ''
-            }
-            lineThumbs={bandImages.slice(0, 3)}
+        <div className="relative min-w-0 flex-1">
+          {/* 生成这一层：进库 120 淡出，回来等 120 再 200 淡入；看不见时挂 inert。 */}
+          <div
+            ref={stageRightRef}
+            inert={libraryActive}
+            aria-hidden={libraryActive || undefined}
+            className={cn(
+              'absolute inset-0 flex min-w-0 flex-col transition-opacity ease-linear',
+              libraryActive
+                ? 'pointer-events-none opacity-0 duration-fast'
+                : 'opacity-100 delay-120 duration-base motion-reduce:delay-0 motion-reduce:duration-fast',
+            )}
           >
-            {bandContent}
-          </LoraSourceBand>
-          <LoraResultStage
-            resultUrl={displayedResultUrl}
-            resultRatio={displayedAspect}
-            pendingRatio={previewDimensions.width / previewDimensions.height}
-            generating={showGeneratingOverlay}
-            isCompleting={isCompletingGeneration}
-            completionReleased={completionReleased}
-            onEdgeRelease={() => setCompletionReleased(true)}
-            onCompleteAnimationDone={() => setIsCompletingGeneration(false)}
-            elapsedSeconds={elapsedSeconds}
-            stageLabel={generatingStageLabel}
-            paramsLine={generatingParamsLine}
-            failure={
-              !isGenerating && generateError
-                ? {
-                    message: generateError,
-                    retryLabel: t('generate.resultFailedRetry'),
-                    ...(canGenerate ? { onRetry: handleGenerateClick } : {}),
-                  }
-                : null
-            }
-            onCancel={
-              isGenerating && activeGenerateItem
-                ? () => cancelRunItem(activeGenerateItem.id)
-                : undefined
-            }
-            onOpenPreview={() => setResultPreviewOpen(true)}
-            onAskAssistant={() =>
-              displayedResultUrl &&
-              handleAskAssistantAboutResult(displayedResultUrl)
-            }
-            hint={hasLora ? t('generate.hintWithLora') : t('generate.hintPure')}
-            round={resultHistory}
-            selectedId={selectedResult?.id ?? null}
-            onSelect={setSelectedResultId}
-            meta={resultMetaLine}
-            eta={
-              isGenerating && isRunnerBase
-                ? isRunnerColdStart
-                  ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)
-                  : t('generate.eta', LORA_RUNNER_ETA_SECONDS)
-                : null
-            }
-          />
-          <LoraRecipeViewer
-            open={viewerOpen && bandKind === 'recipes'}
-            origin={viewerOrigin}
-            recipes={mined.recipes}
-            index={Math.min(viewerIndex, Math.max(0, mined.recipes.length - 1))}
-            onIndexChange={setViewerIndex}
-            onClose={closeViewer}
-            assetName={recipeGroupAsset?.name ?? ''}
-            sourceUrl={
-              recipeGroupAsset
-                ? (getLoraAssetSourceUrl(recipeGroupAsset) ?? '')
-                : ''
-            }
-            mountedExtraKeys={mountedExtraKeys}
-            onApplyRecipe={(recipe, includeSeed, extraLoras) =>
-              handleApplyRecipe(recipe, { includeSeed, extraLoras })
-            }
-          />
+            <LoraSourceBand
+              mode={bandMode}
+              onExpand={() => setBandExpanded(true)}
+              onFold={() => setBandExpanded(false)}
+              canFold={displayedResultUrl !== null}
+              groups={stack.items.map((item) => ({
+                id: item.asset.id,
+                name: item.asset.name,
+                cover: item.asset.coverImageUrl ?? null,
+              }))}
+              activeGroupId={recipeGroupKey}
+              onSelectGroup={setRecipeGroupAssetId}
+              count={bandKind === 'loading' ? null : bandImages.length}
+              note={
+                bandKind === 'recipes'
+                  ? t('generate.band.noteRecipe')
+                  : bandKind === 'showcase' || bandKind === 'previews'
+                    ? t('generate.band.noteShowcase')
+                    : ''
+              }
+              lineThumbs={bandImages.slice(0, 3)}
+            >
+              {bandContent}
+            </LoraSourceBand>
+            <LoraResultStage
+              resultUrl={displayedResultUrl}
+              resultRatio={displayedAspect}
+              pendingRatio={previewDimensions.width / previewDimensions.height}
+              generating={showGeneratingOverlay}
+              isCompleting={isCompletingGeneration}
+              completionReleased={completionReleased}
+              onEdgeRelease={() => setCompletionReleased(true)}
+              onCompleteAnimationDone={() => setIsCompletingGeneration(false)}
+              elapsedSeconds={elapsedSeconds}
+              stageLabel={generatingStageLabel}
+              paramsLine={generatingParamsLine}
+              failure={
+                !isGenerating && generateError
+                  ? {
+                      message: generateError,
+                      retryLabel: t('generate.resultFailedRetry'),
+                      ...(canGenerate ? { onRetry: handleGenerateClick } : {}),
+                    }
+                  : null
+              }
+              onCancel={
+                isGenerating && activeGenerateItem
+                  ? () => cancelRunItem(activeGenerateItem.id)
+                  : undefined
+              }
+              onOpenPreview={() => setResultPreviewOpen(true)}
+              onAskAssistant={() =>
+                displayedResultUrl &&
+                handleAskAssistantAboutResult(displayedResultUrl)
+              }
+              hint={
+                hasLora ? t('generate.hintWithLora') : t('generate.hintPure')
+              }
+              round={resultHistory}
+              selectedId={selectedResult?.id ?? null}
+              onSelect={setSelectedResultId}
+              meta={resultMetaLine}
+              eta={
+                isGenerating && isRunnerBase
+                  ? isRunnerColdStart
+                    ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)
+                    : t('generate.eta', LORA_RUNNER_ETA_SECONDS)
+                  : null
+              }
+            />
+            <LoraRecipeViewer
+              open={viewerOpen && bandKind === 'recipes'}
+              origin={viewerOrigin}
+              recipes={mined.recipes}
+              index={Math.min(
+                viewerIndex,
+                Math.max(0, mined.recipes.length - 1),
+              )}
+              onIndexChange={setViewerIndex}
+              onClose={closeViewer}
+              assetName={recipeGroupAsset?.name ?? ''}
+              sourceUrl={
+                recipeGroupAsset
+                  ? (getLoraAssetSourceUrl(recipeGroupAsset) ?? '')
+                  : ''
+              }
+              mountedExtraKeys={mountedExtraKeys}
+              onApplyRecipe={(recipe, includeSeed, extraLoras) =>
+                handleApplyRecipe(recipe, { includeSeed, extraLoras })
+              }
+            />
+          </div>
+          {/* 库这一层：进来等生成那层淡出（120）再 200 淡入，离开 120 淡出；库 ↔ 收藏
+            外壳不动，只有内容先淡出再淡入另一边的（动效表「库 ↔ 收藏」）。 */}
+          <AnimatePresence initial={false}>
+            {library ? (
+              <motion.div
+                key="library"
+                initial={{ opacity: 0 }}
+                animate={{
+                  opacity: 1,
+                  transition: {
+                    duration: DURATION.base,
+                    delay: reduceMotion ? 0 : DURATION.fast,
+                    ease: 'linear',
+                  },
+                }}
+                exit={{
+                  opacity: 0,
+                  transition: { duration: DURATION.fast, ease: 'linear' },
+                }}
+                className="absolute inset-0 flex min-w-0 flex-col"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={library.key}
+                    initial={{ opacity: 0 }}
+                    animate={{
+                      opacity: 1,
+                      transition: { duration: DURATION.base, ease: 'linear' },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      transition: { duration: DURATION.fast, ease: 'linear' },
+                    }}
+                    className="flex min-h-0 flex-1 flex-col"
+                  >
+                    {library.content}
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       </section>
 
-      {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。 */}
-      <div
-        data-testid="lora-composer-card"
-        onDragEnter={
-          referencesSupported ? imageUpload.handleDragEnter : undefined
+      {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。
+          进库时收起（320，连同上面那道 12px 行距 = 外层 gap-3 一起收），回来长回。 */}
+      <motion.div
+        initial={false}
+        animate={
+          libraryActive
+            ? { height: 0, marginTop: -12, opacity: 0 }
+            : { height: 'auto', marginTop: 0, opacity: 1 }
         }
-        onDragOver={
-          referencesSupported ? imageUpload.handleDragOver : undefined
+        transition={
+          reduceMotion
+            ? { duration: 0 }
+            : { duration: DURATION.slow, ease: EASE_STANDARD }
         }
-        onDragLeave={
-          referencesSupported ? imageUpload.handleDragLeave : undefined
-        }
-        onDrop={
-          referencesSupported
-            ? (event) => void imageUpload.handleDrop(event)
-            : undefined
-        }
+        onAnimationStart={() => setComposerFolding(true)}
+        onAnimationComplete={() => setComposerFolding(false)}
+        inert={libraryActive}
+        aria-hidden={libraryActive || undefined}
         className={cn(
-          '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-2xl bg-card px-4.5 pt-3.5 pb-3 shadow-float transition-shadow duration-fast',
-          referencesSupported &&
-            imageUpload.isDragging &&
-            'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+          'shrink-0',
+          (libraryActive || composerFolding) && 'overflow-hidden',
         )}
       >
-        {isMountingExtras || !recipeExtrasReady ? (
-          <p role="status" className="text-xs text-muted-foreground">
-            {t(
-              isMountingExtras
-                ? 'sourceRecipeMounting'
-                : 'sourceRecipeIncomplete',
-            )}
-          </p>
-        ) : null}
-        {hasLora ? (
-          <LoraCollocationBar
-            sourceKind={assistantStaged ? 'assistant' : 'recipe'}
-            recipeApplied={assistantStaged != null || collocationRecipe != null}
-            recipeName={collocationRecipe?.assetName ?? null}
-            appliedParamLabels={
-              assistantStaged
-                ? []
-                : (collocationRecipe?.appliedParamLabels ?? [])
-            }
-            changedParams={
-              assistantStaged
-                ? assistantNegativeChange
-                : collocationChanges.changed
-            }
-            addedPromptTags={
-              assistantStaged
-                ? assistantStaged.addedTags
-                : collocationChanges.addedPrompt
-            }
-            keptLabels={assistantStaged ? [] : collocationChanges.kept}
-            onUndo={handleUndoCollocation}
-            pendingReview={collocationPending}
-            onApplyPending={handleApplyPendingCollocation}
-            expanded={collocationExpanded}
-            onExpandedChange={setCollocationExpanded}
-            incompatibleCount={incompatibleCount}
-            mutuallyExclusive={mountsMutuallyExclusive}
-            onSwitchBase={
-              canSuggestBaseSwitch ? handleSwitchToSuggestedBase : undefined
-            }
-          />
-        ) : null}
-        {/* 参考图住在输入框里（owner 09-28）：挂了才出现，排在提示词上方；粘贴 /
-            拖进输入框 / 工具行「参考图」三条来路落到同一份 imageUpload。 */}
-        {referencesSupported ? (
-          <>
-            <div
-              className="lora-mixwrap"
-              data-open={
-                imageUpload.referenceEntries.length > 0 ? 'true' : 'false'
+        <div
+          data-testid="lora-composer-card"
+          onDragEnter={
+            referencesSupported ? imageUpload.handleDragEnter : undefined
+          }
+          onDragOver={
+            referencesSupported ? imageUpload.handleDragOver : undefined
+          }
+          onDragLeave={
+            referencesSupported ? imageUpload.handleDragLeave : undefined
+          }
+          onDrop={
+            referencesSupported
+              ? (event) => void imageUpload.handleDrop(event)
+              : undefined
+          }
+          className={cn(
+            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-2xl bg-card px-4.5 pt-3.5 pb-3 shadow-float transition-shadow duration-fast',
+            referencesSupported &&
+              imageUpload.isDragging &&
+              'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+          )}
+        >
+          {isMountingExtras || !recipeExtrasReady ? (
+            <p role="status" className="text-xs text-muted-foreground">
+              {t(
+                isMountingExtras
+                  ? 'sourceRecipeMounting'
+                  : 'sourceRecipeIncomplete',
+              )}
+            </p>
+          ) : null}
+          {hasLora ? (
+            <LoraCollocationBar
+              sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+              recipeApplied={
+                assistantStaged != null || collocationRecipe != null
               }
-            >
-              <div inert={imageUpload.referenceEntries.length === 0}>
-                <ImageAttachmentPreviewStrip
-                  entries={
-                    imageUpload.referenceEntries.length > 0
-                      ? imageUpload.referenceEntries
-                      : lastReferences.entries
-                  }
-                  previewAlt={tImageChip('referenceLabel')}
-                  previewLabel={(index) =>
-                    tImageChip('previewReferenceImage', { index })
-                  }
-                  previewDescription={tImageChip('previewReferenceDescription')}
-                  previewCloseLabel={tImageChip('closeReferencePreview')}
-                  removeLabel={(index) =>
-                    tImageChip('removeReferenceImage', { index })
-                  }
-                  onRemove={imageUpload.removeReferenceImage}
-                  overLimitTooltip={tImageChip('disabledOverLimit')}
-                  unsupportedTooltip={tImageChip('disabledUnsupported')}
-                  variant="composer"
-                  className="px-0.5 pt-0 pb-0"
-                />
-              </div>
-            </div>
-            {imageUpload.isUploading ? (
-              <p
-                role="status"
-                className="flex items-center gap-2 text-xs text-muted-foreground"
+              recipeName={collocationRecipe?.assetName ?? null}
+              appliedParamLabels={
+                assistantStaged
+                  ? []
+                  : (collocationRecipe?.appliedParamLabels ?? [])
+              }
+              changedParams={
+                assistantStaged
+                  ? assistantNegativeChange
+                  : collocationChanges.changed
+              }
+              addedPromptTags={
+                assistantStaged
+                  ? assistantStaged.addedTags
+                  : collocationChanges.addedPrompt
+              }
+              keptLabels={assistantStaged ? [] : collocationChanges.kept}
+              onUndo={handleUndoCollocation}
+              pendingReview={collocationPending}
+              onApplyPending={handleApplyPendingCollocation}
+              expanded={collocationExpanded}
+              onExpandedChange={setCollocationExpanded}
+              incompatibleCount={incompatibleCount}
+              mutuallyExclusive={mountsMutuallyExclusive}
+              onSwitchBase={
+                canSuggestBaseSwitch ? handleSwitchToSuggestedBase : undefined
+              }
+            />
+          ) : null}
+          {/* 参考图住在输入框里（owner 09-28）：挂了才出现，排在提示词上方；粘贴 /
+            拖进输入框 / 工具行「参考图」三条来路落到同一份 imageUpload。 */}
+          {referencesSupported ? (
+            <>
+              <div
+                className="lora-mixwrap"
+                data-open={
+                  imageUpload.referenceEntries.length > 0 ? 'true' : 'false'
+                }
               >
-                <Spinner aria-hidden="true" className="size-3.5 shrink-0" />
-                {tImageUpload('uploading')}
-              </p>
-            ) : null}
-          </>
-        ) : null}
-        {/* 提示词：触发词就写在这里（owner 09-28），在正文里高亮（背板与 textarea
+                <div inert={imageUpload.referenceEntries.length === 0}>
+                  <ImageAttachmentPreviewStrip
+                    entries={
+                      imageUpload.referenceEntries.length > 0
+                        ? imageUpload.referenceEntries
+                        : lastReferences.entries
+                    }
+                    previewAlt={tImageChip('referenceLabel')}
+                    previewLabel={(index) =>
+                      tImageChip('previewReferenceImage', { index })
+                    }
+                    previewDescription={tImageChip(
+                      'previewReferenceDescription',
+                    )}
+                    previewCloseLabel={tImageChip('closeReferencePreview')}
+                    removeLabel={(index) =>
+                      tImageChip('removeReferenceImage', { index })
+                    }
+                    onRemove={imageUpload.removeReferenceImage}
+                    overLimitTooltip={tImageChip('disabledOverLimit')}
+                    unsupportedTooltip={tImageChip('disabledUnsupported')}
+                    variant="composer"
+                    className="px-0.5 pt-0 pb-0"
+                  />
+                </div>
+              </div>
+              {imageUpload.isUploading ? (
+                <p
+                  role="status"
+                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <Spinner aria-hidden="true" className="size-3.5 shrink-0" />
+                  {tImageUpload('uploading')}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+          {/* 提示词：触发词就写在这里（owner 09-28），在正文里高亮（背板与 textarea
             逐字对齐，两边同一套字号 / 行高 / 内边距）；跟着内容长高，封顶 4 行后
             内部滚动 —— 输入框再高就把舞台挤没了。 */}
-        <div className="relative min-w-0">
-          <label htmlFor="lora-prompt" className="sr-only">
-            {t('generate.promptLabel')}
-          </label>
-          <PromptTriggerHighlight
-            text={prompt}
-            phrases={triggerHighlightPhrases}
-            backdropRef={promptBackdropRef}
-            className="text-md leading-6 md:text-md"
-          />
-          <textarea
-            id="lora-prompt"
-            ref={promptTextareaRef}
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            onScroll={handlePromptScroll}
-            onPaste={
-              referencesSupported
-                ? (event) => {
-                    const file = getImageFileFromDataTransfer(
-                      event.clipboardData,
-                    )
-                    if (!file) return
-                    event.preventDefault()
-                    void imageUpload.handleFileChange(file)
-                  }
-                : undefined
-            }
-            placeholder={t('generate.promptPlaceholder')}
-            rows={2}
-            className="lora-prompt-layout relative block max-h-27 min-h-15 w-full resize-none overflow-y-auto bg-transparent text-md leading-6 text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70"
-          />
-          <PromptTagAutocomplete
-            textareaRef={promptTextareaRef}
-            value={prompt}
-            onChange={setPrompt}
-            polarity="positive"
-          />
-        </div>
-        {/* 没写进正文的触发词（作者没认过的那种、或被你删掉的）：提示词下面一小行
+          <div className="relative min-w-0">
+            <label htmlFor="lora-prompt" className="sr-only">
+              {t('generate.promptLabel')}
+            </label>
+            <PromptTriggerHighlight
+              text={prompt}
+              phrases={triggerHighlightPhrases}
+              backdropRef={promptBackdropRef}
+              className="text-md leading-6 md:text-md"
+            />
+            <textarea
+              id="lora-prompt"
+              ref={promptTextareaRef}
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              onScroll={handlePromptScroll}
+              onPaste={
+                referencesSupported
+                  ? (event) => {
+                      const file = getImageFileFromDataTransfer(
+                        event.clipboardData,
+                      )
+                      if (!file) return
+                      event.preventDefault()
+                      void imageUpload.handleFileChange(file)
+                    }
+                  : undefined
+              }
+              placeholder={t('generate.promptPlaceholder')}
+              rows={2}
+              className="lora-prompt-layout relative block max-h-27 min-h-15 w-full resize-none overflow-y-auto bg-transparent text-md leading-6 text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70"
+            />
+            <PromptTagAutocomplete
+              textareaRef={promptTextareaRef}
+              value={prompt}
+              onChange={setPrompt}
+              polarity="positive"
+            />
+          </div>
+          {/* 没写进正文的触发词（作者没认过的那种、或被你删掉的）：提示词下面一小行
             「触发词 ＋词」，点一下写到正文开头。⛔ 出图时不会替你偷偷加。开合与
             负面词那一行同一套（.lora-mixwrap）；关的那一拍留着上一排字。 */}
-        <div
-          className="lora-mixwrap"
-          data-open={missingTriggers.length > 0 ? 'true' : 'false'}
-        >
-          <div inert={missingTriggers.length === 0}>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
-              <span className="mr-0.5 text-muted-foreground">
-                {t('spine.triggerWords')}
-              </span>
-              {shownMissingTriggers.map((entry) => (
-                <button
-                  key={entry.assetId}
-                  type="button"
-                  onClick={() => handleToggleTriggerChip(entry.assetId)}
-                  aria-label={t('generate.triggerAdd', {
-                    word: entry.triggerWord,
-                  })}
-                  title={t('generate.triggerAdd', { word: entry.triggerWord })}
-                  className="inline-flex h-6.5 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Plus className="size-3 shrink-0" aria-hidden />
-                  <span className="truncate font-mono">
-                    {entry.triggerWord}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* 负面词：点工具行「负面」才出现，写了内容就一直在（与图片台同一条）。 */}
-        <div
-          className="lora-mixwrap"
-          data-open={negativeShown ? 'true' : 'false'}
-        >
-          <div inert={!negativeShown}>
-            <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2">
-              <label
-                htmlFor="lora-negative-prompt"
-                className="shrink-0 pt-0.5 text-2xs font-medium text-muted-foreground"
-              >
-                {t('generate.negativePromptLabel')}
-              </label>
-              <div className="relative min-w-0 flex-1">
-                <textarea
-                  id="lora-negative-prompt"
-                  ref={negativePromptTextareaRef}
-                  value={negativePrompt}
-                  onChange={(event) => setNegativePrompt(event.target.value)}
-                  placeholder={t('generate.negativePromptPlaceholder')}
-                  rows={1}
-                  className="block max-h-24 min-h-5 w-full resize-none bg-transparent text-2sm leading-5 outline-none field-sizing-content placeholder:text-muted-foreground/60"
-                />
-                <PromptTagAutocomplete
-                  textareaRef={negativePromptTextareaRef}
-                  value={negativePrompt}
-                  onChange={setNegativePrompt}
-                  polarity="negative"
-                />
+          <div
+            className="lora-mixwrap"
+            data-open={missingTriggers.length > 0 ? 'true' : 'false'}
+          >
+            <div inert={missingTriggers.length === 0}>
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
+                <span className="mr-0.5 text-muted-foreground">
+                  {t('spine.triggerWords')}
+                </span>
+                {shownMissingTriggers.map((entry) => (
+                  <button
+                    key={entry.assetId}
+                    type="button"
+                    onClick={() => handleToggleTriggerChip(entry.assetId)}
+                    aria-label={t('generate.triggerAdd', {
+                      word: entry.triggerWord,
+                    })}
+                    title={t('generate.triggerAdd', {
+                      word: entry.triggerWord,
+                    })}
+                    className="inline-flex h-6.5 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Plus className="size-3 shrink-0" aria-hidden />
+                    <span className="truncate font-mono">
+                      {entry.triggerWord}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-        {/* 工具行：左 还原 · 负面；右 比例 · 参数 · 出图。整行一种外观（描边药丸），
-            弹层从 chip 长出来（与图片台工具行同一套）。 */}
-        <StudioChipLookProvider value="outline">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              {referencesSupported && referenceStrengthConfig ? (
-                <LoraReferenceImageCards
-                  layout="chip"
-                  imageUpload={imageUpload}
-                  strength={referenceStrength}
-                  onStrengthChange={setReferenceStrength}
-                  strengthConfig={referenceStrengthConfig}
-                  disabled={!selectedBase?.available || isGenerating}
-                />
-              ) : null}
-              <button
-                type="button"
-                aria-disabled={!activeAsset || isGenerating}
-                aria-label={
-                  activeAsset
-                    ? t('generate.restoreHint')
-                    : t('generate.restoreNeedsLora')
-                }
-                title={
-                  activeAsset
-                    ? t('generate.restoreHint')
-                    : t('generate.restoreNeedsLora')
-                }
-                onClick={() => {
-                  if (!activeAsset || isGenerating) return
-                  handleRestore()
-                }}
-                className={cn(
-                  studioOutlineChipClass,
-                  !activeAsset &&
-                    'cursor-not-allowed border-dashed text-muted-foreground hover:border-border',
-                  activeAsset && isGenerating && 'opacity-50',
-                )}
-              >
-                <Wand2 className="size-4" aria-hidden />
-                {t('generate.restoreShort')}
-              </button>
-              <button
-                type="button"
-                aria-pressed={negativeShown}
-                aria-controls="lora-negative-prompt"
-                aria-label={t('generate.negativePromptLabel')}
-                onClick={() => {
-                  if (negativeShown && negativePrompt.trim() === '') {
-                    setNegativePromptExpanded(false)
-                    return
-                  }
-                  setNegativePromptExpanded(true)
-                  requestAnimationFrame(() =>
-                    negativePromptTextareaRef.current?.focus(),
-                  )
-                }}
-                className={cn(
-                  studioOutlineChipClass,
-                  negativeShown && studioOutlineChipSetClass,
-                )}
-              >
-                <Ban className="size-4" aria-hidden />
-                {t('generate.negativeShort')}
-              </button>
-            </div>
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <SpecChip
-                model={specModel}
-                aspectRatio={aspectRatio}
-                onAspectRatioChange={(next) => {
-                  if (
-                    (LORA_GENERATE_ASPECT_RATIOS as readonly string[]).includes(
-                      next,
-                    )
-                  ) {
-                    handleAspectRatioChange(next as AspectRatio)
-                  }
-                }}
-                resolution={null}
-                onResolutionChange={() => undefined}
-                resolutionLabel={t('generate.exactSizeLabel')}
-                more={exactSizeFields}
-                disabled={isGenerating}
-                ariaLabel={t('generate.aspectRatioLabel')}
-                summarySuffix={
-                  exactSizeSet
-                    ? `${runnerWidth.trim()}×${runnerHeight.trim()}`
-                    : undefined
-                }
-                popoverAlign="end"
-              />
-              {isRunnerBase ? (
-                <LoraParamsChip
-                  baseLabel={
-                    selectedBase ? operatorBaseLabel(selectedBase) : ''
-                  }
-                  sampler={runnerSampler}
-                  onSamplerChange={setRunnerSampler}
-                  scheduler={runnerScheduler}
-                  onSchedulerChange={setRunnerScheduler}
-                  steps={runnerSteps}
-                  onStepsChange={setRunnerSteps}
-                  cfg={runnerCfg}
-                  onCfgChange={setRunnerCfg}
-                  seed={runnerSeed}
-                  onSeedChange={(value) => {
-                    setRunnerSeed(value)
-                    setSeed(undefined)
-                  }}
-                  seedToFix={() =>
-                    selectedResult?.seed ??
-                    String(Math.floor(Math.random() * 4_294_967_295))
-                  }
-                  upscaler={runnerUpscaler}
-                  onUpscalerChange={setRunnerUpscaler}
-                  upscaleNote={
-                    runnerUpscaler === '4x-AnimeSharp'
-                      ? {
-                          text: `${t('generate.advanced.upscaleSummary', {
-                            width: previewDimensions.width,
-                            height: previewDimensions.height,
-                            outputWidth: upscaleFinalWidth,
-                            outputHeight: upscaleFinalHeight,
-                          })}${
-                            upscaleOutputIsLarge
-                              ? ` ${t('generate.advanced.upscaleLargeWarning')}`
-                              : ''
-                          }`,
-                          warn: upscaleOutputIsLarge,
-                        }
-                      : null
-                  }
-                  hiresNote={
-                    collocationRecipe?.params.runnerHires
-                      ? t('generate.advanced.sourceHiresSummary', {
-                          scale: collocationRecipe.params.runnerHires.scale,
-                          denoise: collocationRecipe.params.runnerHires.denoise,
-                          steps:
-                            collocationRecipe.params.runnerHires.steps ??
-                            (runnerSteps ||
-                              t('generate.advanced.modelDefault')),
-                          cfg:
-                            collocationRecipe.params.runnerHires.cfg ??
-                            (runnerCfg || t('generate.advanced.modelDefault')),
-                        })
-                      : null
-                  }
-                  error={runnerSamplingError}
-                  customCount={advancedCustomCount}
-                  disabled={isGenerating}
-                />
-              ) : null}
-              <StudioGenerateButton
-                variant="round"
-                label={t('generate.run')}
-                busyLabel={t('generate.busy')}
-                ariaLabel={t('generate.run')}
-                isGenerating={isGenerating}
-                elapsedSeconds={elapsedSeconds}
-                canGenerate={canGenerate}
-                disabled={!canGenerate}
-                onGenerate={handleGenerateClick}
-                onStop={
-                  activeGenerateItem
-                    ? () => cancelRunItem(activeGenerateItem.id)
-                    : undefined
-                }
-                stopLabel={tCancel('cancel')}
-              />
+          {/* 负面词：点工具行「负面」才出现，写了内容就一直在（与图片台同一条）。 */}
+          <div
+            className="lora-mixwrap"
+            data-open={negativeShown ? 'true' : 'false'}
+          >
+            <div inert={!negativeShown}>
+              <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2">
+                <label
+                  htmlFor="lora-negative-prompt"
+                  className="shrink-0 pt-0.5 text-2xs font-medium text-muted-foreground"
+                >
+                  {t('generate.negativePromptLabel')}
+                </label>
+                <div className="relative min-w-0 flex-1">
+                  <textarea
+                    id="lora-negative-prompt"
+                    ref={negativePromptTextareaRef}
+                    value={negativePrompt}
+                    onChange={(event) => setNegativePrompt(event.target.value)}
+                    placeholder={t('generate.negativePromptPlaceholder')}
+                    rows={1}
+                    className="block max-h-24 min-h-5 w-full resize-none bg-transparent text-2sm leading-5 outline-none field-sizing-content placeholder:text-muted-foreground/60"
+                  />
+                  <PromptTagAutocomplete
+                    textareaRef={negativePromptTextareaRef}
+                    value={negativePrompt}
+                    onChange={setNegativePrompt}
+                    polarity="negative"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </StudioChipLookProvider>
-      </div>
+          {/* 工具行：左 还原 · 负面；右 比例 · 参数 · 出图。整行一种外观（描边药丸），
+            弹层从 chip 长出来（与图片台工具行同一套）。 */}
+          <StudioChipLookProvider value="outline">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                {referencesSupported && referenceStrengthConfig ? (
+                  <LoraReferenceImageCards
+                    layout="chip"
+                    imageUpload={imageUpload}
+                    strength={referenceStrength}
+                    onStrengthChange={setReferenceStrength}
+                    strengthConfig={referenceStrengthConfig}
+                    disabled={!selectedBase?.available || isGenerating}
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  aria-disabled={!activeAsset || isGenerating}
+                  aria-label={
+                    activeAsset
+                      ? t('generate.restoreHint')
+                      : t('generate.restoreNeedsLora')
+                  }
+                  title={
+                    activeAsset
+                      ? t('generate.restoreHint')
+                      : t('generate.restoreNeedsLora')
+                  }
+                  onClick={() => {
+                    if (!activeAsset || isGenerating) return
+                    handleRestore()
+                  }}
+                  className={cn(
+                    studioOutlineChipClass,
+                    !activeAsset &&
+                      'cursor-not-allowed border-dashed text-muted-foreground hover:border-border',
+                    activeAsset && isGenerating && 'opacity-50',
+                  )}
+                >
+                  <Wand2 className="size-4" aria-hidden />
+                  {t('generate.restoreShort')}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={negativeShown}
+                  aria-controls="lora-negative-prompt"
+                  aria-label={t('generate.negativePromptLabel')}
+                  onClick={() => {
+                    if (negativeShown && negativePrompt.trim() === '') {
+                      setNegativePromptExpanded(false)
+                      return
+                    }
+                    setNegativePromptExpanded(true)
+                    requestAnimationFrame(() =>
+                      negativePromptTextareaRef.current?.focus(),
+                    )
+                  }}
+                  className={cn(
+                    studioOutlineChipClass,
+                    negativeShown && studioOutlineChipSetClass,
+                  )}
+                >
+                  <Ban className="size-4" aria-hidden />
+                  {t('generate.negativeShort')}
+                </button>
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <SpecChip
+                  model={specModel}
+                  aspectRatio={aspectRatio}
+                  onAspectRatioChange={(next) => {
+                    if (
+                      (
+                        LORA_GENERATE_ASPECT_RATIOS as readonly string[]
+                      ).includes(next)
+                    ) {
+                      handleAspectRatioChange(next as AspectRatio)
+                    }
+                  }}
+                  resolution={null}
+                  onResolutionChange={() => undefined}
+                  resolutionLabel={t('generate.exactSizeLabel')}
+                  more={exactSizeFields}
+                  disabled={isGenerating}
+                  ariaLabel={t('generate.aspectRatioLabel')}
+                  summarySuffix={
+                    exactSizeSet
+                      ? `${runnerWidth.trim()}×${runnerHeight.trim()}`
+                      : undefined
+                  }
+                  popoverAlign="end"
+                />
+                {isRunnerBase ? (
+                  <LoraParamsChip
+                    baseLabel={
+                      selectedBase ? operatorBaseLabel(selectedBase) : ''
+                    }
+                    sampler={runnerSampler}
+                    onSamplerChange={setRunnerSampler}
+                    scheduler={runnerScheduler}
+                    onSchedulerChange={setRunnerScheduler}
+                    steps={runnerSteps}
+                    onStepsChange={setRunnerSteps}
+                    cfg={runnerCfg}
+                    onCfgChange={setRunnerCfg}
+                    seed={runnerSeed}
+                    onSeedChange={(value) => {
+                      setRunnerSeed(value)
+                      setSeed(undefined)
+                    }}
+                    seedToFix={() =>
+                      selectedResult?.seed ??
+                      String(Math.floor(Math.random() * 4_294_967_295))
+                    }
+                    upscaler={runnerUpscaler}
+                    onUpscalerChange={setRunnerUpscaler}
+                    upscaleNote={
+                      runnerUpscaler === '4x-AnimeSharp'
+                        ? {
+                            text: `${t('generate.advanced.upscaleSummary', {
+                              width: previewDimensions.width,
+                              height: previewDimensions.height,
+                              outputWidth: upscaleFinalWidth,
+                              outputHeight: upscaleFinalHeight,
+                            })}${
+                              upscaleOutputIsLarge
+                                ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                                : ''
+                            }`,
+                            warn: upscaleOutputIsLarge,
+                          }
+                        : null
+                    }
+                    hiresNote={
+                      collocationRecipe?.params.runnerHires
+                        ? t('generate.advanced.sourceHiresSummary', {
+                            scale: collocationRecipe.params.runnerHires.scale,
+                            denoise:
+                              collocationRecipe.params.runnerHires.denoise,
+                            steps:
+                              collocationRecipe.params.runnerHires.steps ??
+                              (runnerSteps ||
+                                t('generate.advanced.modelDefault')),
+                            cfg:
+                              collocationRecipe.params.runnerHires.cfg ??
+                              (runnerCfg ||
+                                t('generate.advanced.modelDefault')),
+                          })
+                        : null
+                    }
+                    error={runnerSamplingError}
+                    customCount={advancedCustomCount}
+                    disabled={isGenerating}
+                  />
+                ) : null}
+                <StudioGenerateButton
+                  variant="round"
+                  label={t('generate.run')}
+                  busyLabel={t('generate.busy')}
+                  ariaLabel={t('generate.run')}
+                  isGenerating={isGenerating}
+                  elapsedSeconds={elapsedSeconds}
+                  canGenerate={canGenerate}
+                  disabled={!canGenerate}
+                  onGenerate={handleGenerateClick}
+                  onStop={
+                    activeGenerateItem
+                      ? () => cancelRunItem(activeGenerateItem.id)
+                      : undefined
+                  }
+                  stopLabel={tCancel('cancel')}
+                />
+              </div>
+            </div>
+          </StudioChipLookProvider>
+        </div>
+      </motion.div>
 
       {/* 助手：与图片台同一颗 Dock；桌面展开时 root 把工作台让出来（§2.5）。 */}
       <StudioOperatorDock />

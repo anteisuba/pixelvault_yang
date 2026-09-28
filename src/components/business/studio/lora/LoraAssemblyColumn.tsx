@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -16,7 +16,7 @@ import {
 } from '@/components/icons'
 import { LORA_ASSEMBLY_COLUMN_PX } from '@/constants/lora'
 import type { LoraBaseModel } from '@/constants/lora-base-models'
-import { LIQUID_SPRING } from '@/constants/motion'
+import { DURATION, EASE_STANDARD, LIQUID_SPRING } from '@/constants/motion'
 import type { NumericRange } from '@/constants/provider-capabilities'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import { Slider } from '@/components/ui/slider'
@@ -25,6 +25,9 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { cn } from '@/lib/utils'
+
+/** 竖条上挂载数「跳一下」的时长（动效表：240）。 */
+const DURATION_BUMP_S = 0.24
 
 /** 家族 slug → `LoraWorkbench.familyLabel.*`；表外的原样显示。 */
 const FAMILY_LABEL_KEYS: Record<string, string> = {
@@ -53,6 +56,11 @@ interface LoraAssemblyColumnProps {
   onAddLora: () => void
   collapsed: boolean
   onCollapsedChange: (collapsed: boolean) => void
+  /**
+   * 在库 / 收藏里：整列让开成竖条，竖条顶上那颗键是「回到生成」（lora-library.md
+   * §2）。不给 = 在生成台，那颗键是「展开装配」。
+   */
+  onReturn?: () => void
   /** 「常与它同挂」那一排 chip（数据不足时它自己不渲染）。 */
   oftenMounted?: ReactNode
   /** 列底 Runner 次数；不是 Runner 底模时不给。 */
@@ -79,6 +87,7 @@ export function LoraAssemblyColumn({
   onAddLora,
   collapsed,
   onCollapsedChange,
+  onReturn,
   oftenMounted,
   budget,
 }: LoraAssemblyColumnProps) {
@@ -91,6 +100,13 @@ export function LoraAssemblyColumn({
   const [armedId, setArmedId] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  // 竖条上「刚挂上」的那一个：只认这一列在场之后才发生的挂载（`push` 才写挂载事件，
+  // 刷新读回挂载栈不算），⛔ 刷新页面时小封面不该自己弹一遍。
+  const [seenMountAt] = useState(() => stack.mountEvent?.at ?? 0)
+  const freshMount =
+    stack.mountEvent && stack.mountEvent.at > seenMountAt
+      ? stack.mountEvent
+      : null
   const endDrag = () => {
     setArmedId(null)
     setDragId(null)
@@ -430,9 +446,13 @@ export function LoraAssemblyColumn({
     >
       <button
         type="button"
-        onClick={() => onCollapsedChange(false)}
-        aria-label={t('spine.expandAssembly')}
-        title={t('spine.expandAssembly')}
+        onClick={() => (onReturn ? onReturn() : onCollapsedChange(false))}
+        aria-label={
+          onReturn ? t('spine.returnToGenerate') : t('spine.expandAssembly')
+        }
+        title={
+          onReturn ? t('spine.returnToGenerate') : t('spine.expandAssembly')
+        }
         className="grid size-7.5 shrink-0 place-items-center rounded-lg text-foreground/70 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <PanelLeftOpen className="size-3.5" aria-hidden />
@@ -448,30 +468,69 @@ export function LoraAssemblyColumn({
       >
         {baseCover('size-7')}
       </button>
-      <span
+      {/* 挂了几个：在库里点「挂载」时数字跳一下（240）。 */}
+      <motion.span
+        key={freshMount?.at ?? 'rest'}
+        initial={false}
+        animate={
+          freshMount && !reducedMotion ? { scale: [1, 1.18, 1] } : undefined
+        }
+        transition={{
+          duration: DURATION_BUMP_S,
+          times: [0, 0.4, 1],
+          ease: EASE_STANDARD,
+        }}
         title={t('spine.stripMounted', { count: stack.items.length })}
         className="h-5.5 min-w-5.5 shrink-0 rounded-full bg-muted px-1.5 text-center font-mono text-2xs font-semibold leading-5.5 tabular-nums text-foreground"
       >
         {stack.items.length}
-      </span>
-      {stack.items.map((item) => (
-        <span
-          key={item.asset.id}
-          title={item.asset.name}
-          className={cn(
-            'relative shrink-0 transition-opacity duration-fast',
-            item.enabled === false && 'opacity-45',
-          )}
-        >
-          {loraCover(item.asset.coverImageUrl, 'size-7')}
-          {compatibleWithBase(item.asset.baseModelFamily) === false ? (
+      </motion.span>
+      <AnimatePresence initial={false}>
+        {stack.items.map((item) => (
+          // 在库里刚挂上的那一个从 0.6 弹到 1（320）；卸下的缩回去淡掉（120）。
+          // ⚠ 只有 `freshMount` 那一个演入场 —— 挂载栈在首帧之后才从本地读回，
+          // 读回的那几个在这里也是「新来的」，⛔ 让它们跟着弹。
+          <motion.span
+            key={item.asset.id}
+            layout={!reducedMotion}
+            initial={
+              item.asset.id !== freshMount?.assetId
+                ? false
+                : reducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.6 }
+            }
+            animate={{ opacity: 1, scale: 1 }}
+            exit={
+              reducedMotion
+                ? { opacity: 0, transition: { duration: DURATION.fast } }
+                : {
+                    opacity: 0,
+                    scale: 0.6,
+                    transition: { duration: DURATION.fast },
+                  }
+            }
+            transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
+            title={item.asset.name}
+            className="relative shrink-0"
+          >
             <span
-              aria-hidden
-              className="absolute -right-0.5 -top-0.5 size-1.75 rounded-full bg-status-warning ring-2 ring-card"
-            />
-          ) : null}
-        </span>
-      ))}
+              className={cn(
+                'block transition-opacity duration-fast',
+                item.enabled === false && 'opacity-45',
+              )}
+            >
+              {loraCover(item.asset.coverImageUrl, 'size-7')}
+            </span>
+            {compatibleWithBase(item.asset.baseModelFamily) === false ? (
+              <span
+                aria-hidden
+                className="absolute -right-0.5 -top-0.5 size-1.75 rounded-full bg-status-warning ring-2 ring-card"
+              />
+            ) : null}
+          </motion.span>
+        ))}
+      </AnimatePresence>
     </aside>
   )
 

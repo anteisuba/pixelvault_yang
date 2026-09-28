@@ -54,6 +54,13 @@ export const GENERATION_ERROR_CODES = {
    */
   RUNNER_QUEUE_STUCK: 'runner_queue_stuck',
   /**
+   * 下载到的模型文件（LoRA / 底模 / 配件）和来源公布的 SHA-256 对不上，这次不出图。
+   * app 存 R2 时与 fork 落盘时抛的都带 `SHA-256 mismatch`。重试会重新下载。
+   */
+  RUNNER_DOWNLOAD_MISMATCH: 'runner_download_mismatch',
+  /** Runner Volume 清完可清的缓存仍放不下这次要下的模型（fork `insufficient free space`）。 */
+  RUNNER_STORAGE_FULL: 'runner_storage_full',
+  /**
    * 派发不到执行 worker（本地没起 `npm --prefix workers/execution run dev`，
    * 或生产端点不可达）。**跟 provider 无关，也跟参考图无关** —— 请求根本没
    * 离开我们自己的机器。单列一个码，是因为它此前一直被参考图那条规则吃掉。
@@ -198,6 +205,15 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /execution worker|worker dispatch/i,
     code: GENERATION_ERROR_CODES.EXECUTION_WORKER_UNAVAILABLE,
+  },
+  // Runner 下载护栏（09-28 · 45）：fork / app 自己抛的固定英文，认字面即可。
+  {
+    pattern: /SHA-256 mismatch/i,
+    code: GENERATION_ERROR_CODES.RUNNER_DOWNLOAD_MISMATCH,
+  },
+  {
+    pattern: /Runner volume has insufficient free space/i,
+    code: GENERATION_ERROR_CODES.RUNNER_STORAGE_FULL,
   },
   // ⚠ 也必须排在参考图规则**之前**：火山的原文是
   // `...(429): {"error":{"code":"SetLimitExceeded","message":"Your account

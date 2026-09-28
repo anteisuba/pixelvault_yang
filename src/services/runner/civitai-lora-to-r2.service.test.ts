@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getSystemCivitaiToken } from '@/lib/platform-keys'
+import { fetchCivitaiModelFileSha256s } from '@/services/civitai-lora.service'
 import {
   createPresignedR2GetUrl,
+  R2SourceChecksumMismatchError,
   r2ObjectExists,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
@@ -22,6 +24,17 @@ vi.mock('@/services/storage/r2', () => ({
   r2ObjectExists: vi.fn(),
   uploadBufferedHttpToR2: vi.fn(),
   createPresignedR2GetUrl: vi.fn(),
+  R2SourceChecksumMismatchError: class extends Error {
+    constructor(
+      readonly key: string,
+      readonly actualSha256: string,
+    ) {
+      super(`SHA-256 mismatch for ${key}: got ${actualSha256}`)
+    }
+  },
+}))
+vi.mock('@/services/civitai-lora.service', () => ({
+  fetchCivitaiModelFileSha256s: vi.fn(),
 }))
 vi.mock('@/lib/platform-keys', () => ({
   getSystemCivitaiToken: vi.fn(),
@@ -34,6 +47,9 @@ const mockExists = vi.mocked(r2ObjectExists)
 const mockUpload = vi.mocked(uploadBufferedHttpToR2)
 const mockToken = vi.mocked(getSystemCivitaiToken)
 const mockPresign = vi.mocked(createPresignedR2GetUrl)
+const mockCivitaiSha = vi.mocked(fetchCivitaiModelFileSha256s)
+const mockFetch = vi.fn<typeof fetch>()
+const PUBLISHED_SHA = 'ab'.repeat(32)
 
 const URL_3118200 = 'https://civitai.com/api/download/models/3118200'
 const R2_KEY = 'runner-loras/civitai-3118200.safetensors'
@@ -44,6 +60,9 @@ describe('civitai-lora-to-r2.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockToken.mockReturnValue('civitai-token')
+    mockCivitaiSha.mockResolvedValue(null)
+    mockFetch.mockResolvedValue(new Response(null, { status: 302 }))
+    vi.stubGlobal('fetch', mockFetch)
   })
 
   it('derives a deterministic filename + version id', () => {
@@ -114,6 +133,39 @@ describe('civitai-lora-to-r2.service', () => {
         maxBytes: RUNNER_LORA_MAX_BYTES,
       }),
     )
+  })
+
+  it('checks the download against the SHA-256 Civitai publishes for the version', async () => {
+    mockExists.mockResolvedValue(false)
+    mockCivitaiSha.mockResolvedValue([PUBLISHED_SHA])
+    mockUpload.mockResolvedValue({
+      publicUrl: 'x',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 123,
+    })
+
+    await ensureCivitaiLoraInR2(URL_3118200)
+
+    expect(mockCivitaiSha).toHaveBeenCalledWith(3118200)
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ acceptedSha256s: [PUBLISHED_SHA] }),
+    )
+  })
+
+  it('maps a published-checksum mismatch to CHECKSUM_MISMATCH without trying other tokens', async () => {
+    mockExists.mockResolvedValue(false)
+    mockCivitaiSha.mockResolvedValue([PUBLISHED_SHA])
+    mockUpload.mockRejectedValue(
+      new R2SourceChecksumMismatchError(R2_KEY, 'cd'.repeat(32)),
+    )
+
+    await expect(
+      ensureCivitaiLoraInR2(URL_3118200, 'user-token'),
+    ).rejects.toMatchObject({
+      code: 'CHECKSUM_MISMATCH',
+      message: expect.stringContaining('SHA-256 mismatch'),
+    })
+    expect(mockUpload).toHaveBeenCalledTimes(1)
   })
 
   it('falls back from an invalid user token to the platform token', async () => {
@@ -219,6 +271,43 @@ describe('civitai-lora-to-r2.service', () => {
       }),
     )
     expect(mockUpload.mock.calls[0]?.[0]).not.toHaveProperty('fetchHeaders')
+    expect(mockUpload.mock.calls[0]?.[0]?.acceptedSha256s).toBeUndefined()
+  })
+
+  it('checks a Hugging Face LoRA against the SHA-256 in x-linked-etag', async () => {
+    mockExists.mockResolvedValue(false)
+    mockFetch.mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { 'x-linked-etag': `"${PUBLISHED_SHA.toUpperCase()}"` },
+      }),
+    )
+    mockUpload.mockResolvedValue({
+      publicUrl: 'x',
+      mimeType: 'application/octet-stream',
+      sizeBytes: 123,
+    })
+
+    await ensureHuggingFaceLoraInR2(HF_URL)
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      HF_URL,
+      expect.objectContaining({ method: 'HEAD', redirect: 'manual' }),
+    )
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ acceptedSha256s: [PUBLISHED_SHA] }),
+    )
+  })
+
+  it('maps a Hugging Face checksum mismatch to CHECKSUM_MISMATCH', async () => {
+    mockExists.mockResolvedValue(false)
+    mockUpload.mockRejectedValue(
+      new R2SourceChecksumMismatchError('runner-loras/hf', 'cd'.repeat(32)),
+    )
+
+    await expect(ensureHuggingFaceLoraInR2(HF_URL)).rejects.toMatchObject({
+      code: 'CHECKSUM_MISMATCH',
+    })
   })
 
   it('rejects Hugging Face repository pages and non-SafeTensors files', async () => {

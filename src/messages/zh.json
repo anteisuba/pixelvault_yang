@@ -7155,6 +7155,8 @@
       "provider_model_not_activated": "服务商账号还没有开通这个模型。请到服务商控制台（如火山方舟 / BytePlus 的模型开通页）开通后再试，直接重试无效。",
       "provider_server_error": "服务商那边的服务器出错了（返回 500），不是你的设置问题。一般是对方临时故障，稍后重试，或先换个模型。",
       "runner_queue_stuck": "这次生成因长时间未能开始而已取消。请换一个可用模型，或稍后再试。",
+      "runner_download_mismatch": "下载的模型文件和来源公布的不一致，这次没有出图。重试会重新下载；一直不行就换一个 LoRA 或底模。",
+      "runner_storage_full": "Runner 的模型存储已满，这次没有出图。请稍后重试；一直失败请联系管理员扩容。",
       "execution_worker_unavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
       "lora_incompatible_hosted": "当前模型不支持这个 LoRA 的格式。请选择兼容的模型，或更换 LoRA。",
       "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",

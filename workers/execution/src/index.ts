@@ -4921,6 +4921,8 @@ interface RunnerCheckpointSpecInput {
   downloadUrl: string
   /** fork 落盘子目录：SDXL→'checkpoints'（缺省）；Anima DiT→'diffusion_models'。 */
   targetDir?: 'checkpoints' | 'diffusion_models'
+  /** Civitai 公布的 SHA-256；fork 落盘前核对，缺省 = 来源没公布，照下。 */
+  sha256?: string
 }
 
 // Runner 底模下发（docs/references/domains/runner.md）：app 侧
@@ -4940,26 +4942,36 @@ function getRunnerCheckpointSpec(
     readStringField(spec, 'targetDir') === 'diffusion_models'
       ? 'diffusion_models'
       : undefined
-  return { filename, downloadUrl, targetDir }
+  const sha256 = readStringField(spec, 'sha256')
+  return {
+    filename,
+    downloadUrl,
+    targetDir,
+    ...(sha256 && /^[a-f0-9]{64}$/.test(sha256) ? { sha256 } : {}),
+  }
 }
 
 // v4 Anima DiT 共享配件（circlestone-labs/Anima 的 HF 仓）。fork 首次 Anima 作业从
 // 这里拉到卷（缺则下、有则跳＝永久缓存）：Qwen 文本编码器→models/clip、VAE→models/vae；
 // T2（无 per-recipe 精确底模）再加 anima-base→models/unet 作默认档。
-const ANIMA_HF_BASE =
-  'https://huggingface.co/circlestone-labs/Anima/resolve/main/split_files'
+// v9：钉 HF commit + 每个文件的 SHA-256（HF LFS oid，2026-09-28 回读），fork 落盘前核对——
+// `main` 上换了文件也不会悄悄换掉我们出图用的权重。
+const ANIMA_HF_REVISION = 'f973fc41ec7545364ac9776c2440285f43ff2a30'
+const ANIMA_HF_BASE = `https://huggingface.co/circlestone-labs/Anima/resolve/${ANIMA_HF_REVISION}/split_files`
 const ANIMA_SHARED_COMPANIONS = [
   {
     filename: 'qwen_3_06b_base.safetensors',
     url: `${ANIMA_HF_BASE}/text_encoders/qwen_3_06b_base.safetensors`,
     target_dir: 'clip',
     source: 'huggingface' as const,
+    sha256: 'cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba',
   },
   {
     filename: 'qwen_image_vae.safetensors',
     url: `${ANIMA_HF_BASE}/vae/qwen_image_vae.safetensors`,
     target_dir: 'vae',
     source: 'huggingface' as const,
+    sha256: 'a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f',
   },
 ] as const
 const ANIMA_BASE_COMPANION = {
@@ -4967,6 +4979,7 @@ const ANIMA_BASE_COMPANION = {
   url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
   target_dir: 'unet',
   source: 'huggingface' as const,
+  sha256: 'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
 } as const
 
 function injectCivitaiToken(url: string, civitaiToken: string | null): string {
@@ -6378,6 +6391,8 @@ export async function submitRunnerImageJob(
       ...(runnerCheckpoint.targetDir
         ? { target_dir: runnerCheckpoint.targetDir }
         : {}),
+      // v9：Civitai 公布的 SHA-256，fork 落盘前核对。
+      ...(runnerCheckpoint.sha256 ? { sha256: runnerCheckpoint.sha256 } : {}),
     }
   }
   // v4：Anima DiT 作业带上共享配件（Qwen 编码器/VAE），fork 首次从 HF 拉入卷后缓存。

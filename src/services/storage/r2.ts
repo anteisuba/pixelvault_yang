@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import {
   S3Client,
   PutObjectCommand,
@@ -824,6 +824,17 @@ export async function uploadFromHttpToR2(params: {
  * CDNs terminate long-lived streamed downloads while R2 multipart upload is
  * applying backpressure; buffering decouples provider download from R2 upload.
  */
+/** 下载到的文件和来源公布的 SHA-256 对不上（消息里的 `SHA-256 mismatch` 是生成错误归类的判据）。 */
+export class R2SourceChecksumMismatchError extends Error {
+  constructor(
+    readonly key: string,
+    readonly actualSha256: string,
+  ) {
+    super(`SHA-256 mismatch for ${key}: got ${actualSha256}`)
+    this.name = 'R2SourceChecksumMismatchError'
+  }
+}
+
 export async function uploadBufferedHttpToR2(params: {
   sourceUrl: string
   key: string
@@ -832,6 +843,11 @@ export async function uploadBufferedHttpToR2(params: {
   timeoutMs?: number
   /** Reject before/after download when the remote file exceeds this size. */
   maxBytes?: number
+  /**
+   * 来源公布的 SHA-256（小写）；给了就在写入 R2 之前核对，任一个对上即可（Civitai 一个
+   * 版本可能有多个模型文件）。不给 = 来源没公布，照写。
+   */
+  acceptedSha256s?: readonly string[]
 }): Promise<{ publicUrl: string; mimeType: string; sizeBytes: number }> {
   assertSafeUrl(params.sourceUrl)
 
@@ -865,6 +881,12 @@ export async function uploadBufferedHttpToR2(params: {
         throw new Error(
           `Remote file exceeds maximum size of ${params.maxBytes} bytes (got ${buffer.byteLength}).`,
         )
+      }
+      if (params.acceptedSha256s && params.acceptedSha256s.length > 0) {
+        const actualSha256 = createHash('sha256').update(buffer).digest('hex')
+        if (!params.acceptedSha256s.includes(actualSha256)) {
+          throw new R2SourceChecksumMismatchError(params.key, actualSha256)
+        }
       }
       const mimeType =
         params.mimeType ??

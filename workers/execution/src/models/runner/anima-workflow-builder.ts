@@ -5,8 +5,10 @@
  * weights are UNET/diffusion-model-only (no baked CLIP/VAE), so it needs a
  * different graph than `buildComfyWorkflow` (which uses CheckpointLoaderSimple):
  *
- *   UNETLoader(diffusion_models/<anima>) ─MODEL─▶ LoraLoaderModelOnly chain
+ *   PixelVaultUNETLoader(diffusion_models/<anima>) ─MODEL─▶ PixelVaultLoraLoaderModelOnly chain
  *     ─▶ ModelSamplingAuraFlow(shift) ─MODEL─▶ KSampler
+ *   (the PixelVault loaders also thread a load-evidence STRING into PixelVaultSaveImage —
+ *    same contract as the SDXL graph; nodes live in the fork's model_evidence.py)
  *   CLIPLoader(text_encoders/qwen_3_06b, type="stable_diffusion") ─CLIP─▶ CLIPTextEncode ×2
  *   VAELoader(vae/qwen_image_vae) ─VAE─▶ VAEDecode
  *   EmptyLatentImage (or img2img LoadImage→ImageScale→VAEEncode) ─LATENT─▶ KSampler
@@ -90,7 +92,7 @@ function loraNodeId(index: number): string {
 export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
   const workflow: ComfyWorkflow = {
     [NODE_ID.unet]: {
-      class_type: 'UNETLoader',
+      class_type: 'PixelVaultUNETLoader',
       inputs: {
         unet_name: input.diffusionModelFilename,
         weight_dtype: 'default',
@@ -111,19 +113,22 @@ export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
   }
 
   // LoRA chain patches the diffusion model only (CLIP comes from the separate
-  // CLIPLoader, so LoraLoaderModelOnly — not LoraLoader — is correct here).
+  // CLIPLoader, so the model-only loader — not LoraLoader — is correct here).
   let modelSource: [string, number] = [NODE_ID.unet, 0]
+  let auditSource: [string, number] = [NODE_ID.unet, 1]
   input.loras.forEach((lora, index) => {
     const nodeId = loraNodeId(index)
     workflow[nodeId] = {
-      class_type: 'LoraLoaderModelOnly',
+      class_type: 'PixelVaultLoraLoaderModelOnly',
       inputs: {
         model: modelSource,
+        audit: auditSource,
         lora_name: lora.filename,
         strength_model: lora.strengthModel,
       },
     }
     modelSource = [nodeId, 0]
+    auditSource = [nodeId, 1]
   })
 
   // Anima's AuraFlow-style sampling shift wraps the (LoRA-patched) model.
@@ -217,9 +222,10 @@ export function buildAnimaWorkflow(input: AnimaWorkflowInput): ComfyWorkflow {
   }
 
   workflow[NODE_ID.saveImage] = {
-    class_type: 'SaveImage',
+    class_type: 'PixelVaultSaveImage',
     inputs: {
       images: outputImageSource,
+      audit: auditSource,
       filename_prefix: input.filenamePrefix ?? 'pixelvault',
     },
   }

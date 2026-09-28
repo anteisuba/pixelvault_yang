@@ -53,6 +53,7 @@ vi.mock('@/services/civitai-search-snapshot.service', () => ({
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
 import {
   fetchCivitaiLoraDownloadPolicy,
+  fetchCivitaiModelFileSha256s,
   findCivitaiLorasWithDownloadDisabled,
   getCivitaiModelDescription,
   listCivitaiLoras,
@@ -3949,6 +3950,35 @@ describe('mineCivitaiUserPrompts', () => {
   })
 })
 
+describe('fetchCivitaiModelFileSha256s', () => {
+  it('returns the published SHA-256 of every model file, lowercased', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 3118200,
+        name: 'v1',
+        files: [
+          { type: 'Model', hashes: { SHA256: 'AA'.repeat(32) } },
+          { type: 'Model', hashes: { SHA256: 'bb'.repeat(32) } },
+          { type: 'Training Data', hashes: { SHA256: 'cc'.repeat(32) } },
+          { type: 'Model', hashes: { AutoV3: 'DEADBEEF' } },
+        ],
+      }),
+    )
+
+    expect(await fetchCivitaiModelFileSha256s(3118200)).toEqual([
+      'aa'.repeat(32),
+      'bb'.repeat(32),
+    ])
+  })
+
+  it('returns null when the version publishes no SHA-256', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({ id: 1, name: 'v1', files: [{ type: 'Model' }] }),
+    )
+    expect(await fetchCivitaiModelFileSha256s(1)).toBeNull()
+  })
+})
+
 describe('resolveCivitaiCheckpointByReference', () => {
   const CKPT_PAYLOAD = {
     id: 597138,
@@ -3964,7 +3994,11 @@ describe('resolveCivitaiCheckpointByReference', () => {
         name: 'animaPencilXL_v500.safetensors',
         downloadUrl: 'https://civitai.com/api/download/models/597138',
         sizeKB: 6944000,
-        hashes: { AutoV3: 'ABCDEF012345' },
+        hashes: {
+          AutoV3: 'ABCDEF012345',
+          SHA256:
+            'BD43B7CFFE1ED1153D9C41E7BEB2F18CB1273EAFBAA3AF3EDD6A173DC90A006E',
+        },
       },
     ],
   }
@@ -3985,6 +4019,8 @@ describe('resolveCivitaiCheckpointByReference', () => {
       downloadUrl: 'https://civitai.com/api/download/models/597138',
       sizeKB: 6944000,
       fileHashAutoV3: 'abcdef012345',
+      sha256:
+        'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
     })
   })
 

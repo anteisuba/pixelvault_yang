@@ -237,3 +237,30 @@ describe('PROMPT_TOO_LONG', () => {
     ).toBe('errors.provider.promptTooLong')
   })
 })
+
+// 45 Runner 下载护栏（09-28）：fork / app 抛的固定英文要落到各自的码上，
+// 不能被参考图或通用规则吃掉（原话里有 "image" / "free"）。
+describe('Runner download guardrails', () => {
+  it('classifies a published-checksum mismatch from the fork or the app', () => {
+    expect(
+      parseGenerationErrorCode(
+        "ValueError: SHA-256 mismatch for 'civitai-ckpt-1.safetensors': expected aa, got bb",
+        { hasReferenceImage: true },
+      ),
+    ).toBe(GENERATION_ERROR_CODES.RUNNER_DOWNLOAD_MISMATCH)
+    expect(
+      parseGenerationErrorCode(
+        'SHA-256 mismatch: the LoRA downloaded from Civitai version 3 does not match the checksum its source publishes.',
+      ),
+    ).toBe(GENERATION_ERROR_CODES.RUNNER_DOWNLOAD_MISMATCH)
+  })
+
+  it('classifies a full Runner volume', () => {
+    expect(
+      parseGenerationErrorCode(
+        'RuntimeError: Runner volume has insufficient free space after managed-cache eviction',
+        { hasReferenceImage: true },
+      ),
+    ).toBe(GENERATION_ERROR_CODES.RUNNER_STORAGE_FULL)
+  })
+})

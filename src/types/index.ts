@@ -227,6 +227,11 @@ export const RunnerCheckpointSpecSchema = z.object({
   // v4：fork 落盘子目录。缺省 checkpoints/（SDXL）；Anima DiT → diffusion_models/
   // （fork 侧解析到 models/unet/，配 UNETLoader）。
   targetDir: z.enum(['checkpoints', 'diffusion_models']).optional(),
+  // v9：Civitai 公布的 SHA-256（小写十六进制），fork 落盘前核对；缺省 = 来源没公布，照下。
+  sha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 })
 export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
 

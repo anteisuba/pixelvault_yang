@@ -261,8 +261,13 @@ export interface RunnerModelEvidence {
   version: 1
   evidence: 'loader-output'
   imageSha256: string
+  /**
+   * First entry is the base: `checkpoint` (SDXL, CheckpointLoaderSimple) or
+   * `diffusion_model` (DiT UNET-only). LoRAs follow in load order; DiT LoRAs
+   * are model-only, so they carry `strengthModel` without `strengthClip`.
+   */
   models: Array<{
-    kind: 'checkpoint' | 'lora'
+    kind: 'checkpoint' | 'diffusion_model' | 'lora'
     filename: string
     sha256: string
     sizeBytes: number
@@ -292,12 +297,16 @@ export function parseRunnerModelEvidence(
     data.models.length > 32
   )
     return invalid()
+  const baseKind = (data.models[0] as Record<string, unknown> | null)?.kind
+  if (baseKind !== 'checkpoint' && baseKind !== 'diffusion_model')
+    return invalid()
+  const modelOnlyLoras = baseKind === 'diffusion_model'
   const models = data.models.map((item: unknown, index: number) => {
     if (!item || typeof item !== 'object' || Array.isArray(item))
       return invalid()
     const model = item as Record<string, unknown>
     if (
-      model.kind !== (index === 0 ? 'checkpoint' : 'lora') ||
+      model.kind !== (index === 0 ? baseKind : 'lora') ||
       typeof model.filename !== 'string' ||
       !model.filename ||
       model.filename.length > 512 ||
@@ -308,7 +317,7 @@ export function parseRunnerModelEvidence(
     )
       return invalid()
     const record: RunnerModelEvidence['models'][number] = {
-      kind: index === 0 ? 'checkpoint' : 'lora',
+      kind: index === 0 ? baseKind : 'lora',
       filename: model.filename,
       sha256: model.sha256,
       sizeBytes: model.sizeBytes,
@@ -316,13 +325,20 @@ export function parseRunnerModelEvidence(
     if (index > 0) {
       if (
         typeof model.strengthModel !== 'number' ||
-        !Number.isFinite(model.strengthModel) ||
-        typeof model.strengthClip !== 'number' ||
-        !Number.isFinite(model.strengthClip)
+        !Number.isFinite(model.strengthModel)
       )
         return invalid()
       record.strengthModel = model.strengthModel
-      record.strengthClip = model.strengthClip
+      if (modelOnlyLoras) {
+        if (model.strengthClip !== undefined) return invalid()
+      } else {
+        if (
+          typeof model.strengthClip !== 'number' ||
+          !Number.isFinite(model.strengthClip)
+        )
+          return invalid()
+        record.strengthClip = model.strengthClip
+      }
     }
     return record
   })

@@ -4,6 +4,7 @@
  * 5 exports fully covered, no real R2 calls.
  */
 
+import { createHash } from 'node:crypto'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import sharp from 'sharp'
 
@@ -543,6 +544,43 @@ describe('uploadBufferedHttpToR2', () => {
     expect(result.publicUrl).toBe('https://cdn.test.com/test/model.glb')
     expect(result.mimeType).toBe('model/gltf-binary')
     expect(result.sizeBytes).toBe(4)
+    expect(mockSend).toHaveBeenCalledOnce()
+  })
+
+  it('refuses to store a file whose SHA-256 differs from the published one', async () => {
+    const body = new Uint8Array([1, 2, 3, 4])
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(body.buffer),
+      headers: new Headers(),
+    })
+
+    await expect(
+      uploadBufferedHttpToR2({
+        sourceUrl: 'https://example.com/lora.safetensors',
+        key: 'runner-loras/x.safetensors',
+        acceptedSha256s: ['ab'.repeat(32)],
+      }),
+    ).rejects.toThrow(/SHA-256 mismatch/)
+    expect(global.fetch).toHaveBeenCalledOnce()
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it('stores the file when it matches one of the published SHA-256 values', async () => {
+    const body = new Uint8Array([1, 2, 3, 4])
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(body.buffer),
+      headers: new Headers(),
+    })
+    const actual = createHash('sha256').update(body).digest('hex')
+
+    await uploadBufferedHttpToR2({
+      sourceUrl: 'https://example.com/lora.safetensors',
+      key: 'runner-loras/x.safetensors',
+      acceptedSha256s: ['ab'.repeat(32), actual],
+    })
+
     expect(mockSend).toHaveBeenCalledOnce()
   })
 

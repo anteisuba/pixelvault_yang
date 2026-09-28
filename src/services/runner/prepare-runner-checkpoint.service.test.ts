@@ -26,6 +26,8 @@ describe('prepareRunnerCheckpoint', () => {
       downloadUrl: 'https://civitai.com/api/download/models/2944197',
       sizeKB: 6000000,
       fileHashAutoV3: 'ca3f57183417',
+      sha256:
+        '29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf',
     })
     const result = await prepareRunnerCheckpoint({
       checkpointHash: '29d5281e0a',
@@ -37,6 +39,9 @@ describe('prepareRunnerCheckpoint', () => {
       runnerCheckpoint: {
         filename: 'civitai-ckpt-2944197.safetensors',
         downloadUrl: 'https://civitai.com/api/download/models/2944197',
+        // Civitai 公布的 SHA-256 透传给 fork，落盘前核对。
+        sha256:
+          '29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf',
       },
     })
   })
@@ -48,6 +53,7 @@ describe('prepareRunnerCheckpoint', () => {
       downloadUrl: 'https://civitai.com/api/download/models/597138',
       sizeKB: 6944000,
       fileHashAutoV3: 'abc',
+      sha256: null,
     })
 
     const res = await prepareRunnerCheckpoint({ checkpointVersionId: 597138 })
@@ -80,6 +86,7 @@ describe('prepareRunnerCheckpoint', () => {
       downloadUrl: 'https://civitai.com/api/download/models/2',
       sizeKB: null,
       fileHashAutoV3: null,
+      sha256: null,
     })
 
     await expect(
@@ -112,6 +119,7 @@ describe('prepareRunnerCheckpoint', () => {
       downloadUrl: 'https://civitai.com/api/download/models/3108589',
       sizeKB: 3900000,
       fileHashAutoV3: 'abc',
+      sha256: null,
     })
     const res = await prepareRunnerCheckpoint({ checkpointVersionId: 3108589 })
     expect(res).toEqual({

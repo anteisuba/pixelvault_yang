@@ -5,8 +5,10 @@ import { createHash } from 'node:crypto'
 import { HUGGINGFACE_LORA_ALLOWED_EXTENSION } from '@/constants/lora'
 import { logger } from '@/lib/logger'
 import { getSystemCivitaiToken } from '@/lib/platform-keys'
+import { fetchCivitaiModelFileSha256s } from '@/services/civitai-lora.service'
 import {
   createPresignedR2GetUrl,
+  R2SourceChecksumMismatchError,
   r2ObjectExists,
   uploadBufferedHttpToR2,
 } from '@/services/storage/r2'
@@ -43,7 +45,8 @@ export class RunnerLoraR2Error extends Error {
       | 'INVALID_LORA_URL'
       | 'AUTH_REQUIRED'
       | 'DOWNLOAD_FAILED'
-      | 'TOO_LARGE',
+      | 'TOO_LARGE'
+      | 'CHECKSUM_MISMATCH',
   ) {
     super(message)
     this.name = 'RunnerLoraR2Error'
@@ -57,6 +60,41 @@ function toRunnerLoraTooLargeError(sizeBytes: number): RunnerLoraR2Error {
     `Runner LoRA is ${sizeMb} MB, over the ${maxMb} MB limit. Base checkpoints belong in the checkpoint path, not as LoRA attachments.`,
     'TOO_LARGE',
   )
+}
+
+/** 消息里的 `SHA-256 mismatch` 是生成错误归类（RUNNER_DOWNLOAD_MISMATCH）的判据。 */
+function toRunnerLoraChecksumError(source: string): RunnerLoraR2Error {
+  return new RunnerLoraR2Error(
+    `SHA-256 mismatch: the LoRA downloaded from ${source} does not match the checksum its source publishes.`,
+    'CHECKSUM_MISMATCH',
+  )
+}
+
+/**
+ * HF LFS 文件的 SHA-256 在 resolve 跳转响应的 `x-linked-etag` 上（2026-09-28 实测）；
+ * 非 LFS 小文件或查询失败返回 undefined——当「来源没公布」，照写不拦。
+ */
+async function fetchHuggingFaceFileSha256s(
+  fileUrl: string,
+): Promise<string[] | undefined> {
+  try {
+    const response = await fetch(fileUrl, {
+      method: 'HEAD',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(10_000),
+    })
+    const etag = response.headers
+      .get('x-linked-etag')
+      ?.replace(/"/g, '')
+      .trim()
+      .toLowerCase()
+    return etag && /^[a-f0-9]{64}$/.test(etag) ? [etag] : undefined
+  } catch (error) {
+    logger.warn('Hugging Face LoRA SHA-256 lookup failed', {
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return undefined
+  }
 }
 
 function isRemoteFileTooLargeError(error: unknown): error is Error {
@@ -202,6 +240,8 @@ export async function ensureCivitaiLoraInR2(
     return { filename, r2Key, downloaded: false }
   }
 
+  const acceptedSha256s =
+    (await fetchCivitaiModelFileSha256s(versionId)) ?? undefined
   let lastAuthenticationError: Error | null = null
   for (const token of getCivitaiTokenCandidates(preferredToken)) {
     try {
@@ -211,10 +251,18 @@ export async function ensureCivitaiLoraInR2(
         mimeType: 'application/octet-stream',
         fetchHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
         maxBytes: RUNNER_LORA_MAX_BYTES,
+        acceptedSha256s,
       })
       logger.info('Cached Civitai LoRA to R2', { versionId, r2Key })
       return { filename, r2Key, downloaded: true }
     } catch (error) {
+      if (error instanceof R2SourceChecksumMismatchError) {
+        logger.warn('Civitai LoRA failed its published SHA-256 check', {
+          versionId,
+          actualSha256: error.actualSha256,
+        })
+        throw toRunnerLoraChecksumError(`Civitai version ${versionId}`)
+      }
       if (isRemoteAuthenticationError(error)) {
         lastAuthenticationError = error
         continue
@@ -266,6 +314,7 @@ export async function ensureHuggingFaceLoraInR2(
     return { filename, r2Key, downloaded: false }
   }
 
+  const acceptedSha256s = await fetchHuggingFaceFileSha256s(loraDownloadUrl)
   try {
     // Public HF model files do not need a token. Keeping the worker contract
     // R2-only also prevents user-supplied URLs from becoming a worker SSRF
@@ -275,8 +324,17 @@ export async function ensureHuggingFaceLoraInR2(
       key: r2Key,
       mimeType: 'application/octet-stream',
       maxBytes: RUNNER_LORA_MAX_BYTES,
+      acceptedSha256s,
     })
   } catch (error) {
+    if (error instanceof R2SourceChecksumMismatchError) {
+      logger.warn('Hugging Face LoRA failed its published SHA-256 check', {
+        repoId: reference.repoId,
+        filename: reference.filename,
+        actualSha256: error.actualSha256,
+      })
+      throw toRunnerLoraChecksumError(`Hugging Face ${reference.repoId}`)
+    }
     logger.warn('Failed to cache Hugging Face LoRA to R2', {
       repoId: reference.repoId,
       revision: reference.revision,

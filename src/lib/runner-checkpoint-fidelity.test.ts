@@ -15,6 +15,7 @@ function ckpt(
     downloadUrl: 'https://civitai.com/api/download/models/597138',
     sizeKB: 6944000,
     fileHashAutoV3: 'abcdef012345',
+    sha256: null,
     ...overrides,
   }
 }

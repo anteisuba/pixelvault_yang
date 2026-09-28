@@ -7155,6 +7155,8 @@
       "provider_model_not_activated": "Your provider account has not activated this model yet. Activate it in the provider console (e.g. the Ark / BytePlus model activation page) and try again — retrying as is will not help.",
       "provider_server_error": "The provider’s server returned an error (500). This isn’t a problem with your settings — it’s usually a temporary fault on their side. Try again shortly, or switch models.",
       "runner_queue_stuck": "This generation was canceled because it could not start. Choose another available model or try again later.",
+      "runner_download_mismatch": "The downloaded model file doesn't match the checksum its source publishes, so nothing was generated. Retrying downloads it again; if it keeps failing, pick another LoRA or base model.",
+      "runner_storage_full": "The Runner's model storage is full, so nothing was generated. Try again later; if it keeps failing, ask the administrator to add storage.",
       "execution_worker_unavailable": "The generation service cannot be reached right now. Try again later; contact the administrator if it keeps failing.",
       "lora_incompatible_hosted": "This model does not support this LoRA format. Choose a compatible model or another LoRA.",
       "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",

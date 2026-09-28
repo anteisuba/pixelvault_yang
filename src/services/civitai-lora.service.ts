@@ -916,6 +916,8 @@ export interface CivitaiCheckpointResolution {
   downloadUrl: string
   sizeKB: number | null
   fileHashAutoV3: string | null
+  /** Civitai 公布的文件 SHA-256（小写）；Runner fork 下载后据此核对。没公布为 null。 */
+  sha256: string | null
 }
 
 /**
@@ -997,7 +999,13 @@ export async function resolveCivitaiCheckpointByReference({
     downloadUrl,
     sizeKB: file?.sizeKB ?? null,
     fileHashAutoV3: file?.hashes?.AutoV3?.toLowerCase() ?? null,
+    sha256: normalizeSha256(file?.hashes?.SHA256),
   }
+}
+
+function normalizeSha256(value: string | undefined): string | null {
+  const lower = value?.trim().toLowerCase()
+  return lower && /^[a-f0-9]{64}$/.test(lower) ? lower : null
 }
 
 export async function resolveCivitaiLoraByReference({
@@ -1130,6 +1138,41 @@ export async function findCivitaiLorasWithDownloadDisabled(
     versionIds.map((id) => fetchCivitaiLoraDownloadPolicy(id)),
   )
   return policies.filter((policy) => policy.downloadDisabled === true)
+}
+
+/**
+ * Runner 下载核对：这个 Civitai 版本里模型文件公布的 SHA-256（小写，去重）。
+ * 查询失败或版本里没有公布返回 null——调用方当「来源没公布」，照下不拦。
+ */
+export async function fetchCivitaiModelFileSha256s(
+  modelVersionId: number,
+): Promise<string[] | null> {
+  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+  let payload: unknown
+  try {
+    payload = await withRetry(() => fetchCivitaiPayload(url), {
+      maxAttempts: 2,
+      baseDelayMs: 400,
+      maxDelayMs: 1500,
+      label: 'civitai.fileSha256',
+      isRetryable: isCivitaiRetryable,
+    })
+  } catch (error) {
+    logger.warn('Civitai file SHA-256 lookup failed', {
+      modelVersionId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    })
+    return null
+  }
+  const parsed = CivitaiModelVersionSchema.safeParse(payload)
+  if (!parsed.success) return null
+  const hashes = new Set<string>()
+  for (const file of parsed.data.files ?? []) {
+    if ((file.type ?? '').toLowerCase() !== 'model') continue
+    const sha256 = normalizeSha256(file.hashes?.SHA256)
+    if (sha256) hashes.add(sha256)
+  }
+  return hashes.size > 0 ? [...hashes] : null
 }
 
 export async function fetchCivitaiVersionIdentifiers(

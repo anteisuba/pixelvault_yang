@@ -60,6 +60,9 @@ export async function prepareRunnerCheckpoint(ref: {
             fidelity.checkpoint.modelVersionId,
           ),
           downloadUrl: fidelity.checkpoint.downloadUrl,
+          ...(fidelity.checkpoint.sha256
+            ? { sha256: fidelity.checkpoint.sha256 }
+            : {}),
           // v4：DiT「Anima」底模是 UNET-only，落 diffusion_models/（fork→models/unet/）。
           ...(fidelity.family === 'anima-dit'
             ? { targetDir: 'diffusion_models' as const }

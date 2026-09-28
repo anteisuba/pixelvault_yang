@@ -41,6 +41,51 @@ describe('parseRunnerModelEvidence', () => {
     expect(parseRunnerModelEvidence(undefined)).toBeUndefined()
   })
 
+  function ditEvidence() {
+    return {
+      version: 1,
+      evidence: 'loader-output',
+      imageSha256: 'a'.repeat(64),
+      models: [
+        {
+          kind: 'diffusion_model',
+          filename: 'anima-base-v1.0.safetensors',
+          sha256: 'b'.repeat(64),
+          sizeBytes: 4096,
+        },
+        {
+          kind: 'lora',
+          filename: 'civitai-3076650.safetensors',
+          sha256: 'c'.repeat(64),
+          sizeBytes: 512,
+          strengthModel: 0.6,
+        },
+      ],
+    }
+  }
+
+  it('accepts DiT evidence: diffusion model base with model-only LoRAs', () => {
+    expect(parseRunnerModelEvidence(ditEvidence())).toEqual(ditEvidence())
+  })
+
+  it.each([
+    (data: ReturnType<typeof ditEvidence>) => {
+      Object.assign(data.models[1], { strengthClip: 0.6 })
+    },
+    (data: ReturnType<typeof ditEvidence>) => {
+      data.models[1].kind = 'diffusion_model'
+    },
+    (data: ReturnType<typeof ditEvidence>) => {
+      data.models[0].kind = 'lora'
+    },
+  ])('rejects malformed DiT evidence %#', (mutate) => {
+    const data = ditEvidence()
+    mutate(data)
+    expect(() => parseRunnerModelEvidence(data)).toThrow(
+      /Invalid Runner model load evidence/,
+    )
+  })
+
   it.each([
     (data: ReturnType<typeof evidence>) => {
       data.imageSha256 = 'abc'
@@ -304,7 +349,7 @@ describe('buildRunnerWorkflowFromRequest', () => {
   })
 
   describe('v4 Anima DiT dispatch (architecture: "anima")', () => {
-    it('builds the DiT graph (UNETLoader + Qwen CLIP/VAE + ModelSamplingAuraFlow), not CheckpointLoaderSimple', () => {
+    it('builds the DiT graph (evidence UNET loader + Qwen CLIP/VAE + ModelSamplingAuraFlow), not CheckpointLoaderSimple', () => {
       const workflow = buildRunnerWorkflowFromRequest(
         baseRequest({
           architecture: 'anima',
@@ -313,8 +358,9 @@ describe('buildRunnerWorkflowFromRequest', () => {
         fixedRandomSeed,
       )
       // DiT loaders present, SDXL nodes absent.
-      expect(workflow.unet.class_type).toBe('UNETLoader')
+      expect(workflow.unet.class_type).toBe('PixelVaultUNETLoader')
       expect(workflow.unet.inputs.unet_name).toBe('anima-base-v1.0.safetensors')
+      expect(workflow['save-image'].class_type).toBe('PixelVaultSaveImage')
       expect(workflow['clip-loader'].class_type).toBe('CLIPLoader')
       expect(workflow['clip-loader'].inputs.clip_name).toBe(
         'qwen_3_06b_base.safetensors',
@@ -347,6 +393,8 @@ describe('buildRunnerWorkflowFromRequest', () => {
 
       expect(workflow['lora-0']).toBeUndefined()
       expect(workflow['model-sampling'].inputs.model).toEqual(['unet', 0])
+      // No LoRA: the save node reads load evidence straight from the UNET loader.
+      expect(workflow['save-image'].inputs.audit).toEqual(['unet', 1])
       expect(workflow.sampler.inputs.model).toEqual(['model-sampling', 0])
     })
 
@@ -382,7 +430,7 @@ describe('buildRunnerWorkflowFromRequest', () => {
       expect(workflow.sampler.inputs.sampler_name).toBe('er_sde')
     })
 
-    it('chains the Anima LoRA model-only (LoraLoaderModelOnly, no clip strength)', () => {
+    it('chains the Anima LoRA model-only (no clip strength) and threads load evidence', () => {
       const workflow = buildRunnerWorkflowFromRequest(
         baseRequest({
           architecture: 'anima',
@@ -391,7 +439,11 @@ describe('buildRunnerWorkflowFromRequest', () => {
         }),
         fixedRandomSeed,
       )
-      expect(workflow['lora-0'].class_type).toBe('LoraLoaderModelOnly')
+      expect(workflow['lora-0'].class_type).toBe(
+        'PixelVaultLoraLoaderModelOnly',
+      )
+      expect(workflow['lora-0'].inputs.audit).toEqual(['unet', 1])
+      expect(workflow['save-image'].inputs.audit).toEqual(['lora-0', 1])
       expect(workflow['lora-0'].inputs.lora_name).toBe(
         'civitai-3076650.safetensors',
       )

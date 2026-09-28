@@ -6269,10 +6269,6 @@
       "previewTitle": "Preview · {name}",
       "previewEmpty": "No clip under the playhead",
       "clock": "{at} / {total}",
-      "planPlaceholder": "Describe the cut: follow the script order, 5s from the middle of each shot, crossfade…",
-      "planAria": "Describe the cut",
-      "planModel": "Writing model",
-      "planPending": "Editing from a description isn't available yet.",
       "inspector": {
         "empty": "Select a clip to see its settings",
         "selected": "Selected · {name}",
@@ -6343,33 +6339,6 @@
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
         }
-      },
-      "plan": {
-        "ask": "Arrange the timeline: {prompt}",
-        "cardTitle": "Cut proposal",
-        "notApplied": "not applied",
-        "counts": "{clips} clips changed · {tracks} tracks added · no credits",
-        "adopt": "Adopt",
-        "review": "Clip by clip",
-        "discard": "Discard",
-        "adopted": "The proposal landed on the timeline",
-        "alreadyProposed": "A proposal is already on the timeline — adopt or discard it first.",
-        "exportBlocked": "Adopt or discard the proposal before exporting.",
-        "clipHeading": "Proposal · clip {index} / {total}",
-        "prev": "Previous clip",
-        "next": "Next clip",
-        "take": {
-          "middle": "Take {in}–{out} (the middle {seconds}s of {total}s)",
-          "head": "Take {in}–{out} (the first {seconds}s of {total}s)",
-          "tail": "Take {in}–{out} (the last {seconds}s of {total}s)",
-          "full": "Take the whole clip ({total}s)"
-        },
-        "why": "Why: {reason}",
-        "inPoint": "Start",
-        "outPoint": "End",
-        "acceptClip": "Take this one",
-        "skipClip": "Skip",
-        "acceptedSoFar": "{count} taken so far"
       },
       "audioFilters": {
         "all": "All",

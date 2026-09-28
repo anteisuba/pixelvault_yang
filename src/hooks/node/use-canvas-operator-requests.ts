@@ -1,15 +1,16 @@
 'use client'
 
 /**
- * 画布上那三张**便条**的消费端（进度表 22）。
+ * 画布上那两张**便条**的消费端（进度表 22）。
  *
  * ── 这个 hook 为什么存在 ───────────────────────────────────────────
- * 画布上有三个入口不在助手面板里：节点右键的「重跑下游」、文本卡助手栏的
- * 续写 / 重写、剪辑台排片栏的一句话排片。三者都用同一种办法把意图递过来 ——
+ * 画布上有两个入口不在助手面板里：节点右键的「重跑下游」、文本卡助手栏的
+ * 续写 / 重写。两者都用同一种办法把意图递过来 ——
  * 一张模块级便条（`lib/canvas-rerun-request.ts` 那份头注写清了为什么不是回调）。
- * 便条的消费方一直是画布自己那只 dock；那只 dock 2026-09-19 退场了，于是这三条
+ * 便条的消费方一直是画布自己那只 dock；那只 dock 2026-09-19 退场了，于是这两条
  * 通道**没有去处**。⛔ 让它们静默失效是这一轮最容易犯、也最难发现的错：
- * 三处入口照样点得动、照样有动画，就是什么都不发生。
+ * 两处入口照样点得动、照样有动画，就是什么都不发生。
+ * （剪辑台那条「一句话排片」栏随 S6 删掉：剪辑台里直接用助手面板说话。）
  *
  * ── 它做的事只有一件：把便条译成一句话发出去 ────────────────────────
  * ⛔ 它不算拓扑、不调模型、不碰画布：下游名单归 `canvas_plan_rerun`（服务端那一
@@ -28,10 +29,6 @@ import {
   subscribeCanvasRerunDownstream,
   takeCanvasRerunDownstream,
 } from '@/lib/canvas-rerun-request'
-import {
-  subscribeTimelinePlanRequest,
-  takeTimelinePlanRequest,
-} from '@/lib/timeline-plan-request'
 import {
   subscribeCanvasTextAssist,
   takeCanvasTextAssist,
@@ -92,22 +89,4 @@ export function useCanvasOperatorRequests({
       send(textAssistSentence(request, nodeName(request.nodeId)))
     })
   }, [isCanvas, send, nodeName])
-
-  /**
-   * ⚠ 一句话排片这一轮**只送过去，不回程**（如实记在任务包里）：回程那一跳
-   * （`deliverTimelineProposal`）要一份 `TimelineProposal`，而操作员的工具表里
-   * 今天还没有产出时间线的那一条。所以剪辑台那条排片栏现在得到的是「助手在
-   * 面板里答你」，⛔ 不是一份可以直接点应用的提案。
-   * ⛔ 别为此在这里编一份提案 —— 那是凭空造一个用户会照着剪的时间线。
-   */
-  useEffect(() => {
-    if (!isCanvas) return undefined
-    return subscribeTimelinePlanRequest(() => {
-      const request = takeTimelinePlanRequest()
-      if (!request) return
-      const note = request.prompt.trim()
-      if (!note) return
-      send(note)
-    })
-  }, [isCanvas, send])
 }

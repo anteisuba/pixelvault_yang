@@ -14,7 +14,11 @@
  * 上面那一排是本台自己的键，⛔ 不被预设换掉（spec §6 两条都写着）。
  *
  * ⚠ 导出（S9）走 `useEditDeskRender`：建计划 → 入队 → 顶栏进度 → 完成（成片卡由服务端落，这边拉回）/ 下载。
- * ⛔ 一句话排片仍然只画栏（S10）。
+ *
+ * ── 助手（④ 方向 A「舞台」，owner 2026-09-28）──────────────────────────
+ * 就是画布那块助手面板（`assistant` 槽），头像留在顶栏最右那一格当开关，面板从右侧
+ * 滑入、舞台同一根弹簧让位（`studioOperatorYield`，与图片台布局 A 同一套）。⛔ 没有
+ * 底部排片栏：一个助手一个输入框。
  *
  * ── 为什么整块 portal 到 body ────────────────────────────────────────────
  * 全屏模式必须盖住**画布外壳的全部** —— 包括右侧助手那条窄条。而外壳的舞台
@@ -26,9 +30,17 @@
  * 对话框就被自己盖住了（真机上就这么栽过一次）。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
+import { motion } from 'motion/react'
 import { toast } from 'sonner'
 
 import {
@@ -47,18 +59,13 @@ import {
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { clipIndexAt, currentUrlOf, RenderPlanError } from '@/lib/edit-project'
-import {
-  requestTimelinePlan,
-  subscribeTimelineProposal,
-  takeTimelineProposal,
-} from '@/lib/timeline-plan-request'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
 import { useEditShortcutPreset } from '@/hooks/node/use-edit-shortcut-preset'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'
 
-import { NodePromptBar } from '../nodes/v4/chrome/NodePromptBar'
 import {
   EditDeskAssetRail,
   type EditDeskLibraryAsset,
@@ -66,10 +73,6 @@ import {
 import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
-import {
-  EditDeskProposalCard,
-  EditDeskProposalInspector,
-} from './EditDeskProposalCard'
 import { EditDeskRenderBar, EditDeskResumeBar } from './EditDeskRenderBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
@@ -129,6 +132,12 @@ export interface EditDeskProps {
    * 灰键只会让人反复去点（ui-defaults §7「不支持的能力不渲染」）。
    */
   readonly readOnly?: boolean
+  /**
+   * 助手面板（④ 方向 A）。调用方把画布那一颗 `StudioOperatorDock` 挂到这里 ——
+   * 剪辑台开着时它**只挂在这里**（画布那一格不挂），会话住在模块 store 里，搬家
+   * 不丢。⚠ 挂在台面这棵子树里，它的 `fixed` 面板与头像才叠在台面之上。
+   */
+  readonly assistant?: ReactNode
 }
 
 export function EditDesk({
@@ -146,10 +155,10 @@ export function EditDesk({
   initialNodeIds,
   onInitialConsumed,
   readOnly = false,
+  assistant,
 }: EditDeskProps) {
   const t = useTranslations('StudioNode.editDesk')
   const locale = useLocale()
-  const tPlan = useTranslations('StudioNode.editDesk.plan')
   const desk = useEditDesk({
     state,
     dispatchBatch,
@@ -164,9 +173,6 @@ export function EditDesk({
     EDIT_PANEL_IDS.canvas,
   )
   const [exportOpen, setExportOpen] = useState(false)
-  const [planPrompt, setPlanPrompt] = useState('')
-  /** 便条投出去了、提案还没回来 —— 栏上那颗按钮该转，⛔ 不让人连点五次。 */
-  const [planPending, setPlanPending] = useState(false)
   /** 预览在不在播 —— 空格与播放器那颗钮共用这一份（spec §6「空格播放」）。 */
   const [playing, setPlaying] = useState(false)
   /** 音频页的三档筛（工具条「语音」/「配乐」切它）。 */
@@ -198,24 +204,6 @@ export function EditDesk({
     addClips(initialNodeIds)
     onInitialConsumed?.()
   }, [initialNodeIds, addClips, onInitialConsumed])
-
-  /**
-   * 排片提案的回程（S10）：dock 收到 `timeline` 帧就往这里投一张便条。
-   *
-   * ⚠ 与画布那两条便条同一条纪律：**取走即消费**，挂载时先取一次 —— 提案可能在
-   * 台面这一帧还没挂好的时候就到了。
-   */
-  const { setProposal } = desk
-  useEffect(() => {
-    const consume = () => {
-      const proposal = takeTimelineProposal()
-      if (!proposal) return
-      setPlanPending(false)
-      setProposal(proposal)
-    }
-    consume()
-    return subscribeTimelineProposal(consume)
-  }, [setProposal])
 
   /* ── 快捷键 ───────────────────────────────────────────────────────── */
   const { markIn, markOut, removeSelected, splitAtPlayhead, setPlayhead } = desk
@@ -466,27 +454,6 @@ export function EditDesk({
     ],
   )
 
-  /**
-   * 一句话排片（S10）：把便条投给助手 dock，产出一份提案回到这条时间线。
-   *
-   * ⚠ 只**投便条**，⛔ 不在台面上发请求：请求要会话与画布上下文，那两样只有
-   * dock 有（`timeline-plan-request.ts` 头注）。
-   * ⚠ 提案期间不再受理第二句：两份提案并排摆着没有人读得懂哪份是这一次的。
-   */
-  const onPlanSubmit = useCallback(() => {
-    const prompt = planPrompt.trim()
-    if (!prompt || planPending) return
-    if (desk.proposal) {
-      toast.info(tPlan('alreadyProposed'))
-      return
-    }
-    setPlanPending(true)
-    setPlanPrompt('')
-    // ⚠ 未落库的那份空表也要带上：成片名住在它里面，不带过去提案会用服务端那个
-    //   英文兜底名，用户会看到自己刚改的名字被一次排片改掉（真机上撞见过）。
-    requestTimelinePlan({ prompt, project: desk.project })
-  }, [planPrompt, planPending, desk.proposal, desk.project, tPlan])
-
   const onDownload = useCallback((url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer')
   }, [])
@@ -497,6 +464,13 @@ export function EditDesk({
       state.nodes.filter((node) => node.data.kind === NODE_MEDIA_KIND_IDS.text),
     [state.nodes],
   )
+
+  /**
+   * 助手面板占掉的右侧宽度（Dock 按弹簧驱动；没开 / 手机 = 0）。绑在台面主体的右内
+   * 边距上，舞台与时间线跟面板一起让位。⚠ 恒绑同一个 motion 值（⛔ 别换成静态值：
+   * motion 的 style 从 motion 值换成静态值时不解绑，见 `StudioWorkspaceUI` 同一条）。
+   */
+  const operatorYield = useStudioOperatorYield()
 
   const previewRow =
     desk.rows[EDIT_TRACK_IDS.video][
@@ -517,16 +491,8 @@ export function EditDesk({
         onUndo={onUndo}
         onBack={onExit}
         onRename={desk.rename}
-        onExport={() => {
-          // ⚠ 提案还摆在轨道上时导出是**歧义的**：导的是现在这条，还是那份还没
-          //   采用的？说清楚而不是悄悄导旧的（spec §6「提案期间导出禁用并提示」）。
-          if (desk.proposal) {
-            toast.info(tPlan('exportBlocked'))
-            return
-          }
-          setExportOpen(true)
-        }}
-        exportDisabled={Boolean(desk.proposal)}
+        onExport={() => setExportOpen(true)}
+        reserveAssistantSlot={Boolean(assistant)}
         shortcutPreset={shortcutPreset}
         onShortcutPresetChange={setShortcutPreset}
       />
@@ -546,7 +512,10 @@ export function EditDesk({
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1">
+      <motion.div
+        style={{ paddingRight: operatorYield }}
+        className="flex min-h-0 flex-1"
+      >
         {readOnly ? null : (
           <EditDeskAssetRail
             activePanel={activePanel}
@@ -578,19 +547,11 @@ export function EditDesk({
               onPlayheadChange={setPlayhead}
               textClips={desk.activeTextClips}
             />
-            {readOnly ? null : desk.proposal &&
-              desk.proposalClipIndex !== null ? (
-              <EditDeskProposalInspector desk={desk} />
-            ) : readOnly ? null : (
+            {readOnly ? null : (
               <EditDeskInspector desk={desk} onBackToNode={onBackToNode} />
             )}
           </div>
 
-          {/*
-            一句话排片（spec §6）**收在时间线块内的最底下**（S9 修 S8 遗留）：
-            S8 那一版把它摆成时间线块外的一条、再用负 margin 往上蹭，1440 以下
-            会压住 M 轨。本片**只画栏**：提案与幽灵段是 S10。
-          */}
           {/* 只看不剪：时间线仍然画（要看得见排片），但整块不接手势 ——
               `inert` 连键盘焦点一起挡掉，⛔ 不只是 `pointer-events-none`。 */}
           <div
@@ -604,47 +565,10 @@ export function EditDesk({
               onTool={onTool}
               onDropLibraryAsset={onDropLibraryAsset}
               highlightTrack={highlightTrack}
-              overlay={
-                desk.proposal ? (
-                  <EditDeskProposalCard
-                    proposal={desk.proposal}
-                    reviewing={desk.proposalClipIndex !== null}
-                    onAdopt={() => {
-                      desk.applyProposal()
-                      toast.success(tPlan('adopted'))
-                    }}
-                    onReview={desk.enterProposalReview}
-                    onDiscard={desk.discardProposal}
-                  />
-                ) : undefined
-              }
-              {...(readOnly
-                ? {}
-                : {
-                    footer: (
-                      <NodePromptBar
-                        value={planPrompt}
-                        onValueChange={setPlanPrompt}
-                        onSubmit={onPlanSubmit}
-                        generating={planPending}
-                        placeholder={t('planPlaceholder')}
-                        ariaLabel={t('planAria')}
-                        chips={[
-                          <span
-                            key="model"
-                            data-testid="edit-desk-plan-model"
-                            className="inline-flex h-6 items-center rounded-md border border-border px-1.5 text-3xs text-muted-foreground"
-                          >
-                            {t('planModel')}
-                          </span>,
-                        ]}
-                      />
-                    ),
-                  })}
             />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <EditDeskExportDialog
         open={exportOpen}
@@ -658,6 +582,8 @@ export function EditDesk({
         onExport={onExport}
         submitting={render.submitting}
       />
+
+      {assistant}
     </div>
   )
 

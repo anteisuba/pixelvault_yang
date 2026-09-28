@@ -7,6 +7,11 @@
  * 在视觉上先破一次。
  */
 
+import {
+  STUDIO_OPERATOR_SHELL,
+  type StudioOperatorShellAnchor,
+} from '@/constants/studio-assistant-operator'
+
 /** 三条轨道。顺序即画板从上到下的 V / A / M。 */
 export const EDIT_TRACK_IDS = {
   video: 'video',
@@ -280,16 +285,29 @@ export type EditDeskLibraryFilterId =
  * 卸载重挂，退出时视口与选择全丢，而「退出即回到刚才那个地方」正是把剪辑台做成
  * 模式（而不是页）的全部理由。
  */
+/**
+ * 剪辑台里助手面板的落点（④ 方向 A「舞台」，owner 2026-09-28）：头像留在顶栏最右那
+ * 一格当开关，面板是舞台右边一列、从右侧滑入，舞台同一根弹簧让位（与图片台布局 A
+ * 同一套 `avatarStays`）。四个数都是距视口上缘 / 右缘的 px。
+ * ⚠ 头像那一格与 `globals.css` 的 `--spacing-edit-desk-avatar-slot`（60 = 12 + 36 + 12）
+ *   同源，改一边必须改另一边。
+ */
+export const EDIT_DESK_OPERATOR_ANCHOR: StudioOperatorShellAnchor = {
+  avatarTopPx:
+    (EDIT_DESK_LAYOUT.topBarHeightPx - STUDIO_OPERATOR_SHELL.avatarSizePx) / 2,
+  avatarRightPx: 12,
+  panelTopPx: EDIT_DESK_LAYOUT.topBarHeightPx + 12,
+  panelRightPx: 12,
+  panelBottomPx: 12,
+  avatarStays: true,
+}
+
 export const EDIT_DESK_MODE_PARAM = 'mode'
 export const EDIT_DESK_MODE_VALUE = 'edit'
 
-/* ─── 一句话排片（S10 · spec §6，画板 `EditDeskAI.dc.html`）───────────────── */
-
-/**
- * 只读工具的名字。⚠ 名字里**没有 `generate`**：money-gate 认的就是这个词根，
- * 而这条路一分钱都不花（只摆时间线）。
- */
-export const TIMELINE_PLAN_TOOL_ID = 'plan_timeline'
+/* ─── 一句话排片的协议残留（S10）─────────────────────────────────────────
+ * ⚠ 剪辑台上的排片栏、幽灵段与提案卡已随 S6（④ 方向 A）删掉；下面这几个值只剩
+ * 助手流 `timeline` 帧的类型（`types/edit-desk-plan.ts`）在用，S5 接助手时一起清。 */
 
 /** 提案的开销档 —— 只有一档，因为排片**永远**不花积分。 */
 export const TIMELINE_PLAN_COST_FREE = 'free'
@@ -347,19 +365,8 @@ export const TIMELINE_PLAN_TAKE_DEFAULT_SEC = 5
 export const TIMELINE_PLAN_TAKE_MIN_SEC = EDIT_CLIP_MIN_DURATION_SEC
 export const TIMELINE_PLAN_TAKE_MAX_SEC = 600
 
-/** 配乐尾部淡出默认几秒。 */
-export const TIMELINE_PLAN_MUSIC_FADE_OUT_SEC = 2
+/** 配乐尾部淡出最多几秒。 */
 export const TIMELINE_PLAN_MUSIC_FADE_OUT_MAX_SEC = 30
-
-/**
- * 淡出尾段的响度。
- *
- * ⚠ 这是**近似**：`EditClip` 眼下只有一个恒定 `gain`，渲染层也还没有 `fade`
- * 字段，于是「尾部淡出」在一期落成「最后 N 秒降到 35%」——一段真的会变轻的尾巴，
- * ⛔ 而不是一句只写在摘要里、时间线上根本不存在的承诺。等渲染层长出 `fade`
- * 再把这两段合回一段。
- */
-export const TIMELINE_PLAN_MUSIC_TAIL_GAIN = 0.35
 
 /** 一份提案最多摆几段 / 收几条理由（DoS 闸，与轨道上限同源）。 */
 export const TIMELINE_PLAN_LIMITS = {
@@ -371,19 +378,6 @@ export const TIMELINE_PLAN_LIMITS = {
   maxScriptLines: 60,
   maxScriptLineLength: 400,
 } as const
-
-/** 提案卡（画板右上 `.glass`：width 300 / radius 14 / padding 12）。 */
-export const TIMELINE_PLAN_CARD = {
-  widthPx: 300,
-  radiusPx: 14,
-  paddingPx: 12,
-  /** 距时间线块右上角（画板 right:16 / top:12）。 */
-  rightPx: 16,
-  topPx: 12,
-} as const
-
-/** 幽灵段的虚线宽（画板 `.clip.ghost { border:1.5px dashed }`）。 */
-export const TIMELINE_PLAN_GHOST_BORDER_PX = 1.5
 
 /* ─── 文字段（S8d · spec §6「文字段」，画板 `EditDeskText.dc.html`）──────── */
 

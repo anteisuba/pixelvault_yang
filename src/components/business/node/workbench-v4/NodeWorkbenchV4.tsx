@@ -75,6 +75,7 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
   EDIT_DESK_MODE_PARAM,
   EDIT_DESK_MODE_VALUE,
+  EDIT_DESK_OPERATOR_ANCHOR,
 } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import {
@@ -129,7 +130,6 @@ import {
   type NodeCanvasActions,
 } from '../nodes/v4/NodeV4ActionsBridge'
 import { subscribeCanvasTextAssist } from '../nodes/v4/text/text-assist-request'
-import { subscribeTimelinePlanRequest } from '@/lib/timeline-plan-request'
 import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
@@ -592,20 +592,6 @@ function NodeWorkbenchV4Inner() {
   useEffect(
     () =>
       subscribeCanvasTextAssist(() => {
-        setAssistantOpen(true)
-      }),
-    [],
-  )
-
-  /**
-   * 剪辑台的排片栏投便条时同样**把助手挂起来**（S10）。
-   *
-   * ⚠ 与上面逐字同源，只是这一次用户看不到那次打开 —— 剪辑台是盖在外壳上的
-   * 全屏面。挂不起来的后果一样：点了发送什么也没发生。
-   */
-  useEffect(
-    () =>
-      subscribeTimelinePlanRequest(() => {
         setAssistantOpen(true)
       }),
     [],
@@ -1228,6 +1214,19 @@ function NodeWorkbenchV4Inner() {
     setOpen: setAssistantOpen,
   })
 
+  /**
+   * 剪辑台开着时，助手面板搬进台面（④ 方向 A「舞台」，owner 2026-09-28）：头像落在
+   * 台面顶栏最右那一格，面板从右侧滑入、舞台让位。⚠ 只换落点，宿主的其余部分（域、
+   * 快照、落笔）原样 —— 剪辑台就是画布的全屏模式。
+   */
+  const operatorHostForMode = useMemo(
+    () =>
+      editMode
+        ? { ...operatorHost, anchor: EDIT_DESK_OPERATOR_ANCHOR }
+        : operatorHost,
+    [editMode, operatorHost],
+  )
+
   const assistantMode = !assistantOpen
     ? 'closed'
     : assistantExpanded
@@ -1432,7 +1431,7 @@ function NodeWorkbenchV4Inner() {
   }
 
   return (
-    <StudioOperatorHostProvider host={operatorHost}>
+    <StudioOperatorHostProvider host={operatorHostForMode}>
       <NodeCanvasActionsProvider value={actions}>
         <CanvasWorkspaceLayout
           assistantMode={assistantMode}
@@ -1446,7 +1445,7 @@ function NodeWorkbenchV4Inner() {
            * 三处共用同一份行为）。留着它等于两层各管一半宽度 —— 那是「拖到一半
            * 弹回去」的形状。
            */
-          assistant={<StudioOperatorDock />}
+          assistant={editMode ? null : <StudioOperatorDock />}
         >
           <IngestDragProviderV4
             nodes={graph.nodes}
@@ -1622,6 +1621,7 @@ function NodeWorkbenchV4Inner() {
                     onBackToNode={backToNodeFromEditDesk}
                     initialNodeIds={editDeskSeed}
                     onInitialConsumed={() => setEditDeskSeed([])}
+                    assistant={<StudioOperatorDock />}
                   />
                 ) : null}
                 {projectDialogs}

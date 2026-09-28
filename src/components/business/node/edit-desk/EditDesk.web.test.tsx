@@ -223,7 +223,7 @@ const emptyState: NodeWorkflowStateV4 = {
 }
 
 describe('剪辑台 · 台面', () => {
-  it('布局到齐：顶栏 · 图标栏 + 面板 · 预览 · 属性 · 时间线 · 排片栏', () => {
+  it('布局到齐：顶栏 · 图标栏 + 面板 · 预览 · 属性 · 时间线，⛔ 没有排片栏', () => {
     renderDesk(emptyState)
     expect(screen.getByTestId('edit-desk-top-bar')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-rail')).toBeInTheDocument()
@@ -231,7 +231,8 @@ describe('剪辑台 · 台面', () => {
     expect(screen.getByTestId('edit-desk-preview')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-inspector')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-timeline')).toBeInTheDocument()
-    expect(screen.getByTestId('edit-desk-plan-model')).toBeInTheDocument()
+    // ④ 方向 A：一个助手一个输入框 —— 底部排片栏已删。
+    expect(screen.queryByTestId('edit-desk-plan-model')).toBeNull()
     // 三轨都在
     expect(screen.getByTestId('edit-desk-track-video')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-track-audio')).toBeInTheDocument()

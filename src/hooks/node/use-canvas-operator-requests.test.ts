@@ -5,7 +5,6 @@ import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
-import { requestTimelinePlan } from '@/lib/timeline-plan-request'
 import { requestCanvasTextAssist } from '@/components/business/node/nodes/v4/text/text-assist-request'
 
 function mount(
@@ -53,12 +52,6 @@ describe('useCanvasOperatorRequests', () => {
     expect(send.mock.calls[1]?.[0]).toBe('把「S02·首帧」这段重写。')
   })
 
-  it('⭐ 剪辑台排片栏那一句照样送到面板', () => {
-    const send = mount()
-    requestTimelinePlan({ prompt: '按对白切三段' })
-    expect(send).toHaveBeenCalledWith('按对白切三段')
-  })
-
   /**
    * ⚠ 便条**取走即消费**：留着它，面板每次重挂都会再发一遍同一句话。
    * 这里顺带证明了那条 —— 第二次订阅时队列已经空了。
@@ -76,7 +69,6 @@ describe('useCanvasOperatorRequests', () => {
     const send = mount(ASSISTANT_PROTOCOL_DOMAIN_IDS.image)
     requestCanvasRerunDownstream('node-1')
     requestCanvasTextAssist({ nodeId: 'node-1', prompt: 'x' })
-    requestTimelinePlan({ prompt: 'y' })
     expect(send).not.toHaveBeenCalled()
   })
 })

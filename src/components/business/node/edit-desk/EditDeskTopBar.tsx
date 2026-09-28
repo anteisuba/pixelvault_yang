@@ -42,8 +42,11 @@ export interface EditDeskTopBarProps {
   onBack(): void
   onRename(name: string): void
   onExport(): void
-  /** 提案还摆在轨道上时导出是歧义的（S10）——灰掉，点了给一句话。 */
-  readonly exportDisabled?: boolean
+  /**
+   * 给助手头像留出最右那一格（④ 方向 A）：头像是 Dock 自己那颗 `fixed` 开关，落在
+   * `EDIT_DESK_OPERATOR_ANCHOR` 的位置，顶栏只负责不在它底下摆东西。
+   */
+  readonly reserveAssistantSlot?: boolean
   /** 当前快捷键预设（S8d）。 */
   readonly shortcutPreset: EditShortcutPresetId
   onShortcutPresetChange(preset: EditShortcutPresetId): void
@@ -57,7 +60,7 @@ export function EditDeskTopBar({
   onBack,
   onRename,
   onExport,
-  exportDisabled = false,
+  reserveAssistantSlot = false,
   shortcutPreset,
   onShortcutPresetChange,
 }: EditDeskTopBarProps) {
@@ -79,7 +82,10 @@ export function EditDeskTopBar({
     <div
       data-testid="edit-desk-top-bar"
       style={{ height: EDIT_DESK_LAYOUT.topBarHeightPx }}
-      className="flex shrink-0 items-center gap-3 border-b border-border bg-card pl-2 pr-3"
+      className={cn(
+        'flex shrink-0 items-center gap-3 border-b border-border bg-card pl-2',
+        reserveAssistantSlot ? 'pr-edit-desk-avatar-slot' : 'pr-3',
+      )}
     >
       <button
         type="button"
@@ -151,11 +157,7 @@ export function EditDeskTopBar({
           type="button"
           data-testid="edit-desk-export"
           onClick={onExport}
-          aria-disabled={exportDisabled}
-          className={cn(
-            'inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none',
-            exportDisabled && 'opacity-50',
-          )}
+          className="inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
         >
           {t('export')}
         </button>

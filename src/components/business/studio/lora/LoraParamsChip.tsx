@@ -56,13 +56,19 @@ interface LoraParamsChipProps {
   error: string | null
   /** 改过几项（chip 上没有采样器 / 步数可写时用它）。 */
   customCount: number
+  /**
+   * 底模自带的出图默认（清单写了才有，如 Anima Turbo「euler · 10 步 · CFG 1」）：没改时
+   * chip 直接写它，滑杆也从它起。缺省 = 通用默认，chip 写「默认参数」。
+   */
+  defaults?: { sampler: string; steps: number; cfg?: number } | null
   disabled?: boolean
 }
 
 /**
  * 输入框工具行右组的「参数」chip（lora-generate.md §2.4，只 Runner 底模有）。
  *
- * chip 上写「采样器 · N 步」，都没改过写「默认参数」；弹层从 chip 长出来、关上缩回
+ * chip 上写「采样器 · N 步」（CFG 改过再跟一段），都没改过写「默认参数」—— 底模自带默认
+ * 的（`defaults`）写它的默认；弹层从 chip 长出来、关上缩回
  * chip —— 与规格 chip 同一套（`useStudioChipPopoverMotion`，宿主用描边外观圈定）。
  * ⚠ 每一格留空 = 底模默认：值原样是字符串，空串才是「没改」，⛔ 不塞一个假的默认数。
  */
@@ -85,6 +91,7 @@ export function LoraParamsChip({
   hiresNote,
   error,
   customCount,
+  defaults = null,
   disabled = false,
 }: LoraParamsChipProps) {
   const t = useTranslations('LoraWorkbench')
@@ -95,9 +102,12 @@ export function LoraParamsChip({
     sideOffset: 8,
   })
 
+  const shownSampler = sampler.trim() || defaults?.sampler || ''
+  const shownSteps = steps.trim() || (defaults ? String(defaults.steps) : '')
   const summaryParts = [
-    sampler.trim() || null,
-    steps.trim() ? t('generate.paramsSteps', { steps: steps.trim() }) : null,
+    shownSampler || null,
+    shownSteps ? t('generate.paramsSteps', { steps: shownSteps }) : null,
+    cfg.trim() ? t('generate.paramsCfg', { cfg: cfg.trim() }) : null,
   ].filter((part): part is string => part !== null)
   const summary =
     summaryParts.length > 0
@@ -248,13 +258,13 @@ export function LoraParamsChip({
             min: 1,
             max: 100,
             step: 1,
-            fallback: 30,
+            fallback: defaults?.steps ?? 30,
           })}
           {numberField(t('generate.paramsLabels.cfg'), cfg, onCfgChange, {
             min: 0,
             max: 30,
             step: 0.1,
-            fallback: 7,
+            fallback: defaults?.cfg ?? 7,
           })}
           {row(
             t('generate.paramsLabels.seed'),

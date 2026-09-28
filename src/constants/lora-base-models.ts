@@ -4,11 +4,9 @@ import { AI_MODELS, getModelById } from '@/constants/models'
  * LoRA 域底模目录（surface 层组织视图，不重复造模型定义）。
  *
  * 「底模是 LoRA 的插槽属性」：一个 LoRA 自带它要求的家族，底模选择器被该家族
- * 约束（见 docs/references/domains/lora.md）。每个 `底模×后端`
- * 组合是一个扁平可选条目，带 family · backend(hosted 快/runner 忠实) · available。
- *
- * - hosted 条目复用既有 `AI_MODELS`（available 跟随模型自身开关，不另维护）。
- * - runner 条目指向未来的 RUNNER_CHECKPOINTS（comfy-runner 任务包），当前 available=false。
+ * 约束（见 docs/references/domains/lora.md）。每个条目是一个 Runner 底模（09-17 托管
+ * 通道全部退役后 Runner 是唯一出路），available 跟随它的 `AI_MODELS` 条目。
+ * flux / sd15 家族留在 `LORA_BASE_FAMILIES` 里只为给 LoRA 归类，没有底模可选。
  *
  * 注：本文件的 family 是**细粒度**（Illustrious/Pony/SDXL 分开），用于底模选择器；
  * 挂载兼容另按权重架构判（`lora-model-compatibility.ts`：SDXL 系家族互通但
@@ -29,8 +27,6 @@ export const LORA_BASE_FAMILIES = [
 ] as const
 export type LoraBaseFamily = (typeof LORA_BASE_FAMILIES)[number]
 
-export type LoraBaseBackend = 'hosted' | 'runner'
-export type LoraBaseFidelity = 'fast' | 'faithful'
 export type LoraRecipeCheckpointMode = 'source' | 'fixed'
 
 export interface LoraBaseModel {
@@ -39,16 +35,13 @@ export interface LoraBaseModel {
   displayName: string
   translationKey?: 'sourceCheckpointAuto'
   family: LoraBaseFamily
-  backend: LoraBaseBackend
-  fidelity: LoraBaseFidelity
   available: boolean
-  /** hosted → 复用 AI_MODELS */
-  providerModelId?: AI_MODELS
-  /** runner → 未来 RUNNER_CHECKPOINTS（暂未实现） */
-  runnerCheckpointId?: string
+  providerModelId: AI_MODELS
+  /** RUNNER_CHECKPOINTS 的 id —— 出图默认（步数 / CFG）从这一条读。 */
+  runnerCheckpointId: string
   /** source = use the selected Civitai image checkpoint when available. */
   recipeCheckpointMode?: LoraRecipeCheckpointMode
-  /** 该家族的推荐默认 */
+  /** 挂了该家族 LoRA 时的推荐默认（纯底模时推荐的是 LORA_BASE_ONLY_DEFAULT_ID）。 */
   recommended?: boolean
   /** Local catalog artwork shared with the homepage model rail. */
   coverImage: string
@@ -56,15 +49,9 @@ export interface LoraBaseModel {
   distilled: boolean
 }
 
-/** hosted 底模可用性跟随 AI_MODELS 自身开关，避免双份维护。 */
-function hostedAvailable(id: AI_MODELS): boolean {
-  return getModelById(id)?.available ?? false
-}
-
 /**
- * runner 底模可用性同样跟随其 AI_MODELS 条目（available 由
- * FEATURE_FLAGS.comfyRunner 门控，见 constants/models/image.ts）。单独命名
- * 只为可读性——底层逻辑与 hostedAvailable 一致。
+ * 底模可用性跟随其 AI_MODELS 条目（available 由 FEATURE_FLAGS.comfyRunner 门控，
+ * 见 constants/models/image.ts），避免双份维护。
  */
 function runnerAvailable(id: AI_MODELS): boolean {
   return getModelById(id)?.available ?? false
@@ -72,35 +59,9 @@ function runnerAvailable(id: AI_MODELS): boolean {
 
 export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
   {
-    id: 'flux-hosted',
-    displayName: 'FLUX.1-dev',
-    family: 'flux',
-    backend: 'hosted',
-    fidelity: 'fast',
-    available: hostedAvailable(AI_MODELS.FLUX_LORA),
-    providerModelId: AI_MODELS.FLUX_LORA,
-    recommended: true,
-    coverImage: '/homepage/production/models/brand/flux.svg',
-    distilled: false,
-  },
-  {
-    id: 'illustrious-hosted',
-    displayName: 'Illustrious · NoobAI-XL',
-    family: 'illustrious',
-    backend: 'hosted',
-    fidelity: 'fast',
-    available: hostedAvailable(AI_MODELS.ILLUSTRIOUS_XL),
-    providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
-    recommended: true,
-    coverImage: '/homepage/production/models/image/illustrious-xl.webp',
-    distilled: false,
-  },
-  {
     id: 'illustrious-runner',
     displayName: 'WAI-Illustrious-SDXL v15.0',
     family: 'illustrious',
-    backend: 'runner',
-    fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE),
     providerModelId: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
     runnerCheckpointId: 'waiIllustriousSDXL_v150',
@@ -109,23 +70,9 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     distilled: false,
   },
   {
-    id: 'sdxl-hosted',
-    displayName: 'SDXL 1.0',
-    family: 'sdxl',
-    backend: 'hosted',
-    fidelity: 'fast',
-    available: hostedAvailable(AI_MODELS.ILLUSTRIOUS_XL),
-    providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
-    recommended: true,
-    coverImage: '/homepage/production/models/image/sdxl-10-runner.webp',
-    distilled: false,
-  },
-  {
     id: 'sdxl-runner',
-    displayName: 'SDXL 1.0 (VAE Fix) · runner',
+    displayName: 'SDXL 1.0 (VAE Fix)',
     family: 'sdxl',
-    backend: 'runner',
-    fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.SDXL_10_RUNNER),
     providerModelId: AI_MODELS.SDXL_10_RUNNER,
     runnerCheckpointId: 'sdXL_v10VAEFix',
@@ -136,8 +83,6 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     id: 'pony-runner',
     displayName: 'Pony Diffusion V6',
     family: 'pony',
-    backend: 'runner',
-    fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.PONY_DIFFUSION_V6),
     providerModelId: AI_MODELS.PONY_DIFFUSION_V6,
     runnerCheckpointId: 'ponyDiffusionV6XL',
@@ -146,37 +91,9 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     distilled: false,
   },
   {
-    id: 'sd15-runner',
-    displayName: 'SD 1.5',
-    family: 'sd15',
-    backend: 'runner',
-    fidelity: 'faithful',
-    // SD 1.5 移出 runner 范围（2026-07-07 拍板）——保持 external 跳转，不再
-    // 做第二套分辨率/采样模板档。见 docs/references/domains/runner.md。
-    available: false,
-    recommended: true,
-    coverImage: '/homepage/production/models/brand/stability.svg',
-    distilled: false,
-  },
-  {
-    id: 'anima-hosted',
-    displayName: 'Anima Pencil XL',
-    family: 'anima',
-    backend: 'hosted',
-    fidelity: 'fast',
-    available: hostedAvailable(AI_MODELS.ANIMA_PENCIL_XL),
-    providerModelId: AI_MODELS.ANIMA_PENCIL_XL,
-    coverImage: '/homepage/production/models/image/anima-pencil-xl-runner.webp',
-    distilled: false,
-  },
-  {
     id: 'anima-runner',
     displayName: 'Anima Pencil-XL v5.0.0',
     family: 'anima',
-    backend: 'runner',
-    fidelity: 'faithful',
-    // Anima 的 hosted 端点是死链 + license 不许第三方托管，runner 是唯一
-    // 出路——推荐档从 hosted 切到这里。
     available: runnerAvailable(AI_MODELS.ANIMA_PENCIL_XL_RUNNER),
     providerModelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
     runnerCheckpointId: 'animaPencilXL_v500',
@@ -191,8 +108,6 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     displayName: '来源图底模（自动）',
     translationKey: 'sourceCheckpointAuto',
     family: 'anima-dit',
-    backend: 'runner',
-    fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.ANIMA_DIT_RUNNER),
     providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
     runnerCheckpointId: 'animaBase_v10',
@@ -205,8 +120,6 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     id: 'anima-dit-base-v10-runner',
     displayName: 'Anima Base v1.0',
     family: 'anima-dit',
-    backend: 'runner',
-    fidelity: 'faithful',
     available: runnerAvailable(AI_MODELS.ANIMA_DIT_RUNNER),
     providerModelId: AI_MODELS.ANIMA_DIT_RUNNER,
     runnerCheckpointId: 'animaBase_v10',
@@ -214,14 +127,25 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
     distilled: false,
   },
+  {
+    id: 'anima-dit-turbo-v11-runner',
+    displayName: 'Anima Turbo v1.1',
+    family: 'anima-dit',
+    available: runnerAvailable(AI_MODELS.ANIMA_TURBO_RUNNER),
+    providerModelId: AI_MODELS.ANIMA_TURBO_RUNNER,
+    runnerCheckpointId: 'animaTurbo_v11',
+    recipeCheckpointMode: 'fixed',
+    coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
+    distilled: true,
+  },
 ]
 
 /**
  * Pure-base generation has no source LoRA recipe from which to resolve a
- * checkpoint. Keep its default explicit and stable: Anima Base v1.0 is the
- * fixed Cosmos DiT checkpoint already provisioned by the Runner.
+ * checkpoint. Keep its default explicit and stable: Anima Turbo v1.1（owner
+ * 09-28：纯底模默认 Turbo，挂 LoRA 仍按家族推荐）。
  */
-export const LORA_BASE_ONLY_DEFAULT_ID = 'anima-dit-base-v10-runner'
+export const LORA_BASE_ONLY_DEFAULT_ID = 'anima-dit-turbo-v11-runner'
 
 /**
  * Bases that can generate without a mounted LoRA. Source-checkpoint entries
@@ -281,7 +205,7 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   return null
 }
 
-/** 给定 LoRA 家族（原始字符串），返回兼容的底模条目（hosted 可用 + runner 即将）。 */
+/** 给定 LoRA 家族（原始字符串），返回兼容的底模条目（含 available=false 的）。 */
 export function getCompatibleBases(rawBaseModel: string): LoraBaseModel[] {
   const family = normalizeToLoraBaseFamily(rawBaseModel)
   if (!family) return []

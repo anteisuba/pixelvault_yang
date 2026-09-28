@@ -305,16 +305,10 @@ export function LoraAssemblyColumn({
             {selectedBase ? (
               <span
                 className="mt-px block truncate text-2xs text-muted-foreground"
-                title={
-                  selectedBase.backend === 'runner'
-                    ? t('spine.executorRunner')
-                    : t('spine.executorCloud')
-                }
+                title={t('spine.executorRunner')}
               >
                 {familyName(selectedBase.family)} ·{' '}
-                {selectedBase.backend === 'runner'
-                  ? t('baseModal.channelRunner')
-                  : t('spine.executorCloud')}
+                {t('baseModal.channelRunner')}
               </span>
             ) : null}
           </span>

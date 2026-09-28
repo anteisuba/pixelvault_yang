@@ -72,6 +72,10 @@ import {
 } from '@/constants/lora-base-models'
 import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import {
+  getRunnerCheckpointById,
+  isRunnerNegativePromptInert,
+} from '@/constants/runner-checkpoints'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { ROUTES } from '@/constants/routes'
@@ -101,6 +105,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
+import { LoraNegativeInertHint } from '@/components/business/studio/lora/LoraNegativeInertHint'
 import { LoraParamsChip } from '@/components/business/studio/lora/LoraParamsChip'
 import {
   LoraRecipeViewer,
@@ -894,20 +899,14 @@ function GenerateBranch({
   const canSuggestBaseSwitch = suggestedBase?.available === true
   const suggestedBaseLabel =
     canSuggestBaseSwitch && suggestedBase
-      ? `${
-          suggestedBase.translationKey
-            ? t(`spine.${suggestedBase.translationKey}`)
-            : suggestedBase.displayName
-        } · ${
-          suggestedBase.fidelity === 'faithful'
-            ? t('spine.faithful')
-            : t('spine.fast')
-        }`
+      ? suggestedBase.translationKey
+        ? t(`spine.${suggestedBase.translationKey}`)
+        : suggestedBase.displayName
       : null
 
-  // 主动提示：选中 runner 底模时拉全站月度额度，让用户点前就知道「本月剩余
-  // N/300」而不是撞上限才弹错。非 runner 底模不拉。
-  const isRunnerBase = selectedBase?.backend === 'runner'
+  // 主动提示：选中底模时拉全站月度额度，让用户点前就知道「本月剩余 N/300」而不是
+  // 撞上限才弹错。底模全是 Runner（09-17 托管通道退役）。
+  const isRunnerBase = selectedBase != null
   const { usage: runnerUsage } = useRunnerUsage(isRunnerBase)
 
   const baseModelId = selectedBase?.providerModelId ?? null
@@ -1317,6 +1316,27 @@ function GenerateBranch({
   const upscaleOutputIsLarge =
     upscaleFinalWidth > 6144 || upscaleFinalHeight > 6144
 
+  // CFG 恰好是 1 的底模（Anima Turbo 一类）负面词不起作用：负面那行收起、chip 让开，
+  // 写的内容留着，CFG 调上去或换回来原样还在（④ 画板 N1–N3）。出图也不带它。
+  const negativeInert =
+    selectedBase != null &&
+    isRunnerNegativePromptInert(
+      selectedBase.runnerCheckpointId,
+      parseOptionalRunnerNumber(runnerCfg),
+    )
+  // 底模自带的出图默认（清单写了才有）；来源图底模那一档的实际默认看来源图，不写。
+  const baseSamplingDefaults = useMemo(() => {
+    if (!selectedBase || selectedBase.recipeCheckpointMode === 'source')
+      return null
+    const checkpoint = getRunnerCheckpointById(selectedBase.runnerCheckpointId)
+    if (checkpoint?.recommendedSteps == null) return null
+    return {
+      sampler: checkpoint.recommendedSampler,
+      steps: checkpoint.recommendedSteps,
+      cfg: checkpoint.recommendedCfg,
+    }
+  }, [selectedBase])
+
   // CD 装配栏参数行：摘要当前生效值（尺寸恒有——来自比例/自定义宽高；步数/CFG/
   // 采样器只在用户设过时才进，缺省走底模默认不显示）。全真值，不编造。
   const runnerSummaryLine = isRunnerBase
@@ -1635,10 +1655,7 @@ function GenerateBranch({
           recipe.checkpoint) &&
         recipeGroupAsset
           ? (getCompatibleBases(recipeGroupAsset.baseModelFamily).find(
-              (base) =>
-                base.available &&
-                base.backend === 'runner' &&
-                base.recipeCheckpointMode !== 'fixed',
+              (base) => base.available && base.recipeCheckpointMode !== 'fixed',
             ) ?? selectedBase)
           : selectedBase
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
@@ -2222,7 +2239,7 @@ function GenerateBranch({
     delete advanced.negativePrompt
     delete advanced.seed
     if (loras.length > 0) advanced.loras = loras
-    if (compiled.negativePrompt)
+    if (compiled.negativePrompt && !negativeInert)
       advanced.negativePrompt = compiled.negativePrompt
     // B9: reference-image img2img — only when the base supports it (enabled
     // urls) and one was attached. Strength drives fal's denoising inversion.
@@ -2355,6 +2372,7 @@ function GenerateBranch({
     imageUpload.referenceImages,
     isRunnerBase,
     loraFamily,
+    negativeInert,
     negativePrompt,
     previewDimensions,
     prompt,
@@ -3668,35 +3686,59 @@ function GenerateBranch({
                   onChange={handleAspectRatioChange}
                   disabled={isGenerating}
                 />
-                <button
-                  type="button"
-                  aria-expanded={negativePromptExpanded}
-                  onClick={() => setNegativePromptExpanded((open) => !open)}
-                  className="ml-auto flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left text-2xs text-muted-foreground/80 hover:text-foreground"
+                <LoraNegativeInertHint
+                  inert={negativeInert}
+                  hint={t('generate.negativeInert')}
                 >
-                  <span className="shrink-0 font-medium uppercase tracking-wide">
-                    {t('generate.negativePromptLabel')}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/70">
-                    {negativePrompt.trim() ||
-                      t('generate.negativePromptPlaceholder')}
-                  </span>
-                  <ChevronDown
+                  <button
+                    type="button"
+                    aria-expanded={negativePromptExpanded && !negativeInert}
+                    aria-disabled={negativeInert}
+                    onClick={() => {
+                      if (negativeInert) return
+                      setNegativePromptExpanded((open) => !open)
+                    }}
                     className={cn(
-                      'size-3 shrink-0 transition-transform',
-                      negativePromptExpanded && 'rotate-180',
+                      'ml-auto flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left text-2xs text-muted-foreground/80 transition-colors duration-fast ease-linear hover:text-foreground',
+                      negativeInert &&
+                        'cursor-not-allowed text-muted-foreground/50 hover:text-muted-foreground/50',
                     )}
-                    aria-hidden
-                  />
-                </button>
+                  >
+                    <span
+                      className={cn(
+                        'shrink-0 font-medium uppercase tracking-wide',
+                        negativeInert &&
+                          'underline decoration-dashed underline-offset-4',
+                      )}
+                    >
+                      {t('generate.negativePromptLabel')}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/70">
+                      {negativePrompt.trim() ||
+                        t('generate.negativePromptPlaceholder')}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'size-3 shrink-0 transition-transform',
+                        negativePromptExpanded &&
+                          !negativeInert &&
+                          'rotate-180',
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                </LoraNegativeInertHint>
               </div>
               {/* 展开/收起走 grid-rows 过渡（.lora-reveal），收起时 inert 挡住焦点
-                与读屏。视觉上退成一个圈起来的小面板，紧贴在 chip 行下面。 */}
+                与读屏。视觉上退成一个圈起来的小面板，紧贴在 chip 行下面。CFG 1 底模
+                时收起（内容留着，换回来原样展开）。 */}
               <div
                 className="lora-reveal"
-                data-open={negativePromptExpanded ? 'true' : 'false'}
+                data-open={
+                  negativePromptExpanded && !negativeInert ? 'true' : 'false'
+                }
               >
-                <div inert={!negativePromptExpanded}>
+                <div inert={!negativePromptExpanded || negativeInert}>
                   <div className="space-y-1 rounded-xl border border-border bg-muted/20 px-3 py-2">
                     <textarea
                       ref={negativePromptTextareaRef}
@@ -3958,7 +4000,8 @@ function GenerateBranch({
     </div>
   ) : undefined
 
-  const negativeShown = negativePromptExpanded || negativePrompt.trim() !== ''
+  const negativeShown =
+    !negativeInert && (negativePromptExpanded || negativePrompt.trim() !== '')
   // 参考图只在底模吃参考图时出现（能力位驱动，与手机装配抽屉同一个判据）。
   const referencesSupported =
     maxReferenceImages > 0 && referenceStrengthConfig !== undefined
@@ -4445,29 +4488,39 @@ function GenerateBranch({
                   <Wand2 className="size-4" aria-hidden />
                   {t('generate.restoreShort')}
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={negativeShown}
-                  aria-controls="lora-negative-prompt"
-                  aria-label={t('generate.negativePromptLabel')}
-                  onClick={() => {
-                    if (negativeShown && negativePrompt.trim() === '') {
-                      setNegativePromptExpanded(false)
-                      return
-                    }
-                    setNegativePromptExpanded(true)
-                    requestAnimationFrame(() =>
-                      negativePromptTextareaRef.current?.focus(),
-                    )
-                  }}
-                  className={cn(
-                    studioOutlineChipClass,
-                    negativeShown && studioOutlineChipSetClass,
-                  )}
+                <LoraNegativeInertHint
+                  inert={negativeInert}
+                  hint={t('generate.negativeInert')}
                 >
-                  <Ban className="size-4" aria-hidden />
-                  {t('generate.negativeShort')}
-                </button>
+                  <button
+                    type="button"
+                    aria-pressed={negativeShown}
+                    aria-disabled={negativeInert}
+                    aria-controls="lora-negative-prompt"
+                    aria-label={t('generate.negativePromptLabel')}
+                    onClick={() => {
+                      if (negativeInert) return
+                      if (negativeShown && negativePrompt.trim() === '') {
+                        setNegativePromptExpanded(false)
+                        return
+                      }
+                      setNegativePromptExpanded(true)
+                      requestAnimationFrame(() =>
+                        negativePromptTextareaRef.current?.focus(),
+                      )
+                    }}
+                    className={cn(
+                      studioOutlineChipClass,
+                      'ease-linear',
+                      negativeShown && studioOutlineChipSetClass,
+                      negativeInert &&
+                        'cursor-not-allowed border-dashed text-muted-foreground hover:border-border',
+                    )}
+                  >
+                    <Ban className="size-4" aria-hidden />
+                    {t('generate.negativeShort')}
+                  </button>
+                </LoraNegativeInertHint>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <SpecChip
@@ -4555,6 +4608,7 @@ function GenerateBranch({
                     }
                     error={runnerSamplingError}
                     customCount={advancedCustomCount}
+                    defaults={baseSamplingDefaults}
                     disabled={isGenerating}
                   />
                 ) : null}
@@ -4649,8 +4703,6 @@ function LoraSpineBar({
   const [baseModalOpen, setBaseModalOpen] = useState(false)
   const hasMountedLora = stack.items.length > 0
 
-  const fidelityLabel = (b: LoraBaseModel) =>
-    b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
   const baseDisplayName = (b: LoraBaseModel) =>
     b.translationKey ? t(`spine.${b.translationKey}`) : b.displayName
   // S4：两层分组选择逻辑（云端/Runner·SDXL/DiT）已搬进 LoraBaseModelModal，
@@ -4824,22 +4876,13 @@ function LoraSpineBar({
                   <span className="block truncate text-xs font-semibold text-foreground">
                     {baseDisplayName(selectedBase)}
                   </span>
-                  {/* CD：族 · 通道 · 忠实/快 合成一行 mono meta（执行通道不再
-                      单独占一行）。300px 窄栏放不下「Runner · 唯一通道」全称，
-                      通道用短标（Runner / 云端 API），全称进 title。 */}
+                  {/* CD：族 · 通道合成一行 meta。300px 窄栏放不下「Runner · 唯一
+                      通道」全称，通道用短标，全称进 title。 */}
                   <span
                     className="block truncate text-2xs text-muted-foreground"
-                    title={
-                      selectedBase.backend === 'runner'
-                        ? t('spine.executorRunner')
-                        : t('spine.executorCloud')
-                    }
+                    title={t('spine.executorRunner')}
                   >
-                    {selectedBase.family} ·{' '}
-                    {selectedBase.backend === 'runner'
-                      ? t('baseModal.channelRunner')
-                      : t('spine.executorCloud')}{' '}
-                    · {fidelityLabel(selectedBase)}
+                    {selectedBase.family} · {t('baseModal.channelRunner')}
                   </span>
                 </>
               ) : (

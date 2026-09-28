@@ -1,38 +1,54 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Check } from '@/components/icons'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
   LORA_BASE_MODELS,
+  LORA_BASE_ONLY_DEFAULT_ID,
   getLoraBaseArchitectureGroup,
+  type LoraBaseArchitectureGroup,
+  type LoraBaseFamily,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
+import { Check, X } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { Switch } from '@/components/ui/switch'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 interface LoraBaseModelModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 兼容当前挂载的底模子集（无挂载时 = baseOnlyBases）。 */
+  /** 兼容当前挂载的底模子集（无挂载时 = baseOnlyBases，不含「来源图底模（自动）」）。 */
   compatibleBases: readonly LoraBaseModel[]
   selectedBaseId: string | undefined
   onSelect: (id: string) => void
-  /** 有挂载 LoRA 才有家族约束，「仅显示兼容」开关才有意义。 */
+  /** 有挂载 LoRA 才有家族约束，「只看兼容的」开关才有意义。 */
   hasMountedLora: boolean
 }
 
-// S4 换底模 modal（方向 B·配屏 2）：底模卡唤起，受挂载家族兼容约束（默认「仅显示
-// 兼容当前挂载」开）。两层分组 = ① 云端 API（自备 key·快）② Runner（平台免费额度·
-// 忠实，内再按架构系 SDXL / DiT 分）。每卡 = 名 + 架构·通道 mono + 忠实/快 chip +
-// 选中石墨勾 + 即将降档 + 关兼容开关时非兼容项标注。Anima DiT 只有 Runner 通道·
-// 不伪造 fal。缩略图复用首页本地模型素材，不增加第二套远程依赖。engine 零改·纯换
-// surface。
+/** 卡上第二行写家族；SDXL 系的 'anima' 是 Anima Pencil，别和 DiT 的 Anima 撞名。 */
+const BASE_FAMILY_LABEL_KEYS: Record<LoraBaseFamily, string> = {
+  illustrious: 'illustrious',
+  sdxl: 'sdxl',
+  pony: 'pony',
+  anima: 'animaPencil',
+  'anima-dit': 'anima',
+  flux: 'flux',
+  sd15: 'sd15',
+}
+
+const GROUP_ORDER: readonly LoraBaseArchitectureGroup[] = ['sdxl', 'dit']
+
+// 换底模弹层（45 Runner 底模 · ④ 画板，owner 2026-09-28）：底模卡唤起，按架构分
+// SDXL 系 / DiT 系两组。每卡 = 封面 + 名字 + 家族一行 + 推荐 / 快出 chip + 选中勾；
+// 挂了 LoRA 时默认只看兼容的，关掉开关看全部、装不上的写明。09-17 退役的云端卡与
+// 「忠实 / 快」的说法全部去掉——界面不暗示有另一条更快的通道。
 export function LoraBaseModelModal({
   open,
   onOpenChange,
@@ -43,38 +59,64 @@ export function LoraBaseModelModal({
 }: LoraBaseModelModalProps) {
   const t = useTranslations('LoraWorkbench')
   const isMobile = useIsMobile()
-  // 默认只显示兼容当前挂载；关掉看全部（非兼容项标注·选了会在栈里出不兼容警示）。
+  const reduceMotion = useReducedMotion()
   const [onlyCompatible, setOnlyCompatible] = useState(true)
 
   const compatibleIds = useMemo(
     () => new Set(compatibleBases.map((b) => b.id)),
     [compatibleBases],
   )
-  // 无挂载时无家族约束——恒显全部（开关隐藏）。有挂载 + 开关开 → 只兼容子集。
-  const showAll = !hasMountedLora || !onlyCompatible
+  // 没挂 LoRA：列纯底模能出图的那一份（不含靠来源图配方的「自动」）。挂了：开关开 =
+  // 兼容子集，关 = 全部。
+  const showAll = hasMountedLora && !onlyCompatible
   const bases = showAll ? LORA_BASE_MODELS : compatibleBases
 
-  const cloudBases = bases.filter((b) => b.backend !== 'runner')
-  const runnerBases = bases.filter((b) => b.backend === 'runner')
-  const runnerSdxlBases = runnerBases.filter(
-    (b) => getLoraBaseArchitectureGroup(b.family) === 'sdxl',
-  )
-  const runnerDitBases = runnerBases.filter(
-    (b) => getLoraBaseArchitectureGroup(b.family) === 'dit',
-  )
+  const selectedGroup = bases.find((b) => b.id === selectedBaseId)
+  // 手机一列排下来，当前选中那组放前面，不用往下翻才看到自己选的。
+  const groupOrder =
+    isMobile && selectedGroup
+      ? [
+          getLoraBaseArchitectureGroup(selectedGroup.family),
+          ...GROUP_ORDER.filter(
+            (group) =>
+              group !== getLoraBaseArchitectureGroup(selectedGroup.family),
+          ),
+        ]
+      : GROUP_ORDER
+  const groups = groupOrder
+    .map((group) => ({
+      group,
+      list: bases.filter(
+        (b) => getLoraBaseArchitectureGroup(b.family) === group,
+      ),
+    }))
+    .filter(({ list }) => list.length > 0)
+
+  // 弹层高度跟着卡片数变（开关开 / 关）：量内容高度，外层把高度补间过去。
+  const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null)
+  const [contentHeight, setContentHeight] = useState<number | 'auto'>('auto')
+  useEffect(() => {
+    if (!contentNode) return
+    // 量 border-box：contentRect 不含内边距，按它补间会把最后一行的下边距裁掉。
+    const observer = new ResizeObserver(([entry]) =>
+      setContentHeight(
+        entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height,
+      ),
+    )
+    observer.observe(contentNode)
+    return () => observer.disconnect()
+  }, [contentNode])
+
+  const moveTransition = reduceMotion
+    ? { duration: DURATION.fast, ease: 'linear' as const }
+    : { duration: DURATION.base, ease: EASE_STANDARD }
 
   const baseName = (b: LoraBaseModel) =>
     b.translationKey ? t(`spine.${b.translationKey}`) : b.displayName
-  const fidelityLabel = (b: LoraBaseModel) =>
-    b.fidelity === 'faithful' ? t('spine.faithful') : t('spine.fast')
-  const archLabel = (b: LoraBaseModel) =>
-    getLoraBaseArchitectureGroup(b.family) === 'dit'
-      ? t('spine.baseGroupDit')
-      : t('spine.baseGroupSdxl')
-  const channelLabel = (b: LoraBaseModel) =>
-    b.backend === 'runner'
-      ? t('baseModal.channelRunner')
-      : t('spine.executorCloud')
+  // 纯底模时「自动」不在列，推荐落到纯底模默认那一档；挂了 LoRA 按家族推荐。
+  const isRecommended = (b: LoraBaseModel) =>
+    b.recommended === true ||
+    (!hasMountedLora && b.id === LORA_BASE_ONLY_DEFAULT_ID)
 
   const handlePick = (b: LoraBaseModel) => {
     if (!b.available) return
@@ -84,17 +126,25 @@ export function LoraBaseModelModal({
 
   const renderCard = (b: LoraBaseModel) => {
     const selected = b.id === selectedBaseId
-    // 关兼容开关看全部时，标注非兼容项（选了会在栈里出不兼容警示，不阻断）。
-    const incompatible = hasMountedLora && showAll && !compatibleIds.has(b.id)
+    const incompatible = showAll && !compatibleIds.has(b.id)
     return (
-      <button
+      <motion.button
         key={b.id}
+        layout={reduceMotion ? false : 'position'}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, transition: moveTransition }}
+        exit={{
+          opacity: 0,
+          transition: { duration: DURATION.fast, ease: 'linear' },
+        }}
+        transition={moveTransition}
         type="button"
         onClick={() => handlePick(b)}
         disabled={!b.available}
         aria-pressed={selected}
         className={cn(
-          'grid min-h-24 grid-cols-[4.75rem_minmax(0,1fr)] overflow-hidden rounded-xl border p-0 text-left transition-colors',
+          'flex min-h-22 overflow-hidden rounded-xl border p-0 text-left',
+          'transition-[background-color,border-color,box-shadow] duration-fast ease-linear',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
           selected
             ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
@@ -102,40 +152,41 @@ export function LoraBaseModelModal({
           !b.available && 'cursor-not-allowed opacity-55',
         )}
       >
-        <span className="flex min-h-full items-stretch overflow-hidden border-r border-border/50 bg-muted/40">
+        <span className="flex w-16 shrink-0 items-stretch overflow-hidden border-r border-border/50 bg-muted/40">
           <Image
             src={b.coverImage}
             alt=""
             width={96}
             height={120}
-            sizes="76px"
-            className={cn(
-              'h-full min-h-24 w-full object-cover',
-              b.coverImage.endsWith('.svg') &&
-                'bg-[#f4f4f1] object-contain p-3 dark:bg-[#ecece8]',
-            )}
+            sizes="64px"
+            className="h-full min-h-22 w-full object-cover"
           />
         </span>
-        <span className="flex min-w-0 flex-col gap-1.5 p-3">
+        <span className="flex min-w-0 flex-1 flex-col gap-1 px-2.5 py-2.5">
           <span className="flex items-start justify-between gap-2">
             <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-foreground">
               {baseName(b)}
             </span>
-            {selected ? (
-              <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
-            ) : null}
+            <Check
+              aria-hidden
+              className={cn(
+                'size-3.5 shrink-0 text-primary transition-opacity duration-fast ease-linear',
+                selected ? 'opacity-100' : 'opacity-0',
+              )}
+            />
           </span>
           <span className="text-2xs text-muted-foreground">
-            {archLabel(b)} · {channelLabel(b)}
+            {t(`familyLabel.${BASE_FAMILY_LABEL_KEYS[b.family]}`)}
           </span>
-          <span className="mt-auto flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full border border-border/60 px-1.5 py-px text-3xs font-medium text-muted-foreground">
-              {fidelityLabel(b)}
-            </span>
-            {/* CD：该家族的推荐默认给「推荐」chip（数据源 LoraBaseModel.recommended）。 */}
-            {b.recommended ? (
+          <span className="mt-auto flex flex-wrap items-center gap-1">
+            {isRecommended(b) ? (
               <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-3xs font-medium text-foreground">
                 {t('baseModal.recommended')}
+              </span>
+            ) : null}
+            {b.distilled ? (
+              <span className="rounded-full border border-border/60 px-1.5 py-px text-3xs font-medium text-muted-foreground">
+                {t('baseModal.fast')}
               </span>
             ) : null}
             {!b.available ? (
@@ -149,22 +200,14 @@ export function LoraBaseModelModal({
             ) : null}
           </span>
         </span>
-      </button>
+      </motion.button>
     )
   }
 
-  const renderGrid = (list: readonly LoraBaseModel[]) => (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      {list.map(renderCard)}
-    </div>
-  )
-
-  // CD 移动端：唤起浮层一律改成底部拉起的近全屏 sheet；桌面走 Dialog。body 抽成
-  // 一份，两种外壳共用（各自补自己的 sr-only 标题满足 a11y 契约）。
   const body = (
     <>
-      <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-3">
-        <div className="flex min-w-0 flex-col">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-sm font-semibold text-foreground">
             {t('baseModal.title')}
           </span>
@@ -174,9 +217,8 @@ export function LoraBaseModelModal({
               : t('baseModal.subtitleFree')}
           </span>
         </div>
-        {/* 仅有挂载 LoRA（有家族约束）时才有意义。 */}
         {hasMountedLora ? (
-          <label className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
             <Switch
               size="sm"
               checked={onlyCompatible}
@@ -186,45 +228,60 @@ export function LoraBaseModelModal({
             {t('baseModal.onlyCompatible')}
           </label>
         ) : null}
+        {/* 自己排一颗关闭键：Dialog 自带那颗是绝对定位，会压在开关的字上。 */}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label={t('baseModal.close')}
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {cloudBases.length > 0 ? (
-          <section className="space-y-2">
-            <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('spine.baseGroupCloud')}
-            </p>
-            {renderGrid(cloudBases)}
-          </section>
-        ) : null}
-        {runnerBases.length > 0 ? (
-          <section className="space-y-2">
-            <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('spine.baseGroupRunner')}
-            </p>
-            {runnerSdxlBases.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                  {t('spine.baseGroupSdxl')}
-                </p>
-                {renderGrid(runnerSdxlBases)}
-              </div>
-            ) : null}
-            {runnerDitBases.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground/60">
-                  {t('spine.baseGroupDit')}
-                </p>
-                {renderGrid(runnerDitBases)}
-              </div>
-            ) : null}
-          </section>
-        ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <motion.div
+          initial={false}
+          animate={{ height: contentHeight }}
+          transition={moveTransition}
+          className="overflow-hidden"
+        >
+          <div ref={setContentNode} className="space-y-4 px-4 py-4">
+            <AnimatePresence initial={false} mode="popLayout">
+              {groups.map(({ group, list }) => (
+                <motion.section
+                  key={group}
+                  layout={reduceMotion ? false : 'position'}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: moveTransition }}
+                  exit={{
+                    opacity: 0,
+                    transition: { duration: DURATION.fast, ease: 'linear' },
+                  }}
+                  transition={moveTransition}
+                  className="space-y-1.5"
+                >
+                  <p className="text-2xs font-medium tracking-wide text-muted-foreground">
+                    {group === 'dit'
+                      ? t('spine.baseGroupDit')
+                      : t('spine.baseGroupSdxl')}
+                  </p>
+                  <div
+                    className={cn(
+                      'grid gap-2',
+                      isMobile ? 'grid-cols-1' : 'grid-cols-3',
+                    )}
+                  >
+                    <AnimatePresence initial={false} mode="popLayout">
+                      {list.map(renderCard)}
+                    </AnimatePresence>
+                  </div>
+                </motion.section>
+              ))}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
-
-      <p className="shrink-0 border-t border-border px-4 py-2.5 text-2xs text-muted-foreground">
-        {t('baseModal.footer')}
-      </p>
     </>
   )
 
@@ -242,7 +299,10 @@ export function LoraBaseModelModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+      >
         <DialogTitle className="sr-only">{t('baseModal.title')}</DialogTitle>
         {body}
       </DialogContent>

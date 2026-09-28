@@ -3,6 +3,9 @@ import { join } from 'node:path'
 
 import { describe, it, expect } from 'vitest'
 
+import { getModelById } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getRunnerCheckpointById } from '@/constants/runner-checkpoints'
 import {
   LORA_BASE_FAMILIES,
   LORA_BASE_MODELS,
@@ -65,10 +68,10 @@ describe('getCompatibleBases', () => {
     expect(bases.every((b) => b.family === 'illustrious')).toBe(true)
   })
 
-  it('illustrious offers both a hosted and a runner option', () => {
-    const backends = getCompatibleBases('Illustrious').map((b) => b.backend)
-    expect(backends).toContain('hosted')
-    expect(backends).toContain('runner')
+  it('retired hosted families (flux, sd15) have no base to pick', () => {
+    // 09-17 托管通道退役、SD 1.5 07-07 定过不进 Runner：只剩归类，没有「即将」占位。
+    expect(getCompatibleBases('Flux.1 D')).toEqual([])
+    expect(getCompatibleBases('SD 1.5')).toEqual([])
   })
 
   it('returns empty for an unknown family', () => {
@@ -80,33 +83,31 @@ describe('getCompatibleBases', () => {
     expect(bases.length).toBeGreaterThan(0)
     expect(bases.every((b) => b.family === 'anima-dit')).toBe(true)
     expect(bases.some((b) => b.id === 'anima-dit-runner')).toBe(true)
+    expect(bases.map((b) => b.id)).toEqual([
+      'anima-dit-runner',
+      'anima-dit-base-v10-runner',
+      'anima-dit-turbo-v11-runner',
+    ])
     expect(bases.map((b) => b.recipeCheckpointMode)).toEqual([
       'source',
+      'fixed',
       'fixed',
     ])
   })
 })
 
 describe('getDefaultBase', () => {
-  it('falls back to the gated hosted base for flux (retired 2026-09-17)', () => {
-    // FLUX_LORA was retired with the other hosted LoRA bases and has no runner
-    // successor, so the flux family surfaces its disabled entry rather than
-    // silently swapping the user's configured base for another family.
-    const base = getDefaultBase('Flux.1 D')
-    expect(base?.family).toBe('flux')
-    expect(base?.id).toBe('flux-hosted')
-    expect(base?.available).toBe(false)
+  it('has no default for flux (retired 2026-09-17, no runner successor)', () => {
+    expect(getDefaultBase('Flux.1 D')).toBeNull()
   })
 
-  it('falls back to a coming-soon base when none is available (pony)', () => {
-    // Pony has no hosted endpoint yet — runner is not available, but the
-    // selector still surfaces it (gated) rather than returning null.
+  it('surfaces the pony runner base even when the runner flag gates it', () => {
     const base = getDefaultBase('Pony')
     expect(base?.family).toBe('pony')
-    expect(base?.backend).toBe('runner')
+    expect(base?.id).toBe('pony-runner')
   })
 
-  it('defaults DiT "Anima" to the anima-dit runner base', () => {
+  it('defaults a mounted DiT "Anima" LoRA to the source-checkpoint base, not Turbo', () => {
     const base = getDefaultBase('Anima')
     expect(base?.family).toBe('anima-dit')
     expect(base?.id).toBe('anima-dit-runner')
@@ -118,11 +119,13 @@ describe('getDefaultBase', () => {
 })
 
 describe('pure-base generation catalog', () => {
-  it('defaults to the fixed Anima Base v1.0 runner entry', () => {
+  it('defaults to the fixed Anima Turbo v1.1 runner entry', () => {
     const base = getDefaultBaseOnlyGenerationBase()
     expect(base?.id).toBe(LORA_BASE_ONLY_DEFAULT_ID)
+    expect(base?.id).toBe('anima-dit-turbo-v11-runner')
     expect(base?.family).toBe('anima-dit')
     expect(base?.recipeCheckpointMode).toBe('fixed')
+    expect(base?.distilled).toBe(true)
   })
 
   it('excludes bases that depend on a source recipe', () => {
@@ -158,16 +161,17 @@ describe('LORA_BASE_MODELS catalog', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('hosted entries and implemented runner entries carry a providerModelId', () => {
-    // LoraWorkbench.tsx reads `selectedBase.providerModelId` as the modelId
-    // to submit regardless of backend — so any backend with a real
-    // checkpoint wired up (runnerCheckpointId set) must have one too.
-    // sd15-runner is explicitly out of scope (no checkpoint) and has neither.
+  it('every entry points at a Runner model whose checkpoint is in the manifest', () => {
+    // LoraWorkbench.tsx submits `selectedBase.providerModelId`; the Worker
+    // resolves that model's externalModelId against RUNNER_CHECKPOINTS.
     for (const base of LORA_BASE_MODELS) {
-      if (base.backend === 'hosted' || base.runnerCheckpointId) {
-        expect(base.providerModelId).toBeDefined()
-      } else {
-        expect(base.providerModelId).toBeUndefined()
+      const model = getModelById(base.providerModelId)
+      expect(model?.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
+      expect(getRunnerCheckpointById(base.runnerCheckpointId)?.id).toBe(
+        base.runnerCheckpointId,
+      )
+      if (base.recipeCheckpointMode === 'fixed') {
+        expect(model?.externalModelId).toBe(base.runnerCheckpointId)
       }
     }
   })
@@ -186,14 +190,16 @@ describe('LORA_BASE_MODELS catalog', () => {
     ).toBe('/homepage/production/models/image/pony-diffusion-v6.webp')
   })
 
-  it('carries a distilled flag on every entry, all false today', () => {
-    // 今天 11 条底模全非蒸馏；接入 Z-Image Turbo / FLUX schnell 这类蒸馏
-    // 底模时，把那一条置 true 即可，护栏自动走 1.0 档。
-    expect(LORA_BASE_MODELS.length).toBe(11)
+  it('marks exactly the step-distilled entries (CFG 1 checkpoints) as distilled', () => {
+    // 蒸馏档的权重护栏走 1.0；判据与清单里的 CFG 默认同源，两处不能各说各话。
     for (const base of LORA_BASE_MODELS) {
-      expect(typeof base.distilled).toBe('boolean')
-      expect(base.distilled).toBe(false)
+      expect(base.distilled).toBe(
+        getRunnerCheckpointById(base.runnerCheckpointId)?.recommendedCfg === 1,
+      )
     }
+    expect(
+      LORA_BASE_MODELS.filter((base) => base.distilled).map((base) => base.id),
+    ).toEqual(['anima-dit-turbo-v11-runner'])
   })
 })
 

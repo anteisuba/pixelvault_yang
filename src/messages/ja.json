@@ -2174,13 +2174,14 @@
     },
     "baseModal": {
       "title": "ベースモデルを変更",
-      "subtitleConstrained": "追加した LoRA と互換性のあるモデル",
-      "subtitleFree": "系統の制約なし · すべてのベースモデルを選択可",
-      "onlyCompatible": "互換性のあるモデルのみ表示",
-      "incompatible": "追加した LoRA とは組み合わせられません",
+      "subtitleConstrained": "LoRA を追加したときに互換ベースを自動で選んでいます。ここで変更できます",
+      "subtitleFree": "LoRA なし — 好きなベースでそのまま生成できます",
+      "onlyCompatible": "互換のみ",
+      "incompatible": "追加した LoRA とは読み込めません",
       "channelRunner": "Runner",
-      "footer": "LoRA を追加すると、互換性のあるベースモデルが自動で選ばれます。ここで変更できます。「忠実」は Runner のチェックポイント、「高速」はクラウド API を使います。",
-      "recommended": "推奨"
+      "recommended": "推奨",
+      "fast": "高速",
+      "close": "閉じる"
     },
     "generate": {
       "placeholderTitle": "ベースモデルだけで生成できます",
@@ -2324,7 +2325,9 @@
       "templateSaved": "テンプレートに保存しました",
       "templateSavedOpen": "見に行く",
       "templateSaveFailed": "保存できませんでした。もう一度お試しください",
-      "templateLoadFailed": "このテンプレートを開けませんでした（削除された可能性があります）"
+      "templateLoadFailed": "このテンプレートを開けませんでした（削除された可能性があります）",
+      "negativeInert": "このベースは CFG 1 のため、ネガティブプロンプトは効きません。書いた内容は残り、戻すと元どおりです。",
+      "paramsCfg": "CFG {cfg}"
     },
     "spine": {
       "sourceCheckpointAuto": "ソース画像のチェックポイント（自動）",
@@ -2332,13 +2335,9 @@
       "baseModel": "ベースモデル",
       "baseModelPending": "利用可能なベースモデルがありません",
       "compatDotWarning": "現在のベースと互換性がありません。このLoRAは反映されません",
-      "baseGroupCloud": "クラウド API · 自分のキーを使用",
-      "baseGroupRunner": "Runner · プラットフォーム無料枠",
       "baseGroupSdxl": "SDXL 系",
       "baseGroupDit": "DiT 系",
       "empty": "LoRA なし（ベースモデルのみ）",
-      "fast": "高速",
-      "faithful": "忠実",
       "comingSoon": "近日公開",
       "needApiKey": "APIキー必要",
       "removeLora": "{name} を削除",
@@ -2353,7 +2352,6 @@
       "addLora": "追加",
       "executorLabel": "実行",
       "executorRunner": "Runner · 利用できる唯一のルート",
-      "executorCloud": "クラウド API",
       "openAssembly": "組み立て台を開く",
       "assemblyTitle": "組み立て",
       "stackTitle": "LoRA スタック",
@@ -2438,7 +2436,8 @@
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
-      "other": "その他"
+      "other": "その他",
+      "animaPencil": "Anima Pencil"
     },
     "libraryTypeFilter": "タイプ",
     "typeFilterLabel": "コンテンツタイプで絞り込み",
@@ -3930,6 +3929,10 @@
     "animaDitRunner": {
       "label": "Anima（Runner）",
       "description": "ANTEI Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo（Runner）",
+      "description": "ANTEI Runner による Anima のステップ蒸留版 — 10 ステップ・CFG 1 で高速。CFG 1 ではネガティブプロンプトは効きません。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",

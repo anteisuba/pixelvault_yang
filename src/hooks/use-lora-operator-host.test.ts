@@ -301,12 +301,12 @@ describe('useLoraOperatorHost 的栈总权重护栏', () => {
       negativePrompt: '',
       setNegativePrompt: () => {},
       base: {
-        id: 'illustrious-hosted',
-        label: 'Illustrious · NoobAI-XL',
+        id: 'illustrious-runner',
+        label: 'WAI-Illustrious-SDXL v15.0',
         family: 'illustrious',
       },
       availableBases: [
-        { id: 'illustrious-hosted', label: 'Illustrious · NoobAI-XL' },
+        { id: 'illustrious-runner', label: 'WAI-Illustrious-SDXL v15.0' },
       ],
       selectBase: () => {},
       stack: {
@@ -581,12 +581,12 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
       negativePrompt: '',
       setNegativePrompt: () => {},
       base: {
-        id: 'illustrious-hosted',
-        label: 'Illustrious · NoobAI-XL',
+        id: 'illustrious-runner',
+        label: 'WAI-Illustrious-SDXL v15.0',
         family: 'illustrious',
       },
       availableBases: [
-        { id: 'illustrious-hosted', label: 'Illustrious · NoobAI-XL' },
+        { id: 'illustrious-runner', label: 'WAI-Illustrious-SDXL v15.0' },
       ],
       selectBase: () => {},
       stack: { items, push: () => {}, setScale: () => {}, remove: () => {} },

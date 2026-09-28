@@ -4390,7 +4390,7 @@ function checkLoraParameters(
   | { ok: true; patch: AssistantLoraParameters; next: AssistantLoraParameters }
   | { ok: false; plan: ToolPlan } {
   const base = LORA_BASE_MODELS.find((item) => item.id === run.state.modelId)
-  if (!run.state.loraParameters || base?.backend !== 'runner')
+  if (!run.state.loraParameters || !base)
     return { ok: false, plan: reject(REJECT.noSuchControl) }
   const parsed = AssistantLoraParametersSchema.safeParse(args)
   if (!parsed.success || Object.keys(parsed.data).length === 0)

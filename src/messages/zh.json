@@ -2174,13 +2174,14 @@
     },
     "baseModal": {
       "title": "换底模",
-      "subtitleConstrained": "受挂载家族兼容约束",
-      "subtitleFree": "无家族约束 · 全部底模可选",
-      "onlyCompatible": "仅显示兼容当前挂载",
-      "incompatible": "与当前挂载不兼容",
+      "subtitleConstrained": "挂 LoRA 时已自动选好兼容底模，这里用于改选",
+      "subtitleFree": "没挂 LoRA，任选一个底模直接出图",
+      "onlyCompatible": "只看兼容的",
+      "incompatible": "和当前挂载装不上",
       "channelRunner": "Runner",
-      "footer": "挂载 LoRA 后已自动选推荐兼容底模；此处用于改选。忠实 = Runner 原生 checkpoint，快 = 云端 API。",
-      "recommended": "推荐"
+      "recommended": "推荐",
+      "fast": "快出",
+      "close": "关闭"
     },
     "generate": {
       "placeholderTitle": "可直接使用底模生成",
@@ -2324,7 +2325,9 @@
       "templateSaved": "已存成模板",
       "templateSavedOpen": "去看看",
       "templateSaveFailed": "没存成，再试一次",
-      "templateLoadFailed": "这个模板打不开了（可能已经删掉）"
+      "templateLoadFailed": "这个模板打不开了（可能已经删掉）",
+      "negativeInert": "这个底模 CFG 1，负面词不起作用；写的内容留着，换回来还在",
+      "paramsCfg": "CFG {cfg}"
     },
     "spine": {
       "sourceCheckpointAuto": "来源图底模（自动）",
@@ -2332,13 +2335,9 @@
       "baseModel": "底模",
       "baseModelPending": "当前没有可用底模",
       "compatDotWarning": "与当前底模不兼容，出图时该 LoRA 不会生效",
-      "baseGroupCloud": "云端 API · 自备 key",
-      "baseGroupRunner": "Runner · 平台免费额度",
       "baseGroupSdxl": "SDXL 系",
       "baseGroupDit": "DiT 系",
       "empty": "未挂载（纯底模）",
-      "fast": "极速",
-      "faithful": "忠实还原",
       "comingSoon": "即将",
       "needApiKey": "需 API Key",
       "removeLora": "移除 {name}",
@@ -2353,7 +2352,6 @@
       "addLora": "添加",
       "executorLabel": "执行",
       "executorRunner": "Runner · 唯一通道",
-      "executorCloud": "云端 API",
       "openAssembly": "打开装配栏",
       "assemblyTitle": "装配栏",
       "stackTitle": "LoRA 栈",
@@ -2438,7 +2436,8 @@
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
-      "other": "其他"
+      "other": "其他",
+      "animaPencil": "Anima Pencil"
     },
     "libraryTypeFilter": "类型",
     "typeFilterLabel": "按内容类型筛选",
@@ -3930,6 +3929,10 @@
     "animaDitRunner": {
       "label": "Anima（Runner）",
       "description": "通过 ANTEI Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo（Runner）",
+      "description": "通过 ANTEI Runner 跑 Anima 的步数蒸馏档——10 步、CFG 1，出图快；CFG 1 下负面词不起作用。"
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",

@@ -595,4 +595,21 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
+  // Anima Turbo v1.1——步数蒸馏档（10 步 · CFG 1），与 Base 同一个 DiT 工作流，纯底模
+  // 出图的默认。
+  {
+    id: AI_MODELS.ANIMA_TURBO_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('animaTurbo_v11')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    officialUrl: 'https://civitai.com/models/2458426?modelVersionId=3263843',
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
 ]

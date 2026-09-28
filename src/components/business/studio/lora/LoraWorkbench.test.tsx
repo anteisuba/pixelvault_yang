@@ -1634,14 +1634,14 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
   })
 
-  it('defaults an empty LoRA stack to Anima Base and generates without a fake LoRA', () => {
+  it('defaults an empty LoRA stack to Anima Turbo and generates without a fake LoRA', () => {
     render(<LoraWorkbench />)
 
     expect(screen.getByText('LoraWorkbench:spine.empty')).toBeInTheDocument()
-    // S4：底模选择器从 combobox 下拉改为「底模卡」按钮（点开换底模 modal）；
-    // 默认仍是 Anima Base v1.0（纯底模空栈的自动底模）。
+    // S4：底模选择器是「底模卡」按钮（点开换底模 modal）；纯底模空栈默认 Anima Turbo
+    // v1.1（owner 2026-09-28）。
     const baseButton = screen.getByRole('button', {
-      name: /Anima Base v1\.0/,
+      name: /Anima Turbo v1\.1/,
     })
     expect(baseButton).toBeInTheDocument()
     expect(baseButton.querySelector('img')).toHaveAttribute(
@@ -1659,9 +1659,60 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
 
     expect(mockGenerate).toHaveBeenCalledTimes(1)
     const request = mockGenerate.mock.calls[0][0]
-    expect(request.image.modelId).toBe(AI_MODELS.ANIMA_DIT_RUNNER)
+    expect(request.image.modelId).toBe(AI_MODELS.ANIMA_TURBO_RUNNER)
     expect(request.image.advancedParams?.loras).toBeUndefined()
   })
+
+  // ④ 画板 N1–N3：CFG 1 的底模上负面词不起作用 —— chip 让开、那行收起、出图不带；写的
+  // 内容留着，CFG 调到 1 以上原样回来。
+  it('steps the negative prompt aside on a CFG 1 base and brings it back above CFG 1', () => {
+    render(<LoraWorkbench />)
+
+    const chip = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.negativePromptLabel/,
+    })
+    expect(chip).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    // 参数 chip 直接写底模自己的默认（euler · 10 步），不写「默认参数」。
+    const params = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.advanced\.title · euler · LoraWorkbench:generate\.paramsSteps/,
+    })
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        'LoraWorkbench:generate.negativePromptPlaceholder',
+      ),
+      { target: { value: 'worst quality' } },
+    )
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'sunset railway' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(
+      mockGenerate.mock.calls[0][0].image.advancedParams?.negativePrompt,
+    ).toBeUndefined()
+    // 内容还在，只是收着。
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(params)
+    fireEvent.change(
+      screen.getByLabelText('LoraWorkbench:generate.paramsLabels.cfg'),
+      { target: { value: '3' } },
+    )
+    expect(chip).not.toHaveAttribute('aria-disabled', 'true')
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(mockGenerate.mock.calls[1][0].image.advancedParams).toMatchObject({
+      negativePrompt: 'worst quality',
+      guidanceScale: 3,
+    })
+  }, 30_000)
 
   // 回归（2026-07-31 生产）：平台总闸关着时 runner 整条死，余额再多也花不出去。
   // 面板当时照报「剩余 231/300」，把用户指向完全错误的方向。总闸状态必须压过余额。

@@ -2174,13 +2174,14 @@
     },
     "baseModal": {
       "title": "Change base model",
-      "subtitleConstrained": "Compatible with your added LoRAs",
-      "subtitleFree": "No family constraint · all base models available",
-      "onlyCompatible": "Only show compatible models",
-      "incompatible": "Incompatible with your added LoRAs",
+      "subtitleConstrained": "A compatible base was picked when you added the LoRA — change it here",
+      "subtitleFree": "No LoRA added — pick any base and generate",
+      "onlyCompatible": "Compatible only",
+      "incompatible": "Won't load with your added LoRAs",
       "channelRunner": "Runner",
-      "footer": "A compatible base model is selected when you add a LoRA. You can change it here. Faithful uses a Runner checkpoint; Fast uses a cloud API.",
-      "recommended": "Recommended"
+      "recommended": "Recommended",
+      "fast": "Fast",
+      "close": "Close"
     },
     "generate": {
       "placeholderTitle": "Generate with the base model",
@@ -2324,7 +2325,9 @@
       "templateSaved": "Saved as a template",
       "templateSavedOpen": "Open",
       "templateSaveFailed": "Couldn't save it — try again",
-      "templateLoadFailed": "This template couldn't be opened (it may have been deleted)"
+      "templateLoadFailed": "This template couldn't be opened (it may have been deleted)",
+      "negativeInert": "This base runs at CFG 1, so the negative prompt has no effect. What you wrote stays and comes back when you switch.",
+      "paramsCfg": "CFG {cfg}"
     },
     "spine": {
       "sourceCheckpointAuto": "Source image checkpoint (Auto)",
@@ -2332,13 +2335,9 @@
       "baseModel": "Base model",
       "baseModelPending": "No base model is available",
       "compatDotWarning": "Not compatible with the current base — this LoRA won't take effect",
-      "baseGroupCloud": "Cloud API · bring your own key",
-      "baseGroupRunner": "Runner · free platform quota",
       "baseGroupSdxl": "SDXL family",
       "baseGroupDit": "DiT family",
       "empty": "No LoRAs added (base model only)",
-      "fast": "Fast",
-      "faithful": "Faithful",
       "comingSoon": "Coming soon",
       "needApiKey": "Needs API key",
       "removeLora": "Remove {name}",
@@ -2353,7 +2352,6 @@
       "addLora": "Add",
       "executorLabel": "Execution",
       "executorRunner": "Runner · only available route",
-      "executorCloud": "Cloud API",
       "openAssembly": "Open assembly",
       "assemblyTitle": "Assembly",
       "stackTitle": "LoRA stack",
@@ -2438,7 +2436,8 @@
       "qwen": "Qwen",
       "zImage": "Z-Image",
       "chroma": "Chroma",
-      "other": "Other"
+      "other": "Other",
+      "animaPencil": "Anima Pencil"
     },
     "libraryTypeFilter": "Type",
     "typeFilterLabel": "Filter by content type",
@@ -3930,6 +3929,10 @@
     "animaDitRunner": {
       "label": "Anima (Runner)",
       "description": "Anima (Cosmos-Predict2 DiT) via ANTEI Runner — the native path for the large Anima LoRA ecosystem on Civitai."
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo (Runner)",
+      "description": "Anima's step-distilled cut via ANTEI Runner — 10 steps at CFG 1, so it is fast; negative prompts have no effect at CFG 1."
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",

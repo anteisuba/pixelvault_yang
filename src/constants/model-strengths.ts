@@ -545,6 +545,13 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     negativePrompt: 'supported',
     enhanceHint: `Anima (Cosmos-Predict2 DiT) on the Comfy runner. Danbooru tags remain the reliable dialect; short natural-language clauses are also understood because the text encoder is Qwen-Image, not CLIP. Tags first, then a clause or two of scene description. Keep tag vocabulary English. ${SDXL_TAG_NEGATIVE_DIALECT}`,
   },
+  [AI_MODELS.ANIMA_TURBO_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'Anima Turbo v1.1 (step-distilled Cosmos-Predict2 DiT) on the Comfy runner. Same dialect as Anima: danbooru tags first, then a clause or two of scene description, English vocabulary. It samples at CFG 1, where the negative prompt has no effect — put everything that matters into the positive prompt and do not propose negatives unless the creator raises CFG above 1.',
+  },
 }
 /**
  * Get the enhancement hint for a model, falling back to adapter-level hint.
@@ -599,6 +606,7 @@ export const TAG_BASED_PROMPT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
   AI_MODELS.PONY_DIFFUSION_V6,
   AI_MODELS.SDXL_10_RUNNER,
   AI_MODELS.ANIMA_DIT_RUNNER,
+  AI_MODELS.ANIMA_TURBO_RUNNER,
 ])
 
 export function isTagBasedPromptModel(modelId: string): boolean {

@@ -11,7 +11,10 @@ import {
   buildAnimaWorkflow,
   type AnimaWorkflowLora,
 } from './anima-workflow-builder'
-import { getRunnerCheckpointById } from './checkpoints'
+import {
+  getRunnerCheckpointById,
+  type RunnerCheckpointDefinition,
+} from './checkpoints'
 import type { RunnerSampler, RunnerScheduler } from './sampling'
 import {
   buildComfyWorkflow,
@@ -29,7 +32,8 @@ const DEFAULT_CFG = 7.5
 const OVERRIDE_SAMPLER = 'euler_ancestral'
 const OVERRIDE_SCHEDULER = 'normal'
 const OVERRIDE_CLIP_SKIP = 2
-// Anima DiT 覆盖档默认（HF 卡：30-50 步 CFG 4-5，er_sde 中性默认）。
+// Anima DiT 覆盖档默认（HF 卡：30-50 步 CFG 4-5，er_sde 中性默认）。清单档用各自的
+// recommendedSteps / recommendedCfg。
 const ANIMA_DEFAULT_STEPS = 30
 const ANIMA_DEFAULT_CFG = 4
 const ANIMA_OVERRIDE_SAMPLER = 'er_sde'
@@ -75,6 +79,11 @@ export interface RunnerGenerationRequestInput {
    * 用保守 SDXL 默认 sampler/scheduler/clipSkip。缺省则按 externalModelId 走预烤档。
    */
   checkpointOverrideFilename?: string
+  /**
+   * 覆盖档借哪一档清单底模的出图默认（来源图底模是 Anima turbo 时 = 'animaTurbo_v11'）。
+   * 缺省用覆盖档通用默认。
+   */
+  checkpointOverrideDefaultsId?: string
   /**
    * v4：底模架构。'anima' → DiT 工作流（UNETLoader + 独立 Qwen CLIP/VAE +
    * ModelSamplingAuraFlow）。缺省 'sdxl' 走原 CheckpointLoaderSimple 图（向后兼容）。
@@ -156,6 +165,8 @@ export function buildRunnerWorkflowFromRequest(
   let samplerName: string
   let scheduler: string
   let clipSkip: number
+  let steps = DEFAULT_STEPS
+  let cfg = DEFAULT_CFG
   if (input.checkpointOverrideFilename) {
     checkpointFilename = input.checkpointOverrideFilename
     samplerName = OVERRIDE_SAMPLER
@@ -170,6 +181,8 @@ export function buildRunnerWorkflowFromRequest(
     samplerName = checkpoint.recommendedSampler
     scheduler = checkpoint.recommendedScheduler
     clipSkip = checkpoint.clipSkip
+    steps = checkpoint.recommendedSteps ?? steps
+    cfg = checkpoint.recommendedCfg ?? cfg
   }
   samplerName = input.sampler ?? samplerName
   scheduler = input.scheduler ?? scheduler
@@ -190,8 +203,8 @@ export function buildRunnerWorkflowFromRequest(
     width: input.width,
     height: input.height,
     seed: input.seed ?? randomSeed(),
-    steps: input.steps ?? DEFAULT_STEPS,
-    cfg: input.cfg ?? DEFAULT_CFG,
+    steps: input.steps ?? steps,
+    cfg: input.cfg ?? cfg,
     samplerName,
     scheduler,
     clipSkip,
@@ -213,23 +226,28 @@ function buildAnimaWorkflowFromRequest(
   randomSeed: () => number,
 ): ComfyWorkflow {
   let diffusionModelFilename: string
-  let samplerName: string
-  let scheduler: string
+  // 出图默认从哪一档清单底模来：清单档 = 它自己；覆盖档（来源图精确底模，不在清单里）
+  // = 借来的那一档，没借就用 Anima 通用默认。
+  let defaults: RunnerCheckpointDefinition | undefined
   if (input.checkpointOverrideFilename) {
     diffusionModelFilename = input.checkpointOverrideFilename
-    samplerName = ANIMA_OVERRIDE_SAMPLER
-    scheduler = ANIMA_OVERRIDE_SCHEDULER
+    defaults = input.checkpointOverrideDefaultsId
+      ? getRunnerCheckpointById(input.checkpointOverrideDefaultsId)
+      : undefined
   } else {
     const checkpoint = getRunnerCheckpointById(input.externalModelId)
     if (!checkpoint) {
       throw new RunnerUnknownCheckpointError(input.externalModelId)
     }
     diffusionModelFilename = checkpoint.filename
-    samplerName = checkpoint.recommendedSampler
-    scheduler = checkpoint.recommendedScheduler
+    defaults = checkpoint
   }
-  samplerName = input.sampler ?? samplerName
-  scheduler = input.scheduler ?? scheduler
+  const samplerName =
+    input.sampler ?? defaults?.recommendedSampler ?? ANIMA_OVERRIDE_SAMPLER
+  const scheduler =
+    input.scheduler ??
+    defaults?.recommendedScheduler ??
+    ANIMA_OVERRIDE_SCHEDULER
 
   const loras: AnimaWorkflowLora[] = input.loras.map((lora) => ({
     filename: lora.filename,
@@ -245,8 +263,8 @@ function buildAnimaWorkflowFromRequest(
     width: input.width,
     height: input.height,
     seed: input.seed ?? randomSeed(),
-    steps: input.steps ?? ANIMA_DEFAULT_STEPS,
-    cfg: input.cfg ?? ANIMA_DEFAULT_CFG,
+    steps: input.steps ?? defaults?.recommendedSteps ?? ANIMA_DEFAULT_STEPS,
+    cfg: input.cfg ?? defaults?.recommendedCfg ?? ANIMA_DEFAULT_CFG,
     samplerName,
     scheduler,
     modelSamplingShift: ANIMA_MODEL_SAMPLING_SHIFT,

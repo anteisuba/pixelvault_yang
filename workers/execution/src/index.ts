@@ -4923,6 +4923,8 @@ interface RunnerCheckpointSpecInput {
   targetDir?: 'checkpoints' | 'diffusion_models'
   /** Civitai 公布的 SHA-256；fork 落盘前核对，缺省 = 来源没公布，照下。 */
   sha256?: string
+  /** 借哪一档清单底模的出图默认（来源图底模是 Anima turbo → 'animaTurbo_v11'）。 */
+  defaultsCheckpointId?: string
 }
 
 // Runner 底模下发（docs/references/domains/runner.md）：app 侧
@@ -4943,17 +4945,21 @@ function getRunnerCheckpointSpec(
       ? 'diffusion_models'
       : undefined
   const sha256 = readStringField(spec, 'sha256')
+  const defaultsCheckpointId = readStringField(spec, 'defaultsCheckpointId')
   return {
     filename,
     downloadUrl,
     targetDir,
     ...(sha256 && /^[a-f0-9]{64}$/.test(sha256) ? { sha256 } : {}),
+    ...(defaultsCheckpointId && getRunnerCheckpointById(defaultsCheckpointId)
+      ? { defaultsCheckpointId }
+      : {}),
   }
 }
 
 // v4 Anima DiT 共享配件（circlestone-labs/Anima 的 HF 仓）。fork 首次 Anima 作业从
 // 这里拉到卷（缺则下、有则跳＝永久缓存）：Qwen 文本编码器→models/clip、VAE→models/vae；
-// T2（无 per-recipe 精确底模）再加 anima-base→models/unet 作默认档。
+// 没有来源图精确底模时再加清单里选中的那一档（Base / Turbo）→models/unet。
 // v9：钉 HF commit + 每个文件的 SHA-256（HF LFS oid，2026-09-28 回读），fork 落盘前核对——
 // `main` 上换了文件也不会悄悄换掉我们出图用的权重。
 const ANIMA_HF_REVISION = 'f973fc41ec7545364ac9776c2440285f43ff2a30'
@@ -4974,13 +4980,34 @@ const ANIMA_SHARED_COMPANIONS = [
     sha256: 'a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f',
   },
 ] as const
-const ANIMA_BASE_COMPANION = {
-  filename: 'anima-base-v1.0.safetensors',
-  url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
-  target_dir: 'unet',
-  source: 'huggingface' as const,
-  sha256: 'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
-} as const
+// 键 = 清单 id（externalModelId）；文件名与 checkpoints.ts 那一条一致。
+const ANIMA_CHECKPOINT_COMPANIONS: Readonly<
+  Record<
+    string,
+    {
+      filename: string
+      url: string
+      target_dir: 'unet'
+      source: 'huggingface'
+      sha256: string
+    }
+  >
+> = {
+  animaBase_v10: {
+    filename: 'anima-base-v1.0.safetensors',
+    url: `${ANIMA_HF_BASE}/diffusion_models/anima-base-v1.0.safetensors`,
+    target_dir: 'unet',
+    source: 'huggingface',
+    sha256: 'bd43b7cffe1ed1153d9c41e7beb2f18cb1273eafbaa3af3edd6a173dc90a006e',
+  },
+  animaTurbo_v11: {
+    filename: 'anima-turbo-v1.1.safetensors',
+    url: `${ANIMA_HF_BASE}/diffusion_models/anima-turbo-v1.1.safetensors`,
+    target_dir: 'unet',
+    source: 'huggingface',
+    sha256: 'fba11953276b57edf59d1dc4f1857ac05aa079c56f982b4d7c20298d57d3f7eb',
+  },
+}
 
 function injectCivitaiToken(url: string, civitaiToken: string | null): string {
   if (!civitaiToken || !url.includes('civitai.com')) return url
@@ -6347,6 +6374,8 @@ export async function submitRunnerImageJob(
               scale: lora.scale,
             })),
             checkpointOverrideFilename: runnerCheckpoint?.filename,
+            checkpointOverrideDefaultsId:
+              runnerCheckpoint?.defaultsCheckpointId,
             architecture,
             referenceImageName,
             denoise: referenceDenoise,
@@ -6396,11 +6425,22 @@ export async function submitRunnerImageJob(
     }
   }
   // v4：Anima DiT 作业带上共享配件（Qwen 编码器/VAE），fork 首次从 HF 拉入卷后缓存。
-  // 无 per-recipe 精确底模（T2）时再加 anima-base 默认档到 models/unet/。
+  // 无 per-recipe 精确底模时再加清单里那一档到 models/unet/。
   if (architecture === 'anima') {
-    runpodInput.companions_to_fetch = runnerCheckpoint
-      ? ANIMA_SHARED_COMPANIONS
-      : [...ANIMA_SHARED_COMPANIONS, ANIMA_BASE_COMPANION]
+    const checkpointCompanion = runnerCheckpoint
+      ? null
+      : ANIMA_CHECKPOINT_COMPANIONS[context.providerInput.externalModelId]
+    if (!runnerCheckpoint && !checkpointCompanion) {
+      throw new WorkerProviderError({
+        message: `No Anima companion for Runner checkpoint: ${context.providerInput.externalModelId}`,
+        provider: 'runner',
+        phase: 'workflow_build',
+        errorCode: 'model_unavailable',
+      })
+    }
+    runpodInput.companions_to_fetch = checkpointCompanion
+      ? [...ANIMA_SHARED_COMPANIONS, checkpointCompanion]
+      : ANIMA_SHARED_COMPANIONS
   }
   if (upscaler) {
     runpodInput.upscaler_to_fetch = {

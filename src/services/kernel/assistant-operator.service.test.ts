@@ -10739,12 +10739,12 @@ describe('LoRA Runner parameter controls', () => {
     expect(lastUserPrompt()).toContain('"guidanceScale":6')
   })
 
-  it.each(['hosted', 'missing-controls'])(
+  it.each(['unknown-base', 'missing-controls'])(
     'rejects parameter writes for %s',
     async (mode) => {
       const unavailable = { ...snapshot }
-      if (mode === 'hosted')
-        unavailable.model = { id: 'illustrious-hosted', label: 'Hosted' }
+      if (mode === 'unknown-base')
+        unavailable.model = { id: 'retired-base', label: 'Retired' }
       else delete unavailable.loraParameters
       queueTurns(
         {

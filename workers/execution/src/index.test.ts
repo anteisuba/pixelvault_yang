@@ -2526,6 +2526,46 @@ describe('provider submit reports providerJobId', () => {
     expect(body.data).toEqual({ providerJobId: 'runpod-job-1' })
   })
 
+  it('Anima fetches the fixed checkpoint it runs on, pinned by SHA-256', async () => {
+    const runs: Array<Record<string, unknown>> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url).endsWith('/run')) {
+          runs.push(JSON.parse(String(init?.body)).input)
+          return Response.json({ id: 'anima-job' })
+        }
+        return new Response(null, { status: 200 })
+      }),
+    )
+    const env = {
+      INTERNAL_CALLBACK_SECRET: 'secret-1',
+      RUNPOD_ENDPOINT: 'runner-endpoint',
+    } as unknown as Parameters<typeof submitRunnerImageJob>[1]
+    for (const externalModelId of ['animaTurbo_v11', 'animaBase_v10']) {
+      const context = makeFalImageContext({
+        externalModelId,
+        aspectRatio: '1:1',
+      }) as Parameters<typeof submitRunnerImageJob>[0]
+      await submitRunnerImageJob({ ...context, providerId: 'runner' }, env, 'k')
+    }
+    const unetFiles = runs.map((input) =>
+      (input.companions_to_fetch as Array<{ target_dir: string }>).filter(
+        (companion) => companion.target_dir === 'unet',
+      ),
+    )
+    expect(unetFiles).toEqual([
+      [
+        expect.objectContaining({
+          filename: 'anima-turbo-v1.1.safetensors',
+          sha256:
+            'fba11953276b57edf59d1dc4f1857ac05aa079c56f982b4d7c20298d57d3f7eb',
+        }),
+      ],
+      [expect.objectContaining({ filename: 'anima-base-v1.0.safetensors' })],
+    ])
+  })
+
   it('Qwen submits all references to the evaluation endpoint and preserves its route for polling and cancel', async () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = []
     vi.stubGlobal(

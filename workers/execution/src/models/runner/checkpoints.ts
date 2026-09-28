@@ -21,6 +21,9 @@ export interface RunnerCheckpointDefinition {
   filename: string
   recommendedSampler: string
   recommendedScheduler: string
+  /** 这个底模自己的出图默认；缺省走 request-builder 的通用默认（SDXL 30 · 7.5）。 */
+  recommendedSteps?: number
+  recommendedCfg?: number
   /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. Unused for Anima. */
   clipSkip: number
   /**
@@ -66,6 +69,20 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
     filename: 'anima-base-v1.0.safetensors',
     recommendedSampler: 'er_sde',
     recommendedScheduler: 'simple',
+    recommendedSteps: 30,
+    recommendedCfg: 4,
+    clipSkip: 1,
+    architecture: 'anima',
+  },
+  // 步数蒸馏档：纯底模出图的默认。来源图底模版本名带 turbo 时也借它的默认
+  // （advancedParams.runnerCheckpoint.defaultsCheckpointId）。
+  {
+    id: 'animaTurbo_v11',
+    filename: 'anima-turbo-v1.1.safetensors',
+    recommendedSampler: 'euler',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 10,
+    recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'anima',
   },

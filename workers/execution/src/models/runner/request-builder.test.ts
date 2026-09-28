@@ -428,6 +428,67 @@ describe('buildRunnerWorkflowFromRequest', () => {
         'civitai-ckpt-3108589.safetensors',
       )
       expect(workflow.sampler.inputs.sampler_name).toBe('er_sde')
+      expect(workflow.sampler.inputs.steps).toBe(30)
+      expect(workflow.sampler.inputs.cfg).toBe(4)
+    })
+
+    it('Anima Turbo uses its own distilled defaults (euler · simple · 10 steps · CFG 1)', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaTurbo_v11',
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow.unet.inputs.unet_name).toBe(
+        'anima-turbo-v1.1.safetensors',
+      )
+      expect(workflow.sampler.inputs).toMatchObject({
+        sampler_name: 'euler',
+        scheduler: 'simple',
+        steps: 10,
+        cfg: 1,
+      })
+      expect(workflow['model-sampling'].inputs.shift).toBe(3.0)
+    })
+
+    it('user-set steps / CFG / sampler beat the checkpoint defaults', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaTurbo_v11',
+          steps: 14,
+          cfg: 1.5,
+          sampler: 'er_sde',
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow.sampler.inputs).toMatchObject({
+        sampler_name: 'er_sde',
+        steps: 14,
+        cfg: 1.5,
+      })
+    })
+
+    it('a source turbo checkpoint borrows the Turbo defaults', () => {
+      const workflow = buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          externalModelId: 'animaBase_v10',
+          checkpointOverrideFilename: 'civitai-ckpt-3263843.safetensors',
+          checkpointOverrideDefaultsId: 'animaTurbo_v11',
+        }),
+        fixedRandomSeed,
+      )
+      expect(workflow.unet.inputs.unet_name).toBe(
+        'civitai-ckpt-3263843.safetensors',
+      )
+      expect(workflow.sampler.inputs).toMatchObject({
+        sampler_name: 'euler',
+        scheduler: 'simple',
+        steps: 10,
+        cfg: 1,
+      })
     })
 
     it('chains the Anima LoRA model-only (no clip strength) and threads load evidence', () => {

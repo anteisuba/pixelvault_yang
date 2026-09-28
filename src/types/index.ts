@@ -232,6 +232,8 @@ export const RunnerCheckpointSpecSchema = z.object({
     .string()
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
+  // 借哪一档清单底模的出图默认（来源图底模是 Anima turbo → 'animaTurbo_v11'）。
+  defaultsCheckpointId: z.string().min(1).optional(),
 })
 export type RunnerCheckpointSpec = z.infer<typeof RunnerCheckpointSpecSchema>
 

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { getRunnerSourceCheckpointDefaultsId } from '@/constants/runner-checkpoints'
 import { determineRunnerCheckpointFidelity } from '@/lib/runner-checkpoint-fidelity'
 import { resolveCivitaiCheckpointByReference } from '@/services/civitai-lora.service'
 import type { RunnerCheckpointSpec } from '@/types'
@@ -53,7 +54,11 @@ export async function prepareRunnerCheckpoint(ref: {
   )
 
   switch (fidelity.tier) {
-    case 'faithful':
+    case 'faithful': {
+      const defaultsCheckpointId = getRunnerSourceCheckpointDefaultsId(
+        fidelity.family,
+        fidelity.checkpoint.name,
+      )
       return {
         runnerCheckpoint: {
           filename: deriveRunnerCheckpointFilename(
@@ -67,9 +72,11 @@ export async function prepareRunnerCheckpoint(ref: {
           ...(fidelity.family === 'anima-dit'
             ? { targetDir: 'diffusion_models' as const }
             : {}),
+          ...(defaultsCheckpointId ? { defaultsCheckpointId } : {}),
         },
         approximate: false,
       }
+    }
     case 'approximate':
       return { approximate: true }
     case 'unsupported':

@@ -36,6 +36,12 @@ export interface RunnerCheckpointManifestEntry {
   civitaiModelVersionId: number
   recommendedSampler: string
   recommendedScheduler: string
+  /**
+   * 这个底模自己的出图默认（步数蒸馏档、DiT 档与通用 SDXL 默认差得远）。缺省 =
+   * `RUNNER_DEFAULT_STEPS` / `RUNNER_DEFAULT_CFG`。Worker 镜像同一份数。
+   */
+  recommendedSteps?: number
+  recommendedCfg?: number
   /** ComfyUI `CLIPSetLastLayer` convention: 1 = no skip, 2 = stop at -2. Unused for Anima DiT. */
   clipSkip: number
   /** Prefixed onto the positive prompt for checkpoints with quality-tag conventions (e.g. Pony's score_9 tags). */
@@ -96,15 +102,72 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     civitaiModelVersionId: 2945208,
     recommendedSampler: 'er_sde',
     recommendedScheduler: 'simple',
+    // HF 卡：30–50 步、CFG 4–5。
+    recommendedSteps: 30,
+    recommendedCfg: 4,
+    clipSkip: 1,
+    architecture: 'anima',
+  },
+  // 步数蒸馏档（owner 09-28 定：euler · simple · 10 步 · CFG 1 · shift 3）。纯底模出图的
+  // 默认；与 Base 同一套 Qwen 编码器 / VAE，同落 models/unet/。
+  {
+    id: 'animaTurbo_v11',
+    family: 'anima-dit',
+    displayName: 'Anima Turbo v1.1',
+    filename: 'anima-turbo-v1.1.safetensors',
+    civitaiModelVersionId: 3263843,
+    recommendedSampler: 'euler',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 10,
+    recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'anima',
   },
 ] as const
 
+export const RUNNER_DEFAULT_STEPS = 30
+export const RUNNER_DEFAULT_CFG = 7.5
+
 export function getRunnerCheckpointById(
   id: string,
 ): RunnerCheckpointManifestEntry | undefined {
   return RUNNER_CHECKPOINTS.find((checkpoint) => checkpoint.id === id)
+}
+
+/**
+ * 来源图配方的精确底模（Civitai 下载来的，不在清单里）借哪一档的出图默认：Anima 系
+ * 版本名带 turbo 的是步数蒸馏档，照 Anima Turbo 出；其余不借（Worker 用 Anima 通用默认）。
+ */
+export function getRunnerSourceCheckpointDefaultsId(
+  family: string,
+  versionName: string,
+): string | undefined {
+  return family === 'anima-dit' && /turbo/i.test(versionName)
+    ? 'animaTurbo_v11'
+    : undefined
+}
+
+/** 这一档实际用的 CFG：用户填了用填的，没填用底模默认。 */
+export function resolveRunnerCfg(
+  checkpointId: string | undefined,
+  cfgOverride?: number | null,
+): number {
+  if (cfgOverride != null && Number.isFinite(cfgOverride)) return cfgOverride
+  const checkpoint = checkpointId
+    ? getRunnerCheckpointById(checkpointId)
+    : undefined
+  return checkpoint?.recommendedCfg ?? RUNNER_DEFAULT_CFG
+}
+
+/**
+ * CFG 恰好是 1 时 ComfyUI 整个跳过负面那一支（`cfg1_optimization`），负面词写了也不起作用。
+ * 界面（负面 chip 让开）与助手（CFG 1 底模不推荐负面词）共用这一个判据。
+ */
+export function isRunnerNegativePromptInert(
+  checkpointId: string | undefined,
+  cfgOverride?: number | null,
+): boolean {
+  return Math.abs(resolveRunnerCfg(checkpointId, cfgOverride) - 1) < 1e-9
 }
 
 /**

@@ -111,7 +111,7 @@ describe('prepareRunnerCheckpoint', () => {
     expect(res).toEqual({ approximate: true })
   })
 
-  it('T1 Anima: resolvable DiT checkpoint → download spec targets diffusion_models', async () => {
+  it('T1 Anima: resolvable DiT checkpoint → download spec targets diffusion_models; a turbo version borrows the Turbo defaults', async () => {
     mockResolve.mockResolvedValueOnce({
       modelVersionId: 3108589,
       name: 'turbo-v1.0',
@@ -127,9 +127,24 @@ describe('prepareRunnerCheckpoint', () => {
         filename: 'civitai-ckpt-3108589.safetensors',
         downloadUrl: 'https://civitai.com/api/download/models/3108589',
         targetDir: 'diffusion_models',
+        defaultsCheckpointId: 'animaTurbo_v11',
       },
       approximate: false,
     })
+  })
+
+  it('T1 Anima: a non-turbo DiT version keeps the Anima defaults (no borrowed id)', async () => {
+    mockResolve.mockResolvedValueOnce({
+      modelVersionId: 2945208,
+      name: 'base-v1.0',
+      baseModel: 'Anima',
+      downloadUrl: 'https://civitai.com/api/download/models/2945208',
+      sizeKB: 3900000,
+      fileHashAutoV3: 'abc',
+      sha256: null,
+    })
+    const res = await prepareRunnerCheckpoint({ checkpointVersionId: 2945208 })
+    expect(res.runnerCheckpoint?.defaultsCheckpointId).toBeUndefined()
   })
 })
 

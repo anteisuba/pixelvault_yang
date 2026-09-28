@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { getTranslations } from 'next-intl/server'
 import { z } from 'zod'
 
 import {
@@ -11,21 +12,26 @@ import {
   EDIT_TEXT_TONES_TUPLE,
 } from '@/constants/edit-desk'
 import {
+  RENDER_DRAFT_R2_PREFIX,
+  RENDER_DRAFT_RESOLUTION,
   RENDER_MAX_DURATION_SEC,
   RENDER_MAX_SEGMENTS,
   RENDER_PLAN_VERSION,
+  RENDER_R2_PREFIX,
   RENDER_STEPS,
   RENDER_STEP_IDS,
   RENDER_WORKER,
   type RenderJobStatusId,
   type RenderStepId,
 } from '@/constants/render-video'
+import { DEFAULT_LOCALE, LOCALES, type AppLocale } from '@/i18n/routing'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import { createGeneration } from '@/services/generation.service'
 import { getUserByClerkId } from '@/services/user.service'
+import { landRenderOnCanvas } from '@/services/video/render-landing.service'
 import {
   completeGenerationJob,
   createGenerationJob,
@@ -109,7 +115,8 @@ export const RenderPlanSchema = z.object({
   projectId: z.string().trim().min(1).max(160),
   output: z.object({
     aspect: z.enum(EDIT_ASPECTS),
-    resolution: z.enum(EDIT_RESOLUTIONS),
+    // 小样的 480p 只由服务端（MCP `render` draft）算出来，剪辑台的下拉里没有它。
+    resolution: z.enum([...EDIT_RESOLUTIONS, RENDER_DRAFT_RESOLUTION]),
     width: z.number().int().min(16).max(7680),
     height: z.number().int().min(16).max(7680),
     fps: z.number().int().min(1).max(60),
@@ -129,9 +136,28 @@ export type RenderPlanInput = z.infer<typeof RenderPlanSchema>
 
 export const RenderSubmitSchema = z.object({
   plan: RenderPlanSchema,
-  /** 完成后要不要在画布上落一张成片卡（客户端做，服务端只回传这个意图）。 */
+  /** 完成后要不要在画布上落一张成片卡（服务端在成片回调里落，docs/references/mcp.md §7）。 */
   toCanvas: z.boolean().default(true),
+  /** 发起导出时的界面语言 —— 成片卡上那行「来源」按它拼。缺席 = 默认语言。 */
+  locale: z.enum(LOCALES).optional(),
 })
+
+/**
+ * 落卡上下文。⚠ 任务表里没有地方放它：派任务时交给 worker，worker 完成时原样放进
+ * 结果回调带回来（回调有签名，可信）。
+ */
+export const RenderLandingSchema = z.object({
+  /** 小样：不建 Generation、不落画布，文件在 `RENDER_DRAFT_R2_PREFIX` 下。 */
+  draft: z.boolean(),
+  toCanvas: z.boolean(),
+  canvasProjectId: z.string().trim().min(1).max(160),
+  sourceNodeIds: z
+    .array(z.string().trim().min(1).max(160))
+    .max(RENDER_MAX_SEGMENTS),
+  sourceLabel: z.string().max(400),
+})
+
+export type RenderLanding = z.infer<typeof RenderLandingSchema>
 
 export type RenderSubmitInput = z.infer<typeof RenderSubmitSchema>
 
@@ -156,6 +182,7 @@ export const RenderCallbackSchema = z.object({
   width: z.number().int().min(16).max(7680).optional(),
   height: z.number().int().min(16).max(7680).optional(),
   outputType: z.literal('VIDEO').optional(),
+  landing: RenderLandingSchema.optional(),
 })
 
 export type RenderCallbackInput = z.infer<typeof RenderCallbackSchema>
@@ -174,12 +201,31 @@ export interface RenderJobView {
   readonly durationSec?: number
   readonly generationId?: string
   readonly error?: string
+  /** 小样（不进素材库、不落画布）。 */
+  readonly draft?: true
 }
 
 /** 渲染任务在 `GenerationJob` 里的标记 —— ⛔ 别和真的模型生成混在一起统计。 */
 export const RENDER_JOB_ADAPTER = 'render-video'
 export const RENDER_JOB_PROVIDER = 'cloudflare'
 export const RENDER_JOB_MODEL = 'ffmpeg-container'
+/**
+ * 小样任务的标记。⚠ 小样不建 Generation，它的地址靠这个标记 + `externalRequestId`
+ * 里存的输出路径推出来（⛔ 不为一个地址加字段，与进度借 `providerJobId` 同一条论据）。
+ */
+export const RENDER_DRAFT_JOB_MODEL = 'ffmpeg-container:draft'
+
+/** 成片卡上 ⋯ 那一行只读的「来源」，按发起导出时的界面语言拼。 */
+async function renderSourceLabel(
+  locale: AppLocale,
+  name: string,
+): Promise<string> {
+  const t = await getTranslations({
+    locale,
+    namespace: 'StudioNode.editDesk.render',
+  })
+  return t('sourceLabel', { name })
+}
 
 /** 每用户同时在飞的渲染任务上限 —— 一期不扣积分，这就是那道闸。 */
 export const RENDER_MAX_ACTIVE_JOBS_PER_USER = 2
@@ -255,7 +301,9 @@ function callbackSecret(): string {
 export async function submitRenderJob(
   clerkId: string,
   input: RenderSubmitInput,
+  options: { readonly draft?: boolean } = {},
 ): Promise<RenderJobView> {
+  const draft = options.draft === true
   const user = await getUserByClerkId(clerkId)
   if (!user) {
     throw new ApiRequestError(
@@ -282,20 +330,42 @@ export async function submitRenderJob(
     )
   }
 
+  // 小样的输出路径在建任务之前就定下来（记进 `externalRequestId`，查状态时据此推
+  // 地址）；成片沿用老路径（`renders/<projectId>/<jobId>`）。
+  const draftKeyBase = draft
+    ? `${RENDER_DRAFT_R2_PREFIX}/${input.plan.projectId}/${globalThis.crypto.randomUUID()}`
+    : null
+
   const job = await createGenerationJob({
     userId: user.id,
     adapterType: RENDER_JOB_ADAPTER,
     provider: RENDER_JOB_PROVIDER,
-    modelId: RENDER_JOB_MODEL,
+    modelId: draft ? RENDER_DRAFT_JOB_MODEL : RENDER_JOB_MODEL,
     prompt: input.plan.name,
-    externalRequestId: input.plan.name.slice(0, 160),
+    externalRequestId: draftKeyBase ?? input.plan.name.slice(0, 160),
   })
+
+  const landing: RenderLanding = {
+    draft,
+    toCanvas: !draft && input.toCanvas,
+    canvasProjectId: input.plan.projectId,
+    sourceNodeIds: [
+      ...new Set(input.plan.video.map((segment) => segment.sourceNodeId)),
+    ],
+    sourceLabel: await renderSourceLabel(
+      input.locale ?? DEFAULT_LOCALE,
+      input.plan.name,
+    ),
+  }
 
   try {
     await dispatchRenderRun({
       runId: job.id,
       jobId: job.id,
       userId: user.id,
+      outputKeyBase:
+        draftKeyBase ?? `${RENDER_R2_PREFIX}/${input.plan.projectId}/${job.id}`,
+      landing,
       plan: input.plan,
     })
   } catch (error) {
@@ -319,6 +389,7 @@ export async function submitRenderJob(
     jobId: job.id,
     status: 'queued',
     name: input.plan.name,
+    ...(draft ? { draft: true as const } : {}),
   }
 }
 
@@ -326,6 +397,8 @@ async function dispatchRenderRun(payload: {
   runId: string
   jobId: string
   userId: string
+  outputKeyBase: string
+  landing: RenderLanding
   plan: RenderPlanInput
 }): Promise<void> {
   const url = `${workerBaseUrl()}${RENDER_WORKER.SUBMIT_PATH}`
@@ -384,6 +457,12 @@ export async function getRenderJob(
 
   const { step, progress } = decodeProgress(job.providerJobId)
   const generation = job.generation
+  const draft = job.modelId === RENDER_DRAFT_JOB_MODEL
+  // 小样没有 Generation：跑完之后地址由建任务时定下的输出路径推出来。
+  const draftBase =
+    draft && job.status === 'COMPLETED' && job.externalRequestId
+      ? `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${job.externalRequestId}`
+      : null
   return {
     jobId: job.id,
     status: toStatus(job.status),
@@ -394,9 +473,13 @@ export async function getRenderJob(
     ...(generation?.thumbnailUrl
       ? { thumbnailUrl: generation.thumbnailUrl }
       : {}),
+    ...(draftBase
+      ? { url: `${draftBase}.mp4`, thumbnailUrl: `${draftBase}.jpg` }
+      : {}),
     ...(generation?.duration ? { durationSec: generation.duration } : {}),
     ...(generation?.id ? { generationId: generation.id } : {}),
     ...(job.errorMessage ? { error: job.errorMessage } : {}),
+    ...(draft ? { draft: true as const } : {}),
   }
 }
 
@@ -509,6 +592,15 @@ export async function handleRenderCallback(
     return { jobId: job.id, action: 'failed' }
   }
 
+  const landing = payload.landing
+
+  // 小样：不建 Generation、不进素材库、不落画布 —— 地址由输出路径推（`getRenderJob`）。
+  if (landing?.draft) {
+    await completeGenerationJob(job.id, { requestCount: 1 })
+    logger.info('render.draft_completed', { jobId: job.id })
+    return { jobId: job.id, action: 'completed-draft' }
+  }
+
   const generation = await createGeneration({
     url: payload.url,
     storageKey: payload.storageKey,
@@ -533,6 +625,34 @@ export async function handleRenderCallback(
     sourceSurface: 'EDIT',
   })
 
+  // ⚠ 先落卡、再把任务标完成：浏览器 / Claude 看到「完成」时卡已经在画布上了。
+  // 落不下来（项目删了 / 连撞版本号）只少一张卡 —— 成片已经进了素材库，⛔ 不让
+  // 整个回调失败（worker 会拿失败当重试信号，再渲一遍）。
+  let landedNodeId: string | null = null
+  if (landing?.toCanvas) {
+    try {
+      landedNodeId = await landRenderOnCanvas({
+        userId: job.userId,
+        canvasProjectId: landing.canvasProjectId,
+        sourceNodeIds: landing.sourceNodeIds,
+        name: job.prompt ?? '',
+        sourceLabel: landing.sourceLabel,
+        generation: {
+          id: generation.id,
+          url: payload.url,
+          ...(payload.thumbnailUrl
+            ? { thumbnailUrl: payload.thumbnailUrl }
+            : {}),
+        },
+      })
+    } catch (error) {
+      logger.error('render.land.failed', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
   await completeGenerationJob(job.id, {
     generationId: generation.id,
     requestCount: 1,
@@ -541,6 +661,7 @@ export async function handleRenderCallback(
   logger.info('render.completed', {
     jobId: job.id,
     generationId: generation.id,
+    ...(landedNodeId ? { landedNodeId } : {}),
   })
   return { jobId: job.id, action: 'completed' }
 }

@@ -130,7 +130,6 @@ function renderDesk(
   const onUndo = vi.fn()
   const addNode = vi.fn()
   const setMedia = vi.fn()
-  const connectNodes = vi.fn(() => true)
 
   function Host() {
     const [current, setCurrent] = React.useState(state)
@@ -202,7 +201,7 @@ function renderDesk(
           mintId={(prefix) => `${prefix}_${(counter += 1)}`}
           addNode={addNodeReal}
           setMedia={setMediaReal}
-          connect={connectNodes}
+          refreshProject={vi.fn()}
           canUndo
           onUndo={onUndo}
           onExit={onExit}
@@ -482,7 +481,7 @@ describe('剪辑台 · 台面', () => {
             mintId={(prefix) => `${prefix}_1`}
             addNode={vi.fn(() => 'n_new')}
             setMedia={vi.fn()}
-            connect={vi.fn(() => true)}
+            refreshProject={vi.fn()}
             canUndo={false}
             onUndo={vi.fn()}
             onExit={vi.fn()}

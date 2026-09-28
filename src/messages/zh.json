@@ -6356,8 +6356,7 @@
           "zeroDuration": "导出的长度是 0 秒。",
           "tooManySegments": "段太多了，先删掉一些再导出。",
           "tooLong": "成片太长了，超过一次渲染的上限。"
-        },
-        "landFailed": "成片没能落到画布上，再试一次。"
+        }
       },
       "plan": {
         "ask": "按这句话排片：{prompt}",

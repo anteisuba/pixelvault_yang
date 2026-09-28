@@ -6356,8 +6356,7 @@
           "zeroDuration": "The export would be zero seconds long.",
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
-        },
-        "landFailed": "Couldn't add the finished video to the canvas. Please try again."
+        }
       },
       "plan": {
         "ask": "Arrange the timeline: {prompt}",

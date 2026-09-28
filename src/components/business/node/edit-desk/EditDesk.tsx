@@ -13,7 +13,7 @@
  * ⚠ PR / FCP 预设**只加一颗分割键**（⌘K / ⌘B，查 `EDIT_SHORTCUT_SPLIT_CODE`）——
  * 上面那一排是本台自己的键，⛔ 不被预设换掉（spec §6 两条都写着）。
  *
- * ⚠ 导出（S9）走 `useEditDeskRender`：建计划 → 入队 → 顶栏进度 → 完成落卡 / 下载。
+ * ⚠ 导出（S9）走 `useEditDeskRender`：建计划 → 入队 → 顶栏进度 → 完成（成片卡由服务端落，这边拉回）/ 下载。
  * ⛔ 一句话排片仍然只画栏（S10）。
  *
  * ── 为什么整块 portal 到 body ────────────────────────────────────────────
@@ -28,7 +28,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
@@ -45,11 +45,7 @@ import {
   type EditTrackId,
 } from '@/constants/edit-desk'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
-import {
-  NODE_MEDIA_KIND_IDS,
-  NODE_V4_VIDEO_SUBTYPE_IDS,
-} from '@/constants/node-types'
-import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { clipIndexAt, currentUrlOf, RenderPlanError } from '@/lib/edit-project'
 import {
   requestTimelinePlan,
@@ -92,11 +88,11 @@ export interface EditDeskProps {
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): { readonly applied: number }
   mintId(prefix: string): string
   /**
-   * 「导出到画布」要用的三个图动作（S9）。
+   * 素材库那一格落进轨时建卡 + 回填（S8c）。
    *
-   * ⚠ 落一张**带 url 的**成片卡，op 表里没有一条能干这件事 —— `add_node` 不收
-   * 地址（那是「让模型编地址」那条纪律的另一面），所以回填走 `setMedia`，与生成
-   * 回填同一条路（不进撤销栈）。⛔ 别为渲染新造一条能写 url 的 op。
+   * ⚠ 落一张**带 url 的**卡，op 表里没有一条能干这件事 —— `add_node` 不收地址（那是
+   * 「让模型编地址」那条纪律的另一面），所以回填走 `setMedia`，与生成回填同一条路
+   * （不进撤销栈）。⛔ 别为它新造一条能写 url 的 op。
    */
   addNode(
     kind: NodeV4Data['kind'],
@@ -104,7 +100,11 @@ export interface EditDeskProps {
     options?: { readonly name?: string },
   ): string | null
   setMedia(nodeId: string, patch: NodeV4MediaPatch): void
-  connect(source: string, target: string, slot: 'reference'): boolean
+  /**
+   * 立刻把服务端那一份拉回来。导出成片由**服务端**落进项目（docs/references/mcp.md
+   * §7），完成时调它，卡马上出现在画布上。
+   */
+  refreshProject(): void
   readonly canUndo: boolean
   onUndo(): void
   /** 退出全屏模式（删 `?mode=edit`）。 */
@@ -138,7 +138,7 @@ export function EditDesk({
   mintId,
   addNode,
   setMedia,
-  connect,
+  refreshProject,
   canUndo,
   onUndo,
   onExit,
@@ -148,6 +148,7 @@ export function EditDesk({
   readOnly = false,
 }: EditDeskProps) {
   const t = useTranslations('StudioNode.editDesk')
+  const locale = useLocale()
   const tPlan = useTranslations('StudioNode.editDesk.plan')
   const desk = useEditDesk({
     state,
@@ -308,124 +309,28 @@ export function EditDesk({
   /**
    * 「最新值 ref」——每渲染一次刷一遍（⛔ 不在渲染期直接写 `.current`）。
    *
-   * ⚠ 回填 / 连线 / 落段必须用**那一帧**的 `setMedia` / `connect` / `desk`：它们
-   * 闭包着调用时的那份图，隔帧之后再拿旧的那一份写回去，等于把刚建出来的卡抹掉
-   * （与 `VideoNodeV4.backfillMedia` 同一条实测结论）。
+   * ⚠ 回填 / 落段必须用**那一帧**的 `setMedia` / `desk`：它们闭包着调用时的那份图，
+   * 隔帧之后再拿旧的那一份写回去，等于把刚建出来的卡抹掉（与
+   * `VideoNodeV4.backfillMedia` 同一条实测结论）。
    */
-  const latest = useRef({ state, desk, setMedia, connect })
+  const latest = useRef({ state, desk, setMedia })
   useEffect(() => {
-    latest.current = { state, desk, setMedia, connect }
+    latest.current = { state, desk, setMedia }
   })
 
   /**
-   * 完成 → 画布上落一张成片卡，并把每个来源段连回去。
+   * 完成 → 成片卡**已经由服务端落进项目了**（docs/references/mcp.md §7），这里只把
+   * 最新那一份立刻拉回来，让卡马上出现在画布上。
    *
-   * ⚠ 连的是 `video.shot` 的 `reference` 槽 —— **端口表上唯一收视频的口**
-   * （`NODE_V4_PORTS`）。⛔ 不复活 `video.merge`（S8 已经把它迁成时间线，新建一张
-   * 反而会被下一次加载的迁移吃掉）。
-   *
-   * ── 为什么这里也是「隔帧 + 最新值 ref」（S8d 修 S8/S9 遗留）─────────────
-   * S9 那一版把 `addNode` / `setMedia` / N 条 `connect` 全塞在**同一 tick**：三者
-   * 各自闭包着调用时的那份图，后一条会把前一条写的东西整份抹掉 —— 表现是「成片
-   * 渲完了，画布上什么都没有」（与素材库落卡那次一模一样的形状）。所以按帧推进：
-   * 卡出现了才回填，url 到位了才连边，**每帧只连一条**（两条 connect 挤在一帧里，
-   * 第二条会把第一条那条边吃掉）。
+   * ⛔ 不在浏览器里再建一次卡：两条路会落两张卡。
    */
-  const onRenderLanded = useCallback(
-    (
-      job: {
-        readonly name: string
-        readonly url?: string
-        readonly thumbnailUrl?: string
-        readonly generationId?: string
-      },
-      sourceNodeIds: readonly string[],
-    ) => {
-      const url = job.url
-      if (!url) return
-      const nodeId = addNode(
-        NODE_MEDIA_KIND_IDS.video,
-        NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-        { name: job.name },
-      )
-      if (!nodeId) return
-      // ⚠ 去重：两段来自同一张卡时只连一条边（端口表上 `reference` 是一条槽，
-      // 连两次的第二条只会被判成重复）。
-      const pending = [...new Set(sourceNodeIds)]
-      /** 回填只发一次 —— 发过还没到位就只等，⛔ 不每帧再写一遍（那会把空转计数
-       * 一直归零，等成一个永不结束的循环）。 */
-      let filled = false
-      /** 上一条边连的是谁 —— 它没落到图上之前不连下一条。 */
-      let connecting: string | null = null
-
-      /**
-       * ⚠ 数的是**空转的帧**而不是总帧数：这条链一共要走「建卡 + 回填 + 每段一条
-       * 边」那么多帧，段多的时候正常路径本来就长。总帧数当上限会在段一多时误报
-       * 「没落上」——安全带该拦的是「连着 30 帧什么都没发生」。
-       */
-      const step = (idle: number): void => {
-        if (idle > LIBRARY_LAND_MAX_FRAMES) {
-          toast.error(t('render.landFailed'))
-          return
-        }
-        const node = latest.current.state.nodes.find(
-          (candidate) => candidate.id === nodeId,
-        )
-        if (!node) {
-          requestAnimationFrame(() => step(idle + 1))
-          return
-        }
-        if (!currentUrlOf(node)) {
-          if (filled) {
-            requestAnimationFrame(() => step(idle + 1))
-            return
-          }
-          filled = true
-          latest.current.setMedia(nodeId, {
-            url,
-            imageSource: 'generated',
-            ...(job.thumbnailUrl
-              ? { videoThumbnailUrl: job.thumbnailUrl }
-              : {}),
-            ...(job.generationId ? { generationId: job.generationId } : {}),
-            // ⚠ 这一版**不是这张卡自己生成的**：它是剪辑台把 N 段接起来的成片，
-            // 卡上没有提示词也没有模型。⋯ 菜单那一行只读的「来源」是唯一能回答
-            // 「这是哪来的」的地方，所以落卡时就写死（spec §6「导出」）。
-            source: {
-              kind: AUDIO_CLIP_SOURCE.render,
-              label: t('render.sourceLabel', { name: job.name }),
-            },
-          })
-          // 刚写了东西 = 有进展，空转计数归零。
-          requestAnimationFrame(() => step(0))
-          return
-        }
-        // ⚠ **上一条边落到图上了才连下一条**：只隔一帧不够 —— 一帧可能比 React 的
-        // 一次提交还快，那时 `latest.current.connect` 仍是上一份闭包，第二条会把
-        // 第一条那条边吃掉（测试里就抓到过「只剩 v2」）。
-        if (
-          connecting &&
-          !latest.current.state.edges.some(
-            (edge) => edge.source === connecting && edge.target === nodeId,
-          )
-        ) {
-          requestAnimationFrame(() => step(idle + 1))
-          return
-        }
-        connecting = null
-        const next = pending.shift()
-        if (next) {
-          connecting = next
-          latest.current.connect(next, nodeId, NODE_SLOT_IDS.reference)
-          requestAnimationFrame(() => step(0))
-          return
-        }
-        toast.success(t('render.landed', { name: job.name }))
-        onExit()
-      }
-      step(0)
+  const onRenderCompleted = useCallback(
+    (job: { readonly name: string }) => {
+      refreshProject()
+      toast.success(t('render.landed', { name: job.name }))
+      onExit()
     },
-    [addNode, onExit, t],
+    [refreshProject, onExit, t],
   )
 
   /**
@@ -447,7 +352,7 @@ export function EditDesk({
         return
       }
       setHighlightTrack(null)
-      /** 回填只发一次（与成片落卡同一条论据，见上面那段注释）。 */
+      /** 回填只发一次 —— 发过还没到位就只等，⛔ 不每帧再写一遍（那会把空转计数一直归零）。 */
       let filled = false
       const step = (idle: number): void => {
         if (idle > LIBRARY_LAND_MAX_FRAMES) {
@@ -521,7 +426,7 @@ export function EditDesk({
 
   const render = useEditDeskRender({
     projectId,
-    onLanded: onRenderLanded,
+    onCompleted: onRenderCompleted,
     onError: (message) =>
       toast.error(message || t('render.failed'), { duration: 8000 }),
   })
@@ -540,7 +445,7 @@ export function EditDesk({
           projectId,
           resolution: desk.project.settings.resolution,
         })
-        void submitRender(plan, { toCanvas: options.toCanvas })
+        void submitRender(plan, { toCanvas: options.toCanvas, locale })
       } catch (error) {
         // ⚠ 失败**可见**：建不出计划的三种原因（缺 url / 空区间 / 零时长）各有
         // 一句人话，⛔ 不吞掉再让用户对着一条没动静的进度条等。
@@ -556,6 +461,7 @@ export function EditDesk({
       projectId,
       desk.project.settings.resolution,
       submitRender,
+      locale,
       t,
     ],
   )

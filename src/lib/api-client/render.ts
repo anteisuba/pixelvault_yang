@@ -61,6 +61,8 @@ async function readJson<TData>(
 export async function submitRenderAPI(body: {
   readonly plan: unknown
   readonly toCanvas: boolean
+  /** 成片卡上那行「来源」按它拼（服务端落卡，docs/references/mcp.md §7）。 */
+  readonly locale?: string
 }): Promise<RenderApiResponse<RenderJobResponse>> {
   try {
     const response = await fetch(RENDER_API_ENDPOINTS.SUBMIT, {

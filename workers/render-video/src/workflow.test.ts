@@ -105,10 +105,16 @@ function setup() {
   // `env` 在运行时由引擎注入（类型上是 protected）。
   const workflow = Object.assign(new RenderVideoWorkflow(), { env })
 
-  const run = () =>
+  const run = (extra: Partial<RenderRunContext> = {}) =>
     workflow.run(
       {
-        payload: { runId: 'run-1', jobId: 'job-1', userId: 'u1', plan: PLAN },
+        payload: {
+          runId: 'run-1',
+          jobId: 'job-1',
+          userId: 'u1',
+          plan: PLAN,
+          ...extra,
+        },
         timestamp: new Date(),
         instanceId: 'job-1',
       },
@@ -180,6 +186,62 @@ describe('RenderVideoWorkflow', () => {
       kind: 'result',
       url: 'https://cdn.example.com/renders/project-1/job-1.mp4',
       thumbnailUrl: 'https://cdn.example.com/renders/project-1/job-1.jpg',
+    })
+  })
+})
+
+describe('RenderVideoWorkflow · server-chosen output and landing echo', () => {
+  const callbacks: Record<string, unknown>[] = []
+
+  beforeEach(() => {
+    callbacks.length = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        callbacks.push(JSON.parse(String(init.body)))
+        return new Response('{}')
+      }),
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('writes where the server said and hands the landing context back untouched', async () => {
+    const { run, env } = setup()
+    const landing = {
+      draft: true,
+      toCanvas: false,
+      canvasProjectId: 'project-1',
+      sourceNodeIds: ['n1', 'n2'],
+      sourceLabel: '来自剪辑台 · cut',
+    }
+
+    await run({ outputKeyBase: 'renders/drafts/project-1/abc', landing })
+
+    const keys = vi
+      .mocked(env.GENERATION_BUCKET.put)
+      .mock.calls.map((call) => call[0])
+    expect(keys).toEqual([
+      'renders/drafts/project-1/abc.mp4',
+      'renders/drafts/project-1/abc.jpg',
+    ])
+    expect(callbacks.at(-1)).toMatchObject({
+      kind: 'result',
+      url: 'https://cdn.example.com/renders/drafts/project-1/abc.mp4',
+      landing,
+    })
+  })
+
+  it('keeps the old key and sends no landing for an old payload', async () => {
+    const { run } = setup()
+
+    await run()
+
+    expect(callbacks.at(-1)).not.toHaveProperty('landing')
+    expect(callbacks.at(-1)).toMatchObject({
+      url: 'https://cdn.example.com/renders/project-1/job-1.mp4',
     })
   })
 })

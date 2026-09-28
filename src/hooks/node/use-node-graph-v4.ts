@@ -35,7 +35,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { applyNodeChanges, type NodeChange } from '@xyflow/react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { NODE_V4_CARD, NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
+import { NODE_V4_CARD } from '@/constants/node-studio'
 import type { NodeSlotId } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
@@ -52,7 +52,7 @@ import {
   removeMentionsForSource,
   type MentionCastCardRef,
 } from '@/lib/node-mentions-to-slots'
-import { applyMediaPatchOutputs } from '@/lib/node-output-versions'
+import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
@@ -836,6 +836,7 @@ export function useNodeGraphV4({
       // 顶层 `url` / 尺寸 / 封面从此是 `outputs.versions[cur]` 的派生镜像，
       // 由 `applyMediaPatchOutputs` 一处写 —— 全仓十几个读 `data.url` 的地方
       // 因此一个字都不用改。
+      // ⚠ 变换本身在纯函数里 —— 服务端导出落卡调的是同一个（mcp.md §7）。
       const state = stateRef.current
       const now = new Date().toISOString()
       commitWithoutHistory({
@@ -844,31 +845,7 @@ export function useNodeGraphV4({
           node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
             ? {
                 ...node,
-                data: applyMediaPatchOutputs(
-                  {
-                    ...node.data,
-                    ...(patch.mediaJobId || patch.url
-                      ? { generationFailure: undefined }
-                      : {}),
-                    ...(patch.generationFailure
-                      ? { status: 'failed' as const }
-                      : {}),
-                    ...(patch.mediaJobId ? { status: 'running' as const } : {}),
-                    ...(patch.url ? { status: 'done' as const } : {}),
-                    ...('generationFailure' in patch &&
-                    !patch.generationFailure &&
-                    !patch.mediaJobId &&
-                    !patch.url &&
-                    node.data.status !== 'done'
-                      ? { status: 'idle' as const }
-                      : {}),
-                  },
-                  patch,
-                  {
-                    now,
-                    mintId: () => mintId(NODE_V4_OUTPUT_VERSION.idPrefix),
-                  },
-                ),
+                data: applyNodeMediaPatch(node.data, patch, { now, mintId }),
               }
             : node,
         ),

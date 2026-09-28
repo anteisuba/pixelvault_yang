@@ -147,3 +147,11 @@ export function applyCanvasBatchV4(
     failures,
   }
 }
+
+/**
+ * 服务端铸 id（MCP 写入 / 导出落卡）—— 与图引擎的 `mintId` 同一个形状
+ * （前缀 + uuid），⛔ 服务端各处别再各写一份。
+ */
+export function mintCanvasId(prefix: string): string {
+  return `${prefix}${globalThis.crypto.randomUUID()}`
+}

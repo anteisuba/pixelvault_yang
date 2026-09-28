@@ -57,6 +57,14 @@ export const RENDER_POSTER_EXT = 'jpg'
 /** R2 前缀（spec §6：`renders/<projectId>/<jobId>.mp4`）。 */
 export const RENDER_R2_PREFIX = 'renders'
 
+/**
+ * 小样（MCP `render` 的 `draft`，docs/references/mcp.md §7）：给 Claude 回看剪点用，
+ * **不落画布、不进素材库**。放在单独的前缀下，R2 对这个前缀设 7 天生命周期。
+ */
+export const RENDER_DRAFT_R2_PREFIX = 'renders/drafts'
+export const RENDER_DRAFT_RESOLUTION = '480p'
+export const RENDER_DRAFT_SHORT_SIDE = 480
+
 /** 渲染任务的四态。⚠ 与 `GenerationJob.status` 同形但**不是同一张表**的枚举。 */
 export const RENDER_JOB_STATUS_IDS = {
   queued: 'queued',

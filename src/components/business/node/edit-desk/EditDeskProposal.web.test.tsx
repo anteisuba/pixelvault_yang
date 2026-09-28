@@ -137,7 +137,7 @@ function renderDesk() {
           mintId={(prefix) => `${prefix}_${(counter += 1)}`}
           addNode={vi.fn(() => 'n_new')}
           setMedia={vi.fn()}
-          connect={vi.fn(() => true)}
+          refreshProject={vi.fn()}
           canUndo
           onUndo={vi.fn()}
           onExit={vi.fn()}

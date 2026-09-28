@@ -1,7 +1,5 @@
 import 'server-only'
 
-import { randomUUID } from 'node:crypto'
-
 import { db } from '@/lib/db'
 import { currentUrlOf, projectDurationSec } from '@/lib/edit-project'
 import {
@@ -14,7 +12,7 @@ import {
   NODE_V4_UPGRADE_OUTCOMES,
   upgradeNodeWorkflowStateToV4,
 } from '@/lib/node-workflow-v4-upgrade'
-import { applyCanvasBatchV4 } from '@/lib/node-canvas-batch-v4'
+import { applyCanvasBatchV4, mintCanvasId } from '@/lib/node-canvas-batch-v4'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import { getImagePreviewUrl, getVideoFrameUrl } from '@/lib/video-poster'
 import {
@@ -361,11 +359,6 @@ export interface McpApplyResult {
 const STALE_VERSION =
   'The project changed since you read it (the user or another tab edited it). Nothing was written. Read it again and redo your change on the new version.'
 
-/** 与图引擎的 `mintId` 同一个形状（前缀 + uuid）。 */
-function mintServerId(prefix: string): string {
-  return `${prefix}${randomUUID()}`
-}
-
 /**
  * ⚠ 服务端**不给** `resolveModel`：「型号 → 完整选择（渠道 / key）」要用户的 key
  * 与渠道健康状态，那是浏览器里 `useWorkflowModelOptions` 的活。执行器的规矩是
@@ -390,7 +383,7 @@ export async function applyOpsForMcp(
     throw new McpToolError(STALE_VERSION)
 
   const batch = applyCanvasBatchV4(project.state, input.ops, {
-    mintId: mintServerId,
+    mintId: mintCanvasId,
   })
   const skipped = batch.failures.map((failure) => {
     const op = input.ops[failure.index]?.op ?? 'unknown'

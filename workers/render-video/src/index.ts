@@ -86,6 +86,16 @@ export interface RenderRunContext {
   runId: string
   jobId: string
   userId: string
+  /**
+   * 成片落在 R2 的哪（不含扩展名）。由服务端决定 —— 小样与成片分前缀，小样那个前缀
+   * 有生命周期规则（docs/references/mcp.md §7）。缺席 = 旧载荷，按老规矩拼。
+   */
+  outputKeyBase?: string
+  /**
+   * 服务端的落卡上下文。⚠ worker **不解读**，完成时原样放进结果回调带回去 ——
+   * 任务表里没有地方放它，而回调有签名、可信。
+   */
+  landing?: unknown
   plan: {
     version: number
     name: string
@@ -207,7 +217,7 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
     event: WorkflowEvent<RenderRunContext>,
     step: WorkflowStep,
   ): Promise<void> {
-    const { runId, jobId, plan } = event.payload
+    const { runId, jobId, plan, outputKeyBase, landing } = event.payload
     const work = `/work/${jobId}`
 
     const report = async (
@@ -321,7 +331,7 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
         await report('poster', 1)
 
         /* 6. 回写 R2。 */
-        const base = `renders/${plan.projectId}/${jobId}`
+        const base = outputKeyBase ?? `renders/${plan.projectId}/${jobId}`
         const videoKey = `${base}.mp4`
         const posterKey = `${base}.jpg`
         await putFromContainer(
@@ -357,6 +367,8 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
         width: plan.output.width,
         height: plan.output.height,
         outputType: 'VIDEO',
+        // 原样带回（见 `RenderRunContext.landing`）。
+        ...(landing !== undefined ? { landing } : {}),
       })
 
       // 收尾删盘：成片已经在 R2，中间件留着只是占容器磁盘。

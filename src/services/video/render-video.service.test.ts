@@ -44,6 +44,30 @@ vi.mock('@/services/generation.service', () => ({
   createGeneration: (...args: unknown[]) => mockCreateGeneration(...args),
 }))
 
+vi.mock('next-intl/server', async () => {
+  const { createTranslator } = await import('next-intl')
+  const bundles = {
+    en: (await import('@/messages/en.json')).default,
+    zh: (await import('@/messages/zh.json')).default,
+  }
+  return {
+    getTranslations: async (options: {
+      locale: keyof typeof bundles
+      namespace: string
+    }) =>
+      createTranslator({
+        locale: options.locale,
+        messages: bundles[options.locale],
+        namespace: options.namespace as never,
+      }),
+  }
+})
+
+const mockLand = vi.fn()
+vi.mock('@/services/video/render-landing.service', () => ({
+  landRenderOnCanvas: (...args: unknown[]) => mockLand(...args),
+}))
+
 const {
   RenderPlanSchema,
   RenderSubmitSchema,
@@ -51,8 +75,27 @@ const {
   decodeProgress,
   getRenderJob,
   handleRenderCallback,
+  RENDER_DRAFT_JOB_MODEL,
   submitRenderJob,
 } = await import('@/services/video/render-video.service')
+
+function dispatched(fetchMock: ReturnType<typeof vi.fn>) {
+  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+  return JSON.parse(init.body as string) as {
+    outputKeyBase: string
+    landing: Record<string, unknown>
+  }
+}
+
+function acceptingWorker() {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ accepted: true }), { status: 200 }),
+    )
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
 
 function plan(patch: Record<string, unknown> = {}) {
   return {
@@ -155,6 +198,59 @@ describe('submitRenderJob', () => {
     ).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it('落卡上下文随任务交给 worker（任务表里没地方放，结果回调原样带回）', async () => {
+    const fetchMock = acceptingWorker()
+    await submitRenderJob('clerk_1', {
+      plan: plan({
+        video: [
+          plan().video[0],
+          { ...plan().video[0], id: 'c2' },
+          { ...plan().video[0], id: 'c3', sourceNodeId: 'v2' },
+        ],
+      }),
+      toCanvas: true,
+      locale: 'zh',
+    } as never)
+
+    const body = dispatched(fetchMock)
+    expect(body.outputKeyBase).toBe('renders/proj_1/job_1')
+    expect(body.landing).toEqual({
+      draft: false,
+      toCanvas: true,
+      canvasProjectId: 'proj_1',
+      sourceNodeIds: ['v1', 'v2'],
+      sourceLabel: '来自剪辑台 · 成片',
+    })
+  })
+
+  it('没带界面语言 → 「来源」用默认语言拼', async () => {
+    const fetchMock = acceptingWorker()
+    await submitRenderJob('clerk_1', { plan: plan(), toCanvas: false } as never)
+    const body = dispatched(fetchMock)
+    expect(body.landing).toMatchObject({ toCanvas: false })
+    expect(body.landing.sourceLabel).toBe('From the edit desk · 成片')
+  })
+
+  it('小样：标记在模型上、输出路径在 drafts 下并记进任务，⛔ 不落画布', async () => {
+    const fetchMock = acceptingWorker()
+    const view = await submitRenderJob(
+      'clerk_1',
+      { plan: plan(), toCanvas: true } as never,
+      { draft: true },
+    )
+
+    const created = mockCreateJob.mock.calls[0]![0] as {
+      modelId: string
+      externalRequestId: string
+    }
+    expect(created.modelId).toBe(RENDER_DRAFT_JOB_MODEL)
+    expect(created.externalRequestId).toMatch(/^renders\/drafts\/proj_1\/.+/)
+    const body = dispatched(fetchMock)
+    expect(body.outputKeyBase).toBe(created.externalRequestId)
+    expect(body.landing).toMatchObject({ draft: true, toCanvas: false })
+    expect(view.draft).toBe(true)
+  })
+
   it('worker 没部署时**大声**失败，并把 job 标 FAILED', async () => {
     delete process.env.RENDER_WORKER_BASE_URL
     await expect(
@@ -217,6 +313,42 @@ describe('getRenderJob', () => {
       durationSec: 12,
       generationId: 'gen_1',
     })
+  })
+})
+
+describe('getRenderJob · 小样', () => {
+  it('跑完的小样没有 Generation —— 地址由记下的输出路径推出来', async () => {
+    process.env.NEXT_PUBLIC_STORAGE_BASE_URL = 'https://cdn.test'
+    mockFindUnique.mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_1',
+      status: 'COMPLETED',
+      prompt: '成片',
+      modelId: RENDER_DRAFT_JOB_MODEL,
+      externalRequestId: 'renders/drafts/proj_1/abc',
+      generation: null,
+    })
+    expect(await getRenderJob('clerk_1', 'job_1')).toMatchObject({
+      status: 'completed',
+      url: 'https://cdn.test/renders/drafts/proj_1/abc.mp4',
+      thumbnailUrl: 'https://cdn.test/renders/drafts/proj_1/abc.jpg',
+      draft: true,
+    })
+  })
+
+  it('还没跑完的小样不给地址', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_1',
+      status: 'RUNNING',
+      prompt: '成片',
+      modelId: RENDER_DRAFT_JOB_MODEL,
+      externalRequestId: 'renders/drafts/proj_1/abc',
+      generation: null,
+    })
+    const view = await getRenderJob('clerk_1', 'job_1')
+    expect(view?.url).toBeUndefined()
+    expect(view?.draft).toBe(true)
   })
 })
 
@@ -357,5 +489,88 @@ describe('handleRenderCallback', () => {
       'job_1',
       expect.objectContaining({ errorCode: 'RENDER_FAILED' }),
     )
+  })
+})
+
+describe('handleRenderCallback · 落卡', () => {
+  const landing = {
+    draft: false,
+    toCanvas: true,
+    canvasProjectId: 'canvas_1',
+    sourceNodeIds: ['v1', 'v2'],
+    sourceLabel: '来自剪辑台 · 我的成片',
+  }
+
+  function result(extra: Record<string, unknown> = {}) {
+    return {
+      runId: 'job_1',
+      jobId: 'job_1',
+      kind: 'result',
+      url: 'https://cdn/renders/proj_1/job_1.mp4',
+      storageKey: 'renders/proj_1/job_1.mp4',
+      thumbnailUrl: 'https://cdn/renders/proj_1/job_1.jpg',
+      mimeType: 'video/mp4',
+      outputType: 'VIDEO',
+      ...extra,
+    } as never
+  }
+
+  beforeEach(() => {
+    mockFindUnique.mockResolvedValue({
+      id: 'job_1',
+      userId: 'user_1',
+      status: 'RUNNING',
+      prompt: '我的成片',
+    })
+    mockCreateGeneration.mockResolvedValue({ id: 'gen_9' })
+    mockLand.mockResolvedValue('node_cut')
+  })
+
+  it('先落卡、再标完成 —— 看到「完成」时卡已经在画布上', async () => {
+    const outcome = await handleRenderCallback(result({ landing }))
+    expect(outcome.action).toBe('completed')
+    expect(mockLand).toHaveBeenCalledWith({
+      userId: 'user_1',
+      canvasProjectId: 'canvas_1',
+      sourceNodeIds: ['v1', 'v2'],
+      name: '我的成片',
+      sourceLabel: '来自剪辑台 · 我的成片',
+      generation: {
+        id: 'gen_9',
+        url: 'https://cdn/renders/proj_1/job_1.mp4',
+        thumbnailUrl: 'https://cdn/renders/proj_1/job_1.jpg',
+      },
+    })
+    expect(mockLand.mock.invocationCallOrder[0]!).toBeLessThan(
+      mockCompleteJob.mock.invocationCallOrder[0]!,
+    )
+  })
+
+  it('没勾「导出到画布」→ 不落卡', async () => {
+    await handleRenderCallback(
+      result({ landing: { ...landing, toCanvas: false } }),
+    )
+    expect(mockLand).not.toHaveBeenCalled()
+    expect(mockCompleteJob).toHaveBeenCalled()
+  })
+
+  it('落卡抛错 → 只少一张卡，任务照样完成（⛔ 不让 worker 当成失败重渲）', async () => {
+    mockLand.mockRejectedValue(new Error('db down'))
+    const outcome = await handleRenderCallback(result({ landing }))
+    expect(outcome.action).toBe('completed')
+    expect(mockCompleteJob).toHaveBeenCalledWith(
+      'job_1',
+      expect.objectContaining({ generationId: 'gen_9' }),
+    )
+  })
+
+  it('小样：不建 Generation、不落卡，只把任务收尾', async () => {
+    const outcome = await handleRenderCallback(
+      result({ landing: { ...landing, draft: true, toCanvas: false } }),
+    )
+    expect(outcome.action).toBe('completed-draft')
+    expect(mockCreateGeneration).not.toHaveBeenCalled()
+    expect(mockLand).not.toHaveBeenCalled()
+    expect(mockCompleteJob).toHaveBeenCalledWith('job_1', { requestCount: 1 })
   })
 })

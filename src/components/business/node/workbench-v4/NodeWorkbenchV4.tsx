@@ -1414,7 +1414,7 @@ function NodeWorkbenchV4Inner() {
                   mintId={mintEditId}
                   addNode={graph.addNode}
                   setMedia={graph.setMedia}
-                  connect={graph.connect}
+                  refreshProject={store.followNow}
                   canUndo={graph.canUndo}
                   onUndo={graph.undo}
                   onExit={exitEditDesk}
@@ -1615,7 +1615,7 @@ function NodeWorkbenchV4Inner() {
                     mintId={mintEditId}
                     addNode={graph.addNode}
                     setMedia={graph.setMedia}
-                    connect={graph.connect}
+                    refreshProject={store.followNow}
                     canUndo={graph.canUndo}
                     onUndo={graph.undo}
                     onExit={exitEditDesk}

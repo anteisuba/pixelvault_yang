@@ -645,6 +645,11 @@ export interface NodeWorkflowStoreValue {
   renameCurrentProject(name: string): void
   deleteProject(id: string): NodeWorkflowProjectSummary | null
   saveNow(): Promise<boolean>
+  /**
+   * 立刻问一次服务端有没有更新（不等下一拍轮询）—— 导出完成时用：成片卡已经由
+   * 服务端落进项目了（docs/references/mcp.md §7），晚拉一拍就多一拍撞版本号的窗口。
+   */
+  followNow(): void
 }
 
 export function useNodeWorkflowStore({
@@ -1408,12 +1413,17 @@ export function useNodeWorkflowStore({
     [setWorkflowStorage],
   )
 
+  /** 当前这一轮跟随的「立刻查一次」；没在跟随时为空。 */
+  const followNowRef = useRef<(() => void) | null>(null)
+  const followNow = useCallback(() => {
+    followNowRef.current?.()
+  }, [])
+  const currentProjectId = storageState.currentProjectId
   /**
    * 实时跟随：只盯**当前项目** —— 标签页可见、已水化、服务端确认过、非只读、没有
    * 写入在路上时，隔一会儿问一次版本号（Claude 在剪 2 秒，平时 30 秒）；变新了就
    * 拉整份换进来。标签页藏起来就停，回到前台立刻问一次。
    */
-  const currentProjectId = storageState.currentProjectId
   useEffect(() => {
     if (!isHydrated || !currentProjectId) return undefined
     let cancelled = false
@@ -1456,6 +1466,7 @@ export function useNodeWorkflowStore({
       }
     }
 
+    followNowRef.current = () => void tick()
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void tick()
     }
@@ -1465,6 +1476,7 @@ export function useNodeWorkflowStore({
       cancelled = true
       window.clearTimeout(timer)
       document.removeEventListener('visibilitychange', onVisibility)
+      followNowRef.current = null
     }
   }, [currentProjectId, isHydrated, pullRemoteProject])
 
@@ -1742,8 +1754,10 @@ export function useNodeWorkflowStore({
       renameCurrentProject,
       deleteProject,
       saveNow,
+      followNow,
     }),
     [
+      followNow,
       commitCurrentProjectState,
       createProject,
       currentProject,

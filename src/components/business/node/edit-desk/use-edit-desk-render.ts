@@ -3,7 +3,8 @@
 /**
  * 剪辑台导出的**任务生命周期**（S9 · spec §6「导出」）。
  *
- * 提交 → 轮询 → 完成落卡 / 失败说人话 / 取消 / 「上次导出未完成」。
+ * 提交 → 轮询 → 完成（成片卡由服务端落进项目，docs/references/mcp.md §7）/ 失败说
+ * 人话 / 取消 / 「上次导出未完成」。
  *
  * ⚠ 与 `useEditDesk` 分家的理由：那个 hook 是时间线的纯状态出口（算术 + op），
  * 这个 hook 会 `fetch`、会开定时器、会写 `localStorage`。混在一起的表现是时间线的
@@ -68,8 +69,11 @@ export function isTerminalRenderStatus(
 
 export interface UseEditDeskRenderOptions {
   readonly projectId: string
-  /** 完成且用户勾了「导出到画布」时落一张成片卡。 */
-  onLanded(job: RenderJobResponse, sourceNodeIds: readonly string[]): void
+  /**
+   * 完成且用户勾了「导出到画布」。⚠ 卡**已经由服务端落进项目**了（在把任务标成完成
+   * 之前），这里只负责把它拉回来、说一声 —— ⛔ 浏览器不再自己建卡，两条路会落两张。
+   */
+  onCompleted(job: RenderJobResponse): void
   /** 说给用户听的一句话（toast 由调用方发 —— hook 不认识 i18n）。 */
   onError(message: string): void
 }
@@ -81,7 +85,7 @@ export interface EditDeskRender {
   readonly resumable: RenderJobResponse | null
   submit(
     plan: RenderPlan,
-    options: { readonly toCanvas: boolean },
+    options: { readonly toCanvas: boolean; readonly locale: string },
   ): Promise<boolean>
   cancel(): Promise<void>
   /** 「继续」：接着盯上次那条。 */
@@ -95,7 +99,7 @@ export interface EditDeskRender {
 export function useEditDeskRender(
   options: UseEditDeskRenderOptions,
 ): EditDeskRender {
-  const { projectId, onLanded, onError } = options
+  const { projectId, onCompleted, onError } = options
   const [job, setJob] = useState<RenderJobResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [resumable, setResumable] = useState<RenderJobResponse | null>(null)
@@ -107,11 +111,10 @@ export function useEditDeskRender(
    * effect 多一个依赖、每次勾选都重开一轮定时器。
    */
   const toCanvasRef = useRef(false)
-  const sourceNodeIdsRef = useRef<readonly string[]>([])
   const landedRef = useRef<string | null>(null)
-  const onLandedRef = useRef(onLanded)
+  const onCompletedRef = useRef(onCompleted)
   const onErrorRef = useRef(onError)
-  onLandedRef.current = onLanded
+  onCompletedRef.current = onCompleted
   onErrorRef.current = onError
 
   /* ── 进模式时看一眼上次那条 ───────────────────────────────────────── */
@@ -157,9 +160,9 @@ export function useEditDeskRender(
           toCanvasRef.current &&
           landedRef.current !== next.jobId
         ) {
-          // ⚠ 一条任务只落一张卡：轮询在 React 严格模式下会跑两遍。
+          // ⚠ 一条任务只报一次：轮询在 React 严格模式下会跑两遍。
           landedRef.current = next.jobId
-          onLandedRef.current(next, sourceNodeIdsRef.current)
+          onCompletedRef.current(next)
         }
       })
     }, RENDER_POLL_INTERVAL_MS)
@@ -169,17 +172,15 @@ export function useEditDeskRender(
   const submit = useCallback(
     async (
       plan: RenderPlan,
-      submitOptions: { readonly toCanvas: boolean },
+      submitOptions: { readonly toCanvas: boolean; readonly locale: string },
     ): Promise<boolean> => {
       setSubmitting(true)
       toCanvasRef.current = submitOptions.toCanvas
-      sourceNodeIdsRef.current = [
-        ...new Set(plan.video.map((segment) => segment.sourceNodeId)),
-      ]
       try {
         const response = await submitRenderAPI({
           plan,
           toCanvas: submitOptions.toCanvas,
+          locale: submitOptions.locale,
         })
         if (!response.success || !response.data) {
           // ⚠ 入队失败要**大声**：worker 没部署时这就是用户唯一看得见的信号。

@@ -41,6 +41,13 @@ interface LoraLibraryFilterComboboxProps<T extends string> {
   searchable?: boolean
   searchPlaceholder?: string
   emptyText?: string
+  /**
+   * `row`（缺省）= 旧的一行：行首标在按钮外。`bar` = 库 B 那一行按内容宽的下拉
+   * （lora-library.md §3）：标写进按钮里，改过的那一格浅灰底。
+   */
+  variant?: 'row' | 'bar'
+  /** `bar` 下：当前值不是默认那一档（画成「改过」）。 */
+  changed?: boolean
 }
 
 export function LoraLibraryFilterCombobox<T extends string>({
@@ -52,6 +59,8 @@ export function LoraLibraryFilterCombobox<T extends string>({
   searchable = false,
   searchPlaceholder,
   emptyText,
+  variant = 'row',
+  changed = false,
 }: LoraLibraryFilterComboboxProps<T>) {
   const [open, setOpen] = useState(false)
   const currentLabel = useMemo(
@@ -59,35 +68,67 @@ export function LoraLibraryFilterCombobox<T extends string>({
     [options, value],
   )
 
+  const bar = variant === 'bar'
+
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="shrink-0 text-2xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
-        {label}
-      </span>
+    <div className={cn('flex min-w-0 items-center gap-2', bar && 'shrink-0')}>
+      {bar ? null : (
+        <span className="shrink-0 text-2xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+          {label}
+        </span>
+      )}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-label={`${ariaLabel}：${currentLabel}`}
-            className={cn(
-              'flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 text-xs text-foreground',
-              'transition-colors hover:border-primary/20 hover:bg-muted/45',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-              'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55',
-            )}
-          >
-            <span className="min-w-0 max-w-[9rem] truncate font-medium">
-              {currentLabel}
-            </span>
-            <ChevronDown
+          {bar ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${ariaLabel}：${currentLabel}`}
               className={cn(
-                'size-3 shrink-0 text-muted-foreground transition-transform duration-200',
-                open && 'rotate-180',
+                'inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.75 text-2sm transition-colors duration-fast ease-linear',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                changed
+                  ? 'border-transparent bg-muted'
+                  : 'border-border hover:border-foreground/30',
+                open && 'border-foreground/40',
               )}
-              aria-hidden
-            />
-          </button>
+            >
+              <span className="text-muted-foreground">{label}</span>
+              <b className="max-w-40 truncate font-semibold text-foreground">
+                {currentLabel}
+              </b>
+              <ChevronDown
+                className={cn(
+                  'size-3 shrink-0 text-muted-foreground transition-transform duration-base ease-standard',
+                  open && 'rotate-180',
+                )}
+                aria-hidden
+              />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${ariaLabel}：${currentLabel}`}
+              className={cn(
+                'flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 text-xs text-foreground',
+                'transition-colors hover:border-primary/20 hover:bg-muted/45',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'data-[state=open]:border-primary/30 data-[state=open]:bg-muted/55',
+              )}
+            >
+              <span className="min-w-0 max-w-[9rem] truncate font-medium">
+                {currentLabel}
+              </span>
+              <ChevronDown
+                className={cn(
+                  'size-3 shrink-0 text-muted-foreground transition-transform duration-200',
+                  open && 'rotate-180',
+                )}
+                aria-hidden
+              />
+            </button>
+          )}
         </PopoverTrigger>
         <PopoverContent
           align="start"

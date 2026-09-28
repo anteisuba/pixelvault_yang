@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@clerk/nextjs'
-import { useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   History,
@@ -21,14 +20,9 @@ import {
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
-  LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE,
   LORA_LIBRARY_MOBILE_GRID_CLASS,
-  LORA_LIBRARY_NSFW_PARAM,
-  LORA_LIBRARY_SEARCH_PARAM,
-  LORA_LIBRARY_SORT_PARAM,
   LORA_LIBRARY_SOURCES,
-  LORA_LIBRARY_TYPE_PARAM,
   LORA_NSFW_FILTER_VALUES,
   LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
@@ -38,20 +32,17 @@ import {
   getLoraContentTypeDefinition,
   isCivitaiBaseModelGeneratable,
   isCivitaiLoraSort,
-  isLoraNsfwFilter,
   LORA_DETAIL_IMAGE_WIDTH,
-  parseLoraLibraryFamilyParam,
-  parseLoraLibraryTypeParam,
   type CivitaiLoraBaseModel,
   type LoraLibrarySource,
   type LoraNsfwFilter,
 } from '@/constants/lora'
 import { ROUTES } from '@/constants/routes'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
-import { useCivitaiLoraLibrary } from '@/hooks/use-civitai-lora-library'
+import { useCivitaiLoraLibraryWithUrl } from '@/hooks/use-civitai-lora-library-url'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
@@ -128,84 +119,11 @@ export function CivitaiCommunityBranch({
   const t = useTranslations('LoraWorkbench')
   const format = useFormatter()
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const stack = useActiveLoraStack()
   // 挂载前的 Civitai 下载闸（与「＋添加 LoRA」库 modal 共用同一实现）。
   const { ensureMountable } = useCivitaiDownloadGate()
-  const initialFamilySlug = parseLoraLibraryFamilyParam(
-    searchParams.get(LORA_LIBRARY_FAMILY_PARAM),
-  )
-  const initialSortParam = searchParams.get(LORA_LIBRARY_SORT_PARAM)
-  const initialNsfwParam = searchParams.get(LORA_LIBRARY_NSFW_PARAM)
-  const initialContentType = parseLoraLibraryTypeParam(
-    searchParams.get(LORA_LIBRARY_TYPE_PARAM),
-  )
-  const library = useCivitaiLoraLibrary({
-    initialBaseModel:
-      initialFamilySlug === 'all'
-        ? undefined
-        : familySlugToCivitaiBaseModel(initialFamilySlug),
-    initialSort:
-      initialSortParam && isCivitaiLoraSort(initialSortParam)
-        ? initialSortParam
-        : undefined,
-    initialSearch:
-      searchParams.get(LORA_LIBRARY_SEARCH_PARAM)?.trim() || undefined,
-    initialNsfwFilter:
-      initialNsfwParam && isLoraNsfwFilter(initialNsfwParam)
-        ? initialNsfwParam
-        : undefined,
-    initialContentType:
-      initialContentType === 'all' ? undefined : initialContentType,
-  })
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (library.baseModel === 'all') {
-      params.delete(LORA_LIBRARY_FAMILY_PARAM)
-    } else {
-      params.set(
-        LORA_LIBRARY_FAMILY_PARAM,
-        civitaiBaseModelToFamilySlug(library.baseModel),
-      )
-    }
-    if (library.debouncedSearch) {
-      params.set(LORA_LIBRARY_SEARCH_PARAM, library.debouncedSearch)
-    } else {
-      params.delete(LORA_LIBRARY_SEARCH_PARAM)
-    }
-    if (library.sort === 'Highest Rated') {
-      params.delete(LORA_LIBRARY_SORT_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_SORT_PARAM, library.sort)
-    }
-    if (library.nsfwFilter === DEFAULT_LORA_NSFW_FILTER) {
-      params.delete(LORA_LIBRARY_NSFW_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_NSFW_PARAM, library.nsfwFilter)
-    }
-    if (library.contentType === DEFAULT_LORA_CONTENT_TYPE) {
-      params.delete(LORA_LIBRARY_TYPE_PARAM)
-    } else {
-      params.set(LORA_LIBRARY_TYPE_PARAM, library.contentType)
-    }
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
-    const currentQuery = searchParams.toString()
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
-    if (nextUrl === currentUrl) return
-    router.replace(nextUrl, { scroll: false })
-  }, [
-    library.baseModel,
-    library.sort,
-    library.debouncedSearch,
-    library.nsfwFilter,
-    library.contentType,
-    pathname,
-    router,
-    searchParams,
-  ])
+  // 网址里的筛选起步 + 改了写回网址：与库 B 同一个 hook。
+  const library = useCivitaiLoraLibraryWithUrl()
 
   // Phase-2 enrichment: mine the activation prompt / source-image recipes for
   // the currently-selected LoRA — feeds the expanded detail's 样例带.

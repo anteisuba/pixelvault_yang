@@ -304,10 +304,14 @@ interface CivitaiModelDescriptionResponse {
 // 方向 A：LoRA 详情面板懒加载作者描述（strip 后的纯文本）。任何 LoRA 都可拉。
 export async function fetchCivitaiModelDescriptionAPI(
   modelId: number,
+  /** 各版本封面按哪一档分级限定（库 B 详情页的「版本」）；不给 = 服务端缺省「安全」。 */
+  nsfwFilter?: LoraNsfwFilter,
 ): Promise<CivitaiModelDescriptionResponse> {
   try {
+    const query = new URLSearchParams({ modelId: String(modelId) })
+    if (nsfwFilter) query.set('nsfw', nsfwFilter)
     const response = await fetch(
-      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DESCRIPTION}?modelId=${modelId}`,
+      `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DESCRIPTION}?${query.toString()}`,
     )
     if (!response.ok) {
       return {

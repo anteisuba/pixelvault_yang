@@ -85,6 +85,7 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
+import { LoraLibraryStage } from '@/components/business/studio/lora/library/LoraLibraryStage'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
@@ -202,6 +203,7 @@ import {
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
+import { LoraStageProvider } from '@/components/business/studio/lora/lora-stage-context'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
@@ -486,11 +488,20 @@ export function LoraWorkbench() {
                 isLibrary
                   ? {
                       key: activeSection,
-                      content: (
-                        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-                          {libraryBody}
-                        </div>
-                      ),
+                      content:
+                        activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
+                          <LoraLibraryStage
+                            onFavorite={favoriteCivitaiLora}
+                            onImport={favoriteExternalLora}
+                            onUnfavoriteByUrl={unfavoriteByUrl}
+                            isFavorited={isFavorited}
+                          />
+                        ) : (
+                          // 收藏还没换成库 B 的网格（施工 ⑤）。
+                          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                            {libraryBody}
+                          </div>
+                        ),
                     }
                   : null
               }
@@ -1900,6 +1911,14 @@ function GenerateBranch({
         label: operatorBaseLabel(base),
       })),
     [compatibleBases, operatorBaseLabel],
+  )
+  // 库 / 收藏住在这副舞台里：它们判断「装不装得上」要的底模从这里给（lora-library.md §4）。
+  const stageContext = useMemo(
+    () => ({
+      base: selectedBase,
+      baseLabel: selectedBase ? operatorBaseLabel(selectedBase) : null,
+    }),
+    [operatorBaseLabel, selectedBase],
   )
   /**
    * 装配台自己那条结果列 → 结果行卡（§2.11，切片 3b）。
@@ -3972,7 +3991,9 @@ function GenerateBranch({
                     }}
                     className="flex min-h-0 flex-1 flex-col"
                   >
-                    {library.content}
+                    <LoraStageProvider value={stageContext}>
+                      {library.content}
+                    </LoraStageProvider>
                   </motion.div>
                 </AnimatePresence>
               </motion.div>

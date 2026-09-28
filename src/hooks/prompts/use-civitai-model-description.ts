@@ -2,8 +2,10 @@
 
 import { useEffect, useReducer, useRef } from 'react'
 
+import type { LoraNsfwFilter } from '@/constants/lora'
 import { fetchCivitaiModelDescriptionAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import type { CivitaiLoraLibraryItem } from '@/types'
 
 export interface UseCivitaiModelDescriptionReturn {
   /** 作者 model.description 的纯文本；null = 无 / 未加载 / 拉取失败。 */
@@ -11,52 +13,57 @@ export interface UseCivitaiModelDescriptionReturn {
   isLoading: boolean
 }
 
-const EMPTY: UseCivitaiModelDescriptionReturn = {
-  descriptionText: null,
-  isLoading: false,
+export interface UseCivitaiModelDetailReturn extends UseCivitaiModelDescriptionReturn {
+  /** 能下载的各个版本（新 → 旧），与列表同形；没取到是空数组。 */
+  versions: readonly CivitaiLoraLibraryItem[]
 }
 
-// 会话级缓存：作者描述小时级稳定，避免重开同一 LoRA 详情面板重复拉取，也去重
-// strict-mode 双挂载 / 并发请求。result 存 `string | null`（null = 已确认无描述）。
-interface CacheEntry {
-  promise: Promise<string | null>
-  result?: string | null
+interface DetailResult {
+  descriptionText: string | null
+  versions: readonly CivitaiLoraLibraryItem[]
 }
-const cache = new Map<number, CacheEntry>()
+
+const EMPTY_RESULT: DetailResult = { descriptionText: null, versions: [] }
+
+// 会话级缓存：作者描述与版本小时级稳定，避免重开同一 LoRA 详情重复拉取，也去重
+// strict-mode 双挂载 / 并发请求。按「模型 + 分级」记（各版本封面随分级限定）。
+interface CacheEntry {
+  promise: Promise<DetailResult>
+  result?: DetailResult
+}
+
+const cache = new Map<string, CacheEntry>()
 
 /** 测试用缓存清理 —— 在 beforeEach 里调，避免跨 spec 泄漏。 */
 export function __resetModelDescriptionCacheForTests(): void {
   cache.clear()
 }
 
+type State = DetailResult & { isLoading: boolean }
+
 type Action =
   | { type: 'idle' }
   | { type: 'loading' }
-  | { type: 'success'; descriptionText: string | null }
+  | { type: 'success'; result: DetailResult }
 
-function reducer(
-  state: UseCivitaiModelDescriptionReturn,
-  action: Action,
-): UseCivitaiModelDescriptionReturn {
+const IDLE: State = { ...EMPTY_RESULT, isLoading: false }
+
+function reducer(_state: State, action: Action): State {
   switch (action.type) {
     case 'idle':
-      return EMPTY
+      return IDLE
     case 'loading':
-      return { descriptionText: null, isLoading: true }
+      return { ...EMPTY_RESULT, isLoading: true }
     case 'success':
-      return { descriptionText: action.descriptionText, isLoading: false }
+      return { ...action.result, isLoading: false }
   }
 }
 
-/**
- * 方向 A：LoRA 详情面板打开时懒加载作者描述（strip 后纯文本）。对**任何** LoRA
- * 都可拉（不受「有没有配方」限制）。`modelId` 为空 → idle，不发请求。失败 →
- * descriptionText 保持 null（面板据此整块不显示，best-effort，不报错打扰）。
- */
-export function useCivitaiModelDescription(
+function useModelDetail(
   modelId: number | null | undefined,
-): UseCivitaiModelDescriptionReturn {
-  const [state, dispatch] = useReducer(reducer, EMPTY)
+  nsfwFilter: LoraNsfwFilter | undefined,
+): State {
+  const [state, dispatch] = useReducer(reducer, IDLE)
   const requestIdRef = useRef(0)
 
   useEffect(() => {
@@ -68,36 +75,65 @@ export function useCivitaiModelDescription(
       return
     }
 
-    // 同步缓存命中（含缓存的 null）——立即应用，无 loading 闪烁。
-    const cached = cache.get(modelId)
+    const key = `${modelId}|${nsfwFilter ?? ''}`
+    // 同步缓存命中（含缓存的空结果）——立即应用，无 loading 闪烁。
+    const cached = cache.get(key)
     if (cached && cached.result !== undefined) {
-      dispatch({ type: 'success', descriptionText: cached.result })
+      dispatch({ type: 'success', result: cached.result })
       return
     }
 
     dispatch({ type: 'loading' })
 
     return deferEffectTask(() => {
-      const existing = cache.get(modelId)
+      const existing = cache.get(key)
       const inflight =
         existing?.promise ??
-        fetchCivitaiModelDescriptionAPI(modelId).then((response) => {
-          const text =
-            response.success && response.data
-              ? response.data.descriptionText
-              : null
-          const entry = cache.get(modelId)
-          if (entry) entry.result = text
-          return text
-        })
-      if (!existing) cache.set(modelId, { promise: inflight })
+        fetchCivitaiModelDescriptionAPI(modelId, nsfwFilter).then(
+          (response) => {
+            const result: DetailResult =
+              response.success && response.data
+                ? {
+                    descriptionText: response.data.descriptionText,
+                    versions: response.data.versions ?? [],
+                  }
+                : EMPTY_RESULT
+            const entry = cache.get(key)
+            if (entry) entry.result = result
+            return result
+          },
+        )
+      if (!existing) cache.set(key, { promise: inflight })
 
-      void inflight.then((text) => {
+      void inflight.then((result) => {
         if (requestIdRef.current !== requestId) return
-        dispatch({ type: 'success', descriptionText: text })
+        dispatch({ type: 'success', result })
       })
     })
-  }, [modelId])
+  }, [modelId, nsfwFilter])
 
   return state
+}
+
+/**
+ * 方向 A：LoRA 详情面板打开时懒加载作者描述（strip 后纯文本）。对**任何** LoRA
+ * 都可拉（不受「有没有配方」限制）。`modelId` 为空 → idle，不发请求。失败 →
+ * descriptionText 保持 null（面板据此整块不显示，best-effort，不报错打扰）。
+ */
+export function useCivitaiModelDescription(
+  modelId: number | null | undefined,
+): UseCivitaiModelDescriptionReturn {
+  const state = useModelDetail(modelId, undefined)
+  return { descriptionText: state.descriptionText, isLoading: state.isLoading }
+}
+
+/**
+ * 库 B 详情页（lora-library.md §4）：作者描述 + 能下载的各个版本，同一次请求。
+ * 各版本的封面按 `nsfwFilter` 限定（与列表同一条天花板）。
+ */
+export function useCivitaiModelDetail(
+  modelId: number | null | undefined,
+  nsfwFilter: LoraNsfwFilter,
+): UseCivitaiModelDetailReturn {
+  return useModelDetail(modelId, nsfwFilter)
 }

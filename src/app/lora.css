@@ -238,3 +238,47 @@
     font-size: 1rem;
   }
 }
+
+/* 库 B 的结果网格（lora-library.md §3）：按宽度自适应列数 —— 1440 下 6 列，助手
+ * 让位变窄时少几列，⛔ 把卡片挤扁。 */
+.domain-lora .lora-lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px 12px;
+}
+
+/* 库 B 搜索中：搜索框底边一截黑线来回走（边即进度，与出图的「边即进度」同一个
+ * 意思）。减少动态效果时不走，整条呼吸。 */
+.domain-lora .lora-search-run {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 34%;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--foreground);
+  animation: lora-search-run 1100ms var(--ease-standard) infinite;
+}
+.domain-lora .lora-breath {
+  animation: lora-breath 1200ms linear infinite;
+}
+@keyframes lora-search-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+@keyframes lora-breath {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .domain-lora .lora-search-run {
+    width: 100%;
+    transform: none;
+    animation: lora-breath 1200ms linear infinite;
+  }
+}

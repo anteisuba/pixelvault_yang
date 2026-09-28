@@ -34,25 +34,14 @@ export interface CommunitySourceBranchProps extends CivitaiCommunityBranchProps 
   controlsSlotNode: HTMLDivElement | null
 }
 
-// S1 统一外壳（owner 2026-07-17 复核）：civitai / HuggingFace 保留两个独立源
-// + 各自的 hook/组件，只有视觉形制统一。R1 把源切换从 segmented tab 换成
-// 与确认图一致的「Civitai ▾」下拉（`source=` 深链语义不变，默认 civitai 不
-// 入 URL）。
-export function CommunitySourceBranch({
-  onFavorite,
-  onImport,
-  onUnfavoriteByUrl,
-  isFavorited,
-  searchSlotNode,
-  navSlotNode,
-  controlsSlotNode,
-}: CommunitySourceBranchProps) {
-  const t = useTranslations('LoraWorkbench')
+/** 库的来源（Civitai / Hugging Face）记在网址里（默认 Civitai 不入网址）：手机面板与库 B 同一份。 */
+export function useLoraLibrarySource(): readonly [
+  LoraLibrarySource,
+  (next: LoraLibrarySource) => void,
+] {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  // <1024：来源切换进筛选 sheet（pane 内），顶栏这条 segmented 不渲染。
-  const isMobile = useIsMobile()
 
   const sourceParam = searchParams.get(LORA_LIBRARY_SOURCE_PARAM)
   const source: LoraLibrarySource =
@@ -75,6 +64,27 @@ export function CommunitySourceBranch({
     },
     [pathname, router, searchParams],
   )
+
+  return [source, setSource] as const
+}
+
+// S1 统一外壳（owner 2026-07-17 复核）：civitai / HuggingFace 保留两个独立源
+// + 各自的 hook/组件，只有视觉形制统一。R1 把源切换从 segmented tab 换成
+// 与确认图一致的「Civitai ▾」下拉（`source=` 深链语义不变，默认 civitai 不
+// 入 URL）。
+export function CommunitySourceBranch({
+  onFavorite,
+  onImport,
+  onUnfavoriteByUrl,
+  isFavorited,
+  searchSlotNode,
+  navSlotNode,
+  controlsSlotNode,
+}: CommunitySourceBranchProps) {
+  const t = useTranslations('LoraWorkbench')
+  // <1024：来源切换进筛选 sheet（pane 内），顶栏这条 segmented 不渲染。
+  const isMobile = useIsMobile()
+  const [source, setSource] = useLoraLibrarySource()
 
   return (
     <>

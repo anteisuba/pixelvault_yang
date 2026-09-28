@@ -3,6 +3,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { LORA_NSFW_FILTER_VALUES } from '@/constants/lora'
 import { logger } from '@/lib/logger'
 import { getCivitaiModelDescription } from '@/services/civitai-lora.service'
 import type { CivitaiModelDescriptionResult } from '@/types'
@@ -14,6 +15,8 @@ const CACHE_CONTROL = 'public, s-maxage=3600, stale-while-revalidate=86400'
 
 const QuerySchema = z.object({
   modelId: z.coerce.number().int().positive(),
+  // 各版本封面按哪一档分级限定（库 B 详情页的「版本」）；缺省「安全」。
+  nsfw: z.enum(LORA_NSFW_FILTER_VALUES).optional(),
 })
 
 interface SuccessBody {
@@ -31,6 +34,7 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   const parsed = QuerySchema.safeParse({
     modelId: searchParams.get('modelId') ?? undefined,
+    nsfw: searchParams.get('nsfw') ?? undefined,
   })
 
   if (!parsed.success) {
@@ -41,7 +45,10 @@ export async function GET(
   }
 
   try {
-    const data = await getCivitaiModelDescription(parsed.data.modelId)
+    const data = await getCivitaiModelDescription(
+      parsed.data.modelId,
+      parsed.data.nsfw,
+    )
     const response = NextResponse.json<SuccessBody>({ success: true, data })
     response.headers.set('Cache-Control', CACHE_CONTROL)
     return response

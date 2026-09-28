@@ -340,123 +340,130 @@ export function LoraRecipeViewer({
               </button>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-              {row(
-                t('viewer.prompt'),
-                codeBlock(recipe.prompt, 'sourceRecipePromptCopied'),
-              )}
-              {recipe.negativePrompt
-                ? row(
-                    t('viewer.negative'),
-                    codeBlock(
-                      recipe.negativePrompt,
-                      'sourceRecipeNegativeCopied',
-                    ),
-                  )
-                : null}
-              {recipe.checkpoint
-                ? row(
-                    t('viewer.base'),
-                    <span className="break-all font-mono text-xs text-foreground">
-                      {recipe.checkpoint}
-                    </span>,
-                  )
-                : null}
-              {sampling
-                ? row(
-                    t('viewer.sampling'),
-                    <span className="font-mono text-xs text-foreground">
-                      {sampling}
-                    </span>,
-                  )
-                : null}
-              {sizeLine
-                ? row(
-                    t('viewer.size'),
-                    <span className="font-mono text-xs tabular-nums text-foreground">
-                      {sizeLine}
-                    </span>,
-                  )
-                : null}
-
-              {extras.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <h5 className="text-xs font-semibold text-foreground/80">
-                    {t('viewer.extras')}
-                  </h5>
-                  {extras.map((extra) => {
-                    const key = extraLoraKey(extra)
-                    const label = extraLoraLabel(extra)
-                    const mounted = mountedExtraKeys.has(key)
-                    const included = !excludedKeys.has(key)
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center gap-2 rounded-xl bg-muted/60 px-2.5 py-2 text-2sm"
-                      >
-                        <b
-                          className={cn(
-                            'min-w-0 flex-1 truncate font-semibold',
-                            !mounted && onApplyRecipe && !included
-                              ? 'text-muted-foreground line-through'
-                              : 'text-foreground',
-                          )}
-                          title={label}
-                        >
-                          {label}
-                        </b>
-                        {extra.weight !== undefined ? (
-                          <small className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
-                            {extra.weight}
-                          </small>
-                        ) : null}
-                        {mounted ? (
-                          <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground">
-                            <Check className="size-3" aria-hidden />
-                            {t('viewer.mounted')}
-                          </span>
-                        ) : onApplyRecipe ? (
-                          <button
-                            type="button"
-                            aria-pressed={included}
-                            aria-label={t('sourceRecipeExtraLoraInclude', {
-                              name: label,
-                            })}
-                            onClick={() =>
-                              setExcluded((previous) => {
-                                const base =
-                                  previous.index === index
-                                    ? previous.keys
-                                    : EMPTY_KEYS
-                                const keys = new Set(base)
-                                if (keys.has(key)) keys.delete(key)
-                                else keys.add(key)
-                                return { index, keys }
-                              })
-                            }
-                            className={cn(
-                              'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                              included
-                                ? 'border-foreground/15 bg-card text-foreground'
-                                : 'border-dashed border-border text-muted-foreground',
-                            )}
-                          >
-                            {included ? (
-                              <Check className="size-3" aria-hidden />
-                            ) : null}
-                            {included
-                              ? t('viewer.mountTogether')
-                              : t('viewer.skipMount')}
-                          </button>
-                        ) : null}
-                      </div>
+            {/* 作者示例图没带生成参数时只看图：右栏一句话，⛔ 画一排空格子。 */}
+            {recipe.prompt ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+                {row(
+                  t('viewer.prompt'),
+                  codeBlock(recipe.prompt, 'sourceRecipePromptCopied'),
+                )}
+                {recipe.negativePrompt
+                  ? row(
+                      t('viewer.negative'),
+                      codeBlock(
+                        recipe.negativePrompt,
+                        'sourceRecipeNegativeCopied',
+                      ),
                     )
-                  })}
-                </div>
-              ) : null}
-            </div>
+                  : null}
+                {recipe.checkpoint
+                  ? row(
+                      t('viewer.base'),
+                      <span className="break-all font-mono text-xs text-foreground">
+                        {recipe.checkpoint}
+                      </span>,
+                    )
+                  : null}
+                {sampling
+                  ? row(
+                      t('viewer.sampling'),
+                      <span className="font-mono text-xs text-foreground">
+                        {sampling}
+                      </span>,
+                    )
+                  : null}
+                {sizeLine
+                  ? row(
+                      t('viewer.size'),
+                      <span className="font-mono text-xs tabular-nums text-foreground">
+                        {sizeLine}
+                      </span>,
+                    )
+                  : null}
 
-            {onApplyRecipe ? (
+                {extras.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    <h5 className="text-xs font-semibold text-foreground/80">
+                      {t('viewer.extras')}
+                    </h5>
+                    {extras.map((extra) => {
+                      const key = extraLoraKey(extra)
+                      const label = extraLoraLabel(extra)
+                      const mounted = mountedExtraKeys.has(key)
+                      const included = !excludedKeys.has(key)
+                      return (
+                        <div
+                          key={key}
+                          className="flex items-center gap-2 rounded-xl bg-muted/60 px-2.5 py-2 text-2sm"
+                        >
+                          <b
+                            className={cn(
+                              'min-w-0 flex-1 truncate font-semibold',
+                              !mounted && onApplyRecipe && !included
+                                ? 'text-muted-foreground line-through'
+                                : 'text-foreground',
+                            )}
+                            title={label}
+                          >
+                            {label}
+                          </b>
+                          {extra.weight !== undefined ? (
+                            <small className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
+                              {extra.weight}
+                            </small>
+                          ) : null}
+                          {mounted ? (
+                            <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground">
+                              <Check className="size-3" aria-hidden />
+                              {t('viewer.mounted')}
+                            </span>
+                          ) : onApplyRecipe ? (
+                            <button
+                              type="button"
+                              aria-pressed={included}
+                              aria-label={t('sourceRecipeExtraLoraInclude', {
+                                name: label,
+                              })}
+                              onClick={() =>
+                                setExcluded((previous) => {
+                                  const base =
+                                    previous.index === index
+                                      ? previous.keys
+                                      : EMPTY_KEYS
+                                  const keys = new Set(base)
+                                  if (keys.has(key)) keys.delete(key)
+                                  else keys.add(key)
+                                  return { index, keys }
+                                })
+                              }
+                              className={cn(
+                                'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                included
+                                  ? 'border-foreground/15 bg-card text-foreground'
+                                  : 'border-dashed border-border text-muted-foreground',
+                              )}
+                            >
+                              {included ? (
+                                <Check className="size-3" aria-hidden />
+                              ) : null}
+                              {included
+                                ? t('viewer.mountTogether')
+                                : t('viewer.skipMount')}
+                            </button>
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="min-h-0 flex-1 text-2sm leading-5 text-muted-foreground">
+                {t('viewer.noRecipe')}
+              </p>
+            )}
+
+            {onApplyRecipe && recipe.prompt ? (
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
@@ -484,19 +491,21 @@ export function LoraRecipeViewer({
               </div>
             ) : null}
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  void copy(
-                    buildRecipeClipboardText(recipe),
-                    'sourceRecipeCopied',
-                  )
-                }
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Copy className="size-3.5" aria-hidden />
-                {t('sourceRecipeCopyRecipe')}
-              </button>
+              {recipe.prompt ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copy(
+                      buildRecipeClipboardText(recipe),
+                      'sourceRecipeCopied',
+                    )
+                  }
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Copy className="size-3.5" aria-hidden />
+                  {t('sourceRecipeCopyRecipe')}
+                </button>
+              ) : null}
               <a
                 href={sourceUrl}
                 target="_blank"

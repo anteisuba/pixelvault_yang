@@ -974,3 +974,86 @@ describe('useCivitaiLoraLibrary', () => {
     expect(call.signal?.aborted).toBe(true)
   })
 })
+
+describe('useCivitaiLoraLibrary — accumulate（库 B 往下滚）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    __resetCivitaiLibraryCacheForTests()
+    window.localStorage.clear()
+  })
+
+  afterEach(() => {
+    __resetCivitaiLibraryCacheForTests()
+  })
+
+  it('appends the next segment on loadMore and keeps the first one', async () => {
+    const first = createItem('a', 'A')
+    const second = createItem('b', 'B')
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...createResult(first, 1), total: 30 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...createResult(second, 2, null), total: 30 },
+      })
+
+    const { result } = renderHook(() =>
+      useCivitaiLoraLibrary({ accumulate: true, pageSize: 24 }),
+    )
+    await waitFor(() => expect(result.current.items).toEqual([first]))
+
+    act(() => result.current.loadMore())
+    expect(result.current.isLoadingMore).toBe(true)
+
+    await waitFor(() => expect(result.current.items).toEqual([first, second]))
+    expect(result.current.isLoadingMore).toBe(false)
+    expect(result.current.hasNextPage).toBe(false)
+    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, pageSize: 24 }),
+    )
+  })
+
+  it('keeps the old results on screen while a new search loads, then swaps them in one go', async () => {
+    const oldItem = createItem('old', 'Old')
+    const newItem = createItem('new', 'Roccia')
+    let resolveSearch!: (
+      value: Awaited<ReturnType<typeof listCivitaiLoraAssetsAPI>>,
+    ) => void
+    mockListCivitaiLoraAssetsAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...createResult(oldItem, 1), total: 30 },
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSearch = resolve
+        }),
+      )
+
+    const { result } = renderHook(() =>
+      useCivitaiLoraLibrary({ accumulate: true, pageSize: 24 }),
+    )
+    await waitFor(() => expect(result.current.items).toEqual([oldItem]))
+
+    act(() => result.current.setSearch('roccia'))
+    act(() => result.current.submitSearch())
+
+    // ⛔ 清成白屏：旧的一批还在，标成「正在换」。
+    expect(result.current.items).toEqual([oldItem])
+    expect(result.current.isReplacing).toBe(true)
+    expect(result.current.isLoading).toBe(false)
+
+    await act(async () => {
+      resolveSearch({
+        success: true,
+        data: { ...createResult(newItem, 1, null), total: 1 },
+      })
+    })
+
+    await waitFor(() => expect(result.current.items).toEqual([newItem]))
+    expect(result.current.isReplacing).toBe(false)
+    expect(result.current.total).toBe(1)
+  })
+})

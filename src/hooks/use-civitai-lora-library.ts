@@ -37,6 +37,15 @@ export interface UseCivitaiLoraLibraryOptions {
   initialNsfwFilter?: LoraNsfwFilter
   /** S2 内容类型筛选（lora-workbench.md §3）。 */
   initialContentType?: LoraContentType
+  /**
+   * 库 B（桌面，lora-library.md §3）：往下滚着接 —— `loadMore` 把下一段接在后面；
+   * 换筛选 / 搜新词时旧结果留在原地（调用方把它变淡），新的第一段到了再整批换掉，
+   * ⛔ 不先清成白屏。不给 = 手机那种一页换一页（`nextPage` / `previousPage`）。
+   * 只在挂载时读一次。
+   */
+  accumulate?: boolean
+  /** 一段 / 一页几个（库 B 一段 24，手机一页 12）。只在挂载时读一次。 */
+  pageSize?: number
 }
 
 export interface UseCivitaiLoraLibraryReturn {
@@ -95,6 +104,12 @@ export interface UseCivitaiLoraLibraryReturn {
   selectItem: (item: CivitaiLoraLibraryItem) => void
   nextPage: () => void
   previousPage: () => void
+  /** `accumulate` 下把下一段接在后面（同 `nextPage` 的闸：在取、没有下一段时不动）。 */
+  loadMore: () => void
+  /** `accumulate` 下正在接下一段（列表底下那一行「正在接着取」）。 */
+  isLoadingMore: boolean
+  /** `accumulate` 下换筛选 / 搜新词、旧结果还在屏上等新的第一段。 */
+  isReplacing: boolean
   refresh: () => Promise<void>
 }
 
@@ -126,15 +141,19 @@ function buildCacheKey(params: {
   search: string
   nsfwFilter: LoraNsfwFilter
   contentType: LoraContentType
+  pageSize: number
   page: number
   cursor: string | null
 }): string {
+  // pageSize 排在筛选之后：一段 24 与一页 12 的第 2 页不是同一批，⛔ 混用缓存；
+  // `invalidateCacheForQuery` 按筛选前缀清，照样清得到。
   return [
     params.baseModel,
     params.sort,
     params.search,
     params.nsfwFilter,
     params.contentType,
+    params.pageSize,
     params.page,
     params.cursor ?? '',
   ].join('|')
@@ -195,6 +214,8 @@ export function useCivitaiLoraLibrary(
   options: UseCivitaiLoraLibraryOptions = {},
 ): UseCivitaiLoraLibraryReturn {
   const t = useTranslations('LoraWorkbench')
+  const [accumulate] = useState(options.accumulate ?? false)
+  const [pageSize] = useState(options.pageSize ?? CIVITAI_LORA_PAGE_SIZE)
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
@@ -274,41 +295,58 @@ export function useCivitaiLoraLibrary(
   } | null>(null)
   const refreshRef = useRef<() => Promise<void>>(async () => {})
 
-  const applyResult = useCallback((result: CivitaiLoraLibraryResult) => {
-    setItems(result.items)
-    setTotal(result.total)
-    setHasNextPage(result.hasNextPage)
-    setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
-    setIsStale(result.stale ?? false)
-    setStaleFetchedAt(result.stale ? (result.fetchedAt ?? null) : null)
-    setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
-    // 服务端在降级时可能把深页钳回第 1 页（meilisearch 页码不能套到镜像
-    // 语料上）。页码是客户端 state，必须跟结果一起改，否则会显示
-    // 「第 6 页 · 41 个 LoRA」配上空列表。
-    setPage((current) => (result.page === current ? current : result.page))
-    setSelectedItemId((current) => {
-      if (current && result.items.some((item) => item.id === current)) {
-        return current
+  const applyResult = useCallback(
+    (result: CivitaiLoraLibraryResult) => {
+      const appending = accumulate && result.page > 1
+      if (appending) {
+        // 接在后面；同一个 LoRA 只出现一次（降级快照与上游对不齐时可能重叠）。
+        setItems((prev) => {
+          const seen = new Set(prev.map((item) => item.id))
+          return [...prev, ...result.items.filter((item) => !seen.has(item.id))]
+        })
+      } else {
+        setItems(result.items)
       }
-      return result.items[0]?.id ?? null
-    })
-  }, [])
+      setTotal(result.total)
+      setHasNextPage(result.hasNextPage)
+      setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
+      setIsStale(result.stale ?? false)
+      setStaleFetchedAt(result.stale ? (result.fetchedAt ?? null) : null)
+      setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
+      // 服务端在降级时可能把深页钳回第 1 页（meilisearch 页码不能套到镜像
+      // 语料上）。页码是客户端 state，必须跟结果一起改，否则会显示
+      // 「第 6 页 · 41 个 LoRA」配上空列表。
+      setPage((current) => (result.page === current ? current : result.page))
+      // 接下一段时选中项还在列表里，⛔ 被新一段的第一项顶掉。
+      if (appending) return
+      setSelectedItemId((current) => {
+        if (current && result.items.some((item) => item.id === current)) {
+          return current
+        }
+        return result.items[0]?.id ?? null
+      })
+    },
+    [accumulate],
+  )
 
   const clearFacetResults = useCallback(() => {
     requestIdRef.current += 1
     inFlightRef.current?.abort()
     inFlightRef.current = null
-    setItems([])
-    setSelectedItemId(null)
-    setTotal(null)
-    setHasNextPage(false)
-    setSortFellBackToRelevance(false)
-    setIsStale(false)
-    setStaleFetchedAt(null)
-    setOffsetPaginationSupported(false)
+    // 库 B：旧结果留在屏上（调用方变淡），新的第一段到了 `applyResult` 整批换掉。
+    if (!accumulate) {
+      setItems([])
+      setSelectedItemId(null)
+      setTotal(null)
+      setHasNextPage(false)
+      setSortFellBackToRelevance(false)
+      setIsStale(false)
+      setStaleFetchedAt(null)
+      setOffsetPaginationSupported(false)
+    }
     setError(null)
     setIsRevalidating(true)
-  }, [])
+  }, [accumulate])
 
   const refresh = useCallback(async () => {
     const normalizedSearch = search.trim()
@@ -330,6 +368,7 @@ export function useCivitaiLoraLibrary(
       search: activeSearch,
       nsfwFilter,
       contentType,
+      pageSize,
       page,
       cursor,
     })
@@ -364,7 +403,7 @@ export function useCivitaiLoraLibrary(
     const response = await listCivitaiLoraAssetsAPI({
       signal: controller.signal,
       page,
-      pageSize: CIVITAI_LORA_PAGE_SIZE,
+      pageSize,
       cursor,
       search: activeSearch || undefined,
       sort,
@@ -434,6 +473,7 @@ export function useCivitaiLoraLibrary(
     debouncedSearch,
     nsfwFilter,
     page,
+    pageSize,
     search,
     sort,
     t,
@@ -562,7 +602,7 @@ export function useCivitaiLoraLibrary(
     if (paginationPendingRef.current || isRevalidating || !hasNextPage) {
       return
     }
-    if (total !== null && page * CIVITAI_LORA_PAGE_SIZE >= total) {
+    if (total !== null && page * pageSize >= total) {
       return
     }
 
@@ -585,6 +625,7 @@ export function useCivitaiLoraLibrary(
     isRevalidating,
     offsetPaginationSupported,
     page,
+    pageSize,
     sortFellBackToRelevance,
     total,
   ])
@@ -627,7 +668,7 @@ export function useCivitaiLoraLibrary(
     selectedItem,
     total,
     page,
-    pageSize: CIVITAI_LORA_PAGE_SIZE,
+    pageSize,
     hasNextPage,
     sortFellBackToRelevance,
     isStale,
@@ -651,6 +692,9 @@ export function useCivitaiLoraLibrary(
     selectItem,
     nextPage,
     previousPage,
+    loadMore: nextPage,
+    isLoadingMore: accumulate && isRevalidating && page > 1,
+    isReplacing: accumulate && isRevalidating && page === 1 && items.length > 0,
     refresh,
   }
 }

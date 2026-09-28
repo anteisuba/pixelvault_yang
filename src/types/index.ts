@@ -5026,6 +5026,9 @@ export type CivitaiMinedPromptsResult = z.infer<
 // 复制。null = 无描述 / 拉取失败。
 export const CivitaiModelDescriptionResultSchema = z.object({
   descriptionText: z.string().nullable(),
+  // 库 B 详情页右栏「版本」（新 → 旧，只含能下载的）：每个版本是与列表同形的
+  // 条目，切到哪个就挂哪个。optional 兼容旧缓存与测试夹具。
+  versions: z.array(CivitaiLoraLibraryItemSchema).optional(),
 })
 export type CivitaiModelDescriptionResult = z.infer<
   typeof CivitaiModelDescriptionResultSchema

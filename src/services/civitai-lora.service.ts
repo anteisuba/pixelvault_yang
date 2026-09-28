@@ -1374,10 +1374,12 @@ function toLibraryItem(
   // 默认放到 XXX：resolve-by-hash / by-name 是"挂载用户指定的这把 LoRA"，
   // 无三态语境，应无条件出封面。list 路径显式传按 nsfwFilter 算好的天花板。
   maxImageNsfwLevel: number = CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE,
+  // 库 B 详情页的「版本」：指定映射哪一个版本；不给 = 第一个能下载的。
+  pickedVersion?: z.infer<typeof CivitaiModelVersionSchema>,
 ): CivitaiLoraLibraryItem | null {
   if (model.type.toUpperCase() !== 'LORA') return null
 
-  const version = pickUsableModelVersion(model)
+  const version = pickedVersion ?? pickUsableModelVersion(model)
   if (!version) return null
 
   const loraUrl = pickDownloadUrl(version)
@@ -3689,13 +3691,12 @@ const CivitaiModelDescriptionSchema = z
   .object({ description: z.string().nullable().optional() })
   .passthrough()
 
-async function fetchCivitaiModelDescriptionText(
+async function fetchCivitaiModelPayload(
   modelId: number,
-): Promise<string | undefined> {
+): Promise<unknown | undefined> {
   const url = new URL(`${CIVITAI_MODELS_API}/${modelId}`)
-  let payload: unknown
   try {
-    payload = await withRetry(() => fetchCivitaiPayload(url), {
+    return await withRetry(() => fetchCivitaiPayload(url), {
       maxAttempts: 3,
       baseDelayMs: 400,
       maxDelayMs: 2000,
@@ -3709,10 +3710,20 @@ async function fetchCivitaiModelDescriptionText(
     })
     return undefined
   }
+}
+
+function descriptionTextFromPayload(payload: unknown): string | undefined {
   const parsed = CivitaiModelDescriptionSchema.safeParse(payload)
   if (!parsed.success) return undefined
   const text = civitaiDescriptionToText(parsed.data.description)
   return text.length > 0 ? text : undefined
+}
+
+async function fetchCivitaiModelDescriptionText(
+  modelId: number,
+): Promise<string | undefined> {
+  const payload = await fetchCivitaiModelPayload(modelId)
+  return payload === undefined ? undefined : descriptionTextFromPayload(payload)
 }
 
 /**
@@ -3722,9 +3733,26 @@ async function fetchCivitaiModelDescriptionText(
  */
 export async function getCivitaiModelDescription(
   modelId: number,
+  // 各版本封面按分级限定（与列表同一条天花板）；缺省按「安全」。
+  nsfwFilter: LoraNsfwFilter = 'safe',
 ): Promise<CivitaiModelDescriptionResult> {
-  const text = await fetchCivitaiModelDescriptionText(modelId)
-  return { descriptionText: text ?? null }
+  const payload = await fetchCivitaiModelPayload(modelId)
+  if (payload === undefined) return { descriptionText: null, versions: [] }
+  // 库 B 详情页的「版本」：同一次上游返回里每个能下载的版本映射成与列表同形的
+  // 条目（触发词、底模、下载链接、文件大小齐全），切到哪个就能挂哪个 —— ⛔ 为此
+  // 再打一次 Civitai。
+  const parsed = CivitaiModelSchema.safeParse(payload)
+  const versions = parsed.success
+    ? (parsed.data.modelVersions ?? [])
+        .map((version) =>
+          toLibraryItem(parsed.data, maxImageNsfwLevelFor(nsfwFilter), version),
+        )
+        .filter((item): item is CivitaiLoraLibraryItem => item !== null)
+    : []
+  return {
+    descriptionText: descriptionTextFromPayload(payload) ?? null,
+    versions,
+  }
 }
 
 export async function mineCivitaiUserPrompts({

@@ -145,6 +145,14 @@ export const LORA_OFTEN_MOUNTED_MAX_RESULTS = 3
 // （5 列容忍最后一行留 2 空位）。
 export const CIVITAI_LORA_PAGE_SIZE = 12
 
+// 库 B（桌面，lora-library.md §3）往下滚：一段 24 个（6 列整 4 行），离底 1.5 屏
+// 提前取下一段。手机仍是一页 12 个的翻页。
+export const LORA_LIBRARY_BROWSE_PAGE_SIZE = 24
+
+// Civitai 搜索索引的总数封顶（实测「character」「style」都停在 100000）：到顶时
+// 库 B 写「100,000+」，⛔ 把封顶值当精确数。
+export const CIVITAI_SEARCH_TOTAL_HITS_CAP = 100_000
+
 // Bug 修复（2026-07-18，owner 报「类型筛选后不满 12 张 + 下一页不可点」）：
 // listCivitaiLorasByContentType 此前让 L1(tag)/L2(关键词) 两条 meilisearch
 // 子 query 各自独立按 `offset=(page-1)*pageSize, limit=pageSize` 分页，

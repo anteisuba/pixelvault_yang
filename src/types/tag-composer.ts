@@ -45,9 +45,13 @@ export type TagPromptBlock = z.infer<typeof TagPromptBlockSchema>
  * 标签模板（owner 2026-09-26）：与自然语言模板同一个库（`Recipe`），靠 `params`
  * 里这一格区分，两台各只列自己的。`compiledPrompt` 存整体正向标签，UC 与各角色随
  * `params.advancedParams` 走。
+ *
+ * `origin: 'prompts'` = 在提示词页新建的（pages/prompts.md「新建」）：只有标签与负面
+ * （负面在 `negativePrompt` 那一列），⛔ 没有模型与参数 —— 套用时只换这两样。
  */
 export const TagTemplateParamsSchema = z.object({
   promptDialect: z.literal('tags'),
+  origin: z.literal('prompts').optional(),
 })
 
 /**

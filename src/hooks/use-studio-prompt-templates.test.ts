@@ -142,7 +142,12 @@ describe('标签模板', () => {
       params: {
         advancedParams: {
           negativePrompt: 'bad hands',
-          loras: [{ id: 'style', weight: 0.8 }],
+          loras: [
+            {
+              url: 'https://civitai.com/api/download/models/111',
+              scale: 0.8,
+            },
+          ],
         },
       },
     })
@@ -171,6 +176,36 @@ describe('标签模板', () => {
       payload: {
         polarity: 'negative',
         chips: [{ text: 'bad hands', weight: 1 }],
+      },
+    })
+  })
+
+  /**
+   * 提示词页新建的（pages/prompts.md「新建」）：只有标签与负面，负面在那一列 ——
+   * 套用同样只换这两样，⛔ 按占格的型号去换模型。
+   */
+  it('提示词页新建的在标签台只换标签和负面（负面读那一列），⛔ 不换模型与参数', () => {
+    const { result } = renderHook(() => useStudioPromptTemplates([]))
+    result.current.handleApplyTagTemplate({
+      ...tagRecipe(),
+      modelId: 'novelai-v5-full',
+      compiledPrompt: 'no humans, scenery',
+      negativePrompt: 'text, signature',
+      params: { promptDialect: 'tags', origin: 'prompts' },
+    })
+
+    const types = mocks.dispatch.mock.calls.map(([action]) => action.type)
+    for (const type of ['SET_OPTION_ID', 'SET_ADVANCED_PARAMS'])
+      expect(types).not.toContain(type)
+    const actions = mocks.dispatch.mock.calls.map(([action]) => action)
+    expect(actions).toContainEqual({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'negative',
+        chips: [
+          { text: 'text', weight: 1 },
+          { text: 'signature', weight: 1 },
+        ],
       },
     })
   })

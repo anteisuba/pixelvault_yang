@@ -1,9 +1,14 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { useStudioForm, type StudioFormState } from '@/contexts/studio-context'
 import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
+import { usePathname, useRouter } from '@/i18n/navigation'
+import { getRecipeAPI } from '@/lib/api-client/recipes'
 import type { RecipeRecord } from '@/types'
 import type { StudioModelOption } from '@/types/model-option'
 
@@ -107,6 +112,39 @@ export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
   }, [dispatch, pending])
 
   const dismiss = useCallback(() => setPending(null), [])
+
+  /**
+   * 提示词页「使用 → 用在标签台」带着 `?template=<id>` 过来（pages/prompts.md）：取回来
+   * 照这一台自己的套用走（带「撤销」），装一次就把参数拿掉 —— 刷新不再重套一遍、盖掉
+   * 后来的改动。⚠ 等方言切到标签台再套（方言由路由同步，第一帧可能还是自然语言）；
+   * 回来那一刻用最新的 `apply`，撤销快照才是套用前那一刻的。
+   */
+  const t = useTranslations('StudioTemplates')
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const templateParam = searchParams.get('template')
+  const tagsBench = state.promptDialect === 'tags'
+  const applyRef = useRef(apply)
+  useEffect(() => {
+    applyRef.current = apply
+  }, [apply])
+  const appliedTemplate = useRef<string | null>(null)
+  useEffect(() => {
+    if (!templateParam || !tagsBench) return
+    if (appliedTemplate.current === templateParam) return
+    appliedTemplate.current = templateParam
+    void getRecipeAPI(templateParam).then((response) => {
+      const query = new URLSearchParams(searchParams.toString())
+      query.delete('template')
+      const rest = query.toString()
+      router.replace(rest ? `${pathname}?${rest}` : pathname, {
+        scroll: false,
+      })
+      if (response.success && response.data) applyRef.current(response.data)
+      else toast.error(t('loadFailed'))
+    })
+  }, [pathname, router, searchParams, t, tagsBench, templateParam])
 
   return {
     apply,

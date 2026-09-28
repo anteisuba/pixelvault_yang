@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl'
 
 import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import type { RecipeTemplateKind } from '@/lib/recipe-template-kind'
+import type { TagTemplateSource } from '@/lib/recipe-template-kind'
 
 export interface PromptTemplateModelLabelTarget {
   modelId: string
-  templateKind: RecipeTemplateKind
+  tagSource: TagTemplateSource | null
   lora: { baseId: string | null } | null
 }
 
@@ -23,7 +23,7 @@ export function usePromptTemplateModelLabel() {
 
   return useCallback(
     (template: PromptTemplateModelLabelTarget): string => {
-      if (template.templateKind === 'LORA') {
+      if (template.tagSource === 'lora') {
         const base =
           LORA_BASE_MODELS.find(
             (entry) => entry.id === template.lora?.baseId,

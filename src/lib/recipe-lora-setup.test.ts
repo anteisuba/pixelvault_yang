@@ -6,9 +6,12 @@ import {
   buildRecipeLoraSetup,
   loraTemplateFallbackName,
   readRecipeLoraSetup,
+  readRecipeNegativePrompt,
+  readRecipeNovelAiCharacters,
   readRecipeRunnerParameters,
   templateLoraAssetFromUrl,
   trimLoraAssetForTemplate,
+  withRecipeNegativePrompt,
 } from './recipe-lora-setup'
 
 const SUE_URL = 'https://civitai.com/api/download/models/111'
@@ -158,5 +161,59 @@ describe('older saves with only a link', () => {
       defaultScale: 0.6,
       baseModelFamily: 'illustrious',
     })
+  })
+})
+
+describe('标签模板的负面与角色（pages/prompts.md）', () => {
+  it('负面：列里有就用列里的，没有再读整组参数里那一份', () => {
+    expect(
+      readRecipeNegativePrompt({
+        negativePrompt: ' worst quality ',
+        params: { advancedParams: { negativePrompt: 'lowres' } },
+      }),
+    ).toBe('worst quality')
+    expect(
+      readRecipeNegativePrompt({
+        negativePrompt: null,
+        params: { advancedParams: { negativePrompt: 'lowres, bad hands' } },
+      }),
+    ).toBe('lowres, bad hands')
+    expect(
+      readRecipeNegativePrompt({ negativePrompt: null, params: null }),
+    ).toBe('')
+  })
+
+  it('改负面时整组参数里那一份一起改，别的参数原样', () => {
+    expect(
+      withRecipeNegativePrompt(
+        {
+          promptDialect: 'tags',
+          advancedParams: { negativePrompt: 'a', steps: 28 },
+        },
+        'b',
+      ),
+    ).toEqual({
+      promptDialect: 'tags',
+      advancedParams: { negativePrompt: 'b', steps: 28 },
+    })
+  })
+
+  it('角色只要写了标签、没关掉的那几位', () => {
+    const position = { x: 0.5, y: 0.5 }
+    expect(
+      readRecipeNovelAiCharacters({
+        advancedParams: {
+          novelAiLayout: {
+            positioning: 'auto',
+            characters: [
+              { prompt: 'girl, red eyes', negativePrompt: '', position },
+              { prompt: '', negativePrompt: '', position },
+              { prompt: 'boy', negativePrompt: '', position, enabled: false },
+            ],
+          },
+        },
+      }),
+    ).toEqual(['girl, red eyes'])
+    expect(readRecipeNovelAiCharacters({ advancedParams: {} })).toEqual([])
   })
 })

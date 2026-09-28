@@ -1,16 +1,20 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Plus, Save, X } from '@/components/icons'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import type { z } from 'zod'
 
+import { Plus, Save, X } from '@/components/icons'
 import { AI_MODELS, MODEL_OPTIONS } from '@/constants/models'
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
-  PROMPT_TEMPLATE_OUTPUT_TYPES,
   PROMPT_OUTPUT_TYPE_LABEL_KEYS,
+  PROMPT_TEMPLATE_CREATE_KINDS,
+  TAG_TEMPLATE_PLACEHOLDER_MODEL_ID,
   toPromptTemplateOutputType,
-  type PromptTemplateOutputType,
+  type PromptTemplateCreateKind,
 } from '@/constants/prompt-library'
 import {
   AI_ADAPTER_TYPES,
@@ -20,8 +24,12 @@ import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { serializeTagChips } from '@/lib/tag-composer'
+import type { CreateRecipeRequest, OutputType } from '@/types'
+import type { TagChip, TagTemplateParamsSchema } from '@/types/tag-composer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Select,
   SelectContent,
@@ -38,7 +46,8 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
-import type { CreateRecipeRequest, OutputType } from '@/types'
+import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
+import { isTagSuggestionsTarget } from '@/components/business/studio/tags/StudioTagSuggestions'
 
 export interface PromptTemplateCreateInitialValues {
   name?: string
@@ -57,12 +66,15 @@ interface PromptTemplateCreatePanelProps {
 
 const DEFAULT_MODEL_ID = AI_MODELS.OPENAI_GPT_IMAGE_2
 const DEFAULT_PROVIDER = getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI).label
-/** 新建只给图片 / 视频（音频 2026-09-28 拿掉，pages/prompts.md）。 */
-const MODEL_CHOICES = MODEL_OPTIONS.filter(
-  (option) =>
-    option.available &&
-    (option.outputType === 'IMAGE' || option.outputType === 'VIDEO'),
-)
+/** 标签模板那一格服务商跟着占格的 NAI 型号走（⛔ 界面不显示）。 */
+const TAG_TEMPLATE_PROVIDER = getDefaultProviderConfig(
+  AI_ADAPTER_TYPES.NOVELAI,
+).label
+const TAG_TEMPLATE_PARAMS = {
+  promptDialect: 'tags',
+  origin: 'prompts',
+} satisfies z.infer<typeof TagTemplateParamsSchema>
+const FIELD_LABEL = 'text-xs font-semibold text-muted-foreground'
 
 function getModelOption(modelId: string) {
   return MODEL_OPTIONS.find((option) => option.id === modelId)
@@ -73,16 +85,26 @@ function getProviderForModel(modelId: string): string {
   return option ? getDefaultProviderConfig(option.adapterType).label : ''
 }
 
+/** 切到图片 / 视频时，手上的模型不是这一类就换成这一类的第一个。 */
+function defaultModelFor(kind: 'IMAGE' | 'VIDEO'): string | null {
+  if (kind === 'IMAGE') return DEFAULT_MODEL_ID
+  return (
+    MODEL_OPTIONS.find(
+      (option) => option.available && option.outputType === 'VIDEO',
+    )?.id ?? null
+  )
+}
+
 function normalizeInitialValues(
   initialValues?: PromptTemplateCreateInitialValues,
-): Required<
-  Omit<PromptTemplateCreateInitialValues, 'parentGenerationId' | 'outputType'>
-> & {
-  outputType: PromptTemplateOutputType
-  parentGenerationId?: string
-} {
+) {
   const modelId = initialValues?.modelId || DEFAULT_MODEL_ID
   const option = getModelOption(modelId)
+  // Templates cover image/video only — legacy 3D / audio prefills fall back
+  // to image (`toPromptTemplateOutputType`).
+  const kind: PromptTemplateCreateKind = toPromptTemplateOutputType(
+    initialValues?.outputType ?? option?.outputType,
+  )
   return {
     name: initialValues?.name ?? '',
     compiledPrompt: initialValues?.compiledPrompt ?? '',
@@ -92,15 +114,16 @@ function normalizeInitialValues(
       initialValues?.provider ||
       getProviderForModel(modelId) ||
       DEFAULT_PROVIDER,
-    // Templates cover image/video/audio only — legacy 3D prefills fall back
-    // to image (see PROMPT_TEMPLATE_OUTPUT_TYPES).
-    outputType: toPromptTemplateOutputType(
-      initialValues?.outputType ?? option?.outputType,
-    ),
+    kind,
     parentGenerationId: initialValues?.parentGenerationId,
   }
 }
 
+/**
+ * 提示词页的「新建模板」（pages/prompts.md「新建」，画板 `TgA_New`）：类型是三格分段。
+ * 图片 / 视频 = 名字 · 提示词 · 推荐模型 · 服务商 · 负面；标签 = 名字 + 两块格子
+ * （标签 · 负面标签），⛔ 没有模型那一行 —— 用在哪一台，点「使用」时再选。
+ */
 export function PromptTemplateCreatePanel({
   initialOpen = false,
   initialValues,
@@ -108,6 +131,7 @@ export function PromptTemplateCreatePanel({
   const t = useTranslations('PromptLibrary')
   const tModels = useTranslations('Models')
   const router = useRouter()
+  const reducedMotion = useReducedMotion()
   const normalizedInitialValues = useMemo(
     () => normalizeInitialValues(initialValues),
     [initialValues],
@@ -118,6 +142,9 @@ export function PromptTemplateCreatePanel({
   )
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [kind, setKind] = useState<PromptTemplateCreateKind>(
+    normalizedInitialValues.kind,
+  )
   const [name, setName] = useState(normalizedInitialValues.name)
   const [compiledPrompt, setCompiledPrompt] = useState(
     normalizedInitialValues.compiledPrompt,
@@ -125,20 +152,47 @@ export function PromptTemplateCreatePanel({
   const [negativePrompt, setNegativePrompt] = useState(
     normalizedInitialValues.negativePrompt,
   )
+  const [tags, setTags] = useState<TagChip[]>([])
+  const [negativeTags, setNegativeTags] = useState<TagChip[]>([])
   const [modelId, setModelId] = useState(normalizedInitialValues.modelId)
   const [provider, setProvider] = useState(normalizedInitialValues.provider)
-  const [outputType, setOutputType] = useState(
-    normalizedInitialValues.outputType,
-  )
   const [parentGenerationId, setParentGenerationId] = useState(
     normalizedInitialValues.parentGenerationId,
   )
+
+  /**
+   * 切类型时弹窗高度跟着内容走（`TgMotion`）：量里面那一块的高度、外面这一层按它
+   * 过渡，⛔ 先塌再撑。
+   */
+  const [bodyHeight, setBodyHeight] = useState<number | null>(null)
+  const bodyObserver = useRef<ResizeObserver | null>(null)
+  const measureBody = useCallback((node: HTMLDivElement | null) => {
+    bodyObserver.current?.disconnect()
+    bodyObserver.current = null
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setBodyHeight(node.offsetHeight))
+    observer.observe(node)
+    bodyObserver.current = observer
+  }, [])
+
+  const modelChoices = MODEL_OPTIONS.filter(
+    (option) => option.available && option.outputType === kind,
+  )
+
+  const selectKind = (next: PromptTemplateCreateKind) => {
+    setFormError(null)
+    setKind(next)
+    if (next === 'TAGS' || getModelOption(modelId)?.outputType === next) return
+    const fallback = defaultModelFor(next)
+    if (!fallback) return
+    setModelId(fallback)
+    setProvider(getProviderForModel(fallback) || DEFAULT_PROVIDER)
+  }
 
   const selectModel = (nextModelId: string) => {
     setModelId(nextModelId)
     const option = getModelOption(nextModelId)
     if (!option) return
-    setOutputType(toPromptTemplateOutputType(option.outputType))
     setProvider(getDefaultProviderConfig(option.adapterType).label)
   }
 
@@ -147,33 +201,49 @@ export function PromptTemplateCreatePanel({
     setName(next.name)
     setCompiledPrompt(next.compiledPrompt)
     setNegativePrompt(next.negativePrompt)
+    setTags([])
+    setNegativeTags([])
     setModelId(next.modelId)
     setProvider(next.provider)
-    setOutputType(next.outputType)
+    setKind(next.kind)
     setParentGenerationId(undefined)
   }
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setFormError(null)
-    if (!name.trim()) {
-      setFormError(t('createNameRequired'))
-      return
+  const buildPayload = (): CreateRecipeRequest | string => {
+    if (!name.trim()) return t('createNameRequired')
+    if (kind === 'TAGS') {
+      const tagText = serializeTagChips(tags)
+      if (!tagText) return t('createTagsRequired')
+      return {
+        name: name.trim(),
+        outputType: 'IMAGE',
+        compiledPrompt: tagText,
+        negativePrompt: serializeTagChips(negativeTags) || undefined,
+        modelId: TAG_TEMPLATE_PLACEHOLDER_MODEL_ID,
+        provider: TAG_TEMPLATE_PROVIDER,
+        params: TAG_TEMPLATE_PARAMS,
+      }
     }
     const prompt = compiledPrompt.trim()
-    if (!prompt) {
-      setFormError(t('createPromptRequired'))
-      return
-    }
-
-    const payload: CreateRecipeRequest = {
+    if (!prompt) return t('createPromptRequired')
+    return {
       name: name.trim(),
-      outputType,
+      outputType: kind,
       compiledPrompt: prompt,
       negativePrompt: negativePrompt.trim() || undefined,
       modelId,
       provider,
       parentGenerationId,
+    }
+  }
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFormError(null)
+    const payload = buildPayload()
+    if (typeof payload === 'string') {
+      setFormError(payload)
+      return
     }
 
     setIsSaving(true)
@@ -194,6 +264,11 @@ export function PromptTemplateCreatePanel({
       setIsSaving(false)
     }
   }
+
+  const tagsKind = kind === 'TAGS'
+  const swap = reducedMotion
+    ? { duration: DURATION.fast, ease: 'linear' as const }
+    : { duration: DURATION.base, ease: 'linear' as const }
 
   return (
     <div className="flex justify-end">
@@ -217,6 +292,18 @@ export function PromptTemplateCreatePanel({
         <ResponsiveDialogContent
           className="overflow-y-auto sm:max-w-2xl"
           style={{ maxHeight: '85svh' }}
+          // 标签格的联想挂在弹窗外面：点它不算「点外面」，联想开着时 Esc 先收联想。
+          onPointerDownOutside={(event) => {
+            if (isTagSuggestionsTarget(event.target)) event.preventDefault()
+          }}
+          onEscapeKeyDown={(event) => {
+            const target = event.target
+            if (
+              target instanceof HTMLElement &&
+              target.getAttribute('aria-expanded') === 'true'
+            )
+              event.preventDefault()
+          }}
         >
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t('createTitle')}</ResponsiveDialogTitle>
@@ -226,123 +313,179 @@ export function PromptTemplateCreatePanel({
           </ResponsiveDialogHeader>
           <form onSubmit={(event) => void submit(event)} className="space-y-5">
             <div className="grid gap-4">
+              <LiquidSegmented
+                size="md"
+                semantics="radio"
+                ariaLabel={t('createOutputTypeLabel')}
+                value={kind}
+                onChange={selectKind}
+                items={PROMPT_TEMPLATE_CREATE_KINDS.map((value) => ({
+                  value,
+                  label:
+                    value === 'TAGS'
+                      ? t('typeTags')
+                      : t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[value]),
+                }))}
+                className="justify-self-start"
+              />
+
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="recipe-prompt">
-                  {t('createPromptLabel')}
+                <label className={FIELD_LABEL} htmlFor="recipe-name">
+                  {t('createNameLabel')}
                 </label>
-                <Textarea
-                  id="recipe-prompt"
-                  value={compiledPrompt}
-                  onChange={(event) => setCompiledPrompt(event.target.value)}
-                  placeholder={t('createPromptPlaceholder')}
-                  className="min-h-40 resize-y rounded-xl text-sm leading-6"
+                <Input
+                  id="recipe-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder={t('createNamePlaceholder')}
+                  maxLength={200}
                   required
                 />
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="recipe-name">
-                    {t('createNameLabel')}
-                  </label>
-                  <Input
-                    id="recipe-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder={t('createNamePlaceholder')}
-                    maxLength={200}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="recipe-model">
-                    {t('createModelLabel')}
-                  </label>
-                  <Select value={modelId} onValueChange={selectModel}>
-                    <SelectTrigger
-                      id="recipe-model"
-                      className="w-full"
-                      aria-label={t('createModelLabel')}
+              <motion.div
+                initial={false}
+                animate={
+                  bodyHeight === null ? undefined : { height: bodyHeight }
+                }
+                transition={{
+                  duration: reducedMotion ? 0 : DURATION.base,
+                  ease: EASE_STANDARD,
+                }}
+                // 让出焦点环那一圈：高度过渡要裁掉溢出，⛔ 连焦点环一起裁。
+                className="-m-1 overflow-hidden p-1"
+              >
+                <div ref={measureBody} className="relative">
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.div
+                      key={tagsKind ? 'tags' : 'prompt'}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1, transition: swap }}
+                      exit={{ opacity: 0, transition: swap }}
+                      className="grid gap-4"
                     >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {!getModelOption(modelId) && (
-                        <SelectItem value={modelId}>{modelId}</SelectItem>
+                      {tagsKind ? (
+                        <>
+                          <StudioTagChipField
+                            variant="form"
+                            label={t('tagsLabel')}
+                            note={t('tagsNote')}
+                            polarity="positive"
+                            chips={tags}
+                            onChange={setTags}
+                          />
+                          <StudioTagChipField
+                            variant="form"
+                            label={t('negativeTagsLabel')}
+                            polarity="negative"
+                            chips={negativeTags}
+                            onChange={setNegativeTags}
+                          />
+                          <p className="text-xs leading-4.5 text-muted-foreground">
+                            {t('createTagsNote')}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <label
+                              className={FIELD_LABEL}
+                              htmlFor="recipe-prompt"
+                            >
+                              {t('createPromptLabel')}
+                            </label>
+                            <Textarea
+                              id="recipe-prompt"
+                              value={compiledPrompt}
+                              onChange={(event) =>
+                                setCompiledPrompt(event.target.value)
+                              }
+                              placeholder={t('createPromptPlaceholder')}
+                              className="min-h-40 resize-y rounded-xl text-sm leading-6"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <label
+                                className={FIELD_LABEL}
+                                htmlFor="recipe-model"
+                              >
+                                {t('createModelLabel')}
+                              </label>
+                              <Select
+                                value={modelId}
+                                onValueChange={selectModel}
+                              >
+                                <SelectTrigger
+                                  id="recipe-model"
+                                  className="w-full"
+                                  aria-label={t('createModelLabel')}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {!getModelOption(modelId) && (
+                                    <SelectItem value={modelId}>
+                                      {modelId}
+                                    </SelectItem>
+                                  )}
+                                  {modelChoices.map((option) => (
+                                    <SelectItem
+                                      key={option.id}
+                                      value={option.id}
+                                    >
+                                      {getTranslatedModelLabel(
+                                        tModels,
+                                        option.id,
+                                      )}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label
+                                className={FIELD_LABEL}
+                                htmlFor="recipe-provider"
+                              >
+                                {t('provider')}
+                              </label>
+                              <Input
+                                id="recipe-provider"
+                                value={provider}
+                                onChange={(event) =>
+                                  setProvider(event.target.value)
+                                }
+                                maxLength={100}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label
+                              className={FIELD_LABEL}
+                              htmlFor="recipe-negative"
+                            >
+                              {t('createNegativePromptLabel')}
+                            </label>
+                            <Textarea
+                              id="recipe-negative"
+                              value={negativePrompt}
+                              onChange={(event) =>
+                                setNegativePrompt(event.target.value)
+                              }
+                              placeholder={t('createNegativePromptPlaceholder')}
+                              className="min-h-24 resize-y text-sm leading-6"
+                            />
+                          </div>
+                        </>
                       )}
-                      {MODEL_CHOICES.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {getTranslatedModelLabel(tModels, option.id)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label
-                      className="text-sm font-medium"
-                      htmlFor="recipe-type"
-                    >
-                      {t('createOutputTypeLabel')}
-                    </label>
-                    <Select
-                      value={outputType}
-                      onValueChange={(value) =>
-                        setOutputType(value as PromptTemplateOutputType)
-                      }
-                    >
-                      <SelectTrigger
-                        id="recipe-type"
-                        className="w-full"
-                        aria-label={t('createOutputTypeLabel')}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label
-                      className="text-sm font-medium"
-                      htmlFor="recipe-provider"
-                    >
-                      {t('provider')}
-                    </label>
-                    <Input
-                      id="recipe-provider"
-                      value={provider}
-                      onChange={(event) => setProvider(event.target.value)}
-                      maxLength={100}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    className="text-sm font-medium"
-                    htmlFor="recipe-negative"
-                  >
-                    {t('createNegativePromptLabel')}
-                  </label>
-                  <Textarea
-                    id="recipe-negative"
-                    value={negativePrompt}
-                    onChange={(event) => setNegativePrompt(event.target.value)}
-                    placeholder={t('createNegativePromptPlaceholder')}
-                    className="min-h-24 resize-y text-sm leading-6"
-                  />
-                </div>
-              </div>
+              </motion.div>
             </div>
 
             {formError && (

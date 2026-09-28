@@ -70,6 +70,7 @@ import {
   LORA_BASE_MODELS,
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
+import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
@@ -149,9 +150,12 @@ import {
   buildRecipeLoraSetup,
   readRecipeAspectRatio,
   readRecipeLoraSetup,
+  readRecipeNegativePrompt,
   readRecipeRunnerParameters,
   templateLoraAssetFromUrl,
 } from '@/lib/recipe-lora-setup'
+import { getTagTemplateSource } from '@/lib/recipe-template-kind'
+import { tagPromptTextForLoraBase } from '@/lib/tag-composer'
 import {
   aggregateOftenMountedExtras,
   extraLoraKey,
@@ -1428,8 +1432,27 @@ function GenerateBranch({
   // 权重 · 参数 · 提示词 · 负面原样装好，⛔ 不出图、⛔ 不带种子（回到随机）。挂载栈
   // 整个换掉，触发词的增删交给上面那段同步：旧的那几把从正文里拿掉，新的缺哪段补回
   // 开头，已经在模板正文里的不重写。
+  // 标签台存的与提示词页新建的只换提示词和负面：挂载、底模、参数都不动，正文里原有
+  // 的触发词留着；加过权重的标签按当前底模的写法落。
+  const baseFamily = selectedBase?.family ?? null
   const applyLoraTemplate = useCallback(
     (recipe: RecipeRecord) => {
+      if (getTagTemplateSource(recipe) !== 'lora') {
+        // 还没有底模（挂的 LoRA 家族没有可用底模）：认不认括号不知道，先去掉权重。
+        const weighted = baseFamily
+          ? LORA_PROMPT_DIALECTS[baseFamily].weightedParens
+          : false
+        const tags = tagPromptTextForLoraBase(recipe.compiledPrompt, weighted)
+        const negative = tagPromptTextForLoraBase(
+          readRecipeNegativePrompt(recipe),
+          weighted,
+        )
+        setAppliedRecipe(null)
+        setPrompt((current) => keepPromptTriggers(current, tags))
+        setNegativePrompt(negative)
+        setNegativePromptExpanded(negative.length > 0)
+        return
+      }
       const read = readRecipeLoraSetup(recipe.params)
       const base =
         LORA_BASE_MODELS.find((entry) => entry.id === read?.baseId) ??
@@ -1483,7 +1506,7 @@ function GenerateBranch({
       setRunnerSeed('')
       setSeed(undefined)
     },
-    [stack],
+    [baseFamily, keepPromptTriggers, stack],
   )
   const templateParam = replaySearchParams.get('template')
   const appliedTemplateRef = useRef<string | null>(null)

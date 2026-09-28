@@ -653,7 +653,11 @@ describe('listRecipeSummaries', () => {
       }),
     )
     expect(mockCount).not.toHaveBeenCalled()
-    expect(result[0]).toMatchObject({ templateKind: 'IMAGE', lora: null })
+    expect(result[0]).toMatchObject({
+      templateKind: 'IMAGE',
+      tagSource: null,
+      lora: null,
+    })
     // 没有旧存的 LoRA 要补名字 → ⛔ 多查一次库。
     expect(mockLoraAssetFindMany).not.toHaveBeenCalled()
   })
@@ -717,14 +721,16 @@ describe('listRecipeSummaries', () => {
     const [fresh, legacy] = await listRecipeSummaries('clerk_test_user', 1, 20)
 
     expect(fresh).toMatchObject({
-      templateKind: 'LORA',
+      templateKind: 'TAGS',
+      tagSource: 'lora',
       lora: {
         baseId: 'illustrious-runner',
         items: [{ name: '祀 (Sue)', scale: 0.9 }],
       },
     })
     expect(legacy).toMatchObject({
-      templateKind: 'LORA',
+      templateKind: 'TAGS',
+      tagSource: 'lora',
       lora: {
         baseId: null,
         items: [

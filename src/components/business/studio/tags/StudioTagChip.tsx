@@ -22,6 +22,11 @@ import type { TagChip } from '@/types/tag-composer'
 
 interface StudioTagChipProps {
   chip: TagChip
+  /**
+   * `bench` = 标签台的描边格（缺省）；`plain` = 浅底等宽格（提示词页的标签模板，
+   * 与卡片、详情里那一墙同一个样子）。
+   */
+  look?: 'bench' | 'plain'
   /** 刚加进来的这一格：落进来时放大一下、浅底褪掉（查资料 B 动效表）。 */
   landing?: boolean
   disabled?: boolean
@@ -40,6 +45,7 @@ interface StudioTagChipProps {
  */
 export function StudioTagChip({
   chip,
+  look = 'bench',
   landing,
   disabled,
   onChange,
@@ -55,8 +61,13 @@ export function StudioTagChip({
     <span
       className={cn(
         // `min-w-0`：否则最小宽度 = 整段字宽，压过 `max-w-full`，截断不生效。
-        'inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-2xs',
-        weighted ? 'border-foreground/40' : 'border-border',
+        'inline-flex min-w-0 max-w-full items-center gap-1 rounded-md pr-1',
+        look === 'plain'
+          ? 'h-5.5 bg-muted pl-1.75 font-mono text-xs'
+          : cn(
+              'h-6 border bg-background pl-2 text-2xs',
+              weighted ? 'border-foreground/40' : 'border-border',
+            ),
         landing && 'animate-tag-land motion-reduce:animate-none',
       )}
     >
@@ -135,7 +146,10 @@ export function StudioTagChip({
         disabled={disabled}
         aria-label={t('removeTag', { tag: chip.text })}
         onClick={onRemove}
-        className="grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+        className={cn(
+          'grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none',
+          look === 'plain' ? 'hover:bg-background' : 'hover:bg-muted',
+        )}
       >
         <X className="size-2.5" />
       </button>

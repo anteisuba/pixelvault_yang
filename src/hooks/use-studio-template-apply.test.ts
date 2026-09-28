@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RecipeRecord } from '@/types'
@@ -8,7 +8,26 @@ const mocks = vi.hoisted(() => ({
   applyRecipe: vi.fn(),
   applyTagTemplate: vi.fn(),
   dialect: 'natural' as 'natural' | 'tags',
+  search: '',
+  replace: vi.fn(),
+  getRecipe: vi.fn(),
+  toastError: vi.fn(),
 }))
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(mocks.search),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ replace: mocks.replace }),
+  usePathname: () => '/studio/image/tags',
+}))
+vi.mock('@/lib/api-client/recipes', () => ({
+  getRecipeAPI: (...args: unknown[]) => mocks.getRecipe(...args),
+}))
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
@@ -47,6 +66,7 @@ describe('模板套用 + 撤销', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.dialect = 'natural'
+    mocks.search = ''
   })
 
   it('自然语言台：套上之后能按快照原样撤回', () => {
@@ -116,5 +136,41 @@ describe('模板套用 + 撤销', () => {
     act(() => result.current.dismiss())
     act(() => result.current.undo())
     expect(mocks.dispatch).not.toHaveBeenCalled()
+  })
+
+  /**
+   * 提示词页「使用 → 用在标签台」带 `?template=` 过来（pages/prompts.md）：取回来照这一台
+   * 的套用走（带撤销），装一次就拿掉参数；方言还没切到标签台时先不套。
+   */
+  it('标签台带 ?template=：取回来套上、出撤销条，参数拿掉', async () => {
+    mocks.dialect = 'tags'
+    mocks.search = 'template=r9&x=1'
+    const recipe = { ...RECIPE, id: 'r9', name: '雨夜 · 撑伞' }
+    mocks.getRecipe.mockResolvedValue({ success: true, data: recipe })
+
+    const { result } = renderHook(() => useStudioTemplateApply([]))
+
+    await waitFor(() =>
+      expect(mocks.applyTagTemplate).toHaveBeenCalledWith(recipe),
+    )
+    expect(mocks.getRecipe).toHaveBeenCalledWith('r9')
+    expect(mocks.replace).toHaveBeenCalledWith('/studio/image/tags?x=1', {
+      scroll: false,
+    })
+    expect(result.current.appliedName).toBe('雨夜 · 撑伞')
+  })
+
+  it('自然语言台不接 ?template=；取不回来就说一句', async () => {
+    mocks.search = 'template=r9'
+    const { rerender } = renderHook(() => useStudioTemplateApply([]))
+    expect(mocks.getRecipe).not.toHaveBeenCalled()
+
+    mocks.dialect = 'tags'
+    mocks.getRecipe.mockResolvedValue({ success: false, error: 'Not found' })
+    rerender()
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith('loadFailed'),
+    )
+    expect(mocks.applyTagTemplate).not.toHaveBeenCalled()
   })
 })

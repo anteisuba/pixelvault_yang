@@ -10,6 +10,17 @@ import type { PromptTagSearchResult } from '@/types/prompt-tags'
 /** 浮层上限 `max-h-60`（240）加一点余量：下面不够这么高就往上开。 */
 const SUGGESTIONS_FLIP_PX = 260
 
+/** 联想浮层身上的标记：模态弹窗据此不把点联想当成「点外面」。 */
+export const TAG_SUGGESTIONS_ATTR = 'data-tag-suggestions'
+
+/** 这一下点在标签联想上（弹窗的 `onPointerDownOutside` 用）。 */
+export function isTagSuggestionsTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest(`[${TAG_SUGGESTIONS_ATTR}]`) !== null
+  )
+}
+
 interface StudioTagSuggestionsProps {
   /** 锚点 —— 补全浮层贴着这一块的下沿。 */
   anchorRef: RefObject<HTMLElement | null>
@@ -65,12 +76,18 @@ export function StudioTagSuggestions({
     ? { bottom: window.innerHeight - rect.top + 4 }
     : { top: rect.bottom + 4 }
 
+  /**
+   * ⚠ 在模态弹窗里（提示词页新建 / 编辑标签模板）：Radix 把 body 设成不接指针、点弹窗
+   *   外面就关 —— 这一层挂在 body 上，所以自己接回指针（`pointer-events-auto`），并留一个
+   *   标记让弹窗认出「点的是联想」（`TAG_SUGGESTIONS_ATTR`）。
+   */
   return createPortal(
     <ul
       id={listId}
       role="listbox"
+      {...{ [TAG_SUGGESTIONS_ATTR]: '' }}
       style={{ ...placement, left: rect.left, width: rect.width }}
-      className="fixed z-50 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
+      className="pointer-events-auto fixed z-50 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
     >
       {results.map((result, index) => {
         const tier = getPromptTagPopularityTier(result.tag.popularity)

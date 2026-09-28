@@ -8,10 +8,12 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { StudioTagChip } from '@/components/business/studio/tags/StudioTagChip'
 import { StudioTagSuggestions } from '@/components/business/studio/tags/StudioTagSuggestions'
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
   PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH,
   PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT,
@@ -38,8 +40,10 @@ interface StudioTagChipFieldProps {
    * `stacked` = 标题在上 + 一个描边框（参数栏 / 手机，缺省）。
    * `inline` = 标题在左、格子直接排在输入框卡里，⛔ 不再套一个框（桌面底部输入框，
    * owner 2026-09-26 原型）。
+   * `form` = 弹窗表单里（提示词页新建 / 编辑标签模板，画板 `TgA_New`）：标题同表单
+   * 别的栏、格子浅底等宽，正向那一栏高一些。
    */
-  variant?: 'stacked' | 'inline'
+  variant?: 'stacked' | 'inline' | 'form'
   /** 格子底下那行状态（带过来的那一句正在翻成标签…）。 */
   status?: ReactNode
 }
@@ -64,6 +68,7 @@ export function StudioTagChipField({
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
   const tModels = useTranslations('Models')
+  const reducedMotion = useReducedMotion()
   const boxRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listId = useId()
@@ -83,6 +88,32 @@ export function StudioTagChipField({
     })
   }, [chips])
   const [firstKeys] = useState(() => new Set(chipKeys))
+  /**
+   * 用户亲手删的那一格（× / 退格）才演退场：缩小淡出，后面几格滑过去补位（`TgMotion`）。
+   * 整排被换掉（套用模板 · 撤销）时旧的直接拿掉 —— ⛔ 几十格一起淡出叠在新的上面。
+   */
+  const [removedKey, setRemovedKey] = useState<string | null>(null)
+  const removeAt = (index: number) => {
+    setRemovedKey(chipKeys[index] ?? null)
+    onChange(chips.filter((_, i) => i !== index))
+  }
+  const chipLayout = reducedMotion ? false : ('position' as const)
+  const chipTransition = {
+    layout: { duration: DURATION.base, ease: EASE_STANDARD },
+  }
+  const chipExit = (own: boolean) =>
+    !own
+      ? { opacity: 0, transition: { duration: 0 } }
+      : reducedMotion
+        ? {
+            opacity: 0,
+            transition: { duration: DURATION.fast, ease: 'linear' as const },
+          }
+        : {
+            opacity: 0,
+            scale: 0.9,
+            transition: { duration: DURATION.fast, ease: EASE_STANDARD },
+          }
 
   const parsedModel = NovelAiTagModelSchema.safeParse(modelId)
   const novelAiModel = parsedModel.success ? parsedModel.data : undefined
@@ -179,11 +210,12 @@ export function StudioTagChipField({
     // 空输入框上退格 = 删掉最后一格。有字时让它做本职工作。
     if (event.key === 'Backspace' && draft.length === 0 && chips.length > 0) {
       event.preventDefault()
-      onChange(chips.slice(0, -1))
+      removeAt(chips.length - 1)
     }
   }
 
   const inline = variant === 'inline'
+  const form = variant === 'form'
 
   return (
     <div
@@ -200,8 +232,21 @@ export function StudioTagChipField({
         </span>
       ) : (
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-2xs font-medium">{label}</span>
-          <span className="truncate text-3xs text-muted-foreground">
+          <span
+            className={
+              form
+                ? 'text-xs font-semibold text-muted-foreground'
+                : 'text-2xs font-medium'
+            }
+          >
+            {label}
+          </span>
+          <span
+            className={cn(
+              'truncate text-muted-foreground',
+              form ? 'text-2xs' : 'text-3xs',
+            )}
+          >
             {note ?? t('tagCount', { count: chips.length })}
           </span>
         </div>
@@ -216,32 +261,59 @@ export function StudioTagChipField({
           // ⚠ `contain-inline-size`：一颗超长的格（自然语言整段带过来）的最小内容
           //   宽度会沿 flex 链一路往上传，把整个工作台撑出视口（owner 2026-09-26
           //   报）。这一栏的宽度只听外面的，里面再长也只在栏内截断。
+          // `relative`：删掉的那一格退场时脱开排版（popLayout），按这一块定位。
           className={cn(
-            'contain-inline-size',
+            'relative contain-inline-size',
             inline
               ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
-              : cn(
-                  'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
-                  focused
-                    ? 'border-primary/40 ring-2 ring-primary/10'
-                    : 'border-border',
-                ),
+              : form
+                ? cn(
+                    'flex max-h-48 flex-wrap content-start gap-1 overflow-y-auto rounded-xl border bg-background p-2 transition-colors duration-fast ease-standard',
+                    polarity === 'positive' ? 'min-h-28' : 'min-h-16',
+                    focused ? 'border-foreground' : 'border-border',
+                  )
+                : cn(
+                    'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
+                    focused
+                      ? 'border-primary/40 ring-2 ring-primary/10'
+                      : 'border-border',
+                  ),
             disabled && 'pointer-events-none opacity-50',
           )}
         >
-          {chips.map((chip, index) => (
-            <StudioTagChip
-              key={chipKeys[index]}
-              landing={!firstKeys.has(chipKeys[index]!)}
-              chip={chip}
-              disabled={disabled}
-              onChange={(next) =>
-                onChange(chips.map((item, i) => (i === index ? next : item)))
-              }
-              onRemove={() => onChange(chips.filter((_, i) => i !== index))}
-            />
-          ))}
-          <input
+          <AnimatePresence initial={false} mode="popLayout" custom={removedKey}>
+            {chips.map((chip, index) => {
+              const key = chipKeys[index]!
+              return (
+                <motion.span
+                  key={key}
+                  layout={chipLayout}
+                  transition={chipTransition}
+                  variants={{
+                    exit: (removed: string | null) => chipExit(removed === key),
+                  }}
+                  exit="exit"
+                  className="inline-flex min-w-0 max-w-full"
+                >
+                  <StudioTagChip
+                    look={form ? 'plain' : 'bench'}
+                    landing={!firstKeys.has(key)}
+                    chip={chip}
+                    disabled={disabled}
+                    onChange={(next) =>
+                      onChange(
+                        chips.map((item, i) => (i === index ? next : item)),
+                      )
+                    }
+                    onRemove={() => removeAt(index)}
+                  />
+                </motion.span>
+              )
+            })}
+          </AnimatePresence>
+          <motion.input
+            layout={chipLayout}
+            transition={chipTransition}
             ref={inputRef}
             data-tag-polarity={polarity}
             value={draft}
@@ -278,7 +350,8 @@ export function StudioTagChipField({
             onKeyDown={handleKeyDown}
             // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
             className={cn(
-              'min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs',
+              'min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60',
+              form ? 'h-5.5 font-mono md:text-xs' : 'md:text-2xs',
               inline && 'h-8',
             )}
           />

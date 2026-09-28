@@ -36,8 +36,12 @@ import {
   loraTemplateFallbackName,
   readRecipeAspectRatio,
   readRecipeLoraSetup,
+  readRecipeNegativePrompt,
+  readRecipeNovelAiCharacters,
   readRecipeRunnerParameters,
+  withRecipeNegativePrompt,
 } from '@/lib/recipe-lora-setup'
+import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { cn } from '@/lib/utils'
 import type {
   CreateRecipeRequest,
@@ -71,9 +75,15 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { CopyPromptButton } from './CopyPromptButton'
-import { PromptTemplateKindBadge } from './PromptTemplateKindBadge'
+import {
+  PromptTemplateKindBadge,
+  PromptTemplateSourceMark,
+} from './PromptTemplateKindBadge'
 import type { PromptTemplateListItem } from './PromptTemplateList'
+import { PromptTemplateTagChips } from './PromptTemplateTagChips'
+import { PromptTemplateUseMenu } from './PromptTemplateUseMenu'
 
 interface PromptTemplateDetailPageProps {
   recipe: PromptTemplateListItem
@@ -100,7 +110,8 @@ const box =
 
 /**
  * 提示词页 A 的详情（pages/prompts.md）：一整页从下往上升盖住网格（同 LoRA 库 B 的
- * 详情页），⛔ 弹窗。左边这一套出过的作品，右边一条窄栏；LoRA 模板多「搭配」与「参数」。
+ * 详情页），⛔ 弹窗。左边这一套出过的作品，右边一条窄栏；标签模板把标签、负面、各角色
+ * 画成一墙一墙的格子（画板 `TgA_Use`），LoRA 台存的先放「搭配」与「参数」。
  */
 export function PromptTemplateDetailPage({
   recipe,
@@ -172,8 +183,12 @@ export function PromptTemplateDetailPage({
 
   const title = (detail?.name ?? recipe.name) || modelLabel(recipe)
   const compiledPrompt = detail?.compiledPrompt ?? recipe.compiledPrompt
-  const negativePrompt = detail?.negativePrompt?.trim() ?? ''
-  const isLora = recipe.templateKind === 'LORA'
+  const negativePrompt = detail ? readRecipeNegativePrompt(detail) : ''
+  const source = recipe.tagSource
+  const isLora = source === 'lora'
+  /** 标签台存的与这里新建的：编辑时用格子；LoRA 台存的原文送回 LoRA 台，仍是原文框。 */
+  const editsAsChips = source === 'tags' || source === 'prompts'
+  const characters = detail ? readRecipeNovelAiCharacters(detail.params) : []
   const visibility = detail?.visibility ?? recipe.visibility
   const isPublic = visibility === RECIPE_VISIBILITY.PUBLIC
   const date = new Intl.DateTimeFormat(locale, {
@@ -231,7 +246,7 @@ export function PromptTemplateDetailPage({
     setDraft({
       name: detail?.name ?? recipe.name,
       compiledPrompt,
-      negativePrompt: detail?.negativePrompt ?? '',
+      negativePrompt,
       modelId: detail?.modelId ?? recipe.modelId,
     })
     setFormError(null)
@@ -257,17 +272,22 @@ export function PromptTemplateDetailPage({
       return
     }
     const option = MODEL_OPTIONS.find((entry) => entry.id === draft.modelId)
+    const negative = draft.negativePrompt.trim()
     const payload: CreateRecipeRequest = {
       name,
       outputType: detail.outputType,
       compiledPrompt: prompt,
-      negativePrompt: draft.negativePrompt.trim() || undefined,
+      negativePrompt: negative || undefined,
       modelId: draft.modelId,
       provider:
         draft.modelId !== detail.modelId && option
           ? getDefaultProviderConfig(option.adapterType).label
           : detail.provider,
       parentGenerationId: detail.parentGenerationId ?? undefined,
+      // 标签台存的整组套用时读参数里那一份负面：两处一起改。
+      ...(source === 'tags'
+        ? { params: withRecipeNegativePrompt(detail.params, negative) }
+        : {}),
     }
     setSaving(true)
     setFormError(null)
@@ -329,13 +349,16 @@ export function PromptTemplateDetailPage({
     }
   }
 
-  const useTemplate = () => {
+  const startUsing = (destination?: 'tags' | 'lora') => {
     if (
-      openTemplate({
-        id: recipe.id,
-        templateKind: recipe.templateKind,
-        compiledPrompt,
-      })
+      openTemplate(
+        {
+          id: recipe.id,
+          templateKind: recipe.templateKind,
+          compiledPrompt,
+        },
+        destination,
+      )
     ) {
       onUsed()
       return
@@ -381,6 +404,7 @@ export function PromptTemplateDetailPage({
           </h2>
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <PromptTemplateKindBadge kind={recipe.templateKind} />
+            {source ? <PromptTemplateSourceMark source={source} /> : null}
             {isPublic ? (
               <span className="inline-flex shrink-0 items-center gap-1">
                 <Globe aria-hidden className="size-3" />
@@ -388,27 +412,39 @@ export function PromptTemplateDetailPage({
               </span>
             ) : null}
             <span className="truncate font-mono">
-              {t('templateMeta', {
-                model: modelLabel(recipe),
-                version: detail?.version ?? recipe.version,
-              })}{' '}
+              {source === 'prompts'
+                ? t('templateMetaVersion', {
+                    version: detail?.version ?? recipe.version,
+                  })
+                : t('templateMeta', {
+                    model: modelLabel(recipe),
+                    version: detail?.version ?? recipe.version,
+                  })}{' '}
               · {date}
             </span>
           </div>
         </div>
         {editing ? null : (
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Button
-              type="button"
-              onClick={useTemplate}
-              className={cn(pill, 'px-4 font-semibold')}
-            >
-              {t('useAction')}
-            </Button>
+            {source ? (
+              <PromptTemplateUseMenu
+                source={source}
+                onUse={startUsing}
+                triggerClassName={cn(pill, 'px-4 font-semibold')}
+              />
+            ) : (
+              <Button
+                type="button"
+                onClick={() => startUsing()}
+                className={cn(pill, 'px-4 font-semibold')}
+              >
+                {t('useAction')}
+              </Button>
+            )}
             <CopyPromptButton
               quiet
               prompt={compiledPrompt}
-              label={t('copyPromptAction')}
+              label={source ? t('copyTagsAction') : t('copyPromptAction')}
               className={pill}
             />
             <Button
@@ -546,7 +582,9 @@ export function PromptTemplateDetailPage({
                 void saveChanges()
               }}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') cancelEditing()
+                // 格子输入框先用 Esc 收起联想（它会 preventDefault），那一下不算取消。
+                if (event.key === 'Escape' && !event.defaultPrevented)
+                  cancelEditing()
               }}
             >
               <label className="flex flex-col gap-2">
@@ -559,29 +597,67 @@ export function PromptTemplateDetailPage({
                   }
                 />
               </label>
-              <label className="flex flex-col gap-2">
-                <span className={blockTitle}>{t('detailPrompt')}</span>
-                <Textarea
-                  value={draft.compiledPrompt}
-                  onChange={(event) =>
-                    setDraft({ ...draft, compiledPrompt: event.target.value })
-                  }
-                  className="min-h-40 resize-y rounded-xl font-mono text-2sm leading-5"
-                />
-              </label>
-              <label className="flex flex-col gap-2">
-                <span className={blockTitle}>{t('detailNegative')}</span>
-                <Textarea
-                  value={draft.negativePrompt}
-                  onChange={(event) =>
-                    setDraft({ ...draft, negativePrompt: event.target.value })
-                  }
-                  placeholder={t('createNegativePromptPlaceholder')}
-                  className="min-h-24 resize-y rounded-xl font-mono text-2sm leading-5"
-                />
-              </label>
-              {/* LoRA 模板的模型是它的底模，改法在 LoRA 台；别的模板在这里换模型。 */}
-              {isLora ? null : (
+              {editsAsChips ? (
+                <>
+                  <StudioTagChipField
+                    variant="form"
+                    label={t('tagsLabel')}
+                    note={t('tagsNote')}
+                    polarity="positive"
+                    chips={parseTagChips(draft.compiledPrompt)}
+                    onChange={(chips) =>
+                      setDraft({
+                        ...draft,
+                        compiledPrompt: serializeTagChips(chips),
+                      })
+                    }
+                  />
+                  <StudioTagChipField
+                    variant="form"
+                    label={t('negativeTagsLabel')}
+                    polarity="negative"
+                    chips={parseTagChips(draft.negativePrompt)}
+                    onChange={(chips) =>
+                      setDraft({
+                        ...draft,
+                        negativePrompt: serializeTagChips(chips),
+                      })
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <label className="flex flex-col gap-2">
+                    <span className={blockTitle}>{t('detailPrompt')}</span>
+                    <Textarea
+                      value={draft.compiledPrompt}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          compiledPrompt: event.target.value,
+                        })
+                      }
+                      className="min-h-40 resize-y rounded-xl font-mono text-2sm leading-5"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-2">
+                    <span className={blockTitle}>{t('detailNegative')}</span>
+                    <Textarea
+                      value={draft.negativePrompt}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          negativePrompt: event.target.value,
+                        })
+                      }
+                      placeholder={t('createNegativePromptPlaceholder')}
+                      className="min-h-24 resize-y rounded-xl font-mono text-2sm leading-5"
+                    />
+                  </label>
+                </>
+              )}
+              {/* 标签模板没有要换的模型（LoRA 台存的是它的底模，改法在 LoRA 台）；别的模板在这里换。 */}
+              {source ? null : (
                 <label className="flex flex-col gap-2">
                   <span className={blockTitle}>{t('detailModel')}</span>
                   <Select
@@ -633,7 +709,7 @@ export function PromptTemplateDetailPage({
                 </Button>
               </div>
             </form>
-          ) : (
+          ) : source ? (
             <>
               {isLora && loraMix ? (
                 <section>
@@ -666,14 +742,53 @@ export function PromptTemplateDetailPage({
                     <div className="h-11 animate-pulse rounded-xl bg-muted" />
                   )}
                 </section>
-              ) : (
-                <section>
-                  <h3 className={blockTitle}>{t('detailModel')}</h3>
-                  <p className="text-2sm text-foreground">
-                    {modelLabel(recipe)}
+              ) : null}
+              <section>
+                <h3 className={blockTitle}>
+                  {t('detailTagsCount', {
+                    count: parseTagChips(compiledPrompt).length,
+                  })}
+                </h3>
+                <PromptTemplateTagChips text={compiledPrompt} />
+              </section>
+              <section>
+                <h3 className={blockTitle}>
+                  {loadState === 'loading'
+                    ? t('detailNegative')
+                    : t('detailNegativeCount', {
+                        count: parseTagChips(negativePrompt).length,
+                      })}
+                </h3>
+                {loadState === 'loading' ? (
+                  <div className="h-11 animate-pulse rounded-xl bg-muted" />
+                ) : negativePrompt ? (
+                  <PromptTemplateTagChips text={negativePrompt} negative />
+                ) : (
+                  <p className="text-2sm text-muted-foreground">
+                    {t('detailNoNegative')}
                   </p>
+                )}
+              </section>
+              {characters.map((text, index) => (
+                <section key={index}>
+                  <h3 className={blockTitle}>
+                    {t('detailCharacter', { n: index + 1 })}
+                  </h3>
+                  <PromptTemplateTagChips text={text} />
                 </section>
-              )}
+              ))}
+              {formError ? (
+                <p role="alert" className="text-2sm text-destructive">
+                  {formError}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <section>
+                <h3 className={blockTitle}>{t('detailModel')}</h3>
+                <p className="text-2sm text-foreground">{modelLabel(recipe)}</p>
+              </section>
               <section>
                 <h3 className={blockTitle}>{t('detailPrompt')}</h3>
                 <p className={box}>{compiledPrompt}</p>
@@ -690,11 +805,6 @@ export function PromptTemplateDetailPage({
                   </p>
                 )}
               </section>
-              {isLora ? (
-                <p className="text-xs leading-4.5 text-muted-foreground">
-                  {t('loraUseNote')}
-                </p>
-              ) : null}
               {formError ? (
                 <p role="alert" className="text-2sm text-destructive">
                   {formError}

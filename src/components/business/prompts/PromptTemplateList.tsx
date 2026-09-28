@@ -13,14 +13,22 @@ import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-l
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import type { RecipeTemplateKind } from '@/lib/recipe-template-kind'
+import type {
+  RecipeTemplateKind,
+  TagTemplateSource,
+} from '@/lib/recipe-template-kind'
 import { cn } from '@/lib/utils'
 import type { OutputType } from '@/types'
 import { Button } from '@/components/ui/button'
 import { CopyPromptButton } from './CopyPromptButton'
 import { PromptFilterMenu } from './PromptFilterMenu'
 import { PromptTemplateDetailPage } from './PromptTemplateDetailPage'
-import { PromptTemplateKindBadge } from './PromptTemplateKindBadge'
+import {
+  PromptTemplateKindBadge,
+  PromptTemplateSourceMark,
+} from './PromptTemplateKindBadge'
+import { PromptTemplateTagChips } from './PromptTemplateTagChips'
+import { PromptTemplateUseMenu } from './PromptTemplateUseMenu'
 
 /** 卡片上那一行「名字 权重」（旧存的补不到名字就是 `null`）。 */
 export interface PromptTemplateLoraMix {
@@ -41,20 +49,28 @@ export interface PromptTemplateListItem {
   /** First image generated with this template (cover). Null → text fallback. */
   coverThumbnailUrl?: string | null
   templateKind: RecipeTemplateKind
+  /** 标签模板从哪来；别的模板 `null`。 */
+  tagSource: TagTemplateSource | null
   lora: PromptTemplateLoraMix | null
   lastUsedAt: string | null
 }
+
+/** 卡片上的标签只画前几格，多的写「+N」（画板 `TgA`）。 */
+const CARD_TAG_LIMIT = 7
 
 interface PromptTemplateListProps {
   locale: AppLocale
   recipes: PromptTemplateListItem[]
 }
 
-/** 四格类型（pages/prompts.md）：⛔ 音频那一格去掉，音频模板只在「全部」里。 */
-type TypeFilter = 'ALL' | 'IMAGE' | 'VIDEO' | 'LORA'
+/**
+ * 四格类型（pages/prompts.md）：⛔ 音频那一格去掉，音频模板只在「全部」里；标签台、
+ * LoRA 台存的与这里新建的标签模板合成「标签」一格。
+ */
+type TypeFilter = 'ALL' | 'IMAGE' | 'VIDEO' | 'TAGS'
 type SortMode = 'recent' | 'created'
 
-const TYPE_FILTERS: readonly TypeFilter[] = ['ALL', 'IMAGE', 'VIDEO', 'LORA']
+const TYPE_FILTERS: readonly TypeFilter[] = ['ALL', 'IMAGE', 'VIDEO', 'TAGS']
 
 function byCreated(a: PromptTemplateListItem, b: PromptTemplateListItem) {
   return b.createdAt.localeCompare(a.createdAt)
@@ -94,8 +110,8 @@ export function PromptTemplateList({
     (type: TypeFilter) =>
       type === 'ALL'
         ? t('typeFilterAll')
-        : type === 'LORA'
-          ? t('typeLora')
+        : type === 'TAGS'
+          ? t('typeTags')
           : t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type]),
     [t],
   )
@@ -216,7 +232,7 @@ export function PromptTemplateList({
               typeFilter={typeFilter}
               typeLabel={typeLabel(typeFilter)}
               hasAny={items.length > 0}
-              hasLora={items.some((recipe) => recipe.templateKind === 'LORA')}
+              hasTags={items.some((recipe) => recipe.templateKind === 'TAGS')}
               onClearQuery={() => setQuery('')}
               onClearType={() => setTypeFilter('ALL')}
             />
@@ -304,14 +320,22 @@ function PromptTemplateCard({
   const modelLabel = usePromptTemplateModelLabel()
   const openTemplate = usePromptTemplateUse()
   const [coverFailed, setCoverFailed] = useState(false)
+  // 「使用」下拉开着时焦点在菜单里：这一行键得留着，菜单才有地方缩回去。
+  const [menuOpen, setMenuOpen] = useState(false)
   const label = modelLabel(recipe)
   const title = recipe.name || label
+  const tags = Boolean(recipe.tagSource)
   const cover =
     recipe.coverThumbnailUrl && !coverFailed ? recipe.coverThumbnailUrl : null
   const date = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
   }).format(new Date(recipe.createdAt))
+  // 在这里新建的标签模板没有模型（库里那一格只为占位），元信息不写它。
+  const meta =
+    recipe.tagSource === 'prompts'
+      ? t('templateMetaVersion', { version: recipe.version })
+      : t('templateMeta', { model: label, version: recipe.version })
 
   return (
     <li className="min-w-0">
@@ -337,6 +361,9 @@ function PromptTemplateCard({
         ) : null}
         <div className="pointer-events-none flex items-center gap-1.5">
           <PromptTemplateKindBadge kind={recipe.templateKind} />
+          {recipe.tagSource ? (
+            <PromptTemplateSourceMark source={recipe.tagSource} />
+          ) : null}
           {recipe.visibility === 'PUBLIC' ? (
             <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground">
               <Globe aria-hidden className="size-3" />
@@ -353,32 +380,54 @@ function PromptTemplateCard({
             className="pointer-events-none"
           />
         ) : null}
-        {cover ? null : (
+        {tags ? (
+          <PromptTemplateTagChips
+            text={recipe.compiledPrompt}
+            limit={CARD_TAG_LIMIT}
+            className="pointer-events-none"
+          />
+        ) : cover ? null : (
           <p className="pointer-events-none line-clamp-5 whitespace-pre-wrap text-2sm leading-5 text-muted-foreground">
             {recipe.compiledPrompt}
           </p>
         )}
         <p className="pointer-events-none mt-auto truncate font-mono text-2xs text-muted-foreground">
-          {t('templateMeta', { model: label, version: recipe.version })} ·{' '}
-          {date}
+          {meta} · {date}
         </p>
-        <div className="relative z-10 flex gap-1.5 opacity-0 transition-opacity duration-fast ease-linear group-focus-within:opacity-100 group-hover:opacity-100 coarse:opacity-100 motion-reduce:transition-none">
+        <div
+          className={cn(
+            'relative z-10 flex gap-1.5 transition-opacity duration-fast ease-linear group-focus-within:opacity-100 group-hover:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
+            menuOpen ? 'opacity-100' : 'opacity-0',
+          )}
+        >
           <CopyPromptButton
             quiet
             prompt={recipe.compiledPrompt}
             label={t('copyShort')}
             className="h-7.5 rounded-full px-3 text-2sm"
           />
-          <Button
-            type="button"
-            className="h-7.5 rounded-full px-3 text-2sm font-semibold"
-            onClick={() => {
-              if (openTemplate(recipe)) onUsed()
-              else toast.error(t('useFailed'))
-            }}
-          >
-            {t('useAction')}
-          </Button>
+          {recipe.tagSource ? (
+            <PromptTemplateUseMenu
+              source={recipe.tagSource}
+              align="start"
+              onOpenChange={setMenuOpen}
+              onUse={(destination) => {
+                if (openTemplate(recipe, destination)) onUsed()
+              }}
+              triggerClassName="h-7.5 rounded-full px-3 text-2sm font-semibold"
+            />
+          ) : (
+            <Button
+              type="button"
+              className="h-7.5 rounded-full px-3 text-2sm font-semibold"
+              onClick={() => {
+                if (openTemplate(recipe)) onUsed()
+                else toast.error(t('useFailed'))
+              }}
+            >
+              {t('useAction')}
+            </Button>
+          )}
         </div>
       </article>
     </li>
@@ -390,37 +439,42 @@ interface PromptTemplateListEmptyProps {
   typeFilter: TypeFilter
   typeLabel: string
   hasAny: boolean
-  hasLora: boolean
+  hasTags: boolean
   onClearQuery: () => void
   onClearType: () => void
 }
 
 /**
- * 搜不到 = 写明是哪个条件没有 + 放宽的出路；一个 LoRA 模板都没有 = 说明它从 LoRA 台
- * 「存成模板」来（pages/prompts.md「空态」）。
+ * 搜不到 = 写明是哪个条件没有 + 放宽的出路；一个标签模板都没有 = 说明它的三个来处
+ * （pages/prompts.md「空态」）。
  */
 function PromptTemplateListEmpty({
   query,
   typeFilter,
   typeLabel,
   hasAny,
-  hasLora,
+  hasTags,
   onClearQuery,
   onClearType,
 }: PromptTemplateListEmptyProps) {
   const t = useTranslations('PromptLibrary')
 
-  if (typeFilter === 'LORA' && !hasLora && !query) {
+  if (typeFilter === 'TAGS' && !hasTags && !query) {
     return (
       <div className="grid min-h-80 place-items-center">
         <div className="flex max-w-md flex-col items-center gap-2.5 text-center">
-          <h4 className="text-base font-semibold">{t('loraEmptyTitle')}</h4>
+          <h4 className="text-base font-semibold">{t('tagsEmptyTitle')}</h4>
           <p className="text-2sm leading-5 text-muted-foreground">
-            {t('loraEmptyDescription')}
+            {t('tagsEmptyDescription')}
           </p>
-          <Button asChild className="mt-1 rounded-full">
-            <Link href={ROUTES.STUDIO_LORA}>{t('openLoraStudio')}</Link>
-          </Button>
+          <div className="mt-1 flex flex-wrap justify-center gap-2">
+            <Button asChild className="rounded-full">
+              <Link href={ROUTES.STUDIO_IMAGE_TAGS}>{t('openTagStudio')}</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href={ROUTES.STUDIO_LORA}>{t('openLoraStudio')}</Link>
+            </Button>
+          </div>
         </div>
       </div>
     )

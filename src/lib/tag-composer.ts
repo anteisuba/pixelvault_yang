@@ -232,6 +232,20 @@ export function translateTagPromptText(
   return translateTagChips(parseTagChips(unifiedText), adapterType)
 }
 
+/**
+ * 存储串 → LoRA 台的写法（标签模板用在 LoRA 台，pages/prompts.md「使用」）：认括号
+ * 权重的底模写成 `(tag:1.2)`，不认的（Flux）去掉权重 —— ⛔ 把 `tag:1.2` 当字送过去。
+ */
+export function tagPromptTextForLoraBase(
+  unifiedText: string,
+  weightedParens: boolean,
+): string {
+  return parseTagChips(unifiedText)
+    .filter((tag) => tag.text.trim().length > 0)
+    .map((tag) => (weightedParens ? toPixAiTag(tag) : tag.text.trim()))
+    .join(', ')
+}
+
 /** 这条配方是不是标签模板（标签台只列它们，自然语言台只列其余的）。 */
 export function isTagTemplateParams(params: unknown): boolean {
   return TagTemplateParamsSchema.safeParse(params).success

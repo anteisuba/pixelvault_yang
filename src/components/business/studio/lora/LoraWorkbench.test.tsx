@@ -1472,6 +1472,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         success: true,
         data: {
           id: 'recipe-1',
+          outputType: 'IMAGE',
           compiledPrompt: 'sue, 1girl, city at dusk',
           negativePrompt: 'worst quality',
           modelId: AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
@@ -1507,6 +1508,42 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       )
       // 只装一次：再渲染也不再去取。
       expect(mockGetRecipe).toHaveBeenCalledTimes(1)
+    })
+
+    it('?template= 标签台存的只换提示词和负面：挂载不动，触发词留着，权重按底模写法', async () => {
+      mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+      mockSearch = 'section=generate&template=nai-1'
+      mockGetRecipe.mockResolvedValue({
+        success: true,
+        data: {
+          id: 'nai-1',
+          outputType: 'IMAGE',
+          compiledPrompt: '1girl, rain:1.2, night',
+          negativePrompt: null,
+          modelId: AI_MODELS.NOVELAI_V45_FULL,
+          params: {
+            promptDialect: 'tags',
+            advancedParams: { negativePrompt: 'lowres, bad hands' },
+          },
+        },
+      })
+
+      render(<LoraWorkbench />)
+
+      await waitFor(() =>
+        expect(promptBox()).toHaveValue('testlora, 1girl, (rain:1.2), night'),
+      )
+      expect(
+        screen.getByPlaceholderText(
+          'LoraWorkbench:generate.negativePromptPlaceholder',
+        ),
+      ).toHaveValue('lowres, bad hands')
+      expect(mockStackClear).not.toHaveBeenCalled()
+      expect(mockStackPush).not.toHaveBeenCalled()
+      expect(mockRouterReplace).toHaveBeenCalledWith(
+        '/studio/lora?section=generate',
+        { scroll: false },
+      )
     })
 
     it('模板打不开（已删）就说一句，台上什么都不动', async () => {

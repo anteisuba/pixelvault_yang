@@ -13,7 +13,9 @@ import {
 } from '@/lib/recipe-lora-setup'
 import {
   getRecipeTemplateKind,
+  getTagTemplateSource,
   type RecipeTemplateKind,
+  type TagTemplateSource,
 } from '@/lib/recipe-template-kind'
 import {
   GenerationSnapshotSchema,
@@ -54,8 +56,10 @@ export interface RecipeLoraSummary {
 export type RecipeSummaryWithCover = RecipeListItem & {
   coverThumbnailUrl: string | null
   lastUsedAt: Date | null
-  /** 四格类型的判据（`getRecipeTemplateKind`）：LoRA 模板是 `LORA`。 */
+  /** 四格类型的判据（`getRecipeTemplateKind`）：三种来处的标签模板都是 `TAGS`。 */
   templateKind: RecipeTemplateKind
+  /** 标签模板从哪来（卡片上那一小格、「使用」换掉什么）；别的模板 `null`。 */
+  tagSource: TagTemplateSource | null
   lora: RecipeLoraSummary | null
 }
 
@@ -574,6 +578,7 @@ export async function listRecipeSummaries(
     coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
     lastUsedAt: recipe.lastUsedAt,
     templateKind: getRecipeTemplateKind(recipe),
+    tagSource: getTagTemplateSource(recipe),
     lora: summarizeRecipeLora(loraReads[index], legacyNames),
   }))
 }

@@ -8,6 +8,7 @@ import {
   parseTagChips,
   serializeTagChips,
   snapTagWeight,
+  tagPromptTextForLoraBase,
   translateTagChips,
   translateTagPromptText,
   wholeSentenceAsTag,
@@ -171,4 +172,16 @@ describe('native NovelAI emphasis groups', () => {
       )
     },
   )
+})
+
+describe('标签模板用在 LoRA 台', () => {
+  it('认括号的底模写成 (tag:1.2)，不认的去掉权重', () => {
+    expect(tagPromptTextForLoraBase('1girl, rain:1.2, night', true)).toBe(
+      '1girl, (rain:1.2), night',
+    )
+    expect(tagPromptTextForLoraBase('1girl, rain:1.2, night', false)).toBe(
+      '1girl, rain, night',
+    )
+    expect(tagPromptTextForLoraBase('', true)).toBe('')
+  })
 })

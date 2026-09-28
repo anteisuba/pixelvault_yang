@@ -28,7 +28,7 @@ import {
   updateRecipeAPI,
 } from '@/lib/api-client/recipes'
 import {
-  getRecipeTemplateKind,
+  getTagTemplateSource,
   matchesRecipeTemplateScope,
 } from '@/lib/recipe-template-kind'
 import { getDefaultTemplateName } from '@/lib/recipe-template-name'
@@ -656,7 +656,7 @@ export function StudioTemplatesPanel({
               {shown.map((recipe, index) => {
                 const menuOpen = menuFor === recipe.id
                 const confirming = confirmDelete === recipe.id
-                const lora = tags && getRecipeTemplateKind(recipe) === 'LORA'
+                const lora = tags && getTagTemplateSource(recipe) === 'lora'
                 const name = recipe.name || recipe.modelId
                 const first = firstBatch?.has(recipe.id) ?? false
                 return (

@@ -5,7 +5,9 @@ import {
   RecipeLoraSetupSchema,
   type LoraAssetRecord,
   type RecipeLoraSetup,
+  type RecipeRecord,
 } from '@/types'
+import { NovelAiCharacterDraftSchema } from '@/types/novelai'
 
 /**
  * LoRA 模板里的整套搭配（pages/prompts.md「LoRA 模板存整套」）。
@@ -93,6 +95,53 @@ export function readRecipeRunnerParameters(
 export function readRecipeAspectRatio(params: unknown): string | null {
   const ratio = asRecord(params)?.aspectRatio
   return typeof ratio === 'string' ? ratio : null
+}
+
+/**
+ * 模板的负面：LoRA 台存的与提示词页新建的在 `negativePrompt` 那一列，标签台存的随
+ * 整组参数走（`advancedParams.negativePrompt`）—— 列里有就用列里的。
+ */
+export function readRecipeNegativePrompt(
+  recipe: Pick<RecipeRecord, 'negativePrompt' | 'params'>,
+): string {
+  const column = recipe.negativePrompt?.trim()
+  if (column) return column
+  const nested = asRecord(
+    asRecord(recipe.params)?.advancedParams,
+  )?.negativePrompt
+  return typeof nested === 'string' ? nested.trim() : ''
+}
+
+/** 标签台存的改了负面：整组参数里那一份一起改（套用时整组换，读的就是它）。 */
+export function withRecipeNegativePrompt(
+  params: unknown,
+  negativePrompt: string,
+): Record<string, unknown> {
+  const record = asRecord(params) ?? {}
+  return {
+    ...record,
+    advancedParams: {
+      ...(asRecord(record.advancedParams) ?? {}),
+      negativePrompt,
+    },
+  }
+}
+
+/**
+ * 标签台存的各角色（有分角色才有）：只要写了标签、没关掉的那几位。按草稿的写法读 ——
+ * 存下来的那一刻可能有一位还空着，⛔ 为它整组读不出来。
+ */
+export function readRecipeNovelAiCharacters(params: unknown): string[] {
+  const layout = NovelAiCharacterDraftSchema.safeParse(
+    asRecord(asRecord(params)?.advancedParams)?.novelAiLayout,
+  )
+  if (!layout.success) return []
+  return layout.data.characters
+    .filter(
+      (character) =>
+        character.enabled !== false && character.prompt.trim().length > 0,
+    )
+    .map((character) => character.prompt)
 }
 
 /**

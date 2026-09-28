@@ -172,6 +172,7 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
             createdAt: recipe.createdAt.toISOString(),
             coverThumbnailUrl: recipe.coverThumbnailUrl,
             templateKind: recipe.templateKind,
+            tagSource: recipe.tagSource,
             lora: recipe.lora,
             lastUsedAt: recipe.lastUsedAt?.toISOString() ?? null,
           }))}

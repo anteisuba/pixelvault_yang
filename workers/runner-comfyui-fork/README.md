@@ -219,6 +219,12 @@ python qwen_workflow.py --prompt '把 <image1> 的杯子改成蓝色，保留文
 `RUNNER_LORA_DL_TIMEOUT` / `RUNNER_CACHE_RESERVE_BYTES`（默认保留 8GiB 空闲）/
 `RUNNER_CACHE_MANIFEST_PATH` / `RUNNER_DOWNLOAD_HISTORY_PATH`。
 
+⚠ **`RUNNER_VOLUME_QUOTA_BYTES` 必须配**，值 = RunPod 上 Volume 开的容量（现 150GB →
+`150000000000`，扩容时同步改）。网络卷的配额从文件系统报的剩余量里看不出来：2026-09-27
+80G 写满时文件系统仍报有余量，LRU 一次没清，下载撞 `[Errno 122] Disk quota exceeded`。配了它，
+LRU 按「配额 − 卷上实际文件大小」判断要不要清；写盘仍撞配额时报 `Runner volume has insufficient
+free space`，app 归到「Runner 存储已满」。
+
 缓存 LRU **只删** PixelVault 动态命名的 `civitai-*`、`hf-*` LoRA 和 `civitai-ckpt-*`
 checkpoint，不碰手工放入或预置的模型。每次下载完成后原子更新
 `/runpod-volume/pixelvault-cache-manifest.json`，事件追加到

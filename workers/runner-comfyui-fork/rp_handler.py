@@ -35,6 +35,7 @@ job 交给官方 handler 之前：
 """
 
 import base64
+import errno
 import hashlib
 import importlib.util
 import os
@@ -207,6 +208,7 @@ def _download_to(
                 CHECKPOINT_DIR,
                 DIFFUSION_MODELS_DIR,
                 protected_paths=protected_paths,
+                volume_root=VOLUME_ROOT,
             )
             for path in evicted:
                 print(f"[runner-fork] evicted LRU cache file {path}", flush=True)
@@ -216,10 +218,20 @@ def _download_to(
                     source="runner",
                     path=path,
                 )
-            with open(tmp, "wb") as fh:
-                for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        fh.write(chunk)
+            try:
+                with open(tmp, "wb") as fh:
+                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            fh.write(chunk)
+            except OSError as error:
+                # 卷配额写满（EDQUOT）或盘满：说成「存储满」，app 据此归类，别让它落到
+                # 「quota exceeded」→ 服务商余额不足那条通用规则上（2026-09-27 生产实见）。
+                if error.errno in (errno.EDQUOT, errno.ENOSPC):
+                    raise RuntimeError(
+                        "Runner volume has insufficient free space "
+                        f"(disk quota exceeded while writing {os.path.basename(dest)!r})"
+                    ) from error
+                raise
         if expected_sha256:
             _verify_sha256(tmp, expected_sha256)
         os.replace(tmp, dest)

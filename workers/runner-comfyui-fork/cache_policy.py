@@ -7,6 +7,23 @@ import shutil
 DEFAULT_RESERVE_BYTES = 8 * 1024 * 1024 * 1024
 
 
+def volume_used_bytes(volume_root):
+    """网络卷上所有文件的实际大小之和。
+
+    RunPod 网络卷的配额（开的是多少 GB）从文件系统报的剩余量里看不出来——2026-09-27
+    生产上 80G 配额写满时 `shutil.disk_usage` 仍报有余量，LRU 一次都没清，下载写到一半撞
+    `[Errno 122] Disk quota exceeded`。所以配额按卷上实际文件算。
+    """
+    total = 0
+    for root, _dirs, files in os.walk(volume_root):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                continue
+    return total
+
+
 def _managed_in_dir(path, root, prefixes):
     try:
         relative = os.path.relpath(path, root)
@@ -51,16 +68,27 @@ def ensure_cache_capacity(
     protected_paths=(),
     reserve_bytes=None,
     disk_usage_fn=shutil.disk_usage,
+    quota_bytes=None,
+    volume_root=None,
+    used_bytes_fn=volume_used_bytes,
 ):
-    """Evict oldest managed files until download + free-space reserve fit."""
+    """Evict oldest managed files until download + free-space reserve fit.
+
+    配了卷配额（`RUNNER_VOLUME_QUOTA_BYTES`，与 RunPod 上开的容量一致）就按「配额 − 卷上
+    实际文件大小」算剩余，和文件系统报的剩余取小者；没配则只看文件系统。
+    """
     reserve = (
         int(os.environ.get("RUNNER_CACHE_RESERVE_BYTES", DEFAULT_RESERVE_BYTES))
         if reserve_bytes is None
         else reserve_bytes
     )
-    usage = disk_usage_fn(os.path.dirname(destination) or destination)
+    if quota_bytes is None:
+        quota_bytes = int(os.environ.get("RUNNER_VOLUME_QUOTA_BYTES") or 0) or None
+    free = disk_usage_fn(os.path.dirname(destination) or destination).free
+    if quota_bytes and volume_root:
+        free = min(free, max(0, quota_bytes - used_bytes_fn(volume_root)))
     required = max(0, int(incoming_bytes or 0)) + max(0, int(reserve))
-    if usage.free >= required:
+    if free >= required:
         return []
 
     protected = {os.path.abspath(path) for path in protected_paths}
@@ -72,7 +100,7 @@ def ensure_cache_capacity(
     ]
     candidates.sort(key=lambda path: os.stat(path).st_mtime)
 
-    available = usage.free
+    available = free
     evicted = []
     for path in candidates:
         size = os.path.getsize(path)

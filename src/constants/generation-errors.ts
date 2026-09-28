@@ -211,8 +211,11 @@ const ERROR_PATTERNS: Array<{
     pattern: /SHA-256 mismatch/i,
     code: GENERATION_ERROR_CODES.RUNNER_DOWNLOAD_MISMATCH,
   },
+  // ⚠ 必须排在下面「quota…exceeded → 服务商余额不足」之前：2026-09-27 生产上 Runner 卷配额
+  // 写满，fork 原话 `[Errno 122] Disk quota exceeded` 被那条规则说成「Agent Key 余额不足」。
   {
-    pattern: /Runner volume has insufficient free space/i,
+    pattern:
+      /Runner volume has insufficient free space|Disk quota exceeded|Errno 122\b|No space left on device/i,
     code: GENERATION_ERROR_CODES.RUNNER_STORAGE_FULL,
   },
   // ⚠ 也必须排在参考图规则**之前**：火山的原文是

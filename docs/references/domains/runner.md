@@ -12,7 +12,7 @@
 
 | 项              | 当前生产值                                                           | 核验范围                                                                                       |
 | --------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 80 GB · EU-RO-1         | 2026-09-21 API 回读；本轮未扫描文件                                                            |
+| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 150 GB · EU-RO-1        | 2026-09-28 从 80 GB 扩容（80 GB 已写满，见下「5.10 底座」一节）；API 回读确认                  |
 | Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                     |
 | Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-92ef778b5d6bab2cf1981b2eecb8311a92460a12` |
 | 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4                                                              |
@@ -65,7 +65,8 @@
 - 回归用临时端点（同一 Volume、4090 / A5000 / L4 / 3090、CUDA 12.8 / 12.9 / 13.0、Max 1）直接发作业，跑完已删；测试模板 `zx61alrcs3` 保留，可复用。6 项全过：SDXL + LoRA + 来源精修 968×1424（与首跑逐字节相同）· Pony 直出 + 4x-AnimeSharp 512×640 → 2048×2560（「VAEDecode 直连放大 → 空结果」在 0.34 **未复现**）· Anima Base + 已缓存 LoRA · Anima Base + 首次使用的 LoRA（一次成功）· 从 Civitai 现下 Anima Turbo v1.1 并核对 SHA 后出图 · 给错 SHA 的配件被拦下（`SHA-256 mismatch`）。冷启动排队 57–141s，执行 22–64s（含 4.2G 下载）。
 - 升级抓到的坑：0.34 的 `UpscaleModelLoader` 是 V3 节点，`/object_info` 里的文件清单变成 `["COMBO", {"options": [...]}]`，可见性闸原先认不出、所有放大作业提交前即失败；`7e38067d` 已修。
 - Civitai 公布的 `SHA256` 就是下载到的文件本体（R2 里 7 把 LoRA 与 Anima Turbo 实测一致）；DiT 加载证据里 Anima Base 的 SHA 与 HF LFS oid 一致。
-- 切生产顺序：`PATCH` 生产 template `pmh4gs9eht` 指向上面的镜像，并把端点 `allowedCudaVersions` 限定为 12.8 / 12.9 / 13.0 → 真实出图验收 → 再发 Execution Worker（其 Anima 工作流依赖新节点）→ 应用。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
+- 切生产顺序：`PATCH` 生产 template `pmh4gs9eht` 指向上面的镜像、env 加 `RUNNER_VOLUME_QUOTA_BYTES=150000000000`，并把端点 `allowedCudaVersions` 限定为 12.8 / 12.9 / 13.0 → 真实出图验收 → 再发 Execution Worker（其 Anima 工作流依赖新节点）→ 应用。本机 `~/.runpod/config.toml` 的 key 于 09-28 换成有写权限的。
+- **Volume 满（2026-09-27 生产实见）**：80 GB 配额写满，Anima 作业下载底模撞 `[Errno 122] Disk quota exceeded`，且被 `quota.*exceeded` 规则说成「Agent Key 余额不足」。根因是网络卷配额从文件系统剩余量里看不出来，LRU 从未触发。09-28 已扩到 150 GB；fork 改为按 `RUNNER_VOLUME_QUOTA_BYTES`（切生产时在 template 配 `150000000000`）与卷上实际文件大小判断清缓存，写盘撞配额报「存储已满」；app 同时把该原话归到 `runner_storage_full`。
 - 本次回归留在 Volume 上的：`civitai-ckpt-3263843.safetensors`（Anima Turbo v1.1，4.2G，受 LRU 管理）与 LoRA `civitai-3340256.safetensors`；后者也按应用规则进了 R2 `runner-loras/`。
 
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）

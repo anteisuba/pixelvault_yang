@@ -255,6 +255,15 @@ describe('Runner download guardrails', () => {
     ).toBe(GENERATION_ERROR_CODES.RUNNER_DOWNLOAD_MISMATCH)
   })
 
+  it('classifies a volume quota hit as storage full, never as a provider balance problem', () => {
+    // 2026-09-27 生产原话（截断）：此前被 `quota.*exceeded` 说成「Agent Key 余额不足」。
+    const message =
+      'Runner image generation failed: {"error_type": "<class \'OSError\'>", "error_message": "[Errno 122] Disk quota exceeded", "error_traceback": "Traceback (most recent call last):\\n  File \\"/handler.py\\", line 218, in _download_to'
+    expect(parseGenerationErrorCode(message)).toBe(
+      GENERATION_ERROR_CODES.RUNNER_STORAGE_FULL,
+    )
+  })
+
   it('classifies a full Runner volume', () => {
     expect(
       parseGenerationErrorCode(

@@ -386,6 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
+  DanbooruFavorite: 'DanbooruFavorite',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
   ResearchRun: 'ResearchRun',
@@ -446,7 +447,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -595,6 +596,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.McpTokenCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.McpTokenCountAggregateOutputType> | number
+        }
+      }
+    }
+    DanbooruFavorite: {
+      payload: Prisma.$DanbooruFavoritePayload<ExtArgs>
+      fields: Prisma.DanbooruFavoriteFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DanbooruFavoriteFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DanbooruFavoriteFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        findFirst: {
+          args: Prisma.DanbooruFavoriteFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DanbooruFavoriteFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        findMany: {
+          args: Prisma.DanbooruFavoriteFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>[]
+        }
+        create: {
+          args: Prisma.DanbooruFavoriteCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        createMany: {
+          args: Prisma.DanbooruFavoriteCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DanbooruFavoriteCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>[]
+        }
+        delete: {
+          args: Prisma.DanbooruFavoriteDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        update: {
+          args: Prisma.DanbooruFavoriteUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        deleteMany: {
+          args: Prisma.DanbooruFavoriteDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DanbooruFavoriteUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DanbooruFavoriteUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>[]
+        }
+        upsert: {
+          args: Prisma.DanbooruFavoriteUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruFavoritePayload>
+        }
+        aggregate: {
+          args: Prisma.DanbooruFavoriteAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDanbooruFavorite>
+        }
+        groupBy: {
+          args: Prisma.DanbooruFavoriteGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DanbooruFavoriteGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DanbooruFavoriteCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DanbooruFavoriteCountAggregateOutputType> | number
         }
       }
     }
@@ -4002,6 +4077,20 @@ export const McpTokenScalarFieldEnum = {
 export type McpTokenScalarFieldEnum = (typeof McpTokenScalarFieldEnum)[keyof typeof McpTokenScalarFieldEnum]
 
 
+export const DanbooruFavoriteScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  name: 'name',
+  count: 'count',
+  work: 'work',
+  previews: 'previews',
+  createdAt: 'createdAt'
+} as const
+
+export type DanbooruFavoriteScalarFieldEnum = (typeof DanbooruFavoriteScalarFieldEnum)[keyof typeof DanbooruFavoriteScalarFieldEnum]
+
+
 export const AssistantConversationScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4965,16 +5054,16 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
- * Reference to a field of type 'AssistantSurface'
+ * Reference to a field of type 'Int'
  */
-export type EnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface'>
+export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
     
 
 
 /**
- * Reference to a field of type 'AssistantSurface[]'
+ * Reference to a field of type 'Int[]'
  */
-export type ListEnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface[]'>
+export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -4989,6 +5078,20 @@ export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'J
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantSurface'
+ */
+export type EnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantSurface[]'
+ */
+export type ListEnumAssistantSurfaceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantSurface[]'>
     
 
 
@@ -5017,20 +5120,6 @@ export type EnumGenerationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<
  * Reference to a field of type 'GenerationStatus[]'
  */
 export type ListEnumGenerationStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GenerationStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'Int'
- */
-export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-/**
- * Reference to a field of type 'Int[]'
- */
-export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -5382,6 +5471,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   mcpToken?: Prisma.McpTokenOmit
+  danbooruFavorite?: Prisma.DanbooruFavoriteOmit
   assistantConversation?: Prisma.AssistantConversationOmit
   assistantConversationShare?: Prisma.AssistantConversationShareOmit
   researchRun?: Prisma.ResearchRunOmit

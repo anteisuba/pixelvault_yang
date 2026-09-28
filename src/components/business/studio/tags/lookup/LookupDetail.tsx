@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 
-import { Check, ExternalLink } from '@/components/icons'
+import { Check, ExternalLink, Star } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
@@ -148,18 +148,61 @@ export function LookupShots({
 }
 
 /**
- * 名字那一块：标题 + 类别小签 + Danbooru 直链，下面两行灰字。
+ * 收藏开关（owner 2026-09-28）：空心 = 没收，实心 = 收了。点亮时星从小放大落位，
+ * 减少动态效果时直接换。手机是 44 的点按区。
+ */
+export function LookupFavoriteButton({
+  on,
+  label,
+  onToggle,
+  phone,
+}: {
+  on: boolean
+  label: string
+  onToggle: () => void
+  phone?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+      className={cn(
+        'grid shrink-0 place-items-center rounded-lg transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+        phone ? 'size-11' : 'size-7',
+        on ? 'text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      <Star
+        key={on ? 'on' : 'off'}
+        className={cn(
+          'size-4',
+          on &&
+            'animate-in fill-current duration-base ease-standard zoom-in-50 motion-reduce:animate-none',
+        )}
+        aria-hidden
+      />
+    </button>
+  )
+}
+
+/**
+ * 名字那一块：标题 + 类别小签 + 收藏星 + Danbooru 直链，下面两行灰字。
  * 矮屏（`short:`）收成一行：名字 · 类别 · 第一行灰字，其余几行不画（让给样图与标签）。
  */
 export function LookupHead({
   title,
   kind,
+  favorite,
   lines,
   link,
   mono,
 }: {
   title: string
   kind: string
+  favorite?: { on: boolean; label: string; onToggle: () => void } | null
   lines: readonly string[]
   link: { label: string; href: string; aria: string }
   mono?: boolean
@@ -179,6 +222,7 @@ export function LookupHead({
           <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">
             {kind}
           </span>
+          {favorite ? <LookupFavoriteButton {...favorite} /> : null}
         </div>
         {lines
           .filter((line) => line.length > 0)

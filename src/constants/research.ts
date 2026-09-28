@@ -406,6 +406,8 @@ export const DANBOORU_REQUEST = {
   randomShow: 8,
   /** 画师名单与样图的服务端缓存时长（作品数排名一天都不怎么动）。 */
   catalogCacheTtlMs: 6 * 60 * 60 * 1000,
+  /** 查资料收藏：每页最多收这么多条（置顶那一段不做分页）。 */
+  favoriteLimitPerKind: 100,
   /** 随便看看里剔掉的占位 tag：不是真人画师的画师标签 · 「原创」不是一部作品。 */
   randomPlaceholderTags: [
     'banned_artist',

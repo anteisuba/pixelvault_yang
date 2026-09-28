@@ -53,6 +53,13 @@ export type User = Prisma.UserModel
  */
 export type McpToken = Prisma.McpTokenModel
 /**
+ * Model DanbooruFavorite
+ * 标签台查资料的收藏（owner 2026-09-28）：角色 / 画师 / 作品 / 特征整条收藏，
+ * 每页没搜时置顶。存的是收藏那一刻的快照（张数、作品、缩略图），列表直接画，
+ * ⛔ 不为了置顶那几行再去问 Danbooru；点开看详情时才实时查。
+ */
+export type DanbooruFavorite = Prisma.DanbooruFavoriteModel
+/**
  * Model AssistantConversation
  * Persisted assistant chat (Node canvas and Studio). Messages are JSON
  * text-only (plus remote media URLs) — never base64 payloads.

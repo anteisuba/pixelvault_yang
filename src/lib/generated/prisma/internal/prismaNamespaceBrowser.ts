@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
+  DanbooruFavorite: 'DanbooruFavorite',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
   ResearchRun: 'ResearchRun',
@@ -149,6 +150,20 @@ export const McpTokenScalarFieldEnum = {
 } as const
 
 export type McpTokenScalarFieldEnum = (typeof McpTokenScalarFieldEnum)[keyof typeof McpTokenScalarFieldEnum]
+
+
+export const DanbooruFavoriteScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  name: 'name',
+  count: 'count',
+  work: 'work',
+  previews: 'previews',
+  createdAt: 'createdAt'
+} as const
+
+export type DanbooruFavoriteScalarFieldEnum = (typeof DanbooruFavoriteScalarFieldEnum)[keyof typeof DanbooruFavoriteScalarFieldEnum]
 
 
 export const AssistantConversationScalarFieldEnum = {

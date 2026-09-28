@@ -26,16 +26,24 @@ export function LookupRows({
   rows,
   addedLabel,
   phone,
+  contained,
   onPick,
 }: {
   kind: DanbooruCatalogKind
   rows: readonly LookupRowView[]
+  /** 装在外面的滚动区里（收藏 + 随便看看两段同滚），自己不滚。 */
+  contained?: boolean
   addedLabel: string
   phone?: boolean
   onPick: (name: string) => void
 }) {
   return (
-    <ul className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pb-1">
+    <ul
+      className={cn(
+        '-mx-1.5 flex flex-col gap-0.5 pb-1',
+        !contained && 'min-h-0 flex-1 overflow-y-auto',
+      )}
+    >
       {rows.map((row, index) => (
         <li
           key={row.name}

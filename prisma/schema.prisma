@@ -213,6 +213,7 @@ model User {
   contextCards           ContextCard[]
   assistantMemories      AssistantMemory[]
   mcpTokens              McpToken[]
+  danbooruFavorites      DanbooruFavorite[]
 
   @@index([username])
   @@index([isDeleted])
@@ -233,6 +234,27 @@ model McpToken {
   createdAt  DateTime  @default(now())
 
   @@index([userId, revokedAt])
+}
+
+/// 标签台查资料的收藏（owner 2026-09-28）：角色 / 画师 / 作品 / 特征整条收藏，
+/// 每页没搜时置顶。存的是收藏那一刻的快照（张数、作品、缩略图），列表直接画，
+/// ⛔ 不为了置顶那几行再去问 Danbooru；点开看详情时才实时查。
+model DanbooruFavorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// `character` / `artist` / `copyright` / `general`（`DanbooruCatalogKindSchema`）。
+  kind      String
+  /// Danbooru tag 名（下划线写法）。
+  name      String
+  count     Int
+  work      String?
+  /// Danbooru 自家 CDN 的缩略图地址（入库前校验过域名）。
+  previews  Json     @default("[]")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, kind, name])
+  @@index([userId, createdAt])
 }
 
 /// Persisted assistant chat (Node canvas and Studio). Messages are JSON

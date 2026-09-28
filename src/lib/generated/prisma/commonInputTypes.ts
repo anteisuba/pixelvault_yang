@@ -148,11 +148,15 @@ export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
 }
 
-export type EnumAssistantSurfaceFilter<$PrismaModel = never> = {
-  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+export type IntFilter<$PrismaModel = never> = {
+  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedIntFilter<$PrismaModel> | number
 }
 
 export type JsonFilter<$PrismaModel = never> =
@@ -179,14 +183,20 @@ export type JsonFilterBase<$PrismaModel = never> = {
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
 }
 
-export type EnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
+export type IntWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedIntWithAggregatesFilter<$PrismaModel> | number
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
+  _sum?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedIntFilter<$PrismaModel>
+  _max?: Prisma.NestedIntFilter<$PrismaModel>
 }
 
 export type JsonWithAggregatesFilter<$PrismaModel = never> =
@@ -214,6 +224,23 @@ export type JsonWithAggregatesFilterBase<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedJsonFilter<$PrismaModel>
   _max?: Prisma.NestedJsonFilter<$PrismaModel>
+}
+
+export type EnumAssistantSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+}
+
+export type EnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
 }
 
 export type JsonNullableFilter<$PrismaModel = never> =
@@ -281,17 +308,6 @@ export type EnumGenerationStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumGenerationStatusFilter<$PrismaModel> | $Enums.GenerationStatus
 }
 
-export type IntFilter<$PrismaModel = never> = {
-  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedIntFilter<$PrismaModel> | number
-}
-
 export type FloatNullableFilter<$PrismaModel = never> = {
   equals?: number | Prisma.FloatFieldRefInput<$PrismaModel> | null
   in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel> | null
@@ -350,22 +366,6 @@ export type EnumGenerationStatusWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumGenerationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumGenerationStatusFilter<$PrismaModel>
-}
-
-export type IntWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedIntWithAggregatesFilter<$PrismaModel> | number
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
-  _sum?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedIntFilter<$PrismaModel>
-  _max?: Prisma.NestedIntFilter<$PrismaModel>
 }
 
 export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -855,21 +855,31 @@ export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
 }
 
-export type NestedEnumAssistantSurfaceFilter<$PrismaModel = never> = {
-  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
+  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedIntWithAggregatesFilter<$PrismaModel> | number
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
+  _sum?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedIntFilter<$PrismaModel>
+  _max?: Prisma.NestedIntFilter<$PrismaModel>
 }
 
-export type NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+export type NestedFloatFilter<$PrismaModel = never> = {
+  equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
+  notIn?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
+  lt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  lte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedFloatFilter<$PrismaModel> | number
 }
 
 export type NestedJsonFilter<$PrismaModel = never> =
@@ -894,6 +904,23 @@ export type NestedJsonFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type NestedEnumAssistantSurfaceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel> | $Enums.AssistantSurface
+}
+
+export type NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantSurface | Prisma.EnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantSurface[] | Prisma.ListEnumAssistantSurfaceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantSurfaceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantSurface
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantSurfaceFilter<$PrismaModel>
 }
 
 export type NestedJsonNullableFilter<$PrismaModel = never> =
@@ -981,33 +1008,6 @@ export type NestedEnumGenerationStatusWithAggregatesFilter<$PrismaModel = never>
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumGenerationStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumGenerationStatusFilter<$PrismaModel>
-}
-
-export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  notIn?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel>
-  lt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  lte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedIntWithAggregatesFilter<$PrismaModel> | number
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
-  _sum?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedIntFilter<$PrismaModel>
-  _max?: Prisma.NestedIntFilter<$PrismaModel>
-}
-
-export type NestedFloatFilter<$PrismaModel = never> = {
-  equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
-  notIn?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
-  lt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  lte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedFloatFilter<$PrismaModel> | number
 }
 
 export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {

@@ -8,6 +8,7 @@ import { ChevronLeft, RefreshCw, Search } from '@/components/icons'
 import { DURATION_MS, EASE_STANDARD, TAG_ADD_ACK_MS } from '@/constants/motion'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { useDanbooruCatalog } from '@/hooks/use-danbooru-catalog'
+import { useDanbooruFavorites } from '@/hooks/use-danbooru-favorites'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { flashTagTarget } from '@/hooks/use-tag-target-flash'
@@ -28,6 +29,7 @@ import { cn } from '@/lib/utils'
 import {
   DanbooruCatalogKindSchema,
   type DanbooruCatalog,
+  type DanbooruCatalogCandidate,
   type DanbooruCatalogKind,
 } from '@/types/danbooru-catalog'
 import { Button } from '@/components/ui/button'
@@ -37,6 +39,7 @@ import {
   LookupAddButton,
   LookupBlank,
   LookupDetailSkeleton,
+  LookupFavoriteButton,
   LookupHead,
   LookupRef,
   LookupSection,
@@ -142,6 +145,12 @@ const KIND_TEXT: Record<
 
 type ByKind<T> = Record<DanbooruCatalogKind, T>
 
+/** 左栏一行：搜到 / 抽到的候选，或者一条收藏（收藏那一刻的快照）。 */
+type LookupItem = Pick<
+  DanbooruCatalogCandidate,
+  'name' | 'count' | 'work' | 'previews'
+>
+
 function byKind<T>(value: T): ByKind<T> {
   return { character: value, artist: value, copyright: value, general: value }
 }
@@ -158,6 +167,8 @@ function byKind<T>(value: T): ByKind<T> {
  *   模型没有角色构图就只剩整体。已在目标里的不重复加。
  * - 画风：加入 = `artist:名字` 放在正向标签最前面，是开关。「常画的」只是参考，⛔ 不跟着加。
  * - 这一页查不到而别的页有：说「它是画师 / 作品…」，点了带着同一个词过去。
+ * - 收藏（owner 2026-09-28）：详情标题旁一颗星；没搜时这一页的收藏置顶在「随便看看」
+ *   上面、默认选中第一条；存账号里。
  * - 手机：左右放不下，列表一页、点一行推进详情页，「加到哪 + 加入」钉在底部。
  */
 export function StudioDanbooruPanel({
@@ -177,6 +188,7 @@ export function StudioDanbooruPanel({
   const { isGenerating } = useStudioGen()
   const characters = useNovelAiCharacters()
   const { acked, ack, clear } = useAck()
+  const favorites = useDanbooruFavorites()
 
   const [tab, setTab] = useState<DanbooruCatalogKind>('character')
   const [queries, setQueries] = useState(() => byKind(''))
@@ -215,8 +227,14 @@ export function StudioDanbooruPanel({
   // ⚠ 换一批是整批换掉：左右都出骨架（画板「画风 · 换一批中」），⛔ 旧的一批留着。
   const listData = (kind: DanbooruCatalogKind) =>
     queries[kind].trim().length >= 2 ? shownData(lists[kind]) : lists[kind].data
-  const candidateOf = (kind: DanbooruCatalogKind) => {
-    const list = listData(kind)?.candidates ?? []
+  // 没搜时收藏置顶：选中项在「收藏 + 随便看看」里找，默认第一条收藏。
+  const pinnedOf = (kind: DanbooruCatalogKind) =>
+    queries[kind].trim().length >= 2 ? [] : favorites.of(kind)
+  const candidateOf = (kind: DanbooruCatalogKind): LookupItem | null => {
+    const list: LookupItem[] = [
+      ...pinnedOf(kind),
+      ...(listData(kind)?.candidates ?? []),
+    ]
     return list.find((item) => item.name === picks[kind]) ?? list[0] ?? null
   }
   const detailRequest = (kind: DanbooruCatalogKind) => {
@@ -387,7 +405,8 @@ export function StudioDanbooruPanel({
           }
         : null
 
-  const rows = candidates.map((item) => ({
+  const pinned = pinnedOf(tab)
+  const toRow = (item: LookupItem) => ({
     name: item.name,
     label: nameOf(item.name),
     sub:
@@ -402,7 +421,23 @@ export function StudioDanbooruPanel({
     previews: item.previews,
     added: isArtist && hasTag(state.tagChips, artistPromptTag(item.name)),
     selected: !phone && item.name === candidate?.name,
-  }))
+  })
+  const favorite = candidate
+    ? {
+        on: favorites.has(tab, candidate.name),
+        label: favorites.has(tab, candidate.name)
+          ? t('unfavorite', { name: nameOf(candidate.name) })
+          : t('favorite', { name: nameOf(candidate.name) }),
+        onToggle: () =>
+          favorites.toggle({
+            kind: tab,
+            name: candidate.name,
+            count: candidate.count,
+            work: candidate.work,
+            previews: [...candidate.previews],
+          }),
+      }
+    : null
 
   const searchField = (
     <label
@@ -428,9 +463,8 @@ export function StudioDanbooruPanel({
     </label>
   )
 
-  const listColumn = (
+  const listBody = (
     <>
-      {searchField}
       {listTitle ? (
         <div className="flex min-h-6.5 shrink-0 items-center gap-2">
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
@@ -447,7 +481,9 @@ export function StudioDanbooruPanel({
             <button
               type="button"
               onClick={() => {
-                setPick(tab, null)
+                // 选中的是收藏就留着它，⛔ 换一批把人从收藏里拽走。
+                if (!pinned.some((item) => item.name === picks[tab]))
+                  setPick(tab, null)
                 setRounds((current) => ({
                   ...current,
                   [tab]: current[tab] + 1,
@@ -470,11 +506,37 @@ export function StudioDanbooruPanel({
           // 按名单认：换词重搜期间名单没变就不重演入场，换成新名单时才升起。
           key={`${tab}:${candidates.map((item) => item.name).join('|')}`}
           kind={tab}
-          rows={rows}
+          rows={candidates.map(toRow)}
+          contained={pinned.length > 0}
           addedLabel={t('added')}
           phone={phone}
           onPick={pick}
         />
+      )}
+    </>
+  )
+
+  const listColumn = (
+    <>
+      {searchField}
+      {pinned.length ? (
+        // 收藏与随便看看在同一个滚动区里，⛔ 各滚各的。
+        <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5">
+          <b className="flex min-h-6.5 shrink-0 items-center text-2sm font-semibold text-foreground">
+            {t('favoritesTitle', { count: pinned.length })}
+          </b>
+          <LookupRows
+            kind={tab}
+            rows={pinned.map(toRow)}
+            contained
+            addedLabel={t('added')}
+            phone={phone}
+            onPick={pick}
+          />
+          {listBody}
+        </div>
+      ) : (
+        listBody
       )}
     </>
   )
@@ -496,6 +558,7 @@ export function StudioDanbooruPanel({
         phone={phone}
         title={displayDanbooruTag(candidate.name)}
         kind={t(text.kind)}
+        favorite={favorite}
         lines={[
           tab === 'character' && (detail.work ?? candidate.work)
             ? t('rowWork', {
@@ -577,6 +640,7 @@ export function StudioDanbooruPanel({
         phone={phone}
         title={artistPromptTag(candidate.name)}
         kind={t('kindArtist')}
+        favorite={favorite}
         lines={[
           t('artistSub', {
             posts: posts(detail.count ?? candidate.count),
@@ -756,6 +820,7 @@ export function StudioDanbooruPanel({
                 <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">
                   {t(text.kind)}
                 </span>
+                {favorite ? <LookupFavoriteButton phone {...favorite} /> : null}
               </div>
               {pane}
             </motion.div>
@@ -809,6 +874,12 @@ function FadeSwap({
   )
 }
 
+interface PaneFavorite {
+  on: boolean
+  label: string
+  onToggle: () => void
+}
+
 interface PaneAdd {
   label: string
   done: boolean
@@ -821,6 +892,7 @@ function TagPane({
   phone,
   title,
   kind,
+  favorite,
   lines,
   link,
   shots,
@@ -837,6 +909,7 @@ function TagPane({
   phone: boolean
   title: string
   kind: string
+  favorite: PaneFavorite | null
   lines: readonly string[]
   link: { label: string; href: string; aria: string }
   shots: readonly LookupShot[]
@@ -927,7 +1000,13 @@ function TagPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3.5">
-      <LookupHead title={title} kind={kind} lines={lines} link={link} />
+      <LookupHead
+        title={title}
+        kind={kind}
+        favorite={favorite}
+        lines={lines}
+        link={link}
+      />
       {/* 样图在上、标签在下；屏幕矮（`short:`）就左右排（owner 选「矮屏左右排」）。
           ⚠ 标签至少留两行的高：稍矮时让样图缩（`LookupShots`），⛔ 把标签挤没。 */}
       <div className="flex min-h-0 flex-1 flex-col gap-3.5 short:flex-row short:gap-6">
@@ -953,6 +1032,7 @@ function ArtistPane({
   phone,
   title,
   kind,
+  favorite,
   lines,
   link,
   shots,
@@ -963,6 +1043,7 @@ function ArtistPane({
   phone: boolean
   title: string
   kind: string
+  favorite: PaneFavorite | null
   lines: readonly string[]
   link: { label: string; href: string; aria: string }
   shots: readonly LookupShot[]
@@ -1025,7 +1106,14 @@ function ArtistPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3.5">
-      <LookupHead title={title} kind={kind} lines={lines} link={link} mono />
+      <LookupHead
+        title={title}
+        kind={kind}
+        favorite={favorite}
+        lines={lines}
+        link={link}
+        mono
+      />
       <div className="flex min-h-0 flex-1 flex-col gap-3.5 short:flex-row short:gap-6">
         <LookupShots shots={shots} />
         <div className="flex min-h-28 flex-1 flex-col gap-2.5 overflow-y-auto short:min-h-0">

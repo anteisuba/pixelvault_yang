@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import type { DanbooruCatalogRequest } from '@/hooks/use-danbooru-catalog'
-import type { DanbooruCatalog } from '@/types/danbooru-catalog'
+import type {
+  DanbooruCatalog,
+  DanbooruFavorite,
+} from '@/types/danbooru-catalog'
 import type { TagChip } from '@/types/tag-composer'
 
 type Result = {
@@ -25,6 +28,8 @@ const mocks = vi.hoisted(() => ({
   characters: [] as { prompt: string; negativePrompt: string }[],
   activeIndex: null as number | null,
   requests: [] as (DanbooruCatalogRequest | null)[],
+  favorites: [] as DanbooruFavorite[],
+  toggleFavorite: vi.fn(),
   answer: (() => ({})) as (request: DanbooruCatalogRequest) => Partial<{
     data: unknown
     previous: unknown
@@ -80,6 +85,18 @@ vi.mock('@/hooks/use-danbooru-catalog', () => ({
       ...(answer as Partial<Result>),
     }
   },
+}))
+
+vi.mock('@/hooks/use-danbooru-favorites', () => ({
+  useDanbooruFavorites: () => ({
+    of: (kind: string) =>
+      mocks.favorites.filter((favorite) => favorite.kind === kind),
+    has: (kind: string, name: string) =>
+      mocks.favorites.some(
+        (favorite) => favorite.kind === kind && favorite.name === name,
+      ),
+    toggle: mocks.toggleFavorite,
+  }),
 }))
 
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
@@ -224,6 +241,7 @@ beforeEach(() => {
   mocks.characters = []
   mocks.activeIndex = null
   mocks.requests = []
+  mocks.favorites = []
   mocks.answer = answerFixtures
 })
 
@@ -519,6 +537,70 @@ describe('查资料 · 作品 / 特征', () => {
     expect(
       screen.getByRole('button', { name: 'addTags(2)' }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('查资料 · 收藏', () => {
+  const snowMiku: DanbooruFavorite = {
+    id: 'fav_1',
+    kind: 'character',
+    name: 'snow_miku',
+    count: 5140,
+    work: 'vocaloid',
+    previews: [],
+    createdAt: '2026-09-28T00:00:00.000Z',
+  }
+
+  it('没搜时收藏置顶在随便看看上面，默认选中第一条收藏', () => {
+    mocks.favorites = [snowMiku]
+    mocks.answer = (request) =>
+      request.kind === 'character' && request.random
+        ? { data: miku }
+        : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    expect(screen.getByText('favoritesTitle(1)')).toBeInTheDocument()
+    expect(screen.getByText('randomCharacterTitle(2)')).toBeInTheDocument()
+    const [pinned] = screen.getAllByRole('button', { name: /^snow miku/ })
+    expect(pinned).toHaveAttribute('aria-current', 'true')
+    expect(
+      mocks.requests.some(
+        (request) =>
+          request?.kind === 'character' && request.tag === 'snow_miku',
+      ),
+    ).toBe(true)
+  })
+
+  it('一搜就不置顶收藏', () => {
+    mocks.favorites = [snowMiku]
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(screen.queryByText(/favoritesTitle/)).toBeNull()
+  })
+
+  it('点星收藏这一条：存左栏那一行的快照', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    const star = screen.getByRole('button', {
+      name: 'favorite(hatsune miku)',
+    })
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(star)
+    expect(mocks.toggleFavorite).toHaveBeenCalledWith({
+      kind: 'character',
+      name: 'hatsune_miku',
+      count: 152000,
+      work: 'vocaloid',
+      previews: ['https://cdn.donmai.us/p1.jpg'],
+    })
+  })
+
+  it('已收藏的星是按下的，文案是取消收藏', () => {
+    mocks.favorites = [{ ...snowMiku, name: 'hatsune_miku' }]
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    search('miku')
+    expect(
+      screen.getByRole('button', { name: 'unfavorite(hatsune miku)' }),
+    ).toHaveAttribute('aria-pressed', 'true')
   })
 })
 

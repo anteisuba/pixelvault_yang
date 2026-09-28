@@ -164,6 +164,23 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     expect(screen.getByText('100,000+')).toBeInTheDocument()
   })
 
+  it('keeps type, base, rating and sort as dropdowns in the one bar', () => {
+    renderBrowse()
+
+    for (const label of [
+      'typeFilterLabel',
+      'baseModelFilterLabel',
+      'nsfwToggleHint',
+      'communitySortFilter',
+    ]) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(`LoraWorkbench:${label}`),
+        }),
+      ).toBeInTheDocument()
+    }
+  })
+
   it('mounts from a tile in place — pushes to the stack, no navigation', async () => {
     renderBrowse()
 

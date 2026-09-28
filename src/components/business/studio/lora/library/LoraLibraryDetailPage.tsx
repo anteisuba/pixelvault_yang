@@ -45,17 +45,34 @@ import type { CivitaiImageRecipe, CivitaiLoraLibraryItem } from '@/types'
 /** 复制成功后那颗键写「已复制」多久（动效表：1.2 秒）。 */
 const COPIED_MS = 1200
 
+/** ⋯ 菜单里宿主自己加的项（收藏里的自训：公开 / 私有、删除）。 */
+export interface LoraLibraryDetailMenuItem {
+  readonly key: string
+  readonly label: string
+  readonly danger?: boolean
+  readonly onSelect: () => void
+}
+
 interface LoraLibraryDetailPageProps {
-  /** 列表里点开的那一项（一个版本）。 */
+  /**
+   * 点开的那一项（一个版本）。收藏里的 Civitai LoRA 由收藏记录拼成，等模型详情
+   * 取回后换成那一版的完整条目（按版本号认，⛔ 按 id —— 两边的 id 不是一套）。
+   */
   item: CivitaiLoraLibraryItem
   isMounted: (item: CivitaiLoraLibraryItem) => boolean
   mountingId: string | null
   onMount: (item: CivitaiLoraLibraryItem) => void
-  isFavorited: (loraUrl: string) => boolean
+  /** 按条目认（收藏记录与取回的版本条目下载链接写法不同，宿主会连版本号一起比）。 */
+  isFavorited: (item: CivitaiLoraLibraryItem) => boolean
   onToggleFavorite: (item: CivitaiLoraLibraryItem) => void
   /** 各版本封面按这一档分级限定（与列表同一档）。 */
   nsfwFilter: LoraNsfwFilter
   onClose: () => void
+  /** 头部那颗来源标签（缺省 Civitai；自训 / Hugging Face 由宿主给）。 */
+  sourceLabel?: string
+  extraMenu?: readonly LoraLibraryDetailMenuItem[]
+  /** 自训的没有「收藏」这回事：不给就不画那颗键。 */
+  canFavorite?: boolean
 }
 
 interface Sample {
@@ -82,6 +99,9 @@ export function LoraLibraryDetailPage({
   onToggleFavorite,
   nsfwFilter,
   onClose,
+  sourceLabel,
+  extraMenu = [],
+  canFavorite = true,
 }: LoraLibraryDetailPageProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
@@ -91,13 +111,12 @@ export function LoraLibraryDetailPage({
   const stack = useActiveLoraStack()
   const detail = useCivitaiModelDetail(item.modelId, nsfwFilter)
   const versions = detail.versions.length > 0 ? detail.versions : [item]
-  const [versionId, setVersionId] = useState(item.id)
+  const [versionNumber, setVersionNumber] = useState(item.modelVersionId)
   const current =
-    versions.find((version) => version.id === versionId) ??
-    (versionId === item.id ? item : versions[0])
+    versions.find((version) => version.modelVersionId === versionNumber) ?? item
   const mined = useCivitaiMinedPrompts(current)
   const mounted = isMounted(current)
-  const favorited = isFavorited(current.loraUrl)
+  const favorited = isFavorited(current)
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -283,12 +302,14 @@ export function LoraLibraryDetailPage({
               {current.baseModelFamily}
             </span>
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-foreground/80">
-              {t('librarySourceCivitai')}
+              {sourceLabel ?? t('librarySourceCivitai')}
             </span>
             <span className="truncate font-mono">
               {[
-                `↓ ${formatCompactNumber(current.downloadCount)}`,
-                `♥ ${formatCompactNumber(current.thumbsUpCount)}`,
+                // 收藏记录没有热度（取回模型详情后才有）：没有就不写，⛔ 写个 0。
+                current.downloadCount > 0 || current.thumbsUpCount > 0
+                  ? `↓ ${formatCompactNumber(current.downloadCount)} · ♥ ${formatCompactNumber(current.thumbsUpCount)}`
+                  : null,
                 publishedAt
                   ? tb('updatedOn', {
                       date: format.dateTime(publishedAt, {
@@ -326,28 +347,32 @@ export function LoraLibraryDetailPage({
               {tb('mount')}
             </button>
           )}
-          <button
-            type="button"
-            aria-pressed={favorited}
-            onClick={() => onToggleFavorite(current)}
-            className={cn(ghost, favorited && 'border-transparent bg-muted')}
-          >
-            <Heart
-              className={cn('size-3.5', favorited && 'fill-current')}
-              aria-hidden
-            />
-            {favorited ? t('favorited') : t('favorite')}
-          </button>
-          <a
-            href={current.modelPageUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={tb('openSource')}
-            title={tb('openSource')}
-            className="grid size-8.5 place-items-center rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowUpRight className="size-3.5" aria-hidden />
-          </a>
+          {canFavorite ? (
+            <button
+              type="button"
+              aria-pressed={favorited}
+              onClick={() => onToggleFavorite(current)}
+              className={cn(ghost, favorited && 'border-transparent bg-muted')}
+            >
+              <Heart
+                className={cn('size-3.5', favorited && 'fill-current')}
+                aria-hidden
+              />
+              {favorited ? t('favorited') : t('favorite')}
+            </button>
+          ) : null}
+          {current.modelPageUrl ? (
+            <a
+              href={current.modelPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={tb('openSource')}
+              title={tb('openSource')}
+              className="grid size-8.5 place-items-center rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </a>
+          ) : null}
           <button
             type="button"
             aria-label={tb('more')}
@@ -413,6 +438,28 @@ export function LoraLibraryDetailPage({
                     ? tb('copied')
                     : tb('copyDownloadLink')}
                 </button>
+                {extraMenu.length > 0 ? (
+                  <>
+                    <hr className="mx-1.5 my-1 border-0 border-t border-border" />
+                    {extraMenu.map((entry) => (
+                      <button
+                        key={entry.key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          entry.onSelect()
+                        }}
+                        className={cn(
+                          menuItem,
+                          entry.danger && 'text-status-risk',
+                        )}
+                      >
+                        {entry.label}
+                      </button>
+                    ))}
+                  </>
+                ) : null}
                 {favorited ? (
                   <>
                     <hr className="mx-1.5 my-1 border-0 border-t border-border" />
@@ -439,7 +486,7 @@ export function LoraLibraryDetailPage({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4.5">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={current.id}
+            key={current.modelVersionId || current.id}
             initial={{ opacity: 0 }}
             animate={{
               opacity: 1,
@@ -534,7 +581,7 @@ export function LoraLibraryDetailPage({
                         key={version.id}
                         type="button"
                         aria-pressed={version.id === current.id}
-                        onClick={() => setVersionId(version.id)}
+                        onClick={() => setVersionNumber(version.modelVersionId)}
                         className={cn(
                           'flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-2sm transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           version.id === current.id
@@ -594,7 +641,9 @@ export function LoraLibraryDetailPage({
                       {compatibleVersion ? (
                         <button
                           type="button"
-                          onClick={() => setVersionId(compatibleVersion.id)}
+                          onClick={() =>
+                            setVersionNumber(compatibleVersion.modelVersionId)
+                          }
                           className="whitespace-nowrap font-semibold hover:underline"
                         >
                           {tb('switchVersion', {

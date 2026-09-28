@@ -180,11 +180,15 @@ export function LoraLibraryBrowse({
     [library, rememberSearch],
   )
 
+  // 连版本号一起认：从收藏挂上的（收藏记录的 id / 链接写法）也算这一版已挂。
   const isMounted = useCallback(
     (item: CivitaiLoraLibraryItem) =>
       stack.items.some(
         (entry) =>
-          entry.asset.id === item.id || entry.asset.loraUrl === item.loraUrl,
+          entry.asset.id === item.id ||
+          entry.asset.loraUrl === item.loraUrl ||
+          (item.modelVersionId > 0 &&
+            entry.asset.modelVersionId === item.modelVersionId),
       ),
     [stack.items],
   )
@@ -712,7 +716,7 @@ export function LoraLibraryBrowse({
             isMounted={isMounted}
             mountingId={mountingId}
             onMount={(target) => void handleMount(target)}
-            isFavorited={isFavorited}
+            isFavorited={(target) => isFavorited(target.loraUrl)}
             onToggleFavorite={(target) => void handleFavoriteToggle(target)}
             nsfwFilter={library.nsfwFilter}
             onClose={() => setOpenItem(null)}

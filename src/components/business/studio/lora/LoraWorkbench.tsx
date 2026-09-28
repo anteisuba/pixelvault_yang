@@ -85,6 +85,7 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
+import { LoraFavoritesBrowse } from '@/components/business/studio/lora/library/LoraFavoritesBrowse'
 import { LoraLibraryStage } from '@/components/business/studio/lora/library/LoraLibraryStage'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
@@ -271,20 +272,9 @@ export function LoraWorkbench() {
     isFavorited,
   } = useLoraAssets()
 
-  // §12 行A 压缩：源 segmented（导航）+ 排序/NSFW/刷新（控件）两个槽由本
-  // 组件持有，常驻渲染在不随 section 重挂载的行A 里；`CommunitySourceBranch`
-  // 及更深的两个 pane 通过这两个节点 portal 内容进来，state 仍留在原本层级
-  // （不上提 hook），只有 DOM 落点挪到这里——保住「pills 壳不动，只内层
-  // crossfade」的既有动效约定，行A 的源 tab/控件不属于内层，不应跟着闪。
-  const [librarySourceNavSlot, setLibrarySourceNavSlot] =
-    useState<HTMLDivElement | null>(null)
-  const [libraryControlsSlot, setLibraryControlsSlot] =
-    useState<HTMLDivElement | null>(null)
-  // R1 库聚焦浏览（lora-library.md §3）：确认图把搜索与低层级控件收进同一条
-  // 顶栏——搜索占左侧主位（flex-1），公开/我的、来源、排序/安全/刷新在右侧
-  // 低层级。搜索 state 仍留在各源 pane 的 hook 里（civitai/HF 各一套），
-  // 只把搜索框的 DOM 落点 portal 进这个常驻槽，保住「顶栏不随内层 crossfade
-  // 闪烁、只结果区淡入」的既有动效约定。
+  // 手机（<1024）的库：搜索框的 DOM 落点。搜索 state 仍留在各源 pane 的 hook
+  // 里（civitai / HF 各一套），只把输入框 portal 进这个常驻槽，保住「这一格不随
+  // 内层 crossfade 闪、只结果区淡入」。桌面是库 B（LoraLibraryStage），不走这里。
   const [librarySearchSlot, setLibrarySearchSlot] =
     useState<HTMLDivElement | null>(null)
 
@@ -360,36 +350,15 @@ export function LoraWorkbench() {
   const libraryBody = isLibrary ? (
     <section
       className={cn(
-        'space-y-2 lg:space-y-3',
+        'space-y-2',
         activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY &&
-          'flex min-h-0 flex-1 flex-col lg:block',
+          'flex min-h-0 flex-1 flex-col',
       )}
     >
-      {/* R1 顶栏（lora-library.md §3）：搜索占左侧主位，来源 + 排序/安全/
-          刷新在右侧低层级，同一条顶栏。搜索槽 / 来源槽 / 控件槽由各源 pane
-          通过 portal 挂内容进来（state 仍留原层级）。「收藏」子态无双源无搜索，
-          整条顶栏因此不渲染。 */}
+      {/* 手机的库：搜索框由 pane portal 进这一格（来源 / 排序 / 筛选在 pane 自己的
+          筛选 sheet 里）。「收藏」没有这一格。 */}
       {activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {/* 搜索占左侧主位；basis 给一个下限，窄宽时整条独占一行而不是被
-              右侧控件挤成一个只剩放大镜的方框。 */}
-          <div ref={setLibrarySearchSlot} className="min-w-0 flex-1 basis-64" />
-          {/* ⚠ 这一组以前挂着 `shrink-0`，而 `shrink-0` 会让 flexbox 直接
-              发给它 max-content 宽度 —— 它就永远没有「需要换行」的约束，
-              自己的 `flex-wrap` 等于失效，窄宽时硬生生撑破容器和邻居叠在
-              一起（owner 2026-08-07 实拍）。去掉 shrink-0 + 补 min-w-0，
-              换行才真的会发生。 */}
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div
-              ref={setLibrarySourceNavSlot}
-              className="flex min-w-0 flex-wrap items-center gap-2"
-            />
-            <div
-              ref={setLibraryControlsSlot}
-              className="flex min-w-0 flex-wrap items-center gap-2"
-            />
-          </div>
-        </div>
+        <div ref={setLibrarySearchSlot} className="min-w-0" />
       ) : null}
 
       {/* 公开↔我的：顶栏是壳保持不动，只让内层结果 crossfade。 */}
@@ -398,7 +367,7 @@ export function LoraWorkbench() {
         className={cn(
           'animate-in fade-in duration-200',
           activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY &&
-            'flex min-h-0 flex-1 flex-col lg:block',
+            'flex min-h-0 flex-1 flex-col',
         )}
       >
         {activeSection === LORA_WORKBENCH_SECTIONS.MINE ? (
@@ -423,8 +392,6 @@ export function LoraWorkbench() {
             onUnfavoriteByUrl={unfavoriteByUrl}
             isFavorited={isFavorited}
             searchSlotNode={librarySearchSlot}
-            navSlotNode={librarySourceNavSlot}
-            controlsSlotNode={libraryControlsSlot}
           />
         )}
       </div>
@@ -497,10 +464,30 @@ export function LoraWorkbench() {
                             isFavorited={isFavorited}
                           />
                         ) : (
-                          // 收藏还没换成库 B 的网格（施工 ⑤）。
-                          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-                            {libraryBody}
-                          </div>
+                          <LoraFavoritesBrowse
+                            trained={trainedAssets}
+                            favorites={favoriteAssets}
+                            isLoading={isLoadingMine}
+                            error={errorMine}
+                            onRefresh={refresh}
+                            onUnfavoriteByUrl={unfavoriteByUrl}
+                            onFavoriteCivitai={favoriteCivitaiLora}
+                            onDelete={deleteAsset}
+                            onVisibilityChange={setVisibility}
+                            isFavorited={isFavorited}
+                            onGoLibrary={() => {
+                              setPendingSection(
+                                LORA_WORKBENCH_SECTIONS.COMMUNITY,
+                              )
+                              setActiveSection(
+                                LORA_WORKBENCH_SECTIONS.COMMUNITY,
+                              )
+                            }}
+                            onGoTrain={() => {
+                              setPendingSection(LORA_WORKBENCH_SECTIONS.TRAIN)
+                              setActiveSection(LORA_WORKBENCH_SECTIONS.TRAIN)
+                            }}
+                          />
                         ),
                     }
                   : null

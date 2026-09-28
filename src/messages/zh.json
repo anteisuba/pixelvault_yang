@@ -2713,7 +2713,9 @@
       "statPublished": "发布",
       "statSamples": "样例",
       "samplesWithRecipe": "{count} 张 · 都带配方",
-      "samplesCount": "{count} 张"
+      "samplesCount": "{count} 张",
+      "mineCountQuery": "{count} 个{section}里有「{query}」",
+      "mineCountUnit": "个{section}"
     }
   },
   "UseLoraButton": {

@@ -2713,7 +2713,9 @@
       "statPublished": "Published",
       "statSamples": "Samples",
       "samplesWithRecipe": "{count} · all with recipes",
-      "samplesCount": "{count}"
+      "samplesCount": "{count}",
+      "mineCountQuery": "{count, plural, one {# item} other {# items}} in {section} match “{query}”",
+      "mineCountUnit": "{count, plural, one {item} other {items}} in {section}"
     }
   },
   "UseLoraButton": {

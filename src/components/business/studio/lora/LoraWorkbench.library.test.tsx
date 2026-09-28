@@ -10,22 +10,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CivitaiLoraLibraryItem } from '@/types'
 
 import { LoraWorkbench } from './LoraWorkbench'
-import { CivitaiCommunityBranch } from './library/CivitaiLibraryPane'
-
-function renderDesktopPane() {
-  mockIsMobile = false
-  return render(
-    <CivitaiCommunityBranch
-      onFavorite={vi.fn()}
-      onUnfavoriteByUrl={vi.fn()}
-      isFavorited={() => false}
-      searchSlotNode={null}
-      controlsSlotNode={null}
-      source="civitai"
-      onSourceChange={vi.fn()}
-    />,
-  )
-}
 
 // ── 库模块重做（lora-domain-wireframes.md §4）：公开库从行列表 + 常驻
 // 详情栏改成封面网格 + 按需 Sheet/Drawer。这个文件之前完全没有测试基础
@@ -94,11 +78,10 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 // 库面板这一套（封面网格 + 抽屉 + 翻页）现在只在手机上由 LoraWorkbench 渲染；
-// 桌面的库挂在生成台那副舞台里（库 B，lora-library.md §2），不在这里测。
-// 只验桌面那排筛选按钮的几条直接渲染面板本身（见 renderDesktopPane）。
-let mockIsMobile = true
+// 桌面的库挂在生成台那副舞台里（库 B，lora-library.md §2），测试在
+// library/LoraLibraryBrowse.test.tsx。
 vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => mockIsMobile,
+  useIsMobile: () => true,
 }))
 
 vi.mock('@/hooks/use-lora-assets', () => ({
@@ -210,7 +193,6 @@ function makeLibraryItem(
 
 describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail drawer', () => {
   beforeEach(() => {
-    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockFavoriteCivitaiLora.mockReset()
@@ -436,7 +418,6 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid + detail drawer', 
 
 describe('LoraWorkbench CivitaiCommunityBranch — 显式提交检索', () => {
   beforeEach(() => {
-    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockLibraryItems = []
@@ -493,7 +474,6 @@ describe('LoraWorkbench CivitaiCommunityBranch — 显式提交检索', () => {
 
 describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
   beforeEach(() => {
-    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockUseCivitaiLoraLibrary.mockReset()
@@ -567,9 +547,8 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-5 URL deep link', () => {
   })
 })
 
-describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear filters', () => {
+describe('LoraWorkbench CivitaiCommunityBranch — P2-6 clear filters', () => {
   beforeEach(() => {
-    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockSetSearch.mockReset()
@@ -619,58 +598,6 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
     }
   }
 
-  // P1-6 三态循环：unrestricted → nsfwOnly → safe → unrestricted（默认从 safe 起步）。
-  it('cycles unrestricted → nsfwOnly on click, showing the unrestricted label', () => {
-    mockLibraryNsfwFilter = 'unrestricted'
-    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
-
-    renderDesktopPane()
-
-    const toggle = screen.getByRole('button', {
-      name: /LoraWorkbench:nsfwToggleHint/,
-    })
-    expect(
-      within(toggle).getByText('LoraWorkbench:nsfwFilterUnrestricted'),
-    ).toBeInTheDocument()
-
-    fireEvent.click(toggle)
-    expect(mockSetNsfwFilter).toHaveBeenCalledWith('nsfwOnly')
-  })
-
-  it('cycles nsfwOnly → safe on click, showing the nsfwOnly label', () => {
-    mockLibraryNsfwFilter = 'nsfwOnly'
-    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
-
-    renderDesktopPane()
-
-    const toggle = screen.getByRole('button', {
-      name: /LoraWorkbench:nsfwToggleHint/,
-    })
-    expect(
-      within(toggle).getByText('LoraWorkbench:nsfwFilterNsfwOnly'),
-    ).toBeInTheDocument()
-
-    fireEvent.click(toggle)
-    expect(mockSetNsfwFilter).toHaveBeenCalledWith('safe')
-  })
-
-  it('cycles safe → unrestricted on click, showing the safe label', () => {
-    mockLibraryNsfwFilter = 'safe'
-    mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
-
-    renderDesktopPane()
-
-    const toggle = screen.getByRole('button', {
-      name: /LoraWorkbench:nsfwToggleHint/,
-    })
-    expect(
-      within(toggle).getByText('LoraWorkbench:nsfwFilterSafe'),
-    ).toBeInTheDocument()
-
-    fireEvent.click(toggle)
-    expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
-  })
-
   it('shows a clear-filters action in the empty state only when a filter is active, and resets on click', () => {
     mockLibraryBaseModel = 'Illustrious'
     mockUseCivitaiLoraLibrary.mockImplementation(mockLibraryReturn)
@@ -702,7 +629,6 @@ describe('LoraWorkbench CivitaiCommunityBranch — P1-6 NSFW toggle + P2-6 clear
 // （Pony）行照常渲染、不崩，且行内不带收藏心（收藏在展开详情里）。
 describe('LoraWorkbench CivitaiCommunityBranch — cover grid visuals', () => {
   beforeEach(() => {
-    mockIsMobile = true
     mockSection = 'community'
     mockLibraryQuery = ''
     mockUseCivitaiLoraLibrary.mockReset()
@@ -767,20 +693,5 @@ describe('LoraWorkbench CivitaiCommunityBranch — cover grid visuals', () => {
     expect(
       screen.queryByRole('button', { name: 'LoraWorkbench:favorite' }),
     ).not.toBeInTheDocument()
-  })
-
-  it('surfaces the type and base-model filters as dropdown triggers', () => {
-    renderDesktopPane()
-
-    expect(
-      screen.getByRole('button', {
-        name: /LoraWorkbench:typeFilterLabel/,
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', {
-        name: /LoraWorkbench:baseModelFilterLabel/,
-      }),
-    ).toBeInTheDocument()
   })
 })

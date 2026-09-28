@@ -27,5 +27,6 @@ export * from '@/lib/api-client/script-breakdown'
 export * from '@/lib/api-client/video-scene'
 export * from '@/lib/api-client/video-script'
 export * from '@/lib/api-client/render'
+export * from '@/lib/api-client/mcp'
 
 export * from '@/lib/api-client/novelai-tags'

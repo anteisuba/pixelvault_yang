@@ -381,10 +381,6 @@ export type AssistantConversationShareUncheckedUpdateManyWithoutConversationNest
   deleteMany?: Prisma.AssistantConversationShareScalarWhereInput | Prisma.AssistantConversationShareScalarWhereInput[]
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type AssistantConversationShareCreateWithoutConversationInput = {
   id?: string
   tokenHash: string

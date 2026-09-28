@@ -268,6 +268,9 @@ export const API_ENDPOINTS = {
   /** v3→v4 惰性升级的备份端点前缀（`/<projectId>/backup`）。 */
   STUDIO_NODE_WORKFLOW: '/api/studio/node-workflow',
 
+  /** 外部 Claude 连本站的个人令牌（docs/references/mcp.md §3.1）。 */
+  MCP_TOKENS: '/api/mcp/tokens',
+
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
 

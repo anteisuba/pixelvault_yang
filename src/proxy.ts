@@ -51,6 +51,9 @@ const isPublicRoute = createRouteMatcher([
   '/api/internal/execution/long-video/advance',
   // render-video worker（剪辑台导出）的进度 / 成片回调，同样自己验签。
   '/api/studio/render/callback',
+  // 外部 Claude 的 MCP 端点：自己验 Bearer 令牌（docs/references/mcp.md）。
+  // ⚠ 只放行这一条精确路径 —— `/api/mcp/tokens`（管令牌）仍要 Clerk 会话。
+  '/api/mcp',
   // Vercel Cron authenticates with Authorization: Bearer CRON_SECRET inside
   // the route; it has no Clerk session and must reach that verifier first.
   '/api/internal/execution/sweep',

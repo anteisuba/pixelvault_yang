@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getVideoPosterUrl } from '@/lib/video-poster'
+import {
+  getImagePreviewUrl,
+  getVideoFrameUrl,
+  getVideoPosterUrl,
+} from '@/lib/video-poster'
 
 const CDN = 'https://cdn.test.com'
 
@@ -57,5 +61,47 @@ describe('getVideoPosterUrl', () => {
 
     vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', '')
     expect(getVideoPosterUrl(`${CDN}/clips/shot.mp4`)).toBeNull()
+  })
+})
+
+describe('getVideoFrameUrl', () => {
+  it('writes the time as whole milliseconds at the requested width', () => {
+    withCdn()
+
+    expect(getVideoFrameUrl(`${CDN}/shots/a.mp4`, 2.5, 512)).toBe(
+      `${CDN}/cdn-cgi/media/mode=frame,time=2500ms,fit=scale-down,width=512,format=jpg/${CDN}/shots/a.mp4`,
+    )
+    // 浮点尾巴不能生出第二个缓存键。
+    expect(getVideoFrameUrl(`${CDN}/shots/a.mp4`, 0.1 + 0.2, 512)).toContain(
+      'time=300ms',
+    )
+  })
+
+  it('clamps a negative time to the first frame', () => {
+    withCdn()
+    expect(getVideoFrameUrl(`${CDN}/shots/a.mp4`, -1, 512)).toContain(
+      'time=0ms',
+    )
+  })
+
+  it('refuses the same sources the poster refuses', () => {
+    withCdn()
+    expect(getVideoFrameUrl('https://fal.media/a.mp4', 1, 512)).toBeNull()
+    expect(getVideoFrameUrl(`${CDN}/shots/a.mov`, 1, 512)).toBeNull()
+  })
+})
+
+describe('getImagePreviewUrl', () => {
+  it('resizes a CDN image to a JPEG of the requested width', () => {
+    withCdn()
+
+    expect(getImagePreviewUrl(`${CDN}/images/a.png`, 512)).toBe(
+      `${CDN}/cdn-cgi/image/width=512,fit=scale-down,format=jpeg/${CDN}/images/a.png`,
+    )
+  })
+
+  it('refuses foreign origins', () => {
+    withCdn()
+    expect(getImagePreviewUrl('https://example.com/a.png', 512)).toBeNull()
   })
 })

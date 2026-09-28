@@ -17,6 +17,12 @@
 export const MEDIA_TRANSFORMATIONS_PATH_PREFIX = '/cdn-cgi/media'
 
 /**
+ * 图片缩放（Image Transformations，与上面同一个 zone 开关）。2026-09-28 实测：
+ * 6.3MB 的 PNG → 512 宽 JPEG 约 40KB。
+ */
+export const IMAGE_TRANSFORMATIONS_PATH_PREFIX = '/cdn-cgi/image'
+
+/**
  * 抽帧时间点。⚠ 不用 0 —— 很多视频第一帧是纯黑的开场，抽出来的封面等于
  * 没有封面。`time` 的可用区间是 0–10m，格式是时间字符串（`5s` / `2m`）。
  */

@@ -131,6 +131,34 @@ describe('proxy internal execution routes', () => {
     },
   )
 
+  it('lets an external Claude reach the MCP endpoint with only its bearer token', async () => {
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/mcp',
+          origin: 'https://pixelvault.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(protect).not.toHaveBeenCalled()
+  })
+
+  it('keeps MCP token management behind a Clerk session', async () => {
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/mcp/tokens',
+          origin: 'https://pixelvault.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(protect).toHaveBeenCalledOnce()
+  })
+
   it('lets the cron heartbeat monitor reach its HEALTH_CHECK_TOKEN gate', async () => {
     // cron-monitor.yml 每天读这条来判断三条 cron 昨天跑没跑。漏放行的话它
     // 恒 404 → workflow 每天开一条假 issue，而真的漏跑反而照旧看不见。

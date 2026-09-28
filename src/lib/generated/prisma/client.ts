@@ -47,6 +47,12 @@ export { Prisma }
  */
 export type User = Prisma.UserModel
 /**
+ * Model McpToken
+ * 外部 Claude 经 MCP 连本站用的个人令牌（docs/references/mcp.md §3.1）。
+ * 整个账号 · 不过期 · 可吊销。⚠ 只存 SHA-256，明文只在生成那一刻给一次。
+ */
+export type McpToken = Prisma.McpTokenModel
+/**
  * Model AssistantConversation
  * Persisted assistant chat (Node canvas and Studio). Messages are JSON
  * text-only (plus remote media URLs) — never base64 payloads.

@@ -212,9 +212,27 @@ model User {
   projectRules           ProjectRule[]
   contextCards           ContextCard[]
   assistantMemories      AssistantMemory[]
+  mcpTokens              McpToken[]
 
   @@index([username])
   @@index([isDeleted])
+}
+
+/// 外部 Claude 经 MCP 连本站用的个人令牌（docs/references/mcp.md §3.1）。
+/// 整个账号 · 不过期 · 可吊销。⚠ 只存 SHA-256，明文只在生成那一刻给一次。
+model McpToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  /// 明文末 4 位，列表里认得出是哪一个。
+  last4      String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, revokedAt])
 }
 
 /// Persisted assistant chat (Node canvas and Studio). Messages are JSON

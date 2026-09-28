@@ -385,6 +385,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  McpToken: 'McpToken',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
   ResearchRun: 'ResearchRun',
@@ -445,7 +446,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -520,6 +521,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    McpToken: {
+      payload: Prisma.$McpTokenPayload<ExtArgs>
+      fields: Prisma.McpTokenFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.McpTokenFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.McpTokenFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        findFirst: {
+          args: Prisma.McpTokenFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.McpTokenFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        findMany: {
+          args: Prisma.McpTokenFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>[]
+        }
+        create: {
+          args: Prisma.McpTokenCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        createMany: {
+          args: Prisma.McpTokenCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.McpTokenCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>[]
+        }
+        delete: {
+          args: Prisma.McpTokenDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        update: {
+          args: Prisma.McpTokenUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        deleteMany: {
+          args: Prisma.McpTokenDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.McpTokenUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.McpTokenUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>[]
+        }
+        upsert: {
+          args: Prisma.McpTokenUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpTokenPayload>
+        }
+        aggregate: {
+          args: Prisma.McpTokenAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMcpToken>
+        }
+        groupBy: {
+          args: Prisma.McpTokenGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.McpTokenGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.McpTokenCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.McpTokenCountAggregateOutputType> | number
         }
       }
     }
@@ -3913,6 +3988,20 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const McpTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  tokenHash: 'tokenHash',
+  last4: 'last4',
+  lastUsedAt: 'lastUsedAt',
+  revokedAt: 'revokedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type McpTokenScalarFieldEnum = (typeof McpTokenScalarFieldEnum)[keyof typeof McpTokenScalarFieldEnum]
+
+
 export const AssistantConversationScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -5292,6 +5381,7 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  mcpToken?: Prisma.McpTokenOmit
   assistantConversation?: Prisma.AssistantConversationOmit
   assistantConversationShare?: Prisma.AssistantConversationShareOmit
   researchRun?: Prisma.ResearchRunOmit

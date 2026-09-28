@@ -55,6 +55,7 @@ import {
   EDIT_TEXT_CLIP_HEIGHT_PX,
   EDIT_TEXT_CLIP_MIN_DURATION_SEC,
   EDIT_TEXT_LANE_HEIGHT_PX,
+  EDIT_TIMELINE_FEEL,
   EDIT_TIMELINE_FIT,
   EDIT_TIMELINE_PX_PER_SECOND,
   EDIT_TIMELINE_TICK_MIN_PX,
@@ -71,7 +72,7 @@ import {
   type EditTransitionId,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { currentUrlOf, formatEditClock } from '@/lib/edit-project'
+import { clampTrim, currentUrlOf, formatEditClock } from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditClip, EditTextClip } from '@/types/node-workflow'
@@ -182,6 +183,25 @@ function useTimelineScale(): TimelineScale {
   return useContext(TimelineScaleContext)
 }
 
+/**
+ * 拖东西时的吸附（owner 2026-09-28「操作体验不太好」）：离播放头或任何一段的头尾不到
+ * `EDIT_TIMELINE_FEEL.snapPx` 就贴上去，同时画一条吸附线。
+ * `snap` 返回贴上的那一刻，`null` = 附近没有；`exclude` = 自己那几条边（⛔ 自己吸自己）。
+ */
+interface TimelineInteraction {
+  snap(seconds: number, exclude?: readonly number[]): number | null
+  setGuide(seconds: number | null): void
+}
+
+const TimelineInteractionContext = createContext<TimelineInteraction>({
+  snap: () => null,
+  setGuide: () => undefined,
+})
+
+function useTimelineInteraction(): TimelineInteraction {
+  return useContext(TimelineInteractionContext)
+}
+
 /** 时间线最右一刻：四条轨里最晚结束的那一段（字幕段有自己的绝对起点）。 */
 function timelineEndSec(desk: EditDesk): number {
   let end = desk.durationSec
@@ -221,7 +241,11 @@ export function EditDeskTimeline({
   const [viewportPx, setViewportPx] = useState(0)
   useEffect(() => {
     const element = scrollRef.current
-    if (!element || typeof ResizeObserver === 'undefined') return undefined
+    if (!element) return undefined
+    // 先同步量一次：ResizeObserver 要等下一帧才回话（后台标签页里一直不回），
+    // 那之前时间线会按默认比例画成半截。
+    setViewportPx(element.clientWidth)
+    if (typeof ResizeObserver === 'undefined') return undefined
     const observer = new ResizeObserver(([entry]) => {
       setViewportPx(entry?.contentRect.width ?? 0)
     })
@@ -309,34 +333,79 @@ export function EditDeskTimeline({
     [scale],
   )
 
+  /* ── 吸附 ─────────────────────────────────────────────────────────── */
+  const textClips = desk.project.tracks.text
+  const snapTargets = useMemo(() => {
+    const targets = [0, playheadSec]
+    for (const track of EDIT_TRACKS) {
+      for (const row of desk.rows[track]) {
+        targets.push(row.startSec, row.startSec + row.durationSec)
+      }
+    }
+    for (const clip of textClips) {
+      targets.push(clip.startSec, clip.startSec + clip.durationSec)
+    }
+    return targets
+  }, [desk.rows, textClips, playheadSec])
+  const [guideSec, setGuideSec] = useState<number | null>(null)
+  const snap = useCallback(
+    (seconds: number, exclude: readonly number[] = []): number | null => {
+      let best: number | null = null
+      let bestPx: number = EDIT_TIMELINE_FEEL.snapPx
+      for (const target of snapTargets) {
+        if (exclude.some((own) => Math.abs(own - target) < 1e-6)) continue
+        const px = Math.abs(scale.toPx(target) - scale.toPx(seconds))
+        if (px <= bestPx) {
+          best = target
+          bestPx = px
+        }
+      }
+      return best
+    },
+    [snapTargets, scale],
+  )
+  const interaction = useMemo<TimelineInteraction>(
+    () => ({ snap, setGuide: setGuideSec }),
+    [snap],
+  )
+
   /**
-   * 拖播放头（owner 2026-09-28「卡手，不能拖动」）：按下就把播放头放到这一刻，按住
-   * 往两边拖就跟着走，松手停下。⚠ 一帧只落一次（`requestAnimationFrame` 合并）——
-   * 每个 pointermove 都改一次播放头会把整张台面（连同预览的 seek）重画几十遍，
-   * 那正是「卡手」的来源。
+   * 拖播放头（owner 2026-09-28「卡手，不能拖动」）：在标尺或播放头的时间读数上按下，
+   * 播放头就到这一刻，按住往两边拖就跟着走（贴近段头段尾会吸上去），松手停下。
+   * ⚠ 一帧只落一次（`requestAnimationFrame` 合并）—— 每个 pointermove 都改一次播放头
+   * 会把整张台面（连同预览的 seek）重画几十遍，那正是「卡手」的来源。
    */
   const setPlayhead = desk.setPlayhead
   const startScrub = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       if (event.button !== 0) return
       event.preventDefault()
+      event.stopPropagation()
       onScrubStart?.()
       const target = event.currentTarget
       target.setPointerCapture?.(event.pointerId)
+      const origin = playheadSec
       let lastX = event.clientX
       let frame = 0
-      setPlayhead(secondsFromEvent(lastX))
+      const land = () => {
+        const seconds = secondsFromEvent(lastX)
+        const snapped = snap(seconds, [origin])
+        setGuideSec(snapped)
+        setPlayhead(snapped ?? seconds)
+      }
+      land()
       const move = (moveEvent: PointerEvent) => {
         lastX = moveEvent.clientX
         if (frame) return
         frame = window.requestAnimationFrame(() => {
           frame = 0
-          setPlayhead(secondsFromEvent(lastX))
+          land()
         })
       }
       const up = () => {
         if (frame) window.cancelAnimationFrame(frame)
-        setPlayhead(secondsFromEvent(lastX))
+        land()
+        setGuideSec(null)
         target.removeEventListener('pointermove', move)
         target.removeEventListener('pointerup', up)
         target.removeEventListener('pointercancel', up)
@@ -345,7 +414,36 @@ export function EditDeskTimeline({
       target.addEventListener('pointerup', up)
       target.addEventListener('pointercancel', up)
     },
-    [onScrubStart, secondsFromEvent, setPlayhead],
+    [onScrubStart, secondsFromEvent, setPlayhead, snap, playheadSec],
+  )
+
+  /**
+   * 轨道上空白处按下 = **取消选中**，⛔ 不再挪播放头（owner「点哪儿会发生什么」：
+   * 点空白挪播放头太容易误触）。挪播放头只在标尺和播放头的时间读数上。
+   */
+  const { select, selectText } = desk
+  const deselect = useCallback(() => {
+    select(null)
+    selectText(null)
+  }, [select, selectText])
+
+  /** 标尺上悬停：一条浅线 + 时间，告诉你点下去播放头会到哪儿。 */
+  const [hoverSec, setHoverSec] = useState<number | null>(null)
+  const hoverFrame = useRef(0)
+  const onRulerHover = useCallback(
+    (clientX: number | null) => {
+      if (hoverFrame.current) window.cancelAnimationFrame(hoverFrame.current)
+      if (clientX === null) {
+        hoverFrame.current = 0
+        setHoverSec(null)
+        return
+      }
+      hoverFrame.current = window.requestAnimationFrame(() => {
+        hoverFrame.current = 0
+        setHoverSec(secondsFromEvent(clientX))
+      })
+    },
+    [secondsFromEvent],
   )
 
   const onToolClick = (tool: EditToolId) => {
@@ -495,68 +593,89 @@ export function EditDeskTimeline({
         </div>
 
         <TimelineScaleContext.Provider value={scale}>
-          <div
-            ref={scrollRef}
-            data-testid="edit-desk-timeline-scroll"
-            className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
-          >
+          <TimelineInteractionContext.Provider value={interaction}>
             <div
-              ref={canvasRef}
-              className="relative flex min-w-full flex-col gap-1.5"
-              style={{ width: scale.toPx(spanSec) }}
+              ref={scrollRef}
+              data-testid="edit-desk-timeline-scroll"
+              className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
             >
-              <Ruler
-                spanSec={spanSec}
-                tickSec={tickSec}
-                minorSec={minorSec}
-                onScrub={startScrub}
-              />
-              {/*
+              <div
+                ref={canvasRef}
+                className="relative flex min-w-full flex-col gap-1.5"
+                style={{ width: scale.toPx(spanSec) }}
+              >
+                <Ruler
+                  spanSec={spanSec}
+                  tickSec={tickSec}
+                  minorSec={minorSec}
+                  onScrub={startScrub}
+                  onHover={onRulerHover}
+                />
+                {/*
                 T 轨在 V 之上（spec §6「文字段」）。⚠ 它**不参与磁吸主轨**，所以段是
                 绝对定位（left = 起点秒）而不是首尾相接的一排 —— 字幕钉在画面的某一刻，
                 画面换了序它不该跟着挪。
               */}
-              <TextLane
-                desk={desk}
-                secondsFromEvent={secondsFromEvent}
-                onScrub={startScrub}
-              />
-              {EDIT_TRACKS.map((track) => (
-                <TrackLane
-                  key={track}
-                  track={track}
-                  rows={desk.rows[track]}
-                  desk={desk}
-                  secondsFromEvent={secondsFromEvent}
-                  onScrub={startScrub}
-                  onDropLibraryAsset={onDropLibraryAsset}
-                  highlighted={highlightTrack === track}
-                />
-              ))}
+                <TextLane desk={desk} onBlankPointerDown={deselect} />
+                {EDIT_TRACKS.map((track) => (
+                  <TrackLane
+                    key={track}
+                    track={track}
+                    rows={desk.rows[track]}
+                    desk={desk}
+                    secondsFromEvent={secondsFromEvent}
+                    onBlankPointerDown={deselect}
+                    onDropLibraryAsset={onDropLibraryAsset}
+                    highlighted={highlightTrack === track}
+                  />
+                ))}
 
-              {/* 播放头 —— 四轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
-              <div
-                data-testid="edit-desk-playhead"
-                aria-hidden
-                className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 -translate-x-px bg-primary"
-                style={{ left: scale.toPx(desk.playheadSec) }}
-              >
-                {/* 顶上那枚时间读数就是拖柄。⚠ 贴近开头时整枚往右让，⛔ 半截藏到轨道名底下。 */}
-                <span
-                  data-testid="edit-desk-playhead-grip"
-                  onPointerDown={startScrub}
-                  className={cn(
-                    'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-3xs leading-5 text-primary-foreground',
-                    scale.toPx(desk.playheadSec) < 28
-                      ? 'left-0'
-                      : 'left-1/2 -translate-x-1/2',
-                  )}
+                {/* 吸附线：拖的那条边贴上了谁。 */}
+                {guideSec !== null ? (
+                  <span
+                    data-testid="edit-desk-snap-guide"
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-primary/60"
+                    style={{ left: scale.toPx(guideSec) }}
+                  />
+                ) : null}
+                {/* 标尺悬停线：点下去播放头会到哪儿。 */}
+                {hoverSec !== null && guideSec === null ? (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-foreground/20"
+                    style={{ left: scale.toPx(hoverSec) }}
+                  >
+                    <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted-foreground px-1.5 font-mono text-3xs leading-5 text-background">
+                      {formatEditClock(hoverSec, true)}
+                    </span>
+                  </span>
+                ) : null}
+
+                {/* 播放头 —— 四轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
+                <div
+                  data-testid="edit-desk-playhead"
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 -translate-x-px bg-primary"
+                  style={{ left: scale.toPx(desk.playheadSec) }}
                 >
-                  {formatEditClock(desk.playheadSec, true)}
-                </span>
+                  {/* 顶上那枚时间读数就是拖柄。⚠ 贴近开头时整枚往右让，⛔ 半截藏到轨道名底下。 */}
+                  <span
+                    data-testid="edit-desk-playhead-grip"
+                    onPointerDown={startScrub}
+                    className={cn(
+                      'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-3xs leading-5 text-primary-foreground',
+                      scale.toPx(desk.playheadSec) < 28
+                        ? 'left-0'
+                        : 'left-1/2 -translate-x-1/2',
+                    )}
+                  >
+                    {formatEditClock(desk.playheadSec, true)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          </TimelineInteractionContext.Provider>
         </TimelineScaleContext.Provider>
       </div>
     </div>
@@ -589,11 +708,13 @@ function Ruler({
   tickSec,
   minorSec,
   onScrub,
+  onHover,
 }: {
   readonly spanSec: number
   readonly tickSec: number
   readonly minorSec: number
   onScrub(event: React.PointerEvent<HTMLElement>): void
+  onHover(clientX: number | null): void
 }) {
   const scale = useTimelineScale()
   const majors: number[] = []
@@ -608,6 +729,8 @@ function Ruler({
       data-testid="edit-desk-ruler"
       aria-hidden
       onPointerDown={onScrub}
+      onPointerMove={(event) => onHover(event.clientX)}
+      onPointerLeave={() => onHover(null)}
       className="relative shrink-0 cursor-ew-resize touch-none select-none"
       style={{ height: EDIT_DESK_LAYOUT.rulerHeightPx }}
     >
@@ -658,19 +781,17 @@ function LaneBed({
 /** T 轨（S8d）。 */
 function TextLane({
   desk,
-  secondsFromEvent,
-  onScrub,
+  onBlankPointerDown,
 }: {
   readonly desk: EditDesk
-  secondsFromEvent(clientX: number): number
-  onScrub(event: React.PointerEvent<HTMLElement>): void
+  onBlankPointerDown(): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
 
   return (
     <div
       data-testid="edit-desk-track-text"
-      onPointerDown={onScrub}
+      onPointerDown={onBlankPointerDown}
       className="relative shrink-0"
       style={{ height: EDIT_TEXT_LANE_HEIGHT_PX }}
     >
@@ -681,29 +802,31 @@ function TextLane({
         </span>
       ) : null}
       {desk.project.tracks.text.map((clip) => (
-        <TextClipView
-          key={clip.id}
-          clip={clip}
-          desk={desk}
-          secondsFromEvent={secondsFromEvent}
-        />
+        <TextClipView key={clip.id} clip={clip} desk={desk} />
       ))}
     </div>
   )
 }
 
-/** 选中段两端那对黑色手柄（画板 `.hl` / `.hr`）：中间一根白色握线。 */
+/**
+ * 段两端的裁剪区（owner 2026-09-28「拉长 / 缩短一段」）：**没选中也能直接拖** —— 鼠标
+ * 移到段的两端，那根黑手柄（中间一根白色握线）就浮出来、光标变成左右箭头；选中的段
+ * 两端一直亮着。命中区统一 `EDIT_TIMELINE_FEEL.edgeHitPx` 宽。⚠ 悬停和选中是**同一根
+ * 手柄**：画面缩略图大多偏暗，一根细黑线落上去看不见，白握线才是看得见的那一笔。
+ */
 function TrimHandle({
   edge,
   testId,
   label,
   value,
+  selected,
   onPointerDown,
 }: {
   readonly edge: 'in' | 'out'
   readonly testId: string
   readonly label: string
   readonly value: number
+  readonly selected: boolean
   onPointerDown(event: React.PointerEvent<HTMLElement>): void
 }) {
   return (
@@ -712,15 +835,24 @@ function TrimHandle({
       role="slider"
       aria-label={label}
       aria-valuenow={Math.round(value * 10) / 10}
-      tabIndex={0}
+      tabIndex={selected ? 0 : -1}
       onPointerDown={onPointerDown}
-      style={{ width: EDIT_DESK_LAYOUT.handleWidthPx }}
+      style={{ width: EDIT_TIMELINE_FEEL.edgeHitPx }}
       className={cn(
-        'absolute inset-y-0 z-10 cursor-ew-resize bg-primary',
+        'group/handle absolute inset-y-0 z-10 cursor-ew-resize touch-none',
         edge === 'in' ? 'left-0' : 'right-0',
       )}
     >
-      <span className="absolute left-1/2 top-1/2 h-3 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground" />
+      <span
+        style={{ width: EDIT_DESK_LAYOUT.handleWidthPx }}
+        className={cn(
+          'absolute inset-y-0 bg-primary transition-opacity duration-fast motion-reduce:transition-none',
+          edge === 'in' ? 'left-0' : 'right-0',
+          selected ? 'opacity-100' : 'opacity-0 group-hover/handle:opacity-100',
+        )}
+      >
+        <span className="absolute left-1/2 top-1/2 h-3 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground" />
+      </span>
     </span>
   )
 }
@@ -748,8 +880,67 @@ function TrimReadout({
 }
 
 /**
- * 一段字幕。四种手势与 V 段同源：点 = 选中 · 拖体 = 挪位置 · 拖两端 = 改入出点 ·
- * ⌫ / S 在台面上（键盘不归时间线管）。
+ * 按下之后跟着指针走的一次拖动（字幕挪位 / 裁剪 / 段换位共用）：
+ * 过了 `dragThresholdPx` 才算拖（没过 = 只是点选），一帧只落一次预览，松手落定，
+ * 拖的途中按 Esc = 放弃。⚠ Esc 在捕获阶段拦下并 `preventDefault`：台面挂在 window
+ * 上的 Esc 是「退出剪辑台」。
+ */
+function followPointer(
+  event: React.PointerEvent<HTMLElement>,
+  handlers: {
+    onMove(deltaPx: number): void
+    onEnd(deltaPx: number, dragged: boolean): void
+    onCancel(): void
+  },
+): void {
+  const target = event.currentTarget
+  target.setPointerCapture?.(event.pointerId)
+  const startX = event.clientX
+  let lastX = startX
+  let dragged = false
+  let frame = 0
+  const cleanup = () => {
+    if (frame) window.cancelAnimationFrame(frame)
+    target.removeEventListener('pointermove', move)
+    target.removeEventListener('pointerup', up)
+    target.removeEventListener('pointercancel', cancel)
+    window.removeEventListener('keydown', onKey, true)
+  }
+  const move = (moveEvent: PointerEvent) => {
+    lastX = moveEvent.clientX
+    if (!dragged) {
+      if (Math.abs(lastX - startX) < EDIT_TIMELINE_FEEL.dragThresholdPx) return
+      dragged = true
+    }
+    if (frame) return
+    frame = window.requestAnimationFrame(() => {
+      frame = 0
+      handlers.onMove(lastX - startX)
+    })
+  }
+  const up = () => {
+    cleanup()
+    handlers.onEnd(lastX - startX, dragged)
+  }
+  const cancel = () => {
+    cleanup()
+    handlers.onCancel()
+  }
+  const onKey = (keyEvent: KeyboardEvent) => {
+    if (keyEvent.key !== 'Escape' || !dragged) return
+    keyEvent.preventDefault()
+    keyEvent.stopPropagation()
+    cancel()
+  }
+  target.addEventListener('pointermove', move)
+  target.addEventListener('pointerup', up)
+  target.addEventListener('pointercancel', cancel)
+  window.addEventListener('keydown', onKey, true)
+}
+
+/**
+ * 一段字幕。点 = 选中 · 按住拖 = 挪位置 · 拖两端 = 改入出点；拖的时候段头段尾贴近
+ * 播放头或别的段就吸上去。⌫ / S 在台面上（键盘不归时间线管）。
  *
  * ⚠ 与 V 段一样**落地时才发 op**（`pointerup`）：拖的过程只动本地预览，⛔ 不把
  * 撤销栈冲成 60 步。
@@ -757,14 +948,13 @@ function TrimReadout({
 function TextClipView({
   clip,
   desk,
-  secondsFromEvent,
 }: {
   readonly clip: EditTextClip
   readonly desk: EditDesk
-  secondsFromEvent(clientX: number): number
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const scale = useTimelineScale()
+  const { snap, setGuide } = useTimelineInteraction()
   const selected = desk.textSelectionId === clip.id
   const [preview, setPreview] = useState<{
     startSec: number
@@ -779,64 +969,92 @@ function TextClipView({
   const startDrag =
     (mode: 'move' | 'in' | 'out') =>
     (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return
       event.stopPropagation()
       event.preventDefault()
       desk.selectText(clip.id)
-      const originSec = secondsFromEvent(event.clientX)
       const origin = {
         startSec: clip.startSec,
         durationSec: clip.durationSec,
       }
-      const target: HTMLElement = event.currentTarget
-      target.setPointerCapture(event.pointerId)
+      const own = [origin.startSec, origin.startSec + origin.durationSec]
 
       const nextOf = (
-        clientX: number,
-      ): { startSec: number; durationSec: number } => {
-        const delta = secondsFromEvent(clientX) - originSec
+        deltaPx: number,
+      ): { startSec: number; durationSec: number; guide: number | null } => {
+        const delta = scale.toSeconds(deltaPx)
         if (mode === 'move') {
+          const start = Math.max(0, origin.startSec + delta)
+          const byStart = snap(start, own)
+          if (byStart !== null) {
+            return {
+              startSec: byStart,
+              durationSec: origin.durationSec,
+              guide: byStart,
+            }
+          }
+          const byEnd = snap(start + origin.durationSec, own)
+          if (byEnd !== null) {
+            return {
+              startSec: Math.max(0, byEnd - origin.durationSec),
+              durationSec: origin.durationSec,
+              guide: byEnd,
+            }
+          }
           return {
-            startSec: Math.max(0, origin.startSec + delta),
+            startSec: start,
             durationSec: origin.durationSec,
+            guide: null,
           }
         }
+        const end = origin.startSec + origin.durationSec
         if (mode === 'in') {
           // 拖左端 = 起点动、尾巴不动（所以长度反向变）。
+          const raw = origin.startSec + delta
+          const snapped = snap(raw, own)
           const startSec = Math.max(
             0,
-            Math.min(
-              origin.startSec + delta,
-              origin.startSec +
-                origin.durationSec -
-                EDIT_TEXT_CLIP_MIN_DURATION_SEC,
-            ),
+            Math.min(snapped ?? raw, end - EDIT_TEXT_CLIP_MIN_DURATION_SEC),
           )
-          return {
-            startSec,
-            durationSec: origin.startSec + origin.durationSec - startSec,
-          }
+          return { startSec, durationSec: end - startSec, guide: snapped }
         }
+        const raw = end + delta
+        const snapped = snap(raw, own)
         return {
           startSec: origin.startSec,
           durationSec: Math.max(
             EDIT_TEXT_CLIP_MIN_DURATION_SEC,
-            origin.durationSec + delta,
+            (snapped ?? raw) - origin.startSec,
           ),
+          guide: snapped,
         }
       }
 
-      const move = (moveEvent: PointerEvent) => {
-        setPreview({ ...nextOf(moveEvent.clientX), edge: mode })
-      }
-      const up = (upEvent: PointerEvent) => {
-        target.removeEventListener('pointermove', move)
-        target.removeEventListener('pointerup', up)
-        const next = nextOf(upEvent.clientX)
-        setPreview(null)
-        desk.updateTextClip(clip.id, next)
-      }
-      target.addEventListener('pointermove', move)
-      target.addEventListener('pointerup', up)
+      followPointer(event, {
+        onMove: (deltaPx) => {
+          const next = nextOf(deltaPx)
+          setGuide(next.guide)
+          setPreview({
+            startSec: next.startSec,
+            durationSec: next.durationSec,
+            edge: mode,
+          })
+        },
+        onEnd: (deltaPx, dragged) => {
+          setGuide(null)
+          setPreview(null)
+          if (!dragged) return
+          const next = nextOf(deltaPx)
+          desk.updateTextClip(clip.id, {
+            startSec: next.startSec,
+            durationSec: next.durationSec,
+          })
+        },
+        onCancel: () => {
+          setGuide(null)
+          setPreview(null)
+        },
+      })
     }
 
   const firstLine = clip.text.split('\n')[0] ?? ''
@@ -891,44 +1109,55 @@ function TextClipView({
           if (event.key === 'Enter') desk.selectText(clip.id)
         }}
         className={cn(
-          'relative flex size-full items-center gap-1.5 overflow-hidden rounded-md bg-card px-1.5 text-2xs text-foreground ring-1 ring-inset ring-border transition-shadow duration-fast',
+          'relative flex size-full cursor-grab touch-none select-none items-center gap-1.5 overflow-hidden rounded-md bg-card px-2.5 text-2xs text-foreground ring-1 ring-inset ring-border transition-shadow duration-fast hover:ring-foreground/30',
           selected &&
-            'px-3.5 ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted',
+            'px-3.5 ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted hover:ring-primary',
+          preview?.edge === 'move' && 'cursor-grabbing shadow-overlay',
         )}
       >
         <span className="grid size-4 shrink-0 place-items-center rounded-sm bg-primary text-3xs font-semibold text-primary-foreground">
           T
         </span>
         <span className="truncate">{firstLine}</span>
-        {selected ? (
-          <>
-            <TrimHandle
-              edge="in"
-              testId={`edit-desk-text-handle-in-${clip.id}`}
-              label={t('inspector.inPoint')}
-              value={shown.startSec}
-              onPointerDown={startDrag('in')}
-            />
-            <TrimHandle
-              edge="out"
-              testId={`edit-desk-text-handle-out-${clip.id}`}
-              label={t('inspector.outPoint')}
-              value={shown.startSec + shown.durationSec}
-              onPointerDown={startDrag('out')}
-            />
-          </>
-        ) : null}
+        <TrimHandle
+          edge="in"
+          testId={`edit-desk-text-handle-in-${clip.id}`}
+          label={t('inspector.inPoint')}
+          value={shown.startSec}
+          selected={selected}
+          onPointerDown={startDrag('in')}
+        />
+        <TrimHandle
+          edge="out"
+          testId={`edit-desk-text-handle-out-${clip.id}`}
+          label={t('inspector.outPoint')}
+          value={shown.startSec + shown.durationSec}
+          selected={selected}
+          onPointerDown={startDrag('out')}
+        />
       </div>
     </div>
   )
 }
+
+/** 一次按住段拖动换位的现场（段之间实时让位）。 */
+interface LaneDrag {
+  readonly id: string
+  readonly from: number
+  readonly to: number
+  readonly deltaPx: number
+  readonly widthPx: number
+}
+
+/** 同一条轨上段与段之间的缝（`gap-1`）。 */
+const CLIP_GAP_PX = 4
 
 function TrackLane({
   track,
   rows,
   desk,
   secondsFromEvent,
-  onScrub,
+  onBlankPointerDown,
   onDropLibraryAsset,
   highlighted,
 }: {
@@ -936,7 +1165,7 @@ function TrackLane({
   readonly rows: readonly EditTimelineRow[]
   readonly desk: EditDesk
   secondsFromEvent(clientX: number): number
-  onScrub(event: React.PointerEvent<HTMLElement>): void
+  onBlankPointerDown(): void
   onDropLibraryAsset(
     asset: EditDeskLibraryAsset,
     track: EditTrackId,
@@ -945,8 +1174,66 @@ function TrackLane({
   readonly highlighted: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
+  const scale = useTimelineScale()
   const [dropping, setDropping] = useState(false)
+  const [drag, setDrag] = useState<LaneDrag | null>(null)
   const isVideo = track === EDIT_TRACK_IDS.video
+
+  /**
+   * 按住段拖 = 换位置（owner 2026-09-28「拖段换位置」）：段跟着指针走、别的段实时
+   * 让开，松手才发一条 `edit_move_clip`。⛔ 不再用浏览器原生拖放 —— 那是拖一张半
+   * 透明截图、松手才换位，看不见会落在哪。
+   */
+  const beginMove = (
+    event: React.PointerEvent<HTMLElement>,
+    row: EditTimelineRow,
+    widthPx: number,
+  ) => {
+    if (event.button !== 0) return
+    event.stopPropagation()
+    event.preventDefault()
+    desk.select({ track, clipId: row.clip.id })
+    const centers = rows.map((candidate) =>
+      scale.toPx(candidate.startSec + candidate.durationSec / 2),
+    )
+    const targetOf = (deltaPx: number) => {
+      const center = (centers[row.index] ?? 0) + deltaPx
+      return rows.filter(
+        (candidate, index) =>
+          index !== row.index && (centers[index] ?? 0) < center,
+      ).length
+    }
+    followPointer(event, {
+      onMove: (deltaPx) =>
+        setDrag({
+          id: row.clip.id,
+          from: row.index,
+          to: targetOf(deltaPx),
+          deltaPx,
+          widthPx,
+        }),
+      onEnd: (deltaPx, dragged) => {
+        setDrag(null)
+        if (!dragged) return
+        const to = targetOf(deltaPx)
+        if (to !== row.index) desk.moveClip(track, row.clip.id, to)
+      },
+      onCancel: () => setDrag(null),
+    })
+  }
+
+  const offsetOf = (index: number): number => {
+    if (!drag) return 0
+    if (index === drag.from) return drag.deltaPx
+    const shift = drag.widthPx + CLIP_GAP_PX
+    if (drag.from < drag.to && index > drag.from && index <= drag.to) {
+      return -shift
+    }
+    if (drag.to < drag.from && index >= drag.to && index < drag.from) {
+      return shift
+    }
+    return 0
+  }
 
   return (
     <div
@@ -983,8 +1270,8 @@ function TrackLane({
         event.preventDefault()
         desk.dropNode(nodeId, track, index)
       }}
-      // 空白处按下 = 移播放头，按住拖 = 拖播放头（点段的那一路 stopPropagation 了）。
-      onPointerDown={onScrub}
+      // 空白处按下 = 取消选中（点段的那一路 stopPropagation 了）。
+      onPointerDown={onBlankPointerDown}
       className="relative shrink-0"
       style={{ height: laneHeightOf(track) }}
     >
@@ -1009,6 +1296,10 @@ function TrackLane({
             desk={desk}
             isVideo={isVideo}
             showTransitionAfter={isVideo && index < rows.length - 1}
+            offsetPx={offsetOf(index)}
+            lifted={drag?.id === row.clip.id}
+            reordering={drag !== null}
+            onBodyPointerDown={beginMove}
           />
         ))}
       </div>
@@ -1022,15 +1313,29 @@ function ClipView({
   desk,
   isVideo,
   showTransitionAfter,
+  offsetPx,
+  lifted,
+  reordering,
+  onBodyPointerDown,
 }: {
   readonly row: EditTimelineRow
   readonly track: EditTrackId
   readonly desk: EditDesk
   readonly isVideo: boolean
   readonly showTransitionAfter: boolean
+  /** 换位途中这一段该挪多少（被拖的那段 = 跟手，别的段 = 让位）。 */
+  readonly offsetPx: number
+  readonly lifted: boolean
+  readonly reordering: boolean
+  onBodyPointerDown(
+    event: React.PointerEvent<HTMLElement>,
+    row: EditTimelineRow,
+    widthPx: number,
+  ): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const scale = useTimelineScale()
+  const { snap, setGuide } = useTimelineInteraction()
   const clip = row.clip
   const selected = desk.selection?.clipId === clip.id
   /** 拖手柄时的本地预览（⛔ 不落 op，见文件头）。 */
@@ -1047,43 +1352,94 @@ function ClipView({
   )
   const gone = !row.source.exists
   const sourceName = readSourceName(row)
+  const sourceData = row.source.node?.data
+  const sourceDurationSec =
+    sourceData &&
+    (sourceData.kind === NODE_MEDIA_KIND_IDS.video ||
+      sourceData.kind === NODE_MEDIA_KIND_IDS.audio)
+      ? sourceData.durationSec
+      : undefined
 
+  /**
+   * 裁剪：拖左端改入点、拖右端改出点。磁吸主轨上这一段的起点不动，变的是**它的尾巴**
+   * （后面的段跟着补位），所以两种拖法吸附的都是尾巴那条边。
+   */
   const startTrim =
     (edge: 'in' | 'out') => (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return
       event.stopPropagation()
       event.preventDefault()
-      const originX = event.clientX
+      desk.select({ track, clipId: clip.id })
       const origin = { in: clip.in, out: clip.out }
-      const target: HTMLElement = event.currentTarget
-      target.setPointerCapture(event.pointerId)
+      const ownEnd = row.startSec + row.durationSec
 
-      const nextOf = (clientX: number) => {
-        const delta = scale.toSeconds(clientX - originX) * speed
-        return edge === 'in'
-          ? { in: Math.max(0, origin.in + delta), out: origin.out }
-          : { in: origin.in, out: Math.max(0, origin.out + delta) }
-      }
-      const move = (moveEvent: PointerEvent) => {
-        setPreview({ ...nextOf(moveEvent.clientX), edge })
-      }
-      const up = (upEvent: PointerEvent) => {
-        target.removeEventListener('pointermove', move)
-        target.removeEventListener('pointerup', up)
-        const next = nextOf(upEvent.clientX)
-        setPreview(null)
-        desk.updateClip(
-          track,
-          clip.id,
-          edge === 'in' ? { in: next.in } : { out: next.out },
+      const nextOf = (deltaPx: number) => {
+        const delta = scale.toSeconds(deltaPx) * speed
+        const raw =
+          edge === 'in'
+            ? { in: origin.in + delta, out: origin.out }
+            : { in: origin.in, out: origin.out + delta }
+        const rawEnd = row.startSec + (raw.out - raw.in) / speed
+        const snappedEnd = snap(rawEnd, [row.startSec, ownEnd])
+        const patched =
+          snappedEnd === null
+            ? raw
+            : edge === 'in'
+              ? {
+                  in: origin.out - (snappedEnd - row.startSec) * speed,
+                  out: origin.out,
+                }
+              : {
+                  in: origin.in,
+                  out: origin.in + (snappedEnd - row.startSec) * speed,
+                }
+        const clamped = clampTrim(
+          clip,
+          edge === 'in' ? { in: patched.in } : { out: patched.out },
+          sourceDurationSec,
         )
+        return { ...clamped, guide: snappedEnd }
       }
-      target.addEventListener('pointermove', move)
-      target.addEventListener('pointerup', up)
+
+      followPointer(event, {
+        onMove: (deltaPx) => {
+          const next = nextOf(deltaPx)
+          setGuide(next.guide)
+          setPreview({ in: next.in, out: next.out, edge })
+        },
+        onEnd: (deltaPx, dragged) => {
+          setGuide(null)
+          setPreview(null)
+          if (!dragged) return
+          const next = nextOf(deltaPx)
+          desk.updateClip(
+            track,
+            clip.id,
+            edge === 'in' ? { in: next.in } : { out: next.out },
+          )
+        },
+        onCancel: () => {
+          setGuide(null)
+          setPreview(null)
+        },
+      })
     }
 
   return (
     <>
-      <div className="relative shrink-0" style={{ width: widthPx }}>
+      <div
+        className={cn(
+          'relative shrink-0',
+          lifted
+            ? 'z-30'
+            : reordering &&
+                'transition-transform duration-base ease-standard motion-reduce:transition-none',
+        )}
+        style={{
+          width: widthPx,
+          transform: offsetPx ? `translateX(${offsetPx}px)` : undefined,
+        }}
+      >
         {preview ? (
           <TrimReadout
             edge={preview.edge}
@@ -1112,39 +1468,20 @@ function ClipView({
           data-testid={`edit-desk-clip-${clip.id}`}
           {...{ [EDIT_CLIP_FLASH_ATTRIBUTE]: clip.id }}
           data-clip-index={row.index}
-          draggable
-          onDragStart={(event) => {
-            event.dataTransfer.setData(CLIP_DRAG_MIME, clip.id)
-            event.dataTransfer.effectAllowed = 'move'
-          }}
-          onDragOver={(event) => {
-            if (!event.dataTransfer.types.includes(CLIP_DRAG_MIME)) return
-            event.preventDefault()
-            event.dataTransfer.dropEffect = 'move'
-          }}
-          onDrop={(event) => {
-            const draggedId = event.dataTransfer.getData(CLIP_DRAG_MIME)
-            if (!draggedId || draggedId === clip.id) return
-            event.preventDefault()
-            event.stopPropagation()
-            desk.moveClip(track, draggedId, row.index)
-          }}
-          onPointerDown={(event) => {
-            event.stopPropagation()
-            desk.select({ track, clipId: clip.id })
-          }}
+          onPointerDown={(event) => onBodyPointerDown(event, row, widthPx)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') desk.select({ track, clipId: clip.id })
           }}
           className={cn(
-            'relative size-full overflow-hidden rounded-md transition-shadow duration-fast',
+            'relative size-full cursor-grab touch-none select-none overflow-hidden rounded-md transition-shadow duration-fast hover:ring-1 hover:ring-foreground/30',
             isVideo
               ? gone
                 ? 'edit-clip-gone'
                 : 'bg-surface-fill-track'
               : 'bg-surface-fill',
             selected &&
-              'ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted',
+              'ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted hover:ring-2 hover:ring-primary',
+            lifted && 'scale-102 cursor-grabbing shadow-overlay',
           )}
         >
           <ClipCanvas row={row} isVideo={isVideo} widthPx={widthPx} />
@@ -1159,7 +1496,9 @@ function ClipView({
                 {/* 压在画面上的读数：固定明暗（ui-defaults §2.4 媒体 chrome 例外）。 */}
                 <span className="pointer-events-none absolute inset-0 bg-linear-to-t from-neutral-950/60 via-transparent to-neutral-950/15" />
                 <span className="absolute right-1.5 top-1.5 rounded-sm bg-neutral-950/45 px-1 font-mono text-3xs leading-4 text-white">
-                  {t('clipDuration', { seconds: row.durationSec.toFixed(1) })}
+                  {t('clipDuration', {
+                    seconds: ((shown.out - shown.in) / speed).toFixed(1),
+                  })}
                 </span>
                 <span
                   className={cn(
@@ -1214,30 +1553,29 @@ function ClipView({
             </button>
           ) : null}
 
-          {selected ? (
-            <>
-              <TrimHandle
-                edge="in"
-                testId={`edit-desk-handle-in-${clip.id}`}
-                label={t('inspector.inPoint')}
-                value={shown.in}
-                onPointerDown={startTrim('in')}
-              />
-              <TrimHandle
-                edge="out"
-                testId={`edit-desk-handle-out-${clip.id}`}
-                label={t('inspector.outPoint')}
-                value={shown.out}
-                onPointerDown={startTrim('out')}
-              />
-            </>
-          ) : null}
+          <TrimHandle
+            edge="in"
+            testId={`edit-desk-handle-in-${clip.id}`}
+            label={t('inspector.inPoint')}
+            value={shown.in}
+            selected={selected}
+            onPointerDown={startTrim('in')}
+          />
+          <TrimHandle
+            edge="out"
+            testId={`edit-desk-handle-out-${clip.id}`}
+            label={t('inspector.outPoint')}
+            value={shown.out}
+            selected={selected}
+            onPointerDown={startTrim('out')}
+          />
         </div>
       </div>
 
       {showTransitionAfter ? (
         <TransitionMark
           clip={clip}
+          hidden={reordering}
           onSet={(transition) =>
             desk.updateClip(track, clip.id, { transitionOut: transition })
           }
@@ -1256,9 +1594,12 @@ function ClipView({
  */
 function TransitionMark({
   clip,
+  hidden,
   onSet,
 }: {
   readonly clip: EditClip
+  /** 段在换位途中：菱形先藏起来（它夹在两段的缝上，跟着让位会对不上）。 */
+  readonly hidden: boolean
   onSet(transition: EditTransitionId): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
@@ -1304,6 +1645,7 @@ function TransitionMark({
           ? 'border-[1.5px] border-foreground bg-card'
           : 'bg-foreground',
         over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
+        hidden && 'opacity-0',
       )}
     />
   )
@@ -1375,9 +1717,6 @@ function ClipCanvas({
     </div>
   )
 }
-
-/** 段之间拖排序的载荷。⚠ 与素材拖投分开：一个是「加一段」，一个是「换个位置」。 */
-const CLIP_DRAG_MIME = 'application/x-pixelvault-edit-clip'
 
 /**
  * 段上写的名字：来源卡的镜头名。⚠ 卡删了读不到名字，就只写「来源卡已删」（在段上），

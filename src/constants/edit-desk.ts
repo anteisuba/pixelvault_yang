@@ -189,6 +189,17 @@ export const EDIT_TIMELINE_TICK_STEPS = [1, 2, 5, 10, 15, 30, 60, 120] as const
 export const EDIT_TIMELINE_TICK_MIN_PX = 64
 
 /**
+ * 时间线手感（owner 2026-09-28「操作体验不太好」）：拖手柄 / 拖字幕 / 拖播放头离播放头
+ * 或任何一段的头尾不到 `snapPx` 就吸上去；按住段拖过 `dragThresholdPx` 才算拖（否则
+ * 就是点选）；段两端各 `edgeHitPx` 宽的一条是裁剪区（没选中也能直接拖）。
+ */
+export const EDIT_TIMELINE_FEEL = {
+  snapPx: 8,
+  dragThresholdPx: 4,
+  edgeHitPx: 10,
+} as const
+
+/**
  * 时间线缩放（owner 2026-09-28 画板「时间线放大 · 横向滚动」）：1 = 铺满整条；放大后
  * 横向滚动，以播放头为中心。`maxPxPerSecond` 管放大的上限（铺满那一档仍按
  * `EDIT_TIMELINE_FIT` 夹）。

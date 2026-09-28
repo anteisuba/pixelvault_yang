@@ -709,10 +709,22 @@ export function EditDesk({
    */
   const operatorYield = useStudioOperatorYield()
 
-  const previewRow =
-    desk.rows[EDIT_TRACK_IDS.video][
-      clipIndexAt(desk.project.tracks[EDIT_TRACK_IDS.video], desk.playheadSec)
-    ] ?? null
+  const previewIndex = clipIndexAt(
+    desk.project.tracks[EDIT_TRACK_IDS.video],
+    desk.playheadSec,
+  )
+  const videoRows = desk.rows[EDIT_TRACK_IDS.video]
+  const previewRow = videoRows[previewIndex] ?? null
+  const previewNeighbors = useMemo(
+    () =>
+      previewIndex < 0
+        ? []
+        : [videoRows[previewIndex - 1], videoRows[previewIndex + 1]].filter(
+            (candidate): candidate is (typeof videoRows)[number] =>
+              candidate !== undefined,
+          ),
+    [videoRows, previewIndex],
+  )
 
   const desk__root = (
     <div
@@ -844,6 +856,7 @@ export function EditDesk({
             <EditDeskPreview
               project={desk.project}
               row={previewRow}
+              neighbors={previewNeighbors}
               playheadSec={desk.playheadSec}
               durationSec={desk.durationSec}
               playing={playing}

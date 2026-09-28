@@ -72,6 +72,7 @@ function videoNode(
   options: {
     readonly versions?: readonly { id: string; url: string }[]
     readonly cur?: number
+    readonly url?: string
   } = {},
 ): NodeV4 {
   return {
@@ -84,7 +85,7 @@ function videoNode(
       label: id,
       status: 'idle',
       createdAt: NOW,
-      url: 'https://example.test/a.mp4',
+      url: options.url ?? 'https://example.test/a.mp4',
       durationSec: 6,
       ...(options.versions
         ? {
@@ -504,6 +505,85 @@ describe('剪辑台 · 台面', () => {
     expect(screen.getByTestId('edit-desk-playhead').style.left).toBe('80px')
   })
 
+  it('预览把前后段一起挂好：同源的段共用一只 <video>，只有播放头那只可见', () => {
+    const shared = renderDesk(emptyState, { initialNodeIds: ['v1', 'v2'] })
+    expect(
+      screen.getByTestId('edit-desk-preview').querySelectorAll('video'),
+    ).toHaveLength(1)
+    shared.view.unmount()
+
+    renderDesk(
+      {
+        ...emptyState,
+        nodes: [
+          videoNode('v1'),
+          videoNode('v2', { url: 'https://example.test/b.mp4' }),
+        ],
+      },
+      { initialNodeIds: ['v1', 'v2'] },
+    )
+    const videos = screen
+      .getByTestId('edit-desk-preview')
+      .querySelectorAll('video')
+    expect(videos).toHaveLength(2)
+    const active = screen.getByTestId('edit-desk-preview-video')
+    expect(active.getAttribute('src')).toBe('https://example.test/a.mp4')
+    expect(active).toHaveClass('opacity-100')
+    const next = [...videos].find((video) => video !== active)
+    expect(next).toHaveClass('opacity-0')
+    expect(next).toHaveAttribute('preload', 'auto')
+  })
+
+  it('点轨道空白 = 取消选中（⛔ 不再挪播放头）', () => {
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
+    const clipId = read().edit?.tracks.video[0]?.id
+    const clip = screen.getByTestId(`edit-desk-clip-${clipId}`)
+    fireEvent.pointerDown(clip)
+    expect(clip).toHaveAttribute('aria-pressed', 'true')
+
+    const before = screen.getByTestId('edit-desk-playhead').style.left
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-video'), {
+      clientX: 300,
+    })
+    expect(clip).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('edit-desk-playhead').style.left).toBe(before)
+  })
+
+  it('按住段拖过邻段 = 换位置；拖的途中 Esc 放弃', () => {
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1', 'v2'] })
+    const [first, second] = read().edit!.tracks.video
+    const body = () => screen.getByTestId(`edit-desk-clip-${first!.id}`)
+
+    fireEvent.pointerDown(body(), { clientX: 10, button: 0 })
+    fireEvent.pointerMove(body(), { clientX: 5000 })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.pointerUp(body(), { clientX: 5000 })
+    expect(read().edit!.tracks.video.map((clip) => clip.id)).toEqual([
+      first!.id,
+      second!.id,
+    ])
+
+    fireEvent.pointerDown(body(), { clientX: 10, button: 0 })
+    fireEvent.pointerMove(body(), { clientX: 5000 })
+    fireEvent.pointerUp(body(), { clientX: 5000 })
+    expect(read().edit!.tracks.video.map((clip) => clip.id)).toEqual([
+      second!.id,
+      first!.id,
+    ])
+  })
+
+  it('没选中也能直接拖段尾缩短；松手才落一条 op', () => {
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
+    const clip = read().edit!.tracks.video[0]!
+    const handle = screen.getByTestId(`edit-desk-handle-out-${clip.id}`)
+
+    fireEvent.pointerDown(handle, { clientX: 400, button: 0 })
+    fireEvent.pointerMove(handle, { clientX: 360 })
+    expect(read().edit!.tracks.video[0]!.out).toBe(clip.out)
+    fireEvent.pointerUp(handle, { clientX: 360 })
+    expect(read().edit!.tracks.video[0]!.out).toBeLessThan(clip.out)
+  })
+
   it('导出只出对话框，点确认不发请求（S9 占位）', () => {
     renderDesk(emptyState)
     fireEvent.click(screen.getByTestId('edit-desk-export'))
@@ -531,7 +611,7 @@ describe('剪辑台 · 台面', () => {
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
 
     // 播放头在 0 处切不动（切出来的前半段是零帧）—— 先挪到段中间
-    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-video'), {
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-ruler'), {
       clientX: 120,
     })
     fireEvent.keyDown(window, { key: 's' })
@@ -755,7 +835,7 @@ describe('剪辑台 · 文字段', () => {
     ).toBeInTheDocument()
 
     // 时间线只有这一段字幕（总长 3s）—— 把播放头拖到末尾之后
-    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-text'), {
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-ruler'), {
       clientX: 10_000,
     })
     expect(screen.queryByTestId(`edit-desk-preview-text-${clipId}`)).toBeNull()
@@ -803,7 +883,7 @@ describe('剪辑台 · 快捷键预设', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
 
     // 播放头挪到段中间再切
-    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-video'), {
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-ruler'), {
       clientX: 120,
     })
     fireEvent.keyDown(window, { key: 'b', code: 'KeyB', metaKey: true })

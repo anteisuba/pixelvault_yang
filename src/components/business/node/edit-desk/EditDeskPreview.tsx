@@ -16,8 +16,13 @@
  * - **播放头 → 预览**：段变了就换 src，段内位置变了就 seek 到 `clipLocalTimeSec`
  *   （裁剪 + 倍速都算进去了）。
  * - **预览 → 播放头**：`timeupdate` 把段内位置换算回整条时间线的秒数。
- * - **过段**：播到 `clip.out` 就把播放头推过这一段的尾巴，下一段自然接上（跨段
- *   是**换 src**，会有一次可见的接口 —— 真正的无缝要渲染层的规格化，那是成片）。
+ * - **过段**：播到 `clip.out` 就把播放头推过这一段的尾巴，下一段自然接上。
+ *
+ * ── 换镜头不黑屏（owner 2026-09-28「拖播放头 / 看画面」）──────────────────
+ * 播放头这一段**连同前后两段**各挂一只 `<video>`（按 url 认，同源切开的两段共用一只），
+ * 邻段提前加载并停在它会被看到的那一帧；换段 = 两只之间 200ms 交叉淡化（动效表
+ * 「预览换镜头」），⛔ 不再是卸掉旧的、从零加载新的那一下黑。真正的无缝要渲染层
+ * 的规格化，那是成片。
  *
  * ⚠ 环路靠 `PREVIEW_SEEK_EPSILON_SEC` 断开：`timeupdate` 推回来的秒数与我们刚
  * 设过去的那一刻只差几十毫秒，超不过这个阈值就不再 seek —— ⛔ 没有这道闸，
@@ -80,6 +85,8 @@ export interface EditDeskPreviewProps {
   readonly textEditing?: PreviewTextEditing
   /** 还没有片段时那颗「从画布素材加镜头」（手机只看不剪时缺席）。 */
   onOpenMaterials?(): void
+  /** V 轨上紧挨着这一段的前后两段：提前挂好、停在衔接的那一帧。 */
+  readonly neighbors?: readonly EditTimelineRow[]
 }
 
 export interface PreviewTextEditing {
@@ -127,6 +134,9 @@ const PREVIEW_SEEK_EPSILON_SEC = 0.25
 /** 推过段尾时多迈的一点点 —— 正好落在下一段的开头而不是这一段的最后一帧。 */
 const PREVIEW_CLIP_ADVANCE_SEC = 0.01
 
+/** 前一段停在出点前多少秒（往回拖播放头时最先看到的那一帧）。 */
+const PREVIEW_TAIL_SEC = 0.1
+
 export function EditDeskPreview({
   project,
   row,
@@ -138,9 +148,13 @@ export function EditDeskPreview({
   textClips,
   textEditing,
   onOpenMaterials,
+  neighbors = [],
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
-  const videoRef = useRef<HTMLVideoElement | null>(null)
+  /** 按 url 登记的那几只 `<video>`；当前那只 = 播放头这一段的 url。 */
+  const videosRef = useRef(new Map<string, HTMLVideoElement>())
+  /** 上一次 seek 还没落地时，最新那个目标先存着（拖播放头时不叠一串 seek）。 */
+  const pendingSeekRef = useRef<number | null>(null)
   const [muted, setMuted] = useState(false)
   const node = row?.source.node
   const data = node?.data
@@ -150,6 +164,12 @@ export function EditDeskPreview({
     data && data.kind === NODE_MEDIA_KIND_IDS.video
       ? data.videoThumbnailUrl
       : undefined,
+  )
+
+  const activeVideo = useCallback(
+    (): HTMLVideoElement | null =>
+      url ? (videosRef.current.get(url) ?? null) : null,
+    [url],
   )
 
   const clip = row?.clip ?? null
@@ -168,24 +188,61 @@ export function EditDeskPreview({
 
   /* ── 播放头 → 预览 ────────────────────────────────────────────────── */
   useEffect(() => {
-    const video = videoRef.current
+    const video = activeVideo()
     if (!video || !clip) return
     if (Math.abs(video.currentTime - localSec) <= PREVIEW_SEEK_EPSILON_SEC) {
       return
     }
+    // 上一次 seek 还在路上：只记下最新的目标，落地后再补一次（见下面 `seeked`）。
+    if (video.seeking) {
+      pendingSeekRef.current = localSec
+      return
+    }
     video.currentTime = localSec
-  }, [localSec, clip])
+  }, [localSec, clip, activeVideo])
+
+  useEffect(() => {
+    const video = activeVideo()
+    if (!video) return
+    pendingSeekRef.current = null
+    const onSeeked = () => {
+      const pending = pendingSeekRef.current
+      if (pending === null) return
+      pendingSeekRef.current = null
+      video.currentTime = pending
+    }
+    video.addEventListener('seeked', onSeeked)
+    return () => video.removeEventListener('seeked', onSeeked)
+  }, [activeVideo])
+
+  /* ── 邻段：停在衔接的那一帧（后一段 = 入点，前一段 = 出点前一点）───────── */
+  useEffect(() => {
+    for (const neighbor of neighbors) {
+      const neighborUrl = neighbor.source.url
+      if (!neighborUrl || neighborUrl === url) continue
+      const video = videosRef.current.get(neighborUrl)
+      if (!video) continue
+      if (!video.paused) video.pause()
+      const target =
+        neighbor.startSec < rowStartSec
+          ? Math.max(neighbor.clip.in, neighbor.clip.out - PREVIEW_TAIL_SEC)
+          : neighbor.clip.in
+      if (Math.abs(video.currentTime - target) > PREVIEW_SEEK_EPSILON_SEC) {
+        video.currentTime = target
+      }
+    }
+  }, [neighbors, url, rowStartSec])
 
   /* ── 倍速 ─────────────────────────────────────────────────────────── */
   useEffect(() => {
-    const video = videoRef.current
+    const video = activeVideo()
     if (!video || !clip) return
     video.playbackRate = clip.speed || 1
-  }, [clip, url])
+  }, [clip, activeVideo])
 
   /* ── 播放态（空格与播放器那颗钮共用一份）────────────────────────────── */
   useEffect(() => {
-    const video = videoRef.current
+    const video = activeVideo()
     if (!video) return
     // ⚠ 先看它现在是什么状态再动手：无条件 `pause()` 会在每次挂载 / 每次换段
     // 时对一只本来就停着的 `<video>` 再喊一次停，jsdom 里直接刷屏，浏览器里是
@@ -195,11 +252,11 @@ export function EditDeskPreview({
     } else if (!playing && !video.paused) {
       video.pause()
     }
-  }, [playing, url, onPlayingChange])
+  }, [playing, activeVideo, onPlayingChange])
 
   /* ── 预览 → 播放头 ────────────────────────────────────────────────── */
   useEffect(() => {
-    const video = videoRef.current
+    const video = activeVideo()
     if (!video || !clip || !row) return
 
     const onTimeUpdate = () => {
@@ -231,12 +288,25 @@ export function EditDeskPreview({
     toTimelineSec,
     onPlayheadChange,
     onPlayingChange,
+    activeVideo,
   ])
 
   /** 走到片尾（播放头落到轨道之外）就停 —— ⛔ 不留一个「在播」但没画面的状态。 */
   useEffect(() => {
     if (!row && playing) onPlayingChange(false)
   }, [row, playing, onPlayingChange])
+
+  /** 这一段 + 前后两段的来源（按 url 去重：同一只 `<video>` 服务同源的几段）。 */
+  const slots = [row, ...neighbors].reduce<{ url: string }[]>(
+    (list, candidate) => {
+      const candidateUrl = candidate?.source.url
+      if (candidateUrl && !list.some((slot) => slot.url === candidateUrl)) {
+        list.push({ url: candidateUrl })
+      }
+      return list
+    },
+    [],
+  )
 
   const aspect = project.settings.aspect
   const progress = durationSec > 0 ? Math.min(1, playheadSec / durationSec) : 0
@@ -290,19 +360,35 @@ export function EditDeskPreview({
           containerType: 'size',
         }}
       >
-        {url ? (
-          <video
-            key={url}
-            ref={videoRef}
-            src={url}
-            {...(poster ? { poster } : {})}
-            muted={muted}
-            playsInline
-            preload="metadata"
-            aria-label={t('previewTitle', { name: project.name })}
-            className="size-full object-contain"
-          />
-        ) : (
+        {slots.map((slot) => {
+          const active = slot.url === url
+          return (
+            <video
+              key={slot.url}
+              ref={(element) => {
+                if (element) videosRef.current.set(slot.url, element)
+                else videosRef.current.delete(slot.url)
+              }}
+              src={slot.url}
+              {...(active && poster ? { poster } : {})}
+              muted={active ? muted : true}
+              playsInline
+              preload="auto"
+              aria-hidden={!active}
+              {...(active
+                ? {
+                    'aria-label': t('previewTitle', { name: project.name }),
+                    'data-testid': 'edit-desk-preview-video',
+                  }
+                : {})}
+              className={cn(
+                'absolute inset-0 size-full object-contain transition-opacity duration-base motion-reduce:transition-none',
+                active ? 'opacity-100' : 'opacity-0',
+              )}
+            />
+          )
+        })}
+        {url ? null : (
           <div className="flex size-full items-center justify-center">
             <p className="text-xs text-white/70">{t('previewEmpty')}</p>
           </div>
@@ -391,17 +477,39 @@ export function EditDeskPreview({
             aria-valuenow={Math.round(playheadSec * 10) / 10}
             tabIndex={0}
             onPointerDown={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
+              // 按下即落、按住拖着走（与时间线标尺同一种手感）。
+              const bar = event.currentTarget
+              const rect = bar.getBoundingClientRect()
               if (rect.width <= 0) return
-              const ratio = (event.clientX - rect.left) / rect.width
-              onPlayheadChange(Math.max(0, Math.min(1, ratio)) * durationSec)
+              const seek = (clientX: number) =>
+                onPlayheadChange(
+                  Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) *
+                    durationSec,
+                )
+              onPlayingChange(false)
+              seek(event.clientX)
+              bar.setPointerCapture?.(event.pointerId)
+              const move = (moveEvent: PointerEvent) => seek(moveEvent.clientX)
+              const up = () => {
+                bar.removeEventListener('pointermove', move)
+                bar.removeEventListener('pointerup', up)
+                bar.removeEventListener('pointercancel', up)
+              }
+              bar.addEventListener('pointermove', move)
+              bar.addEventListener('pointerup', up)
+              bar.addEventListener('pointercancel', up)
             }}
-            className="relative h-4 min-w-0 flex-1 cursor-pointer"
+            className="group/scrub relative h-4 min-w-0 flex-1 cursor-pointer touch-none"
           >
             <span className="absolute inset-x-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white/30" />
             <span
               className="absolute left-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white"
               style={{ width: `${progress * 100}%` }}
+            />
+            <span
+              aria-hidden
+              className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-white transition-transform duration-fast group-hover/scrub:scale-100 motion-reduce:transition-none"
+              style={{ left: `${progress * 100}%` }}
             />
           </div>
           <span

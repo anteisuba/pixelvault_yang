@@ -69,16 +69,11 @@ vi.mock('@/components/ui/responsive-popover', async () => {
   }
 })
 
-/* ⚠ 推荐卡那一支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
+/* ⚠ 搭配卡等几支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
 type ConfirmCardPrompt = Exclude<
   StudioOperatorConfirmPrompt,
   {
-    kind:
-      | 'loraPick'
-      | 'loraSetup'
-      | 'characterProfile'
-      | 'characterImages'
-      | 'imageHandoff'
+    kind: 'loraSetup' | 'characterProfile' | 'characterImages' | 'imageHandoff'
   }
 >
 
@@ -163,7 +158,7 @@ const CONTROLS: StudioOperatorGenerationControls = {
 }
 
 function renderCard(
-  /* ⚠ 推荐卡那一支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
+  /* ⚠ 搭配卡等几支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
   confirm: ConfirmCardPrompt,
   extra: {
     controls?: StudioOperatorGenerationControls

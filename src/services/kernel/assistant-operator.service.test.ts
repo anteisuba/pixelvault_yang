@@ -441,7 +441,6 @@ import {
   type AssistantOperatorStep,
   type AssistantOperatorStepEvent,
 } from '@/types/assistant-operator'
-import { LoraCandidateSchema } from '@/types/lora-candidate'
 
 const SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   prompt: '',
@@ -5046,54 +5045,6 @@ function loraCandidate(over: Record<string, unknown> = {}) {
   }
 }
 
-/**
- * 一条**创作者已经勾过**的候选 —— 请求体里的 `loraPicks` 那一格
- * （lora-assistant §10.1/§10.2.1）。
- *
- * ⭐ 没有它 `mount_lora` 一律按 `loraPickRequired` 拒：闸判的是**有没有那一下
- * 勾选**（服务端从请求现算），⛔ 不是模型说了什么。所以凡是要真的挂上的用例，
- * 都得像真实客户端那样把勾中的候选本体带回来。
- * ⚠ 卡上的 `compatible` 服务端**不信**：`planMountLora` 用当前底模重算 ——
- * 这里写什么都不改变判据。
- */
-function loraPickOf(
-  over: Record<string, unknown> = {},
-  weight?: number,
-): NonNullable<AssistantOperatorRequest['loraPicks']>[number] {
-  const candidate = LoraCandidateSchema.parse(loraCandidate(over))
-  return {
-    candidateId: candidate.candidateId,
-    receipt: { assetId: `mounted-${candidate.candidateId}` },
-    ...(weight === undefined ? {} : { weight }),
-    candidate: {
-      candidateId: candidate.candidateId,
-      source: candidate.source,
-      name: candidate.name,
-      author: candidate.author,
-      family: candidate.baseModelFamily,
-      triggerWords: candidate.triggerWords,
-      ...(candidate.sampleImageUrls[0]
-        ? { thumbnailUrl: candidate.sampleImageUrls[0] }
-        : {}),
-      pageUrl: candidate.pageUrl,
-      downloads: candidate.downloads,
-      licenseLabel: candidate.license.label,
-      licenseKnown: candidate.license.known,
-      commercialUse: candidate.license.commercialUse,
-      importable: candidate.importable,
-      ...(candidate.notImportableReason
-        ? { notImportableReason: candidate.notImportableReason }
-        : {}),
-      compatible: true,
-      alreadyMounted: candidate.alreadyMounted,
-      alreadyImported: candidate.alreadyImported,
-      defaultWeight: candidate.recommendedWeight ?? 1,
-      recommended: false,
-      importPayload: candidate.importPayload,
-    },
-  }
-}
-
 const LORA_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   prompt: '',
   negativePrompt: '',
@@ -5122,36 +5073,6 @@ const LORA_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
     minWeight: 0.1,
     maxWeight: 2,
   },
-}
-
-function snapshotWithMountedPicks(
-  picks: NonNullable<AssistantOperatorRequest['loraPicks']>,
-  snapshot = LORA_SNAPSHOT,
-): AssistantOperatorRequest['snapshot'] {
-  return {
-    ...snapshot,
-    loras: {
-      ...snapshot.loras!,
-      items: [
-        ...snapshot.loras!.items,
-        ...picks
-          .filter((pick) => pick.receipt.assetId)
-          .map((pick) => ({
-            id: pick.receipt.assetId!,
-            name: pick.candidate.name,
-            weight: pick.weight ?? pick.candidate.defaultWeight,
-            enabled: true,
-            compatible: true,
-            family: pick.candidate.family,
-            triggerWord: pick.candidate.triggerWords.join(', '),
-            triggerEnabled: true,
-            recommendedPrompt:
-              pick.candidate.importPayload?.recommendedPrompt ?? null,
-            sourcePrompts: [],
-          })),
-      ],
-    },
-  }
 }
 
 function buildLoraRequest(
@@ -5257,35 +5178,51 @@ describe('LoRA 装配台域（P4-C）', () => {
     }
   })
 
-  it('reads mounted author material from the actual snapshot after client confirmation', async () => {
+  it('reads mounted author material from the actual snapshot', async () => {
     queueTurns({ finished: true })
-    const candidate = loraCandidate()
-    const pick = loraPickOf({
-      importPayload: {
-        ...candidate.importPayload,
-        recommendedPrompt: 'newly-mounted-author-ochre-stipple',
-      },
-    })
     await collect(
       runAssistantOperator(
         'clerk-1',
         buildLoraRequest({
-          loraPicks: [pick],
-          snapshot: snapshotWithMountedPicks([pick]),
+          snapshot: {
+            ...LORA_SNAPSHOT,
+            loras: {
+              ...LORA_SNAPSHOT.loras!,
+              items: [
+                ...LORA_SNAPSHOT.loras!.items,
+                {
+                  id: 'lora-asset-2',
+                  name: 'Watercolor Storybook',
+                  weight: 0.6,
+                  enabled: true,
+                  family: 'illustrious',
+                  compatible: true,
+                  triggerWord: 'watercolor',
+                  triggerEnabled: true,
+                  recommendedPrompt: 'newly-mounted-author-ochre-stipple',
+                  sourcePrompts: [],
+                },
+              ],
+            },
+          },
         }),
       ),
     )
-    expect(lastUserPrompt()).toContain(pick.candidateId)
+    expect(lastUserPrompt()).toContain('lora-asset-2')
     expect(lastUserPrompt()).toContain('newly-mounted-author-ochre-stipple')
   })
 
-  it('工具表包含 LoRA 挂载及看图工具，没有 set_specs / set_count', async () => {
+  it('工具表包含 LoRA 圈选、搭配卡与看图工具，没有 mount_lora / set_specs / set_count', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildLoraRequest()))
 
     const prompt = systemPrompt()
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.searchLoras)
-    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.mountLora)
+    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks)
+    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup)
+    // 挂载由创作者在库页卡上点（lora-assistant §13）；⚠ 按工具行前缀查，
+    //   `unmount_lora` 里就含着 `mount_lora` 这几个字。
+    expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.mountLora}:`)
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.unmountLora)
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight)
     /**
@@ -5591,13 +5528,13 @@ describe('LoRA 装配台域（P4-C）', () => {
     ])
   })
 
-  it('LoRA 域：推荐卡与 mount_lora 退场（域闸拒），系统提示写的是库页当面搜', async () => {
+  it('LoRA 域：mount_lora 退场（域闸拒），系统提示写的是库页当面搜', async () => {
     queueTurns(
       {
         tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
-          title: 'card',
-          args: { question: '挑哪几把？', groups: [{ candidateIds: ['a'] }] },
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount',
+          args: { candidateId: 'a' },
         },
       },
       { finished: true },
@@ -5611,70 +5548,6 @@ describe('LoRA 装配台域（P4-C）', () => {
     const system = toolRingCalls()[0]?.systemPrompt ?? ''
     expect(system).toContain('Finding LoRAs happens in front of the creator')
     expect(system).toContain(ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks)
-    expect(system).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick)
-  })
-
-  it('客户端成功收据与实际快照一致时确认结果，不重复检索挂载', async () => {
-    const picks = [loraPickOf(undefined, 0.6)]
-    queueTurns({ finished: true, message: '已核对挂载。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildLoraRequest({
-          loraPicks: picks,
-          snapshot: snapshotWithMountedPicks(picks),
-        }),
-      ),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
-    expect(lastUserPrompt()).toContain(
-      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
-    )
-  })
-
-  it('收据确认不生成导入载荷或虚假撤销记录', async () => {
-    const picks = [loraPickOf(undefined, 0.6)]
-    queueTurns({ finished: true, message: '已核对挂载。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildLoraRequest({
-          loraPicks: picks,
-          snapshot: snapshotWithMountedPicks(picks),
-        }),
-      ),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
-    expect(lastUserPrompt()).toContain(
-      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
-    )
-    expect(events.some((event) => event.type === 'step')).toBe(false)
-  })
-
-  it('导入失败收据记录原因且不乐观重试', async () => {
-    const pick = loraPickOf()
-    pick.receipt = { assetId: null, error: 'gated_repo' }
-    queueTurns({ finished: true, message: '挂载未成功。' })
-    const events = await collect(
-      runAssistantOperator('clerk-1', buildLoraRequest({ loraPicks: [pick] })),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
-    expect(lastUserPrompt()).toContain('gated_repo')
-  })
-
-  it('跨族失败收据记录原因且不补发挂载', async () => {
-    const pick = loraPickOf()
-    pick.receipt = { assetId: null, error: 'incompatible base' }
-    queueTurns({ finished: true, message: '挂载未成功。' })
-    const events = await collect(
-      runAssistantOperator('clerk-1', buildLoraRequest({ loraPicks: [pick] })),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
-    expect(lastUserPrompt()).toContain('incompatible base')
   })
 
   /**
@@ -5841,12 +5714,6 @@ describe('LoRA 装配台域（P4-C）', () => {
             ],
             loras: PONY_MOUNTED_SNAPSHOT.loras,
           },
-          loraPicks: [
-            loraPickOf({
-              candidateId: 'civitai:pony:2',
-              baseModelFamily: 'pony',
-            }),
-          ],
         }),
       ),
     )
@@ -5881,50 +5748,12 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(detail).toContain('Pony Lines')
   })
 
-  it('同族成功收据使用真实资产编号', async () => {
-    const picks = [loraPickOf(undefined, 0.6)]
-    queueTurns({ finished: true, message: '已核对挂载。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildLoraRequest({
-          loraPicks: picks,
-          snapshot: snapshotWithMountedPicks(picks),
-        }),
-      ),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
-    expect(lastUserPrompt()).toContain(
-      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
-    )
-  })
-
   /**
    * 栈总权重护栏（§5.2）：**只提醒，不动手**。
    *
    * ⚠ 钉的是「权重没被改」那一半：自动归一是这条护栏最容易长出来的错 ——
    * 助手在正文里说「设成 1.2 了」而表单上是 0.9，用户会以为自己记错了。
    */
-  it.each([0.5, 0.9, 2])(
-    'receipt preserves actual weight %s without server normalization',
-    async (weight) => {
-      const picks = [loraPickOf(undefined, weight)]
-      queueTurns({ finished: true, message: '已核对。' })
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            loraPicks: picks,
-            snapshot: snapshotWithMountedPicks(picks),
-          }),
-        ),
-      )
-      expect(stepsOf(events)).toEqual([])
-      expect(lastUserPrompt()).toContain(`weight=${weight}`)
-    },
-  )
-
   it('set_lora_weight 超预算同样只提醒，设的还是那个值', async () => {
     queueTurns(
       {
@@ -5965,79 +5794,6 @@ describe('LoRA 装配台域（P4-C）', () => {
     const observed = lastUserPrompt()
     expect(observed).toContain('add up to 2.3')
     expect(observed).toContain('I did not touch any weight')
-  })
-
-  it('挂载收据以当前快照名称和权重记账', async () => {
-    const picks = [loraPickOf(undefined, 0.6)]
-    queueTurns({ finished: true, message: '已核对挂载。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildLoraRequest({
-          loraPicks: picks,
-          snapshot: snapshotWithMountedPicks(picks),
-        }),
-      ),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
-    expect(lastUserPrompt()).toContain(
-      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
-    )
-  })
-
-  it('收据不能仅凭候选信息声称挂载成功', async () => {
-    queueTurns({ finished: true, message: '未核实挂载。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildLoraRequest({ loraPicks: [loraPickOf()] }),
-      ),
-    )
-    expect(stepsOf(events)).toEqual([])
-    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
-    expect(lastUserPrompt()).not.toContain(
-      'Mounted "Watercolor Storybook" as assetId=',
-    )
-  })
-
-  it('⛔ 不设数量上限：挂载栈已经很满时照样挂得上', async () => {
-    const packed: AssistantOperatorRequest['snapshot'] = {
-      ...LORA_SNAPSHOT,
-      loras: {
-        baseFamily: 'illustrious',
-        minWeight: 0.1,
-        maxWeight: 2,
-        items: Array.from({ length: 8 }, (_unused, index) => ({
-          id: `lora-${index}`,
-          name: `Stacked ${index}`,
-          weight: 1,
-          enabled: true,
-          family: 'illustrious',
-          compatible: true,
-          triggerWord: null,
-          triggerEnabled: true,
-          recommendedPrompt: null,
-          sourcePrompts: [],
-        })),
-      },
-    }
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            snapshot: snapshotWithMountedPicks([loraPickOf()], packed),
-            loraPicks: [loraPickOf()],
-          }),
-        ),
-      ),
-    )
-    expect(steps).toEqual([])
-    expect(lastUserPrompt()).toContain(
-      'Mounted "Watercolor Storybook" as assetId=',
-    )
   })
 
   it('调权重：越界按 unknownValue 拒，⛔ 不做就近夹取', async () => {
@@ -6135,50 +5891,6 @@ describe('LoRA 装配台域（P4-C）', () => {
     )
     expect(steps[0]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
-    })
-  })
-
-  describe('客户端挂载收据核对', () => {
-    it.each([
-      { enabled: false, compatible: true },
-      { enabled: true, compatible: false },
-    ])('does not confirm unusable snapshot assets %j', async (state) => {
-      const picks = [loraPickOf()]
-      const snapshot = snapshotWithMountedPicks(picks)
-      snapshot.loras!.items[1] = { ...snapshot.loras!.items[1]!, ...state }
-      queueTurns({ finished: true, message: '未核实挂载。' })
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({ loraPicks: picks, snapshot }),
-        ),
-      )
-      expect(stepsOf(events)).toEqual([])
-      expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
-    })
-
-    it('records partial success without creating mount steps', async () => {
-      const success = loraPickOf(undefined, 0.4)
-      const failure = loraPickOf({
-        candidateId: 'civitai:failed:1',
-        name: 'Unavailable LoRA',
-      })
-      failure.receipt = { assetId: null, error: 'download failed' }
-      queueTurns({ finished: true, message: '一把成功，一把下载失败。' })
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            loraPicks: [success, failure],
-            snapshot: snapshotWithMountedPicks([success]),
-          }),
-        ),
-      )
-      expect(stepsOf(events)).toEqual([])
-      expect(lastUserPrompt()).toContain('Mounted "Watercolor Storybook"')
-      expect(lastUserPrompt()).toContain(
-        'Could NOT confirm mounting "Unavailable LoRA": download failed',
-      )
     })
   })
 })

@@ -33,7 +33,6 @@ import type {
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
-  AssistantOperatorLoraPickConfirm,
   AssistantOperatorLoraSetupConfirm,
   AssistantOperatorPlanAnswer,
   AssistantOperatorPlanOption,
@@ -485,20 +484,6 @@ export type StudioOperatorConfirmPrompt = {
       cardId?: string
     }
   /**
-   * 助手把本轮 LoRA 候选摆出来等创作者勾（lora-assistant §10.1）—— 卡上摆的是
-   * **候选本体**（一把一行：封面 / 名字 / 家族圆点 / 默认权重 / 触发词），
-   * 一颗主按钮是「挂载所选」。
-   * ⚠ 与 `contextCard` 那支同构：服务端到这一帧为止一把都没挂，挂载发生在带
-   * `loraPicks` 重发的下一轮。
-   * ⚠ 勾中的是哪几把由**卡自己的组件态**持有，⛔ 不进这份 prompt：这份是
-   * 「帧带来的东西 + 已决没决」，而勾选是一次还没提交的编辑（与生成确认卡
-   * 那四颗旋钮不存自己的参数同一条判据）。
-   */
-  | {
-      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
-      pick: AssistantOperatorLoraPickConfirm
-    }
-  /**
    * 助手自己搭好的一套（lora-assistant §12）—— 新挂 / 卸下 / 权重 a→b / 参数 a→b，
    * 一颗「应用这套搭配」。⚠ 应用由客户端在点下去时逐行做，每一行一条带 `inverse`
    * 的 step；这份 prompt 只落「帧带来的东西 + 已决没决」，外加有几行没应用成
@@ -511,8 +496,8 @@ export type StudioOperatorConfirmPrompt = {
     }
   /**
    * 卡片助手提议一份角色设定（C2）—— 每格一个勾、「收下勾选的 / 不用」。
-   * ⚠ 勾选态住在卡自己的组件态里（判据同 `loraPick`）；这里只落「帧带来的东西 +
-   *   已决没决」，外加收下了几格（卡收起后那一行写它）。
+   * ⚠ 勾选态住在卡自己的组件态里：勾选是一次还没提交的编辑（与生成确认卡那四颗
+   *   旋钮不存自己的参数同一条判据）；这里只落「帧带来的东西 + 已决没决」，外加收下了几格（卡收起后那一行写它）。
    */
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile

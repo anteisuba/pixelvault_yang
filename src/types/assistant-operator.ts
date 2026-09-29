@@ -1515,11 +1515,11 @@ export type AssistantOperatorResumeFrom = z.infer<
  *    那份对象**不跟着 `search_loras` 的步结果走** —— 步结果要进会话历史，每条候选
  *    背一份落库入参就是让每条消息多背几 KB，而那一刻还没有任何一把要挂。
  *    ⚠ 这条边界**就落在 `importPayload` 是不是可选上**：这份基础 schema 留它
- *    `.optional()`，步结果那条路（`toLoraCandidateProjection`）压根不填；推荐卡那
- *    一帧与勾选回传走的是派生出来的 `AssistantOperatorLoraPickCandidateSchema`，
- *    那里它是**必填**（`null` = 这把本来就导不进来）。理由见 lora-assistant §10.1：
- *    推荐卡是「真的要挂那几把」的前一刻，而 `candidateId → 候选` 的索引只活一轮
- *    （用户点「挂载所选」发生在流结束之后），所以候选本体必须跟着帧走。⛔ 别因此
+ *    `.optional()`，步结果那条路（`toLoraCandidateProjection`）压根不填；搭配卡那
+ *    一帧（与库页详情）走的是派生出来的 `AssistantOperatorLoraPickCandidateSchema`，
+ *    那里它是**必填**（`null` = 这把本来就导不进来）。理由：搭配卡是「真的要挂那
+ *    几把」的前一刻，而 `candidateId → 候选` 的索引只活一轮（用户点「应用」发生在
+ *    流结束之后），所以候选本体必须跟着帧走。⛔ 别因此
  *    把它加回步结果，也⛔ 别改成「确认时按 id 再搜一次」：上游随时会改，用户看到
  *    的卡与实际导入的就不是同一版。
  *  ② 这里多出两位是**本工作台此刻**才算得出来的：`compatible`（与当前底模架构对
@@ -1556,28 +1556,17 @@ export const AssistantOperatorLoraCandidateSchema = z.object({
   alreadyMounted: z.boolean(),
   alreadyImported: z.boolean(),
   /**
-   * 这一把该用多大权重（lora-assistant §10.1）—— 推荐卡上那个 mono 读数。
-   *
-   * ⚠ 它是**三段回落的结果**（作者推荐 → 家族默认 → 全局默认），与 `planMountLora`
-   * 算权重用的是**同一份** —— ⛔ 别在卡上另算一次：两处分叉的表现是「卡上写 0.8、
-   * 挂上去变成 1.0」，而用户以为自己确认过那个数。
+   * 这一把该用多大权重（作者推荐 → 1.0）—— 库页详情上那个 mono 读数。⛔ 别在界面上
+   * 另算一次：两处分叉的表现是「卡上写 0.8、挂上去变成 1.0」。
    */
   defaultWeight: z.number(),
-  /**
-   * 模型标的那一把（lora-assistant §10.1）—— 行上多一个「推荐」标。
-   *
-   * ⚠ **一张卡最多一个**：服务端只认第一个、其余剥掉，判据与 `PLAN_LIMITS` 那条
-   * 逐字同源 —— 两项都标推荐等于没有推荐。
-   */
-  recommended: z.boolean(),
   /**
    * 一次确认之后要发给导入链的那份载荷（来源快照 + 权重文件地址 + 落库入参）。
    *
    * ⚠ **可选只对步结果那条路而言**（头注 ①）：`search_loras` 的步结果要进会话
-   * 历史，⛔ 不填它。推荐卡与勾选回传用的是
-   * `AssistantOperatorLoraPickCandidateSchema`，那边它是必填。
-   * ⚠ `null` = 这把导不进来（与 `importable:false` 同一件事的两侧）—— 那几条
-   * **照样进卡**（策略 C），只是挂不上。
+   * 历史，⛔ 不填它。搭配卡用的是 `AssistantOperatorLoraPickCandidateSchema`，
+   * 那边它是必填。
+   * ⚠ `null` = 这把导不进来（与 `importable:false` 同一件事的两侧）。
    */
   importPayload: LoraCandidateImportPayloadSchema.nullable().optional(),
 })
@@ -1587,13 +1576,12 @@ export type AssistantOperatorLoraCandidate = z.infer<
 >
 
 /**
- * **推荐卡上（与勾选回传时）的那一条候选** —— 与上面同一份投影，只是把
- * `importPayload` 收成**必填**（lora-assistant §10.1）。
+ * **真要挂上的那一条候选**（搭配卡的新挂行、库页详情）—— 与上面同一份投影，只是把
+ * `importPayload` 收成**必填**。
  *
  * ⭐ 派生而不是「一份可选到底」：可选到底的表现是卡上少一格没人发现，直到用户
- * 点了「挂载所选」才在服务端拒成 `loraNotImportable` —— 那时他已经等过一轮了。
- * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的候选照样进卡，那一格
- * 写 `null`。
+ * 点了「应用」才挂不上。
+ * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的那一格写 `null`。
  */
 export const AssistantOperatorLoraPickCandidateSchema =
   AssistantOperatorLoraCandidateSchema.extend({
@@ -1759,36 +1747,6 @@ export const AssistantOperatorRequestSchema = z.object({
    * 服务端 ffmpeg 要往 Vercel 包里塞几十 MB）。
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
-  /**
-   * **创作者在 LoRA 推荐卡上勾中的那几把**（lora-assistant §10.1/§10.2）。
-   *
-   * ⭐ 它是 `mount_lora` 的**准入闸本身**：服务端从这张名单现算一个
-   * `Set<candidateId>`，模型写了一个不在名单里的 candidateId 一律按
-   * `loraPickRequired` 拒。⛔ 不接受模型在入参里自称「用户已经确认过了」——
-   * 闸判的是**有没有那一下勾选**，不是模型说了什么。
-   * ⚠ **候选本体跟着回来**：`run.loraIndex` 只活一轮，而勾选那一下发生在流结束
-   * 之后；服务端拿它 `hydrateLoraIndexFromPicks` 灌回索引，`planMountLora` 取候选
-   * 那一段一个字都不用改。⛔ 不许改成「按 id 再搜一次」（上游随时会改）。
-   * ⚠ 回传的 `importPayload` 服务端**一个字都不信任地用**：原样填进 `mount_lora`
-   * 的 step 载荷，取图 / 落 R2 / 落库那一跳照旧在客户端。
-   * ⚠ **只回勾中的那几条**，⛔ 不回整轮候选 —— 没被挑中的存了只是让每条消息多背
-   * 几 KB（判据与 `AssistantConversationMessage.loraCandidates` 逐字同源）。
-   * ⚠ `weight` 缺席 = 用候选自己的 `defaultWeight`，⛔ 不另拍一个数。
-   */
-  loraPicks: z
-    .array(
-      z.object({
-        candidateId: IdSchema,
-        weight: z.number().optional(),
-        candidate: AssistantOperatorLoraPickCandidateSchema,
-        receipt: z.object({
-          assetId: IdSchema.nullable(),
-          error: z.string().max(LIMITS.maxPromptChars).optional(),
-        }),
-      }),
-    )
-    .max(LIMITS.maxLoraResults)
-    .optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -2457,31 +2415,9 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    * ⚠ `weight` 可选：不给就用候选自带的推荐值 / 资产默认值 —— 编一个数不如不编。
    */
   /**
-   * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）。
-   *
-   * ⚠ `candidateIds` 的值域（必须是本轮 `search_loras` 回过的）**留在规划器**收，
-   * ⛔ 不写进 schema —— 与本文件头注 ② 同一条：schema 拒 = 整轮读不出来，
-   * 规划器拒 = 日志上写着「这个 candidateId 本轮没搜到过」，助手还能改口再来一次。
-   * ⚠ `recommendedCandidateId` 可选：一张卡最多一个推荐（多给的由服务端剥掉）。
-   */
-  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: z.object({
-    question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
-    groups: z
-      .array(
-        z.object({
-          title: LabelSchema.optional(),
-          candidateIds: z.array(IdSchema).min(1).max(LIMITS.maxLoraResults),
-        }),
-      )
-      .min(1)
-      .max(LIMITS.maxLoraResults),
-    recommendedCandidateId: IdSchema.optional(),
-  }),
-  /**
    * 摆一张搭配卡（lora-assistant §12）—— 四块各自可缺席，**至少要有一处变化**
    * （规划器收：全空的卡是一颗点了什么都不会发生的「应用」）。
-   * ⚠ 与推荐卡同一条：`candidateId` / `loraId` 的值域、权重区间、参数合法性都
-   * **留在规划器**收，⛔ 不写进 schema —— 规划器拒的那一句助手读得懂、改得过来。
+   * ⚠ `candidateId` / `loraId` 的值域、权重区间、参数合法性都**留在规划器**收，⛔ 不写进 schema —— 规划器拒的那一句助手读得懂、改得过来。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: z.object({
     question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
@@ -2505,7 +2441,7 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   }),
   /**
    * 在库页圈几把（lora-assistant §13）。⚠ 值域（本轮搜到过、装得上）留在规划器收，
-   * 同推荐卡那一条：规划器拒的那一句助手读得懂、改得过来。
+   * 同搭配卡那一条：规划器拒的那一句助手读得懂、改得过来。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]: z.object({
     candidateIds: z.array(IdSchema).min(1).max(LIMITS.maxLoraPicks),
@@ -3793,23 +3729,8 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ContextCardSchema.nullable(),
   ),
   /**
-   * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 与 `propose_context_card`
-   * 同一种形状：**这条路上通常不出 step**，它的产出是一帧 `confirm(loraPick)`
-   * 加停流。契约照旧写在这里，因为「每条工具都有一份合法 step」是这份判别联合的
-   * 完备性要求。
-   * ⚠ 归读类：服务端一行库都没写、一把都没挂，⛔ 撤无可撤（挂载那几条 step 是
-   * 下一轮各自独立的 `mount_lora`，撤销撤在它们身上）。
-   */
-  readStep(
-    ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
-    z.object({
-      question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
-      candidateIds: z.array(IdSchema).max(LIMITS.maxLoraResults),
-    }),
-    z.object({ offered: z.boolean() }),
-  ),
-  /**
-   * 摆一张搭配卡（lora-assistant §12）—— 同上：这条路上通常不出 step，产出是一帧
+   * 摆一张搭配卡（lora-assistant §12）—— 与 `propose_context_card` 同一种形状：
+   * 这条路上通常不出 step，产出是一帧
    * `confirm(loraSetup)` 加停流。⚠ 归读类：一把都没挂、一格都没改；应用那几行是
    * 创作者点下去之后各自一条带 `inverse` 的 step。
    */
@@ -4163,83 +4084,12 @@ export const AssistantOperatorAskEventSchema = z.object({
 })
 
 /**
- * **推荐卡那一帧的载荷**（lora-assistant §10.1）—— 一把一行，勾了才挂。
- *
- * ⭐ **候选本体跟着帧走**（含 `importPayload` 对应的那几格）：`candidateId → 候选`
- * 的索引只活一轮，而「挂载所选」那一下发生在流结束之后。⛔ 不许「确认时按 id 再
- * 搜一次」，见 `AssistantOperatorLoraCandidateSchema` 头注 ①。
- * ⚠ 装不上的候选（`compatible:false` / `importable:false`）**照样在 `candidates`
- * 里**（策略 C）：行变灰、不可勾、理由写在行里。⛔ 别在服务端滤掉 —— 滤掉之后
- * 用户看到的是「没搜到」，而真相是「搜到了但要换底模」。
- */
-export const AssistantOperatorLoraPickConfirmSchema = z
-  .object({
-    /** 题面一句，模型写。 */
-    question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
-    /**
-     * 当前底模那一行（卡头右侧的 mono），**服务端填**。
-     * ⚠ `null` = 底模未定 —— 卡上那一格不画，预算也跟着缺席。
-     */
-    baseFamilyLabel: LabelSchema.nullable(),
-    /**
-     * 当前挂载栈的总权重与阈值（§5.1）。
-     * ⚠ `null` = 底模未定，算不出分母 —— ⛔ 别回落成一个写死的阈值。
-     * ⚠ 超了只在卡上标红**只提醒不动手**（§5.2）：按钮照旧可点。
-     */
-    budget: z
-      .object({
-        total: z.number().nonnegative(),
-        limit: z.number().positive(),
-      })
-      .nullable(),
-    /**
-     * 模型给的题材分组 —— 组间一条细线 + 小标题。
-     * ⚠ 不分组时给**一个无 `title` 的组**，⛔ 不是空数组：卡上永远按组画。
-     */
-    groups: z
-      .array(
-        z.object({
-          title: LabelSchema.optional(),
-          candidateIds: z.array(IdSchema).min(1).max(LIMITS.maxLoraResults),
-        }),
-      )
-      .min(1)
-      .max(LIMITS.maxLoraResults),
-    /**
-     * ⚠ 上限沿用 `search_loras` 一轮能回的条数，⛔ 不另立一个。
-     * ⚠ 用的是**收紧过的那一支**（`importPayload` 必填）：卡上这几条正是「下一
-     * 刻要挂的那几把」，载荷缺席就得回头再搜一次。
-     */
-    candidates: z
-      .array(AssistantOperatorLoraPickCandidateSchema)
-      .min(1)
-      .max(LIMITS.maxLoraResults),
-  })
-  .superRefine((value, ctx) => {
-    const known = new Set(value.candidates.map((one) => one.candidateId))
-    value.groups.forEach((group, groupIndex) => {
-      group.candidateIds.forEach((candidateId, idIndex) => {
-        if (known.has(candidateId)) return
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['groups', groupIndex, 'candidateIds', idIndex],
-          message: `Unknown candidateId in group: ${candidateId}`,
-        })
-      })
-    })
-  })
-
-export type AssistantOperatorLoraPickConfirm = z.infer<
-  typeof AssistantOperatorLoraPickConfirmSchema
->
-
-/**
  * **搭配卡那一帧**（lora-assistant §12，`plan_lora_setup`）—— 助手自己搭好的一套：
  * 新挂 / 卸下 / 权重 a→b / 参数 a→b，一行一处，一颗「应用这套搭配」。
  *
  * ⭐ 行都由**服务端**按快照算好（名字、原值都从状态块里现取，⛔ 不让模型写）；
- * 新挂那几把带着候选本体走（`importPayload` 必填，同推荐卡：索引只活一轮，而
- * 「应用」发生在流结束之后）。
+ * 新挂那几把带着候选本体走（`importPayload` 必填：索引只活一轮，而「应用」发生在
+ * 流结束之后）。
  * ⚠ 「原值」只用于卡上那一格读数：点「应用」时客户端按**那一刻**的装配台算撤销
  * 用的原值 —— 卡摆出来之后用户自己动过滑杆，撤销该回到他动过之后的样子。
  */
@@ -4313,7 +4163,7 @@ export type AssistantOperatorLoraSetupConfirm = z.infer<
  * **等你拍板才往下走**（v2 §3.3 + §8.1 + lora-assistant §10.1）—— 一帧四支。
  *
  * ⚠ 支放在 `confirm` 这一格里（按 `kind` 判别）而不是摊平到帧上：各支的必填字段
- * 互不相容（多步要 `steps`，生成要 `request`，推荐卡要 `candidates`），摊平就得把
+ * 互不相容（多步要 `steps`，生成要 `request`，搭配卡要 `setup`），摊平就得把
  * 每一边都改成可选，而那等于让确认卡去处理「既没有步也没有载荷的确认」。
  * ⭐ 四支共用的判据仍然是那一条：**有一件事等你拍板才算数**。⛔ 别把支数读成
  * 上限（它从两支长到四支了），也⛔ 别拿它当「花费确认」的回魂通道：那一支随决策 8
@@ -4343,18 +4193,6 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard),
       card: AssistantOperatorContextCardDraftSchema,
-    }),
-    /**
-     * **助手把本轮 LoRA 候选摆出来等创作者勾**（lora-assistant §10.1）。
-     *
-     * ⚠ 它是**多选 + 一颗提交键**，这正是它不做成 `ask` 的理由：`ask` 一次只问
-     * 一个、点一项就是提交。
-     * ⚠ 服务端到这一帧为止一把都没挂：挂载发生在带 `loraPicks` 的下一轮，逐把过
-     * `planMountLora` 的全部闸。
-     */
-    z.object({
-      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick),
-      pick: AssistantOperatorLoraPickConfirmSchema,
     }),
     /**
      * **助手自己搭好的一套**（lora-assistant §12）—— 一行一处变化 + 「应用这套搭配」。

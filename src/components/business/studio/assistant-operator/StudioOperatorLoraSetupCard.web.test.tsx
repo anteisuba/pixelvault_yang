@@ -41,7 +41,6 @@ const candidate: AssistantOperatorLoraPickCandidate = {
   alreadyMounted: false,
   alreadyImported: false,
   defaultWeight: 0.8,
-  recommended: false,
   importPayload: null,
 }
 

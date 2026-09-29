@@ -24,7 +24,6 @@ import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import { StudioOperatorImageHandoffCard } from './StudioOperatorImageHandoffCard'
-import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import {
@@ -406,8 +405,6 @@ export function StudioOperatorPanel({
     confirmGeneration,
     saveContextCard,
     dismissContextCard,
-    submitLoraPicks,
-    dismissLoraPick,
     applyLoraSetup,
     dismissLoraSetup,
     keepCharacterProfile,
@@ -475,16 +472,6 @@ export function StudioOperatorPanel({
    * （首屏 10 张、文件夹分类、往下拉继续翻）。
    */
   const [libraryOpen, setLibraryOpen] = useState(false)
-  /**
-   * LoRA 推荐卡上点开的那条候选（§10.3.2）—— 抽屉的**开合态**归这里，
-   * 勾选态仍留在推荐卡内部（那是一次还没提交的编辑）。
-   *
-   * ⚠ 存的是 candidateId 而不是候选本体：帧一换，卡里认不出这个 id 就当没开，
-   * ⛔ 不会留下一份过期的候选画在屏幕上。
-   */
-  const [loraDetailCandidateId, setLoraDetailCandidateId] = useState<
-    string | null
-  >(null)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -1074,18 +1061,6 @@ export function StudioOperatorPanel({
   }, [draft, onDraftChange, revisePlan, t])
 
   /**
-   * 「换个词再搜」（lora-assistant §10.3.1）—— 预填「换个词再搜：」并聚焦，
-   * ⛔ **不发请求**。
-   *
-   * ⚠ 判据与上面那颗逐字同源：新词只有用户说得出，替他发一句「再搜一次」只会
-   * 让模型拿同一串词再跑一轮。⛔ 不调 `revisePlan()`：这张卡上没有计划要改。
-   */
-  const searchLoraAgainPrompt = useCallback(() => {
-    if (!draft.trim()) onDraftChange(t('confirm.loraPick.searchAgainPrefill'))
-    inputRef.current?.focus()
-  }, [draft, onDraftChange, t])
-
-  /**
    * 「已确认 · 11:24」里那个时刻 —— ⚠ 词表在这一层，卡只收一个 `formatTime`。
    */
   const formatDecidedAt = useCallback(
@@ -1341,29 +1316,6 @@ export function StudioOperatorPanel({
             onAccept={acceptImageHandoff}
             onDismiss={dismissImageHandoff}
             formatTime={formatDecidedAt}
-          />
-        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
-          /* ── LoRA 推荐卡（lora-assistant §10.3.1）───────────────
-                     ⚠ 与其余三支同一个槽位（帧到即插、不离场、就地换态），
-                       ⛔ 不钉到输入框上方 —— 那是问题卡「一次只问一个」的位置，
-                       而这张卡是多选 + 一颗「挂载所选」。 */
-          <StudioOperatorLoraPickCard
-            prompt={confirm}
-            assistantName={
-              persona?.name?.trim() || t('timeline.assistantFallback')
-            }
-            onSubmit={submitLoraPicks}
-            onDismiss={dismissLoraPick}
-            /* 「换个词再搜」= 预填一句并聚焦，⛔ 不发请求（判据与确认卡
-                       「一步一步来」逐字同源：新词还得用户自己打出来）。 */
-            onSearchAgain={searchLoraAgainPrompt}
-            formatTime={formatDecidedAt}
-            /* 缩略图点开 = 库里那张详情抽屉（§10.3.2）：这里只管
-                       「开在哪一条上」，抽屉里那颗「勾上这把」改的是卡自己的
-                       勾选态 —— ⛔ 别把勾选态也提上来。 */
-            onOpenDetail={setLoraDetailCandidateId}
-            detailCandidateId={loraDetailCandidateId}
-            onCloseDetail={() => setLoraDetailCandidateId(null)}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (
           /* ── 搭配卡（lora-assistant §12）：同一个槽位，一颗「应用这套搭配」 ── */

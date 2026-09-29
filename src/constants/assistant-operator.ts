@@ -397,35 +397,20 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   searchLoras: 'search_loras',
   /**
-   * 把本轮搜到的候选**摆给创作者挑**（lora-assistant §10.2.2）——「这几把，你要挂哪几把？」
-   *
-   * ⭐ 它归「问」组而不是「改」组，判据与 `propose_context_card` 逐字同源：吐一帧
-   * 确认、停流、服务端一行库都不写，产出是**用户的一个决定**。挂载那一跳由用户
-   * 点「挂载所选」之后的那一轮逐把走 `planMountLora`。
-   * ⚠ 只接受**本轮 `search_loras` 回过的** candidateId（`run.loraIndex` 查得到），
-   * 查不到按 `unknownLora` 拒 —— 与 `mount_lora` 同一条：模型绝不自己写 LoRA 的 id。
-   * ⛔ **不让 `search_loras` 的结果自动转卡**：题面、题材分组、标哪一把「推荐」
-   * 三样都是模型的判断；而且 `search_loras` 常常连搜两轮，一搜就停流会把那些路掐死。
-   * ⚠ 它因此也没有 `inverse`：什么都没发生，撤无可撤。
-   */
-  planLoraPick: 'plan_lora_pick',
-  /**
    * 把**助手自己搭的一套**摆给创作者（owner 2026-09-28，lora-assistant §12）——
    * 要新挂的几把（本轮 `search_loras` 回过的）、要卸下的、权重 a→b、参数 a→b，
    * 一张卡、一颗「应用这套搭配」。
    *
-   * ⭐ 与 `plan_lora_pick` 同归「问」组：吐一帧确认、停流、服务端一把都不挂、一格
-   * 都不改；创作者点「应用」之后由**客户端**逐行应用，每一行各自是一条带 `inverse`
-   * 的 step（`mount_lora` / `unmount_lora` / `set_lora_weight` /
-   * `set_lora_parameters`），撤销撤在它们身上。
-   * ⚠ 与推荐卡分工：创作者要**自己挑**（多把候选摆出来勾）走 `plan_lora_pick`；
-   * 助手**自己搭好了一套**（含权重、参数的建议）走这一张 —— 同一批 LoRA ⛔ 两张卡
-   * 各出一次。
+   * ⭐ 归「问」组：吐一帧确认、停流、服务端一把都不挂、一格都不改；创作者点「应用」
+   * 之后由**客户端**逐行应用，每一行各自是一条带 `inverse` 的 step（`mount_lora` /
+   * `unmount_lora` / `set_lora_weight` / `set_lora_parameters`），撤销撤在它们身上。
+   * ⚠ 与库页圈选分工：创作者要**自己挑**走 `show_lora_picks`（在库页网格里圈出来，
+   * 他在卡上点挂载）；助手**自己搭好了一套**（含权重、参数的建议）走这一张。
    */
   planLoraSetup: 'plan_lora_setup',
   /**
    * 在「库」页的网格里**圈出**几把给创作者看（lora-assistant §13，owner 2026-09-29）——
-   * 桌面 LoRA 域取代推荐卡：`search_loras` 已经把库页打开、按同一组条件搜给他看了，
+   * `search_loras` 已经把库页打开、按同一组条件搜给他看了，
    * 这一步只给那几张卡加圈 + 「助手推荐」小标，挂不挂由他在卡上点。
    * ⚠ 只收**本轮 `search_loras` 回过的**、装得上当前底模的 candidateId（最多 3 把）。
    * ⚠ 改动型：`inverse` = 撤掉圈。它一把都没挂、一个字节都没下载。
@@ -702,7 +687,6 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-  ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
   ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
   ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
@@ -802,15 +786,9 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   /** ⚠ 对一下设定和外观（S14）：只看不写。 */
   ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   /**
-   * ⚠ **摆一张 LoRA 推荐卡也归这一档**（lora-assistant §10.2.2）：判据与
-   * `propose_context_card` 逐字同源 —— 服务端一行库都不写、装配台一个字都没动，
-   * 它做的全部事情是把本轮候选摆到创作者面前问一句。真正挂上那一跳发生在他
-   * 点下去之后的那一轮（每一把各自一条 `mount_lora` step，撤销撤在那上面）。
-   */
-  ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
-  /**
-   * ⚠ **摆一张搭配卡同理**（lora-assistant §12）：到这一帧为止一把都没挂、一格都
-   * 没改；应用那几行是创作者点下去之后各自一条带 `inverse` 的 step。
+   * ⚠ **摆一张搭配卡也归这一档**（lora-assistant §12）：判据与 `propose_context_card`
+   * 同源 —— 到这一帧为止一把都没挂、一格都没改；应用那几行是创作者点下去之后各自
+   * 一条带 `inverse` 的 step。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
   /**
@@ -1024,12 +1002,7 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
-  /**
-   * ⚠ 摆推荐卡也归**问**（§10.2.2）：它本质是「这几把你要哪几把」，停下来等
-   * 创作者拍一个板，产出是「决定」。⛔ 别因为下一轮真会挂上就把它挪进「改」。
-   */
-  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ASSISTANT_OPERATOR_VERB_IDS.ask,
-  /** ⚠ 搭配卡同理：一套搭配摆出来等创作者点「应用」，产出是「决定」。 */
+  /** ⚠ 搭配卡归**问**：一套搭配摆出来等创作者点「应用」，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: ASSISTANT_OPERATOR_VERB_IDS.ask,
   /** ⚠ 圈几把归**改**：库页上真多了几道圈，撤销撤得掉；⛔ 不停流等决定。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]:
@@ -1323,7 +1296,6 @@ export function isRevertibleAssistantOperatorTool(tool: string): boolean {
  * | `multistep`   | 本轮计划步数多                   | 一行动作串 + 「开始 / 一步一步来」         |
  * | `generate`    | `request_generation`             | 模型 / 比例 / 张数 / 分辨率 + 「确认生成」 |
  * | `contextCard` | `propose_context_card`（§8.1）   | 一张卡的草稿 + 「存这张卡 / 不用」         |
- * | `loraPick`    | `plan_lora_pick`（§10.1）        | 本轮候选一把一行 + 「挂载所选」            |
  * | `loraSetup`   | `plan_lora_setup`（§12）         | 一套搭配的每一处变化 + 「应用这套搭配」    |
  *
  * ⭐ **四支共用的判据只有一条**：有一件事**等你拍板才算数**。⛔ 别把这张表读成
@@ -1345,30 +1317,18 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    */
   contextCard: 'contextCard',
   /**
-   * 助手把本轮 LoRA 候选摆出来等创作者勾（lora-assistant §10.1，`plan_lora_pick`）。
-   *
-   * ⭐ 它落在 `confirm` 而不是 `ask`：`ask` 是「一次只问一个、点一项就是提交」的
-   * 单选题（`StudioOperatorQuestionCard` 的头注写死了这条），而这张卡是**多选 +
-   * 一颗提交键 + 之后就地换成「已挂 2 把 · 11:24」** —— 帧到即插、不离开时间线、
-   * 就地换态，三件事逐条对上的是确认卡。
-   * ⚠ 服务端到这一帧为止**一行库都没写、一把都没挂**（§10.2.2）：挂载那一跳发生在
-   * 创作者点「挂载所选」之后的那一轮，逐把过 `planMountLora` 的全部闸。
-   */
-  loraPick: 'loraPick',
-  /**
    * 助手把**自己搭好的一套**摆出来等创作者点「应用」（lora-assistant §12，
    * `plan_lora_setup`）：新挂 / 卸下 / 权重 a→b / 参数 a→b 一行一处。
    *
-   * ⭐ 落在 `confirm`，判据与 `loraPick` 逐字同源：一颗提交键 + 之后就地换成
-   * 「已应用 · 11:24」。⚠ 服务端到这一帧为止一把都没挂、一格都没改：应用由客户端
+   * ⭐ 落在 `confirm` 而不是 `ask`：`ask` 是「点一项就是提交」的单选题，这张卡是
+   * 一颗提交键 + 之后就地换成「已应用 · 11:24」。⚠ 服务端到这一帧为止一把都没挂、一格都没改：应用由客户端
    * 在创作者点下去时逐行做，每一行一条带 `inverse` 的 step。
    */
   loraSetup: 'loraSetup',
   /**
    * 卡片助手提议一份角色设定（C2，owner 09-27，画板 S6 / S13）。
    *
-   * ⭐ 落在 `confirm`，判据与 `loraPick` 逐字同源：**多选（每格一个勾）+ 一颗提交键
-   * + 之后就地换态**。⚠ 服务端到这一帧为止一行库都没写：写进角色那一跳由用户在
+   * ⭐ 落在 `confirm`：**多选（每格一个勾）+ 一颗提交键 + 之后就地换态**。⚠ 服务端到这一帧为止一行库都没写：写进角色那一跳由用户在
    * 卡上点「收下勾选的」，走角色页自己的更新（`apply.cards.applyProfile`）。
    */
   characterProfile: 'characterProfile',
@@ -1388,7 +1348,6 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
-  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
@@ -1897,9 +1856,9 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
     ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
     /**
-     * ⚠ 推荐卡 `plan_lora_pick` 与 `mount_lora` **不在这里**（owner 2026-09-29，
-     * lora-assistant §13）：找 LoRA 改成在库页当面搜 + 圈出来，挂载由创作者在卡上点。
-     * 搭配卡照旧（它的新挂几行由客户端逐行挂，不经 `mount_lora` 规划器）。
+     * ⚠ `mount_lora` **不在这里**（owner 2026-09-29，lora-assistant §13）：找 LoRA 是
+     * 在库页当面搜 + 圈出来，挂载由创作者在卡上点；搭配卡的新挂几行由客户端逐行挂
+     * （`mount_lora` 只剩那一种步骤）。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
     ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
@@ -2696,18 +2655,6 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   loraIncompatibleBase: 'loraIncompatibleBase',
   /**
-   * 这把 LoRA **创作者还没勾过**（lora-assistant §10.2.1）—— `mount_lora` 拒。
-   *
-   * ⚠ 与 `loraIncompatibleBase` 同族：两条拦的都是**助手那只手**，界面侧一字不变。
-   * 差别是那一条说「这把装不上」，这一条说「这把装得上，但没人点过头」。
-   * ⭐ 判据是**有没有那一下勾选**（服务端从 `request.loraPicks` 现算），⛔ 不是
-   * 模型在入参里自称「用户已经确认过了」—— 候选是模型从两个上游里挑的，用户一眼
-   * 都没看过就挂上去，错的那一次要靠撤销才发现。
-   * 助手读到这条理由该先出卡（`plan_lora_pick` 把候选摆给创作者），⛔ 不是换个
-   * 参数再挂一次。
-   */
-  loraPickRequired: 'loraPickRequired',
-  /**
    * 规则表满了（§10）。⛔ 不静默丢弃、也不悄悄挤掉最老的一条 —— 用户写下的
    * 每一条都是他自己的决定，该由他去删。助手读到这条理由该把话转给用户。
    */
@@ -2964,10 +2911,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]:
     "look for LoRAs. On the LoRA bench this opens the creator's library page and searches there in front of them (Civitai, with their current filters and the base-model filter set to the selected base's family) — the grid they see is the list you get back. Returns real candidates with their id, licence, base-model family, and whether this workbench can actually mount them. This is the ONLY place a candidateId comes from — never invent one. Keep the query SHORT and in English (a style name, an artist, two or three words); a whole sentence returns junk. For a named character or series use the name the LoRA is published under — a game or anime character's official English name (鸣潮 洛可可 → roccia wuthering waves), never a word-for-word translation of the characters. Read the compatibility line on each candidate before you recommend it: a LoRA built for a different base-model architecture will not load on the base that is selected.",
-  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]:
-    'PUT THE CANDIDATES IN FRONT OF THE CREATOR and let them tick the ones to mount. This MOUNTS NOTHING on its own: the app shows them the list and they decide; it ends your turn. Every candidateId must be one this turn\'s search_loras actually returned. Use it when the creator is choosing among options — even when only one candidate came back, even when they named a LoRA themselves. When YOU have composed a whole setup (which LoRAs, their weights, parameters), use plan_lora_setup instead — never both cards for the same LoRAs. Write "question" as the one line above the list, group the candidates by what they are for when that helps (a short title per group), and mark at most one as recommended. Candidates that cannot be mounted on the selected base go in the list too — the app greys them out and says why; never filter them out, or the creator reads it as "nothing found". Shape: {"action":"plan_lora_pick","question":"…","groups":[{"title":"…","candidateIds":["civitai:…"]}],"recommendedCandidateId":"…"} — every group needs a non-empty "candidateIds" array.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]:
-    'LoRA mounting is executed by the client after the creator ticks a pick card or applies a setup card. Do not call this directly: use plan_lora_pick or plan_lora_setup, then read actual client receipts and the current stack on the next turn. A failed receipt is not a mounted LoRA.',
+    'LoRA mounting is done by the creator: they mount from the library grid, or apply a setup card. Do not call this: ring candidates with show_lora_picks, or compose a setup with plan_lora_setup, then read the current stack on the next turn.',
   [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]:
     'RING UP TO THREE of this turn\'s search results in the library grid the creator is looking at — a black ring and an "assistant pick" tag on each card. It mounts nothing: the creator mounts with the mount button on the card. Only candidateIds this turn\'s search_loras returned, and only ones that load on the selected base. Then say in "message" which ones you ringed and why, in a line each. Shape: {"action":"show_lora_picks","candidateIds":["civitai:…"]}.',
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]:
@@ -3535,22 +3480,6 @@ export function contextCardAnswerId(kind: string, name: string): string {
 }
 
 /**
- * LoRA 推荐卡那一下（「挂载所选」/ 关掉不点）在**对话里**的合成 id
- * （lora-assistant §10.1 落账三件套）。
- *
- * ⭐ 判据与 `overwriteAnswerId` / `contextCardAnswerId` 逐字同源：那一下落的是一行
- * 系统行，而服务端零会话态 —— 不给它一个自带身份的 id，下一轮就没人说得出
- * 「这张卡创作者已经表过态了」，于是模型每开一条流都重提同一张卡。
- * ⚠ 认卡的身份是**那一轮的检索词**（一张卡 = 一次 `search_loras`）：`trim` 后按
- * 小写入 id，同一个词在两轮里大小写不同不该算两次表态。
- */
-export const OPERATOR_LORA_PICK_ANSWER_ID_PREFIX = 'loraPick:'
-
-export function loraPickAnswerId(query: string): string {
-  return `${OPERATOR_LORA_PICK_ANSWER_ID_PREFIX}${query.trim().toLowerCase()}`
-}
-
-/**
  * 那两下的**选项文案**（给模型与库看的那一份）。
  *
  * ⚠ 界面上那两颗键照旧走词表（`StudioOperator.confirm.contextCard.*`）：这里
@@ -3567,24 +3496,8 @@ export const OPERATOR_CONTEXT_CARD_CHOICE_LABELS = {
 } as const
 
 /**
- * 推荐卡那两下（「挂载所选」/ 关掉不点）在**对话里**的合成选项 id
- * （lora-assistant §10.1 落账三件套）。
- *
- * ⛔ **不拿 candidateId 当选项 id**：`ASSISTANT_PLAN_CARD_LIMITS.maxOptions` 是 4，
- * 而一张卡最多摆 6 把 —— 勾满六把的那一次整条请求会被 schema 拒掉（用户点了没
- * 反应，且错在客户端）。勾的是哪几把写在正文（`userText`）与 `optionLabels` 里。
- */
-export const OPERATOR_LORA_PICK_CHOICE_IDS = {
-  mount: 'mount',
-  dismiss: 'dismiss',
-} as const
-
-/** 关掉不点那一下的**选项文案**（进对话与库的那一份，⛔ 不随界面语言变形）。 */
-export const OPERATOR_LORA_PICK_DISMISS_LABEL = '都不挂'
-
-/**
  * 搭配卡那一下（「应用这套搭配」/「先不用」）在**对话里**的合成 id（lora-assistant
- * §12）—— 判据与 `loraPickAnswerId` 逐字同源：服务端零会话态，不给那一下一个自带
+ * §12）—— 判据与 `contextCardAnswerId` 同源：服务端零会话态，不给那一下一个自带
  * 身份的 id，模型下一轮读到的是一张没人回应的卡，于是重提同一套。
  * ⚠ 认卡的身份是**卡头那一句**：`trim` 后按小写入 id。
  */

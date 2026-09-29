@@ -546,12 +546,6 @@ export function applyOperatorStep(
     /** ⚠ 提议几张角色图、交给图片助手（C3）同理：那一跳在确认卡上由用户点下去。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
-    /**
-     * ⚠ 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）同理：它只是把候选摆出来，
-     * 装配台一格都没动。真正挂上那几把是下一轮各自独立的 `mount_lora`，
-     * 应用与撤销都发生在那条上。
-     */
-    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
     /** ⚠ 搭配卡（§12）同理：应用那几行各自是一条带 `inverse` 的 step。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
     /**

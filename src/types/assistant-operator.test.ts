@@ -48,8 +48,6 @@ import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
-  AssistantOperatorLoraCandidateSchema,
-  AssistantOperatorLoraPickCandidateSchema,
   AssistantOperatorRequestSchema,
   AssistantOperatorRoundSummarySchema,
   AssistantOperatorRoundSummaryDraftSchema,
@@ -606,19 +604,7 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
-  /**
-   * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）——**读类**：一行库都没写、
-   * 一把都没挂，所以没有 `inverse`（挂载那几条 step 是下一轮各自独立的
-   * `mount_lora`，撤销撤在它们身上）。
-   */
-  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: {
-    payload: {
-      question: '这三把里你要挂哪几把？',
-      candidateIds: ['civitai:1', 'hf:owner/name'],
-    },
-    result: { offered: true },
-  },
-  /** 搭配卡（§12）同理：到这一帧为止什么都没动。 */
+  /** 搭配卡（§12）—— **读类**：到这一帧为止什么都没动，所以没有 `inverse`。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: {
     payload: { question: '给你搭了一套' },
     result: { offered: true },
@@ -871,7 +857,7 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 50 条，recall_evidence 归「查」组（§7.3）', () => {
+  it('⭐ 工具表是 49 条，recall_evidence 归「查」组（§7.3）', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
@@ -880,7 +866,8 @@ describe('五动词入口', () => {
     // 卡片助手 S14 把 47 变成 48（`check_character_look`）。
     // lora-assistant §12 把 48 变成 49（`plan_lora_setup`，搭配卡）。
     // lora-assistant §13 把 49 变成 50（`show_lora_picks`，库页圈几把）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(50)
+    // 推荐卡代码删除（2026-09-29）把 50 变成 49（`plan_lora_pick`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(49)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -978,14 +965,13 @@ describe('五动词入口', () => {
       ),
     ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
     /**
-     * `ask` 组里是**提议卡 + LoRA 推荐卡**两条（v2 §8.1 + lora-assistant §10.2.2）：
+     * `ask` 组里是**提议卡 + LoRA 搭配卡**这几条（v2 §8.1 + lora-assistant §12）：
      * 反问本身没有工具，它的形状写在入口自己的 schema 里（不写 `action` 就是
      * 「问一道题」）。⚠ 两条的共同判据是「停下来等用户拍一个板，产出是决定」。
      */
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
     ).toEqual([
-      ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
       ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
@@ -1760,265 +1746,6 @@ describe('事件契约', () => {
         overwrite: { field: 'aspectRatio', have: 'x', proposed: 'y' },
       }).success,
     ).toBe(false)
-  })
-
-  /**
-   * **`confirm` 帧第四支 `loraPick`**（lora-assistant §10.1 / §10.4 第 1 条）。
-   *
-   * ⚠ 这一组盯的是协议本身的三条硬约束：候选那两格新字段必填、`groups` 里的
-   * candidateId 必须在 `candidates` 里、上限沿用 `maxLoraResults`（6）。
-   */
-  describe('confirm.loraPick（lora-assistant §10.1）', () => {
-    const loraCandidate = (candidateId: string) => ({
-      candidateId,
-      source: 'civitai',
-      name: `LoRA ${candidateId}`,
-      author: 'someone',
-      family: 'Illustrious',
-      triggerWords: ['qingxiao'],
-      downloads: 1200,
-      licenseLabel: null,
-      licenseKnown: false,
-      commercialUse: null,
-      importable: true,
-      compatible: true,
-      alreadyMounted: false,
-      alreadyImported: false,
-      defaultWeight: 0.8,
-      recommended: false,
-    })
-
-    /**
-     * **卡上（与勾选回传时）的那一条** —— 与上面同一份投影外加 `importPayload`。
-     *
-     * ⭐ 两档的差别只有这一格：`search_loras` 的**步结果**不带（它要进会话历史，
-     * 每条候选背一份落库入参就是让每条消息多背几 KB），推荐卡这一帧必须带
-     * （`candidateId → 候选` 的索引只活一轮，勾选那一下发生在流结束之后）。
-     */
-    const pickCandidate = (candidateId: string) => ({
-      ...loraCandidate(candidateId),
-      importPayload: {
-        name: `LoRA ${candidateId}`,
-        triggerWord: 'qingxiao',
-        loraUrl: 'https://civitai.com/api/download/models/67890',
-        type: 'style',
-        baseModelFamily: 'illustrious',
-        provider: 'civitai',
-        sourceSnapshot: {
-          source: 'civitai',
-          author: 'someone',
-          license: {
-            label: null,
-            commercialUse: null,
-            allowDerivatives: null,
-            allowNoCredit: null,
-            known: false,
-          },
-          pageUrl: 'https://civitai.com/models/12345',
-          revision: null,
-          retrievedAt: '2026-09-12T00:00:00.000Z',
-          fileSizeBytes: null,
-          metadataCompleteness: 'partial',
-        },
-      },
-    })
-
-    const pickFrame = (pick: Record<string, unknown>) => ({
-      type: ASSISTANT_OPERATOR_EVENTS.confirm,
-      confirm: { kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick, pick },
-    })
-
-    const basePick = {
-      question: '这几把里你要挂哪几把？',
-      baseFamilyLabel: 'Illustrious',
-      budget: { total: 1.4, limit: 2.5 },
-      groups: [{ title: '古风', candidateIds: ['a', 'b'] }],
-      candidates: [pickCandidate('a'), pickCandidate('b')],
-    }
-
-    it('一张完整的推荐卡解析得过', () => {
-      expect(
-        AssistantOperatorEventSchema.safeParse(pickFrame(basePick)).success,
-      ).toBe(true)
-    })
-
-    /** ⚠ 底模未定：`baseFamilyLabel` 与 `budget` 都是 null —— ⛔ 不是缺席。 */
-    it('底模未定时两格都写 null', () => {
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({ ...basePick, baseFamilyLabel: null, budget: null }),
-        ).success,
-      ).toBe(true)
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({ ...basePick, budget: undefined }),
-        ).success,
-      ).toBe(false)
-    })
-
-    /** ⭐ 候选那两格是**新增的必填**：少一格整帧不成立。 */
-    it('候选缺 defaultWeight / recommended 就不成立', () => {
-      for (const missing of ['defaultWeight', 'recommended'] as const) {
-        const candidate: Record<string, unknown> = pickCandidate('a')
-        delete candidate[missing]
-        expect(
-          AssistantOperatorEventSchema.safeParse(
-            pickFrame({
-              ...basePick,
-              groups: [{ candidateIds: ['a'] }],
-              candidates: [candidate],
-            }),
-          ).success,
-        ).toBe(false)
-      }
-    })
-
-    /**
-     * **`importPayload` 两档**（lora-assistant §10.1）：
-     *  · `search_loras` 的**步结果**那一档不带 —— 基础 schema 留它可选；
-     *  · 推荐卡这一帧与勾选回传那一档**必填** —— 缺了整帧不成立。
-     *
-     * ⭐ 这一格就是「⛔ 不许确认时按 id 再搜一次」那条规矩落地的地方：卡上少一格
-     * 没人发现，直到创作者点了「挂载所选」才在服务端拒掉，那时他已经等过一轮了。
-     */
-    it('importPayload 在卡上必填，在步结果投影上可缺', () => {
-      const withoutPayload: Record<string, unknown> = pickCandidate('a')
-      delete withoutPayload.importPayload
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({
-            ...basePick,
-            groups: [{ candidateIds: ['a'] }],
-            candidates: [withoutPayload],
-          }),
-        ).success,
-      ).toBe(false)
-      // ⛔ 步结果那一档照旧不带它 —— 基础投影 schema 必须收得下。
-      expect(
-        AssistantOperatorLoraCandidateSchema.safeParse(withoutPayload).success,
-      ).toBe(true)
-      expect(
-        AssistantOperatorLoraPickCandidateSchema.safeParse(withoutPayload)
-          .success,
-      ).toBe(false)
-    })
-
-    /**
-     * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的候选照样进卡
-     * （策略 C），那一格写 `null`。
-     */
-    it('导不进来的那把带着 null 载荷照样进卡', () => {
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({
-            ...basePick,
-            groups: [{ candidateIds: ['a'] }],
-            candidates: [
-              {
-                ...pickCandidate('a'),
-                importable: false,
-                notImportableReason: 'gated_repo',
-                importPayload: null,
-              },
-            ],
-          }),
-        ).success,
-      ).toBe(true)
-    })
-
-    /** ⭐ 分组引用的是**卡上真有的那几把**：编一个 id 出来整帧不成立。 */
-    it('groups 里的 candidateId 必须在 candidates 里', () => {
-      const parsed = AssistantOperatorEventSchema.safeParse(
-        pickFrame({
-          ...basePick,
-          groups: [{ candidateIds: ['a', 'ghost'] }],
-        }),
-      )
-      expect(parsed.success).toBe(false)
-      expect(JSON.stringify(parsed.error?.issues)).toContain('ghost')
-    })
-
-    /** ⚠ 上限与 `search_loras` 一轮能回的条数同一份，⛔ 不另立一个。 */
-    it('候选上限沿用 maxLoraResults', () => {
-      const ids = Array.from(
-        { length: ASSISTANT_OPERATOR_LIMITS.maxLoraResults + 1 },
-        (_, index) => `c${index}`,
-      )
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({
-            ...basePick,
-            groups: [{ candidateIds: ids.slice(0, 1) }],
-            candidates: ids.map(pickCandidate),
-          }),
-        ).success,
-      ).toBe(false)
-    })
-
-    /** ⚠ 一把都没有的卡不是卡：`candidates` / `groups` 都 `.min(1)`。 */
-    it('空候选 / 空分组不成立', () => {
-      expect(
-        AssistantOperatorEventSchema.safeParse(
-          pickFrame({ ...basePick, candidates: [], groups: [] }),
-        ).success,
-      ).toBe(false)
-    })
-
-    /**
-     * **回传的是勾中的那几条本体**（§10.1「用户回答怎么回来」）：
-     * `run.loraIndex` 只活一轮，重搜一次拿到的不是同一份。
-     */
-    it('request.loraPicks 收候选本体，且上限同为 maxLoraResults', () => {
-      const base = {
-        messages: [{ role: 'user', content: '挂上这两把' }],
-        domain: 'lora',
-        snapshot: SNAPSHOT,
-      }
-      expect(
-        AssistantOperatorRequestSchema.safeParse({
-          ...base,
-          loraPicks: [
-            {
-              candidateId: 'a',
-              weight: 0.9,
-              candidate: pickCandidate('a'),
-              receipt: { assetId: 'asset-a' },
-            },
-            {
-              candidateId: 'b',
-              candidate: pickCandidate('b'),
-              receipt: { assetId: null, error: 'Import failed' },
-            },
-          ],
-        }).success,
-      ).toBe(true)
-      expect(
-        AssistantOperatorRequestSchema.safeParse({
-          ...base,
-          loraPicks: [{ candidateId: 'a', candidate: pickCandidate('a') }],
-        }).success,
-      ).toBe(false)
-      // ⛔ 只给 id 不给本体 —— 那正是「确认时按 id 再搜一次」的入口。
-      expect(
-        AssistantOperatorRequestSchema.safeParse({
-          ...base,
-          loraPicks: [{ candidateId: 'a' }],
-        }).success,
-      ).toBe(false)
-      expect(
-        AssistantOperatorRequestSchema.safeParse({
-          ...base,
-          loraPicks: Array.from(
-            { length: ASSISTANT_OPERATOR_LIMITS.maxLoraResults + 1 },
-            (_, index) => ({
-              candidateId: `c${index}`,
-              candidate: pickCandidate(`c${index}`),
-              receipt: { assetId: `asset-${index}` },
-            }),
-          ),
-        }).success,
-      ).toBe(false)
-    })
   })
 })
 

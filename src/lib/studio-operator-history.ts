@@ -317,12 +317,6 @@ export function describeOperatorStepDetail(
     /** 交给图片助手（C3）—— 详情写**要对图片助手说的那句话**。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
       return step.payload.request
-    /**
-     * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 详情写**摆了几把**：这一步
-     * 通常不出 step（产出是确认卡那一帧），落进历史时该说得出摆了多少个候选。
-     */
-    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
-      return `${step.payload.candidateIds.length}`
     /** 摆一张搭配卡（§12）—— 卡头那一句就是它摆了什么。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
       return step.payload.question
@@ -481,62 +475,6 @@ export function describeImageHandoffDecisionText(
 }
 
 /**
- * LoRA 推荐卡那一下的**题面**（lora-assistant §10.1 落账三件套）。
- *
- * ⭐ 判据与 `describeContextCardProposalText` 逐字同源：这句话要去的地方是三轮
- * 之后的一段对话，那里没有那张卡 —— 「创作者对哪张卡表过态」必须自包含。一次
- * 检索一张卡，题面就是它的身份。
- */
-export function describeLoraPickProposalText(question: string): string {
-  return `推荐卡「${question.trim()}」`
-}
-
-/**
- * 勾中的那几把在**对话里**的选项文案 —— 「清宵 ×0.8、overwatch_3d_anima ×0.8」。
- *
- * ⚠ 权重印在名字后面：同一把挂 0.4 与挂 1.2 是两个决定，只写名字的话模型下一轮
- *   说不出创作者定的是哪个数。
- * ⚠ 单把名字超过 `LORA_PICK_LABEL_MAX_NAME_CHARS` 就截到那个上限再加「…」：⛔
- *   不整句收成「已选 N 把」—— 真机 2026-09-12：单把长名字曾经把这一句话直接吞成
- *   「已选 1 把」，选了哪把、挂了多重全部消失。
- * ⚠ 最多列 `LORA_PICK_LABEL_MAX_NAMES` 把，再多的收成一段「等 N 把」缀在后面 ——
- *   逐把列全在多选场景下会把这句话拖成一整段读不完的话。
- */
-const LORA_PICK_LABEL_MAX_NAMES = 3
-const LORA_PICK_LABEL_MAX_NAME_CHARS = 24
-
-function truncateLoraPickName(name: string): string {
-  const trimmed = name.trim()
-  return trimmed.length <= LORA_PICK_LABEL_MAX_NAME_CHARS
-    ? trimmed
-    : `${trimmed.slice(0, LORA_PICK_LABEL_MAX_NAME_CHARS)}…`
-}
-
-/**
- * `answered.optionLabels` 那一半：**一把一条**，每条截到 `maxOptionLabelChars` 以内，
- * 条数封在 `maxOptions`（最后一条收成「等 N 把」）。
- *
- * ⚠ 2026-09-12 真机事故：把三把名字拼进一条 40 字上限的标签，整条请求被 schema
- * 拒，而那行系统行每轮都折进历史 —— 那条对话从此每次都 400。标签与正文分家：
- * 正文（`describeLoraPickSelectionLabel`）尽管说人话，标签按 schema 尺寸裁。
- */
-export function describeLoraPickOptionLabels(
-  picks: readonly { name: string; weight: number }[],
-): string[] {
-  const max = PLAN_LIMITS.maxOptions
-  const shownCount = picks.length > max ? max - 1 : picks.length
-  const labels = picks.slice(0, shownCount).map((pick) => {
-    const weight = ` ×${Math.round(pick.weight * 100) / 100}`
-    const room = PLAN_LIMITS.maxOptionLabelChars - weight.length
-    const name =
-      pick.name.length > room ? `${pick.name.slice(0, room - 1)}…` : pick.name
-    return `${name}${weight}`
-  })
-  const remaining = picks.length - shownCount
-  return remaining > 0 ? [...labels, `等${remaining}把`] : labels
-}
-
-/**
  * 发送前把结构化答复裁进 schema 尺寸（题面 / 标签 / 条数）—— 历史里不管躺着
  * 什么旧值，都不能再让一整条请求被拒。⛔ 只裁不改语义。
  */
@@ -565,46 +503,16 @@ export function clampPlanAnswer<
   }
 }
 
-export function describeLoraPickSelectionLabel(
-  picks: readonly { name: string; weight: number }[],
-): string {
-  const shown = picks
-    .slice(0, LORA_PICK_LABEL_MAX_NAMES)
-    .map(
-      (pick) =>
-        `${truncateLoraPickName(pick.name)} ×${Math.round(pick.weight * 100) / 100}`,
-    )
-  const remaining = picks.length - shown.length
-  return remaining > 0
-    ? [...shown, `等${remaining}把`].join('、')
-    : shown.join('、')
-}
-
-/**
- * 「挂载所选」/ 关掉不点那一行的**自包含正文**。
- *
- * ⭐ 判据与 `describeContextCardDecisionText` 逐字同源：那一行不进 `messages` 的
- * 下场是模型读到一张从未被回应的推荐卡，于是下一轮重提同一张（b9b6990a 的教训）。
- */
-export function describeLoraPickDecisionText(
-  question: string,
-  label: string,
-): string {
-  const asked = question.trim()
-  const picked = label.trim()
-  return asked
-    ? `已选择「${picked}」（针对${describeLoraPickProposalText(asked)}）`
-    : `已选择「${picked}」`
-}
-
 /** 搭配卡在**对话里**的身份 —— 「搭配卡「给你搭了一套」」。 */
 export function describeLoraSetupProposalText(question: string): string {
   return `搭配卡「${question.trim()}」`
 }
 
 /**
- * 「应用这套搭配」/「先不用」那一行的**自包含正文**（lora-assistant §12）—— 判据
- * 与 `describeLoraPickDecisionText` 逐字同源。
+ * 「应用这套搭配」/「先不用」那一行的**自包含正文**（lora-assistant §12）。
+ *
+ * ⭐ 判据与 `describeContextCardDecisionText` 同源：那一行不进 `messages` 的下场是
+ * 模型读到一张从未被回应的卡，于是下一轮重提同一张（b9b6990a 的教训）。
  */
 export function describeLoraSetupDecisionText(
   question: string,

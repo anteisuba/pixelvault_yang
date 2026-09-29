@@ -68,7 +68,7 @@ export const RAIL_GROUP_TARGETS: Readonly<
   },
 }
 
-/** 素材库开给「这张卡自己」时的那一档（片段卡换片）。 */
+/** 素材库开给「这张卡自己」时的那一档（不收参考的卡换自己的片）。 */
 const SELF_LIBRARY = 'self'
 
 /** 上传 / 素材库落进轨时新建的那张卡是什么子型。 */
@@ -95,7 +95,7 @@ export interface VideoRailBinding {
   readonly railProps: Omit<VideoRefRailProps, 'className'>
   readonly capacity: ReturnType<typeof videoRailCapacity>
   /**
-   * 这张卡收不收参考（`videoNodeAcceptsReferences`）。⚠ 片段卡不收：调用方据此
+   * 这张卡收不收参考（`videoNodeAcceptsReferences`）。⚠ 不收的（今天只剩退役的 `merge`）：调用方据此
    * 不摆参考轨、`+` 里不列「图 / 视频 / 语音」，上传与素材库换的是它自己的片。
    */
   readonly acceptsRefs: boolean
@@ -103,7 +103,7 @@ export interface VideoRailBinding {
   /** 上传：`null` 组 = 换这张卡自己的成片。 */
   runUpload(file: File, group: VideoRailGroupId | null): void
   openFilePicker(group: VideoRailGroupId | null): void
-  /** 素材库：`null` 组 = 换这张卡自己的片（片段卡的 `+ → 从素材库`）。 */
+  /** 素材库：`null` 组 = 换这张卡自己的片（不收参考的卡的 `+ → 从素材库`）。 */
   openLibrary(group: VideoRailGroupId | null): void
   /** 从系统相册 / 文件选一份落进某一组（手机端参考条的加号走它）。 */
   readonly selfUploading: boolean

@@ -42,9 +42,10 @@ function videoPortsOf(subtype: string) {
 }
 
 /**
- * 这张视频卡收不收参考。⚠ 参考片段（`clip`）是叶子卡、没有入口 —— 给它摆「挂图 /
- * 挂视频 / 挂语音」、抽帧连回自己，点下去只会报「这个节点没有这个入口」（owner
- * 2026-09-29 真机）。判据查端口表，与图片卡的 `imageNodeAcceptsReferences` 同一条。
+ * 这张视频卡收不收参考。判据查端口表，与图片卡的 `imageNodeAcceptsReferences` 同一条：
+ * 镜头卡与片段卡同一套入口（owner 2026-09-29「这两个都是视频节点」），今天不收的只剩
+ * 退役的 `merge`。⛔ 给不收的卡摆「挂图 / 挂视频 / 挂语音」—— 点下去只会报「这个节点
+ * 没有这个入口」。
  */
 export function videoNodeAcceptsReferences(subtype: string): boolean {
   return Boolean(
@@ -55,8 +56,8 @@ export function videoNodeAcceptsReferences(subtype: string): boolean {
 }
 
 /**
- * 续拍从这张卡的哪个出口连到下一镜的参考槽：镜头卡走「末帧」出口；片段卡没有那个
- * 出口，整段当参考（⛔ 连到不存在的出口，ReactFlow 就不画这条线）。
+ * 续拍从这张卡的哪个出口连到下一镜的参考槽：有「末帧」出口走末帧，没有就整段当参考
+ * （⛔ 连到不存在的出口，ReactFlow 就不画这条线）。
  */
 export function videoContinueSourceHandle(subtype: string): NodeSlotOutputId {
   return videoPortsOf(subtype)?.outputs.includes(NODE_SLOT_OUTPUT_IDS.tailFrame)

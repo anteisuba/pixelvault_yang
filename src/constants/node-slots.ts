@@ -212,6 +212,54 @@ const TEXT_PORTS: NodeV4PortSpec = {
 }
 
 /** 每个 `kind.subtype` 的具名入口 / 出口（§9.3）。 */
+/**
+ * 视频卡的入口 / 出口 —— 镜头卡与片段卡**同一套**（owner 2026-09-29：「这两个都是视频
+ * 节点」）。片段卡（上传 / 素材库落下的那段）与镜头卡的差别只剩一条：它不进镜头带
+ * （没有 `shotNo` / 剧本投影）。⛔ 别再把片段卡做成叶子：给它摆了提示词栏又不收参考，
+ * 挂图只会报「这个节点没有这个入口」。
+ */
+const VIDEO_V4_PORTS = {
+  // 顺序 = §9.3 版式里源节点自上而下的顺序：首帧 → 尾帧 → 参考 → 语音 → 文本。
+  inputs: [
+    {
+      slot: NODE_SLOT_IDS.firstFrame,
+      min: 0,
+      max: 1,
+      sourceKinds: [NODE_MEDIA_KIND_IDS.image],
+    },
+    {
+      slot: NODE_SLOT_IDS.lastFrame,
+      min: 0,
+      max: 1,
+      sourceKinds: [NODE_MEDIA_KIND_IDS.image],
+    },
+    {
+      slot: NODE_SLOT_IDS.reference,
+      min: 0,
+      max: null,
+      sourceKinds: [NODE_MEDIA_KIND_IDS.image, NODE_MEDIA_KIND_IDS.video],
+    },
+    {
+      slot: NODE_SLOT_IDS.voice,
+      min: 0,
+      max: null,
+      sourceKinds: [NODE_MEDIA_KIND_IDS.audio],
+    },
+    {
+      slot: NODE_SLOT_IDS.text,
+      min: 0,
+      max: null,
+      sourceKinds: [NODE_MEDIA_KIND_IDS.text],
+      byRole: {
+        [NODE_SLOT_TEXT_ROLE_IDS.script]: { min: 0, max: 1 },
+        [NODE_SLOT_TEXT_ROLE_IDS.style]: { min: 0, max: null },
+        [NODE_SLOT_TEXT_ROLE_IDS.character]: { min: 0, max: null },
+      },
+    },
+  ],
+  outputs: [NODE_SLOT_OUTPUT_IDS.out, NODE_SLOT_OUTPUT_IDS.tailFrame],
+} as const satisfies NodeV4PortSpec
+
 export const NODE_V4_PORTS = {
   [`${NODE_MEDIA_KIND_IDS.text}.${NODE_V4_TEXT_SUBTYPE_IDS.script}`]:
     TEXT_PORTS,
@@ -272,51 +320,10 @@ export const NODE_V4_PORTS = {
     outputs: [NODE_SLOT_OUTPUT_IDS.out],
   },
 
-  [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.shot}`]: {
-    // 顺序 = §9.3 版式里源节点自上而下的顺序：首帧 → 尾帧 → 参考 → 语音 → 文本。
-    inputs: [
-      {
-        slot: NODE_SLOT_IDS.firstFrame,
-        min: 0,
-        max: 1,
-        sourceKinds: [NODE_MEDIA_KIND_IDS.image],
-      },
-      {
-        slot: NODE_SLOT_IDS.lastFrame,
-        min: 0,
-        max: 1,
-        sourceKinds: [NODE_MEDIA_KIND_IDS.image],
-      },
-      {
-        slot: NODE_SLOT_IDS.reference,
-        min: 0,
-        max: null,
-        sourceKinds: [NODE_MEDIA_KIND_IDS.image, NODE_MEDIA_KIND_IDS.video],
-      },
-      {
-        slot: NODE_SLOT_IDS.voice,
-        min: 0,
-        max: null,
-        sourceKinds: [NODE_MEDIA_KIND_IDS.audio],
-      },
-      {
-        slot: NODE_SLOT_IDS.text,
-        min: 0,
-        max: null,
-        sourceKinds: [NODE_MEDIA_KIND_IDS.text],
-        byRole: {
-          [NODE_SLOT_TEXT_ROLE_IDS.script]: { min: 0, max: 1 },
-          [NODE_SLOT_TEXT_ROLE_IDS.style]: { min: 0, max: null },
-          [NODE_SLOT_TEXT_ROLE_IDS.character]: { min: 0, max: null },
-        },
-      },
-    ],
-    outputs: [NODE_SLOT_OUTPUT_IDS.out, NODE_SLOT_OUTPUT_IDS.tailFrame],
-  },
-  [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.clip}`]: {
-    inputs: LEAF,
-    outputs: [NODE_SLOT_OUTPUT_IDS.out],
-  },
+  [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.shot}`]:
+    VIDEO_V4_PORTS,
+  [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.clip}`]:
+    VIDEO_V4_PORTS,
   [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.merge}`]: {
     inputs: [
       {

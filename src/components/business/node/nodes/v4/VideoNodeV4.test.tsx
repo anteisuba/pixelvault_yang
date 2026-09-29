@@ -369,21 +369,21 @@ describe('选中：工具条与批操作', () => {
   })
 })
 
-// owner 2026-09-29 真机：片段卡上点「+ → 图」报「这个节点没有这个入口」。片段卡是叶子，
-// 没有任何入口 —— 挂参考的口子一律不摆，抽帧 / 续拍也不往它没有的槽 / 出口上连。
-describe('参考片段（叶子卡）', () => {
+// owner 2026-09-29：「这两个都是视频节点」—— 片段卡（上传 / 素材库落下的那段）与镜头卡
+// 同一套入口：一样摆参考轨、抽帧连回自己、续拍走末帧出口。差别只剩它不进镜头带。
+describe('片段卡与镜头卡同一套', () => {
   const CLIP = { ...READY, subtype: 'clip' } as const
 
-  it('提示词栏不摆参考轨', () => {
+  it('提示词栏一样摆参考轨', () => {
     renderVideo(harness([videoNode('v_1', CLIP)]), 'v_1', true)
     expect(
       screen
         .getByTestId('flow-toolbar-bottom')
         .querySelector('[data-video-ref-rail]'),
-    ).toBeNull()
+    ).not.toBeNull()
   })
 
-  it('抽帧只落那张图，⛔ 不连回自己', async () => {
+  it('抽帧落成图并连回这一段的参考槽', async () => {
     const onApplyBatch = vi.fn(
       async (ops: readonly unknown[]) => (
         void ops,
@@ -408,10 +408,14 @@ describe('参考片段（叶子卡）', () => {
       string,
       unknown
     >[]
-    expect(ops.map((op) => op.op)).toEqual([NODE_ASSISTANT_OP_V4_IDS.addNode])
+    expect(ops[1]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.connect,
+      target: 'v_1',
+      slot: NODE_SLOT_IDS.reference,
+    })
   })
 
-  it('续拍把整段当参考（`out` 出口），⛔ 不从它没有的末帧出口连', async () => {
+  it('续拍从末帧出口接到下一段', async () => {
     const onApplyBatch = vi.fn(
       async (ops: readonly unknown[]) => (
         void ops,
@@ -433,7 +437,7 @@ describe('参考片段（叶子卡）', () => {
       string,
       unknown
     >[]
-    expect(ops[3]).toMatchObject({ source: 'v_1', sourceHandle: 'out' })
+    expect(ops[3]).toMatchObject({ source: 'v_1', sourceHandle: 'tailFrame' })
   })
 })
 

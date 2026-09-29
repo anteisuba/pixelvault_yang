@@ -162,7 +162,7 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
         />
       ) : null}
       <NodePromptBar
-        // 片段卡（叶子）没有入口：不摆参考条（与桌面卡同一条判据）。
+        // 不收参考的卡不摆参考条（与桌面卡同一条判据）。
         leadingRow={
           composer.acceptsRefs ? (
             <div className="flex min-w-0 max-w-full items-start gap-2">

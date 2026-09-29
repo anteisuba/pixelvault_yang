@@ -593,11 +593,30 @@ describe('listConnectableSlots', () => {
         src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot),
         {
           id: 'tgt',
-          kind: NODE_MEDIA_KIND_IDS.video,
-          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.reference,
         },
       ),
     ).toEqual([])
+  })
+
+  // owner 2026-09-29：「这两个都是视频节点」—— 片段卡与镜头卡同一套入口。
+  it('片段卡点亮的槽与镜头卡一模一样', () => {
+    const image = src(NODE_MEDIA_KIND_IDS.image, NODE_V4_IMAGE_SUBTYPE_IDS.shot)
+    const slotsOf = (
+      subtype:
+        | typeof NODE_V4_VIDEO_SUBTYPE_IDS.clip
+        | typeof NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+    ) =>
+      listConnectableSlots(image, {
+        id: 'tgt',
+        kind: NODE_MEDIA_KIND_IDS.video,
+        subtype,
+      })
+    expect(slotsOf(NODE_V4_VIDEO_SUBTYPE_IDS.clip)).toEqual(
+      slotsOf(NODE_V4_VIDEO_SUBTYPE_IDS.shot),
+    )
+    expect(slotsOf(NODE_V4_VIDEO_SUBTYPE_IDS.clip).length).toBeGreaterThan(0)
   })
 })
 

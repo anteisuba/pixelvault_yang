@@ -78,7 +78,7 @@ export const VIDEO_RAIL_PICKERS = [
 
 export interface VideoAddMenuItemsProps {
   /**
-   * 这张卡收不收参考。⚠ 片段卡（叶子）不收：不列「图 / 视频 / 语音」三组 —— 列了
+   * 这张卡收不收参考。⚠ 不收参考的卡（退役的 `merge`）：不列「图 / 视频 / 语音」三组 —— 列了
    * 点下去只会报「这个节点没有这个入口」。
    */
   readonly acceptsRefs?: boolean

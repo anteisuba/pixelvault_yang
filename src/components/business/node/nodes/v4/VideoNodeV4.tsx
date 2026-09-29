@@ -379,8 +379,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   }
 
   /**
-   * 抽帧：截当前画面 → 落成一张图片卡 → 连线**指回**这一段的参考槽。⚠ 片段卡没有
-   * 参考槽：只落那张图、不连（⛔ 连一条不存在的入口 = 报错 + 一张孤卡）。
+   * 抽帧：截当前画面 → 落成一张图片卡 → 连线**指回**这一段的参考槽。⚠ 没有
+   * 参考槽的卡（退役的 `merge`）只落那张图、不连（⛔ 连一条不存在的入口 = 报错 + 孤卡）。
    */
   const runExtract = async (video: HTMLVideoElement) => {
     const grabbed = await frames.captureCurrentFrame(video, displayName)
@@ -816,7 +816,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           <NodePromptBar
             // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
             // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
-            // 片段卡（叶子）没有入口：不摆参考轨（与图片卡 `image.reference` 同一条）。
+            // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
             leadingRow={
               acceptsRefs ? (
                 <>

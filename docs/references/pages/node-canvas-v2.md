@@ -246,7 +246,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 | audio | `voice`      | 角色配音 / 音色                                                                                | ✅                |
 | audio | `ambience`   | 环境声                                                                                         | ✅                |
 | video | `shot`       | **一个镜头**：一次视频生成的完整配置与产物；剪辑台成片也落成这一种                             | ✅                |
-| video | `clip`       | 参考片段（叶子源，无入口）                                                                     | ❌                |
+| video | `clip`       | 上传 / 素材库落下的视频：与 `shot` 同一套入口（2026-09-29），只是不进镜头带                    | ✅                |
 | video | `merge`      | **已退役**（§8.6）：只在存量数据里出现                                                         | —                 |
 
 **角色卡**（画布用角色 ④，owner 2026-09-27 方向 A，画板 `DesignCanvasCharacterUi.dc.html`）：`image.character` + `characterId` 绑角色库里的一位，一个画布一位只有一张。卡面 / 图片页 / 文字页都**现读**角色库（`useCharacterLibrary`），画布只存「是她」。收起 = 她的主图、名字在卡外；选中 = 原地变宽展开（`NODE_V4_CHARACTER_CARD`），「图片 / 文字」液态分段，⛔ 没有底部提示词面板、没有进出口（不连线，镜头用她走 @）、⛔ 没有工具条（owner 09-28）。图片页点一张 = 右边落一张普通 `image.reference` 卡并选中，⛔ 不连线。文字页只读，两个按钮「让助手写剧本 / 写台词」把一句带 `@她` 的话填进画布助手的输入框（`requestOperatorDraft`，⛔ 不替用户发）。左栏点一位 = 落在视口中间并选中；角色页「用她 ▾ → 放进画布」列最近几块画布（`GET /api/node-workflow/projects?view=recent`，只回摘要）+ 新画布，深链 `?project=<id|new>&character=<id>` 由画布切项目后落下她、再清参数。读不到她 / 她没图是灰底一句话。注册表按 `characterId` 分流到 `CharacterNodeV4`。
@@ -286,23 +286,22 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 | `image.reference`                                  | —（叶子源）                                                                                                                   | `out`                                     |
 | `audio.voice`                                      | `text`(0..1) · `timbre`(0..1 audio)                                                                                           | `out`                                     |
 | `audio.ambience`                                   | `text`(0..1)                                                                                                                  | `out`                                     |
-| `video.shot`                                       | `firstFrame`(0..1 image) · `lastFrame`(0..1 image) · `reference`(0..N image\|video) · `voice`(0..N audio) · `text`(0..N text) | `out` · `tailFrame`（接续镜用的产物末帧） |
-| `video.clip`                                       | —（叶子源）                                                                                                                   | `out`                                     |
+| `video.shot` / `video.clip`                        | `firstFrame`(0..1 image) · `lastFrame`(0..1 image) · `reference`(0..N image\|video) · `voice`(0..N audio) · `text`(0..N text) | `out` · `tailFrame`（接续镜用的产物末帧） |
 | `video.merge`（已退役，只读存量）                  | `clip`(**2**..9 video)                                                                                                        | `out`                                     |
 
 ### 9.4 合法矩阵（源 kind × 目标槽）
 
-| 目标槽 \ 源                 | text | image                             | audio | video |
-| --------------------------- | ---- | --------------------------------- | ----- | ----- |
-| `firstFrame` / `lastFrame`  | ✗    | ✓                                 | ✗     | ✗     |
-| `reference`（image 家族）   | ✗    | ✓                                 | ✗     | ✗     |
-| `reference`（`video.shot`） | ✗    | ✓                                 | ✗     | ✓     |
-| `voice`                     | ✗    | ✗                                 | ✓     | ✗     |
-| `text`                      | ✓    | ✗                                 | ✗     | ✗     |
-| `timbre`                    | ✗    | ✗                                 | ✓     | ✗     |
-| `closeup`                   | ✗    | ✓（子型 = reference / character） | ✗     | ✗     |
-| `clip`（merge）             | ✗    | ✗                                 | ✗     | ✓     |
-| `source`（text）            | ✓    | ✓                                 | ✓     | ✓     |
+| 目标槽 \ 源                | text | image                             | audio | video |
+| -------------------------- | ---- | --------------------------------- | ----- | ----- |
+| `firstFrame` / `lastFrame` | ✗    | ✓                                 | ✗     | ✗     |
+| `reference`（image 家族）  | ✗    | ✓                                 | ✗     | ✗     |
+| `reference`（视频卡）      | ✗    | ✓                                 | ✗     | ✓     |
+| `voice`                    | ✗    | ✗                                 | ✓     | ✗     |
+| `text`                     | ✓    | ✗                                 | ✗     | ✗     |
+| `timbre`                   | ✗    | ✗                                 | ✓     | ✗     |
+| `closeup`                  | ✗    | ✓（子型 = reference / character） | ✗     | ✗     |
+| `clip`（merge）            | ✗    | ✗                                 | ✗     | ✓     |
+| `source`（text）           | ✓    | ✓                                 | ✓     | ✓     |
 
 两条 kind 之外的门：
 
@@ -613,6 +612,7 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 
 ## Last Verified
 
+- **2026-09-29 · 片段卡与镜头卡同一套入口**（owner：「这两个都是视频节点」）：推翻上午那条「片段卡是叶子、不给挂参考」—— `video.clip` 的端口改成与 `video.shot` 同一份（`VIDEO_V4_PORTS`），提示词栏 / 画中框 / 手机抽屉因此一样摆参考轨，抽帧连回自己、续拍走末帧出口，拖放默认落点对所有视频卡生效。两者的差别只剩片段卡不进镜头带（没有 `shotNo` / 剧本投影）。判据本来就查端口表，所以上午那套代码不用拆，只是今天不收参考的视频卡只剩退役的 `merge`。
 - **2026-09-29 · 去掉这一版**（owner 真机：卡上一版的原图删了，按「从画布移除」连好的那一版一起删掉整张卡）：新 op `remove_output_version`（content · **confirm** · 撤销走整卡快照，op 表 34 条），纯函数 `removeOutputVersion`（当前版跟着挪；只剩一版拒绝 = `lastOutputVersion`，那是 `delete` 的事）。图片 / 视频 / 音频卡读不出的那一版：卡上不止一版时按钮写「去掉这一版」、只拿掉它，只剩一版仍是「从画布移除」。助手要用它也先问一句（三语确认卡在 `assistant-operator.service`）。op 应用器 / 卡片测试补齐；⚠ 真机没点过（会改你项目里的卡）。
 - **2026-09-29 · `@` 选择器与视频参数弹层**（owner 真机）：选择器挂 `nowheel`（滚轮原先被 ReactFlow 拿去缩放画布，列表滚不动）；同一组收成一段（组按首次出现、组内原序，在 `matchMentionOptions` 里排，↑↓ 与列表同序）；视频的缩略不再拿 mp4 当 `<img>`：有封面走 `videoThumbnailUrl`，没有就 `<video>` 停在第一帧（`MentionMediaThumb`，选择器 · 正文胶囊 · `MentionChip` 共用），读不出退回灰块。视频参数弹层删掉「这次按 ×」与推导说明（`frame.modeLabel` / `mode.hint` 三语一并删）。真机（自己的隐藏标签页、只读）核过 `nowheel` 与分组；⚠ 第一帧在后台页里不加载，没亲眼看到画面。
 - **2026-09-29 · 整理按流向排 + 底栏 + 助手不摆画布图**（owner 真机三条）：①「整理」按了没反应 —— 旧的 `tidyShotLanes` 只排带 `shotNo` 的卡，散卡画布上什么都不动。现在走 `tidyByFlow`（§7 摆放 A）：列 = 档位（素材 0 · 镜头图 1 · 视频镜头 2）与上游列 + 1 取大，空列收掉；从右往左排，素材对齐下游顶边；整次一条快照撤销；state 一步到位，渲染层（`useLayoutSlide`）320 把卡连线一起滑过去。镜头带投影仍用 `tidyShotLanes`。② 底栏：选择 / 手的选中底块在两颗之间滑（slot 弹簧）；外壳图标钮按下 0.96、悬停标签立刻出（Radix，⛔ 原生 `title`），`canvas-rail-action` / 助手钮的 0.94 一并收成 0.96。③ 画布助手：画布上的图带 `implicit`，助手照样看得见、能 @，面板不再摆成 chip（16 颗 → 0）；手动挂上的照常摆，× 对画布图只是取消挂上。真机（自己的隐藏标签页，只读）核过底块滑动与 chip 数；⚠ 整理没在真机按过（会改你项目里的坐标并存库），只有纯函数与引擎的测试。

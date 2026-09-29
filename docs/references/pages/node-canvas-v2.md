@@ -612,6 +612,7 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 
 ## Last Verified
 
+- **2026-09-29 · 玻璃不糊的修正**（owner 截图：工具条 / 提示词栏的玻璃后面是清的）：开合 A 进场用的 `filter: blur()` 播完还留着 `blur(0px)`，任何 `filter` 都会让它成为 backdrop root，子元素的 `backdrop-filter` 就只能糊到自己。`chrome-motion.ts` 两套进场加 `transitionEnd: { filter: 'none' }`；真机读到播完 `filter: none`、玻璃 `blur(24px)` 生效。
 - **2026-09-29 · 片段卡与镜头卡同一套入口**（owner：「这两个都是视频节点」）：推翻上午那条「片段卡是叶子、不给挂参考」—— `video.clip` 的端口改成与 `video.shot` 同一份（`VIDEO_V4_PORTS`），提示词栏 / 画中框 / 手机抽屉因此一样摆参考轨，抽帧连回自己、续拍走末帧出口，拖放默认落点对所有视频卡生效。两者的差别只剩片段卡不进镜头带（没有 `shotNo` / 剧本投影）。判据本来就查端口表，所以上午那套代码不用拆，只是今天不收参考的视频卡只剩退役的 `merge`。
 - **2026-09-29 · 去掉这一版**（owner 真机：卡上一版的原图删了，按「从画布移除」连好的那一版一起删掉整张卡）：新 op `remove_output_version`（content · **confirm** · 撤销走整卡快照，op 表 34 条），纯函数 `removeOutputVersion`（当前版跟着挪；只剩一版拒绝 = `lastOutputVersion`，那是 `delete` 的事）。图片 / 视频 / 音频卡读不出的那一版：卡上不止一版时按钮写「去掉这一版」、只拿掉它，只剩一版仍是「从画布移除」。助手要用它也先问一句（三语确认卡在 `assistant-operator.service`）。op 应用器 / 卡片测试补齐；⚠ 真机没点过（会改你项目里的卡）。
 - **2026-09-29 · `@` 选择器与视频参数弹层**（owner 真机）：选择器挂 `nowheel`（滚轮原先被 ReactFlow 拿去缩放画布，列表滚不动）；同一组收成一段（组按首次出现、组内原序，在 `matchMentionOptions` 里排，↑↓ 与列表同序）；视频的缩略不再拿 mp4 当 `<img>`：有封面走 `videoThumbnailUrl`，没有就 `<video>` 停在第一帧（`MentionMediaThumb`，选择器 · 正文胶囊 · `MentionChip` 共用），读不出退回灰块。视频参数弹层删掉「这次按 ×」与推导说明（`frame.modeLabel` / `mode.hint` 三语一并删）。真机（自己的隐藏标签页、只读）核过 `nowheel` 与分组；⚠ 第一帧在后台页里不加载，没亲眼看到画面。

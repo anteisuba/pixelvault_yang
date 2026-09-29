@@ -3,6 +3,11 @@
  *
  * 每样东西都从它的来处长出来、关上反着缩回来处 —— 开合永远成对。形态与工作台 chip
  * 弹层同一颗（0.72 · 模糊 4 · 开 slot 弹簧 · 关 200 缓入），⛔ 画布另起一套数。
+ *
+ * ⚠ 开完**必须把 `filter` 清成 `none`**（`transitionEnd`）：留着 `blur(0px)` 也算一层
+ * filter，它会成为里面玻璃（`surface-glass` 的 backdrop-filter）的 backdrop root ——
+ * 玻璃只采得到这一层自己的内容，身后的卡不再被模糊，只剩一层白纱透出来（owner
+ * 2026-09-29 真机：工具条、提示词栏压在卡上看得见卡）。
  */
 
 import type { TargetAndTransition } from 'motion/react'
@@ -31,7 +36,11 @@ const shown = { opacity: 1, scale: 1, filter: 'blur(0px)' }
 /** 工具条 / 提示词栏：从卡边长出来（开 slot 弹簧 · 关 200 缓入）。 */
 export const GROW_FROM_EDGE: ChromeMotion = {
   initial: shut,
-  animate: { ...shown, transition: SPRING.slot },
+  animate: {
+    ...shown,
+    transition: SPRING.slot,
+    transitionEnd: { filter: 'none' },
+  },
   exit: { ...shut, transition: { duration: DURATION.base, ease: EASE_IN } },
 }
 
@@ -41,6 +50,7 @@ export const GROW_FROM_POINTER: ChromeMotion = {
   animate: {
     ...shown,
     transition: { duration: DURATION.base, ease: EASE_STANDARD },
+    transitionEnd: { filter: 'none' },
   },
   exit: { ...shut, transition: { duration: DURATION.fast, ease: EASE_IN } },
 }

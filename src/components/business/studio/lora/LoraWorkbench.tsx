@@ -4097,6 +4097,10 @@ function GenerateBranch({
               onExpand={() => setBandExpanded(true)}
               onFold={() => setBandExpanded(false)}
               canFold={stageHasResult}
+              // 出过图之后点开是浮层，盖在图上不推图（§2.2，owner 09-29 第二轮 A）；
+              // 样例大图开着时点外面 / Esc 交给大图，浮层留着接着挑。
+              overlay={stageHasResult}
+              dismissible={!viewerOpen}
               groups={stack.items.map((item) => ({
                 id: item.asset.id,
                 name: item.asset.name,

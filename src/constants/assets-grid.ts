@@ -98,6 +98,12 @@ export const ASSET_FOLDER_RAIL_GAP = 20
 /** 桌面上栏收起 / 展开记在本机（`closed` = 收起）。 */
 export const ASSET_FOLDER_RAIL_STORAGE_KEY = 'pv:assets:folder-rail'
 
+/**
+ * 就地查看器要的最窄一列（舞台 + 340 右栏，pages/assets.md §3「详情」）：大河
+ * 那一列比它窄时，查看器连文件夹栏一起盖住。
+ */
+export const ASSET_VIEWER_MIN_COLUMN_WIDTH = 760
+
 // ─── 上传队列 / 占位瓦片（page §7 / §7.3）──────────────────────────
 
 /** 本地读不到宽高时占位瓦片的兜底比例（page §7.3.6 明写 4:5）。 */

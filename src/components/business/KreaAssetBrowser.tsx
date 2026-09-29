@@ -55,6 +55,7 @@ import {
 } from '@/components/business/assets/AssetStateBlocks'
 import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
 import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
+import { AssetViewer } from '@/components/business/assets/AssetViewer'
 import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
@@ -79,6 +80,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
+import { useIsPhone } from '@/hooks/use-mobile'
 import {
   useAssetUploadQueue,
   type UploadQueueItem,
@@ -106,6 +108,7 @@ import {
   ASSET_FOLDER_RAIL_GAP,
   ASSET_FOLDER_RAIL_STORAGE_KEY,
   ASSET_FOLDER_RAIL_WIDTH,
+  ASSET_VIEWER_MIN_COLUMN_WIDTH,
   ASSET_FOLDER_UNDO_DURATION_MS,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
   ASSET_GRID_DEFAULT_DENSITY,
@@ -135,6 +138,7 @@ import {
   fetchAssetSectionCounts,
 } from '@/lib/api-client/gallery'
 import { updateFolderItemsAPI } from '@/lib/api-client/projects'
+import { toggleLikeAPI } from '@/lib/api-client/profile'
 import {
   uploadAudioFileAPI,
   uploadImageFileAPI,
@@ -478,6 +482,15 @@ export function KreaAssetBrowser({
   if (lastDeeplinkGeneration !== initialSelectedGeneration) {
     setLastDeeplinkGeneration(initialSelectedGeneration)
     setSelectedGeneration(initialSelectedGeneration)
+    setSelectedOriginRect(null)
+  }
+  // 桌面 / 平板点开是就地查看器，手机沿用全屏详情（owner 2026-09-29）。
+  const isPhone = useIsPhone()
+  // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
+  const [viewerFilters, setViewerFilters] = useState(filters)
+  if (viewerFilters !== filters) {
+    setViewerFilters(filters)
+    setSelectedGeneration(null)
     setSelectedOriginRect(null)
   }
 
@@ -852,6 +865,40 @@ export function KreaAssetBrowser({
     ],
   )
 
+  /**
+   * 瓦片上的 ♥（排布与详情 A）：点一下收藏 / 取消，不点开详情。请求在飞时那颗 ♥
+   * 半透明、不接第二下；结果回来走与详情同一条 `handleAssetUpdated`（计数、
+   * 「收藏」视图里取消后退出大河都在那里）。
+   */
+  const [favoritePendingIds, setFavoritePendingIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set())
+  const toggleTileFavorite = useCallback(
+    async (id: string) => {
+      setFavoritePendingIds((previous) => new Set(previous).add(id))
+      try {
+        const response = await toggleLikeAPI(id)
+        if (response.success && response.data) {
+          handleAssetUpdated(id, {
+            isLiked: response.data.liked,
+            likeCount: response.data.likeCount,
+          })
+        } else {
+          toast.error(t('detailFavoriteFailed'))
+        }
+      } catch {
+        toast.error(t('detailFavoriteFailed'))
+      } finally {
+        setFavoritePendingIds((previous) => {
+          const next = new Set(previous)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [handleAssetUpdated, t],
+  )
+
   // Grid density = 目标行高（page §5.6），不再是固定列数。SSR 渲染默认档
   // 以免 hydration mismatch；存储的偏好在挂载后的 effect 里应用。
   const [storedDensity, setStoredDensity] = useLocalPreference(
@@ -922,6 +969,22 @@ export function KreaAssetBrowser({
     )
     return () => controls.stop()
   }, [railOpen, railReserve, reducedMotion, railProgress, railLayoutLeft])
+  // 大河那一列的宽度：窄于查看器要的最小宽度时，查看器连文件夹栏一起盖。
+  const riverColumnRef = useRef<HTMLDivElement>(null)
+  const [riverColumnWidth, setRiverColumnWidth] = useState(0)
+  useEffect(() => {
+    const node = riverColumnRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      setRiverColumnWidth(entries[0]?.contentRect.width ?? 0)
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+  const viewerCoversRail =
+    railOpen &&
+    riverColumnWidth > 0 &&
+    riverColumnWidth < ASSET_VIEWER_MIN_COLUMN_WIDTH
   const railX = useTransform(railProgress, (p) => (p - 1) * railReserve)
   const riverX = useTransform(
     [railProgress, railLayoutLeft],
@@ -1644,322 +1707,366 @@ export function KreaAssetBrowser({
           {/* ─── 大河 ────────────────────────────────────────────────
               `assets-scroll-gutter`：滚动条一出现容器就缩水，会把按旧宽度排好
               的 justified 行挤成横向溢出（page §5.7）。 */}
-          <motion.main
-            ref={scrollElementRef}
+          {/* 大河那一列：滚动容器 + 盖在它上面的就地查看器，跟着栏的收放一起走。 */}
+          <motion.div
+            ref={riverColumnRef}
             style={{ x: riverX }}
-            className="studio-scrollbar assets-scroll-gutter min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
-            onScroll={(event) => {
-              setIsToolbarStuck(event.currentTarget.scrollTop > 8)
-            }}
+            className="relative flex min-w-0 flex-1 flex-col"
           >
-            {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
-            <div className="mb-3 flex min-h-8.5 flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
-              {isRenamingScope && scopeFolder ? (
-                <ScopeNameInput
-                  initial={scopeFolder.name}
-                  onCommit={(name) => {
-                    setIsRenamingScope(false)
-                    if (name && name !== scopeFolder.name) {
-                      void folderStore.rename(scopeFolder.id, name)
-                    }
-                  }}
-                />
-              ) : (
-                <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground">
-                  <span className="truncate">{scopeTitle}</span>
-                  <span className="font-mono text-2sm font-normal text-muted-foreground tabular-nums">
-                    {total}
-                  </span>
-                </h2>
-              )}
-              {scopeParent ? (
-                <span className="text-2sm text-muted-foreground">
-                  {t('folderInParent', { name: scopeParent.name })}
-                </span>
-              ) : null}
-              <span className="flex-1" />
-              {scopeFolder ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    aria-pressed={scopeFolder.pinnedOrder !== null}
-                    onClick={() =>
-                      void folderStore.setPinned(
-                        scopeFolder.id,
-                        scopeFolder.pinnedOrder === null,
-                      )
-                    }
-                    className="h-8 rounded-lg px-3"
-                  >
-                    <Pin className="size-3.5" />
-                    {scopeFolder.pinnedOrder === null
-                      ? t('folderPin')
-                      : t('folderPinned')}
-                  </Button>
-                  <AssetFolderMenu
-                    folder={scopeFolder}
-                    folders={folders}
-                    align="end"
-                    {...folderMenuActions(scopeFolder)}
-                    onRename={() => setIsRenamingScope(true)}
-                    trigger={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={t('folderMenu')}
-                        className="size-8 rounded-lg"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    }
+            <main
+              ref={scrollElementRef}
+              className="studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
+              onScroll={(event) => {
+                setIsToolbarStuck(event.currentTarget.scrollTop > 8)
+              }}
+            >
+              {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
+              <div className="mb-3 flex min-h-8.5 flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
+                {isRenamingScope && scopeFolder ? (
+                  <ScopeNameInput
+                    initial={scopeFolder.name}
+                    onCommit={(name) => {
+                      setIsRenamingScope(false)
+                      if (name && name !== scopeFolder.name) {
+                        void folderStore.rename(scopeFolder.id, name)
+                      }
+                    }}
                   />
-                </>
-              ) : null}
-            </div>
+                ) : (
+                  <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground">
+                    <span className="truncate">{scopeTitle}</span>
+                    <span className="font-mono text-2sm font-normal text-muted-foreground tabular-nums">
+                      {total}
+                    </span>
+                  </h2>
+                )}
+                {scopeParent ? (
+                  <span className="text-2sm text-muted-foreground">
+                    {t('folderInParent', { name: scopeParent.name })}
+                  </span>
+                ) : null}
+                <span className="flex-1" />
+                {scopeFolder ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-pressed={scopeFolder.pinnedOrder !== null}
+                      onClick={() =>
+                        void folderStore.setPinned(
+                          scopeFolder.id,
+                          scopeFolder.pinnedOrder === null,
+                        )
+                      }
+                      className="h-8 rounded-lg px-3"
+                    >
+                      <Pin className="size-3.5" />
+                      {scopeFolder.pinnedOrder === null
+                        ? t('folderPin')
+                        : t('folderPinned')}
+                    </Button>
+                    <AssetFolderMenu
+                      folder={scopeFolder}
+                      folders={folders}
+                      align="end"
+                      {...folderMenuActions(scopeFolder)}
+                      onRename={() => setIsRenamingScope(true)}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t('folderMenu')}
+                          className="size-8 rounded-lg"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      }
+                    />
+                  </>
+                ) : null}
+              </div>
 
-            {/* Hidden upload input — rendered wherever uploading is allowed
+              {/* Hidden upload input — rendered wherever uploading is allowed
               (main page always, media picker) so both the top-bar upload
               button and the picker's inline dashed cell can trigger it. */}
-            {uploadDropEnabled && (
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={USER_UPLOAD_ACCEPT}
-                multiple
-                className="sr-only"
-                aria-label={t('uploadInputLabel')}
-                onChange={handleFileChange}
-              />
-            )}
+              {uploadDropEnabled && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={USER_UPLOAD_ACCEPT}
+                  multiple
+                  className="sr-only"
+                  aria-label={t('uploadInputLabel')}
+                  onChange={handleFileChange}
+                />
+              )}
 
-            {/* Krea-style switching: useGallery serves cached snapshots
+              {/* Krea-style switching: useGallery serves cached snapshots
               instantly (0ms) and falls through to the grid skeleton on
               the genuinely-uncached miss. No top banner / pill — the
               skeleton is the feedback. Errored fetches still show via
               the existing error path below. */}
-            {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
-            {galleryError && !isPickerMode && (
-              <AssetPageError
-                message={galleryError}
-                onRetry={retryGallery}
-                className="mb-3"
-              />
-            )}
-            {isEmpty ? (
-              isPickerMode ? (
-                <EmptyState />
-              ) : hasActiveFilters ? (
-                <AssetEmptySearch
-                  activeFilterLabels={activeFilterLabels}
-                  onClearFilters={clearAllFilters}
+              {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
+              {galleryError && !isPickerMode && (
+                <AssetPageError
+                  message={galleryError}
+                  onRetry={retryGallery}
+                  className="mb-3"
                 />
-              ) : folderScope.kind === 'folder' ? (
-                <AssetEmptyFolder
-                  folderName={scopeTitle}
-                  onUpload={handleUploadClick}
-                />
+              )}
+              {isEmpty ? (
+                isPickerMode ? (
+                  <EmptyState />
+                ) : hasActiveFilters ? (
+                  <AssetEmptySearch
+                    activeFilterLabels={activeFilterLabels}
+                    onClearFilters={clearAllFilters}
+                  />
+                ) : folderScope.kind === 'folder' ? (
+                  <AssetEmptyFolder
+                    folderName={scopeTitle}
+                    onUpload={handleUploadClick}
+                  />
+                ) : (
+                  <AssetEmptyLibrary onUpload={handleUploadClick} />
+                )
               ) : (
-                <AssetEmptyLibrary onUpload={handleUploadClick} />
-              )
-            ) : (
-              <div
-                ref={setGridElement}
-                className="relative"
-                style={{ height: rowVirtualizer.getTotalSize() }}
-              >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const row = gridRows[virtualRow.index]
-                  if (!row) return null
-                  return (
-                    <div
-                      key={virtualRow.index}
-                      className="absolute top-0 left-0 flex w-full"
-                      style={{
-                        gap: ASSET_GRID_GAP,
-                        height: row.height,
-                        transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
-                      }}
-                    >
-                      {row.boxes.map((box) => {
-                        // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
-                        // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
-                        const boxStyle = {
-                          width: box.width,
-                          height: box.height,
-                        }
-                        if (showSkeleton) {
-                          return (
-                            <div
-                              key={`skeleton-${box.index}`}
-                              style={boxStyle}
-                              className="shrink-0 animate-pulse rounded-lg bg-muted/40"
-                            />
-                          )
-                        }
-                        const item = gridItems[box.index]
-                        if (!item) return null
-                        if (item.kind === 'pending') {
-                          return (
-                            <AssetUploadTile
-                              key={item.item.id}
-                              item={item.item}
+                <div
+                  ref={setGridElement}
+                  className="relative"
+                  style={{ height: rowVirtualizer.getTotalSize() }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = gridRows[virtualRow.index]
+                    if (!row) return null
+                    return (
+                      <div
+                        key={virtualRow.index}
+                        className="absolute top-0 left-0 flex w-full"
+                        style={{
+                          gap: ASSET_GRID_GAP,
+                          height: row.height,
+                          transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
+                        }}
+                      >
+                        {row.boxes.map((box) => {
+                          // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
+                          // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
+                          const boxStyle = {
+                            width: box.width,
+                            height: box.height,
+                          }
+                          if (showSkeleton) {
+                            return (
+                              <div
+                                key={`skeleton-${box.index}`}
+                                style={boxStyle}
+                                className="shrink-0 animate-pulse rounded-lg bg-muted/40"
+                              />
+                            )
+                          }
+                          const item = gridItems[box.index]
+                          if (!item) return null
+                          if (item.kind === 'pending') {
+                            return (
+                              <AssetUploadTile
+                                key={item.item.id}
+                                item={item.item}
+                                width={box.width}
+                                height={box.height}
+                                onRetry={uploadQueue.retry}
+                                onRemove={uploadQueue.remove}
+                              />
+                            )
+                          }
+                          // Picker inline upload: drop/click uploads an image and
+                          // selects it, so users don't have to leave the dialog.
+                          if (item.kind === 'upload') {
+                            return (
+                              <button
+                                key="upload-cell"
+                                type="button"
+                                onClick={handleUploadClick}
+                                disabled={isUploading}
+                                aria-label={t('uploadButton')}
+                                style={boxStyle}
+                                className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                              >
+                                {isUploading ? (
+                                  <Spinner size="lg" />
+                                ) : (
+                                  <UploadCloud className="size-5" />
+                                )}
+                                <span className="text-2xs font-medium">
+                                  {t('uploadButton')}
+                                </span>
+                              </button>
+                            )
+                          }
+                          const gen = item.generation
+                          const isSelected = selectedIds.has(gen.id)
+                          const audioCoverUrl = getAudioPreviewCandidates(
+                            gen,
+                          ).find((url) => !failedAudioPreviewUrls.has(url))
+                          const handleTileClick = (
+                            event: React.MouseEvent<HTMLButtonElement>,
+                          ) => {
+                            if (selectionMode) {
+                              // Shift 点 = 从锚点到这里整段选中（§7.1）。
+                              if (event.shiftKey) selectRangeTo(gen.id)
+                              else toggleSelection(gen.id)
+                              return
+                            }
+                            setSelectedOriginRect(
+                              toMediaTransitionOrigin(
+                                event.currentTarget.getBoundingClientRect(),
+                              ),
+                            )
+                            setImageNavigationDirection(1)
+                            setSelectedGeneration(gen)
+                          }
+                          const handleTileContextMenu = (
+                            e: React.MouseEvent<HTMLElement>,
+                          ) => {
+                            e.preventDefault()
+                            if (selectionMode) toggleSelection(gen.id)
+                            else enterSelectionWith(gen.id)
+                          }
+                          // Drag-to-folder: outside picker mode a tile can be dragged
+                          // onto a folder in the sidebar. Dragging a selected tile
+                          // carries the whole selection; otherwise just this asset.
+                          const handleTileDragStart = (
+                            event: React.DragEvent<HTMLElement>,
+                          ) => {
+                            const ids =
+                              selectionMode && isSelected
+                                ? Array.from(selectedIds)
+                                : [gen.id]
+                            event.dataTransfer.setData(
+                              ASSET_DND_MIME,
+                              JSON.stringify(ids),
+                            )
+                            event.dataTransfer.setData(
+                              'text/plain',
+                              ids.join(','),
+                            )
+                            // 拖到左栏 = 也放进那个夹（加，不是挪）。
+                            event.dataTransfer.effectAllowed = 'copy'
+                            setDraggingCount(ids.length)
+                            // Multi-select batch: show a "N selected" chip instead of
+                            // a single tile ghost so the user sees the drag scope.
+                            if (ids.length > 1 && dragGhostRef.current) {
+                              dragGhostRef.current.textContent = t(
+                                'selectedCount',
+                                {
+                                  count: ids.length,
+                                },
+                              )
+                              event.dataTransfer.setDragImage(
+                                dragGhostRef.current,
+                                16,
+                                16,
+                              )
+                            }
+                          }
+                          const tile = (
+                            <AssetTile
+                              generation={gen}
                               width={box.width}
                               height={box.height}
-                              onRetry={uploadQueue.retry}
-                              onRemove={uploadQueue.remove}
+                              selected={isSelected}
+                              showSelectionMark={selectionMode}
+                              selectionMode={selectionMode}
+                              draggable={!isPickerMode && !isTouchPrimary()}
+                              audioCoverUrl={audioCoverUrl}
+                              onAudioCoverError={handleAudioPreviewError}
+                              onClick={handleTileClick}
+                              onContextMenu={handleTileContextMenu}
+                              onDragStart={
+                                isPickerMode ? undefined : handleTileDragStart
+                              }
+                              onToggleFavorite={
+                                isPickerMode
+                                  ? undefined
+                                  : () => void toggleTileFavorite(gen.id)
+                              }
+                              favoritePending={favoritePendingIds.has(gen.id)}
                             />
                           )
-                        }
-                        // Picker inline upload: drop/click uploads an image and
-                        // selects it, so users don't have to leave the dialog.
-                        if (item.kind === 'upload') {
+                          // 从当前夹里拿出去的那几张：缩小淡出 200 再离开。
                           return (
-                            <button
-                              key="upload-cell"
-                              type="button"
-                              onClick={handleUploadClick}
-                              disabled={isUploading}
-                              aria-label={t('uploadButton')}
-                              style={boxStyle}
-                              className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-                            >
-                              {isUploading ? (
-                                <Spinner size="lg" />
-                              ) : (
-                                <UploadCloud className="size-5" />
+                            <div
+                              key={gen.id}
+                              className={cn(
+                                'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',
+                                leavingIds.has(gen.id) && 'scale-95 opacity-0',
                               )}
-                              <span className="text-2xs font-medium">
-                                {t('uploadButton')}
-                              </span>
-                            </button>
+                            >
+                              {tile}
+                            </div>
                           )
-                        }
-                        const gen = item.generation
-                        const isSelected = selectedIds.has(gen.id)
-                        const audioCoverUrl = getAudioPreviewCandidates(
-                          gen,
-                        ).find((url) => !failedAudioPreviewUrls.has(url))
-                        const handleTileClick = (
-                          event: React.MouseEvent<HTMLButtonElement>,
-                        ) => {
-                          if (selectionMode) {
-                            // Shift 点 = 从锚点到这里整段选中（§7.1）。
-                            if (event.shiftKey) selectRangeTo(gen.id)
-                            else toggleSelection(gen.id)
-                            return
-                          }
-                          setSelectedOriginRect(
-                            toMediaTransitionOrigin(
-                              event.currentTarget.getBoundingClientRect(),
-                            ),
-                          )
-                          setImageNavigationDirection(1)
-                          setSelectedGeneration(gen)
-                        }
-                        const handleTileContextMenu = (
-                          e: React.MouseEvent<HTMLButtonElement>,
-                        ) => {
-                          e.preventDefault()
-                          if (selectionMode) toggleSelection(gen.id)
-                          else enterSelectionWith(gen.id)
-                        }
-                        // Drag-to-folder: outside picker mode a tile can be dragged
-                        // onto a folder in the sidebar. Dragging a selected tile
-                        // carries the whole selection; otherwise just this asset.
-                        const handleTileDragStart = (
-                          event: React.DragEvent<HTMLButtonElement>,
-                        ) => {
-                          const ids =
-                            selectionMode && isSelected
-                              ? Array.from(selectedIds)
-                              : [gen.id]
-                          event.dataTransfer.setData(
-                            ASSET_DND_MIME,
-                            JSON.stringify(ids),
-                          )
-                          event.dataTransfer.setData(
-                            'text/plain',
-                            ids.join(','),
-                          )
-                          // 拖到左栏 = 也放进那个夹（加，不是挪）。
-                          event.dataTransfer.effectAllowed = 'copy'
-                          setDraggingCount(ids.length)
-                          // Multi-select batch: show a "N selected" chip instead of
-                          // a single tile ghost so the user sees the drag scope.
-                          if (ids.length > 1 && dragGhostRef.current) {
-                            dragGhostRef.current.textContent = t(
-                              'selectedCount',
-                              {
-                                count: ids.length,
-                              },
-                            )
-                            event.dataTransfer.setDragImage(
-                              dragGhostRef.current,
-                              16,
-                              16,
-                            )
-                          }
-                        }
-                        const tile = (
-                          <AssetTile
-                            generation={gen}
-                            width={box.width}
-                            height={box.height}
-                            selected={isSelected}
-                            showSelectionMark={selectionMode}
-                            selectionMode={selectionMode}
-                            draggable={!isPickerMode && !isTouchPrimary()}
-                            audioCoverUrl={audioCoverUrl}
-                            onAudioCoverError={handleAudioPreviewError}
-                            onClick={handleTileClick}
-                            onContextMenu={handleTileContextMenu}
-                            onDragStart={
-                              isPickerMode ? undefined : handleTileDragStart
-                            }
-                          />
-                        )
-                        // 从当前夹里拿出去的那几张：缩小淡出 200 再离开。
-                        return (
-                          <div
-                            key={gen.id}
-                            className={cn(
-                              'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',
-                              leavingIds.has(gen.id) && 'scale-95 opacity-0',
-                            )}
-                          >
-                            {tile}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
-            {appendError && (
-              <AssetPaginationError
-                message={appendError}
-                onRetry={retryLoadMore}
-                className="mt-3"
-              />
-            )}
-            {hasMore && !appendError && (
-              <div ref={sentinelRef} className="h-2" />
-            )}
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
+              {appendError && (
+                <AssetPaginationError
+                  message={appendError}
+                  onRetry={retryLoadMore}
+                  className="mt-3"
+                />
+              )}
+              {hasMore && !appendError && (
+                <div ref={sentinelRef} className="h-2" />
+              )}
 
-            {isLoading && generations.length > 0 && (
-              <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-                <Spinner size="md" />
+              {isLoading && generations.length > 0 && (
+                <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+                  <Spinner size="md" />
+                </div>
+              )}
+            </main>
+            {!isPickerMode && !isPhone && selectedGeneration ? (
+              <div
+                className="absolute inset-y-0 right-0 z-30"
+                style={{ left: viewerCoversRail ? -railReserve : 0 }}
+              >
+                <AssetViewer
+                  generation={selectedGeneration}
+                  images={imageGenerations}
+                  onNavigate={(next) => {
+                    setSelectedOriginRect(null)
+                    setSelectedGeneration(next)
+                  }}
+                  onClose={() => {
+                    setSelectedGeneration(null)
+                    setSelectedOriginRect(null)
+                  }}
+                  folders={folders}
+                  onCreateFolder={(name) => createFolder(name, null)}
+                  onFoldersChanged={handleMembershipsChanged}
+                  onFoldersUndone={handleFolderUndone}
+                  onDeleted={handleAssetDeleted}
+                  onUpdated={handleAssetUpdated}
+                  audioCoverUrl={
+                    selectedGeneration.outputType === 'AUDIO'
+                      ? getAudioPreviewCandidates(selectedGeneration).find(
+                          (url) => !failedAudioPreviewUrls.has(url),
+                        )
+                      : undefined
+                  }
+                />
               </div>
-            )}
-          </motion.main>
+            ) : null}
+          </motion.div>
         </div>
       </div>
-      {!isPickerMode && (
+      {!isPickerMode && isPhone && (
         <AssetDetailSheet
           generation={selectedGeneration}
           onOpenChange={(open) => {

@@ -10,7 +10,7 @@
 - 过滤：媒体类型 toggle；**搜索/排序/时间过滤引擎已存在**（`use-gallery.ts` 的 GalleryFilters 支持 search/model/sort/timeRange/provider）**但 UI 未露出**——这是 P0 优化方向之一。
 - 网格：密度 4/6/8（localStorage 持久化）+ 哨兵无限滚动；无虚拟化、无 blur-up。
 - 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。（2026-09-28 起「移动」改成「加入文件夹」，拖到左栏一行 = 也放进那个夹。）
-- 详情：`AssetDetailSheet`（remix/移动/删除/发布/收藏/下载/存提示词模板）；图片详情可在当前已加载、当前筛选结果的图片之间前后切换，首尾不循环。
+- 详情：2026-09-29 起桌面 / 平板是盖在大河那一列上的就地查看器（`assets/AssetViewer`，左大图 + 缩略轨，右边「这张的配方」：做同款 / 收藏 / 发布 / 下载 / ⋯ / 加入文件夹 / 复制配方），手机沿用 `AssetDetailSheet`（`MediaDetailViewer` 全屏）；两处共用一份动作逻辑。图片之间可在当前已加载、当前筛选结果里前后翻，首尾不循环。瓦片是 LoRA 库那套皮，悬停出「模型 · 尺寸」小签与 ♥ 收藏键。契约见 [`../pages/assets.md`](../pages/assets.md) §3「详情」、§6。
 - 媒体表达：Generation 已有图片/视频宽高与音频时长；当前列表统一正方形裁切。声音已有详情设置封面 API 与默认图回退链，但封面规则尚未成为页面契约。
 - 上传：完整素材页接受 JPG / PNG / WebP / GIF、MP4 / MOV / WebM，以及 MP3 / WAV / M4A / FLAC / OGG / audio-WebM。图片沿既有压缩/直传链；视频与音频由浏览器直接 PUT R2，分别按 `VIDEO` / `AUDIO` Generation 归档，视频额外保存客户端截取的 poster。大媒体单 PUT 上限 5 GiB、签名 1 小时；完成端以 HEAD 核对对象大小并只 Range 读取前 4 KiB 做容器签名校验。音频上传队列使用方形音频占位，不再误走图片解码/压缩。素材选择器仍保持图片上传入口。
 - 来源：Generation 已有 `sourceSurface`，但列表 select 与 Assets 筛选未接入；现有枚举也未完整覆盖 Video / Audio / 3D / Upload，暂时无法按所有真实来源分类。
@@ -55,11 +55,12 @@
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
 - **完整**。`/assets` 是浏览与整理面，手机是主要场景之一。
-- 375px：图墙 2 列；文件夹栏收成顶栏一颗键 + 范围胶囊，点了从左边拉出抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；触屏上用「加入文件夹」面板代替拖拽；`AssetDetailSheet` 走 `ResponsiveDialog` 底部抽屉。
+- 375px：图墙 2 列；文件夹栏收成顶栏一颗键 + 范围胶囊，点了从左边拉出抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；触屏上用「加入文件夹」面板代替拖拽；点开素材沿用 `AssetDetailSheet` 全屏详情（桌面 / 平板的就地查看器不上手机，owner 2026-09-29）。
 - 验收：`checklists/ui.md` 第 3、4 项，375 图能完成「筛选 → 选中 → 加入文件夹」主路径。
 
 ## Last Verified
 
+- 2026-09-29 · 排布与详情 A：瓦片换 LoRA 皮 + ♥ 收藏键；桌面 / 平板点开是就地查看器（`assets/AssetViewer`），手机沿用全屏详情；三处详情共用 `use-asset-detail-actions`。
 - 2026-09-28 · 文件夹 B：多夹归属（`ProjectItem`）、两层、手动排序与置顶、未归档、左栏与窄屏抽屉；助手看文件夹改成连子夹（与左栏同一口径），`move_assets` 改名 `add_to_folder`（只加）。
 - 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
 - 2026-08-31 · 工作台助手文件夹视觉检查落地：真实文件夹 id / 完整路径准入、当前文件夹非递归、仅图片、最新 24 张、8 张分批、覆盖率与只读钱闸已由定向测试锁定。

@@ -18,9 +18,8 @@ import {
   Trash2,
 } from '@/components/icons'
 import { useState } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import NextImage from 'next/image'
-import { toast } from 'sonner'
 
 import { ModelViewer } from '@/components/business/ModelViewer'
 import {
@@ -31,28 +30,12 @@ import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPa
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import { assetDetailPath, ROUTES } from '@/constants/routes'
+import { ROUTES } from '@/constants/routes'
 import { Link, useRouter } from '@/i18n/navigation'
-import {
-  createProjectAPI,
-  createRecipeFromGenerationAPI,
-  deleteGenerationAPI,
-  downloadRemoteAsset,
-  setAudioCoverAPI,
-  setGenerationVisibility,
-  toggleLikeAPI,
-} from '@/lib/api-client'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { createProjectAPI } from '@/lib/api-client'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import { AssetDetailOverlays } from '@/components/business/assets/AssetDetailOverlays'
+import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import {
   getGenerationModel3DVisualUrl,
   getGenerationPreviewUrl,
@@ -91,54 +74,6 @@ export interface AssetDetailContentProps {
   }
 }
 
-type PublishScope = 'private' | 'asset' | 'assetAndPrompt'
-
-interface PublishScopeOptionProps {
-  title: string
-  description: string
-  selected: boolean
-  disabled: boolean
-  onClick: () => void
-}
-
-function getDownloadTarget(generation: GenerationRecord): string {
-  if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
-    return generation.modelUrl
-  }
-
-  return generation.url
-}
-
-function getAssetFileName(generation: GenerationRecord): string {
-  if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
-    return `pixelvault-${generation.id.slice(0, 8)}.glb`
-  }
-
-  const ext = generation.mimeType.split('/')[1] || 'bin'
-  return `pixelvault-${generation.id.slice(0, 8)}.${ext}`
-}
-
-function triggerDirectAssetDownload(url: string, fileName: string) {
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.target = '_blank'
-  link.rel = 'noopener noreferrer'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
-function openExternalAsset(url: string) {
-  const openedWindow = window.open(url, '_blank')
-  if (openedWindow) {
-    openedWindow.opener = null
-    return
-  }
-
-  window.location.assign(url)
-}
-
 /**
  * Shared asset detail body. Shows the preview, the
  * captured prompt/model/timing metadata, and three actions: Remix in
@@ -161,11 +96,8 @@ export function AssetDetailContent({
   const t = useTranslations('AssetsPage')
   const tCommon = useTranslations('Common')
   const tPrompts = useTranslations('PromptLibrary')
-  const tErrors = useTranslations('Errors')
-  const locale = useLocale()
   const router = useRouter()
   const isPage = layout === 'page'
-  const [isDeleting, setIsDeleting] = useState(false)
   /** 整页形态里新建的夹（素材页形态由父级的列表带回来）。 */
   const [createdFolders, setCreatedFolders] = useState<ProjectRecord[]>([])
   const panelFolders = [
@@ -182,212 +114,34 @@ export function AssetDetailContent({
     setCreatedFolders((prev) => [...prev, created])
     return created
   }
-  const [isPublishing, setIsPublishing] = useState(false)
-  const [isFavoriting, setIsFavoriting] = useState(false)
-  const [isSavingRecipe, setIsSavingRecipe] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
-  const [isSettingCover, setIsSettingCover] = useState(false)
-  const [coverPickerOpen, setCoverPickerOpen] = useState(false)
-  const [isLinkCopied, setIsLinkCopied] = useState(false)
 
   /**
    * 抽屉里就是关掉面板；整页里没有可关的层，退回素材库。
+   * 做同款在整页里本来就换了路由，不用再退。
    */
-  const dismiss = () => {
-    if (isPage) {
-      router.push(ROUTES.ASSETS)
-      return
-    }
-    onOpenChange?.(false)
-  }
+  const actions = useAssetDetailActions({
+    generation,
+    onLeave: (reason) => {
+      if (isPage) {
+        if (reason === 'delete') router.push(ROUTES.ASSETS)
+        return
+      }
+      onOpenChange?.(false)
+    },
+    onDeleted,
+    onUpdated,
+  })
+  const {
+    isDeleting,
+    isPublishing,
+    isFavoriting,
+    isSavingRecipe,
+    isDownloading,
+    isLinkCopied,
+    isSettingCover,
+  } = actions
 
   const open = generation !== null
-  const currentPublishScope: PublishScope = !generation?.isPublic
-    ? 'private'
-    : generation.isPromptPublic
-      ? 'assetAndPrompt'
-      : 'asset'
-
-  const studioModeFor = (
-    gen: GenerationRecord,
-  ): 'image' | 'video' | 'audio' | '3d' =>
-    gen.outputType === 'VIDEO'
-      ? 'video'
-      : gen.outputType === 'AUDIO'
-        ? 'audio'
-        : gen.outputType === 'MODEL_3D'
-          ? '3d'
-          : 'image'
-
-  const handleRemix = () => {
-    if (!generation) return
-    const mode = studioModeFor(generation)
-    // 3D Studio uses ?gen=<id> to load an existing GLB for viewing,
-    // not ?remix= (since 3D outputs aren't remix-able sources).
-    const param = mode === '3d' ? 'gen' : 'remix'
-    router.push(`/studio/${mode}?${param}=${generation.id}`)
-    if (!isPage) onOpenChange?.(false)
-  }
-
-  const handleDelete = async () => {
-    if (!generation || isDeleting) return
-    const generationId = generation.id
-    setIsDeleting(true)
-    dismiss()
-    try {
-      const response = await deleteGenerationAPI(generationId)
-      if (response.success) {
-        toast.success(t('detailDeleted'))
-        onDeleted?.(generationId)
-      } else {
-        toast.error(response.error ?? t('detailDeleteFailed'))
-      }
-    } catch {
-      toast.error(t('detailDeleteFailed'))
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleApplyPublishScope = async (scope: PublishScope) => {
-    if (!generation || isPublishing) return
-    if (scope === currentPublishScope) {
-      setIsPublishScopeOpen(false)
-      return
-    }
-
-    const values =
-      scope === 'private'
-        ? { isPublic: false, isPromptPublic: false }
-        : scope === 'asset'
-          ? { isPublic: true, isPromptPublic: false }
-          : { isPublic: true, isPromptPublic: true }
-
-    setIsPublishing(true)
-    try {
-      const response = await setGenerationVisibility(generation.id, values)
-      if (response.success && response.data) {
-        onUpdated?.(generation.id, {
-          isPublic: response.data.isPublic,
-          isPromptPublic: response.data.isPromptPublic,
-        })
-        setIsPublishScopeOpen(false)
-        toast.success(
-          response.data.isPublic
-            ? t('detailPublished')
-            : t('detailUnpublished'),
-        )
-      } else {
-        toast.error(response.error ?? t('detailPublishFailed'))
-      }
-    } catch {
-      toast.error(t('detailPublishFailed'))
-    } finally {
-      setIsPublishing(false)
-    }
-  }
-
-  const handleToggleFavorite = async () => {
-    if (!generation || isFavoriting) return
-    setIsFavoriting(true)
-    try {
-      const response = await toggleLikeAPI(generation.id)
-      if (response.success && response.data) {
-        onUpdated?.(generation.id, {
-          isLiked: response.data.liked,
-          likeCount: response.data.likeCount,
-        })
-        toast.success(
-          response.data.liked ? t('detailFavorited') : t('detailUnfavorited'),
-        )
-      } else {
-        toast.error(t('detailFavoriteFailed'))
-      }
-    } catch {
-      toast.error(t('detailFavoriteFailed'))
-    } finally {
-      setIsFavoriting(false)
-    }
-  }
-
-  const handleSaveRecipe = async () => {
-    if (!generation || isSavingRecipe) return
-    setIsSavingRecipe(true)
-    try {
-      const response = await createRecipeFromGenerationAPI({
-        generationId: generation.id,
-      })
-      if (response.success) {
-        toast.success(tPrompts('saveTemplateSuccess'))
-      } else {
-        toast.error(response.error ?? tPrompts('saveTemplateFailed'))
-      }
-    } catch {
-      toast.error(tPrompts('saveTemplateFailed'))
-    } finally {
-      setIsSavingRecipe(false)
-    }
-  }
-
-  const handleDownload = async () => {
-    if (!generation || isDownloading) return
-    const downloadUrl = getDownloadTarget(generation)
-    const fileName = getAssetFileName(generation)
-
-    setIsDownloading(true)
-    try {
-      const response = await downloadRemoteAsset(downloadUrl, fileName)
-      if (!response.success) {
-        toast.error(
-          getApiErrorMessage(tErrors, response, t('detailDownloadFailed')),
-        )
-        triggerDirectAssetDownload(downloadUrl, fileName)
-      }
-    } finally {
-      setIsDownloading(false)
-    }
-  }
-
-  const handleCopyLink = async () => {
-    if (!generation) return
-    // 分享出去的是**素材详情页**（`/assets/<id>`），不是抽屉 deeplink：
-    // 对方打开后拿到可刷新、可后退的真实路由。
-    const shareUrl = `${window.location.origin}/${locale}${assetDetailPath(generation.id)}`
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setIsLinkCopied(true)
-      toast.success(t('detailLinkCopied'))
-      window.setTimeout(() => setIsLinkCopied(false), 2000)
-    } catch {
-      toast.error(t('detailCopyLinkFailed'))
-    }
-  }
-
-  const handleOpenOriginal = () => {
-    if (!generation) return
-    openExternalAsset(getDownloadTarget(generation))
-  }
-
-  const applyCover = async (coverImageUrl: string) => {
-    if (!generation || isSettingCover) return
-    setCoverPickerOpen(false)
-    setIsSettingCover(true)
-    try {
-      const response = await setAudioCoverAPI(generation.id, coverImageUrl)
-      if (response.success) {
-        // Cover is stored in previewUrl, which the asset browser reads back.
-        onUpdated?.(generation.id, { previewUrl: coverImageUrl })
-        toast.success(t('detailCoverSet'))
-      } else {
-        toast.error(response.error ?? t('detailCoverSetFailed'))
-      }
-    } catch {
-      toast.error(t('detailCoverSetFailed'))
-    } finally {
-      setIsSettingCover(false)
-    }
-  }
 
   if (!generation) return null
 
@@ -401,7 +155,7 @@ export function AssetDetailContent({
         variant="ghost"
         size="icon-sm"
         className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={() => void handleDownload()}
+        onClick={() => void actions.download()}
         disabled={isDownloading}
         aria-label={
           isDownloading ? t('detailDownloading') : t('detailDownload')
@@ -413,7 +167,7 @@ export function AssetDetailContent({
         variant="ghost"
         size="icon-sm"
         className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={() => void handleCopyLink()}
+        onClick={() => void actions.copyLink()}
         aria-label={t('detailCopyLink')}
       >
         {isLinkCopied ? (
@@ -426,7 +180,7 @@ export function AssetDetailContent({
         variant="ghost"
         size="icon-sm"
         className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={handleOpenOriginal}
+        onClick={actions.openOriginal}
         aria-label={t('detailOpenOriginal')}
       >
         <ArrowUpRight className="size-4" />
@@ -487,7 +241,7 @@ export function AssetDetailContent({
         variant="default"
         size="sm"
         className="w-full gap-1.5 rounded-full"
-        onClick={handleRemix}
+        onClick={actions.remix}
       >
         <Sparkles className="size-4" />
         {t('detailRemix')}
@@ -515,7 +269,7 @@ export function AssetDetailContent({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsPublishScopeOpen(true)}
+          onClick={() => actions.setIsPublishScopeOpen(true)}
           aria-label={
             generation.isPublic ? t('detailPublishScope') : t('detailPublish')
           }
@@ -539,7 +293,7 @@ export function AssetDetailContent({
           className={cn(
             generation.isLiked && 'text-primary hover:text-primary',
           )}
-          onClick={() => void handleToggleFavorite()}
+          onClick={() => void actions.toggleFavorite()}
           aria-label={
             generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')
           }
@@ -561,7 +315,7 @@ export function AssetDetailContent({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => void handleSaveRecipe()}
+          onClick={() => void actions.saveRecipe()}
           aria-label={tPrompts('saveAsTemplate')}
           title={tPrompts('saveAsTemplate')}
           disabled={isSavingRecipe}
@@ -576,7 +330,7 @@ export function AssetDetailContent({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCoverPickerOpen(true)}
+            onClick={() => actions.setCoverPickerOpen(true)}
             aria-label={t('detailSetCover')}
             title={t('detailSetCover')}
             disabled={isSettingCover}
@@ -594,7 +348,7 @@ export function AssetDetailContent({
           cancelLabel={t('detailDeleteCancel')}
           confirmLabel={t('detailDelete')}
           variant="destructive"
-          onConfirm={handleDelete}
+          onConfirm={actions.remove}
           trigger={
             <Button
               variant="ghost"
@@ -650,7 +404,7 @@ export function AssetDetailContent({
     <MediaDetailViewer
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) setIsPublishScopeOpen(false)
+        if (!nextOpen) actions.setIsPublishScopeOpen(false)
         onOpenChange?.(nextOpen)
       }}
       title={t('detailTitle')}
@@ -680,112 +434,8 @@ export function AssetDetailContent({
   return (
     <>
       {shell}
-      {isAudioAsset && (
-        <AssetSelectorDialog
-          open={coverPickerOpen}
-          onOpenChange={setCoverPickerOpen}
-          title={t('detailCoverDialogTitle')}
-          description={t('detailCoverDialogDescription')}
-          mediaType="image"
-          onSelect={(image) => void applyCover(image.url)}
-        />
-      )}
-      <Sheet
-        open={isPublishScopeOpen}
-        onOpenChange={(nextOpen) => {
-          if (!isPublishing) setIsPublishScopeOpen(nextOpen)
-        }}
-      >
-        <SheetContent
-          side="bottom"
-          showCloseButton={false}
-          className="mx-auto max-w-lg gap-0 rounded-t-2xl border-border/70 p-0"
-        >
-          <SheetHeader className="px-5 pt-5 pb-3 text-left">
-            <SheetTitle className="text-base">
-              {t('detailPublishScopeTitle')}
-            </SheetTitle>
-            <SheetDescription>
-              {t('detailPublishScopeDescription')}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-2 px-5 pb-2">
-            <PublishScopeOption
-              title={t('detailPublishScopeAsset')}
-              description={t('detailPublishScopeAssetDescription')}
-              selected={currentPublishScope === 'asset'}
-              disabled={isPublishing}
-              onClick={() => void handleApplyPublishScope('asset')}
-            />
-            <PublishScopeOption
-              title={t('detailPublishScopeAssetAndPrompt')}
-              description={t('detailPublishScopeAssetAndPromptDescription')}
-              selected={currentPublishScope === 'assetAndPrompt'}
-              disabled={isPublishing}
-              onClick={() => void handleApplyPublishScope('assetAndPrompt')}
-            />
-            <PublishScopeOption
-              title={t('detailPublishScopePrivate')}
-              description={t('detailPublishScopePrivateDescription')}
-              selected={currentPublishScope === 'private'}
-              disabled={isPublishing}
-              onClick={() => void handleApplyPublishScope('private')}
-            />
-          </div>
-          <SheetFooter className="px-5 pt-2 pb-5">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsPublishScopeOpen(false)}
-              disabled={isPublishing}
-            >
-              {t('detailPublishScopeCancel')}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <AssetDetailOverlays generation={generation} actions={actions} />
     </>
-  )
-}
-
-function PublishScopeOption({
-  title,
-  description,
-  selected,
-  disabled,
-  onClick,
-}: PublishScopeOptionProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'flex w-full items-start gap-3 rounded-lg border px-3 py-3 text-left transition-colors disabled:cursor-wait disabled:opacity-70',
-        selected
-          ? 'border-primary/40 bg-primary/10'
-          : 'border-border/70 bg-card hover:bg-muted/40',
-      )}
-    >
-      <span
-        className={cn(
-          'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
-          selected
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-border text-transparent',
-        )}
-      >
-        <Check className="size-3.5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-foreground">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-          {description}
-        </span>
-      </span>
-    </button>
   )
 }
 

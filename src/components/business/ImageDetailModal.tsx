@@ -36,6 +36,10 @@ import {
   toggleGenerationVisibility,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  openExternalAsset,
+  triggerDirectAssetDownload,
+} from '@/lib/asset-links'
 import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import VideoPlayer from '@/components/business/VideoPlayer'
@@ -61,27 +65,6 @@ interface ImageDetailModalProps {
   showDelete?: boolean
   onDelete?: (id: string) => void
   transitionOrigin?: MediaTransitionOrigin | null
-}
-
-function triggerDirectAssetDownload(url: string, fileName: string) {
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.target = '_blank'
-  link.rel = 'noopener noreferrer'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
-function openExternalAsset(url: string) {
-  const openedWindow = window.open(url, '_blank')
-  if (openedWindow) {
-    openedWindow.opener = null
-    return
-  }
-
-  window.location.assign(url)
 }
 
 export function ImageDetailModal({

@@ -31,9 +31,3 @@ export const GALLERY_GRID_OVERSCAN = 6
 
 /** SSR / 首帧静态网格渲染的张数：`/gallery` 是公开可索引路由，不能整片空着。 */
 export const GALLERY_GRID_SSR_ITEM_COUNT = 12
-
-/** 卡片自身边框等非图像高度，只用于首次估高，挂载后会被实测值替换。 */
-export const GALLERY_GRID_TILE_CHROME_PX = 2
-
-/** 首张卡的高亮外框（`p-1 ring-1`）额外占的高度，同样只影响估高。 */
-export const GALLERY_GRID_LEAD_TILE_CHROME_PX = 8

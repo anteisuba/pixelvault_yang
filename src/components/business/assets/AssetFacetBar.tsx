@@ -44,10 +44,13 @@ interface AssetFacetBarProps {
   /** 状态分面的库存数。 */
   statusCounts: { favorites?: number; published?: number }
   /**
-   * 模型分面的选项表 —— **必须来自库存聚合**（`AssetSectionCounts.byModel`），
-   * 不能拿模型目录充数：目录里几十个，库里实际只出现二十来个。
+   * 模型分面的选项表 —— 素材页**必须来自库存聚合**（`AssetSectionCounts.byModel`），
+   * 不能拿模型目录充数：目录里几十个，库里实际只出现二十来个。画廊没有公开作品的
+   * 聚合，传模型目录、计数留空（下拉里不写数）。
    */
-  modelCounts: Record<string, number>
+  modelCounts: Record<string, number | undefined>
+  /** 「状态」那一格（收藏 / 已发布 / 我上传的）。画廊没有，传 `false`。 */
+  statusFacet?: boolean
   className?: string
 }
 
@@ -57,12 +60,13 @@ export function AssetFacetBar({
   typeCounts,
   statusCounts,
   modelCounts,
+  statusFacet = true,
   className,
 }: AssetFacetBarProps) {
   const t = useTranslations('AssetsPage')
   const tModels = useTranslations('Models')
 
-  const statusValues = getStatusValues(filters)
+  const statusValues = statusFacet ? getStatusValues(filters) : []
   const modelOptions = useMemo(
     () =>
       Object.entries(modelCounts)
@@ -75,7 +79,10 @@ export function AssetFacetBar({
           count,
           label: getTranslatedModelLabel(tModels, id),
         }))
-        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+        .sort(
+          (a, b) =>
+            (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label),
+        ),
     [modelCounts, tModels],
   )
 
@@ -218,30 +225,32 @@ export function AssetFacetBar({
           ))}
         </FacetPopover>
 
-        <FacetPopover
-          label={t('facetStatus')}
-          summary={summarize(
-            t('facetStatus'),
-            statusValues.map((value) => statusLabels[value]),
-          )}
-          active={statusValues.length > 0}
-        >
-          {ASSET_STATUS_FACETS.map((value) => (
-            <FacetOptionRow
-              key={value}
-              label={statusLabels[value]}
-              count={
-                value === 'favorites'
-                  ? statusCounts.favorites
-                  : value === 'published'
-                    ? statusCounts.published
-                    : undefined
-              }
-              selected={statusValues.includes(value)}
-              onSelect={() => toggleStatus(value)}
-            />
-          ))}
-        </FacetPopover>
+        {statusFacet ? (
+          <FacetPopover
+            label={t('facetStatus')}
+            summary={summarize(
+              t('facetStatus'),
+              statusValues.map((value) => statusLabels[value]),
+            )}
+            active={statusValues.length > 0}
+          >
+            {ASSET_STATUS_FACETS.map((value) => (
+              <FacetOptionRow
+                key={value}
+                label={statusLabels[value]}
+                count={
+                  value === 'favorites'
+                    ? statusCounts.favorites
+                    : value === 'published'
+                      ? statusCounts.published
+                      : undefined
+                }
+                selected={statusValues.includes(value)}
+                onSelect={() => toggleStatus(value)}
+              />
+            ))}
+          </FacetPopover>
+        ) : null}
 
         <ModelFacetPopover
           label={t('facetModel')}
@@ -416,7 +425,7 @@ interface ModelFacetPopoverProps {
   label: string
   summary: string
   active: boolean
-  options: { id: string; label: string; count: number }[]
+  options: { id: string; label: string; count?: number }[]
   selected: string[]
   onToggle: (id: string) => void
   searchPlaceholder: string

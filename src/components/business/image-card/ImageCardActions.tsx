@@ -1,5 +1,10 @@
-import { Download, Heart } from '@/components/icons'
+'use client'
 
+import { useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+
+import { Download, Heart } from '@/components/icons'
+import { EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 interface ImageCardActionsProps {
@@ -14,12 +19,15 @@ interface ImageCardActionsProps {
   downloadLabel: string
   /**
    * 触屏没有 hover：这一排在 `pointer: coarse` 上整条不渲染，操作改走详情弹窗
-   * （ui-defaults §5「hover 态改为按压态 / 省略」）。⛔ 不退化成三颗常驻图标 ——
-   * 那正是进度表 34 要拿掉的东西。
+   * （ui-defaults §5「hover 态改为按压态 / 省略」）。⛔ 不退化成常驻图标。
    */
   hiddenOnCoarse?: boolean
 }
 
+/**
+ * 画廊卡右上角的 ♥ · 下载（卡片与详情 A）：白底圆键，悬停 / 键盘进到这一格才出；
+ * 命中区跟着透明度一起开关，看不见的东西点不到。
+ */
 export function ImageCardActions({
   liked,
   likeCount,
@@ -35,9 +43,8 @@ export function ImageCardActions({
   return (
     <div
       className={cn(
-        'card-actions absolute right-2.5 top-2.5 flex gap-1.5 opacity-0 max-sm:right-1.5 max-sm:top-1.5 max-sm:gap-1',
-        // 透明还能点是假的干净：命中区跟着 opacity 一起走，键盘焦点照常唤醒。
-        'pointer-events-none transition-opacity duration-base ease-standard group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
+        'card-actions absolute right-2.5 top-2.5 z-10 flex gap-1.5 opacity-0 max-sm:right-1.5 max-sm:top-1.5 max-sm:gap-1',
+        'pointer-events-none transition-opacity duration-fast ease-linear group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
         hiddenOnCoarse && 'coarse:hidden',
       )}
     >
@@ -45,7 +52,8 @@ export function ImageCardActions({
         type="button"
         onClick={onLike}
         disabled={isLikePending}
-        className="flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-full bg-black/50 px-2.5 py-1.5 text-xs text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none max-sm:min-h-8 max-sm:min-w-8 max-sm:px-2"
+        aria-pressed={liked}
+        className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
         <Heart
@@ -54,13 +62,13 @@ export function ImageCardActions({
             liked && 'fill-primary text-primary',
           )}
         />
-        {likeCount > 0 && <span>{likeCount}</span>}
+        {likeCount > 0 && <LikeCount count={likeCount} />}
       </button>
       <button
         type="button"
         onClick={onDownload}
         disabled={isDownloading}
-        className="flex size-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors hover:bg-black/70 disabled:pointer-events-none max-sm:size-8"
+        className="grid size-8 place-items-center rounded-full bg-background/95 text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={downloadLabel}
       >
         <Download
@@ -68,5 +76,27 @@ export function ImageCardActions({
         />
       </button>
     </div>
+  )
+}
+
+/** ♥ 旁的数：变了就跳一下（240，画廊「卡片与详情」动效表）；第一次画出来不跳。 */
+export function LikeCount({ count }: { count: number }) {
+  const reducedMotion = useReducedMotion()
+  const [shown, setShown] = useState(count)
+  const [bumps, setBumps] = useState(0)
+  if (shown !== count) {
+    setShown(count)
+    setBumps((value) => value + 1)
+  }
+  return (
+    <motion.span
+      key={bumps}
+      initial={bumps > 0 && !reducedMotion ? { scale: 1.35 } : false}
+      animate={{ scale: 1 }}
+      transition={{ duration: 0.24, ease: EASE_STANDARD }}
+      className="inline-block font-mono tabular-nums"
+    >
+      {count}
+    </motion.span>
   )
 }

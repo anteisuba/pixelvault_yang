@@ -10,19 +10,12 @@ import {
   GALLERY_GRID_GAP_X,
   GALLERY_GRID_GAP_X_BREAKPOINT,
   GALLERY_GRID_GAP_Y,
-  GALLERY_GRID_LEAD_TILE_CHROME_PX,
   GALLERY_GRID_OVERSCAN,
   GALLERY_GRID_SSR_ITEM_COUNT,
-  GALLERY_GRID_TILE_CHROME_PX,
 } from '@/constants/gallery-grid'
 import { Link } from '@/i18n/navigation'
-import { cn } from '@/lib/utils'
 
-import {
-  ImageCard,
-  IMAGE_CARD_PRESENTATIONS,
-} from '@/components/business/ImageCard'
-import { BlurFade } from '@/components/ui/blur-fade'
+import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { GenerationRecord } from '@/types'
@@ -36,9 +29,9 @@ interface GalleryGridProps {
   emptyActionLabel: string
   feedLabel: string
   itemFallbackLabel: string
-  showVisibility?: boolean
-  showDelete?: boolean
-  onDelete?: (id: string) => void
+  /** 桌面 / 平板点开交给就地查看器；不给 = 手机，卡自己开全屏详情。 */
+  onOpen?: (generation: GenerationRecord) => void
+  onToggleLike: (generation: GenerationRecord) => void
 }
 
 const SPATIAL_CROSS_AXIS_WEIGHT = 4
@@ -123,7 +116,7 @@ function getGapX(viewportWidth: number): number {
  * 约 13900 个 DOM 节点 —— 瓶颈在挂载而不是布局，所以只有真正把不可见的卡
  * **卸载**才有意义。
  *
- * 高度用 `generation.width/height` 先估（画廊态的卡没有页脚，高度就是
+ * 高度用 `generation.width/height` 先估（卡没有页脚、描边与外框，高度就是
  * `列宽 ÷ 宽高比`），挂载后交给 `measureElement` 换成实测值，所以估错也只是
  * 滚动条长度短暂不准，不会错位。
  *
@@ -139,9 +132,8 @@ export function GalleryGrid({
   emptyActionLabel,
   feedLabel,
   itemFallbackLabel,
-  showVisibility = false,
-  showDelete = false,
-  onDelete,
+  onOpen,
+  onToggleLike,
 }: GalleryGridProps) {
   const feedRef = useRef<HTMLElement>(null)
   const [metrics, setMetrics] = useState({
@@ -196,11 +188,8 @@ export function GalleryGrid({
       if (!generation || columnWidth <= 0) return 1
       const width = Math.max(generation.width, 1)
       const height = Math.max(generation.height, 1)
-      return (
-        Math.round((columnWidth * height) / width) +
-        GALLERY_GRID_TILE_CHROME_PX +
-        (index === 0 ? GALLERY_GRID_LEAD_TILE_CHROME_PX : 0)
-      )
+      // 卡没有描边与外框（卡片与详情 A），高度就是图的高。
+      return Math.round((columnWidth * height) / width)
     },
     [generations, columnWidth],
   )
@@ -280,11 +269,9 @@ export function GalleryGrid({
             index={index}
             total={generations.length}
             itemFallbackLabel={itemFallbackLabel}
-            showVisibility={showVisibility}
-            showDelete={showDelete}
-            onDelete={onDelete}
+            onOpen={onOpen}
+            onToggleLike={onToggleLike}
             priority={index < 2}
-            isLeadItem={index === 0}
           />
         ))}
       </section>
@@ -320,11 +307,9 @@ export function GalleryGrid({
               index={virtualItem.index}
               total={generations.length}
               itemFallbackLabel={itemFallbackLabel}
-              showVisibility={showVisibility}
-              showDelete={showDelete}
-              onDelete={onDelete}
+              onOpen={onOpen}
+              onToggleLike={onToggleLike}
               priority={virtualItem.index < columnCount}
-              isLeadItem={virtualItem.index === 0}
             />
           </div>
         )
@@ -338,53 +323,40 @@ interface GalleryGridItemProps {
   index: number
   total: number
   itemFallbackLabel: string
-  showVisibility: boolean
-  showDelete: boolean
-  onDelete?: (id: string) => void
+  onOpen?: (generation: GenerationRecord) => void
+  onToggleLike: (generation: GenerationRecord) => void
   priority: boolean
-  isLeadItem: boolean
 }
 
+/**
+ * 一格。⛔ 进场淡入：卡片一上来就占位、铺浅灰，图自己由糊变清（卡片与详情 A）——
+ * 以前包的 BlurFade 让服务端渲染出来的卡是透明的，要等水合才看得见。
+ */
 const GalleryGridItem = memo(function GalleryGridItem({
   generation,
   index,
   total,
   itemFallbackLabel,
-  showVisibility,
-  showDelete,
-  onDelete,
+  onOpen,
+  onToggleLike,
   priority,
-  isLeadItem,
 }: GalleryGridItemProps) {
   return (
-    <BlurFade
-      delay={Math.min(index * 0.025, 0.2)}
-      duration={0.22}
-      offset={4}
-      blur="0px"
-      inView
+    <div
+      role="article"
+      tabIndex={0}
+      aria-posinset={index + 1}
+      aria-setsize={total}
+      aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
+      data-gallery-index={index}
+      className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-workbench focus-visible:outline-none"
     >
-      <div
-        role="article"
-        tabIndex={0}
-        aria-posinset={index + 1}
-        aria-setsize={total}
-        aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
-        data-gallery-index={index}
-        className={cn(
-          'rounded-xl transition-all duration-300 hover:z-10 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none',
-          isLeadItem && 'bg-primary/6 p-1 ring-1 ring-primary/20',
-        )}
-      >
-        <ImageCard
-          generation={generation}
-          showVisibility={showVisibility}
-          showDelete={showDelete}
-          onDelete={onDelete}
-          priority={priority}
-          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
-        />
-      </div>
-    </BlurFade>
+      <ImageCard
+        generation={generation}
+        priority={priority}
+        onOpen={onOpen}
+        onToggleLike={onToggleLike}
+      />
+    </div>
   )
 })

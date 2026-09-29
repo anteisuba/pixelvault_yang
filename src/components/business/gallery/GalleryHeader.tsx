@@ -1,284 +1,180 @@
 'use client'
 
-/**
- * GalleryHeader — Editorial warm filter header replacing GalleryFilterBar.
- *
- * Layout: 3 pill toggles (sort / type / timeRange) + search + Advanced popover
- * @see 01-UI/UI-路線決策結論書.md D6/D12
- */
-
-import { memo, useCallback, useRef, useState } from 'react'
-import { Search, SlidersHorizontal, X } from '@/components/icons'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { isTouchPrimary } from '@/lib/touch'
+import { Heart, Search, X } from '@/components/icons'
+import {
+  getAvailableImageModels,
+  getAvailableVideoModels,
+} from '@/constants/models'
+import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import type { GalleryFilters } from '@/hooks/use-gallery'
-import type {
-  GallerySortOption,
-  OutputTypeValue,
-  GalleryTimeRange,
-} from '@/types'
+import { toastError } from '@/lib/toast'
+import { cn } from '@/lib/utils'
 
-import { GalleryAdvancedFilters } from './GalleryAdvancedFilters'
-
-// ─── Pill Toggle ────────────────────────────────────────────────
-
-interface PillOption<T extends string> {
-  value: T
-  label: string
-}
-
-function PillGroup<T extends string>({
-  options,
-  value,
-  onChange,
-  className,
-}: {
-  options: PillOption<T>[]
-  value: T
-  onChange: (v: T) => void
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        // shrink-0：外层窄屏是 flex-nowrap 的滚动行，不锁的话组会被压扁、
-        // 「最新优先」四个字被挤成竖排。
-        'inline-flex shrink-0 rounded-full border border-border/60 p-0.5',
-        className,
-      )}
-    >
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          className={cn(
-            'touch-target-y min-h-8 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
-            value === opt.value
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          onClick={() => onChange(opt.value)}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ─── Main Component ─────────────────────────────────────────────
+/** 搜索框停手多久才发请求。 */
+const SEARCH_DEBOUNCE_MS = 400
 
 interface GalleryHeaderProps {
   filters: GalleryFilters
   onFiltersChange: (filters: GalleryFilters) => void
-  isLoading: boolean
+  /** 当前筛选下的公开作品总数（顶栏标题旁的数字）。 */
+  total: number
 }
 
+/**
+ * 画廊顶栏（domains/gallery.md「卡片、顶栏与详情」· 画布「画廊 · 卡片与详情」A）：
+ * 与素材页同一颗 —— 「画廊 N」+ 分面下拉（素材页的 `AssetFacetBar`，没有「状态」
+ * 那一格）+ 搜索 + 「我赞过的」，吸在页顶。
+ */
 export const GalleryHeader = memo(function GalleryHeader({
   filters,
   onFiltersChange,
-  isLoading,
+  total,
 }: GalleryHeaderProps) {
-  const t = useTranslations('GalleryPage.filters')
-  const [searchOpen, setSearchOpen] = useState(false)
+  const t = useTranslations('GalleryPage')
+  const tFilters = useTranslations('GalleryPage.filters')
+  const { isSignedIn } = useAuth()
   const [searchInput, setSearchInput] = useState(filters.search)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isStuck, setIsStuck] = useState(false)
 
-  // ─── Sort pill ────────────────────────────────────────────────
-  const sortOptions: PillOption<GallerySortOption>[] = [
-    { value: 'newest', label: t('sort.newest') },
-    { value: 'oldest', label: t('sort.oldest') },
-  ]
+  // 分面条上的「“词” ×」清掉搜索时，框里的字跟着清。
+  const [syncedSearch, setSyncedSearch] = useState(filters.search)
+  if (syncedSearch !== filters.search) {
+    setSyncedSearch(filters.search)
+    if (filters.search !== searchInput.trim()) setSearchInput(filters.search)
+  }
 
-  // ─── Type pill ────────────────────────────────────────────────
-  // 单选 pill 组：'all' 是 UI 的哨兵值，落到 filters 上是空数组。
-  const typeOptions: PillOption<OutputTypeValue | 'all'>[] = [
-    { value: 'all', label: t('type.all') },
-    { value: 'image', label: t('type.image') },
-    { value: 'video', label: t('type.video') },
-    { value: 'audio', label: t('type.audio') },
-  ]
+  useEffect(() => {
+    const onScroll = () => setIsStuck(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
-  // ─── Time pill ────────────────────────────────────────────────
-  const timeOptions: PillOption<GalleryTimeRange>[] = [
-    { value: 'all', label: t('tabs.all') },
-    { value: 'today', label: t('tabs.today') },
-  ]
-
-  // ─── Search ───────────────────────────────────────────────────
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchInput(value)
+  useEffect(
+    () => () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
-      debounceRef.current = setTimeout(() => {
-        onFiltersChange({ ...filters, search: value.trim() })
-      }, 400)
     },
-    [filters, onFiltersChange],
+    [],
   )
 
-  const clearSearch = useCallback(() => {
+  // 画廊没有公开作品的模型聚合：选项表取模型目录，按类型收窄，计数留空。
+  const modelCounts = useMemo(() => {
+    const onlyImage =
+      filters.types.length > 0 &&
+      filters.types.every((type) => type === 'image')
+    const onlyVideo =
+      filters.types.length > 0 &&
+      filters.types.every((type) => type === 'video')
+    const models = onlyImage
+      ? getAvailableImageModels()
+      : onlyVideo
+        ? getAvailableVideoModels()
+        : [...getAvailableImageModels(), ...getAvailableVideoModels()]
+    return Object.fromEntries(models.map((model) => [model.id, undefined]))
+  }, [filters.types])
+
+  const changeSearch = (value: string) => {
+    setSearchInput(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      onFiltersChange({ ...filters, search: value.trim() })
+    }, SEARCH_DEBOUNCE_MS)
+  }
+
+  const clearSearch = () => {
     setSearchInput('')
     if (debounceRef.current) clearTimeout(debounceRef.current)
     onFiltersChange({ ...filters, search: '' })
-    setSearchOpen(false)
-  }, [filters, onFiltersChange])
+  }
 
-  // ─── Advanced filters ─────────────────────────────────────────
-  const hasAdvancedFilters = filters.models.length > 0 || filters.liked
-
-  const handleAdvancedChange = useCallback(
-    (patch: Partial<GalleryFilters>) => {
-      onFiltersChange({ ...filters, ...patch })
-    },
-    [filters, onFiltersChange],
-  )
-
-  // ─── Clear all ────────────────────────────────────────────────
-  const hasActiveFilters =
-    filters.search ||
-    filters.models.length > 0 ||
-    filters.types.length > 0 ||
-    filters.timeRange !== 'all' ||
-    filters.liked ||
-    filters.published
-
-  const clearAll = useCallback(() => {
-    setSearchInput('')
-    setSearchOpen(false)
-    setAdvancedOpen(false)
-    onFiltersChange({
-      search: '',
-      models: [],
-      sort: filters.sort,
-      types: [],
-      timeRange: 'all',
-      projectId: filters.projectId,
-      liked: false,
-      published: false,
-    })
-  }, [filters.sort, filters.projectId, onFiltersChange])
+  const toggleLiked = () => {
+    if (!isSignedIn) {
+      toastError(tFilters('signInToFavorite'))
+      return
+    }
+    onFiltersChange({ ...filters, liked: !filters.liked })
+  }
 
   return (
-    <div className="space-y-3">
-      {/* Pill row — visually grouped: [sort] · [type] · [time]   [search + advanced + clear]
-          窄屏收成一行横向滚动（ui-defaults.md §6「筛选条横向滚动 chip」）：
-          原来 wrap 成三行，在 375 上把首屏全吃掉，图一张都看不到。 */}
-      <div className="flex items-center gap-2 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-1 sm:flex-wrap">
-        {/* Group 1: ordering */}
-        <PillGroup
-          options={sortOptions}
-          value={filters.sort}
-          onChange={(v) => onFiltersChange({ ...filters, sort: v })}
+    // 吸顶的是外面这层方角页底色：头顶那 12 与圆角外面都盖住，滚过去的图不从缝里露出来。
+    // 手机上顶栏折成三行，不吸；平板吸在紧凑外壳那条 44 的固定栏下面。
+    <div className="z-30 -mt-3 bg-surface-workbench pt-3 md:sticky md:top-11 lg:top-0">
+      <header
+        data-stuck={isStuck || undefined}
+        className={cn(
+          'flex min-h-14 w-full flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard',
+          isStuck ? 'border-border shadow-md' : 'border-border/70 shadow-sm',
+        )}
+      >
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <h1 className="truncate text-base font-semibold text-foreground">
+            {t('feedEyebrow')}
+          </h1>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {total}
+          </span>
+        </div>
+
+        <AssetFacetBar
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          typeCounts={{}}
+          statusCounts={{}}
+          modelCounts={modelCounts}
+          statusFacet={false}
+          className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
         />
 
-        <div
-          aria-hidden="true"
-          className="hidden h-5 w-px shrink-0 bg-border/50 sm:block"
-        />
-
-        {/* Group 2: content filters (what + when) */}
-        <PillGroup
-          options={typeOptions}
-          value={filters.types[0] ?? 'all'}
-          onChange={(v) =>
-            onFiltersChange({
-              ...filters,
-              types: v === 'all' ? [] : [v],
-              models: [],
-            })
-          }
-        />
-        <PillGroup
-          options={timeOptions}
-          value={filters.timeRange}
-          onChange={(v) => onFiltersChange({ ...filters, timeRange: v })}
-        />
-
-        {/* Spacer — pushes the action cluster to the right edge so search /
-            advanced feel like a separate tool group from the filter pills. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2 sm:flex-wrap">
-          {/* Search toggle */}
-          {searchOpen ? (
-            <div className="touch-target-y flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1">
-              <Search className="size-3.5 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder={t('searchPlaceholder')}
-                className="w-40 bg-transparent text-base md:text-xs outline-none placeholder:text-muted-foreground"
-                autoFocus={!isTouchPrimary()}
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className="inline-flex size-6 items-center justify-center rounded-full"
-                >
-                  <X className="size-3 text-muted-foreground hover:text-foreground" />
-                </button>
-              )}
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className={cn(
-                'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground',
-                filters.search && 'border-primary/40 text-primary',
-              )}
-            >
-              <Search className="size-3.5" />
-              {filters.search || t('searchLabel')}
-            </button>
-          )}
-
-          {/* Advanced toggle */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <label className="flex h-8 w-44 items-center gap-2 rounded-lg border border-border px-2.5 text-xs text-foreground transition-colors focus-within:border-foreground/35 sm:w-60">
+            <Search
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => changeSearch(event.target.value)}
+              placeholder={tFilters('searchPlaceholder')}
+              aria-label={tFilters('searchLabel')}
+              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-xs"
+            />
+            {searchInput ? (
+              <button
+                type="button"
+                onClick={clearSearch}
+                aria-label={tFilters('clearSearch')}
+                className="grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="size-3" aria-hidden />
+              </button>
+            ) : null}
+          </label>
           <button
             type="button"
-            onClick={() => setAdvancedOpen(!advancedOpen)}
+            onClick={toggleLiked}
+            aria-pressed={filters.liked}
             className={cn(
-              'inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border/60 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground',
-              (advancedOpen || hasAdvancedFilters) &&
-                'border-primary/40 text-primary',
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition-colors duration-fast',
+              filters.liked
+                ? 'border-transparent bg-primary text-primary-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground',
             )}
           >
-            <SlidersHorizontal className="size-3.5" />
-            {hasAdvancedFilters && (
-              <span className="size-1.5 rounded-full bg-primary" />
-            )}
+            <Heart
+              weight={filters.liked ? 'fill' : 'bold'}
+              className="size-3.5"
+              aria-hidden
+            />
+            {tFilters('tabs.favorites')}
           </button>
-
-          {/* Clear all */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAll}
-              className="h-8 gap-1 text-xs text-muted-foreground"
-              disabled={isLoading}
-            >
-              <X className="size-3" />
-              {t('clearFilters')}
-            </Button>
-          )}
         </div>
-      </div>
-
-      {/* Advanced popover (inline, not floating) */}
-      {advancedOpen && (
-        <GalleryAdvancedFilters
-          filters={filters}
-          onChange={handleAdvancedChange}
-          onClose={() => setAdvancedOpen(false)}
-          type={filters.types[0] ?? 'all'}
-        />
-      )}
+      </header>
     </div>
   )
 })

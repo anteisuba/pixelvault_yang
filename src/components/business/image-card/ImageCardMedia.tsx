@@ -1,10 +1,14 @@
-import { ImageIcon, Layers, Music, Play } from '@/components/icons'
+'use client'
 
-import { OptimizedImage } from '@/components/ui/optimized-image'
+import { useCallback, useState } from 'react'
+import NextImage from 'next/image'
+
+import { ImageIcon, Layers, Music, Play } from '@/components/icons'
 import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
+import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
   toMediaTransitionOrigin,
@@ -46,7 +50,7 @@ export function ImageCardMedia({
     <>
       <button
         type="button"
-        className="block w-full cursor-pointer"
+        className="block w-full cursor-pointer bg-muted"
         onClick={(event) =>
           onOpenDetail(
             toMediaTransitionOrigin(
@@ -77,20 +81,16 @@ export function ImageCardMedia({
             muted
             playsInline
             preload="none"
-            className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            className="h-auto w-full object-cover"
             style={{ aspectRatio }}
           />
         ) : (
-          <OptimizedImage
+          <BlurUpImage
             src={imageSrc}
             alt={generation.prompt}
             width={generation.width}
             height={generation.height}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="h-auto w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-            loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : 'auto'}
-            unoptimized
+            priority={priority}
           />
         )}
       </button>
@@ -113,7 +113,8 @@ export function ImageCardMedia({
       )}
       {isVideo && (
         <>
-          <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md">
+          {/* 悬停时让位给左下的作者小签。 */}
+          <span className="absolute bottom-3 left-3 flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-opacity duration-fast ease-linear group-hover:opacity-0 group-focus-within:opacity-0">
             <Play className="ml-0.5 size-3.5" fill="currentColor" />
           </span>
           {generation.duration != null && (
@@ -126,5 +127,70 @@ export function ImageCardMedia({
         </>
       )}
     </>
+  )
+}
+
+/**
+ * 卡片里的图（卡片与详情 A）：宽高属性先把位置占好、底下铺浅灰；真图解码好后
+ * 200 由糊变清（与 LoRA 封面、素材瓦片同一种）。⚠ 已在缓存里的图（窗口化列表
+ * 滚回来重挂）直接出真图，⛔ 每滚一次重播一遍。
+ */
+function BlurUpImage({
+  src,
+  alt,
+  width,
+  height,
+  priority,
+}: {
+  src: string
+  alt: string
+  width: number
+  height: number
+  priority?: boolean
+}) {
+  const [phase, setPhase] = useState<{
+    src: string
+    value: 'loading' | 'fading' | 'shown'
+  }>({ src, value: 'loading' })
+  if (phase.src !== src) setPhase({ src, value: 'loading' })
+  const current = phase.src === src ? phase.value : 'loading'
+  const imageRef = useCallback(
+    (image: HTMLImageElement | null) => {
+      if (!image?.complete || image.naturalWidth === 0) return
+      setPhase((previous) =>
+        previous.src === src && previous.value === 'loading'
+          ? { src, value: 'shown' }
+          : previous,
+      )
+    },
+    [src],
+  )
+
+  return (
+    <NextImage
+      ref={imageRef}
+      src={src}
+      alt={alt}
+      width={Math.max(width, 1)}
+      height={Math.max(height, 1)}
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
+      unoptimized
+      draggable={false}
+      onLoad={() =>
+        setPhase((previous) =>
+          previous.src === src && previous.value === 'loading'
+            ? { src, value: 'fading' }
+            : previous,
+        )
+      }
+      className={cn(
+        'h-auto w-full object-cover',
+        current === 'loading' && 'scale-110 opacity-0 blur-md',
+        current === 'fading' &&
+          'transition-[filter,scale,opacity] duration-base ease-standard motion-reduce:transition-none',
+      )}
+    />
   )
 }

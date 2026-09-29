@@ -1,125 +1,54 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 // ─── Mocks ──────────────────────────────────────────────────────
-
-vi.mock('@/hooks/use-generation-visibility', () => ({
-  useGenerationVisibility: vi.fn(() => ({
-    isPublic: true,
-    isPromptPublic: true,
-    isFeatured: false,
-    togglingField: null,
-    handleToggle: vi.fn(),
-  })),
-}))
-
-vi.mock('@/hooks/use-like', () => ({
-  useLike: vi.fn(() => ({
-    toggle: vi.fn(),
-    isPending: false,
-  })),
-}))
 
 vi.mock('@/lib/api-client', () => ({
   downloadRemoteAsset: vi.fn(),
 }))
 
-vi.mock('@/i18n/routing', () => ({
-  isCjkLocale: vi.fn(() => false),
-}))
-
-vi.mock('@/i18n/navigation', () => ({
-  Link: ({
-    children,
-    href,
-    ...props
-  }: React.PropsWithChildren<{ href: string }>) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
-}))
-
-vi.mock('@/lib/model-options', () => ({
-  getTranslatedModelLabel: vi.fn(() => 'Stable Diffusion XL'),
-}))
-
-vi.mock('@/components/ui/optimized-image', () => ({
-  OptimizedImage: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-    <img {...props} />
-  ),
-}))
-
 vi.mock('next/image', () => ({
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-    <img {...props} />
+  default: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string
+    alt: string
+    className?: string
+  }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} className={className} />
   ),
 }))
 
-// Mock ImageDetailModal to avoid testing it inside ImageCard
+// 手机的全屏详情另有测试；这里只看卡片什么时候把它挂出来。
 vi.mock('@/components/business/ImageDetailModal', () => ({
-  ImageDetailModal: ({
-    open,
-  }: {
-    open: boolean
-    generation: unknown
-    onOpenChange: (v: boolean) => void
-  }) => (open ? <div data-testid="detail-modal">Modal Open</div> : null),
+  ImageDetailModal: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="detail-modal">Modal Open</div> : null,
 }))
 
-import {
-  ImageCard,
-  IMAGE_CARD_PRESENTATIONS,
-} from '@/components/business/ImageCard'
-import { useLike } from '@/hooks/use-like'
+import { ImageCard } from '@/components/business/ImageCard'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 
-const mockUseLike = vi.mocked(useLike)
 const mockDownloadRemoteAsset = vi.mocked(downloadRemoteAsset)
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
 const MESSAGES = {
   GalleryCard: {
-    modelLabel: 'Model',
-    providerLabel: 'Provider',
-    requestsLabel: 'Credits',
     openImage: 'Open Image',
     openVideo: 'Open Video',
-    openLabel: 'Open',
     like: 'Like',
     unlike: 'Unlike',
     download: 'Download',
     downloadFailed: 'Download failed',
     creatorProfileLabel: 'View {name} profile',
     referenceImageLabel: 'Reference Image',
-    promptPrivateHint: 'Prompt is private',
-    imageVisibilityLabel: 'Image Visibility',
-    promptVisibilityLabel: 'Prompt Visibility',
-    featuredLabel: 'Featured',
-    publicLabel: 'Public',
-    privateLabel: 'Private',
-    makePublicAction: 'Make Public',
-    makePrivateAction: 'Make Private',
-    featuredOn: 'Featured',
-    featuredOff: 'Not Featured',
-    pinAction: 'Pin',
-    unpinAction: 'Unpin',
-    copyPromptAction: 'Copy prompt',
-    useInStudioAction: 'Use in Studio',
-    promptCopiedToast: 'Prompt copied',
+    layerBadge: 'Base + {count} layers',
   },
-  Common: {
-    requestCount: '{count} credits',
-  },
-  Models: {},
   Errors: {},
 }
 
@@ -143,11 +72,18 @@ const BASE_GEN: GenerationRecord = {
   isLiked: false,
 }
 
+const ALICE = {
+  username: 'alice',
+  displayName: 'Alice W.',
+  avatarUrl: 'https://example.com/alice.png',
+}
+
 function renderCard(
   props: Partial<React.ComponentProps<typeof ImageCard>> = {},
 ) {
   const defaults = {
     generation: BASE_GEN,
+    onToggleLike: vi.fn(),
     ...props,
   }
   return render(
@@ -162,70 +98,40 @@ function renderCard(
 describe('ImageCard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseLike.mockReturnValue({
-      toggle: vi.fn().mockResolvedValue(true),
-      isPending: false,
-    })
     mockDownloadRemoteAsset.mockResolvedValue({ success: true })
   })
 
-  it('renders metadata (model, provider)', () => {
+  it('keeps the card face to the media alone — no prompt, model or provider', () => {
     renderCard()
-    expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
-    expect(screen.getByText('huggingface')).toBeInTheDocument()
-  })
-
-  it('shows prompt text when isPromptPublic', () => {
-    renderCard()
-    expect(screen.getByText('sunset over the ocean')).toBeInTheDocument()
-  })
-
-  it('keeps the gallery presentation image-first', () => {
-    renderCard({
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
-
-    expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
-    expect(screen.queryByText('Open')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Open Image')).toBeInTheDocument()
-    expect(screen.getByText('sunset over the ocean')).toBeInTheDocument()
-    expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
+    expect(screen.queryByText('sunset over the ocean')).not.toBeInTheDocument()
+    expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
   })
 
-  it('keeps the gallery creator inside the hover-only layer', () => {
-    renderCard({
-      generation: {
-        ...BASE_GEN,
-        creator: {
-          username: 'alice',
-          displayName: 'Alice W.',
-          avatarUrl: 'https://example.com/alice.png',
-        },
-      },
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
+  it('marks the tile with its id so the viewer can grow from it', () => {
+    const { container } = renderCard()
+    expect(
+      container.querySelector('[data-gallery-tile-id="gen_card_001"]'),
+    ).not.toBeNull()
+  })
+
+  it('keeps the creator chip hover-only and drops it on touch', () => {
+    renderCard({ generation: { ...BASE_GEN, creator: ALICE } })
 
     const creatorLink = screen.getByRole('link', {
       name: 'View Alice W. profile',
     })
     expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
-
-    // 进度表 34：静态卡面不带作者 —— 它住在那条升起的条里，透明、不可点、
-    // 触屏整条不渲染；hover 与 focus-within 两边都把它唤醒。
-    const hoverLayer = creatorLink.closest('.coarse\\:hidden')
-    expect(hoverLayer).not.toBeNull()
-    expect(hoverLayer?.className).toContain('opacity-0')
-    expect(hoverLayer?.className).toContain('pointer-events-none')
-    expect(hoverLayer?.className).toContain('group-hover:opacity-100')
-    expect(hoverLayer?.className).toContain('group-focus-within:opacity-100')
+    expect(creatorLink.className).toContain('opacity-0')
+    expect(creatorLink.className).toContain('pointer-events-none')
+    expect(creatorLink.className).toContain('group-hover:opacity-100')
+    expect(creatorLink.className).toContain('group-focus-within:opacity-100')
+    expect(creatorLink.className).toContain('coarse:hidden')
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
-    expect(screen.getByText('@alice')).toBeInTheDocument()
   })
 
-  it('hides the gallery action row until hover and drops it on touch', () => {
-    const { container } = renderCard({
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
+  it('hides the ♥ · download row until hover and drops it on touch', () => {
+    const { container } = renderCard()
 
     const actions = container.querySelector('.card-actions')
     expect(actions).not.toBeNull()
@@ -238,18 +144,58 @@ describe('ImageCard', () => {
     expect(actions?.className).toContain('coarse:hidden')
   })
 
-  it('keeps the default presentation action row on touch', () => {
-    const { container } = renderCard()
+  it('reads ♥ from the feed and hands the toggle back to it', () => {
+    const onToggleLike = vi.fn()
+    const generation = { ...BASE_GEN, likeCount: 5, isLiked: true }
+    renderCard({ generation, onToggleLike })
 
-    const actions = container.querySelector('.card-actions')
-    expect(actions?.className).toContain('pointer-events-none')
-    expect(actions?.className).not.toContain('coarse:hidden')
+    expect(screen.getByText('5')).toBeInTheDocument()
+    const like = screen.getByRole('button', { name: 'Unlike' })
+    expect(like).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(like)
+    expect(onToggleLike).toHaveBeenCalledWith(generation)
+  })
+
+  it('hands the open to the viewer when the feed owns one', () => {
+    const onOpen = vi.fn()
+    renderCard({ onOpen })
+
+    fireEvent.click(screen.getByLabelText('Open Image'))
+
+    expect(onOpen).toHaveBeenCalledWith(BASE_GEN)
+    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
+  })
+
+  it('opens its own full-screen detail on phones (no viewer)', async () => {
+    renderCard()
+    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Open Image'))
+
+    expect(await screen.findByTestId('detail-modal')).toBeInTheDocument()
+  })
+
+  it('does not open anything from ♥, download or the creator chip', () => {
+    const onOpen = vi.fn()
+    renderCard({ generation: { ...BASE_GEN, creator: ALICE }, onOpen })
+
+    fireEvent.click(screen.getByLabelText('Like'))
+    fireEvent.click(screen.getByLabelText('Download'))
+    const creatorLink = screen.getByRole('link', {
+      name: 'View Alice W. profile',
+    })
+    creatorLink.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(creatorLink)
+
+    expect(mockDownloadRemoteAsset).toHaveBeenCalledWith(
+      BASE_GEN.url,
+      'pixelvault-gen_card.png',
+    )
+    expect(onOpen).not.toHaveBeenCalled()
   })
 
   it('badges the duration only on video cards', () => {
-    const { rerender } = renderCard({
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
+    const { rerender } = renderCard()
     expect(screen.queryByText('0:07')).not.toBeInTheDocument()
 
     rerender(
@@ -262,115 +208,11 @@ describe('ImageCard', () => {
             mimeType: 'video/mp4',
             duration: 7,
           }}
-          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
+          onToggleLike={vi.fn()}
         />
       </NextIntlClientProvider>,
     )
     expect(screen.getByText('0:07')).toBeInTheDocument()
-  })
-
-  it('does not open detail modal when gallery creator link is clicked', () => {
-    renderCard({
-      generation: {
-        ...BASE_GEN,
-        creator: {
-          username: 'alice',
-          displayName: 'Alice W.',
-          avatarUrl: 'https://example.com/alice.png',
-        },
-      },
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
-
-    const creatorLink = screen.getByRole('link', {
-      name: 'View Alice W. profile',
-    })
-    creatorLink.addEventListener('click', (event) => event.preventDefault())
-    fireEvent.click(creatorLink)
-
-    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
-  })
-
-  it('shows lock hint when prompt is private but image is public', () => {
-    renderCard({
-      generation: {
-        ...BASE_GEN,
-        isPromptPublic: false,
-        isPublic: true,
-      },
-    })
-    expect(screen.getByText('Prompt is private')).toBeInTheDocument()
-    expect(screen.queryByText('sunset over the ocean')).not.toBeInTheDocument()
-  })
-
-  it('shows creator attribution when creator data present', () => {
-    renderCard({
-      generation: {
-        ...BASE_GEN,
-        creator: {
-          username: 'alice',
-          displayName: 'Alice W.',
-          avatarUrl: 'https://example.com/alice.png',
-        },
-      },
-    })
-    expect(screen.getByText('Alice W.')).toBeInTheDocument()
-  })
-
-  it('opens detail modal when Open button clicked', async () => {
-    renderCard()
-    // Initially modal is not open
-    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
-
-    // Click the text "Open" button (not the media button which also has aria-label)
-    const openBtn = screen.getByText('Open')
-    fireEvent.click(openBtn)
-
-    expect(await screen.findByTestId('detail-modal')).toBeInTheDocument()
-  })
-
-  it('renders like button with count', () => {
-    renderCard({
-      generation: { ...BASE_GEN, likeCount: 5, isLiked: false },
-    })
-    expect(screen.getByText('5')).toBeInTheDocument()
-    expect(screen.getByLabelText('Like')).toBeInTheDocument()
-  })
-
-  it('does not open detail modal from like or download controls', async () => {
-    const toggle = vi.fn().mockResolvedValue(true)
-    mockUseLike.mockReturnValue({ toggle, isPending: false })
-
-    renderCard({
-      generation: { ...BASE_GEN, likeCount: 5, isLiked: false },
-      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
-    })
-
-    fireEvent.click(screen.getByLabelText('Like'))
-    fireEvent.click(screen.getByLabelText('Download'))
-
-    expect(toggle).toHaveBeenCalledWith(BASE_GEN.id)
-    expect(mockDownloadRemoteAsset).toHaveBeenCalledWith(
-      BASE_GEN.url,
-      'pixelvault-gen_card.png',
-    )
-    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
-  })
-
-  it('rolls back optimistic like state when the toggle is not committed', async () => {
-    const toggle = vi.fn().mockResolvedValue(false)
-    mockUseLike.mockReturnValue({ toggle, isPending: false })
-
-    renderCard({
-      generation: { ...BASE_GEN, likeCount: 5, isLiked: false },
-    })
-
-    fireEvent.click(screen.getByLabelText('Like'))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Like')).toBeInTheDocument()
-      expect(screen.getByText('5')).toBeInTheDocument()
-    })
   })
 
   it('uses stored poster assets for video cards without preloading metadata', () => {

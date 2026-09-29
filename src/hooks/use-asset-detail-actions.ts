@@ -15,6 +15,10 @@ import {
   toggleLikeAPI,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  openExternalAsset,
+  triggerDirectAssetDownload,
+} from '@/lib/asset-links'
 import type { GenerationRecord } from '@/types'
 
 export type AssetPublishScope = 'private' | 'asset' | 'assetAndPrompt'
@@ -45,26 +49,6 @@ function getAssetFileName(generation: GenerationRecord): string {
   }
   const ext = generation.mimeType.split('/')[1] || 'bin'
   return `pixelvault-${generation.id.slice(0, 8)}.${ext}`
-}
-
-function triggerDirectAssetDownload(url: string, fileName: string) {
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.target = '_blank'
-  link.rel = 'noopener noreferrer'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
-
-function openExternalAsset(url: string) {
-  const openedWindow = window.open(url, '_blank')
-  if (openedWindow) {
-    openedWindow.opener = null
-    return
-  }
-  window.location.assign(url)
 }
 
 /**

@@ -1966,7 +1966,28 @@
     "emptyAction": "Open studio",
     "loadMore": "Load more images",
     "loadingMore": "Loading more images...",
-    "endOfArchive": "You're all caught up."
+    "endOfArchive": "You're all caught up.",
+    "viewer": {
+      "label": "Gallery viewer",
+      "close": "Close viewer",
+      "thumb": "Image {n}",
+      "previous": "Previous image",
+      "next": "Next image",
+      "remix": "Recreate",
+      "more": "More",
+      "promptPrivate": "The creator kept this prompt private",
+      "negative": "Negative",
+      "publishedAt": "Published",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy",
+      "expand": "Show all",
+      "collapse": "Show less",
+      "openOriginal": "Open original",
+      "linkCopied": "Link copied",
+      "references": "References used",
+      "referenceAlt": "Reference {n}"
+    }
   },
   "LibraryPage": {
     "cancelSelect": "Cancel",

@@ -1966,7 +1966,28 @@
     "emptyAction": "スタジオを開く",
     "loadMore": "さらに画像を読み込む",
     "loadingMore": "画像を読み込んでいます...",
-    "endOfArchive": "公開作品はここまでです。"
+    "endOfArchive": "公開作品はここまでです。",
+    "viewer": {
+      "label": "ギャラリービューアー",
+      "close": "ビューアーを閉じる",
+      "thumb": "{n} 枚目",
+      "previous": "前の画像",
+      "next": "次の画像",
+      "remix": "レシピを再現",
+      "more": "その他",
+      "promptPrivate": "作成者はこのプロンプトを公開していません",
+      "negative": "ネガティブ",
+      "publishedAt": "公開日時",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "copyFailed": "コピーできませんでした",
+      "expand": "すべて表示",
+      "collapse": "閉じる",
+      "openOriginal": "元画像を開く",
+      "linkCopied": "リンクをコピーしました",
+      "references": "使った参照画像",
+      "referenceAlt": "参照画像 {n}"
+    }
   },
   "LibraryPage": {
     "cancelSelect": "キャンセル",

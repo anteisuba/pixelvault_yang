@@ -758,7 +758,7 @@
 /* 按下态只用 transform，不动颜色：hover 的变色已经占了颜色这条通道。 */
 .domain-canvas .canvas-rail-action:active:not(:disabled),
 .domain-canvas .canvas-assistant-action:active:not(:disabled) {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 /* chrome 上的幽灵钮（顶栏 / 底部胶囊 / 左面板）：一条容器级规则扫掉。
    ⚠ transition 必须把颜色一起写上——这条选择器 (0,2,1) 高于 Tailwind 的

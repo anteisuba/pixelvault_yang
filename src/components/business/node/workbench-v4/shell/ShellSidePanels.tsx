@@ -1280,6 +1280,7 @@ export function ShellSidePanels({
             testId={`shell-rail-${panel}`}
             active={activePanel === panel}
             externalActiveSurface
+            tooltipSide="right"
             onClick={() =>
               onActivePanelChange(activePanel === panel ? null : panel)
             }

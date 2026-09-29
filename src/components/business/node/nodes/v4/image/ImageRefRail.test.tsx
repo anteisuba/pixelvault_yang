@@ -1,4 +1,4 @@
-import { render, fireEvent, waitFor } from '@testing-library/react'
+import { render, fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -29,7 +29,7 @@ const ITEM: VideoRailEntry = {
 }
 
 describe('ImageRefRail', () => {
-  it('shows numbered thumbs and source names', () => {
+  it('shows a numbered 48px thumb with its source name on hover and to assistive tech', () => {
     const { container } = render(
       <ImageRefRail
         items={[ITEM]}
@@ -42,46 +42,95 @@ describe('ImageRefRail', () => {
         onLibrary={vi.fn()}
       />,
     )
-    expect(
-      container.querySelector('[data-image-rail-index]')?.textContent,
-    ).toBe('1')
-    expect(container.querySelector('[data-image-rail-name]')?.textContent).toBe(
-      '夜景',
+    const thumb = container.querySelector('[data-image-rail-item]')
+    expect(thumb?.getAttribute('data-image-rail-index')).toBe('1')
+    expect(thumb?.classList.contains('size-12')).toBe(true)
+    expect(thumb?.getAttribute('title')).toBe('夜景')
+    expect(thumb?.getAttribute('aria-label')).toContain('夜景')
+    expect((thumb?.parentElement as HTMLElement).style.transform).not.toContain(
+      'scale(0.72)',
     )
+    expect(
+      container.querySelector('[data-image-rail-badge]')?.textContent,
+    ).toBe('1')
+    expect(container.querySelector('[data-image-rail-name]')).toBeNull()
+    expect(container.querySelector('[data-image-rail-add]')).toBeNull()
   })
 
-  it('picks a generated canvas image', async () => {
-    const onPickFromCanvas = vi.fn()
-    render(
+  it('grows the first attached thumb when its rail mounts from empty', () => {
+    const { container } = render(
       <ImageRefRail
-        items={[]}
+        items={[ITEM]}
         capacity={3}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
-        candidates={[{ id: 'gen_1', name: '成图 A', thumbnailUrl: '/g.png' }]}
-        onPickFromCanvas={onPickFromCanvas}
+        candidates={[]}
+        onPickFromCanvas={vi.fn()}
+        onUpload={vi.fn()}
+        onLibrary={vi.fn()}
+        animateOnMount
+      />,
+    )
+    const cell = container.querySelector('[data-image-rail-item]')
+      ?.parentElement as HTMLElement
+    expect(cell.style.transform).toContain('scale(0.72)')
+    expect(cell.style.filter).toBe('blur(4px)')
+  })
+
+  it('keeps the attached thumb menu for opening and removing its source', () => {
+    const onOpen = vi.fn()
+    const onRemove = vi.fn()
+    const { container } = render(
+      <ImageRefRail
+        items={[ITEM]}
+        capacity={3}
+        onOpen={onOpen}
+        onRemove={onRemove}
+        candidates={[]}
+        onPickFromCanvas={vi.fn()}
         onUpload={vi.fn()}
         onLibrary={vi.fn()}
       />,
     )
-    fireEvent.pointerDown(document.querySelector('[data-image-rail-add]')!, {
+    fireEvent.pointerDown(container.querySelector('[data-image-rail-item]')!, {
       button: 0,
     })
-    const candidate = await waitFor(
-      () =>
-        document.querySelector(
-          '[data-image-rail-candidate="gen_1"]',
-        ) as HTMLElement,
-    )
-    fireEvent.click(candidate)
-    expect(onPickFromCanvas).toHaveBeenCalledWith('gen_1')
+    fireEvent.click(screen.getByText('rail.open'))
+    expect(onOpen).toHaveBeenCalledWith('n1')
+
+    fireEvent.pointerDown(container.querySelector('[data-image-rail-item]')!, {
+      button: 0,
+    })
+    fireEvent.click(screen.getByText('rail.remove'))
+    expect(onRemove).toHaveBeenCalledWith('e1')
   })
 
-  it('greys the add button when the model cap is full', () => {
+  it('uses a 44px unnumbered thumb in the frame reference row', () => {
+    const { container } = render(
+      <ImageRefRail
+        variant="frame"
+        items={[ITEM]}
+        capacity={3}
+        onOpen={vi.fn()}
+        onRemove={vi.fn()}
+        candidates={[]}
+        onPickFromCanvas={vi.fn()}
+        onUpload={vi.fn()}
+        onLibrary={vi.fn()}
+      />,
+    )
+    const thumb = container.querySelector('[data-image-rail-item]')
+    expect(thumb?.classList.contains('size-11')).toBe(true)
+    expect(thumb?.classList.contains('rounded-lg')).toBe(true)
+    expect(container.querySelector('[data-image-rail-badge]')).toBeNull()
+  })
+
+  it('shows pending upload progress without adding a second add button', () => {
     const { container } = render(
       <ImageRefRail
         items={[ITEM]}
         capacity={1}
+        pending={[{ id: 'p1', name: '上传.png', progress: 42 }]}
         onOpen={vi.fn()}
         onRemove={vi.fn()}
         candidates={[]}
@@ -91,8 +140,10 @@ describe('ImageRefRail', () => {
       />,
     )
     expect(
-      (container.querySelector('[data-image-rail-add]') as HTMLButtonElement)
-        .disabled,
-    ).toBe(true)
+      container
+        .querySelector('[data-image-rail-pending-state="uploading"]')
+        ?.getAttribute('aria-valuenow'),
+    ).toBe('42')
+    expect(container.querySelector('[data-image-rail-add]')).toBeNull()
   })
 })

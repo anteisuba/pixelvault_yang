@@ -588,11 +588,7 @@ export function StudioOperatorDock() {
    */
   const slideX = useTransform(() => {
     if (!slides || yieldReserve <= 0) return 0
-    const progress = Math.min(
-      1,
-      Math.max(0, studioOperatorYield.get() / yieldReserve),
-    )
-    return (1 - progress) * (width + anchor.panelRightPx)
+    return yieldReserve - studioOperatorYield.get()
   })
   useEffect(() => () => studioOperatorYield.jump(0), [])
   /**
@@ -1018,7 +1014,8 @@ export function StudioOperatorDock() {
                * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
                * 把助手挂进任何一条 overlay 的人会原样再撞一次。
                */
-              'overflow-hidden rounded-2xl border border-border shadow-assistant-panel',
+              'overflow-hidden border border-border',
+              slides ? 'rounded-node' : 'rounded-2xl shadow-assistant-panel',
               /**
                * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
                * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——

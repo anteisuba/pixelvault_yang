@@ -40,6 +40,7 @@ export interface VideoPlayerProps {
   onDownload?: () => void
   /** 把这只 `<video>` 透给调用方（抓帧要它的 `currentTime`）。 */
   readonly videoRef?: React.Ref<HTMLVideoElement | null>
+  readonly variant?: 'default' | 'paper'
   readonly className?: string
 }
 
@@ -49,12 +50,14 @@ function GlassButton({
   disabled,
   testId,
   onClick,
+  paper,
 }: {
   readonly icon: LucideIcon
   readonly label: string
   readonly disabled?: boolean
   readonly testId: string
   onClick(): void
+  readonly paper: boolean
 }) {
   return (
     <button
@@ -68,13 +71,16 @@ function GlassButton({
         onClick()
       }}
       className={cn(
-        'nodrag nopan flex size-6.5 items-center justify-center rounded-lg text-foreground',
-        'transition-colors duration-fast ease-standard hover:bg-surface-fill-hover',
+        'nodrag nopan flex size-6.5 items-center justify-center rounded-lg',
+        paper
+          ? 'text-card transition hover:opacity-75'
+          : 'text-foreground transition-colors hover:bg-surface-fill-hover',
+        'duration-fast ease-standard',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
       )}
     >
-      <Icon aria-hidden className="size-3.5" />
+      <Icon aria-hidden className={paper ? 'size-4' : 'size-3.5'} />
     </button>
   )
 }
@@ -87,6 +93,7 @@ export function VideoPlayer({
   extracting = false,
   onDownload,
   videoRef,
+  variant = 'default',
   className,
 }: VideoPlayerProps) {
   const t = useTranslations('StudioNode.v4.player')
@@ -110,6 +117,11 @@ export function VideoPlayer({
   }, [])
 
   const progress = clock.total > 0 ? clock.current / clock.total : 0
+  const paper = variant === 'paper'
+  const seek = (next: number) => {
+    const video = innerRef.current
+    if (video && video.duration > 0) video.currentTime = next * video.duration
+  }
 
   return (
     <div
@@ -118,6 +130,7 @@ export function VideoPlayer({
         'relative aspect-video w-full overflow-hidden rounded-node bg-surface-sunken corner-squircle',
         className,
       )}
+      style={paper ? { aspectRatio: '678 / 383' } : undefined}
     >
       <video
         ref={innerRef}
@@ -156,42 +169,84 @@ export function VideoPlayer({
           data-video-play
           aria-label={t('play')}
           onClick={togglePlay}
-          className="nodrag nopan absolute top-1/2 left-1/2 flex size-13 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full surface-glass shadow-node-chrome focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className={cn(
+            'nodrag nopan absolute top-1/2 left-1/2 flex size-13 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            paper
+              ? 'bg-card/90 text-foreground'
+              : 'surface-glass shadow-node-chrome',
+          )}
         >
-          <Play aria-hidden className="size-5" />
+          <Play aria-hidden className={paper ? 'size-4' : 'size-5'} />
         </button>
       )}
 
-      <div className="absolute right-3.5 bottom-3 left-3.5 flex items-center gap-2.5">
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.001}
-          value={progress}
-          data-video-progress
-          aria-label={t('progress')}
-          className="nodrag nopan h-0.75 min-w-0 flex-1 accent-primary"
-          onChange={(event) => {
-            const video = innerRef.current
-            const next = Number(event.target.value)
-            if (video && video.duration > 0) {
-              video.currentTime = next * video.duration
-            }
-          }}
-        />
+      <div
+        data-video-transport={variant}
+        className={cn(
+          'absolute right-3.5 left-3.5 flex items-center gap-2.5',
+          paper ? 'bottom-1.5' : 'bottom-3',
+        )}
+      >
+        {paper ? (
+          <div className="relative h-5 min-w-0 flex-1">
+            <div
+              aria-hidden
+              data-video-paper-track
+              className="pointer-events-none absolute inset-x-0 top-1/2 h-0.75 -translate-y-1/2 overflow-hidden rounded-full bg-card/35"
+            >
+              <div
+                className="h-full bg-card"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.001}
+              value={progress}
+              data-video-progress
+              aria-label={t('progress')}
+              className="nodrag nopan absolute inset-0 size-full cursor-pointer opacity-0"
+              onChange={(event) => seek(Number(event.target.value))}
+            />
+          </div>
+        ) : (
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.001}
+            value={progress}
+            data-video-progress
+            aria-label={t('progress')}
+            className="nodrag nopan h-0.75 min-w-0 flex-1 accent-primary"
+            onChange={(event) => seek(Number(event.target.value))}
+          />
+        )}
         {/* 时钟走等宽 tabular，⛔ 不让秒数跳动时把进度条推来推去。 */}
         <span
           data-video-clock
-          className="shrink-0 rounded-full px-1.75 py-0.5 text-3xs tabular-nums surface-glass"
+          className={cn(
+            'shrink-0 text-3xs tabular-nums',
+            paper
+              ? 'font-mono text-card'
+              : 'rounded-full px-1.75 py-0.5 surface-glass',
+          )}
         >
           {formatVideoClock(clock.current)} / {formatVideoClock(clock.total)}
         </span>
-        <span className="flex shrink-0 items-center gap-0 rounded-lg p-0.5 surface-glass">
+        <span
+          className={cn(
+            'flex shrink-0 items-center gap-0',
+            !paper && 'rounded-lg p-0.5 surface-glass',
+          )}
+        >
           <GlassButton
             testId="mute"
             icon={muted ? VolumeX : Volume2}
             label={muted ? t('unmute') : t('mute')}
+            paper={paper}
             onClick={() => {
               const video = innerRef.current
               const next = !muted
@@ -206,6 +261,7 @@ export function VideoPlayer({
               icon={Camera}
               label={t('captureFrames')}
               disabled={extracting}
+              paper={paper}
               onClick={() => {
                 const video = innerRef.current
                 if (video) onExtractFrame(video)
@@ -217,6 +273,7 @@ export function VideoPlayer({
               testId="download"
               icon={Download}
               label={t('download')}
+              paper={paper}
               onClick={onDownload}
             />
           ) : null}
@@ -225,6 +282,7 @@ export function VideoPlayer({
               testId="pause"
               icon={Pause}
               label={t('pause')}
+              paper={paper}
               onClick={togglePlay}
             />
           ) : null}

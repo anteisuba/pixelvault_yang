@@ -37,6 +37,21 @@ describe('VersionDots', () => {
     expect(onSelect).toHaveBeenCalledWith(2)
   })
 
+  it('三颗都是 6px 圆点、可见间距 6px；当前深色，其余 11% 填充', () => {
+    setup()
+    const group = screen.getByRole('radiogroup')
+    expect(group).toHaveClass('h-2.5')
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(3)
+    for (const radio of radios) {
+      expect(radio).toHaveClass('h-6', 'w-3')
+      expect(radio.firstElementChild).toHaveClass('size-1.5', 'rounded-full')
+    }
+    expect(radios[1]?.firstElementChild).toHaveClass('bg-foreground')
+    expect(radios[0]?.firstElementChild).toHaveClass('bg-surface-fill-track')
+    expect(radios[2]?.firstElementChild).toHaveClass('bg-surface-fill-track')
+  })
+
   it('←→ 切换并在两端停住', () => {
     const onSelect = setup(0)
     const group = screen.getByRole('radiogroup')

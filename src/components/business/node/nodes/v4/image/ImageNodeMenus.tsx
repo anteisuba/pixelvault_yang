@@ -14,16 +14,18 @@
  * 能力表补，⛔ 不在这里假装它已经有了。
  */
 
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import type { StoryboardGridSize } from '@/constants/storyboard-grid'
 import {
   Copy,
+  Check,
   Crop,
+  Eye,
   Grid2x2,
   Grid3X3,
   Image as ImageIcon,
   Layers,
-  Library,
   Paintbrush,
   Pencil,
   Trash2,
@@ -35,11 +37,11 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
+  DropdownMenuShortcut,
 } from '@/components/ui/dropdown-menu'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
+
+import { useBrokenThumbs } from '../chrome/NodeMediaMissing'
 
 /** 编辑子菜单的四项 → 现有能力 id。⛔ 值域不自己造，来自 `canvas-image-edit`。 */
 export const IMAGE_EDIT_MENU_TASKS: readonly {
@@ -85,6 +87,7 @@ export function ImageEditMenuItems({
 }
 
 export function ImageMoreMenuItems({
+  onQuickLook,
   onRename,
   onDuplicate,
   onSplitVersion,
@@ -94,6 +97,7 @@ export function ImageMoreMenuItems({
   sourceLabel,
   onDelete,
 }: {
+  onQuickLook?: (() => void) | undefined
   onRename(): void
   onDuplicate(): void
   /**
@@ -115,8 +119,15 @@ export function ImageMoreMenuItems({
   onDelete(): void
 }) {
   const tImage = useTranslations('StudioNode.v4.image')
+  const tVideo = useTranslations('StudioNode.v4.video')
   return (
     <>
+      {onQuickLook ? (
+        <DropdownMenuItem data-image-more="quick-look" onSelect={onQuickLook}>
+          <Eye aria-hidden className="size-4" />
+          {tVideo('more.quickLook')}
+        </DropdownMenuItem>
+      ) : null}
       {/* ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。 */}
       <DropdownMenuItem data-image-more="rename" onSelect={onRename}>
         <Pencil aria-hidden className="size-4" />
@@ -201,45 +212,98 @@ export function ImageAddMenuItems({
   readonly canvasCandidates?: readonly {
     readonly id: string
     readonly name: string
+    readonly thumbnailUrl?: string | undefined
+    readonly attached?: boolean
+    readonly blockedReason?: string | undefined
   }[]
   onPickCanvas?(nodeId: string): void
 }) {
   const t = useTranslations('StudioNode.v4.image')
+  const tNode = useTranslations('StudioNode.v4')
+  const thumbs = useBrokenThumbs()
   const canvas = canvasCandidates ?? []
   return (
     <>
-      <DropdownMenuItem data-image-add="upload" onSelect={onUpload}>
+      <DropdownMenuItem
+        data-image-add="upload"
+        onSelect={onUpload}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
         <Upload aria-hidden className="size-4" />
         {t('add.upload')}
+        <DropdownMenuShortcut className="font-mono text-2xs tracking-normal text-muted-foreground/75">
+          ⌘U
+        </DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuItem data-image-add="library" onSelect={onLibrary}>
-        <Library aria-hidden className="size-4" />
+      <DropdownMenuItem
+        data-image-add="library"
+        onSelect={onLibrary}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
+        <ImageIcon aria-hidden className="size-4" />
         {t('add.library')}
       </DropdownMenuItem>
       {onPickCanvas ? (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger data-image-add="canvas">
-            <ImageIcon aria-hidden className="size-4" />
-            {t('add.canvas')}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
-            {canvas.length === 0 ? (
-              <DropdownMenuItem disabled>
-                {t('add.canvasEmpty')}
-              </DropdownMenuItem>
-            ) : (
-              canvas.map((candidate) => (
+        <>
+          <div className="flex justify-between px-2.5 pt-2.5 pb-1.5 text-2xs tracking-wide text-muted-foreground">
+            <span>{tNode('addCanvasTitle')}</span>
+            <span>{tNode('addCanvasHint')}</span>
+          </div>
+          {canvas.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+              {canvas.map((candidate) => (
                 <DropdownMenuItem
                   key={candidate.id}
                   data-image-add-canvas={candidate.id}
-                  onSelect={() => onPickCanvas(candidate.id)}
+                  data-attached={candidate.attached ? 'true' : undefined}
+                  aria-label={tNode('addCanvasAttach', {
+                    name: candidate.name,
+                  })}
+                  aria-disabled={Boolean(
+                    candidate.blockedReason && !candidate.attached,
+                  )}
+                  title={
+                    candidate.attached
+                      ? candidate.name
+                      : (candidate.blockedReason ?? candidate.name)
+                  }
+                  onSelect={(event) => {
+                    if (candidate.attached) return
+                    if (candidate.blockedReason) {
+                      event.preventDefault()
+                      return
+                    }
+                    onPickCanvas(candidate.id)
+                  }}
+                  className={`relative size-12 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-fill p-0 text-muted-foreground focus:bg-surface-fill ${candidate.blockedReason && !candidate.attached ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:ring-2 hover:ring-foreground focus:ring-2 focus:ring-foreground'}`}
                 >
-                  {candidate.name}
+                  {thumbs.usable(candidate.thumbnailUrl) ? (
+                    <Image
+                      src={candidate.thumbnailUrl!}
+                      alt=""
+                      width={48}
+                      height={48}
+                      unoptimized
+                      onError={() => thumbs.markBroken(candidate.thumbnailUrl!)}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon aria-hidden className="m-auto size-4" />
+                  )}
+                  {candidate.attached ? (
+                    <span className="absolute top-0.75 right-0.75 flex size-4 items-center justify-center rounded-full bg-foreground text-card">
+                      <Check aria-hidden className="size-2.5" />
+                    </span>
+                  ) : null}
                 </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+              ))}
+            </div>
+          ) : (
+            <div className="px-2.5 pb-2 text-xs text-muted-foreground/75">
+              {tNode('addCanvasEmpty')}
+            </div>
+          )}
+        </>
       ) : null}
     </>
   )

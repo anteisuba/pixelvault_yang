@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -21,10 +21,16 @@ vi.mock('@xyflow/react', () => ({
       data-output={props['data-output'] as string}
     />
   ),
-  Position: { Left: 'left', Right: 'right', Top: 'top' },
+  Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
   NodeToolbar: (props: Record<string, unknown>) =>
     props.isVisible ? (
-      <div data-testid="node-toolbar">{props.children as ReactNode}</div>
+      <div
+        data-testid="node-toolbar"
+        data-position={props.position as string}
+        style={props.style as CSSProperties}
+      >
+        {props.children as ReactNode}
+      </div>
     ) : null,
 }))
 
@@ -227,10 +233,12 @@ function renderText(
 ) {
   const target = context.nodes.find((item) => item.id === nodeId)!
   return render(
-    <NodeV4CanvasProvider value={context}>
-      {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-      <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
-    </NodeV4CanvasProvider>,
+    <div data-canvas-stage>
+      <NodeV4CanvasProvider value={context}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
+      </NodeV4CanvasProvider>
+    </div>,
   )
 }
 
@@ -311,7 +319,7 @@ describe('S2b 文本节点 · 收起态 = 高文本框', () => {
 
   it('未选中时工具条与助手栏都不出', () => {
     const { container } = renderText(harness(scene()))
-    expect(screen.queryByTestId('node-toolbar')).toBeNull()
+    expect(container.querySelector('[data-toolbar-action]')).toBeNull()
     expect(container.querySelector('[data-text-assistant-bar]')).toBeNull()
   })
 })
@@ -323,6 +331,30 @@ describe('S2b 文本节点 · 选中态', () => {
     return { context, ...renderText(context, true) }
   }
 
+  it('空文本卡居中两行、200 高，选中只有助手栏；双击仍能编辑', async () => {
+    const context = harness(scene({ body: '' }), {
+      selectedNodeIds: ['t_02'],
+    })
+    const { container } = renderText(context, true)
+    const surface = container.querySelector<HTMLElement>(
+      '[data-node-card-surface]',
+    )!
+    expect(surface).toHaveClass('border-dashed', 'bg-transparent')
+    expect(surface.style.height).toBe('200px')
+    expect(screen.getByText('emptyStart')).toBeInTheDocument()
+    expect(screen.getByText('emptyAssist')).toBeInTheDocument()
+    expect(container.querySelector('[data-text-mark]')).toBeNull()
+    expect(container.querySelector('[data-text-fade]')).toBeNull()
+    expect(container.querySelector('[data-text-resize]')).toBeNull()
+    expect(container.querySelector('[data-toolbar-action]')).toBeNull()
+    expect(container.querySelector('[data-text-assistant-bar]')).not.toBeNull()
+    fireEvent.doubleClick(container.querySelector('[data-text-scroll]')!)
+    expect(await screen.findByLabelText('editAriaLabel')).toHaveAttribute(
+      'contenteditable',
+      'true',
+    )
+  })
+
   it('工具条 = 展开 · 下载 · ⋯，助手栏居中在卡下', () => {
     const { container } = selected()
     expect(
@@ -331,7 +363,13 @@ describe('S2b 文本节点 · 选中态', () => {
       ),
     ).toEqual(['expand', 'download', 'more'])
     const bar = container.querySelector('[data-text-assistant-bar]')!
-    expect(bar.className).toContain('-translate-x-1/2')
+    expect(bar.closest('[data-position]')).toHaveAttribute(
+      'data-position',
+      'bottom',
+    )
+    expect(bar.querySelector('[data-node-chrome="prompt-bar"]')).toHaveClass(
+      'w-95',
+    )
   })
 
   it('⋯ = 改名 / 复制 / 拆成多段 / 生图 / 生镜头 / 删除', () => {
@@ -395,22 +433,59 @@ describe('S2b 文本节点 · 选中态', () => {
   })
 })
 
-describe('S2b 文本节点 · 展开 = 全屏文档', () => {
+describe('节点打磨 ② · 文本文档是一张纸', () => {
   function expanded(overrides: Partial<NodeV4CanvasContextValue> = {}) {
     const state = scene()
     const context = harness(state, { expandedNodeId: 't_02', ...overrides })
     return { context, ...renderText(context, true) }
   }
 
-  it('铺满视口（⛔ 不是 640 画中框），顶栏是 `名字.md` + 下载', () => {
-    expanded()
-    const frame = document.querySelector<HTMLElement>(
+  it('880 宽文档纸挂在画布舞台，下载位于顶栏右侧', () => {
+    const { container } = expanded()
+    const stage = container.querySelector('[data-canvas-stage]')!
+    const overlay = stage.querySelector('[data-node-chrome="frame-scrim"]')!
+    const frame = overlay.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
     )!
-    expect(frame.style.width).toBe('')
+    expect(overlay).toHaveClass('absolute')
+    expect(frame.style.width).toBe('880px')
     expect(frame.className).toContain('h-full')
+    expect(frame).toHaveAttribute('data-node-frame-variant', 'document')
     expect(screen.getByRole('heading').textContent).toBe('doc.title:t_02')
-    expect(document.querySelector('[data-text-doc-download]')).not.toBeNull()
+    const header = frame.querySelector('[data-node-frame-header]')!
+    const download = header.querySelector('[data-text-doc-download]')!
+    expect(download).toHaveClass('rounded-full', 'bg-surface-fill')
+    expect(download.nextElementSibling).toHaveAttribute('data-node-frame-close')
+  })
+
+  it('格式条在纸顶，正文与底部写作栏共用 680 宽列', () => {
+    expanded()
+    const frame = document.querySelector('[data-node-chrome="frame"]')!
+    expect(frame.querySelector('[data-node-frame-header]')).toHaveClass(
+      'border-b',
+    )
+    const formatRow = frame.querySelector(
+      '[data-text-format-bar]',
+    )!.parentElement!
+    expect(formatRow).toHaveClass('pt-3')
+    const scroll = frame.querySelector<HTMLElement>('[data-text-doc-scroll]')!
+    expect(scroll.style.maxWidth).toBe('680px')
+    expect(scroll).toHaveClass('pt-5')
+    const writingColumn = frame.querySelector<HTMLElement>(
+      '[data-node-frame-assistant] > div',
+    )!
+    expect(writingColumn.style.maxWidth).toBe('680px')
+    expect(frame.querySelector('[data-node-frame-assistant]')).toHaveClass(
+      'pb-4',
+    )
+    const writingBar = writingColumn.querySelector(
+      '[data-node-chrome="prompt-bar"]',
+    )!
+    expect(writingBar).toHaveClass('pb-2.5')
+    const actionChip = writingBar.querySelector('[data-assist-action]')!
+    expect(actionChip).toHaveClass('h-7', 'rounded-full', 'bg-surface-fill')
+    const send = writingBar.querySelector('[data-prompt-bar-send]')!
+    expect(send).toHaveClass('bg-primary', 'disabled:opacity-100')
   })
 
   it('正文按 Markdown **渲染**出来：`# 标题` 是 h1，⛔ 不是一行带井号的字', () => {
@@ -506,10 +581,12 @@ describe('剧本卡 · 卡面（进度表 24）', () => {
     ).toContain('雨夜街角的一段')
   })
 
-  it('空态：拆不出镜时给一句「怎么分段」，⛔ 不摆一颗投影不了的按钮', () => {
+  it('空剧本卡沿用文本空态两行，不摆投影按钮', () => {
     const { container } = renderText(harness(scriptScene('   ')), false, 'sc_1')
     expect(container.querySelectorAll('[data-script-shot-row]')).toHaveLength(0)
-    expect(screen.getByRole('button', { name: /project:0/ })).toBeDisabled()
+    expect(screen.getByText('emptyStart')).toBeInTheDocument()
+    expect(screen.getByText('emptyAssist')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /project:0/ })).toBeNull()
   })
 
   it('⭐ 没投过 = 「确认 · 投影 N 镜」，点了只发一条 project_script（create）', () => {

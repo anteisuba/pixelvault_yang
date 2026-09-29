@@ -159,9 +159,11 @@ export function StudioOperatorAvatarToggle({
            （见 Dock 里那段头注），不自己声明就按不动 —— 而按不动的表现是
            「收起之后再也打不开」。
            ⚠ `z-50` 高于面板那层 `z-40`：展开态它要坐在头部**上面**。
-           ⚠ 白底细边（画板 `DesignD7bToggle`：36px 圆，白底细边），⛔ 不是
-             D7 那颗近黑实底 —— 它现在是一张脸不是一颗信号位。 */
-        'pointer-events-auto fixed z-50 grid place-items-center overflow-visible rounded-full border border-border bg-card text-foreground shadow-assistant-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+           ⚠ 布局 A 用画布节点打磨 ② 的浮层影；其余宿主沿用白底细边。 */
+        'pointer-events-auto fixed z-50 grid place-items-center overflow-visible rounded-full bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        anchor.avatarStays
+          ? 'shadow-node-chrome'
+          : 'border border-border shadow-assistant-overlay',
         styles.avatar,
       )}
     >

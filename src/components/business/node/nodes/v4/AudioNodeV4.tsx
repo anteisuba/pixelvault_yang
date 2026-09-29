@@ -35,15 +35,17 @@ import { useTranslations } from 'next-intl'
 
 import { useVoiceCover } from '@/hooks/use-voice-cover'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Clapperboard,
+  AudioLines,
   FileText,
   MoreHorizontal,
   Pause,
   Play,
   Scissors,
   Smile,
+  Upload,
 } from '@/components/icons'
 import { toast } from 'sonner'
 
@@ -76,13 +78,18 @@ import {
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
+import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { cn } from '@/lib/utils'
 import {
   insertVoiceMarkup,
   voiceMarkupDeletionRangeAt,
   type VoiceMarkupInsert,
 } from '@/lib/voice-markup'
-import type { NodeV4, NodeV4AudioData } from '@/types/node-workflow'
+import type {
+  NodeV4,
+  NodeV4AudioData,
+  NodeWorkflowModelSelection,
+} from '@/types/node-workflow'
 
 import {
   NodeChromeLayer,
@@ -108,7 +115,7 @@ import {
 import {
   AUDIO_CARD,
   audioVersions,
-  formatAudioClock,
+  formatAudioCardDuration,
   formatAudioSeconds,
   resolveAudioNodeKind,
   showsVoiceChip,
@@ -163,6 +170,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const media = useMediaProblem(audioData.url)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [emptyDragging, setEmptyDragging] = useState(false)
+  const dragDepthRef = useRef(0)
   const [renameRequest, setRenameRequest] = useState(0)
   /** 素材库对话框（`+` 菜单「从素材库选…」）。 */
   const [assetPicker, setAssetPicker] = useState(false)
@@ -293,9 +302,31 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const cover = useVoiceCover(
     coverSource ? coverSource.voiceId : audioData.voiceProfile?.voiceId,
   )
+  const modelOptions = useMemo(
+    () => canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.audio] ?? [],
+    [canvas.modelOptionsByKind],
+  )
+  const defaultModel = useMemo<NodeWorkflowModelSelection | undefined>(() => {
+    const picked = pickDefaultModelOption(modelOptions.map(toStudioModelOption))
+    const source = picked
+      ? modelOptions.find((item) => item.optionId === picked.optionId)
+      : undefined
+    if (!source) return undefined
+    return {
+      optionId: source.optionId,
+      modelId: source.modelId,
+      adapterType: source.adapterType,
+      providerConfig: source.providerConfig,
+      ...(source.apiKeyId ? { apiKeyId: source.apiKeyId } : {}),
+    }
+  }, [modelOptions])
   if (!node) return null
 
-  const audioKind = resolveAudioNodeKind(audioData)
+  const effectiveModel = audioData.model ?? defaultModel
+  const audioKind = resolveAudioNodeKind({
+    ...audioData,
+    model: effectiveModel,
+  })
   const speech = showsVoiceChip(audioKind)
   const versions = audioVersions(audioData)
   const versionIndex = readOutputIndex(audioData)
@@ -309,8 +340,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       index,
     })
   const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
-  const modelOptions =
-    canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.audio] ?? []
   const seconds = duration || (audioData.durationSec ?? 0)
   /** 「归属角色」的候选 = 画布上的角色卡（`characterName` 优先于稳定名）。 */
   const characterNames = canvas.nodes
@@ -356,11 +385,21 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const submitPrompt = () => {
     if (draft.trim().length === 0 || generating) return
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
+    if (!audioData.model && effectiveModel)
+      canvas.onSetModel(id, effectiveModel)
+    const nodes = canvas.nodes.map((item) =>
+      item.id === id && effectiveModel
+        ? ({
+            ...item,
+            data: { ...item.data, model: effectiveModel },
+          } as NodeV4)
+        : item,
+    )
     setStartedAt(Date.now())
     void generation
       .generateNode(
         id,
-        { nodes: canvas.nodes, edges: canvas.edges },
+        { nodes, edges: canvas.edges },
         {
           // ⚠ 送出去的是**编译后**的台词（`[very angry]…`）——原文留在节点上，
           // 编译只发生在送出的那一刻（装配层同一条：`planV4Generation`）。
@@ -678,6 +717,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     ],
   ]
 
+  const empty = !audioData.url && !generating
+
   return (
     <div
       ref={cardRef}
@@ -690,12 +731,24 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         event.preventDefault()
         setMenu({ x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY })
       }}
+      onDragEnter={(event) => {
+        if (!empty || !Array.from(event.dataTransfer.types).includes('Files'))
+          return
+        dragDepthRef.current += 1
+        setEmptyDragging(true)
+      }}
       onDragOver={(event) => {
         event.preventDefault()
         event.stopPropagation()
         event.dataTransfer.dropEffect = 'copy'
       }}
+      onDragLeave={() => {
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+        if (dragDepthRef.current === 0) setEmptyDragging(false)
+      }}
       onDrop={(event) => {
+        dragDepthRef.current = 0
+        setEmptyDragging(false)
         const file = Array.from(event.dataTransfer?.files ?? []).find((item) =>
           item.type.startsWith('audio/'),
         )
@@ -705,7 +758,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         runUpload(file)
       }}
     >
-      <NodeChromeLayer show={showChrome} position={Position.Top}>
+      <NodeChromeLayer show={showChrome && !empty} position={Position.Top}>
         <NodeToolbar
           groups={toolbarGroups}
           ariaLabel={tAudio('toolbar.label')}
@@ -718,11 +771,41 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         selected={Boolean(selected)}
         width={NODE_V4_CARD.collapsedWidth}
-        emptyHint={tAudio('emptyHint')}
-        emptyAddAriaLabel={tAudio('add.upload')}
+        empty={empty}
+        emptyDragging={empty && emptyDragging}
+        emptyContent={
+          <div className="absolute inset-0 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              data-node-empty-upload
+              onClick={(event) => {
+                event.stopPropagation()
+                fileRef.current?.click()
+              }}
+              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <Upload aria-hidden className="size-3.5" />
+              {t('chrome.emptyUpload')}
+            </button>
+            <button
+              type="button"
+              data-node-empty-library
+              onClick={(event) => {
+                event.stopPropagation()
+                setVoiceLibrary(true)
+              }}
+              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <AudioLines aria-hidden className="size-3.5" />
+              {tAudio('emptyVoiceLibrary')}
+            </button>
+            <span className="text-xs text-muted-foreground/75">
+              {tAudio('emptyNextStep')}
+            </span>
+          </div>
+        }
         renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
-        onEmptyAdd={() => fileRef.current?.click()}
         changed={canvas.changedNodeIds.includes(id)}
         portSpec={portSpecOf(node)}
       >
@@ -745,17 +828,17 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   : { op: NODE_ASSISTANT_OP_V4_IDS.delete, target: id },
               )
             }
-            style={{ height: AUDIO_CARD.contentHeight }}
+            style={{ height: AUDIO_CARD.height }}
           />
         ) : audioData.url || generating ? (
           <div
             data-audio-surface={audioData.url ? 'ready' : 'pending'}
             className="relative flex items-center gap-3 px-4"
-            style={{ height: AUDIO_CARD.contentHeight }}
+            style={{ height: AUDIO_CARD.height }}
           >
             {audioData.url && !generating ? (
               <>
-                {/* 播放钮**常驻**（画板 v2：30px 圆钮，未播 = 浅底深字，播放中 =
+                {/* 播放钮**常驻**（画板：34px 圆钮，未播 = 浅底深字，播放中 =
                     实心深底白字）。⛔ 不再随悬停淡入 —— 悬停自动播删掉之后，
                     「点哪儿能听」必须一眼看得见，否则这张卡看起来不能播。 */}
                 {cover ? (
@@ -783,7 +866,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                       togglePlay()
                     }}
                     className={cn(
-                      'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full',
+                      'nodrag nopan flex size-8.5 shrink-0 items-center justify-center rounded-full',
                       'transition-colors duration-fast ease-standard',
                       'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                       playing
@@ -794,13 +877,14 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     {playing ? (
                       <Pause aria-hidden className="size-3.5" />
                     ) : (
-                      <Play aria-hidden className="size-3.5" />
+                      <Play aria-hidden weight="fill" className="size-3.5" />
                     )}
                   </button>
                 )}
                 <AudioWaveform
                   seed={audioData.url}
                   progress={progress}
+                  fitWidth
                   className="min-w-0 flex-1"
                 />
                 {/* ⚠ 时长**恒显**（画板右侧永远有一行读数，卡的宽度才不会在
@@ -809,13 +893,11 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 <span
                   data-audio-duration
                   data-known={seconds > 0 ? 'true' : 'false'}
-                  className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                  className="w-9.5 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground"
                 >
                   {seconds <= 0
                     ? tAudio('durationUnknown')
-                    : playing
-                      ? `${formatAudioClock(progress * seconds)} / ${formatAudioSeconds(seconds)}`
-                      : formatAudioSeconds(seconds)}
+                    : formatAudioCardDuration(seconds)}
                 </span>
               </>
             ) : null}
@@ -911,6 +993,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
             />
           ) : (
             <NodePromptBar
+              sidebarOpen={canvas.sidebarOpen}
               value={draft}
               onValueChange={setDraft}
               onSubmit={submitPrompt}
@@ -925,14 +1008,14 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               generating={generating}
               onCancel={() => setStartedAt(null)}
               placeholder={
-                speech
+                empty || speech
                   ? tAudio('promptPlaceholder')
                   : audioKind === AUDIO_KIND.MUSIC
                     ? tAudio('promptPlaceholderMusic')
                     : tAudio('promptPlaceholderSfx')
               }
               ariaLabel={tAudio('promptLabel')}
-              className="w-130"
+              className="w-105"
               inputRef={inputRef}
               onSelectionChange={(range) => {
                 caretRef.current = range.start
@@ -956,6 +1039,18 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   onUpload={() => fileRef.current?.click()}
                   onAssetLibrary={() => setAssetPicker(true)}
                   onVoiceLibrary={() => setVoiceLibrary(true)}
+                  canvasCandidates={canvas.nodes
+                    .filter(
+                      (item) =>
+                        item.id !== id &&
+                        item.data.kind === NODE_MEDIA_KIND_IDS.audio &&
+                        Boolean(item.data.url),
+                    )
+                    .map((item) => ({
+                      id: item.id,
+                      name: item.data.name,
+                      audioUrl: 'url' in item.data ? item.data.url : undefined,
+                    }))}
                 />
               }
               textareaProps={{
@@ -1018,39 +1113,37 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     onOpenLibrary={() => setVoiceLibrary(true)}
                   />
                 ) : null,
-                modelOptions.length > 0 ? (
-                  // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
-                  // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
-                  <ModelPickerPopover
-                    key="model"
-                    options={modelOptions.map(toStudioModelOption)}
-                    value={audioData.model?.optionId ?? null}
-                    groupBy={MODEL_PICKER_GROUP_BY.kind}
-                    memoryScope={NODE_MEDIA_KIND_IDS.audio}
-                    gateId={id}
-                    // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
-                    {...(openKeySettings
-                      ? { onManageChannels: openKeySettings }
-                      : {})}
-                    disabled={generating}
-                    triggerEmptyLabel={tAudio('model.title')}
-                    onChange={(option) => {
-                      const picked = modelOptions.find(
-                        (item) => item.optionId === option.optionId,
-                      )
-                      if (!picked) return
-                      canvas.onSetModel(id, {
-                        optionId: picked.optionId,
-                        modelId: picked.modelId,
-                        adapterType: picked.adapterType,
-                        providerConfig: picked.providerConfig,
-                        ...(picked.apiKeyId
-                          ? { apiKeyId: picked.apiKeyId }
-                          : {}),
-                      })
-                    }}
-                  />
-                ) : null,
+                // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
+                // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
+                <ModelPickerPopover
+                  key="model"
+                  options={modelOptions.map(toStudioModelOption)}
+                  value={effectiveModel?.optionId ?? null}
+                  groupBy={MODEL_PICKER_GROUP_BY.kind}
+                  memoryScope={NODE_MEDIA_KIND_IDS.audio}
+                  gateId={id}
+                  canvasNodeId={id}
+                  canvasSidebarOpen={canvas.sidebarOpen}
+                  // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
+                  {...(openKeySettings
+                    ? { onManageChannels: openKeySettings }
+                    : {})}
+                  disabled={generating}
+                  triggerEmptyLabel={tAudio('model.title')}
+                  onChange={(option) => {
+                    const picked = modelOptions.find(
+                      (item) => item.optionId === option.optionId,
+                    )
+                    if (!picked) return
+                    canvas.onSetModel(id, {
+                      optionId: picked.optionId,
+                      modelId: picked.modelId,
+                      adapterType: picked.adapterType,
+                      providerConfig: picked.providerConfig,
+                      ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
+                    })
+                  }}
+                />,
               ].filter(Boolean)}
             />
           )}

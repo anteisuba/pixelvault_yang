@@ -16,25 +16,14 @@ import { resolveAudioKind } from '@/constants/models/audio'
 import { readOutputVersions } from '@/lib/node-output-versions'
 import type { NodeV4AudioData } from '@/types/node-workflow'
 
-/**
- * 矮卡的三个数（画板逐像素）。⚠ 72 是**卡高**，不是内容高：空态与有声态同高，
- * 卡才不会在「传完一段声音」时跳一下。
- */
+/** 矮卡的三个数（画板逐像素）：空态与有声态都保持 72 高。 */
 export const AUDIO_CARD = {
   /** 卡高（spec §4「矮卡 72 高」）。 */
   height: 72,
-  /**
-   * 卡**内容**高 = 卡高 − 上下各 1px 的 hairline 边。
-   *
-   * ⚠ 真机 2026-09-10 量到有声卡 74（=72+2）而空卡 72：空态那一档高度由
-   * `NodeCardShell` 写在**带边的那一层**上（border-box，边算在 72 之内），有声态
-   * 的高度写在它的子层上，边就叠在外面。差 2px 在 200% 缩放下读得出来。
-   */
-  contentHeight: 70,
-  /** 波形柱数（画板 36 根）。 */
+  /** 未量到容器宽度前的波形柱数。卡面量到后按宽度算。 */
   barCount: 36,
   /** 波形区高。 */
-  waveformHeight: 36,
+  waveformHeight: 30,
   /** 柱高值域（占 `waveformHeight` 的比例）。 */
   minBarRatio: 0.25,
   maxBarRatio: 1,
@@ -53,6 +42,17 @@ export function audioVersions(data: NodeV4AudioData): readonly string[] {
 /** `7s` —— 卡右侧那一行读数。 */
 export function formatAudioSeconds(seconds: number): string {
   return `${Math.max(0, Math.round(seconds))}s`
+}
+
+/** 卡右侧固定宽度里的时长读数。 */
+export function formatAudioCardDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+/** 柱宽 3、柱间距 2；末尾不预留不存在的间距。 */
+export function audioWaveformBarCount(width: number): number {
+  return Math.max(0, Math.floor((width + 2) / 5))
 }
 
 /** `0:02.6` —— 播放中的走时（画板用的是十分之一秒）。 */

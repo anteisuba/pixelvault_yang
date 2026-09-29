@@ -231,48 +231,34 @@ export function CanvasV4({
   onDragOver,
   children,
 }: CanvasV4Props) {
-  const {
-    rfNodes,
-    edges,
-    nodes,
-    selectedNodeIds,
-    neighborOffsets,
-    layoutSlide,
-  } = graph
+  const { rfNodes, edges, nodes, selectedNodeIds, layoutSlide } = graph
   const slideLeft = useLayoutSlide(layoutSlide)
   const storeApi = useStoreApi()
 
-  /**
-   * 让位偏移在**渲染期**加到坐标上，⛔ 不写回 state：让位是「这一刻谁展开着」的
-   * 视觉后果，落库会把它变成一次真实的移动（撤销栈里还会多出一条）。
-   */
-  // 整理后的滑动（`useLayoutSlide`）与让位同一个办法：渲染期偏移，⛔ 不写回 state。
   const decoratedNodes = useMemo(() => {
-    if (neighborOffsets.size === 0 && slideLeft === 0)
-      return rfNodes as NodeWorkflowNode[]
+    if (slideLeft === 0) return rfNodes as NodeWorkflowNode[]
     return rfNodes.map((node) => {
-      const offset = neighborOffsets.get(node.id)
       const slide = layoutSlideOffset(
         layoutSlide,
         slideLeft,
         node.id,
         node.position,
       )
-      if (!offset && !slide) return node
+      if (!slide) return node
       // 派生卡从来源边上滑出时同时淡入（§7 摆放 A 动效表）。
       const appearing = slide && layoutSlide?.appear?.has(node.id)
       return {
         ...node,
         position: {
-          x: node.position.x + (offset?.x ?? 0) + (slide?.x ?? 0),
-          y: node.position.y + (offset?.y ?? 0) + (slide?.y ?? 0),
+          x: node.position.x + slide.x,
+          y: node.position.y + slide.y,
         },
         ...(appearing
           ? { style: { ...node.style, opacity: 1 - slideLeft } }
           : {}),
       }
     }) as NodeWorkflowNode[]
-  }, [rfNodes, neighborOffsets, layoutSlide, slideLeft])
+  }, [rfNodes, layoutSlide, slideLeft])
 
   const { signedEdgePairs, fadingEdges } = edgeSigning
   const renderEdges = useMemo(() => {
@@ -674,7 +660,7 @@ export function CanvasV4({
       </ReactFlow>
       {/* 小地图常显、可收成右下一颗 —— 收放是它自己的状态（`CanvasMiniMap` 的
           `expanded`），⛔ 外壳不再存第二份。 */}
-      <CanvasMiniMap />
+      <CanvasMiniMap hidden={graph.expandedNodeId !== null} />
     </NodeConnectStateProvider>
   )
 }

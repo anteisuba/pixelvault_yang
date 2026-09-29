@@ -41,6 +41,9 @@ describe('音频卡按音色起名（「音色名 · 语音 N」）', () => {
   it('你起的名字 ⛔ 改；别的卡 @ 着它 ⛔ 改；已经是这副嗓子 ⛔ 改', () => {
     expect(renameForVoice(card('a', '开场旁白'), '弗洛洛', [])).toBeUndefined()
     expect(
+      renameForVoice(card('a', '语音3', { nameEdited: true }), '弗洛洛', []),
+    ).toBeUndefined()
+    expect(
       renameForVoice(card('a', '音频_554'), '弗洛洛', [
         card('v', '镜头', { prompt: '让 @音频_554 念这一句' }),
       ]),
@@ -55,7 +58,7 @@ describe('音频卡按音色起名（「音色名 · 语音 N」）', () => {
     ).toBe('弗洛洛 · 语音 2')
   })
 
-  it('选音色 = 一批两条（写音色 + 改名），一次撤销', () => {
+  it('选音色 = 同批写音色、自动名与来源标记，一次撤销', () => {
     expect(
       chooseVoiceOps(
         card('a', '语音3'),
@@ -73,6 +76,12 @@ describe('音频卡按音色起名（「音色名 · 语音 N」）', () => {
         target: 'a',
         field: 'name',
         value: '秧秧 · 语音 1',
+      },
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.setField,
+        target: 'a',
+        field: 'nameEdited',
+        value: false,
       },
     ])
     expect(

@@ -103,6 +103,7 @@ export interface VideoRailBinding {
   /** 上传：`null` 组 = 换这张卡自己的成片。 */
   runUpload(file: File, group: VideoRailGroupId | null): void
   openFilePicker(group: VideoRailGroupId | null): void
+  openReferenceFilePicker(): void
   /** 素材库：`null` 组 = 换这张卡自己的片（不收参考的卡的 `+ → 从素材库`）。 */
   openLibrary(group: VideoRailGroupId | null): void
   /** 从系统相册 / 文件选一份落进某一组（手机端参考条的加号走它）。 */
@@ -144,7 +145,9 @@ export function useVideoRailBinding({
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const [selfUploading, setSelfUploading] = useState(false)
   /** `+` / 轨上加号的「上传」要落到哪一组；`null` = 落到这张卡自己（成片）。 */
-  const pendingTargetRef = useRef<VideoRailGroupId | null>(null)
+  const pendingTargetRef = useRef<VideoRailGroupId | 'auto-reference' | null>(
+    null,
+  )
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ⚠ 走「最新值 ref」而不是把依赖列进 `useCallback`：`useNodeUploadV4()` 每次渲染
@@ -273,6 +276,11 @@ export function useVideoRailBinding({
     fileRef.current?.click()
   }, [])
 
+  const openReferenceFilePicker = useCallback(() => {
+    pendingTargetRef.current = 'auto-reference'
+    fileRef.current?.click()
+  }, [])
+
   // ⚠ 弹层要等菜单**关完**再开：Radix 的菜单与对话框各自往 `body` 上写
   // `pointer-events:none`，同一帧里一开一关会把它留在 body 上，整页从此点不动。
   const openLibrary = useCallback((group: VideoRailGroupId | null) => {
@@ -370,7 +378,20 @@ export function useVideoRailBinding({
         hidden
         onChange={(event) => {
           const file = event.target.files?.[0]
-          if (file) runUpload(file, pendingTargetRef.current)
+          if (file) {
+            const target = pendingTargetRef.current
+            const group =
+              target === 'auto-reference'
+                ? file.type.startsWith('image/')
+                  ? VIDEO_RAIL_GROUP_IDS.image
+                  : file.type.startsWith('video/')
+                    ? VIDEO_RAIL_GROUP_IDS.video
+                    : file.type.startsWith('audio/')
+                      ? VIDEO_RAIL_GROUP_IDS.voice
+                      : null
+                : target
+            if (group || target !== 'auto-reference') runUpload(file, group)
+          }
           pendingTargetRef.current = null
           event.target.value = ''
         }}
@@ -411,6 +432,7 @@ export function useVideoRailBinding({
     candidatesOf,
     runUpload,
     openFilePicker,
+    openReferenceFilePicker,
     openLibrary,
     selfUploading,
     uploadProgress: upload.progress,

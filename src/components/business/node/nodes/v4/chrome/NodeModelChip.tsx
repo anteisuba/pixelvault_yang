@@ -8,7 +8,6 @@
  * 图片 / 音频卡与 S12 的手机底部抽屉共用**这一份**，⛔ 不在每个形态里再抄一遍
  * 那段 `onChange`。
  *
- * ⚠ 清单为空 = 整颗 chip 不渲染（Hard Rule 8 的组级不可用：不做禁用占位）。
  */
 
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
@@ -43,7 +42,6 @@ export function NodeModelChip({
   const canvas = useNodeV4Canvas()
   const openKeySettings = useKeySettingsAction()
   const modelOptions = canvas.modelOptionsByKind[kind] ?? []
-  if (modelOptions.length === 0) return null
 
   return (
     <ModelPickerPopover
@@ -52,6 +50,8 @@ export function NodeModelChip({
       memoryScope={kind}
       // 每张卡各管各的「未选渠道」——按 scope 共用一份会让一张卡挡住整块画布。
       gateId={nodeId}
+      canvasNodeId={nodeId}
+      canvasSidebarOpen={canvas.sidebarOpen}
       {...(groupBy ? { groupBy } : {})}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
       {...(triggerEmptyLabel ? { triggerEmptyLabel } : {})}

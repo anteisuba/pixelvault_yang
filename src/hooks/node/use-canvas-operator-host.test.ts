@@ -26,7 +26,7 @@ import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import {
   STUDIO_OPERATOR_FACE_PILLS,
   STUDIO_OPERATOR_FACE_PILL_LIMIT,
-  STUDIO_OPERATOR_SHELL,
+  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
 } from '@/constants/studio-assistant-operator'
 import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
 import {
@@ -69,11 +69,7 @@ describe('useCanvasOperatorHost', () => {
     expect(result.current.domain).toBe(ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas)
   })
 
-  /**
-   * 画布有顶栏，所以它的两个锚点与另外三处不同（D7b ④）：头像排在顶栏那一行
-   * （与「剪辑台」胶囊同高），面板顶边 = 顶栏底 + 6 —— ⛔ 不再压顶栏。
-   */
-  it('给出画布自己的锚点：面板顶边 = 顶栏底 + 6，头像排在顶栏行', () => {
+  it('画布沿用布局 A 面板锚点，头像仍贴右上 16px', () => {
     const { result } = renderHook(() =>
       useCanvasOperatorHost({
         nodes: [],
@@ -91,19 +87,14 @@ describe('useCanvasOperatorHost', () => {
       }),
     )
     expect(result.current.anchor).toEqual({
-      avatarTopPx:
-        CANVAS_SHELL_LAYOUT.edgeInsetPx +
-        (CANVAS_SHELL_LAYOUT.pillHeightPx -
-          STUDIO_OPERATOR_SHELL.avatarSizePx) /
-          2,
+      ...STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+      avatarTopPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
       avatarRightPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
-      panelTopPx:
-        CANVAS_SHELL_LAYOUT.edgeInsetPx +
-        CANVAS_SHELL_LAYOUT.pillHeightPx +
-        CANVAS_SHELL_LAYOUT.assistantPanelGapPx,
-      panelRightPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
     })
-    expect(CANVAS_SHELL_LAYOUT.assistantPanelGapPx).toBe(6)
+    expect(result.current.anchor?.panelTopPx).toBe(66)
+    expect(result.current.anchor?.panelRightPx).toBe(18)
+    expect(result.current.anchor?.panelBottomPx).toBe(18)
+    expect(result.current.anchor?.avatarStays).toBe(true)
   })
 })
 

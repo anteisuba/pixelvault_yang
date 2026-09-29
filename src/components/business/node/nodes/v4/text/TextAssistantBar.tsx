@@ -33,6 +33,7 @@ import {
 export interface TextAssistantBarProps {
   readonly nodeId: string
   readonly className?: string
+  readonly variant?: 'card' | 'document'
 }
 
 function useWritingModel(): string | null {
@@ -43,7 +44,11 @@ function useWritingModel(): string | null {
   )
 }
 
-export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
+export function TextAssistantBar({
+  nodeId,
+  className,
+  variant = 'card',
+}: TextAssistantBarProps) {
   const t = useTranslations('StudioNode.v4.text')
   const tPicker = useTranslations('ModelPicker')
   // 写作模型也可能有多条渠道 —— 没选就发不出去（D2 Q1）。这一栏只挂一个选择器，
@@ -56,6 +61,7 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
   // 外壳没挂（测试 / `dev/ui-states`）时是 `null` —— 那一行就不渲染，⛔ 不抛。
   const openKeySettings = useKeySettingsAction()
   const options = allRoutes.map(routeToStudioOption)
+  const documentBar = variant === 'document'
 
   const actionChips = TEXT_ASSIST_ACTIONS.map((id) => (
     <button
@@ -66,12 +72,17 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       aria-pressed={action === id}
       onClick={() => setAction((current) => (current === id ? null : id))}
       className={cn(
-        'nodrag nopan inline-flex min-h-6 shrink-0 items-center rounded-md border px-2 py-0.5 text-2xs',
+        'nodrag nopan inline-flex shrink-0 items-center',
+        documentBar
+          ? 'h-7 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover'
+          : 'min-h-6 rounded-md border px-2 py-0.5 text-2xs',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-        action === id
-          ? 'border-foreground text-foreground'
-          : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground',
+        documentBar
+          ? action === id && 'bg-surface-fill-track'
+          : action === id
+            ? 'border-foreground text-foreground'
+            : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground',
       )}
     >
       {t(`assist.${id}`)}
@@ -87,7 +98,10 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       memoryScope="llm_assist"
       side="top"
       triggerEmptyLabel={t('assist.model')}
-      className="shrink-0"
+      className={cn(
+        'shrink-0',
+        documentBar && 'border-0 bg-surface-fill hover:bg-surface-fill-hover',
+      )}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
     />
   )
@@ -114,6 +128,7 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       // ——⛔ 宁可少切一个 chip，也不要把半句话吞成名字（`parse-mentions` 头注）。
       renderValue={(text) => renderPromptMentions(text)}
       chips={[...actionChips, modelChip]}
+      compact={documentBar}
       {...(channelGate.blocked
         ? {
             blockedLabel: tPicker('pickChannel'),

@@ -30,6 +30,7 @@ export interface SpecDurationFieldProps {
   /** 秒 × 每秒单价；缺价时为 null，那时段标题右侧什么都不写。 */
   readonly totalPrice: number | null
   readonly disabled?: boolean
+  readonly compact?: boolean
   onChange(seconds: number): void
 }
 
@@ -41,6 +42,7 @@ export function SpecDurationField({
   seconds,
   totalPrice,
   disabled = false,
+  compact = false,
   onChange,
 }: SpecDurationFieldProps) {
   const t = useTranslations('StudioSpecChip')
@@ -50,8 +52,20 @@ export function SpecDurationField({
 
   const current = seconds ?? min
   const header = (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-2xs font-medium text-muted-foreground/70">
+    <div
+      className={cn(
+        'flex items-baseline justify-between gap-2',
+        compact && 'mx-0.5 mt-0.5 mb-2',
+      )}
+    >
+      <span
+        className={cn(
+          compact
+            ? 'text-2xs font-normal text-muted-foreground'
+            : 'text-2xs font-medium text-muted-foreground/70',
+        )}
+        style={compact ? { letterSpacing: '0.02em' } : undefined}
+      >
         {t('durationLabel')}
       </span>
       {totalPrice === null ? null : (
@@ -67,9 +81,16 @@ export function SpecDurationField({
 
   if (durations.length <= SPEC_DURATION_SLIDER_THRESHOLD) {
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-1.5')}>
         {header}
-        <div className="flex flex-wrap gap-1.5">
+        <div
+          className={cn(
+            'flex flex-wrap',
+            compact
+              ? 'mb-3 gap-0.5 rounded-lg bg-surface-fill p-0.75'
+              : 'gap-1.5',
+          )}
+        >
           {durations.map((value) => (
             <button
               key={value}
@@ -82,11 +103,27 @@ export function SpecDurationField({
                 onChange(value)
               }}
               className={cn(
-                buttonBaseClass,
-                current === value
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border bg-background text-foreground hover:border-foreground/40',
+                compact
+                  ? 'inline-flex h-7 min-w-0 flex-1 items-center justify-center px-1 text-xs transition-colors duration-fast ease-standard'
+                  : buttonBaseClass,
+                compact
+                  ? current === value
+                    ? 'bg-popover font-medium text-foreground'
+                    : 'text-muted-foreground hover:bg-surface-fill-hover'
+                  : current === value
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-background text-foreground hover:border-foreground/40',
               )}
+              style={
+                compact
+                  ? {
+                      borderRadius: 'calc(var(--radius-node-bar) / 2)',
+                      ...(current === value
+                        ? { boxShadow: '0 1px 2px rgb(0 0 0 / 0.08)' }
+                        : {}),
+                    }
+                  : undefined
+              }
             >
               {t('durationSeconds', { seconds: value })}
             </button>
@@ -99,7 +136,7 @@ export function SpecDurationField({
   const progress = max === min ? 0 : ((current - min) / (max - min)) * 100
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-1.5')}>
       {header}
       {/* 几何按 owner 2026-09-18 手改的那一版：轨道 12px / 圆角 2px 级 / border 灰底；
           已选填充 8px、上下各内嵌 2px、黑色；拇指 11px 白圆 + 1px 描边 + float 阴影，

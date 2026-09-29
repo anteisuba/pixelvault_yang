@@ -29,6 +29,7 @@ export interface TextCardBodyProps {
   readonly editAriaLabel: string
   /** 正文为空时那句提示。 */
   readonly emptyLabel: string
+  readonly emptyAssistLabel: string
   /** 当前高（已经含拖拽中的临时值）。 */
   readonly height: number
   /** 拖拽中每一帧的高（调用方拿去当卡面高，让卡跟着手走）。 */
@@ -50,6 +51,7 @@ export function TextCardBody({
   onSave,
   editAriaLabel,
   emptyLabel,
+  emptyAssistLabel,
   height,
   onHeightPreview,
   onHeightCommit,
@@ -64,6 +66,7 @@ export function TextCardBody({
   const [dragging, setDragging] = useState(false)
   const [editing, setEditing] = useState(false)
   const text = body.trim()
+  const empty = text.length === 0 && !editing
 
   const readScale = (): number => {
     const el = boxRef.current
@@ -81,7 +84,12 @@ export function TextCardBody({
           setEditing(true)
         }}
         // `nowheel` = 卡内滚动时画布不跟着缩放（ReactFlow 的约定类）。
-        className="nodrag nowheel h-full overflow-y-auto px-5 py-4.5"
+        className={cn(
+          'nodrag nowheel h-full overflow-y-auto',
+          empty
+            ? 'flex flex-col items-center justify-center gap-2.5 text-center'
+            : 'px-5 py-4.5',
+        )}
       >
         {editing ? (
           <TextCardEditor
@@ -92,10 +100,13 @@ export function TextCardBody({
               setEditing(false)
             }}
           />
-        ) : text.length === 0 ? (
-          <p className="text-md leading-relaxed tracking-node-body text-muted-foreground">
-            {emptyLabel}
-          </p>
+        ) : empty ? (
+          <div data-text-empty className="flex flex-col items-center gap-2.5">
+            <span className="text-2sm text-muted-foreground">{emptyLabel}</span>
+            <span className="text-xs text-muted-foreground/75">
+              {emptyAssistLabel}
+            </span>
+          </div>
         ) : (
           /* ⚠ 卡面也**渲染** Markdown（owner 2026-09-12）：正文里存的是 `#` 与
              `**`，原样摊在卡上就是一堆记号 —— 与全屏文档同一套字号（`data-text-rich`），
@@ -109,61 +120,65 @@ export function TextCardBody({
         )}
       </div>
       {/* 底部 40px 渐隐：从卡色渐到透明，⛔ 不挡滚动（`pointer-events-none`）。 */}
-      <div
-        aria-hidden
-        data-text-fade
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
-      />
-      <button
-        type="button"
-        aria-label={resizeAriaLabel}
-        data-text-resize
-        data-dragging={dragging ? 'true' : undefined}
-        className={cn(
-          'nodrag nopan absolute right-1.5 bottom-1.5 size-2.5 cursor-ns-resize',
-          'border-r-2 border-b-2 border-border',
-          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-        )}
-        onDoubleClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          // ⚠ jsdom 没有指针捕获 —— 判一下再调，⛔ 不让单测因为环境缺一个 API 挂掉。
-          event.currentTarget.setPointerCapture?.(event.pointerId)
-          dragRef.current = {
-            pointerY: event.clientY,
-            height,
-            scale: readScale(),
-          }
-          setDragging(true)
-        }}
-        onPointerMove={(event) => {
-          const drag = dragRef.current
-          if (!drag) return
-          onHeightPreview(
-            clampHeight(
+      {!empty ? (
+        <div
+          aria-hidden
+          data-text-fade
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
+        />
+      ) : null}
+      {!empty ? (
+        <button
+          type="button"
+          aria-label={resizeAriaLabel}
+          data-text-resize
+          data-dragging={dragging ? 'true' : undefined}
+          className={cn(
+            'nodrag nopan absolute right-1.5 bottom-1.5 size-2.5 cursor-ns-resize',
+            'border-r-2 border-b-2 border-border',
+            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          )}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            // ⚠ jsdom 没有指针捕获 —— 判一下再调，⛔ 不让单测因为环境缺一个 API 挂掉。
+            event.currentTarget.setPointerCapture?.(event.pointerId)
+            dragRef.current = {
+              pointerY: event.clientY,
+              height,
+              scale: readScale(),
+            }
+            setDragging(true)
+          }}
+          onPointerMove={(event) => {
+            const drag = dragRef.current
+            if (!drag) return
+            onHeightPreview(
+              clampHeight(
+                drag.height + (event.clientY - drag.pointerY) / drag.scale,
+              ),
+            )
+          }}
+          onPointerUp={(event) => {
+            const drag = dragRef.current
+            if (!drag) return
+            dragRef.current = null
+            setDragging(false)
+            const next = clampHeight(
               drag.height + (event.clientY - drag.pointerY) / drag.scale,
-            ),
-          )
-        }}
-        onPointerUp={(event) => {
-          const drag = dragRef.current
-          if (!drag) return
-          dragRef.current = null
-          setDragging(false)
-          const next = clampHeight(
-            drag.height + (event.clientY - drag.pointerY) / drag.scale,
-          )
-          if (next !== drag.height) onHeightCommit(next)
-        }}
-        onPointerCancel={() => {
-          const drag = dragRef.current
-          if (!drag) return
-          dragRef.current = null
-          setDragging(false)
-          onHeightPreview(drag.height)
-        }}
-      />
+            )
+            if (next !== drag.height) onHeightCommit(next)
+          }}
+          onPointerCancel={() => {
+            const drag = dragRef.current
+            if (!drag) return
+            dragRef.current = null
+            setDragging(false)
+            onHeightPreview(drag.height)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

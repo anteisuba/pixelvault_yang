@@ -18,7 +18,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
-import { Check } from '@/components/icons'
+import { Check, ChevronDown } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -229,7 +229,7 @@ export function AudioVoiceChip({
             // 与画布里另外几颗 chip 同一档（28 高、12 字、按下 0.96）。
             // `relative overflow-hidden`：换名时旧名退场脱开排版（popLayout），按这颗
             // chip 定位，比新名长的那截不伸出 chip 外。
-            'nodrag nopan relative inline-flex h-7 overflow-hidden shrink-0 items-center gap-1.5 rounded-md border pr-2.5 text-xs',
+            'nodrag nopan relative inline-flex h-7 overflow-hidden shrink-0 items-center gap-1.5 rounded-full border pr-2.5 text-xs',
             cover ? 'pl-1.5' : 'pl-2.5',
             'transition-[border-color,color,transform] duration-fast ease-standard active:scale-96',
             'hover:border-foreground/40 hover:text-foreground',
@@ -265,6 +265,14 @@ export function AudioVoiceChip({
               {label}
             </motion.span>
           </AnimatePresence>
+          <motion.span
+            aria-hidden
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={motionTransition('base', reduce)}
+            className="inline-flex shrink-0 text-muted-foreground"
+          >
+            <ChevronDown className="size-3" />
+          </motion.span>
         </button>
       }
     >

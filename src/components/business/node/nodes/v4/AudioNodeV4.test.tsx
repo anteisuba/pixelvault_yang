@@ -128,6 +128,7 @@ vi.mock('../../../studio-shared/pickers/ModelPickerPopover', () => ({
       data-model-chip
       data-group-by={String(props.groupBy)}
       data-count={(props.options as unknown[]).length}
+      data-value={String(props.value)}
     />
   ),
 }))
@@ -162,6 +163,7 @@ vi.mock('./chrome/node-card-flash', async (importOriginal) => ({
 }))
 
 import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { rememberVoiceCovers } from '@/hooks/use-voice-cover'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { VOICE_MARKUP_INTENSITY_IDS } from '@/lib/voice-markup'
@@ -177,9 +179,12 @@ import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
+import { AudioWaveform } from './audio/AudioWaveform'
 import {
   AUDIO_CARD,
+  audioWaveformBarCount,
   buildAudioWaveformBars,
+  formatAudioCardDuration,
   resolveAudioNodeKind,
   showsVoiceChip,
 } from './audio/audio-node-model'
@@ -229,6 +234,7 @@ function audioNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
 function modelOption(
   optionId: string,
   modelId: string,
+  overrides: Partial<NodeWorkflowModelOption> = {},
 ): NodeWorkflowModelOption {
   return {
     optionId,
@@ -237,6 +243,7 @@ function modelOption(
     providerConfig: {},
     requestCount: 0,
     sourceType: 'workspace',
+    ...overrides,
   } as unknown as NodeWorkflowModelOption
 }
 
@@ -289,7 +296,7 @@ function renderAudio(
 }
 
 describe('空卡 / 有声两态', () => {
-  it('空卡是 72 高的虚线矮卡 + 一句「上传 · 选一段现成的 · 或写台词生成」', () => {
+  it('空卡是 72 高的虚线矮卡 + 横排上传、声音库与下一步', () => {
     renderAudio(harness([audioNode('a_1')]))
     const card = document.querySelector('[data-node-chrome="card"]')!
     expect(card.getAttribute('data-empty')).toBe('true')
@@ -297,7 +304,42 @@ describe('空卡 / 有声两态', () => {
       '[data-node-card-surface]',
     ) as HTMLElement
     expect(surface.style.height).toBe(`${AUDIO_CARD.height}px`)
-    expect(screen.getByText('emptyHint')).toBeInTheDocument()
+    expect(surface).toHaveClass('border-dashed', 'bg-transparent')
+    expect(screen.getByText('emptyNextStep')).toHaveClass(
+      'text-muted-foreground/75',
+    )
+    expect(
+      screen.getByRole('button', { name: 'chrome.emptyUpload' }),
+    ).toHaveClass('h-7', 'px-2.75')
+    expect(
+      screen.getByRole('button', { name: 'emptyVoiceLibrary' }),
+    ).toHaveClass('h-7', 'px-2.75')
+  })
+
+  it('选中空卡只有提示词栏；声音库字键打开现有面板', () => {
+    renderAudio(
+      harness([audioNode('a_1')], { selectedNodeIds: ['a_1'] }),
+      'a_1',
+      true,
+    )
+    expect(screen.queryByTestId('flow-toolbar-top')).toBeNull()
+    expect(screen.getByTestId('flow-toolbar-bottom')).toBeInTheDocument()
+    expect(document.querySelector('textarea')).toHaveAttribute(
+      'placeholder',
+      'promptPlaceholder',
+    )
+    fireEvent.click(document.querySelector('[data-node-empty-library]')!)
+    expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
+  })
+
+  it('文件拖进空卡时虚线变实线、填充加深', () => {
+    renderAudio(harness([audioNode('a_1')]))
+    const root = document.querySelector('[data-node-kind="audio"]')!
+    const surface = document.querySelector('[data-node-card-surface]')!
+    fireEvent.dragEnter(root, { dataTransfer: { types: ['Files'] } })
+    expect(surface).toHaveClass('border-solid', 'bg-surface-fill-hover')
+    fireEvent.dragLeave(root)
+    expect(surface).toHaveClass('border-dashed', 'bg-transparent')
   })
 
   it('有声矮卡 = 波形 + 右侧时长 + 播放钮，卡高仍是 72', () => {
@@ -309,10 +351,13 @@ describe('空卡 / 有声两态', () => {
     const surface = document.querySelector(
       '[data-audio-surface="ready"]',
     ) as HTMLElement
-    // 内容层比卡高矮 2px：卡的 hairline 边叠在外面（见 `AUDIO_CARD.contentHeight`）。
-    expect(surface.style.height).toBe(`${AUDIO_CARD.contentHeight}px`)
+    expect(AUDIO_CARD.height).toBe(72)
+    expect(surface.style.height).toBe('72px')
     expect(surface.querySelector('[data-audio-waveform]')).not.toBeNull()
-    expect(screen.getByText('7s')).toBeInTheDocument()
+    expect(screen.getByText('0:07')).toBeInTheDocument()
+    expect(surface.querySelector('[data-audio-duration]')?.className).toContain(
+      'w-9.5',
+    )
     expect(document.querySelector('[data-audio-play]')).not.toBeNull()
   })
 
@@ -329,6 +374,32 @@ describe('空卡 / 有声两态', () => {
       buildAudioWaveformBars('https://cdn.test/v.mp3'),
     )
     expect(buildAudioWaveformBars('a')).not.toEqual(buildAudioWaveformBars('b'))
+  })
+
+  it('波形柱按可用宽度排满，时长使用固定宽度读数', () => {
+    expect(audioWaveformBarCount(192)).toBe(38)
+    expect(audioWaveformBarCount(193)).toBe(39)
+    expect(audioWaveformBarCount(0)).toBe(0)
+    expect(formatAudioCardDuration(72)).toBe('1:12')
+  })
+
+  it('30% 画布缩放的首帧按布局宽出柱，不使用已缩放的视觉宽', () => {
+    const layoutWidth = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(192)
+    const visualRect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 57.6 } as DOMRect)
+    try {
+      const { container } = render(<AudioWaveform seed="clip" fitWidth />)
+      expect(container.querySelector('[data-audio-waveform]')).toHaveAttribute(
+        'data-bar-count',
+        '38',
+      )
+    } finally {
+      layoutWidth.mockRestore()
+      visualRect.mockRestore()
+    }
   })
 })
 
@@ -559,6 +630,52 @@ describe('选中态：工具条与提示词栏', () => {
     const chip = document.querySelector('[data-model-chip]')!
     expect(chip).not.toBeNull()
     expect(chip.getAttribute('data-group-by')).toBe('kind')
+  })
+
+  it('未选模型时显示首个可用型号，生成提交也使用同一型号', () => {
+    generateNode.mockClear()
+    const locked = modelOption('opt_locked', AI_MODELS.FISH_AUDIO_S2_PRO)
+    const runnable = modelOption('opt_music', AI_MODELS.ELEVENLABS_MUSIC_V2, {
+      adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+      sourceType: 'saved',
+      apiKeyId: 'key_music',
+    })
+    const context = harness(
+      [audioNode('a_1', { url: 'https://cdn.test/v.mp3' })],
+      {
+        selectedNodeIds: ['a_1'],
+        modelOptionsByKind: { audio: [locked, runnable] },
+      },
+    )
+    renderAudio(context, 'a_1', true)
+    expect(document.querySelector('[data-model-chip]')).toHaveAttribute(
+      'data-value',
+      'opt_music',
+    )
+    expect(document.querySelector('[data-audio-voice-chip]')).toBeNull()
+    const input = document.querySelector('[data-prompt-bar-input]')!
+    expect(input).toHaveAttribute('placeholder', 'promptPlaceholderMusic')
+    fireEvent.change(input, { target: { value: '柔和的旋律' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    const selection = {
+      optionId: runnable.optionId,
+      modelId: runnable.modelId,
+      adapterType: runnable.adapterType,
+      providerConfig: runnable.providerConfig,
+      apiKeyId: runnable.apiKeyId,
+    }
+    expect(context.onSetModel).toHaveBeenCalledWith('a_1', selection)
+    expect(generateNode).toHaveBeenCalledWith(
+      'a_1',
+      expect.objectContaining({
+        nodes: [
+          expect.objectContaining({
+            data: expect.objectContaining({ model: selection }),
+          }),
+        ],
+      }),
+      expect.objectContaining({ prompt: '柔和的旋律' }),
+    )
   })
 
   it('选了配乐模型：音色 chip 消失、占位文案换成描述', () => {
@@ -1013,6 +1130,11 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
         op: NODE_ASSISTANT_OP_V4_IDS.setField,
         field: 'name',
         value: '西格莉卡 · 语音 1',
+      }),
+      expect.objectContaining({
+        op: NODE_ASSISTANT_OP_V4_IDS.setField,
+        field: 'nameEdited',
+        value: false,
       }),
     ])
   })

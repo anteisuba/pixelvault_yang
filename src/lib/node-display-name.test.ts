@@ -16,6 +16,7 @@ import {
   deriveShotLabel,
   formatShotDisplayName,
   buildDisplayNamePatch,
+  nameFromGeneratedPrompt,
   buildStableNodeName,
   NODE_MENTION_REJECT_REASON_IDS,
   NODE_RENAME_REJECT_REASON_IDS,
@@ -54,6 +55,98 @@ describe('stripFileExtension', () => {
 
   it('全是扩展名时返回空串，让调用方落自己的兜底文案', () => {
     expect(stripFileExtension('.png')).toBe('')
+  })
+})
+
+describe('nameFromGeneratedPrompt', () => {
+  const image = {
+    kind: 'image' as const,
+    subtype: 'result' as const,
+    name: '生成图2',
+  }
+
+  it('生成完成用去掉 @ 与换行后的前 12 个字起名', () => {
+    expect(
+      nameFromGeneratedPrompt(
+        image,
+        '@雨夜天台 · 远景\n她回头看楼梯口，雨夜天台，镜头拉近',
+        { mentionNames: ['雨夜天台 · 远景'], taken: new Set() },
+      ),
+    ).toBe('她回头看楼梯口，雨夜天台')
+    expect(
+      nameFromGeneratedPrompt(image, '夜\n雨', {
+        mentionNames: [],
+        taken: new Set(),
+      }),
+    ).toBe('夜雨')
+  })
+
+  it('改过的名字、重名、空提示词都保留原名', () => {
+    const options = { mentionNames: [], taken: new Set(['雨夜天台']) }
+    expect(
+      nameFromGeneratedPrompt(
+        { ...image, name: '自己起的名字' },
+        '雨夜天台',
+        options,
+      ),
+    ).toBeUndefined()
+    expect(nameFromGeneratedPrompt(image, '雨夜天台', options)).toBeUndefined()
+    expect(nameFromGeneratedPrompt(image, '@图1\n', options)).toBeUndefined()
+    expect(
+      nameFromGeneratedPrompt(
+        { ...image, name: '生成图3', nameEdited: true },
+        '新的生成提示词',
+        { mentionNames: [], taken: new Set() },
+      ),
+    ).toBeUndefined()
+  })
+
+  it('旧音频数字机器名可按提示词起名，音色名优先保留', () => {
+    const options = { mentionNames: [], taken: new Set<string>() }
+    expect(
+      nameFromGeneratedPrompt(
+        { kind: 'audio', subtype: 'voice', name: '音频_554' },
+        '雨夜里的旁白',
+        options,
+      ),
+    ).toBe('雨夜里的旁白')
+    expect(
+      nameFromGeneratedPrompt(
+        { kind: 'audio', subtype: 'voice', name: '秧秧 · 语音 2' },
+        '雨夜里的旁白',
+        options,
+      ),
+    ).toBeUndefined()
+    expect(
+      nameFromGeneratedPrompt(
+        {
+          kind: 'audio',
+          subtype: 'voice',
+          name: '音频_554',
+          voiceProfile: { voiceName: '秧秧' },
+        },
+        '雨夜里的旁白',
+        options,
+      ),
+    ).toBeUndefined()
+  })
+
+  it('镜头机器名可换，已有的镜头标签保留', () => {
+    const options = { mentionNames: [], taken: new Set<string>() }
+    expect(
+      nameFromGeneratedPrompt(
+        { kind: 'video', subtype: 'shot', name: '镜头', label: '镜头' },
+        '雨夜里她看见灯亮起',
+        options,
+      ),
+    ).toBe('雨夜里她看见灯亮起')
+    expect(
+      nameFromGeneratedPrompt(
+        { kind: 'video', subtype: 'shot', name: '雨夜', label: '雨夜' },
+        '另一段提示词',
+        options,
+      ),
+    ).toBeUndefined()
   })
 })
 

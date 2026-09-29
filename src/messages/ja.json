@@ -5511,6 +5511,10 @@
       "audioDuration": "{seconds} 秒",
       "audioEmpty": "音声なし",
       "audioOwner": "声：{name}",
+      "addCanvasTitle": "キャンバス上",
+      "addCanvasHint": "クリックして追加",
+      "addCanvasEmpty": "追加できる素材はありません",
+      "addCanvasAttach": "{name} を追加",
       "legacyMigrated": "旧ノードは移行済み",
       "tidy": "整列",
       "slots": {
@@ -5733,6 +5737,8 @@
         "versions": "バージョン",
         "versionOf": "{total} 件中 {index} 件目",
         "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力",
+        "emptyUpload": "アップロード",
+        "emptyLibrary": "素材ライブラリ",
         "mentionPicker": "メンション候補",
         "mediaMissing": {
           "gone": {
@@ -5752,6 +5758,8 @@
       },
       "text": {
         "empty": "続きを書く……",
+        "emptyStart": "ダブルクリックして書く",
+        "emptyAssist": "またはアシスタントに書いてもらう",
         "editAriaLabel": "本文を編集",
         "roles": {
           "script": "脚本",
@@ -5835,8 +5843,8 @@
           "background": "背景差し替え"
         },
         "add": {
-          "upload": "アップロード",
-          "library": "素材ライブラリから",
+          "upload": "ファイルをアップロード",
+          "library": "素材ライブラリから選ぶ…",
           "canvas": "キャンバス上の画像",
           "canvasEmpty": "追加できる画像はまだありません"
         },
@@ -5864,6 +5872,8 @@
         },
         "frame": {
           "title": "画面",
+          "referenceLabel": "参照",
+          "dropOrPaste": "ここにドロップ、または ⌘V",
           "aspectRatio": "比率",
           "quality": "品質",
           "resolution": "解像度",
@@ -5907,12 +5917,15 @@
           "connect": "ショットに接続"
         },
         "add": {
-          "upload": "音声をアップロード",
+          "upload": "ファイルをアップロード",
           "library": "素材ライブラリから選ぶ…",
           "voiceLibrary": "ボイスライブラリ…",
+          "referenceUnavailable": "参考音声には正確な書き起こしが必要なため、キャンバスの音声はまだ追加できません",
           "uploadShortcut": "⌘U"
         },
         "emptyHint": "アップロード · 既存から選ぶ · またはセリフを書いて生成",
+        "emptyVoiceLibrary": "ボイスライブラリ",
+        "emptyNextStep": "またはセリフを書いて生成",
         "promptPlaceholder": "セリフを書く、または音声をアップロード…",
         "promptPlaceholderMusic": "作りたい音楽を説明…",
         "promptPlaceholderSfx": "この効果音を説明…",
@@ -6025,6 +6038,8 @@
         }
       },
       "video": {
+        "emptyHint": "動画をアップロード · またはこのカットの撮り方を書く",
+        "emptyPromptPlaceholder": "このカットの撮り方を書く…",
         "toolbar": {
           "label": "動画の操作",
           "continue": "続きを撮る",
@@ -6034,9 +6049,9 @@
           "expand": "展開"
         },
         "add": {
-          "upload": "動画 / 画像をアップロード",
+          "upload": "ファイルをアップロード",
           "uploadForSlot": "アップロード…",
-          "library": "素材ライブラリから"
+          "library": "素材ライブラリから選ぶ…"
         },
         "more": {
           "rename": "名前を変更",
@@ -6060,6 +6075,9 @@
           "regenerateShortcut": "⌘↵",
           "generate": "生成",
           "askAssistant": "アシスタントに書かせる",
+          "referenceLabel": "参照",
+          "referenceHint": "ここにドロップ、または ⌘V",
+          "referenceAdd": "参照を追加",
           "upload": "アップロード",
           "library": "素材",
           "emptyNote": "このカットの撮り方を書く…",
@@ -6083,6 +6101,11 @@
         },
         "rail": {
           "title": "参照 · ドロップまたは ⌘V",
+          "badge": {
+            "image": "画{index}",
+            "video": "動{index}",
+            "voice": "音{index}"
+          },
           "group": {
             "image": "画像",
             "video": "動画",
@@ -8345,6 +8368,9 @@
     "channelUnset": "—",
     "pickChannel": "ルートを選択",
     "missingKey": "キーが必要",
+    "missingKeyConfigure": "キーが必要 · クリックして設定",
+    "channelsCount": "{count} チャネル",
+    "usageBilled": "使用量に応じて課金",
     "channelPanelLabel": "{model} のルート",
     "manageChannels": "チャネルとキーを設定…",
     "kinds": {

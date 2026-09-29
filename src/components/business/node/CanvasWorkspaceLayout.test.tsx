@@ -38,6 +38,7 @@ describe('CanvasWorkspaceLayout', () => {
     // 上面 parentElement 断言），StudioNodeAssistantDock.tsx 才读得到
     // --canvas-*；workspace 自己仍然不挂，作用域粒度不下放到共同祖先。
     expect(stage).toHaveClass('domain-canvas')
+    expect(stage).toHaveClass('bg-surface-workbench', 'rounded-tl-node-bar')
     expect(rail).toHaveClass('domain-canvas')
     expect(workspace).not.toHaveClass('domain-canvas')
   })

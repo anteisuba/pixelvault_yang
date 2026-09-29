@@ -3,7 +3,7 @@
 /**
  * 选中态卡下那一排**版本小点**（spec §1.8，画板 `ImageSelected.dc.html`）。
  *
- * 当前版拉长成一颗胶囊，其余是 6px 圆点；点击或 ←→ 切换。⛔ 不显示序号数字
+ * 每版都是 6px 圆点；点击或 ←→ 切换。⛔ 不显示序号数字
  * ——读数（`2 / 3 · 1792×1024`）是快速看那一层的事。
  *
  * 整排是一个 `radiogroup`：一排看不出语义的点，屏幕阅读器只能靠角色与 `aria-label`
@@ -53,7 +53,10 @@ export function VersionDots({
           step(1)
         }
       }}
-      className={cn('nodrag nopan flex items-center gap-1.25', className)}
+      className={cn(
+        'nodrag nopan flex h-2.5 items-center justify-center',
+        className,
+      )}
     >
       {Array.from({ length: count }, (_, index) => {
         const active = index === current
@@ -68,19 +71,15 @@ export function VersionDots({
             tabIndex={active ? 0 : -1}
             onClick={() => onSelect(index)}
             className={cn(
-              // 命中区靠上下 padding 撑到 AA 底线，视觉仍是 6px 的点。
-              'flex h-6 items-center px-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              // 12px 按键相邻，中央各 6px 圆点的可见间距正好 6px；高度保持 24px 命中区。
+              'flex h-6 w-3 shrink-0 items-center justify-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             )}
           >
             <span
               aria-hidden
               className={cn(
-                'block h-1.5 rounded-full transition-[width,background-color] duration-spring-slot ease-spring-slot',
-                // ⚠ 对比度（`contrast-check`，2026-09-10）：小点是**信息性图形**
-                // （「一共几版」只有它在说），门槛 3:1。`foreground/25` 只有
-                // 1.78（卡面）/ 1.77（画布底），⛔ 不要改回去；`/45` = 3.15 / 3.10。
-                // 当前那颗是实心 `foreground` = 19.80。
-                active ? 'w-4.5 bg-foreground' : 'w-1.5 bg-foreground/45',
+                'block size-1.5 rounded-full',
+                active ? 'bg-foreground' : 'bg-surface-fill-track',
               )}
             />
           </button>

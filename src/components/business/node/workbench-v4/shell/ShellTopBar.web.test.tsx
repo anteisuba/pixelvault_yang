@@ -1,9 +1,10 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
 
 import { ShellTopBar } from './ShellTopBar'
 
@@ -42,21 +43,35 @@ function renderTopBar() {
 }
 
 describe('ShellTopBar', () => {
+  beforeEach(() => studioOperatorYield.jump(0))
+
   it('① 「助手」胶囊已退场，右上只剩「剪辑台」', () => {
     renderTopBar()
     expect(screen.queryByTestId('shell-assistant-toggle')).toBeNull()
     expect(screen.getByTestId('shell-edit-desk')).toBeTruthy()
   })
 
-  it('② 右上那一格为头像让出 36 + 8', () => {
+  it('② 右上那一格按画布稿给头像和剪辑台留位', () => {
     renderTopBar()
     const row = screen.getByTestId('shell-edit-desk').parentElement
     expect(row?.style.right).toBe(
       `${
         CANVAS_SHELL_LAYOUT.edgeInsetPx +
         STUDIO_OPERATOR_SHELL.avatarSizePx +
-        STUDIO_OPERATOR_SHELL.avatarGapPx
+        STUDIO_OPERATOR_SHELL.avatarGapPx +
+        2
       }px`,
+    )
+  })
+
+  it('③ 剪辑台跟同一根助手让位值移动', async () => {
+    renderTopBar()
+    const row = screen.getByTestId('shell-edit-desk').parentElement
+    act(() => studioOperatorYield.set(470))
+    await waitFor(() =>
+      expect(row?.style.right).toBe(
+        `${470 + CANVAS_SHELL_LAYOUT.edgeInsetPx + STUDIO_OPERATOR_SHELL.avatarSizePx + STUDIO_OPERATOR_SHELL.avatarGapPx + 2}px`,
+      ),
     )
   })
 })

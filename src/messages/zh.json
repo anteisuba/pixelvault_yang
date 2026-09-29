@@ -5511,6 +5511,10 @@
       "audioDuration": "{seconds} 秒",
       "audioEmpty": "无音频",
       "audioOwner": "音色：{name}",
+      "addCanvasTitle": "画布上的",
+      "addCanvasHint": "点一下就挂上",
+      "addCanvasEmpty": "暂无可挂素材",
+      "addCanvasAttach": "挂上 {name}",
       "legacyMigrated": "旧节点已迁移",
       "tidy": "整理",
       "slots": {
@@ -5733,6 +5737,8 @@
         "versions": "版本",
         "versionOf": "第 {index} 版，共 {total} 版",
         "emptyHint": "上传 · 粘贴 · 或写提示词",
+        "emptyUpload": "上传",
+        "emptyLibrary": "素材库",
         "mentionPicker": "引用候选",
         "mediaMissing": {
           "gone": {
@@ -5752,6 +5758,8 @@
       },
       "text": {
         "empty": "继续写……",
+        "emptyStart": "双击开始写",
+        "emptyAssist": "或让助手写一段",
         "editAriaLabel": "编辑正文",
         "roles": {
           "script": "剧本",
@@ -5835,8 +5843,8 @@
           "background": "换背景"
         },
         "add": {
-          "upload": "上传",
-          "library": "从素材库",
+          "upload": "上传文件",
+          "library": "从素材库选…",
           "canvas": "画布上的图",
           "canvasEmpty": "还没有能挂的图"
         },
@@ -5864,6 +5872,8 @@
         },
         "frame": {
           "title": "画面",
+          "referenceLabel": "参考",
+          "dropOrPaste": "拖进来或 ⌘V",
           "aspectRatio": "比例",
           "quality": "质量",
           "resolution": "分辨率",
@@ -5907,12 +5917,15 @@
           "connect": "连到镜头"
         },
         "add": {
-          "upload": "上传音频",
+          "upload": "上传文件",
           "library": "从素材库选…",
           "voiceLibrary": "声音库…",
+          "referenceUnavailable": "参考音频需要准确的逐字稿，当前画布音频暂不能直接挂载",
           "uploadShortcut": "⌘U"
         },
         "emptyHint": "上传 · 选一段现成的 · 或写台词生成",
+        "emptyVoiceLibrary": "声音库",
+        "emptyNextStep": "或写台词生成",
         "promptPlaceholder": "写台词，或上传一段声音……",
         "promptPlaceholderMusic": "描述这段配乐……",
         "promptPlaceholderSfx": "描述这个音效……",
@@ -6025,6 +6038,8 @@
         }
       },
       "video": {
+        "emptyHint": "上传一段 · 或写这个镜头怎么拍",
+        "emptyPromptPlaceholder": "写下这个镜头怎么拍……",
         "toolbar": {
           "label": "视频操作",
           "continue": "续拍",
@@ -6034,9 +6049,9 @@
           "expand": "展开"
         },
         "add": {
-          "upload": "上传视频 / 图",
+          "upload": "上传文件",
           "uploadForSlot": "上传…",
-          "library": "从素材库"
+          "library": "从素材库选…"
         },
         "more": {
           "rename": "改名",
@@ -6060,6 +6075,9 @@
           "regenerateShortcut": "⌘↵",
           "generate": "生成",
           "askAssistant": "让助手写",
+          "referenceLabel": "参考",
+          "referenceHint": "拖进来或 ⌘V",
+          "referenceAdd": "添加参考",
           "upload": "上传",
           "library": "素材库",
           "emptyNote": "写下这个镜头怎么拍……",
@@ -6083,6 +6101,11 @@
         },
         "rail": {
           "title": "参考 · 拖进来或 ⌘V",
+          "badge": {
+            "image": "图{index}",
+            "video": "视{index}",
+            "voice": "语{index}"
+          },
           "group": {
             "image": "图",
             "video": "视频",
@@ -8345,6 +8368,9 @@
     "channelUnset": "—",
     "pickChannel": "先选渠道",
     "missingKey": "缺 key",
+    "missingKeyConfigure": "缺 key · 点了去配置",
+    "channelsCount": "{count} 渠道",
+    "usageBilled": "按用量计费",
     "channelPanelLabel": "{model} 的渠道",
     "manageChannels": "配置渠道与 key…",
     "kinds": {

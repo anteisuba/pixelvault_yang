@@ -3,6 +3,7 @@ import type { NodeImageRole } from '@/constants/node-types'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { DURATION_MS } from '@/constants/motion'
 
 /** Default on-canvas size for role-less pure images (px). NodeResizer grows from here. */
 export const NODE_STUDIO_LOOSE_IMAGE_DEFAULT_SIZE = 320
@@ -39,14 +40,10 @@ export const NODE_STUDIO_CARD_LABEL_LANE = {
 } as const
 
 export const NODE_STUDIO_CANVAS = {
-  // A3（canvas-relationship-v3 §7b）：owner 手动缩到 200% 实测拍板为舒适基准，
-  // 提为默认视图。项目状态目前不持久化 viewport（见 use-node-workflow-store.ts），
-  // 所以这只是 ReactFlow 挂载时的初始值——同一会话内切换项目不会重置视口
-  // （ReactFlow 实例不重挂载），新开页面/新项目都落在这个基准上。
   defaultViewport: {
     x: 0,
     y: 0,
-    zoom: 2,
+    zoom: 1,
   },
   background: {
     // S1（2026-07-26）：44 → 48，对齐画布域皮肤 v0.2 §1（实测参考站
@@ -58,7 +55,7 @@ export const NODE_STUDIO_CANVAS = {
     // 这里只留一个底色解析失败时的兜底值。
     color: '#403a2f',
   },
-  defaultZoomPercent: 200,
+  defaultZoomPercent: 100,
   // A3: 手动缩放边界（滚轮/±按钮），显式收进常量避免依赖库默认值（之前未传
   // minZoom/maxZoom 给 <ReactFlow>，隐式吃 @xyflow/react 的 0.5/2 默认档）。
   // 下限放宽到 30% 方便看全局；上限放到 200% 基准之上留手动继续放大的余量。
@@ -395,7 +392,7 @@ export function resolveAssistantFastModelId(
 
 export const NODE_STUDIO_DOCK = {
   focusZoom: 0.95,
-  focusDurationMs: 420,
+  focusDurationMs: DURATION_MS.slow,
 } as const
 
 /**
@@ -1470,17 +1467,14 @@ export const NODE_V4_CHROME = {
   promptMaxLines: 4,
   /**
    * 画中框宽（spec §5），由调用方传进来。
-   * ⚠ 只剩视频一档：文本卡的展开态自 2026-09-11 起是**全屏文档**（spec §2），
-   * 不再是 640 的画中框。
    */
   frameWidth: {
     video: 720,
   },
   /**
-   * 全屏文档的正文栏宽（spec §2，画板 `TextJimeng.dc.html`）。窄于屏时按屏走
-   * （`max-w-full`）——⛔ 不做横向滚动。
+   * 文档纸的正文与写作栏宽（node-polish-2 §8）。窄于纸时按纸宽走。
    */
-  textDocWidth: 1100,
+  textDocWidth: 680,
   /** @ chip 里的缩略图边长（spec §1.7）。 */
   mentionThumbSize: 16,
   /**

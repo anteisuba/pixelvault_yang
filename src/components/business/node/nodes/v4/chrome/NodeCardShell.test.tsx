@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+const flowZoom = vi.hoisted(() => ({ value: 1 }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
@@ -18,6 +20,9 @@ vi.mock('@xyflow/react', () => ({
   Position: { Left: 'left', Right: 'right' },
   // 卡壳被直接渲染时不在任何节点里 —— 拖线反馈退成静止态。
   useNodeId: () => null,
+  useStore: <T,>(
+    selector: (state: { transform: [number, number, number] }) => T,
+  ) => selector({ transform: [0, 0, flowZoom.value] }),
 }))
 
 import { NodeCardShell } from './NodeCardShell'
@@ -67,12 +72,55 @@ describe('NodeCardShell', () => {
     ).toContain('text-foreground')
   })
 
-  it('选中 = 1.5px 前景色环 + 边透明（⛔ 不是 ring-2）', () => {
+  it('30% 与放大时名字都反向缩放为屏幕 12px，宽度跟卡的屏幕宽度一致', () => {
+    flowZoom.value = 0.3
+    const { container, rerender } = setup()
+    const name = container.querySelector('[data-node-card-name]') as HTMLElement
+    expect(name.style.transform).toBe(`scale(${1 / 0.3})`)
+    expect(name.style.width).toBe('30%')
+    expect(name.className).toContain('text-xs')
+    expect(name.className).toContain('leading-4')
+    expect(name.parentElement?.className).toContain('absolute')
+    expect(container.firstElementChild?.getAttribute('style')).toContain(
+      '/ 0.3)',
+    )
+
+    flowZoom.value = 1
+    rerender(
+      <NodeCardShell
+        name="n"
+        renameAriaLabel="改名"
+        onRename={vi.fn(() => true)}
+      >
+        <p>正文</p>
+      </NodeCardShell>,
+    )
+    expect(name.style.transform).toBe('scale(1)')
+    expect(name.style.width).toBe('100%')
+
+    flowZoom.value = 2
+    rerender(
+      <NodeCardShell
+        name="n"
+        renameAriaLabel="改名"
+        onRename={vi.fn(() => true)}
+      >
+        <p>正文</p>
+      </NodeCardShell>,
+    )
+    expect(name.style.transform).toBe('scale(0.5)')
+    expect(name.style.width).toBe('200%')
+    flowZoom.value = 1
+  })
+
+  it('非空卡无内描边，选中环为屏幕 2px', () => {
     const { container } = setup({ selected: true })
     const surface = container.querySelector('[data-node-card-surface]')
     expect(surface?.className).toContain('node-selected-ring')
-    expect(surface?.className).toContain('border-transparent')
+    expect(surface?.className).not.toContain('border-transparent')
+    expect(surface?.className).not.toContain('border-border')
     expect(surface?.className).not.toContain('ring-2')
+    expect((surface as HTMLElement).style.outlineWidth).toBe('2px')
   })
 
   it('展开只换阴影档并抬 z（让位由引擎算）', () => {
@@ -82,27 +130,50 @@ describe('NodeCardShell', () => {
     ).toContain('shadow-node-card-expanded')
   })
 
-  it('空态 = 虚线框 + 一句提示 + 加号圆钮，⛔ 没有粘贴按钮', () => {
-    const onEmptyAdd = vi.fn()
+  it('空态透明无影，虚线与选中环按屏幕像素反算；拖入变实线和深底', () => {
+    flowZoom.value = 0.3
     const { container } = render(
       <NodeCardShell
         name="镜头图 2"
         renameAriaLabel="改名"
         onRename={vi.fn(() => true)}
-        emptyHint="上传 · 粘贴 · 或写提示词"
-        emptyAddAriaLabel="添加"
-        onEmptyAdd={onEmptyAdd}
+        selected
+        emptyDragging
+        emptyContent={<span>双击开始写</span>}
       />,
     )
     expect(
       container.querySelector('[data-node-chrome="card"]'),
     ).toHaveAttribute('data-empty', 'true')
-    expect(
-      container.querySelector('[data-node-card-surface]')?.className,
-    ).toContain('border-dashed')
-    fireEvent.click(screen.getByRole('button', { name: '添加' }))
-    expect(onEmptyAdd).toHaveBeenCalled()
-    expect(screen.queryByRole('button', { name: /粘贴$/ })).toBeNull()
+    const surface = container.querySelector<HTMLElement>(
+      '[data-node-card-surface]',
+    )!
+    expect(surface).toHaveClass(
+      'border-solid',
+      'border-foreground/24',
+      'bg-surface-fill-hover',
+    )
+    expect(surface.className).not.toContain('shadow-node-card')
+    expect(surface.style.borderWidth).toBe(`${1.5 / 0.3}px`)
+    expect(surface.style.outlineWidth).toBe(`${2 / 0.3}px`)
+    expect(surface).toHaveTextContent('双击开始写')
+    flowZoom.value = 1
+  })
+
+  it('显式空态以空内容槽为准，忽略节点 JSX 的残留 children', () => {
+    const { container } = render(
+      <NodeCardShell
+        name="镜头 5"
+        renameAriaLabel="改名"
+        empty
+        emptyContent={<span>上传一段 · 或写这个镜头怎么拍</span>}
+      >
+        <span>旧卡面</span>
+      </NodeCardShell>,
+    )
+    const surface = container.querySelector('[data-node-card-surface]')!
+    expect(surface).toHaveTextContent('上传一段 · 或写这个镜头怎么拍')
+    expect(surface).not.toHaveTextContent('旧卡面')
   })
 
   it('端口渲染在卡面之外（卡两侧留空给连线）', () => {

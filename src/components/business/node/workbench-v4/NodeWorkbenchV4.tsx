@@ -35,8 +35,20 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
-import { ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react'
-import { motion } from 'motion/react'
+import {
+  getViewportForBounds,
+  ReactFlowProvider,
+  useReactFlow,
+  useStoreApi,
+  type Viewport,
+  type XYPosition,
+} from '@xyflow/react'
+import {
+  motion,
+  useReducedMotion,
+  useTransform,
+  type MotionStyle,
+} from 'motion/react'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -53,7 +65,6 @@ import {
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
-  NODE_STUDIO_DOCK,
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_V4_CARD,
   NODE_V4_CHARACTER_CARD,
@@ -78,6 +89,7 @@ import {
   EDIT_DESK_OPERATOR_ANCHOR,
 } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import { motionTransition } from '@/constants/motion'
 import {
   CANVAS_NEW_PROJECT_QUERY_VALUE,
   STUDIO_CHARACTER_QUERY,
@@ -129,8 +141,15 @@ import {
 import { EditDesk } from '../edit-desk'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
+import {
+  animateCanvasMove,
+  fitCanvasProject,
+  locateCanvasNode,
+  type CanvasCameraNode,
+} from './node-canvas-camera'
 import { CanvasMobileRail } from '../mobile'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
+import { getCanvasAppearanceCssVars } from '../CanvasSurface'
 import { ProjectNameDialog } from '../ProjectNameDialog'
 import { NodeCanvasEmptyGuide } from '../NodeCanvasEmptyGuide'
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
@@ -425,8 +444,23 @@ function NodeWorkbenchV4Inner() {
     }
   }, [rawGraph, scheduleEdgeSigning, scheduleEdgeUnsign])
 
-  const { fitView, screenToFlowPosition } = useReactFlow()
+  const {
+    getInternalNode,
+    getNodesBounds,
+    getViewport,
+    screenToFlowPosition,
+    setViewport,
+  } = useReactFlow()
+  const flowStore = useStoreApi()
+  const reduceMotion = useReducedMotion()
   const operatorYield = useStudioOperatorYield()
+  const flowYieldPx = useTransform(
+    operatorYield,
+    (value) => `${Math.max(0, value)}px`,
+  )
+  const flowOutline = useTransform(operatorYield, (value) =>
+    value > 0 ? '0 0 0 1px var(--border)' : 'none',
+  )
   useKeepCanvasCenterOnYield()
   const generation = useNodeMediaGenerationV4()
 
@@ -472,53 +506,244 @@ function NodeWorkbenchV4Inner() {
   const heavyOverlayOpen = assistantOpen && assistantExpanded
 
   /* ── 相机 ────────────────────────────────────────────────────────────── */
+  const cameraGraphRef = useRef(graph)
+  useEffect(() => {
+    cameraGraphRef.current = graph
+  }, [graph])
+  const cameraSequenceRef = useRef(0)
+  const cameraFrameRef = useRef<number | null>(null)
+  const cameraAnimationRef = useRef<{ stop(): void } | null>(null)
+
+  const beginCameraMove = useCallback(() => {
+    cameraSequenceRef.current += 1
+    cameraAnimationRef.current?.stop()
+    cameraAnimationRef.current = null
+    if (cameraFrameRef.current !== null) {
+      window.cancelAnimationFrame(cameraFrameRef.current)
+      cameraFrameRef.current = null
+    }
+    return cameraSequenceRef.current
+  }, [])
+  useEffect(() => () => void beginCameraMove(), [beginCameraMove])
+
+  const readCameraStage = useCallback(() => {
+    const { width, height } = flowStore.getState()
+    return width > 0 && height > 0 ? { width, height } : null
+  }, [flowStore])
+
+  const readCameraNode = useCallback(
+    (nodeId: string): CanvasCameraNode | null => {
+      const node = getInternalNode(nodeId)
+      const width = node?.measured.width
+      const height = node?.measured.height
+      if (!node || !width || !height) return null
+      return {
+        x: node.internals.positionAbsolute.x,
+        y: node.internals.positionAbsolute.y,
+        width,
+        height,
+      }
+    },
+    [getInternalNode],
+  )
+
+  const whenCameraReady = useCallback(
+    (sequence: number, run: () => boolean) => {
+      let attempts = 0
+      const tick = () => {
+        cameraFrameRef.current = null
+        if (cameraSequenceRef.current !== sequence) return
+        if (!run() && ++attempts < 120) {
+          cameraFrameRef.current = window.requestAnimationFrame(tick)
+        }
+      }
+      cameraFrameRef.current = window.requestAnimationFrame(tick)
+    },
+    [],
+  )
+
+  const animateCameraTo = useCallback(
+    (sequence: number, target: Viewport, onSettled?: () => void) => {
+      const from = getViewport()
+      if (reduceMotion) {
+        void setViewport(target)
+        onSettled?.()
+        return
+      }
+      cameraAnimationRef.current = animateCanvasMove(
+        from,
+        target,
+        (viewport) => {
+          if (cameraSequenceRef.current !== sequence) return
+          void setViewport(viewport)
+        },
+        () => {
+          if (cameraSequenceRef.current !== sequence) return
+          cameraAnimationRef.current = null
+          onSettled?.()
+        },
+      )
+    },
+    [getViewport, reduceMotion, setViewport],
+  )
+
   const focusNode = useCallback(
-    (nodeId: string) => {
-      const node = graph.nodes.find((candidate) => candidate.id === nodeId)
-      if (!node) return
-      void fitView({
-        nodes: [{ id: nodeId }],
-        duration: NODE_STUDIO_DOCK.focusDurationMs,
-        maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
+    (nodeId: string, onSettled?: () => void) => {
+      if (isPhone) return
+      const sequence = beginCameraMove()
+      whenCameraReady(sequence, () => {
+        const stage = readCameraStage()
+        const node = readCameraNode(nodeId)
+        if (!stage || !node) return false
+        const selected = cameraGraphRef.current.selectedNodeIds
+        if (selected.length !== 1 || selected[0] !== nodeId) {
+          cameraGraphRef.current.clearSelection()
+        }
+        animateCameraTo(
+          sequence,
+          locateCanvasNode(
+            stage,
+            node,
+            getViewport().zoom,
+            activePanel !== null,
+          ),
+          () => {
+            const current = cameraGraphRef.current
+            current.onRfNodesChange([
+              ...current.selectedNodeIds
+                .filter((id) => id !== nodeId)
+                .map((id) => ({
+                  id,
+                  type: 'select' as const,
+                  selected: false,
+                })),
+              { id: nodeId, type: 'select', selected: true },
+            ])
+            onSettled?.()
+          },
+        )
+        return true
       })
     },
-    [fitView, graph.nodes],
+    [
+      activePanel,
+      animateCameraTo,
+      beginCameraMove,
+      getViewport,
+      isPhone,
+      readCameraNode,
+      readCameraStage,
+      whenCameraReady,
+    ],
   )
 
   /** 改动清单点一行（方向 B）：镜头移过去，停下之后卡面闪一下。 */
   const locateNode = useCallback(
     (nodeId: string) => {
-      focusNode(nodeId)
-      flashNodeCard(nodeId, NODE_STUDIO_DOCK.focusDurationMs)
+      focusNode(nodeId, () => flashNodeCard(nodeId))
     },
     [focusNode],
   )
+
+  const fitCameraNodes = useCallback(
+    (nodeIds: readonly string[], maxZoom: number) => {
+      const sequence = beginCameraMove()
+      whenCameraReady(sequence, () => {
+        const ids =
+          nodeIds.length > 0
+            ? nodeIds
+            : cameraGraphRef.current.nodes.map((node) => node.id)
+        if (ids.length === 0) return true
+        const stage = readCameraStage()
+        if (!stage || ids.some((id) => readCameraNode(id) === null))
+          return false
+        const bounds = getNodesBounds([...ids])
+        const target = getViewportForBounds(
+          bounds,
+          stage.width,
+          stage.height,
+          NODE_STUDIO_CANVAS.minZoom,
+          maxZoom,
+          0.1,
+        )
+        animateCameraTo(sequence, target)
+        return true
+      })
+    },
+    [
+      animateCameraTo,
+      beginCameraMove,
+      getNodesBounds,
+      readCameraNode,
+      readCameraStage,
+      whenCameraReady,
+    ],
+  )
+
+  useEffect(() => {
+    if (isPhone || !store.isHydrated) return
+    const sequence = beginCameraMove()
+    if (cameraGraphRef.current.selectedNodeIds.length > 0) {
+      cameraGraphRef.current.clearSelection()
+    }
+    whenCameraReady(sequence, () => {
+      const stage = readCameraStage()
+      if (!stage) return false
+      const projectNodes = cameraGraphRef.current.nodes
+      const renderedNodes = flowStore.getState().nodes
+      if (
+        renderedNodes.length !== projectNodes.length ||
+        projectNodes.some(
+          (node, index) =>
+            renderedNodes[index]?.id !== node.id ||
+            renderedNodes[index]?.data !== node.data,
+        )
+      ) {
+        return false
+      }
+      const nodes = projectNodes.map((node) => readCameraNode(node.id))
+      if (nodes.some((node) => node === null)) return false
+      void setViewport(
+        fitCanvasProject(
+          stage,
+          nodes as CanvasCameraNode[],
+          getViewport().zoom,
+        ),
+      )
+      return true
+    })
+    return () => {
+      if (cameraSequenceRef.current === sequence) beginCameraMove()
+    }
+  }, [
+    beginCameraMove,
+    getViewport,
+    flowStore,
+    isPhone,
+    readCameraNode,
+    readCameraStage,
+    setViewport,
+    store.currentProject.id,
+    store.isHydrated,
+    whenCameraReady,
+  ])
 
   // 九宫格分镜（§3）：出完自动切 / 手动切，切完把镜头移到「原图 + 九张」那一片。
   const revealNodes = useCallback(
     (nodeIds: readonly string[]) => {
       window.requestAnimationFrame(() => {
-        void fitView({
-          nodes: nodeIds.map((id) => ({ id })),
-          duration: NODE_STUDIO_DOCK.focusDurationMs,
-          maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
-        })
+        fitCameraNodes(nodeIds, 1)
       })
     },
-    [fitView],
+    [fitCameraNodes],
   )
   const storyboard = useStoryboardGridSplit({ graph, onReveal: revealNodes })
 
   /** 刚投影/刚落的一批入镜。空 = 整图 fit（与 v3 那条同一个兜底）。 */
   const lastCreatedRef = useRef<readonly string[]>([])
   const focusGeneratedNodes = useCallback(() => {
-    const ids = lastCreatedRef.current
-    void fitView({
-      ...(ids.length > 0 ? { nodes: ids.map((id) => ({ id })) } : {}),
-      duration: NODE_STUDIO_DOCK.focusDurationMs,
-      maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
-    })
-  }, [fitView])
+    fitCameraNodes(lastCreatedRef.current, 1)
+  }, [fitCameraNodes])
 
   /* ── 图片编辑 handoff（工作台「在画布里编辑」）────────────────────────── */
   const searchParams = useSearchParams()
@@ -940,11 +1165,8 @@ function NodeWorkbenchV4Inner() {
   }, [])
 
   const fitAllNodes = useCallback(() => {
-    void fitView({
-      duration: NODE_STUDIO_DOCK.focusDurationMs,
-      maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
-    })
-  }, [fitView])
+    fitCameraNodes([], NODE_STUDIO_CANVAS.fitViewMaxZoom)
+  }, [fitCameraNodes])
 
   useWorkbenchShortcutsV4({
     graph,
@@ -1513,7 +1735,9 @@ function NodeWorkbenchV4Inner() {
         <CanvasWorkspaceLayout
           assistantMode={assistantMode}
           stageRef={canvasRef}
+          stageStyle={getCanvasAppearanceCssVars(store.state.canvasAppearance)}
           reviewMode={reviewMode.active}
+          frameOpen={graph.expandedNodeId !== null}
           /**
            * ⭐ 画布的助手**就是操作员面板本身**（进度表 22「一张脸」）。
            *
@@ -1531,6 +1755,7 @@ function NodeWorkbenchV4Inner() {
           >
             <NodeV4Provider
               graph={graph}
+              sidebarOpen={activePanel !== null}
               modelOptionsByKind={modelOptionsByKind}
               pendingUploads={dnd.pendingUploads}
               onFocusNode={focusNode}
@@ -1543,8 +1768,19 @@ function NodeWorkbenchV4Inner() {
                     ⛔ 面板盖在卡上。顶栏不在这一层里 —— 头像钉在顶栏右端，它得保持全宽。 */}
                 <motion.div
                   data-canvas-flow-area
-                  className="absolute inset-y-0 left-0"
-                  style={{ right: operatorYield }}
+                  className="absolute inset-y-0 left-0 overflow-hidden"
+                  style={
+                    {
+                      right: operatorYield,
+                      backgroundColor: 'var(--canvas-surface)',
+                      borderTopRightRadius:
+                        'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
+                      borderBottomRightRadius:
+                        'min(var(--radius-node), calc(var(--canvas-flow-yield) * 0.5))',
+                      boxShadow: flowOutline,
+                      '--canvas-flow-yield': flowYieldPx,
+                    } as MotionStyle
+                  }
                 >
                   {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条），
                     尺寸走画布那一档（小一号）。 */}
@@ -1592,7 +1828,13 @@ function NodeWorkbenchV4Inner() {
                     />
                   </div>
                 ) : null}
-                <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
+                <motion.div
+                  animate={{ opacity: graph.expandedNodeId === null ? 1 : 0 }}
+                  transition={motionTransition('base', reduceMotion)}
+                  inert={graph.expandedNodeId !== null}
+                  aria-hidden={graph.expandedNodeId !== null}
+                  className="pointer-events-none absolute inset-0 z-canvas-chrome"
+                >
                   <ShellTopBar
                     projectName={store.currentProject.name}
                     projects={store.projects}
@@ -1695,7 +1937,7 @@ function NodeWorkbenchV4Inner() {
                       )
                     }}
                   />
-                </div>
+                </motion.div>
                 {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
                   退出时视口与选择原样还在。 */}
                 {editMode ? (

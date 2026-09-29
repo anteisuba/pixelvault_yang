@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { Map, ChevronDown } from '@/components/icons'
 
 import { MiniMap } from '@xyflow/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { motionTransition } from '@/constants/motion'
 
 /**
  * 画布右下的小地图（S7 §7：**常显可收**）。
@@ -13,13 +15,28 @@ import { useTranslations } from 'next-intl'
  * 藏起来的那一版让「小地图去哪了」变成一个要靠猜的问题 —— 一个会自己消失的
  * 控件，用户第二次找不到它时不会想到是因为画布空了。
  */
-export function CanvasMiniMap() {
+export function CanvasMiniMap({
+  hidden = false,
+}: {
+  readonly hidden?: boolean
+}) {
   const t = useTranslations('StudioNode')
   const tShell = useTranslations('StudioNode.shell.minimap')
   const [expanded, setExpanded] = useState(true)
+  const reduceMotion = useReducedMotion()
 
   return (
-    <div className="pointer-events-auto absolute bottom-4 right-4">
+    <motion.div
+      animate={{ opacity: hidden ? 0 : 1 }}
+      transition={motionTransition('base', reduceMotion)}
+      inert={hidden}
+      aria-hidden={hidden}
+      className={
+        hidden
+          ? 'pointer-events-none absolute bottom-4 right-4'
+          : 'pointer-events-auto absolute bottom-4 right-4'
+      }
+    >
       <button
         type="button"
         aria-label={expanded ? tShell('collapse') : tShell('expand')}
@@ -50,11 +67,16 @@ export function CanvasMiniMap() {
           maskStrokeColor="var(--canvas-accent)"
           bgColor="transparent"
           style={{
-            border: '1px solid var(--canvas-stroke-regular)',
+            border: 0,
+            borderRadius:
+              'calc((var(--radius-node-bar) + var(--radius-node-thumb)) / 2)',
+            boxShadow: 'var(--shadow-node-chrome)',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
           }}
-          className="canvas-glass pointer-events-auto !relative !bottom-auto !left-auto !m-0 !h-32 !w-48 cursor-grab overflow-hidden rounded-2xl active:cursor-grabbing"
+          className="canvas-glass pointer-events-auto !relative !bottom-auto !left-auto !m-0 !h-32 !w-48.5 cursor-grab overflow-hidden active:cursor-grabbing"
         />
       ) : null}
-    </div>
+    </motion.div>
   )
 }

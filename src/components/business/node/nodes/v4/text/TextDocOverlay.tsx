@@ -1,15 +1,13 @@
 'use client'
 
 /**
- * 文本节点的**展开态 = 全屏文档**（spec §2，画板 `TextJimeng.dc.html` 方向 A，
- * owner 2026-09-11 定稿）。
+ * 文本节点的展开态：画布中的一张文档纸（node-polish-2 §8）。
  *
- * 画布压暗；顶栏 文件图标 · `名字.md` · 下载 · ×；居中一条格式工具条；正文 1100 宽
+ * 画布压暗；顶栏 文件图标 · `名字.md` · 下载 · ×；居中一条格式工具条；正文 680 宽
  * 可编辑、可 `@`（弹层同栏内，复用 `chrome/MentionPicker`）；最底那条只属于写作
  * 助手（同收起态那条，⛔ 两种模型不混）。
  *
- * ⚠ 640 的画中框已随本片退役 —— 长文档在 640 里读不完正是这一版重做的起因。
- * 壳仍是 `chrome/NodeFrame`（`variant='fullscreen'`），⛔ 不另写一层浮层与 Esc。
+ * 壳是 `chrome/NodeFrame`（`variant='document'`），不另写浮层与 Esc。
  *
  * ⚠ 正文是**所见即所得**的（`TextDocEditor`，owner 2026-09-12 改）：标题真的大、
  * 加粗真的粗。落库的仍是同一段 Markdown 纯文本，⛔ 编辑器不是第二份数据 ——
@@ -134,32 +132,41 @@ export function TextDocOverlay({
     <NodeFrame
       open={open}
       origin={origin}
-      variant="fullscreen"
+      variant="document"
+      width={880}
       onClose={() => {
         commit(readTextDocMarkdown(editor))
         onClose()
       }}
       title={t('doc.title', { name: title })}
       titleLeading={
-        <FileText
-          aria-hidden
-          className="size-4 shrink-0 text-muted-foreground"
-        />
+        <FileText aria-hidden className="size-4 shrink-0 text-foreground" />
       }
-      titleExtra={
+      titleActions={
         <button
           type="button"
           data-text-doc-download
           onClick={onDownload}
-          className="rounded-md border px-2 py-0.5 text-2xs text-muted-foreground transition-colors duration-fast hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="flex h-7 shrink-0 items-center rounded-full bg-surface-fill px-3 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {t('toolbar.download')}
         </button>
       }
-      assistantBar={<TextAssistantBar nodeId={nodeId} />}
+      assistantBar={
+        <div
+          className="w-full"
+          style={{ maxWidth: NODE_V4_CHROME.textDocWidth }}
+        >
+          <TextAssistantBar
+            nodeId={nodeId}
+            className="w-full"
+            variant="document"
+          />
+        </div>
+      }
     >
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 justify-center py-2">
+        <div className="flex shrink-0 justify-center pt-3">
           <TextDocFormatBar
             activeFormats={readTextDocActiveFormats(editor)}
             onFormat={(format: TextDocFormat) =>
@@ -168,8 +175,7 @@ export function TextDocOverlay({
           />
         </div>
         <div
-          data-text-doc-scroll
-          className="min-h-0 flex-1 overflow-y-auto px-6 pb-4"
+          className="flex min-h-0 flex-1 flex-col px-10"
           // `@` 候选开着时键盘归它 —— 捕获阶段接住，⛔ 不能让 ProseMirror 先吃掉
           // 方向键（那会把光标挪走），也不能让 Esc 穿到 `NodeFrame` 收起整篇文档。
           onKeyDownCapture={(event) => {
@@ -197,28 +203,32 @@ export function TextDocOverlay({
           }}
         >
           <div
-            data-text-doc-editor
+            data-text-doc-scroll
             style={{ maxWidth: NODE_V4_CHROME.textDocWidth }}
-            className={cn(
-              'relative mx-auto w-full',
-              'text-2sm leading-relaxed tracking-node-body',
-            )}
+            className="mx-auto w-full min-h-0 flex-1 overflow-y-auto pt-5 pb-3"
           >
-            {editor?.isEmpty ? (
-              <p
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 text-muted-foreground"
-              >
-                {t('empty')}
-              </p>
-            ) : null}
-            <EditorContent editor={editor} />
+            <div
+              data-text-doc-editor
+              className={cn(
+                'relative w-full',
+                'text-md leading-6.5 tracking-node-body',
+              )}
+            >
+              {editor?.isEmpty ? (
+                <p
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 text-muted-foreground"
+                >
+                  {t('empty')}
+                </p>
+              ) : null}
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </div>
-        {/* `@` 弹层**同栏内**（画板）：贴着正文栏的左下角浮起，
-            ⛔ 不跟着光标飞 —— 全屏文档里那会把列表甩出视口。 */}
+        {/* `@` 弹层同栏内，贴着正文栏的左下角浮起。 */}
         {mentionOpen && (
-          <div className="pointer-events-none absolute inset-x-6 bottom-2 z-30 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-10 bottom-2 z-30 flex justify-center">
             <div
               className="pointer-events-auto relative w-full"
               style={{ maxWidth: NODE_V4_CHROME.textDocWidth }}

@@ -1129,6 +1129,8 @@ export function applyNodeAssistantOpV4(
       const clearing = op.value === null || op.value === ''
       if (clearing) delete nextData[field]
       else nextData[field] = op.value
+      const renaming = field === 'name' || field === 'label'
+      if (renaming) nextData.nameEdited = true
       const parsed = NodeV4DataSchema.safeParse(nextData)
       if (!parsed.success) return { ok: false, reason: 'invalidFieldValue' }
       // 词表是**全体**节点共用的，但每个字段只活在某几种 data 形状上
@@ -1141,23 +1143,40 @@ export function applyNodeAssistantOpV4(
       ) {
         return { ok: false, reason: 'fieldNotOnThisNode' }
       }
+      const fieldInverse: NodeV4Inverse = {
+        kind: 'op',
+        op: {
+          op: ids.setField,
+          target: node.id,
+          field,
+          value:
+            typeof before === 'string' ||
+            typeof before === 'number' ||
+            typeof before === 'boolean'
+              ? before
+              : null,
+        },
+      }
       return {
         ok: true,
         state: replaceNodeData(state, node.id, () => parsed.data),
-        inverse: {
-          kind: 'op',
-          op: {
-            op: ids.setField,
-            target: node.id,
-            field,
-            value:
-              typeof before === 'string' ||
-              typeof before === 'number' ||
-              typeof before === 'boolean'
-                ? before
-                : null,
-          },
-        },
+        inverse: renaming
+          ? {
+              kind: 'sequence',
+              items: [
+                fieldInverse,
+                {
+                  kind: 'op',
+                  op: {
+                    op: ids.setField,
+                    target: node.id,
+                    field: 'nameEdited',
+                    value: node.data.nameEdited ?? null,
+                  },
+                },
+              ],
+            }
+          : fieldInverse,
         changedNodeIds: [node.id],
         changedEdgeIds: [],
       }

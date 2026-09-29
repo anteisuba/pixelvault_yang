@@ -5511,6 +5511,10 @@
       "audioDuration": "{seconds}s",
       "audioEmpty": "No audio",
       "audioOwner": "Voice: {name}",
+      "addCanvasTitle": "On this canvas",
+      "addCanvasHint": "Click to attach",
+      "addCanvasEmpty": "Nothing to attach yet",
+      "addCanvasAttach": "Attach {name}",
       "legacyMigrated": "Legacy node migrated",
       "tidy": "Tidy",
       "slots": {
@@ -5733,6 +5737,8 @@
         "versions": "Versions",
         "versionOf": "Version {index} of {total}",
         "emptyHint": "Upload · paste · or write a prompt",
+        "emptyUpload": "Upload",
+        "emptyLibrary": "Library",
         "mentionPicker": "Mention suggestions",
         "mediaMissing": {
           "gone": {
@@ -5752,6 +5758,8 @@
       },
       "text": {
         "empty": "Keep writing…",
+        "emptyStart": "Double-click to write",
+        "emptyAssist": "Or ask the assistant to write a passage",
         "editAriaLabel": "Edit body",
         "roles": {
           "script": "Script",
@@ -5835,8 +5843,8 @@
           "background": "Replace background"
         },
         "add": {
-          "upload": "Upload",
-          "library": "From library",
+          "upload": "Upload file",
+          "library": "Choose from library…",
           "canvas": "Images on canvas",
           "canvasEmpty": "No images to attach yet"
         },
@@ -5864,6 +5872,8 @@
         },
         "frame": {
           "title": "Frame",
+          "referenceLabel": "Reference",
+          "dropOrPaste": "Drop here or ⌘V",
           "aspectRatio": "Aspect ratio",
           "quality": "Quality",
           "resolution": "Resolution",
@@ -5907,12 +5917,15 @@
           "connect": "Connect to shot"
         },
         "add": {
-          "upload": "Upload audio",
+          "upload": "Upload file",
           "library": "From asset library…",
           "voiceLibrary": "Voice library…",
+          "referenceUnavailable": "Reference audio needs an accurate transcript; canvas audio cannot be attached yet",
           "uploadShortcut": "⌘U"
         },
         "emptyHint": "Upload audio, choose a clip, or write a line",
+        "emptyVoiceLibrary": "Voice library",
+        "emptyNextStep": "Or write a line",
         "promptPlaceholder": "Write a line, or upload audio…",
         "promptPlaceholderMusic": "Describe this music…",
         "promptPlaceholderSfx": "Describe this sound effect…",
@@ -6025,6 +6038,8 @@
         }
       },
       "video": {
+        "emptyHint": "Upload a clip · or describe how to shoot this scene",
+        "emptyPromptPlaceholder": "Describe how to shoot this scene…",
         "toolbar": {
           "label": "Video actions",
           "continue": "Continue shot",
@@ -6034,9 +6049,9 @@
           "expand": "Expand"
         },
         "add": {
-          "upload": "Upload video / image",
+          "upload": "Upload file",
           "uploadForSlot": "Upload…",
-          "library": "From library"
+          "library": "Choose from library…"
         },
         "more": {
           "rename": "Rename",
@@ -6060,6 +6075,9 @@
           "regenerateShortcut": "⌘↵",
           "generate": "Generate",
           "askAssistant": "Ask the assistant",
+          "referenceLabel": "Reference",
+          "referenceHint": "Drop here or ⌘V",
+          "referenceAdd": "Add reference",
           "upload": "Upload",
           "library": "Library",
           "emptyNote": "Write how this shot plays…",
@@ -6083,6 +6101,11 @@
         },
         "rail": {
           "title": "References · drop or ⌘V",
+          "badge": {
+            "image": "Img{index}",
+            "video": "Vid{index}",
+            "voice": "Aud{index}"
+          },
           "group": {
             "image": "Images",
             "video": "Videos",
@@ -8345,6 +8368,9 @@
     "channelUnset": "—",
     "pickChannel": "Pick a route",
     "missingKey": "Needs a key",
+    "missingKeyConfigure": "Needs a key · Click to configure",
+    "channelsCount": "{count} channels",
+    "usageBilled": "Billed by usage",
     "channelPanelLabel": "Routes for {model}",
     "manageChannels": "Manage channels and keys…",
     "kinds": {

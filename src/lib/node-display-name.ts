@@ -41,6 +41,7 @@ import {
   NODE_STUDIO_DISPLAY_NAME,
   NODE_STUDIO_MEDIA_IMAGE_OUTPUT,
   NODE_V4_NAME,
+  NODE_V4_SUBTYPE_LABELS,
 } from '@/constants/node-studio'
 import {
   NODE_IMAGE_ROLE_IDS,
@@ -50,6 +51,7 @@ import {
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { parseMentions } from '@/components/business/node/nodes/v4/chrome/parse-mentions'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 function trimmed(value: unknown): string | undefined {
@@ -424,6 +426,58 @@ export function renameStableNodeName(
     return { ok: false, reason: NODE_RENAME_REJECT_REASON_IDS.taken }
   }
   return { ok: true, name }
+}
+
+/** 生成回填时，只把仍是机器名的卡改成这一版提示词的前 12 个字。 */
+export function nameFromGeneratedPrompt(
+  data: {
+    readonly kind: NodeWorkflowMediaKind
+    readonly subtype: NodeV4Subtype
+    readonly name: string
+    readonly label?: string
+    readonly nameEdited?: boolean
+    readonly voiceProfile?: { readonly voiceName?: string }
+  },
+  prompt: string | undefined,
+  options: {
+    readonly mentionNames: readonly string[]
+    readonly taken: ReadonlySet<string>
+  },
+): string | undefined {
+  if (!prompt || data.nameEdited) return undefined
+  const defaultLabel = NODE_V4_SUBTYPE_LABELS[`${data.kind}.${data.subtype}`]
+  if (!defaultLabel) return undefined
+  const stableName =
+    data.kind === 'video' && data.label ? data.label : data.name
+  // 选了音色后的「音色名 · 语音 N」由音色命名规则维护，生成回填不抢名字。
+  if (
+    data.kind === 'audio' &&
+    (data.voiceProfile?.voiceName || / · 语音 \d+$/.test(stableName))
+  ) {
+    return undefined
+  }
+  const escaped = defaultLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const machineName = new RegExp(`^(?:S\\d{2,}·)?${escaped}(?:[2-9]\\d*)?$`)
+  if (
+    !machineName.test(stableName) &&
+    !(data.kind === 'audio' && /^音频_?\d+$/.test(stableName)) &&
+    !(data.kind === 'video' && /^视频_\d+$/.test(stableName))
+  ) {
+    return undefined
+  }
+  const withoutKnownMentions = parseMentions(prompt, {
+    names: options.mentionNames,
+  })
+    .map((segment) => (segment.type === 'text' ? segment.value : ''))
+    .join('')
+  const cleaned = withoutKnownMentions
+    .replace(/@(?:图|视频|语音)\d+/g, '')
+    .replace(/@[^\s，。,.!?；：]+/g, '')
+    .replace(/[\r\n]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const name = Array.from(cleaned).slice(0, 12).join('').trim()
+  return name && !options.taken.has(name) ? name : undefined
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

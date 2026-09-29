@@ -294,6 +294,9 @@ describe('StudioOperatorDock', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.className).toContain('bg-card')
+    expect(panel.className).toContain('rounded-node')
+    expect(panel.className).toContain('border border-border')
+    expect(panel.className).not.toContain('shadow-assistant-panel')
     expect(panel.className).not.toContain('assistant-glass-panel')
     expect(panel.style.clipPath).toBe('none')
     expect(panel.style.top).toBe(
@@ -307,6 +310,8 @@ describe('StudioOperatorDock', () => {
     )
     expect(panelProps.headerAvatar).toBe('none')
     const avatar = screen.getByTestId('operator-avatar-toggle')
+    expect(avatar.className).toContain('shadow-node-chrome')
+    expect(avatar.className).not.toContain('border-border')
     expect(avatar.getAttribute('title')).toBe('collapseHint')
     expect(avatar.style.transform).not.toContain('translate')
   })

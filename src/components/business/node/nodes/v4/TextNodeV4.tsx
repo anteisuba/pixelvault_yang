@@ -9,17 +9,17 @@
  *    右下角拖高），名字行 = 「T」+ 名字 + 归属/子型标签图标；
  * ② **选中** = 工具条 `展开 · 下载 · ⋯` 居中悬卡上 + 助手栏居中在卡下
  *    （⛔ 多选时两条都不出）；
- * ③ **展开** = **全屏文档**（`text/TextDocOverlay`）。
+ * ③ **展开** = 文档纸（`text/TextDocOverlay`）。
  *
  * ⛔ 卡面上没有卡头、没有分段控件、没有派生按钮行 —— 那是 v3 旧骨架的形状，
  * 它已在 S11 删除，⛔ 不要复活。⛔ 也不要把六行截断与 640 画中框改回来：
  * 「长文不展开也能读」正是这一版的全部理由。
  */
 
-import type { NodeProps } from '@xyflow/react'
+import { Position, type NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
@@ -34,8 +34,7 @@ import { planScriptProjection } from '@/lib/node-script-projection'
 import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
-import { NodeCardShell, portSpecOf } from './chrome'
-import { FADE_ONLY, GROW_FROM_EDGE } from './chrome/chrome-motion'
+import { NodeCardShell, NodeChromeLayer, portSpecOf } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
@@ -116,9 +115,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
     return planScriptProjection(canvas.nodes, id, textData.body)
   }, [canvas.nodes, id, textData.body, textData.subtype])
 
-  /** 全屏文档的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
   const cardRef = useRef<HTMLDivElement>(null)
-  const barMotion = useReducedMotion() ? FADE_ONLY : GROW_FROM_EDGE
 
   if (!node) return null
 
@@ -126,8 +123,11 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   // 多选时两条浮层都收起来 —— 每张卡各弹一条是 v3 被抓到的老毛病
   // （判据与 `NodeV4SelectionToolbar` 同源）。
   const soloSelected = Boolean(selected) && canvas.selectedNodeIds.length <= 1
+  const emptyText = textData.body.trim().length === 0
   const cardHeight =
-    dragHeight ?? textData.cardHeight ?? NODE_V4_CARD.textCollapsedHeight
+    dragHeight ??
+    textData.cardHeight ??
+    (emptyText ? 200 : NODE_V4_CARD.textCollapsedHeight)
 
   const renameNode = (next: string): boolean => {
     const taken = new Set(
@@ -165,7 +165,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   return (
     <div ref={cardRef} className="relative">
       <TextNodeToolbar
-        visible={soloSelected && !expanded}
+        visible={soloSelected && !expanded && !emptyText}
         onExpand={() => canvas.onToggleExpanded(id)}
         onDownload={() => downloadTextNodeBody(textData.name, textData.body)}
         onDeriveShotImage={() => canvas.onDeriveFromText(id, 'shotImage')}
@@ -199,35 +199,40 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         expanded={expanded}
         changed={canvas.changedNodeIds.includes(id)}
         width={NODE_V4_CARD.textCollapsedWidth}
+        empty={emptyText}
         surfaceHeight={cardHeight}
         surfaceClassName="overflow-hidden"
         portSpec={portSpecOf(node)}
         nameLeading={
-          <span
-            aria-hidden
-            data-text-mark
-            className="shrink-0 px-0.5 text-xs font-semibold"
-          >
-            T
-          </span>
+          !emptyText ? (
+            <span
+              aria-hidden
+              data-text-mark
+              className="shrink-0 px-0.5 text-xs font-semibold"
+            >
+              T
+            </span>
+          ) : undefined
         }
         nameTrailing={
-          <TextTagChip
-            subtype={textData.subtype}
-            role={textData.defaultRole as NodeSlotTextRole | undefined}
-            onRoleChange={(role) =>
-              void canvas.onApplyOp({
-                op: NODE_ASSISTANT_OP_V4_IDS.setField,
-                target: id,
-                field: 'defaultRole',
-                value: role,
-              })
-            }
-          />
+          !emptyText ? (
+            <TextTagChip
+              subtype={textData.subtype}
+              role={textData.defaultRole as NodeSlotTextRole | undefined}
+              onRoleChange={(role) =>
+                void canvas.onApplyOp({
+                  op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                  target: id,
+                  field: 'defaultRole',
+                  value: role,
+                })
+              }
+            />
+          ) : undefined
         }
       >
         <div className="h-full">
-          {scriptPlan ? (
+          {scriptPlan && !emptyText ? (
             <ScriptCardBody
               outline={scriptPlan.outline}
               actCount={scriptPlan.actCount}
@@ -257,7 +262,8 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
               body={textData.body}
               onSave={(body) => canvas.onEditText(id, body)}
               editAriaLabel={tText('editAriaLabel')}
-              emptyLabel={tText('empty')}
+              emptyLabel={tText('emptyStart')}
+              emptyAssistLabel={tText('emptyAssist')}
               height={cardHeight}
               onHeightPreview={setDragHeight}
               onHeightCommit={commitHeight}
@@ -267,24 +273,15 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         </div>
       </NodeCardShell>
 
-      {/* 与提示词栏同一颗开合：从卡底边中点长出来（§1 第 12 条）。 */}
-      <AnimatePresence>
-        {soloSelected && !expanded && (
-          <motion.div
-            key="assistant-bar"
-            data-text-assistant-bar
-            style={{ transformOrigin: '50% -10px' }}
-            initial={barMotion.initial}
-            animate={barMotion.animate}
-            exit={barMotion.exit}
-            className="absolute top-full left-1/2 z-10 mt-2.5 w-90 -translate-x-1/2"
-          >
-            <TextAssistantBar nodeId={id} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NodeChromeLayer
+        show={soloSelected && !expanded}
+        position={Position.Bottom}
+      >
+        <div data-text-assistant-bar>
+          <TextAssistantBar nodeId={id} className="w-95" />
+        </div>
+      </NodeChromeLayer>
 
-      {/* 全屏文档自己 portal 到 body（`chrome/NodeFrame`），这里只管开合。 */}
       <AnimatePresence>
         {expanded && (
           <TextDocOverlay

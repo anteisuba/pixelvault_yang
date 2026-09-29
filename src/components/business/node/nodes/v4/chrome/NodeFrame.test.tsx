@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -59,24 +60,37 @@ describe('NodeFrame', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  // ⚠ 调用方是 ReactFlow 的节点元素（`transform` 定位祖先）：不 portal 出去，
-  // 压暗层就只有一张卡那么大（真机 2026-09-10 实拍）。
-  it('自己 portal 到 document.body，压暗层是 fixed 铺满视口', () => {
-    const { container } = setup()
+  it('有画布来源时 portal 到 stage，压暗层只铺画布', () => {
+    const stage = document.createElement('div')
+    stage.setAttribute('data-canvas-stage', '')
+    const card = document.createElement('div')
+    stage.append(card)
+    document.body.append(stage)
+    const origin = createRef<HTMLDivElement>()
+    origin.current = card
+    const { container, unmount } = setup({ origin })
     expect(container.querySelector('[data-node-chrome="frame"]')).toBeNull()
-    const scrim = document.body.querySelector<HTMLElement>(
+    const scrim = stage.querySelector<HTMLElement>(
       '[data-node-chrome="frame-scrim"]',
     )!
-    expect(scrim.parentElement).toBe(document.body)
-    expect(scrim.className).toContain('fixed')
-    expect(scrim.className).not.toContain('absolute')
+    expect(scrim.parentElement).toBe(stage)
+    expect(scrim.className).toContain('absolute')
+    expect(scrim.className).not.toContain('fixed')
+    expect(stage.querySelector('[data-node-chrome-scrim]')).toHaveClass(
+      'bg-foreground/24',
+    )
+    unmount()
+    stage.remove()
   })
 
-  it('顶栏名字是 13px（text-2sm）+ semibold，⛔ 不是画板那版 14', () => {
+  it('顶栏名字用 15px，读数紧随名字，操作留在右侧', () => {
     setup()
     const heading = screen.getByRole('heading', { name: 'S02 · 站台独白' })
-    expect(heading.className).toContain('text-2sm')
+    expect(heading.className).toContain('text-md')
     expect(heading.className).toContain('font-semibold')
+    expect(
+      screen.getByRole('dialog').querySelector('[data-node-frame-header]'),
+    ).toHaveClass('h-13')
   })
 
   it('宽度由调用方给（视频 720）', () => {
@@ -87,19 +101,21 @@ describe('NodeFrame', () => {
     expect(frame.style.width).toBe('720px')
   })
 
-  // 文本卡的展开态（owner 2026-09-11）：全屏铺满，⛔ 不吃 `width`。
-  it('fullscreen 档铺满视口、忽略 width、顶栏可加文件图标', () => {
+  it('document 档是一张宽 880 的纸，带文件图标和顶栏底线', () => {
     setup({
-      variant: 'fullscreen',
-      width: NODE_V4_CHROME.frameWidth.video,
+      variant: 'document',
+      width: 880,
       titleLeading: <span data-testid="doc-icon" />,
     })
     const frame = document.body.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
     )!
-    expect(frame.style.width).toBe('')
+    expect(frame.style.width).toBe('880px')
     expect(frame.className).toContain('h-full')
-    expect(frame.className).not.toContain('rounded-node')
+    expect(frame.className).toContain('rounded-node')
+    expect(frame.querySelector('[data-node-frame-header]')).toHaveClass(
+      'border-b',
+    )
     expect(screen.getByTestId('doc-icon')).toBeInTheDocument()
   })
 

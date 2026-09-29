@@ -7,12 +7,6 @@
  * 两张都只是 `DropdownMenuItem` 的列表：壳（`NodePromptBar` / `NodeToolbar`）负责
  * 弹层与定位，⛔ 这里不自己写浮层。
  *
- * ── `+` 里那三组为什么是子菜单 ────────────────────────────────────────
- * 2026-09-10 owner 定稿把四个槽子菜单收成**与参考轨一样的三组**（图 · 视频 ·
- * 语音）：首帧 / 尾帧不再是入口，它们是图的**角色**，挂上去之后在轨上点图改。
- * 每一组展开仍是**候选卡 + 上传**，⛔ 不是一个直接弹文件选择框的按钮 —— 那会把
- * 「画布上已经有那张图」这条主路径埋掉。
- *
  * ⚠ 候选**只列有产物的卡**：挂一张还没生成出来的空卡到首帧上，生成时那一格发不
  * 出去，用户却以为已经挂好了。
  *
@@ -21,16 +15,17 @@
  * 要它得先给 op 表开这条路，不在本片。
  */
 
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import {
+  AudioLines,
+  Check,
   Copy,
   Film,
   GalleryVerticalEnd,
-  Library,
   Clapperboard,
   Eye,
-  Mic,
-  PictureInPicture2,
+  ImageIcon,
   SquarePen,
   Trash2,
   Upload,
@@ -40,39 +35,24 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
+  DropdownMenuShortcut,
 } from '@/components/ui/dropdown-menu'
-import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import {
   VIDEO_RAIL_GROUP_IDS,
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
 
+import { useBrokenThumbs } from '../chrome/NodeMediaMissing'
+
 /** 一张可以挂到槽上的卡。 */
 export interface VideoSlotCandidate {
   readonly id: string
   readonly name: string
+  readonly group: VideoRailGroupId
+  readonly thumbnailUrl?: string | undefined
+  readonly attached?: boolean
+  readonly blockedReason?: string | undefined
 }
-
-/**
- * `+` 里那三组的顺序、落点与图标 —— **与参考轨同一份顺序**（图 · 视频 · 语音）。
- * 落点：图 / 视频都进 `reference`（图默认作参考），语音进 `voice`。
- */
-export const VIDEO_RAIL_PICKERS = [
-  {
-    group: VIDEO_RAIL_GROUP_IDS.image,
-    slot: NODE_SLOT_IDS.reference,
-    icon: PictureInPicture2,
-  },
-  {
-    group: VIDEO_RAIL_GROUP_IDS.video,
-    slot: NODE_SLOT_IDS.reference,
-    icon: Film,
-  },
-  { group: VIDEO_RAIL_GROUP_IDS.voice, slot: NODE_SLOT_IDS.voice, icon: Mic },
-] as const
 
 export interface VideoAddMenuItemsProps {
   /**
@@ -80,64 +60,110 @@ export interface VideoAddMenuItemsProps {
    * 点下去只会报「这个节点没有这个入口」。
    */
   readonly acceptsRefs?: boolean
-  candidatesOf(group: VideoRailGroupId): readonly VideoSlotCandidate[]
+  readonly canvasCandidates: readonly VideoSlotCandidate[]
   onPickSlotSource(group: VideoRailGroupId, nodeId: string): void
-  /** 上传一份新素材并落进这一组（kind 由组决定）。 */
-  onUploadForSlot(group: VideoRailGroupId): void
-  /** 「上传视频 / 图」—— 落进这张卡自己（成片或封面），⛔ 不落槽。 */
+  /** 由宿主按 MIME 将上传文件送进这张卡可接收的槽。 */
   onUpload(): void
   onLibrary(): void
 }
 
 export function VideoAddMenuItems({
   acceptsRefs = true,
-  candidatesOf,
+  canvasCandidates,
   onPickSlotSource,
-  onUploadForSlot,
   onUpload,
   onLibrary,
 }: VideoAddMenuItemsProps) {
   const tVideo = useTranslations('StudioNode.v4.video')
+  const tNode = useTranslations('StudioNode.v4')
+  const thumbs = useBrokenThumbs()
   return (
     <>
-      <DropdownMenuItem data-video-add="upload" onSelect={onUpload}>
+      <DropdownMenuItem
+        data-video-add="upload"
+        onSelect={onUpload}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
         <Upload aria-hidden className="size-4" />
         {tVideo('add.upload')}
+        <DropdownMenuShortcut className="font-mono text-2xs tracking-normal text-muted-foreground/75">
+          ⌘U
+        </DropdownMenuShortcut>
       </DropdownMenuItem>
-      {(acceptsRefs ? VIDEO_RAIL_PICKERS : []).map(({ group, icon: Icon }) => {
-        const candidates = candidatesOf(group)
-        return (
-          <DropdownMenuSub key={group}>
-            <DropdownMenuSubTrigger data-video-add-group={group}>
-              <Icon aria-hidden className="size-4" />
-              {tVideo(`rail.group.${group}`)}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {candidates.map((candidate) => (
+      <DropdownMenuItem
+        data-video-add="library"
+        onSelect={onLibrary}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
+        <ImageIcon aria-hidden className="size-4" />
+        {tVideo('add.library')}
+      </DropdownMenuItem>
+      {acceptsRefs ? (
+        <>
+          <div className="flex justify-between px-2.5 pt-2.5 pb-1.5 text-2xs tracking-wide text-muted-foreground">
+            <span>{tNode('addCanvasTitle')}</span>
+            <span>{tNode('addCanvasHint')}</span>
+          </div>
+          {canvasCandidates.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+              {canvasCandidates.map((candidate) => (
                 <DropdownMenuItem
                   key={candidate.id}
                   data-video-slot-candidate={candidate.id}
-                  onSelect={() => onPickSlotSource(group, candidate.id)}
+                  data-attached={candidate.attached ? 'true' : undefined}
+                  aria-label={tNode('addCanvasAttach', {
+                    name: candidate.name,
+                  })}
+                  aria-disabled={Boolean(
+                    candidate.blockedReason && !candidate.attached,
+                  )}
+                  title={
+                    candidate.attached
+                      ? candidate.name
+                      : (candidate.blockedReason ?? candidate.name)
+                  }
+                  onSelect={(event) => {
+                    if (candidate.attached) return
+                    if (candidate.blockedReason) {
+                      event.preventDefault()
+                      return
+                    }
+                    onPickSlotSource(candidate.group, candidate.id)
+                  }}
+                  className={`relative size-12 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-fill p-0 text-muted-foreground focus:bg-surface-fill ${candidate.blockedReason && !candidate.attached ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:ring-2 hover:ring-foreground focus:ring-2 focus:ring-foreground'}`}
                 >
-                  {candidate.name}
+                  {thumbs.usable(candidate.thumbnailUrl) ? (
+                    <Image
+                      src={candidate.thumbnailUrl!}
+                      alt=""
+                      width={48}
+                      height={48}
+                      unoptimized
+                      onError={() => thumbs.markBroken(candidate.thumbnailUrl!)}
+                      className="size-full object-cover"
+                    />
+                  ) : candidate.group === VIDEO_RAIL_GROUP_IDS.voice ? (
+                    <AudioLines aria-hidden className="m-auto size-4" />
+                  ) : candidate.group === VIDEO_RAIL_GROUP_IDS.video ? (
+                    <Film aria-hidden className="m-auto size-4" />
+                  ) : (
+                    <ImageIcon aria-hidden className="m-auto size-4" />
+                  )}
+                  {candidate.attached ? (
+                    <span className="absolute top-0.75 right-0.75 flex size-4 items-center justify-center rounded-full bg-foreground text-card">
+                      <Check aria-hidden className="size-2.5" />
+                    </span>
+                  ) : null}
                 </DropdownMenuItem>
               ))}
-              {candidates.length > 0 ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem
-                data-video-slot-upload={group}
-                onSelect={() => onUploadForSlot(group)}
-              >
-                <Upload aria-hidden className="size-4" />
-                {tVideo('add.uploadForSlot')}
-              </DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )
-      })}
-      <DropdownMenuItem data-video-add="library" onSelect={onLibrary}>
-        <Library aria-hidden className="size-4" />
-        {tVideo('add.library')}
-      </DropdownMenuItem>
+            </div>
+          ) : (
+            <div className="px-2.5 pb-2 text-xs text-muted-foreground/75">
+              {tNode('addCanvasEmpty')}
+            </div>
+          )}
+        </>
+      ) : null}
     </>
   )
 }

@@ -398,6 +398,58 @@
   border-radius: 16px; /* 大输入面板档 */
 }
 
+[data-node-chrome='prompt-bar']
+  :is(
+    [data-spec-chip-state]:not([data-spec-chip-state='flash']),
+    [data-model-chip]:not([data-status-tone='warning']),
+    [data-audio-voice-chip]
+  ) {
+  border-color: transparent;
+  background: var(--surface-fill);
+  box-shadow: none;
+  color: var(--foreground);
+}
+
+[data-node-chrome='prompt-bar']
+  :is(
+    [data-spec-chip-state]:not([data-spec-chip-state='flash']),
+    [data-model-chip]:not([data-status-tone='warning']),
+    [data-audio-voice-chip]
+  ):hover {
+  background: var(--surface-fill-hover);
+}
+
+[data-node-chrome='prompt-bar']
+  :is(
+    [data-spec-chip-state='open'],
+    [data-model-chip][data-active='true'],
+    [data-audio-voice-chip][data-state='open']
+  ) {
+  border-color: transparent;
+  background: var(--surface-fill-track);
+  box-shadow: none;
+}
+
+[data-node-chrome='prompt-bar']
+  :is([data-spec-chip-state], [data-model-chip])
+  > span:last-child
+  svg {
+  width: calc(var(--spacing) * 3);
+  height: calc(var(--spacing) * 3);
+}
+
+[data-prompt-bar-add-menu]
+  :is(
+    [data-image-add],
+    [data-video-add],
+    [data-audio-add],
+    [data-audio-add-canvas],
+    [data-image-add-canvas],
+    [data-video-slot-candidate]
+  ) {
+  border-radius: var(--radius);
+}
+
 /* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
    ⚠ 全仓没有一处设 data-scheme（外观预设精简为只留浅色），这块暂无激活路径，
    是 v0.2 规格的一部分先留着，不是死代码要清。 */
@@ -1153,16 +1205,15 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   width: 18px;
   height: 18px;
   border-width: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--node-foreground);
   color: var(--node-panel);
   opacity: 1;
 }
 
-.react-flow__handle.node-port.node-port--hot::after {
-  content: '+';
-  display: block;
-  font-size: 13px;
-  line-height: 14px;
+.react-flow__handle.node-port.node-port--hot > span {
   font-weight: 600;
   text-align: center;
 }

@@ -44,6 +44,17 @@ export const GROW_FROM_EDGE: ChromeMotion = {
   exit: { ...shut, transition: { duration: DURATION.base, ease: EASE_IN } },
 }
 
+/** mock.html 的 T()：减少动态效果时仍保留原形态，开关均压到 1ms。 */
+export const REDUCED_GROW_FROM_EDGE: ChromeMotion = {
+  initial: shut,
+  animate: {
+    ...shown,
+    transition: { duration: 0.001, ease: 'linear' },
+    transitionEnd: { filter: 'none' },
+  },
+  exit: { ...shut, transition: { duration: 0.001, ease: EASE_IN } },
+}
+
 /** 右键 / 空白菜单：从指针处长出来（开 200 · 关 120）。 */
 export const GROW_FROM_POINTER: ChromeMotion = {
   initial: shut,

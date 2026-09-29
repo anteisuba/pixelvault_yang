@@ -94,6 +94,7 @@ vi.mock('../../CanvasImageEditWorkspace', () => ({
 }))
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { ImageNodeV4 } from './ImageNodeV4'
@@ -174,6 +175,23 @@ function renderImage(
     </NodeV4CanvasProvider>,
   )
 }
+
+it('手动把机器名改成另一种默认外形时走统一 set_field 改名', () => {
+  const context = harness([
+    imageNode('i_1', { subtype: 'result', name: '生成图2' }),
+  ])
+  renderImage(context)
+  fireEvent.doubleClick(screen.getByRole('button', { name: 'renameNode' }))
+  const input = screen.getByRole('textbox', { name: 'renameNode' })
+  fireEvent.change(input, { target: { value: '生成图3' } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+  expect(context.onApplyOp).toHaveBeenCalledWith({
+    op: NODE_ASSISTANT_OP_V4_IDS.setField,
+    target: 'i_1',
+    field: 'name',
+    value: '生成图3',
+  })
+})
 
 function renderSubmittingImage(data: Record<string, unknown> = {}) {
   const onSetMedia = vi.fn()
@@ -427,17 +445,74 @@ describe('空卡 / 有图两态', () => {
     expect(document.querySelector('[data-node-card-add]')).toBeNull()
   })
 
-  it('空卡是虚线框 + 加号 + 一句提示，⛔ 没有图', () => {
+  it('空卡透明虚线、说明和两颗字键，选中只出提示词栏', () => {
     renderImage(harness([imageNode('i_1')]))
-    const card = screen.getByTestId
-    void card
-    expect(
-      document
-        .querySelector('[data-node-chrome="card"]')
-        ?.getAttribute('data-empty'),
-    ).toBe('true')
-    expect(document.querySelector('[data-node-card-add]')).not.toBeNull()
+    expect(document.querySelector('[data-node-chrome="card"]')).toHaveAttribute(
+      'data-empty',
+      'true',
+    )
+    expect(document.querySelector('[data-node-card-surface]')).toHaveClass(
+      'border-dashed',
+      'bg-transparent',
+    )
+    expect(screen.getByText('chrome.emptyHint')).toBeInTheDocument()
+    expect(document.querySelector('[data-node-empty-upload]')).not.toBeNull()
+    expect(document.querySelector('[data-node-empty-library]')).not.toBeNull()
     expect(document.querySelector('img')).toBeNull()
+  })
+
+  it('选中空镜头图无工具条与空参考轨，上传和素材库字键可用；拖入变实线', () => {
+    renderImage(
+      harness([imageNode('i_1', { subtype: 'shot' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
+    )
+    expect(document.querySelector('[data-prompt-bar-input]')).not.toBeNull()
+    expect(document.querySelector('[data-image-ref-rail]')).toBeNull()
+    expect(screen.queryByRole('toolbar')).toBeNull()
+    const fileInput = document.querySelector<HTMLInputElement>(
+      'input[type="file"][accept="image/*"]',
+    )!
+    const click = vi.spyOn(fileInput, 'click')
+    fireEvent.click(document.querySelector('[data-node-empty-upload]')!)
+    expect(click).toHaveBeenCalled()
+    fireEvent.click(document.querySelector('[data-node-empty-library]')!)
+    expect(screen.getByTestId('asset-picker')).toBeInTheDocument()
+
+    const root = document.querySelector('[data-node-kind="image"]')!
+    fireEvent.dragOver(root, { dataTransfer: { types: ['Files'] } })
+    expect(document.querySelector('[data-node-card-surface]')).toHaveClass(
+      'border-solid',
+      'bg-surface-fill-hover',
+    )
+    fireEvent.dragLeave(root, { relatedTarget: null })
+    expect(document.querySelector('[data-node-card-surface]')).toHaveClass(
+      'border-dashed',
+    )
+  })
+
+  it('尚未挂参考时从参考上传产生 pending，参考轨立即显示进度格', () => {
+    uploadFn.mockImplementationOnce(
+      () => new Promise<{ url: string }>(() => {}),
+    )
+    renderImage(
+      harness([imageNode('i_1', { subtype: 'shot' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
+    )
+    expect(document.querySelector('[data-image-ref-rail]')).toBeNull()
+    const file = new File(['x'], 'new-ref.png', { type: 'image/png' })
+    fireEvent.change(document.querySelector('[data-image-ref-file]')!, {
+      target: { files: [file] },
+    })
+    expect(document.querySelector('[data-image-ref-rail]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-image-rail-pending-state="uploading"]'),
+    ).not.toBeNull()
   })
 
   it('有图但缺尺寸时，解码后按 naturalWidth/Height 回填当前版', () => {
@@ -517,6 +592,9 @@ describe('选中态：工具条 + 提示词栏', () => {
       '[data-prompt-bar-input]',
     ) as HTMLTextAreaElement
     expect(input.value).toBe('站台')
+    const bar = input.closest('[data-node-chrome="prompt-bar"]')
+    expect(bar).toHaveClass('w-160')
+    expect(bar?.parentElement).toHaveClass('gap-2')
   })
 
   it('多选时工具条与提示词栏都收起（⛔ 每张卡各弹一条）', () => {
@@ -600,6 +678,14 @@ describe('画面弹层与模型 chip', () => {
     ).toContain('1:1')
   })
 
+  it('没有可用模型时仍保留可见的模型 chip', () => {
+    const context = harness([imageNode('i_1')], {
+      selectedNodeIds: ['i_1'],
+    })
+    renderImage(context, 'i_1', true)
+    expect(screen.getByTestId('model-chip')).toHaveAttribute('data-count', '0')
+  })
+
   it('模型 chip 单选：选中回落 onSetModel', () => {
     const options = [
       {
@@ -636,6 +722,58 @@ describe('画面弹层与模型 chip', () => {
     expect(context.onSetModel).toHaveBeenCalledWith(
       'i_1',
       expect.objectContaining({ optionId: 'opt_b', modelId: 'model-b' }),
+    )
+  })
+
+  it('新空卡展示可用默认模型，发送时落库并用同一模型构建当次生成图', () => {
+    generateNode.mockClear()
+    const options = [
+      {
+        optionId: 'opt_missing',
+        modelId: 'model-missing',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+      },
+      {
+        optionId: 'opt_ready',
+        modelId: 'model-ready',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'saved',
+      },
+    ] as never
+    const context = harness([imageNode('i_1', { prompt: '山间晨雾' })], {
+      selectedNodeIds: ['i_1'],
+      modelOptionsByKind: { image: options },
+    })
+    renderImage(context, 'i_1', true)
+    expect(screen.getByTestId('model-chip')).toHaveAttribute(
+      'data-value',
+      'opt_ready',
+    )
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(context.onSetModel).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({
+        optionId: 'opt_ready',
+        modelId: 'model-ready',
+      }),
+    )
+    expect(generateNode).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({
+        nodes: [
+          expect.objectContaining({
+            data: expect.objectContaining({
+              model: expect.objectContaining({ optionId: 'opt_ready' }),
+            }),
+          }),
+        ],
+      }),
+      expect.any(Object),
     )
   })
 
@@ -694,7 +832,7 @@ describe('粘贴 / 上传落卡', () => {
   })
 })
 
-describe('生成中 / 版本 / 快速看', () => {
+describe('生成中 / 版本 / 画中框', () => {
   it('在飞的 job 让卡进裱框显影，提示词栏变灰可取消', () => {
     renderImage(
       harness(
@@ -731,25 +869,150 @@ describe('生成中 / 版本 / 快速看', () => {
     ).toBeNull()
   })
 
-  it('双击 = 快速看（有图才开）', () => {
-    renderImage(
-      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })]),
-      'i_1',
-    )
+  it('有图双击进入与视频同款画中框', () => {
+    const context = harness([
+      imageNode('i_1', { url: 'https://cdn.test/a.png' }),
+    ])
+    renderImage(context, 'i_1')
     fireEvent.doubleClick(
       document.querySelector('[data-node-kind="image"]') as HTMLElement,
     )
+    expect(context.onToggleExpanded).toHaveBeenCalledWith('i_1')
+    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
+  })
+
+  it('选中图的空格与更多菜单仍能显式快速看', () => {
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
+    )
+    fireEvent.keyDown(window, { key: ' ', code: 'Space' })
+    expect(
+      document.querySelector('[data-node-chrome="quick-look"]'),
+    ).not.toBeNull()
+    fireEvent.click(document.querySelector('[data-quick-look-close]')!)
+    fireEvent.pointerDown(
+      document.querySelector('[data-toolbar-action="more"]')!,
+      {
+        button: 0,
+      },
+    )
+    fireEvent.click(document.querySelector('[data-image-more="quick-look"]')!)
     expect(
       document.querySelector('[data-node-chrome="quick-look"]'),
     ).not.toBeNull()
   })
 
-  it('空卡双击不开快速看', () => {
-    renderImage(harness([imageNode('i_1')]))
+  it('空卡双击不打开画中框', () => {
+    const context = harness([imageNode('i_1')])
+    renderImage(context)
     fireEvent.doubleClick(
       document.querySelector('[data-node-kind="image"]') as HTMLElement,
     )
-    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
+    expect(context.onToggleExpanded).not.toHaveBeenCalled()
+  })
+
+  it('打开态有原比例媒体、参考行、正文和共用生成页脚', () => {
+    renderImage(
+      harness(
+        [
+          imageNode('i_1', {
+            subtype: 'shot',
+            url: 'https://cdn.test/a.png',
+            mediaWidth: 1920,
+            mediaHeight: 1080,
+            prompt: '雨夜的天台',
+          }),
+        ],
+        { expandedNodeId: 'i_1', selectedNodeIds: ['i_1'] },
+      ),
+      'i_1',
+      true,
+    )
+    expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
+    expect(document.querySelector('[data-toolbar-action]')).toBeNull()
+    expect(document.querySelector('[data-prompt-bar-input]')).toBeNull()
+    expect(
+      document.querySelector('[data-image-frame-stage] img'),
+    ).toHaveAttribute('src', 'https://cdn.test/a.png')
+    expect(document.querySelector('[data-image-frame-refs]')).not.toBeNull()
+    expect(document.querySelector('[data-image-frame-add-ref]')).not.toBeNull()
+    expect(document.querySelector('[data-image-frame-body]')).toHaveTextContent(
+      '雨夜的天台',
+    )
+    expect(document.querySelector('[data-image-regenerate]')).not.toBeNull()
+  })
+
+  it('收起时的草稿进入画中框，画中框编辑后走同一条生成路径', () => {
+    generateNode.mockClear()
+    const node = imageNode('i_1', {
+      subtype: 'shot',
+      url: 'https://cdn.test/a.png',
+      prompt: '原始提示词',
+    })
+    const context = harness([node], { selectedNodeIds: ['i_1'] })
+    const view = renderImage(context, 'i_1', true)
+    fireEvent.change(document.querySelector('[data-prompt-bar-input]')!, {
+      target: { value: '收起时输入的新内容' },
+    })
+    view.rerender(
+      <NodeV4CanvasProvider value={{ ...context, expandedNodeId: 'i_1' }}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <ImageNodeV4 id="i_1" data={node.data} selected />
+      </NodeV4CanvasProvider>,
+    )
+    const editor = document.querySelector(
+      '[data-image-frame-body] [role="textbox"]',
+    ) as HTMLElement
+    expect(editor).toHaveTextContent('收起时输入的新内容')
+    editor.textContent = '画中框继续输入'
+    fireEvent.input(editor)
+    fireEvent.click(document.querySelector('[data-image-regenerate]')!)
+    expect(generateNode).toHaveBeenLastCalledWith(
+      'i_1',
+      expect.anything(),
+      expect.objectContaining({ prompt: '画中框继续输入' }),
+    )
+  })
+
+  it('画中框的版本点和左右键都切同一份输出版本', () => {
+    const onApplyOp = vi.fn()
+    renderImage(
+      harness(
+        [
+          imageNode('i_1', {
+            url: 'https://cdn.test/a.png',
+            outputs: {
+              versions: [
+                { id: 'ov_1', url: 'https://cdn.test/a.png', createdAt: NOW },
+                { id: 'ov_2', url: 'https://cdn.test/b.png', createdAt: NOW },
+              ],
+              cur: 0,
+            },
+          }),
+        ],
+        { expandedNodeId: 'i_1', onApplyOp },
+      ),
+    )
+    const dots = document.querySelectorAll(
+      '[data-image-frame-version-dots] button',
+    )
+    expect(dots).toHaveLength(2)
+    fireEvent.click(dots[1]!)
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+      target: 'i_1',
+      index: 1,
+    })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    expect(onApplyOp).toHaveBeenLastCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+      target: 'i_1',
+      index: 1,
+    })
   })
 })
 
@@ -765,7 +1028,7 @@ describe('提示词栏参考图轨', () => {
     expect(document.querySelector('[data-image-ref-rail]')).toBeNull()
   })
 
-  it('镜头图选中时显示参考轨，可把画布上已生成的图挂上去', async () => {
+  it('已有参考的镜头图显示参考轨，可把另一张画布图挂上去', async () => {
     const onApplyOp = vi.fn()
     renderImage(
       harness(
@@ -780,21 +1043,49 @@ describe('提示词栏参考图轨', () => {
             url: 'https://cdn.test/gen.png',
             name: '成图 A',
           }),
+          imageNode('i_ref', {
+            url: 'https://cdn.test/ref.png',
+          }),
         ],
-        { selectedNodeIds: ['i_shot'], onApplyOp },
+        {
+          selectedNodeIds: ['i_shot'],
+          onApplyOp,
+          edges: [
+            {
+              id: 'e_ref',
+              source: 'i_ref',
+              sourceHandle: 'out',
+              target: 'i_shot',
+              slot: NODE_SLOT_IDS.reference,
+            },
+          ],
+        },
       ),
       'i_shot',
       true,
     )
     expect(document.querySelector('[data-image-ref-rail]')).not.toBeNull()
-    fireEvent.pointerDown(document.querySelector('[data-image-rail-add]')!, {
+    expect(document.querySelector('[data-image-rail-add]')).toBeNull()
+    expect(document.querySelectorAll('[data-prompt-bar-add]')).toHaveLength(1)
+    fireEvent.pointerDown(document.querySelector('[data-prompt-bar-add]')!, {
       button: 0,
+      pointerType: 'mouse',
+    })
+    const attached = await waitFor(
+      () => document.querySelector('[data-image-add-canvas="i_ref"]')!,
+    )
+    expect(attached).toHaveAttribute('data-attached', 'true')
+    fireEvent.click(attached)
+    expect(onApplyOp).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(document.querySelector('[data-prompt-bar-add-menu]')).toBeNull(),
+    )
+    fireEvent.pointerDown(document.querySelector('[data-prompt-bar-add]')!, {
+      button: 0,
+      pointerType: 'mouse',
     })
     const candidate = await waitFor(
-      () =>
-        document.querySelector(
-          '[data-image-rail-candidate="i_gen"]',
-        ) as HTMLElement,
+      () => document.querySelector('[data-image-add-canvas="i_gen"]')!,
     )
     fireEvent.click(candidate)
     expect(onApplyOp).toHaveBeenCalledWith(

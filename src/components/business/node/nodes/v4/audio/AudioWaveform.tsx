@@ -11,9 +11,15 @@
  * 但形态换成了画板的柱状：柱子能逐根变色，播放头因此不需要另画一条线。
  */
 
+import { useLayoutEffect, useRef, useState } from 'react'
+
 import { cn } from '@/lib/utils'
 
-import { AUDIO_CARD, buildAudioWaveformBars } from './audio-node-model'
+import {
+  AUDIO_CARD,
+  audioWaveformBarCount,
+  buildAudioWaveformBars,
+} from './audio-node-model'
 
 export interface AudioWaveformProps {
   /** 波形的种子（用这一版的地址；空态给节点 id）。 */
@@ -21,6 +27,7 @@ export interface AudioWaveformProps {
   /** 播放进度 0–1。 */
   readonly progress?: number
   readonly barCount?: number
+  readonly fitWidth?: boolean
   readonly height?: number
   readonly className?: string
 }
@@ -29,10 +36,28 @@ export function AudioWaveform({
   seed,
   progress = 0,
   barCount = AUDIO_CARD.barCount,
+  fitWidth = false,
   height = AUDIO_CARD.waveformHeight,
   className,
 }: AudioWaveformProps) {
-  const bars = buildAudioWaveformBars(seed, barCount)
+  const ref = useRef<HTMLDivElement>(null)
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (!fitWidth || !ref.current) return
+    const initialWidth = ref.current.clientWidth
+    if (initialWidth > 0) setMeasuredWidth(initialWidth)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setMeasuredWidth(entry.contentRect.width)
+    })
+    observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [fitWidth])
+  const count =
+    fitWidth && measuredWidth !== null
+      ? audioWaveformBarCount(measuredWidth)
+      : barCount
+  const bars = buildAudioWaveformBars(seed, count)
   const clamped = Math.min(
     1,
     Math.max(0, Number.isFinite(progress) ? progress : 0),
@@ -41,8 +66,10 @@ export function AudioWaveform({
 
   return (
     <div
+      ref={ref}
       aria-hidden
       data-audio-waveform
+      data-bar-count={count}
       data-played={playedCount}
       className={cn('flex items-center gap-0.5', className)}
       style={{ height }}

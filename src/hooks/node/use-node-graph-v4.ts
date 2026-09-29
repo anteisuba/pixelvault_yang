@@ -51,8 +51,10 @@ import {
 import {
   listMentionNames,
   removeMentionsForSource,
+  resolveMentionsToSlots,
   type MentionCastCardRef,
 } from '@/lib/node-mentions-to-slots'
+import { nameFromGeneratedPrompt } from '@/lib/node-display-name'
 import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import {
@@ -217,7 +219,6 @@ export interface NodeGraphV4 {
   setExpanded(nodeId: string | null): void
   toggleExpanded(nodeId: string): void
   /** 展开卡右侧邻居的让位偏移（渲染期加到 position 上）。 */
-  readonly neighborOffsets: ReadonlyMap<string, NodeGraphV4Offset>
 
   /* ── 图动作 ────────────────────────────────────────────────────────── */
   dispatch(op: NodeAssistantOpV4): boolean
@@ -305,49 +306,6 @@ function mintId(prefix: string): string {
  * ⚠ 用常量表的两个宽度差，⛔ 不读 DOM：让位要在展开的**同一帧**发生，读 DOM 的
  * 版本会先叠一帧再弹开。镜头卡收起更宽（400），所以按各自的收起宽算。
  */
-function collapsedWidthOf(data: NodeV4Data): number {
-  if (data.kind === NODE_MEDIA_KIND_IDS.video && data.subtype === 'shot') {
-    return NODE_V4_CARD.shotCollapsedWidth
-  }
-  if (data.kind === NODE_MEDIA_KIND_IDS.text) {
-    return NODE_V4_CARD.textCollapsedWidth
-  }
-  return NODE_V4_CARD.collapsedWidth
-}
-
-/**
- * 邻居让位（`proto6-hig-notes.md` 未落三项之一）。
- *
- * 只推**右侧且纵向有重叠**的卡，推的量正好是「展开宽 − 这张卡的收起宽」。
- * ⚠ 纵向不做让位：展开是「原地长高」，下方的卡本来就在镜头带的下一行，推它们会
- * 把整条带的版式拆掉（版式的唯一权威是 `layoutShotLanes`）。
- */
-function computeNeighborOffsets(
-  nodes: readonly NodeV4[],
-  expandedNodeId: string | null,
-): ReadonlyMap<string, NodeGraphV4Offset> {
-  const offsets = new Map<string, NodeGraphV4Offset>()
-  if (!expandedNodeId) return offsets
-  const expanded = nodes.find((node) => node.id === expandedNodeId)
-  if (!expanded) return offsets
-
-  const delta = NODE_V4_CARD.expandedWidth - collapsedWidthOf(expanded.data)
-  if (delta <= 0) return offsets
-
-  const top = expanded.position.y
-  const bottom = top + NODE_V4_CARD.expandedMaxHeight
-
-  for (const node of nodes) {
-    if (node.id === expandedNodeId) continue
-    if (node.position.x <= expanded.position.x) continue
-    const nodeTop = node.position.y
-    const nodeBottom = nodeTop + collapsedWidthOf(node.data)
-    if (nodeBottom < top || nodeTop > bottom) continue
-    offsets.set(node.id, { x: delta, y: 0 })
-  }
-  return offsets
-}
-
 export function useNodeGraphV4({
   state,
   onStateChange: reportStateChange,
@@ -1020,13 +978,54 @@ export function useNodeGraphV4({
       // ⚠ 变换本身在纯函数里 —— 服务端导出落卡调的是同一个（mcp.md §7）。
       const state = stateRef.current
       const now = new Date().toISOString()
+      const target = state.nodes.find((node) => node.id === nodeId)
+      const nextName =
+        patch.url &&
+        patch.generationId &&
+        target &&
+        target.data.kind !== NODE_MEDIA_KIND_IDS.text
+          ? nameFromGeneratedPrompt(target.data, target.data.prompt, {
+              mentionNames: listMentionNames(state),
+              taken: new Set(
+                state.nodes
+                  .filter((node) => node.id !== nodeId)
+                  .map((node) => node.data.name),
+              ),
+            })
+          : undefined
+      const mentioned =
+        nextName !== undefined &&
+        state.nodes.some((node) => {
+          if (node.id === nodeId) return false
+          const text =
+            node.data.kind === NODE_MEDIA_KIND_IDS.text
+              ? node.data.body
+              : node.data.prompt
+          if (!text?.includes('@')) return false
+          const diff = resolveMentionsToSlots(state, node.id, text)
+          return (
+            diff.bindings.some((item) => item.sourceNodeId === nodeId) ||
+            diff.rejected.some((item) => item.sourceNodeId === nodeId)
+          )
+        })
       commitWithoutHistory({
         ...state,
         nodes: state.nodes.map((node) =>
           node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
             ? {
                 ...node,
-                data: applyNodeMediaPatch(node.data, patch, { now, mintId }),
+                data: {
+                  ...applyNodeMediaPatch(node.data, patch, { now, mintId }),
+                  ...(nextName && !mentioned
+                    ? {
+                        name: nextName,
+                        ...(node.data.kind === NODE_MEDIA_KIND_IDS.video &&
+                        node.data.label
+                          ? { label: nextName }
+                          : {}),
+                      }
+                    : {}),
+                },
               }
             : node,
         ),
@@ -1066,11 +1065,6 @@ export function useNodeGraphV4({
     expandedNodeId && state.nodes.some((node) => node.id === expandedNodeId)
       ? expandedNodeId
       : null
-
-  const neighborOffsets = useMemo(
-    () => computeNeighborOffsets(state.nodes, liveExpandedNodeId),
-    [state.nodes, liveExpandedNodeId],
-  )
 
   /* ── 剪贴板 ────────────────────────────────────────────────────────── */
   const copySelection = useCallback((): boolean => {
@@ -1161,7 +1155,6 @@ export function useNodeGraphV4({
     expandedNodeId: liveExpandedNodeId,
     setExpanded,
     toggleExpanded,
-    neighborOffsets,
     dispatch,
     dispatchBatch,
     dispatchBatchWithMedia,

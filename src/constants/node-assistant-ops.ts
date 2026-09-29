@@ -867,6 +867,8 @@ export const NODE_ASSISTANT_SETTABLE_FIELDS = [
    * 唯一性由 UI 层的 `renameStableNodeName` 先判，op 只负责落值。
    */
   'name',
+  /** 卡名手动改过的持久化标记；与 UI 改名同批写，撤销同批退。 */
+  'nameEdited',
   /** 镜头标签 = 稳定名（C1 契约修正 1）。改名改的是它，⛔ 不是 `shotNo` 前缀。 */
   'label',
   'characterName',

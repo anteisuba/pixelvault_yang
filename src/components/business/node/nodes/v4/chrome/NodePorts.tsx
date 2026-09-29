@@ -48,6 +48,8 @@ export interface NodePortsProps {
   readonly dragging?: boolean
   /** 这张卡的 id（`NodeCardShell` 从 `useNodeId()` 拿）。 */
   readonly nodeId?: string | null
+  /** 端口直径和描边按屏幕 px 固定，调用方传当前画布缩放。 */
+  readonly zoom?: number
 }
 
 export function NodePorts({
@@ -55,9 +57,16 @@ export function NodePorts({
   left = [],
   right = [],
   nodeId = null,
+  zoom = 1,
 }: NodePortsProps) {
   const t = useTranslations('StudioNode.v4.ports')
   const { isSource } = useNodeConnectRole(nodeId)
+  const scale = zoom > 0 ? zoom : 1
+  const baseStyle = {
+    width: 12 / scale,
+    height: 12 / scale,
+    borderWidth: 1.5 / scale,
+  }
 
   return (
     <>
@@ -72,6 +81,7 @@ export function NodePorts({
           data-port="input"
           aria-label={t('input')}
           className="node-port"
+          style={baseStyle}
         />
       )}
       {right.length > 0 && (
@@ -85,7 +95,26 @@ export function NodePorts({
           data-hot={isSource ? 'true' : 'false'}
           aria-label={t('output')}
           className={cn('node-port', isSource && 'node-port--hot')}
-        />
+          style={
+            isSource
+              ? {
+                  width: 18 / scale,
+                  height: 18 / scale,
+                  borderWidth: 2 / scale,
+                }
+              : baseStyle
+          }
+        >
+          {isSource ? (
+            <span
+              aria-hidden
+              className="pointer-events-none"
+              style={{ fontSize: 13 / scale, lineHeight: `${14 / scale}px` }}
+            >
+              +
+            </span>
+          ) : null}
+        </Handle>
       )}
     </>
   )

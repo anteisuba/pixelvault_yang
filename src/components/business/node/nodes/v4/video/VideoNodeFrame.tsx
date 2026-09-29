@@ -4,7 +4,7 @@
  * 视频节点的**画中框**（spec §5 / §1.11，画板 `VideoExpanded.dc.html`，720 宽）。
  *
  * 方向 A「一张纸」（owner 2026-09-29，设计画布「画布 · 画中框」）：
- * · 上半 大播放器（进度 / 声音 / 抽帧 / 下载 + 版本小点）；**没片时空态矮一截**，只有
+ * · 上半 大播放器（进度 / 声音 / 抽帧 / 下载）；**没片时空态矮一截**，只有
  *   「还没有视频」+ 上传 / 素材库两颗 —— ⛔ 一块空的 16:9 占半屏。
  * · 参考一行（标签在左、轨在右）；下半**镜头说明**直接写在纸上（⛔ 描边框里套框），
  *   可 @，@ 直接指定首帧 / 尾帧 / 语音 / 参考。
@@ -24,9 +24,15 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useReducedMotion,
+} from 'motion/react'
+import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { useTranslations } from 'next-intl'
-import { Library, Sparkles, Upload } from '@/components/icons'
+import { Library, Plus, Sparkles, Upload } from '@/components/icons'
 
 import {
   MentionInput,
@@ -36,15 +42,16 @@ import {
 } from '@/components/ui/mention-input'
 import {
   DURATION,
-  DURATION_MS,
+  CHIP_POPOVER,
+  EASE_IN,
   EASE_STANDARD,
-  EASE_STANDARD_CSS,
+  SPRING,
   springTransition,
 } from '@/constants/motion'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 
-import { NodeFrame, VersionDots } from '../chrome'
+import { NodeFrame } from '../chrome'
 import { TextAssistantBar } from '../text/TextAssistantBar'
 import { VideoPlayer } from './VideoPlayer'
 
@@ -66,9 +73,6 @@ export interface VideoNodeFrameProps {
   onExtractFrame(video: HTMLVideoElement): void
   readonly extracting: boolean
   onDownload(): void
-  readonly versionCount: number
-  readonly versionIndex: number
-  onVersionChange(index: number): void
   /** 镜头说明（= 这张卡的提示词）。 */
   readonly body: string
   onBodyChange(body: string): void
@@ -88,6 +92,7 @@ export interface VideoNodeFrameProps {
    * `VideoRefs.dc.html`：方向 B 只贡献了这一段位置）。⛔ 这里不做第二份。
    */
   readonly refRail: ReactNode
+  readonly addMenu?: ReactNode
   /**
    * 正文里要渲染成胶囊的名字 —— 画布上的卡**与轨上的序号项**（`@图1`）是同一份，
    * 调用方拼好传进来。
@@ -110,9 +115,6 @@ export function VideoNodeFrame({
   onExtractFrame,
   extracting,
   onDownload,
-  versionCount,
-  versionIndex,
-  onVersionChange,
   body,
   onBodyChange,
   onSave,
@@ -124,6 +126,7 @@ export function VideoNodeFrame({
   paramsChip,
   modelChip,
   refRail,
+  addMenu,
   tokens,
   candidates,
   onMentionSelect,
@@ -134,6 +137,9 @@ export function VideoNodeFrame({
   const reduce = useReducedMotion()
   /** 写作助手那条开着没有（页脚「让助手写」开合）。 */
   const [assistOpen, setAssistOpen] = useState(false)
+  const [assistMounted, setAssistMounted] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [addMounted, setAddMounted] = useState(false)
   /** 主键这一刻的字（没片「生成」、有片「重新生成」）与它量出来的宽。 */
   const mainLabel = url ? tVideo('frame.regenerate') : tVideo('frame.generate')
   const [mainLabelWidth, setMainLabelWidth] = useState<number | undefined>()
@@ -150,14 +156,16 @@ export function VideoNodeFrame({
     if (body === typedBodyRef.current) return
     typedBodyRef.current = body
     const element = bodyRef.current
-    if (!assistOpen || reduce || !body || !element?.animate) return
-    element.animate(
-      [
-        { clipPath: 'inset(0 0 100% 0)', opacity: 0.4 },
-        { clipPath: 'inset(0 0 0% 0)', opacity: 1 },
-      ],
-      { duration: DURATION_MS.slow, easing: EASE_STANDARD_CSS },
+    if (!assistOpen || reduce || !body || !element) return
+    const animation = animate(
+      element,
+      {
+        clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'],
+        opacity: [0.4, 1],
+      },
+      { duration: DURATION.slow, ease: EASE_STANDARD },
     )
+    return () => animation.stop()
   }, [body, assistOpen, reduce])
 
   /** 失焦即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
@@ -178,20 +186,26 @@ export function VideoNodeFrame({
       titleExtra={
         <span
           data-video-frame-headline
-          className="text-xs text-muted-foreground"
+          className="shrink-0 font-mono text-xs text-muted-foreground"
         >
           {headline}
         </span>
       }
       footer={
-        <div className="flex items-center gap-2 border-t pt-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             data-video-frame-assist
             aria-expanded={assistOpen}
-            onClick={() => setAssistOpen((open) => !open)}
+            onClick={() => {
+              if (assistOpen) setAssistOpen(false)
+              else {
+                setAssistMounted(true)
+                setAssistOpen(true)
+              }
+            }}
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs transition-[background-color,color,transform] duration-fast ease-standard active:scale-96',
+              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs transition duration-fast ease-standard active:scale-96',
               'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
               assistOpen
                 ? 'bg-foreground text-background'
@@ -203,7 +217,7 @@ export function VideoNodeFrame({
           </button>
           <span
             data-video-frame-readout
-            className="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+            className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground/75"
           >
             {footerReadout}
           </span>
@@ -218,7 +232,7 @@ export function VideoNodeFrame({
                 commit()
                 onRegenerate()
               }}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-[opacity,transform] duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着
                   slot 弹簧变（动效表 · 主键换字），⛔ 按钮跳宽。宽度量的是新字自己
@@ -258,24 +272,31 @@ export function VideoNodeFrame({
         </div>
       }
       assistantBar={
-        <AnimatePresence initial={false}>
-          {assistOpen ? (
-            <motion.div
-              key="assist"
-              data-video-frame-assist-bar
-              initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
-              transition={{ duration: DURATION.base, ease: EASE_STANDARD }}
-              className="overflow-hidden"
-            >
-              <TextAssistantBar nodeId={nodeId} />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        assistMounted ? (
+          <AnimatePresence
+            initial={false}
+            onExitComplete={() => setAssistMounted(false)}
+          >
+            {assistOpen ? (
+              <motion.div
+                key="assist"
+                data-video-frame-assist-bar
+                initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                animate={
+                  reduce ? { opacity: 1 } : { opacity: 1, height: 'auto' }
+                }
+                exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                transition={{ duration: DURATION.base, ease: EASE_STANDARD }}
+                className="overflow-hidden"
+              >
+                <TextAssistantBar nodeId={nodeId} />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        ) : undefined
       }
     >
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-3.5">
         {failureMessage && (
           <p
             role="alert"
@@ -310,17 +331,19 @@ export function VideoNodeFrame({
               {url ? (
                 <VideoPlayer
                   url={url}
+                  variant="paper"
                   {...(posterUrl ? { posterUrl } : {})}
                   title={title}
                   onExtractFrame={onExtractFrame}
                   extracting={extracting}
                   onDownload={onDownload}
+                  className="rounded-node-bar"
                 />
               ) : (
                 // 没片时矮一截（方向 A）：一句话 + 两颗，⛔ 一块空的 16:9 占半屏。
                 <div
                   data-video-player="empty"
-                  className="flex h-62.5 w-full flex-col items-center justify-center gap-3 rounded-node bg-surface-sunken corner-squircle"
+                  className="flex h-62.5 w-full flex-col items-center justify-center gap-3 rounded-node-bar bg-surface-workbench"
                 >
                   <span className="text-sm text-muted-foreground">
                     {t('player.empty')}
@@ -330,7 +353,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-upload
                       onClick={onUpload}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                       <Upload aria-hidden className="size-3.5" />
                       {tVideo('frame.upload')}
@@ -339,7 +362,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-library
                       onClick={onLibrary}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                       <Library aria-hidden className="size-3.5" />
                       {tVideo('frame.library')}
@@ -351,24 +374,80 @@ export function VideoNodeFrame({
           </AnimatePresence>
         </motion.div>
 
-        <div className="flex items-center justify-center gap-3">
-          <VersionDots
-            count={versionCount}
-            current={Math.min(versionIndex, Math.max(versionCount - 1, 0))}
-            onSelect={onVersionChange}
-            ariaLabel={t('chrome.versions')}
-            labelOf={(index) =>
-              t('chrome.versionOf', { index: index + 1, total: versionCount })
-            }
-          />
-        </div>
-
         {refRail ? (
-          <div data-video-frame-rail className="flex items-center gap-3">
-            <span className="shrink-0 text-3xs tracking-node-sec text-muted-foreground">
-              {tVideo('rail.title')}
+          <div data-video-frame-rail className="flex h-11 items-center gap-2">
+            <span className="w-8.5 shrink-0 text-2xs text-muted-foreground">
+              {tVideo('frame.referenceLabel')}
             </span>
-            <div className="min-w-0 flex-1">{refRail}</div>
+            <div className="flex min-w-0 items-center gap-2">{refRail}</div>
+            {addMenu ? (
+              <DropdownMenuPrimitive.Root
+                open={addOpen}
+                onOpenChange={(next) => {
+                  if (next) setAddMounted(true)
+                  setAddOpen(next)
+                }}
+              >
+                <DropdownMenuPrimitive.Trigger asChild>
+                  <motion.button
+                    type="button"
+                    data-video-frame-ref-add
+                    aria-label={tVideo('frame.referenceAdd')}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-foreground/24 text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    whileTap={reduce ? undefined : { scale: 0.96 }}
+                    transition={SPRING.press}
+                  >
+                    <Plus aria-hidden className="size-4" />
+                  </motion.button>
+                </DropdownMenuPrimitive.Trigger>
+                {addMounted ? (
+                  <DropdownMenuPrimitive.Portal forceMount>
+                    <DropdownMenuPrimitive.Content
+                      asChild
+                      forceMount
+                      align="start"
+                      sideOffset={8}
+                    >
+                      <motion.div
+                        data-video-frame-ref-menu
+                        initial={false}
+                        animate={
+                          addOpen
+                            ? { opacity: 1, scale: 1, filter: 'blur(0px)' }
+                            : {
+                                opacity: 0,
+                                scale: CHIP_POPOVER.fromScale,
+                                filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                              }
+                        }
+                        transition={
+                          reduce
+                            ? { duration: 0.001 }
+                            : addOpen
+                              ? SPRING.slot
+                              : { duration: DURATION.base, ease: EASE_IN }
+                        }
+                        onAnimationComplete={() => {
+                          if (!addOpen) setAddMounted(false)
+                        }}
+                        style={{
+                          boxSizing: 'content-box',
+                          transformOrigin:
+                            'var(--radix-dropdown-menu-content-transform-origin)',
+                          pointerEvents: addOpen ? 'auto' : 'none',
+                        }}
+                        className="z-50 w-72 rounded-node-bar bg-popover p-1.5 text-foreground ring-1 ring-border shadow-node-menu outline-none"
+                      >
+                        {addMenu}
+                      </motion.div>
+                    </DropdownMenuPrimitive.Content>
+                  </DropdownMenuPrimitive.Portal>
+                ) : null}
+              </DropdownMenuPrimitive.Root>
+            ) : null}
+            <span className="ml-1 shrink-0 text-xs text-muted-foreground/75">
+              {tVideo('frame.referenceHint')}
+            </span>
           </div>
         ) : null}
 
@@ -390,7 +469,7 @@ export function VideoNodeFrame({
             onRegenerate()
           }}
           // 说明直接写在纸上（方向 A：⛔ 描边框里套框），与上面一道细线隔开。
-          className="min-h-24 border-t pt-3.5 text-2sm leading-relaxed tracking-node-body"
+          className="min-h-17.5 border-t pt-3.5 text-sm leading-5.5 tracking-node-body"
         >
           <MentionInput
             variant="canvas"
@@ -408,7 +487,7 @@ export function VideoNodeFrame({
               if (!editorRef.current) return
               onMentionSelect(candidate, editorRef.current)
             }}
-            className="min-h-16 w-full p-0 text-2sm leading-relaxed"
+            className="min-h-10 w-full p-0 text-sm leading-5.5"
           />
         </div>
       </div>

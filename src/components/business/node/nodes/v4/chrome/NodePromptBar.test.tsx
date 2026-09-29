@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -41,6 +42,27 @@ function setup(
 }
 
 describe('NodePromptBar', () => {
+  it('only has one + in the prompt row and opens the 300px outer add menu below it', async () => {
+    const { container } = setup({
+      addMenu: <DropdownMenuItem>Upload file</DropdownMenuItem>,
+    })
+    const trigger = container.querySelector('[data-prompt-bar-add]')!
+    expect(container.querySelectorAll('[data-prompt-bar-add]')).toHaveLength(1)
+    expect(container.querySelector('[data-prompt-bar-leading]')).toBeNull()
+    fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' })
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-prompt-bar-add-menu]'),
+      ).not.toBeNull(),
+    )
+    const menu = document.querySelector(
+      '[data-prompt-bar-add-menu]',
+    ) as HTMLElement
+    expect(menu).toHaveClass('w-72', 'p-1.5', 'rounded-node-bar')
+    expect(menu.style.boxSizing).toBe('content-box')
+    expect(screen.getByText('Upload file')).toBeInTheDocument()
+  })
+
   // `trailing` 是 chip 与发送钮之间那一格（画板：模型 chip · 规格 chip · 竖线 ·
   // 声音图标 · 竖线 · 生成）。⛔ 它不受 `promptChipMax` 那条 chip 上限管。
   it('trailing 给了才连同两条竖线一起渲染；空的时候不留孤零零的分隔线', () => {
@@ -162,6 +184,24 @@ describe('NodePromptBar', () => {
       />,
     )
     expect(screen.getByLabelText('提示词').style.height).toBe('80px')
+  })
+
+  it('文档紧凑栏空态为 84 高，发送键保持黑底但不能空发', () => {
+    stubScrollHeight(20)
+    const { container } = setup({ compact: true, value: '' })
+    const bar = container.querySelector('[data-node-chrome="prompt-bar"]')!
+    const field = container.querySelector<HTMLElement>(
+      '[data-prompt-bar-field]',
+    )!
+    const row = field.parentElement!
+    const send = container.querySelector<HTMLButtonElement>(
+      '[data-prompt-bar-send]',
+    )!
+    expect(field.style.height).toBe('30px')
+    expect(row).toHaveClass('gap-y-0.5')
+    expect(bar).toHaveClass('pt-3', 'pb-2.5')
+    expect(send).toBeDisabled()
+    expect(send).toHaveClass('bg-primary', 'disabled:opacity-100')
   })
 
   it('超 4 行内部滚动并显示字数（⛔ 不弹大编辑器）', () => {

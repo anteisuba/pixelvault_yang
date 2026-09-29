@@ -2,16 +2,16 @@
 
 /**
  * 图片节点（v3 spec §3，画板 `ImageStates` / `ImageSelected` / `ImageToolbar` /
- * `PromptBar` / `ImageQuickLook`）。
+ * `PromptBar` / `ImageNodeFrame`）。
  *
  * 五态：**空卡**（虚线框 + 加号 + 一句提示，⌘V / 拖入都落进这张卡）· **有图收起**
  * （卡即图、按真实比例、名字在卡外，⛔ 无角标、无槽、无卡头）· **选中**（工具条浮
  * 在卡上、提示词栏浮在卡下、版本点在中间）· **生成中**（边即进度 + 栏变灰可取消）
- * · **快速看**（双击，原比例大图 + 版本 + 下载）。
+ * · **画中框**（双击，原比例图片 + 参考 + 提示词 + 生成页脚）。
  *
  * ── 三条纪律 ────────────────────────────────────────────────────────────
  * ① **壳全部来自 `chrome/`**：卡骨架 / 工具条 / 提示词栏 / chip 弹层 / 版本点 /
- *    边即进度 / 快速看。⛔ 这里不复制任何一件的形态。
+ *    边即进度 / 画中框。⛔ 这里不复制任何一件的形态。
  * ② **语义写入走 op**（`canvas.onApplyOp`）；媒体回填走 `canvas.onSetMedia`
  *    （上传与生成都是用户的动作，⛔ 助手不许塞 URL —— op 表 §5 纪律 1）。
  * ③ **参数与模型走 `onSetParams` / `onSetModel`**，⛔ 不在组件里存一份影子状态。
@@ -32,12 +32,14 @@ import { useTranslations } from 'next-intl'
 import { Spinner } from '@/components/ui/spinner'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Clapperboard,
   Download,
   MoreHorizontal,
   Pencil,
+  Upload,
+  ImageIcon,
   X,
 } from '@/components/icons'
 
@@ -60,10 +62,12 @@ import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { renameStableNodeName } from '@/lib/node-display-name'
+import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 import type {
   NodeV4,
   NodeV4ImageData,
+  NodeWorkflowModelSelection,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
 
@@ -91,6 +95,7 @@ import {
   buildConnectToShotTargets,
 } from './connect-to-shot-targets'
 import { ImageFrameChip } from './image/ImageFrameChip'
+import { ImageNodeFrame } from './image/ImageNodeFrame'
 import {
   ImageAddMenuItems,
   ImageEditMenuItems,
@@ -145,6 +150,25 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
+  const modelOptions = useMemo(
+    () => canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.image] ?? [],
+    [canvas.modelOptionsByKind],
+  )
+  const defaultModel = useMemo<NodeWorkflowModelSelection | undefined>(() => {
+    const picked = pickDefaultModelOption(modelOptions.map(toStudioModelOption))
+    const source = picked
+      ? modelOptions.find((option) => option.optionId === picked.optionId)
+      : undefined
+    if (!source) return undefined
+    return {
+      optionId: source.optionId,
+      modelId: source.modelId,
+      adapterType: source.adapterType,
+      providerConfig: source.providerConfig,
+      ...(source.apiKeyId ? { apiKeyId: source.apiKeyId } : {}),
+    }
+  }, [modelOptions])
+  const effectiveModel = imageData.model ?? defaultModel
   const pendingUpload = canvas.pendingUploads?.find((item) => item.id === id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
@@ -154,6 +178,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   // 源文件没了（素材库删了）/ 暂时读不到：换成灰底一句话，⛔ 不露裂图。
   const media = useMediaProblem(imageData.url)
   const [assetPicker, setAssetPicker] = useState(false)
+  const [emptyDragging, setEmptyDragging] = useState(false)
   const [editTask, setEditTask] =
     useState<ReadyCanvasImageEditCapabilityId | null>(null)
   const [draft, setDraft] = useState(imageData.prompt ?? '')
@@ -172,7 +197,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const refs = useImageRefBinding({
     id,
     displayName: imageData.name,
-    model: imageData.model,
+    model: effectiveModel,
     disabled: Boolean(imageData.mediaJobId),
   })
 
@@ -181,6 +206,23 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   // 的变化正好就是图引擎那次对号时，只给草稿对号，⛔ 不整段盖掉没发出去的字。
   const currentPrompt = imageData.prompt ?? ''
   const railItems = refs.railProps.items
+  const [railMountState, setRailMountState] = useState({
+    count: railItems.length,
+    animate: false,
+  })
+  if (railMountState.count !== railItems.length) {
+    setRailMountState({
+      count: railItems.length,
+      animate: railMountState.count === 0 && railItems.length > 0,
+    })
+  }
+  useEffect(() => {
+    if (!railMountState.animate) return
+    const timer = window.setTimeout(() => {
+      setRailMountState((state) => ({ ...state, animate: false }))
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [railMountState.animate])
   if (
     syncedPrompt !== currentPrompt ||
     syncedRail === null ||
@@ -284,7 +326,12 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
    * 落进这张卡又多出一张。选中的卡优先，⛔ 不让两条路都生效。
    */
   useEffect(() => {
-    if (!selected || canvas.selectedNodeIds.length >= 2) return
+    if (
+      !selected ||
+      canvas.selectedNodeIds.length >= 2 ||
+      canvas.expandedNodeId === id
+    )
+      return
     const onPaste = (event: ClipboardEvent) => {
       const file = Array.from(event.clipboardData?.files ?? []).find((item) =>
         item.type.startsWith('image/'),
@@ -300,7 +347,37 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     }
     window.addEventListener('paste', onPaste, true)
     return () => window.removeEventListener('paste', onPaste, true)
-  }, [selected, canvas.selectedNodeIds.length, runUpload])
+  }, [
+    selected,
+    canvas.selectedNodeIds.length,
+    canvas.expandedNodeId,
+    id,
+    runUpload,
+  ])
+
+  useEffect(() => {
+    if (
+      !selected ||
+      !imageData.url ||
+      media.problem ||
+      canvas.expandedNodeId === id
+    )
+      return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || event.repeat) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.closest('input, textarea, [contenteditable="true"]') ||
+          target.closest('[role="dialog"]'))
+      )
+        return
+      event.preventDefault()
+      setQuickLook(true)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selected, imageData.url, media.problem, canvas.expandedNodeId, id])
 
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
   // 卡在屏幕上窄没窄（画布缩放）—— 在提前返回之前取：hook 不能跟着 `node` 有无走。
@@ -347,15 +424,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const width = imageData.url
     ? collapsedImageWidth(imageData)
     : NODE_V4_CARD.collapsedWidth
-  const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
+  const expanded = canvas.expandedNodeId === id
+  const showChrome =
+    Boolean(selected) && canvas.selectedNodeIds.length < 2 && !expanded
   // 九宫格分镜（§3）：宿主接了切开能力才出开关、⋯ 里的「切宫格」和卡上那一句。
   const storyboard = canvas.storyboard
   const storyboardIssue = storyboard?.issues[id]
   const storyboardBusy = storyboard?.splitting.has(id) ?? false
   const sourceLabel = readOutputVersions(imageData)[versionIndex]?.source?.label
-  const modelOptions =
-    canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.image] ?? []
-
   const renameNode = (next: string): boolean => {
     const taken = new Set(
       canvas.nodes
@@ -376,6 +452,16 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const submitPrompt = () => {
     if (draft.trim().length === 0 || generating) return
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
+    if (!imageData.model && effectiveModel)
+      canvas.onSetModel(id, effectiveModel)
+    const nodes = canvas.nodes.map((item) =>
+      item.id === id && effectiveModel
+        ? ({
+            ...item,
+            data: { ...item.data, model: effectiveModel },
+          } as NodeV4)
+        : item,
+    )
     const submission = { cancelled: false }
     submissionRef.current = submission
     canvas.onSetMedia(id, { generationFailure: undefined })
@@ -383,7 +469,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     void generation
       .generateNode(
         id,
-        { nodes: canvas.nodes, edges: canvas.edges },
+        { nodes, edges: canvas.edges },
         {
           prompt: draft,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
@@ -530,6 +616,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onSelect: () => {},
         menu: (
           <ImageMoreMenuItems
+            onQuickLook={
+              imageData.url && !media.problem
+                ? () => setQuickLook(true)
+                : undefined
+            }
             onRename={() => setRenameRequest((count) => count + 1)}
             onSplitGrid={
               storyboard && imageData.url
@@ -586,6 +677,111 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const failed = Boolean(
     failureMessage && !pendingUpload && !upload.isUploading,
   )
+  const empty =
+    !imageData.url &&
+    !failed &&
+    !pendingUpload &&
+    !upload.isUploading &&
+    !generating
+  const hasAttachedRefs =
+    refs.railProps.items.length > 0 ||
+    Boolean(refs.railProps.pending?.length) ||
+    promptMentions.characterMentions.length > 0
+  const refAddMenu = (
+    <ImageAddMenuItems
+      onUpload={
+        acceptsRefs ? refs.openFilePicker : () => fileRef.current?.click()
+      }
+      onLibrary={
+        acceptsRefs ? refs.railProps.onLibrary : () => setAssetPicker(true)
+      }
+      {...(acceptsRefs
+        ? {
+            canvasCandidates: refs.candidates.map((candidate) => {
+              const attached = refs.items.some(
+                (item) => item.sourceNodeId === candidate.id,
+              )
+              const occupied =
+                refs.items.length +
+                (refs.railProps.pending?.filter((item) => !item.error).length ??
+                  0)
+              return {
+                ...candidate,
+                attached,
+                ...(attached || occupied < refs.capacity
+                  ? {}
+                  : {
+                      blockedReason: tImage('rail.full', {
+                        limit: refs.capacity,
+                      }),
+                    }),
+              }
+            }),
+            onPickCanvas: refs.railProps.onPickFromCanvas,
+          }
+        : {})}
+    />
+  )
+  const paramsChip = (
+    <ImageFrameChip
+      key="frame"
+      aspectRatio={imageData.params?.aspectRatio}
+      modelId={effectiveModel?.modelId}
+      model={effectiveModel}
+      quality={imageData.params?.quality}
+      resolution={imageData.params?.resolution}
+      count={imageData.params?.count}
+      disabled={generating}
+      onAspectRatioChange={(aspectRatio) =>
+        canvas.onSetParams(id, { ...imageData.params, aspectRatio })
+      }
+      onQualityChange={(quality) =>
+        canvas.onSetParams(id, { ...imageData.params, quality })
+      }
+      onResolutionChange={(resolution) =>
+        canvas.onSetParams(id, { ...imageData.params, resolution })
+      }
+      onCountChange={(count) =>
+        canvas.onSetParams(id, { ...imageData.params, count })
+      }
+      {...(storyboard
+        ? {
+            storyboardGrid: imageData.params?.storyboardGrid === true,
+            onStoryboardGridChange: (storyboardGrid: boolean) =>
+              canvas.onSetParams(id, {
+                ...imageData.params,
+                storyboardGrid,
+              }),
+          }
+        : {})}
+    />
+  )
+  const modelChip = (
+    <ModelPickerPopover
+      key="model"
+      options={modelOptions.map(toStudioModelOption)}
+      value={effectiveModel?.optionId ?? null}
+      memoryScope={NODE_MEDIA_KIND_IDS.image}
+      gateId={id}
+      canvasNodeId={id}
+      canvasSidebarOpen={canvas.sidebarOpen}
+      disabled={generating}
+      {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
+      onChange={(option) => {
+        const picked = modelOptions.find(
+          (item) => item.optionId === option.optionId,
+        )
+        if (!picked) return
+        canvas.onSetModel(id, {
+          optionId: picked.optionId,
+          modelId: picked.modelId,
+          adapterType: picked.adapterType,
+          providerConfig: picked.providerConfig,
+          ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
+        })
+      }}
+    />
+  )
 
   return (
     <div
@@ -602,8 +798,17 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         event.preventDefault()
         event.stopPropagation()
         event.dataTransfer.dropEffect = 'copy'
+        if (empty && Array.from(event.dataTransfer.types).includes('Files')) {
+          setEmptyDragging(true)
+        }
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setEmptyDragging(false)
+        }
       }}
       onDrop={(event) => {
+        setEmptyDragging(false)
         const file = Array.from(event.dataTransfer?.files ?? []).find((item) =>
           item.type.startsWith('image/'),
         )
@@ -614,10 +819,10 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         else runUpload(file)
       }}
       onDoubleClick={() => {
-        if (imageData.url && !media.problem) setQuickLook(true)
+        if (imageData.url && !media.problem) canvas.onToggleExpanded(id)
       }}
     >
-      <NodeChromeLayer show={showChrome} position={Position.Top}>
+      <NodeChromeLayer show={showChrome && !empty} position={Position.Top}>
         <NodeToolbar
           groups={toolbarGroups}
           ariaLabel={tImage('toolbar.label')}
@@ -658,10 +863,34 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           ) : undefined
         }
         width={width}
-        emptyHint={t('chrome.emptyHint')}
-        emptyAddAriaLabel={tImage('add.upload')}
+        empty={empty}
         emptyHeight={emptyCardHeight(width)}
-        onEmptyAdd={() => fileRef.current?.click()}
+        emptyDragging={emptyDragging}
+        emptyContent={
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-center text-muted-foreground">
+            <span className="text-2sm">{t('chrome.emptyHint')}</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                data-node-empty-upload
+                onClick={() => fileRef.current?.click()}
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <Upload aria-hidden className="size-3.5" />
+                {t('chrome.emptyUpload')}
+              </button>
+              <button
+                type="button"
+                data-node-empty-library
+                onClick={() => setAssetPicker(true)}
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <ImageIcon aria-hidden className="size-3.5" />
+                {t('chrome.emptyLibrary')}
+              </button>
+            </div>
+          </div>
+        }
         surfaceClassName="overflow-hidden"
         changed={canvas.changedNodeIds.includes(id)}
         portSpec={portSpecOf(node)}
@@ -797,7 +1026,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       </NodeCardShell>
 
       <NodeChromeLayer show={showChrome} position={Position.Bottom}>
-        <div className="flex flex-col items-center gap-2.5">
+        <div className="flex flex-col items-center gap-2">
           <VersionDots
             count={versions.length}
             current={Math.min(versionIndex, versions.length - 1)}
@@ -811,6 +1040,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             }
           />
           <NodePromptBar
+            sidebarOpen={canvas.sidebarOpen}
             value={draft}
             onValueChange={setDraft}
             onSubmit={submitPrompt}
@@ -829,104 +1059,34 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             }}
             placeholder={tImage('promptPlaceholder')}
             ariaLabel={tImage('promptLabel')}
-            className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}
+            className="w-160"
             inputRef={promptInputRef}
             leadingRow={
-              acceptsRefs ? (
+              acceptsRefs && hasAttachedRefs ? (
                 <div className="flex min-w-0 max-w-full items-start gap-2">
-                  <ImageRefRail {...refs.railProps} />
-                  <CharacterMentionRail
-                    nodeId={id}
-                    mentions={promptMentions.characterMentions}
-                    capacity={refs.railProps.capacity}
-                    usedImages={refs.railProps.items.length}
-                    disabled={generating}
-                  />
+                  {refs.railProps.items.length > 0 ||
+                  refs.railProps.pending?.length ? (
+                    <ImageRefRail
+                      {...refs.railProps}
+                      animateOnMount={railMountState.animate}
+                    />
+                  ) : null}
+                  {promptMentions.characterMentions.length > 0 ? (
+                    <CharacterMentionRail
+                      nodeId={id}
+                      mentions={promptMentions.characterMentions}
+                      capacity={refs.railProps.capacity}
+                      usedImages={refs.railProps.items.length}
+                      disabled={generating}
+                    />
+                  ) : null}
                 </div>
               ) : null
             }
             mentionOptions={promptMentions.mentionOptions}
             renderValue={promptMentions.renderValue}
-            addMenu={
-              <ImageAddMenuItems
-                onUpload={
-                  acceptsRefs
-                    ? refs.openFilePicker
-                    : () => fileRef.current?.click()
-                }
-                onLibrary={
-                  acceptsRefs
-                    ? refs.railProps.onLibrary
-                    : () => setAssetPicker(true)
-                }
-                {...(acceptsRefs
-                  ? {
-                      canvasCandidates: refs.candidates,
-                      onPickCanvas: refs.railProps.onPickFromCanvas,
-                    }
-                  : {})}
-              />
-            }
-            chips={[
-              <ImageFrameChip
-                key="frame"
-                aspectRatio={imageData.params?.aspectRatio}
-                modelId={imageData.model?.modelId}
-                model={imageData.model}
-                quality={imageData.params?.quality}
-                resolution={imageData.params?.resolution}
-                count={imageData.params?.count}
-                disabled={generating}
-                onAspectRatioChange={(aspectRatio) =>
-                  canvas.onSetParams(id, { ...imageData.params, aspectRatio })
-                }
-                onQualityChange={(quality) =>
-                  canvas.onSetParams(id, { ...imageData.params, quality })
-                }
-                onResolutionChange={(resolution) =>
-                  canvas.onSetParams(id, { ...imageData.params, resolution })
-                }
-                onCountChange={(count) =>
-                  canvas.onSetParams(id, { ...imageData.params, count })
-                }
-                {...(storyboard
-                  ? {
-                      storyboardGrid: imageData.params?.storyboardGrid === true,
-                      onStoryboardGridChange: (storyboardGrid: boolean) =>
-                        canvas.onSetParams(id, {
-                          ...imageData.params,
-                          storyboardGrid,
-                        }),
-                    }
-                  : {})}
-              />,
-              modelOptions.length > 0 ? (
-                <ModelPickerPopover
-                  key="model"
-                  options={modelOptions.map(toStudioModelOption)}
-                  value={imageData.model?.optionId ?? null}
-                  memoryScope={NODE_MEDIA_KIND_IDS.image}
-                  gateId={id}
-                  disabled={generating}
-                  {...(openKeySettings
-                    ? { onManageChannels: openKeySettings }
-                    : {})}
-                  onChange={(option) => {
-                    const picked = modelOptions.find(
-                      (item) => item.optionId === option.optionId,
-                    )
-                    if (!picked) return
-                    canvas.onSetModel(id, {
-                      optionId: picked.optionId,
-                      modelId: picked.modelId,
-                      adapterType: picked.adapterType,
-                      providerConfig: picked.providerConfig,
-                      ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
-                    })
-                  }}
-                />
-              ) : null,
-            ].filter(Boolean)}
+            addMenu={refAddMenu}
+            chips={[paramsChip, modelChip].filter(Boolean)}
           />
         </div>
       </NodeChromeLayer>
@@ -943,6 +1103,77 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         }}
       />
       {acceptsRefs ? refs.overlays : null}
+
+      <AnimatePresence>
+        {expanded && imageData.url && !media.problem ? (
+          <ImageNodeFrame
+            key="frame"
+            open
+            origin={cardRef}
+            onClose={() => canvas.onToggleExpanded(id)}
+            nodeId={id}
+            title={imageData.name}
+            headline={[
+              imageData.mediaWidth && imageData.mediaHeight
+                ? t('readout.dimensions', {
+                    width: imageData.mediaWidth,
+                    height: imageData.mediaHeight,
+                  })
+                : null,
+              `${versionIndex + 1} / ${versions.length}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            url={imageData.url}
+            mediaWidth={imageData.mediaWidth}
+            mediaHeight={imageData.mediaHeight}
+            onDownload={() => triggerNodeV4Download(imageData.url!)}
+            versionCount={versions.length}
+            versionIndex={versionIndex}
+            onVersionChange={selectVersion}
+            body={draft}
+            onBodyChange={setDraft}
+            onSave={(body) => {
+              if (body !== currentPrompt) canvas.onSetPrompt(id, body)
+            }}
+            onRegenerate={submitPrompt}
+            regenerateDisabled={generating || draft.trim().length === 0}
+            footerReadout={t('video.frame.readout', {
+              chars: draft.trim().length,
+              slots: refs.items.length,
+            })}
+            paramsChip={paramsChip}
+            modelChip={modelChip}
+            showReferences={acceptsRefs}
+            refRail={
+              acceptsRefs && hasAttachedRefs ? (
+                <div className="flex min-w-0 max-w-full items-center gap-2">
+                  {refs.railProps.items.length > 0 ||
+                  refs.railProps.pending?.length ? (
+                    <ImageRefRail {...refs.railProps} variant="frame" />
+                  ) : null}
+                  {promptMentions.characterMentions.length > 0 ? (
+                    <CharacterMentionRail
+                      nodeId={id}
+                      mentions={promptMentions.characterMentions}
+                      capacity={refs.railProps.capacity}
+                      usedImages={refs.railProps.items.length}
+                      disabled={generating}
+                    />
+                  ) : null}
+                </div>
+              ) : null
+            }
+            refAddMenu={refAddMenu}
+            onAttachFile={refs.attachFile}
+            tokens={promptMentions.frameTokens}
+            candidates={promptMentions.frameCandidates}
+            onMentionSelect={(candidate, handle) =>
+              handle.insertToken(candidate.name)
+            }
+          />
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {quickLook && imageData.url ? (
@@ -967,7 +1198,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   })
                 : undefined
             }
-            onDownload={() => triggerNodeV4Download(imageData.url as string)}
+            onDownload={() => triggerNodeV4Download(imageData.url!)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

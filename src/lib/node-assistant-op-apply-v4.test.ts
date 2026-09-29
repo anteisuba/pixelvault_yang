@@ -409,9 +409,33 @@ describe('内容 op', () => {
     if (!result.ok) return
     const shot = result.state.nodes.find((n) => n.id === 'v_02')?.data
     expect(shot?.kind === 'video' && shot.label).toBe('有人还在')
+    expect(shot?.nameEdited).toBe(true)
     const undone = applyInverseV4(result.state, result.inverse, context)
     const back = undone.nodes.find((n) => n.id === 'v_02')?.data
     expect(back?.kind === 'video' && back.label).toBe('镜头2')
+    expect(back?.nameEdited).toBeUndefined()
+  })
+
+  it('非卡片 UI 的 set_field name 即使写成默认外形也标记手动来源', () => {
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      { op: 'set_field', target: 'i_a', field: 'name', value: '生成图3' },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.nodes.find((n) => n.id === 'i_a')?.data).toMatchObject({
+      name: '生成图3',
+      nameEdited: true,
+    })
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    expect(undone.nodes.find((n) => n.id === 'i_a')?.data).toMatchObject({
+      name: 'i_a',
+    })
+    expect(
+      undone.nodes.find((n) => n.id === 'i_a')?.data.nameEdited,
+    ).toBeUndefined()
   })
 
   it('label 落在没有这个字段的节点上 → 失败可见，⛔ 不静默剥掉', () => {

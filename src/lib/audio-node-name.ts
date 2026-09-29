@@ -63,7 +63,10 @@ export function voiceTakeNodeName(
 
 interface NamedNode {
   readonly id: string
-  readonly data: { readonly name?: string | undefined }
+  readonly data: {
+    readonly name?: string | undefined
+    readonly nameEdited?: boolean | undefined
+  }
 }
 
 /**
@@ -77,6 +80,7 @@ export function renameForVoice(
   nodes: readonly NamedNode[],
 ): string | undefined {
   const current = node.data.name?.trim()
+  if (node.data.nameEdited) return undefined
   if (!isAutoAudioNodeName(current)) return undefined
   const label = toNodeDisplayLabel(voiceName)
   if (!label) return undefined
@@ -97,7 +101,7 @@ function mentions(node: NamedNode, name: string): boolean {
   return JSON.stringify(node.data).includes(`@${name}`)
 }
 
-/** 按音色改名的那一条 op（不该改名时空表）。 */
+/** 按音色自动改名并保留自动名来源（不该改名时空表）。 */
 export function renameForVoiceOps(
   node: NamedNode,
   voiceName: string,
@@ -111,6 +115,12 @@ export function renameForVoiceOps(
           target: node.id,
           field: 'name',
           value: name,
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setField,
+          target: node.id,
+          field: 'nameEdited',
+          value: false,
         },
       ]
     : []

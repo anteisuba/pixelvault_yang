@@ -28,15 +28,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Plus, X } from '@/components/icons'
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ArrowUp, Plus, X } from '@/components/icons'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
+import { CHIP_POPOVER, DURATION, EASE_IN, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 import {
@@ -71,6 +68,8 @@ export interface NodePromptBarProps {
   readonly chips?: readonly ReactNode[]
   /** `+` 的菜单项（用 `DropdownMenuItem` 拼）。不给就不渲染 `+`。 */
   readonly addMenu?: ReactNode
+  /** 画布侧栏开启时，菜单也要避开同一块安全区。 */
+  readonly sidebarOpen?: boolean
   /**
    * chip 与发送钮之间那一格（画板 `DesignD2Spec` 的「画布提示词栏 · 结果」：
    * 模型 chip · 规格 chip · 竖线 · 声音图标 · 竖线 · 生成）。
@@ -89,6 +88,7 @@ export interface NodePromptBarProps {
   readonly leadingRow?: ReactNode
   readonly ariaLabel: string
   readonly className?: string
+  readonly compact?: boolean
   readonly textareaProps?: {
     readonly onKeyDown?: (
       event: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -141,10 +141,12 @@ export function NodePromptBar({
   placeholder,
   chips,
   addMenu,
+  sidebarOpen = false,
   trailing,
   leadingRow,
   ariaLabel,
   className,
+  compact = false,
   textareaProps,
   inputRef,
   onSelectionChange,
@@ -163,6 +165,16 @@ export function NodePromptBar({
   /** Esc 关掉的是**这一个** `@`（下标）——再键一个字不该又弹回来。 */
   const [dismissedAt, setDismissedAt] = useState<number | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const reduceMotion = useReducedMotion()
+  const addTriggerRef = useRef<HTMLButtonElement>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [addMounted, setAddMounted] = useState(false)
+  const [menuCollisionPadding, setMenuCollisionPadding] = useState({
+    top: 64,
+    right: 16,
+    bottom: 76,
+    left: 72,
+  })
 
   /**
    * 正文那只 textarea 分给两边：内部量光标，调用方（插标记 / 插 `@`）拿去聚焦。
@@ -243,42 +255,114 @@ export function NodePromptBar({
   const visibleChips = (chips ?? []).slice(0, NODE_V4_CHROME.promptChipMax)
   /** 两行起、四行封顶 —— 中间随字数长高。 */
   const bodyLines = Math.min(
-    Math.max(lines, NODE_V4_CHROME.promptMinLines),
+    Math.max(lines, compact ? 1 : NODE_V4_CHROME.promptMinLines),
     NODE_V4_CHROME.promptMaxLines,
   )
-  const textareaHeight = bodyLines * LINE_HEIGHT_PX
+  const textareaHeight = Math.max(compact ? 30 : 0, bodyLines * LINE_HEIGHT_PX)
 
   const addButton = addMenu ? (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
+    <DropdownMenuPrimitive.Root
+      open={addOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          const stage = addTriggerRef.current?.closest('.react-flow')
+          const bounds = stage?.getBoundingClientRect()
+          const left = sidebarOpen ? 346 : 72
+          setMenuCollisionPadding(
+            bounds && bounds.width > 0 && bounds.height > 0
+              ? {
+                  top: Math.max(0, bounds.top + 64),
+                  right: Math.max(0, window.innerWidth - bounds.right + 16),
+                  bottom: Math.max(0, window.innerHeight - bounds.bottom + 76),
+                  left: Math.max(0, bounds.left + left),
+                }
+              : { top: 64, right: 16, bottom: 76, left },
+          )
+          setAddMounted(true)
+        }
+        setAddOpen(open)
+      }}
+    >
+      <DropdownMenuPrimitive.Trigger asChild>
+        <motion.button
+          ref={addTriggerRef}
           type="button"
           aria-label={t('add')}
           data-prompt-bar-add
           disabled={generating}
-          className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className={cn(
+            'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+            addOpen
+              ? 'bg-surface-fill-track'
+              : 'bg-surface-fill hover:bg-surface-fill-hover',
+          )}
+          whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+          transition={SPRING.press}
         >
           <Plus aria-hidden className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" sideOffset={8} className="min-w-44">
-        {addMenu}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </motion.button>
+      </DropdownMenuPrimitive.Trigger>
+      {addMounted ? (
+        <DropdownMenuPrimitive.Portal forceMount>
+          <DropdownMenuPrimitive.Content
+            asChild
+            forceMount
+            align="start"
+            sideOffset={8}
+            collisionPadding={menuCollisionPadding}
+          >
+            <motion.div
+              data-prompt-bar-add-menu
+              initial={false}
+              animate={
+                addOpen
+                  ? { opacity: 1, scale: 1, filter: 'blur(0px)' }
+                  : {
+                      opacity: 0,
+                      scale: CHIP_POPOVER.fromScale,
+                      filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                    }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : addOpen
+                    ? SPRING.slot
+                    : { duration: DURATION.base, ease: EASE_IN }
+              }
+              onAnimationComplete={() => {
+                if (!addOpen) setAddMounted(false)
+              }}
+              style={{
+                boxSizing: 'content-box',
+                transformOrigin:
+                  'var(--radix-dropdown-menu-content-transform-origin)',
+                pointerEvents: addOpen ? 'auto' : 'none',
+              }}
+              className="z-50 w-72 rounded-node-bar bg-popover p-1.5 text-foreground ring-1 ring-border shadow-node-menu outline-none"
+            >
+              {addMenu}
+            </motion.div>
+          </DropdownMenuPrimitive.Content>
+        </DropdownMenuPrimitive.Portal>
+      ) : null}
+    </DropdownMenuPrimitive.Root>
   ) : null
 
   const trailingButton = generating ? (
-    <button
+    <motion.button
       type="button"
       aria-label={t('cancel')}
       data-prompt-bar-cancel
       onClick={() => onCancel?.()}
-      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground transition-colors duration-fast hover:bg-status-risk-surface hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground hover:bg-status-risk-surface hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+      transition={SPRING.press}
     >
       <X aria-hidden className="size-4" />
-    </button>
+    </motion.button>
   ) : (
-    <button
+    <motion.button
       type="button"
       aria-label={blockedLabel ?? t('send')}
       title={blockedLabel}
@@ -287,16 +371,19 @@ export function NodePromptBar({
       disabled={value.trim().length === 0}
       onClick={blockedLabel ? onBlockedClick : onSubmit}
       className={cn(
-        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none',
+        compact ? 'disabled:opacity-100' : 'disabled:opacity-50',
         // 挡住时降到次级填充 + warning 描边（与工作台生成键同一条规矩：降的是底
         // 不是字）。
         blockedLabel
           ? 'border border-status-warning bg-surface-fill text-status-warning'
           : 'bg-primary text-primary-foreground',
       )}
+      whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+      transition={SPRING.press}
     >
-      <ArrowRight aria-hidden className="size-4" />
-    </button>
+      <ArrowUp aria-hidden className="size-4" />
+    </motion.button>
   )
 
   /** 选区回调的唯一出口 —— 点击 / 方向键 / 输入 / `select` 都从这里报。 */
@@ -422,7 +509,8 @@ export function NodePromptBar({
       // 在栏里选个词就把画中框顶出来是 2026-09-10 owner 真机反馈的第五条。
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        'relative rounded-node surface-glass shadow-node-chrome corner-squircle py-3 pr-2 pl-3.5',
+        'relative rounded-node bg-card ring-1 ring-border shadow-node-chrome pt-3 pl-3.5',
+        compact ? 'pr-2.5 pb-2.5' : 'pr-2 pb-2',
         generating && 'opacity-60',
         className,
       )}
@@ -457,7 +545,12 @@ export function NodePromptBar({
           {leadingRow}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-1.5',
+          compact ? 'gap-y-0.5' : 'gap-y-2',
+        )}
+      >
         {addButton}
         {field}
         <div className="flex min-w-0 flex-1 items-center gap-1.5">

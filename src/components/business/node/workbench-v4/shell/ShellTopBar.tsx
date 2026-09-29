@@ -14,10 +14,12 @@
  */
 
 import { Scissors } from '@/components/icons'
+import { motion, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 import { ShellProjectPill } from './ShellProjectPill'
@@ -48,6 +50,16 @@ export function ShellTopBar({
   onOpenEditDesk,
 }: ShellTopBarProps) {
   const t = useTranslations('StudioNode.shell')
+  const operatorYield = useStudioOperatorYield()
+  const editDeskRight = useTransform(
+    operatorYield,
+    (value) =>
+      value +
+      CANVAS_SHELL_LAYOUT.edgeInsetPx +
+      STUDIO_OPERATOR_SHELL.avatarSizePx +
+      STUDIO_OPERATOR_SHELL.avatarGapPx +
+      2,
+  )
 
   return (
     <>
@@ -71,16 +83,10 @@ export function ShellTopBar({
         />
       </div>
 
-      <div
+      <motion.div
         className="pointer-events-none absolute z-canvas-chrome flex gap-2"
         style={{
-          /* ⚠ 往左推**一个头像 + 一个空隙**：助手头像是 Dock 画的 fixed 元素，
-             贴的就是 `edgeInsetPx` 这条右缘。不推的话「剪辑台」会被它压住。
-             ⛔ 别把这两个数抄成字面量 —— 头像那边读的是同两个常量。 */
-          right:
-            CANVAS_SHELL_LAYOUT.edgeInsetPx +
-            STUDIO_OPERATOR_SHELL.avatarSizePx +
-            STUDIO_OPERATOR_SHELL.avatarGapPx,
+          right: editDeskRight,
           top: CANVAS_SHELL_LAYOUT.edgeInsetPx,
         }}
       >
@@ -94,7 +100,7 @@ export function ShellTopBar({
           <Scissors className="size-4 shrink-0" aria-hidden />
           <span>{t('editDesk')}</span>
         </button>
-      </div>
+      </motion.div>
     </>
   )
 }

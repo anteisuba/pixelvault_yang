@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { SpecChipModel } from '@/lib/spec-chip-model'
+import { StudioChipDensityProvider } from '@/components/business/studio-shared/primitives/tool-surface'
 
 import { SpecChip } from './SpecChip'
 
@@ -235,5 +236,79 @@ describe('SpecChip · 附加段', () => {
     renderChip()
     openChip()
     expect(document.querySelector('[data-spec-chip-more]')).toBeNull()
+  })
+})
+
+describe('SpecChip · 画布 compact', () => {
+  it('画布图片 chip 从下方展开 304px 弹层，只含比例和张数', () => {
+    render(
+      <StudioChipDensityProvider value="compact">
+        <SpecChip
+          model={BASE}
+          ariaLabel="画面"
+          resolutionLabel="清晰度"
+          aspectRatio="1:1"
+          onAspectRatioChange={vi.fn()}
+          resolution="2K"
+          onResolutionChange={vi.fn()}
+          compactBatchCount={{
+            value: 1,
+            options: [1, 2, 4],
+            onChange: vi.fn(),
+          }}
+        />
+      </StudioChipDensityProvider>,
+    )
+    const chip = openChip()
+    expect(chip.className).toContain('bg-surface-fill')
+    expect(chip.className).toContain('h-7')
+    const popover = document.querySelector('[data-spec-chip-popover]')
+    expect(popover?.className).toContain('w-76')
+    expect(popover).toHaveAttribute('data-side', 'bottom')
+    const labels = Array.from(popover?.querySelectorAll('span') ?? [])
+      .map((node) => node.textContent)
+      .filter((text) =>
+        ['aspectRatioLabel', 'moreItem.batchCount', '清晰度'].includes(
+          text ?? '',
+        ),
+      )
+    expect(labels).toEqual(['aspectRatioLabel', 'moreItem.batchCount'])
+    expect(popover?.querySelectorAll('[role="radio"]')).toHaveLength(6)
+  })
+
+  it('选张数先回传新值，160ms 后收起弹层', () => {
+    vi.useFakeTimers()
+    try {
+      const onCountChange = vi.fn()
+      render(
+        <StudioChipDensityProvider value="compact">
+          <SpecChip
+            model={BASE}
+            ariaLabel="画面"
+            resolutionLabel="清晰度"
+            aspectRatio="1:1"
+            onAspectRatioChange={vi.fn()}
+            resolution="2K"
+            onResolutionChange={vi.fn()}
+            compactBatchCount={{
+              value: 1,
+              options: [1, 2, 4],
+              onChange: onCountChange,
+            }}
+          />
+        </StudioChipDensityProvider>,
+      )
+      const chip = openChip()
+      const countTwo = Array.from(
+        document.querySelectorAll('[data-spec-chip-popover] [role="radio"]'),
+      ).find((node) => node.textContent === '2') as HTMLElement
+      fireEvent.click(countTwo)
+      expect(onCountChange).toHaveBeenCalledWith(2)
+      expect(chip).toHaveAttribute('data-spec-chip-state', 'open')
+      act(() => vi.advanceTimersByTime(160))
+      expect(chip).toHaveAttribute('data-spec-chip-state', 'default')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

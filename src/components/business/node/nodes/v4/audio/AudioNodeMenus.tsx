@@ -17,8 +17,8 @@ import {
   AudioLines,
   Copy,
   Download,
+  ImageIcon,
   Layers,
-  Library,
   Trash2,
   Upload,
   UserRound,
@@ -35,27 +35,78 @@ export function AudioAddMenuItems({
   onUpload,
   onAssetLibrary,
   onVoiceLibrary,
+  canvasCandidates = [],
 }: {
   onUpload(): void
   onAssetLibrary(): void
   onVoiceLibrary(): void
+  readonly canvasCandidates?: readonly {
+    readonly id: string
+    readonly name: string
+    readonly audioUrl?: string | undefined
+  }[]
 }) {
   const t = useTranslations('StudioNode.v4.audio')
+  const tNode = useTranslations('StudioNode.v4')
+  const canvas = canvasCandidates.filter((candidate) => candidate.audioUrl)
+  const referenceUnavailable = t('add.referenceUnavailable')
   return (
     <>
-      <DropdownMenuItem data-audio-add="upload" onSelect={onUpload}>
+      <DropdownMenuItem
+        data-audio-add="upload"
+        onSelect={onUpload}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
         <Upload aria-hidden className="size-4" />
         {t('add.upload')}
-        <DropdownMenuShortcut>{t('add.uploadShortcut')}</DropdownMenuShortcut>
+        <DropdownMenuShortcut className="font-mono text-2xs tracking-normal text-muted-foreground/75">
+          {t('add.uploadShortcut')}
+        </DropdownMenuShortcut>
       </DropdownMenuItem>
-      <DropdownMenuItem data-audio-add="library" onSelect={onAssetLibrary}>
-        <Library aria-hidden className="size-4" />
+      <DropdownMenuItem
+        data-audio-add="library"
+        onSelect={onAssetLibrary}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
+        <ImageIcon aria-hidden className="size-4" />
         {t('add.library')}
       </DropdownMenuItem>
-      <DropdownMenuItem data-audio-add="voices" onSelect={onVoiceLibrary}>
+      <DropdownMenuItem
+        data-audio-add="voices"
+        onSelect={onVoiceLibrary}
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+      >
         <AudioLines aria-hidden className="size-4" />
         {t('add.voiceLibrary')}
       </DropdownMenuItem>
+      <div className="flex justify-between px-2.5 pt-2.5 pb-1.5 text-2xs tracking-wide text-muted-foreground">
+        <span>{tNode('addCanvasTitle')}</span>
+        <span>{tNode('addCanvasHint')}</span>
+      </div>
+      {canvas.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 px-2.5 pb-2">
+          {canvas.map((candidate) => (
+            <DropdownMenuItem
+              key={candidate.id}
+              data-audio-add-canvas={candidate.id}
+              aria-disabled="true"
+              aria-label={`${candidate.name} · ${referenceUnavailable}`}
+              title={referenceUnavailable}
+              onSelect={(event) => event.preventDefault()}
+              className="relative size-12 shrink-0 cursor-not-allowed overflow-hidden rounded-lg border border-border bg-surface-fill-hover p-0 text-muted-foreground opacity-40 focus:bg-surface-fill-hover"
+            >
+              <AudioLines aria-hidden className="m-auto size-4" />
+            </DropdownMenuItem>
+          ))}
+        </div>
+      ) : (
+        <div
+          data-audio-add-empty
+          className="px-2.5 pb-2 text-xs text-muted-foreground/75"
+        >
+          {tNode('addCanvasEmpty')}
+        </div>
+      )}
     </>
   )
 }

@@ -3,11 +3,14 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Check, Search, Settings2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -23,7 +26,13 @@ import {
   type AudioKind,
 } from '@/constants/audio-options'
 import { MODEL_PICKER_DEFAULT_SCOPE } from '@/constants/model-picker'
-import { DURATION_MS } from '@/constants/motion'
+import {
+  CHIP_POPOVER,
+  DURATION,
+  DURATION_MS,
+  EASE_IN,
+  SPRING,
+} from '@/constants/motion'
 import { getModelById } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
@@ -121,6 +130,32 @@ interface ModelRow {
   searchText: string
 }
 
+function preferredCanvasChannel(
+  channels: readonly ChannelView[],
+): ChannelView | null {
+  if (channels.length === 0) return null
+  const runnable = channels.filter((view) => view.hasKey)
+  if (runnable.length === 0) return channels[0] ?? null
+  const ownKey = runnable.filter(
+    (view) =>
+      view.channel.option.sourceType === 'saved' ||
+      Boolean(view.channel.option.providerKeyId),
+  )
+  const pool = ownKey.length > 0 ? ownKey : runnable
+  return pool.reduce((best, view) => {
+    const candidatePrice = getModelUnitPriceByStringId(
+      view.channel.option.modelId,
+    )
+    const bestPrice = getModelUnitPriceByStringId(best.channel.option.modelId)
+    if (!candidatePrice) return best
+    if (!bestPrice) return view
+    return candidatePrice.unit === bestPrice.unit &&
+      candidatePrice.amount < bestPrice.amount
+      ? view
+      : best
+  })
+}
+
 export interface ModelPickerPopoverProps {
   options: StudioModelOption[]
   /** 当前选中的 `optionId`；多选时传 null（选中状态由 `selectedOptionIds` 说）。 */
@@ -170,6 +205,90 @@ export interface ModelPickerPopoverProps {
    * 卡没选渠道挡住整块画布。生成侧用同一对 `(scope, gateId)` 调 `useModelChannelGate`。
    */
   gateId?: string
+  /** 画布节点专用：在屏幕安全区内避开当前卡和提示词栏。 */
+  canvasNodeId?: string
+  canvasSidebarOpen?: boolean
+}
+
+type CanvasRect = {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+type CanvasSafeArea = {
+  readonly left: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+}
+
+export function placeCanvasModelPopover({
+  trigger,
+  bar,
+  card,
+  safe,
+  width,
+  height,
+}: {
+  readonly trigger: CanvasRect
+  readonly bar: CanvasRect
+  readonly card: CanvasRect
+  readonly safe: CanvasSafeArea
+  readonly width: number
+  readonly height: number
+}): { x: number; y: number; transformOrigin: string } {
+  const cardBottom = card.y + card.height
+  const candidates = [
+    {
+      x: trigger.x,
+      y: bar.y + bar.height + 8,
+      origin: `${trigger.width / 2}px 0`,
+    },
+    { x: bar.x + bar.width + 8, y: bar.y, origin: `0 ${trigger.y - bar.y}px` },
+    {
+      x: bar.x - 8 - width,
+      y: bar.y,
+      origin: `${width}px ${trigger.y - bar.y}px`,
+    },
+    {
+      x: bar.x + bar.width + 8,
+      y: Math.max(bar.y, cardBottom + 8),
+      origin: '0 0',
+    },
+    {
+      x: bar.x - 8 - width,
+      y: Math.max(bar.y, cardBottom + 8),
+      origin: `${width}px 0`,
+    },
+    {
+      x: trigger.x,
+      y: trigger.y - 8 - height,
+      origin: `${trigger.width / 2}px ${height}px`,
+    },
+  ]
+  const clamp = (candidate: (typeof candidates)[number]) => ({
+    ...candidate,
+    x: Math.min(
+      Math.max(candidate.x, safe.left),
+      Math.max(safe.left, safe.right - width),
+    ),
+    y: Math.min(
+      Math.max(candidate.y, safe.top),
+      Math.max(safe.top, safe.bottom - height),
+    ),
+  })
+  const overlaps = (point: { x: number; y: number }, rect: CanvasRect) =>
+    point.x < rect.x + rect.width &&
+    point.x + width > rect.x &&
+    point.y < rect.y + rect.height &&
+    point.y + height > rect.y
+  const placed = candidates.map(clamp)
+  const chosen =
+    placed.find((point) => !overlaps(point, card) && !overlaps(point, bar)) ??
+    placed[0]!
+  return { x: chosen.x, y: chosen.y, transformOrigin: chosen.origin }
 }
 
 /**
@@ -181,11 +300,13 @@ function splitModelLabel(
   label: string,
   seriesLabel: string,
 ): { name: string; variant: string | null } {
-  if (
-    label.length > seriesLabel.length &&
-    label.startsWith(`${seriesLabel} `)
-  ) {
-    return { name: seriesLabel, variant: label.slice(seriesLabel.length + 1) }
+  const marker = `${seriesLabel} `
+  const prefix = label.indexOf(marker)
+  if (prefix >= 0 && label.length > prefix + marker.length) {
+    return {
+      name: seriesLabel,
+      variant: label.slice(prefix + marker.length),
+    }
   }
   return { name: label, variant: null }
 }
@@ -212,6 +333,8 @@ export function ModelPickerPopover({
   renderSearchFallback,
   groupBy = MODEL_PICKER_GROUP_BY.series,
   gateId,
+  canvasNodeId,
+  canvasSidebarOpen = false,
 }: ModelPickerPopoverProps) {
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
@@ -250,6 +373,15 @@ export function ModelPickerPopover({
    * 右侧独立浮层（D2 Q1 定的），⛔ 不因为「小」就塞回行尾展开。
    */
   const compact = useStudioChipDensity() === 'compact' && !sheet
+  const canvasCompact = compact && Boolean(canvasNodeId) && !inline
+  const reduceMotion = useReducedMotion()
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const canvasSurfaceRef = useRef<HTMLDivElement | null>(null)
+  const [canvasPosition, setCanvasPosition] = useState<{
+    x: number
+    y: number
+    transformOrigin: string
+  } | null>(null)
 
   /**
    * 生成键在「先选渠道」态被点 → 把这个选择器打开。定位那一行不用另做：`panelRow`
@@ -269,6 +401,9 @@ export function ModelPickerPopover({
   const panelRef = useRef<HTMLDivElement | null>(null)
   /** 指针离开「行 ∪ 过渡区 ∪ 面板」之后才收的那支定时器。 */
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const selectionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
   /** 键盘打开面板时，等面板渲染出来再把焦点送进第一条渠道。 */
   const [focusPanelPending, setFocusPanelPending] = useState(false)
 
@@ -294,6 +429,13 @@ export function ModelPickerPopover({
   }, [cancelPanelClose])
 
   useEffect(() => cancelPanelClose, [cancelPanelClose])
+  useEffect(
+    () => () => {
+      if (selectionCloseTimerRef.current !== null)
+        clearTimeout(selectionCloseTimerRef.current)
+    },
+    [],
+  )
 
   const labelOf = useCallback(
     (option: StudioModelOption): string =>
@@ -344,7 +486,9 @@ export function ModelPickerPopover({
           ? (channels.find(
               (c) => c.channel.channelId === resolved.channel.channelId,
             ) ?? null)
-          : null)
+          : canvasCompact
+            ? preferredCanvasChannel(channels)
+            : null)
       const catalogModel = getModelById(
         (active ?? channels[0])?.channel.option.modelId ?? '',
       )
@@ -379,7 +523,7 @@ export function ModelPickerPopover({
       .filter((row): row is ModelRow => row !== null)
     // tCommon 随语言变，分组本身只跟着清单、key 健康与记忆走。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options, healthMap, memory, labelOf, value])
+  }, [options, healthMap, memory, labelOf, value, canvasCompact])
 
   const query = search.trim().toLowerCase()
   const visibleRows = query
@@ -406,6 +550,90 @@ export function ModelPickerPopover({
     // t 随语言变，分组本身只跟着行与维度走。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleRows, groupBy])
+  const recentRows =
+    canvasCompact && !query
+      ? memory.recentModelKeys
+          .slice(0, 3)
+          .map((key) => rows.find((row) => row.modelKey === key))
+          .filter((row): row is ModelRow => Boolean(row))
+      : []
+
+  useLayoutEffect(() => {
+    if (!canvasCompact || !open) return
+    const trigger = triggerRef.current
+    const popup = canvasSurfaceRef.current
+    const bar = trigger?.closest<HTMLElement>('[data-node-chrome="prompt-bar"]')
+    if (!trigger || !popup || !bar) return
+    const measure = () => {
+      const stage = trigger.closest<HTMLElement>('.react-flow')
+      const stageRect = stage?.getBoundingClientRect()
+      const node = Array.from(
+        document.querySelectorAll<HTMLElement>('.react-flow__node'),
+      ).find((element) => element.dataset.id === canvasNodeId)
+      const triggerRect = trigger.getBoundingClientRect()
+      const barRect = bar.getBoundingClientRect()
+      const cardRect = node?.getBoundingClientRect()
+      const rect = (value: DOMRect): CanvasRect => ({
+        x: value.left,
+        y: value.top,
+        width: value.width,
+        height: value.height,
+      })
+      setCanvasPosition(
+        placeCanvasModelPopover({
+          trigger: rect(triggerRect),
+          bar: rect(barRect),
+          card: cardRect ? rect(cardRect) : { x: 0, y: 0, width: 0, height: 0 },
+          safe: {
+            left: (stageRect?.left ?? 0) + (canvasSidebarOpen ? 346 : 72),
+            top: (stageRect?.top ?? 0) + 64,
+            right: (stageRect?.right ?? window.innerWidth) - 16,
+            bottom: (stageRect?.bottom ?? window.innerHeight) - 76,
+          },
+          width: popup.offsetWidth || 300,
+          height: popup.offsetHeight || 392,
+        }),
+      )
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [
+    canvasCompact,
+    open,
+    canvasNodeId,
+    canvasSidebarOpen,
+    search,
+    visibleRows.length,
+    recentRows.length,
+  ])
+
+  useEffect(() => {
+    if (!canvasCompact || !open) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return
+      if (triggerRef.current?.contains(event.target)) return
+      if (canvasSurfaceRef.current?.contains(event.target)) return
+      setOpen(false)
+      setActiveRowId(null)
+    }
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      setActiveRowId(null)
+      triggerRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', closeOutside, true)
+    document.addEventListener('keydown', closeEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside, true)
+      document.removeEventListener('keydown', closeEscape)
+    }
+  }, [canvasCompact, open])
 
   /**
    * 触发器上写的那一行。⚠ 按**折起来的全部变体**认：存量卡上存的可能正是被折掉的
@@ -437,6 +665,7 @@ export function ModelPickerPopover({
   const renderedRows = new Map<string, ModelRow>()
   for (const group of groups)
     for (const row of group.rows) renderedRows.set(`group:${row.modelKey}`, row)
+  for (const row of recentRows) renderedRows.set(`recent:${row.modelKey}`, row)
 
   const selectedRowId = selectedRow
     ? (Array.from(renderedRows.entries()).find(
@@ -446,7 +675,9 @@ export function ModelPickerPopover({
 
   /** 这一行当前该摆哪份渠道面板：hover / 键盘走到的那行，否则选中行。 */
   const activeRow = activeRowId ? (renderedRows.get(activeRowId) ?? null) : null
-  const panelRow = activeRow ?? selectedRow ?? null
+  const panelRow = canvasCompact
+    ? activeRow
+    : (activeRow ?? selectedRow ?? null)
   const panelRowId = activeRow ? activeRowId : selectedRowId
 
   /**
@@ -496,7 +727,17 @@ export function ModelPickerPopover({
       return
     }
     onChange(option)
-    setOpen(false)
+    if (canvasCompact) {
+      if (selectionCloseTimerRef.current !== null)
+        clearTimeout(selectionCloseTimerRef.current)
+      selectionCloseTimerRef.current = setTimeout(() => {
+        selectionCloseTimerRef.current = null
+        setOpen(false)
+        setActiveRowId(null)
+      }, 160)
+    } else {
+      setOpen(false)
+    }
   }
 
   /** 点行 = 选这个型号。渠道已定（单渠道 / 记住过）就一步到位，否则停在未选渠道。 */
@@ -572,9 +813,9 @@ export function ModelPickerPopover({
           )}
         />
         <span className="min-w-0 flex-1 truncate">{view.channel.label}</span>
-        {view.price ? (
+        {view.price || canvasCompact ? (
           <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
-            {view.price}
+            {view.price ?? t('usageBilled')}
           </span>
         ) : null}
       </button>
@@ -614,7 +855,11 @@ export function ModelPickerPopover({
    * 不需要再重复」）。判据从数据推导（`group.key === row.seriesKey`），
    * ⛔ 不按字符串前缀裁 —— 前缀只说明标签长什么样，说明不了这一行摆在谁下面。
    */
-  const renderRow = (row: ModelRow, underSeriesHeading = false) => {
+  const renderRow = (
+    row: ModelRow,
+    underSeriesHeading = false,
+    recent = false,
+  ) => {
     const selected = isRowSelected(row)
     /**
      * ⚠ 拆不出型号（`variant === null`，厂商只有一个模型）时**照旧写厂商名** ——
@@ -623,8 +868,84 @@ export function ModelPickerPopover({
     const omitSeries = underSeriesHeading && row.variant !== null
     const primary = omitSeries ? row.variant : row.name
     const secondary = omitSeries ? null : row.variant
-    const rowId = `group:${row.modelKey}`
+    const rowId = `${recent ? 'recent' : 'group'}:${row.modelKey}`
     const expanded = sheet && activeRowId === rowId
+    if (canvasCompact) {
+      const line = row.active
+        ? row.active.hasKey
+          ? [
+              row.active.channel.label,
+              row.active.price ?? t('usageBilled'),
+            ].join(' · ')
+          : t('missingKeyConfigure')
+        : t('pickChannel')
+      return (
+        <div
+          key={rowId}
+          className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 py-1.25 hover:bg-surface-fill"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={selected}
+            aria-label={row.label}
+            data-model-key={row.modelKey}
+            data-picker-canvas-row
+            data-row-id={rowId}
+            data-row-active={activeRowId === rowId || undefined}
+            data-missing-key={
+              row.active && !row.active.hasKey ? 'true' : undefined
+            }
+            ref={(element) => {
+              if (element) rowRefs.current.set(rowId, element)
+              else rowRefs.current.delete(rowId)
+            }}
+            onFocus={() => focusRow(rowId)}
+            onClick={() => {
+              if (row.active && !row.active.hasKey) {
+                handleSelectChannel(row, row.active)
+                return
+              }
+              handleSelectRow(row, rowId)
+            }}
+            className="min-w-0 flex-1 text-left focus-visible:outline-none"
+          >
+            <span className="block min-w-0">
+              <span
+                className={cn(
+                  'block truncate text-2sm leading-4.5',
+                  row.active && !row.active.hasKey
+                    ? 'text-muted-foreground/75'
+                    : 'text-foreground',
+                )}
+              >
+                {recent ? row.label : (primary ?? row.label)}
+              </span>
+              <span className="block truncate text-2xs leading-3.75 text-muted-foreground">
+                {line}
+              </span>
+            </span>
+          </button>
+          {row.channels.length > 1 ? (
+            <button
+              type="button"
+              data-picker-channel-trigger
+              aria-label={t('channelPanelLabel', { model: row.label })}
+              onClick={() => focusRow(rowId)}
+              className="shrink-0 text-2xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {selected ? (
+                <Check aria-hidden className="size-4 text-foreground" />
+              ) : (
+                <>{t('channelsCount', { count: row.channels.length })} ›</>
+              )}
+            </button>
+          ) : selected ? (
+            <Check aria-hidden className="size-4 shrink-0 text-foreground" />
+          ) : null}
+        </div>
+      )
+    }
     return (
       <div
         key={rowId}
@@ -720,15 +1041,24 @@ export function ModelPickerPopover({
   const body = (
     <div
       ref={surfaceRef}
-      className="relative"
+      className={cn(
+        'relative',
+        canvasCompact && 'flex min-h-0 flex-1 flex-col',
+      )}
       onMouseLeave={sheet ? undefined : schedulePanelClose}
       onMouseEnter={sheet ? undefined : cancelPanelClose}
     >
-      <div className="p-1.5">
+      <div
+        className={cn(canvasCompact ? 'flex min-h-0 flex-1 flex-col' : 'p-1.5')}
+      >
         <label
           className={cn(
-            'flex items-center gap-2 rounded-lg bg-muted text-muted-foreground',
-            compact ? 'px-2 py-1 text-xs' : 'px-2.5 py-1.5 text-2sm',
+            'flex items-center gap-2 rounded-lg text-muted-foreground',
+            canvasCompact
+              ? 'mx-2 mt-2 mb-1 h-8.5 shrink-0 bg-surface-fill px-2.5 text-2sm'
+              : compact
+                ? 'bg-muted px-2 py-1 text-xs'
+                : 'bg-muted px-2.5 py-1.5 text-2sm',
           )}
         >
           <Search className="size-4 shrink-0" aria-hidden />
@@ -743,7 +1073,11 @@ export function ModelPickerPopover({
         <div
           role="listbox"
           aria-label={triggerEmptyLabel ?? tCommon('selectModel')}
-          className="mt-1 max-h-80 overflow-y-auto"
+          className={cn(
+            canvasCompact
+              ? 'min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5'
+              : 'mt-1 max-h-80 overflow-y-auto',
+          )}
         >
           {empty ? (
             <p className="px-2.5 py-6 text-center text-2sm text-muted-foreground">
@@ -754,13 +1088,25 @@ export function ModelPickerPopover({
               搜出来的几行常常横跨好几家，分组头在这一档只是把三五条结果切成
               三五段。没有分组头，行就得自己说清是哪一家 —— 所以这一支传
               `underSeriesHeading = false`，厂商名照写。 */}
+          {recentRows.length > 0 ? (
+            <div data-picker-recent>
+              <p className="px-2.5 pt-2.5 pb-1 text-2xs tracking-wide text-muted-foreground">
+                {t('recent')}
+              </p>
+              {recentRows.map((row) => renderRow(row, false, true))}
+            </div>
+          ) : null}
           {query
             ? visibleRows.map((row) => renderRow(row))
             : groups.map((group) => (
                 <div key={group.key}>
                   <p
                     data-picker-group={group.key}
-                    className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground"
+                    className={cn(
+                      canvasCompact
+                        ? 'px-2.5 pt-2.5 pb-1 text-2xs tracking-wide text-muted-foreground'
+                        : 'px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground',
+                    )}
                   >
                     {group.label}
                   </p>
@@ -788,7 +1134,12 @@ export function ModelPickerPopover({
               setOpen(false)
               onManageChannels()
             }}
-            className="mt-1 flex w-full items-center gap-2 border-t border-border px-2.5 pb-1 pt-2 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            className={cn(
+              'flex w-full items-center gap-2 border-t border-border text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              canvasCompact
+                ? 'h-10 shrink-0 px-4'
+                : 'mt-1 px-2.5 pb-1 pt-2 transition-colors duration-fast ease-standard motion-reduce:transition-none',
+            )}
           >
             <Settings2 className="size-4" aria-hidden />
             {t('manageChannels')}
@@ -878,6 +1229,83 @@ export function ModelPickerPopover({
     return { label: selectedRow.active.price, tone: 'default' }
   })()
 
+  if (canvasCompact) {
+    const label =
+      selectedRow?.name ?? triggerEmptyLabel ?? tCommon('selectModel')
+    return (
+      <>
+        <ModelChip
+          ref={triggerRef}
+          compact
+          modelLabel={label}
+          variantLabel={selectedRow?.variant ?? null}
+          active={open}
+          disabled={disabled}
+          className={className}
+          aria-label={[label, selectedRow?.variant].filter(Boolean).join(' ')}
+          onClick={() => {
+            if (!open) setCanvasPosition(null)
+            setOpen(!open)
+            setActiveRowId(null)
+          }}
+        />
+        {typeof document !== 'undefined'
+          ? createPortal(
+              <AnimatePresence>
+                {open ? (
+                  <motion.div
+                    ref={canvasSurfaceRef}
+                    role="dialog"
+                    aria-label={triggerEmptyLabel ?? tCommon('selectModel')}
+                    data-canvas-model-popover
+                    style={{
+                      position: 'fixed',
+                      left: canvasPosition?.x ?? -9999,
+                      top: canvasPosition?.y ?? -9999,
+                      transformOrigin: canvasPosition?.transformOrigin,
+                      visibility: canvasPosition ? 'visible' : 'hidden',
+                    }}
+                    initial={
+                      reduceMotion
+                        ? false
+                        : {
+                            scale: CHIP_POPOVER.fromScale,
+                            opacity: 0,
+                            filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                          }
+                    }
+                    animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+                    exit={
+                      reduceMotion
+                        ? { opacity: 0, transition: { duration: 0 } }
+                        : {
+                            scale: CHIP_POPOVER.fromScale,
+                            opacity: 0,
+                            filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                            transition: {
+                              duration: DURATION.base,
+                              ease: EASE_IN,
+                            },
+                          }
+                    }
+                    transition={reduceMotion ? { duration: 0 } : SPRING.slot}
+                    className={cn(
+                      'z-50 flex max-h-98 w-75 flex-col rounded-node-bar bg-popover ring-1 ring-border shadow-node-menu',
+                      contentClassName,
+                    )}
+                  >
+                    {body}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>,
+              document.body,
+            )
+          : null}
+        {setupDialog}
+      </>
+    )
+  }
+
   return (
     <>
       <ResponsivePopover
@@ -900,7 +1328,7 @@ export function ModelPickerPopover({
             className={cn(
               // 画布那一档：28 高 · 12 号字；开着与工作台同一副描边 + 浅环；按下 0.96。
               compact &&
-                'h-7 gap-1.5 pr-2 pl-2.5 text-xs transition-[border-color,box-shadow,transform] active:scale-96 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                'h-7 gap-1.5 pr-2 pl-2.5 text-xs transition-all active:scale-96 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
               className,
             )}
           />

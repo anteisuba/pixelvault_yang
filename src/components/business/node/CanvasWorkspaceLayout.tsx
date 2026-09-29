@@ -1,7 +1,9 @@
 'use client'
 
 import type { CSSProperties, ReactNode, RefObject } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 
+import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 import styles from './CanvasWorkspaceLayout.module.css'
@@ -14,9 +16,8 @@ interface CanvasWorkspaceLayoutProps {
   assistant: ReactNode
   children: ReactNode
   /**
-   * Project canvas appearance tokens (`--canvas-surface`, `--canvas-grid-dot`)
-   * and the solid stage fill. Must be on the stage so React Flow's Background
-   * inherits the same surface the wallpaper layer paints.
+   * Project canvas appearance tokens (`--canvas-surface`, `--canvas-grid-dot`).
+   * The stage itself uses the workbench ground; the flow paints the project surface.
    */
   stageStyle?: CSSProperties
   /**
@@ -25,15 +26,10 @@ interface CanvasWorkspaceLayoutProps {
    * 所以开关只能挂在它们共同的祖先上。
    */
   reviewMode?: boolean
+  frameOpen?: boolean
 }
 
-/**
- * The single owner of canvas/assistant geometry. The assistant floats as an
- * overlay at every breakpoint now (2026-07-27, assistant-shell.md §1 推翻
- * 节: "覆盖，不挤压") — desktop gets a four-side-inset floating card, mobile
- * keeps the full-bleed bottom sheet. `.stage` is never resized by the
- * assistant's open/closed state; only the rail's own box changes.
- */
+/** Canvas and assistant share the same stage and the operator yield sets the flow width. */
 export function CanvasWorkspaceLayout({
   assistantMode,
   stageRef,
@@ -41,7 +37,9 @@ export function CanvasWorkspaceLayout({
   children,
   stageStyle,
   reviewMode,
+  frameOpen = false,
 }: CanvasWorkspaceLayoutProps) {
+  const reduceMotion = useReducedMotion()
   return (
     <div
       data-testid="canvas-workspace-layout"
@@ -52,13 +50,14 @@ export function CanvasWorkspaceLayout({
       <div
         ref={stageRef}
         data-testid="canvas-stage"
+        data-canvas-stage
         data-review-mode={reviewMode ? 'true' : undefined}
         style={stageStyle}
         className={cn(
           // S0：画布域皮肤 v0.2 的作用域根。
           'domain-canvas',
           styles.stage,
-          '@container relative isolate min-h-0 min-w-0 overflow-hidden bg-[var(--canvas-surface,var(--node-canvas))]',
+          '@container relative isolate min-h-0 min-w-0 overflow-hidden rounded-tl-node-bar bg-surface-workbench',
         )}
       >
         {children}
@@ -93,8 +92,12 @@ export function CanvasWorkspaceLayout({
           显式 z-index（这里复用已有的 20）就稳赢 auto，与 .stage 内部盖到
           第几层无关——.stage 的 isolate 把内部 z-canvas-chrome(40) 等封在
           自己的层叠上下文里出不来，从外面看 .stage 整体只算一层。 */}
-      <div
+      <motion.div
         data-testid="canvas-assistant-rail"
+        animate={{ opacity: frameOpen ? 0 : 1 }}
+        transition={motionTransition('base', reduceMotion)}
+        inert={frameOpen}
+        aria-hidden={frameOpen}
         className={cn(
           'domain-canvas pointer-events-none absolute inset-0 z-20 min-h-0 min-w-0',
           'lg:left-auto lg:top-16 lg:right-4 lg:bottom-4',
@@ -102,7 +105,7 @@ export function CanvasWorkspaceLayout({
         )}
       >
         {assistant}
-      </div>
+      </motion.div>
     </div>
   )
 }

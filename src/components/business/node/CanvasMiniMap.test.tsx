@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import type { CSSProperties } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -6,12 +7,18 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@xyflow/react', () => ({
-  MiniMap: ({ pannable, zoomable, className }: Record<string, unknown>) => (
+  MiniMap: ({
+    pannable,
+    zoomable,
+    className,
+    style,
+  }: Record<string, unknown>) => (
     <div
       data-testid="minimap"
       data-pannable={String(pannable)}
       data-zoomable={String(zoomable)}
       className={String(className)}
+      style={style as CSSProperties}
     />
   ),
 }))
@@ -26,6 +33,12 @@ describe('CanvasMiniMap', () => {
     expect(minimap).toHaveAttribute('data-pannable', 'true')
     expect(minimap).toHaveAttribute('data-zoomable', 'true')
     expect(minimap).toHaveClass('pointer-events-auto')
+    expect(minimap).toHaveClass('!w-48.5', '!h-32')
+    expect(minimap.style.border).toBe('0px')
+    expect(minimap.getAttribute('style')).toContain(
+      'border-radius: calc((var(--radius-node-bar) + var(--radius-node-thumb)) / 2)',
+    )
+    expect(minimap.style.boxShadow).toBe('var(--shadow-node-chrome)')
   })
   it('默认展开，点击收起后仍能重新打开（按钮文案跟着换）', () => {
     render(<CanvasMiniMap />)

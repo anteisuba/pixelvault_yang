@@ -28,7 +28,7 @@
 
 import { Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
-import { AnimatePresence } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
@@ -38,17 +38,21 @@ import {
   Download,
   Maximize2,
   MoreHorizontal,
+  Play,
   StepForward,
+  Upload,
+  ImageIcon,
   VolumeX,
 } from '@/components/icons'
 import { toast } from 'sonner'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { DURATION } from '@/constants/motion'
 import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { NODE_V4_CARD } from '@/constants/node-studio'
-import { VIDEO_RAIL_GROUP_IDS } from '@/lib/video-node-rail'
+import { VIDEO_RAIL_GROUP_IDS, VIDEO_RAIL_GROUPS } from '@/lib/video-node-rail'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -91,6 +95,7 @@ import { useVideoComposer } from './video/use-video-composer'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import {
   formatVideoSeconds,
+  formatVideoClock,
   videoCardHeight,
   videoContinueSourceHandle,
 } from './video/video-node-model'
@@ -125,6 +130,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
   const [hovering, setHovering] = useState(false)
+  const [emptyDragging, setEmptyDragging] = useState(false)
+  const dragDepthRef = useRef(0)
+  const reduceMotion = useReducedMotion()
   // 源文件没了（素材库删了）/ 暂时读不到：换成灰底一句话，⛔ 不露裂图。
   const media = useMediaProblem(videoData.url)
   const [hoverProgress, setHoverProgress] = useState(0)
@@ -136,6 +144,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
    * 上「右下角只有时长」是有片卡唯一的读数。⛔ 不写 `0s` 顶上：那是一句假话。
    */
   const [probedDuration, setProbedDuration] = useState<number | null>(null)
+  const [frameReady, setFrameReady] = useState(false)
   const frameVideoRef = useRef<HTMLVideoElement | null>(null)
   /** 画中框与快速看的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
   const cardRef = useRef<HTMLDivElement>(null)
@@ -229,8 +238,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     posterUrl,
     modelLabel,
     acceptsRefs,
+    effectiveParams,
     runUpload,
     openFilePicker,
+    openReferenceFilePicker,
     openLibrary,
     selfUploading,
     uploadProgress,
@@ -244,6 +255,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     candidates,
     mediaOf,
   })
+  const frameKey = JSON.stringify([
+    videoData.url ?? '',
+    posterUrl ?? '',
+    media.attempt,
+  ])
+  const [previousFrameKey, setPreviousFrameKey] = useState(frameKey)
+  if (frameKey !== previousFrameKey) {
+    setPreviousFrameKey(frameKey)
+    setFrameReady(false)
+  }
 
   /**
    * ⌘V 落进**这张卡**（spec §1.3「粘贴不做按钮」）。捕获阶段挂在 `window` 上并
@@ -272,11 +293,66 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     failed: Boolean(failureMessage),
     mediaUrl: videoData.url,
   })
+  const [railMountState, setRailMountState] = useState({
+    count: railItems.length,
+    animate: false,
+  })
+  if (railMountState.count !== railItems.length) {
+    setRailMountState({
+      count: railItems.length,
+      animate: railMountState.count === 0 && railItems.length > 0,
+    })
+  }
+  useEffect(() => {
+    if (!railMountState.animate) return
+    const timer = window.setTimeout(() => {
+      setRailMountState((state) => ({ ...state, animate: false }))
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [railMountState.animate])
 
   if (!node) return null
 
+  const canvasCandidates = acceptsRefs
+    ? VIDEO_RAIL_GROUPS.flatMap((group) => {
+        const limit =
+          group === VIDEO_RAIL_GROUP_IDS.image
+            ? railProps.capacity.images
+            : group === VIDEO_RAIL_GROUP_IDS.video
+              ? railProps.capacity.videos
+              : railProps.capacity.voices
+        const occupied =
+          railItems.filter((item) => item.group === group).length +
+          (railProps.pending?.filter(
+            (item) => item.group === group && !item.error,
+          ).length ?? 0)
+        return railCandidatesOf(group).map((candidate) => {
+          const attached = railItems.some(
+            (item) => item.sourceNodeId === candidate.id,
+          )
+          const blockedReason =
+            !attached &&
+            railProps.referenceUnavailable &&
+            group !== VIDEO_RAIL_GROUP_IDS.image
+              ? tVideo('rail.referenceUnavailable')
+              : !attached && limit !== null && occupied >= limit
+                ? tVideo('rail.full', { limit })
+                : undefined
+          return {
+            ...candidate,
+            group,
+            attached,
+            ...(blockedReason ? { blockedReason } : {}),
+          }
+        })
+      })
+    : []
+
   const expanded = canvas.expandedNodeId === id
-  const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
+  const showChrome =
+    Boolean(selected) &&
+    canvas.selectedNodeIds.length < 2 &&
+    canvas.expandedNodeId === null
   const width = NODE_V4_CARD.collapsedWidth
   const height = videoCardHeight(width)
   const durationSeconds =
@@ -284,6 +360,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     probedDuration ??
     Number(videoData.params?.duration) ??
     0
+  const effectiveDuration = Number(effectiveParams.duration)
+  const frameHeadline = [
+    effectiveParams.aspectRatio,
+    effectiveParams.resolution,
+    Number.isFinite(effectiveDuration) && effectiveDuration > 0
+      ? formatVideoSeconds(effectiveDuration)
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ')
 
   const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
   const dragSource = canvas.draggingFrom
@@ -522,6 +608,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   // ⚠ 条件用这个布尔；带重试回调的那个对象只在传给进度层时现拼（回调读 ref，
   //   ⛔ 拿它当渲染期的判断条件）。
   const failed = Boolean(failureMessage && !selfUploading)
+  const empty = !videoData.url && !generating && !selfUploading && !failed
+  const hasLeadingReferences =
+    acceptsRefs &&
+    (railItems.length > 0 ||
+      Boolean(railProps.pending?.length) ||
+      characterMentions.length > 0)
 
   return (
     <div
@@ -534,12 +626,24 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         event.preventDefault()
         setMenu({ x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY })
       }}
+      onDragEnter={(event) => {
+        if (!empty || !Array.from(event.dataTransfer.types).includes('Files'))
+          return
+        dragDepthRef.current += 1
+        setEmptyDragging(true)
+      }}
       onDragOver={(event) => {
         event.preventDefault()
         event.stopPropagation()
         event.dataTransfer.dropEffect = 'copy'
       }}
+      onDragLeave={() => {
+        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+        if (dragDepthRef.current === 0) setEmptyDragging(false)
+      }}
       onDrop={(event) => {
+        dragDepthRef.current = 0
+        setEmptyDragging(false)
         const file = Array.from(event.dataTransfer?.files ?? []).find(
           (item) =>
             item.type.startsWith('video/') ||
@@ -565,7 +669,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       // 画板 `VideoRefs.dc.html` 底注（2026-09-10 owner 真机反馈第四条）：
       // **双击卡片 = 展开**（与工具条第一键、右键菜单同一个框）；快速看片改走
       // 选中态的**空格**与 ⋯ 菜单里的「快速看」。⛔ 双击不再是快速看。
-      onDoubleClick={() => canvas.onToggleExpanded(id)}
+      onDoubleClick={() => {
+        if (empty || !videoData.url || media.problem || expanded) return
+        canvas.onToggleExpanded(id)
+      }}
       tabIndex={-1}
       onKeyDown={(event) => {
         if (event.key !== ' ' || expanded) return
@@ -575,7 +682,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         if (videoData.url && !media.problem) setQuickLook(true)
       }}
     >
-      <NodeChromeLayer show={showChrome && !expanded} position={Position.Top}>
+      <NodeChromeLayer show={showChrome && !empty} position={Position.Top}>
         <NodeToolbar
           groups={toolbarGroups}
           ariaLabel={tVideo('toolbar.label')}
@@ -628,10 +735,42 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         }
         expanded={expanded}
         width={width}
-        emptyHint={t('chrome.emptyHint')}
-        emptyAddAriaLabel={tVideo('add.upload')}
+        empty={empty}
+        emptyDragging={empty && emptyDragging}
+        emptyContent={
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-center">
+            <p className="text-2sm text-muted-foreground">
+              {tVideo('emptyHint')}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                data-node-empty-upload
+                onClick={(event) => {
+                  event.stopPropagation()
+                  openFilePicker(null)
+                }}
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <Upload aria-hidden className="size-3.5" />
+                {t('chrome.emptyUpload')}
+              </button>
+              <button
+                type="button"
+                data-node-empty-library
+                onClick={(event) => {
+                  event.stopPropagation()
+                  openLibrary(null)
+                }}
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <ImageIcon aria-hidden className="size-3.5" />
+                {t('chrome.emptyLibrary')}
+              </button>
+            </div>
+          </div>
+        }
         emptyHeight={height}
-        onEmptyAdd={() => openFilePicker(null)}
         surfaceClassName={cn(
           'overflow-hidden',
           // 剧本里那一段改了 → 卡描边转琥珀（画板 ③ 的 warning 描边）。
@@ -671,10 +810,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         ) : videoData.url || generating || selfUploading ? (
           <div
             data-video-surface={videoData.url ? 'ready' : 'pending'}
-            className="relative"
+            className="relative bg-surface-fill-hover"
             style={{ height }}
             onMouseEnter={() => {
-              if (!videoData.url || generating || media.problem) return
+              if (!videoData.url || !frameReady || generating || media.problem)
+                return
               setHovering(true)
             }}
             onMouseLeave={() => {
@@ -705,11 +845,17 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 className="size-full"
               />
             ) : posterUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={media.attempt}
+              <motion.img
+                key={frameKey}
                 src={posterUrl}
                 onError={media.onError}
+                onLoad={() => setFrameReady(true)}
+                initial={false}
+                animate={{ opacity: frameReady ? 1 : 0 }}
+                transition={{
+                  duration: reduceMotion ? DURATION.fast : DURATION.base,
+                  ease: 'linear',
+                }}
                 alt={displayName}
                 draggable={false}
                 className={cn(
@@ -722,8 +868,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               // 没有落库封面时，静帧就是这段片子自己的第一帧 —— 一只
               // `preload="metadata"` 的 `<video>`。⛔ 不用 `<img src={视频}>`：
               // 那什么都画不出来（v3 缩略图空白的老根）。顺带把时长读回来。
-              <video
-                key={media.attempt}
+              <motion.video
+                key={frameKey}
                 src={videoData.url}
                 muted
                 playsInline
@@ -731,6 +877,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 aria-label={displayName}
                 data-video-still
                 onError={media.onError}
+                onLoadedData={() => setFrameReady(true)}
+                initial={false}
+                animate={{ opacity: frameReady ? 1 : 0 }}
+                transition={{
+                  duration: reduceMotion ? DURATION.fast : DURATION.base,
+                  ease: 'linear',
+                }}
                 className={cn(
                   'size-full rounded-node object-cover corner-squircle transition-[filter] duration-slow ease-standard motion-reduce:transition-none',
                   genFinish.holding && 'motion-safe:blur-sm',
@@ -746,7 +899,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               <div className="size-full rounded-node bg-surface-sunken corner-squircle" />
             )}
 
-            {hovering && videoData.url && !media.problem ? (
+            {hovering && frameReady && videoData.url && !media.problem ? (
               <>
                 <video
                   ref={frameVideoRef}
@@ -790,13 +943,26 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               </>
             ) : null}
 
+            {videoData.url && !media.problem && !frameReady ? (
+              <div
+                aria-hidden
+                data-video-first-frame-pending="true"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              >
+                <span className="flex size-8.5 items-center justify-center rounded-full bg-card/70 text-foreground/45">
+                  <Play aria-hidden weight="fill" className="size-4" />
+                </span>
+              </div>
+            ) : null}
+
             {/* 右下角只有时长（画板 65 行）。⛔ 没有播放钮、没有角标、没有槽。 */}
             {videoData.url && durationSeconds > 0 && !hovering ? (
               <span
                 data-video-duration
-                className="absolute right-2 bottom-2 rounded-full px-1.75 py-0.5 text-3xs tabular-nums surface-glass"
+                className="absolute right-2.5 bottom-2.25 bg-foreground/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-card"
+                style={{ borderRadius: 'calc(var(--radius-node-thumb) / 2)' }}
               >
-                {formatVideoSeconds(durationSeconds)}
+                {formatVideoClock(durationSeconds)}
               </span>
             ) : null}
 
@@ -815,11 +981,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         ) : undefined}
       </NodeCardShell>
 
-      <NodeChromeLayer
-        show={showChrome && !expanded}
-        position={Position.Bottom}
-      >
-        <div className="flex flex-col items-center gap-2.5">
+      <NodeChromeLayer show={showChrome} position={Position.Bottom}>
+        <div className="flex flex-col items-center gap-2">
           <VersionDots
             count={versions.length}
             current={Math.min(versionIndex, versions.length - 1)}
@@ -833,13 +996,19 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             }
           />
           <NodePromptBar
+            sidebarOpen={canvas.sidebarOpen}
             // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
             // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
             // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
             leadingRow={
-              acceptsRefs ? (
+              hasLeadingReferences ? (
                 <>
-                  <VideoRefRail {...railProps} />
+                  {railItems.length > 0 || railProps.pending?.length ? (
+                    <VideoRefRail
+                      {...railProps}
+                      animateOnMount={railMountState.animate}
+                    />
+                  ) : null}
                   <CharacterMentionRail
                     nodeId={id}
                     mentions={characterMentions}
@@ -863,17 +1032,22 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               : {})}
             generating={generating}
             onCancel={cancelGeneration}
-            placeholder={tVideo('promptPlaceholder')}
+            placeholder={
+              empty
+                ? tVideo('emptyPromptPlaceholder')
+                : tVideo('promptPlaceholder')
+            }
             ariaLabel={tVideo('promptLabel')}
             // 素材横向滚动，正文与参数留在同一块编辑面。
-            className="w-160 max-w-full"
+            className="w-160"
             addMenu={
               <VideoAddMenuItems
                 acceptsRefs={acceptsRefs}
-                candidatesOf={railCandidatesOf}
+                canvasCandidates={canvasCandidates}
                 onPickSlotSource={railProps.onPickFromCanvas}
-                onUploadForSlot={(group) => openFilePicker(group)}
-                onUpload={() => openFilePicker(null)}
+                onUpload={() =>
+                  acceptsRefs ? openReferenceFilePicker() : openFilePicker(null)
+                }
                 onLibrary={() =>
                   acceptsRefs
                     ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
@@ -884,7 +1058,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             inputRef={promptInputRef}
             mentionOptions={mentionOptions}
             renderValue={renderPromptValue}
-            chips={[modelChip, paramsChip].filter(Boolean)}
+            chips={[paramsChip, modelChip].filter(Boolean)}
             // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
             // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
             {...(audioToggle ? { trailing: audioToggle } : {})}
@@ -905,13 +1079,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             nodeId={id}
             title={displayName}
             // 方向 A：模型只在页脚 chip 里出现一次，顶栏读数不再写它。
-            headline={[
-              videoData.params?.aspectRatio,
-              videoData.params?.resolution,
-              durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            headline={frameHeadline}
             url={videoData.url}
             posterUrl={posterUrl}
             onExtractFrame={(video) => void runExtract(video)}
@@ -919,9 +1087,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             onDownload={() =>
               videoData.url && triggerNodeV4Download(videoData.url)
             }
-            versionCount={versions.length}
-            versionIndex={versionIndex}
-            onVersionChange={selectVersion}
             failureMessage={failureMessage}
             body={draft}
             onBodyChange={setDraft}
@@ -941,16 +1106,30 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             refRail={
               acceptsRefs ? (
                 <div className="flex min-w-0 max-w-full items-start gap-2">
-                  <VideoRefRail {...railProps} />
+                  <VideoRefRail {...railProps} expanded />
                   <CharacterMentionRail
                     nodeId={id}
                     mentions={characterMentions}
                     capacity={characterRail.capacity}
                     usedImages={characterRail.usedImages}
                     disabled={generating}
+                    expanded
                   />
                 </div>
               ) : null
+            }
+            addMenu={
+              acceptsRefs ? (
+                <VideoAddMenuItems
+                  acceptsRefs
+                  canvasCandidates={canvasCandidates}
+                  onPickSlotSource={railProps.onPickFromCanvas}
+                  onUpload={openReferenceFilePicker}
+                  onLibrary={() =>
+                    railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                  }
+                />
+              ) : undefined
             }
             tokens={frameTokens}
             candidates={frameCandidates}

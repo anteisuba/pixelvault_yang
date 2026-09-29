@@ -9,23 +9,22 @@
  * ── 这一层负责的四件事（其余一律是 children）───────────────────────────────
  * ① **名字在卡外上方一行小字**，**双击**改名（spec §2：单击不进编辑，否则选卡时
  *    蹭到名字就掉进输入框）；⋯ 菜单的「改名」走受控入口 `renameRequest`，选中变深；
- * ② **卡面就是内容**：不透明卡色 + `rounded-node corner-squircle` + hairline 边；
- *    选中 = 1.5px 前景色环、边转透明（画板 `.ring`：`box-shadow: 0 0 0 1.5px`，
- *    ⛔ 不是 `ring-2`——2px 在缩放的画布上会把卡边读成描边框）；
+ * ② **卡面就是内容**：非空卡白面、空卡透明虚线；选中是屏幕 2px 前景色环；
  * ③ **两侧端口点**：卡两侧永远留空给连线（spec §1.4）；S6e 起是**一入一出**，
  *    并由这一层承担拖线中的整卡反馈——合法目标发光、非法目标压暗、落线被拒红环
  *    （spec §1.13）。⛔ 不进各节点组件：四类卡的反馈必须是同一套。
- * ④ **空态插槽**：虚线框 + 一句提示 + 加号圆钮（spec §1.3；粘贴不做按钮）。
+ * ④ **空态插槽**：虚线框与各类卡自己的内容（node-polish-2 改后）。
  *
  * ⛔ 没有卡头、没有 kind 标、没有 chevron、没有卡内分区栈、没有卡底工具栏。
  * 工具条 / 提示词栏 / 版本点是**卡外的浮层**，由调用方摆在 `NodeCardShell` 上下。
  * `expanded` 只是一个标记（换阴影档 + 抬 z）——邻居让位由画布引擎算。
  */
 
-import { useNodeId } from '@xyflow/react'
-import { Plus } from '@/components/icons'
+import { useNodeId, useStore } from '@xyflow/react'
+import { AnimatePresence, motion } from 'motion/react'
 import type { ReactNode } from 'react'
 
+import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 import { NodeV4EditableLabel } from '../NodeV4EditableLabel'
@@ -67,10 +66,12 @@ export interface NodeCardShellProps {
   readonly width?: number
   /** 卡面内容。给了它就不是空态。 */
   readonly children?: ReactNode
-  /** 空态：一句提示 + 加号圆钮的点击。⛔ 不做粘贴按钮（⌘V）。 */
-  readonly emptyHint?: string
-  onEmptyAdd?(): void
-  readonly emptyAddAriaLabel?: string
+  /** 正文仍渲染 children 时显式标记为空态（文本卡）。 */
+  readonly empty?: boolean
+  /** 媒体空态直接渲染的内容。 */
+  readonly emptyContent?: ReactNode
+  /** 拖文件进空卡时，虚线变实线并加深底色。 */
+  readonly emptyDragging?: boolean
   /** 空态卡的高度（图片 16:9、视频 16:9、文本按行数——由调用方定）。 */
   readonly emptyHeight?: number
   /**
@@ -107,9 +108,9 @@ export function NodeCardShell({
   edgeOverlay,
   width,
   children,
-  emptyHint,
-  onEmptyAdd,
-  emptyAddAriaLabel,
+  empty: emptyProp,
+  emptyContent,
+  emptyDragging = false,
   emptyHeight,
   surfaceHeight,
   nameLeading,
@@ -119,15 +120,17 @@ export function NodeCardShell({
   className,
   surfaceClassName,
 }: NodeCardShellProps) {
-  const empty = children === undefined || children === null
+  const empty = emptyProp ?? (children === undefined || children === null)
   /**
    * ⚠ 从 ReactFlow 拿 id（⛔ 不加一个 `nodeId` prop）：四类卡里有一张正被另一个
    * 会话改着，而拖线反馈必须四类同时生效。卡壳被单测直接渲染时这里是 `null` ——
    * 静止态，什么都不亮。
    */
   const nodeId = useNodeId()
+  const zoom = useStore((state) => state.transform[2])
   const connect = useNodeConnectRole(nodeId)
   const rejected = useNodeCardReject(nodeId)
+  const cardHeight = empty ? (emptyHeight ?? surfaceHeight) : surfaceHeight
 
   return (
     <div
@@ -137,95 +140,111 @@ export function NodeCardShell({
       data-expanded={expanded ? 'true' : 'false'}
       data-empty={empty ? 'true' : 'false'}
       data-connecting={connect.connecting ? 'true' : 'false'}
-      className={cn('flex flex-col gap-1.5', expanded && 'z-10', className)}
-      style={width === undefined ? undefined : { width }}
+      className={cn('relative flex flex-col', expanded && 'z-10', className)}
+      style={{
+        ...(width === undefined ? {} : { width }),
+        paddingTop: `calc((var(--text-base) + var(--spacing) * 1.5) / ${zoom})`,
+      }}
     >
-      <div className="flex min-w-0 items-center gap-1">
-        {nameLeading}
-        {onRename ? (
-          <NodeV4EditableLabel
-            value={name}
-            {...(editName === undefined ? {} : { editValue: editName })}
-            ariaLabel={renameAriaLabel}
-            onCommit={onRename}
-            activateOn="doubleClick"
-            {...(renameRequest === undefined ? {} : { renameRequest })}
-            className={cn(
-              'min-w-0 px-1 text-xs transition-colors duration-fast ease-standard',
-              // 选中变深（spec §1.1，走 120）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
-              // 对比度（`contrast-check`，2026-09-10）：`foreground` 对卡面 19.80；
-              // `muted-foreground`（实测 #696969）对卡面 5.49 / `--muted` 5.04 /
-              // 画布米纸 4.98，三种底都过 4.5。
-              selected ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          />
-        ) : (
-          <span
-            className={cn(
-              'min-w-0 truncate px-1 text-xs transition-colors duration-fast ease-standard',
-              selected ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            {name}
-          </span>
-        )}
-        {changed && (
-          <span
-            data-node-card-changed
-            aria-hidden
-            className="size-1.5 shrink-0 rounded-full bg-primary"
-          />
-        )}
-        {nameTrailing}
+      <div data-node-card-name-space className="absolute inset-x-0 top-0">
+        <div
+          data-node-card-name
+          className="flex min-w-0 items-center gap-1 px-0.75 pb-1.5 text-xs leading-4"
+          style={{
+            width: `${zoom * 100}%`,
+            transform: `scale(${1 / zoom})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {nameLeading}
+          <AnimatePresence initial={false}>
+            <motion.span
+              key={name}
+              initial={{ opacity: 0.2 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: DURATION.fast, ease: EASE_STANDARD }}
+              className="min-w-0"
+            >
+              {onRename ? (
+                <NodeV4EditableLabel
+                  value={name}
+                  {...(editName === undefined ? {} : { editValue: editName })}
+                  ariaLabel={renameAriaLabel}
+                  onCommit={onRename}
+                  activateOn="doubleClick"
+                  {...(renameRequest === undefined ? {} : { renameRequest })}
+                  className={cn(
+                    'min-w-0 truncate transition-colors duration-fast ease-standard',
+                    // 选中变深（spec §1.1，走 120）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
+                    // 对比度（`contrast-check`，2026-09-10）：`foreground` 对卡面 19.80；
+                    // `muted-foreground`（实测 #696969）对卡面 5.49 / `--muted` 5.04 /
+                    // 画布米纸 4.98，三种底都过 4.5。
+                    selected ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                />
+              ) : (
+                <span
+                  className={cn(
+                    'block min-w-0 truncate transition-colors duration-fast ease-standard',
+                    selected ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  {name}
+                </span>
+              )}
+            </motion.span>
+          </AnimatePresence>
+          {changed && (
+            <span
+              data-node-card-changed
+              aria-hidden
+              className="size-1.5 shrink-0 rounded-full bg-primary"
+            />
+          )}
+          {nameTrailing}
+        </div>
       </div>
       <div className="relative">
-        <div
+        <motion.div
           data-node-card-surface
           className={cn(
-            // 卡面不透明（node/CLAUDE.md 禁改第 6 条：画布上可能同时上百张卡）。
-            'rounded-node corner-squircle bg-card node-ring-track transition-[box-shadow,border-color,outline-color] duration-fast ease-standard',
-            expanded ? 'shadow-node-card-expanded' : 'shadow-node-card',
-            // 选中环走 `node-selected-ring`（globals.css 的工具类，`outline`
-            // 实现）——卡影已经占了 `box-shadow`，⛔ 不要再拿 shadow 类叠环。
+            'rounded-node node-ring-track transition-[box-shadow,border-color,outline-color] duration-fast ease-standard',
+            empty
+              ? cn(
+                  'border-foreground/24',
+                  emptyDragging
+                    ? 'border-solid bg-surface-fill-hover'
+                    : 'border-dashed bg-transparent',
+                )
+              : 'corner-squircle bg-card',
+            !empty &&
+              (expanded ? 'shadow-node-card-expanded' : 'shadow-node-card'),
             selected && !edgeBusy && 'node-selected-ring',
             // 拖线中（spec §1.13）：收得下 = 发光，收不下 = 压暗。
             connect.connecting && connect.legal && 'node-card-glow',
             connect.connecting && !connect.legal && 'node-card-dim',
             rejected && 'node-card-reject',
-            empty
-              ? 'border border-dashed border-border'
-              : selected || edgeBusy
-                ? 'border border-transparent'
-                : 'border border-border',
             surfaceClassName,
           )}
-          style={
+          style={{
+            outlineWidth: `${2 / zoom}px`,
+            ...(empty ? { borderWidth: `${1.5 / zoom}px` } : {}),
+            ...(cardHeight === undefined ? {} : { height: cardHeight }),
+          }}
+          initial={false}
+          animate={
             empty
-              ? emptyHeight === undefined
-                ? undefined
-                : { height: emptyHeight }
-              : surfaceHeight === undefined
-                ? undefined
-                : { height: surfaceHeight }
+              ? {
+                  backgroundColor: emptyDragging
+                    ? 'var(--surface-fill-hover)'
+                    : 'transparent',
+                }
+              : undefined
           }
+          transition={{ duration: DURATION.fast, ease: EASE_STANDARD }}
         >
-          {empty ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-muted-foreground">
-              <button
-                type="button"
-                aria-label={emptyAddAriaLabel ?? emptyHint ?? ''}
-                data-node-card-add
-                onClick={onEmptyAdd}
-                className="nodrag nopan flex size-9 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                <Plus aria-hidden className="size-4" />
-              </button>
-              {emptyHint && <p className="text-xs">{emptyHint}</p>}
-            </div>
-          ) : (
-            children
-          )}
-        </div>
+          {empty ? (emptyContent ?? children) : children}
+        </motion.div>
         {edgeOverlay ? (
           <div
             data-node-card-edge
@@ -234,7 +253,8 @@ export function NodeCardShell({
             {edgeOverlay}
           </div>
         ) : null}
-        {ports ?? (portSpec && <NodePorts {...portSpec} nodeId={nodeId} />)}
+        {ports ??
+          (portSpec && <NodePorts {...portSpec} nodeId={nodeId} zoom={zoom} />)}
       </div>
     </div>
   )

@@ -1,6 +1,13 @@
 'use client'
 
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronDown } from '@/components/icons'
+import {
+  DURATION,
+  EASE_STANDARD,
+  SPRING,
+  motionTransition,
+} from '@/constants/motion'
 
 import { cn } from '@/lib/utils'
 
@@ -36,6 +43,8 @@ export interface ModelChipProps {
   disabled?: boolean
   /** 右侧的 caret。栏里只放一颗模型 chip 时可以关掉。 */
   showChevron?: boolean
+  /** 画布提示词栏专用的 28px 实底 chip。 */
+  compact?: boolean
   className?: string
   onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void
   ref?: React.Ref<HTMLButtonElement>
@@ -51,14 +60,16 @@ export function ModelChip({
   active = false,
   disabled = false,
   showChevron = true,
+  compact = false,
   className,
   onClick,
   ref,
   ...rest
 }: ModelChipProps) {
   const warning = statusTone === 'warning'
+  const reduceMotion = useReducedMotion()
   return (
-    <button
+    <motion.button
       ref={ref}
       type="button"
       disabled={disabled}
@@ -66,28 +77,60 @@ export function ModelChip({
       data-model-chip
       data-active={active ? 'true' : undefined}
       data-status-tone={warning ? 'warning' : undefined}
+      data-compact={compact || undefined}
+      whileTap={compact && !reduceMotion ? { scale: 0.96 } : undefined}
+      transition={SPRING.press}
       title={[modelLabel, variantLabel, statusLabel]
         .filter(Boolean)
         .join(' · ')}
       className={cn(
-        'inline-flex h-8 min-w-0 max-w-60 items-center gap-2 rounded-full border pl-3 pr-2.5 text-2sm',
+        compact
+          ? 'inline-flex h-7 min-w-0 max-w-60 items-center gap-1 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover data-[active=true]:bg-surface-fill-track'
+          : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-2 rounded-full border pl-3 pr-2.5 text-2sm',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        compact
+          ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          : 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         'disabled:pointer-events-none disabled:opacity-60',
-        warning
-          ? 'border-status-warning text-foreground'
-          : active
-            ? 'border-foreground text-foreground'
-            : 'border-border text-foreground hover:border-foreground/40',
+        compact
+          ? null
+          : warning
+            ? 'border-status-warning text-foreground'
+            : active
+              ? 'border-foreground text-foreground'
+              : 'border-border text-foreground hover:border-foreground/40',
         className,
       )}
       {...rest}
     >
-      <span className="truncate font-medium">{modelLabel}</span>
-      {variantLabel ? (
-        <span className="truncate text-muted-foreground">{variantLabel}</span>
-      ) : null}
-      {statusLabel ? (
+      {compact ? (
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={`${modelLabel}:${variantLabel ?? ''}`}
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: DURATION.fast, ease: EASE_STANDARD }}
+            className="inline-flex min-w-0 items-center gap-1 truncate"
+          >
+            <span className="truncate font-medium">{modelLabel}</span>
+            {variantLabel ? (
+              <span className="truncate text-muted-foreground">
+                {variantLabel}
+              </span>
+            ) : null}
+          </motion.span>
+        </AnimatePresence>
+      ) : (
+        <>
+          <span className="truncate font-medium">{modelLabel}</span>
+          {variantLabel ? (
+            <span className="truncate text-muted-foreground">
+              {variantLabel}
+            </span>
+          ) : null}
+        </>
+      )}
+      {!compact && statusLabel ? (
         <span
           className={cn(
             'shrink-0 font-mono text-2xs tabular-nums',
@@ -98,11 +141,15 @@ export function ModelChip({
         </span>
       ) : null}
       {showChevron ? (
-        <ChevronDown
-          className="size-4 shrink-0 text-muted-foreground"
+        <motion.span
           aria-hidden
-        />
+          animate={{ rotate: active ? 180 : 0 }}
+          transition={motionTransition('base', reduceMotion)}
+          className="inline-flex shrink-0 text-muted-foreground"
+        >
+          <ChevronDown className={compact ? 'size-3' : 'size-4'} />
+        </motion.span>
       ) : null}
-    </button>
+    </motion.button>
   )
 }

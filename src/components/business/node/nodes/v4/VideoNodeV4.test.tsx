@@ -2,6 +2,20 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+const motionAnimateCalls = vi.hoisted(() => vi.fn())
+vi.mock('motion/react', async (importOriginal) => {
+  const original = await importOriginal<typeof import('motion/react')>()
+  return {
+    ...original,
+    animate: new Proxy(original.animate, {
+      apply(target, thisArg, args) {
+        motionAnimateCalls(args[0])
+        return Reflect.apply(target, thisArg, args)
+      },
+    }),
+  }
+})
+
 /** 时长滑杆是 Radix Slider —— 它量 thumb 尺寸要 ResizeObserver（jsdom 没有）。 */
 class MockResizeObserver {
   observe() {}
@@ -129,7 +143,6 @@ import {
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
 import { VideoNodeV4 } from './VideoNodeV4'
-import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
   videoCardHeight,
   videoEffectiveParams,
@@ -169,6 +182,21 @@ function imageNode(id: string, url?: string): NodeV4 {
       status: 'idle',
       createdAt: NOW,
       ...(url ? { url } : {}),
+    },
+  } as NodeV4
+}
+
+function audioNode(id: string, url: string): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'audio',
+      subtype: 'voice',
+      name: id,
+      status: 'done',
+      createdAt: NOW,
+      url,
     },
   } as NodeV4
 }
@@ -230,12 +258,47 @@ const READY = {
 }
 
 describe('空卡 / 有片两态（spec §5）', () => {
-  it('空卡是 16:9 虚线框 + 一句提示，⛔ 没有封面', () => {
+  it('空卡是 16:9 虚线框 + 说明与两颗字键，⛔ 没有封面', () => {
     renderVideo(harness([videoNode('v_1')]))
     const card = document.querySelector('[data-node-chrome="card"]')
     expect(card?.getAttribute('data-empty')).toBe('true')
-    expect(document.querySelector('[data-node-card-add]')).not.toBeNull()
+    expect(card?.querySelector('[data-node-card-surface]')).toHaveClass(
+      'border-dashed',
+      'bg-transparent',
+    )
+    expect(screen.getByText('emptyHint')).toHaveClass('text-2sm')
+    expect(
+      screen.getByRole('button', { name: 'chrome.emptyUpload' }),
+    ).toHaveClass('h-7', 'px-2.75')
+    expect(
+      screen.getByRole('button', { name: 'chrome.emptyLibrary' }),
+    ).toHaveClass('h-7', 'px-2.75')
     expect(document.querySelector('img')).toBeNull()
+  })
+
+  it('选中空卡只有提示词栏，没有工具条、无内容参考轨', () => {
+    renderVideo(
+      harness([videoNode('v_1')], { selectedNodeIds: ['v_1'] }),
+      'v_1',
+      true,
+    )
+    expect(screen.queryByTestId('flow-toolbar-top')).toBeNull()
+    expect(screen.getByTestId('flow-toolbar-bottom')).toBeInTheDocument()
+    expect(document.querySelector('[data-video-ref-rail]')).toBeNull()
+    expect(document.querySelector('textarea')).toHaveAttribute(
+      'placeholder',
+      'emptyPromptPlaceholder',
+    )
+  })
+
+  it('文件拖进空卡时虚线变实线、填充加深', () => {
+    renderVideo(harness([videoNode('v_1')]))
+    const root = document.querySelector('[data-node-kind="video"]')!
+    const surface = document.querySelector('[data-node-card-surface]')!
+    fireEvent.dragEnter(root, { dataTransfer: { types: ['Files'] } })
+    expect(surface).toHaveClass('border-solid', 'bg-surface-fill-hover')
+    fireEvent.dragLeave(root)
+    expect(surface).toHaveClass('border-dashed', 'bg-transparent')
   })
 
   it('卡高恒定 16:9 —— ⛔ 不按回填的媒体尺寸变形', () => {
@@ -250,8 +313,97 @@ describe('空卡 / 有片两态（spec §5）', () => {
     expect(document.querySelector('img')?.getAttribute('src')).toBe(
       READY.videoThumbnailUrl,
     )
-    expect(screen.getByText('7s')).toBeInTheDocument()
+    const duration = screen.getByText('0:07')
+    expect(duration).toHaveClass('right-2.5', 'bottom-2.25')
+    expect(duration).not.toHaveClass('rounded-sm')
+    expect(duration.style.borderRadius).toBe(
+      'calc(var(--radius-node-thumb) / 2)',
+    )
+    expect(duration).toHaveClass('bg-foreground/45', 'text-card', 'text-2xs')
     expect(document.querySelector('[data-video-ref-rail]')).toBeNull()
+  })
+
+  it('首帧到达前只露灰底 ▶，图或视频首帧到达后线性淡入', () => {
+    const { unmount } = renderVideo(harness([videoNode('v_1', READY)]))
+    const pending = document.querySelector('[data-video-first-frame-pending]')
+    expect(pending).toHaveAttribute('data-video-first-frame-pending', 'true')
+    const image = document.querySelector('img') as HTMLImageElement
+    expect(image.style.opacity).toBe('0')
+    expect(image.getAttribute('src')).toBe(READY.videoThumbnailUrl)
+    fireEvent.load(image)
+    expect(
+      document.querySelector('[data-video-first-frame-pending]'),
+    ).toBeNull()
+
+    unmount()
+    renderVideo(
+      harness([videoNode('v_1', { url: 'https://cdn.test/no-poster.mp4' })]),
+    )
+    const video = document.querySelector(
+      '[data-video-still]',
+    ) as HTMLVideoElement
+    expect(
+      document.querySelector('[data-video-first-frame-pending]'),
+    ).toHaveAttribute('data-video-first-frame-pending', 'true')
+    expect(video.style.opacity).toBe('0')
+    fireEvent.loadedData(video)
+    expect(
+      document.querySelector('[data-video-first-frame-pending]'),
+    ).toBeNull()
+  })
+
+  it('同 URL 加载失败后重试，会重挂灰底并隐藏尚未解码的新首帧', async () => {
+    const fetchStub = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      status: 503,
+    } as Response)
+    try {
+      renderVideo(harness([videoNode('v_1', READY)]))
+      const first = document.querySelector('img') as HTMLImageElement
+      fireEvent.load(first)
+      expect(
+        document.querySelector('[data-video-first-frame-pending]'),
+      ).toBeNull()
+      fireEvent.error(first)
+      const retry = await screen.findByRole('button', {
+        name: 'retry',
+      })
+      fireEvent.click(retry)
+      const next = document.querySelector('img') as HTMLImageElement
+      expect(next).not.toBe(first)
+      expect(next.style.opacity).toBe('0')
+      expect(
+        document.querySelector('[data-video-first-frame-pending]'),
+      ).toHaveAttribute('data-video-first-frame-pending', 'true')
+    } finally {
+      fetchStub.mockRestore()
+    }
+  })
+
+  it('同一封面但视频换版时仍重新等待这一版首帧', () => {
+    const firstNode = videoNode('v_1', READY)
+    const view = renderVideo(harness([firstNode]))
+    const first = document.querySelector('img') as HTMLImageElement
+    fireEvent.load(first)
+    expect(
+      document.querySelector('[data-video-first-frame-pending]'),
+    ).toBeNull()
+
+    const nextNode = videoNode('v_1', {
+      ...READY,
+      url: 'https://cdn.test/new-version.mp4',
+    })
+    view.rerender(
+      <NodeV4CanvasProvider value={harness([nextNode])}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <VideoNodeV4 id="v_1" data={nextNode.data} selected={false} />
+      </NodeV4CanvasProvider>,
+    )
+    const next = document.querySelector('img') as HTMLImageElement
+    expect(next).not.toBe(first)
+    expect(next.style.opacity).toBe('0')
+    expect(
+      document.querySelector('[data-video-first-frame-pending]'),
+    ).toHaveAttribute('data-video-first-frame-pending', 'true')
   })
 
   it('悬停 = 静音自动播 + 底部细进度线 + 右上静音标', () => {
@@ -259,6 +411,7 @@ describe('空卡 / 有片两态（spec §5）', () => {
     const surface = document.querySelector('[data-video-surface="ready"]')!
     expect(document.querySelector('[data-video-hover-preview]')).toBeNull()
 
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
     fireEvent.mouseEnter(surface)
     const preview = document.querySelector(
       '[data-video-hover-preview]',
@@ -346,6 +499,7 @@ describe('选中：工具条与批操作', () => {
       true,
     )
     // 抽帧要一只正在放的 `<video>` —— 先悬停把它挂上来。
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
     fireEvent.mouseEnter(
       document.querySelector('[data-video-surface="ready"]') as HTMLElement,
     )
@@ -378,13 +532,13 @@ describe('选中：工具条与批操作', () => {
 describe('片段卡与镜头卡同一套', () => {
   const CLIP = { ...READY, subtype: 'clip' } as const
 
-  it('提示词栏一样摆参考轨', () => {
+  it('没有挂载参考时提示词栏省去空轨', () => {
     renderVideo(harness([videoNode('v_1', CLIP)]), 'v_1', true)
     expect(
       screen
         .getByTestId('flow-toolbar-bottom')
         .querySelector('[data-video-ref-rail]'),
-    ).not.toBeNull()
+    ).toBeNull()
   })
 
   it('抽帧落成图并连回这一段的参考槽', async () => {
@@ -399,6 +553,7 @@ describe('片段卡与镜头卡同一套', () => {
       'v_1',
       true,
     )
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
     fireEvent.mouseEnter(
       document.querySelector('[data-video-surface="ready"]') as HTMLElement,
     )
@@ -458,6 +613,9 @@ describe('提示词栏', () => {
     const input = screen
       .getByTestId('flow-toolbar-bottom')
       .querySelector('textarea') as HTMLTextAreaElement
+    const bar = input.closest('[data-node-chrome="prompt-bar"]')
+    expect(bar).toHaveClass('w-160')
+    expect(bar?.parentElement).toHaveClass('gap-2')
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(generateNode).toHaveBeenCalled()
   })
@@ -516,14 +674,57 @@ describe('提示词栏', () => {
     })
   })
 
-  it('+ 菜单收成与轨一致的三组，图 / 视频都落参考、语音落语音', () => {
-    // ⚠ 顺序断在**常量**上而不是打开菜单：Radix 的子菜单要真悬停才渲染内容，
-    // 在 jsdom 里断它等于断 Radix 的实现，⛔ 不是断我们的契约。
-    expect(VIDEO_RAIL_PICKERS.map((item) => [item.group, item.slot])).toEqual([
-      ['image', NODE_SLOT_IDS.reference],
-      ['video', NODE_SLOT_IDS.reference],
-      ['voice', NODE_SLOT_IDS.voice],
-    ])
+  it('+ 菜单直接显示画布缩略，图 / 视频落参考、语音落语音', async () => {
+    const onApplyOp = vi.fn()
+    renderVideo(
+      harness(
+        [
+          videoNode('v_1', READY),
+          imageNode('i_1', 'https://cdn.test/ref.png'),
+          videoNode('v_2', { url: 'https://cdn.test/ref.mp4' }),
+          audioNode('a_1', 'https://cdn.test/ref.mp3'),
+        ],
+        { onApplyOp },
+      ),
+      'v_1',
+      true,
+    )
+    expect(document.querySelector('[data-video-rail-add]')).toBeNull()
+    expect(document.querySelectorAll('[data-prompt-bar-add]')).toHaveLength(1)
+    const open = async () => {
+      fireEvent.pointerDown(document.querySelector('[data-prompt-bar-add]')!, {
+        button: 0,
+        pointerType: 'mouse',
+      })
+      await waitFor(() =>
+        expect(
+          document.querySelector('[data-prompt-bar-add-menu]'),
+        ).toBeTruthy(),
+      )
+    }
+    const pick = async (source: string, slot: string) => {
+      const tile = await waitFor(
+        () =>
+          document.querySelector(`[data-video-slot-candidate="${source}"]`)!,
+      )
+      fireEvent.click(tile)
+      expect(onApplyOp).toHaveBeenLastCalledWith({
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source,
+        target: 'v_1',
+        slot,
+      })
+      await waitFor(() =>
+        expect(document.querySelector('[data-prompt-bar-add-menu]')).toBeNull(),
+      )
+    }
+    await open()
+    expect(document.querySelector('[data-video-add-group]')).toBeNull()
+    await pick('i_1', NODE_SLOT_IDS.reference)
+    await open()
+    await pick('v_2', NODE_SLOT_IDS.reference)
+    await open()
+    await pick('a_1', NODE_SLOT_IDS.voice)
   })
 })
 
@@ -706,6 +907,62 @@ describe('画面弹层（spec §5）', () => {
 })
 
 describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => {
+  it.each([
+    ['image/png', 'image', NODE_SLOT_IDS.reference],
+    ['video/mp4', 'video', NODE_SLOT_IDS.reference],
+    ['audio/wav', 'audio', NODE_SLOT_IDS.voice],
+  ] as const)(
+    '公共 + 上传 %s 落对应参考轨而非覆盖成片',
+    async (mime, kind, slot) => {
+      uploadFn.mockClear()
+      const onApplyBatch = vi.fn(async (ops: readonly unknown[]) => {
+        void ops
+        return { createdNodeIds: ['new_1'] }
+      })
+      const onSetMedia = vi.fn()
+      renderVideo(
+        harness([videoNode('v_1', READY)], {
+          selectedNodeIds: ['v_1'],
+          onApplyBatch,
+          onSetMedia,
+        }),
+        'v_1',
+        true,
+      )
+      fireEvent.pointerDown(document.querySelector('[data-prompt-bar-add]')!, {
+        button: 0,
+        pointerType: 'mouse',
+      })
+      fireEvent.click(document.querySelector('[data-video-add="upload"]')!)
+      const file = new File(['media'], 'source', { type: mime })
+      const input = document.querySelector(
+        'input[type="file"][accept="video/*,image/*,audio/*"]',
+      )!
+      fireEvent.change(input, { target: { files: [file] } })
+
+      await waitFor(() =>
+        expect(uploadFn).toHaveBeenCalledWith(kind, file, 'v_1'),
+      )
+      await waitFor(() => expect(onApplyBatch).toHaveBeenCalledTimes(1))
+      expect(onApplyBatch.mock.calls[0]?.[0]).toEqual([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind,
+          subtype:
+            kind === 'image' ? 'shot' : kind === 'video' ? 'clip' : 'voice',
+          ref: 'asset',
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.connect,
+          source: 'asset',
+          target: 'v_1',
+          slot,
+        },
+      ])
+      expect(onSetMedia).not.toHaveBeenCalledWith('v_1', expect.anything())
+    },
+  )
+
   const railEdges: NodeWorkflowEdgeV4[] = [
     {
       id: 'e1',
@@ -769,33 +1026,85 @@ describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => 
     ])
   })
 
-  it('模型没有参考变体 → 视频 / 语音两组的加号**灰掉不藏**，图组照常', () => {
+  it('模型没有参考变体 → 视频 / 语音候选灰掉有原因，图仍可挂', async () => {
+    const onApplyOp = vi.fn()
     renderVideo(
-      harness([
-        videoNode('v_1', {
-          ...READY,
-          // Veo 3.1 只有 image-content-array 那一档，没有参考端点。
-          model: { optionId: 'opt_v', modelId: 'veo-3.1', adapterType: 'fal' },
-        }),
-      ]),
+      harness(
+        [
+          videoNode('v_1', {
+            ...READY,
+            // Veo 3.1 只有 image-content-array 那一档，没有参考端点。
+            model: {
+              optionId: 'opt_v',
+              modelId: 'veo-3.1',
+              adapterType: 'fal',
+            },
+            slots: {
+              [NODE_SLOT_IDS.firstFrame]: {
+                versions: [
+                  {
+                    id: 'sv_e1',
+                    edgeId: 'e1',
+                    sourceNodeId: 'i_ref',
+                    blocked: false,
+                    addedAt: NOW,
+                  },
+                ],
+                cur: 'sv_e1',
+              },
+            },
+          }),
+          imageNode('i_ref', 'https://cdn.test/ref.png'),
+          imageNode('i_fresh', 'https://cdn.test/fresh.png'),
+          videoNode('v_source', { url: 'https://cdn.test/ref.mp4' }),
+          audioNode('a_source', 'https://cdn.test/ref.mp3'),
+        ],
+        {
+          onApplyOp,
+          edges: [
+            {
+              id: 'e1',
+              source: 'i_ref',
+              sourceHandle: 'out',
+              target: 'v_1',
+              slot: NODE_SLOT_IDS.firstFrame,
+            },
+          ],
+        },
+      ),
       'v_1',
       true,
     )
-    fireEvent.pointerDown(
-      document.querySelector('[data-video-rail-add="all"]')!,
-      {
-        button: 0,
-        ctrlKey: false,
-      },
+    fireEvent.pointerDown(document.querySelector('[data-prompt-bar-add]')!, {
+      button: 0,
+      pointerType: 'mouse',
+    })
+    const video = await waitFor(
+      () => document.querySelector('[data-video-slot-candidate="v_source"]')!,
     )
-    const addOf = (group: string) =>
-      document.querySelector(
-        `[data-video-rail-add="${group}"]`,
-      ) as HTMLButtonElement
-    expect(addOf('video')).not.toBeNull()
-    expect(addOf('video')).toHaveAttribute('aria-disabled', 'true')
-    expect(addOf('voice')).toHaveAttribute('aria-disabled', 'true')
-    expect(addOf('image')).not.toHaveAttribute('aria-disabled', 'true')
+    const voice = document.querySelector(
+      '[data-video-slot-candidate="a_source"]',
+    )!
+    const image = document.querySelector(
+      '[data-video-slot-candidate="i_fresh"]',
+    )!
+    expect(video).toHaveAttribute('aria-disabled', 'true')
+    expect(voice).toHaveAttribute('aria-disabled', 'true')
+    expect(video).toHaveAttribute('title', 'rail.referenceUnavailable')
+    expect(image).not.toHaveAttribute('aria-disabled', 'true')
+    expect(
+      document.querySelector('[data-video-slot-candidate="i_ref"]'),
+    ).toHaveAttribute('data-attached', 'true')
+    fireEvent.click(video)
+    expect(onApplyOp).not.toHaveBeenCalled()
+    expect(document.querySelector('[data-prompt-bar-add-menu]')).toBeTruthy()
+    fireEvent.click(image)
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.connect,
+      source: 'i_fresh',
+      target: 'v_1',
+      slot: NODE_SLOT_IDS.reference,
+    })
   })
 })
 
@@ -920,15 +1229,58 @@ describe('画中框（spec §5 / §1.11）', () => {
       document.querySelector('[data-video-regenerate]')!.textContent,
     ).toContain('frame.regenerate')
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
+    const frame = document.querySelector('[data-node-chrome="frame"]')!
+    expect(frame.querySelector('[data-video-player="ready"]')).toHaveClass(
+      'rounded-node-bar',
+    )
+    expect(frame.querySelector('[data-video-transport="paper"]')).not.toBeNull()
+    expect(frame.querySelector('[data-video-paper-track]')).toHaveClass(
+      'bg-card/35',
+    )
+    expect(frame.querySelector('[data-video-progress]')).toHaveClass(
+      'opacity-0',
+    )
+    expect(frame.querySelector('[data-video-clock]')).toHaveClass(
+      'font-mono',
+      'text-card',
+    )
+    expect(frame.querySelector('[data-video-clock]')).not.toHaveClass(
+      'surface-glass',
+    )
+    expect(frame.querySelector('[data-video-frame-rail]')).toHaveClass('h-11')
+    expect(frame.querySelector('[data-video-frame-ref-add]')).toHaveClass(
+      'size-11',
+      'rounded-lg',
+    )
+    expect(frame.querySelector('[data-node-chrome="version-dots"]')).toBeNull()
+    expect(frame.querySelector('[data-video-frame-assist-bar]')).toBeNull()
     // ⛔ 常驻最底再占一条：写作助手（LLM）点了页脚那颗才出来，再点收起。
     expect(screen.queryByTestId('assistant-bar')).toBeNull()
     fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
     expect(screen.getByTestId('assistant-bar')).toBeInTheDocument()
   })
 
+  it('画中框顶栏读有效参数，打开态隐藏卡上工具条与提示词栏', () => {
+    const data = { ...READY, durationSec: 5 }
+    renderVideo(
+      harness([videoNode('v_1', data)], { expandedNodeId: 'v_1' }),
+      'v_1',
+      true,
+    )
+    const effective = videoEffectiveParams(data.params, MODEL_ID)
+    expect(
+      document.querySelector('[data-video-frame-headline]'),
+    ).toHaveTextContent(
+      [effective.aspectRatio, effective.resolution, `${effective.duration}s`]
+        .filter(Boolean)
+        .join(' · '),
+    )
+    expect(document.querySelector('[data-node-chrome="prompt-bar"]')).toBeNull()
+    expect(document.querySelector('[data-testid^="flow-toolbar-"]')).toBeNull()
+  })
+
   it('写作条开着时，助手写回来的正文从上往下揭出来；自己打的字 ⛔ 播', () => {
-    // 画中框开合也走 WAAPI（要 `cancel` / `finished`），桩子给一只假动画。
-    const animate = vi.fn(() => ({
+    const nativeAnimate = vi.fn(() => ({
       cancel: vi.fn(),
       finish: vi.fn(),
       finished: Promise.resolve(),
@@ -936,7 +1288,8 @@ describe('画中框（spec §5 / §1.11）', () => {
       removeEventListener: vi.fn(),
     }))
     const original = Element.prototype.animate
-    Element.prototype.animate = animate as unknown as typeof original
+    Element.prototype.animate = nativeAnimate as unknown as typeof original
+    motionAnimateCalls.mockClear()
     try {
       const view = renderVideo(
         harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
@@ -962,7 +1315,9 @@ describe('画中框（spec §5 / §1.11）', () => {
           />
         </NodeV4CanvasProvider>,
       )
-      expect(animate.mock.contexts).not.toContain(body())
+      expect(
+        motionAnimateCalls.mock.calls.some(([element]) => element === body()),
+      ).toBe(false)
       fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
       view.rerender(
         <NodeV4CanvasProvider
@@ -982,7 +1337,9 @@ describe('画中框（spec §5 / §1.11）', () => {
           />
         </NodeV4CanvasProvider>,
       )
-      expect(animate.mock.contexts).toContain(body())
+      expect(
+        motionAnimateCalls.mock.calls.some(([element]) => element === body()),
+      ).toBe(true)
     } finally {
       Element.prototype.animate = original
     }
@@ -1006,6 +1363,13 @@ describe('画中框（spec §5 / §1.11）', () => {
 })
 
 describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底注）', () => {
+  it('空视频卡双击保持空态，不打开画中框', () => {
+    const context = harness([videoNode('v_1')])
+    renderVideo(context)
+    fireEvent.doubleClick(document.querySelector('[data-node-kind="video"]')!)
+    expect(context.onToggleExpanded).not.toHaveBeenCalled()
+  })
+
   it('双击卡片 = 展开画中框，⛔ 不再弹快速看', () => {
     const context = harness([videoNode('v_1', READY)])
     renderVideo(context, 'v_1')
@@ -1032,10 +1396,47 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     expect(
       document.querySelector('[data-node-chrome="quick-look"]'),
     ).not.toBeNull()
+    expect(
+      document.querySelector(
+        '[data-node-chrome="quick-look"] [data-video-transport="default"]',
+      ),
+    ).not.toBeNull()
   })
 
   it('栏内 / 轨上双击不冒泡到卡片（⛔ 选个词不该把框顶出来）', () => {
-    const context = harness([videoNode('v_1', READY)])
+    const context = harness(
+      [
+        videoNode('v_1', {
+          ...READY,
+          slots: {
+            [NODE_SLOT_IDS.reference]: {
+              versions: [
+                {
+                  id: 'sv_e1',
+                  edgeId: 'e1',
+                  sourceNodeId: 'i_ref',
+                  blocked: false,
+                  addedAt: NOW,
+                },
+              ],
+              cur: 'sv_e1',
+            },
+          },
+        }),
+        imageNode('i_ref', 'https://cdn.test/ref.png'),
+      ],
+      {
+        edges: [
+          {
+            id: 'e1',
+            source: 'i_ref',
+            sourceHandle: 'out',
+            target: 'v_1',
+            slot: NODE_SLOT_IDS.reference,
+          },
+        ],
+      },
+    )
     renderVideo(context, 'v_1', true)
     fireEvent.doubleClick(
       document.querySelector('[data-prompt-bar-input]') as HTMLElement,
@@ -1059,13 +1460,9 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     ).not.toBeNull()
   })
 
-  it('⋯「加入剪辑台」：有片时开台并带上这张卡；空卡灰掉不藏', async () => {
+  it('⋯「加入剪辑台」：有片时开台并带上这张卡', async () => {
     openEditDesk.mockClear()
-    const { unmount } = renderVideo(
-      harness([videoNode('v_1', READY)]),
-      'v_1',
-      true,
-    )
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const openMore = () => {
       const more = document.querySelector(
         '[data-toolbar-action="more"]',
@@ -1077,17 +1474,6 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     const item = await screen.findByText('more.addToEditDesk')
     fireEvent.click(item)
     expect(openEditDesk).toHaveBeenCalledWith(['v_1'])
-
-    unmount()
-    // 空卡：项还在，但按不下去（⛔ 不藏 —— 藏了会被读成「这张卡不支持剪辑台」）。
-    renderVideo(harness([videoNode('v_1')]), 'v_1', true)
-    openMore()
-    await screen.findByText('more.addToEditDesk')
-    expect(
-      document
-        .querySelector('[data-video-more="edit-desk"]')
-        ?.getAttribute('data-disabled'),
-    ).toBe('')
   })
 })
 

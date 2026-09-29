@@ -18,7 +18,11 @@ vi.mock('@/contexts/api-keys-context', () => ({
 }))
 
 import type { StudioModelOption } from '@/types/model-option'
-import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
+import {
+  ModelPickerPopover,
+  placeCanvasModelPopover,
+} from '@/components/business/studio-shared/pickers/ModelPickerPopover'
+import { StudioChipDensityProvider } from '@/components/business/studio-shared/primitives/tool-surface'
 import { AI_MODELS } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
@@ -110,10 +114,177 @@ function openPicker(
   return { onChange, onRequestSetup, ...view }
 }
 
+function openCanvasPicker(
+  props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
+) {
+  const onChange = vi.fn()
+  const onRequestSetup = vi.fn()
+  const view = render(
+    <StudioChipDensityProvider value="compact">
+      <div className="react-flow">
+        <div className="react-flow__node" data-id="node-a" />
+        <div data-node-chrome="prompt-bar">
+          <ModelPickerPopover
+            options={FIXTURE}
+            value={null}
+            onChange={onChange}
+            onRequestSetup={onRequestSetup}
+            canvasNodeId="node-a"
+            {...props}
+          />
+        </div>
+      </div>
+    </StudioChipDensityProvider>,
+  )
+  fireEvent.click(document.querySelector('[data-model-chip]') as HTMLElement)
+  return { onChange, onRequestSetup, ...view }
+}
+
 beforeEach(() => {
   window.localStorage.clear()
   // 「未选渠道」住模块级 store —— 不清就会漏进下一个用例。
   resetModelPickerGate()
+})
+
+describe('ModelPickerPopover — 画布模型弹层', () => {
+  it('候选先夹进安全区，再避开卡和提示词栏', () => {
+    const safe = { left: 72, top: 64, right: 1424, bottom: 824 }
+    expect(
+      placeCanvasModelPopover({
+        trigger: { x: 800, y: 220, width: 100, height: 28 },
+        bar: { x: 700, y: 200, width: 300, height: 80 },
+        card: { x: 350, y: 100, width: 300, height: 200 },
+        safe,
+        width: 300,
+        height: 392,
+      }),
+    ).toMatchObject({ x: 800, y: 288 })
+    expect(
+      placeCanvasModelPopover({
+        trigger: { x: 800, y: 550, width: 100, height: 28 },
+        bar: { x: 300, y: 500, width: 640, height: 100 },
+        card: { x: 450, y: 200, width: 300, height: 200 },
+        safe,
+        width: 300,
+        height: 392,
+      }),
+    ).toMatchObject({ x: 948, y: 432 })
+  })
+
+  it('画布触发器实底28高、始终有字；弹层300宽、392高上限与搜索/底栏结构', () => {
+    openCanvasPicker({ onManageChannels: vi.fn() })
+    const chip = document.querySelector('[data-model-chip]') as HTMLElement
+    const popup = document.querySelector(
+      '[data-canvas-model-popover]',
+    ) as HTMLElement
+    expect(chip).toHaveAttribute('data-compact', 'true')
+    expect(chip.className).toContain('h-7')
+    expect(chip.textContent?.trim()).not.toBe('')
+    expect(popup.className).toContain('w-75')
+    expect(popup.className).toContain('max-h-98')
+    expect(
+      within(popup).getByPlaceholderText('ModelPicker.searchPlaceholder')
+        .parentElement,
+    ).toHaveClass('h-8.5')
+    expect(
+      within(popup).getByRole('button', { name: 'ModelPicker.manageChannels' }),
+    ).toHaveClass('h-10')
+  })
+
+  it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点去配置', () => {
+    const onRequestSetup = vi.fn()
+    openCanvasPicker({ value: 'key:fal-1', onRequestSetup })
+    const pro = row('seedream-5.0-pro')
+    expect(pro.textContent).toContain('5.0 Pro')
+    expect(pro.textContent).not.toContain('Seedream')
+    expect(pro.textContent).toContain('Common.unitPrice')
+    expect(pro.parentElement?.querySelector('svg')).not.toBeNull()
+    expect(pro).toHaveAttribute('aria-label', 'Seedream 5.0 Pro')
+    const locked = row('gpt-image-2')
+    expect(locked.textContent).toContain('ModelPicker.missingKeyConfigure')
+    fireEvent.click(locked)
+    expect(onRequestSetup).toHaveBeenCalledTimes(1)
+  })
+
+  it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', () => {
+    const readyGpt = option({
+      optionId: 'key:gpt',
+      modelId: AI_MODELS.OPENAI_GPT_IMAGE_2,
+      displayLabel: 'OpenAI GPT Image 2',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      sourceType: 'saved',
+      keyId: 'gpt',
+    })
+    openCanvasPicker({
+      options: [readyGpt],
+      value: 'key:gpt',
+    })
+    const gpt = row('gpt-image-2')
+    expect(gpt.textContent).toContain('2')
+    expect(gpt.textContent).not.toContain('OpenAI GPT Image')
+    expect(gpt.textContent).toContain('ModelPicker.usageBilled')
+  })
+
+  it('最近最多三行且写全名；多渠道行提供数量并可打开渠道价', () => {
+    window.localStorage.setItem(
+      'pv:model-picker:recent',
+      JSON.stringify({
+        default: [
+          'seedream-5.0-pro',
+          'seedream-5.0-lite',
+          'gpt-image-2',
+          'other',
+        ],
+      }),
+    )
+    openCanvasPicker()
+    const recent = document.querySelector('[data-picker-recent]') as HTMLElement
+    expect(within(recent).getAllByRole('option')).toHaveLength(3)
+    expect(recent.textContent).toContain('Seedream 5.0 Pro')
+    const pro = document.querySelector(
+      '[data-picker-canvas-row][data-row-id="group:seedream-5.0-pro"]',
+    ) as HTMLElement
+    expect(pro.parentElement?.textContent).toContain(
+      'ModelPicker.channelsCount',
+    )
+    fireEvent.click(
+      pro.parentElement?.querySelector(
+        '[data-picker-channel-trigger]',
+      ) as HTMLElement,
+    )
+    const channels = within(channelPanel() as HTMLElement).getAllByRole(
+      'option',
+    )
+    expect(channels).toHaveLength(2)
+    expect(channels[0]?.textContent).toContain('Common.unitPrice')
+  })
+
+  it('多渠道行主体按自动选中的渠道选型号，行尾单独打开渠道面板', () => {
+    const { onChange } = openCanvasPicker()
+    const pro = row('seedream-5.0-pro')
+    fireEvent.click(pro)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(['key:fal-1', 'workspace:seedream-5.0-pro-volcengine']).toContain(
+      onChange.mock.calls[0]?.[0].optionId,
+    )
+    expect(window.localStorage.getItem('pv:model-picker:pending')).toBeNull()
+  })
+
+  it('选择后保持弹层 160ms，再开始收起', () => {
+    vi.useFakeTimers()
+    try {
+      openCanvasPicker()
+      fireEvent.click(row('seedream-5.0-pro'))
+      const chip = document.querySelector('[data-model-chip]') as HTMLElement
+      expect(chip).toHaveAttribute('data-active', 'true')
+      act(() => vi.advanceTimersByTime(159))
+      expect(chip).toHaveAttribute('data-active', 'true')
+      act(() => vi.advanceTimersByTime(1))
+      expect(chip).not.toHaveAttribute('data-active')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {

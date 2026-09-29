@@ -1061,6 +1061,8 @@ const NodeV4BaseShape = {
    * 改名不改 id：边、op、快照一律用 `id`。
    */
   name: z.string().trim().min(1).max(160),
+  /** 用户显式改过名；即使改成另一种默认名外形，生成回填也不能再覆盖。 */
+  nameEdited: z.boolean().optional(),
   status: NodeStatusSchema.default('idle'),
   /** 镜号（1 起）。空 = 未归镜的散节点，落在镜头带下方的自由区。 */
   shotNo: z.number().int().min(1).max(999).optional(),

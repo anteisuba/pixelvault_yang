@@ -184,8 +184,7 @@ export function useImageRefBinding({
       (item) =>
         item.id !== id &&
         item.data.kind === NODE_MEDIA_KIND_IDS.image &&
-        Boolean(item.data.url) &&
-        !items.some((entry) => entry.sourceNodeId === item.id),
+        Boolean(item.data.url),
     )
     .map((item) => ({
       id: item.id,

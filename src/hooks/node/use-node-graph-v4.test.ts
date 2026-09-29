@@ -2,9 +2,9 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
+import { chooseVoiceOps } from '@/lib/audio-node-name'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
-import { NODE_V4_CARD } from '@/constants/node-studio'
 import type {
   NodeV4,
   NodeV4Data,
@@ -438,7 +438,7 @@ describe('useNodeGraphV4 · 展开唯一 + 邻居让位', () => {
     expect(view.result.current.expandedNodeId).toBeNull()
   })
 
-  it('展开时右侧且纵向重叠的邻居让位，左侧的不动', () => {
+  it('打开纸时邻居位置不变', () => {
     const left = node(
       'left',
       { kind: 'image', subtype: 'result' },
@@ -450,15 +450,16 @@ describe('useNodeGraphV4 · 展开唯一 + 邻居让位', () => {
       { x: 500, y: 0 },
     )
     const { view } = renderGraph(stateOf([firstFrame, left, right]))
+    const before = view.result.current.rfNodes.map(({ id, position }) => ({
+      id,
+      position,
+    }))
     act(() => {
       view.result.current.setExpanded('img1')
     })
-    const offsets = view.result.current.neighborOffsets
-    expect(offsets.get('left')).toBeUndefined()
-    expect(offsets.get('right')).toEqual({
-      x: NODE_V4_CARD.expandedWidth - NODE_V4_CARD.collapsedWidth,
-      y: 0,
-    })
+    expect(
+      view.result.current.rfNodes.map(({ id, position }) => ({ id, position })),
+    ).toEqual(before)
   })
 
   it('展开的节点被删之后展开态归零（⛔ 不留悬空 id）', () => {
@@ -573,6 +574,27 @@ describe('派生卡落位（§7 摆放 A「让位」）', () => {
 })
 
 describe('异步生成回填', () => {
+  it('选音色自动名不记为手工名，整批撤销恢复原来源', () => {
+    const source = node('a', {
+      kind: 'audio',
+      subtype: 'voice',
+      name: '音频_554',
+    })
+    const { view } = renderGraph(stateOf([source]))
+    act(() =>
+      view.result.current.dispatchBatch(
+        chooseVoiceOps(source, { voiceId: 'v1', voiceName: '秧秧' }, [source]),
+      ),
+    )
+    expect(view.result.current.nodes[0]?.data).toMatchObject({
+      name: '秧秧 · 语音 1',
+      nameEdited: false,
+    })
+    act(() => view.result.current.undo())
+    expect(view.result.current.nodes[0]?.data.name).toBe('音频_554')
+    expect(view.result.current.nodes[0]?.data.nameEdited).toBeUndefined()
+  })
+
   it('清理任务和失败状态连续提交不会恢复旧任务 ID', () => {
     const { view } = renderGraph(
       stateOf([
@@ -603,6 +625,82 @@ describe('异步生成回填', () => {
     expect(view.result.current.nodes[0]?.data).toMatchObject({
       url: 'https://cdn/result.mp4',
     })
+  })
+
+  it('生成回填时机器名随提示词更新，被 @ 引着的名字保持不动', () => {
+    const plain = node('i', {
+      kind: 'image',
+      subtype: 'result',
+      name: '生成图2',
+      prompt: '她回头看楼梯口，雨夜天台，镜头拉近',
+    })
+    const { view } = renderGraph(stateOf([plain]))
+    act(() =>
+      view.result.current.setMedia('i', {
+        url: 'https://cdn/result.png',
+        generationId: 'gen-1',
+      }),
+    )
+    expect(view.result.current.nodes[0]?.data.name).toBe(
+      '她回头看楼梯口，雨夜天台',
+    )
+    expect(view.result.current.canUndo).toBe(false)
+
+    const source = node('i2', {
+      kind: 'image',
+      subtype: 'result',
+      name: '生成图2',
+      prompt: '同一段生成提示词',
+    })
+    const mention = node('t', {
+      kind: 'text',
+      subtype: 'script',
+      body: '参考 @生成图2',
+    })
+    const protectedGraph = renderGraph(stateOf([source, mention]))
+    act(() =>
+      protectedGraph.view.result.current.setMedia('i2', {
+        url: 'https://cdn/mentioned.png',
+        generationId: 'gen-2',
+      }),
+    )
+    expect(protectedGraph.view.result.current.nodes[0]?.data.name).toBe(
+      '生成图2',
+    )
+  })
+
+  it('手动改成另一种默认名后，标记经过序列化且生成回填不覆盖', async () => {
+    const { NodeWorkflowStateV4Schema } = await import('@/types/node-workflow')
+    const { view } = renderGraph(
+      stateOf([
+        node('i', {
+          kind: 'image',
+          subtype: 'result',
+          name: '生成图2',
+          prompt: '雨夜里的旁白',
+        }),
+      ]),
+    )
+    act(() =>
+      view.result.current.dispatchBatch([
+        { op: 'set_field', target: 'i', field: 'name', value: '生成图3' },
+      ]),
+    )
+    expect(view.result.current.nodes[0]?.data.name).toBe('生成图3')
+    const serialized = NodeWorkflowStateV4Schema.parse(
+      JSON.parse(JSON.stringify(stateOf(view.result.current.nodes))),
+    )
+    expect(serialized.nodes[0]?.data.nameEdited).toBe(true)
+    act(() =>
+      view.result.current.setMedia('i', {
+        url: 'https://cdn/result.png',
+        generationId: 'gen-3',
+      }),
+    )
+    expect(view.result.current.nodes[0]?.data.name).toBe('生成图3')
+    act(() => view.result.current.undo())
+    expect(view.result.current.nodes[0]?.data.name).toBe('生成图2')
+    expect(view.result.current.nodes[0]?.data.nameEdited).toBeUndefined()
   })
 })
 

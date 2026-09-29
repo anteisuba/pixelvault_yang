@@ -69,6 +69,14 @@ describe('参考轨上的 @她（画布用角色 ④ 第 2 片）', () => {
     expect(screen.getByText('Denia')).toBeTruthy()
   })
 
+  it('画中框里的角色缩略为 44px 且不占第二行名字', () => {
+    renderRail({ expanded: true })
+    const chip = screen.getByRole('button', { name: 'chipLabel:Denia/1' })
+    expect(chip.className).toContain('size-11')
+    expect(chip.className).toContain('rounded-lg')
+    expect(screen.queryByText('Denia')).toBeNull()
+  })
+
   it('没有 @ 任何人：整排不渲染', () => {
     renderRail({ mentions: [] })
     expect(document.querySelector('[data-character-mention-rail]')).toBeNull()

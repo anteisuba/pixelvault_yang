@@ -33,6 +33,7 @@ export function CharacterMentionRail({
   capacity,
   usedImages,
   disabled = false,
+  expanded = false,
 }: {
   nodeId: string
   mentions: readonly NodeCharacterMention[]
@@ -41,6 +42,7 @@ export function CharacterMentionRail({
   /** 轨上已经挂了几张参考图（不含角色）。 */
   usedImages: number
   disabled?: boolean
+  expanded?: boolean
 }) {
   const t = useTranslations('StudioNode.v4.characterMention')
   const canvas = useNodeV4Canvas()
@@ -68,14 +70,20 @@ export function CharacterMentionRail({
     <div
       data-character-mention-rail
       onDoubleClick={(event) => event.stopPropagation()}
-      className="nodrag nopan nowheel flex shrink-0 items-start gap-2 py-1"
+      className={cn(
+        'nodrag nopan nowheel flex shrink-0 items-start gap-2',
+        !expanded && 'py-1',
+      )}
     >
       {mentions.map(({ card, picks }) => {
         const thumb = characterMainImage(card)
         return (
           <div
             key={card.id}
-            className="flex w-12 shrink-0 flex-col items-center gap-0.5"
+            className={cn(
+              'flex shrink-0 flex-col items-center gap-0.5',
+              expanded ? 'w-11' : 'w-12',
+            )}
           >
             <ChipPopover
               open={openId === card.id}
@@ -92,7 +100,10 @@ export function CharacterMentionRail({
                     count: picks.length,
                   })}
                   className={cn(
-                    'nodrag nopan relative size-12 shrink-0 rounded-node-thumb bg-surface-fill',
+                    'nodrag nopan relative shrink-0 bg-surface-fill',
+                    expanded
+                      ? 'size-11 rounded-lg'
+                      : 'size-12 rounded-node-thumb',
                     'transition-colors duration-fast ease-standard hover:bg-surface-fill-hover',
                     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     'disabled:pointer-events-none disabled:opacity-60',
@@ -102,10 +113,13 @@ export function CharacterMentionRail({
                     <Image
                       src={thumb}
                       alt=""
-                      width={THUMB_PX}
-                      height={THUMB_PX}
+                      width={expanded ? 44 : THUMB_PX}
+                      height={expanded ? 44 : THUMB_PX}
                       unoptimized
-                      className="size-full rounded-node-thumb object-cover"
+                      className={cn(
+                        'size-full object-cover',
+                        expanded ? 'rounded-lg' : 'rounded-node-thumb',
+                      )}
                     />
                   ) : null}
                   <span
@@ -142,12 +156,14 @@ export function CharacterMentionRail({
                 />
               </div>
             </ChipPopover>
-            <span
-              title={card.name}
-              className="block w-full truncate text-center text-2xs leading-4 text-muted-foreground"
-            >
-              {card.name}
-            </span>
+            {!expanded ? (
+              <span
+                title={card.name}
+                className="block w-full truncate text-center text-2xs leading-4 text-muted-foreground"
+              >
+                {card.name}
+              </span>
+            ) : null}
           </div>
         )
       })}

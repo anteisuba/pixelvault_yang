@@ -109,6 +109,28 @@ export function useImagePromptMentions({
   return {
     characterMentions: characterMentions.mentions,
     mentionOptions: acceptsRefs && options.length > 0 ? options : undefined,
+    frameTokens: [
+      ...mentionTokens,
+      ...refs.items.flatMap((entry) =>
+        videoRailMentionLabels(entry).map((name) => ({
+          name,
+          kind: 'reference' as const,
+          ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
+        })),
+      ),
+      ...characterMentions.tokens,
+    ],
+    frameCandidates: [
+      ...refs.items.map((entry) => ({
+        id: `rail:${entry.edgeId}`,
+        name: `${tImage('rail.group')}${entry.index}`,
+        groupLabel: tImage('rail.mentionGroup'),
+        group: 'rail',
+        ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
+      })),
+      ...characterMentions.candidates,
+      ...mentionCandidates,
+    ],
     renderValue: acceptsRefs
       ? (value: string) => renderPromptMentions(value, { names, mediaOf })
       : undefined,

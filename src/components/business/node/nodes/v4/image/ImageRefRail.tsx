@@ -3,32 +3,32 @@
 /**
  * 图片节点提示词栏首行的**参考图轨**（spec §3：参考图进提示词栏，卡面不显示槽）。
  *
- * 形态跟视频卡参考轨同一档（48px 编号缩略 + 来源名 + 末尾加号），但只有图、
+ * 形态跟视频卡参考轨同一档（48px 编号缩略，来源名悬停可见），但只有图、
  * 没有首/尾帧角色。序号由 `readVideoRail` 发，`@图1` 与视频卡共用一份坐标系。
  */
 
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import {
-  Plus,
-  Upload,
-  Library,
-  ImageIcon,
-  AlertTriangle,
-} from '@/components/icons'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { ImageIcon, AlertTriangle } from '@/components/icons'
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
+import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 import type { VideoRailEntry } from '@/lib/video-node-rail'
 
 import { useBrokenThumbs } from '../chrome/NodeMediaMissing'
+import {
+  FADE_ONLY,
+  GROW_FROM_EDGE,
+  type ChromeMotion,
+} from '../chrome/chrome-motion'
 
 const RAIL_THUMB_PX = 48
 
@@ -57,136 +57,150 @@ export interface ImageRefRailProps {
   onLibrary(): void
   onRetryPending?(id: string): void
   onRemovePending?(id: string): void
+  readonly animateOnMount?: boolean
   readonly disabled?: boolean
+  /** 画中框参考行的 44px 无角标缩略。 */
+  readonly variant?: 'prompt' | 'frame'
   readonly className?: string
 }
 
 function RailCell({
-  name,
   children,
+  enter,
+  frame = false,
 }: {
-  readonly name?: string
   readonly children: React.ReactNode
+  readonly enter?: ChromeMotion
+  readonly frame?: boolean
 }) {
   return (
-    <div className="flex w-12 shrink-0 flex-col items-center gap-0.5">
+    <motion.div
+      className={frame ? 'size-11 shrink-0' : 'size-12 shrink-0'}
+      initial={enter?.initial ?? false}
+      animate={enter?.animate}
+    >
       {children}
-      <span
-        data-image-rail-name
-        title={name}
-        className="block w-full truncate text-center text-2xs leading-4 text-muted-foreground"
-      >
-        {name ?? ' '}
-      </span>
-    </div>
+    </motion.div>
   )
 }
 
 export function ImageRefRail({
   items,
   pending = [],
-  capacity,
   onOpen,
   onRemove,
-  candidates,
-  onPickFromCanvas,
-  onUpload,
-  onLibrary,
   onRetryPending,
   onRemovePending,
+  animateOnMount = false,
   disabled = false,
+  variant = 'prompt',
   className,
 }: ImageRefRailProps) {
-  const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
+  const reducedMotion = useReducedMotion()
+  const enter = reducedMotion ? FADE_ONLY : GROW_FROM_EDGE
+  const hoverTransition = motionTransition('fast', reducedMotion)
+  const progressTransition = motionTransition('base', reducedMotion)
   // 素材删了：缩略图退回「没封面」的占位，⛔ 不画裂图（owner 09-28）。
   const thumbs = useBrokenThumbs()
-  const occupied = items.length + pending.filter((item) => !item.error).length
-  const full =
-    occupied >= capacity ? tImage('rail.full', { limit: capacity }) : null
+  const frame = variant === 'frame'
 
   return (
     <div
       data-image-ref-rail
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        'nodrag nopan nowheel flex min-w-0 max-w-full items-start gap-2 overflow-x-auto py-1',
+        'nodrag nopan nowheel flex min-w-0 max-w-full items-start gap-2 overflow-x-auto',
+        !frame && '-m-1 p-1',
         className,
       )}
     >
-      {items.map((item) => (
-        <RailCell key={item.edgeId} name={item.sourceName}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                disabled={disabled}
-                data-image-rail-item
-                data-image-rail-index={item.index}
-                aria-label={tImage('rail.itemLabel', {
-                  index: item.index,
-                  name: item.sourceName,
-                })}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Backspace' && event.key !== 'Delete') {
-                    return
-                  }
-                  event.preventDefault()
-                  onRemove(item.edgeId)
-                }}
-                className={cn(
-                  'nodrag nopan relative size-12 shrink-0 rounded-node-thumb bg-surface-fill',
-                  'transition-colors duration-fast ease-standard hover:bg-surface-fill-hover',
-                  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                  'disabled:pointer-events-none disabled:opacity-60',
-                )}
-              >
-                {thumbs.usable(item.thumbnailUrl) ? (
-                  <Image
-                    src={item.thumbnailUrl!}
-                    alt=""
-                    width={RAIL_THUMB_PX}
-                    height={RAIL_THUMB_PX}
-                    unoptimized
-                    onError={() => thumbs.markBroken(item.thumbnailUrl!)}
-                    className="size-full rounded-node-thumb object-cover"
-                  />
-                ) : (
-                  <span className="flex size-full items-center justify-center text-muted-foreground">
-                    <ImageIcon aria-hidden className="size-5" />
-                  </span>
-                )}
-                <span
-                  aria-hidden
-                  data-image-rail-badge
-                  className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-3xs font-semibold text-primary-foreground tabular-nums"
+      <AnimatePresence initial={animateOnMount}>
+        {items.map((item) => (
+          <RailCell key={item.edgeId} enter={enter} frame={frame}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.button
+                  type="button"
+                  disabled={disabled}
+                  data-image-rail-item
+                  data-image-rail-index={item.index}
+                  title={item.sourceName}
+                  aria-label={tImage('rail.itemLabel', {
+                    index: item.index,
+                    name: item.sourceName,
+                  })}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Backspace' && event.key !== 'Delete') {
+                      return
+                    }
+                    event.preventDefault()
+                    onRemove(item.edgeId)
+                  }}
+                  animate={{ backgroundColor: 'var(--surface-fill)' }}
+                  whileHover={{
+                    backgroundColor: 'var(--surface-fill-hover)',
+                  }}
+                  transition={hoverTransition}
+                  className={cn(
+                    'nodrag nopan relative shrink-0 bg-surface-fill',
+                    frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    'disabled:pointer-events-none disabled:opacity-60',
+                  )}
                 >
-                  {item.index}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-42">
-              <DropdownMenuItem
-                data-image-rail-open
-                onSelect={() => onOpen(item.sourceNodeId)}
-              >
-                {tImage('rail.open')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                data-image-rail-remove
-                variant="destructive"
-                onSelect={() => onRemove(item.edgeId)}
-              >
-                {tImage('rail.remove')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </RailCell>
-      ))}
+                  {thumbs.usable(item.thumbnailUrl) ? (
+                    <Image
+                      src={item.thumbnailUrl!}
+                      alt=""
+                      width={frame ? 44 : RAIL_THUMB_PX}
+                      height={frame ? 44 : RAIL_THUMB_PX}
+                      unoptimized
+                      onError={() => thumbs.markBroken(item.thumbnailUrl!)}
+                      className={cn(
+                        'size-full object-cover',
+                        frame ? 'rounded-lg' : 'rounded-node-thumb',
+                      )}
+                    />
+                  ) : (
+                    <span className="flex size-full items-center justify-center text-muted-foreground">
+                      <ImageIcon aria-hidden className="size-5" />
+                    </span>
+                  )}
+                  {!frame ? (
+                    <span
+                      aria-hidden
+                      data-image-rail-badge
+                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-3xs font-medium text-primary-foreground tabular-nums"
+                    >
+                      {item.index}
+                    </span>
+                  ) : null}
+                </motion.button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-42">
+                <DropdownMenuItem
+                  data-image-rail-open
+                  onSelect={() => onOpen(item.sourceNodeId)}
+                >
+                  {tImage('rail.open')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-image-rail-remove
+                  variant="destructive"
+                  onSelect={() => onRemove(item.edgeId)}
+                >
+                  {tImage('rail.remove')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </RailCell>
+        ))}
+      </AnimatePresence>
 
       {pending.map((item) =>
         item.error ? (
-          <RailCell key={item.id} name={item.name}>
+          <RailCell key={item.id} frame={frame}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -194,7 +208,10 @@ export function ImageRefRail({
                   data-image-rail-pending-state="error"
                   title={item.error}
                   aria-label={tImage('rail.uploadFailed', { name: item.name })}
-                  className="nodrag nopan flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-destructive text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className={cn(
+                    'nodrag nopan flex shrink-0 items-center justify-center border border-dashed border-destructive text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
+                  )}
                 >
                   <AlertTriangle aria-hidden className="size-4" />
                 </button>
@@ -217,7 +234,7 @@ export function ImageRefRail({
             </DropdownMenu>
           </RailCell>
         ) : (
-          <RailCell key={item.id} name={item.name}>
+          <RailCell key={item.id} frame={frame}>
             <span
               data-image-rail-pending-state="uploading"
               role="progressbar"
@@ -225,75 +242,24 @@ export function ImageRefRail({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label={tImage('rail.uploading', { name: item.name })}
-              className="relative flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-border text-muted-foreground"
+              className={cn(
+                'relative flex shrink-0 items-center justify-center border border-dashed border-border text-muted-foreground',
+                frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
+              )}
             >
               <Spinner aria-hidden className="size-4" />
               <span className="absolute inset-x-1.5 bottom-1.5 block h-0.5 overflow-hidden rounded-full bg-surface-fill-track">
-                <span
-                  className="block h-full rounded-full bg-primary transition-[width] duration-base ease-standard motion-reduce:transition-none"
-                  style={{ width: `${Math.round(item.progress)}%` }}
+                <motion.span
+                  initial={false}
+                  animate={{ width: `${Math.round(item.progress)}%` }}
+                  transition={progressTransition}
+                  className="block h-full rounded-full bg-primary"
                 />
               </span>
             </span>
           </RailCell>
         ),
       )}
-
-      <RailCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              data-image-rail-add
-              disabled={disabled || full !== null}
-              title={full ?? undefined}
-              aria-label={tImage('rail.title')}
-              className="nodrag nopan flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
-            >
-              <Plus aria-hidden className="size-5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuItem data-image-rail-upload onSelect={onUpload}>
-              <Upload aria-hidden className="size-4" />
-              {tImage('rail.upload')}
-            </DropdownMenuItem>
-            <DropdownMenuItem data-image-rail-library onSelect={onLibrary}>
-              <Library aria-hidden className="size-4" />
-              {tImage('rail.library')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {candidates.length === 0 ? (
-              <DropdownMenuItem disabled>
-                {t('chrome.emptyHint')}
-              </DropdownMenuItem>
-            ) : (
-              candidates.map((candidate) => (
-                <DropdownMenuItem
-                  key={candidate.id}
-                  data-image-rail-candidate={candidate.id}
-                  onSelect={() => onPickFromCanvas(candidate.id)}
-                >
-                  {thumbs.usable(candidate.thumbnailUrl) ? (
-                    <Image
-                      src={candidate.thumbnailUrl!}
-                      alt=""
-                      width={32}
-                      height={32}
-                      unoptimized
-                      onError={() => thumbs.markBroken(candidate.thumbnailUrl!)}
-                      className="size-8 shrink-0 rounded-md object-cover"
-                    />
-                  ) : (
-                    <ImageIcon aria-hidden className="size-4 shrink-0" />
-                  )}
-                  {candidate.name}
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </RailCell>
     </div>
   )
 }

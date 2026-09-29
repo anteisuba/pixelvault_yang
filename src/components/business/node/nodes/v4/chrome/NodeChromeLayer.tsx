@@ -1,32 +1,23 @@
 'use client'
 
-/**
- * 选中时浮出的那两样（工具条在卡上方、提示词栏在卡下方，spec §1.4）的**开合外壳**。
- *
- * 方向 A「从卡上长出来」（§1 第 12 条）：工具条以卡顶边中点、提示词栏以卡底边中点为
- * 原点长出来，取消选中时反着缩回去。⚠ ReactFlow 的 `NodeToolbar` 一收到
- * `isVisible=false` 就当场卸掉，退场根本来不及播 —— 所以这里自己记着「还在场」，
- * 退场播完（`onExitComplete`）才真正让它下场。
- *
- * **跟着画布缩放**（owner 2026-09-29「大小比例应该合理」）：缩小画布时两样一起缩，
- * 下限 0.6、放大不超过 1（`NODE_V4_CHROME_SCALE`）。缩放包在开合动画**外面**的那一层，
- * 原点同样落在卡边上 —— 缩了之后仍贴着卡，⛔ 和开合的 scale 写在同一个元素上互相覆盖。
- */
+/** 选中节点的浮层：跟随画布逐帧定位，并在开合动画结束后卸载。 */
 
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
   NodeToolbar as FlowNodeToolbar,
   Position,
+  useNodeId,
   useStore,
 } from '@xyflow/react'
+import { shallow } from 'zustand/shallow'
 
-import { NODE_V4_CHROME_SCALE } from '@/constants/node-studio'
+import { useNodeV4Canvas } from '../NodeV4Context'
+import { GROW_FROM_EDGE, REDUCED_GROW_FROM_EDGE } from './chrome-motion'
+import { layoutNodeChrome } from './node-chrome-safe-area'
 
-import { FADE_ONLY, GROW_FROM_EDGE } from './chrome-motion'
-
-/** ReactFlow `NodeToolbar` 离卡的默认距离 —— 原点要落在卡边上，得把它算进去。 */
-const FLOW_TOOLBAR_OFFSET = 10
+/** 卡名 16px 行高 + 6px 底距；NodeCardShell 已将它留在卡面上方。 */
+const NAME_ROW_HEIGHT = 22
 
 export function NodeChromeLayer({
   show,
@@ -38,26 +29,83 @@ export function NodeChromeLayer({
   readonly children: ReactNode
 }) {
   const reduce = useReducedMotion()
-  const scale = useStore((state) =>
-    Math.min(
-      NODE_V4_CHROME_SCALE.max,
-      Math.max(NODE_V4_CHROME_SCALE.min, state.transform[2]),
-    ),
-  )
+  const nodeId = useNodeId()
+  const { sidebarOpen = false } = useNodeV4Canvas()
+  const geometry = useStore((state) => {
+    const node = state.nodeLookup?.get(nodeId ?? '')
+    const [panX, panY, zoom] = state.transform
+    const nodeX = node?.internals.positionAbsolute.x ?? 0
+    const nodeY = node?.internals.positionAbsolute.y ?? 0
+    const nodeWidth = node?.measured?.width ?? node?.width ?? 0
+    const nodeHeight = node?.measured?.height ?? node?.height ?? 0
+    return {
+      width: state.width ?? 0,
+      height: state.height ?? 0,
+      zoom,
+      cardX: panX + nodeX * zoom,
+      cardY: panY + nodeY * zoom + NAME_ROW_HEIGHT,
+      cardWidth: nodeWidth * zoom,
+      cardHeight: Math.max(0, nodeHeight * zoom - NAME_ROW_HEIGHT),
+    }
+  }, shallow)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentSize, setContentSize] = useState({ width: 0, height: 0 })
   const [present, setPresent] = useState(show)
   if (show && !present) setPresent(true)
-  const motionSet = reduce ? FADE_ONLY : GROW_FROM_EDGE
-  const origin =
-    position === Position.Top
-      ? `50% calc(100% + ${FLOW_TOOLBAR_OFFSET}px)`
-      : `50% -${FLOW_TOOLBAR_OFFSET}px`
+
+  useLayoutEffect(() => {
+    if (!present) return
+    const content = contentRef.current
+    if (!content) return
+    const measure = () => {
+      const width = content.offsetWidth
+      const height = content.offsetHeight
+      setContentSize((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      )
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [present])
+
+  const layout = layoutNodeChrome({
+    viewport: { width: geometry.width, height: geometry.height },
+    card: {
+      x: geometry.cardX,
+      y: geometry.cardY,
+      width: geometry.cardWidth,
+      height: geometry.cardHeight,
+    },
+    zoom: geometry.zoom,
+    sidebarOpen,
+    content: contentSize,
+    position,
+  })
+  const motionSet = reduce ? REDUCED_GROW_FROM_EDGE : GROW_FROM_EDGE
+  const origin = `${layout.originX}px ${layout.originY}`
+  const visible =
+    geometry.cardWidth > 0 &&
+    geometry.cardHeight > 0 &&
+    contentSize.width > 0 &&
+    contentSize.height > 0 &&
+    layout.visible
 
   return (
-    <FlowNodeToolbar isVisible={present} position={position}>
-      <div
-        data-node-chrome-scale={scale}
-        style={{ transform: `scale(${scale})`, transformOrigin: origin }}
-      >
+    <FlowNodeToolbar
+      isVisible={present}
+      position={position}
+      style={{
+        transform: `translate(${layout.left}px, ${layout.top}px) scale(${layout.scale})`,
+        transformOrigin: '0 0',
+        visibility: visible ? 'visible' : 'hidden',
+      }}
+    >
+      <div ref={contentRef} data-node-chrome-scale={layout.scale}>
         <AnimatePresence onExitComplete={() => setPresent(false)}>
           {show ? (
             <motion.div

@@ -622,6 +622,7 @@ export function useVideoComposer({
     acceptsRefs: rail.acceptsRefs,
     runUpload: rail.runUpload,
     openFilePicker: rail.openFilePicker,
+    openReferenceFilePicker: rail.openReferenceFilePicker,
     openLibrary: rail.openLibrary,
     selfUploading: rail.selfUploading,
     uploadProgress: rail.uploadProgress,

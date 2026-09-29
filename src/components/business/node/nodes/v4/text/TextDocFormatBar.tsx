@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 全屏文档中间那条**格式工具条**（spec §2，画板 `TextJimeng.dc.html`）：
+ * 文档纸顶下居中的格式工具条（node-polish-2 §8）：
  * 标题级下拉 · 无序 · 有序 ‖ 加粗 · 删除线 · 斜体 · 下划线。
  *
  * ⛔ **不引入富文本存储**：每一颗都是一条编辑器命令（`applyTextDocFormat`），
@@ -33,7 +33,7 @@ export interface TextDocFormatBarProps {
 }
 
 const CELL_CLASS = cn(
-  'flex h-7.5 min-w-7.5 items-center justify-center rounded-lg px-2 text-2sm text-foreground',
+  'flex h-7.5 w-8 shrink-0 items-center justify-center rounded-lg text-2sm font-semibold text-foreground',
   'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
   'hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 )
@@ -68,7 +68,7 @@ export function TextDocFormatBar({
       role="toolbar"
       aria-label={t('doc.formatAriaLabel')}
       data-text-format-bar
-      className="inline-flex items-center gap-1 rounded-xl p-1 surface-glass shadow-node-chrome"
+      className="inline-flex items-center gap-0.5 rounded-node-thumb bg-card p-1 shadow-node-chrome"
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -79,7 +79,7 @@ export function TextDocFormatBar({
             onMouseDown={(event) => event.preventDefault()}
             className={CELL_CLASS}
           >
-            T ▾
+            T
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" sideOffset={8} className="min-w-32">
@@ -95,10 +95,8 @@ export function TextDocFormatBar({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <span aria-hidden className="mx-1 h-4.5 w-px bg-border" />
       {cell('bulleted', t('doc.bulleted'), '≡')}
       {cell('numbered', t('doc.numbered'), '1.')}
-      <span aria-hidden className="mx-1 h-4.5 w-px bg-border" />
       {cell('bold', t('doc.bold'), <b>B</b>)}
       {cell('strike', t('doc.strike'), <s>S</s>)}
       {cell('italic', t('doc.italic'), <i>I</i>)}

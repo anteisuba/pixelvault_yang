@@ -111,7 +111,7 @@ const ToolbarCell = forwardRef<
         'disabled:pointer-events-none disabled:opacity-50',
         action.primary
           ? // 带字的黑胶囊：与 34 格同高，字 12、图标 16。
-            'h-8.5 gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-medium text-background hover:bg-foreground/85'
+            'mr-1 h-8.5 gap-1.5 rounded-full bg-foreground pr-3.25 pl-2.75 text-2sm font-medium text-background hover:bg-foreground/85'
           : // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
             cn(
               'size-8.5 justify-center rounded-lg',
@@ -160,20 +160,27 @@ export function NodeToolbar({
         // 工具条上双击**不冒泡到卡片**（卡片的双击是展开）—— 连点两下同一颗键
         // 不该顺手把画中框顶出来。2026-09-10 owner 真机反馈第五条。
         onDoubleClick={(event) => event.stopPropagation()}
+        style={{
+          borderRadius:
+            'calc((var(--radius-node-bar) + var(--radius-node-thumb)) / 2)',
+        }}
         className={cn(
-          'inline-flex items-center gap-0.5 rounded-xl p-0.75 surface-glass shadow-node-chrome',
+          'inline-flex items-center gap-0.5 p-1 surface-glass shadow-node-chrome',
           className,
         )}
       >
         {groups
           .filter((group) => group.length > 0)
           .map((group, index) => (
-            <div key={group[0]?.id ?? index} className="flex items-center">
+            <div
+              key={group[0]?.id ?? index}
+              className="flex items-center gap-0.5"
+            >
               {index > 0 && (
                 <span
                   aria-hidden
                   data-toolbar-divider
-                  className="mx-1 h-4 w-px bg-border"
+                  className="mx-1 h-4.5 w-px bg-border"
                 />
               )}
               {group.map((action) =>

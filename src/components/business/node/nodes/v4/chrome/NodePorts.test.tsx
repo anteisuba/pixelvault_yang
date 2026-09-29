@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react'
+import type { CSSProperties, ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -16,7 +17,10 @@ vi.mock('@xyflow/react', () => ({
       data-hot={props['data-hot'] as string}
       data-id={props.id as string}
       className={props.className as string}
-    />
+      style={props.style as CSSProperties}
+    >
+      {props.children as ReactNode}
+    </span>
   ),
   Position: { Left: 'left', Right: 'right' },
 }))
@@ -76,6 +80,30 @@ describe('NodePorts', () => {
     const handle = container.querySelector('[data-testid="handle"]')!
     expect(handle).toHaveAttribute('data-hot', 'true')
     expect(handle.className).toContain('node-port--hot')
+  })
+
+  it('30% 缩放时普通口与拖线热口仍是屏幕 12/1.5 和 18/2', () => {
+    const { container } = render(
+      <NodeConnectStateProvider
+        value={{ active: true, sourceId: 'n1', legalTargetIds: new Set() }}
+      >
+        <NodePorts
+          kind="image"
+          left={[{ id: 'in' }]}
+          right={[{ id: 'out' }]}
+          nodeId="n1"
+          zoom={0.3}
+        />
+      </NodeConnectStateProvider>,
+    )
+    const [ordinary, hot] = container.querySelectorAll<HTMLElement>(
+      '[data-testid="handle"]',
+    )
+    expect(ordinary?.style.width).toBe(`${12 / 0.3}px`)
+    expect(ordinary?.style.borderWidth).toBe(`${1.5 / 0.3}px`)
+    expect(hot?.style.width).toBe(`${18 / 0.3}px`)
+    expect(hot?.style.borderWidth).toBe(`${2 / 0.3}px`)
+    expect(hot).toHaveTextContent('+')
   })
 
   it('不是起点的卡上，出口点不带「＋」', () => {

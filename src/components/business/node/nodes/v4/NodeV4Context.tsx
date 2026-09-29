@@ -88,6 +88,8 @@ export interface NodeV4CanvasContextValue {
    * 的同一条判据）。
    */
   readonly selectedNodeIds: readonly string[]
+  /** 画布左侧面板占用安全区时，浮层左界从 72px 移到 346px。 */
+  readonly sidebarOpen?: boolean
   readonly pendingUploads?: readonly { id: string; name: string }[]
   onToggleExpanded(nodeId: string): void
   onSelectSlotVersion(nodeId: string, slot: NodeSlotId, versionId: string): void

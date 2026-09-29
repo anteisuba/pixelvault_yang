@@ -9,7 +9,13 @@ vi.mock('next-intl', () => ({
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={props.src as string} alt="" data-testid="rail-thumb" />
+    <img
+      src={props.src as string}
+      alt=""
+      width={props.width as number}
+      height={props.height as number}
+      data-testid="rail-thumb"
+    />
   ),
 }))
 
@@ -39,13 +45,14 @@ const ITEMS: readonly VideoRailEntry[] = [
 ]
 
 function setup(props: Partial<React.ComponentProps<typeof VideoRefRail>> = {}) {
+  const onChangeRole = vi.fn()
   const onRemove = vi.fn()
   const onRetryPending = vi.fn()
   const view = render(
     <VideoRefRail
       items={ITEMS}
       capacity={{ images: 9, videos: 3, voices: 3 }}
-      onChangeRole={vi.fn()}
+      onChangeRole={onChangeRole}
       onOpen={vi.fn()}
       onRemove={onRemove}
       candidatesOf={() => []}
@@ -57,31 +64,55 @@ function setup(props: Partial<React.ComponentProps<typeof VideoRefRail>> = {}) {
       {...props}
     />,
   )
-  return { onRemove, onRetryPending, ...view }
+  return { onChangeRole, onRemove, onRetryPending, ...view }
 }
 
 describe('VideoRefRail', () => {
-  /**
-   * owner 2026-09-10 真机反馈第二条：光有缩略时四张灰图分不出谁是谁，语音那一格
-   * 更是三条一样的波形。
-   */
-  it('每项下面一行来源卡名，hover 读全名', () => {
+  it('缩略只显示 48px 图、编号和角色，来源名留在 title / aria', () => {
     const { container } = setup()
-    const names = Array.from(
-      container.querySelectorAll('[data-video-rail-name]'),
-    ).map((el) => el.textContent)
-    expect(names).toContain('S02 站台图')
-    expect(names).toContain('莫宁台词')
+    const thumb = container.querySelector('[data-video-rail-item="image"]')
+    expect(thumb?.classList.contains('size-12')).toBe(true)
+    expect(thumb?.getAttribute('title')).toBe('S02 站台图')
+    expect(thumb?.getAttribute('aria-label')).toContain('S02 站台图')
+    expect((thumb?.parentElement as HTMLElement).style.transform).not.toContain(
+      'scale(0.72)',
+    )
+    expect(thumb?.getAttribute('data-video-rail-index')).toBe('1')
     expect(
-      container.querySelector('[data-video-rail-name]')?.getAttribute('title'),
-    ).toBe('S02 站台图')
+      container.querySelector('[data-video-rail-badge]')?.textContent,
+    ).toBe('StudioNode.v4.video.rail.badge.image({"index":1})')
+    expect(
+      container.querySelector('[data-video-rail-role="firstFrame"]'),
+    ).not.toBeNull()
+    expect(container.querySelector('[data-video-rail-name]')).toBeNull()
+    expect(container.querySelector('[data-video-rail-add]')).toBeNull()
   })
 
-  it('语音格在波形上压名字首两字（波形本身分不开）', () => {
+  it('语音格用波形和编号区分，来源名可悬停读取', () => {
     const { container } = setup()
-    expect(
-      container.querySelector('[data-video-rail-voice-initials]')?.textContent,
-    ).toBe('莫宁')
+    const thumb = container.querySelector('[data-video-rail-item="voice"]')
+    expect(thumb?.getAttribute('title')).toBe('莫宁台词')
+    expect(thumb?.getAttribute('aria-label')).toContain('莫宁台词')
+    expect(thumb?.querySelector('[data-video-rail-badge]')?.textContent).toBe(
+      'StudioNode.v4.video.rail.badge.voice({"index":1})',
+    )
+    expect(thumb?.querySelector('[data-video-rail-voice-initials]')).toBeNull()
+  })
+
+  it('画中框参考行缩略为 44px、圆角 10；卡上仍为 48px', () => {
+    const { container } = setup({ expanded: true, items: [ITEMS[0]!] })
+    const thumb = container.querySelector('[data-video-rail-item="image"]')!
+    expect(thumb.className).toContain('size-11')
+    expect(thumb.className).toContain('rounded-lg')
+    expect(thumb.querySelector('img')).toHaveAttribute('width', '44')
+  })
+
+  it('首次从空轨挂上缩略时只让新格从 0.72 长出', () => {
+    const { container } = setup({ items: [ITEMS[0]], animateOnMount: true })
+    const cell = container.querySelector('[data-video-rail-item]')
+      ?.parentElement as HTMLElement
+    expect(cell.style.transform).toContain('scale(0.72)')
+    expect(cell.style.filter).toBe('blur(4px)')
   })
 
   /** owner 真机反馈第七条：上传要先落一个占位项，⛔ 不是等它凭空出现。 */
@@ -110,23 +141,16 @@ describe('VideoRefRail', () => {
     expect(onRetryPending).toHaveBeenCalledWith('p2')
   })
 
-  it('统一添加入口中，上传占位也占用该类素材容量', () => {
-    const { container } = setup({
-      capacity: { images: 2, videos: 3, voices: 3 },
-      pending: [{ id: 'p1', group: 'image', name: 'a.png', progress: 10 }],
-    })
-    expect(container.querySelectorAll('[data-video-rail-add]')).toHaveLength(1)
+  it('已挂的图片仍可从缩略菜单改成尾帧', () => {
+    const { container, onChangeRole } = setup()
     fireEvent.pointerDown(
-      container.querySelector('[data-video-rail-add="all"]')!,
+      container.querySelector('[data-video-rail-item="image"]')!,
       {
         button: 0,
         ctrlKey: false,
       },
     )
-    expect(
-      document
-        .querySelector('[data-video-rail-add="image"]')
-        ?.getAttribute('data-video-rail-add-blocked'),
-    ).toBe('true')
+    fireEvent.click(screen.getByText('rail.setRole.lastFrame'))
+    expect(onChangeRole).toHaveBeenCalledWith(ITEMS[0], NODE_SLOT_IDS.lastFrame)
   })
 })

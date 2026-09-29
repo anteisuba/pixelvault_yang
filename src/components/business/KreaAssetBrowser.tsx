@@ -2362,11 +2362,10 @@ function ScopeNameInput({
 
 /**
  * 顶栏右侧的按钮：胶囊、与左边筛选键同高 32px；上传是这页唯一的实心键，选择是
- * 无框文字键（悬停才出灰底）。焦点环走 ui-defaults §4 的细环，⛔ 不用 Button 默认的
- * 3px 灰圈。
+ * 无框文字键（悬停才出灰底）。
  */
 const TOOLBAR_BUTTON_CLASS =
-  'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:active:scale-100'
+  'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] motion-reduce:active:scale-100'
 
 interface DensityToggleProps {
   density: AssetGridDensity

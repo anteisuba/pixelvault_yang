@@ -11,17 +11,20 @@
  * 落槽是 S4。
  */
 
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { NODE_SLOT_IDS, type NodeMentionRole } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 
-import { useBrokenThumbs } from './NodeMediaMissing'
+import { MentionMediaThumb } from './MentionMediaThumb'
 
 export type MentionChipMedia =
-  | { readonly kind: 'image' | 'video'; readonly thumbnailUrl?: string }
+  | {
+      readonly kind: 'image' | 'video'
+      readonly thumbnailUrl?: string
+      /** 视频没有封面时停在第一帧用的片子地址（⛔ 不当 `<img>` 的 src）。 */
+      readonly videoUrl?: string
+    }
   | { readonly kind: 'audio' }
   | { readonly kind: 'text' }
 
@@ -57,12 +60,6 @@ export function MentionChip({
 }: MentionChipProps) {
   const t = useTranslations('StudioNode.v4')
   const roleLabel = t(`slots.${role}`)
-  const size = NODE_V4_CHROME.mentionThumbSize
-  // 素材删了：退回灰块占位，⛔ 不画裂图（owner 09-28）。
-  const thumbs = useBrokenThumbs()
-  const thumbUrl = thumbs.usable(
-    media && 'thumbnailUrl' in media ? media.thumbnailUrl : undefined,
-  )
 
   return (
     <span
@@ -74,15 +71,11 @@ export function MentionChip({
     >
       {media?.kind === 'audio' ? (
         <WaveformGlyph />
-      ) : thumbUrl ? (
-        <Image
-          src={thumbUrl}
-          alt=""
-          width={size}
-          height={size}
-          unoptimized
-          onError={() => thumbs.markBroken(thumbUrl)}
-          className="size-4 shrink-0 rounded-xs object-cover"
+      ) : media?.kind === 'image' || media?.kind === 'video' ? (
+        <MentionMediaThumb
+          thumbnailUrl={media.thumbnailUrl}
+          videoUrl={media.videoUrl}
+          className="size-4 rounded-xs"
         />
       ) : media ? (
         <span

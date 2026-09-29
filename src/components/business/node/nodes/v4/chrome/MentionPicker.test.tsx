@@ -69,6 +69,22 @@ describe('matchMentionOptions', () => {
       ['图1', '图2'],
     )
   })
+
+  // owner 2026-09-29：画布上图和视频交错，按原样分组断成「图片 · 视频 · 图片」。
+  it('同一组收在一起：组按首次出现，组内保持原顺序', () => {
+    const mixed: MentionPickerOption[] = [
+      { id: 'a', name: '生成图', groupLabel: '图片' },
+      { id: 'b', name: '里希', groupLabel: '视频' },
+      { id: 'c', name: '生成图2', groupLabel: '图片' },
+      { id: 'd', name: '参考片段', groupLabel: '视频' },
+    ]
+    expect(matchMentionOptions(mixed, '').map((item) => item.id)).toEqual([
+      'a',
+      'c',
+      'b',
+      'd',
+    ])
+  })
 })
 
 describe('提示词栏里的 `@` 候选（spec §1.7）', () => {

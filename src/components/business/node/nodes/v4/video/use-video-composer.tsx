@@ -81,10 +81,12 @@ export interface VideoComposerOptions {
   /** 画布上的 `@` 候选与胶囊（由调用方按自己那份 tokens 拼好传进来）。 */
   readonly tokens: readonly MentionToken[]
   readonly candidates: readonly MentionCandidate[]
-  readonly mediaOf: (
-    name: string,
-  ) =>
-    | { kind: 'image' | 'video' | 'audio' | 'text'; thumbnailUrl?: string }
+  readonly mediaOf: (name: string) =>
+    | {
+        kind: 'image' | 'video' | 'audio' | 'text'
+        thumbnailUrl?: string
+        videoUrl?: string
+      }
     | undefined
 }
 
@@ -355,6 +357,9 @@ export function useVideoComposer({
     return {
       kind: found.kind,
       ...(found.thumbnailUrl ? { thumbnailUrl: found.thumbnailUrl } : {}),
+      ...('videoUrl' in found && typeof found.videoUrl === 'string'
+        ? { videoUrl: found.videoUrl }
+        : {}),
     }
   }
 

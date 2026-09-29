@@ -88,7 +88,11 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
   const mediaOf = useMemo(() => {
     const byName = new Map<
       string,
-      { kind: 'image' | 'video' | 'audio' | 'text'; thumbnailUrl?: string }
+      {
+        kind: 'image' | 'video' | 'audio' | 'text'
+        thumbnailUrl?: string
+        videoUrl?: string
+      }
     >()
     for (const item of canvas.nodes) {
       const itemData = item.data
@@ -97,8 +101,19 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
         byName.set(itemData.name, { kind: 'audio' })
         continue
       }
+      // ⚠ 视频的 `url` 是 mp4：封面走 `videoThumbnailUrl`，片子只给第一帧兜底用。
+      if (itemData.kind === NODE_MEDIA_KIND_IDS.video) {
+        byName.set(itemData.name, {
+          kind: 'video',
+          ...(itemData.videoThumbnailUrl
+            ? { thumbnailUrl: itemData.videoThumbnailUrl }
+            : {}),
+          ...(itemData.url ? { videoUrl: itemData.url } : {}),
+        })
+        continue
+      }
       byName.set(itemData.name, {
-        kind: itemData.kind === NODE_MEDIA_KIND_IDS.video ? 'video' : 'image',
+        kind: 'image',
         ...(itemData.url ? { thumbnailUrl: itemData.url } : {}),
       })
     }

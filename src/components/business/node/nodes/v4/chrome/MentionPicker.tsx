@@ -15,11 +15,9 @@
  *    落字的光标位置就没了。
  */
 
-import Image from 'next/image'
-
-import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 
+import { MentionMediaThumb } from './MentionMediaThumb'
 import type { MentionChipMedia } from './MentionChip'
 
 export interface MentionPickerOption {
@@ -59,15 +57,12 @@ function WaveformGlyph() {
 function OptionThumb({ media }: { readonly media?: MentionChipMedia }) {
   if (!media) return null
   if (media.kind === 'audio') return <WaveformGlyph />
-  if ('thumbnailUrl' in media && media.thumbnailUrl) {
+  if (media.kind === 'image' || media.kind === 'video') {
     return (
-      <Image
-        src={media.thumbnailUrl}
-        alt=""
-        width={NODE_V4_CHROME.mentionThumbSize}
-        height={NODE_V4_CHROME.mentionThumbSize}
-        unoptimized
-        className="size-4 shrink-0 rounded-xs object-cover"
+      <MentionMediaThumb
+        thumbnailUrl={media.thumbnailUrl}
+        videoUrl={media.videoUrl}
+        className="size-4 rounded-xs"
       />
     )
   }
@@ -104,7 +99,8 @@ export function MentionPicker({
     <div
       data-node-chrome="mention-picker"
       className={cn(
-        'absolute bottom-full left-0 z-30 mb-2 max-h-64 w-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-node-menu',
+        // `nowheel`：选择器住在画布里，滚轮不让给 ReactFlow（否则列表滚不动、画布在缩放）。
+        'nodrag nopan nowheel absolute bottom-full left-0 z-30 mb-2 max-h-64 w-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-node-menu',
         className,
       )}
       // 点在列表空白处也不能夺走正文的焦点。
@@ -197,6 +193,23 @@ export function matchMentionOptions(
   query: string,
 ): MentionPickerOption[] {
   const needle = query.trim().toLowerCase()
-  if (needle.length === 0) return [...options]
-  return options.filter((option) => option.name.toLowerCase().includes(needle))
+  const matched =
+    needle.length === 0
+      ? options
+      : options.filter((option) => option.name.toLowerCase().includes(needle))
+  // 同一组收在一起（组按首次出现的顺序、组内保持原顺序）：画布上图和视频交错着摆，
+  // 按原样分组会断成「图片 · 视频 · 图片」好几段（owner 2026-09-29 真机）。⚠ 在这里排
+  // 而不是只在列表里排：↑↓ 走的是这份顺序，两处不一致高亮会乱跳。
+  const order = new Map<string, number>()
+  for (const option of matched) {
+    if (!order.has(option.groupLabel)) order.set(option.groupLabel, order.size)
+  }
+  return matched
+    .map((option, index) => ({ option, index }))
+    .sort(
+      (a, b) =>
+        order.get(a.option.groupLabel)! - order.get(b.option.groupLabel)! ||
+        a.index - b.index,
+    )
+    .map(({ option }) => option)
 }

@@ -46,8 +46,13 @@ export function buildMentionTokens(
     if (isCharacterCardNode(node)) continue
     const kind = mentionKindOf(node)
     if (!kind) continue
+    // ⚠ 视频的 `url` 是 mp4，⛔ 当缩略图只会是裂图：有封面用封面，没有就不给。
     const url =
-      node.data.kind === NODE_MEDIA_KIND_IDS.text ? undefined : node.data.url
+      node.data.kind === NODE_MEDIA_KIND_IDS.text
+        ? undefined
+        : node.data.kind === NODE_MEDIA_KIND_IDS.video
+          ? node.data.videoThumbnailUrl
+          : node.data.url
     tokens.push({
       name: mentionNameOf(node),
       kind,

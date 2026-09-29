@@ -13,10 +13,8 @@
  * 反馈第三条）。普通 `@名字` 前面只有一个 `@`，宽度不够放 16px，那里不画。
  */
 
-import Image from 'next/image'
 import type { ReactNode } from 'react'
 
-import { NODE_V4_CHROME } from '@/constants/node-studio'
 import {
   VOICE_MARKUP,
   VOICE_MARKUP_INTENSITIES,
@@ -24,6 +22,7 @@ import {
   parseVoiceMarkup,
 } from '@/lib/voice-markup'
 
+import { MentionMediaThumb } from './MentionMediaThumb'
 import type { MentionChipMedia } from './MentionChip'
 import { parseMentions, type ParseMentionsOptions } from './parse-mentions'
 import {
@@ -64,15 +63,12 @@ function railThumbSplit(raw: string, name: string): string | null {
 
 function MentionThumb({ media }: { readonly media: MentionChipMedia }) {
   if (media.kind === 'audio') return <WaveformGlyph />
-  if ('thumbnailUrl' in media && media.thumbnailUrl) {
+  if (media.kind === 'image' || media.kind === 'video') {
     return (
-      <Image
-        src={media.thumbnailUrl}
-        alt=""
-        width={NODE_V4_CHROME.mentionThumbSize}
-        height={NODE_V4_CHROME.mentionThumbSize}
-        unoptimized
-        className="size-full object-cover"
+      <MentionMediaThumb
+        thumbnailUrl={media.thumbnailUrl}
+        videoUrl={media.videoUrl}
+        className="size-full"
       />
     )
   }

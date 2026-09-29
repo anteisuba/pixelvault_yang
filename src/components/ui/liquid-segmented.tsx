@@ -40,9 +40,10 @@ interface LiquidSegmentedProps<T extends string> {
   /** 单独禁用某几项（仍然画出来，灰着）。 */
   disabledValues?: readonly T[]
   /**
-   * `sm` = 工具行那一档（11px）；`md` = 设置页里的一行选择（14px，触屏 44px 高）。
+   * `sm` = 工具行那一档（11px）；`md` = 设置页里的一行选择（14px，触屏 44px 高）；
+   * `row` = 与 32px 高的筛选键、按钮排成一行（整颗正好 32px）。
    */
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'row'
   /**
    * `tabs` = 换一页（`tablist` / `tab`）；`radio` = 选一档（`radiogroup` / `radio`）。
    * ⚠ 长相一样、读屏念的不一样：选语气不是翻页。
@@ -66,6 +67,8 @@ const UNMEASURED_CLIP = 'inset(0 100% 0 0 round 999px)'
 const ITEM_CLASS = {
   sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium',
   md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
+  // 定高而不是靠行高撑：底下是按钮、上面反色那层是 span，⛔ 靠行高两层会差半像素。
+  row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm font-medium',
 } as const
 
 /**

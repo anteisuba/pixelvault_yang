@@ -1643,7 +1643,7 @@ export function KreaAssetBrowser({
                 size="sm"
                 onClick={handleUploadClick}
                 disabled={isUploading}
-                className="h-9 rounded-lg px-4 shadow-none transition-[transform,box-shadow] duration-fast ease-standard hover:-translate-y-px hover:shadow-sm active:translate-y-0"
+                className={TOOLBAR_BUTTON_CLASS}
               >
                 {isUploading ? (
                   <Spinner size="sm" />
@@ -1655,16 +1655,15 @@ export function KreaAssetBrowser({
               <Button
                 type="button"
                 size="sm"
-                variant={selectionMode ? 'secondary' : 'outline'}
+                variant="ghost"
                 aria-pressed={selectionMode}
                 onClick={() => {
                   if (selectionMode) exitSelectionMode()
                   else setSelectionMode(true)
                 }}
                 className={cn(
-                  'h-9 rounded-lg px-4 transition-transform duration-fast ease-standard hover:-translate-y-px active:translate-y-0',
-                  selectionMode &&
-                    'border-foreground/20 bg-muted text-foreground hover:bg-muted/80',
+                  TOOLBAR_BUTTON_CLASS,
+                  selectionMode && 'bg-muted hover:bg-muted',
                 )}
               >
                 {selectionMode ? (
@@ -2361,6 +2360,14 @@ function ScopeNameInput({
   )
 }
 
+/**
+ * 顶栏右侧的按钮：胶囊、与左边筛选键同高 32px；上传是这页唯一的实心键，选择是
+ * 无框文字键（悬停才出灰底）。焦点环走 ui-defaults §4 的细环，⛔ 不用 Button 默认的
+ * 3px 灰圈。
+ */
+const TOOLBAR_BUTTON_CLASS =
+  'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:active:scale-100'
+
 interface DensityToggleProps {
   density: AssetGridDensity
   onChange: (next: AssetGridDensity) => void
@@ -2388,9 +2395,9 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
         onChange={onChange}
         ariaLabel={t('densityLabel')}
         semantics="radio"
-        size="md"
+        size="row"
         fill
-        className="w-36"
+        className="w-30"
       />
     </div>
   )

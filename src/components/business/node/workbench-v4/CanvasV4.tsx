@@ -77,6 +77,7 @@ import {
 } from '../nodes/v4/chrome/node-connect-state'
 import { flashNodeCardReject } from '../nodes/v4/chrome/node-card-flash'
 import { CanvasMiniMap } from '../CanvasMiniMap'
+import { StoryboardBrackets } from './StoryboardBrackets'
 import { CanvasSurface } from '../CanvasSurface'
 import { NODE_V4_COMPONENTS } from '../nodes/v4/registry'
 
@@ -646,6 +647,7 @@ export function CanvasV4({
           size={NODE_STUDIO_CANVAS.background.size}
           color="var(--canvas-grid-dot)"
         />
+        <StoryboardBrackets nodes={nodes} />
         {children}
       </ReactFlow>
       {/* 小地图常显、可收成右下一颗 —— 收放是它自己的状态（`CanvasMiniMap` 的

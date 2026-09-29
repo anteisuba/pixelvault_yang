@@ -5901,6 +5901,7 @@
           "rename": "この画像の名前を変更",
           "duplicate": "この画像カードを複製",
           "splitVersion": "現在のバージョンを切り出す",
+          "source": "出所",
           "delete": "この画像を削除"
         },
         "frame": {
@@ -5909,6 +5910,27 @@
           "quality": "品質",
           "resolution": "解像度",
           "count": "枚数"
+        },
+        "storyboard": {
+          "toggle": "9 コマ絵コンテ",
+          "toggleHint": "3×3 の連続コマを 1 枚で作り、できたら 9 枚のカードに分けます",
+          "chipPrefix": "9 コマ",
+          "countLocked": "9 コマのときは 1 枚固定",
+          "templateShow": "送信時に絵コンテのテンプレートを付けます · 全文を見る",
+          "templateHide": "テンプレートを閉じる",
+          "templateStory": "（あなたが書いた一文）",
+          "split3": "3×3 に分割",
+          "split2": "2×2 に分割",
+          "splitting": "分割中…",
+          "notDetected": "9 コマとして認識できませんでした",
+          "manualSplit": "手動で分割",
+          "dismiss": "閉じる",
+          "fallbackName": "絵コンテ",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "9 コマ · {name} · {n} コマ目",
+          "unreadable": "この画像のピクセルを読めないため分割できません",
+          "uploadFailed": "{n} コマ目を素材ライブラリに保存できなかったため、分割しませんでした",
+          "failed": "分割できませんでした。元の画像はそのままです"
         },
         "promptPlaceholder": "この画像を説明…",
         "promptLabel": "画像プロンプト"

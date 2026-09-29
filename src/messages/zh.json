@@ -5901,6 +5901,7 @@
           "rename": "重命名这张图",
           "duplicate": "复制这张图片卡",
           "splitVersion": "拆出当前版本",
+          "source": "来源",
           "delete": "删除这张图"
         },
         "frame": {
@@ -5909,6 +5910,27 @@
           "quality": "质量",
           "resolution": "分辨率",
           "count": "张数"
+        },
+        "storyboard": {
+          "toggle": "九宫格分镜",
+          "toggleHint": "一次出 3×3 连续分镜，出完自动切成 9 张卡",
+          "chipPrefix": "九宫格",
+          "countLocked": "九宫格时固定 1 张",
+          "templateShow": "发送时接上分镜模板 · 看全文",
+          "templateHide": "收起模板",
+          "templateStory": "（你写的那一句）",
+          "split3": "切宫格 3×3",
+          "split2": "切宫格 2×2",
+          "splitting": "正在切开…",
+          "notDetected": "没认出九宫格",
+          "manualSplit": "手动切",
+          "dismiss": "关掉这条提示",
+          "fallbackName": "分镜",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "九宫格 · {name} · 第 {n} 格",
+          "unreadable": "这张图读不到像素，没法切",
+          "uploadFailed": "第 {n} 格没存进素材库，这次没切",
+          "failed": "切宫格没成功，原图没动"
         },
         "promptPlaceholder": "描述这张图……",
         "promptLabel": "图片提示词"

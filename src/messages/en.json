@@ -5901,6 +5901,7 @@
           "rename": "Rename this image",
           "duplicate": "Duplicate this image card",
           "splitVersion": "Split out current version",
+          "source": "Source",
           "delete": "Delete this image"
         },
         "frame": {
@@ -5909,6 +5910,27 @@
           "quality": "Quality",
           "resolution": "Resolution",
           "count": "Count"
+        },
+        "storyboard": {
+          "toggle": "Storyboard grid",
+          "toggleHint": "Makes one 3×3 storyboard and splits it into 9 cards when it lands",
+          "chipPrefix": "Grid",
+          "countLocked": "Always 1 image in grid mode",
+          "templateShow": "A storyboard template is added when sending · Show it",
+          "templateHide": "Hide template",
+          "templateStory": "(your sentence)",
+          "split3": "Split into 3×3",
+          "split2": "Split into 2×2",
+          "splitting": "Splitting…",
+          "notDetected": "Couldn’t find a grid in this image",
+          "manualSplit": "Split anyway",
+          "dismiss": "Dismiss",
+          "fallbackName": "Storyboard",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "Grid · {name} · panel {n}",
+          "unreadable": "Can’t read this image’s pixels, so it can’t be split",
+          "uploadFailed": "Panel {n} didn’t save to your library, so nothing was split",
+          "failed": "Couldn’t split the grid. The original is unchanged"
         },
         "promptPlaceholder": "Describe this image…",
         "promptLabel": "Image prompt"

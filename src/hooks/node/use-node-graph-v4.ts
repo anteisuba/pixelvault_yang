@@ -88,6 +88,17 @@ export interface NodeGraphV4BatchResult {
   readonly createdNodeIds: readonly string[]
 }
 
+/**
+ * `dispatchBatchWithMedia` 里一张新卡的「落下时就带着的东西」—— 与这批里
+ * `createdNodeIds` 同序。
+ */
+export interface NodeGraphV4CreatedSeed {
+  /** 上传 / 切图的结果，与 `setMedia` 同形。 */
+  readonly media?: NodeV4MediaPatch
+  /** 媒体之外一起写进去的字段（九宫格的组号）。 */
+  decorate?(data: NodeV4Data): NodeV4Data
+}
+
 export interface NodeGraphV4ClipboardShape {
   readonly kind: NodeV4Data['kind']
   readonly subtype: NodeV4Data['subtype']
@@ -230,6 +241,15 @@ export interface NodeGraphV4 {
   /* ── 图动作 ────────────────────────────────────────────────────────── */
   dispatch(op: NodeAssistantOpV4): boolean
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
+  /**
+   * 一批建卡、每张**带着媒体一起落下**，收成一个撤销条目 —— 重做回来的也是带图的卡。
+   * ⚠ 与「先 `dispatchBatch` 再逐张 `setMedia`」的区别就在重做：那样撤销栈记的是
+   * 回填之前的那份，重做会拿回一排空卡。`seeds[i]` 对应 `createdNodeIds[i]`。
+   */
+  dispatchBatchWithMedia(
+    ops: readonly NodeAssistantOpV4[],
+    seeds: readonly (NodeGraphV4CreatedSeed | undefined)[],
+  ): NodeGraphV4BatchResult
   addNode(
     kind: NodeV4Data['kind'],
     subtype: NodeV4Data['subtype'],
@@ -512,6 +532,56 @@ export function useNodeGraphV4({
       ])
       setRedoStack([])
       onStateChange(batch.state)
+      return result
+    },
+    [resolveModel, onOpFailed, onStateChange, castCards],
+  )
+
+  const dispatchBatchWithMedia = useCallback(
+    (
+      ops: readonly NodeAssistantOpV4[],
+      seeds: readonly (NodeGraphV4CreatedSeed | undefined)[],
+    ): NodeGraphV4BatchResult => {
+      const batch = applyCanvasBatchV4(stateRef.current, ops, {
+        mintId,
+        ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
+      })
+      for (const failure of batch.failures) onOpFailed?.(failure.reason)
+      const result: NodeGraphV4BatchResult = {
+        applied: batch.applied,
+        skipped: batch.skipped,
+        failedConnects: batch.failedConnects,
+        createdNodeIds: batch.createdNodeIds,
+      }
+      if (!batch.inverse) return result
+
+      const now = new Date().toISOString()
+      const seedById = new Map<string, NodeGraphV4CreatedSeed>()
+      batch.createdNodeIds.forEach((id, index) => {
+        const seed = seeds[index]
+        if (seed) seedById.set(id, seed)
+      })
+      const seeded: NodeWorkflowStateV4 = {
+        ...batch.state,
+        nodes: batch.state.nodes.map((node) => {
+          const seed = seedById.get(node.id)
+          if (!seed) return node
+          let data = node.data
+          if (seed.media && data.kind !== NODE_MEDIA_KIND_IDS.text) {
+            data = applyNodeMediaPatch(data, seed.media, { now, mintId })
+          }
+          if (seed.decorate) data = seed.decorate(data)
+          return { ...node, data }
+        }),
+      }
+      const inverse = batch.inverse
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'inverse', inverse }, redoState: seeded },
+      ])
+      setRedoStack([])
+      onStateChange(seeded)
       return result
     },
     [resolveModel, onOpFailed, onStateChange, castCards],
@@ -983,6 +1053,7 @@ export function useNodeGraphV4({
     neighborOffsets,
     dispatch,
     dispatchBatch,
+    dispatchBatchWithMedia,
     addNode,
     connect,
     disconnect,

@@ -23,6 +23,7 @@ import type {
   NodeWorkflowModelOption,
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
+import type { StoryboardSplitApi } from '@/hooks/node/use-storyboard-grid-split'
 
 /**
  * 上传 / 生成回填的媒体补丁（C3c-① A 补进 schema 的那一组字段）。
@@ -151,6 +152,11 @@ export interface NodeV4CanvasContextValue {
   readonly canRedo: boolean
   onUndo(): void
   onRedo(): void
+  /**
+   * 九宫格分镜的切开（§3）。宿主没接 = 这张图片卡上不出「切宫格」、也不出「没认出
+   * 九宫格」那一句（预览 / 单测里的画布）。
+   */
+  readonly storyboard?: StoryboardSplitApi
 }
 
 export const NODE_TEXT_DERIVE_ACTIONS = [

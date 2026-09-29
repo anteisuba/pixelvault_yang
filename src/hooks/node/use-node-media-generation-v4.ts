@@ -43,6 +43,7 @@ import {
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
+import { wrapStoryboardGridPrompt } from '@/lib/storyboard-grid'
 import {
   AdvancedParamsSchema,
   type CharacterCardRecord,
@@ -342,10 +343,15 @@ export function planV4Generation(
       ? { ownPrompt: overrides.prompt ?? data.prompt }
       : {}),
   })
+  // 九宫格分镜（§3）：只包**发出去的那一份**、只出一张；你写的那句原样留在卡上。
+  const storyboardGrid = data.params?.storyboardGrid === true
+  const modelPrompt = toModelPrompt(payload.prompt)
   return {
     ...base,
     kind: 'image',
-    prompt: toModelPrompt(payload.prompt),
+    prompt: storyboardGrid
+      ? wrapStoryboardGridPrompt(modelPrompt)
+      : modelPrompt,
     ...(data.params?.aspectRatio
       ? { aspectRatio: data.params.aspectRatio as AspectRatio }
       : {}),
@@ -353,7 +359,11 @@ export function planV4Generation(
     ...(data.params?.resolution
       ? { imageResolution: data.params.resolution }
       : {}),
-    ...(data.params?.count === undefined ? {} : { count: data.params.count }),
+    ...(storyboardGrid
+      ? { count: 1 }
+      : data.params?.count === undefined
+        ? {}
+        : { count: data.params.count }),
     referenceImages: payload.referenceUrls,
   }
 }

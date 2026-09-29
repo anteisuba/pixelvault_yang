@@ -937,6 +937,11 @@ export const NodeV4GenerationParamsSchema = z.object({
    * 档位查 `IMAGE_BATCH_COUNTS`，⛔ 不在这里抄一份 `[1,2,4]`。
    */
   count: z.number().int().min(1).max(8).optional(),
+  /**
+   * 九宫格分镜（§3）：开着时发送前接上分镜模板、只出一张，出完切成九格。
+   * ⚠ 只影响**发出去的那一份**，⛔ 不改你写的提示词。
+   */
+  storyboardGrid: z.boolean().optional(),
 })
 
 /**
@@ -1114,6 +1119,17 @@ export const NodeV4ImageDataSchema = z.object({
    */
   blocked: z.boolean().optional(),
   blockedReason: z.string().trim().min(1).max(400).optional(),
+  /**
+   * 九宫格切出来的一格（§3）：同一张宫格图切出的几张共用 `groupId`，`cell` 是第几格
+   * （0 起，行优先）。画布左边那道浅括号按它把一组圈起来；⛔ 不连线。
+   */
+  storyboardCell: z
+    .object({
+      groupId: z.string().trim().min(1).max(80),
+      cell: z.number().int().min(0).max(24),
+    })
+    .optional()
+    .catch(undefined),
   characterName: z.string().trim().min(1).max(160).optional(),
   /**
    * 硬链到 `ContextCard`（C1 契约修正 3）。只对 `image.character` 有意义：这张角色

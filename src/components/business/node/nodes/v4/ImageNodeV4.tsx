@@ -37,6 +37,7 @@ import {
   Download,
   MoreHorizontal,
   Pencil,
+  X,
 } from '@/components/icons'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -93,7 +94,7 @@ import {
   ImageEditMenuItems,
   ImageMoreMenuItems,
 } from './image/ImageNodeMenus'
-import { readOutputIndex } from '@/lib/node-output-versions'
+import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import {
   nextPromptDraft,
   sameVideoRailOrder,
@@ -102,6 +103,7 @@ import {
 
 import { ImageRefRail } from './image/ImageRefRail'
 import { useImageRefBinding } from './image/use-image-ref-binding'
+import { useStoryboardLanding } from './image/use-storyboard-landing'
 import {
   collapsedImageHeight,
   collapsedImageWidth,
@@ -322,6 +324,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     acceptsRefs,
   })
 
+  // 九宫格切开后，这一格从原图上它那一格的位置飞过来（§3）。
+  useStoryboardLanding(cardRef, {
+    nodeId: id,
+    cell: imageData.storyboardCell,
+    landing: canvas.storyboard?.landing,
+    nodes: canvas.nodes,
+  })
+
   if (!node) return null
 
   const versions = imageVersions(imageData)
@@ -338,6 +348,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     ? collapsedImageWidth(imageData)
     : NODE_V4_CARD.collapsedWidth
   const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
+  // 九宫格分镜（§3）：宿主接了切开能力才出开关、⋯ 里的「切宫格」和卡上那一句。
+  const storyboard = canvas.storyboard
+  const storyboardIssue = storyboard?.issues[id]
+  const storyboardBusy = storyboard?.splitting.has(id) ?? false
+  const sourceLabel = readOutputVersions(imageData)[versionIndex]?.source?.label
   const modelOptions =
     canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.image] ?? []
 
@@ -514,6 +529,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         menu: (
           <ImageMoreMenuItems
             onRename={() => setRenameRequest((count) => count + 1)}
+            onSplitGrid={
+              storyboard && imageData.url
+                ? (size) => storyboard.split(id, size)
+                : undefined
+            }
+            splitGridBusy={storyboardBusy}
+            sourceLabel={sourceLabel}
             onSplitVersion={
               // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
               versions.length > 1
@@ -689,6 +711,53 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 }}
               />
             )}
+            {storyboardBusy ? (
+              <div
+                role="status"
+                data-storyboard-splitting
+                className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-xs text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
+              >
+                <Spinner className="size-4" aria-hidden />
+                {tImage('storyboard.splitting')}
+              </div>
+            ) : null}
+            {storyboardIssue === 'notDetected' && storyboard ? (
+              <div
+                role="status"
+                data-storyboard-issue
+                className="absolute inset-x-2 bottom-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-float motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-base"
+                onDoubleClick={(event) => event.stopPropagation()}
+              >
+                <span className="mr-auto">
+                  {tImage('storyboard.notDetected')}
+                </span>
+                <span className="text-muted-foreground">
+                  {tImage('storyboard.manualSplit')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => storyboard.split(id, 3)}
+                  className="h-7 rounded-lg border border-border px-2 text-xs transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-96"
+                >
+                  3×3
+                </button>
+                <button
+                  type="button"
+                  onClick={() => storyboard.split(id, 2)}
+                  className="h-7 rounded-lg border border-border px-2 text-xs transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-96"
+                >
+                  2×2
+                </button>
+                <button
+                  type="button"
+                  aria-label={tImage('storyboard.dismiss')}
+                  onClick={() => storyboard.dismissIssue(id)}
+                  className="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              </div>
+            ) : null}
             {/* 重画 / 出图那一拍 / 失败：图留着，盖一层白纱（加载态 A）；线、原因与
                 「重试」在卡边那一层。出图时白纱跟着线一起淡掉。 */}
             {generating || genFinish.completing || failed ? (
@@ -821,6 +890,17 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   onCountChange={(count) =>
                     canvas.onSetParams(id, { ...imageData.params, count })
                   }
+                  {...(storyboard
+                    ? {
+                        storyboardGrid:
+                          imageData.params?.storyboardGrid === true,
+                        onStoryboardGridChange: (storyboardGrid: boolean) =>
+                          canvas.onSetParams(id, {
+                            ...imageData.params,
+                            storyboardGrid,
+                          }),
+                      }
+                    : {})}
                 />,
                 modelOptions.length > 0 ? (
                   <ModelPickerPopover

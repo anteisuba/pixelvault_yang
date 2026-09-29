@@ -93,6 +93,7 @@ import {
 } from '@/hooks/node/use-node-graph-v4'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeGenerationReconcileV4 } from '@/hooks/node/use-node-generation-reconcile-v4'
+import { useStoryboardGridSplit } from '@/hooks/node/use-storyboard-grid-split'
 import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
 import {
   useNodeWorkflowStore,
@@ -472,6 +473,21 @@ function NodeWorkbenchV4Inner() {
     },
     [fitView, graph.nodes],
   )
+
+  // 九宫格分镜（§3）：出完自动切 / 手动切，切完把镜头移到「原图 + 九张」那一片。
+  const revealNodes = useCallback(
+    (nodeIds: readonly string[]) => {
+      window.requestAnimationFrame(() => {
+        void fitView({
+          nodes: nodeIds.map((id) => ({ id })),
+          duration: NODE_STUDIO_DOCK.focusDurationMs,
+          maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom,
+        })
+      })
+    },
+    [fitView],
+  )
+  const storyboard = useStoryboardGridSplit({ graph, onReveal: revealNodes })
 
   /** 刚投影/刚落的一批入镜。空 = 整图 fit（与 v3 那条同一个兜底）。 */
   const lastCreatedRef = useRef<readonly string[]>([])
@@ -1407,6 +1423,7 @@ function NodeWorkbenchV4Inner() {
             pendingUploads={dnd.pendingUploads}
             onFocusNode={focusNode}
             onDeriveFromText={deriveFromText}
+            storyboard={storyboard}
           >
             <div className="node-workbench-v4 relative size-full">
               <WorkbenchUploadStatus items={dnd.pendingUploads} />
@@ -1491,6 +1508,7 @@ function NodeWorkbenchV4Inner() {
               pendingUploads={dnd.pendingUploads}
               onFocusNode={focusNode}
               onDeriveFromText={deriveFromText}
+              storyboard={storyboard}
             >
               <div className="node-workbench-v4 contents">
                 <WorkbenchUploadStatus items={dnd.pendingUploads} />

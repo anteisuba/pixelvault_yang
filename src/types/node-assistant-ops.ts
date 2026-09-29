@@ -626,6 +626,8 @@ export const NodeAssistantSetParamsV4OpSchema = z.object({
       .optional(),
     /** 一次发几张。上限与 `NodeV4GenerationParamsSchema.count` 同一个数。 */
     count: z.number().int().min(1).max(8).optional(),
+    /** 九宫格分镜开关（§3）。与 `NodeV4GenerationParamsSchema.storyboardGrid` 同一格。 */
+    storyboardGrid: z.boolean().optional(),
   }),
 })
 

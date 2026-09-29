@@ -39,6 +39,7 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import type { StoryboardSplitApi } from '@/hooks/node/use-storyboard-grid-split'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   NodeV4GenerationParams,
@@ -73,6 +74,8 @@ export interface NodeV4ProviderProps {
   onFocusNode?(nodeId: string): void
   /** 文本卡工具条的五个派生动作。 */
   onDeriveFromText?(nodeId: string, action: NodeTextDeriveAction): void
+  /** 九宫格分镜的切开（§3，`useStoryboardGridSplit`）。 */
+  readonly storyboard?: StoryboardSplitApi
   readonly children: ReactNode
 }
 
@@ -85,6 +88,7 @@ export function NodeV4Provider({
   modelOptionsByKind,
   onFocusNode,
   onDeriveFromText,
+  storyboard,
   children,
 }: NodeV4ProviderProps) {
   const t = useTranslations('StudioNode.v4')
@@ -225,6 +229,7 @@ export function NodeV4Provider({
       canRedo: engine.canRedo,
       onUndo,
       onRedo,
+      ...(storyboard ? { storyboard } : {}),
     }),
     [
       engine.nodes,
@@ -254,6 +259,7 @@ export function NodeV4Provider({
       onTidyLayout,
       onUndo,
       onRedo,
+      storyboard,
     ],
   )
 

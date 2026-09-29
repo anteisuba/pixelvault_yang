@@ -15,9 +15,12 @@
  */
 
 import { useTranslations } from 'next-intl'
+import type { StoryboardGridSize } from '@/constants/storyboard-grid'
 import {
   Copy,
   Crop,
+  Grid2x2,
+  Grid3X3,
   Image as ImageIcon,
   Layers,
   Library,
@@ -31,6 +34,7 @@ import {
 
 import {
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -86,10 +90,22 @@ export function ImageMoreMenuItems({
   onDuplicate,
   onSplitVersion,
   onSetCharacter,
+  onSplitGrid,
+  splitGridBusy = false,
+  sourceLabel,
   onDelete,
 }: {
   onRename(): void
   onDuplicate(): void
+  /**
+   * 「切宫格 3×3 / 2×2」（§3 九宫格分镜的手动那一条）。宿主没接切开能力、或卡上还
+   * 没有图 → 调用方传 `undefined`，整组不出。
+   */
+  onSplitGrid?: ((size: StoryboardGridSize) => void) | undefined
+  /** 正在切：两项灰掉（⛔ 同一张图并发切两次）。 */
+  readonly splitGridBusy?: boolean
+  /** 当前版的来源（九宫格切出来的那一格写「九宫格 · 天台 · 第 3 格」），只读。 */
+  readonly sourceLabel?: string | undefined
   /** 「拆出当前版本」（spec §3）。⚠ 只有一版时调用方传 `undefined`（拆无可拆）。 */
   onSplitVersion?: (() => void) | undefined
   /**
@@ -125,6 +141,40 @@ export function ImageMoreMenuItems({
           <UserRound aria-hidden className="size-4" />
           {tImage('more.setCharacter')}
         </DropdownMenuItem>
+      ) : null}
+      {onSplitGrid ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            data-image-more="split-grid-3"
+            disabled={splitGridBusy}
+            onSelect={() => onSplitGrid(3)}
+          >
+            <Grid3X3 aria-hidden className="size-4" />
+            {tImage('storyboard.split3')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            data-image-more="split-grid-2"
+            disabled={splitGridBusy}
+            onSelect={() => onSplitGrid(2)}
+          >
+            <Grid2x2 aria-hidden className="size-4" />
+            {tImage('storyboard.split2')}
+          </DropdownMenuItem>
+        </>
+      ) : null}
+      {sourceLabel ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel data-image-more="source">
+            <span className="block text-3xs font-normal text-muted-foreground">
+              {tImage('more.source')}
+            </span>
+            <span className="block truncate text-2xs font-normal text-foreground">
+              {sourceLabel}
+            </span>
+          </DropdownMenuLabel>
+        </>
       ) : null}
       <DropdownMenuSeparator />
       <DropdownMenuItem

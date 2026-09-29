@@ -66,6 +66,8 @@ export interface SpecChipProps {
    * （owner 2026-09-26 原型），参数栏照旧只写比例与清晰度。
    */
   readonly summarySuffix?: string
+  /** 摘要最前面那一段（画布图片卡开着九宫格时写「九宫格」）。 */
+  readonly summaryPrefix?: string
   readonly triggerClassName?: string
   /** 弹层对齐，缺省 `start`（chip 在一行左边时往右长）。 */
   readonly popoverAlign?: 'start' | 'end'
@@ -173,6 +175,7 @@ export function SpecChip({
   ariaLabel,
   triggerClassName,
   summarySuffix,
+  summaryPrefix,
   popoverAlign = 'start',
   'data-testid': testId,
 }: SpecChipProps) {
@@ -246,9 +249,9 @@ export function SpecChip({
         >
           <span className="min-w-0 flex-1 truncate text-left tabular-nums">
             {model.summary
-              ? summarySuffix
-                ? `${model.summary} · ${summarySuffix}`
-                : model.summary
+              ? [summaryPrefix, model.summary, summarySuffix]
+                  .filter(Boolean)
+                  .join(' · ')
               : ariaLabel}
           </span>
           <ChevronDown

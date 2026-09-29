@@ -857,3 +857,96 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
     expect(screen.getByRole('img')).toHaveAttribute('src', URL)
   })
 })
+
+describe('九宫格分镜（§3）', () => {
+  function storyboardApi(
+    overrides: Partial<
+      NonNullable<NodeV4CanvasContextValue['storyboard']>
+    > = {},
+  ) {
+    return {
+      split: vi.fn(),
+      issues: {},
+      dismissIssue: vi.fn(),
+      splitting: new Set<string>(),
+      landing: null,
+      ...overrides,
+    }
+  }
+
+  it('开着时 chip 首位写「九宫格」', () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          params: { aspectRatio: '16:9', storyboardGrid: true },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'], storyboard: storyboardApi() },
+    )
+    renderImage(context, 'i_1', true)
+    const chip = document.querySelector('[data-testid="image-frame-chip"]')
+    expect(chip?.textContent).toMatch(/^storyboard\.chipPrefix · /)
+  })
+
+  it('弹层里打开开关 → 写回 set_params，其余参数不丢', () => {
+    const onSetParams = vi.fn()
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          params: { aspectRatio: '16:9', count: 2 },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'], onSetParams, storyboard: storyboardApi() },
+    )
+    renderImage(context, 'i_1', true)
+    fireEvent.click(document.querySelector('[data-testid="image-frame-chip"]')!)
+    fireEvent.click(screen.getByTestId('storyboard-grid-switch'))
+    expect(onSetParams).toHaveBeenCalledWith('i_1', {
+      aspectRatio: '16:9',
+      count: 2,
+      storyboardGrid: true,
+    })
+  })
+
+  it('宿主没接切开能力：弹层里不出开关', () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          params: { aspectRatio: '16:9' },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context, 'i_1', true)
+    fireEvent.click(document.querySelector('[data-testid="image-frame-chip"]')!)
+    expect(screen.queryByTestId('storyboard-grid-switch')).toBeNull()
+  })
+
+  it('认不出九宫格：卡上一句 + 手动切 3×3 / 2×2 + 关掉', () => {
+    const storyboard = storyboardApi({ issues: { i_1: 'notDetected' } })
+    const context = harness(
+      [imageNode('i_1', { url: 'https://cdn.test/a.png' })],
+      { storyboard },
+    )
+    renderImage(context)
+    expect(screen.getByText('storyboard.notDetected')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '3×3' }))
+    fireEvent.click(screen.getByRole('button', { name: '2×2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'storyboard.dismiss' }))
+    expect(storyboard.split).toHaveBeenNthCalledWith(1, 'i_1', 3)
+    expect(storyboard.split).toHaveBeenNthCalledWith(2, 'i_1', 2)
+    expect(storyboard.dismissIssue).toHaveBeenCalledWith('i_1')
+  })
+
+  it('正在切：卡上盖一层「正在切开」', () => {
+    const context = harness(
+      [imageNode('i_1', { url: 'https://cdn.test/a.png' })],
+      { storyboard: storyboardApi({ splitting: new Set(['i_1']) }) },
+    )
+    renderImage(context)
+    expect(document.querySelector('[data-storyboard-splitting]')).toBeTruthy()
+  })
+})

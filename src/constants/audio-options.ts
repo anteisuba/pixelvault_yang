@@ -349,6 +349,8 @@ export const AUDIO_CLIP_SOURCE_KINDS = [
   'trim',
   /** 剪辑台导出的成片（S11b，spec §6「导出到画布」）。 */
   'render',
+  /** 九宫格切出来的一格（node-canvas-v2 §3「九宫格分镜」）。 */
+  'grid',
 ] as const
 
 export type AudioClipSourceKind = (typeof AUDIO_CLIP_SOURCE_KINDS)[number]
@@ -363,6 +365,7 @@ export const AUDIO_CLIP_SOURCE = {
   generated: 'generated',
   trim: 'trim',
   render: 'render',
+  grid: 'grid',
 } as const satisfies Record<AudioClipSourceKind, AudioClipSourceKind>
 
 /**

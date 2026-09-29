@@ -251,6 +251,72 @@ describe('useNodeGraphV4 · 图动作', () => {
 })
 
 describe('useNodeGraphV4 · 撤销栈只有一份', () => {
+  it('一批建卡带着图落下：撤销一起拿走，重做回来还带着图', () => {
+    const { view } = renderGraph(stateOf([]))
+    act(() => {
+      view.result.current.dispatchBatchWithMedia(
+        [
+          {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            ref: 'c1',
+            name: '天台 · 1',
+            position: { x: 400, y: 0 },
+          },
+          {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            ref: 'c2',
+            name: '天台 · 2',
+            position: { x: 800, y: 0 },
+          },
+        ],
+        [
+          {
+            media: {
+              url: 'https://cdn/cell-1.jpg',
+              mediaWidth: 680,
+              mediaHeight: 384,
+            },
+          },
+          {
+            media: {
+              url: 'https://cdn/cell-2.jpg',
+              mediaWidth: 680,
+              mediaHeight: 384,
+            },
+            decorate: (data) => ({
+              ...data,
+              storyboardCell: { groupId: 'g1', cell: 1 },
+            }),
+          },
+        ],
+      )
+    })
+    const urls = () =>
+      view.result.current.nodes.map((n) =>
+        n.data.kind === 'image' ? n.data.url : null,
+      )
+    expect(urls()).toEqual(['https://cdn/cell-1.jpg', 'https://cdn/cell-2.jpg'])
+    const second = view.result.current.nodes[1]!.data
+    expect(second.kind === 'image' && second.storyboardCell).toEqual({
+      groupId: 'g1',
+      cell: 1,
+    })
+
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.nodes).toHaveLength(0)
+
+    act(() => {
+      view.result.current.redo()
+    })
+    expect(urls()).toEqual(['https://cdn/cell-1.jpg', 'https://cdn/cell-2.jpg'])
+  })
+
   it('撤销 → 重做 → 再撤销回到起点', () => {
     const { view } = renderGraph(stateOf([]))
     act(() => {

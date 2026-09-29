@@ -12,6 +12,7 @@
  * 「W×H · 约 $x/张」的读数仍在 `image-node-model.ts`。
  */
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { buildImageSpecChipModel } from '@/lib/spec-chip-model'
@@ -19,7 +20,9 @@ import { cn } from '@/lib/utils'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import { ADAPTER_CAPABILITIES } from '@/constants/provider-capabilities'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { STORYBOARD_GRID_PROMPT_TEMPLATE } from '@/constants/storyboard-grid'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
+import { Switch } from '@/components/ui/switch'
 
 import {
   IMAGE_COUNT_OPTIONS,
@@ -41,6 +44,12 @@ export interface ImageFrameChipProps {
   onQualityChange(next: string): void
   onResolutionChange(next: string): void
   onCountChange(next: number): void
+  /**
+   * 九宫格分镜（node-canvas-v2 §3）：开着时发送前接上分镜模板、只出一张、出完切成九格。
+   * 不给回调 = 不出这一行（手机抽屉这一轮不带）。
+   */
+  readonly storyboardGrid?: boolean
+  onStoryboardGridChange?(next: boolean): void
   readonly disabled?: boolean
 }
 
@@ -63,10 +72,15 @@ export function ImageFrameChip({
   onQualityChange,
   onResolutionChange,
   onCountChange,
+  storyboardGrid = false,
+  onStoryboardGridChange,
   disabled = false,
 }: ImageFrameChipProps) {
   const t = useTranslations('StudioNode.v4.image')
   const tSpec = useTranslations('StudioSpecChip')
+  const [templateOpen, setTemplateOpen] = useState(false)
+  // 九宫格开着时只出一张：张数钉在 1，读数也按一张算。
+  const effectiveCount = storyboardGrid ? 1 : count
 
   const adapterType =
     model && model.adapterType in ADAPTER_CAPABILITIES
@@ -81,7 +95,7 @@ export function ImageFrameChip({
   const qualities = imageQualityOptions(model)
   const readout = imageFrameReadout(aspectRatio, modelId, {
     ...(quality ? { quality } : {}),
-    ...(count === undefined ? {} : { count }),
+    ...(effectiveCount === undefined ? {} : { count: effectiveCount }),
   })
 
   return (
@@ -96,34 +110,64 @@ export function ImageFrameChip({
       disabled={disabled}
       data-testid="image-frame-chip"
       triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
+      {...(storyboardGrid ? { summaryPrefix: t('storyboard.chipPrefix') } : {})}
       more={
         <div className="flex flex-col gap-3">
+          {onStoryboardGridChange ? (
+            <div className="flex min-h-11 items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-xs font-medium text-foreground">
+                  {t('storyboard.toggle')}
+                </span>
+                <span className="text-2xs text-muted-foreground">
+                  {t('storyboard.toggleHint')}
+                </span>
+              </div>
+              <Switch
+                checked={storyboardGrid}
+                disabled={disabled}
+                onCheckedChange={onStoryboardGridChange}
+                aria-label={t('storyboard.toggle')}
+                data-testid="storyboard-grid-switch"
+              />
+            </div>
+          ) : null}
           <div className="flex flex-col gap-1.5">
-            <span className="text-2xs font-medium text-muted-foreground/70">
+            <span className="flex items-center justify-between gap-2 text-2xs font-medium text-muted-foreground/70">
               {tSpec('moreItem.batchCount')}
+              {storyboardGrid ? (
+                <span className="font-normal">
+                  {t('storyboard.countLocked')}
+                </span>
+              ) : null}
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {IMAGE_COUNT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={String(count ?? '') === option.value}
-                  aria-disabled={disabled}
-                  onClick={() => {
-                    if (disabled) return
-                    onCountChange(Number(option.value))
-                  }}
-                  className={cn(
-                    moreTierClass,
-                    String(count ?? '') === option.value
-                      ? moreTierActiveClass
-                      : moreTierIdleClass,
-                  )}
-                >
-                  {option.value}
-                </button>
-              ))}
+              {IMAGE_COUNT_OPTIONS.map((option) => {
+                const locked = disabled || storyboardGrid
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={String(effectiveCount ?? '') === option.value}
+                    aria-disabled={locked}
+                    onClick={() => {
+                      if (locked) return
+                      onCountChange(Number(option.value))
+                    }}
+                    className={cn(
+                      moreTierClass,
+                      String(effectiveCount ?? '') === option.value
+                        ? moreTierActiveClass
+                        : locked
+                          ? moreTierBlockedClass
+                          : moreTierIdleClass,
+                    )}
+                  >
+                    {option.value}
+                  </button>
+                )
+              })}
             </div>
           </div>
           {/* 画质是**逐模型的专属能力**（第 11 项把它从规格里搬走），所以它落在
@@ -173,6 +217,31 @@ export function ImageFrameChip({
             >
               {readout}
             </p>
+          ) : null}
+          {storyboardGrid ? (
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                aria-expanded={templateOpen}
+                onClick={() => setTemplateOpen((open) => !open)}
+                className="self-start rounded-md text-2xs text-muted-foreground underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {templateOpen
+                  ? t('storyboard.templateHide')
+                  : t('storyboard.templateShow')}
+              </button>
+              {templateOpen ? (
+                <p
+                  data-storyboard-template
+                  className="whitespace-pre-wrap rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-2xs leading-4 text-foreground"
+                >
+                  {STORYBOARD_GRID_PROMPT_TEMPLATE.replace(
+                    '{story}',
+                    t('storyboard.templateStory'),
+                  )}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       }

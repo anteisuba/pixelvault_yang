@@ -219,6 +219,36 @@ describe('planV4Generation · 其余分支', () => {
     expect(plan.aspectRatio).toBe('3:4')
   })
 
+  it('图 · 九宫格：发出去的那一份包上分镜模板、只出一张；卡上的原句不动', () => {
+    const sheet = node('sheet', {
+      kind: 'image',
+      subtype: 'shot',
+      model: MODEL,
+      prompt: '雨夜的天台，她等了很久，最后转身离开',
+      params: { aspectRatio: '16:9', count: 4, storyboardGrid: true },
+    })
+    const plan = planV4Generation('sheet', { nodes: [sheet], edges: [] })!
+    expect(plan.prompt).toContain('3×3 storyboard grid')
+    expect(plan.prompt).toContain('雨夜的天台，她等了很久，最后转身离开')
+    expect(plan.count).toBe(1)
+    expect(sheet.data.kind === 'image' && sheet.data.prompt).toBe(
+      '雨夜的天台，她等了很久，最后转身离开',
+    )
+  })
+
+  it('图 · 九宫格关着：照常按张数发、不包模板', () => {
+    const still = node('still', {
+      kind: 'image',
+      subtype: 'shot',
+      model: MODEL,
+      prompt: '走廊全景',
+      params: { count: 2, storyboardGrid: false },
+    })
+    const plan = planV4Generation('still', { nodes: [still], edges: [] })!
+    expect(plan.prompt).toBe('走廊全景')
+    expect(plan.count).toBe(2)
+  })
+
   it('音：台词经 text 槽进 prompt', () => {
     const out = node('out', { kind: 'audio', subtype: 'voice', model: MODEL })
     const plan = planV4Generation('out', {

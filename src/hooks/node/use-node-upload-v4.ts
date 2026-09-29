@@ -51,6 +51,48 @@ export interface UseNodeUploadV4Value {
   cancel(): void
 }
 
+/**
+ * 一张图 → 压到上限 → 存进素材库 → 可直接交给 `onSetMedia` 的 patch。
+ * 画布上传与九宫格切图共用这一份（⛔ 各写一遍 patch 装配）。
+ * ⚠ 不调 `notifyGalleryChanged`：一次传九张时由调用方传完再通知一次。
+ */
+export async function uploadImageMediaPatch(
+  file: File,
+  options: {
+    readonly note: string
+    readonly onProgress?: (percent: number) => void
+    readonly signal?: AbortSignal
+  },
+): Promise<
+  | { readonly ok: true; readonly patch: NodeV4MediaPatch }
+  | { readonly ok: false; readonly error: string }
+> {
+  const { file: compressed } = await compressImageToLimit(file, {
+    maxBytes: CLIENT_UPLOAD_MAX_BYTES,
+  })
+  const pixels = await readImagePixelSize(compressed)
+  const response = await uploadImageFileAPI(compressed, {
+    note: options.note,
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
+  })
+  const url = response.data?.generation.url
+  if (!response.success || !url) {
+    return { ok: false, error: response.error ?? 'upload failed' }
+  }
+  return {
+    ok: true,
+    patch: {
+      url,
+      sizeBytes: compressed.size,
+      imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+      ...(pixels
+        ? { mediaWidth: pixels.width, mediaHeight: pixels.height }
+        : {}),
+    },
+  }
+}
+
 export function useNodeUploadV4(): UseNodeUploadV4Value {
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -79,32 +121,20 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
       try {
         if (kind === 'image') {
           // 超过上限的才压，小图原样上传（与 `useNodeReferenceUpload` 同一条）。
-          const { file: compressed } = await compressImageToLimit(file, {
-            maxBytes: CLIENT_UPLOAD_MAX_BYTES,
-          })
-          const pixels = await readImagePixelSize(compressed)
-          const response = await uploadImageFileAPI(compressed, {
+          const result = await uploadImageMediaPatch(file, {
             note,
             onProgress: setProgress,
             signal: controller.signal,
           })
-          const url = response.data?.generation.url
-          if (!response.success || !url) {
-            setError(response.error ?? 'upload failed')
+          if (!result.ok) {
+            setError(result.error)
             setCanRetry(true)
             return null
           }
           // 传上去的这一份**也是一件产物**（服务端建了 Generation），素材库与
           // 历史两个面板据此重拉 —— ⛔ 不让用户自己去点刷新（owner 2026-09-12）。
           notifyGalleryChanged()
-          return {
-            url,
-            sizeBytes: compressed.size,
-            imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
-            ...(pixels
-              ? { mediaWidth: pixels.width, mediaHeight: pixels.height }
-              : {}),
-          }
+          return result.patch
         }
 
         if (kind === 'audio') {

@@ -34,8 +34,12 @@ import {
   familySlugToHuggingFaceFamily,
   parseLoraLibraryFamilyParam,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
+  LORA_LIBRARY_BROWSE_PAGE_SIZE,
   type CivitaiLoraBaseModel,
+  type CivitaiLoraSort,
   type HuggingFaceLoraFamily,
+  type LoraContentType,
+  type LoraNsfwFilter,
 } from '@/constants/lora'
 import { normalizeToLoraBaseFamily } from '@/constants/lora-base-models'
 import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
@@ -438,6 +442,16 @@ function resolveUpstreamFamilyFilters(rawFamily: string | undefined): {
   }
 }
 
+/**
+ * 当前底模家族 → 库页底模筛选用的 Civitai 值（lora-assistant §13.1）。与上面的同族
+ * 下推同一张映射；`null` = 这个家族在库页上没有对应的筛选值，不限底模。
+ */
+export function resolveLibraryBaseModel(
+  rawFamily: string | null | undefined,
+): CivitaiLoraBaseModel | null {
+  return resolveUpstreamFamilyFilters(rawFamily ?? undefined).civitaiBaseModel
+}
+
 /** 家族匹配的排前面。匹配不上的**不删** —— 见 `SearchLoraCandidatesInput`。 */
 function preferFamily(
   candidates: readonly LoraCandidate[],
@@ -612,5 +626,72 @@ export async function searchLoraCandidates(
     candidates,
     query,
     sources: [civitai.receipt, huggingface.receipt],
+  }
+}
+
+/**
+ * **照库页的条件搜**（lora-assistant §13.1，owner 2026-09-29「切到库页当面搜」）。
+ *
+ * ⭐ 参数与库页那一次请求**逐字相同**：词 · 底模（当前底模家族下推成 Civitai 值，
+ * 与上面的同族下推同一张映射）· 排序 / 分级 / 类型（库页网址上现在的那几个）· 每页
+ * 24。同一组条件命中 `listCivitaiLoras` 同一份快照缓存 —— 网格第一段就是助手挑选
+ * 时看到的那一组，圈才圈得到卡上。
+ * ⚠ 只搜 Civitai：owner 定「只搜库」，⛔ Hugging Face、⛔ 收藏。
+ * ⚠ 返回这次用的 Civitai 底模值：客户端照它设库页的底模筛选，⛔ 自己再算一遍。
+ */
+export async function searchLoraLibraryCandidates(
+  input: Omit<SearchLoraCandidatesInput, 'limit'> & {
+    limit?: number
+    filters?: {
+      sort: CivitaiLoraSort
+      nsfwFilter: LoraNsfwFilter
+      contentType: LoraContentType
+    }
+  },
+): Promise<
+  LoraCandidateSearchResult & { baseModel: CivitaiLoraBaseModel | null }
+> {
+  const query = input.query
+    .trim()
+    .slice(0, LORA_CANDIDATE_LIMITS.maxQueryLength)
+  const limit = Math.min(
+    input.limit ?? LORA_CANDIDATE_LIMITS.maxCandidates,
+    LORA_CANDIDATE_LIMITS.maxCandidates,
+  )
+  if (!query) return { candidates: [], query: '', sources: [], baseModel: null }
+
+  const retrievedAt = new Date().toISOString()
+  const { civitaiBaseModel } = resolveUpstreamFamilyFilters(
+    input.baseModelFamily,
+  )
+  const civitai = await runCandidateSource(
+    LORA_CANDIDATE_SOURCE_IDS.civitai,
+    async () => {
+      const page = await listCivitaiLoras({
+        search: query,
+        pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
+        ...(civitaiBaseModel ? { baseModel: civitaiBaseModel } : {}),
+        ...(input.filters ?? {}),
+      })
+      return page.items.map((item) => civitaiToCandidate(item, retrievedAt))
+    },
+  )
+  const candidates = await annotateOwnership(
+    civitai.items.slice(0, limit),
+    input,
+  )
+
+  logger.info('LoRA library candidates resolved', {
+    query,
+    total: candidates.length,
+    baseModel: civitaiBaseModel,
+    civitai: civitai.receipt.status,
+  })
+
+  return {
+    candidates,
+    query,
+    sources: [civitai.receipt],
+    baseModel: civitaiBaseModel,
   }
 }

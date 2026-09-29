@@ -326,6 +326,9 @@ export function describeOperatorStepDetail(
     /** 摆一张搭配卡（§12）—— 卡头那一句就是它摆了什么。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
       return step.payload.question
+    /** 在库页圈几把（§13）—— 详情写圈了哪几把，事后读得出它推的是谁。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks:
+      return step.payload.picks.map((pick) => pick.name).join(' · ')
     /**
      * 标审核态（切片 Y）—— 详情写**理由**，⛔ 不写 assetId：那串 uuid 用户核对
      * 不了，而「为什么否掉」正是他事后要读的那一句。没给理由时不画详情行。

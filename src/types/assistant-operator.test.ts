@@ -623,6 +623,14 @@ const STEP_FIXTURES: Record<
     payload: { question: '给你搭了一套' },
     result: { offered: true },
   },
+  /** lora-assistant §13：圈几把，`inverse` = 撤掉圈。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]: {
+    payload: {
+      query: 'wuthering waves roccia',
+      picks: [{ candidateId: 'civitai:1:2', name: '洛可可 (Roccia) · 鸣潮' }],
+    },
+    inverse: { clear: true },
+  },
   /** 切片 X：`inverse` 里是**旧值**，撤销 = 写回去。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: {
     payload: {
@@ -863,7 +871,7 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 49 条，recall_evidence 归「查」组（§7.3）', () => {
+  it('⭐ 工具表是 50 条，recall_evidence 归「查」组（§7.3）', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
@@ -871,7 +879,8 @@ describe('五动词入口', () => {
     // 卡片助手 C3 把 45 变成 47（`propose_character_images` · `hand_off_to_image_assistant`）。
     // 卡片助手 S14 把 47 变成 48（`check_character_look`）。
     // lora-assistant §12 把 48 变成 49（`plan_lora_setup`，搭配卡）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(49)
+    // lora-assistant §13 把 49 变成 50（`show_lora_picks`，库页圈几把）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(50)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

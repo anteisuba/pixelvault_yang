@@ -571,7 +571,8 @@ describe('⛔ 助手工具环的钱闸', () => {
   it('LoRA 挂载在表里，而服务端仍然够不着导入 / 下载 / R2', () => {
     expect(ASSISTANT_OPERATOR_TOOLS).toContain('search_loras')
     expect(ASSISTANT_OPERATOR_TOOLS).toContain('mount_lora')
-    expect(SOURCE).toContain('searchLoraCandidates')
+    // lora-assistant §13：LoRA 域照库页条件搜（同一个检索模块，只读）。
+    expect(SOURCE).toContain('searchLoraLibraryCandidates')
     // 导入那条腿的三个名字，一个都不许出现在工具环里。
     expect(SOURCE).not.toContain('favoriteExternalLora')
     expect(SOURCE).not.toContain('favoriteLoraAPI')

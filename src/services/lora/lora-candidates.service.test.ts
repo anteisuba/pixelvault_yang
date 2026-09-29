@@ -35,8 +35,12 @@ import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASONS,
   LORA_CANDIDATE_SOURCE_STATUSES,
 } from '@/constants/lora-candidate'
+import { LORA_LIBRARY_BROWSE_PAGE_SIZE } from '@/constants/lora'
 import { getCircuitBreaker } from '@/lib/circuit-breaker'
-import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
+import {
+  searchLoraCandidates,
+  searchLoraLibraryCandidates,
+} from '@/services/lora/lora-candidates.service'
 import type { CivitaiLoraLibraryItem, HuggingFaceLoraSearchItem } from '@/types'
 
 function civitaiItem(
@@ -480,5 +484,44 @@ describe('searchLoraCandidates — 底模家族下推给上游（2026-09-12 真�
     expect(mockSearchHuggingFaceLoras.mock.calls[0]?.[0]).toMatchObject({
       baseModelFamily: 'all',
     })
+  })
+})
+
+describe('searchLoraLibraryCandidates — 照库页的条件搜（lora-assistant §13.1）', () => {
+  it('参数与库页逐字相同：词 · 同族底模 · 库页筛选 · 每页 24；只搜 Civitai', async () => {
+    mockListCivitaiLoras.mockResolvedValue({ items: [civitaiItem()] })
+    const filters = {
+      sort: 'Most Downloaded',
+      nsfwFilter: 'unrestricted',
+      contentType: 'all',
+    } as const
+
+    const result = await searchLoraLibraryCandidates({
+      ...INPUT,
+      baseModelFamily: 'illustrious',
+      filters,
+    })
+
+    expect(mockListCivitaiLoras).toHaveBeenCalledTimes(1)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith({
+      search: 'changli',
+      pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
+      baseModel: 'Illustrious',
+      ...filters,
+    })
+    expect(mockSearchHuggingFaceLoras).not.toHaveBeenCalled()
+    expect(result.baseModel).toBe('Illustrious')
+    expect(result.sources.map((source) => source.source)).toEqual(['civitai'])
+    expect(result.candidates[0]?.candidateId).toBe('civitai:122359:135867')
+  })
+
+  it('家族映射不到库页筛选值时不限底模，返回 null', async () => {
+    mockListCivitaiLoras.mockResolvedValue({ items: [] })
+    const result = await searchLoraLibraryCandidates(INPUT)
+    expect(mockListCivitaiLoras).toHaveBeenCalledWith({
+      search: 'changli',
+      pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
+    })
+    expect(result.baseModel).toBeNull()
   })
 })

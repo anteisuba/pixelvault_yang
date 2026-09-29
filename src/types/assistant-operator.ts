@@ -105,6 +105,11 @@ import {
   AssistantAssetFolderVisionResultSchema,
 } from '@/types/asset-folder-vision'
 import { LoraCandidateImportPayloadSchema } from '@/types/lora-candidate'
+import {
+  CIVITAI_LORA_SORT_VALUES,
+  LORA_CONTENT_TYPE_VALUES,
+  LORA_NSFW_FILTER_VALUES,
+} from '@/constants/lora'
 import { CONTEXT_CARD_LIMITS } from '@/constants/context-cards'
 import {
   ContextCardDigestSchema,
@@ -580,6 +585,18 @@ export const AssistantOperatorSnapshotLorasSchema = z.object({
   /** 权重值域，与 `[[lora]]` 推荐块共用同一对数（见词表 `setLoraWeight`）。 */
   minWeight: z.number(),
   maxWeight: z.number(),
+  /**
+   * 库页现在的筛选（网址上那几个参数）—— `search_loras` 照它搜，网格第一段才和
+   * 助手挑选时看到的是同一组（lora-assistant §13.1）。缺席 = 按库页默认。
+   * ⚠ 没有底模：底模由服务端按当前底模家族设（助手搜的时候库页的底模筛选跟着改）。
+   */
+  libraryFilters: z
+    .object({
+      sort: z.enum(CIVITAI_LORA_SORT_VALUES),
+      nsfwFilter: z.enum(LORA_NSFW_FILTER_VALUES),
+      contentType: z.enum(LORA_CONTENT_TYPE_VALUES),
+    })
+    .optional(),
 })
 
 export const AssistantLoraParametersSchema = z
@@ -2486,6 +2503,13 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     candidateId: IdSchema,
     weight: z.number().optional(),
   }),
+  /**
+   * 在库页圈几把（lora-assistant §13）。⚠ 值域（本轮搜到过、装得上）留在规划器收，
+   * 同推荐卡那一条：规划器拒的那一句助手读得懂、改得过来。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]: z.object({
+    candidateIds: z.array(IdSchema).min(1).max(LIMITS.maxLoraPicks),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: z.object({ loraId: IdSchema }),
   /**
    * ⚠ 值域（0.1–2）**留在规划器**收窄，不写进 schema —— 与本文件头注 ② 同一条：
@@ -3640,6 +3664,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({
       query: z.string().trim().min(1).max(LIMITS.maxLoraQueryChars),
       limit: z.number().int().positive().max(LIMITS.maxLoraResults),
+      /**
+       * LoRA 域在库页当面搜时这次用的 Civitai 底模值（lora-assistant §13.1）——
+       * 客户端照它设库页的底模筛选，⛔ 自己再算一遍家族。缺席 = 不限底模。
+       */
+      baseModel: ParamValueSchema.optional(),
     }),
     z.object({
       totalFound: z.number().int().nonnegative(),
@@ -3709,6 +3738,21 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
     AssistantLoraParametersSchema,
     AssistantLoraParametersSchema,
+  ),
+  /**
+   * 在库页圈几把（lora-assistant §13）。载荷带词与每把的名字：日志条上写「圈了
+   * 哪几把」，客户端照 id 在网格里找卡。`inverse` = 撤掉圈（没有别的可撤）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxLoraQueryChars),
+      picks: z
+        .array(z.object({ candidateId: IdSchema, name: LabelSchema }))
+        .min(1)
+        .max(LIMITS.maxLoraPicks),
+    }),
+    z.object({ clear: z.literal(true) }),
   ),
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,

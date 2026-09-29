@@ -157,6 +157,7 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ListChecks,
   /** 摆一张搭配卡（§12）—— 一叠一起换的东西。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: Layers,
+  [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]: Search,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: Blocks,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: Unplug,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: SlidersHorizontal,

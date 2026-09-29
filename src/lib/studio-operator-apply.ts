@@ -96,6 +96,18 @@ export interface StudioOperatorLoraContext {
   /** 撤销摘除：挂回去。⚠ 那条库记录由宿主在摘的一刻扣下来 —— 服务端没有它。 */
   remount(loraId: string, weight: number): void
   setWeight(loraId: string, weight: number): void
+  /**
+   * 库页当面搜（lora-assistant §13.2）：`search_loras` 这一步完成时切到「库」、
+   * 按同一组条件搜（词 + 服务端这次用的底模值，⛔ 自己再算一遍）。
+   */
+  showLibrarySearch?(input: { query: string; baseModel?: string }): void
+  /** 在库页网格里圈这几把（`show_lora_picks`）。 */
+  showPicks?(input: {
+    query: string
+    picks: readonly { candidateId: string; name: string }[]
+  }): void
+  /** 撤掉圈（`show_lora_picks` 的撤销）。 */
+  clearPicks?(): void
 }
 
 /**
@@ -452,6 +464,26 @@ export function applyOperatorStep(
   ctx: StudioOperatorApplyContext,
 ): StudioOperatorField | null {
   switch (step.tool) {
+    /**
+     * 找 LoRA（lora-assistant §13.2）：表单一格都没动（返回 null，登记簿不记账），
+     * 但装配台要把库页打开、按同一组条件搜给创作者看 —— 网格第一段就是助手拿到的
+     * 那一组。宿主没接这只手（图片 / 视频台）时什么都不做。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
+      ctx.lora?.showLibrarySearch?.({
+        query: step.payload.query,
+        ...(step.payload.baseModel
+          ? { baseModel: step.payload.baseModel }
+          : {}),
+      })
+      return null
+    /**
+     * 圈几把（§13）：圈在库页的网格上，⛔ 不是表单的一格 —— 返回 null，参数栏上
+     * 不亮 ✦；撤销走 `revertOperatorStep` 的 `clearPicks`。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks:
+      ctx.lora?.showPicks?.(step.payload)
+      return null
     case ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences:
       return null
     case ASSISTANT_OPERATOR_TOOL_IDS.readState:
@@ -486,11 +518,6 @@ export function applyOperatorStep(
      * 它之后那几条 `set_*` 各自负责（因此各自可撤销、各自进登记簿）。
      * 让评价这一步也「记一笔改动」的表现是：还原时多撤一格，而那一格什么都没改过。
      */
-    /**
-     * ⚠ 找 LoRA 也是读（P4-C）：候选行上那几条是纯预览，一把都没下载、没挂上。
-     * 与 `search_web_images` 逐字同源 —— 落地由 `mount_lora` 负责。
-     */
-    case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
     /**
      * ⚠ 规则两条也不动表单（§10）：读规则是读；**记一条规则的后果落在服务端**
      * （库里多一行），客户端这一步没有任何字段要改。返回 null = 登记簿不记账，
@@ -1029,6 +1056,10 @@ export function revertOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
       ctx.lora?.remount(step.inverse.loraId, step.inverse.weight)
+      return
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks:
+      ctx.lora?.clearPicks?.()
       return
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:

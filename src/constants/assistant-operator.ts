@@ -424,6 +424,14 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   planLoraSetup: 'plan_lora_setup',
   /**
+   * 在「库」页的网格里**圈出**几把给创作者看（lora-assistant §13，owner 2026-09-29）——
+   * 桌面 LoRA 域取代推荐卡：`search_loras` 已经把库页打开、按同一组条件搜给他看了，
+   * 这一步只给那几张卡加圈 + 「助手推荐」小标，挂不挂由他在卡上点。
+   * ⚠ 只收**本轮 `search_loras` 回过的**、装得上当前底模的 candidateId（最多 3 把）。
+   * ⚠ 改动型：`inverse` = 撤掉圈。它一把都没挂、一个字节都没下载。
+   */
+  showLoraPicks: 'show_lora_picks',
+  /**
    * 把一把 LoRA 挂上装配台（P4-C）。
    *
    * ⛔ **模型只能给 `candidateId`**，而且只能是本轮 `search_loras` 真的返回过的那些
@@ -696,6 +704,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
   ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
   ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
+  ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
@@ -860,6 +869,12 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
   /**
+   * ⚠ 圈几把（lora-assistant §13）也是改动型：它改的是库页上看得见的东西（几张卡
+   * 多了圈），`inverse` = 撤掉圈。⛔ 别因为「一把都没挂」就挪进读类 —— 读类的
+   * 判据是「界面上什么都没变」，而圈是变了。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
+  /**
    * ⚠ 全表唯一一条后果落在**服务端**的改动型工具（其余都是吐一个 op 让客户端应用）。
    * 所以它的 `inverse` 里放的是**库记录 id**（服务端刚写出来的那条），
    * 而不是像 `mount_lora` 那样放一个客户端要自己反查的候选 id。
@@ -1016,6 +1031,9 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ASSISTANT_OPERATOR_VERB_IDS.ask,
   /** ⚠ 搭配卡同理：一套搭配摆出来等创作者点「应用」，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: ASSISTANT_OPERATOR_VERB_IDS.ask,
+  /** ⚠ 圈几把归**改**：库页上真多了几道圈，撤销撤得掉；⛔ 不停流等决定。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]:
@@ -1878,9 +1896,13 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
     ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
     ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-    ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
+    /**
+     * ⚠ 推荐卡 `plan_lora_pick` 与 `mount_lora` **不在这里**（owner 2026-09-29，
+     * lora-assistant §13）：找 LoRA 改成在库页当面搜 + 圈出来，挂载由创作者在卡上点。
+     * 搭配卡照旧（它的新挂几行由客户端逐行挂，不经 `mount_lora` 规划器）。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
     ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
-    ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
@@ -2280,6 +2302,8 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * 改十几把，创作者读不完就只能闭眼点「应用」。新挂的几把仍按 `maxLoraResults`。
    */
   maxLoraSetupChanges: 8,
+  /** 库页上一次最多圈几把（`show_lora_picks`，lora-assistant §13）—— 与 `[[lora]]` 推荐块的 3 同一个数。 */
+  maxLoraPicks: 3,
   /** LoRA 检索词长度 —— 与库内检索同量级（上游吃的是短查询）。 */
   maxLoraQueryChars: 120,
   /**
@@ -2939,11 +2963,13 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    * 会让召回崩掉。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]:
-    'look for LoRAs on Civitai and Hugging Face. Returns real candidates with their id, licence, base-model family, and whether this workbench can actually mount them. This is the ONLY place a candidateId comes from — never invent one. Keep the query SHORT and in English (a style name, an artist, two or three words); a whole sentence returns junk. Read the compatibility line on each candidate before you recommend it: a LoRA built for a different base-model architecture will not load on the base that is selected.',
+    "look for LoRAs. On the LoRA bench this opens the creator's library page and searches there in front of them (Civitai, with their current filters and the base-model filter set to the selected base's family) — the grid they see is the list you get back. Returns real candidates with their id, licence, base-model family, and whether this workbench can actually mount them. This is the ONLY place a candidateId comes from — never invent one. Keep the query SHORT and in English (a style name, an artist, two or three words); a whole sentence returns junk. Read the compatibility line on each candidate before you recommend it: a LoRA built for a different base-model architecture will not load on the base that is selected.",
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]:
     'PUT THE CANDIDATES IN FRONT OF THE CREATOR and let them tick the ones to mount. This MOUNTS NOTHING on its own: the app shows them the list and they decide; it ends your turn. Every candidateId must be one this turn\'s search_loras actually returned. Use it when the creator is choosing among options — even when only one candidate came back, even when they named a LoRA themselves. When YOU have composed a whole setup (which LoRAs, their weights, parameters), use plan_lora_setup instead — never both cards for the same LoRAs. Write "question" as the one line above the list, group the candidates by what they are for when that helps (a short title per group), and mark at most one as recommended. Candidates that cannot be mounted on the selected base go in the list too — the app greys them out and says why; never filter them out, or the creator reads it as "nothing found". Shape: {"action":"plan_lora_pick","question":"…","groups":[{"title":"…","candidateIds":["civitai:…"]}],"recommendedCandidateId":"…"} — every group needs a non-empty "candidateIds" array.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]:
     'LoRA mounting is executed by the client after the creator ticks a pick card or applies a setup card. Do not call this directly: use plan_lora_pick or plan_lora_setup, then read actual client receipts and the current stack on the next turn. A failed receipt is not a mounted LoRA.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks]:
+    'RING UP TO THREE of this turn\'s search results in the library grid the creator is looking at — a black ring and an "assistant pick" tag on each card. It mounts nothing: the creator mounts by clicking "+ mount" on a card. Only candidateIds this turn\'s search_loras returned, and only ones that load on the selected base. Then say in "message" which ones you ringed and why, in a line each. Shape: {"action":"show_lora_picks","candidateIds":["civitai:…"]}.',
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]:
     'PUT A WHOLE SETUP YOU COMPOSED IN FRONT OF THE CREATOR as one card they apply with one click: LoRAs to add (candidateIds this turn\'s search_loras returned, each with the weight you want), mounted LoRAs to take off, weight changes on mounted ones (mounted-item ids from the state block), and Runner parameter changes (same keys as set_lora_parameters). This CHANGES NOTHING on its own and ends your turn; nothing is mounted or moved until they press apply, and they can undo it after. Use it for your own suggestions — a combination you put together, or a fix like "the face is muddy, lower these two" — and put only the rows that actually change. Say in your reply why each change is there; "question" is the one line above the card. A LoRA built for another base family, or one that cannot be filed into the library, is refused: search again within the selected family, or suggest switching the base. Shape: {"action":"plan_lora_setup","question":"…","mounts":[{"candidateId":"civitai:…","weight":0.8}],"unmounts":[{"loraId":"…"}],"weights":[{"loraId":"…","weight":0.6}],"parameters":{"steps":30,"guidanceScale":7}} — leave out the parts you are not changing.',
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]:

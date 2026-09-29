@@ -320,7 +320,10 @@ import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.se
  * 挂载那一跳留在客户端（与拍板 22 同构）。
  */
 import { LORA_METADATA_COMPLETENESS } from '@/constants/lora-candidate'
-import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
+import {
+  resolveLibraryBaseModel,
+  searchLoraLibraryCandidates,
+} from '@/services/lora/lora-candidates.service'
 import {
   extractFocusedExcerpt,
   isWebImageSearchConfigured,
@@ -639,6 +642,10 @@ interface OperatorWorkingState {
   loraBaseFamily: string | null
   loraMinWeight: number
   loraMaxWeight: number
+  /** 库页现在的筛选（快照来的）—— `search_loras` 照它搜（lora-assistant §13.1）。 */
+  loraLibraryFilters: NonNullable<
+    AssistantOperatorSnapshot['loras']
+  >['libraryFilters']
   /** ⚠ 缺席 = 这个宿主不是画布（进度表 22）。 */
   canvas: AssistantOperatorCanvasSnapshot | undefined
   /** ⚠ 缺席 = 这个宿主不是角色页（卡片助手 · 第五张脸）。 */
@@ -717,6 +724,7 @@ function toWorkingState(
     loraBaseFamily: snapshot.loras?.baseFamily ?? null,
     loraMinWeight: snapshot.loras?.minWeight ?? 0,
     loraMaxWeight: snapshot.loras?.maxWeight ?? 0,
+    loraLibraryFilters: snapshot.loras?.libraryFilters,
     /**
      * ⚠ 画布快照**原样带着**（进度表 22）：它已经是分好层的（当前镜 + 相邻两镜
      * 完整，其余一行标题），再在这里摊平一次只会得到第二份要同步的形状。
@@ -780,6 +788,8 @@ interface OperatorRun {
    * （那份对象模型碰不到，与 `mount_reference` 的 URL 同一条论据）。
    */
   loraIndex: Map<string, LoraCandidate>
+  /** 本轮最近一次 `search_loras` 的词 —— `show_lora_picks` 的载荷要带上它（日志与库页小标）。 */
+  loraSearchQuery: string | null
   /**
    * 本轮已经挂过的候选 —— 换个权重再挂一次仍算重复（`executedStepKeys` 按参数比对，
    * 换了 `weight` 就绕过去了，而那正是模型「上一步好像没生效，再来一次」的形状）。
@@ -1782,10 +1792,10 @@ function renderState(
   //
   // ⚠ 整段**只在有挂载工具的域里印**（同看图那条）：在图片档印一句「这个工作台
   //    没有 LoRA 挂载栈」，读起来像是在邀请它去找一条不存在的路。
-  if (isAssistantOperatorToolInDomain(TOOL.mountLora, request.domain)) {
+  if (isAssistantOperatorToolInDomain(TOOL.unmountLora, request.domain)) {
     if (!state.hasLoraControl) {
       lines.push(
-        '- LoRA stack: this workbench has no LoRA stack — mount_lora / unmount_lora / set_lora_weight will be refused.',
+        '- LoRA stack: this workbench has no LoRA stack — unmount_lora / set_lora_weight will be refused.',
       )
     } else {
       const dialect = resolveLoraDialect(state.loraBaseFamily)
@@ -5024,23 +5034,34 @@ function planSearchLoras(
   )
   const baseFamily = run.state.loraBaseFamily
 
+  // 库页的底模筛选跟着设成这个值（客户端照载荷设，⛔ 自己再算一遍）。
+  const libraryBaseModel = resolveLibraryBaseModel(baseFamily)
+
   return {
     kind: 'read',
-    payload: { query: args.query, limit },
+    payload: {
+      query: args.query,
+      limit,
+      ...(libraryBaseModel ? { baseModel: libraryBaseModel } : {}),
+    },
     run: async () => {
       /**
-       * ⭐ 复用既有检索，⛔ 不新写：`searchLoraCandidates` **永不抛** —— 单源失败
-       * 翻成一条回执，另一源照常返回（形态照 `connector-runtime` 的 `runConnector`）。
-       * ⚠ `baseModelFamily` 是**软偏好不是过滤**（检索层头注写死了）：硬过滤会把
-       * 「你该换个底模」这种真实建议提前掐掉，而那正是这个域最该说的话。
+       * ⭐ **照库页的条件搜**（lora-assistant §13.1）：客户端在这一步完成时把库页
+       * 打开、按同一组条件搜给创作者看 —— 参数逐字相同，网格第一段就是这里拿到的
+       * 这一组。`searchLoraLibraryCandidates` **永不抛**（单源失败翻成回执）。
+       * ⚠ 底模按当前底模家族下推（库页的底模筛选跟着改），其余筛选用库页现在的。
        */
-      const found = await searchLoraCandidates({
+      const found = await searchLoraLibraryCandidates({
         userId,
         query: args.query,
         ...(baseFamily ? { baseModelFamily: baseFamily } : {}),
+        ...(run.state.loraLibraryFilters
+          ? { filters: run.state.loraLibraryFilters }
+          : {}),
         limit,
         mountedNames: run.state.loras.map((item) => item.name),
       })
+      run.loraSearchQuery = found.query || args.query
 
       const candidates = found.candidates.slice(0, limit)
       for (const candidate of candidates) {
@@ -5062,14 +5083,14 @@ function planSearchLoras(
                 .join(
                   ' + ',
                 )} actually FAILED this time — so "nothing exists" is not a safe conclusion. Say the search had trouble rather than telling the creator there is no such LoRA.`
-            : `search_loras("${args.query}") found NOTHING on either source. Do not invent a candidateId. Try a different word, or say plainly that nothing matched.`
-          : `search_loras("${args.query}") → ${candidates.length} candidate(s):\n${candidates
+            : `search_loras("${args.query}") found NOTHING on the library page (the creator sees the empty grid with its "relax one filter" buttons). Do not invent a candidateId. Try a different word, or ask which filter to relax.`
+          : `search_loras("${args.query}") on the library page → ${candidates.length} candidate(s), the first cards of the grid the creator is looking at:\n${candidates
               .map((candidate, index) =>
                 describeLoraCandidateForModel(candidate, baseFamily, index),
               )
               .join(
                 '\n',
-              )}\nMount one with mount_lora using its candidateId. Never recommend one marked CANNOT BE IMPORTED or WILL NOT LOAD without saying why in the same breath.`
+              )}\nRing up to three that load on this base with ${TOOL.showLoraPicks}; the creator mounts by clicking. Never recommend one marked CANNOT BE IMPORTED or WILL NOT LOAD without saying why in the same breath.`
 
       return {
         result: {
@@ -5558,6 +5579,64 @@ function planLoraSetup(
       weights,
       parameters,
     },
+  }
+}
+
+/**
+ * 在库页的网格里圈几把（lora-assistant §13，owner 2026-09-29）。
+ *
+ * ⭐ 取代桌面 LoRA 域的推荐卡：`search_loras` 已经把库页打开、按同一组条件搜给
+ * 创作者看了，这一步只给那几张卡加圈。挂不挂由他在卡上点 —— ⛔ 这里一把都不挂。
+ * ⚠ 两道闸与搭配卡同源：只收本轮搜到过的（`unknownLora`），只收装得上当前底模的
+ * （`loraIncompatibleBase`，理由里说「装不上的别圈，在回复里说为什么没推」）。
+ * ⚠ 改动型：`inverse` = 撤掉圈；服务端没有状态要改（`apply` 空）。
+ */
+function planShowLoraPicks(
+  run: OperatorRun,
+  args: { candidateIds: string[] },
+): ToolPlan {
+  if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
+
+  const picks: { candidateId: string; name: string }[] = []
+  for (const candidateId of [...new Set(args.candidateIds)]) {
+    const candidate = run.loraIndex.get(candidateId)
+    if (!candidate) {
+      return reject(
+        REJECT.unknownLora,
+        `"${clamp(candidateId, LIMITS.maxLabelChars)}" is not one of the candidates ${TOOL.searchLoras} returned this turn. Ring only what the search brought back — search again if the one you have in mind is not among them.`,
+      )
+    }
+    if (
+      !isLoraCompatibleWithBase(
+        candidate.baseModelFamily,
+        run.state.loraBaseFamily,
+      )
+    ) {
+      return reject(
+        REJECT.loraIncompatibleBase,
+        `"${clamp(candidate.name, LIMITS.maxLabelChars)}" will not load on the selected base (${run.state.loraBaseFamily ?? 'unknown'}). Ring only ones that load, and say in your reply why this one was left out.`,
+      )
+    }
+    picks.push({
+      candidateId,
+      name: clamp(candidate.name, LIMITS.maxLabelChars),
+    })
+  }
+
+  const query = clamp(
+    run.loraSearchQuery ?? picks[0]?.name ?? 'LoRA',
+    LIMITS.maxLoraQueryChars,
+  )
+  return {
+    kind: 'mutate',
+    payload: { query, picks },
+    inverse: { clear: true },
+    observation: `Ringed ${picks.length} on the library page: ${picks
+      .map((pick) => `"${pick.name}"`)
+      .join(
+        ', ',
+      )}. Now say in one line each why these, and that they mount by clicking "+ mount" on the card. Do not mount anything yourself.`,
+    apply: () => {},
   }
 }
 
@@ -8137,6 +8216,8 @@ async function planTool(
           recommendedCandidateId?: string
         },
       )
+    case TOOL.showLoraPicks:
+      return planShowLoraPicks(run, parsed.data as { candidateIds: string[] })
     case TOOL.planLoraSetup:
       return planLoraSetup(
         run,
@@ -9236,22 +9317,22 @@ function buildOperatorSystemPrompt(
      * 的话模型会按别处的常识发明一条上限并转述给用户 —— 一条没人写过的限制，
      * 是最难查的那种错。
      */
-    isAssistantOperatorToolInDomain(TOOL.mountLora, request.domain)
+    isAssistantOperatorToolInDomain(TOOL.unmountLora, request.domain)
       ? `- A mounted LoRA already owns part of the picture — the character's face, hair and body type are decided by it. Help the creator change the layer they are actually changing (outfit, scene, light, pose), and say plainly when a request fights the mounted LoRA.
 - Never recommend a LoRA the creator cannot actually use without saying so in the same sentence. Two things make one unusable and search_loras tells you both: it cannot be filed into the library at all, or it was built for a different base-model architecture and will not load on the base that is selected. "Switch the base model" is a legitimate suggestion; quietly recommending an incompatible one is not.
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
-- Nothing gets mounted before the creator has seen it on a card. Once ${TOOL.searchLoras} comes back, there are two cards: when they are choosing among options, go through ${TOOL.planLoraPick} and let them tick what to mount (even when only one candidate came back, even when they named a LoRA themselves); when YOU compose the setup — which LoRAs, their weights, the Runner parameters — put the whole thing on ONE ${TOOL.planLoraSetup} card and they apply it with one click. Never both cards for the same LoRAs. Don't list candidates in your reply and ask them to answer in words — the card is how they decide.
+- Finding LoRAs happens in front of the creator: ${TOOL.searchLoras} opens their library page and runs the search there — the grid they see is the list you get back. Then ring up to three that load on this base with ${TOOL.showLoraPicks} and say in one line each why; they mount by clicking "+ mount" on the card. Never mount for them, and don't list candidates in your reply for them to answer in words — the ring is how you point. After mounting they stay in the library until they say they are done; then carry on with the prompt (writing to the bench brings it back into view).
+- When YOU compose a setup — which LoRAs, their weights, the Runner parameters — put the whole thing on ONE ${TOOL.planLoraSetup} card and they apply it with one click.
 - Your own numbers go on a card too: weight or parameter advice ("the face is muddy — lower these two", "try 30 steps at CFG 6") is a ${TOOL.planLoraSetup} card with just those rows, and your reply says why each one changes. Apply a value directly with ${TOOL.setLoraWeight} / ${TOOL.setLoraParameters} ONLY when the creator dictated that exact value.
 - When you compose a setup, give each LoRA a job and weigh it by that job, the way real recipes do: a character or subject LoRA at 0.8–1.0 (1.0 is the most common), a style LoRA under it at 0.6–0.9, a detail LoRA around 0.3–1.0; a slider follows its author's range and may go negative. Two to four LoRAs is the usual stack. Keep the enabled total inside this base's budget unless you say why it has to go over.
 - Turning a picture into a prompt here — a source image you adapt, or "reverse it" / "give me its tags" — write only what the picture shows: how many people, appearance, clothing, pose and gaze, expression, framing, background, light, the broad medium, in this family's order. The quality tags and the negative come from the dialect, not from the picture. Never guess an artist or character name you cannot recognise — the mounted LoRA's trigger carries the identity. When they only want the text, answer with it in ONE fenced code block and change nothing on the bench.
-- Three things on that card are your call: the one line above the list (say why these ones), the grouping by what they are for (characters and styles do not belong in one pile), and at most one marked as recommended. Candidates that cannot be mounted on the selected base go on the card too — the app greys them out and says why; filtering them out reads as "nothing found".
-- Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
+- Trigger words matter: they come back with each candidate and land in the prompt when a LoRA is mounted. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
 - Trigger words live in the prompt text itself: mounting writes a LoRA's trigger at the front, and nothing adds it again at send time. When you rewrite the prompt, keep every trigger that is already there, exactly once — a second copy is sent twice.
 - A trigger marked [not in the prompt] was left out on purpose: creators take a style LoRA's trigger out when it fights what they are writing. When this turn needs that trigger to land, say so in one line — never write it back in.
 - Putting a trigger back is the creator's call, one click on the prompt box — not yours.
 - Before you rewrite the prompt, look at the family first: when the current text carries something this family's dialect forbids, put the correction into the SAME confirmation card as the rewrite — never a separate round, never a silent swap, never a verbal note while you write it the old way anyway.`
       : null,
-    isAssistantOperatorToolInDomain(TOOL.mountLora, request.domain)
+    isAssistantOperatorToolInDomain(TOOL.unmountLora, request.domain)
       ? buildLoraDialectRule(request.snapshot.loras?.baseFamily ?? null, {
           baseId: request.snapshot.model?.id ?? null,
           cfg: request.snapshot.loraParameters?.guidanceScale,
@@ -10640,6 +10721,7 @@ export async function* runAssistantOperator(
     searchIndex: new Map(),
     folderIndex: new Map(),
     loraIndex: new Map(),
+    loraSearchQuery: null,
     mountedLoraCandidateIds: new Set(),
     confirmedLoraPickIds: new Set(),
     observations: [],

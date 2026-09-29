@@ -76,7 +76,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
@@ -2368,8 +2368,7 @@ interface DensityToggleProps {
 
 function DensityToggle({ density, onChange }: DensityToggleProps) {
   const t = useTranslations('AssetsPage')
-  const reducedMotion = useReducedMotion()
-  const labels: Record<AssetGridDensity, string> = {
+  const titles: Record<AssetGridDensity, string> = {
     s: t('densitySmall'),
     m: t('densityMedium'),
     l: t('densityLarge'),
@@ -2379,34 +2378,20 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
       <span className="hidden text-2xs font-medium uppercase tracking-wide text-muted-foreground/70 xl:inline">
         {t('densityLabel')}
       </span>
-      <ToggleGroup
-        type="single"
+      <LiquidSegmented
+        items={ASSET_GRID_DENSITIES.map((d) => ({
+          value: d,
+          label: d.toUpperCase(),
+          title: titles[d],
+        }))}
         value={density}
-        onValueChange={(value) => {
-          if (isDensity(value)) onChange(value)
-        }}
-        className="rounded-xl border border-border/60 bg-muted/60 p-0.5"
-        aria-label={t('densityLabel')}
-      >
-        {ASSET_GRID_DENSITIES.map((d) => (
-          <ToggleGroupItem
-            key={d}
-            value={d}
-            aria-label={labels[d]}
-            title={labels[d]}
-            className="relative h-8 w-10 rounded-lg px-0 text-sm font-medium uppercase text-muted-foreground transition-colors duration-base ease-standard data-[state=on]:bg-transparent data-[state=on]:text-background"
-          >
-            {density === d && (
-              <motion.span
-                layoutId="asset-density-indicator"
-                className="absolute inset-0 rounded-lg bg-foreground shadow-sm"
-                transition={motionTransition('base', reducedMotion)}
-              />
-            )}
-            <span className="relative z-10">{d}</span>
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+        onChange={onChange}
+        ariaLabel={t('densityLabel')}
+        semantics="radio"
+        size="md"
+        fill
+        className="w-36"
+      />
     </div>
   )
 }

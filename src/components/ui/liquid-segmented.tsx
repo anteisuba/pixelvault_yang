@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 export interface LiquidSegmentedItem<T extends string> {
   readonly value: T
   readonly label: string
+  /** 字只是缩写（S / M / L）时的全称：给读屏当名字，也当悬停提示。 */
+  readonly title?: string
   /** 字后面亮一个小点（刚往这一格里加了东西，查资料 B 动效表）。 */
   readonly indicator?: boolean
 }
@@ -197,6 +199,8 @@ export function LiquidSegmented<T extends string>({
             }}
             type="button"
             role={radio ? 'radio' : 'tab'}
+            aria-label={item.title}
+            title={item.title}
             {...(radio
               ? { 'aria-checked': item.value === value }
               : { 'aria-selected': item.value === value })}

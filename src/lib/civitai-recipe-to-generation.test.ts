@@ -19,6 +19,19 @@ function makeRecipe(
 }
 
 describe('buildCivitaiRecipeGenerationPlan', () => {
+  it('rewrites source weight syntax the Runner would read literally', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({
+        prompt: '[artist:ciloranko:0.65, ] 1girl, sexy pose:0.25',
+        negativePrompt: '[blurry], worst quality',
+      }),
+    )
+    expect(plan.prompt).toBe('(artist:ciloranko:0.65) 1girl, (sexy pose:0.25)')
+    expect(plan.advancedParams?.negativePrompt).toBe(
+      '(blurry:0.91), worst quality',
+    )
+  })
+
   it.each([undefined, 0])(
     'maps Latent hires with inherited steps (%s) and source CFG',
     (hiresSteps) => {

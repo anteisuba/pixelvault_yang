@@ -4,6 +4,7 @@ import type { CivitaiMinedPromptsResult, LoraAssetRecord } from '@/types'
 
 import { buildLoraPromptTemplate } from './lora-prompt-template'
 import { promptIncludesTrigger } from './prompt-text'
+import { toRunnerPromptSyntax } from './runner-prompt-syntax'
 
 export const LORA_SOURCE_MATCH_SCALE = 0.85
 
@@ -99,7 +100,10 @@ export function buildSourceMatchedLoraPrompt(
   const family = normalizeToLoraBaseFamily(asset.baseModelFamily)
   const dialect = family ? LORA_PROMPT_DIALECTS[family] : null
 
-  const promptWithTrigger = ensureTrigger(basePrompt, asset.triggerWord)
+  const promptWithTrigger = ensureTrigger(
+    toRunnerPromptSyntax(basePrompt),
+    asset.triggerWord,
+  )
   const prompt = dialect
     ? appendMissingTags(promptWithTrigger, dialect.sourceMatchTags)
     : promptWithTrigger

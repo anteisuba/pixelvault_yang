@@ -2,6 +2,7 @@ import type { AspectRatio } from '@/constants/config'
 import { normalizeCivitaiRunnerSampling } from '@/constants/runner-sampling'
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
+import { toRunnerPromptSyntax } from '@/lib/runner-prompt-syntax'
 import {
   AdvancedParamsSchema,
   LoraSchema,
@@ -88,11 +89,12 @@ export function buildCivitaiRecipeGenerationPlan(
   const advanced: AdvancedParams = {}
 
   if (recipe.negativePrompt !== undefined) {
+    const negativePrompt = toRunnerPromptSyntax(recipe.negativePrompt)
     if (
-      AdvancedParamsSchema.shape.negativePrompt.safeParse(recipe.negativePrompt)
+      AdvancedParamsSchema.shape.negativePrompt.safeParse(negativePrompt)
         .success
     ) {
-      advanced.negativePrompt = recipe.negativePrompt
+      advanced.negativePrompt = negativePrompt
       appliedParams.push('negativePrompt')
     } else {
       skippedParams.push('negativePrompt')
@@ -219,7 +221,8 @@ export function buildCivitaiRecipeGenerationPlan(
   }
 
   return {
-    prompt: recipe.prompt,
+    // 来源多是 A1111 / Forge 写法，Runner 是 ComfyUI：翻成它认的，权重才不丢。
+    prompt: toRunnerPromptSyntax(recipe.prompt),
     advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
     loraScale,
     aspectRatio,

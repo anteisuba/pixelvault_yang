@@ -5836,7 +5836,6 @@
         },
         "add": {
           "upload": "上传",
-          "mention": "@ 角色 / 风格",
           "library": "从素材库",
           "canvas": "画布上的图",
           "canvasEmpty": "还没有能挂的图"
@@ -5909,7 +5908,6 @@
         },
         "add": {
           "upload": "上传音频",
-          "mention": "@ 文本 / 角色",
           "library": "从素材库选…",
           "voiceLibrary": "声音库…",
           "uploadShortcut": "⌘U"
@@ -5925,6 +5923,7 @@
           "title": "音色",
           "mine": "我的音色",
           "cloned": "我克隆的",
+          "favorited": "收藏的",
           "preview": "试听",
           "clone": "克隆我的声音…",
           "speed": "语速",
@@ -5984,8 +5983,8 @@
           "searchPlaceholder": "搜声音、角色、台词…",
           "tabsLabel": "按来源筛选",
           "tabs": {
-            "platformSample": "平台样本",
-            "history": "我的历史",
+            "platformSample": "平台",
+            "history": "历史",
             "voiceRoom": "配音间",
             "library": "素材库",
             "favorites": "收藏"
@@ -5995,8 +5994,9 @@
           "durationUnknown": "--:--",
           "preview": "试听",
           "use": "用这段",
+          "useFailed": "这一段没取到，再试一次。",
           "setVoice": "设为音色",
-          "footerHint": "「用这段」= 原声直接落进这张卡，不生成、不扣积分；「设为音色」= 之后写台词用它的声",
+          "footerHint": "用这段 = 原声落进卡 · 设为音色 = 之后写台词用它的声",
           "clone": "克隆我的声音…",
           "groups": {
             "today": "今天",
@@ -6036,7 +6036,6 @@
         "add": {
           "upload": "上传视频 / 图",
           "uploadForSlot": "上传…",
-          "mention": "@ 图 / 角色",
           "library": "从素材库"
         },
         "more": {
@@ -7107,6 +7106,10 @@
     "manageAllKeys": "管理全部 key →"
   },
   "Errors": {
+    "voice": {
+      "libraryUnavailable": "声音库暂时连不上，稍后再试。",
+      "sampleMissing": "这副音色没有可用的示例。"
+    },
     "voiceRoom": {
       "notFound": "房间不存在",
       "lineNotFound": "台词不存在",

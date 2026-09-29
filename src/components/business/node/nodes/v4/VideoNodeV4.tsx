@@ -855,11 +855,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 onPickSlotSource={railProps.onPickFromCanvas}
                 onUploadForSlot={(group) => openFilePicker(group)}
                 onUpload={() => openFilePicker(null)}
-                onMention={() => {
-                  setDraft(`${draft}@`)
-                  // 插完 `@` 把光标交回正文 —— 候选列表是跟着光标弹的。
-                  window.setTimeout(() => promptInputRef.current?.focus(), 0)
-                }}
                 onLibrary={() =>
                   acceptsRefs
                     ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)

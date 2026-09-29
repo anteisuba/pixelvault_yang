@@ -974,6 +974,11 @@ export const NodeV4OutputVersionSchema = z.object({
     .object({
       kind: z.enum(AUDIO_CLIP_SOURCE_KINDS),
       label: z.string().trim().min(1).max(200),
+      /**
+       * 声音库里那副嗓子（平台样本 / 收藏「用这段」）。卡上靠它现查封面
+       * （`use-voice-cover`）—— ⛔ 不存封面地址（op 载荷不许有 URL）。
+       */
+      voiceId: z.string().trim().min(1).max(160).optional(),
     })
     .optional(),
 })

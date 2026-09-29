@@ -33,6 +33,7 @@ import type { NodeProps } from '@xyflow/react'
 import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { useVoiceCover } from '@/hooks/use-voice-cover'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -47,6 +48,7 @@ import {
 import { toast } from 'sonner'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { VoiceAvatarButton } from '@/components/business/node/voice-library/VoiceAvatar'
 import { AUDIO_CLIP_SOURCE, AUDIO_KIND } from '@/constants/audio-options'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import {
@@ -64,6 +66,7 @@ import {
 } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
+import { chooseVoiceOps, renameForVoiceOps } from '@/lib/audio-node-name'
 import {
   trimAudioToWav,
   trimmedFileName,
@@ -276,15 +279,25 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   }, [])
 
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
+  /**
+   * 这一版的封面（owner 2026-09-29「从声音库拿的，封面都带着」）：外面落进来的那一版
+   * 看它自己的来源（声音库那副嗓子才有），自己生成的看当前音色。卡上只记 `voiceId`，
+   * 封面现查（`use-voice-cover`）。
+   */
+  const coverSource =
+    readOutputVersions(audioData)[readOutputIndex(audioData)]?.source
+  const cover = useVoiceCover(
+    coverSource ? coverSource.voiceId : audioData.voiceProfile?.voiceId,
+  )
   if (!node) return null
 
   const audioKind = resolveAudioNodeKind(audioData)
   const speech = showsVoiceChip(audioKind)
   const versions = audioVersions(audioData)
   const versionIndex = readOutputIndex(audioData)
+  const currentSource = readOutputVersions(audioData)[versionIndex]?.source
   /** ⋯ 菜单里那一行只读的「来源」——当前这一版的，⛔ 不是节点级属性。 */
-  const currentSourceLabel =
-    readOutputVersions(audioData)[versionIndex]?.source?.label
+  const currentSourceLabel = currentSource?.label
   const selectVersion = (index: number) =>
     void canvas.onApplyOp({
       op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
@@ -743,30 +756,46 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 {/* 播放钮**常驻**（画板 v2：30px 圆钮，未播 = 浅底深字，播放中 =
                     实心深底白字）。⛔ 不再随悬停淡入 —— 悬停自动播删掉之后，
                     「点哪儿能听」必须一眼看得见，否则这张卡看起来不能播。 */}
-                <button
-                  type="button"
-                  data-audio-play
-                  data-playing={playing ? 'true' : 'false'}
-                  aria-label={playing ? tAudio('pause') : tAudio('play')}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    togglePlay()
-                  }}
-                  className={cn(
-                    'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full',
-                    'transition-colors duration-fast ease-standard',
-                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                    playing
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
-                  )}
-                >
-                  {playing ? (
-                    <Pause aria-hidden className="size-3.5" />
-                  ) : (
-                    <Play aria-hidden className="size-3.5" />
-                  )}
-                </button>
+                {cover ? (
+                  // 有封面：播放钮就是这副嗓子的头像（与声音库同一颗），▶ 常驻。
+                  <VoiceAvatarButton
+                    cover={cover}
+                    fallback="letter"
+                    name={audioData.voiceProfile?.voiceName ?? audioData.name}
+                    size="card"
+                    glyph="always"
+                    playing={playing}
+                    progress={progress}
+                    ariaLabel={playing ? tAudio('pause') : tAudio('play')}
+                    onToggle={togglePlay}
+                    buttonProps={{ 'data-audio-play': 'cover' }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    data-audio-play
+                    data-playing={playing ? 'true' : 'false'}
+                    aria-label={playing ? tAudio('pause') : tAudio('play')}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      togglePlay()
+                    }}
+                    className={cn(
+                      'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full',
+                      'transition-colors duration-fast ease-standard',
+                      'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                      playing
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                    )}
+                  >
+                    {playing ? (
+                      <Pause aria-hidden className="size-3.5" />
+                    ) : (
+                      <Play aria-hidden className="size-3.5" />
+                    )}
+                  </button>
+                )}
                 <AudioWaveform
                   seed={audioData.url}
                   progress={progress}
@@ -925,7 +954,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   onUpload={() => fileRef.current?.click()}
                   onAssetLibrary={() => setAssetPicker(true)}
                   onVoiceLibrary={() => setVoiceLibrary(true)}
-                  onMention={() => setDraft(`${draft}@`)}
                 />
               }
               textareaProps={{
@@ -969,10 +997,15 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     volume={audioData.voiceProfile?.volume}
                     disabled={generating}
                     onSelectVoice={(voice) => {
-                      patchProfile({
-                        voiceId: voice.voiceId,
-                        voiceName: voice.name,
-                      })
+                      if (node) {
+                        void canvas.onApplyBatch(
+                          chooseVoiceOps(
+                            node,
+                            { voiceId: voice.voiceId, voiceName: voice.name },
+                            canvas.nodes,
+                          ),
+                        )
+                      }
                       // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
                       if (voice.sampleUrl && !audioData.url) {
                         canvas.onSetMedia(id, { url: voice.sampleUrl })
@@ -1065,20 +1098,33 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
             onUseClip={(clip) => {
               canvas.onSetMedia(id, {
                 url: clip.url,
-                source: { kind: clip.sourceKind, label: clip.sourceLabel },
+                source: {
+                  kind: clip.sourceKind,
+                  label: clip.sourceLabel,
+                  // 封面跟着这副嗓子走（卡上按 `voiceId` 现查）。
+                  ...(clip.voiceId ? { voiceId: clip.voiceId } : {}),
+                },
               })
+              // 落的是某副嗓子的示例 → 名字跟着它叫（「音色名 · 语音 N」）。
+              if (node && clip.voiceId) {
+                const rename = renameForVoiceOps(node, clip.name, canvas.nodes)
+                if (rename.length > 0) void canvas.onApplyBatch(rename)
+              }
               setVoiceLibrary(false)
             }}
             {...(speech
               ? {
                   onSetVoice: (clip: VoiceLibraryClip) => {
-                    if (!clip.voiceId) return
+                    if (!clip.voiceId || !node) return
                     // 名字一起记（`voiceName`）：收起的 chip 拉不动整库，没有它
                     // 就只能显示那串哈希（真机 2026-09-10 实拍）。
-                    patchProfile({
-                      voiceId: clip.voiceId,
-                      voiceName: clip.name,
-                    })
+                    void canvas.onApplyBatch(
+                      chooseVoiceOps(
+                        node,
+                        { voiceId: clip.voiceId, voiceName: clip.name },
+                        canvas.nodes,
+                      ),
+                    )
                     setVoiceLibrary(false)
                   },
                 }

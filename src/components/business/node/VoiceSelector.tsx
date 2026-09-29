@@ -36,6 +36,7 @@ import {
   updateVoiceCardAPI,
 } from '@/lib/api-client'
 import { filterByQuery } from '@/lib/search-utils'
+import { durableSampleUrl } from '@/lib/voice-sample-url'
 import { cn } from '@/lib/utils'
 
 import { Input } from '@/components/ui/input'
@@ -200,8 +201,10 @@ export const VoiceSelector = memo(function VoiceSelector({
   const handleSelectVoiceCard = async (card: VoiceCardRecord) => {
     if (onSelectVoiceId) {
       if (!card.voiceId) return
-      // 克隆卡的音频在 referenceAudioUrl，收藏卡的在 sampleAudioUrl。
-      let sampleUrl = card.referenceAudioUrl ?? card.sampleAudioUrl
+      // 克隆卡的音频在 referenceAudioUrl，收藏卡的在 sampleAudioUrl。⚠ 存下来的若是
+      // Fish 一小时就过期的签名链接，当它没有（2026-09-29 真机：落进卡后读不到）。
+      let sampleUrl =
+        card.referenceAudioUrl ?? durableSampleUrl(card.sampleAudioUrl)
       // 存量收藏卡是在「收藏只存文本」的年代建的，音频位是空的。**直接去声音库
       // 取它自带的试听**——不要再合成一次：合成花用户的 key、要等，产出的还是同
       // 一个音色念同一段固定文本。取到后顺手补回卡上，下次就不用再查。
@@ -213,6 +216,9 @@ export const VoiceSelector = memo(function VoiceSelector({
           (resolved.success &&
             resolved.data?.samples.find((sample) => sample.audio)?.audio) ||
           null
+        // ⚠ 只补回**不会过期**的地址 —— 签名链接存下来等于埋一个一小时后的坏链接；
+        // 这一次也不把它交出去（交出去就会被原样落进卡）。
+        sampleUrl = durableSampleUrl(sampleUrl)
         if (sampleUrl) {
           const backfilled = await updateVoiceCardAPI(card.id, {
             sampleAudioUrl: sampleUrl,

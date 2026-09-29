@@ -11,20 +11,31 @@
  * ① **平台整库不在这颗 chip 里**（S5c 起）：那是 640 宽声音库面板的「平台样本」
  *    页签的事。弹层里塞不下五个页签与试听行，⛔ 不在这里做第二个缩水版。
  * ② **事实层复用 `useVoiceLibrary`**（收藏 / 克隆分流），⛔ 不为画布另写一套检索。
- * ③ **试听是本地 `<audio>`**：一次只响一条，切一条就停上一条。
+ * ③ **试听走 `useVoiceSamplePreview`**（与声音库面板同一份）：一次只响一条；收藏时
+ *    存下的示例常是一小时就过期的签名链接，那一行按下去先现取一条新的。
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Pause, Play } from '@/components/icons'
+import { Check } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
+import { useVoiceCover } from '@/hooks/use-voice-cover'
+import {
+  canPreviewVoiceSample,
+  useVoiceSamplePreview,
+} from '@/hooks/use-voice-sample-preview'
 import { cn } from '@/lib/utils'
+import { durableSampleUrl } from '@/lib/voice-sample-url'
 import type { VoiceCardRecord } from '@/types'
 
+import {
+  VoiceAvatar,
+  VoiceAvatarButton,
+} from '../../../voice-library/VoiceAvatar'
 import { ChipPopover } from '../chrome'
 
 /** 画板宽。 */
@@ -70,15 +81,25 @@ export function AudioVoiceChip({
 }: AudioVoiceChipProps) {
   const t = useTranslations('StudioNode.v4.audio.voice')
   const [open, setOpen] = useState(false)
-  const [previewId, setPreviewId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const preview = useVoiceSamplePreview()
+  const cover = useVoiceCover(voiceId)
 
   // ⚠ 只在弹层开着时拉数据：这条 chip 挂在每一张选中的音频卡上，常驻拉取等于
   // 每选一张卡就打一次声音库。
   const library = useVoiceLibrary({ enabled: open })
 
-  /** 「我的音色」= 克隆的 + 已收藏（= 设为音色过）的，⛔ 不再分两段列。 */
-  const mine = [...library.cloned, ...library.favorites]
+  /**
+   * 「我的音色」= 克隆的 + 已收藏（= 设为音色过）的，⛔ 不再分两段列。同一副嗓子
+   * 收藏过两次只列一行（真机：「林翩翩」「弗洛洛」各出现两遍）。
+   */
+  const clonedIds = new Set(library.cloned.map((card) => card.id))
+  const seenVoices = new Set<string>()
+  const mine = [...library.cloned, ...library.favorites].filter((card) => {
+    const key = card.voiceId ?? card.id
+    if (seenVoices.has(key)) return false
+    seenVoices.add(key)
+    return true
+  })
 
   // ⚠ 快照优先：弹层没开时 `library` 是空的（只在 `open` 时拉），拿不到名字就
   // 只剩那串 `voiceId` 哈希可显示。库里查到的名更新，所以放在快照后面兜底。
@@ -89,28 +110,12 @@ export function AudioVoiceChip({
     library.publicVoices.find((v) => v.voiceId === voiceId)?.title ??
     voiceName
 
-  /** 试听：一次只响一条。`id` 只是「谁在响」的标识，与选中无关。 */
-  const preview = (id: string, url: string | null) => {
-    if (!url) return
-    const audio = audioRef.current
-    if (audio && previewId === id) {
-      audio.pause()
-      setPreviewId(null)
-      return
-    }
-    audio?.pause()
-    const next = new Audio(url)
-    audioRef.current = next
-    next.onended = () => setPreviewId(null)
-    setPreviewId(id)
-    void next.play().catch(() => setPreviewId(null))
-  }
-
   const pick = (voice: {
     voiceId: string
     name: string
     sampleUrl: string | null
   }) => {
+    preview.stop()
     onSelectVoice(voice)
     setOpen(false)
   }
@@ -120,6 +125,8 @@ export function AudioVoiceChip({
     name,
     subtitle,
     sampleUrl,
+    voiceId: rowVoiceId,
+    cover,
     active,
     onSelect,
   }: {
@@ -127,6 +134,8 @@ export function AudioVoiceChip({
     name: string
     subtitle: string | null
     sampleUrl: string | null
+    voiceId: string | null
+    cover: string | null
     active: boolean
     onSelect: () => void
   }) => (
@@ -134,10 +143,28 @@ export function AudioVoiceChip({
       data-audio-voice-row={id}
       data-active={active ? 'true' : 'false'}
       className={cn(
-        'flex min-h-11 items-center gap-2 rounded-lg px-1.5',
+        'flex min-h-11 items-center gap-2.5 rounded-lg px-1.5',
         active && 'bg-surface-fill',
       )}
     >
+      {/* 头像就是试听键（与声音库面板同一种行，方向 A）。 */}
+      <VoiceAvatarButton
+        cover={cover}
+        fallback="letter"
+        name={name}
+        size="row"
+        playing={preview.playingId === id}
+        loading={preview.loadingId === id}
+        progress={preview.progress}
+        disabled={
+          !canPreviewVoiceSample({ url: sampleUrl, voiceId: rowVoiceId })
+        }
+        ariaLabel={t('preview')}
+        onToggle={() =>
+          preview.toggle({ id, url: sampleUrl, voiceId: rowVoiceId })
+        }
+        buttonProps={{ 'data-audio-voice-preview': id }}
+      />
       <button
         type="button"
         className="nodrag nopan min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -150,41 +177,34 @@ export function AudioVoiceChip({
           </span>
         ) : null}
       </button>
-      <button
-        type="button"
-        aria-label={t('preview')}
-        data-audio-voice-preview={id}
-        disabled={!sampleUrl}
-        onClick={() => preview(id, sampleUrl)}
-        className="nodrag nopan flex size-6.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40"
-      >
-        {previewId === id ? (
-          <Pause aria-hidden className="size-3" />
-        ) : (
-          <Play aria-hidden className="size-3" />
-        )}
-      </button>
       {active ? (
         <Check aria-hidden className="size-4 shrink-0 text-foreground" />
       ) : null}
     </div>
   )
 
-  const cardRow = (card: VoiceCardRecord, sectionLabel: string) =>
+  const cardRow = (card: VoiceCardRecord) =>
     renderVoiceRow({
       id: card.voiceId ?? card.id,
       name: card.name,
-      subtitle: [voiceCardSubtitle(card), sectionLabel]
+      // ⚠ 收藏的不是「我克隆的」（真机：一整列收藏全写成了「我克隆的」）。
+      subtitle: [
+        voiceCardSubtitle(card),
+        clonedIds.has(card.id) ? t('cloned') : t('favorited'),
+      ]
         .filter(Boolean)
         .join(' · '),
-      sampleUrl: card.sampleAudioUrl ?? card.referenceAudioUrl,
+      sampleUrl: card.referenceAudioUrl ?? card.sampleAudioUrl,
+      voiceId: card.voiceId,
+      cover: card.coverImage,
       active: Boolean(card.voiceId) && card.voiceId === voiceId,
       onSelect: () => {
         if (!card.voiceId) return
         pick({
           voiceId: card.voiceId,
           name: card.name,
-          sampleUrl: card.sampleAudioUrl,
+          // ⚠ 调用方会把它落进空卡：签名链接一小时后就读不到，⛔ 交出去。
+          sampleUrl: durableSampleUrl(card.sampleAudioUrl),
         })
       },
     })
@@ -202,8 +222,10 @@ export function AudioVoiceChip({
           data-audio-voice-chip
           aria-label={t('title')}
           className={cn(
-            'nodrag nopan inline-flex min-h-6 shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-2xs',
-            'transition-colors duration-fast ease-standard',
+            // 与画布里另外几颗 chip 同一档（28 高、12 字、按下 0.96）。
+            'nodrag nopan inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border pr-2.5 text-xs',
+            cover ? 'pl-1.5' : 'pl-2.5',
+            'transition-[border-color,color,transform] duration-fast ease-standard active:scale-96',
             'hover:border-foreground/40 hover:text-foreground',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             'disabled:pointer-events-none disabled:opacity-60',
@@ -213,6 +235,15 @@ export function AudioVoiceChip({
               : 'border-border text-muted-foreground',
           )}
         >
+          {/* 这副嗓子的封面跟着 chip 走（owner 2026-09-29「封面都带着」）。 */}
+          {cover ? (
+            <VoiceAvatar
+              cover={cover}
+              fallback="letter"
+              name={current ?? ''}
+              size="chip"
+            />
+          ) : null}
           {current ?? (voiceId ? voiceId : t('title'))}
         </button>
       }
@@ -233,9 +264,7 @@ export function AudioVoiceChip({
               {library.isLoading ? t('loading') : t('empty')}
             </p>
           ) : (
-            mine.map((card) => (
-              <div key={card.id}>{cardRow(card, t('cloned'))}</div>
-            ))
+            mine.map((card) => <div key={card.id}>{cardRow(card)}</div>)
           )}
         </div>
 

@@ -51,6 +51,8 @@ export interface NodeV4MediaPatch {
   readonly source?: {
     readonly kind: AudioClipSourceKind
     readonly label: string
+    /** 声音库里那副嗓子（有它卡上才找得到封面）。 */
+    readonly voiceId?: string
   }
 }
 

@@ -14,7 +14,6 @@
 
 import { useTranslations } from 'next-intl'
 import {
-  AtSign,
   AudioLines,
   Copy,
   Download,
@@ -36,12 +35,10 @@ export function AudioAddMenuItems({
   onUpload,
   onAssetLibrary,
   onVoiceLibrary,
-  onMention,
 }: {
   onUpload(): void
   onAssetLibrary(): void
   onVoiceLibrary(): void
-  onMention(): void
 }) {
   const t = useTranslations('StudioNode.v4.audio')
   return (
@@ -58,10 +55,6 @@ export function AudioAddMenuItems({
       <DropdownMenuItem data-audio-add="voices" onSelect={onVoiceLibrary}>
         <AudioLines aria-hidden className="size-4" />
         {t('add.voiceLibrary')}
-      </DropdownMenuItem>
-      <DropdownMenuItem data-audio-add="mention" onSelect={onMention}>
-        <AtSign aria-hidden className="size-4" />
-        {t('add.mention')}
       </DropdownMenuItem>
     </>
   )

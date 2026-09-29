@@ -78,6 +78,24 @@ vi.mock('@/hooks/use-voice-library', () => ({
         referenceAudioUrl: null,
         sampleAudioUrl: 'https://cdn.test/sample.mp3',
       },
+      // 同一副嗓子收藏了两次（真机：「林翩翩」「弗洛洛」各出现两遍）。
+      {
+        id: 'f1b',
+        name: '旁白 · 标准',
+        voiceId: 'fish_narrator',
+        tone: [],
+        referenceAudioUrl: null,
+        sampleAudioUrl: null,
+      },
+      // 当年没存示例的收藏。
+      {
+        id: 'f2',
+        name: '安静',
+        voiceId: 'fish_quiet',
+        tone: [],
+        referenceAudioUrl: null,
+        sampleAudioUrl: null,
+      },
     ],
     publicVoices: [
       {
@@ -110,11 +128,30 @@ vi.mock('../../../studio-shared/pickers/ModelPickerPopover', () => ({
   ),
 }))
 
+const importVoiceSampleSpy = vi.hoisted(() =>
+  vi.fn(async (voiceId: string) => ({
+    success: true as const,
+    data: { url: `https://cdn.test/owned/${voiceId}.mp3` },
+  })),
+)
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  importVoiceSampleAPI: importVoiceSampleSpy,
+}))
+
+vi.mock('next/image', () => ({
+  default: (props: Record<string, unknown>) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt="" src={String(props.src)} />
+  ),
+}))
+
 vi.mock('../../FishVoiceLibraryDialog', () => ({
   FishVoiceLibraryDialog: () => <div data-testid="voice-library-dialog" />,
 }))
 
 import { AI_MODELS } from '@/constants/models'
+import { rememberVoiceCovers } from '@/hooks/use-voice-cover'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { VOICE_MARKUP_INTENSITY_IDS } from '@/lib/voice-markup'
 import type { NodeV4, NodeWorkflowModelOption } from '@/types/node-workflow'
@@ -279,6 +316,52 @@ describe('空卡 / 有声两态', () => {
       buildAudioWaveformBars('https://cdn.test/v.mp3'),
     )
     expect(buildAudioWaveformBars('a')).not.toEqual(buildAudioWaveformBars('b'))
+  })
+})
+
+describe('封面跟着嗓子走（owner 2026-09-29）', () => {
+  it('从声音库「用这段」落进来的那一版：播放钮换成那副嗓子的封面', () => {
+    rememberVoiceCovers([
+      { voiceId: 'fish_cover', cover: 'https://cover.test/fish_cover.png' },
+    ])
+    renderAudio(
+      harness([
+        audioNode('a_1', {
+          url: 'https://cdn.test/v.mp3',
+          outputs: {
+            cur: 0,
+            versions: [
+              {
+                id: 'ov_1',
+                url: 'https://cdn.test/v.mp3',
+                createdAt: NOW,
+                source: {
+                  kind: 'platformSample',
+                  label: '来自声音库 · 平台样本 · 秧秧',
+                  voiceId: 'fish_cover',
+                },
+              },
+            ],
+          },
+        }),
+      ]),
+      'a_1',
+    )
+    const play = document.querySelector('[data-audio-play]')!
+    expect(play.getAttribute('data-audio-play')).toBe('cover')
+    expect(play.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cover.test/fish_cover.png',
+    )
+  })
+
+  it('没有封面的（上传 / 录音）照旧是普通播放钮', () => {
+    renderAudio(
+      harness([audioNode('a_1', { url: 'https://cdn.test/v.mp3' })]),
+      'a_1',
+    )
+    const play = document.querySelector('[data-audio-play]')!
+    expect(play.getAttribute('data-audio-play')).not.toBe('cover')
+    expect(play.querySelector('img')).toBeNull()
   })
 })
 
@@ -683,14 +766,50 @@ describe('音色弹层', () => {
     expect(
       document.querySelector('[data-audio-voice-preview="fish_morning"]'),
     ).not.toBeNull()
+    // 行首头像是试听键；点名字那一块才是选中。
     fireEvent.click(
-      document.querySelector('[data-audio-voice-row="fish_morning"] button')!,
+      document.querySelector(
+        '[data-audio-voice-row="fish_morning"] button:not([data-audio-voice-preview])',
+      )!,
     )
     expect(onSelectVoice).toHaveBeenCalledWith({
       voiceId: 'fish_morning',
       name: '莫宁',
       sampleUrl: null,
     })
+  })
+
+  it('同一副嗓子只列一行；收藏的写「收藏的」，⛔ 一律写成「我克隆的」', () => {
+    render(
+      <AudioVoiceChip
+        voiceId={undefined}
+        voiceName={undefined}
+        speed={undefined}
+        volume={undefined}
+        onSelectVoice={vi.fn()}
+        onSpeedChange={vi.fn()}
+        onVolumeChange={vi.fn()}
+        onOpenLibrary={vi.fn()}
+      />,
+    )
+    fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
+    expect(
+      document.querySelectorAll('[data-audio-voice-row="fish_narrator"]'),
+    ).toHaveLength(1)
+    expect(
+      document.querySelector('[data-audio-voice-row="fish_narrator"]')!
+        .textContent,
+    ).toContain('favorited')
+    expect(
+      document.querySelector('[data-audio-voice-row="fish_morning"]')!
+        .textContent,
+    ).toContain('cloned')
+    // 收藏的没存示例也按得动试听（带 voiceId 就能现取）。
+    expect(
+      document
+        .querySelector('[data-audio-voice-preview="fish_quiet"]')!
+        .hasAttribute('disabled'),
+    ).toBe(false)
   })
 
   it('缩短成一段「我的音色」+「更多…」（⛔ 平台整库进 640 面板）', () => {
@@ -784,17 +903,17 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
       { selectedNodeIds: ['a_1'] },
     )
 
-  it('+ 菜单四项：上传 ⌘U · 从素材库选… · 声音库… · @', () => {
+  it('+ 菜单三项：上传 ⌘U · 从素材库选… · 声音库…（⛔ @，owner 2026-09-29）', () => {
     renderAudio(clip(), 'a_1', true)
     openMenu('[data-prompt-bar-add]')
     expect(
       Array.from(document.querySelectorAll('[data-audio-add]')).map((item) =>
         item.getAttribute('data-audio-add'),
       ),
-    ).toEqual(['upload', 'library', 'voices', 'mention'])
+    ).toEqual(['upload', 'library', 'voices'])
   })
 
-  it('「声音库…」开 640 面板；面板的「用这段」落成一版并记来源，⛔ 不生成', () => {
+  it('「声音库…」开 640 面板；面板的「用这段」先存进自己的存储再落成一版并记来源，⛔ 不生成', async () => {
     generateNode.mockClear()
     const context = clip()
     renderAudio(context, 'a_1', true)
@@ -804,27 +923,40 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
     expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
     expect(use).not.toBeNull()
     fireEvent.click(use!)
-    expect(context.onSetMedia).toHaveBeenCalledWith(
-      'a_1',
-      expect.objectContaining({
-        url: 'https://cdn.test/public.mp3',
-        source: expect.objectContaining({ kind: 'platformSample' }),
-      }),
+    // 平台样本的地址（Fish 常给一小时就过期的签名链接）⛔ 原样落卡 —— 落的是转存后的那份。
+    expect(importVoiceSampleSpy).toHaveBeenCalledWith('fish_public')
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith(
+        'a_1',
+        expect.objectContaining({
+          url: 'https://cdn.test/owned/fish_public.mp3',
+          source: expect.objectContaining({ kind: 'platformSample' }),
+        }),
+      ),
     )
     expect(generateNode).not.toHaveBeenCalled()
   })
 
   it('面板的「设为音色」写 voiceProfile，⛔ 不落产物', () => {
-    const context = clip()
+    // 名字是新建时的默认名（机器起的）。
+    const context = clip({ name: '语音3' })
     renderAudio(context, 'a_1', true)
     openMenu('[data-prompt-bar-add]')
     fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
     fireEvent.click(document.querySelector('[data-voice-library-set-voice]')!)
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
-      target: 'a_1',
-      profile: { voiceId: 'fish_public', voiceName: '西格莉卡' },
-    })
+    expect(context.onApplyBatch).toHaveBeenCalledWith([
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+        target: 'a_1',
+        profile: { voiceId: 'fish_public', voiceName: '西格莉卡' },
+      },
+      // 名字还是机器起的 → 同一批改成「音色名 · 语音 N」。
+      expect.objectContaining({
+        op: NODE_ASSISTANT_OP_V4_IDS.setField,
+        field: 'name',
+        value: '西格莉卡 · 语音 1',
+      }),
+    ])
   })
 
   it('⋯ 菜单：改名 · 复制 · 拆出当前版本 · 归属角色 · 来源（只读）· 删除', () => {

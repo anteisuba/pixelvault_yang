@@ -191,13 +191,11 @@ export function ImageMoreMenuItems({
 
 export function ImageAddMenuItems({
   onUpload,
-  onMention,
   onLibrary,
   canvasCandidates,
   onPickCanvas,
 }: {
   onUpload(): void
-  onMention(): void
   onLibrary(): void
   /** 画布上已有产物的图（生成的 / 上传的），挂进参考槽。 */
   readonly canvasCandidates?: readonly {
@@ -213,10 +211,6 @@ export function ImageAddMenuItems({
       <DropdownMenuItem data-image-add="upload" onSelect={onUpload}>
         <Upload aria-hidden className="size-4" />
         {t('add.upload')}
-      </DropdownMenuItem>
-      <DropdownMenuItem data-image-add="mention" onSelect={onMention}>
-        <UserRound aria-hidden className="size-4" />
-        {t('add.mention')}
       </DropdownMenuItem>
       <DropdownMenuItem data-image-add="library" onSelect={onLibrary}>
         <Library aria-hidden className="size-4" />

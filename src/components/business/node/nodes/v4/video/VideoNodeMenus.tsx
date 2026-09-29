@@ -23,7 +23,6 @@
 
 import { useTranslations } from 'next-intl'
 import {
-  AtSign,
   Copy,
   Film,
   GalleryVerticalEnd,
@@ -87,7 +86,6 @@ export interface VideoAddMenuItemsProps {
   onUploadForSlot(group: VideoRailGroupId): void
   /** 「上传视频 / 图」—— 落进这张卡自己（成片或封面），⛔ 不落槽。 */
   onUpload(): void
-  onMention(): void
   onLibrary(): void
 }
 
@@ -97,7 +95,6 @@ export function VideoAddMenuItems({
   onPickSlotSource,
   onUploadForSlot,
   onUpload,
-  onMention,
   onLibrary,
 }: VideoAddMenuItemsProps) {
   const tVideo = useTranslations('StudioNode.v4.video')
@@ -137,10 +134,6 @@ export function VideoAddMenuItems({
           </DropdownMenuSub>
         )
       })}
-      <DropdownMenuItem data-video-add="mention" onSelect={onMention}>
-        <AtSign aria-hidden className="size-4" />
-        {tVideo('add.mention')}
-      </DropdownMenuItem>
       <DropdownMenuItem data-video-add="library" onSelect={onLibrary}>
         <Library aria-hidden className="size-4" />
         {tVideo('add.library')}

@@ -5836,7 +5836,6 @@
         },
         "add": {
           "upload": "Upload",
-          "mention": "@ Character / style",
           "library": "From library",
           "canvas": "Images on canvas",
           "canvasEmpty": "No images to attach yet"
@@ -5909,7 +5908,6 @@
         },
         "add": {
           "upload": "Upload audio",
-          "mention": "@ Text / character",
           "library": "From asset library…",
           "voiceLibrary": "Voice library…",
           "uploadShortcut": "⌘U"
@@ -5925,6 +5923,7 @@
           "title": "Voice",
           "mine": "My voices",
           "cloned": "Cloned",
+          "favorited": "Saved",
           "preview": "Preview",
           "clone": "Clone my voice…",
           "speed": "Speed",
@@ -5984,8 +5983,8 @@
           "searchPlaceholder": "Search voices, characters, lines…",
           "tabsLabel": "Filter by source",
           "tabs": {
-            "platformSample": "Platform samples",
-            "history": "My history",
+            "platformSample": "Platform",
+            "history": "History",
             "voiceRoom": "Voice room",
             "library": "Assets",
             "favorites": "Favorites"
@@ -5995,8 +5994,9 @@
           "durationUnknown": "--:--",
           "preview": "Preview",
           "use": "Use this",
+          "useFailed": "Couldn't get this clip. Try again.",
           "setVoice": "Set as voice",
-          "footerHint": "“Use this” drops the original clip onto this card — no generation, no credits. “Set as voice” makes future lines speak in it.",
+          "footerHint": "Use this = drop the clip onto the card · Set as voice = speak future lines in it",
           "clone": "Clone my voice…",
           "groups": {
             "today": "Today",
@@ -6036,7 +6036,6 @@
         "add": {
           "upload": "Upload video / image",
           "uploadForSlot": "Upload…",
-          "mention": "@ image / character",
           "library": "From library"
         },
         "more": {
@@ -7107,6 +7106,10 @@
     "manageAllKeys": "Manage all keys →"
   },
   "Errors": {
+    "voice": {
+      "libraryUnavailable": "The voice library is unavailable right now. Try again later.",
+      "sampleMissing": "This voice has no sample to use."
+    },
     "voiceRoom": {
       "notFound": "Room not found",
       "lineNotFound": "Line not found",

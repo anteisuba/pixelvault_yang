@@ -856,12 +856,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     ? refs.openFilePicker
                     : () => fileRef.current?.click()
                 }
-                onMention={() => {
-                  setDraft(
-                    `${draft}${draft && !/[\s,.;:!?，。；：！？、）)】\]」』]$/.test(draft) ? ' ' : ''}@`,
-                  )
-                  window.setTimeout(() => promptInputRef.current?.focus(), 0)
-                }}
                 onLibrary={
                   acceptsRefs
                     ? refs.railProps.onLibrary

@@ -5836,7 +5836,6 @@
         },
         "add": {
           "upload": "アップロード",
-          "mention": "@ キャラ / スタイル",
           "library": "素材ライブラリから",
           "canvas": "キャンバス上の画像",
           "canvasEmpty": "追加できる画像はまだありません"
@@ -5909,7 +5908,6 @@
         },
         "add": {
           "upload": "音声をアップロード",
-          "mention": "@ テキスト / キャラクター",
           "library": "素材ライブラリから選ぶ…",
           "voiceLibrary": "ボイスライブラリ…",
           "uploadShortcut": "⌘U"
@@ -5925,6 +5923,7 @@
           "title": "声",
           "mine": "マイボイス",
           "cloned": "クローン",
+          "favorited": "保存済み",
           "preview": "試聴",
           "clone": "自分の声をクローン…",
           "speed": "速度",
@@ -5984,8 +5983,8 @@
           "searchPlaceholder": "声・キャラ・セリフを検索…",
           "tabsLabel": "出どころで絞り込む",
           "tabs": {
-            "platformSample": "サンプル音声",
-            "history": "自分の履歴",
+            "platformSample": "公式",
+            "history": "履歴",
             "voiceRoom": "アフレコ室",
             "library": "素材",
             "favorites": "お気に入り"
@@ -5995,8 +5994,9 @@
           "durationUnknown": "--:--",
           "preview": "試聴",
           "use": "これを使う",
+          "useFailed": "この音声を取得できませんでした。もう一度お試しください。",
           "setVoice": "声に設定",
-          "footerHint": "「これを使う」は元の音声をカードに追加します。生成やクレジット消費はありません。「声に設定」は、これから作るセリフにこの声を使います。",
+          "footerHint": "これを使う = カードに音声を追加 · 声に設定 = これからのセリフをこの声で",
           "clone": "自分の声をクローン…",
           "groups": {
             "today": "今日",
@@ -6036,7 +6036,6 @@
         "add": {
           "upload": "動画 / 画像をアップロード",
           "uploadForSlot": "アップロード…",
-          "mention": "@ 画像 / キャラクター",
           "library": "素材ライブラリから"
         },
         "more": {
@@ -7107,6 +7106,10 @@
     "manageAllKeys": "すべてのキーを管理 →"
   },
   "Errors": {
+    "voice": {
+      "libraryUnavailable": "ボイスライブラリに今つながりません。少し待ってからもう一度お試しください。",
+      "sampleMissing": "このボイスには使えるサンプルがありません。"
+    },
     "voiceRoom": {
       "notFound": "部屋が見つかりません",
       "lineNotFound": "台詞が見つかりません",

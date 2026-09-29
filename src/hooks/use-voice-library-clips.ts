@@ -28,7 +28,7 @@ import {
 } from '@/constants/audio-options'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
-import { fetchGalleryImages } from '@/lib/api-client'
+import { fetchGalleryImages, importVoiceSampleAPI } from '@/lib/api-client'
 /*
  * ⚠ 配音间那一栏**只有深导入一条来路**：`@/lib/api-client/voiceroom` 从来不在
  * barrel 里（`use-voiceroom.ts` 同一条注释）。⛔ 不为这一栏把整个配音间客户端
@@ -48,10 +48,19 @@ export interface VoiceLibraryClip {
   readonly id: string
   readonly name: string
   readonly subtitle: string | null
-  /** 可试听、也可「用这段」直接落进卡里的地址。 */
-  readonly url: string
+  /**
+   * 试听地址。⚠ 可空：收藏的音色有不少当年没存示例，⛔ 不因此把整行藏掉 —— 带
+   * `voiceId` 的行试听时现取、「用这段」时先存进自己的存储（`landVoiceLibraryClip`）。
+   * ⚠ 平台样本 / 收藏给的常是一小时就过期的签名链接，⛔ 不能原样落进卡。
+   */
+  readonly url: string | null
   readonly durationSec: number | null
   readonly voiceId: string | null
+  /**
+   * 这副嗓子的封面（平台样本 / 收藏才有）。行首头像用它；落进卡之后卡上靠
+   * `voiceId` 现查同一张（`use-voice-cover`），⛔ 不把地址写进卡。
+   */
+  readonly coverUrl: string | null
   readonly sourceKind: AudioClipSourceKind
   /** ⋯ 菜单里那一行只读来源的原文（画板「来自声音库 · 平台样本 · 莫宁」）。 */
   readonly sourceLabel: string
@@ -60,6 +69,43 @@ export interface VoiceLibraryClip {
    * 「什么时候录的」可言 —— ⛔ 不给它编一个 `now`（那会让整栏都堆在「今天」）。
    */
   readonly createdAt: string | null
+}
+
+/** 能落进卡的一段：地址已经是自己存储里的、不会过期。 */
+export type LandedVoiceLibraryClip = VoiceLibraryClip & { readonly url: string }
+
+export type LandVoiceLibraryClipResult =
+  | { readonly success: true; readonly clip: LandedVoiceLibraryClip }
+  | {
+      readonly success: false
+      readonly error: string
+      readonly i18nKey?: string
+    }
+
+/**
+ * 「用这段」之前的那一步：带 `voiceId` 的行（平台样本 / 收藏）先把示例存进自己的
+ * 存储，换成长期地址再落卡；其余几栏（历史 / 配音间 / 素材库）本来就是自己的地址。
+ *
+ * ⚠ owner 2026-09-29 真机：「用这段」把 Fish 一小时就过期的签名链接原样落进卡，
+ * 过一会儿卡上就只剩「这段音频暂时读不到」。
+ */
+export async function landVoiceLibraryClip(
+  clip: VoiceLibraryClip,
+): Promise<LandVoiceLibraryClipResult> {
+  if (!clip.voiceId) {
+    return clip.url
+      ? { success: true, clip: { ...clip, url: clip.url } }
+      : { success: false, error: 'This clip has no audio' }
+  }
+  const imported = await importVoiceSampleAPI(clip.voiceId)
+  if (!imported.success) {
+    return {
+      success: false,
+      error: imported.error,
+      ...(imported.i18nKey ? { i18nKey: imported.i18nKey } : {}),
+    }
+  }
+  return { success: true, clip: { ...clip, url: imported.data.url } }
 }
 
 /**
@@ -157,6 +203,7 @@ function generationClip(
     url: record.url,
     durationSec: record.duration ?? null,
     voiceId: null,
+    coverUrl: null,
     sourceKind: kind,
     sourceLabel: labelOf(kind, name),
     createdAt: Number.isNaN(createdAt.getTime())
@@ -243,6 +290,7 @@ export function useVoiceLibraryClips({
                 url,
                 durationSec: line.audio?.duration ?? null,
                 voiceId: null,
+                coverUrl: null,
                 sourceKind: AUDIO_CLIP_SOURCE.voiceRoom,
                 sourceLabel: labelRef.current(
                   AUDIO_CLIP_SOURCE.voiceRoom,
@@ -295,15 +343,16 @@ export function useVoiceLibraryClips({
   const fromVoices = useMemo((): readonly VoiceLibraryClip[] => {
     if (tab === 'platformSample') {
       return voices.publicVoices.flatMap((asset) =>
-        asset.sampleUrl
+        asset.sampleUrl || asset.voiceId
           ? [
               {
                 id: asset.id,
                 name: asset.title,
                 subtitle: asset.author,
-                url: asset.sampleUrl,
+                url: asset.sampleUrl ?? null,
                 durationSec: null,
                 voiceId: asset.voiceId,
+                coverUrl: asset.coverImage,
                 sourceKind: AUDIO_CLIP_SOURCE.platformSample,
                 sourceLabel: labelOf(
                   AUDIO_CLIP_SOURCE.platformSample,
@@ -319,7 +368,8 @@ export function useVoiceLibraryClips({
     if (tab !== 'favorites') return []
     return voices.favorites.flatMap((card) => {
       const url = card.sampleAudioUrl ?? card.referenceAudioUrl
-      if (!url) return []
+      // 没存示例的收藏照样列出来：带着 `voiceId` 就能现取（见 `url` 上的注释）。
+      if (!url && !card.voiceId) return []
       return [
         {
           id: card.id,
@@ -328,6 +378,7 @@ export function useVoiceLibraryClips({
           url,
           durationSec: null,
           voiceId: card.voiceId,
+          coverUrl: card.coverImage,
           sourceKind: AUDIO_CLIP_SOURCE.platformSample,
           sourceLabel: labelOf(AUDIO_CLIP_SOURCE.platformSample, card.name),
           createdAt: null,

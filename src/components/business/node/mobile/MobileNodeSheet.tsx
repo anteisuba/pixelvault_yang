@@ -20,6 +20,7 @@ import { Drawer as DrawerPrimitive } from 'vaul'
 
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_MOBILE_RAIL } from '@/constants/node-studio'
+import { chooseVoiceOps, renameForVoiceOps } from '@/lib/audio-node-name'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import type {
@@ -360,7 +361,13 @@ function AudioSheetBody({ node }: { readonly node: NodeV4 }) {
             volume={data.voiceProfile?.volume}
             disabled={draft.generating}
             onSelectVoice={(voice) => {
-              patchProfile({ voiceId: voice.voiceId, voiceName: voice.name })
+              void canvas.onApplyBatch(
+                chooseVoiceOps(
+                  node,
+                  { voiceId: voice.voiceId, voiceName: voice.name },
+                  canvas.nodes,
+                ),
+              )
               // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
               if (voice.sampleUrl && !data.url) {
                 canvas.onSetMedia(node.id, { url: voice.sampleUrl })
@@ -389,15 +396,31 @@ function AudioSheetBody({ node }: { readonly node: NodeV4 }) {
             onUseClip={(clip) => {
               canvas.onSetMedia(node.id, {
                 url: clip.url,
-                source: { kind: clip.sourceKind, label: clip.sourceLabel },
+                source: {
+                  kind: clip.sourceKind,
+                  label: clip.sourceLabel,
+                  // 封面跟着这副嗓子走（卡上按 `voiceId` 现查）。
+                  ...(clip.voiceId ? { voiceId: clip.voiceId } : {}),
+                },
               })
+              // 落的是某副嗓子的示例 → 名字跟着它叫（与桌面卡同一条）。
+              if (clip.voiceId) {
+                const rename = renameForVoiceOps(node, clip.name, canvas.nodes)
+                if (rename.length > 0) void canvas.onApplyBatch(rename)
+              }
               setVoiceLibrary(false)
             }}
             onSetVoice={(clip: VoiceLibraryClip) => {
               if (!clip.voiceId) return
               // 名字一起记（`voiceName`）：收起的 chip 拉不动整库，没有它就只能
               // 显示那串哈希。
-              patchProfile({ voiceId: clip.voiceId, voiceName: clip.name })
+              void canvas.onApplyBatch(
+                chooseVoiceOps(
+                  node,
+                  { voiceId: clip.voiceId, voiceName: clip.name },
+                  canvas.nodes,
+                ),
+              )
               setVoiceLibrary(false)
             }}
           />

@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from '@/constants/config'
+import { getErrorPayload } from '@/lib/api-client/shared'
 import type {
   FishAudioTranscription,
   FishAudioVoice,
@@ -63,6 +65,51 @@ export async function getVoiceAPI(voiceId: string): Promise<VoiceResponse> {
       }
     }
     return await response.json()
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+export type ImportVoiceSampleApiResponse =
+  | { success: true; data: { url: string } }
+  | { success: false; error: string; errorCode?: string; i18nKey?: string }
+
+/**
+ * 「用这段」：把这副平台音色的示例存进自己的存储，拿回能长期落在卡上的地址。
+ * ⚠ 只传 `voiceId`：取哪一段由服务端向 Fish 现问（Fish 给的常是一小时就过期的签名链接）。
+ */
+export async function importVoiceSampleAPI(
+  voiceId: string,
+): Promise<ImportVoiceSampleApiResponse> {
+  try {
+    const response = await fetch(API_ENDPOINTS.VOICE_SAMPLE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voiceId }),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return {
+        success: false,
+        error: payload.error,
+        ...(payload.errorCode ? { errorCode: payload.errorCode } : {}),
+        ...(payload.i18nKey ? { i18nKey: payload.i18nKey } : {}),
+      }
+    }
+    const payload = (await response.json()) as {
+      success?: boolean
+      data?: { url?: string }
+    }
+    return payload.success && payload.data?.url
+      ? { success: true, data: { url: payload.data.url } }
+      : { success: false, error: 'Import returned no url' }
   } catch (error) {
     return {
       success: false,

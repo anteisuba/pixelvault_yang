@@ -375,10 +375,11 @@ export const AUDIO_CLIP_SOURCE = {
  */
 export const VOICE_LIBRARY_TAB_IDS = [
   'platformSample',
+  // 声音库方向 A（owner 2026-09-29）：收藏紧跟平台 —— 两栏都是「嗓子」，后三栏是录音。
+  'favorites',
   'history',
   'voiceRoom',
   'library',
-  'favorites',
 ] as const
 
 export type VoiceLibraryTabId = (typeof VOICE_LIBRARY_TAB_IDS)[number]

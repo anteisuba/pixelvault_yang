@@ -260,6 +260,7 @@ export const API_ENDPOINTS = {
 
   /** Voice Cards */
   VOICE_CARDS: '/api/voice-cards',
+  VOICE_SAMPLE: '/api/voices/sample',
 
   /** Node Studio workflow projects */
   NODE_WORKFLOW_PROJECTS: '/api/node-workflow/projects',

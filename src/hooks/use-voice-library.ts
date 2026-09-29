@@ -14,6 +14,7 @@ import {
   type VoiceLibrarySortBy,
 } from '@/constants/voice-cards'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
+import { rememberVoiceCovers } from '@/hooks/use-voice-cover'
 /*
  * ⚠ 三个都走 barrel，别改成深导入 `@/lib/api-client/voices`。
  *
@@ -27,8 +28,10 @@ import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import {
   createVoiceCardAPI,
   deleteVoiceCardAPI,
+  importVoiceSampleAPI,
   listVoicesAPI,
 } from '@/lib/api-client'
+import { durableSampleUrl } from '@/lib/voice-sample-url'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset, VoiceLibraryTab } from '@/types/voice-library'
@@ -339,6 +342,18 @@ export function useVoiceLibrary(
       setFavoritePendingId(asset.id)
       setErrorKey(null)
 
+      // 收藏必须把示例音频一起带走（见下方 `sampleAudioUrl` 的注释）。⚠ Fish 给的
+      // 常是一小时就过期的签名链接，存下来一小时后就是坏链接 —— 那种先存进自己的
+      // 存储（`voice-sample-url.ts`）；存不成就先不存，选中时会再现取。
+      const sampleAudioUrl = existingCard
+        ? null
+        : (durableSampleUrl(asset.sampleUrl) ??
+          (asset.sampleUrl
+            ? await importVoiceSampleAPI(asset.voiceId).then((imported) =>
+                imported.success ? imported.data.url : null,
+              )
+            : null))
+
       // 分开两条路而不是合成一个联合结果：只有新建那条会产出卡片，
       // 合起来写就得靠类型断言把 `data` 挖出来。
       const created = existingCard
@@ -356,7 +371,7 @@ export function useVoiceLibrary(
             // 于是「收藏 → 从收藏 tab 选中」得到的节点只有 voiceId、没有任何音频，
             // 拿它当视频的参考音频时静默发不出去（真机四张卡全中）。
             // ⚠ 不能写进 referenceAudioUrl —— 那是克隆 tab 的分流判据。
-            sampleAudioUrl: asset.sampleUrl ?? undefined,
+            sampleAudioUrl: sampleAudioUrl ?? undefined,
             sampleText: asset.sampleText ?? undefined,
           })
       const result = existingCard
@@ -396,6 +411,20 @@ export function useVoiceLibrary(
     }
     return { favorites: favs, cloned: clones }
   }, [voiceCards.cards])
+
+  // 顺手记下每副嗓子的封面：卡上只存 `voiceId`，封面靠它现查（`use-voice-cover`）。
+  useEffect(() => {
+    rememberVoiceCovers([
+      ...voiceCards.cards.map((card) => ({
+        voiceId: card.voiceId,
+        cover: card.coverImage,
+      })),
+      ...publicVoices.map((asset) => ({
+        voiceId: asset.voiceId,
+        cover: asset.coverImage,
+      })),
+    ])
+  }, [voiceCards.cards, publicVoices])
 
   const hasMore = publicVoices.length < total
 

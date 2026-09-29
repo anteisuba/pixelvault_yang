@@ -5516,6 +5516,21 @@ export const ListVoiceCardsQuerySchema = z.object({
 
 export type ListVoiceCardsQuery = z.infer<typeof ListVoiceCardsQuerySchema>
 
+/**
+ * 「用这段」：把一副平台音色的示例存进自己的存储再落卡（Fish 的示例常是一小时就
+ * 过期的签名链接）。只收 `voiceId`，⛔ 不收 URL：取哪一段由服务端向 Fish 现问。
+ */
+export const ImportVoiceSampleRequestSchema = z.object({
+  voiceId: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/),
+})
+
+export type ImportVoiceSampleRequest = z.infer<
+  typeof ImportVoiceSampleRequestSchema
+>
+
 export type VoiceCardRecord = {
   id: string
   userId: string

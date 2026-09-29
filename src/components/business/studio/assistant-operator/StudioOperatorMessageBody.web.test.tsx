@@ -145,17 +145,6 @@ describe('StudioOperatorMessageBody', () => {
     expect(folded.textContent).toBe('先把它改成夜景。')
   })
 
-  it('⭐ `detail` 折成「为什么」；缺席时一颗都不画', () => {
-    renderBody({ detail: '夜景比日景更能压住背景里的杂色。' })
-    expect(screen.getByTestId('operator-message-why').textContent).toContain(
-      '夜景比日景',
-    )
-
-    screen.getByTestId('operator-message-why').remove()
-    renderBody()
-    expect(screen.queryByTestId('operator-message-why')).toBeNull()
-  })
-
   it('⭐ 句尾 `[n]` 渲染成角标，⛔ 方括号不落在屏幕上（56b 切片 1）', () => {
     renderBody(
       { text: '核心是**霓虹反光**[1]。路面积水做镜面反射[2]。' },

@@ -392,7 +392,6 @@ export function StudioOperatorMessageBody({
   receiptLabel,
   references = [],
 }: StudioOperatorMessageBodyProps) {
-  const t = useTranslations('StudioOperator')
   /**
    * ⚠ 高亮住在**这一格**而不是来源卡那颗组件里：角标在正文里、卡在正文下面，
    * 两边读的必须是同一个值。⛔ 别做成两份 state。
@@ -424,18 +423,6 @@ export function StudioOperatorMessageBody({
           {...(onDeepResearch ? { onDeepResearch } : {})}
           {...(receiptLabel ? { receiptLabel } : {})}
         />
-      ) : null}
-
-      {/* ⚠ 没有 `detail` 就**什么都不画**（⛔ 不画一颗点开是空的「为什么」）。 */}
-      {entry.detail ? (
-        <details data-testid="operator-message-why" className="min-w-0">
-          <summary className="w-fit cursor-pointer list-none text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-            {t('message.why')}
-          </summary>
-          <p className="mt-1 whitespace-pre-wrap border-l border-border pl-2.5 text-2sm leading-relaxed text-muted-foreground">
-            {withImageReferences(entry.detail, references)}
-          </p>
-        </details>
       ) : null}
     </div>
   )

@@ -584,6 +584,28 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     },
   )
 
+  it('⭐ 历史里顺利跑完的一轮只剩回复，过程不画（owner 2026-09-30）', () => {
+    store.loadOperatorThread({
+      sessionId: null,
+      sessionSurface: null,
+      history: [
+        {
+          kind: 'step',
+          id: 'search',
+          tool: 'search_web',
+          title: '检索资料',
+          status: 'done',
+          undone: false,
+        },
+        { kind: 'message', id: 'answer', text: '已核实的最终结论' },
+      ],
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
+    expect(screen.queryByText('检索资料')).toBeNull()
+    expect(screen.getByText('已核实的最终结论')).toBeVisible()
+  })
+
   it('历史调查默认折叠，最终结论与失败仍直接显示', () => {
     store.loadOperatorThread({
       sessionId: null,
@@ -610,6 +632,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ],
     })
     renderPanel()
+    // 同一轮以失败收尾：这一轮的两组过程都留着查，默认折叠。
     const groups = screen.getAllByTestId('operator-tool-group')
     expect(groups).toHaveLength(2)
     expect(groups.every((group) => group.dataset.open === 'false')).toBe(true)
@@ -926,15 +949,28 @@ describe('StudioOperatorPanel · 多步计划清单', () => {
       steps: ['水手服', '西装校服', '运动校服'],
       progress: ['done', 'failed', 'pending'],
     })
+    store.setOperatorStatus('working')
     renderPanel()
     const items = screen.getAllByTestId('operator-plan-item')
+    // 跑着时第一项还没到的就是「正在做」。
     expect(items.map((item) => item.getAttribute('data-state'))).toEqual([
       'done',
       'failed',
-      'pending',
+      'active',
     ])
     expect(items[0]?.textContent).toContain('✓')
     expect(screen.queryByText('planFold')).toBeNull()
+  })
+
+  it('⭐ 这一轮收尾后清单收走 —— 它是过程（owner 2026-09-30）', () => {
+    store.appendOperatorEntry({
+      kind: 'plan',
+      id: 'plan-done',
+      steps: ['写提示词', '改比例'],
+      progress: ['done', 'done'],
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-plan')).toBeNull()
   })
 })
 
@@ -973,8 +1009,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.queryByTestId('operator-reference-analysis')).toBeNull()
-    // 过程没有被藏起来 —— 它与其它步一样折在工具组里。
-    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
+    // 跑完只留结果：看参考图那一步与其它步一样不画（owner 2026-09-30）。
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
   })
 
   /** 一条跑完的步 —— `upsertOperatorStep` 收的形状。 */
@@ -1004,14 +1040,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       error: { reason: 'repeatedStep' },
     })
     renderPanel()
-    for (const toggle of screen.queryAllByTestId('operator-tool-group-toggle'))
-      fireEvent.click(toggle)
-    // 做成的那一步展开后看得见 —— 证明这里确实是展开态。
-    expect(
-      screen
-        .queryAllByTestId('operator-log-title')
-        .some((node) => node.textContent?.includes('写提示词')),
-    ).toBe(true)
+    // 跳过不算失败 —— 这一轮没有失败要读，过程整条不画。
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
     const titles = screen
       .queryAllByTestId('operator-log-title')
       .map((node) => node.textContent)
@@ -1051,10 +1081,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.queryByTestId('operator-research-card')).toBeNull()
-    // 过程没有被藏起来 —— 那一行还在，点它才展开步骤（56b 切片 2）。
-    const line = screen.getByTestId('operator-research-progress')
-    expect(line.dataset.depth).toBe('quick')
-    expect(line.dataset.state).toBe('done')
+    // 跑完调查行也收走 —— 查到的东西长在回答底下（owner 2026-09-30）。
+    expect(screen.queryByTestId('operator-research-progress')).toBeNull()
   })
 
   it('clears an earlier conflict after a successful write even across separate log blocks', () => {
@@ -1082,7 +1110,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.queryByTestId('operator-tool-group-blocker')).toBeNull()
-    expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
+    // 失败后来修好了 = 这一轮没有失败要读，过程整条不画（owner 2026-09-30）。
+    expect(screen.queryAllByTestId('operator-tool-group')).toHaveLength(0)
   })
 
   it('NAI 标签核对换了写法 / 没查到时，过程行上方一句灰字（拆分与反推 X1）', () => {
@@ -1207,8 +1236,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
 
-    // 两个工具块（正文把它们劈开了）——⛔ 但 checkpoint 只归最后那一个。
-    expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
+    // 两个工具块（正文把它们劈开了）——过程不画，⛔ checkpoint 只归最后那一个。
+    expect(screen.queryAllByTestId('operator-tool-group')).toHaveLength(0)
     expect(screen.getAllByTestId('operator-checkpoint')).toHaveLength(1)
   })
 
@@ -1257,8 +1286,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
 
     const checkpoint = screen.getByTestId('operator-checkpoint')
     expect(screen.queryByTestId('operator-tool-group')).toBeNull()
-    expect(checkpoint.querySelector('details')).toBeTruthy()
-    expect(checkpoint.querySelector('summary')).toBeTruthy()
+    // 步骤不再收在里面 —— 只留撤销（owner 2026-09-30）。
+    expect(checkpoint.querySelector('details')).toBeNull()
   })
 })
 

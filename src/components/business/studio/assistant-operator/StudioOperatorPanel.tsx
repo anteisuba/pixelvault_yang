@@ -1521,6 +1521,24 @@ export function StudioOperatorPanel({
        * 本轮改动的「撤销」—— 紧跟在过程那一行后面（D12 P5）；只挂在这一轮
        * **最后一个**工具块上、且这一轮真的收尾了之后。
        */
+      /**
+       * ⭐ **跑完只留结果**（owner 2026-09-30「我不关心它是怎么思考的」）：这一轮收尾
+       * 之后，过程那一行整条不画 —— 用户读的是回复、来源和卡。
+       * ⚠ 三种情况照旧留着，它们是结果不是过程：这一轮以没解决的失败收尾（那一刻
+       *   唯一要读的东西，整轮的尝试都留着查）· 联网候选图（网格长在日志条里，
+       *   要点「选用」）· 写提示词时系统要交代的那句。撤销（checkpoint）另外单独留。
+       */
+      const processHidden =
+        roundDone &&
+        !running &&
+        blocker?.status !== 'error' &&
+        !promptNote &&
+        !block.steps.some(
+          ({ step }) =>
+            step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
+            step.result,
+        )
       const changedCards =
         roundDone &&
         changeCountInRound > 0 &&
@@ -1549,7 +1567,7 @@ export function StudioOperatorPanel({
             count={changeCountInRound}
             fieldSummary={format.list(changeLabelKeys.map((key) => t(key)))}
             onRevert={revertRound}
-            {...(compactCanvasChanges
+            {...(compactCanvasChanges && !processHidden
               ? { details: logItems, detailsCount: block.steps.length }
               : {})}
           />
@@ -1560,7 +1578,16 @@ export function StudioOperatorPanel({
           /* 面板顶部那条钉住常驻条点回来的锚点（`jumpToResearch`）。 */
           data-research-run={block.runKey}
         >
-          {!compactCanvasChanges ? (
+          {processHidden ? (
+            checkpoint || changedCardList ? (
+              <StudioOperatorTimelineRow
+                card={STUDIO_OPERATOR_CARD_KINDS.system}
+              >
+                {checkpoint}
+                {changedCardList}
+              </StudioOperatorTimelineRow>
+            ) : null
+          ) : !compactCanvasChanges ? (
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
             >
@@ -1634,7 +1661,7 @@ export function StudioOperatorPanel({
               {changedCardList}
             </StudioOperatorTimelineRow>
           ) : null}
-          {compactCanvasChanges && checkpoint ? (
+          {!processHidden && compactCanvasChanges && checkpoint ? (
             <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
               {checkpoint}
               {changedCardList}
@@ -1740,7 +1767,14 @@ export function StudioOperatorPanel({
          * 都打在这一张上。没有进度的计划在 `entries` 那一层就滤掉了，不画。
          */
         const progress = entry.progress
-        if (progress) {
+        /**
+         * ⭐ 清单只在**这一轮还在跑**时画（owner 2026-09-30「我不关心它是怎么思考的」）：
+         * 跑着它就是那一行状态，收尾后它是过程 —— 做成了什么由回复与撤销说。
+         */
+        const livePlan =
+          working &&
+          entries.findLast((item) => item.kind === 'plan')?.id === entry.id
+        if (progress && livePlan) {
           const current = working
             ? progress.findIndex((state) => state === 'pending')
             : -1
@@ -2049,23 +2083,21 @@ export function StudioOperatorPanel({
                       return entry?.kind === 'step' ? [entry] : []
                     }),
                   )
+                  const roundBlocker = roundSteps.findLast(
+                    (step, index) =>
+                      step.status === 'error' &&
+                      !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                        (reason) => reason === step.rejectReason,
+                      ) &&
+                      !roundSteps
+                        .slice(index + 1)
+                        .some(
+                          (later) =>
+                            later.tool === step.tool && later.status === 'done',
+                        ),
+                  )
                   const blocker =
-                    roundGroups.at(-1) === group
-                      ? roundSteps.findLast(
-                          (step, index) =>
-                            step.status === 'error' &&
-                            !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
-                              (reason) => reason === step.rejectReason,
-                            ) &&
-                            !roundSteps
-                              .slice(index + 1)
-                              .some(
-                                (later) =>
-                                  later.tool === step.tool &&
-                                  later.status === 'done',
-                              ),
-                        )
-                      : undefined
+                    roundGroups.at(-1) === group ? roundBlocker : undefined
                   /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的那份。 */
                   const historyPromptStep = steps.findLast(
                     (step) =>
@@ -2079,7 +2111,12 @@ export function StudioOperatorPanel({
                     node: (
                       <div
                         key={`history-tools:${group.indexes[0]}`}
-                        className="mt-2.5"
+                        className={cn(
+                          (roundBlocker ||
+                            historyPromptStep?.tagCheck ||
+                            historyPromptStep?.negativeFolded) &&
+                            'mt-2.5',
+                        )}
                       >
                         {historyPromptStep?.tagCheck ||
                         historyPromptStep?.negativeFolded ? (
@@ -2088,37 +2125,40 @@ export function StudioOperatorPanel({
                             negativeFolded={historyPromptStep.negativeFolded}
                           />
                         ) : null}
-                        <StudioOperatorToolGroup
-                          total={steps.length}
-                          failed={errors.length - skipped}
-                          skipped={skipped}
-                          running={false}
-                          failure={
-                            blocker ? (
-                              <>
-                                <p className="font-medium">
-                                  {blocker.tool ===
-                                  ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                                    ? t('toolGroup.promptUnchanged')
-                                    : t('toolGroup.blocked')}
-                                </p>
-                                <p className="text-muted-foreground">
-                                  {blocker.rejectReason &&
-                                  t.has(`reject.${blocker.rejectReason}`)
-                                    ? t(`reject.${blocker.rejectReason}`)
-                                    : blocker.title}
-                                </p>
-                                <p className="text-muted-foreground">
-                                  {t('toolGroup.inspectFailure')}
-                                </p>
-                              </>
-                            ) : null
-                          }
-                        >
-                          {group.indexes.map((index) =>
-                            renderHistoryEntry(index),
-                          )}
-                        </StudioOperatorToolGroup>
+                        {/* ⭐ 历史里的过程同样只在这一轮以失败收尾时留（owner 2026-09-30）。 */}
+                        {roundBlocker ? (
+                          <StudioOperatorToolGroup
+                            total={steps.length}
+                            failed={errors.length - skipped}
+                            skipped={skipped}
+                            running={false}
+                            failure={
+                              blocker ? (
+                                <>
+                                  <p className="font-medium">
+                                    {blocker.tool ===
+                                    ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                                      ? t('toolGroup.promptUnchanged')
+                                      : t('toolGroup.blocked')}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {blocker.rejectReason &&
+                                    t.has(`reject.${blocker.rejectReason}`)
+                                      ? t(`reject.${blocker.rejectReason}`)
+                                      : blocker.title}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    {t('toolGroup.inspectFailure')}
+                                  </p>
+                                </>
+                              ) : null
+                            }
+                          >
+                            {group.indexes.map((index) =>
+                              renderHistoryEntry(index),
+                            )}
+                          </StudioOperatorToolGroup>
+                        ) : null}
                         {group.indexes.flatMap((index) =>
                           (historyRoundPlacement.byIndex.get(index) ?? []).map(
                             renderHistoryRound,
@@ -2141,22 +2181,30 @@ export function StudioOperatorPanel({
                 (group) => {
                   const first = blocks[group.indexes[0]!]!
                   if (group.research) {
+                    /**
+                     * ⭐ 查资料只在**这一轮还在跑**时露一行（owner 2026-09-30「思考的
+                     * 部分可以隐藏」）：跑着画那几组自己的状态行，收尾后整组不画 ——
+                     * 查到的东西已经长在回答底下（来源卡）。
+                     */
+                    const active =
+                      working &&
+                      group.indexes.some((index) => {
+                        const block = blocks[index]!
+                        return (
+                          block.kind === 'tools' &&
+                          block.runKey === latestRunKey
+                        )
+                      })
                     return {
                       key: `research:${group.indexes[0]}`,
                       speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-                      node: (
-                        <details
-                          data-testid="operator-research"
-                          className="mt-2"
-                        >
-                          <summary className="w-fit cursor-pointer list-none py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                            {t('researchDetails')}
-                          </summary>
+                      node: active ? (
+                        <div data-testid="operator-research" className="mt-2">
                           {group.indexes.map((index) =>
                             renderBlock(blocks[index]!),
                           )}
-                        </details>
-                      ),
+                        </div>
+                      ) : null,
                     }
                   }
                   return {

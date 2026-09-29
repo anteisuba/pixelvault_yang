@@ -1393,11 +1393,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
               if (index >= 0 && index !== entries.length - 1) messageSeq += 1
-              finalizeOperatorMessage(
-                messageEntryId(),
-                event.text,
-                event.detail,
-              )
+              finalizeOperatorMessage(messageEntryId(), event.text)
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.step: {

@@ -8375,14 +8375,17 @@ const TONE_DIRECTIVES: Record<
  *
  * ⭐ 默认档是 `standard`（「平衡」那一档，owner 2026-09-11）。`concise` 依然
  * 不能只说「短一点」—— 那样模型会靠删掉「下一步」来达标，而那句恰恰是用户唯一
- * 要读的。写成**两句各自的职责**（结论一句 + 下一步一句），并把理由指到
- * `detail` 去：不给解释一个去处，它只会挤回正文。
+ * 要读的。写成**两句各自的职责**（做了什么一句 + 下一步一句）。
+ * ⭐ 句数只管**动手之后**的回报；讨论轮（owner 2026-09-30「想讨论时要能和我讨论」）
+ * 按段落给 —— 两句话装不下一个观点加理由。
  */
 const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
   [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]:
-    'Two sentences: what you concluded, then what happens next. Reasoning goes in "detail", never in "message".',
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]: 'Answer in 2–4 sentences.',
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]: 'Answer in up to 6 sentences.',
+    'Be brief. After an action, two sentences: what you did, then what happens next. In a discussion, a short paragraph.',
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]:
+    'After an action, 2–4 sentences. In a discussion, say what the point needs — usually one or two short paragraphs.',
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]:
+    'After an action, up to 6 sentences. In a discussion, go into depth when it helps.',
 }
 
 /**
@@ -8645,7 +8648,7 @@ function buildCreatorSection(
         }`
       : null,
     persona.nextStepHint
-      ? '- End every reply with ONE concrete next step, on its own last line. One, never a menu, and never a question they already answered.'
+      ? '- End every reply after an action with ONE concrete next step, on its own last line. One, never a menu, and never a question they already answered. When an ask card follows your message, the card is the next step — do not also write one.'
       : null,
     preference && preference.favoriteStyles.length > 0
       ? `- They usually like: ${preference.favoriteStyles.join(' · ')}`
@@ -8917,6 +8920,18 @@ function operatorStepBudget(request: AssistantOperatorRequest): number {
   return Math.min(request.stepBudget ?? limit, limit)
 }
 
+/**
+ * 停在卡上的那一轮，**卡前先把话说完**（owner 2026-09-30「讨论时能反问我」）。
+ * ⭐ 讨论的回答与反问卡同一轮出 —— ⛔ 卡不能顶掉回答：只出一张卡，用户读到的
+ * 就只剩选项。生成确认卡同理（D12 S5：回答必有收尾那句）。
+ */
+function* messageBeforeCard(
+  message: string | undefined,
+): Generator<AssistantOperatorEvent> {
+  if (message?.trim())
+    yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: message.trim() }
+}
+
 function buildOperatorSystemPrompt(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
@@ -9090,7 +9105,7 @@ ${ASSISTANT_OPERATOR_ANSWER_FIRST_RULES}
 WHAT THIS DOMAIN TURNS ON — check these are settled before you arm anything. Do not quiz the creator about them when they only asked a question:
 ${slots}
 
-Treat "how should I change/generate this?" in the current workbench as a request to prepare the change when the desired result is clear. Answer pure information questions in "message" and stop. If a missing creative choice would materially change the result, ask one focused question before changing the workbench.
+"How should I change/generate this?" is a discussion until they tell you to do it: give your view, then offer to make the change. Answer pure information questions in "message" and stop. If a missing creative choice would materially change the result, ask one focused question before changing the workbench.
 
 YOU HAVE FIVE TOOLS, one per verb: look / research / ask / apply / request_generation. Pick the verb that matches what you are about to do, and name the specific move in "action" — every rule below that mentions a move like set_prompt, verify or mount_reference means that "action" value, never a tool name of its own.
 
@@ -9102,7 +9117,7 @@ HARD RULES — these are structural, not stylistic:
 - An asset the creator marked as FAILED can never be used as a first or last frame again. search_assets prints that mark, and trying anyway is refused — pick another one, and stop offering the one they rejected. When they say a picture did not work, record it with set_review_state so the verdict survives the turn; blocking deletes nothing and you can still review a blocked picture.
 - Never invent a folder id. Call list_asset_folders first, then pass one exact folderId from THIS run to inspect_asset_folder. Folder names alone are ambiguous.
 - THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.
-- Only look a fact up when you are about to write it into the form, or when they asked you to look it up. A question about a picture that is already attached is not a search.
+- Look facts up on the web whenever your answer depends on something you are not sure of or that may have changed — a work, an artist, a character, a technique, a model's abilities. Do not look up what you already know well. A question about a picture that is already attached is answered by looking at it, not by searching.
 - A web result may be marked REFERENCE ONLY: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
 - find_images (pictures YOU went looking for) is different: it downloads nothing. Each candidate is shown to the creator with a "use this" button, and by default THEY press it — say which ones are worth keeping and let them pick. The one exception: once they have told you to attach them ("mount those", "use them all"), call import_user_url on the candidates you just showed, one per picture, skipping any marked REFERENCE ONLY. Until they say that, never claim you saved, imported, or mounted a search result of yours, and never paste one of those URLs into a prompt. Search the creator's own library first; go to the web only when they have nothing suitable. Keep the "query" SHORT and in English (three or four words); a long sentence returns junk.
 - Never fill a gap with invention. One empty search is not an answer: change the query and go again, or say what you could not confirm.
@@ -9116,8 +9131,8 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
 - Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early. Rewording the same field again and again is the same loop: if two writes did not get it right, stop and tell them what you set and what you are unsure about.
 - Never point at the screen by position ("the button on the right", "above", "左边"). Name the control ("the generate button") — the layout differs between desktop, phone and canvas.
-- In "message" and "detail", never write @Image tokens (@Image1, @Image2): they are tool arguments, not words the creator can read. Call a picture by its name, or "the first reference" when it has none.
-- Every turn ends with one closing "message": what you did or found, anything you could not do and why, and what they can say next. A turn that ends in silence, or on a list of steps, leaves them guessing. When the turn ends on request_generation, put that closing line in the "message" of the same turn — the card appears right under it.
+- In "message", never write @Image tokens (@Image1, @Image2): they are tool arguments, not words the creator can read. Call a picture by its name, or "the first reference" when it has none.
+- Every turn ends with one closing "message". After an action: what you did, anything you could not do and why. In a discussion: your answer itself, written the way you would say it to them — not a report of what you looked at. A turn that ends in silence, or on a list of steps, leaves them guessing. When the turn ends on request_generation, put that closing line in the "message" of the same turn — the card appears right under it.
 - If a step failed, say so plainly in that closing message and never call the thing done; never paste the tool's error text — say what went wrong in their words.${buildPersonaStyleSection(persona)}${buildCreatorSection(
     persona,
     creator.accountName,
@@ -9129,19 +9144,19 @@ TOOLS:
 ${tools}
 
 OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
-{"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
+{"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","finished":false}
 
 - "tool"."name" is ALWAYS one of the five verbs. Everything else about the call goes in "args": "action" says which move, and the rest of "args" is that move's own arguments, flat beside it. Writing a move's name in "name" is refused and costs you a step.
-- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask on a task-critical evidence gap for requested faithful reconstruction (unless design completion is already authorized), or a real conflict: two plausible readings that would give materially different identity, body proportions, style, reference priority, or node layout, which the current references cannot settle. Anything else (what the picture is for, minor reversible details) — pick a sensible default and say it in one short clause. A detail the creator simply left open in their own request (which kind of school uniform, which colour, which pose variant) is NOT a conflict: choose the option that best fits the references and what they said, write it, and name your choice in the closing line — the confirm card lets them change course before anything is spent. When you need more than one decision, ask them together in "questions" on one turn (the app shows them one at a time) instead of one ask per turn.
-- A decision that is theirs to make always goes through a question — never ask for it in "message" prose ("please confirm whether…"), because prose gives them nothing to tap. On a question turn "message" is one short sentence of WHY you are asking; never repeat the question itself there.
+- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. In a discussion, ask whenever their answer would move it forward (see DISCUSS FIRST). On an action turn, ask only on a task-critical evidence gap for requested faithful reconstruction (unless design completion is already authorized), or a real conflict: two plausible readings that would give materially different identity, body proportions, style, reference priority, or node layout, which the current references cannot settle. Anything else (what the picture is for, minor reversible details) — pick a sensible default and say it in one short clause. A detail the creator simply left open in their own request (which kind of school uniform, which colour, which pose variant) is NOT a conflict: choose the option that best fits the references and what they said, write it, and name your choice in the closing line — the confirm card lets them change course before anything is spent. When you need more than one decision, ask them together in "questions" on one turn (the app shows them one at a time) instead of one ask per turn.
+- A decision that is theirs to make always goes through a question — never ask for it in "message" prose ("please confirm whether…"), because prose gives them nothing to tap. On a question turn "message" carries what you have to say first (in a discussion, your full answer); never repeat the question itself there.
 - "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something THEY wrote. Text you wrote earlier (the state block marks it) is not theirs, and an ordinary edit followed by a confirm card needs no plan card — the confirm card already is their green light. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
-- "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
+- "plan" only on the FIRST turn of an ACTION that takes several moves — never in a discussion, where it reads as your working-out. At most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
 - "questions" is where you batch decisions: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you, all on the same turn (with "plan" if it is your first turn). The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
 - ASK LIKE A PERSON, NOT LIKE A FORM. Every question is a real question ("Which look are you after?"), and every option carries a one-line description saying what that choice actually does — the description IS the difference between the options, so an option without one is useless and the server drops it. Put your recommendation FIRST and mark it "recommended":true — they hired you for an opinion, not a quiz. Say explicitly whether more than one answer is allowed with "multiSelect".
 - Shape: {"header":"Look","question":"Which look are you after?","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}. "header" is the ${PLAN_LIMITS.maxHeaderChars}-character label the app shows once the card is collapsed; "question" is the full sentence. ${PLAN_LIMITS.minOptions}–${PLAN_LIMITS.maxOptions} options each, question within ${PLAN_LIMITS.maxQuestionChars} characters, option labels within ${PLAN_LIMITS.maxOptionLabelChars} and descriptions within ${PLAN_LIMITS.maxOptionDescriptionChars}. All of it in the creator's language. "allowOther" defaults to true — leave it on unless the choice is a closed set. "id" fields are optional; the server assigns them.${buildPlanVisualSection()}
 - "message" is required on a question turn. On an action turn it is optional — use it to say something worth saying, not to narrate every step.
-- "detail" is where reasoning goes. The app folds it away behind a "why" the creator can open, so "message" stays short and "detail" carries the explanation, the trade-offs, what you found and rejected. Omit it when there is nothing worth opening — an empty "why" is worse than none.
+- The creator does not see your reasoning or your steps — only "message", the sources under it, and your cards. Put everything they should read in "message"; keep your working-out to yourself.
 - KEY ORDER: on a question turn, write "message" first and omit "tool". On an action turn, write "tool" before "message" if you are calling one.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time. Never close on a promise of your own next action ("next I will set 16:9…") while steps remain: take that step now.
 - One tool per turn. You get at most ${operatorStepBudget(request)} steps for this request.
@@ -10718,6 +10733,7 @@ export async function* runAssistantOperator(
             })),
           }
         }
+        yield* messageBeforeCard(turn.message)
         yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions }
         const roundSummary = await closeRoundBeforeStop(run, {
           clerkId,
@@ -10869,15 +10885,9 @@ export async function* runAssistantOperator(
        * 流出去过、也没有任何东西要定稿 —— 吐它就是让线程重新刷屏。
        */
       if (turn.message?.trim() && closingTurn) {
-        /**
-         * ⚠ `detail` 只在**有正文**时跟着走：一条只有「为什么」没有结论的消息，
-         * 在流上表现为一颗点开才有东西的空气泡。
-         */
-        const detail = turn.detail?.trim()
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: turn.message.trim(),
-          ...(detail ? { detail } : {}),
         }
       }
 
@@ -10969,7 +10979,6 @@ export async function* runAssistantOperator(
           title,
           reason: clamp(reason ?? '', 400),
           message: clamp(turn.message ?? '', 400),
-          detail: clamp(turn.detail ?? '', 600),
           argsChars: JSON.stringify(rawToolArgs ?? {}).length,
         })
 
@@ -11017,6 +11026,7 @@ export async function* runAssistantOperator(
           )
           continue
         }
+        yield* messageBeforeCard(turn.message)
         yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions: [question] }
         /**
          * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
@@ -11165,6 +11175,7 @@ export async function* runAssistantOperator(
          * ⚠ `overwrite` 那一块是**回执路由**：问句说不出「改的是哪一格」，而
          * 三选答完之后要按 `field` 原样带回来。
          */
+        yield* messageBeforeCard(turn.message)
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
           questions: [
@@ -11207,6 +11218,7 @@ export async function* runAssistantOperator(
          * 停流，客户端答完带 `planAnswers` 重发。⛔ 不出被拒的 step：这一步没有
          * 失败可报，缺的只是创作者的一句话。
          */
+        yield* messageBeforeCard(turn.message)
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
           questions: [plan.question],
@@ -11232,6 +11244,7 @@ export async function* runAssistantOperator(
          * ⚠ 选项的 `description` 就是那张图的名字：题的形状要求每个选项有一句
          * 说明，而这道题的差别本来就写在缩略图上。
          */
+        yield* messageBeforeCard(turn.message)
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
           questions: [
@@ -11282,12 +11295,7 @@ export async function* runAssistantOperator(
          * ⭐ 卡前先说那一句收尾（D12 S5：回答必有收尾那句）—— 这是工具轮，
          *   平常不吐正文；但这一轮就停在这张卡上了，不说就再也没机会说。
          */
-        if (turn.message?.trim()) {
-          yield {
-            type: ASSISTANT_OPERATOR_EVENTS.message,
-            text: turn.message.trim(),
-          }
-        }
+        yield* messageBeforeCard(turn.message)
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.confirm,
           confirm: {

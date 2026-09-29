@@ -811,7 +811,7 @@ describe('工具环 · 逐事件顺序', () => {
     expect(done.inverse).toEqual({ value: '' })
   })
 
-  it('⭐ message 带可折叠的 detail；⛔ 没有正文时不发一颗空气泡', async () => {
+  it('⭐ 用户只读得到 message —— 模型多写的 detail 不外发；⛔ 没有正文时不发空气泡', async () => {
     queueTurns(
       {
         tool: {
@@ -825,17 +825,14 @@ describe('工具环 · 逐事件顺序', () => {
         detail: '红伞是画面里唯一的暖色，所以其余部分压成冷调，反差才立得住。',
       },
     )
-    const withDetail = (
+    const closing = (
       await collect(runAssistantOperator('clerk-1', buildRequest()))
-    ).find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message) as
-      | Extract<AssistantOperatorEvent, { type: 'message' }>
-      | undefined
-    expect(withDetail?.text).toBe('提示词写好了，下一步挂参考图。')
-    expect(withDetail?.detail).toBe(
-      '红伞是画面里唯一的暖色，所以其余部分压成冷调，反差才立得住。',
-    )
+    ).find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+    expect(closing).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '提示词写好了，下一步挂参考图。',
+    })
 
-    // ⛔ 只有 detail 没有正文 = 一颗点开才有东西的空气泡，整帧不发。
     queueTurns({ detail: '想了很多，但没有结论。' }, { finished: true })
     const detailOnly = (
       await collect(runAssistantOperator('clerk-1', buildRequest()))
@@ -1042,6 +1039,56 @@ describe('工具环 · 逐事件顺序', () => {
       }),
     )
     expect(stepsOf(events)).toHaveLength(0)
+  })
+
+  it('⭐ 讨论轮的回答先于反问卡发出，⛔ 卡不顶掉回答（owner 2026-09-30）', async () => {
+    queueTurns({
+      message: '想避开老套路，关键是换掉主光源的质感。',
+      questions: [
+        {
+          question: '你更倾向哪种光线？',
+          options: [
+            { label: '钠灯琥珀光', description: '昏黄粗粝，工业感。' },
+            { label: '冷白荧光', description: '克制清冷，高反差。' },
+          ],
+        },
+      ],
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const types = typesOf(events)
+    expect(events).toContainEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '想避开老套路，关键是换掉主光源的质感。',
+    })
+    expect(types.indexOf(ASSISTANT_OPERATOR_EVENTS.message)).toBeLessThan(
+      types.indexOf(ASSISTANT_OPERATOR_EVENTS.ask),
+    )
+  })
+
+  it('⭐ 走 ask 工具的反问同样先发回答', async () => {
+    queueTurns({
+      message: '钠灯更扎实，冷白更前卫。',
+      tool: {
+        name: 'ask',
+        args: {
+          question: '选哪个方向？',
+          options: [
+            { label: '钠灯', description: '昏黄粗粝。' },
+            { label: '冷白', description: '克制清冷。' },
+          ],
+        },
+      },
+    })
+    const types = typesOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(types).toContain(ASSISTANT_OPERATOR_EVENTS.message)
+    expect(types.indexOf(ASSISTANT_OPERATOR_EVENTS.message)).toBeLessThan(
+      types.indexOf(ASSISTANT_OPERATOR_EVENTS.ask),
+    )
   })
 
   it('非画布请求即使提交画布步数预算，也会在通常上限停下', async () => {
@@ -4007,17 +4054,31 @@ describe('域工具表', () => {
     expect(systemPrompt()).toContain('what actually moves')
   })
 
-  it('将当前工作台的修改问题视为行动，并在关键创作意图不明时反问', async () => {
+  it('⭐ 「怎么改」是讨论：先给看法再问要不要动手；执行要等明确的指令（owner 2026-09-30）', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    expect(systemPrompt()).toContain('how should I change/generate this?')
-    expect(systemPrompt()).toContain(
-      'body proportions, style, reference priority',
+    const prompt = systemPrompt()
+    expect(prompt).toContain('DISCUSS FIRST, ACT WHEN TOLD')
+    expect(prompt).toContain(
+      '"How should I change/generate this?" is a discussion until they tell you to do it',
     )
-    expect(systemPrompt()).toContain(
-      'A question mark alone does not make this a pure information turn.',
+    expect(prompt).toContain('treat it as a discussion')
+    expect(prompt).toContain('body proportions, style, reference priority')
+    expect(prompt).not.toContain('A question mark alone does not make this')
+  })
+
+  it('⭐ 讨论里随时可以联网；推理不给用户看（owner 2026-09-30）', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('Look things up on the web whenever')
+    expect(prompt).not.toContain(
+      'Only look a fact up when you are about to write',
     )
+    expect(prompt).toContain('keep your working-out to yourself')
+    expect(prompt).not.toContain('"detail"')
   })
 
   it('⛔ 视频域调 set_count 被明确拒掉（noSuchControl，不是 malformedArgs）', async () => {
@@ -6057,9 +6118,13 @@ describe('persona 风格段', () => {
     // friendly 档（默认，owner 2026-09-11）
     expect(prompt).toContain('Be warm and conversational')
     // standard 档（默认）
-    expect(prompt).toContain('Answer in 2–4 sentences.')
+    expect(prompt).toContain(
+      'After an action, 2–4 sentences. In a discussion, say what the point needs — usually one or two short paragraphs.',
+    )
     // nextStepHint 默认开 —— 卡上第三行写的就是它。
-    expect(prompt).toContain('End every reply with ONE concrete next step')
+    expect(prompt).toContain(
+      'End every reply after an action with ONE concrete next step',
+    )
     // ⛔ 换掉的那两档一个字都不该再出现。
     expect(prompt).not.toContain('Be terse.')
     expect(prompt).not.toContain('Keep it professional and even')
@@ -6085,10 +6150,13 @@ describe('persona 风格段', () => {
 
   it('长度三档各自映射成句数区间，⛔ 不给无边界形容词', async () => {
     for (const [verbosity, expected] of [
-      [ASSISTANT_PERSONA_VERBOSITY_IDS.standard, 'Answer in 2–4 sentences.'],
+      [
+        ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
+        'After an action, 2–4 sentences. In a discussion, say what the point needs — usually one or two short paragraphs.',
+      ],
       [
         ASSISTANT_PERSONA_VERBOSITY_IDS.detailed,
-        'Answer in up to 6 sentences.',
+        'After an action, up to 6 sentences. In a discussion, go into depth when it helps.',
       ],
     ] as const) {
       mockLlmTextCompletion.mockReset()
@@ -6150,7 +6218,8 @@ describe('persona 风格段', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    const style = 'Answer in 2–4 sentences.'
+    const style =
+      'After an action, 2–4 sentences. In a discussion, say what the point needs — usually one or two short paragraphs.'
     expect(prompt.indexOf('HOW YOU TALK')).toBeLessThan(prompt.indexOf(style))
     expect(prompt.indexOf(style)).toBeLessThan(prompt.indexOf('TOOLS:'))
   })
@@ -6223,12 +6292,12 @@ describe('用户偏好进系统提示（§8.3）', () => {
 
   it('「下一步建议」开着才印那一行', async () => {
     expect(await promptWith({ nextStepHint: true })).toContain(
-      'End every reply with ONE concrete next step',
+      'End every reply after an action with ONE concrete next step',
     )
 
     mockLlmTextCompletion.mockReset()
     expect(await promptWith({ nextStepHint: false })).not.toContain(
-      'End every reply with ONE concrete next step',
+      'End every reply after an action with ONE concrete next step',
     )
   })
 
@@ -9001,7 +9070,7 @@ describe('系统提示 · 找角色设定图的推荐链路（2026-09-06）', ()
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt).toContain('ANSWER FIRST')
+    expect(prompt).toContain('DISCUSS FIRST')
     expect(prompt).not.toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
     expect(prompt).not.toContain('STYLE IDENTIFICATION')
     expect(prompt).toContain('verify first, then find_images, then read_url')

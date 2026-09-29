@@ -62,15 +62,6 @@ export interface StudioOperatorMessageEntry {
   id: string
   text: string
   streaming?: boolean
-  /**
-   * 「为什么」那一段（2026-09-06 面板轮）。
-   *
-   * ⭐ 正文只留两句，**解释折起来**：聊天感的一半就在这里 —— 助手把结论说完
-   * 就停，想读理由的人自己点开。⛔ 别把它并进 `text`：并进去之后「两句」这条
-   * 约束在结构上就没有落点了，只能靠模型自觉。
-   * ⚠ 缺席 = 这一条没有可展开的解释，⛔ 不画一颗点开是空的「为什么」。
-   */
-  detail?: string
 }
 
 /** 计划条（一轮最多一条）。 */

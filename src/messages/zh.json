@@ -7745,7 +7745,6 @@
       "sheetTitle": "助手",
       "sheetDescription": "半屏助手面板 —— 把手向上拖是全屏，向下拖关闭。"
     },
-    "researchDetails": "调查过程",
     "toolGroup": {
       "title": "{count} 个操作",
       "elapsed": "用时 {seconds}s",
@@ -8161,8 +8160,7 @@
     },
     "message": {
       "expand": "展开全文",
-      "collapse": "收起",
-      "why": "为什么"
+      "collapse": "收起"
     },
     "streaming": {
       "pending": "助手正在思考",

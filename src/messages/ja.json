@@ -7745,7 +7745,6 @@
       "sheetTitle": "アシスタント",
       "sheetDescription": "ハンドルを上にドラッグすると全画面に、下にドラッグすると閉じます。"
     },
-    "researchDetails": "調査の詳細",
     "toolGroup": {
       "title": "{count} 件の操作",
       "elapsed": "所要 {seconds}s",
@@ -8161,8 +8160,7 @@
     },
     "message": {
       "expand": "全文を表示",
-      "collapse": "折りたたむ",
-      "why": "なぜ"
+      "collapse": "折りたたむ"
     },
     "streaming": {
       "pending": "アシスタントが考えています",

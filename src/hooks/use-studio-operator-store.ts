@@ -611,17 +611,11 @@ export function appendOperatorStreamingMessage(
   })
 }
 
-export function finalizeOperatorMessage(
-  id: string,
-  text: string,
-  /** 「为什么」那一段（2026-09-06 面板轮，第 4 件）—— 面板把它折起来。 */
-  detail?: string,
-): void {
+export function finalizeOperatorMessage(id: string, text: string): void {
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
-    ...(detail ? { detail } : {}),
   }
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,

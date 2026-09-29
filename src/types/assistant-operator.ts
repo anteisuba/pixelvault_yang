@@ -2705,16 +2705,12 @@ export const AssistantOperatorTurnSchema = z.object({
     .array(z.string().trim().min(1).max(LIMITS.maxPlanItemChars))
     .max(LIMITS.maxPlanItems)
     .optional(),
-  /** 说给用户听的话。⚠ **只写结论一句 + 下一步一句**，理由写进 `detail`。 */
-  message: z.string().max(LIMITS.maxMessageChars).optional(),
   /**
-   * 「为什么」那一段（2026-09-06）—— 客户端把它折起来，用户想读才展开。
-   *
-   * ⭐ 它存在的意义是**让「正文两句」这条约束有个落点**：不给解释一个地方放，
-   * 模型只会把它塞回 `message`，于是每一轮回复都是一段小作文。
-   * ⚠ 缺席 = 这一条没有可展开的解释，⛔ 不画一颗点开是空的「为什么」。
+   * 说给用户听的话 —— 用户**只**读得到它（加上来源与卡片）。
+   * ⛔ 没有「为什么」那一格了（owner 2026-09-30「不关心它怎么思考」）：推理留在
+   * 模型那边，要用户读的全写进这里。
    */
-  detail: z.string().trim().max(LIMITS.maxMessageChars).optional(),
+  message: z.string().max(LIMITS.maxMessageChars).optional(),
   tool: z
     .object({
       /**
@@ -3980,16 +3976,12 @@ export const AssistantOperatorStepEventSchema = z.object({
 /**
  * 说给用户听的一条。
  *
- * ⚠ `detail` 是**可折叠的「为什么」**（2026-09-06）：正文只留结论 + 下一步，
- * 解释放这里由客户端折起来。⛔ 别把它并进 `text` —— 并进去之后「两句」这条
- * 约束在结构上就没有落点了，只能靠模型自觉。
  * ⚠ 56b 切片 3 起它**只是定稿帧**：边写边显示由 `message_delta` 负责，那格
  * `partial` 已删 —— ⛔ 别把它加回来，两条「正文还没写完」的表达方式必然分叉。
  */
 export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
-  detail: z.string().max(LIMITS.maxMessageChars).optional(),
 })
 
 /**

@@ -12,7 +12,7 @@ import type {
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { resolveRelativePlacement, useNodeGraphV4 } from './use-node-graph-v4'
+import { useNodeGraphV4 } from './use-node-graph-v4'
 
 const NOW = '2026-09-08T00:00:00.000Z'
 
@@ -506,59 +506,69 @@ describe('useNodeGraphV4 · 剪贴板', () => {
   })
 })
 
-describe('相对落位（S5d：派生卡落在本卡右侧，⛔ 不丢到默认布局的左下角）', () => {
-  const anchor = node('a_1', { kind: 'audio' }, { x: 100, y: 200 })
+describe('派生卡落位（§7 摆放 A「让位」）', () => {
+  // 尺寸：ReactFlow 还没量到，按收起态估 —— 图片卡 320 × 180，间距 64。
+  const source = node('src', { kind: 'image' }, { x: 0, y: 0 })
 
-  it('四个方向按参照卡的尺寸 + 间距算绝对坐标', () => {
-    const size = { width: 300, height: 80 }
-    const at = (side: 'right' | 'left' | 'below' | 'above') =>
-      resolveRelativePlacement([anchor], {
-        relativeTo: 'a_1',
-        side,
-        gap: 40,
-        size,
-      })
-    expect(at('right')).toEqual({ x: 440, y: 200 })
-    expect(at('left')).toEqual({ x: -240, y: 200 })
-    expect(at('below')).toEqual({ x: 100, y: 320 })
-    expect(at('above')).toEqual({ x: 100, y: 80 })
-  })
-
-  it('参照卡不在图里就返回 undefined（⛔ 不落到 0,0）', () => {
+  it('落在来源右边；那一格有卡就往下找，⛔ 叠上去', () => {
+    const blocker = node('b', { kind: 'image' }, { x: 384, y: 0 })
+    const { view } = renderGraph(stateOf([source, blocker]))
     expect(
-      resolveRelativePlacement([anchor], {
-        relativeTo: 'gone',
-        side: 'right',
-        gap: 40,
-      }),
-    ).toBeUndefined()
+      view.result.current.placeBeside('src', [
+        { kind: 'image', subtype: 'result' },
+      ]),
+    ).toEqual([{ x: 384, y: 244 }])
   })
 
-  it('addNode 的 placement 解析成坐标；显式 position 更具体，它赢', () => {
-    const { view } = renderGraph(stateOf([anchor]))
-    act(() => {
-      view.result.current.addNode('text', 'script', {
-        placement: {
-          relativeTo: 'a_1',
-          side: 'right',
-          gap: 40,
-          size: { width: 300, height: 80 },
-        },
-      })
-    })
-    const created = view.result.current.nodes.at(-1)!
-    expect(created.position).toEqual({ x: 440, y: 200 })
+  it('几张一起排成一行；参考图可以落左边', () => {
+    const { view } = renderGraph(stateOf([source]))
+    expect(
+      view.result.current.placeBeside('src', [
+        { kind: 'image', subtype: 'shot' },
+        { kind: 'video', subtype: 'shot' },
+      ]),
+    ).toEqual([
+      { x: 384, y: 0 },
+      { x: 768, y: 0 },
+    ])
+    expect(
+      view.result.current.placeBeside(
+        'src',
+        [{ kind: 'image', subtype: 'result' }],
+        'left',
+      ),
+    ).toEqual([{ x: -384, y: 0 }])
+  })
 
+  it('按算好的落点建卡 = 新卡从来源右缘滑出并淡入（动效表 320）', () => {
+    const { view } = renderGraph(stateOf([source]))
+    const [at] = view.result.current.placeBeside('src', [
+      { kind: 'image', subtype: 'result' },
+    ])!
     act(() => {
-      view.result.current.addNode('text', 'script', {
-        position: { x: 7, y: 7 },
-        placement: { relativeTo: 'a_1', side: 'right', gap: 40 },
-      })
+      view.result.current.dispatchBatch([
+        {
+          op: 'add_node',
+          kind: 'image',
+          subtype: 'result',
+          position: at!,
+        },
+      ])
     })
-    expect(view.result.current.nodes.at(-1)!.position).toEqual({
-      x: 7,
-      y: 7,
-    })
+    const created = view.result.current.nodes.at(-1)!.id
+    const slide = view.result.current.layoutSlide
+    expect(slide?.appear?.has(created)).toBe(true)
+    // 出发点：新卡右缘贴着来源右缘（同宽 320 = 与来源重合）。
+    expect(slide?.from.get(created)).toEqual({ x: 0, y: 0 })
+  })
+
+  it('来源不在图上 = undefined（调用方退回默认落点）', () => {
+    const { view } = renderGraph(stateOf([source]))
+    expect(
+      view.result.current.placeBeside('gone', [
+        { kind: 'image', subtype: 'result' },
+      ]),
+    ).toBeUndefined()
   })
 })
 

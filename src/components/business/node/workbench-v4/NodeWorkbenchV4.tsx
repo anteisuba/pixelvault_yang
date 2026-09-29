@@ -54,7 +54,6 @@ import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_STUDIO_DOCK,
-  NODE_STUDIO_NODE_PLACEMENT,
   NODE_STUDIO_TOOL_MODE_IDS,
   NODE_V4_CARD,
   NODE_V4_CHARACTER_CARD,
@@ -92,6 +91,7 @@ import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
 import {
   useNodeGraphV4,
   type NodeGraphV4,
+  type NodeGraphV4CardShape,
 } from '@/hooks/node/use-node-graph-v4'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeGenerationReconcileV4 } from '@/hooks/node/use-node-generation-reconcile-v4'
@@ -195,25 +195,26 @@ const TEXT_DERIVE_REF = 'derived'
  * 「从这段文本派生一张生成卡」的那一批 op（建卡 + 连线）。
  *
  * 抽成纯函数是为了能单测「一批两条、连线指向本批新卡」这条约定 —— 落图与撤销
- * 由 `dispatchBatch` 负责，这里只管形状。`null` = 这个动作画布上还没有入口。
+ * 由 `dispatchBatch` 负责，落点由 `place`（引擎的 `placeBeside`：来源右边第一个空位，
+ * §7 摆放 A「让位」）给，这里只管形状。`null` = 这个动作画布上还没有入口。
  */
 export function buildTextDeriveOps(
   source: NodeV4,
   action: NodeTextDeriveAction,
+  place: (
+    card: NodeGraphV4CardShape,
+  ) => { readonly x: number; readonly y: number } | undefined,
 ): NodeAssistantOpV4[] | null {
   const target = TEXT_DERIVE_TARGETS[action]
   if (!target) return null
+  const position = place(target)
   return [
     {
       op: NODE_ASSISTANT_OP_V4_IDS.addNode,
       kind: target.kind,
       subtype: target.subtype,
       ref: TEXT_DERIVE_REF,
-      position: {
-        // 产物落在来源右边 —— 与图像派生 / 一键成盒同一条约定，⛔ 不另编偏移。
-        x: source.position.x + NODE_STUDIO_NODE_PLACEMENT.derivedImage.offsetX,
-        y: source.position.y,
-      },
+      ...(position ? { position } : {}),
     },
     {
       op: NODE_ASSISTANT_OP_V4_IDS.connect,
@@ -626,8 +627,8 @@ function NodeWorkbenchV4Inner() {
    * 文本卡工具条的「生图 / 生镜头」与画中框的 ⌘↵（§8）。
    *
    * 在文本卡**右侧**落一张空的生成卡，并把这段文本连进它的 `text` 槽 —— 落点
-   * 用的就是「产物落在来源右边」那条既有约定（`derivedImage.offsetX`），⛔ 不
-   * 为这条路径另编一个偏移。
+   * 走引擎的 `placeBeside`（右边第一个空位，§7 摆放 A「让位」），⛔ 不为这条路径
+   * 另编一个偏移。
    *
    * ⚠ 两条 op 走 `dispatchBatch` 而不是 `addNode` + `connect`：后者是**两个**
    * 撤销条目，用户按一次 ⌘Z 只撤掉连线、留下一张孤零零的空卡。批内 `connect`
@@ -637,7 +638,11 @@ function NodeWorkbenchV4Inner() {
     (nodeId: string, action: NodeTextDeriveAction) => {
       const source = graph.nodes.find((node) => node.id === nodeId)
       if (!source) return
-      const ops = buildTextDeriveOps(source, action)
+      const ops = buildTextDeriveOps(
+        source,
+        action,
+        (card) => graph.placeBeside(source.id, [card])?.[0],
+      )
       if (!ops) return
 
       const created = graph.dispatchBatch(ops).createdNodeIds[0]
@@ -1038,20 +1043,21 @@ function NodeWorkbenchV4Inner() {
         )
       },
       placeDerivedImages: (sourceNodeId, outputs) => {
-        const source = graph.nodes.find((node) => node.id === sourceNodeId)
+        // 编辑出的几张排成一行，落在来源右边第一个空位（§7 摆放 A「让位」）。
+        const positions = graph.placeBeside(
+          sourceNodeId,
+          outputs.map(() => ({
+            kind: NODE_MEDIA_KIND_IDS.image,
+            subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
+          })),
+        )
         const created: string[] = []
         outputs.forEach((output, index) => {
+          const position = positions?.[index]
           const id = graph.addNode(
             NODE_MEDIA_KIND_IDS.image,
-            'result',
-            source
-              ? {
-                  position: {
-                    x: source.position.x + (index + 1) * 360,
-                    y: source.position.y + 240,
-                  },
-                }
-              : {},
+            NODE_V4_IMAGE_SUBTYPE_IDS.result,
+            position ? { position } : {},
           )
           if (!id) return
           graph.setMedia(id, { url: output.imageUrl })
@@ -1061,20 +1067,21 @@ function NodeWorkbenchV4Inner() {
         return created
       },
       spawnReference: (input) => {
-        const target = graph.nodes.find(
-          (node) => node.id === input.targetNodeId,
-        )
+        // 参考图喂给目标卡：落在它**左边**第一个空位（连线从左往右走）。
+        const position = graph.placeBeside(
+          input.targetNodeId,
+          [
+            {
+              kind: NODE_MEDIA_KIND_IDS.image,
+              subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
+            },
+          ],
+          'left',
+        )?.[0]
         const id = graph.addNode(
           NODE_MEDIA_KIND_IDS.image,
-          'result',
-          target
-            ? {
-                position: {
-                  x: target.position.x - 420,
-                  y: target.position.y + 200,
-                },
-              }
-            : {},
+          NODE_V4_IMAGE_SUBTYPE_IDS.result,
+          position ? { position } : {},
         )
         if (!id) return null
         graph.setMedia(id, { url: input.media.url })

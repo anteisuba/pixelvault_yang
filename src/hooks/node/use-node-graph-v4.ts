@@ -55,7 +55,11 @@ import {
 } from '@/lib/node-mentions-to-slots'
 import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
-import { tidyByFlow } from '@/lib/node-flow-layout'
+import {
+  estimateCardSize,
+  placeRowBeside,
+  tidyByFlow,
+} from '@/lib/node-flow-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
 import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -125,6 +129,8 @@ export interface NodeGraphV4Offset {
 export interface NodeGraphV4LayoutSlide {
   readonly id: number
   readonly from: ReadonlyMap<string, NodeGraphV4Offset>
+  /** 这一次是**新长出来**的卡（派生卡从来源边上滑出）：滑的同时从透明淡入。 */
+  readonly appear?: ReadonlySet<string>
 }
 
 /** 一次重投影的账。`kept` = 用户手工建的散节点（无 `shotNo`），原样留着。 */
@@ -134,21 +140,10 @@ export interface NodeGraphV4Projection {
   readonly kept: readonly string[]
 }
 
-/**
- * **相对落位**（S5d）：新卡落在某张已有卡的哪一边。
- *
- * ⚠ 为什么不进 op 表：`add_node` 认的是绝对坐标，而「右边」只有**当下这张图**知道
- * 是多少 —— 让 op 认相对位置就等于让助手的重放依赖当时的布局。所以相对位置在这一
- * 层解析成绝对坐标，op 收到的仍然是 `position`。
- */
-export interface NodeGraphV4Placement {
-  /** 参照哪张卡。 */
-  readonly relativeTo: string
-  readonly side: 'right' | 'left' | 'below' | 'above'
-  /** 与参照卡之间留多少像素。 */
-  readonly gap: number
-  /** 参照卡的宽 / 高（卡尺寸由渲染层知道，⛔ 图里不存）。 */
-  readonly size?: { readonly width: number; readonly height: number }
+/** 一张还没建出来的卡：落位只需要知道它是哪一类（估尺寸用）。 */
+export interface NodeGraphV4CardShape {
+  readonly kind: string
+  readonly subtype: string
 }
 
 export interface NodeGraphV4AddOptions {
@@ -157,38 +152,13 @@ export interface NodeGraphV4AddOptions {
   readonly name?: string
   /** 角色库里的哪一位（只对 `image.character` 生效）。 */
   readonly characterId?: string
-  /**
-   * 相对落位。⚠ 与 `position` 同时给时以 `position` 为准（显式坐标最具体）；
-   * 参照卡不在图里就当没给（⛔ 不落到 0,0）。
-   */
-  readonly placement?: NodeGraphV4Placement
 }
 
-/**
- * 相对落位 → 绝对坐标。参照卡不在名单里返回 `undefined`（调用方据此退回默认布局）。
- *
- * 纯函数：`AudioNodeV4` 的「转文字派生卡落在本卡右侧」这类批操作直接调它，把结果
- * 塞进 `add_node.position` —— ⛔ 不为一条落位在批执行器里另开一条路。
- */
-export function resolveRelativePlacement(
-  nodes: readonly NodeV4[],
-  placement: NodeGraphV4Placement,
-): { readonly x: number; readonly y: number } | undefined {
-  const anchor = nodes.find((node) => node.id === placement.relativeTo)
-  if (!anchor) return undefined
-  const width = placement.size?.width ?? 0
-  const height = placement.size?.height ?? 0
-  const { x, y } = anchor.position
-  switch (placement.side) {
-    case 'right':
-      return { x: x + width + placement.gap, y }
-    case 'left':
-      return { x: x - width - placement.gap, y }
-    case 'below':
-      return { x, y: y + height + placement.gap }
-    case 'above':
-      return { x, y: y - height - placement.gap }
-  }
+/** 算了落点却迟迟没建卡的「出发点」多久作废。 */
+const EMERGE_CLAIM_MS = 10_000
+
+function emergeKey(position: { readonly x: number; readonly y: number }) {
+  return `${Math.round(position.x)},${Math.round(position.y)}`
 }
 
 export interface UseNodeGraphV4Options {
@@ -280,6 +250,17 @@ export interface NodeGraphV4 {
   moveNodes(moves: readonly NodeGraphV4Move[]): void
   /** 按流向整理（§7 摆放 A）。整次一条撤销；卡片滑过去由渲染层读 `layoutSlide`。 */
   tidyLayout(): void
+  /**
+   * 派生卡落在哪（§7 摆放 A「让位」）：来源右边（`left` = 左边）第一个空位，放不下
+   * 往下找；几张一起就排成一行。尺寸用 ReactFlow 量到的，新卡按收起态估。来源不在
+   * 图上返回 `undefined`（调用方退回默认落点）。⚠ 只算坐标，⛔ 不改图 —— 坐标由
+   * 调用方塞进 `add_node.position`，op 仍然只认绝对坐标。
+   */
+  placeBeside(
+    anchorId: string,
+    cards: readonly NodeGraphV4CardShape[],
+    side?: 'right' | 'left',
+  ): readonly { readonly x: number; readonly y: number }[] | undefined
   /** 最近一次整理的滑动起点（没整理过 = `null`）。 */
   readonly layoutSlide: NodeGraphV4LayoutSlide | null
   setModel(nodeId: string, model: NodeWorkflowModelSelection): void
@@ -461,6 +442,50 @@ export function useNodeGraphV4({
     }))
   }, [])
 
+  const [layoutSlide, setLayoutSlide] = useState<NodeGraphV4LayoutSlide | null>(
+    null,
+  )
+
+  /**
+   * 派生卡从来源边上滑出来（§7 摆放 A 动效表：「从来源卡的右边缘滑出到空位 320 +
+   * 淡入」）。`placeBeside` 算落点时顺手记下「落在这个坐标的新卡从哪儿出发」，落图之后
+   * 按新卡的坐标认领。⚠ 按坐标认而不是按 id：算落点时新卡还没有 id。过了
+   * `EMERGE_CLAIM_MS` 没被认领的作废（算了落点却没建卡）。
+   */
+  const emergeRef = useRef(
+    new Map<
+      string,
+      { readonly from: NodeGraphV4Offset; readonly at: number }
+    >(),
+  )
+  const emergeCreated = useCallback(
+    (before: NodeWorkflowStateV4, next: NodeWorkflowStateV4) => {
+      const pending = emergeRef.current
+      if (pending.size === 0) return
+      const now = Date.now()
+      const existed = new Set(before.nodes.map((node) => node.id))
+      const from = new Map<string, NodeGraphV4Offset>()
+      for (const node of next.nodes) {
+        if (existed.has(node.id)) continue
+        const key = emergeKey(node.position)
+        const claim = pending.get(key)
+        if (!claim) continue
+        pending.delete(key)
+        if (now - claim.at <= EMERGE_CLAIM_MS) from.set(node.id, claim.from)
+      }
+      for (const [key, claim] of pending) {
+        if (now - claim.at > EMERGE_CLAIM_MS) pending.delete(key)
+      }
+      if (from.size === 0) return
+      setLayoutSlide((current) => ({
+        id: (current?.id ?? 0) + 1,
+        from,
+        appear: new Set(from.keys()),
+      }))
+    },
+    [],
+  )
+
   /* ── 唯一写入口 ────────────────────────────────────────────────────── */
   /**
    * 上一条 op 铸出来的新节点 id。
@@ -506,10 +531,11 @@ export function useNodeGraphV4({
         { undo: { kind: 'inverse', inverse }, redoState: next },
       ])
       setRedoStack([])
+      emergeCreated(stateRef.current, next)
       onStateChange(next)
       return true
     },
-    [resolveModel, onOpFailed, onStateChange, castCards],
+    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
   )
 
   /**
@@ -545,10 +571,11 @@ export function useNodeGraphV4({
         { undo: { kind: 'inverse', inverse }, redoState: batch.state },
       ])
       setRedoStack([])
+      emergeCreated(stateRef.current, batch.state)
       onStateChange(batch.state)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards],
+    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
   )
 
   const dispatchBatchWithMedia = useCallback(
@@ -595,10 +622,11 @@ export function useNodeGraphV4({
         { undo: { kind: 'inverse', inverse }, redoState: seeded },
       ])
       setRedoStack([])
+      emergeCreated(stateRef.current, seeded)
       onStateChange(seeded)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards],
+    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
   )
 
   /**
@@ -659,11 +687,7 @@ export function useNodeGraphV4({
       subtype: NodeV4Data['subtype'],
       options: NodeGraphV4AddOptions = {},
     ): string | null => {
-      const position =
-        options.position ??
-        (options.placement
-          ? resolveRelativePlacement(state.nodes, options.placement)
-          : undefined)
+      const position = options.position
       const ok = dispatch({
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind,
@@ -675,7 +699,7 @@ export function useNodeGraphV4({
       })
       return ok ? lastCreatedRef.current : null
     },
-    [dispatch, state.nodes],
+    [dispatch],
   )
 
   const connect = useCallback(
@@ -884,9 +908,56 @@ export function useNodeGraphV4({
     [state, commitWithoutHistory],
   )
 
-  const [layoutSlide, setLayoutSlide] = useState<NodeGraphV4LayoutSlide | null>(
-    null,
+  const placeBeside = useCallback(
+    (
+      anchorId: string,
+      cards: readonly NodeGraphV4CardShape[],
+      side: 'right' | 'left' = 'right',
+    ) => {
+      const nodes = stateRef.current.nodes
+      const anchor = nodes.find((node) => node.id === anchorId)
+      if (!anchor) return undefined
+      const measured = new Map(
+        rendered.nodes.map((node) => [node.id, node.measured] as const),
+      )
+      const rectOf = (node: NodeV4) => {
+        const size = measured.get(node.id)
+        return {
+          ...node.position,
+          ...(size?.width && size.height
+            ? { width: size.width, height: size.height }
+            : estimateCardSize(node)),
+        }
+      }
+      const anchorRect = rectOf(anchor)
+      const sizes = cards.map((card) => estimateCardSize({ data: card }))
+      const positions = placeRowBeside(
+        nodes.filter((node) => node.id !== anchorId).map(rectOf),
+        anchorRect,
+        sizes,
+        NODE_V4_CARD.derivedGap,
+        side,
+      )
+      // 出发点：贴着来源那条边（右边落 = 新卡右缘对齐来源右缘，左边落 = 左缘对齐）。
+      const at = Date.now()
+      positions.forEach((position, index) => {
+        const width = sizes[index]?.width ?? 0
+        emergeRef.current.set(emergeKey(position), {
+          at,
+          from: {
+            x:
+              side === 'right'
+                ? anchorRect.x + anchorRect.width - width
+                : anchorRect.x,
+            y: anchorRect.y,
+          },
+        })
+      })
+      return positions
+    },
+    [rendered.nodes],
   )
+
   const tidyLayout = useCallback(() => {
     const before = stateRef.current
     // 尺寸用 ReactFlow 量到的（卡片高矮不一）；还没量到的按收起态估。
@@ -897,15 +968,7 @@ export function useNodeGraphV4({
       const size = measured.get(node.id)
       if (size?.width && size.height)
         return { width: size.width, height: size.height }
-      return node.data.kind === NODE_MEDIA_KIND_IDS.text
-        ? {
-            width: NODE_V4_CARD.textCollapsedWidth,
-            height: NODE_V4_CARD.textCollapsedHeight,
-          }
-        : {
-            width: NODE_V4_CARD.collapsedWidth,
-            height: (NODE_V4_CARD.collapsedWidth * 9) / 16,
-          }
+      return estimateCardSize(node)
     })
     if (next === before) return
     setUndoStack((stack) => [
@@ -1109,6 +1172,7 @@ export function useNodeGraphV4({
     duplicate,
     moveNodes,
     tidyLayout,
+    placeBeside,
     layoutSlide,
     setModel,
     setMedia,

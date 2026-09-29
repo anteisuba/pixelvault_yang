@@ -492,6 +492,11 @@ export const NodeAssistantSplitOutputVersionOpSchema = z.object({
     .min(0)
     .max(NODE_V4_OUTPUT_VERSION.maxVersions - 1)
     .optional(),
+  /**
+   * 新卡落在哪。卡上的「拆出版本」由画布算好右边第一个空位再给（§7 摆放 A「让位」）；
+   * 缺省 = 原卡斜下方错开一点（助手不知道画布上哪儿空着）。
+   */
+  position: z.object({ x: z.number(), y: z.number() }).optional(),
 })
 
 /** 去掉这张卡的第 N 版（只剩一版时执行层拒绝）。下标必给：删哪一版不许靠「当前」猜。 */

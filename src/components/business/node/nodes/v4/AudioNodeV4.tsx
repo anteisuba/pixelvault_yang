@@ -75,7 +75,6 @@ import {
 } from '@/lib/audio-trim'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { renameStableNodeName } from '@/lib/node-display-name'
-import { resolveRelativePlacement } from '@/hooks/node/use-node-graph-v4'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { cn } from '@/lib/utils'
 import {
@@ -132,7 +131,11 @@ import {
   MODEL_PICKER_GROUP_BY,
   ModelPickerPopover,
 } from '../../../studio-shared/pickers/ModelPickerPopover'
-import { useNodeV4Canvas, type NodeV4MediaPatch } from './NodeV4Context'
+import {
+  splitVersionOp,
+  useNodeV4Canvas,
+  type NodeV4MediaPatch,
+} from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
@@ -400,13 +403,13 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     // 一批两条：建一张文本卡 + 把它连成这张卡的**台词来源**（`text` 槽）。
     // ⚠ 方向是 text → audio：文本卡是叶子（端口表 `TEXT_PORTS`），音频卡才有
     // `text` 入口槽。⛔ 不反着连——那条边根本不合法。
-    // 派生卡落在**本卡右侧**（S5c 尾项：默认布局把它丢到左下角，用户得自己找）。
-    const placement = resolveRelativePlacement(canvas.nodes, {
-      relativeTo: id,
-      side: 'right',
-      gap: NODE_V4_CARD.derivedGap,
-      size: { width: NODE_V4_CARD.collapsedWidth, height: AUDIO_CARD.height },
-    })
+    // 派生卡落在**本卡右边第一个空位**（§7 摆放 A「让位」，⛔ 叠在别的卡上）。
+    const placement = canvas.onPlaceBeside(id, [
+      {
+        kind: NODE_MEDIA_KIND_IDS.text,
+        subtype: NODE_V4_TEXT_SUBTYPE_IDS.script,
+      },
+    ])?.[0]
     const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -475,12 +478,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         toast.error(tAudio('trim.failed'))
         return
       }
-      const placement = resolveRelativePlacement(canvas.nodes, {
-        relativeTo: id,
-        side: 'right',
-        gap: NODE_V4_CARD.derivedGap,
-        size: { width: NODE_V4_CARD.collapsedWidth, height: AUDIO_CARD.height },
-      })
+      const placement = canvas.onPlaceBeside(id, [
+        {
+          kind: NODE_MEDIA_KIND_IDS.audio,
+          subtype: audioData.subtype ?? NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+        },
+      ])?.[0]
       const outcome = await canvas.onApplyBatch([
         {
           op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -642,11 +645,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
               versions.length > 1
                 ? () =>
-                    void canvas.onApplyOp({
-                      op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
-                      target: id,
-                      index: versionIndex,
-                    })
+                    void canvas.onApplyOp(
+                      splitVersionOp(canvas, id, audioData, versionIndex),
+                    )
                 : undefined
             }
             ownerItem={

@@ -36,7 +36,6 @@ import { Button } from '@/components/ui/button'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
-import { resolveRelativePlacement } from '@/hooks/node/use-node-graph-v4'
 import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
@@ -150,15 +149,13 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
 
   const placeTile = async (tile: CharacterTile, index: number) => {
     if (!card) return
-    const position = resolveRelativePlacement(canvas.nodes, {
-      relativeTo: id,
-      side: 'right',
-      gap: NODE_V4_CARD.derivedGap,
-      size: {
-        width: NODE_V4_CARD.collapsedWidth,
-        height: NODE_V4_CHARACTER_CARD.imageHeight,
+    // 右边第一个空位（§7 摆放 A「让位」）：连点几张不再叠成一摞。
+    const position = canvas.onPlaceBeside(id, [
+      {
+        kind: NODE_MEDIA_KIND_IDS.image,
+        subtype: NODE_V4_IMAGE_SUBTYPE_IDS.reference,
       },
-    })
+    ])?.[0]
     const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,

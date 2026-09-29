@@ -1107,9 +1107,9 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
   },
   // R3-7 一键成盒 (canvas-relationship-v3 §3.0b/§7): the auto-created
   // videoMerge node lands to the RIGHT of the multi-selection's bounding box
-  // — same "results land to the source's right" convention as
-  // `derivedImage.offsetX` below (same value, not a coincidence: both clear
-  // one `--width-node-card` (25rem/400px) plus a comfortable gap).
+  // — the same "results land to the source's right" convention as derived
+  // cards (`placeRowBeside`, node-canvas-v2 §7 摆放 A); 460 clears one
+  // `--width-node-card` (25rem/400px) plus a comfortable gap.
   videoMergeCompose: {
     offsetX: 460,
   },
@@ -1132,15 +1132,6 @@ export const NODE_STUDIO_NODE_PLACEMENT = {
     rowOffsetY: 440,
     columns: 3,
     maxSelection: 9,
-  },
-  // Image edits never replace their source. A single result lands to the
-  // source's right; multi-output edits fan out into a
-  // compact grid so the entire batch remains one spatial/undo operation.
-  derivedImage: {
-    offsetX: 460,
-    columnOffsetX: 440,
-    rowOffsetY: 440,
-    columns: 3,
   },
 } as const
 

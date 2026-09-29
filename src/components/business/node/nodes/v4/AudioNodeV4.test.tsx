@@ -257,6 +257,7 @@ function harness(
     onApplyOp: vi.fn(),
     onApplyBatch: vi.fn(() => ({ createdNodeIds: ['t_1'] })),
     onTidyLayout: vi.fn(),
+    onPlaceBeside: vi.fn(() => undefined),
     canUndo: false,
     canRedo: false,
     onUndo: vi.fn(),
@@ -431,6 +432,8 @@ describe('选中态：工具条与提示词栏', () => {
   it('裁剪确认 = 新建一张「· 裁剪」音频卡放原卡右侧，原卡原样不动（owner 2026-09-11）', async () => {
     trimSpy.mockResolvedValueOnce({ blob: new Blob(['wav']) })
     const context = selectedContext()
+    // 落点由画布给（右边第一个空位，§7 摆放 A「让位」）。
+    context.onPlaceBeside = vi.fn(() => [{ x: 384, y: 0 }])
     renderAudio(context, 'a_1', true)
     fireEvent.click(document.querySelector('[data-toolbar-action="trim"]')!)
     fireEvent.click(document.querySelector('[data-audio-trim-confirm]')!)
@@ -450,7 +453,10 @@ describe('选中态：工具条与提示词栏', () => {
       subtype: 'voice',
       name: 'trim.derivedName:a_1',
     })
-    expect((ops[0]!.position as { x: number }).x).toBeGreaterThan(0)
+    expect(context.onPlaceBeside).toHaveBeenCalledWith('a_1', [
+      { kind: 'audio', subtype: 'voice' },
+    ])
+    expect(ops[0]!.position).toEqual({ x: 384, y: 0 })
     // 媒体落在**新卡**上，来源写原卡名；⛔ 原卡一个字不动。
     await waitFor(() =>
       expect(context.onSetMedia).toHaveBeenCalledWith(

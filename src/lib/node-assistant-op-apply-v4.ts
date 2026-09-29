@@ -957,7 +957,7 @@ export function applyNodeAssistantOpV4(
 
       const spawned: NodeV4 = {
         id,
-        position: {
+        position: op.position ?? {
           x: node.position.x + NODE_V4_OUTPUT_VERSION.splitOffset,
           y: node.position.y + NODE_V4_OUTPUT_VERSION.splitOffset,
         },

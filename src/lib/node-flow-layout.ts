@@ -16,7 +16,7 @@
  * 同一条）；卡的尺寸由调用方量好传进来。
  */
 
-import { NODE_V4_LAYOUT } from '@/constants/node-studio'
+import { NODE_V4_CARD, NODE_V4_LAYOUT } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -27,6 +27,80 @@ import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 export interface FlowLayoutSize {
   readonly width: number
   readonly height: number
+}
+
+export interface FlowLayoutRect extends FlowLayoutSize {
+  readonly x: number
+  readonly y: number
+}
+
+/**
+ * ReactFlow 还没量到的卡（刚建的、屏幕外的）按收起态估一个尺寸。⚠ 宁大勿小：
+ * 估小了新卡会压到它身上。
+ */
+export function estimateCardSize(node: {
+  readonly data: { readonly kind: string; readonly subtype: string }
+}): FlowLayoutSize {
+  const { kind, subtype } = node.data
+  if (kind === NODE_MEDIA_KIND_IDS.text) {
+    return {
+      width: NODE_V4_CARD.textCollapsedWidth,
+      height: NODE_V4_CARD.textCollapsedHeight,
+    }
+  }
+  const width =
+    kind === NODE_MEDIA_KIND_IDS.video &&
+    subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ? NODE_V4_CARD.shotCollapsedWidth
+      : NODE_V4_CARD.collapsedWidth
+  return { width, height: (width * 9) / 16 }
+}
+
+/** 两块之间不到 `gap` 就算碰上（连线要有地方走）。 */
+function collides(a: FlowLayoutRect, b: FlowLayoutRect, gap: number): boolean {
+  return (
+    a.x < b.x + b.width + gap &&
+    b.x < a.x + a.width + gap &&
+    a.y < b.y + b.height + gap &&
+    b.y < a.y + a.height + gap
+  )
+}
+
+/**
+ * **派生卡落位**（§7 摆放 A「让位」）：续拍 / 抽帧 / 转文字 / 拆出版本 / 编辑结果这类
+ * 从一张卡长出来的新卡，落在来源右边（参考图落左边）第一个空位；那一格被占了就往下
+ * 找，⛔ 叠在别的卡上。一次落好几张（续拍的末帧 + 下一镜、编辑出的几张）排成一行，
+ * 整行一起找空位。
+ *
+ * 纯函数：`occupied` 是图上其它卡的占位（不含来源），尺寸由调用方量好。
+ */
+export function placeRowBeside(
+  occupied: readonly FlowLayoutRect[],
+  anchor: FlowLayoutRect,
+  sizes: readonly FlowLayoutSize[],
+  gap: number,
+  side: 'right' | 'left' = 'right',
+): { readonly x: number; readonly y: number }[] {
+  if (sizes.length === 0) return []
+  const rowWidth =
+    sizes.reduce((sum, size) => sum + size.width, 0) + gap * (sizes.length - 1)
+  const rowHeight = Math.max(...sizes.map((size) => size.height))
+  const x =
+    side === 'right' ? anchor.x + anchor.width + gap : anchor.x - gap - rowWidth
+  let y = anchor.y
+  // 每挪一次都越过至少一张卡，最多挪 `occupied.length` 次。
+  for (let step = 0; step <= occupied.length; step += 1) {
+    const row = { x, y, width: rowWidth, height: rowHeight }
+    const hits = occupied.filter((rect) => collides(rect, row, gap))
+    if (hits.length === 0) break
+    y = Math.max(...hits.map((rect) => rect.y + rect.height)) + gap
+  }
+  let cursor = x
+  return sizes.map((size) => {
+    const at = { x: cursor, y }
+    cursor += size.width + gap
+    return at
+  })
 }
 
 /** 素材 0 · 镜头图 1 · 视频镜头 2。 */

@@ -78,7 +78,7 @@ import {
   VersionDots,
   type NodeToolbarGroup,
 } from './chrome'
-import { useNodeV4Canvas } from './NodeV4Context'
+import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -343,6 +343,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       reportCaptureFailure(grabbed.reasonKey)
       return
     }
+    // 末帧 → 下一镜排成一行，落在本卡右边第一个空位（§7 摆放 A「让位」）。
+    const [tailAt, shotAt] =
+      canvas.onPlaceBeside(id, [
+        {
+          kind: NODE_MEDIA_KIND_IDS.image,
+          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+        },
+        {
+          kind: NODE_MEDIA_KIND_IDS.video,
+          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+        },
+      ]) ?? []
     const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -350,12 +362,14 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
         ref: CONTINUE_BATCH_REFS.tail,
         name: tVideo('tailFrameName', { name: displayName }),
+        ...(tailAt ? { position: tailAt } : {}),
       },
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind: NODE_MEDIA_KIND_IDS.video,
         subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
         ref: CONTINUE_BATCH_REFS.shot,
+        ...(shotAt ? { position: shotAt } : {}),
       },
       {
         op: NODE_ASSISTANT_OP_V4_IDS.connect,
@@ -385,12 +399,19 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       reportCaptureFailure(grabbed.reasonKey)
       return
     }
+    const position = canvas.onPlaceBeside(id, [
+      {
+        kind: NODE_MEDIA_KIND_IDS.image,
+        subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+      },
+    ])?.[0]
     const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind: NODE_MEDIA_KIND_IDS.image,
         subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
         ref: ASSET_BATCH_REF,
+        ...(position ? { position } : {}),
       },
       ...(acceptsRefs
         ? ([
@@ -478,11 +499,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             onSplitVersion={
               versions.length > 1
                 ? () =>
-                    void canvas.onApplyOp({
-                      op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
-                      target: id,
-                      index: versionIndex,
-                    })
+                    void canvas.onApplyOp(
+                      splitVersionOp(canvas, id, videoData, versionIndex),
+                    )
                 : undefined
             }
             {...(currentSourceLabel ? { sourceLabel: currentSourceLabel } : {})}

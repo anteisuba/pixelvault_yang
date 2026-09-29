@@ -259,12 +259,17 @@ export function CanvasV4({
         node.position,
       )
       if (!offset && !slide) return node
+      // 派生卡从来源边上滑出时同时淡入（§7 摆放 A 动效表）。
+      const appearing = slide && layoutSlide?.appear?.has(node.id)
       return {
         ...node,
         position: {
           x: node.position.x + (offset?.x ?? 0) + (slide?.x ?? 0),
           y: node.position.y + (offset?.y ?? 0) + (slide?.y ?? 0),
         },
+        ...(appearing
+          ? { style: { ...node.style, opacity: 1 - slideLeft } }
+          : {}),
       }
     }) as NodeWorkflowNode[]
   }, [rfNodes, neighborOffsets, layoutSlide, slideLeft])

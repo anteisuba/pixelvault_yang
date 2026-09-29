@@ -178,6 +178,7 @@ function harness(
     onApplyOp: vi.fn(),
     onApplyBatch: vi.fn(),
     onTidyLayout: vi.fn(),
+    onPlaceBeside: vi.fn(() => undefined),
     canUndo: false,
     canRedo: false,
     onUndo: vi.fn(),

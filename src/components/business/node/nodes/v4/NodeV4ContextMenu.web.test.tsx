@@ -60,6 +60,7 @@ function renderMenu(edges: NodeWorkflowEdgeV4[]) {
     onToggleExpanded: vi.fn(),
     onApplyOp,
     onTidyLayout: vi.fn(),
+    onPlaceBeside: vi.fn(() => undefined),
   } as unknown as NodeV4CanvasContextValue
 
   render(

@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { CANVAS_SHELL_MEDIA_DRAG_MIME } from '@/constants/canvas-shell'
-import { NODE_STUDIO_NODE_PLACEMENT } from '@/constants/node-studio'
+import { NODE_V4_CARD } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
@@ -31,6 +31,7 @@ import {
   type NodeV4UploadKind,
 } from '@/hooks/node/use-node-upload-v4'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import { estimateCardSize } from '@/lib/node-flow-layout'
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 import type { NodeV4Data } from '@/types/node-workflow'
 import { Spinner } from '@/components/ui/spinner'
@@ -216,13 +217,15 @@ export function useWorkbenchDndV4({
         )
       if (accepted.length === 0) return
 
-      accepted.forEach((entry, index) => {
-        // 多个文件错位铺开，⛔ 不叠在同一个坐标上（叠着的卡看起来只有一张）。
-        // 步进复用顶栏 ＋ 那一份（`topbarAddStep`），⛔ 不为落物再定一个数。
-        const position = {
-          x: origin.x + index * NODE_STUDIO_NODE_PLACEMENT.topbarAddStep.x,
-          y: origin.y + index * NODE_STUDIO_NODE_PLACEMENT.topbarAddStep.y,
-        }
+      // 一次拖进好几个 = 从落点起排成一行（§7 摆放 A「上传多张排成一行」），
+      // ⛔ 叠在同一个坐标上（叠着的卡看起来只有一张）。
+      let cursorX = origin.x
+      accepted.forEach((entry) => {
+        const position = { x: cursorX, y: origin.y }
+        cursorX +=
+          estimateCardSize({
+            data: { kind: entry.plan.kind, subtype: entry.plan.subtype },
+          }).width + NODE_V4_CARD.derivedGap
         const nodeId = latest.current.graph.addNode(
           entry.plan.kind,
           entry.plan.subtype,

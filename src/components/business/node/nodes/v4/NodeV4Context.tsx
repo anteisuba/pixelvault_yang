@@ -14,6 +14,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { AudioClipSourceKind } from '@/constants/audio-options'
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   NodeGenerationFailure,
@@ -23,6 +24,7 @@ import type {
   NodeWorkflowModelOption,
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
+import type { NodeGraphV4CardShape } from '@/hooks/node/use-node-graph-v4'
 import type { StoryboardSplitApi } from '@/hooks/node/use-storyboard-grid-split'
 
 /**
@@ -143,6 +145,15 @@ export interface NodeV4CanvasContextValue {
    * 整次记一条快照撤销（owner 2026-09-29：「整次一个 ⌘Z」）。
    */
   onTidyLayout(): void
+  /**
+   * 派生卡落在哪（§7 摆放 A「让位」，引擎的 `placeBeside`）：来源右边第一个空位，放不下
+   * 往下找，几张一起排成一行。⛔ 卡片里再手算「右边 + 偏移」—— 那会叠在别的卡上。
+   */
+  onPlaceBeside(
+    anchorId: string,
+    cards: readonly NodeGraphV4CardShape[],
+    side?: 'right' | 'left',
+  ): readonly { readonly x: number; readonly y: number }[] | undefined
 
   /**
    * 撤销 / 重做（§7，走 op inverses）。
@@ -199,4 +210,23 @@ export function useNodeV4Canvas(): NodeV4CanvasContextValue {
     )
   }
   return value
+}
+
+/**
+ * 「拆出这一版」那条 op：新卡落在来源右边第一个空位（§7 摆放 A「让位」）。图片 / 视频 /
+ * 音频三张卡的 ⋯ 共用，⛔ 各自再算一遍落点。
+ */
+export function splitVersionOp(
+  canvas: Pick<NodeV4CanvasContextValue, 'onPlaceBeside'>,
+  nodeId: string,
+  data: NodeGraphV4CardShape,
+  index: number,
+): NodeAssistantOpV4 {
+  const position = canvas.onPlaceBeside(nodeId, [data])?.[0]
+  return {
+    op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
+    target: nodeId,
+    index,
+    ...(position ? { position } : {}),
+  }
 }

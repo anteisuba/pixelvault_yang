@@ -111,10 +111,7 @@ vi.mock('@/components/ui/audio-player', () => ({
 }))
 
 import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
-import {
-  NODE_STUDIO_NODE_PLACEMENT,
-  NODE_STUDIO_TOOL_MODE_IDS,
-} from '@/constants/node-studio'
+import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { useNodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
@@ -298,18 +295,13 @@ describe('文本卡派生（生图 / 生镜头）', () => {
       ['shotImage', 'image', 'shot'],
       ['video', 'video', 'shot'],
     ] as const) {
-      const ops = buildTextDeriveOps(textNode, action)
+      const place = vi.fn(() => ({ x: 512, y: 64 }))
+      const ops = buildTextDeriveOps(textNode, action, place)
       expect(ops).toHaveLength(2)
       expect(ops?.[0]).toMatchObject({ op: 'add_node', kind, subtype })
-      // 落点严格在来源右边（同一行）。
-      expect(ops?.[0]).toMatchObject({
-        position: {
-          x:
-            textNode.position.x +
-            NODE_STUDIO_NODE_PLACEMENT.derivedImage.offsetX,
-          y: textNode.position.y,
-        },
-      })
+      // 落点来自引擎的「右边第一个空位」（§7 摆放 A），⛔ 这里不另算偏移。
+      expect(place).toHaveBeenCalledWith({ kind, subtype })
+      expect(ops?.[0]).toMatchObject({ position: { x: 512, y: 64 } })
       // 连线的 target 是**本批别名**，不是某个已有 id。
       expect(ops?.[1]).toMatchObject({
         op: 'connect',
@@ -324,7 +316,7 @@ describe('文本卡派生（生图 / 生镜头）', () => {
 
   it('画布上还没有入口的三个动作不落任何 op', () => {
     for (const action of ['character', 'background', 'askAssistant'] as const) {
-      expect(buildTextDeriveOps(textNode, action)).toBeNull()
+      expect(buildTextDeriveOps(textNode, action, () => undefined)).toBeNull()
     }
   })
 
@@ -344,7 +336,11 @@ describe('文本卡派生（生图 / 生镜头）', () => {
 
     act(() => {
       view.result.current.dispatchBatch(
-        buildTextDeriveOps(textNode, 'shotImage') ?? [],
+        buildTextDeriveOps(
+          textNode,
+          'shotImage',
+          (card) => view.result.current.placeBeside('t1', [card])?.[0],
+        ) ?? [],
       )
     })
     expect(view.result.current.nodes).toHaveLength(2)

@@ -118,7 +118,7 @@ import { CharacterMentionRail } from './character/CharacterMentionRail'
 import { useImagePromptMentions } from './image/use-image-prompt-mentions'
 import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
-import { useNodeV4Canvas } from './NodeV4Context'
+import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
@@ -542,11 +542,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
               versions.length > 1
                 ? () =>
-                    void canvas.onApplyOp({
-                      op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
-                      target: id,
-                      index: versionIndex,
-                    })
+                    void canvas.onApplyOp(
+                      splitVersionOp(canvas, id, imageData, versionIndex),
+                    )
                 : undefined
             }
             onSetCharacter={

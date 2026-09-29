@@ -198,6 +198,7 @@ export function NodeV4Provider({
     [engine],
   )
   const onTidyLayout = engine.tidyLayout
+  const onPlaceBeside = engine.placeBeside
   const onUndo = engine.undo
   const onRedo = engine.redo
 
@@ -225,6 +226,7 @@ export function NodeV4Provider({
       onApplyOp,
       onApplyBatch,
       onTidyLayout,
+      onPlaceBeside,
       canUndo: engine.canUndo,
       canRedo: engine.canRedo,
       onUndo,
@@ -257,6 +259,7 @@ export function NodeV4Provider({
       onApplyOp,
       onApplyBatch,
       onTidyLayout,
+      onPlaceBeside,
       onUndo,
       onRedo,
       storyboard,

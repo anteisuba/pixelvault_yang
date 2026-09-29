@@ -7,7 +7,7 @@ import type {
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { tidyByFlow } from './node-flow-layout'
+import { placeRowBeside, tidyByFlow } from './node-flow-layout'
 
 const NOW = '2026-09-29T00:00:00.000Z'
 const SIZE = { width: 300, height: 200 }
@@ -124,5 +124,38 @@ describe('tidyByFlow（§7 摆放 A）', () => {
     expect(next.nodes.map((item) => item.data)).toEqual(
       before.nodes.map((item) => item.data),
     )
+  })
+})
+
+describe('placeRowBeside（§7 摆放 A「让位」）', () => {
+  const anchor = { x: 0, y: 0, width: 300, height: 200 }
+  const card = { width: 300, height: 200 }
+
+  it('右边空着就落在右边，与来源顶边齐', () => {
+    expect(placeRowBeside([], anchor, [card], 40)).toEqual([{ x: 340, y: 0 }])
+  })
+
+  it('右边被占就往下，越过挡路的那几张', () => {
+    const occupied = [
+      { x: 340, y: 0, width: 300, height: 200 },
+      { x: 360, y: 250, width: 300, height: 100 },
+    ]
+    expect(placeRowBeside(occupied, anchor, [card], 40)).toEqual([
+      { x: 340, y: 390 },
+    ])
+  })
+
+  it('一行几张一起找空位：整行要放得下', () => {
+    const occupied = [{ x: 700, y: 0, width: 300, height: 200 }]
+    expect(placeRowBeside(occupied, anchor, [card, card], 40)).toEqual([
+      { x: 340, y: 240 },
+      { x: 680, y: 240 },
+    ])
+  })
+
+  it('左边：整行的右边缘贴着来源左边留出间距', () => {
+    expect(placeRowBeside([], anchor, [card], 40, 'left')).toEqual([
+      { x: -340, y: 0 },
+    ])
   })
 })

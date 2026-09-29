@@ -198,6 +198,7 @@ function harness(
     onApplyOp: vi.fn(),
     onApplyBatch: vi.fn(async () => ({ createdNodeIds: ['new_1'] })),
     onTidyLayout: vi.fn(),
+    onPlaceBeside: vi.fn(() => undefined),
     canUndo: false,
     canRedo: false,
     onUndo: vi.fn(),

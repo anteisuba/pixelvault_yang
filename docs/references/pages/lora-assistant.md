@@ -544,6 +544,26 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 - 左列滑杆与数字 240 线性走到新值（拖滑杆时跟手）；⛔ 出图。
 - 与画板的一处差：画板写「搭配条同一拍记一条可撤销」—— 不做，撤回只留过程行上那一个入口。
 
+## 13. 助手在「库」页当面搜（owner 2026-09-29）
+
+owner 定：助手找 LoRA 改成**切到「库」页、在搜索框里搜给你看**；只搜「库」（Civitai），不走「收藏」；网格里圈出推荐，你点卡上「＋ 挂载」；不再出推荐卡；挂完留在库里。画板：方向稿画布「LoRA 库 · 助手当面搜 · 全部状态」（V46，<https://claude.ai/artifact/NjKid6TEAidieMfMzZAyfv>，含我替 owner 定的 6 处，owner「没问题」）。§10 推荐卡在桌面 LoRA 域**退场**：`plan_lora_pick` / `mount_lora` 从 LoRA 域工具表拿掉；§12 搭配卡照旧。
+
+### 13.1 服务端
+
+- `search_loras`（LoRA 域）改走库页那条搜索：`listCivitaiLoras`，参数与库页**逐字相同** —— 词 · 底模（当前底模家族 → Civitai 底模值，同 §10 的下推映射）· 排序 / 分级 / 类型取快照里库页现在的筛选（`loras.libraryFilters`，就是网址上那几个参数）· 每页 24。同一组条件命中同一份快照缓存，网格第一段就是助手挑选时看到的那一组。只搜 Civitai：Hugging Face 与「收藏」都不搜。
+- 步骤载荷多带 `baseModel`（这次用的 Civitai 底模值）：客户端照它设库页的底模筛选，⛔ 客户端自己再算一遍家族（两处算法分叉 = 网格和助手看的不是同一组）。
+- 新工具 `show_lora_picks`（改组）：`candidateIds` 1–3 个，只收本轮 `search_loras` 回过的（`unknownLora`）、装得上当前底模的（`loraIncompatibleBase`）；载荷 = 词 + 每把的 id 与名字；`inverse` = 撤掉圈。observation 让模型说圈了哪几把、为什么，以及「点卡上「＋ 挂载」就挂上」。
+- 系统提示里找 LoRA 那几句改成：`search_loras` 会把库页打开搜给创作者看 → `show_lora_picks` 圈最多 3 把装得上的 → 说为什么 → 他自己点挂载；⛔ 替他挂。他说好了就直接写提示词（写到装配台时装配台自己回到生成）。
+
+### 13.2 客户端
+
+- `search_loras` 步骤完成 → 宿主发一次「库页搜索请求」（词 + 底模）并切到「库」；库页若在 Hugging Face 先切回 Civitai。库页收到请求照「点一条搜索历史」那条路设词、再设底模筛选（旧结果变淡 42% → 新的淡入，同 `lora-library.md` §3）。
+- `show_lora_picks` → 网格里这几张加圈（封面外黑边 + 左上黑底「助手推荐」小标），已挂载的不圈；搜索框右端小标「ANTI 在搜… / ANTI 搜的」。
+- 撤圈：你改了搜索词或任何一个筛选、点了圈里那张的「＋ 挂载」（那一张换成 ✓）、或开新对话。
+- 你挂上圈里那张 → 线程里落一行「你挂上了「…」」（系统行 `loraPickMounted`）。
+- 助手写装配台（`set_prompt` / `set_negative` / `set_lora_parameters` / `set_lora_weight` / `request_generation` / 搭配卡应用）时库页开着 → 先回到生成台，你才看得见它改了什么。
+- 手机（<1024）不动：小屏还是旧面板，照旧出推荐卡。
+
 ## Source of Truth / Last Verified
 
 ### Source of Truth

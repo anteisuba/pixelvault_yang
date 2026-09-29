@@ -150,6 +150,11 @@ export interface StudioOperatorHost {
     url: string
     name?: string
     disabledReason?: string | null
+    /**
+     * 宿主自己内容里带出来的（画布上的图），不是用户挂上的：助手看得见、能 @，
+     * 但面板**不摆成 chip**（画布一多就是一整墙）。没有这个字段 = 用户挂的，照常摆。
+     */
+    implicit?: boolean
   }[]
   referenceLimit: number
   /**

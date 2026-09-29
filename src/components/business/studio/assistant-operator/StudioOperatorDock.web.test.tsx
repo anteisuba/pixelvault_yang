@@ -53,6 +53,19 @@ let mobile = false
 let references: ReturnType<typeof useImageUpload>
 let panelProps: StudioOperatorPanelProps
 let onUploaded: (attachment: StudioOperatorAttachment) => void
+/** 宿主自己带出来的参考图（画布上的图，`implicit`）。 */
+let implicitReferences: { url: string; name: string; implicit: true }[] = []
+// ⚠ 真宿主给的是 memo 过的同一份数组；每次渲染都拼一份新的，外壳那条「参考图变了
+//   就重排草稿」的渲染期比对会停不下来。
+let implicitCache: { base: unknown; merged: unknown } | null = null
+const removedUrls: string[] = []
+function withImplicit<T>(base: readonly T[]): readonly T[] {
+  if (implicitReferences.length === 0) return base
+  if (implicitCache?.base !== base) {
+    implicitCache = { base, merged: [...base, ...implicitReferences] }
+  }
+  return implicitCache.merged as readonly T[]
+}
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => {
@@ -62,10 +75,11 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       setOpen,
       domain: hostDomain,
       referenceLimit: 4,
-      referenceImages: references.referenceEntries,
+      referenceImages: withImplicit(references.referenceEntries),
       apply: {
         addReference: references.addReferenceImage,
         removeReference: (url: string) => {
+          removedUrls.push(url)
           const index = references.referenceEntries.findIndex(
             (entry) => entry.url === url,
           )
@@ -191,6 +205,25 @@ describe('StudioOperatorDock', () => {
     act(() => references.clearAllImages())
     expect(panelProps.attachments).toEqual([])
     expect(panelProps.draft).toBe('参考')
+  })
+
+  // owner 2026-09-29：画布上十几张图全摆成 chip，「节点太多这边显得很冗余」。
+  it('宿主自己带出来的参考图（implicit）不摆成 chip；移走别的 chip 时也不碰它们', () => {
+    implicitReferences = [
+      { url: 'https://cdn.test/canvas.png', name: '生成图', implicit: true },
+    ]
+    try {
+      render(<StudioOperatorDock />)
+      act(() => references.addReferenceImage('https://cdn.test/pinned.png'))
+      expect(panelProps.attachments.map((item) => item.url)).toEqual([
+        'https://cdn.test/pinned.png',
+      ])
+      removedUrls.length = 0
+      act(() => panelProps.onAttachmentsChange([]))
+      expect(removedUrls).toEqual(['https://cdn.test/pinned.png'])
+    } finally {
+      implicitReferences = []
+    }
   })
 
   it('clears a removed image mention even when a replacement keeps the reference count unchanged', () => {

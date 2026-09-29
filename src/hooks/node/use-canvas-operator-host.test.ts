@@ -245,9 +245,24 @@ describe('canvas assistant image references', () => {
       image('duplicate', 'https://example.com/one.png'),
     ])
     expect(result.current.referenceImages).toEqual([
-      { url: 'https://example.com/one.png', name: 'one' },
+      { url: 'https://example.com/one.png', name: 'one', implicit: true },
     ])
     expect(result.current.referenceLimit).toBeGreaterThan(0)
+  })
+
+  // owner 2026-09-29：画布上的图不摆成 chip（`implicit`），手动挂上的才摆；× 只是取消挂上。
+  it('pinning a canvas image makes it a chip; removing the chip only unpins it', () => {
+    const { result } = setup([image('one', 'https://example.com/one.png')])
+    act(() => result.current.apply.addReference('https://example.com/one.png'))
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/one.png', name: 'one' },
+    ])
+    act(() =>
+      result.current.apply.removeReference('https://example.com/one.png'),
+    )
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/one.png', name: 'one', implicit: true },
+    ])
   })
 
   it('retains library/upload references, deduplicates them, and removes them without editing the graph', () => {
@@ -291,7 +306,7 @@ describe('canvas assistant image references', () => {
       projectId: 'project-b',
     })
     expect(result.current.referenceImages).toEqual([
-      { url: 'https://example.com/two.png', name: 'two' },
+      { url: 'https://example.com/two.png', name: 'two', implicit: true },
     ])
   })
 

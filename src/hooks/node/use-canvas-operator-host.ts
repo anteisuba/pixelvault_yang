@@ -11,6 +11,8 @@
  *
  * 参考图属于当前项目的助手上下文：画布图片与用户添加的图片共同组成列表。
  * 添加或移除助手参考图不修改画布节点；生成表单的其它写入口仍由域工具表隔离。
+ * 画布上的图带 `implicit`：助手看得见、能 @，但面板不把它们摆成 chip（owner
+ * 2026-09-29：「节点太多这边显得很冗余」）—— chip 只摆你手动挂上的。
  *
  * ── 撤销为什么是「撤到这一步为止」而不是「只撤这一步」 ────────────────
  * 画布的撤销栈是**线性**的（`useNodeGraphV4` 的 `undo()`）。一条线建好之后用户
@@ -138,7 +140,13 @@ export function useCanvasOperatorHost({
         (node) =>
           node.data.kind === NODE_MEDIA_KIND_IDS.image && node.data.url === url,
       )
-      return { url, ...(source ? { name: source.data.name } : {}) }
+      return {
+        url,
+        ...(source ? { name: source.data.name } : {}),
+        ...(source && !referenceState.added.includes(url)
+          ? { implicit: true }
+          : {}),
+      }
     })
   }, [nodes, referenceState])
   if (
@@ -163,13 +171,19 @@ export function useCanvasOperatorHost({
     }))
   }, [])
   const removeReference = useCallback((url: string) => {
-    setReferenceState((current) => ({
-      ...current,
-      added: current.added.filter((entry) => entry !== url),
-      removed: current.removed.includes(url)
-        ? current.removed
-        : [...current.removed, url],
-    }))
+    setReferenceState((current) => {
+      // 手动挂上的那张（chip 上的 ×）只是取消挂上 —— 画布上的图退回「看得见、不摆
+      // chip」那一档；⛔ 不连带把它从助手上下文里拿走（那样连 @ 都选不到它了）。
+      const pinned = current.added.includes(url)
+      return {
+        ...current,
+        added: current.added.filter((entry) => entry !== url),
+        removed:
+          pinned || current.removed.includes(url)
+            ? current.removed
+            : [...current.removed, url],
+      }
+    })
   }, [])
 
   /**

@@ -604,16 +604,22 @@ export function StudioOperatorDock() {
   const [localAttachments, setLocalAttachments] = useState<
     readonly StudioOperatorAttachment[]
   >([])
+  // ⚠ 宿主自己带出来的参考图（`implicit`，画布上的图）不摆成 chip：助手照样看得见、
+  //   能 @，只是不在输入框上方堆成一墙（owner 2026-09-29）。
   const attachments = useMemo<readonly StudioOperatorAttachment[]>(
     () => [
-      ...referenceImages.map(
-        (entry, index): StudioOperatorAttachment => ({
-          id: getReferenceImageAttachmentId(entry.url),
-          url: entry.url,
-          thumbnailUrl: entry.url,
-          kind: 'image',
-          label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
-        }),
+      ...referenceImages.flatMap((entry, index): StudioOperatorAttachment[] =>
+        entry.implicit
+          ? []
+          : [
+              {
+                id: getReferenceImageAttachmentId(entry.url),
+                url: entry.url,
+                thumbnailUrl: entry.url,
+                kind: 'image',
+                label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
+              },
+            ],
       ),
       ...localAttachments.filter((item) => item.kind !== 'image'),
     ],
@@ -637,6 +643,8 @@ export function StudioOperatorDock() {
     (next: readonly StudioOperatorAttachment[]) => {
       const images = next.filter((item) => item.kind === 'image')
       for (const entry of [...referenceImages].reverse()) {
+        // 没摆出来的那些（`implicit`）不在 chip 列表里，⛔ 别把「列表里没有」读成「被移走了」。
+        if (entry.implicit) continue
         if (!images.some((item) => item.url === entry.url)) {
           apply.removeReference(entry.url)
         }

@@ -904,11 +904,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             onClose={() => canvas.onToggleExpanded(id)}
             nodeId={id}
             title={displayName}
+            // 方向 A：模型只在页脚 chip 里出现一次，顶栏读数不再写它。
             headline={[
-              durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
               videoData.params?.aspectRatio,
               videoData.params?.resolution,
-              modelLabel,
+              durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -930,6 +930,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             }}
             onRegenerate={submitPrompt}
             regenerateDisabled={generating || draft.trim().length === 0}
+            onUpload={() => openFilePicker(null)}
+            onLibrary={() => openLibrary(null)}
             footerReadout={tVideo('frame.readout', {
               chars: draft.trim().length,
               slots: railItems.length,

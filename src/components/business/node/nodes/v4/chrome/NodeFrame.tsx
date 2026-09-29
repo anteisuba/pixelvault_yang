@@ -14,6 +14,10 @@
  *
  * 宽度由调用方给：视频 720（`NODE_V4_CHROME.frameWidth.video`）。
  *
+ * **收进屏幕**（画中框方向 A「一张纸」，owner 2026-09-29）：框最高 = 视口 − 上下各 48，
+ * 内容多了在框里滚，顶栏与框底那两条钉住不动 —— ⛔ 让整页滚、把底下那条切到屏幕外
+ * （owner 截图：写作助手那条只露出一半）。
+ *
  * **两档形态**（`variant`）：`frame` = 上面那只画中框（视频卡）；`fullscreen` =
  * 铺满视口的**全屏文档**（文本卡，spec §2，owner 2026-09-11）——同一层压暗、同一
  * 条 Esc、同一个顶栏骨架，⛔ 不为文本卡另写一套浮层。全屏档忽略 `width`。
@@ -109,7 +113,7 @@ function NodeFrameLayer({
       }}
       className={cn(
         'fixed inset-0 z-50 flex items-start justify-center',
-        fullscreen ? 'p-0' : 'overflow-y-auto p-10',
+        fullscreen ? 'p-0' : 'p-12',
         closing && 'pointer-events-none',
       )}
     >
@@ -130,7 +134,7 @@ function NodeFrameLayer({
         // 2026-09-10 owner 真机反馈第三、五条的同一个根因，在这里一次挡住。
         onDoubleClick={(event) => event.stopPropagation()}
         className={cn(
-          'relative flex max-w-full flex-col border bg-card shadow-node-card-expanded',
+          'relative flex max-h-full max-w-full flex-col border bg-card shadow-node-card-expanded',
           fullscreen ? 'h-full w-full' : 'rounded-node corner-squircle',
           className,
         )}
@@ -161,7 +165,9 @@ function NodeFrameLayer({
         <div
           className={cn(
             'min-h-0 flex-1',
-            fullscreen ? 'flex flex-col overflow-hidden' : 'px-8 pb-5',
+            fullscreen
+              ? 'flex flex-col overflow-hidden'
+              : 'overflow-y-auto px-5 pb-4',
           )}
         >
           {children}

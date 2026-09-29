@@ -905,7 +905,7 @@ describe('画中框（spec §5 / §1.11）', () => {
       '展开后继续输入',
     )
   })
-  it('上半播放器 · 下半镜头说明 · 页脚生成行 · 最底写作助手栏', () => {
+  it('上半播放器 · 下半镜头说明 · 一条页脚；写作助手点了「让助手写」才出来（方向 A）', () => {
     renderVideo(
       harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
         expandedNodeId: 'v_1',
@@ -915,10 +915,31 @@ describe('画中框（spec §5 / §1.11）', () => {
     )
     expect(document.querySelector('[data-video-player="ready"]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-body]')).not.toBeNull()
-    expect(document.querySelector('[data-video-regenerate]')).not.toBeNull()
-    expect(screen.getByTestId('assistant-bar')).toBeInTheDocument()
-    // 页脚那两颗是**视频**的模型 / 参数，最底那条才是写作助手 —— 两种模型不混。
+    // 有片 = 「重新生成」。
+    expect(
+      document.querySelector('[data-video-regenerate]')!.textContent,
+    ).toContain('frame.regenerate')
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
+    // ⛔ 常驻最底再占一条：写作助手（LLM）点了页脚那颗才出来，再点收起。
+    expect(screen.queryByTestId('assistant-bar')).toBeNull()
+    fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
+    expect(screen.getByTestId('assistant-bar')).toBeInTheDocument()
+  })
+
+  it('没片：空态只有上传 / 素材库两颗，主键写「生成」', () => {
+    renderVideo(
+      harness([videoNode('v_1', { prompt: '镜头缓慢推近' })], {
+        expandedNodeId: 'v_1',
+      }),
+      'v_1',
+      true,
+    )
+    expect(document.querySelector('[data-video-player="empty"]')).not.toBeNull()
+    expect(document.querySelector('[data-video-frame-upload]')).not.toBeNull()
+    expect(document.querySelector('[data-video-frame-library]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-video-regenerate]')!.textContent,
+    ).toContain('frame.generate')
   })
 })
 

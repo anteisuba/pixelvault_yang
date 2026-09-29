@@ -7,11 +7,21 @@
  * 原点长出来，取消选中时反着缩回去。⚠ ReactFlow 的 `NodeToolbar` 一收到
  * `isVisible=false` 就当场卸掉，退场根本来不及播 —— 所以这里自己记着「还在场」，
  * 退场播完（`onExitComplete`）才真正让它下场。
+ *
+ * **跟着画布缩放**（owner 2026-09-29「大小比例应该合理」）：缩小画布时两样一起缩，
+ * 下限 0.6、放大不超过 1（`NODE_V4_CHROME_SCALE`）。缩放包在开合动画**外面**的那一层，
+ * 原点同样落在卡边上 —— 缩了之后仍贴着卡，⛔ 和开合的 scale 写在同一个元素上互相覆盖。
  */
 
 import { useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import {
+  NodeToolbar as FlowNodeToolbar,
+  Position,
+  useStore,
+} from '@xyflow/react'
+
+import { NODE_V4_CHROME_SCALE } from '@/constants/node-studio'
 
 import { FADE_ONLY, GROW_FROM_EDGE } from './chrome-motion'
 
@@ -28,6 +38,12 @@ export function NodeChromeLayer({
   readonly children: ReactNode
 }) {
   const reduce = useReducedMotion()
+  const scale = useStore((state) =>
+    Math.min(
+      NODE_V4_CHROME_SCALE.max,
+      Math.max(NODE_V4_CHROME_SCALE.min, state.transform[2]),
+    ),
+  )
   const [present, setPresent] = useState(show)
   if (show && !present) setPresent(true)
   const motionSet = reduce ? FADE_ONLY : GROW_FROM_EDGE
@@ -38,20 +54,25 @@ export function NodeChromeLayer({
 
   return (
     <FlowNodeToolbar isVisible={present} position={position}>
-      <AnimatePresence onExitComplete={() => setPresent(false)}>
-        {show ? (
-          <motion.div
-            key="node-chrome"
-            data-node-chrome-layer={position}
-            style={{ transformOrigin: origin }}
-            initial={motionSet.initial}
-            animate={motionSet.animate}
-            exit={motionSet.exit}
-          >
-            {children}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <div
+        data-node-chrome-scale={scale}
+        style={{ transform: `scale(${scale})`, transformOrigin: origin }}
+      >
+        <AnimatePresence onExitComplete={() => setPresent(false)}>
+          {show ? (
+            <motion.div
+              key="node-chrome"
+              data-node-chrome-layer={position}
+              style={{ transformOrigin: origin }}
+              initial={motionSet.initial}
+              animate={motionSet.animate}
+              exit={motionSet.exit}
+            >
+              {children}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
     </FlowNodeToolbar>
   )
 }

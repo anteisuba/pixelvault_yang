@@ -8,6 +8,10 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@xyflow/react', () => ({
+  // 工具条 / 提示词栏跟着画布缩放 —— 桩里固定 100%。
+  useStore: <T,>(
+    selector: (state: { transform: [number, number, number] }) => T,
+  ) => selector({ transform: [0, 0, 1] }),
   // S6e：卡壳从 RF 拿自己的 id（拖线反馈）。桩里给一个固定值就够。
   useNodeId: () => 'node-1',
   Handle: (props: Record<string, unknown>) => (

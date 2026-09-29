@@ -156,6 +156,29 @@
   min-height: 0;
   overflow: hidden;
 }
+/* 输入框平时收薄（lora-generate §2.4，owner 2026-09-29 第二轮 A 的共用约定）：只在写字时
+ * 出现的几行（搭配条 · 触发词行 · 负面整块）和只在平时出现的负面一行预览，换成输入框那一档
+ * 节奏：开 240、字晚 80 再 200 淡入；关 120 淡出、240 收回。 */
+.domain-lora .lora-mixwrap.lora-mixwrap--composer {
+  transition:
+    grid-template-rows var(--lora-motion) var(--lora-motion-ease),
+    margin-top var(--lora-motion) var(--lora-motion-ease),
+    opacity var(--duration-fast) linear;
+}
+.domain-lora .lora-mixwrap.lora-mixwrap--composer[data-open='true'] {
+  transition:
+    grid-template-rows var(--lora-motion) var(--lora-motion-ease),
+    margin-top var(--lora-motion) var(--lora-motion-ease),
+    opacity var(--duration-base) linear 80ms;
+}
+/* 提示词平时露 2 行、写字时封顶 4 行：高度随同一根曲线；截断时下沿渐隐。 */
+.domain-lora .lora-prompt-slim {
+  transition: max-height var(--lora-motion) var(--lora-motion-ease);
+}
+.domain-lora .lora-prompt-clamped {
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent);
+  mask-image: linear-gradient(180deg, #000 52%, transparent);
+}
 
 /* CD④ Prompt 内联触发词高亮：背板层里命中触发词的片段。只用不占宽度的装饰
  * （底色 + 下边线），不改字体/内边距——背板必须与 textarea 逐字对齐，任何改变

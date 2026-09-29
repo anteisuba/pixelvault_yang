@@ -27,6 +27,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Compass,
   GripVertical,
   Heart,
@@ -216,6 +217,7 @@ import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssista
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import {
   LoraCollocationBar,
+  LoraCollocationChip,
   LoraCollocationStatusBar,
 } from '@/components/business/studio/lora/LoraCollocationStatusBar'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
@@ -1136,6 +1138,54 @@ function GenerateBranch({
   // 但 composer 之前只有一个正向文本框——负面词悄悄生效但用户看不见、改不了。
   // 默认折叠，一旦有内容（无论是手动展开还是套用配方带出来的）就一直显示。
   const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
+
+  // 输入框平时收薄（lora-generate §2.4，owner 2026-09-29 第二轮 A 的共用约定）：没在写字时
+  // 提示词只露 2 行、负面收成一行预览、触发词行与「搭配」条收起；点进提示词 / 负面 /
+  // 「搭配」长回，点输入框以外（chip 弹层与标签补全除外）、焦点离开或按出图就缩回。
+  // 桌面才用（手机那套输入条不变）。
+  const composerCardRef = useRef<HTMLDivElement>(null)
+  const [composerExpanded, setComposerExpanded] = useState(false)
+  const [promptClamped, setPromptClamped] = useState(false)
+  const collapseComposer = useCallback(() => {
+    setComposerExpanded(false)
+    // 点开「负面」却没写：收回时一起合上（写了的收成一行预览）。
+    setNegativePromptExpanded(false)
+  }, [])
+  const isInsideComposer = useCallback(
+    (target: EventTarget | null) =>
+      target instanceof Element &&
+      (composerCardRef.current?.contains(target) === true ||
+        target.closest(
+          '[data-radix-popper-content-wrapper], [role="listbox"]',
+        ) !== null),
+    [],
+  )
+  useEffect(() => {
+    if (!composerExpanded) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!isInsideComposer(event.target)) collapseComposer()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [collapseComposer, composerExpanded, isInsideComposer])
+  // 收薄时回到开头两行；真的截断了才挂下沿渐隐（刚好两行不糊掉第二行）。按行高算
+  // 两行的高度，⛔ 读 clientHeight —— 收回那 240 里它还在变。
+  useLayoutEffect(() => {
+    const el = promptTextareaRef.current
+    if (!el || composerExpanded) {
+      setPromptClamped(false)
+      return
+    }
+    el.scrollTop = 0
+    if (promptBackdropRef.current) promptBackdropRef.current.scrollTop = 0
+    const style = getComputedStyle(el)
+    const restHeight =
+      2 * parseFloat(style.lineHeight) +
+      parseFloat(style.paddingTop) +
+      parseFloat(style.paddingBottom)
+    setPromptClamped(el.scrollHeight > restHeight + 1)
+  }, [composerExpanded, prompt])
+
   const handleRestore = useCallback(() => {
     if (!activeAsset) return
     const matched = buildSourceMatchedLoraPrompt(activeAsset)
@@ -2443,8 +2493,15 @@ function GenerateBranch({
       openKeySetupFor(workspaceOptionForBase)
       return
     }
+    collapseComposer()
     void handleGenerate()
-  }, [handleGenerate, needsKeySetup, openKeySetupFor, workspaceOptionForBase])
+  }, [
+    collapseComposer,
+    handleGenerate,
+    needsKeySetup,
+    openKeySetupFor,
+    workspaceOptionForBase,
+  ])
   // ⚠ layout effect：宿主那只出图 effect 声明在前、同一次提交里先跑，passive
   //   effect 换 ref 会让它按到上一拍的出图键（读的是助手改之前的表单）。
   useLayoutEffect(() => {
@@ -4045,6 +4102,18 @@ function GenerateBranch({
     maxReferenceImages > 0 && referenceStrengthConfig !== undefined
   const shownMissingTriggers =
     missingTriggers.length > 0 ? missingTriggers : lastMissingTriggers
+  const collocationRecipeApplied =
+    assistantStaged != null || collocationRecipe != null
+  const collocationVisible =
+    hasLora && (collocationRecipeApplied || incompatibleCount > 0)
+  // 「搭配」条平时收成工具行最左一颗；有装不上的、待审阅、或点开了明细时照常整行（§2.4）。
+  const collocationSlim =
+    collocationRecipeApplied &&
+    incompatibleCount === 0 &&
+    !collocationPending &&
+    !collocationExpanded
+  const negativePreviewShown =
+    negativeShown && !composerExpanded && negativePrompt.trim() !== ''
 
   return (
     <StudioOperatorHostProvider host={shellHost}>
@@ -4266,7 +4335,19 @@ function GenerateBranch({
         )}
       >
         <div
+          ref={composerCardRef}
           data-testid="lora-composer-card"
+          data-expanded={composerExpanded ? 'true' : 'false'}
+          onBlur={(event) => {
+            // 键盘 Tab 出输入框也算「离开」；焦点进 chip 弹层 / 标签补全不算。
+            if (
+              composerExpanded &&
+              event.relatedTarget &&
+              !isInsideComposer(event.relatedTarget)
+            ) {
+              collapseComposer()
+            }
+          }}
           onDragEnter={
             referencesSupported ? imageUpload.handleDragEnter : undefined
           }
@@ -4283,6 +4364,7 @@ function GenerateBranch({
           }
           className={cn(
             '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-2xl bg-card px-4.5 pt-3.5 pb-3 shadow-float transition-shadow duration-fast',
+            composerExpanded && 'ring-1 ring-foreground',
             referencesSupported &&
               imageUpload.isDragging &&
               'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
@@ -4297,40 +4379,51 @@ function GenerateBranch({
               )}
             </p>
           ) : null}
-          {hasLora ? (
-            <LoraCollocationBar
-              sourceKind={assistantStaged ? 'assistant' : 'recipe'}
-              recipeApplied={
-                assistantStaged != null || collocationRecipe != null
+          {collocationVisible ? (
+            <div
+              className="lora-mixwrap lora-mixwrap--composer"
+              data-open={
+                composerExpanded || !collocationSlim ? 'true' : 'false'
               }
-              recipeName={collocationRecipe?.assetName ?? null}
-              appliedParamLabels={
-                assistantStaged
-                  ? []
-                  : (collocationRecipe?.appliedParamLabels ?? [])
-              }
-              changedParams={
-                assistantStaged
-                  ? assistantNegativeChange
-                  : collocationChanges.changed
-              }
-              addedPromptTags={
-                assistantStaged
-                  ? assistantStaged.addedTags
-                  : collocationChanges.addedPrompt
-              }
-              keptLabels={assistantStaged ? [] : collocationChanges.kept}
-              onUndo={handleUndoCollocation}
-              pendingReview={collocationPending}
-              onApplyPending={handleApplyPendingCollocation}
-              expanded={collocationExpanded}
-              onExpandedChange={setCollocationExpanded}
-              incompatibleCount={incompatibleCount}
-              mutuallyExclusive={mountsMutuallyExclusive}
-              onSwitchBase={
-                canSuggestBaseSwitch ? handleSwitchToSuggestedBase : undefined
-              }
-            />
+            >
+              <div inert={!(composerExpanded || !collocationSlim)}>
+                <div className="flex flex-col gap-2.5">
+                  <LoraCollocationBar
+                    sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+                    recipeApplied={collocationRecipeApplied}
+                    recipeName={collocationRecipe?.assetName ?? null}
+                    appliedParamLabels={
+                      assistantStaged
+                        ? []
+                        : (collocationRecipe?.appliedParamLabels ?? [])
+                    }
+                    changedParams={
+                      assistantStaged
+                        ? assistantNegativeChange
+                        : collocationChanges.changed
+                    }
+                    addedPromptTags={
+                      assistantStaged
+                        ? assistantStaged.addedTags
+                        : collocationChanges.addedPrompt
+                    }
+                    keptLabels={assistantStaged ? [] : collocationChanges.kept}
+                    onUndo={handleUndoCollocation}
+                    pendingReview={collocationPending}
+                    onApplyPending={handleApplyPendingCollocation}
+                    expanded={collocationExpanded}
+                    onExpandedChange={setCollocationExpanded}
+                    incompatibleCount={incompatibleCount}
+                    mutuallyExclusive={mountsMutuallyExclusive}
+                    onSwitchBase={
+                      canSuggestBaseSwitch
+                        ? handleSwitchToSuggestedBase
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+            </div>
           ) : null}
           {/* 参考图住在输入框里（owner 09-28）：挂了才出现，排在提示词上方；粘贴 /
             拖进输入框 / 工具行「参考图」三条来路落到同一份 imageUpload。 */}
@@ -4380,9 +4473,14 @@ function GenerateBranch({
             </>
           ) : null}
           {/* 提示词：触发词就写在这里（owner 09-28），在正文里高亮（背板与 textarea
-            逐字对齐，两边同一套字号 / 行高 / 内边距）；跟着内容长高，封顶 4 行后
-            内部滚动 —— 输入框再高就把舞台挤没了。 */}
-          <div className="relative min-w-0">
+            逐字对齐，两边同一套字号 / 行高 / 内边距）；跟着内容长高，写字时封顶 4 行后
+            内部滚动 —— 输入框再高就把舞台挤没了；平时只露 2 行（§2.4 收薄）。 */}
+          <div
+            className={cn(
+              'relative min-w-0',
+              promptClamped && 'lora-prompt-clamped',
+            )}
+          >
             <label htmlFor="lora-prompt" className="sr-only">
               {t('generate.promptLabel')}
             </label>
@@ -4398,6 +4496,7 @@ function GenerateBranch({
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               onScroll={handlePromptScroll}
+              onFocus={() => setComposerExpanded(true)}
               onPaste={
                 referencesSupported
                   ? (event) => {
@@ -4412,7 +4511,12 @@ function GenerateBranch({
               }
               placeholder={t('generate.promptPlaceholder')}
               rows={2}
-              className="lora-prompt-layout relative block max-h-27 min-h-15 w-full resize-none overflow-y-auto bg-transparent text-md leading-6 text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70"
+              className={cn(
+                'lora-prompt-layout lora-prompt-slim relative block min-h-15 w-full resize-none bg-transparent text-md leading-6 text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70',
+                composerExpanded
+                  ? 'max-h-27 overflow-y-auto'
+                  : 'max-h-15 cursor-text overflow-y-hidden',
+              )}
             />
             <PromptTagAutocomplete
               textareaRef={promptTextareaRef}
@@ -4425,10 +4529,12 @@ function GenerateBranch({
             「触发词 ＋词」，点一下写到正文开头。⛔ 出图时不会替你偷偷加。开合与
             负面词那一行同一套（.lora-mixwrap）；关的那一拍留着上一排字。 */}
           <div
-            className="lora-mixwrap"
-            data-open={missingTriggers.length > 0 ? 'true' : 'false'}
+            className="lora-mixwrap lora-mixwrap--composer"
+            data-open={
+              missingTriggers.length > 0 && composerExpanded ? 'true' : 'false'
+            }
           >
-            <div inert={missingTriggers.length === 0}>
+            <div inert={missingTriggers.length === 0 || !composerExpanded}>
               <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
                 <span className="mr-0.5 text-muted-foreground">
                   {t('spine.triggerWords')}
@@ -4455,12 +4561,13 @@ function GenerateBranch({
               </div>
             </div>
           </div>
-          {/* 负面词：点工具行「负面」才出现，写了内容就一直在（与图片台同一条）。 */}
+          {/* 负面词：点工具行「负面」才出现，写了内容就一直在（与图片台同一条）；
+            平时收成下面那一行预览，写字时才整块展开。 */}
           <div
-            className="lora-mixwrap"
-            data-open={negativeShown ? 'true' : 'false'}
+            className="lora-mixwrap lora-mixwrap--composer"
+            data-open={negativeShown && composerExpanded ? 'true' : 'false'}
           >
-            <div inert={!negativeShown}>
+            <div inert={!(negativeShown && composerExpanded)}>
               <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2">
                 <label
                   htmlFor="lora-negative-prompt"
@@ -4474,6 +4581,7 @@ function GenerateBranch({
                     ref={negativePromptTextareaRef}
                     value={negativePrompt}
                     onChange={(event) => setNegativePrompt(event.target.value)}
+                    onFocus={() => setComposerExpanded(true)}
                     placeholder={t('generate.negativePromptPlaceholder')}
                     rows={1}
                     className="block max-h-24 min-h-5 w-full resize-none bg-transparent text-2sm leading-5 outline-none field-sizing-content placeholder:text-muted-foreground/60"
@@ -4488,11 +4596,41 @@ function GenerateBranch({
               </div>
             </div>
           </div>
-          {/* 工具行：左 还原 · 负面；右 比例 · 参数 · 出图。整行一种外观（描边药丸），
-            弹层从 chip 长出来（与图片台工具行同一套）。 */}
+          <div
+            className="lora-mixwrap lora-mixwrap--composer"
+            data-open={negativePreviewShown ? 'true' : 'false'}
+          >
+            <div inert={!negativePreviewShown}>
+              <button
+                type="button"
+                data-testid="lora-negative-preview"
+                onClick={() => {
+                  setComposerExpanded(true)
+                  requestAnimationFrame(() =>
+                    negativePromptTextareaRef.current?.focus(),
+                  )
+                }}
+                className="flex h-5.5 w-full min-w-0 cursor-text items-center gap-2.5 text-left text-2sm whitespace-nowrap text-muted-foreground"
+              >
+                <span className="shrink-0 font-semibold text-foreground/70">
+                  {t('generate.negativeShort')}
+                </span>
+                <span className="min-w-0 truncate">{negativePrompt}</span>
+                <ChevronRight className="size-3 shrink-0" aria-hidden />
+              </button>
+            </div>
+          </div>
+          {/* 工具行：左（搭配）· 参考图 · 还原 · 负面；右 比例 · 参数 · 出图。整行一种
+            外观（描边药丸），弹层从 chip 长出来（与图片台工具行同一套）。 */}
           <StudioChipLookProvider value="outline">
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex min-w-0 items-center gap-2">
+                {collocationVisible && collocationSlim && !composerExpanded ? (
+                  <LoraCollocationChip
+                    sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+                    onClick={() => setComposerExpanded(true)}
+                  />
+                ) : null}
                 {referencesSupported && referenceStrengthConfig ? (
                   <LoraReferenceImageCards
                     layout="chip"
@@ -4542,11 +4680,18 @@ function GenerateBranch({
                     aria-label={t('generate.negativePromptLabel')}
                     onClick={() => {
                       if (negativeInert) return
-                      if (negativeShown && negativePrompt.trim() === '') {
+                      if (
+                        composerExpanded &&
+                        negativeShown &&
+                        negativePrompt.trim() === ''
+                      ) {
                         setNegativePromptExpanded(false)
                         return
                       }
+                      // 平时（收薄）点它 = 输入框长回、负面整块展开再聚焦；⛔ 只翻负面
+                      // 那一格 —— 收薄时整块挂着 inert，聚焦会落空。
                       setNegativePromptExpanded(true)
+                      setComposerExpanded(true)
                       requestAnimationFrame(() =>
                         negativePromptTextareaRef.current?.focus(),
                       )

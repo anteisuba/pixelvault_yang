@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import {
   afterEach,
   beforeAll,
@@ -1872,11 +1879,119 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
     fireEvent.click(toggle)
 
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
-    expect(
-      screen.getByPlaceholderText(
-        'LoraWorkbench:generate.negativePromptPlaceholder',
-      ),
-    ).toBeInTheDocument()
+    const negativeField = screen.getByPlaceholderText(
+      'LoraWorkbench:generate.negativePromptPlaceholder',
+    )
+    // 平时（收薄）点「负面」：输入框一起长回，负面整块不挂 inert（否则聚焦落空）。
+    expect(negativeField.closest('.lora-mixwrap')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
+    expect(screen.getByTestId('lora-composer-card')).toHaveAttribute(
+      'data-expanded',
+      'true',
+    )
+  })
+
+  // 输入框平时收薄（lora-generate §2.4，owner 09-29 第二轮 A）。
+  it('slims the composer at rest and grows it back while you write', () => {
+    render(<LoraWorkbench />)
+    const card = screen.getByTestId('lora-composer-card')
+    expect(card).toHaveAttribute('data-expanded', 'false')
+
+    fireEvent.focus(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+    )
+    expect(card).toHaveAttribute('data-expanded', 'true')
+
+    // chip 弹层 / 标签补全不算「外面」。
+    const listbox = document.createElement('div')
+    listbox.setAttribute('role', 'listbox')
+    document.body.appendChild(listbox)
+    fireEvent.pointerDown(listbox)
+    expect(card).toHaveAttribute('data-expanded', 'true')
+    listbox.remove()
+
+    fireEvent.pointerDown(document.body)
+    expect(card).toHaveAttribute('data-expanded', 'false')
+  })
+
+  it('folds a written negative prompt into a one-line preview at rest', () => {
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'masterpiece, best quality',
+        negativePrompt: 'bad hands, blurry',
+      },
+    ]
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+
+    const negativeBlock = () =>
+      screen
+        .getByPlaceholderText(
+          'LoraWorkbench:generate.negativePromptPlaceholder',
+        )
+        .closest('.lora-mixwrap')
+    const preview = screen.getByTestId('lora-negative-preview')
+    expect(negativeBlock()).toHaveAttribute('data-open', 'false')
+    expect(preview.closest('.lora-mixwrap')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
+    expect(preview).toHaveTextContent('bad hands, blurry')
+
+    fireEvent.click(preview)
+    expect(negativeBlock()).toHaveAttribute('data-open', 'true')
+    expect(preview.closest('.lora-mixwrap')).toHaveAttribute(
+      'data-open',
+      'false',
+    )
+
+    fireEvent.pointerDown(document.body)
+    expect(negativeBlock()).toHaveAttribute('data-open', 'false')
+  })
+
+  it('tucks the applied collocation bar into a toolbar chip at rest', () => {
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'masterpiece, best quality',
+        negativePrompt: 'bad hands, blurry',
+      },
+    ]
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+
+    const card = screen.getByTestId('lora-composer-card')
+    const chip = () =>
+      within(card).queryByRole('button', {
+        name: /LoraWorkbench\.generate\.collocation:label/,
+      })
+    // 做同款刚落下是「待审阅」、明细开着：整条照常在顶上，⛔ 收成一颗。
+    expect(chip()).not.toBeInTheDocument()
+    fireEvent.click(
+      within(card).getByRole('button', {
+        name: 'LoraWorkbench.generate.collocation:apply',
+      }),
+    )
+    const barView = () =>
+      within(card).getByRole('button', {
+        name: 'LoraWorkbench.generate.collocation:view',
+      })
+    expect(barView().closest('.lora-mixwrap')).toHaveAttribute(
+      'data-open',
+      'false',
+    )
+    fireEvent.click(chip()!)
+    expect(card).toHaveAttribute('data-expanded', 'true')
+    expect(barView().closest('.lora-mixwrap')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
+    expect(chip()).not.toBeInTheDocument()
   })
 })
 

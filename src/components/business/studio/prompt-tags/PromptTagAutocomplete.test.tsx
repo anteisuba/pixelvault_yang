@@ -43,6 +43,7 @@ function Harness({
 
 /** Fires a change event and places the caret at the end, like real typing. */
 function typeInto(textarea: HTMLTextAreaElement, nextValue: string) {
+  textarea.focus()
   fireEvent.change(textarea, { target: { value: nextValue } })
   textarea.setSelectionRange(nextValue.length, nextValue.length)
 }
@@ -76,6 +77,16 @@ describe('PromptTagAutocomplete', () => {
         .getAllByRole('option')
         .some((option) => option.textContent?.includes('Long Hair')),
     ).toBe(true)
+  })
+
+  it('does not open when the textarea lost focus before the debounce fired', async () => {
+    render(<Harness />)
+    const textarea = getPromptTextarea()
+    typeInto(textarea, 'long')
+    textarea.blur()
+
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('does not open for a query shorter than the minimum length', async () => {

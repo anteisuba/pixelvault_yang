@@ -164,7 +164,9 @@ export function PromptTagAutocomplete({
     if (isComposing) return
     const timer = setTimeout(() => {
       const textarea = textareaRef.current
-      if (!textarea) return
+      // 只给正在写的那个框开：字刚打完就点走（失焦早于这一拍）、或助手整段改写
+      // 正文时，⛔ 在没有焦点的框底下弹一张收不掉的浮层（失焦监听只在开着时挂）。
+      if (!textarea || document.activeElement !== textarea) return
       const cursor = textarea.selectionStart ?? value.length
       const next = extractPromptTagSegment(value, cursor)
       setSegment(next)

@@ -264,6 +264,39 @@ export function LoraCollocationStatusBar({
   )
 }
 
+/**
+ * 输入框平时收薄时，「搭配」状态条收成工具行最左这一颗（lora-generate.md §2.4，
+ * owner 2026-09-29）：点它输入框长回全文、状态条回到顶上。只在「已应用、没有装不上、
+ * 没在待审阅、没点开明细」时由调用方摆出来。
+ */
+export function LoraCollocationChip({
+  sourceKind = 'recipe',
+  onClick,
+}: {
+  sourceKind?: 'recipe' | 'assistant'
+  onClick: () => void
+}) {
+  const tc = useTranslations('LoraWorkbench.generate.collocation')
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-8 min-w-0 shrink items-center gap-1.75 rounded-full px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span
+        aria-hidden
+        className="size-1.5 shrink-0 rounded-full bg-foreground"
+      />
+      <b className="shrink-0 font-semibold text-foreground">{tc('label')}</b>
+      <span className="min-w-0 truncate">
+        {sourceKind === 'assistant'
+          ? tc('assistantApplied')
+          : tc('recipeApplied')}
+      </span>
+    </button>
+  )
+}
+
 interface LoraCollocationBarProps extends Omit<
   LoraCollocationStatusBarProps,
   'onToggleTrigger' | 'triggerEntries' | 'disabledTriggerIds'

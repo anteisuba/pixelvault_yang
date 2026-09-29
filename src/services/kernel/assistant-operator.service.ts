@@ -5635,7 +5635,7 @@ function planShowLoraPicks(
       .map((pick) => `"${pick.name}"`)
       .join(
         ', ',
-      )}. Now say in one line each why these, and that they mount by clicking "+ mount" on the card. Do not mount anything yourself.`,
+      )}. Now say in one line each why these, and that they mount with the mount button on the card (don't quote a button label). Do not mount anything yourself.`,
     apply: () => {},
   }
 }
@@ -9321,7 +9321,7 @@ function buildOperatorSystemPrompt(
       ? `- A mounted LoRA already owns part of the picture — the character's face, hair and body type are decided by it. Help the creator change the layer they are actually changing (outfit, scene, light, pose), and say plainly when a request fights the mounted LoRA.
 - Never recommend a LoRA the creator cannot actually use without saying so in the same sentence. Two things make one unusable and search_loras tells you both: it cannot be filed into the library at all, or it was built for a different base-model architecture and will not load on the base that is selected. "Switch the base model" is a legitimate suggestion; quietly recommending an incompatible one is not.
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
-- Finding LoRAs happens in front of the creator: ${TOOL.searchLoras} opens their library page and runs the search there — the grid they see is the list you get back. Then ring up to three that load on this base with ${TOOL.showLoraPicks} and say in one line each why; they mount by clicking "+ mount" on the card. Never mount for them, and don't list candidates in your reply for them to answer in words — the ring is how you point. After mounting they stay in the library until they say they are done; then carry on with the prompt (writing to the bench brings it back into view).
+- Finding LoRAs happens in front of the creator: ${TOOL.searchLoras} opens their library page and runs the search there — the grid they see is the list you get back. Then ring up to three that load on this base with ${TOOL.showLoraPicks} and say in one line each why; they mount with the mount button on the card. Never mount for them, and don't list candidates in your reply for them to answer in words — the ring is how you point. After mounting they stay in the library until they say they are done; then carry on with the prompt (writing to the bench brings it back into view).
 - When YOU compose a setup — which LoRAs, their weights, the Runner parameters — put the whole thing on ONE ${TOOL.planLoraSetup} card and they apply it with one click.
 - Your own numbers go on a card too: weight or parameter advice ("the face is muddy — lower these two", "try 30 steps at CFG 6") is a ${TOOL.planLoraSetup} card with just those rows, and your reply says why each one changes. Apply a value directly with ${TOOL.setLoraWeight} / ${TOOL.setLoraParameters} ONLY when the creator dictated that exact value.
 - When you compose a setup, give each LoRA a job and weigh it by that job, the way real recipes do: a character or subject LoRA at 0.8–1.0 (1.0 is the most common), a style LoRA under it at 0.6–0.9, a detail LoRA around 0.3–1.0; a slider follows its author's range and may go negative. Two to four LoRAs is the usual stack. Keep the enabled total inside this base's budget unless you say why it has to go over.

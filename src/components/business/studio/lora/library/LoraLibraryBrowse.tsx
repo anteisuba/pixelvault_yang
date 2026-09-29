@@ -510,7 +510,8 @@ export function LoraLibraryBrowse({
       <div
         ref={scrollRef}
         aria-busy={library.isRevalidating}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
+        // `pt-1`：助手推荐那圈外扩 4px（2 白 + 2 黑），顶上不留这一截第一排会被裁掉。
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-1"
       >
         {library.isLoading ? (
           <div className="lora-lib-grid" aria-hidden>

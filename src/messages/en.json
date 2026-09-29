@@ -6105,7 +6105,6 @@
           "editAriaLabel": "Edit shot notes",
           "readout": "{chars} chars · {slots} attached",
           "pickModel": "Pick a model",
-          "modeLabel": "This run",
           "audioOn": "Audio on — click to mute",
           "audioOff": "Audio off — click to unmute"
         },
@@ -6119,8 +6118,7 @@
           "omniReference": "Omni reference",
           "firstLastFrame": "First & last frame",
           "imageToVideo": "Image to video",
-          "textToVideo": "Text to video",
-          "hint": "Derived from what is attached: any reference → omni reference; first + last → first & last frame; first only → image to video; nothing → text to video"
+          "textToVideo": "Text to video"
         },
         "rail": {
           "title": "References · drop or ⌘V",

@@ -30,12 +30,6 @@ export interface VideoFrameChipProps {
   readonly params: NodeV4GenerationParams | undefined
   /** 档位值域查的是它的能力表 —— 没选模型时三段都不画。 */
   readonly modelId: string | undefined
-  /**
-   * 推出来的模式（`videoSendMode` 的译名）。**只读**，⛔ 不给它任何可点的控件
-   * （spec §5「不设模式页签」）。
-   */
-  readonly modeLabel?: string
-  readonly modeHint?: string
   /** 底部读数里每组的 `已挂 / 上限`。 */
   readonly readoutGroups?: readonly {
     readonly label: string
@@ -53,8 +47,6 @@ export interface VideoFrameChipProps {
 export function VideoFrameChip({
   params,
   modelId,
-  modeLabel,
-  modeHint,
   readoutGroups = [],
   referenceNote,
   onDurationChange,
@@ -93,22 +85,8 @@ export function VideoFrameChip({
       triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
       more={
         <div className="flex flex-col gap-3">
-          {/* 「这次按 ×」——只读读数（画板 `VideoRefs` 弹层首行）。 */}
-          {modeLabel ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-3xs tracking-node-sec text-muted-foreground">
-                  {t('frame.modeLabel')}
-                </span>
-                <span data-video-frame-mode className="text-2sm font-semibold">
-                  {modeLabel}
-                </span>
-              </div>
-              {modeHint ? (
-                <p className="text-3xs text-muted-foreground">{modeHint}</p>
-              ) : null}
-            </div>
-          ) : null}
+          {/* ⛔ 不再写「这次按 ×」和那段解释（owner 2026-09-29 删）：模式由挂了什么
+              自动定，弹层里只留读数。 */}
           {referenceNote ? (
             <p
               data-video-reference-note

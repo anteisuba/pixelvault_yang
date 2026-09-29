@@ -6105,7 +6105,6 @@
           "editAriaLabel": "编辑镜头说明",
           "readout": "{chars} 字 · 已挂 {slots} 项",
           "pickModel": "选模型",
-          "modeLabel": "这次按",
           "audioOn": "这条会出声，点一下关掉",
           "audioOff": "这条不出声，点一下打开"
         },
@@ -6119,8 +6118,7 @@
           "omniReference": "全能参考",
           "firstLastFrame": "首尾帧",
           "imageToVideo": "图生视频",
-          "textToVideo": "文生视频",
-          "hint": "由挂了什么决定：有参考项 → 全能参考；首 + 尾 → 首尾帧；只有首帧 → 图生视频；什么都没挂 → 文生视频"
+          "textToVideo": "文生视频"
         },
         "rail": {
           "title": "参考 · 拖进来或 ⌘V",

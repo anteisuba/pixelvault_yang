@@ -24,7 +24,6 @@ import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { videoSendMode } from '@/constants/video-node-modes'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
 import type { NodeCharacterMention } from '@/lib/node-character-mentions'
@@ -160,10 +159,6 @@ export function useVideoComposer({
       ? { characterPicks: videoData.characterPicks }
       : {}),
   })
-  const characterImageCount = characterMentions.mentions.reduce(
-    (total, mention) => total + mention.picks.length,
-    0,
-  )
   const [syncedPrompt, setSyncedPrompt] = useState(videoData.prompt ?? '')
   /** 上一次同步时的参考轨（`null` = 还没同步过）—— 轨变了草稿里的号跟着走。 */
   const [syncedRail, setSyncedRail] = useState<
@@ -324,14 +319,6 @@ export function useVideoComposer({
     setSyncedRail(railItems)
   }
   const railCounts = videoRailCounts(railItems)
-  const sendMode = videoSendMode({
-    firstFrame: railCounts.firstFrame,
-    lastFrame: railCounts.lastFrame,
-    // @ 了的角色带的图由服务端追加进参考图 —— 端点跟着算「挂了参考项」。
-    referenceImages: railCounts.referenceImages + characterImageCount,
-    videos: railCounts.video,
-    voices: railCounts.voice,
-  })
   const railNames = railItems.flatMap((entry) => videoRailMentionLabels(entry))
 
   const mentionMediaOf = (name: string) => {
@@ -565,8 +552,6 @@ export function useVideoComposer({
       key="frame"
       params={effectiveParams}
       modelId={modelId}
-      {...(modelId ? { modeLabel: tVideo(`mode.${sendMode}`) } : {})}
-      modeHint={tVideo('mode.hint')}
       readoutGroups={railReadoutGroups}
       {...(rail.capacity.referenceUnavailable
         ? { referenceNote: tVideo('rail.referenceUnavailable') }

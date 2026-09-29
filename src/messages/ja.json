@@ -6105,7 +6105,6 @@
           "editAriaLabel": "カット説明を編集",
           "readout": "{chars} 文字 · {slots} 件を接続中",
           "pickModel": "モデルを選ぶ",
-          "modeLabel": "今回は",
           "audioOn": "音声あり — クリックでオフ",
           "audioOff": "音声なし — クリックでオン"
         },
@@ -6119,8 +6118,7 @@
           "omniReference": "マルチモーダル参照",
           "firstLastFrame": "開始・終了フレーム",
           "imageToVideo": "画像から動画",
-          "textToVideo": "テキストから動画",
-          "hint": "添付した素材に合わせてモードが決まります。参照素材あり：マルチモーダル参照／開始・終了画像あり：開始・終了フレーム／開始画像のみ：画像から動画／添付なし：テキストから動画"
+          "textToVideo": "テキストから動画"
         },
         "rail": {
           "title": "参照 · ドロップまたは ⌘V",

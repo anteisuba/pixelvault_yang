@@ -408,8 +408,6 @@ export const ModelName = {
   ProjectRule: 'ProjectRule',
   ImageAnalysis: 'ImageAnalysis',
   ModelConfig: 'ModelConfig',
-  Story: 'Story',
-  StoryPanel: 'StoryPanel',
   CharacterCard: 'CharacterCard',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
@@ -448,7 +446,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2225,154 +2223,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ModelConfigCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ModelConfigCountAggregateOutputType> | number
-        }
-      }
-    }
-    Story: {
-      payload: Prisma.$StoryPayload<ExtArgs>
-      fields: Prisma.StoryFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.StoryFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.StoryFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        findFirst: {
-          args: Prisma.StoryFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.StoryFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        findMany: {
-          args: Prisma.StoryFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>[]
-        }
-        create: {
-          args: Prisma.StoryCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        createMany: {
-          args: Prisma.StoryCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.StoryCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>[]
-        }
-        delete: {
-          args: Prisma.StoryDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        update: {
-          args: Prisma.StoryUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        deleteMany: {
-          args: Prisma.StoryDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.StoryUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.StoryUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>[]
-        }
-        upsert: {
-          args: Prisma.StoryUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPayload>
-        }
-        aggregate: {
-          args: Prisma.StoryAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateStory>
-        }
-        groupBy: {
-          args: Prisma.StoryGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StoryGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.StoryCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StoryCountAggregateOutputType> | number
-        }
-      }
-    }
-    StoryPanel: {
-      payload: Prisma.$StoryPanelPayload<ExtArgs>
-      fields: Prisma.StoryPanelFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.StoryPanelFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.StoryPanelFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        findFirst: {
-          args: Prisma.StoryPanelFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.StoryPanelFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        findMany: {
-          args: Prisma.StoryPanelFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>[]
-        }
-        create: {
-          args: Prisma.StoryPanelCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        createMany: {
-          args: Prisma.StoryPanelCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.StoryPanelCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>[]
-        }
-        delete: {
-          args: Prisma.StoryPanelDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        update: {
-          args: Prisma.StoryPanelUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        deleteMany: {
-          args: Prisma.StoryPanelDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.StoryPanelUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.StoryPanelUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>[]
-        }
-        upsert: {
-          args: Prisma.StoryPanelUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoryPanelPayload>
-        }
-        aggregate: {
-          args: Prisma.StoryPanelAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateStoryPanel>
-        }
-        groupBy: {
-          args: Prisma.StoryPanelGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StoryPanelGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.StoryPanelCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StoryPanelCountAggregateOutputType> | number
         }
       }
     }
@@ -4575,34 +4425,6 @@ export const ModelConfigScalarFieldEnum = {
 export type ModelConfigScalarFieldEnum = (typeof ModelConfigScalarFieldEnum)[keyof typeof ModelConfigScalarFieldEnum]
 
 
-export const StoryScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  title: 'title',
-  coverImageId: 'coverImageId',
-  displayMode: 'displayMode',
-  isPublic: 'isPublic',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StoryScalarFieldEnum = (typeof StoryScalarFieldEnum)[keyof typeof StoryScalarFieldEnum]
-
-
-export const StoryPanelScalarFieldEnum = {
-  id: 'id',
-  storyId: 'storyId',
-  generationId: 'generationId',
-  orderIndex: 'orderIndex',
-  caption: 'caption',
-  narration: 'narration',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof typeof StoryPanelScalarFieldEnum]
-
-
 export const CharacterCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -5579,8 +5401,6 @@ export type GlobalOmitConfig = {
   projectRule?: Prisma.ProjectRuleOmit
   imageAnalysis?: Prisma.ImageAnalysisOmit
   modelConfig?: Prisma.ModelConfigOmit
-  story?: Prisma.StoryOmit
-  storyPanel?: Prisma.StoryPanelOmit
   characterCard?: Prisma.CharacterCardOmit
   generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit

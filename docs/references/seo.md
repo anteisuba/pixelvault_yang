@@ -39,4 +39,4 @@ canonical 指向别的 URL，等于告诉搜索引擎「我是那一页的副本
 ## Last Verified
 
 - 2026-09-20 · 方法：dev server 实测每一类页面的 `link[rel=canonical]` / `meta[property="og:url"]` / `link[rel=alternate]`，`/u/me` 在已登录浏览器里取。单测钉住 `pageAddress()` 与 `/u/me` 的返回。
-- 仍未接上地址契约的两处：`/assistant/share/[token]`（公开路由，客户端组件，完全没有 metadata）与 `/storyboard`（robots.txt 已 disallow，但没有同级页面都有的 `noindex`）。下次动到这两处时一并收编。
+- 仍未接上地址契约的一处：`/assistant/share/[token]`（公开路由，客户端组件，完全没有 metadata）。下次动到时一并收编。

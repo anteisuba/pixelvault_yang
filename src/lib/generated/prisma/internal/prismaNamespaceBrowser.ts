@@ -75,8 +75,6 @@ export const ModelName = {
   ProjectRule: 'ProjectRule',
   ImageAnalysis: 'ImageAnalysis',
   ModelConfig: 'ModelConfig',
-  Story: 'Story',
-  StoryPanel: 'StoryPanel',
   CharacterCard: 'CharacterCard',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
@@ -574,34 +572,6 @@ export const ModelConfigScalarFieldEnum = {
 } as const
 
 export type ModelConfigScalarFieldEnum = (typeof ModelConfigScalarFieldEnum)[keyof typeof ModelConfigScalarFieldEnum]
-
-
-export const StoryScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  title: 'title',
-  coverImageId: 'coverImageId',
-  displayMode: 'displayMode',
-  isPublic: 'isPublic',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StoryScalarFieldEnum = (typeof StoryScalarFieldEnum)[keyof typeof StoryScalarFieldEnum]
-
-
-export const StoryPanelScalarFieldEnum = {
-  id: 'id',
-  storyId: 'storyId',
-  generationId: 'generationId',
-  orderIndex: 'orderIndex',
-  caption: 'caption',
-  narration: 'narration',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StoryPanelScalarFieldEnum = (typeof StoryPanelScalarFieldEnum)[keyof typeof StoryPanelScalarFieldEnum]
 
 
 export const CharacterCardScalarFieldEnum = {

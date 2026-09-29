@@ -603,10 +603,6 @@
       "title": "角色 — ANTEI",
       "description": "你的角色：图片与设定，出图、写剧本和助手人设都用它。"
     },
-    "storyboard": {
-      "title": "故事板 — ANTEI",
-      "description": "用 AI 生成的图像创建视觉叙事。"
-    },
     "signIn": {
       "title": "登录 — ANTEI",
       "description": "登录后回到已保存的档案、API key 和生成历史。"
@@ -629,7 +625,6 @@
       "create": "创作",
       "prompts": "提示词",
       "studio": "工作台",
-      "storyboard": "故事",
       "library": "档案",
       "assets": "素材",
       "cards": "角色",
@@ -3428,47 +3423,6 @@
       "videoSpeed": "快速生成 · 性价比高",
       "videoCinematic": "电影感 · 光影氛围"
     }
-  },
-  "StoryBoard": {
-    "heroEyebrow": "故事板",
-    "heroTitle": "图片变故事",
-    "heroDescription": "选图片，AI 写叙事。",
-    "createButton": "新建故事",
-    "titlePlaceholder": "故事标题...",
-    "panelPickerLabel": "故事图片",
-    "panelPickerHint": "从素材库按出现顺序选择已保存的图片。",
-    "selectAssetsAction": "选择图片",
-    "addMoreAssets": "继续添加",
-    "noAssetsSelected": "还没有选择图片",
-    "noAssetsSelectedHint": "从素材库选择图片，用它们组成故事板。",
-    "assetPickerTitle": "选择故事板图片",
-    "assetPickerDescription": "选择一张已保存的图片加入当前故事板。",
-    "selectedAssetAlt": "已选故事板图片 {index}",
-    "selectedAssetPosition": "第 {index} 格",
-    "removeSelectedAsset": "移除第 {index} 张图片",
-    "untitledAsset": "未命名图片",
-    "createAction": "创建故事",
-    "empty": "还没有故事。创建你的第一个视觉故事！",
-    "emptySubtitle": "将你的生成作品组合成叙事序列，由 AI 撰写配文。",
-    "panelCount": "{count} 个面板",
-    "backToList": "所有故事",
-    "storyEyebrow": "故事",
-    "notFound": "故事未找到",
-    "switchToComic": "漫画视图",
-    "switchToScroll": "滚动视图",
-    "generateNarrativePrompt": "选择叙事风格来生成故事文字：",
-    "regenerateHint": "换一种风格重新生成：",
-    "tones": {
-      "humorous": "幽默",
-      "dramatic": "戏剧",
-      "poetic": "诗意",
-      "adventure": "冒险"
-    },
-    "reorderHint": "拖拽调整面板顺序",
-    "exportPng": "导出 PNG",
-    "exportFailed": "导出失败，请重试。",
-    "makePublic": "设为公开",
-    "makePrivate": "设为私有"
   },
   "AdvancedSettings": {
     "preview": "生成中预览",

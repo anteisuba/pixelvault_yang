@@ -186,7 +186,6 @@ model User {
   generationJobs         GenerationJob[]
   apiUsageLedger         ApiUsageLedger[]
   imageAnalyses          ImageAnalysis[]
-  stories                Story[]
   projects               Project[]
   characterCards         CharacterCard[]
   likesGiven             UserLike[]              @relation("LikesGiven")
@@ -513,7 +512,6 @@ model Generation {
 
   generationJob     GenerationJob?     @relation("GenerationToJob")
   apiUsageLedger    ApiUsageLedger[]   @relation("GenerationToUsage")
-  storyPanels       StoryPanel[]
   likes             UserLike[]
   collectionItems   CollectionItem[]
   folders           ProjectItem[]
@@ -920,39 +918,6 @@ model ModelConfig {
   updatedAt       DateTime   @updatedAt
 
   @@index([outputType, available, sortOrder])
-}
-
-model Story {
-  id           String       @id @default(uuid())
-  userId       String
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title        String
-  coverImageId String?
-  displayMode  String       @default("scroll")
-  isPublic     Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  panels       StoryPanel[]
-
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([isPublic, createdAt(sort: Desc)])
-  @@index([userId, isPublic, createdAt(sort: Desc)])
-}
-
-model StoryPanel {
-  id           String      @id @default(uuid())
-  storyId      String
-  story        Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  generationId String?
-  generation   Generation? @relation(fields: [generationId], references: [id], onDelete: SetNull)
-  orderIndex   Int
-  caption      String?     @db.Text
-  narration    String?     @db.Text
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  @@unique([storyId, orderIndex])
-  @@index([storyId, orderIndex])
 }
 
 model CharacterCard {

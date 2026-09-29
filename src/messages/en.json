@@ -603,10 +603,6 @@
       "title": "Characters — ANTEI",
       "description": "Your characters: images and profiles for generating, scripting and assistant personas."
     },
-    "storyboard": {
-      "title": "Storyboard — ANTEI",
-      "description": "Create visual narratives from your AI-generated images."
-    },
     "signIn": {
       "title": "Sign In — ANTEI",
       "description": "Sign in to return to your saved archive, API keys, and generation history."
@@ -629,7 +625,6 @@
       "create": "Create",
       "prompts": "Prompts",
       "studio": "Studio",
-      "storyboard": "Stories",
       "library": "Archive",
       "assets": "Assets",
       "cards": "Characters",
@@ -3428,47 +3423,6 @@
       "videoSpeed": "Fast, cost-effective generation",
       "videoCinematic": "Cinematic feel & lighting"
     }
-  },
-  "StoryBoard": {
-    "heroEyebrow": "Storyboard",
-    "heroTitle": "Images to Stories",
-    "heroDescription": "Pick your images and let AI write the story.",
-    "createButton": "New Story",
-    "titlePlaceholder": "Story title...",
-    "panelPickerLabel": "Story images",
-    "panelPickerHint": "Select saved images from your assets in the order they should appear.",
-    "selectAssetsAction": "Select images",
-    "addMoreAssets": "Add images",
-    "noAssetsSelected": "No images selected",
-    "noAssetsSelectedHint": "Pick images from your assets to build the storyboard.",
-    "assetPickerTitle": "Select storyboard image",
-    "assetPickerDescription": "Choose one saved image to add to this storyboard.",
-    "selectedAssetAlt": "Selected storyboard image {index}",
-    "selectedAssetPosition": "Panel {index}",
-    "removeSelectedAsset": "Remove image {index}",
-    "untitledAsset": "Untitled image",
-    "createAction": "Create Story",
-    "empty": "No stories yet. Create your first visual story!",
-    "emptySubtitle": "Combine your generations into a narrative sequence with AI-written captions.",
-    "panelCount": "{count, plural, one {# panel} other {# panels}}",
-    "backToList": "All Stories",
-    "storyEyebrow": "Story",
-    "notFound": "Story not found",
-    "switchToComic": "Comic View",
-    "switchToScroll": "Scroll View",
-    "generateNarrativePrompt": "Choose a narrative tone to generate the story text:",
-    "regenerateHint": "Regenerate with a different tone:",
-    "tones": {
-      "humorous": "Humorous",
-      "dramatic": "Dramatic",
-      "poetic": "Poetic",
-      "adventure": "Adventure"
-    },
-    "reorderHint": "Drag to reorder panels",
-    "exportPng": "Export PNG",
-    "exportFailed": "Export failed. Please try again.",
-    "makePublic": "Make Public",
-    "makePrivate": "Make Private"
   },
   "AdvancedSettings": {
     "preview": "Preview while generating",

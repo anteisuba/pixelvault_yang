@@ -187,16 +187,6 @@ export type ImageAnalysis = Prisma.ImageAnalysisModel
  */
 export type ModelConfig = Prisma.ModelConfigModel
 /**
- * Model Story
- * 
- */
-export type Story = Prisma.StoryModel
-/**
- * Model StoryPanel
- * 
- */
-export type StoryPanel = Prisma.StoryPanelModel
-/**
  * Model CharacterCard
  * 
  */

@@ -519,7 +519,6 @@ export type GenerationWhereInput = {
   cardRecipe?: Prisma.XOR<Prisma.CardRecipeNullableScalarRelationFilter, Prisma.CardRecipeWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
-  storyPanels?: Prisma.StoryPanelListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
   collectionItems?: Prisma.CollectionItemListRelationFilter
   folders?: Prisma.ProjectItemListRelationFilter
@@ -577,7 +576,6 @@ export type GenerationOrderByWithRelationInput = {
   cardRecipe?: Prisma.CardRecipeOrderByWithRelationInput
   generationJob?: Prisma.GenerationJobOrderByWithRelationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
-  storyPanels?: Prisma.StoryPanelOrderByRelationAggregateInput
   likes?: Prisma.UserLikeOrderByRelationAggregateInput
   collectionItems?: Prisma.CollectionItemOrderByRelationAggregateInput
   folders?: Prisma.ProjectItemOrderByRelationAggregateInput
@@ -638,7 +636,6 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   cardRecipe?: Prisma.XOR<Prisma.CardRecipeNullableScalarRelationFilter, Prisma.CardRecipeWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
-  storyPanels?: Prisma.StoryPanelListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
   collectionItems?: Prisma.CollectionItemListRelationFilter
   folders?: Prisma.ProjectItemListRelationFilter
@@ -788,7 +785,6 @@ export type GenerationCreateInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -842,7 +838,6 @@ export type GenerationUncheckedCreateInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -896,7 +891,6 @@ export type GenerationUpdateInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -950,7 +944,6 @@ export type GenerationUncheckedUpdateInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -1409,22 +1402,6 @@ export type GenerationUpdateOneWithoutApiUsageLedgerNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutApiUsageLedgerInput, Prisma.GenerationUpdateWithoutApiUsageLedgerInput>, Prisma.GenerationUncheckedUpdateWithoutApiUsageLedgerInput>
 }
 
-export type GenerationCreateNestedOneWithoutStoryPanelsInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutStoryPanelsInput, Prisma.GenerationUncheckedCreateWithoutStoryPanelsInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutStoryPanelsInput
-  connect?: Prisma.GenerationWhereUniqueInput
-}
-
-export type GenerationUpdateOneWithoutStoryPanelsNestedInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutStoryPanelsInput, Prisma.GenerationUncheckedCreateWithoutStoryPanelsInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutStoryPanelsInput
-  upsert?: Prisma.GenerationUpsertWithoutStoryPanelsInput
-  disconnect?: Prisma.GenerationWhereInput | boolean
-  delete?: Prisma.GenerationWhereInput | boolean
-  connect?: Prisma.GenerationWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutStoryPanelsInput, Prisma.GenerationUpdateWithoutStoryPanelsInput>, Prisma.GenerationUncheckedUpdateWithoutStoryPanelsInput>
-}
-
 export type GenerationCreateNestedManyWithoutCharacterCardInput = {
   create?: Prisma.XOR<Prisma.GenerationCreateWithoutCharacterCardInput, Prisma.GenerationUncheckedCreateWithoutCharacterCardInput> | Prisma.GenerationCreateWithoutCharacterCardInput[] | Prisma.GenerationUncheckedCreateWithoutCharacterCardInput[]
   connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCharacterCardInput | Prisma.GenerationCreateOrConnectWithoutCharacterCardInput[]
@@ -1641,7 +1618,6 @@ export type GenerationCreateWithoutUserInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -1694,7 +1670,6 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -1820,7 +1795,6 @@ export type GenerationCreateWithoutProjectInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -1873,7 +1847,6 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -1953,7 +1926,6 @@ export type GenerationCreateWithoutFoldersInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
@@ -2006,7 +1978,6 @@ export type GenerationUncheckedCreateWithoutFoldersInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
@@ -2075,7 +2046,6 @@ export type GenerationUpdateWithoutFoldersInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
@@ -2128,7 +2098,6 @@ export type GenerationUncheckedUpdateWithoutFoldersInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
@@ -2180,7 +2149,6 @@ export type GenerationCreateWithoutGenerationJobInput = {
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -2233,7 +2201,6 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   seed?: bigint | number | null
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -2302,7 +2269,6 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -2355,7 +2321,6 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -2408,7 +2373,6 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -2461,7 +2425,6 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   seed?: bigint | number | null
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -2530,7 +2493,6 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -2583,235 +2545,6 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationCreateWithoutStoryPanelsInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
-  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
-  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
-  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  userId?: string | null
-  projectId?: string | null
-  characterCardId?: string | null
-  cardRecipeId?: string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
-  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationCreateOrConnectWithoutStoryPanelsInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutStoryPanelsInput, Prisma.GenerationUncheckedCreateWithoutStoryPanelsInput>
-}
-
-export type GenerationUpsertWithoutStoryPanelsInput = {
-  update: Prisma.XOR<Prisma.GenerationUpdateWithoutStoryPanelsInput, Prisma.GenerationUncheckedUpdateWithoutStoryPanelsInput>
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutStoryPanelsInput, Prisma.GenerationUncheckedCreateWithoutStoryPanelsInput>
-  where?: Prisma.GenerationWhereInput
-}
-
-export type GenerationUpdateToOneWithWhereWithoutStoryPanelsInput = {
-  where?: Prisma.GenerationWhereInput
-  data: Prisma.XOR<Prisma.GenerationUpdateWithoutStoryPanelsInput, Prisma.GenerationUncheckedUpdateWithoutStoryPanelsInput>
-}
-
-export type GenerationUpdateWithoutStoryPanelsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
-  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
-  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
-  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
-  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -2864,7 +2597,6 @@ export type GenerationCreateWithoutCharacterCardInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -2917,7 +2649,6 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -2996,7 +2727,6 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -3049,7 +2779,6 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   seed?: bigint | number | null
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -3118,7 +2847,6 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -3171,7 +2899,6 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -3225,7 +2952,6 @@ export type GenerationCreateWithoutLikesInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
@@ -3278,7 +3004,6 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
@@ -3347,7 +3072,6 @@ export type GenerationUpdateWithoutLikesInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
@@ -3400,7 +3124,6 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
@@ -3453,7 +3176,6 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
@@ -3506,7 +3228,6 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
@@ -3575,7 +3296,6 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
@@ -3628,7 +3348,6 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
@@ -3680,7 +3399,6 @@ export type GenerationCreateWithoutCardRecipeInput = {
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -3733,7 +3451,6 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -3813,7 +3530,6 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -3866,7 +3582,6 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -3935,7 +3650,6 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -3988,7 +3702,6 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -4041,7 +3754,6 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -4094,7 +3806,6 @@ export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -4163,7 +3874,6 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -4216,7 +3926,6 @@ export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -4269,7 +3978,6 @@ export type GenerationCreateWithoutLayersInput = {
   cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
@@ -4322,7 +4030,6 @@ export type GenerationUncheckedCreateWithoutLayersInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
@@ -4391,7 +4098,6 @@ export type GenerationUpdateWithoutLayersInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -4444,7 +4150,6 @@ export type GenerationUncheckedUpdateWithoutLayersInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -4539,7 +4244,6 @@ export type GenerationUpdateWithoutUserInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -4592,7 +4296,6 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -4731,7 +4434,6 @@ export type GenerationUpdateWithoutProjectInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -4784,7 +4486,6 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -4923,7 +4624,6 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -4976,7 +4676,6 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -5115,7 +4814,6 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
@@ -5168,7 +4866,6 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
@@ -5228,7 +4925,6 @@ export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
 export type GenerationCountOutputType = {
   characterCards: number
   apiUsageLedger: number
-  storyPanels: number
   likes: number
   collectionItems: number
   folders: number
@@ -5239,7 +4935,6 @@ export type GenerationCountOutputType = {
 export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   characterCards?: boolean | GenerationCountOutputTypeCountCharacterCardsArgs
   apiUsageLedger?: boolean | GenerationCountOutputTypeCountApiUsageLedgerArgs
-  storyPanels?: boolean | GenerationCountOutputTypeCountStoryPanelsArgs
   likes?: boolean | GenerationCountOutputTypeCountLikesArgs
   collectionItems?: boolean | GenerationCountOutputTypeCountCollectionItemsArgs
   folders?: boolean | GenerationCountOutputTypeCountFoldersArgs
@@ -5269,13 +4964,6 @@ export type GenerationCountOutputTypeCountCharacterCardsArgs<ExtArgs extends run
  */
 export type GenerationCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ApiUsageLedgerWhereInput
-}
-
-/**
- * GenerationCountOutputType without action
- */
-export type GenerationCountOutputTypeCountStoryPanelsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.StoryPanelWhereInput
 }
 
 /**
@@ -5363,7 +5051,6 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
-  storyPanels?: boolean | Prisma.Generation$storyPanelsArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
   collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   folders?: boolean | Prisma.Generation$foldersArgs<ExtArgs>
@@ -5522,7 +5209,6 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
-  storyPanels?: boolean | Prisma.Generation$storyPanelsArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
   collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   folders?: boolean | Prisma.Generation$foldersArgs<ExtArgs>
@@ -5554,7 +5240,6 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     cardRecipe: Prisma.$CardRecipePayload<ExtArgs> | null
     generationJob: Prisma.$GenerationJobPayload<ExtArgs> | null
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
-    storyPanels: Prisma.$StoryPanelPayload<ExtArgs>[]
     likes: Prisma.$UserLikePayload<ExtArgs>[]
     collectionItems: Prisma.$CollectionItemPayload<ExtArgs>[]
     folders: Prisma.$ProjectItemPayload<ExtArgs>[]
@@ -6005,7 +5690,6 @@ export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runti
   cardRecipe<T extends Prisma.Generation$cardRecipeArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$cardRecipeArgs<ExtArgs>>): Prisma.Prisma__CardRecipeClient<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   generationJob<T extends Prisma.Generation$generationJobArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$generationJobArgs<ExtArgs>>): Prisma.Prisma__GenerationJobClient<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   apiUsageLedger<T extends Prisma.Generation$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  storyPanels<T extends Prisma.Generation$storyPanelsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$storyPanelsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StoryPanelPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   likes<T extends Prisma.Generation$likesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$likesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   collectionItems<T extends Prisma.Generation$collectionItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$collectionItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   folders<T extends Prisma.Generation$foldersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$foldersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -6623,30 +6307,6 @@ export type Generation$apiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   distinct?: Prisma.ApiUsageLedgerScalarFieldEnum | Prisma.ApiUsageLedgerScalarFieldEnum[]
-}
-
-/**
- * Generation.storyPanels
- */
-export type Generation$storyPanelsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the StoryPanel
-   */
-  select?: Prisma.StoryPanelSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the StoryPanel
-   */
-  omit?: Prisma.StoryPanelOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.StoryPanelInclude<ExtArgs> | null
-  where?: Prisma.StoryPanelWhereInput
-  orderBy?: Prisma.StoryPanelOrderByWithRelationInput | Prisma.StoryPanelOrderByWithRelationInput[]
-  cursor?: Prisma.StoryPanelWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.StoryPanelScalarFieldEnum | Prisma.StoryPanelScalarFieldEnum[]
 }
 
 /**

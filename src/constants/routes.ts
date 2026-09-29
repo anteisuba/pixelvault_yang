@@ -36,7 +36,6 @@ export const ROUTES = {
   ASSETS: '/assets',
   CARDS: '/cards',
   PROMPTS: '/prompts',
-  STORYBOARD: '/storyboard',
 
   /**
    * 账号设置整页（D3 ④）。`/settings` 本身没有内容：桌面直接重定向到

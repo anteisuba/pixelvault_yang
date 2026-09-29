@@ -197,9 +197,6 @@ export const API_ENDPOINTS = {
   /** Image transform (style / pose / background — Phase 1: style only) */
   IMAGE_TRANSFORM: '/api/image-transform',
 
-  /** Stories */
-  STORIES: '/api/stories',
-
   /** Video generation */
   GENERATE_VIDEO: '/api/generate-video',
 

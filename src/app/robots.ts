@@ -7,12 +7,7 @@ import { LOCALES } from '@/i18n/routing'
 const API_ROUTE_PREFIX = '/api'
 const SITEMAP_ROUTE = '/sitemap.xml'
 
-const privateRoutes = [
-  ROUTES.STUDIO,
-  ROUTES.PROMPTS,
-  ROUTES.ASSETS,
-  ROUTES.STORYBOARD,
-]
+const privateRoutes = [ROUTES.STUDIO, ROUTES.PROMPTS, ROUTES.ASSETS]
 
 function getLocalizedPrivateRoutePatterns(route: string): string[] {
   return LOCALES.map((locale) => `/${locale}${route}`)

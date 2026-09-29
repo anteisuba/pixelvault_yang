@@ -3,7 +3,6 @@ import { ROUTES } from '@/constants/routes'
 import {
   Archive,
   AudioLines,
-  BookOpen,
   Box,
   FileText,
   IdCard,
@@ -73,13 +72,6 @@ export const SHELL_NAV_GO: readonly ShellNavItem[] = [
     href: ROUTES.CARDS,
     icon: IdCard,
     labelKey: 'Navbar.links.cards',
-  },
-  {
-    id: 'storyboard',
-    href: ROUTES.STORYBOARD,
-    icon: BookOpen,
-    labelKey: 'Navbar.links.storyboard',
-    match: 'prefix',
   },
   /**
    * 我的主页（D11 ④，2026-09-20 owner 确认）。头像不再是它的快捷方式 ——

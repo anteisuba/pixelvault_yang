@@ -267,7 +267,6 @@ export type UserWhereInput = {
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
-  stories?: Prisma.StoryListRelationFilter
   projects?: Prisma.ProjectListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   likesGiven?: Prisma.UserLikeListRelationFilter
@@ -318,7 +317,6 @@ export type UserOrderByWithRelationInput = {
   generationJobs?: Prisma.GenerationJobOrderByRelationAggregateInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
   imageAnalyses?: Prisma.ImageAnalysisOrderByRelationAggregateInput
-  stories?: Prisma.StoryOrderByRelationAggregateInput
   projects?: Prisma.ProjectOrderByRelationAggregateInput
   characterCards?: Prisma.CharacterCardOrderByRelationAggregateInput
   likesGiven?: Prisma.UserLikeOrderByRelationAggregateInput
@@ -372,7 +370,6 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
-  stories?: Prisma.StoryListRelationFilter
   projects?: Prisma.ProjectListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   likesGiven?: Prisma.UserLikeListRelationFilter
@@ -465,7 +462,6 @@ export type UserCreateInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -516,7 +512,6 @@ export type UserUncheckedCreateInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -567,7 +562,6 @@ export type UserUpdateInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -618,7 +612,6 @@ export type UserUncheckedUpdateInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -1022,20 +1015,6 @@ export type UserUpdateOneRequiredWithoutImageAnalysesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutImageAnalysesInput, Prisma.UserUpdateWithoutImageAnalysesInput>, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
 }
 
-export type UserCreateNestedOneWithoutStoriesInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutStoriesInput, Prisma.UserUncheckedCreateWithoutStoriesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStoriesInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutStoriesNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutStoriesInput, Prisma.UserUncheckedCreateWithoutStoriesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStoriesInput
-  upsert?: Prisma.UserUpsertWithoutStoriesInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStoriesInput, Prisma.UserUpdateWithoutStoriesInput>, Prisma.UserUncheckedUpdateWithoutStoriesInput>
-}
-
 export type UserCreateNestedOneWithoutCharacterCardsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutCharacterCardsInput, Prisma.UserUncheckedCreateWithoutCharacterCardsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutCharacterCardsInput
@@ -1269,7 +1248,6 @@ export type UserCreateWithoutMcpTokensInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -1319,7 +1297,6 @@ export type UserUncheckedCreateWithoutMcpTokensInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -1385,7 +1362,6 @@ export type UserUpdateWithoutMcpTokensInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -1435,7 +1411,6 @@ export type UserUncheckedUpdateWithoutMcpTokensInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -1485,7 +1460,6 @@ export type UserCreateWithoutDanbooruFavoritesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -1535,7 +1509,6 @@ export type UserUncheckedCreateWithoutDanbooruFavoritesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -1601,7 +1574,6 @@ export type UserUpdateWithoutDanbooruFavoritesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -1651,7 +1623,6 @@ export type UserUncheckedUpdateWithoutDanbooruFavoritesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -1701,7 +1672,6 @@ export type UserCreateWithoutAssistantConversationsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -1751,7 +1721,6 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -1817,7 +1786,6 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -1867,7 +1835,6 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -1917,7 +1884,6 @@ export type UserCreateWithoutResearchRunsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -1967,7 +1933,6 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -2033,7 +1998,6 @@ export type UserUpdateWithoutResearchRunsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -2083,7 +2047,6 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -2133,7 +2096,6 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -2183,7 +2145,6 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -2249,7 +2210,6 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -2299,7 +2259,6 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -2349,7 +2308,6 @@ export type UserCreateWithoutProjectsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
@@ -2399,7 +2357,6 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
@@ -2465,7 +2422,6 @@ export type UserUpdateWithoutProjectsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
@@ -2515,7 +2471,6 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
@@ -2564,7 +2519,6 @@ export type UserCreateWithoutUserApiKeysInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -2614,7 +2568,6 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -2680,7 +2633,6 @@ export type UserUpdateWithoutUserApiKeysInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -2730,7 +2682,6 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -2780,7 +2731,6 @@ export type UserCreateWithoutGenerationsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -2830,7 +2780,6 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -2896,7 +2845,6 @@ export type UserUpdateWithoutGenerationsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -2946,7 +2894,6 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -2996,7 +2943,6 @@ export type UserCreateWithoutGenerationJobsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -3046,7 +2992,6 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -3112,7 +3057,6 @@ export type UserUpdateWithoutGenerationJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -3162,7 +3106,6 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -3212,7 +3155,6 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -3262,7 +3204,6 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -3328,7 +3269,6 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -3378,7 +3318,6 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -3429,7 +3368,6 @@ export type UserCreateWithoutRecipesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -3479,7 +3417,6 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -3545,7 +3482,6 @@ export type UserUpdateWithoutRecipesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -3595,7 +3531,6 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -3645,7 +3580,6 @@ export type UserCreateWithoutVoiceCardsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -3695,7 +3629,6 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -3761,7 +3694,6 @@ export type UserUpdateWithoutVoiceCardsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -3811,7 +3743,6 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -3861,7 +3792,6 @@ export type UserCreateWithoutVoiceRoomsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -3911,7 +3841,6 @@ export type UserUncheckedCreateWithoutVoiceRoomsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -3977,7 +3906,6 @@ export type UserUpdateWithoutVoiceRoomsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -4027,7 +3955,6 @@ export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -4077,7 +4004,6 @@ export type UserCreateWithoutCreativePreferenceInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -4127,7 +4053,6 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -4193,7 +4118,6 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -4243,7 +4167,6 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -4293,7 +4216,6 @@ export type UserCreateWithoutAssistantPersonaInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -4343,7 +4265,6 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -4409,7 +4330,6 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -4459,7 +4379,6 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -4509,7 +4428,6 @@ export type UserCreateWithoutProjectRulesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -4559,7 +4477,6 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -4625,7 +4542,6 @@ export type UserUpdateWithoutProjectRulesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -4675,7 +4591,6 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -4724,7 +4639,6 @@ export type UserCreateWithoutImageAnalysesInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -4774,7 +4688,6 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -4840,7 +4753,6 @@ export type UserUpdateWithoutImageAnalysesInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -4890,223 +4802,6 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutStoriesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutStoriesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutStoriesInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutStoriesInput, Prisma.UserUncheckedCreateWithoutStoriesInput>
-}
-
-export type UserUpsertWithoutStoriesInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutStoriesInput, Prisma.UserUncheckedUpdateWithoutStoriesInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutStoriesInput, Prisma.UserUncheckedCreateWithoutStoriesInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutStoriesInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutStoriesInput, Prisma.UserUncheckedUpdateWithoutStoriesInput>
-}
-
-export type UserUpdateWithoutStoriesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutStoriesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -5157,7 +4852,6 @@ export type UserCreateWithoutCharacterCardsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
@@ -5207,7 +4901,6 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
@@ -5273,7 +4966,6 @@ export type UserUpdateWithoutCharacterCardsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
@@ -5323,7 +5015,6 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
@@ -5373,7 +5064,6 @@ export type UserCreateWithoutLikesGivenInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
@@ -5423,7 +5113,6 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
@@ -5489,7 +5178,6 @@ export type UserUpdateWithoutLikesGivenInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
@@ -5539,7 +5227,6 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
@@ -5589,7 +5276,6 @@ export type UserCreateWithoutFollowsGivenInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -5639,7 +5325,6 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -5694,7 +5379,6 @@ export type UserCreateWithoutFollowsReceivedInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -5744,7 +5428,6 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -5810,7 +5493,6 @@ export type UserUpdateWithoutFollowsGivenInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -5860,7 +5542,6 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -5921,7 +5602,6 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -5971,7 +5651,6 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -6021,7 +5700,6 @@ export type UserCreateWithoutCollectionsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -6071,7 +5749,6 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -6137,7 +5814,6 @@ export type UserUpdateWithoutCollectionsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -6187,7 +5863,6 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -6237,7 +5912,6 @@ export type UserCreateWithoutBackgroundCardsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -6287,7 +5961,6 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -6353,7 +6026,6 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -6403,7 +6075,6 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -6453,7 +6124,6 @@ export type UserCreateWithoutStyleCardsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -6503,7 +6173,6 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -6569,7 +6238,6 @@ export type UserUpdateWithoutStyleCardsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -6619,7 +6287,6 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -6669,7 +6336,6 @@ export type UserCreateWithoutCardRecipesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -6719,7 +6385,6 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -6785,7 +6450,6 @@ export type UserUpdateWithoutCardRecipesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -6835,7 +6499,6 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -6885,7 +6548,6 @@ export type UserCreateWithoutVideoPipelinesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -6935,7 +6597,6 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -7001,7 +6662,6 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -7051,7 +6711,6 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -7101,7 +6760,6 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -7151,7 +6809,6 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -7217,7 +6874,6 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -7267,7 +6923,6 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -7317,7 +6972,6 @@ export type UserCreateWithoutLoraAssetsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -7367,7 +7021,6 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -7433,7 +7086,6 @@ export type UserUpdateWithoutLoraAssetsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -7483,7 +7135,6 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -7533,7 +7184,6 @@ export type UserCreateWithoutVideoScriptsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -7583,7 +7233,6 @@ export type UserUncheckedCreateWithoutVideoScriptsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -7649,7 +7298,6 @@ export type UserUpdateWithoutVideoScriptsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -7699,7 +7347,6 @@ export type UserUncheckedUpdateWithoutVideoScriptsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -7749,7 +7396,6 @@ export type UserCreateWithoutExtractedElementsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -7799,7 +7445,6 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -7865,7 +7510,6 @@ export type UserUpdateWithoutExtractedElementsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -7915,7 +7559,6 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -7965,7 +7608,6 @@ export type UserCreateWithoutContextCardsInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -8015,7 +7657,6 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -8081,7 +7722,6 @@ export type UserUpdateWithoutContextCardsInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -8131,7 +7771,6 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -8181,7 +7820,6 @@ export type UserCreateWithoutAssistantMemoriesInput = {
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
@@ -8231,7 +7869,6 @@ export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
@@ -8297,7 +7934,6 @@ export type UserUpdateWithoutAssistantMemoriesInput = {
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
@@ -8347,7 +7983,6 @@ export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
   imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
@@ -8387,7 +8022,6 @@ export type UserCountOutputType = {
   generationJobs: number
   apiUsageLedger: number
   imageAnalyses: number
-  stories: number
   projects: number
   characterCards: number
   likesGiven: number
@@ -8421,7 +8055,6 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   generationJobs?: boolean | UserCountOutputTypeCountGenerationJobsArgs
   apiUsageLedger?: boolean | UserCountOutputTypeCountApiUsageLedgerArgs
   imageAnalyses?: boolean | UserCountOutputTypeCountImageAnalysesArgs
-  stories?: boolean | UserCountOutputTypeCountStoriesArgs
   projects?: boolean | UserCountOutputTypeCountProjectsArgs
   characterCards?: boolean | UserCountOutputTypeCountCharacterCardsArgs
   likesGiven?: boolean | UserCountOutputTypeCountLikesGivenArgs
@@ -8492,13 +8125,6 @@ export type UserCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends runtime.T
  */
 export type UserCountOutputTypeCountImageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ImageAnalysisWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountStoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.StoryWhereInput
 }
 
 /**
@@ -8698,7 +8324,6 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
   imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
-  stories?: boolean | Prisma.User$storiesArgs<ExtArgs>
   projects?: boolean | Prisma.User$projectsArgs<ExtArgs>
   characterCards?: boolean | Prisma.User$characterCardsArgs<ExtArgs>
   likesGiven?: boolean | Prisma.User$likesGivenArgs<ExtArgs>
@@ -8790,7 +8415,6 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
   imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
-  stories?: boolean | Prisma.User$storiesArgs<ExtArgs>
   projects?: boolean | Prisma.User$projectsArgs<ExtArgs>
   characterCards?: boolean | Prisma.User$characterCardsArgs<ExtArgs>
   likesGiven?: boolean | Prisma.User$likesGivenArgs<ExtArgs>
@@ -8831,7 +8455,6 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     generationJobs: Prisma.$GenerationJobPayload<ExtArgs>[]
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
     imageAnalyses: Prisma.$ImageAnalysisPayload<ExtArgs>[]
-    stories: Prisma.$StoryPayload<ExtArgs>[]
     projects: Prisma.$ProjectPayload<ExtArgs>[]
     characterCards: Prisma.$CharacterCardPayload<ExtArgs>[]
     likesGiven: Prisma.$UserLikePayload<ExtArgs>[]
@@ -9275,7 +8898,6 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   generationJobs<T extends Prisma.User$generationJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$generationJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   apiUsageLedger<T extends Prisma.User$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   imageAnalyses<T extends Prisma.User$imageAnalysesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$imageAnalysesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ImageAnalysisPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  stories<T extends Prisma.User$storiesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$storiesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   projects<T extends Prisma.User$projectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   characterCards<T extends Prisma.User$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   likesGiven<T extends Prisma.User$likesGivenArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$likesGivenArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -9857,30 +9479,6 @@ export type User$imageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.ImageAnalysisScalarFieldEnum | Prisma.ImageAnalysisScalarFieldEnum[]
-}
-
-/**
- * User.stories
- */
-export type User$storiesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Story
-   */
-  select?: Prisma.StorySelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Story
-   */
-  omit?: Prisma.StoryOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.StoryInclude<ExtArgs> | null
-  where?: Prisma.StoryWhereInput
-  orderBy?: Prisma.StoryOrderByWithRelationInput | Prisma.StoryOrderByWithRelationInput[]
-  cursor?: Prisma.StoryWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.StoryScalarFieldEnum | Prisma.StoryScalarFieldEnum[]
 }
 
 /**

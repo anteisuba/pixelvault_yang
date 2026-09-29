@@ -9,6 +9,11 @@
 >
 > **「改」保留**（owner 2026-09-19，D7 Q5 改口）：LoRA 域的 op 表**不是空集**——`set_lora_parameters` 等随 owner 的在飞实现一起留着，`plan_lora_pick` 推荐卡仍归「问」。此前画板与 D7 决策树里那句「LoRA 的 op 表为空集、面板上没有任何改动入口」**作废**，⛔ 不要按它去删改动入口。
 
+> **2026-09-29 补记（owner 拍板）**：
+>
+> - **出图接上了**：LoRA 域工具表加 `request_generation`，宿主 `use-lora-operator-host.ts` 接 `triggerGeneration`（先记请求号、渲染提交后再按装配台那颗出图键，读到的是助手刚写好的表单），并给出 `resultRun`（生成中结果卡的回流）。照样一律出生成确认卡；面板上的「自动生成」开关因此在装配台出现（行尾 · 默认关 · 本会话）。出图键按不下去（正在出图 / 补挂配方 LoRA / 参数有误 / 底模不可用）时撤掉生成中那张卡、在线程里说原因。下文 §1、§10 里「⛔ 不加 `request_generation`」两处**作废**。
+> - **来源写法翻成 Runner 认的**：做同款与「贴近来源图」写进提示词框前过 `toRunnerPromptSyntax`（`src/lib/runner-prompt-syntax.ts`）——`[tag]` → `(tag:0.91)`、方括号里或括号外的 `tag:0.65` → `(tag:0.65)`、NovelAI `{tag}` → `(tag:1.05)`、`BREAK` → 逗号、`(tag:0.8, )` 括号里权重后多出的逗号去掉；表达不了的按步切换 / 交替只留词。配方查看器里的原文不改。
+
 ---
 
 ## 1. 目标与不做什么
@@ -34,7 +39,7 @@
   ⚠ **例外只有一处，且是 owner 当日追加的第 8 条**：§10 的「LoRA 推荐卡」是一张**新卡**（`confirm` 帧的第四支 + 一颗新组件）。它不推翻上面那句——那九片仍然一张卡都不加。
 - ❌ **手机端不做**。`/studio/lora` 的小屏宿主仍是旧面板（`LoraAssistantDock` → `PromptAssistantPanel`，见 `LoraWorkbench.tsx:3166`）。本文所有改动都只经过 Operator 那条路，小屏行为一个字不变。
 - ❌ **不动训练流程**、不动计费、不动归档。
-- ❌ **不加新工具**（§1–§9 那一段）。LoRA 域工具表（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]`，`constants/assistant-operator.ts:1488`）在那九片里**条目数不变**；§10 加**一条** `plan_lora_pick`（§10.2.2），仅此一条。特别地：⛔ 不加 `set_trigger_chips`（触发词只读，§3.3），⛔ 不加 `request_generation`（装配台仍然不出图，理由见 `use-lora-operator-host.ts:382` 的头注，一个字没变）。
+- ❌ **不加新工具**（§1–§9 那一段）。LoRA 域工具表（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]`，`constants/assistant-operator.ts:1488`）在那九片里**条目数不变**；§10 加**一条** `plan_lora_pick`（§10.2.2），仅此一条。特别地：⛔ 不加 `set_trigger_chips`（触发词只读，§3.3），~~⛔ 不加 `request_generation`~~（2026-09-29 作废，见文首补记）。
 - ❌ 不拆 `assistant-operator.service.ts`（同 v2 §0 的判据）。
 
 ---
@@ -373,7 +378,7 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 
 ⚠ `plan_lora_pick` 只接受**本轮 `search_loras` 回过的** candidateId（`run.loraIndex` 查得到），查不到就 `reject(REJECT.unknownLora)`——与 `mount_lora` 今天那条逐字同源（模型绝不自己写 LoRA 的 id）。
 ⚠ 装不上的候选（`compatible === false` / `importable === false`）**照样进卡**（策略 C：不阻断展示），只是行变灰、不可勾、理由写在行里。⛔ 别在这里把它们滤掉：滤掉之后用户看到的是「没搜到」，而真相是「搜到了但要换底模」。
-⚠ 本轮工具表条目数 **+1**（`plan_lora_pick`）。⛔ 仍然不加 `set_trigger_chips`、仍然不加 `request_generation`（§1「不做」里那两条一个字没变）。
+⚠ 本轮工具表条目数 **+1**（`plan_lora_pick`）。⛔ 仍然不加 `set_trigger_chips`（`request_generation` 已于 2026-09-29 加上，见文首补记）。
 
 #### 10.2.3 确认回来的那一轮：先挂，再说话
 

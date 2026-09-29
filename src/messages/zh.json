@@ -2319,6 +2319,7 @@
       "hintPure": "可以直接用底模出图，也可以去「库」挂 LoRA",
       "roundLabel": "这一轮",
       "busy": "出图中",
+      "assistantBusy": "装配台这会儿还在忙（出图或补挂配方 LoRA），忙完再让助手生成",
       "restoreShort": "还原",
       "restoreHint": "忠实还原：用这个 LoRA 推荐的提示词、负面词和权重",
       "restoreNeedsLora": "先挂一个 LoRA 才能还原",

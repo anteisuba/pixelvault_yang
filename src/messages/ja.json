@@ -2319,6 +2319,7 @@
       "hintPure": "ベースモデルだけでも生成できます。「ライブラリ」で LoRA を装着することもできます",
       "roundLabel": "このラウンド",
       "busy": "生成中",
+      "assistantBusy": "装備台がまだ処理中です（生成中、またはレシピの LoRA を装着中）。終わってからもう一度どうぞ",
       "restoreShort": "復元",
       "restoreHint": "忠実に復元：この LoRA の推奨プロンプト・ネガティブ・重みを使います",
       "restoreNeedsLora": "復元するには先に LoRA を装着してください",

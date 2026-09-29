@@ -20,7 +20,7 @@
  */
 
 import { flushSync } from 'react-dom'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { ASSISTANT_LORA_PICK_LIMITS } from '@/constants/assistant-protocol'
@@ -37,6 +37,8 @@ import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { useTranslations } from 'next-intl'
 import {
   appendOperatorEntry,
+  dropOperatorPendingResult,
+  getOperatorState,
   nextOperatorEntryId,
   setOperatorPrimed,
   setOperatorReviewState,
@@ -49,9 +51,13 @@ import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
+import {
+  toOperatorResultRun,
+  toOperatorRunResults,
+} from '@/lib/studio-operator-result-run'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
-import type { LoraAssetRecord } from '@/types'
+import type { ActiveRun, LoraAssetRecord } from '@/types'
 
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
@@ -113,6 +119,16 @@ export interface UseLoraOperatorHostInput {
    * 行卡整块不渲染 —— 与「装配台还没出过图」是同一种表现，⛔ 不做空占位。
    */
   results?: readonly StudioOperatorResultItem[]
+  /**
+   * 出图那一枪（§6 花钱档）：生成确认卡上按「生成」、或自动生成开关替你按。
+   * `blockedReason` = 出图键这会儿按不下去的原因（`''` = 说不出原因），`null` = 能按。
+   */
+  generate?: {
+    run(): void
+    blockedReason: string | null
+  }
+  /** 装配台那条在飞的出图（`useUnifiedGenerate().activeRun`）—— 结果卡的生成中态读它。 */
+  activeRun?: ActiveRun | null
   open: boolean
   setOpen(open: boolean): void
 }
@@ -311,6 +327,38 @@ export function useLoraOperatorHost(
     for (const item of stackItems ?? []) primeMinedPrompts(item.asset)
   }, [assistantOpen, stackItems])
 
+  /**
+   * 出图那一枪（§6 花钱档）—— 与工作台的 `REQUEST_GENERATE` 同一个形状：扣扳机
+   * 只记一个请求号，等这次渲染提交之后再按。助手同一轮刚写进来的提示词、挂载与
+   * 参数这时才都在表单上；当场就按，读到的是改之前的那一份。
+   */
+  const [generateRequest, setGenerateRequest] = useState(0)
+  const handledGenerateRequest = useRef(0)
+  const generate = input.generate
+  useEffect(() => {
+    if (!generate || generateRequest === handledGenerateRequest.current) return
+    handledGenerateRequest.current = generateRequest
+    if (generate.blockedReason === null) {
+      generate.run()
+      return
+    }
+    // 按不下去：撤掉那张「生成中」的卡、在线程里说清楚 —— ⛔ 不让它转满认领
+    // 时限再报一句没有原因的「没生成出来」。
+    const pendingId = getOperatorState().pendingResultId
+    if (pendingId) dropOperatorPendingResult(pendingId)
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      ...(generate.blockedReason
+        ? {
+            code: 'generationFailedWithReason',
+            subject: generate.blockedReason,
+          }
+        : { code: 'generationFailed' }),
+    })
+  }, [generate, generateRequest])
+  const hasGenerate = Boolean(input.generate)
+
   const apply = useMemo<StudioOperatorApplyContext>(() => {
     /** ⛔ 不静默：装配台上助手做砸的事，也在助手的线程里交代。 */
     const reportFailure = (subject: string) => {
@@ -427,10 +475,13 @@ export function useLoraOperatorHost(
       setPrimed: setOperatorPrimed,
       /**
        * 助手标审核态（切片 Y）—— 与工作台共用同一份 store 写入。
-       * ⛔ **没有 `setGenerationLabel`**：装配台的出图键不走 `REQUEST_GENERATE`，
-       *   接一只取不到的手就是那种「点了没反应、三绿」的失败。
+       * ⛔ **没有 `setGenerationLabel`**：装配台的出图不走 `REQUEST_GENERATE`，
+       *   没有写产物名的那一格，接一只取不到的手就是那种「点了没反应、三绿」的失败。
        */
       setReviewState: setOperatorReviewState,
+      ...(hasGenerate
+        ? { triggerGeneration: () => setGenerateRequest((n) => n + 1) }
+        : {}),
       /**
        * 撤销一条素材库写操作（v2 §10）—— 与工作台宿主逐字同源（素材库只有一个，
        * 换台工作台它还是同一个库）。⛔ 别只给工作台接：域工具表把这四条写进了
@@ -543,24 +594,28 @@ export function useLoraOperatorHost(
         },
       },
     }
-  }, [confirmChain, downloadGate, userUrl, input.setLoraParameters])
+  }, [
+    confirmChain,
+    downloadGate,
+    userUrl,
+    input.setLoraParameters,
+    hasGenerate,
+  ])
 
-  /**
-   * ⛔ **装配台没有 `triggerGeneration`**（§6 花钱档，切片 2a）。
-   *
-   * 判据与它没有 `set_count` / `set_specs` 逐字同源：出图那一跳住在 `GenerateBranch`
-   * 的局部 state 里（自己的一套闸门 + 自己的 `resultHistory`），宿主契约上还没有
-   * 这只手。实现成一个空函数才是本仓最讨厌的那种失败 —— 用户点了「生成」，卡收起来，
-   * 什么都没发生，而且三绿。
-   * ⚠ 缺席在运行时够不着：域工具表把 `request_generation` 锁在图片 / 视频两个域里
-   * （`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`），装配台的模型压根看不见这条工具。
-   * 补它是独立一件事：先让装配台把「能不能发、发什么」抽成一份共用实现。
-   */
   const referenceLimit = Number.isFinite(input.imageUpload.maxImages)
     ? input.imageUpload.maxImages
     : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
 
   const results = input.results ?? NO_RESULTS
+  const activeRun = input.activeRun
+  const resultRun = useMemo(
+    () =>
+      toOperatorResultRun(
+        activeRun?.items,
+        toOperatorRunResults(activeRun?.items ?? []),
+      ),
+    [activeRun],
+  )
 
   /**
    * **装配台那张脸的那一句**（D7b ③）——「{底模} · 挂了 {n} 个」。
@@ -592,6 +647,7 @@ export function useLoraOperatorHost(
       buildSnapshot,
       apply,
       results,
+      ...(resultRun ? { resultRun } : {}),
       referenceLimit,
       referenceImages: input.imageUpload.referenceEntries,
       open: input.open,
@@ -606,6 +662,7 @@ export function useLoraOperatorHost(
       input.imageUpload.referenceEntries,
       referenceLimit,
       results,
+      resultRun,
     ],
   )
 }

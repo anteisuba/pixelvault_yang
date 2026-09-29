@@ -15,6 +15,7 @@ import {
 } from '@/hooks/use-lora-operator-host'
 import { __resetMinedPromptsCacheForTests } from '@/hooks/prompts/use-civitai-mined-prompts'
 import {
+  appendOperatorPendingResult,
   getOperatorState,
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
@@ -869,5 +870,89 @@ describe('useLoraOperatorHost 的 face（D7b ③）', () => {
     )
     expect(result.current.face.emptyLine).toBe('face.lora.empty')
     expect(result.current.face.inputPlaceholder).toBe('face.lora.placeholder')
+  })
+})
+
+/**
+ * 出图那一枪（owner 2026-09-29「接上生成开关」）。
+ *
+ * ⚠ 钉两件事：扳机只记请求号、**渲染提交之后**才按（按下去读到的是助手刚写好
+ * 的表单）；按不下去时撤掉生成中那张卡并在线程里说出原因，⛔ 不静默。
+ */
+describe('useLoraOperatorHost 的出图那一枪', () => {
+  function generateInput(
+    generate: UseLoraOperatorHostInput['generate'],
+  ): UseLoraOperatorHostInput {
+    return {
+      prompt: 'ink lines, 1girl',
+      setPrompt: () => {},
+      appendPrompt: () => {},
+      negativePrompt: '',
+      setNegativePrompt: () => {},
+      base: null,
+      availableBases: [],
+      selectBase: () => {},
+      stack: null,
+      imageUpload: {
+        referenceEntries: [],
+        maxImages: 2,
+        addReferenceImage: () => {},
+        removeReferenceImage: () => {},
+      },
+      ...(generate ? { generate } : {}),
+      open: true,
+      setOpen: () => {},
+    }
+  }
+
+  beforeEach(() => resetOperatorThread())
+
+  it('没接出图键就没有这只手（面板因此不画自动生成开关）', () => {
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(generateInput(undefined)),
+    )
+    expect(result.current.apply.triggerGeneration).toBeUndefined()
+  })
+
+  it('扣扳机后在下一次渲染提交时按一次，⛔ 不当场按、不重复按', async () => {
+    const run = vi.fn()
+    const { result, rerender } = renderHook(
+      (props: UseLoraOperatorHostInput) => useLoraOperatorHost(props),
+      { initialProps: generateInput({ run, blockedReason: null }) },
+    )
+    result.current.apply.triggerGeneration?.({
+      model: { id: 'illustrious-runner', label: 'Illustrious' },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+    })
+    expect(run).not.toHaveBeenCalled()
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
+    rerender(generateInput({ run, blockedReason: null }))
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it('按不下去：撤掉生成中那张卡，线程里说出原因', async () => {
+    const run = vi.fn()
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(generateInput({ run, blockedReason: '出图中' })),
+    )
+    appendOperatorPendingResult({ id: 'result-1', total: 1 })
+    result.current.apply.triggerGeneration?.({
+      model: { id: 'illustrious-runner', label: 'Illustrious' },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+    })
+    await waitFor(() =>
+      expect(getOperatorState().entries.at(-1)).toMatchObject({
+        kind: 'system',
+        code: 'generationFailedWithReason',
+        subject: '出图中',
+      }),
+    )
+    expect(run).not.toHaveBeenCalled()
+    expect(getOperatorState().pendingResultId).toBeNull()
+    expect(
+      getOperatorState().entries.some((entry) => entry.id === 'result-1'),
+    ).toBe(false)
   })
 })

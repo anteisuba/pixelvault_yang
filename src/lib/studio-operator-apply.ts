@@ -267,9 +267,8 @@ export interface StudioOperatorApplyContext {
    * ⚠ 与 `mountUserUrl` 同样是「交出去就不管」而不是 `Promise`：`applyOperatorStep`
    * 是同步纯函数。结果回灌由既有的生成链自己完成（结果进 `useStudioGen` 的
    * `activeRun`）。
-   * ⚠ **缺席 = 这个宿主没有生成键**（LoRA 装配台的出图键住在 `GenerateBranch` 的
-   * 局部 state 里，宿主契约上还没有这只手）。缺席不会在运行时发生：域工具表已经
-   * 把 `request_generation` 锁在图片 / 视频两个域里。这里的可选是类型层的诚实。
+   * ⚠ **缺席 = 这个宿主没有生成键**。LoRA 装配台接的是自己那颗出图键（2026-09-29，
+   * 见 `use-lora-operator-host.ts`：同样先记请求号、渲染提交后再按）。
    */
   triggerGeneration?(request: AssistantOperatorGenerationRequest): void
   /**

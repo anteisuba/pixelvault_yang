@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -2090,6 +2091,14 @@ function GenerateBranch({
     runnerSampler: runnerSampler || null,
     runnerScheduler: runnerScheduler || null,
   })
+  // 助手那一枪按的就是这颗出图键 —— `handleGenerateClick` 定义在下面，走 ref。
+  const generateClickRef = useRef<() => void>(() => {})
+  const assistantGenerateBlockedReason =
+    isGenerating || isMountingExtras
+      ? t('generate.assistantBusy')
+      : !selectedBase?.available || !selectedBase.providerModelId
+        ? ''
+        : runnerParameterError
   const operatorHost = useLoraOperatorHost({
     loraParameters:
       isRunnerBase && operatorParameters.success
@@ -2138,6 +2147,11 @@ function GenerateBranch({
     stack: operatorStack,
     imageUpload,
     results: operatorResults,
+    generate: {
+      run: () => generateClickRef.current(),
+      blockedReason: assistantGenerateBlockedReason,
+    },
+    activeRun,
     open: assistantOpen,
     setOpen: onAssistantOpenChange,
   })
@@ -2422,6 +2436,11 @@ function GenerateBranch({
     }
     void handleGenerate()
   }, [handleGenerate, needsKeySetup, openKeySetupFor, workspaceOptionForBase])
+  // ⚠ layout effect：宿主那只出图 effect 声明在前、同一次提交里先跑，passive
+  //   effect 换 ref 会让它按到上一拍的出图键（读的是助手改之前的表单）。
+  useLayoutEffect(() => {
+    generateClickRef.current = handleGenerateClick
+  }, [handleGenerateClick])
 
   // D7③: which result the main image shows — the filmstrip selection, falling
   // back to the newest entry, then to the hook's lastGeneration (covers a

@@ -104,10 +104,8 @@ export interface StudioOperatorHost {
    * `request_generation` 那一步由 `applyOperatorStep` 分派，而它只拿得到这份
    * apply 上下文（它是个脱离 React 的纯函数，两个调用方谁都不该为它变成 async）。
    * 把扳机挂在宿主根上、再从面板往下传一条线，只会让同一只手有两个入口。
-   * ⚠ 它**可选**：装配台的出图键住在 `GenerateBranch` 的局部 state 里，宿主契约
-   * 上还没有这只手 —— 缺席是诚实，实现成空函数才是「点了没反应、三绿」的失败。
-   * 域工具表已经把 `request_generation` 锁在图片 / 视频两个域里，所以缺席在运行时
-   * 不会发生。
+   * ⚠ 它**可选**：没有生成键的宿主就不接 —— 缺席是诚实，实现成空函数才是「点了
+   * 没反应、三绿」的失败。工作台与 LoRA 装配台都接了（后者 2026-09-29 起）。
    */
   apply: StudioOperatorApplyContext
   /**

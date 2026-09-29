@@ -1813,10 +1813,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      */
     ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
     /**
-     * 花钱档（§6）**只给两台工作台**。⛔ 装配台没有：它的出图键住在
-     * `GenerateBranch` 的局部 state 里，宿主契约上还没有那只手
-     * （`triggerGeneration` 在 LoRA 宿主上有意缺席）。摆一条这个域里无解的工具，
-     * 正是 `set_count` / `set_specs` 当初被裁掉的同一个形状。
+     * 花钱档（§6）。装配台也有（owner 2026-09-29）：它的宿主把出图键接成了
+     * `triggerGeneration`，见 `use-lora-operator-host.ts`。画布走自己那张卡的键。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
     /**
@@ -1886,6 +1884,11 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+    /**
+     * 花钱档（§6，owner 2026-09-29「接上生成开关」）：搭好之后出一张。照样一律出
+     * 生成确认卡；自动生成开关开着时由客户端替你按 —— 扳机仍在客户端。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ],
   /**
    * 画布（进度表 22）。

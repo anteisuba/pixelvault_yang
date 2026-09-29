@@ -8340,23 +8340,38 @@ describe('生成确认（v2 §3.3 第二种来源）', () => {
     )
   })
 
-  it('⛔ 装配台上够不着这条工具（域工具表把它锁在图片 / 视频两个域）', async () => {
-    queueTurns(
-      {
-        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration, args: {} },
-      },
-      { finished: true },
-    )
+  it('装配台也出生成确认卡：模型就是当前底模，单张（2026-09-29 接上生成开关）', async () => {
+    queueTurns({
+      tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration, args: {} },
+    })
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
-        buildRequest({ domain: 'lora', snapshot: PRIMED_SNAPSHOT }),
+        buildRequest({
+          domain: 'lora',
+          snapshot: { ...LORA_SNAPSHOT, prompt: 'ink lines, 1girl' },
+        }),
       ),
     )
-    const [rejected] = stepsOf(events)
-    expect((rejected.error as { reason: string }).reason).toBe(
-      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
-    )
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.confirm,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    const confirm = events[0] as Extract<
+      AssistantOperatorEvent,
+      { type: 'confirm' }
+    >
+    const request = (
+      confirm.confirm as Extract<
+        (typeof confirm)['confirm'],
+        { kind: 'generate' }
+      >
+    ).request
+    expect(request.model).toEqual({
+      id: 'illustrious-xl',
+      label: 'Illustrious XL',
+    })
+    expect(request.count).toBe(1)
   })
 
   it('覆盖手写走 ask 帧，且带着回执路由那一块（⛔ 不是确认卡）', async () => {

@@ -2319,6 +2319,7 @@
       "hintPure": "Generate with the base model alone, or mount a LoRA from the Library",
       "roundLabel": "This round",
       "busy": "Generating",
+      "assistantBusy": "The bench is still busy (generating, or mounting recipe LoRAs) — ask again once it is done",
       "restoreShort": "Restore",
       "restoreHint": "Faithful restore: use this LoRA's recommended prompt, negative prompt and weight",
       "restoreNeedsLora": "Mount a LoRA first to restore",

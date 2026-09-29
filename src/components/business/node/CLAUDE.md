@@ -18,7 +18,7 @@
 
 ## 禁改（改前先读基准，改后 `rg` 核调用方）
 
-1. **op 表是唯一的语义写入口**。所有改图语义的动作走 `applyNodeAssistantOpV4`——与助手同一张表、同一份 inverse、同一批 `changedNodeIds`。⛔ 组件里不直接 `connectIntoSlot` / `setSlotVersion`：那会让「用户点的」和「助手做的」变成两条会漂的路径。例外只有四类（拖动坐标 / 整理布局 / 媒体回填 / 运行态），它们不发 op 也不进撤销栈，理由写在 `use-node-graph-v4.ts` 头注。
+1. **op 表是唯一的语义写入口**。所有改图语义的动作走 `applyNodeAssistantOpV4`——与助手同一张表、同一份 inverse、同一批 `changedNodeIds`。⛔ 组件里不直接 `connectIntoSlot` / `setSlotVersion`：那会让「用户点的」和「助手做的」变成两条会漂的路径。例外只有四类（拖动坐标 / 整理布局 / 媒体回填 / 运行态），它们不发 op；整理布局整次记一条快照撤销（§7 摆放 A），其余三类不进撤销栈，理由写在 `use-node-graph-v4.ts` 头注。
 2. **外壳组件的动作只从 `useNodeCanvasActions()` 取**（`NodeV4ActionsBridge`），⛔ 没有第二条写入路径。
 3. **撤销栈只有一份**（图引擎持有、`NodeV4Provider` 消费）。助手的一轮 = 一个撤销条目。⛔ 不要在 Provider 或组件里再存一份。
 4. **端口 / 容量 / 合法性查表，不现推**：`NODE_V4_PORTS`（`src/constants/node-slots.ts`）+ `canConnect`。`0..N` 的上限跟模型走，由调用方传 `capacity`。

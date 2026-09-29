@@ -17,14 +17,15 @@
  *
  * 例外**只有三条**，每条都因为它根本不是「用户的一步意图」：
  *   ① `moveNodes`（拖动坐标）—— 进撤销栈等于把一次拖拽拆成几十条记录；
- *   ② `tidyLayout`（`tidyShotLanes`）—— 只动坐标不动语义（沿用 Provider 既有取舍）；
+ *   ② `tidyLayout`（`tidyByFlow`，§7 摆放 A）—— 只动坐标不动语义，⛔ 不发 op；
+ *      但**整次是一步 ⌘Z**（owner 2026-09-29 定），进撤销栈的是整份快照；
  *   ③ `setMedia`（上传/生成回填）—— 助手不许塞 URL（op 表 §5 纪律 1），
  *      它只可能来自用户自己的上传；
  *   ④ `setRunState`（生成跑起来的进度信号）—— 进 op 表等于给每一次进度跳变产生
  *      一条撤销记录，而它本身不是用户的意图（`NodeV4ActionsBridge` 例外 ① 的
  *      同一条论据）。⛔ 也不为它往 `set_field` 的封闭词表里加 `status`：那会让
  *      助手也能直接改运行态。
- * 四条都**不发 op、不进撤销栈**，且都在下面各自的注释里写明了理由。
+ * 四条都**不发 op**；除了 ② 都**不进撤销栈**，理由都在下面各自的注释里。
  *
  * ── 撤销栈只有一份 ────────────────────────────────────────────────────
  * `NodeV4Provider` 从 ③d-3 起消费本 hook 的栈（见该文件头注），⛔ 两处各存一份
@@ -54,7 +55,7 @@ import {
 } from '@/lib/node-mentions-to-slots'
 import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
-import { tidyShotLanes } from '@/lib/node-shot-layout'
+import { tidyByFlow } from '@/lib/node-flow-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
 import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -114,6 +115,16 @@ export interface NodeGraphV4Move {
 export interface NodeGraphV4Offset {
   readonly x: number
   readonly y: number
+}
+
+/**
+ * 一次「整理」留给渲染层的**滑动起点**：state 已经一步写到终点，渲染层拿这份旧坐标
+ * 在 320 里把卡滑过去（§7 摆放 A「卡片滑到新位置」）。`id` 每次整理都换，渲染层
+ * 靠它判断「这是新的一次」。
+ */
+export interface NodeGraphV4LayoutSlide {
+  readonly id: number
+  readonly from: ReadonlyMap<string, NodeGraphV4Offset>
 }
 
 /** 一次重投影的账。`kept` = 用户手工建的散节点（无 `shotNo`），原样留着。 */
@@ -267,7 +278,10 @@ export interface NodeGraphV4 {
   duplicate(nodeIds: readonly string[]): string[]
   /** 位置提交。⛔ 不进撤销栈（见文件头注例外 ①）。 */
   moveNodes(moves: readonly NodeGraphV4Move[]): void
+  /** 按流向整理（§7 摆放 A）。整次一条撤销；卡片滑过去由渲染层读 `layoutSlide`。 */
   tidyLayout(): void
+  /** 最近一次整理的滑动起点（没整理过 = `null`）。 */
+  readonly layoutSlide: NodeGraphV4LayoutSlide | null
   setModel(nodeId: string, model: NodeWorkflowModelSelection): void
   /** 上传/生成回填（见文件头注例外 ③）。 */
   setMedia(nodeId: string, patch: NodeV4MediaPatch): void
@@ -870,9 +884,43 @@ export function useNodeGraphV4({
     [state, commitWithoutHistory],
   )
 
+  const [layoutSlide, setLayoutSlide] = useState<NodeGraphV4LayoutSlide | null>(
+    null,
+  )
   const tidyLayout = useCallback(() => {
-    commitWithoutHistory(tidyShotLanes(state))
-  }, [state, commitWithoutHistory])
+    const before = stateRef.current
+    // 尺寸用 ReactFlow 量到的（卡片高矮不一）；还没量到的按收起态估。
+    const measured = new Map(
+      rendered.nodes.map((node) => [node.id, node.measured] as const),
+    )
+    const next = tidyByFlow(before, (node) => {
+      const size = measured.get(node.id)
+      if (size?.width && size.height)
+        return { width: size.width, height: size.height }
+      return node.data.kind === NODE_MEDIA_KIND_IDS.text
+        ? {
+            width: NODE_V4_CARD.textCollapsedWidth,
+            height: NODE_V4_CARD.textCollapsedHeight,
+          }
+        : {
+            width: NODE_V4_CARD.collapsedWidth,
+            height: (NODE_V4_CARD.collapsedWidth * 9) / 16,
+          }
+    })
+    if (next === before) return
+    setUndoStack((stack) => [
+      ...stack,
+      { undo: { kind: 'state', state: before }, redoState: next },
+    ])
+    setRedoStack([])
+    setLayoutSlide((current) => ({
+      id: (current?.id ?? 0) + 1,
+      from: new Map(
+        before.nodes.map((node) => [node.id, node.position] as const),
+      ),
+    }))
+    onStateChange(next)
+  }, [rendered.nodes, onStateChange])
 
   const setModel = useCallback(
     (nodeId: string, model: NodeWorkflowModelSelection) => {
@@ -1061,6 +1109,7 @@ export function useNodeGraphV4({
     duplicate,
     moveNodes,
     tidyLayout,
+    layoutSlide,
     setModel,
     setMedia,
     setRunState,

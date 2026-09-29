@@ -78,6 +78,7 @@ import {
 import { flashNodeCardReject } from '../nodes/v4/chrome/node-card-flash'
 import { CanvasMiniMap } from '../CanvasMiniMap'
 import { StoryboardBrackets } from './StoryboardBrackets'
+import { layoutSlideOffset, useLayoutSlide } from './use-layout-slide'
 import { CanvasSurface } from '../CanvasSurface'
 import { NODE_V4_COMPONENTS } from '../nodes/v4/registry'
 
@@ -230,27 +231,43 @@ export function CanvasV4({
   onDragOver,
   children,
 }: CanvasV4Props) {
-  const { rfNodes, edges, nodes, selectedNodeIds, neighborOffsets } = graph
+  const {
+    rfNodes,
+    edges,
+    nodes,
+    selectedNodeIds,
+    neighborOffsets,
+    layoutSlide,
+  } = graph
+  const slideLeft = useLayoutSlide(layoutSlide)
   const storeApi = useStoreApi()
 
   /**
    * 让位偏移在**渲染期**加到坐标上，⛔ 不写回 state：让位是「这一刻谁展开着」的
    * 视觉后果，落库会把它变成一次真实的移动（撤销栈里还会多出一条）。
    */
+  // 整理后的滑动（`useLayoutSlide`）与让位同一个办法：渲染期偏移，⛔ 不写回 state。
   const decoratedNodes = useMemo(() => {
-    if (neighborOffsets.size === 0) return rfNodes as NodeWorkflowNode[]
+    if (neighborOffsets.size === 0 && slideLeft === 0)
+      return rfNodes as NodeWorkflowNode[]
     return rfNodes.map((node) => {
       const offset = neighborOffsets.get(node.id)
-      if (!offset) return node
+      const slide = layoutSlideOffset(
+        layoutSlide,
+        slideLeft,
+        node.id,
+        node.position,
+      )
+      if (!offset && !slide) return node
       return {
         ...node,
         position: {
-          x: node.position.x + offset.x,
-          y: node.position.y + offset.y,
+          x: node.position.x + (offset?.x ?? 0) + (slide?.x ?? 0),
+          y: node.position.y + (offset?.y ?? 0) + (slide?.y ?? 0),
         },
       }
     }) as NodeWorkflowNode[]
-  }, [rfNodes, neighborOffsets])
+  }, [rfNodes, neighborOffsets, layoutSlide, slideLeft])
 
   const { signedEdgePairs, fadingEdges } = edgeSigning
   const renderEdges = useMemo(() => {

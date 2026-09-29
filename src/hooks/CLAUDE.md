@@ -68,7 +68,7 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 ### Node Canvas v4（`src/hooks/node/` · 基准 `docs/references/pages/node-canvas-v2.md`）
 
 - `use-node-workflow-store.ts` — **持久化层**：项目列表 / 当前项目 / 本地暂存 / 服务端水化 / 自动保存 / 空覆盖闸 / 账号隔离。⚠ 存储的事实形状是 v4；读到服务端透传的 v3 时顺序**不能反**——先备份成功再升级再写，备份失败则**不升级、不写、只读**。写 state 一律经 `pushProjectState`（带 `baseUpdatedAt`、按项目排队；自动保存内容没变不写）；409 = 停写 + 「载入最新 / 另存为副本」，⛔ 不另开一条直接 PUT 的路（node-canvas-v2 §14.5）
-- `use-node-graph-v4.ts` — **唯一的图引擎**：建点 / 连线 / 删 / 复制 / 排布 / 展开 / 撤销重做 / 剧本投影。⭐ 每一个改图语义的动作都走 `applyNodeAssistantOpV4`（与助手同一张 op 表、同一份 inverse），⛔ 别在这里或组件里直接 `connectIntoSlot` / `setSlotVersion`。撤销栈只有一份；不进栈的例外只有四类（拖动坐标 / 整理布局 / 媒体回填 / 运行态）
+- `use-node-graph-v4.ts` — **唯一的图引擎**：建点 / 连线 / 删 / 复制 / 排布 / 展开 / 撤销重做 / 剧本投影。⭐ 每一个改图语义的动作都走 `applyNodeAssistantOpV4`（与助手同一张 op 表、同一份 inverse），⛔ 别在这里或组件里直接 `connectIntoSlot` / `setSlotVersion`。撤销栈只有一份；不发 op 的例外只有四类（拖动坐标 / 整理布局 / 媒体回填 / 运行态），其中整理布局整次记一条快照撤销（§7 摆放 A），其余三类不进栈
 - `use-cast-ingest-engine-v4.ts` — 拖入落槽引擎，判据是**三态**（`rejected` 抖+说理由 / `single` 直接落 / `choose` 交回 UI 点亮候选槽，⛔ 不替用户挑）。磁吸咬合那套 DOM 动作复用 `node-ingest-dom.ts` 的 helper，⛔ 不抄第二份
 - `use-node-generation-reconcile-v4.ts` — 生成回填：**有 job id 就是还在飞**（⛔ 不另看 `status`）；回填不进撤销栈；后台落地的失败必须走翻译过的那条说给用户听，⛔ 不在 hook 里 toast
 

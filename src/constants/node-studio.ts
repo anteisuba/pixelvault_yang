@@ -1440,6 +1440,12 @@ export const NODE_V4_LAYOUT = {
   looseColumnGap: 360,
   looseRowGap: 280,
   looseColumns: 6,
+  /**
+   * 「整理」按流向排列（§7 摆放 A）：列与列之间留给连线的宽度、同一列上下两张卡的
+   * 间距。列宽跟着那一列最宽的卡走，⛔ 不写死。
+   */
+  flowColumnGap: 160,
+  flowRowGap: 48,
 } as const
 
 /**

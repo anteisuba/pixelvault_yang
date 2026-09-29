@@ -229,7 +229,7 @@ describe('useNodeGraphV4 · 图动作', () => {
     expect(view.result.current.canUndo).toBe(false)
   })
 
-  it('tidyLayout 按镜头带重排且不进撤销栈', () => {
+  it('tidyLayout 按流向排列（§7 摆放 A）：整次一条撤销，留下滑动起点', () => {
     const { view } = renderGraph(
       stateOf([
         node(
@@ -237,16 +237,37 @@ describe('useNodeGraphV4 · 图动作', () => {
           { kind: 'video', subtype: 'shot', name: 'A', label: 'A', shotNo: 1 },
           { x: 999, y: 999 },
         ),
+        node(
+          'her',
+          { kind: 'image', subtype: 'character', name: '时夜' },
+          { x: 0, y: 0 },
+        ),
       ]),
     )
     act(() => {
       view.result.current.tidyLayout()
     })
-    expect(view.result.current.nodes[0]?.position).not.toEqual({
+    const after = view.result.current.nodes
+    // 素材在左、视频镜头在右，同一个顶边。
+    expect(after.find((item) => item.id === 'her')?.position).toEqual({
+      x: 0,
+      y: 0,
+    })
+    const shot = after.find((item) => item.id === 'shotA')!.position
+    expect(shot.y).toBe(0)
+    expect(shot.x).toBeGreaterThan(0)
+    expect(view.result.current.layoutSlide?.from.get('shotA')).toEqual({
       x: 999,
       y: 999,
     })
-    expect(view.result.current.canUndo).toBe(false)
+    expect(view.result.current.canUndo).toBe(true)
+
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(
+      view.result.current.nodes.find((item) => item.id === 'shotA')?.position,
+    ).toEqual({ x: 999, y: 999 })
   })
 })
 

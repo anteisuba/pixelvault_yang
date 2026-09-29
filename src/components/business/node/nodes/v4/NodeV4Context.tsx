@@ -137,8 +137,8 @@ export interface NodeV4CanvasContextValue {
     ops: readonly NodeAssistantOpV4[],
   ): NodeV4BatchOutcome | Promise<NodeV4BatchOutcome>
   /**
-   * 按镜头带重排（`tidyShotLanes`）。⚠ 不是 op —— 它只动坐标、不动图的语义，
-   * 走 op 表会给每次「整理」产生一条与内容无关的撤销记录。
+   * 按流向整理（`tidyByFlow`，§7 摆放 A）。⚠ 不是 op —— 它只动坐标、不动图的语义；
+   * 整次记一条快照撤销（owner 2026-09-29：「整次一个 ⌘Z」）。
    */
   onTidyLayout(): void
 

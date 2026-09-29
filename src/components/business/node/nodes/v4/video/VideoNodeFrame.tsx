@@ -17,7 +17,13 @@
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
  */
 
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Library, Sparkles, Upload } from '@/components/icons'
@@ -28,13 +34,22 @@ import {
   type MentionInputHandle,
   type MentionToken,
 } from '@/components/ui/mention-input'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import {
+  DURATION,
+  DURATION_MS,
+  EASE_STANDARD,
+  EASE_STANDARD_CSS,
+  springTransition,
+} from '@/constants/motion'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
 
 import { NodeFrame, VersionDots } from '../chrome'
 import { TextAssistantBar } from '../text/TextAssistantBar'
 import { VideoPlayer } from './VideoPlayer'
+
+/** 没片时那只矮框的高（= `h-62.5`，方向 A）：有片时从这里长到 16:9。 */
+const EMPTY_STAGE_HEIGHT = 250
 
 export interface VideoNodeFrameProps {
   readonly failureMessage?: string | undefined
@@ -119,6 +134,31 @@ export function VideoNodeFrame({
   const reduce = useReducedMotion()
   /** 写作助手那条开着没有（页脚「让助手写」开合）。 */
   const [assistOpen, setAssistOpen] = useState(false)
+  /** 主键这一刻的字（没片「生成」、有片「重新生成」）与它量出来的宽。 */
+  const mainLabel = url ? tVideo('frame.regenerate') : tVideo('frame.generate')
+  const [mainLabelWidth, setMainLabelWidth] = useState<number | undefined>()
+  const bodyRef = useRef<HTMLDivElement>(null)
+  /** 正文最后一次是从这里打出去的值 —— 与它不同的新值才是外面（助手）写进来的。 */
+  const typedBodyRef = useRef(body)
+
+  /**
+   * 「让助手写」写好的字逐段淡入正文（动效表 · 画中框）：写作条开着时，正文被外面
+   * 改了（助手 `set_prompt` 落回来），就从上往下把字揭出来 320。⚠ 只认写作条开着
+   * 的那一段时间：参考轨改号也会从外面改正文，那次⛔ 播。
+   */
+  useEffect(() => {
+    if (body === typedBodyRef.current) return
+    typedBodyRef.current = body
+    const element = bodyRef.current
+    if (!assistOpen || reduce || !body || !element?.animate) return
+    element.animate(
+      [
+        { clipPath: 'inset(0 0 100% 0)', opacity: 0.4 },
+        { clipPath: 'inset(0 0 0% 0)', opacity: 1 },
+      ],
+      { duration: DURATION_MS.slow, easing: EASE_STANDARD_CSS },
+    )
+  }, [body, assistOpen, reduce])
 
   /** 失焦即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
   const commit = () => {
@@ -180,8 +220,36 @@ export function VideoNodeFrame({
               }}
               className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-[opacity,transform] duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
-              {/* 没片时写「生成」，有片才是「重新生成」。 */}
-              {url ? tVideo('frame.regenerate') : tVideo('frame.generate')}
+              {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着
+                  slot 弹簧变（动效表 · 主键换字），⛔ 按钮跳宽。宽度量的是新字自己
+                  的 offsetWidth（不受画中框开合那层 transform 影响）。 */}
+              <motion.span
+                initial={false}
+                animate={
+                  mainLabelWidth === undefined ? {} : { width: mainLabelWidth }
+                }
+                transition={springTransition('slot', reduce)}
+                className="relative inline-flex overflow-hidden whitespace-nowrap"
+              >
+                <AnimatePresence initial={false} mode="popLayout">
+                  <motion.span
+                    key={mainLabel}
+                    data-video-regenerate-label
+                    ref={(element) => {
+                      if (element) setMainLabelWidth(element.offsetWidth)
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{
+                      duration: reduce ? 0 : DURATION.fast,
+                      ease: EASE_STANDARD,
+                    }}
+                  >
+                    {mainLabel}
+                  </motion.span>
+                </AnimatePresence>
+              </motion.span>
               <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-3xs">
                 {tVideo('frame.regenerateShortcut')}
               </kbd>
@@ -216,46 +284,72 @@ export function VideoNodeFrame({
             {t('generateDesk.failed', { reason: failureMessage })}
           </p>
         )}
-        {url ? (
-          <VideoPlayer
-            url={url}
-            {...(posterUrl ? { posterUrl } : {})}
-            title={title}
-            onExtractFrame={onExtractFrame}
-            extracting={extracting}
-            onDownload={onDownload}
-          />
-        ) : (
-          // 没片时矮一截（方向 A）：一句话 + 两颗，⛔ 一块空的 16:9 占半屏。
-          <div
-            data-video-player="empty"
-            className="flex h-62.5 w-full flex-col items-center justify-center gap-3 rounded-node bg-surface-sunken corner-squircle"
-          >
-            <span className="text-sm text-muted-foreground">
-              {t('player.empty')}
-            </span>
-            <span className="flex items-center gap-2">
-              <button
-                type="button"
-                data-video-frame-upload
-                onClick={onUpload}
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                <Upload aria-hidden className="size-3.5" />
-                {tVideo('frame.upload')}
-              </button>
-              <button
-                type="button"
-                data-video-frame-library
-                onClick={onLibrary}
-                className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                <Library aria-hidden className="size-3.5" />
-                {tVideo('frame.library')}
-              </button>
-            </span>
-          </div>
-        )}
+        {/* 没片 → 有片：空态那只矮框长高到 16:9（240 = fast×2，与画中框关上同一档），
+            片子 200 淡入（动效表 · 画中框），⛔ 直接换成一块大的。 */}
+        <motion.div
+          data-video-frame-stage
+          initial={false}
+          animate={{ height: url ? 'auto' : EMPTY_STAGE_HEIGHT }}
+          transition={{
+            duration: reduce ? 0 : DURATION.fast * 2,
+            ease: EASE_STANDARD,
+          }}
+          className="relative overflow-hidden"
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.div
+              key={url ? 'video' : 'empty'}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{
+                duration: reduce ? DURATION.fast : DURATION.base,
+                ease: EASE_STANDARD,
+              }}
+            >
+              {url ? (
+                <VideoPlayer
+                  url={url}
+                  {...(posterUrl ? { posterUrl } : {})}
+                  title={title}
+                  onExtractFrame={onExtractFrame}
+                  extracting={extracting}
+                  onDownload={onDownload}
+                />
+              ) : (
+                // 没片时矮一截（方向 A）：一句话 + 两颗，⛔ 一块空的 16:9 占半屏。
+                <div
+                  data-video-player="empty"
+                  className="flex h-62.5 w-full flex-col items-center justify-center gap-3 rounded-node bg-surface-sunken corner-squircle"
+                >
+                  <span className="text-sm text-muted-foreground">
+                    {t('player.empty')}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      data-video-frame-upload
+                      onClick={onUpload}
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <Upload aria-hidden className="size-3.5" />
+                      {tVideo('frame.upload')}
+                    </button>
+                    <button
+                      type="button"
+                      data-video-frame-library
+                      onClick={onLibrary}
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition-[background-color,transform] duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                      <Library aria-hidden className="size-3.5" />
+                      {tVideo('frame.library')}
+                    </button>
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
 
         <div className="flex items-center justify-center gap-3">
           <VersionDots
@@ -283,6 +377,7 @@ export function VideoNodeFrame({
             进编辑，而那一下双击同时冒泡到卡片上把快速看片顶了出来，看上去就是
             「点不进去」。⛔ 不再留只读预览态。 */}
         <div
+          ref={bodyRef}
           data-video-frame-body
           onDoubleClick={(event) => event.stopPropagation()}
           onBlur={commit}
@@ -301,7 +396,10 @@ export function VideoNodeFrame({
             variant="canvas"
             ref={editorRef}
             value={body}
-            onValueChange={onBodyChange}
+            onValueChange={(next) => {
+              typedBodyRef.current = next
+              onBodyChange(next)
+            }}
             tokens={[...tokens]}
             mentionCandidates={[...candidates]}
             placeholder={tVideo('frame.emptyNote')}

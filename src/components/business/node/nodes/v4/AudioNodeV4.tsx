@@ -100,6 +100,7 @@ import {
   renderVoicePromptValue,
   type NodeToolbarGroup,
 } from './chrome'
+import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
 import {
   buildConnectToShotOps,
   buildConnectToShotTargets,
@@ -1112,6 +1113,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 if (rename.length > 0) void canvas.onApplyBatch(rename)
               }
               setVoiceLibrary(false)
+              // 面板先缩回这张卡，缩完卡面再闪一下（声音库动效表 A）：「落进来了」
+              // 的回执落在卡上，⛔ 不在框还没收完时就闪掉。
+              flashNodeCard(id, GROW_CLOSE_MS)
             }}
             {...(speech
               ? {

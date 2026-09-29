@@ -20,9 +20,14 @@ vi.mock('next-intl', () => ({
     values ? `${key}: ${values.name}` : key,
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+const fadeInNodeCards = vi.fn<(nodeIds: readonly string[]) => void>()
+vi.mock('@/hooks/node/node-ingest-dom', () => ({
+  fadeInNodeCards: (nodeIds: readonly string[]) => fadeInNodeCards(nodeIds),
+}))
 
 beforeEach(() => {
   upload.mockReset()
+  fadeInNodeCards.mockReset()
 })
 
 describe('画布文件上传状态', () => {
@@ -80,5 +85,42 @@ describe('画布文件上传状态', () => {
       <WorkbenchUploadStatus items={result.current.pendingUploads} />,
     )
     expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  /** 摆放与连线 · 动效表「逐张淡入（错开 40）」：建出来的卡按落下的顺序交给淡入。 */
+  it('多文件落下后把建出来的卡按顺序交给逐张淡入，没建成的不算', () => {
+    upload.mockImplementation(() => new Promise(() => undefined))
+    const nodes: Array<{ id: string }> = []
+    const graph = {
+      nodes,
+      addNode: vi
+        .fn()
+        .mockImplementationOnce(() => {
+          nodes.push({ id: 'image-1' })
+          return 'image-1'
+        })
+        .mockImplementationOnce(() => null)
+        .mockImplementationOnce(() => {
+          nodes.push({ id: 'video-3' })
+          return 'video-3'
+        }),
+      setMedia: vi.fn(),
+    } as unknown as NodeGraphV4
+    const { result } = renderHook(() =>
+      useWorkbenchDndV4({ graph, pasteEnabled: false }),
+    )
+    act(() =>
+      result.current.dropFilesAtFlow(
+        [
+          new File(['image'], 'first.png', { type: 'image/png' }),
+          new File(['audio'], 'second.wav', { type: 'audio/wav' }),
+          new File(['text'], 'notes.txt', { type: 'text/plain' }),
+          new File(['video'], 'third.mp4', { type: 'video/mp4' }),
+        ],
+        { x: 0, y: 0 },
+      ),
+    )
+    expect(fadeInNodeCards).toHaveBeenCalledTimes(1)
+    expect(fadeInNodeCards).toHaveBeenCalledWith(['image-1', 'video-3'])
   })
 })

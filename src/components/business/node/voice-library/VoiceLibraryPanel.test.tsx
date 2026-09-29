@@ -78,3 +78,22 @@ describe('声音库列表分组（S5c 尾项）', () => {
     )
   })
 })
+
+describe('切页签（声音库动效表 A）', () => {
+  it('打开时列表不淡入（框自己在长出来）；切页签那一下换一块新列表从 0 淡进来', () => {
+    clipsState.clips = []
+    setup()
+    const list = () =>
+      document.querySelector<HTMLElement>('[data-voice-library-list]')!
+    expect(list().style.opacity).toBe('1')
+    fireEvent.click(
+      document.querySelector('[data-voice-library-tab="history"]')!,
+    )
+    // ⛔ 两份列表不同时在（退场叠放会把框撑高）。
+    expect(document.querySelectorAll('[data-voice-library-list]')).toHaveLength(
+      1,
+    )
+    expect(list().getAttribute('data-voice-library-list')).toBe('history')
+    expect(list().style.opacity).toBe('0')
+  })
+})

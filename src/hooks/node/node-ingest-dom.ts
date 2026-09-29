@@ -18,7 +18,9 @@
 import {
   EASE_INGEST_CSS,
   EASE_SOFT_RETURN_CSS,
+  EASE_STANDARD_CSS,
   INGEST_MOTION,
+  NODE_DROP_FADE_MOTION,
   NODE_EDGE_SIGNING_MOTION,
 } from '@/constants/motion'
 import { NODE_STUDIO_INGEST_MAGNET } from '@/constants/node-studio'
@@ -366,4 +368,47 @@ export function flashAssistantTouchedNode(nodeId: string): void {
     () => el.classList.remove(ASSISTANT_TOUCH_CLASS),
     { once: true },
   )
+}
+
+/* ─── 落物：新卡逐张淡入（摆放与连线 · 动效表）────────────────────────── */
+
+/** 新卡进 DOM 最多等这么多帧 —— 与落物回填 `backfillMedia` 同一个上限。 */
+const DROP_FADE_MAX_WAIT_FRAMES = 10
+
+/**
+ * 刚落进画布的几张卡**逐张淡入**：第 i 张延迟 i × 40ms，每张 base 档。
+ *
+ * ⚠ 只在 DOM 上跑 WAAPI（整个 `.react-flow__node`，连名字行一起淡），⛔ 不把
+ *   opacity 写进节点 state / style —— 图状态会落库，淡入只是看的那一层。
+ * ⚠ 卡要等图引擎那一拍重渲后才进 DOM，所以按帧找、最多等 10 帧；找到一张淡一张，
+ *   延迟按**落下的顺序**算（⛔ 不按被找到的先后）。等满还没出现的（手机镜头带没挂
+ *   ReactFlow / 视口外不渲染）静默跳过 —— 卡照样在，只是少了这一下。
+ * ⚠ `fill: 'backwards'`：延迟那段也保持透明，⛔ 不先亮一下再淡。
+ * ⚠ reduced motion：一律 fast 档、⛔ 不错开（动效表那一行），所以这里 ⛔ 不走
+ *   `canAnimate`（那道闸在 reduced motion 下整个跳过）。
+ */
+export function fadeInNodeCards(nodeIds: readonly string[]): void {
+  if (nodeIds.length === 0 || typeof window === 'undefined') return
+  const reduced = prefersReducedMotion()
+  const duration = reduced
+    ? NODE_DROP_FADE_MOTION.reducedDurationMs
+    : NODE_DROP_FADE_MOTION.durationMs
+  const pending = new Map(nodeIds.map((nodeId, index) => [nodeId, index]))
+  const tick = (frame: number): void => {
+    for (const [nodeId, index] of pending) {
+      const el = findNodeWrapperElement(nodeId)
+      if (!el) continue
+      pending.delete(nodeId)
+      if (typeof el.animate !== 'function') continue
+      el.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration,
+        delay: reduced ? 0 : index * NODE_DROP_FADE_MOTION.staggerMs,
+        easing: EASE_STANDARD_CSS,
+        fill: 'backwards',
+      })
+    }
+    if (pending.size === 0 || frame >= DROP_FADE_MAX_WAIT_FRAMES) return
+    window.requestAnimationFrame(() => tick(frame + 1))
+  }
+  window.requestAnimationFrame(() => tick(1))
 }

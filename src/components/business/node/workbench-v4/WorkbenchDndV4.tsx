@@ -26,6 +26,7 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
+import { fadeInNodeCards } from '@/hooks/node/node-ingest-dom'
 import {
   useNodeUploadV4,
   type NodeV4UploadKind,
@@ -220,6 +221,7 @@ export function useWorkbenchDndV4({
       // 一次拖进好几个 = 从落点起排成一行（§7 摆放 A「上传多张排成一行」），
       // ⛔ 叠在同一个坐标上（叠着的卡看起来只有一张）。
       let cursorX = origin.x
+      const createdIds: string[] = []
       accepted.forEach((entry) => {
         const position = { x: cursorX, y: origin.y }
         cursorX +=
@@ -232,6 +234,7 @@ export function useWorkbenchDndV4({
           { position },
         )
         if (!nodeId) return
+        createdIds.push(nodeId)
         setPendingUploads((items) => [
           ...items,
           { id: nodeId, name: entry.file.name },
@@ -252,6 +255,9 @@ export function useWorkbenchDndV4({
             )
           })
       })
+      // 摆放与连线 · 动效表「逐张淡入（错开 40）」：按落下的顺序一张接一张亮起来。
+      // ⚠ 只动 DOM（WAAPI），⛔ 不进节点 state、⛔ 不走 op 表 —— 这不是语义改动。
+      fadeInNodeCards(createdIds)
     },
     [backfillMedia],
   )

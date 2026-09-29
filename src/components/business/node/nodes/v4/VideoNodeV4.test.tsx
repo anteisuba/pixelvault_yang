@@ -926,6 +926,68 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(screen.getByTestId('assistant-bar')).toBeInTheDocument()
   })
 
+  it('写作条开着时，助手写回来的正文从上往下揭出来；自己打的字 ⛔ 播', () => {
+    // 画中框开合也走 WAAPI（要 `cancel` / `finished`），桩子给一只假动画。
+    const animate = vi.fn(() => ({
+      cancel: vi.fn(),
+      finish: vi.fn(),
+      finished: Promise.resolve(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+    const original = Element.prototype.animate
+    Element.prototype.animate = animate as unknown as typeof original
+    try {
+      const view = renderVideo(
+        harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
+          expandedNodeId: 'v_1',
+        }),
+        'v_1',
+        true,
+      )
+      const body = () =>
+        document.querySelector('[data-video-frame-body]') as HTMLElement
+      // 写作条没开：外面改了正文也不播。
+      view.rerender(
+        <NodeV4CanvasProvider
+          value={harness([videoNode('v_1', { ...READY, prompt: '改成拉远' })], {
+            expandedNodeId: 'v_1',
+          })}
+        >
+          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+          <VideoNodeV4
+            id="v_1"
+            data={videoNode('v_1', { ...READY, prompt: '改成拉远' }).data}
+            selected
+          />
+        </NodeV4CanvasProvider>,
+      )
+      expect(animate.mock.contexts).not.toContain(body())
+      fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
+      view.rerender(
+        <NodeV4CanvasProvider
+          value={harness(
+            [videoNode('v_1', { ...READY, prompt: '助手写的：雨夜，她回头' })],
+            { expandedNodeId: 'v_1' },
+          )}
+        >
+          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+          <VideoNodeV4
+            id="v_1"
+            data={
+              videoNode('v_1', { ...READY, prompt: '助手写的：雨夜，她回头' })
+                .data
+            }
+            selected
+          />
+        </NodeV4CanvasProvider>,
+      )
+      expect(animate.mock.contexts).toContain(body())
+    } finally {
+      Element.prototype.animate = original
+    }
+  })
+
   it('没片：空态只有上传 / 素材库两颗，主键写「生成」', () => {
     renderVideo(
       harness([videoNode('v_1', { prompt: '镜头缓慢推近' })], {

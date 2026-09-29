@@ -7,8 +7,11 @@ import { DURATION_MS, EASE_STANDARD_CSS } from '@/constants/motion'
 
 /** 画中框的标题与底栏晚这么多进场（设计画布「画布 · 点开」A 动效表）。 */
 const CHROME_DELAY_MS = DURATION_MS.fast
-/** 关上缩回那张卡的时长（开 320 · 关 240）。 */
-const CLOSE_MS = 240
+/**
+ * 关上缩回那张卡的时长（开 320 · 关 240）。⚠ 导出是给「缩回去之后卡面再闪一下」
+ * 那类调用方对拍子用的（声音库「用这段」），⛔ 别处另写一个 240。
+ */
+export const GROW_CLOSE_MS = 240
 
 interface GrowFromOriginOptions {
   /** 来处：那张卡。没给（或量不到）就在原地淡入、微微放大。 */
@@ -167,13 +170,17 @@ export function useGrowFromOrigin({
             { opacity: 1, offset: 0.7 },
             { transform: to, opacity: 0 },
           ],
-          { duration: CLOSE_MS, easing: EASE_STANDARD_CSS, fill: 'forwards' },
+          {
+            duration: GROW_CLOSE_MS,
+            easing: EASE_STANDARD_CSS,
+            fill: 'forwards',
+          },
         ),
       )
       if (scrimElement)
         running.push(
           scrimElement.animate([{ opacity: 1 }, { opacity: 0 }], {
-            duration: CLOSE_MS,
+            duration: GROW_CLOSE_MS,
             easing: EASE_STANDARD_CSS,
             fill: 'forwards',
           }),

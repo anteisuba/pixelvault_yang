@@ -154,6 +154,13 @@ vi.mock('../../FishVoiceLibraryDialog', () => ({
   FishVoiceLibraryDialog: () => <div data-testid="voice-library-dialog" />,
 }))
 
+/** 卡面闪一下的本体（找 DOM、挂 class）在 `node-card-flash.test.ts`；这里只看拍子。 */
+const flashCardSpy = vi.hoisted(() => vi.fn())
+vi.mock('./chrome/node-card-flash', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./chrome/node-card-flash')>()),
+  flashNodeCard: flashCardSpy,
+}))
+
 import { AI_MODELS } from '@/constants/models'
 import { rememberVoiceCovers } from '@/hooks/use-voice-cover'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -166,6 +173,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 import { AudioNodeV4 } from './AudioNodeV4'
+import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
@@ -869,6 +877,34 @@ describe('音色弹层', () => {
     )
   })
 
+  it('换了音色：名字交叉淡换（120），旧名退场时脱开排版，退完只剩新名', async () => {
+    const chip = (voiceId: string, voiceName: string) => (
+      <AudioVoiceChip
+        voiceId={voiceId}
+        voiceName={voiceName}
+        speed={undefined}
+        volume={undefined}
+        onSelectVoice={vi.fn()}
+        onSpeedChange={vi.fn()}
+        onVolumeChange={vi.fn()}
+        onOpenLibrary={vi.fn()}
+      />
+    )
+    const labels = () =>
+      Array.from(
+        document.querySelectorAll<HTMLElement>('[data-audio-voice-chip-label]'),
+      )
+    const { rerender } = render(chip('fish_a', '甲'))
+    // 头一回挂上不淡入（直接落在终态）。
+    expect(labels().map((el) => el.style.opacity)).toEqual(['1'])
+    rerender(chip('fish_b', '乙'))
+    const incoming = labels().find((el) => el.textContent === '乙')!
+    expect(incoming.style.opacity).toBe('0')
+    await waitFor(() =>
+      expect(labels().map((el) => el.textContent)).toEqual(['乙']),
+    )
+  })
+
   it('弹层底部是语速三档 + 音量滑杆（prosody，⛔ 不是标记）', () => {
     const onSpeedChange = vi.fn()
     render(
@@ -945,6 +981,18 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
       ),
     )
     expect(generateNode).not.toHaveBeenCalled()
+  })
+
+  it('「用这段」之后：框先缩回这张卡，缩完（GROW_CLOSE_MS）卡面再闪一下', async () => {
+    flashCardSpy.mockClear()
+    const context = clip()
+    renderAudio(context, 'a_1', true)
+    openMenu('[data-prompt-bar-add]')
+    fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
+    fireEvent.click(document.querySelector('[data-voice-library-use]')!)
+    await waitFor(() => expect(context.onSetMedia).toHaveBeenCalled())
+    expect(flashCardSpy).toHaveBeenCalledTimes(1)
+    expect(flashCardSpy).toHaveBeenCalledWith('a_1', GROW_CLOSE_MS)
   })
 
   it('面板的「设为音色」写 voiceProfile，⛔ 不落产物', () => {

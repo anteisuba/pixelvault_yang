@@ -16,12 +16,14 @@
  */
 
 import { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Check } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
+import { motionTransition } from '@/constants/motion'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { useVoiceCover } from '@/hooks/use-voice-cover'
 import {
@@ -83,6 +85,7 @@ export function AudioVoiceChip({
   const [open, setOpen] = useState(false)
   const preview = useVoiceSamplePreview()
   const cover = useVoiceCover(voiceId)
+  const reduce = useReducedMotion()
 
   // ⚠ 只在弹层开着时拉数据：这条 chip 挂在每一张选中的音频卡上，常驻拉取等于
   // 每选一张卡就打一次声音库。
@@ -109,6 +112,7 @@ export function AudioVoiceChip({
     )?.name ??
     library.publicVoices.find((v) => v.voiceId === voiceId)?.title ??
     voiceName
+  const label = current ?? (voiceId ? voiceId : t('title'))
 
   const pick = (voice: {
     voiceId: string
@@ -223,7 +227,9 @@ export function AudioVoiceChip({
           aria-label={t('title')}
           className={cn(
             // 与画布里另外几颗 chip 同一档（28 高、12 字、按下 0.96）。
-            'nodrag nopan inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border pr-2.5 text-xs',
+            // `relative overflow-hidden`：换名时旧名退场脱开排版（popLayout），按这颗
+            // chip 定位，比新名长的那截不伸出 chip 外。
+            'nodrag nopan relative inline-flex h-7 overflow-hidden shrink-0 items-center gap-1.5 rounded-md border pr-2.5 text-xs',
             cover ? 'pl-1.5' : 'pl-2.5',
             'transition-[border-color,color,transform] duration-fast ease-standard active:scale-96',
             'hover:border-foreground/40 hover:text-foreground',
@@ -235,16 +241,30 @@ export function AudioVoiceChip({
               : 'border-border text-muted-foreground',
           )}
         >
-          {/* 这副嗓子的封面跟着 chip 走（owner 2026-09-29「封面都带着」）。 */}
-          {cover ? (
-            <VoiceAvatar
-              cover={cover}
-              fallback="letter"
-              name={current ?? ''}
-              size="chip"
-            />
-          ) : null}
-          {current ?? (voiceId ? voiceId : t('title'))}
+          {/* 换了音色 = 头像 + 名字一起交叉淡换（120，声音库动效表 A）。旧的
+              退场时脱开排版，⛔ 不与新的并排把 chip 撑宽。 */}
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.span
+              key={label}
+              data-audio-voice-chip-label
+              initial={reduce ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={motionTransition('fast', reduce)}
+              className="inline-flex items-center gap-1.5"
+            >
+              {/* 这副嗓子的封面跟着 chip 走（owner 2026-09-29「封面都带着」）。 */}
+              {cover ? (
+                <VoiceAvatar
+                  cover={cover}
+                  fallback="letter"
+                  name={current ?? ''}
+                  size="chip"
+                />
+              ) : null}
+              {label}
+            </motion.span>
+          </AnimatePresence>
         </button>
       }
     >

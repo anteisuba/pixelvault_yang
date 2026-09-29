@@ -250,6 +250,17 @@ export const NODE_EDGE_SIGNING_MOTION = {
 } as const
 
 /**
+ * 落物「逐张淡入」（摆放与连线 · 动效表：上传多张 = 一张接一张排成一行，逐张淡入，
+ * 错开 40）。`node-ingest-dom.fadeInNodeCards` 的 WAAPI 从这里取值。
+ * ⚠ reduced motion：直接落位 + fast 档淡入，⛔ 不错开。
+ */
+export const NODE_DROP_FADE_MOTION = {
+  durationMs: DURATION_MS.base,
+  staggerMs: 40,
+  reducedDurationMs: DURATION_MS.fast,
+} as const
+
+/**
  * 助手结果「弹进来」那一类的过冲曲线（拍板 17 的灯箱与参考图缩略图）。
  *
  * ⚠ 与 `EASE_STANDARD` 分开命名，理由和吞噬三拍一样：这两拍的手感是**带过冲的

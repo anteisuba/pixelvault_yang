@@ -18,6 +18,7 @@
  */
 
 import { Fragment, useCallback, useState, type RefObject } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { Mic, Search } from '@/components/icons'
@@ -32,6 +33,7 @@ import {
   type AudioClipSourceKind,
   type VoiceLibraryTabId,
 } from '@/constants/audio-options'
+import { motionTransition } from '@/constants/motion'
 import {
   groupVoiceLibraryClipsByDate,
   landVoiceLibraryClip,
@@ -85,6 +87,12 @@ export function VoiceLibraryPanel({
   const t = useTranslations('StudioNode.v4.audio.library')
   const tSource = useTranslations('StudioNode.v4.audio.source')
   const [tab, setTab] = useState<VoiceLibraryTabId>(VOICE_LIBRARY_TAB_IDS[0])
+  /**
+   * 切过页签没有：列表只在切页签那一下淡入（120，声音库动效表 A）。⚠ 头一回打开
+   * 不淡 —— 那时整个框正从卡上长出来，再叠一层淡入就是两拍。
+   */
+  const [tabSwitched, setTabSwitched] = useState(false)
+  const reduce = useReducedMotion()
   const tErrors = useTranslations('Errors')
   const [search, setSearch] = useState('')
   const [cloneOpen, setCloneOpen] = useState(false)
@@ -258,7 +266,9 @@ export function VoiceLibraryPanel({
               aria-label={t('tabsLabel')}
               value={tab}
               onValueChange={(next) => {
-                if (next) setTab(next as VoiceLibraryTabId)
+                if (!next) return
+                setTab(next as VoiceLibraryTabId)
+                setTabSwitched(true)
               }}
             >
               {VOICE_LIBRARY_TAB_IDS.map((id) => (
@@ -273,8 +283,13 @@ export function VoiceLibraryPanel({
             </ToggleGroup>
           </div>
 
-          <div
+          {/* 按页签换一块新列表淡进来（⛔ 不做退场叠放：两份列表同时在就会把框撑高）。 */}
+          <motion.div
+            key={tab}
             data-voice-library-list={tab}
+            initial={reduce || !tabSwitched ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={motionTransition('fast', reduce)}
             className="-mx-1 flex max-h-96 min-h-40 flex-col gap-0.5 overflow-y-auto px-1"
           >
             {clips.length === 0 ? (
@@ -301,7 +316,7 @@ export function VoiceLibraryPanel({
             ) : (
               clips.map(clipRow)
             )}
-          </div>
+          </motion.div>
         </div>
       </NodeFrame>
 

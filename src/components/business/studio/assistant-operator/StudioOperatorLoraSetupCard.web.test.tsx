@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import type { StudioOperatorLoraSetupPrompt } from './StudioOperatorLoraSetupCard'
-import type { AssistantOperatorLoraPickCandidate } from '@/types/assistant-operator'
+import type { AssistantOperatorLoraMountCandidate } from '@/types/assistant-operator'
 
 /**
  * **搭配卡**的回归闸（lora-assistant §12）。
@@ -25,7 +25,7 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-const candidate: AssistantOperatorLoraPickCandidate = {
+const candidate: AssistantOperatorLoraMountCandidate = {
   candidateId: 'civitai:1',
   source: 'civitai',
   name: '祀 (Sue)',

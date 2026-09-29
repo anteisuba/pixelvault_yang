@@ -439,7 +439,7 @@ import {
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
   type AssistantOperatorLoraCandidate,
-  type AssistantOperatorLoraPickCandidate,
+  type AssistantOperatorLoraMountCandidate,
   type AssistantOperatorLoraSetupConfirm,
   type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
@@ -5191,7 +5191,7 @@ function planLoraSetup(
         baseFamily,
       ) as AssistantOperatorLoraCandidate),
       importPayload: candidate.importPayload,
-    } as AssistantOperatorLoraPickCandidate
+    } as AssistantOperatorLoraMountCandidate
     const name = clamp(candidate.name, LIMITS.maxLabelChars)
     if (projection.alreadyMounted) continue
     if (!projection.importable || !candidate.importPayload) {

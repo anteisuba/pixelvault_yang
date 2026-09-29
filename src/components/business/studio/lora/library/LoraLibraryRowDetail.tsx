@@ -3,7 +3,6 @@
 import { useState, type ReactNode } from 'react'
 import {
   ArrowUpRight,
-  Check,
   ChevronUp,
   Download,
   ExternalLink,
@@ -25,13 +24,11 @@ import {
   LORA_SAMPLE_THUMBNAIL_WIDTH,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
-import { LORA_CANDIDATE_NOT_IMPORTABLE_REASONS } from '@/constants/lora-candidate'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
-import type { AssistantOperatorLoraPickCandidate } from '@/types/assistant-operator'
 import type {
   LoraAssetRecord,
   CivitaiLoraLibraryItem,
@@ -100,35 +97,9 @@ interface HuggingFaceDetailProps {
   onPreviewCover: (item: HuggingFaceLoraSearchItem) => void
 }
 
-/**
- * 第三支：**助手推荐卡上的检索候选**（lora-assistant §10.3.2）。
- *
- * ⚠ 为什么是判别联合的第三支而不是「候选 → CivitaiLoraLibraryItem 适配器」：
- * `CivitaiLoraLibraryItem` 有二十来格**必填**字段（`thumbsUpCount` /
- * `allowDerivatives` / `versionName`…），候选身上一格都没有。适配器只能给它们
- * 编值，而编出来的 `0` / `false` 会被当成事实画到徽章上 —— 本域最忌讳的那类谎。
- * 所以这一支**候选没有的字段整块不画**，⛔ 不画空壳、⛔ 不填 0。
- *
- * ⚠ 动作条也换了一对：主 = 「勾上这把 / 取消勾选」（回到卡上那一行），
- * ⛔ **不是**库里的「使用此 LoRA」—— 那一颗直接挂，会绕过整张推荐卡。
- * ⛔ 不给「收藏」：这一刻它还没进库。
- */
-interface CandidateDetailProps {
-  source: 'candidate'
-  layout?: LoraLibraryDetailLayout
-  candidate: AssistantOperatorLoraPickCandidate
-  /** 卡上那一行此刻勾没勾 —— 主按钮的两种字面由它决定。 */
-  checked: boolean
-  /** 「勾上这把 / 取消勾选」→ 同步卡上那一行的勾选态。 */
-  onToggle: (candidateId: string) => void
-  /** 只有 `layout="inline"` 用得上（抽屉自带抓手，关闭走宿主的 onOpenChange）。 */
-  onCollapse?: () => void
-}
-
 export type LoraLibraryRowDetailProps =
   | CivitaiDetailProps
   | HuggingFaceDetailProps
-  | CandidateDetailProps
 
 // R1 close-review（owner 2026-07-19「按钮部分最好做点击后的过度动画」）：给
 // 详情动作按钮加统一按压过渡。Button 自带 color 过渡，这里只补 transform。
@@ -137,9 +108,6 @@ const PRESS_ANIMATION = 'transition-transform active:scale-[0.97]'
 export function LoraLibraryRowDetail(props: LoraLibraryRowDetailProps) {
   if (props.source === 'huggingface') {
     return <HuggingFaceRowDetail {...props} />
-  }
-  if (props.source === 'candidate') {
-    return <CandidateRowDetail {...props} />
   }
   return <CivitaiRowDetail {...props} />
 }
@@ -846,224 +814,6 @@ function HuggingFaceRowDetail({
   return (
     <DetailShell
       onCollapse={onCollapse}
-      cover={cover}
-      info={info}
-      actions={<InlineActions model={actionModel} />}
-    />
-  )
-}
-
-// ── 候选分支（助手推荐卡 → 详情抽屉，lora-assistant §10.3.2）──────────
-//
-// ⚠ 这里每一块都挂着一个「有没有」的判据：候选身上没有的字段**整块不画**
-// （⛔ 不画空壳、⛔ 不填 0）。版本名 / 作者头像 / 点赞 / 授权位 / 样例带 /
-// 安全分级在候选上根本不存在 —— 它们在这一支里连坑位都没有，不是「留空」。
-
-/** 「导不进来」三个码 → 词条后缀（与推荐卡上那一行逐字同源，⛔ 不另写一套话）。 */
-const CANDIDATE_NOT_IMPORTABLE_KEYS: Record<string, string> = {
-  [LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.unknownBaseModel]: 'unknownBaseModel',
-  [LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.noWeightFile]: 'noWeightFile',
-  [LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.gatedRepo]: 'gatedRepo',
-}
-
-function CandidateRowDetail({
-  candidate,
-  checked,
-  onToggle,
-  onCollapse,
-  layout = 'drawer',
-}: CandidateDetailProps) {
-  const t = useTranslations('LoraWorkbench')
-  // 兼容 / 导入理由那几句归助手域（推荐卡上那一行用的就是它们）——⛔ 不在库
-  // 这边另起一套同义词条，两套话会立刻在「装不上」的措辞上漂。
-  const tPick = useTranslations('StudioOperator')
-  const [coverLoaded, setCoverLoaded] = useState(false)
-  const mountable = candidate.compatible && candidate.importable
-  const familyLabel =
-    candidate.family ?? tPick('confirm.loraPick.familyUnknown')
-  const reasonKey = candidate.notImportableReason
-    ? CANDIDATE_NOT_IMPORTABLE_KEYS[candidate.notImportableReason]
-    : undefined
-
-  const cover = (
-    <div
-      data-testid="lora-candidate-detail-cover"
-      className={cn(
-        'block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
-        candidate.thumbnailUrl && !coverLoaded && 'animate-pulse',
-      )}
-    >
-      {candidate.thumbnailUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={civitaiDisplayImageUrl(
-            candidate.thumbnailUrl,
-            LORA_DETAIL_IMAGE_WIDTH,
-          )}
-          alt={candidate.name}
-          width={512}
-          height={640}
-          onLoad={() => setCoverLoaded(true)}
-          className={cn(
-            'aspect-[4/5] w-full object-cover transition-opacity duration-200',
-            coverLoaded ? 'opacity-100' : 'opacity-0',
-          )}
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <div className="flex aspect-[4/5] items-center justify-center text-muted-foreground">
-          <Sparkles className="size-8" aria-hidden />
-        </div>
-      )}
-    </div>
-  )
-
-  const info = (
-    <div className="space-y-3">
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-lg font-semibold leading-tight text-foreground">
-            {candidate.name}
-          </h3>
-          {/* 家族 null = 定不出来（⛔ 不编一个名字）。 */}
-          {candidate.family ? (
-            <span
-              data-testid="lora-candidate-detail-family-badge"
-              className="rounded border border-border/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground"
-            >
-              {candidate.family}
-            </span>
-          ) : null}
-        </div>
-        {/* 下载数有才画；点赞候选身上没有，那一格整个缺席。 */}
-        {candidate.downloads === null ? null : (
-          <Metrics downloads={candidate.downloads} />
-        )}
-      </div>
-
-      <dl className="space-y-1.5">
-        {candidate.triggerWords.length > 0 ? (
-          <FieldRow label={t('communityTriggerWord')}>
-            <span
-              data-testid="lora-candidate-detail-triggers"
-              className="inline-flex flex-wrap items-center gap-1.5"
-            >
-              {candidate.triggerWords.map((word) => (
-                <code
-                  key={word}
-                  className="break-all rounded-md border border-border/60 bg-background px-1.5 py-0.5 font-mono text-2xs"
-                >
-                  {word}
-                </code>
-              ))}
-            </span>
-          </FieldRow>
-        ) : null}
-        <FieldRow label={t('communityBaseModel')}>
-          <span
-            data-testid="lora-candidate-detail-compat"
-            className="inline-flex flex-wrap items-center gap-1.5"
-          >
-            {candidate.compatible
-              ? tPick('confirm.loraPick.compatible', { family: familyLabel })
-              : tPick('confirm.loraPick.incompatible', { family: familyLabel })}
-          </span>
-        </FieldRow>
-        {candidate.pageUrl ? (
-          <FieldRow label={t('communitySource')}>
-            <a
-              data-testid="lora-candidate-detail-source"
-              href={candidate.pageUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-foreground hover:text-primary"
-            >
-              {candidate.source === 'civitai'
-                ? t('librarySourceCivitai')
-                : t('librarySourceHuggingFace')}
-              <ExternalLink className="size-3" aria-hidden />
-            </a>
-          </FieldRow>
-        ) : null}
-        {/* 许可：`licenseKnown === false` 就是「不知道」——⛔ 整块不画，
-            ⛔ 更不画一个「仅个人使用」的徽章冒充结论。 */}
-        {candidate.licenseKnown ? (
-          <FieldRow label={t('licenseLabel')}>
-            <span
-              data-testid="lora-candidate-detail-license"
-              className="inline-flex flex-wrap items-center gap-1.5"
-            >
-              {candidate.licenseLabel ? (
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
-                  {candidate.licenseLabel}
-                </span>
-              ) : null}
-              {candidate.commercialUse?.map((scope) => (
-                <span
-                  key={scope}
-                  className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs font-medium text-status-applied"
-                >
-                  <ShieldCheck className="size-2.5" aria-hidden />
-                  {scope}
-                </span>
-              ))}
-            </span>
-          </FieldRow>
-        ) : null}
-      </dl>
-
-      {candidate.author ? (
-        <p
-          data-testid="lora-candidate-detail-author"
-          className="text-2xs text-muted-foreground"
-        >
-          {t('detailAuthor', { name: candidate.author })}
-        </p>
-      ) : null}
-
-      {/* 装不上的那把：理由写在明面上（⛔ 不藏进 tooltip），主按钮同时不给勾。 */}
-      {mountable ? null : (
-        <div
-          data-testid="lora-candidate-detail-blocked"
-          className="rounded-lg border border-status-warning/40 bg-status-warning-surface px-3 py-2 text-2xs leading-relaxed text-status-warning"
-        >
-          {candidate.compatible && reasonKey
-            ? tPick(`confirm.loraPick.notImportable.${reasonKey}`)
-            : tPick('confirm.loraPick.incompatible', { family: familyLabel })}
-        </div>
-      )}
-    </div>
-  )
-
-  const actionModel: DetailActionModel = {
-    // ⚠ 主动作是「勾上这把 / 取消勾选」，⛔ 不是库里的「使用此 LoRA」——
-    // 那一颗直接挂，会绕过整张推荐卡（§10.3.2）。
-    primaryLabel: checked
-      ? tPick('confirm.loraPick.detailUnpick')
-      : tPick('confirm.loraPick.detailPick'),
-    primaryExternal: false,
-    primaryIcon: <Check className="size-4" aria-hidden />,
-    primaryDisabled: !mountable,
-    onPrimary: () => onToggle(candidate.candidateId),
-    sourceUrl: candidate.pageUrl ?? '',
-    sourceLabel: t('communityOpenSource'),
-    showSource: Boolean(candidate.pageUrl),
-  }
-
-  if (layout === 'drawer') {
-    return (
-      <DetailDrawerBody
-        cover={cover}
-        info={info}
-        actions={<DrawerActionBar model={actionModel} />}
-      />
-    )
-  }
-
-  return (
-    <DetailShell
-      onCollapse={onCollapse ?? (() => {})}
       cover={cover}
       info={info}
       actions={<InlineActions model={actionModel} />}

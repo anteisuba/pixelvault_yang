@@ -7908,18 +7908,6 @@
         "notSaved": "未保存",
         "negative": "必ず除外する要素：{value}"
       },
-      "loraPick": {
-        "compatible": "{family} · 付けられます",
-        "incompatible": "{family} · 付けられません。ベースモデルを変えてください",
-        "familyUnknown": "ベースモデル不明",
-        "detailPick": "これを選ぶ",
-        "detailUnpick": "選択を外す",
-        "notImportable": {
-          "unknownBaseModel": "ベースモデルが特定できず、取り込めません",
-          "noWeightFile": "リポジトリに重みファイルがなく、取り込めません",
-          "gatedRepo": "制限付きリポジトリのため重みを取得できません"
-        }
-      },
       "loraSetup": {
         "apply": "この構成を適用",
         "applying": "適用中…",

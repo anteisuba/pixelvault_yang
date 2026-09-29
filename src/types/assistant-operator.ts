@@ -1516,7 +1516,7 @@ export type AssistantOperatorResumeFrom = z.infer<
  *    背一份落库入参就是让每条消息多背几 KB，而那一刻还没有任何一把要挂。
  *    ⚠ 这条边界**就落在 `importPayload` 是不是可选上**：这份基础 schema 留它
  *    `.optional()`，步结果那条路（`toLoraCandidateProjection`）压根不填；搭配卡那
- *    一帧（与库页详情）走的是派生出来的 `AssistantOperatorLoraPickCandidateSchema`，
+ *    一帧走的是派生出来的 `AssistantOperatorLoraMountCandidateSchema`，
  *    那里它是**必填**（`null` = 这把本来就导不进来）。理由：搭配卡是「真的要挂那
  *    几把」的前一刻，而 `candidateId → 候选` 的索引只活一轮（用户点「应用」发生在
  *    流结束之后），所以候选本体必须跟着帧走。⛔ 别因此
@@ -1556,15 +1556,15 @@ export const AssistantOperatorLoraCandidateSchema = z.object({
   alreadyMounted: z.boolean(),
   alreadyImported: z.boolean(),
   /**
-   * 这一把该用多大权重（作者推荐 → 1.0）—— 库页详情上那个 mono 读数。⛔ 别在界面上
-   * 另算一次：两处分叉的表现是「卡上写 0.8、挂上去变成 1.0」。
+   * 这一把该用多大权重（作者推荐 → 1.0）—— 搭配卡上没给权重的那一行就用它。⛔ 别在
+   * 界面上另算一次：两处分叉的表现是「卡上写 0.8、挂上去变成 1.0」。
    */
   defaultWeight: z.number(),
   /**
    * 一次确认之后要发给导入链的那份载荷（来源快照 + 权重文件地址 + 落库入参）。
    *
    * ⚠ **可选只对步结果那条路而言**（头注 ①）：`search_loras` 的步结果要进会话
-   * 历史，⛔ 不填它。搭配卡用的是 `AssistantOperatorLoraPickCandidateSchema`，
+   * 历史，⛔ 不填它。搭配卡用的是 `AssistantOperatorLoraMountCandidateSchema`，
    * 那边它是必填。
    * ⚠ `null` = 这把导不进来（与 `importable:false` 同一件事的两侧）。
    */
@@ -1576,20 +1576,20 @@ export type AssistantOperatorLoraCandidate = z.infer<
 >
 
 /**
- * **真要挂上的那一条候选**（搭配卡的新挂行、库页详情）—— 与上面同一份投影，只是把
+ * **真要挂上的那一条候选**（搭配卡的新挂行）—— 与上面同一份投影，只是把
  * `importPayload` 收成**必填**。
  *
  * ⭐ 派生而不是「一份可选到底」：可选到底的表现是卡上少一格没人发现，直到用户
  * 点了「应用」才挂不上。
  * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的那一格写 `null`。
  */
-export const AssistantOperatorLoraPickCandidateSchema =
+export const AssistantOperatorLoraMountCandidateSchema =
   AssistantOperatorLoraCandidateSchema.extend({
     importPayload: LoraCandidateImportPayloadSchema.nullable(),
   })
 
-export type AssistantOperatorLoraPickCandidate = z.infer<
-  typeof AssistantOperatorLoraPickCandidateSchema
+export type AssistantOperatorLoraMountCandidate = z.infer<
+  typeof AssistantOperatorLoraMountCandidateSchema
 >
 
 export const AssistantOperatorRequestSchema = z.object({
@@ -4112,7 +4112,7 @@ export const AssistantOperatorLoraSetupConfirmSchema = z
     mounts: z
       .array(
         z.object({
-          candidate: AssistantOperatorLoraPickCandidateSchema,
+          candidate: AssistantOperatorLoraMountCandidateSchema,
           weight: z.number(),
         }),
       )

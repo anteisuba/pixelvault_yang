@@ -316,7 +316,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 2.0, distilled: 1.0 }
 
 ## 10. LoRA 推荐卡（2026-09-12 起，2026-09-29 退场）
 
-桌面 LoRA 域找 LoRA 改为 §13「库页当面搜」。推荐卡整套已从代码删除：`plan_lora_pick`、确认帧 `loraPick`、请求里的 `loraPicks` 与挂载回执、`StudioOperatorLoraPickCard`、两条系统行 `loraPickMounted` / `loraPickDismissed`。`mount_lora` 只剩搭配卡（§12）应用时客户端逐行挂的那一种步骤，不在任何域的工具表里，模型调它按 `noSuchControl` 拒。当时的设计与实现记录从 git 历史取。
+桌面 LoRA 域找 LoRA 改为 §13「库页当面搜」。推荐卡整套已从代码删除：`plan_lora_pick`、确认帧 `loraPick`、请求里的 `loraPicks` 与挂载回执、`StudioOperatorLoraPickCard`、两条系统行 `loraPickMounted` / `loraPickDismissed`，以及库页详情组件里给它开的「候选」支（`source: 'candidate'`）。`mount_lora` 只剩搭配卡（§12）应用时客户端逐行挂的那一种步骤，不在任何域的工具表里，模型调它按 `noSuchControl` 拒。当时的设计与实现记录从 git 历史取。
 
 ## 11. 实现核查：还原与质量链路（2026-09-13）
 
@@ -424,7 +424,7 @@ owner 定：助手找 LoRA 改成**切到「库」页、在搜索框里搜给你
 
 ### Last Verified
 
-- **2026-09-29 · 推荐卡代码删除**（owner「清掉」）：§10 那一整套从常量、协议、服务端、客户端 hook、面板与三语文案里拿掉；服务端测试里依赖挂载回执的用例一并删除，`mount_lora` 分派改成一句拒绝（只为穷举）。
+- **2026-09-29 · 推荐卡代码删除**（owner「清掉」）：§10 那一整套从常量、协议、服务端、客户端 hook、面板、库页详情的「候选」支与三语文案里拿掉；服务端测试里依赖挂载回执的用例一并删除，`mount_lora` 分派改成一句拒绝（只为穷举）。
 
 - **2026-09-28 · §12 搭配卡**：owner 选「一张卡全包」（新挂 / 卸下 / 权重 / 参数一张卡、一键应用、这一轮撤销一键回退、新 LoRA 不再单独走推荐卡勾选）。新工具 `plan_lora_setup` + 确认帧 `loraSetup` + 客户端逐行应用；系统提示与三条工具说明改成两张卡的分工表（§12.1）。
 

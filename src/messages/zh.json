@@ -7908,18 +7908,6 @@
         "notSaved": "没有存",
         "negative": "硬否定：{value}"
       },
-      "loraPick": {
-        "compatible": "{family} · 装得上",
-        "incompatible": "{family} · 装不上，要换底模",
-        "familyUnknown": "底模未知",
-        "detailPick": "勾上这把",
-        "detailUnpick": "取消勾选",
-        "notImportable": {
-          "unknownBaseModel": "底模定不出来，导不进来",
-          "noWeightFile": "仓库里没有权重文件，导不进来",
-          "gatedRepo": "仓库受限，取不到权重"
-        }
-      },
       "loraSetup": {
         "apply": "应用这套搭配",
         "applying": "应用中…",

@@ -7908,18 +7908,6 @@
         "notSaved": "Not kept",
         "negative": "Always exclude: {value}"
       },
-      "loraPick": {
-        "compatible": "{family} · fits",
-        "incompatible": "{family} · needs a different base model",
-        "familyUnknown": "Base model unknown",
-        "detailPick": "Pick this one",
-        "detailUnpick": "Unpick this one",
-        "notImportable": {
-          "unknownBaseModel": "Base model could not be resolved — cannot import",
-          "noWeightFile": "No weight file in the repo — cannot import",
-          "gatedRepo": "Gated repo — the weights cannot be fetched"
-        }
-      },
       "loraSetup": {
         "apply": "Apply this setup",
         "applying": "Applying…",

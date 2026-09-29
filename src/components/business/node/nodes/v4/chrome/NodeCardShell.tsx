@@ -151,8 +151,8 @@ export function NodeCardShell({
             activateOn="doubleClick"
             {...(renameRequest === undefined ? {} : { renameRequest })}
             className={cn(
-              'min-w-0 px-1 text-xs',
-              // 选中变深（spec §1.1）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
+              'min-w-0 px-1 text-xs transition-colors duration-fast ease-standard',
+              // 选中变深（spec §1.1，走 120）。⛔ 不靠字重变化——字重跳动会让整行宽度抖。
               // 对比度（`contrast-check`，2026-09-10）：`foreground` 对卡面 19.80；
               // `muted-foreground`（实测 #696969）对卡面 5.49 / `--muted` 5.04 /
               // 画布米纸 4.98，三种底都过 4.5。
@@ -162,7 +162,7 @@ export function NodeCardShell({
         ) : (
           <span
             className={cn(
-              'min-w-0 truncate px-1 text-xs',
+              'min-w-0 truncate px-1 text-xs transition-colors duration-fast ease-standard',
               selected ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -183,7 +183,7 @@ export function NodeCardShell({
           data-node-card-surface
           className={cn(
             // 卡面不透明（node/CLAUDE.md 禁改第 6 条：画布上可能同时上百张卡）。
-            'rounded-node corner-squircle bg-card transition-[box-shadow,border-color,outline-color] duration-fast ease-standard',
+            'rounded-node corner-squircle bg-card node-ring-track transition-[box-shadow,border-color,outline-color] duration-fast ease-standard',
             expanded ? 'shadow-node-card-expanded' : 'shadow-node-card',
             // 选中环走 `node-selected-ring`（globals.css 的工具类，`outline`
             // 实现）——卡影已经占了 `box-shadow`，⛔ 不要再拿 shadow 类叠环。

@@ -14,6 +14,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
@@ -361,26 +362,29 @@ function AudioSheetBody({ node }: { readonly node: NodeV4 }) {
           />,
         ]}
       />
-      {voiceLibrary ? (
-        <VoiceLibraryPanel
-          open
-          onClose={() => setVoiceLibrary(false)}
-          onUseClip={(clip) => {
-            canvas.onSetMedia(node.id, {
-              url: clip.url,
-              source: { kind: clip.sourceKind, label: clip.sourceLabel },
-            })
-            setVoiceLibrary(false)
-          }}
-          onSetVoice={(clip: VoiceLibraryClip) => {
-            if (!clip.voiceId) return
-            // 名字一起记（`voiceName`）：收起的 chip 拉不动整库，没有它就只能
-            // 显示那串哈希。
-            patchProfile({ voiceId: clip.voiceId, voiceName: clip.name })
-            setVoiceLibrary(false)
-          }}
-        />
-      ) : null}
+      <AnimatePresence>
+        {voiceLibrary ? (
+          <VoiceLibraryPanel
+            key="voice-library"
+            open
+            onClose={() => setVoiceLibrary(false)}
+            onUseClip={(clip) => {
+              canvas.onSetMedia(node.id, {
+                url: clip.url,
+                source: { kind: clip.sourceKind, label: clip.sourceLabel },
+              })
+              setVoiceLibrary(false)
+            }}
+            onSetVoice={(clip: VoiceLibraryClip) => {
+              if (!clip.voiceId) return
+              // 名字一起记（`voiceName`）：收起的 chip 拉不动整库，没有它就只能
+              // 显示那串哈希。
+              patchProfile({ voiceId: clip.voiceId, voiceName: clip.name })
+              setVoiceLibrary(false)
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

@@ -11,9 +11,13 @@
  * 224px 宽、圆角 14 连续圆角、5px 内距、行 30px、组间一条线；材质与工具条同一种
  * （`surface-glass` + vibrancy，⛔ 不用实色浮层）。hover **整行反白**成
  * `--primary`（全站唯一强调色的合法用法之一 = 当前选中态），危险行反白成红。
+ *
+ * 开合 = 方向 A「从指针处长出来」（node-canvas-v2 §1 第 12 条：开 200 · 关 120 缓入）；
+ * 调用方把它包在 `AnimatePresence` 里才播得到关。
  */
 
 import { useEffect, useRef } from 'react'
+import { motion, useIsPresent, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { NODE_V4_CONTEXT_MENU } from '@/constants/node-studio'
@@ -24,6 +28,7 @@ import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
 import { collectDownstream } from '@/lib/node-downstream'
 import type { NodeV4 } from '@/types/node-workflow'
 
+import { FADE_ONLY, GROW_FROM_POINTER } from './chrome/chrome-motion'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
@@ -53,6 +58,8 @@ export function NodeV4ContextMenu({
   const tRerun = useTranslations('StudioNode.rerunDownstream')
   const canvas = useNodeV4Canvas()
   const ref = useRef<HTMLDivElement>(null)
+  const present = useIsPresent()
+  const motionSet = useReducedMotion() ? FADE_ONLY : GROW_FROM_POINTER
   /**
    * 「重跑下游」露不露脸（第三期）。
    *
@@ -155,12 +162,23 @@ export function NodeV4ContextMenu({
     : items
 
   return (
-    <div
+    <motion.div
       ref={ref}
       role="menu"
       data-node-context-menu={node.id}
-      style={{ left: x, top: y, width: NODE_V4_CONTEXT_MENU.width }}
-      className="nodrag nopan nowheel absolute z-10 rounded-xl border p-1.5 text-popover-foreground corner-squircle surface-glass shadow-node-menu"
+      style={{
+        left: x,
+        top: y,
+        width: NODE_V4_CONTEXT_MENU.width,
+        transformOrigin: '0 0',
+      }}
+      initial={motionSet.initial}
+      animate={motionSet.animate}
+      exit={motionSet.exit}
+      className={cn(
+        'nodrag nopan nowheel absolute z-10 rounded-xl border p-1.5 text-popover-foreground corner-squircle surface-glass shadow-node-menu',
+        !present && 'pointer-events-none',
+      )}
     >
       {shown.map((item) => (
         <div key={item.id}>
@@ -187,6 +205,6 @@ export function NodeV4ContextMenu({
           </button>
         </div>
       ))}
-    </div>
+    </motion.div>
   )
 }

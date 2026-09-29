@@ -10,10 +10,10 @@
  * （看全文 / 拿走），派生动作退到 ⋯ 里。
  *
  * 壳走 S0 的 `NodeToolbar`（玻璃胶囊 + 34px 图标格 + tooltip），定位走 ReactFlow 的
- * `NodeToolbar`——⛔ 不手算缩放补偿。
+ * `NodeToolbar`（包在 `NodeChromeLayer` 里，开合成对）——⛔ 不手算缩放补偿。
  */
 
-import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import { Position } from '@xyflow/react'
 import {
   Download,
   Expand,
@@ -26,7 +26,7 @@ import type { ReactNode } from 'react'
 
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
-import { NodeToolbar, type NodeToolbarAction } from '../chrome'
+import { NodeChromeLayer, NodeToolbar, type NodeToolbarAction } from '../chrome'
 
 export interface TextNodeToolbarProps {
   readonly visible: boolean
@@ -94,12 +94,7 @@ export function TextNodeToolbar({
   }
 
   return (
-    <FlowNodeToolbar
-      isVisible={visible}
-      position={Position.Top}
-      align="center"
-      offset={10}
-    >
+    <NodeChromeLayer show={visible} position={Position.Top}>
       <NodeToolbar
         ariaLabel={t('toolbar.ariaLabel')}
         groups={[
@@ -120,6 +115,6 @@ export function TextNodeToolbar({
           ],
         ]}
       />
-    </FlowNodeToolbar>
+    </NodeChromeLayer>
   )
 }

@@ -34,7 +34,7 @@ export interface TextDocFormatBarProps {
 
 const CELL_CLASS = cn(
   'flex h-7.5 min-w-7.5 items-center justify-center rounded-lg px-2 text-2sm text-foreground',
-  'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95',
+  'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
   'hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 )
 

@@ -492,15 +492,18 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
             ) : null}
           </AnimatePresence>
         </NodeCardShell>
-        {menu && node ? (
-          <NodeV4ContextMenu
-            node={node}
-            x={menu.x}
-            y={menu.y}
-            layoutOnly
-            onClose={() => setMenu(null)}
-          />
-        ) : null}
+        <AnimatePresence>
+          {menu && node ? (
+            <NodeV4ContextMenu
+              key="menu"
+              node={node}
+              x={menu.x}
+              y={menu.y}
+              layoutOnly
+              onClose={() => setMenu(null)}
+            />
+          ) : null}
+        </AnimatePresence>
       </motion.div>
     </>
   )

@@ -18,6 +18,13 @@ export const EASE_STANDARD: [number, number, number, number] = [
 /** 同一曲线的 CSS 字符串（行内 style 优先用 var(--ease-standard)） */
 export const EASE_STANDARD_CSS = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
+/**
+ * 「缩回来处」那一拍的曲线 —— 与工作台 chip 弹层退场（Tailwind `ease-in`）同一条：
+ * 先慢后快地收进 chip / 卡边，读成「被收回去」而不是「淡掉」。只给**成对开合里的关**用
+ * （画布点开方向 A：工具条、提示词栏、菜单缩回来处），其余退场仍走 EASE_STANDARD。
+ */
+export const EASE_IN: [number, number, number, number] = [0.42, 0, 1, 1]
+
 /** 时长刻度（秒，motion 用） */
 export const DURATION = {
   /** hover / 按压 / 图标与 chip 状态切换 */

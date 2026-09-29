@@ -296,7 +296,7 @@ export function CanvasMobileRail({
             style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
             className={cn(
               'absolute right-4 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg',
-              'transition-transform duration-spring-press ease-spring-press active:scale-95',
+              'transition-transform duration-spring-press ease-spring-press active:scale-96',
             )}
           >
             <Plus aria-hidden className="size-5" />

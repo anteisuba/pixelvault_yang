@@ -6,6 +6,7 @@
  */
 
 export { NodeCardShell, type NodeCardShellProps } from './NodeCardShell'
+export { NodeChromeLayer } from './NodeChromeLayer'
 export {
   NodeMediaMissing,
   useBrokenThumbs,

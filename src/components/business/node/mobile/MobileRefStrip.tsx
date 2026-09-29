@@ -131,7 +131,7 @@ export function MobileRefStrip({
                 }}
                 className={cn(
                   'relative shrink-0 rounded-node-thumb bg-surface-fill',
-                  'transition-transform duration-fast ease-standard active:scale-95',
+                  'transition-transform duration-fast ease-standard active:scale-96',
                   'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                   'disabled:pointer-events-none disabled:opacity-60',
                 )}

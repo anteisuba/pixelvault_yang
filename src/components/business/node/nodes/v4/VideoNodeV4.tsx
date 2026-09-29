@@ -26,8 +26,9 @@
  * ——派生仍在 `src/lib/node-v4-merge.ts`，⛔ 别顺手删。
  */
 
-import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import { Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
+import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
@@ -68,6 +69,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4VideoData } from '@/types/node-workflow'
 
 import {
+  NodeChromeLayer,
   NodeCardShell,
   NodeFrameProgress,
   NodeMediaMissing,
@@ -138,6 +140,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
    */
   const [probedDuration, setProbedDuration] = useState<number | null>(null)
   const frameVideoRef = useRef<HTMLVideoElement | null>(null)
+  /** 画中框与快速看的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
+  const cardRef = useRef<HTMLDivElement>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
   const tokens = useMemo(
     () => buildMentionTokens(canvas.nodes, id),
@@ -478,6 +482,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
 
   return (
     <div
+      ref={cardRef}
       data-node-kind={NODE_MEDIA_KIND_IDS.video}
       data-node-subtype={videoData.subtype}
       data-generating={generating ? 'true' : 'false'}
@@ -527,15 +532,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         if (videoData.url && !media.problem) setQuickLook(true)
       }}
     >
-      <FlowNodeToolbar
-        isVisible={showChrome && !expanded}
-        position={Position.Top}
-      >
+      <NodeChromeLayer show={showChrome && !expanded} position={Position.Top}>
         <NodeToolbar
           groups={toolbarGroups}
           ariaLabel={tVideo('toolbar.label')}
         />
-      </FlowNodeToolbar>
+      </NodeChromeLayer>
 
       <NodeCardShell
         name={displayName}
@@ -763,181 +765,193 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         ) : undefined}
       </NodeCardShell>
 
-      {showChrome && !expanded && (
-        <FlowNodeToolbar isVisible position={Position.Bottom}>
-          <div className="flex flex-col items-center gap-2.5">
-            <VersionDots
-              count={versions.length}
-              current={Math.min(versionIndex, versions.length - 1)}
-              onSelect={selectVersion}
-              ariaLabel={t('chrome.versions')}
-              labelOf={(index) =>
-                t('chrome.versionOf', {
-                  index: index + 1,
-                  total: versions.length,
-                })
-              }
-            />
-            <NodePromptBar
-              // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
-              // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
-              leadingRow={
-                <>
-                  <VideoRefRail {...railProps} />
-                  <CharacterMentionRail
-                    nodeId={id}
-                    mentions={characterMentions}
-                    capacity={characterRail.capacity}
-                    usedImages={characterRail.usedImages}
-                    disabled={generating}
-                  />
-                </>
-              }
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={submitPrompt}
-              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-              {...(channelGate.blocked
-                ? {
-                    blockedLabel: tPicker('pickChannel'),
-                    onBlockedClick: channelGate.requestPick,
-                  }
-                : {})}
-              generating={generating}
-              onCancel={cancelGeneration}
-              placeholder={tVideo('promptPlaceholder')}
-              ariaLabel={tVideo('promptLabel')}
-              // 素材横向滚动，正文与参数留在同一块编辑面。
-              className="w-160 max-w-full"
-              addMenu={
-                <VideoAddMenuItems
-                  candidatesOf={railCandidatesOf}
-                  onPickSlotSource={railProps.onPickFromCanvas}
-                  onUploadForSlot={(group) => openFilePicker(group)}
-                  onUpload={() => openFilePicker(null)}
-                  onMention={() => {
-                    setDraft(`${draft}@`)
-                    // 插完 `@` 把光标交回正文 —— 候选列表是跟着光标弹的。
-                    window.setTimeout(() => promptInputRef.current?.focus(), 0)
-                  }}
-                  onLibrary={() =>
-                    railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
-                  }
+      <NodeChromeLayer
+        show={showChrome && !expanded}
+        position={Position.Bottom}
+      >
+        <div className="flex flex-col items-center gap-2.5">
+          <VersionDots
+            count={versions.length}
+            current={Math.min(versionIndex, versions.length - 1)}
+            onSelect={selectVersion}
+            ariaLabel={t('chrome.versions')}
+            labelOf={(index) =>
+              t('chrome.versionOf', {
+                index: index + 1,
+                total: versions.length,
+              })
+            }
+          />
+          <NodePromptBar
+            // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
+            // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
+            leadingRow={
+              <>
+                <VideoRefRail {...railProps} />
+                <CharacterMentionRail
+                  nodeId={id}
+                  mentions={characterMentions}
+                  capacity={characterRail.capacity}
+                  usedImages={characterRail.usedImages}
+                  disabled={generating}
                 />
-              }
-              inputRef={promptInputRef}
-              mentionOptions={mentionOptions}
-              renderValue={renderPromptValue}
-              chips={[modelChip, paramsChip].filter(Boolean)}
-              // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
-              // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
-              {...(audioToggle ? { trailing: audioToggle } : {})}
-            />
-          </div>
-        </FlowNodeToolbar>
-      )}
+              </>
+            }
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={submitPrompt}
+            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+            {...(channelGate.blocked
+              ? {
+                  blockedLabel: tPicker('pickChannel'),
+                  onBlockedClick: channelGate.requestPick,
+                }
+              : {})}
+            generating={generating}
+            onCancel={cancelGeneration}
+            placeholder={tVideo('promptPlaceholder')}
+            ariaLabel={tVideo('promptLabel')}
+            // 素材横向滚动，正文与参数留在同一块编辑面。
+            className="w-160 max-w-full"
+            addMenu={
+              <VideoAddMenuItems
+                candidatesOf={railCandidatesOf}
+                onPickSlotSource={railProps.onPickFromCanvas}
+                onUploadForSlot={(group) => openFilePicker(group)}
+                onUpload={() => openFilePicker(null)}
+                onMention={() => {
+                  setDraft(`${draft}@`)
+                  // 插完 `@` 把光标交回正文 —— 候选列表是跟着光标弹的。
+                  window.setTimeout(() => promptInputRef.current?.focus(), 0)
+                }}
+                onLibrary={() =>
+                  railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                }
+              />
+            }
+            inputRef={promptInputRef}
+            mentionOptions={mentionOptions}
+            renderValue={renderPromptValue}
+            chips={[modelChip, paramsChip].filter(Boolean)}
+            // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
+            // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
+            {...(audioToggle ? { trailing: audioToggle } : {})}
+          />
+        </div>
+      </NodeChromeLayer>
 
       {/* 隐藏的 file input 与素材库对话框都住在编排件里（`use-video-composer`）。 */}
       {overlays}
 
-      {expanded ? (
-        <VideoNodeFrame
-          open
-          onClose={() => canvas.onToggleExpanded(id)}
-          nodeId={id}
-          title={displayName}
-          headline={[
-            durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
-            videoData.params?.aspectRatio,
-            videoData.params?.resolution,
-            modelLabel,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          url={videoData.url}
-          posterUrl={posterUrl}
-          onExtractFrame={(video) => void runExtract(video)}
-          extracting={frames.grabbing !== null}
-          onDownload={() =>
-            videoData.url && triggerNodeV4Download(videoData.url)
-          }
-          versionCount={versions.length}
-          versionIndex={versionIndex}
-          onVersionChange={selectVersion}
-          failureMessage={failureMessage}
-          body={draft}
-          onBodyChange={setDraft}
-          onSave={(body) => {
-            if (body !== currentPrompt) canvas.onSetPrompt(id, body)
-          }}
-          onRegenerate={submitPrompt}
-          regenerateDisabled={generating || draft.trim().length === 0}
-          footerReadout={tVideo('frame.readout', {
-            chars: draft.trim().length,
-            slots: railItems.length,
-          })}
-          paramsChip={paramsChip}
-          modelChip={modelChip}
-          refRail={
-            <div className="flex min-w-0 max-w-full items-start gap-2">
-              <VideoRefRail {...railProps} />
-              <CharacterMentionRail
-                nodeId={id}
-                mentions={characterMentions}
-                capacity={characterRail.capacity}
-                usedImages={characterRail.usedImages}
-                disabled={generating}
-              />
-            </div>
-          }
-          tokens={frameTokens}
-          candidates={frameCandidates}
-          onMentionSelect={(candidate, handle) =>
-            handle.insertToken(candidate.name)
-          }
-        />
-      ) : null}
-
-      {quickLook && videoData.url ? (
-        <QuickLook
-          open
-          onClose={() => setQuickLook(false)}
-          ariaLabel={displayName}
-          {...(versions.length > 1
-            ? {
-                versionCount: versions.length,
-                versionIndex,
-                onVersionChange: selectVersion,
-              }
-            : {})}
-          readout={[
-            durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
-            videoData.params?.resolution,
-            modelLabel,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          onDownload={() => triggerNodeV4Download(videoData.url as string)}
-        >
-          <VideoPlayer
-            url={videoData.url}
-            {...(posterUrl ? { posterUrl } : {})}
+      <AnimatePresence>
+        {expanded ? (
+          <VideoNodeFrame
+            key="frame"
+            open
+            origin={cardRef}
+            onClose={() => canvas.onToggleExpanded(id)}
+            nodeId={id}
             title={displayName}
-            className="w-175 max-w-full"
+            headline={[
+              durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
+              videoData.params?.aspectRatio,
+              videoData.params?.resolution,
+              modelLabel,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            url={videoData.url}
+            posterUrl={posterUrl}
+            onExtractFrame={(video) => void runExtract(video)}
+            extracting={frames.grabbing !== null}
+            onDownload={() =>
+              videoData.url && triggerNodeV4Download(videoData.url)
+            }
+            versionCount={versions.length}
+            versionIndex={versionIndex}
+            onVersionChange={selectVersion}
+            failureMessage={failureMessage}
+            body={draft}
+            onBodyChange={setDraft}
+            onSave={(body) => {
+              if (body !== currentPrompt) canvas.onSetPrompt(id, body)
+            }}
+            onRegenerate={submitPrompt}
+            regenerateDisabled={generating || draft.trim().length === 0}
+            footerReadout={tVideo('frame.readout', {
+              chars: draft.trim().length,
+              slots: railItems.length,
+            })}
+            paramsChip={paramsChip}
+            modelChip={modelChip}
+            refRail={
+              <div className="flex min-w-0 max-w-full items-start gap-2">
+                <VideoRefRail {...railProps} />
+                <CharacterMentionRail
+                  nodeId={id}
+                  mentions={characterMentions}
+                  capacity={characterRail.capacity}
+                  usedImages={characterRail.usedImages}
+                  disabled={generating}
+                />
+              </div>
+            }
+            tokens={frameTokens}
+            candidates={frameCandidates}
+            onMentionSelect={(candidate, handle) =>
+              handle.insertToken(candidate.name)
+            }
           />
-        </QuickLook>
-      ) : null}
+        ) : null}
+      </AnimatePresence>
 
-      {menu ? (
-        <NodeV4ContextMenu
-          node={node}
-          x={menu.x}
-          y={menu.y}
-          {...(videoData.url ? { mediaUrl: videoData.url } : {})}
-          onClose={() => setMenu(null)}
-        />
-      ) : null}
+      <AnimatePresence>
+        {quickLook && videoData.url ? (
+          <QuickLook
+            key="quick-look"
+            open
+            origin={cardRef}
+            onClose={() => setQuickLook(false)}
+            ariaLabel={displayName}
+            {...(versions.length > 1
+              ? {
+                  versionCount: versions.length,
+                  versionIndex,
+                  onVersionChange: selectVersion,
+                }
+              : {})}
+            readout={[
+              durationSeconds > 0 ? formatVideoSeconds(durationSeconds) : null,
+              videoData.params?.resolution,
+              modelLabel,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            onDownload={() => triggerNodeV4Download(videoData.url as string)}
+          >
+            <VideoPlayer
+              url={videoData.url}
+              {...(posterUrl ? { posterUrl } : {})}
+              title={displayName}
+              className="w-175 max-w-full"
+            />
+          </QuickLook>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {menu ? (
+          <NodeV4ContextMenu
+            key="menu"
+            node={node}
+            x={menu.x}
+            y={menu.y}
+            {...(videoData.url ? { mediaUrl: videoData.url } : {})}
+            onClose={() => setMenu(null)}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

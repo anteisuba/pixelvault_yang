@@ -22,7 +22,7 @@
 import { EditorContent } from '@tiptap/react'
 import { FileText } from '@/components/icons'
 import { useTranslations } from 'next-intl'
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useState, type RefObject } from 'react'
 
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
@@ -47,6 +47,8 @@ import {
 
 export interface TextDocOverlayProps {
   readonly open: boolean
+  /** 来处（那张卡）：文档从它长出来、关上缩回它。 */
+  readonly origin?: RefObject<HTMLElement | null>
   onClose(): void
   readonly nodeId: string
   /** 卡的名字（顶栏显示成 `名字.md`）。 */
@@ -65,6 +67,7 @@ export interface TextDocOverlayProps {
 
 export function TextDocOverlay({
   open,
+  origin,
   onClose,
   nodeId,
   title,
@@ -130,6 +133,7 @@ export function TextDocOverlay({
   return (
     <NodeFrame
       open={open}
+      origin={origin}
       variant="fullscreen"
       onClose={() => {
         commit(readTextDocMarkdown(editor))

@@ -92,6 +92,15 @@ const StudioChipLookContext = createContext<StudioChipLook>('ghost')
 
 export const StudioChipLookProvider = StudioChipLookContext.Provider
 
+/**
+ * 只要「从 chip 放大」这一种开合、不换 chip 外观的宿主（节点画布，node-canvas-v2 §1
+ * 第 12 条：chip 弹层与工作台同一颗）。⛔ 不借 `outline` 外观来开动效——那会把画布
+ * 卡上的 chip 也换成工具行的描边药丸。
+ */
+const StudioChipZoomContext = createContext(false)
+
+export const StudioChipZoomProvider = StudioChipZoomContext.Provider
+
 export const studioOutlineChipClass = cn(
   'relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard',
   'hover:border-foreground/40',
@@ -184,7 +193,8 @@ export function useStudioChipClasses(): StudioChipClasses {
  * - `transition-none`：弹层原语带 `duration-*` 却没有过渡属性，不关的话开合那一下
  *   会把别的属性也过渡一遍（09-26「打开后会闪一下」）。
  * - reduced motion 直接不动画。
- * 只有描边外观（底部输入框工具行）接入；幽灵外观原样。
+ * 描边外观（底部输入框工具行）与 `StudioChipZoomProvider` 圈住的宿主（节点画布）接入；
+ * 其余幽灵外观原样。
  */
 const CHIP_POPOVER_CLASS =
   'transition-none data-[state=open]:duration-spring-slot data-[state=open]:ease-spring-slot data-[state=closed]:duration-base data-[state=closed]:ease-in motion-reduce:animate-none'
@@ -238,7 +248,8 @@ export function useStudioChipPopoverMotion(
   style: CSSProperties | undefined
 } {
   const outline = useContext(StudioChipLookContext) === 'outline'
-  if (!outline) return { className: '', style: undefined }
+  const zoom = useContext(StudioChipZoomContext)
+  if (!outline && !zoom) return { className: '', style: undefined }
   return getChipZoomMotion(placement)
 }
 

@@ -2627,6 +2627,13 @@ html:lang(ja) {
     filter var(--duration-base) linear;
 }
 
+/* 选中环的轨道：平时就挂一圈透明 outline，选中只换颜色 —— `outline-style` 不能过渡，
+   选中那一刻才挂上的话环会瞬出瞬没（node-canvas-v2 §1 第 12 条：选中环走 120）。 */
+@utility node-ring-track {
+  outline: 1.5px solid transparent;
+  outline-offset: 0;
+}
+
 @utility node-selected-ring {
   outline: 1.5px solid var(--foreground);
   outline-offset: 0;

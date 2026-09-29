@@ -25,8 +25,9 @@
  *   —— 批内别名表让第二条认得出刚建的那张，且两条合成一个撤销条目。
  */
 
-import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import { Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
+import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -68,6 +69,7 @@ import type {
 import { useKeySettingsAction } from '../../workbench-v4/shell/ShellKeySettings'
 import { CanvasImageEditWorkspace } from '../../CanvasImageEditWorkspace'
 import {
+  NodeChromeLayer,
   NodeCardShell,
   portSpecOf,
   NodeFrameProgress,
@@ -617,12 +619,12 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         if (imageData.url && !media.problem) setQuickLook(true)
       }}
     >
-      <FlowNodeToolbar isVisible={showChrome} position={Position.Top}>
+      <NodeChromeLayer show={showChrome} position={Position.Top}>
         <NodeToolbar
           groups={toolbarGroups}
           ariaLabel={tImage('toolbar.label')}
         />
-      </FlowNodeToolbar>
+      </NodeChromeLayer>
 
       <NodeCardShell
         name={imageData.name}
@@ -789,152 +791,146 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         ) : undefined}
       </NodeCardShell>
 
-      {showChrome && (
-        <FlowNodeToolbar isVisible position={Position.Bottom}>
-          <div className="flex flex-col items-center gap-2.5">
-            <VersionDots
-              count={versions.length}
-              current={Math.min(versionIndex, versions.length - 1)}
-              onSelect={selectVersion}
-              ariaLabel={t('chrome.versions')}
-              labelOf={(index) =>
-                t('chrome.versionOf', {
-                  index: index + 1,
-                  total: versions.length,
-                })
-              }
-            />
-            <NodePromptBar
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={submitPrompt}
-              generating={generating}
-              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-              {...(channelGate.blocked
-                ? {
-                    blockedLabel: tPicker('pickChannel'),
-                    onBlockedClick: channelGate.requestPick,
-                  }
-                : {})}
-              onCancel={() => {
-                if (submissionRef.current)
-                  submissionRef.current.cancelled = true
-                setStartedAt(null)
-              }}
-              placeholder={tImage('promptPlaceholder')}
-              ariaLabel={tImage('promptLabel')}
-              className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}
-              inputRef={promptInputRef}
-              leadingRow={
-                acceptsRefs ? (
-                  <div className="flex min-w-0 max-w-full items-start gap-2">
-                    <ImageRefRail {...refs.railProps} />
-                    <CharacterMentionRail
-                      nodeId={id}
-                      mentions={promptMentions.characterMentions}
-                      capacity={refs.railProps.capacity}
-                      usedImages={refs.railProps.items.length}
-                      disabled={generating}
-                    />
-                  </div>
-                ) : null
-              }
-              mentionOptions={promptMentions.mentionOptions}
-              renderValue={promptMentions.renderValue}
-              addMenu={
-                <ImageAddMenuItems
-                  onUpload={
-                    acceptsRefs
-                      ? refs.openFilePicker
-                      : () => fileRef.current?.click()
-                  }
-                  onMention={() => {
-                    setDraft(
-                      `${draft}${draft && !/[\s,.;:!?，。；：！？、）)】\]」』]$/.test(draft) ? ' ' : ''}@`,
-                    )
-                    window.setTimeout(() => promptInputRef.current?.focus(), 0)
-                  }}
-                  onLibrary={
-                    acceptsRefs
-                      ? refs.railProps.onLibrary
-                      : () => setAssetPicker(true)
-                  }
-                  {...(acceptsRefs
-                    ? {
-                        canvasCandidates: refs.candidates,
-                        onPickCanvas: refs.railProps.onPickFromCanvas,
-                      }
-                    : {})}
-                />
-              }
-              chips={[
-                <ImageFrameChip
-                  key="frame"
-                  aspectRatio={imageData.params?.aspectRatio}
-                  modelId={imageData.model?.modelId}
-                  model={imageData.model}
-                  quality={imageData.params?.quality}
-                  resolution={imageData.params?.resolution}
-                  count={imageData.params?.count}
-                  disabled={generating}
-                  onAspectRatioChange={(aspectRatio) =>
-                    canvas.onSetParams(id, { ...imageData.params, aspectRatio })
-                  }
-                  onQualityChange={(quality) =>
-                    canvas.onSetParams(id, { ...imageData.params, quality })
-                  }
-                  onResolutionChange={(resolution) =>
-                    canvas.onSetParams(id, { ...imageData.params, resolution })
-                  }
-                  onCountChange={(count) =>
-                    canvas.onSetParams(id, { ...imageData.params, count })
-                  }
-                  {...(storyboard
-                    ? {
-                        storyboardGrid:
-                          imageData.params?.storyboardGrid === true,
-                        onStoryboardGridChange: (storyboardGrid: boolean) =>
-                          canvas.onSetParams(id, {
-                            ...imageData.params,
-                            storyboardGrid,
-                          }),
-                      }
-                    : {})}
-                />,
-                modelOptions.length > 0 ? (
-                  <ModelPickerPopover
-                    key="model"
-                    options={modelOptions.map(toStudioModelOption)}
-                    value={imageData.model?.optionId ?? null}
-                    memoryScope={NODE_MEDIA_KIND_IDS.image}
-                    gateId={id}
+      <NodeChromeLayer show={showChrome} position={Position.Bottom}>
+        <div className="flex flex-col items-center gap-2.5">
+          <VersionDots
+            count={versions.length}
+            current={Math.min(versionIndex, versions.length - 1)}
+            onSelect={selectVersion}
+            ariaLabel={t('chrome.versions')}
+            labelOf={(index) =>
+              t('chrome.versionOf', {
+                index: index + 1,
+                total: versions.length,
+              })
+            }
+          />
+          <NodePromptBar
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={submitPrompt}
+            generating={generating}
+            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+            {...(channelGate.blocked
+              ? {
+                  blockedLabel: tPicker('pickChannel'),
+                  onBlockedClick: channelGate.requestPick,
+                }
+              : {})}
+            onCancel={() => {
+              if (submissionRef.current) submissionRef.current.cancelled = true
+              setStartedAt(null)
+            }}
+            placeholder={tImage('promptPlaceholder')}
+            ariaLabel={tImage('promptLabel')}
+            className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}
+            inputRef={promptInputRef}
+            leadingRow={
+              acceptsRefs ? (
+                <div className="flex min-w-0 max-w-full items-start gap-2">
+                  <ImageRefRail {...refs.railProps} />
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={promptMentions.characterMentions}
+                    capacity={refs.railProps.capacity}
+                    usedImages={refs.railProps.items.length}
                     disabled={generating}
-                    {...(openKeySettings
-                      ? { onManageChannels: openKeySettings }
-                      : {})}
-                    onChange={(option) => {
-                      const picked = modelOptions.find(
-                        (item) => item.optionId === option.optionId,
-                      )
-                      if (!picked) return
-                      canvas.onSetModel(id, {
-                        optionId: picked.optionId,
-                        modelId: picked.modelId,
-                        adapterType: picked.adapterType,
-                        providerConfig: picked.providerConfig,
-                        ...(picked.apiKeyId
-                          ? { apiKeyId: picked.apiKeyId }
-                          : {}),
-                      })
-                    }}
                   />
-                ) : null,
-              ].filter(Boolean)}
-            />
-          </div>
-        </FlowNodeToolbar>
-      )}
+                </div>
+              ) : null
+            }
+            mentionOptions={promptMentions.mentionOptions}
+            renderValue={promptMentions.renderValue}
+            addMenu={
+              <ImageAddMenuItems
+                onUpload={
+                  acceptsRefs
+                    ? refs.openFilePicker
+                    : () => fileRef.current?.click()
+                }
+                onMention={() => {
+                  setDraft(
+                    `${draft}${draft && !/[\s,.;:!?，。；：！？、）)】\]」』]$/.test(draft) ? ' ' : ''}@`,
+                  )
+                  window.setTimeout(() => promptInputRef.current?.focus(), 0)
+                }}
+                onLibrary={
+                  acceptsRefs
+                    ? refs.railProps.onLibrary
+                    : () => setAssetPicker(true)
+                }
+                {...(acceptsRefs
+                  ? {
+                      canvasCandidates: refs.candidates,
+                      onPickCanvas: refs.railProps.onPickFromCanvas,
+                    }
+                  : {})}
+              />
+            }
+            chips={[
+              <ImageFrameChip
+                key="frame"
+                aspectRatio={imageData.params?.aspectRatio}
+                modelId={imageData.model?.modelId}
+                model={imageData.model}
+                quality={imageData.params?.quality}
+                resolution={imageData.params?.resolution}
+                count={imageData.params?.count}
+                disabled={generating}
+                onAspectRatioChange={(aspectRatio) =>
+                  canvas.onSetParams(id, { ...imageData.params, aspectRatio })
+                }
+                onQualityChange={(quality) =>
+                  canvas.onSetParams(id, { ...imageData.params, quality })
+                }
+                onResolutionChange={(resolution) =>
+                  canvas.onSetParams(id, { ...imageData.params, resolution })
+                }
+                onCountChange={(count) =>
+                  canvas.onSetParams(id, { ...imageData.params, count })
+                }
+                {...(storyboard
+                  ? {
+                      storyboardGrid: imageData.params?.storyboardGrid === true,
+                      onStoryboardGridChange: (storyboardGrid: boolean) =>
+                        canvas.onSetParams(id, {
+                          ...imageData.params,
+                          storyboardGrid,
+                        }),
+                    }
+                  : {})}
+              />,
+              modelOptions.length > 0 ? (
+                <ModelPickerPopover
+                  key="model"
+                  options={modelOptions.map(toStudioModelOption)}
+                  value={imageData.model?.optionId ?? null}
+                  memoryScope={NODE_MEDIA_KIND_IDS.image}
+                  gateId={id}
+                  disabled={generating}
+                  {...(openKeySettings
+                    ? { onManageChannels: openKeySettings }
+                    : {})}
+                  onChange={(option) => {
+                    const picked = modelOptions.find(
+                      (item) => item.optionId === option.optionId,
+                    )
+                    if (!picked) return
+                    canvas.onSetModel(id, {
+                      optionId: picked.optionId,
+                      modelId: picked.modelId,
+                      adapterType: picked.adapterType,
+                      providerConfig: picked.providerConfig,
+                      ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
+                    })
+                  }}
+                />
+              ) : null,
+            ].filter(Boolean)}
+          />
+        </div>
+      </NodeChromeLayer>
 
       <input
         ref={fileRef}
@@ -949,36 +945,40 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       />
       {acceptsRefs ? refs.overlays : null}
 
-      {quickLook && imageData.url ? (
-        <QuickLook
-          open
-          onClose={() => setQuickLook(false)}
-          ariaLabel={imageData.name}
-          {...(versions.length > 1
-            ? {
-                versionCount: versions.length,
-                versionIndex,
-                onVersionChange: selectVersion,
-              }
-            : {})}
-          readout={
-            imageData.mediaWidth && imageData.mediaHeight
-              ? t('readout.dimensions', {
-                  width: imageData.mediaWidth,
-                  height: imageData.mediaHeight,
-                })
-              : undefined
-          }
-          onDownload={() => triggerNodeV4Download(imageData.url as string)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageData.url}
-            alt={imageData.name}
-            className="max-h-full max-w-full rounded-node object-contain corner-squircle shadow-node-card-expanded"
-          />
-        </QuickLook>
-      ) : null}
+      <AnimatePresence>
+        {quickLook && imageData.url ? (
+          <QuickLook
+            key="quick-look"
+            open
+            origin={cardRef}
+            onClose={() => setQuickLook(false)}
+            ariaLabel={imageData.name}
+            {...(versions.length > 1
+              ? {
+                  versionCount: versions.length,
+                  versionIndex,
+                  onVersionChange: selectVersion,
+                }
+              : {})}
+            readout={
+              imageData.mediaWidth && imageData.mediaHeight
+                ? t('readout.dimensions', {
+                    width: imageData.mediaWidth,
+                    height: imageData.mediaHeight,
+                  })
+                : undefined
+            }
+            onDownload={() => triggerNodeV4Download(imageData.url as string)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageData.url}
+              alt={imageData.name}
+              className="max-h-full max-w-full rounded-node object-contain corner-squircle shadow-node-card-expanded"
+            />
+          </QuickLook>
+        ) : null}
+      </AnimatePresence>
 
       {editTask && imageData.url ? (
         <CanvasImageEditWorkspace
@@ -1011,15 +1011,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         />
       ) : null}
 
-      {menu ? (
-        <NodeV4ContextMenu
-          node={node}
-          x={menu.x}
-          y={menu.y}
-          {...(imageData.url ? { mediaUrl: imageData.url } : {})}
-          onClose={() => setMenu(null)}
-        />
-      ) : null}
+      <AnimatePresence>
+        {menu ? (
+          <NodeV4ContextMenu
+            key="menu"
+            node={node}
+            x={menu.x}
+            y={menu.y}
+            {...(imageData.url ? { mediaUrl: imageData.url } : {})}
+            onClose={() => setMenu(null)}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

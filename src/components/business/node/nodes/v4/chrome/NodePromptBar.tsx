@@ -287,7 +287,7 @@ export function NodePromptBar({
       disabled={value.trim().length === 0}
       onClick={blockedLabel ? onBlockedClick : onSubmit}
       className={cn(
-        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
         // 挡住时降到次级填充 + warning 描边（与工作台生成键同一条规矩：降的是底
         // 不是字）。
         blockedLabel

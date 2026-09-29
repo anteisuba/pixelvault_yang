@@ -79,13 +79,12 @@ describe('NodeFrame', () => {
     expect(heading.className).toContain('font-semibold')
   })
 
-  it('宽度由调用方给（视频 720），走 spring-expand', () => {
+  it('宽度由调用方给（视频 720）', () => {
     setup({ width: NODE_V4_CHROME.frameWidth.video })
     const frame = document.body.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
     )!
     expect(frame.style.width).toBe('720px')
-    expect(frame.className).toContain('ease-spring-expand')
   })
 
   // 文本卡的展开态（owner 2026-09-11）：全屏铺满，⛔ 不吃 `width`。

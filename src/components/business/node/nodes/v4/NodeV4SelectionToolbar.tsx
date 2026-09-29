@@ -79,7 +79,7 @@ export function NodeV4ToolbarButton({
           disabled={disabled}
           onClick={onClick}
           className={cn(
-            'nodrag nopan flex h-7.5 min-w-7.5 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95 disabled:opacity-40',
+            'nodrag nopan flex h-7.5 min-w-7.5 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96 disabled:opacity-40',
             danger
               ? 'text-status-risk hover:bg-status-risk-surface'
               : 'hover:bg-surface-fill-hover',
@@ -118,7 +118,7 @@ export function NodeV4SelectionToolbar({
   const multiSelect = canvas.selectedNodeIds.length >= 2
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delayDuration={0}>
       <NodeToolbar
         isVisible={Boolean(selected) && !multiSelect}
         position={Position.Top}

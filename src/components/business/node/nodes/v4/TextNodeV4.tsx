@@ -18,7 +18,8 @@
 
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
@@ -34,6 +35,7 @@ import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
 import { NodeCardShell, portSpecOf, useNodeCardFlash } from './chrome'
+import { FADE_ONLY, GROW_FROM_EDGE } from './chrome/chrome-motion'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
@@ -105,6 +107,10 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
     return planScriptProjection(canvas.nodes, id, textData.body)
   }, [canvas.nodes, id, textData.body, textData.subtype])
 
+  /** 全屏文档的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
+  const cardRef = useRef<HTMLDivElement>(null)
+  const barMotion = useReducedMotion() ? FADE_ONLY : GROW_FROM_EDGE
+
   if (!node) return null
 
   const expanded = canvas.expandedNodeId === id
@@ -148,7 +154,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   }
 
   return (
-    <div className="relative">
+    <div ref={cardRef} className="relative">
       <TextNodeToolbar
         visible={soloSelected && !expanded}
         onExpand={() => canvas.onToggleExpanded(id)}
@@ -252,37 +258,51 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         </div>
       </NodeCardShell>
 
-      {soloSelected && !expanded && (
-        <div
-          data-text-assistant-bar
-          className="absolute top-full left-1/2 z-10 mt-2.5 w-90 -translate-x-1/2"
-        >
-          <TextAssistantBar nodeId={id} />
-        </div>
-      )}
+      {/* 与提示词栏同一颗开合：从卡底边中点长出来（§1 第 12 条）。 */}
+      <AnimatePresence>
+        {soloSelected && !expanded && (
+          <motion.div
+            key="assistant-bar"
+            data-text-assistant-bar
+            style={{ transformOrigin: '50% -10px' }}
+            initial={barMotion.initial}
+            animate={barMotion.animate}
+            exit={barMotion.exit}
+            className="absolute top-full left-1/2 z-10 mt-2.5 w-90 -translate-x-1/2"
+          >
+            <TextAssistantBar nodeId={id} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 全屏文档自己 portal 到 body（`chrome/NodeFrame`），这里只管开合。 */}
-      {expanded && (
-        <TextDocOverlay
-          open={expanded}
-          onClose={() => canvas.onToggleExpanded(id)}
-          nodeId={id}
-          title={textData.name}
-          body={textData.body}
-          onSave={(body) => canvas.onEditText(id, body)}
-          onDownload={() => downloadTextNodeBody(textData.name, textData.body)}
-          mentionOptions={mentionOptions}
-          onMentionSelect={(option, insertText) => {
-            const picked = canvas.nodes.find((item) => item.id === option.id)
-            // 文本节点粘原文，素材插一枚 `@名字` 胶囊——两条路径分家。
-            insertText(
-              picked?.data.kind === NODE_MEDIA_KIND_IDS.text
-                ? picked.data.body
-                : `@${option.name} `,
-            )
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {expanded && (
+          <TextDocOverlay
+            key="doc"
+            open={expanded}
+            origin={cardRef}
+            onClose={() => canvas.onToggleExpanded(id)}
+            nodeId={id}
+            title={textData.name}
+            body={textData.body}
+            onSave={(body) => canvas.onEditText(id, body)}
+            onDownload={() =>
+              downloadTextNodeBody(textData.name, textData.body)
+            }
+            mentionOptions={mentionOptions}
+            onMentionSelect={(option, insertText) => {
+              const picked = canvas.nodes.find((item) => item.id === option.id)
+              // 文本节点粘原文，素材插一枚 `@名字` 胶囊——两条路径分家。
+              insertText(
+                picked?.data.kind === NODE_MEDIA_KIND_IDS.text
+                  ? picked.data.body
+                  : `@${option.name} `,
+              )
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

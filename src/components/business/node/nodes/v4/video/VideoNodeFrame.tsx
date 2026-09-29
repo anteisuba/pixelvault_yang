@@ -12,7 +12,7 @@
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
  */
 
-import { useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -31,6 +31,8 @@ export interface VideoNodeFrameProps {
   readonly failureMessage?: string | undefined
   readonly open: boolean
   onClose(): void
+  /** 来处（那张卡）：框从它长出来、关上缩回它。 */
+  readonly origin?: RefObject<HTMLElement | null>
   readonly nodeId: string
   readonly title: string
   /** 顶栏名字右边那行读数：`7s · 16:9 · 1080p · Seedance 2.0`。 */
@@ -72,6 +74,7 @@ export function VideoNodeFrame({
   failureMessage,
   open,
   onClose,
+  origin,
   nodeId,
   title,
   headline,
@@ -108,6 +111,7 @@ export function VideoNodeFrame({
   return (
     <NodeFrame
       open={open}
+      origin={origin}
       onClose={() => {
         commit()
         onClose()

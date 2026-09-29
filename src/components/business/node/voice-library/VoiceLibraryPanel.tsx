@@ -17,7 +17,7 @@
  * 它身上），⛔ 这里不再写第二套浮层。
  */
 
-import { Fragment, useCallback, useRef, useState } from 'react'
+import { Fragment, useCallback, useRef, useState, type RefObject } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mic, Pause, Play, Search } from '@/components/icons'
 
@@ -45,6 +45,8 @@ export type { VoiceLibraryClip }
 export interface VoiceLibraryPanelProps {
   readonly open: boolean
   onClose(): void
+  /** 来处（那张音频卡）：框从它长出来、关上缩回它；手机抽屉里没有卡就不给。 */
+  readonly origin?: RefObject<HTMLElement | null>
   /** 「用这段」——把这段原声落成本卡的一版。 */
   onUseClip(clip: VoiceLibraryClip): void
   /**
@@ -63,6 +65,7 @@ function formatClipDuration(seconds: number | null): string | null {
 export function VoiceLibraryPanel({
   open,
   onClose,
+  origin,
   onUseClip,
   onSetVoice,
 }: VoiceLibraryPanelProps) {
@@ -187,6 +190,7 @@ export function VoiceLibraryPanel({
     <>
       <NodeFrame
         open={open}
+        origin={origin}
         onClose={close}
         title={t('title')}
         width={VOICE_LIBRARY_PANEL_WIDTH}

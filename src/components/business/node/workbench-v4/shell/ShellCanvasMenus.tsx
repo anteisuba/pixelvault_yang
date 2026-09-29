@@ -7,10 +7,19 @@
  *
  * ⚠ 四类的身份读 `CANVAS_SHELL_QUICK_ADD`（→ `CANVAS_ADD_CATALOG` 的 `intent.v4`），
  * 与 ⌘K、与快捷键 T/I/A/V **同一张表**，⛔ 三条路不各推一遍 `{kind, subtype}`。
+ *
+ * 开合 = 方向 A「从指针处长出来」（node-canvas-v2 §1 第 12 条：开 200 · 关 120 缓入）；
+ * 原点落在点下去的那个位置（贴边收拢后菜单挪了，原点跟着算回指针）。
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { XYPosition } from '@xyflow/react'
+import {
+  AnimatePresence,
+  motion,
+  useIsPresent,
+  useReducedMotion,
+} from 'motion/react'
 import { Film, ImageIcon, Mic2, Type, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -20,7 +29,12 @@ import {
 } from '@/constants/canvas-shell'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { CanvasAddIntentId } from '@/constants/canvas-add-catalog'
+import { cn } from '@/lib/utils'
 
+import {
+  FADE_ONLY,
+  GROW_FROM_POINTER,
+} from '../../nodes/v4/chrome/chrome-motion'
 import { ShellIconButton } from './ShellIconButton'
 
 const KIND_ICONS = {
@@ -56,7 +70,9 @@ function useClampedAnchor(
     const element = ref.current
     const parent = element?.parentElement
     if (!element || !parent) return
-    const box = element.getBoundingClientRect()
+    // ⚠ 量布局尺寸（`offset*`），⛔ 不量 `getBoundingClientRect`：进场那一帧菜单正缩在
+    // 0.72，量到的是缩过的盒子，贴边会收不够。
+    const box = { width: element.offsetWidth, height: element.offsetHeight }
     const host = parent.getBoundingClientRect()
     setMeasured({
       anchor: at,
@@ -94,6 +110,26 @@ function useDismiss(open: boolean, onClose: () => void) {
   return ref
 }
 
+/** 从指针处长出来：原点 = 指针相对菜单左上角的位置。 */
+function useGrowFromPointer(at: XYPosition, anchor: XYPosition | null) {
+  const reduce = useReducedMotion()
+  const present = useIsPresent()
+  const left = anchor?.x ?? at.x
+  const top = anchor?.y ?? at.y
+  return {
+    present,
+    left,
+    top,
+    motionSet: reduce ? FADE_ONLY : GROW_FROM_POINTER,
+    transformOrigin: `${at.x - left}px ${at.y - top}px`,
+  }
+}
+
+/** 同一个落点一把钥匙：换地方再开 = 旧的缩回去、新的从新指针处长出来。 */
+function keyOf(at: XYPosition): string {
+  return `${at.x},${at.y}`
+}
+
 export interface ShellQuickAddProps {
   /** 落点（相对画布容器的屏幕坐标）；`null` = 不显示。 */
   readonly at: XYPosition | null
@@ -103,29 +139,45 @@ export interface ShellQuickAddProps {
   onClose(): void
 }
 
-export function ShellQuickAdd({
+export function ShellQuickAdd(props: ShellQuickAddProps) {
+  const { at } = props
+  return (
+    <AnimatePresence>
+      {at ? <QuickAddLayer key={keyOf(at)} {...props} at={at} /> : null}
+    </AnimatePresence>
+  )
+}
+
+function QuickAddLayer({
   at,
   onAdd,
   onUpload,
   onClose,
-}: ShellQuickAddProps) {
+}: ShellQuickAddProps & { readonly at: XYPosition }) {
   const t = useTranslations('StudioNode.shell.add')
-  const ref = useDismiss(at !== null, onClose)
+  const ref = useDismiss(true, onClose)
   const anchor = useClampedAnchor(at, ref)
-  if (!at) return null
+  const grow = useGrowFromPointer(at, anchor)
 
   return (
-    <div
+    <motion.div
       ref={ref}
       role="menu"
       aria-label={t('group')}
       data-testid="shell-quick-add"
       style={{
-        left: anchor?.x ?? at.x,
-        top: anchor?.y ?? at.y,
+        left: grow.left,
+        top: grow.top,
         borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
+        transformOrigin: grow.transformOrigin,
       }}
-      className="canvas-glass pointer-events-auto absolute z-canvas-transient inline-flex gap-0.5 p-1"
+      initial={grow.motionSet.initial}
+      animate={grow.motionSet.animate}
+      exit={grow.motionSet.exit}
+      className={cn(
+        'canvas-glass pointer-events-auto absolute z-canvas-transient inline-flex gap-0.5 p-1',
+        !grow.present && 'pointer-events-none',
+      )}
     >
       {CANVAS_SHELL_QUICK_ADD.map((entry) => (
         <ShellIconButton
@@ -142,7 +194,7 @@ export function ShellQuickAdd({
         testId="shell-quick-add-upload"
         onClick={onUpload}
       />
-    </div>
+    </motion.div>
   )
 }
 
@@ -157,7 +209,16 @@ export interface ShellPaneMenuProps {
   onClose(): void
 }
 
-export function ShellPaneMenu({
+export function ShellPaneMenu(props: ShellPaneMenuProps) {
+  const { at } = props
+  return (
+    <AnimatePresence>
+      {at ? <PaneMenuLayer key={keyOf(at)} {...props} at={at} /> : null}
+    </AnimatePresence>
+  )
+}
+
+function PaneMenuLayer({
   at,
   onAdd,
   onUpload,
@@ -165,11 +226,11 @@ export function ShellPaneMenu({
   onTidyLayout,
   onFitView,
   onClose,
-}: ShellPaneMenuProps) {
+}: ShellPaneMenuProps & { readonly at: XYPosition }) {
   const t = useTranslations('StudioNode.shell.add')
-  const ref = useDismiss(at !== null, onClose)
+  const ref = useDismiss(true, onClose)
   const anchor = useClampedAnchor(at, ref)
-  if (!at) return null
+  const grow = useGrowFromPointer(at, anchor)
 
   const rows: readonly {
     key: string
@@ -183,17 +244,24 @@ export function ShellPaneMenu({
   ]
 
   return (
-    <div
+    <motion.div
       ref={ref}
       role="menu"
       aria-label={t('menu')}
       data-testid="shell-pane-menu"
       style={{
-        left: anchor?.x ?? at.x,
-        top: anchor?.y ?? at.y,
+        left: grow.left,
+        top: grow.top,
         width: CANVAS_SHELL_LAYOUT.paneMenuWidthPx,
+        transformOrigin: grow.transformOrigin,
       }}
-      className="pointer-events-auto absolute z-canvas-transient rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground shadow-node-menu"
+      initial={grow.motionSet.initial}
+      animate={grow.motionSet.animate}
+      exit={grow.motionSet.exit}
+      className={cn(
+        'pointer-events-auto absolute z-canvas-transient rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground shadow-node-menu',
+        !grow.present && 'pointer-events-none',
+      )}
     >
       <p className="px-2.5 py-1 text-2xs text-node-muted">{t('group')}</p>
       {CANVAS_SHELL_QUICK_ADD.map((entry) => {
@@ -244,6 +312,6 @@ export function ShellPaneMenu({
           </kbd>
         </button>
       ))}
-    </div>
+    </motion.div>
   )
 }

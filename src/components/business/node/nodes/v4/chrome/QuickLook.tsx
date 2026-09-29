@@ -8,18 +8,22 @@
  * 画布缩放一起缩——42% 缩放下它只有拇指大（真机 2026-09-10 抓到）。快速看是
  * 画布级的，必须脱离 ReactFlow 的 viewport 变换。
  * ⛔ 没有任何参数——参数是提示词栏的事，快速看只回答「这一版长什么样」。
- * Esc / 点空白关闭，←→ 切版本。
+ * Esc / 点空白关闭，←→ 切版本。开合 = 方向 A「从卡上长出来」（§1 第 12 条，
+ * `use-grow-from-origin`）：从 `origin` 那张卡放大到中间、关上缩回去；调用方把它包在
+ * `AnimatePresence` 里才播得到关。
  *
  * **内容插槽**：图 / 播放器 / 波形由调用方给（S3 / S5 / S6 各自的媒体件）。
  */
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Download, X } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 
+import { useGrowFromOrigin } from './use-grow-from-origin'
 import { VersionDots } from './VersionDots'
 
 export interface QuickLookProps {
@@ -35,10 +39,18 @@ export interface QuickLookProps {
   onDownload?(): void
   readonly ariaLabel: string
   readonly className?: string
+  /** 来处（那张卡）：从它的位置和大小长出来、关上缩回它。 */
+  readonly origin?: RefObject<HTMLElement | null>
 }
 
-export function QuickLook({
-  open,
+export function QuickLook(props: QuickLookProps) {
+  // ⚠ `open` 只可能被用户的交互点开，那一刻早就在客户端了；SSR 那一轮 `open`
+  // 恒为 false，所以这里不需要 mounted 门（⛔ 也就不必在 effect 里 setState）。
+  if (!props.open || typeof document === 'undefined') return null
+  return createPortal(<QuickLookLayer {...props} />, document.body)
+}
+
+function QuickLookLayer({
   onClose,
   children,
   readout,
@@ -48,13 +60,24 @@ export function QuickLook({
   onDownload,
   ariaLabel,
   className,
+  origin,
 }: QuickLookProps) {
   const t = useTranslations('StudioNode.v4.chrome')
+  const layer = useRef<HTMLDivElement>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const scrim = useRef<HTMLDivElement>(null)
+  const { closing } = useGrowFromOrigin({
+    origin,
+    box,
+    scrim,
+    chrome: layer,
+    reduce: useReducedMotion() ?? false,
+  })
 
   // Esc 关闭 + ←→ 切版本挂在 document 上：焦点可能落在里面的播放器上，
   // 挂容器 `onKeyDown` 会漏掉那些不冒泡到容器的情形。
   useEffect(() => {
-    if (!open) return
+    if (closing) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -75,14 +98,11 @@ export function QuickLook({
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose, onVersionChange, versionCount, versionIndex])
+  }, [closing, onClose, onVersionChange, versionCount, versionIndex])
 
-  // ⚠ `open` 只可能被用户的交互点开，那一刻早就在客户端了；SSR 那一轮 `open`
-  // 恒为 false，所以这里不需要 mounted 门（⛔ 也就不必在 effect 里 setState）。
-  if (!open || typeof document === 'undefined') return null
-
-  return createPortal(
+  return (
     <div
+      ref={layer}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
@@ -93,14 +113,21 @@ export function QuickLook({
         if (event.target === event.currentTarget) onClose()
       }}
       className={cn(
-        'fixed inset-0 z-50 flex flex-col items-center justify-center gap-3.5 bg-background/55 p-8',
+        'fixed inset-0 z-50 flex flex-col items-center justify-center gap-3.5 p-8',
+        closing && 'pointer-events-none',
         className,
       )}
     >
-      <div className="pointer-events-auto max-h-full max-w-full">
+      <div
+        ref={scrim}
+        aria-hidden
+        data-node-chrome-scrim
+        className="pointer-events-none fixed inset-0 bg-background/55"
+      />
+      <div ref={box} className="relative max-h-full max-w-full">
         {children}
       </div>
-      <div className="flex items-center gap-4">
+      <div data-grow-chrome className="relative flex items-center gap-4">
         {versionCount > 1 && onVersionChange && (
           <VersionDots
             count={versionCount}
@@ -140,7 +167,6 @@ export function QuickLook({
           </button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </div>
   )
 }

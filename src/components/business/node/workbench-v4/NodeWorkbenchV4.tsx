@@ -120,6 +120,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+import { StudioChipZoomProvider } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditDesk } from '../edit-desk'
 import { CanvasMobileRail } from '../mobile'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
@@ -1512,34 +1513,37 @@ function NodeWorkbenchV4Inner() {
             >
               <div className="node-workbench-v4 contents">
                 <WorkbenchUploadStatus items={dnd.pendingUploads} />
-                <CanvasV4
-                  graph={graph}
-                  toolMode={toolMode}
-                  relationsCollapsed={relationsCollapsed}
-                  canvasAppearance={store.state.canvasAppearance}
-                  edgeSigning={edgeSigning}
-                  onDrop={dnd.onDrop}
-                  onDragOver={dnd.onDragOver}
-                  onPaneDoubleClick={onPaneDoubleClick}
-                  onPaneContextMenu={onPaneContextMenu}
-                  onNodeDragStart={(node) =>
-                    rosterDrop.onNodeDragStart(node as unknown as NodeV4)
-                  }
-                  onNodeDrag={(node, event) =>
-                    rosterDrop.onNodeDrag(
-                      node as unknown as NodeV4,
-                      event.clientX,
-                      event.clientY,
-                    )
-                  }
-                  onNodeDragStopIntercept={(node, event) =>
-                    rosterDrop.onNodeDragStop(
-                      node as unknown as NodeV4,
-                      event.clientX,
-                      event.clientY,
-                    )
-                  }
-                />
+                {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条）。 */}
+                <StudioChipZoomProvider value>
+                  <CanvasV4
+                    graph={graph}
+                    toolMode={toolMode}
+                    relationsCollapsed={relationsCollapsed}
+                    canvasAppearance={store.state.canvasAppearance}
+                    edgeSigning={edgeSigning}
+                    onDrop={dnd.onDrop}
+                    onDragOver={dnd.onDragOver}
+                    onPaneDoubleClick={onPaneDoubleClick}
+                    onPaneContextMenu={onPaneContextMenu}
+                    onNodeDragStart={(node) =>
+                      rosterDrop.onNodeDragStart(node as unknown as NodeV4)
+                    }
+                    onNodeDrag={(node, event) =>
+                      rosterDrop.onNodeDrag(
+                        node as unknown as NodeV4,
+                        event.clientX,
+                        event.clientY,
+                      )
+                    }
+                    onNodeDragStopIntercept={(node, event) =>
+                      rosterDrop.onNodeDragStop(
+                        node as unknown as NodeV4,
+                        event.clientX,
+                        event.clientY,
+                      )
+                    }
+                  />
+                </StudioChipZoomProvider>
                 {graph.nodes.length === 0 ? (
                   <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
                     <NodeCanvasEmptyGuide

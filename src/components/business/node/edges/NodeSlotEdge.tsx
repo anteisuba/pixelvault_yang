@@ -13,11 +13,13 @@
  * 悬停 / 选中时线中点浮出一颗 22px 胶囊：图边写 首帧 / 尾帧 / 参考，**点开就是改
  * 角色**（作首帧 / 作尾帧 / 作参考）；语音 / 文本 / 视频边只写槽名。改角色走
  * `onApplyBatch([disconnect, connect])` —— 断旧连新是**一步意图**，⛔ 不发两条 op
- * 让用户按两次撤销。尾部 × 断开。
+ * 让用户按两次撤销。尾部 × 断开。角色菜单与 chip 弹层同一颗开合：从胶囊下沿长出来、
+ * 关上缩回去（§1 第 12 条）。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -30,6 +32,7 @@ import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { cn } from '@/lib/utils'
 
+import { FADE_ONLY, GROW_FROM_EDGE } from '../nodes/v4/chrome/chrome-motion'
 import { useNodeV4Canvas } from '../nodes/v4/NodeV4Context'
 
 /** 可在胶囊里互换的三个角色（只对图片源的边有意义）。 */
@@ -72,6 +75,7 @@ export function NodeSlotEdge({
   const [hovered, setHovered] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const menuMotion = useReducedMotion() ? FADE_ONLY : GROW_FROM_EDGE
   const pathRef = useRef<SVGPathElement | null>(null)
 
   const [path, labelX, labelY] = getBezierPath({
@@ -201,30 +205,37 @@ export function NodeSlotEdge({
                 <X aria-hidden className="size-2.5" />
               </button>
             </div>
-            {menuOpen && edgeData.roleChangeable ? (
-              <div
-                role="menu"
-                aria-label={t('edgeRole.menu')}
-                className="absolute left-1/2 top-full z-canvas-chrome mt-1.5 flex -translate-x-1/2 flex-col rounded-xl border bg-popover p-1 shadow-node-menu"
-              >
-                {NODE_EDGE_IMAGE_ROLE_SLOTS.map((candidate) => (
-                  <button
-                    key={candidate}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={candidate === slot}
-                    data-node-edge-role-option={candidate}
-                    onClick={() => changeSlot(candidate)}
-                    className={cn(
-                      'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors duration-fast hover:bg-accent',
-                      candidate === slot && 'bg-accent',
-                    )}
-                  >
-                    {t(`edgeRole.${candidate}`)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            <AnimatePresence>
+              {menuOpen && edgeData.roleChangeable ? (
+                <motion.div
+                  key="role-menu"
+                  role="menu"
+                  aria-label={t('edgeRole.menu')}
+                  style={{ transformOrigin: '50% -6px' }}
+                  initial={menuMotion.initial}
+                  animate={menuMotion.animate}
+                  exit={menuMotion.exit}
+                  className="absolute left-1/2 top-full z-canvas-chrome mt-1.5 flex -translate-x-1/2 flex-col rounded-xl border bg-popover p-1 shadow-node-menu"
+                >
+                  {NODE_EDGE_IMAGE_ROLE_SLOTS.map((candidate) => (
+                    <button
+                      key={candidate}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={candidate === slot}
+                      data-node-edge-role-option={candidate}
+                      onClick={() => changeSlot(candidate)}
+                      className={cn(
+                        'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors duration-fast hover:bg-accent',
+                        candidate === slot && 'bg-accent',
+                      )}
+                    >
+                      {t(`edgeRole.${candidate}`)}
+                    </button>
+                  ))}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
         </EdgeLabelRenderer>
       ) : null}

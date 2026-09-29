@@ -20,6 +20,7 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { useStudioChipPopoverMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { cn } from '@/lib/utils'
 
 export interface ChipPopoverProps {
@@ -43,6 +44,12 @@ export function ChipPopover({
   ariaLabel,
   className,
 }: ChipPopoverProps) {
+  // 从 chip 放大（画布圈了 `StudioChipZoomProvider`；§1 第 12 条）。
+  const zoom = useStudioChipPopoverMotion({
+    side: 'bottom',
+    align: 'end',
+    sideOffset: 8,
+  })
   return (
     <ResponsivePopover open={open} onOpenChange={onOpenChange}>
       <ResponsivePopoverTrigger asChild>{trigger}</ResponsivePopoverTrigger>
@@ -54,9 +61,14 @@ export function ChipPopover({
         // 弹层才配 vibrancy；卡面不透明（node/CLAUDE.md 禁改第 6 条）。
         className={cn(
           'nodrag nopan nowheel w-auto rounded-xl border p-3 shadow-node-menu',
+          zoom.className,
           className,
         )}
-        style={width === undefined ? undefined : { width }}
+        style={
+          width === undefined && !zoom.style
+            ? undefined
+            : { ...zoom.style, ...(width === undefined ? {} : { width }) }
+        }
       >
         {children}
       </ResponsivePopoverContent>

@@ -39,10 +39,12 @@ describe('QuickLook', () => {
     expect(screen.getAllByRole('radio')).toHaveLength(3)
   })
 
-  it('压暗 55%（画布看得见但退到后面）', () => {
+  it('压暗 55%（画布看得见但退到后面），压暗层单独一层好与框同进同退', () => {
     setup()
     expect(
-      document.querySelector('[data-node-chrome="quick-look"]')?.className,
+      document.querySelector(
+        '[data-node-chrome="quick-look"] [data-node-chrome-scrim]',
+      )?.className,
     ).toContain('bg-background/55')
   })
 

@@ -181,7 +181,7 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
         onClick={apply}
         className={cn(
           'nodrag nopan h-8.5 rounded-lg bg-primary text-2sm text-primary-foreground',
-          'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95',
+          'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
           'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           'disabled:pointer-events-none disabled:opacity-50',
         )}

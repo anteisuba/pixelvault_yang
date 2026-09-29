@@ -8,8 +8,9 @@
  * 框底两条插槽：这类节点自己的生成行（`footer`）与只属于写作助手的助手栏
  * （`assistantBar`），**两种模型不混**（spec §1.11 最后一句）。
  *
- * Esc / 点框外收起；进出走 `spring-expand`（ui-defaults §4.1：卡展开是「物体在
- * 原地长大」，线性缓动会读成面板切换）。
+ * Esc / 点框外收起。开合 = 方向 A「从卡上长出来」（§1 第 12 条，`use-grow-from-origin`）：
+ * 从 `origin` 那张卡的位置和大小放大到中间，关上缩回去；要播到关，调用方得把框包在
+ * `AnimatePresence` 里（条件挂载那一处）。
  *
  * 宽度由调用方给：视频 720（`NODE_V4_CHROME.frameWidth.video`）。
  *
@@ -23,12 +24,15 @@
  * `createPortal` 一次（S2 曾这么绕过，已删）。
  */
 
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
+
+import { useGrowFromOrigin } from './use-grow-from-origin'
 
 export interface NodeFrameProps {
   readonly open: boolean
@@ -50,10 +54,16 @@ export interface NodeFrameProps {
   readonly assistantBar?: ReactNode
   readonly ariaLabel?: string
   readonly className?: string
+  /** 来处（那张卡）：框从它的位置和大小长出来、关上缩回它。 */
+  readonly origin?: RefObject<HTMLElement | null>
 }
 
-export function NodeFrame({
-  open,
+export function NodeFrame(props: NodeFrameProps) {
+  if (!props.open || typeof document === 'undefined') return null
+  return createPortal(<NodeFrameLayer {...props} />, document.body)
+}
+
+function NodeFrameLayer({
   onClose,
   title,
   titleExtra,
@@ -65,11 +75,21 @@ export function NodeFrame({
   assistantBar,
   ariaLabel,
   className,
+  origin,
 }: NodeFrameProps) {
   const t = useTranslations('StudioNode.v4.chrome')
+  const box = useRef<HTMLDivElement>(null)
+  const scrim = useRef<HTMLDivElement>(null)
+  const { closing } = useGrowFromOrigin({
+    origin,
+    box,
+    scrim,
+    chrome: box,
+    reduce: useReducedMotion() ?? false,
+  })
 
   useEffect(() => {
-    if (!open) return
+    if (closing) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
@@ -77,24 +97,30 @@ export function NodeFrame({
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
-
-  if (!open || typeof document === 'undefined') return null
+  }, [closing, onClose])
 
   const fullscreen = variant === 'fullscreen'
 
-  return createPortal(
+  return (
     <div
       data-node-chrome="frame-scrim"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
       className={cn(
-        'fixed inset-0 z-50 flex items-start justify-center bg-background/55',
+        'fixed inset-0 z-50 flex items-start justify-center',
         fullscreen ? 'p-0' : 'overflow-y-auto p-10',
+        closing && 'pointer-events-none',
       )}
     >
       <div
+        ref={scrim}
+        aria-hidden
+        data-node-chrome-scrim
+        className="pointer-events-none fixed inset-0 bg-background/55"
+      />
+      <div
+        ref={box}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel ?? title}
@@ -104,14 +130,14 @@ export function NodeFrame({
         // 2026-09-10 owner 真机反馈第三、五条的同一个根因，在这里一次挡住。
         onDoubleClick={(event) => event.stopPropagation()}
         className={cn(
-          'flex max-w-full flex-col border bg-card shadow-node-card-expanded',
+          'relative flex max-w-full flex-col border bg-card shadow-node-card-expanded',
           fullscreen ? 'h-full w-full' : 'rounded-node corner-squircle',
-          'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-spring-expand ease-spring-expand',
           className,
         )}
         style={fullscreen || width === undefined ? undefined : { width }}
       >
         <div
+          data-grow-chrome
           className={cn(
             'flex h-12 shrink-0 items-center gap-3 pr-2.5 pl-5',
             fullscreen && 'h-11 border-b pr-2 pl-4',
@@ -140,12 +166,17 @@ export function NodeFrame({
         >
           {children}
         </div>
-        {footer && <div className="shrink-0 px-5 pb-2.5">{footer}</div>}
+        {footer && (
+          <div data-grow-chrome className="shrink-0 px-5 pb-2.5">
+            {footer}
+          </div>
+        )}
         {assistantBar && (
-          <div className="shrink-0 px-3 pb-3">{assistantBar}</div>
+          <div data-grow-chrome className="shrink-0 px-3 pb-3">
+            {assistantBar}
+          </div>
         )}
       </div>
-    </div>,
-    document.body,
+    </div>
   )
 }

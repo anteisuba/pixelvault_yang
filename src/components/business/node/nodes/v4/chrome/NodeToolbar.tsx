@@ -11,7 +11,8 @@
  * S2–S6 各自把 items 拼出来，外层定位（ReactFlow `NodeToolbar` 或绝对定位）由
  * 调用方给——这条工具条同样要出现在画中框与快速看里，绑死 ReactFlow 就用不了。
  *
- * 子菜单（编辑 / 更多）走现有 `DropdownMenu` 原语，⛔ 不自己写弹层。
+ * 子菜单（编辑 / 更多）走现有 `DropdownMenu` 原语，⛔ 不自己写弹层；开合与 chip 弹层
+ * 同一颗「从按钮放大」。按下统一 0.96、悬停标签立刻出（§1 第 12 条）。
  */
 
 import {
@@ -37,6 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useStudioChipPopoverMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { cn } from '@/lib/utils'
 
 export interface NodeToolbarAction {
@@ -98,7 +100,7 @@ const ToolbarCell = forwardRef<
       }}
       className={cn(
         // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
-        'nodrag nopan flex size-8.5 items-center justify-center rounded-lg transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95',
+        'nodrag nopan flex size-8.5 items-center justify-center rounded-lg transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
         action.danger
@@ -118,8 +120,14 @@ export function NodeToolbar({
   ariaLabel,
   className,
 }: NodeToolbarProps) {
+  // 面板 / 子菜单从那颗键放大（画布圈了 `StudioChipZoomProvider`）。
+  const zoom = useStudioChipPopoverMotion({
+    side: 'bottom',
+    align: 'start',
+    sideOffset: 8,
+  })
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delayDuration={0}>
       <div
         role="toolbar"
         aria-label={ariaLabel}
@@ -158,7 +166,8 @@ export function NodeToolbar({
                       align="start"
                       sideOffset={8}
                       data-toolbar-panel={action.id}
-                      className="w-auto p-3"
+                      className={cn('w-auto p-3', zoom.className)}
+                      style={zoom.style}
                     >
                       {action.panel}
                     </PopoverContent>
@@ -176,7 +185,8 @@ export function NodeToolbar({
                     <DropdownMenuContent
                       align="start"
                       sideOffset={8}
-                      className="min-w-44"
+                      className={cn('min-w-44', zoom.className)}
+                      style={zoom.style}
                     >
                       {action.menu}
                     </DropdownMenuContent>

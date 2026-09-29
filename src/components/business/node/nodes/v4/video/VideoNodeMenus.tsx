@@ -77,6 +77,11 @@ export const VIDEO_RAIL_PICKERS = [
 ] as const
 
 export interface VideoAddMenuItemsProps {
+  /**
+   * 这张卡收不收参考。⚠ 片段卡（叶子）不收：不列「图 / 视频 / 语音」三组 —— 列了
+   * 点下去只会报「这个节点没有这个入口」。
+   */
+  readonly acceptsRefs?: boolean
   candidatesOf(group: VideoRailGroupId): readonly VideoSlotCandidate[]
   onPickSlotSource(group: VideoRailGroupId, nodeId: string): void
   /** 上传一份新素材并落进这一组（kind 由组决定）。 */
@@ -88,6 +93,7 @@ export interface VideoAddMenuItemsProps {
 }
 
 export function VideoAddMenuItems({
+  acceptsRefs = true,
   candidatesOf,
   onPickSlotSource,
   onUploadForSlot,
@@ -102,7 +108,7 @@ export function VideoAddMenuItems({
         <Upload aria-hidden className="size-4" />
         {tVideo('add.upload')}
       </DropdownMenuItem>
-      {VIDEO_RAIL_PICKERS.map(({ group, icon: Icon }) => {
+      {(acceptsRefs ? VIDEO_RAIL_PICKERS : []).map(({ group, icon: Icon }) => {
         const candidates = candidatesOf(group)
         return (
           <DropdownMenuSub key={group}>

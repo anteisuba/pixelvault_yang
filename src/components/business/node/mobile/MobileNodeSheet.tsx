@@ -147,18 +147,21 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
         />
       ) : null}
       <NodePromptBar
+        // 片段卡（叶子）没有入口：不摆参考条（与桌面卡同一条判据）。
         leadingRow={
-          <div className="flex min-w-0 max-w-full items-start gap-2">
-            <VideoRefRail {...composer.railProps} />
-            {/* 镜头里 @她：她挂在参考条上，点她从底部升起勾图抽屉（画布用角色 ④ 第 4 片）。 */}
-            <CharacterMentionRail
-              nodeId={node.id}
-              mentions={composer.characterMentions}
-              capacity={composer.characterRail.capacity}
-              usedImages={composer.characterRail.usedImages}
-              disabled={composer.generating}
-            />
-          </div>
+          composer.acceptsRefs ? (
+            <div className="flex min-w-0 max-w-full items-start gap-2">
+              <VideoRefRail {...composer.railProps} />
+              {/* 镜头里 @她：她挂在参考条上，点她从底部升起勾图抽屉（画布用角色 ④ 第 4 片）。 */}
+              <CharacterMentionRail
+                nodeId={node.id}
+                mentions={composer.characterMentions}
+                capacity={composer.characterRail.capacity}
+                usedImages={composer.characterRail.usedImages}
+                disabled={composer.generating}
+              />
+            </div>
+          ) : null
         }
         value={composer.draft}
         onValueChange={composer.setDraft}

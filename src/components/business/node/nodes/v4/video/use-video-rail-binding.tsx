@@ -36,6 +36,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowModelSelection } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from '../NodeV4Context'
+import { videoNodeAcceptsReferences } from './video-node-model'
 import type { VideoRailPendingItem, VideoRefRailProps } from './VideoRefRail'
 
 /** 「抽帧」与「+ 上传落槽」那一批里指代新建素材卡的别名。 */
@@ -67,6 +68,9 @@ export const RAIL_GROUP_TARGETS: Readonly<
   },
 }
 
+/** 素材库开给「这张卡自己」时的那一档（片段卡换片）。 */
+const SELF_LIBRARY = 'self'
+
 /** 上传 / 素材库落进轨时新建的那张卡是什么子型。 */
 const RAIL_SUBTYPE_OF: Readonly<Record<'image' | 'video' | 'audio', string>> = {
   [NODE_MEDIA_KIND_IDS.image]: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
@@ -90,10 +94,17 @@ export interface VideoRailBinding {
   /** 参考轨的整份 props —— 桌面栏、画中框、手机抽屉摆的是同一个组件。 */
   readonly railProps: Omit<VideoRefRailProps, 'className'>
   readonly capacity: ReturnType<typeof videoRailCapacity>
+  /**
+   * 这张卡收不收参考（`videoNodeAcceptsReferences`）。⚠ 片段卡不收：调用方据此
+   * 不摆参考轨、`+` 里不列「图 / 视频 / 语音」，上传与素材库换的是它自己的片。
+   */
+  readonly acceptsRefs: boolean
   candidatesOf: VideoRefRailProps['candidatesOf']
   /** 上传：`null` 组 = 换这张卡自己的成片。 */
   runUpload(file: File, group: VideoRailGroupId | null): void
   openFilePicker(group: VideoRailGroupId | null): void
+  /** 素材库：`null` 组 = 换这张卡自己的片（片段卡的 `+ → 从素材库`）。 */
+  openLibrary(group: VideoRailGroupId | null): void
   /** 从系统相册 / 文件选一份落进某一组（手机端参考条的加号走它）。 */
   readonly selfUploading: boolean
   readonly uploadProgress: number
@@ -113,8 +124,10 @@ export function useVideoRailBinding({
   const canvas = useNodeV4Canvas()
   const upload = useNodeUploadV4()
 
-  /** 素材库开在哪一组（`null` = 没开）。 */
-  const [assetPicker, setAssetPicker] = useState<VideoRailGroupId | null>(null)
+  /** 素材库开在哪一组（`self` = 换自己的片；`null` = 没开）。 */
+  const [assetPicker, setAssetPicker] = useState<
+    VideoRailGroupId | typeof SELF_LIBRARY | null
+  >(null)
   /**
    * 正在上传、还没落成卡的那几格。⚠ 只有**这一条**在跑的那一格有真实进度
    * （`useNodeUploadV4` 是单飞的），⛔ 不给排队的格子编一个假进度。
@@ -260,7 +273,16 @@ export function useVideoRailBinding({
     fileRef.current?.click()
   }, [])
 
+  // ⚠ 弹层要等菜单**关完**再开：Radix 的菜单与对话框各自往 `body` 上写
+  // `pointer-events:none`，同一帧里一开一关会把它留在 body 上，整页从此点不动。
+  const openLibrary = useCallback((group: VideoRailGroupId | null) => {
+    window.setTimeout(() => setAssetPicker(group ?? SELF_LIBRARY), 0)
+  }, [])
+
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
+  const acceptsRefs = node
+    ? videoNodeAcceptsReferences(node.data.subtype)
+    : false
   const items = node ? readVideoRail(node, canvas.edges, canvas.nodes) : []
   const capacity = videoRailCapacity(model)
 
@@ -330,10 +352,7 @@ export function useVideoRailBinding({
         slot: RAIL_GROUP_TARGETS[group].slot,
       }),
     onUpload: (group: VideoRailGroupId) => openFilePicker(group),
-    // ⚠ 弹层要等菜单**关完**再开：Radix 的菜单与对话框各自往 `body` 上写
-    // `pointer-events:none`，同一帧里一开一关会把它留在 body 上，整页从此点不动。
-    onLibrary: (group: VideoRailGroupId) =>
-      window.setTimeout(() => setAssetPicker(group), 0),
+    onLibrary: (group: VideoRailGroupId) => openLibrary(group),
     onRetryPending: (pendingId: string) => {
       const item = pendingUploads.find((entry) => entry.id === pendingId)
       if (item) startRailUpload(item.id, item.group, item.file)
@@ -362,12 +381,20 @@ export function useVideoRailBinding({
           onOpenChange={(next) => {
             if (!next) setAssetPicker(null)
           }}
-          mediaType={RAIL_GROUP_TARGETS[assetPicker].kind}
+          mediaType={
+            assetPicker === SELF_LIBRARY
+              ? NODE_MEDIA_KIND_IDS.video
+              : RAIL_GROUP_TARGETS[assetPicker].kind
+          }
           title={tVideo('add.library')}
           description={tVideo('add.library')}
           onSelect={(record) => {
-            // 素材库与上传落的是**同一条**创建路径。
-            if (record.url) void attachToRail(assetPicker, { url: record.url })
+            // 素材库与上传落的是**同一条**路径：挂进轨 = 新建卡 + 连槽；换自己 = 回填。
+            if (record.url) {
+              if (assetPicker === SELF_LIBRARY)
+                latest.current.canvas.onSetMedia(id, { url: record.url })
+              else void attachToRail(assetPicker, { url: record.url })
+            }
             setAssetPicker(null)
           }}
         />
@@ -380,9 +407,11 @@ export function useVideoRailBinding({
     items,
     railProps,
     capacity,
+    acceptsRefs,
     candidatesOf,
     runUpload,
     openFilePicker,
+    openLibrary,
     selfUploading,
     uploadProgress: upload.progress,
     backfillMedia,

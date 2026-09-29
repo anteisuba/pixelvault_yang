@@ -24,11 +24,45 @@ import {
   isVideoResolution,
   type VideoResolution,
 } from '@/constants/video-options'
+import {
+  getNodeV4Ports,
+  NODE_SLOT_IDS,
+  NODE_SLOT_OUTPUT_IDS,
+  type NodeSlotOutputId,
+} from '@/constants/node-slots'
+import { NODE_MEDIA_KIND_IDS, type NodeV4Subtype } from '@/constants/node-types'
 import { readOutputVersions } from '@/lib/node-output-versions'
 import type {
   NodeV4GenerationParams,
   NodeV4VideoData,
 } from '@/types/node-workflow'
+
+function videoPortsOf(subtype: string) {
+  return getNodeV4Ports(NODE_MEDIA_KIND_IDS.video, subtype as NodeV4Subtype)
+}
+
+/**
+ * 这张视频卡收不收参考。⚠ 参考片段（`clip`）是叶子卡、没有入口 —— 给它摆「挂图 /
+ * 挂视频 / 挂语音」、抽帧连回自己，点下去只会报「这个节点没有这个入口」（owner
+ * 2026-09-29 真机）。判据查端口表，与图片卡的 `imageNodeAcceptsReferences` 同一条。
+ */
+export function videoNodeAcceptsReferences(subtype: string): boolean {
+  return Boolean(
+    videoPortsOf(subtype)?.inputs.some(
+      (spec) => spec.slot === NODE_SLOT_IDS.reference,
+    ),
+  )
+}
+
+/**
+ * 续拍从这张卡的哪个出口连到下一镜的参考槽：镜头卡走「末帧」出口；片段卡没有那个
+ * 出口，整段当参考（⛔ 连到不存在的出口，ReactFlow 就不画这条线）。
+ */
+export function videoContinueSourceHandle(subtype: string): NodeSlotOutputId {
+  return videoPortsOf(subtype)?.outputs.includes(NODE_SLOT_OUTPUT_IDS.tailFrame)
+    ? NODE_SLOT_OUTPUT_IDS.tailFrame
+    : NODE_SLOT_OUTPUT_IDS.out
+}
 
 /**
  * 卡高：**永远 16:9**（spec §5「16:9 空卡；有片时卡即封面」）。

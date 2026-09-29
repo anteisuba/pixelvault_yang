@@ -369,6 +369,74 @@ describe('选中：工具条与批操作', () => {
   })
 })
 
+// owner 2026-09-29 真机：片段卡上点「+ → 图」报「这个节点没有这个入口」。片段卡是叶子，
+// 没有任何入口 —— 挂参考的口子一律不摆，抽帧 / 续拍也不往它没有的槽 / 出口上连。
+describe('参考片段（叶子卡）', () => {
+  const CLIP = { ...READY, subtype: 'clip' } as const
+
+  it('提示词栏不摆参考轨', () => {
+    renderVideo(harness([videoNode('v_1', CLIP)]), 'v_1', true)
+    expect(
+      screen
+        .getByTestId('flow-toolbar-bottom')
+        .querySelector('[data-video-ref-rail]'),
+    ).toBeNull()
+  })
+
+  it('抽帧只落那张图，⛔ 不连回自己', async () => {
+    const onApplyBatch = vi.fn(
+      async (ops: readonly unknown[]) => (
+        void ops,
+        { createdNodeIds: ['img_new'] }
+      ),
+    )
+    renderVideo(
+      harness([videoNode('v_1', CLIP)], { onApplyBatch }),
+      'v_1',
+      true,
+    )
+    fireEvent.mouseEnter(
+      document.querySelector('[data-video-surface="ready"]') as HTMLElement,
+    )
+    fireEvent.click(
+      screen
+        .getByTestId('flow-toolbar-top')
+        .querySelector('[data-toolbar-action="extract"]') as HTMLElement,
+    )
+    await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
+    const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
+      string,
+      unknown
+    >[]
+    expect(ops.map((op) => op.op)).toEqual([NODE_ASSISTANT_OP_V4_IDS.addNode])
+  })
+
+  it('续拍把整段当参考（`out` 出口），⛔ 不从它没有的末帧出口连', async () => {
+    const onApplyBatch = vi.fn(
+      async (ops: readonly unknown[]) => (
+        void ops,
+        { createdNodeIds: ['img_new'] }
+      ),
+    )
+    renderVideo(
+      harness([videoNode('v_1', CLIP)], { onApplyBatch }),
+      'v_1',
+      true,
+    )
+    fireEvent.click(
+      screen
+        .getByTestId('flow-toolbar-top')
+        .querySelector('[data-toolbar-action="continue"]') as HTMLElement,
+    )
+    await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
+    const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
+      string,
+      unknown
+    >[]
+    expect(ops[3]).toMatchObject({ source: 'v_1', sourceHandle: 'out' })
+  })
+})
+
 describe('提示词栏', () => {
   it('回车 = 生成新版本', () => {
     const onSetPrompt = vi.fn()

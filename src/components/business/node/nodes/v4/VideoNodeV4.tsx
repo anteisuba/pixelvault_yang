@@ -44,11 +44,7 @@ import {
 import { toast } from 'sonner'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import {
-  getNodeV4Ports,
-  NODE_SLOT_IDS,
-  NODE_SLOT_OUTPUT_IDS,
-} from '@/constants/node-slots'
+import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { NODE_V4_CARD } from '@/constants/node-studio'
@@ -94,7 +90,11 @@ import { VideoRefRail } from './video/VideoRefRail'
 import { VideoScriptShotBadge } from './video/VideoScriptShotChips'
 import { useVideoComposer } from './video/use-video-composer'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
-import { formatVideoSeconds, videoCardHeight } from './video/video-node-model'
+import {
+  formatVideoSeconds,
+  videoCardHeight,
+  videoContinueSourceHandle,
+} from './video/video-node-model'
 import { useNodeCanvasActions } from './NodeV4ActionsBridge'
 import { CharacterMentionRail } from './character/CharacterMentionRail'
 
@@ -216,8 +216,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     currentSourceLabel,
     posterUrl,
     modelLabel,
+    acceptsRefs,
     runUpload,
     openFilePicker,
+    openLibrary,
     selfUploading,
     uploadProgress,
     backfillMedia,
@@ -352,7 +354,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       {
         op: NODE_ASSISTANT_OP_V4_IDS.connect,
         source: id,
-        sourceHandle: NODE_SLOT_OUTPUT_IDS.tailFrame,
+        sourceHandle: videoContinueSourceHandle(videoData.subtype),
         target: CONTINUE_BATCH_REFS.shot,
         slot: NODE_SLOT_IDS.reference,
       },
@@ -361,7 +363,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     if (tailId) backfillMedia(tailId, { url: grabbed.url })
   }
 
-  /** 抽帧：截当前画面 → 落成一张图片卡 → 连线**指回**这一段的参考槽。 */
+  /**
+   * 抽帧：截当前画面 → 落成一张图片卡 → 连线**指回**这一段的参考槽。⚠ 片段卡没有
+   * 参考槽：只落那张图、不连（⛔ 连一条不存在的入口 = 报错 + 一张孤卡）。
+   */
   const runExtract = async (video: HTMLVideoElement) => {
     const grabbed = await frames.captureCurrentFrame(video, displayName)
     if (!grabbed.ok) {
@@ -375,12 +380,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
         ref: ASSET_BATCH_REF,
       },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: ASSET_BATCH_REF,
-        target: id,
-        slot: NODE_SLOT_IDS.reference,
-      },
+      ...(acceptsRefs
+        ? ([
+            {
+              op: NODE_ASSISTANT_OP_V4_IDS.connect,
+              source: ASSET_BATCH_REF,
+              target: id,
+              slot: NODE_SLOT_IDS.reference,
+            },
+          ] as const)
+        : []),
     ])
     const created = outcome?.createdNodeIds?.[0]
     if (created) backfillMedia(created, { url: grabbed.url })
@@ -785,17 +794,20 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           <NodePromptBar
             // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
             // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
+            // 片段卡（叶子）没有入口：不摆参考轨（与图片卡 `image.reference` 同一条）。
             leadingRow={
-              <>
-                <VideoRefRail {...railProps} />
-                <CharacterMentionRail
-                  nodeId={id}
-                  mentions={characterMentions}
-                  capacity={characterRail.capacity}
-                  usedImages={characterRail.usedImages}
-                  disabled={generating}
-                />
-              </>
+              acceptsRefs ? (
+                <>
+                  <VideoRefRail {...railProps} />
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={characterMentions}
+                    capacity={characterRail.capacity}
+                    usedImages={characterRail.usedImages}
+                    disabled={generating}
+                  />
+                </>
+              ) : null
             }
             value={draft}
             onValueChange={setDraft}
@@ -816,6 +828,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             className="w-160 max-w-full"
             addMenu={
               <VideoAddMenuItems
+                acceptsRefs={acceptsRefs}
                 candidatesOf={railCandidatesOf}
                 onPickSlotSource={railProps.onPickFromCanvas}
                 onUploadForSlot={(group) => openFilePicker(group)}
@@ -826,7 +839,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   window.setTimeout(() => promptInputRef.current?.focus(), 0)
                 }}
                 onLibrary={() =>
-                  railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                  acceptsRefs
+                    ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                    : openLibrary(null)
                 }
               />
             }
@@ -886,16 +901,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             paramsChip={paramsChip}
             modelChip={modelChip}
             refRail={
-              <div className="flex min-w-0 max-w-full items-start gap-2">
-                <VideoRefRail {...railProps} />
-                <CharacterMentionRail
-                  nodeId={id}
-                  mentions={characterMentions}
-                  capacity={characterRail.capacity}
-                  usedImages={characterRail.usedImages}
-                  disabled={generating}
-                />
-              </div>
+              acceptsRefs ? (
+                <div className="flex min-w-0 max-w-full items-start gap-2">
+                  <VideoRefRail {...railProps} />
+                  <CharacterMentionRail
+                    nodeId={id}
+                    mentions={characterMentions}
+                    capacity={characterRail.capacity}
+                    usedImages={characterRail.usedImages}
+                    disabled={generating}
+                  />
+                </div>
+              ) : null
             }
             tokens={frameTokens}
             candidates={frameCandidates}

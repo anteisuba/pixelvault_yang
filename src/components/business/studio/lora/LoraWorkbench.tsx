@@ -1907,7 +1907,7 @@ function GenerateBranch({
   // 装配列收起成 48px 竖条（桌面，lora-generate.md §2.1）；手机装配抽屉里那条
   // 脊柱也读它（两套骨架不同屏）。
   const [assemblyCollapsed, setAssemblyCollapsed] = useState(false)
-  // 来源图带：出过图后收成一行，点它长回整条（§2.2）。新出一张图时收回去。
+  // 来源图带：出图中与出过图后收成一行，点它长回整条（§2.2）。每点一次出图收回去。
   const [bandExpanded, setBandExpanded] = useState(false)
   // 两套骨架的分界（≥1024 生成台 B / <1024 手机单卡），与 root 同一个判据。
   const isMobile = useIsMobile()
@@ -2319,6 +2319,8 @@ function GenerateBranch({
       delete advanced.runnerHeight
       delete advanced.runnerUpscaler
     }
+    // 点「出图」这一刻结果卡就是主角：来源图带先收成一行，把高度让给它（§2.2）。
+    setBandExpanded(false)
     const record = await generate({
       mode: 'image',
       image: {
@@ -2365,8 +2367,6 @@ function GenerateBranch({
         ].slice(0, LORA_RESULT_HISTORY_MAX),
       )
       setSelectedResultId(record.id)
-      // 出了新图，来源图带收回一行，把高度让给这张图（§2.2）。
-      setBandExpanded(false)
     }
   }, [
     aspectRatio,
@@ -3841,10 +3841,16 @@ function GenerateBranch({
   }
 
   // ── 桌面（≥1024）：生成台 B（lora-generate.md §2）──────────────────────────
-  // 来源图带（§2.2）：没挂 LoRA 不出现；出过图收成一行，点它长回整条。
+  // 来源图带（§2.2）：没挂 LoRA 不出现；出图中与出过图都收成一行（结果卡是主角，
+  // owner 09-29「图片太小了」），点它长回整条。
+  // 失败也留在原地说为什么（加载态 A），同样是结果卡在说话。
+  const stageHasResult =
+    displayedResultUrl !== null ||
+    showGeneratingOverlay ||
+    Boolean(generateError)
   const bandMode: LoraSourceBandMode = !hasLora
     ? 'hidden'
-    : displayedResultUrl && !bandExpanded
+    : stageHasResult && !bandExpanded
       ? 'line'
       : 'open'
   const bandKind = hfSource
@@ -4062,7 +4068,7 @@ function GenerateBranch({
               mode={bandMode}
               onExpand={() => setBandExpanded(true)}
               onFold={() => setBandExpanded(false)}
-              canFold={displayedResultUrl !== null}
+              canFold={stageHasResult}
               groups={stack.items.map((item) => ({
                 id: item.asset.id,
                 name: item.asset.name,

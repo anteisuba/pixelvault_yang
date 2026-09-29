@@ -327,14 +327,18 @@ export function StudioGeneratingProgress({
             aria-hidden
             className={cn(
               'font-medium tracking-tight tabular-nums text-foreground',
-              isFull ? 'text-3xl' : 'text-2xl @max-4xs/progress:text-lg',
+              isFull
+                ? 'text-3xl @max-4xs/progress:text-xl'
+                : 'text-2xl @max-4xs/progress:text-lg',
             )}
           >
             {readout}
             <span
               className={cn(
                 'ml-0.5 font-normal text-muted-foreground',
-                isFull ? 'text-base' : 'text-sm @max-4xs/progress:text-2xs',
+                isFull
+                  ? 'text-base @max-4xs/progress:text-2xs'
+                  : 'text-sm @max-4xs/progress:text-2xs',
               )}
             >
               %
@@ -370,7 +374,8 @@ export function StudioGeneratingProgress({
       {isFull && paramsLine && !failed && (
         <p
           className={cn(
-            'absolute inset-x-0 bottom-3 text-center font-mono text-2xs tabular-nums text-muted-foreground',
+            // 框窄于 160 时让位（它会换行压到数字上）；宽的时候一行截断。
+            'absolute inset-x-0 bottom-3 truncate px-3 text-center font-mono text-2xs tabular-nums text-muted-foreground @max-4xs/progress:hidden',
             fading && 'opacity-0 transition-opacity duration-fast ease-linear',
           )}
         >

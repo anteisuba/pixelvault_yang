@@ -205,6 +205,7 @@ import {
   toLoraOperatorResults,
   useLoraOperatorHost,
 } from '@/hooks/use-lora-operator-host'
+import { useLoraLibraryFilterSnapshot } from '@/hooks/use-civitai-lora-library-url'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
@@ -2091,6 +2092,8 @@ function GenerateBranch({
     runnerSampler: runnerSampler || null,
     runnerScheduler: runnerScheduler || null,
   })
+  // 库页现在的排序 / 分级 / 类型 —— 进助手快照，它照同一组条件当面搜（lora-assistant §13）。
+  const libraryFilters = useLoraLibraryFilterSnapshot()
   // 助手那一枪按的就是这颗出图键 —— `handleGenerateClick` 定义在下面，走 ref。
   const generateClickRef = useRef<() => void>(() => {})
   const assistantGenerateBlockedReason =
@@ -2152,6 +2155,12 @@ function GenerateBranch({
       blockedReason: assistantGenerateBlockedReason,
     },
     activeRun,
+    libraryFilters,
+    openLibrary: onOpenLibrary,
+    // 库 / 收藏开着时才给：助手写装配台先回到生成台，你才看得见它改了什么。
+    ...(library && onReturnToGenerate
+      ? { returnToBench: onReturnToGenerate }
+      : {}),
     open: assistantOpen,
     setOpen: onAssistantOpenChange,
   })

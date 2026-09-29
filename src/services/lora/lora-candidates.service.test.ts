@@ -503,11 +503,13 @@ describe('searchLoraLibraryCandidates — 照库页的条件搜（lora-assistant
     })
 
     expect(mockListCivitaiLoras).toHaveBeenCalledTimes(1)
+    // 排序跟库页一样：一搜词就是「Highest Rated」，网址上的排序不作数。
     expect(mockListCivitaiLoras).toHaveBeenCalledWith({
       search: 'changli',
       pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
       baseModel: 'Illustrious',
       ...filters,
+      sort: 'Highest Rated',
     })
     expect(mockSearchHuggingFaceLoras).not.toHaveBeenCalled()
     expect(result.baseModel).toBe('Illustrious')
@@ -521,6 +523,7 @@ describe('searchLoraLibraryCandidates — 照库页的条件搜（lora-assistant
     expect(mockListCivitaiLoras).toHaveBeenCalledWith({
       search: 'changli',
       pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
+      sort: 'Highest Rated',
     })
     expect(result.baseModel).toBeNull()
   })

@@ -279,6 +279,12 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    */
   'loraMountFailed',
   /**
+   * 你挂上了助手在库页圈的那一把（lora-assistant §13.2）—— 挂载是你在卡上点的，
+   * 但「助手推的你用上了」这件事该在助手的线程里留一行，下一轮它读得到。
+   * ⚠ 与 `loraPickMounted`（推荐卡勾选后那一行）不是同一件事，别合并。
+   */
+  'loraLibraryPickMounted',
+  /**
    * 栈总权重超过当前底模那一档预算（§5.2）——**只提醒，不动手**。
    *
    * ⛔ 不自动归一、⛔ 不拒那一步：助手已经把权重设成用户要的那个值了，这一行说的

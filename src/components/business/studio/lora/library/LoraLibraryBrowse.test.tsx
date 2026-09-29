@@ -3,6 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CivitaiLoraLibraryItem } from '@/types'
 
+import {
+  getLoraLibraryAgentState,
+  requestLoraLibrarySearch,
+  resetLoraLibraryAgent,
+  showLoraLibraryPicks,
+} from '@/hooks/use-lora-library-agent'
+import {
+  getOperatorState,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
+
 import { LoraLibraryBrowse } from './LoraLibraryBrowse'
 
 vi.mock('next-intl', () => ({
@@ -146,6 +157,8 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     vi.clearAllMocks()
     mockStackItems = []
     mockLibrary = libraryState()
+    resetLoraLibraryAgent()
+    resetOperatorThread()
   })
 
   it('writes the exact count, and 100,000+ once the index caps it', () => {
@@ -296,5 +309,113 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     await waitFor(() =>
       expect(screen.queryByTestId('lora-library-detail')).toBeNull(),
     )
+  })
+
+  /**
+   * 助手当面搜（lora-assistant §13.2）：请求照「点一条搜索历史」那条路落到库页，
+   * 圈与小标跟着助手搜的那一组走，你一改词就撤；挂上圈里那把在线程里落一行。
+   */
+  describe('助手当面搜', () => {
+    it('applies the assistant request: term, commit, base model, then consumes it', () => {
+      const setSearch = vi.fn()
+      const commitSearchTerm = vi.fn()
+      const setBaseModel = vi.fn()
+      mockLibrary = libraryState({ setSearch, commitSearchTerm, setBaseModel })
+      requestLoraLibrarySearch({ query: 'roccia', baseModel: 'Illustrious' })
+
+      renderBrowse()
+
+      expect(setSearch).toHaveBeenCalledWith('roccia')
+      expect(commitSearchTerm).toHaveBeenCalledWith('roccia')
+      expect(setBaseModel).toHaveBeenCalledWith('Illustrious')
+      expect(getLoraLibraryAgentState().request).toBeNull()
+    })
+
+    it('rings the picks with a badge and marks the search box as the assistant’s', () => {
+      mockLibrary = libraryState({
+        search: 'roccia',
+        debouncedSearch: 'roccia',
+        baseModel: 'Illustrious',
+      })
+      requestLoraLibrarySearch({ query: 'roccia', baseModel: 'Illustrious' })
+      renderBrowse()
+      act(() =>
+        showLoraLibraryPicks({
+          query: 'roccia',
+          picks: [{ candidateId: 'roccia', name: 'Roccia' }],
+        }),
+      )
+
+      expect(
+        screen.getAllByText('LoraWorkbench.browse:agentPick'),
+      ).toHaveLength(1)
+      expect(
+        screen.getByText('LoraWorkbench.browse:agentSearched'),
+      ).toBeInTheDocument()
+    })
+
+    it('drops the rings once you search something else', () => {
+      mockLibrary = libraryState({
+        search: 'roccia',
+        debouncedSearch: 'roccia',
+        baseModel: 'Illustrious',
+      })
+      requestLoraLibrarySearch({ query: 'roccia', baseModel: 'Illustrious' })
+      const { rerender } = renderBrowse()
+      act(() =>
+        showLoraLibraryPicks({
+          query: 'roccia',
+          picks: [{ candidateId: 'roccia', name: 'Roccia' }],
+        }),
+      )
+
+      mockLibrary = libraryState({
+        search: 'jinhsi',
+        debouncedSearch: 'jinhsi',
+        baseModel: 'Illustrious',
+      })
+      rerender(
+        <LoraLibraryBrowse
+          sourceSwitch={<span>source</span>}
+          onFavorite={vi.fn()}
+          onUnfavoriteByUrl={vi.fn()}
+          isFavorited={() => false}
+        />,
+      )
+
+      expect(getLoraLibraryAgentState().picks).toHaveLength(0)
+      expect(getLoraLibraryAgentState().query).toBeNull()
+      expect(screen.queryByText('LoraWorkbench.browse:agentPick')).toBeNull()
+    })
+
+    it('mounting a ringed card drops its ring and tells the thread', async () => {
+      mockLibrary = libraryState({
+        search: 'roccia',
+        debouncedSearch: 'roccia',
+        baseModel: 'Illustrious',
+      })
+      requestLoraLibrarySearch({ query: 'roccia', baseModel: 'Illustrious' })
+      renderBrowse()
+      act(() =>
+        showLoraLibraryPicks({
+          query: 'roccia',
+          picks: [{ candidateId: 'roccia', name: 'Roccia' }],
+        }),
+      )
+
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
+        }),
+      )
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledTimes(1))
+      expect(getLoraLibraryAgentState().picks).toHaveLength(0)
+      expect(getOperatorState().entries.at(-1)).toMatchObject({
+        kind: 'system',
+        code: 'loraLibraryPickMounted',
+        subject: 'Roccia',
+      })
+    })
   })
 })

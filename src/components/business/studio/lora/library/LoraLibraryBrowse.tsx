@@ -28,6 +28,7 @@ import {
   familySlugToCivitaiBaseModel,
   getLoraContentTypeDefinition,
   isCivitaiBaseModelGeneratable,
+  isCivitaiLoraBaseModel,
   isCivitaiLoraSort,
   type LoraNsfwFilter,
 } from '@/constants/lora'
@@ -35,6 +36,12 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibraryWithUrl } from '@/hooks/use-civitai-lora-library-url'
 import { useLoadMoreOnScroll } from '@/hooks/use-load-more-on-scroll'
+import {
+  consumeLoraLibrarySearch,
+  markLoraLibraryPickMounted,
+  resetLoraLibraryAgent,
+  useLoraLibraryAgent,
+} from '@/hooks/use-lora-library-agent'
 import { useLoraSearchHistory } from '@/hooks/use-lora-search-history'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
@@ -106,6 +113,7 @@ export function LoraLibraryBrowse({
     pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
   })
   const searchHistory = useLoraSearchHistory()
+  const agent = useLoraLibraryAgent()
   const [mountingId, setMountingId] = useState<string | null>(null)
   // 打开的详情页：存这一项本身（往下滚接了新的一段、或换了筛选，它都还在）。
   const [openItem, setOpenItem] = useState<CivitaiLoraLibraryItem | null>(null)
@@ -133,6 +141,51 @@ export function LoraLibraryBrowse({
     },
     [library, rememberSearch],
   )
+
+  /**
+   * 助手当面搜（lora-assistant §13.2）：照「点一条搜索历史」那条路设词，再把底模
+   * 筛选设成服务端这次用的那个值 —— 条件与服务端逐字相同，网格第一段就是助手挑选
+   * 时看到的那一组。执行完清掉这一次请求（词与圈留着）。
+   */
+  const agentRequest = agent.request
+  const { setSearch, commitSearchTerm, setBaseModel } = library
+  useEffect(() => {
+    if (!agentRequest) return
+    setSearch(agentRequest.query)
+    commitSearchTerm(agentRequest.query)
+    setBaseModel(
+      agentRequest.baseModel && isCivitaiLoraBaseModel(agentRequest.baseModel)
+        ? agentRequest.baseModel
+        : 'all',
+    )
+    consumeLoraLibrarySearch(agentRequest.nonce)
+  }, [agentRequest, commitSearchTerm, setBaseModel, setSearch])
+
+  /**
+   * 你改了搜索词或任何一个筛选：结果已不是助手搜的那一组 —— 圈、小标、黑边一起撤。
+   * ⚠ 筛选的基准在请求落到库页之后才记（搜词会把排序换回 Highest Rated）。
+   */
+  const filterKey = `${library.sort}|${library.nsfwFilter}|${library.contentType}`
+  const agentFilterKey = useRef<string | null>(null)
+  const agentActive = agent.query !== null
+  const agentPending = agent.request !== null
+  const matchesAgent =
+    library.debouncedSearch === agent.query &&
+    library.baseModel ===
+      (agent.baseModel && isCivitaiLoraBaseModel(agent.baseModel)
+        ? agent.baseModel
+        : 'all')
+  useEffect(() => {
+    if (!agentActive) {
+      agentFilterKey.current = null
+      return
+    }
+    if (agentPending) return
+    if (agentFilterKey.current === null) agentFilterKey.current = filterKey
+    if (!matchesAgent || agentFilterKey.current !== filterKey) {
+      resetLoraLibraryAgent()
+    }
+  }, [agentActive, agentPending, filterKey, matchesAgent])
 
   // 连版本号一起认：从收藏挂上的（收藏记录的 id / 链接写法）也算这一版已挂。
   const isMounted = useCallback(
@@ -162,6 +215,8 @@ export function LoraLibraryBrowse({
           return
         }
         stack.push(item)
+        // 挂的是助手圈的那一把：那张撤圈，线程里落一行「你挂上了…」。
+        markLoraLibraryPickMounted(item.id)
       } finally {
         setMountingId(null)
       }
@@ -344,6 +399,11 @@ export function LoraLibraryBrowse({
           pending={hasPendingSearch}
           searching={searching}
           placeholder={t('communitySearch')}
+          agentLabel={
+            agentActive && matchesAgent
+              ? tb(searching ? 'agentSearching' : 'agentSearched')
+              : null
+          }
         />
         {sourceSwitch}
         <LoraLibraryFilterCombobox
@@ -540,6 +600,10 @@ export function LoraLibraryBrowse({
                       coverColor={item.coverColor ?? null}
                       mounted={isMounted(item)}
                       mounting={mountingId === item.id}
+                      agentPick={
+                        !isMounted(item) &&
+                        agent.picks.some((pick) => pick.candidateId === item.id)
+                      }
                       onOpen={() => setOpenItem(item)}
                       onMount={() => void handleMount(item)}
                     />

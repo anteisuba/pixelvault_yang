@@ -672,6 +672,9 @@ export async function searchLoraLibraryCandidates(
         pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
         ...(civitaiBaseModel ? { baseModel: civitaiBaseModel } : {}),
         ...(input.filters ?? {}),
+        // ⚠ 库页一搜词就把排序换回「Highest Rated」（`useCivitaiLoraLibrary` 的
+        //   `commitSearch`），当面搜也是搜词 —— 这里跟着换，⛔ 用网址上的排序。
+        sort: 'Highest Rated',
       })
       return page.items.map((item) => civitaiToCandidate(item, retrievedAt))
     },

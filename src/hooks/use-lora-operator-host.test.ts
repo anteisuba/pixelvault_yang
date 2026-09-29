@@ -19,6 +19,10 @@ import {
   getOperatorState,
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
+import {
+  getLoraLibraryAgentState,
+  resetLoraLibraryAgent,
+} from '@/hooks/use-lora-library-agent'
 import type { LoraAssetRecord } from '@/types'
 
 /** 这一层验的是快照形状，不是词表 —— 桩成「回 key」就够（同工作台宿主那份）。 */
@@ -954,5 +958,103 @@ describe('useLoraOperatorHost 的出图那一枪', () => {
     expect(
       getOperatorState().entries.some((entry) => entry.id === 'result-1'),
     ).toBe(false)
+  })
+})
+
+/**
+ * 助手在库页当面搜（lora-assistant §13.2）。
+ *
+ * ⚠ 钉三件事：「找 LoRA」完成时切到库页、把词和底模交给库页；圈几把时库页被切走
+ * 了就切回去；助手写装配台之前先回到生成台（你才看得见它改了什么）。
+ */
+describe('useLoraOperatorHost 的库页当面搜', () => {
+  function libraryInput(
+    overrides: Partial<UseLoraOperatorHostInput> = {},
+  ): UseLoraOperatorHostInput {
+    return {
+      prompt: '',
+      setPrompt: vi.fn(),
+      appendPrompt: () => {},
+      negativePrompt: '',
+      setNegativePrompt: () => {},
+      base: {
+        id: 'illustrious-runner',
+        label: 'Illustrious',
+        family: 'illustrious',
+      },
+      availableBases: [],
+      selectBase: () => {},
+      stack: null,
+      imageUpload: {
+        referenceEntries: [],
+        maxImages: 2,
+        addReferenceImage: () => {},
+        removeReferenceImage: () => {},
+      },
+      open: true,
+      setOpen: () => {},
+      ...overrides,
+    }
+  }
+
+  beforeEach(() => resetLoraLibraryAgent())
+
+  it('「找 LoRA」完成：切到库页，词和服务端用的底模交给库页', () => {
+    const openLibrary = vi.fn()
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(libraryInput({ openLibrary })),
+    )
+    result.current.apply.lora?.showLibrarySearch?.({
+      query: 'roccia',
+      baseModel: 'Illustrious',
+    })
+    expect(openLibrary).toHaveBeenCalledTimes(1)
+    expect(getLoraLibraryAgentState()).toMatchObject({
+      query: 'roccia',
+      baseModel: 'Illustrious',
+      request: { query: 'roccia', baseModel: 'Illustrious' },
+      picks: [],
+    })
+  })
+
+  it('圈几把：记下圈，库页被切走了就切回去；撤销只撤圈', () => {
+    const openLibrary = vi.fn()
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(libraryInput({ openLibrary })),
+    )
+    const picks = [{ candidateId: 'civitai:1:2', name: 'Roccia' }]
+    result.current.apply.lora?.showPicks?.({ query: 'roccia', picks })
+    expect(getLoraLibraryAgentState().picks).toEqual(picks)
+    expect(openLibrary).toHaveBeenCalledTimes(1)
+    result.current.apply.lora?.clearPicks?.()
+    expect(getLoraLibraryAgentState().picks).toEqual([])
+  })
+
+  it('库页开着时写提示词：先回到生成台再写', () => {
+    const calls: string[] = []
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(
+        libraryInput({
+          returnToBench: () => calls.push('return'),
+          setPrompt: () => calls.push('prompt'),
+        }),
+      ),
+    )
+    result.current.apply.dispatch({ type: 'SET_PROMPT', payload: '1girl' })
+    expect(calls).toEqual(['return', 'prompt'])
+  })
+
+  it('快照带上库页现在的筛选', () => {
+    const libraryFilters = {
+      sort: 'Newest',
+      nsfwFilter: 'unrestricted',
+      contentType: 'all',
+    } as const
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(libraryInput({ libraryFilters })),
+    )
+    expect(result.current.buildSnapshot().loras?.libraryFilters).toEqual(
+      libraryFilters,
+    )
   })
 })

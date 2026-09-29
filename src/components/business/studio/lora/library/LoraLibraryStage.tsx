@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { LORA_LIBRARY_SOURCES } from '@/constants/lora'
+import { useLoraLibraryAgent } from '@/hooks/use-lora-library-agent'
 import type {
   CivitaiLoraLibraryItem,
   FavoriteLoraRequest,
@@ -34,6 +36,14 @@ export function LoraLibraryStage({
 }: LoraLibraryStageProps) {
   const t = useTranslations('LoraWorkbench')
   const [source, setSource] = useLoraLibrarySource()
+  // 助手当面搜只搜 Civitai（lora-assistant §13.1）：请求到了而你在 Hugging Face，
+  // 先切回来，请求留给 Civitai 那一格去执行。
+  const agentRequest = useLoraLibraryAgent().request
+  useEffect(() => {
+    if (agentRequest && source === LORA_LIBRARY_SOURCES.HUGGINGFACE) {
+      setSource(LORA_LIBRARY_SOURCES.CIVITAI)
+    }
+  }, [agentRequest, setSource, source])
 
   const sourceSwitch = (
     <LoraLibrarySegmented

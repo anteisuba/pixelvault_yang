@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import {
@@ -8,6 +8,7 @@ import {
   DEFAULT_LORA_NSFW_FILTER,
   LORA_LIBRARY_FAMILY_PARAM,
   LORA_LIBRARY_NSFW_PARAM,
+  LORA_LIBRARY_NSFW_STORAGE_KEY,
   LORA_LIBRARY_SEARCH_PARAM,
   LORA_LIBRARY_SORT_PARAM,
   LORA_LIBRARY_TYPE_PARAM,
@@ -17,8 +18,12 @@ import {
   isLoraNsfwFilter,
   parseLoraLibraryFamilyParam,
   parseLoraLibraryTypeParam,
+  type CivitaiLoraSort,
+  type LoraContentType,
+  type LoraNsfwFilter,
 } from '@/constants/lora'
 import { usePathname, useRouter } from '@/i18n/navigation'
+import { useLocalPreference } from '@/hooks/use-local-preference'
 import {
   useCivitaiLoraLibrary,
   type UseCivitaiLoraLibraryOptions,
@@ -112,4 +117,37 @@ export function useCivitaiLoraLibraryWithUrl(
   ])
 
   return library
+}
+
+/**
+ * 库页**现在**的排序 / 分级 / 类型 —— 与上面起步时读的同一套规则（网址优先；分级
+ * 再看这台浏览器记住的那一档；都没有就默认），只读。装配台助手拿它进快照：服务端
+ * 照它搜，网格第一段才和助手挑选时看到的是同一组（lora-assistant §13.1）。
+ */
+export function useLoraLibraryFilterSnapshot(): {
+  sort: CivitaiLoraSort
+  nsfwFilter: LoraNsfwFilter
+  contentType: LoraContentType
+} {
+  const searchParams = useSearchParams()
+  const [storedNsfwFilter] = useLocalPreference(LORA_LIBRARY_NSFW_STORAGE_KEY)
+  const sortParam = searchParams.get(LORA_LIBRARY_SORT_PARAM)
+  const nsfwParam = searchParams.get(LORA_LIBRARY_NSFW_PARAM)
+  const contentType = parseLoraLibraryTypeParam(
+    searchParams.get(LORA_LIBRARY_TYPE_PARAM),
+  )
+  return useMemo(
+    () => ({
+      sort:
+        sortParam && isCivitaiLoraSort(sortParam) ? sortParam : 'Highest Rated',
+      nsfwFilter:
+        nsfwParam && isLoraNsfwFilter(nsfwParam)
+          ? nsfwParam
+          : storedNsfwFilter && isLoraNsfwFilter(storedNsfwFilter)
+            ? storedNsfwFilter
+            : DEFAULT_LORA_NSFW_FILTER,
+      contentType,
+    }),
+    [contentType, nsfwParam, sortParam, storedNsfwFilter],
+  )
 }

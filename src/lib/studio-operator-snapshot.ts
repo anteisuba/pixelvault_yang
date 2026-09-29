@@ -644,6 +644,10 @@ export interface LoraOperatorSnapshotInput {
   /** 权重值域 —— 与 `[[lora]]` 推荐块共用那一对数，⛔ 别在调用处抄一份。 */
   minWeight: number
   maxWeight: number
+  /** 库页现在的筛选（网址上那几个参数，lora-assistant §13.1）。缺席 = 按库页默认。 */
+  libraryFilters?: NonNullable<
+    AssistantOperatorSnapshot['loras']
+  >['libraryFilters']
 }
 
 /**
@@ -672,6 +676,7 @@ export function buildLoraOperatorSnapshot({
   references,
   minWeight,
   maxWeight,
+  libraryFilters,
 }: LoraOperatorSnapshotInput): AssistantOperatorSnapshot {
   return {
     ...(loraParameters ? { loraParameters } : {}),
@@ -717,6 +722,7 @@ export function buildLoraOperatorSnapshot({
       baseFamily,
       minWeight,
       maxWeight,
+      ...(libraryFilters ? { libraryFilters } : {}),
     },
   }
 }

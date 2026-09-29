@@ -55,6 +55,11 @@ import {
   toOperatorResultRun,
   toOperatorRunResults,
 } from '@/lib/studio-operator-result-run'
+import {
+  clearLoraLibraryPicks,
+  requestLoraLibrarySearch,
+  showLoraLibraryPicks,
+} from '@/hooks/use-lora-library-agent'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 import type { ActiveRun, LoraAssetRecord } from '@/types'
@@ -129,6 +134,20 @@ export interface UseLoraOperatorHostInput {
   }
   /** 装配台那条在飞的出图（`useUnifiedGenerate().activeRun`）—— 结果卡的生成中态读它。 */
   activeRun?: ActiveRun | null
+  /**
+   * 库页现在的筛选（网址上那几个参数）—— 进快照，`search_loras` 照它搜
+   * （lora-assistant §13.1）。缺席 = 按库页默认。
+   */
+  libraryFilters?: NonNullable<
+    AssistantOperatorSnapshot['loras']
+  >['libraryFilters']
+  /** 切到「库」（助手当面搜，§13.2）。 */
+  openLibrary?(): void
+  /**
+   * 回到生成台 —— **只在库 / 收藏开着时给**。助手写装配台（提示词、负面、权重、
+   * 参数、出图）时先调它，创作者才看得见它改了什么（§13.2）。
+   */
+  returnToBench?(): void
   open: boolean
   setOpen(open: boolean): void
 }
@@ -309,6 +328,9 @@ export function useLoraOperatorHost(
       },
       minWeight: ASSISTANT_LORA_PICK_LIMITS.minWeight,
       maxWeight: ASSISTANT_LORA_PICK_LIMITS.maxWeight,
+      ...(current.libraryFilters
+        ? { libraryFilters: current.libraryFilters }
+        : {}),
     })
   }, [])
 
@@ -431,9 +453,11 @@ export function useLoraOperatorHost(
       dispatch: (action) => {
         switch (action.type) {
           case 'SET_PROMPT':
+            latest.current.returnToBench?.()
             latest.current.setPrompt(action.payload)
             return
           case 'SET_ADVANCED_PARAMS':
+            latest.current.returnToBench?.()
             latest.current.setNegativePrompt(
               action.payload.negativePrompt ?? '',
             )
@@ -480,7 +504,12 @@ export function useLoraOperatorHost(
        */
       setReviewState: setOperatorReviewState,
       ...(hasGenerate
-        ? { triggerGeneration: () => setGenerateRequest((n) => n + 1) }
+        ? {
+            triggerGeneration: () => {
+              latest.current.returnToBench?.()
+              setGenerateRequest((n) => n + 1)
+            },
+          }
         : {}),
       /**
        * 撤销一条素材库写操作（v2 §10）—— 与工作台宿主逐字同源（素材库只有一个，
@@ -498,7 +527,10 @@ export function useLoraOperatorHost(
                 parameters: NonNullable<
                   AssistantOperatorSnapshot['loraParameters']
                 >,
-              ) => latest.current.setLoraParameters?.(parameters),
+              ) => {
+                latest.current.returnToBench?.()
+                latest.current.setLoraParameters?.(parameters)
+              },
             }
           : {}),
         /**
@@ -572,6 +604,7 @@ export function useLoraOperatorHost(
           mountedByCandidate.current.delete(candidateId)
         },
         unmount: (loraId) => {
+          latest.current.returnToBench?.()
           const item = latest.current.stack?.items.find(
             (entry) => entry.asset.id === loraId,
           )
@@ -587,11 +620,26 @@ export function useLoraOperatorHost(
           detachedById.current.delete(loraId)
         },
         setWeight: (loraId, weight) => {
+          latest.current.returnToBench?.()
           latest.current.stack?.setScale(loraId, weight)
           // ⚠ 调权重是**一手一次**（模型一步只改一把），⛔ 不进批：攒着它只会
           //   让那句提醒晚一步说出口。
           reportOverBudget([{ id: loraId, weight }])
         },
+        /**
+         * 助手在库页当面搜（lora-assistant §13.2）：发一次搜索请求给库页（它照
+         * 「点一条搜索历史」那条路设词、再设底模），再切到「库」。
+         */
+        showLibrarySearch: (input) => {
+          requestLoraLibrarySearch(input)
+          latest.current.openLibrary?.()
+        },
+        /** 圈几把：库页若被切走了，切回去让他看见圈。 */
+        showPicks: (input) => {
+          showLoraLibraryPicks(input)
+          latest.current.openLibrary?.()
+        },
+        clearPicks: clearLoraLibraryPicks,
       },
     }
   }, [

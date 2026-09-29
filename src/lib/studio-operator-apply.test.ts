@@ -1205,6 +1205,54 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
     expect(mounted).toEqual([])
   })
 
+  it('找 LoRA 完成：库页当面搜（词 + 服务端用的底模），圈与撤圈交给宿主，都不记账', () => {
+    const { ctx } = makeLoraContext()
+    const searches: unknown[] = []
+    const picks: unknown[] = []
+    let cleared = 0
+    ctx.lora = {
+      ...ctx.lora!,
+      showLibrarySearch: (input) => searches.push(input),
+      showPicks: (input) => picks.push(input),
+      clearPicks: () => {
+        cleared += 1
+      },
+    }
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          verb: 'research',
+          payload: { query: 'roccia', limit: 6, baseModel: 'Illustrious' },
+          result: { totalFound: 0, candidates: [], sources: [] },
+        } as unknown as AssistantOperatorAppliedStep,
+        ctx,
+      ),
+    ).toBeNull()
+    expect(searches).toEqual([{ query: 'roccia', baseModel: 'Illustrious' }])
+
+    const ring = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks,
+      verb: 'apply',
+      payload: {
+        query: 'roccia',
+        picks: [{ candidateId: 'civitai:1:2', name: 'Roccia' }],
+      },
+      inverse: { clear: true },
+    } as unknown as AssistantOperatorAppliedStep
+    expect(applyOperatorStep(ring, ctx)).toBeNull()
+    expect(picks).toEqual([
+      {
+        query: 'roccia',
+        picks: [{ candidateId: 'civitai:1:2', name: 'Roccia' }],
+      },
+    ])
+    revertOperatorStep(ring, ctx)
+    expect(cleared).toBe(1)
+  })
+
   it('挂一把：载荷原样交给宿主那只手（含触发词与导入载荷）', () => {
     const { ctx, mounted } = makeLoraContext()
     const field = applyOperatorStep(mountLoraStep(), ctx)

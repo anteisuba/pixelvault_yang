@@ -26,6 +26,11 @@ interface LoraLibraryTileProps {
    * 点了由宿主打开详情页选文件 —— ⛔ 替用户挑第一个。
    */
   mountChooses?: boolean
+  /**
+   * 助手在库页圈的这一把（lora-assistant §13.2）：封面外一圈黑边 + 左上黑底
+   * 「助手推荐」小标。⛔ 挪位置、⛔ 放大；挂上后由上层撤掉（换成 ✓）。
+   */
+  agentPick?: boolean
 }
 
 /**
@@ -47,6 +52,7 @@ export function LoraLibraryTile({
   onMount,
   coverPending = false,
   mountChooses = false,
+  agentPick = false,
 }: LoraLibraryTileProps) {
   const t = useTranslations('LoraWorkbench.browse')
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
@@ -67,8 +73,17 @@ export function LoraLibraryTile({
       {/* 封面整块不接指针（点它落到下面那颗「打开」上），只有「挂载」接。 */}
       <span
         style={coverStyle}
-        className="pointer-events-none relative block aspect-3/4 overflow-hidden rounded-xl bg-muted transition-shadow duration-fast ease-linear group-hover:shadow-float"
+        className={cn(
+          'pointer-events-none relative block aspect-3/4 overflow-hidden rounded-xl bg-muted ring-offset-2 ring-offset-card transition-[box-shadow] duration-base ease-linear group-hover:shadow-float motion-reduce:transition-none',
+          agentPick ? 'ring-2 ring-foreground' : 'ring-0 ring-transparent',
+        )}
       >
+        {agentPick ? (
+          <span className="absolute left-2 top-2 z-10 inline-flex h-5.5 animate-in items-center gap-1 rounded-full bg-foreground/85 pl-1 pr-2 text-2xs font-semibold text-background fade-in duration-base motion-reduce:animate-none">
+            <Sparkles className="size-3" aria-hidden />
+            {t('agentPick')}
+          </span>
+        ) : null}
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

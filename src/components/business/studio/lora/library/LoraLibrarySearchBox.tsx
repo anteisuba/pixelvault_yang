@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { History, Search, X } from '@/components/icons'
+import { History, Search, Sparkles, X } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 interface LoraLibrarySearchBoxProps {
@@ -20,6 +20,11 @@ interface LoraLibrarySearchBoxProps {
   /** 搜着：输入框底边一截黑线来回走（边即进度）。 */
   searching: boolean
   placeholder: string
+  /**
+   * 这个词是助手填的（lora-assistant §13.2）：搜索框描黑边，右端一个小标
+   * 「助手在搜… / 助手搜的」。`null` / 缺席 = 你自己搜的。
+   */
+  agentLabel?: string | null
 }
 
 /**
@@ -36,6 +41,7 @@ export function LoraLibrarySearchBox({
   pending,
   searching,
   placeholder,
+  agentLabel = null,
 }: LoraLibrarySearchBoxProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
@@ -60,7 +66,12 @@ export function LoraLibrarySearchBox({
 
   return (
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
-      <div className="relative flex h-9 items-center gap-2 overflow-hidden rounded-xl border border-border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40">
+      <div
+        className={cn(
+          'relative flex h-9 items-center gap-2 overflow-hidden rounded-xl border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40',
+          agentLabel ? 'border-foreground' : 'border-border',
+        )}
+      >
         <button
           type="button"
           onClick={submit}
@@ -95,6 +106,12 @@ export function LoraLibrarySearchBox({
           >
             <X className="size-3.5" aria-hidden />
           </button>
+        ) : null}
+        {agentLabel ? (
+          <span className="inline-flex h-6 shrink-0 animate-in items-center gap-1.5 rounded-full bg-muted px-2 text-2xs font-semibold text-muted-foreground fade-in duration-base motion-reduce:animate-none">
+            <Sparkles className="size-3" aria-hidden />
+            {agentLabel}
+          </span>
         ) : null}
         {searching ? <span aria-hidden className="lora-search-run" /> : null}
       </div>

@@ -330,6 +330,20 @@ export function playInkUnsignAnimation(
 const ASSISTANT_TOUCH_CLASS = 'node-assistant-touched'
 
 /**
+ * 卡**面**（v4 的 `[data-node-card-surface]`）。⚠ 闪一下只闪它：v4 卡上没有
+ * `.node-card-paper`，退到整个 ReactFlow 节点就连名字行一起闪、还是直角（owner
+ * 2026-09-29 方向 B 点名修的那一处）。
+ */
+function findNodeCardSurface(nodeId: string): HTMLElement | null {
+  const wrapper = findNodeWrapperElement(nodeId)
+  if (!wrapper) return null
+  return (
+    wrapper.querySelector<HTMLElement>('[data-node-card-surface]') ??
+    findNodeCardElement(nodeId)
+  )
+}
+
+/**
  * 让一个节点闪一次 outline —— 助手刚改过它。
  *
  * ⚠ 与本文件其余几只手同一条纪律：**命令式 classList**，⛔ 不进 React state。
@@ -342,7 +356,7 @@ const ASSISTANT_TOUCH_CLASS = 'node-assistant-touched'
  *   不是失败，面板里那行「已改 N 项」照样说得清。
  */
 export function flashAssistantTouchedNode(nodeId: string): void {
-  const el = findNodeCardElement(nodeId)
+  const el = findNodeCardSurface(nodeId)
   if (!el) return
   el.classList.remove(ASSISTANT_TOUCH_CLASS)
   void el.offsetWidth

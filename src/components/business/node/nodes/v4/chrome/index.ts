@@ -81,11 +81,7 @@ export {
   type ConnectToShotSourceKind,
   type ConnectToShotTarget,
 } from './ConnectToShotPopover'
-export {
-  flashNodeCard,
-  resetNodeCardFlash,
-  useNodeCardFlash,
-} from './node-card-flash'
+export { flashNodeCard } from './node-card-flash'
 export { NodeModelChip, type NodeModelChipProps } from './NodeModelChip'
 export {
   useNodeGenerateDraft,

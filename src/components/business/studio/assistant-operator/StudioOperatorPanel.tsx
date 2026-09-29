@@ -68,6 +68,10 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import {
+  NODE_ASSISTANT_OP_V4_IDS,
+  type NodeAssistantOpV4Id,
+} from '@/constants/node-assistant-ops'
+import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
@@ -82,6 +86,10 @@ import { RuleChip } from '@/components/business/studio/assistant-operator/RuleCh
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
 import { StudioOperatorCheckpointCard } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
+import {
+  StudioOperatorChangedCards,
+  type StudioOperatorChangedCard,
+} from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import {
@@ -298,6 +306,53 @@ function AttachKindGlyph({ kind }: { kind: StudioOperatorAttachment['kind'] }) {
   if (kind === 'audio') return <Music className="size-3.5" aria-hidden />
   if (kind === 'model3d') return <Box className="size-3.5" aria-hidden />
   return <Play className="size-3.5" aria-hidden />
+}
+
+/**
+ * 改动清单那一行后半截：这条画布 op 改的是哪一样（方向 B）。⚠ 沿用助手已有的字段词
+ * （`field.*`），⛔ 不为 34 条 op 各造一个词；对不上的一律写「画布节点」。
+ */
+const CANVAS_OP_FIELD_KEYS: Partial<Record<NodeAssistantOpV4Id, string>> = {
+  [NODE_ASSISTANT_OP_V4_IDS.setPrompt]: 'field.prompt',
+  [NODE_ASSISTANT_OP_V4_IDS.setText]: 'field.prompt',
+  [NODE_ASSISTANT_OP_V4_IDS.setModel]: 'field.model',
+  [NODE_ASSISTANT_OP_V4_IDS.setParams]: 'field.specs',
+  [NODE_ASSISTANT_OP_V4_IDS.connect]: 'field.references',
+  [NODE_ASSISTANT_OP_V4_IDS.disconnect]: 'field.references',
+  [NODE_ASSISTANT_OP_V4_IDS.attachAsset]: 'field.references',
+  [NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks]: 'field.references',
+}
+
+/**
+ * 这一轮在画布上改到的卡（方向 B 的改动清单）：按第一次改到的顺序，一张一行，后半截
+ * 是改了哪几样。撤销过的那几步不算；卡已经不在画布上的不列（点了也去不了）。
+ * ⚠ 只认本次会话里的轮次：从历史恢复的「步」只剩摘要（没有 op 与节点），列不出来。
+ */
+function collectCanvasChangedCards(
+  entries: readonly StudioOperatorThreadEntry[],
+  runKey: string,
+  nameOf: (nodeId: string) => string | undefined,
+  label: (key: string) => string,
+): readonly StudioOperatorChangedCard[] {
+  const touched = new Map<string, string[]>()
+  for (const entry of entries) {
+    if (entry.kind !== 'step' || entry.runKey !== runKey || entry.undone)
+      continue
+    const step = entry.step
+    if (
+      step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+      step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
+    )
+      continue
+    const key = CANVAS_OP_FIELD_KEYS[step.payload.op] ?? 'field.canvasNodes'
+    const keys = touched.get(step.inverse.nodeRef) ?? []
+    if (!keys.includes(key)) keys.push(key)
+    touched.set(step.inverse.nodeRef, keys)
+  }
+  return [...touched].flatMap(([id, keys]) => {
+    const name = nameOf(id)
+    return name ? [{ id, label: [name, ...keys.map(label)].join(' · ') }] : []
+  })
 }
 
 export function StudioOperatorPanel({
@@ -1466,6 +1521,25 @@ export function StudioOperatorPanel({
        * 本轮改动的「撤销」—— 紧跟在过程那一行后面（D12 P5）；只挂在这一轮
        * **最后一个**工具块上、且这一轮真的收尾了之后。
        */
+      const changedCards =
+        roundDone &&
+        changeCountInRound > 0 &&
+        lastToolsBlock === block.steps[0]?.id &&
+        operatorHost.canvasTargets
+          ? collectCanvasChangedCards(
+              allEntries,
+              block.runKey,
+              operatorHost.canvasTargets.nameOf,
+              (key) => t(key),
+            )
+          : []
+      const changedCardList =
+        changedCards.length > 0 && operatorHost.canvasTargets ? (
+          <StudioOperatorChangedCards
+            cards={changedCards}
+            onLocate={operatorHost.canvasTargets.locate}
+          />
+        ) : null
       const checkpoint =
         roundDone &&
         changeCountInRound > 0 &&
@@ -1557,11 +1631,13 @@ export function StudioOperatorPanel({
                   </StudioOperatorToolGroup>
                 )
               }
+              {changedCardList}
             </StudioOperatorTimelineRow>
           ) : null}
           {compactCanvasChanges && checkpoint ? (
             <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
               {checkpoint}
+              {changedCardList}
             </StudioOperatorTimelineRow>
           ) : null}
         </div>

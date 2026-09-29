@@ -62,6 +62,7 @@ describe('useCanvasOperatorHost', () => {
         generateNodes: vi.fn(),
         open: true,
         setOpen: vi.fn(),
+        onLocate: vi.fn(),
       }),
     )
     expect(result.current.collapseOnOutsidePointer).toBe(false)
@@ -86,6 +87,7 @@ describe('useCanvasOperatorHost', () => {
         generateNodes: vi.fn(),
         open: true,
         setOpen: vi.fn(),
+        onLocate: vi.fn(),
       }),
     )
     expect(result.current.anchor).toEqual({
@@ -127,6 +129,7 @@ describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
           generateNodes: vi.fn(),
           open: true,
           setOpen: vi.fn(),
+          onLocate: vi.fn(),
         }),
       { initialProps: { ids: selectedNodeIds, name: projectName } },
     )
@@ -187,6 +190,7 @@ describe('canvas assistant image references', () => {
           generateNodes: vi.fn(),
           open: true,
           setOpen: vi.fn(),
+          onLocate: vi.fn(),
         }),
       { initialProps: { nodes, projectId: 'project-a' } },
     )
@@ -236,6 +240,13 @@ describe('canvas assistant image references', () => {
       profile: { look: '粉发红眼' },
     })
     expect(characters?.list[1]).toMatchObject({ name: 'Rixi', onCanvas: false })
+  })
+
+  // 方向 B：改动清单要能说出卡名、点一行定位过去。
+  it('canvasTargets 现读卡名（卡不在了就是 undefined），locate 交给画布', () => {
+    const { result } = setup([image('one', 'https://example.com/one.png')])
+    expect(result.current.canvasTargets?.nameOf('one')).toBe('one')
+    expect(result.current.canvasTargets?.nameOf('gone')).toBeUndefined()
   })
 
   it('exposes existing canvas images without requiring node selection', () => {
@@ -373,6 +384,7 @@ describe('assistant prompt input review boundary', () => {
         generateNodes: vi.fn(),
         open: true,
         setOpen: vi.fn(),
+        onLocate: vi.fn(),
       }),
     )
     return { ...hook, nodes, edges, applyOp, undo }

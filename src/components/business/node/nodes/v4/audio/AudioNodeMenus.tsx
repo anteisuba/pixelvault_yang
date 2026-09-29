@@ -17,8 +17,9 @@ import {
   AtSign,
   AudioLines,
   Copy,
+  Download,
+  Layers,
   Library,
-  Scissors,
   Trash2,
   Upload,
   UserRound,
@@ -70,12 +71,18 @@ export function AudioMoreMenuItems({
   onRename,
   onDuplicate,
   onSplitVersion,
+  onDownload,
   ownerItem,
   sourceLabel,
   onDelete,
 }: {
   onRename(): void
   onDuplicate(): void
+  /**
+   * 「下载」—— 从工具条收进 ⋯（方向 B：每类卡最多 4 个动作 + ⋯）。没片时调用方传
+   * `undefined`，⛔ 不摆一个按了什么都不下的项。
+   */
+  onDownload?: (() => void) | undefined
   /** 「拆出当前版本」。⚠ 只有一版时调用方传 `undefined`（拆无可拆）。 */
   onSplitVersion?: (() => void) | undefined
   /** 「归属角色…」那一项（子菜单住在 `AudioOwnerMenuItem`）。 */
@@ -85,6 +92,7 @@ export function AudioMoreMenuItems({
   onDelete(): void
 }) {
   const tAudio = useTranslations('StudioNode.v4.audio')
+  const tNode = useTranslations('StudioNode.v4')
   return (
     <>
       {/* ⋯ 的文案按**这一类卡**写（S5c 尾项：共用键写的是「重命名节点 / 克隆空
@@ -98,9 +106,16 @@ export function AudioMoreMenuItems({
         <Copy aria-hidden className="size-4" />
         {tAudio('more.duplicate')}
       </DropdownMenuItem>
+      {onDownload ? (
+        <DropdownMenuItem data-audio-more="download" onSelect={onDownload}>
+          <Download aria-hidden className="size-4" />
+          {tNode('toolbar.download')}
+        </DropdownMenuItem>
+      ) : null}
       {onSplitVersion ? (
         <DropdownMenuItem data-audio-more="split" onSelect={onSplitVersion}>
-          <Scissors aria-hidden className="size-4" />
+          {/* 拆出一版 = 从一摞版本里抽一张；⛔ 剪刀只留给「裁剪」。 */}
+          <Layers aria-hidden className="size-4" />
           {tAudio('more.splitVersion')}
         </DropdownMenuItem>
       ) : null}

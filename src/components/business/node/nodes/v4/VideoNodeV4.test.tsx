@@ -128,7 +128,6 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
-import { flashNodeCard, resetNodeCardFlash } from './chrome'
 import { VideoNodeV4 } from './VideoNodeV4'
 import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
@@ -277,14 +276,18 @@ describe('空卡 / 有片两态（spec §5）', () => {
 })
 
 describe('选中：工具条与批操作', () => {
-  it('工具条第一键 = 展开，其后 续拍 · 抽帧 · 下载 · ⋯', () => {
+  // 方向 B（owner 2026-09-29）：第一件事写成带字的黑胶囊 ——视频卡是「续拍」。
+  it('工具条第一键 = 带字的「续拍」，其后 展开 · 抽帧 · 下载 · ⋯', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const toolbar = screen.getByTestId('flow-toolbar-top')
     expect(
       [...toolbar.querySelectorAll('[data-toolbar-action]')].map((element) =>
         element.getAttribute('data-toolbar-action'),
       ),
-    ).toEqual(['expand', 'continue', 'extract', 'download', 'more'])
+    ).toEqual(['continue', 'expand', 'extract', 'download', 'more'])
+    expect(
+      toolbar.querySelector('[data-toolbar-action="continue"]')?.textContent,
+    ).toBe('toolbar.continue')
   })
 
   it('续拍 = 抓末帧 + 一批四条（建末帧图 / 建下一段 / 落首帧 / 接续边），末帧图回填 url', async () => {
@@ -1001,23 +1004,6 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
         .querySelector('[data-video-more="edit-desk"]')
         ?.getAttribute('data-disabled'),
     ).toBe('')
-  })
-})
-
-describe('别人连过来那一下高亮（spec §1.13 尾句）', () => {
-  it('镜头卡是「连到镜头」唯一的目标 —— 它必须认得那一下亮', async () => {
-    // ⚠ 回归闸：S5d 起初只给音频 / 图片 / 文本三张卡接了高亮，而目标**永远**是
-    // 镜头卡，结果真机上连完什么都不亮（2026-09-10 实测）。
-    renderVideo(harness([videoNode('v_1', READY)]), 'v_1')
-    const card = () =>
-      document
-        .querySelector('[data-node-chrome="card"]')
-        ?.getAttribute('data-changed')
-    expect(card()).toBe('false')
-    flashNodeCard('v_1')
-    await waitFor(() => expect(card()).toBe('true'))
-    resetNodeCardFlash()
-    await waitFor(() => expect(card()).toBe('false'))
   })
 })
 

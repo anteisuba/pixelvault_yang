@@ -4,8 +4,8 @@
  * 选中卡上方那条**玻璃胶囊工具条**（spec §1.4，画板 `Main.dc.html` / `ImageToolbar.dc.html`）。
  *
  * 形态定死：`surface-glass` + `shadow-node-chrome`，34px 纯图标格 + tooltip，
- * 语义分组之间一条竖线，危险项常态红字、hover 才上淡红底。⛔ 不上文字标签
- * （缩放态下太占画布，owner 2026-09-08 定）。
+ * 语义分组之间一条竖线，危险项常态红字、hover 才上淡红底。只有每类卡的第一件事
+ * 写成带字的黑胶囊（`primary`，owner 2026-09-29 方向 B；此前 09-08 定的是全纯图标）。
  *
  * **纯呈现 + items 描述**：不认识节点、不取 context、不自己定位。四类节点在
  * S2–S6 各自把 items 拼出来，外层定位（ReactFlow `NodeToolbar` 或绝对定位）由
@@ -17,6 +17,7 @@
 
 import {
   forwardRef,
+  Fragment,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react'
@@ -60,6 +61,12 @@ export interface NodeToolbarAction {
    * `menu` 与 `panel` 只给一个，同时给以 `panel` 为准。
    */
   readonly panel?: ReactNode
+  /**
+   * 这类卡的**第一件事**（node-canvas-v2 §1 第 4 条 · 方向 B「主动作带字」）：画成带字的
+   * 黑胶囊（图片「生镜头」、视频「续拍」、音频「加语气」、文本「展开」），其余纯图标。
+   * 字已经写在上面，⛔ 不再套悬停标签。每条工具条最多一颗。
+   */
+  readonly primary?: boolean
 }
 
 /** 一组按钮；组与组之间画一条竖线。 */
@@ -99,21 +106,39 @@ const ToolbarCell = forwardRef<
         action.onSelect()
       }}
       className={cn(
-        // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
-        'nodrag nopan flex size-8.5 items-center justify-center rounded-lg transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
+        'nodrag nopan flex items-center transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
-        action.danger
-          ? 'text-status-risk hover:bg-status-risk-surface'
-          : 'text-foreground hover:bg-surface-fill-hover',
-        action.active && 'bg-surface-fill-hover',
+        action.primary
+          ? // 带字的黑胶囊：与 34 格同高，字 12、图标 16。
+            'h-8.5 gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-medium text-background hover:bg-foreground/85'
+          : // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
+            cn(
+              'size-8.5 justify-center rounded-lg',
+              action.danger
+                ? 'text-status-risk hover:bg-status-risk-surface'
+                : 'text-foreground hover:bg-surface-fill-hover',
+              action.active && 'bg-surface-fill-hover',
+            ),
         className,
       )}
     >
       <Icon aria-hidden className="size-4" />
+      {action.primary ? <span>{action.label}</span> : null}
     </button>
   )
 })
+
+/** 纯图标的键套一颗悬停标签；带字的主动作不套（字已经在上面了）。 */
+function withLabel(action: NodeToolbarAction, trigger: ReactNode): ReactNode {
+  if (action.primary) return trigger
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+      <TooltipContent>{action.label}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 export function NodeToolbar({
   groups,
@@ -154,14 +179,12 @@ export function NodeToolbar({
               {group.map((action) =>
                 action.panel ? (
                   <Popover key={action.id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <PopoverTrigger asChild>
-                          <ToolbarCell action={action} />
-                        </PopoverTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>{action.label}</TooltipContent>
-                    </Tooltip>
+                    {withLabel(
+                      action,
+                      <PopoverTrigger asChild>
+                        <ToolbarCell action={action} />
+                      </PopoverTrigger>,
+                    )}
                     <PopoverContent
                       align="start"
                       sideOffset={8}
@@ -174,14 +197,12 @@ export function NodeToolbar({
                   </Popover>
                 ) : action.menu ? (
                   <DropdownMenu key={action.id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <ToolbarCell action={action} />
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>{action.label}</TooltipContent>
-                    </Tooltip>
+                    {withLabel(
+                      action,
+                      <DropdownMenuTrigger asChild>
+                        <ToolbarCell action={action} />
+                      </DropdownMenuTrigger>,
+                    )}
                     <DropdownMenuContent
                       align="start"
                       sideOffset={8}
@@ -192,12 +213,9 @@ export function NodeToolbar({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
-                  <Tooltip key={action.id}>
-                    <TooltipTrigger asChild>
-                      <ToolbarCell action={action} />
-                    </TooltipTrigger>
-                    <TooltipContent>{action.label}</TooltipContent>
-                  </Tooltip>
+                  <Fragment key={action.id}>
+                    {withLabel(action, <ToolbarCell action={action} />)}
+                  </Fragment>
                 ),
               )}
             </div>

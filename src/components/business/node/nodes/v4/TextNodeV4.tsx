@@ -34,7 +34,7 @@ import { planScriptProjection } from '@/lib/node-script-projection'
 import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
-import { NodeCardShell, portSpecOf, useNodeCardFlash } from './chrome'
+import { NodeCardShell, portSpecOf } from './chrome'
 import { FADE_ONLY, GROW_FROM_EDGE } from './chrome/chrome-motion'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates } from './NodeV4Mentions'
@@ -52,8 +52,6 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   const tText = useTranslations('StudioNode.v4.text')
   const canvas = useNodeV4Canvas()
   const textData = data as unknown as NodeV4TextData
-  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
-  const flashed = useNodeCardFlash(id)
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
   // ⋯ 菜单的「改名」走 `NodeCardShell` 的受控入口（每 +1 进一次编辑态）。
   const [renameRequest, setRenameRequest] = useState(0)
@@ -199,7 +197,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         selected={Boolean(selected)}
         expanded={expanded}
-        changed={canvas.changedNodeIds.includes(id) || flashed}
+        changed={canvas.changedNodeIds.includes(id)}
         width={NODE_V4_CARD.textCollapsedWidth}
         surfaceHeight={cardHeight}
         surfaceClassName="overflow-hidden"

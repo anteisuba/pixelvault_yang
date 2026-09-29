@@ -12,7 +12,7 @@
  */
 
 import { useReactFlow, useStore } from '@xyflow/react'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion, useTransform } from 'motion/react'
 import {
   Frame,
   Grid2x2,
@@ -27,6 +27,7 @@ import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { SPRING } from '@/constants/motion'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_TOOL_MODE_IDS,
@@ -60,13 +61,16 @@ export function ShellBottomBar({
   const percent = Math.round(zoom * 100)
   const reduce = useReducedMotion()
   const handActive = toolMode === NODE_STUDIO_TOOL_MODE_IDS.hand
+  // 助手推开画布时（方向 B），底栏跟着可见画布居中：往左挪让位量的一半。
+  const shift = useTransform(useStudioOperatorYield(), (value) => -value / 2)
 
   return (
-    <div
+    <motion.div
       data-testid="shell-bottom-bar"
       style={{
         bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
         borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
+        x: shift,
       }}
       className="canvas-glass pointer-events-auto absolute left-1/2 z-canvas-chrome inline-flex -translate-x-1/2 items-center gap-0.5 p-1"
     >
@@ -148,6 +152,6 @@ export function ShellBottomBar({
         disabled={!canRedo}
         onClick={onRedo}
       />
-    </div>
+    </motion.div>
   )
 }

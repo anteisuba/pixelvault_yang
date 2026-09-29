@@ -36,6 +36,7 @@ import {
   type ReactNode,
 } from 'react'
 import { ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react'
+import { motion } from 'motion/react'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -84,6 +85,7 @@ import {
 } from '@/constants/routes'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsPhone } from '@/hooks/use-mobile'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
 import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
@@ -125,6 +127,8 @@ import {
   StudioChipZoomProvider,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditDesk } from '../edit-desk'
+import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
+import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import { CanvasMobileRail } from '../mobile'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
 import { ProjectNameDialog } from '../ProjectNameDialog'
@@ -421,6 +425,8 @@ function NodeWorkbenchV4Inner() {
   }, [rawGraph, scheduleEdgeSigning, scheduleEdgeUnsign])
 
   const { fitView, screenToFlowPosition } = useReactFlow()
+  const operatorYield = useStudioOperatorYield()
+  useKeepCanvasCenterOnYield()
   const generation = useNodeMediaGenerationV4()
 
   /* ── chrome 的会话态 ─────────────────────────────────────────────────── */
@@ -476,6 +482,15 @@ function NodeWorkbenchV4Inner() {
       })
     },
     [fitView, graph.nodes],
+  )
+
+  /** 改动清单点一行（方向 B）：镜头移过去，停下之后卡面闪一下。 */
+  const locateNode = useCallback(
+    (nodeId: string) => {
+      focusNode(nodeId)
+      flashNodeCard(nodeId, NODE_STUDIO_DOCK.focusDurationMs)
+    },
+    [focusNode],
   )
 
   // 九宫格分镜（§3）：出完自动切 / 手动切，切完把镜头移到「原图 + 九张」那一片。
@@ -1263,6 +1278,7 @@ function NodeWorkbenchV4Inner() {
     generateNodes,
     open: assistantOpen,
     setOpen: setAssistantOpen,
+    onLocate: locateNode,
   })
 
   /**
@@ -1516,40 +1532,48 @@ function NodeWorkbenchV4Inner() {
             >
               <div className="node-workbench-v4 contents">
                 <WorkbenchUploadStatus items={dnd.pendingUploads} />
-                {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条），
-                  尺寸走画布那一档（小一号）。 */}
-                <StudioChipDensityProvider value="compact">
-                  <StudioChipZoomProvider value>
-                    <CanvasV4
-                      graph={graph}
-                      toolMode={toolMode}
-                      relationsCollapsed={relationsCollapsed}
-                      canvasAppearance={store.state.canvasAppearance}
-                      edgeSigning={edgeSigning}
-                      onDrop={dnd.onDrop}
-                      onDragOver={dnd.onDragOver}
-                      onPaneDoubleClick={onPaneDoubleClick}
-                      onPaneContextMenu={onPaneContextMenu}
-                      onNodeDragStart={(node) =>
-                        rosterDrop.onNodeDragStart(node as unknown as NodeV4)
-                      }
-                      onNodeDrag={(node, event) =>
-                        rosterDrop.onNodeDrag(
-                          node as unknown as NodeV4,
-                          event.clientX,
-                          event.clientY,
-                        )
-                      }
-                      onNodeDragStopIntercept={(node, event) =>
-                        rosterDrop.onNodeDragStop(
-                          node as unknown as NodeV4,
-                          event.clientX,
-                          event.clientY,
-                        )
-                      }
-                    />
-                  </StudioChipZoomProvider>
-                </StudioChipDensityProvider>
+                {/* 助手打开时把画布推窄（§1 第 4 条 · 方向 B）：右边让出面板占的宽度，
+                    ⛔ 面板盖在卡上。顶栏不在这一层里 —— 头像钉在顶栏右端，它得保持全宽。 */}
+                <motion.div
+                  data-canvas-flow-area
+                  className="absolute inset-y-0 left-0"
+                  style={{ right: operatorYield }}
+                >
+                  {/* 画布里的 chip 弹层与工作台同一颗「从 chip 放大」（§1 第 12 条），
+                    尺寸走画布那一档（小一号）。 */}
+                  <StudioChipDensityProvider value="compact">
+                    <StudioChipZoomProvider value>
+                      <CanvasV4
+                        graph={graph}
+                        toolMode={toolMode}
+                        relationsCollapsed={relationsCollapsed}
+                        canvasAppearance={store.state.canvasAppearance}
+                        edgeSigning={edgeSigning}
+                        onDrop={dnd.onDrop}
+                        onDragOver={dnd.onDragOver}
+                        onPaneDoubleClick={onPaneDoubleClick}
+                        onPaneContextMenu={onPaneContextMenu}
+                        onNodeDragStart={(node) =>
+                          rosterDrop.onNodeDragStart(node as unknown as NodeV4)
+                        }
+                        onNodeDrag={(node, event) =>
+                          rosterDrop.onNodeDrag(
+                            node as unknown as NodeV4,
+                            event.clientX,
+                            event.clientY,
+                          )
+                        }
+                        onNodeDragStopIntercept={(node, event) =>
+                          rosterDrop.onNodeDragStop(
+                            node as unknown as NodeV4,
+                            event.clientX,
+                            event.clientY,
+                          )
+                        }
+                      />
+                    </StudioChipZoomProvider>
+                  </StudioChipDensityProvider>
+                </motion.div>
                 {graph.nodes.length === 0 ? (
                   <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
                     <NodeCanvasEmptyGuide

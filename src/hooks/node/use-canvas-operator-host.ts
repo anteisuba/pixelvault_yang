@@ -94,6 +94,8 @@ export interface UseCanvasOperatorHostInput {
   generateNodes(nodeIds: readonly string[]): void
   open: boolean
   setOpen(open: boolean): void
+  /** 改动清单点一行：镜头移到这张卡并让卡面闪一下（方向 B）。 */
+  onLocate(nodeId: string): void
 }
 
 export function useCanvasOperatorHost({
@@ -110,6 +112,7 @@ export function useCanvasOperatorHost({
   generateNodes,
   open,
   setOpen,
+  onLocate,
 }: UseCanvasOperatorHostInput): StudioOperatorHost {
   const [referenceState, setReferenceState] = useState({
     projectId,
@@ -472,7 +475,22 @@ export function useCanvasOperatorHost({
        */
       collapseOnOutsidePointer: false,
       anchor: CANVAS_ANCHOR,
+      canvasTargets: {
+        // ⚠ 现读（`graphRef`）：清单渲染在回执之后，卡可能已经改过名或被删。
+        nameOf: (nodeId) =>
+          graphRef.current.nodes.find((node) => node.id === nodeId)?.data.name,
+        locate: onLocate,
+      },
     }),
-    [apply, buildSnapshot, face, projectId, referenceImages, open, setOpen],
+    [
+      apply,
+      buildSnapshot,
+      face,
+      projectId,
+      referenceImages,
+      open,
+      setOpen,
+      onLocate,
+    ],
   )
 }

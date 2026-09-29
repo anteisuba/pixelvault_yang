@@ -37,7 +37,6 @@ import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Clapperboard,
-  Download,
   FileText,
   MoreHorizontal,
   Pause,
@@ -55,7 +54,7 @@ import {
   NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { NODE_V4_CARD } from '@/constants/node-studio'
+import { NODE_STUDIO_DOCK, NODE_V4_CARD } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
@@ -97,7 +96,6 @@ import {
   flashNodeCard,
   mentionDeletionRangeAt,
   renderVoicePromptValue,
-  useNodeCardFlash,
   type NodeToolbarGroup,
 } from './chrome'
 import {
@@ -156,8 +154,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const audioData = data as unknown as NodeV4AudioData
   // 源文件没了（素材库删了）/ 暂时读不到：这一行换成一句话，⛔ 不留一张放不响的卡。
   const media = useMediaProblem(audioData.url)
-  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
-  const flashed = useNodeCardFlash(id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [renameRequest, setRenameRequest] = useState(0)
@@ -534,6 +530,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         id: 'tone',
         label: tAudio('toolbar.tone'),
         icon: Smile,
+        // 主动作带字（§1 第 4 条 · 方向 B）：音频卡的第一件事是「加语气」。
+        primary: true,
         disabled: !speech,
         onSelect: () => {},
         // ⚠ 走 `panel`（Popover）而不是 `menu`（DropdownMenu）：面板里有自定义
@@ -598,7 +596,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               ).then(() => {
                 // 连完滚到可见并亮一下（spec §1.13 尾句）。
                 canvas.onFocusNode(targetId)
-                flashNodeCard(targetId)
+                flashNodeCard(targetId, NODE_STUDIO_DOCK.focusDurationMs)
               })
             }}
           />
@@ -607,13 +605,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     ],
     [
       {
-        id: 'download',
-        label: t('toolbar.download'),
-        icon: Download,
-        disabled: !audioData.url,
-        onSelect: () => audioData.url && triggerNodeV4Download(audioData.url),
-      },
-      {
         id: 'more',
         label: tAudio('toolbar.more'),
         icon: MoreHorizontal,
@@ -621,6 +612,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         menu: (
           <AudioMoreMenuItems
             onRename={() => setRenameRequest((n) => n + 1)}
+            // 方向 B：每类卡最多 4 个动作 + ⋯ —— 音频的「下载」收进这里。
+            onDownload={
+              audioData.url
+                ? () => audioData.url && triggerNodeV4Download(audioData.url)
+                : undefined
+            }
             onDuplicate={() =>
               void canvas.onApplyOp({
                 op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -711,7 +708,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
         onEmptyAdd={() => fileRef.current?.click()}
-        changed={canvas.changedNodeIds.includes(id) || flashed}
+        changed={canvas.changedNodeIds.includes(id)}
         portSpec={portSpecOf(node)}
       >
         {media.problem && !generating ? (

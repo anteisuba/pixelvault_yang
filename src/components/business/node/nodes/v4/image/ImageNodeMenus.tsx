@@ -26,7 +26,6 @@ import {
   Library,
   Paintbrush,
   Pencil,
-  Scissors,
   Trash2,
   Upload,
   UserRound,
@@ -129,7 +128,8 @@ export function ImageMoreMenuItems({
       </DropdownMenuItem>
       {onSplitVersion ? (
         <DropdownMenuItem data-image-more="split" onSelect={onSplitVersion}>
-          <Scissors aria-hidden className="size-4" />
+          {/* 拆出一版 = 从一摞版本里抽一张；⛔ 剪刀只留给「裁剪」。 */}
+          <Layers aria-hidden className="size-4" />
           {tImage('more.splitVersion')}
         </DropdownMenuItem>
       ) : null}

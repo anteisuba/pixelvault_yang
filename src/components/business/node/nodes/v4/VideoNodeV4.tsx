@@ -34,10 +34,10 @@ import { useTranslations } from 'next-intl'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Camera,
   Download,
   Maximize2,
   MoreHorizontal,
-  Scissors,
   StepForward,
   VolumeX,
 } from '@/components/icons'
@@ -76,7 +76,6 @@ import {
   NodeToolbar,
   QuickLook,
   VersionDots,
-  useNodeCardFlash,
   type NodeToolbarGroup,
 } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -114,8 +113,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   /** ⋯「加入剪辑台」的出口（模式不是 op，见 `NodeV4ActionsBridge`）。 */
   const { openEditDesk } = useNodeCanvasActions()
   const videoData = data as unknown as NodeV4VideoData
-  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
-  const flashed = useNodeCardFlash(id)
   /**
    * 这一镜与剧本的关系（进度表 24）。⚠ 只有 `video.shot` 有 —— 参考片段与成片
    * 不由剧本投影产生。
@@ -413,24 +410,27 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const toolbarGroups: readonly NodeToolbarGroup[] = [
     [
       {
-        // 画板：工具条第一键 = 展开（画中框）。双击仍是快速看片，右键菜单里的
-        // 「展开」保留 —— 三条路进的是同一个框。
-        id: 'expand',
-        label: tVideo('toolbar.expand'),
-        icon: Maximize2,
-        onSelect: () => canvas.onToggleExpanded(id),
-      },
-      {
         id: 'continue',
+        // 主动作带字（§1 第 4 条 · 方向 B）：视频卡的第一件事是「续拍」。
+        primary: true,
         label: tVideo('toolbar.continue'),
         icon: StepForward,
         disabled: !videoData.url || frames.grabbing !== null,
         onSelect: () => void runContinue(),
       },
       {
+        // 展开（画中框）。双击仍是快速看片，右键菜单里的「展开」保留 —— 三条路进的是
+        // 同一个框。
+        id: 'expand',
+        label: tVideo('toolbar.expand'),
+        icon: Maximize2,
+        onSelect: () => canvas.onToggleExpanded(id),
+      },
+      {
         id: 'extract',
         label: tVideo('toolbar.extract'),
-        icon: Scissors,
+        // 抽帧 = 抓一帧画面；⛔ 不用剪刀（剪刀只留给「裁剪」）。
+        icon: Camera,
         // 抽帧要一只**正在放**的 `<video>`（「当前」是它的 currentTime）——
         // 卡上那只只在悬停时才挂，所以这颗键在画中框之外读的是卡上悬停的那只。
         disabled: !videoData.url || frames.grabbing !== null,
@@ -627,7 +627,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         {...(scriptShot
           ? { nameTrailing: <VideoScriptShotBadge state={scriptShot.state} /> }
           : {})}
-        changed={canvas.changedNodeIds.includes(id) || flashed}
+        changed={canvas.changedNodeIds.includes(id)}
         portSpec={{
           kind: NODE_MEDIA_KIND_IDS.video,
           left: (ports?.inputs ?? []).map((spec) => ({

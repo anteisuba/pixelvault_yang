@@ -103,6 +103,8 @@ export function TextNodeToolbar({
               id: 'expand',
               label: t('toolbar.expand'),
               icon: Expand,
+              // 主动作带字（§1 第 4 条 · 方向 B）：文本卡的第一件事是「展开」。
+              primary: true,
               onSelect: onExpand,
             },
             {

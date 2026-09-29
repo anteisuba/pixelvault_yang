@@ -32,7 +32,6 @@ import {
   Eye,
   Mic,
   PictureInPicture2,
-  Scissors,
   SquarePen,
   Trash2,
   Upload,
@@ -244,6 +243,3 @@ export function VideoMoreMenuItems({
     </>
   )
 }
-
-/** 工具条「抽帧」那颗键的图标 —— 与菜单里同一套 lucide 词表，⛔ 不各挑各的。 */
-export const VIDEO_EXTRACT_ICON = Scissors

@@ -16,10 +16,10 @@
 import { useCallback, useImperativeHandle, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  Camera,
   Download,
   Pause,
   Play,
-  Scissors,
   Volume2,
   VolumeX,
   type LucideIcon,
@@ -202,7 +202,8 @@ export function VideoPlayer({
           {onExtractFrame ? (
             <GlassButton
               testId="extract"
-              icon={Scissors}
+              // 抽帧 = 抓一帧画面，与工具条同一颗图标；⛔ 剪刀只留给「裁剪」。
+              icon={Camera}
               label={t('captureFrames')}
               disabled={extracting}
               onClick={() => {

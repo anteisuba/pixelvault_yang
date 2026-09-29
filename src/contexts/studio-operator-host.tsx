@@ -198,6 +198,15 @@ export interface StudioOperatorHost {
    * ⚠ 开关的位移由这四个数**算**出来（见 `operatorAvatarShift`），⛔ 不量 DOM。
    */
   anchor?: StudioOperatorShellAnchor
+  /**
+   * 改动清单（node-canvas-v2 §1 第 4 条 · 方向 B）：这一轮改了哪几张卡，点一行 = 镜头
+   * 移过去、卡面闪一下。只有画布给 —— 其余宿主没有「卡」，回执下面就不列清单。
+   */
+  canvasTargets?: {
+    /** 这张卡现在叫什么；卡已经不在了 = `undefined`（那一行不列）。 */
+    nameOf(nodeId: string): string | undefined
+    locate(nodeId: string): void
+  }
 }
 
 const StudioOperatorHostContext = createContext<StudioOperatorHost | null>(null)

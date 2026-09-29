@@ -289,19 +289,19 @@ describe('选中态：工具条与提示词栏', () => {
       { selectedNodeIds: ['a_1'] },
     )
 
-  it('工具条六键：加语气 · 裁剪 · 转文字 · 连到镜头 · 下载 · ⋯', () => {
+  it('工具条四个动作 + ⋯：加语气（带字）· 裁剪 · 转文字 · 连到镜头；下载收进 ⋯', () => {
     renderAudio(selectedContext(), 'a_1', true)
     const ids = Array.from(
       document.querySelectorAll('[data-toolbar-action]'),
     ).map((item) => item.getAttribute('data-toolbar-action'))
-    expect(ids).toEqual([
-      'tone',
-      'trim',
-      'transcribe',
-      'shot',
-      'download',
-      'more',
-    ])
+    expect(ids).toEqual(['tone', 'trim', 'transcribe', 'shot', 'more'])
+    expect(
+      document.querySelector('[data-toolbar-action="tone"]')!.textContent,
+    ).toContain('toolbar.tone')
+    openMenu('[data-toolbar-action="more"]')
+    expect(
+      document.querySelector('[data-audio-more="download"]'),
+    ).not.toBeNull()
   })
 
   it('连到镜头弹层顶行「新建镜头」= 原来那一批两条（建镜头 + 连成音轨）', () => {
@@ -848,7 +848,15 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
       Array.from(document.querySelectorAll('[data-audio-more]')).map((item) =>
         item.getAttribute('data-audio-more'),
       ),
-    ).toEqual(['rename', 'duplicate', 'split', 'owner', 'source', 'delete'])
+    ).toEqual([
+      'rename',
+      'duplicate',
+      'download',
+      'split',
+      'owner',
+      'source',
+      'delete',
+    ])
     // 来源是**这一版**的那一行只读小字。
     expect(
       document.querySelector('[data-audio-more="source"]')!.textContent,

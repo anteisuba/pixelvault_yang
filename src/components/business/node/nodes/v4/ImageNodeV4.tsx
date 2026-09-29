@@ -46,6 +46,7 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import {
+  NODE_STUDIO_DOCK,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_V4_CARD,
 } from '@/constants/node-studio'
@@ -82,7 +83,6 @@ import {
   VersionDots,
   ConnectToShotPopover,
   flashNodeCard,
-  useNodeCardFlash,
   useMediaProblem,
   type NodeToolbarGroup,
 } from './chrome'
@@ -146,8 +146,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
   const pendingUpload = canvas.pendingUploads?.find((item) => item.id === id)
-  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
-  const flashed = useNodeCardFlash(id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   /** ⋯「重命名这张图」触发卡外那行名字进入编辑（`NodeCardShell.renameRequest`）。 */
@@ -458,8 +456,10 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         // 原「生镜头」（图标不变）——现在先开弹层选目标镜头与 首帧 / 尾帧
         // （spec §1.13）。顶行「新建镜头」保留原来那一批两条。
         id: 'shot',
-        label: tImage('toolbar.connect'),
+        // 主动作带字（§1 第 4 条 · 方向 B）：写「生镜头」—— 弹层里既能新建也能连到已有的。
+        label: tImage('toolbar.shot'),
         icon: Clapperboard,
+        primary: true,
         onSelect: () => {},
         panel: (
           <ConnectToShotPopover
@@ -500,7 +500,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 ),
               ).then(() => {
                 canvas.onFocusNode(targetId)
-                flashNodeCard(targetId)
+                flashNodeCard(targetId, NODE_STUDIO_DOCK.focusDurationMs)
               })
             }}
           />
@@ -665,7 +665,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         emptyHeight={emptyCardHeight(width)}
         onEmptyAdd={() => fileRef.current?.click()}
         surfaceClassName="overflow-hidden"
-        changed={canvas.changedNodeIds.includes(id) || flashed}
+        changed={canvas.changedNodeIds.includes(id)}
         portSpec={portSpecOf(node)}
       >
         {failed && !imageData.url ? (

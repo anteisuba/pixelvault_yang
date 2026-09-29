@@ -1,54 +1,47 @@
-import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { NODE_V4_CONNECT_TO_SHOT } from '@/constants/node-studio'
+import { flashNodeCard } from './node-card-flash'
 
-import {
-  flashNodeCard,
-  resetNodeCardFlash,
-  useNodeCardFlash,
-} from './node-card-flash'
+const TOUCH_CLASS = 'node-assistant-touched'
+
+/** 与 v4 卡同一副骨架：ReactFlow 节点 → 名字行 + 卡面。 */
+function mountCard(nodeId: string) {
+  const wrapper = document.createElement('div')
+  wrapper.className = 'react-flow__node'
+  wrapper.setAttribute('data-id', nodeId)
+  const nameRow = document.createElement('div')
+  const surface = document.createElement('div')
+  surface.setAttribute('data-node-card-surface', '')
+  wrapper.append(nameRow, surface)
+  document.body.append(wrapper)
+  return { wrapper, nameRow, surface }
+}
 
 afterEach(() => {
-  resetNodeCardFlash()
+  document.body.innerHTML = ''
   vi.useRealTimers()
 })
 
-describe('连完那一下高亮（spec §1.13 尾句）', () => {
-  it('点的人和亮的人不是同一张卡：亮一小会儿就自己灭', () => {
-    vi.useFakeTimers()
-    const { result } = renderHook(() => useNodeCardFlash('s_1'))
-    expect(result.current).toBe(false)
-    act(() => flashNodeCard('s_1'))
-    expect(result.current).toBe(true)
-    act(() => {
-      vi.advanceTimersByTime(NODE_V4_CONNECT_TO_SHOT.highlightMs + 1)
-    })
-    expect(result.current).toBe(false)
+// 方向 B（owner 2026-09-29）：连完 / 助手改完 / 清单里点到 —— 同一种一闪，只闪卡面。
+describe('卡面闪一下', () => {
+  it('只闪卡面，⛔ 不连名字行、⛔ 不闪整个节点', () => {
+    const { wrapper, nameRow, surface } = mountCard('s_1')
+    flashNodeCard('s_1')
+    expect(surface.classList.contains(TOUCH_CLASS)).toBe(true)
+    expect(wrapper.classList.contains(TOUCH_CLASS)).toBe(false)
+    expect(nameRow.classList.contains(TOUCH_CLASS)).toBe(false)
   })
 
-  it('只亮被点的那一张（⛔ 不把整片画布点亮）', () => {
+  it('给了延迟就等镜头停下再闪', () => {
     vi.useFakeTimers()
-    const other = renderHook(() => useNodeCardFlash('s_2'))
-    act(() => flashNodeCard('s_1'))
-    expect(other.result.current).toBe(false)
+    const { surface } = mountCard('s_1')
+    flashNodeCard('s_1', 420)
+    expect(surface.classList.contains(TOUCH_CLASS)).toBe(false)
+    vi.advanceTimersByTime(420)
+    expect(surface.classList.contains(TOUCH_CLASS)).toBe(true)
   })
 
-  it('连点两次 = 重新计时，⛔ 不叠两个定时器', () => {
-    vi.useFakeTimers()
-    const { result } = renderHook(() => useNodeCardFlash('s_1'))
-    act(() => flashNodeCard('s_1'))
-    act(() => {
-      vi.advanceTimersByTime(NODE_V4_CONNECT_TO_SHOT.highlightMs - 10)
-    })
-    act(() => flashNodeCard('s_1'))
-    act(() => {
-      vi.advanceTimersByTime(NODE_V4_CONNECT_TO_SHOT.highlightMs - 10)
-    })
-    expect(result.current).toBe(true)
-    act(() => {
-      vi.advanceTimersByTime(20)
-    })
-    expect(result.current).toBe(false)
+  it('画布上没有这张卡时什么都不做', () => {
+    expect(() => flashNodeCard('missing')).not.toThrow()
   })
 })

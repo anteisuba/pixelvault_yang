@@ -68,7 +68,9 @@ export function useBrokenThumbs() {
 
 /**
  * 来源没了的卡面（画板「画布 · 角色 ④」S6）：灰底一句话 + 一个去处。
- * 已删除 →「从画布移除」；暂时读不到 →「重试」。⛔ 不画裂图、不抖、不红框。
+ * 已删除 →「从画布移除」；卡上还有别的版本时 →「去掉这一版」（`scope="version"`，
+ * owner 2026-09-29：⛔ 连好的那几版一起删掉整张卡）；暂时读不到 →「重试」。
+ * ⛔ 不画裂图、不抖、不红框。
  * `row` 给矮卡（音频）用：一行排开。
  */
 export function NodeMediaMissing({
@@ -76,6 +78,7 @@ export function NodeMediaMissing({
   problem,
   onRemove,
   onRetry,
+  scope = 'card',
   layout = 'stack',
   className,
   style,
@@ -84,6 +87,8 @@ export function NodeMediaMissing({
   problem: MediaLoadProblem | 'checking'
   onRemove: () => void
   onRetry: () => void
+  /** 「已删除」那颗键拿掉的是整张卡还是这一版（卡上不止一版时给 `version`）。 */
+  scope?: 'card' | 'version'
   layout?: 'stack' | 'row'
   className?: string
   style?: CSSProperties
@@ -116,7 +121,9 @@ export function NodeMediaMissing({
             onDoubleClick={(event) => event.stopPropagation()}
             className="nodrag nopan inline-flex h-8 shrink-0 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            {gone ? t('remove') : t('retry')}
+            {gone
+              ? t(scope === 'version' ? 'removeVersion' : 'remove')
+              : t('retry')}
           </button>
         </>
       )}

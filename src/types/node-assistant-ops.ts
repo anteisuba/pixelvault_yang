@@ -494,6 +494,17 @@ export const NodeAssistantSplitOutputVersionOpSchema = z.object({
     .optional(),
 })
 
+/** 去掉这张卡的第 N 版（只剩一版时执行层拒绝）。下标必给：删哪一版不许靠「当前」猜。 */
+export const NodeAssistantRemoveOutputVersionOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion),
+  target: NodeAssistantOpTargetSchema,
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(NODE_V4_OUTPUT_VERSION.maxVersions - 1),
+})
+
 /** 改图片子型（「设为角色卡」）。⛔ 只有 image kind 有子型词表可换。 */
 /**
  * 剧本投影（进度表 24）。
@@ -797,6 +808,7 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantMarkVersionBlockedOpSchema,
   NodeAssistantSetOutputVersionOpSchema,
   NodeAssistantSplitOutputVersionOpSchema,
+  NodeAssistantRemoveOutputVersionOpSchema,
   NodeAssistantSetSubtypeOpSchema,
   NodeAssistantSetCharacterPicksOpSchema,
   NodeAssistantSetTextOpSchema,

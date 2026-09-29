@@ -481,6 +481,14 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
    * 同时改两张卡，inverse 得存整份版本表快照，代价与 `delete` 一样贵。
    */
   splitOutputVersion: 'split_output_version',
+  /**
+   * 去掉这张卡的第 N 版（owner 2026-09-29：原图从素材库删掉的那一版单独拿掉，⛔ 连
+   * 好的那几版一起删掉整张卡）。只剩一版时拒绝 —— 那是 `delete` 的事。
+   *
+   * ⚠ 撤销是整卡快照（与 `delete` 同一种），⛔ 不设「加回一版」的 op：那条的载荷
+   * 就得带 url，而 url 不许由模型写（同 `split_output_version` 那条纪律）。
+   */
+  removeOutputVersion: 'remove_output_version',
   markVersionBlocked: 'mark_version_blocked',
   setModel: 'set_model',
   setParams: 'set_params',
@@ -544,6 +552,7 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
   NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
   NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
+  NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion,
   NODE_ASSISTANT_OP_V4_IDS.setSubtype,
   NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks,
   NODE_ASSISTANT_OP_V4_IDS.setModel,
@@ -694,6 +703,16 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.delete,
     autoApply: true,
+  },
+  /**
+   * 拿掉一版是删东西：与 `delete` 同一档（助手要先问），inverse 这一格同样只表示
+   * 「撤得掉」—— 实际撤销走整卡快照。
+   */
+  [NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion]: {
+    group: content,
+    tier: confirm,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+    autoApply: false,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setSubtype]: {
     group: content,

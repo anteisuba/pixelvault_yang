@@ -7024,6 +7024,19 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
         description: 'The card stays; nothing on the board changes.',
       },
     },
+    remove_output_version: {
+      header: 'Remove version',
+      question: (name) =>
+        `Remove this version from “${name}”? Its other versions stay.`,
+      apply: {
+        label: 'Remove it',
+        description: 'Only this version goes; you can still undo it.',
+      },
+      keep: {
+        label: 'Keep it',
+        description: 'Every version stays; nothing on the board changes.',
+      },
+    },
     project_script: {
       header: 'Project script',
       question: (name) =>
@@ -7052,6 +7065,19 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
         description: 'カードはそのまま。ボードは何も変わりません。',
       },
     },
+    remove_output_version: {
+      header: 'この版を外す',
+      question: (name) =>
+        `「${name}」からこの版を外しますか？ほかの版はそのまま残ります。`,
+      apply: {
+        label: '外す',
+        description: 'この版だけを外します。あとで元に戻せます。',
+      },
+      keep: {
+        label: '残す',
+        description: 'すべての版がそのまま。ボードは何も変わりません。',
+      },
+    },
     project_script: {
       header: '台本を展開',
       question: (name) =>
@@ -7077,6 +7103,18 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
       keep: {
         label: '先留着',
         description: '这张卡不动，画布上什么都不变。',
+      },
+    },
+    remove_output_version: {
+      header: '去掉这一版',
+      question: (name) => `把这一版从「${name}」里去掉？别的版本都留着。`,
+      apply: {
+        label: '去掉',
+        description: '只拿掉这一版，之后还能撤销。',
+      },
+      keep: {
+        label: '留着',
+        description: '每一版都在，画布上什么都不变。',
       },
     },
     project_script: {

@@ -847,6 +847,42 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
     })
   })
 
+  // owner 2026-09-29：好几版里只有一版的原图删了，按钮 ⛔ 连好的那几版一起删掉整张卡。
+  it('卡上不止一版：按钮换成「去掉这一版」，只拿掉当前这一版', async () => {
+    mockProbeMedia.mockResolvedValue('gone')
+    const onApplyOp = vi.fn()
+    renderImage(
+      harness(
+        [
+          imageNode('i_1', {
+            url: URL,
+            outputs: {
+              versions: [
+                { id: 'ov_1', url: URL, createdAt: NOW },
+                {
+                  id: 'ov_2',
+                  url: 'https://cdn.example/ok.png',
+                  createdAt: NOW,
+                },
+              ],
+              cur: 0,
+            },
+          }),
+        ],
+        { onApplyOp },
+      ),
+    )
+    fireEvent.error(screen.getByRole('img'))
+    expect(await screen.findByText('gone.image')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'removeVersion' }))
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion,
+      target: 'i_1',
+      index: 0,
+    })
+  })
+
   it('网络读不到 → 只说暂时读不到 +「重试」，重试把图重新挂回去', async () => {
     mockProbeMedia.mockResolvedValue('unreachable')
     renderImage(harness([imageNode('i_1', { url: URL })]))

@@ -143,6 +143,28 @@ export function selectOutputVersion<T extends NodeV4MediaData>(
 }
 
 /**
+ * 去掉第 `index` 版（owner 2026-09-29：「这张图已从素材库删除」的那一版单独拿掉，
+ * 别的版本留着）。当前版跟着挪：删在它前面 → 下标减一；删的正是它 → 顶上来的那一
+ * 版（删的是最后一版就退一格）。越界或**只剩这一版**返回 `null` —— 卡上一版都不剩
+ * 是 `delete` 的事，⛔ 不留一张空壳卡。
+ */
+export function removeOutputVersion<T extends NodeV4MediaData>(
+  data: T,
+  index: number,
+): T | null {
+  const versions = readOutputVersions(data)
+  if (!versions[index] || versions.length <= 1) return null
+  const current = readOutputIndex(data)
+  const remaining = versions.filter((_, at) => at !== index)
+  const nextCur =
+    index < current ? current - 1 : Math.min(current, remaining.length - 1)
+  return selectOutputVersion(
+    { ...data, outputs: { versions: remaining, cur: nextCur } },
+    nextCur,
+  )
+}
+
+/**
  * 追加一版并切过去（生成完成 / 上传落地都走这条）。
  *
  * ⚠ **按 url 去重**：前台那条 `.then` 与刷新之后的回填 pass 读的是同一单，两条路

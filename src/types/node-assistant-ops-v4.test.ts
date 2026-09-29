@@ -21,7 +21,8 @@ describe('v4 op 表（spec §5）', () => {
     // +3 = 字幕三条（S8d）：T 轨上的段是另一种形状，⛔ 不并进上面那五条。
     // +1 = `project_script`（进度表 24）：剧本卡按分镜投影成一排镜头节点。
     // +1 = `set_character_picks`（画布用角色 ④）：@ 的角色这一镜带哪几张。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(33)
+    // +1 = `remove_output_version`（owner 2026-09-29）：原图删了的那一版单独拿掉。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(34)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )
@@ -60,13 +61,14 @@ describe('v4 op 表（spec §5）', () => {
    * ⛔ 往这张名单里加第三条之前先读 `NODE_ASSISTANT_OP_V4_IDS` 上那两段注释 ——
    * 确认档每多一条，自动落那一档就少一条，而那是助手好不好用的主轴。
    */
-  it('需确认档只有 delete 与 project_script，且都不自动落', () => {
+  it('需确认档只有 delete / remove_output_version / project_script，且都不自动落', () => {
     const confirm = Object.entries(NODE_ASSISTANT_OP_V4_SPECS).filter(
       ([, spec]) => spec.tier === NODE_ASSISTANT_OP_V4_TIER_IDS.confirm,
     )
     expect(confirm.map(([op]) => op).sort()).toEqual(
       [
         NODE_ASSISTANT_OP_V4_IDS.delete,
+        NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion,
         NODE_ASSISTANT_OP_V4_IDS.projectScript,
       ].sort(),
     )

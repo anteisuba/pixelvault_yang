@@ -91,6 +91,7 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked]: Undo2,
   [NODE_ASSISTANT_OP_V4_IDS.setOutputVersion]: Layers,
   [NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion]: Copy,
+  [NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion]: Trash2,
   [NODE_ASSISTANT_OP_V4_IDS.setModel]: Cpu,
   [NODE_ASSISTANT_OP_V4_IDS.setParams]: SlidersHorizontal,
   [NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile]: Mic,

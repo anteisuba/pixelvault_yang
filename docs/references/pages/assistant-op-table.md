@@ -64,9 +64,9 @@
 
 ## 3. 画布 op 表
 
-真值是 `NODE_ASSISTANT_OPS_V4`（**32 条**，2026-09-19 逐键点数）。画布域**只开三个口子**（`canvas_apply` / `canvas_plan_rerun` / `canvas_generate`），`op` 那一格原样收 v4 的封闭词表 —— 模型看见的仍是封闭枚举，只是枚举住在它本来就住的那张表里。
+真值是 `NODE_ASSISTANT_OPS_V4`（**34 条**，2026-09-29 逐键点数）。画布域**只开三个口子**（`canvas_apply` / `canvas_plan_rerun` / `canvas_generate`），`op` 那一格原样收 v4 的封闭词表 —— 模型看见的仍是封闭枚举，只是枚举住在它本来就住的那张表里。
 
-**路由规则（现算，⛔ 不手抄）**：`CANVAS_APPLY_OP_IDS = NODE_ASSISTANT_OPS_V4.filter(inverse !== null && op !== 'generate')` → **28 条**。读类三条归 `canvas_plan_rerun` / `read_state`，`generate` 归 `canvas_generate`。
+**路由规则（现算，⛔ 不手抄）**：`CANVAS_APPLY_OP_IDS = NODE_ASSISTANT_OPS_V4.filter(inverse !== null && op !== 'generate')` → **30 条**。读类三条归 `canvas_plan_rerun` / `read_state`，`generate` 归 `canvas_generate`。
 
 | op id                   | group     | tier            | inverse                 | autoApply      | 走哪条工具                       |
 | ----------------------- | --------- | --------------- | ----------------------- | -------------- | -------------------------------- |
@@ -84,7 +84,9 @@
 | `mark_version_blocked`  | structure | free            | `mark_version_blocked`  | 是             | `canvas_apply`                   |
 | `set_output_version`    | structure | free            | `set_output_version`    | 是             | `canvas_apply`                   |
 | `split_output_version`  | content   | free            | `delete`                | 是             | `canvas_apply`                   |
+| `remove_output_version` | content   | **confirm**     | 整卡快照                | **否**         | `canvas_apply`（先问一句）       |
 | `set_subtype`           | content   | free            | `set_subtype`           | 是             | `canvas_apply`                   |
+| `set_character_picks`   | content   | free            | `set_character_picks`   | 是             | `canvas_apply`                   |
 | `set_text`              | content   | free            | `set_text`              | 是             | `canvas_apply`                   |
 | `set_prompt`            | content   | free            | `set_prompt`            | 是             | `canvas_apply`                   |
 | `set_field`             | content   | free            | `set_field`             | 是             | `canvas_apply`                   |

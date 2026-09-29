@@ -52,6 +52,7 @@ import {
   isMediaNodeData,
   readOutputIndex,
   readOutputVersions,
+  removeOutputVersion,
   selectOutputVersion,
 } from '@/lib/node-output-versions'
 import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
@@ -878,6 +879,27 @@ export function applyNodeAssistantOpV4(
           kind: 'op',
           op: { op: ids.setOutputVersion, target: node.id, index: previous },
         },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.removeOutputVersion: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (!isMediaNodeData(node.data)) {
+        return { ok: false, reason: 'notAGeneratedNode' }
+      }
+      if (!readOutputVersions(node.data)[op.index]) {
+        return { ok: false, reason: 'unknownOutputVersion' }
+      }
+      const nextData = removeOutputVersion(node.data, op.index)
+      // 只剩这一版：拿掉就是一张空壳卡 —— 那是 `delete` 的事，⛔ 不替用户删整张。
+      if (!nextData) return { ok: false, reason: 'lastOutputVersion' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => nextData),
+        inverse: { kind: 'restore', nodes: [node], edges: [] },
         changedNodeIds: [node.id],
         changedEdgeIds: [],
       }

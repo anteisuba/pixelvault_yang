@@ -686,11 +686,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 kind="image"
                 problem={media.problem}
                 onRetry={media.retry}
+                // 卡上不止一版：只拿掉读不出来的这一版，⛔ 连好的那几版一起删掉整张卡。
+                scope={versions.length > 1 ? 'version' : 'card'}
                 onRemove={() =>
-                  void canvas.onApplyOp({
-                    op: NODE_ASSISTANT_OP_V4_IDS.delete,
-                    target: id,
-                  })
+                  void canvas.onApplyOp(
+                    versions.length > 1
+                      ? {
+                          op: NODE_ASSISTANT_OP_V4_IDS.removeOutputVersion,
+                          target: id,
+                          index: versionIndex,
+                        }
+                      : { op: NODE_ASSISTANT_OP_V4_IDS.delete, target: id },
+                  )
                 }
                 className="size-full"
               />

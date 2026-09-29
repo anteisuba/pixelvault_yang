@@ -846,6 +846,77 @@ describe('split_output_version：拆出当前版本', () => {
   })
 })
 
+// owner 2026-09-29：原图删了的那一版单独拿掉，⛔ 连好的那几版一起删掉整张卡。
+describe('remove_output_version：去掉这一版', () => {
+  const state = (): NodeWorkflowStateV4 => ({
+    version: 4,
+    nodes: [versionedImageNode('i_v')],
+    edges: [],
+  })
+
+  it('去掉当前前面那一版：别的版本留着，当前版跟着挪、顶层镜像不变', () => {
+    const result = applyNodeAssistantOpV4(
+      state(),
+      { op: 'remove_output_version', target: 'i_v', index: 0 },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]!.data as {
+      url?: string
+      outputs?: { versions: { id: string }[]; cur: number }
+    }
+    expect(data.outputs?.versions.map((version) => version.id)).toEqual([
+      'ov_2',
+    ])
+    expect(data.outputs?.cur).toBe(0)
+    expect(data.url).toBe('https://cdn/b.png')
+  })
+
+  it('去掉的正是当前版：退到还在的那一版，撤销整卡回来', () => {
+    const before = state()
+    const result = applyNodeAssistantOpV4(
+      before,
+      { op: 'remove_output_version', target: 'i_v', index: 1 },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]!.data as {
+      url?: string
+      mediaWidth?: number
+    }
+    expect(data.url).toBe('https://cdn/a.png')
+    expect(data.mediaWidth).toBe(100)
+    const back = applyInverseV4(result.state, result.inverse, makeContext())
+    expect(back.nodes[0]).toEqual(before.nodes[0])
+  })
+
+  it('只剩一版不删（那是 delete 的事）；越界失败可见', () => {
+    const once = applyNodeAssistantOpV4(
+      state(),
+      { op: 'remove_output_version', target: 'i_v', index: 0 },
+      makeContext(),
+    )
+    expect(once.ok).toBe(true)
+    if (!once.ok) return
+    expect(
+      applyNodeAssistantOpV4(
+        once.state,
+        { op: 'remove_output_version', target: 'i_v', index: 0 },
+        makeContext(),
+      ),
+    ).toMatchObject({ ok: false, reason: 'lastOutputVersion' })
+    expect(
+      applyNodeAssistantOpV4(
+        state(),
+        { op: 'remove_output_version', target: 'i_v', index: 5 },
+        makeContext(),
+      ),
+    ).toMatchObject({ ok: false, reason: 'unknownOutputVersion' })
+  })
+})
+
 describe('set_subtype：设为角色卡', () => {
   it('image 子型可换，inverse 回原来的子型', () => {
     const before = baseState()

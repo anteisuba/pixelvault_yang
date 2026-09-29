@@ -49,7 +49,10 @@ import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
 import { QuickSetupDialog } from '../setup/QuickSetupDialog'
-import { useStudioChipPopoverMotion } from '../primitives/tool-surface'
+import {
+  useStudioChipDensity,
+  useStudioChipPopoverMotion,
+} from '../primitives/tool-surface'
 
 import { ModelChip } from './ModelChip'
 
@@ -241,6 +244,12 @@ export function ModelPickerPopover({
   // 触屏紧凑视口走底部 Sheet 分支（`ResponsivePopover` 内部同一条判据）：没有
   // hover，也没有右侧摆面板的地方，渠道列表只能在行里原地展开。
   const sheet = useIsMobile() && isTouchPrimary()
+  /**
+   * 画布那一档（`StudioChipDensityProvider`）：弹层 280、行矮一截、字小一号，渠道面板
+   * 同样小一号 —— 画布卡下那条栏比工作台输入框小得多（owner 2026-09-29）。⚠ 渠道仍是
+   * 右侧独立浮层（D2 Q1 定的），⛔ 不因为「小」就塞回行尾展开。
+   */
+  const compact = useStudioChipDensity() === 'compact' && !sheet
 
   /**
    * 生成键在「先选渠道」态被点 → 把这个选择器打开。定位那一行不用另做：`panelRow`
@@ -549,7 +558,9 @@ export function ModelPickerPopover({
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           variant === 'sheet'
             ? 'min-h-11 px-2.5 text-sm'
-            : 'px-2 py-1.5 text-2sm hover:bg-accent',
+            : compact
+              ? 'px-2 py-1 text-xs hover:bg-accent'
+              : 'px-2 py-1.5 text-2sm hover:bg-accent',
           picked && 'bg-muted',
         )}
       >
@@ -664,7 +675,11 @@ export function ModelPickerPopover({
             'flex w-full items-center gap-2.5 rounded-lg text-left',
             'transition-colors duration-fast ease-standard motion-reduce:transition-none',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            sheet ? 'min-h-11 px-3 text-md' : 'px-2.5 py-2 text-2sm',
+            sheet
+              ? 'min-h-11 px-3 text-md'
+              : compact
+                ? 'px-2 py-1.5 text-xs'
+                : 'px-2.5 py-2 text-2sm',
             // hover 行**只 1px 描边，不换底**（owner D2 Q1 亲手定）——换底会与
             // 选中行的 `bg-muted` 撞成同一个样子。
             !sheet && 'hover:outline hover:outline-1 hover:outline-border',
@@ -675,7 +690,7 @@ export function ModelPickerPopover({
             <span
               className={cn(
                 'min-w-0 shrink truncate text-muted-foreground',
-                sheet ? 'text-md' : 'text-2sm',
+                sheet ? 'text-md' : compact ? 'text-xs' : 'text-2sm',
               )}
             >
               {secondary}
@@ -710,7 +725,12 @@ export function ModelPickerPopover({
       onMouseEnter={sheet ? undefined : cancelPanelClose}
     >
       <div className="p-1.5">
-        <label className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-2sm text-muted-foreground">
+        <label
+          className={cn(
+            'flex items-center gap-2 rounded-lg bg-muted text-muted-foreground',
+            compact ? 'px-2 py-1 text-xs' : 'px-2.5 py-1.5 text-2sm',
+          )}
+        >
           <Search className="size-4 shrink-0" aria-hidden />
           <input
             value={search}
@@ -802,7 +822,10 @@ export function ModelPickerPopover({
               event.stopPropagation()
               if (panelRowId) rowRefs.current.get(panelRowId)?.focus()
             }}
-            className="w-model-channel-panel rounded-lg border border-border bg-popover p-1.5 shadow-md"
+            className={cn(
+              'rounded-lg border border-border bg-popover p-1.5 shadow-md',
+              compact ? 'w-48' : 'w-model-channel-panel',
+            )}
           >
             <div className="flex flex-col gap-0.5">
               {panelRow.channels.map((view) =>
@@ -874,7 +897,12 @@ export function ModelPickerPopover({
             statusTone={triggerStatus.tone}
             active={open}
             disabled={disabled}
-            className={className}
+            className={cn(
+              // 画布那一档：28 高 · 12 号字；开着与工作台同一副描边 + 浅环；按下 0.96。
+              compact &&
+                'h-7 gap-1.5 pr-2 pl-2.5 text-xs transition-[border-color,box-shadow,transform] active:scale-96 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+              className,
+            )}
           />
         </ResponsivePopoverTrigger>
         <ResponsivePopoverContent
@@ -883,7 +911,7 @@ export function ModelPickerPopover({
           align={align}
           label={triggerEmptyLabel ?? tCommon('selectModel')}
           className={cn(
-            contentClassName ?? 'w-model-picker',
+            contentClassName ?? (compact ? 'w-70' : 'w-model-picker'),
             'p-0',
             popoverMotion.className,
           )}

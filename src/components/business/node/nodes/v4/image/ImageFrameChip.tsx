@@ -109,7 +109,7 @@ export function ImageFrameChip({
       onResolutionChange={onResolutionChange}
       disabled={disabled}
       data-testid="image-frame-chip"
-      triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
+      triggerClassName="max-w-50"
       {...(storyboardGrid ? { summaryPrefix: t('storyboard.chipPrefix') } : {})}
       more={
         <div className="flex flex-col gap-3">

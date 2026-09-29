@@ -32,6 +32,7 @@ import {
   StudioRatioGlyph,
   studioToolPopoverBaseClass,
   studioToolSurfaceSizeClass,
+  useStudioChipDensity,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -76,6 +77,9 @@ export interface SpecChipProps {
 
 const tierBaseClass =
   'inline-flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs transition-colors duration-fast ease-standard md:h-7.5'
+/** 画布那一档（`StudioChipDensityProvider`）：26 高、11 号字 —— 只在桌面画布上出现。 */
+const tierCompactClass =
+  'inline-flex h-6.5 min-w-8 items-center justify-center gap-1 rounded-md border px-2 text-2xs transition-colors duration-fast ease-standard'
 const tierIdleClass =
   'border-border bg-background text-foreground hover:border-foreground/40'
 const tierActiveClass = 'border-foreground bg-foreground text-background'
@@ -87,8 +91,10 @@ function SpecSection({
   note,
   locked,
   hint,
+  compact = false,
   children,
 }: {
+  readonly compact?: boolean
   readonly label: string
   readonly note?: ReactNode
   readonly locked?: boolean
@@ -96,9 +102,20 @@ function SpecSection({
   readonly children: ReactNode
 }) {
   return (
-    <div className={cn('flex flex-col gap-1.5', locked && 'opacity-50')}>
+    <div
+      className={cn(
+        'flex flex-col',
+        compact ? 'gap-1' : 'gap-1.5',
+        locked && 'opacity-50',
+      )}
+    >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xs font-medium text-muted-foreground/70">
+        <span
+          className={cn(
+            'font-medium text-muted-foreground/70',
+            compact ? 'text-3xs' : 'text-2xs',
+          )}
+        >
           {label}
         </span>
         {note ? (
@@ -107,7 +124,9 @@ function SpecSection({
           </span>
         ) : null}
       </div>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
+      <div className={cn('flex flex-wrap', compact ? 'gap-1' : 'gap-1.5')}>
+        {children}
+      </div>
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
@@ -120,8 +139,10 @@ function SpecTierButton({
   locked,
   unsupportedTitle,
   glyph,
+  compact = false,
   onSelect,
 }: {
+  readonly compact?: boolean
   readonly tier: SpecTier
   readonly active: boolean
   readonly disabled: boolean
@@ -145,7 +166,7 @@ function SpecTierButton({
         onSelect(tier.value)
       }}
       className={cn(
-        tierBaseClass,
+        compact ? tierCompactClass : tierBaseClass,
         !tier.supported
           ? tierUnsupportedClass
           : active
@@ -181,7 +202,9 @@ export function SpecChip({
 }: SpecChipProps) {
   const t = useTranslations('StudioSpecChip')
   const [open, setOpen] = useState(false)
-  // 底部输入框那一行（描边外观）里弹层从 chip 放大出来；画布上不在那层外观里，照旧。
+  /** 画布那一档：chip 28 高 · 12 号字，弹层 300 宽、选项 26 高（owner 2026-09-29）。 */
+  const compact = useStudioChipDensity() === 'compact'
+  // 底部输入框那一行（描边外观）与画布里，弹层从 chip 放大出来。
   const popoverMotion = useStudioChipPopoverMotion({
     side: 'top',
     align: popoverAlign,
@@ -237,6 +260,8 @@ export function SpecChip({
           data-spec-chip-state={flashing ? 'flash' : open ? 'open' : 'default'}
           className={cn(
             'nodrag nopan inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border px-3 text-2sm transition-colors duration-fast ease-standard',
+            compact &&
+              'h-7 px-2.5 text-xs transition-[border-color,background-color,box-shadow,transform] active:scale-96',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'disabled:pointer-events-none disabled:opacity-50',
             flashing
@@ -273,14 +298,15 @@ export function SpecChip({
         data-spec-chip-popover
         className={cn(
           studioToolPopoverBaseClass,
-          studioToolSurfaceSizeClass.action,
+          compact ? 'w-75 p-2.5' : studioToolSurfaceSizeClass.action,
           'overflow-y-auto overscroll-contain',
           popoverMotion.className,
         )}
       >
-        <div className="flex flex-col gap-3">
+        <div className={cn('flex flex-col', compact ? 'gap-2.5' : 'gap-3')}>
           {model.ratios.length > 0 ? (
             <SpecSection
+              compact={compact}
               label={t('aspectRatioLabel')}
               locked={model.ratioLocked}
               {...(model.ratioLocked && ratioLockedHint
@@ -290,6 +316,7 @@ export function SpecChip({
               {model.ratios.map((tier) => (
                 <SpecTierButton
                   key={tier.value}
+                  compact={compact}
                   tier={tier}
                   glyph
                   active={!model.ratioLocked && aspectRatio === tier.value}
@@ -303,10 +330,11 @@ export function SpecChip({
           ) : null}
 
           {model.resolutions.length > 0 ? (
-            <SpecSection label={resolutionLabel} note={note}>
+            <SpecSection compact={compact} label={resolutionLabel} note={note}>
               {model.resolutions.map((tier) => (
                 <SpecTierButton
                   key={tier.value}
+                  compact={compact}
                   tier={tier}
                   active={resolution === tier.value}
                   disabled={disabled}

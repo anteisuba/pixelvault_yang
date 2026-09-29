@@ -82,7 +82,7 @@ export function VideoFrameChip({
       onDurationChange={(seconds) => onDurationChange(String(seconds))}
       disabled={disabled}
       data-testid="video-frame-chip"
-      triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
+      triggerClassName="max-w-50"
       more={
         <div className="flex flex-col gap-3">
           {/* ⛔ 不再写「这次按 ×」和那段解释（owner 2026-09-29 删）：模式由挂了什么

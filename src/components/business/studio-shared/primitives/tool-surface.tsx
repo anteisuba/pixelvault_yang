@@ -101,6 +101,21 @@ const StudioChipZoomContext = createContext(false)
 
 export const StudioChipZoomProvider = StudioChipZoomContext.Provider
 
+/**
+ * chip 与它弹层的尺寸档。`compact` = 节点画布（owner 2026-09-29「尺寸要做成适合画布
+ * 的」）：画布卡下那条提示词栏比工作台的输入框小得多，挂一个工作台尺寸的弹层就又宽
+ * 又大。由宿主圈定，模型弹层 / 规格弹层自己读，⛔ 不在四类卡上逐个传尺寸。
+ */
+export type StudioChipDensity = 'default' | 'compact'
+
+const StudioChipDensityContext = createContext<StudioChipDensity>('default')
+
+export const StudioChipDensityProvider = StudioChipDensityContext.Provider
+
+export function useStudioChipDensity(): StudioChipDensity {
+  return useContext(StudioChipDensityContext)
+}
+
 export const studioOutlineChipClass = cn(
   'relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard',
   'hover:border-foreground/40',

@@ -7192,6 +7192,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream がこの参照画像を読み取れませんでした。JPEG、PNG、WebP など一般的な形式を使い、画像URLがサーバーから直接アクセスできることを確認してください。",
       "unsupportedReferenceImage": "このモデルは現在の参照画像形式を読み取れません。JPEG、PNG、WebP のいずれかに変更してから再生成してください。",
       "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
+      "requestTooLarge": "テキストと添付ファイルの合計サイズが、このモデルのリクエスト上限を超えています。添付数を減らすか、ファイルを小さくするか、テキストを短くしてください。",
       "executionWorkerUnavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",

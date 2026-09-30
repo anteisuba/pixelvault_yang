@@ -7192,6 +7192,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream could not read this reference image. Use a common format such as JPEG, PNG, or WebP, and make sure the URL is directly accessible.",
       "unsupportedReferenceImage": "This model could not read the reference image format. Use JPEG, PNG, or WebP, then try again.",
       "referenceImageTooLarge": "The reference image is too large for this model. Compress it or use a smaller image, then try again.",
+      "requestTooLarge": "The combined size of the text and attachments exceeds this model's request limit. Remove some attachments, use smaller files, or shorten the text.",
       "executionWorkerUnavailable": "The generation service cannot be reached right now. Try again later; contact the administrator if it keeps failing.",
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",

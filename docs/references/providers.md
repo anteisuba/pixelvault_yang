@@ -30,7 +30,7 @@
 - 默认 OpenAI 助手模型为原生 `gpt-6-sol`；无媒体引用时画布可走 AI Gateway 的
   `openai/gpt-6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
   [OpenAI GPT-6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6-sol) 一致。
-- OpenAI 助手的流式与非流式图片输入统一由服务端安全下载后发送原字节 data URL，保留参考顺序，不再让 provider 下载 CDN URL。下载沿用站内图片导入的单图 20 MiB 限制；这不是 OpenAI 官方上限。图片不可达、格式及大小错误保留具体错误码，真正的 401/403 仍按鉴权失败处理。依据：[OpenAI 视觉输入](https://developers.openai.com/api/docs/guides/images-vision)（2026-09-26 核验）。
+- OpenAI 助手的流式与非流式图片输入统一由服务端安全下载后发送原字节 data URL，保留参考顺序，不再让 provider 下载 CDN URL。图片大小按下节官方请求限额校验，不再耦合站内图片导入的单图 20 MiB 限制。图片不可达、格式及大小错误保留具体错误码，真正的 401/403 仍按鉴权失败处理。
 - Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
   [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
@@ -59,6 +59,23 @@
   Anima 工作流文本编码器继续存在，那条线与本节无关、未受影响。
   能力不匹配时服务端和客户端都必须拒绝，不得丢弃附件、传 URL 文本或以视频封面静默降级。
 - 交互、模型清单和最多 8 个稳定 URL 附件契约见 [`pages/assistant-shell.md`](pages/assistant-shell.md)。
+
+### Assistant 图片大小限制（2026-09-30 核验）
+
+流式与非流式共用 `ASSISTANT_IMAGE_LIMITS` 和请求构造器；本节仅约束助手看图，不用于图片生成或站内上传。MB 按 1,000,000 字节、MiB 按 1,048,576 字节计；未公开的独立限额不臆设。
+
+| 服务商          | 单图大小                                    | 整个请求大小                                | 官方依据                                                                                                                                                                                                        |
+| --------------- | ------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gemini          | inline 图片与文字共同计入请求               | 100 MB，含 Base64 编码后的图片、文字与 JSON | [文件输入方式](https://ai.google.dev/gemini-api/docs/generate-content/file-input-methods)、[2026-01-12 上调公告](https://blog.google/innovation-and-ai/technology/developers-tools/gemini-api-new-file-limits/) |
+| OpenAI          | 视觉指南未另列单图字节上限                  | 512 MB 总 payload                           | [视觉输入要求](https://developers.openai.com/api/docs/guides/images-vision)                                                                                                                                     |
+| Claude 直连 API | Base64 编码后 10 MB                         | 32 MB                                       | [Vision 限制](https://platform.claude.com/docs/en/build-with-claude/vision)                                                                                                                                     |
+| Grok            | 原始文件 20 MiB                             | 当前依据未列独立字节上限                    | [图像理解](https://docs.x.ai/developers/model-capabilities/images/understanding)                                                                                                                                |
+| DeepSeek 视觉档 | 原始文件 32 MiB；非 file_id 图片总计 64 MiB | 48 MiB                                      | [Vision 限制](https://api-docs.deepseek.com/guides/vision/)                                                                                                                                                     |
+
+- Gemini 官方旧图片理解示例仍写 20 MB；当前文件输入指南与上调公告明确将 inline 上限提高到 100 MB，按后者执行。移除旧的本地单图 10 MiB 下载门槛。
+- Gemini / OpenAI 的 URL 图片继续安全下载原图再编码；每次下载按剩余 Base64 预算限制大小，所有图片准备完后检查完整 UTF-8 JSON 字节数。不压缩、不删图。已有 Base64 输入也执行相同限额；多图、系统提示与正文均计入请求大小。
+- Claude / Grok / DeepSeek 的 URL 图片继续由 provider 读取，远端文件单图及图片总量由 provider 校验；本地校验已知 Base64 图片字节及最终请求体。不为查大小额外下载远端原图。
+- 单图超限沿用 `reference_image_too_large`；请求总量超限返回 `PROVIDER_REQUEST_TOO_LARGE`（413）及中英日提示，区分上下文 token 超限、限流与 API key 认证失败。混合附件构造出的请求超限时，清理已上传的 Gemini 临时视频。
 
 ## BYOK 路由（`resolveGenerationRoute()`，五步顺序）
 

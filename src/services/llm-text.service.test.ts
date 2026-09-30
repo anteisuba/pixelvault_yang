@@ -32,8 +32,9 @@ import {
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
-import { WEB_IMAGE_IMPORT_MAX_BYTES } from '@/constants/web-image-import'
+import { ASSISTANT_IMAGE_LIMITS } from '@/constants/assistant'
 import {
+  AI_PROVIDER_ENDPOINTS,
   ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
@@ -251,6 +252,69 @@ describe('llmTextCompletion - Gemini', () => {
       text: 'Analyze this image.',
     })
   })
+
+  it.each([
+    { stream: false, source: 'remote' },
+    { stream: true, source: 'remote' },
+    { stream: false, source: 'inline' },
+    { stream: true, source: 'inline' },
+  ])(
+    'preserves the 12,718,465-byte incident image (stream=$stream, source=$source)',
+    async ({ stream, source }) => {
+      const bytes = Buffer.alloc(12_718_465, 127)
+      const url = 'https://cdn.example.com/incident.png'
+      const reply = {
+        candidates: [
+          { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
+        ],
+      }
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async (target) =>
+          target === url
+            ? new Response(bytes, {
+                headers: {
+                  'content-type': 'image/png',
+                  'content-length': String(bytes.byteLength),
+                },
+              })
+            : new Response(
+                stream
+                  ? `data: ${JSON.stringify(reply)}\n\n`
+                  : JSON.stringify(reply),
+              ),
+        )
+      vi.stubGlobal('fetch', fetchMock)
+      const input: LlmTextInput = {
+        systemPrompt: 'sys',
+        userPrompt: 'Describe this image.',
+        imageData:
+          source === 'remote'
+            ? url
+            : `data:image/png;base64,${bytes.toString('base64')}`,
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: { label: 'Gemini', baseUrl: '' },
+        apiKey: 'test-key',
+      }
+      let result = ''
+      if (stream) {
+        for await (const text of llmTextStream(input)) result += text
+      } else {
+        result = await llmTextCompletion(input)
+      }
+
+      expect(result).toBe('ok')
+      const payload = readFetchJson(fetchMock, source === 'remote' ? 1 : 0) as {
+        contents: Array<{ parts: Array<{ inlineData: { data: string } }> }>
+      }
+      expect(
+        Buffer.from(
+          payload.contents[0].parts[0].inlineData.data,
+          'base64',
+        ).equals(bytes),
+      ).toBe(true)
+    },
+  )
 
   it('sends MP3 content as native audio to Gemini', async () => {
     const bytes = new Uint8Array([73, 68, 51])
@@ -740,9 +804,9 @@ describe('OpenAI reference image transport', () => {
   )
 
   it.each([false, true])(
-    'preserves a 12 MiB original image without the Gemini 10 MiB cap (stream=%s)',
+    'preserves a 21 MiB original image within the OpenAI request budget (stream=%s)',
     async (stream) => {
-      const bytes = Buffer.alloc(12 * 1024 * 1024, 127)
+      const bytes = Buffer.alloc(21 * 1024 * 1024, 127)
       const fetchMock = vi
         .fn<typeof fetch>()
         .mockResolvedValueOnce(
@@ -812,28 +876,23 @@ describe('OpenAI reference image transport', () => {
     },
   )
 
-  it.each(['remote', 'inline'])(
-    'keeps %s image size failures distinct',
-    async (kind) => {
-      const maxBytes = WEB_IMAGE_IMPORT_MAX_BYTES
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response('image', {
-          headers: { 'content-length': String(maxBytes + 1) },
-        }),
-      )
-      vi.stubGlobal('fetch', fetchMock)
-      const image =
-        kind === 'remote'
-          ? 'https://cdn.example.com/large.png'
-          : `data:image/png;base64,${Buffer.alloc(maxBytes + 1).toString('base64')}`
-
-      await expect(complete(false, image)).rejects.toMatchObject({
-        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
-        i18nKey: 'errors.generation.reference_image_too_large',
-      })
-      expect(fetchMock).toHaveBeenCalledTimes(kind === 'remote' ? 1 : 0)
-    },
-  )
+  it('rejects a remote image whose Base64 alone exceeds the request budget', async () => {
+    const maxBytes =
+      Math.floor(ASSISTANT_IMAGE_LIMITS.openai.maxRequestBytes / 4) * 3
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('image', {
+        headers: { 'content-length': String(maxBytes + 1) },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      complete(false, 'https://cdn.example.com/large.png'),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_REQUEST_TOO_LARGE',
+      i18nKey: 'errors.provider.requestTooLarge',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 
   it.each([401, 403])(
     'preserves explicit provider authentication status %s',
@@ -3224,4 +3283,381 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     ])
     expect(found.sources[0]?.excerpt).toBe('青绿配色')
   })
+})
+
+describe('assistant image size contracts', () => {
+  function reply(adapterType: AI_ADAPTER_TYPES, stream: boolean): Response {
+    if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
+      const payload = {
+        candidates: [
+          { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
+        ],
+      }
+      return new Response(
+        stream
+          ? 'data: ' + JSON.stringify(payload) + '\n\n'
+          : JSON.stringify(payload),
+      )
+    }
+    if (adapterType === AI_ADAPTER_TYPES.ANTHROPIC) {
+      return new Response(
+        stream
+          ? [
+              {
+                type: 'content_block_delta',
+                delta: { type: 'text_delta', text: 'ok' },
+              },
+              { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+              { type: 'message_stop' },
+            ]
+              .map(
+                (event) =>
+                  'event: ' +
+                  event.type +
+                  '\ndata: ' +
+                  JSON.stringify(event) +
+                  '\n\n',
+              )
+              .join('')
+          : JSON.stringify({
+              content: [{ type: 'text', text: 'ok' }],
+              stop_reason: 'end_turn',
+            }),
+      )
+    }
+    return new Response(
+      stream
+        ? 'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+        : JSON.stringify({
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+          }),
+    )
+  }
+
+  async function complete(
+    adapterType: AI_ADAPTER_TYPES,
+    imageData: string | string[],
+    stream = false,
+    userPrompt = 'Describe the images.',
+  ) {
+    const input: LlmTextInput = {
+      systemPrompt: 'sys',
+      userPrompt,
+      imageData,
+      adapterType,
+      providerConfig: { label: adapterType, baseUrl: '' },
+      apiKey: 'test-key',
+    }
+    if (!stream) return llmTextCompletion(input)
+    let text = ''
+    for await (const chunk of llmTextStream(input)) text += chunk
+    return text
+  }
+
+  const requestTooLarge = {
+    errorCode: 'PROVIDER_REQUEST_TOO_LARGE',
+    httpStatus: 413,
+    i18nKey: 'errors.provider.requestTooLarge',
+  }
+  const imageTooLarge = {
+    errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
+    i18nKey: 'errors.generation.reference_image_too_large',
+  }
+
+  it.each([false, true])(
+    'checks Claude at the encoded 10 MB boundary (stream=%s)',
+    async (stream) => {
+      const limit = ASSISTANT_IMAGE_LIMITS.anthropic.maxBase64ImageBytes
+      const fetchMock = vi.fn(() =>
+        Promise.resolve(reply(AI_ADAPTER_TYPES.ANTHROPIC, stream)),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const image = 'data:image/png;base64,' + 'A'.repeat(limit)
+
+      await expect(
+        complete(AI_ADAPTER_TYPES.ANTHROPIC, image, stream),
+      ).resolves.toBe('ok')
+      fetchMock.mockClear()
+      await expect(
+        complete(AI_ADAPTER_TYPES.ANTHROPIC, image + 'AAAA', stream),
+      ).rejects.toMatchObject(imageTooLarge)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    { adapterType: AI_ADAPTER_TYPES.XAI, stream: false },
+    { adapterType: AI_ADAPTER_TYPES.XAI, stream: true },
+    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, stream: false },
+    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, stream: true },
+  ] as const)(
+    'checks decoded bytes at the $adapterType single-image boundary (stream=$stream)',
+    async ({ adapterType, stream }) => {
+      const limit = ASSISTANT_IMAGE_LIMITS[adapterType].maxImageBytes
+      const fetchMock = vi.fn(() => Promise.resolve(reply(adapterType, stream)))
+      vi.stubGlobal('fetch', fetchMock)
+      const image =
+        'data:image/png;base64,' + Buffer.alloc(limit).toString('base64')
+
+      await expect(complete(adapterType, image, stream)).resolves.toBe('ok')
+      fetchMock.mockClear()
+      const oversized =
+        'data:image/png;base64,' + Buffer.alloc(limit + 1).toString('base64')
+      await expect(
+        complete(adapterType, oversized, stream),
+      ).rejects.toMatchObject(imageTooLarge)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([false, true])(
+    'enforces the Gemini inline budget without a URL-only bypass (stream=%s)',
+    async (stream) => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      const image =
+        'data:image/png;base64,' +
+        'A'.repeat(ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes + 4)
+
+      await expect(
+        complete(AI_ADAPTER_TYPES.GEMINI, image, stream),
+      ).rejects.toMatchObject(requestTooLarge)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    { adapterType: AI_ADAPTER_TYPES.GEMINI, base64Bytes: 36_000_000, count: 3 },
+    {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      base64Bytes: 9_000_000,
+      count: 4,
+    },
+    {
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      base64Bytes: 20_000_000,
+      count: 3,
+    },
+  ])(
+    'counts all inline images toward the $adapterType request budget',
+    async ({ adapterType, base64Bytes, count }) => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      const image = 'data:image/png;base64,' + 'A'.repeat(base64Bytes)
+
+      await expect(
+        complete(adapterType, Array<string>(count).fill(image)),
+      ).rejects.toMatchObject(requestTooLarge)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it('includes UTF-8 text and JSON overhead in the Gemini request limit', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const limit = ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes
+    const image = 'data:image/png;base64,' + 'A'.repeat((limit - 1024) / 2)
+
+    await expect(
+      complete(
+        AI_ADAPTER_TYPES.GEMINI,
+        [image, image],
+        false,
+        '猫'.repeat(350),
+      ),
+    ).rejects.toMatchObject(requestTooLarge)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('includes Claude system instructions in the whole request budget', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      llmTextCompletion({
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: { label: 'Claude', baseUrl: '' },
+        apiKey: 'test-key',
+        systemPrompt: 'A'.repeat(
+          ASSISTANT_IMAGE_LIMITS.anthropic.maxRequestBytes,
+        ),
+        userPrompt: 'Describe the image.',
+        imageData: 'data:image/png;base64,aGVsbG8=',
+      }),
+    ).rejects.toMatchObject(requestTooLarge)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('bounds the next Gemini download by the remaining encoded budget', async () => {
+    const limit = ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('abc', {
+          headers: { 'content-type': 'image/png', 'content-length': '3' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('unread', {
+          headers: {
+            'content-type': 'image/png',
+            'content-length': String((limit / 4) * 3),
+          },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      complete(AI_ADAPTER_TYPES.GEMINI, [
+        'https://cdn.example.com/first.png',
+        'https://cdn.example.com/second.png',
+        'https://cdn.example.com/third.png',
+      ]),
+    ).rejects.toMatchObject(requestTooLarge)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('cleans up uploaded Gemini video when the combined image request is too large', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(Buffer.alloc(20 * 1024 * 1024), {
+          headers: { 'content-type': 'video/mp4' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(null, {
+          headers: { 'x-goog-upload-url': 'https://upload.example.com/video' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            file: {
+              name: 'files/reference-video',
+              uri: 'https://generativelanguage.googleapis.com/v1beta/files/reference-video',
+              mimeType: 'video/mp4',
+              state: 'ACTIVE',
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      llmTextCompletion({
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: { label: 'Gemini', baseUrl: '' },
+        apiKey: 'test-key',
+        systemPrompt: 'A'.repeat(ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes),
+        userPrompt: 'Describe these references.',
+        imageData: 'data:image/png;base64,aGVsbG8=',
+        videoData: 'https://cdn.example.com/reference.mp4',
+      }),
+    ).rejects.toMatchObject(requestTooLarge)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/reference-video`,
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
+  it.each([
+    AI_ADAPTER_TYPES.ANTHROPIC,
+    AI_ADAPTER_TYPES.XAI,
+    AI_ADAPTER_TYPES.DEEPSEEK,
+  ])(
+    'leaves remote image sizing to %s without downloading or imposing a local cap',
+    async (adapterType) => {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockImplementation(async () => reply(adapterType, false))
+      vi.stubGlobal('fetch', fetchMock)
+      const imageUrl = 'https://cdn.example.com/original.png'
+
+      await expect(complete(adapterType, imageUrl)).resolves.toBe('ok')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls[0]?.[0]).not.toBe(imageUrl)
+    },
+  )
+
+  it.each(LLM_TEXT_ADAPTERS)(
+    'reports %s upstream payload errors separately from single-image errors',
+    async (adapterType) => {
+      for (const stream of [false, true]) {
+        for (const status of [400, 413]) {
+          const fetchMock = vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                error: { message: 'Request body exceeds the maximum size.' },
+              }),
+              { status },
+            ),
+          )
+          vi.stubGlobal('fetch', fetchMock)
+          await expect(
+            complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
+          ).rejects.toMatchObject(requestTooLarge)
+        }
+
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                error: {
+                  type: 'invalid_request_error',
+                  message: 'Image exceeds the maximum size.',
+                },
+              }),
+              { status: 400 },
+            ),
+          ),
+        )
+        await expect(
+          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
+        ).rejects.toMatchObject(imageTooLarge)
+
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                error: {
+                  type: 'invalid_request_error',
+                  message: 'Request exceeds the maximum context length.',
+                },
+              }),
+              { status: 400 },
+            ),
+          ),
+        )
+        await expect(
+          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
+        ).rejects.toMatchObject({
+          errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+          i18nKey: 'errors.provider.contextLimitExceeded',
+        })
+
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                error: { message: 'Request exceeds the rate limit.' },
+              }),
+              { status: 429 },
+            ),
+          ),
+        )
+        await expect(
+          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
+        ).rejects.toMatchObject({
+          errorCode: 'PROVIDER_RATE_LIMITED',
+          i18nKey: 'errors.provider.rateLimited',
+        })
+      }
+    },
+  )
 })

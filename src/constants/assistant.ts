@@ -92,6 +92,39 @@ export const ASSISTANT_MEDIA_LIMITS = {
   geminiFilePollTimeoutMs: 60_000,
 } as const
 
+export const ASSISTANT_IMAGE_LIMITS = {
+  [AI_ADAPTER_TYPES.GEMINI]: {
+    maxImageBytes: null,
+    maxBase64ImageBytes: null,
+    maxTotalImageBytes: null,
+    maxRequestBytes: 100_000_000,
+  },
+  [AI_ADAPTER_TYPES.OPENAI]: {
+    maxImageBytes: null,
+    maxBase64ImageBytes: null,
+    maxTotalImageBytes: null,
+    maxRequestBytes: 512_000_000,
+  },
+  [AI_ADAPTER_TYPES.ANTHROPIC]: {
+    maxImageBytes: null,
+    maxBase64ImageBytes: 10_000_000,
+    maxTotalImageBytes: null,
+    maxRequestBytes: 32_000_000,
+  },
+  [AI_ADAPTER_TYPES.XAI]: {
+    maxImageBytes: 20 * 1024 * 1024,
+    maxBase64ImageBytes: null,
+    maxTotalImageBytes: null,
+    maxRequestBytes: null,
+  },
+  [AI_ADAPTER_TYPES.DEEPSEEK]: {
+    maxImageBytes: 32 * 1024 * 1024,
+    maxBase64ImageBytes: null,
+    maxTotalImageBytes: 64 * 1024 * 1024,
+    maxRequestBytes: 48 * 1024 * 1024,
+  },
+} as const
+
 /**
  * 「能看视频」有两档，不是一个布尔（AI 导演内核 · 切片 2 · §4.3）。
  *

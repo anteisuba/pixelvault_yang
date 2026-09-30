@@ -7192,6 +7192,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream 无法读取这张参考图。请使用 JPEG、PNG 或 WebP 等通用格式，并确认图片链接可被服务端直接访问。",
       "unsupportedReferenceImage": "该模型无法读取当前参考图格式。请改用 JPEG、PNG 或 WebP 后再生成。",
       "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
+      "requestTooLarge": "文字和附件的合计大小超过该模型的请求上限。请减少附件、使用更小的文件，或缩短文字。",
       "executionWorkerUnavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",

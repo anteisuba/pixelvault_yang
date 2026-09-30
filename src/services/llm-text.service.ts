@@ -9,13 +9,15 @@ import {
   LLM_TEXT_MODEL_IDS,
   LLM_TEXT_TIMEOUTS_MS,
 } from '@/constants/config'
-import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import {
+  ASSISTANT_IMAGE_LIMITS,
+  ASSISTANT_MEDIA_LIMITS,
+} from '@/constants/assistant'
 import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
-import { WEB_IMAGE_IMPORT_MAX_BYTES } from '@/constants/web-image-import'
 import {
   VIDEO_ANALYSIS,
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
@@ -236,8 +238,6 @@ const LLM_TEXT_PROVIDER_NAMES = new Intl.ListFormat('en', {
   type: 'disjunction',
 }).format(LLM_TEXT_ADAPTERS.map((adapterType) => LLM_TEXT_LABELS[adapterType]))
 
-const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
-
 const LLM_TEXT_PROVIDER_HTTP_STATUS = {
   invalidRequest: 400,
   unauthorized: 401,
@@ -247,6 +247,7 @@ const LLM_TEXT_PROVIDER_HTTP_STATUS = {
   temporarilyUnavailable: 503,
   upstreamFailure: 502,
   gatewayTimeout: 504,
+  requestTooLarge: 413,
 } as const
 
 const LLM_TEXT_PROVIDER_ERROR_CODES = {
@@ -259,6 +260,7 @@ const LLM_TEXT_PROVIDER_ERROR_CODES = {
   outputBudgetExhausted: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED',
   /** The provider rejected the request because its input context was too long. */
   contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+  requestTooLarge: 'PROVIDER_REQUEST_TOO_LARGE',
   /** We gave up waiting on the provider before the platform killed the function. */
   timeout: 'PROVIDER_TIMEOUT',
   /**
@@ -277,6 +279,7 @@ const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   failed: 'errors.provider.failed',
   outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
   contextLimitExceeded: 'errors.provider.contextLimitExceeded',
+  requestTooLarge: 'errors.provider.requestTooLarge',
   timeout: 'errors.provider.timeout',
   refused: 'errors.provider.refused',
 } as const
@@ -296,6 +299,8 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
     'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.',
   contextLimitExceeded:
     'The selected model rejected the input because its context window was exceeded. ANTEI already compacted older history and retried once; start a new conversation or remove large references.',
+  requestTooLarge:
+    "The request exceeds this provider's size limit. Reduce the number or size of attachments, or shorten the text.",
   timeout:
     'The selected provider did not answer in time. Retry, shorten the conversation, or choose another Agent Key.',
   refused:
@@ -639,6 +644,16 @@ function toLlmTextProviderError(
   }
 
   if (
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.requestTooLarge ||
+    (!containsContextLimitMessage(errorBody) &&
+      /\b(?:request(?:[_ ](?:body|payload|size))?|payload|body)(?:[_ ](?:is|was))?[_ ](?:too[_ ]large|exceed(?:s|ed)?\b[^"\n]{0,60}\b(?:size|bytes?|[kmgt]i?b)\b|size.{0,20}(?:limit|maximum))/i.test(
+        errorBody,
+      ))
+  ) {
+    return llmRequestTooLargeError()
+  }
+
+  if (
     parsedCode === GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT ||
     parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE ||
     parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE ||
@@ -914,26 +929,111 @@ export async function resolveLlmTextRoute(
 
 // ─── Provider Implementations ────────────────────────────────────
 
-/**
- * Resolve an image input (data URL or http(s) URL) to the Gemini-required
- * `inlineData` shape. Http(s) URLs are fetched server-side — `fetchAsBuffer`
- * applies the SSRF guard, so we don't need a separate check here.
- */
-async function toGeminiInlinePart(
-  image: string,
-): Promise<{ inlineData: { mimeType: string; data: string } }> {
-  const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/)
-  if (dataUrlMatch) {
-    return {
-      inlineData: { mimeType: dataUrlMatch[1], data: dataUrlMatch[2] },
+function llmRequestTooLargeError(): ApiRequestError {
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.requestTooLarge,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.requestTooLarge,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.requestTooLarge,
+    LLM_TEXT_PROVIDER_ERROR_MESSAGES.requestTooLarge,
+  )
+}
+
+function parseInlineImage(image: string) {
+  const comma = image.indexOf(',')
+  const header = image.slice(0, comma).match(/^data:([^;]+);base64$/i)
+  return header ? { mimeType: header[1], data: image.slice(comma + 1) } : null
+}
+
+function getLlmImages(input: LlmTextInput): string[] {
+  const images = input.imageData
+    ? Array.isArray(input.imageData)
+      ? input.imageData
+      : [input.imageData]
+    : []
+  if (!isLlmTextAdapter(input.adapterType)) return images
+  const limits = ASSISTANT_IMAGE_LIMITS[input.adapterType]
+  let totalImageBytes = 0
+  let totalBase64Bytes = 0
+
+  for (const image of images) {
+    const inline = parseInlineImage(image)
+    if (!inline) continue
+    const imageBytes = Buffer.byteLength(inline.data, 'base64')
+    const base64Bytes = Buffer.byteLength(inline.data, 'utf8')
+    if (
+      (limits.maxImageBytes !== null && imageBytes > limits.maxImageBytes) ||
+      (limits.maxBase64ImageBytes !== null &&
+        base64Bytes > limits.maxBase64ImageBytes)
+    ) {
+      const code = GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE
+      throw new ApiRequestError(code, 400, `errors.generation.${code}`, code)
+    }
+    totalImageBytes += imageBytes
+    totalBase64Bytes += base64Bytes
+  }
+  if (
+    (limits.maxTotalImageBytes !== null &&
+      totalImageBytes > limits.maxTotalImageBytes) ||
+    (limits.maxRequestBytes !== null &&
+      totalBase64Bytes > limits.maxRequestBytes)
+  ) {
+    throw llmRequestTooLargeError()
+  }
+  return images
+}
+
+function serializeLlmRequest(
+  input: LlmTextInput,
+  payload: Record<string, unknown>,
+): string {
+  const body = JSON.stringify(payload)
+  if (input.imageData?.length && isLlmTextAdapter(input.adapterType)) {
+    const { maxRequestBytes } = ASSISTANT_IMAGE_LIMITS[input.adapterType]
+    if (
+      maxRequestBytes !== null &&
+      Buffer.byteLength(body, 'utf8') > maxRequestBytes
+    ) {
+      throw llmRequestTooLargeError()
     }
   }
-  const { buffer, mimeType } = await fetchAsBuffer(image, {
-    maxBytes: LLM_TEXT_IMAGE_MAX_BYTES,
-  })
-  return {
-    inlineData: { mimeType, data: buffer.toString('base64') },
+  return body
+}
+
+async function prepareInlineImages(
+  images: string[],
+  adapterType: AI_ADAPTER_TYPES.GEMINI | AI_ADAPTER_TYPES.OPENAI,
+): Promise<Array<{ mimeType: string; data: string }>> {
+  let remainingBytes: number =
+    ASSISTANT_IMAGE_LIMITS[adapterType].maxRequestBytes
+  const parts: Array<{ mimeType: string; data: string }> = []
+  for (const image of images) {
+    let part = parseInlineImage(image)
+    if (!part) {
+      try {
+        const { buffer, mimeType } = await fetchAsBuffer(image, {
+          maxBytes: Math.floor(remainingBytes / 4) * 3,
+        })
+        part = { mimeType, data: buffer.toString('base64') }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const parsedCode = parseGenerationErrorCode(message)
+        logger.warn('LLM reference image preparation failed', {
+          adapterType,
+          errorCode: parsedCode,
+          errorName: error instanceof Error ? error.name : typeof error,
+        })
+        if (parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE) {
+          throw llmRequestTooLargeError()
+        }
+        const code = GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE
+        throw new ApiRequestError(code, 400, `errors.generation.${code}`, code)
+      }
+    }
+    remainingBytes -= Buffer.byteLength(part.data, 'utf8')
+    if (remainingBytes < 0) throw llmRequestTooLargeError()
+    parts.push(part)
   }
+  return parts
 }
 
 interface GeminiVideoPartResult {
@@ -1163,11 +1263,11 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
   const parts: Array<Record<string, unknown>> = []
 
   if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
-    const imageParts = await Promise.all(images.map(toGeminiInlinePart))
-    parts.push(...imageParts)
+    const imageParts = await prepareInlineImages(
+      getLlmImages(input),
+      AI_ADAPTER_TYPES.GEMINI,
+    )
+    parts.push(...imageParts.map((inlineData) => ({ inlineData })))
   }
 
   const uploadedVideoNames: string[] = []
@@ -1211,25 +1311,34 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
 
   const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
 
-  return {
-    modelId,
-    baseUrl,
-    uploadedVideoNames,
-    hasLinkedVideo,
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: input.systemPrompt }],
-      },
-      contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ['TEXT'],
-        ...(maxOutputTokens ? { maxOutputTokens } : {}),
-        ...(input.responseFormat === 'json_object'
-          ? { responseMimeType: 'application/json' }
-          : {}),
-      },
-      ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
-    }),
+  try {
+    return {
+      modelId,
+      baseUrl,
+      uploadedVideoNames,
+      hasLinkedVideo,
+      body: serializeLlmRequest(input, {
+        systemInstruction: {
+          parts: [{ text: input.systemPrompt }],
+        },
+        contents: [{ parts }],
+        generationConfig: {
+          responseModalities: ['TEXT'],
+          ...(maxOutputTokens ? { maxOutputTokens } : {}),
+          ...(input.responseFormat === 'json_object'
+            ? { responseMimeType: 'application/json' }
+            : {}),
+        },
+        ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
+      }),
+    }
+  } catch (error) {
+    await Promise.allSettled(
+      uploadedVideoNames.map((name) =>
+        deleteGeminiUploadedFile(name, input.apiKey),
+      ),
+    )
+    throw error
   }
 }
 
@@ -1334,35 +1443,6 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
   return textPart.text.trim()
 }
 
-async function toOpenAiInlineImageUrl(image: string): Promise<string> {
-  try {
-    const { buffer, mimeType } = await fetchAsBuffer(image, {
-      maxBytes: WEB_IMAGE_IMPORT_MAX_BYTES,
-    })
-    return image.startsWith('data:')
-      ? image
-      : `data:${mimeType};base64,${buffer.toString('base64')}`
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    const parsedCode = parseGenerationErrorCode(message)
-    const errorCode =
-      parsedCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE
-        ? parsedCode
-        : GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE
-    logger.warn('LLM reference image preparation failed', {
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      errorCode,
-      errorName: error instanceof Error ? error.name : typeof error,
-    })
-    throw new ApiRequestError(
-      errorCode,
-      LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
-      `errors.generation.${errorCode}`,
-      errorCode,
-    )
-  }
-}
-
 /**
  * OpenAI `/chat/completions` 的请求，缓冲与流式共用一份 —— 同 Gemini 那条的理由：
  * 两条各建各的 body 迟早漂移，而漂移的表现是「流式的回答和缓冲的不一样」。
@@ -1385,13 +1465,13 @@ async function buildOpenAiChatRequest(
   ]
 
   if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
-    const inlineImages = await Promise.all(images.map(toOpenAiInlineImageUrl))
+    const inlineImages = await prepareInlineImages(
+      getLlmImages(input),
+      AI_ADAPTER_TYPES.OPENAI,
+    )
     const content: Array<Record<string, unknown>> = inlineImages.map((img) => ({
       type: 'image_url',
-      image_url: { url: img },
+      image_url: { url: `data:${img.mimeType};base64,${img.data}` },
     }))
     content.push({ type: 'text', text: input.userPrompt })
     messages.push({ role: 'user', content })
@@ -1402,7 +1482,7 @@ async function buildOpenAiChatRequest(
   return {
     endpoint: `${baseUrl}/chat/completions`,
     requestModelId,
-    body: JSON.stringify({
+    body: serializeLlmRequest(input, {
       model: requestModelId,
       messages,
       ...(options.stream ? { stream: true } : {}),
@@ -1493,9 +1573,7 @@ function buildDeepseekChatRequest(
     { role: 'system', content: input.systemPrompt },
   ]
   if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
+    const images = getLlmImages(input)
     const content: Array<Record<string, unknown>> = images.map((image) => ({
       type: 'image_url',
       image_url: { url: image },
@@ -1509,7 +1587,7 @@ function buildDeepseekChatRequest(
   return {
     endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
     modelId,
-    body: JSON.stringify({
+    body: serializeLlmRequest(input, {
       model: modelId,
       messages,
       ...(options.stream ? { stream: true } : {}),
@@ -1602,9 +1680,7 @@ function buildXaiChatRequest(
   ]
 
   if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
+    const images = getLlmImages(input)
     const content: Array<Record<string, unknown>> = images.map((img) => ({
       type: 'image_url',
       image_url: { url: img },
@@ -1618,7 +1694,7 @@ function buildXaiChatRequest(
   return {
     endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
     modelId,
-    body: JSON.stringify({
+    body: serializeLlmRequest(input, {
       model: modelId,
       messages,
       ...(options.stream ? { stream: true } : {}),
@@ -1799,7 +1875,7 @@ function buildAnthropicMessagesRequest(
   return {
     endpoint: `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
     modelId,
-    body: JSON.stringify({
+    body: serializeLlmRequest(input, {
       model: modelId,
       ...(options.stream ? { stream: true } : {}),
       max_tokens: resolveAnthropicMaxTokens(input),
@@ -1840,15 +1916,13 @@ function toAnthropicUserContent(
   input: LlmTextInput,
 ): string | Array<Record<string, unknown>> {
   if (!input.imageData) return input.userPrompt
-  const images = Array.isArray(input.imageData)
-    ? input.imageData
-    : [input.imageData]
+  const images = getLlmImages(input)
   const content: Array<Record<string, unknown>> = images.map((image) => {
-    const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/)
+    const inline = parseInlineImage(image)
     return {
       type: 'image',
-      source: dataUrlMatch
-        ? { type: 'base64', media_type: dataUrlMatch[1], data: dataUrlMatch[2] }
+      source: inline
+        ? { type: 'base64', media_type: inline.mimeType, data: inline.data }
         : { type: 'url', url: image },
     }
   })

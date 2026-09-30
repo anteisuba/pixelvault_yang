@@ -263,7 +263,7 @@ export function LoraAssetCard({
             // 7 天内训练完成的 trained 资产 —— 放底部左角，让位给顶部的
             // 类型徽标 + 操作菜单。
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground shadow-sm backdrop-blur-sm">
-              <Sparkles className="size-2.5 fill-current" aria-hidden />
+              <Sparkles weight="fill" className="size-2.5" aria-hidden />
               {t('recentlyTrainedBadge')}
             </span>
           ) : undefined

@@ -162,3 +162,69 @@ describe('MentionInput · 这一枪不发的胶囊', () => {
     expect(voice).not.toHaveClass('opacity-45')
   })
 })
+
+/**
+ * Chrome 全选删除后只剩一个占位 `<br>`：那是空，不是一行（09-27 视频台实拍：
+ * 写回 "\n"、占位提示再也不回来）。
+ */
+describe('MentionInput · 只剩一个换行 = 空', () => {
+  it.each([
+    ['占位 <br>', '<br>'],
+    ['块包装里的 <br>', '<div><br></div>'],
+    ['换行字符', '\n'],
+  ])('%s：写回空串，元素回到 :empty', (_, leftover) => {
+    const onValueChange = vi.fn()
+    render(
+      <MentionInput
+        value="hello world"
+        onValueChange={onValueChange}
+        tokens={[]}
+        placeholder="描述动作"
+        aria-label="editor"
+      />,
+    )
+    const editor = screen.getByRole('textbox')
+    editor.innerHTML = leftover
+    fireEvent.input(editor)
+    expect(onValueChange).toHaveBeenLastCalledWith('')
+    expect(editor).toBeEmptyDOMElement()
+    expect(editor.matches(':empty')).toBe(true)
+  })
+
+  it('文字后面的换行与多行照留', () => {
+    const onValueChange = vi.fn()
+    render(
+      <MentionInput
+        value=""
+        onValueChange={onValueChange}
+        tokens={[]}
+        aria-label="editor"
+      />,
+    )
+    const editor = screen.getByRole('textbox')
+    for (const [html, value] of [
+      // Chrome 在 pre-wrap 行尾按 Shift+Enter 写的就是两个换行。
+      ['abc\n\n', 'abc\n\n'],
+      ['abc<br>', 'abc\n'],
+      ['第一行\n第二行', '第一行\n第二行'],
+    ]) {
+      editor.innerHTML = html
+      fireEvent.input(editor)
+      expect(onValueChange).toHaveBeenLastCalledWith(value)
+      expect(editor.innerHTML).toBe(html)
+    }
+  })
+
+  it('外面传进来的单个换行（清空修好前存下的）也画成空', () => {
+    render(
+      <MentionInput
+        value={'\n'}
+        onValueChange={vi.fn()}
+        tokens={[]}
+        placeholder="描述动作"
+        aria-label="editor"
+      />,
+    )
+    expect(screen.getByRole('textbox')).toBeEmptyDOMElement()
+  })
+})

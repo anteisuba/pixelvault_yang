@@ -435,7 +435,8 @@ export function LoraLibraryDetailPage({
               className={cn(ghost, favorited && 'border-transparent bg-muted')}
             >
               <Heart
-                className={cn('size-3.5', favorited && 'fill-current')}
+                weight={favorited ? 'fill' : 'bold'}
+                className="size-3.5"
                 aria-hidden
               />
               {favorited ? t('favorited') : t('favorite')}

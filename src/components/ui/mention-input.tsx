@@ -81,6 +81,13 @@ const MENTION_PREFIX = '@'
  */
 const IME_CONFIRM_ENTER_MS = 100
 
+/**
+ * 整个编辑器**只剩一个换行** = 空。Chrome 全选删除后会垫一个占位 `<br>`（序列化
+ * 出来就是 "\n"），它只给空行撑高度，不是内容：当真写回，父级以为还有字，元素也
+ * 不再 `:empty`，占位提示回不来。⚠ 只认这一整个换行 —— 文字后面的换行是真写的，照留。
+ */
+const LONE_LINE_BREAK = '\n'
+
 type MentionSegment =
   | { type: 'text'; text: string }
   | { type: 'token'; name: string }
@@ -305,6 +312,7 @@ function renderInto(
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
+  if (value === LONE_LINE_BREAK) return
   const prefixed = knownNames.filter((name) => !tokenByName.get(name)?.literal)
   const literals = knownNames.filter((name) => tokenByName.get(name)?.literal)
   for (const segment of parseMentions(value, prefixed, literals)) {
@@ -827,7 +835,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     const emit = (serializedValue?: string) => {
       const el = editorRef.current
       if (!el) return
-      const next = serializedValue ?? serializeEditor(el)
+      const serialized = serializedValue ?? serializeEditor(el)
+      const next = serialized === LONE_LINE_BREAK ? '' : serialized
+      // 空了就让元素真空：残留的占位 `<br>` 会挡住 `:empty` 的占位提示。
+      if (!next) el.replaceChildren()
       lastValueRef.current = next
       onValueChange(next)
     }

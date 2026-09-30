@@ -316,9 +316,18 @@
       "page": "page-6"
     },
     {
-      "file": "DesignEditDeskMap.dc.html",
+      "file": "DesignRunnerSd15Map.dc.html",
       "x": 0,
       "y": 38635,
+      "w": 1400,
+      "h": 1427,
+      "title": "Runner 底模 · SD 1.5 · ②③ 思维导图（暂缓）",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignEditDeskMap.dc.html",
+      "x": 0,
+      "y": 40162,
       "w": 1400,
       "h": 1441,
       "title": "剪辑台 × Claude · ② 流程图",
@@ -327,7 +336,7 @@
     {
       "file": "DesignEditDeskA.dc.html",
       "x": 0,
-      "y": 40176,
+      "y": 41703,
       "w": 1400,
       "h": 2561,
       "title": "剪辑台 · ④ 方向 A",
@@ -336,7 +345,7 @@
     {
       "file": "DesignEditDeskASlice.dc.html",
       "x": 0,
-      "y": 42837,
+      "y": 44364,
       "w": 1400,
       "h": 2364,
       "title": "剪辑台 · ④ A 关键切片",
@@ -345,7 +354,7 @@
     {
       "file": "DesignEditDeskB.dc.html",
       "x": 0,
-      "y": 45301,
+      "y": 46828,
       "w": 1400,
       "h": 2525,
       "title": "剪辑台 · ④ 方向 B",
@@ -354,7 +363,7 @@
     {
       "file": "DesignEditDeskC.dc.html",
       "x": 0,
-      "y": 47926,
+      "y": 49453,
       "w": 1400,
       "h": 2525,
       "title": "剪辑台 · ④ 方向 C",
@@ -363,7 +372,7 @@
     {
       "file": "DesignMcpTokens.dc.html",
       "x": 0,
-      "y": 50551,
+      "y": 52078,
       "w": 1400,
       "h": 2450,
       "title": "剪辑台 · ④ 令牌页",

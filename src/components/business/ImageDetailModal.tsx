@@ -458,7 +458,7 @@ export function ImageDetailModal({
             setIsPinning(false)
           }}
         >
-          <Pin className={cn('size-3.5', isPinned && 'fill-current')} />
+          <Pin weight={isPinned ? 'fill' : 'bold'} className="size-3.5" />
           {isPinned ? tCard('unpinAction') : tCard('pinAction')}
         </Button>
       )}

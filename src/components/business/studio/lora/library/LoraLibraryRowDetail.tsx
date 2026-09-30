@@ -247,10 +247,8 @@ function InlineActions({ model }: { model: DetailActionModel }) {
           className={PRESS_ANIMATION}
         >
           <Heart
-            className={cn(
-              'size-4',
-              model.isFavorited && 'fill-primary text-primary',
-            )}
+            weight={model.isFavorited ? 'fill' : 'bold'}
+            className={cn('size-4', model.isFavorited && 'text-primary')}
             aria-hidden
           />
           {model.favoriteLabel}
@@ -302,10 +300,8 @@ function DrawerActionBar({ model }: { model: DetailActionModel }) {
           className={cn('size-11 shrink-0', PRESS_ANIMATION)}
         >
           <Heart
-            className={cn(
-              'size-4',
-              model.isFavorited && 'fill-primary text-primary',
-            )}
+            weight={model.isFavorited ? 'fill' : 'bold'}
+            className={cn('size-4', model.isFavorited && 'text-primary')}
             aria-hidden
           />
         </Button>

@@ -241,4 +241,19 @@ describe('ImageDetailModal', () => {
     })
     expect(screen.queryByText('Edit in Studio')).not.toBeInTheDocument()
   })
+
+  it('draws a different pin once pinned, not just a different colour', () => {
+    const pin = (isFeatured: boolean) => {
+      const { unmount } = renderModal({
+        generation: { ...BASE_GEN, isFeatured },
+        showVisibility: true,
+      })
+      const svg = screen
+        .getByRole('button', { name: isFeatured ? 'Unpin' : 'Pin' })
+        .querySelector('svg')!.innerHTML
+      unmount()
+      return svg
+    }
+    expect(pin(true)).not.toBe(pin(false))
+  })
 })

@@ -77,6 +77,33 @@ describe('parseScriptShots · 确定性拆镜（进度表 24）', () => {
     expect(result.shots[0]?.roles).toEqual(['小黑', '路人'])
   })
 
+  // 标题会成为新镜头的稳定名、角色名会落进 `referenceSlots[].role` —— 两者都进
+  // jsonb 项目 state，半个 emoji 会让整份 state 被拒收。
+  it('卡面标题截断点落在 emoji 中间时退掉半个字；没劈开就照旧截满', () => {
+    expect(
+      parseScriptShots(`S01 ${'雨'.repeat(79)}😀后面`).shots[0]?.title,
+    ).toBe(`${'雨'.repeat(79)}…`)
+    expect(
+      parseScriptShots(`S01 ${'雨'.repeat(78)}😀后面`).shots[0]?.title,
+    ).toBe(`${'雨'.repeat(78)}😀…`)
+  })
+
+  it('@角色名截到 40 个码元，截断点落在 emoji 中间时退掉半个字', () => {
+    const result = parseScriptShots(
+      [
+        'S01 对视',
+        `@${'林'.repeat(45)} 抬头`,
+        `@${'林'.repeat(39)}😀后面`,
+        `@${'林'.repeat(38)}😀后面`,
+      ].join('\n'),
+    )
+    expect(result.shots[0]?.roles).toEqual([
+      '林'.repeat(40),
+      '林'.repeat(39),
+      `${'林'.repeat(38)}😀`,
+    ])
+  })
+
   it('空正文拆不出镜', () => {
     expect(parseScriptShots('   \n\n  ').shots).toEqual([])
   })

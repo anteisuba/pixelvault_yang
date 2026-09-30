@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v5 概念小样</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet" />
+<style>
+  @property --r { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: #0b0b0c; color: #efe9df; font: 15px/1.6 Inter, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+  .cjk { font-family: 'Noto Serif SC', serif; font-weight: 900; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  .nav { white-space: nowrap; position: fixed; z-index: 50; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(20,20,22,.6); backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); font-size: 13px; }
+  .nav a { color: #efe9df; text-decoration: none; padding: 6px 14px; border-radius: 999px; opacity: .65; }
+  .nav a:hover { opacity: 1; background: rgba(255,255,255,.08); }
+  .tag { position: absolute; z-index: 20; left: 20px; bottom: 18px; font: 500 11px 'JetBrains Mono'; letter-spacing: .08em; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.5); color: #efe9df; }
+  .replay { position: absolute; z-index: 20; right: 20px; bottom: 16px; font: 500 12px Inter; padding: 7px 14px; border-radius: 999px; border: 0; cursor: pointer; background: rgba(0,0,0,.55); color: #efe9df; }
+  .gap { height: 22vh; display: grid; place-items: center; font: 500 11px 'JetBrains Mono'; letter-spacing: .2em; opacity: .35; }
+  section { position: relative; overflow: hidden; }
+
+  /* ─── 1 分镜显影：纸面 ─── */
+  #s1 { background: #f2eee6; color: #1b1814; min-height: 100vh; padding: 110px 6vw 90px; }
+  #s1 .k { font: 500 12px 'JetBrains Mono'; letter-spacing: .16em; color: #8b8377; }
+  #s1 h2 { font-size: clamp(40px, 4.6vw, 68px); line-height: 1.16; margin: 10px 0 44px; }
+  #s1 .sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.4vw; }
+  .pn .fr { position: relative; aspect-ratio: 16 / 9; background: #fbf9f4; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px #d9d2c5, 0 26px 50px -34px rgba(60,40,20,.5); }
+  .pn .fr > * { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .pn .sk { filter: url(#pencil); mix-blend-mode: multiply; opacity: .9; transition: opacity 1.6s ease 0.9s; }
+  .pn .col { --r: 0%; -webkit-mask-image: radial-gradient(circle at 50% 58%, #000 calc(var(--r) - 34%), transparent var(--r)); mask-image: radial-gradient(circle at 50% 58%, #000 calc(var(--r) - 34%), transparent var(--r)); filter: sepia(.85) contrast(.55) brightness(1.3); transition: --r 1.7s cubic-bezier(.3,.7,.2,1), filter 2.4s ease .3s; }
+  .pn .vid { opacity: 0; transition: opacity .7s ease; }
+  .pn .no { inset: auto auto 10px 12px !important; width: auto !important; height: auto !important; font: 500 11px 'JetBrains Mono'; letter-spacing: .1em; color: #1b1814; background: rgba(251,249,244,.85); padding: 1px 8px; border-radius: 3px; z-index: 3; }
+  .pn.dev .col { --r: 160%; filter: none; }
+  #s1.rs *, #s3.rs * { transition: none !important; }
+  .pn.dev .sk { opacity: 0; }
+  .pn.live .vid { opacity: 1; }
+  .pn figcaption { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 4px 6px; font-size: 13.5px; line-height: 1.6; }
+  .pn figcaption span { color: #b8b0a3; transition: color .35s ease; }
+  .pn figcaption span.on { color: #1b1814; }
+  .pn figcaption i { font-style: normal; color: #cfc8bb; }
+  #s1 .tag { background: rgba(27,24,20,.8); }
+  #s1 .replay { background: #1b1814; }
+
+  /* ─── 2 景深夹层 ─── */
+  #s2 { height: 100vh; background: #0b0b0c; }
+  #s2 .ly { position: absolute; inset: 0; will-change: transform; }
+  #s2 .ly > * { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; }
+  #s2 .bg video { filter: blur(14px) brightness(.5) saturate(1.1); transform: scale(1.08); transition: filter 1.4s ease; }
+  #s2 .ti { display: grid; place-items: start center; padding-top: 11vh; }
+  #s2 .giant { font-size: min(27vw, 58vh); line-height: 1; letter-spacing: .34em; margin-right: -.34em; color: #efe9df; transform: translateY(4vh); opacity: 0; filter: blur(0); transition: opacity 1s ease, transform 1.2s cubic-bezier(.2,.8,.2,1), filter 1.2s ease; }
+  #s2 .fg img { opacity: 0; filter: blur(12px); transform: scale(1.05); transform-origin: 50% 100%; transition: opacity .9s ease, filter 1.3s ease, transform 1.6s cubic-bezier(.2,.8,.2,1); }
+  #s2.on .giant { opacity: 1; transform: none; }
+  #s2.on .fg img { opacity: 1; }
+  #s2.focus .fg img { filter: blur(0); transform: scale(1); }
+  #s2.focus .giant { filter: blur(2.5px); opacity: .88; }
+  #s2 .shade { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(11,11,12,.9) 0%, transparent 34%); pointer-events: none; }
+  #s2 .copy { position: absolute; z-index: 6; right: 6vw; bottom: 9vh; text-align: right; max-width: 34vw; opacity: 0; transform: translateY(16px); transition: opacity .9s ease 1.4s, transform .9s cubic-bezier(.2,.8,.2,1) 1.4s; }
+  #s2.focus .copy { opacity: 1; transform: none; }
+  #s2 .copy b { display: block; font-size: clamp(26px, 2.6vw, 38px); line-height: 1.25; }
+  #s2 .copy small { display: block; margin-top: 8px; font-size: 15px; opacity: .7; }
+  #s2 canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  /* ─── 3 提示词碎成画面 ─── */
+  #s3 { min-height: 100vh; padding: 80px 6vw 60px; background: #0b0b0c; }
+  #s3 .k { font: 500 12px 'JetBrains Mono'; letter-spacing: .16em; opacity: .5; }
+  #s3 h2 { font-size: clamp(34px, 3.6vw, 54px); line-height: 1.18; margin: 8px 0 26px; }
+  #s3 .stage { position: relative; width: min(1180px, 100%, calc((100vh - 290px) * 16 / 9)); aspect-ratio: 16 / 9; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #0b0b0c; }
+  #s3 .stage > * { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #s3 .final, #s3 video { opacity: 0; transition: opacity .8s ease; }
+  #s3.img .final { opacity: 1; }
+  #s3.vid video { opacity: 1; }
+  #s3 .pl { margin: 18px auto 0; width: min(1180px, 100%, calc((100vh - 290px) * 16 / 9)); font: 400 13px 'JetBrains Mono'; opacity: .55; }
+  @media (max-width: 768px) {
+    #s1 .sheet { grid-template-columns: 1fr; gap: 28px; }
+    #s2 .giant { font-size: 30vw; }
+    #s2 .ti { padding-top: 15vh; }
+    .nav { font-size: 12px; } .nav a { padding: 6px 9px; }
+    #s2 .fg img, #s2 .bg video { object-position: 42% 50%; }
+    #s2 .copy { left: 6vw; max-width: none; text-align: left; }
+    .tag { display: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="pencil" color-interpolation-filters="sRGB">
+    <feColorMatrix type="saturate" values="0" />
+    <feConvolveMatrix order="3" kernelMatrix="-1 -1 -1 -1 8 -1 -1 -1 -1" preserveAlpha="true" />
+    <feComponentTransfer>
+      <feFuncR type="linear" slope="-4.2" intercept="1" />
+      <feFuncG type="linear" slope="-4.2" intercept="1" />
+      <feFuncB type="linear" slope="-4.2" intercept="1" />
+    </feComponentTransfer>
+  </filter>
+</svg>
+
+<nav class="nav"><a href="#s1">1 分镜显影</a><a href="#s2">2 景深夹层</a><a href="#s3">3 提示词碎成画面</a></nav>
+
+<section id="s1">
+  <p class="k">第 01 章 · 分镜</p>
+  <h2 class="cjk">分镜一格格，<br />显影成电影。</h2>
+  <div class="sheet">
+    <figure class="pn" data-a="0.2" data-b="5.5"><div class="fr"><img class="sk" src="media/umbrella-kf1-entrance.webp" /><img class="col" src="media/umbrella-kf1-entrance.webp" /><video class="vid" src="media/umbrella-film-30s.mp4" muted playsinline preload="auto"></video><span class="no">镜 01</span></div>
+      <figcaption data-p="放学时 · 校舍门口 · 女孩没带伞 · 伸手接雨 · 赛璐璐 2D 动画"></figcaption></figure>
+    <figure class="pn" data-a="6.4" data-b="10.6"><div class="fr"><img class="sk" src="media/umbrella-kf2-shared.webp" /><img class="col" src="media/umbrella-kf2-shared.webp" /><video class="vid" src="media/umbrella-film-30s.mp4" muted playsinline preload="auto"></video><span class="no">镜 02</span></div>
+      <figcaption data-p="他撑开伞 · 往她那边偏 · 自己右肩淋湿 · 近景 · 雨声"></figcaption></figure>
+    <figure class="pn" data-a="11.4" data-b="18.4"><div class="fr"><img class="sk" src="media/umbrella-kf3-hydrangea.webp" /><img class="col" src="media/umbrella-kf3-hydrangea.webp" /><video class="vid" src="media/umbrella-film-30s.mp4" muted playsinline preload="auto"></video><span class="no">镜 03</span></div>
+      <figcaption data-p="绣球花小路 · 两人同撑一把伞 · 背影 · 远景 · 冷蓝色调"></figcaption></figure>
+  </div>
+  <span class="tag">小样 1 · 分镜显影 — 铅笔线稿 → 显影上色 → 动起来</span>
+  <button class="replay" data-for="s1">↺ 重播</button>
+</section>
+
+<div class="gap">↓ 小样 2</div>
+
+<section id="s2">
+  <div class="ly bg" data-speed="0.72"><video src="media/umbrella-film-30s.mp4" muted playsinline preload="auto"></video></div>
+  <div class="ly ti" data-speed="1"><div class="giant cjk">开拍</div></div>
+  <div class="ly fg" data-speed="1.22"><img src="kf1-cut.png" alt="" /></div>
+  <div class="ly rn" data-speed="1.4"><canvas></canvas></div>
+  <div class="shade"></div>
+  <div class="copy"><b class="cjk">这部短片，<br />从剧本到成片都在这里拍。</b><small>剧本、画面、声音、镜头——每一步接的都是不同的模型。</small></div>
+  <span class="tag">小样 2 · 景深夹层 — 背景视频 / 标题 / 抠出的人物 / 雨，四层不同速度；进场先对焦标题，再拉焦到人物</span>
+  <button class="replay" data-for="s2">↺ 重播</button>
+</section>
+
+<div class="gap">↓ 小样 3</div>
+
+<section id="s3">
+  <p class="k">第 02 章 · 画面</p>
+  <h2 class="cjk">你写下的每个字，<br />都会变成画面。</h2>
+  <div class="stage"><canvas></canvas><img class="final" src="media/umbrella-kf2-shared.webp" /><video src="media/umbrella-film-30s.mp4" muted playsinline preload="auto"></video></div>
+  <p class="pl">prompt · 梅雨季的放学路，他把伞往她那边偏，自己右肩淋湿。赛璐璐 2D 动画。</p>
+  <span class="tag">小样 3 · 提示词碎成画面 — 文字颗粒飞散，重组成它生成的图，再动起来</span>
+  <button class="replay" data-for="s3">↺ 重播</button>
+</section>
+<div class="gap">END</div>
+
+<script>
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+const wait = ms => new Promise(r => setTimeout(r, ms))
+
+/* 片段循环：逐帧检查，避免 timeupdate 迟到把下一镜漏出来 */
+function loopRange(v, a, b) {
+  v.currentTime = a
+  const tick = () => {
+    if (v.currentTime > b || v.currentTime < a - 0.5) v.currentTime = a
+    v.requestVideoFrameCallback ? v.requestVideoFrameCallback(tick) : requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+/* 同屏只播一支：离开视口的节就暂停 */
+function pauseAll(sec) { sec.querySelectorAll('video').forEach(v => v.pause()) }
+
+/* ── 1 分镜显影 ── */
+const s1 = document.getElementById('s1')
+s1.querySelectorAll('figcaption').forEach(f => {
+  f.innerHTML = f.dataset.p.split(' · ').map(w => `<span>${w}</span>`).join('<i>·</i>')
+})
+let s1Run = 0
+async function playS1() {
+  const run = ++s1Run
+  const pns = [...s1.querySelectorAll('.pn')]
+  s1.classList.add('rs')
+  pns.forEach(p => { p.classList.remove('dev', 'live'); p.querySelectorAll('figcaption span').forEach(s => s.classList.remove('on')); p.querySelector('video').pause() })
+  void s1.offsetWidth; s1.classList.remove('rs')
+  if (reduce) { pns.forEach(p => { p.classList.add('dev', 'live'); p.querySelectorAll('span').forEach(s => s.classList.add('on')) }); return }
+  await wait(350)
+  pns.forEach(async (p, i) => {
+    await wait(i * 700)
+    if (run !== s1Run) return
+    const words = [...p.querySelectorAll('figcaption span')]
+    for (const w of words) { w.classList.add('on'); await wait(170) }
+    if (run !== s1Run) return
+    p.classList.add('dev')
+    await wait(1900)
+    if (run !== s1Run) return
+    const v = p.querySelector('video')
+    loopRange(v, +p.dataset.a, +p.dataset.b)
+    v.play().catch(() => {})
+    p.classList.add('live')
+  })
+}
+
+/* ── 2 景深夹层 ── */
+const s2 = document.getElementById('s2')
+const s2v = s2.querySelector('video')
+let s2Run = 0
+async function playS2() {
+  const run = ++s2Run
+  s2.classList.remove('on', 'focus')
+  loopRange(s2v, 0.2, 5.5)
+  s2v.play().catch(() => {})
+  if (reduce) { s2.classList.add('on', 'focus'); return }
+  await wait(200); if (run !== s2Run) return
+  s2.classList.add('on')
+  await wait(1300); if (run !== s2Run) return
+  s2.classList.add('focus')
+}
+/* 雨：前景斜线，最快的一层 */
+;(function rain() {
+  const c = s2.querySelector('canvas'), x = c.getContext('2d')
+  let drops = []
+  const size = () => { c.width = c.clientWidth; c.height = c.clientHeight; drops = Array.from({ length: 170 }, () => ({ x: Math.random() * c.width, y: Math.random() * c.height, l: 12 + Math.random() * 26, s: 9 + Math.random() * 9, a: .08 + Math.random() * .22 })) }
+  size(); addEventListener('resize', size)
+  const draw = () => {
+    x.clearRect(0, 0, c.width, c.height)
+    for (const d of drops) {
+      x.strokeStyle = `rgba(220,230,240,${d.a})`; x.lineWidth = 1
+      x.beginPath(); x.moveTo(d.x, d.y); x.lineTo(d.x - d.l * .18, d.y + d.l); x.stroke()
+      if (!reduce) { d.y += d.s; d.x -= d.s * .18; if (d.y > c.height) { d.y = -d.l; d.x = Math.random() * c.width * 1.1 } }
+    }
+    requestAnimationFrame(draw)
+  }
+  draw()
+})()
+
+/* ── 3 提示词碎成画面 ── */
+const s3 = document.getElementById('s3')
+const stage = s3.querySelector('.stage'), cv = stage.querySelector('canvas'), cx = cv.getContext('2d', { willReadFrequently: true })
+const s3v = stage.querySelector('video')
+const TEXT = ['梅雨季的放学路，', '他把伞往她那边偏，', '自己右肩淋湿。']
+let parts = null, s3Run = 0
+async function buildParts() {
+  await document.fonts.load('900 60px "Noto Serif SC"')
+  const W = cv.width = stage.clientWidth, H = cv.height = stage.clientHeight
+  const img = stage.querySelector('.final')
+  await img.decode()
+  const off = document.createElement('canvas'); off.width = W; off.height = H
+  const o = off.getContext('2d')
+  const fs = Math.round(W / 15)
+  o.fillStyle = '#fff'; o.font = `900 ${fs}px "Noto Serif SC"`; o.textAlign = 'center'; o.textBaseline = 'middle'
+  TEXT.forEach((t, i) => o.fillText(t, W / 2, H / 2 + (i - 1) * fs * 1.3))
+  const td = o.getImageData(0, 0, W, H).data, tp = []
+  for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) if (td[(y * W + x) * 4 + 3] > 128) tp.push(x, y)
+  o.clearRect(0, 0, W, H)
+  const r = Math.max(W / img.naturalWidth, H / img.naturalHeight), iw = img.naturalWidth * r, ih = img.naturalHeight * r
+  o.drawImage(img, (W - iw) / 2, (H - ih) / 2, iw, ih)
+  const id = o.getImageData(0, 0, W, H).data, S = 5, P = []
+  for (let y = 0; y < H; y += S) for (let x = 0; x < W; x += S) {
+    const k = (y * W + x) * 4, t = (Math.random() * (tp.length / 2) | 0) * 2
+    P.push({ sx: tp[t] + (Math.random() - .5) * 2, sy: tp[t + 1] + (Math.random() - .5) * 2, tx: x, ty: y, r: id[k], g: id[k + 1], b: id[k + 2], d: (x / W) * 700 + Math.random() * 380, arc: (Math.random() - .5) * 140 })
+  }
+  parts = { W, H, P, S }
+}
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+function frame(t) {
+  const { W, H, P, S } = parts
+  const im = cx.createImageData(W, H), buf = new Uint32Array(im.data.buffer)
+  const sz = t < 0 ? 3 : S - 1
+  for (const p of P) {
+    const k = t < 0 ? 0 : Math.min(1, Math.max(0, (t - p.d) / 1500)), e = ease(k)
+    const x = (p.sx + (p.tx - p.sx) * e) | 0, y = (p.sy + (p.ty - p.sy) * e + Math.sin(e * Math.PI) * p.arc) | 0
+    const q = e * e, r = 239 + (p.r - 239) * q | 0, g = 233 + (p.g - 233) * q | 0, b = 223 + (p.b - 223) * q | 0
+    const c = (255 << 24) | (b << 16) | (g << 8) | r, s = Math.max(1, Math.round(1 + (sz - 1) * e))
+    for (let dy = 0; dy < s; dy++) { const yy = y + dy; if (yy < 0 || yy >= H) continue; for (let dx = 0; dx < s; dx++) { const xx = x + dx; if (xx >= 0 && xx < W) buf[yy * W + xx] = c } }
+  }
+  cx.putImageData(im, 0, 0)
+}
+async function playS3() {
+  const run = ++s3Run
+  s3.classList.add('rs'); s3.classList.remove('img', 'vid'); s3v.pause(); void s3.offsetWidth; s3.classList.remove('rs')
+  if (!parts) await buildParts()
+  if (reduce) { s3.classList.add('img'); return }
+  frame(-1)
+  await wait(1100); if (run !== s3Run) return
+  const t0 = performance.now()
+  await new Promise(res => {
+    const step = now => { if (run !== s3Run) return res(); const t = now - t0; frame(t); t < 2700 ? requestAnimationFrame(step) : res() }
+    requestAnimationFrame(step)
+  })
+  if (run !== s3Run) return
+  s3.classList.add('img')
+  await wait(1200); if (run !== s3Run) return
+  loopRange(s3v, 6.4, 10.6); s3v.play().catch(() => {})
+  s3.classList.add('vid')
+}
+
+/* ── 进场自动播：可见 ≥45% 开播，完全离开后复位 ── */
+const plays = { s1: playS1, s2: playS2, s3: playS3 }
+const armed = { s1: true, s2: true, s3: true }
+const io = new IntersectionObserver(es => es.forEach(e => {
+  const id = e.target.id
+  if (e.intersectionRatio >= .45 && armed[id]) { armed[id] = false; plays[id]() }
+  if (e.intersectionRatio === 0) { armed[id] = true; pauseAll(e.target) }
+}), { threshold: [0, .45] })
+;[s1, s2, s3].forEach(s => io.observe(s))
+document.querySelectorAll('.replay').forEach(b => b.onclick = () => plays[b.dataset.for]())
+
+/* ── 分层视差：只动 transform ── */
+const layers = [...document.querySelectorAll('[data-speed]')]
+function parallax() {
+  if (!reduce) for (const el of layers) {
+    const r = el.parentElement.getBoundingClientRect()
+    const y = Math.max(-220, Math.min(220, -r.top * (+el.dataset.speed - 1)))
+    el.style.transform = `translate3d(0,${y.toFixed(1)}px,0)`
+  }
+}
+addEventListener('scroll', () => requestAnimationFrame(parallax), { passive: true })
+parallax()
+</script>
+</body>
+</html>

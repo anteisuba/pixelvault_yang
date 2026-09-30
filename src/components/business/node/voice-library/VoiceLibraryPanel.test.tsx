@@ -1,6 +1,9 @@
 import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
+import type { UseVoiceLibraryClipsOptions } from '@/hooks/use-voice-library-clips'
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
@@ -15,9 +18,15 @@ const clipsState = vi.hoisted(() => ({
   isLoading: false,
   error: null as string | null,
 }))
+const hookArgs = vi.hoisted(() => ({
+  last: null as UseVoiceLibraryClipsOptions | null,
+}))
 vi.mock('@/hooks/use-voice-library-clips', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-voice-library-clips')>()),
-  useVoiceLibraryClips: () => clipsState,
+  useVoiceLibraryClips: (options: UseVoiceLibraryClipsOptions) => {
+    hookArgs.last = options
+    return clipsState
+  },
 }))
 
 import { VoiceLibraryPanel } from './VoiceLibraryPanel'
@@ -76,6 +85,24 @@ describe('声音库列表分组（S5c 尾项）', () => {
     expect(document.querySelectorAll('[data-voice-library-row]')).toHaveLength(
       1,
     )
+  })
+})
+
+// 「用这段」把这行字记进卡的 `source.label`（落库，schema 上限 200）。
+describe('来源那行小字', () => {
+  it('截到 200 个码元时 emoji 跨在截断点上 —— 退掉半个字，⛔ 不让整份 state 被 jsonb 拒收', () => {
+    clipsState.clips = []
+    setup()
+    const labelOf = hookArgs.last!.labelOf
+    // 翻译桩原样回 key：前缀就是 `generated · `。
+    const prefix = `${AUDIO_CLIP_SOURCE.generated} · `
+    const room = 200 - prefix.length
+    expect(
+      labelOf(AUDIO_CLIP_SOURCE.generated, `${'声'.repeat(room - 1)}😀尾`),
+    ).toBe(`${prefix}${'声'.repeat(room - 1)}`)
+    expect(
+      labelOf(AUDIO_CLIP_SOURCE.generated, `${'声'.repeat(room - 2)}😀尾`),
+    ).toBe(`${prefix}${'声'.repeat(room - 2)}😀`)
   })
 })
 

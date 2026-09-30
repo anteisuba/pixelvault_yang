@@ -1,7 +1,5 @@
 'use client'
 
-import { X } from '@/components/icons'
-
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -83,15 +81,7 @@ export function AssetSelectorDialog({
         <ResponsiveDialogDescription className="sr-only">
           {description}
         </ResponsiveDialogDescription>
-        <div className="relative flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background">
-          <button
-            type="button"
-            aria-label={title}
-            onClick={() => onOpenChange(false)}
-            className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            <X className="size-3.5" />
-          </button>
+        <div className="flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background">
           <AssetPickerBrowser
             mode={multiSelect ? 'multi' : 'single'}
             mediaType={mediaType}

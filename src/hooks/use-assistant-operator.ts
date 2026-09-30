@@ -1369,12 +1369,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * **正文的一小段增量**（56b 切片 3）—— 追加到那条 `streaming` 气泡
              * 后面，⛔ 不覆盖。定稿仍旧只由下面那一帧说了算。
              *
-             * ⚠ 它**不进位**（不动 `messageSeq`）：进位的判据是「这一段已经被别
-             * 的条目压在下面」，而增量帧永远属于当前这一段。
+             * ⚠ 进位判据与定稿帧**同一条**：「这一段已经被别的条目压在下面」。
+             * 🔬 2026-09-30 真机：模型在工具轮先写了一句旁白（「我查一下…」），
+             * 旁白流进了气泡，工具步随后压在它下面；收尾轮的增量若还写回那条，
+             * 正文就接在旁白后面，定稿再另起一条 —— 同一段回答出现两遍。
              */
-            case ASSISTANT_OPERATOR_EVENTS.messageDelta:
+            case ASSISTANT_OPERATOR_EVENTS.messageDelta: {
+              const entries = getOperatorState().entries
+              const index = entries.findIndex(
+                (entry) =>
+                  entry.kind === 'message' && entry.id === messageEntryId(),
+              )
+              if (index >= 0 && index !== entries.length - 1) messageSeq += 1
               appendOperatorStreamingMessage(messageEntryId(), event.delta)
               break
+            }
             /**
              * 正文的**定稿来源**（v2 §3.1 / §13.1）—— 按条目 id **覆盖**，
              * ⛔ 不追加。

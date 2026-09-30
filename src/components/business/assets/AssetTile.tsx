@@ -159,7 +159,7 @@ export function AssetTile({
               isAudio ? 'opacity-90' : 'opacity-0 group-hover:opacity-100',
             )}
           >
-            <Play className="size-3.5 translate-x-px fill-current" />
+            <Play weight="fill" className="size-3.5 translate-x-px" />
           </span>
         )}
 

@@ -95,7 +95,7 @@ export const GalleryAdvancedFilters = memo(function GalleryAdvancedFilters({
             : 'border-border/60 text-muted-foreground hover:text-foreground',
         )}
       >
-        <Heart className={cn('size-3.5', filters.liked && 'fill-primary')} />
+        <Heart weight={filters.liked ? 'fill' : 'bold'} className="size-3.5" />
         {t('tabs.favorites')}
       </button>
     </div>

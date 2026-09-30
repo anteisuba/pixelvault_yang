@@ -4,6 +4,7 @@ import {
   NODE_TYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { SCRIPT_DOC_LIMITS } from '@/constants/script-doc'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -151,6 +152,23 @@ describe('breakdownToScriptDoc', () => {
     const doc = breakdownToScriptDoc(BREAKDOWN)
     expect(doc.shots[1].sceneLabel).toBeUndefined()
     expect(doc.shots[1].roleIds).toEqual(['char-2'])
+  })
+
+  it('never leaves half an emoji at the cut — jsonb rejects the whole project state', () => {
+    const max = SCRIPT_DOC_LIMITS.titleMaxLength
+    expect(
+      breakdownToScriptDoc({
+        ...BREAKDOWN,
+        title: `${'x'.repeat(max - 1)}😀 tail`,
+      }).title,
+    ).toBe('x'.repeat(max - 1))
+    // A cut that lands between two characters is unchanged.
+    expect(
+      breakdownToScriptDoc({
+        ...BREAKDOWN,
+        title: `${'x'.repeat(max - 2)}😀 tail`,
+      }).title,
+    ).toBe(`${'x'.repeat(max - 2)}😀`)
   })
 })
 

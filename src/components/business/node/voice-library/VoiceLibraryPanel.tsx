@@ -46,6 +46,7 @@ import {
   useVoiceSamplePreview,
 } from '@/hooks/use-voice-sample-preview'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { clampCodeUnits } from '@/lib/node-display-name'
 import { cn } from '@/lib/utils'
 
 import { NodeFrame } from '../nodes/v4/chrome'
@@ -103,7 +104,7 @@ export function VoiceLibraryPanel({
   // ⚠ 文案属于渲染层，所以来源那行小字由这里拼好递给 hook（hook 不认识 i18n）。
   const labelOf = useCallback(
     (kind: AudioClipSourceKind, name: string) =>
-      `${tSource(kind)} · ${name}`.slice(0, 200),
+      clampCodeUnits(`${tSource(kind)} · ${name}`, 200),
     [tSource],
   )
 

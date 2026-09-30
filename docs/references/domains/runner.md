@@ -95,7 +95,8 @@
 
 **现有 workflow 3 条**：SDXL txt2img · SDXL img2img（单参考，`denoise = 1 - strength`）· Anima DiT txt2img。
 
-**范围边界**：⛔ **SD 1.5 不在 runner 范围**，保持 external 跳转 —— 不为它做第二套分辨率/采样模板档。
+**范围边界**：⛔ **SD 1.5 不在 runner 范围**，保持 external 跳转 —— 它要第二套分辨率/采样模板档。
+2026-09-28 重新评估后仍暂缓：近 30 / 90 天新发或更新的 LoRA 里只占 1.2%；恢复时从设计总图第 6 页「SD 1.5」导图接。
 四家族同为 SDXL 架构、共用同一 workflow 模板，所以增量成本 ≈ 每家族一条
 `runner-checkpoints.ts` manifest + Volume 里一个文件。
 
@@ -114,11 +115,14 @@
 
 - **r4a（multi-reference IPAdapter）已施工完成、测试端点验证绿，生产未切换**。
   fork 仓库 HEAD `c1dbf58`（2026-07-18）。要切生产得走 fork 构建 + template + 端点滚动。
-- **Krea 2** 当前 `generatability = 'external'`，且 `normalizeToLoraBaseFamily` **故意**对它返回 null
-  —— 加分类只开浏览、不开生成，这是有意为之，别"顺手修正"。
-  - 版本闸已开：Krea 2 原生支持要 ComfyUI **≥ 0.27**，生产 2026-09-28 已换官方 5.10 底座（0.34）。
-    owner 定 Krea 2 放在下一轮；接通时把 `CIVITAI_BASE_MODEL_GENERATABILITY['Krea 2']` 翻成
-    `'native'`，在那之前 UI 引导去 Civitai。
+- **Krea 2 暂不接**（owner 2026-09-29）：Krea 2 Community License 只许年收入低于 100 万美元的主体免费商用，
+  且要求「合理的内容过滤」——PixelVault 只有提示词注入防护，没有出图过滤。所以仍是
+  `generatability = 'external'`，`normalizeToLoraBaseFamily` **故意**对它返回 null（只开浏览、不开生成，别"顺手修正"），
+  UI 引导去 Civitai。
+  - 已定的接法（恢复时直接用）：只接官方 Turbo fp8（Comfy-Org/Krea-2 的 `krea2_turbo_fp8_scaled` +
+    `qwen3vl_4b_fp8_scaled`，VAE 与 Anima 共用 `qwen_image_vae`，新下约 18.4G，150G Volume 够）；固定档、不跟来源底模；
+    纯底模默认仍是 Anima Turbo；官方模板 8 步 · CFG 1 · euler simple · CLIP type `krea2`；LoRA 叠加总权重超过 4.0
+    才提醒（真实配方中位 2.7）。版本闸已开（要 ComfyUI ≥ 0.27，生产 0.34）。
 - 托管 LoRA 底模 2026-09-17 全部退役。它们挂社区 LoRA 报的 `layer ... not supported`（错误码
   `lora_incompatible_hosted`）只为历史记录的文案保留；为它而设的「能力路由」（托管 Illustrious 遇到
   白名单 LoRA 升到 Runner）与 LoRA 白名单 2026-09-28 删除——任意 LoRA 早已按需从 R2 下到卷上。

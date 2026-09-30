@@ -7,6 +7,7 @@ import {
   Download,
   Grid3X3,
   LayoutGrid,
+  type IconWeight,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { OptimizedImage } from '@/components/ui/optimized-image'
@@ -492,7 +493,7 @@ const GalleryAction = memo(function GalleryAction({
   onClick,
   active,
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; weight?: IconWeight }>
   label: string
   onClick: (e: React.MouseEvent) => void
   active?: boolean
@@ -510,7 +511,7 @@ const GalleryAction = memo(function GalleryAction({
       aria-label={label}
       style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
     >
-      <Icon className={cn('size-3.5', active && 'fill-current')} />
+      <Icon weight={active ? 'fill' : 'bold'} className="size-3.5" />
     </button>
   )
 })

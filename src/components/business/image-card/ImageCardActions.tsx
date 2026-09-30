@@ -57,10 +57,8 @@ export function ImageCardActions({
         aria-label={liked ? unlikeLabel : likeLabel}
       >
         <Heart
-          className={cn(
-            'size-3.5 transition-colors',
-            liked && 'fill-primary text-primary',
-          )}
+          weight={liked ? 'fill' : 'bold'}
+          className="size-3.5 transition-colors"
         />
         {likeCount > 0 && <LikeCount count={likeCount} />}
       </button>

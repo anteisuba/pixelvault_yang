@@ -2297,3 +2297,415 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       )
   }
 }
+
+// ─── Native web search ───────────────────────────────────────────
+
+/**
+ * 各家**自带联网**（owner 2026-09-30：像 Claude 那样由模型自己写查询、自己读结果）。
+ *
+ * ⭐ 一次调用出「回答 + 来源」：查询词由模型在服务商那一侧自己写，⛔ 不再由我们
+ * 先烧一次 LLM 改写、查完再烧一次 LLM 归纳。
+ * ⚠ DeepSeek / Grok 没有可用的自带搜索 —— `supportsNativeWebSearch` 为假，调用方
+ * 退回我们自己的网搜。
+ */
+export interface LlmNativeSearchSource {
+  url: string
+  title: string
+  /** 回答里引用这条来源的那几句（服务商给的引用原文）。可能为空。 */
+  excerpt: string
+}
+
+export interface LlmNativeSearchResult {
+  answer: string
+  sources: LlmNativeSearchSource[]
+}
+
+export interface LlmNativeSearchInput {
+  adapterType: AI_ADAPTER_TYPES
+  providerConfig: ProviderConfig
+  apiKey: string
+  modelId?: string
+  systemPrompt: string
+  query: string
+}
+
+const NATIVE_SEARCH_MAX_USES = 3
+
+export function supportsNativeWebSearch(
+  adapterType: AI_ADAPTER_TYPES,
+): boolean {
+  return (
+    adapterType === AI_ADAPTER_TYPES.GEMINI ||
+    adapterType === AI_ADAPTER_TYPES.OPENAI ||
+    adapterType === AI_ADAPTER_TYPES.ANTHROPIC
+  )
+}
+
+/** 同一个地址在回答里被引用多次时并成一条，引用原文拼在一起。 */
+function collectNativeSources(
+  entries: readonly LlmNativeSearchSource[],
+): LlmNativeSearchSource[] {
+  const byUrl = new Map<string, LlmNativeSearchSource>()
+  for (const entry of entries) {
+    if (!entry.url) continue
+    const seen = byUrl.get(entry.url)
+    if (!seen) {
+      byUrl.set(entry.url, { ...entry, excerpt: entry.excerpt.trim() })
+      continue
+    }
+    const excerpt = entry.excerpt.trim()
+    if (excerpt && !seen.excerpt.includes(excerpt)) {
+      seen.excerpt = seen.excerpt ? `${seen.excerpt} ${excerpt}` : excerpt
+    }
+    if (!seen.title && entry.title) seen.title = entry.title
+  }
+  return [...byUrl.values()]
+}
+
+const GeminiGroundedResponseSchema = z.object({
+  candidates: z
+    .array(
+      z.object({
+        content: z
+          .object({
+            parts: z
+              .array(z.object({ text: z.string().optional() }))
+              .optional(),
+          })
+          .optional(),
+        groundingMetadata: z
+          .object({
+            groundingChunks: z
+              .array(
+                z.object({
+                  web: z
+                    .object({
+                      uri: z.string().optional(),
+                      title: z.string().optional(),
+                    })
+                    .optional(),
+                }),
+              )
+              .optional(),
+            groundingSupports: z
+              .array(
+                z.object({
+                  segment: z.object({ text: z.string().optional() }).optional(),
+                  groundingChunkIndices: z.array(z.number()).optional(),
+                }),
+              )
+              .optional(),
+          })
+          .optional(),
+      }),
+    )
+    .optional(),
+})
+
+/**
+ * Gemini：`google_search` 工具。⚠ 来源地址是 Google 的跳转链接，真正的站点只在
+ * `title` 里（一个域名）—— 所以标题同时当出处用。
+ */
+async function geminiNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
+  const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
+  const response = await fetchLlmTextBuffered(
+    `${baseUrl}/${modelId}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': input.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: input.systemPrompt }] },
+        contents: [{ parts: [{ text: input.query }] }],
+        tools: [{ google_search: {} }],
+      }),
+    },
+    { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+  )
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId,
+    })
+  }
+  const data = GeminiGroundedResponseSchema.parse(await response.json())
+  const candidate = data.candidates?.[0]
+  const answer = (candidate?.content?.parts ?? [])
+    .map((part) => part.text ?? '')
+    .join('')
+    .trim()
+  const chunks = candidate?.groundingMetadata?.groundingChunks ?? []
+  const excerpts = new Map<number, string[]>()
+  for (const support of candidate?.groundingMetadata?.groundingSupports ?? []) {
+    const text = support.segment?.text?.trim()
+    if (!text) continue
+    for (const index of support.groundingChunkIndices ?? []) {
+      excerpts.set(index, [...(excerpts.get(index) ?? []), text])
+    }
+  }
+  const urls = await Promise.all(
+    chunks.map((chunk) => resolveGroundingRedirect(chunk.web?.uri ?? '')),
+  )
+  return {
+    answer,
+    sources: collectNativeSources(
+      chunks.map((chunk, index) => ({
+        url: urls[index] ?? '',
+        title: chunk.web?.title ?? '',
+        excerpt: (excerpts.get(index) ?? []).join(' '),
+      })),
+    ),
+  }
+}
+
+const GROUNDING_REDIRECT_TIMEOUT_MS = 3_000
+
+/**
+ * Gemini 的来源地址是 Google 的跳转链接 —— 来源卡上会显示成一排
+ * `vertexaisearch.cloud.google.com`，来源名单也按这个域名判。只读跳转头换成真地址，
+ * ⛔ 不跟过去取正文；解不开就留原链接（点开照样能到）。
+ */
+async function resolveGroundingRedirect(uri: string): Promise<string> {
+  if (!uri.includes('vertexaisearch.cloud.google.com')) return uri
+  try {
+    const response = await fetch(uri, {
+      method: 'HEAD',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(GROUNDING_REDIRECT_TIMEOUT_MS),
+    })
+    return response.headers.get('location') || uri
+  } catch {
+    return uri
+  }
+}
+
+const OpenAiResponsesSearchSchema = z.object({
+  output: z.array(
+    z.object({
+      type: z.string(),
+      content: z
+        .array(
+          z.object({
+            type: z.string(),
+            text: z.string().optional(),
+            annotations: z
+              .array(
+                z.object({
+                  type: z.string(),
+                  url: z.string().optional(),
+                  title: z.string().optional(),
+                  start_index: z.number().optional(),
+                  end_index: z.number().optional(),
+                }),
+              )
+              .optional(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+})
+
+/** 引用标记前面那一句 —— OpenAI 的标注只给位置，不给原文。 */
+function sentenceBefore(text: string, index: number): string {
+  // ⚠ 标注通常紧跟在句号后面 —— 先跳过句尾标点，否则找到的「上一句」是空的。
+  const core = text.slice(0, index).replace(/[。．.！!？?\s]+$/u, '')
+  const start = Math.max(
+    core.lastIndexOf('。'),
+    core.lastIndexOf('. '),
+    core.lastIndexOf('\n'),
+  )
+  return text.slice(start + 1, index).trim()
+}
+
+/**
+ * OpenAI：Responses API 的 `web_search` 工具 —— 用的是**所选的那个模型**，
+ * ⛔ 不是 chat 那条路换成 `gpt-5-search-api` 的做法。
+ */
+async function openAiNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
+  const baseUrl = getOpenAiChatBaseUrl(input.providerConfig.baseUrl)
+  const response = await fetchLlmTextBuffered(
+    `${baseUrl}/responses`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        instructions: input.systemPrompt,
+        input: input.query,
+        tools: [{ type: 'web_search' }],
+      }),
+    },
+    { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId },
+  )
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId,
+    })
+  }
+  const data = OpenAiResponsesSearchSchema.parse(await response.json())
+  const texts = data.output
+    .filter((item) => item.type === 'message')
+    .flatMap((item) => item.content ?? [])
+    .filter((part) => part.type === 'output_text')
+  return {
+    answer: texts
+      .map((part) => part.text ?? '')
+      .join('')
+      .trim(),
+    sources: collectNativeSources(
+      texts.flatMap((part) =>
+        (part.annotations ?? [])
+          .filter((note) => note.type === 'url_citation' && note.url)
+          .map((note) => ({
+            url: note.url ?? '',
+            title: note.title ?? '',
+            excerpt: sentenceBefore(part.text ?? '', note.start_index ?? 0),
+          })),
+      ),
+    ),
+  }
+}
+
+const AnthropicSearchResponseSchema = z.object({
+  content: z.array(
+    z.object({
+      type: z.string(),
+      text: z.string().optional(),
+      citations: z
+        .array(
+          z.object({
+            type: z.string(),
+            url: z.string().optional(),
+            title: z.string().nullable().optional(),
+            cited_text: z.string().optional(),
+          }),
+        )
+        .nullable()
+        .optional(),
+      content: z.unknown().optional(),
+    }),
+  ),
+  stop_reason: z.string().nullable().optional(),
+  stop_details: z
+    .object({ category: z.string().nullable().optional() })
+    .nullable()
+    .optional(),
+})
+
+const AnthropicSearchResultsSchema = z.array(
+  z.object({
+    type: z.string(),
+    url: z.string().optional(),
+    title: z.string().optional(),
+  }),
+)
+
+/**
+ * Claude：服务端 `web_search` 工具。⚠ 搜索出错也是 HTTP 200 —— 结果块的
+ * `content` 是一个错误对象而不是列表，按形状分支，⛔ 不当成空结果之外的异常。
+ */
+async function anthropicNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC]
+  const baseUrl =
+    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.ANTHROPIC
+  const response = await fetchLlmTextBuffered(
+    `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
+    anthropicRequestInit(
+      input.apiKey,
+      JSON.stringify({
+        model: modelId,
+        max_tokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
+        fallbacks: 'default',
+        system: input.systemPrompt,
+        messages: [{ role: 'user', content: input.query }],
+        tools: [
+          {
+            type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+            name: 'web_search',
+            max_uses: NATIVE_SEARCH_MAX_USES,
+          },
+        ],
+      }),
+      input.providerConfig.anthropicWorkspaceId,
+    ),
+    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+  )
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'Unknown error')
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId,
+    })
+  }
+  const data = AnthropicSearchResponseSchema.parse(await response.json())
+  if (data.stop_reason === 'refusal') {
+    throw toLlmTextRefusalError({
+      modelId,
+      category: data.stop_details?.category ?? null,
+    })
+  }
+  const cited: LlmNativeSearchSource[] = []
+  const listed: LlmNativeSearchSource[] = []
+  let answer = ''
+  for (const block of data.content) {
+    if (block.type === 'text') {
+      answer += block.text ?? ''
+      for (const citation of block.citations ?? []) {
+        if (citation.type !== 'web_search_result_location' || !citation.url)
+          continue
+        cited.push({
+          url: citation.url,
+          title: citation.title ?? '',
+          excerpt: citation.cited_text ?? '',
+        })
+      }
+    }
+    if (block.type === 'web_search_tool_result') {
+      const results = AnthropicSearchResultsSchema.safeParse(block.content)
+      if (!results.success) continue
+      for (const result of results.data) {
+        if (result.type !== 'web_search_result' || !result.url) continue
+        listed.push({ url: result.url, title: result.title ?? '', excerpt: '' })
+      }
+    }
+  }
+  return {
+    answer: answer.trim(),
+    // ⭐ 被引用的排前面：模型真正用上的那几条才是证据，搜到没用的垫在后面。
+    sources: collectNativeSources([...cited, ...listed]),
+  }
+}
+
+export async function llmNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  switch (input.adapterType) {
+    case AI_ADAPTER_TYPES.GEMINI:
+      return geminiNativeWebSearch(input)
+    case AI_ADAPTER_TYPES.OPENAI:
+      return openAiNativeWebSearch(input)
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return anthropicNativeWebSearch(input)
+    default:
+      throw new Error(
+        `Native web search not supported for adapter: ${input.adapterType}`,
+      )
+  }
+}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -17,15 +17,21 @@ vi.mock('@/components/business/assets/AssetPickerBrowser', () => ({
   AssetPickerBrowser: ({
     mediaType,
     mode,
+    onCancel,
   }: {
     mediaType?: string
     mode?: string
+    onCancel: () => void
   }) => (
     <div
       data-testid="asset-browser"
       data-media-type={mediaType}
       data-mode={mode}
-    />
+    >
+      <button type="button" onClick={onCancel}>
+        close
+      </button>
+    </div>
   ),
 }))
 
@@ -90,15 +96,28 @@ describe('AssetSelectorDialog', () => {
 
   it('uses the mobile drawer sheet with full-bleed body chrome', () => {
     mockUseIsMobile.mockReturnValue(true)
-    const onOpenChange = renderDialog()
+    renderDialog()
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveClass('max-h-[95svh]', 'h-[min(88svh,760px)]')
     expect(
       screen.getByTestId('asset-browser').parentElement?.parentElement,
     ).toHaveClass('px-0', 'pt-0')
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pick asset' }))
+  it.each([
+    ['desktop', false],
+    ['mobile', true],
+  ])('leaves closing to the picker header on %s', (_, isMobile) => {
+    mockUseIsMobile.mockReturnValue(isMobile)
+    const onOpenChange = renderDialog()
+
+    // The close button sits in the picker header, in the same row as the
+    // media-type lock badge; one overlaid by the shell would cover the badge.
+    expect(
+      within(screen.getByRole('dialog')).getAllByRole('button'),
+    ).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'close' }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 })

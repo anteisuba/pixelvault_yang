@@ -19,6 +19,7 @@ const keyOf = (kind: DanbooruCatalogKind, name: string) => `${kind}:${name}`
  */
 export function useDanbooruFavorites() {
   const [favorites, setFavorites] = useState<DanbooruFavorite[]>([])
+  const [loaded, setLoaded] = useState(false)
   const pending = useRef(new Set<string>())
 
   useEffect(() => {
@@ -28,6 +29,9 @@ export function useDanbooruFavorites() {
         if (alive) setFavorites(rows)
       })
       .catch(() => {})
+      .finally(() => {
+        if (alive) setLoaded(true)
+      })
     return () => {
       alive = false
     }
@@ -74,6 +78,7 @@ export function useDanbooruFavorites() {
   }
 
   return {
+    loaded,
     of: (kind: DanbooruCatalogKind) =>
       favorites.filter((item) => item.kind === kind),
     has: (kind: DanbooruCatalogKind, name: string) => Boolean(find(kind, name)),

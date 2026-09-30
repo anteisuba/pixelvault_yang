@@ -1084,18 +1084,16 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         .slice(1)
         .map((item: { scale: number }) => item.scale),
     ).toEqual([0.8, 0.8])
+    // 补挂结束后暂停或卸掉配方里的 LoRA 是用户的选择，⛔ 不再锁生成键。
     mockStackItems[1].enabled = false
-    view.rerender(<LoraWorkbench />)
-    expect(generateButton).toBeDisabled()
-    mockStackItems[1].enabled = true
     view.rerender(<LoraWorkbench />)
     expect(generateButton).toBeEnabled()
     mockStackItems = mockStackItems.slice(0, 2)
     view.rerender(<LoraWorkbench />)
-    expect(generateButton).toBeDisabled()
+    expect(generateButton).toBeEnabled()
   })
 
-  it('does not generate a partial recipe when an extra fails to resolve', async () => {
+  it('generates without a recipe extra that cannot be located', async () => {
     mockMinedRecipes = [
       {
         imageUrl: 'https://example.com/source.png',
@@ -1104,19 +1102,18 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         extraLoras: [{ modelVersionId: 111, weight: 0.8 }],
       },
     ]
+    // 作者私有、Civitai 上没有的 LoRA（如图 135139750 的 superiorAnima）重试
+    // 也挂不上：补挂一结束就放开生成键，⛔ 永久锁死。
     mockResolveCivitaiLora.mockResolvedValue({ success: false })
-    const view = render(<LoraWorkbench />)
+    render(<LoraWorkbench />)
     applyFirstRecipeViaModal()
     await waitFor(() => expect(mockResolveCivitaiLora).toHaveBeenCalled())
     const generateButton = screen.getByRole('button', {
       name: /LoraWorkbench:generate\.run/,
     })
-    expect(generateButton).toBeDisabled()
+    await waitFor(() => expect(generateButton).toBeEnabled())
     fireEvent.click(generateButton)
-    expect(mockGenerate).not.toHaveBeenCalled()
-    mockStackItems = []
-    view.rerender(<LoraWorkbench />)
-    expect(generateButton).toBeEnabled()
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
   })
 
   // 做同款整段换正文时，原来就在正文里的触发词留着（缺了补回开头，⛔ 不写两遍）。

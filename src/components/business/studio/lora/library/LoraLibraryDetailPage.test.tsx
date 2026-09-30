@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
@@ -237,5 +243,24 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText('LoraWorkbench:licensePersonalUse')).toBeNull()
     expect(screen.queryByText('LoraWorkbench.browse:ratingSafe')).toBeNull()
+  })
+
+  it('draws a different heart once favorited, not just a different colour', () => {
+    const version = makeVersion(2, 'Illustrious', 'roccia')
+    mockVersions = [version]
+    const heart = (favorited: boolean) => {
+      renderPage(version, vi.fn(), { isFavorited: () => favorited })
+      const svg = screen
+        .getByRole('button', {
+          name: favorited
+            ? 'LoraWorkbench:favorited'
+            : 'LoraWorkbench:favorite',
+          pressed: favorited,
+        })
+        .querySelector('svg')!.innerHTML
+      cleanup()
+      return svg
+    }
+    expect(heart(true)).not.toBe(heart(false))
   })
 })

@@ -1,6 +1,6 @@
 ---
 name: gsap-performance
-description: Official GSAP skill for performance — prefer transforms, avoid layout thrashing, will-change, batching. Use when optimizing GSAP animations, reducing jank, or when the user asks about animation performance, FPS, or smooth 60fps.
+description: Official GSAP skill for performance — transforms over layout properties, quickTo, batching, ScrollTrigger cost. Use when optimizing existing GSAP animations; not for non-GSAP animation performance. Not for choosing an animation library: in this repo app UI uses motion/react, and GSAP is limited to the homepage marketing domain (src/components/business/home-v4/**) via dynamic import.
 license: MIT
 ---
 

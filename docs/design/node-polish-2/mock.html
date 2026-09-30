@@ -1,0 +1,3579 @@
+<title>画布节点打磨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap"
+/>
+<style>
+  /* 单一浅色：画布是浅色媒体工作面（ui-defaults §2.1），刻意不做暗色档；所有颜色都显式给出。 */
+  :root {
+    --ink: #0a0a0a;
+    --ink-2: #474744;
+    --muted: #696969;
+    --faint: rgba(105, 105, 105, 0.75); /* muted-foreground/75 */
+    --canvas: #f1f1f1;
+    --shell: #ebebeb;
+    --card: #ffffff;
+    --line: rgba(10, 10, 10, 0.08);
+    --line-2: #e5e5e5; /* --border */
+    --fill: rgba(10, 10, 10, 0.04); /* --surface-fill */
+    --fill-2: rgba(10, 10, 10, 0.07); /* --surface-fill-hover */
+    --fill-3: rgba(10, 10, 10, 0.11); /* --surface-fill-track */
+    --dot: rgba(64, 58, 47, 0.2);
+    --glass: rgba(255, 255, 255, 0.7);
+    --sh-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.18);
+    --sh-float: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 28px -12px rgb(0 0 0 / 0.32);
+    --sh-overlay:
+      0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+    --sh-paper:
+      0 2px 4px rgb(0 0 0 / 0.05), 0 26px 60px -22px rgb(0 0 0 / 0.3); /* --shadow-node-card-expanded */
+    --r-node: 18px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --font:
+      Geist, 'Noto Sans SC', system-ui, -apple-system, 'PingFang SC', sans-serif;
+    --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    color-scheme: light;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--shell);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  svg.i {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+  .mono {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 原型控制条（不属于产品界面） ── */
+  .proto {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding-block: 10px;
+    padding-inline: 16px;
+    background: #fbfbfa;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .proto .pt {
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  .proto .pt span {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 12px;
+    margin-left: 6px;
+  }
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--fill);
+  }
+  .seg .lab {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 0 6px 0 4px;
+    letter-spacing: 0.02em;
+  }
+  .seg button {
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    transition:
+      background-color 120ms,
+      color 120ms;
+  }
+  .seg button.on {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+  .seg button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .pbtn {
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 8px;
+    border: 1px solid var(--line-2);
+    background: #fff;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .pbtn:active {
+    transform: scale(0.96);
+  }
+  .tog {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .proto .say {
+    flex: 1 1 320px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--muted);
+    min-width: 0;
+  }
+
+  /* ── 应用窗口 ── */
+  .win {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 620px;
+    overflow: hidden;
+  }
+  .rail {
+    width: 58px;
+    flex: none;
+    background: var(--shell);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-top: 20px;
+    color: var(--ink-2);
+  }
+  .rail .on {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  }
+  .stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--canvas);
+    border-top-left-radius: 16px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .world {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+  }
+  .world svg.edges {
+    position: absolute;
+    left: -4000px;
+    top: -4000px;
+    width: 8000px;
+    height: 8000px;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .edges path {
+    fill: none;
+    stroke: #9a9a94;
+    stroke-width: calc(1.5px / var(--z));
+  }
+  .edges path.hot {
+    stroke: var(--ink);
+  }
+
+  /* 卡 */
+  .node {
+    position: absolute;
+  }
+  .node .nm {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 16px;
+    padding: 0 3px 6px;
+    box-sizing: border-box;
+    transition: color 120ms;
+  }
+  .mode-after .node .nm {
+    font-size: calc(12px / var(--z));
+    line-height: calc(16px / var(--z));
+    padding: 0 calc(3px / var(--z)) calc(6px / var(--z));
+  }
+  .node.sel .nm {
+    color: var(--ink);
+  }
+  .face {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--r-node);
+    background: var(--card);
+    box-shadow: var(--sh-card);
+    overflow: hidden;
+    cursor: default;
+  }
+  .node.sel .face {
+    box-shadow:
+      0 0 0 calc(2px / var(--z)) var(--ink),
+      var(--sh-card);
+  }
+  .port {
+    position: absolute;
+    top: 50%;
+    width: calc(12px / var(--z));
+    height: calc(12px / var(--z));
+    margin-top: calc(-6px / var(--z));
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 calc(1.5px / var(--z)) var(--ink);
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .port.l {
+    left: calc(-6px / var(--z));
+  }
+  .port.r {
+    right: calc(-6px / var(--z));
+  }
+  .node:hover .port,
+  .node.sel .port {
+    opacity: 1;
+  }
+  .art {
+    position: absolute;
+    inset: 0;
+  }
+  .dur {
+    position: absolute;
+    right: 10px;
+    bottom: 9px;
+    font-size: 11px;
+    line-height: 14px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: rgba(10, 10, 10, 0.45);
+    color: #fff;
+  }
+  .vload {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mode-after .vload {
+    background: var(--fill-2);
+  }
+  .mode-after .vload .pg {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(10, 10, 10, 0.45);
+  }
+  .mode-now .vload {
+    background: #fff;
+  }
+  .mode-now .vload .pg,
+  .mode-now .vload .dur {
+    display: none;
+  }
+  .empty {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--r-node);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .mode-now .node.is-empty .face {
+    background: #fff;
+    box-shadow: var(--sh-card);
+  }
+  .mode-now .empty {
+    border: 1px dashed rgba(10, 10, 10, 0.12);
+  }
+  .mode-after .node.is-empty .face {
+    background: transparent;
+    box-shadow: none;
+  }
+  .mode-after .empty {
+    border: calc(1.5px / var(--z)) dashed rgba(10, 10, 10, 0.24);
+  }
+  .node.is-empty.sel .face {
+    box-shadow: 0 0 0 calc(2px / var(--z)) var(--ink);
+  }
+  .empty .plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+  }
+  .aud {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+  }
+  .aud .play {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .aud .wave {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 30px;
+    overflow: hidden;
+  }
+  .mode-after .aud .wave {
+    flex: 1;
+    min-width: 0;
+  }
+  .aud .wave i {
+    display: block;
+    width: 3px;
+    flex: none;
+    border-radius: 3px;
+    background: rgba(105, 105, 105, 0.55);
+  }
+  .aud .t {
+    font-size: 12px;
+    color: var(--muted);
+    width: 38px;
+    text-align: right;
+    flex: none;
+    margin-left: auto;
+  }
+  .txt {
+    position: absolute;
+    inset: 0;
+    padding: 18px 20px;
+    font-size: 14px;
+    line-height: 23px;
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .txt::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 60px;
+    background: linear-gradient(transparent, #fff);
+  }
+  .txt h4 {
+    margin: 0 0 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .txt p {
+    margin: 0 0 8px;
+  }
+  .vdots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    padding: 2px 0;
+  }
+  .vdots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fill-3);
+  }
+  .vdots i.on {
+    background: var(--ink);
+  }
+
+  /* 选中的两样（屏幕坐标） */
+  .chrome {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .cw {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+    pointer-events: auto;
+  }
+  .tb {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 14px;
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: var(--sh-float);
+    white-space: nowrap;
+  }
+  .tb .k {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tb .k:hover {
+    background: var(--fill);
+  }
+  .tb .k:active,
+  .tb .lead:active {
+    transform: scale(0.96);
+  }
+  .tb .lead {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 13px 0 11px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .tb .sep {
+    width: 1px;
+    height: 18px;
+    background: var(--line-2);
+    margin: 0 4px;
+  }
+  .pcol {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .pb {
+    box-sizing: border-box;
+    border-radius: var(--r-node);
+    padding: 12px 8px 8px 14px;
+    box-shadow: var(--sh-float);
+  }
+  .mode-after .pb {
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--line-2),
+      var(--sh-float);
+  }
+  .mode-now .pb {
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+  }
+  .pb .refs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pb .ref {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    position: relative;
+    flex: none;
+  }
+  .pb .ref b {
+    position: absolute;
+    right: -4px;
+    top: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-sizing: border-box;
+  }
+  .pb .ref.add {
+    border: 1.5px dashed rgba(10, 10, 10, 0.24);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    box-sizing: border-box;
+  }
+  .pb .ph {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--faint);
+    min-height: 40px;
+    padding-right: 6px;
+  }
+  .pb .ph.v {
+    color: var(--ink);
+  }
+  .pb .row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .pb .plus {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: var(--fill);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .chip.o {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--line-2);
+    color: var(--ink-2);
+  }
+  .chip .s {
+    color: var(--muted);
+  }
+  .send {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex: none;
+  }
+
+  /* 外壳 */
+  .shellx {
+    transition: opacity 200ms var(--ease);
+  }
+  .shell-hidden .shellx {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pill {
+    position: absolute;
+    left: 17px;
+    top: 16px;
+    height: 36px;
+    padding: 0 12px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16794c;
+  }
+  .icol {
+    position: absolute;
+    left: 17px;
+    top: 66px;
+    width: 44px;
+    padding: 4px 0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .icol button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-2);
+  }
+  .icol button.on {
+    background: var(--fill-2);
+    color: var(--ink);
+  }
+  .panel {
+    position: absolute;
+    left: 70px;
+    top: 66px;
+    bottom: 16px;
+    width: 264px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform-origin: 0 0;
+  }
+  .panel[hidden] {
+    display: none !important;
+  }
+  .panel .ph2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 14px 10px 16px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .panel .srch {
+    margin: 0 12px 8px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    color: var(--faint);
+    font-size: 13px;
+  }
+  .panel .grp {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 10px 16px 4px;
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: 0.02em;
+  }
+  .panel .li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    margin: 0 4px;
+    border-radius: 10px;
+    text-align: left;
+    width: calc(100% - 8px);
+  }
+  .panel .li:hover {
+    background: var(--fill);
+  }
+  .panel .li .th {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    flex: none;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    overflow: hidden;
+    position: relative;
+  }
+  .panel .li .nn {
+    font-size: 13px;
+    line-height: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .panel .li .ss {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .tr {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .tr .ed {
+    height: 36px;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .tr .av {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #d9c7ef, #7a64b3);
+    box-shadow: var(--sh-float);
+  }
+  .bbar {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    height: 44px;
+    padding: 0 6px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .bbar button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-2);
+  }
+  .bbar button:hover {
+    background: var(--fill);
+  }
+  .bbar button.on {
+    background: var(--fill-2);
+    color: var(--ink);
+  }
+  .bbar .zp {
+    width: 48px;
+    font-size: 12px;
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .bbar .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--line-2);
+    margin: 0 4px;
+  }
+  .mini {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    width: 194px;
+    height: 128px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: var(--sh-float);
+    overflow: hidden;
+  }
+  .mini i {
+    position: absolute;
+    background: #cfcfca;
+    border-radius: 2px;
+  }
+  .mini .vp {
+    position: absolute;
+    border: 1.5px solid var(--ink);
+    border-radius: 3px;
+    background: rgba(10, 10, 10, 0.03);
+  }
+  .hint {
+    position: absolute;
+    left: 17px;
+    bottom: 22px;
+    font-size: 11px;
+    color: var(--faint);
+    max-width: 330px;
+    line-height: 16px;
+  }
+
+  /* 打开态 */
+  .open {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+  }
+  .open[hidden] {
+    display: none !important;
+  }
+  .bd {
+    position: absolute;
+    inset: 0;
+  }
+  .paper {
+    position: absolute;
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid var(--line-2);
+    box-sizing: border-box;
+    box-shadow: var(--sh-paper);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform-origin: 0 0;
+  }
+  .fh {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 12px 0 20px;
+    flex: none;
+  }
+  .fh .fn {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .fh .cap {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .xb {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-2);
+  }
+  .xb:hover {
+    background: var(--fill);
+  }
+  .gb {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--fill);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .go {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .go .kk {
+    font-size: 10px;
+    padding: 0 4px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+  }
+  .player {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    flex: none;
+  }
+  .player .pbig {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 52px;
+    height: 52px;
+    margin: -26px 0 0 -26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .player .tp {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 11px;
+  }
+  .player .tp .bar {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.35);
+    position: relative;
+  }
+  .player .tp .bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 34%;
+    border-radius: 2px;
+    background: #fff;
+  }
+  .refrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+  .refrow .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    width: 34px;
+    letter-spacing: 0.02em;
+  }
+  .rt {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    flex: none;
+  }
+  .rt.add {
+    border: 1.5px dashed rgba(10, 10, 10, 0.24);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    box-sizing: border-box;
+  }
+  .prose {
+    font-size: 15px;
+    line-height: 26px;
+    color: var(--ink);
+  }
+  .prose h1 {
+    font-size: 22px;
+    line-height: 30px;
+    margin: 0 0 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .prose p {
+    margin: 0 0 12px;
+  }
+  .fmt {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: var(--sh-float);
+  }
+  .fmt span {
+    width: 32px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .wbar {
+    box-sizing: border-box;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--line-2),
+      var(--sh-float);
+    padding: 12px 10px 10px 14px;
+  }
+  .wbar .ph {
+    font-size: 14px;
+    color: var(--faint);
+    min-height: 30px;
+  }
+  .wbar .row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .qlrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .qlpill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 12px;
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: var(--sh-float);
+  }
+  .qlpill span {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .late {
+    transition: opacity 200ms var(--ease);
+  }
+  .stagebar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px 0 20px;
+  }
+
+  /* 提示词栏里的键（改后） */
+  .mode-after .chip {
+    background: var(--fill);
+    box-shadow: none;
+    color: var(--ink);
+    transition:
+      background-color 120ms,
+      transform 160ms;
+  }
+  .mode-after .chip:hover {
+    background: var(--fill-2);
+  }
+  .mode-after .chip.is-open {
+    background: var(--fill-3);
+  }
+  .mode-after .chip svg:last-child {
+    transition: transform 200ms var(--ease);
+  }
+  .mode-after .chip.is-open svg:last-child {
+    transform: rotate(180deg);
+  }
+  .chip,
+  .pb .plus,
+  .send {
+    cursor: pointer;
+  }
+  .chip:active,
+  .pb .plus:active,
+  .send:active {
+    transform: scale(0.96);
+  }
+  .mode-after .pb .plus:hover {
+    background: var(--fill-2);
+  }
+  .mode-after .pb .plus.is-open {
+    background: var(--fill-3);
+  }
+  .mode-now .chip.o2 {
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+  .mode-now .send {
+    background: #9a9a94;
+  }
+  .pb .ref .cap3 {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 52px;
+    font-size: 10px;
+    line-height: 13px;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mode-now .pb .refs {
+    margin-bottom: 26px;
+  }
+  .pb .ref.tile-add {
+    background: var(--fill);
+    border: 1px solid var(--line-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    box-sizing: border-box;
+  }
+  /* 「+」菜单：改后 = 画布那档弹层；现状 = 普通下拉 */
+  .amenu {
+    position: absolute;
+    width: 288px;
+    padding: 6px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--line-2),
+      var(--sh-overlay);
+    pointer-events: auto;
+    transform-origin: 0 0;
+  }
+  .amenu .mi {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .amenu .mi:hover {
+    background: var(--fill);
+  }
+  .amenu .mi kbd {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+  }
+  .amenu .sec {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 10px 10px 6px;
+    letter-spacing: 0.02em;
+    display: flex;
+    justify-content: space-between;
+  }
+  .amenu .gridc {
+    display: grid;
+    grid-template-columns: repeat(5, 48px);
+    gap: 6px;
+    padding: 0 10px 8px;
+  }
+  .amenu .gt {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    position: relative;
+    box-shadow: inset 0 0 0 1px rgba(10, 10, 10, 0.06);
+  }
+  .amenu .gt:hover {
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+  .amenu .gt.on::after {
+    content: '✓';
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+  }
+  .amenu .gt.wav {
+    background: #ecece8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .dmenu {
+    position: absolute;
+    width: 176px;
+    padding: 4px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(10, 10, 10, 0.08),
+      0 8px 20px -8px rgba(0, 0, 0, 0.2);
+    pointer-events: auto;
+  }
+  .dmenu div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .dmenu div:hover {
+    background: var(--fill);
+  }
+  .ppop {
+    position: absolute;
+    width: 280px;
+    padding: 12px;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--line-2),
+      var(--sh-overlay);
+    pointer-events: auto;
+  }
+  .ppop .lbl2 {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 2px 2px 8px;
+    letter-spacing: 0.02em;
+  }
+  .ppop .segx {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--fill);
+    margin-bottom: 12px;
+  }
+  .ppop .segx button {
+    flex: 1;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .ppop .segx button.on {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+
+  .narrow {
+    display: none;
+  }
+  /* 空态（改后）：虚线 + 一句话 + 两颗字键 */
+  .empty2 {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--r-node);
+    border: calc(1.5px / var(--z)) dashed rgba(10, 10, 10, 0.24);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+  }
+  .empty2.row {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .empty2 .sub {
+    font-size: 12px;
+    color: var(--faint);
+  }
+  .gb2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: var(--fill-2);
+    color: var(--ink);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .gb2:hover {
+    background: var(--fill-3);
+  }
+  .gb2 svg.i {
+    width: 14px;
+    height: 14px;
+  }
+  .mode-after .node.is-empty .face {
+    background: transparent;
+    box-shadow: none;
+  }
+  .node.is-empty.sel .face {
+    box-shadow: 0 0 0 calc(2px / var(--z)) var(--ink);
+  }
+  .txtempty {
+    position: absolute;
+    inset: 0;
+    padding: 18px 20px;
+    color: var(--faint);
+    font-size: 14px;
+  }
+  .tb .dis {
+    opacity: 0.38;
+    pointer-events: none;
+  }
+  /* 模型弹层 */
+  .mpop {
+    position: absolute;
+    width: 300px;
+    max-height: 392px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px var(--line-2),
+      var(--sh-overlay);
+    pointer-events: auto;
+    overflow: hidden;
+  }
+  .mpop .ms {
+    margin: 8px 8px 4px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--fill);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    color: var(--faint);
+    font-size: 13px;
+    flex: none;
+  }
+  .mpop .ml {
+    overflow: auto;
+    padding: 0 6px 6px;
+  }
+  .mpop .mg {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 10px 10px 4px;
+    letter-spacing: 0.02em;
+  }
+  .mpop .mr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 5px 10px;
+    border-radius: 10px;
+    text-align: left;
+  }
+  .mpop .mr:hover {
+    background: var(--fill);
+  }
+  .mpop .mr .mn {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--ink);
+  }
+  .mpop .mr .mc {
+    font-size: 11px;
+    line-height: 15px;
+    color: var(--muted);
+  }
+  .mpop .mr.nokey .mn {
+    color: var(--faint);
+  }
+  .mpop .mr .ck {
+    margin-left: auto;
+    color: var(--ink);
+  }
+  .mpop .mr .chn {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .mpop .mf {
+    border-top: 1px solid var(--line-2);
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--ink-2);
+    flex: none;
+  }
+  .mpop.now {
+    border-radius: 12px;
+    width: 282px;
+  }
+  .mpop.now .mg {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .mpop.now .mr {
+    min-height: 28px;
+  }
+  /* 助手 */
+  .gutter {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 0;
+    background: #14120f;
+  }
+  .asst {
+    position: absolute;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 30;
+  }
+  .asst[hidden] {
+    display: none !important;
+  }
+  .asst .ah {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 10px 0 14px;
+    border-bottom: 1px solid var(--line-2);
+    flex: none;
+  }
+  .asst .ah .av2 {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #d9c7ef, #7a64b3);
+    flex: none;
+  }
+  .asst .ah .tt {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+  .asst .ab {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 13px;
+    line-height: 21px;
+  }
+  .asst .you {
+    align-self: flex-end;
+    max-width: 82%;
+    padding: 9px 12px;
+    border-radius: 14px;
+    background: #f4f3ee;
+  }
+  .asst .me {
+    max-width: 92%;
+  }
+  .asst .chg {
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--line-2);
+    padding: 6px;
+  }
+  .asst .chg div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .asst .chg div:hover {
+    background: var(--fill);
+  }
+  .asst .chg i {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    flex: none;
+  }
+  .asst .ac {
+    margin: 0 12px 12px;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(10, 10, 10, 0.08);
+    padding: 10px 10px 8px 14px;
+    flex: none;
+  }
+  .asst .ac .ph {
+    font-size: 13px;
+    color: var(--faint);
+    min-height: 28px;
+  }
+  .asst .ac .row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tr {
+    right: 62px;
+  }
+  .avfix {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    background: radial-gradient(circle at 35% 30%, #d9c7ef, #7a64b3);
+    box-shadow: var(--sh-float);
+    z-index: 31;
+    transition: opacity 120ms;
+  }
+  .avfix:active {
+    transform: scale(0.96);
+  }
+  .stage.yield {
+    box-shadow: 0 0 0 1px var(--line-2);
+  }
+
+  @media (max-width: 860px) {
+    .narrow {
+      display: block;
+      padding-block: 10px;
+      padding-inline: 16px;
+      font-size: 12px;
+      line-height: 19px;
+      color: var(--ink-2);
+      background: #fff7e6;
+      border-bottom: 1px solid #f0dfb8;
+    }
+    .hint {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shellx,
+    .late,
+    .node .nm,
+    .seg button {
+      transition-duration: 1ms;
+    }
+  }
+</style>
+
+<header class="proto">
+  <div class="pt">画布节点打磨<span>可点原型 · 09-29</span></div>
+  <div class="seg" id="segMode" role="group" aria-label="对比">
+    <button id="mAfter" data-v="after" class="on">改后</button>
+    <button id="mNow" data-v="now">现状</button>
+  </div>
+  <span class="tog" style="color: #696969">打开态：A 一张纸（定案）</span>
+  <span class="tog" style="color: #696969"
+    >助手：布局 A（与图片 / 视频工作台统一）</span
+  >
+  <button class="pbtn" id="bReload">重播加载</button>
+  <button class="pbtn" id="bZoom30">缩到 30%</button>
+  <button class="pbtn" id="bOpenProj">模拟打开项目</button>
+  <label class="tog"><input type="checkbox" id="slow" /> 慢放 ×4</label>
+  <div class="say" id="say"></div>
+</header>
+<div class="narrow">
+  这是桌面画布的原型，请在 1024 宽以上查看。手机（&lt;
+  768）走镜头带视图，这一轮不改。
+</div>
+
+<main class="win mode-after" id="win">
+  <nav class="rail" aria-hidden="true">
+    <svg class="i" viewBox="0 0 16 16">
+      <rect x="2.5" y="3" width="11" height="10" rx="2" />
+      <path d="M6 3v10" />
+    </svg>
+    <svg class="i" viewBox="0 0 16 16">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
+      <circle cx="6" cy="6" r="1.3" />
+      <path d="M13.5 10.5l-3-3-6 6" />
+    </svg>
+    <svg class="i" viewBox="0 0 16 16">
+      <rect x="2" y="4" width="9" height="8" rx="1.6" />
+      <path d="M11 7l3-2v6l-3-2" />
+    </svg>
+    <svg class="i" viewBox="0 0 16 16">
+      <path d="M2.5 8h1M5 5.5v5M7.5 3.5v9M10 5.5v5M12.5 7v2" />
+    </svg>
+    <span class="on"
+      ><svg class="i" viewBox="0 0 16 16">
+        <circle cx="4" cy="4" r="1.8" />
+        <circle cx="12" cy="4" r="1.8" />
+        <circle cx="8" cy="12" r="1.8" />
+        <path d="M5.5 5.2L7 10.4M10.5 5.2L9 10.4" /></svg
+    ></span>
+  </nav>
+  <section class="stage" id="stage" aria-label="画布">
+    <div class="grid" id="grid"></div>
+    <div class="world" id="world"><svg class="edges" id="edges"></svg></div>
+    <div class="chrome" id="chrome"></div>
+
+    <div class="pill shellx">
+      <span class="dot"></span>雨夜 · 分镜<svg
+        class="i"
+        viewBox="0 0 16 16"
+        style="width: 14px; height: 14px"
+      >
+        <path d="M4.5 6.5L8 10l3.5-3.5" />
+      </svg>
+    </div>
+    <div class="icol shellx">
+      <button id="bList" aria-label="节点一览">
+        <svg class="i" viewBox="0 0 16 16">
+          <circle cx="4" cy="8" r="1.8" />
+          <rect x="9" y="2.5" width="4.5" height="4" rx="1" />
+          <rect x="9" y="9.5" width="4.5" height="4" rx="1" />
+          <path d="M5.8 8H7.5M7.5 4.5v7M7.5 4.5H9M7.5 11.5H9" />
+        </svg>
+      </button>
+      <button aria-label="角色">
+        <svg class="i" viewBox="0 0 16 16">
+          <circle cx="8" cy="5.5" r="2.6" />
+          <path d="M3 13.5c.8-2.5 2.8-3.8 5-3.8s4.2 1.3 5 3.8" />
+        </svg>
+      </button>
+      <button aria-label="素材库">
+        <svg class="i" viewBox="0 0 16 16">
+          <path
+            d="M2 5.5V12a1 1 0 001 1h10a1 1 0 001-1V6.5a1 1 0 00-1-1H8L6.5 3.5H3a1 1 0 00-1 1z"
+          />
+        </svg>
+      </button>
+    </div>
+    <aside class="panel shellx" id="panel" hidden>
+      <div class="ph2">
+        节点一览<button id="bListClose" aria-label="收起">
+          <svg class="i" viewBox="0 0 16 16">
+            <rect x="2.5" y="3" width="11" height="10" rx="2" />
+            <path d="M6 3v10" />
+          </svg>
+        </button>
+      </div>
+      <div class="srch">
+        <svg class="i" viewBox="0 0 16 16">
+          <circle cx="7" cy="7" r="4.2" />
+          <path d="M10.2 10.2l3.3 3.3" /></svg
+        >搜索节点…
+      </div>
+      <div
+        id="rows"
+        style="overflow: auto; flex: 1; padding-bottom: 10px"
+      ></div>
+    </aside>
+    <div class="tr shellx">
+      <span class="ed"
+        ><svg class="i" viewBox="0 0 16 16">
+          <circle cx="4.5" cy="11.5" r="2" />
+          <circle cx="11.5" cy="11.5" r="2" />
+          <path d="M6 10L12.5 3M10 10L3.5 3" /></svg
+        >剪辑台</span
+      >
+    </div>
+    <div class="bbar shellx" id="bbar">
+      <button aria-label="选择">
+        <svg class="i" viewBox="0 0 16 16">
+          <path d="M3.5 2.5l9 4.2-3.9 1.3-1.3 3.9z" />
+        </svg>
+      </button>
+      <button class="on" aria-label="手">
+        <svg class="i" viewBox="0 0 16 16">
+          <path
+            d="M5.5 8V3.8a1 1 0 012 0V7.5M7.5 7V2.8a1 1 0 012 0V7.5M9.5 7.3V4a1 1 0 012 0v5.5c0 2.4-1.6 4-3.8 4-1.6 0-2.6-.7-3.5-2l-1.6-2.4a1 1 0 011.6-1.2L5.5 9"
+          />
+        </svg>
+      </button>
+      <span class="sep"></span>
+      <button id="zOut" aria-label="缩小">
+        <svg class="i" viewBox="0 0 16 16">
+          <circle cx="7" cy="7" r="4.5" />
+          <path d="M5 7h4M10.4 10.4l3 3" />
+        </svg>
+      </button>
+      <span class="zp mono" id="zp">100%</span>
+      <button id="zIn" aria-label="放大">
+        <svg class="i" viewBox="0 0 16 16">
+          <circle cx="7" cy="7" r="4.5" />
+          <path d="M5 7h4M7 5v4M10.4 10.4l3 3" />
+        </svg>
+      </button>
+      <button id="zFit" aria-label="适配视图">
+        <svg class="i" viewBox="0 0 16 16">
+          <path d="M2.5 5.5v-3h3M10.5 2.5h3v3M13.5 10.5v3h-3M5.5 13.5h-3v-3" />
+          <rect x="5" y="5" width="6" height="6" rx="1" />
+        </svg>
+      </button>
+      <button aria-label="整理">
+        <svg class="i" viewBox="0 0 16 16">
+          <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+          <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+          <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+          <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+        </svg>
+      </button>
+      <span class="sep"></span>
+      <button aria-label="撤销">
+        <svg class="i" viewBox="0 0 16 16">
+          <path d="M5 4L2.5 6.5 5 9M2.5 6.5h7a3.5 3.5 0 010 7H7" />
+        </svg>
+      </button>
+      <button aria-label="重做">
+        <svg class="i" viewBox="0 0 16 16">
+          <path d="M11 4l2.5 2.5L11 9M13.5 6.5h-7a3.5 3.5 0 000 7H9" />
+        </svg>
+      </button>
+    </div>
+    <div class="mini shellx" id="mini"></div>
+    <div class="hint shellx" id="hint">
+      点一张卡选中 · 拖空白平移 · ⌘/Ctrl + 滚轮缩放 · 双击图片、视频打开 ·
+      文本卡点工具条「展开」
+    </div>
+
+    <div class="open" id="open" hidden></div>
+  </section>
+  <div class="gutter" id="gutter"></div>
+  <aside class="asst" id="asst" hidden></aside>
+  <button class="av avfix shellx" id="bAsst" aria-label="展开助手"></button>
+</main>
+
+<script>
+  ;(() => {
+    const $ = (s, r = document) => r.querySelector(s)
+    const win = $('#win'),
+      stage = $('#stage'),
+      world = $('#world'),
+      edgesSvg = $('#edges'),
+      chrome = $('#chrome')
+    const grid = $('#grid'),
+      openEl = $('#open'),
+      panel = $('#panel')
+
+    const SLOT =
+      'linear(0,0.0092,0.0752,0.2199,0.4142,0.6072,0.7688,0.8865,0.9614,1.0009,1.0159,1.0169,1.0122,1.0064,1.0019,0.9996,0.999,1)'
+    const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+    const EASE_IN = 'cubic-bezier(0.4, 0, 1, 1)'
+    const S = {
+      mode: 'after',
+      dir: 'A',
+      slow: 1,
+      vp: { x: 0, y: 0, z: 1 },
+      sel: null,
+      panel: false,
+      open: null,
+      anim: null,
+    }
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const T = (ms) => (reduce ? 1 : ms * S.slow)
+
+    const I = {
+      play: '<svg class="i" viewBox="0 0 16 16"><path d="M5 3.5v9l7-4.5z"/></svg>',
+      plus: '<svg class="i" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>',
+      send: '<svg class="i" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></svg>',
+      chev: '<svg class="i" viewBox="0 0 16 16" style="width:12px;height:12px"><path d="M4.5 6.5L8 10l3.5-3.5"/></svg>',
+      down: '<svg class="i" viewBox="0 0 16 16"><path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>',
+      more: '<svg class="i" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.5" cy="8" r=".9"/></svg>',
+      x: '<svg class="i" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+      shot: '<svg class="i" viewBox="0 0 16 16"><rect x="2" y="5" width="12" height="8.5" rx="1.5"/><path d="M2 5l1.2-2.5h9.6L14 5M5.5 2.5L4.3 5M9 2.5L7.8 5"/></svg>',
+      pen: '<svg class="i" viewBox="0 0 16 16"><path d="M11 2.5l2.5 2.5-7.5 7.5H3.5V10z"/></svg>',
+      cam: '<svg class="i" viewBox="0 0 16 16"><path d="M2.5 5.5h2.2l1-1.8h4.6l1 1.8h2.2v7h-11z"/><circle cx="8" cy="8.8" r="2.2"/></svg>',
+      exp: '<svg class="i" viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9"/></svg>',
+      fwd: '<svg class="i" viewBox="0 0 16 16"><path d="M4 3.5v9l6-4.5zM12 3.5v9"/></svg>',
+      smile:
+        '<svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M5.8 9.5c1.2 1.4 3.2 1.4 4.4 0M6 6.5h.01M10 6.5h.01"/></svg>',
+      scis: '<svg class="i" viewBox="0 0 16 16"><circle cx="4.5" cy="11.5" r="2"/><circle cx="4.5" cy="4.5" r="2"/><path d="M6.2 5.6L13.5 12M6.2 10.4L13.5 4"/></svg>',
+      doc: '<svg class="i" viewBox="0 0 16 16"><path d="M4 2.5h5.5L12.5 5.5v8H4z"/><path d="M9.5 2.5v3h3M6 8.5h4.5M6 11h4.5"/></svg>',
+      link: '<svg class="i" viewBox="0 0 16 16"><rect x="2" y="4.5" width="9" height="7" rx="1.4"/><path d="M11 7l3-1.8v5.6L11 9"/></svg>',
+      spark:
+        '<svg class="i" viewBox="0 0 16 16"><path d="M8 2.5l1.3 3.2L12.5 7 9.3 8.3 8 11.5 6.7 8.3 3.5 7l3.2-1.3z"/></svg>',
+      mute: '<svg class="i" viewBox="0 0 16 16"><path d="M2.5 6v4h2.5L8.5 13V3L5 6zM11 6.5l3 3M14 6.5l-3 3"/></svg>',
+      img: '<svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="6" cy="6" r="1.3"/><path d="M13.5 10.5l-3-3-6 6"/></svg>',
+      vid: '<svg class="i" viewBox="0 0 16 16"><rect x="2" y="4" width="9" height="8" rx="1.6"/><path d="M11 7l3-2v6l-3-2"/></svg>',
+      wav: '<svg class="i" viewBox="0 0 16 16"><path d="M2.5 8h1M5 5.5v5M7.5 3.5v9M10 5.5v5M12.5 7v2"/></svg>',
+      txt: '<svg class="i" viewBox="0 0 16 16"><path d="M3.5 4V3h9v1M8 3v10M6.5 13h3"/></svg>',
+    }
+
+    const ART = {
+      night:
+        'radial-gradient(90% 60% at 72% 88%, rgba(255,186,120,.42), transparent 55%), radial-gradient(40% 30% at 22% 76%, rgba(150,190,255,.28), transparent 70%), linear-gradient(180deg,#232b3a 0%,#39455b 58%,#171b25 100%)',
+      shot: 'radial-gradient(55% 55% at 34% 64%, rgba(130,205,222,.4), transparent 62%), linear-gradient(160deg,#35505c 0%,#1b262d 100%)',
+      girl: 'radial-gradient(38% 22% at 52% 30%, #f1d7d3 0%, rgba(241,215,211,0) 72%), radial-gradient(60% 40% at 50% 78%, rgba(40,38,58,.9), transparent 70%), linear-gradient(180deg,#9a96b4 0%,#66627f 55%,#2d2b3d 100%)',
+      rooftop:
+        'radial-gradient(70% 50% at 50% 100%, rgba(255,210,150,.35), transparent 60%), linear-gradient(180deg,#3a4254 0%,#252b38 100%)',
+    }
+
+    const NODES = [
+      {
+        id: 'txt1',
+        type: 'text',
+        sub: '剧本',
+        name: '旁白',
+        x: -440,
+        y: -10,
+        w: 320,
+        h: 300,
+      },
+      {
+        id: 'img1',
+        type: 'image',
+        sub: '镜头图',
+        name: '雨夜天台 · 远景',
+        x: 0,
+        y: 0,
+        w: 320,
+        h: 180,
+        art: ART.night,
+        versions: 3,
+      },
+      {
+        id: 'img2',
+        type: 'image',
+        sub: '生成图',
+        name: '她回头看楼梯口，雨夜天台',
+        nameNow: '生成图2',
+        x: 0,
+        y: 260,
+        w: 200,
+        h: 266,
+        art: ART.girl,
+        versions: 2,
+      },
+      {
+        id: 'aud1',
+        type: 'audio',
+        sub: '语音',
+        name: '秧秧 · 语音 2',
+        x: -440,
+        y: 360,
+        w: 320,
+        h: 72,
+      },
+      {
+        id: 'vid1',
+        type: 'video',
+        sub: '镜头',
+        name: '镜头 3',
+        x: 440,
+        y: 0,
+        w: 320,
+        h: 180,
+        art: ART.shot,
+        dur: '0:04',
+      },
+      {
+        id: 'vid2',
+        type: 'video',
+        sub: '镜头',
+        name: '镜头 4',
+        x: 440,
+        y: 260,
+        w: 320,
+        h: 180,
+        loading: true,
+        art: ART.rooftop,
+        dur: '0:05',
+      },
+      {
+        id: 'emp1',
+        type: 'image',
+        sub: '背景',
+        name: '背景',
+        x: 440,
+        y: 520,
+        w: 320,
+        h: 180,
+        empty: true,
+      },
+      {
+        id: 'vid3',
+        type: 'video',
+        sub: '镜头',
+        name: '镜头 5',
+        x: 880,
+        y: 0,
+        w: 320,
+        h: 180,
+        empty: true,
+      },
+      {
+        id: 'aud2',
+        type: 'audio',
+        sub: '语音',
+        name: '语音 3',
+        x: 880,
+        y: 260,
+        w: 320,
+        h: 72,
+        empty: true,
+      },
+      {
+        id: 'txt2',
+        type: 'text',
+        sub: '文本',
+        name: '旁白 2',
+        x: 880,
+        y: 380,
+        w: 320,
+        h: 200,
+        empty: true,
+      },
+    ]
+    const EDGES = [
+      { from: 'img1', to: 'vid1', label: '参考' },
+      { from: 'txt1', to: 'img1', label: '说明' },
+      { from: 'img2', to: 'vid2', label: '首帧' },
+    ]
+    const byId = Object.fromEntries(NODES.map((n) => [n.id, n]))
+
+    /* ── 渲染卡 ── */
+    function seedBars(seed, n) {
+      let h = 2166136261
+      for (const c of seed) {
+        h ^= c.charCodeAt(0)
+        h = Math.imul(h, 16777619) >>> 0
+      }
+      const out = []
+      for (let k = 0; k < n; k++) {
+        h ^= h << 13
+        h >>>= 0
+        h ^= h >> 17
+        h ^= h << 5
+        h >>>= 0
+        out.push(0.25 + ((h % 1000) / 1000) * 0.75)
+      }
+      return out
+    }
+    const UP =
+      '<svg class="i" viewBox="0 0 16 16"><path d="M8 10.5v-8M4.5 6L8 2.5 11.5 6M3 13.5h10"/></svg>'
+    function emptyHTML(n) {
+      if (S.mode === 'now') {
+        if (n.type === 'text') return `<div class="txtempty">继续写……</div>`
+        if (n.type === 'audio')
+          return `<div class="empty" style="gap:4px;font-size:12px"><span class="plus" style="width:26px;height:26px">${I.plus}</span>上传 · 选一段现成的 · 或写台词生成</div>`
+        return `<div class="empty"><span class="plus">${I.plus}</span>上传 · 粘贴 · 或写提示词</div>`
+      }
+      if (n.type === 'text')
+        return `<div class="empty2"><span>双击开始写</span><span class="sub">或让助手写一段</span></div>`
+      if (n.type === 'audio')
+        return `<div class="empty2 row"><span class="gb2">${UP}上传</span><span class="gb2">${I.wav}声音库</span><span class="sub">或写台词生成</span></div>`
+      const hint =
+        n.type === 'video'
+          ? '上传一段 · 或写这个镜头怎么拍'
+          : '上传 · 粘贴 · 或写提示词'
+      return `<div class="empty2"><span>${hint}</span><span style="display:flex;gap:6px"><span class="gb2">${UP}上传</span><span class="gb2">${I.img}素材库</span></span></div>`
+    }
+    function faceHTML(n) {
+      if (n.empty) return emptyHTML(n)
+      if (n.type === 'image')
+        return `<div class="art" style="background:${n.art}"></div>`
+      if (n.type === 'video') {
+        if (n.loading && !S.loaded)
+          return `<div class="vload"><span class="pg">${I.play}</span><span class="dur mono">${n.dur}</span></div>`
+        return `<div class="art" style="background:${n.art}"></div><span class="dur mono">${n.dur}</span>`
+      }
+      if (n.type === 'audio') {
+        const count = S.mode === 'after' ? 60 : 36
+        const bars = seedBars(n.id, count)
+          .map((r) => `<i style="height:${Math.round(r * 30)}px"></i>`)
+          .join('')
+        return `<div class="aud"><span class="play">${I.play}</span><span class="wave">${bars}</span><span class="t mono">${S.mode === 'after' ? '0:12' : '--:--'}</span></div>`
+      }
+      return `<div class="txt"><h4>雨夜 · 天台</h4><p>她等了很久。雨从栏杆上滴下来，手机屏幕亮了又暗。</p><p>镜 1 远景：雨夜天台全景，城市的灯在雨里化开。</p><p>镜 2 中景：她倚着栏杆，看向楼梯口。</p><p>镜 3 特写：手机屏幕 23:47。</p></div>`
+    }
+    function renderNodes() {
+      world.querySelectorAll('.node').forEach((e) => e.remove())
+      for (const n of NODES) {
+        const el = document.createElement('div')
+        el.className =
+          'node' + (n.empty ? ' is-empty' : '') + (S.sel === n.id ? ' sel' : '')
+        el.dataset.id = n.id
+        el.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px`
+        const name = S.mode === 'now' && n.nameNow ? n.nameNow : n.name
+        el.innerHTML = `<div class="nm">${name}</div><div class="face">${faceHTML(n)}</div><span class="port l"></span><span class="port r"></span>`
+        world.appendChild(el)
+      }
+    }
+    function renderEdges() {
+      const off = 4000
+      edgesSvg.innerHTML = EDGES.map((e) => {
+        const a = byId[e.from],
+          b = byId[e.to]
+        const x1 = a.x + a.w + off,
+          y1 = a.y + a.h / 2 + off,
+          x2 = b.x + off,
+          y2 = b.y + b.h / 2 + off
+        const dx = Math.max(60, (x2 - x1) / 2)
+        const hot = S.sel && (S.sel === e.from || S.sel === e.to)
+        return `<path class="${hot ? 'hot' : ''}" d="M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}"/>`
+      }).join('')
+    }
+
+    /* ── 视口 ── */
+    function stageSize() {
+      return { W: stage.clientWidth, H: stage.clientHeight }
+    }
+    function applyVP() {
+      const { x, y, z } = S.vp
+      world.style.transform = `translate(${x}px,${y}px) scale(${z})`
+      world.style.setProperty('--z', z)
+      const g = 48 * z
+      grid.style.backgroundImage = `radial-gradient(circle, var(--dot) ${Math.max(0.6, 1 * Math.min(z, 1.2))}px, transparent ${Math.max(0.6, 1 * Math.min(z, 1.2)) + 0.4}px)`
+      grid.style.backgroundSize = `${g}px ${g}px`
+      grid.style.backgroundPosition = `${x}px ${y}px`
+      $('#zp').textContent = Math.round(z * 100) + '%'
+      if (pop) closePop(true)
+      layoutChrome()
+      renderMini()
+    }
+    function zoomAt(px, py, nz) {
+      nz = Math.min(2, Math.max(0.3, nz))
+      const { x, y, z } = S.vp
+      const wx = (px - x) / z,
+        wy = (py - y) / z
+      S.vp = { x: px - wx * nz, y: py - wy * nz, z: nz }
+      applyVP()
+    }
+    function bezier(p1x, p1y, p2x, p2y) {
+      const cx = 3 * p1x,
+        bx = 3 * (p2x - p1x) - cx,
+        ax = 1 - cx - bx
+      const cy = 3 * p1y,
+        by = 3 * (p2y - p1y) - cy,
+        ay = 1 - cy - by
+      const sx = (t) => ((ax * t + bx) * t + cx) * t,
+        sy = (t) => ((ay * t + by) * t + cy) * t
+      return (x) => {
+        let t = x
+        for (let k = 0; k < 8; k++) {
+          const d = sx(t) - x
+          const dd = (3 * ax * t + 2 * bx) * t + cx
+          if (Math.abs(d) < 1e-5 || !dd) break
+          t -= d / dd
+        }
+        return sy(Math.min(1, Math.max(0, t)))
+      }
+    }
+    const easeStd = bezier(0.22, 1, 0.36, 1)
+    function animateVP(to, ms, done) {
+      if (S.anim) cancelAnimationFrame(S.anim)
+      const from = { ...S.vp },
+        t0 = performance.now(),
+        dur = T(ms)
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / dur),
+          e = easeStd(p)
+        S.vp = {
+          x: from.x + (to.x - from.x) * e,
+          y: from.y + (to.y - from.y) * e,
+          z: from.z + (to.z - from.z) * e,
+        }
+        applyVP()
+        if (p < 1) S.anim = requestAnimationFrame(step)
+        else {
+          S.anim = null
+          done && done()
+        }
+      }
+      S.anim = requestAnimationFrame(step)
+    }
+
+    /* ── 安全区：外壳占掉的地方不给浮层 ── */
+    function safeArea() {
+      const { W, H } = stageSize()
+      const r = W - 16
+      return { l: S.panel ? 70 + 264 + 12 : 72, t: 64, r, b: H - 76, W, H }
+    }
+    function screenRect(n) {
+      const { x, y, z } = S.vp
+      return { x: x + n.x * z, y: y + n.y * z, w: n.w * z, h: n.h * z }
+    }
+
+    /* ── 选中的两样 ── */
+    function toolbarHTML(n) {
+      const dis = n.empty && S.mode === 'now' ? ' dis' : ''
+      const k = (ic, t) =>
+        `<button class="k${dis}" title="${t}" aria-label="${t}">${ic}</button>`
+      const lead = (ic, t) => `<button class="lead${dis}">${ic}${t}</button>`
+      if (n.type === 'image')
+        return (
+          lead(I.shot, '生镜头') +
+          k(I.pen, '编辑') +
+          k(I.down, '下载') +
+          '<span class="sep"></span>' +
+          k(I.more, '更多')
+        )
+      if (n.type === 'video')
+        return (
+          lead(I.fwd, '续拍') +
+          `<button class="k" data-act="open" title="展开" aria-label="展开">${I.exp}</button>` +
+          k(I.cam, '抽帧') +
+          k(I.down, '下载') +
+          '<span class="sep"></span>' +
+          k(I.more, '更多')
+        )
+      if (n.type === 'audio')
+        return (
+          lead(I.smile, '加语气') +
+          k(I.scis, '裁剪') +
+          k(I.doc, '转文字') +
+          k(I.link, '连到镜头') +
+          '<span class="sep"></span>' +
+          k(I.more, '更多')
+        )
+      return (
+        `<button class="lead" data-act="open">${I.exp}展开</button>` +
+        k(I.down, '下载') +
+        '<span class="sep"></span>' +
+        k(I.more, '更多')
+      )
+    }
+    /* 挂在各卡上的参考（原型里的假数据；改后可以从「+」菜单再挂） */
+    const REFS = {
+      img1: ['rooftop'],
+      vid1: ['night', 'wav'],
+      vid2: [],
+      img2: [],
+      emp1: [],
+    }
+    const CANVAS_MEDIA = [
+      { key: 'night', label: '雨夜天台 · 远景' },
+      { key: 'girl', label: '她回头看楼梯口…' },
+      { key: 'shot', label: '镜头 3' },
+      { key: 'rooftop', label: '天台参考' },
+      { key: 'wav', label: '秧秧 · 语音 2' },
+    ]
+    function refTile(key, k, n) {
+      const isVid = n.type === 'video'
+      const badge = isVid ? (key === 'wav' ? `语${k}` : `图${k}`) : `${k}`
+      const cap =
+        S.mode === 'now'
+          ? `<span class="cap3">${(CANVAS_MEDIA.find((m) => m.key === key) || {}).label || ''}</span>`
+          : ''
+      if (key === 'wav')
+        return `<span class="ref" data-ref="${key}" style="background:#e9e9e4;display:flex;align-items:center;justify-content:center;color:#696969">${I.wav}<b>${badge}</b>${cap}</span>`
+      return `<span class="ref" data-ref="${key}" style="background:${ART[key]}" title="${(CANVAS_MEDIA.find((m) => m.key === key) || {}).label || ''}"><b>${badge}</b>${cap}</span>`
+    }
+    function refsRow(n) {
+      const list = REFS[n.id] || []
+      let img = 0,
+        aud = 0
+      const tiles = list
+        .map((key) => refTile(key, key === 'wav' ? ++aud : ++img, n))
+        .join('')
+      const addTile =
+        S.mode === 'now' ? `<span class="ref tile-add">${I.plus}</span>` : ''
+      if (!list.length && S.mode === 'after') return ''
+      return `<div class="refs">${tiles}${addTile}</div>`
+    }
+    function promptHTML(n) {
+      const dots = n.versions
+        ? `<div class="vdots">${Array.from({ length: n.versions }, (_, k) => `<i class="${k === n.versions - 1 ? 'on' : ''}"></i>`).join('')}</div>`
+        : ''
+      const now = S.mode === 'now'
+      const send = now
+        ? `<button class="send" aria-label="发送"><svg class="i" viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4"/></svg></button>`
+        : `<button class="send" aria-label="发送">${I.send}</button>`
+      const plus = `<button class="plus" data-add aria-label="加素材">${I.plus}</button>`
+      let w = 360,
+        body = ''
+      if (n.type === 'image') {
+        w = 640
+        const model = now && n.empty ? '选择模型' : modelLabel(n)
+        body =
+          refsRow(n) +
+          `<div class="ph ${n.empty ? '' : 'v'}">${n.empty ? '描述这张图……' : '雨夜的天台，城市灯光在雨里化开，远景，冷色调'}</div>
+        <div class="row">${plus}<span class="chip ${now ? 'o2' : ''}" data-chip="frame">画面 <span class="s" data-chip-val>${S.frame || '16:9'} · 2K</span>${I.chev}</span><span class="chip" data-chip="model">${model}${I.chev}</span>${send}</div>`
+      } else if (n.type === 'video') {
+        w = 640
+        const ph = n.empty
+          ? `<div class="ph">写下这个镜头怎么拍……</div>`
+          : `<div class="ph v">@图1 她站在雨里，镜头从远景慢慢推近，@语1 在第二秒进</div>`
+        const pchip = `<span class="chip ${now ? 'o2' : ''}" data-chip="frame"><span data-chip-val>${S.frame || '16:9'}</span> · 720p · 4s${I.chev}</span>`
+        const mchip = `<span class="chip" data-chip="model">${modelLabel(n)}${I.chev}</span>`
+        body =
+          (n.empty && now
+            ? `<div class="refs"><span class="ref tile-add">${I.plus}</span></div>`
+            : refsRow(n)) +
+          ph +
+          `
+        <div class="row">${plus}${now ? mchip + pchip : pchip + mchip}<span class="chip o">${I.mute}</span>${send}</div>`
+      } else if (n.type === 'audio') {
+        w = 420
+        body = `<div class="ph">写台词，或上传一段声音……</div><div class="row">${plus}<span class="chip">秧秧${I.chev}</span><span class="chip" data-chip="model">${modelLabel(n)}${I.chev}</span>${send}</div>`
+      } else {
+        w = 380
+        body = `<div class="ph">让助手写一段……</div><div class="row"><span class="chip o">续写</span><span class="chip o">改写</span><span class="chip">写作模型${I.chev}</span>${send}</div>`
+      }
+      return `<div class="pcol">${dots}<div class="pb" style="width:${w}px">${body}</div></div>`
+    }
+
+    /* ── 提示词栏里的弹层：「+」菜单与 chip 弹层（屏幕坐标，从触发键长出来） ── */
+    let pop = null
+    function closePop(instant) {
+      if (!pop) return
+      const p = pop
+      pop = null
+      p.trigger.classList.remove('is-open')
+      if (instant) {
+        p.el.remove()
+        return
+      }
+      const a = p.el.animate(
+        [
+          { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+          { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+        ],
+        {
+          duration: T(S.mode === 'now' ? 120 : 200),
+          easing: EASE_IN,
+          fill: 'forwards',
+        },
+      )
+      a.onfinish = () => p.el.remove()
+    }
+    function placePop(el, trigger) {
+      const st = stage.getBoundingClientRect(),
+        tr = trigger.getBoundingClientRect(),
+        sa = safeArea()
+      const w = el.offsetWidth,
+        h = el.offsetHeight
+      let left = tr.left - st.left,
+        top = tr.bottom - st.top + 8
+      let below = true
+      if (top + h > sa.b) {
+        top = tr.top - st.top - 8 - h
+        below = false
+      }
+      left = Math.min(Math.max(left, sa.l), sa.r - w)
+      top = Math.max(top, sa.t)
+      el.style.left = left + 'px'
+      el.style.top = top + 'px'
+      const ox = tr.left - st.left + tr.width / 2 - left
+      el.style.transformOrigin = `${ox}px ${below ? 0 : h}px`
+    }
+    function openAddMenu(trigger, nodeId) {
+      if (pop && pop.trigger === trigger) {
+        closePop()
+        return
+      }
+      closePop(true)
+      const n = byId[nodeId]
+      const el = document.createElement('div')
+      if (S.mode === 'now') {
+        el.className = 'dmenu'
+        el.innerHTML = `<div>${I.down.replace('M8 2.5v8M4.5 7L8 10.5 11.5 7', 'M8 10.5v-8M4.5 6L8 2.5 11.5 6')}上传</div><div>${I.img}从素材库</div><div>${I.img}画布上的图<span style="margin-left:auto;color:var(--faint)">›</span></div>`
+      } else {
+        const accept =
+          n.type === 'audio'
+            ? ['wav']
+            : n.type === 'video'
+              ? ['night', 'girl', 'shot', 'rooftop', 'wav']
+              : ['night', 'girl', 'rooftop']
+        const have = new Set(REFS[nodeId] || [])
+        const tiles = CANVAS_MEDIA.filter(
+          (m) =>
+            accept.includes(m.key) &&
+            !(n.type === 'image' && m.key === 'night' && nodeId === 'img1'),
+        )
+          .map(
+            (m) =>
+              `<button class="gt ${m.key === 'wav' ? 'wav' : ''} ${have.has(m.key) ? 'on' : ''}" data-pick="${m.key}" title="${m.label}" aria-label="挂上 ${m.label}" style="${m.key === 'wav' ? '' : `background:${ART[m.key]}`}">${m.key === 'wav' ? I.wav : ''}</button>`,
+          )
+          .join('')
+        el.className = 'amenu'
+        el.innerHTML = `<button class="mi">${I.down.replace('M8 2.5v8M4.5 7L8 10.5 11.5 7', 'M8 10.5v-8M4.5 6L8 2.5 11.5 6')}上传文件<kbd>⌘U</kbd></button>
+        <button class="mi">${I.img}从素材库选…</button>
+        ${n.type === 'audio' ? `<button class="mi">${I.wav}声音库…</button>` : ''}
+        <div class="sec"><span>画布上的</span><span>点一下就挂上</span></div><div class="gridc">${tiles}</div>`
+      }
+      chrome.appendChild(el)
+      placePop(el, trigger)
+      trigger.classList.add('is-open')
+      pop = { el, trigger, nodeId }
+      if (S.mode === 'now')
+        el.animate(
+          [
+            { opacity: 0, transform: 'scale(.95)' },
+            { opacity: 1, transform: 'scale(1)' },
+          ],
+          { duration: T(150), easing: EASE },
+        )
+      else
+        el.animate(
+          [
+            { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+            { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+          ],
+          { duration: T(340), easing: reduce ? 'linear' : SLOT },
+        )
+      el.addEventListener('click', (e) => {
+        const t = e.target.closest('[data-pick]')
+        if (!t) return
+        const list = REFS[nodeId] || (REFS[nodeId] = [])
+        const key = t.dataset.pick
+        if (list.includes(key)) {
+          closePop()
+          return
+        }
+        list.push(key)
+        closePop()
+        refreshPrompt(nodeId, key)
+      })
+    }
+    function openFramePop(trigger) {
+      if (pop && pop.trigger === trigger) {
+        closePop()
+        return
+      }
+      closePop(true)
+      const el = document.createElement('div')
+      el.className = 'ppop'
+      const cur = S.frame || '16:9'
+      el.innerHTML = `<div class="lbl2">比例</div><div class="segx">${['1:1', '16:9', '9:16', '4:3', '3:4'].map((r) => `<button data-ratio="${r}" class="${r === cur ? 'on' : ''}">${r}</button>`).join('')}</div>
+      <div class="lbl2">张数</div><div class="segx" style="margin-bottom:2px"><button class="on">1</button><button>2</button><button>4</button></div>`
+      chrome.appendChild(el)
+      placePop(el, trigger)
+      trigger.classList.add('is-open')
+      pop = { el, trigger }
+      el.animate(
+        [
+          { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+          { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+        ],
+        { duration: T(340), easing: reduce ? 'linear' : SLOT },
+      )
+      el.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-ratio]')
+        if (!b) return
+        S.frame = b.dataset.ratio
+        el.querySelectorAll('[data-ratio]').forEach((x) =>
+          x.classList.toggle('on', x === b),
+        )
+        const v = trigger.querySelector('[data-chip-val]')
+        if (v)
+          v.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: T(120) })
+        if (v) v.textContent = v.textContent.replace(/^[0-9:]+/, S.frame)
+        setTimeout(() => closePop(), T(160))
+      })
+    }
+    function refreshPrompt(nodeId, addedKey) {
+      if (!chromeEls || chromeEls.id !== nodeId) return
+      const holder = chromeEls.pb.firstElementChild
+      const origin = holder.style.transformOrigin
+      chromeEls.pb.innerHTML = promptHTML(byId[nodeId])
+      chromeEls.pb.firstElementChild.style.transformOrigin = origin
+      layoutChrome()
+      const tile = chromeEls.pb.querySelector(`[data-ref="${addedKey}"]`)
+      if (tile)
+        tile.animate(
+          [
+            { opacity: 0, transform: 'scale(.72)' },
+            { opacity: 1, transform: 'scale(1)' },
+          ],
+          { duration: T(340), easing: reduce ? 'linear' : SLOT },
+        )
+    }
+    chrome.addEventListener('click', (e) => {
+      if (!chromeEls) return
+      const add = e.target.closest('[data-add]')
+      if (add) {
+        openAddMenu(add, chromeEls.id)
+        return
+      }
+      const chip = e.target.closest('[data-chip="frame"]')
+      if (chip) {
+        openFramePop(chip)
+        return
+      }
+      const mchip = e.target.closest('[data-chip="model"]')
+      if (mchip) {
+        openModelPop(mchip, chromeEls.id)
+        return
+      }
+    })
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (
+          pop &&
+          !pop.el.contains(e.target) &&
+          !pop.trigger.contains(e.target)
+        )
+          closePop()
+      },
+      true,
+    )
+    let chromeEls = null
+    function showChrome(id) {
+      closePop(true)
+      const old = chromeEls
+      chromeEls = null
+      if (old) {
+        for (const el of [old.tb, old.pb]) {
+          const inner = el.firstElementChild
+          const a = inner.animate(
+            [
+              { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+              { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+            ],
+            { duration: T(200), easing: EASE_IN, fill: 'forwards' },
+          )
+          a.onfinish = () => el.remove()
+        }
+      }
+      if (!id) return
+      const n = byId[id]
+      const tb = document.createElement('div')
+      tb.className = 'cw'
+      tb.innerHTML = `<div class="tb">${toolbarHTML(n)}</div>`
+      if (n.empty && S.mode === 'after') tb.style.display = 'none'
+      const pb = document.createElement('div')
+      pb.className = 'cw'
+      pb.innerHTML = promptHTML(n)
+      chrome.append(tb, pb)
+      chromeEls = { id, tb, pb }
+      layoutChrome()
+      for (const [el, top] of [
+        [tb, true],
+        [pb, false],
+      ]) {
+        const inner = el.firstElementChild
+        inner.style.transformOrigin =
+          el.dataset.origin || (top ? '50% 100%' : '50% 0')
+        inner.animate(
+          [
+            { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+            { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+          ],
+          { duration: T(340), easing: reduce ? 'linear' : SLOT },
+        )
+      }
+      tb.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-act="open"]')
+        if (b) openNode(id)
+      })
+    }
+    function layoutChrome() {
+      if (!chromeEls) return
+      const n = byId[chromeEls.id],
+        r = screenRect(n),
+        z = S.vp.z
+      const k = Math.min(1, Math.max(0.6, z))
+      const sa = safeArea()
+      const cx = r.x + r.w / 2
+      const nameRow = 22
+      const { tb, pb } = chromeEls
+      const tw = tb.firstElementChild.offsetWidth * k,
+        th = tb.firstElementChild.offsetHeight * k
+      const pw = pb.firstElementChild.offsetWidth * k,
+        ph = pb.firstElementChild.offsetHeight * k
+      let tl = cx - tw / 2,
+        tt = r.y - nameRow - 8 - th
+      let pl = cx - pw / 2,
+        pt = r.y + r.h + 10
+      let visible = true
+      if (S.mode === 'after') {
+        const off =
+          r.x + r.w < sa.l || r.x > sa.r || r.y + r.h < sa.t || r.y > sa.b
+        visible = !off
+        tl = Math.min(Math.max(tl, sa.l), sa.r - tw)
+        pl = Math.min(Math.max(pl, sa.l), sa.r - pw)
+        if (tt < sa.t) tt = sa.t
+        if (pt + ph > sa.b) pt = sa.b - ph
+        const miniL = sa.W - 16 - 194 - 12,
+          miniT = sa.H - 16 - 128 - 12
+        if (pt + ph > miniT && pl + pw > miniL) pl = Math.max(sa.l, miniL - pw)
+      }
+      for (const [el, l, t, top] of [
+        [tb, tl, tt, true],
+        [pb, pl, pt, false],
+      ]) {
+        el.style.transform = `translate(${l}px,${t}px) scale(${k})`
+        el.style.visibility = visible ? 'visible' : 'hidden'
+        const ox = Math.min(Math.max((cx - l) / k, 0), (top ? tw : pw) / k)
+        el.firstElementChild.style.transformOrigin = `${ox}px ${top ? '100%' : '0'}`
+      }
+    }
+    function select(id) {
+      if (S.sel === id) return
+      S.sel = id
+      world
+        .querySelectorAll('.node')
+        .forEach((e) => e.classList.toggle('sel', e.dataset.id === id))
+      renderEdges()
+      showChrome(id)
+    }
+
+    /* ── 小地图 ── */
+    function bounds() {
+      let x0 = 1e9,
+        y0 = 1e9,
+        x1 = -1e9,
+        y1 = -1e9
+      for (const n of NODES) {
+        x0 = Math.min(x0, n.x)
+        y0 = Math.min(y0, n.y - 24)
+        x1 = Math.max(x1, n.x + n.w)
+        y1 = Math.max(y1, n.y + n.h)
+      }
+      return { x0, y0, x1, y1 }
+    }
+    function renderMini() {
+      const m = $('#mini'),
+        pad = 12,
+        W = 194,
+        H = 128
+      const { W: sw, H: sh } = stageSize(),
+        { x, y, z } = S.vp
+      const c = bounds(),
+        b = {
+          x0: Math.min(c.x0, -x / z),
+          y0: Math.min(c.y0, -y / z),
+          x1: Math.max(c.x1, (sw - x) / z),
+          y1: Math.max(c.y1, (sh - y) / z),
+        }
+      const s = Math.min(
+        (W - pad * 2) / (b.x1 - b.x0),
+        (H - pad * 2) / (b.y1 - b.y0),
+      )
+      const ox = pad + (W - pad * 2 - (b.x1 - b.x0) * s) / 2,
+        oy = pad + (H - pad * 2 - (b.y1 - b.y0) * s) / 2
+      const vx = (-x / z - b.x0) * s + ox,
+        vy = (-y / z - b.y0) * s + oy,
+        vw = (sw / z) * s,
+        vh = (sh / z) * s
+      m.innerHTML =
+        NODES.map(
+          (n) =>
+            `<i style="left:${(n.x - b.x0) * s + ox}px;top:${(n.y - b.y0) * s + oy}px;width:${n.w * s}px;height:${n.h * s}px"></i>`,
+        ).join('') +
+        `<span class="vp" style="left:${vx}px;top:${vy}px;width:${vw}px;height:${vh}px"></span>`
+    }
+
+    /* ── 节点一览 ── */
+    function renderRows() {
+      const groups = [
+        ['text', '文本'],
+        ['image', '图片'],
+        ['video', '视频'],
+        ['audio', '声音'],
+      ]
+      $('#rows').innerHTML = groups
+        .map(([t, label]) => {
+          const list = NODES.filter((n) => n.type === t)
+          return (
+            `<div class="grp"><span>${label}</span><span class="mono">${list.length}</span></div>` +
+            list
+              .map((n) => {
+                const th = n.art
+                  ? `<span class="th" style="background:${n.art}"></span>`
+                  : `<span class="th">${I[{ text: 'txt', image: 'img', video: 'vid', audio: 'wav' }[t]]}</span>`
+                const name = S.mode === 'now' && n.nameNow ? n.nameNow : n.name
+                return `<button class="li" data-id="${n.id}">${th}<span style="min-width:0"><div class="nn">${name}</div><div class="ss">${n.sub}</div></span></button>`
+              })
+              .join('')
+          )
+        })
+        .join('')
+    }
+    function setPanel(on) {
+      S.panel = on
+      panel.hidden = !on
+      $('#bList').classList.toggle('on', on)
+      if (on)
+        panel.animate(
+          [
+            { opacity: 0, transform: 'scale(.96)' },
+            { opacity: 1, transform: 'scale(1)' },
+          ],
+          { duration: T(200), easing: EASE },
+        )
+      layoutChrome()
+    }
+    function locate(id) {
+      const n = byId[id]
+      const { W, H } = stageSize()
+      if (S.mode === 'now') {
+        // 现状：单卡 fitView，上限 200%，不选中。
+        const z = Math.min(2, (W * 0.9) / n.w, (H * 0.9) / n.h)
+        animateVP(
+          { x: W / 2 - (n.x + n.w / 2) * z, y: H / 2 - (n.y + n.h / 2) * z, z },
+          320,
+        )
+        return
+      }
+      const sa = safeArea()
+      let z = S.vp.z
+      if (n.w * z < 160) z = 1
+      const chromeH = 170,
+        availH = sa.b - sa.t,
+        availW = sa.r - sa.l
+      if (n.h * z + chromeH > availH || n.w * z > availW - 40)
+        z = Math.min(z, (availH - chromeH) / n.h, (availW - 40) / n.w, 1)
+      const cx = (sa.l + sa.r) / 2,
+        cy = sa.t + (availH - chromeH) / 2 + 30
+      if (S.sel && S.sel !== id) select(null)
+      animateVP(
+        { x: cx - (n.x + n.w / 2) * z, y: cy - (n.y + n.h / 2) * z, z },
+        320,
+        () => select(id),
+      )
+    }
+
+    /* ── 打开态 ── */
+    function fit(w, h, mw, mh) {
+      const s = Math.min(mw / w, mh / h)
+      return { w: Math.round(w * s), h: Math.round(h * s) }
+    }
+    function kindOf(n) {
+      return n.type === 'image'
+        ? 'look'
+        : n.type === 'video'
+          ? 'frame'
+          : n.type === 'text'
+            ? 'doc'
+            : null
+    }
+    function dirNow() {
+      return S.mode === 'now' ? 'now' : S.dir
+    }
+
+    function buildLook(d, n, W, H) {
+      const aspect = { w: 3840, h: 3840 * (n.h / n.w) }
+      const sizeLabel = `${aspect.w}×${Math.round(aspect.h)}`
+      const acts = `<button class="xb" aria-label="下载">${I.down}</button><button class="xb" data-close aria-label="关闭">${I.x}</button>`
+      if (d === 'A') {
+        // 与视频画中框同一张纸（owner 09-30「图片打开态设计成视频的同款」）：上面是图，下面是参考 · 提示词 · 页脚
+        const pw = Math.min(720, W - 96)
+        const rest = 52 + 14 + 44 + 14 + 70 + 58
+        const im = fit(
+          aspect.w,
+          aspect.h,
+          pw - 40,
+          Math.max(200, H - 96 - rest),
+        )
+        const ph = Math.min(rest + im.h, H - 96)
+        const refs = (REFS[n.id] || [])
+          .map(
+            (k) =>
+              `<span class="rt" style="background:${ART[k] || '#e9e9e4'}"></span>`,
+          )
+          .join('')
+        const v = n.versions || 1
+        return {
+          bd: 'rgba(10,10,10,.24)',
+          hideShell: true,
+          html: `<div class="paper" data-grow style="left:${(W - pw) / 2}px;top:${(H - ph) / 2}px;width:${pw}px;height:${ph}px">
+        <div class="fh late"><span class="fn">${n.name}</span><span class="cap mono">${sizeLabel} · ${v} / ${v}</span><span style="flex:1"></span><button class="xb" aria-label="下载">${I.down}</button><button class="xb" data-close aria-label="关闭">${I.x}</button></div>
+        <div style="padding:0 20px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:auto">
+          <div style="position:relative;display:flex;justify-content:center;border-radius:16px;background:#f4f4f1;flex:none"><div style="width:${im.w}px;height:${im.h}px;border-radius:12px;background:${n.art}"></div>
+            ${v > 1 ? `<div class="vdots" style="position:absolute;left:0;right:0;bottom:10px">${'<i style="background:rgba(255,255,255,.55)"></i>'.repeat(v - 1)}<i class="on" style="background:#fff"></i></div>` : ''}</div>
+          <div class="refrow"><span class="lbl">参考</span>${refs}<span class="rt add">${I.plus}</span><span style="font-size:12px;color:var(--faint);margin-left:4px">拖进来或 ⌘V</span></div>
+          <div style="border-top:1px solid var(--line-2);padding-top:14px;font-size:14px;line-height:22px;color:#0a0a0a">雨夜的天台，城市灯光在雨里化开，远景，冷色调</div>
+        </div>
+        <div class="late" style="display:flex;align-items:center;gap:8px;padding:12px 16px 14px 20px;border-top:1px solid var(--line-2);flex:none">
+          <span class="gb" style="height:28px;font-size:12px">${I.spark}让助手写</span><span class="mono" style="font-size:12px;color:var(--faint)">22 字 · 已挂 ${(REFS[n.id] || []).length} 项</span><span style="flex:1"></span>
+          <span class="chip o">画面 · 16:9 · 2K${I.chev}</span><span class="chip o">${modelLabel(n)}${I.chev}</span><span class="go">重新生成<span class="kk">⌘↵</span></span>
+        </div></div>`,
+        }
+      }
+      if (d === 'B') {
+        const im = fit(aspect.w, aspect.h, W - 96, H - 52 - 48 - 24)
+        return {
+          bd: '#f7f7f5',
+          hideShell: true,
+          html: `<div class="stagebar late"><span class="fn" style="font-size:15px;font-weight:600">${n.name}</span><span class="cap mono" style="font-size:12px;color:#696969">${sizeLabel}</span><span style="flex:1"></span><div class="vdots">${'<i></i>'.repeat((n.versions || 1) - 1)}<i class="on"></i></div>${acts}</div><div data-grow style="position:absolute;left:${(W - im.w) / 2}px;top:${52 + (H - 52 - im.h) / 2 - 12}px;width:${im.w}px;height:${im.h}px;border-radius:14px;background:${n.art};box-shadow:var(--sh-card)"></div>`,
+        }
+      }
+      // now / C：光图 + 下面一条胶囊
+      const m = d === 'now' ? 32 : 48
+      const im = fit(aspect.w, aspect.h, W - m * 2, H - m * 2 - 48)
+      const top = (H - im.h - 48) / 2
+      const row =
+        d === 'now'
+          ? `<div class="late qlrow" style="position:absolute;left:0;right:0;top:${top + im.h + 14}px;justify-content:center"><span class="mono" style="font-size:12px;color:#474744">${sizeLabel}</span><span class="qlpill"><span>${I.down}</span><span data-close>${I.x}</span></span></div>`
+          : `<div class="late" style="position:absolute;left:${(W - im.w) / 2}px;width:${im.w}px;top:${top + im.h + 12}px;display:flex;align-items:center;gap:10px"><span style="font-weight:600;font-size:14px">${n.name}</span><span class="mono" style="font-size:12px;color:#696969">${sizeLabel}</span><span style="flex:1"></span><span class="qlpill"><span>${I.down}</span><span data-close>${I.x}</span></span></div>`
+      return {
+        bd: d === 'now' ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.86)',
+        hideShell: d !== 'now',
+        html: `<div data-grow style="position:absolute;left:${(W - im.w) / 2}px;top:${top}px;width:${im.w}px;height:${im.h}px;border-radius:14px;background:${n.art};box-shadow:var(--sh-paper)"></div>${row}`,
+      }
+    }
+    function frameInner(n, pw) {
+      const pl = pw - 40,
+        phH = Math.round((pl * 9) / 16)
+      return `<div class="fh late"><span class="fn">${n.name}</span><span class="cap mono">16:9 · 720p · 4s</span><span style="flex:1"></span><button class="xb" data-close aria-label="关闭">${I.x}</button></div>
+      <div style="padding:0 20px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:auto">
+        <div class="player" style="height:${phH}px;background:${n.art || ART.shot}"><span class="pbig">${I.play}</span><div class="tp"><span class="bar"></span><span class="mono">0:01 / ${n.dur}</span>${I.mute}${I.cam}${I.down}</div></div>
+        <div class="refrow"><span class="lbl">参考</span><span class="rt" style="background:${ART.night}"></span><span class="rt" style="background:#e9e9e4"></span><span class="rt add">${I.plus}</span><span style="font-size:12px;color:var(--faint);margin-left:4px">拖进来或 ⌘V</span></div>
+        <div style="border-top:1px solid var(--line-2);padding-top:14px;font-size:14px;line-height:22px;color:#0a0a0a">@图1 她站在雨里，镜头从远景慢慢推近，@语1 在第二秒进</div>
+      </div>
+      <div class="late" style="display:flex;align-items:center;gap:8px;padding:12px 16px 14px 20px;border-top:1px solid var(--line-2);flex:none">
+        <span class="gb" style="height:28px;font-size:12px">${I.spark}让助手写</span><span class="mono" style="font-size:12px;color:var(--faint)">24 字 · 已挂 2 项</span><span style="flex:1"></span>
+        <span class="chip o">16:9 · 720p · 4s${I.chev}</span><span class="chip o">Seedance 2.0 Fast${I.chev}</span><span class="go">重新生成<span class="kk">⌘↵</span></span>
+      </div>`
+    }
+    function buildFrame(d, n, W, H) {
+      if (d === 'B') {
+        const pw = Math.min(880, W - 96),
+          phH = Math.round((pw * 9) / 16)
+        const col = Math.min(720, W - 96)
+        return {
+          bd: '#f7f7f5',
+          hideShell: true,
+          html: `<div class="stagebar late"><span style="font-size:15px;font-weight:600">${n.name}</span><span class="mono" style="font-size:12px;color:#696969">16:9 · 720p · 4s</span><span style="flex:1"></span><button class="xb" data-close aria-label="关闭">${I.x}</button></div>
+        <div style="position:absolute;left:0;right:0;top:52px;bottom:0;overflow:auto">
+          <div data-grow class="player" style="margin:12px auto 0;width:${pw}px;height:${Math.min(phH, H - 52 - 230)}px;background:${n.art || ART.shot}"><span class="pbig">${I.play}</span><div class="tp"><span class="bar"></span><span class="mono">0:01 / ${n.dur}</span>${I.mute}${I.cam}${I.down}</div></div>
+          <div class="late" style="width:${col}px;margin:18px auto 24px;display:flex;flex-direction:column;gap:14px">
+            <div class="refrow"><span class="lbl">参考</span><span class="rt" style="background:${ART.night}"></span><span class="rt" style="background:#e9e9e4"></span><span class="rt add">${I.plus}</span></div>
+            <div style="font-size:14px;line-height:22px">@图1 她站在雨里，镜头从远景慢慢推近，@语1 在第二秒进</div>
+            <div style="display:flex;align-items:center;gap:8px"><span class="gb" style="height:28px;font-size:12px">${I.spark}让助手写</span><span style="flex:1"></span><span class="chip o">16:9 · 720p · 4s${I.chev}</span><span class="chip o">Seedance 2.0 Fast${I.chev}</span><span class="go">重新生成<span class="kk">⌘↵</span></span></div>
+          </div>
+        </div>`,
+        }
+      }
+      const pw = Math.min(720, W - 96)
+      const natural =
+        52 + Math.round(((pw - 40) * 9) / 16) + 14 + 44 + 14 + 70 + 58
+      const ph = Math.min(natural, H - 96)
+      const top = d === 'now' ? 48 : (H - ph) / 2
+      const bd =
+        d === 'A'
+          ? 'rgba(10,10,10,.24)'
+          : d === 'C'
+            ? 'rgba(255,255,255,.86)'
+            : 'rgba(255,255,255,.55)'
+      return {
+        bd,
+        hideShell: d !== 'now',
+        html: `<div class="paper" data-grow style="left:${(W - pw) / 2}px;top:${top}px;width:${pw}px;height:${ph}px">${frameInner(n, pw)}</div>`,
+      }
+    }
+    const PROSE = `<h1>雨夜 · 天台</h1><p>她等了很久。雨从栏杆上滴下来，手机屏幕亮了又暗。</p><p>镜 1 远景：雨夜天台全景，城市的灯在雨里化开。</p><p>镜 2 中景：她倚着栏杆，看向楼梯口，雨声盖过了脚步声。</p><p>镜 3 特写：手机屏幕 23:47，没有新消息。</p><p>镜 4 背影：她转身，走向楼梯口，栏杆上的雨还在滴。</p>`
+    const FMT = `<div class="fmt"><span>T</span><span>≡</span><span>1.</span><span>B</span><span style="text-decoration:line-through">S</span><span style="font-style:italic">I</span><span style="text-decoration:underline">U</span></div>`
+    function wbar(w) {
+      return `<div class="wbar" style="width:${w}px"><div class="ph">让助手写一段……</div><div class="row"><span class="chip o">续写</span><span class="chip o">改写</span><span class="chip">写作模型${I.chev}</span><button class="send">${I.send}</button></div></div>`
+    }
+    function buildDoc(d, n, W, H) {
+      const head = (extra = '') =>
+        `<div class="fh late" style="border-bottom:1px solid var(--line-2)${extra}">${I.doc}<span class="fn" style="font-size:14px">${n.name}.md</span><span style="flex:1"></span><span class="gb" style="height:28px;font-size:12px">下载</span><button class="xb" data-close aria-label="关闭">${I.x}</button></div>`
+      if (d === 'A') {
+        const pw = Math.min(880, W - 96),
+          ph = H - 96
+        return {
+          bd: 'rgba(10,10,10,.24)',
+          hideShell: true,
+          html: `<div class="paper" data-grow style="left:${(W - pw) / 2}px;top:48px;width:${pw}px;height:${ph}px">${head()}
+        <div style="display:flex;justify-content:center;padding:12px 0 0" class="late">${FMT}</div>
+        <div class="prose" style="flex:1;overflow:auto;padding:20px 0 12px;width:${Math.min(680, pw - 80)}px;margin:0 auto">${PROSE}</div>
+        <div class="late" style="padding:0 20px 16px;display:flex;justify-content:center">${wbar(Math.min(680, pw - 40))}</div></div>`,
+        }
+      }
+      const col =
+        d === 'now' || d === 'C'
+          ? Math.min(1100, W - 80)
+          : Math.min(720, W - 96)
+      const bw = d === 'now' ? W - 24 : col
+      return {
+        bd: '#ffffff',
+        hideShell: d !== 'now',
+        html: `<div data-grow style="position:absolute;inset:0;background:#fff;display:flex;flex-direction:column;transform-origin:0 0">${head()}
+      <div class="late" style="position:absolute;left:0;right:0;top:62px;display:flex;justify-content:center">${FMT}</div>
+      <div class="prose" style="flex:1;overflow:auto;padding:72px 0 12px;width:${col}px;margin:0 auto">${PROSE}</div>
+      <div class="late" style="padding:0 12px 12px;display:flex;justify-content:center">${wbar(bw)}</div></div>`,
+      }
+    }
+
+    function openNode(id) {
+      const n = byId[id],
+        kind = kindOf(n)
+      if (!kind || n.empty || S.open) return
+      const d = dirNow()
+      const { W, H } = stageSize()
+      const spec = (
+        kind === 'look' ? buildLook : kind === 'frame' ? buildFrame : buildDoc
+      )(d, n, W, H)
+      openEl.innerHTML = `<div class="bd" data-close style="background:${spec.bd}"></div>${spec.html}`
+      openEl.hidden = false
+      S.open = { id, spec }
+      if (spec.hideShell) win.classList.add('shell-hidden')
+      chrome.style.display = 'none'
+      const g = openEl.querySelector('[data-grow]')
+      const R = g.getBoundingClientRect(),
+        stR = stage.getBoundingClientRect(),
+        C = screenRect(n)
+      const sx = C.w / R.width,
+        sy = C.h / R.height
+      const tx = C.x - (R.left - stR.left),
+        ty = C.y - (R.top - stR.top)
+      const uniform = kind !== 'look'
+      const s0 = uniform ? `scale(${sx})` : `scale(${sx},${sy})`
+      g.style.transformOrigin = '0 0'
+      g.animate(
+        [
+          {
+            transform: `translate(${tx}px,${ty}px) ${s0}`,
+            opacity: 0.5,
+            borderRadius: '18px',
+          },
+          { transform: 'none', opacity: 1 },
+        ],
+        { duration: T(320), easing: EASE },
+      )
+      openEl
+        .querySelector('.bd')
+        .animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: T(200),
+          easing: EASE,
+        })
+      openEl
+        .querySelectorAll('.late')
+        .forEach((el) =>
+          el.animate(
+            [{ opacity: 0 }, { opacity: 0, offset: 0.375 }, { opacity: 1 }],
+            { duration: T(320), easing: 'linear' },
+          ),
+        )
+    }
+    function closeOpen() {
+      if (!S.open) return
+      const n = byId[S.open.id],
+        g = openEl.querySelector('[data-grow]')
+      const R = g.getBoundingClientRect(),
+        stR = stage.getBoundingClientRect(),
+        C = screenRect(n)
+      const kind = kindOf(n),
+        uniform = kind !== 'look'
+      const sx = C.w / R.width,
+        sy = C.h / R.height
+      const tx = C.x - (R.left - stR.left),
+        ty = C.y - (R.top - stR.top)
+      openEl
+        .querySelectorAll('.late')
+        .forEach((el) =>
+          el.animate([{ opacity: 1 }, { opacity: 0 }], {
+            duration: T(120),
+            fill: 'forwards',
+          }),
+        )
+      openEl
+        .querySelector('.bd')
+        .animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: T(240),
+          easing: EASE_IN,
+          fill: 'forwards',
+        })
+      const a = g.animate(
+        [
+          { transform: 'none', opacity: 1 },
+          {
+            transform: `translate(${tx}px,${ty}px) ${uniform ? `scale(${sx})` : `scale(${sx},${sy})`}`,
+            opacity: 0.4,
+          },
+        ],
+        { duration: T(240), easing: EASE_IN, fill: 'forwards' },
+      )
+      win.classList.remove('shell-hidden')
+      a.onfinish = () => {
+        openEl.hidden = true
+        openEl.innerHTML = ''
+        S.open = null
+        chrome.style.display = ''
+        layoutChrome()
+      }
+    }
+
+    /* ── 输入 ── */
+    let drag = null
+    stage.addEventListener('pointerdown', (e) => {
+      if (S.open || e.button !== 0) return
+      if (
+        e.target.closest('.cw, .shellx, .panel, .amenu, .dmenu, .ppop, .mpop')
+      )
+        return
+      const node = e.target.closest('.node')
+      drag = {
+        x: e.clientX,
+        y: e.clientY,
+        vx: S.vp.x,
+        vy: S.vp.y,
+        moved: false,
+        node: node ? node.dataset.id : null,
+        pid: e.pointerId,
+      }
+    })
+    stage.addEventListener('pointermove', (e) => {
+      if (!drag) return
+      const dx = e.clientX - drag.x,
+        dy = e.clientY - drag.y
+      if (!drag.moved && Math.hypot(dx, dy) > 4) {
+        drag.moved = true
+        stage.setPointerCapture(drag.pid)
+      }
+      if (drag.moved && !drag.node) {
+        S.vp.x = drag.vx + dx
+        S.vp.y = drag.vy + dy
+        applyVP()
+      }
+    })
+    stage.addEventListener('pointerup', () => {
+      if (!drag) return
+      if (!drag.moved) select(drag.node)
+      drag = null
+    })
+    stage.addEventListener('dblclick', (e) => {
+      const node = e.target.closest('.node')
+      if (node && !S.open) {
+        select(node.dataset.id)
+        openNode(node.dataset.id)
+      }
+    })
+    stage.addEventListener(
+      'wheel',
+      (e) => {
+        if (S.open) return
+        e.preventDefault()
+        const r = stage.getBoundingClientRect()
+        if (e.ctrlKey || e.metaKey)
+          zoomAt(
+            e.clientX - r.left,
+            e.clientY - r.top,
+            S.vp.z * Math.exp(-e.deltaY * 0.01),
+          )
+        else {
+          S.vp.x -= e.deltaX
+          S.vp.y -= e.deltaY
+          applyVP()
+        }
+      },
+      { passive: false },
+    )
+    openEl.addEventListener('click', (e) => {
+      if (e.target.closest('[data-close]')) closeOpen()
+    })
+    addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (pop) closePop()
+        else if (S.open) closeOpen()
+        else select(null)
+      }
+    })
+    function zoomStep(f) {
+      const { W, H } = stageSize()
+      const nz = Math.min(2, Math.max(0.3, S.vp.z * f))
+      const { x, y, z } = S.vp
+      const wx = (W / 2 - x) / z,
+        wy = (H / 2 - y) / z
+      animateVP({ x: W / 2 - wx * nz, y: H / 2 - wy * nz, z: nz }, 200)
+    }
+    $('#zIn').onclick = () => zoomStep(1.2)
+    $('#zOut').onclick = () => zoomStep(1 / 1.2)
+    function fitAll(maxZ) {
+      const { W, H } = stageSize(),
+        b = bounds()
+      const z = Math.min(
+        maxZ,
+        (W - 200) / (b.x1 - b.x0),
+        (H - 200) / (b.y1 - b.y0),
+      )
+      return {
+        x: W / 2 - ((b.x0 + b.x1) / 2) * z,
+        y: H / 2 - ((b.y0 + b.y1) / 2) * z,
+        z,
+      }
+    }
+    $('#zFit').onclick = () => animateVP(fitAll(2), 320)
+    $('#bList').onclick = () => setPanel(!S.panel)
+    $('#bListClose').onclick = () => setPanel(false)
+    $('#rows').addEventListener('click', (e) => {
+      const b = e.target.closest('.li')
+      if (b) locate(b.dataset.id)
+    })
+    $('#bZoom30').onclick = () => {
+      select(null)
+      const { W, H } = stageSize(),
+        b = bounds()
+      animateVP(
+        {
+          x: W / 2 - ((b.x0 + b.x1) / 2) * 0.3,
+          y: H / 2 - ((b.y0 + b.y1) / 2) * 0.3,
+          z: 0.3,
+        },
+        320,
+      )
+    }
+    $('#bOpenProj').onclick = () => {
+      select(null)
+      if (S.mode === 'now') {
+        S.vp = { x: 0, y: 0, z: 2 }
+        applyVP()
+      } else {
+        S.vp = { x: 0, y: 0, z: 1 }
+        applyVP()
+        requestAnimationFrame(() => {
+          S.vp = fitAll(1)
+          applyVP()
+          world.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(200) })
+        })
+      }
+    }
+    $('#slow').onchange = (e) => {
+      S.slow = e.target.checked ? 4 : 1
+    }
+
+    const SAY = {
+      after:
+        '改后：提示词栏实底并推回安全区；一个「+」；chip 统一、模型弹层不盖卡；定位 = 平移并选中；卡名不随缩放；空卡与卡面；打开态 A；助手 = 布局 A（右上头像）；图片打开 = 与视频同一张纸。镜头 4 = 首帧加载中的那一瞬，点「重播加载」看。',
+      now: '现状：玻璃提示词栏透字、被切；两三个「+」；模型弹层往上盖住卡、行名不一、价格时有时无；定位 200% 不选中；卡名跟着缩；白块视频、白卡、半截波形、机器名；打开态三种长法；助手打开露黑边。',
+    }
+    function setMode(m) {
+      S.mode = m
+      win.classList.toggle('mode-after', m === 'after')
+      win.classList.toggle('mode-now', m === 'now')
+      $('#mAfter').classList.toggle('on', m === 'after')
+      $('#mNow').classList.toggle('on', m === 'now')
+      $('#say').textContent = SAY[m]
+      if (typeof closeAsst === 'function' && S.asstOpen) closeAsst(true)
+      const keep = S.sel
+      S.sel = null
+      if (chromeEls) {
+        chromeEls.tb.remove()
+        chromeEls.pb.remove()
+        chromeEls = null
+      }
+      renderNodes()
+      renderEdges()
+      renderRows()
+      if (keep) select(keep)
+    }
+    $('#segMode').addEventListener('click', (e) => {
+      const b = e.target.closest('button')
+      if (b) setMode(b.dataset.v)
+    })
+    addEventListener('resize', () => applyVP())
+
+    /* ── 模型：数据（原型里的假数据） ── */
+    const MODELS = {
+      image: {
+        def: 'nbp',
+        recent: ['nbp', 'gi25s'],
+        groups: [
+          [
+            'Nano Banana',
+            [
+              ['nbp', 'Pro', '自己的 key · $0.039 / 张'],
+              ['nb2', '2', '平台免费额度 · 剩 12 张'],
+            ],
+          ],
+          [
+            'GPT Image',
+            [
+              ['gi25f', '2.5 Flare', '最便宜 · $0.020 / 张', '3 渠道'],
+              ['gi25s', '2.5 Sunburst', '自己的 key · $0.040 / 张'],
+              ['gi2', '2', '缺 key · 点了去配置', null, true],
+            ],
+          ],
+          [
+            'Seedream',
+            [
+              ['sd5p', '5.0 Pro', 'fal · $0.0675 / 张'],
+              ['sd5l', '5.0 Lite', '缺 key · 点了去配置', null, true],
+            ],
+          ],
+        ],
+      },
+      video: {
+        def: 'sdf',
+        recent: ['sdf', 'kl3'],
+        groups: [
+          [
+            'Seedance',
+            [
+              ['sdf', '2.0 Fast', '火山 · $0.12 / 秒'],
+              ['sd2', '2.0', '火山 · $0.28 / 秒'],
+              ['sd25', '2.5', '火山 · $0.32 / 秒', '2 渠道'],
+            ],
+          ],
+          [
+            'Kling',
+            [
+              ['kl3', 'V3', 'fal · $0.14 / 秒'],
+              ['kl21', '2.1 Master', '缺 key · 点了去配置', null, true],
+            ],
+          ],
+        ],
+      },
+      audio: {
+        def: 'fs1',
+        recent: ['fs1'],
+        groups: [
+          [
+            '语音',
+            [
+              ['fs1', 'Fish S1', '自己的 key · $0.015 / 千字'],
+              ['el3', 'ElevenLabs v3', '缺 key · 点了去配置', null, true],
+            ],
+          ],
+          ['配乐', [['mmm', 'MiniMax Music', '平台免费额度 · 剩 5 首']]],
+        ],
+      },
+    }
+    const PICKED = {}
+    function modelOf(n) {
+      const set = MODELS[n.type]
+      if (!set) return null
+      const id = PICKED[n.id] || set.def
+      for (const [series, rows] of set.groups)
+        for (const r of rows) if (r[0] === id) return { series, row: r }
+      return null
+    }
+    function modelLabel(n) {
+      const m = modelOf(n)
+      if (!m) return '写作模型'
+      if (m.series === '语音' || m.series === '配乐') return m.row[1]
+      return `${m.series} <span class="s">${m.row[1]}</span>`
+    }
+    function modelRows(n) {
+      const set = MODELS[n.type],
+        cur = (modelOf(n) || {}).row?.[0]
+      const row = (series, r) =>
+        `<button class="mr ${r[4] ? 'nokey' : ''}" data-model="${r[0]}"><span><div class="mn">${r[1]}</div><div class="mc">${r[2]}</div></span>${r[0] === cur ? `<span class="ck">${'<svg class="i" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7"/></svg>'}</span>` : r[3] ? `<span class="chn">${r[3]} ›</span>` : ''}</button>`
+      const find = (id) => {
+        for (const [se, rs] of set.groups)
+          for (const r of rs) if (r[0] === id) return [se, r]
+      }
+      const recent = set.recent
+        .map(find)
+        .filter(Boolean)
+        .map(([se, r]) =>
+          row(se, [
+            r[0],
+            se === '语音' || se === '配乐' ? r[1] : `${se} ${r[1]}`,
+            r[2],
+            r[3],
+            r[4],
+          ]),
+        )
+        .join('')
+      return (
+        `<div class="mg">最近</div>${recent}` +
+        set.groups
+          .map(
+            ([se, rs]) =>
+              `<div class="mg">${se}</div>` +
+              rs.map((r) => row(se, r)).join(''),
+          )
+          .join('')
+      )
+    }
+    const NOW_MODEL_ROWS = `<div class="mg">GPT Image</div><button class="mr"><span class="mn">OpenAI GPT Image 2.5 Flare</span></button><button class="mr"><span class="mn">OpenAI GPT Image 2.5 Sunburst</span></button><button class="mr"><span class="mn">OpenAI GPT Image 2</span></button>
+    <div class="mg">Seedream</div><button class="mr"><span class="mn">5.0 Pro</span><span class="chn mono">$0.0675 / 张</span></button><button class="mr"><span class="mn">5.0 Lite</span><span class="chn">—</span></button><button class="mr"><span class="mn">5.0</span></button>
+    <div class="mg">NovelAI</div><button class="mr"><span class="mn">Diffusion V4.5 Curated</span></button><button class="mr"><span class="mn">Diffusion V5 Full</span></button>`
+    function rectOf(el) {
+      const st = stage.getBoundingClientRect(),
+        r = el.getBoundingClientRect()
+      return { x: r.left - st.left, y: r.top - st.top, w: r.width, h: r.height }
+    }
+    function hit(a, b) {
+      return (
+        a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+      )
+    }
+    function openModelPop(trigger, nodeId) {
+      if (pop && pop.trigger === trigger) {
+        closePop()
+        return
+      }
+      closePop(true)
+      const n = byId[nodeId]
+      const el = document.createElement('div')
+      el.className = 'mpop' + (S.mode === 'now' ? ' now' : '')
+      el.innerHTML = `<div class="ms"><svg class="i" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2l3.3 3.3"/></svg>搜索模型…</div><div class="ml">${S.mode === 'now' ? NOW_MODEL_ROWS : modelRows(n)}</div><div class="mf"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4"/></svg>配置渠道与 key…</div>`
+      chrome.appendChild(el)
+      const sa = safeArea(),
+        tr = rectOf(trigger),
+        card = screenRect(n),
+        bar = rectOf(chromeEls.pb.querySelector('.pb'))
+      const w = el.offsetWidth,
+        h = el.offsetHeight
+      let pos, origin
+      if (S.mode === 'now') {
+        pos = { x: tr.x, y: tr.y - 8 - h }
+        origin = `${tr.w / 2}px ${h}px`
+      } else {
+        // 先下、再右、再左、最后才往上；⛔ 盖住正在编辑的卡
+        const cands = [
+          [{ x: tr.x, y: bar.y + bar.h + 8 }, `${tr.w / 2}px 0`],
+          [{ x: bar.x + bar.w + 8, y: bar.y }, `0 ${tr.y - bar.y}px`],
+          [{ x: bar.x - 8 - w, y: bar.y }, `${w}px ${tr.y - bar.y}px`],
+          [
+            { x: bar.x + bar.w + 8, y: Math.max(bar.y, card.y + card.h + 8) },
+            `0 0`,
+          ],
+          [
+            { x: bar.x - 8 - w, y: Math.max(bar.y, card.y + card.h + 8) },
+            `${w}px 0`,
+          ],
+          [{ x: tr.x, y: tr.y - 8 - h }, `${tr.w / 2}px ${h}px`],
+        ]
+        // 每个候选先夹进安全区，再看压不压到正在编辑的卡和提示词栏
+        const clampP = (p) => ({
+          x: Math.min(Math.max(p.x, sa.l), sa.r - w),
+          y: Math.min(Math.max(p.y, sa.t), sa.b - h),
+        })
+        const ok = (p) =>
+          !hit({ x: p.x, y: p.y, w, h }, card) &&
+          !hit({ x: p.x, y: p.y, w, h }, bar)
+        const pick = cands
+          .map(([p, o]) => [clampP(p), o])
+          .find(([p]) => ok(p)) || [clampP(cands[0][0]), cands[0][1]]
+        pos = pick[0]
+        origin = pick[1]
+      }
+      el.style.left = pos.x + 'px'
+      el.style.top = pos.y + 'px'
+      el.style.transformOrigin = origin
+      trigger.classList.add('is-open')
+      pop = { el, trigger }
+      if (S.mode === 'now')
+        el.animate(
+          [
+            { opacity: 0, transform: 'scale(.95)' },
+            { opacity: 1, transform: 'scale(1)' },
+          ],
+          { duration: T(150), easing: EASE },
+        )
+      else
+        el.animate(
+          [
+            { opacity: 0, transform: 'scale(.72)', filter: 'blur(4px)' },
+            { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' },
+          ],
+          { duration: T(340), easing: reduce ? 'linear' : SLOT },
+        )
+      el.addEventListener('click', (e) => {
+        const r = e.target.closest('[data-model]')
+        if (!r || r.classList.contains('nokey') || S.mode === 'now') return
+        PICKED[nodeId] = r.dataset.model
+        trigger.innerHTML = modelLabel(n) + I.chev
+        trigger.animate([{ opacity: 0.2 }, { opacity: 1 }], {
+          duration: T(120),
+        })
+        setTimeout(() => closePop(), T(160))
+      })
+    }
+
+    /* ── 镜头 4：首帧加载 ── */
+    S.loaded = false
+    let loadTimer = null
+    function renderFace(id, fade) {
+      const n = byId[id],
+        el = world.querySelector(`.node[data-id="${id}"] .face`)
+      if (!el) return
+      el.innerHTML = faceHTML(n)
+      if (fade)
+        el.firstElementChild.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: T(200),
+          easing: 'linear',
+        })
+    }
+    function replayLoad() {
+      clearTimeout(loadTimer)
+      S.loaded = false
+      renderFace('vid2')
+      loadTimer = setTimeout(() => {
+        S.loaded = true
+        renderFace('vid2', true)
+      }, 1600 * S.slow)
+    }
+
+    /* ── 助手：现状 / A 侧板 / B 浮板 / C 底部条 ── */
+    S.asstOpen = false
+    S.asstDir = 'A'
+    const asst = $('#asst'),
+      gutter = $('#gutter'),
+      bAsst = $('#bAsst')
+    function asstHTML(compact) {
+      return `<div class="ah"><span class="av2"></span><span class="tt">达妮娅 · 雨夜分镜</span><button class="xb" aria-label="更多">${I.more}</button><button class="xb" data-asst-close aria-label="收起助手">${I.x}</button></div>
+      <div class="ab">
+        ${compact ? '' : '<div class="you">把镜头 3 改成从远景慢慢推近，配上秧秧那段语音。</div>'}
+        <div class="me">改好了：镜头 3 的说明换成推镜，挂上了「秧秧 · 语音 2」。你看一下再发。</div>
+        <div class="chg"><div><i style="background:${ART.shot}"></i>镜头 3 · 改了说明、挂了语音</div><div><i style="background:#e9e9e4"></i>秧秧 · 语音 2 · 连到镜头 3</div></div>
+      </div>
+      <div class="ac"><div class="ph">继续说，或把素材挂进来…</div><div class="row"><span class="plus" style="width:28px;height:28px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center">${I.plus}</span><span class="chip">Gemini <span class="s">3.8 Flash</span>${I.chev}</span><button class="send">${I.send}</button></div></div>`
+    }
+    function springRun(from, to, step, done) {
+      const k = 220,
+        c = 26
+      let x = from,
+        v = 0,
+        last = performance.now()
+      const tick = (now) => {
+        const dt = Math.min(0.032, (now - last) / 1000) / S.slow
+        last = now
+        const a = -k * (x - to) - c * v
+        v += a * dt
+        x += v * dt
+        if (reduce || (Math.abs(v) < 0.5 && Math.abs(x - to) < 0.5)) {
+          step(to)
+          done && done()
+          return
+        }
+        step(x)
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    }
+    function setStageRight(px) {
+      const prev = parseFloat(stage.style.marginRight || '0')
+      stage.style.marginRight = px + 'px'
+      S.vp.x -= (px - prev) / 2
+      applyVP()
+    }
+    function panelW() {
+      return Math.max(320, Math.round(win.clientWidth * 0.3))
+    }
+    function openAsst() {
+      if (S.asstOpen) return
+      closePop(true)
+      const d = S.mode === 'now' ? 'now' : 'A'
+      S.asstOpen = true
+      S.asstNow = d
+      asst.innerHTML = asstHTML(false)
+      asst.hidden = false
+      asst.style.cssText = ''
+      if (d === 'now') {
+        // 现状：画布推窄，让出来的那条露出舞台底色（黑），面板浮在里面，头像消失
+        const W = 446
+        Object.assign(asst.style, {
+          right: '16px',
+          top: '60px',
+          bottom: '16px',
+          width: '410px',
+          borderRadius: '16px',
+        })
+        gutter.style.background = '#14120f'
+        bAsst.style.opacity = '0'
+        springRun(0, W, (x) => {
+          setStageRight(x)
+          gutter.style.width = x + 'px'
+        })
+        asst.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(320) })
+        return
+      }
+      // 布局 A（与图片 / 视频工作台同一套）：头像留在原位；画布让出「面板宽 + 20 + 18」，地台同色；
+      // 面板是白卡，顶 66、底 18、右 18，从右边整块滑进来，与画布同一根弹簧、同一刻起步
+      const w = panelW(),
+        Y = w + 20 + 18
+      Object.assign(asst.style, {
+        right: '18px',
+        top: '66px',
+        bottom: '18px',
+        width: w + 'px',
+        borderRadius: '18px',
+        boxShadow: '0 0 0 1px var(--line-2)',
+      })
+      asst.querySelector('.av2').style.display = 'none'
+      gutter.style.background = '#f4f4f1'
+      stage.classList.add('yield')
+      springRun(0, Y, (x) => {
+        setStageRight(x)
+        gutter.style.width = x + 'px'
+        stage.style.borderRadius = `16px ${Math.min(18, x / 2)}px ${Math.min(18, x / 2)}px 0`
+        asst.style.transform = `translateX(${Y - x}px)`
+      })
+    }
+    function closeAsst(instant) {
+      if (!S.asstOpen) return
+      const d = S.asstNow
+      S.asstOpen = false
+      const fin = () => {
+        asst.hidden = true
+        asst.innerHTML = ''
+        bAsst.style.opacity = ''
+        stage.classList.remove('yield')
+        stage.style.borderRadius = ''
+        gutter.style.width = '0'
+        layoutChrome()
+      }
+      if (instant) {
+        setStageRight(0)
+        fin()
+        return
+      }
+      if (d === 'now') {
+        asst.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: T(200),
+          fill: 'forwards',
+        })
+        springRun(
+          446,
+          0,
+          (x) => {
+            setStageRight(x)
+            gutter.style.width = x + 'px'
+          },
+          fin,
+        )
+        setTimeout(() => {
+          bAsst.style.opacity = ''
+        }, T(200))
+        return
+      }
+      const Y = parseFloat(stage.style.marginRight || '0')
+      springRun(
+        Y,
+        0,
+        (x) => {
+          setStageRight(x)
+          gutter.style.width = x + 'px'
+          stage.style.borderRadius = `16px ${Math.min(18, x / 2)}px ${Math.min(18, x / 2)}px 0`
+          asst.style.transform = `translateX(${Y - x}px)`
+        },
+        fin,
+      )
+    }
+    bAsst.addEventListener('click', () =>
+      S.asstOpen ? closeAsst() : openAsst(),
+    )
+    asst.addEventListener('click', (e) => {
+      if (e.target.closest('[data-asst-close]')) closeAsst()
+    })
+    $('#bReload').onclick = () => replayLoad()
+
+    window.__mock = {
+      S,
+      applyVP,
+      select,
+      setMode,
+      openNode,
+      closeOpen,
+      setPanel,
+      locate,
+      setDir: (d) => {
+        S.dir = d
+      },
+      openAsst: () => {
+        closeAsst(true)
+        openAsst()
+      },
+      closeAsst: () => closeAsst(true),
+      openModelPop: () => {
+        const c = chrome.querySelector('[data-chip="model"]')
+        if (c && chromeEls) openModelPop(c, chromeEls.id)
+      },
+      setLoaded: (v) => {
+        clearTimeout(loadTimer)
+        S.loaded = v
+        renderFace('vid2')
+      },
+      openAddMenu: () => {
+        const b = chrome.querySelector('[data-add]')
+        if (b && chromeEls) openAddMenu(b, chromeEls.id)
+      },
+      openFramePop: () => {
+        const c = chrome.querySelector('[data-chip="frame"]')
+        if (c) openFramePop(c)
+      },
+    }
+    setMode('after')
+    requestAnimationFrame(() => {
+      const { W, H } = stageSize()
+      S.vp = { x: W / 2 - 160, y: H / 2 - 190, z: 0.9 }
+      applyVP()
+      select('vid1')
+      replayLoad()
+    })
+  })()
+</script>

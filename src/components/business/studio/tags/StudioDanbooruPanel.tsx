@@ -145,6 +145,9 @@ const KIND_TEXT: Record<
 
 type ByKind<T> = Record<DanbooruCatalogKind, T>
 
+/** 五个页签：四类查询 + 收藏（owner 2026-09-28：收藏单独一页，按类别分段）。 */
+type LookupTab = DanbooruCatalogKind | 'favorites'
+
 /** 左栏一行：搜到 / 抽到的候选，或者一条收藏（收藏那一刻的快照）。 */
 type LookupItem = Pick<
   DanbooruCatalogCandidate,
@@ -167,8 +170,8 @@ function byKind<T>(value: T): ByKind<T> {
  *   模型没有角色构图就只剩整体。已在目标里的不重复加。
  * - 画风：加入 = `artist:名字` 放在正向标签最前面，是开关。「常画的」只是参考，⛔ 不跟着加。
  * - 这一页查不到而别的页有：说「它是画师 / 作品…」，点了带着同一个词过去。
- * - 收藏（owner 2026-09-28）：详情标题旁一颗星；没搜时这一页的收藏置顶在「随便看看」
- *   上面、默认选中第一条；存账号里。
+ * - 收藏（owner 2026-09-28）：详情标题旁一颗星，存账号里；第五页「收藏」按类别分段、
+ *   默认选中第一条，⛔ 不再置顶在各页「随便看看」上面（收多了挤）。
  * - 手机：左右放不下，列表一页、点一行推进详情页，「加到哪 + 加入」钉在底部。
  */
 export function StudioDanbooruPanel({
@@ -190,7 +193,11 @@ export function StudioDanbooruPanel({
   const { acked, ack, clear } = useAck()
   const favorites = useDanbooruFavorites()
 
-  const [tab, setTab] = useState<DanbooruCatalogKind>('character')
+  const [tab, setTab] = useState<LookupTab>('character')
+  const [favoritePick, setFavoritePick] = useState<{
+    kind: DanbooruCatalogKind
+    name: string
+  } | null>(null)
   const [queries, setQueries] = useState(() => byKind(''))
   const [visited, setVisited] = useState(() => ({
     ...byKind(false),
@@ -227,14 +234,8 @@ export function StudioDanbooruPanel({
   // ⚠ 换一批是整批换掉：左右都出骨架（画板「画风 · 换一批中」），⛔ 旧的一批留着。
   const listData = (kind: DanbooruCatalogKind) =>
     queries[kind].trim().length >= 2 ? shownData(lists[kind]) : lists[kind].data
-  // 没搜时收藏置顶：选中项在「收藏 + 随便看看」里找，默认第一条收藏。
-  const pinnedOf = (kind: DanbooruCatalogKind) =>
-    queries[kind].trim().length >= 2 ? [] : favorites.of(kind)
   const candidateOf = (kind: DanbooruCatalogKind): LookupItem | null => {
-    const list: LookupItem[] = [
-      ...pinnedOf(kind),
-      ...(listData(kind)?.candidates ?? []),
-    ]
+    const list = listData(kind)?.candidates ?? []
     return list.find((item) => item.name === picks[kind]) ?? list[0] ?? null
   }
   const detailRequest = (kind: DanbooruCatalogKind) => {
@@ -248,12 +249,36 @@ export function StudioDanbooruPanel({
     general: useDanbooruCatalog(detailRequest('general')),
   }
 
-  const text = KIND_TEXT[tab]
-  const isArtist = tab === 'artist'
-  const candidate = candidateOf(tab)
+  // 收藏页：按页签顺序分段，段内新收的在前；默认选中第一条。
+  const onFavorites = tab === 'favorites'
+  const favoriteList = DanbooruCatalogKindSchema.options.flatMap((kind) =>
+    favorites.of(kind),
+  )
+  const favoriteSelected =
+    favoriteList.find(
+      (item) =>
+        item.kind === favoritePick?.kind && item.name === favoritePick.name,
+    ) ??
+    favoriteList[0] ??
+    null
+  const favoriteDetail = useDanbooruCatalog(
+    onFavorites && favoriteSelected
+      ? { kind: favoriteSelected.kind, tag: favoriteSelected.name }
+      : null,
+  )
+
+  // 详情是哪一类：四页就是页签本身，收藏页是选中那条的类别。
+  const activeKind: DanbooruCatalogKind = onFavorites
+    ? (favoriteSelected?.kind ?? 'character')
+    : tab
+  const text = KIND_TEXT[activeKind]
+  const isArtist = activeKind === 'artist'
+  const candidate: LookupItem | null = onFavorites
+    ? favoriteSelected
+    : candidateOf(activeKind)
   const posts = (count: number) =>
     t('posts', { count: compactPostCount(count, locale) })
-  const selectionKey = candidate ? `${tab}:${candidate.name}` : null
+  const selectionKey = candidate ? `${activeKind}:${candidate.name}` : null
   const chosen = candidate
     ? selection?.key === selectionKey
       ? selection.tags
@@ -336,29 +361,31 @@ export function StudioDanbooruPanel({
   }
 
   // ── 换页 / 跨页 ────────────────────────────────────────────────
-  const switchTab = (next: DanbooruCatalogKind) => {
+  const switchTab = (next: LookupTab) => {
     setTab(next)
     setPhoneDetail(false)
-    setVisited((current) => ({ ...current, [next]: true }))
+    if (next !== 'favorites')
+      setVisited((current) => ({ ...current, [next]: true }))
   }
   const goTo = (kind: DanbooruCatalogKind, name: string) => {
     switchTab(kind)
     setQuery(kind, displayDanbooruTag(name))
     setPick(kind, name)
   }
-  const pick = (name: string) => {
+  const pick = (kind: DanbooruCatalogKind, name: string) => {
     clear()
-    setPick(tab, name)
+    if (onFavorites) setFavoritePick({ kind, name })
+    else setPick(kind, name)
     if (phone) setPhoneDetail(true)
   }
-  const nameOf = (name: string) =>
-    isArtist ? artistPromptTag(name) : displayDanbooruTag(name)
+  const nameOf = (name: string, kind: DanbooruCatalogKind = activeKind) =>
+    kind === 'artist' ? artistPromptTag(name) : displayDanbooruTag(name)
 
   // ── 左栏 ───────────────────────────────────────────────────────
-  const list = lists[tab]
-  const data = listData(tab)
+  const list = lists[activeKind]
+  const data = listData(activeKind)
   const candidates = data?.candidates ?? []
-  const query = queries[tab].trim()
+  const query = queries[activeKind].trim()
   const randomMode = query.length < 2
   const loadingList = list.loading && !data
   const errored = list.error
@@ -405,32 +432,32 @@ export function StudioDanbooruPanel({
           }
         : null
 
-  const pinned = pinnedOf(tab)
-  const toRow = (item: LookupItem) => ({
+  const toRow = (item: LookupItem, kind: DanbooruCatalogKind) => ({
     name: item.name,
-    label: nameOf(item.name),
+    label: nameOf(item.name, kind),
     sub:
-      tab === 'character' && item.work
+      kind === 'character' && item.work
         ? t('rowWork', {
             work: displayDanbooruTag(item.work),
             posts: posts(item.count),
           })
-        : isArtist
+        : kind === 'artist'
           ? t('rowArtist', { posts: posts(item.count) })
           : posts(item.count),
     previews: item.previews,
-    added: isArtist && hasTag(state.tagChips, artistPromptTag(item.name)),
-    selected: !phone && item.name === candidate?.name,
+    added:
+      kind === 'artist' && hasTag(state.tagChips, artistPromptTag(item.name)),
+    selected: !phone && kind === activeKind && item.name === candidate?.name,
   })
   const favorite = candidate
     ? {
-        on: favorites.has(tab, candidate.name),
-        label: favorites.has(tab, candidate.name)
+        on: favorites.has(activeKind, candidate.name),
+        label: favorites.has(activeKind, candidate.name)
           ? t('unfavorite', { name: nameOf(candidate.name) })
           : t('favorite', { name: nameOf(candidate.name) }),
         onToggle: () =>
           favorites.toggle({
-            kind: tab,
+            kind: activeKind,
             name: candidate.name,
             count: candidate.count,
             work: candidate.work,
@@ -451,11 +478,11 @@ export function StudioDanbooruPanel({
         type="search"
         aria-label={t(text.search)}
         placeholder={t(text.search)}
-        value={queries[tab]}
+        value={queries[activeKind]}
         maxLength={100}
         onChange={(event) => {
           clear()
-          setQuery(tab, event.target.value)
+          setQuery(activeKind, event.target.value)
         }}
         // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
         className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
@@ -463,8 +490,9 @@ export function StudioDanbooruPanel({
     </label>
   )
 
-  const listBody = (
+  const listColumn = (
     <>
+      {searchField}
       {listTitle ? (
         <div className="flex min-h-6.5 shrink-0 items-center gap-2">
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
@@ -481,12 +509,10 @@ export function StudioDanbooruPanel({
             <button
               type="button"
               onClick={() => {
-                // 选中的是收藏就留着它，⛔ 换一批把人从收藏里拽走。
-                if (!pinned.some((item) => item.name === picks[tab]))
-                  setPick(tab, null)
+                setPick(activeKind, null)
                 setRounds((current) => ({
                   ...current,
-                  [tab]: current[tab] + 1,
+                  [activeKind]: current[activeKind] + 1,
                 }))
               }}
               className="inline-flex h-6.5 shrink-0 items-center gap-1.5 rounded-lg px-2 text-2sm font-medium text-foreground/75 transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
@@ -504,45 +530,50 @@ export function StudioDanbooruPanel({
       ) : (
         <LookupRows
           // 按名单认：换词重搜期间名单没变就不重演入场，换成新名单时才升起。
-          key={`${tab}:${candidates.map((item) => item.name).join('|')}`}
-          kind={tab}
-          rows={candidates.map(toRow)}
-          contained={pinned.length > 0}
+          key={`${activeKind}:${candidates.map((item) => item.name).join('|')}`}
+          kind={activeKind}
+          rows={candidates.map((item) => toRow(item, activeKind))}
           addedLabel={t('added')}
           phone={phone}
-          onPick={pick}
+          onPick={(name) => pick(activeKind, name)}
         />
       )}
     </>
   )
 
-  const listColumn = (
-    <>
-      {searchField}
-      {pinned.length ? (
-        // 收藏与随便看看在同一个滚动区里，⛔ 各滚各的。
-        <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5">
-          <b className="flex min-h-6.5 shrink-0 items-center text-2sm font-semibold text-foreground">
-            {t('favoritesTitle', { count: pinned.length })}
-          </b>
-          <LookupRows
-            kind={tab}
-            rows={pinned.map(toRow)}
-            contained
-            addedLabel={t('added')}
-            phone={phone}
-            onPick={pick}
-          />
-          {listBody}
-        </div>
-      ) : (
-        listBody
-      )}
-    </>
+  // 收藏页左栏：四类各一段（空的段不画），同一个滚动区。
+  const favoritesColumn = !favorites.loaded ? (
+    <LookupSkeletonRows label={t('loading')} />
+  ) : favoriteList.length ? (
+    <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5">
+      {DanbooruCatalogKindSchema.options.map((kind) => {
+        const items = favorites.of(kind)
+        return items.length ? (
+          <section key={kind} className="flex flex-col gap-1.5">
+            <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
+              {t('favoritesSection', {
+                kind: t(KIND_TEXT[kind].kind),
+                count: items.length,
+              })}
+            </b>
+            <LookupRows
+              kind={kind}
+              rows={items.map((item) => toRow(item, kind))}
+              contained
+              addedLabel={t('added')}
+              phone={phone}
+              onPick={(name) => pick(kind, name)}
+            />
+          </section>
+        ) : null
+      })}
+    </div>
+  ) : (
+    <LookupBlank text={t('favoritesEmpty')} />
   )
 
   // ── 右栏 ───────────────────────────────────────────────────────
-  const detailQuery = details[tab]
+  const detailQuery = onFavorites ? favoriteDetail : details[activeKind]
   const detail = detailQuery.data?.detail ?? null
   const shots: LookupShot[] = (detail?.images ?? []).map((image) => ({
     id: image.id,
@@ -560,7 +591,7 @@ export function StudioDanbooruPanel({
         kind={t(text.kind)}
         favorite={favorite}
         lines={[
-          tab === 'character' && (detail.work ?? candidate.work)
+          activeKind === 'character' && (detail.work ?? candidate.work)
             ? t('rowWork', {
                 work: displayDanbooruTag(detail.work ?? candidate.work ?? ''),
                 posts: posts(detail.count ?? candidate.count),
@@ -590,7 +621,7 @@ export function StudioDanbooruPanel({
         onToggle={(name) => {
           clear()
           setSelection({
-            key: `${tab}:${candidate.name}`,
+            key: `${activeKind}:${candidate.name}`,
             tags: chosen.includes(name)
               ? chosen.filter((item) => item !== name)
               : [...chosen, name],
@@ -678,7 +709,7 @@ export function StudioDanbooruPanel({
     ) : null
 
   const paneKey = candidate
-    ? `${tab}:${candidate.name}:${detail ? 'ready' : detailQuery.error ? 'error' : 'loading'}`
+    ? `${activeKind}:${candidate.name}:${detail ? 'ready' : detailQuery.error ? 'error' : 'loading'}`
     : `${tab}:blank`
   const pane = candidate ? (
     detail ? (
@@ -688,7 +719,7 @@ export function StudioDanbooruPanel({
     ) : (
       <LookupDetailSkeleton label={t('loading')} />
     )
-  ) : loadingList ? (
+  ) : !onFavorites && loadingList ? (
     <LookupDetailSkeleton label={t('loading')} />
   ) : (
     <LookupBlank />
@@ -700,10 +731,13 @@ export function StudioDanbooruPanel({
       value={tab}
       fill={phone}
       onChange={switchTab}
-      items={DanbooruCatalogKindSchema.options.map((kind) => ({
-        value: kind,
-        label: t(KIND_TEXT[kind].tab),
-      }))}
+      items={[
+        ...DanbooruCatalogKindSchema.options.map((kind) => ({
+          value: kind as LookupTab,
+          label: t(KIND_TEXT[kind].tab),
+        })),
+        { value: 'favorites' as LookupTab, label: t('tabFavorites') },
+      ]}
     />
   )
 
@@ -726,7 +760,8 @@ export function StudioDanbooruPanel({
       {phone ? (
         <>
           {/* `pr-12`：面板顶到顶栏下时，右上角浮着的助手头像正好压在这一行右端 —— 让开它
-            （与参数栏顶上那颗「返回结果」同一做法）。四个页签一行放不下标题，单独占下一行。 */}
+            （与参数栏顶上那颗「返回结果」同一做法）。五个页签一行放不下标题，单独占下一行；
+            英文等长文案等分放不下时横向滑。 */}
           <div className="-ml-2 flex h-11 shrink-0 items-center gap-1 pr-12">
             <button
               type="button"
@@ -745,7 +780,7 @@ export function StudioDanbooruPanel({
               {t('title')}
             </h2>
           </div>
-          {tabs}
+          <div className="-mx-3 flex shrink-0 overflow-x-auto px-3">{tabs}</div>
         </>
       ) : (
         <div className="flex h-9 shrink-0 items-center gap-2.5">
@@ -772,11 +807,15 @@ export function StudioDanbooruPanel({
         className={cn('flex min-h-0 flex-1', phone ? 'flex-col gap-3' : '')}
       >
         {phone ? (
-          listColumn
+          onFavorites ? (
+            favoritesColumn
+          ) : (
+            listColumn
+          )
         ) : (
           <>
             <div className="flex w-80 shrink-0 flex-col gap-2.5 border-r border-border/60 pr-4.5">
-              {listColumn}
+              {onFavorites ? favoritesColumn : listColumn}
             </div>
             <div className="flex min-w-0 flex-1 flex-col pl-6.5">
               <FadeSwap

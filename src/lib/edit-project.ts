@@ -58,6 +58,7 @@ import {
   type RenderVideoSegment,
 } from '@/constants/render-video'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { clampCodeUnits } from '@/lib/node-display-name'
 import { readOutputVersions, readOutputIndex } from '@/lib/node-output-versions'
 import type {
   EditClip,
@@ -111,9 +112,7 @@ export function projectDurationSec(project: EditProject): number {
 /* ─── 字幕段（S8d · spec §6「文字段」）─────────────────────────────────── */
 
 /** T 轨占到第几秒（最靠后那一段的尾）。 */
-export function textTrackDurationSec(
-  clips: readonly EditTextClip[],
-): number {
+export function textTrackDurationSec(clips: readonly EditTextClip[]): number {
   return clips.reduce(
     (end, clip) => Math.max(end, clip.startSec + clip.durationSec),
     0,
@@ -128,8 +127,11 @@ export function textTrackDurationSec(
  */
 export function clampTextClip(clip: EditTextClip): EditTextClip {
   const startSec = Math.max(0, clip.startSec)
-  const durationSec = Math.max(EDIT_TEXT_CLIP_MIN_DURATION_SEC, clip.durationSec)
-  const text = clip.text.slice(0, EDIT_TEXT_MAX_LENGTH)
+  const durationSec = Math.max(
+    EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+    clip.durationSec,
+  )
+  const text = clampCodeUnits(clip.text, EDIT_TEXT_MAX_LENGTH)
   return { ...clip, startSec, durationSec, text }
 }
 
@@ -163,8 +165,7 @@ export function textClipsAt(
 ): readonly EditTextClip[] {
   return clips.filter(
     (clip) =>
-      timeSec >= clip.startSec &&
-      timeSec < clip.startSec + clip.durationSec,
+      timeSec >= clip.startSec && timeSec < clip.startSec + clip.durationSec,
   )
 }
 

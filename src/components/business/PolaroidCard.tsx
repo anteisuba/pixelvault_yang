@@ -170,7 +170,8 @@ export function PolaroidCard({
           <span className="truncate">{model}</span>
           <span className="flex items-center gap-0.5">
             <Heart
-              className={cn('size-3', isLiked && 'fill-primary text-primary')}
+              weight={isLiked ? 'fill' : 'bold'}
+              className={cn('size-3', isLiked && 'text-primary')}
             />
             {likeCount > 0 && likeCount}
           </span>
@@ -259,10 +260,8 @@ export function PolaroidCard({
                     aria-label={isFeatured ? t('unpin') : t('pin')}
                   >
                     <Pin
-                      className={cn(
-                        'size-4',
-                        isFeatured && 'fill-primary text-primary',
-                      )}
+                      weight={isFeatured ? 'fill' : 'bold'}
+                      className={cn('size-4', isFeatured && 'text-primary')}
                     />
                   </button>
                 )}
@@ -275,10 +274,8 @@ export function PolaroidCard({
                   aria-label={isLiked ? t('unlike') : t('like')}
                 >
                   <Heart
-                    className={cn(
-                      'size-4',
-                      isLiked && 'fill-primary text-primary',
-                    )}
+                    weight={isLiked ? 'fill' : 'bold'}
+                    className={cn('size-4', isLiked && 'text-primary')}
                   />
                   {likeCount > 0 && <span>{likeCount}</span>}
                 </button>

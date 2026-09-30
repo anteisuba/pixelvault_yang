@@ -2399,6 +2399,39 @@ describe('正文流式累积与占位行', () => {
     expect(messages[0]).not.toHaveProperty('streaming', true)
   })
 
+  it('⭐ 工具轮的旁白被步骤压在下面后，收尾轮的增量另起一条 —— ⛔ 正文不出现两遍', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('鸣潮最近更新了哪些角色')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      delta: '我查一下。',
+    })
+    await settle()
+    streams[0].emit(doneStepEvent('step-1'))
+    await settle()
+    for (const delta of ['最近是 3.6 版本', '，新增两位角色。']) {
+      streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.messageDelta, delta })
+      await settle()
+    }
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '最近是 3.6 版本，新增两位角色。',
+    })
+    await settle()
+
+    const messages = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+    expect(messages.map((entry) => entry.text)).toEqual([
+      '我查一下。',
+      '最近是 3.6 版本，新增两位角色。',
+    ])
+  })
+
   it('⭐ 发送即回显：用户行与助手占位行在同一轮里立刻落进线程', async () => {
     const { result } = render()
     act(() => {

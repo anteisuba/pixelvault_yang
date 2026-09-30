@@ -7,6 +7,7 @@ import {
   PanelLeft,
   Search,
   UploadCloud,
+  X,
 } from '@/components/icons'
 import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
@@ -134,6 +135,7 @@ function AssetPickerBrowserContent({
   title,
 }: AssetPickerBrowserProps & { cacheScope: string }) {
   const t = useTranslations('AssetsPage')
+  const tCommon = useTranslations('Common')
   const tErrors = useTranslations('Errors')
   const viewport = useAssetGridViewport()
   const isMobile = viewport === 'mobile'
@@ -407,12 +409,22 @@ function AssetPickerBrowserContent({
             {scopeLabel}
           </span>
         )}
-        {lockLabel && (
-          <span className="ml-auto flex shrink-0 items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-3xs text-muted-foreground">
-            <Lock className="size-2.5" />
-            {lockLabel}
-          </span>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {lockLabel && (
+            <span className="flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-3xs text-muted-foreground">
+              <Lock className="size-2.5" />
+              {lockLabel}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label={tCommon('close')}
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">

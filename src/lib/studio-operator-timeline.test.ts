@@ -219,6 +219,19 @@ describe('summarizeOperatorResearchBlock', () => {
       ]),
     ).toEqual({ depth: 'deep', found: 3, readPages: 3 })
   })
+
+  it('⭐ 跑着的查资料一开口就算一次调查（owner 2026-09-30）', () => {
+    const running = research({ depth: 'quick', readPages: 0 })
+    const entry = {
+      ...running,
+      step: { ...running.step, status: 'running', result: null },
+    } as unknown as StudioOperatorStepEntry
+    expect(summarizeOperatorResearchBlock([entry])).toEqual({
+      depth: 'quick',
+      found: 0,
+      readPages: 0,
+    })
+  })
 })
 
 describe('splitOperatorHistoryRounds', () => {

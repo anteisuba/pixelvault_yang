@@ -1178,7 +1178,7 @@ function TrainingImageTile({
           className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-3xs font-medium text-primary-foreground"
           aria-label={coverBadgeLabel}
         >
-          <Star className="size-2.5 fill-current" aria-hidden />
+          <Star weight="fill" className="size-2.5" aria-hidden />
           {coverBadgeLabel}
         </span>
       )}

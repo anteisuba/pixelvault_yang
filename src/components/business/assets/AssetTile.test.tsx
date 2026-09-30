@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AssetTile } from '@/components/business/assets/AssetTile'
+import { Heart, Play } from '@/components/icons'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -158,5 +159,28 @@ describe('AssetTile video poster', () => {
     )
 
     vi.unstubAllGlobals()
+  })
+})
+
+describe('AssetTile badges', () => {
+  const glyph = (node: React.ReactElement) =>
+    render(node).container.querySelector('svg')!.innerHTML
+
+  it('draws the liked heart solid, not an outline', () => {
+    const { container } = renderTile({ ...FAKE_GENERATION, isLiked: true })
+    const badge = container.querySelector('svg')!.innerHTML
+
+    expect(badge).toBe(glyph(<Heart weight="fill" />))
+    expect(badge).not.toBe(glyph(<Heart weight="bold" />))
+  })
+
+  it('draws the play badge solid, not an outline', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', CDN)
+    const { container } = renderTile(videoGeneration())
+    const badge = container.querySelector('svg.translate-x-px')!.innerHTML
+
+    expect(badge).toBe(glyph(<Play weight="fill" />))
+    expect(badge).not.toBe(glyph(<Play weight="bold" />))
+    vi.unstubAllEnvs()
   })
 })

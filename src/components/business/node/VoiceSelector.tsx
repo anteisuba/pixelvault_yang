@@ -648,7 +648,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     ) : tab === 'cloned' ? (
                       <Trash2 className="size-3.5" />
                     ) : (
-                      <Star className="size-3.5 fill-current" />
+                      <Star weight="fill" className="size-3.5" />
                     )}
                     <span className="sr-only">
                       {tab === 'cloned'
@@ -798,10 +798,8 @@ export const VoiceSelector = memo(function VoiceSelector({
                     <Spinner size="sm" />
                   ) : (
                     <Star
-                      className={cn(
-                        'size-3.5',
-                        savedVoiceCard && 'fill-current',
-                      )}
+                      weight={savedVoiceCard ? 'fill' : 'bold'}
+                      className="size-3.5"
                     />
                   )}
                   <span className="sr-only">

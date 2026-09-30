@@ -24,6 +24,8 @@ import {
   resolveLlmTextRoute,
   llmTextCompletion,
   llmTextStream,
+  llmNativeWebSearch,
+  supportsNativeWebSearch,
   LLM_TEXT_ADAPTERS,
   LLM_TEXT_STREAMS,
   type LlmTextInput,
@@ -2985,5 +2987,241 @@ describe('LLM provider response regressions', () => {
     await expect(consume(AI_ADAPTER_TYPES.OPENAI)).rejects.toMatchObject({
       errorCode: 'PROVIDER_ERROR',
     })
+  })
+})
+
+describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () => {
+  const base = {
+    systemPrompt: 'sys',
+    query: '卡提希娅 官方立绘',
+    apiKey: 'test-key',
+  }
+
+  it('只有 Gemini / OpenAI / Claude 有自带联网', () => {
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(true)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(false)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.XAI)).toBe(false)
+  })
+
+  it('Gemini：google_search 工具；引用那几段并成来源摘录', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: { parts: [{ text: '她是鸣潮 2.3 的角色。' }] },
+              groundingMetadata: {
+                groundingChunks: [
+                  { web: { uri: 'https://r.test/1', title: 'bilibili.com' } },
+                  {
+                    web: { uri: 'https://r.test/2', title: 'baike.baidu.com' },
+                  },
+                ],
+                groundingSupports: [
+                  {
+                    segment: { text: '她是鸣潮 2.3 的角色。' },
+                    groundingChunkIndices: [0, 1],
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+    })
+
+    const payload = readFetchJson(fetchMock) as { tools?: unknown[] }
+    expect(payload.tools).toEqual([{ google_search: {} }])
+    expect(found.answer).toBe('她是鸣潮 2.3 的角色。')
+    expect(found.sources).toEqual([
+      {
+        url: 'https://r.test/1',
+        title: 'bilibili.com',
+        excerpt: '她是鸣潮 2.3 的角色。',
+      },
+      {
+        url: 'https://r.test/2',
+        title: 'baike.baidu.com',
+        excerpt: '她是鸣潮 2.3 的角色。',
+      },
+    ])
+  })
+
+  it('Gemini：Google 跳转链接换成真地址；解不开就留原链接', async () => {
+    const redirect =
+      'https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc'
+    const broken =
+      'https://vertexaisearch.cloud.google.com/grounding-api-redirect/xyz'
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === redirect)
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://wiki.test/char' },
+        })
+      if (url === broken) throw new Error('network')
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: { parts: [{ text: '答案' }] },
+              groundingMetadata: {
+                groundingChunks: [
+                  { web: { uri: redirect, title: 'wiki.test' } },
+                  { web: { uri: broken, title: 'other.test' } },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+    })
+    expect(found.sources.map((source) => source.url)).toEqual([
+      'https://wiki.test/char',
+      broken,
+    ])
+  })
+
+  it('OpenAI：Responses API 的 web_search，用所选模型；标注前那一句当摘录', async () => {
+    const text = '官方立绘偏冷色调。配色以青绿为主。'
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          output: [
+            { type: 'web_search_call' },
+            {
+              type: 'message',
+              content: [
+                {
+                  type: 'output_text',
+                  text,
+                  annotations: [
+                    {
+                      type: 'url_citation',
+                      url: 'https://a.test',
+                      title: 'A',
+                      start_index: text.length,
+                      end_index: text.length,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId: 'gpt-6-luna',
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+    })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.openai.com/v1/responses',
+    )
+    const payload = readFetchJson(fetchMock) as {
+      model?: string
+      tools?: unknown[]
+    }
+    expect(payload.model).toBe('gpt-6-luna')
+    expect(payload.tools).toEqual([{ type: 'web_search' }])
+    expect(found.answer).toBe(text)
+    expect(found.sources).toEqual([
+      { url: 'https://a.test', title: 'A', excerpt: '配色以青绿为主。' },
+    ])
+  })
+
+  it('Claude：服务端 web_search；被引用的排前，搜到没用的垫后，出错块不当结果', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [
+            { type: 'server_tool_use', id: 'x', name: 'web_search' },
+            {
+              type: 'web_search_tool_result',
+              content: [
+                {
+                  type: 'web_search_result',
+                  url: 'https://b.test',
+                  title: 'B',
+                },
+                {
+                  type: 'web_search_result',
+                  url: 'https://c.test',
+                  title: 'C',
+                },
+              ],
+            },
+            {
+              type: 'web_search_tool_result',
+              content: {
+                type: 'web_search_tool_result_error',
+                error_code: 'x',
+              },
+            },
+            {
+              type: 'text',
+              text: '配色偏青绿。',
+              citations: [
+                {
+                  type: 'web_search_result_location',
+                  url: 'https://c.test',
+                  title: 'C',
+                  cited_text: '青绿配色',
+                },
+              ],
+            },
+          ],
+          stop_reason: 'end_turn',
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: { label: 'Anthropic', baseUrl: '' },
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      tools?: { type: string; name: string }[]
+    }
+    expect(payload.tools?.[0]?.name).toBe('web_search')
+    expect(found.answer).toBe('配色偏青绿。')
+    expect(found.sources.map((source) => source.url)).toEqual([
+      'https://c.test',
+      'https://b.test',
+    ])
+    expect(found.sources[0]?.excerpt).toBe('青绿配色')
   })
 })

@@ -31,7 +31,7 @@ export function LookupRows({
 }: {
   kind: DanbooruCatalogKind
   rows: readonly LookupRowView[]
-  /** 装在外面的滚动区里（收藏 + 随便看看两段同滚），自己不滚。 */
+  /** 装在外面的滚动区里（收藏页几段同滚），自己不滚。 */
   contained?: boolean
   addedLabel: string
   phone?: boolean

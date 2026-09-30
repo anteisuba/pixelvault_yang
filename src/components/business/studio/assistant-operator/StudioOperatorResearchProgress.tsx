@@ -78,7 +78,12 @@ export function StudioOperatorResearchProgress({
       )}`
     : `${t(deep ? 'researchProgress.doneDeep' : 'researchProgress.doneQuick', {
         count: found,
-      })} · ${t('researchProgress.readPages', { count: readPages })}`
+      })}${
+        // ⚠ 自带联网那一路页面由服务商读，这边读页数恒为 0 ——「读了 0 页」是噪音。
+        readPages > 0
+          ? ` · ${t('researchProgress.readPages', { count: readPages })}`
+          : ''
+      }`
 
   return (
     <div

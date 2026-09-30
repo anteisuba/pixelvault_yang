@@ -150,6 +150,8 @@ export function LookupShots({
 /**
  * 收藏开关（owner 2026-09-28）：空心 = 没收，实心 = 收了。点亮时星从小放大落位，
  * 减少动态效果时直接换。手机是 44 的点按区。
+ * ⚠ 实心靠 Phosphor 的 `weight="fill"`：它的空心星本身就是一条填色的轮廓路径，
+ *   `fill-current` 对它没有任何效果（owner 2026-09-28「点了完全看不出来」）。
  */
 export function LookupFavoriteButton({
   on,
@@ -177,10 +179,11 @@ export function LookupFavoriteButton({
     >
       <Star
         key={on ? 'on' : 'off'}
+        weight={on ? 'fill' : 'bold'}
         className={cn(
           'size-4',
           on &&
-            'animate-in fill-current duration-base ease-standard zoom-in-50 motion-reduce:animate-none',
+            'animate-in duration-base ease-standard zoom-in-50 motion-reduce:animate-none',
         )}
         aria-hidden
       />

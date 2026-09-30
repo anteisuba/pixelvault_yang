@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ASSET_BROWSER_PAGE_SIZE } from '@/constants/assets-grid'
@@ -71,5 +71,27 @@ describe('AssetPickerBrowser 的页大小', () => {
 
   it('调用方给了就透传给 useGallery', () => {
     expect(renderPicker(10)?.limit).toBe(10)
+  })
+})
+
+describe('AssetPickerBrowser 的标题栏', () => {
+  it('关闭钮与锁徽标同排（不是盖在标题栏上的浮层），点了走 onCancel', () => {
+    const onCancel = vi.fn()
+    render(
+      <AssetPickerBrowser
+        mode="single"
+        mediaType="video"
+        title="Pick asset"
+        onCancel={onCancel}
+      />,
+    )
+
+    const header = screen.getByRole('banner')
+    const badge = within(header).getByText('pickerLocked')
+    const close = within(header).getByRole('button', { name: 'close' })
+    expect(close.parentElement).toBe(badge.parentElement)
+
+    fireEvent.click(close)
+    expect(onCancel).toHaveBeenCalledOnce()
   })
 })

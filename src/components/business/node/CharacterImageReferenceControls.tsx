@@ -339,7 +339,7 @@ export function CharacterImageReferenceControls({
                     title={tDossier('primaryBadge')}
                     className="absolute right-1 top-1 flex items-center gap-0.5 rounded-full bg-node-paint/90 px-1.5 py-0.5 text-2xs font-semibold text-node-canvas"
                   >
-                    <Star className="size-2.5 fill-current" aria-hidden />
+                    <Star weight="fill" className="size-2.5" aria-hidden />
                     {tDossier('primaryBadge')}
                   </span>
                 ) : null}
@@ -362,11 +362,10 @@ export function CharacterImageReferenceControls({
                   )}
                 >
                   <Flag
-                    className={cn(
-                      'size-2.5',
-                      (reference.isPrimary || reference.onStage) &&
-                        'fill-current',
-                    )}
+                    weight={
+                      reference.isPrimary || reference.onStage ? 'fill' : 'bold'
+                    }
+                    className="size-2.5"
                     aria-hidden
                   />
                   {tDossier('onStageBadge')}
@@ -399,10 +398,8 @@ export function CharacterImageReferenceControls({
                       )}
                     >
                       <Star
-                        className={cn(
-                          'size-3.5',
-                          reference.isPrimary && 'fill-current',
-                        )}
+                        weight={reference.isPrimary ? 'fill' : 'bold'}
+                        className="size-3.5"
                       />
                     </button>
                     {!reference.isPrimary ? (
@@ -427,10 +424,8 @@ export function CharacterImageReferenceControls({
                         )}
                       >
                         <Flag
-                          className={cn(
-                            'size-3.5',
-                            reference.onStage && 'fill-current',
-                          )}
+                          weight={reference.onStage ? 'fill' : 'bold'}
+                          className="size-3.5"
                         />
                       </button>
                     ) : null}

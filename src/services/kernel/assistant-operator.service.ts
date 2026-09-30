@@ -197,7 +197,9 @@ import {
 } from '@/services/kernel/assistant-completion.service'
 import {
   findLlmTextKeyId,
+  llmNativeWebSearch,
   resolveLlmTextRoute,
+  supportsNativeWebSearch,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 /**
@@ -2479,6 +2481,33 @@ async function rewriteVerifyQueries(
   }
 }
 
+/**
+ * 查资料那一行**跑着时**的载荷 —— 参数解不开就不提前亮（规划期会给它一条可教的拒绝）。
+ * ⚠ 档位与轮次照 `planResearch` 的算法取，好让跑完那一帧同 id 覆盖时不跳变。
+ */
+function earlyResearchPayload(run: OperatorRun, rawArgs: unknown) {
+  const parsed =
+    ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[TOOL.research].safeParse(rawArgs)
+  if (!parsed.success) return null
+  if (run.researchRounds >= RESEARCH_LIMITS.maxRoundsPerTurn) return null
+  const args = parsed.data as {
+    goal: string
+    entities?: string[]
+    expandSources?: boolean
+    depth?: AssistantResearchDepth
+  }
+  return {
+    goal: clamp(args.goal, RESEARCH_LIMITS.maxGoalChars),
+    entities: args.entities ?? [],
+    sources: [],
+    round: run.researchRounds + 1,
+    depth: args.expandSources
+      ? ASSISTANT_RESEARCH_DEPTHS.deep
+      : (args.depth ?? ASSISTANT_RESEARCH_DEPTHS.quick),
+    readPages: 0,
+  }
+}
+
 async function planResearch(
   run: OperatorRun,
   args: {
@@ -2529,8 +2558,23 @@ async function planResearch(
     .map((entity) => clamp(entity, RESEARCH_LIMITS.maxEntityChars))
     .filter((entity) => entity.length > 0)
 
-  /** ① 改写 + ② 选源 —— 一次结构化输出，挂了就回落到确定性那份。 */
-  const rewrite = await rewriteVerifyQueries(run, userId, args.goal, entities)
+  const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
+  /**
+   * ① 改写 + ② 选源 —— 一次结构化输出，挂了就回落到确定性那份。
+   * ⭐ **快搜不改写**（owner 2026-09-30，照 Claude 的做法）：快搜只打网页一源，
+   * 「选源」用不上；查询词交给所选模型自带的联网自己写，没有自带联网的
+   * 走确定性查询表。省掉的是一次完整的 LLM 往返。
+   */
+  const rewrite = quickNarrowed
+    ? {
+        queries: [],
+        langs: [],
+        sources: [ASSISTANT_RESEARCH_SOURCE_IDS.web],
+        questionType: detectResearchQuestionType(
+          [...entities, args.goal].join(' '),
+        ),
+      }
+    : await rewriteVerifyQueries(run, userId, args.goal, entities)
   /**
    * ⚠ 优先级是硬的：模型自己指定的 `sources` > 「再多找几个源」> 规划器选的。
    * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是
@@ -2544,7 +2588,6 @@ async function planResearch(
    * 根本不在名单里 —— 照收窄的表现是他自己指定的源一个都没打、回来一句「查不到」。
    * 名单在场时照旧按规划器选源，下面那道闸再滤。
    */
-  const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
   const requestedSources: readonly AssistantResearchSource[] = quickNarrowed
     ? [ASSISTANT_RESEARCH_SOURCE_IDS.web]
     : args.sources?.length
@@ -2593,12 +2636,39 @@ async function planResearch(
     }
   }
 
+  /**
+   * ⭐ **所选模型自带联网**（owner 2026-09-30「各家用自带的联网」）：快搜的网页
+   * 那一源交给 Gemini / GPT / Claude 自己搜 —— 它自己写查询、自己读页、写一段
+   * 带引用的回答。那段回答就是这一轮的结论，⛔ 不再另烧一次 LLM 归纳。
+   * DeepSeek / Grok 没有自带联网，照旧走 Serper。
+   */
+  const nativeAdapter =
+    quickNarrowed && supportsNativeWebSearch(run.route.adapterType)
+      ? run.route.adapterType
+      : null
+  let nativeAnswer = ''
   /** ③ 并发印证 —— 扇出、去重、印证多的排前、单源打标（都在 fanout 里）。 */
   const outcome = await runAssistantResearch({
     goal: args.goal,
     entities,
     sources,
     questionType: rewrite.questionType,
+    ...(nativeAdapter
+      ? {
+          nativeWebSearch: async () => {
+            const found = await llmNativeWebSearch({
+              adapterType: nativeAdapter,
+              providerConfig: run.route.providerConfig,
+              apiKey: run.route.apiKey,
+              ...(run.modelId ? { modelId: run.modelId } : {}),
+              systemPrompt: NATIVE_SEARCH_SYSTEM_PROMPT,
+              query: [...entities, args.goal].join(' '),
+            })
+            nativeAnswer = found.answer
+            return { sources: found.sources, via: nativeAdapter }
+          },
+        }
+      : {}),
     ...(rewrite.queries.length > 0 ? { queries: rewrite.queries } : {}),
     ...(args.expandSources ? { limit: RESEARCH_LIMITS.maxEvidenceItems } : {}),
     ...(quick ? { limit: RESEARCH_LIMITS.quickEvidenceItems } : {}),
@@ -2639,7 +2709,8 @@ async function planResearch(
    * ⚠ 并行读，所以它加的是一次请求的时间不是三次。
    */
   let readPages = 0
-  if (quick && keptEvidence.length > 0) {
+  // ⚠ 自带联网那一路服务商已经读过页了，引用原文就在摘录里，⛔ 不再读一遍。
+  if (quick && !nativeAdapter && keptEvidence.length > 0) {
     const targets = keptEvidence
       .map((item, index) => ({ index, url: item.url }))
       .filter(
@@ -2715,8 +2786,15 @@ async function planResearch(
    * ⛔ 不因为归纳失败就把这一栏整个抹掉。
    */
   const excerpted = summarizeResearchConclusion(evidence)
-  const conclusion =
-    evidence.length > 0
+  /**
+   * ⭐ 快搜不归纳（owner 2026-09-30）：自带联网那段回答本身就是结论；走 Serper 的
+   * 用确定性摘录 —— 紧接着模型自己就要读证据写回答，再归纳一遍是重复劳动。
+   */
+  const conclusion = quick
+    ? nativeAnswer
+      ? clamp(nativeAnswer, RESEARCH_LIMITS.maxConclusionChars)
+      : excerpted
+    : evidence.length > 0
       ? ((await synthesizeResearchConclusion(run, {
           goal: args.goal,
           evidence,
@@ -2783,7 +2861,10 @@ async function planResearch(
     gate.dropped.length > 0 || blockedByRules > 0
       ? ` · source list dropped ${gate.dropped.length} source(s)${gate.dropped.length > 0 ? ` (${gate.dropped.join(', ')})` : ''} and ${blockedByRules} result(s)`
       : ''
-  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}`
+  const nativeLine = nativeAdapter
+    ? ` · searched natively via ${nativeAdapter}${nativeAnswer ? `\nThe search model's own summary (use it, cite the numbered pieces below): ${clamp(nativeAnswer, RESEARCH_LIMITS.maxConclusionChars)}` : ''}`
+    : ''
+  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -2837,6 +2918,12 @@ async function planResearch(
     }),
   }
 }
+
+/**
+ * 自带联网那一次调用的系统提示 —— 它只管查和说清查到了什么；怎么对创作者说由
+ * 工具环里的那一轮来写。
+ */
+const NATIVE_SEARCH_SYSTEM_PROMPT = `Search the web to answer the request for an AI image/video studio assistant. Write a short factual answer (at most eight sentences) in the language of the request, based only on what you found, and say plainly what you could not confirm. No greeting, no follow-up offer.`
 
 const RESEARCH_CONCLUSION_SYSTEM_PROMPT = `You write ONE short conclusion for a lookup an AI image/video studio assistant just ran.
 
@@ -11131,6 +11218,21 @@ export async function* runAssistantOperator(
           status: STATUS.running,
         })
       }
+      /**
+       * ⭐ 查资料**一开口就亮那一行**（owner 2026-09-30「前 60 秒只显示正在思考」）：
+       * 检索、读页全跑在规划期，等规划返回再吐 `running`，那一行一出现就已经跑完了。
+       */
+      const earlyResearch =
+        name === TOOL.research ? earlyResearchPayload(run, args) : null
+      if (earlyResearch) {
+        yield toStepEvent({
+          ...base,
+          tool: name,
+          payload: earlyResearch,
+          result: null,
+          status: STATUS.running,
+        })
+      }
       let plan: ToolPlan
       try {
         plan = await planTool(run, name, args, user.id)
@@ -11141,6 +11243,14 @@ export async function* runAssistantOperator(
             tool: name,
             status: STATUS.error,
             error: { reason: REJECT.referenceAnalysisFailed },
+          })
+        }
+        if (earlyResearch) {
+          yield toStepEvent({
+            ...base,
+            tool: name,
+            status: STATUS.error,
+            error: { reason: REJECT.searchUnavailable },
           })
         }
         throw error

@@ -78,6 +78,27 @@ export function stripFileExtension(fileName: string): string {
     .trim()
 }
 
+const TRAILING_HIGH_SURROGATE = /[\uD800-\uDBFF]$/
+
+/**
+ * `.slice(0, maxLength)`，但⛔ 不把代理对劈成两半：结果以高位代理结尾时退掉那一个
+ * 码元。**把字符串截短后写进项目 state 的地方都走这里。**
+ *
+ * ── 为什么 `.slice` 不够（2026-09-27）────────────────────────────────────
+ * 上限按 UTF-16 码元算（Zod 的 `.max()` 数的也是码元），而 emoji、CJK 扩展 B（𠮷）
+ * 一个字占两个码元。截断点落在中间就剩一个孤立的高位代理：它过得了 Zod，
+ * `JSON.stringify` 把它写成 `\ud83d`，可 `NodeWorkflowProject.state` 是 jsonb ——
+ * PostgreSQL 拒收不成对的代理项（PGlite 17.5 实测 `invalid input syntax for type
+ * json`：`Unicode low surrogate must follow a high surrogate`）。拒的是**整份**
+ * state，项目从那一刻起再也存不进去。
+ *
+ * ⚠ 只退结尾那一个码元，⛔ 不改成按字（code point）截：没劈开代理对的结果必须与
+ * `.slice` 一字不差 —— 名字创建即落库，`@` 按字面引用它。
+ */
+export function clampCodeUnits(value: string, maxLength: number): string {
+  return value.slice(0, maxLength).replace(TRAILING_HIGH_SURROGATE, '')
+}
+
 /**
  * 任意长文本 → 可以安全落进显示名字段的短标签。**所有把用户/机器文本写进
  * `characterName` / `backgroundName` / `shotName` / `voiceName` / `mediaLabel` /
@@ -105,9 +126,10 @@ export function stripFileExtension(fileName: string): string {
 export function toNodeDisplayLabel(value: unknown): string | undefined {
   const trimmedValue = trimmed(value)
   if (!trimmedValue) return undefined
-  const clamped = trimmedValue
-    .slice(0, NODE_STUDIO_DISPLAY_NAME.maxLength)
-    .trim()
+  const clamped = clampCodeUnits(
+    trimmedValue,
+    NODE_STUDIO_DISPLAY_NAME.maxLength,
+  ).trim()
   return clamped.length > 0 ? clamped : undefined
 }
 
@@ -361,7 +383,8 @@ export interface StableNodeNameOptions {
 function fitDisplayName(prefix: string, label: string, suffix = ''): string {
   const room =
     NODE_STUDIO_DISPLAY_NAME.maxLength - prefix.length - suffix.length
-  const fitted = label.length > room ? label.slice(0, room).trimEnd() : label
+  const fitted =
+    label.length > room ? clampCodeUnits(label, room).trimEnd() : label
   return `${prefix}${fitted}${suffix}`
 }
 
@@ -510,7 +533,7 @@ export function formatShotDisplayName(label: string, shotNo?: number): string {
 export function deriveShotLabel(prompt?: string): string {
   const source = toNodeDisplayLabel(prompt)
   if (!source) return NODE_V4_NAME.shotLabelFallback
-  return source.slice(0, NODE_V4_NAME.labelFromPromptLength)
+  return clampCodeUnits(source, NODE_V4_NAME.labelFromPromptLength)
 }
 
 export interface ShotLabelInput {

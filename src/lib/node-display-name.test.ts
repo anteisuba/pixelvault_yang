@@ -13,6 +13,7 @@ import {
 } from '@/constants/node-types'
 import {
   buildShotLabel,
+  clampCodeUnits,
   deriveShotLabel,
   formatShotDisplayName,
   buildDisplayNamePatch,
@@ -25,6 +26,7 @@ import {
   resolveNodeAccessibleName,
   resolveNodeDisplayName,
   stripFileExtension,
+  toNodeDisplayLabel,
 } from '@/lib/node-display-name'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
@@ -55,6 +57,35 @@ describe('stripFileExtension', () => {
 
   it('全是扩展名时返回空串，让调用方落自己的兜底文案', () => {
     expect(stripFileExtension('.png')).toBe('')
+  })
+})
+
+// 2026-09-27：`.slice` 按码元截，截断点落在 emoji / 𠮷 中间会留下孤立的高位代理 ——
+// 过得了 Zod，却让 jsonb 拒收整份项目 state。
+describe('clampCodeUnits', () => {
+  it('截断点劈开代理对时退掉那半个字，长度仍按码元不超上限', () => {
+    expect(clampCodeUnits('一二三四五六七😀后面', 8)).toBe('一二三四五六七')
+    expect(clampCodeUnits('ab𠮷野家', 3)).toBe('ab')
+    expect(clampCodeUnits('😀', 1)).toBe('')
+  })
+
+  it.each([
+    ['一二三四五六😀后面', 8],
+    ['一二三四五六七😀后面', 9],
+    ['😀😀', 2],
+    ['ab𠮷野家', 4],
+    ['雨夜里她回头看了一眼', 160],
+  ])('没劈开时与 .slice 逐字节相同：%s / %i', (value, max) => {
+    expect(clampCodeUnits(value, max)).toBe(value.slice(0, max))
+  })
+})
+
+describe('toNodeDisplayLabel', () => {
+  it('截到上限时 emoji 正好跨在第 160 个码元上 —— 整个退掉，不留半个', () => {
+    expect(toNodeDisplayLabel(`${'x'.repeat(159)}😀尾巴`)).toBe('x'.repeat(159))
+    expect(toNodeDisplayLabel(`${'x'.repeat(158)}😀尾巴`)).toBe(
+      `${'x'.repeat(158)}😀`,
+    )
   })
 })
 
@@ -530,6 +561,20 @@ describe('buildStableNodeName', () => {
       ),
     ).toBe(`S01·${'x'.repeat(155)}`)
   })
+
+  it('给前缀让位时截断点落在 emoji 中间 —— 退掉半个字，不留孤立代理', () => {
+    const input = {
+      kind: NODE_MEDIA_KIND_IDS.audio,
+      subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+      shotNo: 1,
+      properName: `${'x'.repeat(155)}😀尾巴`,
+    }
+    const first = buildStableNodeName(input, { labelOf, taken: new Set() })
+    expect(first).toBe(`S01·${'x'.repeat(155)}`)
+    expect(
+      buildStableNodeName(input, { labelOf, taken: new Set([first]) }),
+    ).toBe(`S01·${'x'.repeat(155)}2`)
+  })
 })
 
 describe('renameStableNodeName', () => {
@@ -569,6 +614,21 @@ describe('镜头标签与序号分家（C1 契约修正 1）', () => {
     expect(deriveShotLabel(undefined)).toBe('镜头')
   })
 
+  it('第 8 个码元落在 emoji 中间时少取一个码元，⛔ 不留半个字进标签', () => {
+    expect(deriveShotLabel('一二三四五六七😀后面')).toBe('一二三四五六七')
+    // 没劈开就照旧取满 8 个码元 —— 已经落库的标签一个字都不变。
+    expect(deriveShotLabel('一二三四五六😀后面')).toBe('一二三四五六😀')
+  })
+
+  it('剧本镜头没写场景名、摘要第 8 个码元是 emoji 时，标签与重名序号都是完整的字', () => {
+    const summary = '一二三四五六七😀后面'
+    const first = buildShotLabel({ prompt: summary }, new Set())
+    expect(first).toBe('一二三四五六七')
+    expect(buildShotLabel({ prompt: summary }, new Set([first]))).toBe(
+      '一二三四五六七2',
+    )
+  })
+
   it('用户给了标签就用它；重名从 2 起追加序号（@ 解析要求唯一）', () => {
     expect(
       buildShotLabel({ given: '有人还在', prompt: '别用这段' }, new Set()),
@@ -583,6 +643,14 @@ describe('镜头标签与序号分家（C1 契约修正 1）', () => {
     expect(first).toBe('雨'.repeat(160))
     expect(buildShotLabel({ given: '雨'.repeat(300) }, new Set([first]))).toBe(
       `${'雨'.repeat(159)}2`,
+    )
+  })
+
+  it('给重名序号让位时截断点落在 emoji 中间 —— 退掉半个字再接序号', () => {
+    const given = `${'雨'.repeat(158)}😀`
+    expect(buildShotLabel({ given }, new Set())).toBe(given)
+    expect(buildShotLabel({ given }, new Set([given]))).toBe(
+      `${'雨'.repeat(158)}2`,
     )
   })
 })

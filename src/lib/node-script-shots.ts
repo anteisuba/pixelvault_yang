@@ -22,6 +22,7 @@
  */
 
 import { NODE_SCRIPT_PROJECTION } from '@/constants/node-script'
+import { clampCodeUnits } from '@/lib/node-display-name'
 
 export interface ScriptShotDraft {
   /**
@@ -64,8 +65,12 @@ const HEADING_MARKER = /^[ \t]{0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*$/
 /** 时长：`4s` / `4 秒` / `4sec`。⚠ 只在标记行上找 —— 正文里的「5 秒后」不算。 */
 const DURATION = /(\d{1,4}(?:\.\d)?)[ \t]*(?:s\b|sec\b|秒)/
 
-/** `@角色名` —— 到空白或标点为止。 */
-const ROLE_MENTION = /@([^\s@·、,，。.:：;；!！?？()（）[\]【】]{1,40})/g
+/**
+ * `@角色名` —— 到空白或标点为止。长度在 `readRoles` 里截：⛔ 不写成 `{1,40}` ——
+ * 量词数的是码元，第 40 个码元落在 emoji 中间时名字会以半个字结尾，落库被拒。
+ */
+const ROLE_MENTION = /@([^\s@·、,，。.:：;；!！?？()（）[\]【】]+)/g
+const ROLE_NAME_MAX_CHARS = 40
 
 /**
  * 卡面那一行不重复写时长 —— 时长在行尾自己有一格（画板 `DesignD7Script` §1）。
@@ -80,14 +85,14 @@ function stripDuration(value: string): string {
 function clampTitle(value: string): string {
   const flat = stripDuration(value).replace(/\s+/g, ' ').trim()
   return flat.length > NODE_SCRIPT_PROJECTION.maxTitleChars
-    ? `${flat.slice(0, NODE_SCRIPT_PROJECTION.maxTitleChars)}…`
+    ? `${clampCodeUnits(flat, NODE_SCRIPT_PROJECTION.maxTitleChars)}…`
     : flat
 }
 
 function readRoles(text: string): readonly string[] {
   const seen: string[] = []
   for (const match of text.matchAll(ROLE_MENTION)) {
-    const name = match[1]?.trim()
+    const name = clampCodeUnits(match[1] ?? '', ROLE_NAME_MAX_CHARS).trim()
     if (!name || seen.includes(name)) continue
     seen.push(name)
     if (seen.length >= NODE_SCRIPT_PROJECTION.maxRolesPerShot) break

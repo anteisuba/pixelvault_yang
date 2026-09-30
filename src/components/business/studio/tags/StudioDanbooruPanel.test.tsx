@@ -89,6 +89,7 @@ vi.mock('@/hooks/use-danbooru-catalog', () => ({
 
 vi.mock('@/hooks/use-danbooru-favorites', () => ({
   useDanbooruFavorites: () => ({
+    loaded: true,
     of: (kind: string) =>
       mocks.favorites.filter((favorite) => favorite.kind === kind),
     has: (kind: string, name: string) =>
@@ -551,17 +552,30 @@ describe('查资料 · 收藏', () => {
     createdAt: '2026-09-28T00:00:00.000Z',
   }
 
-  it('没搜时收藏置顶在随便看看上面，默认选中第一条收藏', () => {
-    mocks.favorites = [snowMiku]
-    mocks.answer = (request) =>
-      request.kind === 'character' && request.random
-        ? { data: miku }
-        : answerFixtures(request)
+  it('收藏页按类别分段，默认选中第一条并出它的详情', () => {
+    mocks.favorites = [
+      snowMiku,
+      {
+        ...snowMiku,
+        id: 'fav_2',
+        kind: 'artist',
+        name: 'mizuiro_sora',
+        work: null,
+      },
+    ]
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
-    expect(screen.getByText('favoritesTitle(1)')).toBeInTheDocument()
-    expect(screen.getByText('randomCharacterTitle(2)')).toBeInTheDocument()
-    const [pinned] = screen.getAllByRole('button', { name: /^snow miku/ })
-    expect(pinned).toHaveAttribute('aria-current', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFavorites' }))
+    expect(
+      screen.getByText('favoritesSection(kindCharacter|1)'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('favoritesSection(kindArtist|1)'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/favoritesSection\(kindWork/)).toBeNull()
+    expect(screen.getByRole('button', { name: /^snow miku/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
     expect(
       mocks.requests.some(
         (request) =>
@@ -570,11 +584,31 @@ describe('查资料 · 收藏', () => {
     ).toBe(true)
   })
 
-  it('一搜就不置顶收藏', () => {
+  it('收藏页点一个画师：右边换成画师详情', () => {
+    mocks.favorites = [
+      snowMiku,
+      { ...snowMiku, id: 'fav_2', kind: 'artist', name: 'mizuiro_sora' },
+    ]
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFavorites' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /^artist:mizuiro sora/ }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'addArtist(artist:mizuiro sora)' }),
+    ).toBeInTheDocument()
+  })
+
+  it('没有收藏：说怎么收', () => {
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFavorites' }))
+    expect(screen.getByText('favoritesEmpty')).toBeInTheDocument()
+  })
+
+  it('其余四页不再置顶收藏', () => {
     mocks.favorites = [snowMiku]
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
-    search('miku')
-    expect(screen.queryByText(/favoritesTitle/)).toBeNull()
+    expect(screen.queryByText(/favoritesSection/)).toBeNull()
   })
 
   it('点星收藏这一条：存左栏那一行的快照', () => {

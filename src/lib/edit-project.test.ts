@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { EDIT_TRACK_IDS, EDIT_TRANSITION_IDS } from '@/constants/edit-desk'
+import {
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TRACK_IDS,
+  EDIT_TRANSITION_IDS,
+} from '@/constants/edit-desk'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import {
@@ -610,9 +614,7 @@ describe('video.merge 退役（spec §8.6）', () => {
 describe('字幕段', () => {
   const ids = NODE_ASSISTANT_OP_V4_IDS
 
-  function textClip(
-    patch: Partial<EditTextClip> = {},
-  ): EditTextClip {
+  function textClip(patch: Partial<EditTextClip> = {}): EditTextClip {
     return {
       id: 't1',
       text: '她转身走向站台尽头',
@@ -633,6 +635,16 @@ describe('字幕段', () => {
       settings: {},
     })
     expect(parsed.tracks.text).toEqual([])
+  })
+
+  it('内容截到上限时 emoji 跨在截断点上 —— 退掉半个字，⛔ 不让整份 state 被 jsonb 拒收', () => {
+    const max = EDIT_TEXT_MAX_LENGTH
+    expect(buildTextClip(mintId, 0, `${'字'.repeat(max - 1)}😀尾`).text).toBe(
+      '字'.repeat(max - 1),
+    )
+    expect(buildTextClip(mintId, 0, `${'字'.repeat(max - 2)}😀尾`).text).toBe(
+      `${'字'.repeat(max - 2)}😀`,
+    )
   })
 
   it('工具条落的那一段：3s、下中、中号、白字、不淡', () => {

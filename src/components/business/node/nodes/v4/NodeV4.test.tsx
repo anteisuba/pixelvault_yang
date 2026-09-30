@@ -218,7 +218,7 @@ describe('四类节点的两态渲染', () => {
     const surface = container.querySelector('[data-audio-surface="ready"]')!
     expect(surface).toBeInTheDocument()
     expect(surface.querySelector('[data-audio-waveform]')).toBeInTheDocument()
-    expect(screen.getByText('4s')).toBeInTheDocument()
+    expect(screen.getByText('0:04')).toBeInTheDocument()
 
     // 展开态在 S5 随 spec §4「无画中框」一起删 —— 传 `expandedNodeId` 也不换版式。
     const expanded = renderNode(

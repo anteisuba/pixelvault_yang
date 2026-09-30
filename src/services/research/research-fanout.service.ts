@@ -30,6 +30,7 @@ import { fetchBilibiliEvidence } from '@/services/research/bilibili.connector'
 import {
   runConnector,
   skippedReceipt,
+  type ConnectorResult,
 } from '@/services/research/connector-runtime'
 import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
 import {
@@ -39,7 +40,10 @@ import {
   normalizeResearchTerm,
   resolveFandomSite,
 } from '@/services/research/mediawiki.connector'
-import { fetchWebSearchEvidence } from '@/services/research/web-search.connector'
+import {
+  fetchWebSearchEvidence,
+  nativeSearchEvidence,
+} from '@/services/research/web-search.connector'
 import { isWebSearchConfigured } from '@/services/web-research.service'
 
 /**
@@ -142,6 +146,20 @@ export interface RunAssistantResearchParams {
    * 把技法/术语向条目提前。⛔ 不影响打哪些源（那一层在工具环里选）。
    */
   questionType?: ResearchQuestionType
+  /**
+   * **网页那一源由所选模型自带的联网代替**（owner 2026-09-30）。给了就不打 Serper：
+   * 查询词由模型在服务商那一侧自己写。它比 Serper 慢（一次完整的模型往返），
+   * 所以有自己的时限（`RESEARCH_LIMITS.nativeSearchTimeoutMs`），也⛔ 不走 Serper
+   * 那把熔断器 —— 模型那边挂了不该让之后的 Serper 也被熔断。
+   */
+  nativeWebSearch?: () => Promise<NativeWebSearchFound>
+}
+
+/** 所选模型自带联网给回的来源 —— 由扇出转成「网页」那一源的证据。 */
+export interface NativeWebSearchFound {
+  sources: readonly { url: string; title: string; excerpt: string }[]
+  /** 回执上的 `via`：哪一家搜的。 */
+  via: string
 }
 
 // ─── 源分组 ─────────────────────────────────────────────────────
@@ -272,7 +290,14 @@ export function buildResearchQueryPlan(
 async function fetchOne(
   sourceId: ResearchSourceId,
   plan: ResearchQueryPlan,
+  nativeWebSearch?: () => Promise<NativeWebSearchFound>,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
+  if (sourceId === RESEARCH_SOURCE_IDS.webSearch && nativeWebSearch) {
+    return runNativeWebSearch(sourceId, async () => {
+      const found = await nativeWebSearch()
+      return nativeSearchEvidence(found.sources, found.via)
+    })
+  }
   const { queries } = plan
   const primary = queries[0] ?? ''
   if (!primary) {
@@ -373,9 +398,48 @@ async function fetchOne(
  * **并行不等于有界**，慢源必须被抛下，并如实记成 `failed`（⛔ 不是 `empty`，
  * 「超时了」和「没料」是两件事）。
  */
+async function runNativeWebSearch(
+  sourceId: ResearchSourceId,
+  fn: () => Promise<ConnectorResult>,
+): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
+  const startedAt = Date.now()
+  try {
+    const result = await fn()
+    const items = result.items.slice(0, RESEARCH_LIMITS.maxItemsPerSource)
+    return {
+      items,
+      receipt: {
+        sourceId,
+        status:
+          items.length > 0
+            ? RESEARCH_SOURCE_STATUSES.ok
+            : RESEARCH_SOURCE_STATUSES.empty,
+        count: items.length,
+        tookMs: Date.now() - startedAt,
+        ...(result.via ? { via: result.via } : {}),
+      },
+    }
+  } catch (error) {
+    return {
+      items: [],
+      receipt: {
+        sourceId,
+        status: RESEARCH_SOURCE_STATUSES.failed,
+        count: 0,
+        tookMs: Date.now() - startedAt,
+        error: (error instanceof Error ? error.message : String(error)).slice(
+          0,
+          400,
+        ),
+      },
+    }
+  }
+}
+
 function withDeadline(
   sourceId: ResearchSourceId,
   promise: Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }>,
+  timeoutMs: number = RESEARCH_LIMITS.totalTimeoutMs,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<{
@@ -389,11 +453,11 @@ function withDeadline(
           sourceId,
           status: RESEARCH_SOURCE_STATUSES.failed,
           count: 0,
-          tookMs: RESEARCH_LIMITS.totalTimeoutMs,
-          error: `timed out after ${RESEARCH_LIMITS.totalTimeoutMs}ms`,
+          tookMs: timeoutMs,
+          error: `timed out after ${timeoutMs}ms`,
         },
       })
-    }, RESEARCH_LIMITS.totalTimeoutMs)
+    }, timeoutMs)
   })
 
   return Promise.race([promise, deadline]).finally(() => {
@@ -719,7 +783,13 @@ export async function runAssistantResearch(
 
   const settled = await Promise.all(
     sourceIds.map((sourceId) =>
-      withDeadline(sourceId, fetchOne(sourceId, plan)),
+      withDeadline(
+        sourceId,
+        fetchOne(sourceId, plan, params.nativeWebSearch),
+        sourceId === RESEARCH_SOURCE_IDS.webSearch && params.nativeWebSearch
+          ? RESEARCH_LIMITS.nativeSearchTimeoutMs
+          : RESEARCH_LIMITS.totalTimeoutMs,
+      ),
     ),
   )
 

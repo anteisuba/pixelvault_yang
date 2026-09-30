@@ -111,6 +111,41 @@ export async function fetchWebSearchEvidence(params: {
  * 用户在消息里贴了 URL —— 直接读，**不再打搜索**（规划器那条启发式的落点）。
  * Jina 读回来的正文是 SSRF 已守卫过的（`readUrl` 内部走 `assertSafeUrl`）。
  */
+/**
+ * 所选模型**自带联网**给回的来源 → 证据（owner 2026-09-30）。与 Serper 同一个
+ * `sourceId`：对用户和工具环来说它就是「网页」那一源，只是查询词由模型自己写。
+ * ⚠ 摘录是回答里引用这条来源的那几句 —— 服务商给的原文，⛔ 不是我们再去抓的正文。
+ */
+export function nativeSearchEvidence(
+  sources: readonly { url: string; title: string; excerpt: string }[],
+  via: string,
+): ConnectorResult {
+  const retrievedAt = new Date().toISOString()
+  const tier = evidenceTier(RESEARCH_SOURCE_IDS.webSearch)
+  const items: EvidenceItem[] = sources.map((source) => {
+    const base = {
+      id: evidenceId(RESEARCH_SOURCE_IDS.webSearch, source.url),
+      sourceId: RESEARCH_SOURCE_IDS.webSearch,
+      sourceTier: tier,
+      retrievedAt,
+      title: source.title || source.url,
+      url: source.url,
+    }
+    const excerpt = clampExcerpt(source.excerpt || source.title)
+    const videoSite = detectResearchVideoSite(source.url)
+    return videoSite
+      ? {
+          ...base,
+          kind: 'video',
+          videoUrl: source.url,
+          site: videoSite,
+          excerpt,
+        }
+      : { ...base, kind: 'text', excerpt }
+  })
+  return { items, via }
+}
+
 export async function fetchUrlEvidence(params: {
   urls: readonly string[]
 }): Promise<ConnectorResult> {

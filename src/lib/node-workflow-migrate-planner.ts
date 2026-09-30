@@ -21,6 +21,7 @@
 
 import { NODE_TYPE_IDS } from '@/constants/node-types'
 import { SCRIPT_DOC_LIMITS } from '@/constants/script-doc'
+import { clampCodeUnits } from '@/lib/node-display-name'
 import type {
   NodeWorkflowEdge,
   NodeWorkflowNode,
@@ -39,8 +40,7 @@ const RETIRED_PLANNER_NODE_TYPES: ReadonlySet<string> = new Set([
 ])
 
 function clamp(value: string, max: number): string {
-  const trimmed = value.trim()
-  return trimmed.length > max ? trimmed.slice(0, max) : trimmed
+  return clampCodeUnits(value.trim(), max)
 }
 
 function clampOptional(

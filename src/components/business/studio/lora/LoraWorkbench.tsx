@@ -2251,23 +2251,11 @@ function GenerateBranch({
     [prompt, negativePrompt, negativePromptExpanded],
   )
   const hasLora = stack.items.length > 0
-  const recipeExtrasReady =
-    !collocationRecipe ||
-    collocationRecipe.extraLoras.every((extra) =>
-      stack.items.some(
-        (entry) =>
-          entry.asset.id === extraMountedIdsByKey[extraLoraKey(extra)] &&
-          entry.enabled !== false &&
-          !!selectedBase &&
-          isLoraBaseModelMountCompatible(
-            entry.asset.baseModelFamily,
-            selectedBase.family,
-          ),
-      ),
-    )
+  // 配方里的额外 LoRA 只在「正在补挂」时锁出图。定位不到（作者私有、Civitai
+  // 上没有）或与底模不兼容的，重试也挂不上——由 toast 与「去 Civitai 找」说清，
+  // ⛔ 不锁生成键（配方图 135139750 的 superiorAnima 曾把按钮永久锁死）。
   const canGenerate =
     !isMountingExtras &&
-    recipeExtrasReady &&
     !!selectedBase?.available &&
     !!selectedBase.providerModelId &&
     !isGenerating &&
@@ -2277,7 +2265,7 @@ function GenerateBranch({
     (needsKeySetup || prompt.trim().length > 0)
 
   const handleGenerate = useCallback(async () => {
-    if (extraMountsPending.current > 0 || !recipeExtrasReady) return
+    if (extraMountsPending.current > 0) return
     const providerModelId = selectedBase?.providerModelId
     if (!providerModelId) return
     // 时间提示（owner 2026-09-12）：Runner 线路才有冷启动，hosted 线路不提。
@@ -2454,7 +2442,6 @@ function GenerateBranch({
     prompt,
     promptTags,
     referenceStrength,
-    recipeExtrasReady,
     runnerCfg,
     runnerHeight,
     runnerSampler,
@@ -3611,13 +3598,9 @@ function GenerateBranch({
               // 10px/10px，`lg` 断点与 `useIsMobile` 同界）。
               className="lora-composer shrink-0 space-y-2.5 border-t border-border px-2.5 py-2.5 lg:px-4 lg:py-3"
             >
-              {(isMountingExtras || !recipeExtrasReady) && (
+              {isMountingExtras && (
                 <p role="status" className="text-sm text-muted-foreground">
-                  {t(
-                    isMountingExtras
-                      ? 'sourceRecipeMounting'
-                      : 'sourceRecipeIncomplete',
-                  )}
+                  {t('sourceRecipeMounting')}
                 </p>
               )}
               {/* S7 移动端：装配摘要 chip 行——B 稿把它从旧的「结果卡上方独立
@@ -4260,6 +4243,7 @@ function GenerateBranch({
                   : ''
               }
               mountedExtraKeys={mountedExtraKeys}
+              extraStatusByKey={extraMountStatusByKey}
               onApplyRecipe={(recipe, includeSeed, extraLoras) =>
                 handleApplyRecipe(recipe, { includeSeed, extraLoras })
               }
@@ -4370,13 +4354,9 @@ function GenerateBranch({
               'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
           )}
         >
-          {isMountingExtras || !recipeExtrasReady ? (
+          {isMountingExtras ? (
             <p role="status" className="text-xs text-muted-foreground">
-              {t(
-                isMountingExtras
-                  ? 'sourceRecipeMounting'
-                  : 'sourceRecipeIncomplete',
-              )}
+              {t('sourceRecipeMounting')}
             </p>
           ) : null}
           {collocationVisible ? (

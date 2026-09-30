@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<title>首页 v5 方向稿</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet" />
+<style>
+  :root { --s: 0.3; --asset: 'http://localhost:3000'; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e9e7e3; color: #1a1a1a; font: 14px/1.6 Inter, 'PingFang SC', sans-serif; padding: 48px 40px 120px; }
+  h1 { font: 900 34px/1.2 'Noto Serif SC', serif; }
+  h2 { font: 900 22px/1.3 'Noto Serif SC', serif; margin: 56px 0 6px; }
+  .lede { color: #666; margin-top: 6px; max-width: 72ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chips span { background: #fff; border: 1px solid #d6d3ce; border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* 结构条 */
+  .spine { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; margin-top: 16px; }
+  .spine div { background: #fff; border-radius: 12px; padding: 12px; min-height: 150px; }
+  .spine b { display: block; font: 600 15px/1.3 'Noto Serif SC', serif; margin: 4px 0 6px; }
+  .spine i { font-style: normal; font-size: 11px; color: #888; }
+  .spine p { font-size: 12px; color: #555; line-height: 1.5; }
+  .spine .film { background: #1a1a1a; color: #eee; }
+  .spine .film p, .spine .film i { color: #aaa; }
+
+  /* 世界行 */
+  .world { margin-top: 28px; background: #fff; border-radius: 18px; padding: 22px; }
+  .world header { display: flex; gap: 18px; align-items: baseline; }
+  .world header b { font: 900 20px 'Noto Serif SC', serif; }
+  .world header span { color: #666; }
+  .world ul { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; list-style: none; margin: 12px 0 16px; font-size: 12.5px; color: #444; }
+  .world ul li em { display: block; font-style: normal; font-size: 11px; color: #999; }
+  .row { display: flex; gap: 14px; }
+  .fw { width: calc(1440px * var(--s)); height: calc(900px * var(--s)); border-radius: 10px; overflow: hidden; flex: none; cursor: zoom-in; box-shadow: 0 10px 30px -18px rgba(0,0,0,.5); position: relative; }
+  .fw small { position: absolute; z-index: 9; left: 8px; top: 6px; font: 500 10px 'JetBrains Mono'; background: rgba(255,255,255,.85); color: #222; padding: 1px 6px; border-radius: 4px; }
+  .frame { width: 1440px; height: 900px; position: relative; overflow: hidden; transform: scale(var(--s)); transform-origin: 0 0; }
+  .big { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.8); display: grid; place-items: center; cursor: zoom-out; }
+  .big .fw { cursor: zoom-out; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; background: #fff; border-radius: 14px; overflow: hidden; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #eee; vertical-align: top; }
+  th { background: #f6f5f2; font-weight: 600; font-size: 12px; color: #555; }
+  td.no { color: #b3261e; }
+
+  /* ── 帧内公共 ── */
+  .frame video, .frame img { display: block; }
+  .bar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 720px; height: 52px; border-radius: 999px; display: flex; align-items: center; padding: 0 8px 0 22px; gap: 14px; z-index: 5; font: 600 17px Inter; }
+  .bar .sp { flex: 1; }
+  .bar .lg { font: 500 11px 'JetBrains Mono'; letter-spacing: .1em; opacity: .6; }
+  .bar .in { border-radius: 999px; padding: 8px 18px; font: 500 14px Inter; }
+  .cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .serif { font-family: 'Instrument Serif', 'Noto Serif SC', serif; }
+  .cjk { font-family: 'Noto Serif SC', serif; font-weight: 900; }
+  .tabs { display: flex; gap: 26px; font: 500 15px Inter; }
+  .tabs span { opacity: .45; } .tabs span.on { opacity: 1; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card { position: relative; overflow: hidden; }
+  .card h4 { font: 400 30px/1.1 'Instrument Serif', serif; }
+  .card p { font-size: 13px; line-height: 1.5; }
+  .card .tg { display: flex; gap: 6px; margin-top: 8px; }
+  .card .tg span { font-size: 11px; border-radius: 999px; padding: 2px 9px; }
+
+  /* ── A 暗场电影感 ── */
+  .A { background: #0a0a0b; color: #efe9df; }
+  .A .bar { background: rgba(20,20,22,.55); backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+  .A .bar .in { background: #efe9df; color: #0a0a0b; }
+  .A .grain { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .18; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .A .lb::before, .A .lb::after { content: ''; position: absolute; left: 0; right: 0; height: 64px; background: #0a0a0b; z-index: 3; }
+  .A .lb::before { top: 0; } .A .lb::after { bottom: 0; }
+  .A .scrim { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(10,10,11,.92) 0%, rgba(10,10,11,.2) 55%, rgba(10,10,11,.1) 100%); z-index: 2; }
+  .A .tc { position: absolute; z-index: 5; font: 500 12px 'JetBrains Mono'; letter-spacing: .14em; opacity: .7; }
+  .A .h1 { position: absolute; z-index: 5; left: 96px; bottom: 150px; font-size: 92px; line-height: 1.12; }
+  .A .sub { position: absolute; z-index: 5; left: 98px; bottom: 104px; font-size: 16px; opacity: .7; }
+  .A .play { position: absolute; z-index: 5; right: 96px; bottom: 108px; border: 1px solid rgba(239,233,223,.5); border-radius: 999px; padding: 12px 22px; font: 500 14px Inter; }
+  .A .ch-bg { filter: brightness(.35) blur(6px); transform: scale(1.08); }
+  .A .fl { position: absolute; z-index: 3; border-radius: 6px; overflow: hidden; box-shadow: 0 40px 80px -30px #000; }
+  .A .fl img { width: 100%; height: 100%; object-fit: cover; }
+  .A .fl span { position: absolute; left: 10px; bottom: 8px; font: 500 11px 'JetBrains Mono'; letter-spacing: .08em; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 4px; }
+  .A .card { height: 330px; border-radius: 8px; }
+  .A .card .ct { position: absolute; left: 22px; right: 22px; bottom: 18px; z-index: 2; }
+  .A .card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.85), transparent 60%); }
+  .A .card .tg span { border: 1px solid rgba(255,255,255,.3); }
+
+  /* ── B 亮调画册 ── */
+  .B { background: #f5f1ea; color: #161412; }
+  .B .bar { background: rgba(255,255,255,.8); backdrop-filter: blur(16px); box-shadow: 0 12px 34px -18px rgba(0,0,0,.25), inset 0 0 0 1px #e4ded4; }
+  .B .bar .in { background: #161412; color: #fff; }
+  .B .h1 { position: absolute; left: 0; right: 0; top: 118px; text-align: center; font-size: 76px; line-height: 1.15; }
+  .B .sub { position: absolute; left: 0; right: 0; top: 300px; text-align: center; font-size: 16px; color: #6b655c; }
+  .B .fr { position: absolute; border-radius: 28px; overflow: hidden; box-shadow: 0 40px 80px -40px rgba(60,40,20,.45); }
+  .B .cap { position: absolute; font: 500 11px 'JetBrains Mono'; letter-spacing: .1em; color: #8a8378; }
+  .B .card { background: #fff; border-radius: 20px; box-shadow: 0 1px 0 #e7e1d6; }
+  .B .card img { width: 100%; height: 190px; object-fit: cover; }
+  .B .card .ct { padding: 14px 18px 18px; }
+  .B .card p { color: #6b655c; }
+  .B .card .tg span { border: 1px solid #ddd6ca; color: #6b655c; }
+
+  /* ── C 随镜头变色 ── */
+  .C { color: #f4f1ec; }
+  .C .bar { background: rgba(255,255,255,.12); backdrop-filter: blur(20px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+  .C .bar .in { background: #f4f1ec; color: #111; }
+  .C .amb { position: absolute; inset: -10%; width: 120%; height: 120%; object-fit: cover; filter: blur(90px) saturate(1.4); opacity: .6; }
+  .C .h1 { position: absolute; left: 0; right: 0; top: 112px; text-align: center; font-size: 70px; line-height: 1.15; z-index: 2; }
+  .C .sub { position: absolute; left: 0; right: 0; top: 196px; text-align: center; font-size: 15px; opacity: .7; z-index: 2; }
+  .C .fr { position: absolute; border-radius: 18px; overflow: hidden; z-index: 2; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 50px 120px -40px rgba(0,0,0,.6); }
+  .C .card { height: 320px; border-radius: 16px; overflow: visible; }
+  .C .card .glow { position: absolute; inset: 10px; filter: blur(34px) saturate(1.6); opacity: .7; border-radius: 16px; }
+  .C .card .im { position: absolute; inset: 0; border-radius: 16px; overflow: hidden; }
+  .C .card .im::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.8), transparent 60%); }
+  .C .card .ct { position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 2; }
+  .C .card .tg span { background: rgba(255,255,255,.14); }
+</style>
+</head>
+<body>
+<h1>首页 v5 · 方向稿</h1>
+<p class="lede">09-29 反问定案。画面里的「借伞」只是占位，正片由你用站内能力拍一部新故事后按素材清单替换。点任意一帧放大。施工说明与素材清单见 <span class="mono">docs/references/pages/home.md</span> §v5。</p>
+<div class="chips">
+  <span>首页 = 介绍功能 + 介绍模型</span><span>视频做底，HTML 文字与界面叠在上面</span><span>正常滚动 · 进场自动播 · 分层视差</span><span>主线 = 一部新短片从剧本拍到成片</span><span>每个模型：特色 + 特色图</span><span>不讲剪片</span><span>结构推翻重来</span>
+</div>
+
+<h2>结构 · 一部片的拍摄顺序</h2>
+<p class="lede">九章，一路往下滚。每章进场自己播完一段（≤3 秒出结果），不需要等，也不锁滚轮。</p>
+<div class="spine">
+  <div class="film"><i>00</i><b>片花</b><p>正片剪出的 6–8 秒循环铺满首屏，标题叠在上面</p></div>
+  <div><i>01</i><b>剧本</b><p>一句话 → 助手写出分镜表</p></div>
+  <div><i>02</i><b>画面</b><p>同一句话四个模型各画一版；LoRA 定住角色</p></div>
+  <div><i>03</i><b>声音</b><p>台词逐句配音，音色库 / 克隆</p></div>
+  <div><i>04</i><b>镜头</b><p>定格图 → 动起来：左静帧右成片对照</p></div>
+  <div><i>05</i><b>串起来</b><p>画布把剧本、图、声、镜头连成一张图</p></div>
+  <div class="film"><i>06</i><b>首映</b><p>整片点开有声播放；片尾字幕 = 每一步用的模型</p></div>
+  <div><i>07</i><b>阵容</b><p>按类型分组，每个模型一张特色图 + 特色，点开看强弱与价格</p></div>
+  <div><i>08</i><b>收尾</b><p>一颗入口按钮 + 页脚三链</p></div>
+</div>
+
+<h2>三个视觉世界</h2>
+<p class="lede">同样三帧：开场 · 02 画面 · 07 阵容。三版平铺，不排名次。</p>
+<div id="worlds"></div>
+
+<h2>动效表</h2>
+<table>
+  <tr><th>动作</th><th>时长 · 曲线</th><th>动什么</th><th>⛔</th></tr>
+  <tr><td>章节视频进场</td><td>海报→视频交叉淡入 600ms ease-out；可见 ≥50% 开播，&lt;20% 暂停</td><td>视频层 opacity</td><td class="no">不用滚动驱动 currentTime（09-20 真机已否）；同一时刻只播一支</td></tr>
+  <tr><td>分层视差</td><td>跟随滚动，无缓动</td><td>视频层 0.85× · 标题 1.0× · 浮卡 1.1–1.2×；每层位移 ≤ ±80px</td><td class="no">只动 transform；不钉住整屏（sticky 长卷）</td></tr>
+  <tr><td>标题出场</td><td>700ms cubic-bezier(.2,.8,.2,1)，行间错 80ms</td><td>逐行从遮罩下升起</td><td class="no">每次进入只播一次，不来回重播</td></tr>
+  <tr><td>章节演示</td><td>进场 300ms 后开始，3 秒内出结果</td><td>打字 / 图片落位 / 波形 / 连线</td><td class="no">不让用户等 5 秒才看到结果</td></tr>
+  <tr><td>首映开播</td><td>弹簧 520ms（阻尼 0.85）</td><td>海报放大到满屏，开声音；片尾字幕随播放时间逐条出</td><td class="no">不自动有声播放</td></tr>
+  <tr><td>模型卡悬停</td><td>400ms ease-out</td><td>特色图放大 1.03；视频类模型原地播 3 秒预览</td><td class="no">手机端不做悬停预览，改为进入视口播一张</td></tr>
+  <tr><td>模型详情开 / 关</td><td>弹簧 420ms，开合对称</td><td>底部面板升起 / 落下，背后压暗</td><td class="no">关闭不能瞬切</td></tr>
+  <tr><td>减少动态效果</td><td>—</td><td>无视差、不自动播，显示海报 + 播放键，文字直接到位</td><td class="no">不取消滚动本身</td></tr>
+</table>
+
+<script>
+const A = 'http://localhost:3000'
+const FILM = A + '/homepage/production/umbrella/umbrella-film-30s.mp4'
+const KF = n => `${A}/homepage/production/umbrella/umbrella-kf${n}-${['','entrance','shared','hydrangea','arcade','farewell'][n]}.webp`
+const MODELS = [
+  ['GPT Image 2', 'model-gpt-image-2.webp', '全能第一名：最能读懂复杂指令。', ['海报排版', '长指令', '多语言文字']],
+  ['Gemini 3 Pro Image', 'model-gemini-3-pro-image.jpg', '又快又稳：2–5 秒出图，编辑最细。', ['快', '编辑', '稳定']],
+  ['FLUX 2 Pro', 'model-flux-2-pro.jpg', '质感派：皮肤布纹少塑料光。', ['质感', '写实', '长描述']],
+  ['Seedream 5.0', 'model-seedream-5.jpg', '设计头脑：懂排版懂中文。', ['排版', '中文', '联网']],
+  ['Recraft V4 Pro', 'model-recraft-v4-pro.webp', '设计师那一档：原生出 SVG。', ['SVG', '文字', '品牌']],
+  ['NovelAI V5', 'model-novelai-v5.webp', '动漫专精：多角色同画不串。', ['动漫', '多角色', '漫画']],
+]
+const bar = () => `<div class="bar"><span>ANTEI</span><span class="sp"></span><span class="lg">EN&nbsp;&nbsp;JA&nbsp;&nbsp;ZH</span><span class="in">登录</span></div>`
+const tabs = () => `<div class="tabs"><span class="on">图片 6</span><span>LoRA 5</span><span>视频 6</span><span>声音 2</span><span>3D 4</span></div>`
+const HEAD = '这部短片，<br>从剧本到成片都在这里拍。'
+const HEAD1 = '这部短片，从剧本到成片都在这里拍。'
+
+const W = {
+  A: {
+    name: 'A · 暗场电影感', tag: '像电影片头 / Apple Pro 产品页',
+    notes: [['视频', '满屏出血，上下留遮幅黑边'], ['文字', '左下角叠在压暗的画面上，衬线大标题 + 等宽场记号'], ['模型', '深色卡片，特色图满铺，名字压在图上'], ['风险', '暗底上的小字对比度要逐个核；和产品内页（浅底）反差最大']],
+    hero: () => `<div class="lb"><video class="cover" src="${FILM}" autoplay muted loop playsinline></video></div><div class="scrim"></div><div class="grain"></div>${bar()}
+      <div class="tc" style="left:96px;bottom:380px">ANTEI 出品 · 一部完全在站内完成的短片</div>
+      <div class="h1 cjk">${HEAD}</div><div class="sub">剧本、画面、声音、镜头——每一步接的都是不同的模型。</div>
+      <div class="play">▶ 看完整片 2:14</div><div class="tc" style="right:96px;top:96px">SC.00 · 00:00:06:12</div>`,
+    chapter: () => `<img class="cover ch-bg" src="${KF(4)}">${bar()}<div class="grain"></div>
+      <div class="tc" style="left:96px;top:250px">SC.02 — 画面</div>
+      <div class="cjk" style="position:absolute;z-index:5;left:96px;top:290px;font-size:64px;line-height:1.18">同一句话，<br>四个模型<br>各画一版。</div>
+      <div style="position:absolute;z-index:5;left:98px;top:540px;width:380px;font-size:15px;opacity:.7">写一次提示词，四家同时出图，挑中的那张直接进下一幕。</div>
+      <div class="fl" style="left:620px;top:150px;width:330px;height:430px"><img src="${KF(1)}"><span>GPT IMAGE 2</span></div>
+      <div class="fl" style="left:990px;top:110px;width:300px;height:390px"><img src="${KF(2)}"><span>SEEDREAM 5.0</span></div>
+      <div class="fl" style="left:700px;top:560px;width:260px;height:250px"><img src="${KF(3)}"><span>FLUX 2 PRO</span></div>
+      <div class="fl" style="left:1010px;top:530px;width:320px;height:280px"><img src="${KF(5)}"><span>NOVELAI V5</span></div>`,
+    models: () => `${bar()}<div style="position:absolute;left:96px;right:96px;top:120px">
+      <div class="tc" style="position:static">SC.07 — 阵容 · 69 个模型</div>
+      <div style="display:flex;justify-content:space-between;align-items:end;margin:10px 0 26px"><div class="cjk" style="font-size:52px">每个模型，看它最拿手的一张。</div>${tabs()}</div>
+      <div class="grid">${MODELS.map(m => `<div class="card"><img class="cover" src="${A}/homepage/v4/${m[1]}"><div class="ct"><h4>${m[0]}</h4><p style="opacity:.75">${m[2]}</p><div class="tg">${m[3].map(t => `<span>${t}</span>`).join('')}</div></div></div>`).join('')}</div></div>`,
+  },
+  B: {
+    name: 'B · 亮调画册', tag: '像 claude.com / 杂志内页',
+    notes: [['视频', '嵌在大圆角画框里，四周留白'], ['文字', '居中衬线大标题，画框下有「图 01」式图注'], ['模型', '白卡片，图在上字在下，像目录'], ['风险', '和现在同一家族，「普通感」要靠排版和视差撑起来']],
+    hero: () => `${bar()}<div class="h1 cjk">${HEAD1}</div><div class="sub">剧本、画面、声音、镜头——每一步接的都是不同的模型。</div>
+      <div class="fr" style="left:120px;right:120px;top:370px;height:450px"><video class="cover" src="${FILM}" autoplay muted loop playsinline></video></div>
+      <div class="cap" style="left:124px;top:836px">图 00 · 片花 · 全部站内生成</div><div class="cap" style="right:124px;top:836px">▶ 看完整片 2:14</div>`,
+    chapter: () => `${bar()}<div class="cap" style="left:120px;top:200px">第 02 章 · 画面</div>
+      <div class="cjk" style="position:absolute;left:120px;top:236px;font-size:58px;line-height:1.2">同一句话，<br>四个模型<br>各画一版。</div>
+      <div style="position:absolute;left:122px;top:480px;width:360px;font-size:15px;color:#6b655c">写一次提示词，四家同时出图，挑中的那张直接进下一幕。</div>
+      <div class="fr" style="left:620px;top:130px;width:340px;height:330px"><img class="cover" src="${KF(1)}"></div><div class="cap" style="left:624px;top:470px">图 02a · GPT Image 2</div>
+      <div class="fr" style="left:990px;top:200px;width:340px;height:330px"><img class="cover" src="${KF(2)}"></div><div class="cap" style="left:994px;top:540px">图 02b · Seedream 5.0</div>
+      <div class="fr" style="left:620px;top:500px;width:340px;height:330px"><img class="cover" src="${KF(3)}"></div>
+      <div class="fr" style="left:990px;top:570px;width:340px;height:330px"><img class="cover" src="${KF(5)}"></div>`,
+    models: () => `${bar()}<div style="position:absolute;left:120px;right:120px;top:120px">
+      <div class="cap" style="position:static">第 07 章 · 阵容</div>
+      <div style="display:flex;justify-content:space-between;align-items:end;margin:8px 0 24px"><div class="cjk" style="font-size:48px">每个模型，看它最拿手的一张。</div>${tabs()}</div>
+      <div class="grid">${MODELS.map(m => `<div class="card"><img src="${A}/homepage/v4/${m[1]}"><div class="ct"><h4>${m[0]}</h4><p>${m[2]}</p><div class="tg">${m[3].map(t => `<span>${t}</span>`).join('')}</div></div></div>`).join('')}</div></div>`,
+  },
+  C: {
+    name: 'C · 随镜头变色', tag: '像 YouTube 氛围光 / 调色台',
+    notes: [['视频', '居中画框，画面颜色晕出来染满整页'], ['文字', '居中，白字压在晕染上'], ['模型', '每张卡背后透出自己特色图的颜色'], ['风险', '底色由素材决定，新片的色调直接决定整页气质；晕染层要控性能']],
+    hero: () => `<div class="cover" style="background:#16222c"></div><video class="amb" src="${FILM}" autoplay muted loop playsinline></video>${bar()}
+      <div class="h1 cjk">${HEAD1}</div><div class="sub">剧本、画面、声音、镜头——每一步接的都是不同的模型。</div>
+      <div class="fr" style="left:190px;right:190px;top:268px;height:590px"><video class="cover" src="${FILM}" autoplay muted loop playsinline></video></div>`,
+    chapter: () => `<div class="cover" style="background:#2a2117"></div><img class="amb" src="${KF(4)}">${bar()}
+      <div style="position:absolute;z-index:2;left:110px;top:250px;font:500 12px 'JetBrains Mono';letter-spacing:.14em;opacity:.7">02 · 画面</div>
+      <div class="cjk" style="position:absolute;z-index:2;left:110px;top:286px;font-size:60px;line-height:1.18">同一句话，<br>四个模型<br>各画一版。</div>
+      <div class="fr" style="left:620px;top:140px;width:330px;height:340px"><img class="cover" src="${KF(1)}"></div>
+      <div class="fr" style="left:980px;top:200px;width:330px;height:340px"><img class="cover" src="${KF(2)}"></div>
+      <div class="fr" style="left:620px;top:510px;width:330px;height:340px"><img class="cover" src="${KF(3)}"></div>
+      <div class="fr" style="left:980px;top:570px;width:330px;height:300px"><img class="cover" src="${KF(5)}"></div>`,
+    models: () => `<div class="cover" style="background:#121218"></div>${bar()}<div style="position:absolute;left:110px;right:110px;top:120px">
+      <div style="display:flex;justify-content:space-between;align-items:end;margin:30px 0 26px"><div class="cjk" style="font-size:50px">每个模型，看它最拿手的一张。</div>${tabs()}</div>
+      <div class="grid">${MODELS.map(m => `<div class="card"><img class="glow" src="${A}/homepage/v4/${m[1]}" style="width:calc(100% - 20px);height:calc(100% - 20px);object-fit:cover"><div class="im"><img class="cover" src="${A}/homepage/v4/${m[1]}"></div><div class="ct"><h4>${m[0]}</h4><p style="opacity:.75">${m[2]}</p><div class="tg">${m[3].map(t => `<span>${t}</span>`).join('')}</div></div></div>`).join('')}</div></div>`,
+  },
+}
+
+const root = document.getElementById('worlds')
+for (const k of ['A', 'B', 'C']) {
+  const w = W[k]
+  const el = document.createElement('section')
+  el.className = 'world'
+  el.innerHTML = `<header><b>${w.name}</b><span>${w.tag}</span></header>
+    <ul>${w.notes.map(n => `<li><em>${n[0]}</em>${n[1]}</li>`).join('')}</ul>
+    <div class="row">${[['开场', 'hero'], ['02 画面', 'chapter'], ['07 阵容', 'models']].map(([l, f]) => `<div class="fw"><small>${k} · ${l}</small><div class="frame ${k}">${w[f]()}</div></div>`).join('')}</div>`
+  root.appendChild(el)
+}
+
+document.addEventListener('click', e => {
+  const open = document.querySelector('.big')
+  if (open) { open.remove(); return }
+  const fw = e.target.closest('.fw')
+  if (!fw) return
+  const s = Math.min(innerWidth / 1440, innerHeight / 900) * 0.94
+  const big = document.createElement('div')
+  big.className = 'big'
+  big.style.setProperty('--s', s)
+  big.appendChild(fw.cloneNode(true))
+  document.body.appendChild(big)
+})
+</script>
+</body>
+</html>

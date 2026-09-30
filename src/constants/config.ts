@@ -552,6 +552,8 @@ export const AI_PROVIDER_ENDPOINTS = {
 export const ANTHROPIC_API = {
   VERSION: '2023-06-01',
   MESSAGES_PATH: '/messages',
+  /** 服务端网搜工具（带动态过滤的那一版）。 */
+  WEB_SEARCH_TOOL_TYPE: 'web_search_20260209',
   MODELS_PATH: '/models',
   /**
    * Beta header that unlocks `fallbacks: 'default'` on `/messages`. Claude

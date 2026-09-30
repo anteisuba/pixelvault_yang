@@ -14,10 +14,16 @@ const mockFetchMediaWikiEvidence = vi.fn()
 const mockFetchDanbooruEvidence = vi.fn()
 const mockFetchBilibiliEvidence = vi.fn()
 
-vi.mock('@/services/research/web-search.connector', () => ({
-  fetchWebSearchEvidence: (...args: unknown[]) =>
-    mockFetchWebSearchEvidence(...args),
-}))
+vi.mock('@/services/research/web-search.connector', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/research/web-search.connector')
+  >('@/services/research/web-search.connector')
+  return {
+    ...actual,
+    fetchWebSearchEvidence: (...args: unknown[]) =>
+      mockFetchWebSearchEvidence(...args),
+  }
+})
 /**
  * ⚠ **只 mock 取证据那一跳**：`resolveFandomSite` / `getMediaWikiSite` 是**纯的
  * 站点解析**（本轮 A4 的判据全在它们身上），mock 掉就等于把要验的东西验没了。
@@ -677,6 +683,52 @@ describe('印证与结论（§9，commit #16）', () => {
     // wiki 吃的仍然是「作品 + 角色」那条页名，⛔ 不是改写出来的长查询。
     expect(mockFetchMediaWikiEvidence).toHaveBeenCalledWith(
       expect.objectContaining({ query: '无限大 时夜' }),
+    )
+  })
+})
+
+describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）', () => {
+  it('⭐ 网页那一源交给模型自带联网：不打 Serper，回执标出是哪一家', async () => {
+    mockIsWebSearchConfigured.mockReturnValue(true)
+    mockFetchWebSearchEvidence.mockClear()
+    const outcome = await runAssistantResearch({
+      goal: '卡提希娅 配色',
+      sources: ['web'],
+      nativeWebSearch: async () => ({
+        sources: [
+          { url: 'https://a.test/page', title: 'A 站', excerpt: '青绿配色' },
+        ],
+        via: 'gemini',
+      }),
+    })
+
+    expect(mockFetchWebSearchEvidence).not.toHaveBeenCalled()
+    expect(outcome.items).toHaveLength(1)
+    expect(outcome.items[0]).toMatchObject({
+      sourceId: RESEARCH_SOURCE_IDS.webSearch,
+      url: 'https://a.test/page',
+      title: 'A 站',
+    })
+    expect(outcome.receipts).toContainEqual(
+      expect.objectContaining({
+        sourceId: RESEARCH_SOURCE_IDS.webSearch,
+        status: 'ok',
+        via: 'gemini',
+      }),
+    )
+  })
+
+  it('⚠ 模型那边挂了只记这一源失败，⛔ 不抛', async () => {
+    const outcome = await runAssistantResearch({
+      goal: '卡提希娅 配色',
+      sources: ['web'],
+      nativeWebSearch: async () => {
+        throw new Error('upstream 503')
+      },
+    })
+    expect(outcome.items).toEqual([])
+    expect(outcome.receipts).toContainEqual(
+      expect.objectContaining({ status: 'failed', error: 'upstream 503' }),
     )
   })
 })

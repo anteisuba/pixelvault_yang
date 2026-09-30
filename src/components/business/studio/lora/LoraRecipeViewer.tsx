@@ -21,6 +21,7 @@ import {
   X,
 } from '@/components/icons'
 import {
+  CIVITAI_MODEL_SEARCH_URL,
   LORA_CHIP_THUMBNAIL_WIDTH,
   LORA_DETAIL_IMAGE_WIDTH,
 } from '@/constants/lora'
@@ -30,7 +31,12 @@ import {
   formatSize,
 } from '@/components/business/studio/lora/LoraSourceRecipeModal'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
-import { extraLoraKey, extraLoraLabel } from '@/lib/lora-recipe-extra-mount'
+import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
+import {
+  extraLoraKey,
+  extraLoraLabel,
+  type ExtraMountStatus,
+} from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
@@ -53,6 +59,11 @@ interface LoraRecipeViewerProps {
   sourceUrl: string
   /** 已经在挂载栈里的额外 LoRA（`extraLoraKey`）—— 那一行写「已挂载」。 */
   mountedExtraKeys: ReadonlySet<string>
+  /**
+   * 生成台补挂过的结果（`extraLoraKey` → 状态）。定位不到 / 与底模不兼容的
+   * 那一行不再给「一起挂」，改说原因——重试也挂不上。
+   */
+  extraStatusByKey?: Readonly<Record<string, ExtraMountStatus>>
   /**
    * 生成台才有「做同款」：只把配方写回装配台与输入（勾中的额外 LoRA 一起挂），
    * ⛔ 不出图。库里不给，只有复制配方。
@@ -85,9 +96,11 @@ export function LoraRecipeViewer({
   assetName,
   sourceUrl,
   mountedExtraKeys,
+  extraStatusByKey,
   onApplyRecipe,
 }: LoraRecipeViewerProps) {
   const t = useTranslations('LoraWorkbench')
+  const tExtra = useTranslations('LoraPromptControl.generate')
   const reducedMotion = useReducedMotion()
   const recipe = recipes[index] ?? null
   const total = recipes.length
@@ -391,6 +404,7 @@ export function LoraRecipeViewer({
                       const label = extraLoraLabel(extra)
                       const mounted = mountedExtraKeys.has(key)
                       const included = !excludedKeys.has(key)
+                      const status = extraStatusByKey?.[key]
                       return (
                         <div
                           key={key}
@@ -416,6 +430,21 @@ export function LoraRecipeViewer({
                             <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground">
                               <Check className="size-3" aria-hidden />
                               {t('viewer.mounted')}
+                            </span>
+                          ) : status === 'failed' ? (
+                            <a
+                              href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
+                                toCivitaiModelSearchQuery(label),
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-7 shrink-0 items-center px-2.5 text-xs text-muted-foreground underline underline-offset-2 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              {tExtra('recipeExtraSearchLink')}
+                            </a>
+                          ) : status === 'incompatible' ? (
+                            <span className="inline-flex h-7 shrink-0 items-center px-2.5 text-xs text-muted-foreground">
+                              {tExtra('recipeExtraIncompatible')}
                             </span>
                           ) : onApplyRecipe ? (
                             <button

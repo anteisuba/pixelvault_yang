@@ -283,4 +283,22 @@ describe('VoiceSelector', () => {
 
     expect(await screen.findByText('voiceDeleteFailed')).toBeInTheDocument()
   })
+
+  it('draws a different star on a saved public voice, not just a different colour', async () => {
+    const star = async (saved: boolean) => {
+      voiceCardsRef.cards = saved
+        ? [{ ...FAVORITE_CARD, voiceId: 'fish-public-1' }]
+        : []
+      const { unmount } = render(<VoiceSelector />)
+      await screen.findByText('Fish Narrator')
+      const svg = screen
+        .getByRole('button', {
+          name: saved ? 'voiceUnfavorite' : 'voiceFavorite',
+        })
+        .querySelector('svg')!.innerHTML
+      unmount()
+      return svg
+    }
+    expect(await star(true)).not.toBe(await star(false))
+  })
 })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { ReactFlowProvider } from '@xyflow/react'
 
 import {
   NodeCardShell,
@@ -65,100 +66,102 @@ export function LoadingAGallery() {
     ) : null
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={restart}>重新开始</Button>
-        <Button
-          variant="outline"
-          disabled={phase !== 'running'}
-          onClick={() => setPhase('completing')}
-        >
-          出图
-        </Button>
-        <Button
-          variant="outline"
-          disabled={phase !== 'running'}
-          onClick={() => setPhase('failed')}
-        >
-          失败
-        </Button>
-        <Button
-          variant="outline"
-          aria-pressed={selected}
-          onClick={() => setSelected((value) => !value)}
-        >
-          画布卡{selected ? '选中' : '没选中'}
-        </Button>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {elapsed}s · {phase}
-        </span>
-      </div>
+    <ReactFlowProvider>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={restart}>重新开始</Button>
+          <Button
+            variant="outline"
+            disabled={phase !== 'running'}
+            onClick={() => setPhase('completing')}
+          >
+            出图
+          </Button>
+          <Button
+            variant="outline"
+            disabled={phase !== 'running'}
+            onClick={() => setPhase('failed')}
+          >
+            失败
+          </Button>
+          <Button
+            variant="outline"
+            aria-pressed={selected}
+            onClick={() => setSelected((value) => !value)}
+          >
+            画布卡{selected ? '选中' : '没选中'}
+          </Button>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {elapsed}s · {phase}
+          </span>
+        </div>
 
-      <div className="flex flex-wrap items-start gap-6">
-        <Frame caption="工作台舞台 · full（带参数行）">
-          <div className="relative size-135 rounded-xl bg-card">
-            {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
-            {progress('full', `${elapsed}s · FLUX 2 Flash · 1:1`)}
-          </div>
-        </Frame>
+        <div className="flex flex-wrap items-start gap-6">
+          <Frame caption="工作台舞台 · full（带参数行）">
+            <div className="relative size-135 rounded-xl bg-card">
+              {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
+              {progress('full', `${elapsed}s · FLUX 2 Flash · 1:1`)}
+            </div>
+          </Frame>
 
-        <div className="flex flex-col gap-6">
-          <Frame caption="画布卡 · 真卡壳（选中环 / 细灰边交给进度线）">
-            <NodeCardShell
-              name="角色三视图"
-              renameAriaLabel="改名"
-              onRename={() => true}
-              selected={selected}
-              edgeBusy={(running || phase === 'failed') && !edgeReleased}
-              edgeOverlay={
-                running || phase === 'failed' ? (
+          <div className="flex flex-col gap-6">
+            <Frame caption="画布卡 · 真卡壳（选中环 / 细灰边交给进度线）">
+              <NodeCardShell
+                name="角色三视图"
+                renameAriaLabel="改名"
+                onRename={() => true}
+                selected={selected}
+                edgeBusy={(running || phase === 'failed') && !edgeReleased}
+                edgeOverlay={
+                  running || phase === 'failed' ? (
+                    <NodeFrameProgress
+                      key={`node-${round}`}
+                      elapsedSeconds={elapsed}
+                      stageLabel={stageLabel}
+                      isCompleting={phase === 'completing'}
+                      onEdgeRelease={() => setEdgeReleased(true)}
+                      failure={failure}
+                    />
+                  ) : undefined
+                }
+                width={400}
+                surfaceClassName="overflow-hidden"
+              >
+                <div className="relative h-56">
+                  {phase === 'done' ? <Art rounded="" /> : null}
+                </div>
+              </NodeCardShell>
+            </Frame>
+            <Frame caption="音频矮卡 · 一条线">
+              <div className="relative h-18 w-100 rounded-node bg-card corner-squircle">
+                {running ? (
                   <NodeFrameProgress
-                    key={`node-${round}`}
+                    variant="line"
                     elapsedSeconds={elapsed}
                     stageLabel={stageLabel}
-                    isCompleting={phase === 'completing'}
-                    onEdgeRelease={() => setEdgeReleased(true)}
-                    failure={failure}
                   />
-                ) : undefined
-              }
-              width={400}
-              surfaceClassName="overflow-hidden"
-            >
-              <div className="relative h-56">
-                {phase === 'done' ? <Art rounded="" /> : null}
+                ) : null}
               </div>
-            </NodeCardShell>
-          </Frame>
-          <Frame caption="音频矮卡 · 一条线">
-            <div className="relative h-18 w-100 rounded-node bg-card corner-squircle">
-              {running ? (
-                <NodeFrameProgress
-                  variant="line"
-                  elapsedSeconds={elapsed}
-                  stageLabel={stageLabel}
-                />
-              ) : null}
-            </div>
-          </Frame>
-        </div>
+            </Frame>
+          </div>
 
-        <div className="flex flex-col gap-6">
-          <Frame caption="对比图墙大格 · 300（compact）">
-            <div className="relative size-75 rounded-xl bg-card">
-              {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
-              {progress('compact')}
-            </div>
-          </Frame>
-          <Frame caption="小格 · 136（窄于 160 只写百分比）">
-            <div className="relative size-34 rounded-xl bg-card">
-              {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
-              {progress('compact')}
-            </div>
-          </Frame>
+          <div className="flex flex-col gap-6">
+            <Frame caption="对比图墙大格 · 300（compact）">
+              <div className="relative size-75 rounded-xl bg-card">
+                {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
+                {progress('compact')}
+              </div>
+            </Frame>
+            <Frame caption="小格 · 136（窄于 160 只写百分比）">
+              <div className="relative size-34 rounded-xl bg-card">
+                {phase === 'done' ? <Art rounded="rounded-xl" /> : null}
+                {progress('compact')}
+              </div>
+            </Frame>
+          </div>
         </div>
       </div>
-    </div>
+    </ReactFlowProvider>
   )
 }
 

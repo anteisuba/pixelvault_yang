@@ -44,6 +44,14 @@ const mockResolveLlmTextRoute = vi.fn()
 /** persona 选了具体模型时才会被问一次：那个厂商下有没有活着的 key。 */
 const mockFindLlmTextKeyId = vi.fn()
 /**
+ * 所选模型自带联网（owner 2026-09-30）。缺省**不支持** —— 现存的查证用例验的是
+ * Serper 那条路；验自带联网的用例自己打开。
+ */
+const mockSupportsNativeWebSearch = vi.fn<(adapter: string) => boolean>(
+  () => false,
+)
+const mockLlmNativeWebSearch = vi.fn()
+/**
  * 工具环那一轮走的是 `llmTextStream`（2026-09-06 的逐字流），**桩到同一颗
  * `mockLlmTextCompletion` 上**：这一层要验的是「模型这一轮说了什么会怎么样」，
  * 不是分块怎么切。现存的几十条 `mockLlmTextCompletion.mockResolvedValueOnce(...)`
@@ -68,6 +76,9 @@ vi.mock('@/services/llm-text.service', () => ({
   },
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
   findLlmTextKeyId: (...args: unknown[]) => mockFindLlmTextKeyId(...args),
+  supportsNativeWebSearch: (adapter: string) =>
+    mockSupportsNativeWebSearch(adapter),
+  llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
   isLlmTextContextLimitError: () => false,
 }))
 
@@ -8149,6 +8160,55 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     }
   }
 
+  it('⭐ 所选模型有自带联网时快搜交给它：它的回答就是结论，⛔ 不再改写、不再归纳（owner 2026-09-30）', async () => {
+    mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+    mockLlmNativeWebSearch.mockResolvedValue({
+      answer: '她的配色以青绿为主。',
+      sources: [{ url: 'https://a.test', title: 'A', excerpt: '青绿' }],
+    })
+    mockRunAssistantResearch.mockImplementation(
+      async (params: { nativeWebSearch?: () => Promise<unknown> }) => {
+        await params.nativeWebSearch?.()
+        return {
+          queries: ['卡提希娅'],
+          sources: ['web'],
+          evidence: EVIDENCE,
+          items: ITEMS,
+          receipts: [
+            { sourceId: 'web_search', status: 'ok', count: 1, tookMs: 5 },
+          ],
+        }
+      },
+    )
+    queueTurns(researchTurn('配色'), { finished: true })
+
+    const done = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).at(-1)!
+
+    expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        query: '无限大 时夜 配色',
+      }),
+    )
+    expect((done.result as { conclusion?: string }).conclusion).toBe(
+      '她的配色以青绿为主。',
+    )
+    // ⛔ 没有改写、没有归纳：除收尾的附带调用外，每一次 LLM 往返都是工具环自己。
+    const loopCalls = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+      .filter((entry) => !isSideCall(entry))
+    expect(loopCalls.length).toBeGreaterThan(0)
+    expect(
+      loopCalls.every((entry) =>
+        entry.systemPrompt?.startsWith("You are ANTEI's workbench operator"),
+      ),
+    ).toBe(true)
+    expect(lastUserPrompt()).toContain('searched natively via')
+    mockRunAssistantResearch.mockReset()
+  })
+
   it('读类：没有 inverse；证据带出处 / 置信度 / 形状三字段', async () => {
     mockRunAssistantResearch.mockResolvedValue({
       queries: ['无限大 时夜 外貌'],
@@ -8159,9 +8219,13 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     })
     queueTurns(researchTurn('外貌与服饰'), { finished: true })
 
-    const [running, done] = stepsOf(
+    // ⚠ 查资料一开口就吐一帧 `running`（owner 2026-09-30），规划完再吐一帧同 id 的。
+    const steps = stepsOf(
       await collect(runAssistantOperator('clerk-1', buildRequest())),
     )
+    const [running] = steps
+    const done = steps.at(-1)!
+    expect(running.id).toBe(done.id)
     expect(running.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.running)
     expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
     expect(done.inverse).toBeUndefined()
@@ -8210,9 +8274,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     })
     queueTurns(
       researchTurn('which site is official'),
-      CONCLUSION_TURN,
       researchTurn('appearance and outfit'),
-      CONCLUSION_TURN,
       researchTurn('one more time'),
       { finished: true },
     )
@@ -8271,9 +8333,9 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     })
     queueTurns(researchTurn('外貌'), { finished: true })
 
-    const [, done] = stepsOf(
+    const done = stepsOf(
       await collect(runAssistantOperator('clerk-1', buildRequest())),
-    )
+    ).at(-1)!
     expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
     expect(done.error).toBeUndefined()
     expect(mockRunAssistantResearch).toHaveBeenCalledTimes(1)
@@ -8393,7 +8455,6 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     mockWebImageSearchMulti.mockResolvedValue([])
     queueTurns(
       verifyTurn({ goal: '外貌与服饰', entities: ['无限大', '时夜'] }),
-      CONCLUSION_TURN,
       {
         tool: {
           name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
@@ -8572,10 +8633,10 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(prompt).toContain('SINGLE SOURCE')
   })
 
-  it('⭐ 结论是**归纳**不是摘录：收尾一次归纳往返，卡上那句用它', async () => {
+  it('⭐ 深入调查的结论是**归纳**不是摘录：收尾一次归纳往返，卡上那句用它', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(
-      verifyTurn({ goal: '画风怎么描述', entities: ['鸣潮'] }),
+      verifyTurn({ goal: '画风怎么描述', entities: ['鸣潮'], depth: 'deep' }),
       JSON.stringify({
         conclusion: '鸣潮式 3D 靠卡通着色 + 描边 + 冷调补光。',
       }),
@@ -8702,7 +8763,11 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       reason: 'craft question',
     })
     queueTurns(
-      verifyTurn({ goal: '黄昏光怎么描述', entities: ['新海诚'] }),
+      verifyTurn({
+        goal: '黄昏光怎么描述',
+        entities: ['新海诚'],
+        depth: 'deep',
+      }),
       CONCLUSION_TURN,
       { finished: true },
     )
@@ -8722,7 +8787,11 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       reason: 'entity lookup',
     })
     queueTurns(
-      verifyTurn({ goal: '她是谁', entities: ['无限大', '时夜'] }),
+      verifyTurn({
+        goal: '她是谁',
+        entities: ['无限大', '时夜'],
+        depth: 'deep',
+      }),
       CONCLUSION_TURN,
       { finished: true },
     )
@@ -8733,7 +8802,7 @@ describe('查证与找图两入口（§9，commit #16）', () => {
   it('⭐ 归纳出来那一句也是结论块「事实」栏的原料（卡 / 钉住条 / 结论块同一句）', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(
-      verifyTurn({ goal: '画风', entities: ['鸣潮'] }),
+      verifyTurn({ goal: '画风', entities: ['鸣潮'], depth: 'deep' }),
       JSON.stringify({ conclusion: '鸣潮式 3D 靠卡通着色。' }),
       { finished: true },
     )
@@ -8780,9 +8849,7 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     queueOutcome([CORROBORATED])
     queueTurns(
       verifyTurn({ goal: 'a' }),
-      CONCLUSION_TURN,
       verifyTurn({ goal: 'b' }),
-      CONCLUSION_TURN,
       verifyTurn({ goal: 'c' }),
       { finished: true },
     )

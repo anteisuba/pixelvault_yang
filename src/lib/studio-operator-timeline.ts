@@ -119,6 +119,20 @@ export function summarizeOperatorResearchBlock(
   let found = 0
   let readPages = 0
   for (const { step } of steps) {
+    /**
+     * ⭐ 跑着的查资料也算（owner 2026-09-30）：服务端一开口就吐 `running`，
+     * 这一行要在那一刻就写「查资料中」，⛔ 不是等跑完才出现。
+     */
+    if (
+      step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running &&
+      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research
+    ) {
+      seen = true
+      if (step.payload.depth === ASSISTANT_RESEARCH_DEPTHS.deep) {
+        depth = ASSISTANT_RESEARCH_DEPTHS.deep
+      }
+      continue
+    }
     // ⚠ 先判 `status` 再判 `tool` —— 载荷与结果只挂在跑完那一支上。
     if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
     if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.readUrl) {

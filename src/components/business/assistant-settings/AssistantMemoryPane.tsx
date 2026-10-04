@@ -8,7 +8,9 @@ import { ChevronDown, PencilLine, Plus, X } from '@/components/icons'
 import {
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPE_IDS,
+  ASSISTANT_MEMORY_SCOPES,
   ASSISTANT_MEMORY_SOURCE_IDS,
+  type AssistantMemoryScopeId,
   type AssistantMemorySourceId,
 } from '@/constants/assistant-memory'
 import {
@@ -16,28 +18,18 @@ import {
   PROJECT_RULE_SOURCE_KINDS,
 } from '@/constants/assistant-operator'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
-import {
-  useAssistantMemoryProjects,
-  type UseAssistantMemoriesValue,
-} from '@/hooks/use-assistant-memories'
+import type { UseAssistantMemoriesValue } from '@/hooks/use-assistant-memories'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import { useProjectRules } from '@/hooks/use-project-rules'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
-import type {
-  AssistantMemory,
-  UpdateAssistantMemoryRequest,
-} from '@/types/assistant-memory'
-import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
+import type { AssistantMemory } from '@/types/assistant-memory'
 import { ProjectRuleSourceTokenSchema } from '@/types/assistant-persona'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -69,33 +61,13 @@ const MEMORY_FILTERS: readonly MemoryFilter[] = [
   ASSISTANT_MEMORY_SOURCE_IDS.assistant,
 ]
 
-const WORKSPACE_MENU = [
-  { value: 'global', scope: 'global' },
-  { value: 'image-natural', scope: 'image' },
-  { value: 'image-tags', scope: 'tags' },
-  { value: 'video', scope: 'video' },
-  { value: 'lora', scope: 'lora' },
-  { value: 'cards', scope: 'cards' },
-] as const
-
-function memoryDestination(
-  value: string,
-): Pick<UpdateAssistantMemoryRequest, 'scope' | 'workspaceKey'> | null {
-  if (value === ASSISTANT_MEMORY_SCOPE_IDS.global) {
-    return { scope: ASSISTANT_MEMORY_SCOPE_IDS.global, workspaceKey: null }
-  }
-  return assistantWorkspaceFromKey(value) ? { workspaceKey: value } : null
-}
-
-function memoryWorkspaceValue(memory: AssistantMemory): string {
-  return (
-    memory.workspaceKey ??
-    (memory.scope === ASSISTANT_MEMORY_SCOPE_IDS.global &&
-    memory.source === ASSISTANT_MEMORY_SOURCE_IDS.creator
-      ? ASSISTANT_MEMORY_SCOPE_IDS.global
-      : '')
-  )
-}
+/** 「用在哪」下拉的次序：全部工作台在最前（画板）。 */
+const SCOPE_MENU: readonly AssistantMemoryScopeId[] = [
+  ASSISTANT_MEMORY_SCOPE_IDS.global,
+  ...ASSISTANT_MEMORY_SCOPES.filter(
+    (scope) => scope !== ASSISTANT_MEMORY_SCOPE_IDS.global,
+  ),
+]
 
 /** 菜单与确认卡都「从按钮长出来」（动效表：与工具行弹层同一种）。 */
 const MENU_MOTION = getChipZoomMotion({
@@ -136,12 +108,6 @@ function MemorySection({
 
   const [draft, setDraft] = useState('')
   const [creating, setCreating] = useState(false)
-  const [newWorkspace, setNewWorkspace] = useState('')
-  const [scopeRequired, setScopeRequired] = useState(false)
-  const [newScopeOpen, setNewScopeOpen] = useState(false)
-  const projects = useAssistantMemoryProjects(
-    memories.some((memory) => memory.workspaceKey?.startsWith('canvas:')),
-  )
   const [filter, setFilter] = useState<MemoryFilter>('all')
   const [freshId, setFreshId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -175,13 +141,8 @@ function MemorySection({
   const submit = async () => {
     const text = draft.trim()
     if (!text || creating) return
-    const destination = memoryDestination(newWorkspace)
-    if (!destination) {
-      setScopeRequired(true)
-      return
-    }
     setCreating(true)
-    const memory = await create({ text, ...destination })
+    const memory = await create({ text })
     setCreating(false)
     if (!memory) return
     setDraft('')
@@ -266,50 +227,25 @@ function MemorySection({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 @md:flex-nowrap">
-        <Input
-          ref={inputRef}
-          data-testid="assistant-memory-new"
-          value={draft}
-          disabled={creating}
-          maxLength={ASSISTANT_MEMORY_LIMITS.maxTextChars}
-          aria-label={t('memory.newLabel')}
-          placeholder={t('memory.newPlaceholder')}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setDraft('')
-              return
-            }
-            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
-            event.preventDefault()
-            void submit()
-          }}
-          className="h-10 min-w-0 flex-1 basis-full rounded-lg text-base @md:basis-auto md:text-md coarse:h-11"
-        />
-
-        <MemoryScopePicker
-          value={newWorkspace}
-          open={newScopeOpen}
-          onOpenChange={setNewScopeOpen}
-          onChange={(value) => {
-            setNewWorkspace(value)
-            setScopeRequired(false)
-          }}
-          projects={projects}
-          testId="assistant-memory-new-scope"
-          disabled={creating}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            inputRef.current?.focus()
-          }}
-        />
-      </div>
-      {scopeRequired ? (
-        <p role="alert" className="text-2sm text-status-risk">
-          {t('memory.chooseScope')}
-        </p>
-      ) : null}
+      <Input
+        ref={inputRef}
+        data-testid="assistant-memory-new"
+        value={draft}
+        maxLength={ASSISTANT_MEMORY_LIMITS.maxTextChars}
+        aria-label={t('memory.newLabel')}
+        placeholder={t('memory.newPlaceholder')}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setDraft('')
+            return
+          }
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+          event.preventDefault()
+          void submit()
+        }}
+        className="h-10 rounded-lg text-base md:text-md coarse:h-11"
+      />
 
       {errorText ? (
         <p role="alert" className="text-2sm text-status-risk">
@@ -418,7 +354,6 @@ function MemorySection({
             >
               <MemoryRow
                 memory={memory}
-                projects={projects}
                 editing={editingId === memory.id}
                 confirming={confirmingId === memory.id}
                 onStartEdit={() => {
@@ -484,7 +419,6 @@ function MemorySection({
  */
 function MemoryRow({
   memory,
-  projects,
   editing,
   confirming,
   onStartEdit,
@@ -495,12 +429,14 @@ function MemoryRow({
   onDelete,
 }: {
   memory: AssistantMemory
-  projects: ReturnType<typeof useAssistantMemoryProjects>
   editing: boolean
   confirming: boolean
   onStartEdit(): void
   onEndEdit(): void
-  onSave(input: UpdateAssistantMemoryRequest): Promise<AssistantMemory | null>
+  onSave(input: {
+    text?: string
+    scope?: AssistantMemoryScopeId
+  }): Promise<AssistantMemory | null>
   onAskDelete(): void
   onCancelDelete(): void
   onDelete(): void
@@ -529,19 +465,7 @@ function MemoryRow({
     void onSave({ text })
   }
 
-  const workspaceValue = memoryWorkspaceValue(memory)
-  const projectId = assistantWorkspaceFromKey(
-    memory.workspaceKey ?? '',
-  )?.projectId
-  const scopeLabel = !workspaceValue
-    ? t('memory.unassigned')
-    : projectId
-      ? t('memory.canvasProject', {
-          name:
-            projects.projects.find((project) => project.id === projectId)
-              ?.name ?? t('memory.savedProject'),
-        })
-      : t(`memory.scope.${memory.scope}`)
+  const scopeLabel = t(`memory.scope.${memory.scope}`)
 
   if (editing) {
     return (
@@ -576,23 +500,53 @@ function MemoryRow({
             }}
             className="h-9 flex-1 rounded-lg text-base md:text-md coarse:h-11"
           />
-          <MemoryScopePicker
-            value={workspaceValue}
-            label={scopeLabel}
-            open={scopeOpen}
-            onOpenChange={setScopeOpen}
-            onChange={(value) => {
-              const destination = memoryDestination(value)
-              if (destination && value !== workspaceValue)
-                void onSave(destination)
-            }}
-            projects={projects}
-            testId="assistant-memory-scope"
-            onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              rowRef.current?.querySelector('input')?.focus()
-            }}
-          />
+          <DropdownMenu open={scopeOpen} onOpenChange={setScopeOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('memory.scopeAria', { scope: scopeLabel })}
+                data-testid="assistant-memory-scope"
+                className="flex h-9 w-34 shrink-0 items-center gap-2 rounded-lg border border-input pr-2.5 pl-3 text-left text-sm transition-colors duration-fast ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
+              >
+                <span className="min-w-0 flex-1 truncate">{scopeLabel}</span>
+                <ChevronDown
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={6}
+              aria-label={t('memory.scopeLabel')}
+              className={cn('w-44 rounded-xl p-1.5', MENU_MOTION.className)}
+              style={MENU_MOTION.style}
+              onCloseAutoFocus={(event) => {
+                // 关下拉后焦点回到输入框：用户接着改字，而不是停在按钮上。
+                event.preventDefault()
+                rowRef.current?.querySelector('input')?.focus()
+              }}
+            >
+              <DropdownMenuRadioGroup
+                value={memory.scope}
+                onValueChange={(value) => {
+                  const scope = value as AssistantMemoryScopeId
+                  if (scope !== memory.scope) void onSave({ scope })
+                }}
+              >
+                {SCOPE_MENU.map((scope) => (
+                  <DropdownMenuRadioItem
+                    key={scope}
+                    value={scope}
+                    indicator="check-end"
+                    className="min-h-9 rounded-lg coarse:min-h-11"
+                  >
+                    {t(`memory.scope.${scope}`)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <p className="text-2sm text-muted-foreground">{t('memory.editHint')}</p>
       </div>
@@ -610,7 +564,7 @@ function MemoryRow({
         {memory.text}
       </button>
       <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-        {workspaceValue !== ASSISTANT_MEMORY_SCOPE_IDS.global ? (
+        {memory.scope !== ASSISTANT_MEMORY_SCOPE_IDS.global ? (
           <span className="inline-flex h-5 items-center rounded-md bg-surface-fill px-1.5 text-2xs whitespace-nowrap text-foreground/75">
             {scopeLabel}
           </span>
@@ -640,124 +594,6 @@ function MemoryRow({
         {confirming ? t('memory.deleteConfirm') : t('memory.delete')}
       </button>
     </div>
-  )
-}
-
-function MemoryScopePicker({
-  value,
-  label,
-  open,
-  onOpenChange,
-  onChange,
-  projects,
-  testId,
-  disabled,
-  onCloseAutoFocus,
-}: {
-  value: string
-  label?: string
-  open: boolean
-  onOpenChange(open: boolean): void
-  onChange(value: string): void
-  projects: ReturnType<typeof useAssistantMemoryProjects>
-  testId: string
-  disabled?: boolean
-  onCloseAutoFocus(event: Event): void
-}) {
-  const t = useTranslations('AssistantSettings')
-  const workspace = WORKSPACE_MENU.find((entry) => entry.value === value)
-  const projectId = assistantWorkspaceFromKey(value)?.projectId
-  const scopeLabel =
-    label ??
-    (workspace
-      ? t(`memory.scope.${workspace.scope}`)
-      : projectId
-        ? t('memory.canvasProject', {
-            name:
-              projects.projects.find((project) => project.id === projectId)
-                ?.name ?? t('memory.savedProject'),
-          })
-        : t('memory.chooseScope'))
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next)
-        if (next && projects.status === 'idle') void projects.load()
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label={t('memory.scopeAria', { scope: scopeLabel })}
-          data-testid={testId}
-          className="flex h-10 w-40 shrink-0 items-center gap-2 rounded-lg border border-input pr-2.5 pl-3 text-left text-sm transition-colors duration-fast ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:border-foreground coarse:h-11"
-        >
-          <span className="min-w-0 flex-1 truncate">{scopeLabel}</span>
-          <ChevronDown
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        sideOffset={6}
-        aria-label={t('memory.scopeLabel')}
-        className={cn('w-60 rounded-xl p-1.5', MENU_MOTION.className)}
-        style={MENU_MOTION.style}
-        onCloseAutoFocus={onCloseAutoFocus}
-      >
-        <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-          {WORKSPACE_MENU.map((entry) => (
-            <DropdownMenuRadioItem
-              key={entry.value}
-              value={entry.value}
-              indicator="check-end"
-              className="min-h-9 rounded-lg coarse:min-h-11"
-            >
-              {t(`memory.scope.${entry.scope}`)}
-            </DropdownMenuRadioItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>{t('memory.scope.canvas')}</DropdownMenuLabel>
-          {projects.projects.map((project) => (
-            <DropdownMenuRadioItem
-              key={project.id}
-              value={`canvas:${project.id}`}
-              indicator="check-end"
-              className="min-h-9 rounded-lg coarse:min-h-11"
-            >
-              <span className="truncate">{project.name}</span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-        {projects.status === 'loading' ? (
-          <p
-            role="status"
-            className="px-2 py-1.5 text-2sm text-muted-foreground"
-          >
-            {t('memory.projectsLoading')}
-          </p>
-        ) : null}
-        {projects.status === 'ready' && projects.projects.length === 0 ? (
-          <p className="px-2 py-1.5 text-2sm text-muted-foreground">
-            {t('memory.projectsEmpty')}
-          </p>
-        ) : null}
-        {projects.status === 'failed' ? (
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault()
-              void projects.load()
-            }}
-          >
-            {t('memory.projectsRetry')}
-          </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
 
@@ -850,12 +686,7 @@ function SourceListSection() {
               return false
             }
             setInvalid(false)
-            return rules.add({
-              text: token.data,
-              kind,
-              scope: null,
-              workspaceKey: null,
-            })
+            return rules.add({ text: token.data, kind })
           }}
           onRemove={(id) => void rules.remove(id)}
           onTyping={() => setInvalid(false)}

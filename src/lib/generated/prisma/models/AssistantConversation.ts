@@ -29,7 +29,6 @@ export type AssistantConversationMinAggregateOutputType = {
   id: string | null
   userId: string | null
   surface: $Enums.AssistantSurface | null
-  workspaceKey: string | null
   projectId: string | null
   title: string | null
   createdAt: Date | null
@@ -40,7 +39,6 @@ export type AssistantConversationMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   surface: $Enums.AssistantSurface | null
-  workspaceKey: string | null
   projectId: string | null
   title: string | null
   createdAt: Date | null
@@ -51,7 +49,6 @@ export type AssistantConversationCountAggregateOutputType = {
   id: number
   userId: number
   surface: number
-  workspaceKey: number
   projectId: number
   title: number
   messages: number
@@ -66,7 +63,6 @@ export type AssistantConversationMinAggregateInputType = {
   id?: true
   userId?: true
   surface?: true
-  workspaceKey?: true
   projectId?: true
   title?: true
   createdAt?: true
@@ -77,7 +73,6 @@ export type AssistantConversationMaxAggregateInputType = {
   id?: true
   userId?: true
   surface?: true
-  workspaceKey?: true
   projectId?: true
   title?: true
   createdAt?: true
@@ -88,7 +83,6 @@ export type AssistantConversationCountAggregateInputType = {
   id?: true
   userId?: true
   surface?: true
-  workspaceKey?: true
   projectId?: true
   title?: true
   messages?: true
@@ -174,7 +168,6 @@ export type AssistantConversationGroupByOutputType = {
   id: string
   userId: string
   surface: $Enums.AssistantSurface
-  workspaceKey: string | null
   projectId: string | null
   title: string | null
   messages: runtime.JsonValue
@@ -208,7 +201,6 @@ export type AssistantConversationWhereInput = {
   id?: Prisma.StringFilter<"AssistantConversation"> | string
   userId?: Prisma.StringFilter<"AssistantConversation"> | string
   surface?: Prisma.EnumAssistantSurfaceFilter<"AssistantConversation"> | $Enums.AssistantSurface
-  workspaceKey?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
@@ -223,7 +215,6 @@ export type AssistantConversationOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   surface?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   messages?: Prisma.SortOrder
@@ -241,7 +232,6 @@ export type AssistantConversationWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.AssistantConversationWhereInput | Prisma.AssistantConversationWhereInput[]
   userId?: Prisma.StringFilter<"AssistantConversation"> | string
   surface?: Prisma.EnumAssistantSurfaceFilter<"AssistantConversation"> | $Enums.AssistantSurface
-  workspaceKey?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
@@ -256,7 +246,6 @@ export type AssistantConversationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   surface?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   messages?: Prisma.SortOrder
@@ -275,7 +264,6 @@ export type AssistantConversationScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"AssistantConversation"> | string
   userId?: Prisma.StringWithAggregatesFilter<"AssistantConversation"> | string
   surface?: Prisma.EnumAssistantSurfaceWithAggregatesFilter<"AssistantConversation"> | $Enums.AssistantSurface
-  workspaceKey?: Prisma.StringNullableWithAggregatesFilter<"AssistantConversation"> | string | null
   projectId?: Prisma.StringNullableWithAggregatesFilter<"AssistantConversation"> | string | null
   title?: Prisma.StringNullableWithAggregatesFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonWithAggregatesFilter<"AssistantConversation">
@@ -287,7 +275,6 @@ export type AssistantConversationScalarWhereWithAggregatesInput = {
 export type AssistantConversationCreateInput = {
   id?: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -302,7 +289,6 @@ export type AssistantConversationUncheckedCreateInput = {
   id?: string
   userId: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -315,7 +301,6 @@ export type AssistantConversationUncheckedCreateInput = {
 export type AssistantConversationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -330,7 +315,6 @@ export type AssistantConversationUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -344,7 +328,6 @@ export type AssistantConversationCreateManyInput = {
   id?: string
   userId: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -356,7 +339,6 @@ export type AssistantConversationCreateManyInput = {
 export type AssistantConversationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -369,7 +351,6 @@ export type AssistantConversationUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -392,7 +373,6 @@ export type AssistantConversationCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   surface?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   messages?: Prisma.SortOrder
@@ -405,7 +385,6 @@ export type AssistantConversationMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   surface?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -416,7 +395,6 @@ export type AssistantConversationMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   surface?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   title?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -491,7 +469,6 @@ export type AssistantConversationUpdateOneRequiredWithoutSharesNestedInput = {
 export type AssistantConversationCreateWithoutUserInput = {
   id?: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -504,7 +481,6 @@ export type AssistantConversationCreateWithoutUserInput = {
 export type AssistantConversationUncheckedCreateWithoutUserInput = {
   id?: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -547,7 +523,6 @@ export type AssistantConversationScalarWhereInput = {
   id?: Prisma.StringFilter<"AssistantConversation"> | string
   userId?: Prisma.StringFilter<"AssistantConversation"> | string
   surface?: Prisma.EnumAssistantSurfaceFilter<"AssistantConversation"> | $Enums.AssistantSurface
-  workspaceKey?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
@@ -559,7 +534,6 @@ export type AssistantConversationScalarWhereInput = {
 export type AssistantConversationCreateWithoutSharesInput = {
   id?: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -573,7 +547,6 @@ export type AssistantConversationUncheckedCreateWithoutSharesInput = {
   id?: string
   userId: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -601,7 +574,6 @@ export type AssistantConversationUpdateToOneWithWhereWithoutSharesInput = {
 export type AssistantConversationUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -615,7 +587,6 @@ export type AssistantConversationUncheckedUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -627,7 +598,6 @@ export type AssistantConversationUncheckedUpdateWithoutSharesInput = {
 export type AssistantConversationCreateManyUserInput = {
   id?: string
   surface: $Enums.AssistantSurface
-  workspaceKey?: string | null
   projectId?: string | null
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -639,7 +609,6 @@ export type AssistantConversationCreateManyUserInput = {
 export type AssistantConversationUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -652,7 +621,6 @@ export type AssistantConversationUpdateWithoutUserInput = {
 export type AssistantConversationUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -665,7 +633,6 @@ export type AssistantConversationUncheckedUpdateWithoutUserInput = {
 export type AssistantConversationUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   surface?: Prisma.EnumAssistantSurfaceFieldUpdateOperationsInput | $Enums.AssistantSurface
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
@@ -709,7 +676,6 @@ export type AssistantConversationSelect<ExtArgs extends runtime.Types.Extensions
   id?: boolean
   userId?: boolean
   surface?: boolean
-  workspaceKey?: boolean
   projectId?: boolean
   title?: boolean
   messages?: boolean
@@ -725,7 +691,6 @@ export type AssistantConversationSelectCreateManyAndReturn<ExtArgs extends runti
   id?: boolean
   userId?: boolean
   surface?: boolean
-  workspaceKey?: boolean
   projectId?: boolean
   title?: boolean
   messages?: boolean
@@ -739,7 +704,6 @@ export type AssistantConversationSelectUpdateManyAndReturn<ExtArgs extends runti
   id?: boolean
   userId?: boolean
   surface?: boolean
-  workspaceKey?: boolean
   projectId?: boolean
   title?: boolean
   messages?: boolean
@@ -753,7 +717,6 @@ export type AssistantConversationSelectScalar = {
   id?: boolean
   userId?: boolean
   surface?: boolean
-  workspaceKey?: boolean
   projectId?: boolean
   title?: boolean
   messages?: boolean
@@ -762,7 +725,7 @@ export type AssistantConversationSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssistantConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "surface" | "workspaceKey" | "projectId" | "title" | "messages" | "rounds" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantConversation"]>
+export type AssistantConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "surface" | "projectId" | "title" | "messages" | "rounds" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantConversation"]>
 export type AssistantConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   shares?: boolean | Prisma.AssistantConversation$sharesArgs<ExtArgs>
@@ -785,7 +748,6 @@ export type $AssistantConversationPayload<ExtArgs extends runtime.Types.Extensio
     id: string
     userId: string
     surface: $Enums.AssistantSurface
-    workspaceKey: string | null
     /**
      * NODE_CANVAS: NodeWorkflowProject.id (weak ref, no FK). STUDIO: null.
      */
@@ -1238,7 +1200,6 @@ export interface AssistantConversationFieldRefs {
   readonly id: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly userId: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly surface: Prisma.FieldRef<"AssistantConversation", 'AssistantSurface'>
-  readonly workspaceKey: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly projectId: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly title: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly messages: Prisma.FieldRef<"AssistantConversation", 'Json'>

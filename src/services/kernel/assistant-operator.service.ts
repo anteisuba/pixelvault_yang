@@ -23,6 +23,7 @@ import type {
 import {
   getReferenceMentionIndices,
   normalizeReferenceMentions,
+  withReferenceRoleLegend,
 } from '@/lib/studio-reference-mentions'
 import {
   extractJsonStringValue,
@@ -43,6 +44,7 @@ import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS as FRAME_LABELS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS as SLOT,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
@@ -118,6 +120,7 @@ import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { planVideoEndpointFrames } from '@/lib/video-frame-plan'
 import {
   ASSISTANT_DOMAIN_BRIEFS,
+  ASSISTANT_CREATIVE_PREFERENCE_DOMAINS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
 } from '@/constants/assistant-protocol'
 /**
@@ -149,6 +152,7 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   AI_MODELS,
   getModelFamily,
@@ -157,7 +161,12 @@ import {
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
-import { ApiRequestError } from '@/lib/errors'
+import {
+  ApiKeyError,
+  ApiRequestError,
+  AuthError,
+  InsufficientCreditsError,
+} from '@/lib/errors'
 import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
 import {
@@ -234,7 +243,10 @@ import {
  * ⚠ 工具环只用**读**的那一支（`getCreativePreferenceDigest`）：这张表的写入由
  * 生成结果的反馈那条路负责，助手不该在自己的提示里改自己读的东西。
  */
-import type { CreativePreferenceDigest } from '@/services/user-preference.service'
+import {
+  getCreativePreferenceDigest,
+  type CreativePreferenceDigest,
+} from '@/services/user-preference.service'
 /**
  * ⭐ 项目规则（§10，拍板 23）。判据与上一条逐字同源：一张只有文本列的表，
  * 读写它花不掉一分钱。⚠ 它是这份名单里**唯一一条会往库里写**的服务 ——
@@ -482,6 +494,9 @@ import {
   ASSISTANT_CONTEXT_BUDGET,
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
+  ASSISTANT_MEMORY_SCOPES,
+  ASSISTANT_MEMORY_SCOPE_IDS,
+  type AssistantMemoryScopeId,
 } from '@/constants/assistant-memory'
 import {
   AssistantMemoryCandidateSchema,
@@ -1231,6 +1246,23 @@ function reject(
     ...(detail ? { detail: clamp(detail, LIMITS.maxReasonChars) } : {}),
   }
 }
+
+/**
+ * 工具自己抛出来的错里，哪些**必须整轮上抛**（要用户动手：缺 key / 未登录 / 额度不足）。
+ *
+ * ⭐ 其余一律是「这一步的技术故障」：做成一条被拒的步（`toolFailed`）而不是让整轮以
+ * 一句笼统的「出错了」结束 —— 用户要的东西多半不依赖这一步。
+ */
+function isFatalOperatorToolError(error: unknown): boolean {
+  return (
+    error instanceof ApiKeyError ||
+    error instanceof AuthError ||
+    error instanceof InsufficientCreditsError
+  )
+}
+
+const TOOL_FAILED_DETAIL =
+  "This tool hit a temporary technical problem — not the creator's doing and not a bad argument. Carry on with whatever does not depend on it, or tell the creator plainly that this step could not run and offer to try again. Never claim it succeeded."
 
 /**
  * 截断到**至多 `max` 个字符 —— 省略号也算在里面**。
@@ -3989,6 +4021,34 @@ async function planAnalyzeReferences(
   }
 }
 
+/**
+ * `set_prompt` 写之前发现参考图还没有视觉事实 —— **服务端自己补读**，⛔ 不退给模型
+ * 再绕一轮。
+ *
+ * 🔬 此前它被拒（`referenceAnalysisRequired`），模型再调 `analyze_references`、再
+ * 重试 `set_prompt`，用户屏幕上先是一条红字「需要先分析当前参考图」；而这一步从
+ * 一开始就是确定的，没有任何需要模型判断的地方。
+ * ⚠ 补读失败时把那条被拒的原因原样回给调用方（视觉线不可用 / 分析不完整 …），
+ * 照旧说清楚；补读成功回 `null`，调用方接着往下写。
+ */
+async function readMissingReferenceEvidence(
+  run: OperatorRun,
+  userId: string,
+  needed: readonly number[],
+): Promise<ToolPlan | null> {
+  const plan = await planAnalyzeReferences(
+    run,
+    userId,
+    needed.length ? { imageIndices: [...needed] } : {},
+  )
+  if (plan.kind !== 'read') return plan
+  await plan.run()
+  run.observations.push(
+    `The app read the mounted references' visual facts itself before writing (match URLs to CURRENT REFERENCE ORDER): ${JSON.stringify(run.referenceAnalysis?.profiles ?? [])}. set_prompt carries on in this same step — do not call analyze_references for them again.`,
+  )
+  return null
+}
+
 async function checkReferencePrompt(
   run: OperatorRun,
   options: {
@@ -4025,14 +4085,15 @@ async function checkReferencePrompt(
       ),
   })
   if (checked === null) {
-    throw new ApiRequestError(
-      'PROMPT_REVIEW_UNAVAILABLE',
-      502,
-      'errors.assistant.promptReviewUnavailable',
-      OPERATOR_PROMPT_REVIEW_UNAVAILABLE[
-        resolveResponseLanguage(run.request, run.persona)
-      ],
-    )
+    /**
+     * ⭐ **复核是建议，不是闸门**：复核模型连着两次没给出可用结果时照写，⛔ 不再整轮
+     * 报错（owner 2026-10-04：「error 的次数太多了」）。参考图的视觉事实与角色分工
+     * 在这之前已经核过；漏掉的只是最后一道措辞审查。
+     */
+    logger.warn('assistant prompt review unavailable, writing unreviewed', {
+      scope: options.scope?.target ?? 'prompt',
+    })
+    return null
   }
   const conflict = checked.conflicts.find(
     (issue) => !creatorChoseFollowRequest(run, issue, options.scope),
@@ -4114,6 +4175,10 @@ async function planSetText(
 
   if (isPrompt && run.request.domain === 'lora') {
     const needed = requiredReferenceIndices(run, args.value)
+    if (!hasVisualEvidence(run, needed)) {
+      const unread = await readMissingReferenceEvidence(run, userId, needed)
+      if (unread) return unread
+    }
     if (!hasVisualEvidence(run, needed)) {
       return reject(
         REJECT.referenceAnalysisRequired,
@@ -4238,6 +4303,10 @@ async function planSetText(
       })
       if (profilesCoverIndices(profiles, run.state.referenceUrls, needed))
         run.referenceAnalysis = { profiles, brief: null }
+    }
+    if (!hasVisualEvidence(run, needed)) {
+      const unread = await readMissingReferenceEvidence(run, userId, needed)
+      if (unread) return unread
     }
     if (!hasVisualEvidence(run, needed)) {
       return reject(
@@ -4390,10 +4459,31 @@ async function planSetText(
       ? ASSISTANT_OPERATOR_WRITE_MODES.append
       : ASSISTANT_OPERATOR_WRITE_MODES.replace
 
-  const next =
+  /**
+   * ⭐ **每张参考图管什么，写成提示词末尾一段图例**（`withReferenceRoleLegend`）：
+   * 生图模型只读得到提示词，图号只写在句子里时它不一定严格照那张图画。图例由核过的
+   * 参考简报逐张生成，⛔ 不靠模型每次记得写全；标签方言读不懂 @Image，不加。
+   * ⚠ 带图例时一律整段替换下发：追加模式下旧图例会夹在中间。
+   */
+  const legendBrief =
+    isPrompt &&
+    needsReferenceReview &&
+    getPromptDialect(
+      resolveAdapterType(run.state.modelId ?? '') ?? undefined,
+    ) === 'natural'
+      ? (run.referenceAnalysis?.brief ?? null)
+      : null
+  const written =
     mode === ASSISTANT_OPERATOR_WRITE_MODES.append
       ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${value}`
       : value
+  const next = legendBrief
+    ? withReferenceRoleLegend(
+        written,
+        legendBrief.assignments,
+        run.state.referenceUrls,
+      )
+    : written
 
   /**
    * **负面字段去重**（2026-09-12 真机 bug）：模型自己在 `value` 里写了重复的逗号
@@ -4415,10 +4505,11 @@ async function planSetText(
       : mergeNegativePrompt(undefined, value)
     : null
   const finalText = negativeDeduped ?? next
-  const payloadValue = negativeDeduped ?? value
-  const payloadMode = negativeDeduped
-    ? ASSISTANT_OPERATOR_WRITE_MODES.replace
-    : mode
+  const payloadValue = negativeDeduped ?? (legendBrief ? next : value)
+  const payloadMode =
+    negativeDeduped || legendBrief
+      ? ASSISTANT_OPERATOR_WRITE_MODES.replace
+      : mode
 
   if (isPrompt && run.request.domain === 'image') {
     const missing = getReferenceMentionIndices(next).find(
@@ -4452,9 +4543,15 @@ async function planSetText(
       field,
       have: clamp(current, LIMITS.maxPromptChars),
       proposed: clamp(
-        negativeDeduped === null
-          ? value
-          : mergeNegativePrompt(undefined, value),
+        negativeDeduped !== null
+          ? mergeNegativePrompt(undefined, value)
+          : legendBrief
+            ? withReferenceRoleLegend(
+                value,
+                legendBrief.assignments,
+                run.state.referenceUrls,
+              )
+            : value,
         LIMITS.maxPromptChars,
       ),
       ...(loraMaterial?.sourceNotes.length
@@ -6318,13 +6415,10 @@ async function planCritiqueResult(
  * `global` = 全部工作台（协议上是 `null`）。
  */
 function memoryAsRule(memory: AssistantMemory): ProjectRule {
-  const workspace = memory.workspaceKey
-    ? assistantWorkspaceFromKey(memory.workspaceKey)
-    : null
   return {
     id: memory.id,
-    workspaceKey: memory.workspaceKey,
-    scope: workspace ? assistantWorkspaceDomain(workspace.workspace) : null,
+    scope:
+      memory.scope === ASSISTANT_MEMORY_SCOPE_IDS.global ? null : memory.scope,
     text: memory.text,
     kind: PROJECT_RULE_KIND_IDS.note,
     source: memory.source,
@@ -6338,12 +6432,6 @@ function planReadProjectRules(
   userId: string,
 ): ToolPlan {
   const scope = args.scope ?? null
-  if (scope && scope !== run.request.domain) {
-    return reject(
-      REJECT.noSuchControl,
-      'Standing rules belong to the current workbench. Cross-workbench rules require an explicit handoff.',
-    )
-  }
 
   return {
     kind: 'read',
@@ -6355,7 +6443,7 @@ function planReadProjectRules(
        */
       const rules = (
         await listStandingRuleMemories(userId, {
-          workspaceKey: run.request.workspaceKey,
+          scope: scope ? memoryScopeForDomain(scope) : null,
           limit: RULE_LIMITS.maxReadResults,
         })
       ).map(memoryAsRule)
@@ -6532,7 +6620,6 @@ async function planAddProjectRule(
     rule = await addProjectRule(userId, {
       text,
       scope,
-      workspaceKey: run.request.workspaceKey,
       kind,
       source: PROJECT_RULE_SOURCE_IDS.assistant,
     })
@@ -6552,7 +6639,6 @@ async function planAddProjectRule(
     kind: 'mutate',
     payload: {
       ruleId: rule.id,
-      workspaceKey: rule.workspaceKey,
       scope: rule.scope,
       text: rule.text,
       kind: rule.kind,
@@ -6595,7 +6681,9 @@ async function planAddRuleMemory(
 
   const { memory, created } = await addAssistantRuleMemory(userId, {
     text: args.text,
-    workspaceKey: run.request.workspaceKey,
+    scope: args.scope
+      ? memoryScopeForDomain(args.scope)
+      : ASSISTANT_MEMORY_SCOPE_IDS.global,
   })
   const rule = memoryAsRule(memory)
   run.ruleIndex.set(rule.id, rule)
@@ -6611,7 +6699,6 @@ async function planAddRuleMemory(
     kind: 'mutate',
     payload: {
       ruleId: rule.id,
-      workspaceKey: rule.workspaceKey,
       scope: rule.scope,
       text: rule.text,
       kind: rule.kind,
@@ -6619,7 +6706,7 @@ async function planAddRuleMemory(
       createdAt: rule.createdAt,
     },
     inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) only in ${run.request.workspaceKey}. Global preferences can be explicitly set in Assistant settings. Do not record it again.`,
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) in the creator's memory. It now applies to ${rule.scope ?? 'every workbench'}. Do not record it again.`,
     // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
     apply: () => {},
   }
@@ -8512,18 +8599,6 @@ function planReferenceEvidenceGap(
   return null
 }
 
-const OPERATOR_PROMPT_REVIEW_UNAVAILABLE: Record<
-  PromptAssistantResponseLanguage,
-  string
-> = {
-  english:
-    'The prompt check failed twice, so I stopped before writing. Your existing changes are preserved. Retry this check later; your request does not need to change.',
-  japanese:
-    'プロンプトの確認結果を2回読み取れなかったため、書き込み前に停止しました。それまでの変更は保存されています。要望は変えず、後でこの確認を再試行してください。',
-  chinese:
-    '提示词检查连续两次未返回可用结果，已在写入前停止。已有修改保留，可以稍后重试这一步，无需改动你的要求。',
-}
-
 /**
  * 步数用完、模型又没留下收尾那句时的兜底（D12 B1：步数用完**必须说**）。
  * ⚠ 只是兜底：最后一步已经提前告诉模型「这一步只许收尾」，它照做时用的是它自己
@@ -8545,6 +8620,19 @@ const OPERATOR_OUT_OF_STEPS_MESSAGES: Record<
 const OPERATOR_LAST_STEP_OBSERVATION =
   'THIS IS YOUR LAST STEP THIS TURN. Do not call a tool. Set "finished":true and write the closing "message": what you got done, what is still left, and what the creator can say to continue.'
 
+/** 模型连着两次没给出读得懂的回复，又捞不出半句人话时的兜底。 */
+const OPERATOR_UNREADABLE_REPLY_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english:
+    'I could not turn my own reply into steps just now, so nothing was changed. Tell me again, or split the request into a smaller piece, and I will retry.',
+  japanese:
+    '今回は自分の返答を手順にまとめられなかったため、何も変更していません。もう一度お願いするか、依頼を小さく分けてください。',
+  chinese:
+    '这次我没能把自己的回复整理成可执行的步骤，所以没有改动任何东西。你再说一次，或者把要求拆小一点，我重新来。',
+}
+
 const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
   {
     english:
@@ -8563,6 +8651,8 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
  * `prompt-assistant.service.ts` 的 `buildAssistantSystemPrompt`），操作员漏了。
  */
 function buildModelDialectSection(request: AssistantOperatorRequest): string {
+  if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas)
+    return buildCanvasModelDialectSection(request)
   // ⚠ 视频档的 `id` 是选项 id，写法规则按目录 id 查（`catalogId`）。
   const modelId =
     request.snapshot.model?.catalogId ?? request.snapshot.model?.id
@@ -8590,6 +8680,55 @@ function buildModelDialectSection(request: AssistantOperatorRequest): string {
     hint ? `\n- ${hint}` : ''
   }${dialect}${seedanceRules ? `\n\n${seedanceRules}` : ''}${
     isVideo || seedanceRules
+      ? `\n\n${VIDEO_PROMPT_WRITING_RULES}\n\n${CINEMATIC_SHOT_GRAMMAR}`
+      : ''
+  }`
+}
+
+/**
+ * **画布上每个节点的写法**（2026-10-04 复盘：画布没有「当前模型」，上面那一段在画布上
+ * 永远是空的 —— 而角色一致性主要就在画布上做）。
+ *
+ * ⭐ 一个节点的提示词发给**那个节点上选的模型**，所以按展开的那几面镜里实际挂着的
+ * 型号逐个给写法，去重后最多 `maxDialectModels` 种。
+ * ⚠ 视频写法与 Seedance 控制规则很长：只在展开的镜里真有视频节点时给，且 Seedance
+ *   规则只给一份。
+ */
+function buildCanvasModelDialectSection(
+  request: AssistantOperatorRequest,
+): string {
+  const nodes = (request.snapshot.canvas?.shots ?? []).flatMap((shot) =>
+    shot.expanded ? shot.nodes : [],
+  )
+  const modelIds = [
+    ...new Set(nodes.flatMap((node) => (node.model ? [node.model] : []))),
+  ].slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxDialectModels)
+  if (modelIds.length === 0) return ''
+  const hints = modelIds.flatMap((modelId) => {
+    const hint = getModelEnhanceHint(
+      modelId,
+      resolveAdapterType(modelId) ?? undefined,
+    )
+    return hint ? [`- ${modelId}: ${hint}`] : []
+  })
+  const dialect = modelIds.some((modelId) => isTagBasedPromptModel(modelId))
+    ? `\n${TAG_BASED_GENERATION_PROMPT_RULE}`
+    : ''
+  const videoModels = modelIds.filter((modelId) =>
+    nodes.some(
+      (node) =>
+        node.model === modelId && node.kind === NODE_MEDIA_KIND_IDS.video,
+    ),
+  )
+  const seedanceRules = videoModels
+    .map((modelId) => getSeedanceControlRules(modelId))
+    .find(Boolean)
+  if (hints.length === 0 && !dialect && videoModels.length === 0) return ''
+
+  return `\n\nWHAT EACH NODE'S PROMPT MUST LOOK LIKE — a node's prompt goes to the model selected on THAT node (the state lists it per node), so write it in that model's dialect; the wrong dialect wastes the run even when every other setting is right:${
+    hints.length ? `\n${hints.join('\n')}` : ''
+  }${dialect}${seedanceRules ? `\n\n${seedanceRules}` : ''}${
+    videoModels.length
       ? `\n\n${VIDEO_PROMPT_WRITING_RULES}\n\n${CINEMATIC_SHOT_GRAMMAR}`
       : ''
   }`
@@ -8639,7 +8778,7 @@ const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
 /**
  * 默认行为（v2 §11.1 的 `planMode` 一列）。
  * ⚠ `auto` **什么都不写** —— 那就是今天的行为，写一句反而是在改它。
- * ⚠ `always` 除了这句提示词，还有一道**硬闸**在多步确认那里（每轮先摆计划卡）：
+ * ⚠ `always` 除了这句提示词，还有一道**硬闸**在多步确认那里（计划两步起先摆计划卡）：
  *   提示词是请求，闸才是保证。被删掉的「先问我」开关的语义全在这两处。
  */
 const PLAN_MODE_DIRECTIVES: Record<
@@ -8647,7 +8786,7 @@ const PLAN_MODE_DIRECTIVES: Record<
   string | null
 > = {
   [ASSISTANT_PERSONA_PLAN_MODE_IDS.always]:
-    'Always open with a plan card before touching anything.',
+    'Open with a plan card whenever the run takes two or more moves. A single reversible change needs none — the undo covers it.',
   [ASSISTANT_PERSONA_PLAN_MODE_IDS.auto]: null,
   [ASSISTANT_PERSONA_PLAN_MODE_IDS.direct]:
     'Skip the plan unless the request spends credits or needs more than three steps.',
@@ -9250,6 +9389,13 @@ function buildOperatorSystemPrompt(
       : null,
     ['image', 'canvas'].includes(request.domain)
       ? '- CHARACTER EVIDENCE: Judge whether the references support this requested output, region by region: face, upper body, full-body proportions, legs, side and back. A clear face or visible coat does not establish body proportions underneath; perspective or partial legs do not establish full leg length. For faithful reconstruction, if a necessary region lacks evidence, ask once whether to add a reference or allow design completion for that region. If completion is already authorized, proceed and label only those parts as proposed design; do not repeat the question. Unknown legs do not block a portrait. Approval of a face applies only to that face and exact result version; preserve it while correcting rejected body or legs, and never promote a rejected generated region to source evidence.'
+      : null,
+    /**
+     * ⭐ **按构图定画幅与清晰度**（2026-10-04 复盘：单人全身出成 4:3 横图、三视图出成
+     * 1:1，全身图里脸只有约 90 像素 —— 脸不像几乎是必然的）。⚠ 用户自己定过的比例不动。
+     */
+    ['image', 'lora', 'canvas'].includes(request.domain)
+      ? '- FRAME BY COMPOSITION: before you put up a generation card or prepare a node, set aspect ratio and resolution (and quality where the model has it) from what the picture will contain — never run on whatever the bench was left at. One character full body → portrait (2:3; 9:16 for a tall standing pose). Half body or bust → 3:4 or 4:5. A face close-up → 1:1 or 4:5. A character sheet / turnaround with several views side by side → wide (16:9; 21:9 for four or more views). A scene or environment → 16:9 or 3:2. When a face must match a reference and will be small in frame (full body, several figures, a turnaround), take the highest resolution and quality tier the model offers — a face drawn at ~90 px cannot match anyone. Say the ratio and why in half a sentence. If the creator set a ratio themselves, keep theirs and only mention the trade-off.'
       : null,
     request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
       ? `- CHARACTER PROFILES: A profile has four parts — identity (who they are, one or two lines), behaviour (what they DO in concrete situations, never adjectives: "holds the umbrella over others first" beats "gentle"), way of speaking (how they address people, habits, sample phrasing) and history. Appearance belongs to the images and tags, not the profile.
@@ -10160,6 +10306,21 @@ function tidyColumn(entries: readonly string[]): string[] {
 }
 
 /**
+ * 当前域 → 记忆的域（56a）。
+ *
+ * ⚠ 前四档在 `ASSISTANT_MEMORY_SCOPE_IDS` 里就是**同一批字面量**（词表从协议域
+ * 派生），所以这里只需要断言它认得 —— ⛔ 不另写一张 `Record<域, 记忆域>` 的映射
+ * 表：两份词表一旦漂开，漏掉的那一档会静默落到 global 上。
+ */
+function memoryScopeForDomain(
+  domain: AssistantOperatorDomain,
+): AssistantMemoryScopeId {
+  return (ASSISTANT_MEMORY_SCOPES as readonly string[]).includes(domain)
+    ? (domain as AssistantMemoryScopeId)
+    : ASSISTANT_MEMORY_SCOPE_IDS.global
+}
+
+/**
  * 模型写的那几行 → 能落库的候选（56a）。
  *
  * ⚠ **逐条过 schema、坏的那条丢掉**，⛔ 不因为一条 kind 写错就让整轮记忆作废 ——
@@ -10262,7 +10423,7 @@ async function closeRound(
       try {
         memoriesWritten = await recordAssistantMemories({
           userId: args.userId,
-          workspaceKey: run.request.workspaceKey,
+          scope: memoryScopeForDomain(run.request.domain),
           candidates,
           ...(conversationId ? { conversationId } : {}),
         })
@@ -10514,50 +10675,67 @@ export async function* runAssistantOperator(
    * 头注）：少了其中任何一件，这一轮仍然答得出话 —— 少的只是「助手记得的那几行」。
    * 任何一件把整轮炸掉，用户看到的都是一句没有原因的「出错了」。
    */
-  const [persona, rules, sourceRules, priorRounds] = await Promise.all([
-    optionalContext('persona', clerkId, { ...ASSISTANT_PERSONA_DEFAULTS }, () =>
-      getAssistantPersonaByUserId(user.id),
-    ),
-    /**
-     * ⭐ **你写的那几条**（助手设置 B：规矩并进记忆，你写的优先）—— 进规则段、
-     * 带 id 可引用，⛔ 不占助手记的那份预算。
-     */
-    optionalContext('creatorMemories', clerkId, [], async () =>
-      (
-        await listCreatorMemoriesForPrompt(
-          user.id,
-          request.workspaceKey,
-          RULE_LIMITS.maxInPrompt,
-        )
-      ).map(memoryAsRule),
-    ),
-    /**
-     * ⭐ **来源白 / 黑名单单独读一次**（v2 §9.3）。
-     *
-     * ⚠ ⛔ 不并进上面那条：那一条按 `maxInPrompt` 截最近 12 条，而名单一条都不
-     * 能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效的表现是
-     * 助手照常去打那个站，而用户永远不会知道。
-     */
-    optionalContext('projectSourceRules', clerkId, [], () =>
-      listProjectSourceRules(user.id, { workspaceKey: request.workspaceKey }),
-    ),
-    /**
-     * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
-     * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
-     * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
-     * 那一轮照常跑，只是没有跨轮记忆可注入。
-     */
-    optionalContext('priorRounds', clerkId, [], () =>
-      request.conversationId
-        ? listAssistantConversationRounds(user.id, request.conversationId, {
-            limit: ROUND_LIMITS.maxRoundsInPrompt,
-            workspaceKey: request.workspaceKey,
-          })
-        : Promise.resolve([]),
-    ),
-  ])
+  const [persona, rules, sourceRules, priorRounds, creativePreference] =
+    await Promise.all([
+      optionalContext(
+        'persona',
+        clerkId,
+        { ...ASSISTANT_PERSONA_DEFAULTS },
+        () => getAssistantPersonaByUserId(user.id),
+      ),
+      /**
+       * ⭐ **你写的那几条**（助手设置 B：规矩并进记忆，你写的优先）—— 进规则段、
+       * 带 id 可引用，⛔ 不占助手记的那份预算。
+       */
+      optionalContext('creatorMemories', clerkId, [], async () =>
+        (
+          await listCreatorMemoriesForPrompt(
+            user.id,
+            memoryScopeForDomain(request.domain),
+            RULE_LIMITS.maxInPrompt,
+          )
+        ).map(memoryAsRule),
+      ),
+      /**
+       * ⭐ **来源白 / 黑名单单独读一次**（v2 §9.3）。
+       *
+       * ⚠ ⛔ 不并进上面那条：那一条按 `maxInPrompt` 截最近 12 条，而名单一条都不
+       * 能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效的表现是
+       * 助手照常去打那个站，而用户永远不会知道。
+       */
+      optionalContext('projectSourceRules', clerkId, [], () =>
+        listProjectSourceRules(user.id, { scope: request.domain }),
+      ),
+      /**
+       * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
+       * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
+       * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
+       * 那一轮照常跑，只是没有跨轮记忆可注入。
+       */
+      optionalContext('priorRounds', clerkId, [], () =>
+        request.conversationId
+          ? listAssistantConversationRounds(user.id, request.conversationId, {
+              limit: ROUND_LIMITS.maxRoundsInPrompt,
+              workspaceKey: request.workspaceKey,
+            })
+          : Promise.resolve([]),
+      ),
+      /**
+       * ⭐ **学出来的创作偏好**（§8.3）—— 账号级、助手只读，不是工作台的数据，所以
+       * 不跟着工作区隔离走（owner 2026-10-04）。
+       * ⚠ 但这张表**只由图片生成的行为喂**（`outputType: 'IMAGE'`）：只在出图的三台
+       * （图片 / LoRA / 画布）注入，视频与角色页不带 —— 把「平时喜欢什么画风」摆给
+       * 一个不出图的助手只会让它多一句不相干的话。
+       * ⚠ 缺行 / 读失败都是 `null`，「关于这位创作者」那一段照样拼得出来。
+       */
+      optionalContext('creativePreference', clerkId, null, () =>
+        ASSISTANT_CREATIVE_PREFERENCE_DOMAINS.has(request.domain)
+          ? getCreativePreferenceDigest(user.id)
+          : Promise.resolve(null),
+      ),
+    ])
+  // 常挂上下文卡不再注入：owner 2026-09-25「上下文卡整体去掉」，入口早已删除。
   const contextCards: ContextCard[] = []
-  const creativePreference = null
 
   /**
    * ⭐ **这一轮用哪个脑子，唯一真值是 persona**（v2 §4.5，commit #8）。
@@ -10591,7 +10769,7 @@ export async function* runAssistantOperator(
     () =>
       listAssistantMemoriesForPrompt(
         user.id,
-        request.workspaceKey,
+        memoryScopeForDomain(request.domain),
         memoryBudget,
       ),
   )
@@ -10936,9 +11114,33 @@ export async function* runAssistantOperator(
           error: parsedTurn.error,
         })
         consecutiveParseFailures += 1
-        // 连着两次读不出来就不是抖动了 —— 大声报错，别把剩下的步数烧在同一个坑里。
+        // 连着两次读不出来就不是抖动了 —— 收尾说一句人话，别把剩下的步数烧在同一个坑里。
         if (consecutiveParseFailures >= 2) {
-          throw new Error('The assistant model did not return usable JSON.')
+          /**
+           * ⛔ 不再整轮抛错：模型至少写出过 `message` 或一段不带 JSON 的人话时，把它当
+           * 收尾；什么都捞不出来才用兜底那句。用户看到的是一句话，而不是「出错了」。
+           */
+          const language = resolveResponseLanguage(request, persona)
+          const salvaged =
+            extractJsonStringValue(raw, 'message')?.trim() ||
+            (raw.includes('{') ? '' : raw.trim())
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.message,
+            text: clamp(
+              salvaged || OPERATOR_UNREADABLE_REPLY_MESSAGES[language],
+              LIMITS.maxMessageChars,
+            ),
+          }
+          const roundSummary = await closeRound(run, {
+            clerkId,
+            userId: user.id,
+          })
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.done,
+            ...(roundSummary ? { roundSummary } : {}),
+          }
+          completed = true
+          return
         }
         run.observations.push(parsedTurn.error)
         continue
@@ -10992,14 +11194,17 @@ export async function* runAssistantOperator(
        * 那句话是用户唯一能看到的解释。⛔ 但本轮已经有 `message` 时就丢掉它 ——
        * 同一件事说两遍又变回刷屏。
        */
+      /**
+       * ⚠ 只有模型**明说**要确认（`confirmPlan`）却漏写计划时才替它补一条：卡要有
+       * 步骤可摆。⛔ 「谨慎」档不再替模型编一条单步计划去拦单步改动（owner
+       * 2026-10-04）—— 那张卡只有一个工具标题，摆给用户的是一次没有信息的点头。
+       */
       if (
         !turn.plan?.length &&
         turn.tool &&
         request.planApproved !== true &&
         request.resumeFrom === undefined &&
-        (turn.confirmPlan === true ||
-          (persona.planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always &&
-            turn.tool.name === ENTRY.apply))
+        turn.confirmPlan === true
       ) {
         turn.plan = [
           clamp(turn.tool.title ?? turn.tool.name, LIMITS.maxPlanItemChars),
@@ -11029,12 +11234,14 @@ export async function* runAssistantOperator(
              * ⚠ **模型判，不设死阈值**（决策 4）：步数答不了用户真正在问的那件事
              * ——「它接下来要做的事里，有没有一步是我不想让它自己做的」。模型把
              * `confirmPlan` 写成 true 才出卡，⛔ 服务端不按步数补判。
-             * ⚠ **人设「谨慎」档无条件拦**（v2 §11.1）：`planMode === 'always'`
+             * ⚠ **人设「谨慎」档两步起就拦**（v2 §11.1）：`planMode === 'always'`
              *   就是被删掉的那颗「先问我」开关的唯一语义去处（决策 6）——
-             *   ⛔ 别在输入区再造一个跟它打架的单轮开关。
+             *   ⛔ 别在输入区再造一个跟它打架的单轮开关。起点见
+             *   `PLAN_LIMITS.cautiousMinPlanSteps`：单步改动有撤销，不值一次点头。
              */
             if (
-              persona.planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always ||
+              (persona.planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always &&
+                turn.plan.length >= PLAN_LIMITS.cautiousMinPlanSteps) ||
               turn.confirmPlan === true
             ) {
               yield {
@@ -11398,23 +11605,14 @@ export async function* runAssistantOperator(
         run.signal?.throwIfAborted()
       } catch (error) {
         run.signal?.throwIfAborted()
-        if (name === TOOL.analyzeReferences) {
-          yield toStepEvent({
-            ...base,
-            tool: name,
-            status: STATUS.error,
-            error: { reason: REJECT.referenceAnalysisFailed },
-          })
-        }
-        if (earlyResearch) {
-          yield toStepEvent({
-            ...base,
-            tool: name,
-            status: STATUS.error,
-            error: { reason: REJECT.searchUnavailable },
-          })
-        }
-        throw error
+        if (isFatalOperatorToolError(error)) throw error
+        logger.warn('assistant operator tool failed while planning', {
+          userId: clerkId,
+          tool: name,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          error: error instanceof Error ? error.message : String(error),
+        })
+        plan = reject(REJECT.toolFailed, TOOL_FAILED_DETAIL)
       }
       if (run.inspectedCanvasReferences) {
         const analysis = run.inspectedCanvasReferences
@@ -11796,7 +11994,30 @@ export async function* runAssistantOperator(
           payload: plan.payload,
           result: null,
         })
-        const { result, observation } = await plan.run()
+        let outcome: Awaited<ReturnType<typeof plan.run>>
+        try {
+          outcome = await plan.run()
+        } catch (error) {
+          run.signal?.throwIfAborted()
+          if (isFatalOperatorToolError(error)) throw error
+          logger.warn('assistant operator tool failed while running', {
+            userId: clerkId,
+            tool: name,
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+            error: error instanceof Error ? error.message : String(error),
+          })
+          yield toStepEvent({
+            ...base,
+            tool: name,
+            status: STATUS.error,
+            error: { reason: REJECT.toolFailed },
+          })
+          run.observations.push(
+            `${name} was REFUSED (${REJECT.toolFailed}): ${TOOL_FAILED_DETAIL} Do not retry it unchanged.`,
+          )
+          continue
+        }
+        const { result, observation } = outcome
         // 读类工具真正打外部源是在 `run()` 里（检索 / 读正文 / 文件夹视觉）。
         const doneStep = {
           ...base,

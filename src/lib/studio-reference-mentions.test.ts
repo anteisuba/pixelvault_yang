@@ -7,6 +7,7 @@ import {
   getReferenceImageAttachmentId,
   removeReferenceMentions,
   normalizeReferenceMentions,
+  withReferenceRoleLegend,
 } from './studio-reference-mentions'
 
 describe('Studio reference mentions', () => {
@@ -120,5 +121,50 @@ describe('canvas reference identity', () => {
       ],
     ).get('m')!
     expect(refs.flatMap((ref) => ref.aliases)).toEqual([])
+  })
+})
+
+describe('withReferenceRoleLegend', () => {
+  const urls = ['https://cdn.test/a.png', 'https://cdn.test/b.png']
+  const assignments = [
+    {
+      url: urls[1]!,
+      roles: ['pose' as const],
+      preserve: ['arms crossed'],
+      exclude: ['outfit', 'background'],
+    },
+    {
+      url: urls[0]!,
+      roles: ['identity' as const],
+      preserve: ['pink eyes', 'cheek mole'],
+      exclude: [],
+    },
+  ]
+
+  it('lists every mounted reference in CURRENT order with what it supplies', () => {
+    expect(withReferenceRoleLegend('A girl on a rooftop.', assignments, urls))
+      .toBe(`A girl on a rooftop.
+
+Reference roles:
+@Image1 — identity — keep this character exactly as shown; keep: pink eyes; cheek mole
+@Image2 — pose and body position only; keep: arms crossed; do not copy: outfit; background`)
+  })
+
+  it('replaces an earlier legend instead of stacking a second one', () => {
+    const once = withReferenceRoleLegend('Prompt.', assignments, urls)
+    expect(withReferenceRoleLegend(once, assignments, urls)).toBe(once)
+    expect(
+      withReferenceRoleLegend(`${once}\n`, assignments.slice(1), urls),
+    ).toBe(
+      'Prompt.\n\nReference roles:\n@Image1 — identity — keep this character exactly as shown; keep: pink eyes; cheek mole',
+    )
+  })
+
+  it('skips references that are no longer mounted and writes nothing when none are left', () => {
+    expect(
+      withReferenceRoleLegend('Prompt.', assignments, [
+        'https://cdn.test/other.png',
+      ]),
+    ).toBe('Prompt.')
   })
 })

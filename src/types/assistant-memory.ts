@@ -21,7 +21,6 @@ import {
   ASSISTANT_MEMORY_SCOPES,
   ASSISTANT_MEMORY_SOURCES,
 } from '@/constants/assistant-memory'
-import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 
 export const AssistantMemoryScopeSchema = z.enum(ASSISTANT_MEMORY_SCOPES)
 export const AssistantMemoryKindSchema = z.enum(ASSISTANT_MEMORY_KINDS)
@@ -39,7 +38,6 @@ export const AssistantMemoryTextSchema = z
 export const AssistantMemorySchema = z.object({
   id: z.string().min(1),
   scope: AssistantMemoryScopeSchema,
-  workspaceKey: AssistantWorkspaceKeySchema.nullable(),
   kind: AssistantMemoryKindSchema,
   source: AssistantMemorySourceSchema,
   text: AssistantMemoryTextSchema,
@@ -59,6 +57,11 @@ export type AssistantMemory = z.infer<typeof AssistantMemorySchema>
 export const AssistantMemoryCandidateSchema = z.object({
   kind: AssistantMemoryKindSchema,
   text: AssistantMemoryTextSchema,
+  /**
+   * 这一条挂哪个域。⚠ **缺席 = 当前域**（服务端补）：模型八成时候说的就是
+   * 手边这台工作台的事，让它每条都写一遍 scope 只会多一个出错的地方。
+   */
+  scope: AssistantMemoryScopeSchema.optional(),
 })
 
 export type AssistantMemoryCandidate = z.infer<
@@ -69,7 +72,6 @@ export type AssistantMemoryCandidate = z.infer<
 export const ListAssistantMemoriesQuerySchema = z
   .object({
     scope: AssistantMemoryScopeSchema.optional(),
-    workspaceKey: AssistantWorkspaceKeySchema.optional(),
   })
   .strict()
 
@@ -80,21 +82,17 @@ export type ListAssistantMemoriesQuery = z.infer<
 /**
  * **你写一条**（助手设置 B · 记忆页那一格，回车存下）。
  *
- * 全局需显式选择；工作台记忆以 workspaceKey 绑定。来源与类别由服务端定。
+ * ⚠ 缺 `scope` = 全部工作台（默认全局，owner 09-25）。来源与类别由服务端定：
+ * 你写的一律是 `creator` + `rule`，⛔ 不收客户端递来的这两格。
  */
 export const CreateAssistantMemorySchema = z
   .object({
     text: AssistantMemoryTextSchema,
-    scope: AssistantMemoryScopeSchema.optional(),
-    workspaceKey: AssistantWorkspaceKeySchema.nullable().optional(),
+    scope: AssistantMemoryScopeSchema.default(
+      ASSISTANT_MEMORY_SCOPE_IDS.global,
+    ),
   })
   .strict()
-  .refine(
-    (input) =>
-      input.workspaceKey != null ||
-      input.scope === ASSISTANT_MEMORY_SCOPE_IDS.global,
-    { message: 'Choose a workspace or explicitly choose global memory' },
-  )
 
 export type CreateAssistantMemoryRequest = z.input<
   typeof CreateAssistantMemorySchema
@@ -110,23 +108,11 @@ export const UpdateAssistantMemorySchema = z
   .object({
     text: AssistantMemoryTextSchema.optional(),
     scope: AssistantMemoryScopeSchema.optional(),
-    workspaceKey: AssistantWorkspaceKeySchema.nullable().optional(),
   })
   .strict()
-  .refine(
-    (input) =>
-      input.text !== undefined ||
-      input.scope !== undefined ||
-      input.workspaceKey !== undefined,
-    { message: 'Nothing to update' },
-  )
-  .refine(
-    (input) =>
-      (input.scope === undefined && input.workspaceKey === undefined) ||
-      input.workspaceKey != null ||
-      input.scope === ASSISTANT_MEMORY_SCOPE_IDS.global,
-    { message: 'Choose a workspace or explicitly choose global memory' },
-  )
+  .refine((input) => input.text !== undefined || input.scope !== undefined, {
+    message: 'Nothing to update',
+  })
 
 export type UpdateAssistantMemoryRequest = z.infer<
   typeof UpdateAssistantMemorySchema

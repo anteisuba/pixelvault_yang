@@ -173,11 +173,9 @@ export type VideoScriptSceneStatus = (typeof VideoScriptSceneStatus)[keyof typeo
 
 export const AssistantMemoryScope = {
   IMAGE: 'IMAGE',
-  TAGS: 'TAGS',
   VIDEO: 'VIDEO',
   CANVAS: 'CANVAS',
   LORA: 'LORA',
-  CARDS: 'CARDS',
   GLOBAL: 'GLOBAL'
 } as const
 

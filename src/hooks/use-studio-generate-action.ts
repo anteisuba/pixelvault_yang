@@ -1004,10 +1004,7 @@ export function useStudioGenerateAction() {
     }) => {
       if (options?.operatorResultOwner) {
         const current = getOperatorState()
-        if (
-          current.readOnlyHistory ||
-          !matchesOperatorResultOwner(options.operatorResultOwner, current)
-        )
+        if (!matchesOperatorResultOwner(options.operatorResultOwner, current))
           return
       }
       if (isGenerating) return

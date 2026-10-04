@@ -1,10 +1,7 @@
 import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import {
-  ASSISTANT_PROJECT_RULE_LIMITS,
-  PROJECT_RULE_SOURCE_IDS,
-} from '@/constants/assistant-operator'
+import { ASSISTANT_PROJECT_RULE_LIMITS } from '@/constants/assistant-operator'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
 import {
@@ -32,10 +29,7 @@ export const GET = createApiGetRoute({
   requireAuth: true,
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async ({ clerkId, data }) =>
-    listProjectSourceRulesForClerkId(clerkId!, {
-      scope: data.scope ?? null,
-      ...(data.workspaceKey ? { workspaceKey: data.workspaceKey } : {}),
-    }),
+    listProjectSourceRulesForClerkId(clerkId!, { scope: data.scope ?? null }),
 })
 
 export const POST = createApiRoute({
@@ -44,10 +38,7 @@ export const POST = createApiRoute({
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: async (clerkId, data) => {
     try {
-      return await addProjectRuleForClerkId(clerkId, {
-        ...data,
-        source: PROJECT_RULE_SOURCE_IDS.creator,
-      })
+      return await addProjectRuleForClerkId(clerkId, data)
     } catch (error) {
       if (error instanceof ProjectRuleLimitError) {
         throw new ApiRequestError(

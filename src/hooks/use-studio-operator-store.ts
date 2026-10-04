@@ -86,7 +86,6 @@ export interface StudioOperatorState {
   /** 这条线程在库里的行；`null` = 还没落过库（下一次保存会新建一行）。 */
   sessionId: string | null
   localThreadId: string
-  readOnlyHistory: boolean
   saveFailed: boolean
   /** 当前会话的存储 surface；具体工作区归属由 threadScope 决定。 */
   sessionSurface: AssistantSurfaceId | null
@@ -256,7 +255,6 @@ const INITIAL_STATE: StudioOperatorState = {
   history: EMPTY_HISTORY,
   sessionId: null,
   localThreadId: '',
-  readOnlyHistory: false,
   saveFailed: false,
   sessionSurface: null,
   entries: [],
@@ -1054,14 +1052,13 @@ export function loadOperatorThread(args: {
   rounds?: readonly AssistantOperatorRoundSummary[]
   sessionId: string | null
   sessionSurface: AssistantSurfaceId | null
-  readOnlyHistory?: boolean
   /**
    * 这段会话末尾**还没决定的那一下**（owner 09-27 刷新丢卡）：放回面板上，状态
    * 回到「等你定」。缺席 = 没有；⚠ 换一段会话时旧的问题 / 卡一并清掉。
    */
   pending?: StudioOperatorPending | null
 }): void {
-  const pending = args.readOnlyHistory ? null : (args.pending ?? null)
+  const pending = args.pending ?? null
   emit({
     ...state,
     localThreadId: crypto.randomUUID(),
@@ -1084,11 +1081,8 @@ export function loadOperatorThread(args: {
           }
         : null,
     history: args.history,
-    historyRounds: args.readOnlyHistory
-      ? EMPTY_ROUNDS
-      : (args.rounds ?? EMPTY_ROUNDS),
-    sessionId: args.readOnlyHistory ? null : args.sessionId,
-    readOnlyHistory: args.readOnlyHistory ?? false,
+    historyRounds: args.rounds ?? EMPTY_ROUNDS,
+    sessionId: args.sessionId,
     saveFailed: false,
     sessionSurface: args.sessionSurface,
     entries: [],
@@ -1107,7 +1101,7 @@ export function loadOperatorThread(args: {
     resume: null,
     incognito: false,
   })
-  if (!args.readOnlyHistory) hydrateOperatorResume()
+  hydrateOperatorResume()
 }
 
 /**
@@ -1294,7 +1288,6 @@ export function resetOperatorThread(
   updateThread(current, {
     ...current,
     localThreadId: crypto.randomUUID(),
-    readOnlyHistory: false,
     saveFailed: false,
     status: 'idle',
     history: EMPTY_HISTORY,

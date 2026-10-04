@@ -43,7 +43,6 @@ const mockCreate = vi.mocked(createCreatorMemoryForClerkId)
 const MEMORY = {
   id: 'mem-1',
   scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
-  workspaceKey: 'image-natural',
   kind: 'preference' as const,
   source: 'assistant' as const,
   text: '偏好横构图 16:9',
@@ -118,26 +117,15 @@ describe('POST /api/assistant-memories', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('显式选择全局后写入全部工作台', async () => {
+  it('缺 scope = 全部工作台', async () => {
     const res = await POST(
-      createPOST('/api/assistant-memories', {
-        text: '  画面里不要出现文字 ',
-        scope: 'global',
-      }),
+      createPOST('/api/assistant-memories', { text: '  画面里不要出现文字 ' }),
     )
     expect(res.status).toBe(200)
     expect(mockCreate).toHaveBeenCalledWith('clerk_test_user', {
       text: '画面里不要出现文字',
       scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
     })
-  })
-
-  it('未选择工作台或全局时拒绝创建', async () => {
-    const res = await POST(
-      createPOST('/api/assistant-memories', { text: '一句偏好' }),
-    )
-    expect(res.status).toBe(400)
-    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it('⛔ 客户端不能自称来源或类别', async () => {
@@ -165,10 +153,7 @@ describe('POST /api/assistant-memories', () => {
       new AssistantMemoryLimitError(ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
     )
     const res = await POST(
-      createPOST('/api/assistant-memories', {
-        text: '再来一条',
-        scope: 'global',
-      }),
+      createPOST('/api/assistant-memories', { text: '再来一条' }),
     )
     expect(res.status).toBe(409)
     await expect(parseJSON(res)).resolves.toMatchObject({

@@ -7175,8 +7175,7 @@
       "phantomCitation": "助手引用了不存在的证据，这条回答已被拦下。重试，或把这一轮的联网检索关掉。",
       "videoUnreachable": "这个视频取不到（可能已删除、设为私享，或不允许外部访问）。换一条公开链接，或把片段下载后拖进来。",
       "timelinePlanFailed": "排片没有返回一份能用的时间线。重试，或把话说得更直白一点。",
-      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。",
-      "promptReviewUnavailable": "提示词检查重试后仍未返回有效结果，本次提示词修改未写入。此前的修改已保留，请稍后重试。"
+      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。"
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",
@@ -7750,7 +7749,6 @@
       "renaming": "保存中…",
       "renameFailed": "修改失败，请重试。",
       "switching": "正在加载对话…",
-      "legacyReadOnly": "旧会话仅供查看。请新建对话，在当前工作台继续。",
       "saveFailed": "对话保存失败，草稿仍保留在当前页面。",
       "retrySave": "重试保存"
     },
@@ -7836,7 +7834,8 @@
       "urlUnreadable": "这一页没能读出来",
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
       "videoFramesMissing": "这段片子没能取出可看的帧",
-      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧"
+      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧",
+      "toolFailed": "这一步暂时没做成（技术故障），可以稍后再试"
     },
     "field": {
       "prompt": "提示词",
@@ -8567,7 +8566,7 @@
     "archetype": {
       "cautious": {
         "name": "谨慎",
-        "line": "动手前多问两句 · 每一步都要你点头 · 回复偏短，只说结论"
+        "line": "动手前多问两句 · 两步以上先给你看计划 · 回复偏短，只说结论"
       },
       "balanced": {
         "name": "平衡",

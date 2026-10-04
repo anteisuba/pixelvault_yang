@@ -131,7 +131,6 @@ describe('POST /api/assistant/rules', () => {
     expect(mockAdd).toHaveBeenCalledWith('clerk_test_user', {
       text: 'danbooru.donmai.us',
       kind: 'sourceAllow',
-      source: 'creator',
     })
 
     mockAdd.mockClear()

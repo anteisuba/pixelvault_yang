@@ -8,7 +8,6 @@ import {
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
-const mockFindProject = vi.fn()
 const mockFindMany = vi.fn()
 const mockCount = vi.fn()
 const mockCreate = vi.fn()
@@ -16,9 +15,6 @@ const mockDeleteMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
-    nodeWorkflowProject: {
-      findFirst: (...args: unknown[]) => mockFindProject(...args),
-    },
     projectRule: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
       count: (...args: unknown[]) => mockCount(...args),
@@ -37,13 +33,11 @@ import {
   addProjectRule,
   deleteProjectRule,
   listProjectSourceRules,
-  listProjectSourceRulesForClerkId,
 } from '@/services/project-rule.service'
 
 const ROW = {
   id: 'rule-1',
   scope: null,
-  workspaceKey: null,
   text: 'danbooru.donmai.us',
   kind: 'SOURCE_ALLOW' as const,
   source: 'CREATOR' as const,
@@ -61,13 +55,12 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
   it('按 userId 收敛、只取来源两种，最新在前', async () => {
     mockFindMany.mockResolvedValue([ROW])
 
-    const rules = await listProjectSourceRulesForClerkId('clerk_1')
+    const rules = await listProjectSourceRules('db_user_1')
 
     expect(rules).toEqual([
       {
         id: 'rule-1',
         scope: null,
-        workspaceKey: null,
         text: ROW.text,
         kind: PROJECT_RULE_KIND_IDS.sourceAllow,
         source: PROJECT_RULE_SOURCE_IDS.creator,
@@ -87,25 +80,22 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
   it('取满每用户上限', async () => {
     mockFindMany.mockResolvedValue([])
 
-    await listProjectSourceRulesForClerkId('clerk_1')
+    await listProjectSourceRules('db_user_1')
 
     const args = mockFindMany.mock.calls[0][0] as { take: number }
     expect(args.take).toBe(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
   })
 
   /** 全域名单在任何工作台上都成立 —— ⛔ 不能被域过滤滤掉。 */
-  it('助手只取当前工作台与用户明确全局的名单', async () => {
+  it('给了 scope 时同时取该域的与全域的', async () => {
     mockFindMany.mockResolvedValue([])
 
-    await listProjectSourceRules('db_user_1', { workspaceKey: 'image-natural' })
+    await listProjectSourceRules('db_user_1', { scope: 'image' })
 
     const args = mockFindMany.mock.calls[0][0] as {
       where: { OR: unknown[] }
     }
-    expect(args.where.OR).toEqual([
-      { workspaceKey: 'image-natural' },
-      { workspaceKey: null, scope: null, source: 'CREATOR' },
-    ])
+    expect(args.where.OR).toEqual([{ scope: 'image' }, { scope: null }])
   })
 
   /**
@@ -115,17 +105,13 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
   it('scope 掉出域词表的存量行被剥掉，⛔ 不塞进系统提示', async () => {
     mockFindMany.mockResolvedValue([{ ...ROW, scope: 'audio' }])
 
-    await expect(listProjectSourceRulesForClerkId('clerk_1')).resolves.toEqual(
-      [],
-    )
+    await expect(listProjectSourceRules('db_user_1')).resolves.toEqual([])
   })
 
   it('canvas 是词表里的域 —— 它的名单读得出来', async () => {
     mockFindMany.mockResolvedValue([{ ...ROW, scope: 'canvas' }])
 
-    await expect(
-      listProjectSourceRulesForClerkId('clerk_1'),
-    ).resolves.toHaveLength(1)
+    await expect(listProjectSourceRules('db_user_1')).resolves.toHaveLength(1)
   })
 
   it('写入时把协议侧的小写 kind / 来源翻成库里的枚举', async () => {
@@ -139,7 +125,7 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
 
     const rule = await addProjectRule('db_user_1', {
       text: 'pinterest.com',
-      workspaceKey: 'image-natural',
+      scope: 'image',
       kind: PROJECT_RULE_KIND_IDS.sourceDeny,
       source: PROJECT_RULE_SOURCE_IDS.assistant,
     })
@@ -174,34 +160,4 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
       where: { id: 'rule-x', userId: 'db_user_1' },
     })
   })
-})
-
-it('does not allow assistant source rules to become global', async () => {
-  vi.clearAllMocks()
-  await expect(
-    addProjectRule('db_user_1', {
-      text: 'example.com',
-      kind: 'sourceDeny',
-      source: 'assistant',
-    }),
-  ).rejects.toMatchObject({ httpStatus: 400 })
-  expect(mockCreate).not.toHaveBeenCalled()
-})
-
-it('rejects an inaccessible canvas before reading or storing source rules', async () => {
-  vi.clearAllMocks()
-  mockFindProject.mockResolvedValue(null)
-  await expect(
-    listProjectSourceRules('db_user_1', { workspaceKey: 'canvas:other' }),
-  ).rejects.toMatchObject({ httpStatus: 404 })
-  await expect(
-    addProjectRule('db_user_1', {
-      workspaceKey: 'canvas:other',
-      text: 'example.com',
-      kind: 'sourceDeny',
-      source: 'assistant',
-    }),
-  ).rejects.toMatchObject({ httpStatus: 404 })
-  expect(mockFindMany).not.toHaveBeenCalled()
-  expect(mockCreate).not.toHaveBeenCalled()
 })

@@ -377,8 +377,7 @@ export function useLoraOperatorHost(
     const current = getOperatorState()
     if (
       generateRequest.owner &&
-      (current.readOnlyHistory ||
-        !matchesOperatorResultOwner(generateRequest.owner, current))
+      !matchesOperatorResultOwner(generateRequest.owner, current)
     )
       return
     if (generate.blockedReason === null) {

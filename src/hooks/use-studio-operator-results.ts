@@ -48,7 +48,6 @@ function isCurrentPendingResult(binding: PendingResultBinding): boolean {
   const current = getOperatorState()
   return (
     binding.threadScope !== null &&
-    !current.readOnlyHistory &&
     current.threadScope === binding.threadScope &&
     current.localThreadId === binding.localThreadId &&
     current.pendingResultId === binding.pendingResultId
@@ -82,7 +81,7 @@ function failPendingResult(id: string, reason?: string): void {
 export function useStudioOperatorResults(
   run: StudioOperatorResultRun | undefined,
 ): void {
-  const { pendingResultId, threadScope, localThreadId, readOnlyHistory } =
+  const { pendingResultId, threadScope, localThreadId } =
     useStudioOperatorState()
   const hasCurrentSource =
     run?.owner?.threadScope === threadScope &&
@@ -99,7 +98,7 @@ export function useStudioOperatorResults(
   const boundRef = useRef(new Set<string>())
 
   useEffect(() => {
-    if (!pendingResultId || !run || readOnlyHistory) return
+    if (!pendingResultId || !run) return
     const binding = { threadScope, localThreadId, pendingResultId }
     if (!isCurrentPendingResult(binding)) return
     if (!hasCurrentSource) return
@@ -129,17 +128,10 @@ export function useStudioOperatorResults(
       clearOperatorPendingResult()
     }
     boundRef.current.delete(bindingKey)
-  }, [
-    pendingResultId,
-    threadScope,
-    localThreadId,
-    readOnlyHistory,
-    hasCurrentSource,
-    run,
-  ])
+  }, [pendingResultId, threadScope, localThreadId, hasCurrentSource, run])
 
   useEffect(() => {
-    if (!pendingResultId || readOnlyHistory) return
+    if (!pendingResultId) return
     const binding = { threadScope, localThreadId, pendingResultId }
     if (!isCurrentPendingResult(binding)) return
     const timer = window.setTimeout(() => {
@@ -161,11 +153,5 @@ export function useStudioOperatorResults(
       failPendingResult(pendingResultId)
     }, STUDIO_OPERATOR_CLAIM_TTL_MS)
     return () => window.clearTimeout(timer)
-  }, [
-    pendingResultId,
-    threadScope,
-    localThreadId,
-    readOnlyHistory,
-    hasCurrentSource,
-  ])
+  }, [pendingResultId, threadScope, localThreadId, hasCurrentSource])
 }

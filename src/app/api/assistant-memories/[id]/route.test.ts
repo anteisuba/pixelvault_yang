@@ -37,7 +37,6 @@ const PATH = `/api/assistant-memories/${MEMORY_ID}`
 const MEMORY = {
   id: MEMORY_ID,
   scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
-  workspaceKey: 'image-natural',
   kind: 'preference' as const,
   source: 'assistant' as const,
   text: '改过的那行字',

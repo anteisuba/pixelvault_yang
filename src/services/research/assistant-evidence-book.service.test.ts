@@ -181,14 +181,14 @@ describe('证据本（assistant-shell-v2 §7.3）', () => {
       refs: [],
       researchRunIds: [],
     })
-    const [sql, ...values] = mocks.lockConversation.mock.calls[0]
-    expect((sql as TemplateStringsArray).join('')).toContain('FOR UPDATE')
-    expect(values).toEqual([
+    const query = mocks.lockConversation.mock.calls[0][0]
+    expect(query.sql).toContain('FOR UPDATE')
+    expect(query.values).toEqual([
       'conv-1',
       'owner-id',
-      'image-natural',
       'IMAGE_STUDIO',
       null,
+      'image-tags',
     ])
     expect(mocks.findMany).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()

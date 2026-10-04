@@ -10,7 +10,6 @@ import {
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
-const mockFindProject = vi.fn()
 const mockFindMany = vi.fn()
 const mockFindFirst = vi.fn()
 const mockCount = vi.fn()
@@ -21,9 +20,6 @@ const mockDeleteMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
-    nodeWorkflowProject: {
-      findFirst: (...args: unknown[]) => mockFindProject(...args),
-    },
     assistantMemory: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
@@ -62,7 +58,6 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'mem-1',
     scope: 'IMAGE' as const,
-    workspaceKey: 'image-natural',
     kind: 'PREFERENCE' as const,
     source: 'ASSISTANT' as const,
     text: '偏好横构图 16:9，除非我明说要竖的',
@@ -76,7 +71,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockFindMany.mockResolvedValue([])
   mockCount.mockResolvedValue(0)
-  mockFindProject.mockResolvedValue({ id: 'project-one' })
   mockCreate.mockResolvedValue({ id: 'mem-new' })
   mockDeleteMany.mockResolvedValue({ count: 0 })
 })
@@ -148,30 +142,33 @@ describe('listAssistantMemories', () => {
 })
 
 describe('listAssistantMemoriesForPrompt', () => {
-  it('仅取当前工作台助手记忆，按 lastUsedAt 倒序', async () => {
+  it('取当前域 + global，按 lastUsedAt 倒序', async () => {
     mockFindMany.mockResolvedValue([row()])
-    await listAssistantMemoriesForPrompt('db_user_1', 'video', 5)
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.video,
+      5,
+    )
     const args = mockFindMany.mock.calls[0][0]
-    expect(args.where).toMatchObject({
-      scope: 'VIDEO',
-      workspaceKey: 'video',
-      source: 'ASSISTANT',
-    })
-    expect(args.where).not.toHaveProperty('OR')
+    expect(args.where.scope.in).toEqual(['VIDEO', 'GLOBAL'])
     expect(args.orderBy).toEqual({ lastUsedAt: 'desc' })
     expect(args.take).toBe(5)
   })
 
   /** 你写的不在这一段：它们进规则段，⛔ 不占助手记的那份预算。 */
   it('只取助手记的', async () => {
-    await listAssistantMemoriesForPrompt('db_user_1', 'image-natural', 5)
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.image,
+      5,
+    )
     expect(mockFindMany.mock.calls[0][0].where.source).toBe('ASSISTANT')
   })
 
   it('预算 <= 0（被卡吃光）时一条都不查', async () => {
     const memories = await listAssistantMemoriesForPrompt(
       'db_user_1',
-      'image-natural',
+      ASSISTANT_MEMORY_SCOPE_IDS.image,
       0,
     )
     expect(memories).toEqual([])
@@ -179,7 +176,11 @@ describe('listAssistantMemoriesForPrompt', () => {
   })
 
   it('封顶在 maxInPrompt —— 调用方给再大的预算也不放宽', async () => {
-    await listAssistantMemoriesForPrompt('db_user_1', 'image-natural', 999)
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.image,
+      999,
+    )
     expect(mockFindMany.mock.calls[0][0].take).toBe(
       ASSISTANT_MEMORY_LIMITS.maxInPrompt,
     )
@@ -193,7 +194,7 @@ describe('listCreatorMemoriesForPrompt', () => {
     ])
     const memories = await listCreatorMemoriesForPrompt(
       'db_user_1',
-      'video',
+      ASSISTANT_MEMORY_SCOPE_IDS.video,
       12,
     )
     expect(memories[0]?.source).toBe(ASSISTANT_MEMORY_SOURCE_IDS.creator)
@@ -201,10 +202,7 @@ describe('listCreatorMemoriesForPrompt', () => {
     expect(args.where).toMatchObject({
       userId: 'db_user_1',
       source: 'CREATOR',
-      OR: [
-        { scope: 'VIDEO', workspaceKey: 'video' },
-        { scope: 'GLOBAL', workspaceKey: null },
-      ],
+      scope: { in: ['VIDEO', 'GLOBAL'] },
     })
     expect(args.orderBy).toEqual({ updatedAt: 'desc' })
     expect(args.take).toBe(12)
@@ -212,7 +210,11 @@ describe('listCreatorMemoriesForPrompt', () => {
 
   it('limit <= 0 时一条都不查', async () => {
     await expect(
-      listCreatorMemoriesForPrompt('db_user_1', 'image-natural', 0),
+      listCreatorMemoriesForPrompt(
+        'db_user_1',
+        ASSISTANT_MEMORY_SCOPE_IDS.image,
+        0,
+      ),
     ).resolves.toEqual([])
     expect(mockFindMany).not.toHaveBeenCalled()
   })
@@ -221,32 +223,21 @@ describe('listCreatorMemoriesForPrompt', () => {
 describe('listStandingRuleMemories', () => {
   it('你写的 + 助手记下的规矩；给了域就是该域 + global', async () => {
     await listStandingRuleMemories('db_user_1', {
-      workspaceKey: 'lora',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.lora,
       limit: 50,
     })
     const args = mockFindMany.mock.calls[0][0]
     expect(args.where).toMatchObject({
       userId: 'db_user_1',
-      OR: [
-        {
-          scope: 'LORA',
-          workspaceKey: 'lora',
-          OR: [{ source: 'CREATOR' }, { kind: 'RULE' }],
-        },
-        { scope: 'GLOBAL', workspaceKey: null, source: 'CREATOR' },
-      ],
+      OR: [{ source: 'CREATOR' }, { kind: 'RULE' }],
+      scope: { in: ['LORA', 'GLOBAL'] },
     })
     expect(args.take).toBe(50)
   })
 
-  it('非法工作台不会退回全域', async () => {
-    await expect(
-      listStandingRuleMemories('db_user_1', {
-        workspaceKey: 'canvas',
-        limit: 50,
-      }),
-    ).rejects.toMatchObject({ httpStatus: 400 })
-    expect(mockFindMany).not.toHaveBeenCalled()
+  it('缺域 = 全部域', async () => {
+    await listStandingRuleMemories('db_user_1', { limit: 50 })
+    expect(mockFindMany.mock.calls[0][0].where).not.toHaveProperty('scope')
   })
 })
 
@@ -304,7 +295,7 @@ describe('recordAssistantMemories', () => {
   it('新候选落库，返回真正记下的条数', async () => {
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         {
           kind: ASSISTANT_MEMORY_KIND_IDS.preference,
@@ -331,7 +322,7 @@ describe('recordAssistantMemories', () => {
 
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         {
           kind: ASSISTANT_MEMORY_KIND_IDS.preference,
@@ -344,12 +335,7 @@ describe('recordAssistantMemories', () => {
     expect(mockCreate).not.toHaveBeenCalled()
     expect(mockUpdate).toHaveBeenCalledTimes(1)
     const args = mockUpdate.mock.calls[0][0]
-    expect(args.where).toEqual({
-      id: 'mem-old',
-      userId: 'db_user_1',
-      scope: 'IMAGE',
-      workspaceKey: 'image-natural',
-    })
+    expect(args.where).toEqual({ id: 'mem-old' })
     expect(args.data).toHaveProperty('lastUsedAt')
     expect(args.data).not.toHaveProperty('text')
   })
@@ -357,7 +343,7 @@ describe('recordAssistantMemories', () => {
   it('敏感类目命中：不写、不计数、⛔ 不出现在回执里', async () => {
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         {
           kind: ASSISTANT_MEMORY_KIND_IDS.fact,
@@ -375,7 +361,7 @@ describe('recordAssistantMemories', () => {
   it('本轮内部重复只写一条', async () => {
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好冷色调' },
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好冷色调。' },
@@ -385,23 +371,20 @@ describe('recordAssistantMemories', () => {
     expect(mockCreate).toHaveBeenCalledTimes(1)
   })
 
-  it('候选即使携带全局 scope 也只能写当前工作台', async () => {
+  it('候选带 scope 时按它落，缺席时落当前域', async () => {
     await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'video',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.video,
       candidates: [
         {
           kind: ASSISTANT_MEMORY_KIND_IDS.rule,
           text: '回答用中文，术语保留英文',
-          ...{ scope: ASSISTANT_MEMORY_SCOPE_IDS.global },
+          scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
         },
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好 24fps' },
       ],
     })
-    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
-      scope: 'VIDEO',
-      workspaceKey: 'video',
-    })
+    expect(mockCreate.mock.calls[0][0].data.scope).toBe('GLOBAL')
     expect(mockCreate.mock.calls[1][0].data.scope).toBe('VIDEO')
   })
 
@@ -415,7 +398,7 @@ describe('recordAssistantMemories', () => {
     )
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates,
     })
     expect(written).toBe(ASSISTANT_MEMORY_LIMITS.maxPerRound)
@@ -431,7 +414,7 @@ describe('recordAssistantMemories', () => {
 
     await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好冷色调' },
       ],
@@ -444,12 +427,7 @@ describe('recordAssistantMemories', () => {
     expect(evictQuery.orderBy).toEqual({ lastUsedAt: 'asc' })
     expect(evictQuery.take).toBe(2)
     expect(mockDeleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 'db_user_1',
-        workspaceKey: 'image-natural',
-        source: 'ASSISTANT',
-        id: { in: ['oldest-1', 'oldest-2'] },
-      },
+      where: { userId: 'db_user_1', id: { in: ['oldest-1', 'oldest-2'] } },
     })
   })
 
@@ -457,7 +435,7 @@ describe('recordAssistantMemories', () => {
     mockCount.mockResolvedValue(3)
     await recordAssistantMemories({
       userId: 'db_user_1',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       candidates: [
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好冷色调' },
       ],
@@ -495,7 +473,7 @@ describe('createCreatorMemory（你写一条）', () => {
     )
     const memory = await createCreatorMemory('db_user_1', {
       text: '画面里不要出现文字',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
     })
     expect(memory.id).toBe('learned')
     expect(mockCreate).not.toHaveBeenCalled()
@@ -523,7 +501,7 @@ describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
     mockCount.mockResolvedValue(1)
     const { memory, created } = await addAssistantRuleMemory('db_user_1', {
       text: '以后查资料只信官方站',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
     })
     expect(created).toBe(true)
     expect(memory.id).toBe('rule-1')
@@ -548,7 +526,7 @@ describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
     ])
     const { memory, created } = await addAssistantRuleMemory('db_user_1', {
       text: '以后查资料只信官方站。',
-      workspaceKey: 'image-natural',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
     })
     expect(created).toBe(false)
     expect(memory.id).toBe('mine')
@@ -585,11 +563,7 @@ describe('updateAssistantMemory', () => {
     await updateAssistantMemory('db_user_1', 'mem-1', {
       scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
     })
-    expect(mockUpdate.mock.calls[0][0].data).toEqual({
-      scope: 'GLOBAL',
-      workspaceKey: null,
-      source: 'CREATOR',
-    })
+    expect(mockUpdate.mock.calls[0][0].data).toEqual({ scope: 'GLOBAL' })
   })
 })
 
@@ -626,90 +600,5 @@ describe('clearAssistantMemories', () => {
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { userId: 'db_user_1', source: 'ASSISTANT' },
     })
-  })
-})
-
-describe('workspace boundaries', () => {
-  it.each([
-    ['image-natural', 'IMAGE'],
-    ['image-tags', 'TAGS'],
-    ['video', 'VIDEO'],
-    ['lora', 'LORA'],
-    ['canvas:project-one', 'CANVAS'],
-    ['canvas:project-two', 'CANVAS'],
-    ['cards', 'CARDS'],
-  ])(
-    'keeps %s automatic writes and reads in their exact workspace',
-    async (workspaceKey, scope) => {
-      await recordAssistantMemories({
-        userId: 'db_user_1',
-        workspaceKey,
-        candidates: [{ kind: 'preference', text: '偏好冷色调' }],
-      })
-      expect(mockCreate.mock.calls[0][0].data).toMatchObject({
-        userId: 'db_user_1',
-        workspaceKey,
-        scope,
-      })
-      expect(mockFindMany.mock.calls[0][0].where).toMatchObject({
-        userId: 'db_user_1',
-        workspaceKey,
-        scope,
-      })
-      await listAssistantMemoriesForPrompt('db_user_1', workspaceKey, 5)
-      expect(mockFindMany.mock.lastCall![0].where).toEqual({
-        userId: 'db_user_1',
-        workspaceKey,
-        scope,
-        source: 'ASSISTANT',
-      })
-    },
-  )
-
-  it('rejects unknown canvas projects before any memory read or write', async () => {
-    mockFindProject.mockResolvedValue(null)
-    await expect(
-      listAssistantMemoriesForPrompt('db_user_1', 'canvas:other', 5),
-    ).rejects.toMatchObject({ httpStatus: 404 })
-    await expect(
-      recordAssistantMemories({
-        userId: 'db_user_1',
-        workspaceKey: 'canvas:other',
-        candidates: [{ kind: 'fact', text: '喜欢远景' }],
-      }),
-    ).rejects.toMatchObject({ httpStatus: 404 })
-    expect(mockFindMany).not.toHaveBeenCalled()
-    expect(mockCreate).not.toHaveBeenCalled()
-    expect(mockFindProject).toHaveBeenCalledWith({
-      where: { id: 'other', userId: 'db_user_1', isDeleted: false },
-      select: { id: true },
-    })
-  })
-
-  it('requires explicit global choice and rejects a conflicting workspace classification', async () => {
-    await expect(
-      createCreatorMemory('db_user_1', { text: '规矩' }),
-    ).rejects.toMatchObject({ httpStatus: 400 })
-    await expect(
-      createCreatorMemory('db_user_1', {
-        text: '规矩',
-        scope: 'image',
-        workspaceKey: 'image-tags',
-      }),
-    ).rejects.toMatchObject({ httpStatus: 400 })
-    expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it('retains old unassigned memories in the management list', async () => {
-    mockFindMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([row({ scope: 'GLOBAL', workspaceKey: null })])
-    expect(await listAssistantMemories('db_user_1')).toEqual([
-      expect.objectContaining({
-        workspaceKey: null,
-        scope: 'global',
-        source: 'assistant',
-      }),
-    ])
   })
 })

@@ -27,7 +27,6 @@ export const GET = createApiGetRoute({
     /** When "1", return a list of conversation summaries instead of one body. */
     list: z.enum(['0', '1']).optional(),
     operatorOnly: z.enum(['0', '1']).optional(),
-    includeLegacy: z.enum(['0', '1']).optional(),
     limit: z.coerce.number().int().min(1).max(50).optional(),
   }),
   routeName: 'GET /api/assistant/conversation',
@@ -43,7 +42,6 @@ export const GET = createApiGetRoute({
         ...(data.operatorOnly !== undefined
           ? { operatorOnly: data.operatorOnly === '1' }
           : {}),
-        includeLegacy: data.includeLegacy === '1',
       })
     }
 
@@ -52,7 +50,6 @@ export const GET = createApiGetRoute({
       id: data.id,
       surface: data.surface,
       projectId: data.projectId,
-      includeLegacy: data.includeLegacy === '1',
       ...(data.operatorOnly !== undefined
         ? { operatorOnly: data.operatorOnly === '1' }
         : {}),

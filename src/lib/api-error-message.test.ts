@@ -54,33 +54,6 @@ describe('getApiErrorMessage', () => {
 })
 
 describe('getGenerationErrorMessage', () => {
-  it.each([
-    ['zh', zhMessages],
-    ['en', enMessages],
-    ['ja', jaMessages],
-  ] as const)(
-    'shows the prompt-review error without calling it an image-generation failure: %s',
-    (locale, messages) => {
-      const t = createTranslator({
-        locale,
-        messages,
-        namespace: 'Errors',
-      }) as unknown as Translator
-      const result = getGenerationErrorMessage(
-        t,
-        {
-          errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
-          i18nKey: 'errors.assistant.promptReviewUnavailable',
-          error: 'Raw review failure',
-        },
-        'fallback',
-      )
-      expect(result).not.toContain('Raw review failure')
-      expect(result).not.toBe('fallback')
-      expect(result).toBe(t('assistant.promptReviewUnavailable'))
-    },
-  )
-
   it('prefers backend i18nKey when present and translatable', () => {
     expect(
       getGenerationErrorMessage(

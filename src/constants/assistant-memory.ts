@@ -2,7 +2,7 @@
  * **助手记忆**的词表、上限与敏感类目（进度表 56a · 最简版）。
  *
  * 一条记忆 = **一行字**。它由助手在**每轮结账**时产出，落进 `AssistantMemory`，
- * 下一轮按工作台注入系统提示，用户在 `/settings/assistant` 里随时改、随时删。
+ * 下一轮按域注入系统提示，用户在 `/settings/assistant` 里随时改、随时删。
  *
  * ── 它与上下文卡的分界（⛔ 没有桥）──────────────────────────────
  * 卡 = 用户**亲手经营**的素材（正文 · 图 · 硬否定 · 常挂范围 · `@` 点名）；
@@ -15,24 +15,27 @@
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 
-/** 工作台的展示分类；精确归属由 workspaceKey 决定，全局仅由用户明确共享。 */
+/**
+ * 一条记忆挂在哪个域。
+ *
+ * ⚠ 前四档与 `ASSISTANT_PROTOCOL_DOMAIN_IDS` **逐字同源**（⛔ 不另抄一份字面量）：
+ * 注入那一跳要用当前域直接查表，两份词表漂了的表现是「明明记着，就是不注入」。
+ * ⚠ `global` 是第五档，**没有对应的域** —— 它是「跟你站在哪台工作台无关的那些」
+ * （说话语言、称呼、通用工作习惯），每一轮都跟着当前域一起注入。
+ */
 export const ASSISTANT_MEMORY_SCOPE_IDS = {
   image: ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
-  tags: 'tags',
   video: ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   canvas: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   lora: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
-  cards: ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
   global: 'global',
 } as const
 
 export const ASSISTANT_MEMORY_SCOPES = [
   ASSISTANT_MEMORY_SCOPE_IDS.image,
-  ASSISTANT_MEMORY_SCOPE_IDS.tags,
   ASSISTANT_MEMORY_SCOPE_IDS.video,
   ASSISTANT_MEMORY_SCOPE_IDS.canvas,
   ASSISTANT_MEMORY_SCOPE_IDS.lora,
-  ASSISTANT_MEMORY_SCOPE_IDS.cards,
   ASSISTANT_MEMORY_SCOPE_IDS.global,
 ] as const
 
@@ -42,7 +45,7 @@ export type AssistantMemoryScopeId = (typeof ASSISTANT_MEMORY_SCOPES)[number]
  * 一条记忆是**谁写的**（助手设置 B · 记忆页「你写的 / 助手记的」，owner 2026-09-26）。
  *
  * ⭐ 你写的优先：进系统提示「你写下的规矩」那一段（带 id，能被引用成规则薄卡），
- * ⛔ 不占助手记的那份预算、⛔ 不参与淘汰；助手记的按工作台限制预算与淘汰。
+ * ⛔ 不占助手记的那份预算、⛔ 不参与淘汰；助手记的走预算（卡优先）与每域 200 条的淘汰。
  * ⚠ 旧「项目规则」里的普通规则并进来了：用户自己写的那些就是 `creator`。
  * ⚠ id 与库里 `AssistantMemorySource` 一一对应，与规则薄卡事件里的 `source` 同一套词。
  */
@@ -75,7 +78,7 @@ export type AssistantMemoryKindId = (typeof ASSISTANT_MEMORY_KINDS)[number]
 
 export const ASSISTANT_MEMORY_LIMITS = {
   /**
-   * **每个工作台**最多几条**助手记的**。撞上限时按 `lastUsedAt` 最旧的**静默**删，
+   * **每域**最多几条**助手记的**。撞上限时按 `lastUsedAt` 最旧的**静默**删，
    * ⛔ 你写的不淘汰（它们有自己的上限 `maxCreatorEntries`）。
    * ⛔ 不画容量表、不变灰、不提示 —— owner 2026-09-20：「容量表撤」。
    */
@@ -90,7 +93,10 @@ export const ASSISTANT_MEMORY_LIMITS = {
    */
   maxCreatorEntries: 50,
   /**
-   * **当前工作台的助手记忆一共注入几条**（按 `lastUsedAt` 倒序）。
+   * **当前域 + global 一共注入几条**（按 `lastUsedAt` 倒序）。
+   *
+   * ⚠ 它与上下文卡**共用一份预算**，见 `ASSISTANT_CONTEXT_BUDGET`：这个数是
+   * 记忆单独能占的上限，真正进提示的条数还要减去这一轮挂着的卡。
    */
   maxInPrompt: 8,
 } as const

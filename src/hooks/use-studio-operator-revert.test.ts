@@ -196,7 +196,6 @@ const RULE_STEP = {
   payload: {
     ruleId: 'rule-9',
     scope: null,
-    workspaceKey: 'image-natural',
     text: '输出一律不加水印',
     kind: 'note',
     source: 'assistant',
@@ -362,29 +361,6 @@ describe('还原这轮', () => {
     expect(dispatch).not.toHaveBeenCalled()
     expect(store.getOperatorState().entries).toHaveLength(1)
     expect(store.getOperatorState().entries[0]).toMatchObject({ undone: false })
-  })
-
-  it('旧 NULL 工作区历史只读，不提供撤销计数、标签或写入', async () => {
-    store.loadOperatorThread({
-      history: [],
-      sessionId: 'legacy-session',
-      sessionSurface: 'IMAGE_STUDIO',
-      readOnlyHistory: true,
-    })
-    buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
-
-    await act(async () => result.current.revertRound(ROUND_B))
-
-    expect(result.current.countRoundChanges(ROUND_B)).toBe(0)
-    expect(result.current.roundChangeLabelKeys(ROUND_B)).toEqual([])
-    expect(dispatch).not.toHaveBeenCalled()
-    expect(store.getOperatorState().primed).toBe(true)
-    expect(
-      store
-        .getOperatorState()
-        .entries.filter((entry) => entry.kind === 'system'),
-    ).toEqual([])
   })
 
   it('等待网络撤销成功回执后才划线并撤下一步', async () => {

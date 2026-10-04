@@ -160,6 +160,17 @@ export const AssistantConversationMessageSchema = z.object({
    * 判据见 `StudioOperatorPendingSchema`。⚠ 同上 `.catch(undefined)`：读不出来就当没有。
    */
   operatorPending: StudioOperatorPendingSchema.optional().catch(undefined),
+  /**
+   * **这段会话属于哪台图片工作台**（`image-natural` / `image-tags`）。
+   *
+   * ⭐ 只盖在**首条消息**上，由服务端在保存时盖（客户端不必给）：图片工作台分两台，
+   * 而库里的 `surface` 只有一个 `IMAGE_STUDIO`。其余几个工作区都能从 `surface` +
+   * `projectId` 直接推出来，所以不需要这一格。没有戳的图片会话（两台分开之前的
+   * 历史）归自然语言台。
+   * ⛔ 不为它加列、不写迁移（owner 规矩：不加 migration / 兼容层）。
+   * ⚠ `.catch(undefined)`：读不出来就当没有戳，⛔ 不让一条坏值整段会话读不出来。
+   */
+  workspaceKey: AssistantWorkspaceKeySchema.optional().catch(undefined),
 })
 
 export type AssistantConversationMessageStored = z.infer<
@@ -184,7 +195,6 @@ export const ListAssistantConversationsQuerySchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
   surface: AssistantSurfaceSchema,
   projectId: z.string().trim().min(1).max(160).optional(),
-  includeLegacy: z.boolean().optional(),
   operatorOnly: z.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 })
@@ -198,7 +208,6 @@ export const GetAssistantConversationQuerySchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
   surface: AssistantSurfaceSchema.optional(),
   projectId: z.string().trim().min(1).max(160).optional(),
-  includeLegacy: z.boolean().optional(),
   operatorOnly: z.boolean().optional(),
 })
 

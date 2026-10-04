@@ -7,7 +7,6 @@ import type {
 import type {
   AssistantMemory,
   CreateAssistantMemoryRequest,
-  UpdateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
 
 /**
@@ -63,13 +62,10 @@ function memoryUrl(memoryId: string): string {
 
 /** ⚠ `scope` 缺席 = 全部（chip 默认那一档）。 */
 export async function listAssistantMemoriesAPI(
-  filter: { scope?: AssistantMemoryScopeId; workspaceKey?: string } = {},
+  filter: { scope?: AssistantMemoryScopeId } = {},
 ): Promise<ApiResult<AssistantMemory[]>> {
   try {
-    const params = new URLSearchParams()
-    if (filter.scope) params.set('scope', filter.scope)
-    if (filter.workspaceKey) params.set('workspaceKey', filter.workspaceKey)
-    const query = params.size ? `?${params}` : ''
+    const query = filter.scope ? `?scope=${filter.scope}` : ''
     const response = await fetch(
       `${API_ENDPOINTS.ASSISTANT_MEMORIES}${query}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
@@ -80,7 +76,7 @@ export async function listAssistantMemoriesAPI(
   }
 }
 
-/** 你写一条（记忆页那一格，回车存下）。需指定工作台或显式全局范围。 */
+/** 你写一条（记忆页那一格，回车存下）。缺 `scope` = 全部工作台。 */
 export async function createAssistantMemoryAPI(
   input: CreateAssistantMemoryRequest,
 ): Promise<ApiResult<AssistantMemory>> {
@@ -98,7 +94,7 @@ export async function createAssistantMemoryAPI(
 
 export async function updateAssistantMemoryAPI(
   memoryId: string,
-  input: UpdateAssistantMemoryRequest,
+  input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<ApiResult<AssistantMemory>> {
   try {
     const response = await fetch(memoryUrl(memoryId), {

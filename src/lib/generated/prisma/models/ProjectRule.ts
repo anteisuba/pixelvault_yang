@@ -33,7 +33,6 @@ export type ProjectRuleMinAggregateOutputType = {
   id: string | null
   userId: string | null
   scope: string | null
-  workspaceKey: string | null
   text: string | null
   source: $Enums.ProjectRuleSource | null
   kind: $Enums.ProjectRuleKind | null
@@ -44,7 +43,6 @@ export type ProjectRuleMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   scope: string | null
-  workspaceKey: string | null
   text: string | null
   source: $Enums.ProjectRuleSource | null
   kind: $Enums.ProjectRuleKind | null
@@ -55,7 +53,6 @@ export type ProjectRuleCountAggregateOutputType = {
   id: number
   userId: number
   scope: number
-  workspaceKey: number
   text: number
   source: number
   kind: number
@@ -68,7 +65,6 @@ export type ProjectRuleMinAggregateInputType = {
   id?: true
   userId?: true
   scope?: true
-  workspaceKey?: true
   text?: true
   source?: true
   kind?: true
@@ -79,7 +75,6 @@ export type ProjectRuleMaxAggregateInputType = {
   id?: true
   userId?: true
   scope?: true
-  workspaceKey?: true
   text?: true
   source?: true
   kind?: true
@@ -90,7 +85,6 @@ export type ProjectRuleCountAggregateInputType = {
   id?: true
   userId?: true
   scope?: true
-  workspaceKey?: true
   text?: true
   source?: true
   kind?: true
@@ -174,7 +168,6 @@ export type ProjectRuleGroupByOutputType = {
   id: string
   userId: string
   scope: string | null
-  workspaceKey: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind: $Enums.ProjectRuleKind
@@ -206,7 +199,6 @@ export type ProjectRuleWhereInput = {
   id?: Prisma.StringFilter<"ProjectRule"> | string
   userId?: Prisma.StringFilter<"ProjectRule"> | string
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
-  workspaceKey?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
@@ -218,7 +210,6 @@ export type ProjectRuleOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrderInput | Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrderInput | Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
   kind?: Prisma.SortOrder
@@ -233,7 +224,6 @@ export type ProjectRuleWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ProjectRuleWhereInput | Prisma.ProjectRuleWhereInput[]
   userId?: Prisma.StringFilter<"ProjectRule"> | string
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
-  workspaceKey?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
@@ -245,7 +235,6 @@ export type ProjectRuleOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrderInput | Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrderInput | Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
   kind?: Prisma.SortOrder
@@ -262,7 +251,6 @@ export type ProjectRuleScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"ProjectRule"> | string
   userId?: Prisma.StringWithAggregatesFilter<"ProjectRule"> | string
   scope?: Prisma.StringNullableWithAggregatesFilter<"ProjectRule"> | string | null
-  workspaceKey?: Prisma.StringNullableWithAggregatesFilter<"ProjectRule"> | string | null
   text?: Prisma.StringWithAggregatesFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceWithAggregatesFilter<"ProjectRule"> | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindWithAggregatesFilter<"ProjectRule"> | $Enums.ProjectRuleKind
@@ -272,7 +260,6 @@ export type ProjectRuleScalarWhereWithAggregatesInput = {
 export type ProjectRuleCreateInput = {
   id?: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -284,7 +271,6 @@ export type ProjectRuleUncheckedCreateInput = {
   id?: string
   userId: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -294,7 +280,6 @@ export type ProjectRuleUncheckedCreateInput = {
 export type ProjectRuleUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -306,7 +291,6 @@ export type ProjectRuleUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -317,7 +301,6 @@ export type ProjectRuleCreateManyInput = {
   id?: string
   userId: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -327,7 +310,6 @@ export type ProjectRuleCreateManyInput = {
 export type ProjectRuleUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -338,7 +320,6 @@ export type ProjectRuleUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -359,7 +340,6 @@ export type ProjectRuleCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
   kind?: Prisma.SortOrder
@@ -370,7 +350,6 @@ export type ProjectRuleMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
   kind?: Prisma.SortOrder
@@ -381,7 +360,6 @@ export type ProjectRuleMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
-  workspaceKey?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
   kind?: Prisma.SortOrder
@@ -441,7 +419,6 @@ export type EnumProjectRuleKindFieldUpdateOperationsInput = {
 export type ProjectRuleCreateWithoutUserInput = {
   id?: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -451,7 +428,6 @@ export type ProjectRuleCreateWithoutUserInput = {
 export type ProjectRuleUncheckedCreateWithoutUserInput = {
   id?: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -491,7 +467,6 @@ export type ProjectRuleScalarWhereInput = {
   id?: Prisma.StringFilter<"ProjectRule"> | string
   userId?: Prisma.StringFilter<"ProjectRule"> | string
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
-  workspaceKey?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
@@ -501,7 +476,6 @@ export type ProjectRuleScalarWhereInput = {
 export type ProjectRuleCreateManyUserInput = {
   id?: string
   scope?: string | null
-  workspaceKey?: string | null
   text: string
   source: $Enums.ProjectRuleSource
   kind?: $Enums.ProjectRuleKind
@@ -511,7 +485,6 @@ export type ProjectRuleCreateManyUserInput = {
 export type ProjectRuleUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -521,7 +494,6 @@ export type ProjectRuleUpdateWithoutUserInput = {
 export type ProjectRuleUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -531,7 +503,6 @@ export type ProjectRuleUncheckedUpdateWithoutUserInput = {
 export type ProjectRuleUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  workspaceKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
   kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
@@ -544,7 +515,6 @@ export type ProjectRuleSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   id?: boolean
   userId?: boolean
   scope?: boolean
-  workspaceKey?: boolean
   text?: boolean
   source?: boolean
   kind?: boolean
@@ -556,7 +526,6 @@ export type ProjectRuleSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   userId?: boolean
   scope?: boolean
-  workspaceKey?: boolean
   text?: boolean
   source?: boolean
   kind?: boolean
@@ -568,7 +537,6 @@ export type ProjectRuleSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   userId?: boolean
   scope?: boolean
-  workspaceKey?: boolean
   text?: boolean
   source?: boolean
   kind?: boolean
@@ -580,14 +548,13 @@ export type ProjectRuleSelectScalar = {
   id?: boolean
   userId?: boolean
   scope?: boolean
-  workspaceKey?: boolean
   text?: boolean
   source?: boolean
   kind?: boolean
   createdAt?: boolean
 }
 
-export type ProjectRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "workspaceKey" | "text" | "source" | "kind" | "createdAt", ExtArgs["result"]["projectRule"]>
+export type ProjectRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "text" | "source" | "kind" | "createdAt", ExtArgs["result"]["projectRule"]>
 export type ProjectRuleInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -610,7 +577,6 @@ export type $ProjectRulePayload<ExtArgs extends runtime.Types.Extensions.Interna
      * null = 全域。非空时是一个域 id（image / video / lora）。
      */
     scope: string | null
-    workspaceKey: string | null
     /**
      * 一个来源 id 或域名（来源名单）。
      */
@@ -1051,7 +1017,6 @@ export interface ProjectRuleFieldRefs {
   readonly id: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly userId: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly scope: Prisma.FieldRef<"ProjectRule", 'String'>
-  readonly workspaceKey: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly text: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly source: Prisma.FieldRef<"ProjectRule", 'ProjectRuleSource'>
   readonly kind: Prisma.FieldRef<"ProjectRule", 'ProjectRuleKind'>

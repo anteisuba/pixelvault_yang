@@ -53,7 +53,6 @@ export async function listAssistantConversationsAPI(args: {
   workspaceKey: string
   surface: AssistantSurfaceId
   projectId?: string
-  includeLegacy?: boolean
   operatorOnly?: boolean
   limit?: number
 }): Promise<ApiResult<AssistantConversationSummary[]>> {
@@ -64,7 +63,6 @@ export async function listAssistantConversationsAPI(args: {
       list: '1',
     })
     if (args.projectId) params.set('projectId', args.projectId)
-    if (args.includeLegacy) params.set('includeLegacy', '1')
     if (args.operatorOnly !== undefined)
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')
     if (args.limit) params.set('limit', String(args.limit))
@@ -88,7 +86,6 @@ export async function getAssistantConversationAPI(args: {
   surface: AssistantSurfaceId
   projectId?: string
   id?: string
-  includeLegacy?: boolean
   operatorOnly?: boolean
 }): Promise<ApiResult<AssistantConversationRecord | null>> {
   try {
@@ -98,7 +95,6 @@ export async function getAssistantConversationAPI(args: {
     })
     if (args.projectId) params.set('projectId', args.projectId)
     if (args.id) params.set('id', args.id)
-    if (args.includeLegacy) params.set('includeLegacy', '1')
     if (args.operatorOnly !== undefined)
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')
 

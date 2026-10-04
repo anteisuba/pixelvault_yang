@@ -303,7 +303,7 @@ export function StudioOperatorHeader({
           open={menuOpen}
           onOpenChange={(next) => {
             setMenuOpen(next)
-            if (next) history.refreshSessions(true, true)
+            if (next) history.refreshSessions(true)
             // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
             else setConfirmDeleteId(null)
           }}

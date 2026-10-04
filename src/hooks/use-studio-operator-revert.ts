@@ -106,7 +106,6 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     const current = getOperatorState()
     return (
       threadScope !== null &&
-      !current.readOnlyHistory &&
       current.threadScope === threadScope &&
       current.localThreadId === localThreadId
     )
@@ -213,20 +212,17 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
    */
   const countRoundChanges = useCallback(
     (runKey: string) =>
-      operatorState.readOnlyHistory
-        ? 0
-        : operatorState.entries.filter(
-            (entry) =>
-              entry.kind === 'step' &&
-              entry.runKey === runKey &&
-              isRevertableStepEntry(entry),
-          ).length,
-    [operatorState.entries, operatorState.readOnlyHistory],
+      operatorState.entries.filter(
+        (entry) =>
+          entry.kind === 'step' &&
+          entry.runKey === runKey &&
+          isRevertableStepEntry(entry),
+      ).length,
+    [operatorState.entries],
   )
 
   const roundChangeLabelKeys = useCallback(
     (runKey: string) => {
-      if (operatorState.readOnlyHistory) return []
       const steps = operatorState.entries.filter(
         (entry): entry is StudioOperatorStepEntry =>
           entry.kind === 'step' &&
@@ -253,7 +249,7 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
       }
       return keys
     },
-    [operatorState.entries, operatorState.readOnlyHistory],
+    [operatorState.entries],
   )
 
   return {

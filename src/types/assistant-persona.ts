@@ -11,7 +11,6 @@
  */
 
 import { z } from 'zod'
-import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
@@ -328,7 +327,6 @@ export const ProjectRuleSourceTokenSchema = z
 export const ProjectRuleSchema = z.object({
   id: z.string().min(1),
   scope: ProjectRuleScopeSchema.nullable(),
-  workspaceKey: AssistantWorkspaceKeySchema.nullable().default(null),
   text: z
     .string()
     .trim()
@@ -376,7 +374,6 @@ export function normalizeProjectRuleSourceToken(value: string): string {
 export const CreateProjectRuleSchema = z.object({
   text: ProjectRuleSourceTokenSchema,
   scope: ProjectRuleScopeSchema.nullish(),
-  workspaceKey: AssistantWorkspaceKeySchema.nullish(),
   kind: z.enum(PROJECT_RULE_SOURCE_KINDS),
   /**
    * 缺省 = `creator`（用户自己在设置里写的）。助手那条路由服务端写死
@@ -393,7 +390,6 @@ export type CreateProjectRuleInput = z.input<typeof CreateProjectRuleSchema>
 /** GET `/api/assistant/rules` 的查询串。`scope` 缺省 = 全都要（含全域那些）。 */
 export const ListProjectRulesQuerySchema = z.object({
   scope: ProjectRuleScopeSchema.optional(),
-  workspaceKey: AssistantWorkspaceKeySchema.optional(),
 })
 
 export type ListProjectRulesQuery = z.infer<typeof ListProjectRulesQuerySchema>

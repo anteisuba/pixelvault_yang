@@ -764,7 +764,6 @@ export function useAssistantOperator(
     const current = getOperatorState()
     return (
       scope !== null &&
-      !current.readOnlyHistory &&
       current.threadScope === scope &&
       current.localThreadId === localThreadId
     )

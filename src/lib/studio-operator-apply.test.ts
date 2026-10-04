@@ -752,7 +752,6 @@ describe('revertOperatorStep', () => {
         verb: 'apply',
         payload: {
           ruleId: 'rule-1',
-          workspaceKey: 'image-natural',
           scope: null,
           text: 'keep rule',
           kind,

@@ -547,66 +547,23 @@ describe('作用域和本地线程身份的异步边界', () => {
     expect(rendered.result.current.error).toBeNull()
   })
 
-  it('只有主动查看才请求旧历史，旧记录只读且不会再落成当前工作区会话', async () => {
+  it('只打开属于当前工作区的会话；另一台的、归不到任何工作区的都不去取', async () => {
     const rendered = await mount()
-    expect(listMock.mock.calls[0][0].includeLegacy).toBeUndefined()
-    act(() => say('u1', '旧消息'))
-    await settleDebounce()
-    const messages = lastUpsertBody().messages
-    const legacy = { ...session, id: 'legacy-conversation', workspaceKey: null }
-    listMock.mockResolvedValue({ success: true, data: [legacy] })
+    expect(listMock.mock.calls[0][0]).not.toHaveProperty('includeLegacy')
+    getMock.mockClear()
     await act(async () => {
-      rendered.result.current.refreshSessions(true, true)
+      rendered.result.current.selectSession({
+        ...session,
+        id: 'tags-conversation',
+        workspaceKey: 'image-tags',
+      })
+      rendered.result.current.selectSession({
+        ...session,
+        id: 'orphan-canvas',
+        workspaceKey: null,
+      })
     })
-    expect(listMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        workspaceKey: 'image-natural',
-        includeLegacy: true,
-      }),
-    )
-    getMock.mockResolvedValue({
-      success: true,
-      data: {
-        ...legacy,
-        messages,
-        rounds: [
-          {
-            roundIndex: 0,
-            createdAt: '2026-09-11T00:00:00Z',
-            facts: ['旧结论'],
-            decisions: [],
-            todos: [],
-            evidenceRefs: [],
-          },
-        ],
-      },
-    })
-    await act(async () => {
-      rendered.result.current.selectSession(legacy)
-    })
-    expect(getMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ includeLegacy: true, operatorOnly: true }),
-    )
-    expect(store.getOperatorState()).toMatchObject({
-      readOnlyHistory: true,
-      sessionId: null,
-      autoGenerate: false,
-      confirm: null,
-      question: null,
-      historyRounds: [],
-    })
-    expect(store.getOperatorState().history).toHaveLength(1)
-    upsertMock.mockClear()
-    await act(async () => {
-      expect(await rendered.result.current.retrySave()).toBe(false)
-    })
-    await settleDebounce()
-    expect(upsertMock).not.toHaveBeenCalled()
-    act(() => store.resetOperatorThread())
-    expect(store.getOperatorState()).toMatchObject({
-      readOnlyHistory: false,
-      history: [],
-    })
+    expect(getMock).not.toHaveBeenCalled()
   })
 
   it('首次保存期间新建线程，旧 null 会话回包不能回填新 null 会话', async () => {

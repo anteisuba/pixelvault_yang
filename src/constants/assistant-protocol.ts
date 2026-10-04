@@ -149,6 +149,17 @@ export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
   cards: 'cards',
 } as const
 
+/**
+ * 学出来的创作偏好（`UserCreativePreference`）**只由图片生成的行为喂**，所以只在出图的
+ * 三台注入 —— 视频与角色页不带（owner 2026-10-04）。
+ */
+export const ASSISTANT_CREATIVE_PREFERENCE_DOMAINS: ReadonlySet<string> =
+  new Set([
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+  ])
+
 export const ASSISTANT_PROTOCOL_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.video,

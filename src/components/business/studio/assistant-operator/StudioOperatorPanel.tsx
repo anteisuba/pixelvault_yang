@@ -400,7 +400,6 @@ export function StudioOperatorPanel({
     resume,
     autoGenerate,
     outOfSteps,
-    readOnlyHistory,
     saveFailed,
   } = useStudioOperatorState()
   /**
@@ -612,7 +611,7 @@ export function StudioOperatorPanel({
   const savePinnedEvidence = useCallback(
     (patch: StudioOperatorPinPatch) => {
       const sessionId = history.currentSessionId
-      if (readOnlyHistory || !workspaceKey) return
+      if (!workspaceKey) return
       const thread = getOperatorState().localThreadId
       const previous =
         rounds.find((round) => round.roundIndex === patch.roundIndex)
@@ -635,7 +634,7 @@ export function StudioOperatorPanel({
         }
       })
     },
-    [history.currentSessionId, rounds, readOnlyHistory, workspaceKey],
+    [history.currentSessionId, rounds, workspaceKey],
   )
 
   /** 已经落进结论记录的那几条钉住（含它在哪一轮）。 */
@@ -1982,11 +1981,6 @@ export function StudioOperatorPanel({
           ) : null}
         </div>
       ) : null}
-      {readOnlyHistory ? (
-        <p role="status" className="px-3 py-2 text-sm text-muted-foreground">
-          {t('history.legacyReadOnly')}
-        </p>
-      ) : null}
       {/* D12 U1：对话区与输入区**实底**（半透明会把工作台的缩略图透上来，时间线
           背后糊成一片色块）；玻璃只留头部与浮层。 */}
       <div
@@ -2578,7 +2572,6 @@ export function StudioOperatorPanel({
             在话里说，上下文卡只留助手提议与设置里管理）。 */}
         <div
           data-testid="operator-input-area"
-          inert={readOnlyHistory}
           data-drag-over={dragOver}
           /**
            * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
@@ -2796,7 +2789,7 @@ export function StudioOperatorPanel({
                  * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
                  * 一句「还有文件在传」，⛔ 不做「点了没反应」。
                  */
-                disabled={uploading || readOnlyHistory}
+                disabled={uploading}
                 title={sendLabel}
                 aria-label={sendLabel}
                 onClick={() => submit(draft)}

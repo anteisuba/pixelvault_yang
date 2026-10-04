@@ -1422,6 +1422,14 @@ export const ASSISTANT_PLAN_CARD_LIMITS = {
   maxOptionDescriptionChars: 80,
   /** 「其他」里用户自己写的那一句。 */
   maxOtherTextChars: 200,
+  /**
+   * 人设「谨慎」档**从几步起**先摆计划卡（owner 2026-10-04）。
+   *
+   * ⭐ 一步改动落地后有「撤销」兜底，点头换不来任何安全，只多一次点击；两步起才是
+   * 一条要先过目的「一轮」。三档因此是一条梯度：放手 = 超过三步或要花钱 · 平衡 =
+   * 模型判 · 谨慎 = 两步起。⚠ 调回 `1` 就是此前「每轮都先问」的行为。
+   */
+  cautiousMinPlanSteps: 2,
 } as const
 
 /**
@@ -2091,6 +2099,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxCharacters: 60,
   /** 放在画布上、带设定的那几位最多几位。 */
   maxCastProfiles: 6,
+  /** 系统提示里印几种节点模型的写法（展开的镜里出现的型号，去重）。 */
+  maxDialectModels: 4,
 } as const
 
 export const ASSISTANT_OPERATOR_LIMITS = {
@@ -2799,6 +2809,16 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 但你自己把它否了」—— 后者可教，助手读到就该去换一张，而不是换个参数再挂一次。
    */
   blockedSource: 'blockedSource',
+  /**
+   * 这一步的**工具自己出了技术故障**（视觉线 / 检索 / 读库抛了异常）。
+   *
+   * ⭐ 做成一条被拒的步而不是一次抛错：抛错会让整轮以一句笼统的「出错了」结束，
+   * 而用户要的东西多半不依赖这一步（owner 2026-10-04：「出现 error 的次数太多了」）。
+   * 助手读到理由之后能接着做剩下的、或者如实说这一步没成。
+   * ⛔ 只收**临时性的技术故障**；缺 key / 未登录 / 额度不足这类要用户动手的错
+   * 仍照旧上抛，由客户端路由到 `QuickSetupDialog` 等入口（Hard Rule 8）。
+   */
+  toolFailed: 'toolFailed',
 } as const
 
 /**

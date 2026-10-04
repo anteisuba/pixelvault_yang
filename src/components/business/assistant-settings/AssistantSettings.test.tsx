@@ -55,11 +55,6 @@ vi.mock('@/hooks/cards', () => ({
 }))
 
 vi.mock('@/hooks/use-assistant-memories', () => ({
-  useAssistantMemoryProjects: () => ({
-    status: 'ready',
-    projects: [],
-    load: vi.fn(),
-  }),
   useAssistantMemories: () => ({
     memories: [],
     isLoading: false,

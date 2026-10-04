@@ -12,9 +12,6 @@ import {
   type AssistantMemorySourceId,
 } from '@/constants/assistant-memory'
 import { db } from '@/lib/db'
-import { ApiRequestError } from '@/lib/errors'
-import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
-import { assertAssistantWorkspaceAccess } from '@/services/assistant-conversation.service'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantMemoryKind,
@@ -25,8 +22,6 @@ import {
   AssistantMemorySchema,
   type AssistantMemory,
   type AssistantMemoryCandidate,
-  type CreateAssistantMemoryRequest,
-  type UpdateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
 
 /**
@@ -48,8 +43,6 @@ import {
 /** 协议侧的小写 id ↔ 库里的 SCREAMING_SNAKE 枚举。⛔ 两处都不许写字面量。 */
 const DB_SCOPE_BY_ID: Record<AssistantMemoryScopeId, AssistantMemoryScope> = {
   [ASSISTANT_MEMORY_SCOPE_IDS.image]: 'IMAGE',
-  [ASSISTANT_MEMORY_SCOPE_IDS.tags]: 'TAGS',
-  [ASSISTANT_MEMORY_SCOPE_IDS.cards]: 'CARDS',
   [ASSISTANT_MEMORY_SCOPE_IDS.video]: 'VIDEO',
   [ASSISTANT_MEMORY_SCOPE_IDS.canvas]: 'CANVAS',
   [ASSISTANT_MEMORY_SCOPE_IDS.lora]: 'LORA',
@@ -58,8 +51,6 @@ const DB_SCOPE_BY_ID: Record<AssistantMemoryScopeId, AssistantMemoryScope> = {
 
 const ID_BY_DB_SCOPE: Record<AssistantMemoryScope, AssistantMemoryScopeId> = {
   IMAGE: ASSISTANT_MEMORY_SCOPE_IDS.image,
-  TAGS: ASSISTANT_MEMORY_SCOPE_IDS.tags,
-  CARDS: ASSISTANT_MEMORY_SCOPE_IDS.cards,
   VIDEO: ASSISTANT_MEMORY_SCOPE_IDS.video,
   CANVAS: ASSISTANT_MEMORY_SCOPE_IDS.canvas,
   LORA: ASSISTANT_MEMORY_SCOPE_IDS.lora,
@@ -93,7 +84,6 @@ const ID_BY_DB_SOURCE: Record<AssistantMemorySource, AssistantMemorySourceId> =
 const MEMORY_SELECT = {
   id: true,
   scope: true,
-  workspaceKey: true,
   kind: true,
   source: true,
   text: true,
@@ -104,7 +94,6 @@ const MEMORY_SELECT = {
 interface MemoryRow {
   id: string
   scope: AssistantMemoryScope
-  workspaceKey: string | null
   kind: AssistantMemoryKind
   source: AssistantMemorySource
   text: string
@@ -122,7 +111,6 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
   const parsed = AssistantMemorySchema.safeParse({
     id: row.id,
     scope: ID_BY_DB_SCOPE[row.scope],
-    workspaceKey: row.workspaceKey,
     kind: ID_BY_DB_KIND[row.kind],
     source: ID_BY_DB_SOURCE[row.source],
     text: row.text,
@@ -135,7 +123,6 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
 export interface ListAssistantMemoriesOptions {
   /** 给了就只要这个域的。缺席 = 全部（总览列表默认那一档）。 */
   scope?: AssistantMemoryScopeId | null
-  workspaceKey?: string
   limit?: number
 }
 
@@ -155,7 +142,6 @@ export async function listAssistantMemories(
   const where = {
     userId,
     ...(options.scope ? { scope: DB_SCOPE_BY_ID[options.scope] } : {}),
-    ...(options.workspaceKey ? { workspaceKey: options.workspaceKey } : {}),
   }
   const [creatorRows, assistantRows] = await Promise.all([
     db.assistantMemory.findMany({
@@ -194,49 +180,33 @@ export async function listAssistantMemoriesForClerkId(
   return listAssistantMemories(user.id, options)
 }
 
-async function resolveMemoryDestination(
-  userId: string,
-  input: { scope?: AssistantMemoryScopeId; workspaceKey?: string | null },
-): Promise<{ scope: AssistantMemoryScope; workspaceKey: string | null }> {
-  if (input.workspaceKey) {
-    await assertAssistantWorkspaceAccess(userId, input.workspaceKey)
-    const workspace = assistantWorkspaceFromKey(input.workspaceKey)!.workspace
-    const scopeId =
-      workspace === 'image-natural'
-        ? ASSISTANT_MEMORY_SCOPE_IDS.image
-        : workspace === 'image-tags'
-          ? ASSISTANT_MEMORY_SCOPE_IDS.tags
-          : workspace
-    if (input.scope !== undefined && input.scope !== scopeId) {
-      throw new ApiRequestError(
-        'ASSISTANT_MEMORY_WORKSPACE_MISMATCH',
-        400,
-        'errors.assistantConversation.notFound',
-        'Memory workspace does not match its scope',
-      )
-    }
-    return { scope: DB_SCOPE_BY_ID[scopeId], workspaceKey: input.workspaceKey }
-  }
-  if (input.scope === ASSISTANT_MEMORY_SCOPE_IDS.global) {
-    return { scope: 'GLOBAL', workspaceKey: null }
-  }
-  throw new ApiRequestError(
-    'ASSISTANT_MEMORY_WORKSPACE_REQUIRED',
-    400,
-    'errors.assistantConversation.notFound',
-    'Memory workspace is required',
-  )
+/** 当前域 + `global`（`global` 本身就只是它自己）。 */
+function promptScopes(scope: AssistantMemoryScopeId): AssistantMemoryScope[] {
+  return scope === ASSISTANT_MEMORY_SCOPE_IDS.global
+    ? [DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global]]
+    : [DB_SCOPE_BY_ID[scope], DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global]]
 }
 
+/**
+ * **注入那一跳要的那几条助手记的**（切片 2）：当前域 + `global`，按 `lastUsedAt`
+ * 倒序。⚠ 只要助手记的 —— 你写的有自己那一段（`listCreatorMemoriesForPrompt`）。
+ *
+ * ⚠ 预算由调用方给（卡优先，见 `ASSISTANT_CONTEXT_BUDGET`）—— ⛔ 这里不自己
+ * 读卡表：一个函数同时决定两种东西各占多少，是把预算判据藏进了服务层。
+ * ⚠ `limit <= 0` 时**一条都不查**：预算被卡吃光了，⛔ 别照样打一次库。
+ */
 export async function listAssistantMemoriesForPrompt(
   userId: string,
-  workspaceKey: string,
+  scope: AssistantMemoryScopeId,
   limit: number,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
-  const destination = await resolveMemoryDestination(userId, { workspaceKey })
   const rows = await db.assistantMemory.findMany({
-    where: { userId, ...destination, source: 'ASSISTANT' },
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      scope: { in: promptScopes(scope) },
+    },
     orderBy: { lastUsedAt: 'desc' },
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxInPrompt),
     select: MEMORY_SELECT,
@@ -246,18 +216,23 @@ export async function listAssistantMemoriesForPrompt(
     .filter((memory): memory is AssistantMemory => memory !== null)
 }
 
+/**
+ * **你写的**那一段（助手设置 B：你写的优先）—— 当前域 + `global`，最近改过的在前。
+ *
+ * ⭐ 它们进「你写下的规矩」那一段，带 id，能被引用成规则薄卡；⛔ 不占记忆预算、
+ * ⛔ 不参与淘汰。旧「项目规则」里用户自己写的普通规则就在这里。
+ */
 export async function listCreatorMemoriesForPrompt(
   userId: string,
-  workspaceKey: string,
+  scope: AssistantMemoryScopeId,
   limit: number,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
-  const destination = await resolveMemoryDestination(userId, { workspaceKey })
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
-      source: 'CREATOR',
-      OR: [destination, { scope: 'GLOBAL', workspaceKey: null }],
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+      scope: { in: promptScopes(scope) },
     },
     orderBy: { updatedAt: 'desc' },
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
@@ -268,20 +243,22 @@ export async function listCreatorMemoriesForPrompt(
     .filter((memory): memory is AssistantMemory => memory !== null)
 }
 
+/**
+ * 助手翻「规矩」的那一次（`read_project_rules`）：你写的 + 助手在对话里记下的规矩，
+ * 给了域就只要该域 + `global`。最近改过的在前。
+ */
 export async function listStandingRuleMemories(
   userId: string,
-  options: { workspaceKey: string; limit: number },
+  options: { scope?: AssistantMemoryScopeId | null; limit: number },
 ): Promise<AssistantMemory[]> {
-  const destination = await resolveMemoryDestination(userId, {
-    workspaceKey: options.workspaceKey,
-  })
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       OR: [
-        { ...destination, OR: [{ source: 'CREATOR' }, { kind: 'RULE' }] },
-        { scope: 'GLOBAL', workspaceKey: null, source: 'CREATOR' },
+        { source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator] },
+        { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
       ],
+      ...(options.scope ? { scope: { in: promptScopes(options.scope) } } : {}),
     },
     orderBy: { updatedAt: 'desc' },
     take: options.limit,
@@ -324,12 +301,12 @@ export class AssistantMemoryLimitError extends Error {
  */
 async function findSameText(
   userId: string,
-  destination: { scope: AssistantMemoryScope; workspaceKey: string | null },
+  scope: AssistantMemoryScopeId,
   text: string,
 ): Promise<MemoryRow | null> {
   const normalized = normalizeAssistantMemoryText(text)
   const siblings = await db.assistantMemory.findMany({
-    where: { userId, ...destination },
+    where: { userId, scope: DB_SCOPE_BY_ID[scope] },
     select: MEMORY_SELECT,
     take:
       ASSISTANT_MEMORY_LIMITS.maxPerScope +
@@ -350,14 +327,13 @@ async function findSameText(
  */
 export async function createCreatorMemory(
   userId: string,
-  input: CreateAssistantMemoryRequest,
+  input: { text: string; scope: AssistantMemoryScopeId },
 ): Promise<AssistantMemory> {
   const text = input.text.trim()
-  const destination = await resolveMemoryDestination(userId, input)
-  const same = await findSameText(userId, destination, text)
+  const same = await findSameText(userId, input.scope, text)
   if (same) {
     const row = await db.assistantMemory.update({
-      where: { id: same.id, userId, ...destination },
+      where: { id: same.id },
       data: {
         source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
         lastUsedAt: new Date(),
@@ -384,7 +360,7 @@ export async function createCreatorMemory(
   const row = await db.assistantMemory.create({
     data: {
       userId,
-      ...destination,
+      scope: DB_SCOPE_BY_ID[input.scope],
       kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
       text,
@@ -398,7 +374,7 @@ export async function createCreatorMemory(
 
 export async function createCreatorMemoryForClerkId(
   clerkId: string,
-  input: CreateAssistantMemoryRequest,
+  input: { text: string; scope: AssistantMemoryScopeId },
 ): Promise<AssistantMemory> {
   const user = await ensureUser(clerkId)
   return createCreatorMemory(user.id, input)
@@ -413,13 +389,10 @@ export async function createCreatorMemoryForClerkId(
  */
 export async function addAssistantRuleMemory(
   userId: string,
-  input: { text: string; workspaceKey: string },
+  input: { text: string; scope: AssistantMemoryScopeId },
 ): Promise<{ memory: AssistantMemory; created: boolean }> {
   const text = input.text.trim()
-  const destination = await resolveMemoryDestination(userId, {
-    workspaceKey: input.workspaceKey,
-  })
-  const same = await findSameText(userId, destination, text)
+  const same = await findSameText(userId, input.scope, text)
   if (same) {
     const memory = toMemory(same)
     if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
@@ -428,14 +401,14 @@ export async function addAssistantRuleMemory(
   const row = await db.assistantMemory.create({
     data: {
       userId,
-      ...destination,
+      scope: DB_SCOPE_BY_ID[input.scope],
       kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       text,
     },
     select: MEMORY_SELECT,
   })
-  await evictOldestAssistantMemories(userId, input.workspaceKey)
+  await evictOldestAssistantMemories(userId, input.scope)
   const memory = toMemory(row)
   if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
   return { memory, created: true }
@@ -451,7 +424,7 @@ export async function addAssistantRuleMemory(
 export async function updateAssistantMemory(
   userId: string,
   memoryId: string,
-  input: UpdateAssistantMemoryRequest,
+  input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<AssistantMemory | null> {
   const existing = await db.assistantMemory.findFirst({
     where: { id: memoryId, userId },
@@ -459,16 +432,13 @@ export async function updateAssistantMemory(
   })
   if (!existing) return null
 
-  const destination =
-    input.workspaceKey !== undefined || input.scope !== undefined
-      ? await resolveMemoryDestination(userId, input)
-      : undefined
   const row = await db.assistantMemory.update({
-    where: { id: existing.id, userId },
+    where: { id: existing.id },
     data: {
       ...(input.text !== undefined ? { text: input.text } : {}),
-      ...destination,
-      ...(destination?.scope === 'GLOBAL' ? { source: 'CREATOR' } : {}),
+      ...(input.scope !== undefined
+        ? { scope: DB_SCOPE_BY_ID[input.scope] }
+        : {}),
     },
     select: MEMORY_SELECT,
   })
@@ -478,7 +448,7 @@ export async function updateAssistantMemory(
 export async function updateAssistantMemoryForClerkId(
   clerkId: string,
   memoryId: string,
-  input: UpdateAssistantMemoryRequest,
+  input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<AssistantMemory | null> {
   const user = await ensureUser(clerkId)
   return updateAssistantMemory(user.id, memoryId, input)
@@ -542,7 +512,8 @@ export function isSensitiveMemoryText(text: string): boolean {
 
 export interface RecordAssistantMemoriesArgs {
   userId: string
-  workspaceKey: string
+  /** 缺席的候选挂这个域（当前工作台）。 */
+  scope: AssistantMemoryScopeId
   candidates: readonly AssistantMemoryCandidate[]
   conversationId?: string | undefined
   messageId?: string | undefined
@@ -566,11 +537,9 @@ export interface RecordAssistantMemoriesArgs {
 export async function recordAssistantMemories(
   args: RecordAssistantMemoriesArgs,
 ): Promise<number> {
-  const destination = await resolveMemoryDestination(args.userId, {
-    workspaceKey: args.workspaceKey,
-  })
   const seen = new Set<string>()
   const accepted: {
+    scope: AssistantMemoryScopeId
     kind: AssistantMemoryKindId
     text: string
     normalized: string
@@ -582,19 +551,20 @@ export async function recordAssistantMemories(
     if (text.length === 0) continue
     // ① 敏感类目：不写、不计数、⛔ 不记任何日志明文。
     if (isSensitiveMemoryText(text)) continue
+    const scope = candidate.scope ?? args.scope
     const normalized = normalizeAssistantMemoryText(text)
     if (normalized.length === 0) continue
     // ② 本轮内部去重（同域同类同字面）。
-    const key = `${candidate.kind}\0${normalized}`
+    const key = `${scope} ${candidate.kind} ${normalized}`
     if (seen.has(key)) continue
     seen.add(key)
-    accepted.push({ kind: candidate.kind, text, normalized })
+    accepted.push({ scope, kind: candidate.kind, text, normalized })
   }
 
   if (accepted.length === 0) return 0
 
   let written = 0
-  let created = false
+  const touchedScopes = new Set<AssistantMemoryScopeId>()
 
   for (const entry of accepted) {
     /**
@@ -605,7 +575,7 @@ export async function recordAssistantMemories(
     const siblings = await db.assistantMemory.findMany({
       where: {
         userId: args.userId,
-        ...destination,
+        scope: DB_SCOPE_BY_ID[entry.scope],
         kind: DB_KIND_BY_ID[entry.kind],
       },
       select: { id: true, text: true },
@@ -616,7 +586,7 @@ export async function recordAssistantMemories(
     )
     if (hit) {
       await db.assistantMemory.update({
-        where: { id: hit.id, userId: args.userId, ...destination },
+        where: { id: hit.id },
         data: { lastUsedAt: new Date() },
       })
       written += 1
@@ -626,7 +596,7 @@ export async function recordAssistantMemories(
     await db.assistantMemory.create({
       data: {
         userId: args.userId,
-        ...destination,
+        scope: DB_SCOPE_BY_ID[entry.scope],
         kind: DB_KIND_BY_ID[entry.kind],
         text: entry.text,
         conversationId: args.conversationId ?? null,
@@ -635,12 +605,12 @@ export async function recordAssistantMemories(
       select: { id: true },
     })
     written += 1
-    created = true
+    touchedScopes.add(entry.scope)
   }
 
   // ④ 只对**这一轮新增过**的域收一次上限：没新增的域条数没变。
-  if (created) {
-    await evictOldestAssistantMemories(args.userId, args.workspaceKey)
+  for (const scope of touchedScopes) {
+    await evictOldestAssistantMemories(args.userId, scope)
   }
 
   return written
@@ -656,11 +626,11 @@ export async function recordAssistantMemories(
  */
 async function evictOldestAssistantMemories(
   userId: string,
-  workspaceKey: string,
+  scope: AssistantMemoryScopeId,
 ): Promise<void> {
   const where = {
     userId,
-    workspaceKey,
+    scope: DB_SCOPE_BY_ID[scope],
     source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
   }
   const count = await db.assistantMemory.count({ where })
@@ -675,6 +645,6 @@ async function evictOldestAssistantMemories(
   })
   if (doomed.length === 0) return
   await db.assistantMemory.deleteMany({
-    where: { ...where, id: { in: doomed.map((row) => row.id) } },
+    where: { userId, id: { in: doomed.map((row) => row.id) } },
   })
 }

@@ -109,7 +109,6 @@ function sameSavedContent(
 }
 
 function persistThread(request: ThreadSave): Promise<boolean> {
-  if (request.snapshot.readOnlyHistory) return Promise.resolve(false)
   const id = request.snapshot.localThreadId
   const existing = pendingSaves.get(id)
   if (existing) {
@@ -201,14 +200,12 @@ export function resetOperatorHistoryHydrationForTests(): void {
 
 async function listOperatorSessions(
   workspace: WorkspacePersistence,
-  includeLegacy = false,
 ): Promise<AssistantConversationSummary[]> {
   const result = await listAssistantConversationsAPI({
     surface: workspace.surface,
     workspaceKey: workspace.workspaceKey,
     ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
     operatorOnly: true,
-    ...(includeLegacy ? { includeLegacy: true } : {}),
     limit: STUDIO_OPERATOR_HISTORY.listLimit,
   })
   if (!result.success) throw new Error(result.error)
@@ -230,7 +227,7 @@ export interface UseStudioOperatorHistoryResult {
   /** 载入历史失败时说了什么 —— ⛔ 不静默。 */
   error: string | null
   selectSession(session: AssistantConversationSummary): void
-  refreshSessions(force?: boolean, includeLegacy?: boolean): void
+  refreshSessions(force?: boolean): void
   retrySave(): Promise<boolean>
   deletingSessionId: string | null
   deleteSession(session: AssistantConversationSummary): Promise<boolean>
@@ -282,54 +279,46 @@ export function useStudioOperatorHistory({
   )
   const listPending = useRef<{
     scope: string
-    includeLegacy: boolean
     promise: Promise<AssistantConversationSummary[]>
   } | null>(null)
   const lastListedAt = useRef<{
     scope: string
-    includeLegacy: boolean
     at: number
   } | null>(null)
-  const fetchSessions = useCallback(
-    (includeLegacy = false) => {
-      if (!scope || !workspaceKey || !userId) return Promise.resolve([])
-      if (
-        listPending.current?.scope === scope &&
-        listPending.current.includeLegacy === includeLegacy
-      )
-        return listPending.current.promise
-      const pending = listOperatorSessions(
-        { userId, scope, workspaceKey, surface, projectId },
-        includeLegacy,
-      )
-        .then((items) => {
-          lastListedAt.current = { scope, includeLegacy, at: Date.now() }
-          return items
-        })
-        .finally(() => {
-          if (listPending.current?.promise === pending)
-            listPending.current = null
-        })
-      listPending.current = { scope, includeLegacy, promise: pending }
-      return pending
-    },
-    [scope, workspaceKey, userId, surface, projectId],
-  )
+  const fetchSessions = useCallback(() => {
+    if (!scope || !workspaceKey || !userId) return Promise.resolve([])
+    if (listPending.current?.scope === scope) return listPending.current.promise
+    const pending = listOperatorSessions({
+      userId,
+      scope,
+      workspaceKey,
+      surface,
+      projectId,
+    })
+      .then((items) => {
+        lastListedAt.current = { scope, at: Date.now() }
+        return items
+      })
+      .finally(() => {
+        if (listPending.current?.promise === pending) listPending.current = null
+      })
+    listPending.current = { scope, promise: pending }
+    return pending
+  }, [scope, workspaceKey, userId, surface, projectId])
 
   const refreshSessions = useCallback(
-    (force = false, includeLegacy = false) => {
+    (force = false) => {
       const epoch = lifecycle.current
       if (!isActive(epoch)) return
       if (
         !force &&
         lastListedAt.current?.scope === scope &&
-        lastListedAt.current.includeLegacy === includeLegacy &&
         Date.now() - lastListedAt.current.at <
           STUDIO_OPERATOR_HISTORY.listFreshMs
       )
         return
       setIsHydrating(true)
-      void fetchSessions(includeLegacy)
+      void fetchSessions()
         .then((items) => {
           if (!isActive(epoch)) return
           setSessions(items.filter((item) => !removedIds.current.has(item.id)))
@@ -385,11 +374,7 @@ export function useStudioOperatorHistory({
   )
 
   const applyConversation = useCallback(
-    async (
-      id: string,
-      surface: AssistantSurfaceId,
-      readOnlyHistory = false,
-    ): Promise<boolean> => {
+    async (id: string, surface: AssistantSurfaceId): Promise<boolean> => {
       const epoch = lifecycle.current
       if (!isActive(epoch) || !workspaceKey) return false
       const intent = ++loadIntent.current
@@ -402,7 +387,6 @@ export function useStudioOperatorHistory({
           id,
           workspaceKey,
           operatorOnly: true,
-          ...(readOnlyHistory ? { includeLegacy: true } : {}),
         })
         if (
           !isActive(epoch) ||
@@ -415,7 +399,7 @@ export function useStudioOperatorHistory({
         if (
           !result.success ||
           !result.data ||
-          result.data.workspaceKey !== (readOnlyHistory ? null : workspaceKey)
+          result.data.workspaceKey !== workspaceKey
         ) {
           setError(t('loadFailed'))
           return false
@@ -430,7 +414,6 @@ export function useStudioOperatorHistory({
           rounds: result.data.rounds,
           sessionId: result.data.id,
           sessionSurface: result.data.surface,
-          readOnlyHistory,
           // 末尾还没决定的那一下放回面板（owner 09-27：刷新丢卡）。
           pending: pendingFromStoredMessages(result.data.messages),
         })
@@ -633,17 +616,9 @@ export function useStudioOperatorHistory({
 
   const selectSession = useCallback(
     (session: AssistantConversationSummary) => {
-      if (
-        session.workspaceKey !== null &&
-        session.workspaceKey !== workspaceKey
-      )
-        return
+      if (session.workspaceKey !== workspaceKey) return
       if (session.id === getOperatorState().sessionId) return
-      void applyConversation(
-        session.id,
-        session.surface,
-        session.workspaceKey === null,
-      )
+      void applyConversation(session.id, session.surface)
     },
     [applyConversation, workspaceKey],
   )

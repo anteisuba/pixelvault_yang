@@ -293,29 +293,6 @@ describe('useStudioOperatorResults', () => {
     setTimeout.mockRestore()
   })
 
-  it('旧 NULL 工作区历史保持只读，不认领批次也不触发超时', () => {
-    store.loadOperatorThread({
-      history: [],
-      sessionId: 'legacy-session',
-      sessionSurface: 'IMAGE_STUDIO',
-      readOnlyHistory: true,
-    })
-    pendingCard()
-    const view = mount(run({ completed: 1 }))
-
-    act(() => {
-      view.rerender({
-        value: run({ settled: true, completed: 2, items: [ITEM] }),
-      })
-      vi.advanceTimersByTime(STUDIO_OPERATOR_CLAIM_TTL_MS + 1)
-    })
-
-    const current = store.getOperatorState()
-    expect(resultEntry(current.entries)?.completed).toBe(0)
-    expect(resultEntry(current.entries)?.items).toEqual([])
-    expect(current.pendingResultId).toBe('result-1')
-  })
-
   it('新对话不会认领旧对话仍在运行的全局批次', () => {
     pendingCard()
     const oldRun = run({ total: 4, completed: 2 })

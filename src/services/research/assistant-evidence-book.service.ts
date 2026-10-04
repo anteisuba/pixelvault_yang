@@ -9,6 +9,7 @@ import {
 import { RESEARCH_RUN_STATUSES } from '@/constants/research'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { findConversationInWorkspace } from '@/services/assistant-conversation.service'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import {
   EvidenceItemSchema,
@@ -106,15 +107,17 @@ export async function appendAssistantEvidenceBook(args: {
   try {
     return await db.$transaction(
       async (tx) => {
-        const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "AssistantConversation"
-        WHERE "id" = ${args.conversationId} AND "userId" = ${args.userId}
-          AND "workspaceKey" = ${args.workspaceKey}
-          AND "surface" = ${args.surface}::"AssistantSurface"
-          AND "projectId" IS NOT DISTINCT FROM ${args.projectId ?? null}
-        FOR UPDATE
-      `
-        if (locked.length === 0) return { refs: [], researchRunIds: [] }
+        const locked = await findConversationInWorkspace(tx, {
+          id: args.conversationId,
+          userId: args.userId,
+          workspace: {
+            workspaceKey: args.workspaceKey,
+            surface: args.surface,
+            projectId: args.projectId ?? null,
+          },
+          lock: true,
+        })
+        if (!locked) return { refs: [], researchRunIds: [] }
         let seq = await nextRefSeq(tx, args.userId, args.conversationId)
         const refs: string[] = []
         const researchRunIds: string[] = []

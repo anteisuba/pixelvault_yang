@@ -78,6 +78,77 @@ export function compileReferenceMentions(prompt: string, offset = 0): string {
   )
 }
 
+/** 一张参考图在这次出图里**管什么**（核过的参考简报那一份，`ReferenceBriefSchema`）。 */
+export interface ReferenceRoleAssignment {
+  readonly url: string
+  readonly roles: readonly ('identity' | 'pose' | 'style' | 'content')[]
+  readonly preserve: readonly string[]
+  readonly exclude: readonly string[]
+}
+
+const REFERENCE_ROLE_LEGEND_HEADER = 'Reference roles:'
+const REFERENCE_ROLE_TEXT: Record<
+  ReferenceRoleAssignment['roles'][number],
+  string
+> = {
+  identity: 'identity — keep this character exactly as shown',
+  pose: 'pose and body position only',
+  style: 'rendering style only',
+  content: 'content',
+}
+/** 每张图最多带几条保留 / 排除说明，每条多长 —— 图例是提醒，不是第二段提示词。 */
+const REFERENCE_ROLE_LEGEND_LIMITS = { notesPerList: 3, noteChars: 80 }
+
+const EXISTING_LEGEND = new RegExp(
+  `\\n*${REFERENCE_ROLE_LEGEND_HEADER}\\n(?:@Image\\d+[^\\n]*(?:\\n|$))+\\s*$`,
+)
+
+function legendNotes(notes: readonly string[]): string {
+  return notes
+    .slice(0, REFERENCE_ROLE_LEGEND_LIMITS.notesPerList)
+    .map((note) =>
+      note.length > REFERENCE_ROLE_LEGEND_LIMITS.noteChars
+        ? `${note.slice(0, REFERENCE_ROLE_LEGEND_LIMITS.noteChars - 1)}…`
+        : note,
+    )
+    .join('; ')
+}
+
+/**
+ * 在提示词末尾写一段**每张参考图管什么**的图例（`@Image1 — identity …`）。
+ *
+ * ⭐ 生图模型只读得到提示词：图号只写在句子里时，GPT Image 不一定严格照着那张图画
+ * （与卡片总线那段「Keep … identical to Image N」同一条教训）。图例由核过的参考简报
+ * 逐张生成，⛔ 不靠写提示词的模型每次记得写全。
+ * ⚠ 已经有一段图例（上一次写进去的）就**整段换掉**，⛔ 不叠第二段。
+ * ⚠ 只列此刻挂着的图，按 `CURRENT REFERENCE ORDER` 编号。
+ */
+export function withReferenceRoleLegend(
+  prompt: string,
+  assignments: readonly ReferenceRoleAssignment[],
+  referenceUrls: readonly (string | null)[],
+): string {
+  const base = prompt.replace(EXISTING_LEGEND, '').trimEnd()
+  const lines = assignments
+    .map((assignment) => ({
+      assignment,
+      index: referenceUrls.indexOf(assignment.url),
+    }))
+    .filter((item) => item.index >= 0)
+    .sort((a, b) => a.index - b.index)
+    .map(({ assignment, index }) => {
+      const keep = legendNotes(assignment.preserve)
+      const skip = legendNotes(assignment.exclude)
+      return `@Image${index + 1} — ${assignment.roles
+        .map((role) => REFERENCE_ROLE_TEXT[role])
+        .join(', ')}${keep ? `; keep: ${keep}` : ''}${
+        skip ? `; do not copy: ${skip}` : ''
+      }`
+    })
+  if (lines.length === 0) return base
+  return `${base}\n\n${REFERENCE_ROLE_LEGEND_HEADER}\n${lines.join('\n')}`
+}
+
 export interface NamedImageReference {
   readonly url: string
   readonly name: string

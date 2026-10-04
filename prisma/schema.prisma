@@ -263,7 +263,6 @@ model AssistantConversation {
   userId    String
   user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
   surface   AssistantSurface
-  workspaceKey String?
   /// NODE_CANVAS: NodeWorkflowProject.id (weak ref, no FK). STUDIO: null.
   projectId String?
   /// Truncated first user message for list UI.
@@ -283,7 +282,6 @@ model AssistantConversation {
   updatedAt DateTime                     @updatedAt
 
   @@index([userId, surface, updatedAt(sort: Desc)])
-  @@index([userId, workspaceKey, updatedAt(sort: Desc)])
   @@index([projectId])
 }
 
@@ -873,7 +871,6 @@ model ProjectRule {
 
   /// null = 全域。非空时是一个域 id（image / video / lora）。
   scope  String?
-  workspaceKey String?
   /// 一个来源 id 或域名（来源名单）。
   text   String            @db.Text
   /// 这条是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
@@ -885,7 +882,6 @@ model ProjectRule {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, kind])
-  @@index([userId, workspaceKey, createdAt(sort: Desc)])
 }
 
 model ImageAnalysis {
@@ -1675,11 +1671,9 @@ model ContextCard {
 /// 常挂范围），记忆是助手**观察到**的一行事实或偏好。⛔ 两者之间没有自动升降级。
 enum AssistantMemoryScope {
   IMAGE
-  TAGS
   VIDEO
   CANVAS
   LORA
-  CARDS
   GLOBAL
 }
 
@@ -1704,7 +1698,6 @@ model AssistantMemory {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   scope AssistantMemoryScope
-  workspaceKey String?
   kind  AssistantMemoryKind
   /// ⭐ 你写的优先：注入时排在助手记的前面，每域上限只淘汰助手记的那些。
   source AssistantMemorySource @default(ASSISTANT)
@@ -1729,6 +1722,4 @@ model AssistantMemory {
   @@index([userId, updatedAt(sort: Desc)])
   /// 注入取前 N 条、淘汰取最旧一条，两边都按 lastUsedAt 排。
   @@index([userId, scope, lastUsedAt(sort: Desc)])
-  @@index([userId, workspaceKey, updatedAt(sort: Desc)])
-  @@index([userId, workspaceKey, lastUsedAt(sort: Desc)])
 }

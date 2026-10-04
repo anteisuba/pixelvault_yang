@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiRequestError } from '@/lib/errors'
+import { ApiRequestError, InsufficientCreditsError } from '@/lib/errors'
 import { readOperatorReferenceProfiles } from '@/lib/studio-operator-history'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { resolveAdapterType } from '@/constants/models'
@@ -437,7 +437,10 @@ import {
 } from '@/constants/assistant-persona'
 import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
+import {
+  getModelEnhanceHint,
+  TAG_BASED_GENERATION_PROMPT_RULE,
+} from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
 import { AI_MODELS } from '@/constants/models'
 import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
@@ -623,6 +626,20 @@ function stepsOf(
         event.type === ASSISTANT_OPERATOR_EVENTS.step,
     )
     .map((event) => event.step)
+}
+
+/** 带参考图写提示词时，服务端会在末尾补一段「每张图管什么」的图例。 */
+function promptWithRoleLegend(prompt: string) {
+  return expect.stringMatching(
+    new RegExp(
+      `^${prompt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\nReference roles:\\n@Image\\d+ — `,
+    ),
+  )
+}
+
+/** 整轮以 `error` 帧结束 —— 本文件里「不该再出现」的那一种。 */
+function streamErrorOf(events: readonly AssistantOperatorEvent[]) {
+  return events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.error)
 }
 
 /**
@@ -1075,12 +1092,35 @@ describe('工具环 · 逐事件顺序', () => {
     expect(stepsOf(events)).toHaveLength(0)
   })
 
-  it('连着两轮读不出 JSON 就大声失败，而不是把步数烧完', async () => {
+  it('连着两轮读不出 JSON 就收尾：捞得出人话就用它，而不是抛错或把步数烧完', async () => {
     mockLlmTextCompletion.mockResolvedValue('抱歉，我说点别的。')
-    await expect(
-      collect(runAssistantOperator('clerk-1', buildRequest())),
-    ).rejects.toThrow(/JSON/)
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(streamErrorOf(events)).toBeUndefined()
+    expect(events).toContainEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '抱歉，我说点别的。',
+    })
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('连着两轮读不出 JSON 又捞不出半句人话时，说一句兜底而不是抛错', async () => {
+    mockLlmTextCompletion.mockResolvedValue('{"tool": {"name":')
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ responseLanguage: 'chinese' }),
+      ),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(stepsOf(events)).toHaveLength(0)
+    expect(events).toContainEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: expect.stringContaining('没有改动任何东西'),
+    })
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
   it('反馈反问题缺失的字段，让合法 JSON 的结构错误能在下一轮修正', async () => {
@@ -1205,6 +1245,47 @@ describe('工具环 · 逐事件顺序', () => {
     })
     expect(lastUserPrompt()).toContain('THIS IS YOUR LAST STEP THIS TURN')
     expect(stepsOf(events)).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSteps - 1)
+  })
+
+  it('读类工具跑到一半抛了技术故障：这一步记为 toolFailed，整轮照样收尾，⛔ 不吐 error 帧', async () => {
+    mockGetPublicGenerationPage.mockRejectedValueOnce(new Error('db down'))
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+          title: '找图',
+          args: { query: 'rain' },
+        },
+      },
+      { finished: true, message: '素材库这会儿读不出来，稍后再试。' },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(streamErrorOf(events)).toBeUndefined()
+    expect(stepsOf(events).at(-1)).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+      status: 'error',
+      error: { reason: 'toolFailed' },
+    })
+    expect(lastUserPrompt()).toContain('toolFailed')
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('要用户动手的错（缺 key / 额度不足）仍整轮上抛，不被吞成工具故障', async () => {
+    mockGetPublicGenerationPage.mockRejectedValueOnce(
+      new InsufficientCreditsError(),
+    )
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+        title: '找图',
+        args: { query: 'rain' },
+      },
+    })
+    await expect(
+      collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).rejects.toBeInstanceOf(InsufficientCreditsError)
   })
 
   describe('两台图片工作台互跳（switch_workbench）', () => {
@@ -1446,6 +1527,60 @@ describe('read_state', () => {
     expect(digest).toContain('sourceNodeId')
     expect(digest).not.toContain('NO NEGATIVE PROMPT FIELD')
     expect(toolRingCalls()[0].userPrompt).toContain('source-image')
+  })
+
+  it('画布：按展开的镜里每个节点挂的模型给写法，⛔ 不再是空的一段', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: 1,
+                  title: '定妆',
+                  nodes: [
+                    {
+                      id: 'portrait',
+                      name: '全身立绘',
+                      kind: 'image',
+                      model: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const system = toolRingCalls()[0]!.systemPrompt
+    expect(system).toContain("WHAT EACH NODE'S PROMPT MUST LOOK LIKE")
+    expect(system).toContain(
+      `${AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE}: ${getModelEnhanceHint(
+        AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+      )}`,
+    )
+    // 出静图的三台都要按构图定画幅与清晰度。
+    expect(system).toContain('FRAME BY COMPOSITION')
+  })
+
+  it('视频台不印静图的构图画幅规则', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ domain: 'video' })),
+    )
+    expect(toolRingCalls()[0]!.systemPrompt).not.toContain(
+      'FRAME BY COMPOSITION',
+    )
   })
 
   it('卡片助手：读到角色页上有谁与打开那一位的设定；规则写明查设定带来源、原创先给方向、自己不出图', async () => {
@@ -6330,7 +6465,7 @@ describe('persona 风格段', () => {
     expect(prompt).not.toContain('Be terse.')
     expect(prompt).not.toContain('Keep it professional and even')
     // auto 档什么都不写 —— 那就是今天的行为
-    expect(prompt).not.toContain('Always open with a plan card')
+    expect(prompt).not.toContain('Open with a plan card whenever')
     expect(prompt).not.toContain('Skip the plan unless')
   })
 
@@ -6380,7 +6515,9 @@ describe('persona 风格段', () => {
     })
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
-    expect(systemPrompt()).toContain('Always open with a plan card')
+    expect(systemPrompt()).toContain(
+      'Open with a plan card whenever the run takes two or more moves',
+    )
   })
 
   it('自定义语气原样单引号引入，且带那句前缀', async () => {
@@ -6526,25 +6663,50 @@ describe('用户偏好进系统提示（§8.3）', () => {
    * 学出来的创作偏好（`UserCreativePreference`）⛔ 不受「用我的词」那颗开关管：
    * 那颗开关说的是「用我的说法」，这几行说的是「我平时喜欢什么」。
    */
-  it('旧账号级创作偏好不再自动注入当前工作台', async () => {
-    mockGetCreativePreferenceDigest.mockResolvedValue({
-      favoriteStyles: ['cel shading'],
-      rejectedStyles: ['3d render'],
-      commonNegativeTags: ['lowres', 'watermark'],
-      preferredAspectRatios: ['3:2'],
-    })
+  const LEARNED_PREFERENCE = {
+    favoriteStyles: ['cel shading'],
+    rejectedStyles: ['3d render'],
+    commonNegativeTags: ['lowres', 'watermark'],
+    preferredAspectRatios: ['3:2'],
+  }
+
+  it('学出来的创作偏好是账号级的，出图的工作台照常注入，且不受开关管', async () => {
+    mockGetCreativePreferenceDigest.mockResolvedValue(LEARNED_PREFERENCE)
     const prompt = await promptWith({
       useMyWords: false,
       nextStepHint: false,
       addressUserAs: null,
     })
-    expect(prompt).not.toContain('- They usually like: cel shading')
-    expect(prompt).not.toContain('- They usually reject: 3d render')
-    expect(mockGetCreativePreferenceDigest).not.toHaveBeenCalled()
-    expect(prompt).not.toContain(
+    expect(prompt).toContain('- They usually like: cel shading')
+    expect(prompt).toContain('- They usually reject: 3d render')
+    expect(prompt).toContain(
       '- They usually keep out of the picture: lowres · watermark',
     )
-    expect(prompt).not.toContain('- They usually shoot at: 3:2')
+    expect(prompt).toContain('- They usually shoot at: 3:2')
+  })
+
+  it('偏好只由图片生成喂 —— 视频与角色页不带，也不去读那张表', async () => {
+    mockGetCreativePreferenceDigest.mockResolvedValue(LEARNED_PREFERENCE)
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      useMyWords: false,
+      nextStepHint: false,
+      addressUserAs: null,
+    })
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'video',
+          workspaceKey: 'video',
+          snapshot: LORA_SNAPSHOT,
+        }),
+      ),
+    )
+    expect(mockGetCreativePreferenceDigest).not.toHaveBeenCalled()
+    expect(systemPrompt()).not.toContain('They usually like')
   })
 
   /** §8.3：这一段改的是说话方式，所以**排在工具表之前**。 */
@@ -6560,7 +6722,6 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
   const MINE = {
     id: 'rule-1',
     scope: 'global' as const,
-    workspaceKey: null,
     kind: 'rule' as const,
     source: 'creator' as const,
     text: 'Never put text inside the picture.',
@@ -6573,7 +6734,6 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       memory: {
         id,
         scope,
-        workspaceKey: 'image-natural',
         kind: 'rule',
         source: 'assistant',
         text,
@@ -6620,7 +6780,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
     expect(mockListCreatorMemories).toHaveBeenCalledWith(
       'user-db-1',
-      'image-natural',
+      'image',
       ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt,
     )
     const prompt = systemPrompt()
@@ -6670,13 +6830,13 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
-  it('read_project_rules 只读当前工作台记忆里的规矩，结果带明确归属', async () => {
+  it('read_project_rules 读记忆里的规矩，结果是协议上的规则形状', async () => {
     mockListStandingRuleMemories.mockResolvedValue([MINE])
     queueTurns(
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
-          args: { scope: 'image' },
+          args: { scope: 'video' },
         },
       },
       { finished: true },
@@ -6686,7 +6846,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       await collect(runAssistantOperator('clerk-1', buildRequest())),
     )
     expect(mockListStandingRuleMemories).toHaveBeenCalledWith('user-db-1', {
-      workspaceKey: 'image-natural',
+      scope: 'video',
       limit: ASSISTANT_PROJECT_RULE_LIMITS.maxReadResults,
     })
     const done = steps.find(
@@ -6699,7 +6859,6 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
         {
           id: 'rule-1',
           scope: null,
-          workspaceKey: null,
           text: MINE.text,
           kind: 'note',
           source: 'creator',
@@ -6707,25 +6866,6 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
         },
       ],
     })
-  })
-
-  it('read_project_rules 拒绝模型请求另一个工作台的规矩', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
-          args: { scope: 'video' },
-        },
-      },
-      { finished: true },
-    )
-    const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest()),
-    )
-    expect(mockListStandingRuleMemories).not.toHaveBeenCalled()
-    expect(errorOf(events)?.reason).toBe(
-      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
-    )
   })
 
   it('add_project_rule 把普通规矩记进记忆（助手记的），吐一条带 ruleId 的改动型 step', async () => {
@@ -6751,7 +6891,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(done?.inverse).toEqual({ ruleId: 'rule-9' })
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: 'Skin tones stay warm.',
-      workspaceKey: 'image-natural',
+      scope: 'image',
     })
     // ⛔ 普通规矩不再写项目规则表
     expect(mockAddProjectRule).not.toHaveBeenCalled()
@@ -6759,7 +6899,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
   it('刚记下的那条这一轮就能被引用', async () => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('Skin tones stay warm.', 'image', 'rule-12'),
+      learned('Skin tones stay warm.', 'global', 'rule-12'),
     )
     queueTurns(
       {
@@ -6813,7 +6953,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
   it('记忆里已有同一句 → 引用那一条，⛔ 不存第二行', async () => {
     mockAddRuleMemory.mockResolvedValue({
-      ...learned('Skin tones stay warm.', 'image', 'rule-old'),
+      ...learned('Skin tones stay warm.', 'global', 'rule-old'),
       created: false,
     })
     const events = await runTool({ text: 'Skin tones stay warm.' })
@@ -6827,8 +6967,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
   it('来源名单仍落项目规则表（收成域名）', async () => {
     mockAddProjectRule.mockResolvedValue({
       id: 'rule-src',
-      scope: 'image',
-      workspaceKey: 'image-natural',
+      scope: null,
       text: 'danbooru.donmai.us',
       kind: 'sourceDeny',
       source: 'assistant',
@@ -6841,7 +6980,6 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
       text: 'danbooru.donmai.us',
       scope: null,
-      workspaceKey: 'image-natural',
       kind: 'sourceDeny',
       source: 'assistant',
     })
@@ -6897,9 +7035,9 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddProjectRule).not.toHaveBeenCalled()
   })
 
-  it('工作方式规矩只记在当前工作台，缺 scope 不会升为全局', async () => {
+  it('工作方式那类规矩照旧记下（进记忆，缺域 = 全部工作台）', async () => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('以后查资料只信官方站，别拿同人图当依据', 'image', 'rule-10'),
+      learned('以后查资料只信官方站，别拿同人图当依据', 'global', 'rule-10'),
     )
 
     const events = await runTool({
@@ -6910,7 +7048,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     ).toBe(false)
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '以后查资料只信官方站，别拿同人图当依据',
-      workspaceKey: 'image-natural',
+      scope: 'global',
     })
   })
 
@@ -6924,14 +7062,14 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     ['scope 编了一个不存在的值', { text: '输出一律不加水印', scope: 'global' }],
   ])('%s 时照样落库，⛔ 不吐 malformedArgs', async (_name, args) => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('输出一律不加水印', 'image', 'rule-11'),
+      learned('输出一律不加水印', 'global', 'rule-11'),
     )
 
     const events = await runTool(args)
     expect(errorOf(events)).toBeUndefined()
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '输出一律不加水印',
-      workspaceKey: 'image-natural',
+      scope: 'global',
     })
   })
 
@@ -7500,9 +7638,9 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(frame.questions[0]!.header.length).toBeLessThanOrEqual(12)
   })
 
-  it('⭐ 人设「谨慎」档（planMode=always）下，哪怕只有一步也出多步确认卡', async () => {
+  it('⭐ 人设「谨慎」档（planMode=always）两步起先出多步确认卡', async () => {
     usePlanAlwaysPersona()
-    queueTurns({ plan: ['写提示词'] }, { finished: true })
+    queueTurns({ plan: ['写提示词', '调画幅'] }, { finished: true })
     const forced = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
@@ -7513,9 +7651,56 @@ describe('计划协议 · plan / ask / confirm', () => {
     ])
   })
 
-  it('谨慎档省略计划仍先确认，不能直接写表单', async () => {
+  it('⭐ 谨慎档只有一步的计划不出卡 —— 单步改动有撤销，不值一次点头（owner 2026-10-04）', async () => {
     usePlanAlwaysPersona()
+    queueTurns(
+      {
+        plan: ['调画幅'],
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          title: '调整画幅',
+          args: { aspectRatio: '16:9', resolution: '2K' },
+        },
+      },
+      { message: '已调整画幅', finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.step &&
+          event.step.status === 'done',
+      ),
+    ).toBe(true)
+  })
+
+  it('谨慎档省略计划的单步改动直接做，⛔ 不替模型编一条标题计划去拦它', async () => {
+    usePlanAlwaysPersona()
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          title: '调整画幅',
+          args: { aspectRatio: '16:9', resolution: '2K' },
+        },
+      },
+      { message: '已调整画幅', finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.plan)
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.confirm)
+  })
+
+  it('模型明说 confirmPlan 却漏写计划时，补一条让卡有步骤可摆', async () => {
     queueTurns({
+      confirmPlan: true,
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
         title: '调整画幅',
@@ -10843,7 +11028,7 @@ describe('current reference image bindings', () => {
     )
   })
 
-  it('does not accept partial reference evidence when its stream fails', async () => {
+  it('does not accept partial reference evidence when its stream fails, and lets the turn finish', async () => {
     mockLlmTextStreamChunks.mockImplementation((raw) => {
       if (!raw.includes('"images"')) return null
       return {
@@ -10858,19 +11043,18 @@ describe('current reference image bindings', () => {
         },
       }
     })
-    queueTurns(...analysisTurns())
+    queueTurns(...analysisTurns(), { finished: true, message: '分析没成功。' })
     const events: AssistantOperatorEvent[] = []
-    await expect(
-      (async () => {
-        for await (const event of runAssistantOperator(
-          'clerk-1',
-          buildRequest({
-            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-          }),
-        ))
-          events.push(event)
-      })(),
-    ).rejects.toMatchObject({ errorCode: 'PROVIDER_TIMEOUT' })
+    for await (const event of runAssistantOperator(
+      'clerk-1',
+      buildRequest({
+        snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+      }),
+    ))
+      events.push(event)
+    // 超时是这一步的技术故障，不是整轮的：这一轮照样收尾，⛔ 不吐 error 帧。
+    expect(streamErrorOf(events)).toBeUndefined()
+    expect(events.at(-1)?.type).toBe('done')
     // ⚠ 原文读的是 `step.referenceAnalysis` —— 契约里**没有这一格**，于是这条
     // 断言自打写下就恒真（`Record<string, unknown>` 那一刀正好把它藏住了）。
     // 真正要说的是「超时那一轮看图没有产出」，那一格在契约里叫 `result`。
@@ -10886,6 +11070,7 @@ describe('current reference image bindings', () => {
         expect.objectContaining({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
           status: 'error',
+          error: expect.objectContaining({ reason: 'toolFailed' }),
         }),
       ]),
     )
@@ -12512,7 +12697,9 @@ describe('current reference image bindings', () => {
         expect.objectContaining({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           status: 'done',
-          payload: expect.objectContaining({ value }),
+          payload: expect.objectContaining({
+            value: promptWithRoleLegend(value),
+          }),
         }),
       )
       expect(events.some((event) => event.type === 'ask')).toBe(false)
@@ -12597,7 +12784,9 @@ describe('current reference image bindings', () => {
       expect.objectContaining({
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
         status: 'done',
-        payload: expect.objectContaining({ value }),
+        payload: expect.objectContaining({
+          value: promptWithRoleLegend(value),
+        }),
       }),
     )
     expect(events.some((event) => event.type === 'ask')).toBe(false)
@@ -12663,7 +12852,9 @@ describe('current reference image bindings', () => {
       )
       expect(writes).toHaveLength(corrected ? 1 : 0)
       if (corrected)
-        expect(writes[0]?.payload).toMatchObject({ value: correctedValue })
+        expect(writes[0]?.payload).toMatchObject({
+          value: promptWithRoleLegend(correctedValue),
+        })
       expect(
         events.some(
           (event) => event.type === 'ask' || event.type === 'confirm',
@@ -12682,7 +12873,7 @@ describe('current reference image bindings', () => {
     },
   )
 
-  it('does not write when both prompt reviews omit the unsupported-claims check', async () => {
+  it('writes anyway when the prompt review stays unusable — the review is advisory', async () => {
     queueTurns(
       {
         tool: {
@@ -12693,31 +12884,27 @@ describe('current reference image bindings', () => {
       brief,
       { issues: [], conflicts: [] },
       { issues: [], conflicts: [] },
+      { finished: true },
     )
     const events: AssistantOperatorEvent[] = []
-    const pending = (async () => {
-      for await (const event of runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      )) {
-        expect(AssistantOperatorEventSchema.safeParse(event).success).toBe(true)
-        events.push(event)
-      }
-    })()
-    await expect(pending).rejects.toMatchObject({
-      errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
-      i18nKey: 'errors.assistant.promptReviewUnavailable',
-    })
+    for await (const event of runAssistantOperator(
+      'clerk-1',
+      buildRequest({
+        referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+        snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+      }),
+    )) {
+      expect(AssistantOperatorEventSchema.safeParse(event).success).toBe(true)
+      events.push(event)
+    }
+    expect(streamErrorOf(events)).toBeUndefined()
     expect(
       stepsOf(events).filter(
         (step) =>
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status === 'done',
       ),
-    ).toHaveLength(0)
+    ).toHaveLength(1)
     expect(
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         String(input.systemPrompt).includes('Check an image-generation prompt'),
@@ -12937,7 +13124,10 @@ describe('current reference image bindings', () => {
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status !== 'running',
       ),
-    ).toMatchObject({ status: 'done', payload: { value: 'A hug on white' } })
+    ).toMatchObject({
+      status: 'done',
+      payload: { value: promptWithRoleLegend('A hug on white') },
+    })
   })
 
   it('rejects malformed visual fields without exceeding the error event limit', async () => {
@@ -13000,9 +13190,14 @@ describe('current reference image bindings', () => {
         step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
     )
     expect(done?.payload).toMatchObject({
-      value:
+      value: promptWithRoleLegend(
         '@Image1 clothes, @Image2 identity, @Image3 pose only, @Image4 style and face.',
+      ),
     })
+    // ⭐ 图例逐张写出每张图管什么（按当前顺序），生图模型不用从句子里猜。
+    expect((done?.payload as { value: string }).value).toContain(
+      '\n@Image3 — pose and body position only',
+    )
     expect(lastUserPrompt()).toContain('@Image1')
     expect(lastUserPrompt()).toContain('https://cdn.test/female.png')
     expect(lastUserPrompt()).toContain('@Image4')
@@ -13017,7 +13212,7 @@ describe('current reference image bindings', () => {
     ).toBe(true)
   })
 
-  it('requires reference evidence before prompt writes and keeps the form unchanged', async () => {
+  it('reads missing reference evidence itself before a prompt write, with no refusal round-trip', async () => {
     queueTurns(
       {
         tool: {
@@ -13026,6 +13221,9 @@ describe('current reference image bindings', () => {
           args: { value: 'Embracing on white' },
         },
       },
+      { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
+      brief,
+      { unsupportedClaims: [], issues: [] },
       { finished: true },
     )
     const events = await collect(
@@ -13036,23 +13234,25 @@ describe('current reference image bindings', () => {
         }),
       ),
     )
-    expect(stepsOf(events)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          status: 'error',
-          error: expect.objectContaining({
-            reason: 'referenceAnalysisRequired',
-          }),
-        }),
-      ]),
-    )
     expect(
       stepsOf(events).some(
+        (step) =>
+          step.status === 'error' &&
+          step.error?.reason === 'referenceAnalysisRequired',
+      ),
+    ).toBe(false)
+    expect(
+      stepsOf(events).filter(
         (step) =>
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status === 'done',
       ),
-    ).toBe(false)
+    ).toHaveLength(1)
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        input.systemPrompt.startsWith('Analyze reference images'),
+      ),
+    ).toHaveLength(1)
   })
 
   it('continues a confirmed prompt edit from cached visual facts without another analysis tool call', async () => {
@@ -13093,14 +13293,8 @@ describe('current reference image bindings', () => {
     ).toBe(false)
   })
 
-  it('allows the same prompt write to resume after satisfying its analysis prerequisite', async () => {
+  it('still writes after the model analyzed the references itself first', async () => {
     queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          args: { value: 'Two people hugging in stylized 3D' },
-        },
-      },
       ...analysisTurns(),
       {
         tool: {
@@ -13127,7 +13321,7 @@ describe('current reference image bindings', () => {
           step.status === 'done',
       ),
     ).toHaveLength(1)
-    expect(lastUserPrompt()).toContain('then retry set_prompt')
+    expect(lastUserPrompt()).toContain('VERIFIED REFERENCE VISUAL FACTS')
     expect(lastUserPrompt()).not.toContain('Do not retry it unchanged')
   })
 
@@ -13136,45 +13330,57 @@ describe('current reference image bindings', () => {
     'outdated-rendering',
     'missing-rendering-medium',
     'missing-region-evidence',
-  ])('does not accept %s cached evidence for prompt writes', async (kind) => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          args: { value: 'A stylized 3D embrace' },
+  ])(
+    'does not trust %s cached evidence — it is read again before the write',
+    async (kind) => {
+      const cached: NonNullable<AssistantOperatorRequest['referenceProfiles']> =
+        refs.map(({ url }) => ({ url, ...facts }))
+      if (kind === 'missing')
+        cached[0] = { ...cached[0]!, url: 'https://cdn.test/removed.png' }
+      else if (kind === 'outdated-rendering')
+        cached[0] = { ...cached[0]!, style: { ...facts.style, rendering: '' } }
+      else if (kind === 'missing-rendering-medium')
+        cached[0] = {
+          ...cached[0]!,
+          style: { ...facts.style, renderingMedium: undefined },
+        }
+      else cached[0] = { ...cached[0]!, characterEvidence: undefined }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'A stylized 3D embrace' },
+          },
         },
-      },
-      { finished: true, message: '需要补齐依据。' },
-    )
-    const cached: NonNullable<AssistantOperatorRequest['referenceProfiles']> =
-      refs.map(({ url }) => ({ url, ...facts }))
-    if (kind === 'missing')
-      cached[0] = { ...cached[0]!, url: 'https://cdn.test/removed.png' }
-    else if (kind === 'outdated-rendering')
-      cached[0] = { ...cached[0]!, style: { ...facts.style, rendering: '' } }
-    else if (kind === 'missing-rendering-medium')
-      cached[0] = {
-        ...cached[0]!,
-        style: { ...facts.style, renderingMedium: undefined },
-      }
-    else cached[0] = { ...cached[0]!, characterEvidence: undefined }
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          referenceProfiles: cached,
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      ),
-    )
-    expect(
-      stepsOf(events).find(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'error',
-      )?.error,
-    ).toMatchObject({ reason: 'referenceAnalysisRequired' })
-  })
+        // 只有第 0 张的缓存不可信 —— 只补读它这一张。
+        { images: [{ imageIndex: 0, ...facts }] },
+        brief,
+        { unsupportedClaims: [], issues: [] },
+        { finished: true, message: '写好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            referenceProfiles: cached,
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(
+        mockLlmTextCompletion.mock.calls.filter(([input]) =>
+          input.systemPrompt.startsWith('Analyze reference images'),
+        ),
+      ).toHaveLength(1)
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+            step.status === 'done',
+        ),
+      ).toBe(true)
+    },
+  )
 
   it('still requires overwrite approval when cached evidence is complete', async () => {
     // ⚠ 自检先跑完才问（卡上那段是最终文本，点完客户端直接写）。
@@ -13239,29 +13445,32 @@ describe('current reference image bindings', () => {
     ).toBe(true)
   })
 
-  it('marks interrupted reference analysis as failed before propagating the provider error', async () => {
+  it('turns an interrupted reference analysis into a failed step and lets the turn finish', async () => {
     const failure = new Error('Gemini returned no text')
     mockLlmTextCompletion
       .mockReset()
       .mockResolvedValueOnce(JSON.stringify(analysisTurns()[0]))
       .mockRejectedValueOnce(failure)
-    const events: AssistantOperatorEvent[] = []
-    const consume = async () => {
-      for await (const event of runAssistantOperator(
+      .mockResolvedValue(
+        JSON.stringify({ finished: true, message: '这次没能看图。' }),
+      )
+    const events = await collect(
+      runAssistantOperator(
         'clerk-1',
         buildRequest({
           snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
         }),
-      ))
-        events.push(event)
-    }
-    await expect(consume()).rejects.toBe(failure)
+      ),
+    )
+    expect(streamErrorOf(events)).toBeUndefined()
     expect(stepsOf(events).at(-1)).toMatchObject({
       tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
       status: 'error',
-      error: { reason: 'referenceAnalysisFailed' },
+      error: { reason: 'toolFailed' },
     })
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(events.at(-1)?.type).toBe('done')
+    // 工具轮 + 看图失败 + 收尾轮 + 结账那一跳。
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(4)
   })
 
   it('reports the unavailable reference instead of aborting the analysis stream on a source 404', async () => {
@@ -13978,14 +14187,16 @@ describe('current reference image bindings', () => {
       expect.objectContaining({
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
         status: 'done',
-        payload: expect.objectContaining({ value: 'Night city' }),
+        payload: expect.objectContaining({
+          value: promptWithRoleLegend('Night city'),
+        }),
       }),
     )
     expect(events.some((event) => event.type === 'ask')).toBe(false)
   })
 
   it.each([true, false])(
-    'retries an unreadable review once; recovery=%s',
+    'retries an unreadable review once; recovery=%s — either way the write goes through',
     async (recovers) => {
       queueTurns(
         ...analysisTurns(),
@@ -14000,7 +14211,7 @@ describe('current reference image bindings', () => {
         recovers ? { unsupportedClaims: [], issues: [] } : 'still unreadable',
         { finished: true },
       )
-      const pending = collect(
+      const events = await collect(
         runAssistantOperator(
           'clerk-1',
           buildRequest({
@@ -14013,21 +14224,14 @@ describe('current reference image bindings', () => {
           }),
         ),
       )
-      if (recovers) {
-        const events = await pending
-        expect(stepsOf(events)).toContainEqual(
-          expect.objectContaining({
-            tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-            status: 'done',
-          }),
-        )
-        expect(events.some((event) => event.type === 'ask')).toBe(false)
-      } else {
-        await expect(pending).rejects.toMatchObject({
-          errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
-          message: expect.stringContaining('已有修改保留'),
-        })
-      }
+      expect(streamErrorOf(events)).toBeUndefined()
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          status: 'done',
+        }),
+      )
+      expect(events.some((event) => event.type === 'ask')).toBe(false)
       expect(
         mockLlmTextCompletion.mock.calls.filter(([input]) =>
           input.systemPrompt.includes('Check an image-generation prompt'),
@@ -14174,10 +14378,11 @@ describe('current reference image bindings', () => {
   )
 
   it.each([
+    // 没有缓存的视觉事实：服务端自己补读一次再写，⛔ 不再先拒一轮。
     {
       cached: false,
       value: 'ink lines, cyan eyes, white background',
-      reason: 'referenceAnalysisRequired',
+      reason: null,
     },
     { cached: true, value: 'ink lines, match @Image1', reason: 'unknownValue' },
     {
@@ -14196,6 +14401,13 @@ describe('current reference image bindings', () => {
             args: { value },
           },
         },
+        ...(cached
+          ? []
+          : [
+              {
+                images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })),
+              },
+            ]),
         { finished: true, message: '处理完成。' },
       )
       const events = await collect(
@@ -15542,7 +15754,7 @@ describe('助手记忆（56a）', () => {
     return toolRingCalls()[0]?.systemPrompt ?? ''
   }
 
-  it('⭐ 结账候选只带当前工作台 key 与会话 id，模型的全局 scope 被剥离', async () => {
+  it('⭐ 结账产出的候选落进记忆服务，带当前域与会话 id', async () => {
     queueTurns(searchStep, { finished: true, message: '挑好了。' })
     mockRecordMemories.mockResolvedValueOnce(2)
     mockLlmTextCompletion.mockResolvedValue(
@@ -15566,16 +15778,15 @@ describe('助手记忆（56a）', () => {
 
     expect(mockRecordMemories).toHaveBeenCalledTimes(1)
     const args = mockRecordMemories.mock.calls[0][0] as {
-      workspaceKey: string
+      scope: string
       conversationId?: string
       candidates: { kind: string; text: string; scope?: string }[]
     }
-    expect(args.workspaceKey).toBe('image-natural')
-    expect(args).not.toHaveProperty('scope')
+    expect(args.scope).toBe('image')
     expect(args.conversationId).toBe(CONVERSATION_ID)
     expect(args.candidates).toEqual([
       { kind: 'preference', text: '偏好横构图 16:9' },
-      { kind: 'rule', text: '回答用中文' },
+      { kind: 'rule', text: '回答用中文', scope: 'global' },
     ])
     // 回执上那个 N = 服务真正记下的条数（敏感命中的那几条已经不在里面）。
     expect(doneEvent(events).roundSummary?.memoriesWritten).toBe(2)
@@ -15648,7 +15859,6 @@ describe('助手记忆（56a）', () => {
       {
         id: 'mem-1',
         scope: 'image',
-        workspaceKey: 'image-natural',
         kind: 'preference',
         source: 'assistant',
         text: '偏好横构图 16:9',
@@ -15683,7 +15893,6 @@ describe('助手记忆（56a）', () => {
       {
         id: 'mem-1',
         scope: 'image',
-        workspaceKey: 'image-natural',
         kind: 'preference',
         text: '偏好横构图 16:9，除非我明说要竖的',
         createdAt: '2026-09-19T10:00:00.000Z',
@@ -15728,12 +15937,12 @@ describe('助手记忆（56a）', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    const [, workspaceKey, limit] = mockListMemoriesForPrompt.mock.calls[0] as [
+    const [, scope, limit] = mockListMemoriesForPrompt.mock.calls[0] as [
       string,
       string,
       number,
     ]
-    expect(workspaceKey).toBe('image-natural')
+    expect(scope).toBe('image')
     expect(mockListContextCards).not.toHaveBeenCalled()
     // 未显式读取的卡片不加载，不影响当前工作台的记忆预算。
     expect(limit).toBe(
@@ -16188,7 +16397,6 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     return {
       id,
       scope: null,
-      workspaceKey: null,
       text,
       kind,
       source: 'creator',

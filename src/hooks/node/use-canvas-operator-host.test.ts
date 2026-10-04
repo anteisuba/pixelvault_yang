@@ -13,6 +13,16 @@ vi.mock('next-intl', () => ({
 }))
 
 const mockLibraryCards = vi.hoisted(() => ({ value: [] as unknown[] }))
+const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
+const deleteProjectRuleAPI = vi.hoisted(() => vi.fn())
+const revertAssistantAssetWriteAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/assistant-memories', () => ({
+  deleteAssistantMemoryAPI,
+}))
+vi.mock('@/lib/api-client/assistant-persona', () => ({ deleteProjectRuleAPI }))
+vi.mock('@/lib/api-client/assistant-operator', () => ({
+  revertAssistantAssetWriteAPI,
+}))
 vi.mock('@/hooks/cards/use-character-library', () => ({
   useCharacterLibrary: () => ({
     cards: mockLibraryCards.value,
@@ -48,6 +58,53 @@ import type {
  * `StudioOperatorDock.web.test.tsx` 钉住。
  */
 describe('useCanvasOperatorHost', () => {
+  it('画布接通规则和素材库撤销，图操作没有撤销本钱时返回失败', async () => {
+    deleteAssistantMemoryAPI.mockReset().mockResolvedValue({ success: true })
+    deleteProjectRuleAPI.mockReset().mockResolvedValue({ success: true })
+    revertAssistantAssetWriteAPI.mockReset().mockResolvedValue({
+      revertedCount: 1,
+      skipped: 0,
+    })
+    const { result } = renderHook(() =>
+      useCanvasOperatorHost({
+        nodes: [],
+        edges: [],
+        selectedNodeIds: [],
+        projectId: 'project-a',
+        projectName: 'test',
+        applyOp: vi.fn(() => true),
+        undo: vi.fn(),
+        canUndo: false,
+        generateNodes: vi.fn(),
+        open: true,
+        setOpen: vi.fn(),
+        onLocate: vi.fn(),
+      }),
+    )
+
+    expect(
+      await result.current.apply.deleteProjectRule?.({
+        ruleId: 'memory-1',
+        kind: 'note',
+      }),
+    ).toBe(true)
+    expect(
+      await result.current.apply.deleteProjectRule?.({
+        ruleId: 'rule-1',
+        kind: 'sourceDeny',
+      }),
+    ).toBe(true)
+    expect(deleteAssistantMemoryAPI).toHaveBeenCalledWith('memory-1')
+    expect(deleteProjectRuleAPI).toHaveBeenCalledWith('rule-1')
+    expect(
+      await result.current.apply.revertAssetWrite?.({
+        tool: 'create_folder',
+        folderId: 'folder-1',
+      }),
+    ).toBe(true)
+    expect(result.current.apply.canvas?.revertOp('absent')).toBe(false)
+  })
+
   it('把外部点击收起置为不收，域仍是 canvas', () => {
     const { result } = renderHook(() =>
       useCanvasOperatorHost({

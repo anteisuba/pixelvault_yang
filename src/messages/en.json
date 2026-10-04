@@ -7175,7 +7175,8 @@
       "phantomCitation": "The assistant cited a source that couldn't be verified, so the answer isn't shown. Try again, or turn off web research for this reply.",
       "videoUnreachable": "This video could not be fetched (it may be deleted, private, or blocked from external access). Try a public link, or download the clip and drop it in.",
       "timelinePlanFailed": "Couldn't create a usable timeline. Try again or describe the sequence you'd like.",
-      "timelinePlanEmpty": "There is no finished video card to arrange yet — generate or upload one first."
+      "timelinePlanEmpty": "There is no finished video card to arrange yet — generate or upload one first.",
+      "promptReviewUnavailable": "The prompt check still returned an invalid result after a retry, so this prompt change was not saved. Earlier changes are preserved. Please try again later."
     },
     "provider": {
       "failed": "AI provider error. Please try again.",
@@ -7748,7 +7749,10 @@
       "renameHint": "Enter to save · Esc to cancel",
       "renaming": "Saving…",
       "renameFailed": "Could not rename. Please try again.",
-      "switching": "Loading conversation…"
+      "switching": "Loading conversation…",
+      "legacyReadOnly": "This older conversation is available for reference. Start a new conversation to continue in this workbench.",
+      "saveFailed": "Conversation could not be saved. Your draft is still here.",
+      "retrySave": "Retry save"
     },
     "more": "More",
     "share": "Share this chat",
@@ -7979,7 +7983,9 @@
       "characterImagesDeclined": "Didn't attach these images: {subject}",
       "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
-      "imageHandoffDeclined": "Not handed to the image assistant: {subject}"
+      "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
+      "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
+      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library."
     },
     "attach": {
       "label": "Upload image / audio / video",
@@ -8062,7 +8068,8 @@
       "invalidRequest": "The server did not accept this request",
       "traceLabel": "Error ID {traceId}",
       "copyDetail": "Copy details",
-      "copied": "Copied"
+      "copied": "Copied",
+      "streamInterrupted": "The connection ended before this turn finished. Completed steps are preserved; check the result before continuing."
     },
     "assistantSettings": "Assistant settings",
     "rule": {
@@ -8623,8 +8630,8 @@
       "hint": "Keep the wording I use in my prompts"
     },
     "memory": {
-      "caption": "What the assistant picked up in conversation and what you wrote yourself, in one list. Yours come first.",
-      "captionPaused": "The assistant won't note anything new. Everything listed still applies — delete what you don't want.",
+      "caption": "Assistant memories stay in their own workspace. You can explicitly share a memory across all workbenches.",
+      "captionPaused": "The assistant won't save new memories. Existing memories apply only in their selected workspace.",
       "capture": "Let the assistant remember",
       "newLabel": "Write a memory",
       "newPlaceholder": "Write one, press Enter to save. e.g. Always reply in English",
@@ -8659,12 +8666,21 @@
       "editHint": "Enter to save · Esc to cancel · pick where it applies on the right",
       "scopeLabel": "Where it applies",
       "scopeAria": "Where it applies: {scope}",
+      "chooseScope": "Choose where it applies",
+      "unassigned": "Unassigned history",
+      "canvasProject": "Canvas · {name}",
+      "savedProject": "Saved project",
+      "projectsLoading": "Loading canvas projects…",
+      "projectsEmpty": "Create a canvas project first.",
+      "projectsRetry": "Couldn't load projects. Retry",
       "scope": {
         "global": "All workbenches",
-        "image": "Image only",
+        "image": "Natural-language images",
+        "tags": "Tag-based images",
         "video": "Video only",
-        "canvas": "Canvas only",
-        "lora": "LoRA only"
+        "canvas": "Canvas project",
+        "lora": "LoRA only",
+        "cards": "Cards only"
       },
       "delete": "Delete",
       "deleteConfirm": "Confirm delete",

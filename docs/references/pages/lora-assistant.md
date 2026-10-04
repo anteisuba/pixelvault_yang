@@ -2,7 +2,7 @@
 
 > 状态：**现行施工基准**（2026-09-12 起）。owner 已逐条拍板，照做即可。
 > **本文没有「开放问题」段落**——表里没写到的按 [AGENTS.md](../../../AGENTS.md) 工程原则自己判。
-> 引擎：Operator 工具环那一份（桌面 `StudioOperatorDock`）。上层协议、五动词、帧与卡片形状全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，本文**不重抄**，只写 LoRA 域这一侧多出来的东西。
+> 引擎：Operator 工具环那一份（桌面与手机共用 `StudioOperatorDock`）。上层协议、五动词、帧与卡片形状全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，本文**不重抄**，只写 LoRA 域这一侧多出来的东西。
 > 上游业务契约：[`../domains/lora.md`](../domains/lora.md)（§7.1.1 family 方言 = 本文 §6 的事实源）。页面结构：[`lora-generate.md`](lora-generate.md)。当前可运行功能：[`lora-workbench.md`](lora-workbench.md)（§4.3 触发词写在正文里 = 本文 §3 的事实源）。
 
 > **2026-09-19 补记（进度表 22「一张脸」）**：LoRA 装配台**早已挂着**这颗统一 dock——宿主实现是 `src/hooks/use-lora-operator-host.ts`，与工作台、画布是同一个契约的三份实现。本轮它这一侧只多了一件事：**空态第三颗起手药丸换成触发词那一问**（owner 要的），三语同步。⛔ 别把 22 读成「LoRA 这一轮才接上助手」。
@@ -37,7 +37,7 @@
 
 - ❌ **§1–§9 那一段 UI 不动**。§4 的三行落在**已有**的挂载日志条详情上（`describeStepDetail`），§5 的提醒行落在**已有**的系统行卡型上，§7 的来源标注落在**已有**的覆盖三选卡上。⛔ 那九片不新增任何一种卡片、不改任何一处版式、不加 token。
   ⚠ **例外只有一处，且是 owner 当日追加的第 8 条**：§10 的「LoRA 推荐卡」是一张**新卡**（`confirm` 帧的第四支 + 一颗新组件）。它不推翻上面那句——那九片仍然一张卡都不加。
-- ❌ **手机端不做**。`/studio/lora` 的小屏宿主仍是旧面板（`LoraAssistantDock` → `PromptAssistantPanel`，见 `LoraWorkbench.tsx:3166`）。本文所有改动都只经过 Operator 那条路，小屏行为一个字不变。
+- **手机端共用 Operator**（2026-10-04 工作区隔离收尾）：`/studio/lora` 小屏与桌面使用同一宿主和工作区会话，面板复用近全屏 sheet；旧 `LoraAssistantDock` 已删除。
 - ❌ **不动训练流程**、不动计费、不动归档。
 - ❌ **不加新工具**（§1–§9 那一段）。LoRA 域工具表（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]`，`constants/assistant-operator.ts:1488`）在那九片里**条目数不变**；§10 加**一条** `plan_lora_pick`（§10.2.2），仅此一条。特别地：⛔ 不加 `set_trigger_chips`（触发词只读，§3.3），~~⛔ 不加 `request_generation`~~（2026-09-29 作废，见文首补记）。
 - ❌ 不拆 `assistant-operator.service.ts`（同 v2 §0 的判据）。

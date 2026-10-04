@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -16,6 +16,7 @@ import {
 import { __resetMinedPromptsCacheForTests } from '@/hooks/prompts/use-civitai-mined-prompts'
 import {
   appendOperatorPendingResult,
+  claimOperatorThreadScope,
   getOperatorState,
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
@@ -24,6 +25,17 @@ import {
   resetLoraLibraryAgent,
 } from '@/hooks/use-lora-library-agent'
 import type { LoraAssetRecord } from '@/types'
+
+const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
+const deleteProjectRuleAPI = vi.hoisted(() => vi.fn())
+const revertAssistantAssetWriteAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/assistant-memories', () => ({
+  deleteAssistantMemoryAPI,
+}))
+vi.mock('@/lib/api-client/assistant-persona', () => ({ deleteProjectRuleAPI }))
+vi.mock('@/lib/api-client/assistant-operator', () => ({
+  revertAssistantAssetWriteAPI,
+}))
 
 /** 这一层验的是快照形状，不是词表 —— 桩成「回 key」就够（同工作台宿主那份）。 */
 vi.mock('next-intl', () => ({
@@ -149,6 +161,37 @@ describe('useLoraOperatorHost.buildSnapshot 的触发词三格', () => {
       setOpen: () => {},
     }
   }
+
+  it('网络撤销按规则存储位置删除，并保留素材库拒绝回执', async () => {
+    deleteAssistantMemoryAPI.mockReset().mockResolvedValue({ success: true })
+    deleteProjectRuleAPI.mockReset().mockResolvedValue({ success: true })
+    revertAssistantAssetWriteAPI.mockReset().mockResolvedValue({
+      revertedCount: 0,
+      skipped: 1,
+    })
+    const { result } = renderHook(() => useLoraOperatorHost(hostInput([])))
+
+    expect(
+      await result.current.apply.deleteProjectRule?.({
+        ruleId: 'memory-1',
+        kind: 'note',
+      }),
+    ).toBe(true)
+    expect(
+      await result.current.apply.deleteProjectRule?.({
+        ruleId: 'rule-1',
+        kind: 'sourceAllow',
+      }),
+    ).toBe(true)
+    expect(deleteAssistantMemoryAPI).toHaveBeenCalledWith('memory-1')
+    expect(deleteProjectRuleAPI).toHaveBeenCalledWith('rule-1')
+    expect(
+      await result.current.apply.revertAssetWrite?.({
+        tool: 'create_folder',
+        folderId: 'folder-1',
+      }),
+    ).toBe(false)
+  })
 
   it('触发词空串归一成 null；推荐提示词照给', () => {
     const { result } = renderHook(() =>
@@ -958,6 +1001,35 @@ describe('useLoraOperatorHost 的出图那一枪', () => {
     expect(
       getOperatorState().entries.some((entry) => entry.id === 'result-1'),
     ).toBe(false)
+  })
+
+  it('提交携带原对话身份，切到新对话后旧请求不再扣扳机', async () => {
+    claimOperatorThreadScope('user-a:lora', 'lora')
+    appendOperatorPendingResult({ id: 'result-owned', total: 1 })
+    const owner = {
+      threadScope: 'user-a:lora',
+      localThreadId: getOperatorState().localThreadId,
+      pendingResultId: 'result-owned',
+    }
+    const run = vi.fn()
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(generateInput({ run, blockedReason: null })),
+    )
+    const request = {
+      model: { id: 'illustrious-runner', label: 'Illustrious' },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+    }
+    act(() => result.current.apply.triggerGeneration?.(request, owner))
+    expect(run).toHaveBeenCalledWith(owner)
+    run.mockClear()
+    act(() => {
+      result.current.apply.triggerGeneration?.(request, owner)
+      resetOperatorThread()
+      appendOperatorPendingResult({ id: 'result-new', total: 1 })
+    })
+    expect(run).not.toHaveBeenCalled()
+    expect(getOperatorState().pendingResultId).toBe('result-new')
   })
 })
 

@@ -32,7 +32,8 @@ import {
   RESEARCH_MODE_VALUES,
   type ResearchMode,
 } from '@/constants/research'
-import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
+import { getPromptDialect } from '@/constants/prompt-dialects'
+import { resolveAdapterType } from '@/constants/models'
 import { cn } from '@/lib/utils'
 
 /**
@@ -76,19 +77,31 @@ interface StudioAssistantHeaderActionsProps {
    * 里全是别的域的对话」。
    */
   assistantDomain: AssistantProtocolDomain
+  modelId?: string
+  projectId?: string
 }
 
 export function StudioAssistantHeaderActions({
   onClose,
   mobile = false,
   assistantDomain,
+  modelId,
+  projectId,
 }: StudioAssistantHeaderActionsProps) {
   const tHistory = useTranslations('StudioNode.history')
   const tPrompt = useTranslations('PromptAssistant')
   const { route, setRoute, researchMode, setResearchMode } =
     useStudioAssistantControls()
+  const workspace =
+    assistantDomain === 'image'
+      ? getPromptDialect(resolveAdapterType(modelId ?? '') ?? undefined) ===
+        'tags'
+        ? 'image-tags'
+        : 'image-natural'
+      : assistantDomain
   const { sessionId, sessions, clear, selectSession } = usePromptAssistant(
-    ASSISTANT_SURFACE_BY_DOMAIN[assistantDomain],
+    workspace,
+    projectId,
   )
 
   const historySessions = useMemo<NodeAssistantHistorySession[]>(

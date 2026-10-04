@@ -30,6 +30,7 @@ export const GET = createApiGetRoute({
     listAssistantMemoriesForClerkId(clerkId!, {
       /** ⚠ 缺席 = 全部（chip 默认那一档），⛔ 不悄悄只给某个域。 */
       scope: data.scope ?? null,
+      ...(data.workspaceKey ? { workspaceKey: data.workspaceKey } : {}),
     }),
 })
 

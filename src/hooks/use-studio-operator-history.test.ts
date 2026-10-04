@@ -3,17 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import type { UpsertAssistantConversationRequest } from '@/types/assistant-conversation'
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
 
-/**
- * 会话历史落库的**接线闸**（P4-B）。
- *
- * 三条都在类型之外，只能靠这里钉住：
- *  ① 写入是**一条防抖**，不是每帧一次 —— 一轮流式回合十几步只该写一次库；
- *  ② `surface` 记的是**线程起始域**，切域**不改它** —— 改了那条线程就从原来
- *    那个域的历史列表里消失了（用户在原地找不回刚才聊的东西）；
- *  ③ 「新对话」之后第一次保存是**新建**（不带 id）—— 带着旧 id 的下场是库里
- *    永远只有一行，而那要读库才发现得了。
- */
+const IMAGE_SCOPE = { userId: 'user-1', workspace: 'image-natural' as const }
 
 const translate = (key: string) => key
 vi.mock('next-intl', () => ({ useTranslations: () => translate }))
@@ -59,7 +51,9 @@ afterEach(() => {
 })
 
 async function mount() {
-  const rendered = renderHook(() => historyHook.useStudioOperatorHistory())
+  const rendered = renderHook(() =>
+    historyHook.useStudioOperatorHistory(IMAGE_SCOPE),
+  )
   // 水化那一跳（两次 list）是异步的 —— 冲干净再往下走。
   await act(async () => {
     await vi.advanceTimersByTimeAsync(0)
@@ -118,7 +112,12 @@ describe('会话历史落库', () => {
     // 刷新：同一段会话载回来，卡回到面板上。
     getMock.mockResolvedValue({
       success: true,
-      data: { id: 'conv-1', surface: 'IMAGE_STUDIO', messages: saved },
+      data: {
+        id: 'conv-1',
+        surface: 'IMAGE_STUDIO',
+        workspaceKey: 'image-natural',
+        messages: saved,
+      },
     })
     act(() => store.resetOperatorThread())
     const { result } = await mount()
@@ -126,6 +125,7 @@ describe('会话历史落库', () => {
       result.current.selectSession({
         id: 'conv-1',
         surface: 'IMAGE_STUDIO',
+        workspaceKey: 'image-natural',
       } as never)
       await vi.advanceTimersByTimeAsync(0)
     })
@@ -153,29 +153,36 @@ describe('会话历史落库', () => {
     expect(JSON.stringify(lastUpsertBody())).not.toContain('inverse')
   })
 
-  it('surface 记**起始域**，切域不改它 —— 改了线程就从原域的列表里消失', async () => {
-    await mount()
-
+  it('切工作区分别保存，返回后继续原线程', async () => {
+    const rendered = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
+      { initialProps: { workspace: 'image-natural' } },
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
     act(() => say('u1', '在图片档说的'))
     await settleDebounce()
-    expect(lastUpsertBody()).toMatchObject({ surface: 'IMAGE_STUDIO' })
-    expect(lastUpsertBody().id).toBeUndefined()
-
-    // 切域会往线程里插一条域标记（拍板 8：换工具，不断会话）。
-    act(() => store.switchOperatorDomain('video'))
-    await settleDebounce()
-
-    expect(upsertMock).toHaveBeenCalledTimes(2)
-    // ⭐ 仍然是 IMAGE_STUDIO，而域切换以 domainMark 存在 messages 里。
     expect(lastUpsertBody()).toMatchObject({
       surface: 'IMAGE_STUDIO',
-      id: 'conv-1',
+      workspaceKey: 'image-natural',
     })
-    expect(
-      lastUpsertBody().messages.some(
-        (message) => message.operator?.kind === 'domainMark',
-      ),
-    ).toBe(true)
+    rendered.rerender({ workspace: 'video' })
+    expect(store.getOperatorState().entries).toEqual([])
+    act(() => say('v1', '在视频档说的'))
+    await settleDebounce()
+    expect(upsertMock).toHaveBeenCalledTimes(2)
+    expect(lastUpsertBody()).toMatchObject({
+      surface: 'VIDEO_STUDIO',
+      workspaceKey: 'video',
+    })
+    expect(lastUpsertBody().id).toBeUndefined()
+    rendered.rerender({ workspace: 'image-natural' })
+    expect(store.getOperatorState().entries.map((entry) => entry.id)).toEqual([
+      'u1',
+    ])
+    expect(store.getOperatorState().sessionId).toBe('conv-1')
   })
 
   it('「新对话」之后是**新建**一行，⛔ 不覆盖上一条会话', async () => {
@@ -209,7 +216,7 @@ describe('会话历史落库', () => {
           { kind: 'user', id: 'old-1', text: '上次说的', attachments: [] },
         ],
         sessionId: 'conv-old',
-        sessionSurface: 'VIDEO_STUDIO',
+        sessionSurface: 'IMAGE_STUDIO',
       }),
     )
     act(() => say('u1', '这次说的'))
@@ -217,7 +224,7 @@ describe('会话历史落库', () => {
 
     expect(lastUpsertBody()).toMatchObject({
       id: 'conv-old',
-      surface: 'VIDEO_STUDIO',
+      surface: 'IMAGE_STUDIO',
     })
     expect(lastUpsertBody().messages.map((message) => message.content)).toEqual(
       ['上次说的', '这次说的'],
@@ -228,6 +235,7 @@ describe('会话历史落库', () => {
 const session = {
   id: 'conv-delete',
   surface: 'IMAGE_STUDIO' as const,
+  workspaceKey: 'image-natural',
   projectId: null,
   title: 'Delete me',
   updatedAt: '2026-09-09T00:00:00Z',
@@ -334,13 +342,23 @@ it('ignores an older selection when requests finish out of order', async () => {
   await act(async () =>
     finishes[1]({
       success: true,
-      data: { id: 'newer', surface: session.surface, messages: [] },
+      data: {
+        id: 'newer',
+        surface: session.surface,
+        workspaceKey: 'image-natural',
+        messages: [],
+      },
     }),
   )
   await act(async () =>
     finishes[0]({
       success: true,
-      data: { id: session.id, surface: session.surface, messages: [] },
+      data: {
+        id: session.id,
+        surface: session.surface,
+        workspaceKey: 'image-natural',
+        messages: [],
+      },
     }),
   )
   expect(store.getOperatorState().sessionId).toBe('newer')
@@ -361,6 +379,7 @@ it('载回一条会话时把 `rounds` 那一列一起回填（v2 §7.7，commit 
     data: {
       id: session.id,
       surface: session.surface,
+      workspaceKey: 'image-natural',
       messages: [],
       rounds: [round],
     },
@@ -392,7 +411,9 @@ it('updates a renamed title only after a successful save', async () => {
 
 it('coalesces menu refreshes while the initial list is still loading', async () => {
   listMock.mockImplementation(() => new Promise(() => {}))
-  const hook = renderHook(() => historyHook.useStudioOperatorHistory())
+  const hook = renderHook(() =>
+    historyHook.useStudioOperatorHistory(IMAGE_SCOPE),
+  )
   const initialCalls = listMock.mock.calls.length
   act(() => {
     hook.result.current.refreshSessions()
@@ -422,7 +443,11 @@ it('loads the combined list once and reuses it for repeated menu opens', async (
 describe('会话按画布项目分（D12 U7）', () => {
   it('画布只列这个项目的会话，存的时候带上项目 id', async () => {
     const rendered = renderHook(() =>
-      historyHook.useStudioOperatorHistory('canvas-project-1'),
+      historyHook.useStudioOperatorHistory({
+        userId: 'user-1',
+        workspace: 'canvas',
+        projectId: 'canvas-project-1',
+      }),
     )
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -451,13 +476,21 @@ describe('会话按画布项目分（D12 U7）', () => {
     expect(store.getOperatorState().sessionId).toBe('conv-1')
     studio.unmount()
 
-    renderHook(() => historyHook.useStudioOperatorHistory('canvas-project-1'))
+    renderHook(() =>
+      historyHook.useStudioOperatorHistory({
+        userId: 'user-1',
+        workspace: 'canvas',
+        projectId: 'canvas-project-1',
+      }),
+    )
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
     expect(store.getOperatorState().entries).toHaveLength(0)
     expect(store.getOperatorState().sessionId).toBeNull()
-    expect(store.getOperatorState().threadScope).toBe('canvas:canvas-project-1')
+    expect(store.getOperatorState().threadScope).toBe(
+      'user-1:canvas:canvas-project-1',
+    )
   })
 })
 
@@ -473,7 +506,10 @@ describe('卡片助手的会话单独一份（owner 09-26）', () => {
     upsertMock.mockClear()
 
     const rendered = renderHook(() =>
-      historyHook.useStudioOperatorHistory(undefined, 'cards'),
+      historyHook.useStudioOperatorHistory({
+        userId: 'user-1',
+        workspace: 'cards',
+      }),
     )
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
@@ -482,7 +518,7 @@ describe('卡片助手的会话单独一份（owner 09-26）', () => {
       expect.objectContaining({ surface: 'CARDS', operatorOnly: true }),
     )
     expect(store.getOperatorState().entries).toHaveLength(0)
-    expect(store.getOperatorState().threadScope).toBe('CARDS')
+    expect(store.getOperatorState().threadScope).toBe('user-1:cards')
 
     say('user-2', '查一下达妮娅的设定')
     await settleDebounce()
@@ -490,5 +526,267 @@ describe('卡片助手的会话单独一份（owner 09-26）', () => {
       .calls[0]?.[0] as UpsertAssistantConversationRequest
     expect(payload.surface).toBe('CARDS')
     rendered.unmount()
+  })
+})
+
+describe('作用域和本地线程身份的异步边界', () => {
+  it('保存失败可见，保留消息且只在用户重试时再次保存', async () => {
+    upsertMock.mockResolvedValueOnce({ success: false, error: 'Offline' })
+    const rendered = await mount()
+    act(() => say('u1', '还没有保存的消息'))
+    await settleDebounce()
+    expect(rendered.result.current.error).toBe('saveFailed')
+    expect(store.getOperatorState().entries).toHaveLength(1)
+    await settleDebounce()
+    expect(upsertMock).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      expect(await rendered.result.current.retrySave()).toBe(true)
+    })
+    expect(upsertMock).toHaveBeenCalledTimes(2)
+    expect(lastUpsertBody().messages[0].content).toBe('还没有保存的消息')
+    expect(rendered.result.current.error).toBeNull()
+  })
+
+  it('只有主动查看才请求旧历史，旧记录只读且不会再落成当前工作区会话', async () => {
+    const rendered = await mount()
+    expect(listMock.mock.calls[0][0].includeLegacy).toBeUndefined()
+    act(() => say('u1', '旧消息'))
+    await settleDebounce()
+    const messages = lastUpsertBody().messages
+    const legacy = { ...session, id: 'legacy-conversation', workspaceKey: null }
+    listMock.mockResolvedValue({ success: true, data: [legacy] })
+    await act(async () => {
+      rendered.result.current.refreshSessions(true, true)
+    })
+    expect(listMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        workspaceKey: 'image-natural',
+        includeLegacy: true,
+      }),
+    )
+    getMock.mockResolvedValue({
+      success: true,
+      data: {
+        ...legacy,
+        messages,
+        rounds: [
+          {
+            roundIndex: 0,
+            createdAt: '2026-09-11T00:00:00Z',
+            facts: ['旧结论'],
+            decisions: [],
+            todos: [],
+            evidenceRefs: [],
+          },
+        ],
+      },
+    })
+    await act(async () => {
+      rendered.result.current.selectSession(legacy)
+    })
+    expect(getMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ includeLegacy: true, operatorOnly: true }),
+    )
+    expect(store.getOperatorState()).toMatchObject({
+      readOnlyHistory: true,
+      sessionId: null,
+      autoGenerate: false,
+      confirm: null,
+      question: null,
+      historyRounds: [],
+    })
+    expect(store.getOperatorState().history).toHaveLength(1)
+    upsertMock.mockClear()
+    await act(async () => {
+      expect(await rendered.result.current.retrySave()).toBe(false)
+    })
+    await settleDebounce()
+    expect(upsertMock).not.toHaveBeenCalled()
+    act(() => store.resetOperatorThread())
+    expect(store.getOperatorState()).toMatchObject({
+      readOnlyHistory: false,
+      history: [],
+    })
+  })
+
+  it('首次保存期间新建线程，旧 null 会话回包不能回填新 null 会话', async () => {
+    let finish!: (value: unknown) => void
+    upsertMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    await mount()
+    act(() => say('a1', '旧会话'))
+    await settleDebounce()
+    const firstId = store.getOperatorState().localThreadId
+    act(() => store.resetOperatorThread())
+    expect(store.getOperatorState().localThreadId).not.toBe(firstId)
+    await act(async () =>
+      finish({ success: true, data: { id: 'old-conversation' } }),
+    )
+    expect(store.getOperatorState().sessionId).toBeNull()
+    act(() => say('b1', '新会话'))
+    await settleDebounce()
+    expect(lastUpsertBody().id).toBeUndefined()
+    expect(lastUpsertBody().messages.map((item) => item.content)).toEqual([
+      '新会话',
+    ])
+  })
+
+  it('图片和标签各自查询精确工作区，旧列表回包不启动跨区加载', async () => {
+    let finishImage!: (value: unknown) => void
+    listMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishImage = resolve
+        }),
+    )
+    const rendered = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
+      { initialProps: { workspace: 'image-natural' } },
+    )
+    rendered.rerender({ workspace: 'image-tags' })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+      finishImage({ success: true, data: [session] })
+    })
+    expect(listMock.mock.calls.map(([args]) => args.workspaceKey)).toEqual([
+      'image-natural',
+      'image-tags',
+    ])
+    expect(getMock).not.toHaveBeenCalled()
+    expect(store.getOperatorState().threadScope).toBe('user-1:image-tags')
+    expect(store.getOperatorState().sessionId).toBeNull()
+    expect(rendered.result.current.sessions).toEqual([])
+  })
+
+  it('离开工作区后旧历史详情不能覆盖目标工作区', async () => {
+    let finish!: (value: unknown) => void
+    getMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const rendered = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
+      { initialProps: { workspace: 'image-natural' } },
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    act(() => rendered.result.current.selectSession(session))
+    rendered.rerender({ workspace: 'lora' })
+    await act(async () =>
+      finish({ success: true, data: { ...session, messages: [] } }),
+    )
+    expect(store.getOperatorState().threadScope).toBe('user-1:lora')
+    expect(store.getOperatorState().sessionId).toBeNull()
+  })
+
+  it('未保存的工作区切走会保存其自己的快照，晚回包只绑定原缓存', async () => {
+    let finish!: (value: unknown) => void
+    upsertMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const rendered = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
+      { initialProps: { workspace: 'image-natural' } },
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    act(() => say('a1', '图片请求'))
+    rendered.rerender({ workspace: 'lora' })
+    expect(lastUpsertBody()).toMatchObject({ workspaceKey: 'image-natural' })
+    await act(async () =>
+      finish({ success: true, data: { id: 'image-conversation' } }),
+    )
+    expect(store.getOperatorState().sessionId).toBeNull()
+    rendered.rerender({ workspace: 'image-natural' })
+    expect(store.getOperatorState().sessionId).toBe('image-conversation')
+    expect(store.getOperatorState().entries.map((item) => item.id)).toEqual([
+      'a1',
+    ])
+  })
+
+  it('串行保存同一线程时，后续快照使用首次保存返回的数据库身份', async () => {
+    let finish!: (value: unknown) => void
+    upsertMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    await mount()
+    act(() => say('a1', '第一句'))
+    await settleDebounce()
+    act(() => say('a2', '第二句'))
+    await settleDebounce()
+    expect(upsertMock).toHaveBeenCalledTimes(1)
+    await act(async () =>
+      finish({ success: true, data: { id: 'conversation-a' } }),
+    )
+    expect(upsertMock).toHaveBeenCalledTimes(2)
+    expect(lastUpsertBody().id).toBe('conversation-a')
+    expect(lastUpsertBody().messages).toHaveLength(2)
+  })
+
+  it('账号切换清掉缓存，旧账号排队中的未发送保存不能借新账号写出', async () => {
+    let finish!: (value: unknown) => void
+    upsertMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const rendered = renderHook(
+      ({ userId }: { userId: string | null }) =>
+        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, userId }),
+      { initialProps: { userId: 'user-1' } },
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    act(() => say('a1', '账号 A'))
+    await settleDebounce()
+    act(() => say('a2', 'A 未发送的更新'))
+    await settleDebounce()
+    rendered.rerender({ userId: 'user-2' })
+    await act(async () =>
+      finish({ success: true, data: { id: 'a-conversation' } }),
+    )
+    expect(upsertMock).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().entries).toEqual([])
+    expect(store.getOperatorState().sessionId).toBeNull()
+    rendered.rerender({ userId: 'user-1' })
+    expect(store.getOperatorState().entries).toEqual([])
+  })
+
+  it('没有账号或画布项目身份时不读取或保存会话', async () => {
+    const rendered = renderHook(
+      ({
+        userId,
+        workspace,
+      }: {
+        userId: string | null
+        workspace: AssistantWorkspace
+      }) => historyHook.useStudioOperatorHistory({ userId, workspace }),
+      { initialProps: { userId: null, workspace: 'image-natural' } },
+    )
+    act(() => say('u1', '没有账号'))
+    await settleDebounce()
+    rendered.rerender({ userId: 'user-1', workspace: 'canvas' })
+    await settleDebounce()
+    expect(listMock).not.toHaveBeenCalled()
+    expect(upsertMock).not.toHaveBeenCalled()
   })
 })

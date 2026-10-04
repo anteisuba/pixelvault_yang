@@ -272,6 +272,7 @@ describe('项目规则 · kind 与来源 token（v2 §9.3）', () => {
       createdAt: '2026-09-10T00:00:00.000Z',
     })
     expect(parsed.success && parsed.data.kind).toBe(PROJECT_RULE_KIND_IDS.note)
+    expect(parsed.success && parsed.data.workspaceKey).toBeNull()
   })
 })
 

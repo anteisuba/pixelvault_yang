@@ -32,6 +32,7 @@ vi.mock('next-intl', () => {
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: hostDomain.current,
+    workspace: hostDomain.current === 'image' ? 'image-natural' : 'video',
     buildSnapshot: () => ({ prompt: '', availableModels: [] }),
     results: [],
     referenceLimit: 4,
@@ -124,7 +125,9 @@ async function settle(): Promise<void> {
 }
 
 function render() {
-  return renderHook(() => operator.useAssistantOperator())
+  const scope = `user-a:${hostDomain.current === 'image' ? 'image-natural' : 'video'}`
+  store.claimOperatorThreadScope(scope, hostDomain.current)
+  return renderHook(() => operator.useAssistantOperator(scope))
 }
 
 describe('视频域评审：请求发出去之前先抽三帧', () => {

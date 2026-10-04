@@ -66,7 +66,8 @@ import {
   type PromptAssistantDisplayMessage,
 } from '@/hooks/kernel/use-prompt-assistant'
 import type { LoraCandidateConfirmAdapter } from '@/hooks/use-lora-candidate-confirm'
-import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
+import { getPromptDialect } from '@/constants/prompt-dialects'
+import { resolveAdapterType } from '@/constants/models'
 import type { AssistantAskedPair } from '@/types/assistant-protocol'
 import { narrowLoraPicksToCandidates } from '@/lib/assistant-protocol-blocks'
 import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
@@ -202,7 +203,13 @@ export function PromptAssistantPanel({
   // A1：域决定这段对话存进哪个槽。头部（新对话 / 历史 / 分享）也读同一个槽，
   // 所以宿主必须把同一个 domain 同时喂给两处 —— 喂错的表现是「历史列表是别的
   // 域的」。
-  const surface = ASSISTANT_SURFACE_BY_DOMAIN[effectiveDomain]
+  const workspace =
+    effectiveDomain === 'image'
+      ? getPromptDialect(resolveAdapterType(modelId ?? '') ?? undefined) ===
+        'tags'
+        ? 'image-tags'
+        : 'image-natural'
+      : effectiveDomain
   const {
     messages,
     sessionId,
@@ -215,7 +222,7 @@ export function PromptAssistantPanel({
     retry,
     applyPreset,
     clear,
-  } = usePromptAssistant(surface)
+  } = usePromptAssistant(workspace)
 
   const [inputValue, setInputValue] = useState('')
   const [responseLanguage, setResponseLanguage] =

@@ -22,7 +22,10 @@
 import { flushSync } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
 import { ASSISTANT_LORA_PICK_LIMITS } from '@/constants/assistant-protocol'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -42,6 +45,7 @@ import {
   nextOperatorEntryId,
   setOperatorPrimed,
   setOperatorReviewState,
+  useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import {
   LORA_BASE_MODELS,
@@ -49,10 +53,13 @@ import {
 } from '@/constants/lora-base-models'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
+import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
+import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
 import {
   toOperatorResultRun,
+  matchesOperatorResultOwner,
   toOperatorRunResults,
 } from '@/lib/studio-operator-result-run'
 import {
@@ -61,7 +68,10 @@ import {
   showLoraLibraryPicks,
 } from '@/hooks/use-lora-library-agent'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
-import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorResultItem,
+  StudioOperatorResultOwner,
+} from '@/types/studio-assistant-operator'
 import type { ActiveRun, LoraAssetRecord } from '@/types'
 
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
@@ -129,7 +139,7 @@ export interface UseLoraOperatorHostInput {
    * `blockedReason` = 出图键这会儿按不下去的原因（`''` = 说不出原因），`null` = 能按。
    */
   generate?: {
-    run(): void
+    run(owner?: StudioOperatorResultOwner): void
     blockedReason: string | null
   }
   /** 装配台那条在飞的出图（`useUnifiedGenerate().activeRun`）—— 结果卡的生成中态读它。 */
@@ -354,14 +364,25 @@ export function useLoraOperatorHost(
    * 只记一个请求号，等这次渲染提交之后再按。助手同一轮刚写进来的提示词、挂载与
    * 参数这时才都在表单上；当场就按，读到的是改之前的那一份。
    */
-  const [generateRequest, setGenerateRequest] = useState(0)
+  const [generateRequest, setGenerateRequest] = useState<{
+    id: number
+    owner?: StudioOperatorResultOwner
+  }>({ id: 0 })
   const handledGenerateRequest = useRef(0)
   const generate = input.generate
   useEffect(() => {
-    if (!generate || generateRequest === handledGenerateRequest.current) return
-    handledGenerateRequest.current = generateRequest
+    if (!generate || generateRequest.id === handledGenerateRequest.current)
+      return
+    handledGenerateRequest.current = generateRequest.id
+    const current = getOperatorState()
+    if (
+      generateRequest.owner &&
+      (current.readOnlyHistory ||
+        !matchesOperatorResultOwner(generateRequest.owner, current))
+    )
+      return
     if (generate.blockedReason === null) {
-      generate.run()
+      generate.run(generateRequest.owner)
       return
     }
     // 按不下去：撤掉那张「生成中」的卡、在线程里说清楚 —— ⛔ 不让它转满认领
@@ -505,9 +526,9 @@ export function useLoraOperatorHost(
       setReviewState: setOperatorReviewState,
       ...(hasGenerate
         ? {
-            triggerGeneration: () => {
+            triggerGeneration: (_request, owner) => {
               latest.current.returnToBench?.()
-              setGenerateRequest((n) => n + 1)
+              setGenerateRequest((request) => ({ id: request.id + 1, owner }))
             },
           }
         : {}),
@@ -517,8 +538,15 @@ export function useLoraOperatorHost(
        * `COMMON_DOMAIN_TOOLS`，装配台上照样调得到，少接这只手的表现是那里点撤销
        * 没反应。
        */
-      revertAssetWrite: (input) => {
-        void revertAssistantAssetWriteAPI(input)
+      deleteProjectRule: async ({ ruleId, kind }) => {
+        const result = await (kind === PROJECT_RULE_KIND_IDS.note
+          ? deleteAssistantMemoryAPI(ruleId)
+          : deleteProjectRuleAPI(ruleId))
+        return result.success
+      },
+      revertAssetWrite: async (input) => {
+        const result = await revertAssistantAssetWriteAPI(input)
+        return result !== null && result.skipped === 0
       },
       lora: {
         ...(input.setLoraParameters
@@ -656,13 +684,18 @@ export function useLoraOperatorHost(
 
   const results = input.results ?? NO_RESULTS
   const activeRun = input.activeRun
+  const { threadScope, localThreadId, pendingResultId } =
+    useStudioOperatorState()
   const resultRun = useMemo(
     () =>
-      toOperatorResultRun(
-        activeRun?.items,
-        toOperatorRunResults(activeRun?.items ?? []),
-      ),
-    [activeRun],
+      threadScope && pendingResultId
+        ? toOperatorResultRun(
+            activeRun?.items,
+            toOperatorRunResults(activeRun?.items ?? []),
+            { threadScope, localThreadId, pendingResultId },
+          )
+        : undefined,
+    [activeRun, threadScope, localThreadId, pendingResultId],
   )
 
   /**
@@ -691,6 +724,7 @@ export function useLoraOperatorHost(
   return useMemo(
     () => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+      workspace: 'lora' as const,
       face,
       buildSnapshot,
       apply,

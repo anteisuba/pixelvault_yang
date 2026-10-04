@@ -129,6 +129,7 @@ export async function detectTrustedImageMime(
 
 export interface FetchAsBufferOptions {
   headers?: Record<string, string>
+  signal?: AbortSignal
   /**
    * Hard cap on the resolved buffer size, in bytes. Applied for both
    * `data:` URLs (counted before decode-bound expansion) and remote
@@ -148,7 +149,7 @@ const DATA_URL_BASE64_MARKER = 'base64'
 function isFetchAsBufferOptions(
   value: Record<string, string> | FetchAsBufferOptions,
 ): value is FetchAsBufferOptions {
-  return 'headers' in value || 'maxBytes' in value
+  return 'headers' in value || 'maxBytes' in value || 'signal' in value
 }
 
 function parseBase64DataUrl(url: string): {
@@ -190,7 +191,8 @@ export async function fetchAsBuffer(
       : headersOrOptions
         ? { headers: headersOrOptions }
         : {}
-  const { headers, maxBytes } = options
+  const { headers, maxBytes, signal } = options
+  signal?.throwIfAborted()
 
   if (maxBytes !== undefined && (!Number.isFinite(maxBytes) || maxBytes < 0)) {
     throw new Error('Invalid maxBytes option.')
@@ -210,6 +212,7 @@ export async function fetchAsBuffer(
   const response = await safeFetch(url, {
     allowedProtocols: ['http:', 'https:'],
     ...(headers && { headers }),
+    signal,
   })
   if (!response.ok) {
     throw new Error(`Failed to fetch image (${response.status}): ${url}`)
@@ -228,6 +231,7 @@ export async function fetchAsBuffer(
   }
 
   const arrayBuffer = await response.arrayBuffer()
+  signal?.throwIfAborted()
   const buffer = Buffer.from(arrayBuffer)
   if (maxBytes !== undefined && buffer.byteLength > maxBytes) {
     throw new Error(

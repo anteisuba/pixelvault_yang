@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiRequestError } from '@/lib/errors'
 import { readOperatorReferenceProfiles } from '@/lib/studio-operator-history'
+import { getPromptDialect } from '@/constants/prompt-dialects'
+import { resolveAdapterType } from '@/constants/models'
 
 import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
 import {
@@ -205,6 +207,8 @@ const mockListAssistantConversationRounds = vi.fn(
   async (..._args: unknown[]) => [] as Record<string, unknown>[],
 )
 vi.mock('@/services/assistant-conversation.service', () => ({
+  assertAssistantWorkspaceAccess: vi.fn(async () => undefined),
+  assertAssistantConversationWorkspaceAccess: vi.fn(async () => undefined),
   appendAssistantConversationRound: (...args: unknown[]) =>
     mockAppendAssistantConversationRound(
       ...(args as [string, string, Record<string, unknown>]),
@@ -222,13 +226,9 @@ const mockRecallAssistantEvidence = vi.fn(async (..._args: unknown[]) => ({
   items: [] as Record<string, unknown>[],
   missing: [] as string[],
 }))
-/** 号段预取（§9.2 `evidenceRef`）—— 桩成固定起点，编号才断言得了。 */
-const mockPeekAssistantEvidenceRefSeq = vi.fn(async (..._args: unknown[]) => 12)
 vi.mock('@/services/research/assistant-evidence-book.service', () => ({
   appendAssistantEvidenceBook: (...args: unknown[]) =>
     mockAppendAssistantEvidenceBook(...args),
-  peekAssistantEvidenceRefSeq: (...args: unknown[]) =>
-    mockPeekAssistantEvidenceRefSeq(...args),
   recallAssistantEvidence: (...args: unknown[]) =>
     mockRecallAssistantEvidence(...args),
 }))
@@ -474,10 +474,23 @@ const SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
 function buildRequest(
   overrides: Partial<AssistantOperatorRequest> = {},
 ): AssistantOperatorRequest {
+  const domain = overrides.domain ?? 'image'
+  const snapshot = overrides.snapshot ?? SNAPSHOT
+  const workspaceKey =
+    domain === 'canvas'
+      ? 'canvas:test-project'
+      : domain === 'image'
+        ? getPromptDialect(
+            resolveAdapterType(snapshot.model?.id ?? '') ?? undefined,
+          ) === 'tags'
+          ? 'image-tags'
+          : 'image-natural'
+        : domain
   return {
     messages: [{ role: 'user', content: '帮我把这张海报配好' }],
     domain: 'image',
     snapshot: SNAPSHOT,
+    workspaceKey,
     ...overrides,
   }
 }
@@ -773,6 +786,57 @@ beforeEach(() => {
     query: '',
     candidates: [],
     sources: [{ source: 'civitai', status: 'empty', count: 0, tookMs: 1 }],
+  })
+})
+
+describe('工作区执行边界', () => {
+  it('工作区与域不匹配时不请求模型', async () => {
+    await expect(
+      collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain: 'lora',
+            workspaceKey: 'image-natural',
+          }),
+        ),
+      ),
+    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_WORKSPACE_INVALID' })
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+  })
+
+  it('自然语言台不能通过模型建议切到标签台', async () => {
+    queueTurns(
+      {
+        tool: { name: 'set_model', args: { modelId: 'nai-diffusion-5-full' } },
+      },
+      { finished: true, message: '该模型属于标签工作台。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          workspaceKey: 'image-natural',
+          snapshot: {
+            ...SNAPSHOT,
+            availableModels: [
+              ...SNAPSHOT.availableModels,
+              { id: 'nai-diffusion-5-full', label: 'NovelAI V5 Full' },
+            ],
+          },
+        }),
+      ),
+    )
+    const steps = stepsOf(events)
+    expect(
+      steps.some((step) => step.tool === 'set_model' && step.status === 'done'),
+    ).toBe(false)
+    expect(
+      steps.some(
+        (step) =>
+          step.status === 'error' && step.error?.reason === 'unknownModel',
+      ),
+    ).toBe(true)
   })
 })
 
@@ -3032,6 +3096,34 @@ describe('就地确认往返（拍板 3）', () => {
 })
 
 describe('打断（拍板 13）', () => {
+  it('模型在飞时取消：信号贯通并干净收尾，不压缩重试或结账', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    mockLlmTextCompletion.mockImplementationOnce(async (input) => {
+      expect(input.signal).toBe(controller.signal)
+      return new Promise((_resolve, reject) => {
+        input.signal.addEventListener('abort', () => reject(reason), {
+          once: true,
+        })
+        controller.abort(reason)
+      })
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest(), {
+        signal: controller.signal,
+      }),
+    )
+    expect(events).toEqual([
+      {
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+      },
+    ])
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
   it('开跑前就 abort：一次模型都不问，直接干净收尾', async () => {
     queueTurns({ finished: true })
     const controller = new AbortController()
@@ -3580,6 +3672,11 @@ describe('看图闭环 · critique_result', () => {
   })
 
   it('用户选的路看不了图时借一条，并如实标 borrowed', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    })
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
       providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -3605,6 +3702,11 @@ describe('看图闭环 · critique_result', () => {
 
   /** ⛔ 借不到就说不出话 —— 绝不降级成「凭提示词猜」。 */
   it('一条能看图的路都借不到时被拒，且不降级去猜', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    })
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
       providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -4011,6 +4113,7 @@ function buildVideoRequest(
   return {
     messages: [{ role: 'user', content: '帮我配一条雨夜短片' }],
     domain: 'video',
+    workspaceKey: 'video',
     snapshot: VIDEO_SNAPSHOT,
     ...overrides,
   }
@@ -5153,6 +5256,7 @@ function buildLoraRequest(
   return {
     messages: [{ role: 'user', content: '帮我找个水彩画风的 LoRA 配上' }],
     domain: 'lora',
+    workspaceKey: 'lora',
     snapshot: LORA_SNAPSHOT,
     ...overrides,
   }
@@ -6312,23 +6416,13 @@ describe('用户偏好进系统提示（§8.3）', () => {
     )
   })
 
-  /**
-   * ⭐ 这一条是这一段的核心判据：术语表只装**名称**，⛔ 不重发卡正文 ——
-   * 正文在卡那一段里已经有摘要，完整的一份靠 `read_context_card` 拉。
-   */
-  it('「用我的词」只列上下文卡的名称，⛔ 不带卡正文', async () => {
+  it('「用我的词」不自动加载旧 pinnedScope 卡片及其术语', async () => {
     mockListContextCards.mockResolvedValue([PINNED_CARD])
     const prompt = await promptWith({ useMyWords: true })
-
-    const section = prompt.slice(
-      prompt.indexOf(HEADER),
-      prompt.indexOf('STANDING RULES') > prompt.indexOf(HEADER)
-        ? prompt.indexOf('STANDING RULES')
-        : prompt.indexOf('CONTEXT CARDS PINNED'),
-    )
-    expect(section).toContain('Their words: Sigrika')
-    expect(section).not.toContain('a scar on the left brow')
-    expect(section).not.toContain(PINNED_CARD.summary)
+    expect(mockListContextCards).not.toHaveBeenCalled()
+    expect(prompt).not.toContain('Their words: Sigrika')
+    expect(prompt).not.toContain(PINNED_CARD.summary)
+    expect(prompt).not.toContain('a scar on the left brow')
   })
 
   it('关掉「用我的词」就没有那一行，也没有术语表', async () => {
@@ -6346,7 +6440,7 @@ describe('用户偏好进系统提示（§8.3）', () => {
    * 学出来的创作偏好（`UserCreativePreference`）⛔ 不受「用我的词」那颗开关管：
    * 那颗开关说的是「用我的说法」，这几行说的是「我平时喜欢什么」。
    */
-  it('学出来的创作偏好接进同一段，且不受开关管', async () => {
+  it('旧账号级创作偏好不再自动注入当前工作台', async () => {
     mockGetCreativePreferenceDigest.mockResolvedValue({
       favoriteStyles: ['cel shading'],
       rejectedStyles: ['3d render'],
@@ -6358,12 +6452,13 @@ describe('用户偏好进系统提示（§8.3）', () => {
       nextStepHint: false,
       addressUserAs: null,
     })
-    expect(prompt).toContain('- They usually like: cel shading')
-    expect(prompt).toContain('- They usually reject: 3d render')
-    expect(prompt).toContain(
+    expect(prompt).not.toContain('- They usually like: cel shading')
+    expect(prompt).not.toContain('- They usually reject: 3d render')
+    expect(mockGetCreativePreferenceDigest).not.toHaveBeenCalled()
+    expect(prompt).not.toContain(
       '- They usually keep out of the picture: lowres · watermark',
     )
-    expect(prompt).toContain('- They usually shoot at: 3:2')
+    expect(prompt).not.toContain('- They usually shoot at: 3:2')
   })
 
   /** §8.3：这一段改的是说话方式，所以**排在工具表之前**。 */
@@ -6379,6 +6474,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
   const MINE = {
     id: 'rule-1',
     scope: 'global' as const,
+    workspaceKey: null,
     kind: 'rule' as const,
     source: 'creator' as const,
     text: 'Never put text inside the picture.',
@@ -6391,6 +6487,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       memory: {
         id,
         scope,
+        workspaceKey: 'image-natural',
         kind: 'rule',
         source: 'assistant',
         text,
@@ -6437,7 +6534,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
     expect(mockListCreatorMemories).toHaveBeenCalledWith(
       'user-db-1',
-      'image',
+      'image-natural',
       ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt,
     )
     const prompt = systemPrompt()
@@ -6487,13 +6584,13 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
-  it('read_project_rules 读记忆里的规矩，结果是协议上的规则形状', async () => {
+  it('read_project_rules 只读当前工作台记忆里的规矩，结果带明确归属', async () => {
     mockListStandingRuleMemories.mockResolvedValue([MINE])
     queueTurns(
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
-          args: { scope: 'video' },
+          args: { scope: 'image' },
         },
       },
       { finished: true },
@@ -6503,7 +6600,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       await collect(runAssistantOperator('clerk-1', buildRequest())),
     )
     expect(mockListStandingRuleMemories).toHaveBeenCalledWith('user-db-1', {
-      scope: 'video',
+      workspaceKey: 'image-natural',
       limit: ASSISTANT_PROJECT_RULE_LIMITS.maxReadResults,
     })
     const done = steps.find(
@@ -6516,6 +6613,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
         {
           id: 'rule-1',
           scope: null,
+          workspaceKey: null,
           text: MINE.text,
           kind: 'note',
           source: 'creator',
@@ -6523,6 +6621,25 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
         },
       ],
     })
+  })
+
+  it('read_project_rules 拒绝模型请求另一个工作台的规矩', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+          args: { scope: 'video' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(mockListStandingRuleMemories).not.toHaveBeenCalled()
+    expect(errorOf(events)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+    )
   })
 
   it('add_project_rule 把普通规矩记进记忆（助手记的），吐一条带 ruleId 的改动型 step', async () => {
@@ -6548,7 +6665,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(done?.inverse).toEqual({ ruleId: 'rule-9' })
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: 'Skin tones stay warm.',
-      scope: 'image',
+      workspaceKey: 'image-natural',
     })
     // ⛔ 普通规矩不再写项目规则表
     expect(mockAddProjectRule).not.toHaveBeenCalled()
@@ -6556,7 +6673,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
   it('刚记下的那条这一轮就能被引用', async () => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('Skin tones stay warm.', 'global', 'rule-12'),
+      learned('Skin tones stay warm.', 'image', 'rule-12'),
     )
     queueTurns(
       {
@@ -6610,7 +6727,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
 
   it('记忆里已有同一句 → 引用那一条，⛔ 不存第二行', async () => {
     mockAddRuleMemory.mockResolvedValue({
-      ...learned('Skin tones stay warm.', 'global', 'rule-old'),
+      ...learned('Skin tones stay warm.', 'image', 'rule-old'),
       created: false,
     })
     const events = await runTool({ text: 'Skin tones stay warm.' })
@@ -6624,7 +6741,8 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
   it('来源名单仍落项目规则表（收成域名）', async () => {
     mockAddProjectRule.mockResolvedValue({
       id: 'rule-src',
-      scope: null,
+      scope: 'image',
+      workspaceKey: 'image-natural',
       text: 'danbooru.donmai.us',
       kind: 'sourceDeny',
       source: 'assistant',
@@ -6637,6 +6755,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
       text: 'danbooru.donmai.us',
       scope: null,
+      workspaceKey: 'image-natural',
       kind: 'sourceDeny',
       source: 'assistant',
     })
@@ -6692,9 +6811,9 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddProjectRule).not.toHaveBeenCalled()
   })
 
-  it('工作方式那类规矩照旧记下（进记忆，缺域 = 全部工作台）', async () => {
+  it('工作方式规矩只记在当前工作台，缺 scope 不会升为全局', async () => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('以后查资料只信官方站，别拿同人图当依据', 'global', 'rule-10'),
+      learned('以后查资料只信官方站，别拿同人图当依据', 'image', 'rule-10'),
     )
 
     const events = await runTool({
@@ -6705,7 +6824,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     ).toBe(false)
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '以后查资料只信官方站，别拿同人图当依据',
-      scope: 'global',
+      workspaceKey: 'image-natural',
     })
   })
 
@@ -6719,14 +6838,14 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     ['scope 编了一个不存在的值', { text: '输出一律不加水印', scope: 'global' }],
   ])('%s 时照样落库，⛔ 不吐 malformedArgs', async (_name, args) => {
     mockAddRuleMemory.mockResolvedValue(
-      learned('输出一律不加水印', 'global', 'rule-11'),
+      learned('输出一律不加水印', 'image', 'rule-11'),
     )
 
     const events = await runTool(args)
     expect(errorOf(events)).toBeUndefined()
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '输出一律不加水印',
-      scope: 'global',
+      workspaceKey: 'image-natural',
     })
   })
 
@@ -7306,6 +7425,54 @@ describe('计划协议 · plan / ask / confirm', () => {
       ASSISTANT_OPERATOR_EVENTS.confirm,
       ASSISTANT_OPERATOR_EVENTS.stopped,
     ])
+  })
+
+  it('谨慎档省略计划仍先确认，不能直接写表单', async () => {
+    usePlanAlwaysPersona()
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+        title: '调整画幅',
+        args: { aspectRatio: '16:9', resolution: '2K' },
+      },
+    })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.confirm,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    expect(events[1]).toMatchObject({
+      confirm: { steps: [{ id: 'plan-1', label: '调整画幅' }] },
+    })
+  })
+
+  it('谨慎档已确认的请求省略计划仍可执行', async () => {
+    usePlanAlwaysPersona()
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          args: { aspectRatio: '16:9', resolution: '2K' },
+        },
+      },
+      { message: '已调整画幅', finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ planApproved: true })),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.step &&
+          event.step.status === 'done',
+      ),
+    ).toBe(true)
   })
 
   it('⭐ planApproved=false 时把答复并进上下文并要求重新规划一次', async () => {
@@ -8160,11 +8327,78 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     }
   }
 
+  it('原生联网在飞时取消：请求停止且并发来源不写证据或结账', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    let observedSignal: AbortSignal | undefined
+    mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+    mockLlmNativeWebSearch.mockImplementationOnce(
+      async (input: { signal?: AbortSignal }) => {
+        observedSignal = input.signal
+        return new Promise((_resolve, reject) => {
+          input.signal?.addEventListener('abort', () => reject(reason), {
+            once: true,
+          })
+          controller.abort(reason)
+          if (!input.signal)
+            reject(new Error('Missing search cancellation signal'))
+        })
+      },
+    )
+    mockRunAssistantResearch.mockImplementationOnce(
+      async (params: { nativeWebSearch?: () => Promise<unknown> }) => {
+        await params.nativeWebSearch?.().catch(() => undefined)
+        return {
+          queries: [],
+          sources: ['web', 'danbooru'],
+          evidence: EVIDENCE,
+          items: ITEMS,
+          receipts: [
+            { sourceId: 'web_search', status: 'failed', count: 0, tookMs: 5 },
+            { sourceId: 'danbooru', status: 'ok', count: 2, tookMs: 5 },
+          ],
+        }
+      },
+    )
+    queueTurns(researchTurn('配色'), { finished: true })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+        }),
+        { signal: controller.signal },
+      ),
+    )
+
+    expect(observedSignal).toBe(controller.signal)
+    expect(mockLlmNativeWebSearch).toHaveBeenCalledTimes(1)
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+    })
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.done)
+    expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
+    expect(mockAppendAssistantEvidenceBook).not.toHaveBeenCalled()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
   it('⭐ 所选模型有自带联网时快搜交给它：它的回答就是结论，⛔ 不再改写、不再归纳（owner 2026-09-30）', async () => {
     mockSupportsNativeWebSearch.mockReturnValueOnce(true)
     mockLlmNativeWebSearch.mockResolvedValue({
+      status: 'searched',
+      queries: ['卡提希娅 配色'],
       answer: '她的配色以青绿为主。',
-      sources: [{ url: 'https://a.test', title: 'A', excerpt: '青绿' }],
+      sources: [
+        {
+          url: 'https://a.test',
+          title: 'A',
+          excerpt: '青绿',
+          excerptKind: 'answer_fragment',
+        },
+      ],
     })
     mockRunAssistantResearch.mockImplementation(
       async (params: { nativeWebSearch?: () => Promise<unknown> }) => {
@@ -8205,9 +8439,67 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
         entry.systemPrompt?.startsWith("You are ANTEI's workbench operator"),
       ),
     ).toBe(true)
-    expect(lastUserPrompt()).toContain('searched natively via')
+    expect(lastUserPrompt()).toContain('native gemini: searched')
+    expect(lastUserPrompt()).toContain(
+      'provider search queries [卡提希娅 配色]',
+    )
     mockRunAssistantResearch.mockReset()
   })
+
+  it.each(['empty', 'not_invoked', 'failed', 'paused', 'partial'] as const)(
+    'native %s的回答不作已检索结论，也不自动续搜',
+    async (status) => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      mockLlmNativeWebSearch.mockResolvedValue({
+        status,
+        queries: status === 'not_invoked' ? [] : ['provider actual query'],
+        answer: 'UNVERIFIED_NATIVE_ANSWER',
+        sources: [],
+        ...(status === 'failed' || status === 'paused' || status === 'partial'
+          ? { error: 'native incomplete' }
+          : {}),
+      })
+      mockRunAssistantResearch.mockImplementation(
+        async (params: { nativeWebSearch?: () => Promise<unknown> }) => {
+          const receipt = await params.nativeWebSearch?.()
+          expect(receipt).toMatchObject({
+            status,
+            queries: status === 'not_invoked' ? [] : ['provider actual query'],
+          })
+          return {
+            queries: [],
+            sources: ['web'],
+            evidence: [],
+            items: [],
+            receipts: [
+              {
+                sourceId: 'web_search',
+                status:
+                  status === 'not_invoked'
+                    ? 'skipped'
+                    : status === 'empty'
+                      ? 'empty'
+                      : 'failed',
+                count: 0,
+                tookMs: 5,
+              },
+            ],
+          }
+        },
+      )
+      queueTurns(researchTurn('配色'), { finished: true })
+      const done = stepsOf(
+        await collect(runAssistantOperator('clerk-1', buildRequest())),
+      ).at(-1)!
+      expect(
+        (done.result as { conclusion?: string }).conclusion ?? '',
+      ).not.toContain('UNVERIFIED_NATIVE_ANSWER')
+      expect(lastUserPrompt()).not.toContain('UNVERIFIED_NATIVE_ANSWER')
+      expect(lastUserPrompt()).toContain(`native gemini: ${status}`)
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledTimes(1)
+      mockRunAssistantResearch.mockReset()
+    },
+  )
 
   it('读类：没有 inverse；证据带出处 / 置信度 / 形状三字段', async () => {
     mockRunAssistantResearch.mockResolvedValue({
@@ -8592,6 +8884,10 @@ describe('查证与找图两入口（§9，commit #16）', () => {
   })
 
   it('⭐ 证据带编号与印证标；单源那条在观察里点名', async () => {
+    mockAppendAssistantEvidenceBook.mockResolvedValueOnce({
+      refs: ['#e12', '#e13'],
+      researchRunIds: ['run-current'],
+    })
     queueOutcome(
       [CORROBORATED, { ...CORROBORATED, title: '个人整理', corroboration: 1 }],
       [ITEM, { ...ITEM, id: 'blog:1' }],
@@ -8621,7 +8917,7 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       conclusion?: string
       evidence: { evidenceRef?: string; corroboration: number }[]
     }
-    // 号段预取桩在 12 —— 逐条顺延，⛔ 不跳号。
+    // 界面引用直接来自这次实际写入返回的编号。
     expect(result.evidence.map((item) => item.evidenceRef)).toEqual([
       '#e12',
       '#e13',
@@ -9347,33 +9643,19 @@ describe('上下文卡（第三期 K1）', () => {
     expect(systemPrompt()).not.toContain('CONTEXT CARDS PINNED TO THIS')
   })
 
-  /**
-   * ⭐ 摘要 + 硬否定 + 图 URL 进提示，**正文不进** —— 正文四千字，而系统提示每一步
-   * 都要重发。这条用例把那条判据钉死。
-   */
-  it('常挂卡按当前域拉，摘要 / 硬否定 / 图 URL 进提示，正文不进', async () => {
+  it('旧 pinnedScope 卡不自动加载，摘要、否定和图片均不进当前工作台提示', async () => {
     mockListContextCards.mockResolvedValue([CARD])
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
-
     const prompt = systemPrompt()
-    expect(prompt).toContain('CONTEXT CARDS PINNED TO THIS WORKBENCH')
-    expect(prompt).toContain('[card-1]')
-    expect(prompt).toContain(CARD.summary)
-    expect(prompt).toContain(`NEVER: ${CARD.negative}`)
-    expect(prompt).toContain(
-      '[sheet] https://cdn.test/context-cards/u1/sheet.png',
-    )
-    expect(prompt).toContain(
-      '[reference] https://cdn.test/context-cards/u1/mood.png',
-    )
-    // ⛔ 正文不在这一段里 —— 它靠 read_context_card 拉。
-    expect(prompt).not.toContain('Silver hair down to the shoulder')
-    // 按**当前域**收敛，⛔ 不把用户全部的卡拼进提示。
-    expect(mockListContextCards).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ pinnedScope: 'image' }),
-    )
+    expect(mockListContextCards).not.toHaveBeenCalled()
+    expect(prompt).not.toContain('CONTEXT CARDS PINNED TO THIS WORKBENCH')
+    expect(prompt).not.toContain('[card-1]')
+    expect(prompt).not.toContain(CARD.summary)
+    expect(prompt).not.toContain(CARD.negative)
+    expect(prompt).not.toContain(CARD.images[0]!.url)
+    expect(prompt).not.toContain(CARD.images[1]!.url)
+    expect(prompt).not.toContain(CARD.body)
   })
 
   it('两条只读工具都在工具表里', async () => {
@@ -9437,7 +9719,11 @@ describe('上下文卡（第三期 K1）', () => {
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
     })
     // ⛔ 钱闸那条同源的判据：这一步没有任何写库的手。
-    expect(mockListContextCards).toHaveBeenCalledTimes(1) // 只有系统提示那一次
+    expect(mockListContextCards).toHaveBeenCalledTimes(1) // 仅在显式提议时检查同名卡
+    expect(mockListContextCards).toHaveBeenCalledWith(
+      'user-db-1',
+      expect.objectContaining({ kind: 'character' }),
+    )
   })
 
   /**
@@ -9474,6 +9760,11 @@ describe('上下文卡（第三期 K1）', () => {
     expect(
       events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(false)
+    expect(mockListContextCards).toHaveBeenCalledTimes(1)
+    expect(mockListContextCards).toHaveBeenCalledWith(
+      'user-db-1',
+      expect.objectContaining({ kind: 'character' }),
+    )
     const step = stepsOf(events).at(-1)!
     expect(step.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard)
     expect(step.result).toEqual({ offered: false })
@@ -11614,6 +11905,11 @@ describe('current reference image bindings', () => {
   it.each(['image', 'lora'] as const)(
     'does not prefetch vision on an action turn for a text-only model (%s)',
     async (domain) => {
+      mockGetAssistantPersonaByUserId.mockResolvedValue({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        avatarUrl: null,
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
       mockResolveLlmTextRoute.mockResolvedValue({
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
         providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -11643,6 +11939,11 @@ describe('current reference image bindings', () => {
   it.each(['image', 'lora'] as const)(
     'automatically obtains evidence for a text-only model before it can repeat an old failure (%s)',
     async (domain) => {
+      mockGetAssistantPersonaByUserId.mockResolvedValue({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        avatarUrl: null,
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
       mockResolveLlmTextRoute.mockResolvedValue({
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
         providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -11693,6 +11994,11 @@ describe('current reference image bindings', () => {
   it.each(['image', 'lora'] as const)(
     'reuses complete visual evidence for a text-only answer without another paid inspection (%s)',
     async (domain) => {
+      mockGetAssistantPersonaByUserId.mockResolvedValue({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        avatarUrl: null,
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
       mockResolveLlmTextRoute.mockResolvedValue({
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
         providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -12317,6 +12623,7 @@ describe('current reference image bindings', () => {
     })()
     await expect(pending).rejects.toMatchObject({
       errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
+      i18nKey: 'errors.assistant.promptReviewUnavailable',
     })
     expect(
       stepsOf(events).filter(
@@ -14592,6 +14899,80 @@ describe('每轮结账', () => {
     // 存的是**原件**（点得回原文的那一份），⛔ 不是给模型读的那份投影。
     expect(written.entries[0]?.items).toHaveLength(1)
     expect(doneEvent(events).roundSummary?.evidenceRefs).toEqual(['#e1', '#e2'])
+    const research = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === 'done',
+    )
+    expect(research?.result).toMatchObject({
+      evidence: [{ evidenceRef: '#e1' }],
+    })
+    expect(mockAppendAssistantEvidenceBook).toHaveBeenCalledTimes(1)
+  })
+
+  it('证据保存失败时卡与结论都不编造编号，工具完成与done仍返回且不重试', async () => {
+    mockAppendAssistantEvidenceBook.mockRejectedValueOnce(
+      new Error('commit failed'),
+    )
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['role appearance'],
+      sources: ['wiki'],
+      evidence: [
+        {
+          title: 'source',
+          publisher: 'source.test',
+          snippet: 'black hair',
+          kind: 'text' as const,
+          confidence: 'medium' as const,
+          credibility: 'reference' as const,
+          scope: 'character' as const,
+          corroboration: 1,
+        },
+      ],
+      items: [
+        {
+          id: 'source-role',
+          sourceId: 'moegirl' as const,
+          sourceTier: 'community' as const,
+          retrievedAt: '2026-09-11T00:00:00.000Z',
+          title: 'source',
+          kind: 'text' as const,
+          excerpt: 'black hair',
+        },
+      ],
+      receipts: [],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.research,
+          title: '查角色',
+          args: { goal: '外貌', entities: ['时夜'] },
+        },
+      },
+      { finished: true, message: '查到了。' },
+    )
+    queueCheckout({ facts: ['黑色头发'], decisions: [], todos: [] })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '22222222-2222-4222-8222-222222222222',
+        }),
+      ),
+    )
+    const research = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === 'done',
+    )
+    expect(research).toBeDefined()
+    expect(
+      (research?.result as { evidence: { evidenceRef?: string }[] }).evidence[0]
+        ?.evidenceRef,
+    ).toBeUndefined()
+    expect(doneEvent(events).roundSummary?.evidenceRefs).toEqual([])
+    expect(mockAppendAssistantEvidenceBook).toHaveBeenCalledTimes(1)
   })
 
   it('⚠ 压缩那一跳失败：done 照发、⛔ 不带结论记录、⛔ 不抛', async () => {
@@ -15075,7 +15456,7 @@ describe('助手记忆（56a）', () => {
     return toolRingCalls()[0]?.systemPrompt ?? ''
   }
 
-  it('⭐ 结账产出的候选落进记忆服务，带当前域与会话 id', async () => {
+  it('⭐ 结账候选只带当前工作台 key 与会话 id，模型的全局 scope 被剥离', async () => {
     queueTurns(searchStep, { finished: true, message: '挑好了。' })
     mockRecordMemories.mockResolvedValueOnce(2)
     mockLlmTextCompletion.mockResolvedValue(
@@ -15099,15 +15480,16 @@ describe('助手记忆（56a）', () => {
 
     expect(mockRecordMemories).toHaveBeenCalledTimes(1)
     const args = mockRecordMemories.mock.calls[0][0] as {
-      scope: string
+      workspaceKey: string
       conversationId?: string
       candidates: { kind: string; text: string; scope?: string }[]
     }
-    expect(args.scope).toBe('image')
+    expect(args.workspaceKey).toBe('image-natural')
+    expect(args).not.toHaveProperty('scope')
     expect(args.conversationId).toBe(CONVERSATION_ID)
     expect(args.candidates).toEqual([
       { kind: 'preference', text: '偏好横构图 16:9' },
-      { kind: 'rule', text: '回答用中文', scope: 'global' },
+      { kind: 'rule', text: '回答用中文' },
     ])
     // 回执上那个 N = 服务真正记下的条数（敏感命中的那几条已经不在里面）。
     expect(doneEvent(events).roundSummary?.memoriesWritten).toBe(2)
@@ -15180,6 +15562,7 @@ describe('助手记忆（56a）', () => {
       {
         id: 'mem-1',
         scope: 'image',
+        workspaceKey: 'image-natural',
         kind: 'preference',
         source: 'assistant',
         text: '偏好横构图 16:9',
@@ -15214,6 +15597,7 @@ describe('助手记忆（56a）', () => {
       {
         id: 'mem-1',
         scope: 'image',
+        workspaceKey: 'image-natural',
         kind: 'preference',
         text: '偏好横构图 16:9，除非我明说要竖的',
         createdAt: '2026-09-19T10:00:00.000Z',
@@ -15238,7 +15622,7 @@ describe('助手记忆（56a）', () => {
     expect(mockTouchMemories).not.toHaveBeenCalled()
   })
 
-  it('⭐ 预算与上下文卡共用一份、卡优先', async () => {
+  it('旧常挂卡不占用当前工作台的记忆预算', async () => {
     mockListContextCards.mockResolvedValueOnce([
       {
         id: 'card-1',
@@ -15258,17 +15642,18 @@ describe('助手记忆（56a）', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    const [, scope, limit] = mockListMemoriesForPrompt.mock.calls[0] as [
+    const [, workspaceKey, limit] = mockListMemoriesForPrompt.mock.calls[0] as [
       string,
       string,
       number,
     ]
-    expect(scope).toBe('image')
-    // 12（共用预算）− 1 张卡，再封顶在记忆自己的 maxInPrompt。
+    expect(workspaceKey).toBe('image-natural')
+    expect(mockListContextCards).not.toHaveBeenCalled()
+    // 未显式读取的卡片不加载，不影响当前工作台的记忆预算。
     expect(limit).toBe(
       Math.min(
         ASSISTANT_MEMORY_LIMITS.maxInPrompt,
-        ASSISTANT_CONTEXT_BUDGET.maxEntries - 1,
+        ASSISTANT_CONTEXT_BUDGET.maxEntries,
       ),
     )
   })
@@ -15342,9 +15727,11 @@ describe('助手记忆（56a）', () => {
     warn.mockRestore()
   })
 
-  it('⭐ 上下文卡 / 规则 / 结论三样打库炸了，这一轮照样跑完', async () => {
+  it('规则和结论读取失败仍能完成；旧常挂卡不会触发读取', async () => {
     const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
-    mockListContextCards.mockRejectedValueOnce(new Error('cards down'))
+    mockListContextCards.mockRejectedValue(
+      new Error('cards should not be read'),
+    )
     mockListCreatorMemories.mockRejectedValueOnce(new Error('rules down'))
     mockListAssistantConversationRounds.mockRejectedValueOnce(
       new Error('rounds down'),
@@ -15364,6 +15751,7 @@ describe('助手记忆（56a）', () => {
     expect(
       events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.done),
     ).toBe(true)
+    expect(mockListContextCards).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
   })
@@ -15494,7 +15882,10 @@ describe('结论注入与 recall_evidence', () => {
     expect(mockListAssistantConversationRounds).toHaveBeenCalledWith(
       expect.any(String),
       CONVERSATION_ID,
-      { limit: ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsInPrompt },
+      {
+        limit: ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsInPrompt,
+        workspaceKey: 'image-natural',
+      },
     )
     const prompt = systemPrompt()
     const printed = prompt.match(/ {2}Round \d+/g) ?? []
@@ -15711,6 +16102,7 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     return {
       id,
       scope: null,
+      workspaceKey: null,
       text,
       kind,
       source: 'creator',

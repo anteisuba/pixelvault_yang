@@ -695,8 +695,15 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
       goal: '卡提希娅 配色',
       sources: ['web'],
       nativeWebSearch: async () => ({
+        status: 'searched',
+        queries: ['native actual query'],
         sources: [
-          { url: 'https://a.test/page', title: 'A 站', excerpt: '青绿配色' },
+          {
+            url: 'https://a.test/page',
+            title: 'A 站',
+            excerpt: '青绿配色',
+            excerptKind: 'answer_fragment',
+          },
         ],
         via: 'gemini',
       }),
@@ -708,12 +715,16 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
       sourceId: RESEARCH_SOURCE_IDS.webSearch,
       url: 'https://a.test/page',
       title: 'A 站',
+      excerptKind: 'answer_fragment',
     })
+    expect(outcome.evidence[0]?.excerptKind).toBe('answer_fragment')
+    expect(outcome.queries).toEqual(['native actual query'])
     expect(outcome.receipts).toContainEqual(
       expect.objectContaining({
         sourceId: RESEARCH_SOURCE_IDS.webSearch,
         status: 'ok',
         via: 'gemini',
+        queries: ['native actual query'],
       }),
     )
   })
@@ -731,4 +742,48 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
       expect.objectContaining({ status: 'failed', error: 'upstream 503' }),
     )
   })
+
+  it.each([
+    ['empty', 'empty', 0, undefined],
+    ['not_invoked', 'skipped', 0, 'native_search_not_invoked'],
+    ['failed', 'failed', 0, 'unavailable'],
+    ['paused', 'failed', 1, 'native_search_paused'],
+    ['partial', 'failed', 1, 'max_uses_exceeded'],
+  ] as const)(
+    '原生%s回执不被证据条数改成成功',
+    async (status, receiptStatus, count, error) => {
+      const outcome = await runAssistantResearch({
+        goal: '配色',
+        sources: ['web'],
+        nativeWebSearch: async () => ({
+          status,
+          queries: status === 'not_invoked' ? [] : ['native actual query'],
+          sources:
+            status === 'empty'
+              ? []
+              : [
+                  {
+                    url: 'https://a.test/page',
+                    title: 'A',
+                    excerpt: '青绿',
+                    excerptKind: 'source_excerpt',
+                  },
+                ],
+          via: 'anthropic',
+          ...(error ? { error } : {}),
+        }),
+      })
+      expect(outcome.items).toHaveLength(count)
+      expect(outcome.receipts).toContainEqual(
+        expect.objectContaining({
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          status: receiptStatus,
+          count,
+          via: 'anthropic',
+          ...(error ? { error } : {}),
+        }),
+      )
+      expect(mockFetchWebSearchEvidence).not.toHaveBeenCalled()
+    },
+  )
 })

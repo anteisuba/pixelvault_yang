@@ -53,12 +53,21 @@ describe('useDefaultImageModel', () => {
     formState.modelSelectionTouched = false
   })
 
+  it('过渡中的另一台模型不会覆盖当前方言的上次选择', () => {
+    formState.promptDialect = 'tags'
+    formState.selectedOptionId = 'workspace:flux-2-pro'
+    formState.modelSelectionTouched = true
+    renderHook(() => useDefaultImageModel(OPTIONS))
+    expect(window.localStorage.length).toBe(0)
+  })
+
   it('auto-selects the cheapest key-configured model on the image studio', () => {
     renderHook(() => useDefaultImageModel(OPTIONS))
 
     expect(dispatch).toHaveBeenCalledWith({
       type: 'AUTO_SELECT_OPTION_ID',
       payload: 'workspace:flux-2-flash',
+      expectedSelection: { optionId: null, dialect: 'natural', touched: false },
     })
     // 自动补位不写「上次使用」——那格只记用户自己的选择。
     expect(
@@ -76,6 +85,7 @@ describe('useDefaultImageModel', () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: 'AUTO_SELECT_OPTION_ID',
       payload: 'workspace:flux-2-pro',
+      expectedSelection: { optionId: null, dialect: 'natural', touched: false },
     })
   })
 
@@ -109,13 +119,13 @@ describe('useDefaultImageModel', () => {
   })
 
   it('persists an explicit selection', () => {
-    formState.selectedOptionId = 'workspace:seedream-5.0-lite'
+    formState.selectedOptionId = 'workspace:flux-2-pro'
     formState.modelSelectionTouched = true
     renderHook(() => useDefaultImageModel(OPTIONS))
 
     expect(
       window.localStorage.getItem(STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY),
-    ).toBe('workspace:seedream-5.0-lite')
+    ).toBe('workspace:flux-2-pro')
   })
 
   it('does not persist a selection the user never made', () => {

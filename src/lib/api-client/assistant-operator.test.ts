@@ -35,6 +35,7 @@ async function collect(
 const REQUEST: AssistantOperatorRequest = {
   messages: [{ role: 'user', content: '帮我配好这张图' }],
   domain: 'image',
+  workspaceKey: 'image-natural',
   snapshot: { prompt: '', availableModels: [] },
 }
 
@@ -43,6 +44,24 @@ afterEach(() => {
 })
 
 describe('readAssistantOperatorStream', () => {
+  it('坏帧后取消未结束的网络流', async () => {
+    const cancel = vi.fn()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode('event: message\ndata: {broken\n\n'),
+        )
+      },
+      cancel,
+    })
+    expect(await collect(body)).toEqual([
+      expect.objectContaining({
+        type: 'error',
+        errorCode: 'STREAM_INTERRUPTED',
+      }),
+    ])
+    expect(cancel).toHaveBeenCalledTimes(1)
+  })
   it('逐帧吐出校验过的事件', async () => {
     const events = await collect(
       toStream([
@@ -64,7 +83,7 @@ describe('readAssistantOperatorStream', () => {
     expect(events.map((event) => event.type)).toEqual(['open', 'plan', 'done'])
   })
 
-  it('一帧坏载荷只丢那一帧，后面的照读 —— 表单已经被改了一半，整轮作废更糟', async () => {
+  it('坏载荷报告中断，不把后续回答当成成功回执', async () => {
     const events = await collect(
       toStream([
         'event: plan\ndata: {不是 JSON\n\n',
@@ -79,10 +98,15 @@ describe('readAssistantOperatorStream', () => {
         }),
       ]),
     )
-    expect(events).toEqual([{ type: 'message', text: '好了' }])
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: 'error',
+        errorCode: 'STREAM_INTERRUPTED',
+      }),
+    ])
   })
 
-  it('认不得的事件名不会让读流崩掉（服务端将来多发一种帧）', async () => {
+  it('协议不匹配时报告中断', async () => {
     const events = await collect(
       toStream([
         encodeSseEvent('future_frame', { type: 'future_frame' }),
@@ -91,7 +115,12 @@ describe('readAssistantOperatorStream', () => {
         }),
       ]),
     )
-    expect(events).toEqual([{ type: 'done' }])
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: 'error',
+        errorCode: 'STREAM_INTERRUPTED',
+      }),
+    ])
   })
 
   it('chunk 边界落在帧中间也读得出来', async () => {
@@ -100,9 +129,31 @@ describe('readAssistantOperatorStream', () => {
       text: '切开的一帧',
     })
     const events = await collect(
-      toStream([frame.slice(0, 12), frame.slice(12)]),
+      toStream([
+        frame.slice(0, 12),
+        frame.slice(12),
+        encodeSseEvent('done', { type: 'done' }),
+      ]),
     )
-    expect(events).toEqual([{ type: 'message', text: '切开的一帧' }])
+    expect(events).toEqual([
+      { type: 'message', text: '切开的一帧' },
+      { type: 'done' },
+    ])
+  })
+
+  it('正常EOF缺少终态时保留已读内容并报告中断', async () => {
+    const events = await collect(
+      toStream([
+        encodeSseEvent('message', { type: 'message', text: '已完成第一步' }),
+      ]),
+    )
+    expect(events).toEqual([
+      { type: 'message', text: '已完成第一步' },
+      expect.objectContaining({
+        type: 'error',
+        errorCode: 'STREAM_INTERRUPTED',
+      }),
+    ])
   })
 })
 

@@ -10,7 +10,7 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
-import { parseTagChips } from '@/lib/tag-composer'
+import { isStudioResultInWorkspace } from '@/lib/studio-operator-result-run'
 import { ROUTES } from '@/constants/routes'
 import {
   StudioAssistantDock,
@@ -92,7 +92,16 @@ export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { lastGeneration, isGenerating } = useStudioGen()
+  const { lastGeneration: rawLastGeneration, isGenerating } = useStudioGen()
+  const lastGeneration =
+    rawLastGeneration &&
+    isStudioResultInWorkspace(
+      rawLastGeneration.outputType,
+      rawLastGeneration.model,
+      state,
+    )
+      ? rawLastGeneration
+      : null
   const tEmptyState = useTranslations('StudioEmptyState')
   const router = useRouter()
   const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
@@ -280,53 +289,79 @@ export function StudioWorkspaceUI() {
   const draft = useMemo<StudioDraft>(
     () => ({
       prompt: state.prompt,
-      negativePrompt: state.advancedParams.negativePrompt ?? '',
-      novelAiLayout: state.advancedParams.novelAiLayout,
+      advancedParams: state.advancedParams,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
       aspectRatio: state.aspectRatio,
-      resolution: state.advancedParams.resolution,
+      selectedOptionId: state.selectedOptionId,
+      modelSelectionTouched: state.modelSelectionTouched ?? false,
+      imageBatchCount: state.imageBatchCount,
+      extraModelOptionIds: state.extraModelOptionIds,
+      recipeUsage: state.recipeUsage,
+      workflowMode: state.workflowMode,
+      tagChips: state.tagChips,
+      tagNegativeChips: state.tagNegativeChips,
+      videoDuration: state.videoDuration,
+      videoResolution: state.videoResolution,
+      videoAudioRefs: state.videoAudioRefs,
+      videoFrameSlots: state.videoFrameSlots,
+      videoReferenceVideos: state.videoReferenceVideos,
+      videoGenerateAudio: state.videoGenerateAudio,
+      longVideoMode: state.longVideoMode,
+      longVideoTargetDuration: state.longVideoTargetDuration,
     }),
     [
       state.aspectRatio,
-      state.advancedParams.resolution,
+      state.advancedParams,
       state.prompt,
-      state.advancedParams.negativePrompt,
-      state.advancedParams.novelAiLayout,
+      state.selectedOptionId,
+      state.modelSelectionTouched,
+      state.imageBatchCount,
+      state.extraModelOptionIds,
+      state.recipeUsage,
+      state.workflowMode,
+      state.tagChips,
+      state.tagNegativeChips,
+      state.videoDuration,
+      state.videoResolution,
+      state.videoAudioRefs,
+      state.videoFrameSlots,
+      state.videoReferenceVideos,
+      state.videoGenerateAudio,
+      state.longVideoMode,
+      state.longVideoTargetDuration,
       imageUpload.referenceEntries,
     ],
   )
   const restoreDraft = useCallback(
-    (saved: StudioDraft) => {
+    (saved: StudioDraft, applyTransfer: boolean) => {
+      const { referenceImages, ...formDraft } = saved
       imageUpload.clearAllImages()
-      saved.referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
-      dispatch({ type: 'SET_PROMPT', payload: saved.prompt })
+      referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
       dispatch({
-        type: 'SET_TAG_CHIPS',
-        payload: {
-          polarity: 'negative',
-          chips: parseTagChips(saved.negativePrompt),
-        },
+        type: 'RESTORE_WORKSPACE_DRAFT',
+        payload: { draft: formDraft, applyTransfer },
       })
-      dispatch({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: {
-          ...state.advancedParams,
-          negativePrompt: saved.negativePrompt,
-          novelAiLayout: saved.novelAiLayout,
-          ...(saved.resolution ? { resolution: saved.resolution } : {}),
-        },
-      })
-      if (saved.aspectRatio)
-        dispatch({ type: 'SET_ASPECT_RATIO', payload: saved.aspectRatio })
     },
-    [imageUpload, dispatch, state.advancedParams],
+    [imageUpload, dispatch],
   )
   useStudioDraft({
     userId: isLoaded ? userId : null,
+    workspace:
+      state.outputType === 'video'
+        ? 'video'
+        : state.promptDialect === 'tags'
+          ? 'image-tags'
+          : 'image-natural',
     enabled:
-      (pathname.endsWith('/studio/image') ||
-        pathname.endsWith('/studio/image/tags')) &&
-      state.outputType === 'image',
+      isLoaded &&
+      (state.outputType === 'video'
+        ? pathname.endsWith('/studio/video')
+        : state.outputType === 'image' &&
+          pathname.endsWith(
+            state.promptDialect === 'tags'
+              ? '/studio/image/tags'
+              : '/studio/image',
+          )),
     draft,
     onRestore: restoreDraft,
   })

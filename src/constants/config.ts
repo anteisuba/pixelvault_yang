@@ -576,6 +576,7 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_8_FLASH: 'gemini-3.8-flash',
   OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
   OPENAI_GPT_6_SOL: 'gpt-6-sol',
+  OPENAI_GPT_6_1_SOL: 'gpt-6.1-sol',
   OPENAI_GPT_6_LUNA: 'gpt-6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
@@ -586,6 +587,7 @@ export const LLM_TEXT_MODEL_IDS = {
   // off-peak ($0.3/$1.2 peak), cache hits $0.003–0.006.
   DEEPSEEK_FLASH: 'deepseek-flash',
   CLAUDE_OPUS_5_5: 'claude-opus-5-5',
+  CLAUDE_SONNET_5_5: 'claude-sonnet-5-5',
   CLAUDE_FABLE_5_1: 'claude-fable-5-1',
   XAI_GROK_4_7: 'grok-4.7',
 } as const

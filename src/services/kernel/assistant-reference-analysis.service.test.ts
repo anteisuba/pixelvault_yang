@@ -7,11 +7,15 @@ import {
   buildOperatorReferenceBrief,
   hasCompleteReferenceVisualEvidence,
   reviewOperatorReferencePrompt,
+  probeReferenceDimensions,
+  readReferenceDimensions,
 } from './assistant-reference-analysis.service'
+import * as urlGuard from '@/lib/url-guard'
 import {
   ReferenceBriefSchema,
   type ReferenceVisualProfile,
 } from '@/types/assistant-reference-analysis'
+import { logger } from '@/lib/logger'
 
 const urls = ['https://cdn.test/character.png', 'https://cdn.test/style.png']
 const characterEvidence: NonNullable<
@@ -87,7 +91,85 @@ const input = {
   language: 'English',
 }
 
+describe('reference dimension cancellation', () => {
+  it('does not fetch dimensions for a pre-cancelled run', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    controller.abort(reason)
+    const fetch = vi.spyOn(urlGuard, 'safeFetch')
+    try {
+      await expect(
+        probeReferenceDimensions(
+          ['https://cdn.test/cancel-before.png'],
+          controller.signal,
+        ),
+      ).rejects.toBe(reason)
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      fetch.mockRestore()
+    }
+  })
+
+  it('cancels a pending dimension request and does not cache it', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    const url = 'https://cdn.test/cancel-during.png'
+    const fetch = vi
+      .spyOn(urlGuard, 'safeFetch')
+      .mockImplementationOnce(async (_url, options) => {
+        const signal = options?.signal
+        expect(signal).toBeDefined()
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(signal?.reason), {
+            once: true,
+          })
+          controller.abort(reason)
+        })
+      })
+    try {
+      await expect(
+        probeReferenceDimensions([url], controller.signal),
+      ).rejects.toBe(reason)
+      expect(readReferenceDimensions(url)).toBeUndefined()
+      expect(fetch).toHaveBeenCalledTimes(1)
+    } finally {
+      fetch.mockRestore()
+    }
+  })
+})
+
 describe('reference analysis', () => {
+  it('uses the same validation contract for output instructions and the provider schema', async () => {
+    const complete = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify({ issues: [], conflicts: [], unsupportedClaims: [] }),
+      )
+    await reviewOperatorReferencePrompt({
+      analysis: { profiles, brief },
+      language: 'English',
+      prompt: 'A character',
+      context: 'Draw the character.',
+      modelHint: 'natural',
+      complete,
+    })
+    expect(complete.mock.calls[0]?.[0]).toContain('"maxItems":8')
+    expect(complete.mock.calls[0]?.[0]).toContain('"maxItems":4')
+    expect(complete.mock.calls[0]?.[3]).toMatchObject({
+      type: 'object',
+      additionalProperties: false,
+      required: ['issues', 'conflicts', 'unsupportedClaims'],
+      properties: {
+        issues: { type: 'array', description: 'Constraints: {"maxItems":8}' },
+        conflicts: {
+          type: 'array',
+          description: 'Constraints: {"maxItems":4}',
+        },
+      },
+    })
+    expect(complete.mock.calls[0]?.[3]).not.toHaveProperty('$schema')
+  })
+
   it('refreshes cached evidence that has rendering but no character coverage', async () => {
     const old = { ...profiles[0]!, characterEvidence: undefined }
     const complete = vi.fn().mockResolvedValue(
@@ -655,6 +737,7 @@ describe('reference analysis', () => {
       conflicts: [],
       unsupportedClaims: [],
     })
+    expect(complete).toHaveBeenCalledTimes(1)
   })
 
   it('tells the reviewer a change the creator asked for is the request, not a conflict', async () => {
@@ -718,8 +801,116 @@ describe('reference analysis', () => {
           complete,
         }),
       ).toBeNull()
+      expect(complete).toHaveBeenCalledTimes(2)
     },
   )
+
+  it.each([
+    ['not JSON', 'json', 'not valid JSON'],
+    [
+      JSON.stringify({ issues: [], conflicts: [] }),
+      'schema',
+      'unsupportedClaims',
+    ],
+    [
+      JSON.stringify({
+        issues: [{ detail: 'Keep the ribbon' }],
+        conflicts: [],
+        unsupportedClaims: [],
+      }),
+      'schema',
+      'issues.0',
+    ],
+    [
+      JSON.stringify({
+        issues: Array.from({ length: 9 }, (_, index) => `Finding ${index}`),
+        conflicts: [],
+        unsupportedClaims: [],
+      }),
+      'schema',
+      'Too big: expected array to have <=8 items',
+    ],
+  ])(
+    'repairs an invalid review using its rejected response and validation issues: %s',
+    async (reply, reason, issue) => {
+      const corrected = {
+        issues: ['Keep the ribbon.'],
+        conflicts: [],
+        unsupportedClaims: [
+          'The source does not establish a 7.5-head body ratio.',
+        ],
+      }
+      const complete = vi
+        .fn()
+        .mockResolvedValueOnce(reply)
+        .mockResolvedValueOnce(JSON.stringify(corrected))
+      const result = await reviewOperatorReferencePrompt({
+        language: 'Chinese',
+        analysis: { profiles, brief },
+        prompt: 'Preserve the exact 7.5-head body ratio.',
+        context: input.context,
+        modelHint: '',
+        complete,
+      })
+      expect(result).toEqual(corrected)
+      expect(complete).toHaveBeenCalledTimes(2)
+      const repair = String(complete.mock.calls[1]?.[1])
+      expect(repair).toContain(`PREVIOUS REPLY REJECTED (${reason})`)
+      expect(repair).toContain(reply)
+      expect(repair).toContain(issue)
+      expect(repair).toContain('Preserve the exact 7.5-head body ratio.')
+    },
+  )
+
+  it('records both validation failures without logging private prompt or model text', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    try {
+      const complete = vi
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify({ issues: ['private model text'], conflicts: [] }),
+        )
+      const result = await reviewOperatorReferencePrompt({
+        language: 'Chinese',
+        analysis: { profiles, brief },
+        prompt: 'private prompt',
+        context: input.context,
+        modelHint: '',
+        complete,
+      })
+      expect(result).toBeNull()
+      expect(complete).toHaveBeenCalledTimes(2)
+      expect(warn.mock.calls).toEqual(
+        [1, 2].map((attempt) => [
+          'assistant prompt review validation failed',
+          expect.objectContaining({
+            attempt,
+            reason: 'schema',
+            paths: ['unsupportedClaims:invalid_type'],
+          }),
+        ]),
+      )
+      expect(JSON.stringify(warn.mock.calls)).not.toContain('private')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('propagates provider failures without spending a format-repair retry', async () => {
+    const error = new Error('provider request failed')
+    const complete = vi.fn().mockRejectedValue(error)
+    await expect(
+      reviewOperatorReferencePrompt({
+        language: 'Chinese',
+        analysis: { profiles, brief },
+        prompt: 'White background',
+        context: input.context,
+        modelHint: '',
+        complete,
+      }),
+    ).rejects.toBe(error)
+    expect(complete).toHaveBeenCalledTimes(1)
+  })
 
   it('preserves unsupported anatomical claims separately from editable issues and creator conflicts', async () => {
     const unsupportedClaims = [

@@ -22,8 +22,14 @@ import { AI_MODELS } from '@/constants/models'
 import type { RunnerUsageResult } from '@/types'
 import type { PromptTagSelection } from '@/types/prompt-tags'
 import type { UseLoraOperatorHostInput } from '@/hooks/use-lora-operator-host'
+import { FAKE_GENERATION } from '@/test/api-helpers'
 
 import { LoraWorkbench } from './LoraWorkbench'
+
+let mockUserId = 'user-a'
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: { id: mockUserId } }),
+}))
 
 beforeAll(() => {
   Object.defineProperties(HTMLElement.prototype, {
@@ -85,6 +91,17 @@ const mockCreateRecipeFromGeneration = vi.hoisted(() => vi.fn())
 const mockStackSetScale = vi.hoisted(() => vi.fn())
 const mockResolveCivitaiLora = vi.hoisted(() => vi.fn())
 const captureOperatorHostInput = vi.hoisted(() => vi.fn())
+const captureImageUpload = vi.hoisted(() => vi.fn())
+const mockUploadImage = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/api-client/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/generation')>()),
+  uploadImageFileAPI: mockUploadImage,
+}))
+
+vi.mock('@/lib/prepare-image-upload', () => ({
+  prepareImageUpload: async (file: File) => file,
+}))
 
 vi.mock('@/hooks/use-lora-operator-host', async (importOriginal) => {
   const actual =
@@ -122,9 +139,15 @@ vi.mock('@/constants/prompt-tags', async (importOriginal) => {
   }
 })
 
+const translationMocks = vi.hoisted(
+  () => new Map<string, (key: string) => string>(),
+)
 vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}:${key}`,
+  useTranslations: (namespace: string) => {
+    if (!translationMocks.has(namespace))
+      translationMocks.set(namespace, (key: string) => `${namespace}:${key}`)
+    return translationMocks.get(namespace)!
+  },
   // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
   // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
   useFormatter: () => ({ relativeTime: () => 'relative-time' }),
@@ -226,7 +249,7 @@ vi.mock('@/hooks/use-active-lora-stack', () => {
   })
   return {
     useActiveLoraStack: stack,
-    // ⚠ 不抛的那个变体也要 mock：`LoraAssistantDock` 用的是它（挂载栈对助手的
+    // ⚠ 不抛的那个变体也要 mock（挂载栈对助手的
     //   LoRA 推荐卡是可选能力）。漏掉这条会让**整个文件 31 条全红**，报错是
     //   「No export is defined on the mock」而不是任何业务断言 —— 手写 mock 与
     //   真模块脱节的老毛病，加导出时两边一起改。
@@ -400,49 +423,46 @@ vi.mock('@/hooks/use-huggingface-lora-showcase', () => ({
 // threads it into the generate request. Default empty → transparent to the
 // other tests. Reset before every test via the file-level beforeEach below.
 let mockReferenceImages: string[] = []
-vi.mock('@/hooks/use-image-upload', () => ({
-  useImageUpload: () => ({
-    referenceImage: mockReferenceImages[0],
-    referenceImages: mockReferenceImages,
-    referenceEntries: mockReferenceImages.map((url) => ({
-      url,
-      disabledReason: null,
-    })),
-    setReferenceImage: vi.fn(),
-    addReferenceImage: vi.fn(),
-    removeReferenceImage: vi.fn(),
-    clearAllImages: vi.fn(),
-    addFromUrl: vi.fn(),
-    setMaxImages: vi.fn(),
-    isDragging: false,
-    setIsDragging: vi.fn(),
-    fileInputRef: { current: null },
-    handleFileChange: vi.fn(),
-    handleDrop: vi.fn(),
-    handleDragEnter: vi.fn(),
-    handleDragOver: vi.fn(),
-    handleDragLeave: vi.fn(),
-    openFilePicker: vi.fn(),
-    handleInputChange: vi.fn(),
-    clearImage: vi.fn(),
-    isUploading: false,
-  }),
-}))
-
-// §3.0b 第 4 条「点这张生成图问助手」：注入通道是**模块级 store**（不依赖任何
-// Provider —— /studio/lora 故意不挂 <StudioProvider>，这正是它能被复用的原因）。
-// 桩掉写口才断言得到「按钮把**哪一张**图递了出去」：真 store 只把值存进模块变量，
-// 从外面看不见。⚠ clearReference 也要是跨渲染稳定的同一个 vi.fn() —— dock 里那条
-// 「关闭即清空」effect 拿它当依赖，每帧新造一个会让 effect 每帧重跑。
-const mockInjectReference = vi.hoisted(() => vi.fn())
-const mockClearReference = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-studio-assistant-reference', () => ({
-  useStudioAssistantReference: () => ({
-    injectedReference: undefined,
-    injectReference: mockInjectReference,
-    clearReference: mockClearReference,
-  }),
-}))
+let useRealImageUpload = false
+vi.mock('@/hooks/use-image-upload', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/use-image-upload')>()
+  return {
+    useImageUpload: (options: Parameters<typeof actual.useImageUpload>[0]) => {
+      if (useRealImageUpload) {
+        const imageUpload = actual.useImageUpload(options)
+        captureImageUpload(imageUpload)
+        return imageUpload
+      }
+      return {
+        referenceImage: mockReferenceImages[0],
+        referenceImages: mockReferenceImages,
+        referenceEntries: mockReferenceImages.map((url) => ({
+          url,
+          disabledReason: null,
+        })),
+        setReferenceImage: vi.fn(),
+        addReferenceImage: vi.fn(),
+        removeReferenceImage: vi.fn(),
+        clearAllImages: vi.fn(),
+        addFromUrl: vi.fn(),
+        setMaxImages: vi.fn(),
+        isDragging: false,
+        setIsDragging: vi.fn(),
+        fileInputRef: { current: null },
+        handleFileChange: vi.fn(),
+        handleDrop: vi.fn(),
+        handleDragEnter: vi.fn(),
+        handleDragOver: vi.fn(),
+        handleDragLeave: vi.fn(),
+        openFilePicker: vi.fn(),
+        handleInputChange: vi.fn(),
+        clearImage: vi.fn(),
+        isUploading: false,
+      }
+    },
+  }
+})
 
 /**
  * P4-C：操作员那一侧的投递口，同一条论据（模块级 store，从外面看不见）。
@@ -465,9 +485,11 @@ vi.mock(
 )
 
 beforeEach(() => {
+  mockUserId = 'user-a'
+  useRealImageUpload = false
+  captureImageUpload.mockClear()
+  mockUploadImage.mockReset()
   captureOperatorHostInput.mockClear()
-  mockInjectReference.mockReset()
-  mockClearReference.mockReset()
   mockRequestOperatorAttachment.mockReset()
   mockReferenceImages = []
   mockRunnerUsage = null
@@ -546,6 +568,49 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     mockMinedPreviewImages = []
     mockActiveRun = null
     mockCancelRunItem.mockReset()
+  })
+
+  it('clears references and rejects the previous account’s pending upload', async () => {
+    useRealImageUpload = true
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    let resolveUpload!: (value: {
+      success: true
+      data: { generation: typeof FAKE_GENERATION }
+    }) => void
+    mockUploadImage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve
+        }),
+    )
+    const latestUpload = () =>
+      captureImageUpload.mock.lastCall?.[0] as ReturnType<
+        (typeof import('@/hooks/use-image-upload'))['useImageUpload']
+      >
+    const view = render(<LoraWorkbench />)
+    let upload!: Promise<void>
+    await act(async () => {
+      upload = latestUpload().handleFileChange(
+        new File(['image'], 'pending.png', { type: 'image/png' }),
+      )
+    })
+    expect(latestUpload().isUploading).toBe(true)
+    act(() => latestUpload().addReferenceImage('user-a-reference.png'))
+    expect(latestUpload().referenceEntries.map((entry) => entry.url)).toEqual([
+      'user-a-reference.png',
+    ])
+    mockUserId = 'user-b'
+    view.rerender(<LoraWorkbench />)
+    expect(latestUpload().referenceEntries).toEqual([])
+    expect(latestUpload().isUploading).toBe(false)
+    act(() => latestUpload().addReferenceImage('user-b-reference.png'))
+    await act(async () => {
+      resolveUpload({ success: true, data: { generation: FAKE_GENERATION } })
+      await upload
+    })
+    expect(latestUpload().referenceEntries.map((entry) => entry.url)).toEqual([
+      'user-b-reference.png',
+    ])
   })
 
   // P4-C 把操作员 Dock 挂进 GenerateBranch 后，满负载下这条会超过全局 15s。
@@ -1600,32 +1665,28 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   // 那张递出去，tsc / eslint / 其余单测全会放行，表现只是「问的和看到的不是同
   // 一张图」。
   //
-  // ⭐ **P4-C 起要投两个口**：桌面是操作员面板（读
-  // `requestOperatorAttachment`），小屏是旧面板（读 `useStudioAssistantReference`）。
-  // 只投一个的表现是「在另一种屏幕上点了，面板开了、图没跟过来」—— 所以这条
-  // 用例把两条投递都钉住，⛔ 别因为「当前这块屏用不到」删掉其中一条。
-  it('§3.0b: the result image exposes 问助手 — 两个投递口都收到这一格的 URL', () => {
-    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
-    mockLastGeneration = { url: 'https://example.com/result.png' }
+  it.each([false, true])(
+    '结果图问助手在 mobile=%s 时投递到统一助手',
+    (mobile) => {
+      mockIsMobile = mobile
+      mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+      mockLastGeneration = { url: 'https://example.com/result.png' }
 
-    render(<LoraWorkbench />)
+      render(<LoraWorkbench />)
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'StudioV3:toolAskAssistant' }),
-    )
+      fireEvent.click(
+        screen.getByRole('button', { name: 'StudioV3:toolAskAssistant' }),
+      )
 
-    // 小屏那一支（旧面板）的口。
-    expect(mockInjectReference).toHaveBeenCalledWith(
-      'https://example.com/result.png',
-    )
-    // 桌面那一支（操作员）的口 —— 落进的是与 📎 上传 / 素材库挑选同一个附件数组。
-    expect(mockRequestOperatorAttachment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        url: 'https://example.com/result.png',
-        kind: 'image',
-      }),
-    )
-  })
+      expect(mockRequestOperatorAttachment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: 'https://example.com/result.png',
+          kind: 'image',
+        }),
+      )
+      mockIsMobile = false
+    },
+  )
 })
 
 describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () => {

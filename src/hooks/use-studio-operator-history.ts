@@ -9,10 +9,7 @@
  * 表是既有的 `AssistantConversation`，操作员的痕迹搭在每条消息的可选 `operator`
  * 格上（形态与 `promptDraft` / `loraPicks` 那几格一模一样）。
  *
- * ── 跨域线程 × 单值 surface ───────────────────────────────────────
- * 一条线程可以跨图片 / 视频（拍板 8），而 `surface` 只有一格。方案：
- * **`surface` 记线程起始域，域切换以 domainMark 条目存在 messages 里**。
- * 会话菜单通过一次摘要查询合并图片、视频和 LoRA 的操作员线程。
+ * 会话按账号、工作区和画布项目隔离；surface 只保留原有存储分类。
  *
  * ── 存什么 / 不存什么 ─────────────────────────────────────────────
  * 只存**可读历史**。撤销的 inverse、primed、就地确认条、改动登记簿、联网候选的
@@ -25,9 +22,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
+import {
+  assistantWorkspaceDomain,
+  assistantWorkspaceKey,
+  assistantWorkspaceScope,
+  assistantWorkspaceSurface,
+} from '@/lib/assistant-workspace'
 import {
   renameAssistantConversationAPI,
   deleteAssistantConversationAPI,
@@ -46,14 +48,15 @@ import {
 import {
   claimOperatorThreadScope,
   getOperatorState,
+  getOperatorThread,
   loadOperatorThread,
   resetOperatorThread,
   setOperatorSession,
+  setOperatorSaveFailed,
   useStudioOperatorState,
+  type StudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import {
-  ASSISTANT_SURFACE_BY_DOMAIN,
-  ASSISTANT_SURFACE_IDS,
   type AssistantConversationSummary,
   type AssistantSurfaceId,
 } from '@/types/assistant-conversation'
@@ -66,44 +69,146 @@ import {
  * 都去覆盖一遍当前线程 —— 用户刚说了两句话，切个模态全没了。
  */
 const hydratedScopes = new Set<string>()
+let activeUserId: string | null = null
+let activeWorkspace: WorkspacePersistence | null = null
+const removedSessionIds = new Set<string>()
+
+interface WorkspacePersistence {
+  userId: string
+  scope: string
+  workspaceKey: string
+  surface: AssistantSurfaceId
+  projectId?: string
+}
+
+interface ThreadSave extends WorkspacePersistence {
+  snapshot: StudioOperatorState
+}
+
+const savedThreads = new Map<string, ThreadSave>()
+const pendingSaves = new Map<
+  string,
+  {
+    latest: ThreadSave
+    next: ThreadSave | null
+    promise: Promise<boolean>
+  }
+>()
+
+function sameSavedContent(
+  left: ThreadSave | undefined,
+  right: ThreadSave,
+): boolean {
+  return Boolean(
+    left &&
+    left.snapshot.entries === right.snapshot.entries &&
+    left.snapshot.history === right.snapshot.history &&
+    left.snapshot.question === right.snapshot.question &&
+    left.snapshot.confirm === right.snapshot.confirm,
+  )
+}
+
+function persistThread(request: ThreadSave): Promise<boolean> {
+  if (request.snapshot.readOnlyHistory) return Promise.resolve(false)
+  const id = request.snapshot.localThreadId
+  const existing = pendingSaves.get(id)
+  if (existing) {
+    if (!sameSavedContent(existing.latest, request)) {
+      existing.latest = request
+      existing.next = request
+    }
+    return existing.promise
+  }
+  if (sameSavedContent(savedThreads.get(id), request))
+    return Promise.resolve(true)
+  const queue = {
+    latest: request,
+    next: request as ThreadSave | null,
+    promise: Promise.resolve(false),
+  }
+  pendingSaves.set(id, queue)
+  queue.promise = (async () => {
+    let sessionId = request.snapshot.sessionId
+    let saved = false
+    while (queue.next) {
+      const current = queue.next
+      queue.next = null
+      if (activeUserId !== current.userId) continue
+      if (sessionId && removedSessionIds.has(sessionId)) continue
+      const history = [
+        ...current.snapshot.history,
+        ...toOperatorHistory(current.snapshot.entries),
+      ]
+      if (history.length === 0) continue
+      const result = await upsertAssistantConversationAPI({
+        ...(sessionId ? { id: sessionId } : {}),
+        surface: current.surface,
+        workspaceKey: current.workspaceKey,
+        ...(current.projectId ? { projectId: current.projectId } : {}),
+        messages: toStoredOperatorMessages(
+          history,
+          pendingFromOperatorState(
+            current.snapshot.question,
+            current.snapshot.confirm,
+          ),
+        ),
+      })
+      if (sessionId && removedSessionIds.has(sessionId)) continue
+      const identity = { threadScope: current.scope, localThreadId: id }
+      if (!result.success) {
+        saved = false
+        logger.warn('[studio-operator-history] persist failed', {
+          error: result.error,
+          errorCode: result.errorCode,
+        })
+        if (result.errorCode === 'ASSISTANT_CONVERSATION_NOT_FOUND') {
+          setOperatorSession(null, null, identity)
+        }
+        setOperatorSaveFailed(identity, true)
+        continue
+      }
+      sessionId = result.data.id
+      if (removedSessionIds.has(sessionId)) continue
+      setOperatorSession(sessionId, current.surface, identity)
+      setOperatorSaveFailed(identity, false)
+      savedThreads.set(id, current)
+      saved = true
+    }
+    return saved
+  })()
+    .catch((error: unknown) => {
+      logger.warn('[studio-operator-history] persist failed', { error })
+      setOperatorSaveFailed(
+        { threadScope: request.scope, localThreadId: id },
+        true,
+      )
+      return false
+    })
+    .finally(() => {
+      pendingSaves.delete(id)
+    })
+  return queue.promise
+}
 
 /** 测试用：把「这次页面加载」重置掉。⛔ 生产代码不要调它。 */
 export function resetOperatorHistoryHydrationForTests(): void {
   hydratedScopes.clear()
-}
-
-/**
- * **单独成一份**的会话落在哪个槽：画布（按项目分，D12 U7）· 卡片助手（只在角色页
- * 看得到，owner 09-26）。`null` = 图片 / 视频 / LoRA 合并那一份。
- */
-function isolatedSurface(
-  projectId: string | undefined,
-  domain: AssistantOperatorDomain | undefined,
-): AssistantSurfaceId | null {
-  if (projectId) return ASSISTANT_SURFACE_IDS.nodeCanvas
-  if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards)
-    return ASSISTANT_SURFACE_IDS.cards
-  return null
-}
-
-/** 会话作用域的键 —— 工作台合并那一份 / 某个画布项目 / 卡片助手。 */
-function operatorThreadScope(
-  projectId: string | undefined,
-  domain: AssistantOperatorDomain | undefined,
-): string {
-  if (projectId) return `canvas:${projectId}`
-  return isolatedSurface(projectId, domain) ?? 'studio'
+  activeUserId = null
+  activeWorkspace = null
+  removedSessionIds.clear()
+  savedThreads.clear()
 }
 
 async function listOperatorSessions(
-  projectId: string | undefined,
-  domain: AssistantOperatorDomain | undefined,
+  workspace: WorkspacePersistence,
+  includeLegacy = false,
 ): Promise<AssistantConversationSummary[]> {
   const result = await listAssistantConversationsAPI({
-    surface:
-      isolatedSurface(projectId, domain) ?? ASSISTANT_SURFACE_IDS.imageStudio,
-    ...(projectId ? { projectId } : {}),
+    surface: workspace.surface,
+    workspaceKey: workspace.workspaceKey,
+    ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
     operatorOnly: true,
+    ...(includeLegacy ? { includeLegacy: true } : {}),
     limit: STUDIO_OPERATOR_HISTORY.listLimit,
   })
   if (!result.success) throw new Error(result.error)
@@ -111,7 +216,7 @@ async function listOperatorSessions(
 }
 
 export interface UseStudioOperatorHistoryResult {
-  /** 会话列表（三个域合并，按 `updatedAt` 倒序）。 */
+  /** 当前工作区的会话列表，按 updatedAt 倒序。 */
   sessions: readonly AssistantConversationSummary[]
   /** 当前这条线程在库里的行；`null` = 还没落过库。 */
   currentSessionId: string | null
@@ -125,88 +230,126 @@ export interface UseStudioOperatorHistoryResult {
   /** 载入历史失败时说了什么 —— ⛔ 不静默。 */
   error: string | null
   selectSession(session: AssistantConversationSummary): void
-  refreshSessions(force?: boolean): void
+  refreshSessions(force?: boolean, includeLegacy?: boolean): void
+  retrySave(): Promise<boolean>
   deletingSessionId: string | null
   deleteSession(session: AssistantConversationSummary): Promise<boolean>
 }
 
-/**
- * @param projectId 画布项目 id（D12 U7）—— 给了就只列 / 只载 / 只存这个画布的
- *   会话；缺席 = 图片 / 视频 / LoRA 合并那一份。
- * @param domain 宿主的域 —— 卡片助手（`cards`）的会话单独一份（owner 09-26）。
- */
-export function useStudioOperatorHistory(
-  projectId?: string,
-  domain?: AssistantOperatorDomain,
-): UseStudioOperatorHistoryResult {
+export function useStudioOperatorHistory({
+  userId,
+  workspace,
+  projectId,
+}: {
+  userId: string | null
+  workspace: AssistantWorkspace
+  projectId?: string
+}): UseStudioOperatorHistoryResult {
   const t = useTranslations('StudioOperator.history')
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
     null,
   )
   const loadIntent = useRef(0)
+  const lifecycle = useRef(0)
+  const mountedScope = useRef<string | null>(null)
   const renamePending = useRef(false)
-  const { entries, sessionId, question, confirm } = useStudioOperatorState()
+  const { entries, sessionId, question, confirm, saveFailed } =
+    useStudioOperatorState()
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null,
   )
-  const removedIds = useRef(new Set<string>())
+  const removedIds = useRef(removedSessionIds)
   const deletingRef = useRef(false)
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
-  const scope = operatorThreadScope(projectId, domain)
-  const [isHydrating, setIsHydrating] = useState(!hydratedScopes.has(scope))
-  const [error, setError] = useState<string | null>(null)
-  /**
-   * 一次只发一个 upsert。
-   *
-   * ⚠ 没有它的话，流式回合末尾的两次防抖可能重叠 —— 而两个并发的 upsert 里
-   * **先发后到的那个会用更短的 messages 覆盖更长的那个**（服务端是整份替换）。
-   * 表现是「最后一条日志偶尔会丢」。
-   */
-  const listPending = useRef<Promise<AssistantConversationSummary[]> | null>(
-    null,
+  const scope = assistantWorkspaceScope(userId, workspace, projectId)
+  const workspaceKey = assistantWorkspaceKey(workspace, projectId)
+  const surface = assistantWorkspaceSurface(workspace)
+  const domain = assistantWorkspaceDomain(workspace)
+  const [isHydrating, setIsHydrating] = useState(
+    scope !== null && !hydratedScopes.has(scope),
   )
-  const lastListedAt = useRef<number | null>(null)
-  const fetchSessions = useCallback(() => {
-    if (listPending.current) return listPending.current
-    const pending = listOperatorSessions(projectId, domain)
-      .then((items) => {
-        lastListedAt.current = Date.now()
-        return items
-      })
-      .finally(() => {
-        listPending.current = null
-      })
-    listPending.current = pending
-    return pending
-  }, [domain, projectId])
-  const savingRef = useRef(false)
-  const dirtyRef = useRef(false)
+  const [error, setError] = useState<string | null>(null)
+  const isActive = useCallback(
+    (epoch: number) =>
+      scope !== null &&
+      mountedScope.current === scope &&
+      lifecycle.current === epoch &&
+      getOperatorState().threadScope === scope,
+    [scope],
+  )
+  const listPending = useRef<{
+    scope: string
+    includeLegacy: boolean
+    promise: Promise<AssistantConversationSummary[]>
+  } | null>(null)
+  const lastListedAt = useRef<{
+    scope: string
+    includeLegacy: boolean
+    at: number
+  } | null>(null)
+  const fetchSessions = useCallback(
+    (includeLegacy = false) => {
+      if (!scope || !workspaceKey || !userId) return Promise.resolve([])
+      if (
+        listPending.current?.scope === scope &&
+        listPending.current.includeLegacy === includeLegacy
+      )
+        return listPending.current.promise
+      const pending = listOperatorSessions(
+        { userId, scope, workspaceKey, surface, projectId },
+        includeLegacy,
+      )
+        .then((items) => {
+          lastListedAt.current = { scope, includeLegacy, at: Date.now() }
+          return items
+        })
+        .finally(() => {
+          if (listPending.current?.promise === pending)
+            listPending.current = null
+        })
+      listPending.current = { scope, includeLegacy, promise: pending }
+      return pending
+    },
+    [scope, workspaceKey, userId, surface, projectId],
+  )
 
   const refreshSessions = useCallback(
-    (force = false) => {
+    (force = false, includeLegacy = false) => {
+      const epoch = lifecycle.current
+      if (!isActive(epoch)) return
       if (
         !force &&
-        lastListedAt.current !== null &&
-        Date.now() - lastListedAt.current < STUDIO_OPERATOR_HISTORY.listFreshMs
+        lastListedAt.current?.scope === scope &&
+        lastListedAt.current.includeLegacy === includeLegacy &&
+        Date.now() - lastListedAt.current.at <
+          STUDIO_OPERATOR_HISTORY.listFreshMs
       )
         return
       setIsHydrating(true)
-      void fetchSessions()
+      void fetchSessions(includeLegacy)
         .then((items) => {
+          if (!isActive(epoch)) return
           setSessions(items.filter((item) => !removedIds.current.has(item.id)))
           setError(null)
         })
-        .catch(() => setError(t('loadFailed')))
-        .finally(() => setIsHydrating(false))
+        .catch(() => {
+          if (isActive(epoch)) setError(t('loadFailed'))
+        })
+        .finally(() => {
+          if (isActive(epoch)) setIsHydrating(false)
+        })
     },
-    [fetchSessions, t],
+    [fetchSessions, isActive, scope, t],
   )
 
   const deleteSession = useCallback(
     async (session: AssistantConversationSummary) => {
+      const epoch = lifecycle.current
+      if (!isActive(epoch) || session.workspaceKey !== workspaceKey)
+        return false
       if (deletingRef.current) return false
       const current = getOperatorState()
       if (current.sessionId === session.id && current.status === 'working') {
@@ -221,40 +364,59 @@ export function useStudioOperatorHistory(
         const result = await deleteAssistantConversationAPI(session.id)
         if (!result.success && result.errorCode !== 'NOT_FOUND') {
           removedIds.current.delete(session.id)
-          setError(t('deleteFailed'))
+          if (isActive(epoch)) setError(t('deleteFailed'))
           return false
         }
+        const target = getOperatorThread(scope)
+        if (target?.sessionId === session.id) resetOperatorThread(target)
+        if (!isActive(epoch)) return true
         setSessions((items) => items.filter((item) => item.id !== session.id))
-        if (getOperatorState().sessionId === session.id) resetOperatorThread()
         return true
       } catch {
         removedIds.current.delete(session.id)
-        setError(t('deleteFailed'))
+        if (isActive(epoch)) setError(t('deleteFailed'))
         return false
       } finally {
         deletingRef.current = false
-        setDeletingSessionId(null)
+        if (isActive(epoch)) setDeletingSessionId(null)
       }
     },
-    [t],
+    [isActive, workspaceKey, scope, t],
   )
 
   const applyConversation = useCallback(
-    async (id: string, surface: AssistantSurfaceId): Promise<boolean> => {
+    async (
+      id: string,
+      surface: AssistantSurfaceId,
+      readOnlyHistory = false,
+    ): Promise<boolean> => {
+      const epoch = lifecycle.current
+      if (!isActive(epoch) || !workspaceKey) return false
       const intent = ++loadIntent.current
       const before = getOperatorState()
       setLoadingSessionId(id)
       setError(null)
       try {
-        const result = await getAssistantConversationAPI({ surface, id })
+        const result = await getAssistantConversationAPI({
+          surface,
+          id,
+          workspaceKey,
+          operatorOnly: true,
+          ...(readOnlyHistory ? { includeLegacy: true } : {}),
+        })
         if (
+          !isActive(epoch) ||
           intent !== loadIntent.current ||
           removedIds.current.has(id) ||
           getOperatorState().entries !== before.entries ||
-          getOperatorState().sessionId !== before.sessionId
+          getOperatorState().localThreadId !== before.localThreadId
         )
           return false
-        if (!result.success || !result.data) {
+        if (
+          !result.success ||
+          !result.data ||
+          result.data.workspaceKey !== (readOnlyHistory ? null : workspaceKey)
+        ) {
           setError(t('loadFailed'))
           return false
         }
@@ -268,18 +430,21 @@ export function useStudioOperatorHistory(
           rounds: result.data.rounds,
           sessionId: result.data.id,
           sessionSurface: result.data.surface,
+          readOnlyHistory,
           // 末尾还没决定的那一下放回面板（owner 09-27：刷新丢卡）。
           pending: pendingFromStoredMessages(result.data.messages),
         })
         return true
       } catch {
-        if (intent === loadIntent.current) setError(t('loadFailed'))
+        if (isActive(epoch) && intent === loadIntent.current)
+          setError(t('loadFailed'))
         return false
       } finally {
-        if (intent === loadIntent.current) setLoadingSessionId(null)
+        if (isActive(epoch) && intent === loadIntent.current)
+          setLoadingSessionId(null)
       }
     },
-    [t],
+    [isActive, workspaceKey, t],
   )
 
   /**
@@ -291,97 +456,106 @@ export function useStudioOperatorHistory(
    * ⚠ 请求飞在半空时用户已经开口了就放弃 —— 覆盖掉他刚说的话比不载回历史坏得多。
    */
   useEffect(() => {
-    /**
-     * ⭐ 先认领作用域（D12 U7）：从工作台走到画布（或换一个画布项目）时线程整条
-     * 换掉，再载回这一处最近那条 —— ⛔ 不让画布的话写进图片工作台那一段。
-     */
-    const switched = claimOperatorThreadScope(scope)
-    const restoreLatest = switched || !hydratedScopes.has(scope)
-    hydratedScopes.add(scope)
+    const epoch = ++lifecycle.current
+    mountedScope.current = scope
+    loadIntent.current += 1
+    setSessions([])
+    setLoadingSessionId(null)
+    setRenamingSessionId(null)
+    setDeletingSessionId(null)
+    setError(null)
+    if (activeUserId !== userId) {
+      claimOperatorThreadScope(null, domain)
+      hydratedScopes.clear()
+      savedThreads.clear()
+      activeWorkspace = null
+      activeUserId = userId
+    }
+    if (activeWorkspace && activeWorkspace.scope !== scope) {
+      const previous = getOperatorThread(activeWorkspace.scope)
+      if (previous && !previous.saveFailed)
+        void persistThread({ ...activeWorkspace, snapshot: previous })
+    }
+    activeWorkspace =
+      scope && workspaceKey && userId
+        ? { userId, scope, workspaceKey, surface, projectId }
+        : null
+    claimOperatorThreadScope(scope, domain)
+    const before = getOperatorState()
+    const restoreLatest = scope !== null && !hydratedScopes.has(scope)
+    if (scope) hydratedScopes.add(scope)
+    setIsHydrating(scope !== null)
 
-    void (async () => {
-      try {
-        const merged = await fetchSessions()
-        setSessions(merged.filter((item) => !removedIds.current.has(item.id)))
+    if (scope)
+      void (async () => {
+        try {
+          const merged = await fetchSessions()
+          if (!isActive(epoch)) return
+          setSessions(merged.filter((item) => !removedIds.current.has(item.id)))
 
-        const latest = merged[0]
-        const current = getOperatorState()
-        if (
-          !restoreLatest ||
-          !latest ||
-          current.entries.length > 0 ||
-          current.sessionId
-        )
-          return
-        await applyConversation(latest.id, latest.surface)
-      } catch {
-        setError(t('loadFailed'))
-      } finally {
-        setIsHydrating(false)
-      }
-    })()
-  }, [applyConversation, fetchSessions, scope, t])
+          const latest = merged[0]
+          const current = getOperatorState()
+          if (
+            !restoreLatest ||
+            !latest ||
+            current.localThreadId !== before.localThreadId ||
+            current.entries.length > 0 ||
+            current.sessionId
+          )
+            return
+          await applyConversation(latest.id, latest.surface)
+        } catch {
+          if (isActive(epoch)) setError(t('loadFailed'))
+        } finally {
+          if (isActive(epoch)) setIsHydrating(false)
+        }
+      })()
+    return () => {
+      lifecycle.current += 1
+      mountedScope.current = null
+      loadIntent.current += 1
+    }
+  }, [
+    applyConversation,
+    fetchSessions,
+    scope,
+    workspaceKey,
+    surface,
+    projectId,
+    userId,
+    domain,
+    isActive,
+    t,
+  ])
 
   const save = useCallback(async () => {
-    if (savingRef.current) {
-      dirtyRef.current = true
-      return
-    }
-    /**
-     * ⭐ 现读 store，不吃闭包里的那份：防抖跨了好几次 render，而这一跳要存的是
-     * **此刻**的线程（同一条论据见 `getOperatorState` 的头注）。
-     */
+    const epoch = lifecycle.current
+    if (!isActive(epoch) || !scope || !workspaceKey || !userId) return false
     const current = getOperatorState()
-    if (current.sessionId && removedIds.current.has(current.sessionId)) return
-    const history = [...current.history, ...toOperatorHistory(current.entries)]
-    if (history.length === 0) return
-
-    // 起始域只在第一次落库时定下来 —— 见 `sessionSurface` 的头注。
-    const surface =
-      isolatedSurface(projectId, domain) ??
-      current.sessionSurface ??
-      ASSISTANT_SURFACE_BY_DOMAIN[current.domain]
-
-    savingRef.current = true
-    try {
-      const result = await upsertAssistantConversationAPI({
-        ...(current.sessionId ? { id: current.sessionId } : {}),
-        surface,
-        ...(projectId ? { projectId } : {}),
-        messages: toStoredOperatorMessages(
-          history,
-          pendingFromOperatorState(current.question, current.confirm),
-        ),
-      })
-      if (
-        (current.sessionId && removedIds.current.has(current.sessionId)) ||
-        getOperatorState().sessionId !== current.sessionId
-      )
-        return
-      if (!result.success) {
-        logger.warn('[studio-operator-history] persist failed', {
-          error: result.error,
-          errorCode: result.errorCode,
-        })
-        /**
-         * 那一行没了（别处删了 / 换了账号）。清掉身份，下一次改动会**整份**
-         * 新建一行 —— `history` 里带着全部内容，所以什么都不会丢。
-         */
-        if (result.errorCode === 'ASSISTANT_CONVERSATION_NOT_FOUND') {
-          setOperatorSession(null, null)
-        }
-        return
-      }
-      setOperatorSession(result.data.id, surface)
+    const saved = await persistThread({
+      userId,
+      scope,
+      workspaceKey,
+      surface,
+      projectId,
+      snapshot: current,
+    })
+    if (
+      saved &&
+      isActive(epoch) &&
+      getOperatorState().localThreadId === current.localThreadId
+    )
       refreshSessions(true)
-    } finally {
-      savingRef.current = false
-      if (dirtyRef.current) {
-        dirtyRef.current = false
-        void save()
-      }
-    }
-  }, [domain, projectId, refreshSessions])
+    return saved
+  }, [
+    isActive,
+    scope,
+    workspaceKey,
+    userId,
+    surface,
+    projectId,
+    refreshSessions,
+  ])
 
   /**
    * 写入时机 = **一条防抖**。
@@ -421,6 +595,9 @@ export function useStudioOperatorHistory(
 
   const renameSession = useCallback(
     async (session: AssistantConversationSummary, title: string) => {
+      const epoch = lifecycle.current
+      if (!isActive(epoch) || session.workspaceKey !== workspaceKey)
+        return false
       if (renamePending.current) return false
       renamePending.current = true
       setRenamingSessionId(session.id)
@@ -431,9 +608,10 @@ export function useStudioOperatorHistory(
           title.trim(),
         )
         if (!result.success) {
-          setError(t('renameFailed'))
+          if (isActive(epoch)) setError(t('renameFailed'))
           return false
         }
+        if (!isActive(epoch)) return true
         setSessions((items) =>
           items.map((item) =>
             item.id === session.id
@@ -443,22 +621,31 @@ export function useStudioOperatorHistory(
         )
         return true
       } catch {
-        setError(t('renameFailed'))
+        if (isActive(epoch)) setError(t('renameFailed'))
         return false
       } finally {
         renamePending.current = false
-        setRenamingSessionId(null)
+        if (isActive(epoch)) setRenamingSessionId(null)
       }
     },
-    [t],
+    [isActive, workspaceKey, t],
   )
 
   const selectSession = useCallback(
     (session: AssistantConversationSummary) => {
+      if (
+        session.workspaceKey !== null &&
+        session.workspaceKey !== workspaceKey
+      )
+        return
       if (session.id === getOperatorState().sessionId) return
-      void applyConversation(session.id, session.surface)
+      void applyConversation(
+        session.id,
+        session.surface,
+        session.workspaceKey === null,
+      )
     },
-    [applyConversation],
+    [applyConversation, workspaceKey],
   )
 
   return {
@@ -468,9 +655,10 @@ export function useStudioOperatorHistory(
     loadingSessionId,
     renamingSessionId,
     renameSession,
-    error,
+    error: saveFailed ? t('saveFailed') : error,
     selectSession,
     refreshSessions,
+    retrySave: save,
     deletingSessionId,
     deleteSession,
   }

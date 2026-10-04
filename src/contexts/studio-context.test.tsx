@@ -12,6 +12,9 @@ import {
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
 import type { GenerationEvaluation } from '@/types'
 
+vi.mock('@clerk/nextjs', () => ({ useAuth: () => ({ userId: 'user-a' }) }))
+vi.mock('@/i18n/navigation', () => ({ usePathname: () => '/studio/image' }))
+
 vi.mock('@/hooks/cards/use-character-cards', () => ({
   useCharacterCards: () => ({}),
 }))

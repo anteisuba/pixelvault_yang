@@ -20,6 +20,9 @@ import type { AssistantOperatorAppliedStep } from '@/types/assistant-operator'
 
 const dispatch = vi.hoisted(() => vi.fn())
 const removeReference = vi.hoisted(() => vi.fn())
+const revertAssetWrite = vi.hoisted(() => vi.fn())
+const deleteProjectRule = vi.hoisted(() => vi.fn())
+const assetRevertEnabled = vi.hoisted(() => ({ value: true }))
 /**
  * ⚠ `setPrimed` **必须接回真 store**：拍板 14 那条「撤完顺手把生成键熄灭」验的
  * 就是 store 里那一位。桩成空函数的话这条断言永远是「已经是 false 了」，而那正是
@@ -38,6 +41,7 @@ const primedSink = vi.hoisted(() => ({
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image',
+    workspace: 'image-natural',
     buildSnapshot: () => ({ prompt: '', availableModels: [] }),
     referenceLimit: 4,
     open: true,
@@ -57,6 +61,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       mountUserUrl: () => {},
       unmountUserUrl: () => {},
       setPrimed: (primed: boolean) => primedSink.set(primed),
+      deleteProjectRule,
+      ...(assetRevertEnabled.value ? { revertAssetWrite } : {}),
     },
   }),
 }))
@@ -71,8 +77,12 @@ let revert: RevertHook
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  assetRevertEnabled.value = true
+  revertAssetWrite.mockResolvedValue(true)
+  deleteProjectRule.mockResolvedValue(true)
   store = await import('@/hooks/use-studio-operator-store')
   revert = await import('@/hooks/use-studio-operator-revert')
+  store.claimOperatorThreadScope('account-a:image-natural', 'image')
   // 每次 resetModules 之后 store 是新的一份实例 —— 桩宿主的那只手要接到这一份上。
   primedSink.set = store.setOperatorPrimed
 })
@@ -131,6 +141,16 @@ const PRIME_STEP = {
   inverse: { primed: false },
 } satisfies AssistantOperatorAppliedStep
 
+const ASSET_STEP = {
+  id: 'step-asset',
+  title: 'tag asset',
+  status: 'done',
+  tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+  verb: 'apply',
+  payload: { tags: ['draft'], assetIds: ['asset-1'] },
+  inverse: { entries: [{ assetId: 'asset-1', tags: [] }] },
+} satisfies AssistantOperatorAppliedStep
+
 /** 上一轮改过提示词，这一轮（看完图之后）又改了提示词 + 张数 + 预填生成键。 */
 function buildTwoRounds(): void {
   store.upsertOperatorStep(promptStep('step-1', 'round A prompt', ''), ROUND_A)
@@ -176,6 +196,7 @@ const RULE_STEP = {
   payload: {
     ruleId: 'rule-9',
     scope: null,
+    workspaceKey: 'image-natural',
     text: '输出一律不加水印',
     kind: 'note',
     source: 'assistant',
@@ -309,5 +330,189 @@ describe('还原这轮', () => {
     expect(
       store.getOperatorState().entries.filter((e) => e.kind === 'system'),
     ).toHaveLength(1)
+  })
+
+  it('切工作区后保留的旧撤销回调不会撤掉新工作区的同名轮次', () => {
+    buildTwoRounds()
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const oldRevert = result.current.revertRound
+
+    act(() => {
+      store.claimOperatorThreadScope('account-a:image-tags', 'image')
+      store.upsertOperatorStep(promptStep('step-1', 'tag prompt', ''), ROUND_B)
+      oldRevert(ROUND_B)
+    })
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(store.getOperatorState().entries).toHaveLength(1)
+    expect(store.getOperatorState().entries[0]).toMatchObject({ undone: false })
+  })
+
+  it('新对话后旧撤销回调不能修改当前对话', () => {
+    buildTwoRounds()
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const oldRevert = result.current.revertRound
+
+    act(() => {
+      store.resetOperatorThread()
+      store.upsertOperatorStep(promptStep('step-1', 'new prompt', ''), ROUND_B)
+      oldRevert(ROUND_B)
+    })
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(store.getOperatorState().entries).toHaveLength(1)
+    expect(store.getOperatorState().entries[0]).toMatchObject({ undone: false })
+  })
+
+  it('旧 NULL 工作区历史只读，不提供撤销计数、标签或写入', async () => {
+    store.loadOperatorThread({
+      history: [],
+      sessionId: 'legacy-session',
+      sessionSurface: 'IMAGE_STUDIO',
+      readOnlyHistory: true,
+    })
+    buildTwoRounds()
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+
+    await act(async () => result.current.revertRound(ROUND_B))
+
+    expect(result.current.countRoundChanges(ROUND_B)).toBe(0)
+    expect(result.current.roundChangeLabelKeys(ROUND_B)).toEqual([])
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(store.getOperatorState().primed).toBe(true)
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter((entry) => entry.kind === 'system'),
+    ).toEqual([])
+  })
+
+  it('等待网络撤销成功回执后才划线并撤下一步', async () => {
+    let finish: (value: boolean) => void = () => {}
+    revertAssetWrite.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        finish = resolve
+      }),
+    )
+    store.upsertOperatorStep(promptStep('step-1', 'changed', ''), ROUND_B)
+    store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    let pending = Promise.resolve()
+
+    act(() => {
+      pending = result.current.revertRound(ROUND_B)
+    })
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(store.getOperatorState().entries[1]).toMatchObject({ undone: false })
+
+    await act(async () => {
+      finish(true)
+      await pending
+    })
+
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_PROMPT', payload: '' })
+    expect(store.getOperatorState().entries.slice(0, 2)).toEqual([
+      expect.objectContaining({ undone: true }),
+      expect.objectContaining({ undone: true }),
+    ])
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      code: 'revertRound',
+      count: 2,
+    })
+  })
+
+  it('网络失败停止该轮剩余逆操作，仅通报已经成功的数量', async () => {
+    revertAssetWrite.mockResolvedValue(false)
+    store.upsertOperatorStep(promptStep('step-1', 'changed', ''), ROUND_B)
+    store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+    store.upsertOperatorStep(PRIME_STEP, ROUND_B)
+    store.setOperatorPrimed(true)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+
+    await act(async () => result.current.revertRound(ROUND_B))
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(store.getOperatorState().primed).toBe(false)
+    expect(result.current.countRoundChanges(ROUND_B)).toBe(2)
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter((entry) => entry.kind === 'system'),
+    ).toEqual([
+      expect.objectContaining({ code: 'revertRound', count: 1 }),
+      expect.objectContaining({ code: 'revertFailed' }),
+    ])
+  })
+
+  it('缺少宿主撤销能力时不划线，留下失败通报', async () => {
+    assetRevertEnabled.value = false
+    store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+
+    await act(async () => result.current.revertRound(ROUND_B))
+
+    expect(store.getOperatorState().entries[0]).toMatchObject({ undone: false })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      code: 'revertFailed',
+    })
+    expect(revertAssetWrite).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])(
+    '切台后旧网络回执 %s 不修改新线程或继续撤下一步',
+    async (success) => {
+      let finish: (value: boolean) => void = () => {}
+      revertAssetWrite.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          finish = resolve
+        }),
+      )
+      store.upsertOperatorStep(promptStep('step-1', 'changed', ''), ROUND_B)
+      store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+      const { result } = renderHook(() => revert.useStudioOperatorRevert())
+      let pending = Promise.resolve()
+      act(() => {
+        pending = result.current.revertRound(ROUND_B)
+        store.claimOperatorThreadScope('account-a:image-tags', 'image')
+        store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+      })
+
+      await act(async () => {
+        finish(success)
+        await pending
+      })
+
+      expect(dispatch).not.toHaveBeenCalled()
+      expect(store.getOperatorState().entries).toHaveLength(1)
+      expect(store.getOperatorState().entries[0]).toMatchObject({
+        undone: false,
+      })
+    },
+  )
+
+  it('等待回执时重复点击不重发，失败后仍可重试', async () => {
+    let finish: (value: boolean) => void = () => {}
+    revertAssetWrite.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finish = resolve
+      }),
+    )
+    store.upsertOperatorStep(ASSET_STEP, ROUND_B)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    let pending = Promise.resolve()
+    act(() => {
+      pending = result.current.revertRound(ROUND_B)
+      void result.current.revertRound(ROUND_B)
+    })
+    expect(revertAssetWrite).toHaveBeenCalledOnce()
+
+    await act(async () => {
+      finish(false)
+      await pending
+    })
+    await act(async () => result.current.revertRound(ROUND_B))
+
+    expect(revertAssetWrite).toHaveBeenCalledTimes(2)
+    expect(store.getOperatorState().entries[0]).toMatchObject({ undone: true })
   })
 })

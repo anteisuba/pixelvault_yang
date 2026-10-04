@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioFormState } from '@/contexts/studio-context'
 import type { StudioModelOption } from '@/types/model-option'
+import {
+  appendOperatorPendingResult,
+  claimOperatorThreadScope,
+  getOperatorState,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
 
 import {
   modelPickerGateKey,
@@ -168,6 +174,40 @@ beforeEach(() => {
 })
 
 describe('useStudioGenerateAction', () => {
+  it('REQUEST_GENERATE传递提交身份，切到新对话时不使用新表单生成', async () => {
+    claimOperatorThreadScope('user-a:image-natural', 'image')
+    resetOperatorThread()
+    appendOperatorPendingResult({ id: 'request-owned', total: 1 })
+    const owner = {
+      threadScope: 'user-a:image-natural',
+      localThreadId: getOperatorState().localThreadId,
+      pendingResultId: 'request-owned',
+    }
+    const form = {
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    }
+    setState(form)
+    const view = renderHook(() => useStudioGenerateAction())
+    setState({ ...form, generateRequestId: 1, generateRequestOwner: owner })
+    await act(async () => view.rerender())
+    expect(mockGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({ operatorResultOwner: owner }),
+    )
+    mockGenerate.mockClear()
+    act(() => {
+      resetOperatorThread()
+      appendOperatorPendingResult({ id: 'request-new', total: 1 })
+    })
+    setState({
+      ...form,
+      prompt: 'new thread prompt',
+      generateRequestId: 2,
+      generateRequestOwner: owner,
+    })
+    await act(async () => view.rerender())
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
   it('blocks a missing image mention without submitting a generation', async () => {
     setState({
       prompt: 'Use @Image2',

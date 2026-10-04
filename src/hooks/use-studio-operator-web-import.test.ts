@@ -81,6 +81,7 @@ function setup(limit = 1) {
   const removed: string[] = []
   const hook = renderHook(() =>
     useStudioOperatorWebImport({
+      scopeKey: 'user-a:image-natural:thread-1',
       onImported: (attachment) => imported.push(attachment),
       onRemoved: (attachmentId) => removed.push(attachmentId),
       limit,
@@ -447,4 +448,35 @@ describe('联网候选 · 不重复导入（2026-09-07）', () => {
     expect(removed).toEqual(['gen-a'])
     expect(deleteGenerationAPI).not.toHaveBeenCalled()
   })
+})
+
+it.each([
+  'user-a:image-tags:thread-2',
+  'user-b:image-natural:thread-1',
+  'user-a:image-natural:thread-new',
+])('旧转存不修改 %s 的附件或素材', async (nextScope) => {
+  let finish!: (value: unknown) => void
+  importWebImageAPI.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  const onImported = vi.fn()
+  const onRemoved = vi.fn()
+  const view = renderHook(
+    ({ scopeKey }) =>
+      useStudioOperatorWebImport({ onImported, onRemoved, limit: 2, scopeKey }),
+    { initialProps: { scopeKey: 'user-a:image-natural:thread-1' } },
+  )
+  act(() => view.result.current.toggleCandidate('entry-old', CANDIDATE_A))
+  view.rerender({ scopeKey: nextScope })
+  expect(view.result.current.states).toEqual({})
+  await act(async () =>
+    finish({ success: true, data: { generation: generation('late') } }),
+  )
+  expect(onImported).not.toHaveBeenCalled()
+  expect(onRemoved).not.toHaveBeenCalled()
+  expect(deleteGenerationAPI).not.toHaveBeenCalled()
+  expect(view.result.current.states).toEqual({})
 })

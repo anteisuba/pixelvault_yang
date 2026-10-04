@@ -189,7 +189,15 @@ export function useDefaultImageModel(
       readStoredImageModelOptionId(promptDialect),
     )
     if (!optionId) return
-    dispatch({ type: 'AUTO_SELECT_OPTION_ID', payload: optionId })
+    dispatch({
+      type: 'AUTO_SELECT_OPTION_ID',
+      payload: optionId,
+      expectedSelection: {
+        optionId: selectedOptionId,
+        dialect: promptDialect,
+        touched: Boolean(modelSelectionTouched),
+      },
+    })
   }, [
     active,
     dispatch,
@@ -203,6 +211,14 @@ export function useDefaultImageModel(
     if (!active) return
     if (!modelSelectionTouched) return
     if (!selectedOptionId) return
+    if (!dialectOptions.some((option) => option.optionId === selectedOptionId))
+      return
     writeStoredImageModelOptionId(selectedOptionId, promptDialect)
-  }, [active, modelSelectionTouched, promptDialect, selectedOptionId])
+  }, [
+    active,
+    dialectOptions,
+    modelSelectionTouched,
+    promptDialect,
+    selectedOptionId,
+  ])
 }

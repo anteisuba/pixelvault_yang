@@ -130,6 +130,66 @@ describe('generateStorageKey', () => {
 describe('fetchAsBuffer', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('rejects pre-cancelled remote and inline media without fetching', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    controller.abort(reason)
+    const fetchMock = vi.fn()
+    global.fetch = fetchMock
+    for (const url of [
+      'https://1.1.1.1/image.png',
+      'data:image/png;base64,aGVsbG8=',
+    ]) {
+      await expect(
+        fetchAsBuffer(url, { signal: controller.signal }),
+      ).rejects.toBe(reason)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('passes a signal-only options object to the guarded media request', async () => {
+    const signal = new AbortController().signal
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('image', {
+        headers: { 'content-type': 'image/png' },
+      }),
+    )
+    global.fetch = fetchMock
+    const result = await fetchAsBuffer('https://1.1.1.1/image.png', { signal })
+    expect(result.buffer.toString()).toBe('image')
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://1.1.1.1/image.png',
+      expect.objectContaining({ signal }),
+    )
+  })
+
+  it('propagates a cancelled media body without starting another request', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (_url, init: RequestInit) => ({
+        ok: true,
+        headers: new Headers({ 'content-type': 'image/png' }),
+        arrayBuffer: () =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener(
+              'abort',
+              () => reject(init.signal?.reason),
+              { once: true },
+            )
+            controller.abort(reason)
+          }),
+      }))
+    global.fetch = fetchMock
+    await expect(
+      fetchAsBuffer('https://1.1.1.1/image.png', {
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(reason)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('parses data: URLs into buffer + mimeType', async () => {
     const b64 = Buffer.from('hello').toString('base64')
     const result = await fetchAsBuffer(`data:image/jpeg;base64,${b64}`)

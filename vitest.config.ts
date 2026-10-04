@@ -7,6 +7,7 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   test: {
+    server: { deps: { inline: ['next-intl'] } },
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     globals: true,

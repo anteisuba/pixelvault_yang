@@ -62,20 +62,9 @@ import type {
   StudioOperatorHistoryEntry,
   StudioOperatorPending,
 } from '@/types/studio-operator-history'
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
 
-/**
- * **按域分槽**的那三样（P4-A，拍板 8）。
- *
- * ⭐ 判据：它们说的是「助手在**这个工作台上**做了什么、正在问什么、把哪个生成键
- * 点亮了」。线程是跨域连续的（拍板 8：切域不断会话），这三样不是 ——
- *  · `changes` 不分槽的下场：助手在视频档改了提示词，图片档那条「✦ 提示词」的
- *    登记被顶掉，回到图片档一点还原，撤的是视频那一版（真正的「误标」）；
- *  · `primed` 不分槽的下场：在图片档备好一枪、切到视频，视频的生成键跟着亮起来
- *    —— 而那份表单助手根本没碰过；
- * ⚠ **覆写三选那条子已经不在这里了**（v2 §3.1）：它降级成了问题卡，而问题卡
- *   钉在输入框上方、一次只有一张（§3.4）—— 于是它跟着 `question` 走全局那一份。
- */
-interface StudioOperatorDomainSlice {
+interface StudioOperatorWorkbenchFields {
   changes: Readonly<Partial<Record<StudioOperatorField, StudioOperatorChange>>>
   primed: boolean
 }
@@ -96,15 +85,11 @@ export interface StudioOperatorState {
   history: readonly StudioOperatorHistoryEntry[]
   /** 这条线程在库里的行；`null` = 还没落过库（下一次保存会新建一行）。 */
   sessionId: string | null
-  /**
-   * 那一行的 `surface` —— **线程起始域**，⛔ 不跟着当前域走。
-   *
-   * ⚠ 一条线程可以跨域（拍板 8），而 `surface` 是单值。切到视频档时顺手把它改成
-   * `VIDEO_STUDIO` 的下场是这条线程从图片档的历史列表里消失了 —— 用户在原地
-   * 找不回自己刚才聊的东西。域切换的痕迹在 `messages` 里的 domainMark 条目上。
-   */
+  localThreadId: string
+  readOnlyHistory: boolean
+  saveFailed: boolean
+  /** 当前会话的存储 surface；具体工作区归属由 threadScope 决定。 */
   sessionSurface: AssistantSurfaceId | null
-  /** ⚠ **跨域连续**（拍板 8）：域标记就长在这条线程里。 */
   entries: readonly StudioOperatorThreadEntry[]
   /** 改动登记簿 —— 按字段存，见 `StudioOperatorChange` 的头注。**当前域的那一份。** */
   changes: Readonly<Partial<Record<StudioOperatorField, StudioOperatorChange>>>
@@ -148,10 +133,7 @@ export interface StudioOperatorState {
    * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
    */
   autoGenerate: boolean
-  /**
-   * 这条线程属于哪个会话作用域（D12 U7）：`studio` = 图片 / 视频 / LoRA 合并那一份，
-   * `canvas:<projectId>` = 某个画布项目。`null` = 还没有宿主认领过。
-   */
+  /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
   threadScope: string | null
   /**
    * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
@@ -257,7 +239,7 @@ export interface StudioOperatorState {
   historyRounds: readonly AssistantOperatorRoundSummary[]
 }
 
-const EMPTY_SLICE: StudioOperatorDomainSlice = {
+const EMPTY_WORKBENCH_FIELDS: StudioOperatorWorkbenchFields = {
   changes: {},
   primed: false,
 }
@@ -273,9 +255,12 @@ const INITIAL_STATE: StudioOperatorState = {
   domain: INITIAL_DOMAIN,
   history: EMPTY_HISTORY,
   sessionId: null,
+  localThreadId: '',
+  readOnlyHistory: false,
+  saveFailed: false,
   sessionSurface: null,
   entries: [],
-  ...EMPTY_SLICE,
+  ...EMPTY_WORKBENCH_FIELDS,
   stepsDone: 0,
   plannedSteps: 0,
   errorText: null,
@@ -297,67 +282,36 @@ const INITIAL_STATE: StudioOperatorState = {
   historyRounds: EMPTY_ROUNDS,
 }
 
-/**
- * ⚠ 分槽的那三样存在这里，**扁平化之后才进 `state`**。
- *
- * 为什么不让 `getSnapshot` 现算：`useSyncExternalStore` 要求快照是**稳定引用**，
- * 每次现算一个新对象会判定「变了」而无限重渲染（见文件头注）。所以每次写入都
- * 重建一次扁平快照，读永远读那一个 —— 代价是每个 mutator 多一行，换来的是
- * 全部消费者一行都不用改。
- */
-const slices: Record<AssistantOperatorDomain, StudioOperatorDomainSlice> = {
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: EMPTY_SLICE,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: EMPTY_SLICE,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: EMPTY_SLICE,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: EMPTY_SLICE,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: EMPTY_SLICE,
+const threads = new Map<string, StudioOperatorState>()
+let state: StudioOperatorState = {
+  ...INITIAL_STATE,
+  localThreadId: crypto.randomUUID(),
 }
-
-let state: StudioOperatorState = INITIAL_STATE
 let entrySeq = 0
 const listeners = new Set<() => void>()
 
 function emit(next: StudioOperatorState): void {
   state = next
+  if (next.threadScope) threads.set(next.threadScope, next)
   for (const listener of listeners) listener()
 }
 
-/** 改当前域的那一槽，并把扁平快照重建出来。 */
-function emitSlice(patch: Partial<StudioOperatorDomainSlice>): void {
-  const next: StudioOperatorDomainSlice = { ...slices[state.domain], ...patch }
-  slices[state.domain] = next
-  emit({ ...state, ...next })
+function updateThread(
+  current: StudioOperatorState,
+  next: StudioOperatorState,
+): void {
+  if (
+    state.threadScope === current.threadScope &&
+    state.localThreadId === current.localThreadId
+  ) {
+    emit(next)
+  } else if (current.threadScope) {
+    threads.set(current.threadScope, next)
+  }
 }
 
-/**
- * 切域（拍板 8）—— **换工具、不断会话**。
- *
- * ⭐ 域标记与 `domain` 在**同一次写入**里落地，⛔ 不拆成两个调用：拆开就有一个
- * 「标记已插、域还没切」的中间态，而那一帧里发出去的请求会带着旧域的工具表。
- * ⚠ 线程是空的就不插标记：一条「切到视频工作台」孤零零地开头，说的是一件还没
- * 发生过的事。
- * ⚠ 域没变时**整个是 no-op**（连一次 emit 都不发）：模态切换那条 effect 会在
- * 每次表单变化时被求值，白发一次 emit 就是全面板一次重渲染。
- */
-export function switchOperatorDomain(domain: AssistantOperatorDomain): void {
-  if (state.domain === domain) return
-  /**
-   * ⚠ 「线程是空的」要**把载回来的历史也算上**（P4-B）：刷新之后 `entries` 是空
-   * 的而对话明明就在眼前，只看 `entries` 的下场是切域那一条标记不再插 ——
-   * 于是历史里出现「上一句还在聊图片，下一句突然在配音」而没有任何交代。
-   */
-  const entries =
-    state.entries.length > 0 || state.history.length > 0
-      ? [
-          ...state.entries,
-          {
-            kind: 'domainMark' as const,
-            id: nextOperatorEntryId('domain'),
-            domain,
-          },
-        ]
-      : state.entries
-  emit({ ...state, domain, entries, ...slices[domain] })
+function emitSlice(patch: Partial<StudioOperatorWorkbenchFields>): void {
+  emit({ ...state, ...patch })
 }
 
 function subscribe(listener: () => void): () => void {
@@ -390,6 +344,13 @@ export function useStudioOperatorState(): StudioOperatorState {
  */
 export function getOperatorState(): StudioOperatorState {
   return state
+}
+
+export function getOperatorThread(
+  scope: string | null,
+): StudioOperatorState | null {
+  if (state.threadScope === scope) return state
+  return scope ? (threads.get(scope) ?? null) : null
 }
 
 // ─── 「把这张图给助手看」的投递口（P4-C）──────────────────────────────
@@ -438,17 +399,25 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
  * ⚠ 带着**要给哪个域**：发出这句话的那一页（角色页）自己也挂着一个 Dock，⛔ 不能让它
  *   在跳走之前把话先吞了。只留一句：连点两次，意思是「就这句」。
  */
-let pendingDraft: { domain: string; text: string } | null = null
+let pendingDraft: { scope: string; text: string } | null = null
 const draftListeners = new Set<() => void>()
 
-export function requestOperatorDraft(domain: string, text: string): void {
-  pendingDraft = { domain, text }
+export function requestOperatorDraft(
+  workspace: AssistantWorkspace,
+  text: string,
+): void {
+  const source = state.threadScope
+  if (!source) return
+  const account = source.slice(0, source.indexOf(':'))
+  const scope = workspace === 'canvas' ? source : `${account}:${workspace}`
+  if (workspace === 'canvas' && state.domain !== 'canvas') return
+  pendingDraft = { scope, text }
   for (const listener of draftListeners) listener()
 }
 
 /** 取走并清空 —— 只有域对得上的那一页取得走。 */
-export function takeOperatorDraft(domain: string): string | null {
-  if (!pendingDraft || pendingDraft.domain !== domain) return null
+export function takeOperatorDraft(scope: string | null): string | null {
+  if (!scope || !pendingDraft || pendingDraft.scope !== scope) return null
   const { text } = pendingDraft
   pendingDraft = null
   return text
@@ -838,18 +807,37 @@ export function clearOperatorMentions(): void {
   emit({ ...state, mentions: [] })
 }
 
-/**
- * 换会话作用域（D12 U7）—— 画布 ↔ 工作台、画布 A ↔ 画布 B。
- *
- * ⭐ 作用域一变就**整条线程换掉**（同 ＋新对话）：留着上一处的线程，下一次保存会把
- * 这里的对话写进那一段。返回「换了没有」—— 换了的话调用方要载回这一处最近那条。
- */
-export function claimOperatorThreadScope(scope: string): boolean {
-  if (state.threadScope === scope) return false
-  const first = state.threadScope === null
-  if (!first) resetOperatorThread()
-  emit({ ...state, threadScope: scope })
-  return !first
+export function claimOperatorThreadScope(
+  scope: string | null,
+  domain: AssistantOperatorDomain,
+): boolean {
+  if (state.threadScope === scope && state.domain === domain) return false
+  settleOperatorStreaming()
+  if (scope === null) threads.clear()
+  const cached = scope ? threads.get(scope) : undefined
+  const next: StudioOperatorState = cached ?? {
+    ...INITIAL_STATE,
+    localThreadId: crypto.randomUUID(),
+    planMode: scope ? state.planMode : INITIAL_STATE.planMode,
+  }
+  pendingAttachment = null
+  if (
+    !scope ||
+    (pendingDraft &&
+      pendingDraft.scope.slice(0, pendingDraft.scope.indexOf(':')) !==
+        scope.slice(0, scope.indexOf(':')))
+  ) {
+    pendingDraft = null
+  }
+  emit({
+    ...next,
+    domain,
+    threadScope: scope,
+    status: next.status === 'working' ? 'idle' : next.status,
+    capturingFrames: false,
+  })
+  if (!cached) hydrateOperatorResume()
+  return true
 }
 
 /** 自动生成开关（D12 S-C）—— 会话级，见 `autoGenerate` 头注。 */
@@ -1066,15 +1054,17 @@ export function loadOperatorThread(args: {
   rounds?: readonly AssistantOperatorRoundSummary[]
   sessionId: string | null
   sessionSurface: AssistantSurfaceId | null
+  readOnlyHistory?: boolean
   /**
    * 这段会话末尾**还没决定的那一下**（owner 09-27 刷新丢卡）：放回面板上，状态
    * 回到「等你定」。缺席 = 没有；⚠ 换一段会话时旧的问题 / 卡一并清掉。
    */
   pending?: StudioOperatorPending | null
 }): void {
-  const pending = args.pending ?? null
+  const pending = args.readOnlyHistory ? null : (args.pending ?? null)
   emit({
     ...state,
+    localThreadId: crypto.randomUUID(),
     status: pending ? 'awaitingConfirm' : 'idle',
     question:
       pending?.kind === 'question'
@@ -1094,8 +1084,12 @@ export function loadOperatorThread(args: {
           }
         : null,
     history: args.history,
-    historyRounds: args.rounds ?? EMPTY_ROUNDS,
-    sessionId: args.sessionId,
+    historyRounds: args.readOnlyHistory
+      ? EMPTY_ROUNDS
+      : (args.rounds ?? EMPTY_ROUNDS),
+    sessionId: args.readOnlyHistory ? null : args.sessionId,
+    readOnlyHistory: args.readOnlyHistory ?? false,
+    saveFailed: false,
     sessionSurface: args.sessionSurface,
     entries: [],
     // ⚠ 翻开另一段会话 = 自动生成开关回到关（D12 S-C，只管当前会话）。
@@ -1105,7 +1099,15 @@ export function loadOperatorThread(args: {
     plannedSteps: 0,
     errorText: null,
     errorTrace: null,
+    queue: [],
+    mentions: [],
+    selectedResultId: null,
+    pendingResultId: null,
+    capturingFrames: false,
+    resume: null,
+    incognito: false,
   })
+  if (!args.readOnlyHistory) hydrateOperatorResume()
 }
 
 /**
@@ -1118,52 +1120,60 @@ export function setOperatorSession(
   /** `null` = 那一行没了（别处删了），下一次保存整份新建。 */
   sessionId: string | null,
   sessionSurface: AssistantSurfaceId | null,
-): void {
+  identity?: Pick<StudioOperatorState, 'threadScope' | 'localThreadId'>,
+): boolean {
+  const current = identity ? getOperatorThread(identity.threadScope) : state
   if (
-    state.sessionId === sessionId &&
-    state.sessionSurface === sessionSurface
+    !current ||
+    (identity && current.localThreadId !== identity.localThreadId)
   ) {
-    return
+    return false
+  }
+  if (
+    current.sessionId === sessionId &&
+    current.sessionSurface === sessionSurface
+  ) {
+    return true
   }
   /**
    * ⚠ 自动生成开关只管当前这段会话（D12 S-C）：换到**另一段**会话就回到关。
    * 第一次落库回填身份（null → id）还是同一段，⛔ 不清。
    */
-  const switched = state.sessionId !== null && state.sessionId !== sessionId
-  emit({
-    ...state,
+  const switched = current.sessionId !== null && current.sessionId !== sessionId
+  const resume = current.resume ? { ...current.resume, sessionId } : null
+  const next: StudioOperatorState = {
+    ...current,
     sessionId,
     sessionSurface,
+    resume,
+    saveFailed: false,
     ...(switched ? { autoGenerate: false } : {}),
-  })
+  }
+  if (resume && current.threadScope && current.sessionId !== sessionId) {
+    if (writeOperatorResume(current.threadScope, next, resume)) {
+      clearOperatorResume(current.threadScope, current)
+    }
+  }
+  updateThread(current, next)
+  return true
+}
+
+export function setOperatorSaveFailed(
+  identity: Pick<StudioOperatorState, 'threadScope' | 'localThreadId'>,
+  saveFailed: boolean,
+): void {
+  const current = getOperatorThread(identity.threadScope)
+  if (
+    !current ||
+    current.localThreadId !== identity.localThreadId ||
+    current.saveFailed === saveFailed
+  )
+    return
+  updateThread(current, { ...current, saveFailed })
 }
 
 // ─── 断点续跑（第三期）────────────────────────────────────────────
 //
-// ⭐ **scope 与 runner 同族，不进 `state`**：它不是渲染要读的数据（渲染读的是
-// `state.resume`），进了 state 只会让外壳每次挂载都触发一次全面板重渲染。
-// ⚠ 没设过 scope 时**所有写入都是 no-op**：一份不知道该存到哪个项目下的计划
-// 存进一个默认键，下一次换项目就会问「要继续吗」而那份计划与眼前的画布无关。
-
-let resumeScope: string | null = null
-
-/**
- * 这台工作台的续跑记录存哪一格（项目 id / 工作台 surface）。
- *
- * ⚠ 换 scope 时**顺手把镜像清掉**：留着上一个项目那份的表现是刚切过去的那一帧
- * 里进度带写着「有未完成计划」，而它说的是上一个项目的事。真正该显示的那一份由
- * 紧随其后的 `hydrateOperatorResume()` 填回来。
- */
-export function setOperatorResumeScope(scope: string | null): void {
-  if (resumeScope === scope) return
-  resumeScope = scope
-  if (state.resume) emit({ ...state, resume: null })
-}
-
-export function getOperatorResumeScope(): string | null {
-  return resumeScope
-}
-
 /**
  * 刷新之后把那一份读回来（外壳挂载时调一次）。
  *
@@ -1171,8 +1181,8 @@ export function getOperatorResumeScope(): string | null {
  * ⛔ 这里不再判一次。
  */
 export function hydrateOperatorResume(now: number = Date.now()): void {
-  if (!resumeScope) return
-  const resume = readOperatorResume(resumeScope, now)
+  if (!state.threadScope) return
+  const resume = readOperatorResume(state.threadScope, state, now)
   emit({ ...state, resume })
 }
 
@@ -1187,7 +1197,7 @@ export function startOperatorResumePlan(input: {
   labels: readonly string[]
   now?: number
 }): void {
-  if (!resumeScope) return
+  if (!state.threadScope) return
   const resume = createResumePlan({
     planId: input.planId,
     domain: state.domain,
@@ -1196,7 +1206,7 @@ export function startOperatorResumePlan(input: {
     now: input.now ?? Date.now(),
   })
   if (!resume) return
-  writeOperatorResume(resumeScope, resume)
+  writeOperatorResume(state.threadScope, state, resume)
   emit({ ...state, resume, entries: withPlanProgress(state.entries, resume) })
 }
 
@@ -1238,11 +1248,11 @@ export function markOperatorResumeStep(
   },
   now: number = Date.now(),
 ): void {
-  if (!resumeScope || !state.resume) return
+  if (!state.threadScope || !state.resume) return
   const next = markResumeStep(state.resume, stepId, patch, now)
   // ⚠ 同一个引用 = 那一步压根不在这份计划里（`markResumeStep` 的短路）。
   if (next === state.resume) return
-  writeOperatorResume(resumeScope, next)
+  writeOperatorResume(state.threadScope, state, next)
   emit({
     ...state,
     resume: next,
@@ -1257,7 +1267,7 @@ export function markOperatorResumeStep(
  * 一格会过期的噪音。
  */
 export function clearOperatorResumePlan(): void {
-  if (resumeScope) clearOperatorResume(resumeScope)
+  if (state.threadScope) clearOperatorResume(state.threadScope, state)
   if (!state.resume) return
   emit({ ...state, resume: null })
 }
@@ -1271,9 +1281,21 @@ export function clearOperatorResumePlan(): void {
  * ⚠ 历史与会话身份**要一起清**（P4-B）：留着 `sessionId` 的话，「新对话」之后
  * 第一次保存会把新线程写进**上一条会话那一行**，库里永远只有一条。
  */
-export function resetOperatorThread(): void {
-  emit({
-    ...state,
+export function resetOperatorThread(
+  identity?: Pick<StudioOperatorState, 'threadScope' | 'localThreadId'>,
+): void {
+  const current = identity ? getOperatorThread(identity.threadScope) : state
+  if (
+    !current ||
+    (identity && current.localThreadId !== identity.localThreadId)
+  )
+    return
+  if (current.threadScope) clearOperatorResume(current.threadScope, current)
+  updateThread(current, {
+    ...current,
+    localThreadId: crypto.randomUUID(),
+    readOnlyHistory: false,
+    saveFailed: false,
     status: 'idle',
     history: EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
@@ -1313,5 +1335,4 @@ export function resetOperatorThread(): void {
      */
     resume: null,
   })
-  clearOperatorResumePlan()
 }

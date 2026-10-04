@@ -25,7 +25,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
@@ -37,6 +40,9 @@ import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { buildCanvasCharacters } from '@/lib/cards-operator-snapshot'
+import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
+import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
+import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import { collectDownstream } from '@/lib/node-downstream'
 import {
   isCharacterCardNode,
@@ -346,17 +352,18 @@ export function useCanvasOperatorHost({
   )
 
   const canvasRevert = useCallback(
-    (stepId: string): void => {
+    (stepId: string): boolean => {
       const landed = landedStepIdsRef.current
       const index = landed.lastIndexOf(stepId)
       // 没记在册上 = 这一步当时就没落成，撤销无从谈起（⛔ 不盲撤一格）。
-      if (index < 0) return
+      if (index < 0 || !canUndo) return false
       // 撤到这一步为止（含它）—— 见文件头注那条线性撤销栈的论据。
       for (let i = landed.length - 1; i >= index; i -= 1) {
         if (!canUndo) break
         undo()
       }
       landed.length = index
+      return true
     },
     [canUndo, undo],
   )
@@ -394,6 +401,16 @@ export function useCanvasOperatorHost({
       mountUserUrl: noForm,
       unmountUserUrl: noForm,
       setPrimed: noForm,
+      deleteProjectRule: async ({ ruleId, kind }) => {
+        const result = await (kind === PROJECT_RULE_KIND_IDS.note
+          ? deleteAssistantMemoryAPI(ruleId)
+          : deleteProjectRuleAPI(ruleId))
+        return result.success
+      },
+      revertAssetWrite: async (input) => {
+        const result = await revertAssistantAssetWriteAPI(input)
+        return result !== null && result.skipped === 0
+      },
       canvas: {
         applyOp: canvasApply,
         getApplyError: canvasApplyError,
@@ -436,6 +453,7 @@ export function useCanvasOperatorHost({
   return useMemo(
     (): StudioOperatorHost => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      workspace: 'canvas',
       projectId,
       face,
       buildSnapshot,

@@ -33,7 +33,7 @@
 
 | 列                             | 说明                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `scope`                        | `AssistantMemoryScope`：IMAGE · VIDEO · CANVAS · LORA · GLOBAL                                               |
+| `scope`                        | `AssistantMemoryScope`：IMAGE · TAGS · VIDEO · CANVAS · LORA · CARDS · GLOBAL                                |
 | `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                            |
 | `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                    |
 | `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                   |
@@ -45,6 +45,20 @@
 - 旧「项目规则」的普通规则（`ProjectRule.kind = NOTE`）由 `20260926210000_rules_into_memory` 搬进这张表（原 id / 原时间，类别 RULE，来源照搬，`scope` 为空或不在词表里的进 GLOBAL，超 200 字截断），随下一次生产构建执行。之后 `ProjectRule` 只装来源白 / 黑名单（`SOURCE_ALLOW` / `SOURCE_DENY`）；`NOTE` 这一枚举值暂留、无读写方。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。
 - ⚠ 迁移 `20260920120000_assistant_memory` 只写了文件，**owner 自己跑**——仓里另有两条未应用的迁移，一并留给 push。
+
+## 助手工作区归属（2026-10-01，本地 schema，未应用）
+
+`AssistantConversation`、`AssistantMemory`、`ProjectRule` 增加可空 `workspaceKey` 及对应查询索引。新写入必须使用明确的业务工作区；`surface` / `scope` 是派生分类，不代替归属。自然语言与标签分别是 `image-natural` / `image-tags`，画布是 `canvas:<projectId>`；记忆 scope 新增 `TAGS`、`CARDS`。
+
+旧 `NULL` 会话保留只读，不自动分配到工作区；旧未归属自动记忆不再注入，用户明确设置的 `GLOBAL + CREATOR` 记忆仍可跨区使用。新增列均可空，不回填、不删行；旧数据如何归属只能根据可验证来源由用户明确决定。
+
+当前仅修改 schema、生成 Prisma client 和本地测试，未生成迁移、未连接或修改共用库。生产应用需按数据库场景审阅具体操作、核验目标及恢复方案；代码依赖新列，不能在未应用相应 schema 的数据库上宣称已可用。
+
+待审阅的操作范围仅为三张表各加一列可空 `workspaceKey`、`AssistantMemoryScope` 加 `TAGS`／`CARDS` 两值，以及会话一条、来源名单一条、记忆两条复合索引。不回填旧归属、不删行、不加非空或唯一约束。实际执行前须核实目标库、待应用迁移与可恢复快照；先完成这些增量结构，再发布依赖新列的助手代码。
+
+2026-10-04 仅核对本地配置：运行时 pooler 与迁移 direct 指向同一端点及数据库，与已有共用库记录相符；隔离分支所需配置已存在。本次未建立数据库连接、创建分支或执行预演，配置存在不代表存量迁移与恢复点已验证。
+
+新增结构对旧空值保持可读，但新枚举写入后，旧 Prisma client 的记忆总览可能无法读取；不能把直接退回旧代码视为完整恢复方案。异常时先停止新版助手写入并前向修复，保留新增结构与数据；若确需数据库恢复，先核对快照之后的新数据与恢复影响，不用删列、删枚举或清空工作区记录代替恢复。
 
 ## 助手人设 `AssistantPersona`（助手设置 B · 2026-09-26 增列）
 

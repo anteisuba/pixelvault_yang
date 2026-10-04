@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -107,8 +107,22 @@ function computeDisabledReason(
  */
 export function useImageUpload(options?: {
   onReferencesRemoved?: (index?: number) => void
+  scopeKey?: string
 }): UseImageUploadReturn {
   const onReferencesRemoved = options?.onReferencesRemoved
+  const scopeKey = options?.scopeKey
+  const uploadScope = useMemo(() => Symbol(scopeKey), [scopeKey])
+  const activeUploadScope = useRef<symbol | null>(uploadScope)
+  useLayoutEffect(() => {
+    activeUploadScope.current = uploadScope
+    return () => {
+      activeUploadScope.current = null
+    }
+  }, [uploadScope])
+  const isUploadScopeCurrent = useCallback(
+    () => activeUploadScope.current === uploadScope,
+    [uploadScope],
+  )
   const [referenceEntries, setReferenceEntries] = useState<
     ReferenceImageEntry[]
   >([])
@@ -130,7 +144,11 @@ export function useImageUpload(options?: {
    * 追加语义的入口一律多选，并把剩余容量传下去）。
    */
   const [maxImages, setMaxImagesState] = useState<number>(Infinity)
-  const [isUploading, setIsUploading] = useState(false)
+  const [uploading, setUploading] = useState<{
+    scope: symbol
+    token: symbol
+  } | null>(null)
+  const isUploading = uploading !== null && uploading.scope === uploadScope
   const t = useTranslations('ImageUpload')
   const tErrors = useTranslations('Errors')
 
@@ -269,13 +287,15 @@ export function useImageUpload(options?: {
   // upload path.
   const uploadLocalFile = useCallback(
     async (file: File) => {
+      if (!isUploadScopeCurrent()) return
       if (!file.type.startsWith('image/')) return
       const max = maxImagesRef.current
       if (Number.isFinite(max) && max > 0 && referenceEntries.length >= max) {
         toast.error(t('limitReached', { max }))
         return
       }
-      setIsUploading(true)
+      const token = Symbol('upload')
+      setUploading({ scope: uploadScope, token })
       try {
         const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
         const prepared = await prepareImageUpload(file, {
@@ -288,19 +308,38 @@ export function useImageUpload(options?: {
           },
         })
         if (!prepared) return // prepareImageUpload already toasted the reason
+        if (!isUploadScopeCurrent()) return
         const response = await uploadImageFileAPI(prepared)
+        if (!isUploadScopeCurrent()) return
         if (response.success && response.data?.generation.url) {
           addReferenceImage(response.data.generation.url)
         } else {
           toast.error(getApiErrorMessage(tErrors, response, t('uploadFailed')))
         }
       } catch {
-        toast.error(t('uploadFailed'))
+        if (isUploadScopeCurrent()) toast.error(t('uploadFailed'))
       } finally {
-        setIsUploading(false)
+        setUploading((current) => (current?.token === token ? null : current))
       }
     },
-    [t, tErrors, addReferenceImage, referenceEntries.length],
+    [
+      t,
+      tErrors,
+      addReferenceImage,
+      referenceEntries.length,
+      uploadScope,
+      isUploadScopeCurrent,
+    ],
+  )
+
+  const uploadReferenceFileBatch = useCallback(
+    async (files: File[]) => {
+      for (const file of files) {
+        if (!isUploadScopeCurrent()) return
+        await uploadLocalFile(file)
+      }
+    },
+    [isUploadScopeCurrent, uploadLocalFile],
   )
 
   const handleFileChange = useCallback(
@@ -312,6 +351,7 @@ export function useImageUpload(options?: {
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
+      if (!isUploadScopeCurrent()) return
       e.preventDefault()
       resetDragging()
 
@@ -333,11 +373,9 @@ export function useImageUpload(options?: {
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith('image/'),
       )
-      for (const file of files) {
-        await uploadLocalFile(file)
-      }
+      await uploadReferenceFileBatch(files)
     },
-    [uploadLocalFile, addFromUrl, resetDragging],
+    [isUploadScopeCurrent, uploadReferenceFileBatch, addFromUrl, resetDragging],
   )
 
   const openFilePicker = useCallback(() => {
@@ -346,17 +384,16 @@ export function useImageUpload(options?: {
 
   const handleInputChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!isUploadScopeCurrent()) return
       const files = e.target.files
       if (!files) return
-      for (const file of Array.from(files)) {
-        await uploadLocalFile(file)
-      }
+      await uploadReferenceFileBatch(Array.from(files))
       // Reset input so the same file can be selected again
-      if (fileInputRef.current) {
+      if (isUploadScopeCurrent() && fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     },
-    [uploadLocalFile],
+    [isUploadScopeCurrent, uploadReferenceFileBatch],
   )
 
   // Legacy clear — clears all images

@@ -26,6 +26,8 @@ import {
   type PanelName,
 } from '@/contexts/studio-context'
 
+import { EMPTY_STUDIO_DRAFT, type StudioDraft } from '@/hooks/use-studio-draft'
+
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function makeInitialState(
@@ -790,7 +792,7 @@ describe('studioFormReducer', () => {
 
 // ── 标签台（D10 ⑤）─────────────────────────────────────────────
 describe('提示词方言与标签栏', () => {
-  it('进标签台时把整句放进正向栏第一格，⛔ 不按逗号切', () => {
+  it('普通换台只切换方言，不自动携带提示词和负向标签', () => {
     const state = studioFormReducer(
       makeInitialState({
         prompt: 'a girl standing in the rain, looking up',
@@ -799,16 +801,9 @@ describe('提示词方言与标签栏', () => {
       { type: 'SET_PROMPT_DIALECT', payload: 'tags' },
     )
     expect(state.promptDialect).toBe('tags')
-    expect(state.tagChips).toEqual([
-      { text: 'a girl standing in the rain, looking up', weight: 1 },
-    ])
-    // 这一格只是占位：记下它，等助手翻成标签来换。
-    expect(state.tagCarrySource).toBe('a girl standing in the rain, looking up')
-    // 负向栏在每一种方言里本来就是逗号列表，整句一格会变成一颗没法用的大 chip。
-    expect(state.tagNegativeChips).toEqual([
-      { text: 'bad hands', weight: 1 },
-      { text: 'blurry', weight: 1 },
-    ])
+    expect(state.tagChips).toEqual([])
+    expect(state.tagNegativeChips).toEqual([])
+    expect(state.tagCarrySource).toBeNull()
   })
 
   it('已经有 chip 时换台不动它们', () => {
@@ -864,39 +859,142 @@ describe('提示词方言与标签栏', () => {
   })
 })
 
-// 两台跳转：整句先进正向栏第一格，再由助手翻成标签换掉它。
-describe('带着提示词跳去标签台', () => {
-  it('整句进第一格，已有的 chip 排在后面', () => {
-    const state = studioFormReducer(
-      makeInitialState({
-        prompt: 'a girl standing in the rain, looking up',
-        tagChips: [{ text: '1girl', weight: 1 }],
-      }),
-      { type: 'CARRY_PROMPT_TO_TAGS' },
+function restoreDraft(
+  state: StudioFormState,
+  draft: Partial<StudioDraft> = {},
+  applyTransfer = true,
+) {
+  const { referenceImages: _references, ...formDraft } = {
+    ...EMPTY_STUDIO_DRAFT,
+    ...draft,
+  }
+  void _references
+  return studioFormReducer(state, {
+    type: 'RESTORE_WORKSPACE_DRAFT',
+    payload: { draft: formDraft, applyTransfer },
+  })
+}
+
+function carryToTags(
+  prompt: string,
+  tagChips: StudioFormState['tagChips'] = [],
+) {
+  const pending = studioFormReducer(makeInitialState({ prompt }), {
+    type: 'TRANSFER_IMAGE_PROMPT',
+    payload: { dialect: 'tags', optionId: 'nai-model' },
+  })
+  return restoreDraft(
+    studioFormReducer(pending, { type: 'SET_PROMPT_DIALECT', payload: 'tags' }),
+    { tagChips },
+  )
+}
+
+describe('工作台草稿与明确携带', () => {
+  it('草稿恢复后拒绝旧渲染排队的自动模型选择', () => {
+    const restored = restoreDraft(
+      makeInitialState({ selectedOptionId: 'source-model' }),
+      { selectedOptionId: 'saved-model', modelSelectionTouched: true },
     )
-    expect(state.tagChips).toEqual([
-      { text: 'a girl standing in the rain, looking up', weight: 1 },
+    const next = studioFormReducer(restored, {
+      type: 'AUTO_SELECT_OPTION_ID',
+      payload: 'fallback-model',
+      expectedSelection: {
+        optionId: 'source-model',
+        dialect: 'natural',
+        touched: false,
+      },
+    })
+    expect(next).toBe(restored)
+    const intentionallyEmpty = restoreDraft(restored, {
+      selectedOptionId: null,
+      modelSelectionTouched: true,
+    })
+    expect(
+      studioFormReducer(intentionallyEmpty, {
+        type: 'AUTO_SELECT_OPTION_ID',
+        payload: 'fallback-model',
+        expectedSelection: {
+          optionId: null,
+          dialect: 'natural',
+          touched: false,
+        },
+      }),
+    ).toBe(intentionallyEmpty)
+  })
+
+  it('普通恢复清除源台参数，保留生成请求与面板状态', () => {
+    const source = makeInitialState({
+      prompt: 'natural prompt',
+      selectedOptionId: 'natural-model',
+      advancedParams: { seed: 12 },
+      videoFrameSlots: { first: 'https://example.com/frame.png', last: null },
+      generateRequestId: 7,
+    })
+    const next = restoreDraft(
+      source,
+      { prompt: '1girl', selectedOptionId: 'nai-model' },
+      false,
+    )
+    expect(next.prompt).toBe('1girl')
+    expect(next.selectedOptionId).toBe('nai-model')
+    expect(next.advancedParams).toEqual({})
+    expect(next.videoFrameSlots).toEqual({ first: null, last: null })
+    expect(next.generateRequestId).toBe(7)
+    expect(next.panels).toBe(source.panels)
+  })
+
+  it('记录携带时不改源台表单，到达目标台才合并提示词', () => {
+    const source = makeInitialState({
+      prompt: 'a girl in rain',
+      selectedOptionId: 'natural-model',
+      advancedParams: { seed: 12 },
+    })
+    const pending = studioFormReducer(source, {
+      type: 'TRANSFER_IMAGE_PROMPT',
+      payload: { dialect: 'tags', optionId: 'nai-model' },
+    })
+    expect(pending.prompt).toBe(source.prompt)
+    expect(pending.selectedOptionId).toBe(source.selectedOptionId)
+    expect(pending.advancedParams).toBe(source.advancedParams)
+    const next = restoreDraft(
+      studioFormReducer(pending, {
+        type: 'SET_PROMPT_DIALECT',
+        payload: 'tags',
+      }),
+      { tagChips: [{ text: '1girl', weight: 1 }] },
+    )
+    expect(next.tagChips).toEqual([
+      { text: 'a girl in rain', weight: 1 },
       { text: '1girl', weight: 1 },
     ])
-    // 统一串跟着一起写 —— 下游读 prompt 就够了。
-    expect(state.prompt).toBe('a girl standing in the rain, looking up, 1girl')
-    expect(state.tagCarrySource).toBe('a girl standing in the rain, looking up')
+    expect(next.prompt).toBe('a girl in rain, 1girl')
+    expect(next.tagCarrySource).toBe('a girl in rain')
+    expect(next.selectedOptionId).toBe('nai-model')
+    expect(next.pendingPromptTransfer).toBeNull()
   })
 
-  it('来回跳两次不会攒出两格一样的字', () => {
-    const once = studioFormReducer(
-      makeInitialState({ prompt: 'neon city at night' }),
-      { type: 'CARRY_PROMPT_TO_TAGS' },
-    )
-    const twice = studioFormReducer(once, { type: 'CARRY_PROMPT_TO_TAGS' })
-    expect(twice.tagChips).toHaveLength(1)
+  it('已有同一句时不重复，空句不创建标签', () => {
+    expect(
+      carryToTags('neon city', [{ text: 'neon city', weight: 1 }]).tagChips,
+    ).toEqual([{ text: 'neon city', weight: 1 }])
+    expect(carryToTags('   ').tagChips).toEqual([])
   })
 
-  it('空提示词不造格子', () => {
-    const state = makeInitialState({ prompt: '   ' })
-    expect(studioFormReducer(state, { type: 'CARRY_PROMPT_TO_TAGS' })).toBe(
-      state,
+  it('账号变化或到达其他工作台时不应用携带', () => {
+    const pending = studioFormReducer(
+      makeInitialState({ prompt: 'private prompt' }),
+      {
+        type: 'TRANSFER_IMAGE_PROMPT',
+        payload: { dialect: 'tags', optionId: 'nai-model' },
+      },
     )
+    const tags = studioFormReducer(pending, {
+      type: 'SET_PROMPT_DIALECT',
+      payload: 'tags',
+    })
+    expect(restoreDraft(tags, {}, false).prompt).toBe('')
+    expect(restoreDraft({ ...tags, outputType: 'video' }).prompt).toBe('')
+    expect(restoreDraft(pending).prompt).toBe('')
   })
 })
 
@@ -904,16 +1002,10 @@ describe('带着提示词跳去标签台', () => {
 describe('助手把带过来的那一句翻成标签', () => {
   const sentence = 'a girl standing in the rain, looking up'
   const carried = () =>
-    studioFormReducer(
-      makeInitialState({
-        prompt: sentence,
-        tagChips: [
-          { text: 'solo', weight: 1 },
-          { text: 'rain', weight: 1.2 },
-        ],
-      }),
-      { type: 'CARRY_PROMPT_TO_TAGS' },
-    )
+    carryToTags(sentence, [
+      { text: 'solo', weight: 1 },
+      { text: 'rain', weight: 1.2 },
+    ])
   const translated = [
     { text: '1girl', weight: 1 },
     { text: 'Rain', weight: 1 },

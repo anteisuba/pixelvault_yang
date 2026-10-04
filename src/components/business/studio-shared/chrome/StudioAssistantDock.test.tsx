@@ -45,10 +45,14 @@ vi.mock('@/hooks/use-studio-assistant-controls', () => ({
 vi.mock('@/hooks/node/use-node-reference-upload', () => ({
   useNodeReferenceUpload: () => ({ uploadFile: vi.fn() }),
 }))
+const headerSpy = vi.fn()
 vi.mock('@/components/business/assistant/StudioAssistantHeaderActions', () => ({
-  StudioAssistantHeaderActions: ({ onClose }: { onClose(): void }) => (
-    <button type="button" aria-label="dockCollapse" onClick={onClose} />
-  ),
+  StudioAssistantHeaderActions: (props: { onClose(): void }) => {
+    headerSpy(props)
+    return (
+      <button type="button" aria-label="dockCollapse" onClick={props.onClose} />
+    )
+  },
 }))
 
 const setOpenMock = vi.fn()
@@ -71,7 +75,7 @@ vi.mock('@/hooks/use-studio-assistant-panel-inputs', () => ({
     open: mockOpen,
     setOpen: setOpenMock,
     currentPrompt: '',
-    modelId: undefined,
+    modelId: 'novelai-v4.5-full',
     llmApiKeys: [],
     referenceImageData: undefined,
     injectedReference: mockInjectedReference,
@@ -92,6 +96,7 @@ beforeEach(() => {
   mockIsMobile = false
   mockOpen = true
   panelSpy.mockClear()
+  headerSpy.mockClear()
   setOpenMock.mockClear()
   window.localStorage.clear()
 })
@@ -109,6 +114,7 @@ describe('StudioAssistantDock', () => {
     const props = lastPanelProps()
     expect(props.workbenchState).toBe(mockWorkbenchState)
     expect(props.writeback).toBe(mockWriteback)
+    expect(headerSpy.mock.calls.at(-1)?.[0].modelId).toBe(props.modelId)
   })
 
   // ── §3.0b 第 4 条：结果图上的「问助手」注入的附件必须到得了面板 ──────

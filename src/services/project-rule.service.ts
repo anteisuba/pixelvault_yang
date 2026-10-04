@@ -1,6 +1,12 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
+import { ApiRequestError } from '@/lib/errors'
+import {
+  assistantWorkspaceDomain,
+  assistantWorkspaceFromKey,
+} from '@/lib/assistant-workspace'
+import { assertAssistantWorkspaceAccess } from '@/services/assistant-conversation.service'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS,
   PROJECT_RULE_KIND_IDS,
@@ -64,6 +70,7 @@ const ID_BY_DB_KIND: Record<DbProjectRuleKind, ProjectRuleKindId> = {
 function toRule(row: {
   id: string
   scope: string | null
+  workspaceKey: string | null
   text: string
   kind: DbProjectRuleKind
   source: ProjectRuleSource
@@ -78,6 +85,7 @@ function toRule(row: {
   const parsed = ProjectRuleSchema.safeParse({
     id: row.id,
     scope: row.scope,
+    workspaceKey: row.workspaceKey,
     text: row.text,
     kind: ID_BY_DB_KIND[row.kind],
     source: ID_BY_DB_SOURCE[row.source],
@@ -89,49 +97,58 @@ function toRule(row: {
 const RULE_SELECT = {
   id: true,
   scope: true,
+  workspaceKey: true,
   text: true,
   kind: true,
   source: true,
   createdAt: true,
 } as const
 
-/**
- * **来源白 / 黑名单**（§9.3），最新的在前。
- *
- * ⚠ ⛔ 不截断成「最近几条」：名单一条都不能少 —— 被截掉的那一条在用户眼里仍然是
- * 「我设过的闸」，静默失效的表现是助手照常去打那个站，而用户永远不会知道。
- * ⚠ `scope` 给了就返回**该域的 + 全域的**（`scope: null`），⛔ 不是只返回该域的：
- * 一条全域的黑名单在图片工作台上照样成立，滤掉它等于让用户每个工作台再写一遍。
- */
-export async function listProjectSourceRules(
+async function queryProjectSourceRules(
   userId: string,
-  options: { scope?: string | null } = {},
+  options: { scope?: string | null; workspaceKey?: string } = {},
 ): Promise<ProjectRule[]> {
+  if (options.workspaceKey) {
+    await assertAssistantWorkspaceAccess(userId, options.workspaceKey)
+  }
   const rows = await db.projectRule.findMany({
     where: {
       userId,
       kind: {
         in: PROJECT_RULE_SOURCE_KINDS.map((kind) => DB_KIND_BY_ID[kind]),
       },
-      ...(options.scope
-        ? { OR: [{ scope: options.scope }, { scope: null }] }
-        : {}),
+      ...(options.workspaceKey
+        ? {
+            OR: [
+              { workspaceKey: options.workspaceKey },
+              { workspaceKey: null, scope: null, source: 'CREATOR' as const },
+            ],
+          }
+        : options.scope
+          ? { scope: options.scope }
+          : {}),
     },
     orderBy: { createdAt: 'desc' },
     take: ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
     select: RULE_SELECT,
   })
-
   return rows.map(toRule).filter((rule): rule is ProjectRule => rule !== null)
 }
 
-/** 同上，但从 clerkId 起跳（API 路由那一侧用）。 */
+export async function listProjectSourceRules(
+  userId: string,
+  options: { workspaceKey: string },
+): Promise<ProjectRule[]> {
+  await assertAssistantWorkspaceAccess(userId, options.workspaceKey)
+  return queryProjectSourceRules(userId, options)
+}
+
 export async function listProjectSourceRulesForClerkId(
   clerkId: string,
-  options: { scope?: string | null } = {},
+  options: { scope?: string | null; workspaceKey?: string } = {},
 ): Promise<ProjectRule[]> {
   const user = await ensureUser(clerkId)
-  return listProjectSourceRules(user.id, options)
+  return queryProjectSourceRules(user.id, options)
 }
 
 /** 规则表满了 —— 调用方据此拒，⛔ 不静默丢弃、也不挤掉最老的一条。 */
@@ -153,6 +170,33 @@ export async function addProjectRule(
   userId: string,
   input: CreateProjectRuleInput,
 ): Promise<ProjectRule> {
+  const source = input.source ?? PROJECT_RULE_SOURCE_IDS.creator
+  let scope: string | null = null
+  const workspaceKey = input.workspaceKey ?? null
+  if (workspaceKey) {
+    await assertAssistantWorkspaceAccess(userId, workspaceKey)
+    scope = assistantWorkspaceDomain(
+      assistantWorkspaceFromKey(workspaceKey)!.workspace,
+    )
+    if (input.scope != null && input.scope !== scope) {
+      throw new ApiRequestError(
+        'PROJECT_RULE_WORKSPACE_MISMATCH',
+        400,
+        'errors.assistantConversation.notFound',
+        'Rule workspace does not match its scope',
+      )
+    }
+  } else if (
+    source === PROJECT_RULE_SOURCE_IDS.assistant ||
+    input.scope != null
+  ) {
+    throw new ApiRequestError(
+      'PROJECT_RULE_WORKSPACE_REQUIRED',
+      400,
+      'errors.assistantConversation.notFound',
+      'Rule workspace is required',
+    )
+  }
   const count = await db.projectRule.count({ where: { userId } })
   if (count >= ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser) {
     throw new ProjectRuleLimitError(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
@@ -161,10 +205,11 @@ export async function addProjectRule(
   const row = await db.projectRule.create({
     data: {
       userId,
-      scope: input.scope ?? null,
+      scope,
+      workspaceKey,
       text: input.text,
       kind: DB_KIND_BY_ID[input.kind],
-      source: DB_SOURCE_BY_ID[input.source ?? PROJECT_RULE_SOURCE_IDS.creator],
+      source: DB_SOURCE_BY_ID[source],
     },
     select: RULE_SELECT,
   })

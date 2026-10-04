@@ -4,10 +4,7 @@
  * 与 `lib/assistant-stream-client.ts` 是姐妹件：那条流的载荷是文本增量，这条流的
  * 载荷是结构化事件。共用的只有 `lib/sse.ts` 的解码 —— 也就是协议本身。
  *
- * ── 纪律 ①：一帧坏载荷不该让整轮失败 ─────────────────────────────
- * 每一帧 `safeParse`，解不出来就丢这一帧继续读（照抄 `assistant-stream-client.ts`
- * 的那条）。⛔ 别改成抛错：那会让一条本来能跑完的工具环整段消失，而用户已经
- * 看到前几步落地了 —— 表单被改了一半、线程却报「失败」。
+ * 已完成步骤保留；坏帧或缺少终态必须报告中断，不能跳过执行回执继续生成。
  *
  * ── 纪律 ②：`signal` 必须一路传到 `fetch` ───────────────────────
  * 插话与 ⏹ 都是「abort 当前流 + 带前情重发」（拍板 13），而 abort 的落点就是这里
@@ -16,6 +13,7 @@
  */
 
 import { API_ENDPOINTS } from '@/constants/config'
+import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { parseSseStream } from '@/lib/sse'
 import {
@@ -47,16 +45,38 @@ export type AssistantOperatorStreamApiResponse =
 export async function* readAssistantOperatorStream(
   body: ReadableStream<Uint8Array>,
 ): AsyncIterable<AssistantOperatorEvent> {
-  for await (const frame of parseSseStream(body)) {
-    let payload: unknown
-    try {
-      payload = JSON.parse(frame.data)
-    } catch {
-      continue
+  const interrupted: AssistantOperatorEvent = {
+    type: ASSISTANT_OPERATOR_EVENTS.error,
+    error:
+      'The assistant stream was interrupted. Completed steps were preserved.',
+    errorCode: 'STREAM_INTERRUPTED',
+  }
+  let terminalReceived = false
+  try {
+    for await (const frame of parseSseStream(body)) {
+      let payload: unknown
+      try {
+        payload = JSON.parse(frame.data)
+      } catch {
+        yield interrupted
+        return
+      }
+      const parsed = AssistantOperatorEventSchema.safeParse(payload)
+      if (!parsed.success) {
+        yield interrupted
+        return
+      }
+      const event = parsed.data
+      terminalReceived ||=
+        event.type === ASSISTANT_OPERATOR_EVENTS.done ||
+        event.type === ASSISTANT_OPERATOR_EVENTS.stopped ||
+        event.type === ASSISTANT_OPERATOR_EVENTS.error
+      yield event
+      if (event.type === ASSISTANT_OPERATOR_EVENTS.error) return
     }
-    const parsed = AssistantOperatorEventSchema.safeParse(payload)
-    // 认不得就跳过：老客户端不会因为服务端多发一种帧而崩。
-    if (parsed.success) yield parsed.data
+    if (!terminalReceived) yield interrupted
+  } finally {
+    await body.cancel().catch(() => undefined)
   }
 }
 

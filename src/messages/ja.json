@@ -7175,7 +7175,8 @@
       "phantomCitation": "引用した出典を確認できなかったため、回答を表示していません。もう一度試すか、今回はウェブ検索をオフにしてください。",
       "videoUnreachable": "この動画を取得できませんでした（削除済み、非公開、または外部アクセスが許可されていない可能性があります）。公開リンクに変えるか、クリップをダウンロードしてドロップしてください。",
       "timelinePlanFailed": "タイムラインを作れませんでした。もう一度試すか、並べたい順番を具体的に教えてください。",
-      "timelinePlanEmpty": "並べられる完成済みの動画カードがまだありません。先に生成またはアップロードしてください。"
+      "timelinePlanEmpty": "並べられる完成済みの動画カードがまだありません。先に生成またはアップロードしてください。",
+      "promptReviewUnavailable": "プロンプトの確認結果が再試行後も正しい形式で返らなかったため、今回のプロンプト変更は保存していません。それ以前の変更は保持されています。後でもう一度お試しください。"
     },
     "provider": {
       "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
@@ -7748,7 +7749,10 @@
       "renameHint": "Enter で保存 · Esc でキャンセル",
       "renaming": "保存中…",
       "renameFailed": "名前を変更できませんでした。再試行してください。",
-      "switching": "会話を読み込み中…"
+      "switching": "会話を読み込み中…",
+      "legacyReadOnly": "以前の会話は閲覧専用です。この作業台で続けるには、新しい会話を始めてください。",
+      "saveFailed": "会話を保存できませんでした。下書きはこの画面に残っています。",
+      "retrySave": "保存を再試行"
     },
     "more": "その他",
     "share": "この会話を共有",
@@ -7979,7 +7983,9 @@
       "characterImagesDeclined": "この画像は付けませんでした：{subject}",
       "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
-      "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}"
+      "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
+      "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
+      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。"
     },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",
@@ -8062,7 +8068,8 @@
       "invalidRequest": "このリクエストはサーバーに受け付けられませんでした",
       "traceLabel": "エラー ID {traceId}",
       "copyDetail": "詳細をコピー",
-      "copied": "コピーしました"
+      "copied": "コピーしました",
+      "streamInterrupted": "応答が完了する前に接続が切れました。完了済みの操作は残っています。結果を確認してから続けてください。"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {
@@ -8623,8 +8630,8 @@
       "hint": "プロンプトで使った言い方をそのまま使う"
     },
     "memory": {
-      "caption": "会話の中でアシスタントが覚えたことと、あなたが書いたことを一列に並べています。あなたが書いたものが優先です。",
-      "captionPaused": "アシスタントは新しく覚えません。一覧にあるものは引き続き使われます。不要なものは削除してください。",
+      "caption": "アシスタントの記憶はワークベンチごとに分かれています。すべてのワークベンチで使う記憶は、ここで明示的に共有できます。",
+      "captionPaused": "アシスタントは新しく覚えません。既存の記憶は、選択されたワークベンチ内だけで使われます。",
       "capture": "アシスタントに覚えさせる",
       "newLabel": "記憶を書く",
       "newPlaceholder": "一つ書いて Enter で保存。例：いつも日本語で返事して",
@@ -8659,12 +8666,21 @@
       "editHint": "Enter で保存 · Esc でキャンセル · 右で使う場所を選ぶ",
       "scopeLabel": "使う場所",
       "scopeAria": "使う場所：{scope}",
+      "chooseScope": "使う場所を選ぶ",
+      "unassigned": "未割り当ての履歴",
+      "canvasProject": "キャンバス · {name}",
+      "savedProject": "保存済みプロジェクト",
+      "projectsLoading": "キャンバスを読み込み中…",
+      "projectsEmpty": "先にキャンバスのプロジェクトを作成してください。",
+      "projectsRetry": "読み込めませんでした。再試行",
       "scope": {
         "global": "すべてのワークベンチ",
-        "image": "画像だけ",
+        "image": "自然文の画像",
+        "tags": "タグの画像",
         "video": "動画だけ",
-        "canvas": "キャンバスだけ",
-        "lora": "LoRA だけ"
+        "canvas": "キャンバスのプロジェクト",
+        "lora": "LoRA だけ",
+        "cards": "カードだけ"
       },
       "delete": "削除",
       "deleteConfirm": "削除する",

@@ -69,7 +69,12 @@ function generation(overrides: Record<string, unknown> = {}): GenerationRecord {
 
 function setup() {
   const onUploaded = vi.fn()
-  const view = renderHook(() => useStudioOperatorUpload({ onUploaded }))
+  const view = renderHook(() =>
+    useStudioOperatorUpload({
+      onUploaded,
+      scopeKey: 'user-a:image-natural:thread-1',
+    }),
+  )
   return { onUploaded, view }
 }
 
@@ -376,4 +381,36 @@ describe('toOperatorAttachment', () => {
     // 没有身份段，名字退化成一段摘要 —— ⛔ 不编号。
     expect(attachment.label).toBe('存量行')
   })
+})
+
+it.each([
+  'user-a:image-tags:thread-2',
+  'user-b:image-natural:thread-1',
+  'user-a:image-natural:thread-new',
+])('旧上传不回填进 %s', async (nextScope) => {
+  let finish!: (value: unknown) => void
+  uploadImageFileAPI.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  const onUploaded = vi.fn()
+  const view = renderHook(
+    ({ scopeKey }) => useStudioOperatorUpload({ onUploaded, scopeKey }),
+    { initialProps: { scopeKey: 'user-a:image-natural:thread-1' } },
+  )
+  act(() =>
+    view.result.current.uploadFiles([
+      new File(['x'], 'old.png', { type: 'image/png' }),
+    ]),
+  )
+  await waitFor(() => expect(uploadImageFileAPI).toHaveBeenCalledOnce())
+  view.rerender({ scopeKey: nextScope })
+  expect(view.result.current.uploads).toEqual([])
+  await act(async () =>
+    finish({ success: true, data: { generation: generation() } }),
+  )
+  expect(onUploaded).not.toHaveBeenCalled()
+  expect(view.result.current.uploads).toEqual([])
 })

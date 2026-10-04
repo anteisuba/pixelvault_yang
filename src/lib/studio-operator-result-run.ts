@@ -1,9 +1,52 @@
+import { resolveAdapterType } from '@/constants/models'
+import {
+  getPromptDialect,
+  type PromptDialect,
+} from '@/constants/prompt-dialects'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
-import type { RunItem } from '@/types'
+import type { ActiveRun, GenerationRecord, RunItem } from '@/types'
 import type {
   StudioOperatorResultItem,
+  StudioOperatorResultOwner,
   StudioOperatorResultRun,
 } from '@/types/studio-assistant-operator'
+
+interface StudioResultWorkspace {
+  outputType: 'image' | 'video' | 'audio'
+  promptDialect: PromptDialect
+}
+
+export function isStudioResultInWorkspace(
+  outputType: GenerationRecord['outputType'],
+  modelId: string,
+  workspace: StudioResultWorkspace,
+): boolean {
+  if (outputType.toLowerCase() !== workspace.outputType) return false
+  return (
+    outputType !== 'IMAGE' ||
+    getPromptDialect(resolveAdapterType(modelId) ?? undefined) ===
+      workspace.promptDialect
+  )
+}
+
+export function studioRunForWorkspace(
+  run: ActiveRun | null | undefined,
+  workspace: StudioResultWorkspace,
+): ActiveRun | null {
+  if (!run || run.outputType.toLowerCase() !== workspace.outputType) return null
+  const items = run.items.filter((item) =>
+    isStudioResultInWorkspace(run.outputType, item.modelId, workspace),
+  )
+  if (items.length === 0) return null
+  if (items.length === run.items.length) return run
+  return {
+    ...run,
+    items,
+    selectedItemId: items.some((item) => item.id === run.selectedItemId)
+      ? run.selectedItemId
+      : null,
+  }
+}
 
 /**
  * **这一批结果**（§2.11 结果行卡）—— 数据源是宿主本来就在跑的那条回流
@@ -53,10 +96,20 @@ export function toOperatorRunResults(
 export function toOperatorResultRun(
   items: readonly RunItem[] | undefined,
   results: readonly StudioOperatorResultItem[],
+  owner?: StudioOperatorResultOwner,
 ): StudioOperatorResultRun | undefined {
   if (!items || items.length === 0) return undefined
+  if (owner) {
+    items = items.filter((item) =>
+      matchesOperatorResultOwner(item.operatorResultOwner, owner),
+    )
+    if (items.length === 0) return undefined
+    results = toOperatorRunResults(items)
+  }
+  const sourceOwner = owner ? items[0]?.operatorResultOwner : undefined
   const failureReason = items.find((item) => item.status === 'failed')?.error
   return {
+    ...(sourceOwner ? { owner: sourceOwner } : {}),
     ...(failureReason ? { failureReason } : {}),
     total: items.length,
     completed: items.filter((item) => item.status === 'completed').length,
@@ -71,4 +124,20 @@ export function toOperatorResultRun(
     ),
     items: results,
   }
+}
+
+export function matchesOperatorResultOwner(
+  owner: StudioOperatorResultOwner | undefined,
+  thread: {
+    threadScope: string | null
+    localThreadId: string
+    pendingResultId: string | null
+  },
+): boolean {
+  return Boolean(
+    owner &&
+    owner.threadScope === thread.threadScope &&
+    owner.localThreadId === thread.localThreadId &&
+    owner.pendingResultId === thread.pendingResultId,
+  )
 }

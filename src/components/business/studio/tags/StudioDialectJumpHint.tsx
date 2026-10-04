@@ -59,13 +59,10 @@ export function StudioDialectJumpHint({
     <button
       type="button"
       onClick={() => {
-        dispatch({ type: 'SET_OPTION_ID', payload: target.optionId })
-        // ⚠ 先带走提示词再换路由：落地那一侧的 `SET_PROMPT_DIALECT` 只在 chip
-        // 还空着时自己播种，已经有 chip 时它不动手 —— 「带走」这件事得由这里
-        // 明确说一次。
-        if (targetDialect === 'tags') {
-          dispatch({ type: 'CARRY_PROMPT_TO_TAGS' })
-        }
+        dispatch({
+          type: 'TRANSFER_IMAGE_PROMPT',
+          payload: { dialect: targetDialect, optionId: target.optionId },
+        })
         close()
         router.push(PROMPT_DIALECT_ROUTES[targetDialect])
       }}

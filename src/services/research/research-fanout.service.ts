@@ -26,11 +26,14 @@ import {
   type ResearchSourceId,
 } from '@/constants/research'
 import type { EvidenceItem, ResearchSourceReceipt } from '@/types/research'
+import type {
+  LlmNativeSearchResult,
+  LlmNativeSearchSource,
+} from '@/services/llm-text.service'
 import { fetchBilibiliEvidence } from '@/services/research/bilibili.connector'
 import {
   runConnector,
   skippedReceipt,
-  type ConnectorResult,
 } from '@/services/research/connector-runtime'
 import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
 import {
@@ -72,6 +75,7 @@ export interface AssistantResearchEvidence {
   /** 谁说的。⚠ **必填** —— 取不到站名时回落成域名，⛔ 不留空。 */
   publisher: string
   snippet: string
+  excerptKind?: LlmNativeSearchSource['excerptKind']
   kind: EvidenceItem['kind']
   /** 由**发布域名**算出来（`judgeEvidenceCredibility`），⛔ 不由模型写。 */
   confidence: AssistantResearchConfidence
@@ -156,8 +160,11 @@ export interface RunAssistantResearchParams {
 }
 
 /** 所选模型自带联网给回的来源 —— 由扇出转成「网页」那一源的证据。 */
-export interface NativeWebSearchFound {
-  sources: readonly { url: string; title: string; excerpt: string }[]
+export interface NativeWebSearchFound extends Pick<
+  LlmNativeSearchResult,
+  'status' | 'queries' | 'error'
+> {
+  sources: readonly LlmNativeSearchSource[]
   /** 回执上的 `via`：哪一家搜的。 */
   via: string
 }
@@ -293,10 +300,7 @@ async function fetchOne(
   nativeWebSearch?: () => Promise<NativeWebSearchFound>,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
   if (sourceId === RESEARCH_SOURCE_IDS.webSearch && nativeWebSearch) {
-    return runNativeWebSearch(sourceId, async () => {
-      const found = await nativeWebSearch()
-      return nativeSearchEvidence(found.sources, found.via)
-    })
+    return runNativeWebSearch(sourceId, nativeWebSearch)
   }
   const { queries } = plan
   const primary = queries[0] ?? ''
@@ -400,23 +404,44 @@ async function fetchOne(
  */
 async function runNativeWebSearch(
   sourceId: ResearchSourceId,
-  fn: () => Promise<ConnectorResult>,
+  fn: () => Promise<NativeWebSearchFound>,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
   const startedAt = Date.now()
   try {
-    const result = await fn()
+    const found = await fn()
+    const result = nativeSearchEvidence(
+      found.status === 'not_invoked' || found.status === 'failed'
+        ? []
+        : found.sources,
+      found.via,
+    )
     const items = result.items.slice(0, RESEARCH_LIMITS.maxItemsPerSource)
+    const status =
+      found.status === 'searched'
+        ? RESEARCH_SOURCE_STATUSES.ok
+        : found.status === 'empty'
+          ? RESEARCH_SOURCE_STATUSES.empty
+          : found.status === 'not_invoked'
+            ? RESEARCH_SOURCE_STATUSES.skipped
+            : RESEARCH_SOURCE_STATUSES.failed
+    const error =
+      found.error ??
+      (found.status === 'not_invoked' ||
+      found.status === 'paused' ||
+      found.status === 'partial' ||
+      found.status === 'failed'
+        ? `native_search_${found.status}`
+        : undefined)
     return {
       items,
       receipt: {
         sourceId,
-        status:
-          items.length > 0
-            ? RESEARCH_SOURCE_STATUSES.ok
-            : RESEARCH_SOURCE_STATUSES.empty,
+        status,
         count: items.length,
         tookMs: Date.now() - startedAt,
+        queries: found.queries,
         ...(result.via ? { via: result.via } : {}),
+        ...(error ? { error: error.slice(0, 400) } : {}),
       },
     }
   } catch (error) {
@@ -635,6 +660,7 @@ export function toAssistantEvidence(
       0,
       ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars,
     ),
+    ...(item.excerptKind ? { excerptKind: item.excerptKind } : {}),
     kind: item.kind,
     confidence: confidenceOfCredibility(credibility),
     credibility,
@@ -826,8 +852,19 @@ export async function runAssistantResearch(
     )
     .slice(0, limit)
 
+  const nativeQueries = params.nativeWebSearch
+    ? (settled.find(
+        (entry) => entry.receipt.sourceId === RESEARCH_SOURCE_IDS.webSearch,
+      )?.receipt.queries ?? [])
+    : undefined
+
   return {
-    queries: plan.queries,
+    queries:
+      nativeQueries === undefined
+        ? plan.queries
+        : sourceIds.length === 1
+          ? nativeQueries
+          : [...new Set([...plan.queries, ...nativeQueries])],
     sources: groups,
     items,
     /**

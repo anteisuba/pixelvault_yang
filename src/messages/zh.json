@@ -7175,7 +7175,8 @@
       "phantomCitation": "助手引用了不存在的证据，这条回答已被拦下。重试，或把这一轮的联网检索关掉。",
       "videoUnreachable": "这个视频取不到（可能已删除、设为私享，或不允许外部访问）。换一条公开链接，或把片段下载后拖进来。",
       "timelinePlanFailed": "排片没有返回一份能用的时间线。重试，或把话说得更直白一点。",
-      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。"
+      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。",
+      "promptReviewUnavailable": "提示词检查重试后仍未返回有效结果，本次提示词修改未写入。此前的修改已保留，请稍后重试。"
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",
@@ -7748,7 +7749,10 @@
       "renameHint": "回车保存 · Esc 取消",
       "renaming": "保存中…",
       "renameFailed": "修改失败，请重试。",
-      "switching": "正在加载对话…"
+      "switching": "正在加载对话…",
+      "legacyReadOnly": "旧会话仅供查看。请新建对话，在当前工作台继续。",
+      "saveFailed": "对话保存失败，草稿仍保留在当前页面。",
+      "retrySave": "重试保存"
     },
     "more": "更多",
     "share": "分享这段会话",
@@ -7979,7 +7983,9 @@
       "characterImagesDeclined": "没挂这几张图：{subject}",
       "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
       "imageHandoffAccepted": "已交给图片助手：{subject}",
-      "imageHandoffDeclined": "先不交给图片助手：{subject}"
+      "imageHandoffDeclined": "先不交给图片助手：{subject}",
+      "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
+      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。"
     },
     "attach": {
       "label": "上传图片 / 音频 / 视频",
@@ -8062,7 +8068,8 @@
       "invalidRequest": "这一轮的请求服务端没认下来",
       "traceLabel": "错误编号 {traceId}",
       "copyDetail": "复制详情",
-      "copied": "已复制"
+      "copied": "已复制",
+      "streamInterrupted": "连接在本轮完成前中断了。已完成的操作已保留，请检查结果后再继续。"
     },
     "assistantSettings": "助手设置",
     "rule": {
@@ -8623,8 +8630,8 @@
       "hint": "沿用我在提示词里的说法"
     },
     "memory": {
-      "caption": "助手在对话里记下的，和你自己写的，都在这一列。你写的优先。",
-      "captionPaused": "助手不再自己记新的；清单里的照样生效，不想要就删。",
+      "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",
+      "captionPaused": "助手不再记新的；已有记忆只在各自选定的工作台生效。",
       "capture": "让助手记住",
       "newLabel": "写一条记忆",
       "newPlaceholder": "写一条，回车存下。例：以后都用中文回复",
@@ -8659,12 +8666,21 @@
       "editHint": "回车保存 · Esc 取消 · 右边选它用在哪",
       "scopeLabel": "用在哪",
       "scopeAria": "用在哪：{scope}",
+      "chooseScope": "选择用在哪",
+      "unassigned": "未归属的历史记忆",
+      "canvasProject": "画布 · {name}",
+      "savedProject": "已保存项目",
+      "projectsLoading": "正在读取画布项目…",
+      "projectsEmpty": "请先创建一个画布项目。",
+      "projectsRetry": "项目没读出来，重试",
       "scope": {
         "global": "全部工作台",
-        "image": "只在图片",
+        "image": "自然语言图片",
+        "tags": "标签图片",
         "video": "只在视频",
-        "canvas": "只在画布",
-        "lora": "只在 LoRA"
+        "canvas": "画布项目",
+        "lora": "只在 LoRA",
+        "cards": "只在卡片"
       },
       "delete": "删",
       "deleteConfirm": "确认删除",

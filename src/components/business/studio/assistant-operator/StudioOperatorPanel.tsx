@@ -151,15 +151,14 @@ import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
-  hydrateOperatorResume,
   getOperatorState,
   setOperatorAutoGenerate,
   setOperatorOutOfSteps,
-  setOperatorResumeScope,
   updateOperatorRoundSummary,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { updateAssistantConversationRoundAPI } from '@/lib/api-client'
+import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
 import {
   derivePinnedEvidence,
   isEvidencePinned,
@@ -373,6 +372,11 @@ export function StudioOperatorPanel({
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
+  const operatorHost = useStudioOperatorHost()
+  const workspaceKey = assistantWorkspaceKey(
+    operatorHost.workspace,
+    operatorHost.projectId,
+  )
   /**
    * 拒绝理由码 → 人话（D12 C11）。⚠ 词表里没有的码（旧会话里存的原文）不显示，
    * ⛔ 不把写给模型的原文递给用户。
@@ -393,6 +397,8 @@ export function StudioOperatorPanel({
     resume,
     autoGenerate,
     outOfSteps,
+    readOnlyHistory,
+    saveFailed,
   } = useStudioOperatorState()
   /**
    * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
@@ -473,23 +479,6 @@ export function StudioOperatorPanel({
     rerunGeneration,
     resumePlan,
   } = operator
-
-  /**
-   * **续跑记录挂到这台工作台上**（第三期）。
-   *
-   * ⭐ scope 取的是**域**：工作台本身是单例，一个用户在图片档只有一台。画布那边
-   * 以后接进来时传的是 projectId —— 同一个 `setOperatorResumeScope` 口，⛔ 不为
-   * 它另开一条路。
-   * ⚠ 每次挂载都 `hydrate` 一次：面板会被收放法则（拍板 7）随时卸载，而「有未完成
-   * 计划」这句话必须在**重新展开的那一帧**就成立。读盘是同步的，⛔ 不值得为它做
-   * 「只读一次」的缓存。
-   * ⚠ ⛔ 卸载时**不清 scope**：清了它，收一下面板就会把内存里那份镜像抹掉，而
-   * 那正是 store 里 `setOperatorResumeScope(null)` 的行为。
-   */
-  useEffect(() => {
-    setOperatorResumeScope(domain)
-    hydrateOperatorResume()
-  }, [domain])
 
   /**
    * 「有未完成计划」此刻成不成立。
@@ -618,6 +607,8 @@ export function StudioOperatorPanel({
   const savePinnedEvidence = useCallback(
     (patch: StudioOperatorPinPatch) => {
       const sessionId = history.currentSessionId
+      if (readOnlyHistory || !workspaceKey) return
+      const thread = getOperatorState().localThreadId
       const previous =
         rounds.find((round) => round.roundIndex === patch.roundIndex)
           ?.pinnedEvidence ?? []
@@ -627,9 +618,11 @@ export function StudioOperatorPanel({
       if (!sessionId) return
       void updateAssistantConversationRoundAPI({
         id: sessionId,
+        workspaceKey,
         roundIndex: patch.roundIndex,
         pinnedEvidence: patch.pinnedEvidence,
       }).then((result) => {
+        if (getOperatorState().localThreadId !== thread) return
         if (!result.success) {
           updateOperatorRoundSummary(patch.roundIndex, {
             pinnedEvidence: previous,
@@ -637,7 +630,7 @@ export function StudioOperatorPanel({
         }
       })
     },
-    [history.currentSessionId, rounds],
+    [history.currentSessionId, rounds, readOnlyHistory, workspaceKey],
   )
 
   /** 已经落进结论记录的那几条钉住（含它在哪一轮）。 */
@@ -780,7 +773,6 @@ export function StudioOperatorPanel({
    * 永远不可能出现。映射搬到两个宿主各自那边之后，两边就都有了。
    * ⛔ 面板从此不认识 `useStudioGen`：它挂在哪台工作台上不该由它自己去猜。
    */
-  const operatorHost = useStudioOperatorHost()
 
   /**
    * 结果卡上的**「用它当参考」**（v2 §6.2 第二行）。
@@ -1960,8 +1952,25 @@ export function StudioOperatorPanel({
         </div>
       ) : null}
       {history.error ? (
-        <p role="alert" className="px-3 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-destructive"
+        >
           {history.error}
+          {saveFailed ? (
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => void history.retrySave()}
+            >
+              {t('history.retrySave')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {readOnlyHistory ? (
+        <p role="status" className="px-3 py-2 text-sm text-muted-foreground">
+          {t('history.legacyReadOnly')}
         </p>
       ) : null}
       {/* D12 U1：对话区与输入区**实底**（半透明会把工作台的缩略图透上来，时间线
@@ -2555,6 +2564,7 @@ export function StudioOperatorPanel({
             在话里说，上下文卡只留助手提议与设置里管理）。 */}
         <div
           data-testid="operator-input-area"
+          inert={readOnlyHistory}
           data-drag-over={dragOver}
           /**
            * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
@@ -2772,7 +2782,7 @@ export function StudioOperatorPanel({
                  * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
                  * 一句「还有文件在传」，⛔ 不做「点了没反应」。
                  */
-                disabled={uploading}
+                disabled={uploading || readOnlyHistory}
                 title={sendLabel}
                 aria-label={sendLabel}
                 onClick={() => submit(draft)}

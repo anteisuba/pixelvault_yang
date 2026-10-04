@@ -50,18 +50,23 @@ async function parseJsonResult<T>(
 }
 
 export async function listAssistantConversationsAPI(args: {
+  workspaceKey: string
   surface: AssistantSurfaceId
   projectId?: string
+  includeLegacy?: boolean
   operatorOnly?: boolean
   limit?: number
 }): Promise<ApiResult<AssistantConversationSummary[]>> {
   try {
     const params = new URLSearchParams({
+      workspaceKey: args.workspaceKey,
       surface: args.surface,
       list: '1',
     })
     if (args.projectId) params.set('projectId', args.projectId)
-    if (args.operatorOnly) params.set('operatorOnly', '1')
+    if (args.includeLegacy) params.set('includeLegacy', '1')
+    if (args.operatorOnly !== undefined)
+      params.set('operatorOnly', args.operatorOnly ? '1' : '0')
     if (args.limit) params.set('limit', String(args.limit))
 
     const response = await fetch(
@@ -79,14 +84,23 @@ export async function listAssistantConversationsAPI(args: {
 }
 
 export async function getAssistantConversationAPI(args: {
+  workspaceKey: string
   surface: AssistantSurfaceId
   projectId?: string
   id?: string
+  includeLegacy?: boolean
+  operatorOnly?: boolean
 }): Promise<ApiResult<AssistantConversationRecord | null>> {
   try {
-    const params = new URLSearchParams({ surface: args.surface })
+    const params = new URLSearchParams({
+      surface: args.surface,
+      workspaceKey: args.workspaceKey,
+    })
     if (args.projectId) params.set('projectId', args.projectId)
     if (args.id) params.set('id', args.id)
+    if (args.includeLegacy) params.set('includeLegacy', '1')
+    if (args.operatorOnly !== undefined)
+      params.set('operatorOnly', args.operatorOnly ? '1' : '0')
 
     const response = await fetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}?${params.toString()}`,

@@ -16,15 +16,18 @@ import {
   UpdateAssistantConversationRoundRequestSchema,
   UpsertAssistantConversationRequestSchema,
 } from '@/types/assistant-conversation'
+import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 
 export const GET = createApiGetRoute({
   schema: z.object({
+    workspaceKey: AssistantWorkspaceKeySchema,
     surface: AssistantSurfaceSchema,
     projectId: z.string().trim().min(1).max(160).optional(),
     id: z.string().uuid().optional(),
     /** When "1", return a list of conversation summaries instead of one body. */
     list: z.enum(['0', '1']).optional(),
     operatorOnly: z.enum(['0', '1']).optional(),
+    includeLegacy: z.enum(['0', '1']).optional(),
     limit: z.coerce.number().int().min(1).max(50).optional(),
   }),
   routeName: 'GET /api/assistant/conversation',
@@ -33,17 +36,26 @@ export const GET = createApiGetRoute({
   handler: async ({ clerkId, data }) => {
     if (data.list === '1') {
       return listAssistantConversations(clerkId!, {
+        workspaceKey: data.workspaceKey,
         surface: data.surface,
         projectId: data.projectId,
         limit: data.limit,
-        operatorOnly: data.operatorOnly === '1',
+        ...(data.operatorOnly !== undefined
+          ? { operatorOnly: data.operatorOnly === '1' }
+          : {}),
+        includeLegacy: data.includeLegacy === '1',
       })
     }
 
     return getAssistantConversation(clerkId!, {
+      workspaceKey: data.workspaceKey,
       id: data.id,
       surface: data.surface,
       projectId: data.projectId,
+      includeLegacy: data.includeLegacy === '1',
+      ...(data.operatorOnly !== undefined
+        ? { operatorOnly: data.operatorOnly === '1' }
+        : {}),
     })
   },
 })
@@ -97,6 +109,7 @@ export const PATCH = createApiRoute({
           ? { pinnedEvidence: data.pinnedEvidence }
           : {}),
       },
+      data.workspaceKey,
     )
     if (!updated) {
       throw new ApiRequestError(

@@ -72,7 +72,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 **视频档素材轨**（owner 2026-09-24 视频画板）：⛔ 没有「关键帧 / 多图参考 / 全能参考」模式 —— 这一枪走哪个端点由挂了什么推出来（有参考项 → 参考端点，首尾帧随行；否则关键帧端点），与画布同一个 `videoSendMode` / `resolveVideoSendModelId`。选择器一行一个型号 × 渠道（`isVideoPickerModel`）。素材排 `StudioVideoAssetRail`（owner 09-27 视频台 A：挂在输入框顶上）按类型编号，编号 = 显示顺序 = 参考档发送顺序（首帧 · 尾帧 · 参考图）；「＋」只有工具行的 `StudioVideoAssetChip`，拖放落点是整个输入框 —— 拖入 / 素材库 / 助手三条落法汇到同一份状态（`use-studio-video-assets.ts` 的 `acceptTransfer` / `acceptGeneration`），这一份 assets 由 `StudioPromptArea` 持有、传给素材排与 chip（上传中两边看得见）。视频档**不渲染** `ReferenceImageChip` 与提示词框里的参考图条（图在素材排上），舞台也不画参考轨、不铺参考图（还没出过结果、挂了首帧时首帧当封面）；负面提示词行只在实际端点收这个字段时出现。首帧在场、没挂参考项且线路带图锁比例时，`StudioSpecChip` 把比例组**禁用而不是移除**并说清怎么解除。
 
-**手机形态**：Dock 在 `isMobile` 时图片 / 视频档渲染 `StudioOperatorAvatarToggle`（右上角）+ `StudioOperatorMobileSheet`（单一高度、接近满屏，见上方组件树），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+**手机形态**：Dock 在 `isMobile` 时图片 / 视频 / LoRA 档渲染 `StudioOperatorAvatarToggle`（右上角）+ `StudioOperatorMobileSheet`（单一高度、接近满屏，见上方组件树），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：LoRA 手机端与桌面共用此 Dock，旧 `LoraAssistantDock` 已删除；音频档没有 operator 宿主，不新增助手入口。
 
 **四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 

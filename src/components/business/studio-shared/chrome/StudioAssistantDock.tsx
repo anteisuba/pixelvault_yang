@@ -388,6 +388,7 @@ export function StudioAssistantDock() {
         actions={
           <StudioAssistantHeaderActions
             assistantDomain={assistantDomain}
+            modelId={modelId}
             onClose={() => setOpen(false)}
           />
         }

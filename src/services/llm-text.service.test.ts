@@ -30,9 +30,13 @@ import {
   LLM_TEXT_STREAMS,
   type LlmTextInput,
 } from '@/services/llm-text.service'
+import * as storage from '@/services/storage/r2'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
-import { ASSISTANT_IMAGE_LIMITS } from '@/constants/assistant'
+import {
+  ASSISTANT_IMAGE_LIMITS,
+  ASSISTANT_MEDIA_LIMITS,
+} from '@/constants/assistant'
 import {
   AI_PROVIDER_ENDPOINTS,
   ANTHROPIC_API,
@@ -69,6 +73,117 @@ function readFetchJson(
   }
   return JSON.parse(body) as Record<string, unknown>
 }
+
+describe('structured output requests', () => {
+  const schema = {
+    type: 'object',
+    properties: { answer: { type: 'string' } },
+    required: ['answer'],
+    additionalProperties: false,
+  }
+
+  it.each([
+    {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    },
+    {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    },
+  ])(
+    'uses the supplied schema on a supported $adapterType model',
+    async ({ adapterType, modelId }) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify(
+            adapterType === AI_ADAPTER_TYPES.GEMINI
+              ? {
+                  candidates: [
+                    { content: { parts: [{ text: '{"answer":"ok"}' }] } },
+                  ],
+                }
+              : { choices: [{ message: { content: '{"answer":"ok"}' } }] },
+          ),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      await llmTextCompletion({
+        adapterType,
+        modelId,
+        apiKey: 'test-key',
+        providerConfig: { label: 'test', baseUrl: 'https://provider.test/v1' },
+        systemPrompt: 'Return JSON.',
+        userPrompt: 'Answer.',
+        responseFormat: 'json_object',
+        jsonSchema: schema,
+      })
+      const body = readFetchJson(fetchMock)
+      if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
+        expect(body.generationConfig).toMatchObject({
+          responseMimeType: 'application/json',
+          responseJsonSchema: schema,
+        })
+      } else {
+        expect(body.response_format).toEqual({
+          type: 'json_schema',
+          json_schema: { name: 'assistant_output', strict: true, schema },
+        })
+      }
+    },
+  )
+
+  it.each([
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.GEMINI,
+    AI_ADAPTER_TYPES.ANTHROPIC,
+  ])('keeps JSON mode for an unverified model on %s', async (adapterType) => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          adapterType === AI_ADAPTER_TYPES.GEMINI
+            ? {
+                candidates: [
+                  { content: { parts: [{ text: '{"answer":"ok"}' }] } },
+                ],
+              }
+            : adapterType === AI_ADAPTER_TYPES.ANTHROPIC
+              ? { content: [{ type: 'text', text: '{"answer":"ok"}' }] }
+              : { choices: [{ message: { content: '{"answer":"ok"}' } }] },
+        ),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    await llmTextCompletion({
+      adapterType,
+      modelId: 'custom-unverified-model',
+      apiKey: 'test-key',
+      providerConfig: { label: 'test', baseUrl: 'https://provider.test/v1' },
+      systemPrompt: 'Return JSON.',
+      userPrompt: 'Answer.',
+      responseFormat: 'json_object',
+      jsonSchema: schema,
+    })
+    const body = readFetchJson(fetchMock)
+    expect(body.output_config).toBeUndefined()
+    if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
+      expect(body.generationConfig).toMatchObject({
+        responseMimeType: 'application/json',
+      })
+      expect(body.generationConfig).not.toHaveProperty('responseJsonSchema')
+    } else if (adapterType === AI_ADAPTER_TYPES.OPENAI) {
+      expect(body.response_format).toEqual({ type: 'json_object' })
+    } else {
+      expect(body.system).toEqual([
+        expect.objectContaining({
+          text: expect.stringContaining('single valid JSON object'),
+        }),
+      ])
+    }
+  })
+})
 
 describe('resolveLlmTextRoute', () => {
   beforeEach(() => {
@@ -2374,7 +2489,7 @@ describe('llmTextStream', () => {
     },
   )
 
-  it('流式：响应头到手就撤掉计时器 —— 写得久的回答不会被自己的超时掐断', async () => {
+  it('流式完成后撤掉计时器，不再触发迟到的超时', async () => {
     // ⛔ 只 fake setTimeout/clearTimeout：sinon 的默认集合里有 queueMicrotask，
     //    fake 掉它会把 ReadableStream 的读取卡死，测的就不是这件事了。
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
@@ -2402,10 +2517,13 @@ describe('llmTextStream', () => {
       )
 
       expect(chunks).toEqual(['慢'])
-      // 远远越过 Grok 加长后的首字窗口之后 signal 仍未 abort —— 计时器确实撤掉了。
-      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
       expect(capturedSignal).not.toBeNull()
-      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
+      const completedReason = (capturedSignal as unknown as AbortSignal).reason
+      expect(vi.getTimerCount()).toBe(0)
+      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
+      expect((capturedSignal as unknown as AbortSignal).reason).toBe(
+        completedReason,
+      )
     } finally {
       vi.useRealTimers()
     }
@@ -2580,6 +2698,518 @@ describe('LLM 文本请求的超时', () => {
       }),
     ).rejects.toThrow('ECONNREFUSED')
   })
+})
+
+describe('LLM cancellation and body deadlines', () => {
+  const input: LlmTextInput = {
+    systemPrompt: 'sys',
+    userPrompt: 'user',
+    adapterType: AI_ADAPTER_TYPES.XAI,
+    providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+    apiKey: 'test-key',
+  }
+  const event = (content: string) =>
+    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+  const collect = async (request: LlmTextInput) => {
+    const chunks: string[] = []
+    for await (const chunk of llmTextStream(request)) chunks.push(chunk)
+    return chunks
+  }
+  const flush = async () => {
+    for (let index = 0; index < 8; index++) await Promise.resolve()
+  }
+  const run = (stream: boolean, request: LlmTextInput) =>
+    stream ? collect(request) : llmTextCompletion(request)
+
+  afterEach(() => vi.useRealTimers())
+
+  it.each([false, true])(
+    'skips a pre-aborted request (stream=%s)',
+    async (stream) => {
+      const controller = new AbortController()
+      controller.abort()
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(
+        run(stream, { ...input, signal: controller.signal }),
+      ).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(LLM_TEXT_ADAPTERS)(
+    'cancels %s while waiting for headers',
+    async (adapterType) => {
+      for (const stream of [false, true]) {
+        const controller = new AbortController()
+        let providerSignal!: AbortSignal
+        const fetchMock = vi
+          .fn()
+          .mockImplementation((_url: string, init: RequestInit) => {
+            providerSignal = init.signal as AbortSignal
+            return new Promise((_resolve, reject) => {
+              providerSignal.addEventListener(
+                'abort',
+                () => reject(providerSignal.reason),
+                { once: true },
+              )
+            })
+          })
+        vi.stubGlobal('fetch', fetchMock)
+        const pending = run(stream, {
+          ...input,
+          adapterType,
+          signal: controller.signal,
+        })
+        const expected = expect(pending).rejects.toMatchObject({
+          name: 'AbortError',
+        })
+        await flush()
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+        controller.abort()
+        await expected
+        expect(providerSignal.aborted).toBe(true)
+      }
+    },
+  )
+
+  it.each([false, true])(
+    'cancels a blocked body reader (stream=%s)',
+    async (stream) => {
+      const controller = new AbortController()
+      const cancel = vi.fn()
+      let providerSignal!: AbortSignal
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+          providerSignal = init.signal as AbortSignal
+          return new Response(new ReadableStream<Uint8Array>({ cancel }))
+        }),
+      )
+      const pending = run(stream, { ...input, signal: controller.signal })
+      const expected = expect(pending).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+      await flush()
+      controller.abort()
+      await expected
+      expect(providerSignal.aborted).toBe(true)
+      expect(cancel).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it.each([false, true])(
+    'reports a stalled body as a provider timeout (stream=%s)',
+    async (stream) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const cancel = vi.fn()
+      let providerSignal!: AbortSignal
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+          providerSignal = init.signal as AbortSignal
+          return new Response(new ReadableStream<Uint8Array>({ cancel }))
+        }),
+      )
+      const pending = run(stream, input)
+      const expected = expect(pending).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TIMEOUT',
+        httpStatus: 504,
+        i18nKey: 'errors.provider.timeout',
+      })
+      await flush()
+      await vi.advanceTimersByTimeAsync(
+        stream
+          ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
+          : LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+      )
+      await expected
+      expect(providerSignal.aborted).toBe(true)
+      expect(cancel).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it.each([false, true])(
+    'preserves a timeout while reading a non-success body (stream=%s)',
+    async (stream) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const cancel = vi.fn()
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(new ReadableStream<Uint8Array>({ cancel }), {
+            status: 502,
+          }),
+        ),
+      )
+      const pending = run(stream, input)
+      const expected = expect(pending).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TIMEOUT',
+        httpStatus: 504,
+      })
+      await flush()
+      await vi.advanceTimersByTimeAsync(
+        stream
+          ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
+          : LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+      )
+      await expected
+      expect(cancel).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('keeps an active stream alive beyond the header window and cancels an early consumer exit', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    let source!: ReadableStreamDefaultController<Uint8Array>
+    let providerSignal!: AbortSignal
+    const cancel = vi.fn()
+    const encoder = new TextEncoder()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+        providerSignal = init.signal as AbortSignal
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start: (controller) => {
+              source = controller
+            },
+            cancel,
+          }),
+        )
+      }),
+    )
+    const iterator = llmTextStream(input)[Symbol.asyncIterator]()
+    for (let index = 0; index < 4; index++) {
+      const pending = iterator.next()
+      await flush()
+      await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS - 1)
+      expect(providerSignal.aborted).toBe(false)
+      source.enqueue(encoder.encode(event(String(index))))
+      await expect(pending).resolves.toEqual({
+        value: String(index),
+        done: false,
+      })
+    }
+    await iterator.return?.()
+    expect(providerSignal.aborted).toBe(true)
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([
+    {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      media: { imageData: 'https://1.1.1.1/image.png' },
+    },
+    {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      media: { videoData: ['https://1.1.1.1/video.mp4'] },
+    },
+    {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      media: { audioData: ['https://1.1.1.1/audio.wav'] },
+    },
+  ])(
+    'cancels media preparation for $adapterType',
+    async ({ adapterType, media }) => {
+      const controller = new AbortController()
+      let downloadSignal!: AbortSignal
+      const fetchMock = vi
+        .fn()
+        .mockImplementation((_url: string, init: RequestInit) => {
+          downloadSignal = init.signal as AbortSignal
+          return new Promise((_resolve, reject) => {
+            downloadSignal?.addEventListener(
+              'abort',
+              () => reject(downloadSignal.reason),
+              { once: true },
+            )
+          })
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      const pending = llmTextCompletion({
+        ...input,
+        ...media,
+        adapterType,
+        signal: controller.signal,
+      })
+      const expected = expect(pending).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+      await flush()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      controller.abort()
+      await expected
+      expect(downloadSignal.aborted).toBe(true)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    },
+  )
+})
+
+describe('Gemini temporary media lifecycle', () => {
+  const video = Buffer.alloc(ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes)
+  const input: LlmTextInput = {
+    systemPrompt: 'system',
+    userPrompt: 'Describe the video.',
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: { label: 'Gemini', baseUrl: '' },
+    apiKey: 'test-key',
+    videoData: 'https://1.1.1.1/video.mp4',
+  }
+  const file = (name: string, state = 'ACTIVE') => ({
+    file: {
+      name: `files/${name}`,
+      uri: `https://provider.test/files/${name}`,
+      mimeType: 'video/mp4',
+      state,
+    },
+  })
+  const json = (payload: unknown) => new Response(JSON.stringify(payload))
+  const flush = async () => {
+    for (let index = 0; index < 30; index++) await Promise.resolve()
+  }
+  const deleted = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls
+      .filter(([, init]) => (init as RequestInit)?.method === 'DELETE')
+      .map(([url]) => String(url))
+
+  beforeEach(() => {
+    vi.spyOn(storage, 'fetchAsBuffer').mockResolvedValue({
+      buffer: video,
+      mimeType: 'video/mp4',
+    })
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('cleans a finalized file when processing is cancelled, using an independent deletion signal', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    let finalized!: () => void
+    const finalizedBody = new Promise<void>((resolve) => {
+      finalized = resolve
+    })
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string, init: RequestInit) => {
+        if (init.method === 'DELETE') {
+          expect(init.signal?.aborted).toBe(false)
+          expect(init.signal).not.toBe(controller.signal)
+          return new Response(null, { status: 204 })
+        }
+        if (url === AI_PROVIDER_ENDPOINTS.GEMINI_FILES_UPLOAD)
+          return new Response(null, {
+            headers: { 'x-goog-upload-url': 'https://upload.test/video' },
+          })
+        if (url === 'https://upload.test/video')
+          return {
+            ok: true,
+            json: async () => {
+              finalized()
+              return file('processing', 'PROCESSING')
+            },
+          }
+        throw new Error(`Unexpected request: ${url}`)
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    const expected = expect(
+      llmTextCompletion({ ...input, signal: controller.signal }),
+    ).rejects.toBe(reason)
+    await finalizedBody
+    await flush()
+    controller.abort(reason)
+    await expected
+    expect(deleted(fetchMock)).toEqual([
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/processing`,
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('cleans a real returned file name even if the remaining upload metadata is invalid', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          headers: { 'x-goog-upload-url': 'https://upload.test/video' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        json({ file: { name: 'files/invalid-metadata', uri: 123 } }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(llmTextCompletion(input)).rejects.toBeInstanceOf(Error)
+    expect(deleted(fetchMock)).toEqual([
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/invalid-metadata`,
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('waits for a late parallel upload before cleaning every finalized sibling after a failure', async () => {
+    const failure = new Error('processing failed')
+    let ready!: () => void
+    const uploadsStarted = new Promise<void>((resolve) => {
+      ready = resolve
+    })
+    let resolveLate!: (value: Response) => void
+    const late = new Promise<Response>((resolve) => {
+      resolveLate = resolve
+    })
+    let uploadIndex = 0
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (url: string, init: RequestInit) => {
+        if (init.method === 'DELETE') return new Response(null, { status: 204 })
+        if (url === AI_PROVIDER_ENDPOINTS.GEMINI_FILES_UPLOAD)
+          return new Response(null, {
+            headers: {
+              'x-goog-upload-url': `https://upload.test/${uploadIndex++}`,
+            },
+          })
+        if (url === 'https://upload.test/0')
+          return json(file('first', 'FAILED'))
+        if (url === 'https://upload.test/1') {
+          ready()
+          return late
+        }
+        throw failure
+      })
+    vi.stubGlobal('fetch', fetchMock)
+    let settled = false
+    const outcome = llmTextCompletion({
+      ...input,
+      videoData: ['https://1.1.1.1/first.mp4', 'https://1.1.1.1/late.mp4'],
+    }).then(
+      () => {
+        settled = true
+        return undefined
+      },
+      (error: unknown) => {
+        settled = true
+        return error
+      },
+    )
+    await uploadsStarted
+    await flush()
+    const settledBeforeLateUpload = settled
+    const deletedBeforeLateUpload = deleted(fetchMock)
+    resolveLate(json(file('late')))
+    const result = await outcome
+    await flush()
+    expect(settledBeforeLateUpload).toBe(false)
+    expect(deletedBeforeLateUpload).toEqual([])
+    expect(result).toBeInstanceOf(Error)
+    expect(deleted(fetchMock).sort()).toEqual([
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/first`,
+      `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/late`,
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+  })
+
+  it.each([false, true])(
+    'cleans prepared video when audio preparation fails (cancel=%s)',
+    async (cancel) => {
+      const controller = new AbortController()
+      const reason = cancel
+        ? new DOMException('stopped', 'AbortError')
+        : new Error('audio download failed')
+      vi.mocked(storage.fetchAsBuffer).mockImplementation(async (url) => {
+        if (url.endsWith('audio.wav')) {
+          if (cancel) controller.abort(reason)
+          throw reason
+        }
+        return { buffer: video, mimeType: 'video/mp4' }
+      })
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(null, {
+            headers: { 'x-goog-upload-url': 'https://upload.test/video' },
+          }),
+        )
+        .mockResolvedValueOnce(json(file('before-audio')))
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      vi.stubGlobal('fetch', fetchMock)
+      await expect(
+        llmTextCompletion({
+          ...input,
+          signal: controller.signal,
+          audioData: ['https://1.1.1.1/audio.wav'],
+        }),
+      ).rejects.toBe(reason)
+      expect(deleted(fetchMock)).toEqual([
+        `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/before-audio`,
+      ])
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    },
+  )
+
+  it.each([false, true])(
+    'keeps media until the buffered body finishes and cleans it after JSON consumption (invalid=%s)',
+    async (invalid) => {
+      let source!: ReadableStreamDefaultController<Uint8Array>
+      let headers!: () => void
+      const headersReady = new Promise<void>((resolve) => {
+        headers = resolve
+      })
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(async (url: string, init: RequestInit) => {
+          if (init.method === 'DELETE')
+            return new Response(null, { status: 204 })
+          if (url === AI_PROVIDER_ENDPOINTS.GEMINI_FILES_UPLOAD)
+            return new Response(null, {
+              headers: { 'x-goog-upload-url': 'https://upload.test/video' },
+            })
+          if (url === 'https://upload.test/video') return json(file('buffered'))
+          headers()
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                source = controller
+              },
+            }),
+          )
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      const outcome = llmTextCompletion(input).then(
+        (answer) => answer,
+        (error: unknown) => error,
+      )
+      await headersReady
+      await flush()
+      const deletedBeforeBodyEnd = deleted(fetchMock)
+      source.enqueue(
+        new TextEncoder().encode(
+          invalid
+            ? '{invalid json'
+            : JSON.stringify({
+                candidates: [
+                  {
+                    content: { parts: [{ text: 'answer' }] },
+                    finishReason: 'STOP',
+                  },
+                ],
+              }),
+        ),
+      )
+      source.close()
+      const result = await outcome
+      expect(deletedBeforeBodyEnd).toEqual([])
+      if (invalid) expect(result).toBeInstanceOf(SyntaxError)
+      else expect(result).toBe('answer')
+      expect(deleted(fetchMock)).toEqual([
+        `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/buffered`,
+      ])
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+    },
+  )
 })
 
 describe('Gemini 空回复的归因', () => {
@@ -3110,11 +3740,13 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
         url: 'https://r.test/1',
         title: 'bilibili.com',
         excerpt: '她是鸣潮 2.3 的角色。',
+        excerptKind: 'answer_fragment',
       },
       {
         url: 'https://r.test/2',
         title: 'baike.baidu.com',
         excerpt: '她是鸣潮 2.3 的角色。',
+        excerptKind: 'answer_fragment',
       },
     ])
   })
@@ -3170,7 +3802,11 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
       new Response(
         JSON.stringify({
           output: [
-            { type: 'web_search_call' },
+            {
+              type: 'web_search_call',
+              status: 'completed',
+              action: { type: 'search', queries: ['卡提希娅 官方立绘'] },
+            },
             {
               type: 'message',
               content: [
@@ -3213,8 +3849,15 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     expect(payload.model).toBe('gpt-6-luna')
     expect(payload.tools).toEqual([{ type: 'web_search' }])
     expect(found.answer).toBe(text)
+    expect(found.status).toBe('searched')
+    expect(found.queries).toEqual(['卡提希娅 官方立绘'])
     expect(found.sources).toEqual([
-      { url: 'https://a.test', title: 'A', excerpt: '配色以青绿为主。' },
+      {
+        url: 'https://a.test',
+        title: 'A',
+        excerpt: '配色以青绿为主。',
+        excerptKind: 'answer_fragment',
+      },
     ])
   })
 
@@ -3224,8 +3867,10 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
         JSON.stringify({
           content: [
             { type: 'server_tool_use', id: 'x', name: 'web_search' },
+            { type: 'server_tool_use', id: 'y', name: 'web_search' },
             {
               type: 'web_search_tool_result',
+              tool_use_id: 'x',
               content: [
                 {
                   type: 'web_search_result',
@@ -3241,6 +3886,7 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
             },
             {
               type: 'web_search_tool_result',
+              tool_use_id: 'y',
               content: {
                 type: 'web_search_tool_result_error',
                 error_code: 'x',
@@ -3273,15 +3919,411 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     })
 
     const payload = readFetchJson(fetchMock) as {
+      model: string
       tools?: { type: string; name: string }[]
+      tool_choice?: unknown
+      thinking?: unknown
+      temperature?: number
     }
-    expect(payload.tools?.[0]?.name).toBe('web_search')
+    expect(payload.tools?.[0]).toMatchObject({
+      name: 'web_search',
+      type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+    })
+    expect(payload.tool_choice).toBeUndefined()
+    expect(payload.thinking).toBeUndefined()
+    expect(payload.temperature).toBeUndefined()
     expect(found.answer).toBe('配色偏青绿。')
+    expect(found.status).toBe('partial')
+    expect(found.error).toBe('x')
     expect(found.sources.map((source) => source.url)).toEqual([
       'https://c.test',
       'https://b.test',
     ])
     expect(found.sources[0]?.excerpt).toBe('青绿配色')
+    expect(found.sources[0]?.excerptKind).toBe('source_excerpt')
+  })
+})
+
+describe('native web search receipts', () => {
+  const base = {
+    systemPrompt: 'sys',
+    query: '配色',
+    apiKey: 'test-key',
+    modelId: 'selected-model',
+    providerConfig: { label: 'test', baseUrl: 'https://provider.test' },
+  }
+  function respond(body: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(body), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+  const citationMessage = {
+    type: 'message',
+    content: [
+      {
+        type: 'output_text',
+        text: '来自普通回答。',
+        annotations: [
+          {
+            type: 'url_citation',
+            url: 'https://a.test',
+            title: 'A',
+            start_index: 8,
+            end_index: 8,
+          },
+        ],
+      },
+    ],
+  }
+  const completedCall = {
+    type: 'web_search_call',
+    status: 'completed',
+    action: {
+      type: 'search',
+      queries: ['真正查询'],
+      sources: [{ type: 'url', url: 'https://a.test' }],
+    },
+  }
+  const claudeCall = {
+    type: 'server_tool_use',
+    id: 'search-1',
+    name: 'web_search',
+    input: { query: '真正查询' },
+  }
+  const claudeResult = {
+    type: 'web_search_tool_result',
+    tool_use_id: 'search-1',
+    content: [{ type: 'web_search_result', url: 'https://a.test', title: 'A' }],
+  }
+
+  it.each([
+    [
+      '未调用，引用标注不构成调用证据',
+      { output: [citationMessage] },
+      'not_invoked',
+      0,
+    ],
+    [
+      '调用完成但没有来源',
+      {
+        output: [
+          {
+            ...completedCall,
+            action: { type: 'search', queries: ['真正查询'] },
+          },
+        ],
+      },
+      'empty',
+      0,
+    ],
+    [
+      'HTTP200内的provider错误',
+      { error: { code: 'server_error', message: 'upstream failed' } },
+      'failed',
+      0,
+    ],
+    [
+      '搜索失败',
+      { output: [{ type: 'web_search_call', status: 'failed' }] },
+      'failed',
+      0,
+    ],
+    [
+      '搜索未完成',
+      { output: [{ type: 'web_search_call', status: 'searching' }] },
+      'failed',
+      0,
+    ],
+    [
+      '完成一枪另一次失败',
+      {
+        output: [completedCall, { type: 'web_search_call', status: 'failed' }],
+      },
+      'partial',
+      1,
+    ],
+    [
+      '响应因输出限额中断',
+      {
+        status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' },
+        output: [completedCall],
+      },
+      'partial',
+      1,
+    ],
+  ] as const)('OpenAI %s', async (_label, response, status, count) => {
+    respond(response)
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
+    expect(found.status).toBe(status)
+    expect(found.sources).toHaveLength(count)
+    if (status === 'failed' || status === 'partial')
+      expect(found.error).toBeTruthy()
+  })
+
+  it('OpenAI成功调用的未引用来源保留为空摘录，仍能核实已调用', async () => {
+    const fetchMock = respond({ status: 'completed', output: [completedCall] })
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
+    expect(found).toMatchObject({
+      status: 'searched',
+      queries: ['真正查询'],
+      sources: [{ url: 'https://a.test', excerpt: '', excerptKind: 'none' }],
+    })
+    expect(readFetchJson(fetchMock)).toMatchObject({
+      model: 'selected-model',
+      include: ['web_search_call.action.sources'],
+    })
+  })
+
+  it.each([
+    [
+      '普通回答',
+      {
+        candidates: [
+          { content: { parts: [{ text: '普通回答' }] }, finishReason: 'STOP' },
+        ],
+      },
+      'not_invoked',
+      0,
+    ],
+    [
+      '空groundingMetadata不是查询',
+      { candidates: [{ groundingMetadata: {} }] },
+      'not_invoked',
+      0,
+    ],
+    [
+      '查询确实执行但没有来源',
+      {
+        candidates: [{ groundingMetadata: { webSearchQueries: ['真正查询'] } }],
+      },
+      'empty',
+      0,
+    ],
+    [
+      'HTTP200内的provider错误',
+      { error: { status: 'UNAVAILABLE', message: 'upstream failed' } },
+      'failed',
+      0,
+    ],
+    ['安全拦截', { promptFeedback: { blockReason: 'SAFETY' } }, 'failed', 0],
+    [
+      '搜索结果后输出截断',
+      {
+        candidates: [
+          {
+            finishReason: 'MAX_TOKENS',
+            groundingMetadata: {
+              webSearchQueries: ['真正查询'],
+              groundingChunks: [{ web: { uri: 'https://a.test', title: 'A' } }],
+            },
+          },
+        ],
+      },
+      'partial',
+      1,
+    ],
+  ] as const)('Gemini %s', async (_label, response, status, count) => {
+    respond(response)
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+    })
+    expect(found.status).toBe(status)
+    expect(found.sources).toHaveLength(count)
+    if (status === 'failed' || status === 'partial')
+      expect(found.error).toBeTruthy()
+  })
+
+  it('Gemini的grounding片段标为模型回答片段并保留真查询', async () => {
+    respond({
+      candidates: [
+        {
+          finishReason: 'STOP',
+          groundingMetadata: {
+            webSearchQueries: ['真正查询'],
+            groundingChunks: [{ web: { uri: 'https://a.test', title: 'A' } }],
+            groundingSupports: [
+              { segment: { text: '模型回答句子' }, groundingChunkIndices: [0] },
+            ],
+          },
+        },
+      ],
+    })
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+    })
+    expect(found).toMatchObject({
+      status: 'searched',
+      queries: ['真正查询'],
+      sources: [{ excerpt: '模型回答句子', excerptKind: 'answer_fragment' }],
+    })
+  })
+
+  it.each([
+    [
+      '普通回答没有服务端搜索',
+      {
+        content: [
+          {
+            type: 'text',
+            text: '普通回答',
+            citations: [
+              {
+                type: 'web_search_result_location',
+                url: 'https://a.test',
+                cited_text: '非搜索回执',
+              },
+            ],
+          },
+        ],
+        stop_reason: 'end_turn',
+      },
+      'not_invoked',
+      0,
+    ],
+    [
+      '配对调用明确返回空列表',
+      {
+        content: [claudeCall, { ...claudeResult, content: [] }],
+        stop_reason: 'end_turn',
+      },
+      'empty',
+      0,
+    ],
+    [
+      'HTTP200工具内错',
+      {
+        content: [
+          claudeCall,
+          {
+            ...claudeResult,
+            content: {
+              type: 'web_search_tool_result_error',
+              error_code: 'max_uses_exceeded',
+            },
+          },
+        ],
+        stop_reason: 'end_turn',
+      },
+      'failed',
+      0,
+    ],
+    [
+      'HTTP200provider错误',
+      { error: { type: 'api_error', message: 'upstream failed' } },
+      'failed',
+      0,
+    ],
+    [
+      '暂停前已返回部分证据',
+      { content: [claudeCall, claudeResult], stop_reason: 'pause_turn' },
+      'paused',
+      1,
+    ],
+    [
+      '暂停尚未返回结果',
+      { content: [claudeCall], stop_reason: 'pause_turn' },
+      'paused',
+      0,
+    ],
+    [
+      '调用缺结果不能当空',
+      { content: [claudeCall], stop_reason: 'end_turn' },
+      'failed',
+      0,
+    ],
+    [
+      '结果缺匹配调用不能归因',
+      {
+        content: [{ ...claudeResult, tool_use_id: 'other' }],
+        stop_reason: 'end_turn',
+      },
+      'failed',
+      0,
+    ],
+    [
+      '非法结果不能当空',
+      {
+        content: [
+          claudeCall,
+          { ...claudeResult, content: { unexpected: true } },
+        ],
+        stop_reason: 'end_turn',
+      },
+      'failed',
+      0,
+    ],
+    [
+      '输出截断保留证据但未完成',
+      { content: [claudeCall, claudeResult], stop_reason: 'max_tokens' },
+      'partial',
+      1,
+    ],
+  ] as const)('Claude %s', async (_label, response, status, count) => {
+    const fetchMock = respond(response)
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+    expect(found.status).toBe(status)
+    expect(found.sources).toHaveLength(count)
+    if (status === 'failed' || status === 'partial' || status === 'paused')
+      expect(found.error).toBeTruthy()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(readFetchJson(fetchMock)).not.toHaveProperty('fallbacks')
+  })
+
+  it('Claude只完成一枪另一枪内错时保留部分证据与错误码', async () => {
+    respond({
+      content: [
+        claudeCall,
+        claudeResult,
+        { ...claudeCall, id: 'search-2' },
+        {
+          ...claudeResult,
+          tool_use_id: 'search-2',
+          content: {
+            type: 'web_search_tool_result_error',
+            error_code: 'unavailable',
+          },
+        },
+      ],
+      stop_reason: 'end_turn',
+    })
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+    expect(found).toMatchObject({
+      status: 'partial',
+      queries: ['真正查询'],
+      error: 'unavailable',
+      sources: [{ url: 'https://a.test', excerptKind: 'none' }],
+    })
+  })
+
+  it.each([
+    AI_ADAPTER_TYPES.GEMINI,
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.ANTHROPIC,
+  ])('%s native取消不发请求', async (adapterType) => {
+    const fetchMock = respond({})
+    const controller = new AbortController()
+    controller.abort(new Error('cancelled native search'))
+    await expect(
+      llmNativeWebSearch({ ...base, adapterType, signal: controller.signal }),
+    ).rejects.toThrow('cancelled native search')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

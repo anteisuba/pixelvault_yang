@@ -236,6 +236,7 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'revertField',
   'revertAll',
   'revertRound',
+  'revertFailed',
   'checkpointRestored',
   'stopped',
   'interrupted',
@@ -267,6 +268,7 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 的每一格都是空的。⚠ 部分失败**不落这一行**：出来几张就是几张，卡照出。
    */
   'generationFailed',
+  'generationResultInterrupted',
   /** 同上，但宿主说得出原因（服务商审核 / 额度 / 超时）—— `subject` 是那句人话。 */
   'generationFailedWithReason',
   /**

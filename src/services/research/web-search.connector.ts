@@ -9,6 +9,7 @@ import {
 } from '@/constants/research'
 import { readUrl, webSearch } from '@/services/web-research.service'
 import type { EvidenceItem } from '@/types/research'
+import type { LlmNativeSearchSource } from '@/services/llm-text.service'
 import {
   clampExcerpt,
   evidenceId,
@@ -114,10 +115,10 @@ export async function fetchWebSearchEvidence(params: {
 /**
  * 所选模型**自带联网**给回的来源 → 证据（owner 2026-09-30）。与 Serper 同一个
  * `sourceId`：对用户和工具环来说它就是「网页」那一源，只是查询词由模型自己写。
- * ⚠ 摘录是回答里引用这条来源的那几句 —— 服务商给的原文，⛔ 不是我们再去抓的正文。
+ * ⚠ 摘录类型保留服务商回执：回答片段与来源摘录分别标明，不再抓正文。
  */
 export function nativeSearchEvidence(
-  sources: readonly { url: string; title: string; excerpt: string }[],
+  sources: readonly LlmNativeSearchSource[],
   via: string,
 ): ConnectorResult {
   const retrievedAt = new Date().toISOString()
@@ -130,6 +131,7 @@ export function nativeSearchEvidence(
       retrievedAt,
       title: source.title || source.url,
       url: source.url,
+      excerptKind: source.excerptKind,
     }
     const excerpt = clampExcerpt(source.excerpt || source.title)
     const videoSite = detectResearchVideoSite(source.url)

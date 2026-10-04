@@ -3,13 +3,13 @@
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import {
-  getPromptDialect,
-  PROMPT_DIALECT_ROUTES,
-} from '@/constants/prompt-dialects'
+import { getPromptDialect } from '@/constants/prompt-dialects'
 import {
   useStudioData,
   useStudioForm,
@@ -23,7 +23,6 @@ import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { getModelVariant } from '@/constants/models'
-import { useRouter } from '@/i18n/navigation'
 import { foldChannels } from '@/lib/group-models-for-picker'
 import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
@@ -31,10 +30,14 @@ import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import {
   setOperatorPrimed,
   setOperatorReviewState,
+  useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
+import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
+import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
+  studioRunForWorkspace,
   toOperatorResultRun,
   toOperatorRunResults,
 } from '@/lib/studio-operator-result-run'
@@ -70,17 +73,43 @@ function removeReferenceByUrl(
 
 export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   const { state, dispatch } = useStudioForm()
-  const router = useRouter()
   const { imageUpload } = useStudioData()
   /**
    * ⚠ 两个池子**都要订阅**（hook 不能有条件地调）。选哪一个由域决定 —— 而这正是
    * P4-A 修掉的一个真缺陷：此前只有图片池，视频模态下 `availableModels` 端上去的
    * 是一串图片模型，`set_model` 落地那一跳查不到 optionId，于是静默什么都不做。
    */
-  const imageModels = useImageModelOptions()
+  const allImageModels = useImageModelOptions()
+  const imageModels = useMemo(
+    () => ({
+      modelOptions: allImageModels.modelOptions.filter(
+        (option) =>
+          getPromptDialect(option.adapterType) === state.promptDialect,
+      ),
+      selectedModel:
+        allImageModels.selectedModel &&
+        getPromptDialect(allImageModels.selectedModel.adapterType) ===
+          state.promptDialect
+          ? allImageModels.selectedModel
+          : undefined,
+    }),
+    [
+      allImageModels.modelOptions,
+      allImageModels.selectedModel,
+      state.promptDialect,
+    ],
+  )
   const videoModels = useVideoModelOptions(state.selectedOptionId ?? '')
   /** 这一轮跑哪几个图片模型 —— 专属 chip 行按整轮并集给助手（与界面同一份名单）。 */
-  const { runModels } = useStudioRunModels()
+  const { runModels: allRunModels } = useStudioRunModels()
+  const runModels = useMemo(
+    () =>
+      allRunModels.filter(
+        (option) =>
+          getPromptDialect(option.adapterType) === state.promptDialect,
+      ),
+    [allRunModels, state.promptDialect],
+  )
   /** 拍板 22 的落地那一跳 —— 两个宿主共用的那一份。 */
   const userUrl = useOperatorUserUrlMount(imageUpload)
   /**
@@ -110,6 +139,12 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     state.outputType === 'video'
       ? ASSISTANT_PROTOCOL_DOMAIN_IDS.video
       : ASSISTANT_PROTOCOL_DOMAIN_IDS.image
+  const workspace =
+    domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+      ? 'video'
+      : state.promptDialect === 'tags'
+        ? 'image-tags'
+        : 'image-natural'
 
   /**
    * 当前表单快照 —— **按域分派**（P4-A）：形状由两个纯函数各自负责，这里只把
@@ -205,6 +240,15 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 渠道可选，所以那一档直接走既有的 `resolveOptionId`。
        */
       selectModelChannel: ({ modelId, channelId }) => {
+        if (
+          modelId !== null &&
+          latest.current.state.outputType !== 'video' &&
+          !latest.current.imageModels.modelOptions.some(
+            (option) => option.modelId === modelId,
+          )
+        ) {
+          return false
+        }
         modelMemory.setPendingModel(null)
         if (modelId === null) {
           dispatch({ type: 'SET_OPTION_ID', payload: null })
@@ -249,16 +293,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
         }
         // ⚠ 只记**助手指名的**那一条：自动成立的单渠道不写进手选记忆。
         if (channelId) modelMemory.rememberChannel(modelKey, channelId)
-        /**
-         * ⭐ **换到另一台的型号就跟着换台**（拆分与反推实跑 09-24：自然语言台上换
-         * NovelAI，被默认型号 hook 当成跨台陈旧选择顶回 FLUX）。先改方言再推
-         * 路由，与选择器里「跳到标签台」同一件事。
-         */
-        const targetDialect = getPromptDialect(channels[0]!.option.adapterType)
-        if (targetDialect !== latest.current.state.promptDialect) {
-          dispatch({ type: 'SET_PROMPT_DIALECT', payload: targetDialect })
-          router.push(PROMPT_DIALECT_ROUTES[targetDialect])
-        }
         dispatch({ type: 'SET_OPTION_ID', payload: resolved.channel.channelId })
         return true
       },
@@ -365,7 +399,8 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        *   同一份。真要改参数，前面那几步 `set_*` 已经改过了。
        * ⚠ 结果回灌不由这里做：生成结果照旧进 `useStudioGen` 的 `activeRun`。
        */
-      triggerGeneration: () => dispatch({ type: 'REQUEST_GENERATE' }),
+      triggerGeneration: (_request, owner) =>
+        dispatch({ type: 'REQUEST_GENERATE', owner }),
       /**
        * 助手给这一枪起的名字（切片 Y）—— 存进那只投递口，生成提交那一跳取走。
        * ⚠ ⛔ 不塞进表单：表单上没有「产物名」这一格，而且它属于**这一枪**
@@ -386,8 +421,15 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 所以撤销这一跳必须由客户端打一次（同 `deleteProjectRule` 的判据）。
        * ⚠ `void`：撤销是「交出去就不管」，`revertOperatorStep` 是同步纯函数。
        */
-      revertAssetWrite: (input) => {
-        void revertAssistantAssetWriteAPI(input)
+      deleteProjectRule: async ({ ruleId, kind }) => {
+        const result = await (kind === PROJECT_RULE_KIND_IDS.note
+          ? deleteAssistantMemoryAPI(ruleId)
+          : deleteProjectRuleAPI(ruleId))
+        return result.success
+      },
+      revertAssetWrite: async (input) => {
+        const result = await revertAssistantAssetWriteAPI(input)
+        return result !== null && result.skipped === 0
       },
       /**
        * ⛔ **工作台没有 `lora`**：`LoraStackProvider` 只包 `/studio/lora`，这里
@@ -395,7 +437,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。
        */
     }),
-    [dispatch, modelMemory, router, userUrl],
+    [dispatch, modelMemory, userUrl],
   )
 
   /**
@@ -427,16 +469,33 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
    * 长在面板里（`useStudioGenOptional()`），搬到宿主上是因为 LoRA 装配台也要有
    * 结果行卡，而那条路由拿不到 `useStudioGen`。
    */
-  const activeRun = useStudioGenOptional()?.activeRun
+  const rawActiveRun = useStudioGenOptional()?.activeRun
+  const activeRun = useMemo(
+    () =>
+      studioRunForWorkspace(rawActiveRun, {
+        outputType: state.outputType,
+        promptDialect: state.promptDialect,
+      }),
+    [rawActiveRun, state.outputType, state.promptDialect],
+  )
   const results = useMemo<readonly StudioOperatorResultItem[]>(
     () => toOperatorRunResults(activeRun?.items ?? []),
     [activeRun],
   )
 
   /** **这一批的在飞读数**（v2 §6.3）—— 结果卡的生成中态读它，见 `toOperatorResultRun`。 */
+  const { threadScope, localThreadId, pendingResultId } =
+    useStudioOperatorState()
   const resultRun = useMemo<StudioOperatorResultRun | undefined>(
-    () => toOperatorResultRun(activeRun?.items, results),
-    [activeRun, results],
+    () =>
+      threadScope && pendingResultId
+        ? toOperatorResultRun(activeRun?.items, results, {
+            threadScope,
+            localThreadId,
+            pendingResultId,
+          })
+        : undefined,
+    [activeRun, results, threadScope, localThreadId, pendingResultId],
   )
 
   /**
@@ -542,6 +601,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   return useMemo(
     () => ({
       domain,
+      workspace,
       face,
       buildSnapshot,
       apply,
@@ -557,6 +617,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       apply,
       buildSnapshot,
       domain,
+      workspace,
       face,
       generationControls,
       open,

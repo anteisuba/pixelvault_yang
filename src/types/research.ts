@@ -18,6 +18,11 @@ import {
 
 export const EvidenceSourceTierSchema = z.enum(EVIDENCE_SOURCE_TIER_VALUES)
 export const ResearchSourceIdSchema = z.enum(RESEARCH_SOURCE_ID_VALUES)
+export const EvidenceExcerptKindSchema = z.enum([
+  'answer_fragment',
+  'source_excerpt',
+  'none',
+])
 
 /**
  * 每条证据都带的四件事。
@@ -62,6 +67,7 @@ const EvidenceBaseSchema = z.object({
    * 的证据本那条路上分配。⛔ 别改成必填，那会让存量行读出来全被判非法。
    */
   ref: z.string().trim().regex(ASSISTANT_EVIDENCE_REF_PATTERN).optional(),
+  excerptKind: EvidenceExcerptKindSchema.optional(),
 })
 
 export const EvidenceTextItemSchema = EvidenceBaseSchema.extend({
@@ -153,6 +159,7 @@ export const ResearchSourceReceiptSchema = z.object({
   count: z.number().int().nonnegative(),
   tookMs: z.number().int().nonnegative(),
   error: z.string().max(400).optional(),
+  queries: z.array(z.string().max(1000)).max(20).optional(),
   /**
    * 走了退路的话如实标注。目前唯一的用例：B站搜索被 412 风控挡住后退到
    * Serper `site:bilibili.com`（`via:'serper-fallback'`）。

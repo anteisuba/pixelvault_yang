@@ -104,11 +104,12 @@ import {
   setOperatorPlannedSteps,
   startOperatorResumePlan,
   setOperatorStatus,
-  switchOperatorDomain,
+  useStudioOperatorState,
   takeOperatorQueue,
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
@@ -738,7 +739,9 @@ export interface UseAssistantOperatorResult {
   newThread(): void
 }
 
-export function useAssistantOperator(): UseAssistantOperatorResult {
+export function useAssistantOperator(
+  scope: string | null,
+): UseAssistantOperatorResult {
   /**
    * ⭐ **表单从宿主读、往宿主写**（P4-C）：工作台与 LoRA 装配台各给一份同形状的
    * 东西（`contexts/studio-operator-host.tsx`）。此前这里直接 `useStudioForm()`，
@@ -746,6 +749,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const host = useStudioOperatorHost()
   const { domain, buildSnapshot, setOpen } = host
+  const { localThreadId } = useStudioOperatorState()
+  const workspaceKey = assistantWorkspaceKey(host.workspace, host.projectId)
+  const isCurrentThread = useCallback(() => {
+    const current = getOperatorState()
+    return (
+      scope !== null &&
+      !current.readOnlyHistory &&
+      current.threadScope === scope &&
+      current.localThreadId === localThreadId
+    )
+  }, [scope, localThreadId])
   const applyContext = host.apply
   const locale = useLocale()
   const tError = useTranslations('StudioOperator.error')
@@ -785,30 +799,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const reviseRef = useRef(false)
 
-  /**
-   * 切模态 = 切域（拍板 8：**换工具，不断会话**）。
-   *
-   * 三件事，每一件都有具体的失败面：
-   *  ① **掐掉在飞的那一轮** —— 它读的是切走之前那份表单，继续跑下去会把上一个域
-   *    的结论应用到这个域的表单上（而线程里看起来一切正常）。
-   *  ② **状态回 idle** —— 流停在「等你选覆写」时切走，条子留在上一个域的槽里
-   *    （`confirm` 是分槽的），而全局状态若还写着 awaitingConfirm，胶囊会一直
-   *    显示「等你回答」，却没有任何地方能回答。
-   * 域标记与 `domain` 由 `switchOperatorDomain` 在同一次写入里落地。
-   */
-  useEffect(() => {
-    if (getOperatorState().domain === domain) return
-    abortRef.current?.abort()
-    abortRef.current = null
-    /**
-     * ④ **三张「等你定」的卡也一起扔**（切片 3a）：它们属于上一个域那一轮。
-     * 留着的表现最贵的是花钱卡 —— 它上面写的模型 / 张数来自切走之前那份表单，
-     * 在新域里点「生成」发出去的是一枪谁也没确认过的东西。
-     */
-    clearOperatorPrompts()
-    if (getOperatorState().status !== 'idle') setOperatorStatus('idle')
-    switchOperatorDomain(domain)
-  }, [domain])
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+      abortRef.current = null
+    },
+    [scope, localThreadId],
+  )
 
   /**
    * 「再跑一轮」的自引用口。
@@ -866,10 +863,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const run = useCallback(
     async (options: RunOptions = {}) => {
+      if (!isCurrentThread() || !workspaceKey) return
       const { confirmations, planAnswers, planApproved, resumeFrom } = options
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
+      const isCurrentRun = () => !controller.signal.aborted && isCurrentThread()
 
       /**
        * ⚠ ⛔ **不清确认卡**（v2 §3.2 进离场表）：它确认 / 取消之后就地换态留在
@@ -916,6 +915,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * ⛔ `stopped` / 报错那两支不置：那正是续跑存在的理由。
        */
       let roundFinished = false
+      let terminalReceived = false
+      let runFailed = false
       let canvasSync = false
       let canvasApplied = false
       let canvasNeedsInputSync = false
@@ -975,12 +976,15 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         clearTimeout(pendingStepTimer)
         pendingStepTimer = null
       }
+      controller.signal.addEventListener('abort', cancelPendingAfterStep, {
+        once: true,
+      })
       const schedulePendingAfterStep = () => {
         cancelPendingAfterStep()
         pendingStepTimer = setTimeout(() => {
           pendingStepTimer = null
           // 这一轮已经停了（收尾 / 出错 / 等你定）就没有「它马上要说话」可言。
-          if (getOperatorState().status !== 'working') return
+          if (!isCurrentRun() || getOperatorState().status !== 'working') return
           /**
            * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身已经写完了，
            * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」。
@@ -1027,6 +1031,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         setOperatorCapturingFrames(true)
         try {
           const captured = await captureVideoEndpointFrames(videoSourceUrl)
+          if (!isCurrentRun()) return
           if (captured.ok) {
             videoFrames = {
               sourceUrl: videoSourceUrl,
@@ -1042,10 +1047,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             })
           }
         } finally {
-          setOperatorCapturingFrames(false)
+          if (isCurrentRun()) setOperatorCapturingFrames(false)
         }
         // 抽帧那几秒里用户可能已经按了 ⏹ / 插了话 —— 那一轮已经不是这一轮了。
-        if (controller.signal.aborted) return
+        if (!isCurrentRun()) return
       }
 
       const snapshot = buildSnapshot()
@@ -1070,6 +1075,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               label,
             })),
           domain,
+          workspaceKey,
           snapshot,
           ...(domain === 'canvas'
             ? {
@@ -1129,6 +1135,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         { signal: controller.signal },
       )
 
+      if (!isCurrentRun()) return
       if (!result.success) {
         cancelPendingAfterStep()
         dropOperatorPending(messageEntryId())
@@ -1145,7 +1152,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
       try {
         for await (const event of result.events) {
-          if (controller.signal.aborted) break
+          if (!isCurrentRun()) break
           /**
            * ⚠ **下一帧一到就把占位行的闸撤掉**：连着跑的工具步之间不许闪一行
            * 三点（见 `schedulePendingAfterStep` 头注）。已经挂出去的那条不在这里
@@ -1411,13 +1418,22 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 id: `${continuationPrefix}${event.step.id}`,
               }
               upsertOperatorStep(step, runKey)
+              const resume = getOperatorState().resume
+              const matchingSteps = resume?.steps.filter(
+                (item) => item.label === step.title,
+              )
+              const resumeStepId =
+                matchingSteps?.length === 1
+                  ? matchingSteps[0].id
+                  : resume
+                    ? firstUnfinishedStepId(resume)
+                    : null
               /**
                * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里第一个
                * 还没有结论的那一格填掉。
                *
-               * ⚠ 映射按「第一个未完成」而不是按下标（见 `firstUnfinishedStepId`
-               * 的头注）：工具步与计划步不是一一对应的，按下标配的表现是模型多跑
-               * 一步、后面每一格的状态错位一整格。
+               * 同名且唯一的计划项优先；重做已完成项不能勾掉后面的失败项。
+               * 没有明确对应项时才取第一个未完成项。
                * ⚠ `running` 不落：三态里没有那一档，落了它刷新之后会变成一句
                *   「这一步做完了」——而它并没有。
                */
@@ -1432,10 +1448,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   )
                 )
               ) {
-                const resume = getOperatorState().resume
-                const resumeStepId = resume
-                  ? firstUnfinishedStepId(resume)
-                  : null
                 if (resumeStepId) {
                   if (
                     step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
@@ -1477,12 +1489,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                       ? ASSISTANT_OPERATOR_REJECT_REASON_IDS.referenceInputsChanged
                       : ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl
                     const detail = applyContext.canvas?.getApplyError?.()
-                    const resume = getOperatorState().resume
-                    const resumeStep = resume?.steps.findLast(
-                      (item) => item.state === 'done',
-                    )
-                    if (resumeStep)
-                      markOperatorResumeStep(resumeStep.id, {
+                    if (resumeStepId)
+                      markOperatorResumeStep(resumeStepId, {
                         state: 'failed',
                         reason: detail ?? reason,
                       })
@@ -1608,6 +1616,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * 完全不同（见 `StudioOperatorStatus` 的头注）。
              */
             case ASSISTANT_OPERATOR_EVENTS.stopped: {
+              terminalReceived = true
               if (
                 domain === 'canvas' &&
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
@@ -1644,6 +1653,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * 三栏全空的分隔块，那讲的是零。
              */
             case ASSISTANT_OPERATOR_EVENTS.done:
+              terminalReceived = true
               if (event.roundSummary) {
                 appendOperatorRoundSummary(event.roundSummary)
               }
@@ -1651,6 +1661,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               roundFinished = true
               break
             case ASSISTANT_OPERATOR_EVENTS.error:
+              terminalReceived = true
+              runFailed = true
               setOperatorStatus(
                 'error',
                 describeError(event),
@@ -1660,8 +1672,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             default:
               break
           }
+          if (runFailed) break
         }
       } catch {
+        if (!isCurrentRun()) return
         // 攒着的那份计划比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
         cancelPendingAfterStep()
         flushPlanEntry()
@@ -1679,11 +1693,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         return
       }
 
+      if (!isCurrentRun()) return
       cancelPendingAfterStep()
       flushPlanEntry()
       dropOperatorPending(messageEntryId())
       settleOperatorStreaming()
       if (controller.signal.aborted) return
+      if (runFailed) return
+      if (!terminalReceived) {
+        setOperatorStatus('error', tError('streamInterrupted'))
+        return
+      }
       if (
         canvasSync &&
         canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
@@ -1708,6 +1728,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        */
       const waiting = getOperatorState()
       if (
+        waiting.status === 'awaitingConfirm' &&
         waiting.autoGenerate &&
         waiting.confirm?.kind ===
           ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
@@ -1776,6 +1797,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       domain,
       flushQueue,
       locale,
+      tError,
+      isCurrentThread,
+      workspaceKey,
     ],
   )
 
@@ -1792,6 +1816,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   const send = useCallback(
     (text: string, attachments: readonly StudioOperatorAttachment[] = []) => {
+      if (!isCurrentThread()) return
       const trimmed = text.trim()
       if (!trimmed) return
       /**
@@ -1832,7 +1857,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       reviseRef.current = false
       void run(revising ? { planApproved: false } : {})
     },
-    [flushQueue, run],
+    [flushQueue, run, isCurrentThread],
   )
 
   /**
@@ -1841,19 +1866,24 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * ⚠ 线程里**要留一行**：排队条淡出而什么都没说，用户下一秒就会怀疑自己到底
    * 撤没撤掉（而这句话本来是要花钱的）。
    */
-  const cancelQueued = useCallback((id: string) => {
-    const target = getOperatorState().queue.find((item) => item.id === id)
-    if (!target) return
-    removeOperatorQueued(id)
-    appendOperatorEntry({
-      kind: 'system',
-      id: nextOperatorEntryId('sys'),
-      code: 'queueDropped',
-      subject: target.text.slice(0, ASSISTANT_OPERATOR_LIMITS.maxTitleChars),
-    })
-  }, [])
+  const cancelQueued = useCallback(
+    (id: string) => {
+      if (!isCurrentThread()) return
+      const target = getOperatorState().queue.find((item) => item.id === id)
+      if (!target) return
+      removeOperatorQueued(id)
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'queueDropped',
+        subject: target.text.slice(0, ASSISTANT_OPERATOR_LIMITS.maxTitleChars),
+      })
+    },
+    [isCurrentThread],
+  )
 
   const stop = useCallback(() => {
+    if (!isCurrentThread()) return
     abortRef.current?.abort()
     abortRef.current = null
     setOperatorStatus('idle')
@@ -1873,7 +1903,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       id: nextOperatorEntryId('sys'),
       code: 'stopped',
     })
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * **问题卡答复**（v2 §3.4 落账规则）—— 三条路一个入口。
@@ -1986,6 +2016,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         choice?: AssistantOperatorConfirmChoice
       },
     ) => {
+      if (!isCurrentThread()) return
       const prompt = getOperatorState().question
       if (!prompt) return
       /**
@@ -2127,7 +2158,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         planApproved: true,
       })
     },
-    [run],
+    [run, applyOverwriteChoice, isCurrentThread],
   )
 
   /**
@@ -2138,10 +2169,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 什么都不会发生。
    */
   const goBackQuestion = useCallback(() => {
+    if (!isCurrentThread()) return
     const prompt = getOperatorState().question
     if (!prompt || prompt.answers.length === 0) return
     setOperatorQuestion({ ...prompt, answers: prompt.answers.slice(0, -1) })
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * **Esc 收起问题块**（56b 切片 4）—— 这一组题就此作废，输入框回到普通发言。
@@ -2150,8 +2182,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 只关心那一半。⛔ 不落任何系统行 —— 什么都没定下来。
    */
   const dismissQuestion = useCallback(() => {
+    if (!isCurrentThread()) return
     setOperatorQuestion(null)
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * **多步确认卡「开始」**（§3.3）—— 带 `planApproved: true` 重发。
@@ -2162,6 +2195,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 再从头跑一遍。
    */
   const approvePlan = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2182,7 +2216,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
     setOperatorConfirm(null)
     void run({ planApproved: true })
-  }, [run])
+  }, [run, isCurrentThread])
 
   /**
    * **多步确认卡「一步一步来」**（§3.3 第二颗按钮）—— ⛔ **不发请求**。
@@ -2194,6 +2228,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 走 —— ⛔ 别顺手替用户发出去：他还没写要怎么拆。
    */
   const declinePlan = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2204,16 +2239,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
     reviseRef.current = true
     setOperatorStatus('idle')
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * 计划「修改」（§3.1 ⑤）—— ⛔ **不发请求**，只记下「下一条消息是一次改计划」。
    */
   const revisePlan = useCallback(() => {
+    if (!isCurrentThread()) return
     if (!getOperatorState().confirm) return
     reviseRef.current = true
     setOperatorStatus('idle')
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * **生成确认卡「确认生成」**（v2 §3.3 / §5）。
@@ -2243,6 +2279,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       value: string,
       record: boolean,
     ): readonly StudioOperatorGenerateKnob[] => {
+      if (!isCurrentThread()) return []
       const controls = host.generationControls
       if (!controls) return []
       const advancedParams = applyContext.getState().advancedParams
@@ -2273,7 +2310,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       }
       return adjusted
     },
-    [applyContext, domain, host.generationControls, tConfirm],
+    [applyContext, domain, host.generationControls, tConfirm, isCurrentThread],
   )
   const adjustGeneration = useCallback(
     (knob: StudioOperatorGenerateKnob, value: string) =>
@@ -2293,6 +2330,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   const confirmGeneration = useCallback(
     (options: { auto?: boolean } = {}) => {
+      if (!isCurrentThread()) return
       const confirm = getOperatorState().confirm
       if (
         !confirm ||
@@ -2338,25 +2376,32 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             },
           }
         : confirm.request
-      applyContext.triggerGeneration?.(request)
       /**
        * **生成中那张结果卡就地落进时间线**（v2 §6.3，commit #10）。
        *
-       * ⭐ 落在扣扳机**之后**、而且用的是刚刚拼出来的那份 `request`：卡上写的张数
+       * ⭐ 用的是刚刚拼出来的那份 `request`：卡上写的张数
        * 与真的发出去的那一枪逐字同源（判据与上面那段头注同一条）。⛔ 别等结果回来
        * 才落卡 —— 图片档一批四张要跑几十秒，这几十秒里时间线上什么都没有，
        * 用户不知道自己刚才那一下点没点上。
        * ⚠ 张数与缩略图由宿主回流往这条上写（`use-studio-operator-results.ts`），
        *   这里一个数都不猜。
        */
+      const pendingResultId = nextOperatorEntryId('result')
+      const threadScope = getOperatorState().threadScope
+      if (!threadScope) return
       appendOperatorPendingResult({
-        id: nextOperatorEntryId('result'),
+        id: pendingResultId,
         total: request.count,
         ...(request.label ? { summary: request.label } : {}),
         request,
       })
+      applyContext.triggerGeneration?.(request, {
+        threadScope,
+        localThreadId,
+        pendingResultId,
+      })
     },
-    [applyContext, host.generationControls],
+    [applyContext, host.generationControls, isCurrentThread, localThreadId],
   )
 
   /**
@@ -2372,6 +2417,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * ⚠ 失败**不静默**：卡转回 `idle`（用户可以再点一次），时间线上说一句。
    */
   const saveContextCard = useCallback(async () => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2395,6 +2441,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           pinnedScopes: [],
           status: CONTEXT_CARD_STATUS_IDS.confirmed,
         })
+    if (!isCurrentThread()) return
     if (!result.success) {
       // ⛔ 不静默：用户以为已经记下了，而库里那一行还停在「待确认」。
       setOperatorConfirm({
@@ -2425,7 +2472,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         OPERATOR_CONTEXT_CARD_CHOICE_IDS.save,
       ),
     })
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * **「不用」**（§8.1）—— 卡收成「已取消」，那一行 `proposed` **真删**。
@@ -2435,6 +2482,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    *   ⛔ 那一行最坏就是留在待确认区里，他在那儿还能再删一次。
    */
   const dismissContextCard = useCallback(async () => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2460,7 +2508,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       ),
     })
     if (confirm.cardId) await deleteContextCardAPI(confirm.cardId)
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * 设定提议卡那一下的**落账两件套**（判据与 `contextCardDecision` 逐字同源）：一条
@@ -2494,6 +2542,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   const keepCharacterProfile = useCallback(
     async (fields: readonly AssistantOperatorCharacterProfileFieldDraft[]) => {
+      if (!isCurrentThread()) return
       const confirm = getOperatorState().confirm
       if (
         !confirm ||
@@ -2511,6 +2560,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             fields.map((item) => ({ field: item.field, text: item.text })),
           )
         : false
+      if (!isCurrentThread()) return
       const decision = characterProfileDecision(
         confirm.profile.characterId,
         fields,
@@ -2545,10 +2595,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         answered: decision.answered,
       })
     },
-    [applyContext, characterProfileDecision],
+    [applyContext, characterProfileDecision, isCurrentThread],
   )
 
   const dismissCharacterProfile = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2568,7 +2619,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       userText: decision.userText,
       answered: decision.answered,
     })
-  }, [characterProfileDecision])
+  }, [characterProfileDecision, isCurrentThread])
 
   /** 这一页上这位角色叫什么（查不到退回 id）。 */
   const characterName = useCallback(
@@ -2604,6 +2655,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   const keepCharacterImages = useCallback(
     async (keys: readonly string[]) => {
+      if (!isCurrentThread()) return
       const confirm = getOperatorState().confirm
       if (
         !confirm ||
@@ -2646,10 +2698,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           }),
         )
       ).filter((image) => image !== null)
+      if (!isCurrentThread()) return
       const attached =
         ready.length && applyContext.cards
           ? await applyContext.cards.attachImages(characterId, ready)
           : null
+      if (!isCurrentThread()) return
       if (!attached) {
         // ⛔ 不静默：卡回到 idle，可以再点一次。
         setOperatorConfirm({
@@ -2686,10 +2740,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         answered: decision.answered,
       })
     },
-    [applyContext, characterImagesDecision, characterName],
+    [applyContext, characterImagesDecision, characterName, isCurrentThread],
   )
 
   const dismissCharacterImages = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2714,11 +2769,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       userText: decision.userText,
       answered: decision.answered,
     })
-  }, [characterImagesDecision])
+  }, [characterImagesDecision, isCurrentThread])
 
   /** 交给图片助手那一下（C3）：两颗键都落账，模型下一轮知道用户怎么定的。 */
   const decideImageHandoff = useCallback(
     (accepted: boolean) => {
+      if (!isCurrentThread()) return
       const confirm = getOperatorState().confirm
       if (
         !confirm ||
@@ -2753,7 +2809,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       if (accepted)
         applyContext.cards?.handOffToImageAssistant(characterId, request)
     },
-    [applyContext, characterName],
+    [applyContext, characterName, isCurrentThread],
   )
   const acceptImageHandoff = useCallback(
     () => decideImageHandoff(true),
@@ -2780,6 +2836,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    *   最新快照与这一行账进下一轮。
    */
   const applyLoraSetup = useCallback(async () => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2919,6 +2976,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       } catch (error) {
         if (error instanceof Error) detail = error.message
       }
+      if (!isCurrentThread()) return
       if (mounted) {
         // ⚠ 挂载那一跳已经由上面的 `lora.mount` 做完 —— 这里只落步与账，⛔ 不经
         //   `land`（它会再 `applyOperatorStep` 一次，等于挂两遍）。
@@ -2968,10 +3026,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         OPERATOR_LORA_SETUP_CHOICE_IDS.apply,
       ),
     })
-  }, [applyContext, buildSnapshot])
+  }, [applyContext, buildSnapshot, isCurrentThread])
 
   /** **搭配卡「先不用」** —— ⛔ 什么都不动、不发请求，但**落账**（同推荐卡）。 */
   const dismissLoraSetup = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -2992,7 +3051,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         OPERATOR_LORA_SETUP_CHOICE_IDS.dismiss,
       ),
     })
-  }, [])
+  }, [isCurrentThread])
 
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
   useEffect(() => {
@@ -3003,9 +3062,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   }, [confirmGeneration])
 
   const cancelGeneration = useCallback(() => {
+    if (!isCurrentThread()) return
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
     setOperatorStatus('idle')
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * 「已取消」那一态上的**再来一次**（画板 BCards「已取消 · 11:22」）。
@@ -3014,6 +3074,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 不回退）：这一次确认与上一次是两件事，时刻也该重新记。
    */
   const retryGeneration = useCallback(() => {
+    if (!isCurrentThread()) return
     const confirm = getOperatorState().confirm
     if (
       !confirm ||
@@ -3028,7 +3089,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       request: confirm.request,
       status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
     })
-  }, [])
+  }, [isCurrentThread])
 
   /**
    * 结果卡上的**「再来一组」**（v2 §6.2 第一行）。
@@ -3041,6 +3102,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const rerunGeneration = useCallback(
     (request: AssistantOperatorGenerationRequest) => {
+      if (!isCurrentThread()) return
       setOperatorConfirm({
         id: nextOperatorEntryId('confirm'),
         kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
@@ -3048,7 +3110,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
       })
     },
-    [],
+    [isCurrentThread],
   )
 
   /**
@@ -3062,21 +3124,30 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 照钉。判据不在这里，在服务端的工具表 —— 这里连「这一步要不要花钱」都不知道。
    */
   const resumePlan = useCallback(() => {
+    if (!isCurrentThread()) return
     const resume = getOperatorState().resume
     if (!resume) return
     const resumeFrom = toResumeFrom(resume)
     // ⚠ 一步都没做完 = 这不是续跑而是重跑，⛔ 别发一份服务端会拒的空清单。
     if (!resumeFrom) return
     void run({ resumeFrom, planApproved: true })
-  }, [run])
+  }, [run, isCurrentThread])
 
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const newThread = useCallback(() => {
+    const current = getOperatorState()
+    if (
+      !scope ||
+      current.threadScope !== scope ||
+      current.localThreadId !== localThreadId
+    )
+      return
+    abortRef.current?.abort()
     resetOperatorThread()
-  }, [])
+  }, [scope, localThreadId])
 
   return {
     domain,

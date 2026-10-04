@@ -15,6 +15,7 @@ interface AssistantConversationEntry {
 
 interface CompleteAssistantTextOptions {
   systemPrompt: string
+  signal?: AbortSignal
   buildUserPrompt(maxLength?: number): string
   route: ResolvedLlmTextRoute
   contextCompactionTargetLength: number
@@ -125,6 +126,7 @@ export function buildAssistantConversation(
  */
 export async function completeAssistantTextWithContextRetry({
   systemPrompt,
+  signal,
   buildUserPrompt,
   route,
   contextCompactionTargetLength,
@@ -137,9 +139,11 @@ export async function completeAssistantTextWithContextRetry({
   responseFormat,
   jsonSchema,
 }: CompleteAssistantTextOptions): Promise<string> {
+  signal?.throwIfAborted()
   const complete = (userPrompt: string) =>
     llmTextCompletion({
       systemPrompt,
+      signal,
       userPrompt,
       modelId,
       imageData,
@@ -158,13 +162,19 @@ export async function completeAssistantTextWithContextRetry({
 
   const fullPrompt = buildUserPrompt()
   try {
-    return await complete(fullPrompt)
+    const result = await complete(fullPrompt)
+    signal?.throwIfAborted()
+    return result
   } catch (error) {
+    signal?.throwIfAborted()
     if (!isLlmTextContextLimitError(error)) throw error
 
     const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
     if (compactedPrompt === fullPrompt) throw error
-    return complete(compactedPrompt)
+    signal?.throwIfAborted()
+    const result = await complete(compactedPrompt)
+    signal?.throwIfAborted()
+    return result
   }
 }
 
@@ -178,6 +188,7 @@ export async function completeAssistantTextWithContextRetry({
  */
 export async function* streamAssistantTextWithContextRetry({
   systemPrompt,
+  signal,
   buildUserPrompt,
   route,
   contextCompactionTargetLength,
@@ -190,9 +201,11 @@ export async function* streamAssistantTextWithContextRetry({
   responseFormat,
   jsonSchema,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
+  signal?.throwIfAborted()
   const stream = (userPrompt: string) =>
     llmTextStream({
       systemPrompt,
+      signal,
       userPrompt,
       modelId,
       imageData,
@@ -214,15 +227,23 @@ export async function* streamAssistantTextWithContextRetry({
 
   try {
     for await (const chunk of stream(fullPrompt)) {
+      signal?.throwIfAborted()
       emittedText = true
       yield chunk
     }
+    signal?.throwIfAborted()
     return
   } catch (error) {
+    signal?.throwIfAborted()
     if (emittedText || !isLlmTextContextLimitError(error)) throw error
 
     const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
     if (compactedPrompt === fullPrompt) throw error
-    yield* stream(compactedPrompt)
+    signal?.throwIfAborted()
+    for await (const chunk of stream(compactedPrompt)) {
+      signal?.throwIfAborted()
+      yield chunk
+    }
+    signal?.throwIfAborted()
   }
 }

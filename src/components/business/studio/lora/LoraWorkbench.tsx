@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useUser } from '@clerk/nextjs'
 import {
   AnimatePresence,
   motion,
@@ -198,7 +199,6 @@ import {
   getMaxReferenceImages,
   type NumericRange,
 } from '@/constants/provider-capabilities'
-import { adapterHasCapability } from '@/constants/llm-capability'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useImageUpload } from '@/hooks/use-image-upload'
@@ -208,12 +208,11 @@ import {
 } from '@/hooks/use-lora-operator-host'
 import { useLoraLibraryFilterSnapshot } from '@/hooks/use-civitai-lora-library-url'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
-import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
+import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
-import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import {
   LoraCollocationBar,
@@ -228,10 +227,8 @@ import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
   StudioChipLookProvider,
-  studioChipActiveClass,
   studioOutlineChipClass,
   studioOutlineChipSetClass,
-  studioToolTriggerClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import {
   buildSavedModelOptionsForModels,
@@ -253,23 +250,17 @@ import {
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { hasVerifiedLoraTrigger } from '@/lib/lora-trigger-clean'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
-import type { AssistantWorkbenchState, LoraAssistantMount } from '@/types'
 import { cn } from '@/lib/utils'
 
 import '@/app/lora.css'
 
 export function LoraWorkbench() {
   const t = useTranslations('LoraWorkbench')
-  const tStudioV2 = useTranslations('StudioV2')
-  // 助手开关在 root（手机那颗按钮在卡内页头），面板本体挂在 GenerateBranch 里
-  // ——那里才有 persona 上下文。
   const [assistantOpen, setAssistantOpen] = useState(false)
   /**
    * 两套骨架按断点二选一（lora-generate.md §2 / §6）：≥1024 是生成台 B（顶上一行
    * + 舞台白卡 + 输入框白卡，与图片台同一副外壳）；<1024 仍是 09-03 的单卡形态
    * （卡内页头 + 结果流 + 输入条，装配在抽屉里）。
-   * ⚠ 手机上桌面那颗助手头像不存在（`StudioOperatorDock` 在 `isMobile` 时自己
-   * `return null`），卡内页头那颗「助手」按钮是唯一入口，必须留着。
    */
   const isMobile = useIsMobile()
   const router = useRouter()
@@ -577,22 +568,6 @@ export function LoraWorkbench() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            {isGenerate ? (
-              <button
-                type="button"
-                aria-label={tStudioV2('enhance')}
-                aria-pressed={assistantOpen}
-                onClick={() => setAssistantOpen((prev) => !prev)}
-                className={cn(
-                  studioToolTriggerClass,
-                  'ml-auto h-8 shrink-0 px-3 text-xs',
-                  assistantOpen && studioChipActiveClass,
-                )}
-              >
-                <Bot className="size-3.5" aria-hidden />
-                {tStudioV2('enhance')}
-              </button>
-            ) : null}
           </div>
 
           <div
@@ -778,6 +753,7 @@ function GenerateBranch({
   onReturnToGenerate,
   onOpenLibrary,
 }: GenerateBranchProps) {
+  const { user } = useUser()
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
   const router = useRouter()
@@ -787,8 +763,6 @@ function GenerateBranch({
   // 输入框里的参考图条（与图片台同一套文案）。
   const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
-  // B 稿：助手图标钮已挪到 root 的卡内页头 bar（那边持有 assistantOpen state
-  // 和自己的 tStudioV2），composer 里不再需要这份文案，本地这份已删。
   const stack = useActiveLoraStack()
   const {
     generate,
@@ -1419,7 +1393,9 @@ function GenerateBranch({
   // imageUpload 在 GenerateBranch own（不是各 chip 各持一份），这样
   // handleGenerate 能读到启用的参考图 URL；chip 是否渲染 / 上限全由底模
   // 能力位数据驱动（FLUX_LORA maxReferenceImages=1；不支持的底模为 0）。
-  const imageUpload = useImageUpload()
+  const imageUpload = useImageUpload({
+    scopeKey: JSON.stringify([user?.id ?? null, 'lora']),
+  })
   // 输入框里那排参考图收起的那一拍还画着上一排（开合成对，与「触发词 ＋词」同一套）。
   // 按内容记（换了哪几张才记），⛔ 按引用 —— 引用不稳时会每一拍都重记。
   const referenceKey = imageUpload.referenceEntries
@@ -1429,6 +1405,15 @@ function GenerateBranch({
     key: '',
     entries: imageUpload.referenceEntries,
   })
+  const referenceOwner = useRef(user?.id ?? null)
+  const clearReferences = imageUpload.clearAllImages
+  useLayoutEffect(() => {
+    const owner = user?.id ?? null
+    if (referenceOwner.current === owner) return
+    referenceOwner.current = owner
+    clearReferences()
+    setLastReferences({ key: '', entries: [] })
+  }, [clearReferences, user?.id])
   if (
     imageUpload.referenceEntries.length > 0 &&
     referenceKey !== lastReferences.key
@@ -1682,20 +1667,6 @@ function GenerateBranch({
   // 一层，因为落台那一刻要能替用户把卡摊开。
   const [collocationPending, setCollocationPending] = useState(false)
   const [collocationExpanded, setCollocationExpanded] = useState(false)
-  // CD①：助手建议走同一条审阅通道。自带快照（撤销要能整批回滚到建议之前）
-  // 与真 diff（追加了哪些词 / 负向 from→to），不复用 appliedRecipe 那套
-  // ——它绑的是 CivitaiImageRecipe，硬塞会把「来源配方」的语义搞浑。
-  const [assistantStaged, setAssistantStaged] = useState<{
-    snapshot: {
-      prompt: string
-      negativePrompt: string
-      negativePromptExpanded: boolean
-    }
-    addedTags: string[]
-    negativeFrom: string
-    negativeTo: string
-  } | null>(null)
-
   const handleApplyPendingCollocation = useCallback(() => {
     setCollocationPending(false)
     setCollocationExpanded(false)
@@ -1842,36 +1813,6 @@ function GenerateBranch({
     setCollocationExpanded(false)
   }, [appliedRecipe, stack])
 
-  // CD①：撤销要按「当前搭配条讲的是谁」分派——助手建议在场就回滚助手那份
-  // 快照（正文 + 负向），否则走做同款的整批回滚。
-  const handleUndoCollocation = useCallback(() => {
-    if (assistantStaged) {
-      setPrompt(assistantStaged.snapshot.prompt)
-      setNegativePrompt(assistantStaged.snapshot.negativePrompt)
-      setNegativePromptExpanded(assistantStaged.snapshot.negativePromptExpanded)
-      setAssistantStaged(null)
-      setCollocationPending(false)
-      setCollocationExpanded(false)
-      return
-    }
-    handleUndoRecipe()
-  }, [assistantStaged, handleUndoRecipe])
-
-  // 助手建议的「参数」行只有负向框一项（正向走 addedPromptTags）；负向没被
-  // 改动就不出这一行，不造假 diff。
-  const assistantNegativeChange = useMemo(() => {
-    if (!assistantStaged) return []
-    const { negativeFrom, negativeTo } = assistantStaged
-    if (negativeFrom.trim() === negativeTo.trim()) return []
-    return [
-      {
-        label: t('generate.negativePromptLabel'),
-        from: negativeFrom.trim() || t('generate.collocation.emptyValue'),
-        to: negativeTo.trim() || t('generate.collocation.emptyValue'),
-      },
-    ]
-  }, [assistantStaged, t])
-
   // G3b-2b：仅当 appliedRecipe 的来源分组仍挂载时才算「已应用」（卸载后失效，
   // 与生成侧 activeAppliedRecipe 同判据）——搭配状态条据此显示「已应用/撤销」。
   const collocationRecipe =
@@ -1964,93 +1905,6 @@ function GenerateBranch({
   // 两套骨架的分界（≥1024 生成台 B / <1024 手机单卡），与 root 同一个判据。
   const isMobile = useIsMobile()
 
-  // 桌面：助手打开 = 工作台让位（§2.5，root 绑让位量），⛔ 不再盖在正文上。
-  //
-  // ── ⚠ P4-C：桌面换操作员，**小屏仍走旧面板** ───────────────────────────
-  // `StudioOperatorDock` 在 `isMobile` 时 `return null`（它没有小屏宿主，工作台
-  // 那边小屏走的也是 `StudioEnhanceButton` 里的抽屉）。所以装配台这边保留
-  // `LoraAssistantDock` 的**移动端那一支**，并把它整颗按 `isMobile` 关掉
-  // ——两颗面板因此**永不同屏**（一个只在小屏、一个只在桌面），⛔ 不是并存。
-  // ⛔ 直接删掉旧 dock 的代价是小屏上装配台**整个没有助手**，那是功能回退不是清理。
-  // 下面这几份打包件因此还活着：它们只服务小屏那一支。
-  const assistantMounts = useMemo<LoraAssistantMount[]>(
-    () =>
-      stack.items.map((item) => ({
-        name: item.asset.name,
-        triggerWords: item.asset.triggerWord?.trim()
-          ? [item.asset.triggerWord.trim()]
-          : [],
-        family: item.asset.baseModelFamily ?? undefined,
-      })),
-    [stack.items],
-  )
-  const assistantTrayTags = useMemo(
-    () =>
-      [...promptTags.positive, ...promptTags.negative]
-        .filter((selection) => selection.enabled)
-        .map((selection) => selection.promptText),
-    [promptTags.positive, promptTags.negative],
-  )
-  // §3.0b：旧面板看不见左边这张装配台——不喂状态它就只能反问用户已经填好的底模 /
-  // 挂载 / 比例（owner 实测过三次同一个发作）。这里把「屏幕上已经写着的事实」原样
-  // 打包发出去。⚠ 操作员**不读它**：那一侧每一轮现读快照
-  // （`useLoraOperatorHost.buildSnapshot`），⛔ 别把两者接成一份。
-  //
-  // ⚠ 拿不到的字段一律留 undefined，**不塞占位值**：formatter 对 undefined 会
-  //   照实沉默，对占位值会当真并拿它去解释画面。本域两条明确的空缺——
-  //   - `lastRun`：LoRA 域没有 activeRun 那套批次追踪，无从填起；
-  //   - `output.batchCount`：本域是单次出图，压根没有张数字段。
-  const assistantReferenceImageCount = imageUpload.referenceImages.length
-  const assistantWorkbenchState = useMemo<AssistantWorkbenchState>(
-    () => ({
-      prompt,
-      negativePrompt,
-      // 本域的「模型」就是底模。给出显式布尔，助手才说得出「你还没选底模」——
-      // 只传 undefined 的话「没选」和「选了但没细节」在下游是同一种沉默。
-      modelSelected: !!selectedBase,
-      output: { aspectRatio },
-      loraMounts: stack.items.map((entry) => ({
-        name: entry.asset.name,
-        type: entry.asset.type,
-        // asset 上的触发词是单数字符串，契约要数组；schema 不收空串元素，
-        // 所以按有/无折成 1 或 0 个元素，而不是塞一个空字符串进去。
-        // `?.` 不是多余：栈条目从 localStorage 读回时只过 isValidEntry（只验
-        // `asset` 存在，不验字段），旧版写下的记录可能压根没有 triggerWord，
-        // 直接 .trim() 会整页崩。上面 assistantMounts 同源同写法。
-        triggerWords: entry.asset.triggerWord?.trim()
-          ? [entry.asset.triggerWord.trim()]
-          : [],
-        // 条目没写 scale = 沿用资产默认值，与 handleGenerate 的取值口径一致；
-        // 两处不一致的话助手解释的权重会跟真正发出去的对不上。
-        scale: entry.scale ?? entry.asset.defaultScale,
-        // 缺省视为启用（见 use-active-lora-stack 的 StoredEntry.enabled 注）。
-        // 停用的必须如实标出，否则助手会把没生效的 LoRA 算进画面归因。
-        enabled: entry.enabled !== false,
-        family: entry.asset.baseModelFamily,
-      })),
-      baseModelFamily: selectedBase?.family,
-      baseModelLabel: selectedBase?.displayName,
-      referenceImageCount: assistantReferenceImageCount,
-    }),
-    [
-      aspectRatio,
-      assistantReferenceImageCount,
-      negativePrompt,
-      prompt,
-      selectedBase,
-      stack.items,
-    ],
-  )
-  const assistantApiKeys = useMemo(
-    () =>
-      keys
-        .filter(
-          (key) =>
-            key.isActive && adapterHasCapability(key.adapterType, 'enhance'),
-        )
-        .map((key) => ({ id: key.id, label: key.label || key.adapterType })),
-    [keys],
-  )
   const handleAssistantAppendPrompt = useCallback((text: string) => {
     setPrompt((prev) => appendPromptFragments(prev, text))
   }, [])
@@ -2063,15 +1917,6 @@ function GenerateBranch({
     setNegativePrompt(text)
     setNegativePromptExpanded(true)
   }, [])
-  const handleAssistantAppendNegative = useCallback((text: string) => {
-    setNegativePrompt((prev) => appendPromptFragments(prev, text))
-    setNegativePromptExpanded(true)
-  }, [])
-  const handleAssistantEscapeToSelfBuild = useCallback(() => {
-    // 词库（LoraTagPicker）已从生成页移除，待迁入助手（owner 2026-07-24）；
-    // 迁入前「自己搭配」escape 暂为空操作。
-  }, [])
-
   /**
    * 操作员在**装配台**这个宿主上的那一份（P4-C）。
    *
@@ -2145,7 +1990,9 @@ function GenerateBranch({
   // 库页现在的排序 / 分级 / 类型 —— 进助手快照，它照同一组条件当面搜（lora-assistant §13）。
   const libraryFilters = useLoraLibraryFilterSnapshot()
   // 助手那一枪按的就是这颗出图键 —— `handleGenerateClick` 定义在下面，走 ref。
-  const generateClickRef = useRef<() => void>(() => {})
+  const generateClickRef = useRef<(owner?: StudioOperatorResultOwner) => void>(
+    () => {},
+  )
   const assistantGenerateBlockedReason =
     isGenerating || isMountingExtras
       ? t('generate.assistantBusy')
@@ -2201,7 +2048,7 @@ function GenerateBranch({
     imageUpload,
     results: operatorResults,
     generate: {
-      run: () => generateClickRef.current(),
+      run: (owner) => generateClickRef.current(owner),
       blockedReason: assistantGenerateBlockedReason,
     },
     activeRun,
@@ -2215,41 +2062,6 @@ function GenerateBranch({
     setOpen: onAssistantOpenChange,
   })
 
-  // CD①「加入搭配提醒」：旧面板的建议不直接落进输入框，而是与做同款走同一条
-  // 审阅通道——先写进主台，同时进「待审阅」并摊开变更卡，用户点应用才收敛、
-  // 点撤销整批回滚。正向追加（不覆盖用户已写的正文）、负向填入（负向框内容
-  // 是模板化的，覆盖比追加更符合预期，与既有 onUseNegativePrompt 一致）。
-  //
-  // ⚠ **操作员不走这条**（P4-C）：它的每一处改动自带 `inverse`，撤销粒度在登记簿
-  //   与日志条上（拍板 18 / 14）。两套都往 `assistantStaged` 里写的表现是同一条
-  //   建议有两个撤销入口，而它们撤的不是同一份快照。这条通道因此只剩小屏那一支。
-  const handleStageAssistantSuggestion = useCallback(
-    (payload: { positive: string; negative: string }) => {
-      const addedTags = payload.positive
-        .split(',')
-        .map((part) => part.trim())
-        .filter(Boolean)
-      const negativeTo = payload.negative.trim()
-      if (addedTags.length === 0 && negativeTo.length === 0) return
-
-      setAssistantStaged({
-        snapshot: { prompt, negativePrompt, negativePromptExpanded },
-        addedTags,
-        negativeFrom: negativePrompt,
-        negativeTo,
-      })
-      if (addedTags.length > 0) {
-        setPrompt((prev) => appendPromptFragments(prev, addedTags.join(', ')))
-      }
-      if (negativeTo.length > 0) {
-        setNegativePrompt(negativeTo)
-        setNegativePromptExpanded(true)
-      }
-      setCollocationPending(true)
-      setCollocationExpanded(true)
-    },
-    [prompt, negativePrompt, negativePromptExpanded],
-  )
   const hasLora = stack.items.length > 0
   // 配方里的额外 LoRA 只在「正在补挂」时锁出图。定位不到（作者私有、Civitai
   // 上没有）或与底模不兼容的，重试也挂不上——由 toast 与「去 Civitai 找」说清，
@@ -2264,196 +2076,203 @@ function GenerateBranch({
     // 不强求先填提示词。触发词就写在正文里，只有触发词也算有内容。
     (needsKeySetup || prompt.trim().length > 0)
 
-  const handleGenerate = useCallback(async () => {
-    if (extraMountsPending.current > 0) return
-    const providerModelId = selectedBase?.providerModelId
-    if (!providerModelId) return
-    // 时间提示（owner 2026-09-12）：Runner 线路才有冷启动，hosted 线路不提。
-    setIsRunnerColdStart(
-      isRunnerBase ? consumeRunnerColdStart(selectedBase.id) : false,
-    )
-    // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
-    // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
-    const enabledEntries = stack.items
-      .filter((entry) => entry.enabled !== false)
-      .map((entry) => ({
-        asset: entry.asset,
-        scale: entry.scale ?? entry.asset.defaultScale,
+  const handleGenerate = useCallback(
+    async (operatorResultOwner?: StudioOperatorResultOwner) => {
+      if (extraMountsPending.current > 0) return
+      const providerModelId = selectedBase?.providerModelId
+      if (!providerModelId) return
+      // 时间提示（owner 2026-09-12）：Runner 线路才有冷启动，hosted 线路不提。
+      setIsRunnerColdStart(
+        isRunnerBase ? consumeRunnerColdStart(selectedBase.id) : false,
+      )
+      // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
+      // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
+      const enabledEntries = stack.items
+        .filter((entry) => entry.enabled !== false)
+        .map((entry) => ({
+          asset: entry.asset,
+          scale: entry.scale ?? entry.asset.defaultScale,
+        }))
+      const loras = enabledEntries.map((entry) => ({
+        url: entry.asset.loraUrl,
+        scale: entry.scale,
       }))
-    const loras = enabledEntries.map((entry) => ({
-      url: entry.asset.loraUrl,
-      scale: entry.scale,
-    }))
-    // 「自己搭配」选中的标签在这里并入最终 prompt——compiler 只读不写
-    // selections，负向标签走 compiledNegativePrompt，和已有的 negativePrompt
-    // 文本框合并去重，不互相覆盖。触发词已经在正文里，⛔ 这里不再拼。
-    const compiled = compilePromptTags({
-      freePrompt: prompt,
-      selectedTags: promptTags.allSelections(),
-      existingNegativePrompt: negativePrompt,
-    })
-    const activeAppliedRecipe =
-      appliedRecipe &&
-      stack.items.some((entry) => entry.asset.id === appliedRecipe.groupAssetId)
-        ? appliedRecipe
-        : null
-    const recipeParams = activeAppliedRecipe?.params
-    const advanced: Record<string, unknown> = { ...recipeParams }
-    // These are supplied by the visible prompt/negative/seed controls below.
-    delete advanced.negativePrompt
-    delete advanced.seed
-    if (loras.length > 0) advanced.loras = loras
-    if (compiled.negativePrompt && !negativeInert)
-      advanced.negativePrompt = compiled.negativePrompt
-    // B9: reference-image img2img — only when the base supports it (enabled
-    // urls) and one was attached. Strength drives fal's denoising inversion.
-    const referenceImages = imageUpload.referenceImages
-    if (referenceImages.length > 0) {
-      advanced.referenceStrength = referenceStrength
-    }
-    // v3：runner + 源图配方时，把配方记录的底模引用传给服务端分级（T1 下对底模
-    // 忠实还原 / T2 近似 / T3 拦）。非 runner 或无配方不传 → 维持现状用预烤底模。
-    if (isRunnerBase) {
-      delete advanced.runnerSeed
-      delete advanced.runnerSampler
-      delete advanced.runnerScheduler
-      delete advanced.runnerWidth
-      delete advanced.runnerHeight
-      delete advanced.runnerUpscaler
-      delete advanced.steps
-      delete advanced.guidanceScale
+      // 「自己搭配」选中的标签在这里并入最终 prompt——compiler 只读不写
+      // selections，负向标签走 compiledNegativePrompt，和已有的 negativePrompt
+      // 文本框合并去重，不互相覆盖。触发词已经在正文里，⛔ 这里不再拼。
+      const compiled = compilePromptTags({
+        freePrompt: prompt,
+        selectedTags: promptTags.allSelections(),
+        existingNegativePrompt: negativePrompt,
+      })
+      const activeAppliedRecipe =
+        appliedRecipe &&
+        stack.items.some(
+          (entry) => entry.asset.id === appliedRecipe.groupAssetId,
+        )
+          ? appliedRecipe
+          : null
+      const recipeParams = activeAppliedRecipe?.params
+      const advanced: Record<string, unknown> = { ...recipeParams }
+      // These are supplied by the visible prompt/negative/seed controls below.
+      delete advanced.negativePrompt
+      delete advanced.seed
+      if (loras.length > 0) advanced.loras = loras
+      if (compiled.negativePrompt && !negativeInert)
+        advanced.negativePrompt = compiled.negativePrompt
+      // B9: reference-image img2img — only when the base supports it (enabled
+      // urls) and one was attached. Strength drives fal's denoising inversion.
+      const referenceImages = imageUpload.referenceImages
+      if (referenceImages.length > 0) {
+        advanced.referenceStrength = referenceStrength
+      }
+      // v3：runner + 源图配方时，把配方记录的底模引用传给服务端分级（T1 下对底模
+      // 忠实还原 / T2 近似 / T3 拦）。非 runner 或无配方不传 → 维持现状用预烤底模。
+      if (isRunnerBase) {
+        delete advanced.runnerSeed
+        delete advanced.runnerSampler
+        delete advanced.runnerScheduler
+        delete advanced.runnerWidth
+        delete advanced.runnerHeight
+        delete advanced.runnerUpscaler
+        delete advanced.steps
+        delete advanced.guidanceScale
 
-      const exactSeed = runnerSeed.trim()
-      const steps = parseOptionalRunnerNumber(runnerSteps)
-      const cfg = parseOptionalRunnerNumber(runnerCfg)
-      const width = parseOptionalRunnerNumber(runnerWidth)
-      const height = parseOptionalRunnerNumber(runnerHeight)
-      if (exactSeed) advanced.runnerSeed = exactSeed
-      if (steps !== undefined) advanced.steps = steps
-      if (cfg !== undefined) advanced.guidanceScale = cfg
-      if (runnerSampler) advanced.runnerSampler = runnerSampler
-      if (runnerScheduler) advanced.runnerScheduler = runnerScheduler
-      if (width !== undefined && height !== undefined) {
-        advanced.runnerWidth = width
-        advanced.runnerHeight = height
-      }
-      if (runnerUpscaler === '4x-AnimeSharp') {
-        advanced.runnerUpscaler = runnerUpscaler
-      }
+        const exactSeed = runnerSeed.trim()
+        const steps = parseOptionalRunnerNumber(runnerSteps)
+        const cfg = parseOptionalRunnerNumber(runnerCfg)
+        const width = parseOptionalRunnerNumber(runnerWidth)
+        const height = parseOptionalRunnerNumber(runnerHeight)
+        if (exactSeed) advanced.runnerSeed = exactSeed
+        if (steps !== undefined) advanced.steps = steps
+        if (cfg !== undefined) advanced.guidanceScale = cfg
+        if (runnerSampler) advanced.runnerSampler = runnerSampler
+        if (runnerScheduler) advanced.runnerScheduler = runnerScheduler
+        if (width !== undefined && height !== undefined) {
+          advanced.runnerWidth = width
+          advanced.runnerHeight = height
+        }
+        if (runnerUpscaler === '4x-AnimeSharp') {
+          advanced.runnerUpscaler = runnerUpscaler
+        }
 
-      const activeRecipe = activeAppliedRecipe?.recipe
-      if (
-        activeRecipe?.checkpointHash &&
-        selectedBase?.recipeCheckpointMode !== 'fixed'
-      ) {
-        advanced.checkpointHash = activeRecipe.checkpointHash
+        const activeRecipe = activeAppliedRecipe?.recipe
+        if (
+          activeRecipe?.checkpointHash &&
+          selectedBase?.recipeCheckpointMode !== 'fixed'
+        ) {
+          advanced.checkpointHash = activeRecipe.checkpointHash
+        }
+        // Runner-only fields never leak into hosted provider payloads.
+        if (
+          activeRecipe?.checkpointVersionId != null &&
+          selectedBase?.recipeCheckpointMode !== 'fixed'
+        ) {
+          advanced.checkpointVersionId = activeRecipe.checkpointVersionId
+        }
+        if (
+          activeRecipe?.checkpoint &&
+          selectedBase?.recipeCheckpointMode !== 'fixed'
+        ) {
+          advanced.checkpointName = activeRecipe.checkpoint
+        }
+        // 带上 LoRA 的 baseModel 作权威架构信号：无精确底模时服务端按它判 T2/T3，
+        // 既能正确拦 DiT，又不会因配方 checkpoint 名字含 "anima"(如 Animagine) 误拦
+        // 合法 SDXL 生成。
+        if (
+          (advanced.checkpointVersionId ||
+            advanced.checkpointHash ||
+            advanced.checkpointName) &&
+          loraFamily
+        )
+          advanced.loraBaseModel = loraFamily
+      } else {
+        delete advanced.runnerHires
+        delete advanced.runnerSeed
+        delete advanced.runnerSampler
+        delete advanced.runnerScheduler
+        delete advanced.runnerWidth
+        delete advanced.runnerHeight
+        delete advanced.runnerUpscaler
       }
-      // Runner-only fields never leak into hosted provider payloads.
-      if (
-        activeRecipe?.checkpointVersionId != null &&
-        selectedBase?.recipeCheckpointMode !== 'fixed'
-      ) {
-        advanced.checkpointVersionId = activeRecipe.checkpointVersionId
+      // 点「出图」这一刻结果卡就是主角：来源图带先收成一行，把高度让给它（§2.2）。
+      setBandExpanded(false)
+      const record = await generate({
+        mode: 'image',
+        operatorResultOwner,
+        image: {
+          modelId: providerModelId,
+          freePrompt: compiled.freePrompt ?? prompt,
+          aspectRatio,
+          seed,
+          referenceImages:
+            referenceImages.length > 0 ? referenceImages : undefined,
+          advancedParams:
+            Object.keys(advanced).length > 0 ? advanced : undefined,
+          sourceSurface: 'LORA_WORKBENCH',
+        },
+      })
+      // D7③: on success, prepend to the session filmstrip and select it as the
+      // shown result. Scale is the primary LoRA's (loras[0]); seed comes from the
+      // record (real provider seed) with the requested seed as fallback.
+      if (record) {
+        const primaryScale = loras[0]?.scale ?? null
+        setResultHistory((prev) =>
+          [
+            {
+              id: record.id,
+              url: record.url,
+              scale: primaryScale,
+              seed:
+                normalizeRecordSeed(record.seed) ??
+                (seed != null ? String(seed) : null),
+              // G3d 结果列元信息（gen-time 快照，反映本次出图而非当前面板值）。
+              width: previewDimensions.width,
+              height: previewDimensions.height,
+              steps: parseOptionalRunnerNumber(runnerSteps) ?? null,
+              sampler: isRunnerBase ? runnerSampler || null : null,
+              cfg: isRunnerBase
+                ? (parseOptionalRunnerNumber(runnerCfg) ?? null)
+                : null,
+              baseName: selectedBase?.displayName ?? null,
+              loraName: stack.items[0]?.asset.name ?? null,
+              setup: buildRecipeLoraSetup(
+                selectedBase?.id ?? null,
+                enabledEntries,
+              ),
+            },
+            ...prev.filter((item) => item.id !== record.id),
+          ].slice(0, LORA_RESULT_HISTORY_MAX),
+        )
+        setSelectedResultId(record.id)
       }
-      if (
-        activeRecipe?.checkpoint &&
-        selectedBase?.recipeCheckpointMode !== 'fixed'
-      ) {
-        advanced.checkpointName = activeRecipe.checkpoint
-      }
-      // 带上 LoRA 的 baseModel 作权威架构信号：无精确底模时服务端按它判 T2/T3，
-      // 既能正确拦 DiT，又不会因配方 checkpoint 名字含 "anima"(如 Animagine) 误拦
-      // 合法 SDXL 生成。
-      if (
-        (advanced.checkpointVersionId ||
-          advanced.checkpointHash ||
-          advanced.checkpointName) &&
-        loraFamily
-      )
-        advanced.loraBaseModel = loraFamily
-    } else {
-      delete advanced.runnerHires
-      delete advanced.runnerSeed
-      delete advanced.runnerSampler
-      delete advanced.runnerScheduler
-      delete advanced.runnerWidth
-      delete advanced.runnerHeight
-      delete advanced.runnerUpscaler
-    }
-    // 点「出图」这一刻结果卡就是主角：来源图带先收成一行，把高度让给它（§2.2）。
-    setBandExpanded(false)
-    const record = await generate({
-      mode: 'image',
-      image: {
-        modelId: providerModelId,
-        freePrompt: compiled.freePrompt ?? prompt,
-        aspectRatio,
-        seed,
-        referenceImages:
-          referenceImages.length > 0 ? referenceImages : undefined,
-        advancedParams: Object.keys(advanced).length > 0 ? advanced : undefined,
-        sourceSurface: 'LORA_WORKBENCH',
-      },
-    })
-    // D7③: on success, prepend to the session filmstrip and select it as the
-    // shown result. Scale is the primary LoRA's (loras[0]); seed comes from the
-    // record (real provider seed) with the requested seed as fallback.
-    if (record) {
-      const primaryScale = loras[0]?.scale ?? null
-      setResultHistory((prev) =>
-        [
-          {
-            id: record.id,
-            url: record.url,
-            scale: primaryScale,
-            seed:
-              normalizeRecordSeed(record.seed) ??
-              (seed != null ? String(seed) : null),
-            // G3d 结果列元信息（gen-time 快照，反映本次出图而非当前面板值）。
-            width: previewDimensions.width,
-            height: previewDimensions.height,
-            steps: parseOptionalRunnerNumber(runnerSteps) ?? null,
-            sampler: isRunnerBase ? runnerSampler || null : null,
-            cfg: isRunnerBase
-              ? (parseOptionalRunnerNumber(runnerCfg) ?? null)
-              : null,
-            baseName: selectedBase?.displayName ?? null,
-            loraName: stack.items[0]?.asset.name ?? null,
-            setup: buildRecipeLoraSetup(
-              selectedBase?.id ?? null,
-              enabledEntries,
-            ),
-          },
-          ...prev.filter((item) => item.id !== record.id),
-        ].slice(0, LORA_RESULT_HISTORY_MAX),
-      )
-      setSelectedResultId(record.id)
-    }
-  }, [
-    aspectRatio,
-    appliedRecipe,
-    generate,
-    imageUpload.referenceImages,
-    isRunnerBase,
-    loraFamily,
-    negativeInert,
-    negativePrompt,
-    previewDimensions,
-    prompt,
-    promptTags,
-    referenceStrength,
-    runnerCfg,
-    runnerHeight,
-    runnerSampler,
-    runnerScheduler,
-    runnerSeed,
-    runnerSteps,
-    runnerUpscaler,
-    runnerWidth,
-    seed,
-    selectedBase,
-    stack,
-  ])
+    },
+    [
+      aspectRatio,
+      appliedRecipe,
+      generate,
+      imageUpload.referenceImages,
+      isRunnerBase,
+      loraFamily,
+      negativeInert,
+      negativePrompt,
+      previewDimensions,
+      prompt,
+      promptTags,
+      referenceStrength,
+      runnerCfg,
+      runnerHeight,
+      runnerSampler,
+      runnerScheduler,
+      runnerSeed,
+      runnerSteps,
+      runnerUpscaler,
+      runnerWidth,
+      seed,
+      selectedBase,
+      stack,
+    ],
+  )
 
   // 换比例：Runner 底模同时把精确宽高换成这个比例的出图尺寸（与出图请求一致）。
   const handleAspectRatioChange = useCallback(
@@ -2475,20 +2294,23 @@ function GenerateBranch({
   // 主入口已经挪到「选底模」（见 handleSelectBase）。这里只是兜底：万一用户
   // 从没碰过底模选择器（比如默认底模本来就缺 key），点出图不能直接静默失败
   // ——但按钮外观不再随 needsKeySetup 变化，保持一直是「出图」。
-  const handleGenerateClick = useCallback(() => {
-    if (needsKeySetup && workspaceOptionForBase) {
-      openKeySetupFor(workspaceOptionForBase)
-      return
-    }
-    collapseComposer()
-    void handleGenerate()
-  }, [
-    collapseComposer,
-    handleGenerate,
-    needsKeySetup,
-    openKeySetupFor,
-    workspaceOptionForBase,
-  ])
+  const handleGenerateClick = useCallback(
+    (operatorResultOwner?: StudioOperatorResultOwner) => {
+      if (needsKeySetup && workspaceOptionForBase) {
+        openKeySetupFor(workspaceOptionForBase)
+        return
+      }
+      collapseComposer()
+      void handleGenerate(operatorResultOwner)
+    },
+    [
+      collapseComposer,
+      handleGenerate,
+      needsKeySetup,
+      openKeySetupFor,
+      workspaceOptionForBase,
+    ],
+  )
   // ⚠ layout effect：宿主那只出图 effect 声明在前、同一次提交里先跑，passive
   //   effect 换 ref 会让它按到上一拍的出图键（读的是助手改之前的表单）。
   useLayoutEffect(() => {
@@ -2565,26 +2387,6 @@ function GenerateBranch({
     )
   }, [isMobile, isGenerating])
 
-  /**
-   * §3.0b 第 4 条「点这张生成图问助手」在 LoRA 装配台的落点。
-   *
-   * ⚠ **P4-C 起要投两个口**，因为这张页上有两个宿主（桌面=操作员 / 小屏=旧面板），
-   * 而它们读的不是同一个通道：
-   *  · 操作员读 `requestOperatorAttachment`（落进与 📎 上传 / 素材库挑选**同一个**
-   *    attachments 数组，开面板由消费方顺手做掉）；
-   *  · 旧面板读 `useStudioAssistantReference` 那个模块 store，开合用本页的
-   *    `onAssistantOpenChange`（⚠ 不能复用 `useAskAssistantAboutImage`：它开面板
-   *    那一步是 studio reducer 的 dispatch，而这条路由没有 `<StudioProvider>`）。
-   * ⛔ 只投一个的表现是「在另一种屏幕上点了，面板开了、图没跟过来」——
-   *    本仓最难查的那一类失败。两条投递都是幂等的写入，同屏只有一个消费者。
-   *
-   * ⚠ 顺序不能反：先注入，再开面板。小屏宿主是 Drawer，在刚挂载的那一帧去读注入
-   *   值 —— 反过来的话 token 已经先于订阅建立之前变过，附件不会出现。
-   *
-   * ⚠ 只塞附件，不自动发送（owner 拍板）：vision token 是真钱，用户看到缩略图
-   * 后自己打字、自己按发送。
-   */
-  const { injectReference } = useStudioAssistantReference()
   const handleAskAssistantAboutResult = useCallback(
     (url: string) => {
       if (!url) return
@@ -2594,10 +2396,9 @@ function GenerateBranch({
         label: url.split('/').pop() || url,
         kind: 'image',
       })
-      injectReference(url)
       onAssistantOpenChange(true)
     },
-    [injectReference, onAssistantOpenChange],
+    [onAssistantOpenChange],
   )
 
   // G3d 结果列：主图纵横比取自选中结果的 gen-time 快照（无则退回方形），
@@ -3044,7 +2845,7 @@ function GenerateBranch({
           size="sm"
           className="h-11 w-full text-sm"
           disabled={!canGenerate}
-          onClick={handleGenerateClick}
+          onClick={() => handleGenerateClick()}
         >
           <RotateCcw className="size-4" aria-hidden />
           {t('generate.resultFailedRetry')}
@@ -3175,7 +2976,6 @@ function GenerateBranch({
   /**
    * 桌面助手是**让位**不是覆盖（lora-generate.md §2.5，与图片台同一套）：头像留在
    * 顶上一行右端当开关，面板顶边对齐舞台、从右侧滑进来，点舞台与输入框不收。
-   * ⚠ 手机上 Dock 自己不渲染，那边照旧用宿主原样。
    */
   const shellHost = useMemo(
     () =>
@@ -3238,7 +3038,7 @@ function GenerateBranch({
                 {/* 来源图带（中创作面顶）：来源图缩略带常驻（挂载显示 LoRA 效果
                 证据，点图开共享配方 modal；未挂载退化成「纯底模 / 去库」引导）。
                 （原「自己搭配」词库 LoraTagPicker 2026-07-24 已从生成页移除，
-                待迁入助手，见 handleAssistantEscapeToSelfBuild 注。） */}
+                待迁入助手。） */}
                 <div className="space-y-2">
                   {/* B10-8 多挂载配方分组：切换器已移到脊柱条 chip（点挂载名字
                       即切来源图/配方）。这里只留一行说明当前展示的是哪个挂载的
@@ -3643,31 +3443,17 @@ function GenerateBranch({
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
               <LoraCollocationStatusBar
-                sourceKind={assistantStaged ? 'assistant' : 'recipe'}
-                recipeApplied={
-                  assistantStaged != null || collocationRecipe != null
-                }
+                sourceKind="recipe"
+                recipeApplied={collocationRecipe != null}
                 recipeName={collocationRecipe?.assetName ?? null}
-                appliedParamLabels={
-                  assistantStaged
-                    ? []
-                    : (collocationRecipe?.appliedParamLabels ?? [])
-                }
-                changedParams={
-                  assistantStaged
-                    ? assistantNegativeChange
-                    : collocationChanges.changed
-                }
-                addedPromptTags={
-                  assistantStaged
-                    ? assistantStaged.addedTags
-                    : collocationChanges.addedPrompt
-                }
-                keptLabels={assistantStaged ? [] : collocationChanges.kept}
+                appliedParamLabels={collocationRecipe?.appliedParamLabels ?? []}
+                changedParams={collocationChanges.changed}
+                addedPromptTags={collocationChanges.addedPrompt}
+                keptLabels={collocationChanges.kept}
                 triggerEntries={triggerChipEntries}
                 disabledTriggerIds={disabledTriggerIds}
                 onToggleTrigger={handleToggleTriggerChip}
-                onUndo={handleUndoCollocation}
+                onUndo={handleUndoRecipe}
                 pendingReview={collocationPending}
                 onApplyPending={handleApplyPendingCollocation}
                 expanded={collocationExpanded}
@@ -3713,14 +3499,14 @@ function GenerateBranch({
                 </div>
                 {/* 出图 = 黑色胶囊，紧挨提示词右侧（mock「✦ 出图」）——不再是压在
                   composer 最底的通栏大按钮。⚠ 本域是单次出图、没有张数字段
-                  （见 `assistantWorkbenchState` 头注 `output.batchCount` 那条），
+                  （本域单次出图，没有张数控件），
                   所以胶囊上没有 mock 示例图里的「×N」——那是 mock 的示例文案，
                   不是本域真实存在的参数。 */}
                 <Button
                   type="button"
                   className="lora-send h-9 shrink-0 rounded-full px-4 text-xs font-semibold"
                   disabled={!canGenerate}
-                  onClick={handleGenerateClick}
+                  onClick={() => handleGenerateClick()}
                 >
                   {isGenerating ? (
                     <Spinner size="sm" aria-hidden />
@@ -3868,42 +3654,7 @@ function GenerateBranch({
             </div>
           </div>
         </section>
-        {/**
-         * 助手 —— **桌面切到操作员面板**（P4-C）。与工作台**同一颗 Dock**：它从
-         * P4-C 起页面无关，开合 / 参考位上限 / 表单全从宿主拿。
-         * ⚠ 它在 `isMobile` 时自己 `return null`（操作员没有小屏宿主）。
-         */}
         <StudioOperatorDock />
-        {/**
-         * 小屏那一支 —— 旧面板的 Drawer 宿主。
-         *
-         * ⭐ **两颗面板永不同屏**：它只在手机这一支里渲染，而
-         * `StudioOperatorDock` 在小屏自己 return null。⛔ 把它挪进桌面那一支就是右边
-         * 叠两层面板（`LoraAssistantDock` 内部有两处 render：小屏 Drawer + 桌面
-         * `AssistantShell`，桌面那一支必须够不着）。
-         * ⛔ 也不能直接删掉整颗：删了小屏上装配台**一个助手都没有**，那是功能回退。
-         * 工作台那边同一个形状（小屏走 `StudioEnhanceButton` 里的抽屉宿主）。
-         */}
-        <LoraAssistantDock
-          open={assistantOpen}
-          onOpenChange={onAssistantOpenChange}
-          currentPrompt={prompt}
-          modelId={baseModelId ?? undefined}
-          llmApiKeys={assistantApiKeys}
-          referenceImageData={imageUpload.referenceImages[0]}
-          workbenchState={assistantWorkbenchState}
-          onUsePrompt={setPrompt}
-          persona={{
-            mounts: assistantMounts,
-            baseFamily: selectedBase?.family,
-            trayTags: assistantTrayTags,
-            onAppendPrompt: handleAssistantAppendPrompt,
-            onUseNegativePrompt: handleAssistantFillNegative,
-            onAppendNegativePrompt: handleAssistantAppendNegative,
-            onEscapeToSelfBuild: handleAssistantEscapeToSelfBuild,
-            onStageForReview: handleStageAssistantSuggestion,
-          }}
-        />
       </StudioOperatorHostProvider>
     )
   }
@@ -4085,8 +3836,7 @@ function GenerateBranch({
     maxReferenceImages > 0 && referenceStrengthConfig !== undefined
   const shownMissingTriggers =
     missingTriggers.length > 0 ? missingTriggers : lastMissingTriggers
-  const collocationRecipeApplied =
-    assistantStaged != null || collocationRecipe != null
+  const collocationRecipeApplied = collocationRecipe != null
   const collocationVisible =
     hasLora && (collocationRecipeApplied || incompatibleCount > 0)
   // 「搭配」条平时收成工具行最左一颗；有装不上的、待审阅、或点开了明细时照常整行（§2.4）。
@@ -4369,26 +4119,16 @@ function GenerateBranch({
               <div inert={!(composerExpanded || !collocationSlim)}>
                 <div className="flex flex-col gap-2.5">
                   <LoraCollocationBar
-                    sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+                    sourceKind="recipe"
                     recipeApplied={collocationRecipeApplied}
                     recipeName={collocationRecipe?.assetName ?? null}
                     appliedParamLabels={
-                      assistantStaged
-                        ? []
-                        : (collocationRecipe?.appliedParamLabels ?? [])
+                      collocationRecipe?.appliedParamLabels ?? []
                     }
-                    changedParams={
-                      assistantStaged
-                        ? assistantNegativeChange
-                        : collocationChanges.changed
-                    }
-                    addedPromptTags={
-                      assistantStaged
-                        ? assistantStaged.addedTags
-                        : collocationChanges.addedPrompt
-                    }
-                    keptLabels={assistantStaged ? [] : collocationChanges.kept}
-                    onUndo={handleUndoCollocation}
+                    changedParams={collocationChanges.changed}
+                    addedPromptTags={collocationChanges.addedPrompt}
+                    keptLabels={collocationChanges.kept}
+                    onUndo={handleUndoRecipe}
                     pendingReview={collocationPending}
                     onApplyPending={handleApplyPendingCollocation}
                     expanded={collocationExpanded}
@@ -4607,7 +4347,7 @@ function GenerateBranch({
               <div className="flex min-w-0 items-center gap-2">
                 {collocationVisible && collocationSlim && !composerExpanded ? (
                   <LoraCollocationChip
-                    sourceKind={assistantStaged ? 'assistant' : 'recipe'}
+                    sourceKind="recipe"
                     onClick={() => setComposerExpanded(true)}
                   />
                 ) : null}

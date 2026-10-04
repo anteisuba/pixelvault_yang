@@ -48,6 +48,8 @@ import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
+  AssistantOperatorEvidenceSchema,
+  AssistantOperatorRecalledEvidenceSchema,
   AssistantOperatorRequestSchema,
   AssistantOperatorRoundSummarySchema,
   AssistantOperatorRoundSummaryDraftSchema,
@@ -1754,6 +1756,7 @@ describe('请求与快照契约', () => {
     const parsed = AssistantOperatorRequestSchema.safeParse({
       messages: [{ role: 'user', content: '帮我配一张海报' }],
       domain: 'image',
+      workspaceKey: 'image-natural',
       snapshot: SNAPSHOT,
     })
     expect(parsed.success).toBe(true)
@@ -1800,6 +1803,7 @@ describe('请求与快照契约', () => {
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
         domain: 'image',
+        workspaceKey: 'image-natural',
         snapshot: SNAPSHOT,
         priorSteps: tooMany,
       }).success,
@@ -1812,6 +1816,7 @@ describe('请求与快照契约', () => {
         AssistantOperatorRequestSchema.safeParse({
           messages: [{ role: 'user', content: 'x' }],
           domain: 'image',
+          workspaceKey: 'image-natural',
           snapshot: SNAPSHOT,
           confirmations: [
             { field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt, choice },
@@ -1953,6 +1958,7 @@ describe('请求与快照契约', () => {
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
         domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+        workspaceKey: 'canvas:project-1',
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(true)
@@ -1961,6 +1967,7 @@ describe('请求与快照契约', () => {
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
         domain: 'audio',
+        workspaceKey: 'image-natural',
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(false)
@@ -2125,6 +2132,39 @@ describe('research / read_url 的入参形状（2026-09-06）', () => {
 
 // ─── 每轮结账（v2 §7.2 / §7.5）────────────────────────────────────
 
+describe('摘要来源语义契约', () => {
+  it.each([undefined, 'answer_fragment', 'source_excerpt', 'none'] as const)(
+    '证据卡与召回保留 %s，存量缺失字段不补默认值',
+    (excerptKind) => {
+      const evidence = AssistantOperatorEvidenceSchema.parse({
+        title: '来源',
+        publisher: '官方资料',
+        snippet: '同一段内容',
+        kind: 'text',
+        confidence: 'medium',
+        credibility: 'reference',
+        corroboration: 1,
+        scope: 'character',
+        cite: 1,
+        ...(excerptKind ? { excerptKind } : {}),
+      })
+      const recalled = AssistantOperatorRecalledEvidenceSchema.parse({
+        ref: '#e1',
+        title: evidence.title,
+        source: evidence.publisher,
+        body: evidence.snippet,
+        ...(excerptKind ? { excerptKind } : {}),
+      })
+      expect(evidence.excerptKind).toBe(excerptKind)
+      expect(recalled.excerptKind).toBe(excerptKind)
+      if (!excerptKind) {
+        expect(evidence).not.toHaveProperty('excerptKind')
+        expect(recalled).not.toHaveProperty('excerptKind')
+      }
+    },
+  )
+})
+
 describe('本轮结论记录', () => {
   const RECORD = {
     roundIndex: 0,
@@ -2204,6 +2244,7 @@ describe('本轮结论记录', () => {
   it('请求可以带会话 id（结账落库的落点），⛔ 但不是必填', () => {
     const base = AssistantOperatorRequestSchema.safeParse({
       domain: 'image',
+      workspaceKey: 'image-natural',
       messages: [{ role: 'user', content: '嗨' }],
       snapshot: { prompt: '' },
     })
@@ -2211,6 +2252,7 @@ describe('本轮结论记录', () => {
     expect(
       AssistantOperatorRequestSchema.safeParse({
         domain: 'image',
+        workspaceKey: 'image-natural',
         messages: [{ role: 'user', content: '嗨' }],
         snapshot: { prompt: '' },
         conversationId: 'not-a-uuid',

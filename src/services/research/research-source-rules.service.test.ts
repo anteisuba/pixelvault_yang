@@ -26,6 +26,7 @@ function rule(kind: ProjectRule['kind'], text: string): ProjectRule {
   return {
     id: `rule-${kind}-${text}`,
     scope: null,
+    workspaceKey: null,
     text,
     kind,
     source: 'creator',

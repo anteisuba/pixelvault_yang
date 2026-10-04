@@ -7,6 +7,7 @@ import {
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
+import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 import { AssistantOperatorRoundSummarySchema } from '@/types/assistant-operator'
 import {
   AssistantLoraPickSchema,
@@ -167,6 +168,7 @@ export type AssistantConversationMessageStored = z.infer<
 
 export const UpsertAssistantConversationRequestSchema = z.object({
   id: z.string().uuid().optional(),
+  workspaceKey: AssistantWorkspaceKeySchema,
   surface: AssistantSurfaceSchema,
   projectId: z.string().trim().min(1).max(160).optional().nullable(),
   messages: z
@@ -179,8 +181,11 @@ export type UpsertAssistantConversationRequest = z.infer<
 >
 
 export const ListAssistantConversationsQuerySchema = z.object({
+  workspaceKey: AssistantWorkspaceKeySchema,
   surface: AssistantSurfaceSchema,
   projectId: z.string().trim().min(1).max(160).optional(),
+  includeLegacy: z.boolean().optional(),
+  operatorOnly: z.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 })
 
@@ -190,8 +195,11 @@ export type ListAssistantConversationsQuery = z.infer<
 
 export const GetAssistantConversationQuerySchema = z.object({
   id: z.string().uuid().optional(),
+  workspaceKey: AssistantWorkspaceKeySchema,
   surface: AssistantSurfaceSchema.optional(),
   projectId: z.string().trim().min(1).max(160).optional(),
+  includeLegacy: z.boolean().optional(),
+  operatorOnly: z.boolean().optional(),
 })
 
 export type GetAssistantConversationQuery = z.infer<
@@ -217,6 +225,7 @@ export type AssistantConversationRoundStored = z.infer<
 
 export interface AssistantConversationRecord {
   id: string
+  workspaceKey: string | null
   surface: AssistantSurfaceId
   projectId: string | null
   title: string | null
@@ -229,6 +238,7 @@ export interface AssistantConversationRecord {
 
 export interface AssistantConversationSummary {
   id: string
+  workspaceKey: string | null
   surface: AssistantSurfaceId
   projectId: string | null
   title: string | null
@@ -274,6 +284,7 @@ export interface SharedAssistantConversationRecord {
  */
 export const UpdateAssistantConversationRoundRequestSchema = z.object({
   id: z.string().uuid(),
+  workspaceKey: AssistantWorkspaceKeySchema,
   roundIndex: z.number().int().nonnegative(),
   facts: AssistantConversationRoundSchema.shape.facts.optional(),
   decisions: AssistantConversationRoundSchema.shape.decisions.optional(),

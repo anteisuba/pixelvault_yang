@@ -329,6 +329,122 @@ describe('useImageUpload', () => {
       },
     )
 
+    it.each(['user-a:image-tags', 'user-b:image-natural'])(
+      '不把旧上传写进切换后的 %s',
+      async (nextScope) => {
+        let resolveUpload!: (
+          value: Awaited<ReturnType<typeof uploadImageFileAPI>>,
+        ) => void
+        mockUpload.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveUpload = resolve
+            }),
+        )
+        const file = new File(['image'], 'test.png', { type: 'image/png' })
+        mockPrepare.mockResolvedValue(file)
+        const view = renderHook(
+          ({ scope }) => useImageUpload({ scopeKey: scope }),
+          { initialProps: { scope: 'user-a:image-natural' } },
+        )
+        let upload!: Promise<void>
+        await act(async () => {
+          upload = view.result.current.handleFileChange(file)
+        })
+        expect(view.result.current.isUploading).toBe(true)
+        view.rerender({ scope: nextScope })
+        expect(view.result.current.isUploading).toBe(false)
+        await act(async () => {
+          resolveUpload({
+            success: true,
+            data: {
+              generation: {
+                ...FAKE_GENERATION,
+                url: 'https://example.com/old.png',
+              },
+            },
+          })
+          await upload
+        })
+        expect(view.result.current.referenceImages).toEqual([])
+      },
+    )
+
+    describe.each(['drop', 'picker'] as const)('%s batch', (entry) => {
+      it.each(['user-a:image-tags', 'user-b:image-natural'])(
+        'stops the remaining files after switching to %s',
+        async (nextScope) => {
+          let resolveUpload!: (
+            value: Awaited<ReturnType<typeof uploadImageFileAPI>>,
+          ) => void
+          mockUpload
+            .mockImplementationOnce(
+              () =>
+                new Promise((resolve) => {
+                  resolveUpload = resolve
+                }),
+            )
+            .mockResolvedValue({
+              success: true,
+              data: { generation: FAKE_GENERATION },
+            })
+          const files = [imageFile(), imageFile()]
+          const view = renderHook(
+            ({ scope }) => useImageUpload({ scopeKey: scope }),
+            { initialProps: { scope: 'user-a:image-natural' } },
+          )
+          let upload!: Promise<void>
+          await act(async () => {
+            upload =
+              entry === 'drop'
+                ? view.result.current.handleDrop({
+                    preventDefault: vi.fn(),
+                    dataTransfer: { types: [], files },
+                  } as unknown as React.DragEvent<HTMLDivElement>)
+                : view.result.current.handleInputChange({
+                    target: { files },
+                  } as unknown as React.ChangeEvent<HTMLInputElement>)
+          })
+          expect(view.result.current.isUploading).toBe(true)
+          view.rerender({ scope: nextScope })
+          act(() => view.result.current.addReferenceImage('new-scope.png'))
+          expect(view.result.current.isUploading).toBe(false)
+          await act(async () => {
+            resolveUpload({
+              success: true,
+              data: { generation: FAKE_GENERATION },
+            })
+            await upload
+          })
+          expect(mockPrepare).toHaveBeenCalledTimes(1)
+          expect(mockUpload).toHaveBeenCalledTimes(1)
+          expect(view.result.current.referenceImages).toEqual(['new-scope.png'])
+          expect(view.result.current.isUploading).toBe(false)
+        },
+      )
+    })
+
+    it('ignores a saved single-file callback after leaving and returning to its scope', async () => {
+      mockUpload.mockResolvedValue({
+        success: true,
+        data: { generation: FAKE_GENERATION },
+      })
+      const view = renderHook(
+        ({ scope }) => useImageUpload({ scopeKey: scope }),
+        { initialProps: { scope: 'user-a:image-natural' } },
+      )
+      const staleUpload = view.result.current.handleFileChange
+      view.rerender({ scope: 'user-a:image-tags' })
+      view.rerender({ scope: 'user-a:image-natural' })
+      await act(async () => {
+        await staleUpload(imageFile())
+      })
+      expect(mockPrepare).not.toHaveBeenCalled()
+      expect(mockUpload).not.toHaveBeenCalled()
+      expect(view.result.current.referenceImages).toEqual([])
+      expect(view.result.current.isUploading).toBe(false)
+    })
+
     it('compresses, uploads to R2, and stores the url — never inline base64', async () => {
       mockUpload.mockResolvedValue({
         success: true,

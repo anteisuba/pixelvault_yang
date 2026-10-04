@@ -35,14 +35,19 @@ import {
   type StudioOperatorResumeStep,
 } from '@/types/studio-operator-resume'
 
-/**
- * 这份记录存在哪一格。
- *
- * ⚠ scope 里的分隔符与前缀一致（`.`）：拼出来的键在 devtools 的存储面板里是可
- * 排序的一列，一眼能看出「同一个前缀下有几个项目」。
- */
-export function operatorResumeStorageKey(scope: string): string {
-  return `${STUDIO_OPERATOR_RESUME.keyPrefix}.${scope}`
+export interface OperatorResumeIdentity {
+  sessionId: string | null
+  localThreadId: string
+}
+
+export function operatorResumeStorageKey(
+  scope: string,
+  identity: OperatorResumeIdentity,
+): string {
+  const thread = identity.sessionId
+    ? ['session', identity.sessionId]
+    : ['local', identity.localThreadId]
+  return `${STUDIO_OPERATOR_RESUME.keyPrefix}.${JSON.stringify([scope, ...thread])}`
 }
 
 /**
@@ -55,12 +60,15 @@ export function operatorResumeStorageKey(scope: string): string {
  */
 export function readOperatorResume(
   scope: string,
+  identity: OperatorResumeIdentity,
   now: number,
 ): StudioOperatorResumePlan | null {
   let raw: string | null = null
   try {
     raw =
-      globalThis.localStorage?.getItem(operatorResumeStorageKey(scope)) ?? null
+      globalThis.localStorage?.getItem(
+        operatorResumeStorageKey(scope, identity),
+      ) ?? null
   } catch {
     return null
   }
@@ -75,6 +83,7 @@ export function readOperatorResume(
 
   const parsed = StudioOperatorResumePlanSchema.safeParse(parsedJson)
   if (!parsed.success) return null
+  if (parsed.data.sessionId !== identity.sessionId) return null
 
   const updatedAt = Date.parse(parsed.data.updatedAt)
   if (!Number.isFinite(updatedAt)) return null
@@ -93,13 +102,15 @@ export function readOperatorResume(
  */
 export function writeOperatorResume(
   scope: string,
+  identity: OperatorResumeIdentity,
   plan: StudioOperatorResumePlan,
 ): boolean {
   const parsed = StudioOperatorResumePlanSchema.safeParse(plan)
   if (!parsed.success) return false
+  if (parsed.data.sessionId !== identity.sessionId) return false
   try {
     globalThis.localStorage?.setItem(
-      operatorResumeStorageKey(scope),
+      operatorResumeStorageKey(scope, identity),
       JSON.stringify(parsed.data),
     )
     return true
@@ -109,9 +120,14 @@ export function writeOperatorResume(
 }
 
 /** 这份计划跑完了（或用户开了新话题）—— 那一格就该空着。 */
-export function clearOperatorResume(scope: string): void {
+export function clearOperatorResume(
+  scope: string,
+  identity: OperatorResumeIdentity,
+): void {
   try {
-    globalThis.localStorage?.removeItem(operatorResumeStorageKey(scope))
+    globalThis.localStorage?.removeItem(
+      operatorResumeStorageKey(scope, identity),
+    )
   } catch {
     // 同 write：清不掉不值得让任何调用方失败。
   }

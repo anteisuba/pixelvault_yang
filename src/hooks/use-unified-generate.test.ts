@@ -66,7 +66,14 @@ vi.mock('@clerk/nextjs', () => ({
 }))
 
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
+import {
+  useUnifiedGenerate,
+  type UnifiedGenerateInput,
+} from '@/hooks/use-unified-generate'
+import {
+  toOperatorResultRun,
+  toOperatorRunResults,
+} from '@/lib/studio-operator-result-run'
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
 import {
   checkImageGenerationStatusAPI,
@@ -146,6 +153,62 @@ describe('useUnifiedGenerate', () => {
       success: true,
       data: { cancelled: [], alreadyFinished: [], notFound: [] },
     })
+  })
+
+  it.each<{ name: string; input: UnifiedGenerateInput; total: number }>([
+    { name: 'image', input: { mode: 'image', image: IMAGE_INPUT }, total: 1 },
+    {
+      name: 'image variants',
+      input: { mode: 'image', image: IMAGE_INPUT, variantCount: 2 },
+      total: 2,
+    },
+    {
+      name: 'image matrix',
+      input: {
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 2,
+        compareModels: [
+          { modelId: IMAGE_INPUT.modelId },
+          { modelId: 'gpt-image-2' },
+        ],
+      },
+      total: 4,
+    },
+    { name: 'audio', input: { mode: 'audio', audio: AUDIO_INPUT }, total: 1 },
+    {
+      name: 'audio variants',
+      input: { mode: 'audio', audio: { ...AUDIO_INPUT, variantCount: 2 } },
+      total: 2,
+    },
+  ])('$name 提交失败仍保留每个结果项的原对话身份', async ({ input, total }) => {
+    mockStudioGenerate.mockResolvedValue(ERROR_RESPONSE)
+    mockGenerateAudio.mockResolvedValue(ERROR_RESPONSE)
+    const owner = {
+      threadScope: `user-a:${input.mode}`,
+      localThreadId: 'thread-submitting',
+      pendingResultId: 'pending-submitting',
+    }
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    await act(async () => {
+      await result.current.generate({ ...input, operatorResultOwner: owner })
+    })
+    const items = result.current.activeRun?.items ?? []
+    expect(items).toHaveLength(total)
+    expect(
+      items.every(
+        (item) =>
+          item.status === 'failed' && item.operatorResultOwner === owner,
+      ),
+    ).toBe(true)
+    const calls =
+      input.mode === 'image'
+        ? mockStudioGenerate.mock.calls
+        : mockGenerateAudio.mock.calls
+    expect(calls).toHaveLength(total)
+    expect(
+      calls.every(([payload]) => !('operatorResultOwner' in payload)),
+    ).toBe(true)
   })
 
   it('starts in idle state', () => {
@@ -976,6 +1039,44 @@ describe('useUnifiedGenerate', () => {
         ),
       ).toBe(true)
       expect(result.current.activeVideoJobCount).toBe(2)
+    })
+
+    it('视频队列逐条保存提交来源，结果卡只统计自己的这一枪', async () => {
+      const firstOwner = {
+        threadScope: 'user-a:video',
+        localThreadId: 'thread-old',
+        pendingResultId: 'pending-old',
+      }
+      const nextOwner = {
+        threadScope: 'user-a:video',
+        localThreadId: 'thread-new',
+        pendingResultId: 'pending-new',
+      }
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+      for (const operatorResultOwner of [firstOwner, nextOwner, undefined]) {
+        await act(async () => {
+          await result.current.generate({
+            mode: 'video',
+            video: VIDEO_INPUT,
+            operatorResultOwner,
+          })
+        })
+      }
+      const items = result.current.activeRun?.items ?? []
+      expect(items.map((item) => item.operatorResultOwner)).toEqual([
+        firstOwner,
+        nextOwner,
+        undefined,
+      ])
+      expect(
+        toOperatorResultRun(items, toOperatorRunResults(items), nextOwner),
+      ).toMatchObject({
+        owner: nextOwner,
+        total: 1,
+        settled: false,
+        completed: 0,
+      })
+      expect(mockSubmitVideo).toHaveBeenNthCalledWith(2, VIDEO_INPUT)
     })
 
     it('⭐ 提交完成后 isGenerating 立刻回落 —— 等待期间还能再排一条', async () => {

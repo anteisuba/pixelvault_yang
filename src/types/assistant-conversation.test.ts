@@ -10,6 +10,7 @@ import { UpdateAssistantConversationRoundRequestSchema } from '@/types/assistant
  */
 const VALID = {
   id: '11111111-2222-4333-8444-555555555555',
+  workspaceKey: 'image-natural',
   roundIndex: 0,
   facts: ['参考图是冷蓝夜景'],
   decisions: ['用 16:9'],

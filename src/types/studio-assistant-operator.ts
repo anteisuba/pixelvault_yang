@@ -199,7 +199,14 @@ export interface StudioOperatorResultEntry {
  * ⚠ `settled` 由宿主判（每一条都有了终局），⛔ 不由消费端拿 `completed + failed
  * === total` 再算一遍：取消掉的那些两边都不计，自己算会永远差一条。
  */
+export interface StudioOperatorResultOwner {
+  threadScope: string
+  localThreadId: string
+  pendingResultId: string
+}
+
 export interface StudioOperatorResultRun {
+  owner?: StudioOperatorResultOwner
   total: number
   completed: number
   failed: number

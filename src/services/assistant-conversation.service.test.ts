@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
+import type { AssistantConversationRoundStored } from '@/types/assistant-conversation'
 import {
   appendAssistantConversationRound,
   getAssistantConversation,
@@ -7,32 +8,52 @@ import {
   renameAssistantConversation,
   updateAssistantConversationRound,
   deleteAssistantConversation,
+  upsertAssistantConversation,
 } from './assistant-conversation.service'
 
 const mocks = vi.hoisted(() => ({
+  transaction: vi.fn(),
+  lockConversation: vi.fn(),
   queryRaw: vi.fn(),
   updateMany: vi.fn(),
   deleteMany: vi.fn(),
   findFirst: vi.fn(),
   update: vi.fn(),
+  create: vi.fn(),
+  findProject: vi.fn(),
   ensureUser: vi.fn(),
 }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: mocks.transaction,
     $queryRaw: mocks.queryRaw,
     assistantConversation: {
       updateMany: mocks.updateMany,
       deleteMany: mocks.deleteMany,
       findFirst: mocks.findFirst,
       update: mocks.update,
+      create: mocks.create,
     },
+    nodeWorkflowProject: { findFirst: mocks.findProject },
   },
 }))
 vi.mock('@/services/user.service', () => ({ ensureUser: mocks.ensureUser }))
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.lockConversation.mockResolvedValue([{ id: 'conv-1' }])
+  mocks.transaction.mockImplementation(
+    (action: (tx: unknown) => Promise<unknown>) =>
+      action({
+        $queryRaw: mocks.lockConversation,
+        assistantConversation: {
+          findFirst: mocks.findFirst,
+          update: mocks.update,
+        },
+      }),
+  )
   mocks.ensureUser.mockResolvedValue({ id: 'owner-id' })
+  mocks.findProject.mockResolvedValue({ id: 'project-one' })
 })
 it('deletes only a conversation owned by the authenticated user', async () => {
   mocks.deleteMany.mockResolvedValue({ count: 1 })
@@ -59,7 +80,11 @@ it('renames only the authenticated owner conversation', async () => {
     }),
   ).toEqual({ title: 'My title' })
   expect(mocks.updateMany).toHaveBeenCalledWith({
-    where: { id: 'conversation-id', userId: 'owner-id' },
+    where: {
+      id: 'conversation-id',
+      userId: 'owner-id',
+      workspaceKey: { not: null },
+    },
     data: { title: 'My title' },
   })
   mocks.updateMany.mockResolvedValue({ count: 0 })
@@ -70,10 +95,11 @@ it('renames only the authenticated owner conversation', async () => {
   ).toBeNull()
 })
 
-it('lists all operator surfaces in one owner-scoped summary query', async () => {
+it('lists only the current workspace without mixing operator histories', async () => {
   mocks.queryRaw.mockResolvedValue([
     {
       id: 'one',
+      workspaceKey: 'image-natural',
       surface: 'IMAGE_STUDIO',
       projectId: null,
       title: 'Name',
@@ -83,23 +109,19 @@ it('lists all operator surfaces in one owner-scoped summary query', async () => 
     },
   ])
   const result = await listAssistantConversations('clerk-owner', {
+    workspaceKey: 'image-natural',
     surface: 'IMAGE_STUDIO',
     operatorOnly: true,
     limit: 20,
   })
   expect(mocks.queryRaw).toHaveBeenCalledOnce()
   const query = mocks.queryRaw.mock.calls[0][0]
-  expect(query.values).toEqual([
-    'owner-id',
-    'IMAGE_STUDIO',
-    'VIDEO_STUDIO',
-    'LORA',
-    20,
-  ])
+  expect(query.values).toEqual(['owner-id', 'image-natural', true, 20])
   expect(query.sql).toContain('jsonb_array_length')
   expect(query.sql).toContain('AND COALESCE')
   expect(query.sql).not.toMatch(/SELECT[^]*,\s*"messages"\s*[,\n]/)
   expect(result[0]).toMatchObject({
+    workspaceKey: 'image-natural',
     messageCount: 8,
     operatorThread: true,
     updatedAt: '2026-09-09T00:00:00.000Z',
@@ -109,12 +131,16 @@ it('lists all operator surfaces in one owner-scoped summary query', async () => 
 it('keeps canvas lists scoped to their project', async () => {
   mocks.queryRaw.mockResolvedValue([])
   await listAssistantConversations('clerk-owner', {
+    workspaceKey: 'canvas:project-one',
     surface: 'NODE_CANVAS',
     projectId: 'project-one',
   })
   const query = mocks.queryRaw.mock.calls[0][0]
-  expect(query.values).toEqual(['owner-id', 'NODE_CANVAS', 'project-one', 20])
-  expect(query.sql).toContain('AND "projectId" =')
+  expect(query.values).toEqual(['owner-id', 'canvas:project-one', 20])
+  expect(mocks.findProject).toHaveBeenCalledWith({
+    where: { id: 'project-one', userId: 'owner-id', isDeleted: false },
+    select: { id: true },
+  })
 })
 
 // ─── 每轮结账（assistant-shell-v2 §7.2 / §7.5）────────────────────
@@ -127,6 +153,140 @@ const ROUND = {
   evidenceRefs: ['#e1'],
 }
 
+const IMAGE_WORKSPACE = {
+  workspaceKey: 'image-natural',
+  surface: 'IMAGE_STUDIO' as const,
+  projectId: null,
+}
+
+function serializedConversation(
+  initial: AssistantConversationRoundStored[] = [],
+) {
+  let rounds = structuredClone(initial)
+  let queue = Promise.resolve()
+  mocks.transaction.mockImplementation(
+    async (action: (tx: unknown) => Promise<unknown>) => {
+      let release = () => {}
+      const tx = {
+        $queryRaw: async () => {
+          const previous = queue
+          queue = new Promise<void>((resolve) => {
+            release = resolve
+          })
+          await previous
+          return [{ id: 'conv-1' }]
+        },
+        assistantConversation: {
+          findFirst: async () => ({
+            id: 'conv-1',
+            rounds: structuredClone(rounds),
+          }),
+          update: async (input: {
+            data: { rounds: AssistantConversationRoundStored[] }
+          }) => {
+            await Promise.resolve()
+            rounds = structuredClone(input.data.rounds)
+            return { id: 'conv-1' }
+          },
+        },
+      }
+      try {
+        return await action(tx)
+      } finally {
+        release()
+      }
+    },
+  )
+  return () => rounds
+}
+
+it('同时结账保留两轮并分配不同轮次号', async () => {
+  const read = serializedConversation()
+  const stored = await Promise.all([
+    appendAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      { ...ROUND, facts: ['first'] },
+      'image-natural',
+    ),
+    appendAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      { ...ROUND, facts: ['second'] },
+      'image-natural',
+    ),
+  ])
+  expect(stored.map((round) => round?.roundIndex)).toEqual([0, 1])
+  expect(read().map((round) => round.facts)).toEqual([['first'], ['second']])
+})
+
+it('编辑既有轮次与新一轮结账同时发生时两项都保存', async () => {
+  const read = serializedConversation([{ ...ROUND, roundIndex: 9 }])
+  await Promise.all([
+    updateAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      9,
+      { facts: ['edited'] },
+      'image-natural',
+    ),
+    appendAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      { ...ROUND, facts: ['next'] },
+      'image-natural',
+    ),
+  ])
+  expect(read()).toMatchObject([
+    { roundIndex: 9, facts: ['edited'], editedByUser: true },
+    { roundIndex: 10, facts: ['next'] },
+  ])
+})
+
+it('同时编辑不同栏位时读取锁内的新版本，保留两处编辑', async () => {
+  const read = serializedConversation([{ ...ROUND, roundIndex: 9 }])
+  await Promise.all([
+    updateAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      9,
+      { facts: ['edited'] },
+      'image-natural',
+    ),
+    updateAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      9,
+      { todos: ['next action'] },
+      'image-natural',
+    ),
+  ])
+  expect(read()[0]).toMatchObject({ facts: ['edited'], todos: ['next action'] })
+})
+
+it('会话行锁按所有者与工作区过滤，锁不到就不读取或修改轮次', async () => {
+  mocks.lockConversation.mockResolvedValueOnce([])
+  expect(
+    await appendAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      ROUND,
+      'image-natural',
+    ),
+  ).toBeNull()
+  const [sql, ...values] = mocks.lockConversation.mock.calls[0]
+  expect((sql as TemplateStringsArray).join('')).toContain('FOR UPDATE')
+  expect(values).toEqual([
+    'conv-1',
+    'owner-id',
+    'image-natural',
+    'IMAGE_STUDIO',
+    null,
+  ])
+  expect(mocks.findFirst).not.toHaveBeenCalled()
+  expect(mocks.update).not.toHaveBeenCalled()
+})
+
 it('结账记录追加进这段会话，轮次号由服务端按已有条数定', async () => {
   mocks.findFirst.mockResolvedValue({ id: 'conv-1', rounds: [] })
   mocks.update.mockResolvedValue({})
@@ -135,15 +295,16 @@ it('结账记录追加进这段会话，轮次号由服务端按已有条数定'
     'clerk-owner',
     'conv-1',
     ROUND,
+    'image-natural',
   )
 
   expect(stored).toEqual({ ...ROUND, roundIndex: 0 })
   expect(mocks.findFirst).toHaveBeenCalledWith({
-    where: { id: 'conv-1', userId: 'owner-id' },
+    where: { id: 'conv-1', userId: 'owner-id', ...IMAGE_WORKSPACE },
     select: { id: true, rounds: true },
   })
   expect(mocks.update.mock.calls[0]?.[0]).toEqual({
-    where: { id: 'conv-1' },
+    where: { id: 'conv-1', userId: 'owner-id', ...IMAGE_WORKSPACE },
     data: { rounds: [{ ...ROUND, roundIndex: 0 }] },
   })
 })
@@ -159,9 +320,36 @@ it('轮次号接着已有的那几条数，⛔ 不从零开始', async () => {
     'clerk-owner',
     'conv-1',
     ROUND,
+    'image-natural',
   )
 
   expect(stored?.roundIndex).toBe(1)
+})
+
+it('裁剪旧结论后轮次号仍递增，后续编辑能指向唯一轮次', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: Array.from({ length: 100 }, (_, index) => ({
+      ...ROUND,
+      roundIndex: index + 12,
+    })),
+  })
+  mocks.update.mockResolvedValue({})
+
+  const stored = await appendAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    ROUND,
+    'image-natural',
+  )
+
+  expect(stored?.roundIndex).toBe(112)
+  const written = mocks.update.mock.calls[0]?.[0].data.rounds
+  expect(written).toHaveLength(100)
+  expect(
+    new Set(written.map((entry: { roundIndex: number }) => entry.roundIndex))
+      .size,
+  ).toBe(100)
 })
 
 it('读取并编辑结论时保留该轮实际图片版本', async () => {
@@ -180,6 +368,7 @@ it('读取并编辑结论时保留该轮实际图片版本', async () => {
   mocks.update.mockResolvedValue({})
 
   const rounds = await listAssistantConversationRounds('owner-id', 'conv-1', {
+    workspaceKey: 'image-natural',
     limit: 8,
   })
   expect(rounds[0]).toMatchObject({ sourceRefs })
@@ -188,6 +377,7 @@ it('读取并编辑结论时保留该轮实际图片版本', async () => {
     'conv-1',
     0,
     { decisions: ['仅认可这版脸部，身体待改'] },
+    'image-natural',
   )
   expect(updated).toMatchObject({ sourceRefs, editedByUser: true })
   expect(mocks.update.mock.calls[0]?.[0].data.rounds[0]).toMatchObject({
@@ -199,7 +389,12 @@ it('会话不归这个用户时不写，也不抛 —— 结账不许阻塞 done
   mocks.findFirst.mockResolvedValue(null)
 
   expect(
-    await appendAssistantConversationRound('clerk-owner', 'conv-other', ROUND),
+    await appendAssistantConversationRound(
+      'clerk-owner',
+      'conv-other',
+      ROUND,
+      'image-natural',
+    ),
   ).toBeNull()
   expect(mocks.update).not.toHaveBeenCalled()
 })
@@ -207,6 +402,7 @@ it('会话不归这个用户时不写，也不抛 —— 结账不许阻塞 done
 it('读回来时坏掉的那一条丢掉，⛔ 不作废整段会话', async () => {
   mocks.findFirst.mockResolvedValue({
     id: 'conv-1',
+    workspaceKey: 'image-natural',
     surface: 'IMAGE_STUDIO',
     projectId: null,
     title: null,
@@ -221,6 +417,7 @@ it('读回来时坏掉的那一条丢掉，⛔ 不作废整段会话', async () 
 
   const record = await getAssistantConversation('clerk-owner', {
     id: 'conv-1',
+    workspaceKey: 'image-natural',
   })
 
   expect(record?.rounds).toEqual([{ ...ROUND, roundIndex: 0 }])
@@ -243,11 +440,12 @@ it('注入读：按 userId 核所有权，只回最近几条', async () => {
   })
 
   const rounds = await listAssistantConversationRounds('owner-id', 'conv-1', {
+    workspaceKey: 'image-natural',
     limit: 2,
   })
 
   expect(mocks.findFirst).toHaveBeenCalledWith({
-    where: { id: 'conv-1', userId: 'owner-id' },
+    where: { id: 'conv-1', userId: 'owner-id', ...IMAGE_WORKSPACE },
     select: { rounds: true },
   })
   expect(rounds.map((round) => round.roundIndex)).toEqual([1, 2])
@@ -259,6 +457,7 @@ it('注入读：会话不归这个用户 → 空，⛔ 不抛（注入不到不�
   mocks.findFirst.mockResolvedValue(null)
   expect(
     await listAssistantConversationRounds('owner-id', 'conv-other', {
+      workspaceKey: 'image-natural',
       limit: 8,
     }),
   ).toEqual([])
@@ -279,6 +478,7 @@ it('用户改过的那一条按 roundIndex 认，三栏覆盖、编号与时刻�
     'conv-1',
     4,
     { facts: ['我改过的事实'], decisions: ['用 3:2'], todos: [] },
+    'image-natural',
   )
 
   expect(updated).toEqual({
@@ -291,7 +491,7 @@ it('用户改过的那一条按 roundIndex 认，三栏覆盖、编号与时刻�
   })
   // ⚠ 另一条一个字都没动。
   expect(mocks.update.mock.calls[0]?.[0]).toEqual({
-    where: { id: 'conv-1' },
+    where: { id: 'conv-1', userId: 'owner-id', ...IMAGE_WORKSPACE },
     data: {
       rounds: [
         { ...ROUND, roundIndex: 3 },
@@ -328,6 +528,7 @@ it('⭐ 只钉住那一次：写 pinnedEvidence、三栏原样、⛔ 不标 edit
     'conv-1',
     4,
     { pinnedEvidence: pinned },
+    'image-natural',
   )
 
   expect(updated).toEqual({
@@ -345,20 +546,187 @@ it('没有这一号 / 不归他时不写库，返回 null', async () => {
     rounds: [{ ...ROUND, roundIndex: 0 }],
   })
   expect(
-    await updateAssistantConversationRound('clerk-owner', 'conv-1', 9, {
-      facts: [],
-      decisions: [],
-      todos: [],
-    }),
+    await updateAssistantConversationRound(
+      'clerk-owner',
+      'conv-1',
+      9,
+      { facts: [], decisions: [], todos: [] },
+      'image-natural',
+    ),
   ).toBeNull()
 
   mocks.findFirst.mockResolvedValue(null)
   expect(
-    await updateAssistantConversationRound('clerk-owner', 'conv-other', 0, {
-      facts: [],
-      decisions: [],
-      todos: [],
-    }),
+    await updateAssistantConversationRound(
+      'clerk-owner',
+      'conv-other',
+      0,
+      { facts: [], decisions: [], todos: [] },
+      'image-natural',
+    ),
   ).toBeNull()
   expect(mocks.update).not.toHaveBeenCalled()
+})
+
+it('does not resume a natural-language conversation from the tag workspace', async () => {
+  mocks.findFirst.mockImplementation(async ({ where }) =>
+    where.workspaceKey === 'image-natural'
+      ? {
+          id: 'conv-1',
+          ...IMAGE_WORKSPACE,
+          title: 'Natural image work',
+          messages: [{ role: 'user', content: 'Keep this face' }],
+          rounds: [{ ...ROUND, roundIndex: 0 }],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      : null,
+  )
+  expect(
+    await getAssistantConversation('clerk-owner', {
+      id: 'conv-1',
+      workspaceKey: 'image-tags',
+      surface: 'IMAGE_STUDIO',
+    }),
+  ).toBeNull()
+  expect(
+    await listAssistantConversationRounds('owner-id', 'conv-1', {
+      workspaceKey: 'image-tags',
+      limit: 8,
+    }),
+  ).toEqual([])
+})
+
+it('rejects contradictory surface and project classifications before saving', async () => {
+  for (const input of [
+    { workspaceKey: 'image-tags', surface: 'LORA' as const },
+    {
+      workspaceKey: 'canvas:project-one',
+      surface: 'NODE_CANVAS' as const,
+      projectId: 'project-two',
+    },
+  ]) {
+    await expect(
+      upsertAssistantConversation('clerk-owner', {
+        ...input,
+        messages: [{ role: 'user', content: 'Hello' }],
+      }),
+    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_WORKSPACE_MISMATCH' })
+  }
+  expect(mocks.create).not.toHaveBeenCalled()
+  expect(mocks.update).not.toHaveBeenCalled()
+})
+
+it('rejects inaccessible canvas projects before reading conversations', async () => {
+  mocks.findProject.mockResolvedValue(null)
+  await expect(
+    getAssistantConversation('clerk-owner', {
+      workspaceKey: 'canvas:someone-elses-project',
+      surface: 'NODE_CANVAS',
+    }),
+  ).rejects.toMatchObject({ errorCode: 'ASSISTANT_WORKSPACE_NOT_FOUND' })
+  expect(mocks.findFirst).not.toHaveBeenCalled()
+})
+
+it('will not reassign an existing conversation or make a legacy record writable', async () => {
+  mocks.findFirst.mockResolvedValue(null)
+  await expect(
+    upsertAssistantConversation('clerk-owner', {
+      id: '00000000-0000-4000-8000-000000000001',
+      workspaceKey: 'lora',
+      surface: 'LORA',
+      messages: [{ role: 'user', content: 'Continue' }],
+    }),
+  ).rejects.toThrow('ASSISTANT_CONVERSATION_NOT_FOUND')
+  expect(mocks.findFirst).toHaveBeenCalledWith({
+    where: {
+      id: '00000000-0000-4000-8000-000000000001',
+      userId: 'owner-id',
+      workspaceKey: 'lora',
+      surface: 'LORA',
+      projectId: null,
+    },
+  })
+  expect(mocks.update).not.toHaveBeenCalled()
+})
+
+it('includes unassigned history only when requested and keeps it marked unassigned', async () => {
+  mocks.queryRaw.mockResolvedValue([
+    {
+      id: 'legacy-1',
+      workspaceKey: null,
+      surface: 'IMAGE_STUDIO',
+      projectId: null,
+      title: 'Old mixed history',
+      updatedAt: new Date('2026-09-09T00:00:00Z'),
+      messageCount: 2,
+      operatorThread: true,
+    },
+  ])
+  const result = await listAssistantConversations('clerk-owner', {
+    workspaceKey: 'image-tags',
+    surface: 'IMAGE_STUDIO',
+    includeLegacy: true,
+  })
+  expect(mocks.queryRaw.mock.calls[0][0].sql).toContain(
+    '"workspaceKey" IS NULL',
+  )
+  expect(result[0]?.workspaceKey).toBeNull()
+})
+
+it('never auto-loads legacy history, even with the history-view option', async () => {
+  mocks.findFirst.mockResolvedValue(null)
+  await getAssistantConversation('clerk-owner', {
+    workspaceKey: 'image-natural',
+    surface: 'IMAGE_STUDIO',
+    includeLegacy: true,
+  })
+  expect(mocks.findFirst).toHaveBeenCalledWith({
+    where: { userId: 'owner-id', ...IMAGE_WORKSPACE },
+    orderBy: { updatedAt: 'desc' },
+  })
+})
+
+it.each([true, false])(
+  'filters latest and explicit conversation reads by operator mode %s',
+  async (operatorOnly) => {
+    mocks.queryRaw.mockResolvedValue([])
+    for (const id of [undefined, '00000000-0000-4000-8000-000000000001']) {
+      expect(
+        await getAssistantConversation('clerk-owner', {
+          workspaceKey: 'image-tags',
+          surface: 'IMAGE_STUDIO',
+          operatorOnly,
+          id,
+        }),
+      ).toBeNull()
+      const query = mocks.queryRaw.mock.lastCall![0]
+      expect(query.sql).toContain('COALESCE("messages"->0->\'operator\'')
+      expect(query.values).toEqual([
+        'owner-id',
+        'image-tags',
+        ...(id ? [id] : []),
+        operatorOnly,
+      ])
+    }
+    expect(mocks.findFirst).not.toHaveBeenCalled()
+  },
+)
+
+it('filters legacy text lists with false and leaves explicit combined lists unfiltered', async () => {
+  mocks.queryRaw.mockResolvedValue([])
+  for (const operatorOnly of [false, undefined]) {
+    await listAssistantConversations('clerk-owner', {
+      workspaceKey: 'image-natural',
+      surface: 'IMAGE_STUDIO',
+      operatorOnly,
+    })
+    const query = mocks.queryRaw.mock.lastCall![0]
+    expect(query.values).toEqual([
+      'owner-id',
+      'image-natural',
+      ...(operatorOnly === false ? [false] : []),
+      20,
+    ])
+  }
 })

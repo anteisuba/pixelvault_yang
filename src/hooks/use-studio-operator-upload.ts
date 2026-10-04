@@ -27,7 +27,13 @@
  *    「上传失败了但 chip 消失了」与「上传成功了」在界面上是同一个样子。
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -141,12 +147,14 @@ export interface UseStudioOperatorUploadResult {
 }
 
 interface UseStudioOperatorUploadOptions {
+  scopeKey: string | null
   /** 传成了就交出去 —— 宿主把它塞进那唯一的附件数组。 */
   onUploaded(attachment: StudioOperatorAttachment): void
 }
 
 export function useStudioOperatorUpload({
   onUploaded,
+  scopeKey,
 }: UseStudioOperatorUploadOptions): UseStudioOperatorUploadResult {
   const t = useTranslations('StudioOperator')
   const tErrors = useTranslations('Errors')
@@ -158,16 +166,28 @@ export function useStudioOperatorUpload({
   const filesRef = useRef<Map<string, File>>(new Map())
   const dismissedRef = useRef<Set<string>>(new Set())
   const seqRef = useRef(0)
+  const scopeEpoch = useRef(0)
+  const [uploadsScope, setUploadsScope] = useState(scopeKey)
+  if (uploadsScope !== scopeKey) {
+    setUploadsScope(scopeKey)
+    setUploads([])
+  }
 
   // 本地预览的 object URL 必须还回去，否则每传一张图漏一份 blob。
   const previewsRef = useRef<Set<string>>(new Set())
-  useEffect(
-    () => () => {
-      for (const url of previewsRef.current) URL.revokeObjectURL(url)
-      previewsRef.current.clear()
-    },
-    [],
-  )
+  useLayoutEffect(() => {
+    const files = filesRef.current
+    const dismissed = dismissedRef.current
+    const previews = previewsRef.current
+    scopeEpoch.current += 1
+    return () => {
+      scopeEpoch.current += 1
+      files.clear()
+      dismissed.clear()
+      for (const url of previews) URL.revokeObjectURL(url)
+      previews.clear()
+    }
+  }, [scopeKey])
 
   // ⚠ 事件循环跨很多次 render（一次上传几秒到几分钟），回调走 latest-ref ——
   // 与 `use-assistant-operator` / `use-asset-upload-queue` 同一个写法。
@@ -201,6 +221,7 @@ export function useStudioOperatorUpload({
       file: File,
       kind: StudioOperatorUpload['kind'],
     ): Promise<UploadOutcome> => {
+      const epoch = scopeEpoch.current
       const { t: tr, tErrors: te } = latest.current
       const onProgress = (percent: number) => {
         // 摘掉之后别再往一个不存在的条目上写进度。
@@ -217,6 +238,7 @@ export function useStudioOperatorUpload({
             }
           }
           const metadata = await readAudioFileMetadata(file)
+          if (scopeEpoch.current !== epoch) return { error: '' }
           const response = await uploadAudioFileAPI(file, {
             duration: metadata?.duration,
             onProgress,
@@ -245,6 +267,7 @@ export function useStudioOperatorUpload({
             readVideoFileMetadata(file),
             captureVideoThumbnail(file),
           ])
+          if (scopeEpoch.current !== epoch) return { error: '' }
           const response = await uploadVideoFileAPI(file, {
             width: metadata?.width ?? 0,
             height: metadata?.height ?? 0,
@@ -278,6 +301,7 @@ export function useStudioOperatorUpload({
         })
         if (!prepared)
           return { error: tr('attach.upload.tooLargeImage', { maxMb }) }
+        if (scopeEpoch.current !== epoch) return { error: '' }
 
         const response = await uploadImageFileAPI(prepared, { onProgress })
         return response.success && response.data
@@ -301,7 +325,9 @@ export function useStudioOperatorUpload({
 
   const start = useCallback(
     (id: string, file: File, kind: StudioOperatorUpload['kind']) => {
+      const epoch = scopeEpoch.current
       void runUpload(id, file, kind).then((result) => {
+        if (scopeEpoch.current !== epoch) return
         // 用户在传的过程中摘掉了它 —— 结果直接丢，别挂回去也别报错。
         if (dismissedRef.current.has(id)) {
           dismissedRef.current.delete(id)
@@ -324,6 +350,7 @@ export function useStudioOperatorUpload({
 
   const uploadFiles = useCallback(
     (files: readonly File[]) => {
+      if (!scopeKey) return
       const next: StudioOperatorUpload[] = []
       for (const file of files) {
         const kind = classify(file)
@@ -361,7 +388,7 @@ export function useStudioOperatorUpload({
       }
       if (next.length > 0) setUploads((current) => [...current, ...next])
     },
-    [start],
+    [scopeKey, start],
   )
 
   const retryUpload = useCallback(

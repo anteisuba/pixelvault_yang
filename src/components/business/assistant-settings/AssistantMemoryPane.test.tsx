@@ -30,6 +30,11 @@ vi.mock('next-intl', () => ({
   }),
 }))
 
+const projects = vi.hoisted(() => ({ list: vi.fn() }))
+vi.mock('@/lib/api-client/node-workflow', () => ({
+  listNodeWorkflowProjectsAPI: projects.list,
+}))
+
 const rules = vi.hoisted(() => ({
   current: [] as ProjectRule[],
   add: vi.fn(async () => true),
@@ -53,6 +58,7 @@ function memory(overrides: Partial<AssistantMemory> = {}): AssistantMemory {
   return {
     id: 'mem-1',
     scope: 'global',
+    workspaceKey: null,
     kind: 'preference',
     source: 'assistant',
     text: '喜欢日系赛璐璐、线条干净',
@@ -67,6 +73,7 @@ const MINE = memory({
   kind: 'rule',
   source: 'creator',
   scope: 'image',
+  workspaceKey: 'image-natural',
   text: '角色图默认用 NovelAI V4.5 Full',
 })
 const LEARNED = memory({ id: 'learned-1' })
@@ -116,6 +123,18 @@ function renderPane(
   return render(<AssistantMemoryPane memories={value} autosave={autosave} />)
 }
 
+async function chooseNewScope(scope: string) {
+  fireEvent.pointerDown(screen.getByTestId('assistant-memory-new-scope'), {
+    button: 0,
+    ctrlKey: false,
+  })
+  fireEvent.click(
+    await screen.findByRole('menuitemradio', {
+      name: `AssistantSettings:memory.scope.${scope}`,
+    }),
+  )
+}
+
 function rowTexts(): string[] {
   return screen
     .queryAllByTestId('assistant-memory-row')
@@ -125,6 +144,7 @@ function rowTexts(): string[] {
 beforeEach(() => {
   vi.clearAllMocks()
   rules.current = []
+  projects.list.mockResolvedValue({ success: true, data: [] })
 })
 
 describe('AssistantMemoryPane · 一列（M-A）', () => {
@@ -143,7 +163,7 @@ describe('AssistantMemoryPane · 一列（M-A）', () => {
     expect(screen.queryByText('AssistantSettings:memory.emptyTitle')).toBeNull()
   })
 
-  it('每行标「你写的 / 助手记的」；只有不是全部工作台的才挂范围标签', () => {
+  it('每行标来源与范围；旧助手全局记忆明确标为未归属', () => {
     renderPane([MINE, LEARNED])
     expect(rowTexts()).toEqual([MINE.text, LEARNED.text])
     expect(
@@ -152,6 +172,9 @@ describe('AssistantMemoryPane · 一列（M-A）', () => {
     expect(
       screen.queryByText('AssistantSettings:memory.scope.global'),
     ).toBeNull()
+    expect(
+      screen.getByText('AssistantSettings:memory.unassigned'),
+    ).toBeInTheDocument()
     expect(
       screen.getByText(/memory\.meta\(.*memory\.source\.creator.*today/),
     ).toBeInTheDocument()
@@ -182,12 +205,17 @@ describe('AssistantMemoryPane · 写一条', () => {
       memory({ id: 'new-1', source: 'creator', text: '以后都用中文回复' }),
     )
     renderPane([LEARNED])
+    await chooseNewScope('global')
     const input = screen.getByTestId('assistant-memory-new')
     fireEvent.change(input, { target: { value: '  以后都用中文回复 ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
     await waitFor(() =>
-      expect(store.create).toHaveBeenCalledWith({ text: '以后都用中文回复' }),
+      expect(store.create).toHaveBeenCalledWith({
+        text: '以后都用中文回复',
+        scope: 'global',
+        workspaceKey: null,
+      }),
     )
     await waitFor(() => expect(input).toHaveValue(''))
   })
@@ -195,6 +223,7 @@ describe('AssistantMemoryPane · 写一条', () => {
   it('没存上时字留着，⛔ 不清空', async () => {
     store.create.mockResolvedValue(null)
     renderPane([])
+    await chooseNewScope('image')
     const input = screen.getByTestId('assistant-memory-new')
     fireEvent.change(input, { target: { value: '再来一条' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -288,7 +317,7 @@ describe('AssistantMemoryPane · 改 / 删', () => {
     )
     await waitFor(() =>
       expect(store.update).toHaveBeenCalledWith('learned-1', {
-        scope: 'video',
+        workspaceKey: 'video',
       }),
     )
   })
@@ -342,6 +371,7 @@ describe('AssistantMemoryPane · 搜图来源', () => {
   const rule = (id: string, kind: ProjectRule['kind'], text: string) => ({
     id,
     scope: null,
+    workspaceKey: null,
     text,
     kind,
     source: 'creator' as const,
@@ -387,6 +417,122 @@ describe('AssistantMemoryPane · 搜图来源', () => {
     expect(rules.add).toHaveBeenCalledWith({
       text: 'danbooru.donmai.us',
       kind: 'sourceAllow',
+      scope: null,
+      workspaceKey: null,
     })
+  })
+})
+
+describe('AssistantMemoryPane · workspace boundaries', () => {
+  it('does not create a global memory before an explicit scope choice', async () => {
+    renderPane([])
+    const input = screen.getByTestId('assistant-memory-new')
+    fireEvent.change(input, { target: { value: '喜欢冷色调' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(store.create).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('memory.chooseScope')
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-new-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    expect(
+      await screen.findByRole('menuitemradio', {
+        name: 'AssistantSettings:memory.scope.global',
+      }),
+    ).not.toBeChecked()
+  })
+
+  it.each([
+    ['image', 'image-natural'],
+    ['tags', 'image-tags'],
+    ['video', 'video'],
+    ['lora', 'lora'],
+    ['cards', 'cards'],
+  ])(
+    'creates %s only in its selected workspace',
+    async (scope, workspaceKey) => {
+      store.create.mockResolvedValue(null)
+      renderPane([])
+      await chooseNewScope(scope)
+      const input = screen.getByTestId('assistant-memory-new')
+      fireEvent.change(input, { target: { value: '喜欢冷色调' } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      await waitFor(() =>
+        expect(store.create).toHaveBeenCalledWith({
+          text: '喜欢冷色调',
+          workspaceKey,
+        }),
+      )
+    },
+  )
+
+  it('requires an actual canvas project and saves the selected project key', async () => {
+    projects.list.mockResolvedValue({
+      success: true,
+      data: [
+        { id: 'p-one', name: 'First canvas' },
+        { id: 'p-two', name: 'Second canvas' },
+      ],
+    })
+    store.create.mockResolvedValue(null)
+    renderPane([])
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-new-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    expect(
+      screen.queryByRole('menuitemradio', {
+        name: 'AssistantSettings:memory.scope.canvas',
+      }),
+    ).toBeNull()
+    fireEvent.click(
+      await screen.findByRole('menuitemradio', { name: 'Second canvas' }),
+    )
+    const input = screen.getByTestId('assistant-memory-new')
+    fireEvent.change(input, { target: { value: '项目角色戴眼镜' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(store.create).toHaveBeenCalledWith({
+        text: '项目角色戴眼镜',
+        workspaceKey: 'canvas:p-two',
+      }),
+    )
+  })
+
+  it('does not offer a broad canvas scope when no projects exist', async () => {
+    renderPane([])
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-new-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    expect(
+      await screen.findByText('AssistantSettings:memory.projectsEmpty'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('menuitemradio', {
+        name: 'AssistantSettings:memory.scope.canvas',
+      }),
+    ).toBeNull()
+    expect(store.create).not.toHaveBeenCalled()
+  })
+
+  it('allows an existing memory to be explicitly shared globally', async () => {
+    renderPane([MINE])
+    fireEvent.click(screen.getByText(MINE.text))
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(
+      await screen.findByRole('menuitemradio', {
+        name: 'AssistantSettings:memory.scope.global',
+      }),
+    )
+    await waitFor(() =>
+      expect(store.update).toHaveBeenCalledWith(MINE.id, {
+        scope: 'global',
+        workspaceKey: null,
+      }),
+    )
   })
 })

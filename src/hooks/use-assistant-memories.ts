@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type {
-  AssistantMemoryScopeId,
-  AssistantMemorySourceId,
-} from '@/constants/assistant-memory'
+import type { AssistantMemorySourceId } from '@/constants/assistant-memory'
 import {
   clearAssistantMemoriesAPI,
   createAssistantMemoryAPI,
@@ -14,9 +11,11 @@ import {
   updateAssistantMemoryAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { listNodeWorkflowProjectsAPI } from '@/lib/api-client/node-workflow'
 import type {
   AssistantMemory,
   CreateAssistantMemoryRequest,
+  UpdateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
 
 /**
@@ -24,8 +23,7 @@ import type {
  *
  * 形状照抄 `use-context-cards.ts`（同一套 `deferEffectTask` + `aliveRef` 约定）。
  *
- * ⚠ **一次全取，筛选在前端**（画板：顶部 chip 纯前端过滤）：一个用户的记忆最多
- * 五个域各 200 条，按域再跑一次请求换来的只是四个 chip 之间的一次白屏。
+ * ⚠ **一次全取，筛选在前端**（画板：顶部 chip 纯前端过滤），保留旧未归属记录供管理。
  * ⚠ 每一次写都用**服务端回来的那一份**替换本地那一条，⛔ 不自己拼乐观值：
  * `updatedAt` 由库决定，而列表就是按它排的。
  */
@@ -54,7 +52,7 @@ export interface UseAssistantMemoriesValue {
   create(input: CreateAssistantMemoryRequest): Promise<AssistantMemory | null>
   update(
     memoryId: string,
-    input: { text?: string; scope?: AssistantMemoryScopeId },
+    input: UpdateAssistantMemoryRequest,
   ): Promise<AssistantMemory | null>
   remove(memoryId: string): Promise<boolean>
   /** 清空（跟着筛选走：缺 `source` = 全部）。 */
@@ -120,10 +118,7 @@ export function useAssistantMemories(
   }, [])
 
   const update = useCallback(
-    async (
-      memoryId: string,
-      input: { text?: string; scope?: AssistantMemoryScopeId },
-    ) => {
+    async (memoryId: string, input: UpdateAssistantMemoryRequest) => {
       const result = await updateAssistantMemoryAPI(memoryId, input)
       if (!aliveRef.current) return result.success ? result.data : null
       if (result.success) {
@@ -183,4 +178,45 @@ export function useAssistantMemories(
     clear,
     reload,
   }
+}
+
+export function useAssistantMemoryProjects(autoLoad: boolean) {
+  const [state, setState] = useState<{
+    status: 'idle' | 'loading' | 'ready' | 'failed'
+    projects: { id: string; name: string }[]
+  }>({ status: 'idle', projects: [] })
+  const aliveRef = useRef(true)
+  const loadingRef = useRef(false)
+
+  const load = useCallback(async () => {
+    if (loadingRef.current) return
+    loadingRef.current = true
+    setState((current) => ({ ...current, status: 'loading' }))
+    const result = await listNodeWorkflowProjectsAPI()
+    loadingRef.current = false
+    if (!aliveRef.current) return
+    setState(
+      result.success && result.data
+        ? {
+            status: 'ready',
+            projects: result.data.map(({ id, name }) => ({ id, name })),
+          }
+        : { status: 'failed', projects: [] },
+    )
+  }, [])
+
+  useEffect(() => {
+    aliveRef.current = true
+    const cancel = autoLoad
+      ? deferEffectTask(() => {
+          void load()
+        })
+      : undefined
+    return () => {
+      aliveRef.current = false
+      cancel?.()
+    }
+  }, [autoLoad, load])
+
+  return { ...state, load }
 }

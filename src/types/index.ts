@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
+import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import { NovelAiCharacterLayoutSchema } from './novelai'
 
 import {
@@ -484,6 +485,7 @@ export type RunGroupMode = 'single' | 'compare' | 'variant'
 interface RunItemBase {
   id: string
   modelId: string
+  operatorResultOwner?: StudioOperatorResultOwner
   /**
    * 这一条**自己**是什么时候提交的（epoch ms）。
    *

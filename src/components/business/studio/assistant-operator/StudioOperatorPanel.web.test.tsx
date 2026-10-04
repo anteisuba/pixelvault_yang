@@ -37,6 +37,12 @@ vi.mock('next-intl', () => ({
   }),
 }))
 
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+
 vi.mock('next/image', () => ({
   default: ({ src, alt }: { src: string; alt: string }) => (
     // eslint-disable-next-line @next/next/no-img-element
@@ -141,6 +147,7 @@ const HOST_SPEC = vi.hoisted(() => ({
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
+    workspace: 'image-natural' as const,
     /** 四张脸那一格（D7b ③）—— 面板读 `face` 而不是按 domain 取药丸表。 */
     face: {
       domainIcon: () => null,
@@ -228,7 +235,14 @@ const HISTORY = {
   isHydrating: false,
   error: null,
   selectSession: vi.fn(),
-} as unknown as UseStudioOperatorHistoryResult
+  retrySave: vi.fn().mockResolvedValue(true),
+  loadingSessionId: null,
+  renamingSessionId: null,
+  renameSession: vi.fn().mockResolvedValue(true),
+  refreshSessions: vi.fn(),
+  deletingSessionId: null,
+  deleteSession: vi.fn().mockResolvedValue(true),
+} satisfies UseStudioOperatorHistoryResult
 
 const UPLOAD = {
   uploads: [],

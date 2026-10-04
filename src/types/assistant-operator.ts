@@ -19,6 +19,8 @@
  */
 
 import { z } from 'zod'
+import { EvidenceExcerptKindSchema } from '@/types/research'
+import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
 import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
@@ -1593,6 +1595,7 @@ export type AssistantOperatorLoraMountCandidate = z.infer<
 >
 
 export const AssistantOperatorRequestSchema = z.object({
+  workspaceKey: AssistantWorkspaceKeySchema,
   stepBudget: z.number().int().min(1).max(LIMITS.maxCanvasSteps).optional(),
   referenceProfiles: ReferenceProfilesSchema.optional(),
   messages: z.array(AssistantOperatorMessageSchema).min(1),
@@ -2999,6 +3002,7 @@ export const AssistantOperatorEvidenceSchema = z.object({
   url: z.string().url().optional(),
   publisher: z.string().max(RESEARCH_LIMITS.maxEvidencePublisherChars),
   snippet: z.string().max(RESEARCH_LIMITS.maxEvidenceSnippetChars),
+  excerptKind: EvidenceExcerptKindSchema.optional(),
   kind: z.enum(ASSISTANT_RESEARCH_EVIDENCE_KINDS),
   confidence: z.enum(ASSISTANT_RESEARCH_CONFIDENCES),
   /**
@@ -3010,10 +3014,9 @@ export const AssistantOperatorEvidenceSchema = z.object({
   /**
    * **证据本编号**（§9.2 新增的两项之一）——`#e12` 这种，会话内自增。
    *
-   * ⭐ 它在**这一步就给得出来**：号段在本轮第一次查证时从证据本现取一次
-   * （`peekAssistantEvidenceRefSeq`），之后在内存里顺延，收尾落库时用同一段号。
+   * ⭐ 工具完成时原子写入证据本，提交成功后给出真实编号；结账引用同一编号。
    * 没有它这条卡上的「钉住」就钉不住 —— 钉住写进结论记录的正是这个号（§7.3）。
-   * ⚠ 可选：没有 `conversationId`（第一轮 / 老客户端）或号段取不到时就是没有，
+   * ⚠ 可选：没有 `conversationId`（第一轮 / 老客户端）或写入失败时就是没有，
    * ⛔ 不编一个指不回任何东西的号。
    */
   evidenceRef: AssistantOperatorEvidenceRefSchema.optional(),
@@ -3090,6 +3093,7 @@ export const AssistantOperatorRecalledEvidenceSchema = z.object({
   /** 源 id（萌百 / danbooru / web_search…），落库时就在那一条上。 */
   source: z.string().max(RESEARCH_LIMITS.maxEvidencePublisherChars),
   body: z.string().max(EVIDENCE_RECALL_LIMITS.maxBodyChars),
+  excerptKind: EvidenceExcerptKindSchema.optional(),
 })
 
 export type AssistantOperatorRecalledEvidence = z.infer<

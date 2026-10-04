@@ -30,6 +30,7 @@ import {
   type AssistantOperatorDomain,
   type AssistantOperatorReferenceSlot,
   type GenerationReviewState,
+  type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { isAspectRatio } from '@/constants/config'
@@ -57,6 +58,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   StudioOperatorGenerationChoices,
   StudioOperatorGenerationControls,
+  StudioOperatorResultOwner,
 } from '@/types/studio-assistant-operator'
 
 /**
@@ -136,7 +138,7 @@ export interface StudioOperatorCanvasContext {
   getApplyError?(): string | undefined
   needsPromptInputSync?(): boolean
   /** 撤销：按 step id 取回宿主扣着的那份逆载荷并回放。 */
-  revertOp(stepId: string): void
+  revertOp(stepId: string): boolean
   /**
    * 扣扳机 —— 画布那一枪。⚠ 与工作台的 `triggerGeneration` 同一条纪律：
    * 交出去就不管（`applyOperatorStep` 是同步纯函数），结果回灌由画布自己的
@@ -282,7 +284,10 @@ export interface StudioOperatorApplyContext {
    * ⚠ **缺席 = 这个宿主没有生成键**。LoRA 装配台接的是自己那颗出图键（2026-09-29，
    * 见 `use-lora-operator-host.ts`：同样先记请求号、渲染提交后再按）。
    */
-  triggerGeneration?(request: AssistantOperatorGenerationRequest): void
+  triggerGeneration?(
+    request: AssistantOperatorGenerationRequest,
+    owner?: StudioOperatorResultOwner,
+  ): void
   /**
    * **这一枪叫什么**（切片 Y）—— `prime_generate` / `request_generation` 的
    * `label`。
@@ -308,11 +313,13 @@ export interface StudioOperatorApplyContext {
    *
    * ⚠ 与这份上下文里其他每一条都不同：`add_project_rule` 的后果**落在服务端**
    * （库里多了一行），表单一个字都没动。所以「应用」这一步在客户端是空操作，
-   * 只有撤销要真的做一件事 —— 把那一行删掉（走 `deleteProjectRuleAPI`）。
-   * ⚠ 缺席 = 这个宿主还没接规则那条线；缺席时撤销是**静默不做**，⛔ 不抛：
-   * 少一个可选的手不该让整条撤销链断掉。
+   * 只有撤销要真的做一件事 —— 普通规矩删记忆，来源名单删项目规则。
+   * ⚠ 返回真实删除回执；缺席时调用方不能把这一步标成已撤销。
    */
-  deleteProjectRule?(ruleId: string): void
+  deleteProjectRule?(input: {
+    ruleId: string
+    kind: ProjectRuleKindId
+  }): Promise<boolean>
   /**
    * 撤销一条**素材库写操作**（v2 §10）—— 打标签 / 收藏 / 建夹 / 移动那四条。
    *
@@ -321,9 +328,9 @@ export interface StudioOperatorApplyContext {
    * 把 step 上那份 `inverse` 原样交回服务端（走 `revertAssistantAssetWriteAPI`）。
    * ⛔ 别在这一侧重新算一份 inverse：算第二遍就有第二份判据，而应用与撤销必须是
    * 同一份判据的两侧（本文件头注）。
-   * ⚠ 缺席 = 这个宿主还没接素材库那条线；缺席时撤销**静默不做**，⛔ 不抛。
+   * ⚠ 返回真实撤销回执；缺席或未撤完整时调用方保留可重试的步骤。
    */
-  revertAssetWrite?(input: AssistantAssetWriteRevert): void
+  revertAssetWrite?(input: AssistantAssetWriteRevert): Promise<boolean>
 }
 
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
@@ -866,8 +873,9 @@ export function applyOperatorStep(
 export function revertOperatorStep(
   step: AssistantOperatorAppliedStep,
   ctx: StudioOperatorApplyContext,
-): void {
+): boolean | Promise<boolean> {
   switch (step.tool) {
+    case ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences:
     case ASSISTANT_OPERATOR_TOOL_IDS.readState:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
     case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders:
@@ -877,16 +885,23 @@ export function revertOperatorStep(
     // （见 `applyOperatorStep`）。
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWeb:
     case ASSISTANT_OPERATOR_TOOL_IDS.research:
     case ASSISTANT_OPERATOR_TOOL_IDS.readUrl:
     case ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence:
     case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
     case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
     case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
+    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
+    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
     /** ⚠ 画布的下游名单也是读：一个节点都没动，也就没有东西可撤。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
-      return
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
+      return false
 
     /**
      * 画布：撤一条 op（进度表 22）。
@@ -896,20 +911,22 @@ export function revertOperatorStep(
      * `candidateId` 逐字同源。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply:
-      ctx.canvas?.revertOp(step.id)
-      return
+      return ctx.canvas?.revertOp(step.id) ?? false
 
     /**
-     * ⚠ 唯一一条撤销要**打一次网络**的：记下的那一行在库里，删它得走路由。
-     * 宿主没接这条线时静默不做（见 `deleteProjectRule` 头注）。
+     * 记下的那一行在库里，按类别把删除回执交回调用方。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule:
-      ctx.deleteProjectRule?.(step.inverse.ruleId)
-      return
+      return (
+        ctx.deleteProjectRule?.({
+          ruleId: step.inverse.ruleId,
+          kind: step.payload.kind,
+        }) ?? false
+      )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:
       ctx.dispatch({ type: 'SET_PROMPT', payload: step.inverse.value })
-      return
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setNegative:
       ctx.dispatch({
@@ -921,25 +938,25 @@ export function revertOperatorStep(
           negativePrompt: step.inverse.value || undefined,
         },
       })
-      return
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setModel: {
       const previous = step.inverse.modelId
       // ⚠ 撤销连**渠道**一起回去（进度表 21）：回到型号却换了条路，价钱就变了。
       if (ctx.selectModelChannel) {
-        ctx.selectModelChannel({
+        return ctx.selectModelChannel({
           modelId: previous,
           channelId: step.inverse.channelId ?? null,
         })
-        return
       }
       if (previous === null) {
         ctx.dispatch({ type: 'SET_OPTION_ID', payload: null })
-        return
+        return true
       }
       const optionId = ctx.resolveOptionId(previous)
+      if (optionId === null) return false
       ctx.dispatch({ type: 'SET_OPTION_ID', payload: optionId })
-      return
+      return true
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setSpecs: {
@@ -962,7 +979,7 @@ export function revertOperatorStep(
             : undefined,
         },
       })
-      return
+      return true
     }
 
     /** ⭐ 逆操作也带齐三格 —— 撤销一定落回一个真实存在过的三元组。 */
@@ -981,7 +998,7 @@ export function revertOperatorStep(
             ? resolution
             : null,
       })
-      return
+      return true
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
@@ -990,8 +1007,9 @@ export function revertOperatorStep(
           type: 'SET_IMAGE_BATCH_COUNT',
           payload: step.inverse.count,
         })
+        return true
       }
-      return
+      return false
 
     /**
      * ⚠ 撤回 `null` 时**把那个键删掉**，⛔ 不是写一个缺省值进去：删掉才等于
@@ -1009,26 +1027,26 @@ export function revertOperatorStep(
         type: 'SET_ADVANCED_PARAMS',
         payload: next as StudioFormState['advancedParams'],
       })
-      return
+      return true
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       ctx.removeAudioReference(step.payload.url)
-      return
+      return true
 
     /** ⚠ 回得到 `null`（用户没设过那一档）—— 见 `setSound` 的 `inverse` 头注。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
       ctx.setSound(step.inverse.enabled)
-      return
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       ctx.removeReference(step.payload.url, step.inverse.slot)
-      return
+      return true
 
     /** ⚠ 撤销 = 原样挂回同一个位置（`inverse` 与载荷同形，不必反查对照表）。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountReference:
       ctx.addReference(step.inverse.url, step.inverse.slot)
-      return
+      return true
 
     /**
      * ⚠ 摘的是**挂载**，⛔ 不删素材：那条地址是用户亲手递的，图进他库里是他的
@@ -1037,7 +1055,7 @@ export function revertOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl:
       ctx.unmountUserUrl(step.payload.url)
-      return
+      return true
 
     /**
      * ⚠ 撤销挂载 = **摘掉挂载，⛔ 不删库记录**：那把 LoRA 已经收进用户的库了，
@@ -1045,27 +1063,32 @@ export function revertOperatorStep(
      * 撤销不删素材）。要清库有素材页那条既有的路。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.mountLora:
-      ctx.lora?.unmountByCandidateId(step.payload.candidateId)
-      return
+      if (!ctx.lora) return false
+      ctx.lora.unmountByCandidateId(step.payload.candidateId)
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
-      ctx.lora?.remount(step.inverse.loraId, step.inverse.weight)
-      return
+      if (!ctx.lora) return false
+      ctx.lora.remount(step.inverse.loraId, step.inverse.weight)
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.showLoraPicks:
-      ctx.lora?.clearPicks?.()
-      return
+      if (!ctx.lora?.clearPicks) return false
+      ctx.lora.clearPicks()
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
-      ctx.lora?.setParameters?.(step.inverse)
-      return
+      if (!ctx.lora?.setParameters) return false
+      ctx.lora.setParameters(step.inverse)
+      return true
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
-      ctx.lora?.setWeight(step.inverse.loraId, step.inverse.weight)
-      return
+      if (!ctx.lora) return false
+      ctx.lora.setWeight(step.inverse.loraId, step.inverse.weight)
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate:
       ctx.setPrimed(false)
-      return
+      return true
 
     /**
      * ⛔ **撤不掉，也不假装撤得掉**（§6 花钱档）。这一枪打出去之后：钱扣了、
@@ -1075,7 +1098,7 @@ export function revertOperatorStep(
      * `noImplicitReturns`，编译器一声不吭（同 `search_web_images` 那条头注）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration:
-      return
+      return false
 
     /**
      * ⛔ 审核态**不进撤销链**（切片 Y）：它不是「助手改了表单的一格」，而是
@@ -1083,42 +1106,46 @@ export function revertOperatorStep(
      * ⚠ 空分支照旧写出来（同上一条的理由：本仓没开 `noImplicitReturns`）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
-      return
+      return false
 
     /**
      * 素材库四条（§10）—— 撤销要**打一次网络**：后果在库里，客户端手上没有任何
      * 东西可以往回改。交出去的是 step 上那份 `inverse` **原样**（逐条原值），
      * ⛔ 这一侧不重算。
-     * ⚠ 宿主没接这条线时静默不做（同 `deleteProjectRule` 的判据）。
+     * ⚠ 调用方等待宿主回执，缺席时不能宣称撤销成功。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
-      ctx.revertAssetWrite?.({
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
-        entries: step.inverse.entries,
-      })
-      return
+      return (
+        ctx.revertAssetWrite?.({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+          entries: step.inverse.entries,
+        }) ?? false
+      )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
-      ctx.revertAssetWrite?.({
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
-        entries: step.inverse.entries,
-      })
-      return
+      return (
+        ctx.revertAssetWrite?.({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+          entries: step.inverse.entries,
+        }) ?? false
+      )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
-      ctx.revertAssetWrite?.({
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
-        folderId: step.inverse.folderId,
-      })
-      return
+      return (
+        ctx.revertAssetWrite?.({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+          folderId: step.inverse.folderId,
+        }) ?? false
+      )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
-      ctx.revertAssetWrite?.({
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
-        folderId: step.inverse.folderId,
-        assetIds: step.inverse.assetIds,
-      })
-      return
+      return (
+        ctx.revertAssetWrite?.({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+          folderId: step.inverse.folderId,
+          assetIds: step.inverse.assetIds,
+        }) ?? false
+      )
   }
 }
 

@@ -7,6 +7,10 @@ import type { CharacterCardRecord } from '@/types'
 
 import { CharacterRoster } from './CharacterRoster'
 
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: null }),
+}))
+
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
     const { src, alt, ...rest } = props

@@ -3,6 +3,25 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 export type LlmCapabilityScope = 'enhance' | 'planner' | 'assistant'
 
+export const LLM_STRUCTURED_OUTPUT_MODELS: Partial<
+  Record<AI_ADAPTER_TYPES, readonly string[]>
+> = {
+  [AI_ADAPTER_TYPES.OPENAI]: [
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+  ],
+  [AI_ADAPTER_TYPES.GEMINI]: [
+    LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
+    LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+  ],
+  [AI_ADAPTER_TYPES.ANTHROPIC]: [
+    LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+  ],
+}
+
 // Route tables allow multiple tiers per adapter since 2026-08-23; the first
 // entry for an adapter is that adapter's default tier. Enhance is short-in/
 // short-out high-frequency work, so the cheap tier leads.

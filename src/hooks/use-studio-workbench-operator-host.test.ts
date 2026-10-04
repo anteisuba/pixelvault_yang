@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -27,10 +27,29 @@ const formState = vi.hoisted(() => ({
 }))
 const references = vi.hoisted(() => ({ entries: [] as { url: string }[] }))
 const modelOptions = vi.hoisted(() => [
-  { optionId: 'openai-test', modelId: 'gpt-image-test' },
+  {
+    optionId: 'openai-test',
+    modelId: 'gpt-image-test',
+    adapterType: 'openai',
+    keyId: 'key-openai',
+    providerConfig: {
+      label: 'OpenAI',
+      baseUrl: 'https://api.openai.com',
+    },
+  },
 ])
 const setReferenceImage = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
+const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
+const deleteProjectRuleAPI = vi.hoisted(() => vi.fn())
+const revertAssistantAssetWriteAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/assistant-memories', () => ({
+  deleteAssistantMemoryAPI,
+}))
+vi.mock('@/lib/api-client/assistant-persona', () => ({ deleteProjectRuleAPI }))
+vi.mock('@/lib/api-client/assistant-operator', () => ({
+  revertAssistantAssetWriteAPI,
+}))
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: routerPush }),
 }))
@@ -67,6 +86,7 @@ vi.mock('@/contexts/studio-context', () => ({
       videoGenerateAudio: null,
       videoMode: 'keyframe',
       outputType: 'image',
+      promptDialect: 'natural',
       selectedOptionId: null,
       panels: { enhance: false },
       videoFrameSlots: { first: null, last: null },
@@ -129,14 +149,13 @@ vi.mock('@/lib/studio-operator-snapshot', () => ({
    * ⚠ **张数 / 比例原样透传**：D7b 的域标记那一句读的就是它，桩成常量会让
    *   「改张数胶囊跟着刷」那条断言恒真。
    */
-  buildImageGenerationControls: (input: {
-    aspectRatio: string
-    count: number
-  }) => ({
-    ...EMPTY_CONTROLS,
-    aspectRatio: input.aspectRatio,
-    count: input.count,
-  }),
+  buildImageGenerationControls: vi.fn(
+    (input: { aspectRatio: string; count: number }) => ({
+      ...EMPTY_CONTROLS,
+      aspectRatio: input.aspectRatio,
+      count: input.count,
+    }),
+  ),
   buildVideoGenerationControls: (input: { aspectRatio: string }) => ({
     ...EMPTY_CONTROLS,
     aspectRatio: input.aspectRatio,
@@ -150,19 +169,87 @@ import {
 } from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
+import { buildImageGenerationControls } from '@/lib/studio-operator-snapshot'
+import {
+  appendOperatorPendingResult,
+  claimOperatorThreadScope,
+  getOperatorState,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
+
+beforeEach(() => {
+  formState.overrides = {}
+  resetOperatorThread()
+})
 
 function runItem(
   id: string,
   status: string,
   generation: Record<string, unknown> | null,
 ) {
-  return { id, status, generation }
+  return { id, status, generation, modelId: 'gpt-image-2' }
 }
+
+describe('useStudioWorkbenchOperatorHost 的网络撤销回执', () => {
+  beforeEach(() => {
+    useStudioGenOptional.mockReturnValue(undefined)
+    deleteAssistantMemoryAPI.mockReset().mockResolvedValue({ success: true })
+    deleteProjectRuleAPI.mockReset().mockResolvedValue({ success: true })
+    revertAssistantAssetWriteAPI.mockReset()
+  })
+
+  it.each(['note', 'sourceAllow', 'sourceDeny'] as const)(
+    '规则 %s 撤销走其真实存储位置',
+    async (kind) => {
+      const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+      const remove = result.current.apply.deleteProjectRule
+      expect(remove).toBeDefined()
+
+      expect(await remove?.({ ruleId: 'rule-1', kind })).toBe(true)
+      if (kind === 'note') {
+        expect(deleteAssistantMemoryAPI).toHaveBeenCalledWith('rule-1')
+        expect(deleteProjectRuleAPI).not.toHaveBeenCalled()
+      } else {
+        expect(deleteProjectRuleAPI).toHaveBeenCalledWith('rule-1')
+        expect(deleteAssistantMemoryAPI).not.toHaveBeenCalled()
+      }
+    },
+  )
+
+  it('删除失败原样返回失败回执', async () => {
+    deleteAssistantMemoryAPI.mockResolvedValue({ success: false })
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+
+    expect(
+      await result.current.apply.deleteProjectRule?.({
+        ruleId: 'memory-1',
+        kind: 'note',
+      }),
+    ).toBe(false)
+  })
+
+  it.each([
+    [null, false],
+    [{ revertedCount: 0, skipped: 1 }, false],
+    [{ revertedCount: 2, skipped: 0 }, true],
+  ] as const)('素材库撤销按完整回执判成功 %j', async (receipt, success) => {
+    revertAssistantAssetWriteAPI.mockResolvedValue(receipt)
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+
+    expect(
+      await result.current.apply.revertAssetWrite?.({
+        tool: 'tag_asset',
+        entries: [{ assetId: 'asset-1', tags: [] }],
+      }),
+    ).toBe(success)
+  })
+})
 
 describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
   it('只收跑完且有地址的那些，缩略图与地址分开带', () => {
     useStudioGenOptional.mockReturnValue({
       activeRun: {
+        outputType: 'IMAGE',
         items: [
           runItem('item-1', 'generating', null),
           runItem('item-2', 'completed', {
@@ -197,6 +284,100 @@ describe('useStudioWorkbenchOperatorHost 的 results 映射', () => {
         outputType: 'IMAGE',
       },
     ])
+  })
+
+  it('切换方言与视频台时隐藏其他台的在飞与完成结果，回来继续显示', () => {
+    claimOperatorThreadScope('user-a:image-tags', 'image')
+    appendOperatorPendingResult({ id: 'tag-pending', total: 2 })
+    const operatorResultOwner = {
+      threadScope: 'user-a:image-tags',
+      localThreadId: getOperatorState().localThreadId,
+      pendingResultId: 'tag-pending',
+    }
+    const generation = {
+      id: 'tag-result',
+      url: 'https://example.com/tag.png',
+      outputType: 'IMAGE',
+      prompt: '1girl',
+    }
+    const activeRun = {
+      outputType: 'IMAGE',
+      items: [
+        {
+          ...runItem('tag-done', 'completed', generation),
+          modelId: 'nai-diffusion-5-full',
+          operatorResultOwner,
+        },
+        {
+          ...runItem('tag-running', 'generating', null),
+          modelId: 'nai-diffusion-5-full',
+          operatorResultOwner,
+        },
+      ],
+    }
+    useStudioGenOptional.mockReturnValue({ activeRun })
+    formState.overrides = { promptDialect: 'tags' }
+    const view = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(view.result.current.results?.map((result) => result.id)).toEqual([
+      'tag-result',
+    ])
+    expect(view.result.current.resultRun).toMatchObject({
+      total: 2,
+      completed: 1,
+      settled: false,
+    })
+    formState.overrides = { promptDialect: 'natural' }
+    view.rerender()
+    expect(view.result.current.results).toEqual([])
+    expect(view.result.current.resultRun).toBeUndefined()
+    formState.overrides = { outputType: 'video' }
+    view.rerender()
+    expect(view.result.current.results).toEqual([])
+    formState.overrides = { promptDialect: 'tags' }
+    view.rerender()
+    expect(view.result.current.resultRun).toMatchObject({
+      total: 2,
+      completed: 1,
+      settled: false,
+    })
+    expect(activeRun.items).toHaveLength(2)
+  })
+
+  it('同台的新对话与新账号不能认领上一次提交的结果', () => {
+    claimOperatorThreadScope('user-a:image-natural', 'image')
+    appendOperatorPendingResult({ id: 'old-pending', total: 1 })
+    const oldOwner = {
+      threadScope: 'user-a:image-natural',
+      localThreadId: getOperatorState().localThreadId,
+      pendingResultId: 'old-pending',
+    }
+    useStudioGenOptional.mockReturnValue({
+      activeRun: {
+        outputType: 'IMAGE',
+        items: [
+          {
+            ...runItem('old-run', 'completed', {
+              id: 'old-generation',
+              url: 'https://cdn.test/old.png',
+              outputType: 'IMAGE',
+            }),
+            operatorResultOwner: oldOwner,
+          },
+        ],
+      },
+    })
+    const view = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(view.result.current.resultRun?.owner).toEqual(oldOwner)
+    act(() => {
+      resetOperatorThread()
+      appendOperatorPendingResult({ id: 'new-pending', total: 1 })
+    })
+    expect(view.result.current.resultRun).toBeUndefined()
+    act(() => {
+      claimOperatorThreadScope('user-b:image-natural', 'image')
+      appendOperatorPendingResult({ id: 'old-pending', total: 1 })
+    })
+    expect(view.result.current.resultRun).toBeUndefined()
   })
 
   it('没有 <StudioProvider> 时是空数组 —— ⛔ 不抛（面板也挂在 LoRA 装配台上）', () => {
@@ -334,7 +515,7 @@ describe('useStudioWorkbenchOperatorHost 的 face（D7b ③）', () => {
   })
 })
 
-describe('useStudioWorkbenchOperatorHost 换到另一台的型号（拆分与反推实跑 09-24）', () => {
+describe('useStudioWorkbenchOperatorHost 当前工作台的模型边界', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     if (!modelOptions.some((option) => option.optionId === 'nai-v5-full'))
@@ -351,31 +532,77 @@ describe('useStudioWorkbenchOperatorHost 换到另一台的型号（拆分与反
     formState.overrides = { promptDialect: 'natural' }
   })
 
-  it('自然语言台上换 NovelAI：先换到标签台再选型号，⛔ 不留在原台被默认型号顶掉', () => {
+  it.each([
+    ['natural', 'gpt-image-test', 'nai-diffusion-5-full'],
+    ['tags', 'nai-diffusion-5-full', 'gpt-image-test'],
+  ])('%s 台只给当前方言的模型及确认卡选项', (dialect, allowed, denied) => {
+    formState.overrides = { promptDialect: dialect }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    result.current.buildSnapshot()
+    const expectedOptions = modelOptions.filter(
+      (option) => option.modelId === allowed,
+    )
+    expect(buildImageOperatorSnapshot).toHaveBeenLastCalledWith(
+      expect.objectContaining({ modelOptions: expectedOptions }),
+    )
+    expect(buildImageGenerationControls).toHaveBeenLastCalledWith(
+      expect.objectContaining({ modelOptions: expectedOptions }),
+    )
+    expect(result.current.apply.resolveOptionId(denied)).toBeNull()
+    expect(result.current.workspace).toBe(
+      dialect === 'tags' ? 'image-tags' : 'image-natural',
+    )
+  })
+
+  it.each([
+    ['natural', 'nai-diffusion-5-full'],
+    ['tags', 'gpt-image-test'],
+  ])('%s 台拒绝跨方言换模，表单与路由不变', (dialect, modelId) => {
+    formState.overrides = { promptDialect: dialect }
     const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
     const applied = result.current.apply.selectModelChannel?.({
-      modelId: 'nai-diffusion-5-full',
+      modelId,
       channelId: null,
     })
-    expect(applied).toBe(true)
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'SET_PROMPT_DIALECT',
-      payload: 'tags',
-    })
-    expect(routerPush).toHaveBeenCalledWith('/studio/image/tags')
+    expect(applied).toBe(false)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['natural', 'gpt-image-test'],
+    ['tags', 'nai-diffusion-5-full'],
+  ])('%s 台内合法换模仍生效', (dialect, modelId) => {
+    formState.overrides = { promptDialect: dialect }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(
+      result.current.apply.selectModelChannel?.({
+        modelId,
+        channelId: null,
+      }),
+    ).toBe(true)
     expect(dispatch).toHaveBeenLastCalledWith({
       type: 'SET_OPTION_ID',
       payload: expect.any(String),
     })
+    expect(routerPush).not.toHaveBeenCalled()
   })
 
-  it('同一台里换型号不动路由', () => {
+  it('手动换台后，助手快照和换模边界跟着当前台更新', () => {
+    const { result, rerender } = renderHook(() =>
+      useStudioWorkbenchOperatorHost(),
+    )
     formState.overrides = { promptDialect: 'tags' }
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    result.current.apply.selectModelChannel?.({
-      modelId: 'nai-diffusion-5-full',
-      channelId: null,
-    })
-    expect(routerPush).not.toHaveBeenCalled()
+    rerender()
+    result.current.buildSnapshot()
+    expect(buildImageOperatorSnapshot).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        modelOptions: modelOptions.filter(
+          (option) => option.adapterType === 'novelai',
+        ),
+        runModels: [],
+      }),
+    )
+    expect(result.current.apply.resolveOptionId('gpt-image-test')).toBeNull()
   })
 })

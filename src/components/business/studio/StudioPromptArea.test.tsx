@@ -26,6 +26,7 @@ import { StudioPromptArea } from './StudioPromptArea'
  * 没宿主就抛。本文件验的是提示词/生成载荷，宿主给一份空实现即可。
  */
 const STUB_OPERATOR_HOST: StudioOperatorHost = {
+  workspace: 'image-natural',
   domain: 'image',
   // 四张脸那一格（D7b ③）—— 参数栏不读它，桩给最小形状即可。
   face: {

@@ -12,11 +12,11 @@
  * 图片档 await 到完成、视频档后台轮询往 item 上落）。这里一个 timer 都没起 ——
  * 多一条轮询就是多一条会与既有那条抢状态的路。
  *
- * ── ⚠ 「这一批是不是那张卡的」：先见过它没跑完 ────────────────────
+ * ── ⚠ 「这一批是不是那张卡的」：核对提交时的归属 ────────────────────
  * 卡落下的那一瞬间，`resultRun` 里装的多半还是**上一批**（已经跑完的那一批）。
  * 直接拿它填卡的表现是：点完「确认生成」，卡上立刻出现了上一轮的三张图。
- * 所以这里要求**先见过一次未结账的回流**才认账（`boundRef`），⛔ 不按 run id 认
- * （视频档的队列会复用同一个 run id）。
+ * 所以这里核对账号工作区、线程与 pending 卡的完整 owner；极速完成也能认账，
+ * ⛔ 不按 run id 认（视频档的队列会复用同一个 run id）。
  *
  * ── ⚠ 那一枪没打出去也要有交代 ───────────────────────────────────
  * 生成键有自己的闸（模型必选 / 提示词长度 / 参考图能力 / 视频队列上限），被挡下时
@@ -35,8 +35,33 @@ import {
   nextOperatorEntryId,
   updateOperatorResult,
   useStudioOperatorState,
+  type StudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultRun } from '@/types/studio-assistant-operator'
+
+type PendingResultBinding = Pick<
+  StudioOperatorState,
+  'threadScope' | 'localThreadId'
+> & { pendingResultId: string }
+
+function isCurrentPendingResult(binding: PendingResultBinding): boolean {
+  const current = getOperatorState()
+  return (
+    binding.threadScope !== null &&
+    !current.readOnlyHistory &&
+    current.threadScope === binding.threadScope &&
+    current.localThreadId === binding.localThreadId &&
+    current.pendingResultId === binding.pendingResultId
+  )
+}
+
+function pendingResultBindingKey(binding: PendingResultBinding): string {
+  return JSON.stringify([
+    binding.threadScope,
+    binding.localThreadId,
+    binding.pendingResultId,
+  ])
+}
 
 /**
  * 撤掉那张转不动的卡，并留下一行交代。
@@ -57,29 +82,36 @@ function failPendingResult(id: string, reason?: string): void {
 export function useStudioOperatorResults(
   run: StudioOperatorResultRun | undefined,
 ): void {
-  const { pendingResultId } = useStudioOperatorState()
+  const { pendingResultId, threadScope, localThreadId, readOnlyHistory } =
+    useStudioOperatorState()
+  const hasCurrentSource =
+    run?.owner?.threadScope === threadScope &&
+    run?.owner?.localThreadId === localThreadId &&
+    run?.owner?.pendingResultId === pendingResultId
   /**
-   * 已经认下这一批的那张卡。
+   * 已经认下批次的 pending 卡身份；切台后仍能区分回流中断与未启动。
    *
    * ⚠ 走 ref 不走 state：认账这件事**不改变任何画面**（卡上画什么全由 store 里
    * 那条条目说了算），为它多跑一轮渲染是白烧的。TTL 那条到点时同步读它就够。
    * ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）：render 阶段改 ref 会被
    *   `react-hooks/refs` 拦下来。
    */
-  const boundRef = useRef<string | null>(null)
+  const boundRef = useRef(new Set<string>())
 
   useEffect(() => {
-    if (!pendingResultId || !run) return
+    if (!pendingResultId || !run || readOnlyHistory) return
+    const binding = { threadScope, localThreadId, pendingResultId }
+    if (!isCurrentPendingResult(binding)) return
+    if (!hasCurrentSource) return
+    const bindingKey = pendingResultBindingKey(binding)
     if (!run.settled) {
-      boundRef.current = pendingResultId
+      boundRef.current.add(bindingKey)
       updateOperatorResult(pendingResultId, {
         total: run.total,
         completed: run.completed,
       })
       return
     }
-    // 还没认下就已经结账的那一批 = 卡出现之前就跑完的上一批（见头注）。
-    if (boundRef.current !== pendingResultId) return
     if (run.items.length === 0) {
       // 一张都没出来 —— ⛔ 不画一张每一格都是空的结果卡（见系统码头注）。
       failPendingResult(pendingResultId, run.failureReason)
@@ -96,18 +128,44 @@ export function useStudioOperatorResults(
       })
       clearOperatorPendingResult()
     }
-    boundRef.current = null
-  }, [pendingResultId, run])
+    boundRef.current.delete(bindingKey)
+  }, [
+    pendingResultId,
+    threadScope,
+    localThreadId,
+    readOnlyHistory,
+    hasCurrentSource,
+    run,
+  ])
 
   useEffect(() => {
-    if (!pendingResultId) return
+    if (!pendingResultId || readOnlyHistory) return
+    const binding = { threadScope, localThreadId, pendingResultId }
+    if (!isCurrentPendingResult(binding)) return
     const timer = window.setTimeout(() => {
       // ⚠ 到点了再核两件事：线程可能已经被＋新对话清了；
       //   而已经开跑的那一批**不算超时**（视频档跑几分钟是常态，等它结账）。
-      if (getOperatorState().pendingResultId !== pendingResultId) return
-      if (boundRef.current === pendingResultId) return
+      if (!isCurrentPendingResult(binding)) return
+      const bindingKey = pendingResultBindingKey(binding)
+      if (boundRef.current.has(bindingKey)) {
+        if (hasCurrentSource) return
+        dropOperatorPendingResult(pendingResultId)
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'generationResultInterrupted',
+        })
+        boundRef.current.delete(bindingKey)
+        return
+      }
       failPendingResult(pendingResultId)
     }, STUDIO_OPERATOR_CLAIM_TTL_MS)
     return () => window.clearTimeout(timer)
-  }, [pendingResultId])
+  }, [
+    pendingResultId,
+    threadScope,
+    localThreadId,
+    readOnlyHistory,
+    hasCurrentSource,
+  ])
 }

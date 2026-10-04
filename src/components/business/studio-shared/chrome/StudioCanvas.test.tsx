@@ -106,7 +106,16 @@ vi.mock(
 )
 
 vi.mock('@/components/business/studio/GenerationPreview', () => ({
-  GenerationPreview: () => <div data-testid="generation-preview" />,
+  GenerationPreview: ({
+    generation,
+  }: {
+    generation: GenerationRecord | null
+  }) => (
+    <div
+      data-testid="generation-preview"
+      data-generation-id={generation?.id ?? ''}
+    />
+  ),
 }))
 
 vi.mock('@/components/business/studio/StudioAudioFeedback', () => ({
@@ -176,6 +185,7 @@ function makeSingleActiveRun(generation: GenerationRecord): ActiveRun {
       {
         id: 'item-1',
         status: 'completed',
+        modelId: generation.model,
         generation,
         startedAt: Date.now(),
       },
@@ -207,6 +217,7 @@ function makeSingleAudioActiveRun(generation: GenerationRecord): ActiveRun {
       {
         id: 'item-1',
         status: 'completed',
+        modelId: generation.model,
         generation,
         startedAt: Date.now(),
       },
@@ -248,6 +259,7 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
     mockUseStudioForm.mockReturnValue({
       state: {
         outputType: 'image',
+        promptDialect: 'natural',
         videoMode: 'text-to-video',
       },
       dispatch: vi.fn(),
@@ -278,6 +290,38 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
     expect(feedback).toHaveAttribute('data-generation-id', generation.id)
   })
 
+  it('其他方言的结果与生成状态不会出现在当前台，切回后仍在', () => {
+    const generation = { ...makeGeneration(), model: 'nai-diffusion-5-full' }
+    const activeRun = makeSingleActiveRun(generation)
+    const generationState = {
+      lastGeneration: generation,
+      activeRun,
+      isGenerating: true,
+      error: null,
+      setLastEvaluation: vi.fn(),
+      elapsedSeconds: 12,
+    }
+    mockUseStudioGen.mockReturnValue(generationState)
+    const view = render(<StudioCanvas />)
+    expect(screen.getByTestId('generation-preview')).toHaveAttribute(
+      'data-generation-id',
+      '',
+    )
+    expect(
+      screen.queryByTestId('studio-result-feedback'),
+    ).not.toBeInTheDocument()
+    mockUseStudioForm.mockReturnValue({
+      state: { outputType: 'image', promptDialect: 'tags' },
+      dispatch: vi.fn(),
+    })
+    view.rerender(<StudioCanvas className="tags-workspace" />)
+    expect(screen.getByTestId('generation-preview')).toHaveAttribute(
+      'data-generation-id',
+      generation.id,
+    )
+    expect(generationState.activeRun).toBe(activeRun)
+  })
+
   it('compare 模式下继续不渲染 StudioResultFeedback（图墙分支本就互斥，守卫不能反过来把它露出来）', () => {
     const generation = makeGeneration()
     const compareRun = {
@@ -288,6 +332,7 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
         {
           id: 'item-1',
           status: 'completed',
+          modelId: generation.model,
           generation,
           startedAt: Date.now(),
         },

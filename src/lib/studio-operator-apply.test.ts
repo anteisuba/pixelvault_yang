@@ -137,8 +137,9 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
      * §10：这一层只记账 —— 要验的是「撤销交出去的是不是 step 上那份 inverse
      * **原样**」，⛔ 不是网络。
      */
-    revertAssetWrite: (input) => {
+    revertAssetWrite: async (input) => {
       assetWriteReverts.push(input)
+      return true
     },
   }
 
@@ -625,7 +626,7 @@ describe('applyOperatorStep', () => {
           ...ctx,
           canvas: {
             applyOp: () => true,
-            revertOp: () => {},
+            revertOp: () => true,
             generate,
             planRerunDownstream: () => [],
           },
@@ -655,6 +656,121 @@ describe('applyOperatorStep', () => {
 })
 
 describe('revertOperatorStep', () => {
+  const readOnlySteps: AssistantOperatorAppliedStep[] = [
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+      verb: 'look',
+      payload: {},
+      result: null,
+    },
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
+      verb: 'look',
+      payload: { question: '训练搭配' },
+      result: { offered: false },
+    },
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+      verb: 'look',
+      payload: {
+        kind: 'character',
+        name: '角色',
+        summary: '设定',
+        body: '角色设定',
+      },
+      result: { offered: false },
+    },
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
+      verb: 'look',
+      payload: {
+        characterId: 'character-1',
+        fields: [{ field: 'look', text: '蓝发', source: '创作者' }],
+      },
+      result: { offered: false },
+    },
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+      verb: 'look',
+      payload: {
+        characterId: 'character-1',
+        images: [{ assetId: 'asset-1', reason: '设定参考' }],
+      },
+      result: { offered: false },
+    },
+    {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+      verb: 'look',
+      payload: { characterId: 'character-1', request: '画立绘' },
+      result: { offered: false },
+    },
+  ]
+  it.each(readOnlySteps)(
+    '只读/提议工具 $tool 明确不能撤销且无宿主副作用',
+    (step) => {
+      const { ctx, dispatched, triggered } = makeContext()
+      expect(revertOperatorStep(step, ctx)).toBe(false)
+      expect(dispatched).toEqual([])
+      expect(triggered).toEqual([])
+    },
+  )
+
+  it('search_web读取与canvas_generate已发生成都明确不可撤销', () => {
+    const { ctx, dispatched, triggered } = makeContext()
+    const search = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+      verb: 'research',
+      payload: { query: '配色', limit: 3 },
+      result: { totalFound: 0, results: [] },
+    } satisfies AssistantOperatorAppliedStep
+    const generated = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+      verb: 'request_generation',
+      payload: { target: 'shot-1' },
+    } satisfies AssistantOperatorAppliedStep
+    expect(revertOperatorStep(search, ctx)).toBe(false)
+    expect(revertOperatorStep(generated, ctx)).toBe(false)
+    expect(dispatched).toEqual([])
+    expect(triggered).toEqual([])
+  })
+
+  it.each(['note', 'sourceAllow', 'sourceDeny'] as const)(
+    '规则撤销携带类别 %s 并保留删除回执',
+    async (kind) => {
+      const { ctx } = makeContext()
+      const step = {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+        verb: 'apply',
+        payload: {
+          ruleId: 'rule-1',
+          workspaceKey: 'image-natural',
+          scope: null,
+          text: 'keep rule',
+          kind,
+          source: 'assistant',
+          createdAt: '2026-09-12T10:00:00.000Z',
+        },
+        inverse: { ruleId: 'rule-1' },
+      } satisfies AssistantOperatorAppliedStep
+      const remove = vi.fn().mockResolvedValue(false)
+      ctx.deleteProjectRule = remove
+
+      expect(await revertOperatorStep(step, ctx)).toBe(false)
+      expect(remove).toHaveBeenCalledWith({ ruleId: 'rule-1', kind })
+      delete ctx.deleteProjectRule
+      expect(revertOperatorStep(step, ctx)).toBe(false)
+    },
+  )
+
   it('提示词回到改前的完整原文（append / replace 撤法相同）', () => {
     const { ctx, state } = makeContext({ prompt: '手办质感的立绘, PVC 材质' })
     revertOperatorStep(
@@ -1664,12 +1780,18 @@ describe('素材库四条写操作（§10）', () => {
     ])
   })
 
-  /** ⚠ 宿主没接这只手时**静默不做**，⛔ 不抛：少一只手不该让整条撤销链断掉。 */
-  it('宿主没接这只手时静默不做', () => {
+  it('宿主没接这只手时返回失败，不能据此标成已撤销', () => {
     const { ctx } = makeContext()
     delete (ctx as { revertAssetWrite?: unknown }).revertAssetWrite
     for (const step of STEPS) {
-      expect(() => revertOperatorStep(step, ctx)).not.toThrow()
+      expect(revertOperatorStep(step, ctx)).toBe(false)
     }
+  })
+
+  it('网络撤销保留宿主的失败回执', async () => {
+    const { ctx } = makeContext()
+    ctx.revertAssetWrite = vi.fn().mockResolvedValue(false)
+
+    expect(await revertOperatorStep(STEPS[0]!, ctx)).toBe(false)
   })
 })

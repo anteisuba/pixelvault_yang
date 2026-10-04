@@ -24,6 +24,7 @@ import {
 import type { StudioOperatorResumePlan } from '@/types/studio-operator-resume'
 
 const NOW = Date.parse('2026-09-08T10:00:00.000Z')
+const IDENTITY = { sessionId: 'session-1', localThreadId: 'thread-1' }
 
 function buildPlan(
   overrides: Partial<StudioOperatorResumePlan> = {},
@@ -93,43 +94,80 @@ describe('createResumePlan', () => {
 describe('往返（write → read）', () => {
   it('写进去的那一份原样读得回来', () => {
     const plan = buildPlan()
-    expect(writeOperatorResume('project-a', plan)).toBe(true)
-    expect(readOperatorResume('project-a', NOW)).toEqual(plan)
+    expect(writeOperatorResume('project-a', IDENTITY, plan)).toBe(true)
+    expect(readOperatorResume('project-a', IDENTITY, NOW)).toEqual(plan)
   })
 
   it('按 scope 隔离：A 项目写的，B 项目读不到', () => {
-    writeOperatorResume('project-a', buildPlan())
-    expect(readOperatorResume('project-b', NOW)).toBeNull()
-    expect(operatorResumeStorageKey('project-a')).toBe(
-      `${STUDIO_OPERATOR_RESUME.keyPrefix}.project-a`,
+    writeOperatorResume('project-a', IDENTITY, buildPlan())
+    expect(readOperatorResume('project-b', IDENTITY, NOW)).toBeNull()
+    expect(operatorResumeStorageKey('project-a', IDENTITY)).toBe(
+      `${STUDIO_OPERATOR_RESUME.keyPrefix}.["project-a","session","session-1"]`,
     )
   })
 
   it('形状对不上的旧值整条丢掉，⛔ 不抛', () => {
     localStorage.setItem(
-      operatorResumeStorageKey('project-a'),
+      operatorResumeStorageKey('project-a', IDENTITY),
       JSON.stringify({ planId: 'plan-1', steps: 'nope' }),
     )
-    expect(() => readOperatorResume('project-a', NOW)).not.toThrow()
-    expect(readOperatorResume('project-a', NOW)).toBeNull()
+    expect(() => readOperatorResume('project-a', IDENTITY, NOW)).not.toThrow()
+    expect(readOperatorResume('project-a', IDENTITY, NOW)).toBeNull()
   })
 
   it('不是 JSON 的那一格也只是 null', () => {
-    localStorage.setItem(operatorResumeStorageKey('project-a'), 'not json{')
-    expect(readOperatorResume('project-a', NOW)).toBeNull()
+    localStorage.setItem(
+      operatorResumeStorageKey('project-a', IDENTITY),
+      'not json{',
+    )
+    expect(readOperatorResume('project-a', IDENTITY, NOW)).toBeNull()
   })
 
   it('过了保质期就不再提示', () => {
-    writeOperatorResume('project-a', buildPlan())
+    writeOperatorResume('project-a', IDENTITY, buildPlan())
     expect(
-      readOperatorResume('project-a', NOW + STUDIO_OPERATOR_RESUME_TTL_MS + 1),
+      readOperatorResume(
+        'project-a',
+        IDENTITY,
+        NOW + STUDIO_OPERATOR_RESUME_TTL_MS + 1,
+      ),
     ).toBeNull()
   })
 
   it('clear 之后那一格空着', () => {
-    writeOperatorResume('project-a', buildPlan())
-    clearOperatorResume('project-a')
-    expect(readOperatorResume('project-a', NOW)).toBeNull()
+    writeOperatorResume('project-a', IDENTITY, buildPlan())
+    clearOperatorResume('project-a', IDENTITY)
+    expect(readOperatorResume('project-a', IDENTITY, NOW)).toBeNull()
+  })
+
+  it('同一工作区的不同会话互不覆盖，未落库线程也有独立身份', () => {
+    writeOperatorResume('user:image-natural', IDENTITY, buildPlan())
+    const second = { sessionId: 'session-2', localThreadId: 'thread-2' }
+    expect(readOperatorResume('user:image-natural', second, NOW)).toBeNull()
+    const draft = { sessionId: null, localThreadId: 'draft-1' }
+    writeOperatorResume(
+      'user:image-natural',
+      draft,
+      buildPlan({ sessionId: null }),
+    )
+    expect(
+      readOperatorResume(
+        'user:image-natural',
+        { ...draft, localThreadId: 'draft-2' },
+        NOW,
+      ),
+    ).toBeNull()
+    expect(
+      readOperatorResume('other-user:image-natural', IDENTITY, NOW),
+    ).toBeNull()
+  })
+
+  it('键和载荷的会话不一致时拒绝恢复', () => {
+    localStorage.setItem(
+      operatorResumeStorageKey('project-a', IDENTITY),
+      JSON.stringify(buildPlan({ sessionId: 'someone-else' })),
+    )
+    expect(readOperatorResume('project-a', IDENTITY, NOW)).toBeNull()
   })
 })
 

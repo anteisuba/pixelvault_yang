@@ -105,6 +105,60 @@ describe('url-guard', () => {
       lookupMock.mockResolvedValue(PUBLIC_LOOKUP)
     })
 
+    it('does not resolve or fetch a pre-cancelled URL', async () => {
+      const controller = new AbortController()
+      const reason = new DOMException('stopped', 'AbortError')
+      controller.abort(reason)
+      const fetchMock = vi.spyOn(global, 'fetch')
+      await expect(
+        safeFetch('https://example.com/image.png', {
+          signal: controller.signal,
+        }),
+      ).rejects.toBe(reason)
+      expect(lookupMock).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+      fetchMock.mockRestore()
+    })
+
+    it('does not start fetching when cancellation arrives during DNS validation', async () => {
+      const controller = new AbortController()
+      const reason = new DOMException('stopped', 'AbortError')
+      lookupMock.mockImplementationOnce(async () => {
+        controller.abort(reason)
+        return PUBLIC_LOOKUP
+      })
+      const fetchMock = vi.spyOn(global, 'fetch')
+      await expect(
+        safeFetch('https://example.com/image.png', {
+          signal: controller.signal,
+        }),
+      ).rejects.toBe(reason)
+      expect(fetchMock).not.toHaveBeenCalled()
+      fetchMock.mockRestore()
+    })
+
+    it('forwards the same signal and stops before following a redirect after cancellation', async () => {
+      const controller = new AbortController()
+      const reason = new DOMException('stopped', 'AbortError')
+      const fetchMock = vi
+        .spyOn(global, 'fetch')
+        .mockImplementationOnce(async (_url, init) => {
+          expect(init?.signal).toBe(controller.signal)
+          controller.abort(reason)
+          return new Response(null, {
+            status: 302,
+            headers: { location: 'https://cdn.example.com/image.png' },
+          })
+        })
+      await expect(
+        safeFetch('https://example.com/image.png', {
+          signal: controller.signal,
+        }),
+      ).rejects.toBe(reason)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      fetchMock.mockRestore()
+    })
+
     it('follows safe redirects after validating each hop', async () => {
       const fetchMock = vi
         .spyOn(global, 'fetch')

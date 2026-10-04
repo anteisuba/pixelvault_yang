@@ -181,12 +181,14 @@ export async function safeFetch(
     ...fetchOptions
   } = options
 
+  fetchOptions.signal?.throwIfAborted()
   const initialUrl = assertSafeUrl(rawUrl, { allowedProtocols })
   await assertSafeResolvedHost(initialUrl.hostname)
   let currentUrl = initialUrl.toString()
   let currentHeaders = fetchOptions.headers
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
+    fetchOptions.signal?.throwIfAborted()
     const response = await fetch(currentUrl, {
       ...fetchOptions,
       headers: currentHeaders,

@@ -44,6 +44,7 @@ import {
   type PromptDialect,
 } from '@/constants/prompt-dialects'
 import { tailorImageRequestToModel } from '@/lib/studio/tailor-image-request'
+import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import {
   checkAudioStatusAPI,
   checkImageGenerationStatusAPI,
@@ -110,6 +111,7 @@ export interface CompareModelSelection {
 
 export interface UnifiedGenerateInput {
   mode: GenerationMode
+  operatorResultOwner?: StudioOperatorResultOwner
   image?: StudioGenerateRequest
   video?: GenerateVideoRequest
   audio?: AudioGenerateInput
@@ -530,7 +532,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   // ── Image generation (worker submit + poll) ───────────────────
 
   const generateImage = useCallback(
-    async (input: StudioGenerateRequest): Promise<GenerationRecord | null> => {
+    async (
+      input: StudioGenerateRequest,
+      operatorResultOwner?: StudioOperatorResultOwner,
+    ): Promise<GenerationRecord | null> => {
       if (singleImageInFlightRef.current) return null
       singleImageInFlightRef.current = true
 
@@ -549,6 +554,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           {
             id: itemId,
             modelId: input.modelId ?? 'unknown',
+            operatorResultOwner,
             status: 'generating',
             generation: null,
             error: null,
@@ -869,7 +875,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    * 所以这里只 `markActiveRunItemFailed`，错误长在那一格上，可单条重试。
    */
   const generateVideo = useCallback(
-    async (params: GenerateVideoRequest): Promise<GenerationRecord | null> => {
+    async (
+      params: GenerateVideoRequest,
+      operatorResultOwner?: StudioOperatorResultOwner,
+    ): Promise<GenerationRecord | null> => {
       setError(null)
       setErrorCode(null)
 
@@ -878,6 +887,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       const newItem: RunItem = {
         id: itemId,
         modelId: params.modelId,
+        operatorResultOwner,
         status: 'generating',
         generation: null,
         error: null,
@@ -953,6 +963,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (
       input: StudioGenerateRequest,
       count: number,
+      operatorResultOwner?: StudioOperatorResultOwner,
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -967,6 +978,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       const items = seeds.map((seed, idx) => ({
         id: crypto.randomUUID(),
         modelId: input.modelId ?? 'unknown',
+        operatorResultOwner,
         status: 'generating' as const,
         generation: null,
         error: null,
@@ -1124,6 +1136,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       models: CompareModelSelection[],
       perModelCount = 1,
       dialect: PromptDialect = DEFAULT_PROMPT_DIALECT,
+      operatorResultOwner?: StudioOperatorResultOwner,
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -1141,6 +1154,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         Array.from({ length: perModelCount }, (_, takeIdx) => ({
           id: crypto.randomUUID(),
           modelId: model.modelId,
+          operatorResultOwner,
           status: 'generating' as const,
           generation: null,
           error: null,
@@ -1271,7 +1285,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   // ── Audio generation (worker submit + polling) ────────────────
 
   const generateAudio = useCallback(
-    async (input: AudioGenerateInput): Promise<GenerationRecord | null> => {
+    async (
+      input: AudioGenerateInput,
+      operatorResultOwner?: StudioOperatorResultOwner,
+    ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
       setError(null)
@@ -1286,6 +1303,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           {
             id: itemId,
             modelId: input.modelId,
+            operatorResultOwner,
             status: 'generating',
             generation: null,
             error: null,
@@ -1412,6 +1430,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     async (
       input: AudioGenerateInput,
       count: number,
+      operatorResultOwner?: StudioOperatorResultOwner,
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -1423,6 +1442,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       const items = Array.from({ length: count }, (_, index) => ({
         id: crypto.randomUUID(),
         modelId: input.modelId,
+        operatorResultOwner,
         status: 'generating' as const,
         generation: null,
         error: null,
@@ -1579,24 +1599,29 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             input.compareModels,
             count,
             dialect,
+            input.operatorResultOwner,
           )
         }
         // 单模型：型号就是 `input.image.modelId`，在这里裁一次就够了。
         const image = tailorImageRequestToModel(input.image, dialect)
         if (count > 1) {
-          return generateVariants(image, count)
+          return generateVariants(image, count, input.operatorResultOwner)
         }
-        return generateImage(image)
+        return generateImage(image, input.operatorResultOwner)
       }
       if (input.mode === 'video' && input.video) {
-        return generateVideo(input.video)
+        return generateVideo(input.video, input.operatorResultOwner)
       }
       if (input.mode === 'audio' && input.audio) {
         const count = input.audio.variantCount ?? 1
         if (count > 1) {
-          return generateAudioVariants(input.audio, count)
+          return generateAudioVariants(
+            input.audio,
+            count,
+            input.operatorResultOwner,
+          )
         }
-        return generateAudio(input.audio)
+        return generateAudio(input.audio, input.operatorResultOwner)
       }
       return null
     },

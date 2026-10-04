@@ -1,7 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
+import { useUser } from '@clerk/nextjs'
+import {
+  assistantWorkspaceKey,
+  assistantWorkspaceScope,
+  assistantWorkspaceSurface,
+} from '@/lib/assistant-workspace'
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
 
 import type {
   AssistantWorkbenchState,
@@ -29,7 +36,6 @@ import type { ResearchReceipt } from '@/types/research'
 import type {
   AssistantConversationMessageStored,
   AssistantConversationSummary,
-  AssistantSurfaceId,
 } from '@/types/assistant-conversation'
 import {
   chatPromptAssistantAPI,
@@ -144,6 +150,7 @@ export interface PromptAssistantDisplayMessage extends PromptAssistantMessage {
 }
 
 interface PromptAssistantState {
+  localThreadId: string
   messages: PromptAssistantDisplayMessage[]
   sessionId: string | null
   isLoading: boolean
@@ -164,6 +171,7 @@ interface PromptAssistantState {
 }
 
 const INITIAL_STATE: PromptAssistantState = {
+  localThreadId: '',
   messages: [],
   sessionId: null,
   isLoading: false,
@@ -322,16 +330,15 @@ export interface PromptAssistantSendOptions {
 // ⚠ A1：原来这里是**一个**单例，注释写的理由是「同一时刻只挂一个 panel，所以单例
 // 安全」。那句话对「一个 panel」成立，对「一份对话」不成立 —— 图片 / 视频 / LoRA
 // 三处共用它，切页面时上一页的对话原样躺在下一页里。分槽后每个域各存各的；
-// 「关掉浮卡不丢对话」这个原始诉求不受影响，因为槽是按 surface 而不是按挂载。
+// 「关掉浮卡不丢对话」这个原始诉求不受影响，因为槽按账号与业务工作区保存。
 
-const promptAssistantStates = new Map<
-  AssistantSurfaceId,
-  PromptAssistantState
->()
-const promptAssistantListeners = new Map<AssistantSurfaceId, Set<() => void>>()
+const promptAssistantStates = new Map<string, PromptAssistantState>()
+const promptAssistantListeners = new Map<string, Set<() => void>>()
+const pendingPromptAssistantSaves = new Map<string, Promise<void>>()
+const hydratedPromptAssistantScopes = new Set<string>()
 
-function readState(surface: AssistantSurfaceId): PromptAssistantState {
-  return promptAssistantStates.get(surface) ?? INITIAL_STATE
+function readState(scope: string | null): PromptAssistantState {
+  return (scope ? promptAssistantStates.get(scope) : null) ?? INITIAL_STATE
 }
 
 function getServerPromptAssistantSnapshot(): PromptAssistantState {
@@ -339,35 +346,42 @@ function getServerPromptAssistantSnapshot(): PromptAssistantState {
 }
 
 function setPromptAssistantState(
-  surface: AssistantSurfaceId,
+  scope: string | null,
   updater: (prev: PromptAssistantState) => PromptAssistantState,
 ): void {
-  promptAssistantStates.set(surface, updater(readState(surface)))
-  for (const listener of promptAssistantListeners.get(surface) ?? []) {
+  if (!scope) return
+  promptAssistantStates.set(scope, updater(readState(scope)))
+  for (const listener of promptAssistantListeners.get(scope) ?? []) {
     listener()
   }
 }
 
-/**
- * @param surface 这段对话归哪个域。**没有默认值是有意的** —— 猜错的表现是「对话
- * 安静地进了别的域的历史」，而那正是 A1 要修的病。
- */
-export function usePromptAssistant(surface: AssistantSurfaceId) {
+export function usePromptAssistant(
+  workspace: AssistantWorkspace,
+  projectId?: string,
+) {
+  const { user } = useUser()
+  const scope = assistantWorkspaceScope(user?.id ?? null, workspace, projectId)
+  const workspaceKey = assistantWorkspaceKey(workspace, projectId)
+  const surface = assistantWorkspaceSurface(workspace)
+  const scopeRef = useRef(scope)
+  const lifecycleRef = useRef(0)
+  const activeThreadRef = useRef<string | null>(null)
   const t = useTranslations('PromptAssistant')
   const tErrors = useTranslations('Errors')
   const subscribe = useCallback(
     (listener: () => void) => {
       const listeners =
-        promptAssistantListeners.get(surface) ?? new Set<() => void>()
+        promptAssistantListeners.get(scope ?? '') ?? new Set<() => void>()
       listeners.add(listener)
-      promptAssistantListeners.set(surface, listeners)
+      promptAssistantListeners.set(scope ?? '', listeners)
       return () => {
         listeners.delete(listener)
       }
     },
-    [surface],
+    [scope],
   )
-  const getSnapshot = useCallback(() => readState(surface), [surface])
+  const getSnapshot = useCallback(() => readState(scope), [scope])
   const state = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -375,18 +389,46 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
   )
 
   useEffect(() => {
+    scopeRef.current = scope
+    lifecycleRef.current += 1
+    if (!scope || !workspaceKey) return
+    if (!readState(scope).localThreadId) {
+      setPromptAssistantState(scope, (prev) => ({
+        ...prev,
+        localThreadId: crypto.randomUUID(),
+      }))
+    }
+    const localThreadId = readState(scope).localThreadId
     let cancelled = false
     void Promise.all([
-      getAssistantConversationAPI({ surface }),
-      listAssistantConversationsAPI({ surface, limit: 30 }),
+      hydratedPromptAssistantScopes.has(scope)
+        ? Promise.resolve({ success: false as const })
+        : getAssistantConversationAPI({
+            surface,
+            workspaceKey,
+            operatorOnly: false,
+          }),
+      listAssistantConversationsAPI({
+        surface,
+        workspaceKey,
+        operatorOnly: false,
+        limit: 30,
+      }),
     ]).then(([result, list]) => {
       if (cancelled) return
-      setPromptAssistantState(surface, (prev) => {
+      setPromptAssistantState(scope, (prev) => {
         const sessions = list.success ? list.data : prev.sessions
-        if (!result.success || !result.data || prev.messages.length > 0) {
+        if (
+          prev.localThreadId !== localThreadId ||
+          !result.success ||
+          !result.data ||
+          result.data.workspaceKey !== workspaceKey ||
+          prev.messages.length > 0
+        ) {
           return { ...prev, sessions }
         }
         const conversation = result.data
+        hydratedPromptAssistantScopes.add(scope)
         return {
           ...prev,
           sessions,
@@ -397,44 +439,77 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
     })
     return () => {
       cancelled = true
+      scopeRef.current = null
+      lifecycleRef.current += 1
+      setPromptAssistantState(scope, (prev) =>
+        activeThreadRef.current === prev.localThreadId
+          ? { ...prev, isLoading: false, researchPending: false }
+          : prev,
+      )
     }
-  }, [surface])
+  }, [surface, scope, workspaceKey])
 
   const refreshSessions = useCallback(async () => {
+    if (!scope || !workspaceKey) return
     const result = await listAssistantConversationsAPI({
       surface,
+      workspaceKey,
+      operatorOnly: false,
       limit: 30,
     })
-    if (result.success) {
-      setPromptAssistantState(surface, (prev) => ({
+    if (result.success && scopeRef.current === scope) {
+      setPromptAssistantState(scope, (prev) => ({
         ...prev,
         sessions: result.data,
       }))
     }
-  }, [surface])
+  }, [surface, scope, workspaceKey])
 
   // Runs the actual completion + persistence for a fully-assembled message
   // list — shared by `send` (which first optimistically appends the new
   // user turn) and `retry` (which reuses the trailing user message already
   // in state instead of pushing a duplicate bubble).
   const persistTurn = useCallback(
-    async (nextMessages: PromptAssistantDisplayMessage[]) => {
-      const currentSessionId = readState(surface).sessionId
-      const persisted = await upsertAssistantConversationAPI({
-        ...(currentSessionId ? { id: currentSessionId } : {}),
-        surface,
-        projectId: null,
-        messages: toStoredMessages(nextMessages),
-      })
-      if (persisted.success) {
-        setPromptAssistantState(surface, (prev) => ({
-          ...prev,
-          sessionId: persisted.data.id,
-        }))
-        void refreshSessions()
+    async (
+      nextMessages: PromptAssistantDisplayMessage[],
+      localThreadId: string,
+    ) => {
+      if (!scope || !workspaceKey) return
+      const previousSave = pendingPromptAssistantSaves.get(localThreadId)
+      const save = (async () => {
+        await previousSave
+        if (
+          scopeRef.current !== scope ||
+          readState(scope).localThreadId !== localThreadId
+        )
+          return
+        const currentSessionId = readState(scope).sessionId
+        const persisted = await upsertAssistantConversationAPI({
+          ...(currentSessionId ? { id: currentSessionId } : {}),
+          surface,
+          workspaceKey,
+          projectId: projectId ?? null,
+          messages: toStoredMessages(nextMessages),
+        })
+        if (persisted.success) {
+          setPromptAssistantState(scope, (prev) =>
+            prev.localThreadId === localThreadId
+              ? { ...prev, sessionId: persisted.data.id }
+              : prev,
+          )
+          if (scopeRef.current === scope) void refreshSessions()
+        }
+      })()
+      pendingPromptAssistantSaves.set(localThreadId, save)
+      try {
+        await save
+      } finally {
+        if (pendingPromptAssistantSaves.get(localThreadId) === save) {
+          pendingPromptAssistantSaves.delete(localThreadId)
+        }
       }
     },
-    [refreshSessions, surface],
+    [refreshSessions, surface, scope, workspaceKey, projectId],
   )
 
   const runTurn = useCallback(
@@ -442,7 +517,22 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       allMessages: PromptAssistantDisplayMessage[],
       opts?: PromptAssistantSendOptions,
     ) => {
-      setPromptAssistantState(surface, (prev) => ({
+      if (!scope || scopeRef.current !== scope) return
+      const current = readState(scope)
+      if (!current.localThreadId || current.isLoading) return
+      const localThreadId = current.localThreadId
+      activeThreadRef.current = localThreadId
+      const lifecycle = lifecycleRef.current
+      const isCurrent = () =>
+        lifecycleRef.current === lifecycle &&
+        scopeRef.current === scope &&
+        readState(scope).localThreadId === localThreadId
+      const updateThread = (
+        updater: (prev: PromptAssistantState) => PromptAssistantState,
+      ) => {
+        if (isCurrent()) setPromptAssistantState(scope, updater)
+      }
+      updateThread((prev) => ({
         ...prev,
         messages: allMessages,
         isLoading: true,
@@ -477,8 +567,9 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
           loraContext: opts.loraContext,
         })
 
+        if (!isCurrent()) return
         if (!result.success || !result.data) {
-          setPromptAssistantState(surface, (prev) => ({
+          updateThread((prev) => ({
             ...prev,
             isLoading: false,
             researchPending: false,
@@ -505,19 +596,20 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
               : {}),
           },
         ]
-        setPromptAssistantState(surface, (prev) => ({
+        updateThread((prev) => ({
           ...prev,
           messages: nextMessages,
           isLoading: false,
           researchPending: false,
         }))
-        await persistTurn(nextMessages)
+        await persistTurn(nextMessages, localThreadId)
         return
       }
 
       const result = await streamPromptAssistantAPI(shared)
+      if (!isCurrent()) return
       if (!result.success) {
-        setPromptAssistantState(surface, (prev) => ({
+        updateThread((prev) => ({
           ...prev,
           isLoading: false,
           researchPending: false,
@@ -530,7 +622,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       // ⭐ 响应头到达 = 服务端已经跑完 `prepareAssistantTurn`，检索就在那里面。
       //    所以「检索中」的过渡态在这里结束仍然成立 —— 换成帧协议之后回执本身
       //    晚一点才到（它现在是流里的 `research` 帧），但那不影响这个判据。
-      setPromptAssistantState(surface, (prev) => ({
+      updateThread((prev) => ({
         ...prev,
         researchPending: false,
       }))
@@ -571,7 +663,11 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       // 字长出来（owner 2026-08-18 定的统一标准）。
       const typewriter = createAssistantTypewriter({
         onUpdate: (visible) => {
-          setPromptAssistantState(surface, (prev) => ({
+          if (!isCurrent()) {
+            typewriter.cancel()
+            return
+          }
+          updateThread((prev) => ({
             ...prev,
             messages: render(visible, false),
           }))
@@ -588,6 +684,10 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
 
       try {
         for await (const message of result.events) {
+          if (!isCurrent()) {
+            typewriter.cancel()
+            return
+          }
           switch (message.type) {
             case 'text':
               typewriter.push(message.delta)
@@ -616,7 +716,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         // 消失」。清空是画布现在的做法，别学。
         typewriter.cancel()
         const shown = typewriter.raw()
-        setPromptAssistantState(surface, (prev) => ({
+        updateThread((prev) => ({
           ...prev,
           messages: shown.trim() ? render(shown, true) : allMessages,
           isLoading: false,
@@ -633,7 +733,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         typewriter.cancel()
         const shown = typewriter.raw()
         const failure = errorFrame
-        setPromptAssistantState(surface, (prev) => ({
+        updateThread((prev) => ({
           ...prev,
           messages: shown.trim() ? render(shown, true) : allMessages,
           isLoading: false,
@@ -646,7 +746,12 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       // 上游结束不等于该显示完了：等打字机把 buffer 打完再收尾。落库、去掉
       // loading、渲染最终协议块都排在这之后 —— 否则会出现「按钮先亮出来、文字还在
       // 往外爬」。
+      if (!isCurrent()) {
+        typewriter.cancel()
+        return
+      }
       await typewriter.finish()
+      if (!isCurrent()) return
 
       // 这一次抽取知道「不会再有 chunk 了」，才敢对没闭合的载荷下判断（读出来
       // or 报 malformed），而不是继续藏着。
@@ -654,7 +759,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
       const assistantContent = finalMessages.at(-1)?.content ?? ''
 
       if (!assistantContent.trim()) {
-        setPromptAssistantState(surface, (prev) => ({
+        updateThread((prev) => ({
           ...prev,
           messages: allMessages,
           isLoading: false,
@@ -664,14 +769,14 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         return
       }
 
-      setPromptAssistantState(surface, (prev) => ({
+      updateThread((prev) => ({
         ...prev,
         messages: finalMessages,
         isLoading: false,
       }))
-      await persistTurn(finalMessages)
+      await persistTurn(finalMessages, localThreadId)
     },
-    [persistTurn, surface, t, tErrors],
+    [persistTurn, scope, t, tErrors],
   )
 
   const send = useCallback(
@@ -687,9 +792,9 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         ),
         ...(opts?.askedPairs?.length ? { askedPairs: opts.askedPairs } : {}),
       }
-      await runTurn([...readState(surface).messages, userMessage], opts)
+      await runTurn([...readState(scope).messages, userMessage], opts)
     },
-    [runTurn, surface],
+    [runTurn, scope],
   )
 
   // §6 状态规范：引擎失败/输出验证失败的重试文字链——复用最后一条已在
@@ -697,12 +802,12 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
   // 一份）。只有「最后一条是用户消息且带着错误」时才有意义，否则是 no-op。
   const retry = useCallback(
     async (opts?: PromptAssistantSendOptions) => {
-      const current = readState(surface).messages
+      const current = readState(scope).messages
       const last = current[current.length - 1]
       if (!last || last.role !== 'user') return
       await runTurn(current, opts)
     },
-    [runTurn, surface],
+    [runTurn, scope],
   )
 
   const applyPreset = useCallback(
@@ -722,18 +827,41 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
   )
 
   const clear = useCallback(() => {
-    setPromptAssistantState(surface, (prev) => ({
+    if (scope) hydratedPromptAssistantScopes.add(scope)
+    setPromptAssistantState(scope, (prev) => ({
       ...INITIAL_STATE,
+      localThreadId: crypto.randomUUID(),
       sessions: prev.sessions,
     }))
-  }, [surface])
+  }, [scope])
 
   const selectSession = useCallback(
     async (id: string) => {
-      const result = await getAssistantConversationAPI({ surface, id })
-      if (!result.success || !result.data) return
+      if (!scope || !workspaceKey) return
+      const localThreadId = crypto.randomUUID()
+      hydratedPromptAssistantScopes.add(scope)
+      setPromptAssistantState(scope, (prev) => ({
+        ...prev,
+        localThreadId,
+        isLoading: false,
+        researchPending: false,
+      }))
+      const result = await getAssistantConversationAPI({
+        surface,
+        workspaceKey,
+        operatorOnly: false,
+        id,
+      })
+      if (
+        scopeRef.current !== scope ||
+        readState(scope).localThreadId !== localThreadId ||
+        !result.success ||
+        !result.data ||
+        result.data.workspaceKey !== workspaceKey
+      )
+        return
       const conversation = result.data
-      setPromptAssistantState(surface, (prev) => ({
+      setPromptAssistantState(scope, (prev) => ({
         ...prev,
         sessionId: conversation.id,
         messages: toDisplayMessages(conversation.messages),
@@ -741,7 +869,7 @@ export function usePromptAssistant(surface: AssistantSurfaceId) {
         errorCode: null,
       }))
     },
-    [surface],
+    [surface, scope, workspaceKey],
   )
 
   // 「思考中」和「在写」是两个状态，UI 要分得开：第一个字出现之前转圈，出现之后

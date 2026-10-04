@@ -3,7 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { PromptAssistantDisplayMessage } from '@/hooks/kernel/use-prompt-assistant'
+import {
+  usePromptAssistant,
+  type PromptAssistantDisplayMessage,
+} from '@/hooks/kernel/use-prompt-assistant'
 import type { AssistantWriteback } from '@/types/assistant-writeback'
 
 // ─── Mocks ───────────────────────────────────────────────────────
@@ -34,14 +37,14 @@ vi.mock('@/hooks/kernel/use-prompt-assistant', async (importOriginal) => ({
     lora: 'lora-shortcut',
     tags: 'tags-shortcut',
   },
-  usePromptAssistant: () => ({
+  usePromptAssistant: vi.fn(() => ({
     messages: mockMessages,
     isLoading: false,
     error: null,
     send: sendMock,
     applyPreset: applyPresetMock,
     clear: vi.fn(),
-  }),
+  })),
 }))
 
 // 推荐卡里的「去 LoRA 工作台挂载」用的是本地化 Link。`next-intl/navigation`
@@ -96,9 +99,30 @@ beforeEach(() => {
   mockMessages = []
   sendMock.mockClear()
   applyPresetMock.mockClear()
+  vi.mocked(usePromptAssistant).mockClear()
 })
 
 describe('PromptAssistantPanel', () => {
+  it.each([
+    ['image', AI_MODELS.NOVELAI_V45_FULL, 'image-tags'],
+    ['image', undefined, 'image-natural'],
+    ['video', undefined, 'video'],
+    ['lora', undefined, 'lora'],
+  ] as const)(
+    'uses the %s workspace for model %s',
+    (assistantDomain, modelId, workspace) => {
+      render(
+        <PromptAssistantPanel
+          currentPrompt=""
+          assistantDomain={assistantDomain}
+          modelId={modelId}
+          writeback={makeWriteback()}
+        />,
+      )
+      expect(usePromptAssistant).toHaveBeenCalledWith(workspace)
+    },
+  )
+
   // 2026-08-22 owner：「[image #1] 和 [image #6] 我根本不知道是哪张」。
   // 编号一直只画在**编辑器**里的待发送缩略图上，一发出去就消失 —— 而助手的回答
   // 是之后才到的，等编号有用时它已经没了。

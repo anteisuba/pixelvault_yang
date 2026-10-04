@@ -64,7 +64,6 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorVerdictSeverity,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_EVIDENCE_REF_PREFIX as EVIDENCE_REF_PREFIX,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
   ASSISTANT_RESEARCH_DEPTHS,
@@ -235,10 +234,7 @@ import {
  * ⚠ 工具环只用**读**的那一支（`getCreativePreferenceDigest`）：这张表的写入由
  * 生成结果的反馈那条路负责，助手不该在自己的提示里改自己读的东西。
  */
-import {
-  getCreativePreferenceDigest,
-  type CreativePreferenceDigest,
-} from '@/services/user-preference.service'
+import type { CreativePreferenceDigest } from '@/services/user-preference.service'
 /**
  * ⭐ 项目规则（§10，拍板 23）。判据与上一条逐字同源：一张只有文本列的表，
  * 读写它花不掉一分钱。⚠ 它是这份名单里**唯一一条会往库里写**的服务 ——
@@ -381,14 +377,20 @@ import {
 } from '@/constants/research'
 import {
   appendAssistantEvidenceBook,
-  peekAssistantEvidenceRefSeq,
   recallAssistantEvidence,
   type AssistantEvidenceBookEntry,
 } from '@/services/research/assistant-evidence-book.service'
 import {
   appendAssistantConversationRound,
   listAssistantConversationRounds,
+  assertAssistantWorkspaceAccess,
+  assertAssistantConversationWorkspaceAccess,
 } from '@/services/assistant-conversation.service'
+import {
+  assistantWorkspaceDomain,
+  assistantWorkspaceFromKey,
+} from '@/lib/assistant-workspace'
+import { getPromptDialect } from '@/constants/prompt-dialects'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
@@ -479,9 +481,6 @@ import {
   ASSISTANT_CONTEXT_BUDGET,
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
-  ASSISTANT_MEMORY_SCOPES,
-  ASSISTANT_MEMORY_SCOPE_IDS,
-  type AssistantMemoryScopeId,
 } from '@/constants/assistant-memory'
 import {
   AssistantMemoryCandidateSchema,
@@ -737,6 +736,7 @@ function toWorkingState(
 }
 
 interface OperatorRun {
+  signal?: AbortSignal
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
@@ -817,18 +817,13 @@ interface OperatorRun {
    */
   researchRounds: number
   /**
-   * **证据本号段**（§9.2 `evidenceRef`，commit #16）——本轮下一条证据该拿几号。
-   *
-   * ⚠ 本轮第一次查证时从库里现取一次（`peekAssistantEvidenceRefSeq`），之后在
-   * 内存里顺延：号是**会话内自增**的，而一轮里没有第二条往证据本写的路，所以
-   * 这里顺延出来的号与结账时现算出来的号逐条对得上。
-   * ⚠ `null` = 取不到（没有会话 id / 库读不出来）→ 这一轮的证据不带编号。
+   * 工具完成时已经落库的证据编号，结账只引用这些编号。
    */
-  evidenceRefSeq: number | null | undefined
+  evidenceRefs: string[]
   /**
    * **本轮正文角标的号段**（56b 切片 1）—— 下一条证据该拿 `[n]` 里的哪个 n。
    *
-   * ⭐ 与 `evidenceRefSeq` 是两件事：那一个是**会话内**的证据本编号（`#e12`，
+   * ⭐ 与 `evidenceRefs` 是两件事：那一个是**会话内**的证据本编号（`#e12`，
    * 跨轮指认、要落库），这一个是**本轮内**的阅读编号（`[3]`，只活在这一段正文
    * 与它底下那排来源卡之间）。合成一个的表现是第五轮的第一条证据在正文里写着
    * `[47]` —— 一个没有人数得清的号。
@@ -2640,13 +2635,16 @@ async function planResearch(
    * ⭐ **所选模型自带联网**（owner 2026-09-30「各家用自带的联网」）：快搜的网页
    * 那一源交给 Gemini / GPT / Claude 自己搜 —— 它自己写查询、自己读页、写一段
    * 带引用的回答。那段回答就是这一轮的结论，⛔ 不再另烧一次 LLM 归纳。
-   * DeepSeek / Grok 没有自带联网，照旧走 Serper。
+   * 本项目尚未接入 DeepSeek / Grok 原生联网，照旧走外部检索。
    */
   const nativeAdapter =
     quickNarrowed && supportsNativeWebSearch(run.route.adapterType)
       ? run.route.adapterType
       : null
   let nativeAnswer = ''
+  const nativeSearch: {
+    result?: Awaited<ReturnType<typeof llmNativeWebSearch>>
+  } = {}
   /** ③ 并发印证 —— 扇出、去重、印证多的排前、单源打标（都在 fanout 里）。 */
   const outcome = await runAssistantResearch({
     goal: args.goal,
@@ -2657,6 +2655,7 @@ async function planResearch(
       ? {
           nativeWebSearch: async () => {
             const found = await llmNativeWebSearch({
+              signal: run.signal,
               adapterType: nativeAdapter,
               providerConfig: run.route.providerConfig,
               apiKey: run.route.apiKey,
@@ -2664,8 +2663,15 @@ async function planResearch(
               systemPrompt: NATIVE_SEARCH_SYSTEM_PROMPT,
               query: [...entities, args.goal].join(' '),
             })
-            nativeAnswer = found.answer
-            return { sources: found.sources, via: nativeAdapter }
+            nativeSearch.result = found
+            nativeAnswer = found.status === 'searched' ? found.answer : ''
+            return {
+              status: found.status,
+              queries: found.queries,
+              sources: found.sources,
+              via: nativeAdapter,
+              ...(found.error ? { error: found.error } : {}),
+            }
           },
         }
       : {}),
@@ -2673,6 +2679,7 @@ async function planResearch(
     ...(args.expandSources ? { limit: RESEARCH_LIMITS.maxEvidenceItems } : {}),
     ...(quick ? { limit: RESEARCH_LIMITS.quickEvidenceItems } : {}),
   })
+  run.signal?.throwIfAborted()
   /**
    * ⚠ **打过就算一轮**，不管有没有收获：这一轮确实打了外部源（也确实花了
    * Serper credit）。⛔ 别做成「没查到就不计数」—— 那等于给「同一个查不到的
@@ -2680,9 +2687,7 @@ async function planResearch(
    */
   run.researchRounds = round
   /**
-   * ⭐ **证据原件收进结账原料**（§7.3）—— 落库那一跳留到收尾统一做：中途写库
-   * 等于让一条被用户打断的流在库里留下半份证据本，而打断即转向的前提正是
-   * 「跑到一半的一轮不留痕」。
+   * ⭐ 证据原件收进结账原料，工具完成时原子写入证据本并取得编号。
    */
   /**
    * ⭐ **结果再按域名滤一遍**（§9.3 的另一半）：选源那一步管得住「打谁」，管不住
@@ -2709,7 +2714,7 @@ async function planResearch(
    * ⚠ 并行读，所以它加的是一次请求的时间不是三次。
    */
   let readPages = 0
-  // ⚠ 自带联网那一路服务商已经读过页了，引用原文就在摘录里，⛔ 不再读一遍。
+  // 原生联网保留服务商引用；回答片段与来源原文按 excerptKind 区分。
   if (quick && !nativeAdapter && keptEvidence.length > 0) {
     const targets = keptEvidence
       .map((item, index) => ({ index, url: item.url }))
@@ -2749,16 +2754,30 @@ async function planResearch(
   /**
    * ④ **给证据**（§9.1）——结论 + 来源列表 + 编号。
    *
-   * ⚠ 编号在这里就分配（见 `OperatorRun.evidenceRefSeq`）：卡上那颗「钉住」钉的
-   * 就是它，而卡比结账早得多。取不到号段时这几条证据不带编号，⛔ 不编一个。
+   * ⚠ 编号来自这次已保存的证据；写入失败时不带编号，⛔ 不编一个。
    */
   const conversationId = run.request.conversationId
-  if (run.evidenceRefSeq === undefined && conversationId) {
-    run.evidenceRefSeq = await peekAssistantEvidenceRefSeq({
-      userId,
-      conversationId,
-    })
-  }
+  const book =
+    conversationId && keptItems.length > 0
+      ? await optionalContext(
+          'evidenceBook',
+          userId,
+          { refs: [] as string[], researchRunIds: [] as string[] },
+          () =>
+            appendAssistantEvidenceBook({
+              userId,
+              workspaceKey: run.request.workspaceKey,
+              surface: ASSISTANT_SURFACE_BY_DOMAIN[run.request.domain],
+              projectId:
+                assistantWorkspaceFromKey(run.request.workspaceKey)
+                  ?.projectId ?? null,
+              conversationId,
+              model: run.modelId,
+              entries: run.roundLedger.evidence.slice(-1),
+            }),
+        )
+      : { refs: [] as string[], researchRunIds: [] as string[] }
+  run.evidenceRefs.push(...book.refs)
   /**
    * ⚠ **两个号在同一次 map 里发**（56b 切片 1）：`evidenceRef` 是会话内的证据本
    * 编号（可能缺席），`cite` 是本轮正文里那个 `[n]`（永远有）。扇出发的那个
@@ -2766,15 +2785,11 @@ async function planResearch(
    */
   const citeBase = run.evidenceCiteSeq
   const evidence = keptEvidence.map((item, index) => {
-    const seq = run.evidenceRefSeq
     const cited = { ...item, cite: citeBase + index }
-    if (seq === null || seq === undefined) return cited
-    return { ...cited, evidenceRef: `${EVIDENCE_REF_PREFIX}${seq + index}` }
+    const evidenceRef = book.refs[index]
+    return evidenceRef ? { ...cited, evidenceRef } : cited
   })
   run.evidenceCiteSeq = citeBase + keptEvidence.length
-  if (typeof run.evidenceRefSeq === 'number') {
-    run.evidenceRefSeq += keptItems.length
-  }
   /**
    * ④ **结论一句 —— 归纳，不是摘录**（§9.1 ④，2026-09-12 实测第三组 A）。
    *
@@ -2861,10 +2876,14 @@ async function planResearch(
     gate.dropped.length > 0 || blockedByRules > 0
       ? ` · source list dropped ${gate.dropped.length} source(s)${gate.dropped.length > 0 ? ` (${gate.dropped.join(', ')})` : ''} and ${blockedByRules} result(s)`
       : ''
+  const nativeStatus = nativeSearch.result?.status ?? 'failed'
   const nativeLine = nativeAdapter
-    ? ` · searched natively via ${nativeAdapter}${nativeAnswer ? `\nThe search model's own summary (use it, cite the numbered pieces below): ${clamp(nativeAnswer, RESEARCH_LIMITS.maxConclusionChars)}` : ''}`
+    ? ` · native ${nativeAdapter}: ${nativeStatus}${nativeSearch.result?.error ? ` (${clamp(nativeSearch.result.error, RESEARCH_LIMITS.maxConclusionChars)})` : ''}${nativeAnswer ? `\nThe search model's own summary (use it, cite the numbered pieces below): ${clamp(nativeAnswer, RESEARCH_LIMITS.maxConclusionChars)}` : ''}`
     : ''
-  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}`
+  const queryLine = nativeAdapter
+    ? `provider search queries [${nativeSearch.result?.queries.join(' | ') || 'not disclosed'}]`
+    : `rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'}`
+  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -2881,7 +2900,7 @@ async function planResearch(
       : `${chainLine}\n→ ${evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${evidence
           .map(
             (item) =>
-              `  [${item.cite}] ${item.evidenceRef ? `${item.evidenceRef} ` : ''}[${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind} · ${item.corroboration > 1 ? `${item.corroboration} sources agree` : 'SINGLE SOURCE'}${item.publishedAt ? ` · ${item.publishedAt}` : ''}] ${item.title}\n     ${item.snippet}`,
+              `  [${item.cite}] ${item.evidenceRef ? `${item.evidenceRef} ` : ''}[${item.excerptKind === 'answer_fragment' ? 'SEARCH MODEL ANSWER FRAGMENT, NOT SOURCE QUOTE · ' : item.excerptKind === 'source_excerpt' ? 'SOURCE EXCERPT · ' : ''}${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind} · ${item.corroboration > 1 ? `${item.corroboration} sources agree` : 'SINGLE SOURCE'}${item.publishedAt ? ` · ${item.publishedAt}` : ''}] ${item.title}\n     ${item.snippet}`,
           )
           .join(
             '\n',
@@ -2993,6 +3012,7 @@ async function synthesizeResearchConclusion(
 
   try {
     const raw = await completeAssistantTextWithContextRetry({
+      signal: run.signal,
       systemPrompt: RESEARCH_CONCLUSION_SYSTEM_PROMPT,
       buildUserPrompt: (maxLength) =>
         maxLength === undefined
@@ -3549,6 +3569,21 @@ function planSetModel(
     )
   }
 
+  const workspace = assistantWorkspaceFromKey(
+    run.request.workspaceKey,
+  )?.workspace
+  if (
+    (workspace === 'image-natural' || workspace === 'image-tags') &&
+    getPromptDialect(
+      resolveAdapterType(match.catalogId ?? match.id) ?? undefined,
+    ) !== (workspace === 'image-tags' ? 'tags' : 'natural')
+  ) {
+    return reject(
+      REJECT.unknownModel,
+      'This model belongs to another workbench. Ask the creator to switch workbenches explicitly.',
+    )
+  }
+
   /**
    * **渠道**（进度表 10 + 21）—— 同一个型号的几条供给路径。
    *
@@ -3785,16 +3820,25 @@ async function completeReferenceAnalysisText(
   images?: string[],
   route = run.route,
   modelId = run.modelId,
+  jsonSchema?: Record<string, unknown>,
 ): Promise<string> {
   let result = ''
   for await (const chunk of streamAssistantTextWithContextRetry({
+    signal: run.signal,
     systemPrompt: system,
-    buildUserPrompt: () => prompt,
+    buildUserPrompt: (maxLength) =>
+      maxLength === undefined
+        ? prompt
+        : buildAssistantConversation(
+            [{ role: 'user', content: prompt }],
+            maxLength,
+          ),
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     route,
     modelId,
     ...(images?.length ? { imageData: images } : {}),
     responseFormat: 'json_object',
+    jsonSchema,
   })) {
     result += chunk
   }
@@ -3857,7 +3901,7 @@ async function planAnalyzeReferences(
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
         ],
-      complete: (system, prompt, images) =>
+      complete: (system, prompt, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
           system,
@@ -3867,6 +3911,7 @@ async function planAnalyzeReferences(
           images && !seesImages
             ? resolveAssistantModelId(visionRoute.adapterType)
             : run.modelId,
+          jsonSchema,
         ),
     })
   } catch (error) {
@@ -3922,30 +3967,35 @@ async function checkReferencePrompt(
     allowMinorGaps?: boolean
   },
 ): Promise<ToolPlan | null> {
-  const review = () =>
-    reviewOperatorReferencePrompt({
-      analysis: options.analysis,
-      language:
-        RESPONSE_LANGUAGE_LABELS[
-          resolveResponseLanguage(run.request, run.persona)
-        ],
-      prompt: options.prompt,
-      context: options.context,
-      modelHint:
-        getModelEnhanceHint(
-          options.modelId,
-          resolveAdapterType(options.modelId) ?? undefined,
-        ) ?? '',
-      complete: (system, prompt) =>
-        completeReferenceAnalysisText(run, system, prompt),
-    })
-  let checked = await review()
-  if (checked === null) checked = await review()
+  const checked = await reviewOperatorReferencePrompt({
+    analysis: options.analysis,
+    language:
+      RESPONSE_LANGUAGE_LABELS[
+        resolveResponseLanguage(run.request, run.persona)
+      ],
+    prompt: options.prompt,
+    context: options.context,
+    modelHint:
+      getModelEnhanceHint(
+        options.modelId,
+        resolveAdapterType(options.modelId) ?? undefined,
+      ) ?? '',
+    complete: (system, prompt, images, jsonSchema) =>
+      completeReferenceAnalysisText(
+        run,
+        system,
+        prompt,
+        images,
+        run.route,
+        run.modelId,
+        jsonSchema,
+      ),
+  })
   if (checked === null) {
     throw new ApiRequestError(
       'PROMPT_REVIEW_UNAVAILABLE',
       502,
-      '',
+      'errors.assistant.promptReviewUnavailable',
       OPERATOR_PROMPT_REVIEW_UNAVAILABLE[
         resolveResponseLanguage(run.request, run.persona)
       ],
@@ -4180,8 +4230,16 @@ async function planSetText(
             RESPONSE_LANGUAGE_LABELS[
               resolveResponseLanguage(run.request, run.persona)
             ],
-          complete: (system, prompt) =>
-            completeReferenceAnalysisText(run, system, prompt),
+          complete: (system, prompt, images, jsonSchema) =>
+            completeReferenceAnalysisText(
+              run,
+              system,
+              prompt,
+              images,
+              run.route,
+              run.modelId,
+              jsonSchema,
+            ),
         })
       } catch (error) {
         logger.warn('assistant reference brief failed', {
@@ -6007,6 +6065,7 @@ async function planVideoCritique(
   const notes = await Promise.all(
     frames.map(async (frame) =>
       completeAssistantTextWithContextRetry({
+        signal: run.signal,
         systemPrompt: buildVideoFrameSystemPrompt(run.request, run.persona),
         buildUserPrompt: (maxLength) =>
           buildVideoFramePrompt(run, goal, frame.label, frame.t, maxLength),
@@ -6021,6 +6080,7 @@ async function planVideoCritique(
   )
 
   const raw = await completeAssistantTextWithContextRetry({
+    signal: run.signal,
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
     buildUserPrompt: (maxLength) =>
       buildVideoCritiquePrompt(
@@ -6155,6 +6215,7 @@ async function planCritiqueResult(
     : run.modelId
 
   const raw = await completeAssistantTextWithContextRetry({
+    signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
     buildUserPrompt: (maxLength) =>
       buildCritiquePrompt(run, goal, result.modelLabel, maxLength),
@@ -6224,10 +6285,13 @@ async function planCritiqueResult(
  * `global` = 全部工作台（协议上是 `null`）。
  */
 function memoryAsRule(memory: AssistantMemory): ProjectRule {
+  const workspace = memory.workspaceKey
+    ? assistantWorkspaceFromKey(memory.workspaceKey)
+    : null
   return {
     id: memory.id,
-    scope:
-      memory.scope === ASSISTANT_MEMORY_SCOPE_IDS.global ? null : memory.scope,
+    workspaceKey: memory.workspaceKey,
+    scope: workspace ? assistantWorkspaceDomain(workspace.workspace) : null,
     text: memory.text,
     kind: PROJECT_RULE_KIND_IDS.note,
     source: memory.source,
@@ -6241,6 +6305,12 @@ function planReadProjectRules(
   userId: string,
 ): ToolPlan {
   const scope = args.scope ?? null
+  if (scope && scope !== run.request.domain) {
+    return reject(
+      REJECT.noSuchControl,
+      'Standing rules belong to the current workbench. Cross-workbench rules require an explicit handoff.',
+    )
+  }
 
   return {
     kind: 'read',
@@ -6252,7 +6322,7 @@ function planReadProjectRules(
        */
       const rules = (
         await listStandingRuleMemories(userId, {
-          scope: scope ? memoryScopeForDomain(scope) : null,
+          workspaceKey: run.request.workspaceKey,
           limit: RULE_LIMITS.maxReadResults,
         })
       ).map(memoryAsRule)
@@ -6429,6 +6499,7 @@ async function planAddProjectRule(
     rule = await addProjectRule(userId, {
       text,
       scope,
+      workspaceKey: run.request.workspaceKey,
       kind,
       source: PROJECT_RULE_SOURCE_IDS.assistant,
     })
@@ -6448,6 +6519,7 @@ async function planAddProjectRule(
     kind: 'mutate',
     payload: {
       ruleId: rule.id,
+      workspaceKey: rule.workspaceKey,
       scope: rule.scope,
       text: rule.text,
       kind: rule.kind,
@@ -6490,9 +6562,7 @@ async function planAddRuleMemory(
 
   const { memory, created } = await addAssistantRuleMemory(userId, {
     text: args.text,
-    scope: args.scope
-      ? memoryScopeForDomain(args.scope)
-      : ASSISTANT_MEMORY_SCOPE_IDS.global,
+    workspaceKey: run.request.workspaceKey,
   })
   const rule = memoryAsRule(memory)
   run.ruleIndex.set(rule.id, rule)
@@ -6508,6 +6578,7 @@ async function planAddRuleMemory(
     kind: 'mutate',
     payload: {
       ruleId: rule.id,
+      workspaceKey: rule.workspaceKey,
       scope: rule.scope,
       text: rule.text,
       kind: rule.kind,
@@ -6515,7 +6586,7 @@ async function planAddRuleMemory(
       createdAt: rule.createdAt,
     },
     inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) in the creator's memory. It now applies to ${rule.scope ?? 'every workbench'}. Do not record it again.`,
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) only in ${run.request.workspaceKey}. Global preferences can be explicitly set in Assistant settings. Do not record it again.`,
     // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
     apply: () => {},
   }
@@ -6674,7 +6745,7 @@ async function checkCanvasReferencePrompt(
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
         ],
-      complete: (system, input, images) =>
+      complete: (system, input, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
           system,
@@ -6684,6 +6755,7 @@ async function checkCanvasReferencePrompt(
           images && !seesImages
             ? resolveAssistantModelId(visionRoute.adapterType)
             : run.modelId,
+          jsonSchema,
         ),
     })
   } catch (error) {
@@ -6714,8 +6786,16 @@ async function checkCanvasReferencePrompt(
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
         ],
-      complete: (system, input) =>
-        completeReferenceAnalysisText(run, system, input),
+      complete: (system, input, images, jsonSchema) =>
+        completeReferenceAnalysisText(
+          run,
+          system,
+          input,
+          images,
+          run.route,
+          run.modelId,
+          jsonSchema,
+        ),
     })
   } catch (error) {
     logger.warn('assistant target reference brief failed', {
@@ -7352,18 +7432,19 @@ function planListContextCards(
  * `/api/context-cards` 完成 —— 那条路上带着用户自己的 Clerk 会话。
  * ⛔ 别在这里「顺手」写一行 `status: proposed`：助手能往用户的长期记忆里写字
  * 而不经过人，正是 §8.1 那条 ⛔ 说的后门。
- * ⚠ ⛔ 不为查重**另花一次库往返**：判据只读**本轮索引里已经在手的那几张**
- * （系统提示带上来的常挂卡 + 这一轮 `list_context_cards` / `read_context_card`
- * 读回来的），⛔ 不额外读一遍卡表。
+ * 仅在显式提议时查询同类已确认卡去重，卡片不再自动注入其他工作区。
  * ⚠ 但**已经存过的那张不再提议**（2026-09-12 真机 bug）：用户说「记一下：以后
  * 这个男主角固定穿…」→ 存下 → 之后每问一句别的，模型一开流又提同一张卡，正事
  * 一件不办。同 `kind` 同名（trim 后不分大小写）且**已确认**时回一条 observation
  * 把它挡回去，⛔ 不吐 confirm 帧、⛔ 也不停流。
  */
-function planProposeContextCard(
+async function planProposeContextCard(
   run: OperatorRun,
   card: AssistantOperatorContextCardDraft,
-): ToolPlan {
+  userId: string,
+): Promise<ToolPlan> {
+  const cards = await listContextCards(userId, { kind: card.kind })
+  for (const existing of cards) run.contextCardIndex.set(existing.id, existing)
   const wanted = card.name.trim().toLowerCase()
   const existing = [...run.contextCardIndex.values()].find(
     (candidate) =>
@@ -7751,7 +7832,7 @@ async function planRecallEvidence(
   const observation = `recall_evidence(${refs.join(' ')}) → ${items.length} piece(s) from this conversation's evidence book:\n${items
     .map(
       (item) =>
-        `  ${item.ref} [${item.source}] ${item.title}\n     ${item.body}`,
+        `  ${item.ref} [${item.source}${item.excerptKind === 'answer_fragment' ? ' · search model answer fragment, not a source quote' : item.excerptKind === 'source_excerpt' ? ' · source excerpt' : ''}] ${item.title}\n     ${item.body}`,
     )
     .join('\n')}${
     missing.length > 0
@@ -8039,6 +8120,7 @@ async function planTool(
       return planProposeContextCard(
         run,
         parsed.data as AssistantOperatorContextCardDraft,
+        userId,
       )
     case TOOL.setReviewState:
       return planSetReviewState(
@@ -9192,7 +9274,7 @@ ${ASSISTANT_OPERATOR_ANSWER_FIRST_RULES}
 WHAT THIS DOMAIN TURNS ON — check these are settled before you arm anything. Do not quiz the creator about them when they only asked a question:
 ${slots}
 
-"How should I change/generate this?" is a discussion until they tell you to do it: give your view, then offer to make the change. Answer pure information questions in "message" and stop. If a missing creative choice would materially change the result, ask one focused question before changing the workbench.
+"How should I change/generate this?" is a discussion until they tell you to do it: give your view, then offer to make the change. Answer pure information questions in "message", using look or research when needed to establish the answer. If a missing creative choice would materially change the result, ask one focused question before changing the workbench.
 
 YOU HAVE FIVE TOOLS, one per verb: look / research / ask / apply / request_generation. Pick the verb that matches what you are about to do, and name the specific move in "action" — every rule below that mentions a move like set_prompt, verify or mount_reference means that "action" value, never a tool name of its own.
 
@@ -9214,7 +9296,7 @@ ${domainRules}
 
 HOW YOU TALK — the creator hired an operator, not a rulebook:
 - Don't recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
-- On an action turn, if a tool in your list can do the thing, do it yourself. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The generate button itself stays theirs. For a pure information question, answer in "message" instead of calling a tool.
+- On an action turn, if a tool in your list can do the thing, do it yourself. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The generate button itself stays theirs. On an information turn, use look or research for missing evidence, then answer in "message" without changing the workbench.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
 - Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early. Rewording the same field again and again is the same loop: if two writes did not get it right, stop and tell them what you set and what you are unsure about.
 - Never point at the screen by position ("the button on the right", "above", "左边"). Name the control ("the generate button") — the layout differs between desktop, phone and canvas.
@@ -9843,11 +9925,6 @@ function parseVideoCritiqueJson(
 export interface AssistantOperatorRunOptions {
   /**
    * 客户端断开时触发（拍板 13 的插话 / ⏹）。
-   *
-   * ⚠ 它只能拦住**还没开始**的下一步：`llmTextCompletion` 这条链不吃 signal，
-   * 在飞的那次补全会跑完然后被丢弃（它是 await 出来的，不是悬空 promise）。
-   * 要真正掐断在飞请求得让 `LlmTextInput` 收 signal —— 那是另一片的事，别在这里
-   * 顺手给这条链造第二套超时机制。
    */
   signal?: AbortSignal
 }
@@ -9874,7 +9951,7 @@ Rules:
 "memories" — the few lines worth remembering for MONTHS, not just for the next turn (${ASSISTANT_MEMORY_LIMITS.maxPerRound} at most, usually zero or one, each within ${ASSISTANT_MEMORY_LIMITS.maxTextChars} characters, in the creator's language):
 - Write a memory ONLY when it would still be true and still be useful next week, on a different project. A standing taste ("prefers 16:9 unless told otherwise"), a lasting fact about one of their recurring characters, a working habit they asked for.
 - "kind" is one of: ${ASSISTANT_MEMORY_KINDS.join(' | ')}. preference = what they like; fact = something durable about their world; rule = something they told you to always or never do.
-- "scope" is optional and one of: ${ASSISTANT_MEMORY_SCOPES.join(' | ')}. Omit it for anything about the workbench they are on right now; use "global" only for things that are true no matter which workbench they open.
+- Omit "scope": new memories belong only to this workspace. Global preferences are set explicitly by the creator in Assistant settings.
 - NEVER write a memory about this turn's task ("wants a night scene this time"), about a one-off parameter, about anything you only guessed at, or about anything they did not actually say or settle. An empty list is the correct answer most turns.
 - Acceptance or rejection of a particular generated image, its parts, and missing evidence for this task belong only in this round's three lists, never in "memories".
 - NEVER write a memory containing identity documents, passwords or keys, health or medical matters, intimate relationships, financial accounts, or anything about a minor. Leave it out entirely — do not mention that you left it out.`
@@ -9942,6 +10019,7 @@ async function compressRoundLedger(
 
   try {
     const raw = await completeAssistantTextWithContextRetry({
+      signal: run.signal,
       systemPrompt: ROUND_SUMMARY_SYSTEM_PROMPT,
       buildUserPrompt: (maxLength) =>
         maxLength === undefined
@@ -10000,21 +10078,6 @@ function tidyColumn(entries: readonly string[]): string[] {
     .map((entry) => clamp(entry.trim(), ROUND_LIMITS.maxEntryChars))
     .filter((entry) => entry.length > 0)
     .slice(0, ROUND_LIMITS.maxEntriesPerColumn)
-}
-
-/**
- * 当前域 → 记忆的域（56a）。
- *
- * ⚠ 前四档在 `ASSISTANT_MEMORY_SCOPE_IDS` 里就是**同一批字面量**（词表从协议域
- * 派生），所以这里只需要断言它认得 —— ⛔ 不另写一张 `Record<域, 记忆域>` 的映射
- * 表：两份词表一旦漂开，漏掉的那一档会静默落到 global 上。
- */
-function memoryScopeForDomain(
-  domain: AssistantOperatorDomain,
-): AssistantMemoryScopeId {
-  return (ASSISTANT_MEMORY_SCOPES as readonly string[]).includes(domain)
-    ? (domain as AssistantMemoryScopeId)
-    : ASSISTANT_MEMORY_SCOPE_IDS.global
 }
 
 /**
@@ -10080,29 +10143,7 @@ async function closeRound(
   run.roundClosed = true
 
   const conversationId = run.request.conversationId
-  let evidenceRefs: string[] = []
-  if (conversationId && ledger.evidence.length > 0) {
-    /**
-     * ⚠ **落本失败不阻塞 `done`**（owner 2026-09-20 真机第 1 条）：本函数头注
-     * 早就写着「三步里任何一步失败都不阻塞 `done`」，但这一步的异常此前是直接
-     * 冒出去的 —— 表现正是「一轮凭空消失，而且不说为什么」。这一轮照常收尾，
-     * 只是结论记录里没有证据编号。
-     */
-    const book = await optionalContext(
-      'evidenceBook',
-      args.clerkId,
-      null as { refs: string[] } | null,
-      () =>
-        appendAssistantEvidenceBook({
-          userId: args.userId,
-          surface: ASSISTANT_SURFACE_BY_DOMAIN[run.request.domain],
-          conversationId,
-          model: run.modelId,
-          entries: ledger.evidence,
-        }),
-    )
-    evidenceRefs = book?.refs ?? []
-  }
+  const evidenceRefs = run.evidenceRefs.slice(0, ROUND_LIMITS.maxEvidenceRefs)
 
   const draft = await compressRoundLedger(run, args.closingMessage)
   if (!draft) {
@@ -10142,7 +10183,7 @@ async function closeRound(
       try {
         memoriesWritten = await recordAssistantMemories({
           userId: args.userId,
-          scope: memoryScopeForDomain(run.request.domain),
+          workspaceKey: run.request.workspaceKey,
           candidates,
           ...(conversationId ? { conversationId } : {}),
         })
@@ -10183,6 +10224,7 @@ async function closeRound(
         args.clerkId,
         conversationId,
         body,
+        run.request.workspaceKey,
       )
       if (stored) return stored
     } catch (error) {
@@ -10333,7 +10375,53 @@ export async function* runAssistantOperator(
   request: AssistantOperatorRequest,
   options: AssistantOperatorRunOptions = {},
 ): AsyncIterable<AssistantOperatorEvent> {
+  if (options.signal?.aborted) {
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+    }
+    return
+  }
   const user = await ensureUser(clerkId)
+  const workspace = assistantWorkspaceFromKey(request.workspaceKey)
+  if (
+    !workspace ||
+    assistantWorkspaceDomain(workspace.workspace) !== request.domain
+  ) {
+    throw new ApiRequestError(
+      'ASSISTANT_WORKSPACE_INVALID',
+      400,
+      'errors.assistantConversation.notFound',
+      'Assistant workspace does not match its domain',
+    )
+  }
+  if (request.conversationId) {
+    await assertAssistantConversationWorkspaceAccess(
+      user.id,
+      request.conversationId,
+      request.workspaceKey,
+    )
+  } else {
+    await assertAssistantWorkspaceAccess(user.id, request.workspaceKey)
+  }
+  if (
+    workspace.workspace === 'image-natural' ||
+    workspace.workspace === 'image-tags'
+  ) {
+    const dialect = workspace.workspace === 'image-tags' ? 'tags' : 'natural'
+    request = {
+      ...request,
+      snapshot: {
+        ...request.snapshot,
+        availableModels: request.snapshot.availableModels.filter(
+          (model) =>
+            getPromptDialect(
+              resolveAdapterType(model.catalogId ?? model.id) ?? undefined,
+            ) === dialect,
+        ),
+      },
+    }
+  }
 
   /**
    * persona 与规则**在开跑前一次性读出来**（§8.5 / §10）。
@@ -10347,14 +10435,7 @@ export async function* runAssistantOperator(
    * 头注）：少了其中任何一件，这一轮仍然答得出话 —— 少的只是「助手记得的那几行」。
    * 任何一件把整轮炸掉，用户看到的都是一句没有原因的「出错了」。
    */
-  const [
-    persona,
-    rules,
-    sourceRules,
-    contextCards,
-    priorRounds,
-    creativePreference,
-  ] = await Promise.all([
+  const [persona, rules, sourceRules, priorRounds] = await Promise.all([
     optionalContext('persona', clerkId, { ...ASSISTANT_PERSONA_DEFAULTS }, () =>
       getAssistantPersonaByUserId(user.id),
     ),
@@ -10366,7 +10447,7 @@ export async function* runAssistantOperator(
       (
         await listCreatorMemoriesForPrompt(
           user.id,
-          memoryScopeForDomain(request.domain),
+          request.workspaceKey,
           RULE_LIMITS.maxInPrompt,
         )
       ).map(memoryAsRule),
@@ -10379,18 +10460,7 @@ export async function* runAssistantOperator(
      * 助手照常去打那个站，而用户永远不会知道。
      */
     optionalContext('projectSourceRules', clerkId, [], () =>
-      listProjectSourceRules(user.id, { scope: request.domain }),
-    ),
-    /**
-     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
-     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
-     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
-     */
-    optionalContext('contextCards', clerkId, [], () =>
-      listContextCards(user.id, {
-        pinnedScope: request.domain,
-        limit: CARD_LIMITS.maxInPrompt,
-      }),
+      listProjectSourceRules(user.id, { workspaceKey: request.workspaceKey }),
     ),
     /**
      * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
@@ -10402,18 +10472,13 @@ export async function* runAssistantOperator(
       request.conversationId
         ? listAssistantConversationRounds(user.id, request.conversationId, {
             limit: ROUND_LIMITS.maxRoundsInPrompt,
+            workspaceKey: request.workspaceKey,
           })
         : Promise.resolve([]),
     ),
-    /**
-     * ⭐ 学出来的创作偏好（§8.3）—— 与上面四样同一档：开跑前读一次。
-     * ⚠ 这张表**多数用户是空的**（它由生成反馈那条路慢慢喂），缺行时是 `null`，
-     * 「关于这位创作者」那一段照样拼得出来（只是少那几行）。
-     */
-    optionalContext('creativePreference', clerkId, null, () =>
-      getCreativePreferenceDigest(user.id),
-    ),
   ])
+  const contextCards: ContextCard[] = []
+  const creativePreference = null
 
   /**
    * ⭐ **这一轮用哪个脑子，唯一真值是 persona**（v2 §4.5，commit #8）。
@@ -10447,7 +10512,7 @@ export async function* runAssistantOperator(
     () =>
       listAssistantMemoriesForPrompt(
         user.id,
-        memoryScopeForDomain(request.domain),
+        request.workspaceKey,
         memoryBudget,
       ),
   )
@@ -10503,6 +10568,7 @@ export async function* runAssistantOperator(
     .map((item) => item.url)
 
   const run: OperatorRun = {
+    signal: options.signal,
     priorRounds,
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
@@ -10535,7 +10601,7 @@ export async function* runAssistantOperator(
     webImageVision: new Map(),
     evidenceCiteSeq: 1,
     researchRounds: 0,
-    evidenceRefSeq: undefined,
+    evidenceRefs: [],
     searchIndex: new Map(),
     folderIndex: new Map(),
     loraIndex: new Map(),
@@ -10575,9 +10641,6 @@ export async function* runAssistantOperator(
     roundClosed: false,
   }
 
-  if (request.domain === 'image' || request.domain === 'lora')
-    await probeReferenceDimensions(run.state.referenceUrls)
-
   const composeSystemPrompt = () =>
     buildOperatorSystemPrompt(
       request,
@@ -10616,6 +10679,8 @@ export async function* runAssistantOperator(
   let completed = false
 
   try {
+    if (request.domain === 'image' || request.domain === 'lora')
+      await probeReferenceDimensions(run.state.referenceUrls, run.signal)
     const pointedReferences = currentConversationReferences(run)
     if (
       !options.signal?.aborted &&
@@ -10657,6 +10722,7 @@ export async function* runAssistantOperator(
             imageIndices: missing.map((ref) => ref.imageIndex),
           })
         } catch (error) {
+          run.signal?.throwIfAborted()
           yield toStepEvent({
             ...step,
             status: STATUS.error,
@@ -10731,6 +10797,7 @@ export async function* runAssistantOperator(
         : []
       const systemPrompt = composeSystemPrompt()
       for await (const chunk of streamAssistantTextWithContextRetry({
+        signal: run.signal,
         systemPrompt,
         buildUserPrompt: (maxLength) => buildOperatorUserPrompt(run, maxLength),
         route,
@@ -10846,6 +10913,19 @@ export async function* runAssistantOperator(
        * 那句话是用户唯一能看到的解释。⛔ 但本轮已经有 `message` 时就丢掉它 ——
        * 同一件事说两遍又变回刷屏。
        */
+      if (
+        !turn.plan?.length &&
+        turn.tool &&
+        request.planApproved !== true &&
+        request.resumeFrom === undefined &&
+        (turn.confirmPlan === true ||
+          (persona.planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always &&
+            turn.tool.name === ENTRY.apply))
+      ) {
+        turn.plan = [
+          clamp(turn.tool.title ?? turn.tool.name, LIMITS.maxPlanItemChars),
+        ]
+      }
       if (turn.plan?.length) {
         if (!planEmitted) {
           planEmitted = true
@@ -11236,7 +11316,9 @@ export async function* runAssistantOperator(
       let plan: ToolPlan
       try {
         plan = await planTool(run, name, args, user.id)
+        run.signal?.throwIfAborted()
       } catch (error) {
+        run.signal?.throwIfAborted()
         if (name === TOOL.analyzeReferences) {
           yield toStepEvent({
             ...base,
@@ -11682,6 +11764,13 @@ export async function* runAssistantOperator(
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
       ...(roundSummary ? { roundSummary } : {}),
+    }
+    completed = true
+  } catch (error) {
+    if (!options.signal?.aborted) throw error
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
     }
     completed = true
   } finally {

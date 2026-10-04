@@ -160,6 +160,15 @@ export const ASSISTANT_PROTOCOL_DOMAINS = [
 export type AssistantProtocolDomain =
   (typeof ASSISTANT_PROTOCOL_DOMAINS)[number]
 
+export const ASSISTANT_WORKSPACES = [
+  'image-natural',
+  'image-tags',
+  'video',
+  'lora',
+  'canvas',
+  'cards',
+] as const
+
 interface AssistantDomainBrief {
   /** 这个域的助手是谁 —— 系统提示词第 ② 段。 */
   persona: string

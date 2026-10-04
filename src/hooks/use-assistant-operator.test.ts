@@ -9,6 +9,7 @@ import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { nextResumeStepNumber } from '@/lib/studio-operator-resume'
@@ -112,11 +113,19 @@ const canvasApply = vi.hoisted(() => vi.fn(() => true))
 /** 画布那一枪的扳机（`StudioOperatorCanvasContext.generate`）。 */
 const canvasGenerate = vi.hoisted(() => vi.fn())
 const canvasInputSync = vi.hoisted(() => ({ current: false }))
-const hostDomain = vi.hoisted(() => ({ current: 'image' }))
+const hostDomain = vi.hoisted(() => ({
+  current: 'image' as AssistantOperatorDomain,
+}))
+const hostWorkspace = vi.hoisted(() => ({ current: 'image-natural' }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: hostDomain.current,
+    workspace:
+      hostDomain.current === 'image'
+        ? hostWorkspace.current
+        : hostDomain.current,
+    projectId: hostDomain.current === 'canvas' ? 'project-1' : undefined,
     buildSnapshot: () => hostSnapshot.current,
     results: [],
     referenceLimit: 4,
@@ -258,6 +267,7 @@ beforeEach(async () => {
   localStorage.clear()
   generationControls.current = null
   hostDomain.current = 'image'
+  hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
   canvasInputSync.current = false
   hostSnapshot.current = { prompt: '', availableModels: [] }
@@ -270,6 +280,7 @@ beforeEach(async () => {
     },
   )
   store = await import('@/hooks/use-studio-operator-store')
+  store.claimOperatorThreadScope('test-user:image-natural', 'image')
   operator = await import('@/hooks/use-assistant-operator')
 })
 
@@ -283,13 +294,163 @@ async function settle(): Promise<void> {
 }
 
 function render() {
-  return renderHook(() => operator.useAssistantOperator())
+  const scope =
+    hostDomain.current === 'canvas'
+      ? 'test-user:canvas:project-1'
+      : `test-user:${hostDomain.current === 'image' ? hostWorkspace.current : hostDomain.current}`
+  store.claimOperatorThreadScope(scope, hostDomain.current)
+  return renderHook(() => operator.useAssistantOperator(scope))
 }
 
 describe('useAssistantOperator 的四条收尾路径', () => {
+  it.each(['image-tags', 'canvas:project-2'])(
+    '切到 %s 后旧流和旧确认按钮不影响新会话',
+    async (workspace) => {
+      const { result, rerender } = renderHook(
+        ({ scope }) => operator.useAssistantOperator(scope),
+        { initialProps: { scope: 'test-user:image-natural' } },
+      )
+      act(() => result.current.send('旧工作区请求'))
+      await settle()
+      const oldConfirm = result.current.confirmGeneration
+      const oldRerun = result.current.rerunGeneration
+      const oldNewThread = result.current.newThread
+      const scope = `test-user:${workspace}`
+      act(() => {
+        store.claimOperatorThreadScope(
+          scope,
+          workspace.startsWith('canvas:') ? 'canvas' : 'image',
+        )
+        store.setOperatorAutoGenerate(true)
+      })
+      rerender({ scope })
+      streams[0].emit({ type: 'message', text: '迟到的旧回复' })
+      streams[0].emit({ type: 'done' })
+      streams[0].close()
+      const currentThread = store.getOperatorState().localThreadId
+      act(() => {
+        oldConfirm()
+        oldRerun(SPEND_REQUEST)
+        oldNewThread()
+      })
+      await settle()
+      expect(store.getOperatorState()).toMatchObject({
+        threadScope: scope,
+        localThreadId: currentThread,
+        entries: [],
+        status: 'idle',
+        confirm: null,
+        errorText: null,
+      })
+      expect(triggerGeneration).not.toHaveBeenCalled()
+      expect(canvasGenerate).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['image', 'canvas'] as const)(
+    '生成确认后报错不会自动生成或清除错误：%s',
+    async (domain) => {
+      hostDomain.current = domain
+      const { result } = render()
+      act(() => {
+        store.setOperatorAutoGenerate(true)
+        result.current.send('准备生成')
+      })
+      await settle()
+      streams[0].emit(generateConfirmEvent())
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.error,
+        error: 'provider failed',
+        traceId: 'deadbeef',
+      })
+      streams[0].close()
+      await settle()
+      expect(triggerGeneration).not.toHaveBeenCalled()
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(store.getOperatorState()).toMatchObject({
+        status: 'error',
+        errorText: 'provider failed',
+        errorTrace: { traceId: 'deadbeef' },
+      })
+    },
+  )
+
+  it('生成确认后缺少终态的断流保留操作并阻止自动生成', async () => {
+    const { result } = render()
+    act(() => {
+      store.setOperatorAutoGenerate(true)
+      result.current.send('准备生成')
+    })
+    await settle()
+    streams[0].emit(doneStepEvent('read-1'))
+    streams[0].emit(generateConfirmEvent())
+    streams[0].close()
+    await settle()
+    expect(triggerGeneration).not.toHaveBeenCalled()
+    expect(store.getOperatorState().status).toBe('error')
+    expect(store.getOperatorState().errorText).toBe('i18n:streamInterrupted')
+    expect(
+      store.getOperatorState().entries.some((entry) => entry.kind === 'step'),
+    ).toBe(true)
+  })
+
+  it('重复完成已命名的建卡步骤不会把失败的连线步骤冒充为完成', async () => {
+    hostDomain.current = 'canvas'
+    const { result } = render()
+    act(() => result.current.send('建卡并连接参考图'))
+    await settle()
+    streams[0].emit({
+      type: 'plan',
+      steps: ['新建正面全身立绘节点', '连接参考图', '设定生成模型'].map(
+        (label, index) => ({ id: `plan-${index}`, label }),
+      ),
+    })
+    const createdStep = {
+      id: 'step-1',
+      title: '新建正面全身立绘节点',
+      tool: 'canvas_apply',
+      verb: 'apply',
+      status: 'done',
+      payload: {
+        op: 'add_node',
+        kind: 'image',
+        subtype: 'shot',
+        name: '正面全身立绘',
+      },
+      inverse: { op: 'delete', nodeRef: 'add_node' },
+    } as const
+    streams[0].emit({ type: 'step', step: createdStep })
+    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[0].close()
+    await settle()
+    streams[1].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '连接参考图',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'error',
+        error: { reason: 'noSuchControl' },
+      },
+    })
+    streams[1].emit({ type: 'step', step: { ...createdStep, id: 'step-2' } })
+    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[1].close()
+    await settle()
+
+    expect(
+      store.getOperatorState().resume?.steps.map((step) => step.state),
+    ).toEqual(['done', 'failed', 'pending'])
+    expect(
+      streamAssistantOperatorAPI.mock.calls[2][0].resumeFrom.completedSteps,
+    ).toHaveLength(1)
+    streams[2].emit({ type: 'done' })
+    streams[2].close()
+    await settle()
+  })
+
   it('连续布置多个画布节点时逐步续接最新快照', async () => {
     hostDomain.current = 'canvas'
-    store.setOperatorResumeScope('canvas-batch-regression')
     const nodes: { id: string; name: string; kind: string; subtype: string }[] =
       []
     canvasApply.mockImplementation(() => {
@@ -463,7 +624,6 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
   it('图片提示词待同步输入时保留失败诊断并在剩余预算内自动纠正', async () => {
     hostDomain.current = 'canvas'
-    store.setOperatorResumeScope('canvas-input-sync')
     canvasApply.mockReturnValue(false)
     canvasInputSync.current = true
     const { result } = render()
@@ -652,6 +812,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       type: ASSISTANT_OPERATOR_EVENTS.message,
       text: '收到画风要求',
     })
+    streams[0].emit({ type: 'done' })
     streams[0].close()
     await settle()
     expect(store.getOperatorState().status).toBe('idle')
@@ -721,6 +882,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
     streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '好' })
     await settle()
+    streams[0].emit({ type: 'done' })
     streams[0].close()
     await settle()
 
@@ -779,6 +941,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     expect(state.errorText).toBeNull()
 
     streams[1].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '好' })
+    streams[1].emit({ type: 'done' })
     streams[1].close()
     await settle()
     expect(store.getOperatorState().status).toBe('idle')
@@ -1158,7 +1321,6 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
 
   it('「开始」带 planApproved 重发，并把卡换成一张逐项打勾的计划（D12 S9）', async () => {
     // 面板挂上时按域给续跑记录定范围（`StudioOperatorPanel`）—— 计划的勾靠它。
-    store.setOperatorResumeScope('image')
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -1210,7 +1372,6 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
 
   it('⭐ 点过「开始」的那一轮⛔ 不再立起新的待确认卡（服务端零会话态会再摆一帧）', async () => {
     // 面板挂上时按域给续跑记录定范围（`StudioOperatorPanel`）—— 计划的勾靠它。
-    store.setOperatorResumeScope('image')
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -1555,7 +1716,11 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
      * 服务端吐 `request_generation` 那一步」，而那条免检通道随决策 8 删了 ——
      * 留着重发的表现是用户点一次「确认生成」、服务端再问一次同一张卡。
      */
-    expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST)
+    expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST, {
+      threadScope: store.getOperatorState().threadScope,
+      localThreadId: store.getOperatorState().localThreadId,
+      pendingResultId: store.getOperatorState().pendingResultId,
+    })
     expect(streams).toHaveLength(1)
     expect(store.getOperatorState().confirm?.status).toBe('confirmed')
   })
@@ -1646,6 +1811,9 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
             aspectRatio: '16:9',
             resolution: '2K',
           }),
+        }),
+        expect.objectContaining({
+          pendingResultId: store.getOperatorState().pendingResultId,
         }),
       )
     })
@@ -2589,6 +2757,20 @@ describe('正文流式累积与占位行', () => {
       })
     }
 
+    it('停止旧回合后，新会话不会收到旧的延迟占位消息', async () => {
+      const { result } = render()
+      act(() => result.current.send('旧回合'))
+      await settle()
+      streams[0].emit(doneStepEvent('step-1'))
+      await settle()
+      act(() => result.current.newThread())
+      act(() => result.current.send('新回合'))
+      await settle()
+      const entries = store.getOperatorState().entries
+      await wait(STUDIO_OPERATOR_STREAMING.pendingAfterStepMs + 60)
+      expect(store.getOperatorState().entries).toEqual(entries)
+    })
+
     it('⛔ 连续工具步之间的短空窗不挂占位行（挂了又拆就是闪）', async () => {
       const { result } = render()
       act(() => {
@@ -2819,7 +3001,6 @@ describe('覆盖三选 · authoredByAssistant', () => {
 describe('断点续跑', () => {
   beforeEach(() => {
     localStorage.clear()
-    store.setOperatorResumeScope('image')
   })
 
   /** 计划直接开跑（不出卡）的那一支 —— `plan` 帧之后紧跟一个别的帧。 */
@@ -2938,6 +3119,7 @@ describe('断点续跑', () => {
     startPlan(2)
     streams[0].emit(doneStepEvent('step-1'))
     streams[0].emit(doneStepEvent('step-2'))
+    streams[0].emit({ type: 'done' })
     streams[0].close()
     await settle()
 

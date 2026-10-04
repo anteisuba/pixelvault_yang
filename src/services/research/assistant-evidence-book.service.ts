@@ -1,11 +1,10 @@
 import 'server-only'
 
-import type { Prisma } from '@/lib/generated/prisma/client'
+import { Prisma } from '@/lib/generated/prisma/client'
 
 import {
   ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_EVIDENCE_REF_PREFIX,
-  ASSISTANT_ROUND_SUMMARY_LIMITS,
 } from '@/constants/assistant-operator'
 import { RESEARCH_RUN_STATUSES } from '@/constants/research'
 import { db } from '@/lib/db'
@@ -61,10 +60,11 @@ export interface AssistantEvidenceBookResult {
  * 「点得回那一条」。
  */
 async function nextRefSeq(
+  tx: Prisma.TransactionClient,
   userId: string,
   conversationId: string,
 ): Promise<number> {
-  const rows = await db.researchRun.findMany({
+  const rows = await tx.researchRun.findMany({
     where: { userId, conversationId },
     select: { evidence: true },
   })
@@ -83,42 +83,16 @@ async function nextRefSeq(
 }
 
 /**
- * **号段预取**（§9.1 ④ / §9.2 `evidenceRef`，commit #16）——这一轮的证据会拿到
- * 哪几个号，在**查到的那一刻**就说得出来。
+ * 把工具查到的证据写进证据本，逐条分配编号，提交成功后才返回编号。
  *
- * ⭐ 为什么要在落库之前就给号：证据卡上的「钉住」钉的是号（钉住 = 进本轮结论
- * 记录的 `evidenceRefs`，§7.3），而卡在 `done` 那一帧就画出来了，比结账早得多。
- * ⚠ 它**只读不写**：号段照旧由 `appendAssistantEvidenceBook` 在结账时从库里现算
- * 分配 —— 两处算的是同一件事（`max + 1`），中途没有第二条写路，所以号对得上。
- * ⛔ 别在这里改成「预留号段」：预留就是一个会与实际条目失同步的计数器，而那正是
- * `nextRefSeq` 头注里拒绝过的东西。
- * ⚠ 读不出来（库挂了）就返回 `null` —— 这一轮的证据于是不带编号，⛔ 不编号。
- */
-export async function peekAssistantEvidenceRefSeq(args: {
-  userId: string
-  conversationId: string
-}): Promise<number | null> {
-  try {
-    return await nextRefSeq(args.userId, args.conversationId)
-  } catch (error) {
-    logger.warn('assistant evidence book ref peek failed', {
-      conversationId: args.conversationId,
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return null
-  }
-}
-
-/**
- * 把本轮查到的证据写进证据本，逐条分配编号。
- *
- * ⚠ **失败不抛**：它跑在每轮结账那一步，而结账失败不许阻塞 `done`（§7.5）。
+ * ⚠ **失败不抛**：写入失败不许阻塞工具完成与 `done`（§7.5）。
  * 写不进去就返回空编号 —— 结论记录于是不带 `evidenceRefs`，⛔ 而不是带着一串
  * 指不回任何东西的号。
  */
 export async function appendAssistantEvidenceBook(args: {
   /** DB user id（不是 clerkId）。 */
   userId: string
+  workspaceKey: string
   surface: AssistantSurfaceId
   conversationId: string
   projectId?: string | null
@@ -130,42 +104,50 @@ export async function appendAssistantEvidenceBook(args: {
   if (entries.length === 0) return { refs: [], researchRunIds: [] }
 
   try {
-    let seq = await nextRefSeq(args.userId, args.conversationId)
-    const refs: string[] = []
-    const researchRunIds: string[] = []
-
-    for (const entry of entries) {
-      const numbered = entry.items.map((item) => {
-        const ref = `${ASSISTANT_EVIDENCE_REF_PREFIX}${seq}`
-        seq += 1
-        refs.push(ref)
-        return { ...item, ref }
-      })
-      const row = await db.researchRun.create({
-        data: {
-          userId: args.userId,
-          surface: args.surface,
-          projectId: args.projectId ?? null,
-          conversationId: args.conversationId,
-          goal: entry.goal,
-          query: entry.queries.join(' · '),
-          status: RESEARCH_RUN_STATUSES.succeeded,
-          grounded: true,
-          evidence: numbered as unknown as Prisma.InputJsonValue,
-          perSource: entry.receipts as unknown as Prisma.InputJsonValue,
-          ...(args.model ? { model: args.model } : {}),
-          completedAt: new Date(),
-        },
-        select: { id: true },
-      })
-      researchRunIds.push(row.id)
-    }
-
-    return {
-      // ⚠ 编号本身有上限（结论记录只装得下那么多），⛔ 但库里那几行是全的。
-      refs: refs.slice(0, ASSISTANT_ROUND_SUMMARY_LIMITS.maxEvidenceRefs),
-      researchRunIds,
-    }
+    return await db.$transaction(
+      async (tx) => {
+        const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "AssistantConversation"
+        WHERE "id" = ${args.conversationId} AND "userId" = ${args.userId}
+          AND "workspaceKey" = ${args.workspaceKey}
+          AND "surface" = ${args.surface}::"AssistantSurface"
+          AND "projectId" IS NOT DISTINCT FROM ${args.projectId ?? null}
+        FOR UPDATE
+      `
+        if (locked.length === 0) return { refs: [], researchRunIds: [] }
+        let seq = await nextRefSeq(tx, args.userId, args.conversationId)
+        const refs: string[] = []
+        const researchRunIds: string[] = []
+        for (const entry of entries) {
+          const numbered = entry.items.map((item) => {
+            const ref = `${ASSISTANT_EVIDENCE_REF_PREFIX}${seq}`
+            seq += 1
+            refs.push(ref)
+            return { ...item, ref }
+          })
+          const row = await tx.researchRun.create({
+            data: {
+              userId: args.userId,
+              surface: args.surface,
+              projectId: args.projectId ?? null,
+              conversationId: args.conversationId,
+              goal: entry.goal,
+              query: entry.queries.join(' · '),
+              status: RESEARCH_RUN_STATUSES.succeeded,
+              grounded: true,
+              evidence: numbered as unknown as Prisma.InputJsonValue,
+              perSource: entry.receipts as unknown as Prisma.InputJsonValue,
+              ...(args.model ? { model: args.model } : {}),
+              completedAt: new Date(),
+            },
+            select: { id: true },
+          })
+          researchRunIds.push(row.id)
+        }
+        return { refs, researchRunIds }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    )
   } catch (error) {
     logger.warn('assistant evidence book write failed', {
       conversationId: args.conversationId,
@@ -185,6 +167,7 @@ export interface AssistantRecalledEvidence {
   url?: string
   source: string
   body: string
+  excerptKind?: EvidenceItem['excerptKind']
 }
 
 export interface AssistantEvidenceRecallResult {
@@ -249,6 +232,7 @@ export async function recallAssistantEvidence(args: {
         ...(item.url ? { url: item.url } : {}),
         source: item.sourceId,
         body: evidenceBody(item),
+        ...(item.excerptKind ? { excerptKind: item.excerptKind } : {}),
       })
     }
   }

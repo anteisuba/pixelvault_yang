@@ -19,8 +19,6 @@
  * （只换距下缘的留白：桌面 16 / 手机 96）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
  * 上没有第二套面板内容 —— 疏密由面板自己的 `@container` 收。
  * ⚠ 手机上**不记宽**：宽度记忆是「拖得动的浮层」才有的概念。
- * ⛔ LoRA 装配台的手机档不在本片内（仍走 `LoraAssistantDock`），判据见下方
- * `hasMobileShell`。
  *
  * ## 与旧 `StudioAssistantDock` 的关系
  * 图片工作台**整体切到这里**，旧面板留给音频（P4 扩域时再统一）。
@@ -44,8 +42,9 @@ import styles from './StudioOperatorDock.module.css'
 import { GripVertical } from '@/components/icons'
 import { animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { useUser } from '@clerk/nextjs'
+import { assistantWorkspaceScope } from '@/lib/assistant-workspace'
 
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
@@ -70,6 +69,7 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import {
+  getOperatorState,
   setOperatorPlanMode,
   removeOperatorMention,
   subscribeOperatorAttachment,
@@ -210,11 +210,20 @@ export function StudioOperatorDock() {
     apply,
     buildSnapshot,
     domain: hostDomain,
+    workspace,
     resultRun,
     collapseOnOutsidePointer,
     anchor: hostAnchor,
     projectId: hostProjectId,
   } = useStudioOperatorHost()
+  const { user } = useUser()
+  const userId = user?.id ?? null
+  const scope = assistantWorkspaceScope(userId, workspace, hostProjectId)
+  const history = useStudioOperatorHistory({
+    userId,
+    workspace,
+    projectId: hostProjectId,
+  })
   /**
    * 头像与面板落在视口的哪两个角（D7b ④）。
    *
@@ -232,7 +241,12 @@ export function StudioOperatorDock() {
    */
   const slides = Boolean(anchor.avatarStays)
   const isMobile = useIsMobile()
-  const { entries, mentions, question, confirm } = useStudioOperatorState()
+  const { entries, mentions, question, confirm, threadScope, localThreadId } =
+    useStudioOperatorState()
+  const attachmentScope =
+    scope && threadScope === scope
+      ? JSON.stringify([scope, localThreadId])
+      : null
   /**
    * 角标的前半：**未答问题 + 未处理确认**。
    *
@@ -291,7 +305,7 @@ export function StudioOperatorDock() {
    * 而收起（拍板 7）绝不该把在飞的那一轮掐掉 —— 胶囊上那句「干活中 3/7」
    * 必须是真的。
    */
-  const operator = useAssistantOperator()
+  const operator = useAssistantOperator(scope)
   /**
    * ⭐ 看图闭环的观察端（P3-C，拍板 4）也**住在外壳**：它盯的是工作台的结果
    * 回流，而那件事在面板收起（拍板 7 随时会卸载面板）时照样在发生。挂在面板里
@@ -336,7 +350,6 @@ export function StudioOperatorDock() {
    * 下场是每展开一次就去库里覆盖一遍当前线程。落库的防抖同理：一轮流跑完那一拍
    * 常常发生在面板已经让位之后（点生成键 = 点工作台 = 收面板）。
    */
-  const history = useStudioOperatorHistory(hostProjectId, hostDomain)
   /**
    * ⭐ **persona 全树只拉这一次**（§8）：头像（时间线沟）、问候语、以及「先问我」
    * 的初始态读的都是它。⛔ 别在面板 / 头像组件里各调一次 `useAssistantPersona()`
@@ -596,33 +609,107 @@ export function StudioOperatorDock() {
    * 而「点错工作台一下，刚写的话和刚挂好的素材一起消失」是让位法则最容易踩到的
    * 那一脚。2026-08-30 真机实测过 —— 收起再展开后附件 chip 归零。
    */
-  const [draft, setDraft] = useState('')
-  const [localAttachments, setLocalAttachments] = useState<
-    readonly StudioOperatorAttachment[]
-  >([])
+  const [composerOwner, setComposerOwner] = useState(userId)
+  const [composers, setComposers] = useState<
+    Record<
+      string,
+      {
+        draft: string
+        attachments: readonly StudioOperatorAttachment[]
+      }
+    >
+  >({})
+  if (composerOwner !== userId) {
+    setComposerOwner(userId)
+    setComposers({})
+  }
+  const draft = attachmentScope ? (composers[attachmentScope]?.draft ?? '') : ''
+  const localAttachments = useMemo(
+    () =>
+      attachmentScope ? (composers[attachmentScope]?.attachments ?? []) : [],
+    [attachmentScope, composers],
+  )
+  const ownsComposer = useCallback(() => {
+    const current = getOperatorState()
+    return (
+      scope !== null &&
+      current.threadScope === scope &&
+      current.localThreadId === localThreadId
+    )
+  }, [scope, localThreadId])
+  const setDraft = useCallback(
+    (value: string | ((current: string) => string)) => {
+      if (!attachmentScope) return
+      setComposers((current) => {
+        const composer = current[attachmentScope] ?? {
+          draft: '',
+          attachments: [],
+        }
+        return {
+          ...current,
+          [attachmentScope]: {
+            ...composer,
+            draft: typeof value === 'function' ? value(composer.draft) : value,
+          },
+        }
+      })
+    },
+    [attachmentScope],
+  )
+  const setLocalAttachments = useCallback(
+    (
+      value:
+        | readonly StudioOperatorAttachment[]
+        | ((
+            current: readonly StudioOperatorAttachment[],
+          ) => readonly StudioOperatorAttachment[]),
+    ) => {
+      if (!attachmentScope) return
+      setComposers((current) => {
+        const composer = current[attachmentScope] ?? {
+          draft: '',
+          attachments: [],
+        }
+        return {
+          ...current,
+          [attachmentScope]: {
+            ...composer,
+            attachments:
+              typeof value === 'function' ? value(composer.attachments) : value,
+          },
+        }
+      })
+    },
+    [attachmentScope],
+  )
   // ⚠ 宿主自己带出来的参考图（`implicit`，画布上的图）不摆成 chip：助手照样看得见、
   //   能 @，只是不在输入框上方堆成一墙（owner 2026-09-29）。
   const attachments = useMemo<readonly StudioOperatorAttachment[]>(
-    () => [
-      ...referenceImages.flatMap((entry, index): StudioOperatorAttachment[] =>
-        entry.implicit
-          ? []
-          : [
-              {
-                id: getReferenceImageAttachmentId(entry.url),
-                url: entry.url,
-                thumbnailUrl: entry.url,
-                kind: 'image',
-                label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
-              },
-            ],
-      ),
-      ...localAttachments.filter((item) => item.kind !== 'image'),
-    ],
-    [referenceImages, localAttachments, tReference],
+    () =>
+      attachmentScope
+        ? [
+            ...referenceImages.flatMap(
+              (entry, index): StudioOperatorAttachment[] =>
+                entry.implicit
+                  ? []
+                  : [
+                      {
+                        id: getReferenceImageAttachmentId(entry.url),
+                        url: entry.url,
+                        thumbnailUrl: entry.url,
+                        kind: 'image',
+                        label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
+                      },
+                    ],
+            ),
+            ...localAttachments.filter((item) => item.kind !== 'image'),
+          ]
+        : [],
+    [attachmentScope, referenceImages, localAttachments, tReference],
   )
   const handleUploaded = useCallback(
     (attachment: StudioOperatorAttachment) => {
+      if (!ownsComposer()) return
       if (attachment.kind === 'image') {
         apply.addReference(attachment.url)
         return
@@ -633,10 +720,11 @@ export function StudioOperatorDock() {
           : [...current, attachment],
       )
     },
-    [apply],
+    [apply, ownsComposer, setLocalAttachments],
   )
   const handleAttachmentsChange = useCallback(
     (next: readonly StudioOperatorAttachment[]) => {
+      if (!ownsComposer()) return
       const images = next.filter((item) => item.kind === 'image')
       for (const entry of [...referenceImages].reverse()) {
         // 没摆出来的那些（`implicit`）不在 chip 列表里，⛔ 别把「列表里没有」读成「被移走了」。
@@ -652,9 +740,12 @@ export function StudioOperatorDock() {
       }
       setLocalAttachments(next.filter((item) => item.kind !== 'image'))
     },
-    [apply, referenceImages],
+    [apply, ownsComposer, referenceImages, setLocalAttachments],
   )
-  const upload = useStudioOperatorUpload({ onUploaded: handleUploaded })
+  const upload = useStudioOperatorUpload({
+    onUploaded: handleUploaded,
+    scopeKey: attachmentScope,
+  })
 
   useEffect(() => {
     for (const mention of mentions) {
@@ -665,17 +756,15 @@ export function StudioOperatorDock() {
   }, [apply, mentions])
 
   const [previousReferences, setPreviousReferences] = useState({
-    domain: hostDomain,
+    scope: attachmentScope,
     images: referenceImages,
   })
   if (
-    previousReferences.domain !== hostDomain ||
+    previousReferences.scope !== attachmentScope ||
     previousReferences.images !== referenceImages
   ) {
-    setPreviousReferences({ domain: hostDomain, images: referenceImages })
-    if (previousReferences.domain !== hostDomain) {
-      setDraft((current) => removeReferenceMentions(current))
-    } else {
+    setPreviousReferences({ scope: attachmentScope, images: referenceImages })
+    if (previousReferences.scope === attachmentScope && attachmentScope) {
       const removed = previousReferences.images
         .flatMap((entry, index) =>
           referenceImages.some((current) => current.url === entry.url)
@@ -711,16 +800,20 @@ export function StudioOperatorDock() {
    */
   useEffect(() => {
     const consume = () => {
-      const text = takeOperatorDraft(hostDomain)
+      if (!ownsComposer()) return
+      const text = takeOperatorDraft(threadScope)
       if (text === null) return
       setDraft(text)
       setOpen(true)
     }
     consume()
     return subscribeOperatorDraft(consume)
-  }, [hostDomain, setOpen])
+  }, [threadScope, ownsComposer, setDraft, setOpen])
 
   const webImportedUrls = useRef(new Map<string, string>())
+  useLayoutEffect(() => {
+    webImportedUrls.current.clear()
+  }, [attachmentScope])
   const handleWebImported = useCallback(
     (attachment: StudioOperatorAttachment) => {
       webImportedUrls.current.set(attachment.id, attachment.url)
@@ -739,9 +832,10 @@ export function StudioOperatorDock() {
         current.filter((item) => item.id !== attachmentId),
       )
     },
-    [apply],
+    [apply, setLocalAttachments],
   )
   const webImport = useStudioOperatorWebImport({
+    scopeKey: attachmentScope,
     onImported: handleWebImported,
     onRemoved: handleWebRemoved,
     limit: referenceLimit,
@@ -851,6 +945,7 @@ export function StudioOperatorDock() {
    */
   const panel = (
     <StudioOperatorPanel
+      key={attachmentScope}
       operator={operator}
       draft={draft}
       onDraftChange={setDraft}
@@ -880,21 +975,6 @@ export function StudioOperatorDock() {
       headerAvatar={isMobile ? 'own' : anchor.avatarStays ? 'none' : 'slot'}
     />
   )
-
-  /**
-   * 手机上有没有这套外壳 —— **除了 LoRA 都有**（图片 / 视频 / 画布 / 角色页）。
-   * ⚠ 09-28 owner 真机：原先只放行图片 / 视频，画布点星标、角色页的头像在手机上
-   *   一律什么都不出 —— 后接进来的宿主被这道白名单静默挡掉了。所以写成排除 LoRA。
-   *
-   * ⛔ LoRA 装配台不在此列：那条路由的小屏助手仍是 `LoraAssistantDock`（旧面板的
-   * Drawer 宿主），而「两颗面板永不同屏」那道门就长在 `LoraWorkbench` 里 ——
-   * 它的判据是「Dock 在小屏什么都不渲染」。这里不按域收窄的话，LoRA 手机上会
-   * 同时弹出两张面板。LoRA 的收编是第四期（`assistant-shell.md` 四期次序）。
-   * ⚠ 判据用**宿主的域**不是路由：域是宿主说了算的（见 `studio-operator-host`）。
-   */
-  const hasMobileShell = hostDomain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
-
-  if (isMobile && !hasMobileShell) return null
 
   /**
    * ── 手机：半屏可拖 Sheet + 右下浮标（v2 §4.6 · `ui-defaults.md §6`）───────

@@ -106,7 +106,7 @@ export function useCardsOperatorHost({
           latest.current.attachImages(characterId, images),
         /** C3：交给图片助手 —— 话先递过去，再跳。 */
         handOffToImageAssistant: (characterId, request) => {
-          requestOperatorDraft(ASSISTANT_PROTOCOL_DOMAIN_IDS.image, request)
+          requestOperatorDraft('image-natural', request)
           latest.current.router.push(studioImageWithCharacterPath(characterId))
         },
       },
@@ -133,6 +133,7 @@ export function useCardsOperatorHost({
   return useMemo(
     (): StudioOperatorHost => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
+      workspace: 'cards',
       face,
       buildSnapshot,
       apply,

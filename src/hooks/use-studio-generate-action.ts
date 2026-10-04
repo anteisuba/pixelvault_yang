@@ -45,8 +45,11 @@ import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import { planStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
+import { matchesOperatorResultOwner } from '@/lib/studio-operator-result-run'
+import { getOperatorState } from '@/hooks/use-studio-operator-store'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/types/model-option'
+import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPreview'
 
 export interface StudioBlockedReason {
@@ -723,170 +726,176 @@ export function useStudioGenerateAction() {
     ],
   )
 
-  const executeGenerate = useCallback(async () => {
-    if (!canGenerate) return
-    if (isAudioMode && selectedModel) {
-      const isSfx = state.audioKind === AUDIO_KIND.SFX
-      const isMusic = state.audioKind === AUDIO_KIND.MUSIC
-      const audioReference = resolveInlineAudioReference({
-        cardReferenceAudioUrl: selectedVoiceCard?.referenceAudioUrl,
-        cardSampleText: selectedVoiceCard?.sampleText,
-        adHocReferenceUrl: state.audioReferenceUrl,
-        adHocReferenceText: state.audioReferenceText,
+  const executeGenerate = useCallback(
+    async (operatorResultOwner?: StudioOperatorResultOwner) => {
+      if (!canGenerate) return
+      if (isAudioMode && selectedModel) {
+        const isSfx = state.audioKind === AUDIO_KIND.SFX
+        const isMusic = state.audioKind === AUDIO_KIND.MUSIC
+        const audioReference = resolveInlineAudioReference({
+          cardReferenceAudioUrl: selectedVoiceCard?.referenceAudioUrl,
+          cardSampleText: selectedVoiceCard?.sampleText,
+          adHocReferenceUrl: state.audioReferenceUrl,
+          adHocReferenceText: state.audioReferenceText,
+        })
+        await generate({
+          mode: 'audio',
+          operatorResultOwner,
+          audio: {
+            modelId: selectedModel.modelId,
+            apiKeyId: selectedModel.keyId,
+            freePrompt: state.prompt || undefined,
+            voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
+            coverImageUrl:
+              typeof selectedVoiceCard?.coverImage === 'string' &&
+              selectedVoiceCard.coverImage.startsWith('http')
+                ? selectedVoiceCard.coverImage
+                : undefined,
+            referenceAudioUrl: audioReference.referenceAudioUrl,
+            referenceText: audioReference.referenceText,
+            emotion: state.audioEmotion,
+            expressiveness: state.audioExpressiveness,
+            durationSeconds: isSfx
+              ? state.audioSfxDurationSeconds
+              : isMusic
+                ? state.audioMusicDurationSeconds
+                : undefined,
+            loop: isSfx ? state.audioSfxLoop : undefined,
+            promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
+            variantCount: isSfx ? state.audioSfxVariantCount : undefined,
+            pace: state.audioPace,
+            pauseMarkers: state.audioPauseMarkers,
+            pronunciationDictionary: audioPronunciationDictionary,
+            speed: audioSpeed,
+            volume: state.audioVolume,
+            normalizeLoudness: state.audioNormalizeLoudness,
+            normalizeText: state.audioNormalizeText,
+            withTimestamps: state.audioWithTimestamps,
+            format: state.audioFormat,
+            sampleRate: state.audioSampleRate,
+            mp3Bitrate: state.audioMp3Bitrate,
+            opusBitrate: state.audioOpusBitrate,
+            latency: state.audioLatency,
+            temperature: state.audioTemperature,
+            topP: state.audioTopP,
+            chunkLength: state.audioChunkLength,
+            repetitionPenalty: state.audioRepetitionPenalty,
+            speakerVoiceIds:
+              state.audioSpeakerVoiceIds.length > 0
+                ? state.audioSpeakerVoiceIds
+                : undefined,
+          },
+        })
+        return
+      }
+      /**
+       * ⭐ 助手给这一枪起的名字（切片 Y）——**取走即消费**：留着它，用户下一次
+       * 自己按生成的那一枪会顶着助手上一轮起的名字，而那一张与那个名字毫无关系。
+       * ⚠ 取在**提交这一跳**而不是 `buildImageInput` 里：那颗函数还被成本预览与
+       *   快照读取调用，在那里取走等于「看一眼预览就把名字吃掉了」。
+       */
+      const displayLabel = takeOperatorGenerationLabel() ?? undefined
+      if (isVideoMode && selectedModel) {
+        const video = buildVideoInput()
+        if (!video) return
+        await generate({
+          mode: 'video',
+          operatorResultOwner,
+          video: displayLabel ? { ...video, displayLabel } : video,
+        })
+        return
+      }
+      const image = buildImageInput()
+      if (!image) return
+      const result = await generate({
+        mode: 'image',
+        operatorResultOwner,
+        image: displayLabel ? { ...image, displayLabel } : image,
+        variantCount: state.imageBatchCount,
+        // 标签台写出来的是**统一串**，发出去之前按各模型的 provider 翻译
+        // （D10 ⑤）。⚠ 自然语言台不能走这一支：用户写的
+        // `a girl: 1.2 meters tall` 翻一遍会被改写成权重。
+        promptDialect: state.promptDialect,
+        // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
+        compareModels:
+          runModels.length > 1
+            ? runModels.map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
+            : undefined,
       })
-      await generate({
-        mode: 'audio',
-        audio: {
-          modelId: selectedModel.modelId,
-          apiKeyId: selectedModel.keyId,
-          freePrompt: state.prompt || undefined,
-          voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
-          coverImageUrl:
-            typeof selectedVoiceCard?.coverImage === 'string' &&
-            selectedVoiceCard.coverImage.startsWith('http')
-              ? selectedVoiceCard.coverImage
-              : undefined,
-          referenceAudioUrl: audioReference.referenceAudioUrl,
-          referenceText: audioReference.referenceText,
-          emotion: state.audioEmotion,
-          expressiveness: state.audioExpressiveness,
-          durationSeconds: isSfx
-            ? state.audioSfxDurationSeconds
-            : isMusic
-              ? state.audioMusicDurationSeconds
-              : undefined,
-          loop: isSfx ? state.audioSfxLoop : undefined,
-          promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
-          variantCount: isSfx ? state.audioSfxVariantCount : undefined,
-          pace: state.audioPace,
-          pauseMarkers: state.audioPauseMarkers,
-          pronunciationDictionary: audioPronunciationDictionary,
-          speed: audioSpeed,
-          volume: state.audioVolume,
-          normalizeLoudness: state.audioNormalizeLoudness,
-          normalizeText: state.audioNormalizeText,
-          withTimestamps: state.audioWithTimestamps,
-          format: state.audioFormat,
-          sampleRate: state.audioSampleRate,
-          mp3Bitrate: state.audioMp3Bitrate,
-          opusBitrate: state.audioOpusBitrate,
-          latency: state.audioLatency,
-          temperature: state.audioTemperature,
-          topP: state.audioTopP,
-          chunkLength: state.audioChunkLength,
-          repetitionPenalty: state.audioRepetitionPenalty,
-          speakerVoiceIds:
-            state.audioSpeakerVoiceIds.length > 0
-              ? state.audioSpeakerVoiceIds
-              : undefined,
-        },
-      })
-      return
-    }
-    /**
-     * ⭐ 助手给这一枪起的名字（切片 Y）——**取走即消费**：留着它，用户下一次
-     * 自己按生成的那一枪会顶着助手上一轮起的名字，而那一张与那个名字毫无关系。
-     * ⚠ 取在**提交这一跳**而不是 `buildImageInput` 里：那颗函数还被成本预览与
-     *   快照读取调用，在那里取走等于「看一眼预览就把名字吃掉了」。
-     */
-    const displayLabel = takeOperatorGenerationLabel() ?? undefined
-    if (isVideoMode && selectedModel) {
-      const video = buildVideoInput()
-      if (!video) return
-      await generate({
-        mode: 'video',
-        video: displayLabel ? { ...video, displayLabel } : video,
-      })
-      return
-    }
-    const image = buildImageInput()
-    if (!image) return
-    const result = await generate({
-      mode: 'image',
-      image: displayLabel ? { ...image, displayLabel } : image,
-      variantCount: state.imageBatchCount,
-      // 标签台写出来的是**统一串**，发出去之前按各模型的 provider 翻译
-      // （D10 ⑤）。⚠ 自然语言台不能走这一支：用户写的
-      // `a girl: 1.2 meters tall` 翻一遍会被改写成权重。
-      promptDialect: state.promptDialect,
-      // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
-      compareModels:
-        runModels.length > 1
-          ? runModels.map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
-          : undefined,
-    })
 
-    // Nudge: after 3 successful quick-mode generations, suggest Pro mode
-    if (result && state.workflowMode === 'quick') {
-      const NUDGE_KEY = 'studio-quick-gen-count'
-      const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
-      if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
-        const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
-        localStorage.setItem(NUDGE_KEY, String(count))
-        if (count === 3) {
-          toast(tV3('cardMode'), {
-            description: t('proModeNudge'),
-            action: {
-              label: t('tryProMode'),
-              onClick: () => {
-                dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
-                localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
+      // Nudge: after 3 successful quick-mode generations, suggest Pro mode
+      if (result && state.workflowMode === 'quick') {
+        const NUDGE_KEY = 'studio-quick-gen-count'
+        const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
+        if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
+          const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
+          localStorage.setItem(NUDGE_KEY, String(count))
+          if (count === 3) {
+            toast(tV3('cardMode'), {
+              description: t('proModeNudge'),
+              action: {
+                label: t('tryProMode'),
+                onClick: () => {
+                  dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
+                  localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
+                },
               },
-            },
-            onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
-          })
+              onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
+            })
+          }
         }
       }
-    }
-  }, [
-    canGenerate,
-    isAudioMode,
-    isVideoMode,
-    selectedModel,
-    state.prompt,
-    state.promptDialect,
-    state.imageBatchCount,
-    runModels,
-    state.voiceId,
-    state.audioKind,
-    state.audioEmotion,
-    state.audioExpressiveness,
-    state.audioSfxDurationSeconds,
-    state.audioMusicDurationSeconds,
-    state.audioSfxLoop,
-    state.audioSfxPromptInfluence,
-    state.audioSfxVariantCount,
-    state.audioPace,
-    state.audioPauseMarkers,
-    state.audioVolume,
-    state.audioNormalizeLoudness,
-    state.audioNormalizeText,
-    state.audioWithTimestamps,
-    state.audioFormat,
-    state.audioSampleRate,
-    state.audioMp3Bitrate,
-    state.audioOpusBitrate,
-    state.audioLatency,
-    state.audioTemperature,
-    state.audioTopP,
-    state.audioChunkLength,
-    state.audioRepetitionPenalty,
-    state.audioSpeakerVoiceIds,
-    state.audioReferenceUrl,
-    state.audioReferenceText,
-    state.workflowMode,
-    // ⚠ 整颗卡而不是四个字段：React Compiler 推出来的依赖就是整颗，逐字段写
-    //   会被 `preserve-manual-memoization` 判为「不够具体」而拒绝优化整个 hook。
-    selectedVoiceCard,
-    audioPronunciationDictionary,
-    audioSpeed,
-    buildImageInput,
-    buildVideoInput,
-    generate,
-    dispatch,
-    t,
-    tV3,
-  ])
+    },
+    [
+      canGenerate,
+      isAudioMode,
+      isVideoMode,
+      selectedModel,
+      state.prompt,
+      state.promptDialect,
+      state.imageBatchCount,
+      runModels,
+      state.voiceId,
+      state.audioKind,
+      state.audioEmotion,
+      state.audioExpressiveness,
+      state.audioSfxDurationSeconds,
+      state.audioMusicDurationSeconds,
+      state.audioSfxLoop,
+      state.audioSfxPromptInfluence,
+      state.audioSfxVariantCount,
+      state.audioPace,
+      state.audioPauseMarkers,
+      state.audioVolume,
+      state.audioNormalizeLoudness,
+      state.audioNormalizeText,
+      state.audioWithTimestamps,
+      state.audioFormat,
+      state.audioSampleRate,
+      state.audioMp3Bitrate,
+      state.audioOpusBitrate,
+      state.audioLatency,
+      state.audioTemperature,
+      state.audioTopP,
+      state.audioChunkLength,
+      state.audioRepetitionPenalty,
+      state.audioSpeakerVoiceIds,
+      state.audioReferenceUrl,
+      state.audioReferenceText,
+      state.workflowMode,
+      // ⚠ 整颗卡而不是四个字段：React Compiler 推出来的依赖就是整颗，逐字段写
+      //   会被 `preserve-manual-memoization` 判为「不够具体」而拒绝优化整个 hook。
+      selectedVoiceCard,
+      audioPronunciationDictionary,
+      audioSpeed,
+      buildImageInput,
+      buildVideoInput,
+      generate,
+      dispatch,
+      t,
+      tV3,
+    ],
+  )
 
   /**
    * 挡住生成的那一条原因（`canGenerate` 为假时必有一条）。
@@ -989,7 +998,18 @@ export function useStudioGenerateAction() {
   ])
 
   const handleGenerate = useCallback(
-    async (options?: { quietBlocked?: boolean }) => {
+    async (options?: {
+      quietBlocked?: boolean
+      operatorResultOwner?: StudioOperatorResultOwner
+    }) => {
+      if (options?.operatorResultOwner) {
+        const current = getOperatorState()
+        if (
+          current.readOnlyHistory ||
+          !matchesOperatorResultOwner(options.operatorResultOwner, current)
+        )
+          return
+      }
       if (isGenerating) return
       if (blockedReason) {
         // Krea-style: button stays clickable; click surfaces the missing piece
@@ -1011,7 +1031,7 @@ export function useStudioGenerateAction() {
         }
         return
       }
-      await executeGenerate()
+      await executeGenerate(options?.operatorResultOwner)
     },
     [blockedReason, isGenerating, executeGenerate, channelGate],
   )
@@ -1027,8 +1047,8 @@ export function useStudioGenerateAction() {
     }
 
     handledGenerateRequestRef.current = state.generateRequestId
-    void handleGenerate()
-  }, [state.generateRequestId, handleGenerate])
+    void handleGenerate({ operatorResultOwner: state.generateRequestOwner })
+  }, [state.generateRequestId, state.generateRequestOwner, handleGenerate])
 
   return {
     // 模型

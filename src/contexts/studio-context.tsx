@@ -22,6 +22,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useAuth } from '@clerk/nextjs'
+import { usePathname } from '@/i18n/navigation'
 
 import type { AdvancedParams, GenerationEvaluation, RecipeUsage } from '@/types'
 import {
@@ -41,6 +43,8 @@ import {
   wholeSentenceAsTag,
 } from '@/lib/tag-composer'
 import type { TagChip } from '@/types/tag-composer'
+import type { StudioDraft } from '@/hooks/use-studio-draft'
+import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
@@ -169,6 +173,11 @@ export interface StudioFormState {
    * 随之作废。⛔ 不进 payload、不进草稿。
    */
   tagCarrySource: string | null
+  pendingPromptTransfer?: {
+    dialect: PromptDialect
+    prompt: string
+    optionId: string
+  } | null
   /**
    * 标签台里**正在编辑谁的标签**：`null` = 整体，数字 = `novelAiLayout` 里的
    * 第几个角色（D10 ④「选中某角色时，编辑器主区切到那个角色的标签」）。
@@ -310,6 +319,7 @@ export interface StudioFormState {
   /** Video-specific — total target duration when long-video is on */
   longVideoTargetDuration: number
   generateRequestId: number
+  generateRequestOwner?: StudioOperatorResultOwner
   panels: Record<PanelName, boolean>
 }
 
@@ -327,13 +337,24 @@ export type StudioAction =
    * 用户的选择**：不立 `modelSelectionTouched`，也就不会被当成「上次使用的
    * 模型」写回 localStorage。
    */
-  | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
+  | {
+      type: 'AUTO_SELECT_OPTION_ID'
+      payload: string
+      expectedSelection?: {
+        optionId: string | null
+        dialect: PromptDialect
+        touched: boolean
+      }
+    }
   | { type: 'SET_PROMPT'; payload: string }
-  /**
-   * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格，并记下
-   * 它等助手翻成标签（`tagCarrySource`）；负向栏本来就是逗号列表，按逗号切。
-   */
   | { type: 'SET_PROMPT_DIALECT'; payload: PromptDialect }
+  | {
+      type: 'RESTORE_WORKSPACE_DRAFT'
+      payload: {
+        draft: Omit<StudioDraft, 'referenceImages'>
+        applyTransfer: boolean
+      }
+    }
   | {
       type: 'SET_TAG_CHIPS'
       payload: { polarity: 'positive' | 'negative'; chips: TagChip[] }
@@ -343,7 +364,10 @@ export type StudioAction =
    * 从自然语言台**带着提示词跳过去**（D10 ④ 两台跳转）。整句先进正向栏第一格，
    * 再由助手翻成标签换掉它（owner 2026-09-27）。
    */
-  | { type: 'CARRY_PROMPT_TO_TAGS' }
+  | {
+      type: 'TRANSFER_IMAGE_PROMPT'
+      payload: { dialect: PromptDialect; optionId: string }
+    }
   /**
    * 助手翻好了：把 `source` 那一格**原地**换成这串标签（与别的格重复的不再插）。
    * ⚠ `source` 已经不是正在等的那一句（被删、被改、被新的一句顶掉）就什么都不做。
@@ -397,7 +421,10 @@ export type StudioAction =
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
   | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
   | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
-  | { type: 'REQUEST_GENERATE' }
+  | {
+      type: 'REQUEST_GENERATE'
+      owner?: StudioOperatorResultOwner
+    }
   | { type: 'SET_VIDEO_AUDIO_REFS'; payload: VideoAudioReference[] }
   /** 落一张图进具名帧槽；`url: null` = 清空那个槽（⛔ 不是「删掉一个下标」）。 */
   | {
@@ -485,6 +512,7 @@ const initialFormState: StudioFormState = {
   tagChips: [],
   tagNegativeChips: [],
   tagCarrySource: null,
+  pendingPromptTransfer: null,
   activeTagCharacterIndex: null,
   recipeUsage: null,
   aspectRatio: '1:1',
@@ -647,6 +675,14 @@ export function studioFormReducer(
         modelSelectionTouched: true,
       }
     case 'AUTO_SELECT_OPTION_ID':
+      if (
+        action.expectedSelection &&
+        (action.expectedSelection.optionId !== state.selectedOptionId ||
+          action.expectedSelection.dialect !== state.promptDialect ||
+          action.expectedSelection.touched !==
+            Boolean(state.modelSelectionTouched))
+      )
+        return state
       return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
       return {
@@ -661,37 +697,60 @@ export function studioFormReducer(
       }
     case 'SET_PROMPT_DIALECT': {
       if (state.promptDialect === action.payload) return state
-      if (action.payload !== 'tags') {
-        return { ...state, promptDialect: action.payload, tagCarrySource: null }
-      }
-      const seeded = state.tagChips.length
-        ? null
-        : wholeSentenceAsTag(state.prompt)
       return {
         ...state,
-        promptDialect: 'tags',
-        tagChips: seeded ?? state.tagChips,
-        tagCarrySource: seeded?.[0]?.text ?? state.tagCarrySource,
-        tagNegativeChips: state.tagNegativeChips.length
-          ? state.tagNegativeChips
-          : parseTagChips(state.advancedParams.negativePrompt ?? ''),
+        promptDialect: action.payload,
+        tagCarrySource: null,
+      }
+    }
+    case 'RESTORE_WORKSPACE_DRAFT': {
+      const next: StudioFormState = {
+        ...state,
+        ...action.payload.draft,
+        activeTagCharacterIndex: null,
+        tagCarrySource: null,
+        pendingPromptTransfer: null,
+      }
+      const transfer = action.payload.applyTransfer
+        ? state.pendingPromptTransfer
+        : null
+      if (
+        !transfer ||
+        state.outputType !== 'image' ||
+        transfer.dialect !== state.promptDialect
+      )
+        return next
+      const carried = wholeSentenceAsTag(transfer.prompt)
+      const tagChips =
+        transfer.dialect === 'tags'
+          ? [
+              ...carried,
+              ...next.tagChips.filter((chip) => chip.text !== carried[0]?.text),
+            ]
+          : next.tagChips
+      return {
+        ...next,
+        selectedOptionId: transfer.optionId,
+        modelSelectionTouched: true,
+        extraModelOptionIds: [],
+        prompt:
+          transfer.dialect === 'tags'
+            ? serializeTagChips(tagChips)
+            : transfer.prompt,
+        tagChips,
+        tagCarrySource:
+          transfer.dialect === 'tags' ? (carried[0]?.text ?? null) : null,
       }
     }
     case 'SET_ACTIVE_TAG_CHARACTER':
       return { ...state, activeTagCharacterIndex: action.payload }
-    case 'CARRY_PROMPT_TO_TAGS': {
-      const carried = wholeSentenceAsTag(state.prompt)
-      if (carried.length === 0) return state
-      // 已经在场的同一句不再插第二遍（来回跳两次会攒出两格一样的字）。
-      const existing = state.tagChips.filter(
-        (chip) => chip.text !== carried[0].text,
-      )
-      const tagChips = [...carried, ...existing]
+    case 'TRANSFER_IMAGE_PROMPT': {
       return {
         ...state,
-        tagChips,
-        tagCarrySource: carried[0].text,
-        prompt: serializeTagChips(tagChips),
+        pendingPromptTransfer: {
+          ...action.payload,
+          prompt: state.prompt,
+        },
       }
     }
     case 'RESOLVE_TAG_CARRY': {
@@ -809,7 +868,11 @@ export function studioFormReducer(
     case 'SET_LONG_VIDEO_TARGET_DURATION':
       return { ...state, longVideoTargetDuration: action.payload }
     case 'REQUEST_GENERATE':
-      return { ...state, generateRequestId: state.generateRequestId + 1 }
+      return {
+        ...state,
+        generateRequestId: state.generateRequestId + 1,
+        generateRequestOwner: action.owner,
+      }
     case 'TOGGLE_PANEL': {
       const target = action.payload
       const isOpening = !state.panels[target]
@@ -847,6 +910,7 @@ export function studioFormReducer(
         tagChips: [],
         tagNegativeChips: [],
         tagCarrySource: null,
+        pendingPromptTransfer: null,
         activeTagCharacterIndex: null,
         recipeUsage: null,
         aspectRatio: '1:1',
@@ -894,6 +958,7 @@ export function studioFormReducer(
         longVideoTargetDuration:
           VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],
         generateRequestId: 0,
+        generateRequestOwner: undefined,
         panels: { ...initialPanels },
       }
     default:
@@ -944,6 +1009,8 @@ const StudioGenContext = createContext<StudioGenContextValue | null>(null)
 // ═══════════════════════════════════════════════════════════════════
 
 export function StudioProvider({ children }: { children: ReactNode }) {
+  const { userId } = useAuth()
+  const pathname = usePathname()
   // HOT — form state
   const [formState, dispatch] = useReducer(studioFormReducer, initialFormState)
   const setSelectedWorkflowId = useCallback((workflowId: WorkflowId) => {
@@ -972,7 +1039,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const onReferencesRemoved = useCallback((index?: number) => {
     dispatch({ type: 'REMOVE_PROMPT_REFERENCE', payload: index })
   }, [])
-  const imageUpload = useImageUpload({ onReferencesRemoved })
+  const imageUpload = useImageUpload({
+    onReferencesRemoved,
+    scopeKey: JSON.stringify([userId ?? null, pathname]),
+  })
   const promptEnhance = usePromptEnhance()
   const civitai = useCivitaiToken()
   const usageSummary = useUsageSummary()

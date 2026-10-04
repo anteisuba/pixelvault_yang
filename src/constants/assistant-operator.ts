@@ -1526,6 +1526,7 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
    * 一个没修的内部错误没有用。
    */
   [ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE]: 'internal',
+  STREAM_INTERRUPTED: 'streamInterrupted',
   EMPTY_STREAM: 'emptyStream',
   UNAUTHORIZED: 'unauthorized',
   RATE_LIMIT_EXCEEDED: 'rateLimited',

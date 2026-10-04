@@ -114,18 +114,21 @@ const SESSIONS = [
     id: 'today-session',
     title: '黄昏光的参考研究',
     surface: ASSISTANT_SURFACE_IDS.imageStudio,
+    workspaceKey: 'image-natural',
     updatedAt: new Date(NOW).toISOString(),
   },
   {
     id: 'yesterday-session',
     title: '胶片颗粒对比测试',
     surface: ASSISTANT_SURFACE_IDS.imageStudio,
+    workspaceKey: 'image-natural',
     updatedAt: new Date(NOW - DAY_MS).toISOString(),
   },
   {
     id: 'older-session',
     title: '城市天台构图',
     surface: ASSISTANT_SURFACE_IDS.videoStudio,
+    workspaceKey: 'video',
     updatedAt: new Date(NOW - 6 * DAY_MS).toISOString(),
   },
 ] as unknown as UseStudioOperatorHistoryResult['sessions']
@@ -140,6 +143,7 @@ const HISTORY: UseStudioOperatorHistoryResult = {
   error: null,
   selectSession: vi.fn(),
   refreshSessions: vi.fn(),
+  retrySave: vi.fn().mockResolvedValue(true),
   deletingSessionId: null,
   deleteSession: vi.fn().mockResolvedValue(true),
 }
@@ -304,6 +308,7 @@ describe('StudioOperatorHeader', () => {
         title:
           'reference image 1 reference image 2 reference image 3 这几张图的画风抽出来用在新的角色上',
         surface: ASSISTANT_SURFACE_IDS.imageStudio,
+        workspaceKey: 'image-natural',
         updatedAt: new Date(NOW).toISOString(),
       },
     ] as unknown as UseStudioOperatorHistoryResult['sessions']

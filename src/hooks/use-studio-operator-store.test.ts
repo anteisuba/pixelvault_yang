@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_FIELD_IDS } from '@/constants/studio-assistant-operator'
 import type { AssistantOperatorAppliedStep } from '@/types/assistant-operator'
+import { operatorResumeStorageKey } from '@/lib/studio-operator-resume'
 
 /**
  * ⚠ 这个 store 是**模块级单例**（工作台本身是单例，两棵组件树共读一份）。
@@ -38,6 +39,41 @@ const DONE: AssistantOperatorAppliedStep = { ...RUNNING, status: 'done' }
 
 /** 一轮的 token —— 服务端的步号每轮从 `step-1` 重来，线程侧的 key 必须带上它。 */
 const RUN = 'run-1'
+
+describe('显式跨工作区交接', () => {
+  it('角色台交接文字只在同账号自然语言图片台消费一次', () => {
+    store.claimOperatorThreadScope('account-a:cards', 'cards')
+    store.requestOperatorDraft('image-natural', '给这个角色做一张立绘')
+    expect(store.takeOperatorDraft('account-a:cards')).toBeNull()
+    store.claimOperatorThreadScope('account-a:image-tags', 'image')
+    expect(store.takeOperatorDraft('account-a:image-tags')).toBeNull()
+    store.claimOperatorThreadScope('account-a:image-natural', 'image')
+    expect(store.takeOperatorDraft('account-a:image-natural')).toBe(
+      '给这个角色做一张立绘',
+    )
+    expect(store.takeOperatorDraft('account-a:image-natural')).toBeNull()
+  })
+
+  it('换账号清掉前一账号未消费的交接', () => {
+    store.claimOperatorThreadScope('account-a:cards', 'cards')
+    store.requestOperatorDraft('image-natural', '账号 A 的角色')
+    store.claimOperatorThreadScope('account-b:image-natural', 'image')
+    expect(store.takeOperatorDraft('account-b:image-natural')).toBeNull()
+    store.claimOperatorThreadScope('account-a:image-natural', 'image')
+    expect(store.takeOperatorDraft('account-a:image-natural')).toBeNull()
+  })
+
+  it('画布节点请求绑定当前项目，另一个画布项目不能消费', () => {
+    store.claimOperatorThreadScope('account-a:canvas:project-a', 'canvas')
+    store.requestOperatorDraft('canvas', '写这位角色的台词')
+    store.claimOperatorThreadScope('account-a:canvas:project-b', 'canvas')
+    expect(store.takeOperatorDraft('account-a:canvas:project-b')).toBeNull()
+    store.claimOperatorThreadScope('account-a:canvas:project-a', 'canvas')
+    expect(store.takeOperatorDraft('account-a:canvas:project-a')).toBe(
+      '写这位角色的台词',
+    )
+  })
+})
 
 describe('日志条按 id 覆盖', () => {
   it('同一步的 running 与 done 只留一条 —— 追加的表现是每步在日志里重复两行', () => {
@@ -163,10 +199,10 @@ describe('新对话', () => {
   })
 })
 
-// ── 跨域（P4-A，拍板 8：切域换工具、不断会话）────────────────────────
-describe('切域', () => {
-  it('线程连续 —— 域标记插在原地，之前的条目一条都不掉', () => {
+describe('工作区作用域', () => {
+  it('图片和标签使用不同线程，返回原工作区恢复其消息与会话身份', () => {
     const result = readState()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     act(() =>
       store.appendOperatorEntry({
         kind: 'user',
@@ -176,35 +212,36 @@ describe('切域', () => {
       }),
     )
 
-    act(() => store.switchOperatorDomain('video'))
-
-    expect(result.current.domain).toBe('video')
-    expect(result.current.entries.map((entry) => entry.kind)).toEqual([
-      'user',
-      'domainMark',
-    ])
-    expect(result.current.entries.at(-1)).toMatchObject({
-      kind: 'domainMark',
-      domain: 'video',
-    })
+    act(() => store.setOperatorSession('image-conversation', 'IMAGE_STUDIO'))
+    const localThreadId = result.current.localThreadId
+    act(() => store.claimOperatorThreadScope('user:image-tags', 'image'))
+    expect(result.current.entries).toEqual([])
+    expect(result.current.sessionId).toBeNull()
+    expect(result.current.localThreadId).not.toBe(localThreadId)
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(result.current.localThreadId).toBe(localThreadId)
+    expect(result.current.sessionId).toBe('image-conversation')
+    expect(result.current.entries.map((entry) => entry.id)).toEqual(['user-1'])
   })
 
   it('线程还空着时不插标记 —— 一条孤零零的「切到视频工作台」说的是还没发生的事', () => {
     const result = readState()
-    act(() => store.switchOperatorDomain('video'))
+    act(() => store.claimOperatorThreadScope('user:video', 'video'))
     expect(result.current.domain).toBe('video')
     expect(result.current.entries).toHaveLength(0)
   })
 
-  it('域没变时整个是 no-op（⛔ 不白发一次全面板重渲染）', () => {
+  it('同一作用域重复认领不改变状态引用', () => {
     const result = readState()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     const before = result.current
-    act(() => store.switchOperatorDomain('image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     expect(result.current).toBe(before)
   })
 
-  it('⭐ 改动账本按域分槽：视频域改的东西不顶掉图片域的登记', () => {
+  it('同域的图片和标签也分别保留改动账本', () => {
     const result = readState()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     act(() =>
       store.recordOperatorChange({
         field: STUDIO_OPERATOR_FIELD_IDS.prompt,
@@ -214,7 +251,7 @@ describe('切域', () => {
       }),
     )
 
-    act(() => store.switchOperatorDomain('video'))
+    act(() => store.claimOperatorThreadScope('user:image-tags', 'image'))
     // 切过去那一刻是干净的 —— 视频域助手还没动过任何东西。
     expect(result.current.changes).toEqual({})
 
@@ -229,7 +266,7 @@ describe('切域', () => {
     expect(result.current.changes.prompt?.stepId).toBe('video-step')
 
     // ⭐ 切回去：图片域那笔账原样还在（⛔ 不是被视频那笔顶掉的版本）。
-    act(() => store.switchOperatorDomain('image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     expect(result.current.changes.prompt).toMatchObject({
       stepId: 'image-step',
       previousLabel: '图片域原文',
@@ -238,15 +275,53 @@ describe('切域', () => {
 
   it('⭐ primed 按域分槽：图片域备好的那一枪不会把视频档的生成键点亮', () => {
     const result = readState()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     act(() => store.setOperatorPrimed(true))
     expect(result.current.primed).toBe(true)
 
-    act(() => store.switchOperatorDomain('video'))
+    act(() => store.claimOperatorThreadScope('user:video', 'video'))
     expect(result.current.primed).toBe(false)
 
-    act(() => store.switchOperatorDomain('image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     // 切走时不消失 —— 那份表单还预填着，生成键该继续亮。
     expect(result.current.primed).toBe(true)
+  })
+
+  it('同页返回原会话保留自动生成偏好，另一工作区和账号不继承', () => {
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    act(() => store.setOperatorAutoGenerate(true))
+    act(() => store.claimOperatorThreadScope('user:lora', 'lora'))
+    expect(store.getOperatorState().autoGenerate).toBe(false)
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoGenerate).toBe(true)
+    act(() => store.claimOperatorThreadScope(null, 'image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoGenerate).toBe(false)
+  })
+
+  it('两个未落库会话也有不同身份，旧保存回包不能回填新会话', () => {
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    const previous = store.getOperatorState()
+    act(() => store.resetOperatorThread())
+    expect(store.getOperatorState().localThreadId).not.toBe(
+      previous.localThreadId,
+    )
+    act(() =>
+      store.setOperatorSession('old-conversation', 'IMAGE_STUDIO', previous),
+    )
+    expect(store.getOperatorState().sessionId).toBeNull()
+  })
+
+  it('旧工作区的保存回包仅更新其缓存，不改变当前工作区', () => {
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    const previous = store.getOperatorState()
+    act(() => store.claimOperatorThreadScope('user:lora', 'lora'))
+    act(() =>
+      store.setOperatorSession('image-conversation', 'IMAGE_STUDIO', previous),
+    )
+    expect(store.getOperatorState().sessionId).toBeNull()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().sessionId).toBe('image-conversation')
   })
 })
 
@@ -528,7 +603,8 @@ describe('resume（断点续跑）', () => {
 
   it('批准计划 → 落盘 → 刷新后 hydrate 得回来', async () => {
     const first = readState()
-    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-a', 'canvas'))
+    act(() => store.setOperatorSession('conversation-a', 'NODE_CANVAS'))
     act(() =>
       store.startOperatorResumePlan({
         planId: 'p1',
@@ -542,7 +618,8 @@ describe('resume（断点续跑）', () => {
     store = await import('@/hooks/use-studio-operator-store')
     const second = readState()
     expect(second.current.resume).toBeNull()
-    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-a', 'canvas'))
+    act(() => store.setOperatorSession('conversation-a', 'NODE_CANVAS'))
     act(() => store.hydrateOperatorResume())
     expect(second.current.resume?.planId).toBe('p1')
     expect(second.current.resume?.steps).toHaveLength(3)
@@ -550,9 +627,9 @@ describe('resume（断点续跑）', () => {
 
   it('按 scope 隔离：换个项目 hydrate 不到别人的计划', () => {
     const result = readState()
-    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-a', 'canvas'))
     act(() => store.startOperatorResumePlan({ planId: 'p1', labels: ['一'] }))
-    act(() => store.setOperatorResumeScope('project-b'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-b', 'canvas'))
     // 换 scope 当帧就把镜像清掉，⛔ 不让上一个项目那份多活一帧。
     expect(result.current.resume).toBeNull()
     act(() => store.hydrateOperatorResume())
@@ -561,7 +638,7 @@ describe('resume（断点续跑）', () => {
 
   it('逐步标记落盘，failed 带得回那句原因', () => {
     const result = readState()
-    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-a', 'canvas'))
     act(() =>
       store.startOperatorResumePlan({ planId: 'p1', labels: ['一', '二'] }),
     )
@@ -585,7 +662,10 @@ describe('resume（断点续跑）', () => {
 
     const stored = JSON.parse(
       localStorage.getItem(
-        'pixelvault.studio.operatorResume.v1.project-a',
+        operatorResumeStorageKey(
+          'user:canvas:project-a',
+          store.getOperatorState(),
+        ),
       ) as string,
     )
     expect(stored.steps[1].state).toBe('failed')
@@ -593,12 +673,43 @@ describe('resume（断点续跑）', () => {
 
   it('＋新对话把那份计划连盘上一起清掉', () => {
     const result = readState()
-    act(() => store.setOperatorResumeScope('project-a'))
+    act(() => store.claimOperatorThreadScope('user:canvas:project-a', 'canvas'))
     act(() => store.startOperatorResumePlan({ planId: 'p1', labels: ['一'] }))
     act(() => store.resetOperatorThread())
     expect(result.current.resume).toBeNull()
     act(() => store.hydrateOperatorResume())
     expect(result.current.resume).toBeNull()
+  })
+
+  it('首次保存把本地计划绑定到服务器会话；另一会话不能恢复它', () => {
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    const local = store.getOperatorState()
+    act(() =>
+      store.startOperatorResumePlan({ planId: 'p1', labels: ['一', '二'] }),
+    )
+    act(() => store.setOperatorSession('conversation-a', 'IMAGE_STUDIO'))
+    expect(store.getOperatorState().resume?.sessionId).toBe('conversation-a')
+    expect(
+      localStorage.getItem(
+        operatorResumeStorageKey('user:image-natural', local),
+      ),
+    ).toBeNull()
+    act(() =>
+      store.loadOperatorThread({
+        history: [],
+        sessionId: 'conversation-b',
+        sessionSurface: 'IMAGE_STUDIO',
+      }),
+    )
+    expect(store.getOperatorState().resume).toBeNull()
+    act(() =>
+      store.loadOperatorThread({
+        history: [],
+        sessionId: 'conversation-a',
+        sessionSurface: 'IMAGE_STUDIO',
+      }),
+    )
+    expect(store.getOperatorState().resume?.planId).toBe('p1')
   })
 })
 

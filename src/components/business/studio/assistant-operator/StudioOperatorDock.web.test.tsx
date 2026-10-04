@@ -1,11 +1,13 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useEffect } from 'react'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import {
   addOperatorMention,
   appendOperatorEntry,
   resetOperatorThread,
+  claimOperatorThreadScope,
 } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { StudioOperatorPanel } from './StudioOperatorPanel'
@@ -36,17 +38,21 @@ import {
  *  ③ 收起态渲染图标轨，展开态不渲染；
  *  ④ 点轨展开（收放法则的「点图标轨 → 展开」那一半）；
  *  ⑤ **手机档**（本片）：全屏 Sheet + 右下浮标，⛔ 没有图标轨、没有那颗
- *     `<aside>`；LoRA 域在手机上整颗不渲染（那条路由仍走 `LoraAssistantDock`，
- *     两颗面板永不同屏）。
+ *     `<aside>`；所有域共用同一套手机外壳。
  */
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: { id: clerkUserId } }),
+}))
 
 const setOpen = vi.hoisted(() => vi.fn())
 let hostOpen = true
 let hostDomain = 'image'
+let hostWorkspace = 'image-natural'
+let clerkUserId = 'user-a'
 let hostCollapseOnOutsidePointer: boolean | undefined
 let hostAnchor: StudioOperatorShellAnchor | undefined
 let mobile = false
@@ -74,6 +80,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       open: hostOpen,
       setOpen,
       domain: hostDomain,
+      projectId: hostDomain === 'canvas' ? 'canvas-test' : undefined,
+      workspace: hostDomain === 'image' ? hostWorkspace : hostDomain,
       referenceLimit: 4,
       referenceImages: withImplicit(references.referenceEntries),
       apply: {
@@ -95,12 +103,17 @@ vi.mock('@/contexts/studio-operator-host', () => ({
 
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile }))
 vi.mock('@/hooks/use-assistant-operator', () => ({
-  useAssistantOperator: () => ({
-    domain: 'image',
-    send: vi.fn(),
-    stop: vi.fn(),
-    newThread: vi.fn(),
-  }),
+  useAssistantOperator: (scope: string | null) => {
+    useEffect(() => {
+      claimOperatorThreadScope(scope, hostDomain as 'image')
+    }, [scope])
+    return {
+      domain: hostDomain,
+      send: vi.fn(),
+      stop: vi.fn(),
+      newThread: vi.fn(),
+    }
+  },
 }))
 // 助手设置 persona（§8）—— 外壳拉一次往下传，这里给一份不发请求的默认值。
 vi.mock('@/hooks/use-assistant-persona', () => ({
@@ -138,6 +151,7 @@ vi.mock('@/hooks/use-studio-operator-history', () => ({
     isHydrating: false,
     error: null,
     selectSession: vi.fn(),
+    retrySave: vi.fn(),
   }),
 }))
 vi.mock('@/hooks/use-studio-operator-upload', () => ({
@@ -177,6 +191,9 @@ import { StudioOperatorDock } from './StudioOperatorDock'
 beforeEach(() => {
   hostOpen = true
   hostDomain = 'image'
+  hostWorkspace = 'image-natural'
+  clerkUserId = 'user-a'
+  claimOperatorThreadScope(null, 'image')
   hostCollapseOnOutsidePointer = undefined
   hostAnchor = undefined
   mobile = false
@@ -185,6 +202,35 @@ beforeEach(() => {
 })
 
 describe('StudioOperatorDock', () => {
+  it('助手草稿和非图片附件按工作台与会话恢复，换账号清空', () => {
+    const view = render(<StudioOperatorDock />)
+    act(() => panelProps.onDraftChange('natural assistant draft'))
+    const audio: StudioOperatorAttachment = {
+      id: 'audio-a',
+      kind: 'audio',
+      url: 'https://example.com/a.mp3',
+      label: 'audio',
+    }
+    act(() => onUploaded(audio))
+    hostWorkspace = 'image-tags'
+    view.rerender(<StudioOperatorDock />)
+    expect(panelProps.draft).toBe('')
+    expect(panelProps.attachments).toEqual([])
+    act(() => panelProps.onDraftChange('tag assistant draft'))
+    hostWorkspace = 'image-natural'
+    view.rerender(<StudioOperatorDock />)
+    expect(panelProps.draft).toBe('natural assistant draft')
+    expect(panelProps.attachments).toEqual([audio])
+    act(() => resetOperatorThread())
+    expect(panelProps.draft).toBe('')
+    expect(panelProps.attachments).toEqual([])
+    act(() => panelProps.onDraftChange('private'))
+    clerkUserId = 'user-b'
+    view.rerender(<StudioOperatorDock />)
+    expect(panelProps.draft).toBe('')
+    expect(panelProps.attachments).toEqual([])
+  })
+
   it('uploads and workspace reference changes share one list, including removals and draft renumbering', () => {
     render(<StudioOperatorDock />)
     const first: StudioOperatorAttachment = {
@@ -480,7 +526,7 @@ describe('StudioOperatorDock · 手机档', () => {
     expect(setOpen).toHaveBeenCalledWith(true)
   })
 
-  it.each(['canvas', 'cards'])(
+  it.each(['canvas', 'cards', 'lora'])(
     '%s 域在手机上也有这套外壳（⛔ 不再被白名单挡掉）',
     (domain) => {
       mobile = true
@@ -489,15 +535,6 @@ describe('StudioOperatorDock · 手机档', () => {
       expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
     },
   )
-
-  it('LoRA 域在手机上整颗不渲染（装配台仍走 LoraAssistantDock）', () => {
-    mobile = true
-    hostDomain = 'lora'
-    const { container } = render(<StudioOperatorDock />)
-    expect(container.firstChild).toBeNull()
-    expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
-    expect(screen.queryByTestId('operator-avatar-toggle')).toBeNull()
-  })
 })
 
 /**
@@ -602,8 +639,6 @@ describe('StudioOperatorDock · 头像开关的过渡', () => {
  * 与面板一旦自己写 `domain === 'image' ? … : …` 去挑文案 / 图标 / 药丸，第五个宿主
  * 接进来时那几处会各自沉默地回落到某一张脸 —— 而回落出来的界面看起来完全正常。
  * ⚠ 这条是**源码扫描**：运行时断言看不见一条写死的分支有没有被执行到。
- * ⚠ 白名单两处是**真的按域分**的东西，与「脸」无关：手机档有没有这套外壳
- *   （`hasMobileShell`）与会话行上那枚域标签。
  */
 describe('⛔ 外壳与面板不按 domain 挑脸', () => {
   const FACE_FORK = /domain\s*===\s*ASSISTANT_PROTOCOL_DOMAIN_IDS\.\w+\s*\?/

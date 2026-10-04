@@ -6,10 +6,10 @@
  * 过程行上那一颗「撤销」把这一轮改的几格按 `inverse` 逆序退回去，线程里插一行
  * 系统行通报助手（拍板 18 的后半句）。⛔ 逐步撤销、字段还原、全部还原、连对话一起回、
  * 恢复到这一步 —— 都已删除。
- * ⚠ 这个 hook **不碰流**：撤销是纯客户端动作（`inverse` 已经在手上）。
+ * ⚠ 这个 hook **不碰流**：表单按 `inverse` 还原，库写操作等待服务端撤销回执。
  */
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 
 import {
   isRevertibleAssistantOperatorTool,
@@ -60,7 +60,7 @@ export interface UseStudioOperatorRevertResult {
    * 还原**这一轮**（P3-C，评价卡上那颗「还原这轮」）。
    * 收的是那一轮的 token（`StudioOperatorStepEntry.runKey`）。
    */
-  revertRound(runKey: string): void
+  revertRound(runKey: string): Promise<void>
   /** 那一轮有几处可还原 —— 按钮上写的那个数；0 时按钮不该出现。 */
   countRoundChanges(runKey: string): number
   /**
@@ -100,6 +100,17 @@ function isRevertableStepEntry(entry: StudioOperatorThreadEntry): boolean {
 export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
   const applyContext = useStudioOperatorApplyContext()
   const operatorState = useStudioOperatorState()
+  const revertingRounds = useRef(new Set<string>())
+  const { threadScope, localThreadId } = operatorState
+  const isCurrentThread = useCallback(() => {
+    const current = getOperatorState()
+    return (
+      threadScope !== null &&
+      !current.readOnlyHistory &&
+      current.threadScope === threadScope &&
+      current.localThreadId === localThreadId
+    )
+  }, [threadScope, localThreadId])
 
   /**
    * 还原**这一轮**（P3-C，评价卡上那颗「还原这轮」）。
@@ -111,11 +122,12 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
    * 再被第二条的 inverse 覆盖成中间版本。逆序是唯一能落回起点的顺序
    * （与 `revertAll` 里那条「倒着还原」同源，只是那边分的是字段、这边分的是步）。
    *
-   * ⚠ 只插**一行**系统行：逐条 `undoStep` 会插 N 行，线程被自己的通报刷屏，
-   * 而助手那边 `priorSteps` 已经从划线里知道了。
+   * ⚠ 成功项合在一行通报，未能撤销的步骤另留失败行；`priorSteps` 从划线里知道
+   * 已撤掉了哪些。
    */
   const revertRound = useCallback(
-    (runKey: string) => {
+    async (runKey: string) => {
+      if (!isCurrentThread()) return
       const entries = getOperatorState().entries
       const round = entries.filter(
         (entry): entry is StudioOperatorStepEntry =>
@@ -124,45 +136,75 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
           isRevertableStepEntry(entry),
       )
       if (round.length === 0) return
-
-      for (const entry of [...round].reverse()) {
-        // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」。
-        if (entry.step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
-          continue
+      const revertKey = `${localThreadId}:${runKey}`
+      if (revertingRounds.current.has(revertKey)) return
+      revertingRounds.current.add(revertKey)
+      const revertedEntries: StudioOperatorStepEntry[] = []
+      let failed = false
+      try {
+        for (const entry of [...round].reverse()) {
+          if (!isCurrentThread()) return
+          // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」。
+          if (entry.step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
+            continue
+          }
+          let reverted: boolean
+          try {
+            const result = revertOperatorStep(entry.step, applyContext)
+            reverted = typeof result === 'boolean' ? result : await result
+          } catch {
+            reverted = false
+          }
+          if (!isCurrentThread()) return
+          if (!reverted) {
+            failed = true
+            break
+          }
+          markOperatorStepUndone(entry.id)
+          revertedEntries.push(entry)
         }
-        revertOperatorStep(entry.step, applyContext)
-        markOperatorStepUndone(entry.id)
-      }
 
-      /**
-       * 登记簿按字段收尾：这个字段在**别的轮**还有没撤的步就留着 ✦，
-       * 否则清掉。⛔ 别无脑 `clearOperatorChange` —— 那会让「标记没了、值还在」。
-       * ⚠ `firstInverse` 有意不动：它记的是助手第一次碰这个字段之前的原文，
-       * 而这一轮只撤了这一轮，字段可能仍停在上一轮的值上。
-       */
-      const touched = new Set(
-        round
-          .map((entry) => getOperatorStepField(entry.step))
-          .filter((field): field is StudioOperatorField => field !== null),
-      )
-      for (const field of touched) {
-        const stillChanged = getOperatorState().entries.some(
-          (entry) =>
-            isRevertableStepEntry(entry) &&
-            entry.kind === 'step' &&
-            getOperatorStepField(entry.step) === field,
+        /**
+         * 登记簿按字段收尾：这个字段在**别的轮**还有没撤的步就留着 ✦，
+         * 否则清掉。⛔ 别无脑 `clearOperatorChange` —— 那会让「标记没了、值还在」。
+         * ⚠ `firstInverse` 有意不动：它记的是助手第一次碰这个字段之前的原文，
+         * 而这一轮只撤了这一轮，字段可能仍停在上一轮的值上。
+         */
+        const touched = new Set(
+          revertedEntries
+            .map((entry) => getOperatorStepField(entry.step))
+            .filter((field): field is StudioOperatorField => field !== null),
         )
-        if (!stillChanged) clearOperatorChange(field)
-      }
+        for (const field of touched) {
+          const stillChanged = getOperatorState().entries.some(
+            (entry) =>
+              isRevertableStepEntry(entry) &&
+              entry.kind === 'step' &&
+              getOperatorStepField(entry.step) === field,
+          )
+          if (!stillChanged) clearOperatorChange(field)
+        }
 
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'revertRound',
-        count: round.length,
-      })
+        if (revertedEntries.length > 0) {
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'revertRound',
+            count: revertedEntries.length,
+          })
+        }
+        if (failed) {
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'revertFailed',
+          })
+        }
+      } finally {
+        revertingRounds.current.delete(revertKey)
+      }
     },
-    [applyContext],
+    [applyContext, isCurrentThread, localThreadId],
   )
 
   /**
@@ -171,17 +213,20 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
    */
   const countRoundChanges = useCallback(
     (runKey: string) =>
-      operatorState.entries.filter(
-        (entry) =>
-          entry.kind === 'step' &&
-          entry.runKey === runKey &&
-          isRevertableStepEntry(entry),
-      ).length,
-    [operatorState.entries],
+      operatorState.readOnlyHistory
+        ? 0
+        : operatorState.entries.filter(
+            (entry) =>
+              entry.kind === 'step' &&
+              entry.runKey === runKey &&
+              isRevertableStepEntry(entry),
+          ).length,
+    [operatorState.entries, operatorState.readOnlyHistory],
   )
 
   const roundChangeLabelKeys = useCallback(
     (runKey: string) => {
+      if (operatorState.readOnlyHistory) return []
       const steps = operatorState.entries.filter(
         (entry): entry is StudioOperatorStepEntry =>
           entry.kind === 'step' &&
@@ -208,7 +253,7 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
       }
       return keys
     },
-    [operatorState.entries],
+    [operatorState.entries, operatorState.readOnlyHistory],
   )
 
   return {

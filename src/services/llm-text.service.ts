@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { LLM_STRUCTURED_OUTPUT_MODELS } from '@/constants/llm-capability'
+
 import { z } from 'zod'
 
 import {
@@ -55,6 +57,7 @@ export interface VideoAnalysisWindow {
 export interface LlmTextInput {
   systemPrompt: string
   userPrompt: string
+  signal?: AbortSignal
   /**
    * Optional bounded override for callers that compose structured context
    * around user messages. Injection checks still run; only the length ceiling
@@ -548,8 +551,10 @@ async function* readLlmSseData(
   try {
     yield* readSseData(body)
   } catch (error) {
-    if (error instanceof ApiRequestError) throw error
+    if (error instanceof ApiRequestError || isAbortError(error)) throw error
     throw textResponseError(modelId, true)
+  } finally {
+    await body.cancel().catch(() => undefined)
   }
 }
 
@@ -754,58 +759,148 @@ function isAbortError(error: unknown): boolean {
   return name === 'AbortError' || name === 'TimeoutError'
 }
 
-/**
- * 缓冲补全的 fetch —— 计时盖住**整次请求**，包括调用方后面 `.json()` 读响应体
- * 那一段（`AbortSignal` 一直有效到 body 读完）。
- *
- * 每个 provider 分支都必须走它而不是裸 `fetch`：没有超时时上游挂住只能等平台
- * 杀函数，那条路径回给客户端的是一个不带任何信息的 504。
- */
+async function fetchLlmText(
+  endpoint: string,
+  init: Omit<RequestInit, 'signal'>,
+  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  streaming: boolean,
+  signal?: AbortSignal,
+): Promise<Response> {
+  signal?.throwIfAborted()
+  const controller = new AbortController()
+  const timeoutMs = streaming
+    ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
+    : LLM_TEXT_TIMEOUTS_MS.COMPLETION
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const clearTimer = () => {
+    clearTimeout(timer)
+    timer = undefined
+  }
+  const armTimer = () => {
+    clearTimer()
+    timer = setTimeout(
+      () => controller.abort(toLlmTextTimeoutError({ ...context, timeoutMs })),
+      timeoutMs,
+    )
+  }
+  const abort = () => controller.abort(signal?.reason)
+  signal?.addEventListener('abort', abort, { once: true })
+  let abortBody: (() => void) | undefined
+  const cleanup = () => {
+    clearTimer()
+    signal?.removeEventListener('abort', abort)
+    if (abortBody) controller.signal.removeEventListener('abort', abortBody)
+  }
+  const failure = (error: unknown): unknown => {
+    if (signal?.aborted) return signal.reason
+    if (controller.signal.aborted) return controller.signal.reason
+    return isAbortError(error)
+      ? toLlmTextTimeoutError({ ...context, timeoutMs })
+      : error
+  }
+  armTimer()
+  let response: Response
+  try {
+    response = await fetch(endpoint, { ...init, signal: controller.signal })
+    controller.signal.throwIfAborted()
+  } catch (error) {
+    cleanup()
+    throw failure(error)
+  }
+  if (!response.body) {
+    cleanup()
+    return response
+  }
+  if (streaming) clearTimer()
+  const reader = response.body.getReader()
+  let finished = false
+  const finish = () => {
+    if (finished) return
+    finished = true
+    cleanup()
+    reader.releaseLock()
+  }
+  const cancelReader = async (reason: unknown) => {
+    try {
+      await reader.cancel(reason)
+    } finally {
+      finish()
+    }
+  }
+  const body = new ReadableStream<Uint8Array>(
+    {
+      start(output) {
+        abortBody = () => {
+          output.error(failure(controller.signal.reason))
+          void cancelReader(controller.signal.reason).catch(() => undefined)
+        }
+        controller.signal.addEventListener('abort', abortBody, { once: true })
+        if (controller.signal.aborted) abortBody()
+      },
+      async pull(output) {
+        if (controller.signal.aborted) return
+        if (streaming) armTimer()
+        try {
+          const { done, value } = await reader.read()
+          if (controller.signal.aborted) return
+          if (done) {
+            output.close()
+            finish()
+          } else {
+            if (streaming) clearTimer()
+            output.enqueue(value)
+          }
+        } catch (error) {
+          if (controller.signal.aborted) return
+          output.error(failure(error))
+          await cancelReader(error)
+        }
+      },
+      async cancel(reason) {
+        cleanup()
+        controller.abort(
+          reason ?? new DOMException('Response reading stopped', 'AbortError'),
+        )
+        await cancelReader(controller.signal.reason)
+      },
+    },
+    { highWaterMark: 0 },
+  )
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
+}
+
 async function fetchLlmTextBuffered(
   endpoint: string,
   init: Omit<RequestInit, 'signal'>,
   context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  signal?: AbortSignal,
 ): Promise<Response> {
-  try {
-    return await fetch(endpoint, {
-      ...init,
-      signal: AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION),
-    })
-  } catch (error) {
-    if (!isAbortError(error)) throw error
-    throw toLlmTextTimeoutError({
-      ...context,
-      timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-    })
-  }
+  return fetchLlmText(endpoint, init, context, false, signal)
 }
 
-/**
- * 流式的 fetch —— 计时**只跑到响应头到手为止**。
- *
- * ⛔ 这里不能用 `AbortSignal.timeout()`：那个 signal 会一直活到响应体读完，
- * 于是一条正常但写得久的回答会被自己的超时掐断——正是流式要解决的问题。
- * 要保护的只有「连不上 / 不回头」这一段，所以自己管 controller，
- * `finally` 里撤掉计时器，之后这条流爱读多久读多久。
- */
 async function fetchLlmTextStreaming(
   endpoint: string,
   init: Omit<RequestInit, 'signal'>,
   context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+  signal?: AbortSignal,
 ): Promise<Response> {
-  const controller = new AbortController()
-  const headerTimeoutMs = LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
-  const timer = setTimeout(() => controller.abort(), headerTimeoutMs)
+  return fetchLlmText(endpoint, init, context, true, signal)
+}
+
+async function readLlmErrorBody(
+  response: Response,
+  signal?: AbortSignal,
+): Promise<string> {
   try {
-    return await fetch(endpoint, { ...init, signal: controller.signal })
+    return await response.text()
   } catch (error) {
-    if (!isAbortError(error)) throw error
-    throw toLlmTextTimeoutError({
-      ...context,
-      timeoutMs: headerTimeoutMs,
-    })
-  } finally {
-    clearTimeout(timer)
+    signal?.throwIfAborted()
+    if (error instanceof ApiRequestError || isAbortError(error)) throw error
+    return 'Unknown error'
   }
 }
 
@@ -1002,19 +1097,24 @@ function serializeLlmRequest(
 async function prepareInlineImages(
   images: string[],
   adapterType: AI_ADAPTER_TYPES.GEMINI | AI_ADAPTER_TYPES.OPENAI,
+  signal?: AbortSignal,
 ): Promise<Array<{ mimeType: string; data: string }>> {
   let remainingBytes: number =
     ASSISTANT_IMAGE_LIMITS[adapterType].maxRequestBytes
   const parts: Array<{ mimeType: string; data: string }> = []
   for (const image of images) {
+    signal?.throwIfAborted()
     let part = parseInlineImage(image)
     if (!part) {
       try {
         const { buffer, mimeType } = await fetchAsBuffer(image, {
           maxBytes: Math.floor(remainingBytes / 4) * 3,
+          signal: mediaRequestSignal(signal),
         })
         part = { mimeType, data: buffer.toString('base64') }
       } catch (error) {
+        signal?.throwIfAborted()
+        if (isAbortError(error)) throw error
         const message = error instanceof Error ? error.message : String(error)
         const parsedCode = parseGenerationErrorCode(message)
         logger.warn('LLM reference image preparation failed', {
@@ -1038,7 +1138,6 @@ async function prepareInlineImages(
 
 interface GeminiVideoPartResult {
   part: Record<string, unknown>
-  uploadedFileName?: string
   /**
    * 这一部分是**指向外部链接**的 fileUri（YouTube 直传），不是我们上传的文件。
    * 403 的语义因此完全不同 —— 见 `toLlmTextProviderError` 的视频分支。
@@ -1069,9 +1168,23 @@ function toGeminiVideoMetadata(
   return Object.keys(metadata).length > 0 ? metadata : null
 }
 
-function waitForGeminiFilePoll(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ASSISTANT_MEDIA_LIMITS.geminiFilePollIntervalMs)
+function mediaRequestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION)
+  return signal ? AbortSignal.any([signal, timeout]) : timeout
+}
+
+function waitForGeminiFilePoll(signal?: AbortSignal): Promise<void> {
+  signal?.throwIfAborted()
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer)
+      reject(signal?.reason)
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ASSISTANT_MEDIA_LIMITS.geminiFilePollIntervalMs)
+    signal?.addEventListener('abort', abort, { once: true })
   })
 }
 
@@ -1079,8 +1192,13 @@ async function uploadGeminiVideoFile(
   buffer: Buffer,
   mimeType: string,
   apiKey: string,
+  signal: AbortSignal | undefined,
+  onUploaded: (name: string) => void,
 ): Promise<{ name: string; uri: string; mimeType: string }> {
+  signal = mediaRequestSignal(signal)
+  signal.throwIfAborted()
   const startResponse = await fetch(AI_PROVIDER_ENDPOINTS.GEMINI_FILES_UPLOAD, {
+    signal,
     method: 'POST',
     headers: {
       'x-goog-api-key': apiKey,
@@ -1093,7 +1211,7 @@ async function uploadGeminiVideoFile(
     body: JSON.stringify({ file: { display_name: 'assistant-reference' } }),
   })
   if (!startResponse.ok) {
-    const detail = await startResponse.text().catch(() => '')
+    const detail = await readLlmErrorBody(startResponse, signal)
     throw new Error(
       `Gemini video upload could not start (${startResponse.status}): ${detail.slice(0, 200)}`,
     )
@@ -1107,6 +1225,7 @@ async function uploadGeminiVideoFile(
   const uploadBody = new Uint8Array(buffer.byteLength)
   uploadBody.set(buffer)
   const uploadResponse = await fetch(uploadUrl, {
+    signal,
     method: 'POST',
     headers: {
       'Content-Length': String(buffer.byteLength),
@@ -1116,15 +1235,20 @@ async function uploadGeminiVideoFile(
     body: uploadBody,
   })
   if (!uploadResponse.ok) {
-    const detail = await uploadResponse.text().catch(() => '')
+    const detail = await readLlmErrorBody(uploadResponse, signal)
     throw new Error(
       `Gemini video upload failed (${uploadResponse.status}): ${detail.slice(0, 200)}`,
     )
   }
 
-  const uploaded = GeminiFileUploadResponseSchema.parse(
-    await uploadResponse.json(),
-  ).file
+  const payload: unknown = await uploadResponse.json()
+  const uploadedName = z
+    .object({
+      file: GeminiFileUploadResponseSchema.shape.file.pick({ name: true }),
+    })
+    .safeParse(payload)
+  if (uploadedName.success) onUploaded(uploadedName.data.file.name)
+  const uploaded = GeminiFileUploadResponseSchema.parse(payload).file
   const deadline = Date.now() + ASSISTANT_MEDIA_LIMITS.geminiFilePollTimeoutMs
   let current: z.infer<typeof GeminiFileStatusSchema> = uploaded
 
@@ -1132,11 +1256,11 @@ async function uploadGeminiVideoFile(
     if (Date.now() >= deadline) {
       throw new Error('Gemini video processing timed out.')
     }
-    await waitForGeminiFilePoll()
+    await waitForGeminiFilePoll(signal)
     const fileId = current.name.replace(/^files\//, '')
     const statusResponse = await fetch(
       `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/${fileId}`,
-      { headers: { 'x-goog-api-key': apiKey } },
+      { headers: { 'x-goog-api-key': apiKey }, signal },
     )
     if (!statusResponse.ok) {
       throw new Error(
@@ -1160,8 +1284,11 @@ async function uploadGeminiVideoFile(
 async function toGeminiVideoPart(
   videoUrl: string,
   apiKey: string,
-  videoAnalysis?: VideoAnalysisWindow,
+  videoAnalysis: VideoAnalysisWindow | undefined,
+  signal: AbortSignal | undefined,
+  onUploaded: (name: string) => void,
 ): Promise<GeminiVideoPartResult> {
+  signal?.throwIfAborted()
   const videoMetadata = toGeminiVideoMetadata(videoAnalysis)
   const withMetadata = (part: Record<string, unknown>) =>
     videoMetadata ? { ...part, videoMetadata } : part
@@ -1183,6 +1310,7 @@ async function toGeminiVideoPart(
 
   const { buffer, mimeType } = await fetchAsBuffer(videoUrl, {
     maxBytes: ASSISTANT_MEDIA_LIMITS.maxVideoBytes,
+    signal: mediaRequestSignal(signal),
   })
   if (!mimeType.startsWith('video/')) {
     throw new Error('Assistant video reference did not resolve to a video.')
@@ -1196,7 +1324,13 @@ async function toGeminiVideoPart(
     }
   }
 
-  const uploaded = await uploadGeminiVideoFile(buffer, mimeType, apiKey)
+  const uploaded = await uploadGeminiVideoFile(
+    buffer,
+    mimeType,
+    apiKey,
+    signal,
+    onUploaded,
+  )
   return {
     part: withMetadata({
       fileData: {
@@ -1204,7 +1338,6 @@ async function toGeminiVideoPart(
         fileUri: uploaded.uri,
       },
     }),
-    uploadedFileName: uploaded.name,
   }
 }
 
@@ -1215,7 +1348,11 @@ async function deleteGeminiUploadedFile(
   const fileId = name.replace(/^files\//, '')
   const response = await fetch(
     `${AI_PROVIDER_ENDPOINTS.GEMINI_FILES}/${fileId}`,
-    { method: 'DELETE', headers: { 'x-goog-api-key': apiKey } },
+    {
+      method: 'DELETE',
+      headers: { 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(LLM_TEXT_TIMEOUTS_MS.COMPLETION),
+    },
   )
   if (!response.ok) {
     logger.warn('Gemini assistant video cleanup failed', {
@@ -1260,58 +1397,71 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.GEMINI]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.GEMINI
 
-  const parts: Array<Record<string, unknown>> = []
-
-  if (input.imageData) {
-    const imageParts = await prepareInlineImages(
-      getLlmImages(input),
-      AI_ADAPTER_TYPES.GEMINI,
-    )
-    parts.push(...imageParts.map((inlineData) => ({ inlineData })))
-  }
-
   const uploadedVideoNames: string[] = []
-  let hasVideoPart = false
-  let hasLinkedVideo = false
-  if (input.videoData) {
-    const videos = Array.isArray(input.videoData)
-      ? input.videoData
-      : [input.videoData]
-    const videoParts = await Promise.all(
-      videos.map((video) =>
-        toGeminiVideoPart(video, input.apiKey, input.videoAnalysis),
-      ),
-    )
-    parts.push(...videoParts.map((entry) => entry.part))
-    hasVideoPart = videoParts.length > 0
-    hasLinkedVideo = videoParts.some((entry) => entry.linkedVideo === true)
-    uploadedVideoNames.push(
-      ...videoParts.flatMap((entry) =>
-        entry.uploadedFileName ? [entry.uploadedFileName] : [],
-      ),
-    )
-  }
-
-  if (input.audioData?.length) {
-    const audioParts = await Promise.all(
-      input.audioData.map(async (url) => {
-        const { buffer, mimeType } = await fetchAsBuffer(url, {
-          maxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
-        })
-        if (!mimeType.startsWith('audio/')) {
-          throw new Error('Assistant audio reference did not resolve to audio.')
-        }
-        return { inlineData: { mimeType, data: buffer.toString('base64') } }
-      }),
-    )
-    parts.push(...audioParts)
-  }
-
-  parts.push({ text: input.userPrompt })
-
-  const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
-
   try {
+    const parts: Array<Record<string, unknown>> = []
+
+    if (input.imageData) {
+      const imageParts = await prepareInlineImages(
+        getLlmImages(input),
+        AI_ADAPTER_TYPES.GEMINI,
+        input.signal,
+      )
+      parts.push(...imageParts.map((inlineData) => ({ inlineData })))
+    }
+
+    let hasVideoPart = false
+    let hasLinkedVideo = false
+    if (input.videoData) {
+      const videos = Array.isArray(input.videoData)
+        ? input.videoData
+        : [input.videoData]
+      const videoResults = await Promise.allSettled(
+        videos.map((video) =>
+          toGeminiVideoPart(
+            video,
+            input.apiKey,
+            input.videoAnalysis,
+            input.signal,
+            (name) => uploadedVideoNames.push(name),
+          ),
+        ),
+      )
+      const videoParts = videoResults.map((result) => {
+        if (result.status === 'rejected') throw result.reason
+        return result.value
+      })
+      parts.push(...videoParts.map((entry) => entry.part))
+      hasVideoPart = videoParts.length > 0
+      hasLinkedVideo = videoParts.some((entry) => entry.linkedVideo === true)
+    }
+
+    if (input.audioData?.length) {
+      const audioResults = await Promise.allSettled(
+        input.audioData.map(async (url) => {
+          const { buffer, mimeType } = await fetchAsBuffer(url, {
+            maxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
+            signal: mediaRequestSignal(input.signal),
+          })
+          if (!mimeType.startsWith('audio/')) {
+            throw new Error(
+              'Assistant audio reference did not resolve to audio.',
+            )
+          }
+          return { inlineData: { mimeType, data: buffer.toString('base64') } }
+        }),
+      )
+      const audioParts = audioResults.map((result) => {
+        if (result.status === 'rejected') throw result.reason
+        return result.value
+      })
+      parts.push(...audioParts)
+    }
+
+    parts.push({ text: input.userPrompt })
+
+    const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
+
     return {
       modelId,
       baseUrl,
@@ -1326,7 +1476,16 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
           responseModalities: ['TEXT'],
           ...(maxOutputTokens ? { maxOutputTokens } : {}),
           ...(input.responseFormat === 'json_object'
-            ? { responseMimeType: 'application/json' }
+            ? {
+                responseMimeType: 'application/json',
+                ...(input.jsonSchema &&
+                !input.useGrounding &&
+                LLM_STRUCTURED_OUTPUT_MODELS[AI_ADAPTER_TYPES.GEMINI]?.includes(
+                  modelId,
+                )
+                  ? { responseJsonSchema: input.jsonSchema }
+                  : {}),
+              }
             : {}),
         },
         ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
@@ -1395,9 +1554,8 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     await buildGeminiRequest(input)
   const endpoint = `${baseUrl}/${modelId}:generateContent`
 
-  let response: Response
   try {
-    response = await fetchLlmTextBuffered(
+    const response = await fetchLlmTextBuffered(
       endpoint,
       {
         method: 'POST',
@@ -1408,7 +1566,32 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
         body,
       },
       { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+      input.signal,
     )
+    if (!response.ok) {
+      const errorBody = await readLlmErrorBody(response, input.signal)
+      throw toLlmTextProviderError(response.status, errorBody, {
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        modelId,
+        hasLinkedVideo,
+      })
+    }
+
+    const parsed = GeminiTextResponseSchema.safeParse(await response.json())
+    if (!parsed.success) throw parsed.error
+    const data = parsed.data
+    const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
+
+    if (
+      !textPart?.text?.trim() ||
+      data.promptFeedback?.blockReason ||
+      (data.candidates?.[0]?.finishReason &&
+        data.candidates[0].finishReason !== 'STOP')
+    ) {
+      throw buildGeminiNoTextError(data, modelId)
+    }
+
+    return textPart.text.trim()
   } finally {
     await Promise.allSettled(
       uploadedVideoNames.map((name) =>
@@ -1416,31 +1599,6 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       ),
     )
   }
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      modelId,
-      hasLinkedVideo,
-    })
-  }
-
-  const parsed = GeminiTextResponseSchema.safeParse(await response.json())
-  if (!parsed.success) throw parsed.error
-  const data = parsed.data
-  const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
-
-  if (
-    !textPart?.text?.trim() ||
-    data.promptFeedback?.blockReason ||
-    (data.candidates?.[0]?.finishReason &&
-      data.candidates[0].finishReason !== 'STOP')
-  ) {
-    throw buildGeminiNoTextError(data, modelId)
-  }
-
-  return textPart.text.trim()
 }
 
 /**
@@ -1468,6 +1626,7 @@ async function buildOpenAiChatRequest(
     const inlineImages = await prepareInlineImages(
       getLlmImages(input),
       AI_ADAPTER_TYPES.OPENAI,
+      input.signal,
     )
     const content: Array<Record<string, unknown>> = inlineImages.map((img) => ({
       type: 'image_url',
@@ -1493,7 +1652,23 @@ async function buildOpenAiChatRequest(
           )
         : {}),
       ...(input.responseFormat === 'json_object'
-        ? { response_format: { type: 'json_object' } }
+        ? {
+            response_format:
+              input.jsonSchema &&
+              !input.useGrounding &&
+              LLM_STRUCTURED_OUTPUT_MODELS[AI_ADAPTER_TYPES.OPENAI]?.includes(
+                requestModelId,
+              )
+                ? {
+                    type: 'json_schema',
+                    json_schema: {
+                      name: 'assistant_output',
+                      strict: true,
+                      schema: input.jsonSchema,
+                    },
+                  }
+                : { type: 'json_object' },
+          }
         : {}),
       ...(input.useGrounding ? { web_search_options: {} } : {}),
     }),
@@ -1514,10 +1689,11 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
       body,
     },
     { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId: requestModelId },
+    input.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       modelId: requestModelId,
@@ -1617,10 +1793,11 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
       body,
     },
     { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, modelId },
+    input.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
       modelId,
@@ -1745,10 +1922,11 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
       body,
     },
     { adapterType: AI_ADAPTER_TYPES.XAI, modelId },
+    input.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.XAI,
       modelId,
@@ -1861,6 +2039,11 @@ function buildAnthropicMessagesRequest(
     input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.ANTHROPIC
 
   const wantsJson = input.responseFormat === 'json_object'
+  const jsonSchema = LLM_STRUCTURED_OUTPUT_MODELS[
+    AI_ADAPTER_TYPES.ANTHROPIC
+  ]?.includes(modelId)
+    ? input.jsonSchema
+    : undefined
   // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
   // a 400 on Fable 5.1** (removed across the 4.6+ family) — so the usual
   // "prefill a `{`" trick is not available here; don't reintroduce it.
@@ -1868,7 +2051,7 @@ function buildAnthropicMessagesRequest(
   // Schemaless `'json_object'` callers still get the system-prompt
   // instruction and the fence-tolerant parse downstream.
   const systemPrompt =
-    wantsJson && !input.jsonSchema
+    wantsJson && !jsonSchema
       ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
       : input.systemPrompt
 
@@ -1886,10 +2069,10 @@ function buildAnthropicMessagesRequest(
       // Server-side refusal fallback — routes a classifier decline to an
       // Opus-tier model in the same round trip (needs the beta header below).
       fallbacks: 'default',
-      ...(input.jsonSchema
+      ...(jsonSchema
         ? {
             output_config: {
-              format: { type: 'json_schema', schema: input.jsonSchema },
+              format: { type: 'json_schema', schema: jsonSchema },
             },
           }
         : {}),
@@ -1960,10 +2143,11 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
       input.providerConfig.anthropicWorkspaceId,
     ),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    input.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       modelId,
@@ -2030,10 +2214,11 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
         body,
       },
       { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+      input.signal,
     )
 
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => 'Unknown error')
+      const errorBody = await readLlmErrorBody(response, input.signal)
       throw toLlmTextProviderError(response.status, errorBody, {
         adapterType: AI_ADAPTER_TYPES.GEMINI,
         modelId,
@@ -2111,6 +2296,7 @@ async function* streamOpenAiCompatibleChat(options: {
   adapterType: AI_ADAPTER_TYPES
   modelId: string
   label: string
+  signal?: AbortSignal
 }): AsyncIterable<string> {
   const response = await fetchLlmTextStreaming(
     options.endpoint,
@@ -2123,10 +2309,11 @@ async function* streamOpenAiCompatibleChat(options: {
       body: options.body,
     },
     { adapterType: options.adapterType, modelId: options.modelId },
+    options.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, options.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: options.adapterType,
       modelId: options.modelId,
@@ -2176,6 +2363,7 @@ export async function* openAiTextStream(
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     modelId: requestModelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.OPENAI],
+    signal: input.signal,
   })
 }
 
@@ -2191,6 +2379,7 @@ async function* deepseekTextStream(input: LlmTextInput): AsyncIterable<string> {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
+    signal: input.signal,
   })
 }
 
@@ -2235,10 +2424,11 @@ async function* anthropicTextStream(
       input.providerConfig.anthropicWorkspaceId,
     ),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    input.signal,
   )
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       modelId,
@@ -2287,6 +2477,7 @@ async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
     adapterType: AI_ADAPTER_TYPES.XAI,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.XAI],
+    signal: input.signal,
   })
 }
 
@@ -2321,6 +2512,7 @@ export const LLM_TEXT_STREAMS: Record<
 export async function* llmTextStream(
   input: LlmTextInput,
 ): AsyncIterable<string> {
+  input.signal?.throwIfAborted()
   if (!isLlmTextAdapter(input.adapterType)) {
     // 与 `llmTextCompletion` 的 default 同一条：大声失败，不静默降级。
     throw new Error(
@@ -2337,7 +2529,19 @@ export async function* llmTextStream(
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-  yield* LLM_TEXT_STREAMS[input.adapterType](input)
+  try {
+    yield* LLM_TEXT_STREAMS[input.adapterType](input)
+  } catch (error) {
+    input.signal?.throwIfAborted()
+    if (isAbortError(error)) {
+      throw toLlmTextTimeoutError({
+        adapterType: input.adapterType,
+        modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
+        timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+      })
+    }
+    throw error
+  }
 }
 
 /**
@@ -2345,6 +2549,7 @@ export async function* llmTextStream(
  * Supports pure text and multimodal (image + text) input.
  */
 export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
+  input.signal?.throwIfAborted()
   if (
     input.audioData?.length &&
     input.adapterType !== AI_ADAPTER_TYPES.GEMINI
@@ -2354,21 +2559,33 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-  switch (input.adapterType) {
-    case AI_ADAPTER_TYPES.GEMINI:
-      return geminiTextCompletion(input)
-    case AI_ADAPTER_TYPES.OPENAI:
-      return openAiTextCompletion(input)
-    case AI_ADAPTER_TYPES.DEEPSEEK:
-      return deepseekTextCompletion(input)
-    case AI_ADAPTER_TYPES.ANTHROPIC:
-      return anthropicTextCompletion(input)
-    case AI_ADAPTER_TYPES.XAI:
-      return xaiTextCompletion(input)
-    default:
-      throw new Error(
-        `LLM text completion not supported for adapter: ${input.adapterType}`,
-      )
+  try {
+    switch (input.adapterType) {
+      case AI_ADAPTER_TYPES.GEMINI:
+        return await geminiTextCompletion(input)
+      case AI_ADAPTER_TYPES.OPENAI:
+        return await openAiTextCompletion(input)
+      case AI_ADAPTER_TYPES.DEEPSEEK:
+        return await deepseekTextCompletion(input)
+      case AI_ADAPTER_TYPES.ANTHROPIC:
+        return await anthropicTextCompletion(input)
+      case AI_ADAPTER_TYPES.XAI:
+        return await xaiTextCompletion(input)
+      default:
+        throw new Error(
+          `LLM text completion not supported for adapter: ${input.adapterType}`,
+        )
+    }
+  } catch (error) {
+    input.signal?.throwIfAborted()
+    if (isAbortError(error) && isLlmTextAdapter(input.adapterType)) {
+      throw toLlmTextTimeoutError({
+        adapterType: input.adapterType,
+        modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
+        timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+      })
+    }
+    throw error
   }
 }
 
@@ -2385,13 +2602,25 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
 export interface LlmNativeSearchSource {
   url: string
   title: string
-  /** 回答里引用这条来源的那几句（服务商给的引用原文）。可能为空。 */
+  /** 回答片段或服务商给出的来源摘录；来源列表项可能为空。 */
   excerpt: string
+  excerptKind: 'answer_fragment' | 'source_excerpt' | 'none'
 }
 
+export type LlmNativeSearchStatus =
+  | 'searched'
+  | 'empty'
+  | 'failed'
+  | 'not_invoked'
+  | 'paused'
+  | 'partial'
+
 export interface LlmNativeSearchResult {
+  status: LlmNativeSearchStatus
   answer: string
   sources: LlmNativeSearchSource[]
+  queries: string[]
+  error?: string
 }
 
 export interface LlmNativeSearchInput {
@@ -2401,6 +2630,7 @@ export interface LlmNativeSearchInput {
   modelId?: string
   systemPrompt: string
   query: string
+  signal?: AbortSignal
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
@@ -2415,7 +2645,7 @@ export function supportsNativeWebSearch(
   )
 }
 
-/** 同一个地址在回答里被引用多次时并成一条，引用原文拼在一起。 */
+/** 同一个地址在回答里被引用多次时并成一条，摘录拼在一起。 */
 function collectNativeSources(
   entries: readonly LlmNativeSearchSource[],
 ): LlmNativeSearchSource[] {
@@ -2430,6 +2660,7 @@ function collectNativeSources(
     const excerpt = entry.excerpt.trim()
     if (excerpt && !seen.excerpt.includes(excerpt)) {
       seen.excerpt = seen.excerpt ? `${seen.excerpt} ${excerpt}` : excerpt
+      if (seen.excerptKind === 'none') seen.excerptKind = entry.excerptKind
     }
     if (!seen.title && entry.title) seen.title = entry.title
   }
@@ -2437,9 +2668,14 @@ function collectNativeSources(
 }
 
 const GeminiGroundedResponseSchema = z.object({
+  error: z
+    .object({ message: z.string().optional(), status: z.string().optional() })
+    .optional(),
+  promptFeedback: z.object({ blockReason: z.string().optional() }).optional(),
   candidates: z
     .array(
       z.object({
+        finishReason: z.string().optional(),
         content: z
           .object({
             parts: z
@@ -2449,6 +2685,7 @@ const GeminiGroundedResponseSchema = z.object({
           .optional(),
         groundingMetadata: z
           .object({
+            webSearchQueries: z.array(z.string()).optional(),
             groundingChunks: z
               .array(
                 z.object({
@@ -2500,9 +2737,10 @@ async function geminiNativeWebSearch(
       }),
     },
     { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
+    input.signal,
   )
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       modelId,
@@ -2515,6 +2753,8 @@ async function geminiNativeWebSearch(
     .join('')
     .trim()
   const chunks = candidate?.groundingMetadata?.groundingChunks ?? []
+  const queries = candidate?.groundingMetadata?.webSearchQueries ?? []
+  const invoked = queries.length > 0 || chunks.some((chunk) => chunk.web?.uri)
   const excerpts = new Map<number, string[]>()
   for (const support of candidate?.groundingMetadata?.groundingSupports ?? []) {
     const text = support.segment?.text?.trim()
@@ -2524,17 +2764,41 @@ async function geminiNativeWebSearch(
     }
   }
   const urls = await Promise.all(
-    chunks.map((chunk) => resolveGroundingRedirect(chunk.web?.uri ?? '')),
-  )
-  return {
-    answer,
-    sources: collectNativeSources(
-      chunks.map((chunk, index) => ({
-        url: urls[index] ?? '',
-        title: chunk.web?.title ?? '',
-        excerpt: (excerpts.get(index) ?? []).join(' '),
-      })),
+    chunks.map((chunk) =>
+      resolveGroundingRedirect(chunk.web?.uri ?? '', input.signal),
     ),
+  )
+  const sources = collectNativeSources(
+    chunks.map((chunk, index) => ({
+      url: urls[index] ?? '',
+      title: chunk.web?.title ?? '',
+      excerpt: (excerpts.get(index) ?? []).join(' '),
+      excerptKind: excerpts.has(index) ? 'answer_fragment' : 'none',
+    })),
+  )
+  const error =
+    data.error?.message ??
+    data.error?.status ??
+    data.promptFeedback?.blockReason ??
+    (!candidate
+      ? 'native_search_missing_candidate'
+      : candidate.finishReason && candidate.finishReason !== 'STOP'
+        ? `native_search_${candidate.finishReason}`
+        : undefined)
+  return {
+    status: error
+      ? invoked && sources.length > 0
+        ? 'partial'
+        : 'failed'
+      : !invoked
+        ? 'not_invoked'
+        : sources.length > 0
+          ? 'searched'
+          : 'empty',
+    answer,
+    sources,
+    queries,
+    ...(error ? { error } : {}),
   }
 }
 
@@ -2545,45 +2809,77 @@ const GROUNDING_REDIRECT_TIMEOUT_MS = 3_000
  * `vertexaisearch.cloud.google.com`，来源名单也按这个域名判。只读跳转头换成真地址，
  * ⛔ 不跟过去取正文；解不开就留原链接（点开照样能到）。
  */
-async function resolveGroundingRedirect(uri: string): Promise<string> {
+async function resolveGroundingRedirect(
+  uri: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  signal?.throwIfAborted()
   if (!uri.includes('vertexaisearch.cloud.google.com')) return uri
   try {
     const response = await fetch(uri, {
       method: 'HEAD',
       redirect: 'manual',
-      signal: AbortSignal.timeout(GROUNDING_REDIRECT_TIMEOUT_MS),
+      signal: signal
+        ? AbortSignal.any([
+            signal,
+            AbortSignal.timeout(GROUNDING_REDIRECT_TIMEOUT_MS),
+          ])
+        : AbortSignal.timeout(GROUNDING_REDIRECT_TIMEOUT_MS),
     })
     return response.headers.get('location') || uri
   } catch {
+    signal?.throwIfAborted()
     return uri
   }
 }
 
 const OpenAiResponsesSearchSchema = z.object({
-  output: z.array(
-    z.object({
-      type: z.string(),
-      content: z
-        .array(
-          z.object({
+  status: z.string().optional(),
+  error: z
+    .object({ message: z.string().optional(), code: z.string().optional() })
+    .nullable()
+    .optional(),
+  incomplete_details: z
+    .object({ reason: z.string().optional() })
+    .nullable()
+    .optional(),
+  output: z
+    .array(
+      z.object({
+        type: z.string(),
+        status: z.string().optional(),
+        action: z
+          .object({
             type: z.string(),
-            text: z.string().optional(),
-            annotations: z
-              .array(
-                z.object({
-                  type: z.string(),
-                  url: z.string().optional(),
-                  title: z.string().optional(),
-                  start_index: z.number().optional(),
-                  end_index: z.number().optional(),
-                }),
-              )
+            query: z.string().optional(),
+            queries: z.array(z.string()).optional(),
+            sources: z
+              .array(z.object({ type: z.string(), url: z.string() }))
               .optional(),
-          }),
-        )
-        .optional(),
-    }),
-  ),
+          })
+          .optional(),
+        content: z
+          .array(
+            z.object({
+              type: z.string(),
+              text: z.string().optional(),
+              annotations: z
+                .array(
+                  z.object({
+                    type: z.string(),
+                    url: z.string().optional(),
+                    title: z.string().optional(),
+                    start_index: z.number().optional(),
+                    end_index: z.number().optional(),
+                  }),
+                )
+                .optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
 })
 
 /** 引用标记前面那一句 —— OpenAI 的标注只给位置，不给原文。 */
@@ -2620,60 +2916,126 @@ async function openAiNativeWebSearch(
         instructions: input.systemPrompt,
         input: input.query,
         tools: [{ type: 'web_search' }],
+        include: ['web_search_call.action.sources'],
       }),
     },
     { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId },
+    input.signal,
   )
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       modelId,
     })
   }
   const data = OpenAiResponsesSearchSchema.parse(await response.json())
-  const texts = data.output
+  const output = data.output ?? []
+  const calls = output.filter((item) => item.type === 'web_search_call')
+  const completed = calls.filter((call) => call.status === 'completed')
+  const texts = output
     .filter((item) => item.type === 'message')
     .flatMap((item) => item.content ?? [])
     .filter((part) => part.type === 'output_text')
+  const sources =
+    completed.length > 0
+      ? collectNativeSources([
+          ...texts.flatMap((part) =>
+            (part.annotations ?? [])
+              .filter((note) => note.type === 'url_citation' && note.url)
+              .map(
+                (note): LlmNativeSearchSource => ({
+                  url: note.url ?? '',
+                  title: note.title ?? '',
+                  excerpt: sentenceBefore(
+                    part.text ?? '',
+                    note.start_index ?? 0,
+                  ),
+                  excerptKind: 'answer_fragment',
+                }),
+              ),
+          ),
+          ...completed.flatMap((call) =>
+            (call.action?.sources ?? [])
+              .filter((source) => source.type === 'url')
+              .map(
+                (source): LlmNativeSearchSource => ({
+                  url: source.url,
+                  title: '',
+                  excerpt: '',
+                  excerptKind: 'none',
+                }),
+              ),
+          ),
+        ])
+      : []
+  const queries = [
+    ...new Set(
+      calls.flatMap(
+        (call) =>
+          call.action?.queries ??
+          (call.action?.query ? [call.action.query] : []),
+      ),
+    ),
+  ]
+  const unfinished = calls.some((call) => call.status !== 'completed')
+  const error =
+    data.error?.message ??
+    data.error?.code ??
+    data.incomplete_details?.reason ??
+    (data.status && data.status !== 'completed'
+      ? `native_search_response_${data.status}`
+      : unfinished
+        ? `native_search_call_${calls.find((call) => call.status !== 'completed')?.status ?? 'unknown'}`
+        : undefined)
   return {
+    status: error
+      ? completed.length > 0
+        ? 'partial'
+        : 'failed'
+      : calls.length === 0
+        ? 'not_invoked'
+        : sources.length > 0
+          ? 'searched'
+          : 'empty',
     answer: texts
       .map((part) => part.text ?? '')
       .join('')
       .trim(),
-    sources: collectNativeSources(
-      texts.flatMap((part) =>
-        (part.annotations ?? [])
-          .filter((note) => note.type === 'url_citation' && note.url)
-          .map((note) => ({
-            url: note.url ?? '',
-            title: note.title ?? '',
-            excerpt: sentenceBefore(part.text ?? '', note.start_index ?? 0),
-          })),
-      ),
-    ),
+    sources,
+    queries,
+    ...(error ? { error } : {}),
   }
 }
 
 const AnthropicSearchResponseSchema = z.object({
-  content: z.array(
-    z.object({
-      type: z.string(),
-      text: z.string().optional(),
-      citations: z
-        .array(
-          z.object({
-            type: z.string(),
-            url: z.string().optional(),
-            title: z.string().nullable().optional(),
-            cited_text: z.string().optional(),
-          }),
-        )
-        .nullable()
-        .optional(),
-      content: z.unknown().optional(),
-    }),
-  ),
+  error: z
+    .object({ message: z.string().optional(), type: z.string().optional() })
+    .optional(),
+  content: z
+    .array(
+      z.object({
+        type: z.string(),
+        id: z.string().optional(),
+        name: z.string().optional(),
+        tool_use_id: z.string().optional(),
+        input: z.object({ query: z.string().optional() }).optional(),
+        text: z.string().optional(),
+        citations: z
+          .array(
+            z.object({
+              type: z.string(),
+              url: z.string().optional(),
+              title: z.string().nullable().optional(),
+              cited_text: z.string().optional(),
+            }),
+          )
+          .nullable()
+          .optional(),
+        content: z.unknown().optional(),
+      }),
+    )
+    .optional(),
   stop_reason: z.string().nullable().optional(),
   stop_details: z
     .object({ category: z.string().nullable().optional() })
@@ -2689,9 +3051,14 @@ const AnthropicSearchResultsSchema = z.array(
   }),
 )
 
+const AnthropicSearchErrorSchema = z.object({
+  type: z.literal('web_search_tool_result_error'),
+  error_code: z.string(),
+})
+
 /**
  * Claude：服务端 `web_search` 工具。⚠ 搜索出错也是 HTTP 200 —— 结果块的
- * `content` 是一个错误对象而不是列表，按形状分支，⛔ 不当成空结果之外的异常。
+ * `content` 是一个错误对象而不是列表，按形状分支并保留失败回执。
  */
 async function anthropicNativeWebSearch(
   input: LlmNativeSearchInput,
@@ -2706,7 +3073,6 @@ async function anthropicNativeWebSearch(
       JSON.stringify({
         model: modelId,
         max_tokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
-        fallbacks: 'default',
         system: input.systemPrompt,
         messages: [{ role: 'user', content: input.query }],
         tools: [
@@ -2720,9 +3086,10 @@ async function anthropicNativeWebSearch(
       input.providerConfig.anthropicWorkspaceId,
     ),
     { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    input.signal,
   )
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
+    const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       modelId,
@@ -2737,8 +3104,19 @@ async function anthropicNativeWebSearch(
   }
   const cited: LlmNativeSearchSource[] = []
   const listed: LlmNativeSearchSource[] = []
+  const blocks = data.content ?? []
+  const calls = blocks.filter(
+    (block) =>
+      block.type === 'server_tool_use' &&
+      block.name === 'web_search' &&
+      block.id,
+  )
+  const callIds = new Set(calls.map((call) => call.id))
+  const returnedIds = new Set<string>()
+  const errors: string[] = []
+  let completed = 0
   let answer = ''
-  for (const block of data.content) {
+  for (const block of blocks) {
     if (block.type === 'text') {
       answer += block.text ?? ''
       for (const citation of block.citations ?? []) {
@@ -2748,28 +3126,82 @@ async function anthropicNativeWebSearch(
           url: citation.url,
           title: citation.title ?? '',
           excerpt: citation.cited_text ?? '',
+          excerptKind: citation.cited_text ? 'source_excerpt' : 'none',
         })
       }
     }
     if (block.type === 'web_search_tool_result') {
+      if (!block.tool_use_id || !callIds.has(block.tool_use_id)) {
+        errors.push('native_search_unpaired_result')
+        continue
+      }
+      returnedIds.add(block.tool_use_id)
+      const failure = AnthropicSearchErrorSchema.safeParse(block.content)
+      if (failure.success) {
+        errors.push(failure.data.error_code)
+        continue
+      }
       const results = AnthropicSearchResultsSchema.safeParse(block.content)
-      if (!results.success) continue
+      if (!results.success) {
+        errors.push('native_search_invalid_result')
+        continue
+      }
+      completed += 1
       for (const result of results.data) {
         if (result.type !== 'web_search_result' || !result.url) continue
-        listed.push({ url: result.url, title: result.title ?? '', excerpt: '' })
+        listed.push({
+          url: result.url,
+          title: result.title ?? '',
+          excerpt: '',
+          excerptKind: 'none',
+        })
       }
     }
   }
+  const sources =
+    completed > 0 ? collectNativeSources([...cited, ...listed]) : []
+  const paused =
+    data.stop_reason === 'pause_turn' || data.stop_reason === 'tool_use'
+  if (data.error)
+    errors.push(
+      data.error.message ?? data.error.type ?? 'native_search_provider_error',
+    )
+  if (calls.some((call) => !returnedIds.has(call.id!)))
+    errors.push('native_search_missing_result')
+  if (data.stop_reason === 'max_tokens') errors.push('native_search_truncated')
+  const error = paused
+    ? `native_search_${data.stop_reason}`
+    : errors.length > 0
+      ? [...new Set(errors)].join('; ')
+      : undefined
   return {
+    status: paused
+      ? 'paused'
+      : error
+        ? completed > 0
+          ? 'partial'
+          : 'failed'
+        : calls.length === 0
+          ? 'not_invoked'
+          : sources.length > 0
+            ? 'searched'
+            : 'empty',
     answer: answer.trim(),
     // ⭐ 被引用的排前面：模型真正用上的那几条才是证据，搜到没用的垫在后面。
-    sources: collectNativeSources([...cited, ...listed]),
+    sources,
+    queries: [
+      ...new Set(
+        calls.flatMap((call) => (call.input?.query ? [call.input.query] : [])),
+      ),
+    ],
+    ...(error ? { error } : {}),
   }
 }
 
 export async function llmNativeWebSearch(
   input: LlmNativeSearchInput,
 ): Promise<LlmNativeSearchResult> {
+  input.signal?.throwIfAborted()
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
       return geminiNativeWebSearch(input)

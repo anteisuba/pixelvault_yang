@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ⚠ 真实的 next-intl `t` 带 `has()`，`getApiErrorMessage` 靠它判断 i18nKey 解不
 // 解得出来。mock 漏了它 = 走到 i18nKey 那条路径时 `t.has is not a function`。
+const auth = vi.hoisted(() => ({ userId: 'user-1' as string | null }))
+vi.mock('@clerk/nextjs', () => ({
+  useUser: () => ({ user: auth.userId ? { id: auth.userId } : null }),
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () =>
     Object.assign((key: string) => key, { has: () => false }),
@@ -18,6 +23,7 @@ vi.mock('@/lib/api-client', () => ({
 
 import {
   getAssistantConversationAPI,
+  listAssistantConversationsAPI,
   streamPromptAssistantAPI,
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
@@ -28,6 +34,8 @@ import type {
   LoraCandidateSearchResult,
 } from '@/types/lora-candidate'
 import type { AssistantStreamMessage } from '@/lib/assistant-stream-client'
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
+import type { AssistantConversationRecord } from '@/types/assistant-conversation'
 import { usePromptAssistant } from './use-prompt-assistant'
 
 /**
@@ -61,7 +69,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: eventsOf([body]),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -87,7 +95,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: eventsOf(raw),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -115,7 +123,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: eventsOf(['有内容了']),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -142,7 +150,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: explodingEvents(),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -181,7 +189,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: failingEvents(),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -206,7 +214,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: eventsOf(['好的']),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -243,7 +251,7 @@ describe('usePromptAssistant · 流式对话轮', () => {
       events: eventsOf(['']),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -345,7 +353,7 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
       ),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -398,7 +406,7 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
       ),
     })
 
-    const { result } = renderHook(() => usePromptAssistant('IMAGE_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
     act(() => {
       result.current.clear()
     })
@@ -431,6 +439,7 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
       data: {
         id: 'conv-1',
         surface: 'VIDEO_STUDIO',
+        workspaceKey: 'video',
         projectId: null,
         title: null,
         createdAt: '2026-08-21T09:00:00.000Z',
@@ -448,7 +457,7 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
       },
     })
 
-    const { result } = renderHook(() => usePromptAssistant('VIDEO_STUDIO'))
+    const { result } = renderHook(() => usePromptAssistant('video'))
 
     await waitFor(() => {
       expect(result.current.messages).toHaveLength(2)
@@ -463,5 +472,282 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
     expect(resolved[0]?.candidate.importPayload?.loraUrl).toBe(
       'https://civitai.com/api/download/models/civitai:1:1',
     )
+  })
+})
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((accept) => {
+    resolve = accept
+  })
+  return { promise, resolve }
+}
+
+function savedConversation(
+  id: string,
+  workspaceKey = 'image-natural',
+): AssistantConversationRecord {
+  return {
+    id,
+    surface: 'IMAGE_STUDIO',
+    workspaceKey,
+    projectId: null,
+    title: null,
+    createdAt: '2026-10-01T09:00:00.000Z',
+    updatedAt: '2026-10-01T09:00:00.000Z',
+    messages: [{ role: 'assistant', content: id }],
+    rounds: [],
+  }
+}
+
+describe('usePromptAssistant · 工作区与本地会话隔离', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    auth.userId = crypto.randomUUID()
+    vi.mocked(getAssistantConversationAPI).mockResolvedValue({
+      success: false,
+      error: 'test failure',
+    })
+    vi.mocked(listAssistantConversationsAPI).mockResolvedValue({
+      success: false,
+      error: 'test failure',
+    })
+    vi.mocked(upsertAssistantConversationAPI).mockResolvedValue({
+      success: false,
+      error: 'test failure',
+    })
+  })
+
+  it('按账号、图片方言与画布项目请求独立历史，缺项目的画布不发送', async () => {
+    const { result, rerender } = renderHook(
+      ({
+        workspace,
+        projectId,
+      }: {
+        workspace: AssistantWorkspace
+        projectId?: string
+      }) => usePromptAssistant(workspace, projectId),
+      {
+        initialProps: {
+          workspace: 'image-natural' as AssistantWorkspace,
+          projectId: undefined as string | undefined,
+        },
+      },
+    )
+    expect(getAssistantConversationAPI).toHaveBeenLastCalledWith({
+      surface: 'IMAGE_STUDIO',
+      workspaceKey: 'image-natural',
+      operatorOnly: false,
+    })
+    rerender({ workspace: 'image-tags', projectId: undefined })
+    expect(getAssistantConversationAPI).toHaveBeenLastCalledWith({
+      surface: 'IMAGE_STUDIO',
+      workspaceKey: 'image-tags',
+      operatorOnly: false,
+    })
+    rerender({ workspace: 'canvas', projectId: 'project-a' })
+    expect(getAssistantConversationAPI).toHaveBeenLastCalledWith({
+      surface: 'NODE_CANVAS',
+      workspaceKey: 'canvas:project-a',
+      operatorOnly: false,
+    })
+    const calls = vi.mocked(getAssistantConversationAPI).mock.calls.length
+    rerender({ workspace: 'canvas', projectId: undefined })
+    await act(async () => {
+      await result.current.send('不能发送')
+    })
+    expect(getAssistantConversationAPI).toHaveBeenCalledTimes(calls)
+    expect(streamPromptAssistantAPI).not.toHaveBeenCalled()
+  })
+
+  it('清空后的新会话不被首屏历史回包恢复', async () => {
+    const history =
+      deferred<Awaited<ReturnType<typeof getAssistantConversationAPI>>>()
+    vi.mocked(getAssistantConversationAPI).mockReturnValueOnce(history.promise)
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
+    act(() => result.current.clear())
+    await act(async () => {
+      history.resolve({ success: true, data: savedConversation('old-history') })
+    })
+    expect(result.current.messages).toEqual([])
+    expect(result.current.sessionId).toBeNull()
+  })
+
+  it('新会话关闭再打开仍为空，不重新载回上次历史', async () => {
+    vi.mocked(getAssistantConversationAPI).mockResolvedValue({
+      success: true,
+      data: savedConversation('old-history'),
+    })
+    const first = renderHook(() => usePromptAssistant('image-natural'))
+    await waitFor(() =>
+      expect(first.result.current.sessionId).toBe('old-history'),
+    )
+    act(() => first.result.current.clear())
+    first.unmount()
+    const second = renderHook(() => usePromptAssistant('image-natural'))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(second.result.current.messages).toEqual([])
+    expect(second.result.current.sessionId).toBeNull()
+    expect(getAssistantConversationAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('清空后的新会话不接收旧流与旧保存回包', async () => {
+    const firstSave =
+      deferred<Awaited<ReturnType<typeof upsertAssistantConversationAPI>>>()
+    vi.mocked(upsertAssistantConversationAPI).mockReturnValueOnce(
+      firstSave.promise,
+    )
+    vi.mocked(streamPromptAssistantAPI).mockResolvedValueOnce({
+      success: true,
+      events: eventsOf(['完成']),
+    })
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
+    let oldTurn!: Promise<void>
+    act(() => {
+      oldTurn = result.current.send('旧对话')
+    })
+    await waitFor(() =>
+      expect(upsertAssistantConversationAPI).toHaveBeenCalledTimes(1),
+    )
+    act(() => result.current.clear())
+    const newThreadId = result.current.localThreadId
+    await act(async () => {
+      firstSave.resolve({
+        success: true,
+        data: savedConversation('old-session'),
+      })
+      await oldTurn
+    })
+    expect(result.current.localThreadId).toBe(newThreadId)
+    expect(result.current.messages).toEqual([])
+    expect(result.current.sessionId).toBeNull()
+
+    const stream =
+      deferred<Awaited<ReturnType<typeof streamPromptAssistantAPI>>>()
+    vi.mocked(streamPromptAssistantAPI).mockReturnValueOnce(stream.promise)
+    act(() => {
+      oldTurn = result.current.send('另一条旧对话')
+    })
+    act(() => result.current.clear())
+    await act(async () => {
+      stream.resolve({ success: true, events: eventsOf(['迟到']) })
+      await oldTurn
+    })
+    expect(result.current.messages).toEqual([])
+    expect(upsertAssistantConversationAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('第一轮保存未返回时第二轮串行保存并复用返回的 session id', async () => {
+    const firstSave =
+      deferred<Awaited<ReturnType<typeof upsertAssistantConversationAPI>>>()
+    vi.mocked(upsertAssistantConversationAPI)
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValueOnce({
+        success: true,
+        data: savedConversation('session-one'),
+      })
+    vi.mocked(streamPromptAssistantAPI)
+      .mockResolvedValueOnce({ success: true, events: eventsOf(['一']) })
+      .mockResolvedValueOnce({ success: true, events: eventsOf(['二']) })
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
+    let firstTurn!: Promise<void>
+    let secondTurn!: Promise<void>
+    act(() => {
+      firstTurn = result.current.send('第一轮')
+    })
+    await waitFor(() =>
+      expect(upsertAssistantConversationAPI).toHaveBeenCalledTimes(1),
+    )
+    act(() => {
+      secondTurn = result.current.send('第二轮')
+    })
+    await waitFor(() => expect(result.current.messages).toHaveLength(4))
+    expect(upsertAssistantConversationAPI).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      firstSave.resolve({
+        success: true,
+        data: savedConversation('session-one'),
+      })
+      await Promise.all([firstTurn, secondTurn])
+    })
+    expect(upsertAssistantConversationAPI).toHaveBeenCalledTimes(2)
+    expect(
+      vi.mocked(upsertAssistantConversationAPI).mock.calls[0]?.[0].id,
+    ).toBeUndefined()
+    expect(
+      vi.mocked(upsertAssistantConversationAPI).mock.calls[1]?.[0],
+    ).toMatchObject({ id: 'session-one', workspaceKey: 'image-natural' })
+    expect(result.current.sessionId).toBe('session-one')
+  })
+
+  it('切工作区再切回也不恢复原流；另一个账号看不到缓存', async () => {
+    const stream =
+      deferred<Awaited<ReturnType<typeof streamPromptAssistantAPI>>>()
+    vi.mocked(streamPromptAssistantAPI).mockReturnValueOnce(stream.promise)
+    const { result, rerender } = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        usePromptAssistant(workspace),
+      { initialProps: { workspace: 'image-natural' as AssistantWorkspace } },
+    )
+    let oldTurn!: Promise<void>
+    act(() => {
+      oldTurn = result.current.send('自然语言台')
+    })
+    rerender({ workspace: 'image-tags' })
+    expect(result.current.messages).toEqual([])
+    rerender({ workspace: 'image-natural' })
+    await act(async () => {
+      stream.resolve({ success: true, events: eventsOf(['迟到回复']) })
+      await oldTurn
+    })
+    expect(result.current.messages).toEqual([
+      { role: 'user', content: '自然语言台', mediaReferences: undefined },
+    ])
+    expect(result.current.isLoading).toBe(false)
+    expect(upsertAssistantConversationAPI).not.toHaveBeenCalled()
+    auth.userId = 'another-account'
+    rerender({ workspace: 'image-natural' })
+    expect(result.current.messages).toEqual([])
+  })
+
+  it('共享同一工作区的头部卸载，不把面板正在生成的状态清空', async () => {
+    const stream =
+      deferred<Awaited<ReturnType<typeof streamPromptAssistantAPI>>>()
+    vi.mocked(streamPromptAssistantAPI).mockReturnValueOnce(stream.promise)
+    const header = renderHook(() => usePromptAssistant('image-natural'))
+    const panel = renderHook(() => usePromptAssistant('image-natural'))
+    let turn!: Promise<void>
+    act(() => {
+      turn = panel.result.current.send('正在生成')
+    })
+    header.unmount()
+    expect(panel.result.current.isLoading).toBe(true)
+    await act(async () => {
+      stream.resolve({ success: true, events: eventsOf(['完成']) })
+      await turn
+    })
+    expect(lastAssistantContent(panel.result.current.messages)).toBe('完成')
+  })
+
+  it('选择历史后再清空，延迟历史回包不能覆盖新会话', async () => {
+    const { result } = renderHook(() => usePromptAssistant('image-natural'))
+    const selection =
+      deferred<Awaited<ReturnType<typeof getAssistantConversationAPI>>>()
+    vi.mocked(getAssistantConversationAPI).mockReturnValueOnce(
+      selection.promise,
+    )
+    let loading!: Promise<void>
+    act(() => {
+      loading = result.current.selectSession('history-a')
+    })
+    act(() => result.current.clear())
+    await act(async () => {
+      selection.resolve({ success: true, data: savedConversation('history-a') })
+      await loading
+    })
+    expect(result.current.messages).toEqual([])
+    expect(result.current.sessionId).toBeNull()
   })
 })

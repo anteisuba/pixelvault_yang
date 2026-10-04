@@ -31,6 +31,10 @@ import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveReferenceRailSlot } from '@/lib/studio/reference-rail-slot'
+import {
+  isStudioResultInWorkspace,
+  studioRunForWorkspace,
+} from '@/lib/studio-operator-result-run'
 import { cn } from '@/lib/utils'
 import {
   applyAudioFeedbackTags,
@@ -77,13 +81,13 @@ export const StudioCanvas = memo(function StudioCanvas({
   const { imageUpload } = useStudioData()
   const {
     lastGeneration: rawLastGeneration,
-    error: runError,
+    error: rawRunError,
     retry,
     activeRun: rawActiveRun,
     selectWinner,
     lastEvaluation,
     setLastEvaluation,
-    isGenerating,
+    isGenerating: rawIsGenerating,
     elapsedSeconds,
     retryVideoQueueItem,
     retryRunItem,
@@ -96,11 +100,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
   /**
-   * 舞台上要就地说的那句失败（加载态 A）。视频的失败由队列条那一行说（原因 +
-   * 「重试这条」，视频台 A ③），舞台 ⛔ 再说一遍，首帧封面也照常留着。
-   */
-  const error = state.outputType === 'video' ? null : runError
-  /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
    * `references/pages/studio-image-edit.md` §2 方向 A：舞台接管）。
    */
@@ -112,34 +111,20 @@ export const StudioCanvas = memo(function StudioCanvas({
   const { runModels } = useStudioRunModels()
   const { send: videoSend } = useStudioVideoAssets()
 
-  // Only show the latest generation if it matches the current output type.
-  // Prevents Canvas from displaying an image result after user switches to
-  // video/audio mode (and vice versa).
-  const expectedOutputType =
-    state.outputType === 'video'
-      ? 'VIDEO'
-      : state.outputType === 'audio'
-        ? 'AUDIO'
-        : 'IMAGE'
   const lastGeneration =
-    rawLastGeneration && rawLastGeneration.outputType === expectedOutputType
+    rawLastGeneration &&
+    isStudioResultInWorkspace(
+      rawLastGeneration.outputType,
+      rawLastGeneration.model,
+      state,
+    )
       ? rawLastGeneration
       : null
-  /**
-   * ⚠ **批次槽要走同一道守卫。** 上面那道只护住了 `lastGeneration`，`activeRun`
-   * 漏了整整一版 —— 而它的分支排在更前面、优先级更高。后果是跨模态串台：跑完
-   * 一批图片再进语音工作台，那几张图被 `AudioVariantGrid` 画成音频卡片（描述
-   * 文字是图片的提示词，`<audio src>` 指着图片 URL）；进视频工作台则被
-   * `CompareGrid` 原样画成图片，连「模型：GPT Image 2」都照抄。
-   *
-   * 三个模态共用一个 `StudioProvider`（挂在 `(workspace)/layout.tsx`，切路由不
-   * remount），所以上一模态的 run 会原封不动活到下一模态 —— 清不清空是另一回事，
-   * 但**渲染前按模态过滤是这里必须做的**。
-   */
-  const activeRun =
-    rawActiveRun && rawActiveRun.outputType === expectedOutputType
-      ? rawActiveRun
-      : null
+  const activeRun = studioRunForWorkspace(rawActiveRun, state)
+  const isCurrentRun = !rawActiveRun || activeRun !== null
+  const isGenerating = rawIsGenerating && isCurrentRun
+  const runError = isCurrentRun ? rawRunError : null
+  const error = state.outputType === 'video' ? null : runError
   const lastGenerationRef = useRef<GenerationRecord | null>(null)
 
   useLayoutEffect(() => {

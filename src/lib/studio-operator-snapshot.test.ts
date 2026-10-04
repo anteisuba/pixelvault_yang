@@ -423,6 +423,32 @@ describe('buildImageOperatorSnapshot', () => {
     expect(snapshot.model).not.toHaveProperty('channelId')
   })
 
+  it('另一台图片工作台的模型单列一节（去重、只给跑得了的），缺席时整节不给', () => {
+    const base = {
+      form: FORM,
+      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
+      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      runModels: [],
+      references: { items: [], limit: 4 },
+    }
+    expect(buildImageOperatorSnapshot(base)).not.toHaveProperty(
+      'otherWorkbenchModels',
+    )
+    const nai = option({
+      optionId: 'workspace:nai',
+      modelId: 'novelai-v5-full',
+      displayLabel: 'NovelAI V5 Full',
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    })
+    const snapshot = buildImageOperatorSnapshot({
+      ...base,
+      otherModelOptions: [nai, { ...nai, optionId: 'saved:nai' }],
+    })
+    expect(snapshot.otherWorkbenchModels).toEqual([
+      { id: 'novelai-v5-full', label: 'NovelAI V5 Full' },
+    ])
+  })
+
   it('⭐ 多渠道型号：channels 用的是选择器那一行的 optionId，并写出当前在跑哪条', () => {
     const onFal = option({
       optionId: 'workspace:seedream-4',

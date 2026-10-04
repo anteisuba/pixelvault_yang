@@ -606,6 +606,10 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]: {
+    payload: { modelId: 'novelai-v5-full', request: '改写成标签再出一张' },
+    result: { offered: true },
+  },
   /** 搭配卡（§12）—— **读类**：到这一帧为止什么都没动，所以没有 `inverse`。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: {
     payload: { question: '给你搭了一套' },
@@ -869,7 +873,8 @@ describe('五动词入口', () => {
     // lora-assistant §12 把 48 变成 49（`plan_lora_setup`，搭配卡）。
     // lora-assistant §13 把 49 变成 50（`show_lora_picks`，库页圈几把）。
     // 推荐卡代码删除（2026-09-29）把 50 变成 49（`plan_lora_pick`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(49)
+    // 两台图片工作台互跳（2026-10-04）把 49 变成 50（`switch_workbench`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(50)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -979,6 +984,7 @@ describe('五动词入口', () => {
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
       ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+      ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
     ])
   })
 

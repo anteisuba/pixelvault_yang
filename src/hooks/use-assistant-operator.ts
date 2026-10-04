@@ -134,6 +134,8 @@ import {
   describeCharacterProfileProposalText,
   describeImageHandoffDecisionText,
   describeImageHandoffProposalText,
+  describeWorkbenchHandoffDecisionText,
+  describeWorkbenchHandoffProposalText,
   describeContextCardDecisionText,
   describeContextCardProposalText,
   clampPlanAnswer,
@@ -723,6 +725,13 @@ export interface UseAssistantOperatorResult {
   acceptImageHandoff(): void
   /** **「先不要」** —— 什么都不做，落一行账。 */
   dismissImageHandoff(): void
+  /**
+   * **「带我过去」**（换到另一台图片工作台）—— 选中那个型号、带走提示词、跳过去、
+   * 话填好，由用户按发送。
+   */
+  acceptWorkbenchHandoff(): void
+  /** **「先不要」** —— 什么都不动，落一行账。 */
+  dismissWorkbenchHandoff(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -1357,6 +1366,22 @@ export function useAssistantOperator(
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+                  handoff: event.confirm.handoff,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              /** **换到另一台图片工作台** —— 同上：什么都没动，跳转等用户点下去。 */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
                   handoff: event.confirm.handoff,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
@@ -2820,6 +2845,61 @@ export function useAssistantOperator(
     [decideImageHandoff],
   )
 
+  /** 换到另一台图片工作台那一下：两颗键都落账，模型下一轮知道用户怎么定的。 */
+  const decideWorkbenchHandoff = useCallback(
+    (accepted: boolean) => {
+      if (!isCurrentThread()) return
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      const { handoff } = confirm
+      if (accepted && !applyContext.switchImageWorkbench?.(handoff)) return
+      const label = describeWorkbenchHandoffDecisionText(
+        handoff.label,
+        handoff.workspace,
+        accepted,
+      )
+      resolveOperatorConfirm(
+        accepted
+          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+      )
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: accepted
+          ? 'workbenchHandoffAccepted'
+          : 'workbenchHandoffDeclined',
+        subject: handoff.label,
+        userText: label,
+        answered: {
+          questionId: `workbenchHandoff:${handoff.modelId}`,
+          optionIds: [accepted ? 'accept' : 'decline'],
+          question: describeWorkbenchHandoffProposalText(
+            handoff.label,
+            handoff.workspace,
+          ),
+          optionLabels: [label],
+        },
+      })
+    },
+    [applyContext, isCurrentThread],
+  )
+  const acceptWorkbenchHandoff = useCallback(
+    () => decideWorkbenchHandoff(true),
+    [decideWorkbenchHandoff],
+  )
+  const dismissWorkbenchHandoff = useCallback(
+    () => decideWorkbenchHandoff(false),
+    [decideWorkbenchHandoff],
+  )
+
   /**
    * **搭配卡「应用这套搭配」**（lora-assistant §12，owner 2026-09-28「一张卡全包」）。
    *
@@ -3173,6 +3253,8 @@ export function useAssistantOperator(
     dismissCharacterImages,
     acceptImageHandoff,
     dismissImageHandoff,
+    acceptWorkbenchHandoff,
+    dismissWorkbenchHandoff,
     applyLoraSetup,
     dismissLoraSetup,
     retryGeneration,

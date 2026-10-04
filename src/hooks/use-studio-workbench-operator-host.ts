@@ -9,7 +9,10 @@ import {
 } from '@/constants/assistant-operator'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { getPromptDialect } from '@/constants/prompt-dialects'
+import {
+  getPromptDialect,
+  PROMPT_DIALECT_ROUTES,
+} from '@/constants/prompt-dialects'
 import {
   useStudioData,
   useStudioForm,
@@ -28,10 +31,12 @@ import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import {
+  requestOperatorDraft,
   setOperatorPrimed,
   setOperatorReviewState,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
+import { useRouter } from '@/i18n/navigation'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
 import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
@@ -99,6 +104,21 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       state.promptDialect,
     ],
   )
+  /**
+   * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 快照里给助手看（它换不到，
+   * 只能摆「换到那一台」的卡），卡上点下去时按它选中型号。⚠ 只有图片模态有对面那台。
+   */
+  const otherImageModels = useMemo(
+    () =>
+      state.outputType === 'image'
+        ? allImageModels.modelOptions.filter(
+            (option) =>
+              getPromptDialect(option.adapterType) !== state.promptDialect,
+          )
+        : [],
+    [allImageModels.modelOptions, state.outputType, state.promptDialect],
+  )
+  const router = useRouter()
   const videoModels = useVideoModelOptions(state.selectedOptionId ?? '')
   /** 这一轮跑哪几个图片模型 —— 专属 chip 行按整轮并集给助手（与界面同一份名单）。 */
   const { runModels: allRunModels } = useStudioRunModels()
@@ -125,15 +145,33 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     state,
     imageUpload,
     imageModels,
+    otherImageModels,
     videoModels,
     runModels,
+    router,
   })
   // ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）：render 阶段改 ref 会被
   //   `react-hooks/refs` 拦下来。事件循环两次 SSE 之间隔着一次网络宏任务，
   //   effect 早就冲干净了。
   useEffect(() => {
-    latest.current = { state, imageUpload, imageModels, videoModels, runModels }
-  }, [state, imageUpload, imageModels, videoModels, runModels])
+    latest.current = {
+      state,
+      imageUpload,
+      imageModels,
+      otherImageModels,
+      videoModels,
+      runModels,
+      router,
+    }
+  }, [
+    state,
+    imageUpload,
+    imageModels,
+    otherImageModels,
+    videoModels,
+    runModels,
+    router,
+  ])
 
   const domain =
     state.outputType === 'video'
@@ -199,6 +237,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       selectedModel: latest.current.imageModels.selectedModel,
       runModels: latest.current.runModels,
       references,
+      otherModelOptions: latest.current.otherImageModels,
     })
   }, [domain])
 
@@ -206,6 +245,28 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     () => ({
       getState: () => latest.current.state,
       dispatch,
+      /**
+       * **换到另一台图片工作台**（卡上「带我过去」）—— 与选择器里「带你过去」那一行
+       * （`StudioDialectJumpHint`）同一条路：选中型号、带走提示词、换路由；再把要接着
+       * 说的那句递给那一台的助手（`requestOperatorDraft`），由用户按发送。
+       */
+      switchImageWorkbench: (handoff) => {
+        const dialect = handoff.workspace === 'image-tags' ? 'tags' : 'natural'
+        const option = latest.current.otherImageModels.find(
+          (item) =>
+            item.modelId === handoff.modelId &&
+            getPromptDialect(item.adapterType) === dialect,
+        )
+        if (!option) return false
+        if (handoff.request)
+          requestOperatorDraft(handoff.workspace, handoff.request)
+        dispatch({
+          type: 'TRANSFER_IMAGE_PROMPT',
+          payload: { dialect, optionId: option.optionId },
+        })
+        latest.current.router.push(PROMPT_DIALECT_ROUTES[dialect])
+        return true
+      },
       /**
        * 助手给的那个 id → 表单存的 optionId。
        *

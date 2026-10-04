@@ -7951,6 +7951,15 @@
         "accept": "交给图片助手",
         "dismiss": "先不要",
         "accepted": "已交给图片助手 · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "换到{bench} · {model}",
+        "tags": "标签台",
+        "natural": "自然语言台",
+        "hint": "会选中这个模型、带上已填的提示词，跳到{bench}；上面这句填进那边助手的输入框，你来按发送。",
+        "accept": "带我过去",
+        "dismiss": "先不要",
+        "accepted": "已换到{bench} · {time}"
       }
     },
     "system": {
@@ -7985,7 +7994,9 @@
       "imageHandoffAccepted": "已交给图片助手：{subject}",
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
       "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
-      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。"
+      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。",
+      "workbenchHandoffAccepted": "已换台：{subject}",
+      "workbenchHandoffDeclined": "先不换台：{subject}"
     },
     "attach": {
       "label": "上传图片 / 音频 / 视频",

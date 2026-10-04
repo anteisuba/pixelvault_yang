@@ -7951,6 +7951,15 @@
         "accept": "Hand to the image assistant",
         "dismiss": "Not now",
         "accepted": "Handed to the image assistant · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "Switch to the {bench} · {model}",
+        "tags": "tag workbench",
+        "natural": "natural-language workbench",
+        "hint": "Selects this model, carries your prompt over and opens the {bench}; the line above goes into the assistant's box there — you press send.",
+        "accept": "Take me there",
+        "dismiss": "Not now",
+        "accepted": "Switched to the {bench} · {time}"
       }
     },
     "system": {
@@ -7985,7 +7994,9 @@
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
       "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
-      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library."
+      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library.",
+      "workbenchHandoffAccepted": "Switched workbench: {subject}",
+      "workbenchHandoffDeclined": "Stayed on this workbench: {subject}"
     },
     "attach": {
       "label": "Upload image / audio / video",

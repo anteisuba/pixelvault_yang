@@ -539,6 +539,17 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   handOffToImageAssistant: 'hand_off_to_image_assistant',
   /**
+   * **换到另一台图片工作台**（自然语言台 ↔ 标签台，owner 2026-10-04「做成一张一键
+   * 过去的卡片」）。
+   *
+   * ⭐ 两台各只列自己方言的模型，`set_model` 换不到对面那台的型号。这条把「建议用
+   *   NAI」变成一张卡：用户点「带我过去」→ 选中那个型号、带走已填的提示词、换到那一台、
+   *   把要接着做的那句话填进那边助手的输入框，**由用户按发送**（与
+   *   `hand_off_to_image_assistant` 同一个做法）。
+   * ⚠ 没有 `inverse`：到这一帧为止什么都没动，撤无可撤。
+   */
+  switchWorkbench: 'switch_workbench',
+  /**
    * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
    *
    * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
@@ -701,6 +712,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
   ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+  ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
   ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
@@ -783,6 +795,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   /** ⚠ 提议几张角色图、交给图片助手同归这一档：挂图 / 跳转那一跳都是用户点下去的。 */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
   ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
+  /** ⚠ 换到另一台图片工作台同归这一档：跳转那一跳是用户点下去的。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
   /** ⚠ 对一下设定和外观（S14）：只看不写。 */
   ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   /**
@@ -1001,6 +1015,9 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
+    ASSISTANT_OPERATOR_VERB_IDS.ask,
+  /** ⚠ 换台也归**问**：停下来等用户点「带我过去」。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   /** ⚠ 搭配卡归**问**：一套搭配摆出来等创作者点「应用」，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: ASSISTANT_OPERATOR_VERB_IDS.ask,
@@ -1342,6 +1359,12 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    * ⚠ 点「交给图片助手」只是跳过去并把话填进输入框，⛔ 不替用户发、不花钱。
    */
   imageHandoff: 'imageHandoff',
+  /**
+   * 换到另一台图片工作台（自然语言台 ↔ 标签台）：一句「换到哪台、用哪个模型」+ 两颗键。
+   * ⚠ 点「带我过去」只是选中模型、带走提示词、跳过去并把话填进那边的输入框，
+   * ⛔ 不替用户发、不花钱。
+   */
+  workbenchHandoff: 'workbenchHandoff',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1352,6 +1375,7 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
 ] as const
 
 export type AssistantOperatorConfirmKind =
@@ -1795,6 +1819,11 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      * `triggerGeneration`，见 `use-lora-operator-host.ts`。画布走自己那张卡的键。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+    /**
+     * 换到另一台图片工作台（自然语言台 ↔ 标签台）。⚠ 第二道闸是快照里
+     * `otherWorkbenchModels` 在不在：音频 / 没有对面那台的宿主上整节缺席，按 `noSuchControl` 拒。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
     /**
      * ⭐ 看图闭环。借来的那条视觉线吃的是一张**静态图**（`imageData: result.url`）
      * —— 这条约束一个字都没松；视频档能进表，靠的是先把片子抽成三张静态图
@@ -2940,6 +2969,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'LOOK at the open character\'s images next to their written look and profile, and find contradictions. Use it ONLY when the creator asks you to check whether the profile matches the images — never on your own. It saves nothing. "characterId" must be the character that is open on the page (only the open one can be checked). It reports each place where the text says one thing and the images show another about who the character IS: hair colour or length, eye colour, skin, age, body type, species, marks such as scars or horns. Different outfits, poses, expressions and art styles are NOT contradictions — a character can own many outfits. For each contradiction, tell the creator in one line (「设定里说……，但图上是……」) and, when the fix belongs in the look line, identity or history, offer the corrected text with ask/propose_character_profile (source 「对照卡上的图」); if it is only in the tags, say which tag to change. If nothing contradicts, say so in one line.',
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     'HAND the job to the image assistant when neither the library nor the web has the image this character needs (for example no back view, no clean full body). This SENDS NOTHING and costs nothing on its own: the app shows the creator a line saying what is missing and a button; if they press it, the image workbench opens with this character selected and your request typed into the image assistant\'s box for THEM to send. It ends your turn. "characterId" must be an id from the page snapshot. "request" is the one message the image assistant should receive, in the creator\'s language, naming the character and exactly what to make (e.g. 「给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底，服装与主图一致」). Use it only after you searched and found nothing usable; say in your message what you looked for.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
+    'OFFER to move this job to the OTHER image workbench (natural-language ↔ Danbooru tags), when the creator wants — or would clearly be better served by — a model that only lives there (e.g. NovelAI / PixAI for anime tag prompts, GPT / Gemini / Seedream for prose and text in the picture). Use it instead of set_model whenever the model you want is listed under otherWorkbenchModels; set_model cannot reach it. This MOVES NOTHING on its own: the app shows a card naming the model and the other workbench; if the creator presses it, that model is selected there, the prompt already on the form is carried over, and your "request" is typed into the assistant box there for THEM to send. It ends your turn. "modelId" must be copied verbatim from otherWorkbenchModels. "request" (optional) is the one message the assistant over there should receive next, in the creator\'s language (e.g. 「把这段改写成 NAI 标签，保留雨夜和霓虹，出一张」). Say in your message why that model suits this job better.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\nNOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:

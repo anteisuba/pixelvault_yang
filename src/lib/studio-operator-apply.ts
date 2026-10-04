@@ -52,6 +52,7 @@ import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorStep,
+  AssistantOperatorWorkbenchHandoff,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -268,6 +269,12 @@ export interface StudioOperatorApplyContext {
      */
     handOffToImageAssistant(characterId: string, request: string): void
   }
+  /**
+   * **换到另一台图片工作台**（自然语言台 ↔ 标签台）：选中那个型号、带走已填的提示词、
+   * 跳过去，把话填进那边助手的输入框。⛔ 不替用户发。
+   * ⚠ 可选：只有图片工作台有对面那一台。
+   */
+  switchImageWorkbench?(handoff: AssistantOperatorWorkbenchHandoff): boolean
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
    *
@@ -553,6 +560,8 @@ export function applyOperatorStep(
     /** ⚠ 提议几张角色图、交给图片助手（C3）同理：那一跳在确认卡上由用户点下去。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
+    /** ⚠ 换到另一台图片工作台同理：跳转那一跳在卡上由用户点下去。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
     /** ⚠ 搭配卡（§12）同理：应用那几行各自是一条带 `inverse` 的 step。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
     /**
@@ -897,6 +906,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
     case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
+    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
     /** ⚠ 画布的下游名单也是读：一个节点都没动，也就没有东西可撤。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:

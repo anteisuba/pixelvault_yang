@@ -14,6 +14,7 @@
 
 import { memo, useState } from 'react'
 import {
+  ArrowLeftRight,
   Ban,
   Blocks,
   BookmarkPlus,
@@ -174,6 +175,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   /** 提议几张角色图（C3）—— 挂图；交给图片助手 —— 把话递过去。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]: ImagePlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]: Send,
+  /** 换到另一台图片工作台 —— 两台之间那一下。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]: ArrowLeftRight,
   /**
    * 标审核态（切片 Y）—— ✓/✕ 的那一枚。
    * ⚠ 用 `CheckCheck` 而不是 `Check`：单钩在日志流里与「这一步完成了」那个状态

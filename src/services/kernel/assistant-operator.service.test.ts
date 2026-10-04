@@ -1207,6 +1207,92 @@ describe('工具环 · 逐事件顺序', () => {
     expect(stepsOf(events)).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSteps - 1)
   })
 
+  describe('两台图片工作台互跳（switch_workbench）', () => {
+    const TAG_MODEL = { id: 'novelai-v5-full', label: 'NovelAI V5 Full' }
+    const withOtherBench = () =>
+      buildRequest({
+        snapshot: { ...SNAPSHOT, otherWorkbenchModels: [TAG_MODEL] },
+      })
+    const handoffOf = (events: AssistantOperatorEvent[]) =>
+      events.find(
+        (event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.confirm &&
+          event.confirm.kind === 'workbenchHandoff',
+      )
+
+    it('把对面那台的模型摆成一张卡并停下，什么都没动', async () => {
+      queueTurns({
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
+          title: '换到标签台',
+          args: { modelId: TAG_MODEL.id, request: '改写成标签再出一张' },
+        },
+      })
+      const events = await collect(
+        runAssistantOperator('clerk-1', withOtherBench()),
+      )
+      expect(handoffOf(events)).toMatchObject({
+        confirm: {
+          kind: 'workbenchHandoff',
+          handoff: {
+            modelId: TAG_MODEL.id,
+            label: TAG_MODEL.label,
+            workspace: 'image-tags',
+            request: '改写成标签再出一张',
+          },
+        },
+      })
+      expect(events.at(-1)).toMatchObject({
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+      })
+      expect(lastUserPrompt()).toContain('Models on the OTHER image workbench')
+    })
+
+    it('set_model 指到对面那台的型号时直接摆卡，⛔ 不先拒一轮', async () => {
+      queueTurns({
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: '换 NAI',
+          args: { modelId: TAG_MODEL.id },
+        },
+      })
+      const events = await collect(
+        runAssistantOperator('clerk-1', withOtherBench()),
+      )
+      expect(stepsOf(events).some((step) => step.status === 'error')).toBe(
+        false,
+      )
+      expect(handoffOf(events)).toMatchObject({
+        confirm: {
+          handoff: { modelId: TAG_MODEL.id, workspace: 'image-tags' },
+        },
+      })
+    })
+
+    it('认不出的型号不画红字，告诉模型名单让它改口', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
+            title: '换台',
+            args: { modelId: 'made-up' },
+          },
+        },
+        { finished: true, message: '换个名字再试。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', withOtherBench()),
+      )
+      expect(stepsOf(events).some((step) => step.status === 'error')).toBe(
+        false,
+      )
+      expect(handoffOf(events)).toBeUndefined()
+      expect(lastUserPrompt()).toContain('did NOT offer anything')
+      expect(lastUserPrompt()).toContain(TAG_MODEL.id)
+    })
+  })
+
   it('最后一步写了收尾那句就用它，⛔ 不跑它顺手调的那一步', async () => {
     queueTurns({
       tool: {

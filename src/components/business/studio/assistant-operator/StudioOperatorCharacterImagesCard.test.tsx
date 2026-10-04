@@ -10,8 +10,10 @@ import {
 } from './StudioOperatorCharacterImagesCard'
 import {
   StudioOperatorImageHandoffCard,
+  StudioOperatorWorkbenchHandoffCard,
   type StudioOperatorImageHandoffCardProps,
-} from './StudioOperatorImageHandoffCard'
+  type StudioOperatorWorkbenchHandoffCardProps,
+} from './StudioOperatorHandoffCard'
 
 const PROMPT: StudioOperatorCharacterImagesCardProps['prompt'] = {
   id: 'confirm-1',
@@ -131,5 +133,60 @@ describe('StudioOperatorImageHandoffCard（交给图片助手）', () => {
     expect(onAccept).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: '先不要' }))
     expect(onDismiss).toHaveBeenCalled()
+  })
+})
+
+const WORKBENCH: StudioOperatorWorkbenchHandoffCardProps['prompt'] = {
+  id: 'confirm-3',
+  kind: 'workbenchHandoff',
+  status: 'idle',
+  handoff: {
+    modelId: 'novelai-v5-full',
+    label: 'NovelAI V5 Full',
+    workspace: 'image-tags',
+    request: '改写成标签再出一张',
+  },
+}
+
+describe('StudioOperatorWorkbenchHandoffCard（换到另一台图片工作台）', () => {
+  it('写出换到哪台、用哪个模型与会发生什么；两颗键各交给驱动 hook', () => {
+    const onAccept = vi.fn()
+    const onDismiss = vi.fn()
+    render(
+      <NextIntlClientProvider locale="zh" messages={zhMessages}>
+        <StudioOperatorWorkbenchHandoffCard
+          prompt={WORKBENCH}
+          onAccept={onAccept}
+          onDismiss={onDismiss}
+          formatTime={() => '11:24'}
+        />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByText('换到标签台 · NovelAI V5 Full')).toBeTruthy()
+    expect(screen.getByText(WORKBENCH.handoff.request!)).toBeTruthy()
+    expect(screen.getByText(/你来按发送/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '带我过去' }))
+    expect(onAccept).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '先不要' }))
+    expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it('已决之后收成一行「已换到标签台 · 时间」', () => {
+    render(
+      <NextIntlClientProvider locale="zh" messages={zhMessages}>
+        <StudioOperatorWorkbenchHandoffCard
+          prompt={{
+            ...WORKBENCH,
+            status: 'confirmed',
+            decidedAt: '2026-10-04T09:00:00.000Z',
+          }}
+          onAccept={vi.fn()}
+          onDismiss={vi.fn()}
+          formatTime={() => '11:24'}
+        />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByText('已换到标签台 · 11:24')).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

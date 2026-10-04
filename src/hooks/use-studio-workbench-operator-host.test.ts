@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * 宿主契约的 `results`（切片 3a）—— **结果行卡的唯一数据源**。
@@ -38,6 +38,9 @@ const modelOptions = vi.hoisted(() => [
     },
   },
 ])
+const imageModelOptions = vi.hoisted(() => ({
+  current: null as typeof modelOptions | null,
+}))
 const setReferenceImage = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
 const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
@@ -110,7 +113,10 @@ vi.mock('@/contexts/studio-context', () => ({
 }))
 
 vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: () => ({ modelOptions, selectedModel: null }),
+  useImageModelOptions: () => ({
+    modelOptions: imageModelOptions.current ?? modelOptions,
+    selectedModel: null,
+  }),
 }))
 vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: () => ({ modelOptions, selectedModel: null }),
@@ -175,10 +181,12 @@ import {
   claimOperatorThreadScope,
   getOperatorState,
   resetOperatorThread,
+  takeOperatorDraft,
 } from '@/hooks/use-studio-operator-store'
 
 beforeEach(() => {
   formState.overrides = {}
+  imageModelOptions.current = null
   resetOperatorThread()
 })
 
@@ -189,6 +197,77 @@ function runItem(
 ) {
   return { id, status, generation, modelId: 'gpt-image-2' }
 }
+
+describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
+  const handoff = {
+    modelId: 'nai-diffusion-5-full',
+    label: 'NovelAI V5 Full',
+    workspace: 'image-tags' as const,
+    request: '改写成标签再出一张',
+  }
+  const tagOption = {
+    optionId: 'saved:nai',
+    modelId: handoff.modelId,
+    adapterType: 'novelai',
+    keyId: 'key-nai',
+    providerConfig: { label: 'NovelAI', baseUrl: 'https://api.novelai.net' },
+  }
+
+  beforeEach(() => {
+    useStudioGenOptional.mockReturnValue(undefined)
+    dispatch.mockClear()
+    routerPush.mockClear()
+    modelOptions.push(tagOption)
+    claimOperatorThreadScope('user-a:image-natural', 'image')
+  })
+
+  afterEach(() => {
+    const index = modelOptions.indexOf(tagOption)
+    if (index >= 0) modelOptions.splice(index, 1)
+  })
+
+  it('转交当前提示词与所选模型，跳转并只预填目标台助手', () => {
+    formState.overrides = { prompt: '雨夜里的角色' }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(result.current.apply.switchImageWorkbench?.(handoff)).toBe(true)
+    expect(result.current.apply.getState().prompt).toBe('雨夜里的角色')
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: 'TRANSFER_IMAGE_PROMPT',
+      payload: { dialect: 'tags', optionId: tagOption.optionId },
+    })
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith('/studio/image/tags')
+    expect(takeOperatorDraft('user-a:image-natural')).toBeNull()
+    expect(takeOperatorDraft('user-a:image-tags')).toBe(handoff.request)
+    expect(takeOperatorDraft('user-a:image-tags')).toBeNull()
+  })
+
+  it('确认前模型被移除时返回失败，不转移提示词、跳转或预填', () => {
+    const { result, rerender } = renderHook(() =>
+      useStudioWorkbenchOperatorHost(),
+    )
+    imageModelOptions.current = modelOptions.filter(
+      (option) => option !== tagOption,
+    )
+    rerender()
+    expect(result.current.apply.switchImageWorkbench?.(handoff)).toBe(false)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(takeOperatorDraft('user-a:image-tags')).toBeNull()
+  })
+
+  it('目标工作台与当前模型方言不匹配时不转交', () => {
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(
+      result.current.apply.switchImageWorkbench?.({
+        ...handoff,
+        workspace: 'image-natural',
+      }),
+    ).toBe(false)
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(takeOperatorDraft('user-a:image-natural')).toBeNull()
+  })
+})
 
 describe('useStudioWorkbenchOperatorHost 的网络撤销回执', () => {
   beforeEach(() => {

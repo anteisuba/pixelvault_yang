@@ -207,6 +207,11 @@ export interface ImageOperatorSnapshotInput {
   /** 这一轮要跑的模型（`useStudioRunModels`）—— 专属 chip 行按它们的并集派生。 */
   runModels: readonly StudioModelOption[]
   references: StudioOperatorSnapshotReferences
+  /**
+   * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 助手换不到它们，只能摆
+   * 「换到那一台」的卡（`switch_workbench`）。缺席 = 没有对面那一台。
+   */
+  otherModelOptions?: readonly StudioModelOption[]
 }
 
 /**
@@ -278,7 +283,14 @@ export function buildImageOperatorSnapshot({
   selectedModel,
   runModels,
   references,
+  otherModelOptions,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
+  const otherWorkbenchModels = imageRunnableOptions(
+    otherModelOptions ?? [],
+  ).map((option) => ({
+    id: option.modelId,
+    label: clampLabel(option.displayLabel ?? option.modelId),
+  }))
   const availableModels = imageRunnableOptions(modelOptions).map((option) => {
     const channels = channelsOf(option.modelId, modelOptions)
     return {
@@ -335,6 +347,7 @@ export function buildImageOperatorSnapshot({
       : null,
     ...(extraModels.length > 0 ? { extraModels } : {}),
     availableModels,
+    ...(otherWorkbenchModels.length > 0 ? { otherWorkbenchModels } : {}),
     specs: {
       aspectRatio: form.aspectRatio,
       resolution: form.imageResolution,

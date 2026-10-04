@@ -317,6 +317,9 @@ export function describeOperatorStepDetail(
     /** 交给图片助手（C3）—— 详情写**要对图片助手说的那句话**。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
       return step.payload.request
+    /** 换到另一台图片工作台 —— 详情写**换哪个模型**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
+      return step.payload.modelId
     /** 摆一张搭配卡（§12）—— 卡头那一句就是它摆了什么。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
       return step.payload.question
@@ -462,6 +465,25 @@ export function describeImageHandoffProposalText(
   request: string,
 ): string {
   return `提议交给图片助手给「${name.trim()}」出图：${request.trim()}`
+}
+
+/** 换到另一台图片工作台那一下的**题面**与**正文**。 */
+export function describeWorkbenchHandoffProposalText(
+  label: string,
+  workspace: 'image-natural' | 'image-tags',
+): string {
+  return `提议换到${workspace === 'image-tags' ? '标签台' : '自然语言台'}用「${label.trim()}」`
+}
+
+export function describeWorkbenchHandoffDecisionText(
+  label: string,
+  workspace: 'image-natural' | 'image-tags',
+  accepted: boolean,
+): string {
+  const bench = workspace === 'image-tags' ? '标签台' : '自然语言台'
+  return accepted
+    ? `已换到${bench}用「${label.trim()}」`
+    : `先不换到${bench}（${label.trim()}）`
 }
 
 export function describeImageHandoffDecisionText(

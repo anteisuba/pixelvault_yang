@@ -89,6 +89,8 @@ vi.mock('next-intl', () => {
  * 表单侧一个都不需要真的动，所以整份桩成空手。
  */
 const triggerGeneration = vi.hoisted(() => vi.fn())
+const switchImageWorkbench = vi.hoisted(() => vi.fn(() => true))
+const workbenchHandoffEnabled = vi.hoisted(() => ({ current: false }))
 const dispatch = vi.hoisted(() => vi.fn())
 const mountLora = vi.hoisted(() => vi.fn())
 const unmountLora = vi.hoisted(() => vi.fn())
@@ -135,6 +137,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ? { generationControls: generationControls.current }
       : {}),
     apply: {
+      ...(workbenchHandoffEnabled.current ? { switchImageWorkbench } : {}),
       canvas: {
         applyOp: canvasApply,
         getApplyError: () =>
@@ -266,6 +269,8 @@ beforeEach(async () => {
   vi.clearAllMocks()
   localStorage.clear()
   generationControls.current = null
+  workbenchHandoffEnabled.current = false
+  switchImageWorkbench.mockReset().mockReturnValue(true)
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
@@ -301,6 +306,109 @@ function render() {
   store.claimOperatorThreadScope(scope, hostDomain.current)
   return renderHook(() => operator.useAssistantOperator(scope))
 }
+
+describe('图片工作台转交按钮', () => {
+  const handoff = {
+    modelId: 'nai-diffusion-5-full',
+    label: 'NovelAI V5 Full',
+    workspace: 'image-tags' as const,
+    request: '改写成标签再出一张',
+  }
+
+  async function proposeHandoff() {
+    const hook = render()
+    act(() => hook.result.current.send('换到标签台继续'))
+    await settle()
+    streams[0].emit({
+      type: 'confirm',
+      confirm: { kind: 'workbenchHandoff', handoff },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
+    streams[0].close()
+    await settle()
+    return hook
+  }
+
+  it('目标模型已不可用时保留待确认卡，不记已换台', async () => {
+    workbenchHandoffEnabled.current = true
+    const { result } = await proposeHandoff()
+    switchImageWorkbench.mockReturnValue(false)
+    act(() => result.current.acceptWorkbenchHandoff())
+    expect(switchImageWorkbench).toHaveBeenCalledWith(handoff)
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' &&
+            entry.code === 'workbenchHandoffAccepted',
+        ),
+    ).toBe(false)
+  })
+
+  it('宿主没有转交能力时保留待确认卡', async () => {
+    const { result } = await proposeHandoff()
+    act(() => result.current.acceptWorkbenchHandoff())
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+    expect(switchImageWorkbench).not.toHaveBeenCalled()
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' &&
+            entry.code === 'workbenchHandoffAccepted',
+        ),
+    ).toBe(false)
+  })
+
+  it('接受只转交一次并记录决定，不替用户发送或生成', async () => {
+    workbenchHandoffEnabled.current = true
+    const { result } = await proposeHandoff()
+    act(() => {
+      result.current.acceptWorkbenchHandoff()
+      result.current.acceptWorkbenchHandoff()
+      result.current.dismissWorkbenchHandoff()
+    })
+    expect(switchImageWorkbench).toHaveBeenCalledExactlyOnceWith(handoff)
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) =>
+            entry.kind === 'system' &&
+            entry.code === 'workbenchHandoffAccepted',
+        ),
+    ).toHaveLength(1)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(triggerGeneration).not.toHaveBeenCalled()
+  })
+
+  it('拒绝不切台，连续点击只记录一次拒绝', async () => {
+    workbenchHandoffEnabled.current = true
+    const { result } = await proposeHandoff()
+    act(() => {
+      result.current.dismissWorkbenchHandoff()
+      result.current.dismissWorkbenchHandoff()
+      result.current.acceptWorkbenchHandoff()
+    })
+    expect(switchImageWorkbench).not.toHaveBeenCalled()
+    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) =>
+            entry.kind === 'system' &&
+            entry.code === 'workbenchHandoffDeclined',
+        ),
+    ).toHaveLength(1)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(triggerGeneration).not.toHaveBeenCalled()
+  })
+})
 
 describe('useAssistantOperator 的四条收尾路径', () => {
   it.each(['image-tags', 'canvas:project-2'])(

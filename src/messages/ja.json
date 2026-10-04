@@ -7951,6 +7951,15 @@
         "accept": "画像アシスタントに渡す",
         "dismiss": "今はいい",
         "accepted": "画像アシスタントに渡しました · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "{bench}へ切り替え · {model}",
+        "tags": "タグ台",
+        "natural": "自然言語台",
+        "hint": "このモデルを選び、入力済みのプロンプトを持って{bench}へ移動します。上の一文は向こうのアシスタント入力欄に入れます。送信はあなたが押します。",
+        "accept": "移動する",
+        "dismiss": "今はいい",
+        "accepted": "{bench}へ切り替えました · {time}"
       }
     },
     "system": {
@@ -7985,7 +7994,9 @@
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
       "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
-      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。"
+      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。",
+      "workbenchHandoffAccepted": "切り替えました：{subject}",
+      "workbenchHandoffDeclined": "切り替えませんでした：{subject}"
     },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",

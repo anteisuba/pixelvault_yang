@@ -39,6 +39,7 @@ import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { studioRunForWorkspace } from '@/lib/studio-operator-result-run'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
@@ -110,13 +111,17 @@ export const GenerationPreview = memo(function GenerationPreview({
   fillStage = false,
 }: GenerationPreviewProps) {
   const {
-    error: runError,
-    isGenerating,
+    error: rawRunError,
+    isGenerating: rawIsGenerating,
     elapsedSeconds,
-    activeRun,
+    activeRun: rawActiveRun,
     cancelRunItem,
   } = useStudioGen()
   const { state, dispatch } = useStudioForm()
+  const activeRun = studioRunForWorkspace(rawActiveRun, state)
+  const isCurrentRun = !rawActiveRun || activeRun !== null
+  const isGenerating = rawIsGenerating && isCurrentRun
+  const runError = isCurrentRun ? rawRunError : null
   // A video's failure is said on its queue line (reason + retry this one,
   // video workbench A ③), so the stage lays no second one over the last video.
   const error = state.outputType === 'video' ? null : runError

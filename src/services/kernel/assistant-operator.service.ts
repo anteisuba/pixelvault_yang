@@ -461,6 +461,7 @@ import {
   type AssistantOperatorCharacterImagesDraft,
   type AssistantOperatorCharacterImagesProposal,
   type AssistantOperatorImageHandoff,
+  type AssistantOperatorWorkbenchHandoff,
   type AssistantOperatorWebImage,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorSnapshot,
@@ -1072,6 +1073,10 @@ type ToolPlan =
       kind: 'confirmImageHandoff'
       handoff: AssistantOperatorImageHandoff
     }
+  | {
+      kind: 'confirmWorkbenchHandoff'
+      handoff: AssistantOperatorWorkbenchHandoff
+    }
   /**
    * **把助手自己搭好的一套摆给创作者**（lora-assistant §12）—— 同上：吐一帧确认、
    * 停流，⛔ 服务端一把都没挂、一格都没改。应用那几行由客户端在创作者点下去时做，
@@ -1459,6 +1464,22 @@ function renderState(
           .join(' | ')}`
       : '- Models you can switch to: none listed — do not call set_model.',
   )
+  const otherModels = request.snapshot.otherWorkbenchModels ?? []
+  if (otherModels.length > 0) {
+    const otherBench =
+      assistantWorkspaceFromKey(request.workspaceKey)?.workspace ===
+      'image-tags'
+        ? 'natural-language workbench (prose prompts)'
+        : 'Danbooru-tag workbench (tag prompts)'
+    lines.push(
+      `- Models on the OTHER image workbench, the ${otherBench} — set_model cannot reach these; offer one with switch_workbench (copy the id verbatim): ${otherModels
+        .slice(0, LIMITS.maxAvailableModels)
+        .map((model) =>
+          model.label === model.id ? model.id : `${model.id} — ${model.label}`,
+        )
+        .join(' | ')}`,
+    )
+  }
 
   /**
    * 渠道（进度表 10 + 21）—— **只印多渠道的那几个型号**。
@@ -3562,6 +3583,18 @@ function planSetModel(
   const match = run.state.availableModels.find(
     (model) => model.id === args.modelId,
   )
+  /**
+   * ⭐ 想换的是**另一台图片工作台**上的型号：⛔ 不拒，直接摆「换到那一台」的卡
+   * （owner 2026-10-04）。拒一次的表现是一条红字 + 模型再绕一轮去调 `switch_workbench`。
+   */
+  if (
+    !match &&
+    run.request.snapshot.otherWorkbenchModels?.some(
+      (model) => model.id === args.modelId,
+    )
+  ) {
+    return planSwitchWorkbench(run, { modelId: args.modelId })
+  }
   if (!match) {
     return reject(
       REJECT.unknownModel,
@@ -3580,7 +3613,7 @@ function planSetModel(
   ) {
     return reject(
       REJECT.unknownModel,
-      'This model belongs to another workbench. Ask the creator to switch workbenches explicitly.',
+      'This model belongs to the other image workbench. Offer it with switch_workbench instead of set_model.',
     )
   }
 
@@ -7730,6 +7763,47 @@ function planHandOffToImageAssistant(
 }
 
 /**
+ * **换到另一台图片工作台**（自然语言台 ↔ 标签台）：吐一帧 `confirm(workbenchHandoff)`。
+ *
+ * ⚠ 点下去只是选中那个型号、带走提示词、跳过去、把话填进那边的输入框，由用户按发送 ——
+ *   这里没有任何后果。
+ * ⚠ 型号认不出来时 ⛔ 不画红字（`notOffered`）：模型读到名单就能改口，用户不必看一条失败。
+ */
+function planSwitchWorkbench(
+  run: OperatorRun,
+  args: { modelId: string; request?: string },
+): ToolPlan {
+  const current = assistantWorkspaceFromKey(run.request.workspaceKey)?.workspace
+  const others = run.request.snapshot.otherWorkbenchModels
+  if (
+    (current !== 'image-natural' && current !== 'image-tags') ||
+    !others?.length
+  ) {
+    return reject(REJECT.noSuchControl)
+  }
+  const model = others.find((item) => item.id === args.modelId)
+  if (!model) {
+    return notOffered(
+      args,
+      TOOL.switchWorkbench,
+      `"${clamp(args.modelId, LIMITS.maxLabelChars)}" is not on the other workbench. Copy an id from otherWorkbenchModels: ${others
+        .map((item) => item.id)
+        .join(' | ')}.`,
+    )
+  }
+  const request = args.request?.trim()
+  return {
+    kind: 'confirmWorkbenchHandoff',
+    handoff: {
+      modelId: model.id,
+      label: model.label,
+      workspace: current === 'image-tags' ? 'image-natural' : 'image-tags',
+      ...(request ? { request } : {}),
+    },
+  }
+}
+
+/**
  * 读一张卡的全文。
  *
  * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
@@ -8180,6 +8254,11 @@ async function planTool(
       return planHandOffToImageAssistant(
         run,
         parsed.data as AssistantOperatorImageHandoff,
+      )
+    case TOOL.switchWorkbench:
+      return planSwitchWorkbench(
+        run,
+        parsed.data as { modelId: string; request?: string },
       )
     case TOOL.checkCharacterLook:
       return planCheckCharacterLook(
@@ -11583,6 +11662,34 @@ export async function* runAssistantOperator(
             plan.kind === 'confirmCharacterImages'
               ? `等你挑要把哪几张挂到「${character}」上`
               : `等你决定要不要交给图片助手给「${character}」出图`,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'confirmWorkbenchHandoff') {
+        /**
+         * **换到另一台图片工作台** —— 同上：吐一帧、停流；⚠ 到这一帧为止什么都没动，
+         * 跳转那一跳由用户在卡上点下去。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
+            handoff: plan.handoff,
+          },
+        }
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          todo: `等你决定要不要换到${
+            plan.handoff.workspace === 'image-tags' ? '标签台' : '自然语言台'
+          }用「${plan.handoff.label}」`,
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

@@ -23,7 +23,10 @@ import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
-import { StudioOperatorImageHandoffCard } from './StudioOperatorImageHandoffCard'
+import {
+  StudioOperatorImageHandoffCard,
+  StudioOperatorWorkbenchHandoffCard,
+} from './StudioOperatorHandoffCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import {
@@ -474,6 +477,8 @@ export function StudioOperatorPanel({
     dismissCharacterImages,
     acceptImageHandoff,
     dismissImageHandoff,
+    acceptWorkbenchHandoff,
+    dismissWorkbenchHandoff,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1362,6 +1367,15 @@ export function StudioOperatorPanel({
             assistantName={assistantName}
             onAccept={acceptImageHandoff}
             onDismiss={dismissImageHandoff}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind ===
+          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff ? (
+          /* ── 换到另一台图片工作台（自然语言台 ↔ 标签台）── */
+          <StudioOperatorWorkbenchHandoffCard
+            prompt={confirm}
+            onAccept={acceptWorkbenchHandoff}
+            onDismiss={dismissWorkbenchHandoff}
             formatTime={formatDecidedAt}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (

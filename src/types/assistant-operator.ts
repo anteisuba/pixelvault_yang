@@ -868,6 +868,14 @@ export const AssistantOperatorSnapshotSchema = z.object({
     .array(AssistantOperatorSnapshotModelSchema.extend({ label: LabelSchema }))
     .max(LIMITS.maxAvailableModels)
     .default([]),
+  /**
+   * **另一台图片工作台**上能跑的模型（自然语言台 ↔ 标签台）—— `set_model` 换不到它们，
+   * 要换就走 `switch_workbench`。缺席 = 这个宿主没有对面那一台（视频 / LoRA / 画布 …）。
+   */
+  otherWorkbenchModels: z
+    .array(z.object({ id: IdSchema, label: LabelSchema }))
+    .max(LIMITS.maxAvailableModels)
+    .optional(),
   specs: AssistantOperatorSnapshotSpecsSchema.optional(),
   /** ⚠ 视频档的规格。与 `specs` **互斥** —— 两个都在就是构造快照的人写错了。 */
   videoSpecs: AssistantOperatorSnapshotVideoSpecsSchema.optional(),
@@ -1991,6 +1999,35 @@ export type AssistantOperatorImageHandoff = z.infer<
   typeof AssistantOperatorImageHandoffSchema
 >
 
+/** `switch_workbench` 的入参：对面那台的模型 + 要接着对那边助手说的一句（可选）。 */
+export const AssistantOperatorSwitchWorkbenchArgsSchema = z.object({
+  modelId: IdSchema,
+  request: z
+    .string()
+    .trim()
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
+    .optional(),
+})
+
+/**
+ * **换到另一台图片工作台**的那张卡（`confirm(workbenchHandoff)` 的载荷）。
+ * ⚠ `workspace` 由服务端按当前那台推出来（⛔ 不收模型写的）：只有两台，对面就是另一台。
+ */
+export const AssistantOperatorWorkbenchHandoffSchema = z.object({
+  modelId: IdSchema,
+  label: LabelSchema,
+  workspace: z.enum(['image-natural', 'image-tags']),
+  request: z
+    .string()
+    .trim()
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
+    .optional(),
+})
+
+export type AssistantOperatorWorkbenchHandoff = z.infer<
+  typeof AssistantOperatorWorkbenchHandoffSchema
+>
+
 /**
  * **`add_project_rule` 的形状容错**（2026-09-12 实测第 9 步）。
  *
@@ -2523,6 +2560,8 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     AssistantOperatorCharacterImagesDraftSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
     AssistantOperatorImageHandoffSchema,
+  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
+    AssistantOperatorSwitchWorkbenchArgsSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: z.object({
     characterId: IdSchema,
   }),
@@ -3773,6 +3812,12 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     AssistantOperatorImageHandoffSchema,
     z.object({ offered: z.boolean() }),
   ),
+  /** 换到另一台图片工作台 —— 同上：一帧 confirm 加停流。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
+    AssistantOperatorSwitchWorkbenchArgsSchema,
+    z.object({ offered: z.boolean() }),
+  ),
   /** 对一下设定和外观（卡片助手 S14）—— 读类：看了几张、对不上几处。 */
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
@@ -4218,6 +4263,11 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff),
       handoff: AssistantOperatorImageHandoffSchema,
+    }),
+    /** **换到另一台图片工作台** —— 换到哪台、用哪个模型 + 「带我过去 / 先不要」。 */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff),
+      handoff: AssistantOperatorWorkbenchHandoffSchema,
     }),
   ]),
 })

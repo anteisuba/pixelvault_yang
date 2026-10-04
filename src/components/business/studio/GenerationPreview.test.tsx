@@ -83,6 +83,7 @@ vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
 }))
 
 let mockOutputType: 'image' | 'video' = 'image'
+let mockDialect = 'natural'
 let mockGen: {
   error: string | null
   isGenerating: boolean
@@ -104,6 +105,7 @@ vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {
       outputType: mockOutputType,
+      promptDialect: mockDialect,
       aspectRatio: '1:1',
       advancedParams: {},
     },
@@ -128,6 +130,7 @@ function makeGeneration(
 beforeEach(() => {
   mockIsMobile = false
   mockOutputType = 'image'
+  mockDialect = 'natural'
   mockGen = idleGen()
   askAssistantMock.mockClear()
 })
@@ -195,6 +198,34 @@ describe('GenerationPreview — video sizing', () => {
  * +「重试」—— ⛔ 错误对话框、⛔ 红框。
  */
 describe('GenerationPreview — 加载态 A', () => {
+  it('隐藏其他台的进度和错误，回到来源台才显示', () => {
+    mockGen = {
+      ...idleGen(),
+      isGenerating: true,
+      activeRun: {
+        outputType: 'IMAGE',
+        mode: 'single',
+        items: [
+          {
+            id: 'item-1',
+            modelId: 'nai-diffusion-5-full',
+            status: 'generating',
+          },
+        ],
+      },
+    }
+    const view = render(<GenerationPreview generation={null} />)
+    expect(screen.queryByTestId('generating-progress')).toBeNull()
+    mockDialect = 'tags'
+    view.rerender(<GenerationPreview generation={null} fillStage />)
+    expect(screen.getByTestId('generating-progress')).toBeInTheDocument()
+    view.unmount()
+    mockDialect = 'natural'
+    mockGen = { ...mockGen, isGenerating: false, error: 'tag failure' }
+    render(<GenerationPreview generation={null} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('生成中：图框只有进度那一条边（⛔ 虚线外框、⛔ shimmer）', () => {
     mockGen = { ...idleGen(), isGenerating: true, elapsedSeconds: 8 }
     const { container } = render(<GenerationPreview generation={null} />)

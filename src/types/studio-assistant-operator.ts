@@ -30,6 +30,7 @@ import type {
   AssistantOperatorCharacterProfileDraft,
   AssistantOperatorCharacterImagesProposal,
   AssistantOperatorImageHandoff,
+  AssistantOperatorWorkbenchHandoff,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
@@ -515,6 +516,11 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
       handoff: AssistantOperatorImageHandoff
+    }
+  /** 换到另一台图片工作台 —— 「带我过去 / 先不要」。 */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
+      handoff: AssistantOperatorWorkbenchHandoff
     }
 )
 

@@ -346,6 +346,10 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'imageHandoffAccepted',
   /** **先不交给图片助手**（C3）。 */
   'imageHandoffDeclined',
+  /** **换到了另一台图片工作台**——选中了那个型号，提示词带过去了，话已填好。 */
+  'workbenchHandoffAccepted',
+  /** **先不换台**——也是一次表态：不落账的下场是模型下一轮重提同一张卡。 */
+  'workbenchHandoffDeclined',
   /**
    * **应用了助手搭的那一套**（lora-assistant §12）——「已应用搭配：{卡头那一句}」。
    * ⭐ 判据与 `contextCardSaved` 同源：这一行同时是一条自带题面的 user 消息（`userText`

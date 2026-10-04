@@ -1229,7 +1229,7 @@ describe('chatPromptAssistant', () => {
     })
 
     it('只有 legacy 参考图 + 不支持图的路由 —— 走 ASSISTANT_IMAGE_UNSUPPORTED 而不是让 provider 裸抛', async () => {
-      // 洞 2。DeepSeek V4 Pro 默认档是纯文本路由；legacy 参考图照样会被 unshift 进 imageData，
+      // 洞 2。显式 DeepSeek V4 Pro 是纯文本路由；legacy 参考图照样会被 unshift 进 imageData，
       // 不进 hasImage 统计就等于绕过这道闸，用户拿到的是一句英文裸错。
       mockResolveLlmRoute.mockResolvedValue({
         ...FAKE_ROUTE,
@@ -1247,6 +1247,12 @@ describe('chatPromptAssistant', () => {
           undefined,
           'english',
           'lora',
+          undefined,
+          undefined,
+          undefined,
+          [],
+          'image',
+          { llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO },
         ),
       ).rejects.toMatchObject({ errorCode: 'ASSISTANT_IMAGE_UNSUPPORTED' })
 
@@ -1254,39 +1260,42 @@ describe('chatPromptAssistant', () => {
       expect(mockRunResearch).not.toHaveBeenCalled()
     })
 
-    it('DeepSeek 视觉档通过图片能力闸并保留用户选择的 modelId', async () => {
-      mockResolveLlmRoute.mockResolvedValue({
-        ...FAKE_ROUTE,
-        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-        providerConfig: {
-          label: 'DeepSeek',
-          baseUrl: 'https://api.deepseek.com',
-        },
-      })
-      mockLlmCompletion.mockResolvedValue('看到了。')
-
-      await runGeneralTurn('clerk_1', {
-        messages: [{ role: 'user', content: '看看这张图' }],
-        llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-        references: [
-          {
-            id: 'deepseek-vision-ref',
-            source: 'upload',
-            kind: 'image',
-            url: 'https://cdn.example.com/deepseek-vision.png',
-            label: 'deepseek-vision.png',
-          },
-        ],
-      })
-
-      expect(mockLlmCompletion).toHaveBeenCalledWith(
-        expect.objectContaining({
+    it.each([undefined, LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH])(
+      'DeepSeek 默认与显式 Flash 档通过图片能力闸（%s）',
+      async (modelId) => {
+        mockResolveLlmRoute.mockResolvedValue({
+          ...FAKE_ROUTE,
           adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-          imageData: ['https://cdn.example.com/deepseek-vision.png'],
-        }),
-      )
-    })
+          providerConfig: {
+            label: 'DeepSeek',
+            baseUrl: 'https://api.deepseek.com',
+          },
+        })
+        mockLlmCompletion.mockResolvedValue('看到了。')
+
+        await runGeneralTurn('clerk_1', {
+          messages: [{ role: 'user', content: '看看这张图' }],
+          llmModelId: modelId,
+          references: [
+            {
+              id: 'deepseek-vision-ref',
+              source: 'upload',
+              kind: 'image',
+              url: 'https://cdn.example.com/deepseek-vision.png',
+              label: 'deepseek-vision.png',
+            },
+          ],
+        })
+
+        expect(mockLlmCompletion).toHaveBeenCalledWith(
+          expect.objectContaining({
+            adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+            modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+            imageData: ['https://cdn.example.com/deepseek-vision.png'],
+          }),
+        )
+      },
+    )
 
     it('超量不抛错：只送上限内那些，丢了几个写进附件清单并回给调用方', async () => {
       // 洞 3。截断是合理保护 —— 多传两张不该让整轮失败；但静默丢弃的表现是

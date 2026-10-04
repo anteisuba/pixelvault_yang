@@ -206,6 +206,7 @@
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {
+      "ideogram": "Ideogram",
       "openai": "OpenAI",
       "google": "Google",
       "deepseek": "DeepSeek",
@@ -1264,7 +1265,7 @@
         "eleven": {
           "pos": "Effects and score: SFX and Music, two routes.",
           "fare": "Usage-based – $0.15 / second",
-          "routes": "On ANTEI · 2 routes (SFX v2 + Music v2)",
+          "routes": "On ANTEI · 2 routes (SFX v2 + Music v2.5)",
           "src": "elevenlabs.io official artwork",
           "tags": {
             "0": "Sound effects",
@@ -3808,6 +3809,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google's fastest, lowest-cost image tier — quick drafts and high-volume iteration."
     },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "Image generation and precise editing through the official Ideogram API."
+    },
     "ideogram3": {
       "label": "Ideogram V4",
       "description": "Design-focused image model with strong typography and graphic composition."
@@ -3925,8 +3930,8 @@
       "description": "Generate sound effects and foley from a text prompt"
     },
     "elevenMusicV2": {
-      "label": "ElevenLabs Music v2",
-      "description": "Studio-grade text-to-music with natural language prompts (instrumental or vocal)"
+      "label": "ElevenLabs Music v2.5",
+      "description": "Generate instrumental or vocal music with improved audio quality and prompt adherence."
     },
     "happyhorse10": {
       "label": "HappyHorse 1.1",
@@ -3955,6 +3960,10 @@
     "klingO3ProV2vEdit": {
       "label": "Kling O3 Pro — Video Edit",
       "description": "Top-tier video-to-video edit: same clip, same camera, new look — element and image references supported"
+    },
+    "klingO34kV2vEdit": {
+      "label": "Kling O3 4K — Video Edit",
+      "description": "Edits an existing clip in native 4K, preserving its camera motion and timing. Supports image references."
     },
     "ltx23": {
       "label": "LTX 2.3",
@@ -4007,6 +4016,10 @@
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5 (Reference, VolcEngine)",
       "description": "Reference-to-video for Seedance 2.5. Up to 30 images / 10 videos / 10 audio clips, audio-only references supported."
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "Fast MiniMax H3 variant by fal. Native audio, first and last frames, 5–15 seconds. 480p/768p; 1080p refined from 768p."
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -6498,6 +6511,8 @@
   },
   "StudioMobile": {
     "modelParameters": "Model settings",
+    "add": "Add",
+    "back": "Back",
     "modelChipEmpty": "Pick a model",
     "modelChipMulti": "{count, plural, one {# model} other {# models}}",
     "modelSheetDone": "Done · {count, plural, one {# model} other {# models}}",
@@ -6564,7 +6579,10 @@
     "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "≈ {amount}+",
     "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
-    "costRange": "Additional cost varies by quality level: about {min}–{max}",
+    "costRange": "Variable portion: about {min}–{max}",
+    "costApproxRange": "≈ {min}–{max}",
+    "costApproxRangeFrom": "≈ {min}–{max}+",
+    "costImageReferenceRangeBasis": "High-quality cost depends on whether selected cards include reference images.",
     "costRangeBasis": "Range estimates 1024×1024 output only. Text and reference inputs cost extra; other sizes and auto quality depend on actual usage.",
     "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
     "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
@@ -6609,6 +6627,7 @@
     "originalWork": "Original"
   },
   "StudioTags": {
+    "parameters": "Settings",
     "mobileParameters": "Sampling and advanced settings",
     "officialTagsLoading": "Loading NAI tag suggestions…",
     "officialTagsKeyRequired": "Configure your NovelAI API key for official suggestions. Manual input remains available.",
@@ -6900,7 +6919,8 @@
       "failed": "Inpaint failed",
       "toolBrush": "Brush",
       "toolBox": "Box select",
-      "boxHint": "Drag a box over the area to regenerate"
+      "boxHint": "Drag a box over the area to regenerate",
+      "brushHint": "Paint over the area to repaint"
     },
     "toolDrawerTitle": "Tools",
     "toolMore": "More tools",
@@ -6912,6 +6932,21 @@
     "takeLabel": "Take {index}"
   },
   "StudioImageEdit": {
+    "editMode": "Edit",
+    "moreTools": "More tools",
+    "editPromptLabel": "Edit instructions",
+    "editPromptPlaceholder": "Describe how you want to change this image…",
+    "applyEdit": "Apply edit",
+    "chooseSourceHint": "Choose an image to start editing.",
+    "chooseSource": "Choose from assets",
+    "changeSource": "Change image",
+    "pricePerImage": "Approx. {amount} / image",
+    "quality": {
+      "very_low": "Quick preview",
+      "low": "Low",
+      "medium": "Standard",
+      "high": "High"
+    },
     "settingsLabel": "Edit settings",
     "modelLabel": "Editing model",
     "eyebrow": "Studio Tool",
@@ -6962,6 +6997,10 @@
       "subtitleLoadFirst": "Load a source image above first, then pick a task."
     },
     "tasks": {
+      "edit-image": {
+        "label": "Edit image",
+        "description": "Describe the changes you want to make to the image."
+      },
       "upscale": {
         "label": "Super resolution",
         "description": "Enlarge with detail recovery."
@@ -7114,6 +7153,7 @@
     }
   },
   "QuickSetup": {
+    "ideogramGuide": "Sign in to Ideogram → API Keys → Create key.",
     "title": "Set up {model}",
     "description": "Get your API key in 2 minutes to unlock this model.",
     "step1": "1. Get your API key",
@@ -7872,6 +7912,14 @@
         "model": "Model",
         "aspect": "Aspect ratio",
         "resolution": "Resolution",
+        "quality": "Quality",
+        "modelDefault": "Model default",
+        "duration": "Duration",
+        "seconds": "{seconds} s",
+        "audio": "Audio",
+        "enabled": "On",
+        "disabled": "Off",
+        "nodeUnavailable": "The target node or model is unavailable. Select it again.",
         "adjusted": "Adjusted for this model: {fields}",
         "knobStepTitle": "Changed on the confirm card",
         "knobStepReason": "You changed this on the confirm card"
@@ -7968,10 +8016,12 @@
       "stopped": "You stopped the current work",
       "interrupted": "Your message changed the assistant's direction.",
       "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
+      "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
       "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "generationFailed": "No results were generated, so there's nothing for the assistant to review.",
+      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library.",
       "generationFailedWithReason": "Nothing came back: {subject}",
       "loraMountFailed": "Couldn't add {subject}. Nothing was added to the workspace.",
       "loraLibraryPickMounted": "You mounted “{subject}”",
@@ -7992,8 +8042,6 @@
       "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
-      "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
-      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library.",
       "workbenchHandoffAccepted": "Switched workbench: {subject}",
       "workbenchHandoffDeclined": "Stayed on this workbench: {subject}"
     },
@@ -8071,6 +8119,7 @@
     "error": {
       "generic": "The assistant didn't finish this request",
       "internal": "Something broke on our side while running this request",
+      "streamInterrupted": "The connection ended before this turn finished. Completed steps are preserved; check the result before continuing.",
       "failed": "The assistant ran into an error during this request",
       "emptyStream": "No response came back from the assistant",
       "unauthorized": "Your session expired — sign in again",
@@ -8078,8 +8127,7 @@
       "invalidRequest": "The server did not accept this request",
       "traceLabel": "Error ID {traceId}",
       "copyDetail": "Copy details",
-      "copied": "Copied",
-      "streamInterrupted": "The connection ended before this turn finished. Completed steps are preserved; check the result before continuing."
+      "copied": "Copied"
     },
     "assistantSettings": "Assistant settings",
     "rule": {
@@ -8538,8 +8586,7 @@
     "avatar": {
       "character": "{name}'s picture",
       "upload": "My upload",
-      "mark": "Brand mark",
-      "monogram": "Initials",
+      "mark": "Default avatar",
       "uploadNew": "Upload a new one…",
       "tooLarge": "That image is over 5 MB.",
       "unsupported": "Use a JPEG, PNG or WebP image."

@@ -54,6 +54,12 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { guardWorkflowStep } from './lib/step-failure'
+import {
+  buildIdeogramImageRequest,
+  IDEOGRAM_API_BASE,
+  parseIdeogramGeneration,
+  type IdeogramPollResult,
+} from './models/ideogram/image-request-builder'
 import { buildFalWorkerQueueRequest as buildFalWorkerVideoQueueRequest } from './models/fal/video-request-builders'
 import {
   buildMiniMaxVideoRequest,
@@ -312,6 +318,7 @@ interface WorkerImageRunContext {
     modelId: string
     externalModelId: string
     aspectRatio: string
+    imageOperation?: 'precise-edit'
     referenceImage?: string
     referenceImages?: string[]
     /**
@@ -4558,6 +4565,9 @@ export function parseImageRunContext(
       externalModelId,
       aspectRatio,
       referenceImage,
+      ...(providerInput.imageOperation === 'precise-edit'
+        ? { imageOperation: 'precise-edit' as const }
+        : {}),
       referenceImages,
       ...(referenceImageLabels ? { referenceImageLabels } : {}),
       advancedParams,
@@ -7563,7 +7573,7 @@ export async function generatePixAiImage(
 const OPENAI_REFERENCE_MAX_BYTES = 50 * 1024 * 1024
 const OPENAI_REFERENCE_READ_TIMEOUT_MS = 30_000
 
-function openAIReferenceStorageKey(
+function imageReferenceStorageKey(
   rawUrl: string,
   env: ExecutionEnv,
 ): string | null {
@@ -7594,10 +7604,19 @@ function openAIReferenceStorageKey(
   return null
 }
 
-function createOpenAIEditBody(
+function createImageEditBody(
   env: ExecutionEnv,
   fields: Record<string, unknown>,
   references: readonly string[],
+  options: {
+    provider: string
+    fileFields: readonly string[]
+    maxBytes: number
+  } = {
+    provider: 'openai',
+    fileFields: [],
+    maxBytes: OPENAI_REFERENCE_MAX_BYTES,
+  },
 ) {
   const boundary = `pixelvault-${crypto.randomUUID()}`
   const encoder = new TextEncoder()
@@ -7635,7 +7654,7 @@ function createOpenAIEditBody(
       ) =>
         new WorkerProviderError({
           message: `Reference image ${index + 1} ${detail}`,
-          provider: 'openai',
+          provider: options.provider,
           phase: 'reference_download',
           errorCode,
           httpStatus: 400,
@@ -7660,13 +7679,13 @@ function createOpenAIEditBody(
           const size =
             (data.length / 4) * 3 -
             (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)
-          if (size >= OPENAI_REFERENCE_MAX_BYTES)
+          if (size >= options.maxBytes)
             throw fail(
-              'exceeds the 50 MB input limit.',
+              `exceeds the ${options.maxBytes / 1024 / 1024} MB input limit.`,
               GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
             )
         } else {
-          const key = openAIReferenceStorageKey(reference, env)
+          const key = imageReferenceStorageKey(reference, env)
           if (!key) throw fail('must be an archived image from this gallery.')
           const object = await wait(
             env.GENERATION_BUCKET.get(key).then((value) => {
@@ -7677,9 +7696,9 @@ function createOpenAIEditBody(
           )
           if (!object) throw fail('is missing from storage.')
           reader = object.body.getReader()
-          if (object.size >= OPENAI_REFERENCE_MAX_BYTES)
+          if (object.size >= options.maxBytes)
             throw fail(
-              'exceeds the 50 MB input limit.',
+              `exceeds the ${options.maxBytes / 1024 / 1024} MB input limit.`,
               GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
             )
           mimeType =
@@ -7695,7 +7714,7 @@ function createOpenAIEditBody(
           )
         }
         yield encoder.encode(
-          `--${boundary}\r\nContent-Disposition: form-data; name="image[]"; filename="reference-${index + 1}.${mimeType.split('/')[1]}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+          `--${boundary}\r\nContent-Disposition: form-data; name="${options.fileFields[index] ?? 'image[]'}"; filename="reference-${index + 1}.${mimeType.split('/')[1]}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
         )
         if (data !== undefined) {
           for (let offset = 0; offset < data.length; offset += 65_536) {
@@ -7709,9 +7728,9 @@ function createOpenAIEditBody(
             controller.signal.throwIfAborted()
             if (chunk.done) break
             bytes += chunk.value.byteLength
-            if (bytes >= OPENAI_REFERENCE_MAX_BYTES)
+            if (bytes >= options.maxBytes)
               throw fail(
-                'exceeds the 50 MB input limit.',
+                `exceeds the ${options.maxBytes / 1024 / 1024} MB input limit.`,
                 GENERATION_ERROR_CODES.REFERENCE_IMAGE_TOO_LARGE,
               )
             yield chunk.value
@@ -7813,7 +7832,7 @@ export async function generateOpenAIImage(
   body.output_format = 'png'
 
   const edit = referenceImages.length
-    ? createOpenAIEditBody(env, body, referenceImages)
+    ? createImageEditBody(env, body, referenceImages)
     : undefined
   let response: Response
   try {
@@ -7907,6 +7926,94 @@ export async function generateOpenAIImage(
     height,
     mimeType,
   }
+}
+
+export async function submitIdeogramImageQueue(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  apiKey: string,
+): Promise<string> {
+  const request = buildIdeogramImageRequest({
+    ...context.providerInput,
+    referenceImages: getImageReferenceInputs(context),
+  })
+  const multipart =
+    request.files.length > 0
+      ? createImageEditBody(
+          env,
+          request.fields,
+          request.files.map((file) => file.url),
+          {
+            provider: 'ideogram',
+            fileFields: request.files.map((file) => file.field),
+            maxBytes: 25 * 1024 * 1024,
+          },
+        )
+      : undefined
+  try {
+    const response = await fetch(`${IDEOGRAM_API_BASE}${request.path}`, {
+      method: 'POST',
+      headers: {
+        'Api-Key': apiKey,
+        'Content-Type': multipart?.contentType ?? 'application/json',
+      },
+      body: multipart?.body ?? JSON.stringify(request.fields),
+      signal: multipart
+        ? AbortSignal.any([multipart.signal, AbortSignal.timeout(120_000)])
+        : AbortSignal.timeout(120_000),
+    })
+    if (!response.ok)
+      throw await createProviderResponseError(response, {
+        provider: 'ideogram',
+        phase: 'image_submit',
+        fallbackMessage: 'Ideogram image submission failed.',
+      })
+    const payload: unknown = await response.json()
+    const generationId = isRecord(payload)
+      ? readStringField(payload, 'generation_id')
+      : null
+    if (!generationId || !/^[A-Za-z0-9_-]+$/.test(generationId))
+      throw createProviderNoOutputError({
+        provider: 'ideogram',
+        phase: 'image_submit',
+        message: 'Ideogram accepted the request without a generation ID.',
+      })
+    await reportProviderJobId(env, context, generationId)
+    return generationId
+  } finally {
+    multipart?.cancel('Submission finished')
+  }
+}
+
+export async function pollIdeogramImageQueue(
+  generationId: string,
+  apiKey: string,
+): Promise<IdeogramPollResult> {
+  const response = await fetch(
+    `${IDEOGRAM_API_BASE}/v2/generations/${encodeURIComponent(generationId)}`,
+    {
+      headers: { 'Api-Key': apiKey },
+      signal: AbortSignal.timeout(30_000),
+    },
+  )
+  if (response.status === 429) {
+    const retryAfter = Number(response.headers.get('Retry-After'))
+    return {
+      status: 'pending',
+      retryAfterMs:
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 5000,
+    }
+  }
+  if (!response.ok)
+    throw await createProviderResponseError(response, {
+      provider: 'ideogram',
+      phase: 'image_poll',
+      requestId: generationId,
+      fallbackMessage: 'Ideogram status check failed.',
+    })
+  return parseIdeogramGeneration(await response.json(), generationId)
 }
 
 export class ImageQueueWorkflow extends WorkflowEntrypoint<
@@ -8017,6 +8124,73 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           height: falResult.height ?? dimensions.height,
           mimeType: uploaded.mimeType,
           providerMetadata: falResult.providerMetadata,
+        }
+      } else if (context.providerId === 'ideogram') {
+        const generationId = await step.do(
+          'submit-ideogram-image',
+          {
+            retries: { limit: 0, delay: '1 second', backoff: 'constant' },
+            timeout: '150 seconds',
+          },
+          async () =>
+            submitIdeogramImageQueue(
+              this.env,
+              context,
+              await decryptStateString(encryptedApiKey, this.env),
+            ),
+        )
+        let completed:
+          | Extract<IdeogramPollResult, { status: 'completed' }>
+          | undefined
+        let delayMs = context.pollIntervalMs
+        for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
+          await step.sleep(`wait-ideogram-image-${attempt}`, delayMs)
+          const polled = await step.do(
+            `poll-ideogram-image-${attempt}`,
+            {
+              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+              timeout: '40 seconds',
+            },
+            async () =>
+              pollIdeogramImageQueue(
+                generationId,
+                await decryptStateString(encryptedApiKey, this.env),
+              ),
+          )
+          if (polled.status === 'completed') {
+            completed = polled
+            break
+          }
+          delayMs = polled.retryAfterMs ?? context.pollIntervalMs
+        }
+        if (!completed)
+          throw new WorkerProviderError({
+            provider: 'ideogram',
+            phase: 'image_poll',
+            requestId: generationId,
+            errorCode: 'provider_timeout',
+            message: 'Ideogram image generation timed out.',
+          })
+        const image = completed
+        const uploaded = await step.do(
+          'upload-ideogram-image',
+          {
+            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            timeout: '120 seconds',
+          },
+          () =>
+            downloadAndUploadImageArtifactToKey(
+              this.env,
+              image.imageUrl,
+              'image/png',
+              getWorkerImageOutputKey(context),
+            ),
+        )
+        result = {
+          ...uploaded,
+          width: image.width,
+          height: image.height,
+          providerMetadata: image.providerMetadata,
         }
       } else if (context.providerId === 'replicate') {
         const prediction = await step.do(

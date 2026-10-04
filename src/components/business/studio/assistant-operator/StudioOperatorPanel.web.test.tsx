@@ -208,6 +208,8 @@ const setGenerationKnob = vi.fn()
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  HOST_SPEC.controls = null
+  HOST_SPEC.trigger = null
   HOST_REFERENCE_NAMES.clear()
   hostReferenceOrder = [0, 1]
   initialAttachments = []
@@ -797,6 +799,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
   })
 
   it('② 确认卡（生成）四颗旋钮在场；点「确认生成」走 `confirmGeneration`', () => {
+    HOST_SPEC.trigger = 'workbench'
     store.setOperatorConfirm({
       id: 'confirm-2',
       kind: 'generate',
@@ -812,11 +815,47 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     const knobs = screen.getAllByTestId('operator-confirm-knob')
     expect(knobs[0]).toHaveTextContent('Seedream 4')
     expect(knobs[1]).toHaveTextContent('3:4')
-    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
+    const primary = screen.getByTestId('operator-confirm-primary')
+    expect(primary).toBeEnabled()
+    fireEvent.click(primary)
     expect(confirmGeneration).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByTestId('operator-confirm-secondary'))
     expect(cancelGeneration).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['workbench', 'canvas'] as const)(
+    '%s 生成入口缺席时禁用确认，仍可取消',
+    (target) => {
+      store.setOperatorConfirm({
+        id: 'confirm-unavailable',
+        kind: 'generate',
+        request: {
+          model: { id: 'seedream-4', label: 'Seedream 4' },
+          count: 2,
+          specs: {
+            aspectRatio: '3:4',
+            resolution: '2K',
+            durationSeconds: null,
+          },
+          ...(target === 'canvas'
+            ? { canvasNode: { id: 'shot-1', name: '主角正面' } }
+            : {}),
+        },
+        status: 'idle',
+      })
+      renderPanel()
+
+      const primary = screen.getByTestId('operator-confirm-primary')
+      expect(primary).toBeDisabled()
+      fireEvent.click(primary)
+      expect(confirmGeneration).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('idle')
+      const secondary = screen.getByTestId('operator-confirm-secondary')
+      expect(secondary).toBeEnabled()
+      fireEvent.click(secondary)
+      expect(cancelGeneration).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('③ 问题卡的缩略图那一支：点一张走 `answerQuestion` 并带上素材', () => {
     store.setOperatorQuestion({

@@ -23,7 +23,6 @@ import {
   ArrowLeftRight,
   Ban,
   ArrowUpRight,
-  Bot,
   Boxes,
   Check,
   ChevronDown,
@@ -42,6 +41,7 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
+  Bot,
   Wand2,
   X,
 } from '@/components/icons'

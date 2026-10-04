@@ -35,7 +35,7 @@ export interface ResolvedVisionRoute {
   route: ResolvedLlmTextRoute
   /**
    * 用户选的那条路看不了图，这一轮换了别的模型。
-   * UI 要能如实说出来 —— 「你选的是 DeepSeek，但看图用的是 Gemini」。
+   * UI 要能如实说出来 —— 「你选的是纯文字模型，但看图用的是 Gemini」。
    */
   borrowed: boolean
 }
@@ -73,7 +73,7 @@ export async function findVisionCapableRoute(
  * 解析一轮视觉任务的路由。降级链恰好三段：
  *
  *  1. 用户选的 key 能看图 → 直接用它（`borrowed:false`）。
- *  2. 用户选的 key 看不了图（DeepSeek / 通义 / 火山…）或压根没选 → **借**一条能看图的。
+ *  2. 用户选的 key 看不了图（火山等）或压根没选 → **借**一条能看图的。
  *  3. 一条都借不到 → 抛 `VISION_NO_CAPABLE_ROUTE`。⛔ 不静默降级成瞎猜。
  *
  * ⚠ 第 1 步里 `resolveLlmTextRoute(userId, apiKeyId)` 自己会因为 key 失效/不支持

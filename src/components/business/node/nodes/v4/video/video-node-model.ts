@@ -14,6 +14,7 @@ import {
   formatUnitPriceAmount,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
+import { getModelById } from '@/constants/models'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import {
   getVideoModelCapabilities,
@@ -101,8 +102,8 @@ export function videoSupportsGeneratedAudio(
 /**
  * 新卡的默认参数（画板：参数 chip 永不为空）。
  *
- * 三档各取这个模型能力表里的第一个可用值：比例 / 清晰度优先 `16:9` / `720p`
- * ——它们是画板上写的那两个默认，模型没有时才退到表里的第一档。
+ * 时长取模型能力表首档，比例优先 `16:9`，清晰度优先模型声明的默认档。
+ * 未声明默认清晰度时优先 `720p`，模型没有该档时退到能力表首档。
  */
 export function videoDefaultParams(
   modelId: string | undefined,
@@ -118,7 +119,10 @@ export function videoDefaultParams(
     all.includes(preferred) ? preferred : all[0]
   const duration = durations[0]
   const aspectRatio = pick('16:9', ratios)
-  const resolution = pick('720p', resolutions)
+  const resolution = pick(
+    getModelById(modelId)?.videoDefaults?.resolution ?? '720p',
+    resolutions,
+  )
   return {
     ...(duration === undefined ? {} : { duration: String(duration) }),
     ...(aspectRatio ? { aspectRatio } : {}),
@@ -226,8 +230,10 @@ const RESOLUTION_SHORT_EDGE: Readonly<Record<VideoResolution, number>> = {
   '480p': 480,
   '540p': 540,
   '720p': 720,
+  '768p': 768,
   '1080p': 1080,
   '2k': 1440,
+  '4k': 2160,
 }
 
 /** `16:9` → `[16, 9]`；认不出来返回 null（⛔ 不猜一个 16:9 顶上）。 */

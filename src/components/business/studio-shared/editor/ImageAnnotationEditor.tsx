@@ -1,12 +1,21 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type SetStateAction,
+} from 'react'
 import { Check, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 import type { ObjectReplaceAnnotation } from '@/types'
+import type { ImageEditComposerControls } from './ImageEditComposer'
 
 /**
  * 多框编号 + 注释清单（E3）。
@@ -31,7 +40,7 @@ const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', 
 /** 小于这个比例的框当误点丢弃（想点却拖了几像素）。 */
 const MIN_BOX_RATIO = 0.015
 
-interface DraftAnnotation {
+export interface DraftAnnotation {
   id: string
   area: { x: number; y: number; width: number; height: number }
   instruction: string
@@ -42,6 +51,9 @@ interface ImageAnnotationEditorProps {
   onApply: (annotations: ObjectReplaceAnnotation[]) => void
   onCancel: () => void
   isLoading?: boolean
+  annotations?: DraftAnnotation[]
+  onAnnotationsChange?: (annotations: DraftAnnotation[]) => void
+  renderComposer?: (controls: ImageEditComposerControls) => ReactNode
 }
 
 function badge(index: number): string {
@@ -53,12 +65,26 @@ export function ImageAnnotationEditor({
   onApply,
   onCancel,
   isLoading = false,
+  annotations: controlledAnnotations,
+  onAnnotationsChange,
+  renderComposer,
 }: ImageAnnotationEditorProps) {
   const t = useTranslations('StudioImageEdit')
   const tCommon = useTranslations('Common')
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
-  const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
+  const [localAnnotations, setLocalAnnotations] = useState<DraftAnnotation[]>(
+    [],
+  )
+  const annotations = controlledAnnotations ?? localAnnotations
+  const setAnnotations = useCallback(
+    (update: SetStateAction<DraftAnnotation[]>) => {
+      const next = typeof update === 'function' ? update(annotations) : update
+      if (onAnnotationsChange) onAnnotationsChange(next)
+      else setLocalAnnotations(next)
+    },
+    [annotations, onAnnotationsChange],
+  )
   const [draftBox, setDraftBox] = useState<DraftAnnotation['area'] | null>(null)
 
   const canApply = useMemo(
@@ -95,7 +121,7 @@ export function ImageAnnotationEditor({
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const start = startRef.current
-      if (!start) return
+      if (isLoading || !start) return
       const point = toRatio(event)
       if (!point) return
       setDraftBox({
@@ -105,7 +131,7 @@ export function ImageAnnotationEditor({
         height: Math.abs(point.y - start.y),
       })
     },
-    [toRatio],
+    [isLoading, toRatio],
   )
 
   const handlePointerUp = useCallback(() => {
@@ -122,7 +148,7 @@ export function ImageAnnotationEditor({
         instruction: '',
       },
     ])
-  }, [draftBox])
+  }, [draftBox, setAnnotations])
 
   const handleApply = useCallback(() => {
     if (!canApply || isLoading) return
@@ -135,8 +161,91 @@ export function ImageAnnotationEditor({
     )
   }, [annotations, canApply, isLoading, onApply])
 
+  // 输入框里（工作台）只留一句提示 + 每个框一行，⛔ 标题与「还没有框」两段重复的话
+  // 不进输入框（owner 2026-10-03）；独立弹层照旧三段。
+  const annotationInput = (
+    <div className="flex min-w-0 flex-col gap-3">
+      {renderComposer ? (
+        annotations.length === 0 ? (
+          <p className="py-1 text-sm text-muted-foreground">
+            {t('annotate.hint')}
+          </p>
+        ) : null
+      ) : (
+        <div>
+          <h4 className="text-xs font-medium text-muted-foreground">
+            {t('annotate.listTitle')}
+          </h4>
+          <p className="mt-1 text-xs text-muted-foreground/80">
+            {t('annotate.hint')}
+          </p>
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'max-h-36 min-h-0 flex-1 space-y-2 overflow-y-auto',
+          renderComposer && annotations.length === 0 && 'hidden',
+        )}
+      >
+        {annotations.length === 0 ? (
+          <p className="text-xs text-muted-foreground/80">
+            {t('annotate.empty')}
+          </p>
+        ) : (
+          annotations.map((item, index) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card p-2"
+            >
+              <span className="size-5 shrink-0 rounded bg-primary text-center text-xs leading-5 text-primary-foreground">
+                {badge(index)}
+              </span>
+              <input
+                value={item.instruction}
+                disabled={isLoading}
+                placeholder={t('annotate.placeholder')}
+                aria-label={`${badge(index)} ${t('annotate.placeholder')}`}
+                onChange={(event) =>
+                  setAnnotations((current) =>
+                    current.map((entry) =>
+                      entry.id === item.id
+                        ? { ...entry, instruction: event.target.value }
+                        : entry,
+                    ),
+                  )
+                }
+                // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+                className="min-w-0 flex-1 border-0 border-b border-dashed border-border bg-transparent text-base outline-none focus:border-primary md:text-sm"
+              />
+              <button
+                type="button"
+                disabled={isLoading}
+                aria-label={t('annotate.remove', { index: index + 1 })}
+                onClick={() =>
+                  setAnnotations((current) =>
+                    current.filter((entry) => entry.id !== item.id),
+                  )
+                }
+                className="flex size-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+
   return (
-    <div className="studio-edit-body grid min-h-0 flex-1 gap-5">
+    <div
+      className={
+        renderComposer
+          ? 'flex min-h-0 flex-1 flex-col items-center justify-center gap-3'
+          : 'studio-edit-body grid min-h-0 flex-1 gap-5'
+      }
+    >
       <div
         ref={surfaceRef}
         role="application"
@@ -193,79 +302,36 @@ export function ImageAnnotationEditor({
         ) : null}
       </div>
 
-      <div className="flex min-w-0 flex-col gap-3">
-        <div>
-          <h4 className="text-xs font-medium text-muted-foreground">
-            {t('annotate.listTitle')}
-          </h4>
-          <p className="mt-1 text-xs text-muted-foreground/80">
-            {t('annotate.hint')}
-          </p>
+      {renderComposer ? (
+        renderComposer({
+          input: annotationInput,
+          onSubmit: handleApply,
+          canSubmit: canApply,
+          submitLabel: t('annotate.apply', { count: annotations.length }),
+        })
+      ) : (
+        <div className="flex min-w-0 flex-col gap-3">
+          {annotationInput}
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isLoading}
+              onClick={onCancel}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={!canApply || isLoading}
+              onClick={handleApply}
+            >
+              {isLoading ? <Spinner size="md" /> : <Check className="size-4" />}
+              {t('annotate.apply', { count: annotations.length })}
+            </Button>
+          </div>
         </div>
-
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-          {annotations.length === 0 ? (
-            <p className="text-xs text-muted-foreground/80">
-              {t('annotate.empty')}
-            </p>
-          ) : (
-            annotations.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-2 rounded-lg border border-border bg-card p-2"
-              >
-                <span className="size-5 shrink-0 rounded bg-primary text-center text-xs leading-5 text-primary-foreground">
-                  {badge(index)}
-                </span>
-                <input
-                  value={item.instruction}
-                  disabled={isLoading}
-                  placeholder={t('annotate.placeholder')}
-                  aria-label={`${badge(index)} ${t('annotate.placeholder')}`}
-                  onChange={(event) =>
-                    setAnnotations((current) =>
-                      current.map((entry) =>
-                        entry.id === item.id
-                          ? { ...entry, instruction: event.target.value }
-                          : entry,
-                      ),
-                    )
-                  }
-                  // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-                  className="min-w-0 flex-1 border-0 border-b border-dashed border-border bg-transparent text-base outline-none focus:border-primary md:text-sm"
-                />
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  aria-label={t('annotate.remove', { index: index + 1 })}
-                  onClick={() =>
-                    setAnnotations((current) =>
-                      current.filter((entry) => entry.id !== item.id),
-                    )
-                  }
-                  className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            {tCommon('cancel')}
-          </Button>
-          <Button
-            type="button"
-            disabled={!canApply || isLoading}
-            onClick={handleApply}
-          >
-            {isLoading ? <Spinner size="md" /> : <Check className="size-4" />}
-            {t('annotate.apply', { count: annotations.length })}
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,12 @@
 'use client'
 
-import { useCallback, useRef, useState, type ChangeEvent } from 'react'
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
 import { Image as ImageIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -21,6 +27,183 @@ import {
 
 interface ReferenceImageChipProps {
   disabled?: boolean
+}
+
+/**
+ * 参考图「加一张」的那一套逻辑 —— 上传 / 拖入 / 最近素材 / 素材库四条落法汇到同一个
+ * `useImageUpload` store。chip 弹层与手机输入条的「＋」抽屉共用（owner 2026-10-02），
+ * ⛔ 不在宿主里各写一份上传与容量判断。
+ */
+function useReferenceImagePicker() {
+  const t = useTranslations('ImageChip')
+  const { imageUpload } = useStudioData()
+
+  const totalEntries = imageUpload.referenceEntries.length
+  const isFull =
+    Number.isFinite(imageUpload.maxImages) &&
+    imageUpload.maxImages > 0 &&
+    totalEntries >= imageUpload.maxImages
+  const limitReason = isFull
+    ? t('limitReached', { max: imageUpload.maxImages })
+    : undefined
+
+  /**
+   * ⚠ 这里以前是 `FileReader.readAsDataURL` → `addReferenceImage`，也就是把整张
+   * 图以 **base64 data URL** 塞进 `referenceImages`，随生成请求进 JSON body。
+   * base64 膨胀约 33%，一张 3.4MB 的图就能把 body 顶到 Vercel Serverless 的
+   * **4.5MB 硬上限**，平台层直接 413 —— 响应不是 JSON，前端只能显示
+   * `Failed with status 413`，服务端的错误信息根本没机会产生。
+   *
+   * ⭐ 正确的那条路一直都在：`useImageUpload.handleFileChange` → `uploadLocalFile`
+   * → 压缩（15MB 闸）+ multipart 上传 → 回来一个 R2 的 http(s) URL。粘贴与拖到
+   * 提示词框走的就是它，只有这颗 chip 自己另写了一份。那边的注释写得很清楚：
+   * 「never inlined as a multi-MB data URL in a generate request body」。
+   */
+  const handleFileSelect = (file: File) => {
+    if (isFull) return
+    void imageUpload.handleFileChange(file)
+  }
+
+  /**
+   * ⚠ 消费端是 `imageUpload.addFromUrl` —— **追加**语义、且有容量
+   * （`useImageUpload.maxImages`）。按 page §8.3 的判据，这种入口应当是
+   * **多选**：以前挂成单选，放 4 张参考图要开 4 次弹窗。
+   */
+  const remainingReferenceSlots = Number.isFinite(imageUpload.maxImages)
+    ? Math.max(0, imageUpload.maxImages - imageUpload.referenceEntries.length)
+    : undefined
+
+  const handleSelectAsset = async (gen: GenerationRecord) => {
+    if (isFull) return
+    // Defensive guard: even though AssetSelectorDialog is locked to
+    // mediaType="image", a future caller wiring this chip up differently
+    // could pass through a video/audio asset and addFromUrl would silently
+    // attach it as a "reference image", breaking downstream generation.
+    if (gen.outputType !== 'IMAGE') return
+    await imageUpload.addFromUrl(gen.url)
+  }
+
+  const handleSelectAssets = async (gens: GenerationRecord[]) => {
+    for (const gen of gens) {
+      await handleSelectAsset(gen)
+    }
+  }
+
+  return {
+    totalEntries,
+    isFull,
+    limitReason,
+    remainingReferenceSlots,
+    handleFileSelect,
+    handleSelectAsset,
+    handleSelectAssets,
+  }
+}
+
+interface ReferenceImagePickerBodyProps {
+  disabled?: boolean
+  /** 落了一张（或开了文件选择后选定）—— 宿主收起自己的弹层。 */
+  onDone: () => void
+  /** 「素材库」—— 弹窗由宿主挂在弹层**外面**，收起弹层时它不跟着卸载。 */
+  onOpenLibrary: () => void
+  headerSlot?: ReactNode
+}
+
+/** 弹层身体：拖拽 / 粘贴 / 上传 + 最近素材 + 素材库入口。 */
+export function ReferenceImagePickerBody({
+  disabled,
+  onDone,
+  onOpenLibrary,
+  headerSlot,
+}: ReferenceImagePickerBodyProps) {
+  const t = useTranslations('ImageChip')
+  const picker = useReferenceImagePicker()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file) picker.handleFileSelect(file)
+    onDone()
+  }
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+        disabled={disabled || picker.isFull}
+      />
+      <ImagePickerPopoverBody
+        dropHint={t('dropHint')}
+        recentLabel={t('recentAssets')}
+        recentEmptyLabel={t('recentAssetsEmpty')}
+        openLibraryLabel={t('openLibrary')}
+        onPickFile={() => fileInputRef.current?.click()}
+        onDropFile={(file) => {
+          picker.handleFileSelect(file)
+          onDone()
+        }}
+        onPickAsset={(generation) => {
+          void picker.handleSelectAsset(generation)
+          onDone()
+        }}
+        onOpenLibrary={() => {
+          if (picker.isFull) return
+          onOpenLibrary()
+        }}
+        disabledReason={picker.limitReason}
+        headerSlot={headerSlot}
+      />
+    </>
+  )
+}
+
+/** 素材库（全屏，多选到剩余格数为止）。 */
+export function ReferenceImageLibraryDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const t = useTranslations('ImageChip')
+  const picker = useReferenceImagePicker()
+  return (
+    <AssetSelectorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      multiSelect
+      maxSelection={picker.remainingReferenceSlots}
+      onConfirmMany={(gens) => void picker.handleSelectAssets(gens)}
+      title={t('selectAsset')}
+      description={t('description')}
+      mediaType="image"
+    />
+  )
+}
+
+/** 「已挂 N 张 · 最多 M 张」—— 描边外观与手机「＋」抽屉的弹层头部。 */
+export function ReferenceImageCountLine() {
+  const t = useTranslations('ImageChip')
+  const { imageUpload } = useStudioData()
+  const totalEntries = imageUpload.referenceEntries.length
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-sm font-medium">{t('referenceLabel')}</span>
+      <span className="text-2xs tabular-nums text-muted-foreground">
+        {Number.isFinite(imageUpload.maxImages) && imageUpload.maxImages > 0
+          ? t('attachedOfMax', {
+              count: totalEntries,
+              max: imageUpload.maxImages,
+            })
+          : t('attachedCount', { count: totalEntries })}
+      </span>
+    </div>
+  )
 }
 
 /**
@@ -49,18 +232,10 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const bindTrigger = useCallback((element: HTMLButtonElement | null) => {
     if (element) setPanelBoundary(element.closest('.studio-param-panel'))
   }, [])
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const popoverOpen = state.panels.refImage
 
   const enabledReferenceCount = imageUpload.referenceImages.length
   const totalEntries = imageUpload.referenceEntries.length
-  const isFull =
-    Number.isFinite(imageUpload.maxImages) &&
-    imageUpload.maxImages > 0 &&
-    totalEntries >= imageUpload.maxImages
-  const limitReason = isFull
-    ? t('limitReached', { max: imageUpload.maxImages })
-    : undefined
   const isActive = totalEntries > 0
   const chip = useStudioChipClasses()
   const badgeWarning =
@@ -70,61 +245,6 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
 
   const closePopover = () => {
     dispatch({ type: 'CLOSE_PANEL', payload: 'refImage' })
-  }
-
-  /**
-   * ⚠ 这里以前是 `FileReader.readAsDataURL` → `addReferenceImage`，也就是把整张
-   * 图以 **base64 data URL** 塞进 `referenceImages`，随生成请求进 JSON body。
-   * base64 膨胀约 33%，一张 3.4MB 的图就能把 body 顶到 Vercel Serverless 的
-   * **4.5MB 硬上限**，平台层直接 413 —— 响应不是 JSON，前端只能显示
-   * `Failed with status 413`，服务端的错误信息根本没机会产生。
-   *
-   * ⭐ 正确的那条路一直都在：`useImageUpload.handleFileChange` → `uploadLocalFile`
-   * → 压缩（15MB 闸）+ multipart 上传 → 回来一个 R2 的 http(s) URL。粘贴与拖到
-   * 提示词框走的就是它，只有这颗 chip 自己另写了一份。那边的注释写得很清楚：
-   * 「never inlined as a multi-MB data URL in a generate request body」。
-   */
-  const handleFileSelect = (file: File) => {
-    if (isFull) return
-    void imageUpload.handleFileChange(file)
-  }
-
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (file) handleFileSelect(file)
-    closePopover()
-  }
-
-  /**
-   * ⚠ 消费端是 `imageUpload.addFromUrl` —— **追加**语义、且有容量
-   * （`useImageUpload.maxImages`）。按 page §8.3 的判据，这种入口应当是
-   * **多选**：以前挂成单选，放 4 张参考图要开 4 次弹窗。
-   */
-  const remainingReferenceSlots = Number.isFinite(imageUpload.maxImages)
-    ? Math.max(0, imageUpload.maxImages - imageUpload.referenceEntries.length)
-    : undefined
-
-  const handleSelectAssets = async (gens: GenerationRecord[]) => {
-    for (const gen of gens) {
-      await handleSelectAsset(gen)
-    }
-  }
-
-  const handleSelectAsset = async (gen: GenerationRecord) => {
-    if (isFull) return
-    // Defensive guard: even though AssetSelectorDialog is locked to
-    // mediaType="image", a future caller wiring this chip up differently
-    // could pass through a video/audio asset and addFromUrl would silently
-    // attach it as a "reference image", breaking downstream generation.
-    if (gen.outputType !== 'IMAGE') return
-    await imageUpload.addFromUrl(gen.url)
-  }
-
-  const handleRequestAssetDialog = () => {
-    if (isFull) return
-    closePopover()
-    setAssetDialogOpen(true)
   }
 
   return (
@@ -193,47 +313,17 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           sideOffset={chip.popoverSideOffset}
           label={t('label')}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={disabled || isFull}
-          />
-          <ImagePickerPopoverBody
-            dropHint={t('dropHint')}
-            recentLabel={t('recentAssets')}
-            recentEmptyLabel={t('recentAssetsEmpty')}
-            openLibraryLabel={t('openLibrary')}
-            onPickFile={() => fileInputRef.current?.click()}
-            onDropFile={(file) => {
-              handleFileSelect(file)
+          <ReferenceImagePickerBody
+            disabled={disabled}
+            onDone={closePopover}
+            onOpenLibrary={() => {
               closePopover()
+              setAssetDialogOpen(true)
             }}
-            onPickAsset={(generation) => {
-              void handleSelectAsset(generation)
-              closePopover()
-            }}
-            onOpenLibrary={handleRequestAssetDialog}
-            disabledReason={limitReason}
             headerSlot={
               chip.look === 'outline' ? (
                 // 底部输入框自己就有附件行 —— 弹层里不再摆一遍缩略图，只报数。
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-medium">
-                    {t('referenceLabel')}
-                  </span>
-                  <span className="text-2xs tabular-nums text-muted-foreground">
-                    {Number.isFinite(imageUpload.maxImages) &&
-                    imageUpload.maxImages > 0
-                      ? t('attachedOfMax', {
-                          count: totalEntries,
-                          max: imageUpload.maxImages,
-                        })
-                      : t('attachedCount', { count: totalEntries })}
-                  </span>
-                </div>
+                <ReferenceImageCountLine />
               ) : totalEntries > 0 ? (
                 <ImageAttachmentPreviewStrip
                   entries={imageUpload.referenceEntries}
@@ -249,15 +339,9 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
         </StudioToolPopoverContent>
       </StudioToolSurface>
 
-      <AssetSelectorDialog
+      <ReferenceImageLibraryDialog
         open={assetDialogOpen}
         onOpenChange={setAssetDialogOpen}
-        multiSelect
-        maxSelection={remainingReferenceSlots}
-        onConfirmMany={(gens) => void handleSelectAssets(gens)}
-        title={t('selectAsset')}
-        description={t('description')}
-        mediaType="image"
       />
     </>
   )

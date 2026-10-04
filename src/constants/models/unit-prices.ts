@@ -6,6 +6,37 @@ import {
   tieredOpenAISize,
 } from '@/lib/image-output-size'
 
+const IDEOGRAM_IMAGE_PRICES: Record<string, number> = {
+  very_low: 0.008,
+  low: 0.03,
+  medium: 0.06,
+  high: 0.1,
+}
+
+interface ImagePriceOptions {
+  quality?: string
+  hasReferenceImage?: boolean
+}
+
+export function getIdeogramImageOutputPrice(
+  modelId: string,
+  options: ImagePriceOptions = {},
+): { min: number; max: number } | null {
+  if (modelId !== AI_MODELS.IDEOGRAM_45) return null
+  const quality = options.quality ?? 'medium'
+  if (quality === 'very_low' && !options.hasReferenceImage) return null
+  if (!Object.hasOwn(IDEOGRAM_IMAGE_PRICES, quality)) return null
+  const amount = IDEOGRAM_IMAGE_PRICES[quality]
+  if (quality === 'high') {
+    const editAmount = 0.22
+    if (options.hasReferenceImage === undefined) {
+      return { min: amount, max: editAmount }
+    }
+    if (options.hasReferenceImage) return { min: editAmount, max: editAmount }
+  }
+  return { min: amount, max: amount }
+}
+
 export function getOpenAIImageOutputPrice(
   modelId: string,
   options: {
@@ -223,25 +254,21 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source: 'fal pricingInfoOverride，reference 端点同价（已逐字核对）',
     verifiedAt: '2026-08-08',
   },
-  // Kling 两条**没有分辨率旋钮**（send contract `resolution: false`），固定出
-  // 1080p。填 `'1080p'` 不是为了让用户切档 —— 是把「这个数说的是哪一档」写死：
-  // 今天它们的 `videoDefaults` 不带 resolution，解析器落到 720p 基准档拿到
-  // `amount`（同一个数，没问题）；哪天有人给 videoDefaults 补上 `'1080p'`，
-  // 没有这张表价格就会**凭空消失**。
   [AI_MODELS.KLING_V3_PRO]: {
     amount: 0.168,
     unit: 'second',
-    resolutionAmounts: { '1080p': 0.168 },
+    resolutionAmounts: { '1080p': 0.168, '4k': 0.42 },
     source:
-      'fal pricingInfoOverride：audio on $0.168/s（audio off $0.112，voice control $0.196）',
-    verifiedAt: '2026-08-08',
+      'fal：Pro audio on $0.168/s（audio off $0.112）；v3/4k text/image-to-video $0.42/s，不分音频开关',
+    verifiedAt: '2026-10-01',
   },
   [AI_MODELS.KLING_O3_PRO]: {
     amount: 0.14,
     unit: 'second',
-    resolutionAmounts: { '1080p': 0.14 },
-    source: 'fal pricingInfoOverride：audio on $0.14/s（audio off $0.112）',
-    verifiedAt: '2026-08-08',
+    resolutionAmounts: { '1080p': 0.14, '4k': 0.42 },
+    source:
+      'fal：Pro audio on $0.14/s（audio off $0.112）；o3/4k text/image-to-video $0.42/s，不分音频开关',
+    verifiedAt: '2026-10-01',
   },
   // Kling O3 video-to-video/edit —— **单一价，不分档、不分音频开关**（fal 的标价
   // 原文只有一句「每生成一秒收 $X」，没有 audio on/off 的第二个数）。四档都填同
@@ -272,6 +299,14 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source:
       'fal pricingInfoOverride（fal.ai/models/fal-ai/kling-video/o3/pro/video-to-video/edit）：$0.168/s，5s = $0.84',
     verifiedAt: '2026-09-17',
+  },
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: {
+    amount: 0.42,
+    unit: 'second',
+    resolutionAmounts: { '4k': 0.42 },
+    source:
+      'fal.ai/models/fal-ai/kling-video/o3/4k/video-to-video/edit：$0.42/s，不分音频开关',
+    verifiedAt: '2026-10-01',
   },
   // 退役条目（`available: false`），填了今天没人读 —— 但 fal 的标价原文就写着
   // 两档同价，现在填比将来复活时再回查便宜。
@@ -411,10 +446,27 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     verifiedAt: '2026-08-23',
   },
 
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: {
+    amount: 0.04,
+    unit: 'second',
+    resolutionAmounts: { '480p': 0.025, '768p': 0.04, '1080p': 0.08 },
+    source:
+      'fal.ai/models/minimax/h3-max-turbo/text-to-video 与 image-to-video：9月30日促销结束后 480p $0.025/s、768p $0.04/s、1080p $0.08/s；基准为默认768p',
+    verifiedAt: '2026-10-01',
+  },
+
   // ══ 图片 ══════════════════════════════════════════════════════════════════
   // 2026-08-18 补（任务包 studio-workbench-redesign-2026-08-14 §4.11 切片 4：
   // owner 拍板「先把单价表补齐」再做成本预览）。口径见文件头「图片」那条 ——
   // 每条都按**产品实际发出去的尺寸**取档，不是按 UI 上的清晰度选项。
+
+  [AI_MODELS.IDEOGRAM_45]: {
+    amount: IDEOGRAM_IMAGE_PRICES.medium,
+    unit: 'image',
+    source:
+      'https://ideogram.ai/pricing/?pricing_tab=api：1K/2K 同价；产品默认 medium $0.06/张，low $0.03，high 文生图 $0.10 / 带图生成及精确编辑 $0.22，very_low 仅带图 $0.008',
+    verifiedAt: '2026-10-01',
+  },
 
   // ── fal ────────────────────────────────────────────────────────────────
   // 有 pricingInfoOverride 的从 `fal.ai/api/models` 索引取（可脚本复核）；没有
@@ -659,6 +711,18 @@ export const getModelUnitPriceByStringId = (
 ): ModelUnitPrice | null =>
   (MODEL_UNIT_PRICES as Record<string, ModelUnitPrice | undefined>)[modelId] ??
   null
+
+export function getImageUnitPrice(
+  modelId: string,
+  options: ImagePriceOptions = {},
+): number | null {
+  if (modelId === AI_MODELS.IDEOGRAM_45) {
+    const price = getIdeogramImageOutputPrice(modelId, options)
+    return price && price.min === price.max ? price.min : null
+  }
+  const price = getModelUnitPriceByStringId(modelId)
+  return price?.unit === 'image' ? price.amount : null
+}
 
 /**
  * 视频：取**用户选中的那一档**的每秒单价。

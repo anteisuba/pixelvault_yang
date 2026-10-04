@@ -16,6 +16,7 @@ export enum AI_MODELS {
   FLUX_LORA = 'flux-lora',
   GEMINI_PRO_IMAGE = 'gemini-3-pro-image-preview',
   IDEOGRAM_3 = 'ideogram-3',
+  IDEOGRAM_45 = 'ideogram-4.5',
   SEEDREAM_45 = 'seedream-4.5',
   /** Seedream 4.5 via VolcEngine (火山方舟) direct API — cn region. */
   SEEDREAM_45_VOLCENGINE = 'seedream-4.5-volcengine',
@@ -106,7 +107,7 @@ export enum AI_MODELS {
   FISH_AUDIO_S2_PRO_FREE = 'fish-audio-s2-pro-free',
   ELEVENLABS_V3 = 'eleven-v3',
   ELEVENLABS_SFX_V2 = 'eleven-sfx-v2',
-  /** ElevenLabs Music v2 — text-to-music (audioKind=music). */
+  /** ElevenLabs Music v2.5 — stable catalog ID for music generations. */
   ELEVENLABS_MUSIC_V2 = 'eleven-music-v2',
 
   // Video models
@@ -134,6 +135,7 @@ export enum AI_MODELS {
    */
   KLING_O3_STANDARD_V2V_EDIT = 'kling-o3-standard-v2v-edit',
   KLING_O3_PRO_V2V_EDIT = 'kling-o3-pro-v2v-edit',
+  KLING_O3_4K_V2V_EDIT = 'kling-o3-4k-v2v-edit',
   LTX_23 = 'ltx-2.3',
   SEEDANCE_20 = 'seedance-2.0',
   SEEDANCE_20_FAST = 'seedance-2.0-fast',
@@ -179,6 +181,7 @@ export enum AI_MODELS {
   MINIMAX_H3_REFERENCE = 'minimax-h3-reference',
   MINIMAX_H3_CN = 'minimax-h3-cn',
   MINIMAX_H3_REFERENCE_CN = 'minimax-h3-reference-cn',
+  MINIMAX_H3_MAX_TURBO = 'minimax-h3-max-turbo',
 
   // 3D models (image-to-3D)
   HUNYUAN3D_2_1 = 'hunyuan3d-2.1',

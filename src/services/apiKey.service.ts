@@ -19,6 +19,7 @@ import {
 import { logger } from '@/lib/logger'
 import { safeFetch } from '@/lib/url-guard'
 import { ProviderConfigSchema } from '@/types'
+import { ideogramAdapter } from '@/services/providers/ideogram.adapter'
 import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
 
 export interface ResolvedApiKeyValue {
@@ -304,6 +305,19 @@ async function verifyAdapterKey(
     let response: Response
 
     switch (adapterType) {
+      case AI_ADAPTER_TYPES.IDEOGRAM: {
+        const health = await ideogramAdapter.healthCheck({
+          modelId: 'ideogram-4-5',
+          apiKey,
+          baseUrl,
+          timeoutMs,
+        })
+        return {
+          ok: health.status === 'available',
+          latencyMs: health.latencyMs,
+          ...(health.error ? { error: health.error } : {}),
+        }
+      }
       case AI_ADAPTER_TYPES.OPENAI: {
         // GET /models — lightweight auth check
         const url = baseUrl.replace(/\/images\/?$/, '/models')

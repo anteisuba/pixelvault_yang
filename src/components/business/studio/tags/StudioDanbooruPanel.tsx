@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -211,6 +218,11 @@ export function StudioDanbooruPanel({
   } | null>(null)
   const [target, setTarget] = useState<LookupTarget | null>(null)
   const [phoneDetail, setPhoneDetail] = useState(false)
+  const focusPhoneDetail = useCallback((node: HTMLHeadingElement | null) => {
+    if (!node) return
+    node.focus({ preventScroll: true })
+    node.closest('section')?.scrollIntoView({ block: 'start' })
+  }, [])
 
   const setQuery = (kind: DanbooruCatalogKind, value: string) =>
     setQueries((current) => ({ ...current, [kind]: value }))
@@ -759,10 +771,8 @@ export function StudioDanbooruPanel({
     >
       {phone ? (
         <>
-          {/* `pr-12`：面板顶到顶栏下时，右上角浮着的助手头像正好压在这一行右端 —— 让开它
-            （与参数栏顶上那颗「返回结果」同一做法）。五个页签一行放不下标题，单独占下一行；
-            英文等长文案等分放不下时横向滑。 */}
-          <div className="-ml-2 flex h-11 shrink-0 items-center gap-1 pr-12">
+          {/* 五个页签一行放不下标题，单独占下一行；英文等长文案等分放不下时横向滑。 */}
+          <div className="-ml-2 flex h-11 shrink-0 items-center gap-1">
             <button
               type="button"
               aria-label={t('backToResults')}
@@ -844,7 +854,7 @@ export function StudioDanbooruPanel({
               }}
               className="absolute inset-0 z-10 flex flex-col gap-3 bg-card"
             >
-              <div className="-ml-2 flex h-11 shrink-0 items-center gap-1 pr-12">
+              <div className="-ml-2 flex h-11 shrink-0 items-center gap-1">
                 <button
                   type="button"
                   aria-label={t('backToList')}
@@ -853,7 +863,11 @@ export function StudioDanbooruPanel({
                 >
                   <ChevronLeft className="size-4" aria-hidden />
                 </button>
-                <h3 className="min-w-0 flex-1 truncate text-md font-semibold">
+                <h3
+                  ref={focusPhoneDetail}
+                  tabIndex={-1}
+                  className="min-w-0 flex-1 truncate text-md font-semibold outline-none"
+                >
                   {nameOf(candidate.name)}
                 </h3>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">

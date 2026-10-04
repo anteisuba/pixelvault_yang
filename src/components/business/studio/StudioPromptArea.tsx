@@ -142,7 +142,13 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   templates,
 }: StudioPromptAreaProps) {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload } = useStudioData()
+  const { imageUpload, characters } = useStudioData()
+  const hasImageReferences =
+    imageUpload.referenceImages.length > 0
+      ? true
+      : characters.activeCardIds.length > 0 || state.workflowMode === 'card'
+        ? undefined
+        : false
   const t = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
@@ -742,6 +748,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       aspectRatio: state.aspectRatio,
                       resolution: state.advancedParams.resolution,
                       quality: state.advancedParams.quality,
+                      hasReferenceImage: hasImageReferences,
                       preview: state.advancedParams.preview,
                     }}
                   />
@@ -1250,6 +1257,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 aspectRatio: state.aspectRatio,
                 resolution: state.advancedParams.resolution,
                 quality: state.advancedParams.quality,
+                hasReferenceImage: hasImageReferences,
                 preview: state.advancedParams.preview,
               }}
             />

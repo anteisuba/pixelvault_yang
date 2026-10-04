@@ -114,16 +114,11 @@ async function main() {
         }
       }
       return {
+        // 2026-10-02 起输入条只有一行 ＋ · 模型 · 规格 · 生成（素材 / 剧本 / 模板在「＋」里）。
+        add: pick('studio-mobile-add'),
         model: pick('studio-mobile-model-chip'),
-        spec: pick('studio-mobile-spec-chip'),
-        audio: pick('studio-mobile-audio-chip'),
-        audioRef: pick('studio-mobile-audio-ref-chip'),
-        script: pick('studio-mobile-script-chip'),
-        // 参考图那颗是既有组件（无 testid），按 aria-label 找。
-        // 参考图那颗是既有组件（无 testid），`ImageChip.label` = 「图像」。
-        referenceChipPresent: Boolean(
-          document.querySelector('.studio-mobile-chip-row [aria-label="图像"]'),
-        ),
+        spec: pick('studio-spec-chip'),
+        generate: pick('studio-mobile-generate'),
       }
     }),
   )

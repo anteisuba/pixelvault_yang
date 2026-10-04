@@ -91,7 +91,10 @@ import {
   NodeAssistantPlanRerunDownstreamOpSchema,
   NodeAssistantGenerateV4OpSchema,
 } from '@/types/node-assistant-ops'
-import { NodeV4ImageDataSchema } from '@/types/node-workflow'
+import {
+  NodeV4GenerationParamsSchema,
+  NodeV4ImageDataSchema,
+} from '@/types/node-workflow'
 import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
 import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
@@ -634,6 +637,35 @@ export type AssistantLoraParameters = z.infer<
   typeof AssistantLoraParametersSchema
 >
 
+export const AssistantOperatorCanvasParametersSchema = z.object({
+  values: NodeV4GenerationParamsSchema,
+  options: z.object({
+    aspectRatio: z
+      .array(ParamValueSchema)
+      .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
+      .optional(),
+    resolution: z
+      .array(ParamValueSchema)
+      .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
+      .optional(),
+    quality: z
+      .array(ParamValueSchema)
+      .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
+      .optional(),
+    duration: z
+      .array(ParamValueSchema)
+      .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
+      .optional(),
+    count: z
+      .array(z.number().int().positive())
+      .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
+      .optional(),
+    generateAudio: z.array(z.boolean()).max(2).optional(),
+    storyboardGrid: z.array(z.boolean()).max(2).optional(),
+    seed: z.literal(true).optional(),
+  }),
+})
+
 /**
  * 画布快照的**一个节点**（进度表 22）。
  *
@@ -658,6 +690,7 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
   referencePromptContext: z.string().max(LIMITS.maxMessageChars).optional(),
   reviewContextComplete: z.boolean().optional(),
   model: LabelSchema.optional(),
+  parameters: AssistantOperatorCanvasParametersSchema.optional(),
   /** 这个节点上选得动的模型 —— ⛔ 没有这一格模型就会编一个不存在的 id。 */
   availableModels: z
     .array(LabelSchema)

@@ -3,6 +3,18 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { SafetyFilterError } from '@/lib/errors'
 import { ProviderError } from '@/services/providers/types'
+import { ensureUser } from '@/services/user.service'
+import { getGenerationByIdForUser } from '@/services/generation.service'
+import { submitImageGeneration } from '@/services/image/submit-image.service'
+
+vi.mock('@/services/user.service', () => ({ ensureUser: vi.fn() }))
+vi.mock('@/services/generation.service', () => ({
+  getGenerationByIdForUser: vi.fn(),
+  createGeneration: vi.fn(),
+}))
+vi.mock('@/services/image/submit-image.service', () => ({
+  submitImageGeneration: vi.fn(),
+}))
 
 import {
   compileAnnotationPrompt,
@@ -11,6 +23,7 @@ import {
   removeBackground,
   replaceObjects,
   upscaleImage,
+  submitIdeogramImageEdit,
 } from './image-edit.service'
 
 function mockFetchJson(body: unknown): void {
@@ -19,6 +32,61 @@ function mockFetchJson(body: unknown): void {
     json: () => Promise.resolve(body),
   })
 }
+
+describe('Ideogram edit submission', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(ensureUser).mockResolvedValue({ id: 'user' } as never)
+    vi.mocked(getGenerationByIdForUser).mockResolvedValue({
+      id: 'source-generation',
+      prompt: 'Original source prompt',
+    } as never)
+    vi.mocked(submitImageGeneration).mockResolvedValue({
+      jobId: 'job',
+      requestId: 'job',
+    })
+  })
+  const request = {
+    modelId: 'ideogram-4.5',
+    apiKeyId: 'selected-key',
+    sourceGenerationId: 'source-generation',
+    imageUrl: 'https://cdn.example.com/source.png',
+    referenceImages: ['https://cdn.example.com/ref.png'],
+    annotations: [{ index: 1, instruction: 'Make the mug blue' }],
+  }
+  it('keeps the explicit key, reference ordering, source prompt and edit operation in the queued request', async () => {
+    expect(await submitIdeogramImageEdit('clerk', request)).toEqual({
+      jobId: 'job',
+      requestId: 'job',
+    })
+    expect(getGenerationByIdForUser).toHaveBeenCalledWith(
+      'source-generation',
+      'user',
+    )
+    expect(submitImageGeneration).toHaveBeenCalledWith(
+      'clerk',
+      expect.objectContaining({
+        apiKeyId: 'selected-key',
+        referenceImages: [request.imageUrl, ...request.referenceImages],
+        prompt: expect.stringContaining('Make the mug blue'),
+        advancedParams: { quality: 'medium' },
+      }),
+      {},
+      expect.objectContaining({
+        sourceGenerationId: 'source-generation',
+        imageOperation: 'precise-edit',
+        imageEditSourcePrompt: 'Original source prompt',
+      }),
+    )
+  })
+  it('rejects a foreign/missing source generation before dispatch', async () => {
+    vi.mocked(getGenerationByIdForUser).mockResolvedValue(null)
+    await expect(submitIdeogramImageEdit('clerk', request)).rejects.toThrow(
+      'Source generation not found',
+    )
+    expect(submitImageGeneration).not.toHaveBeenCalled()
+  })
+})
 
 describe('image-edit.service', () => {
   beforeEach(() => {

@@ -85,6 +85,8 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
     'Target model: Gemini image generation. Prefer natural, descriptive English sentences with rich visual detail.',
   [AI_ADAPTER_TYPES.VOLCENGINE]:
     'Target model: Seedream (VolcEngine). Prefer concise, clear descriptions. Works well with both English and Chinese.',
+  [AI_ADAPTER_TYPES.IDEOGRAM]:
+    'Target model: Ideogram 4.5. Use clear natural-language descriptions for composition, visual style and exact text to render. For editing, identify what should change and what should remain unchanged.',
   [AI_ADAPTER_TYPES.OPENAI]:
     'Target model: GPT Image. Prefer detailed natural language descriptions with emphasis on composition and mood.',
   [AI_ADAPTER_TYPES.DEEPSEEK]:
@@ -98,7 +100,7 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.FISH_AUDIO]:
     'Target model: Fish Audio S2 (text-to-speech). The prompt IS the spoken script — write the exact words to be said, with real punctuation, and nothing else. Delivery is steered by square-bracket emotion tags such as [sad], [excited], [whispering]: put one at the start of the sentence it colours, and use at most three in a script. No stage directions, no visual language.',
   [AI_ADAPTER_TYPES.ELEVENLABS]:
-    'Target model: ElevenLabs v3 (speech), SFX v2, and Music v2. For speech the prompt IS the spoken script; delivery comes from inline audio tags in square brackets such as [whispers], [laughs], [sighs], [sarcastic] — only audible events, never visual direction. SSML is not supported: shape pacing with punctuation and tags instead. For sound effects and music, describe the sound itself, not a picture of it.',
+    'Target model: ElevenLabs v3 (speech), SFX v2, and Music v2.5. For speech the prompt IS the spoken script; delivery comes from inline audio tags in square brackets such as [whispers], [laughs], [sighs], [sarcastic] — only audible events, never visual direction. SSML is not supported: shape pacing with punctuation and tags instead. For sound effects and music, describe the sound itself, not a picture of it.',
   [AI_ADAPTER_TYPES.MINIMAX]:
     'Target model: MiniMax H3 (video). Prefer plain natural-language sentences in shot order: what is in frame, what moves, how the camera moves. No tag syntax and no weight brackets.',
   // 两个站同一个模型，方言自然也是同一条（见 registry 的 MINIMAX_CN 注释）。
@@ -362,6 +364,14 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     editHint: SEEDREAM_EDIT_DIALECT,
   },
   // ── Ideogram / Recraft（排版与品牌线）───────────────────────────
+  [AI_MODELS.IDEOGRAM_45]: {
+    bestFor: ['typography', 'graphic-design', 'text-in-image', 'editing'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: ADAPTER_PROMPT_HINTS[AI_ADAPTER_TYPES.IDEOGRAM],
+    editHint:
+      'Change or replace the named element using a clear instruction, and state which composition, subject details and text must remain unchanged. Spell any replacement text exactly as it should appear. There is no negative prompt field.',
+  },
   // 来源 https://docs.ideogram.ai/using-ideogram/prompting-guide
   [AI_MODELS.IDEOGRAM_3]: {
     bestFor: ['logo', 'typography', 'graphic-design', 'text-in-image'],

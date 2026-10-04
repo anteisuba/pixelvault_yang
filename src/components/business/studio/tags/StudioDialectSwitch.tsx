@@ -17,13 +17,24 @@ import { LiquidSegmented } from '@/components/ui/liquid-segmented'
  *
  * ⚠ 它换的是**路由**，不是一个本地开关：方言由路由说了算，浏览器前进后退
  * 因此也落在对的那一台上。两台同壳（`(workspace)/layout.tsx`），所以这一跳
- * 不重挂 provider —— 提示词 / 参考轨 / 结果区原样留着。
+ * 不重挂 provider；目标工作台恢复自己的草稿，在飞生成继续由原 provider 追踪。
  *
  * 液态分段（owner 2026-09-26）：点下去**当场**就走，不等路由换完 —— 路由报回来
  * 之前先按点中的那一台画（`pending`），报回来就以路由为准。
  */
-export function StudioDialectSwitch({ disabled }: { disabled?: boolean }) {
+export function StudioDialectSwitch({
+  disabled,
+  editing = false,
+  onEdit,
+  onGenerate,
+}: {
+  disabled?: boolean
+  editing?: boolean
+  onEdit?: () => void
+  onGenerate?: () => void
+}) {
   const t = useTranslations('StudioTags')
+  const tEdit = useTranslations('StudioImageEdit')
   const router = useRouter()
   const { state } = useStudioForm()
   const [pending, setPending] = useState<PromptDialect | null>(null)
@@ -38,12 +49,22 @@ export function StudioDialectSwitch({ disabled }: { disabled?: boolean }) {
     <LiquidSegmented
       ariaLabel={t('dialectSwitchLabel')}
       disabled={disabled}
-      value={pending ?? state.promptDialect}
-      items={PROMPT_DIALECTS.map((dialect) => ({
-        value: dialect,
-        label: t(`dialect.${dialect}`),
-      }))}
+      value={editing ? 'edit' : (pending ?? state.promptDialect)}
+      items={[
+        ...PROMPT_DIALECTS.map((dialect) => ({
+          value: dialect,
+          label: t(`dialect.${dialect}`),
+        })),
+        ...(onEdit
+          ? [{ value: 'edit' as const, label: tEdit('editMode') }]
+          : []),
+      ]}
       onChange={(dialect) => {
+        if (dialect === 'edit') {
+          onEdit?.()
+          return
+        }
+        onGenerate?.()
         setPending(dialect)
         router.push(PROMPT_DIALECT_ROUTES[dialect])
       }}

@@ -7,8 +7,8 @@ import { getPromptTagPopularityTier } from '@/lib/prompt-tag-autocomplete'
 import { cn } from '@/lib/utils'
 import type { PromptTagSearchResult } from '@/types/prompt-tags'
 
-/** 浮层上限 `max-h-60`（240）加一点余量：下面不够这么高就往上开。 */
-const SUGGESTIONS_FLIP_PX = 260
+const SUGGESTIONS_MAX_HEIGHT = 240
+const SUGGESTIONS_GAP = 4
 
 /** 联想浮层身上的标记：模态弹窗据此不把点联想当成「点外面」。 */
 export const TAG_SUGGESTIONS_ATTR = 'data-tag-suggestions'
@@ -47,34 +47,59 @@ export function StudioTagSuggestions({
   onPick,
   listId,
 }: StudioTagSuggestionsProps) {
-  const [rect, setRect] = useState<DOMRect | null>(null)
+  const [position, setPosition] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    width: number
+    maxHeight: number
+  } | null>(null)
 
   useEffect(() => {
     const anchor = anchorRef.current
     if (!anchor || results.length === 0) return
-    const measure = () => setRect(anchor.getBoundingClientRect())
+    const viewport = window.visualViewport
+    const measure = () => {
+      const rect = anchor.getBoundingClientRect()
+      const viewportTop = viewport?.offsetTop ?? 0
+      const viewportBottom =
+        viewportTop + (viewport?.height ?? window.innerHeight)
+      const below = Math.max(0, viewportBottom - rect.bottom - SUGGESTIONS_GAP)
+      const above = Math.max(0, rect.top - viewportTop - SUGGESTIONS_GAP)
+      const opensUp = below < SUGGESTIONS_MAX_HEIGHT && above > below
+      const maxHeight = Math.min(
+        SUGGESTIONS_MAX_HEIGHT,
+        opensUp ? above : below,
+      )
+      setPosition({
+        ...(opensUp
+          ? { bottom: window.innerHeight - rect.top + SUGGESTIONS_GAP }
+          : { top: rect.bottom + SUGGESTIONS_GAP }),
+        left: rect.left,
+        width: rect.width,
+        maxHeight,
+      })
+    }
     // ⚠ 量在下一帧而不是 effect 里同步 setState —— 同步写会触发级联渲染
     // （eslint `set-state-in-effect`）。代价是浮层晚一帧出现，看不出来。
     const frame = requestAnimationFrame(measure)
     window.addEventListener('scroll', measure, true)
     window.addEventListener('resize', measure)
+    viewport?.addEventListener('resize', measure)
+    viewport?.addEventListener('scroll', measure)
+    const observer = new ResizeObserver(measure)
+    observer.observe(anchor)
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
+      viewport?.removeEventListener('resize', measure)
+      viewport?.removeEventListener('scroll', measure)
+      observer.disconnect()
     }
   }, [anchorRef, results.length])
 
-  if (!rect || results.length === 0) return null
-
-  /**
-   * 下面放不下就往上开 —— 标签台桌面的输入框贴在视口底部（owner 2026-09-26），
-   * 往下开的浮层整个落在屏幕外。
-   */
-  const opensUp = window.innerHeight - rect.bottom < SUGGESTIONS_FLIP_PX
-  const placement = opensUp
-    ? { bottom: window.innerHeight - rect.top + 4 }
-    : { top: rect.bottom + 4 }
+  if (!position || results.length === 0) return null
 
   /**
    * ⚠ 在模态弹窗里（提示词页新建 / 编辑标签模板）：Radix 把 body 设成不接指针、点弹窗
@@ -86,7 +111,7 @@ export function StudioTagSuggestions({
       id={listId}
       role="listbox"
       {...{ [TAG_SUGGESTIONS_ATTR]: '' }}
-      style={{ ...placement, left: rect.left, width: rect.width }}
+      style={position}
       className="pointer-events-auto fixed z-50 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
     >
       {results.map((result, index) => {
@@ -96,15 +121,13 @@ export function StudioTagSuggestions({
             <button
               type="button"
               role="option"
+              id={`${listId}-${index}`}
+              tabIndex={-1}
               aria-selected={index === activeIndex}
-              // ⚠ mousedown 而不是 click：click 之前输入框已经 blur，
-              // 而 blur 会收起浮层 —— 那一下点击就永远落空。
-              onMouseDown={(event) => {
-                event.preventDefault()
-                onPick(result)
-              }}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => onPick(result)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-2xs transition-colors duration-fast ease-standard',
+                'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-fast ease-standard lg:min-h-0 lg:text-2xs',
                 index === activeIndex ? 'bg-accent' : 'hover:bg-accent/60',
               )}
             >

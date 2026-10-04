@@ -51,10 +51,7 @@ import { GenerationPreview } from '@/components/business/studio/GenerationPrevie
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
-import {
-  StudioImageEditStage,
-  type StudioImageEditTarget,
-} from '@/components/business/studio-shared/editor/StudioImageEditStage'
+import { type StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.
@@ -71,11 +68,13 @@ interface StudioCanvasProps {
   referenceRail?: boolean
   /** 挂在根上的额外类（舞台面板收起、结果回来时那一下淡入）。 */
   className?: string
+  onEdit?: (target: StudioImageEditTarget) => void
 }
 
 export const StudioCanvas = memo(function StudioCanvas({
   referenceRail = true,
   className,
+  onEdit,
 }: StudioCanvasProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -99,13 +98,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
-  /**
-   * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
-   * `references/pages/studio-image-edit.md` §2 方向 A：舞台接管）。
-   */
-  const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
-    null,
-  )
   const { modelOptions } = useImageModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
@@ -334,7 +326,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   const referenceFillsStage =
     !referenceRail &&
     !videoWithoutRail &&
-    !editTarget &&
     activeRun?.mode !== 'compare' &&
     activeRun?.mode !== 'variant' &&
     !isGenerating &&
@@ -390,7 +381,6 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const stageBoxFillsStage =
     !referenceRail &&
-    !editTarget &&
     activeRun?.mode !== 'compare' &&
     activeRun?.mode !== 'variant' &&
     ((focusedQueueGeneration ?? lastGeneration) !== null ||
@@ -430,9 +420,12 @@ export const StudioCanvas = memo(function StudioCanvas({
     })
   }, [isMobile, isGenerating, resultId])
 
-  const handleEdit = useCallback((generation: GenerationRecord) => {
-    setEditTarget({ url: generation.url, generationId: generation.id })
-  }, [])
+  const handleEdit = useCallback(
+    (generation: GenerationRecord) => {
+      onEdit?.({ url: generation.url, generationId: generation.id })
+    },
+    [onEdit],
+  )
 
   // 审查 D3：从画布结果一键存配方——复用 ImageDetailModal 同款深链，
   // 不再绕道 Gallery 详情。
@@ -457,10 +450,7 @@ export const StudioCanvas = memo(function StudioCanvas({
       ref={canvasRef}
       className={cn(
         'studio-canvas transition-all',
-        (editTarget ||
-          referenceFillsStage ||
-          videoPoster ||
-          stageBoxFillsStage) &&
+        (referenceFillsStage || videoPoster || stageBoxFillsStage) &&
           'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
         className,
@@ -468,7 +458,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     >
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
-      {!editTarget && stageReference && referenceRail && (
+      {stageReference && referenceRail && (
         <StudioReferenceRail
           label={referenceRailLabel}
           notice={referenceNotice}
@@ -476,7 +466,7 @@ export const StudioCanvas = memo(function StudioCanvas({
           activeIndex={stageReference.referenceIndex}
           onActiveIndexChange={setReferenceCursor}
           onEdit={(index) =>
-            setEditTarget({
+            onEdit?.({
               url: referenceEntries[index].url,
               referenceIndex: index,
               referenceTotal: referenceEntries.length,
@@ -515,7 +505,7 @@ export const StudioCanvas = memo(function StudioCanvas({
           'w-full',
           // ⚠ 撑满舞台的几种（编辑 · 参考图铺满 · 视频首帧封面）这一层也得是弹性列，
           //   否则高度链在这里断掉，图按自身大小冲出舞台。
-          editTarget || referenceFillsStage || videoPoster || stageBoxFillsStage
+          referenceFillsStage || videoPoster || stageBoxFillsStage
             ? 'flex min-h-0 flex-1 flex-col'
             : 'mx-auto',
         )}
@@ -527,13 +517,7 @@ export const StudioCanvas = memo(function StudioCanvas({
         {/* ⚠ 只接 compare / variant。`mode: 'single'` 的 activeRun 也存在（单张
             路径也建 run 做逐项追踪），它必须继续走 GenerationPreview —— 一张图
             掉进栅格里会从「读图」降级成「扫缩略图」。 */}
-        {editTarget ? (
-          <StudioImageEditStage
-            target={editTarget}
-            onBack={() => setEditTarget(null)}
-            onTargetChange={setEditTarget}
-          />
-        ) : activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
+        {activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
           state.outputType === 'audio' ? (
             <AudioVariantGrid
               items={activeRun.items}
@@ -611,7 +595,7 @@ export const StudioCanvas = memo(function StudioCanvas({
                 size="sm"
                 variant="outline"
                 className="rounded-full"
-                onClick={() => setEditTarget(stageReference)}
+                onClick={() => onEdit?.(stageReference)}
               >
                 <Wand2 className="size-3.5" />
                 {tEdit('stageEditThis')}

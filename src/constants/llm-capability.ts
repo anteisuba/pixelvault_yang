@@ -33,8 +33,8 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
-    label: 'OpenAI GPT-6 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    label: 'OpenAI GPT-6.1 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -64,9 +64,6 @@ const ADAPTER_CAPABILITIES: Record<
 > = {
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
-  // DeepSeek V4 Pro remains the default text-only planner / assistant route.
-  // The assistant separately exposes deepseek-flash through model-specific
-  // media capabilities; planner routing still uses the text model.
   [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
   // Claude (Anthropic): canvas-assistant structural reasoning only (multi-
   // scene continuity, character arcs, shot planning — the assistant's own
@@ -74,8 +71,8 @@ const ADAPTER_CAPABILITIES: Record<
   // no planner (SCRIPT_PLANNER_MODELS intentionally stays untouched — see
   // docs/references/pages/assistant-shell.md note).
   [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
-  // xAI (Grok): grok-4.7 has vision, so unlike DeepSeek it is not
-  // barred from enhance. No planner slot — that route's provider enum is
+  // xAI (Grok): grok-4.7 has vision and is available for enhance.
+  // No planner slot — that route's provider enum is
   // wired through three Zod schemas, and adding one there is its own change.
   [AI_ADAPTER_TYPES.XAI]: ['enhance', 'assistant'],
   [AI_ADAPTER_TYPES.VOLCENGINE]: [],
@@ -91,6 +88,7 @@ const ADAPTER_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.NOVELAI]: [],
   // 图片线路，没有任何文本能力。
   [AI_ADAPTER_TYPES.PIXAI]: [],
+  [AI_ADAPTER_TYPES.IDEOGRAM]: [],
   [AI_ADAPTER_TYPES.FISH_AUDIO]: [],
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: [],
   [AI_ADAPTER_TYPES.RUNNER]: [],

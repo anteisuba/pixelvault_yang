@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { ArrowLeft } from '@/components/icons'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ImageEditSurface } from '@/components/business/studio-shared/editor/ImageEditSurface'
@@ -11,9 +10,6 @@ import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
 
 /**
  * 工作台侧的编辑宿主 —— 舞台接管态。
- *
- * 施工基准 `docs/references/pages/studio-image-edit.md` §2：进编辑后右侧结果区
- * 整片切成编辑态（返回条 + 图区 + 右侧控件栏），左参数栏不动、不收窄。
  *
  * 与画布弹窗共用 `ImageEditSurface`（2026-08-19 E5 之后连布局都只剩一套），
  * 两个宿主只差一处：结果落点 —— 这边**就地替换参考图槽位**（§6，owner
@@ -54,15 +50,35 @@ interface StudioImageEditStageProps {
    * 出发，等于把上一次的修改丢了。
    */
   onTargetChange?: (next: StudioImageEditTarget) => void
+  onChangeSource?: () => void
+  onRunStateChange?: (state: 'running' | 'success' | 'error') => void
+  composerContainer?: HTMLElement | null
+  active?: boolean
 }
 
 export function StudioImageEditStage({
   target,
   onBack,
   onTargetChange,
+  onChangeSource,
+  onRunStateChange,
+  composerContainer,
+  active = true,
 }: StudioImageEditStageProps) {
   const t = useTranslations('StudioImageEdit')
   const { imageUpload } = useStudioData()
+  const imageUploadRef = useRef(imageUpload)
+  useLayoutEffect(() => {
+    imageUploadRef.current = imageUpload
+  }, [imageUpload])
+  const [isRunning, setIsRunning] = useState(false)
+  const handleRunState = useCallback(
+    (state: 'running' | 'success' | 'error') => {
+      setIsRunning(state === 'running')
+      onRunStateChange?.(state)
+    },
+    [onRunStateChange],
+  )
   /**
    * 这一轮编辑的历史链。第 0 项是进编辑时的那张原图。
    *
@@ -80,18 +96,25 @@ export function StudioImageEditStage({
   /** 把某张图落回槽位并让舞台跟上 —— 应用与回退共用这一条。 */
   const adopt = useCallback(
     (step: EditStep) => {
-      if (target.referenceIndex !== undefined) {
-        // ⚠ 就地替换，不是先删后加 —— 后者会把它挪到队尾，槽满时还会被判
-        // over_limit，于是「改好这张再拿去生成」变成「改好的那张不参与生成」。
-        imageUpload.replaceReferenceImage(target.referenceIndex, step.url)
+      const referenceIndex = target.referenceIndex
+      const currentImageUpload = imageUploadRef.current
+      const referenceStillMatches =
+        referenceIndex !== undefined &&
+        currentImageUpload.referenceEntries[referenceIndex]?.url === target.url
+      if (referenceStillMatches) {
+        currentImageUpload.replaceReferenceImage(referenceIndex, step.url)
       }
       onTargetChange?.({
         ...target,
         url: step.url,
         generationId: step.generationId,
+        referenceIndex: referenceStillMatches ? referenceIndex : undefined,
+        referenceTotal: referenceStillMatches
+          ? target.referenceTotal
+          : undefined,
       })
     },
-    [imageUpload, onTargetChange, target],
+    [onTargetChange, target],
   )
 
   const handleApplied = useCallback(
@@ -116,59 +139,60 @@ export function StudioImageEditStage({
     [adopt, target.url],
   )
 
-  const editingLabel =
-    target.referenceIndex !== undefined
-      ? t('stageEditingReference', {
-          index: target.referenceIndex + 1,
-          total: target.referenceTotal ?? target.referenceIndex + 1,
-        })
-      : t('sourceBadgeGeneration')
+  /**
+   * 舞台顶上只剩一行：这一轮的编辑历史（有了才出现）+ 右端「换一张」。
+   * ⛔ 「← 回到工作台 · 画廊来源」那一行已撤（owner 2026-10-03）：回去点顶上的
+   *   「自然语言 / 标签」，三处来回切的入口收成一处。
+   */
+  const showTopRow = history.length > 1 || Boolean(onChangeSource)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 pb-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-foreground transition-colors hover:bg-muted"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          {t('stageBack')}
-        </button>
-        <span className="text-xs text-muted-foreground">{editingLabel}</span>
-      </div>
-
-      {history.length > 1 ? (
-        <nav
-          aria-label={t('stageHistory')}
-          className="mb-4 flex flex-wrap items-center gap-1.5"
-        >
-          <span className="text-2xs text-muted-foreground/70">
-            {t('stageHistory')}
-          </span>
-          {history.map((step, index) => {
-            const current = step.url === target.url
-            return (
-              <button
-                key={`${step.url}-${index}`}
-                type="button"
-                aria-current={current ? 'step' : undefined}
-                title={step.summary}
-                onClick={() => adopt(step)}
-                className={cn(
-                  'max-w-56 truncate rounded-full border px-2.5 py-1 text-2xs transition-colors',
-                  current
-                    ? 'border-foreground/20 bg-foreground text-background'
-                    : 'border-border/70 text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {index === 0
-                  ? step.summary
-                  : `${t('stageHistoryStep', { index })} · ${step.summary}`}
-              </button>
-            )
-          })}
-        </nav>
+      {showTopRow ? (
+        <div className="mb-3 flex min-h-8 shrink-0 items-center gap-2">
+          {history.length > 1 ? (
+            <nav
+              aria-label={t('stageHistory')}
+              className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
+            >
+              {history.map((step, index) => {
+                const current = step.url === target.url
+                return (
+                  <button
+                    key={`${step.url}-${index}`}
+                    type="button"
+                    aria-current={current ? 'step' : undefined}
+                    title={step.summary}
+                    onClick={() => adopt(step)}
+                    disabled={isRunning}
+                    className={cn(
+                      'max-w-56 shrink-0 truncate rounded-full border px-2.5 text-2xs transition-colors duration-fast ease-standard',
+                      current
+                        ? 'border-foreground/20 bg-foreground text-background'
+                        : 'border-border/70 text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {index === 0
+                      ? step.summary
+                      : `${t('stageHistoryStep', { index })} · ${step.summary}`}
+                  </button>
+                )
+              })}
+            </nav>
+          ) : (
+            <span className="flex-1" />
+          )}
+          {onChangeSource ? (
+            <button
+              type="button"
+              disabled={isRunning}
+              onClick={onChangeSource}
+              className="touch-target-y h-8 shrink-0 rounded-full px-3 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:opacity-50"
+            >
+              {t('changeSource')}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <ImageEditSurface
@@ -176,6 +200,10 @@ export function StudioImageEditStage({
         sourceGenerationId={target.generationId}
         onApplied={handleApplied}
         onCancel={onBack}
+        defaultTask="edit-image"
+        composerContainer={composerContainer}
+        active={active}
+        onRunStateChange={handleRunState}
       />
     </div>
   )

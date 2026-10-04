@@ -2,23 +2,23 @@ import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 
 /**
- * Every resolution any video model can emit. `'2k'` exists only because
- * MiniMax H3 is 2K-only — it has no other producer today.
+ * Every resolution any video model can emit.
  */
 export const VIDEO_RESOLUTIONS = [
   '480p',
   '540p',
   '720p',
+  '768p',
   '1080p',
   '2k',
+  '4k',
 ] as const
 export type VideoResolution = (typeof VIDEO_RESOLUTIONS)[number]
 
 /**
  * What a model gets when it declares no `supportedResolutions` of its own.
  * Deliberately **not** `VIDEO_RESOLUTIONS`: widening the union must not
- * silently hand 2K to every model that never opted in. Only models that
- * explicitly list `'2k'` may offer it.
+ * silently hand higher resolutions to models that never opted in.
  */
 export const DEFAULT_VIDEO_RESOLUTIONS = [
   '480p',

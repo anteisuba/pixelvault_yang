@@ -4,6 +4,7 @@ export const READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS = [
   'upscale',
   'remove-background',
   'inpaint',
+  'edit-image',
   'extract-element',
   'object-replace',
 ] as const

@@ -89,6 +89,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import {
   NodeV4DataSchema,
   type NodeV4,
+  type NodeV4GenerationParams,
   type NodeWorkflowModelSelection as NodeV4Model,
   type EditClip,
   type EditProject,
@@ -106,6 +107,11 @@ import {
  */
 export type NodeV4Inverse =
   | { readonly kind: 'op'; readonly op: NodeAssistantOpV4 }
+  | {
+      readonly kind: 'restoreParams'
+      readonly nodeId: string
+      readonly params: NodeV4GenerationParams | undefined
+    }
   | {
       readonly kind: 'restore'
       readonly nodes: readonly NodeV4[]
@@ -1215,12 +1221,7 @@ export function applyNodeAssistantOpV4(
           ...data,
           params: { ...previous, ...op.params },
         })),
-        inverse: previous
-          ? {
-              kind: 'op',
-              op: { op: ids.setParams, target: node.id, params: previous },
-            }
-          : { kind: 'restore', nodes: [node], edges: [] },
+        inverse: { kind: 'restoreParams', nodeId: node.id, params: previous },
         changedNodeIds: [node.id],
         changedEdgeIds: [],
       }
@@ -1602,6 +1603,12 @@ export function applyInverseV4(
   inverse: NodeV4Inverse,
   context: ApplyOpV4Context,
 ): NodeWorkflowStateV4 {
+  if (inverse.kind === 'restoreParams') {
+    return replaceNodeData(state, inverse.nodeId, (data) => ({
+      ...data,
+      params: inverse.params,
+    }))
+  }
   if (inverse.kind === 'removeNode') {
     const edges = state.edges.filter(
       (edge) =>

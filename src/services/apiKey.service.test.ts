@@ -179,6 +179,36 @@ describe('apiKey.service verifyApiKey', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each([200, 401, 403, 404, 429])(
+    'verifies Ideogram with a non-billable dry run and fails closed for HTTP %s',
+    async (status) => {
+      mockFindUnique.mockResolvedValue({
+        ...KEY_RECORD,
+        modelId: 'ideogram-4.5',
+        adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
+        providerConfig: {
+          label: 'Ideogram',
+          baseUrl: 'https://api.ideogram.ai',
+        },
+      })
+      mockDecryptApiKey.mockReturnValue('test-ideogram-key')
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue(new Response(null, { status }))
+      vi.stubGlobal('fetch', mockFetch)
+      const result = await verifyApiKey('key-1', 'user-1')
+      expect(result.status).toBe(status === 200 ? 'available' : 'failed')
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.ideogram.ai/v2/image/generate/ideogram-4-5?dry_run=true',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ 'Api-Key': 'test-ideogram-key' }),
+        }),
+      )
+    },
+  )
+
   it('treats FAL queue root 404 as an available key and logs response timing', async () => {
     const mockFetch = vi.fn()
     vi.stubGlobal('fetch', mockFetch)

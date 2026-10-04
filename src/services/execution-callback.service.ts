@@ -128,6 +128,8 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     multiViewBatchId: z.string().min(1).optional(),
     multiViewAngle: z.enum(['back', 'left', 'right']).optional(),
     sourceGenerationId: z.string().min(1).optional(),
+    imageOperation: z.literal('precise-edit').optional(),
+    imageEditSourcePrompt: z.string().optional(),
     sourceSurface: GenerationSourceSurfaceSchema.optional(),
     /**
      * 助手给这一枪起的名（切片 Y）—— 提交时随队列元数据存进
@@ -954,8 +956,15 @@ async function finalizeImageResult(
   // Billing units are sealed by the server before dispatch. The worker's
   // requestCount describes provider attempts and must not override pricing.
   const requestCount = metadata.creditCost ?? resultData.requestCount ?? 1
-  const seedValue = (metadata.advancedParams as { seed?: number } | undefined)
-    ?.seed
+  const returnedSeed = resultData.providerMetadata?.seed
+  const seedValue =
+    job.adapterType === 'ideogram' &&
+    typeof returnedSeed === 'number' &&
+    Number.isInteger(returnedSeed) &&
+    returnedSeed >= 0 &&
+    returnedSeed <= 2147483647
+      ? returnedSeed
+      : (metadata.advancedParams as { seed?: number } | undefined)?.seed
 
   try {
     const uploadResult = workerUploadedKey
@@ -996,7 +1005,10 @@ async function finalizeImageResult(
             width: resultData.width ?? 0,
             height: resultData.height ?? 0,
             referenceImageUrl: metadata.referenceImageUrl,
-            prompt: job.prompt ?? '',
+            prompt:
+              metadata.imageOperation === 'precise-edit'
+                ? (metadata.imageEditSourcePrompt ?? '')
+                : (job.prompt ?? ''),
             model: job.modelId,
             provider: job.provider,
             requestCount,
@@ -1030,9 +1042,15 @@ async function finalizeImageResult(
             snapshot: withGenerationObservability(
               {
                 ...metadata.studioSnapshot,
-                compiledPrompt: job.prompt ?? '',
+                compiledPrompt:
+                  metadata.imageOperation === 'precise-edit'
+                    ? (metadata.imageEditSourcePrompt ?? '')
+                    : (job.prompt ?? ''),
                 modelId: job.modelId,
-                aspectRatio: metadata.aspectRatio,
+                aspectRatio:
+                  metadata.imageOperation === 'precise-edit'
+                    ? undefined
+                    : metadata.aspectRatio,
                 advancedParams: metadata.advancedParams,
                 referenceImages: metadata.referenceImages,
                 isFreeGeneration: metadata.isFreeGeneration,
@@ -1042,6 +1060,13 @@ async function finalizeImageResult(
                 multiViewBatchId: metadata.multiViewBatchId,
                 multiViewAngle: metadata.multiViewAngle,
                 sourceGenerationId: metadata.sourceGenerationId,
+                imageOperation: metadata.imageOperation,
+                ...(metadata.imageOperation === 'precise-edit'
+                  ? {
+                      imageEditSourcePrompt: metadata.imageEditSourcePrompt,
+                      imageEditPrompt: job.prompt ?? '',
+                    }
+                  : {}),
                 executionCallback: {
                   runId: payload.runId,
                   ts: payload.ts,

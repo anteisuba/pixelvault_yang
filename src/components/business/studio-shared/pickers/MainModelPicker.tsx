@@ -45,6 +45,7 @@ interface CommonProps {
   popoverAlign?: ModelPickerPopoverProps['align']
   contentClassName?: string
   className?: string
+  triggerVariantOnly?: ModelPickerPopoverProps['triggerVariantOnly']
   disabled?: boolean
   /**
    * 在这些模态各自的 hook 取到清单之后再收窄一次。谓词由调用方给 —— 组件本身不认

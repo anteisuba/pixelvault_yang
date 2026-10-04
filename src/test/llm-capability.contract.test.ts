@@ -132,7 +132,7 @@ describe('IRON RULE — LLM scope source of truth', () => {
 
   it('a saved key for an adapter that does NOT declare the scope is filtered out', () => {
     // Regression guard for the original DeepSeek-in-enhance bug: DeepSeek
-    // declares "planner" + "assistant" (text-only canvas assistant) but NOT
+    // declares "planner" + "assistant" but NOT
     // "enhance", so it must surface in planner/assistant pickers and stay out
     // of the enhance picker.
     const deepseekKey = makeKey({

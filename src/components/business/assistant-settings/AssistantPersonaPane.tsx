@@ -87,16 +87,14 @@ function readFileAsDataUrl(file: File): Promise<string> {
   })
 }
 
-/** 一张脸：有图用图，没有就按预设画字形（与时间线、顶栏同一个字形）。 */
+/** 一张脸：有图用图，没有就用与时间线、顶栏相同的默认头像。 */
 function PersonaFace({
   url,
   preset,
-  name,
   className,
 }: {
   url: string | null
   preset: string | null
-  name: string
   className?: string
 }) {
   return (
@@ -116,11 +114,7 @@ function PersonaFace({
           className="size-full object-cover"
         />
       ) : (
-        <AssistantAvatarGlyph
-          presetId={preset}
-          name={name}
-          className="size-full"
-        />
+        <AssistantAvatarGlyph presetId={preset} className="size-full" />
       )}
     </span>
   )
@@ -132,7 +126,6 @@ export function AssistantPersonaPane({
   autosave: UseAssistantPersonaAutosaveValue
 }) {
   const t = useTranslations('AssistantSettings')
-  const tTimeline = useTranslations('StudioOperator.timeline')
   const reducedMotion = useReducedMotion()
   const { persona, draft, apply, edit, commit, replace } = autosave
   const { cards } = useCharacterCards()
@@ -184,12 +177,6 @@ export function AssistantPersonaPane({
             (option) => option.id === draft.characterCardId,
           ) ?? null)
       : null
-  const fallbackName = tTimeline('assistantFallback')
-  const displayName =
-    (draft.nameFromCharacter && activeCharacter?.name) ||
-    draft.name?.trim() ||
-    fallbackName
-
   function faceFor(choice: AssistantAvatarChoice): {
     url: string | null
     preset: string | null
@@ -211,7 +198,6 @@ export function AssistantPersonaPane({
     ...(activeCharacter ? [ASSISTANT_AVATAR_CHOICE_IDS.character] : []),
     ...(persona.uploadedAvatarUrl ? [ASSISTANT_AVATAR_CHOICE_IDS.upload] : []),
     ASSISTANT_AVATAR_CHOICE_IDS.mark,
-    ASSISTANT_AVATAR_CHOICE_IDS.monogram,
   ]
   const avatarChoiceLabel = (choice: AssistantAvatarChoice) =>
     choice === ASSISTANT_AVATAR_CHOICE_IDS.character
@@ -343,7 +329,6 @@ export function AssistantPersonaPane({
                   <PersonaFace
                     url={currentFace.url}
                     preset={currentFace.preset}
-                    name={displayName}
                     className="size-18 text-2xl"
                   />
                 </button>
@@ -372,7 +357,6 @@ export function AssistantPersonaPane({
                         <PersonaFace
                           url={face.url}
                           preset={face.preset}
-                          name={displayName}
                           className="size-6 text-2xs"
                         />
                         {avatarChoiceLabel(choice)}
@@ -433,7 +417,6 @@ export function AssistantPersonaPane({
                         <PersonaFace
                           url={activeCharacter.faceUrl}
                           preset={draft.avatarPreset}
-                          name={activeCharacter.name}
                           className="size-6 text-2xs"
                         />
                         <span className="min-w-0 truncate">
@@ -485,7 +468,6 @@ export function AssistantPersonaPane({
                         <PersonaFace
                           url={option.faceUrl}
                           preset={draft.avatarPreset}
-                          name={option.name}
                           className="size-6 text-2xs"
                         />
                         <span className="flex min-w-0 flex-col leading-tight">
@@ -640,7 +622,6 @@ export function AssistantPersonaPane({
           <PersonaFace
             url={currentFace.url}
             preset={currentFace.preset}
-            name={displayName}
             className="size-6.5 text-2xs"
           />
           <div

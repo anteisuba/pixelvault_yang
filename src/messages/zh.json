@@ -206,6 +206,7 @@
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {
+      "ideogram": "Ideogram",
       "openai": "OpenAI",
       "google": "Google",
       "deepseek": "DeepSeek",
@@ -1264,7 +1265,7 @@
         "eleven": {
           "pos": "音效与配乐：SFX 和 Music 两条线。",
           "fare": "按用量 – $0.15 / 秒",
-          "routes": "在 ANTEI · 2 条线路（SFX v2 + Music v2）",
+          "routes": "在 ANTEI · 2 条线路（SFX v2 + Music v2.5）",
           "src": "elevenlabs.io 官方视觉",
           "tags": {
             "0": "音效",
@@ -3808,6 +3809,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google 最快、成本最低的图像档位——适合快速草稿与大批量迭代。"
     },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "通过 Ideogram 官方接口生成图片与精确编辑。"
+    },
     "ideogram3": {
       "label": "Ideogram V4",
       "description": "专注设计的图像模型，擅长文字渲染与图形构图。"
@@ -3925,8 +3930,8 @@
       "description": "用文字提示生成音效与拟音"
     },
     "elevenMusicV2": {
-      "label": "ElevenLabs Music v2",
-      "description": "自然语言提示生成影棚级配乐（器乐或人声）"
+      "label": "ElevenLabs Music v2.5",
+      "description": "生成器乐或人声配乐，音质与提示词遵循能力进一步提升。"
     },
     "happyhorse10": {
       "label": "HappyHorse 1.1",
@@ -3955,6 +3960,10 @@
     "klingO3ProV2vEdit": {
       "label": "可灵 O3 Pro — 视频编辑",
       "description": "最高档视频编辑：同一段镜头、同一套运镜，只换观感；支持元素与图片参考"
+    },
+    "klingO34kV2vEdit": {
+      "label": "可灵 O3 4K — 视频编辑",
+      "description": "以原生 4K 编辑已有镜头，保留原镜头运动与节奏，支持图片参考。"
     },
     "ltx23": {
       "label": "LTX 2.3",
@@ -4007,6 +4016,10 @@
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5（参考，火山方舟）",
       "description": "Seedance 2.5 的参考生视频。最多 30 图 / 10 视频 / 10 音频，支持纯音频参考"
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "fal 优化的 MiniMax H3 快速版，支持原生音频、首尾帧和 5–15 秒视频。原生 480p/768p，1080p 由 768p 高精细化。"
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -6498,6 +6511,8 @@
   },
   "StudioMobile": {
     "modelParameters": "模型参数",
+    "add": "添加",
+    "back": "返回",
     "modelChipEmpty": "选个模型",
     "modelChipMulti": "{count} 个模型",
     "modelSheetDone": "完成 · {count} 个模型",
@@ -6564,7 +6579,10 @@
     "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "约 {amount} 起",
     "costUnpriced": "{count, plural, other {# 个模型未标价}}",
-    "costRange": "另按档位浮动：约 {min} – {max}",
+    "costRange": "浮动部分约 {min} – {max}",
+    "costApproxRange": "约 {min} – {max}",
+    "costApproxRangeFrom": "约 {min} – {max} 起",
+    "costImageReferenceRangeBasis": "高画质费用取决于所选卡片是否带有参考图。",
     "costRangeBasis": "区间按 1024×1024 输出估算；文字与参考图输入另计，其他尺寸及自动画质以实际用量为准。",
     "batchCountSummary": "{count, plural, other {每模型 # 张}}",
     "generateCount": "{count, plural, other {生成 # 张}}",
@@ -6609,6 +6627,7 @@
     "originalWork": "原创"
   },
   "StudioTags": {
+    "parameters": "参数",
     "mobileParameters": "采样与高级参数",
     "officialTagsLoading": "正在查询 NAI 官方标签…",
     "officialTagsKeyRequired": "配置 NovelAI API key 后可用官方补全，仍可手动输入。",
@@ -6900,7 +6919,8 @@
       "failed": "局部重绘失败",
       "toolBrush": "画笔",
       "toolBox": "拉框",
-      "boxHint": "在图上拖一个框圈出要重绘的区域"
+      "boxHint": "在图上拖一个框圈出要重绘的区域",
+      "brushHint": "在图上涂出要重绘的区域"
     },
     "toolDrawerTitle": "工具",
     "toolMore": "更多工具",
@@ -6912,6 +6932,21 @@
     "takeLabel": "第 {index} 张"
   },
   "StudioImageEdit": {
+    "editMode": "编辑",
+    "moreTools": "更多工具",
+    "editPromptLabel": "修改指令",
+    "editPromptPlaceholder": "描述你想怎样修改这张图片…",
+    "applyEdit": "应用修改",
+    "chooseSourceHint": "选择一张图片，开始编辑。",
+    "chooseSource": "从素材库选择",
+    "changeSource": "换一张",
+    "pricePerImage": "约 {amount} / 张",
+    "quality": {
+      "very_low": "快速预览",
+      "low": "低",
+      "medium": "标准",
+      "high": "高"
+    },
     "settingsLabel": "编辑设置",
     "modelLabel": "使用模型",
     "eyebrow": "Studio 工具",
@@ -6962,6 +6997,10 @@
       "subtitleLoadFirst": "请先在上方加载源图，再选择任务。"
     },
     "tasks": {
+      "edit-image": {
+        "label": "整图修改",
+        "description": "用一句话描述要对整张图片做的修改。"
+      },
       "upscale": {
         "label": "超分辨率",
         "description": "智能放大并补回细节。"
@@ -7114,6 +7153,7 @@
     }
   },
   "QuickSetup": {
+    "ideogramGuide": "登录 Ideogram → API Keys → Create key，创建密钥。",
     "title": "设置 {model}",
     "description": "2 分钟获取 API key，解锁该模型。",
     "step1": "1. 获取 API key",
@@ -7872,6 +7912,14 @@
         "model": "模型",
         "aspect": "宽高比",
         "resolution": "分辨率",
+        "quality": "画质",
+        "modelDefault": "模型默认",
+        "duration": "时长",
+        "seconds": "{seconds} 秒",
+        "audio": "音轨",
+        "enabled": "开启",
+        "disabled": "关闭",
+        "nodeUnavailable": "目标节点或模型不可用，请重新选择。",
         "adjusted": "已按该模型调整：{fields}",
         "knobStepTitle": "在确认卡上改了参数",
         "knobStepReason": "你在确认卡上改的"
@@ -7968,10 +8016,12 @@
       "stopped": "你叫停了当前工作",
       "interrupted": "你插话了 —— 助手已转向",
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
+      "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "generationFailed": "这一批没有生成出来 —— 助手不会接着看了",
+      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。",
       "generationFailedWithReason": "这一批没有生成出来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "loraLibraryPickMounted": "你挂上了「{subject}」",
@@ -7992,8 +8042,6 @@
       "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
       "imageHandoffAccepted": "已交给图片助手：{subject}",
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
-      "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
-      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。",
       "workbenchHandoffAccepted": "已换台：{subject}",
       "workbenchHandoffDeclined": "先不换台：{subject}"
     },
@@ -8071,6 +8119,7 @@
     "error": {
       "generic": "助手这一轮没跑完",
       "internal": "这次请求在我们这边出了问题",
+      "streamInterrupted": "连接在本轮完成前中断了。已完成的操作已保留，请检查结果后再继续。",
       "failed": "助手这一轮中途出错了",
       "emptyStream": "没收到助手的回应",
       "unauthorized": "登录状态过期了，重新登录再试",
@@ -8078,8 +8127,7 @@
       "invalidRequest": "这一轮的请求服务端没认下来",
       "traceLabel": "错误编号 {traceId}",
       "copyDetail": "复制详情",
-      "copied": "已复制",
-      "streamInterrupted": "连接在本轮完成前中断了。已完成的操作已保留，请检查结果后再继续。"
+      "copied": "已复制"
     },
     "assistantSettings": "助手设置",
     "rule": {
@@ -8538,8 +8586,7 @@
     "avatar": {
       "character": "{name} 的头像",
       "upload": "我上传的",
-      "mark": "品牌标",
-      "monogram": "首字母",
+      "mark": "默认头像",
       "uploadNew": "上传一张新的…",
       "tooLarge": "这张图超过 5 MB 了。",
       "unsupported": "换一张 JPEG、PNG 或 WebP。"

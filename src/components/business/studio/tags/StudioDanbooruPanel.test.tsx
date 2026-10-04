@@ -641,6 +641,7 @@ describe('查资料 · 收藏', () => {
 describe('查资料 B · 手机', () => {
   it('列表一页，点一行推进详情，‹ 回到候选', async () => {
     mocks.phone = true
+    Element.prototype.scrollIntoView = vi.fn()
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
     search('miku')
     expect(screen.getByText('pickHint')).toBeInTheDocument()
@@ -653,6 +654,13 @@ describe('查资料 B · 手机', () => {
     expect(
       await screen.findByRole('button', { name: 'addTags(1)' }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'hatsune miku' })).toHaveFocus()
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      block: 'start',
+    })
+    expect(
+      vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1),
+    ).toBe(screen.getByRole('region', { name: 'title' }))
     // 手机上说短一点（画板 LkFPhone）。
     expect(screen.getByText('tagsHintPhone')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'backToList' }))

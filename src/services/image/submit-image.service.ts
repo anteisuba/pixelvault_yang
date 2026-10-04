@@ -31,6 +31,7 @@ import {
 import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
+  prepareIdeogramInpaintMask,
   uploadInpaintMaskIfNeeded,
   uploadReferenceImagesIfNeeded,
   type GenerateImageDeps,
@@ -84,6 +85,8 @@ export interface ImageQueueMetadata {
   multiViewBatchId?: string
   multiViewAngle?: MultiViewGeneratedAngle
   sourceGenerationId?: string
+  imageOperation?: 'precise-edit'
+  imageEditSourcePrompt?: string
   /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省 IMAGE_STUDIO）。 */
   sourceSurface?: GenerationSourceSurface
   /**
@@ -122,6 +125,8 @@ export async function submitImageGeneration(
     | 'multiViewBatchId'
     | 'multiViewAngle'
     | 'sourceGenerationId'
+    | 'imageOperation'
+    | 'imageEditSourcePrompt'
     | 'sourceSurface'
     | 'studioSnapshot'
     | 'displayLabel'
@@ -222,6 +227,18 @@ export async function submitImageGeneration(
     timer,
   })
   const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
+  const workerAdvancedParams =
+    route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM &&
+    advancedParams?.inpaintMask
+      ? {
+          ...advancedParams,
+          inpaintMask: await prepareIdeogramInpaintMask(
+            dbUser.id,
+            referenceImages[0],
+            advancedParams.inpaintMask,
+          ),
+        }
+      : advancedParams
 
   const metadata: ImageQueueMetadata = {
     outputType: 'IMAGE',
@@ -242,6 +259,8 @@ export async function submitImageGeneration(
     multiViewBatchId: queueMetadataInput.multiViewBatchId,
     multiViewAngle: queueMetadataInput.multiViewAngle,
     sourceGenerationId: queueMetadataInput.sourceGenerationId,
+    imageOperation: queueMetadataInput.imageOperation,
+    imageEditSourcePrompt: queueMetadataInput.imageEditSourcePrompt,
     sourceSurface: queueMetadataInput.sourceSurface,
     studioSnapshot: queueMetadataInput.studioSnapshot,
     displayLabel: queueMetadataInput.displayLabel,
@@ -266,7 +285,7 @@ export async function submitImageGeneration(
     // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
     // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
     // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
-    let runnerAdvancedParams = advancedParams
+    let runnerAdvancedParams = workerAdvancedParams
     if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
       const loras = input.advancedParams?.loras ?? []
       if (loras.length > 0) {
@@ -342,6 +361,7 @@ export async function submitImageGeneration(
       maxAttempts:
         route.adapterType === AI_ADAPTER_TYPES.FAL ||
         route.adapterType === AI_ADAPTER_TYPES.REPLICATE ||
+        route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM ||
         // RunPod cold starts (scale-to-zero) can run 150s+ before the job even
         // starts running — needs the full poll window, not the single-shot
         // path used by adapters that resolve synchronously inside one step.do.
@@ -355,6 +375,7 @@ export async function submitImageGeneration(
         externalModelId:
           route.externalModelId ?? getExecutionModelId(route.modelId),
         aspectRatio: input.aspectRatio,
+        imageOperation: queueMetadataInput.imageOperation,
         referenceImage: referenceImageUrl,
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,

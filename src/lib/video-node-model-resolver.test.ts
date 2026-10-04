@@ -45,6 +45,8 @@ const ALL_OPTIONS = [
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+  AI_MODELS.SEEDANCE_25,
+  AI_MODELS.SEEDANCE_25_REFERENCE,
   AI_MODELS.KLING_V3_PRO,
   AI_MODELS.GEMINI_OMNI_FLASH,
 ].map((id) => opt(id))
@@ -134,23 +136,21 @@ describe('pickDefaultVideoModel', () => {
     expect(
       pickDefaultVideoModel(DEFAULT_VIDEO_VARIANT, 'keyframe', ALL_OPTIONS)
         ?.modelId,
-    ).toBe(AI_MODELS.SEEDANCE_20_FAST)
+    ).toBe(AI_MODELS.SEEDANCE_25_VOLCENGINE)
     expect(
       pickDefaultVideoModel(DEFAULT_VIDEO_VARIANT, 'multimodal', ALL_OPTIONS)
         ?.modelId,
-    ).toBe(AI_MODELS.SEEDANCE_20_FAST_REFERENCE)
+    ).toBe(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE)
   })
 
   it('优先用户自带 key 的那个渠道', () => {
-    const withSavedVolc = ALL_OPTIONS.map((o) =>
-      o.modelId === AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE
-        ? opt(o.modelId, 'saved')
-        : o,
+    const withSavedFal = ALL_OPTIONS.map((o) =>
+      o.modelId === AI_MODELS.SEEDANCE_25 ? opt(o.modelId, 'saved') : o,
     )
     expect(
-      pickDefaultVideoModel(DEFAULT_VIDEO_VARIANT, 'keyframe', withSavedVolc)
+      pickDefaultVideoModel(DEFAULT_VIDEO_VARIANT, 'keyframe', withSavedFal)
         ?.modelId,
-    ).toBe(AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE)
+    ).toBe(AI_MODELS.SEEDANCE_25)
   })
 
   it('默认型号在这一档无解时，退到该档下任意一条能跑的', () => {

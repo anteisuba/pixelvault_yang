@@ -210,6 +210,17 @@ describe('标签台右列', () => {
     expect(titles).not.toContain('characterTitle')
     expect(titles).not.toContain('resolutionTitle')
   })
+  it('手机参数面板保留 UC 与采样设置，文字由独立入口编辑', () => {
+    render(
+      <StudioTagsControlColumn placement="popover" hideTextRendering compact />,
+    )
+    expect(headings()).toContain('capability.ucPreset')
+    expect(headings()).toContain('capability.sampler · capability.steps')
+    expect(headings()).not.toContain('capability.textRendering')
+    expect(
+      screen.getByRole('spinbutton', { name: 'workbench.seed' }),
+    ).toBeVisible()
+  })
 })
 
 it('V4.5 switches between img2img and precise character controls', () => {

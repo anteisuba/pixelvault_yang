@@ -1,233 +1,62 @@
 'use client'
 
-import { memo, useMemo, type ReactNode } from 'react'
-import { useTranslations } from 'next-intl'
-import * as Toolbar from '@radix-ui/react-toolbar'
-
-import { MainModelPicker } from '@/components/business/studio-shared/pickers'
-import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
-import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
-import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
-import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
-import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
-import { NovelAiTagModelSchema } from '@/types/novelai-tags'
-import { StudioTagCarryNote } from '@/components/business/studio/tags/StudioTagCarryNote'
-import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
-import { useStudioForm } from '@/contexts/studio-context'
-import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
-import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
-import { getTranslatedModelLabel } from '@/lib/model-options'
-import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { StudioTagCharacters } from './StudioTagCharacters'
-import { StudioTagsControlColumn } from './StudioTagsControlColumn'
-import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
+import { memo, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
 import { cn } from '@/lib/utils'
-import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
-import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
+import { StudioTagsComposer } from './StudioTagsComposer'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
-import type { TagChip } from '@/types/tag-composer'
 
-/** 标签台 A：同一份编辑状态服务桌面与手机，生成动作只挂载一次。 */
 export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   onOpenPanel,
-  templates,
+  activePanel,
+  restoring,
   overlay,
 }: {
-  onOpenPanel: (panel: TagWorkbenchPanel) => void
-  /**
-   * 「模板」开合舞台上那块面板（模板 C）；`restoring` = 刚撤销了一次套用，
-   * 正向标签那一栏从 40% 淡回来。
-   */
-  templates: { open: boolean; onToggle: () => void; restoring?: boolean }
-  /** 浮在底部生成栏上沿的东西（套用模板后的「已套用 · 撤销」）。 */
+  onOpenPanel: (panel: TagWorkbenchPanel | null) => void
+  activePanel: TagWorkbenchPanel | null
+  restoring?: boolean
   overlay?: ReactNode
 }) {
-  const isMobile = useIsMobile()
-  const t = useTranslations('StudioTags')
-  const tStudio = useTranslations('StudioV2')
-  const tForm = useTranslations('StudioForm')
-  const tModels = useTranslations('Models')
-  const { state, dispatch } = useStudioForm()
-  const {
-    runModels,
-    filterModelByDialect,
-    handleReplaceRunModel,
-    canGenerate,
-    blockedReason,
-    handleGenerate,
-    isGenerating,
-    elapsedSeconds,
-    isImagePromptOverLimit,
-  } = useStudioGenerateAction()
+  const composerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const composer = composerRef.current
+    const layout = composer?.closest<HTMLElement>('.studio-layout-v2')
+    if (!composer || !layout) return
+    const update = () =>
+      layout.style.setProperty(
+        '--studio-mobile-composer-height',
+        `${Math.ceil(composer.getBoundingClientRect().height)}px`,
+      )
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(composer)
+    return () => {
+      observer.disconnect()
+      layout.style.removeProperty('--studio-mobile-composer-height')
+    }
+  }, [])
 
-  /**
-   * 顶栏右边那颗模型 chip。这一台只能单选（owner 2026-09-27「NAI 这边只能
-   * 单选」）：点一行 = 换成它，⛔ 不再叠加第二个型号。
-   */
-  const modelSummary = runModels[0]
-    ? getTranslatedModelLabel(tModels, runModels[0].modelId)
-    : tStudio('noModelHint')
-
-  /**
-   * 这一轮选中的模型共同长出来的控件（能力表派生 + 台内取交集）。编辑器主区
-   * 只认领其中两条 —— UC 预设与 `Text:`，画板把它们画在正负两栏底下；其余归
-   * 右列。
-   */
-  const controls = useMemo(
-    () => getTagWorkbenchControls(runModels),
-    [runModels],
-  )
-  const ucPreset = controls.find(
-    (control) => control.chip.capability === 'ucPreset',
-  )
-  const textRendering = controls.find(
-    (control) => control.chip.capability === 'textRendering',
-  )
-
-  const tagModelId = runModels.find(
-    (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
-  )?.modelId
-  const carry = useTagCarryTranslation(tagModelId)
-
-  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) =>
-    dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips } })
-  const positiveChips = state.tagChips
-  const negativeChips = state.tagNegativeChips
-
+  // 与 PC 一样上下两张卡（owner 2026-10-04）：底部一条地台灰，里面浮一张白卡；
+  // 舞台卡在它上方结束（`.studio-mobile-stage` 的下外边距）。
   return (
-    <div className="flex shrink-0 flex-col gap-3 pb-28 lg:pb-0">
-      {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门（两台挂的是同一颗
-          `StudioDialectHeader`，位置也一样）；右边的型号只列本方言。 */}
-      <StudioDialectHeader disabled={isGenerating}>
-        <div data-assistant-field="model">
-          <MainModelPicker
-            modality="image"
-            memoryScope="image-tags"
-            value={runModels[0]?.optionId ?? null}
-            onChange={handleReplaceRunModel}
-            filterOption={filterModelByDialect}
-            triggerEmptyLabel={modelSummary}
-            searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-            emptySearchText={tForm('modelSelector.emptySearch')}
-            // 搜到对面方言的型号时给一行「带你过去」——⛔ 名单本身仍然只列
-            // 自己这一台的（D10 ② Q3）。
-            renderSearchFallback={(query, close) => (
-              <StudioDialectJumpHint query={query} close={close} />
-            )}
-            popoverSide="bottom"
-            disabled={isGenerating}
-            className="max-w-full"
-          />
-        </div>
-      </StudioDialectHeader>
+    <div
+      ref={composerRef}
+      id={STUDIO_PROMPT_SCROLL_ANCHOR_ID}
+      tabIndex={-1}
+      className="studio-mobile-composer studio-tags-mobile-composer fixed inset-x-0 z-40 flex min-h-0 flex-col bg-surface-workbench px-2.5 pt-2.5 outline-none"
+    >
+      {overlay}
       <div
-        data-assistant-field="prompt"
         className={cn(
-          templates.restoring &&
+          'flex min-h-0 flex-1 flex-col rounded-2xl bg-card px-3 pt-2 shadow-float',
+          restoring &&
             'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
         )}
       >
-        <StudioTagChipField
-          modelId={tagModelId}
-          label={t('positiveLabel')}
-          polarity="positive"
-          chips={positiveChips}
-          disabled={isGenerating}
-          onChange={(chips) => setChips('positive', chips)}
-          status={
-            <StudioTagCarryNote status={carry.status} onRetry={carry.retry} />
-          }
-        />
-      </div>
-      <details className="space-y-2">
-        <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
-          {t('negativeLabel')}
-        </summary>
-        <div data-assistant-field="negativePrompt">
-          <StudioTagChipField
-            modelId={tagModelId}
-            label={t('negativeLabel')}
-            note={t('negativeNote')}
-            polarity="negative"
-            chips={negativeChips}
-            disabled={isGenerating}
-            onChange={(chips) => setChips('negative', chips)}
-          />
-        </div>
-
-        {ucPreset ? (
-          <StudioTagCapabilityControl
-            control={ucPreset}
-            disabled={isGenerating}
-          />
-        ) : null}
-      </details>
-      <StudioTagCharacters
-        disabled={isGenerating}
-        onCompose={() => onOpenPanel('composition')}
-        onLookup={() => onOpenPanel('catalog')}
-      />
-      <Toolbar.Root className="flex flex-wrap gap-2 border-t border-border pt-3">
-        <ReferenceImageChip disabled={isGenerating} />
-        <StudioTemplatesChip
-          open={templates.open}
-          onToggle={templates.onToggle}
-          disabled={isGenerating}
-        />
-        <StudioSpecChip disabled={isGenerating} />
-      </Toolbar.Root>
-      <div className="studio-tag-settings flex flex-col gap-3 border-t border-border pt-3">
-        {isMobile ? (
-          <details>
-            <summary className="cursor-pointer py-2 text-sm font-medium">
-              {t('mobileParameters')}
-            </summary>
-            <StudioTagsControlColumn hideCharacters compact />
-          </details>
-        ) : (
-          <StudioTagsControlColumn hideCharacters compact />
-        )}
-      </div>{' '}
-      {textRendering ? (
-        <details>
-          <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
-            {t('workbench.textRendering')}
-          </summary>
-          <StudioTagCapabilityControl
-            control={textRendering}
-            disabled={isGenerating}
-          />
-        </details>
-      ) : null}
-      {/* 成本 + 生成 —— 与自然语言台同一颗键、同一份三态。 */}
-      <div className="fixed inset-x-0 bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-2 border-t border-border bg-card px-4 py-3 pb-safe lg:sticky lg:inset-auto lg:bottom-0 lg:z-10 lg:px-0">
-        {overlay}
-        <StudioCostPreview
-          models={runModels}
-          basis={{
-            kind: 'image',
-            perModelCount: state.imageBatchCount,
-            aspectRatio: state.aspectRatio,
-            resolution: state.advancedParams.resolution,
-            quality: state.advancedParams.quality,
-            preview: state.advancedParams.preview,
-          }}
-        />
-        <StudioGenerateButton
-          ariaLabel={tStudio('generate')}
-          label={tStudio('generateCount', {
-            count: Math.max(1, runModels.length) * state.imageBatchCount,
-          })}
-          busyLabel={tStudio('generating')}
-          blockedMessage={blockedReason?.message}
-          isGenerating={isGenerating}
-          elapsedSeconds={elapsedSeconds}
-          canGenerate={canGenerate}
-          disabled={isGenerating || isImagePromptOverLimit}
-          onGenerate={() => {
-            void handleGenerate()
-          }}
+        <StudioTagsComposer
+          mobile
+          onOpenPanel={onOpenPanel}
+          activePanel={activePanel}
         />
       </div>
     </div>

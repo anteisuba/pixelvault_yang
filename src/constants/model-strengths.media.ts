@@ -178,7 +178,7 @@ const ELEVENLABS_SFX_HINT =
  * https://elevenlabs.io/docs/api-reference/music/compose
  */
 const ELEVENLABS_MUSIC_HINT =
-  'ElevenLabs Music v2. Answer five questions in the prompt, in this order: genre, mood, instrumentation, tempo (name the BPM), and era or production style. Then say what the track is FOR and how it should move across its length — intro, build, drop, outro — because music_length_ms (3000-600000) is the only structural knob on the plain-prompt path. prompt and composition_plan are mutually exclusive: send a prompt for one-shot generation or a composition_plan for section-by-section control, never both. Say "instrumental" explicitly when you want no vocals; lyrics go in the prompt as the actual lines.'
+  'ElevenLabs Music v2.5. Keep the prompt within 4100 characters. Answer five questions in the prompt, in this order: genre, mood, instrumentation, tempo (name the BPM), and era or production style. Then say what the track is FOR and how it should move across its length — intro, build, drop, outro — because music_length_ms (3000-600000) is the only structural knob on the plain-prompt path. prompt and composition_plan are mutually exclusive: send a prompt for one-shot generation or a composition_plan for section-by-section control, never both. Say "instrumental" explicitly when you want no vocals; lyrics go in the prompt as the actual lines.'
 
 /**
  * Per-model strengths for every video and audio model in the catalog.
@@ -221,6 +221,7 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
     // 什么、保留什么，而不是从头描述一个画面。
     [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: klingVideoEdit(),
     [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: klingVideoEdit(),
+    [AI_MODELS.KLING_O3_4K_V2V_EDIT]: klingVideoEdit(),
     // ── Veo ─────────────────────────────────────────────────────────────
     [AI_MODELS.VEO_31]: {
       bestFor: ['native-audio', 'dialogue', 'photorealistic', 'cinematic'],
@@ -242,6 +243,13 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
       negativePrompt: 'unsupported',
     },
     // ── MiniMax H3 ──────────────────────────────────────────────────────
+    [AI_MODELS.MINIMAX_H3_MAX_TURBO]: {
+      bestFor: ['general', 'motion-quality', 'native-audio'],
+      promptStyle: 'natural-language',
+      enhanceHint:
+        'MiniMax H3 Max Turbo via fal. Describe subject, action, camera movement, ambience, dialogue and music in natural language. 5–15 seconds. Native 480p or 768p; 1080p uses latent refinement from 768p. Optional first and last images anchor the clip. No video or audio reference inputs and no negative prompt field. fal performs balanced prompt expansion.',
+      negativePrompt: 'unsupported',
+    },
     [AI_MODELS.MINIMAX_H3]: {
       bestFor: ['general', 'motion-quality', 'native-audio'],
       promptStyle: 'natural-language',

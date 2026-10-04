@@ -181,11 +181,8 @@ export function StudioOperatorAvatarToggle({
           className="size-full rounded-full object-cover"
         />
       ) : (
-        /* ⚠ 与时间线沟、空态那颗**同一份实现**（`AssistantAvatarGlyph`）：
-           全仓只有那一处「预设图形 / 首字母」的取法。 */
         <AssistantAvatarGlyph
           presetId={persona?.avatarPreset ?? null}
-          name={name}
           className="rounded-full"
         />
       )}

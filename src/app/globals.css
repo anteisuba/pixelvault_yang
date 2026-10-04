@@ -128,10 +128,11 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-  /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板浮在它右侧。
+  /* 统一模型选择器（D2 ④ 画板）：弹层 320px（owner 2026-10-03「太宽了」，与生成台
+     输入框里那几颗 `w-80` 对齐；原 380），渠道面板浮在它右侧。
      渠道面板 220px（owner 09-24：190px 时「MiniMax China」被截成「MiniMax (…」，
      价格一栏占掉一半，两条渠道分不清）。 */
-  --width-model-picker: 23.75rem;
+  --width-model-picker: 20rem;
   --width-model-channel-panel: 13.75rem;
   /* /settings 整页（D3 ④ 画板）：卡 1000px = 左 200px 分区导航 + 右内容 720px。 */
   --width-settings-nav: 12.5rem;
@@ -1422,9 +1423,44 @@ html:lang(ja) {
     --studio-mobile-composer-height: 8.75rem;
   }
 
-  /* 舞台给底部 composer 让位（含 iOS 安全区）。 */
+  /* 舞台给底部 composer 让位（含 iOS 安全区）—— 用**外**边距：舞台卡在输入框那一条
+     上方结束，上下是两张卡（owner 2026-10-04「像 PC 一样」），⛔ 不再让卡伸到输入条
+     后面。减掉的那一截是地台下内边距（输入条自己带着上方那道灰缝）。
+     有输入条时整台定高、只让舞台卡自己滚 —— 否则内容一长整页在滚，舞台卡照样从
+     灰条后面穿过去。 */
+  .studio-layout-v2:has(.studio-mobile-composer) {
+    height: calc(100svh - 3.5rem);
+  }
+
   .studio-mobile-stage {
-    padding-bottom: var(--studio-mobile-composer-height, 7rem);
+    padding-bottom: 0.75rem;
+    margin-bottom: calc(
+      var(--studio-mobile-composer-height, 7rem) - var(--workbench-pad)
+    );
+  }
+
+  .studio-tags-mobile-composer {
+    bottom: var(--keyboard-inset, 0px);
+    max-height: calc((100svh - var(--keyboard-inset, 0px) - 3.5rem) / 2);
+    padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
+  }
+
+  .studio-layout-v2:has(.studio-tags-mobile-composer) .studio-mobile-stage {
+    margin-bottom: calc(
+      var(--studio-mobile-composer-height) + var(--keyboard-inset, 0px) -
+        var(--workbench-pad)
+    );
+  }
+
+  .studio-layout-v2:has(.studio-tags-mobile-composer)
+    .studio-mobile-stage-panel {
+    height: max(
+      10rem,
+      calc(
+        100svh - 7.5rem - var(--studio-mobile-composer-height) -
+          var(--keyboard-inset, 0px)
+      )
+    );
   }
 
   /* 模板面板（手机，画板「模板 C · 手机」）：高度钉在舞台看得见的那一段 ——
@@ -1433,6 +1469,16 @@ html:lang(ja) {
   .studio-mobile-stage-panel {
     height: calc(
       100svh - 3.5rem - 1.5rem - var(--studio-mobile-composer-height, 7rem)
+    );
+  }
+
+  /* 手机图片台的舞台卡顶上多一行写法切换（`.studio-mobile-stage-header`：32 高 +
+     12 下距），面板再扣掉这一行，否则整块舞台会多滚出一截。 */
+  .studio-layout-v2:has(.studio-mobile-stage-header)
+    .studio-mobile-stage-panel {
+    height: calc(
+      100svh - 3.5rem - 1.5rem - 2.75rem -
+        var(--studio-mobile-composer-height, 7rem)
     );
   }
 
@@ -1498,9 +1544,32 @@ html:lang(ja) {
      ⚠ 14rem 是量出来的：真机 chrome（舞台上边距 + 返回条 + 工具条）= 154px，
      舞台下边距 24px，再给「编辑历史」那一行留 ~46px 余量。 */
   .studio-annotate-image {
-    max-height: calc(100svh - 14rem);
+    max-height: var(--studio-edit-media-max-h, calc(100svh - 14rem));
     max-width: 100%;
     width: auto;
+  }
+
+  /* 编辑台三档（整图修改 / 局部重绘 / 物体替换）的源图共用一个高度上限 —— 换任务时
+     图不忽大忽小，也不被舞台下沿裁掉（owner 2026-10-03）。上限只在工作台里给
+     （`.studio-layout-v2`）：桌面扣掉 头部行 + 舞台内距 + 输入框卡 + 工具条；手机扣掉
+     顶栏 + 写法切换 + 底部输入条（实测高度）。画布的编辑弹窗不在这里面，沿用各自的旧值。 */
+  .studio-layout-v2 {
+    --studio-edit-media-max-h: calc(100svh - 24rem);
+  }
+
+  @media (max-width: 1023.98px) {
+    .studio-layout-v2 {
+      --studio-edit-media-max-h: calc(
+        100svh - 11rem - var(--studio-mobile-composer-height, 10rem)
+      );
+      /* 局部重绘的图下还有一条工具条（36 + 上下留白）—— 桌面那 24rem 里已算进去，
+         手机只在这一档再让出这一条，否则工具条落在输入条后面。 */
+      --studio-edit-toolbar-reserve: 3.5rem;
+    }
+  }
+
+  .studio-edit-media {
+    max-height: var(--studio-edit-media-max-h, 24rem);
   }
 
   /* 结果动作栏与参考轨的按钮：桌面沿用全站 32px 的紧凑密度，**触屏抬到

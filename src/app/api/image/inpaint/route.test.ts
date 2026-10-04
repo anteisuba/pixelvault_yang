@@ -18,6 +18,7 @@ vi.mock('@/services/image/image-edit.service', () => ({
   inpaintImage: vi.fn(),
   persistEditedImage: vi.fn(),
   resolveEditApiKey: vi.fn(),
+  submitIdeogramImageEdit: vi.fn(),
 }))
 
 import { POST } from './route'
@@ -25,6 +26,7 @@ import {
   inpaintImage,
   persistEditedImage,
   resolveEditApiKey,
+  submitIdeogramImageEdit,
 } from '@/services/image/image-edit.service'
 import { ensureUser } from '@/services/user.service'
 
@@ -49,6 +51,32 @@ const EDIT_RESULT = {
 }
 
 describe('POST /api/image/inpaint', () => {
+  it('returns an asynchronous Ideogram job without persisting a second generation', async () => {
+    vi.mocked(submitIdeogramImageEdit).mockResolvedValue({
+      jobId: 'edit-job',
+      requestId: 'edit-job',
+    })
+    const response = await POST(
+      createPOST('/api/image/inpaint', {
+        ...VALID_BODY,
+        modelId: 'ideogram-4.5',
+        referenceImages: ['https://example.com/ref.png'],
+      }),
+    )
+    expect(await parseJSON(response)).toMatchObject({
+      data: { jobId: 'edit-job', requestId: 'edit-job' },
+    })
+    expect(submitIdeogramImageEdit).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        apiKeyId: 'key-1',
+        modelId: 'ideogram-4.5',
+        referenceImages: ['https://example.com/ref.png'],
+      }),
+    )
+    expect(persistEditedImage).not.toHaveBeenCalled()
+    expect(inpaintImage).not.toHaveBeenCalled()
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated()

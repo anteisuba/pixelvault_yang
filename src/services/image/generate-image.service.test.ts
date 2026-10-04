@@ -62,6 +62,7 @@ import {
   resolveGenerationRoute,
   resolveImageRouteAndValidate,
   uploadReferenceImagesIfNeeded,
+  prepareIdeogramInpaintMask,
 } from '@/services/image/generate-image.service'
 import {
   findActiveKeyForAdapter,
@@ -72,6 +73,110 @@ import { getSystemApiKey } from '@/lib/platform-keys'
 import { getResolvedModelOption } from '@/services/model-config.service'
 
 // ─── Test Fixtures ─────────────────────────────────────────────
+
+describe('Ideogram input validation and mask preparation', () => {
+  const route = {
+    modelId: AI_MODELS.IDEOGRAM_45,
+    externalModelId: 'ideogram-4-5',
+    adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.IDEOGRAM),
+    apiKey: 'key',
+    creditCost: 1,
+  }
+  const request = {
+    modelId: AI_MODELS.IDEOGRAM_45,
+    prompt: 'Blue mug',
+    aspectRatio: '1:1' as const,
+  }
+  const deps = () => ({
+    ensureUser: vi.fn().mockResolvedValue({ id: 'user' }),
+    resolveGenerationRoute: vi.fn().mockResolvedValue(route),
+    getProviderAdapter: vi.fn().mockReturnValue({}),
+  })
+  it('accepts three extra mask references and rejects unavailable quality/size combinations', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk',
+        {
+          ...request,
+          referenceImages: ['s', 'a', 'b', 'c'],
+          advancedParams: { quality: 'very_low', inpaintMask: 'm' },
+        },
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route })
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk',
+        { ...request, advancedParams: { quality: 'very_low' } },
+        deps() as never,
+      ),
+    ).rejects.toThrow('quality')
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk',
+        { ...request, referenceImages: ['s'], aspectRatio: '16:9' },
+        deps() as never,
+      ),
+    ).rejects.toThrow('square')
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk',
+        { ...request, advancedParams: { resolution: '4K' } },
+        deps() as never,
+      ),
+    ).rejects.toThrow('1K or 2K')
+  })
+  it('inverts only the provider mask, checks dimensions and rejects empty/all-edit masks', async () => {
+    const sharp = (await import('sharp')).default
+    const { fetchAsBuffer, uploadToR2 } = await import('@/services/storage/r2')
+    const source = await sharp({
+      create: { width: 2, height: 1, channels: 3, background: '#aaa' },
+    })
+      .png()
+      .toBuffer()
+    const mask = await sharp(Buffer.from([0, 255]), {
+      raw: { width: 2, height: 1, channels: 1 },
+    })
+      .png()
+      .toBuffer()
+    vi.mocked(fetchAsBuffer).mockImplementation(async (url) => ({
+      buffer: url === 'source' ? source : mask,
+      mimeType: 'image/png',
+    }))
+    vi.mocked(uploadToR2).mockResolvedValue(
+      'https://cdn.example.com/negated.png',
+    )
+    await expect(
+      prepareIdeogramInpaintMask('user', 'source', 'mask'),
+    ).resolves.toContain('negated')
+    const upload = vi.mocked(uploadToR2).mock.calls.at(-1)![0]
+    const pixels = await sharp(upload.data as Buffer)
+      .toColourspace('b-w')
+      .raw()
+      .toBuffer()
+    expect([...pixels]).toEqual([255, 0])
+    vi.mocked(fetchAsBuffer).mockResolvedValue({
+      buffer: source,
+      mimeType: 'image/png',
+    })
+    await expect(
+      prepareIdeogramInpaintMask('user', 'source', 'mask'),
+    ).rejects.toThrow('editable region')
+    const different = await sharp({
+      create: { width: 1, height: 1, channels: 3, background: '#000' },
+    })
+      .png()
+      .toBuffer()
+    vi.mocked(fetchAsBuffer).mockImplementation(async (url) => ({
+      buffer: url === 'source' ? source : different,
+      mimeType: 'image/png',
+    }))
+    await expect(
+      prepareIdeogramInpaintMask('user', 'source', 'mask'),
+    ).rejects.toThrow('same dimensions')
+  })
+})
 
 // ─── Tests ─────────────────────────────────────────────────────
 

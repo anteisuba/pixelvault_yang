@@ -14,8 +14,6 @@ describe('getLLMCapabilityScope', () => {
       [
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
-        // Grok joins enhance — it has vision, so unlike
-        // DeepSeek nothing bars it from this route.
         AI_ADAPTER_TYPES.XAI,
       ].sort(),
     )

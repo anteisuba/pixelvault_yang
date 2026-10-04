@@ -58,10 +58,12 @@ const FAL_VIDEO_MODEL_IDS = {
   KLING_O3_PRO: 'kling-o3-pro',
   KLING_O3_STANDARD_V2V_EDIT: 'kling-o3-standard-v2v-edit',
   KLING_O3_PRO_V2V_EDIT: 'kling-o3-pro-v2v-edit',
+  KLING_O3_4K_V2V_EDIT: 'kling-o3-4k-v2v-edit',
   HAPPYHORSE_10: 'happyhorse-1.0',
   WAN_30: 'wan-3.0',
   WAN_30_REFERENCE: 'wan-3.0-reference',
   LTX_23: 'ltx-2.3',
+  MINIMAX_H3_MAX_TURBO: 'minimax-h3-max-turbo',
   SEEDANCE_20: 'seedance-2.0',
   SEEDANCE_20_FAST: 'seedance-2.0-fast',
   SEEDANCE_20_REFERENCE: 'seedance-2.0-reference',
@@ -249,6 +251,18 @@ function getEndpointModelId(
   mode: FalWorkerVideoMode,
 ): string {
   const { providerInput } = context
+  const modelId = normalizeWorkerModelId(providerInput.modelId)
+  if (
+    (providerInput.resolution ?? providerInput.videoDefaults?.resolution) ===
+    '4k'
+  ) {
+    if (modelId === FAL_VIDEO_MODEL_IDS.KLING_V3_PRO) {
+      return `fal-ai/kling-video/v3/4k/${mode}`
+    }
+    if (modelId === FAL_VIDEO_MODEL_IDS.KLING_O3_PRO) {
+      return `fal-ai/kling-video/o3/4k/${mode}`
+    }
+  }
   if (mode === 'image-to-video' && providerInput.i2vModelId) {
     return providerInput.i2vModelId
   }
@@ -838,6 +852,42 @@ function buildSeedanceReference(
   return body
 }
 
+function buildMinimaxH3MaxTurbo(
+  context: FalWorkerVideoRequestContext,
+  mode: FalWorkerVideoMode,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const resolution =
+    pickResolution(
+      providerInput.resolution,
+      providerInput.videoDefaults,
+      ['480p', '768p', '1080p'],
+      '768p',
+    ) ?? '768p'
+  const body: Record<string, unknown> = {
+    prompt: providerInput.prompt,
+    duration: pickClampedNumberDuration(
+      asNumericDuration(providerInput.duration),
+      5,
+      15,
+    ),
+    resolution: resolution.toUpperCase(),
+    prompt_expansion_mode: 'balanced',
+  }
+  if (mode === 'image-to-video') {
+    body.image_url = requireReferenceImage(context)
+    const endImage = providerInput.referenceImages?.[1]
+    if (endImage) body.end_image_url = endImage
+  } else {
+    body.aspect_ratio = pickString(
+      providerInput.aspectRatio,
+      WAN_30_ASPECT_RATIOS,
+      '16:9',
+    )
+  }
+  return body
+}
+
 function buildBody(
   context: FalWorkerVideoRequestContext,
   mode: FalWorkerVideoMode,
@@ -849,6 +899,7 @@ function buildBody(
       return buildKlingO3Pro(context, mode)
     case FAL_VIDEO_MODEL_IDS.KLING_O3_STANDARD_V2V_EDIT:
     case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO_V2V_EDIT:
+    case FAL_VIDEO_MODEL_IDS.KLING_O3_4K_V2V_EDIT:
       return buildKlingO3VideoEdit(context)
     case FAL_VIDEO_MODEL_IDS.VEO_31:
       return buildVeo31(context, mode)
@@ -860,12 +911,14 @@ function buildBody(
       return buildWan30Reference(context)
     case FAL_VIDEO_MODEL_IDS.LTX_23:
       return buildLtx23(context, mode)
+    case FAL_VIDEO_MODEL_IDS.MINIMAX_H3_MAX_TURBO:
+      return buildMinimaxH3MaxTurbo(context, mode)
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20:
-      return buildSeedance20(context, mode, ['480p', '720p', '1080p'])
+      return buildSeedance20(context, mode, ['480p', '720p', '1080p', '4k'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST:
       return buildSeedance20(context, mode, ['480p', '720p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE:
-      return buildSeedanceReference(context, ['480p', '720p', '1080p'])
+      return buildSeedanceReference(context, ['480p', '720p', '1080p', '4k'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE:
       return buildSeedanceReference(context, ['480p', '720p'])
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_25:
@@ -904,6 +957,7 @@ function applySeedIfSupported(
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_REFERENCE ||
     modelId === FAL_VIDEO_MODEL_IDS.SEEDANCE_20_FAST_REFERENCE ||
     modelId === FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10 ||
+    modelId === FAL_VIDEO_MODEL_IDS.MINIMAX_H3_MAX_TURBO ||
     // Wan 3.0 declares `seed` on all three endpoints; unlike Veo, reference
     // inputs do not remove it.
     modelId === FAL_VIDEO_MODEL_IDS.WAN_30 ||

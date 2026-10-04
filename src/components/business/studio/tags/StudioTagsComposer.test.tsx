@@ -1,10 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+
 import type { TagChip } from '@/types/tag-composer'
 
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
+  runModels: [] as { modelId: string; adapterType: string }[],
+  advancedParams: {} as Record<string, unknown>,
+  negative: [] as TagChip[],
   update: vi.fn(),
   select: vi.fn(),
   add: vi.fn(),
@@ -30,15 +36,16 @@ vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {
       tagChips: [{ text: 'solo', weight: 1 }],
-      tagNegativeChips: [],
+      tagNegativeChips: mocks.negative,
       activeTagCharacterIndex: mocks.activeIndex,
-      advancedParams: {},
+      advancedParams: mocks.advancedParams,
       aspectRatio: '1:1',
       imageBatchCount: 1,
     },
     dispatch: mocks.dispatch,
   }),
   useStudioData: () => ({
+    characters: { activeCardIds: [] },
     imageUpload: {
       referenceEntries: [],
       referenceImages: [],
@@ -52,7 +59,7 @@ vi.mock('@/hooks/use-studio-generate-action', () => ({
   useStudioGenerateAction: () => ({
     selectedModel: undefined,
     modelOptions: [],
-    runModels: [],
+    runModels: mocks.runModels,
     filterModelByDialect: () => true,
     handleReplaceRunModel: vi.fn(),
     canGenerate: true,
@@ -62,6 +69,9 @@ vi.mock('@/hooks/use-studio-generate-action', () => ({
     elapsedSeconds: 0,
     isImagePromptOverLimit: false,
   }),
+}))
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({ runModels: mocks.runModels }),
 }))
 vi.mock('@/hooks/use-novelai-characters', () => ({
   useNovelAiCharacters: () => ({
@@ -93,6 +103,9 @@ vi.mock('@/components/business/studio-shared/pickers', () => ({
 }))
 vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => null,
+  ReferenceImagePickerBody: () => null,
+  ReferenceImageCountLine: () => null,
+  ReferenceImageLibraryDialog: () => null,
 }))
 vi.mock('@/components/business/studio/StudioSpecChip', () => ({
   StudioSpecChip: () => null,
@@ -138,6 +151,10 @@ import { StudioTagsComposer } from './StudioTagsComposer'
 describe('标签台底部输入框 · 编辑谁', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Element.prototype.scrollIntoView = vi.fn()
+    mocks.runModels = []
+    mocks.advancedParams = {}
+    mocks.negative = []
     mocks.activeIndex = null
     mocks.mode = 'grid'
     mocks.characters = [{ prompt: 'red eyes', negativePrompt: '' }]
@@ -204,5 +221,103 @@ describe('标签台底部输入框 · 编辑谁', () => {
     expect(
       screen.queryByRole('button', { name: 'workbench.blocks' }),
     ).not.toBeInTheDocument()
+  })
+  it('手机默认只展开正向，展开负向可编辑，收起后再打开保留标签', () => {
+    mocks.negative = [{ text: 'blurry', weight: 1 }]
+    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
+    expect(
+      screen.getByRole('button', { name: 'positiveLabel' }),
+    ).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: /negativeLabel\s*1/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('button', { name: 'negativeLabel' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+    })
+    const field = screen.getByRole('button', {
+      name: 'negativeLabel',
+    })
+    expect(field).toHaveAttribute('data-chips', 'blurry')
+    fireEvent.click(field)
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'negative',
+        chips: [
+          { text: 'blurry', weight: 1 },
+          { text: 'rain', weight: 1 },
+        ],
+      },
+    })
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+    expect(
+      screen.getByRole('button', { name: 'negativeLabel' }),
+    ).toHaveAttribute('data-chips', 'blurry')
+  })
+
+  it('手机角色页展开负向只更新当前角色', () => {
+    mocks.activeIndex = 0
+    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'negativeLabel' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'negativeLabel' })[1])
+    expect(mocks.update).toHaveBeenCalledWith(0, { negativePrompt: 'rain' })
+    expect(mocks.dispatch).not.toHaveBeenCalled()
+  })
+
+  // 2026-10-04 起画中文字收进手机输入条的「＋」，在抽屉里推进一页。
+  it('V5 的画中文字独立打开，输入直接写入生成参数', async () => {
+    mocks.runModels = [
+      {
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      },
+    ]
+    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('studio-mobile-add'))
+    fireEvent.click(await screen.findByTestId('studio-mobile-add-text'))
+    const field = await screen.findByRole('textbox', {
+      name: 'capability.textRendering',
+    })
+    fireEvent.change(field, { target: { value: '你好' } })
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { textRendering: '你好' },
+    })
+  })
+
+  it('画中文字入口保留已填数量，不依赖采样器或步数', async () => {
+    mocks.runModels = [
+      {
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      },
+    ]
+    mocks.advancedParams = {
+      textRendering: '你好',
+      sampler: 'k_euler',
+      steps: 30,
+    }
+    const { rerender } = render(
+      <StudioTagsComposer mobile onOpenPanel={vi.fn()} />,
+    )
+    // 填了字但输入框里看不见 —— 「＋」灰底，行尾报字数。
+    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute('data-set')
+    fireEvent.click(screen.getByTestId('studio-mobile-add'))
+    expect(
+      await screen.findByTestId('studio-mobile-add-text'),
+    ).toHaveTextContent('2')
+    expect(screen.getByRole('button', { name: 'parameters' })).toBeVisible()
+    mocks.runModels = [
+      {
+        modelId: AI_MODELS.NOVELAI_V45_CURATED,
+        adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      },
+    ]
+    rerender(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
+    expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
   })
 })

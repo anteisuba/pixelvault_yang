@@ -59,8 +59,12 @@ vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
   ),
 }))
 
+const headerSpy = vi.fn()
 vi.mock('@/components/business/assistant/StudioAssistantHeaderActions', () => ({
-  StudioAssistantHeaderActions: () => null,
+  StudioAssistantHeaderActions: (props: Record<string, unknown>) => {
+    headerSpy(props)
+    return null
+  },
 }))
 
 vi.mock('@/contexts/studio-context', () => ({
@@ -90,12 +94,13 @@ const mockInjectedReference = {
   url: 'https://cdn.example.com/run-9.png',
   token: 4,
 }
+const mockModelId = 'current-audio-model'
 vi.mock('@/hooks/use-studio-assistant-panel-inputs', () => ({
   useStudioAssistantPanelInputs: () => ({
     open: true,
     setOpen: vi.fn(),
     currentPrompt: '',
-    modelId: undefined,
+    modelId: mockModelId,
     assistantDomain: 'image' as const,
     llmApiKeys: [],
     referenceImageData: undefined,
@@ -111,6 +116,7 @@ beforeEach(() => {
   mockIsMobile = true
   mockOutputType = 'audio'
   panelSpy.mockClear()
+  headerSpy.mockClear()
 })
 
 describe('StudioEnhanceButton', () => {
@@ -128,6 +134,9 @@ describe('StudioEnhanceButton', () => {
     expect(props.injectedReference).toBe(mockInjectedReference)
     expect(props.workbenchState).toBe(mockWorkbenchState)
     expect(props.writeback).toBe(mockWriteback)
+    expect(headerSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ modelId: mockModelId }),
+    )
   })
 
   // ⚠ `researchMode` 不传 = 面板落到默认 `auto`，用户在头部拨到「关闭」也关不掉。

@@ -50,6 +50,7 @@ export interface StudioTagsControlColumnProps {
    */
   hideCharacters?: boolean
   compact?: boolean
+  hideTextRendering?: boolean
   /**
    * `popover` = 桌面底部输入框那颗「专属」chip 的弹层（owner 2026-09-26）：编辑器
    * 主区已经没有 UC 预设与 `Text:` 的位置，它们一起进来；角色构图走舞台面板、
@@ -61,6 +62,7 @@ export interface StudioTagsControlColumnProps {
 export function StudioTagsControlColumn({
   hideCharacters,
   compact = false,
+  hideTextRendering = false,
   placement = 'column',
 }: StudioTagsControlColumnProps = {}) {
   const inPopover = placement === 'popover'
@@ -111,6 +113,7 @@ export function StudioTagsControlColumn({
   // 画板顺序在前，表外的按能力表自己的声明顺序跟在后面。
   const visible = controls.filter(
     (control) =>
+      (!hideTextRendering || control.chip.capability !== 'textRendering') &&
       (inPopover || !EDITOR_OWNED.includes(control.chip.capability)) &&
       isCapabilityChipVisible(
         control.chip,

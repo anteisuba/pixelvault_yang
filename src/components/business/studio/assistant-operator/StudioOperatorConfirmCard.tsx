@@ -50,6 +50,10 @@ import {
 } from '@/components/ui/responsive-popover'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
+  buildCanvasGenerationRequest,
+  type CanvasNodeGenerationState,
+} from '@/lib/studio-operator-canvas-snapshot'
+import {
   buildOperatorKnobSpecs,
   type StudioOperatorKnobSpec,
 } from '@/lib/studio-operator-knobs'
@@ -99,6 +103,8 @@ interface StudioOperatorConfirmCardProps {
    * 四颗旋钮的**真值视图**（§5.2）。缺席 = 这个宿主上它们是只读读数。
    */
   controls?: StudioOperatorGenerationControls
+  canGenerate?: boolean
+  canvasState?: CanvasNodeGenerationState | null
   /**
    * 就地换一颗（§5.2 第二行）—— 返回换模型顺手回落掉的那几颗，卡据此写
    * 「已按 X 调整」那一行（§5.1）。
@@ -121,6 +127,7 @@ function generateSummary(lead: string, modelLabel: string): string {
 
 export function StudioOperatorConfirmCard({
   confirm,
+  canvasState,
   onApprove,
   onDecline,
   onConfirm,
@@ -130,6 +137,7 @@ export function StudioOperatorConfirmCard({
   onRetry,
   formatTime,
   controls,
+  canGenerate = true,
   onAdjust,
 }: StudioOperatorConfirmCardProps) {
   const t = useTranslations('StudioOperator')
@@ -154,9 +162,11 @@ export function StudioOperatorConfirmCard({
   const busy = confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
   const kind: AssistantOperatorConfirmKind = confirm.kind
 
+  const liveCanvasRequest =
+    !decided && canvasState ? buildCanvasGenerationRequest(canvasState) : null
   const generate =
     confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-      ? confirm
+      ? { ...confirm, request: liveCanvasRequest ?? confirm.request }
       : null
   /**
    * 提议记一张卡那一支（§8.1）—— 卡上摆的是草稿本身。
@@ -215,7 +225,10 @@ export function StudioOperatorConfirmCard({
             },
             {
               id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
-              value: canvasNode ? '' : countLabel(generate.request.count),
+              value:
+                canvasNode && canvasState?.kind !== 'image'
+                  ? ''
+                  : countLabel(generate.request.count),
               current: String(generate.request.count),
               options: [],
             },
@@ -227,6 +240,58 @@ export function StudioOperatorConfirmCard({
             },
           ] satisfies KnobSpec[]
         ).filter((knob) => Boolean(knob.value))
+
+  const parameters = canvasState?.parameters
+  const extraSpecs = parameters
+    ? [
+        ...(parameters.options.quality?.length
+          ? [
+              {
+                label: t('confirm.generate.quality'),
+                value:
+                  parameters.values.quality ??
+                  t('confirm.generate.modelDefault'),
+              },
+            ]
+          : []),
+        ...(parameters.options.resolution?.length &&
+        !parameters.values.resolution
+          ? [
+              {
+                label: t('confirm.generate.resolution'),
+                value: t('confirm.generate.modelDefault'),
+              },
+            ]
+          : []),
+        ...(parameters.options.duration?.length
+          ? [
+              {
+                label: t('confirm.generate.duration'),
+                value: parameters.values.duration
+                  ? t('confirm.generate.seconds', {
+                      seconds: parameters.values.duration,
+                    })
+                  : t('confirm.generate.modelDefault'),
+              },
+            ]
+          : []),
+        ...(parameters.options.generateAudio?.length
+          ? [
+              {
+                label: t('confirm.generate.audio'),
+                value:
+                  parameters.values.generateAudio === undefined
+                    ? t('confirm.generate.modelDefault')
+                    : t(
+                        parameters.values.generateAudio
+                          ? 'confirm.generate.enabled'
+                          : 'confirm.generate.disabled',
+                      ),
+              },
+            ]
+          : []),
+      ]
+    : []
 
   /**
    * 点中一项 —— **立刻写回工作台**（§5.2 第二行），⛔ 卡上不留一份乐观值。
@@ -515,7 +580,22 @@ export function StudioOperatorConfirmCard({
                     </ResponsivePopover>
                   )
                 })}
+                {extraSpecs.map((spec) => (
+                  <div
+                    key={spec.label}
+                    data-testid="operator-confirm-parameter"
+                    className="flex items-center gap-1 rounded-md border border-border bg-muted px-2.5 py-1 text-2sm"
+                  >
+                    <span className="text-muted-foreground">{spec.label}</span>
+                    <span className="text-foreground">{spec.value}</span>
+                  </div>
+                ))}
               </div>
+              {canvasState !== undefined && !canvasState?.model ? (
+                <p className="text-2xs text-muted-foreground">
+                  {t('confirm.generate.nodeUnavailable')}
+                </p>
+              ) : null}
               {/* ⚠ 换模型让别的值不合法时**就地说一句**，⛔ 不弹二次确认（§5.1）。 */}
               {adjusted.length > 0 ? (
                 <p
@@ -544,7 +624,11 @@ export function StudioOperatorConfirmCard({
             <button
               type="button"
               data-testid="operator-confirm-primary"
-              disabled={busy}
+              disabled={
+                busy ||
+                (generate !== null && !canGenerate) ||
+                (canvasState !== undefined && !canvasState?.model)
+              }
               aria-busy={busy}
               onClick={
                 contextCard

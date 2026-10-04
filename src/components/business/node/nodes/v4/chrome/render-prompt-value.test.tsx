@@ -57,4 +57,46 @@ describe('renderPromptMentions', () => {
     expect(container.querySelector('[data-prompt-bar-thumb]')).toBeNull()
     expect(container.textContent).toBe('@莫宁 靠在长椅边')
   })
+
+  it('完整保留引用名称、引号和换行，按名称显示对应缩略图', () => {
+    const prompt =
+      '以「生成图6」确定脸型；\n以『生成图9』确定背后结构，再参考 @图1。'
+    const { container } = render(
+      <div>
+        {renderPromptMentions(prompt, {
+          names: ['图1'],
+          mediaOf: () => ({ kind: 'image', thumbnailUrl: '/rail.png' }),
+          quotedMediaOf: (name) => ({
+            kind: 'image',
+            thumbnailUrl: name === '生成图6' ? '/face.png' : '/back.png',
+          }),
+        })}
+      </div>,
+    )
+    expect(container.textContent).toBe(prompt)
+    expect(
+      Array.from(container.querySelectorAll('img'), (image) =>
+        image.getAttribute('src'),
+      ),
+    ).toEqual(['/face.png', '/back.png', '/rail.png'])
+    expect(
+      container.querySelectorAll('[data-prompt-bar-mark="reference"]'),
+    ).toHaveLength(2)
+  })
+
+  it('未挂载、不完整和较长名称保持原文，不把生成图60匹配成生成图6', () => {
+    const prompt = '「生成图60」 「未挂载」 「生成图6」 「生成图6'
+    const { container } = render(
+      <div>
+        {renderPromptMentions(prompt, {
+          quotedMediaOf: (name) =>
+            name === '生成图6'
+              ? { kind: 'image', thumbnailUrl: '/face.png' }
+              : undefined,
+        })}
+      </div>,
+    )
+    expect(container.textContent).toBe(prompt)
+    expect(container.querySelectorAll('img')).toHaveLength(1)
+  })
 })

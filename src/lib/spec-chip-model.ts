@@ -179,8 +179,8 @@ export interface ImageSpecChipInput {
 export function buildImageSpecChipModel(
   input: ImageSpecChipInput,
 ): SpecChipModel {
-  const supportedResolutions =
-    imageCapabilityOf(input.adapterType, input.modelId)?.resolutionOptions ?? []
+  const capability = imageCapabilityOf(input.adapterType, input.modelId)
+  const supportedResolutions = capability?.resolutionOptions ?? []
   // `auto` 不在基础档里 —— 只有模型确实声明了它才补在最前，否则用户会看到一个
   // 谁都点不到的「自动」。
   const universe = supportedResolutions.includes('auto')
@@ -194,9 +194,10 @@ export function buildImageSpecChipModel(
           pricePerSecond: null,
         }))
 
-  // 图片比例不随模型收窄：能力表里没有任何一家声明过比例值域，全仓的图片发送口
-  // 读的都是 `STUDIO_IMAGE_ASPECT_RATIOS`。
-  const ratios = tiersOf(STUDIO_IMAGE_ASPECT_RATIOS, STUDIO_IMAGE_ASPECT_RATIOS)
+  const ratios = tiersOf(
+    STUDIO_IMAGE_ASPECT_RATIOS,
+    capability?.aspectRatioOptions ?? STUDIO_IMAGE_ASPECT_RATIOS,
+  )
   const ratioValue =
     input.aspectRatio &&
     ratios.some((tier) => tier.value === input.aspectRatio && tier.supported)

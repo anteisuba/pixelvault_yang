@@ -176,6 +176,11 @@ export interface ModelPickerPopoverProps {
   emptySearchText?: string
   disabled?: boolean
   className?: string
+  /**
+   * 触发器只写型号（「Diffusion V5 Full」），不写系列名 —— 窄地方（手机标签台那一行）
+   * 两段都截成「No… Diffusio…」不如只留能区分的那一段；弹层里照旧按系列分组。
+   */
+  triggerVariantOnly?: boolean
   contentClassName?: string
   side?: 'top' | 'bottom'
   align?: 'start' | 'center' | 'end'
@@ -323,6 +328,7 @@ export function ModelPickerPopover({
   emptySearchText,
   disabled,
   className,
+  triggerVariantOnly = false,
   contentClassName,
   side = 'top',
   align = 'end',
@@ -1318,10 +1324,20 @@ export function ModelPickerPopover({
         <ResponsivePopoverTrigger asChild>
           <ModelChip
             modelLabel={
-              selectedRow?.name ?? triggerEmptyLabel ?? tCommon('selectModel')
+              (triggerVariantOnly ? selectedRow?.variant : null) ??
+              selectedRow?.name ??
+              triggerEmptyLabel ??
+              tCommon('selectModel')
             }
-            variantLabel={selectedRow?.variant ?? null}
-            statusLabel={triggerStatus.label}
+            variantLabel={
+              triggerVariantOnly ? null : (selectedRow?.variant ?? null)
+            }
+            // 只写型号的窄 chip 上不再挤价格 —— 只留「缺 key」这一类警示。
+            statusLabel={
+              triggerVariantOnly && triggerStatus.tone !== 'warning'
+                ? null
+                : triggerStatus.label
+            }
             statusTone={triggerStatus.tone}
             active={open}
             disabled={disabled}

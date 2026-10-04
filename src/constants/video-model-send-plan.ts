@@ -323,6 +323,26 @@ export function getVideoModelSendContract(
     }
   }
 
+  if (normalized === AI_MODELS.MINIMAX_H3_MAX_TURBO) {
+    return {
+      family: 'minimax',
+      referenceMode: 'text-or-first-frame',
+      slots: FIRST_LAST_FRAME_SLOTS,
+      parameters: {
+        duration: true,
+        aspectRatio: true,
+        resolution: true,
+        negativePrompt: false,
+        generateAudio: false,
+        seed: true,
+      },
+      execution: executionStatus(adapterType),
+      positionalImageTokens: false,
+      imageAspectRatioLock: 'auto',
+      keyframeSlots: 2,
+    }
+  }
+
   if (MINIMAX_IDS.has(normalized)) {
     const referenceMode = MINIMAX_REFERENCE_IDS.has(normalized)
     return {
@@ -364,13 +384,13 @@ export function getVideoModelSendContract(
 
   if (
     normalized === AI_MODELS.KLING_O3_STANDARD_V2V_EDIT ||
-    normalized === AI_MODELS.KLING_O3_PRO_V2V_EDIT
+    normalized === AI_MODELS.KLING_O3_PRO_V2V_EDIT ||
+    normalized === AI_MODELS.KLING_O3_4K_V2V_EDIT
   ) {
-    // fal `kling-video/o3/{standard,pro}/video-to-video/edit`（2026-09-17 核
-    // 一手 OpenAPI，两条端点逐字同形）：
+    // fal `kling-video/o3/{standard,pro,4k}/video-to-video/edit`：
     //   required prompt + video_url；optional image_urls / elements / keep_audio
     // 参数旋钮一个都没有 —— duration / aspectRatio / resolution / seed /
-    // negativePrompt 全部 false，输出跟随输入视频。`generateAudio` 也是 false：
+    // negativePrompt 全部 false，4K 档固定分辨率，其余跟随输入。`generateAudio` 也是 false：
     // 端点上的开关是 `keep_audio`（保不保留**原视频**的声音），不是「要不要生成
     // 一条新音轨」，两者不是同一件事，借用会让用户以为自己在控制配乐。
     return {
@@ -406,7 +426,7 @@ export function getVideoModelSendContract(
       parameters: {
         duration: true,
         aspectRatio: true,
-        resolution: false,
+        resolution: true,
         negativePrompt: false,
         generateAudio: true,
         seed: false,
@@ -426,7 +446,7 @@ export function getVideoModelSendContract(
       parameters: {
         duration: true,
         aspectRatio: true,
-        resolution: false,
+        resolution: true,
         negativePrompt: true,
         generateAudio: true,
         seed: false,

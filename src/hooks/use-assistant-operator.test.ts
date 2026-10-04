@@ -89,6 +89,10 @@ vi.mock('next-intl', () => {
  * 表单侧一个都不需要真的动，所以整份桩成空手。
  */
 const triggerGeneration = vi.hoisted(() => vi.fn())
+const generationEnabled = vi.hoisted(() => ({
+  workbench: true,
+  canvas: true,
+}))
 const switchImageWorkbench = vi.hoisted(() => vi.fn(() => true))
 const workbenchHandoffEnabled = vi.hoisted(() => ({ current: false }))
 const dispatch = vi.hoisted(() => vi.fn())
@@ -114,6 +118,10 @@ const hostSnapshot = vi.hoisted(() => ({
 const canvasApply = vi.hoisted(() => vi.fn(() => true))
 /** 画布那一枪的扳机（`StudioOperatorCanvasContext.generate`）。 */
 const canvasGenerate = vi.hoisted(() => vi.fn())
+const canvasGenerationState = vi.hoisted(() => ({
+  enabled: false,
+  current: null as Record<string, unknown> | null,
+}))
 const canvasInputSync = vi.hoisted(() => ({ current: false }))
 const hostDomain = vi.hoisted(() => ({
   current: 'image' as AssistantOperatorDomain,
@@ -133,6 +141,13 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     referenceLimit: 4,
     open: true,
     setOpen: () => {},
+    ...(canvasGenerationState.enabled
+      ? {
+          canvasTargets: {
+            generationStateOf: () => canvasGenerationState.current ?? undefined,
+          },
+        }
+      : {}),
     ...(generationControls.current
       ? { generationControls: generationControls.current }
       : {}),
@@ -145,9 +160,9 @@ vi.mock('@/contexts/studio-operator-host', () => ({
             ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
             : '模型无法解析，请重新选择模型',
         needsPromptInputSync: () => canvasInputSync.current,
-        generate: canvasGenerate,
+        ...(generationEnabled.canvas ? { generate: canvasGenerate } : {}),
       },
-      triggerGeneration,
+      ...(generationEnabled.workbench ? { triggerGeneration } : {}),
       getState: () => ({ prompt: '', advancedParams: {} }),
       dispatch,
       resolveOptionId: () => null,
@@ -269,12 +284,16 @@ beforeEach(async () => {
   vi.clearAllMocks()
   localStorage.clear()
   generationControls.current = null
+  generationEnabled.workbench = true
+  generationEnabled.canvas = true
   workbenchHandoffEnabled.current = false
   switchImageWorkbench.mockReset().mockReturnValue(true)
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
   canvasInputSync.current = false
+  canvasGenerationState.enabled = false
+  canvasGenerationState.current = null
   hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
   streamAssistantOperatorAPI.mockImplementation(
@@ -1800,6 +1819,29 @@ describe('上下文卡提议（v2 §8.1）', () => {
 })
 
 describe('生成确认卡（v2 §3.3 / §5）', () => {
+  it('生成入口缺席时保留待确认，入口恢复后只触发一次', async () => {
+    generationEnabled.workbench = false
+    const { result, rerender } = render()
+    act(() => result.current.send('帮我发一枪'))
+    await settle()
+    streams[0].emit(generateConfirmEvent())
+    await settle()
+
+    act(() => result.current.confirmGeneration())
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+    expect(store.getOperatorState().pendingResultId).toBeNull()
+    expect(triggerGeneration).not.toHaveBeenCalled()
+
+    generationEnabled.workbench = true
+    rerender()
+    act(() => {
+      result.current.confirmGeneration()
+      result.current.confirmGeneration()
+    })
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+  })
+
   it('confirm(generate) → 摆卡；点「确认生成」当场扣扳机，⛔ 不重发一轮', async () => {
     const { result } = render()
     act(() => {
@@ -1999,6 +2041,60 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       await settle()
       return hook
     }
+
+    it('画布生成入口缺席时保留待确认，不落结果卡', async () => {
+      generationEnabled.canvas = false
+      const { result } = await proposeOnCanvas()
+      act(() => result.current.confirmGeneration())
+      expect(store.getOperatorState().confirm?.status).toBe('idle')
+      expect(store.getOperatorState().pendingResultId).toBeNull()
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(triggerGeneration).not.toHaveBeenCalled()
+    })
+
+    it('确认时记录目标节点最新参数，再调用同一节点的生成入口', async () => {
+      canvasGenerationState.enabled = true
+      canvasGenerationState.current = {
+        id: 'shot-1',
+        name: '主角正面',
+        kind: 'image',
+        model: 'seedream-4',
+        parameters: {
+          values: { aspectRatio: '3:4', quality: 'high', count: 2 },
+          options: {},
+        },
+      }
+      const { result } = await proposeOnCanvas()
+      canvasGenerationState.current = {
+        ...canvasGenerationState.current,
+        parameters: {
+          values: {
+            aspectRatio: '16:9',
+            quality: 'low',
+            resolution: '4K',
+            count: 4,
+          },
+          options: {},
+        },
+      }
+      act(() => result.current.confirmGeneration())
+      const confirm = store.getOperatorState().confirm
+      expect(confirm?.kind === 'generate' && confirm.request).toMatchObject({
+        count: 4,
+        specs: { aspectRatio: '16:9', quality: 'low', resolution: '4K' },
+        canvasNode: { id: 'shot-1' },
+      })
+      expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
+      expect(triggerGeneration).not.toHaveBeenCalled()
+    })
+
+    it('确认前目标节点消失时保留待确认状态，不触发生成', async () => {
+      canvasGenerationState.enabled = true
+      const { result } = await proposeOnCanvas()
+      act(() => result.current.confirmGeneration())
+      expect(canvasGenerate).not.toHaveBeenCalled()
+      expect(store.getOperatorState().confirm?.status).toBe('idle')
+    })
 
     it('⛔ 流里一条 done 的 canvas_generate 步不扣扳机（扳机只在确认卡上）', async () => {
       hostDomain.current = 'canvas'

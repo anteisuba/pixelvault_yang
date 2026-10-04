@@ -314,19 +314,19 @@ describe('research.onlySources', () => {
 describe('AssistantPersona 助手设置 B 的几格', () => {
   const FULL = { ...BASE, routeModel: ASSISTANT_ROUTE_MODEL_AUTO }
 
-  it('头像单选只收四项', () => {
-    for (const avatarChoice of ['character', 'upload', 'mark', 'monogram']) {
+  it('头像单选只收三项', () => {
+    for (const avatarChoice of ['character', 'upload', 'mark']) {
       expect(
         UpdateAssistantPersonaSchema.safeParse({ ...FULL, avatarChoice })
           .success,
       ).toBe(true)
     }
-    expect(
-      UpdateAssistantPersonaSchema.safeParse({
-        ...FULL,
-        avatarChoice: 'spark',
-      }).success,
-    ).toBe(false)
+    for (const avatarChoice of ['spark', 'monogram']) {
+      expect(
+        UpdateAssistantPersonaSchema.safeParse({ ...FULL, avatarChoice })
+          .success,
+      ).toBe(false)
+    }
   })
 
   it('只读那几格递进来会被丢掉，⛔ 不落库', () => {

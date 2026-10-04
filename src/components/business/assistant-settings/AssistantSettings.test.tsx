@@ -215,6 +215,52 @@ describe('AssistantSettings · 人设', () => {
     )
   })
 
+  it('头像菜单只留一个默认预设，选中后保留角色和上传图片', async () => {
+    renderSettings({
+      ...PERSONA,
+      characterCardId: DENIA.id,
+      character: {
+        id: DENIA.id,
+        name: DENIA.name,
+        faceUrl: DENIA.sourceImageUrl,
+        hasSpeech: false,
+      },
+      avatarChoice: 'character',
+      avatarUrl: DENIA.sourceImageUrl,
+      uploadedAvatarUrl: 'https://cdn.test/upload.png',
+    })
+    await screen.findByDisplayValue('达妮娅')
+
+    fireEvent.pointerDown(screen.getByTestId('assistant-avatar-button'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    const defaultAvatar = await screen.findByRole('menuitemradio', {
+      name: 'avatar.mark',
+    })
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(3)
+    expect(
+      screen.getByRole('menuitemradio', { name: 'avatar.character|Denia' }),
+    ).toBeChecked()
+    expect(
+      screen.getByRole('menuitemradio', { name: 'avatar.upload' }),
+    ).toBeInTheDocument()
+    expect(defaultAvatar.querySelector('img')).toHaveAttribute(
+      'src',
+      '/icon.png',
+    )
+    expect(screen.queryByTestId('assistant-avatar-choice-monogram')).toBeNull()
+
+    fireEvent.click(defaultAvatar)
+    await waitFor(() =>
+      expect(lastSaved()).toMatchObject({
+        avatarChoice: 'mark',
+        characterCardId: DENIA.id,
+      }),
+    )
+    expect(lastSaved()).not.toHaveProperty('avatarUrl')
+  })
+
   it('角色还没写说话方式：那一格灰着，旁边给「去写」', async () => {
     renderSettings({
       ...PERSONA,

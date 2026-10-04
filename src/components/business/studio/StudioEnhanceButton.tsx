@@ -181,6 +181,7 @@ export function StudioEnhanceButton({ disabled }: StudioEnhanceButtonProps) {
           <StudioAssistantHeaderActions
             mobile
             assistantDomain={assistantDomain}
+            modelId={modelId}
             onClose={() => setOpen(false)}
           />
         </StudioPanelHeader>

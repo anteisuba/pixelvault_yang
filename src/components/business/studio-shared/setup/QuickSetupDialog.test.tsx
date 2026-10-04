@@ -1,13 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 
 import { QuickSetupDialog } from './QuickSetupDialog'
 
-// D3 ④ 决策 6：面 1 唯一的改动是底部那一行「管理全部 key →」。
-// 弹层本体（三步录入）不动，所以这里只钉那一行。
+const mocks = vi.hoisted(() => ({
+  dispatch: vi.fn(),
+  createApiKey: vi.fn(),
+  refresh: vi.fn(),
+  verify: vi.fn(),
+}))
+
+vi.mock('@/lib/api-client', () => ({
+  createApiKey: mocks.createApiKey,
+  deleteApiKey: vi.fn(),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
@@ -15,11 +24,11 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: () => ({ refresh: vi.fn(), verify: vi.fn() }),
+  useApiKeysContext: () => ({ refresh: mocks.refresh, verify: mocks.verify }),
 }))
 
 vi.mock('@/contexts/studio-context', () => ({
-  useStudioFormOptional: () => null,
+  useStudioFormOptional: () => ({ dispatch: mocks.dispatch }),
 }))
 
 function renderDialog(onOpenChange = vi.fn()) {
@@ -36,7 +45,40 @@ function renderDialog(onOpenChange = vi.fn()) {
   return onOpenChange
 }
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.createApiKey.mockResolvedValue({
+    success: true,
+    data: { id: 'edit-key' },
+  })
+  mocks.verify.mockResolvedValue('available')
+})
+
 describe('QuickSetupDialog', () => {
+  it('configures an edit key without replacing the generation model selection', async () => {
+    const onVerified = vi.fn()
+    render(
+      <QuickSetupDialog
+        open
+        onOpenChange={vi.fn()}
+        modelId="ideogram-4.5"
+        modelLabel="Ideogram 4.5"
+        adapterType={AI_ADAPTER_TYPES.IDEOGRAM}
+        optionId="edit:ideogram-4.5"
+        selectStudioModel={false}
+        onVerified={onVerified}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('QuickSetup:step2'), {
+      target: { value: 'test-edit-key-value' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'QuickSetup:verify' }))
+    await waitFor(() =>
+      expect(onVerified).toHaveBeenCalledWith('ideogram-4.5', 'edit-key'),
+    )
+    expect(mocks.dispatch).not.toHaveBeenCalled()
+  })
+
   it('links to the key manager from the footer', () => {
     renderDialog()
     const link = screen.getByText('QuickSetup:manageAllKeys')

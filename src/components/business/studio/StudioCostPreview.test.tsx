@@ -97,6 +97,96 @@ describe('StudioCostPreview', () => {
     expect(screen.queryByText(/costUnpriced/)).not.toBeInTheDocument()
   })
 
+  it.each(['stack', 'line'] as const)(
+    '%s: Ideogram 高质量挂上参考图后按编辑单价重算',
+    (variant) => {
+      const models = [model(AI_MODELS.IDEOGRAM_45)]
+      const basis = {
+        kind: 'image' as const,
+        perModelCount: 2,
+        quality: 'high',
+        hasReferenceImage: false,
+      }
+      const { rerender } = render(
+        <StudioCostPreview models={models} basis={basis} variant={variant} />,
+      )
+      expect(
+        screen.getByText('costApprox:{"amount":"$0.20"}'),
+      ).toBeInTheDocument()
+      rerender(
+        <StudioCostPreview
+          models={models}
+          basis={{ ...basis, hasReferenceImage: true }}
+          variant={variant}
+        />,
+      )
+      expect(
+        screen.getByText('costApprox:{"amount":"$0.44"}'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/costUnpriced/)).not.toBeInTheDocument()
+    },
+  )
+
+  it('Ideogram 最低画质没有源图时不退回标准画质价格', () => {
+    const models = [model(AI_MODELS.IDEOGRAM_45)]
+    const basis = {
+      kind: 'image' as const,
+      perModelCount: 1,
+      quality: 'very_low',
+    }
+    const { rerender } = render(
+      <StudioCostPreview models={models} basis={basis} />,
+    )
+    expect(screen.queryByText(/costApprox/)).not.toBeInTheDocument()
+    expect(screen.getByText('costUnpriced:{"count":1}')).toBeInTheDocument()
+    rerender(
+      <StudioCostPreview
+        models={models}
+        basis={{ ...basis, hasReferenceImage: true }}
+      />,
+    )
+    expect(
+      screen.getByText('costApprox:{"amount":"$0.008"}'),
+    ).toBeInTheDocument()
+  })
+
+  it('卡片可能附图时显示高画质区间，不套用 OpenAI 输入另计说明', () => {
+    render(
+      <StudioCostPreview
+        models={[model(AI_MODELS.IDEOGRAM_45)]}
+        basis={{ kind: 'image', perModelCount: 2, quality: 'high' }}
+      />,
+    )
+    expect(
+      screen.getByText('costRange:{"min":"$0.20","max":"$0.44"}'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('costImageReferenceRangeBasis')).toBeInTheDocument()
+    expect(screen.queryByText('costRangeBasis')).not.toBeInTheDocument()
+    expect(screen.queryByText(/costUnpriced/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^costApprox:/)).not.toBeInTheDocument()
+  })
+
+  it('一行版将固定费用与区间相加，缺价模型仍标明起价', () => {
+    const models = [model(AI_MODELS.IDEOGRAM_45), model(PRICED_A)]
+    const basis = { kind: 'image' as const, perModelCount: 1, quality: 'high' }
+    const { rerender } = render(
+      <StudioCostPreview models={models} basis={basis} variant="line" />,
+    )
+    expect(
+      screen.getByText('costApproxRange:{"min":"$0.13","max":"$0.25"}'),
+    ).toBeInTheDocument()
+    rerender(
+      <StudioCostPreview
+        models={[...models, model(UNPRICED)]}
+        basis={basis}
+        variant="line"
+      />,
+    )
+    expect(
+      screen.getByText('costApproxRangeFrom:{"min":"$0.13","max":"$0.25"}'),
+    ).toBeInTheDocument()
+  })
+
   it('混选：缺价的不折进合计，合计降级成「起」并单独报条数', () => {
     render(
       <StudioCostPreview

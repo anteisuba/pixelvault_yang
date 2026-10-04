@@ -12,6 +12,30 @@ import {
 } from '@/constants/video-model-capabilities'
 
 describe('videoModelSupportsSeed', () => {
+  it('offers 4K only on verified fal Seedance 2.0 and Kling routes', () => {
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_REFERENCE,
+      AI_MODELS.KLING_V3_PRO,
+      AI_MODELS.KLING_O3_PRO,
+    ]) {
+      expect(getVideoModelCapabilities(modelId).supportedResolutions).toContain(
+        '4k',
+      )
+    }
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20_FAST,
+      AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_BYTEPLUS,
+      AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+    ]) {
+      expect(
+        getVideoModelCapabilities(modelId).supportedResolutions,
+      ).not.toContain('4k')
+    }
+  })
   it('supports seed for all Seedance variants (regardless of reference)', () => {
     for (const modelId of [
       AI_MODELS.SEEDANCE_20,
@@ -38,6 +62,27 @@ describe('videoModelSupportsSeed', () => {
 })
 
 describe('video-model-capabilities', () => {
+  it('keeps H3 Max Turbo duration and resolution separate from native H3', () => {
+    expect(
+      getVideoModelCapabilities(AI_MODELS.MINIMAX_H3_MAX_TURBO),
+    ).toMatchObject({
+      supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      supportedResolutions: ['480p', '768p', '1080p'],
+    })
+    expect(videoModelSupportsSeed(AI_MODELS.MINIMAX_H3_MAX_TURBO, false)).toBe(
+      true,
+    )
+    expect(videoModelSupportsSeed(AI_MODELS.MINIMAX_H3_MAX_TURBO, true)).toBe(
+      true,
+    )
+    expect(
+      getVideoModelCapabilities(AI_MODELS.MINIMAX_H3).supportedResolutions,
+    ).toEqual(['2k'])
+    expect(snapVideoResolution(AI_MODELS.MINIMAX_H3_MAX_TURBO, '720p')).toBe(
+      '768p',
+    )
+  })
+
   it('provides default capabilities for custom video models', () => {
     const capabilities = getVideoModelCapabilities('custom-video-model')
 

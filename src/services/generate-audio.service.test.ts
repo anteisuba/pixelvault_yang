@@ -109,6 +109,7 @@ vi.mock('@/constants/providers', async () => {
 })
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
 import { EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
 import type { GenerateAudioRequest } from '@/types'
 import {
@@ -299,6 +300,63 @@ function setupSfxHappyPath(mockGenerateSoundEffect = vi.fn()) {
 }
 
 // ─── Tests ─────────────────────────────────────────────────────
+
+describe('submitAudioGeneration music', () => {
+  const generateMusic = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupSyncHappyPath(generateMusic)
+    vi.mocked(resolveGenerationRoute).mockResolvedValue({
+      ...FAKE_SYNC_ROUTE,
+      modelId: AI_MODELS.ELEVENLABS_MUSIC_V2,
+      adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+      providerConfig: {
+        label: 'ElevenLabs',
+        baseUrl: 'https://api.elevenlabs.io',
+      },
+    } as never)
+    vi.mocked(getProviderAdapter).mockReturnValue({ generateMusic } as never)
+  })
+
+  it.each([4000, 4100])(
+    'accepts %i characters and uses v2.5 while retaining the saved model ID',
+    async (length) => {
+      const prompt = 'a'.repeat(length)
+      const result = await submitAudioGeneration('clerk-1', {
+        prompt,
+        modelId: AI_MODELS.ELEVENLABS_MUSIC_V2,
+        durationSeconds: 30,
+      })
+
+      expect(result).toEqual({ jobId: FAKE_SYNC_JOB.id })
+      expect(generateMusic).toHaveBeenCalledWith(
+        expect.objectContaining({ prompt, modelId: 'music_v2_5' }),
+      )
+      expect(createGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: AI_MODELS.ELEVENLABS_MUSIC_V2,
+          prompt,
+        }),
+      )
+      expect(completeGenerationJob).toHaveBeenCalled()
+      expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rejects 4101 characters before creating a job or calling the provider', async () => {
+    await expect(
+      submitAudioGeneration('clerk-1', {
+        prompt: 'a'.repeat(4101),
+        modelId: AI_MODELS.ELEVENLABS_MUSIC_V2,
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 })
+
+    expect(createGenerationJob).not.toHaveBeenCalled()
+    expect(generateMusic).not.toHaveBeenCalled()
+    expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
+  })
+})
 
 describe('generateSoundEffectForUser', () => {
   beforeEach(() => vi.clearAllMocks())

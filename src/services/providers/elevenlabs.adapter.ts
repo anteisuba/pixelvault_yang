@@ -151,8 +151,8 @@ export const elevenLabsAdapter: ProviderAdapter = {
   },
 
   /**
-   * Music v2 compose — POST /v1/music. Returns raw audio bytes (same pattern as
-   * SFX). Pins model_id from the catalog execution id (music_v2).
+   * Music compose — POST /v1/music. Returns raw audio bytes (same pattern as
+   * SFX). Pins model_id from the catalog execution id.
    */
   async generateMusic(input: ProviderAudioInput): Promise<ProviderAudioResult> {
     const {

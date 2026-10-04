@@ -9,6 +9,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   replaceReferenceImage: vi.fn(),
+  referenceEntries: [] as { url: string }[],
   /** 躯干的 onApplied —— 测试里由假的 Surface 直接调它。 */
   applied: null as
     | ((outputs: { imageUrl: string }[], summary: string) => boolean)
@@ -23,7 +24,10 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioData: () => ({
-    imageUpload: { replaceReferenceImage: mocks.replaceReferenceImage },
+    imageUpload: {
+      replaceReferenceImage: mocks.replaceReferenceImage,
+      referenceEntries: mocks.referenceEntries,
+    },
   }),
 }))
 
@@ -53,7 +57,8 @@ function renderStage(initial: StudioImageEditTarget) {
       />
     )
   }
-  return render(<Harness />)
+  const result = render(<Harness />)
+  return { ...result, rerender: () => result.rerender(<Harness />) }
 }
 
 /** ⚠ 必须包 act：`onApplied` 是躯干在 React 之外调的，不包就不 flush 重渲染。 */
@@ -66,6 +71,12 @@ function apply(url: string, summary: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.applied = null
+  mocks.referenceEntries = [{ url: 'https://cdn.example.com/original.png' }]
+  mocks.replaceReferenceImage.mockImplementation(
+    (index: number, url: string) => {
+      mocks.referenceEntries[index] = { url }
+    },
+  )
 })
 
 describe('StudioImageEditStage · 编辑历史', () => {
@@ -74,6 +85,49 @@ describe('StudioImageEditStage · 编辑历史', () => {
     referenceIndex: 0,
     referenceTotal: 1,
   }
+
+  it('参考槽在退出编辑后已换图时，不把旧编辑结果写进新参考图槽位', () => {
+    renderStage(BASE)
+    mocks.referenceEntries[0] = {
+      url: 'https://cdn.example.com/another-reference.png',
+    }
+    apply('https://cdn.example.com/edited-old-source.png', 'edit old source')
+    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
+    expect(mocks.referenceEntries[0].url).toBe(
+      'https://cdn.example.com/another-reference.png',
+    )
+    expect(screen.getByTestId('surface-source')).toHaveTextContent(
+      'edited-old-source.png',
+    )
+    apply('https://cdn.example.com/edited-again.png', 'continue editing')
+    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
+  })
+
+  it('异步编辑中删除源参考图后，提交时的旧回调不能覆盖前移的另一张参考图', () => {
+    const otherReference = {
+      url: 'https://cdn.example.com/another-reference.png',
+    }
+    mocks.referenceEntries = [...mocks.referenceEntries, otherReference]
+    const { rerender } = renderStage({ ...BASE, referenceTotal: 2 })
+    const pendingApplied = mocks.applied
+
+    mocks.referenceEntries = [otherReference]
+    rerender()
+    act(() => {
+      pendingApplied?.(
+        [{ imageUrl: 'https://cdn.example.com/edited-old-source.png' }],
+        'edit old source',
+      )
+    })
+
+    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
+    expect(mocks.referenceEntries).toEqual([otherReference])
+    expect(screen.getByTestId('surface-source')).toHaveTextContent(
+      'edited-old-source.png',
+    )
+    apply('https://cdn.example.com/edited-again.png', 'continue editing')
+    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
+  })
 
   it('每成功一步就在历史里多一格，并就地替换参考图槽位', () => {
     renderStage(BASE)
@@ -85,8 +139,8 @@ describe('StudioImageEditStage · 编辑历史', () => {
     apply('https://cdn.example.com/b.png', 'bare feet')
 
     const steps = screen.getAllByRole('button')
+    // 舞台顶上只剩历史 + 右端「换一张」（owner 2026-10-03 撤掉「← 回到工作台」那一行）。
     expect(steps.map((b) => b.textContent)).toEqual([
-      'stageBack',
       'stageHistoryOriginal',
       'stageHistoryStep:{"index":1} · red jacket',
       'stageHistoryStep:{"index":2} · bare feet',
@@ -132,7 +186,6 @@ describe('StudioImageEditStage · 编辑历史', () => {
 
     const labels = screen.getAllByRole('button').map((b) => b.textContent)
     expect(labels).toEqual([
-      'stageBack',
       'stageHistoryOriginal',
       'stageHistoryStep:{"index":1} · edit a',
       'stageHistoryStep:{"index":2} · edit c',

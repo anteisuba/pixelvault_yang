@@ -25,6 +25,56 @@ import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 describe('models', () => {
+  it('registers Ideogram 4.5 on its official route without changing retired archives', () => {
+    const model = getModelById(AI_MODELS.IDEOGRAM_45)
+    expect(getAvailableImageModels().map((entry) => entry.id)).toContain(
+      AI_MODELS.IDEOGRAM_45,
+    )
+    expect(model).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
+      externalModelId: 'ideogram-4-5',
+      providerConfig: { baseUrl: 'https://api.ideogram.ai' },
+      maxPromptChars: 10_000,
+    })
+    expect(getModelMessageKey(AI_MODELS.IDEOGRAM_45)).toBe('ideogram45')
+    expect(getModelFamily(AI_MODELS.IDEOGRAM_45)).toBe('Ideogram')
+    expect(isRetiredModelId(AI_MODELS.IDEOGRAM_3)).toBe(true)
+    expect(normalizeModelId(AI_MODELS.IDEOGRAM_3)).toBe(AI_MODELS.IDEOGRAM_3)
+  })
+
+  it('registers H3 Max Turbo as a distinct fal route with its own prompt limit', () => {
+    const modelId = AI_MODELS.MINIMAX_H3_MAX_TURBO
+    expect(getAvailableVideoModels().map((model) => model.id)).toContain(
+      modelId,
+    )
+    expect(getModelById(modelId)).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      externalModelId: 'minimax/h3-max-turbo/text-to-video',
+      i2vModelId: 'minimax/h3-max-turbo/image-to-video',
+      maxPromptChars: 50_000,
+      videoDefaults: { resolution: '768p' },
+    })
+    expect(getModelMessageKey(modelId)).toBe('minimaxH3MaxTurbo')
+    expect(getModelFamily(modelId)).toBe('MiniMax')
+    expect(getModelById(AI_MODELS.MINIMAX_H3)?.adapterType).toBe(
+      AI_ADAPTER_TYPES.MINIMAX,
+    )
+    expect(getModelById(AI_MODELS.MINIMAX_H3_CN)?.adapterType).toBe(
+      AI_ADAPTER_TYPES.MINIMAX_CN,
+    )
+  })
+
+  it('recommends Seedance 2.5 first while preserving its channel order', () => {
+    expect(
+      getAvailableVideoModels()
+        .slice(0, 3)
+        .map((model) => model.id),
+    ).toEqual([
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+      AI_MODELS.SEEDANCE_25,
+      AI_MODELS.SEEDANCE_25_BYTEPLUS,
+    ])
+  })
   it.each([
     [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE, 'openaiGptImage25Flare'],
     [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST, 'openaiGptImage25Sunburst'],

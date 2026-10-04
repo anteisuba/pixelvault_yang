@@ -310,6 +310,7 @@ import {
 import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
 import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
+import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 /**
  * ⭐ **抽帧落库**（第二期 · 视频域评审）。加它进钱闸白名单的判据只有一条：
  * 它把客户端交上来的三张**帧图**核对后转存 R2，然后就结束了 —— 不建 generation、
@@ -1416,6 +1417,7 @@ function renderState(
       'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
       `Current board: ${JSON.stringify(state.canvas ?? null)}`,
       'A node without model has NO model selected. availableModels lists candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Connect its intended references and set its model before writing the final prompt; verify the fresh state after each operation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
+      'Node parameters.values contains current generation settings; parameters.options lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change; verify the updated values after canvas_sync and include them when summarizing generation. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
       'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id and URL, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
       `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
       `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
@@ -7209,6 +7211,36 @@ async function planCanvasApply(
     if (asked) return asked
   }
 
+  if (op.op === NODE_ASSISTANT_OP_V4_IDS.setParams) {
+    const node = canvas.shots
+      .flatMap((shot) => (shot.expanded ? shot.nodes : []))
+      .find((candidate) => candidate.id === op.target)
+    const parameters = node?.parameters
+    if (!parameters) {
+      return reject(
+        REJECT.noSuchControl,
+        'This node has no generation parameter controls in the current snapshot.',
+      )
+    }
+    for (const [key, value] of Object.entries(op.params)) {
+      if (value === undefined) continue
+      const allowed = parameters.options[key as keyof typeof parameters.options]
+      if (allowed === true && key === 'seed') continue
+      if (!Array.isArray(allowed) || allowed.length === 0) {
+        return reject(
+          REJECT.noSuchControl,
+          `The selected model on ${op.target} has no ${key} control.`,
+        )
+      }
+      if (!(allowed as readonly unknown[]).includes(value)) {
+        return reject(
+          REJECT.unknownValue,
+          `${key} must be one of ${JSON.stringify(allowed)} on ${op.target}; received ${JSON.stringify(value)}.`,
+        )
+      }
+    }
+  }
+
   if (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt) {
     const node = canvas.shots
       .flatMap((shot) => (shot.expanded ? shot.nodes : []))
@@ -7284,8 +7316,7 @@ function planCanvasPlanRerun(
  *   —— 2026-09-28 读码实证，那等于一张卡都没出就花了钱。
  * ⚠ 没有模型就没有卡可画（判据同 `planRequestGeneration`）：文字卡本来就不出图，
  *   媒体卡要先 `set_model`。
- * ⚠ 载荷从快照现取：一次跑一张卡（张数恒 1）；比例 / 清晰度住在那张卡身上、
- *   快照里没有，一律 `null`（卡上不画）。
+ * 载荷从目标节点的当前参数现取，与客户端确认卡共用同一份映射。
  */
 async function planCanvasGenerate(
   run: OperatorRun,
@@ -7309,7 +7340,8 @@ async function planCanvasGenerate(
   const node = canvas.shots
     .flatMap((shot) => (shot.expanded ? shot.nodes : []))
     .find((candidate) => candidate.id === args.target)
-  if (!node?.model) {
+  const request = node ? buildCanvasGenerationRequest(node) : null
+  if (!node || !request) {
     return reject(
       REJECT.noModelSelected,
       `The card ${args.target} has no model to run. Text cards never generate; for a media card set its model with canvas_apply set_model first.`,
@@ -7324,12 +7356,7 @@ async function planCanvasGenerate(
   if (blocked) return blocked
   return {
     kind: 'confirmGenerate',
-    request: {
-      model: { id: node.model, label: node.model },
-      count: 1,
-      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
-      canvasNode: { id: node.id, name: node.name },
-    },
+    request,
   }
 }
 
@@ -9797,6 +9824,11 @@ ${run.request.priorSteps
     sections.push(
       [
         'YOU ARE RESUMING AN APPROVED PLAN THAT WAS INTERRUPTED. The steps below are ALREADY DONE — their results exist and are part of the current state. Do NOT redo them, do NOT re-plan from the start, and do NOT ask the creator to approve the plan again. Pick up at the first step that is not listed and carry on. Anything those steps produced is yours to build on; refer to it by the name printed here.',
+        ...(run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas
+          ? [
+              'On the canvas, plan labels summarize progress; verify each result against the current board. Names are for display only: tool arguments must copy real node ids from the current snapshot. A failed operation is not completed by a later unrelated operation. Reuse existing nodes instead of creating replacements after an invalid-id error.',
+            ]
+          : []),
         ...done,
       ].join('\n'),
     )

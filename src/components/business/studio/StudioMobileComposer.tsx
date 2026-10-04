@@ -5,17 +5,14 @@ import {
   ArrowUp,
   ChevronDown,
   FileText,
-  Music2,
   RotateCw,
-  Volume2,
-  VolumeX,
+  UserRound,
 } from '@/components/icons'
-import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
-  STUDIO_TEMPLATES_PANEL_ID,
+  STUDIO_REFERENCE_DRAG_TYPE,
 } from '@/constants/studio'
 import {
   STUDIO_MOBILE_COMPOSER_CLASS,
@@ -23,47 +20,58 @@ import {
   STUDIO_MOBILE_PROMPT_MAX_HEIGHT,
   STUDIO_PROMPT_SCROLL_ANCHOR_ID,
 } from '@/constants/studio-mobile'
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
+import {
+  useStudioData,
+  useStudioForm,
+  useStudioGen,
+} from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
-import { useStudioVideoAudio } from '@/hooks/use-studio-video-audio'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
+import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
-import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
-import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
+import { StudioCardPicker } from '@/components/business/studio/StudioCardPicker'
+import {
+  StudioMobileAddSheet,
+  type StudioMobileAddRow,
+} from '@/components/business/studio/StudioMobileAddSheet'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
-import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
-import { studioChipActiveClass } from '@/components/business/studio-shared/primitives/tool-surface'
+import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 
 /**
- * chip 行的丸样式 —— 32px 高（需求卡表 5），命中区靠 `touch-target-y` 补到 44。
- * ⚠ 只撑纵向：横向相邻的 chip 若也外扩会互相重叠，那是把「点不中」换成「点错」。
+ * 输入框卡里那一行的幽灵丸（模型 / 规格）—— ⛔ 不画边：卡自己有边，框里再套一圈
+ * 描边就是「框里套框」。32px 高，命中区由 `.studio-mobile-chip-row` 补到 44。
  */
-const chipClass = cn(
-  'touch-target-y flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 text-xs font-medium text-foreground',
-  'transition-colors duration-fast ease-standard active:bg-muted/60',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+const ghostChipClass = cn(
+  'flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-2sm font-medium text-foreground',
+  'transition-colors duration-fast ease-standard active:bg-muted',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   'disabled:pointer-events-none disabled:opacity-50',
 )
+/** 规格那颗是共用的 `SpecChip`，只在这里把它的描边收掉（闪烁提示的底色照旧）。 */
+const specGhostClass =
+  'border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted'
+/** 模型参数那颗是共用的单颗专属 chip，同样收成幽灵丸。 */
+const capabilityGhostClass =
+  'h-8 gap-1 px-2.5 text-2sm text-foreground hover:bg-transparent active:bg-muted'
 
 /**
  * StudioMobileComposer —— `/studio/image` 与 `/studio/video` 移动端（`<1024`）
  * 底部固定 composer。
  *
- * 施工基准：`docs/references/pages/studio-image-mobile-request.md`（图片，owner
- * 2026-09-03 方向 A「画布优先」）+ `studio-video-mobile-request.md`（视频，同日
- * 拍板）。两行：
- *   1. 横向可滚的 chip 行
- *      · 图片：模型 ▾（多选名单）/ 规格（`1:1 · ×1`）▾ / 模板 / ＋参考图 / 角色
- *      · 视频：模型 ▾（单选）/ 规格（`5s · 720p · 16:9`）▾ / 🔊 出声 /
- *              ＋参考图 / ♪ 音频参考 / 剧本
- *   2. 单行自增高提示词 + 黑色生成键（图片 44×44 方形 `↑`；视频带时长 `↑ 5s`）
- *   视频档在两行之间多一行 mono 费用（`≈ $0.12 · 5s × $0.024/s`）。
+ * 形态（owner 2026-10-02 选「Claude 式最简」，替掉 09-03 方向 A 的四行叠法）：
+ * 一张输入框卡 = 挂着的素材（有才出现）· 提示词整宽 · 一行
+ * `＋ · 模型 ▾ · 规格 ▾ · 专属 ……… 生成`。参考图 / 模板 / 角色（视频：素材 / 剧本 /
+ * 模板）收进「＋」（`StudioMobileAddSheet`）；模型参数（专属）在规格旁边（owner
+ * 2026-10-03）；写法切换挪到舞台左上角（`StudioWorkspaceUI` 的 `header`，与标签台
+ * 手机同一位置）。视频档在卡上方多一行
+ * mono 费用（`≈ $0.12 · 5s × $0.024/s`）。
  *
  * ⭐ **一个组件按模态分支，不是两份平行实现**（需求卡备注第 1 条）。分叉的代价
  * 在图片那轮已经付过一次：禁用判据、chip 值、按钮文案各写一遍必然漂。
@@ -71,7 +79,8 @@ const chipClass = cn(
  * ⚠ 生成键与桌面参数栏那颗**共用** `useStudioGenerateAction`：禁用判据、toast
  * 文案、请求组装只有一份实现。该 hook 内含 `REQUEST_GENERATE` 的执行端副作用，
  * 所以本组件与 `StudioPromptArea` **二选一渲染**（`StudioWorkbenchLayout` 按
- * `useIsMobile()` 分），不是 CSS 隐藏 —— 两个都挂 = 一次请求发两遍。
+ * `useIsMobile()` 分），不是 CSS 隐藏 —— 两个都挂 = 一次请求发两遍。视频素材那一份
+ * （`useStudioVideoAssets`）同理：桌面由 `StudioPromptArea` 持有，手机由这里持有。
  *
  * ⚠ `id` 顶的是 `#studio-prompt` 这条既有滚动锚点（`StudioWorkspaceUI` 的
  * prefill / node handoff 两处、以及 skip-link 都指着它）。桌面由
@@ -90,15 +99,16 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   overlay?: ReactNode
 }) {
   const { state, dispatch } = useStudioForm()
+  const { imageUpload, characters } = useStudioData()
   const { lastGeneration } = useStudioGen()
   const t = useTranslations('StudioMobile')
   const tModels = useTranslations('Models')
   const tV2 = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
-  const tVideo = useTranslations('VideoGenerate')
-  const tVideoAudio = useTranslations('StudioVideoAudio')
-  const tScript = useTranslations('VideoScript')
+  const tImageChip = useTranslations('ImageChip')
+  const tImageUpload = useTranslations('ImageUpload')
   const tTemplates = useTranslations('PromptLibrary')
+  const tScript = useTranslations('VideoScript')
   const {
     selectedModel,
     runModels,
@@ -113,9 +123,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
     isImagePromptOverLimit,
     videoCostBasis,
   } = useStudioGenerateAction()
-
-  const { supported: supportsGenerateAudio, value: generateAudioValue } =
-    useStudioVideoAudio()
+  const videoAssets = useStudioVideoAssets()
   const [modelSheetOpen, setModelSheetOpen] = useState(false)
 
   const composerRef = useRef<HTMLDivElement>(null)
@@ -163,7 +171,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   // 提示词走 `aria-disabled` + 点击弹 toast —— 真 `disabled` 的按钮收不到点击，
   // 用户就只剩「点了没反应」这一种反馈。
   const hardDisabled = isGenerating || isImagePromptOverLimit
-  // ⚠ 方形键上印不下长文案，所以「缺什么 / 这一枪出几张」全部只从无障碍名与
+  // ⚠ 圆键上印不下长文案，所以「缺什么 / 这一枪出几张」全部只从无障碍名与
   //   toast 出去；数量在按钮上是一枚角标，不是文字。
   const generateLabel = blockedReason
     ? blockedReason.message
@@ -177,6 +185,34 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           ? t('regenerate')
           : t('generate')
 
+  const cardCount = characters.activeCardIds.length
+  const openTemplates = () => {
+    if (!templates.open) templates.onToggle()
+  }
+  // 「＋」下半截：模板（开舞台面板）· 角色（抽屉里推进一页）；视频：模板 · 剧本。
+  const addRows: StudioMobileAddRow[] = [
+    {
+      key: 'templates',
+      icon: <FileText className="size-4" />,
+      label: tTemplates('templatePicker'),
+      onSelect: openTemplates,
+    },
+    isVideo
+      ? {
+          key: 'script',
+          icon: <FileText className="size-4" />,
+          label: tScript('panelTitle'),
+          onSelect: () => dispatch({ type: 'OPEN_PANEL', payload: 'script' }),
+        }
+      : {
+          key: 'characters',
+          icon: <UserRound className="size-4" />,
+          label: tV2('characters'),
+          detail: cardCount > 0 ? String(cardCount) : undefined,
+          page: <StudioCardPicker />,
+        },
+  ]
+
   return (
     <div
       ref={composerRef}
@@ -184,140 +220,11 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
       className={cn(
         STUDIO_MOBILE_COMPOSER_CLASS,
         isVideo && STUDIO_MOBILE_COMPOSER_VIDEO_CLASS,
-        'keyboard-aware-bottom-padding fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-border/60 bg-background px-3 pt-2 shadow-lg',
+        // 与 PC 一样上下两张卡（owner 2026-10-04）：底部一条地台灰，里面浮一张白卡。
+        'keyboard-aware-bottom-padding fixed inset-x-0 bottom-0 z-40 flex flex-col gap-1.5 bg-surface-workbench px-2.5 pt-2.5',
       )}
     >
       {overlay}
-      {/* 第 1 行 —— 横向可滚，永不换行（换行会让 composer 高度跳，舞台跟着抖）。
-          ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip`
-          底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
-      {/* 两台之间那扇门的**这一侧**（与标签台同一颗组件、同在第一行）。
-          ⛔ 只给图片档：视频没有方言这一说。 */}
-      {!isVideo ? <StudioDialectHeader disabled={isGenerating} /> : null}
-      {/* 专属区 —— 与桌面同一颗组件、同一份能力表派生（D2 ④）。手机上这一行
-          横向滚不换行：换行会让 composer 高度跳，舞台跟着抖。
-          ⚠ 标签模型的专属控件**不在这里**：它们只活在标签台（D10 ⑤），
-          而这条 composer 只服务自然语言台与视频档。 */}
-      {state.outputType === 'image' ? (
-        <details>
-          <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
-            {t('modelParameters')}
-          </summary>
-          <StudioModelCapabilityChips disabled={isGenerating} scroll />
-        </details>
-      ) : null}
-      <Toolbar.Root className="studio-mobile-chip-row flex min-w-0 items-center gap-1.5 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setModelSheetOpen(true)}
-          aria-label={tForm('modelLabel')}
-          aria-haspopup="dialog"
-          data-testid="studio-mobile-model-chip"
-          className={chipClass}
-        >
-          <span className="max-w-32 truncate">{modelChipLabel}</span>
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        </button>
-        {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
-            底部抽屉，⛔ 不再另外存一份 sheet 的开合。档位全部实算自型号，没有任何
-            一档可调时它自己不渲染 —— 留一颗只剩箭头的空丸是纯噪音。 */}
-        <StudioSpecChip
-          disabled={isGenerating}
-          triggerClassName="touch-target-y shrink-0"
-        />
-        {/* 出声 —— 与规格 sheet 里那颗开关**镜像同一个 state**，不是第二个真相。
-            ⚠ 只在选中端点的契约暴露 `generateAudio` 时才渲染：画一颗发不出去的
-            开关比没有更糟（同 `StudioVideoSpecFields` 的判据）。 */}
-        {isVideo && supportsGenerateAudio ? (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={generateAudioValue}
-            aria-label={tVideo('generateAudioLabel')}
-            onClick={() =>
-              dispatch({
-                type: 'SET_VIDEO_GENERATE_AUDIO',
-                payload: !generateAudioValue,
-              })
-            }
-            data-testid="studio-mobile-audio-chip"
-            className={cn(
-              chipClass,
-              generateAudioValue && studioChipActiveClass,
-            )}
-          >
-            {generateAudioValue ? (
-              <Volume2 className="size-3.5 shrink-0" />
-            ) : (
-              <VolumeX className="size-3.5 shrink-0" />
-            )}
-            {tVideo('generateAudioLabel')}
-          </button>
-        ) : null}
-        {/* 模板在舞台上打开（模板 C），⛔ 不再是底部抽屉。 */}
-        <button
-          type="button"
-          onClick={templates.onToggle}
-          disabled={isGenerating}
-          aria-expanded={templates.open}
-          aria-controls={templates.open ? STUDIO_TEMPLATES_PANEL_ID : undefined}
-          data-testid="studio-mobile-template-chip"
-          className={cn(chipClass, templates.open && studioChipActiveClass)}
-        >
-          <FileText className="size-3.5 shrink-0" />
-          {tTemplates('templatePicker')}
-        </button>
-        {/* 参考图沿用既有那颗 —— 它自带移动端抽屉宿主，这里不重造。 */}
-        <ReferenceImageChip disabled={isGenerating} />
-        {/* 角色 —— 与桌面同一颗（owner 09-27「手机也要」）；触屏上它自己是底部抽屉。
-            视频档不挂：视频的图走素材轨。 */}
-        {!isVideo ? <StudioCardsButton disabled={isGenerating} /> : null}
-        {isVideo ? (
-          <>
-            {/* 音频参考 / 剧本 —— 点开的是**既有**面板（`panels.videoAudio` /
-                `panels.script`，宿主是 `StudioDockPanelArea`），移动端只是多一个
-                入口，不新增 state 源。 */}
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({ type: 'TOGGLE_PANEL', payload: 'videoAudio' })
-              }
-              disabled={isGenerating}
-              aria-label={tVideoAudio('pill')}
-              data-testid="studio-mobile-audio-ref-chip"
-              className={cn(
-                chipClass,
-                state.panels.videoAudio && studioChipActiveClass,
-              )}
-            >
-              <Music2 className="size-3.5 shrink-0" />
-              {tVideoAudio('pill')}
-              {state.videoAudioRefs.length > 0 ? (
-                <span className="tabular-nums">
-                  {state.videoAudioRefs.length}
-                </span>
-              ) : null}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
-              }
-              disabled={isGenerating}
-              aria-label={tScript('panelTitle')}
-              data-testid="studio-mobile-script-chip"
-              className={cn(
-                chipClass,
-                state.panels.script && studioChipActiveClass,
-              )}
-            >
-              <FileText className="size-3.5 shrink-0" />
-              {tScript('panelTitle')}
-            </button>
-          </>
-        ) : null}
-      </Toolbar.Root>
-
       {/* 费用行（视频档）—— 一行 mono，说清「多少钱 + 怎么算出来的」。
           ⚠ 与桌面参数栏底部那一叠共用 `StudioCostPreview`，不在这里另算一个数。 */}
       {isVideo && selectedModel && videoCostBasis ? (
@@ -328,7 +235,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
         />
       ) : null}
 
-      {/* 第 2 行 —— 提示词 + 生成 */}
       <PromptInput
         isLoading={isGenerating}
         value={state.prompt}
@@ -336,13 +242,47 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
         maxHeight={STUDIO_MOBILE_PROMPT_MAX_HEIGHT}
         onSubmit={handleGenerate}
         role="group"
-        className="flex items-end gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
+        className="flex flex-col gap-1.5 rounded-2xl border-0 bg-card px-3 pt-2.5 pb-2 shadow-float"
       >
-        {/* ⚠ 纵向内边距归 `PromptInputTextarea` 自己（它带 `min-h-[44px] py-2`）——
-            外框再补一层 py 会让这一行变成 58px，composer 高度直接破 120。 */}
+        {/* 挂着的素材 —— 有才出现（与桌面输入框卡同一颗）：图片档是参考图条，
+            视频档是素材排（图 · 参考视频 · 音频，首 / 尾帧角标、这一枪怎么发）。 */}
+        {isVideo ? (
+          <StudioVideoAssetRail assets={videoAssets} disabled={isGenerating} />
+        ) : (
+          <>
+            <ImageAttachmentPreviewStrip
+              entries={imageUpload.referenceEntries}
+              previewAlt={tImageChip('label')}
+              previewLabel={(index) =>
+                tImageChip('previewReferenceImage', { index })
+              }
+              previewDescription={tImageChip('previewReferenceDescription')}
+              previewCloseLabel={tImageChip('closeReferencePreview')}
+              removeLabel={(index) =>
+                tImageChip('removeReferenceImage', { index })
+              }
+              onRemove={imageUpload.removeReferenceImage}
+              overLimitTooltip={tImageChip('disabledOverLimit')}
+              unsupportedTooltip={tImageChip('disabledUnsupported')}
+              variant="composer"
+              dragType={STUDIO_REFERENCE_DRAG_TYPE}
+            />
+            {imageUpload.isUploading ? (
+              <div
+                role="status"
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <Spinner aria-hidden="true" className="size-4 shrink-0" />
+                {tImageUpload('uploading')}
+              </div>
+            ) : null}
+          </>
+        )}
+
+        {/* 提示词 —— 整宽，最多 3 行后在框内滚。 */}
         <div
           className={cn(
-            'flex min-h-11 min-w-0 flex-1 items-center rounded-xl border border-border/60 px-3',
+            'flex min-h-8 min-w-0 items-center',
             templates.restoring &&
               'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
           )}
@@ -358,67 +298,109 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
             <PromptInputTextarea
               id={STUDIO_PROMPT_TEXTAREA_ID}
               aria-label={tForm('promptLabel')}
-              placeholder={
-                isVideo ? t('promptPlaceholderVideo') : t('promptPlaceholder')
-              }
+              placeholder={t('promptPlaceholderVideo')}
               // ⚠ 纵向内边距必须是 0，`min-h` 也要清掉：`react-textarea-autosize`
               //   在 `box-sizing: border-box` 下把内边距算进两遍（一行的空输入框
               //   量到 60px 而不是 40px），再叠上组件自带的 `min-h-[44px]`，
-              //   这一行会顶到 62px，composer 直接破 120。44px 的命中区由外框的
-              //   `min-h-11` 给，输入框只负责按行数自增高（最多 3 行后内部滚动）。
+              //   这一行会顶到 62px。行高由外框的 `min-h-8` 兜，输入框只负责按
+              //   行数自增高（最多 3 行后内部滚动）。
               // ⚠ `text-base`（16px）在 <768 是硬要求，不是排版偏好：iOS Safari 对
               //    小于 16px 的可聚焦输入框会**自动放大整页**，聚焦一次版式就散了。
               //    修法是把字号抬到 16 而不是 `maximum-scale`（那会连带禁掉用户
               //    自己的缩放）。桌面照旧 14px。
-              className="min-h-0 p-0 font-sans text-base leading-5 md:text-sm"
+              className="min-h-0 p-0 font-sans text-base leading-6 md:text-sm"
             />
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => void handleGenerate()}
-          disabled={hardDisabled}
-          aria-label={generateLabel}
-          aria-busy={isGenerating}
-          aria-disabled={Boolean(blockedReason) || hardDisabled}
-          data-testid="studio-mobile-generate"
-          className={cn(
-            'relative flex h-11 shrink-0 items-center justify-center gap-1 rounded-xl bg-primary text-primary-foreground shadow-sm',
-            // 图片是 44×44 方形；视频那颗要装下时长，所以按内容伸缩。
-            isVideo ? 'px-3 text-sm font-medium tabular-nums' : 'w-11',
-            'transition-[background-color,transform] duration-fast ease-standard active:scale-[0.98]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-            // 挡住时降到次级填充 —— 与桌面那颗同一条规矩：降的是底不是字。
-            !isGenerating &&
-              blockedReason &&
-              'bg-muted text-foreground shadow-none',
-            hardDisabled && 'cursor-not-allowed bg-muted text-muted-foreground',
-          )}
+
+        {/* ＋ · 模型 · 规格 · 专属 ……… 生成。
+            ⚠ 整行挡住冒泡：`PromptInput` 的点击会把焦点送进提示词（窄视口 + 鼠标时
+            不跳过），弹层刚开就被抢走焦点会当场收起。 */}
+        <div
+          className="flex items-center gap-2"
+          onClick={(event) => event.stopPropagation()}
         >
-          {isGenerating ? (
-            <Spinner className="size-5" />
-          ) : hasResult ? (
-            <RotateCw className="size-5" />
-          ) : (
-            <ArrowUp className="size-5" />
-          )}
-          {/* 视频：按钮上带这一枪的时长（`↑ 5s`）。图片：这一枪出几张 —— 只在
-              >1 时出现，数字长在角标上而不是按钮文字里，方形键的尺寸才不会随
-              张数跳。 */}
-          {isVideo ? (
-            <span data-testid="studio-mobile-generate-duration">
-              {`${state.videoDuration}s`}
-            </span>
-          ) : totalOutputCount > 1 && !isGenerating ? (
-            <span
-              aria-hidden
-              data-testid="studio-mobile-generate-count"
-              className="pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-2xs font-semibold leading-none text-background ring-1 ring-background"
+          <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            <StudioMobileAddSheet
+              disabled={isGenerating}
+              rows={addRows}
+              hasHiddenSetting={!isVideo && cardCount > 0}
+              {...(isVideo ? { videoAssets } : {})}
+            />
+            <button
+              type="button"
+              onClick={() => setModelSheetOpen(true)}
+              aria-label={tForm('modelLabel')}
+              aria-haspopup="dialog"
+              data-testid="studio-mobile-model-chip"
+              className={ghostChipClass}
             >
-              {totalOutputCount}
-            </span>
-          ) : null}
-        </button>
+              <span className="max-w-32 truncate">{modelChipLabel}</span>
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+            </button>
+            {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
+                底部抽屉（视频的原生出声开关也在里面）。档位全部实算自型号，没有任何
+                一档可调时它自己不渲染。 */}
+            <StudioSpecChip
+              disabled={isGenerating}
+              triggerClassName={specGhostClass}
+            />
+            {/* 模型参数（专属）—— 规格旁边一颗（owner 2026-10-03），与桌面工具行
+                同一颗 chip、同一个弹层；这一轮没有可调项时整颗不渲染。视频档的专属
+                在规格抽屉里，不挂这颗。 */}
+            {!isVideo ? (
+              <StudioModelCapabilityChips
+                variant="single"
+                disabled={isGenerating}
+                triggerClassName={capabilityGhostClass}
+              />
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleGenerate()}
+            disabled={hardDisabled}
+            aria-label={generateLabel}
+            aria-busy={isGenerating}
+            aria-disabled={Boolean(blockedReason) || hardDisabled}
+            data-testid="studio-mobile-generate"
+            className={cn(
+              'touch-target-y relative flex h-9 shrink-0 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground',
+              // 图片是 36 圆键；视频那颗要装下时长，所以按内容伸缩。
+              isVideo ? 'px-3 text-sm font-medium tabular-nums' : 'w-9',
+              'transition-[background-color,transform] duration-fast ease-standard active:scale-[0.98]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              // 挡住时降到次级填充 —— 与桌面那颗同一条规矩：降的是底不是字。
+              !isGenerating && blockedReason && 'bg-muted text-foreground',
+              hardDisabled &&
+                'cursor-not-allowed bg-muted text-muted-foreground',
+            )}
+          >
+            {isGenerating ? (
+              <Spinner className="size-4" />
+            ) : hasResult ? (
+              <RotateCw className="size-4" />
+            ) : (
+              <ArrowUp className="size-4" />
+            )}
+            {/* 视频：按钮上带这一枪的时长（`↑ 5s`）。图片：这一枪出几张 —— 只在
+                >1 时出现，数字长在角标上而不是按钮文字里，圆键的尺寸才不会随
+                张数跳。 */}
+            {isVideo ? (
+              <span data-testid="studio-mobile-generate-duration">
+                {`${state.videoDuration}s`}
+              </span>
+            ) : totalOutputCount > 1 && !isGenerating ? (
+              <span
+                aria-hidden
+                data-testid="studio-mobile-generate-count"
+                className="pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-2xs font-semibold leading-none text-background ring-1 ring-background"
+              >
+                {totalOutputCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
       </PromptInput>
 
       <StudioMobileModelSheet

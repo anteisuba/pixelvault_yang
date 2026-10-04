@@ -18,17 +18,13 @@ import { NodeWorkflowNodeDataSchema } from '@/types/node-workflow'
 
 describe('canvas image edit capability registry', () => {
   it('registers ready capabilities and keeps remaining placeholders hidden', () => {
-    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).toEqual([
-      ...READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
-    ])
+    expect(
+      new Set(READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)),
+    ).toEqual(new Set(READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS))
     expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).toEqual([
       ...HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITY_IDS,
     ])
-    // 五条。沿革：2026-08-18 `decompose` 与 `outpaint` 整条删除（owner 定功能
-    // 废弃）、`object-replace` / `style-transfer` 因全仓零执行路径退回 hidden；
-    // 2026-08-19 E3 把 `object-replace` 连同注释层建出来并提回 ready。
-    // `style-transfer` 仍然没有执行路径。
-    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(5)
+    expect(READY_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(6)
     expect(HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES).toHaveLength(2)
     expect(
       new Set(CANVAS_IMAGE_EDIT_CAPABILITIES.map(({ id }) => id)).size,

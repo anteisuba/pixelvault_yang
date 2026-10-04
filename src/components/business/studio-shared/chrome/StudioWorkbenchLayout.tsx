@@ -2,7 +2,10 @@
 
 import { memo } from 'react'
 
-import { STUDIO_MOBILE_STAGE_CLASS } from '@/constants/studio-mobile'
+import {
+  STUDIO_MOBILE_STAGE_CLASS,
+  STUDIO_MOBILE_STAGE_HEADER_CLASS,
+} from '@/constants/studio-mobile'
 import { cn } from '@/lib/utils'
 
 interface StudioWorkbenchLayoutProps {
@@ -30,7 +33,10 @@ interface StudioWorkbenchLayoutProps {
    * 自然语言台）：`params` 渲染进舞台下方那张卡，`header` 在舞台上方。
    */
   layout?: 'columns' | 'bottom'
-  /** `bottom` 布局舞台上方那一行（标题 + 写法切换）。 */
+  /**
+   * `bottom` 布局舞台上方那一行（标题 + 写法切换）；`columns` 布局（手机）里它住在
+   * 舞台卡的顶上一行。
+   */
   header?: React.ReactNode
   /**
    * `bottom` 布局浮在输入框卡正上方的东西（套用模板后的「已套用 · 撤销」）。
@@ -150,6 +156,15 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             composer ? STUDIO_MOBILE_STAGE_CLASS : 'pb-3 lg:pb-6',
           )}
         >
+          {/* 手机图片台的写法切换（owner 2026-10-02：从输入条挪到舞台左上角，与标签台
+              手机同一位置）—— 跟着舞台一起滚，⛔ 不钉住。 */}
+          {header ? (
+            <div
+              className={cn(STUDIO_MOBILE_STAGE_HEADER_CLASS, 'mb-3 shrink-0')}
+            >
+              {header}
+            </div>
+          ) : null}
           {stage}
         </div>
         {stageOverlay ? (

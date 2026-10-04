@@ -4,6 +4,8 @@ Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归�
 
 ## 执行约定
 
+- 以项目结果为导向：把每次提问放回当前项目目标、已确认决策与进度中理解，直接回答问题，并判断达成目标还缺什么。包含实施意图时持续完成已授权的端到端工作，不停在字面回答、方案或单个局部改动。
+- 主动指出与当前目标有关的遗漏、上下游依赖和方案冲突，说明依据、影响与建议；必要的关联修复纳入当前任务，可选扩展先提出建议。项目视角不等于全仓审计或擅自增加独立功能，详见 WORKFLOW 的项目推进约定。
 - 从 [WORKFLOW](docs/WORKFLOW.md) 选择当前任务需要的 scene、业务域与验证；同一会话已读且未变的内容不重复加载。
 - 在用户授权范围内完成调查、实现和验证。先从对话、代码和官方资料补齐事实；常规、可逆的实现选择自主处理，仅对影响产品结果或授权边界的缺口提问。提问时继续不依赖答案的工作。
 - 用户针对当前任务的明确指令优先于仓库默认流程与技能建议；系统和运行环境权限仍然有效。技能不扩大任务范围，不创建额外审批门。
@@ -31,3 +33,13 @@ Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归�
 - 验证按 WORKFLOW 的影响面分级，准确区分定向通过与全量通过；无新变化或未决问题不重复跑检查。
 - 报告改了什么、现在的行为、验证与未验证项，必要时附文件链接；不强制图示或长篇报告。
 - 文档变更用 `sync-pixelvault-docs`：状态覆盖更新至 `docs/status.md`，稳定事实进入已有 `docs/references/`。在飞约束留在对话，不重建 `docs/plans/` 或归档目录。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -790,14 +790,17 @@ export const STUDIO_OPERATOR_MOBILE_SHELL = {
   /** 浮标的命中区 —— 触屏 44（`ui-defaults.md §5`）。 */
   fabHitPx: 44,
   /**
-   * 头像距视口右 / 上缘的留白。
+   * 头像距视口右 / 上缘的留白 —— 落在 `MobileShell` 顶栏右端留给它的那一格里
+   * （D12 U5）：顶栏 `h-11` 里居中一条 `h-9` 胶囊 → 上 4；`px-2` + 胶囊 `px-1` → 右 12。
+   * 改顶栏的高度或内边距必须改这两个数（owner 2026-10-02：头像挂在舞台上会压住
+   * 结果图右上角与面板头部的按钮）。
    *
    * ⚠ ⛔ `fabBottomPx`（96）**已删**：D7b 起收起态头像挂**右上角**，不再从底部那条
    * `StudioMobileComposer` 固定栏旁边绕路 —— 那个数存在的全部理由是「清过生成键」，
    * 而头像已经不在下面了。
    */
-  fabInsetPx: 16,
-  avatarTopPx: 64,
+  fabInsetPx: 12,
+  avatarTopPx: 4,
 } as const
 
 /**

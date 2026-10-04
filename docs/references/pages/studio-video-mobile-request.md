@@ -54,3 +54,7 @@
 - `use-unified-generate.ts` 是按 item 轮询（3s 间隔、最多 200 次）；取消一条队列卡只需要中止该 item 的轮询，不影响同批次其他条目——同源事实见 `StudioVideoQueueStrip.tsx` 顶部注释「失败只失败它自己」。
 - 相机 `capture` 属性（移动端拍摄直传作参考图/首帧）本卡列为已知缺口，不在本轮范围，留给下一张需求卡。
 - chip 与抽屉/sheet 状态仍归 `studio-context.tsx` 与既有 hooks 所有，移动端只是呈现层，不新增独立 state 源。
+
+## 2026-10-02 · composer 跟随图片台改「Claude 式最简」
+
+上表 composer 一行的 chip 集合作废：输入框卡 = 素材排（有才出现）· 提示词 · `＋ · 模型 ▾ · 规格 ▾ ……… ↑ 5s`；素材 / 模板 / 剧本收进「＋」，出声只在规格抽屉里，费用行在卡上方。详见 [`studio-image-mobile-request.md`](studio-image-mobile-request.md) 同日一节。

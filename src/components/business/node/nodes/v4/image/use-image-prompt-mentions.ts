@@ -105,6 +105,17 @@ export function useImagePromptMentions({
     }
     return undefined
   }
+  const quotedMediaOf = (name: string) => {
+    const matches = refs.items.filter((entry) => entry.sourceName === name)
+    const first = matches[0]
+    if (
+      !first?.thumbnailUrl ||
+      matches.some((entry) => entry.sourceNodeId !== first.sourceNodeId)
+    ) {
+      return undefined
+    }
+    return { kind: 'image' as const, thumbnailUrl: first.thumbnailUrl }
+  }
 
   return {
     characterMentions: characterMentions.mentions,
@@ -132,7 +143,8 @@ export function useImagePromptMentions({
       ...mentionCandidates,
     ],
     renderValue: acceptsRefs
-      ? (value: string) => renderPromptMentions(value, { names, mediaOf })
+      ? (value: string) =>
+          renderPromptMentions(value, { names, mediaOf, quotedMediaOf })
       : undefined,
   }
 }

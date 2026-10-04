@@ -205,6 +205,7 @@ const IMAGE_MODEL_IDS = IMAGE_MODEL_OPTIONS.map((model) => model.id)
 
 /** 编辑方言与生成方言不是一回事的那几条。 */
 const EDIT_MODEL_IDS = [
+  AI_MODELS.IDEOGRAM_45,
   AI_MODELS.FLUX_2_PRO_EDIT,
   AI_MODELS.FLUX_KONTEXT_MAX,
 ] as const
@@ -220,6 +221,7 @@ const NO_NEGATIVE_MODEL_IDS = [
   AI_MODELS.FLUX_2_PRO_EDIT,
   AI_MODELS.FLUX_KONTEXT_MAX,
   AI_MODELS.FLUX_LORA,
+  AI_MODELS.IDEOGRAM_45,
   AI_MODELS.IDEOGRAM_3,
   AI_MODELS.RECRAFT_V4_PRO,
 ] as const
@@ -254,8 +256,8 @@ describe('图片模型的逐 model 方言条目', () => {
    * 数字写死是**故意**的：加模型时这一条先红，提醒去补方言，而不是让新模型
    * 悄悄落到 adapter 兜底 hint 上。
    */
-  it('图片名册就是 39 条，一条不漏地有 strength 条目', () => {
-    expect(IMAGE_MODEL_IDS.length).toBe(39)
+  it('图片名册就是 40 条，一条不漏地有 strength 条目', () => {
+    expect(IMAGE_MODEL_IDS.length).toBe(40)
     for (const modelId of IMAGE_MODEL_IDS) {
       expect(MODEL_STRENGTHS[modelId], `${modelId} 缺方言条目`).toBeTruthy()
     }

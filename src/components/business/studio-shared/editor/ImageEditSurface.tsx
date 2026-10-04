@@ -1,30 +1,54 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
+  Check,
   ChevronDown,
   Eraser,
   Paintbrush,
-  Replace,
   Scissors,
   Settings2,
   Sparkles,
+  SquareDashed,
+  WandSparkles,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { ImageAnnotationEditor } from '@/components/business/studio-shared/editor/ImageAnnotationEditor'
-import { StudioInpaintEditor } from '@/components/business/studio/StudioInpaintEditor'
+import {
+  ImageAnnotationEditor,
+  type DraftAnnotation,
+} from '@/components/business/studio-shared/editor/ImageAnnotationEditor'
+import {
+  StudioInpaintEditor,
+  type InpaintMaskDraft,
+} from '@/components/business/studio/StudioInpaintEditor'
 import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
+import { ModelChip } from '@/components/business/studio-shared/pickers/ModelChip'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import {
+  ImageEditComposer,
+  type ImageEditComposerControls,
+} from './ImageEditComposer'
+import { useImageEditModelOptions } from '@/hooks/use-image-edit-model-options'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
+import type { StudioModelOption } from '@/types/model-option'
+import { AI_MODELS } from '@/constants/models/enum'
+import {
+  formatUnitPriceAmount,
+  getImageUnitPrice,
+} from '@/constants/models/unit-prices'
 import { Textarea } from '@/components/ui/textarea'
 import {
   getCanvasImageEditCapability,
   READY_CANVAS_IMAGE_EDIT_CAPABILITIES,
+  IDEOGRAM_EDIT_QUALITY_OPTIONS,
 } from '@/constants/canvas-image-edit-capabilities'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { EDIT_MODELS } from '@/constants/edit-tasks'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import {
   StudioToolSurface,
@@ -59,12 +83,14 @@ import type {
 
 type TargetScale = '2x' | '4x'
 
+// 六项在同一个菜单里，⛔ 两项共用一个字形（整图修改与物体替换以前都是 Replace）。
 const TASK_ICONS = {
+  'edit-image': WandSparkles,
   upscale: Sparkles,
   'remove-background': Eraser,
   inpaint: Paintbrush,
   'extract-element': Scissors,
-  'object-replace': Replace,
+  'object-replace': SquareDashed,
 } as const satisfies Record<ReadyCanvasImageEditCapabilityId, typeof Sparkles>
 
 const EXTRACT_PRESETS = [
@@ -128,6 +154,8 @@ export interface ImageEditSurfaceProps {
   onRunStateChange?: (state: 'running' | 'success' | 'error') => void
   /** 取消/返回。`dialog` 用它关弹窗，`stage` 用它回结果区。 */
   onCancel?: () => void
+  composerContainer?: HTMLElement | null
+  active?: boolean
 }
 
 export function ImageEditSurface({
@@ -139,6 +167,8 @@ export function ImageEditSurface({
   onApplied,
   onRunStateChange,
   onCancel,
+  composerContainer,
+  active = true,
 }: ImageEditSurfaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tAdvanced = useTranslations('AdvancedSettings')
@@ -153,10 +183,45 @@ export function ImageEditSurface({
   const [selectedModels, setSelectedModels] = useState<
     Partial<Record<ReadyCanvasImageEditCapabilityId, string>>
   >({})
-  const [editOptions, setEditOptions] = useState<ImageEditOptions>({})
+  const [optionsByTask, setOptionsByTask] = useState<
+    Partial<Record<ReadyCanvasImageEditCapabilityId, ImageEditOptions>>
+  >({})
+  const editOptions = useMemo(
+    () => optionsByTask[activeTask] ?? {},
+    [activeTask, optionsByTask],
+  )
+  const setEditOptions = (options: ImageEditOptions) =>
+    setOptionsByTask((current) => ({ ...current, [activeTask]: options }))
+  const [selectedOptionIds, setSelectedOptionIds] = useState<
+    Partial<Record<ReadyCanvasImageEditCapabilityId, string>>
+  >({})
+  const [quickSetup, setQuickSetup] = useState<StudioModelOption | null>(null)
+  const [tasksOpen, setTasksOpen] = useState(false)
+  const [prompts, setPrompts] = useState<
+    Partial<Record<ReadyCanvasImageEditCapabilityId, string>>
+  >({})
+  const [maskDraft, setMaskDraft] = useState<InpaintMaskDraft | null>(null)
+  const [annotations, setAnnotations] = useState<DraftAnnotation[]>([])
+  const [draftSource, setDraftSource] = useState(sourceUrl)
+  if (draftSource !== sourceUrl) {
+    setDraftSource(sourceUrl)
+    setMaskDraft(null)
+    setAnnotations([])
+  }
+  const sourceRef = useRef(sourceUrl)
+  sourceRef.current = sourceUrl
+
   const activeCapability = getCanvasImageEditCapability(activeTask)
   const selectedModelId =
     selectedModels[activeTask] ?? getDefaultModelId(activeTask)
+  const modelOptions = useImageEditModelOptions(activeCapability.models)
+  const selectedOption =
+    modelOptions.find(
+      (option) =>
+        option.modelId === selectedModelId &&
+        option.optionId === selectedOptionIds[activeTask],
+    ) ?? modelOptions.find((option) => option.modelId === selectedModelId)
+  const providerKeyId = selectedOption?.keyId ?? selectedOption?.providerKeyId
   const [extractPrompt, setExtractPrompt] = useState('clothing')
   const [extractInvert, setExtractInvert] = useState(false)
   const [extractPreset, setExtractPreset] = useState<string | null>('clothing')
@@ -213,7 +278,11 @@ export function ImageEditSurface({
       fallbackMessage: string,
       operation: () => Promise<boolean>,
     ) => {
-      if (runningRef.current || !sourceUrl) return
+      if (runningRef.current || !sourceUrl || !active) return
+      if (!selectedOption || !isRunnableModelOption(selectedOption)) {
+        if (selectedOption) setQuickSetup(selectedOption)
+        return
+      }
 
       abortRef.current = new AbortController()
       setPreviewUrl(null)
@@ -233,7 +302,7 @@ export function ImageEditSurface({
         setPreviewUrl(null)
       }
     },
-    [onRunStateChange, sourceUrl],
+    [active, onRunStateChange, selectedOption, sourceUrl],
   )
 
   const target = useMemo(
@@ -248,6 +317,11 @@ export function ImageEditSurface({
       summary: string,
     ): Promise<boolean> => {
       const response = await canvasCapabilityRuntime.run(request)
+      if (
+        sourceRef.current !== request.target.sourceUrl ||
+        abortRef.current?.signal.aborted
+      )
+        return false
       if (!response.success || response.outputs.length === 0) {
         toast.error(response.error || fallbackMessage)
         return false
@@ -323,6 +397,11 @@ export function ImageEditSurface({
           selectedModels['extract-element'] ??
           getDefaultModelId('extract-element'),
       })
+      if (
+        sourceRef.current !== target.sourceUrl ||
+        abortRef.current?.signal.aborted
+      )
+        return false
       if (!response.success || response.outputs.length === 0) {
         toast.error(response.error || t('extractFailed'))
         return false
@@ -365,6 +444,7 @@ export function ImageEditSurface({
               prompt,
               modelId: selectedModels.inpaint ?? getDefaultModelId('inpaint'),
               options: editOptions,
+              providerKeyId,
               onPreview: setPreviewUrl,
               signal: abortRef.current?.signal,
             },
@@ -377,7 +457,15 @@ export function ImageEditSurface({
         return true
       })
     },
-    [runCapability, runExclusive, t, target, selectedModels, editOptions],
+    [
+      runCapability,
+      runExclusive,
+      t,
+      target,
+      selectedModels,
+      editOptions,
+      providerKeyId,
+    ],
   )
 
   const applyAnnotations = useCallback(
@@ -393,6 +481,7 @@ export function ImageEditSurface({
                 selectedModels['object-replace'] ??
                 getDefaultModelId('object-replace'),
               options: editOptions,
+              providerKeyId,
               onPreview: setPreviewUrl,
               signal: abortRef.current?.signal,
             },
@@ -405,394 +494,524 @@ export function ImageEditSurface({
         return true
       })
     },
-    [runCapability, runExclusive, t, target, selectedModels, editOptions],
+    [
+      runCapability,
+      runExclusive,
+      t,
+      target,
+      selectedModels,
+      editOptions,
+      providerKeyId,
+    ],
   )
 
-  const renderTaskControls = () => {
-    if (!sourceUrl) {
-      return (
-        <p className="text-sm text-muted-foreground">{t('emptySourceTitle')}</p>
+  const setPrompt = (value: string) =>
+    setPrompts((current) => ({ ...current, [activeTask]: value }))
+  const prompt = prompts[activeTask] ?? ''
+  const runEditImage = () => {
+    if (!prompt.trim()) return
+    void runExclusive('edit-image', t('editFailed'), async () => {
+      const succeeded = await runCapability(
+        {
+          capability: 'edit-image',
+          target,
+          prompt: prompt.trim(),
+          modelId: selectedModelId,
+          options: editOptions,
+          providerKeyId,
+          onPreview: setPreviewUrl,
+          signal: abortRef.current?.signal,
+        },
+        t('editFailed'),
+        prompt.trim(),
       )
-    }
-
-    switch (activeTask) {
-      case 'upscale':
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {t('upscale.scaleLabel')}
-              </p>
-              <div
-                className="inline-flex rounded-lg border border-border/70 bg-muted/30 p-0.5"
-                role="group"
-                aria-label={t('upscale.scaleLabel')}
-              >
-                {(['2x', '4x'] as const).map((scale) => (
-                  <button
-                    key={scale}
-                    type="button"
-                    disabled={isRunning}
-                    aria-pressed={targetScale === scale}
-                    onClick={() => setTargetScale(scale)}
-                    className={cn(
-                      'min-h-8 rounded-md px-3 text-xs font-medium transition-colors',
-                      targetScale === scale
-                        ? 'bg-background text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    {t(`upscale.scale${scale}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Button type="button" disabled={isRunning} onClick={runUpscale}>
-              {runningTask === 'upscale' ? (
-                <Spinner size="md" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {t('actions.upscale')}
-            </Button>
-          </div>
-        )
-      case 'remove-background':
-        return (
-          <Button
-            type="button"
-            disabled={isRunning}
-            onClick={runRemoveBackground}
-          >
-            {runningTask === 'remove-background' ? (
-              <Spinner size="md" />
-            ) : (
-              <Eraser className="size-4" />
-            )}
-            {t('actions.removeBg')}
-          </Button>
-        )
-      case 'extract-element':
-        return (
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-1.5">
-              {EXTRACT_PRESETS.map((preset) => (
+      if (succeeded) toast.success(t('savedToGallery'))
+      return succeeded
+    })
+  }
+  const chooseModel = (option: StudioModelOption) => {
+    setSelectedModels((current) => ({
+      ...current,
+      [activeTask]: option.modelId,
+    }))
+    setSelectedOptionIds((current) => ({
+      ...current,
+      [activeTask]: option.optionId,
+    }))
+    setEditOptions({})
+  }
+  // 主三项在前，其余在后 —— 一个菜单列完（owner 2026-10-03：页签 + 「更多工具」
+  // 收成输入框里一颗「任务 ▾」，与模型、生成键同一行）。
+  const mainTaskIds: readonly ReadyCanvasImageEditCapabilityId[] = [
+    'edit-image',
+    'inpaint',
+    'object-replace',
+  ]
+  const orderedTasks = [
+    ...READY_CANVAS_IMAGE_EDIT_CAPABILITIES.filter((item) =>
+      mainTaskIds.includes(item.id),
+    ),
+    ...READY_CANVAS_IMAGE_EDIT_CAPABILITIES.filter(
+      (item) => !mainTaskIds.includes(item.id),
+    ),
+  ]
+  const ActiveTaskIcon = TASK_ICONS[activeTask]
+  const tasks = (
+    <StudioToolSurface open={tasksOpen} onOpenChange={setTasksOpen}>
+      <StudioToolSurfaceTrigger asChild>
+        <button
+          type="button"
+          disabled={isRunning}
+          aria-label={`${t('toolsTitle')} · ${t(`tasks.${activeTask}.label`)}`}
+          aria-haspopup="dialog"
+          data-testid="image-edit-task-chip"
+          data-active={tasksOpen || undefined}
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border pl-2.5 pr-2 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted motion-reduce:transition-none"
+        >
+          <ActiveTaskIcon className="size-4 shrink-0" aria-hidden />
+          {t(`tasks.${activeTask}.label`)}
+          <ChevronDown
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+        </button>
+      </StudioToolSurfaceTrigger>
+      <StudioToolPopoverContent
+        size="small"
+        label={t('toolsTitle')}
+        side="top"
+        align="start"
+        className="w-64 p-1.5"
+      >
+        <div role="menu" aria-label={t('toolsTitle')} className="flex flex-col">
+          {orderedTasks.map((item, index) => {
+            const Icon = TASK_ICONS[item.id]
+            const selected = activeTask === item.id
+            return (
+              <div key={item.id} className="contents">
+                {index === mainTaskIds.length ? (
+                  <div className="mx-2 my-1 h-px bg-border/60" aria-hidden />
+                ) : null}
                 <button
-                  key={preset.key}
                   type="button"
+                  role="menuitemradio"
+                  aria-checked={selected}
                   disabled={isRunning}
-                  aria-pressed={extractPreset === preset.key}
                   onClick={() => {
-                    setExtractPrompt(preset.prompt)
-                    setExtractInvert(preset.invert)
-                    setExtractPreset(preset.key)
+                    setActiveTask(item.id)
+                    setTasksOpen(false)
                   }}
-                  className={cn(
-                    'min-h-8 rounded-full border px-3 text-xs font-medium transition-colors',
-                    extractPreset === preset.key
-                      ? 'border-foreground/20 bg-foreground text-background'
-                      : 'border-border/70 text-muted-foreground hover:text-foreground',
-                  )}
+                  className="flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11 motion-reduce:transition-none"
                 >
-                  {t(`extract.presets.${preset.key}`)}
+                  <Icon
+                    className="size-4 shrink-0 text-foreground/75"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {t(`tasks.${item.id}.label`)}
+                  </span>
+                  {selected ? (
+                    <Check className="size-4 shrink-0" aria-hidden />
+                  ) : null}
                 </button>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <label
-                htmlFor="canvas-extract-prompt"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                {t('extract.promptLabel')}
-              </label>
-              <Textarea
-                id="canvas-extract-prompt"
-                value={extractPrompt}
-                disabled={isRunning}
-                placeholder={t('extract.promptPlaceholder')}
-                className="min-h-24 resize-none"
-                onChange={(event) => {
-                  setExtractPrompt(event.target.value)
-                  setExtractPreset(null)
-                }}
-              />
-              <p className="text-xs text-muted-foreground/80">
-                {t('extract.promptHint')}
-              </p>
-            </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={extractInvert}
-                disabled={isRunning}
-                onChange={(event) => {
-                  setExtractInvert(event.target.checked)
-                  setExtractPreset(null)
-                }}
-                className="size-4 rounded border-border"
-              />
-              {t('extract.invertLabel')}
-            </label>
+              </div>
+            )
+          })}
+        </div>
+      </StudioToolPopoverContent>
+    </StudioToolSurface>
+  )
+  const generativeEdit =
+    activeTask === 'edit-image' ||
+    activeTask === 'inpaint' ||
+    activeTask === 'object-replace'
+  const config = selectedOption
+    ? getCapabilityConfig(selectedOption.adapterType, selectedModelId)
+    : null
+  const qualityOptions =
+    selectedModelId === AI_MODELS.IDEOGRAM_45
+      ? IDEOGRAM_EDIT_QUALITY_OPTIONS
+      : config?.qualityOptions
+  const hasOptions =
+    generativeEdit &&
+    Boolean(
+      qualityOptions?.length ||
+      config?.backgroundOptions?.length ||
+      config?.capabilities.includes('preview'),
+    )
+  const imagePrice = generativeEdit
+    ? getImageUnitPrice(selectedModelId, {
+        quality: editOptions.quality,
+        hasReferenceImage: true,
+      })
+    : null
+  const settings = (
+    <>
+      {activeTask === 'upscale' ? (
+        <ModelChip
+          modelLabel={targetScale === '2x' ? 'Clarity (2x)' : 'Aura SR (4x)'}
+          showChevron={false}
+          disabled={isRunning}
+        />
+      ) : generativeEdit ? (
+        <ModelPickerPopover
+          options={modelOptions}
+          value={selectedOption?.optionId ?? null}
+          onChange={chooseModel}
+          onRequestSetup={setQuickSetup}
+          labelForOption={(option) =>
+            EDIT_MODELS[option.modelId]?.displayName ?? option.modelId
+          }
+          memoryScope={`edit:${activeTask}`}
+          disabled={isRunning}
+          side="top"
+        />
+      ) : (
+        <select
+          aria-label={t('modelLabel')}
+          value={selectedModelId}
+          disabled={isRunning}
+          className="h-8 min-w-0 max-w-60 shrink-0 rounded-full border border-border bg-background px-3 text-2sm"
+          onChange={(event) => {
+            const option = modelOptions.find(
+              (candidate) => candidate.modelId === event.target.value,
+            )
+            if (option) chooseModel(option)
+          }}
+        >
+          {activeCapability.models.map((modelId) => (
+            <option key={modelId} value={modelId}>
+              {EDIT_MODELS[modelId]?.displayName ?? modelId}
+            </option>
+          ))}
+        </select>
+      )}
+      {hasOptions ? (
+        <StudioToolSurface>
+          <StudioToolSurfaceTrigger asChild>
             <Button
               type="button"
-              disabled={isRunning || !extractPrompt.trim()}
-              onClick={runExtractElement}
+              variant="ghost"
+              size="sm"
+              disabled={isRunning}
+              aria-label={t('settingsLabel')}
             >
-              {runningTask === 'extract-element' ? (
-                <Spinner size="md" />
-              ) : (
-                <Scissors className="size-4" />
-              )}
-              {t('extract.run')}
+              <Settings2 className="size-4" />
+              {t('settingsLabel')}
             </Button>
-          </div>
-        )
-      case 'object-replace':
-        return (
-          <ImageAnnotationEditor
-            // ⚠ 换图即重挂，清掉上一张的注释 —— 见组件头部注释。
-            key={sourceUrl}
-            imageUrl={sourceUrl}
-            onApply={applyAnnotations}
-            onCancel={onCancel ?? (() => undefined)}
-            isLoading={runningTask === 'object-replace'}
-          />
-        )
-      case 'inpaint':
-        return (
-          <StudioInpaintEditor
-            key={sourceUrl}
-            allowWholeImage={
-              EDIT_MODELS[selectedModelId]?.provider === 'openai'
-            }
-            imageUrl={sourceUrl}
-            imageWidth={sourceWidth}
-            imageHeight={sourceHeight}
-            onApply={applyInpaint}
-            onCancel={onCancel ?? (() => undefined)}
-            isLoading={runningTask === 'inpaint'}
-          />
-        )
-    }
+          </StudioToolSurfaceTrigger>
+          <StudioToolPopoverContent
+            size="action"
+            label={t('settingsLabel')}
+            side="top"
+            align="start"
+            className="space-y-4 overflow-y-auto"
+          >
+            {(['quality', 'background'] as const).map((kind) => {
+              const options =
+                kind === 'quality' ? qualityOptions : config?.backgroundOptions
+              if (!options?.length) return null
+              const selected = editOptions[kind] ?? options[0]
+              return (
+                <div key={kind} className="space-y-2">
+                  <span className="text-xs text-muted-foreground">
+                    {tAdvanced(kind)}
+                  </span>
+                  <div
+                    className="flex flex-wrap gap-1.5"
+                    role="group"
+                    aria-label={tAdvanced(kind)}
+                  >
+                    {options.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={isRunning}
+                        aria-pressed={selected === value}
+                        className={cn(
+                          'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
+                          selected === value
+                            ? studioChipActiveClass
+                            : 'border-border/60 text-muted-foreground hover:text-foreground',
+                        )}
+                        onClick={() => {
+                          const parsed = ImageEditOptionsSchema.safeParse({
+                            ...editOptions,
+                            [kind]: value,
+                          })
+                          if (parsed.success) setEditOptions(parsed.data)
+                        }}
+                      >
+                        {kind === 'quality' &&
+                        selectedModelId === AI_MODELS.IDEOGRAM_45
+                          ? t(`quality.${value}`)
+                          : tAdvanced(`${kind}Option.${value}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            {config?.capabilities.includes('preview') ? (
+              <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
+                {tAdvanced('preview')}
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  disabled={isRunning}
+                  checked={editOptions.preview ?? false}
+                  onChange={(event) =>
+                    setEditOptions({
+                      ...editOptions,
+                      preview: event.target.checked,
+                    })
+                  }
+                />
+              </label>
+            ) : null}
+          </StudioToolPopoverContent>
+        </StudioToolSurface>
+      ) : null}
+      {imagePrice !== null ? (
+        <span className="text-xs text-muted-foreground">
+          {t('pricePerImage', { amount: formatUnitPriceAmount(imagePrice) })}
+        </span>
+      ) : null}
+    </>
+  )
+  const renderComposer = (controls: ImageEditComposerControls) => {
+    if (!active) return null
+    const composer = (
+      <ImageEditComposer
+        controls={{
+          ...controls,
+          canSubmit: controls.canSubmit && Boolean(sourceUrl),
+        }}
+        tasks={tasks}
+        settings={settings}
+        isRunning={isRunning}
+      />
+    )
+    return composerContainer === undefined ? (
+      <div className="mt-4 border-t border-border pt-4">{composer}</div>
+    ) : composerContainer ? (
+      createPortal(composer, composerContainer)
+    ) : null
   }
-
+  const promptInput = (
+    <Textarea
+      aria-label={t('editPromptLabel')}
+      value={prompt}
+      disabled={isRunning}
+      maxLength={500}
+      onChange={(event) => setPrompt(event.target.value)}
+      placeholder={t('editPromptPlaceholder')}
+      className="field-sizing-content min-h-10 max-h-36 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+    />
+  )
+  // 源图：按舞台给的高度上限等比放下（`.studio-edit-media`，与局部重绘 / 物体替换
+  // 同一个上限 —— 换任务时图不再忽大忽小），⛔ 不再垫一块灰底、不写「源图 · 尺寸」。
   const sourceFigure = (
-    <figure className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-node-panel-inner bg-node-panel-soft">
+    <figure className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
       {sourceUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={sourceUrl}
           alt={t('sourceAlt')}
-          className="min-h-0 w-full flex-1 object-contain"
+          className="studio-edit-media block max-w-full rounded-xl object-contain"
         />
       ) : (
-        <div className="flex min-h-48 flex-1 items-center justify-center px-4 text-center text-xs text-node-muted">
+        <p className="flex min-h-48 items-center text-sm text-muted-foreground">
           {t('emptySourceTitle')}
-        </div>
+        </p>
       )}
-      <figcaption className="flex shrink-0 items-center justify-between gap-3 border-t border-node-panel-inner px-3 py-2">
-        <span className="truncate text-xs font-medium text-node-foreground">
-          {t('sourceTitle')}
-        </span>
-        <span className="shrink-0 text-2xs tabular-nums text-node-muted">
-          {sourceWidth} × {sourceHeight}
-        </span>
-      </figcaption>
     </figure>
   )
-
-  // 涂抹编辑器自带画布 + 控件两栏，占满即可；其余三条（一键出结果 / 描述式）
-  // 自己没有舞台，就在这儿补一个：大图在左，控件收进右侧一栏 —— 和涂抹编辑器
-  // 同一个形，不是两套。
-  const taskBody =
-    activeTask === 'inpaint' || activeTask === 'object-replace' ? (
-      renderTaskControls()
-    ) : (
-      <div className="studio-edit-body grid min-h-0 flex-1 gap-5">
-        {sourceFigure}
-        <div className="min-w-0 overflow-y-auto">{renderTaskControls()}</div>
-      </div>
-    )
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <nav
-        className="mb-4 flex flex-wrap gap-1.5 border-b border-border/60 pb-3"
-        aria-label={t('toolsTitle')}
-      >
-        {READY_CANVAS_IMAGE_EDIT_CAPABILITIES.map((capability) => {
-          const Icon = TASK_ICONS[capability.id]
-          const selected = activeTask === capability.id
-          return (
-            <button
-              key={capability.id}
-              type="button"
-              disabled={isRunning}
-              aria-pressed={selected}
-              onClick={() => {
-                setActiveTask(capability.id)
-                setEditOptions({})
-              }}
-              className={cn(
-                'flex min-h-9 items-center gap-2 rounded-full border px-3.5 text-xs font-medium transition-colors',
-                selected
-                  ? 'border-foreground/20 bg-foreground text-background'
-                  : 'border-border/70 text-muted-foreground hover:text-foreground',
-                isRunning && 'cursor-not-allowed opacity-60',
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              {t(`tasks.${capability.id}.label`)}
-            </button>
-          )
-        })}
-      </nav>
-      <div className="mb-3">
-        <StudioToolSurface>
-          <StudioToolSurfaceTrigger asChild>
-            <button
-              type="button"
-              disabled={isRunning}
-              aria-label={t('settingsLabel')}
-              className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-border/70 px-3.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              <Settings2 className="size-3.5 shrink-0" />
-              {t('settingsLabel')}
-              <span className="truncate text-muted-foreground">
-                {activeTask === 'upscale'
-                  ? targetScale === '2x'
-                    ? 'Clarity (2x)'
-                    : 'Aura SR (4x)'
-                  : (EDIT_MODELS[selectedModelId]?.displayName ??
-                    selectedModelId)}
-              </span>
-              <ChevronDown className="size-3.5 shrink-0" />
-            </button>
-          </StudioToolSurfaceTrigger>
-          <StudioToolPopoverContent
-            size="action"
-            label={t('settingsLabel')}
-            side="bottom"
-            align="start"
-            className="space-y-4 overflow-y-auto"
-          >
-            <label className="flex flex-col gap-2 text-xs text-muted-foreground">
-              {t('modelLabel')}
-              {activeTask === 'upscale' ? (
-                <span className="text-foreground">
-                  {targetScale === '2x' ? 'Clarity (2x)' : 'Aura SR (4x)'}
-                </span>
-              ) : (
-                <select
-                  className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                  value={selectedModelId}
+  const renderBody = () => {
+    switch (activeTask) {
+      case 'inpaint':
+        return (
+          <StudioInpaintEditor
+            key={sourceUrl}
+            imageUrl={sourceUrl}
+            imageWidth={sourceWidth}
+            imageHeight={sourceHeight}
+            onApply={applyInpaint}
+            onCancel={onCancel ?? (() => undefined)}
+            isLoading={isRunning}
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            maskDraft={maskDraft}
+            onMaskChange={setMaskDraft}
+            renderComposer={renderComposer}
+          />
+        )
+      case 'object-replace':
+        return (
+          <ImageAnnotationEditor
+            key={sourceUrl}
+            imageUrl={sourceUrl}
+            onApply={applyAnnotations}
+            onCancel={onCancel ?? (() => undefined)}
+            isLoading={isRunning}
+            annotations={annotations}
+            onAnnotationsChange={setAnnotations}
+            renderComposer={renderComposer}
+          />
+        )
+      case 'edit-image':
+        return (
+          <>
+            {sourceFigure}
+            {renderComposer({
+              input: promptInput,
+              canSubmit: Boolean(prompt.trim()),
+              onSubmit: runEditImage,
+              submitLabel: t('applyEdit'),
+            })}
+          </>
+        )
+      case 'upscale':
+        return (
+          <>
+            {sourceFigure}
+            {renderComposer({
+              input: (
+                <LiquidSegmented
+                  ariaLabel={t('upscale.scaleLabel')}
                   disabled={isRunning}
-                  onChange={(event) => {
-                    setSelectedModels((current) => ({
-                      ...current,
-                      [activeTask]: event.target.value,
-                    }))
-                    setEditOptions({})
-                  }}
-                >
-                  {activeCapability.models.map((id) => (
-                    <option key={id} value={id}>
-                      {EDIT_MODELS[id]?.displayName ?? id}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
-            {EDIT_MODELS[selectedModelId]?.provider === 'openai' &&
-              (activeTask === 'inpaint' || activeTask === 'object-replace') && (
-                <>
-                  {(['quality', 'background'] as const).map((cap) => {
-                    const config = getCapabilityConfig(
-                      AI_ADAPTER_TYPES.OPENAI,
-                      selectedModelId,
-                    )
-                    const options =
-                      cap === 'quality'
-                        ? config.qualityOptions
-                        : config.backgroundOptions
-                    return (
-                      <div key={cap} className="space-y-2">
-                        <span className="text-xs text-muted-foreground">
-                          {tAdvanced(cap)}
-                        </span>
-                        <div
-                          className="grid grid-cols-3 gap-1.5"
-                          role="group"
-                          aria-label={tAdvanced(cap)}
-                        >
-                          {options?.map((value) => (
-                            <button
-                              key={value}
-                              type="button"
-                              disabled={isRunning}
-                              aria-pressed={
-                                (editOptions[cap] ?? 'auto') === value
-                              }
-                              className={cn(
-                                'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
-                                (editOptions[cap] ?? 'auto') === value
-                                  ? studioChipActiveClass
-                                  : 'border-border/60 text-muted-foreground hover:text-foreground',
-                              )}
-                              onClick={() => {
-                                const parsed = ImageEditOptionsSchema.safeParse(
-                                  { ...editOptions, [cap]: value },
-                                )
-                                if (parsed.success) setEditOptions(parsed.data)
-                              }}
-                            >
-                              {tAdvanced(`${cap}Option.${value}`)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
-                    {tAdvanced('preview')}
+                  value={targetScale}
+                  items={(['2x', '4x'] as const).map((value) => ({
+                    value,
+                    label: t(`upscale.scale${value}`),
+                  }))}
+                  onChange={setTargetScale}
+                />
+              ),
+              canSubmit: true,
+              onSubmit: runUpscale,
+              submitLabel: t('actions.upscale'),
+            })}
+          </>
+        )
+      case 'remove-background':
+        return (
+          <>
+            {sourceFigure}
+            {renderComposer({
+              input: null,
+              canSubmit: true,
+              onSubmit: runRemoveBackground,
+              submitLabel: t('actions.removeBg'),
+            })}
+          </>
+        )
+      case 'extract-element':
+        return (
+          <>
+            {sourceFigure}
+            {renderComposer({
+              input: (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {EXTRACT_PRESETS.map((preset) => (
+                      <Button
+                        key={preset.key}
+                        type="button"
+                        size="sm"
+                        variant={
+                          extractPreset === preset.key ? 'secondary' : 'ghost'
+                        }
+                        aria-pressed={extractPreset === preset.key}
+                        disabled={isRunning}
+                        onClick={() => {
+                          setExtractPrompt(preset.prompt)
+                          setExtractInvert(preset.invert)
+                          setExtractPreset(preset.key)
+                        }}
+                      >
+                        {t(`extract.presets.${preset.key}`)}
+                      </Button>
+                    ))}
+                  </div>
+                  <Textarea
+                    aria-label={t('extract.promptLabel')}
+                    value={extractPrompt}
+                    disabled={isRunning}
+                    placeholder={t('extract.promptPlaceholder')}
+                    className="min-h-16 max-h-36 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+                    onChange={(event) => {
+                      setExtractPrompt(event.target.value)
+                      setExtractPreset(null)
+                    }}
+                  />
+                  <label className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
                     <input
                       type="checkbox"
-                      className="size-4 accent-primary"
+                      checked={extractInvert}
                       disabled={isRunning}
-                      checked={editOptions.preview ?? false}
-                      onChange={(event) =>
-                        setEditOptions((current) => ({
-                          ...current,
-                          preview: event.target.checked,
-                        }))
-                      }
+                      onChange={(event) => {
+                        setExtractInvert(event.target.checked)
+                        setExtractPreset(null)
+                      }}
+                      className="size-4 rounded border-border"
                     />
+                    {t('extract.invertLabel')}
                   </label>
-                  <p className="text-xs text-muted-foreground">
-                    {tAdvanced('previewHint')}
-                  </p>
-                </>
-              )}
-          </StudioToolPopoverContent>
-        </StudioToolSurface>
-      </div>
+                </div>
+              ),
+              canSubmit: Boolean(extractPrompt.trim()),
+              onSubmit: runExtractElement,
+              submitLabel: t('extract.run'),
+            })}
+          </>
+        )
+    }
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
       {previewUrl && isRunning ? (
         <figure
-          className="mb-4 flex min-h-0 flex-col items-center gap-2"
+          className="mb-3 flex min-h-0 flex-col items-center gap-2"
           aria-live="polite"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={previewUrl}
             alt={tAdvanced('preview')}
-            className="max-h-80 max-w-full rounded-lg object-contain"
+            className="max-h-64 max-w-full rounded-lg object-contain"
           />
           <figcaption className="text-xs text-muted-foreground">
             {tAdvanced('preview')}
           </figcaption>
         </figure>
       ) : null}
-      {taskBody}
+      {renderBody()}
+      {active && quickSetup ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setQuickSetup(null)
+          }}
+          modelId={quickSetup.modelId}
+          modelLabel={
+            EDIT_MODELS[quickSetup.modelId]?.displayName ?? quickSetup.modelId
+          }
+          adapterType={quickSetup.adapterType}
+          optionId={quickSetup.optionId}
+          selectStudioModel={false}
+          onVerified={(modelId, keyId) => {
+            setSelectedModels((current) => ({
+              ...current,
+              [activeTask]: modelId,
+            }))
+            setSelectedOptionIds((current) => ({
+              ...current,
+              [activeTask]: `key:${keyId}`,
+            }))
+          }}
+        />
+      ) : null}
     </div>
   )
 }

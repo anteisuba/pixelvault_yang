@@ -32,6 +32,8 @@ import { StudioTemplatesPanel } from '@/components/business/studio/templates/Stu
 import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
+import { StudioImageEditWorkspace } from '@/components/business/studio-shared/editor/StudioImageEditWorkspace'
+import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
@@ -105,6 +107,13 @@ export function StudioWorkspaceUI() {
   const tEmptyState = useTranslations('StudioEmptyState')
   const router = useRouter()
   const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
+  const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
+    null,
+  )
+  const [editOpen, setEditOpen] = useState(false)
+  const [editSessionId, setEditSessionId] = useState(0)
+  const [editRunning, setEditRunning] = useState(false)
+  const isEditing = state.outputType === 'image' && editOpen
   /**
    * 操作员面板服务**图片与视频**两档（P4-A，拍板 8：一个助手跨域，域是头部一枚
    * chip；切域换工具、不断会话）。
@@ -121,7 +130,9 @@ export function StudioWorkspaceUI() {
    * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
    * 也挂在 LoRA 装配台上（那条路由没有 `<StudioProvider>`）。
    */
-  const workbenchOperatorHost = useStudioWorkbenchOperatorHost()
+  const workbenchOperatorHost = useStudioWorkbenchOperatorHost({
+    generationEnabled: !isEditing,
+  })
   /**
    * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
    * `docs/references/pages/studio-image-mobile-request.md` +
@@ -177,6 +188,31 @@ export function StudioWorkspaceUI() {
    * 离开标签台时标签台那三块收掉。
    */
   const [stagePanel, setStagePanel] = useState<TagWorkbenchPanel | null>(null)
+  const beginEdit = useCallback(
+    (target?: StudioImageEditTarget) => {
+      if (isGenerating || editRunning) return
+      if (target) {
+        setEditTarget(target)
+        setEditSessionId((id) => id + 1)
+      }
+      setStagePanel(null)
+      dispatch({ type: 'CLOSE_ALL_PANELS' })
+      setEditOpen(true)
+    },
+    [dispatch, editRunning, isGenerating],
+  )
+  const exitEdit = useCallback(() => {
+    if (!editRunning) setEditOpen(false)
+  }, [editRunning])
+  const changeEditSource = useCallback(() => {
+    if (!editRunning) setEditTarget(null)
+  }, [editRunning])
+  const handleEditRunState = useCallback(
+    (phase: 'running' | 'success' | 'error') => {
+      setEditRunning(phase === 'running')
+    },
+    [],
+  )
   const [stagePanelOutputType, setStagePanelOutputType] = useState(
     state.outputType,
   )
@@ -279,7 +315,7 @@ export function StudioWorkspaceUI() {
         )}
       </h1>
       {state.outputType === 'image' ? (
-        <StudioDialectHeader disabled={isGenerating} />
+        <StudioDialectHeader disabled={isGenerating} onEdit={beginEdit} />
       ) : null}
     </div>
   ) : undefined
@@ -548,19 +584,53 @@ export function StudioWorkspaceUI() {
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
           {/* ⚠ 桌面两台（自然语言 · 标签）挂的是**同一个** `StudioWorkbenchLayout`
               元素，只换 params / stage —— 头部那颗写法切换因此跨台不重挂，液态
-              分段才演得完（owner 2026-09-26）。手机标签台仍是自己的两栏。 */}
-          {isTagsWorkbench && !isBottomComposer ? (
+              分段才演得完（owner 2026-09-26）。手机标签台用固定底部编辑框。 */}
+          {state.outputType === 'image' && (editOpen || editTarget) ? (
+            <StudioImageEditWorkspace
+              active={isEditing}
+              target={editTarget}
+              sessionId={editSessionId}
+              onSelect={beginEdit}
+              onTargetChange={setEditTarget}
+              onBack={exitEdit}
+              onChangeSource={changeEditSource}
+              onRunStateChange={handleEditRunState}
+              references={imageUpload.referenceEntries}
+              header={
+                <StudioDialectHeader
+                  disabled={isGenerating || editRunning}
+                  editing
+                  onEdit={beginEdit}
+                  onGenerate={exitEdit}
+                />
+              }
+            />
+          ) : null}
+          {isEditing ? null : isTagsWorkbench && !isBottomComposer ? (
             <StudioTagsWorkbench
               panel={stagePanel}
               onPanelChange={setStagePanel}
               templates={templatesPanel}
               templatesRestoring={composerRestoring}
               overlay={undoToast('above')}
+              onEdit={beginEdit}
+              onEditImage={beginEdit}
             />
           ) : (
             <StudioWorkbenchLayout
               layout={isBottomComposer ? 'bottom' : 'columns'}
-              header={workbenchHeader}
+              header={
+                useMobileComposer && state.outputType === 'image' ? (
+                  // 手机图片台：写法切换在舞台左上角（owner 2026-10-02，输入条只留
+                  // 提示词与一行 ＋ · 模型 · 规格 · 生成），与标签台手机同一位置。
+                  <StudioDialectHeader
+                    disabled={isGenerating}
+                    onEdit={beginEdit}
+                  />
+                ) : (
+                  workbenchHeader
+                )
+              }
               params={
                 useMobileComposer ? null : isTagsWorkbench ? (
                   <StudioTagsComposer
@@ -581,6 +651,7 @@ export function StudioWorkspaceUI() {
                     onClose={() => setStagePanel(null)}
                     bottom
                     templates={templatesPanel}
+                    onEditImage={beginEdit}
                   />
                 ) : (
                   <StudioStageSwap
@@ -590,6 +661,7 @@ export function StudioWorkspaceUI() {
                       <StudioCanvas
                         referenceRail={!isPromptAreaBottom}
                         className={motionClass}
+                        onEdit={beginEdit}
                       />
                     )}
                   />
@@ -642,9 +714,9 @@ export function StudioWorkspaceUI() {
           而图片模态走横向工作台之后它一直没挂载 —— 于是图片的参考图上限一直是
           Infinity，`over_limit` 那条禁用理由永远不触发（服务端仍会拦，所以是
           「提示缺席」不是「越权」）。现在三个模态都挂着，上限按模型生效。 */}
-      <StudioDockPanelArea />
+      {!isEditing ? <StudioDockPanelArea /> : null}
       <StudioKeepChangePanel
-        open={state.panels.keepChange}
+        open={!isEditing && state.panels.keepChange}
         onOpenChange={(open) =>
           dispatch({
             type: open ? 'OPEN_PANEL' : 'CLOSE_PANEL',
@@ -655,7 +727,7 @@ export function StudioWorkspaceUI() {
         onSubmit={handleKeepChangeSubmit}
       />
 
-      <StudioCommandPalette />
+      {!isEditing ? <StudioCommandPalette /> : null}
     </StudioOperatorHostProvider>
   )
 }

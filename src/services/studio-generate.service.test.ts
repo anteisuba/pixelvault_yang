@@ -138,7 +138,7 @@ describe('compileAndGenerate prompt limits', () => {
   // ⭐ owner 2026-08-24：模型没声明上限时**不拦**。此前兜底到卡片配方「动作 /
   // 姿势」输入框的 2000（09-27 随「提示词不设我们自己的字数上限」一起删了），而这条
   // 链路剩下的边界只有 `StudioGenerateSchema` 的防滥用护栏
-  // `PROMPT_TEXT_GUARD_MAX_CHARS`（32000）。
+  // `PROMPT_TEXT_GUARD_MAX_CHARS`（50000）。
   it('⭐ 模型没声明 maxPromptChars 时不拦 —— 不给未知模型编一个上限', async () => {
     // 目录里 18 个图片型号没有声明上限（Seedream / NovelAI / Illustrious …），
     // 此前它们全部被那个借来的 2000 拦着。

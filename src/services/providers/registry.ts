@@ -7,6 +7,7 @@ import { falAdapter } from '@/services/providers/fal.adapter'
 import { fishAudioAdapter } from '@/services/providers/fish-audio.adapter'
 import { geminiAdapter } from '@/services/providers/gemini.adapter'
 import { huggingFaceAdapter } from '@/services/providers/huggingface.adapter'
+import { ideogramAdapter } from '@/services/providers/ideogram.adapter'
 import {
   minimaxAdapter,
   minimaxCnAdapter,
@@ -26,6 +27,7 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: huggingFaceAdapter,
   [AI_ADAPTER_TYPES.GEMINI]: geminiAdapter,
   [AI_ADAPTER_TYPES.OPENAI]: openAiAdapter,
+  [AI_ADAPTER_TYPES.IDEOGRAM]: ideogramAdapter,
   [AI_ADAPTER_TYPES.FAL]: falAdapter,
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,

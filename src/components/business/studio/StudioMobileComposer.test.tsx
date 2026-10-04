@@ -2,18 +2,19 @@ import type { ComponentProps, ReactNode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import type { StudioFormState } from '@/contexts/studio-context'
 
 import { StudioMobileComposer } from './StudioMobileComposer'
 
 /**
- * 移动端底部 composer（owner 2026-09-03 方向 A）。这里锁三件事：
- *   1. chip 行照实反映当前选择（模型名 / `1:1 · ×1`），空模型时写的是**自己的**
- *      占位文案而不是禁用按钮那句话（需求卡 §默认模型选型规则第 4 条）。
- *   2. 被闸挡住时方形键是 `aria-disabled` 且 `aria-label` 就是那条原因 ——
- *      按钮上不印长文案（44×44 放不下），原因只从无障碍名与 toast 出去。
- *   3. 生成键与桌面那颗共用 `useStudioGenerateAction`：这里断言它调的是同一个
+ * 移动端底部 composer（owner 2026-10-02「Claude 式最简」）。这里锁四件事：
+ *   1. 输入框卡里只有 提示词 + 一行 `＋ · 模型 · 规格 ……… 生成`；参考图 / 模板 /
+ *      角色 / 模型参数 / 写法切换都不在这条上（各自的去处另有单测）。
+ *   2. 模型 chip 照实反映当前选择，空模型时写的是**自己的**占位文案而不是禁用
+ *      按钮那句话（需求卡 §默认模型选型规则第 4 条）。
+ *   3. 被闸挡住时圆键是 `aria-disabled` 且 `aria-label` 就是那条原因 ——
+ *      按钮上不印长文案，原因只从无障碍名与 toast 出去。
+ *   4. 生成键与桌面那颗共用 `useStudioGenerateAction`：这里断言它调的是同一个
  *      `handleGenerate`，不是自己另写一遍判据。
  */
 
@@ -23,9 +24,8 @@ const mockHandleGenerate = vi.hoisted(() => vi.fn())
 const mockUseGenerateAction = vi.hoisted(() => vi.fn())
 const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
 const mockSpecChip = vi.hoisted(() => ({ value: { rendered: true } }))
-const mockVideoAudio = vi.hoisted(() => ({
-  value: { supported: false, value: true },
-}))
+const mockVideoAssets = vi.hoisted(() => ({ images: [], videos: [] }))
+const mockReferenceEntries = vi.hoisted(() => ({ value: [] as unknown[] }))
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
   cardManagement: false,
@@ -49,8 +49,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   keepChange: false,
 }
 
-// 方言切换那一行（`StudioDialectHeader`）要一个 router —— composer 自己不跳
-// 路由，这里只是把 next-intl 的导航壳挡在测试之外。
+// 把 next-intl 的导航壳挡在测试之外（composer 自己不跳路由）。
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/studio/image',
@@ -68,14 +67,16 @@ vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
     imageUpload: {
-      referenceEntries: [],
+      referenceEntries: mockReferenceEntries.value,
       referenceImages: [],
+      isUploading: false,
       maxImages: 4,
       handleFileChange: vi.fn(),
       addFromUrl: vi.fn(),
       removeReferenceImage: vi.fn(),
     },
     promptEnhance: { isEnhancing: false },
+    characters: { activeCardIds: [] },
   }),
   useStudioGen: () => ({ lastGeneration: null }),
 }))
@@ -95,22 +96,42 @@ vi.mock('@/hooks/use-studio-run-models', () => ({
   }),
 }))
 
-// 参考图与优化两颗自带整条素材库 / 助手面板链，与本文件要验的 chip 行无关。
-vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
-  ReferenceImageChip: () => (
-    <button type="button" aria-label="reference">
-      reference
+// 「＋」抽屉自带参考图 / 素材 / 角色 / 参数整条链（它另有单测
+// `StudioMobileAddSheet.test`）。这里只验 composer 把它摆进那一行、并按模态交对那一份。
+vi.mock('@/components/business/studio/StudioMobileAddSheet', () => ({
+  StudioMobileAddSheet: ({ videoAssets }: { videoAssets?: unknown }) => (
+    <button
+      type="button"
+      data-testid="studio-mobile-add"
+      data-video-assets={videoAssets === mockVideoAssets ? 'host' : 'none'}
+    >
+      add
     </button>
   ),
 }))
 
-// 角色 chip 自带卡片数据与图墙（它的弹层另有单测 `StudioCardPicker.test`）。
-vi.mock('@/components/business/studio/StudioCardsButton', () => ({
-  StudioCardsButton: () => (
-    <button type="button" data-testid="studio-characters-chip">
-      characters
+vi.mock('@/components/business/studio/StudioModelCapabilityChips', () => ({
+  StudioModelCapabilityChips: ({ variant }: { variant?: string }) => (
+    <button type="button" data-testid={`capability-chip-${variant}`}>
+      capability
     </button>
   ),
+}))
+
+vi.mock('@/hooks/use-studio-video-assets', () => ({
+  useStudioVideoAssets: () => mockVideoAssets,
+}))
+
+vi.mock(
+  '@/components/business/studio-shared/chrome/StudioVideoAssetRail',
+  () => ({
+    StudioVideoAssetRail: () => <div data-testid="video-asset-rail" />,
+  }),
+)
+
+vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
+  ImageAttachmentPreviewStrip: ({ entries }: { entries: unknown[] }) =>
+    entries.length > 0 ? <div data-testid="reference-strip" /> : null,
 }))
 
 vi.mock('@/components/business/studio/StudioMobileModelSheet', () => ({
@@ -127,11 +148,6 @@ vi.mock('@/components/business/studio/StudioSpecChip', () => ({
         spec
       </button>
     ) : null,
-}))
-
-// 出声契约自带整条模型目录；这里只要它的两个布尔。
-vi.mock('@/hooks/use-studio-video-audio', () => ({
-  useStudioVideoAudio: () => mockVideoAudio.value,
 }))
 
 vi.mock('@/components/business/studio/StudioCostPreview', () => ({
@@ -237,7 +253,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockUseImageModelOptions.mockReturnValue({ selectedModel: IMAGE_OPTION })
   mockSpecChip.value = { rendered: true }
-  mockVideoAudio.value = { supported: false, value: true }
+  mockReferenceEntries.value = []
   setForm()
   setAction()
 })
@@ -247,36 +263,39 @@ const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
 
 describe('StudioMobileComposer', () => {
   /**
-   * 模板 C 第二片（owner 2026-09-26，画板「模板 C · 手机」）：「模板」开合的是
-   * 舞台上那块面板（宿主持有开合与套用），⛔ 不再是底部抽屉；撤销条挂在输入条上沿。
+   * owner 2026-10-02 选「Claude 式最简」：输入框卡里只有提示词与一行
+   * `＋ · 模型 · 规格 · 专属 ……… 生成`。参考图 / 模板 / 角色收进「＋」，写法
+   * 切换挪到舞台左上角 —— 这一条上再长出来任何一颗都算回退。
    */
-  it('「模板」开合舞台上的模板面板，撤销条挂在输入条里', () => {
-    const { rerender } = render(
+  it('输入条只有一行：＋ · 模型 · 规格 · 专属 · 生成', () => {
+    render(<StudioMobileComposer templates={TEMPLATES} />)
+
+    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute(
+      'data-video-assets',
+      'none',
+    )
+    expect(screen.getByTestId('studio-mobile-model-chip')).toBeInTheDocument()
+    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
+    // 模型参数（专属）在规格旁边一颗，与桌面同一颗 chip（owner 2026-10-03）。
+    expect(screen.getByTestId('capability-chip-single')).toBeInTheDocument()
+    expect(screen.getByTestId('studio-mobile-generate')).toBeInTheDocument()
+    expect(screen.queryByTestId('studio-mobile-template-chip')).toBeNull()
+    expect(screen.queryByTestId('studio-characters-chip')).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByText('modelParameters')).toBeNull()
+  })
+
+  it('挂着的参考图在输入框卡里看得见；撤销条挂在输入条上沿', () => {
+    mockReferenceEntries.value = [{ id: 'reference-1' }]
+    render(
       <StudioMobileComposer
         templates={TEMPLATES}
         overlay={<div role="status">undo</div>}
       />,
     )
-    const chip = screen.getByTestId('studio-mobile-template-chip')
-    expect(chip).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(chip)
-    expect(mockTemplatesToggle).toHaveBeenCalledTimes(1)
+
+    expect(screen.getByTestId('reference-strip')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('undo')
-    expect(
-      screen.queryByRole('button', { name: 'enhance' }),
-    ).not.toBeInTheDocument()
-
-    rerender(<StudioMobileComposer templates={{ ...TEMPLATES, open: true }} />)
-    expect(screen.getByTestId('studio-mobile-template-chip')).toHaveAttribute(
-      'aria-controls',
-      STUDIO_TEMPLATES_PANEL_ID,
-    )
-  })
-
-  it('挂着与桌面同一颗「角色」chip（owner 09-27「手机也要」）', () => {
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('studio-characters-chip')).toBeInTheDocument()
   })
 
   it('reserves the measured composer height and updates after resizing', () => {
@@ -435,12 +454,18 @@ describe('StudioMobileComposer · 视频档', () => {
     ).not.toHaveTextContent('modelChipMulti')
   })
 
-  it('没有「角色」chip —— 视频的图走素材轨', () => {
+  it('「＋」拿到的是宿主那一份素材，挂着的素材排在输入框卡里', () => {
     setVideo()
 
     render(<StudioMobileComposer templates={TEMPLATES} />)
 
-    expect(screen.queryByTestId('studio-characters-chip')).toBeNull()
+    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute(
+      'data-video-assets',
+      'host',
+    )
+    expect(screen.getByTestId('video-asset-rail')).toBeInTheDocument()
+    expect(screen.queryByTestId('reference-strip')).toBeNull()
+    expect(screen.queryByTestId('capability-chip-single')).toBeNull()
   })
 
   it('规格走与图片档**同一颗** chip —— 档位按模态自己分，composer 不分支', () => {
@@ -451,48 +476,12 @@ describe('StudioMobileComposer · 视频档', () => {
     expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 
-  it('⭐ 出声 chip 只在**契约暴露该字段**时出现 —— 画一颗发不出去的开关比没有更糟', () => {
+  it('出声不再单独一颗 —— 它在规格抽屉里（与规格 chip 同一个开关）', () => {
     setVideo()
     render(<StudioMobileComposer templates={TEMPLATES} />)
     expect(screen.queryByTestId('studio-mobile-audio-chip')).toBeNull()
-  })
-
-  it('出声 chip 镜像 `videoGenerateAudio`，点一下写回反值', () => {
-    mockVideoAudio.value = { supported: true, value: true }
-    setVideo()
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-    const chip = screen.getByTestId('studio-mobile-audio-chip')
-    expect(chip).toHaveAttribute('aria-checked', 'true')
-
-    fireEvent.click(chip)
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_VIDEO_GENERATE_AUDIO',
-      payload: false,
-    })
-  })
-
-  it('音频参考 / 剧本 chip 打开的是**既有**面板，不新增 state 源', () => {
-    setVideo({
-      videoAudioRefs: [{ url: 'https://x/a.mp3' }],
-    } as Partial<StudioFormState>)
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-    fireEvent.click(screen.getByTestId('studio-mobile-audio-ref-chip'))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'TOGGLE_PANEL',
-      payload: 'videoAudio',
-    })
-
-    fireEvent.click(screen.getByTestId('studio-mobile-script-chip'))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'TOGGLE_PANEL',
-      payload: 'script',
-    })
-    // 挂了几条要看得见：不显示的话切走再回来根本不知道这次请求还带着音频。
-    expect(
-      screen.getByTestId('studio-mobile-audio-ref-chip'),
-    ).toHaveTextContent('1')
+    expect(screen.queryByTestId('studio-mobile-audio-ref-chip')).toBeNull()
+    expect(screen.queryByTestId('studio-mobile-script-chip')).toBeNull()
   })
 
   it('费用行走共用的 `StudioCostPreview`（一行版），不在 composer 里另算一个数', () => {

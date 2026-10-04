@@ -4,8 +4,7 @@ import type { CSSProperties } from 'react'
  * 品牌标 —— 四颗错位的圆点。
  *
  * ⚠ 内部尺寸全部走**百分比**（gap 相对外框、位移相对每颗点自己），所以外框换成
- * 任何尺寸时排布不变 —— 助手预设头像那一款就是把它塞进圆形容器里缩放
- * （`AssistantAvatarGlyph`），⛔ 不再另抄一份几何。
+ * 任何尺寸时排布不变。
  * 默认框 `1.5rem × 1.85rem` 与默认色 `--foreground` 是历史落点，别改。
  */
 
@@ -18,7 +17,7 @@ const DOT_TRANSFORMS = [
 
 interface BrandMarkProps {
   className?: string
-  /** 覆盖默认外框（头像档传百分比，让它跟着圆形容器走）。 */
+  /** 覆盖默认外框。 */
   style?: CSSProperties
   /** 传 `currentColor` 可以让它继承上下文前景色（选中态要跟着变）。 */
   color?: string

@@ -8,23 +8,18 @@
  * 与 `constants/assistant-operator.ts` 逐字同源：全仓 `src/constants/` 零个文件
  * import zod，schema 一律住 `src/types/`（这里对应 `types/assistant-persona.ts`）。
  * 本文件会被客户端对话框直接 import，让它拖上 zod 是白付的包体积。
- *
- * ── 预设头像为什么这里只剩两个 id ─────────────────────────────────
- * 画法住组件（`AssistantAvatarGlyph`）：`mark` 直接复用品牌标
- * `components/ui/brand-mark.tsx`，`monogram` 是首字母圆标。⛔ 不落静态图片文件，
- * ⛔ 也不再在这里存一张「画它要的几何」的封闭表 —— 两款之后那张表是纯负担。
  */
 
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 
 /**
- * 预设头像**两款**（owner 2026-09-07 定：「先找一下，只给一两张预设图」）。
+ * 默认头像由 `AssistantAvatarGlyph` 复用网页标题栏的 `src/app/icon.png`。
  *
  * ⚠ id 一旦发出去就**不能改**：它逐字存在 `AssistantPersona.avatarPreset` 列里。
  * 收窄之后库里还留着 `spark` / `stamp` / `duotone` / `tide` 这些悬空值 ——
  * ⛔ 不写迁移去改存量行，读的那一跳按 `normalizeAvatarPreset` 回落到默认款。
  */
-export const ASSISTANT_AVATAR_PRESET_IDS = ['mark', 'monogram'] as const
+export const ASSISTANT_AVATAR_PRESET_IDS = ['mark'] as const
 
 export type AssistantAvatarPresetId =
   (typeof ASSISTANT_AVATAR_PRESET_IDS)[number]
@@ -45,7 +40,7 @@ export function normalizeAvatarPreset(
 }
 
 /**
- * 头像单选表的四项（助手设置 B「换头像」，owner 2026-09-26）。
+ * 头像单选表：角色、上传、默认头像。
  *
  * ⭐ 一张单选表而不是「预设 + 上传 + 去掉」三件事：上传过的那张**一直留在表里**，
  * 换成预设也不丢，所以没有「去掉自定义头像」这一项。
@@ -57,19 +52,17 @@ export const ASSISTANT_AVATAR_CHOICE_IDS = {
   character: 'character',
   upload: 'upload',
   mark: ASSISTANT_AVATAR_PRESET_IDS[0],
-  monogram: ASSISTANT_AVATAR_PRESET_IDS[1],
 } as const
 
 export const ASSISTANT_AVATAR_CHOICES = [
   ASSISTANT_AVATAR_CHOICE_IDS.character,
   ASSISTANT_AVATAR_CHOICE_IDS.upload,
   ASSISTANT_AVATAR_CHOICE_IDS.mark,
-  ASSISTANT_AVATAR_CHOICE_IDS.monogram,
 ] as const
 
 export type AssistantAvatarChoice = (typeof ASSISTANT_AVATAR_CHOICES)[number]
 
-/** 这一项是不是两款预设之一（它们同时写进 `avatarPreset`，作画字形的回落）。 */
+/** 默认头像同时写进 `avatarPreset`，作为没有图片时的回落。 */
 export function isAvatarPresetChoice(
   choice: AssistantAvatarChoice,
 ): choice is AssistantAvatarPresetId {

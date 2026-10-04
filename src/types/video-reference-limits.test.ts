@@ -12,6 +12,29 @@ const buildVideoRequest = () => ({
 })
 
 describe('video reference request limits', () => {
+  it('accepts the H3 Max Turbo 50,000-character prompt ceiling with both keyframes', () => {
+    const request = {
+      modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+      resolution: '768p',
+      referenceImages: [
+        'https://cdn.example.com/start.png',
+        'https://cdn.example.com/end.png',
+      ],
+    }
+    expect(
+      GenerateVideoRequestSchema.safeParse({
+        ...request,
+        prompt: 'a'.repeat(50_000),
+      }).success,
+    ).toBe(true)
+    expect(
+      GenerateVideoRequestSchema.safeParse({
+        ...request,
+        prompt: 'a'.repeat(50_001),
+      }).success,
+    ).toBe(false)
+  })
+
   it('keeps the image schema ceiling aligned with the shared constant', () => {
     const atLimit = GenerateVideoRequestSchema.safeParse({
       ...buildVideoRequest(),
@@ -36,6 +59,7 @@ describe('video reference request limits', () => {
     for (const modelId of [
       AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
       AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+      AI_MODELS.KLING_O3_4K_V2V_EDIT,
     ]) {
       const missing = GenerateVideoRequestSchema.safeParse({
         ...buildVideoRequest(),

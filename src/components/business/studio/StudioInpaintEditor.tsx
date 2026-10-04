@@ -1,6 +1,14 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   Check,
   Eraser,
@@ -17,6 +25,17 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import type { ImageEditComposerControls } from '@/components/business/studio-shared/editor/ImageEditComposer'
+import {
+  StudioToolPopoverContent,
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
+} from '@/components/business/studio-shared/primitives/tool-surface'
+
+export interface InpaintMaskDraft {
+  imageKey: string
+  data: ImageData
+}
 
 interface StudioInpaintEditorProps {
   imageUrl: string
@@ -32,6 +51,11 @@ interface StudioInpaintEditorProps {
    * 再要一句会变成两个提示词框同屏。此时 `onApply` 的第二个参数是空串。
    */
   showPrompt?: boolean
+  prompt?: string
+  onPromptChange?: (prompt: string) => void
+  maskDraft?: InpaintMaskDraft | null
+  onMaskChange?: (draft: InpaintMaskDraft) => void
+  renderComposer?: (controls: ImageEditComposerControls) => ReactNode
 }
 
 interface CanvasPoint {
@@ -105,6 +129,11 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
   isLoading = false,
   allowWholeImage = false,
   showPrompt = true,
+  prompt: controlledPrompt,
+  onPromptChange,
+  maskDraft,
+  onMaskChange,
+  renderComposer,
 }: StudioInpaintEditorProps) {
   const t = useTranslations('StudioV3.inpaintEditor')
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -116,7 +145,10 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
   const [isErasing, setIsErasing] = useState(false)
   const boxStartRef = useRef<CanvasPoint | null>(null)
   const [boxPreview, setBoxPreview] = useState<CanvasRect | null>(null)
-  const [prompt, setPrompt] = useState('')
+  const [localPrompt, setLocalPrompt] = useState('')
+  const prompt = controlledPrompt ?? localPrompt
+  const setPrompt = onPromptChange ?? setLocalPrompt
+  const [hasSelection, setHasSelection] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[]>([])
 
   const { width: canvasWidth, height: canvasHeight } = useMemo(
@@ -156,11 +188,30 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
     if (!canvas || !context) return
 
     context.clearRect(0, 0, canvas.width, canvas.height)
-  }, [imageUrl, canvasHeight, canvasWidth])
+    if (maskDraft?.imageKey === imageKey) {
+      context.putImageData(maskDraft.data, 0, 0)
+      setHasSelection(
+        maskDraft.data.data.some(
+          (value, index) => index % 4 === 3 && value > 0,
+        ),
+      )
+    } else setHasSelection(false)
+  }, [imageKey, maskDraft])
 
   const getMaskContext = useCallback(() => {
     return maskCanvasRef.current?.getContext('2d') ?? null
   }, [])
+
+  const rememberMask = useCallback(() => {
+    const canvas = maskCanvasRef.current
+    const context = getMaskContext()
+    if (!canvas || !context) return
+    const data = context.getImageData(0, 0, canvas.width, canvas.height)
+    setHasSelection(
+      data.data.some((value, index) => index % 4 === 3 && value > 0),
+    )
+    onMaskChange?.({ imageKey, data })
+  }, [getMaskContext, imageKey, onMaskChange])
 
   const captureHistory = useCallback(() => {
     const canvas = maskCanvasRef.current
@@ -253,7 +304,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
-      if (tool === 'whole') return
+      if (isLoading || tool === 'whole') return
       const point = getCanvasPoint(event)
       if (!point) return
 
@@ -274,12 +325,12 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
       lastPointRef.current = point
       drawStroke(point, null)
     },
-    [captureHistory, drawStroke, getCanvasPoint, tool],
+    [captureHistory, drawStroke, getCanvasPoint, isLoading, tool],
   )
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
-      if (!isDrawingRef.current) return
+      if (isLoading || !isDrawingRef.current) return
 
       const point = getCanvasPoint(event)
       if (!point) return
@@ -295,11 +346,12 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
       drawStroke(point, lastPointRef.current)
       lastPointRef.current = point
     },
-    [drawStroke, getCanvasPoint, tool],
+    [drawStroke, getCanvasPoint, isLoading, tool],
   )
 
   const stopDrawing = useCallback(
     (event?: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!isDrawingRef.current) return
       if (tool === 'box' && isDrawingRef.current) {
         const start = boxStartRef.current
         const end = event ? getCanvasPoint(event) : null
@@ -313,37 +365,32 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
       setBoxPreview(null)
       isDrawingRef.current = false
       lastPointRef.current = null
+      rememberMask()
     },
-    [drawBox, getCanvasPoint, tool],
+    [drawBox, getCanvasPoint, rememberMask, tool],
   )
 
   const handleUndo = useCallback(() => {
+    if (isLoading) return
     const context = getMaskContext()
     if (!context) return
-
-    setHistory((current) => {
-      const otherEntries = current.filter(
-        (entry) => entry.imageKey !== imageKey,
-      )
-      const imageEntries = current.filter(
-        (entry) => entry.imageKey === imageKey,
-      )
-      const previous = imageEntries.at(-1)
-      if (previous) {
-        context.putImageData(previous.imageData, 0, 0)
-      }
-      return [...otherEntries, ...imageEntries.slice(0, -1)]
-    })
-  }, [getMaskContext, imageKey])
+    const previous = currentHistory.at(-1)
+    if (!previous) return
+    context.putImageData(previous.imageData, 0, 0)
+    setHistory((current) => current.filter((entry) => entry !== previous))
+    rememberMask()
+  }, [currentHistory, getMaskContext, isLoading, rememberMask])
 
   const handleClear = useCallback(() => {
+    if (isLoading) return
     const canvas = maskCanvasRef.current
     const context = getMaskContext()
     if (!canvas || !context) return
 
     captureHistory()
     context.clearRect(0, 0, canvas.width, canvas.height)
-  }, [captureHistory, getMaskContext])
+    rememberMask()
+  }, [captureHistory, getMaskContext, isLoading, rememberMask])
 
   /**
    * 导出蒙版。⚠ **必须是源图的真实像素尺寸，不是绘制画布的尺寸。**
@@ -404,64 +451,250 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
     const trimmedPrompt = prompt.trim()
     if (isLoading) return
     if (showPrompt && !trimmedPrompt) return
+    if (renderComposer && !hasSelection && tool !== 'whole') return
     onApply(exportMaskDataUrl(), trimmedPrompt)
-  }, [exportMaskDataUrl, isLoading, onApply, prompt, showPrompt])
+  }, [
+    exportMaskDataUrl,
+    hasSelection,
+    isLoading,
+    onApply,
+    prompt,
+    renderComposer,
+    showPrompt,
+    tool,
+  ])
+
+  const promptInput = showPrompt ? (
+    <div className="space-y-2">
+      <Label
+        htmlFor="inpaint-prompt"
+        className={renderComposer ? 'sr-only' : undefined}
+      >
+        {t('prompt')}
+      </Label>
+      <Textarea
+        id="inpaint-prompt"
+        value={prompt}
+        disabled={isLoading}
+        maxLength={1000}
+        onChange={(event) => setPrompt(event.target.value)}
+        placeholder={t('promptPlaceholder')}
+        className={cn(
+          'resize-none',
+          renderComposer
+            ? 'min-h-10 max-h-36 border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0'
+            : 'min-h-24',
+        )}
+      />
+      {renderComposer && !hasSelection && tool !== 'whole' ? (
+        <p className="text-xs text-muted-foreground">
+          {t(tool === 'box' ? 'boxHint' : 'brushHint')}
+        </p>
+      ) : null}
+    </div>
+  ) : null
+
+  const canvasBox = (
+    <div
+      className="relative mx-auto w-full overflow-hidden rounded-lg border border-border bg-muted"
+      /**
+       * ⚠ 高度必须封顶，否则方形源图会把「应用」按钮顶出视口 ——
+       * 2026-08-19 真机量到：1024×1024 的源图在 1920×855 上让应用按钮
+       * 落在 y=1197，用户看不见也点不着。
+       *
+       * 封的是 `maxWidth`（= 高度上限 × 宽高比）而不是 `maxHeight`：
+       * 两块 canvas 是 `inset-0 h-full w-full` 绝对定位的，直接压高度
+       * 会把它们拉变形；压宽度则由 `aspect-ratio` 反推高度，比例不变。
+       */
+      style={{
+        aspectRatio,
+        // 工作台里按舞台给的上限（`--studio-edit-media-max-h`，与整图修改 / 物体
+        // 替换同一个数；手机再扣掉图下那条工具条）；画布的遮罩弹层没有这两个变量，
+        // 沿用旧值。
+        maxWidth: `calc((var(--studio-edit-media-max-h, min(56vh, 560px)) - var(--studio-edit-toolbar-reserve, 0px)) * ${canvasWidth / canvasHeight})`,
+      }}
+    >
+      <canvas
+        ref={baseCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        className="absolute inset-0 h-full w-full"
+      />
+      <canvas
+        ref={maskCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        aria-label={t('canvasLabel')}
+        className={cn(
+          'absolute inset-0 h-full w-full touch-none cursor-crosshair',
+          tool === 'whole' && 'invisible',
+        )}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDrawing}
+        onPointerCancel={stopDrawing}
+        onPointerLeave={stopDrawing}
+      />
+      {boxPreview ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute border-2 border-primary bg-primary/10"
+          style={{
+            left: `${(boxPreview.x / canvasWidth) * 100}%`,
+            top: `${(boxPreview.y / canvasHeight) * 100}%`,
+            width: `${(boxPreview.width / canvasWidth) * 100}%`,
+            height: `${(boxPreview.height / canvasHeight) * 100}%`,
+          }}
+        />
+      ) : null}
+    </div>
+  )
+
+  const toolItems = [
+    { id: 'brush' as const, label: t('toolBrush'), Icon: Paintbrush },
+    { id: 'box' as const, label: t('toolBox'), Icon: SquareDashed },
+    ...(allowWholeImage
+      ? [{ id: 'whole' as const, label: t('toolWhole'), Icon: Sparkles }]
+      : []),
+  ]
+
+  /**
+   * 工作台里的工具条（owner 2026-10-03「浮在图下方一条」）：PC 与手机同一条，
+   * 画笔 · 拉框 |（画笔大小）· 橡皮 · 撤销 · 清空，图标 + 读屏名；大小点开一个滑条。
+   * ⛔ 不再是右侧一列 —— 那一列在手机上落在固定输入条后面，等于没有。
+   */
+  const toolIconClass = (pressed: boolean) =>
+    cn(
+      'touch-target-y grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none',
+      pressed
+        ? 'bg-primary text-primary-foreground'
+        : 'text-foreground/75 hover:bg-muted',
+    )
+  const toolbar = (
+    <div
+      role="toolbar"
+      aria-label={t('title')}
+      className="flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-md"
+    >
+      {toolItems.map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          type="button"
+          aria-label={label}
+          title={label}
+          aria-pressed={tool === id}
+          disabled={isLoading}
+          onClick={() => setTool(id)}
+          className={toolIconClass(tool === id)}
+        >
+          <Icon className="size-4" aria-hidden />
+        </button>
+      ))}
+      {tool === 'whole' ? null : (
+        <>
+          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
+          {tool === 'brush' ? (
+            <StudioToolSurface>
+              <StudioToolSurfaceTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${t('brushSize')} ${brushSize}px`}
+                  title={t('brushSize')}
+                  disabled={isLoading}
+                  className={cn(
+                    toolIconClass(false),
+                    'font-mono text-2xs tabular-nums',
+                  )}
+                >
+                  {brushSize}
+                </button>
+              </StudioToolSurfaceTrigger>
+              <StudioToolPopoverContent
+                size="small"
+                label={t('brushSize')}
+                side="top"
+                align="center"
+                className="space-y-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="inpaint-brush-size">{t('brushSize')}</Label>
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                    {brushSize}px
+                  </span>
+                </div>
+                <Slider
+                  id="inpaint-brush-size"
+                  min={5}
+                  max={50}
+                  step={1}
+                  value={[brushSize]}
+                  disabled={isLoading}
+                  onValueChange={(value) => setBrushSize(value[0] ?? brushSize)}
+                  aria-label={t('brushSize')}
+                />
+              </StudioToolPopoverContent>
+            </StudioToolSurface>
+          ) : null}
+          <button
+            type="button"
+            aria-label={t('eraser')}
+            title={t('eraser')}
+            aria-pressed={isErasing}
+            disabled={isLoading}
+            onClick={() => setIsErasing((current) => !current)}
+            className={toolIconClass(isErasing)}
+          >
+            <Eraser className="size-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('undo')}
+            title={t('undo')}
+            disabled={isLoading || currentHistory.length === 0}
+            onClick={handleUndo}
+            className={toolIconClass(false)}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('clearAll')}
+            title={t('clearAll')}
+            disabled={isLoading}
+            onClick={handleClear}
+            className={cn(toolIconClass(false), 'hover:text-destructive')}
+          >
+            <Trash2 className="size-4" aria-hidden />
+          </button>
+        </>
+      )}
+    </div>
+  )
+
+  if (renderComposer) {
+    return (
+      <>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3">
+          {canvasBox}
+          {toolbar}
+        </div>
+        {/* eslint-disable-next-line react-hooks/refs -- The submit callback reads the canvas only after a user action. */}
+        {renderComposer({
+          input: promptInput,
+          onSubmit: () => handleApply(),
+          canSubmit:
+            (!showPrompt || Boolean(prompt.trim())) &&
+            (hasSelection || tool === 'whole'),
+          submitLabel: t('apply'),
+        })}
+      </>
+    )
+  }
 
   return (
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div
-            className="relative mx-auto overflow-hidden rounded-lg border border-border bg-muted"
-            /**
-             * ⚠ 高度必须封顶，否则方形源图会把「应用」按钮顶出视口 ——
-             * 2026-08-19 真机量到：1024×1024 的源图在 1920×855 上让应用按钮
-             * 落在 y=1197，用户看不见也点不着。
-             *
-             * 封的是 `maxWidth`（= 高度上限 × 宽高比）而不是 `maxHeight`：
-             * 两块 canvas 是 `inset-0 h-full w-full` 绝对定位的，直接压高度
-             * 会把它们拉变形；压宽度则由 `aspect-ratio` 反推高度，比例不变。
-             */
-            style={{
-              aspectRatio,
-              maxWidth: `calc(min(56vh, 560px) * ${canvasWidth / canvasHeight})`,
-            }}
-          >
-            <canvas
-              ref={baseCanvasRef}
-              width={canvasWidth}
-              height={canvasHeight}
-              className="absolute inset-0 h-full w-full"
-            />
-            <canvas
-              ref={maskCanvasRef}
-              width={canvasWidth}
-              height={canvasHeight}
-              aria-label={t('canvasLabel')}
-              className={cn(
-                'absolute inset-0 h-full w-full touch-none cursor-crosshair',
-                tool === 'whole' && 'invisible',
-              )}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={stopDrawing}
-              onPointerCancel={stopDrawing}
-              onPointerLeave={stopDrawing}
-            />
-            {boxPreview ? (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute border-2 border-primary bg-primary/10"
-                style={{
-                  left: `${(boxPreview.x / canvasWidth) * 100}%`,
-                  top: `${(boxPreview.y / canvasHeight) * 100}%`,
-                  width: `${(boxPreview.width / canvasWidth) * 100}%`,
-                  height: `${(boxPreview.height / canvasHeight) * 100}%`,
-                }}
-              />
-            ) : null}
-          </div>
-        </div>
+        <div className="lg:col-span-2">{canvasBox}</div>
 
         <div className="space-y-4">
           <div
@@ -489,6 +722,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
                 type="button"
                 variant={tool === id ? 'default' : 'ghost'}
                 aria-pressed={tool === id}
+                disabled={isLoading}
                 onClick={() => setTool(id)}
                 className="justify-start"
               >
@@ -513,6 +747,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
                 max={50}
                 step={1}
                 value={[brushSize]}
+                disabled={isLoading}
                 onValueChange={(value) => setBrushSize(value[0] ?? brushSize)}
                 aria-label={t('brushSize')}
               />
@@ -532,6 +767,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
             <Button
               type="button"
               variant={isErasing ? 'default' : 'ghost'}
+              disabled={isLoading}
               onClick={() => setIsErasing((current) => !current)}
               className="justify-start"
             >
@@ -546,7 +782,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               type="button"
               variant="ghost"
               onClick={handleUndo}
-              disabled={currentHistory.length === 0}
+              disabled={isLoading || currentHistory.length === 0}
               className="justify-start"
             >
               <RotateCcw className="size-4" />
@@ -556,6 +792,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               type="button"
               variant="ghost"
               onClick={handleClear}
+              disabled={isLoading}
               className="col-span-2 justify-start text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" />
@@ -563,23 +800,17 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
             </Button>
           </div>
 
-          {showPrompt ? (
-            <div className="space-y-2">
-              <Label htmlFor="inpaint-prompt">{t('prompt')}</Label>
-              <Textarea
-                id="inpaint-prompt"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder={t('promptPlaceholder')}
-                className="min-h-24 resize-none"
-              />
-            </div>
-          ) : null}
+          {promptInput}
         </div>
       </div>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isLoading}
+          onClick={onCancel}
+        >
           {t('cancel')}
         </Button>
         <Button

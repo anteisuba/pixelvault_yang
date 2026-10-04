@@ -7,6 +7,7 @@ import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import type { StudioOperatorGenerateKnob } from '@/constants/studio-assistant-operator'
+import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type {
   StudioOperatorConfirmPrompt,
   StudioOperatorGenerationControls,
@@ -167,6 +168,8 @@ function renderCard(
   confirm: ConfirmCardPrompt,
   extra: {
     controls?: StudioOperatorGenerationControls
+    canGenerate?: boolean
+    canvasState?: CanvasNodeGenerationState | null
     onAdjust?: (
       knob: StudioOperatorGenerateKnob,
       value: string,
@@ -182,7 +185,7 @@ function renderCard(
     onDismissCard: vi.fn(),
     onRetry: vi.fn(),
   }
-  render(
+  const view = render(
     <StudioOperatorConfirmCard
       confirm={confirm}
       {...handlers}
@@ -190,8 +193,57 @@ function renderCard(
       formatTime={() => '11:24'}
     />,
   )
-  return handlers
+  return {
+    ...handlers,
+    rerenderCanvas: (canvasState: CanvasNodeGenerationState | null) =>
+      view.rerender(
+        <StudioOperatorConfirmCard
+          confirm={confirm}
+          {...handlers}
+          {...extra}
+          canvasState={canvasState}
+          formatTime={() => '11:24'}
+        />,
+      ),
+  }
 }
+
+it('画布确认卡跟随目标节点参数变化，展示画质与模型默认值', () => {
+  const canvasState: CanvasNodeGenerationState = {
+    id: 'shot-1',
+    name: '主角正面',
+    kind: 'image',
+    model: AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+    parameters: {
+      values: { aspectRatio: '3:4', quality: 'high', count: 2 },
+      options: {
+        aspectRatio: ['1:1', '3:4'],
+        quality: ['auto', 'high'],
+        resolution: ['2K', '4K'],
+        count: [1, 2],
+      },
+    },
+  }
+  const view = renderCard(CANVAS_GENERATE, { canvasState })
+  expect(screen.getByText('3:4')).toBeInTheDocument()
+  expect(screen.getByText('high')).toBeInTheDocument()
+  expect(screen.getByText('confirm.generate.modelDefault')).toBeInTheDocument()
+  expect(screen.getByText('confirm.generate.count:2')).toBeInTheDocument()
+  view.rerenderCanvas({
+    ...canvasState,
+    parameters: {
+      ...canvasState.parameters!,
+      values: { aspectRatio: '1:1', count: 1, resolution: '4K' },
+    },
+  })
+  expect(screen.getByText('1:1')).toBeInTheDocument()
+  expect(screen.getByText('4K')).toBeInTheDocument()
+  expect(screen.queryByText('high')).not.toBeInTheDocument()
+  expect(screen.getByText('confirm.generate.modelDefault')).toBeInTheDocument()
+  expect(view.onConfirm).not.toHaveBeenCalled()
+  view.rerenderCanvas(null)
+  expect(screen.getByTestId('operator-confirm-primary')).toBeDisabled()
+})
 
 /** 打开某一颗旋钮的下拉，返回它列出来的那几项。 */
 function openKnob(knob: StudioOperatorGenerateKnob): HTMLElement[] {
@@ -299,6 +351,18 @@ describe('StudioOperatorConfirmCard', () => {
     fireEvent.click(screen.getByTestId('operator-confirm-primary'))
     expect(handlers.onConfirm).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByTestId('operator-confirm-secondary'))
+    expect(handlers.onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('生成入口缺席时禁用确认生成，仍可取消', () => {
+    const handlers = renderCard(GENERATE, { canGenerate: false })
+    const primary = screen.getByTestId('operator-confirm-primary')
+    expect(primary).toBeDisabled()
+    fireEvent.click(primary)
+    expect(handlers.onConfirm).not.toHaveBeenCalled()
+    const secondary = screen.getByTestId('operator-confirm-secondary')
+    expect(secondary).toBeEnabled()
+    fireEvent.click(secondary)
     expect(handlers.onCancel).toHaveBeenCalledTimes(1)
   })
 

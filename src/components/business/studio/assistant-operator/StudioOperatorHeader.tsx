@@ -281,10 +281,7 @@ export function StudioOperatorHeader({
             }}
             className="grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <AssistantAvatarGlyph
-              presetId={persona?.avatarPreset ?? null}
-              name={persona?.name?.trim() || t('timeline.assistantFallback')}
-            />
+            <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
           </button>
         ) : avatar === 'slot' ? (
           <span

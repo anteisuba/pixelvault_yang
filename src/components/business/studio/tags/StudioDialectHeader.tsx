@@ -6,6 +6,9 @@ import { StudioDialectSwitch } from '@/components/business/studio/tags/StudioDia
 
 interface StudioDialectHeaderProps {
   disabled?: boolean
+  editing?: boolean
+  onEdit?: () => void
+  onGenerate?: () => void
   /** 这一行右边挂什么由宿主定（标签台挂模型 chip，自然语言台空着）。 */
   children?: ReactNode
 }
@@ -23,10 +26,18 @@ interface StudioDialectHeaderProps {
 export function StudioDialectHeader({
   disabled,
   children,
+  editing,
+  onEdit,
+  onGenerate,
 }: StudioDialectHeaderProps) {
   return (
     <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-2">
-      <StudioDialectSwitch disabled={disabled} />
+      <StudioDialectSwitch
+        disabled={disabled}
+        editing={editing}
+        onEdit={onEdit}
+        onGenerate={onGenerate}
+      />
       {children ? (
         <div className="min-w-0 max-w-full sm:ml-auto">{children}</div>
       ) : null}

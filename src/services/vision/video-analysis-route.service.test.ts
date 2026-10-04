@@ -30,18 +30,21 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
     expect(decision.downgraded).toBe(false)
   })
 
-  it('② frames 够用的任务 + 有帧集 → frames（便宜且可复跑，图片档也跑得动）', () => {
-    const decision = resolveVideoAnalysisRoute({
-      task: VIDEO_ANALYSIS_TASKS.compare,
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      hasFrames: true,
-      durationSeconds: 600,
-    })
-    expect(decision.mode).toBe(VIDEO_ANALYSIS_MODES.frames)
-    // 帧集不按时长收费 —— 十分钟的片子也是 8 帧，没有降级这回事。
-    expect(decision.downgraded).toBe(false)
-    expect(decision.window).toBeUndefined()
-  })
+  it.each([AI_ADAPTER_TYPES.OPENAI, AI_ADAPTER_TYPES.DEEPSEEK])(
+    '② frames 够用的任务 + 有帧集 → frames（%s）',
+    (adapterType) => {
+      const decision = resolveVideoAnalysisRoute({
+        task: VIDEO_ANALYSIS_TASKS.compare,
+        adapterType,
+        hasFrames: true,
+        durationSeconds: 600,
+      })
+      expect(decision.mode).toBe(VIDEO_ANALYSIS_MODES.frames)
+      // 帧集不按时长收费 —— 十分钟的片子也是 8 帧，没有降级这回事。
+      expect(decision.downgraded).toBe(false)
+      expect(decision.window).toBeUndefined()
+    },
+  )
 
   it('②b frames 够用但没帧集 + native 路由 → 回落 native（YouTube 这类浏览器解不了的）', () => {
     const decision = resolveVideoAnalysisRoute({
@@ -72,7 +75,7 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
     )
   })
 
-  it('③b 一档都没有的路由 + 没帧集 → 同样结构化报错，⛔ 不静默降级成瞎猜', () => {
+  it('③b 只支持帧的路由 + 没帧集 → 同样结构化报错，⛔ 不静默降级成瞎猜', () => {
     expect(() =>
       resolveVideoAnalysisRoute({
         task: VIDEO_ANALYSIS_TASKS.qualityReview,

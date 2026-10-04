@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { ImageEditComposerControls } from '@/components/business/studio-shared/editor/ImageEditComposer'
+import type { StudioModelOption } from '@/types/model-option'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 import { CanvasImageEditWorkspace } from './CanvasImageEditWorkspace'
@@ -44,6 +46,56 @@ vi.mock('@/lib/api-client', () => ({
   inpaintImageAPI: mocks.inpaintImageAPI,
 }))
 
+vi.mock('@/hooks/use-image-edit-model-options', () => ({
+  useImageEditModelOptions: (modelIds: readonly string[]) =>
+    modelIds.map((modelId) => ({
+      optionId: modelId,
+      modelId,
+      adapterType: modelId.startsWith('gpt-') ? 'openai' : 'fal',
+      sourceType: 'saved',
+      keyId: 'edit-key',
+    })),
+}))
+
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: () => null,
+}))
+
+vi.mock(
+  '@/components/business/studio-shared/pickers/ModelPickerPopover',
+  () => ({
+    ModelPickerPopover: ({
+      options,
+      value,
+      onChange,
+      disabled,
+    }: {
+      options: StudioModelOption[]
+      value: string | null
+      onChange: (option: StudioModelOption) => void
+      disabled: boolean
+    }) => (
+      <select
+        aria-label="modelLabel"
+        value={value ?? ''}
+        disabled={disabled}
+        onChange={(event) => {
+          const option = options.find(
+            (item) => item.optionId === event.target.value,
+          )
+          if (option) onChange(option)
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.optionId} value={option.optionId}>
+            {option.modelId}
+          </option>
+        ))}
+      </select>
+    ),
+  }),
+)
+
 vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
   useNodeCanvasActions: () => ({
     placeDerivedImages: mocks.placeDerivedImages,
@@ -57,20 +109,32 @@ vi.mock('@/components/business/studio/StudioInpaintEditor', () => ({
     onApply,
     imageWidth,
     imageHeight,
+    renderComposer,
+    prompt,
+    onPromptChange,
   }: {
     onApply: (maskDataUrl: string, prompt: string) => void
     imageWidth: number
     imageHeight: number
+    renderComposer: (controls: ImageEditComposerControls) => React.ReactNode
+    prompt: string
+    onPromptChange: (value: string) => void
   }) => (
     <>
       {/* 蒙版画布就是按这两个数建的 —— 它们错了，蒙版尺寸就和源图对不上。 */}
       <span data-testid="inpaint-canvas-size">{`${imageWidth}x${imageHeight}`}</span>
-      <button
-        type="button"
-        onClick={() => onApply('data:image/png;base64,mask', 'repair face')}
-      >
-        editor.inpaint.apply
-      </button>
+      {renderComposer({
+        input: (
+          <textarea
+            aria-label="inpaintPrompt"
+            value={prompt}
+            onChange={(event) => onPromptChange(event.target.value)}
+          />
+        ),
+        onSubmit: () => onApply('data:image/png;base64,mask', 'repair face'),
+        canSubmit: true,
+        submitLabel: 'editor.inpaint.apply',
+      })}
     </>
   ),
 }))
@@ -83,6 +147,14 @@ const SOURCE_DATA = {
   generationId: 'source-generation',
   status: 'idle',
 } as NodeWorkflowNodeData
+
+/** 换任务：打开那颗「任务 ▾」chip，点菜单里那一项。 */
+function selectTask(task: string) {
+  fireEvent.click(screen.getByTestId('image-edit-task-chip'))
+  fireEvent.click(
+    screen.getByRole('menuitemradio', { name: `tasks.${task}.label` }),
+  )
+}
 
 function renderWorkspace(
   defaultTask?: Parameters<typeof CanvasImageEditWorkspace>[0]['defaultTask'],
@@ -127,27 +199,48 @@ beforeEach(() => {
 })
 
 describe('CanvasImageEditWorkspace', () => {
-  // 清单在这里照抄一份而不是直接 import READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS：
-  // 后者会让断言变成同义反复，提级/降级就再也不会被这条测试拦下来。
-  //
-  // 沿革：2026-08-18 `decompose` / `outpaint` 整条删除，object-replace 与
-  // style-transfer 因「全仓零执行路径」退回 hidden；2026-08-19 E3 把
-  // object-replace 建出来并提回 ready。ready 现在五条，且每条都在
-  // `CANVAS_CAPABILITY_DESCRIPTORS` 里有对应实现。
-  it('renders the five ready capabilities and omits hidden placeholders', () => {
-    renderWorkspace()
+  it('keeps edit instructions when changing models and restores separate drafts when switching tasks', () => {
+    renderWorkspace('edit-image')
+    fireEvent.change(screen.getByRole('textbox', { name: 'editPromptLabel' }), {
+      target: { value: 'keep the face and change the jacket' },
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: 'modelLabel' }), {
+      target: { value: 'ideogram-4.5' },
+    })
+    expect(
+      screen.getByRole('textbox', { name: 'editPromptLabel' }),
+    ).toHaveValue('keep the face and change the jacket')
+    selectTask('inpaint')
+    fireEvent.change(screen.getByRole('textbox', { name: 'inpaintPrompt' }), {
+      target: { value: 'repair the collar' },
+    })
+    selectTask('edit-image')
+    expect(
+      screen.getByRole('textbox', { name: 'editPromptLabel' }),
+    ).toHaveValue('keep the face and change the jacket')
+    expect(screen.getByRole('combobox', { name: 'modelLabel' })).toHaveValue(
+      'ideogram-4.5',
+    )
+    selectTask('inpaint')
+    expect(screen.getByRole('textbox', { name: 'inpaintPrompt' })).toHaveValue(
+      'repair the collar',
+    )
+  })
 
-    for (const task of [
-      'upscale',
-      'remove-background',
-      'inpaint',
-      'extract-element',
-      'object-replace',
-    ]) {
-      expect(screen.getAllByText(`tasks.${task}.label`).length).toBeGreaterThan(
-        0,
-      )
-    }
+  it('renders the three primary capabilities and exposes other tools in the menu', () => {
+    renderWorkspace('edit-image')
+    // 任务收成一颗 chip（owner 2026-10-03）：一个菜单列完六项，主三项在前。
+    fireEvent.click(screen.getByTestId('image-edit-task-chip'))
+    expect(
+      screen.getAllByRole('menuitemradio').map((item) => item.textContent),
+    ).toEqual([
+      'tasks.edit-image.label',
+      'tasks.inpaint.label',
+      'tasks.object-replace.label',
+      'tasks.upscale.label',
+      'tasks.remove-background.label',
+      'tasks.extract-element.label',
+    ])
 
     for (const hidden of ['style-transfer', 'text-render']) {
       expect(screen.queryByText(`tasks.${hidden}.label`)).toBeNull()
@@ -288,6 +381,7 @@ describe('CanvasImageEditWorkspace', () => {
           options: {},
           sourceGenerationId: 'source-generation',
           modelId: 'fal-ai/flux-pro/v1/fill',
+          apiKeyId: 'edit-key',
         },
         { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
       )
@@ -313,10 +407,10 @@ describe('CanvasImageEditWorkspace', () => {
       },
     })
     renderWorkspace('inpaint')
-    fireEvent.click(screen.getByRole('button', { name: 'settingsLabel' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'modelLabel' }), {
       target: { value: 'gpt-image-2.5-sunburst' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'settingsLabel' }))
     fireEvent.click(screen.getByRole('button', { name: 'qualityOption.max' }))
     fireEvent.click(
       screen.getByRole('button', { name: 'backgroundOption.transparent' }),

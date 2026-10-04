@@ -8,6 +8,24 @@ import {
 } from '@/lib/spec-chip-model'
 
 describe('buildImageSpecChipModel', () => {
+  it('limits Ideogram generation to verified native presets', () => {
+    const model = buildImageSpecChipModel({
+      adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
+      modelId: AI_MODELS.IDEOGRAM_45,
+      aspectRatio: '1:1',
+      resolution: '2K',
+    })
+    expect(
+      model.ratios.filter((tier) => tier.supported).map((tier) => tier.value),
+    ).toEqual(['1:1'])
+    expect(
+      model.resolutions
+        .filter((tier) => tier.supported)
+        .map((tier) => tier.value),
+    ).toEqual(['1K', '2K'])
+    expect(model.summary).toBe('1:1 · 2K')
+  })
+
   it('比例恒五档全支持；清晰度从能力表派生，不支持的档留在名单里但划线', () => {
     const model = buildImageSpecChipModel({
       adapterType: AI_ADAPTER_TYPES.FAL,

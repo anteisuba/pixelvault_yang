@@ -11876,6 +11876,93 @@ describe('current reference image bindings', () => {
       })
     })
 
+    it('canvas_generate 将目标节点的比例、画质、分辨率和张数带入确认请求', async () => {
+      queueTurns(generateTurn(shot.id))
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest([
+            {
+              ...shot,
+              parameters: {
+                values: {
+                  aspectRatio: '2:3',
+                  quality: 'high',
+                  resolution: '2K',
+                  count: 2,
+                },
+                options: {
+                  aspectRatio: ['1:1', '2:3'],
+                  quality: ['auto', 'high'],
+                  resolution: ['2K'],
+                  count: [1, 2],
+                },
+              },
+            },
+          ]),
+        ),
+      )
+      expect(
+        events.find(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+        ),
+      ).toMatchObject({
+        confirm: {
+          request: {
+            count: 2,
+            specs: { aspectRatio: '2:3', quality: 'high', resolution: '2K' },
+          },
+        },
+      })
+    })
+
+    it.each([
+      [{ aspectRatio: '2:3', quality: 'high' }, undefined],
+      [{ quality: 'max' }, ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue],
+      [
+        { resolution: '4K' },
+        ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+      ],
+    ])('canvas set_params 按节点候选校验 %j', async (params, reason) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+            args: { op: 'set_params', target: shot.id, params },
+          },
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest([
+            {
+              ...shot,
+              parameters: {
+                values: { aspectRatio: '1:1' },
+                options: {
+                  aspectRatio: ['1:1', '2:3'],
+                  quality: ['auto', 'high'],
+                  resolution: [],
+                },
+              },
+            },
+          ]),
+        ),
+      )
+      const step = stepsOf(events).findLast(
+        (entry) => entry.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+      )
+      if (reason)
+        expect(step).toMatchObject({ status: 'error', error: { reason } })
+      else
+        expect(step).toMatchObject({
+          status: 'done',
+          payload: { op: 'set_params', target: shot.id, params },
+        })
+    })
+
     it('canvas_generate on a card without a model is refused before any card is shown', async () => {
       queueTurns(generateTurn(shot.id), { finished: true })
       const events = await collect(

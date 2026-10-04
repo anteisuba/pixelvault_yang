@@ -100,7 +100,7 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     href: ROUTES.STUDIO_IMAGE,
     icon: ImageIcon,
     labelKey: 'StudioTools.tools.image.label',
-    activePaths: [ROUTES.STUDIO, ROUTES.STUDIO_IMAGE],
+    activePaths: [ROUTES.STUDIO, ROUTES.STUDIO_IMAGE, ROUTES.STUDIO_IMAGE_TAGS],
   },
   {
     id: 'video',

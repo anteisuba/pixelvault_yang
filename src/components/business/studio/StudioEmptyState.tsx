@@ -169,28 +169,19 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-5 px-3 py-4 lg:gap-10 lg:px-4 lg:py-6">
       {isMobileStart ? (
         /* 移动端起手屏：一句问句 + 2×2 示例卡。
-           卡片封面优先借「继续创作」里那几张真图 —— 没有历史时退回按序号变化的
-           token 渐变底，不摆一个假缩略图、也不留一块灰。 */
+           卡上只有字（标题 + 两行提示词，owner 2026-10-02 选 Claude / GPT 那一档）——
+           ⛔ 不借「继续创作」的真图当封面：那张图与示例说的不是一回事（「胶片人像」
+           配便利店夜景），没有历史时又只剩四块像在加载的灰底；真图留给下面那一行。 */
         <div className="flex w-full max-w-md flex-col gap-3">
           <h2 className="text-center text-xl font-semibold text-foreground">
             {isVideo ? tMobile('emptyTitleVideo') : tMobile('emptyTitle')}
           </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {STUDIO_MOBILE_EXAMPLE_KEYS.map((exampleKey, index) => (
+          <div className="grid grid-cols-2 gap-2.5">
+            {STUDIO_MOBILE_EXAMPLE_KEYS.map((exampleKey) => (
               <ExampleCard
                 key={exampleKey}
-                index={index}
-                wide={isVideo}
                 label={t(`examples.${contentKey}.${exampleKey}.label`)}
                 excerpt={t(`examples.${contentKey}.${exampleKey}.prompt`)}
-                // ⚠ 视频借的是缩略图不是 `url`：把 mp4 塞进 <img> 只会得到一个
-                //    坏掉的图标。素材域记过「视频零缩略图」，所以常态是 null →
-                //    走渐变底。
-                coverUrl={
-                  (isVideo
-                    ? recent[index]?.thumbnailUrl
-                    : recent[index]?.url) ?? null
-                }
                 onSelect={() =>
                   handleExample(
                     t(`examples.${contentKey}.${exampleKey}.prompt`),
@@ -268,87 +259,33 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   )
 }
 
-// ── 移动端示例卡（图片 4:3 / 视频 16:9，封面限高）────────────────────────────
+// ── 移动端示例卡（只有字）────────────────────────────────────────────
 
 interface ExampleCardProps {
   label: string
-  /** 提示词的一行摘录 —— 光有标题看不出「点下去会填进去什么」。 */
+  /** 提示词摘录 —— 光有标题看不出「点下去会填进去什么」。 */
   excerpt: string
-  /** 第几张：渐变的色相按序号错开，四张才不是同一块底。 */
-  index: number
-  /** 视频档的封面是 16:9，图片档是 4:3；均限高 128px。 */
-  wide?: boolean
-  /** 封面：借「继续创作」里的真图；没有则用 token 渐变底。 */
-  coverUrl: string | null
   onSelect: () => void
 }
 
-/**
- * 没有历史图时的底 —— **不是一块灰**。四张各自的主色浓度按序号错开，一眼看得
- * 出是四张卡而不是四个待加载的占位。
- *
- * ⚠ 只用 `color-mix` 拌既有 token（`--primary` / `--muted` / `--secondary`），
- * 不引入新色值：暗色档跟着 token 一起翻，不需要第二套写法。
- * ⚠ 写在 `style` 里而不是 Tailwind 类：百分比随序号变，做成工具类就是 Hard
- * Rule 5 禁的任意值。
- */
-function exampleCardGradient(index: number): string {
-  const primaryPct = 10 + index * 7
-  const tailPct = 6 + index * 4
-  return [
-    'linear-gradient(140deg,',
-    `color-mix(in oklab, var(--primary) ${primaryPct}%, var(--muted)) 0%,`,
-    `color-mix(in oklab, var(--secondary) ${100 - tailPct}%, var(--primary)) 100%)`,
-  ].join(' ')
-}
-
-function ExampleCard({
-  label,
-  excerpt,
-  index,
-  wide,
-  coverUrl,
-  onSelect,
-}: ExampleCardProps) {
+function ExampleCard({ label, excerpt, onSelect }: ExampleCardProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
       data-testid="studio-mobile-example-card"
       className={cn(
-        'group flex w-full flex-col overflow-hidden rounded-xl border border-border/60 bg-background text-left',
-        'transition-transform duration-fast ease-standard active:scale-[0.98]',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'flex w-full flex-col gap-1 rounded-xl border border-border/60 bg-background px-3 py-2.5 text-left',
+        'transition-[transform,background-color] duration-fast ease-standard active:scale-[0.98] active:bg-muted',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
     >
-      <span
-        className={cn(
-          'relative block w-full',
-          wide ? 'aspect-video max-h-32' : 'aspect-[4/3] max-h-32',
-        )}
-        style={
-          coverUrl ? undefined : { background: exampleCardGradient(index) }
-        }
-      >
-        {coverUrl ? (
-          <OptimizedImage
-            src={coverUrl}
-            alt=""
-            fill
-            sizes="50vw"
-            className="object-cover"
-            loading="lazy"
-          />
-        ) : null}
+      <span className="truncate text-sm font-medium text-foreground">
+        {label}
       </span>
-      <span className="flex flex-col gap-0.5 px-2.5 pb-2 pt-1.5">
-        <span className="truncate text-xs font-medium text-foreground">
-          {label}
-        </span>
-        {/* 一行摘录 —— 超出就截断，永远只占一行，四张卡才等高。 */}
-        <span className="truncate text-2xs text-muted-foreground">
-          {excerpt}
-        </span>
+      {/* 两行摘录，超出截断 —— 同一行里的两张卡被 grid 拉成等高。 */}
+      <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">
+        {excerpt}
       </span>
     </button>
   )

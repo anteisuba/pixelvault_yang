@@ -1388,6 +1388,23 @@ export function StudioOperatorPanel({
         ) : (
           <StudioOperatorConfirmCard
             confirm={confirm}
+            canGenerate={Boolean(
+              confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+              (confirm.request.canvasNode
+                ? operatorHost.apply.canvas?.generate
+                : operatorHost.apply.triggerGeneration),
+            )}
+            {...(confirm.kind ===
+              ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+            confirm.request.canvasNode &&
+            operatorHost.canvasTargets?.generationStateOf
+              ? {
+                  canvasState:
+                    operatorHost.canvasTargets.generationStateOf(
+                      confirm.request.canvasNode.id,
+                    ) ?? null,
+                }
+              : {})}
             onApprove={approvePlan}
             /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
                      ⛔ 不发请求，下一条消息才带 `planApproved: false`。 */

@@ -84,7 +84,7 @@ export function StudioTagCapabilityControl({
                 [chip.capability]: event.target.value,
               } as AdvancedParams)
             }
-            className="w-full rounded-md border border-input bg-background p-2 text-sm"
+            className="min-h-11 w-full rounded-md border border-input bg-background p-2 text-base lg:min-h-0 lg:text-sm"
           >
             {chip.options.map((option) => (
               <option key={option} value={option}>
@@ -106,7 +106,7 @@ export function StudioTagCapabilityControl({
                     update({ [chip.capability]: option } as AdvancedParams)
                   }
                   className={cn(
-                    'rounded-full border px-2.5 py-1 text-2xs transition-[background-color,border-color] duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                    'min-h-11 rounded-full border px-2.5 py-1 text-sm transition-[background-color,border-color] duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 lg:min-h-0 lg:text-2xs',
                     selected
                       ? 'border-foreground bg-background font-medium'
                       : 'border-border bg-background text-muted-foreground hover:bg-accent',

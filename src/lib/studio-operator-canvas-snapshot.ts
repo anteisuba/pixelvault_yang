@@ -17,6 +17,25 @@
  */
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
+import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
+import {
+  ADAPTER_CAPABILITIES,
+  getCapabilityConfig,
+} from '@/constants/provider-capabilities'
+import {
+  IMAGE_BATCH_COUNTS,
+  STUDIO_IMAGE_ASPECT_RATIOS,
+} from '@/constants/studio'
+import {
+  getVideoModelParameterOptions,
+  getVideoModelSendContract,
+} from '@/constants/video-model-send-plan'
+import {
+  getVideoModelCapabilities,
+  snapVideoDuration,
+  snapVideoResolution,
+} from '@/constants/video-model-capabilities'
+import type { VideoResolution } from '@/constants/video-options'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -31,7 +50,9 @@ import {
   type AssistantOperatorCanvasNode,
   type AssistantOperatorCanvasShot,
   type AssistantOperatorCanvasSnapshot,
+  type AssistantOperatorGenerationRequest,
 } from '@/types/assistant-operator'
+import { AdvancedParamsSchema } from '@/types'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
 /** 未归镜的散节点落在这一档（`shotNo` 缺席）。 */
@@ -43,6 +64,112 @@ const LOOSE_SHOT_TITLE = 'Unassigned'
  * 非图片节点只提供摘要；图片提示词需要全文参与追加与参考复核。
  */
 const MAX_NODE_TEXT_CHARS = 400
+
+export type CanvasNodeGenerationState = Pick<
+  AssistantOperatorCanvasNode,
+  'id' | 'name' | 'kind' | 'model' | 'parameters'
+>
+
+export function readCanvasNodeGenerationState(
+  node: NodeV4,
+): CanvasNodeGenerationState {
+  const { data } = node
+  const state: CanvasNodeGenerationState = {
+    id: node.id,
+    name: data.name,
+    kind: data.kind,
+    ...(data.kind === NODE_MEDIA_KIND_IDS.text || !data.model
+      ? {}
+      : { model: data.model.modelId }),
+  }
+  if (data.kind === NODE_MEDIA_KIND_IDS.image) {
+    const capability =
+      data.model && data.model.adapterType in ADAPTER_CAPABILITIES
+        ? getCapabilityConfig(data.model.adapterType, data.model.modelId)
+        : undefined
+    state.parameters = {
+      values: {
+        ...data.params,
+        aspectRatio: data.params?.aspectRatio ?? DEFAULT_ASPECT_RATIO,
+        count: data.params?.storyboardGrid ? 1 : (data.params?.count ?? 1),
+      },
+      options: {
+        aspectRatio: [...STUDIO_IMAGE_ASPECT_RATIOS],
+        quality: [...(capability?.qualityOptions ?? [])],
+        resolution: [...(capability?.resolutionOptions ?? [])],
+        count: data.params?.storyboardGrid ? [1] : [...IMAGE_BATCH_COUNTS],
+        storyboardGrid: [false, true],
+      },
+    }
+  } else if (data.kind === NODE_MEDIA_KIND_IDS.video) {
+    const model = data.model
+    const values = { ...data.params }
+    if (model) {
+      const capabilities = getVideoModelCapabilities(model.modelId)
+      const duration = values.duration ? Number(values.duration) : NaN
+      if (Number.isFinite(duration)) {
+        values.duration = String(snapVideoDuration(model.modelId, duration))
+      }
+      if (values.resolution) {
+        values.resolution = snapVideoResolution(
+          model.modelId,
+          values.resolution as VideoResolution,
+        )
+      }
+      if (
+        values.aspectRatio &&
+        capabilities.supportedAspectRatios &&
+        !capabilities.supportedAspectRatios.includes(
+          values.aspectRatio as AspectRatio,
+        )
+      ) {
+        values.aspectRatio = capabilities.supportedAspectRatios[0]
+      }
+    }
+    const options = getVideoModelParameterOptions(
+      model?.modelId,
+      model?.adapterType,
+    )
+    const support = model
+      ? getVideoModelSendContract(model.modelId, model.adapterType).parameters
+      : undefined
+    state.parameters = {
+      values,
+      options: {
+        aspectRatio: [...options.aspectRatios],
+        resolution: [...options.resolutions],
+        duration: options.durations.map(String),
+        ...(support?.generateAudio ? { generateAudio: [false, true] } : {}),
+        ...(support?.seed ? { seed: true } : {}),
+      },
+    }
+  }
+  return state
+}
+
+export function buildCanvasGenerationRequest(
+  node: CanvasNodeGenerationState,
+): AssistantOperatorGenerationRequest | null {
+  if (!node.model) return null
+  const params = node.parameters?.values
+  const quality = AdvancedParamsSchema.shape.quality.safeParse(params?.quality)
+  const duration = params?.duration ? Number(params.duration) : NaN
+  return {
+    model: { id: node.model, label: node.model },
+    count:
+      node.kind === NODE_MEDIA_KIND_IDS.image && !params?.storyboardGrid
+        ? (params?.count ?? 1)
+        : 1,
+    specs: {
+      aspectRatio: params?.aspectRatio ?? null,
+      resolution: params?.resolution ?? null,
+      durationSeconds:
+        Number.isInteger(duration) && duration > 0 ? duration : null,
+      ...(quality.success && quality.data ? { quality: quality.data } : {}),
+    },
+    canvasNode: { id: node.id, name: node.name },
+  }
+}
 
 function nodeText(node: NodeV4): string | undefined {
   const data = node.data
@@ -150,8 +277,6 @@ function toSnapshotNode(
 ): AssistantOperatorCanvasNode {
   const data = node.data
   const text = nodeText(node)
-  const model =
-    data.kind === NODE_MEDIA_KIND_IDS.text ? undefined : data.model?.modelId
   const availableModels = availableModelsByNodeId?.[node.id]
   const inputs = incoming
     .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
@@ -165,11 +290,9 @@ function toSnapshotNode(
       : -1
 
   return {
-    id: node.id,
+    ...readCanvasNodeGenerationState(node),
     position: node.position,
     ...(referenceImageIndex < 0 ? {} : { referenceImageIndex }),
-    name: data.name,
-    kind: data.kind,
     subtype: data.subtype,
     ...(scriptProjection === undefined ? {} : { scriptProjection }),
     ...(fromScript === undefined
@@ -183,7 +306,6 @@ function toSnapshotNode(
         }),
     ...(text === undefined ? {} : { text }),
     ...imageReviewContext(node, nodes, edges),
-    ...(model === undefined ? {} : { model }),
     ...(availableModels === undefined || availableModels.length === 0
       ? {}
       : { availableModels: [...new Set(availableModels)] }),
@@ -255,6 +377,14 @@ export function buildCanvasOperatorSnapshot({
   }
 
   const scriptProjections = buildScriptProjectionSummaries(nodes)
+  const focusedNodeIds = new Set(selectedNodeIds)
+  const newestNode = nodes.at(-1)
+  if (newestNode) focusedNodeIds.add(newestNode.id)
+  const inputNodeIds = new Set(
+    edges.flatMap((edge) =>
+      focusedNodeIds.has(edge.target) ? [edge.source] : [],
+    ),
+  )
 
   const byShot = new Map<number | null, NodeV4[]>()
   for (const node of nodes) {
@@ -282,12 +412,23 @@ export function buildCanvasOperatorSnapshot({
       })
       return
     }
+    const visibleNodeIds = new Set(
+      [
+        ...new Set(
+          [
+            ...shotNodes.filter((node) => focusedNodeIds.has(node.id)),
+            ...shotNodes.filter((node) => inputNodeIds.has(node.id)),
+            ...shotNodes.toReversed(),
+          ].map((node) => node.id),
+        ),
+      ].slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot),
+    )
     shots.push({
       expanded: true,
       shotNo,
       title,
       nodes: shotNodes
-        .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
+        .filter((node) => visibleNodeIds.has(node.id))
         .map((node) =>
           toSnapshotNode(
             node,

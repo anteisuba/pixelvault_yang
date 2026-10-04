@@ -3,7 +3,6 @@ import 'server-only'
 import { db } from '@/lib/db'
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
-  ASSISTANT_AVATAR_CHOICES,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
@@ -105,18 +104,20 @@ function resolveAvatarChoice(
   row: PersonaRow,
   character: AssistantPersonaCharacter | null,
 ): AssistantAvatarChoice {
-  const stored = (ASSISTANT_AVATAR_CHOICES as readonly string[]).includes(
-    row.avatarChoice ?? '',
-  )
-    ? (row.avatarChoice as AssistantAvatarChoice)
-    : null
+  const stored = row.avatarChoice
   if (stored === ASSISTANT_AVATAR_CHOICE_IDS.character && character) {
     return stored
   }
   if (stored === ASSISTANT_AVATAR_CHOICE_IDS.upload && row.avatarUrl) {
     return stored
   }
-  if (stored && isAvatarPresetChoice(stored)) return stored
+  if (
+    stored &&
+    stored !== ASSISTANT_AVATAR_CHOICE_IDS.character &&
+    stored !== ASSISTANT_AVATAR_CHOICE_IDS.upload
+  ) {
+    return normalizeAvatarPreset(stored)
+  }
   return row.avatarUrl
     ? ASSISTANT_AVATAR_CHOICE_IDS.upload
     : normalizeAvatarPreset(row.avatarPreset)
@@ -145,8 +146,8 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
    * ⛔ 不做成第二份 Prisma 枚举），所以「库里的值还在词表里」这件事只能在这里问。
    * 词表改过而存量行没跟上时，退回默认值而不是把一个词表外的值塞进系统提示。
    *
-   * ⚠ `avatarPreset` **单独先回落**（`normalizeAvatarPreset`）：预设从六款收成
-   * 两款之后，库里还留着 `spark` / `tide` 这类悬空 id。交给下面那一发 safeParse
+   * ⚠ `avatarPreset` **单独先回落**（`normalizeAvatarPreset`）：库里还留着
+   * 已删除的预设 id。交给下面那一发 safeParse
    * 会连累整份 persona 一起退回默认值 —— 用户只是头像那一格过时了，语气和长度
    * 不该跟着一起丢。⛔ 不写迁移去改存量行。`null`（从没选过）照旧是 `null`。
    */

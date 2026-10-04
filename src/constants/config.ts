@@ -484,9 +484,9 @@ export const PROFILE = {
  *
  * owner 2026-09-27：提示词不设我们自己定的字数上限。真实上限只有模型声明的
  * `maxPromptChars`（厂商硬上限，提前拦）；这个数只挡异常大的请求 —— 与最宽的
- * 厂商上限（GPT Image 32000）同量级，正常写碰不到。⛔ 别把它印到 UI 上当能力承诺。
+ * 厂商上限（H3 Max Turbo 50000）对齐。⛔ 别把它印到 UI 上当能力承诺。
  */
-export const PROMPT_TEXT_GUARD_MAX_CHARS = 32_000
+export const PROMPT_TEXT_GUARD_MAX_CHARS = 50_000
 
 /** Prompt enhancement configuration */
 export const PROMPT_ENHANCE = {
@@ -526,6 +526,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
   PIXAI: 'https://api.pixai.art',
+  IDEOGRAM: 'https://api.ideogram.ai',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   BYTEPLUS: 'https://ark.ap-southeast.bytepluses.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',
@@ -575,7 +576,6 @@ export const LLM_TEXT_MODEL_IDS = {
   GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
   GEMINI_3_8_FLASH: 'gemini-3.8-flash',
   OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
-  OPENAI_GPT_6_SOL: 'gpt-6-sol',
   OPENAI_GPT_6_1_SOL: 'gpt-6.1-sol',
   OPENAI_GPT_6_LUNA: 'gpt-6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
@@ -598,7 +598,7 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // Anthropic's Messages API requires `max_tokens` on every request — there
   // is no "omit for provider-managed" option like OpenAI/DeepSeek/Qwen. This
   // is both the provider-managed ceiling and the *floor* for explicit
-  // budgets: Claude Opus 5.5 and Fable 5.1 always think (thinking cannot be disabled),
+  // budgets: the supported Claude models use adaptive thinking by default,
   // and `max_tokens` caps thinking + answer together, so a caller budget
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.

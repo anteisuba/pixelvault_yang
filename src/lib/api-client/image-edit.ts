@@ -1,5 +1,10 @@
 import { parseSseStream } from '@/lib/sse'
-import { API_ENDPOINTS } from '@/constants/config'
+import {
+  API_ENDPOINTS,
+  IMAGE_GENERATION,
+  GENERATION_POLL,
+} from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 import type {
   GenerationRecord,
   InpaintRequest,
@@ -7,6 +12,10 @@ import type {
 } from '@/types'
 
 import { getErrorPayload } from './shared'
+import {
+  cancelGenerationsAPI,
+  checkImageGenerationStatusAPI,
+} from './generation'
 
 export interface ImageEditApiResult {
   imageUrl: string
@@ -26,6 +35,98 @@ export interface ImageEditApiResponse {
 export interface ImageEditStreamOptions {
   onPreview?: (url: string) => void
   signal?: AbortSignal
+}
+
+async function waitForImageEdit(
+  jobId: string,
+  signal?: AbortSignal,
+): Promise<ImageEditApiResponse> {
+  let cancelled = false
+  let consecutiveTransient = 0
+  const cancel = () => {
+    if (!cancelled) {
+      cancelled = true
+      void cancelGenerationsAPI([jobId])
+    }
+  }
+  signal?.addEventListener('abort', cancel, { once: true })
+  try {
+    for (
+      let attempt = 0;
+      attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
+      attempt += 1
+    ) {
+      if (signal?.aborted) {
+        cancel()
+        return { success: false, error: 'Image edit cancelled' }
+      }
+      const response = await checkImageGenerationStatusAPI(jobId, signal)
+      if (signal?.aborted) {
+        cancel()
+        return { success: false, error: 'Image edit cancelled' }
+      }
+      if (!response.success || !response.data) {
+        if (
+          response.httpStatus &&
+          response.httpStatus < 500 &&
+          response.httpStatus !== 429
+        ) {
+          return {
+            success: false,
+            error: response.error,
+            errorCode: response.errorCode,
+            i18nKey: response.i18nKey,
+          }
+        }
+        consecutiveTransient += 1
+        if (consecutiveTransient >= GENERATION_POLL.TRANSIENT_TOLERANCE) break
+      } else {
+        consecutiveTransient = 0
+      }
+      if (response.success && response.data) {
+        const data = response.data
+        if (data.status === 'COMPLETED' && data.generation) {
+          const generation = data.generation
+          return {
+            success: true,
+            data: {
+              imageUrl: generation.url,
+              width: generation.width,
+              height: generation.height,
+              generation,
+            },
+          }
+        }
+        if (data.status === 'FAILED')
+          return {
+            success: false,
+            error: data.error,
+            errorCode: data.errorCode,
+            i18nKey: data.i18nKey,
+          }
+        if (data.status === 'CANCELLED')
+          return { success: false, error: 'Image edit cancelled' }
+      }
+      await new Promise<void>((resolve) => {
+        const finish = () => {
+          clearTimeout(timer)
+          signal?.removeEventListener('abort', finish)
+          resolve()
+        }
+        const timer = setTimeout(finish, IMAGE_GENERATION.POLL_INTERVAL_MS)
+        signal?.addEventListener('abort', finish, { once: true })
+        if (signal?.aborted) finish()
+      })
+    }
+    return {
+      success: false,
+      error: 'Image edit is still running. Check the gallery for its result.',
+      errorCode: 'callback_timeout',
+      i18nKey: 'errors.provider.callbackTimeout',
+    }
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+  }
 }
 
 async function postImageEdit(
@@ -53,7 +154,10 @@ async function postImageEdit(
               }
             : params,
         ),
-        signal: streamOptions?.signal,
+        signal:
+          params.modelId === AI_MODELS.IDEOGRAM_45
+            ? undefined
+            : streamOptions?.signal,
       },
     )
 
@@ -95,7 +199,11 @@ async function postImageEdit(
         error: 'Image edit stream ended before completion',
       }
     }
-    return await response.json()
+    const result = await response.json()
+    if (result.success && typeof result.data?.jobId === 'string') {
+      return waitForImageEdit(result.data.jobId, streamOptions?.signal)
+    }
+    return result
   } catch (error) {
     return {
       success: false,

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
@@ -98,7 +99,7 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
         [
           'OpenAI GPT-6 Luna',
-          'OpenAI GPT-6 Sol',
+          'OpenAI GPT-6.1 Sol',
           'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.8 Flash',
@@ -126,7 +127,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6 Sol')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6.1 Sol')
     })
 
     it('locked routes list all planner-capable adapters with registry data', () => {
@@ -147,7 +148,7 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI has three tiers; DeepSeek and Claude each expose two.
+      // OpenAI and Claude each expose three tiers; DeepSeek exposes two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
@@ -155,6 +156,7 @@ describe('useLLMRoutePicker', () => {
         'k2',
         'k4',
         'k4',
+        'k5',
         'k5',
         'k5',
       ])
@@ -181,8 +183,29 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.ANTHROPIC,
+        AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.XAI,
       ])
+    })
+
+    it('offers Sonnet 5.5 through the existing Claude key', () => {
+      mockApiKeys([
+        makeKey({ id: 'claude-key', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
+      ])
+      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+      expect(result.current.savedRoutes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+            apiKeyId: 'claude-key',
+            label: 'Claude Sonnet 5.5',
+            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          }),
+        ]),
+      )
+      expect(result.current.savedRoutes[0]?.modelId).toBe(
+        LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+      )
     })
   })
 

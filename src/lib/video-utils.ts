@@ -23,7 +23,7 @@ export function formatTimecode(totalSeconds: number): string {
 }
 
 /**
- * 存进 `Generation` 的视频宽高。有「480p」这类档位时短边就是它、长边按比例推
+ * 视频输出宽高估算。有「480p」这类档位时短边就是它、4K 按 2160 短边估算，长边按比例推
  * （取偶数，编码器出片也是偶数）；没有档位才回落到比例默认尺寸。
  * ⚠ 09-24 真机：9:16 · 480p 的片子按图片尺寸表记成 1024×1792，预览角标写 1792p。
  */
@@ -33,7 +33,10 @@ export function getVideoOutputSize(
 ): { width: number; height: number } {
   const fallback =
     IMAGE_SIZES[aspectRatio as keyof typeof IMAGE_SIZES] ?? IMAGE_SIZES['16:9']
-  const short = Number(resolution?.match(/^(\d+)p$/i)?.[1])
+  const short =
+    resolution?.toLowerCase() === '4k'
+      ? 2160
+      : Number(resolution?.match(/^(\d+)p$/i)?.[1])
   const [w, h] = aspectRatio.split(':').map(Number)
   if (!short || !w || !h)
     return { width: fallback.width, height: fallback.height }

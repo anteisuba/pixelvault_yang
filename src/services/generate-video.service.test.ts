@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import sharp from 'sharp'
 
 import { AI_MODELS } from '@/constants/models'
 import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
@@ -235,6 +236,101 @@ describe('generate-video.service worker dispatch', () => {
       }),
     )
   })
+
+  it.each([false, true])(
+    'dispatches H3 Max Turbo using first-frame dimensions and its own prompt limit (EXIF portrait: %s)',
+    async (exifPortrait) => {
+      mockResolveGenerationRoute.mockResolvedValueOnce({
+        modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+        adapterType: 'fal',
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        apiKey: 'plain-key',
+        resolvedApiKeyId: 'key-1',
+        isFreeGeneration: false,
+      })
+      const prompt = 'a'.repeat(50_000)
+      const referenceImages = [
+        'https://cdn.example.com/start.png',
+        'https://cdn.example.com/end.png',
+      ]
+      const firstFrame = await sharp({
+        create: {
+          width: exifPortrait ? 16 : 9,
+          height: exifPortrait ? 9 : 16,
+          channels: 3,
+          background: '#000000',
+        },
+      })
+        .jpeg()
+        .withMetadata({ orientation: exifPortrait ? 6 : 1 })
+        .toBuffer()
+      const lastFrame = await sharp({
+        create: { width: 9, height: 16, channels: 3, background: '#ffffff' },
+      })
+        .jpeg()
+        .toBuffer()
+      mockFetchAsBuffer.mockImplementation(async (url: string) => ({
+        buffer: url === referenceImages[0] ? firstFrame : lastFrame,
+        mimeType: 'image/jpeg',
+      }))
+      mockUploadToR2.mockImplementation(async ({ data }: { data: Buffer }) =>
+        data === firstFrame ? referenceImages[0] : referenceImages[1],
+      )
+      await submitVideoGeneration(
+        'clerk-1',
+        buildVideoRequest({
+          modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+          prompt,
+          referenceImages,
+          seed: 123,
+        }),
+      )
+      const init = vi.mocked(fetch).mock.calls[0]?.[1]
+      const body = JSON.parse(String(init?.body))
+      expect(body.workflowId).toBe(EXECUTION_WORKFLOW_IDS.FAL_QUEUE)
+      expect(body.providerInput).toMatchObject({
+        prompt,
+        externalModelId: 'minimax/h3-max-turbo/text-to-video',
+        i2vModelId: 'minimax/h3-max-turbo/image-to-video',
+        referenceImages,
+        seed: 123,
+        width: 768,
+        height: 1366,
+        videoDefaults: { resolution: '768p' },
+      })
+      expect(validatePrompt).toHaveBeenCalledWith(prompt, 50_000)
+      expect(mockFetchAsBuffer).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it.each([
+    [AI_MODELS.KLING_V3_PRO, '4k'],
+    [AI_MODELS.KLING_O3_4K_V2V_EDIT, undefined],
+    [AI_MODELS.KLING_O3_4K_V2V_EDIT, '720p'],
+  ] as const)(
+    'estimates 4K output size for %s with resolution %s',
+    async (modelId, resolution) => {
+      mockResolveGenerationRoute.mockResolvedValueOnce({
+        modelId,
+        adapterType: 'fal',
+        providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        apiKey: 'plain-key',
+        resolvedApiKeyId: 'key-1',
+        isFreeGeneration: false,
+      })
+      await submitVideoGeneration(
+        'clerk-1',
+        buildVideoRequest({
+          modelId,
+          resolution,
+          videoUrls: ['https://cdn.example.com/clip.mp4'],
+        }),
+      )
+      const init = vi.mocked(fetch).mock.calls[0]?.[1]
+      const body = JSON.parse(String(init?.body))
+      expect(body.providerInput).toMatchObject({ width: 3840, height: 2160 })
+    },
+  )
 
   /**
    * 切片 Y 的**服务端半条**（视频侧）：助手给这一枪起的名要搭队列元数据走到

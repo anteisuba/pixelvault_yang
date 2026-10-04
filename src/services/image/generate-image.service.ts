@@ -411,6 +411,51 @@ export async function uploadInpaintMaskIfNeeded(params: {
   return { ...input.advancedParams, inpaintMask }
 }
 
+export async function prepareIdeogramInpaintMask(
+  userId: string,
+  sourceUrl: string,
+  maskUrl: string,
+): Promise<string> {
+  const [source, mask] = await Promise.all([
+    fetchAsBuffer(sourceUrl),
+    fetchAsBuffer(maskUrl),
+  ])
+  const [sourceSize, maskSize] = await Promise.all([
+    sharp(source.buffer).metadata(),
+    sharp(mask.buffer).metadata(),
+  ])
+  if (
+    !sourceSize.width ||
+    !sourceSize.height ||
+    sourceSize.width !== maskSize.width ||
+    sourceSize.height !== maskSize.height
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'The mask must have exactly the same dimensions as the source image.',
+      400,
+    )
+  }
+  const normalized = await sharp(mask.buffer)
+    .flatten({ background: '#000000' })
+    .greyscale()
+    .png()
+    .toBuffer()
+  const stats = await sharp(normalized).stats()
+  if (stats.channels[0].min !== 0 || stats.channels[0].max !== 255) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'The mask must include both an editable region and a preserved region.',
+      400,
+    )
+  }
+  return uploadToR2({
+    data: await sharp(normalized).negate({ alpha: false }).png().toBuffer(),
+    key: generateStorageKey('IMAGE', userId),
+    mimeType: 'image/png',
+  })
+}
+
 // ─── Orchestrator ───────────────────────────────────────────────
 
 /**
@@ -509,6 +554,46 @@ export async function resolveImageRouteAndValidate(
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
+  if (resolvedRoute.adapterType === AI_ADAPTER_TYPES.IDEOGRAM) {
+    const quality = input.advancedParams?.quality
+    if (
+      quality !== undefined &&
+      (!['very_low', 'low', 'medium', 'high'].includes(quality) ||
+        (quality === 'very_low' && !hasReferenceImage))
+    ) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'This quality is not supported for the selected image operation.',
+        400,
+      )
+    }
+    if (!input.advancedParams?.inpaintMask && input.aspectRatio !== '1:1') {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Ideogram text-to-image currently supports the square format.',
+        400,
+      )
+    }
+    const resolution = input.advancedParams?.resolution
+    if (resolution !== undefined && !['1K', '2K'].includes(resolution)) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Ideogram supports 1K or 2K resolution.',
+        400,
+      )
+    }
+    const seed = input.advancedParams?.seed
+    if (
+      seed !== undefined &&
+      (!Number.isInteger(seed) || seed < 0 || seed > 2147483647)
+    ) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Ideogram seed must be between 0 and 2147483647.',
+        400,
+      )
+    }
+  }
   if (
     input.advancedParams?.novelAiReferenceMode === 'precise' &&
     (resolvedRoute.adapterType !== AI_ADAPTER_TYPES.NOVELAI ||
@@ -645,10 +730,16 @@ export async function resolveImageRouteAndValidate(
           400,
         )
       }
-      if (refCount !== 1) {
+      if (
+        resolvedRoute.adapterType === AI_ADAPTER_TYPES.IDEOGRAM
+          ? refCount < 1 || refCount > 4
+          : refCount !== 1
+      ) {
         throw new GenerateImageServiceError(
           'VALIDATION_ERROR',
-          'Inpainting requires exactly one reference image to repaint.',
+          resolvedRoute.adapterType === AI_ADAPTER_TYPES.IDEOGRAM
+            ? 'Inpainting requires a source image and at most three additional references.'
+            : 'Inpainting requires exactly one reference image to repaint.',
           400,
         )
       }

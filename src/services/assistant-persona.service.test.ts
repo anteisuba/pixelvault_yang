@@ -45,7 +45,7 @@ import {
 
 const STORED_ROW = {
   name: 'Mika',
-  avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[1],
+  avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
   avatarUrl: null as string | null,
   avatarChoice: null as string | null,
   characterCardId: null as string | null,
@@ -80,7 +80,7 @@ const STORED_PERSONA = {
   name: STORED_ROW.name,
   avatarPreset: STORED_ROW.avatarPreset,
   avatarUrl: null,
-  avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.monogram,
+  avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
   uploadedAvatarUrl: null,
   characterCardId: null,
   character: null,
@@ -161,19 +161,18 @@ describe('assistant persona service', () => {
     })
   })
 
-  /**
-   * 预设从六款收成两款（owner 2026-09-07）之后，库里留着 `spark` 这类悬空 id。
-   * ⚠ 只有头像那一格回落，语气 / 长度 / 语言**照样逐字读回**，⛔ 不整份退默认。
-   */
-  it('avatarPreset 是悬空 id 时只回落头像那一格', async () => {
-    mockFindUnique.mockResolvedValue({ ...STORED_ROW, avatarPreset: 'spark' })
+  it.each(['spark', 'monogram'])(
+    'avatarPreset 为 %s 时只回落头像那一格',
+    async (avatarPreset) => {
+      mockFindUnique.mockResolvedValue({ ...STORED_ROW, avatarPreset })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
-      ...STORED_PERSONA,
-      avatarPreset: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
-      avatarChoice: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
-    })
-  })
+      await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+        ...STORED_PERSONA,
+        avatarPreset: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
+        avatarChoice: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
+      })
+    },
+  )
 
   it('upsert 走 userId 唯一键，且不碰头像那两列', async () => {
     mockUpsert.mockResolvedValue(STORED_ROW)
@@ -181,8 +180,8 @@ describe('assistant persona service', () => {
     await upsertAssistantPersona('clerk_1', {
       ...BASE_UPDATE,
       name: 'Mika',
-      avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[1],
-      avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.monogram,
+      avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
+      avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
       verbosity: 'detailed',
       planMode: 'always',
@@ -427,7 +426,7 @@ describe('头像单选表', () => {
 
     await upsertAssistantPersona('clerk_1', {
       ...BASE_UPDATE,
-      avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[1],
+      avatarPreset: null,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
     })
 
@@ -438,6 +437,21 @@ describe('头像单选表', () => {
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       avatarPreset: ASSISTANT_AVATAR_CHOICE_IDS.mark,
     })
+  })
+
+  it('已选首字母时回落默认头像，保留上传图片和其他人设', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...STORED_ROW,
+      avatarChoice: 'monogram',
+      avatarPreset: 'monogram',
+      avatarUrl: 'https://cdn.test/me.png',
+    })
+
+    await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+      ...STORED_PERSONA,
+      uploadedAvatarUrl: 'https://cdn.test/me.png',
+    })
+    expect(mockUpsert).not.toHaveBeenCalled()
   })
 })
 

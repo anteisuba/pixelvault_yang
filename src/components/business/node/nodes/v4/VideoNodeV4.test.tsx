@@ -729,6 +729,19 @@ describe('提示词栏', () => {
 })
 
 describe('画面弹层（spec §5）', () => {
+  it('H3 Max Turbo 默认 768p，读数使用自身价档且不提供音频开关', () => {
+    const params = videoEffectiveParams(undefined, 'minimax-h3-max-turbo')
+    expect(params).toMatchObject({
+      duration: '5',
+      aspectRatio: '16:9',
+      resolution: '768p',
+    })
+    expect(videoFrameReadout('minimax-h3-max-turbo', params)).toBe(
+      '1365×768 · 5s · $0.20',
+    )
+    expect(videoSupportsGeneratedAudio('minimax-h3-max-turbo')).toBe(false)
+  })
+
   it('生成声音开关只在模型发得出这个字段时可点', () => {
     expect(videoSupportsGeneratedAudio(undefined)).toBe(false)
     expect(videoSupportsGeneratedAudio(MODEL_ID)).toBe(true)
@@ -840,6 +853,23 @@ describe('画面弹层（spec §5）', () => {
       }),
       // 竖幅时短边是**宽**：480p 的 9:16 就是 480×853。
     ).toBe('480×853 · 7s')
+  })
+
+  it('4K 底部读数沿用 2160 短边估算，缺价不回落到低档', () => {
+    expect(
+      videoFrameReadout(MODEL_ID, {
+        duration: '5',
+        aspectRatio: '16:9',
+        resolution: '4k',
+      }),
+    ).toBe('3840×2160 · 5s')
+    expect(
+      videoFrameReadout('kling-v3-pro', {
+        duration: '5',
+        aspectRatio: '9:16',
+        resolution: '4k',
+      }),
+    ).toBe('2160×3840 · 5s · $2.10')
   })
 
   it('底部读数带每组的 已挂 / 上限；上限不可得时只写已挂数', () => {

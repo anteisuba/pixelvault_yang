@@ -206,6 +206,7 @@
   "Common": {
     "brand": "ANTEI",
     "providerGroups": {
+      "ideogram": "Ideogram",
       "openai": "OpenAI",
       "google": "Google",
       "deepseek": "DeepSeek",
@@ -1264,7 +1265,7 @@
         "eleven": {
           "pos": "効果音と劇伴：SFX と Music の 2 ルート。",
           "fare": "従量課金 – $0.15 / 秒",
-          "routes": "ANTEI では 2 ルート（SFX v2 + Music v2）",
+          "routes": "ANTEI では 2 ルート（SFX v2 + Music v2.5）",
           "src": "elevenlabs.io 公式ビジュアル",
           "tags": {
             "0": "効果音",
@@ -3808,6 +3809,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google の最速・最安の画像モデル。ラフを作ったり、何度も試したりする用途に。"
     },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "Ideogram 公式 API による画像生成と精密な編集。"
+    },
     "ideogram3": {
       "label": "Ideogram V4",
       "description": "文字表現とグラフィック構成に強い、デザイン特化の画像モデル。"
@@ -3925,8 +3930,8 @@
       "description": "テキストプロンプトから効果音・フォーリーを生成"
     },
     "elevenMusicV2": {
-      "label": "ElevenLabs Music v2",
-      "description": "文章で指示して、高品質な曲を生成（インストゥルメンタル・歌声付きに対応）"
+      "label": "ElevenLabs Music v2.5",
+      "description": "音質と指示への忠実度が向上した音楽生成。インストゥルメンタル・歌声付きに対応。"
     },
     "happyhorse10": {
       "label": "HappyHorse 1.1",
@@ -3955,6 +3960,10 @@
     "klingO3ProV2vEdit": {
       "label": "Kling O3 Pro — 動画編集",
       "description": "最上位の動画編集 — 同じクリップ、同じカメラで見た目だけ刷新。要素・画像参照に対応"
+    },
+    "klingO34kV2vEdit": {
+      "label": "Kling O3 4K — 動画編集",
+      "description": "元のカメラワークとタイミングを保ち、既存クリップをネイティブ4Kで編集。画像参照に対応。"
     },
     "ltx23": {
       "label": "LTX 2.3",
@@ -4007,6 +4016,10 @@
     "seedance25ReferenceVolcengine": {
       "label": "Seedance 2.5（参照・VolcEngine）",
       "description": "Seedance 2.5 で参照素材から動画を生成。画像30枚・動画10本・音声10本まで。音声だけの参照にも対応。"
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "fal による高速な MiniMax H3 派生モデル。音声・最初と最後のフレーム、5〜15秒に対応。480p/768p、1080pは768pから高精細化。"
     },
     "minimaxH3": {
       "label": "MiniMax H3",
@@ -6498,6 +6511,8 @@
   },
   "StudioMobile": {
     "modelParameters": "モデル設定",
+    "add": "追加",
+    "back": "戻る",
     "modelChipEmpty": "モデルを選ぶ",
     "modelChipMulti": "{count}個のモデル",
     "modelSheetDone": "完了 · {count}個のモデル",
@@ -6556,7 +6571,10 @@
     "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "約 {amount}〜",
     "costUnpriced": "{count, plural, other {# 件のモデルは価格未掲載}}",
-    "costRange": "品質によって追加料金が変わります：約 {min}〜{max}",
+    "costRange": "変動分の目安：約 {min}〜{max}",
+    "costApproxRange": "約 {min}〜{max}",
+    "costApproxRangeFrom": "約 {min}〜{max}＋",
+    "costImageReferenceRangeBasis": "高品質の料金は、選択したカードに参照画像が含まれるかで変わります。",
     "costRangeBasis": "範囲は1024×1024の出力のみの目安です。テキスト・参照画像の入力は別料金。他のサイズと自動畫質は実使用量によります。",
     "batchCountSummary": "{count, plural, other {モデルごと # 枚}}",
     "generateCount": "{count, plural, other {# 枚生成}}",
@@ -6609,6 +6627,7 @@
     "originalWork": "オリジナル"
   },
   "StudioTags": {
+    "parameters": "設定",
     "mobileParameters": "サンプリングと詳細設定",
     "officialTagsLoading": "NAI 公式タグを検索中…",
     "officialTagsKeyRequired": "公式候補には NovelAI API キーの設定が必要です。手入力は引き続き可能です。",
@@ -6900,7 +6919,8 @@
       "failed": "部分修復に失敗しました",
       "toolBrush": "ブラシ",
       "toolBox": "矩形選択",
-      "boxHint": "再生成したい範囲をドラッグで囲む"
+      "boxHint": "再生成したい範囲をドラッグで囲む",
+      "brushHint": "再描画したい部分を塗ってください"
     },
     "toolDrawerTitle": "ツール",
     "toolMore": "その他のツール",
@@ -6912,6 +6932,21 @@
     "takeLabel": "{index} 枚目"
   },
   "StudioImageEdit": {
+    "editMode": "編集",
+    "moreTools": "その他のツール",
+    "editPromptLabel": "編集内容",
+    "editPromptPlaceholder": "この画像をどのように変更したいか入力…",
+    "applyEdit": "編集を適用",
+    "chooseSourceHint": "画像を選んで編集を始めましょう。",
+    "chooseSource": "素材から選択",
+    "changeSource": "画像を変更",
+    "pricePerImage": "約 {amount} / 枚",
+    "quality": {
+      "very_low": "簡易プレビュー",
+      "low": "低",
+      "medium": "標準",
+      "high": "高"
+    },
     "settingsLabel": "編集設定",
     "modelLabel": "編集モデル",
     "eyebrow": "Studioツール",
@@ -6962,6 +6997,10 @@
       "subtitleLoadFirst": "まず上で元画像を読み込んでから、タスクを選択してください。"
     },
     "tasks": {
+      "edit-image": {
+        "label": "画像全体の編集",
+        "description": "画像全体に加えたい変更を入力してください。"
+      },
       "upscale": {
         "label": "超解像",
         "description": "ディテールを補いつつ拡大。"
@@ -7114,6 +7153,7 @@
     }
   },
   "QuickSetup": {
+    "ideogramGuide": "Ideogram にログイン → API Keys → Create key でキーを作成。",
     "title": "{model} を設定",
     "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",
     "step1": "1. APIキーを取得",
@@ -7872,6 +7912,14 @@
         "model": "モデル",
         "aspect": "アスペクト比",
         "resolution": "解像度",
+        "quality": "画質",
+        "modelDefault": "モデルの既定値",
+        "duration": "長さ",
+        "seconds": "{seconds} 秒",
+        "audio": "音声",
+        "enabled": "オン",
+        "disabled": "オフ",
+        "nodeUnavailable": "対象ノードまたはモデルを利用できません。選択し直してください。",
         "adjusted": "このモデルに合わせて調整しました：{fields}",
         "knobStepTitle": "確認カードで変更",
         "knobStepReason": "確認カードであなたが変更しました"
@@ -7968,10 +8016,12 @@
       "stopped": "作業を止めました",
       "interrupted": "メッセージに合わせて、進め方を変更しました",
       "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
+      "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
       "queuePicked": "区切りになったので、待機中のメッセージ{count}件を確認しています",
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "generationFailed": "生成結果がなかったため、アシスタントによる確認は行いません",
+      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。",
       "generationFailedWithReason": "生成されませんでした：{subject}",
       "loraMountFailed": "{subject} を追加できませんでした。ワークスペースには追加されていません",
       "loraLibraryPickMounted": "「{subject}」を装着しました",
@@ -7992,8 +8042,6 @@
       "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
-      "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
-      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。",
       "workbenchHandoffAccepted": "切り替えました：{subject}",
       "workbenchHandoffDeclined": "切り替えませんでした：{subject}"
     },
@@ -8071,6 +8119,7 @@
     "error": {
       "generic": "アシスタントの作業が完了しませんでした",
       "internal": "このリクエストの処理中に、こちら側で問題が発生しました",
+      "streamInterrupted": "応答が完了する前に接続が切れました。完了済みの操作は残っています。結果を確認してから続けてください。",
       "failed": "アシスタントの作業中にエラーが発生しました",
       "emptyStream": "アシスタントから応答が返りませんでした",
       "unauthorized": "セッションが切れました —— もう一度ログインしてください",
@@ -8078,8 +8127,7 @@
       "invalidRequest": "このリクエストはサーバーに受け付けられませんでした",
       "traceLabel": "エラー ID {traceId}",
       "copyDetail": "詳細をコピー",
-      "copied": "コピーしました",
-      "streamInterrupted": "応答が完了する前に接続が切れました。完了済みの操作は残っています。結果を確認してから続けてください。"
+      "copied": "コピーしました"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {
@@ -8538,8 +8586,7 @@
     "avatar": {
       "character": "{name} の画像",
       "upload": "アップロードした画像",
-      "mark": "ブランドマーク",
-      "monogram": "イニシャル",
+      "mark": "デフォルトのアバター",
       "uploadNew": "新しい画像をアップロード…",
       "tooLarge": "画像が 5 MB を超えています。",
       "unsupported": "JPEG・PNG・WebP のいずれかを使ってください。"

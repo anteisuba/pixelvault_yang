@@ -297,6 +297,36 @@ describe('canvas assistant image references', () => {
     expect(result.current.canvasTargets?.nameOf('gone')).toBeUndefined()
   })
 
+  it('确认卡按目标 id 现读参数，与新快照一致，改参后不保留旧值', () => {
+    const node = image('one')
+    if (node.data.kind !== 'image') throw new Error('Expected image')
+    node.data.params = { aspectRatio: '3:4', quality: 'high', count: 2 }
+    const { result, rerender } = setup([node, image('other')])
+    expect(
+      result.current.canvasTargets?.generationStateOf?.('one')?.parameters
+        ?.values,
+    ).toMatchObject(node.data.params)
+    const updated = {
+      ...node,
+      data: { ...node.data, params: { aspectRatio: '16:9', quality: 'low' } },
+    }
+    rerender({ nodes: [updated, image('other')], projectId: 'project-a' })
+    const current = result.current.canvasTargets?.generationStateOf?.('one')
+    expect(current?.parameters?.values).toEqual({
+      aspectRatio: '16:9',
+      quality: 'low',
+      count: 1,
+    })
+    const snapshot = result.current
+      .buildSnapshot()
+      .canvas?.shots.flatMap((shot) => (shot.expanded ? shot.nodes : []))
+      .find((entry) => entry.id === 'one')
+    expect(snapshot?.parameters).toEqual(current?.parameters)
+    expect(
+      result.current.canvasTargets?.generationStateOf?.('gone'),
+    ).toBeUndefined()
+  })
+
   it('exposes existing canvas images without requiring node selection', () => {
     const { result } = setup([
       image('one', 'https://example.com/one.png'),

@@ -21,6 +21,17 @@ export interface CanvasCapabilityTarget {
 
 export type CanvasCapabilityRequest =
   | {
+      capability: 'edit-image'
+      target: CanvasCapabilityTarget
+      prompt: string
+      modelId: string
+      options?: ImageEditOptions
+      providerKeyId?: string
+      referenceImages?: string[]
+      onPreview?: (url: string) => void
+      signal?: AbortSignal
+    }
+  | {
       capability: 'upscale'
       target: CanvasCapabilityTarget
       targetScale: '2x' | '4x'
@@ -40,6 +51,8 @@ export type CanvasCapabilityRequest =
     }
   | {
       capability: 'inpaint'
+      providerKeyId?: string
+      referenceImages?: string[]
       options?: ImageEditOptions
       onPreview?: (url: string) => void
       signal?: AbortSignal
@@ -50,6 +63,8 @@ export type CanvasCapabilityRequest =
     }
   | {
       capability: 'object-replace'
+      providerKeyId?: string
+      referenceImages?: string[]
       options?: ImageEditOptions
       onPreview?: (url: string) => void
       signal?: AbortSignal
@@ -82,6 +97,13 @@ export interface CanvasCapabilityDescriptor {
 
 export const CANVAS_CAPABILITY_DESCRIPTORS: readonly CanvasCapabilityDescriptor[] =
   [
+    {
+      id: 'edit-image',
+      interaction: 'prompt',
+      output: 'single-image',
+      resultStrategy: 'derive-right',
+      defaultModelId: 'gemini-3-pro-image',
+    },
     {
       id: 'upscale',
       interaction: 'instant',
@@ -256,6 +278,8 @@ async function executeCanvasCapability(
         {
           imageUrl: target.sourceUrl,
           maskImageUrl: request.maskImageUrl,
+          apiKeyId: request.providerKeyId,
+          referenceImages: request.referenceImages,
           options: request.options,
           prompt: request.prompt,
           sourceGenerationId: target.sourceGenerationId,
@@ -276,11 +300,17 @@ async function executeCanvasCapability(
         }),
       }
     }
+    case 'edit-image':
     case 'object-replace': {
       const response = await objectReplaceAPI(
         {
           imageUrl: target.sourceUrl,
-          annotations: [...request.annotations],
+          annotations:
+            request.capability === 'edit-image'
+              ? [{ index: 1, instruction: request.prompt }]
+              : [...request.annotations],
+          apiKeyId: request.providerKeyId,
+          referenceImages: request.referenceImages,
           options: request.options,
           sourceGenerationId: target.sourceGenerationId,
           modelId: request.modelId,
@@ -292,7 +322,7 @@ async function executeCanvasCapability(
       }
       return {
         success: true,
-        outputs: oneOutput('object-replace', {
+        outputs: oneOutput(request.capability, {
           imageUrl: response.data.imageUrl,
           width: response.data.width,
           height: response.data.height,

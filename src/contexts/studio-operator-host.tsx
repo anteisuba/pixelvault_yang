@@ -31,6 +31,7 @@ import type { LucideIcon } from '@/components/icons'
 
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
+import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import type { StudioOperatorShellAnchor } from '@/constants/studio-assistant-operator'
@@ -206,6 +207,7 @@ export interface StudioOperatorHost {
     /** 这张卡现在叫什么；卡已经不在了 = `undefined`（那一行不列）。 */
     nameOf(nodeId: string): string | undefined
     locate(nodeId: string): void
+    generationStateOf?(nodeId: string): CanvasNodeGenerationState | undefined
   }
 }
 

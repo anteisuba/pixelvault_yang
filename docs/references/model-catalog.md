@@ -3,9 +3,37 @@
 > 定位：模型阵容的活文档——现役盘点 + 官方动态核验 + 添加/删除建议。**每月更新一次**；owner 点名（如 Seedream 5.0）随时插审。与每周 CI 分工：`model-doc-monitor` 查「接口还活着吗/文档漂移」，本文档管「阵容该怎么变」。
 > ⚠ 本文档不豁免 WORKFLOW 联网核验规则：改模型代码前仍须查官方一手资料；本文档的建议表只是审计快照。
 
-## 当前文本路由（2026-09-23）
+## 当前文本与音乐路由（2026-10-01）
 
-OpenAI 已升级为 GPT-6 Sol / Luna，并保留 Astra；助手与规划默认 Sol，增强与自动问答默认 Luna。Claude 助手默认 Opus 5.5，Fable 5.1 仍可显式选择。Grok 增强与助手升级为 4.7。下方历史审计中的 GPT-5.6、Grok 4.6 和 Fable 单型号方案不再代表现行路由。契约、官方来源与核验日期见 [providers](providers.md#文本模型升级verified-2026-09-23)。
+OpenAI 助手与规划默认 GPT-6.1 Sol，增强与自动问答仍用 GPT-6 Luna，Astra 保留。DeepSeek 默认 V4.1 Flash（`deepseek-flash`），显式 V4 Pro 保留。Claude 默认 Opus 5.5，Sonnet 5.5 与 Fable 5.1 可选；Grok 使用 4.7。Eleven Music 已升级为 v2.5（`music_v2_5`），提示词最多 4100 字符，保存身份仍为 `eleven-music-v2`。下方历史审计不代表现行路由；契约与来源见 [providers](providers.md#文本模型升级verified-2026-10-01)。
+
+2026-10-01 官方动态核验：[Claude Sonnet 5.5](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) 已按 owner 选择接入为可选文本模型；[Gemini 4 Argon](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/) 已公布，但公告仅向受信任网络防御合作方逐步开放，付费 API 仍为后续计划。公开 [Gemini 模型目录](https://ai.google.dev/gemini-api/docs/models) 尚无 Gemini 4 API 型号，不据公告猜测 `gemini-4-pro` ID。
+
+## Ideogram 4.5（2026-10-01）
+
+新增独立身份 `IDEOGRAM_45`（内部 `ideogram-4.5`，执行端点标识 `ideogram-4-5`），使用官方 `ideogram` adapter 与用户自有 Key，提供图片生成和 Precise Edit。旧 `IDEOGRAM_3` 的退役身份保持不变。编辑入口与生成选择独立，按编辑任务过滤模型；界面契约见 [图片编辑](pages/studio-image-edit.md)。
+
+生成默认 medium；纯文生图当前只开放已核实的 1:1、1K / 2K 原生预设，其他画幅尚未核实，不照搬代理渠道的尺寸表。普通生成最多 5 张输入图片；精确编辑为 1 张源图加最多 4 张参考图，有蒙版时最多 3 张参考图，当前编辑 UI 仍为单图。Precise Edit 保持源图尺寸，超大图由上游按比例缩小。完整契约、蒙版方向、异步执行与限制见 [providers](providers.md#ideogram-45verified-2026-10-01)，价格见 [model-pricing](model-pricing.md#ideogram-45-官方直连2026-10-01)。
+
+## 当前视频更新（2026-10-01）
+
+- 无用户偏好覆盖时，Seedance 2.5 系列排在 2.0/Fast 前；系列内的渠道顺序与 BYOK 选择规则不变，2.0/Fast 保留。
+- fal Seedance 2.0 标准文生、图生、参考生成支持 `resolution: "4k"`。Fast、火山与 BytePlus 能力未据 fal 文档扩展；4K 缺少已核实的每秒价格，按缺价展示。
+- Kling V3/O3 Pro 生成提供 1080p / 4K；选择 4K 时 Worker 调用 `fal-ai/kling-video/{v3,o3}/4k/{text-to-video,image-to-video}`，body 不发送 `resolution`。默认仍为 1080p。
+- Kling O3 4K 编辑为独立 `KLING_O3_4K_V2V_EDIT` → `fal-ai/kling-video/o3/4k/video-to-video/edit`，复用现有编辑载荷。旧 standard/pro 编辑保持跟随原片尺寸，不改为固定 1080p。三个 Kling 4K 路径参考价均为 $0.42/s，不分音频开关。
+- 官方依据：[Seedance 2.0](https://fal.ai/models/bytedance/seedance-2.0/text-to-video/api)、[Kling V3 4K](https://fal.ai/models/fal-ai/kling-video/v3/4k/text-to-video/api)、[O3 4K](https://fal.ai/models/fal-ai/kling-video/o3/4k/text-to-video/api)、[O3 4K 编辑](https://fal.ai/models/fal-ai/kling-video/o3/4k/video-to-video/edit/api)。V3 官方注明 4K 仅由新加坡服务器支持，沿用 fal queue 调用，账户权限及真实生成未验证。
+
+### 速度档调查（H3 Max Turbo 已接入）
+
+2026-10-01 核验，以下为 fal 的美元/输出秒。没有进行付费延迟或质量测试。
+
+| 档位                                                                                  | 已核价格与取舍                                                                                                    | 速度依据                                                                                                                                      |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Wan 3 Prime](https://fal.ai/models/alibaba/wan-3.0-prime/text-to-video)              | 480p / 720p / 1080p 为 $0.068 / $0.14 / $0.28；比标准档贵约 36–40%，最长 30 秒                                    | [阿里官方](https://www.alibabacloud.com/help/en/model-studio/wan3-0-video-prime) 宣称加速，没有量化延迟承诺                                   |
+| [Kling V3 Turbo](https://fal.ai/models/fal-ai/kling-video/v3/turbo/pro/text-to-video) | Standard 720p $0.112；Pro 1080p $0.14；已有文生与图生。Pro 比普通 Pro 开音频档约便宜 17%，但高于其关音频档 $0.112 | 官方定位快速迭代，未找到量化延迟承诺；参数不能照搬普通 V3                                                                                     |
+| [MiniMax H3 Max](https://fal.ai/models/minimax/h3-max/text-to-video/api)              | fal 480P / 768P / 1080P 为 $0.05 / $0.08 / $0.16；1080P 从原生 768P 细化，不能称原生 1080P；9/30 促销已结束       | [fal 自测](https://fal.ai/minimax-h3-max)：5 秒 768p 的推理耗时 2.46 秒；Turbo 同例 1.54 秒且对应单价减半。推理耗时不含排队、提示词扩写、编码 |
+
+owner 已选择接入 [H3 Max Turbo](https://fal.ai/models/minimax/h3-max-turbo/text-to-video/api) 作为可选试稿档：fal 专属变体，文生／首帧／首尾帧图生，5–15 秒，480p / 768p / 1080p；期后价分别为 $0.025 / $0.04 / $0.08 每秒。1080p 从 768p 细化；原 H3 的 2K 与原生渠道保留，默认视频模型不变。实际质量与端到端等待时间仍待付费验收。Wan Prime、Kling Turbo 与 H3 Max 普通档本轮未接入；调用契约见 [providers](providers.md#h3-max-turboverified-2026-10-01)。
 
 ## 审计机制
 
@@ -31,20 +59,21 @@ OpenAI 已升级为 GPT-6 Sol / Luna，并保留 Astra；助手与规划默认 S
 
 ### 图像（13 + 5 runner）
 
-| enum                         | externalModelId                                   | 通道                |
-| ---------------------------- | ------------------------------------------------- | ------------------- |
-| OPENAI_GPT_IMAGE_2           | （同 id）                                         | OpenAI 直连         |
-| OPENAI_GPT_IMAGE_25_FLARE    | gpt-image-2.5-flare                               | OpenAI 直连（BYOK） |
-| OPENAI_GPT_IMAGE_25_SUNBURST | gpt-image-2.5-sunburst                            | OpenAI 直连（BYOK） |
-| GEMINI_PRO_IMAGE             | gemini-3-pro-image                                | Gemini 直连         |
-| GEMINI_FLASH_IMAGE           | gemini-3.1-flash-image                            | Gemini 直连         |
-| **GEMINI_FLASH_LITE_IMAGE**  | gemini-3.1-flash-lite-image                       | Gemini 直连         |
-| FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                 |
-| FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi                 | fal                 |
-| **SEEDREAM_50_PRO**          | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                 |
-| **SEEDREAM_50_LITE**         | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                 |
-| **SEEDREAM_50_VOLCENGINE**   | doubao-seedream-5-0-260128                        | 火山方舟直连（cn）  |
-| RECRAFT_V4_PRO               | fal-ai/recraft/v4.1/pro/text-to-image             | fal                 |
+| enum                         | externalModelId                                   | 通道                  |
+| ---------------------------- | ------------------------------------------------- | --------------------- |
+| IDEOGRAM_45                  | ideogram-4-5                                      | Ideogram 官方（BYOK） |
+| OPENAI_GPT_IMAGE_2           | （同 id）                                         | OpenAI 直连           |
+| OPENAI_GPT_IMAGE_25_FLARE    | gpt-image-2.5-flare                               | OpenAI 直连（BYOK）   |
+| OPENAI_GPT_IMAGE_25_SUNBURST | gpt-image-2.5-sunburst                            | OpenAI 直连（BYOK）   |
+| GEMINI_PRO_IMAGE             | gemini-3-pro-image                                | Gemini 直连           |
+| GEMINI_FLASH_IMAGE           | gemini-3.1-flash-image                            | Gemini 直连           |
+| **GEMINI_FLASH_LITE_IMAGE**  | gemini-3.1-flash-lite-image                       | Gemini 直连           |
+| FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                   |
+| FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi                 | fal                   |
+| **SEEDREAM_50_PRO**          | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                   |
+| **SEEDREAM_50_LITE**         | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                   |
+| **SEEDREAM_50_VOLCENGINE**   | doubao-seedream-5-0-260128                        | 火山方舟直连（cn）    |
+| RECRAFT_V4_PRO               | fal-ai/recraft/v4.1/pro/text-to-image             | fal                   |
 
 ⚠ **`bytedance/seedream/v5/pro/...` 没有 `fal-ai/` 前缀**（同 `ideogram/v4` 的模式）——fal 上第三方 owner 的模型按 owner/model 直接寻址，照 4.5 的写法抄会 404。
 
@@ -52,8 +81,10 @@ OpenAI 已升级为 GPT-6 Sol / Luna，并保留 Astra；助手与规划默认 S
 
 Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER · ANIMA_TURBO_RUNNER（2026-09-28，Anima Turbo v1.1，纯底模默认）· Z_IMAGE_TURBO_RUNNER（2026-09-28，Z-Image Turbo，Apache-2.0）。退役后这一族是**唯一**的 LoRA 底模线。
 
-### 视频（28 个 available）
+### 视频（32 个 available，2026-10-01 核对）
 
+> 2026-10-01：新增 `KLING_O3_4K_V2V_EDIT` 与 `MINIMAX_H3_MAX_TURBO`，当前可用视频条目 32 个；下表仍是历史节选，新增能力见上方「当前视频更新」。
+>
 > ⚠ **2026-08-25 记：下表不全。** 实际 `available: true` 的视频模型是 **28** 个（脚本口径：数 `src/constants/models/video.ts` 里的条目），而表里只列了 8 行。缺的是 Seedance 2.5 全族、BytePlus 四条、MiniMax H3 四条、Kling O3 Pro —— 都在接入时进了代码没进这张表。原标题写的「11」也是旧数。
 > 接 Wan 3.0 时只补了自己那两行，**没有替别人的模型编 externalModelId**（那要逐条回查官方页，不是顺手能做对的事）。补全这张表值得单独开一刀。
 
@@ -62,7 +93,7 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 | SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video        | fal                                                           |
 | SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video   | fal（画布视频汇点主力）                                       |
 | SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                  | 火山方舟直连（cn）                                            |
-| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video            | fal（唯一 native extend）                                     |
+| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video            | fal（1080p / 4K 文生、图生；未配置 native extend）            |
 | HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video             | fal                                                           |
 | WAN_30                                              | alibaba/wan-3.0/text-to-video                      | fal（目录唯一 30s；首尾帧）                                   |
 | WAN_30_REFERENCE                                    | alibaba/wan-3.0/reference-to-video                 | fal（图 10 / 视频 5 / 音频 5）                                |
@@ -73,7 +104,7 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 **视频用途维度（2026-09-17 新增 `ModelOption.videoKind`）** —— 与图片侧的
 `imageKind` 同形：`edit` 的条目只归编辑入口，生成面读
 `getAvailableVideoModels(VIDEO_KIND.GENERATE)`，`getNodeModeForModel` 对它们返回
-`null`（不属于画布三档的任何一档）。今天只有 Kling O3 的两条 video-to-video/edit
+`null`（不属于画布三档的任何一档）。今天只有 Kling O3 的三条 video-to-video/edit
 端点是 `edit`。
 
 **Kling O3 video-to-video/edit 契约**（2026-09-17 核 fal 一手 OpenAPI，standard
@@ -94,9 +125,9 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 - ⚠ **未接 UI** —— 目录、worker builder、校验与计价已通，动作按钮在设计阶段 D4
   之后另派
 
-### 音频（2）
+### 音频（4，2026-10-01 核对）
 
-FISH_AUDIO_S2_PRO / FISH_AUDIO_S2_PRO_FREE（s2.1-pro / s2.1-pro-free，Fish 直连）· ELEVENLABS_SFX_V2（eleven_text_to_sound_v2，**唯一音效模型**）。
+FISH_AUDIO_S2_PRO / FISH_AUDIO_S2_PRO_FREE（s2.1-pro / s2.1-pro-free，Fish 直连）· ELEVENLABS_SFX_V2（eleven_text_to_sound_v2，**唯一音效模型**）· ELEVENLABS_MUSIC_V2（music_v2_5，Eleven Music v2.5；最多 4100 字符）。
 
 ### 3D（5）
 

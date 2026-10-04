@@ -1017,6 +1017,86 @@ describe('生成中 / 版本 / 画中框', () => {
 })
 
 describe('提示词栏参考图轨', () => {
+  it('名称缩略图绑定挂载节点，图片更新后刷新，移除引用后恢复文字', () => {
+    const prompt =
+      '以「生成图6」确定脸型，以「生成图9」确定背后；「生成图60」未挂载。'
+    const shot = imageNode('i_shot', { subtype: 'shot', prompt })
+    const face = imageNode('i_face', { name: '生成图6', url: '/face.png' })
+    const back = imageNode('i_back', { name: '生成图9', url: '/back.png' })
+    const unbound = imageNode('i_other', {
+      name: '生成图60',
+      url: '/other.png',
+    })
+    const context = harness([shot, face, back, unbound], {
+      selectedNodeIds: ['i_shot'],
+      edges: ['i_back', 'i_face'].map((source) => ({
+        id: `e_${source}`,
+        source,
+        sourceHandle: 'out',
+        target: 'i_shot',
+        slot: NODE_SLOT_IDS.reference,
+      })),
+    })
+    const { container, rerender } = renderImage(context, 'i_shot', true)
+    const overlay = () => container.querySelector('[data-prompt-bar-overlay]')!
+    const thumbnails = () =>
+      Array.from(overlay().querySelectorAll('img'), (image) =>
+        image.getAttribute('src'),
+      )
+    expect(thumbnails()).toEqual(['/face.png', '/back.png'])
+    expect(overlay().textContent).toBe(prompt)
+    expect(screen.getByRole('textbox')).toHaveValue(prompt)
+
+    const updatedContext = {
+      ...context,
+      nodes: [
+        shot,
+        imageNode('i_face', { name: '生成图6', url: '/face-v2.png' }),
+        back,
+        unbound,
+      ],
+    }
+    const view = (value: NodeV4CanvasContextValue) => (
+      <NodeV4CanvasProvider value={value}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <ImageNodeV4 id="i_shot" data={shot.data} selected />
+      </NodeV4CanvasProvider>
+    )
+    rerender(view(updatedContext))
+    expect(thumbnails()).toEqual(['/face-v2.png', '/back.png'])
+
+    rerender(view({ ...updatedContext, edges: context.edges.slice(0, 1) }))
+    expect(thumbnails()).toEqual(['/back.png'])
+    expect(overlay().textContent).toBe(prompt)
+    expect(context.onSetPrompt).not.toHaveBeenCalled()
+  })
+
+  it('两张挂载图片重名时不显示可能指错图片的缩略图', () => {
+    const { container } = renderImage(
+      harness(
+        [
+          imageNode('i_shot', { subtype: 'shot', prompt: '参考「同名图片」' }),
+          imageNode('i_a', { name: '同名图片', url: '/a.png' }),
+          imageNode('i_b', { name: '同名图片', url: '/b.png' }),
+        ],
+        {
+          selectedNodeIds: ['i_shot'],
+          edges: ['i_a', 'i_b'].map((source) => ({
+            id: `e_${source}`,
+            source,
+            sourceHandle: 'out',
+            target: 'i_shot',
+            slot: NODE_SLOT_IDS.reference,
+          })),
+        },
+      ),
+      'i_shot',
+      true,
+    )
+    expect(container.querySelector('[data-prompt-bar-overlay] img')).toBeNull()
+    expect(screen.getByRole('textbox')).toHaveValue('参考「同名图片」')
+  })
+
   it('叶子参考图不显示轨（没有 reference 入口）', () => {
     renderImage(
       harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })], {

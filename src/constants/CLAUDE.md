@@ -23,7 +23,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 | `assistant-operator.ts`       | HIGH     | 统一助手工具表 · SSE 事件名 · 确认三档 · 花钱工具表 · 项目规则限额。⚠ 钱闸总纲那段注释是宪法，改前读它                                                                             |
 | `assistant-plan-visuals.ts`   | MEDIUM   | 计划卡待定项图示**封闭词表**（7 组 32 项）+ `ASSISTANT_PLAN_SWATCH_MIX`。词表外一律退化纯文字，⛔ 不猜图标                                                                         |
 | `assistant-memory.ts`         | MEDIUM   | 助手记忆词表：域 · 类别 · 来源（你写的 / 助手记的）· 上限（每域 200 只数助手记的，你写的 50 满了拒）· 注入预算（与上下文卡共用）· 敏感类目                                         |
-| `assistant-persona.ts`        | MEDIUM   | 助手 persona 取值表 + `ASSISTANT_PERSONA_DEFAULTS` + 预设头像 id（两款，画法住组件）+ 头像单选表四项 · 三档只管四格（⛔ 不含语气）                                                 |
+| `assistant-persona.ts`        | MEDIUM   | 助手 persona 取值表 + `ASSISTANT_PERSONA_DEFAULTS` + 默认头像 `mark`（复用标题栏图标）+ 头像单选表三项 · 三档只管四格（⛔ 不含语气）                                               |
 | `node-types.ts`               | HIGH     | 画布 v4 四类 kind + 每类子型（`NODE_V4_*_SUBTYPE_IDS`）。ReactFlow 的 `node.type` 就是 kind                                                                                        |
 | `node-slots.ts`               | HIGH     | 具名槽 · 端口表 `NODE_V4_PORTS` · 文本槽角色 · 容量。**连线合法性的唯一静态判据**；`inputs` 的数组顺序就是槽自上而下的顺序，也是排布顺序                                           |
 | `node-assistant-ops.ts`       | HIGH     | v4 op 词表 + 确认三档 `tier` + `inverse` 形状 + 能否自动落。⚠ `generate` 是唯一扣 credit 的 op，钱闸那段注释是宪法                                                                 |

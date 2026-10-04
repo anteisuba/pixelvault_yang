@@ -102,7 +102,7 @@ export function NovelAiCharacterComposer({
       <div
         ref={stageRef}
         className={cn(
-          'relative aspect-16/10 w-full max-w-full overflow-hidden rounded-lg border border-dashed border-border bg-muted',
+          'relative aspect-square w-full max-w-full overflow-hidden rounded-lg border border-dashed border-border bg-muted lg:aspect-16/10',
           disabled && 'pointer-events-none opacity-50',
         )}
       >
@@ -187,7 +187,7 @@ export function NovelAiCharacterComposer({
               if (ratio) place(index, ratio.x, ratio.y)
             }}
             className={cn(
-              'absolute grid size-6.5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-background font-mono text-3xs tabular-nums',
+              'absolute grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-background font-mono text-xs tabular-nums lg:size-6.5 lg:text-3xs',
               mode === 'free' &&
                 'cursor-grab touch-none active:cursor-grabbing',
               activeIndex === index
@@ -206,7 +206,7 @@ export function NovelAiCharacterComposer({
           <span
             key={index}
             className={cn(
-              'inline-flex h-6 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-3xs',
+              'inline-flex min-h-11 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-sm lg:h-6 lg:min-h-0 lg:text-3xs',
               activeIndex === index ? 'border-foreground' : 'border-border',
             )}
           >
@@ -215,7 +215,7 @@ export function NovelAiCharacterComposer({
               disabled={disabled}
               aria-pressed={activeIndex === index}
               onClick={() => onSelect(activeIndex === index ? null : index)}
-              className="min-w-0 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+              className="min-h-11 min-w-0 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none lg:min-h-0"
             >
               {t('characterChip', {
                 number: index + 1,
@@ -237,9 +237,9 @@ export function NovelAiCharacterComposer({
                         : activeIndex,
                   )
               }}
-              className="grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+              className="grid size-11 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:pointer-events-none lg:size-4"
             >
-              <X className="size-2.5" />
+              <X className="size-3.5 lg:size-2.5" />
             </button>
           </span>
         ))}
@@ -247,7 +247,7 @@ export function NovelAiCharacterComposer({
           type="button"
           disabled={disabled || characters.length >= maxCharacters}
           onClick={add}
-          className="inline-flex h-6 items-center gap-1 rounded-md border border-dashed border-border bg-background px-2 text-3xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-11 items-center gap-1 rounded-md border border-dashed border-border bg-background px-2 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50 lg:h-6 lg:text-3xs"
         >
           <Plus className="size-2.5" />
           {t('addCharacter')}

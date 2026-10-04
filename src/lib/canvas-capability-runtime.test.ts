@@ -5,6 +5,7 @@ vi.mock('@/lib/api-client', () => ({
   extractElementAPI: vi.fn(),
   createExtractedElementAPI: vi.fn(),
   inpaintImageAPI: vi.fn(),
+  objectReplaceAPI: vi.fn(),
 }))
 
 import {
@@ -12,6 +13,7 @@ import {
   editImageAPI,
   extractElementAPI,
   inpaintImageAPI,
+  objectReplaceAPI,
 } from '@/lib/api-client'
 import { CanvasDerivedImageOutputsSchema } from '@/types/canvas-image-edit'
 import {
@@ -27,6 +29,43 @@ const target = {
 }
 
 describe('runCanvasCapability', () => {
+  it('sends whole-image instructions and the selected key without inventing a mask or annotation box', async () => {
+    vi.mocked(objectReplaceAPI).mockResolvedValue({
+      success: true,
+      data: {
+        imageUrl: 'https://provider.example.com/result.png',
+        generation: {
+          id: 'edited-generation',
+          url: 'https://cdn.example.com/edited.png',
+        },
+      },
+    } as never)
+    const result = await runCanvasCapability({
+      capability: 'edit-image',
+      target,
+      prompt: 'Make the jacket red',
+      modelId: 'ideogram-4.5',
+      providerKeyId: 'chosen-edit-key',
+      options: { quality: 'medium' },
+    })
+    expect(objectReplaceAPI).toHaveBeenCalledWith(
+      {
+        imageUrl: target.sourceUrl,
+        annotations: [{ index: 1, instruction: 'Make the jacket red' }],
+        modelId: 'ideogram-4.5',
+        apiKeyId: 'chosen-edit-key',
+        options: { quality: 'medium' },
+        sourceGenerationId: target.sourceGenerationId,
+        referenceImages: undefined,
+      },
+      { onPreview: undefined, signal: undefined },
+    )
+    expect(result.outputs[0]).toMatchObject({
+      imageUrl: 'https://cdn.example.com/edited.png',
+      editCapability: 'edit-image',
+    })
+  })
+
   it('exposes the typed capability registry and result strategy', () => {
     expect(canvasCapabilityRuntime.listFor()).toEqual(
       expect.arrayContaining([

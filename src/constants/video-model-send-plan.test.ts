@@ -6,6 +6,49 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelSendContract } from './video-model-send-plan'
 
 describe('video model send contracts', () => {
+  it('sends H3 Max Turbo through fal with two keyframes and its published controls', () => {
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.MINIMAX_H3_MAX_TURBO,
+        AI_ADAPTER_TYPES.FAL,
+      ),
+    ).toMatchObject({
+      family: 'minimax',
+      referenceMode: 'text-or-first-frame',
+      slots: { images: 2, videos: 0, audio: 0 },
+      keyframeSlots: 2,
+      imageAspectRatioLock: 'auto',
+      positionalImageTokens: false,
+      execution: 'ready',
+      parameters: {
+        duration: true,
+        resolution: true,
+        aspectRatio: true,
+        seed: true,
+        negativePrompt: false,
+        generateAudio: false,
+      },
+    })
+  })
+
+  it('exposes Kling generation resolution choices and keeps 4K edit controls source-bound', () => {
+    for (const modelId of [AI_MODELS.KLING_V3_PRO, AI_MODELS.KLING_O3_PRO]) {
+      expect(
+        getVideoModelSendContract(modelId, AI_ADAPTER_TYPES.FAL).parameters
+          .resolution,
+      ).toBe(true)
+    }
+    expect(
+      getVideoModelSendContract(
+        AI_MODELS.KLING_O3_4K_V2V_EDIT,
+        AI_ADAPTER_TYPES.FAL,
+      ),
+    ).toMatchObject({
+      referenceMode: 'video-edit',
+      slots: { images: 4, videos: 1, audio: 0 },
+      parameters: { duration: false, aspectRatio: false, resolution: false },
+    })
+  })
   it('defines Seedance Reference as a 12-item multimodal pool', () => {
     const contract = getVideoModelSendContract(
       AI_MODELS.SEEDANCE_20_FAST_REFERENCE,

@@ -293,7 +293,9 @@ export const AdvancedParamsSchema = z.object({
   novelAiReferenceMode: z.enum(['standard', 'precise']).optional(),
   preciseReferenceStrength: z.number().min(0).max(1).optional(),
   preciseReferenceFidelity: z.number().min(0).max(1).optional(),
-  quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+  quality: z
+    .enum(['auto', 'very_low', 'low', 'medium', 'high', 'xhigh', 'max'])
+    .optional(),
   /**
    * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
    * 没有 `auto`；不设 = 不发这个字段（provider 自己的默认）。
@@ -668,11 +670,12 @@ export type GenerationConfig = z.infer<typeof GenerationConfigSchema>
  *
  * ⚠ 目录侧的判据是 `videoKind: 'edit'`（见 `constants/models/video.ts`）；这里
  * 之所以不 import `resolveVideoKind` 再查一遍，是因为 `@/types` 被客户端大量
- * 引用，多拉一层目录模块不值当——两条 id 一起改的成本远低于此。
+ * 引用，多拉一层目录模块不值当——编辑 id 一起改的成本远低于此。
  */
 const VIDEO_EDIT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
   AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
   AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+  AI_MODELS.KLING_O3_4K_V2V_EDIT,
 ])
 
 /**
@@ -1082,6 +1085,7 @@ export type ImageEditOptions = z.infer<typeof ImageEditOptionsSchema>
 export const InpaintRequestSchema = z.object({
   options: ImageEditOptionsSchema.optional(),
   imageUrl: z.string().url(),
+  referenceImages: z.array(z.string().trim().min(1)).max(3).optional(),
   maskImageUrl: z.string().trim().min(1),
   prompt: z.string().trim().min(1).max(1000),
   negativePrompt: z.string().max(500).optional(),
@@ -1120,6 +1124,7 @@ export const ObjectReplaceAnnotationSchema = z.object({
 export const ObjectReplaceRequestSchema = z.object({
   options: ImageEditOptionsSchema.optional(),
   imageUrl: z.string().url(),
+  referenceImages: z.array(z.string().trim().min(1)).max(4).optional(),
   annotations: z.array(ObjectReplaceAnnotationSchema).min(1).max(20),
   apiKeyId: z.string().trim().min(1).optional(),
   sourceGenerationId: z.string().trim().min(1).optional(),
@@ -2035,6 +2040,7 @@ const WorkerImageProviderInputSchema = z.object({
   externalModelId: z.string().min(1),
   /** Worker passes this through to the provider; kept loose here. */
   aspectRatio: z.string().min(1),
+  imageOperation: z.literal('precise-edit').optional(),
   referenceImage: z.string().optional(),
   referenceImages: z.array(z.string()).optional(),
   /** 与 `referenceImages` 逐位对齐的说明；Gemini 把它贴在那张图前面（35 ⑥）。 */
@@ -2918,7 +2924,7 @@ export const PromptAssistantRequestSchema = z.object({
   /** User-selected API key for LLM calls */
   apiKeyId: z.string().optional(),
   /**
-   * LLM tier the user picked in the route selector (e.g. gpt-6-sol) —
+   * LLM tier the user picked in the route selector (e.g. gpt-6.1-sol) —
    * NOT the generation model (`modelId` above). Validated server-side against
    * NODE_STUDIO_ASSISTANT_ROUTE_MODELS; unknown values fall back to the
    * adapter's default tier.

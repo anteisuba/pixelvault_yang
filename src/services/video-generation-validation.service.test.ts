@@ -5,6 +5,38 @@ import { GenerateImageServiceError } from '@/services/image/generate-image.servi
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 
 describe('video-generation-validation.service', () => {
+  it('accepts H3 Max Turbo keyframes at 768p while rejecting unsupported inputs', () => {
+    const request = {
+      modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+      aspectRatio: '16:9' as const,
+      duration: 5,
+      resolution: '768p' as const,
+      referenceImages: [
+        'https://cdn.example.com/start.png',
+        'https://cdn.example.com/end.png',
+      ],
+    }
+    expect(() => validateVideoGenerationInput(request)).not.toThrow()
+    for (const overrides of [
+      { duration: 4 },
+      { duration: 16 },
+      { resolution: '2k' as const },
+      { resolution: '720p' as const },
+      {
+        referenceImages: [
+          ...request.referenceImages,
+          'https://cdn.example.com/extra.png',
+        ],
+      },
+      { videoUrls: ['https://cdn.example.com/reference.mp4'] },
+      { audioUrls: ['https://cdn.example.com/reference.mp3'] },
+    ]) {
+      expect(() =>
+        validateVideoGenerationInput({ ...request, ...overrides }),
+      ).toThrowError(GenerateImageServiceError)
+    }
+  })
+
   it('accepts default product-supported options for built-in video models', () => {
     expect(() =>
       validateVideoGenerationInput({
@@ -63,6 +95,7 @@ describe('video-generation-validation.service', () => {
     for (const modelId of [
       AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
       AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+      AI_MODELS.KLING_O3_4K_V2V_EDIT,
     ]) {
       expect(() =>
         validateVideoGenerationInput({ modelId, aspectRatio: '16:9' }),

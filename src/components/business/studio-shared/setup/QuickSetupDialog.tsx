@@ -58,6 +58,7 @@ interface QuickSetupDialogProps {
    * callers can leave this unset and rely on the dispatch alone.
    */
   onVerified?: (modelId: string, keyId: string) => void
+  selectStudioModel?: boolean
 }
 
 type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
@@ -148,6 +149,7 @@ export function QuickSetupDialog({
   adapterType,
   optionId,
   onVerified,
+  selectStudioModel = true,
 }: QuickSetupDialogProps) {
   const [labelValue, setLabelValue] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -232,10 +234,12 @@ export function QuickSetupDialog({
     // Auto-select the newly created key's model option (only when we're
     // inside a Studio provider tree — see useStudioFormOptional above).
     // The saved route option ID format is `key:<keyId>`.
-    studioForm?.dispatch({
-      type: 'SET_OPTION_ID',
-      payload: `key:${keyId}`,
-    })
+    if (selectStudioModel) {
+      studioForm?.dispatch({
+        type: 'SET_OPTION_ID',
+        payload: `key:${keyId}`,
+      })
+    }
     void optionId
     onVerified?.(modelId, keyId)
     setTimeout(() => {
@@ -260,6 +264,7 @@ export function QuickSetupDialog({
     studioForm,
     onOpenChange,
     onVerified,
+    selectStudioModel,
     t,
   ])
 
@@ -299,7 +304,11 @@ export function QuickSetupDialog({
               {providerConfig.label}
               <ExternalLink className="size-3.5" />
             </a>
-            <p className="text-2xs text-muted-foreground">{guide.steps}</p>
+            <p className="text-2xs text-muted-foreground">
+              {adapterType === AI_ADAPTER_TYPES.IDEOGRAM
+                ? t('ideogramGuide')
+                : guide.steps}
+            </p>
           </div>
 
           {/* Step 2: Input key */}

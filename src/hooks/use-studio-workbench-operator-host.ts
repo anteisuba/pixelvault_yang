@@ -76,7 +76,9 @@ function removeReferenceByUrl(
   if (index >= 0) imageUpload.removeReferenceImage(index)
 }
 
-export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
+export function useStudioWorkbenchOperatorHost({
+  generationEnabled = true,
+}: { generationEnabled?: boolean } = {}): StudioOperatorHost {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   /**
@@ -142,6 +144,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   )
 
   const latest = useRef({
+    generationEnabled,
     state,
     imageUpload,
     imageModels,
@@ -155,6 +158,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   //   effect 早就冲干净了。
   useEffect(() => {
     latest.current = {
+      generationEnabled,
       state,
       imageUpload,
       imageModels,
@@ -164,6 +168,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       router,
     }
   }, [
+    generationEnabled,
     state,
     imageUpload,
     imageModels,
@@ -460,8 +465,12 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        *   同一份。真要改参数，前面那几步 `set_*` 已经改过了。
        * ⚠ 结果回灌不由这里做：生成结果照旧进 `useStudioGen` 的 `activeRun`。
        */
-      triggerGeneration: (_request, owner) =>
-        dispatch({ type: 'REQUEST_GENERATE', owner }),
+      triggerGeneration: generationEnabled
+        ? (_request, owner) => {
+            if (!latest.current.generationEnabled) return
+            dispatch({ type: 'REQUEST_GENERATE', owner })
+          }
+        : undefined,
       /**
        * 助手给这一枪起的名字（切片 Y）—— 存进那只投递口，生成提交那一跳取走。
        * ⚠ ⛔ 不塞进表单：表单上没有「产物名」这一格，而且它属于**这一枪**
@@ -498,7 +507,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。
        */
     }),
-    [dispatch, modelMemory, userUrl],
+    [dispatch, generationEnabled, modelMemory, userUrl],
   )
 
   /**

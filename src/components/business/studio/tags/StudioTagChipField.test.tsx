@@ -1,5 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  )
+})
+afterEach(() => vi.unstubAllGlobals())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -70,6 +81,27 @@ describe('StudioTagChipField', () => {
     expect(onChange).toHaveBeenCalledWith([{ text: 'neon city', weight: 1 }])
   })
 
+  it('输入法确认候选时不提前提交标签', () => {
+    const { onChange, input } = setup()
+    fireEvent.change(input, { target: { value: '樱花' } })
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(input).toHaveValue('樱花')
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith([{ text: '樱花', weight: 1 }])
+  })
+
+  it('删除标签不会重新聚焦输入框，点击空白处仍能输入', () => {
+    const { input, onChange } = setup([{ text: 'solo', weight: 1 }])
+    fireEvent.click(screen.getByRole('button', { name: 'removeTag' }))
+    expect(onChange).toHaveBeenCalledWith([])
+    expect(input).not.toHaveFocus()
+    fireEvent.click(input.parentElement!)
+    expect(input).toHaveFocus()
+  })
+
   // 同一个词送两遍在扩散模型里等于被悄悄加权。
   it('已经在场的词不重复落格', () => {
     const { onChange, input } = setup([{ text: '1girl', weight: 1 }])
@@ -106,6 +138,43 @@ describe('StudioTagChipField', () => {
     fireEvent.change(input, { target: { value: '1gi' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith([{ text: '1girl', weight: 1 }])
+  })
+
+  it('滑动候选时不选中，点击候选才加入标签', async () => {
+    const { onChange, input } = setup()
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '1gi' } })
+    const option = await screen.findByRole('option', { name: '1girl' })
+    expect(input).toHaveAttribute('aria-activedescendant', option.id)
+    fireEvent.pointerDown(option, { pointerType: 'touch' })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.click(option)
+    expect(onChange).toHaveBeenCalledWith([{ text: '1girl', weight: 1 }])
+  })
+
+  it('补全列表避开软键盘，并在可视区域恢复后重新定位', async () => {
+    const viewport = Object.assign(new EventTarget(), {
+      height: 340,
+      offsetTop: 0,
+    })
+    vi.stubGlobal('visualViewport', viewport)
+    const { input } = setup()
+    vi.spyOn(input.parentElement!, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(20, 200, 335, 96),
+    )
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '1gi' } })
+    const list = await screen.findByRole('listbox')
+    expect(list).toHaveStyle({
+      bottom: `${window.innerHeight - 196}px`,
+      maxHeight: '196px',
+    })
+    viewport.height = 600
+    act(() => {
+      viewport.dispatchEvent(new Event('resize'))
+    })
+    expect(list).toHaveStyle({ top: '300px', maxHeight: '240px' })
+    expect(list.style.bottom).toBe('')
   })
 })
 

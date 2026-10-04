@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS, getExecutionModelId } from '@/constants/models'
 
 vi.mock('server-only', () => ({}))
 
@@ -132,5 +133,37 @@ describe('elevenLabsAdapter.generateSoundEffect', () => {
 
     const init = mockFetch.mock.calls[0]?.[1] as RequestInit
     expect(JSON.parse(String(init.body))).toEqual({ text: 'glass shatter' })
+  })
+})
+
+describe('elevenLabsAdapter.generateMusic', () => {
+  it('sends the upgraded catalog model to Compose and returns the audio', async () => {
+    const generateMusic = elevenLabsAdapter.generateMusic
+    if (!generateMusic) throw new Error('ElevenLabs generateMusic missing')
+
+    const mockFetch = mockAudioFetch()
+    const result = await generateMusic({
+      ...BASE_AUDIO_INPUT,
+      prompt: 'Instrumental jazz with piano and brushed drums',
+      modelId: getExecutionModelId(AI_MODELS.ELEVENLABS_MUSIC_V2),
+      durationSeconds: 30,
+    })
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe(
+      `${AI_PROVIDER_ENDPOINTS.ELEVENLABS}/v1/music?output_format=mp3_44100_128`,
+    )
+    expect(JSON.parse(String(init.body))).toEqual({
+      prompt: 'Instrumental jazz with piano and brushed drums',
+      model_id: 'music_v2_5',
+      music_length_ms: 30_000,
+    })
+    expect(result).toMatchObject({
+      audioUrl: `data:audio/mpeg;base64,${Buffer.from('fake-mp3-bytes').toString('base64')}`,
+      duration: 30,
+      format: 'mp3',
+      sampleRate: 44100,
+      requestCount: 1,
+    })
   })
 })

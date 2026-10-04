@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl'
 import {
   formatUnitPriceAmount,
   getOpenAIImageOutputPrice,
-  getModelUnitPriceByStringId,
+  getIdeogramImageOutputPrice,
+  getImageUnitPrice,
   getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
@@ -35,6 +36,7 @@ export type CostPreviewBasis =
       aspectRatio?: string
       resolution?: string
       quality?: string
+      hasReferenceImage?: boolean
       preview?: boolean
     }
   | { kind: 'video'; durationSeconds: number; resolution: VideoResolution }
@@ -82,79 +84,93 @@ export const StudioCostPreview = memo(function StudioCostPreview({
 }: StudioCostPreviewProps) {
   const t = useTranslations('StudioV2')
 
-  const { total, pricedCount, unpricedCount, rangeBounds, videoPerSecond } =
-    useMemo(() => {
-      let sum = 0
-      let priced = 0
-      /**
-       * 台账 M（owner 2026-08-29）：钉不死一个数、但**边界是知道的**那批
-       * （今天只有 GPT Image 2：OpenAI 按 quality 分三档，而我们不发 quality）。
-       * 它们不进 `sum` —— 把上界累加会报一个用户几乎不会付的数，把下界累加就是
-       * 「按低档标价」那个老错。单独攒成一个区间，在缺价那行里说出来：
-       * 「1 个模型未标价」把已知的信息也一起藏了，而 owner 要的正是「点生成时
-       * 知道要花多少」。
-       */
-      let rangeMin = 0
-      let rangeMax = 0
-      let rangedCount = 0
-      /**
-       * 只有**恰好一条**视频模型时才有「每秒多少」可说 —— 视频档本来就恒单条
-       * （`generate()` 的视频那支恒 `mode:'single'`）。多条时留 null，行里就只
-       * 剩合计，不去平均一个没人被收的单价。
-       */
-      let perSecondForLine: number | null = null
-      for (const model of models) {
-        if (basis.kind === 'image') {
-          const outputPrice = basis.aspectRatio
+  const {
+    total,
+    pricedCount,
+    unpricedCount,
+    rangeBounds,
+    videoPerSecond,
+    referenceRange,
+  } = useMemo(() => {
+    let sum = 0
+    let priced = 0
+    /**
+     * 台账 M（owner 2026-08-29）：钉不死一个数、但**边界是知道的**那批
+     * （今天只有 GPT Image 2：OpenAI 按 quality 分三档，而我们不发 quality）。
+     * 它们不进 `sum` —— 把上界累加会报一个用户几乎不会付的数，把下界累加就是
+     * 「按低档标价」那个老错。单独攒成一个区间，在缺价那行里说出来：
+     * 「1 个模型未标价」把已知的信息也一起藏了，而 owner 要的正是「点生成时
+     * 知道要花多少」。
+     */
+    let rangeMin = 0
+    let rangeMax = 0
+    let rangedCount = 0
+    let hasReferenceRange = false
+    /**
+     * 只有**恰好一条**视频模型时才有「每秒多少」可说 —— 视频档本来就恒单条
+     * （`generate()` 的视频那支恒 `mode:'single'`）。多条时留 null，行里就只
+     * 剩合计，不去平均一个没人被收的单价。
+     */
+    let perSecondForLine: number | null = null
+    for (const model of models) {
+      if (basis.kind === 'image') {
+        const ideogramPrice = getIdeogramImageOutputPrice(model.modelId, basis)
+        if (ideogramPrice && ideogramPrice.min !== ideogramPrice.max) {
+          hasReferenceRange = true
+        }
+        const outputPrice =
+          ideogramPrice ??
+          (basis.aspectRatio
             ? getOpenAIImageOutputPrice(model.modelId, {
                 ...basis,
                 aspectRatio: basis.aspectRatio,
               })
-            : null
-          if (outputPrice) {
-            if (outputPrice.min === outputPrice.max) {
-              sum += outputPrice.min * basis.perModelCount
-              priced += 1
-            } else {
-              rangeMin += outputPrice.min * basis.perModelCount
-              rangeMax += outputPrice.max * basis.perModelCount
-              rangedCount += 1
-            }
-            continue
+            : null)
+        if (outputPrice) {
+          if (outputPrice.min === outputPrice.max) {
+            sum += outputPrice.min * basis.perModelCount
+            priced += 1
+          } else {
+            rangeMin += outputPrice.min * basis.perModelCount
+            rangeMax += outputPrice.max * basis.perModelCount
+            rangedCount += 1
           }
-          const price = getModelUnitPriceByStringId(model.modelId)
-          if (!price || price.unit !== 'image') {
-            const range = getModelUnitPriceRangeByStringId(model.modelId)
-            if (range && range.unit === 'image') {
-              rangeMin += range.min * basis.perModelCount
-              rangeMax += range.max * basis.perModelCount
-              rangedCount += 1
-            }
-            continue
-          }
-          sum += price.amount * basis.perModelCount
-          priced += 1
           continue
         }
-
-        const perSecond = getVideoUnitPricePerSecond(
-          model.modelId,
-          basis.resolution,
-        )
-        if (perSecond === null) continue
-        sum += perSecond * basis.durationSeconds
+        const price = getImageUnitPrice(model.modelId, basis)
+        if (price === null) {
+          const range = getModelUnitPriceRangeByStringId(model.modelId)
+          if (range && range.unit === 'image') {
+            rangeMin += range.min * basis.perModelCount
+            rangeMax += range.max * basis.perModelCount
+            rangedCount += 1
+          }
+          continue
+        }
+        sum += price * basis.perModelCount
         priced += 1
-        perSecondForLine = models.length === 1 ? perSecond : null
+        continue
       }
-      return {
-        total: sum,
-        pricedCount: priced,
-        // 有区间的那几个**不再算「未标价」** —— 它们现在报得出东西了。
-        unpricedCount: models.length - priced - rangedCount,
-        rangeBounds: rangedCount > 0 ? { min: rangeMin, max: rangeMax } : null,
-        videoPerSecond: perSecondForLine,
-      }
-    }, [models, basis])
+
+      const perSecond = getVideoUnitPricePerSecond(
+        model.modelId,
+        basis.resolution,
+      )
+      if (perSecond === null) continue
+      sum += perSecond * basis.durationSeconds
+      priced += 1
+      perSecondForLine = models.length === 1 ? perSecond : null
+    }
+    return {
+      total: sum,
+      pricedCount: priced,
+      // 有区间的那几个**不再算「未标价」** —— 它们现在报得出东西了。
+      unpricedCount: models.length - priced - rangedCount,
+      rangeBounds: rangedCount > 0 ? { min: rangeMin, max: rangeMax } : null,
+      videoPerSecond: perSecondForLine,
+      referenceRange: hasReferenceRange,
+    }
+  }, [models, basis])
 
   // 一个模型都没选时不占位：那一刻按钮上写的是「请先选择模型」，旁边再挂一行
   // 「预计费用 —」是拿一条空信息去挤已经说清楚的那条。
@@ -166,11 +182,15 @@ export const StudioCostPreview = memo(function StudioCostPreview({
    * 一行里说得清 —— 手机上没有第二行位置摆解释。
    */
   if (variant === 'line') {
-    if (pricedCount === 0) return null
-    const amount = t(
-      unpricedCount > 0 || rangeBounds ? 'costApproxFrom' : 'costApprox',
-      { amount: formatUnitPriceAmount(total) },
-    )
+    if (pricedCount === 0 && !rangeBounds) return null
+    const amount = rangeBounds
+      ? t(unpricedCount > 0 ? 'costApproxRangeFrom' : 'costApproxRange', {
+          min: formatUnitPriceAmount(total + rangeBounds.min),
+          max: formatUnitPriceAmount(total + rangeBounds.max),
+        })
+      : t(unpricedCount > 0 ? 'costApproxFrom' : 'costApprox', {
+          amount: formatUnitPriceAmount(total),
+        })
     const rate =
       basis.kind === 'video' && videoPerSecond !== null
         ? t('costVideoRate', {
@@ -228,9 +248,14 @@ export const StudioCostPreview = memo(function StudioCostPreview({
         <span className="text-2xs text-muted-foreground">
           {t('costImageOutputOnly')}
         </span>
-      ) : rangeBounds && basis.kind === 'image' ? (
+      ) : rangeBounds && basis.kind === 'image' && !referenceRange ? (
         <span className="text-2xs text-muted-foreground">
           {t('costRangeBasis')}
+        </span>
+      ) : null}
+      {referenceRange ? (
+        <span className="text-2xs text-muted-foreground">
+          {t('costImageReferenceRangeBasis')}
         </span>
       ) : null}
       {/* 缺价的单独说 —— 不并进上面那个数，也不省略。省略了用户会以为合计是全的。 */}

@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { readOpenAIImageStream } from '@/lib/openai-image-stream'
@@ -24,12 +25,20 @@ import {
   generateStorageKey,
   uploadToR2,
 } from '@/services/storage/r2'
-import { createGeneration } from '@/services/generation.service'
+import {
+  createGeneration,
+  getGenerationByIdForUser,
+} from '@/services/generation.service'
+import { submitImageGeneration } from '@/services/image/submit-image.service'
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 import type {
   GenerationRecord,
   ObjectReplaceAnnotation,
   ImageEditOptions,
   ImageEditStreamRequest,
+  InpaintRequest,
+  ObjectReplaceRequest,
+  ImageSubmitResponseData,
 } from '@/types'
 
 // ─── fal.ai image editing endpoints ──────────────────────────────
@@ -62,6 +71,62 @@ const FAL_IMAGE_URLS_EDIT_MODELS = new Set([
 ])
 
 export type UpscaleTargetScale = '2x' | '4x'
+
+export async function submitIdeogramImageEdit(
+  clerkId: string,
+  request: InpaintRequest | ObjectReplaceRequest,
+): Promise<ImageSubmitResponseData> {
+  const user = await ensureUser(clerkId)
+  const sourceGeneration = request.sourceGenerationId
+    ? await getGenerationByIdForUser(request.sourceGenerationId, user.id)
+    : null
+  if (request.sourceGenerationId && !sourceGeneration) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Source generation not found.',
+      404,
+    )
+  }
+  const masked = 'maskImageUrl' in request
+  const references = request.referenceImages ?? []
+  if (references.length > (masked ? 3 : 4)) {
+    throw new GenerateImageServiceError(
+      'REFERENCE_IMAGE_LIMIT_EXCEEDED',
+      'Too many references for this edit.',
+      400,
+    )
+  }
+  if (masked && request.negativePrompt?.trim()) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Ideogram precise edit does not support a negative prompt.',
+      400,
+    )
+  }
+  return submitImageGeneration(
+    clerkId,
+    {
+      modelId: AI_MODELS.IDEOGRAM_45,
+      prompt: masked
+        ? request.prompt
+        : compileAnnotationPrompt(request.annotations),
+      aspectRatio: '1:1',
+      apiKeyId: request.apiKeyId,
+      referenceImages: [request.imageUrl, ...references],
+      advancedParams: {
+        quality: request.options?.quality ?? 'medium',
+        ...(masked ? { inpaintMask: request.maskImageUrl } : {}),
+      },
+    },
+    {},
+    {
+      sourceGenerationId: request.sourceGenerationId,
+      imageOperation: 'precise-edit',
+      imageEditSourcePrompt: sourceGeneration?.prompt ?? '',
+      sourceSurface: 'EDIT',
+    },
+  )
+}
 
 // ─── Provider routing ───────────────────────────────────────────
 

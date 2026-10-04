@@ -27,9 +27,9 @@
 ### Assistant LLM 媒体契约（2026-08-05）
 
 - 助手 LLM 是同步 text/vision 会话路径，不属于媒体生成 adapter，也不改 worker-only 的媒体生成边界。
-- 默认 OpenAI 助手模型为原生 `gpt-6-sol`；无媒体引用时画布可走 AI Gateway 的
-  `openai/gpt-6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
-  [OpenAI GPT-6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6-sol) 一致。
+- 默认 OpenAI 助手模型为原生 `gpt-6.1-sol`；无媒体引用时画布可走 AI Gateway 的
+  `openai/gpt-6.1-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
+  [OpenAI GPT-6.1 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6.1-sol) 一致。
 - OpenAI 助手的流式与非流式图片输入统一由服务端安全下载后发送原字节 data URL，保留参考顺序，不再让 provider 下载 CDN URL。图片大小按下节官方请求限额校验，不再耦合站内图片导入的单图 20 MiB 限制。图片不可达、格式及大小错误保留具体错误码，真正的 401/403 仍按鉴权失败处理。
 - Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
@@ -37,10 +37,10 @@
   [Files API](https://ai.google.dev/api/files)。
 - DeepSeek 的 `deepseek-v4-pro` 继续按纯文本路由处理；视觉档是 `deepseek-flash`，
   可在同一 OpenAI-compatible Chat Completions 接口中接收 `text + image_url` 内容块，
-  PixelVault 将它作为独立助手档位暴露，不能把 DeepSeek adapter 整体翻成视觉能力。
+  PixelVault 自 2026-10-01 将它作为默认助手与文本档位；默认能力支持图片，显式型号仍单独判断。
   图片只允许进入该视觉档：显式选 V4 Pro 仍在能力闸和请求构造器两层拒绝；调用方**未指定型号**
   且带图时（评分、3D 预检、卡片提取等无选择器的自动回落），请求构造器直接用 `deepseek-flash`
-  （2026-09-23 owner 定）。⚠ **2026-09-17 换型号**：
+  （2026-10-01 起无图请求也默认此型号）。⚠ **2026-09-17 换型号**：
   官方模型列表已把 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` 标为 legacy
   并写明「对应模型已退役」（旧名仍被接受但由 DeepSeek-V4.1-Flash 承接），现行 id 是
   `deepseek-flash`——1M 上下文、384K 最大输出、Vision ✓、非高峰 $0.15/$0.6 每 MTok
@@ -97,13 +97,40 @@
 那条线不经过 BYOK 路由，也不进模型选择器。另一个平台掏钱的特例是 `runner`（见上方
 `RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
 
-## 文本模型升级（verified 2026-09-23）
+## Ideogram 4.5（verified 2026-10-01）
 
-- OpenAI：助手／默认文本／剧本规划使用 `gpt-6-sol`，增强与自动问答使用 `gpt-6-luna`，选择器保留 `gpt-6-astra`。旧 5.6 三档退出本仓路由；这是版本升级，不代表上游停用。原生调用继续 Chat Completions，Gateway 字符串同步为 `openai/gpt-6-sol`。
-- Claude：助手默认 `claude-opus-5-5`，保留显式 `claude-fable-5-1` 选择。两者均保持自适应思考，不发送禁用 thinking、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high。Fable 的数据保留限制不推定适用于 Opus。
+- 官方根地址 `https://api.ideogram.ai`，鉴权头 `Api-Key`。生成：`POST /v2/image/generate/ideogram-4-5`；精确编辑：`POST /v2/image/precise-edit/ideogram-4-5`。无图生成使用 JSON，带图使用 multipart；`async=true` 后通过 `GET /v2/generations/{id}` 轮询。执行交给 Execution Worker，结果使用现有回调链归档至 R2。
+- BYOK Key 从 [Ideogram API Keys](https://ideogram.ai/platform/api-keys?intent=api&source=api-doc) 获取。验证使用生成接口的 `?dry_run=true`，官方明确不会生成、保存或计费；不能用管理员账户管理接口的 404 判定普通 Key 无效。无 Key 不回落到 fal 或平台 Key。
+- 提示词 1–10000 字符；seed 0–2147483647；`num_images` 1–8、默认 1。质量为 `very_low / low / medium / high`，纯文生图不能使用 `very_low`。本应用显式使用 `medium` 缺省，编辑另提供 `very_low`。
+- 普通生成的 multipart `images` 最多 5 张，首图为底图；`size` 为 `auto / source / WIDTHxHEIGHT`。纯文生图只收预设尺寸，官方公开示例包含 1024×1024 和 2048×2048；本轮只开放这两档。含图自定义尺寸要求边长为 32 的倍数且不小于 256，总像素不超过 2048²、长宽比不超过 6:1。不可把 fal 的尺寸枚举当成原生契约。
+- Precise Edit 收 1 张主图、最多 4 张参考图（有蒙版时最多 3 张），不收 `size`。JPEG / PNG / WebP、单图最多 25 MB。蒙版为黑色编辑、白色保留，必须同时包含两种区域；应用白色编辑蒙版在接口边界只反转一次。未给蒙版的整图精确编辑保留官方自身的区域判断语义。
+- 官方未公布取消或幂等请求键契约，不虚构对应请求；上游提交返回未知时不能重新提交造成重复收费。站内任务幂等与回调终态竞争沿用现有 Job 机制。
+- 官方依据：[Generate](https://developer.ideogram.ai/api-reference/images/generate/ideogram-4-5)、[Precise Edit](https://developer.ideogram.ai/api-reference/images/precise-edit/ideogram-4-5)、[API Setup](https://developer.ideogram.ai/ideogram-api/api-setup)。本轮实际付费生成与编辑验收状态见 `docs/status.md`。
+
+## 文本模型升级（verified 2026-10-01）
+
+- OpenAI：助手／默认文本／剧本规划使用 `gpt-6.1-sol`，增强与自动问答使用 `gpt-6-luna`，选择器保留 `gpt-6-astra`。原生调用继续 Chat Completions，Gateway 字符串同步为 `openai/gpt-6.1-sol`。6.1 Sol 不支持 `none/minimal` 推理档；当前原生调用不发送原生 tools 或这两种推理档，JSON 与 SSE 沿用现有路径。
+- DeepSeek：助手、规划与通用文本默认 `deepseek-flash`（V4.1 Flash），显式 `deepseek-v4-pro` 继续可用并保持纯文本。无型号请求的能力闸与实际默认模型一致。
+- Claude：助手默认 `claude-opus-5-5`，可选 `claude-sonnet-5-5` 与 `claude-fable-5-1`。三者均保持自适应思考，不发送禁用 thinking、非默认采样参数、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high / high；Sonnet 复用原生 Messages、图片输入、结构化 JSON、流式与搜索路径。Fable 的数据保留限制不推定适用于其他型号。
 - Grok：增强／助手统一 `grok-4.7`，沿用 Chat Completions、`reasoning_effort: "low"`、`max_completion_tokens` 与长首包等待。4.7 Fast 不在公共 API 上，不加入目录。
 - 模型名称沿用共享路由常量，en/ja/zh 使用同一官方名称；未增加翻译键。BYOK、平台权限和站内额度不变。
-- 官方依据：[GPT-6 发布](https://developers.openai.com/api/docs/changelog)、[Sol](https://developers.openai.com/api/docs/models/gpt-6-sol)、[Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Opus 5.5 迁移](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)、[Claude fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback)、[Grok 4.7](https://docs.x.ai/developers/grok-4-7)。GPT-6 的 Chat Completions 原生 function calling 仅支持 reasoning_effort=none；本仓此路径未发送原生 tools，后续增加时须遵守该限制。
+- 官方依据：[GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol)、[Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[DeepSeek 模型与价格](https://api-docs.deepseek.com/quick_start/pricing/)、[Opus 5.5 迁移](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)、[Sonnet 5.5](https://platform.claude.com/docs/en/models/sonnet-5-5/overview)、[Claude fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback)、[Grok 4.7](https://docs.x.ai/developers/grok-4-7)。后续若加入 GPT-6.1 原生 function calling，须重新核验端点支持，不能复用旧 Sol 的 `none` 方案。
+
+### Eleven Music v2.5（verified 2026-10-01）
+
+- Compose API 的执行 ID 为 `music_v2_5`；目录枚举 `ELEVENLABS_MUSIC_V2`、保存身份 `eleven-music-v2` 与翻译键保持稳定，用户可见名称更新为 v2.5。
+- `maxPromptChars: 4100` 同时约束工作台与服务端；超限在创建任务、调用供应商前拒绝。原有时长范围和纯音乐开关不变。
+- Music 使用同步 service → ElevenLabs adapter 的 `/v1/music` 路径，不走 Execution Worker；BYOK 与归档方式不变。未核实 v2.5 独立价格，不推算新费率。
+- 官方依据：[Music Compose API](https://elevenlabs.io/docs/api-reference/music/compose)。
+
+### H3 Max Turbo（verified 2026-10-01）
+
+- fal 专属变体，使用 `minimax/h3-max-turbo/text-to-video` 与 `minimax/h3-max-turbo/image-to-video`；不推定 MiniMax 原生 API 存在同名 ID，不替换已有 H3 2K 路径或视频默认值。
+- 时长为 5–15 秒整数，分辨率 `480P` / `768P` / `1080P`，1080P 从原生 768P 细化。提示词最多 50,000 字符；支持 seed。发送 `prompt_expansion_mode: "balanced"`，不增加独立 UI 参数。
+- 文生沿用工作台现有 16:9 / 9:16 / 1:1 / 4:3 / 3:4 五档，官方额外支持的 21:9 本轮未开放；图生发送 `image_url`、可选 `end_image_url`，画幅跟随首图。音频由模型生成，不发送 `generate_audio` 或负面提示词；不将音轨替换接口冒充音频参考生成。
+- 工作台与画布默认 768p；图生尺寸记录按已下载首帧的 EXIF 校正比例与清晰度估算，不沿用旧文生比例，也不冒称已读取最终视频编码尺寸。全局异常请求护栏提升至 50,000 字符，其他模型仍执行各自声明的提示词上限。
+- 复用 fal queue → Execution Worker → 归档与失败处理。按 9/30 促销结束后的 $0.025 / $0.04 / $0.08 每秒显示分辨率费用，不将官方推理基准当作端到端延迟承诺。
+- 官方依据：[文生](https://fal.ai/models/minimax/h3-max-turbo/text-to-video/api)、[图生](https://fal.ai/models/minimax/h3-max-turbo/image-to-video/api)。
 
 ## 错误信息机制（全链路）
 
@@ -167,7 +194,7 @@ adapter / Worker 抛错
 | minimax_cn        | 同上，国内站 `api.minimaxi.com/v2`（域名多一个 `i`）                         | 与 `minimax` 是同一份实现的两个 adapterType 标签；两站账号独立、**key 不可互换**，key 存储按 adapterType 分槽所以不能合成一个 config flag。平台 key 走 `MINIMAX_CN_API_KEY`                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | huggingface       | 图（Inference Providers）                                                    | 二进制响应；Worker 已迁移                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | fish_audio        | 音频 TTS（`s2.1-pro` / `s2.1-pro-free`）                                     | Owner 2026-09-06 选择双档；均为 BYOK-only。默认付费档 $15 / 百万 UTF-8 字节，免费档 $0（Fair Use）。目录 ID 分别为 `fish-audio-s2-pro` / `fish-audio-s2-pro-free`；单人、多人对话和音色卡沿用同一 API。                                                                                                                                                                                                                                                                                                                                                                                               |
-| elevenlabs        | 音频 SFX + **Music**（`eleven_text_to_sound_v2` / `music_v2`）               | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）。⚠ 语音 `eleven_v3` 已 `available: false`（价高退役），别按「EL 是 TTS 供应商」排期                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| elevenlabs        | 音频 SFX + **Music**（`eleven_text_to_sound_v2` / `music_v2_5`）             | 2026-06 后新增 adapter；同样**无 getSystemApiKey 平台 key 映射**（BYOK-only）。⚠ 语音 `eleven_v3` 已 `available: false`（价高退役），别按「EL 是 TTS 供应商」排期                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | runner            | 图（Comfy Runner / RunPod ComfyUI 自托管）                                   | **无 BYOK 槽**（`ADAPTER_KEY_HINTS` 写 `n/a (platform-managed)`，`AI_ADAPTER_TYPE_OPTIONS` 故意不含它）；系统 key + 月度限额。adapter 侧 `generateImage()` 只是契约占位，真实 submit/poll 在 Worker——细节见上方「Adapter 架构」与「Runner recipe contract」                                                                                                                                                                                                                                                                                                                                           |
 | （hyper3d_rodin） | 3D，不进 registry                                                            | Worker 直发                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | （deepseek）      | 文本 planner/助手                                                            | 不是 media adapter                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -179,10 +206,10 @@ adapter / Worker 抛错
 - 每张参考读取限时 30 秒；沿用单图 50 MB 输入限制，同时检查对象大小与实际流字节。读取失败会取消当前流及 provider 请求，保留参考序号与具体错误码，不原样重试输入错误；错误不包含参考 URL。上传中断前可能已经连接 provider。
 - 官方依据：[OpenAI 多图编辑](https://developers.openai.com/api/docs/guides/image-generation)、[Cloudflare Request](https://developers.cloudflare.com/workers/runtime-apis/request/) 与 [Streams](https://developers.cloudflare.com/workers/runtime-apis/streams/)。
 
-### fal · Kling O3 video-to-video/edit（2026-09-17 接入）
+### fal · Kling O3 video-to-video/edit（2026-10-01 更新）
 
-`fal-ai/kling-video/o3/{standard,pro}/video-to-video/edit` 两条端点已进目录
-（`KLING_O3_STANDARD_V2V_EDIT` / `KLING_O3_PRO_V2V_EDIT`）。它们是**编辑**端点，
+`fal-ai/kling-video/o3/{standard,pro,4k}/video-to-video/edit` 三条端点已进目录
+（`KLING_O3_STANDARD_V2V_EDIT` / `KLING_O3_PRO_V2V_EDIT` / `KLING_O3_4K_V2V_EDIT`）。它们是**编辑**端点，
 不是 O3 Pro 那条生成线的第三个 mode：输入必须带一段参考视频，产出是被改写的同一段
 镜头。
 
@@ -193,6 +220,7 @@ adapter / Worker 抛错
 - 发送契约 `referenceMode: 'video-edit'`，参数旋钮全 false；校验层与请求 Zod
   schema 都把参考视频列为必填
 - 字段、限制与价格逐条见 model-catalog.md「视频」节
+- 4K 为独立编辑条目与端点，输出固定 4K；standard/pro 保持跟随源片尺寸。4K 参考价 $0.42/s，生成端 4K 的路由规则见 [当前视频更新](model-catalog.md#当前视频更新2026-10-01)。
 - ⚠ **未接 UI**，动作按钮在设计阶段 D4 之后另派；也**未做真实付费生成**
 
 ## 未决项（继承自 2026-06 核验，仍未解决）

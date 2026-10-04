@@ -110,6 +110,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
+import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
@@ -2363,6 +2364,21 @@ export function useAssistantOperator(
       ) {
         return
       }
+      if (
+        confirm.request.canvasNode
+          ? !applyContext.canvas?.generate
+          : !applyContext.triggerGeneration
+      ) {
+        return
+      }
+      if (confirm.request.canvasNode && host.canvasTargets?.generationStateOf) {
+        const node = host.canvasTargets.generationStateOf(
+          confirm.request.canvasNode.id,
+        )
+        const request = node ? buildCanvasGenerationRequest(node) : null
+        if (!request) return
+        setOperatorConfirm({ ...confirm, request })
+      }
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed, {
         auto: options.auto,
       })
@@ -2425,7 +2441,13 @@ export function useAssistantOperator(
         pendingResultId,
       })
     },
-    [applyContext, host.generationControls, isCurrentThread, localThreadId],
+    [
+      applyContext,
+      host.generationControls,
+      host.canvasTargets,
+      isCurrentThread,
+      localThreadId,
+    ],
   )
 
   /**

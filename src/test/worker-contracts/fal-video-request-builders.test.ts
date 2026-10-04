@@ -83,6 +83,50 @@ function buildWorkerInput(
 
 const falBodyCases: FalBodyCase[] = [
   {
+    label: 'MiniMax H3 Max Turbo T2V',
+    modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+    expectedEndpoint: 'minimax/h3-max-turbo/text-to-video',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      duration: 5,
+      resolution: '768P',
+      aspect_ratio: '16:9',
+      prompt_expansion_mode: 'balanced',
+    },
+    absentFields: [
+      'image_url',
+      'end_image_url',
+      'generate_audio',
+      'negative_prompt',
+      'cfg_scale',
+      'target_audio_url',
+    ],
+  },
+  {
+    label: 'MiniMax H3 Max Turbo I2V',
+    modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+    referenceImage: REF,
+    overrides: { referenceImages: [REF, 'https://example.com/end.png'] },
+    expectedEndpoint: 'minimax/h3-max-turbo/image-to-video',
+    expectedMode: 'image-to-video',
+    expectedBody: {
+      prompt: PROMPT,
+      duration: 5,
+      resolution: '768P',
+      image_url: REF,
+      end_image_url: 'https://example.com/end.png',
+      prompt_expansion_mode: 'balanced',
+    },
+    absentFields: [
+      'aspect_ratio',
+      'generate_audio',
+      'negative_prompt',
+      'cfg_scale',
+      'target_audio_url',
+    ],
+  },
+  {
     label: 'Kling V3 Pro T2V',
     modelId: AI_MODELS.KLING_V3_PRO,
     expectedEndpoint: 'fal-ai/kling-video/v3/pro/text-to-video',
@@ -200,6 +244,26 @@ const falBodyCases: FalBodyCase[] = [
       'shot_type',
       'image_urls',
       'keep_audio',
+    ],
+  },
+  {
+    label: 'Kling O3 4K V2V Edit',
+    modelId: AI_MODELS.KLING_O3_4K_V2V_EDIT,
+    overrides: { videoUrls: [VIDEO_REF], seed: 42, resolution: '4k' },
+    expectedEndpoint: 'fal-ai/kling-video/o3/4k/video-to-video/edit',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: `Edit @Video1: ${PROMPT}`,
+      video_url: VIDEO_REF,
+    },
+    absentFields: [
+      'duration',
+      'aspect_ratio',
+      'resolution',
+      'negative_prompt',
+      'cfg_scale',
+      'generate_audio',
+      'seed',
     ],
   },
   {
@@ -474,6 +538,56 @@ const falBodyCases: FalBodyCase[] = [
 ]
 
 describe('buildFalWorkerQueueRequest — per-model bodies', () => {
+  it.each([
+    ['480p', '480P'],
+    ['768p', '768P'],
+    ['1080p', '1080P'],
+    ['720p', '768P'],
+    ['4k', '768P'],
+  ])('maps H3 Max Turbo resolution %s to %s', (resolution, expected) => {
+    const request = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.MINIMAX_H3_MAX_TURBO, undefined, {
+        resolution,
+      }),
+    )
+    expect(request.input.resolution).toBe(expected)
+  })
+
+  it.each([
+    [1, 5],
+    [10, 10],
+    [30, 15],
+  ])('clamps H3 Max Turbo duration %s to integer %s', (duration, expected) => {
+    const request = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.MINIMAX_H3_MAX_TURBO, undefined, { duration }),
+    )
+    expect(request.input.duration).toBe(expected)
+  })
+
+  it('preserves H3 Max Turbo long prompts and seed while dropping unsupported controls', () => {
+    const prompt = 'A'.repeat(50_000)
+    const request = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.MINIMAX_H3_MAX_TURBO, REF, {
+        prompt,
+        seed: 12345,
+        negativePrompt: 'blur',
+        generateAudio: false,
+        audioUrls: ['https://example.com/audio.mp3'],
+        videoUrls: [VIDEO_REF],
+        referenceImages: [REF, 'https://example.com/end.png'],
+      }),
+    )
+    expect(request.input).toEqual({
+      prompt,
+      seed: 12345,
+      duration: 5,
+      resolution: '768P',
+      prompt_expansion_mode: 'balanced',
+      image_url: REF,
+      end_image_url: 'https://example.com/end.png',
+    })
+  })
+
   it.each(falBodyCases)('builds $label body', (testCase) => {
     const request = buildFalWorkerQueueRequest(
       buildWorkerInput(
@@ -513,15 +627,63 @@ describe('buildFalWorkerQueueRequest — per-model bodies', () => {
     expect(result.input.prompt).toBe(`@Video1 ${PROMPT}`)
   })
 
-  it('filters unsupported 1080p resolution for Seedance 2.0 Fast', () => {
-    const request = buildFalWorkerQueueRequest(
-      buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, undefined, {
-        resolution: '1080p',
-      }),
-    )
+  it.each(['1080p', '4k'])(
+    'filters unsupported %s resolution for Seedance 2.0 Fast',
+    (resolution) => {
+      const request = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.SEEDANCE_20_FAST, undefined, {
+          resolution,
+        }),
+      )
 
-    expect(request.input).toMatchObject({ resolution: '720p' })
-  })
+      expect(request.input).toMatchObject({ resolution: '720p' })
+    },
+  )
+
+  it.each([
+    [AI_MODELS.SEEDANCE_20, undefined, 'text-to-video'],
+    [AI_MODELS.SEEDANCE_20, REF, 'image-to-video'],
+    [AI_MODELS.SEEDANCE_20_REFERENCE, REF, 'reference-to-video'],
+  ] as const)(
+    'sends Seedance 2.0 4K to the existing %s %s endpoint',
+    (modelId, referenceImage, endpoint) => {
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(modelId, referenceImage, { resolution: '4k' }),
+      )
+      expect(result.endpointModelId).toBe(`bytedance/seedance-2.0/${endpoint}`)
+      expect(result.input.resolution).toBe('4k')
+    },
+  )
+
+  it.each([
+    [AI_MODELS.KLING_V3_PRO, 'v3'],
+    [AI_MODELS.KLING_O3_PRO, 'o3'],
+  ] as const)(
+    'routes %s 4K through dedicated text and image endpoints',
+    (modelId, version) => {
+      for (const referenceImage of [undefined, REF]) {
+        const overrides = {
+          resolution: '4k',
+          referenceImages: [REF, 'https://example.com/end.png'],
+        }
+        const result = buildFalWorkerQueueRequest(
+          buildWorkerInput(modelId, referenceImage, overrides),
+        )
+        const standard = buildFalWorkerQueueRequest(
+          buildWorkerInput(modelId, referenceImage, {
+            ...overrides,
+            resolution: '1080p',
+          }),
+        )
+        expect(result.endpointModelId).toBe(
+          `fal-ai/kling-video/${version}/4k/${referenceImage ? 'image' : 'text'}-to-video`,
+        )
+        expect(result.input).toEqual(standard.input)
+        expect(result.input).not.toHaveProperty('resolution')
+        expect(result.isDocumentationVerified).toBe(true)
+      }
+    },
+  )
 
   it('uses the public Seedance 2.5 I2V schema, including an optional end frame', () => {
     const endFrame = 'https://example.com/end.png'

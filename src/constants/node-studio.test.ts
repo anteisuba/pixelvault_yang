@@ -11,26 +11,43 @@ import {
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 describe('resolveAssistantFastModelId', () => {
-  it('defaults to Opus 5.5 while preserving an explicit Fable selection', () => {
-    expect(resolveAssistantModelId(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(
-      LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+  it('defaults DeepSeek to V4.1 Flash while preserving explicit V4 Pro', () => {
+    expect(resolveAssistantModelId(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(
+      LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
     )
     expect(
       resolveAssistantModelId(
-        AI_ADAPTER_TYPES.ANTHROPIC,
-        LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
       ),
-    ).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1)
-    const ids = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.map((model) => model.modelId)
-    expect(new Set(ids).size).toBe(ids.length)
+    ).toBe(LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO)
   })
+
+  it.each([
+    LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+  ])(
+    'defaults to Opus 5.5 while preserving an explicit %s selection',
+    (modelId) => {
+      expect(resolveAssistantModelId(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(
+        LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+      )
+      expect(resolveAssistantModelId(AI_ADAPTER_TYPES.ANTHROPIC, modelId)).toBe(
+        modelId,
+      )
+      const ids = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.map(
+        (model) => model.modelId,
+      )
+      expect(new Set(ids).size).toBe(ids.length)
+    },
+  )
 
   it('OpenAI 问答走 Luna，默认档仍是 Sol', () => {
     expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
       LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
     )
     expect(resolveAssistantModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
-      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
     )
   })
 

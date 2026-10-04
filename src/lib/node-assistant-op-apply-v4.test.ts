@@ -14,6 +14,37 @@ import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 const NOW = '2026-09-07T00:00:00.000Z'
 
+it('撤销参数补丁恢复整份旧参数，移除这一步新加的画质字段', () => {
+  const node = imageNode('portrait')
+  if (node.data.kind !== 'image') throw new Error('Expected image')
+  node.data.params = { aspectRatio: '1:1' }
+  const state: NodeWorkflowStateV4 = { version: 4, nodes: [node], edges: [] }
+  const context = makeContext()
+  const result = applyNodeAssistantOpV4(
+    state,
+    {
+      op: 'set_params',
+      target: node.id,
+      params: { aspectRatio: '3:4', quality: 'high' },
+    },
+    context,
+  )
+  expect(result.ok).toBe(true)
+  if (!result.ok || !result.inverse) throw new Error('Expected inverse')
+  const completed = {
+    ...result.state,
+    nodes: result.state.nodes.map((entry) => ({
+      ...entry,
+      data: { ...entry.data, url: 'https://example.com/new-output.png' },
+    })),
+  }
+  const restored = applyInverseV4(completed, result.inverse, context)
+  expect(restored.nodes[0].data).toEqual({
+    ...node.data,
+    url: 'https://example.com/new-output.png',
+  })
+})
+
 function makeContext(): ApplyOpV4Context {
   let counter = 0
   return {

@@ -11,6 +11,7 @@
  * 缩略图**只能压在藏起来的字符上**（`PromptBarMarkThumb`，绝对定位、零布局宽度）：
  * 轨上序号项的 `@图2` 把 `@图` 藏掉、缩略压上去、只留下号（owner 2026-09-10 真机
  * 反馈第三条）。普通 `@名字` 前面只有一个 `@`，宽度不够放 16px，那里不画。
+ * `「名字」` / `『名字』` 则把全角左引号换成 1em 缩略，保留完整名字与字符宽度。
  */
 
 import type { ReactNode } from 'react'
@@ -36,6 +37,7 @@ import {
 /** 带缩略的引用：`mediaOf` 给这一颗引用画什么（不给 = 全部不画缩略）。 */
 export interface RenderPromptMentionsOptions extends ParseMentionsOptions {
   readonly mediaOf?: (name: string) => MentionChipMedia | undefined
+  readonly quotedMediaOf?: (name: string) => MentionChipMedia | undefined
 }
 
 /** 语音没有缩略图，压两根柱子当波形小标（与 `MentionChip` 同一套）。 */
@@ -75,6 +77,36 @@ function MentionThumb({ media }: { readonly media: MentionChipMedia }) {
   return null
 }
 
+function renderQuotedReferences(
+  text: string,
+  mediaOf: RenderPromptMentionsOptions['quotedMediaOf'],
+): ReactNode {
+  if (!mediaOf) return text
+  const parts: ReactNode[] = []
+  let from = 0
+  for (const match of text.matchAll(/「([^「」\n]+)」|『([^『』\n]+)』/g)) {
+    const name = match[1] ?? match[2]!
+    const media = mediaOf(name)
+    if (!media) continue
+    parts.push(text.slice(from, match.index))
+    parts.push(
+      <PromptBarMark key={match.index} dataAttr="reference">
+        <PromptBarMarkThumb
+          text={match[0][0]!}
+          className="aspect-square h-auto w-full max-w-full"
+        >
+          <MentionThumb media={media} />
+        </PromptBarMarkThumb>
+        {name}
+        <PromptBarMarkHidden text={match[0].slice(-1)} />
+      </PromptBarMark>,
+    )
+    from = match.index + match[0].length
+  }
+  parts.push(text.slice(from))
+  return parts
+}
+
 /** 强度 → chip 形态（强 = 实心 · 中 = 灰底 · 轻 = 描边）。 */
 const INTENSITY_VARIANT: Record<string, PromptBarMarkVariant> = {
   [VOICE_MARKUP_INTENSITY_IDS.strong]: PROMPT_BAR_MARK_VARIANTS.solid,
@@ -82,7 +114,7 @@ const INTENSITY_VARIANT: Record<string, PromptBarMarkVariant> = {
   [VOICE_MARKUP_INTENSITY_IDS.light]: PROMPT_BAR_MARK_VARIANTS.outline,
 }
 
-/** 只画 @ 引用（文本卡的写作栏用这一支）。 */
+/** @ 引用与已挂载的图片名称。 */
 export function renderPromptMentions(
   text: string,
   options: RenderPromptMentionsOptions = {},
@@ -90,7 +122,11 @@ export function renderPromptMentions(
 ): ReactNode {
   return parseMentions(text, options).map((segment, index) => {
     if (segment.type === 'text') {
-      return <span key={`${keyPrefix}:${index}`}>{segment.value}</span>
+      return (
+        <span key={`${keyPrefix}:${index}`}>
+          {renderQuotedReferences(segment.value, options.quotedMediaOf)}
+        </span>
+      )
     }
     const media = options.mediaOf?.(segment.name)
     const hidden = media ? railThumbSplit(segment.raw, segment.name) : null

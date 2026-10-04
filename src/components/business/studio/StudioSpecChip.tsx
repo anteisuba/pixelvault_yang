@@ -17,6 +17,7 @@ import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type { AspectRatio } from '@/constants/config'
+import { getModelById } from '@/constants/models'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { IMAGE_BATCH_COUNTS } from '@/constants/studio'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
@@ -145,6 +146,10 @@ function StudioVideoSpecChip({
    */
   const { send } = useStudioVideoAssets()
   const sendModelId = send?.modelId ?? selectedModel?.modelId
+  const selectedResolution =
+    state.videoResolution ??
+    getModelById(sendModelId ?? '')?.videoDefaults?.resolution ??
+    null
   const t = useTranslations('StudioSpecChip')
   const tSlots = useTranslations('StudioVideoSlots')
   const tVideo = useTranslations('VideoGenerate')
@@ -178,7 +183,7 @@ function StudioVideoSpecChip({
       ? { adapterType: selectedModel.adapterType as AI_ADAPTER_TYPES }
       : {}),
     aspectRatio: state.aspectRatio,
-    resolution: state.videoResolution,
+    resolution: selectedResolution,
     durationSeconds: state.videoDuration,
     aspectLocked: aspectLockedByFirstFrame,
   })
@@ -247,7 +252,7 @@ function StudioVideoSpecChip({
       onAspectRatioChange={(next) =>
         dispatch({ type: 'SET_ASPECT_RATIO', payload: next as AspectRatio })
       }
-      resolution={state.videoResolution}
+      resolution={selectedResolution}
       onResolutionChange={(next) =>
         dispatch({
           type: 'SET_VIDEO_RESOLUTION',

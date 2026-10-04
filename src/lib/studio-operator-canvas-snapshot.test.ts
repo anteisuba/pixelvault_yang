@@ -4,8 +4,18 @@ import {
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_LIMITS,
 } from '@/constants/assistant-operator'
-import { getAvailableVideoModels, VIDEO_KIND } from '@/constants/models'
-import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
+import {
+  AI_MODELS,
+  getAvailableVideoModels,
+  VIDEO_KIND,
+} from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { planV4Generation } from '@/hooks/node/use-node-media-generation-v4'
+import {
+  buildCanvasGenerationRequest,
+  buildCanvasOperatorSnapshot,
+  readCanvasNodeGenerationState,
+} from '@/lib/studio-operator-canvas-snapshot'
 import {
   AssistantOperatorCanvasNodeSchema,
   AssistantOperatorCanvasSnapshotSchema,
@@ -54,6 +64,214 @@ function edge(id: string, source: string, target: string): NodeWorkflowEdgeV4 {
 }
 
 describe('buildCanvasOperatorSnapshot', () => {
+  it('图片参数与当前模型的可选档位进入助手快照，不带渠道私有配置', () => {
+    const node = imageNode('portrait', undefined, {
+      model: {
+        optionId: 'saved:openai',
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'Private route',
+          baseUrl: 'https://private.example',
+        },
+        apiKeyId: 'private-key-id',
+      },
+      params: {
+        aspectRatio: '3:4',
+        quality: 'high',
+        resolution: '2K',
+        count: 2,
+      },
+    })
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [node],
+      edges: [],
+      currentShotNo: null,
+    })
+    const value = snapshotNode(snapshot, node.id)!
+    expect(value.parameters).toMatchObject({
+      values: {
+        aspectRatio: '3:4',
+        quality: 'high',
+        resolution: '2K',
+        count: 2,
+      },
+      options: { quality: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'] },
+    })
+    expect(value.parameters?.options.aspectRatio).toContain('3:4')
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+    expect(JSON.stringify(snapshot)).not.toContain('private')
+    expect(buildCanvasGenerationRequest(value)).toMatchObject({
+      count: 2,
+      specs: { aspectRatio: '3:4', quality: 'high', resolution: '2K' },
+      canvasNode: { id: node.id },
+    })
+  })
+
+  it('未设置的图片参数只补发送口已有的默认值，不猜画质与分辨率', () => {
+    const node = imageNode('portrait', undefined)
+    const state = readCanvasNodeGenerationState(node)
+    expect(state.parameters?.values).toEqual({ aspectRatio: '1:1', count: 1 })
+    expect(state.parameters?.options.quality).toEqual([])
+    expect(buildCanvasGenerationRequest(state)).toBeNull()
+    expect(
+      readCanvasNodeGenerationState(
+        imageNode('grid', undefined, {
+          params: { count: 4, storyboardGrid: true },
+        }),
+      ).parameters?.values.count,
+    ).toBe(1)
+  })
+
+  it('换模型遗留的视频参数按实际发送值进入确认卡，节点原值不变', () => {
+    const params = {
+      aspectRatio: '21:9',
+      resolution: '4k',
+      duration: '3',
+      seed: 0,
+      generateAudio: false,
+    }
+    const originalParams = { ...params }
+    const node: NodeV4 = {
+      id: 'video',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'video',
+        subtype: 'shot',
+        name: '换模型后的镜头',
+        label: '换模型后的镜头',
+        status: 'idle',
+        createdAt: '2026-09-30T00:00:00Z',
+        model: {
+          modelId: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+          optionId: 'workspace:minimax',
+          adapterType: AI_ADAPTER_TYPES.FAL,
+          providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
+        },
+        params,
+      },
+    }
+    const plan = planV4Generation(node.id, { nodes: [node], edges: [] })!
+    expect(plan).toMatchObject({
+      aspectRatio: '16:9',
+      resolution: '1080p',
+      duration: 5,
+    })
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [node],
+      edges: [],
+      currentShotNo: null,
+    })
+    const state = snapshotNode(snapshot, node.id)!
+    expect(state.parameters?.values).toEqual({
+      ...params,
+      aspectRatio: plan.aspectRatio,
+      resolution: plan.resolution,
+      duration: String(plan.duration),
+    })
+    expect(buildCanvasGenerationRequest(state)?.specs).toEqual({
+      aspectRatio: plan.aspectRatio,
+      resolution: plan.resolution,
+      durationSeconds: plan.duration,
+    })
+    expect(readCanvasNodeGenerationState(node).parameters).toEqual(
+      state.parameters,
+    )
+    expect(node.data.kind === 'video' && node.data.params).toEqual(
+      originalParams,
+    )
+  })
+
+  it('实际视频目录的参数选项全部满足画布快照契约', () => {
+    for (const model of getAvailableVideoModels(VIDEO_KIND.GENERATE)) {
+      const node: NodeV4 = {
+        id: model.id,
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'video',
+          subtype: 'shot',
+          name: model.id,
+          label: model.id,
+          status: 'idle',
+          createdAt: '2026-09-30T00:00:00Z',
+          model: {
+            modelId: model.id,
+            optionId: `workspace:${model.id}`,
+            adapterType: model.adapterType,
+            providerConfig: model.providerConfig,
+          },
+        },
+      }
+      const snapshot = buildCanvasOperatorSnapshot({
+        nodes: [node],
+        edges: [],
+        currentShotNo: null,
+      })
+      const result = AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot)
+      expect(snapshotNode(snapshot, node.id)?.parameters?.values).toEqual({})
+      expect(
+        result.success,
+        `${model.id}: ${result.success ? '' : result.error.message}`,
+      ).toBe(true)
+    }
+  })
+  it('画布已有 24 个散节点时，新建节点的真实 id 和模型仍进入下一轮快照', () => {
+    const nodes = Array.from({ length: 24 }, (_, index) =>
+      imageNode(`existing-${index}`, undefined),
+    )
+    const created = imageNode('created-real-id', undefined, {
+      name: '正面全身立绘',
+    })
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [...nodes, created],
+      edges: [],
+      currentShotNo: null,
+      selectedNodeIds: ['existing-23'],
+      availableModelsByNodeId: {
+        'created-real-id': ['gpt-image-2.5-sunburst'],
+      },
+    })
+
+    expect(snapshotNode(snapshot, 'created-real-id')).toMatchObject({
+      id: 'created-real-id',
+      name: '正面全身立绘',
+      availableModels: ['gpt-image-2.5-sunburst'],
+    })
+    expect(snapshotNode(snapshot, 'existing-23')).toBeDefined()
+    const shot = snapshot.shots[0]
+    expect(shot.expanded && shot.nodes).toHaveLength(24)
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it('截取快照时优先保留选中节点、新节点及其实际输入，余量取最近节点', () => {
+    const nodes = Array.from({ length: 40 }, (_, index) =>
+      imageNode(`node-${index}`, undefined),
+    )
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes,
+      edges: [
+        edge('selected-ref', 'node-1', 'node-0'),
+        edge('new-ref', 'node-2', 'node-39'),
+      ],
+      currentShotNo: null,
+      selectedNodeIds: ['node-0'],
+    })
+
+    for (const id of ['node-0', 'node-1', 'node-2', 'node-38', 'node-39']) {
+      expect(snapshotNode(snapshot, id), id).toBeDefined()
+    }
+    expect(snapshotNode(snapshot, 'node-3')).toBeUndefined()
+    expect(snapshotNode(snapshot, 'node-39')?.inputs).toEqual([
+      { slot: 'reference', from: 'node-2' },
+    ])
+    const shot = snapshot.shots[0]
+    expect(shot.expanded && shot.nodes).toHaveLength(24)
+  })
+
   it('视频目录的全部候选进入快照时仍满足请求契约', () => {
     const models = getAvailableVideoModels(VIDEO_KIND.GENERATE).map(
       (model) => model.id,

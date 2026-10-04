@@ -151,7 +151,7 @@ describe('analyzeVideo —— 一个入口两条腿', () => {
   })
 
   it('⚠ 按**借到的那条路**判档，不是用户选的那条', async () => {
-    // 用户选了 DeepSeek（看不了图），借路借到了 Gemini —— 于是 native 成立。
+    // 用户选了火山纯文字路由，借路借到了 Gemini —— 于是 native 成立。
     mockResolveVisionRoute.mockResolvedValue({
       ...routeOf(AI_ADAPTER_TYPES.GEMINI),
       borrowed: true,
@@ -160,7 +160,7 @@ describe('analyzeVideo —— 一个入口两条腿', () => {
     const result = await analyzeVideo({
       ...BASE,
       task: VISION_TASKS.styleStudy,
-      routeHint: 'key_deepseek',
+      routeHint: 'key_volcengine',
       durationSeconds: 30,
     })
 

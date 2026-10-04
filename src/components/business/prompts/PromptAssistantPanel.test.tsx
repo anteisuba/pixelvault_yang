@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -641,7 +642,7 @@ describe('PromptAssistantPanel', () => {
   // 能力矩阵三值化的消费者回归（切片 2 §4.3）：这个面板读的是
   // `assistantAdapterAcceptsReferenceKind(…, VIDEO_ANALYSIS_TASK_TIERS.conversational)`。
   // ⚠ 前端判一套、服务端判另一套的下场是「界面让挂、发出去 400」，所以两边同源。
-  it('看不了图的路由挂着图片附件时不许发送（服务端也会用同一张表拒）', () => {
+  it('显式 DeepSeek V4 Pro 挂着图片附件时不许发送（服务端也会用同一张表拒）', () => {
     render(
       <PromptAssistantPanel
         currentPrompt=""
@@ -650,6 +651,7 @@ describe('PromptAssistantPanel', () => {
           optionId: 'deepseek-key',
           apiKeyId: 'key-ds',
           adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
         }}
         injectedReference={{ url: 'https://cdn.example.com/ref.png', token: 3 }}
       />,
@@ -663,26 +665,50 @@ describe('PromptAssistantPanel', () => {
     expect(sendMock).not.toHaveBeenCalled()
   })
 
-  it('能吃图的路由（OpenAI，frames 档）照常发得出去', () => {
-    render(
-      <PromptAssistantPanel
-        currentPrompt=""
-        writeback={makeWriteback()}
-        assistantRoute={{
-          optionId: 'openai-key',
-          apiKeyId: 'key-oa',
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-        }}
-        injectedReference={{ url: 'https://cdn.example.com/ref.png', token: 4 }}
-      />,
-    )
+  it.each([
+    [AI_ADAPTER_TYPES.OPENAI, undefined],
+    [AI_ADAPTER_TYPES.DEEPSEEK, undefined],
+    [AI_ADAPTER_TYPES.DEEPSEEK, LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH],
+  ] as const)(
+    '能吃图的路由照常发送图片附件（%s / %s）',
+    (adapterType, modelId) => {
+      render(
+        <PromptAssistantPanel
+          currentPrompt=""
+          writeback={makeWriteback()}
+          assistantRoute={{
+            optionId: 'selected-key',
+            apiKeyId: 'key-selected',
+            adapterType,
+            modelId,
+          }}
+          injectedReference={{
+            url: 'https://cdn.example.com/ref.png',
+            token: 4,
+          }}
+        />,
+      )
 
-    fireEvent.change(screen.getByPlaceholderText('placeholder'), {
-      target: { value: '看看这张' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'send' }))
-    expect(sendMock).toHaveBeenCalled()
-  })
+      fireEvent.change(screen.getByPlaceholderText('placeholder'), {
+        target: { value: '看看这张' },
+      })
+      expect(screen.getByRole('button', { name: 'send' })).toBeEnabled()
+      fireEvent.click(screen.getByRole('button', { name: 'send' }))
+      expect(sendMock).toHaveBeenCalledWith(
+        '看看这张',
+        expect.objectContaining({
+          apiKeyId: 'key-selected',
+          llmModelId: modelId,
+          references: [
+            expect.objectContaining({
+              kind: 'image',
+              url: 'https://cdn.example.com/ref.png',
+            }),
+          ],
+        }),
+      )
+    },
+  )
 })
 
 // ─── 切片 3：LoRA 推荐卡在面板里的接线 ──────────────────────────────

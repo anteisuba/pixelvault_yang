@@ -13,7 +13,7 @@ import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capa
 import type { EditTaskKind } from '@/types/canvas-image-edit'
 import { AI_MODELS } from '@/constants/models/enum'
 
-export type EditTaskProvider = 'fal' | 'gemini' | 'openai'
+export type EditTaskProvider = 'fal' | 'gemini' | 'openai' | 'ideogram'
 
 /**
  * A single model option for a task. `id` is what the API receives as
@@ -29,6 +29,11 @@ export interface EditModelOption {
 }
 
 export const EDIT_MODELS: Record<string, EditModelOption> = {
+  [AI_MODELS.IDEOGRAM_45]: {
+    id: AI_MODELS.IDEOGRAM_45,
+    provider: 'ideogram',
+    displayName: 'Ideogram 4.5',
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     provider: 'openai',
@@ -121,6 +126,12 @@ function getCapabilityModelConfig(
 
 export const EDIT_TASKS: readonly EditTaskMetadata[] = [
   {
+    task: 'edit-image',
+    icon: Replace,
+    providers: ['ideogram', 'gemini', 'openai', 'fal'],
+    ...getCapabilityModelConfig('edit-image'),
+  },
+  {
     task: 'upscale',
     icon: Wand2,
     providers: ['fal'],
@@ -135,13 +146,13 @@ export const EDIT_TASKS: readonly EditTaskMetadata[] = [
   {
     task: 'inpaint',
     icon: Sparkles,
-    providers: ['fal', 'gemini', 'openai'],
+    providers: ['ideogram', 'fal', 'openai'],
     ...getCapabilityModelConfig('inpaint'),
   },
   {
     task: 'object-replace',
     icon: Replace,
-    providers: ['gemini', 'fal', 'openai'],
+    providers: ['ideogram', 'gemini', 'fal', 'openai'],
     ...getCapabilityModelConfig('object-replace'),
   },
   {

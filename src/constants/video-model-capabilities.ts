@@ -50,6 +50,7 @@ export function videoModelSupportsSeed(
 ): boolean {
   if (modelId === AI_MODELS.VEO_31) return !hasReferenceInputs
   if (modelId === AI_MODELS.HAPPYHORSE_10) return true
+  if (modelId === AI_MODELS.MINIMAX_H3_MAX_TURBO) return true
   // Wan 3.0 declares `seed` on all three endpoints (t2v / i2v / r2v) in fal's
   // OpenAPI — reference inputs don't disable it the way Veo's do.
   if (modelId === AI_MODELS.WAN_30 || modelId === AI_MODELS.WAN_30_REFERENCE) {
@@ -104,7 +105,7 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
 > = {
   [AI_MODELS.SEEDANCE_20]: {
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedResolutions: ['480p', '720p', '1080p', '4k'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   [AI_MODELS.SEEDANCE_20_FAST]: {
@@ -114,7 +115,7 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   },
   [AI_MODELS.SEEDANCE_20_REFERENCE]: {
     supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['480p', '720p', '1080p'],
+    supportedResolutions: ['480p', '720p', '1080p', '4k'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },
   },
@@ -202,20 +203,15 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     // `reference_audio_urls` takes up to 5 clips totalling ≤15s.
     audio: { mode: 'reference', maxReferences: 5 },
   },
-  // Kling V3 / O3 Pro 没有分辨率旋钮：fal 的 4 个端点（v3、o3 各自的
-  // text-to-video + image-to-video）输入 schema 里都不存在 resolution 字段，
-  // Pro 档固定出 1080p（4K 是 kling-video/v3/4k/* 这个独立端点，本项目未接）。
-  // buildKlingV3Pro / buildKlingO3Pro 因此从不读 input.resolution，选了也不会发出去。
-  // 与 GEMINI_OMNI_FLASH 同一处理：给一个名义值，而不是空数组——空数组会在
-  // 展开合并里盖掉默认的 VIDEO_RESOLUTIONS，让 UI 出现一个零选项的空选择器。
+  // Kling 按分辨率选择 pro / 4k 端点，请求 body 不带 resolution。
   [AI_MODELS.KLING_V3_PRO]: {
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['1080p'],
+    supportedResolutions: ['1080p', '4k'],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
   },
   [AI_MODELS.KLING_O3_PRO]: {
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    supportedResolutions: ['1080p'],
+    supportedResolutions: ['1080p', '4k'],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
   },
   // Kling O3 video-to-video/edit（standard 与 pro 同形）：fal 的输入 schema 里
@@ -239,6 +235,11 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: {
     supportedDurations: KLING_O3_V2V_EDIT_DURATIONS,
     supportedResolutions: DEFAULT_VIDEO_RESOLUTIONS,
+    supportedAspectRatios: VIDEO_ASPECT_RATIOS,
+  },
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: {
+    supportedDurations: KLING_O3_V2V_EDIT_DURATIONS,
+    supportedResolutions: [...DEFAULT_VIDEO_RESOLUTIONS, '4k'],
     supportedAspectRatios: VIDEO_ASPECT_RATIOS,
   },
   [AI_MODELS.LTX_23]: {
@@ -327,6 +328,11 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedResolutions: ['2k'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 3 },
+  },
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: {
+    supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    supportedResolutions: ['480p', '768p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
 }
 

@@ -30,13 +30,13 @@ import {
   LLM_TEXT_STREAMS,
   type LlmTextInput,
 } from '@/services/llm-text.service'
-import * as storage from '@/services/storage/r2'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import {
   ASSISTANT_IMAGE_LIMITS,
   ASSISTANT_MEDIA_LIMITS,
 } from '@/constants/assistant'
+import * as storage from '@/services/storage/r2'
 import {
   AI_PROVIDER_ENDPOINTS,
   ANTHROPIC_API,
@@ -836,7 +836,7 @@ describe('OpenAI reference image transport', () => {
   const input: LlmTextInput = {
     systemPrompt: 'sys',
     userPrompt: 'Describe the same character.',
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
     apiKey: 'test-key',
@@ -1086,7 +1086,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
     })
 
     const payload = readFetchJson(fetchMock)
@@ -1118,11 +1118,13 @@ describe('llmTextCompletion - OpenAI', () => {
     if (typeof body !== 'string') {
       throw new Error('Expected OpenAI request body to be a JSON string')
     }
-    const payload = JSON.parse(body) as {
-      max_completion_tokens?: number
-    }
+    const payload = JSON.parse(body) as Record<string, unknown>
 
     expect(result).toBe('openai reply')
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
+    expect(payload.max_tokens).toBeUndefined()
+    expect(payload.reasoning_effort).toBeUndefined()
+    expect(payload.tools).toBeUndefined()
     expect(payload.max_completion_tokens).toBe(
       LLM_TEXT_DEFAULT_MAX_TOKENS.OPENAI_REASONING,
     )
@@ -1236,7 +1238,7 @@ describe('llmTextCompletion - OpenAI', () => {
   })
 
   it.each([
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
   ])('floors low maxTokens for %s reasoning models', async (modelId) => {
@@ -1338,7 +1340,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
       useGrounding: true,
     })
 
@@ -1387,50 +1389,56 @@ describe('llmTextCompletion - DeepSeek', () => {
     expect(readFetchJson(fetchMock).max_tokens).toBeUndefined()
   })
 
-  it('calls the DeepSeek chat API with JSON response format', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [{ message: { content: '{"scenes":[]}' } }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+  it.each([undefined, LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO])(
+    'calls the DeepSeek chat API with JSON response format (%s)',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"scenes":[]}' } }],
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
 
-    const result = await llmTextCompletion({
-      systemPrompt: 'Return json.',
-      userPrompt: 'Write a script outline.',
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: {
-        label: 'DeepSeek',
-        baseUrl: 'https://api.deepseek.com',
-      },
-      apiKey: 'sk-deepseek',
-      maxTokens: 2800,
-      responseFormat: 'json_object',
-    })
+      const result = await llmTextCompletion({
+        systemPrompt: 'Return json.',
+        userPrompt: 'Write a script outline.',
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: {
+          label: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        },
+        apiKey: 'sk-deepseek',
+        maxTokens: 2800,
+        responseFormat: 'json_object',
+      })
 
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
-    const body = requestInit?.body
-    if (typeof body !== 'string') {
-      throw new Error('Expected DeepSeek request body to be a JSON string')
-    }
-    const payload = JSON.parse(body) as {
-      model: string
-      max_tokens: number
-      response_format?: { type: string }
-    }
+      const requestInit = fetchMock.mock.calls[0]?.[1] as
+        | RequestInit
+        | undefined
+      const body = requestInit?.body
+      if (typeof body !== 'string') {
+        throw new Error('Expected DeepSeek request body to be a JSON string')
+      }
+      const payload = JSON.parse(body) as {
+        model: string
+        max_tokens: number
+        response_format?: { type: string }
+      }
 
-    expect(result).toBe('{"scenes":[]}')
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.deepseek.com/chat/completions',
-      expect.any(Object),
-    )
-    expect(payload.model).toBe('deepseek-v4-pro')
-    expect(payload.max_tokens).toBe(2800)
-    expect(payload.response_format?.type).toBe('json_object')
-  })
+      expect(result).toBe('{"scenes":[]}')
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.deepseek.com/chat/completions',
+        expect.any(Object),
+      )
+      expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH)
+      expect(payload.max_tokens).toBe(2800)
+      expect(payload.response_format?.type).toBe('json_object')
+    },
+  )
 
   it('keeps an explicit DeepSeek V4 Pro choice text-only', async () => {
     await expect(
@@ -1477,7 +1485,7 @@ describe('llmTextCompletion - DeepSeek', () => {
     )
   })
 
-  it('forwards image input for DeepSeek V4 Flash Vision Exp', async () => {
+  it('forwards image input for DeepSeek V4.1 Flash', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -1797,146 +1805,166 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     expect(second.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC + 1)
   })
 
-  it('calls the Messages API with the system prompt as a top-level field', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          content: [{ type: 'text', text: 'hello from claude' }],
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'calls the Messages API with the system prompt as a top-level field (%s)',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [{ type: 'text', text: 'hello from claude' }],
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
+      const result = await llmTextCompletion({
+        systemPrompt: 'You are helpful.',
+        userPrompt: 'Say hello.',
+        maxTokens: 512,
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+      })
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.anthropic.com/v1/messages',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-api-key': 'sk-ant-test',
+            'anthropic-version': '2023-06-01',
+            'anthropic-workspace-id': 'wrkspc_test',
+          }),
         }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+      )
+      const payload = readFetchJson(fetchMock) as {
+        model: string
+        max_tokens: number
+        system?: unknown
+        messages: Array<{ role: string; content: unknown }>
+      }
 
-    const result = await llmTextCompletion({
-      systemPrompt: 'You are helpful.',
-      userPrompt: 'Say hello.',
-      maxTokens: 512,
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-      apiKey: 'sk-ant-test',
-    })
+      expect(result).toBe('hello from claude')
+      expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
+      // 512 is below the Anthropic floor (thinking + answer share max_tokens).
+      expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
+      // System prompt goes on the top-level `system` field — Anthropic has no
+      // role:'system' message — as one cached text block.
+      expect(payload.system).toEqual([
+        {
+          type: 'text',
+          text: 'You are helpful.',
+          cache_control: { type: 'ephemeral' },
+        },
+      ])
+      expect(payload.messages).toEqual([
+        { role: 'user', content: 'Say hello.' },
+      ])
+    },
+  )
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.anthropic.com/v1/messages',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'x-api-key': 'sk-ant-test',
-          'anthropic-version': '2023-06-01',
-          'anthropic-workspace-id': 'wrkspc_test',
-        }),
-      }),
-    )
-    const payload = readFetchJson(fetchMock) as {
-      model: string
-      max_tokens: number
-      system?: unknown
-      messages: Array<{ role: string; content: unknown }>
-    }
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'asks for JSON in the system prompt and never sends an assistant prefill (%s)',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [{ type: 'text', text: '{"scenes":[]}' }],
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
 
-    expect(result).toBe('hello from claude')
-    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
-    // 512 is below the Anthropic floor (thinking + answer share max_tokens).
-    expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
-    // System prompt goes on the top-level `system` field — Anthropic has no
-    // role:'system' message — as one cached text block.
-    expect(payload.system).toEqual([
-      {
-        type: 'text',
-        text: 'You are helpful.',
-        cache_control: { type: 'ephemeral' },
-      },
-    ])
-    expect(payload.messages).toEqual([{ role: 'user', content: 'Say hello.' }])
-  })
+      const result = await llmTextCompletion({
+        systemPrompt: 'Return json.',
+        userPrompt: 'Write a script outline.',
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+        maxTokens: 2000,
+        responseFormat: 'json_object',
+      })
 
-  it('asks for JSON in the system prompt and never sends an assistant prefill', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          content: [{ type: 'text', text: '{"scenes":[]}' }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+      const payload = readFetchJson(fetchMock) as {
+        system: Array<{ text: string }>
+        messages: Array<{ role: string; content: unknown }>
+        output_config?: unknown
+      }
 
-    const result = await llmTextCompletion({
-      systemPrompt: 'Return json.',
-      userPrompt: 'Write a script outline.',
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-      apiKey: 'sk-ant-test',
-      maxTokens: 2000,
-      responseFormat: 'json_object',
-    })
+      // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.1**, so
+      // JSON mode must never add one. The instruction rides the system prompt.
+      expect(payload.messages).toEqual([
+        { role: 'user', content: 'Write a script outline.' },
+      ])
+      expect(payload.messages.some((m) => m.role === 'assistant')).toBe(false)
+      expect(payload.system[0]?.text).toContain('Return json.')
+      expect(payload.system[0]?.text).toContain('single valid JSON object')
+      expect(payload.output_config).toBeUndefined()
+      // Passed through untouched — nothing to stitch back on any more.
+      expect(result).toBe('{"scenes":[]}')
+      expect(() => JSON.parse(result)).not.toThrow()
+    },
+  )
 
-    const payload = readFetchJson(fetchMock) as {
-      system: Array<{ text: string }>
-      messages: Array<{ role: string; content: unknown }>
-      output_config?: unknown
-    }
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'sends a caller schema as output_config.format instead of the JSON instruction (%s)',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [{ type: 'text', text: '{"conclusion":"ok"}' }],
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+      const schema = {
+        type: 'object',
+        properties: { conclusion: { type: 'string' } },
+        required: ['conclusion'],
+        additionalProperties: false,
+      }
 
-    // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.1**, so
-    // JSON mode must never add one. The instruction rides the system prompt.
-    expect(payload.messages).toEqual([
-      { role: 'user', content: 'Write a script outline.' },
-    ])
-    expect(payload.messages.some((m) => m.role === 'assistant')).toBe(false)
-    expect(payload.system[0]?.text).toContain('Return json.')
-    expect(payload.system[0]?.text).toContain('single valid JSON object')
-    expect(payload.output_config).toBeUndefined()
-    // Passed through untouched — nothing to stitch back on any more.
-    expect(result).toBe('{"scenes":[]}')
-    expect(() => JSON.parse(result)).not.toThrow()
-  })
+      await llmTextCompletion({
+        systemPrompt: 'Return json.',
+        userPrompt: 'Conclude.',
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+        responseFormat: 'json_object',
+        jsonSchema: schema,
+      })
 
-  it('sends a caller schema as output_config.format instead of the JSON instruction', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          content: [{ type: 'text', text: '{"conclusion":"ok"}' }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-    const schema = {
-      type: 'object',
-      properties: { conclusion: { type: 'string' } },
-      required: ['conclusion'],
-      additionalProperties: false,
-    }
-
-    await llmTextCompletion({
-      systemPrompt: 'Return json.',
-      userPrompt: 'Conclude.',
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-      apiKey: 'sk-ant-test',
-      responseFormat: 'json_object',
-      jsonSchema: schema,
-    })
-
-    const payload = readFetchJson(fetchMock) as {
-      system: Array<{ text: string }>
-      output_config?: unknown
-    }
-    expect(payload.output_config).toEqual({
-      format: { type: 'json_schema', schema },
-    })
-    expect(payload.system[0]?.text).toBe('Return json.')
-  })
+      const payload = readFetchJson(fetchMock) as {
+        system: Array<{ text: string }>
+        output_config?: unknown
+      }
+      expect(payload.output_config).toEqual({
+        format: { type: 'json_schema', schema },
+      })
+      expect(payload.system[0]?.text).toBe('Return json.')
+    },
+  )
 
   it.each([
     LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
     LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
   ])(
     'sends supported thinking and fallback parameters for %s',
     async (modelId) => {
       const fetchMock = vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
+          JSON.stringify({
+            content: [
+              { type: 'thinking', thinking: '', signature: 'sig-test' },
+              { type: 'text', text: 'ok' },
+            ],
+          }),
           {
             status: 200,
           },
@@ -1944,7 +1972,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       )
       vi.stubGlobal('fetch', fetchMock)
 
-      await llmTextCompletion({
+      const result = await llmTextCompletion({
         systemPrompt: 'sys',
         userPrompt: 'hi',
         modelId,
@@ -1958,10 +1986,14 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       // `budget_tokens` with a 400 — the field must be absent. The refusal
       // fallback is the `'default'` scalar, which needs exactly the
       // `-2026-07-01` beta header (the array form uses a different one).
-      const payload = readFetchJson(fetchMock) as {
-        thinking?: unknown
-        fallbacks?: unknown
-      }
+      const payload = readFetchJson(fetchMock)
+      expect(result).toBe('ok')
+      expect(payload.model).toBe(modelId)
+      expect(payload.temperature).toBeUndefined()
+      expect(payload.top_p).toBeUndefined()
+      expect(payload.top_k).toBeUndefined()
+      expect(payload.tool_choice).toBeUndefined()
+      expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
       expect(payload.thinking).toBeUndefined()
       expect(payload.fallbacks).toBe('default')
       expect(fetchMock).toHaveBeenCalledWith(
@@ -1975,75 +2007,86 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     },
   )
 
-  it('throws PROVIDER_REFUSED when the classifiers decline (HTTP 200, stop_reason refusal)', async () => {
-    // A refusal is a *successful* response with empty (pre-output) content —
-    // reading content[0] unconditionally would surface "No text response".
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            content: [],
-            stop_reason: 'refusal',
-            stop_details: { type: 'refusal', category: 'cyber' },
-          }),
-          { status: 200 },
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'throws PROVIDER_REFUSED when the classifiers decline (HTTP 200, stop_reason refusal) (%s)',
+    async (modelId) => {
+      // A refusal is a *successful* response with empty (pre-output) content —
+      // reading content[0] unconditionally would surface "No text response".
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              content: [],
+              stop_reason: 'refusal',
+              stop_details: { type: 'refusal', category: 'cyber' },
+            }),
+            { status: 200 },
+          ),
         ),
-      ),
-    )
+      )
 
-    await expect(
-      llmTextCompletion({
+      await expect(
+        llmTextCompletion({
+          systemPrompt: 'sys',
+          userPrompt: 'hi',
+          modelId,
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+          apiKey: 'sk-ant-test',
+        }),
+      ).rejects.toMatchObject({
+        errorCode: 'PROVIDER_REFUSED',
+        i18nKey: 'errors.provider.refused',
+      })
+    },
+  )
+
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'sends images as base64 / url blocks ahead of the text (%s)',
+    async (modelId) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ content: [{ type: 'text', text: 'seen' }] }),
+            { status: 200 },
+          ),
+        )
+      vi.stubGlobal('fetch', fetchMock)
+
+      const result = await llmTextCompletion({
         systemPrompt: 'sys',
-        userPrompt: 'hi',
+        userPrompt: 'Compare them.',
+        imageData: [
+          'data:image/png;base64,abc',
+          'https://cdn.example.com/b.jpg',
+        ],
+        modelId,
         adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
         providerConfig: ANTHROPIC_PROVIDER_CONFIG,
         apiKey: 'sk-ant-test',
-      }),
-    ).rejects.toMatchObject({
-      errorCode: 'PROVIDER_REFUSED',
-      i18nKey: 'errors.provider.refused',
-    })
-  })
+      })
 
-  it('sends images as base64 / url blocks ahead of the text', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({ content: [{ type: 'text', text: 'seen' }] }),
-          { status: 200 },
-        ),
-      )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await llmTextCompletion({
-      systemPrompt: 'sys',
-      userPrompt: 'Compare them.',
-      imageData: ['data:image/png;base64,abc', 'https://cdn.example.com/b.jpg'],
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-      apiKey: 'sk-ant-test',
-    })
-
-    expect(result).toBe('seen')
-    expect(readFetchJson(fetchMock).messages).toEqual([
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/png', data: 'abc' },
-          },
-          {
-            type: 'image',
-            source: { type: 'url', url: 'https://cdn.example.com/b.jpg' },
-          },
-          { type: 'text', text: 'Compare them.' },
-        ],
-      },
-    ])
-  })
+      expect(result).toBe('seen')
+      expect(readFetchJson(fetchMock).messages).toEqual([
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: 'image/png', data: 'abc' },
+            },
+            {
+              type: 'image',
+              source: { type: 'url', url: 'https://cdn.example.com/b.jpg' },
+            },
+            { type: 'text', text: 'Compare them.' },
+          ],
+        },
+      ])
+    },
+  )
 
   it('rejects grounding requests', async () => {
     await expect(
@@ -2325,109 +2368,41 @@ describe('llmTextStream', () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
     expect(body.stream).toBe(true)
+    expect(body.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
   })
 
-  it('Claude：只取 text_delta —— thinking_delta 绝不当正文念出去', async () => {
-    // ⚠ Anthropic 是自己的事件格式，不与那四家共用解析。同一个
-    //   `content_block_delta` 还会驮思考与工具调用的增量；把它们 yield 出去就是
-    //   把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），默认
-    //   `display: "omitted"` 时 thinking_delta 为空串，但这道判据不能靠那个默认兜着。
-    const frame = (delta: Record<string, unknown>) =>
-      `event: content_block_delta\ndata: ${JSON.stringify({
-        type: 'content_block_delta',
-        index: 0,
-        delta,
-      })}\n\n`
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([
-            frame({ type: 'thinking_delta', thinking: '我先想想' }),
-            frame({ type: 'text_delta', text: '前半' }),
-            frame({ type: 'text_delta', text: '后半' }),
-            CLAUDE_MESSAGE_STOP_FRAME,
-          ]),
-        ),
-    )
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: {
-          label: 'Claude',
-          baseUrl: 'https://api.anthropic.com/v1',
-        },
-        apiKey: 'test-key',
-      }),
-    )
-
-    expect(chunks).toEqual(['前半', '后半'])
-  })
-
-  it('Claude：请求体带 stream:true', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        sseResponse([
-          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
-          CLAUDE_MESSAGE_STOP_FRAME,
-        ]),
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'Claude：只取 text_delta —— thinking_delta 绝不当正文念出去 (%s)',
+    async (modelId) => {
+      // ⚠ Anthropic 是自己的事件格式，不与那四家共用解析。同一个
+      //   `content_block_delta` 还会驮思考与工具调用的增量；把它们 yield 出去就是
+      //   把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），默认
+      //   `display: "omitted"` 时 thinking_delta 为空串，但这道判据不能靠那个默认兜着。
+      const frame = (delta: Record<string, unknown>) =>
+        `event: content_block_delta\ndata: ${JSON.stringify({
+          type: 'content_block_delta',
+          index: 0,
+          delta,
+        })}\n\n`
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            sseResponse([
+              frame({ type: 'thinking_delta', thinking: '我先想想' }),
+              frame({ type: 'text_delta', text: '前半' }),
+              frame({ type: 'text_delta', text: '后半' }),
+              CLAUDE_MESSAGE_STOP_FRAME,
+            ]),
+          ),
       )
-    vi.stubGlobal('fetch', fetchMock)
 
-    await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: {
-          label: 'Claude',
-          baseUrl: 'https://api.anthropic.com/v1',
-        },
-        apiKey: 'test-key',
-      }),
-    )
-
-    expect(readFetchJson(fetchMock).stream).toBe(true)
-  })
-
-  it('Claude：流中途 stop_reason=refusal 抛 PROVIDER_REFUSED，不把半截当完整回复', async () => {
-    // 分类器可以在已经吐了一部分正文之后才拒绝：`message_delta` 带
-    // `stop_reason: 'refusal'`。这时要抛错让上层丢掉半截，而不是静默收尾。
-    const refusalFrame =
-      'event: message_delta\ndata: ' +
-      JSON.stringify({
-        type: 'message_delta',
-        delta: { stop_reason: 'refusal', stop_sequence: null },
-        usage: { output_tokens: 3 },
-      }) +
-      '\n\n'
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        sseResponse([
-          'event: content_block_delta\ndata: ' +
-            JSON.stringify({
-              type: 'content_block_delta',
-              index: 0,
-              delta: { type: 'text_delta', text: '半截' },
-            }) +
-            '\n\n',
-          refusalFrame,
-          CLAUDE_MESSAGE_STOP_FRAME,
-        ]),
-      ),
-    )
-
-    await expect(
-      collect(
+      const chunks = await collect(
         llmTextStream({
           systemPrompt: 'sys',
           userPrompt: 'user',
+          modelId,
           adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
           providerConfig: {
             label: 'Claude',
@@ -2435,9 +2410,94 @@ describe('llmTextStream', () => {
           },
           apiKey: 'test-key',
         }),
-      ),
-    ).rejects.toMatchObject({ errorCode: 'PROVIDER_REFUSED' })
-  })
+      )
+
+      expect(chunks).toEqual(['前半', '后半'])
+    },
+  )
+
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'Claude：请求体带 stream:true (%s)',
+    async (modelId) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
+            CLAUDE_MESSAGE_STOP_FRAME,
+          ]),
+        )
+      vi.stubGlobal('fetch', fetchMock)
+
+      await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          modelId,
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          providerConfig: {
+            label: 'Claude',
+            baseUrl: 'https://api.anthropic.com/v1',
+          },
+          apiKey: 'test-key',
+        }),
+      )
+
+      const payload = readFetchJson(fetchMock)
+      expect(payload.stream).toBe(true)
+      expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
+      expect(payload.thinking).toBeUndefined()
+      expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
+    },
+  )
+
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'Claude：流中途 stop_reason=refusal 抛 PROVIDER_REFUSED，不把半截当完整回复 (%s)',
+    async (modelId) => {
+      // 分类器可以在已经吐了一部分正文之后才拒绝：`message_delta` 带
+      // `stop_reason: 'refusal'`。这时要抛错让上层丢掉半截，而不是静默收尾。
+      const refusalFrame =
+        'event: message_delta\ndata: ' +
+        JSON.stringify({
+          type: 'message_delta',
+          delta: { stop_reason: 'refusal', stop_sequence: null },
+          usage: { output_tokens: 3 },
+        }) +
+        '\n\n'
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            'event: content_block_delta\ndata: ' +
+              JSON.stringify({
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text: '半截' },
+              }) +
+              '\n\n',
+            refusalFrame,
+            CLAUDE_MESSAGE_STOP_FRAME,
+          ]),
+        ),
+      )
+
+      await expect(
+        collect(
+          llmTextStream({
+            systemPrompt: 'sys',
+            userPrompt: 'user',
+            modelId,
+            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+            providerConfig: {
+              label: 'Claude',
+              baseUrl: 'https://api.anthropic.com/v1',
+            },
+            apiKey: 'test-key',
+          }),
+        ),
+      ).rejects.toMatchObject({ errorCode: 'PROVIDER_REFUSED' })
+    },
+  )
 
   // ─── OpenAI 兼容的另外三家（2026-08-24 补齐） ──────────────────
   //
@@ -3861,87 +3921,92 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     ])
   })
 
-  it('Claude：服务端 web_search；被引用的排前，搜到没用的垫后，出错块不当结果', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          content: [
-            { type: 'server_tool_use', id: 'x', name: 'web_search' },
-            { type: 'server_tool_use', id: 'y', name: 'web_search' },
-            {
-              type: 'web_search_tool_result',
-              tool_use_id: 'x',
-              content: [
-                {
-                  type: 'web_search_result',
-                  url: 'https://b.test',
-                  title: 'B',
-                },
-                {
-                  type: 'web_search_result',
-                  url: 'https://c.test',
-                  title: 'C',
-                },
-              ],
-            },
-            {
-              type: 'web_search_tool_result',
-              tool_use_id: 'y',
-              content: {
-                type: 'web_search_tool_result_error',
-                error_code: 'x',
+  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
+    'Claude：服务端 web_search；被引用的排前，搜到没用的垫后，出错块不当结果 (%s)',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: 'server_tool_use', id: 'x', name: 'web_search' },
+              { type: 'server_tool_use', id: 'y', name: 'web_search' },
+              {
+                type: 'web_search_tool_result',
+                tool_use_id: 'x',
+                content: [
+                  {
+                    type: 'web_search_result',
+                    url: 'https://b.test',
+                    title: 'B',
+                  },
+                  {
+                    type: 'web_search_result',
+                    url: 'https://c.test',
+                    title: 'C',
+                  },
+                ],
               },
-            },
-            {
-              type: 'text',
-              text: '配色偏青绿。',
-              citations: [
-                {
-                  type: 'web_search_result_location',
-                  url: 'https://c.test',
-                  title: 'C',
-                  cited_text: '青绿配色',
+              {
+                type: 'web_search_tool_result',
+                tool_use_id: 'y',
+                content: {
+                  type: 'web_search_tool_result_error',
+                  error_code: 'x',
                 },
-              ],
-            },
-          ],
-          stop_reason: 'end_turn',
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+              },
+              {
+                type: 'text',
+                text: '配色偏青绿。',
+                citations: [
+                  {
+                    type: 'web_search_result_location',
+                    url: 'https://c.test',
+                    title: 'C',
+                    cited_text: '青绿配色',
+                  },
+                ],
+              },
+            ],
+            stop_reason: 'end_turn',
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
 
-    const found = await llmNativeWebSearch({
-      ...base,
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: { label: 'Anthropic', baseUrl: '' },
-    })
+      const found = await llmNativeWebSearch({
+        ...base,
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: { label: 'Anthropic', baseUrl: '' },
+      })
 
-    const payload = readFetchJson(fetchMock) as {
-      model: string
-      tools?: { type: string; name: string }[]
-      tool_choice?: unknown
-      thinking?: unknown
-      temperature?: number
-    }
-    expect(payload.tools?.[0]).toMatchObject({
-      name: 'web_search',
-      type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
-    })
-    expect(payload.tool_choice).toBeUndefined()
-    expect(payload.thinking).toBeUndefined()
-    expect(payload.temperature).toBeUndefined()
-    expect(found.answer).toBe('配色偏青绿。')
-    expect(found.status).toBe('partial')
-    expect(found.error).toBe('x')
-    expect(found.sources.map((source) => source.url)).toEqual([
-      'https://c.test',
-      'https://b.test',
-    ])
-    expect(found.sources[0]?.excerpt).toBe('青绿配色')
-    expect(found.sources[0]?.excerptKind).toBe('source_excerpt')
-  })
+      const payload = readFetchJson(fetchMock) as {
+        model: string
+        tools?: { type: string; name: string }[]
+        tool_choice?: unknown
+        thinking?: unknown
+        temperature?: number
+      }
+      expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
+      expect(payload.tools?.[0]).toMatchObject({
+        name: 'web_search',
+        type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+      })
+      expect(payload.tool_choice).toBeUndefined()
+      expect(payload.thinking).toBeUndefined()
+      expect(payload.temperature).toBeUndefined()
+      expect(found.answer).toBe('配色偏青绿。')
+      expect(found.status).toBe('partial')
+      expect(found.error).toBe('x')
+      expect(found.sources.map((source) => source.url)).toEqual([
+        'https://c.test',
+        'https://b.test',
+      ])
+      expect(found.sources[0]?.excerpt).toBe('青绿配色')
+      expect(found.sources[0]?.excerptKind).toBe('source_excerpt')
+    },
+  )
 })
 
 describe('native web search receipts', () => {

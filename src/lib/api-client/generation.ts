@@ -1407,19 +1407,29 @@ export async function cancelLongVideoAPI(
 
 export async function checkImageGenerationStatusAPI(
   jobId: string,
-): Promise<ImageStatusResponse> {
+  signal?: AbortSignal,
+): Promise<
+  ImageStatusResponse & {
+    httpStatus?: number
+    errorCode?: string
+    i18nKey?: string
+  }
+> {
   try {
     const response = await fetch(
       `${API_ENDPOINTS.STUDIO_GENERATE_STATUS}?jobId=${encodeURIComponent(jobId)}`,
+      signal ? { signal } : undefined,
     )
 
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Status check failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Status check failed with status ${response.status}`,
-        ),
+        httpStatus: response.status,
+        ...payload,
       }
     }
 

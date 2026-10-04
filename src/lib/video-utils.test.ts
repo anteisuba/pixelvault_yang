@@ -35,4 +35,15 @@ describe('getVideoOutputSize', () => {
   it('没有档位回落到比例默认尺寸', () => {
     expect(getVideoOutputSize('9:16')).toEqual({ width: 1024, height: 1792 })
   })
+
+  it('estimates 4K landscape and portrait dimensions without image-size fallback', () => {
+    expect(getVideoOutputSize('16:9', '4k')).toEqual({
+      width: 3840,
+      height: 2160,
+    })
+    expect(getVideoOutputSize('9:16', '4k')).toEqual({
+      width: 2160,
+      height: 3840,
+    })
+  })
 })

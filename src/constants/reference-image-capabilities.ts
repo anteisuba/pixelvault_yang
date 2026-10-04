@@ -115,6 +115,13 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'style',
     mode: 'native',
   },
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: {
+    kind: 'flexible',
+    min: 0,
+    max: 4,
+    defaultRole: 'style',
+    mode: 'native',
+  },
   // fal-ai/veo3.1/reference-to-video already posts `image_urls: string[]`.
   // Google's Veo 3.1 reference-to-video docs cap subject/scene references at
   // 3 images, so 3 is the right ceiling to expose to users.
@@ -233,6 +240,13 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
   },
   // MiniMax H3 base: first_frame + optional last_frame — two images, the
   // second one is the last frame (see the Wan 3.0 entry above).
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: {
+    kind: 'flexible',
+    min: 0,
+    max: 2,
+    defaultRole: 'general',
+    mode: 'native',
+  },
   [AI_MODELS.MINIMAX_H3]: {
     kind: 'flexible',
     min: 0,

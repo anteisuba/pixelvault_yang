@@ -191,6 +191,7 @@ export interface CapabilityConfig {
   inputFidelityOptions?: readonly string[]
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
+  aspectRatioOptions?: readonly string[]
   styleOptions?: readonly string[]
   backgroundOptions?: readonly string[]
   /** NovelAI 质量标签档位（`off` 为缺省 = 不追加标签）。 */
@@ -271,6 +272,15 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
      * （Tsubaki 是 DiT，收的是 `mode` / `style`），所以 adapter 默认只留
      * provider 无条件都收的两项，其余逐模型声明。
      */
+    [AI_ADAPTER_TYPES.IDEOGRAM]: {
+      capabilities: ['quality', 'seed', 'inpaint', 'resolution'],
+      qualityOptions: ['medium', 'low', 'high'],
+      resolutionOptions: ['1K', '2K'],
+      aspectRatioOptions: ['1:1'],
+      maxReferenceImages: 5,
+      referenceImageMode: 'native',
+    },
+
     [AI_ADAPTER_TYPES.PIXAI]: {
       // `size` 两档对三个型号都成立（官方 body 字段没有按型号设限）；`mode` 是
       // Tsubaki 专属，逐模型 override 声明。

@@ -12,7 +12,7 @@
  * （`services/user.service.ts`），之后可被自传头像覆盖 —— 两个真相源在用户换过
  * 头像之后会各说各话。
  *
- * ⚠ 没头像就是**首字母圆标**这一档，⛔ 不出破图也不出骨架屏（§3.4）。
+ * ⚠ 用户没有头像时显示首字母，助手没有头像时显示默认图标。
  */
 
 import Image from 'next/image'
@@ -45,7 +45,7 @@ interface AssistantTimelineAvatarProps {
    *
    * ⚠ ⛔ 这颗组件不自己调 `useAssistantPersona()`：它一轮里要渲染好几次，
    * 每一次都会开一个 `GET /api/assistant/persona`。⚠ 缺席（还没拉到）时画默认
-   * 预设那一款 —— ⛔ 不出骨架屏，⛔ 不留空圈（§3.4「未加载完先画首字母」）。
+   * 预设那一款 —— ⛔ 不出骨架屏，⛔ 不留空圈。
    */
   persona?: AssistantPersona
   className?: string
@@ -86,13 +86,11 @@ export function AssistantTimelineAvatar({
           className="size-full object-cover"
         />
       ) : (
-        // 预设款是纯图形（`aria-hidden` 的 SVG）—— 名字挂在外层 span 上。
         <span role="img" aria-label={label} className="size-full">
           <AssistantAvatarGlyph
             presetId={
               persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
             }
-            name={persona?.name?.trim() || t('assistantFallback')}
             className="size-full"
           />
         </span>

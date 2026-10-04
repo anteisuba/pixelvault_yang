@@ -81,9 +81,11 @@ export function PromptBarMarkHidden({ text }: { readonly text: string }) {
 export function PromptBarMarkThumb({
   text,
   children,
+  className,
 }: {
   readonly text: string
   readonly children: ReactNode
+  readonly className?: string
 }) {
   return (
     <span className="relative">
@@ -91,7 +93,10 @@ export function PromptBarMarkThumb({
       <span
         aria-hidden
         data-prompt-bar-thumb
-        className="pointer-events-none absolute top-1/2 left-1/2 flex size-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xs bg-surface-fill-track"
+        className={cn(
+          'pointer-events-none absolute top-1/2 left-1/2 flex size-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xs bg-surface-fill-track',
+          className,
+        )}
       >
         {children}
       </span>

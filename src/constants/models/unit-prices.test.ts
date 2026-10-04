@@ -6,11 +6,14 @@ import { AI_MODELS } from '@/constants/models/enum'
 import {
   MODEL_UNIT_PRICES,
   formatUnitPriceAmount,
+  getImageUnitPrice,
+  getIdeogramImageOutputPrice,
   getModelUnitPrice,
   getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
+import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import type { VideoResolution } from '@/constants/video-options'
 
 /**
@@ -26,6 +29,20 @@ const entries = Object.entries(MODEL_UNIT_PRICES) as [
 ][]
 
 describe('model unit prices', () => {
+  it('uses H3 Max Turbo post-promotion resolution prices', () => {
+    const modelId = AI_MODELS.MINIMAX_H3_MAX_TURBO
+    expect(getVideoUnitPricePerSecond(modelId, '480p')).toBe(0.025)
+    expect(getVideoUnitPricePerSecond(modelId, '768p')).toBe(0.04)
+    expect(getVideoUnitPricePerSecond(modelId, '1080p')).toBe(0.08)
+    expect(getVideoUnitPricePerSecond(modelId, '4k')).toBeNull()
+    expect(getModelUnitPrice(modelId)?.amount).toBe(0.04)
+    expect(getModelUnitPrice(modelId)).toMatchObject({
+      amount: 0.04,
+      unit: 'second',
+      verifiedAt: '2026-10-01',
+    })
+  })
+
   it.each([
     AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
@@ -99,7 +116,7 @@ describe('model unit prices', () => {
     }
   })
 
-  it('没有分辨率旋钮的视频模型必须报得出价', () => {
+  it('固定分辨率与默认分辨率的视频模型必须报得出价', () => {
     // 回归守卫：H3 恒发 2k、Kling 恒出 1080p，它们的默认档都不是 720p 基准档。
     // 少了分档表，`getVideoUnitPricePerSecond` 会把一个明明有价的模型判成缺价，
     // 成本预览就只剩一行「N 个模型未标价」。
@@ -110,12 +127,30 @@ describe('model unit prices', () => {
       [AI_MODELS.MINIMAX_H3_REFERENCE_CN, '2k'],
       [AI_MODELS.KLING_V3_PRO, '1080p'],
       [AI_MODELS.KLING_O3_PRO, '1080p'],
+      [AI_MODELS.KLING_O3_4K_V2V_EDIT, '4k'],
     ]
     for (const [id, resolution] of knobless) {
       expect(
         getVideoUnitPricePerSecond(id, resolution),
         `${id} has no price at its only tier ${resolution}`,
       ).toBeGreaterThan(0)
+    }
+  })
+
+  it('uses verified Kling 4K pricing and leaves token-priced Seedance 4K unknown', () => {
+    for (const modelId of [
+      AI_MODELS.KLING_V3_PRO,
+      AI_MODELS.KLING_O3_PRO,
+      AI_MODELS.KLING_O3_4K_V2V_EDIT,
+    ]) {
+      expect(getVideoUnitPricePerSecond(modelId, '4k')).toBe(0.42)
+    }
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_REFERENCE,
+    ]) {
+      expect(getVideoUnitPricePerSecond(modelId, '4k')).toBeNull()
+      expect(getVideoUnitPricePerSecond(modelId, '720p')).toBe(0.3034)
     }
   })
 
@@ -141,10 +176,7 @@ describe('model unit prices', () => {
     }
   })
 
-  it('⚠ 口径成立的前提：有价的视频模型全都默认开音频', () => {
-    // owner 选的是「按产品默认档」。当前它恰好等于本表的含音频口径 —— 因为所有
-    // 有价视频模型都 `generateAudio: true`。**这是巧合不是定理**：哪天进来一个
-    // 默认关音频的模型，本表就必须加一列区分，否则比价界面会高报它的价。
+  it('有音频开关的已报价视频生成模型默认开音频', () => {
     for (const [id] of entries) {
       const model = getModelById(id)
       if (!model || model.outputType !== 'VIDEO') continue
@@ -153,6 +185,11 @@ describe('model unit prices', () => {
       // 问的是「保不保留原片的声音」，不是「要不要生成一条音轨」—— 拿
       // `videoDefaults.generateAudio` 去卡它，卡的是一件端点上不存在的事。
       if (resolveVideoKind(model) === VIDEO_KIND.EDIT) continue
+      if (
+        !getVideoModelSendContract(id, model.adapterType).parameters
+          .generateAudio
+      )
+        continue
       expect(
         model.videoDefaults?.generateAudio,
         `${id} 默认不开音频 —— 「按产品默认档」不再等于含音频口径，见本表头部注释`,
@@ -169,6 +206,68 @@ describe('model unit prices', () => {
     expect(formatUnitPriceAmount(1.072)).toBe('$1.07')
     // 尾随 0 去掉：`$0.003` 而不是 `$0.0030`
     expect(formatUnitPriceAmount(0.003)).toBe('$0.003')
+  })
+})
+
+describe('Ideogram 4.5 image estimates', () => {
+  it.each([
+    ['low', false, 0.03],
+    ['medium', false, 0.06],
+    ['high', false, 0.1],
+    ['very_low', true, 0.008],
+    ['low', true, 0.03],
+    ['medium', true, 0.06],
+    ['high', true, 0.22],
+  ])(
+    'prices %s with source=%s at $%s',
+    (quality, hasReferenceImage, amount) => {
+      expect(
+        getImageUnitPrice(AI_MODELS.IDEOGRAM_45, {
+          quality,
+          hasReferenceImage,
+        }),
+      ).toBe(amount)
+    },
+  )
+
+  it('uses the explicit product default medium for generation and editing', () => {
+    expect(getImageUnitPrice(AI_MODELS.IDEOGRAM_45)).toBe(0.06)
+    expect(
+      getImageUnitPrice(AI_MODELS.IDEOGRAM_45, { hasReferenceImage: true }),
+    ).toBe(0.06)
+    expect(getModelUnitPrice(AI_MODELS.IDEOGRAM_45)?.amount).toBe(0.06)
+  })
+
+  it('quotes a range when high-quality card references are unresolved', () => {
+    expect(
+      getImageUnitPrice(AI_MODELS.IDEOGRAM_45, { quality: 'high' }),
+    ).toBeNull()
+    expect(
+      getIdeogramImageOutputPrice(AI_MODELS.IDEOGRAM_45, { quality: 'high' }),
+    ).toEqual({ min: 0.1, max: 0.22 })
+    expect(
+      getIdeogramImageOutputPrice(AI_MODELS.IDEOGRAM_45, { quality: 'medium' }),
+    ).toEqual({ min: 0.06, max: 0.06 })
+  })
+
+  it('leaves unsupported quality and source-free very_low unpriced', () => {
+    for (const quality of ['very_low', 'auto', 'max', 'unknown', 'toString']) {
+      expect(getImageUnitPrice(AI_MODELS.IDEOGRAM_45, { quality })).toBeNull()
+    }
+    expect(
+      getImageUnitPrice(AI_MODELS.IDEOGRAM_45, {
+        quality: 'unknown',
+        hasReferenceImage: true,
+      }),
+    ).toBeNull()
+  })
+
+  it('preserves fixed image prices and does not mix video units', () => {
+    expect(getImageUnitPrice(AI_MODELS.FLUX_2_PRO)).toBe(
+      getModelUnitPrice(AI_MODELS.FLUX_2_PRO)?.amount,
+    )
+    expect(getImageUnitPrice(AI_MODELS.SEEDANCE_25_VOLCENGINE)).toBeNull()
+    expect(getImageUnitPrice('unknown')).toBeNull()
   })
 })
 

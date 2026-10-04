@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import {
   afterEach,
   beforeAll,
@@ -30,21 +30,45 @@ vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
 vi.mock(
   '@/components/business/studio-shared/chrome/StudioWorkbenchLayout',
   () => ({
-    StudioWorkbenchLayout: () => null,
+    StudioWorkbenchLayout: ({
+      params,
+      stage,
+      composer,
+    }: {
+      params: import('react').ReactNode
+      stage: import('react').ReactNode
+      composer: import('react').ReactNode
+    }) => (
+      <>
+        {params}
+        {stage}
+        {composer}
+      </>
+    ),
   }),
 )
-vi.mock('./StudioTagsPromptArea', () => ({ StudioTagsPromptArea: () => null }))
+vi.mock('./StudioTagsPromptArea', () => ({
+  StudioTagsPromptArea: ({
+    onOpenPanel,
+  }: {
+    onOpenPanel: (panel: string) => void
+  }) => <button onClick={() => onOpenPanel('catalog')}>openCatalog</button>,
+}))
+vi.mock('./StudioDialectHeader', () => ({ StudioDialectHeader: () => null }))
 // 查资料自带头部：宿主只把「挂上就落焦点」的 ref 递给它。
 vi.mock('./StudioDanbooruPanel', () => ({
   StudioDanbooruPanel: ({
     headingRef,
+    onClose,
   }: {
     headingRef?: import('react').Ref<HTMLHeadingElement>
+    onClose: () => void
   }) => (
     <section data-testid="catalog-panel">
       <h2 ref={headingRef} tabIndex={-1}>
         catalog
       </h2>
+      <button onClick={onClose}>backToResults</button>
     </section>
   ),
 }))
@@ -52,7 +76,7 @@ vi.mock('./NovelAiCharacterComposer', () => ({
   NovelAiCharacterComposer: () => null,
 }))
 
-import { StudioTagsStage } from './StudioTagsWorkbench'
+import { StudioTagsStage, StudioTagsWorkbench } from './StudioTagsWorkbench'
 
 describe('标签台舞台面板', () => {
   beforeAll(() => {
@@ -103,5 +127,41 @@ describe('标签台舞台面板', () => {
     expect(scroll.mock.contexts.at(-1)).toBe(
       screen.getByTestId('catalog-panel'),
     )
+  })
+
+  it('手机：资料入口在底部编辑框，关闭面板回到上方结果', () => {
+    viewport.phone = true
+    const onPanelChange = vi.fn()
+    const { rerender } = render(
+      <StudioTagsWorkbench
+        panel={null}
+        onPanelChange={onPanelChange}
+        templates={null}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'openCatalog' }))
+    expect(onPanelChange).toHaveBeenCalledWith('catalog')
+    rerender(
+      <StudioTagsWorkbench
+        panel="catalog"
+        onPanelChange={onPanelChange}
+        templates={null}
+      />,
+    )
+    act(() => {
+      vi.advanceTimersByTime(DURATION_MS.fast)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'backToResults' }))
+    expect(onPanelChange).toHaveBeenLastCalledWith(null)
+    expect(
+      screen.queryByRole('button', { name: 'backToEditor' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen
+        .getByTestId('results')
+        .compareDocumentPosition(
+          screen.getByRole('button', { name: 'openCatalog' }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

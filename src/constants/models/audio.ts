@@ -117,18 +117,15 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     cost: 4,
     adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.ELEVENLABS),
-    // Body model_id for POST /v1/music (Compose). Default API still may be
-    // music_v1 during transition; we pin v2 explicitly.
-    externalModelId: 'music_v2',
+    // Keep the catalog ID stable for saved generations; pin the Compose model.
+    externalModelId: 'music_v2_5',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.MUSIC,
     available: true,
     officialUrl: 'https://elevenlabs.io/docs/api-reference/music/compose',
     timeoutMs: 180_000,
     qualityTier: 'premium',
-    // ⚠ UNVERIFIED, same as the SFX entry above: POST /v1/music documents
-    // music_length_ms (3000–600000) but no prompt-length constraint that the
-    // 2026-08-07 sweep could reach. Left undeclared rather than guessed.
+    maxPromptChars: 4100,
   },
 ]
 

@@ -56,14 +56,18 @@ interface StudioModelCapabilityChipsProps {
    * `section` = 参数栏 / 手机那一段（虚线 + 小标 + 一行 chip，缺省）。
    * `single` = 底部输入框工具行里的**一颗** chip（owner 2026-09-26）：chip 上写
    * 改过的那一项，点开一个弹层逐项调。
+   * 手机输入条那一行也用它（owner 2026-10-03：放在规格旁边，⛔ 不收进「＋」）。
    */
   variant?: 'section' | 'single'
+  /** `single` 那颗触发器的宿主外观（手机输入框卡里收成无边幽灵丸）。 */
+  triggerClassName?: string
 }
 
 export function StudioModelCapabilityChips({
   disabled = false,
   scroll = false,
   variant = 'section',
+  triggerClassName,
 }: StudioModelCapabilityChipsProps) {
   const { state } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -109,6 +113,7 @@ export function StudioModelCapabilityChips({
         hasReferenceImage={hasReferenceImage}
         sectionLabel={sectionLabel}
         scopeNotes={scopeNotes}
+        triggerClassName={triggerClassName}
       />
     )
   }
@@ -182,6 +187,28 @@ function capabilityValueLabel(
  * 一项专属能力的控件本体（选择 / 文本 / 滑条）—— 逐颗 chip 的弹层与底部输入框
  * 那颗 chip 的弹层**共用这一份**，⛔ 别各写一套。开关档不走这里（它没有弹层）。
  */
+/**
+ * 改过的那几项写成一句：第一项「名 值」，再多写「+N」；一项都没改返回 null。
+ */
+function capabilitySetSummary(
+  setChips: readonly CapabilityChip[],
+  params: AdvancedParams,
+  t: Translate,
+  tAdvanced: Translate,
+): string | null {
+  const first = setChips[0]
+  if (!first) return null
+  const label = t(`capability.${first.capability}`)
+  const valueLabel = capabilityValueLabel(
+    first,
+    getCapabilityChipValue(first, params),
+    t,
+    tAdvanced,
+  )
+  const firstText = valueLabel ? `${label} ${valueLabel}` : label
+  return `${firstText}${setChips.length > 1 ? ` +${setChips.length - 1}` : ''}`
+}
+
 function CapabilityControlBody({
   chip,
   value,
@@ -265,11 +292,8 @@ function CapabilityControlBody({
   return null
 }
 
-/**
- * 底部输入框里的**一颗**专属 chip（owner 2026-09-26）。chip 上写第一项改过的值
- * （再多写「+N」），点开一个弹层，每项一行：开关就是开关，其余是控件本体。
- */
-function CapabilitySingleChip({
+/** 这一轮的专属能力逐项一行：开关就是开关，其余是控件本体（单颗 chip 的弹层身体）。 */
+function CapabilityControlList({
   chips,
   params,
   disabled,
@@ -287,12 +311,6 @@ function CapabilitySingleChip({
   const { dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
   const tAdvanced = useTranslations('AdvancedSettings')
-  const chipClasses = useStudioChipClasses()
-  const popoverMotion = useStudioChipPopoverMotion({
-    side: 'top',
-    align: 'end',
-    sideOffset: 8,
-  })
 
   const update = (patch: Partial<AdvancedParams>) =>
     dispatch({
@@ -301,22 +319,103 @@ function CapabilitySingleChip({
       payload: { ...params, ...patch },
     })
 
-  const setChips = chips.filter((chip) => isCapabilityChipSet(chip, params))
-  const first = setChips[0]
-  const firstText = first
-    ? (() => {
-        const label = t(`capability.${first.capability}`)
-        const valueLabel = capabilityValueLabel(
-          first,
-          getCapabilityChipValue(first, params),
-          t,
-          tAdvanced,
+  return (
+    <div className="flex flex-col gap-4">
+      <span className="text-xs font-medium text-muted-foreground">
+        {sectionLabel}
+      </span>
+      {chips.map((chip) => {
+        const label = t(`capability.${chip.capability}`)
+        const value = getCapabilityChipValue(chip, params)
+        const unavailable = chip.requiresReferenceImage && !hasReferenceImage
+        const scopeNote = scopeNotes.get(chip.capability)
+        const note = scopeNote ? (
+          <span className="text-2xs text-muted-foreground">{scopeNote}</span>
+        ) : null
+        if (chip.kind === 'toggle') {
+          return (
+            <div key={chip.capability} className="flex flex-col gap-1">
+              <label
+                className="flex items-center justify-between gap-3 text-sm"
+                title={tAdvanced(`${chip.capability}Hint`)}
+              >
+                {label}
+                <Switch
+                  checked={value === true}
+                  disabled={disabled || unavailable}
+                  onCheckedChange={(checked) =>
+                    update({
+                      [chip.capability]: checked,
+                    } as AdvancedParams)
+                  }
+                />
+              </label>
+              {note}
+            </div>
+          )
+        }
+        return (
+          <div key={chip.capability} className="flex flex-col gap-1.5">
+            {chip.kind === 'slider' ? null : (
+              <span className="text-2xs font-medium text-foreground">
+                {label}
+              </span>
+            )}
+            {unavailable ? (
+              <span className="text-2xs text-muted-foreground">
+                {t('needsReference')}
+              </span>
+            ) : (
+              <CapabilityControlBody
+                chip={chip}
+                value={value}
+                label={label}
+                disabled={disabled}
+                update={update}
+              />
+            )}
+            {note}
+          </div>
         )
-        return valueLabel ? `${label} ${valueLabel}` : label
-      })()
-    : null
-  const chipText = firstText
-    ? `${t('singleChipLabel')} · ${firstText}${setChips.length > 1 ? ` +${setChips.length - 1}` : ''}`
+      })}
+    </div>
+  )
+}
+
+/**
+ * 底部输入框里的**一颗**专属 chip（owner 2026-09-26）。chip 上写第一项改过的值
+ * （再多写「+N」），点开一个弹层，每项一行：开关就是开关，其余是控件本体。
+ */
+function CapabilitySingleChip({
+  chips,
+  params,
+  disabled,
+  hasReferenceImage,
+  sectionLabel,
+  scopeNotes,
+  triggerClassName,
+}: {
+  chips: CapabilityChip[]
+  params: AdvancedParams
+  disabled: boolean
+  hasReferenceImage: boolean
+  sectionLabel: string
+  scopeNotes: ReadonlyMap<string, string>
+  triggerClassName?: string
+}) {
+  const t = useTranslations('StudioCapabilityChips')
+  const tAdvanced = useTranslations('AdvancedSettings')
+  const chipClasses = useStudioChipClasses()
+  const popoverMotion = useStudioChipPopoverMotion({
+    side: 'top',
+    align: 'end',
+    sideOffset: 8,
+  })
+
+  const setChips = chips.filter((chip) => isCapabilityChipSet(chip, params))
+  const setText = capabilitySetSummary(setChips, params, t, tAdvanced)
+  const chipText = setText
+    ? `${t('singleChipLabel')} · ${setText}`
     : t('singleChipLabel')
 
   return (
@@ -331,6 +430,7 @@ function CapabilitySingleChip({
             chipClasses.trigger,
             setChips.length > 0 && chipClasses.set,
             'data-[state=open]:border-foreground data-[state=open]:ring-3 data-[state=open]:ring-muted',
+            triggerClassName,
           )}
         >
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
@@ -351,68 +451,14 @@ function CapabilitySingleChip({
         )}
         mobileClassName={studioToolSurfaceMobileClass.action}
       >
-        <div className="flex flex-col gap-4">
-          <span className="text-xs font-medium text-muted-foreground">
-            {sectionLabel}
-          </span>
-          {chips.map((chip) => {
-            const label = t(`capability.${chip.capability}`)
-            const value = getCapabilityChipValue(chip, params)
-            const unavailable =
-              chip.requiresReferenceImage && !hasReferenceImage
-            const scopeNote = scopeNotes.get(chip.capability)
-            const note = scopeNote ? (
-              <span className="text-2xs text-muted-foreground">
-                {scopeNote}
-              </span>
-            ) : null
-            if (chip.kind === 'toggle') {
-              return (
-                <div key={chip.capability} className="flex flex-col gap-1">
-                  <label
-                    className="flex items-center justify-between gap-3 text-sm"
-                    title={tAdvanced(`${chip.capability}Hint`)}
-                  >
-                    {label}
-                    <Switch
-                      checked={value === true}
-                      disabled={disabled || unavailable}
-                      onCheckedChange={(checked) =>
-                        update({
-                          [chip.capability]: checked,
-                        } as AdvancedParams)
-                      }
-                    />
-                  </label>
-                  {note}
-                </div>
-              )
-            }
-            return (
-              <div key={chip.capability} className="flex flex-col gap-1.5">
-                {chip.kind === 'slider' ? null : (
-                  <span className="text-2xs font-medium text-foreground">
-                    {label}
-                  </span>
-                )}
-                {unavailable ? (
-                  <span className="text-2xs text-muted-foreground">
-                    {t('needsReference')}
-                  </span>
-                ) : (
-                  <CapabilityControlBody
-                    chip={chip}
-                    value={value}
-                    label={label}
-                    disabled={disabled}
-                    update={update}
-                  />
-                )}
-                {note}
-              </div>
-            )
-          })}
-        </div>
+        <CapabilityControlList
+          chips={chips}
+          params={params}
+          disabled={disabled}
+          hasReferenceImage={hasReferenceImage}
+          sectionLabel={sectionLabel}
+          scopeNotes={scopeNotes}
+        />
       </ResponsivePopoverContent>
     </StudioToolSurface>
   )

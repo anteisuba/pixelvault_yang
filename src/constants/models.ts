@@ -48,6 +48,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.FLUX_LORA]: 'fluxLora',
   [AI_MODELS.GEMINI_PRO_IMAGE]: 'geminiProImage',
   [AI_MODELS.IDEOGRAM_3]: 'ideogram3',
+  [AI_MODELS.IDEOGRAM_45]: 'ideogram45',
   [AI_MODELS.SEEDREAM_45]: 'seedream45',
   [AI_MODELS.SEEDREAM_45_VOLCENGINE]: 'seedream45Volcengine',
   [AI_MODELS.SEEDREAM_50_PRO]: 'seedream50Pro',
@@ -85,6 +86,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.KLING_O3_PRO]: 'klingO3Pro',
   [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'klingO3StandardV2vEdit',
   [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'klingO3ProV2vEdit',
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: 'klingO34kV2vEdit',
   [AI_MODELS.LTX_23]: 'ltx23',
   [AI_MODELS.SEEDANCE_20]: 'seedance20',
   [AI_MODELS.SEEDANCE_20_FAST]: 'seedance20Fast',
@@ -112,6 +114,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimaxH3Reference',
   [AI_MODELS.MINIMAX_H3_CN]: 'minimaxH3Cn',
   [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'minimaxH3ReferenceCn',
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: 'minimaxH3MaxTurbo',
   [AI_MODELS.HUNYUAN3D_2_1]: 'hunyuan3d21',
   [AI_MODELS.HUNYUAN3D_V3]: 'hunyuan3dV3',
   [AI_MODELS.HUNYUAN3D_V31_PRO]: 'hunyuan3dV31Pro',
@@ -217,6 +220,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'Seedream',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'Gemini',
   [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
+  [AI_MODELS.IDEOGRAM_45]: 'Ideogram',
   [AI_MODELS.RECRAFT_V4_PRO]: 'Recraft',
   [AI_MODELS.NOVELAI_V45_FULL]: 'NovelAI',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'NovelAI',
@@ -236,6 +240,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.KLING_O3_PRO]: 'Kling',
   [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'Kling',
   [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'Kling',
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'Gemini',
   [AI_MODELS.SEEDANCE_25]: 'Seedance',
@@ -248,6 +253,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'MiniMax',
   [AI_MODELS.MINIMAX_H3_CN]: 'MiniMax',
   [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'MiniMax',
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: 'MiniMax',
   [AI_MODELS.SEEDANCE_20]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_FAST]: 'Seedance',
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 'Seedance',
@@ -339,12 +345,14 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.KLING_V3_PRO]: 'kling-v3-pro',
   [AI_MODELS.KLING_O3_PRO]: 'kling-o3-pro',
   [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'kling-o3-pro',
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: 'kling-o3-4k',
   [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'kling-o3-standard',
   // MiniMax H3：4 个条目 = 1 型号 × 2 站（key 不通用）× 2 端点
   [AI_MODELS.MINIMAX_H3]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_CN]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: 'minimax-h3',
+  [AI_MODELS.MINIMAX_H3_MAX_TURBO]: 'minimax-h3-max-turbo',
   // Seedream（图片）：与 Seedance 同构 —— 同一型号在 fal 与火山各一条。
   // 不登记的话每个 id 自成型号，型号栏会并排出现「Seedream 5.0 Pro」与
   // 「Seedream 5.0 Pro（火山方舟）」两行（`deriveVariantLabels` 这时必须保留
@@ -429,6 +437,7 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   // 画廊筛选条那种「列全部视频模型」的场合有个稳定的位置。
   [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 5.6,
   [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 5.7,
+  [AI_MODELS.KLING_O3_4K_V2V_EDIT]: 5.8,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 6,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 6.5,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 6.75,
@@ -436,12 +445,12 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.SEEDANCE_20_REFERENCE]: 7.5,
   [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: 7.75,
   [AI_MODELS.WAN_30_REFERENCE]: 7.9,
-  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 8,
-  [AI_MODELS.SEEDANCE_25]: 8.25,
-  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 8.5,
-  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 8.75,
-  [AI_MODELS.SEEDANCE_25_REFERENCE]: 9,
-  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 9.25,
+  [AI_MODELS.SEEDANCE_25_VOLCENGINE]: 0.1,
+  [AI_MODELS.SEEDANCE_25]: 0.2,
+  [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 0.3,
+  [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 0.4,
+  [AI_MODELS.SEEDANCE_25_REFERENCE]: 0.5,
+  [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 0.6,
   [AI_MODELS.LTX_23]: 10,
 }
 
@@ -506,6 +515,7 @@ export type ProviderGroup =
   | 'minimax'
   | 'runner'
   | 'pixai'
+  | 'ideogram'
 
 /** Display order for provider groups. */
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
@@ -514,6 +524,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'deepseek',
   'novelai',
   'pixai',
+  'ideogram',
   'fal',
   'runway',
   'volcengine',
@@ -542,6 +553,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'novelai'
     case AI_ADAPTER_TYPES.PIXAI:
       return 'pixai'
+    case AI_ADAPTER_TYPES.IDEOGRAM:
+      return 'ideogram'
     case AI_ADAPTER_TYPES.FAL:
       return 'fal'
     case AI_ADAPTER_TYPES.RUNWAY:

@@ -1,4 +1,4 @@
-import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_PROVIDER_ENDPOINTS, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 
 export enum AI_ADAPTER_TYPES {
   HUGGINGFACE = 'huggingface',
@@ -16,6 +16,7 @@ export enum AI_ADAPTER_TYPES {
    * https://platform.pixai.art/en/docs
    */
   PIXAI = 'pixai',
+  IDEOGRAM = 'ideogram',
   VOLCENGINE = 'volcengine',
   /** BytePlus ModelArk international station; accounts and keys are separate from VolcEngine China. */
   BYTEPLUS = 'byteplus',
@@ -79,6 +80,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.REPLICATE,
   AI_ADAPTER_TYPES.NOVELAI,
   AI_ADAPTER_TYPES.PIXAI,
+  AI_ADAPTER_TYPES.IDEOGRAM,
   AI_ADAPTER_TYPES.VOLCENGINE,
   AI_ADAPTER_TYPES.BYTEPLUS,
   AI_ADAPTER_TYPES.FISH_AUDIO,
@@ -129,6 +131,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   [AI_ADAPTER_TYPES.PIXAI]: {
     label: 'PixAI',
     baseUrl: AI_PROVIDER_ENDPOINTS.PIXAI,
+  },
+  [AI_ADAPTER_TYPES.IDEOGRAM]: {
+    label: 'Ideogram',
+    baseUrl: AI_PROVIDER_ENDPOINTS.IDEOGRAM,
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     label: 'VolcEngine',
@@ -193,6 +199,7 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   // ⚠ PixAI 的文档从不写 key 前缀（只给 `<YOUR_API_KEY>` 占位），这里照
   // xAI 的先例只当显示提示，validate-api-key.ts 不给它前缀规则。
   [AI_ADAPTER_TYPES.PIXAI]: 'pixai-...',
+  [AI_ADAPTER_TYPES.IDEOGRAM]: 'API key',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
@@ -223,6 +230,7 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   // 与 NovelAI 同档：同为动漫向 BYOK 图片线路。⚠ API 专属价目未核实，
   // 这个数字是站内额度档而不是换算出来的成本。
   [AI_ADAPTER_TYPES.PIXAI]: 2,
+  [AI_ADAPTER_TYPES.IDEOGRAM]: 3,
   [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
   [AI_ADAPTER_TYPES.BYTEPLUS]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
@@ -244,13 +252,14 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: 'black-forest-labs/FLUX.1-schnell',
   [AI_ADAPTER_TYPES.GEMINI]: 'gemini-3.1-flash-image',
   [AI_ADAPTER_TYPES.OPENAI]: 'gpt-image-2',
-  [AI_ADAPTER_TYPES.DEEPSEEK]: 'deepseek-v4-pro',
+  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
   [AI_ADAPTER_TYPES.FAL]: 'fal-ai/flux-2-pro',
   [AI_ADAPTER_TYPES.RUNWAY]: 'gen4.5',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
   [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-5-full',
   // 自定义模型就是 pixai.art/model/<id>/<modelVersionId> 地址末段那个数字。
   [AI_ADAPTER_TYPES.PIXAI]: '1983308862240288769',
+  [AI_ADAPTER_TYPES.IDEOGRAM]: 'ideogram-4.5',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'dreamina-seedance-2-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
@@ -318,6 +327,10 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
     url: 'https://platform.pixai.art/en/docs',
     steps:
       'Sign in to pixai.art → Profile → API key (members generate one instantly; otherwise request one by email). The REST API is beta — no SLA, and model version ids change with releases.',
+  },
+  [AI_ADAPTER_TYPES.IDEOGRAM]: {
+    url: 'https://ideogram.ai/platform',
+    steps: 'Sign in to Ideogram → API Keys → Create key.',
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',

@@ -10,6 +10,20 @@ import {
 } from '@/constants/provider-capabilities'
 
 describe('provider-capabilities', () => {
+  it('exposes official Ideogram references and only universally valid generation quality levels', () => {
+    const config = getCapabilityConfig(
+      AI_ADAPTER_TYPES.IDEOGRAM,
+      AI_MODELS.IDEOGRAM_45,
+    )
+    expect(config.maxReferenceImages).toBe(5)
+    expect(config.referenceImageMode).toBe('native')
+    expect(config.capabilities).toContain('inpaint')
+    expect(config.qualityOptions).toEqual(['medium', 'low', 'high'])
+    expect(config.resolutionOptions).toEqual(['1K', '2K'])
+    expect(config.aspectRatioOptions).toEqual(['1:1'])
+    expect(config.capabilities).not.toContain('background')
+  })
+
   it.each([
     AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,

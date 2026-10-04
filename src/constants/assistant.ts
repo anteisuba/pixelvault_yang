@@ -171,7 +171,10 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
     image: true,
     video: ASSISTANT_VIDEO_TIERS.native,
   },
-  [AI_ADAPTER_TYPES.DEEPSEEK]: { image: false, video: false },
+  [AI_ADAPTER_TYPES.DEEPSEEK]: {
+    image: true,
+    video: ASSISTANT_VIDEO_TIERS.frames,
+  },
   [AI_ADAPTER_TYPES.ANTHROPIC]: { image: true, video: false },
   // grok-4.7 takes `text, image → text` (20MiB, jpg/png), and
   // `xaiTextCompletion` sends images as OpenAI multimodal content parts — so
@@ -191,6 +194,7 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.NOVELAI]: { image: false, video: false },
   // 出图，不读图 —— 与 NovelAI 同处境。
   [AI_ADAPTER_TYPES.PIXAI]: { image: false, video: false },
+  [AI_ADAPTER_TYPES.IDEOGRAM]: { image: false, video: false },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: { image: false, video: false },
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: { image: false, video: false },
   [AI_ADAPTER_TYPES.RUNNER]: { image: false, video: false },
@@ -205,10 +209,7 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
 const ASSISTANT_MODEL_MEDIA_CAPABILITIES: Readonly<
   Partial<Record<string, AssistantMediaCapability>>
 > = {
-  [LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH]: {
-    image: true,
-    video: ASSISTANT_VIDEO_TIERS.frames,
-  },
+  [LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO]: { image: false, video: false },
 }
 
 function getAssistantMediaCapability(

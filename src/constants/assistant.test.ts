@@ -32,9 +32,8 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     )
   })
 
-  it('纯文本模型 = false', () => {
+  it('没有视频档的默认路由 = false', () => {
     for (const adapterType of [
-      AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.ANTHROPIC,
       AI_ADAPTER_TYPES.VOLCENGINE,
     ]) {
@@ -42,19 +41,36 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     }
   })
 
-  it('DeepSeek 视觉档能吃图但不冒充原生视频模型', () => {
-    const modelId = LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH
+  it.each([undefined, LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH])(
+    'DeepSeek 默认与 Flash 档能吃图但不冒充原生视频模型（%s）',
+    (modelId) => {
+      expect(
+        assistantAdapterSupportsImage(AI_ADAPTER_TYPES.DEEPSEEK, modelId),
+      ).toBe(true)
+      expect(
+        assistantAdapterVideoTier(AI_ADAPTER_TYPES.DEEPSEEK, modelId),
+      ).toBe(ASSISTANT_VIDEO_TIERS.frames)
+      expect(
+        assistantAdapterSatisfiesVideoTier(
+          AI_ADAPTER_TYPES.DEEPSEEK,
+          ASSISTANT_VIDEO_TIERS.native,
+          modelId,
+        ),
+      ).toBe(false)
+    },
+  )
+
+  it('显式 DeepSeek V4 Pro 仍是纯文字档', () => {
     expect(
-      assistantAdapterSupportsImage(AI_ADAPTER_TYPES.DEEPSEEK, modelId),
-    ).toBe(true)
-    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.DEEPSEEK, modelId)).toBe(
-      ASSISTANT_VIDEO_TIERS.frames,
-    )
-    expect(
-      assistantAdapterSatisfiesVideoTier(
+      assistantAdapterSupportsImage(
         AI_ADAPTER_TYPES.DEEPSEEK,
-        ASSISTANT_VIDEO_TIERS.native,
-        modelId,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      ),
+    ).toBe(false)
+    expect(
+      assistantAdapterVideoTier(
+        AI_ADAPTER_TYPES.DEEPSEEK,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
       ),
     ).toBe(false)
   })
@@ -107,7 +123,11 @@ describe('assistantAdapterSatisfiesVideoTier —— 调用方必须说出要哪�
       ASSISTANT_VIDEO_TIERS.frames,
     ]) {
       expect(
-        assistantAdapterSatisfiesVideoTier(AI_ADAPTER_TYPES.DEEPSEEK, tier),
+        assistantAdapterSatisfiesVideoTier(
+          AI_ADAPTER_TYPES.DEEPSEEK,
+          tier,
+          LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+        ),
       ).toBe(false)
     }
   })
@@ -127,6 +147,7 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         AI_ADAPTER_TYPES.DEEPSEEK,
         'image',
         ASSISTANT_VIDEO_TIERS.frames,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
       ),
     ).toBe(false)
     expect(
@@ -162,7 +183,7 @@ describe('消费者：constants/vision 的 VISION_CAPABLE_ADAPTERS 从矩阵推�
     for (const adapterType of VISION_CAPABLE_ADAPTERS) {
       expect(assistantAdapterSupportsImage(adapterType)).toBe(true)
     }
-    expect(VISION_CAPABLE_ADAPTERS).not.toContain(AI_ADAPTER_TYPES.DEEPSEEK)
+    expect(VISION_CAPABLE_ADAPTERS).toContain(AI_ADAPTER_TYPES.DEEPSEEK)
   })
 })
 

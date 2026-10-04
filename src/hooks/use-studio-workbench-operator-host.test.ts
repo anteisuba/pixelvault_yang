@@ -198,6 +198,34 @@ function runItem(
   return { id, status, generation, modelId: 'gpt-image-2' }
 }
 
+describe('useStudioWorkbenchOperatorHost 的生成入口', () => {
+  it('图片编辑期间撤下生成入口，退出编辑后重新接回', () => {
+    const { result, rerender } = renderHook(
+      ({ generationEnabled }) =>
+        useStudioWorkbenchOperatorHost({ generationEnabled }),
+      { initialProps: { generationEnabled: true } },
+    )
+    const trigger = result.current.apply.triggerGeneration
+    const request = {
+      model: { id: 'gpt-image-test', label: 'GPT Image' },
+      count: 1,
+      specs: { aspectRatio: null, resolution: null, durationSeconds: null },
+    }
+    dispatch.mockClear()
+    rerender({ generationEnabled: false })
+    expect(result.current.apply.triggerGeneration).toBeUndefined()
+    act(() => trigger?.(request))
+    expect(dispatch).not.toHaveBeenCalled()
+
+    rerender({ generationEnabled: true })
+    act(() => result.current.apply.triggerGeneration?.(request))
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: 'REQUEST_GENERATE',
+      owner: undefined,
+    })
+  })
+})
+
 describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
   const handoff = {
     modelId: 'nai-diffusion-5-full',

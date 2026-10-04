@@ -1,11 +1,16 @@
 import 'server-only'
+import sharp from 'sharp'
 
 import {
   EXECUTION_INTERNAL,
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
-import { getExecutionModelId, getModelById } from '@/constants/models'
+import {
+  AI_MODELS,
+  getExecutionModelId,
+  getModelById,
+} from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type {
   GenerateVideoRequest,
@@ -225,14 +230,22 @@ async function submitFalVideoWorkerRun(params: {
       : input.referenceImage
         ? [input.referenceImage]
         : []
+  let firstFrameAspectRatio: string | undefined
   const uploadedRefUrls: string[] =
     sourceRefs.length > 0
       ? await timer.measure(GENERATION_STAGE.REFERENCE_UPLOAD, () =>
           Promise.all(
-            sourceRefs.map(async (ref) => {
+            sourceRefs.map(async (ref, index) => {
               const refKey = generateStorageKey('IMAGE', userId)
               const { buffer: refBuffer, mimeType: refMimeType } =
                 await fetchAsBuffer(ref)
+              if (
+                index === 0 &&
+                modelConfig.id === AI_MODELS.MINIMAX_H3_MAX_TURBO
+              ) {
+                const { autoOrient } = await sharp(refBuffer).metadata()
+                firstFrameAspectRatio = `${autoOrient.width}:${autoOrient.height}`
+              }
               return uploadToR2({
                 data: refBuffer,
                 key: refKey,
@@ -245,8 +258,10 @@ async function submitFalVideoWorkerRun(params: {
   const referenceImageUrl: string | undefined = uploadedRefUrls[0]
 
   const { width, height } = getVideoOutputSize(
-    input.aspectRatio,
-    input.resolution,
+    firstFrameAspectRatio ?? input.aspectRatio,
+    modelConfig.videoKind === 'edit'
+      ? (modelConfig.videoDefaults?.resolution ?? input.resolution)
+      : (input.resolution ?? modelConfig.videoDefaults?.resolution),
   )
   const outputStorageKey = generateStorageKey('VIDEO', userId)
   const metadata = {

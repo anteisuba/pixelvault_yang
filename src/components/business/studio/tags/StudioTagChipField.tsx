@@ -43,7 +43,7 @@ interface StudioTagChipFieldProps {
    * `form` = 弹窗表单里（提示词页新建 / 编辑标签模板，画板 `TgA_New`）：标题同表单
    * 别的栏、格子浅底等宽，正向那一栏高一些。
    */
-  variant?: 'stacked' | 'inline' | 'form'
+  variant?: 'stacked' | 'inline' | 'form' | 'composer'
   /** 格子底下那行状态（带过来的那一句正在翻成标签…）。 */
   status?: ReactNode
 }
@@ -176,6 +176,7 @@ export function StudioTagChipField({
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return
     if (results.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault()
@@ -214,6 +215,7 @@ export function StudioTagChipField({
     }
   }
 
+  const composer = variant === 'composer'
   const inline = variant === 'inline'
   const form = variant === 'form'
 
@@ -236,7 +238,7 @@ export function StudioTagChipField({
             className={
               form
                 ? 'text-xs font-semibold text-muted-foreground'
-                : 'text-2xs font-medium'
+                : 'text-sm font-medium lg:text-2xs'
             }
           >
             {label}
@@ -244,7 +246,7 @@ export function StudioTagChipField({
           <span
             className={cn(
               'truncate text-muted-foreground',
-              form ? 'text-2xs' : 'text-3xs',
+              form ? 'text-2xs' : 'text-xs lg:text-3xs',
             )}
           >
             {note ?? t('tagCount', { count: chips.length })}
@@ -257,14 +259,22 @@ export function StudioTagChipField({
       >
         <div
           ref={boxRef}
-          onClick={() => inputRef.current?.focus()}
+          onClick={(event) => {
+            if (
+              event.target instanceof Element &&
+              (!event.currentTarget.contains(event.target) ||
+                event.target.closest('button'))
+            )
+              return
+            inputRef.current?.focus()
+          }}
           // ⚠ `contain-inline-size`：一颗超长的格（自然语言整段带过来）的最小内容
           //   宽度会沿 flex 链一路往上传，把整个工作台撑出视口（owner 2026-09-26
           //   报）。这一栏的宽度只听外面的，里面再长也只在栏内截断。
           // `relative`：删掉的那一格退场时脱开排版（popLayout），按这一块定位。
           className={cn(
             'relative contain-inline-size',
-            inline
+            inline || composer
               ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
               : form
                 ? cn(
@@ -273,7 +283,7 @@ export function StudioTagChipField({
                     focused ? 'border-foreground' : 'border-border',
                   )
                 : cn(
-                    'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
+                    'flex max-h-48 min-h-24 overflow-y-auto lg:min-h-18 lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
                     focused
                       ? 'border-primary/40 ring-2 ring-primary/10'
                       : 'border-border',
@@ -321,7 +331,16 @@ export function StudioTagChipField({
             role="combobox"
             aria-expanded={results.length > 0}
             aria-controls={listId}
+            aria-activedescendant={
+              results.length
+                ? `${listId}-${Math.min(activeIndex, results.length - 1)}`
+                : undefined
+            }
             aria-autocomplete="list"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="enter"
             aria-label={label}
             placeholder={chips.length === 0 ? t('placeholder') : undefined}
             onFocus={() => setFocused(true)}
@@ -350,7 +369,7 @@ export function StudioTagChipField({
             onKeyDown={handleKeyDown}
             // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
             className={cn(
-              'min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60',
+              'min-h-11 min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 lg:min-h-0',
               form ? 'h-5.5 font-mono md:text-xs' : 'md:text-2xs',
               inline && 'h-8',
             )}

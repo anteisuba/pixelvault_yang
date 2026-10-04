@@ -196,6 +196,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       negativePrompt: 'blur, distort, and low quality',
       cfgScale: 0.5,
       generateAudio: true,
+      resolution: '1080p',
     },
   },
   {
@@ -216,6 +217,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     i2vModelId: 'fal-ai/kling-video/o3/pro/image-to-video',
     videoDefaults: {
       generateAudio: true,
+      resolution: '1080p',
     },
   },
   {
@@ -574,6 +576,21 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     },
   },
   {
+    id: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'minimax/h3-max-turbo/text-to-video',
+    i2vModelId: 'minimax/h3-max-turbo/image-to-video',
+    outputType: 'VIDEO',
+    available: true,
+    officialUrl: 'https://fal.ai/models/minimax/h3-max-turbo/text-to-video',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    maxPromptChars: 50_000,
+    videoDefaults: { resolution: '768p' },
+  },
+  {
     id: AI_MODELS.LTX_23,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FAL,
@@ -632,5 +649,21 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     timeoutMs: 300_000,
     qualityTier: 'premium',
     maxPromptChars: 2500,
+  },
+  {
+    id: AI_MODELS.KLING_O3_4K_V2V_EDIT,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/o3/4k/video-to-video/edit',
+    outputType: 'VIDEO',
+    videoKind: VIDEO_KIND.EDIT,
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/kling-video/o3/4k/video-to-video/edit',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    maxPromptChars: 2500,
+    videoDefaults: { resolution: '4k' },
   },
 ]

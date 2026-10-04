@@ -61,7 +61,7 @@ export function StudioTagChip({
     <span
       className={cn(
         // `min-w-0`：否则最小宽度 = 整段字宽，压过 `max-w-full`，截断不生效。
-        'inline-flex min-w-0 max-w-full items-center gap-1 rounded-md pr-1',
+        'inline-flex min-w-0 max-w-full items-center gap-1 rounded-md pr-1 max-lg:h-auto max-lg:min-h-11 max-lg:text-sm',
         look === 'plain'
           ? 'h-5.5 bg-muted pl-1.75 font-mono text-xs'
           : cn(
@@ -77,14 +77,14 @@ export function StudioTagChip({
             type="button"
             disabled={disabled}
             title={t('weightLabel')}
-            className="inline-flex min-w-0 items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            className="inline-flex min-w-0 items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none max-lg:min-h-11 max-lg:min-w-11"
           >
             {/* 一整句带过来的那一格会很长 —— 截在栏宽里，全文放在 title 上。 */}
             <span className="truncate" title={chip.text}>
               {chip.text}
             </span>
             {weighted ? (
-              <span className="font-mono text-3xs tabular-nums text-muted-foreground">
+              <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground lg:text-3xs">
                 {formatTagWeight(chip.weight)}
               </span>
             ) : null}
@@ -111,7 +111,7 @@ export function StudioTagChip({
                 aria-label={t('weightDecrease')}
                 disabled={chip.weight <= PROMPT_TAG_WEIGHT.MIN}
                 onClick={() => step(-PROMPT_TAG_WEIGHT.STEP)}
-                className="grid size-7 place-items-center rounded-md border border-border text-sm transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                className="grid size-11 place-items-center rounded-md border border-border text-sm transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50 lg:size-7"
               >
                 −
               </button>
@@ -123,7 +123,7 @@ export function StudioTagChip({
                 aria-label={t('weightIncrease')}
                 disabled={chip.weight >= PROMPT_TAG_WEIGHT.MAX}
                 onClick={() => step(PROMPT_TAG_WEIGHT.STEP)}
-                className="grid size-7 place-items-center rounded-md border border-border text-sm transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                className="grid size-11 place-items-center rounded-md border border-border text-sm transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50 lg:size-7"
               >
                 +
               </button>
@@ -134,7 +134,7 @@ export function StudioTagChip({
               onClick={() =>
                 onChange({ ...chip, weight: PROMPT_TAG_WEIGHT.DEFAULT })
               }
-              className="self-start text-2xs text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50"
+              className="min-h-11 self-start text-sm text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-50 lg:min-h-0 lg:text-2xs"
             >
               {t('weightReset')}
             </button>
@@ -147,11 +147,11 @@ export function StudioTagChip({
         aria-label={t('removeTag', { tag: chip.text })}
         onClick={onRemove}
         className={cn(
-          'grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none',
+          'grid size-11 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none lg:size-4',
           look === 'plain' ? 'hover:bg-background' : 'hover:bg-muted',
         )}
       >
-        <X className="size-2.5" />
+        <X className="size-3.5 lg:size-2.5" />
       </button>
     </span>
   )

@@ -45,14 +45,14 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'Gemini 3.8 Flash',
   },
   deepseek: {
-    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    label: 'DeepSeek V4 Pro',
+    label: 'DeepSeek V4.1 Flash',
   },
   openai: {
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI GPT-6 Sol',
+    label: 'OpenAI GPT-6.1 Sol',
   },
 } as const
 

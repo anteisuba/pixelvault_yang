@@ -222,8 +222,8 @@ function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
 
 const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
-  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
   [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
   [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
 }
@@ -1732,13 +1732,7 @@ function buildDeepseekChatRequest(
     throw new Error('DeepSeek text completion does not support grounding.')
   }
 
-  // No model chosen + image input → the vision tier. An explicit V4 Pro choice
-  // still refuses images below.
-  const modelId =
-    input.modelId ??
-    (input.imageData
-      ? LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH
-      : LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK])
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
 
   if (input.imageData && modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH) {
@@ -1948,12 +1942,12 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
 
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
- * OpenAI-compatible drop-in. Models: Claude Opus 5.5 and Fable 5.1.
+ * OpenAI-compatible drop-in. Models: Opus 5.5, Sonnet 5.5, and Fable 5.1.
  * Deliberate differences from the branches above
  * (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
  *     can't mean "omit the field" the way it does for OpenAI/DeepSeek,
- *     so it maps to a wide ceiling. Both models always think and `max_tokens`
+ *     so it maps to a wide ceiling. Adaptive thinking is on by default and `max_tokens`
  *     caps thinking + answer together, so that ceiling is also the floor
  *     for explicit caller budgets (`resolveAnthropicMaxTokens`).
  *  2. The system prompt is a top-level `system` field, not a `role:'system'`
@@ -1961,19 +1955,19 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
  *  3. There is no `response_format` and assistant-turn prefill is a 400, so
  *     JSON mode is `output_config.format` when the caller passes a schema,
  *     and a system-prompt instruction otherwise (see the builder).
- *  4. No `thinking` configuration is sent: Fable 5.1 rejects
- *     `{type:'disabled'}` and `budget_tokens` with a 400, and runs adaptive
+ *  4. No `thinking` configuration is sent: these models reject
+ *     `{type:'disabled'}` and `budget_tokens` with a 400, and run adaptive
  *     thinking when the field is omitted. The stream parser only forwards
  *     `text_delta`, so thinking never leaks into the reply.
  *  5. Refusals: the safety classifiers can decline a request with HTTP 200
  *     and `stop_reason: 'refusal'` (empty or partial `content`). We opt into
  *     the server-side fallback chain (`fallbacks: 'default'` + beta header),
- *     which re-runs a declined request on an Opus-tier model; if the whole
+ *     which lets the provider select the fallback model; if the whole
  *     chain declines, both consumers throw `PROVIDER_REFUSED` instead of
  *     returning empty/partial text. Branch on `stop_reason` only —
  *     `stop_details` is informational and may be null.
- *  6. No vision, no grounding — both hard-throw, same guard style as
- *     `deepseekTextCompletion` above.
+ *  6. Images use native URL/base64 blocks. Web search uses the separate
+ *     `anthropicNativeWebSearch` path; video input and inline grounding throw.
  *  7. Fable 5.1 requires 30-day data retention on the key's organization; a
  *     zero-data-retention org gets a 400 on every request, which surfaces
  *     through `toLlmTextProviderError` like any other 400.
@@ -2010,7 +2004,7 @@ function toLlmTextRefusalError(context: {
 }
 
 /**
- * Both Claude models always think and `max_tokens` caps thinking + answer together,
+ * Claude's default adaptive thinking shares `max_tokens` with the answer,
  * so every explicit budget is raised to the Anthropic floor — it is a cap,
  * not spend, so the floor costs nothing on short replies.
  */
@@ -2062,12 +2056,12 @@ function buildAnthropicMessagesRequest(
       model: modelId,
       ...(options.stream ? { stream: true } : {}),
       max_tokens: resolveAnthropicMaxTokens(input),
-      // ⛔ No `thinking` field: Fable 5.1 400s on `{type:'disabled'}` and on
-      // `budget_tokens`, and thinks adaptively when the field is omitted.
-      // Effort is left at the model default (Opus: medium; Fable: high); tune via
+      // Omission enables adaptive thinking; disabled and budget_tokens are
+      // unsupported. No sampling parameters or forced tool choice are sent.
+      // Effort stays at the model default (Opus: medium; Sonnet/Fable: high); tune via
       // `output_config.effort` only after re-measuring the assistant route.
-      // Server-side refusal fallback — routes a classifier decline to an
-      // Opus-tier model in the same round trip (needs the beta header below).
+      // Server-side refusal fallback — routes a classifier decline through the
+      // provider's default chain in the same round trip (needs the beta below).
       fallbacks: 'default',
       ...(jsonSchema
         ? {

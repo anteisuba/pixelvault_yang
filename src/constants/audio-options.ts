@@ -266,7 +266,7 @@ export const DEFAULT_SFX_DURATION_SECONDS = 5
 
 // ─── Music ─────────────────────────────────────────────────────────
 //
-// ⚠ 上游（ElevenLabs Music v2 `POST /v1/music`）声明的是 `music_length_ms`
+// ⚠ 上游（ElevenLabs Music v2.5 `POST /v1/music`）声明的是 `music_length_ms`
 // **3000–600000**，也就是 3–600 秒；适配器省略时按 30 秒发。
 // 这里下限取 **5 秒**而不是 3：3–4 秒的「音乐」没有产品意义，而 5 起步能让
 // step=5 的档位落得整齐（5 / 10 / 15 …）。取值仍在厂商区间内，不会被拒。

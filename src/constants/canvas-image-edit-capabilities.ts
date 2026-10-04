@@ -14,6 +14,13 @@ const SINGLE_IMAGE_INPUT = {
   maxImages: 1,
 } as const
 
+export const IDEOGRAM_EDIT_QUALITY_OPTIONS = [
+  'medium',
+  'very_low',
+  'low',
+  'high',
+] as const
+
 /**
  * Shared source of truth for image editing surfaces. This file stays free of
  * icons, translations, React components, and route knowledge so the legacy
@@ -21,6 +28,22 @@ const SINGLE_IMAGE_INPUT = {
  * same capability contract.
  */
 export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
+  {
+    id: 'edit-image',
+    availability: 'ready',
+    interaction: 'prompt',
+    input: SINGLE_IMAGE_INPUT,
+    output: 'single-image',
+    models: [
+      AI_MODELS.IDEOGRAM_45,
+      'gemini-3-pro-image',
+      'gpt-image-2',
+      ...GPT_IMAGE_25_EDIT_MODELS,
+      'fal-ai/flux-pro/kontext/max/multi',
+      'fal-ai/flux-2-pro/edit',
+    ],
+    defaultModelId: 'gemini-3-pro-image',
+  },
   {
     id: 'upscale',
     availability: 'ready',
@@ -47,7 +70,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     output: 'single-image',
     models: [
       'fal-ai/flux-pro/v1/fill',
-      'gemini-3-pro-image',
+      AI_MODELS.IDEOGRAM_45,
       'gpt-image-2',
       ...GPT_IMAGE_25_EDIT_MODELS,
     ],
@@ -83,6 +106,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     // 2026-09-11）；未经 §7.11 那样的实测，所以不当默认。
     models: [
       'gemini-3-pro-image',
+      AI_MODELS.IDEOGRAM_45,
       'gpt-image-2',
       ...GPT_IMAGE_25_EDIT_MODELS,
       'fal-ai/flux-pro/kontext/max/multi',

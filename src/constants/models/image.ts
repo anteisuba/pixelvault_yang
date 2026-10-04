@@ -40,6 +40,20 @@ export function resolveImageKind(model: ModelOption): ImageKind {
  */
 export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
   {
+    id: AI_MODELS.IDEOGRAM_45,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.IDEOGRAM),
+    externalModelId: 'ideogram-4-5',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://developer.ideogram.ai/api-reference/images/generate/ideogram-4-5',
+    qualityTier: 'premium',
+    styleTag: 'design',
+    maxPromptChars: 10_000,
+  },
+  {
     id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.OPENAI,

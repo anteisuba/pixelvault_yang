@@ -430,7 +430,8 @@ export function useStudioGenerateAction() {
       ...(videoMax > 1 && refs.length > 0 ? { referenceImages: refs } : {}),
       ...(videoRefUrls.length > 0 ? { videoUrls: videoRefUrls } : {}),
       negativePrompt: state.advancedParams.negativePrompt ?? undefined,
-      resolution: resolution as '480p' | '540p' | '720p' | '1080p' | undefined,
+      resolution:
+        resolution && isVideoResolution(resolution) ? resolution : undefined,
       ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
       characterCardIds:
         appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,

@@ -49,7 +49,10 @@ import {
   resolveMentionsToSlots,
 } from '@/lib/node-mentions-to-slots'
 import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
-import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
+import {
+  buildCanvasOperatorSnapshot,
+  readCanvasNodeGenerationState,
+} from '@/lib/studio-operator-canvas-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -484,6 +487,10 @@ export function useCanvasOperatorHost({
         nameOf: (nodeId) =>
           graphRef.current.nodes.find((node) => node.id === nodeId)?.data.name,
         locate: onLocate,
+        generationStateOf: (nodeId) => {
+          const node = nodes.find((candidate) => candidate.id === nodeId)
+          return node ? readCanvasNodeGenerationState(node) : undefined
+        },
       },
     }),
     [
@@ -495,6 +502,7 @@ export function useCanvasOperatorHost({
       open,
       setOpen,
       onLocate,
+      nodes,
     ],
   )
 }

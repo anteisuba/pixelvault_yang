@@ -43,6 +43,9 @@ vi.mock('@/services/image/generate-image.service', () => {
   return {
     GenerateImageServiceError,
     resolveImageRouteAndValidate: vi.fn(),
+    prepareIdeogramInpaintMask: vi
+      .fn()
+      .mockResolvedValue('https://cdn.example.com/provider-mask.png'),
     uploadReferenceImagesIfNeeded: vi.fn(),
     // 遮罩走参考图那条同一个上传通路；默认把 advancedParams 原样带过去。
     uploadInpaintMaskIfNeeded: vi.fn(
@@ -86,6 +89,7 @@ import {
 import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
+  prepareIdeogramInpaintMask,
   uploadInpaintMaskIfNeeded,
   uploadReferenceImagesIfNeeded,
 } from '@/services/image/generate-image.service'
@@ -152,6 +156,70 @@ beforeEach(() => {
 // ─── submitImageGeneration ─────────────────────────────────────
 
 describe('submitImageGeneration', () => {
+  it('queues precise edits with the selected key, source lineage and provider-only mask inversion', async () => {
+    setupResolve(AI_ADAPTER_TYPES.IDEOGRAM)
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      provider: 'Ideogram',
+      route: {
+        ...routeFor(AI_ADAPTER_TYPES.IDEOGRAM),
+        resolvedApiKeyId: 'selected-key',
+        isFreeGeneration: false,
+        externalModelId: 'ideogram-4-5',
+      } as never,
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(uploadReferenceImagesIfNeeded).mockResolvedValue([
+      'https://cdn.example.com/source.png',
+      'https://cdn.example.com/reference.png',
+    ])
+    await submitImageGeneration(
+      'clerk-1',
+      {
+        ...INPUT,
+        modelId: 'ideogram-4.5',
+        apiKeyId: 'selected-key',
+        advancedParams: {
+          quality: 'medium',
+          inpaintMask: 'https://cdn.example.com/ui-mask.png',
+        },
+      },
+      {},
+      {
+        imageOperation: 'precise-edit',
+        sourceGenerationId: 'source-generation',
+      },
+    )
+    expect(prepareIdeogramInpaintMask).toHaveBeenCalledWith(
+      'user-1',
+      'https://cdn.example.com/source.png',
+      'https://cdn.example.com/ui-mask.png',
+    )
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'ideogram',
+        apiKeyId: 'selected-key',
+        maxAttempts: expect.any(Number),
+        providerInput: expect.objectContaining({
+          imageOperation: 'precise-edit',
+          advancedParams: expect.objectContaining({
+            inpaintMask: 'https://cdn.example.com/provider-mask.png',
+          }),
+        }),
+      }),
+    )
+    const metadata = JSON.parse(
+      vi.mocked(createGenerationJob).mock.calls[0][0].externalRequestId!,
+    )
+    expect(metadata).toMatchObject({
+      imageOperation: 'precise-edit',
+      sourceGenerationId: 'source-generation',
+      advancedParams: { inpaintMask: 'https://cdn.example.com/ui-mask.png' },
+    })
+    expect(
+      vi.mocked(dispatchImageWorkerRun).mock.calls[0][0].maxAttempts,
+    ).toBeGreaterThan(1)
+  })
   it('dispatches to the worker when adapter is migrated and dispatch is configured', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)

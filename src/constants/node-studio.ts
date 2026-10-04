@@ -273,7 +273,7 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {
-  gatewayModelId: 'openai/gpt-6-sol',
+  gatewayModelId: 'openai/gpt-6.1-sol',
   fallbackModelLabel: 'Workspace BYOK route',
 } as const
 
@@ -292,8 +292,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
-    label: 'OpenAI GPT-6 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    label: 'OpenAI GPT-6.1 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -312,22 +312,23 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-    label: 'DeepSeek V4 Pro',
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+    label: 'DeepSeek V4.1 Flash',
   },
   {
-    // DeepSeek's image contract belongs to the Flash tier only. V4 Pro
-    // remains the first/default DeepSeek tier and stays text-only.
-    // 2026-09-17: `deepseek-v4-flash-vision-exp` was retired upstream —
-    // `deepseek-flash` is the current vision id.
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-    label: 'DeepSeek Flash',
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    label: 'DeepSeek V4 Pro',
   },
   {
     adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
     modelId: LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
     label: 'Claude Opus 5.5',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    label: 'Claude Sonnet 5.5',
   },
   {
     adapterType: AI_ADAPTER_TYPES.ANTHROPIC,

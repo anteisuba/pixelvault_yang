@@ -70,15 +70,15 @@ describe('audio model kinds', () => {
     expect(AUDIO_PROMPT_PAYLOAD_MAX_CHARS).toBeGreaterThan(5000)
   })
 
-  it('leaves SFX and music undeclared rather than inheriting the TTS number', () => {
+  it('uses the Compose prompt ceiling without applying it to SFX', () => {
     const byId = new Map(AUDIO_MODEL_OPTIONS.map((m) => [m.id, m]))
 
-    for (const id of [
-      AI_MODELS.ELEVENLABS_SFX_V2,
-      AI_MODELS.ELEVENLABS_MUSIC_V2,
-    ]) {
-      expect(resolveAudioTextLimit(byId.get(id)).declared).toBeUndefined()
-    }
+    expect(
+      resolveAudioTextLimit(byId.get(AI_MODELS.ELEVENLABS_SFX_V2)).declared,
+    ).toBeUndefined()
+    expect(
+      resolveAudioTextLimit(byId.get(AI_MODELS.ELEVENLABS_MUSIC_V2)),
+    ).toEqual({ declared: 4100, enforced: 4100 })
   })
 
   it('falls back to the payload guard for an unknown model', () => {

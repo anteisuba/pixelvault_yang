@@ -722,6 +722,56 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('preserves the source prompt and dimensions while storing precise-edit instructions separately', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'ideogram',
+      provider: 'Ideogram',
+      modelId: 'ideogram-4.5',
+      prompt: 'Make the mug blue',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 1,
+        aspectRatio: '1:1',
+        imageOperation: 'precise-edit',
+        imageEditSourcePrompt: 'A red mug by the window',
+        sourceGenerationId: 'original',
+        referenceImages: ['https://cdn.example.com/source.png'],
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'edited',
+      outputType: 'IMAGE',
+    })
+    const result = await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/edited.png',
+        imageR2Key: 'image/edited.png',
+        width: 1672,
+        height: 941,
+        mimeType: 'image/png',
+        providerMetadata: { seed: 123 },
+      },
+    })
+    expect(result.action).toBe('completed')
+    const saved = mockCreateGeneration.mock.calls[0][0]
+    expect(saved).toMatchObject({
+      prompt: 'A red mug by the window',
+      width: 1672,
+      height: 941,
+      seed: BigInt(123),
+      snapshot: {
+        compiledPrompt: 'A red mug by the window',
+        sourceGenerationId: 'original',
+        imageEditPrompt: 'Make the mug blue',
+        imageOperation: 'precise-edit',
+        seed: 123,
+      },
+    })
+    expect(saved.snapshot.aspectRatio).toBeUndefined()
+  })
+
   describe('IMAGE 缩略图 / 预览图（回调落库后立刻做）', () => {
     const workerImagePayload: ExecutionCallbackPayload = {
       ...buildPayload('result'),

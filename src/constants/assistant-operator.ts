@@ -2093,6 +2093,7 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxNodesPerShot: 24,
   /** 画布保留节点选择器的模型目录；视频目录已超过通用快照的 24 项。 */
   maxAvailableModels: 64,
+  maxParameterOptions: 64,
   /** 一次重跑规划最多列几个下游节点。 */
   maxRerunNodes: 40,
   /** 快照里的角色库最多列几位（按张数排，总数另给）。 */

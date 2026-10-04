@@ -45,26 +45,35 @@ describe('resolveVisionRoute', () => {
     mockGetSystemApiKey.mockReturnValue(null)
   })
 
-  it('uses the selected route as-is when it can already see images', async () => {
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      providerConfig: { label: 'OpenAI', baseUrl: 'https://openai.test' },
-      apiKey: 'openai-key',
-    })
+  it.each([AI_ADAPTER_TYPES.OPENAI, AI_ADAPTER_TYPES.DEEPSEEK])(
+    'uses the selected image-capable route as-is (%s)',
+    async (adapterType) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType,
+        providerConfig: {
+          label: adapterType,
+          baseUrl: 'https://provider.test',
+        },
+        apiKey: 'provider-key',
+      })
 
-    const resolved = await resolveVisionRoute('db_user_1', 'key_1')
+      const resolved = await resolveVisionRoute('db_user_1', 'key_1')
 
-    expect(resolved.borrowed).toBe(false)
-    expect(resolved.route.adapterType).toBe(AI_ADAPTER_TYPES.OPENAI)
-    // 能看图就别再翻用户的其他 key —— 每次多问一次都是一次多余的解密。
-    expect(mockFindActiveKeyForAdapter).not.toHaveBeenCalled()
-  })
+      expect(resolved.borrowed).toBe(false)
+      expect(resolved.route.adapterType).toBe(adapterType)
+      // 能看图就别再翻用户的其他 key —— 每次多问一次都是一次多余的解密。
+      expect(mockFindActiveKeyForAdapter).not.toHaveBeenCalled()
+    },
+  )
 
   it('borrows an image-capable user key when the selected route is text-only', async () => {
     mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://deepseek.test' },
-      apiKey: 'deepseek-key',
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      providerConfig: {
+        label: 'Volcengine',
+        baseUrl: 'https://volcengine.test',
+      },
+      apiKey: 'volcengine-key',
     })
     mockFindActiveKeyForAdapter.mockImplementation(
       async (_userId: string, adapterType: AI_ADAPTER_TYPES) =>
@@ -84,9 +93,12 @@ describe('resolveVisionRoute', () => {
     // 顺位跟着仓里既有的两处走（`LLM_TEXT_ADAPTERS` 自动回落、
     // `GROUNDING_CAPABLE_ADAPTERS`），平台兜底 key 也是 Gemini —— 三处一致。
     mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://deepseek.test' },
-      apiKey: 'deepseek-key',
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      providerConfig: {
+        label: 'Volcengine',
+        baseUrl: 'https://volcengine.test',
+      },
+      apiKey: 'volcengine-key',
     })
     mockFindActiveKeyForAdapter.mockImplementation(
       async (_userId: string, adapterType: AI_ADAPTER_TYPES) =>
@@ -101,9 +113,12 @@ describe('resolveVisionRoute', () => {
 
   it('falls back to the platform key when the user owns no image-capable key', async () => {
     mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://deepseek.test' },
-      apiKey: 'deepseek-key',
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      providerConfig: {
+        label: 'Volcengine',
+        baseUrl: 'https://volcengine.test',
+      },
+      apiKey: 'volcengine-key',
     })
     mockGetSystemApiKey.mockReturnValue('platform-gemini-key')
 
@@ -116,12 +131,15 @@ describe('resolveVisionRoute', () => {
 
   it('throws a structured error instead of guessing when nothing can see images', async () => {
     mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://deepseek.test' },
-      apiKey: 'deepseek-key',
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      providerConfig: {
+        label: 'Volcengine',
+        baseUrl: 'https://volcengine.test',
+      },
+      apiKey: 'volcengine-key',
     })
 
-    // ⛔ 这里最坏的实现是「借不到就用 DeepSeek 硬跑」—— 会拿到一份格式完整、
+    // ⛔ 这里最坏的实现是「借不到就用纯文字模型硬跑」—— 会拿到一份格式完整、
     //    根本没看过图的观察。Hard Rule 8：报出可路由到 QuickSetupDialog 的错误码。
     await expect(
       resolveVisionRoute('db_user_1', 'key_1'),
@@ -132,21 +150,24 @@ describe('resolveVisionRoute', () => {
     })
   })
 
-  it('picks an image-capable route directly when no key was selected', async () => {
-    mockFindActiveKeyForAdapter.mockImplementation(
-      async (_userId: string, adapterType: AI_ADAPTER_TYPES) =>
-        adapterType === AI_ADAPTER_TYPES.GEMINI
-          ? keyFor(AI_ADAPTER_TYPES.GEMINI)
-          : null,
-    )
+  it.each([AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.DEEPSEEK])(
+    'picks an image-capable route when no key was selected (%s)',
+    async (selectedAdapterType) => {
+      mockFindActiveKeyForAdapter.mockImplementation(
+        async (_userId: string, adapterType: AI_ADAPTER_TYPES) =>
+          adapterType === selectedAdapterType
+            ? keyFor(selectedAdapterType)
+            : null,
+      )
 
-    const resolved = await resolveVisionRoute('db_user_1')
+      const resolved = await resolveVisionRoute('db_user_1')
 
-    // 没选就没有「被借走的那条路」—— 这不是借路，是默认选路。
-    expect(resolved.borrowed).toBe(false)
-    expect(resolved.route.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
-    expect(mockResolveLlmTextRoute).not.toHaveBeenCalled()
-  })
+      // 没选就没有「被借走的那条路」—— 这不是借路，是默认选路。
+      expect(resolved.borrowed).toBe(false)
+      expect(resolved.route.adapterType).toBe(selectedAdapterType)
+      expect(mockResolveLlmTextRoute).not.toHaveBeenCalled()
+    },
+  )
 
   it('surfaces a broken selected key instead of silently borrowing around it', async () => {
     // 用户选了一把失效的 key。安静换一把跑完，他会奇怪为什么用的不是自己选的模型，

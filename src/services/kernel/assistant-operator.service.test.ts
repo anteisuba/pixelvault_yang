@@ -1288,6 +1288,128 @@ describe('工具环 · 逐事件顺序', () => {
     ).rejects.toBeInstanceOf(InsufficientCreditsError)
   })
 
+  describe('NovelAI 角色构图（set_tag_characters）', () => {
+    const withLayout = (
+      section: NonNullable<
+        AssistantOperatorRequest['snapshot']['novelAiCharacters']
+      >,
+    ) => buildRequest({ snapshot: { ...SNAPSHOT, novelAiCharacters: section } })
+    const writeTurn = (args: unknown) => ({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+        title: '分角色',
+        args,
+      },
+    })
+
+    it('整份名单写进去：位置均匀摆开，逆操作是改前那份；状态块印得出这一块', async () => {
+      queueTurns(
+        writeTurn({
+          characters: [
+            { prompt: 'aemeath (wuthering waves), pink hair' },
+            { prompt: '1boy, black hair', negativePrompt: 'hat' },
+          ],
+        }),
+        { finished: true, message: '分好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'free', max: 22, layout: null }),
+        ),
+      )
+      const done = stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters &&
+          step.status === 'done',
+      )
+      expect(done?.payload).toEqual({
+        layout: {
+          positioning: 'auto',
+          characters: [
+            {
+              prompt: 'aemeath (wuthering waves), pink hair',
+              negativePrompt: '',
+              position: { x: 1 / 3, y: 0.5 },
+            },
+            {
+              prompt: '1boy, black hair',
+              negativePrompt: 'hat',
+              position: { x: 2 / 3, y: 0.5 },
+            },
+          ],
+        },
+      })
+      expect(done?.inverse).toEqual({ layout: null })
+      expect(lastUserPrompt()).toContain('NovelAI character layout')
+      expect(lastUserPrompt()).toContain('aemeath (wuthering waves)')
+    })
+
+    it('网格档的位置吸到格心', async () => {
+      queueTurns(
+        writeTurn({
+          positioning: 'manual',
+          characters: [{ prompt: '1girl', x: 0.33, y: 0.62 }],
+        }),
+        { finished: true, message: '好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'grid', max: 6, layout: null }),
+        ),
+      )
+      const done = stepsOf(events).find(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+      )
+      expect(
+        (
+          done?.payload as {
+            layout: { characters: { position: { x: number; y: number } }[] }
+          }
+        ).layout.characters[0]?.position,
+      ).toEqual({ x: 0.3, y: 0.7 })
+    })
+
+    it('没有角色构图的模型、超出人数都拒；写了中文是同一步的草稿，⛔ 不画成失败', async () => {
+      queueTurns(writeTurn({ characters: [{ prompt: '1girl' }] }), {
+        finished: true,
+        message: '这个模型分不了角色。',
+      })
+      const noLayout = await collect(
+        runAssistantOperator('clerk-1', buildRequest()),
+      )
+      expect(stepsOf(noLayout).at(-1)?.error?.reason).toBe('noSuchControl')
+
+      queueTurns(
+        writeTurn({
+          characters: Array.from({ length: 7 }, () => ({ prompt: '1girl' })),
+        }),
+        { finished: true, message: '人太多了。' },
+      )
+      const tooMany = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'grid', max: 6, layout: null }),
+        ),
+      )
+      expect(stepsOf(tooMany).at(-1)?.error?.reason).toBe('unknownValue')
+
+      queueTurns(writeTurn({ characters: [{ prompt: '粉色头发的少女' }] }), {
+        finished: true,
+        message: '改成标签再写。',
+      })
+      const chinese = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'free', max: 22, layout: null }),
+        ),
+      )
+      expect(stepsOf(chinese)).toHaveLength(0)
+      expect(lastUserPrompt()).toContain("NovelAI's tag dialect")
+    })
+  })
+
   describe('两台图片工作台互跳（switch_workbench）', () => {
     const TAG_MODEL = { id: 'novelai-v5-full', label: 'NovelAI V5 Full' }
     const withOtherBench = () =>

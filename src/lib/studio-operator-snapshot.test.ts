@@ -53,6 +53,7 @@ vi.mock('@/constants/provider-capabilities', async (importOriginal) => ({
   getCapabilityConfig: (...args: unknown[]) => mockGetCapabilityConfig(...args),
 }))
 
+import { AI_MODELS } from '@/constants/models'
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/types/model-option'
@@ -421,6 +422,42 @@ describe('buildImageOperatorSnapshot', () => {
     })
     expect(snapshot.availableModels[0]).not.toHaveProperty('channels')
     expect(snapshot.model).not.toHaveProperty('channelId')
+  })
+
+  it('NovelAI V5 带上角色构图一节（现有名单原样）；没有角色构图的模型整节不给', () => {
+    const nai = option({
+      optionId: 'workspace:nai',
+      modelId: AI_MODELS.NOVELAI_V5_FULL,
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    })
+    const layout = {
+      positioning: 'auto' as const,
+      characters: [
+        { prompt: '', negativePrompt: '', position: { x: 0.5, y: 0.5 } },
+      ],
+    }
+    const snapshot = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: { novelAiLayout: layout } },
+      modelOptions: [nai],
+      selectedModel: nai,
+      runModels: [nai],
+      references: { items: [], limit: 1 },
+    })
+    expect(snapshot.novelAiCharacters).toEqual({
+      mode: 'free',
+      max: 22,
+      layout,
+    })
+    const seedream = option({ optionId: 'a', modelId: 'seedream-4' })
+    expect(
+      buildImageOperatorSnapshot({
+        form: FORM,
+        modelOptions: [seedream],
+        selectedModel: seedream,
+        runModels: [seedream],
+        references: { items: [], limit: 4 },
+      }),
+    ).not.toHaveProperty('novelAiCharacters')
   })
 
   it('另一台图片工作台的模型单列一节（去重、只给跑得了的），缺席时整节不给', () => {

@@ -21,6 +21,14 @@
 import { z } from 'zod'
 import { EvidenceExcerptKindSchema } from '@/types/research'
 import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
+import {
+  NovelAiCharacterDraftSchema,
+  NovelAiCharacterLayoutSchema,
+} from '@/types/novelai'
+import {
+  NOVELAI_CHARACTER_LAYOUT_MODES,
+  NOVELAI_V5_MAX_CHARACTERS,
+} from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
 import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
@@ -877,6 +885,16 @@ export type AssistantOperatorCanvasSnapshot = z.infer<
   typeof AssistantOperatorCanvasSnapshotSchema
 >
 
+/**
+ * NovelAI 的**角色构图**（标签台「角色构图」那一块）。缺席 = 这个模型没有角色构图。
+ * ⚠ `layout` 用草稿那份 schema：用户刚点「加人」时那一位的标签还是空的。
+ */
+export const AssistantOperatorSnapshotNovelAiCharactersSchema = z.object({
+  mode: z.enum(NOVELAI_CHARACTER_LAYOUT_MODES),
+  max: z.number().int().min(1).max(NOVELAI_V5_MAX_CHARACTERS),
+  layout: NovelAiCharacterDraftSchema.nullable(),
+})
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -924,6 +942,9 @@ export const AssistantOperatorSnapshotSchema = z.object({
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
   /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */
   frameReferences: AssistantOperatorSnapshotFrameReferencesSchema.optional(),
+  /** ⚠ 缺席 = 没有角色构图（非 NovelAI V4.5 / V5）。见 schema 头注。 */
+  novelAiCharacters:
+    AssistantOperatorSnapshotNovelAiCharactersSchema.optional(),
   /** ⚠ 缺席 = 这个宿主上没有参考视频位。见 schema 头注。 */
   videoReferences: AssistantOperatorSnapshotVideoReferencesSchema.optional(),
   /** ⚠ 缺席 = 这个工作台挂不了音频参考（图片档、或视频档但线路不吃音频）。 */
@@ -2372,6 +2393,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     resolution: ParamValueSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: z.object({ count: z.number() }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: z.object({
+    positioning: z.enum(['auto', 'manual']).optional(),
+    characters: z
+      .array(
+        z.object({
+          prompt: z.string().trim().min(1),
+          negativePrompt: z.string().trim().optional(),
+          enabled: z.boolean().optional(),
+          x: z.number().min(0).max(1).optional(),
+          y: z.number().min(0).max(1).optional(),
+        }),
+      )
+      .max(NOVELAI_V5_MAX_CHARACTERS),
+  }),
   /**
    * 专属 chip 那一格（进度表 21）。
    *
@@ -3522,6 +3557,15 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     z.object({ count: z.number().int().positive() }),
     z.object({ count: z.number().int().positive() }),
+  ),
+  /**
+   * 角色构图 —— 载荷与逆操作都是**整份名单**（`null` = 没有角色构图）。
+   * ⚠ 逆操作用草稿 schema：改前那份里可能有一位标签还空着的角色。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+    z.object({ layout: NovelAiCharacterLayoutSchema.nullable() }),
+    z.object({ layout: NovelAiCharacterDraftSchema.nullable() }),
   ),
   /**
    * 专属 chip 那一格（进度表 21）。

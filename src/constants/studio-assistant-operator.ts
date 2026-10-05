@@ -151,6 +151,8 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
    * 是「还原这个字段」那颗按钮的粒度。
    */
   capabilities: 'capabilities',
+  /** NovelAI 的角色构图（标签台「角色构图」那一块）—— 整份名单一格。 */
+  characters: 'characters',
   references: 'references',
   /** 视频域的音频参考位（台账 A 的那条通道）。 */
   audioReferences: 'audioReferences',
@@ -217,6 +219,7 @@ export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.specs,
   STUDIO_OPERATOR_FIELD_IDS.count,
   STUDIO_OPERATOR_FIELD_IDS.capabilities,
+  STUDIO_OPERATOR_FIELD_IDS.characters,
   STUDIO_OPERATOR_FIELD_IDS.references,
   STUDIO_OPERATOR_FIELD_IDS.audioReferences,
   STUDIO_OPERATOR_FIELD_IDS.sound,

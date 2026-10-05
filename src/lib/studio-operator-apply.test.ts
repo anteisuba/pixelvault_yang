@@ -502,6 +502,38 @@ describe('applyOperatorStep', () => {
     ).toBe(STUDIO_OPERATOR_FIELD_IDS.capabilities)
   })
 
+  it('角色构图整份写进去、撤销回改前那份（原本没有就拆掉），其余高级参数不动', () => {
+    const { ctx, state } = makeContext()
+    const layout = {
+      positioning: 'auto' as const,
+      characters: [
+        {
+          prompt: 'aemeath (wuthering waves), pink hair',
+          negativePrompt: 'heart cutout',
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    }
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+      verb: 'apply',
+      payload: { layout },
+      inverse: { layout: null },
+    } satisfies AssistantOperatorAppliedStep
+    expect(applyOperatorStep(step, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.characters,
+    )
+    expect(state.advancedParams).toMatchObject({
+      seed: 1234,
+      novelAiLayout: layout,
+    })
+    expect(revertOperatorStep(step, ctx)).toBe(true)
+    expect(state.advancedParams.novelAiLayout).toBeUndefined()
+    expect(state.advancedParams).toMatchObject({ seed: 1234 })
+    expect(describeOperatorInverse(step)).toBe('0')
+  })
+
   it('prime_generate 只点亮生成键 —— 一个 dispatch 都不发（钱闸）', () => {
     const { ctx, dispatched, primed } = makeContext()
     expect(

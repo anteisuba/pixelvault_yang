@@ -153,6 +153,7 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { snapToNovelAiGrid } from '@/constants/novelai'
 import {
   AI_MODELS,
   getModelFamily,
@@ -597,6 +598,8 @@ interface OperatorWorkingState {
    */
   capabilities: AssistantOperatorSnapshotCapability[]
   hasCapabilityControl: boolean
+  /** NovelAI 角色构图（可变副本，`set_tag_characters` 之后跟着变）；缺席 = 没有这一块。 */
+  novelAiCharacters: AssistantOperatorSnapshot['novelAiCharacters']
   referenceCount: number
   referenceUrls: (string | null)[]
   referenceLimit: number
@@ -710,6 +713,9 @@ function toWorkingState(
     // ⚠ 拷一份可变副本，⛔ 别把快照那个只读数组存进来（`apply()` 要改它）。
     capabilities: (snapshot.capabilities ?? []).map((item) => ({ ...item })),
     hasCapabilityControl: snapshot.capabilities !== undefined,
+    novelAiCharacters: snapshot.novelAiCharacters
+      ? structuredClone(snapshot.novelAiCharacters)
+      : undefined,
     referenceCount: snapshot.references?.items.length ?? 0,
     referenceUrls: (snapshot.references?.items ?? []).map((item) => item.url),
     referenceLimit: snapshot.references?.limit ?? 0,
@@ -1641,6 +1647,27 @@ function renderState(
    * ⚠ 值域跟着键一起印：`select` 印候选、`slider` 印区间、`toggle` 印 true/false。
    * 不印的下场与规格那条一样 —— 模型编一个，然后撞 `unknownValue`。
    */
+  /**
+   * ⭐ **角色构图**（owner 2026-10-05「助手能看、能写角色构图」）。印出来的理由与参数
+   * 那几条同源：看不见这一块的助手会把每位角色的长相全塞进整体提示词，与角色栏打架。
+   */
+  if (state.novelAiCharacters) {
+    const { mode, max, layout } = state.novelAiCharacters
+    lines.push(
+      `- NovelAI character layout (${mode === 'free' ? 'free positions' : 'positions snap to a 5×5 grid'}, up to ${max} people${layout ? `, positioning ${layout.positioning}` : ''}) — write it with set_tag_characters, the full list each time:`,
+    )
+    lines.push(
+      layout?.characters.length
+        ? layout.characters
+            .map(
+              (character, index) =>
+                `  ${index + 1}. ${character.enabled === false ? '[off] ' : ''}prompt: "${clamp(character.prompt, LIMITS.maxPromptChars)}"${character.negativePrompt ? ` · negative: "${clamp(character.negativePrompt, LIMITS.maxPromptChars)}"` : ''} · at (${character.position.x.toFixed(2)}, ${character.position.y.toFixed(2)})`,
+            )
+            .join('\n')
+        : '  (none — only the base prompt; with two or more people, give each one a slot)',
+    )
+  }
+
   if (state.hasCapabilityControl && state.capabilities.length > 0) {
     lines.push(
       state.extraModels.length > 0
@@ -5033,6 +5060,96 @@ function planSetCount(run: OperatorRun, args: { count: number }): ToolPlan {
 }
 
 /**
+ * 写 NovelAI 的**角色构图**（owner 2026-10-05）—— 整份名单替换，空名单 = 拆掉。
+ *
+ * ⚠ 位置：`manual` 时用给的 x / y；没给就沿用同一格原来的位置，再没有就均匀摆开。
+ *   网格档（V4.5）一律吸到格心，与界面上拖动落位同一条判据（`snapToNovelAiGrid`）。
+ * ⚠ 每位的标签照样过 NAI 两道硬闸（中文 / 句子 / 夸张权重）—— 同一步的草稿，
+ *   ⛔ 不在时间线上画成失败（与 `set_prompt` 同一做法）。
+ */
+function planSetTagCharacters(
+  run: OperatorRun,
+  args: {
+    positioning?: 'auto' | 'manual'
+    characters: {
+      prompt: string
+      negativePrompt?: string
+      enabled?: boolean
+      x?: number
+      y?: number
+    }[]
+  },
+): ToolPlan {
+  const section = run.state.novelAiCharacters
+  if (!section) {
+    return reject(
+      REJECT.noSuchControl,
+      'The selected model has no character layout (only NovelAI V4.5 / V5 do). Keep everyone in the base prompt.',
+    )
+  }
+  if (args.characters.length > section.max) {
+    return reject(
+      REJECT.unknownValue,
+      `This model takes at most ${section.max} characters; you sent ${args.characters.length}.`,
+    )
+  }
+  for (const [index, character] of args.characters.entries()) {
+    for (const text of [character.prompt, character.negativePrompt ?? '']) {
+      const problem = findNovelAiPromptProblem(text)
+      if (problem) {
+        return {
+          kind: 'rejected',
+          reason: REJECT.unknownValue,
+          detail: clamp(
+            `Character ${index + 1} is not in NovelAI's tag dialect (${problem.kind}: "${problem.sample}"). Write each person as comma-separated English Danbooru tags with mild weights, then call set_tag_characters again in this same turn with the full list.`,
+            LIMITS.maxReasonChars,
+          ),
+          quiet: true,
+        }
+      }
+    }
+  }
+
+  const previous = section.layout
+  const count = args.characters.length
+  const positioning = args.positioning ?? previous?.positioning ?? 'auto'
+  const place = (value: number) =>
+    section.mode === 'grid' ? snapToNovelAiGrid(value) : value
+  const layout =
+    count === 0
+      ? null
+      : {
+          positioning,
+          characters: args.characters.map((character, index) => {
+            const before = previous?.characters[index]?.position
+            return {
+              prompt: character.prompt,
+              negativePrompt: character.negativePrompt ?? '',
+              ...(character.enabled === false ? { enabled: false } : {}),
+              position: {
+                x: place(character.x ?? before?.x ?? (index + 1) / (count + 1)),
+                y: place(character.y ?? before?.y ?? 0.5),
+              },
+            }
+          }),
+        }
+
+  return {
+    kind: 'mutate',
+    payload: { layout },
+    inverse: { layout: previous ? structuredClone(previous) : null },
+    observation: layout
+      ? `Character layout is now ${count} ${count === 1 ? 'person' : 'people'} (positioning ${positioning}): ${layout.characters
+          .map((character, index) => `${index + 1}. "${character.prompt}"`)
+          .join(' · ')}.`
+      : 'Character layout removed — only the base prompt is left.',
+    apply: () => {
+      section.layout = layout ? structuredClone(layout) : null
+    },
+  }
+}
+
+/**
  * 设一颗**当前模型专属的** chip（进度表 21 · 差距清单 #1）。
  *
  * ── 三道闸，各拦一件不同的事 ──────────────────────────────────────
@@ -8225,6 +8342,11 @@ async function planTool(
       )
     case TOOL.setCount:
       return planSetCount(run, parsed.data as { count: number })
+    case TOOL.setTagCharacters:
+      return planSetTagCharacters(
+        run,
+        parsed.data as Parameters<typeof planSetTagCharacters>[1],
+      )
     case TOOL.setCapability:
       return planSetCapability(
         run,

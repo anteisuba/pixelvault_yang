@@ -31,6 +31,10 @@ import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { getRunCapabilityChips } from '@/lib/model-capability-chips'
 import { getModelById } from '@/constants/models'
 import {
+  getNovelAiCharacterLayoutMode,
+  getNovelAiMaxCharacters,
+} from '@/constants/novelai'
+import {
   IMAGE_BATCH_COUNTS,
   STUDIO_IMAGE_ASPECT_RATIOS,
   STUDIO_VIDEO_ASPECT_RATIOS,
@@ -285,6 +289,21 @@ export function buildImageOperatorSnapshot({
   references,
   otherModelOptions,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
+  /**
+   * NovelAI 角色构图 —— 与界面同一个判据（`useNovelAiCharacters`：这一轮里第一个
+   * 有角色构图的模型说了算）。
+   */
+  const layoutModel = runModels.find((option) =>
+    getNovelAiCharacterLayoutMode(option.modelId),
+  )
+  const layoutMode = getNovelAiCharacterLayoutMode(layoutModel?.modelId)
+  const novelAiCharacters = layoutMode
+    ? {
+        mode: layoutMode,
+        max: getNovelAiMaxCharacters(layoutModel?.modelId),
+        layout: form.advancedParams.novelAiLayout ?? null,
+      }
+    : undefined
   const otherWorkbenchModels = imageRunnableOptions(
     otherModelOptions ?? [],
   ).map((option) => ({
@@ -348,6 +367,7 @@ export function buildImageOperatorSnapshot({
     ...(extraModels.length > 0 ? { extraModels } : {}),
     availableModels,
     ...(otherWorkbenchModels.length > 0 ? { otherWorkbenchModels } : {}),
+    ...(novelAiCharacters ? { novelAiCharacters } : {}),
     specs: {
       aspectRatio: form.aspectRatio,
       resolution: form.imageResolution,

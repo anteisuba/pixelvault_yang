@@ -205,6 +205,14 @@ export function describeOperatorStepDetail(
       )
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
       return String(step.payload.count)
+    /** 角色构图：每位写第一个标签（通常是角色名标签），一眼认得出是谁。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
+      return (
+        step.payload.layout?.characters
+          .map((character) => character.prompt.split(',')[0]?.trim())
+          .filter(Boolean)
+          .join(' · ') || null
+      )
     /** 专属 chip（进度表 21）：键与值都写出来 —— 一行只写值读不出它改的是哪颗。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return `${step.payload.key} ${String(step.payload.value)}`

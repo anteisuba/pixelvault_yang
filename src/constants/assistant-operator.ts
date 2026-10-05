@@ -273,6 +273,14 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   setCount: 'set_count',
   /**
+   * 写 NovelAI 的**角色构图**（标签台「角色构图」那一块，owner 2026-10-05）。
+   *
+   * ⭐ 一次写**整份名单**（每位角色的标签 / 负向 / 位置 / 开关），与 `set_prompt`
+   * 的整段替换同一种手感；空名单 = 拆掉角色构图，回到只有「整体」一页。
+   * ⚠ 第二道闸是快照里 `novelAiCharacters` 这一节在不在：只有 V4.5 / V5 有角色构图。
+   */
+  setTagCharacters: 'set_tag_characters',
+  /**
    * 设**当前模型专属的那一格**（进度表 21 · 差距清单 #1）。
    *
    * ── ⭐ 为什么不是一条一条的工具 ──────────────────────────────────
@@ -690,6 +698,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+  ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
   ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
@@ -834,6 +843,8 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+  /** ⚠ 角色构图也是改动型：`inverse` 里放改前的整份名单（`null` = 原本没有）。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
   /**
    * ⚠ 专属 chip 那条也是改动型（进度表 21）：它动的是参数栏上看得见的一颗旋钮，
    * `inverse` 里放的是**旧值**（允许 `null` = 用户没设过那一档）。
@@ -1037,6 +1048,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
@@ -1810,6 +1823,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ...COMMON_DOMAIN_TOOLS,
     ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+    /** NovelAI 角色构图 —— 只在快照带着 `novelAiCharacters` 那一节时成立。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
     /**
      * 专属 chip 那一行（进度表 11 + 21）。⚠ 域表里有它**不等于**每台工作台上都
      * 有：第二道闸是快照里 `capabilities` 这一节在不在（判据与 `set_negative`
@@ -2924,6 +2939,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'set the clip specs in ONE call. The argument names are exactly: durationSeconds (a plain number, no unit), aspectRatio, resolution. Send every one the state block lists options for; omit only the ones it says this model does not expose.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]:
     'set how many outputs one send produces. Pick from the options in the state.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]:
+    'write the NovelAI character layout — the per-person prompts under the base prompt. Send the FULL list every time: {"characters":[{"prompt":"…","negativePrompt":"…","x":0.3,"y":0.5,"enabled":true}, …], "positioning":"auto"|"manual"}. Each prompt is that one person in English Danbooru tags (identity tag, look, clothes, pose, expression); the base prompt keeps the scene, style, quality and the head count (2girls, 1boy …) and never repeats a person\'s traits. negativePrompt is optional per person. x / y (0–1, left/top = 0) matter only with positioning "manual"; leave them out to keep each slot\'s current spot. An empty list removes the layout. Use it when two or more people are in the picture or the creator asks for it.',
   /**
    * ⚠ 「只从状态块里抄 key」那句是硬要求（判据同 `set_model` 的「copy the id
    * verbatim」）：这一行 chip 是逐模型派生的，模型按名字猜出来的键在这台机器上

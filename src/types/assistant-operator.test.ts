@@ -317,6 +317,21 @@ const STEP_FIXTURES: Record<
     payload: { count: 2 },
     inverse: { count: 1 },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: {
+    payload: {
+      layout: {
+        positioning: 'auto',
+        characters: [
+          {
+            prompt: 'aemeath (wuthering waves), pink hair',
+            negativePrompt: '',
+            position: { x: 0.5, y: 0.5 },
+          },
+        ],
+      },
+    },
+    inverse: { layout: null },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]: {
     payload: { key: 'quality', value: 'high' },
     // ⚠ `null` = 这一格用户没设过 —— 撤销要回得去（见协议里那条头注）。
@@ -874,7 +889,8 @@ describe('五动词入口', () => {
     // lora-assistant §13 把 49 变成 50（`show_lora_picks`，库页圈几把）。
     // 推荐卡代码删除（2026-09-29）把 50 变成 49（`plan_lora_pick`）。
     // 两台图片工作台互跳（2026-10-04）把 49 变成 50（`switch_workbench`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(50)
+    // 助手写角色构图（2026-10-05）把 50 变成 51（`set_tag_characters`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(51)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

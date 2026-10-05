@@ -379,6 +379,8 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.specs
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
       return STUDIO_OPERATOR_FIELD_IDS.count
+    case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
+      return STUDIO_OPERATOR_FIELD_IDS.characters
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return STUDIO_OPERATOR_FIELD_IDS.capabilities
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
@@ -437,6 +439,8 @@ export function describeOperatorInverse(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return step.inverse.value === null ? '' : String(step.inverse.value)
+    case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
+      return String(step.inverse.layout?.characters.length ?? 0)
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       return step.payload.label ?? step.payload.url
     /**
@@ -709,6 +713,20 @@ export function applyOperatorStep(
       ctx.dispatch({ type: 'SET_ADVANCED_PARAMS', payload: next })
       return STUDIO_OPERATOR_FIELD_IDS.capabilities
     }
+
+    /**
+     * 角色构图 —— 整份名单替换（与 `useNovelAiCharacters` 写的是同一个键）；
+     * `null` = 拆掉角色构图。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...ctx.getState().advancedParams,
+          novelAiLayout: step.payload.layout ?? undefined,
+        },
+      })
+      return STUDIO_OPERATOR_FIELD_IDS.characters
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference: {
       ctx.addAudioReference({
@@ -1039,6 +1057,16 @@ export function revertOperatorStep(
       })
       return true
     }
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...ctx.getState().advancedParams,
+          novelAiLayout: step.inverse.layout ?? undefined,
+        },
+      })
+      return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       ctx.removeAudioReference(step.payload.url)

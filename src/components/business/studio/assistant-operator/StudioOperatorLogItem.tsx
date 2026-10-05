@@ -53,6 +53,7 @@ import {
   Volume2,
   Waypoints,
   type LucideIcon,
+  Users,
 } from '@/components/icons'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
@@ -119,6 +120,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   /** 视频规格与图片规格是同一件事的两个形状 —— 同一枚图标，日志流里读起来才连贯。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]: RectangleHorizontal,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: Layers,
+  /** 角色构图 —— 几个人。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: Users,
   /**
    * 专属 chip（进度表 21）—— 借 `set_lora_weight` 那颗滑杆图标：两条在日志流里
    * 不会同屏（一条住工作台、一条住装配台），而「拧了一颗旋钮」本来就是同一件事。

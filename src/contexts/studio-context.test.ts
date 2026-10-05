@@ -850,6 +850,56 @@ describe('提示词方言与标签栏', () => {
     ])
   })
 
+  // 🔬 2026-10-05 真机：助手写了负向，UC 栏是空的（出图却会带上那一串）。
+  it('标签台开着时外部改写负向，UC 的 chip 跟着变；串没变时不重切', () => {
+    const chips = [{ text: 'blurry', weight: 1.2 }]
+    const base = makeInitialState({
+      promptDialect: 'tags',
+      tagNegativeChips: chips,
+      advancedParams: { negativePrompt: 'blurry:1.2' },
+    })
+    const written = studioFormReducer(base, {
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { negativePrompt: 'lowres, {cutout}' },
+    })
+    expect(written.tagNegativeChips).toEqual([
+      { text: 'lowres', weight: 1 },
+      { text: '{cutout}', weight: 1 },
+    ])
+
+    const untouched = studioFormReducer(base, {
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { negativePrompt: 'blurry:1.2', sampler: 'k_euler' },
+    })
+    expect(untouched.tagNegativeChips).toBe(chips)
+
+    const reset = studioFormReducer(base, { type: 'RESET_ADVANCED_PARAMS' })
+    expect(reset.tagNegativeChips).toEqual([])
+  })
+
+  it('已经错开的 UC（含存下来的草稿）在下一次写入 / 回灌时对齐', () => {
+    const stale = makeInitialState({
+      promptDialect: 'tags',
+      tagNegativeChips: [],
+      advancedParams: { negativePrompt: 'lowres, {cutout}' },
+    })
+    const rewritten = studioFormReducer(stale, {
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { negativePrompt: 'lowres, {cutout}' },
+    })
+    expect(rewritten.tagNegativeChips.map((chip) => chip.text)).toEqual([
+      'lowres',
+      '{cutout}',
+    ])
+
+    const restored = restoreDraft(
+      makeInitialState({ promptDialect: 'tags' }),
+      { tagNegativeChips: [], advancedParams: { negativePrompt: 'lowres' } },
+      false,
+    )
+    expect(restored.tagNegativeChips).toEqual([{ text: 'lowres', weight: 1 }])
+  })
+
   it('自然语言台开着时 SET_PROMPT 不碰 chip', () => {
     const state = studioFormReducer(makeInitialState(), {
       type: 'SET_PROMPT',

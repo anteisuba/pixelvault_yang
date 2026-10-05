@@ -562,6 +562,22 @@ const initialFormState: StudioFormState = {
   panels: { ...initialPanels },
 }
 
+/**
+ * 标签台开着时，UC 的 chip **就是** `negativePrompt` 那一串 —— 出图发的是串，画的是 chip。
+ *
+ * 🔬 2026-10-05 真机：助手写进了 `negativePrompt`（出图会带上），UC 栏却是空的，用户与
+ * 助手各说各的。与 `SET_PROMPT` 对正向那一侧同一条规矩，但按「两边是否一致」判，不按
+ * 「这一次改没改」判：已经错开的那一份（含存下来的草稿）下一次写入就对齐。
+ * ⚠ 一致时原样返回：换采样器之类的写入 ⛔ 不该把 chip 重排。
+ */
+function withNegativeChipsInSync(state: StudioFormState): StudioFormState {
+  if (state.promptDialect !== 'tags') return state
+  const chips = parseTagChips(state.advancedParams.negativePrompt ?? '')
+  return serializeTagChips(chips) === serializeTagChips(state.tagNegativeChips)
+    ? state
+    : { ...state, tagNegativeChips: chips }
+}
+
 export function studioFormReducer(
   state: StudioFormState,
   action: StudioAction,
@@ -719,7 +735,7 @@ export function studioFormReducer(
         state.outputType !== 'image' ||
         transfer.dialect !== state.promptDialect
       )
-        return next
+        return withNegativeChipsInSync(next)
       const carried = wholeSentenceAsTag(transfer.prompt)
       const tagChips =
         transfer.dialect === 'tags'
@@ -728,7 +744,7 @@ export function studioFormReducer(
               ...next.tagChips.filter((chip) => chip.text !== carried[0]?.text),
             ]
           : next.tagChips
-      return {
+      return withNegativeChipsInSync({
         ...next,
         selectedOptionId: transfer.optionId,
         modelSelectionTouched: true,
@@ -740,7 +756,7 @@ export function studioFormReducer(
         tagChips,
         tagCarrySource:
           transfer.dialect === 'tags' ? (carried[0]?.text ?? null) : null,
-      }
+      })
     }
     case 'SET_ACTIVE_TAG_CHARACTER':
       return { ...state, activeTagCharacterIndex: action.payload }
@@ -812,15 +828,17 @@ export function studioFormReducer(
        */
       const characters = action.payload.novelAiLayout?.characters.length ?? 0
       const active = state.activeTagCharacterIndex
-      return {
+      // 外部改写负向（助手 · 撤销 · 模板）要在 UC 的 chip 上看得见。
+      return withNegativeChipsInSync({
         ...state,
         advancedParams: action.payload,
         activeTagCharacterIndex:
           active !== null && active >= characters ? null : active,
-      }
+      })
     }
     case 'RESET_ADVANCED_PARAMS':
-      return { ...state, advancedParams: {} }
+      // 负向一起清了 —— UC 栏不能还画着一串不会发出去的标签。
+      return withNegativeChipsInSync({ ...state, advancedParams: {} })
     case 'SET_IMAGE_BATCH_COUNT':
       return { ...state, imageBatchCount: action.payload }
     case 'TOGGLE_EXTRA_MODEL': {

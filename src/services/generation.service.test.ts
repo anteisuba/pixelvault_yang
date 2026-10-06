@@ -906,6 +906,115 @@ describe('generation.service', () => {
       expect(result).toEqual({ error: 'MAX_FEATURED_EXCEEDED' })
       expect(mockGenerationUpdate).not.toHaveBeenCalled()
     })
+
+    it('refuses to publish a prompt that fails the publish check', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        prompt: 'child, downblouse',
+        isPublic: false,
+        isPromptPublic: false,
+        isFeatured: false,
+      })
+
+      const result = await toggleGenerationVisibility('gen-1', 'user-1')
+
+      expect(result).toEqual({ error: 'CONTENT_NOT_PUBLISHABLE' })
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+
+    it('still lets the owner unpublish a blocked prompt', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        prompt: 'child, downblouse',
+        isPublic: true,
+        isPromptPublic: false,
+        isFeatured: false,
+      })
+      mockGenerationUpdate.mockResolvedValue({
+        id: 'gen-1',
+        isPublic: false,
+        isPromptPublic: false,
+        isFeatured: false,
+      })
+
+      const result = await toggleGenerationVisibility('gen-1', 'user-1')
+
+      expect(result).toMatchObject({ id: 'gen-1', isPublic: false })
+    })
+  })
+
+  describe('setGenerationVisibility publish check', () => {
+    it('refuses isPublic=true for a blocked prompt', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        prompt: 'loli, nude',
+        isFeatured: false,
+      })
+
+      const result = await setGenerationVisibility('gen-1', 'user-1', {
+        isPublic: true,
+        isPromptPublic: true,
+      })
+
+      expect(result).toEqual({ error: 'CONTENT_NOT_PUBLISHABLE' })
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('batchUpdateVisibility', () => {
+    it('publishes only the rows that pass the publish check', async () => {
+      mockGenerationFindMany.mockResolvedValue([
+        { id: 'gen-ok', prompt: 'night city, red scarf' },
+        { id: 'gen-blocked', prompt: 'child, nude' },
+      ])
+      mockGenerationUpdateMany.mockResolvedValue({ count: 1 })
+
+      const result = await batchUpdateVisibility(
+        ['gen-ok', 'gen-blocked'],
+        'user-1',
+        'isPublic',
+        true,
+      )
+
+      expect(result).toEqual({ updatedCount: 1, blockedIds: ['gen-blocked'] })
+      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['gen-ok'] }, userId: 'user-1' },
+        data: { isPublic: true },
+      })
+    })
+
+    it('skips the update when every row is blocked', async () => {
+      mockGenerationFindMany.mockResolvedValue([
+        { id: 'gen-blocked', prompt: 'child, nude' },
+      ])
+
+      const result = await batchUpdateVisibility(
+        ['gen-blocked'],
+        'user-1',
+        'isPublic',
+        true,
+      )
+
+      expect(result).toEqual({ updatedCount: 0, blockedIds: ['gen-blocked'] })
+      expect(mockGenerationUpdateMany).not.toHaveBeenCalled()
+    })
+
+    it('does not run the check when unpublishing', async () => {
+      mockGenerationUpdateMany.mockResolvedValue({ count: 2 })
+
+      const result = await batchUpdateVisibility(
+        ['gen-1', 'gen-2'],
+        'user-1',
+        'isPublic',
+        false,
+      )
+
+      expect(result).toEqual({ updatedCount: 2, blockedIds: [] })
+      expect(mockGenerationFindMany).not.toHaveBeenCalled()
+    })
   })
 
   describe('setAudioCoverImage', () => {
@@ -1327,7 +1436,7 @@ describe('generation.service', () => {
 
       await expect(
         batchUpdateVisibility(['gen-1', 'gen-2'], 'user-1', 'isPublic', true),
-      ).resolves.toBe(2)
+      ).resolves.toEqual({ updatedCount: 2, blockedIds: [] })
       expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
         where: { id: { in: ['gen-1', 'gen-2'] }, userId: 'user-1' },
         data: { isPublic: true },

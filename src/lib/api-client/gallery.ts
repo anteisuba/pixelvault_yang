@@ -211,7 +211,8 @@ export async function batchUpdateVisibilityAPI(
   value: boolean,
 ): Promise<{
   success: boolean
-  data?: { updatedCount: number }
+  /** `blockedIds`：批量公开时没过公开闸、原样没改的那些。 */
+  data?: { updatedCount: number; blockedIds?: string[] }
   error?: string
 }> {
   try {

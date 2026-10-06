@@ -12,6 +12,7 @@
 - feed：`GallerySearchSchema` 校验 searchParams → `getPublicGenerationPage`（generation.service）SSR 首页 → `GalleryFeed` 接管。
 - 详情：`getPublicGenerationById` **slim 查询**（跳过重 JSON 列）；`isPromptPublic=false` 时 **redact prompt/negativePrompt**（隐私红线，不能破坏）。
 - 媒体经 `getGenerationPreviewUrl` 渲染（R2 事实源，provider URL 不做展示源）。
+- **公开闸（2026-10-06，owner 定只做提示词检查）**：`toggleGenerationVisibility` / `setGenerationVisibility` / `batchUpdateVisibility` 是仅有的三处能把 `isPublic` 置真的写入，都先过 `isPromptBlockedFromPublic`——正向提示词里未成年词与性相关词同时出现就拒（单条 422 `CONTENT_NOT_PUBLISHABLE`，批量跳过并回 `blockedIds`）。画廊、创作者主页、sitemap、OG 只读 `isPublic`，所以拦住写入即可。公开合集也是读端：`getCollectionById` 给非 owner 只返回 `isPublic` 的条目、按 `redactPrompts` 抹掉未公开的提示词，条数 / 分页 / 封面都从同一个过滤后的条件算（owner 视图不变）。词表与边界见 `src/constants/content-safety.ts`。⚠ 只看提示词：开放给别人公开发布前必须另加按图片判断的审核。上线当天两件命中的存量作品已手动下架。
 
 ## 组件分工
 

@@ -2875,6 +2875,7 @@
     "bulkPublish": "Publish to gallery",
     "bulkPublishConfirm": "Publish {count, plural, one {# asset} other {# assets}} to the public gallery?",
     "bulkPublishSuccess": "Published {count, plural, one {# asset} other {# assets}} to gallery",
+    "bulkPublishBlocked": "{count, plural, one {# asset was} other {# assets were}} not published: the prompt contains both minor-related and sexual terms",
     "bulkPublishFailed": "Publish failed",
     "bulkPublishView": "See it in the gallery",
     "bulkFavorite": "Favorite",
@@ -7283,6 +7284,7 @@
       "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",
       "runner_lora_unavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
       "lora_download_disabled": "The creator has disabled downloads for this LoRA. It can only be used in Civitai's generator. Choose another LoRA to use here.",
+      "publish_blocked": "This work can't be made public: its prompt contains both minor-related and sexual terms. It stays in your library.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
       "unknownWithDetail": "This generation failed. The provider said: {detail}"
     },

@@ -2875,6 +2875,7 @@
     "bulkPublish": "发布到画廊",
     "bulkPublishConfirm": "把 {count} 个素材发布到公开画廊？",
     "bulkPublishSuccess": "已发布 {count} 个素材到画廊",
+    "bulkPublishBlocked": "{count} 件的提示词同时含未成年相关词和性相关词，没有公开",
     "bulkPublishFailed": "发布失败",
     "bulkPublishView": "去画廊看",
     "bulkFavorite": "收藏",
@@ -7283,6 +7284,7 @@
       "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",
       "runner_lora_unavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "lora_download_disabled": "这把 LoRA 的作者在 Civitai 关掉了下载，它只能在 Civitai 站内出图。这跟 API Key 无关，换任何 token 都取不到权重——请换一把 LoRA。",
+      "publish_blocked": "提示词里同时有未成年相关词和性相关词，这件作品不能公开。它仍留在你的素材库里。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
       "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}"
     },

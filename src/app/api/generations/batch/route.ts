@@ -57,12 +57,12 @@ export const POST = createApiRoute({
       return { updatedCount }
     }
 
-    const updatedCount = await batchUpdateVisibility(
+    const { updatedCount, blockedIds } = await batchUpdateVisibility(
       data.ids,
       user.id,
       data.field,
       data.value,
     )
-    return { updatedCount }
+    return { updatedCount, blockedIds }
   },
 })

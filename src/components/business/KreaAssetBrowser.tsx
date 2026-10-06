@@ -653,16 +653,24 @@ export function KreaAssetBrowser({
         return
       }
       const updatedCount = result.data?.updatedCount ?? ids.length
+      const blockedIds = new Set(result.data?.blockedIds ?? [])
       clearGalleryCache()
-      ids.forEach((id) => updateGeneration(id, { isPublic: true }))
+      ids
+        .filter((id) => !blockedIds.has(id))
+        .forEach((id) => updateGeneration(id, { isPublic: true }))
       void refreshCounts()
-      // 发完给一条回链：发布的结果长在画廊里，而用户此刻站在素材库。
-      toast.success(t('bulkPublishSuccess', { count: updatedCount }), {
-        action: {
-          label: t('bulkPublishView'),
-          onClick: () => router.push(ROUTES.GALLERY),
-        },
-      })
+      if (blockedIds.size > 0) {
+        toast.error(t('bulkPublishBlocked', { count: blockedIds.size }))
+      }
+      if (updatedCount > 0) {
+        // 发完给一条回链：发布的结果长在画廊里，而用户此刻站在素材库。
+        toast.success(t('bulkPublishSuccess', { count: updatedCount }), {
+          action: {
+            label: t('bulkPublishView'),
+            onClick: () => router.push(ROUTES.GALLERY),
+          },
+        })
+      }
       exitSelectionMode()
     } finally {
       setIsBulkPublishing(false)

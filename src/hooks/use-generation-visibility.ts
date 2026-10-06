@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { useRouter } from '@/i18n/navigation'
 import { toggleGenerationVisibility } from '@/lib/api-client'
+import { PUBLISH_BLOCKED_ERROR_CODE } from '@/constants/content-safety'
 
 type ToggleField = 'isPublic' | 'isPromptPublic' | 'isFeatured'
 
@@ -40,6 +41,7 @@ export function useGenerationVisibility({
   const [togglingField, setTogglingField] = useState<string | null>(null)
   const router = useRouter()
   const t = useTranslations('Toasts')
+  const tErrors = useTranslations('Errors')
 
   const handleToggle = useCallback(
     async (field: ToggleField) => {
@@ -65,9 +67,11 @@ export function useGenerationVisibility({
         const errorMsg =
           result.error === 'MAX_FEATURED_EXCEEDED'
             ? t('featuredLimitReached')
-            : field === 'isFeatured'
-              ? t('featuredFailed')
-              : t('visibilityFailed')
+            : result.errorCode === PUBLISH_BLOCKED_ERROR_CODE
+              ? tErrors('generation.publish_blocked')
+              : field === 'isFeatured'
+                ? t('featuredFailed')
+                : t('visibilityFailed')
         toast.error(errorMsg)
       } else {
         if (result.data) {
@@ -94,6 +98,7 @@ export function useGenerationVisibility({
       generationId,
       router,
       t,
+      tErrors,
     ],
   )
 

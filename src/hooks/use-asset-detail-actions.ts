@@ -147,7 +147,10 @@ export function useAssetDetailActions({
             : t('detailUnpublished'),
         )
       } else {
-        toast.error(response.error ?? t('detailPublishFailed'))
+        // 带 i18nKey 的（公开闸拦下）说人话，其余仍是原来那句。
+        toast.error(
+          getApiErrorMessage(tErrors, response, t('detailPublishFailed')),
+        )
       }
     } catch {
       toast.error(t('detailPublishFailed'))

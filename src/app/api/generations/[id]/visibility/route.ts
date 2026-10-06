@@ -9,6 +9,7 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { ApiRequestError } from '@/lib/errors'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
+import { PUBLISH_BLOCKED_ERROR_CODE } from '@/constants/content-safety'
 import { createApiPatchByIdRoute } from '@/lib/api-route-factory'
 
 const VisibilitySchema = z.object({
@@ -36,6 +37,14 @@ export const PATCH = createApiPatchByIdRoute({
       ? await setGenerationVisibility(id, user.id, data.values)
       : await toggleGenerationVisibility(id, user.id, data.field, data.value)
     if (!result) return null
+    if ('error' in result && result.error === PUBLISH_BLOCKED_ERROR_CODE) {
+      throw new ApiRequestError(
+        PUBLISH_BLOCKED_ERROR_CODE,
+        422,
+        'errors.generation.publish_blocked',
+        result.error,
+      )
+    }
     if ('error' in result) {
       throw new ApiRequestError(
         'VISIBILITY_ERROR',

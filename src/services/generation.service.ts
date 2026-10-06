@@ -10,6 +10,7 @@ import {
   cacheableFn,
   invalidatePublicGalleryCache,
 } from '@/lib/cache-tags'
+import { isPromptBlockedFromPublic } from '@/lib/content-safety'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
@@ -22,6 +23,7 @@ import type {
   OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
+import { PUBLISH_BLOCKED_ERROR_CODE } from '@/constants/content-safety'
 import {
   GENERATION_REVIEW_STATES,
   GENERATION_REVIEW_STATE_IDS,
@@ -966,7 +968,8 @@ const MAX_FEATURED_PER_USER = 9
  * Toggle a boolean flag on a generation that belongs to the given user.
  * Supports isPublic, isPromptPublic, and isFeatured.
  * Returns the updated record, or null if not found / not owned.
- * Returns an error string if the featured limit is exceeded.
+ * Returns an error string if the featured limit is exceeded, or if the prompt
+ * fails the publish check (`lib/content-safety.ts`) when turning isPublic on.
  */
 export async function toggleGenerationVisibility(
   id: string,
@@ -985,6 +988,7 @@ export async function toggleGenerationVisibility(
     select: {
       id: true,
       userId: true,
+      prompt: true,
       isPublic: true,
       isPromptPublic: true,
       isFeatured: true,
@@ -996,6 +1000,14 @@ export async function toggleGenerationVisibility(
   }
 
   const nextValue = value ?? !generation[field]
+
+  if (
+    field === 'isPublic' &&
+    nextValue &&
+    isPromptBlockedFromPublic(generation.prompt)
+  ) {
+    return { error: PUBLISH_BLOCKED_ERROR_CODE }
+  }
 
   // Enforce featured limit when turning ON
   if (field === 'isFeatured' && nextValue && !generation.isFeatured) {
@@ -1041,12 +1053,20 @@ export async function setGenerationVisibility(
     select: {
       id: true,
       userId: true,
+      prompt: true,
       isFeatured: true,
     },
   })
 
   if (!generation || generation.userId !== userId) {
     return null
+  }
+
+  if (
+    values.isPublic === true &&
+    isPromptBlockedFromPublic(generation.prompt)
+  ) {
+    return { error: PUBLISH_BLOCKED_ERROR_CODE }
   }
 
   if (values.isFeatured === true && !generation.isFeatured) {
@@ -1434,20 +1454,45 @@ export async function batchDeleteGenerations(
 /**
  * Batch update visibility for generations owned by the user.
  */
+/**
+ * 批量改可见性。批量公开时逐条过公开闸（`lib/content-safety.ts`）：
+ * 拦下的不改，id 原样回给调用方，前端据此只把放行的那些标成已公开。
+ */
 export async function batchUpdateVisibility(
   ids: string[],
   userId: string,
   field: 'isPublic' | 'isPromptPublic',
   value: boolean,
-): Promise<number> {
+): Promise<{ updatedCount: number; blockedIds: string[] }> {
+  let allowedIds = ids
+  let blockedIds: string[] = []
+
+  if (field === 'isPublic' && value) {
+    const owned = await db.generation.findMany({
+      where: { id: { in: ids }, userId },
+      select: { id: true, prompt: true },
+    })
+    blockedIds = owned
+      .filter((row) => isPromptBlockedFromPublic(row.prompt))
+      .map((row) => row.id)
+    if (blockedIds.length > 0) {
+      const blocked = new Set(blockedIds)
+      allowedIds = ids.filter((id) => !blocked.has(id))
+    }
+  }
+
+  if (allowedIds.length === 0) {
+    return { updatedCount: 0, blockedIds }
+  }
+
   const result = await db.generation.updateMany({
-    where: { id: { in: ids }, userId },
+    where: { id: { in: allowedIds }, userId },
     data: { [field]: value },
   })
   if (field === 'isPublic' && result.count > 0) {
     invalidatePublicGalleryCache()
   }
-  return result.count
+  return { updatedCount: result.count, blockedIds }
 }
 
 // ─── Character Card Gallery Queries ──────────────────────────────

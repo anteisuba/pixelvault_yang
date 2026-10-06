@@ -171,6 +171,30 @@ describe('PATCH /api/generations/[id]/visibility', () => {
     )
   })
 
+  it('returns 422 with the publish-blocked code when the check refuses', async () => {
+    mockToggle.mockResolvedValue({ error: 'CONTENT_NOT_PUBLISHABLE' })
+    const req = new NextRequest(
+      new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'isPublic', value: true }),
+      },
+    )
+
+    const res = await PATCH(req, routeParams('gen_123'))
+    const json = await parseJSON<{
+      success: boolean
+      errorCode: string
+      i18nKey: string
+    }>(res)
+
+    expect(res.status).toBe(422)
+    expect(json.success).toBe(false)
+    expect(json.errorCode).toBe('CONTENT_NOT_PUBLISHABLE')
+    expect(json.i18nKey).toBe('errors.generation.publish_blocked')
+  })
+
   it('sets multiple visibility fields when values are specified', async () => {
     const req = new NextRequest(
       new URL('/api/generations/gen_123/visibility', 'http://localhost:3000'),

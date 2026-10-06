@@ -3325,7 +3325,10 @@
     "editSavedToGallery": "ギャラリーに保存しました！",
     "decomposing": "レイヤー分解中...",
     "downloadFailed": "ダウンロードに失敗しました。元画像を開きます。",
-    "shareFailed": "共有リンクのコピーに失敗しました。"
+    "shareFailed": "共有リンクのコピーに失敗しました。",
+    "seoTitleNoPrompt": "@{username} の AI{type, select, VIDEO {動画} AUDIO {音声} MODEL_3D {3D モデル} other {画像}} · {model}",
+    "seoTitleNoPromptAnonymous": "AI{type, select, VIDEO {動画} AUDIO {音声} MODEL_3D {3D モデル} other {画像}} · {model}",
+    "seoDescriptionNoPrompt": "{model} で生成した AI{type, select, VIDEO {動画} AUDIO {音声} MODEL_3D {3D モデル} other {画像}}。{site} で公開中。"
   },
   "GalleryCard": {
     "openImage": "画像を新しいタブで開く",

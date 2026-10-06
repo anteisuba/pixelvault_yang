@@ -8,6 +8,7 @@ import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
+import { buildPromptAltText } from '@/lib/generation-seo'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
@@ -87,7 +88,7 @@ export function ImageCardMedia({
         ) : (
           <BlurUpImage
             src={imageSrc}
-            alt={generation.prompt}
+            alt={buildPromptAltText(generation.prompt)}
             width={generation.width}
             height={generation.height}
             priority={priority}

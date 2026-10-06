@@ -18,6 +18,15 @@ canonical 指向别的 URL，等于告诉搜索引擎「我是那一页的副本
 5. **sitemap、JSON-LD 的 `url` 与 canonical 逐字一致。** 三者都走 `localeUrl()`；不一致就是三个互相打架的信号。
 6. **⛔ 不用 `noindex` 回答重复内容。** canonical 已经回答了这件事，两个信号同挂是互相矛盾的（noindex 还可能顺着 canonical 传到正本）。`noindex` 只用于**本来就不该进索引**的页面：登录页、`/settings`、`/studio/*` 及私密归档。那些页面同时**不要**再给 canonical。
 
+## 作品详情页的文字（2026-10-06）
+
+`/gallery/[id]` 的标题、描述、图片 alt 与 JSON-LD 的 `name` / `description` 走同一套口径（`getDetailSeoText`，算法在 `src/lib/generation-seo.ts`）：
+
+- **提示词公开**：标题 = 清洗后的提示词摘要（≤40 字）`·` 模型 `— ANTEI`；描述 ≤150 字；alt ≤125 字。清洗只做减法：去 LoRA 标记与两种权重写法（`1.5::x::`、`(x:1.2)`）、去质量 / 评级词（`PROMPT_DISPLAY_NOISE_TAGS`、`score_*`）、去重，⛔ 不改写不翻译。
+- **提示词没公开**：标题 =「@作者 的 AI 图片 · 模型」（三语），描述 = 一句「用某模型生成」；⛔ 不拿提示词或由它派生的名字兜底。
+- JSON-LD 的 `creator` 是作者（`Person` + 主页地址），没有作者才回退成站点。
+- 画廊卡片的 alt 用同一个 `buildPromptAltText`（列表口的提示词已按公开授权 redact）。
+
 ## 有意的例外
 
 `/u/me` —— 同一张脸两个地址，`/u/me` 是登录后的快捷入口，正本是 `/u/<username>`（owner 2026-09-20 拍板）。它传 `canonicalPath`，于是 canonical 和 `og:url` 一起指向带用户名那个地址，并且不产出 hreflang。⛔ 不要把它改成自指，那会让两个地址互相争正本。

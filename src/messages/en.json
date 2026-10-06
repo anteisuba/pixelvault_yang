@@ -3325,7 +3325,10 @@
     "editSavedToGallery": "Saved to gallery!",
     "decomposing": "Decomposing layers...",
     "downloadFailed": "Download failed. Opening the original instead.",
-    "shareFailed": "Couldn't copy the share link."
+    "shareFailed": "Couldn't copy the share link.",
+    "seoTitleNoPrompt": "AI {type, select, VIDEO {video} AUDIO {audio} MODEL_3D {3D model} other {image}} by @{username} · {model}",
+    "seoTitleNoPromptAnonymous": "AI {type, select, VIDEO {video} AUDIO {audio} MODEL_3D {3D model} other {image}} · {model}",
+    "seoDescriptionNoPrompt": "An AI {type, select, VIDEO {video} AUDIO {audio track} MODEL_3D {3D model} other {image}} made with {model}, shared on {site}."
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",

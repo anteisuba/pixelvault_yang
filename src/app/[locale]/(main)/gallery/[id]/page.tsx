@@ -16,15 +16,22 @@ import { getAppOrigin, SITE_NAME } from '@/constants/config'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import {
   ROUTES,
+  creatorProfilePath,
   galleryGenerationPath,
   studioCanvasEditPath,
 } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import {
+  buildPromptAltText,
+  buildPromptDescription,
+  buildPromptTitleSummary,
+} from '@/lib/generation-seo'
 import { localeUrl, pageAddress } from '@/lib/page-address'
 import { cn } from '@/lib/utils'
 import { getPublicGenerationById } from '@/services/generation.service'
+import type { GenerationRecord } from '@/types'
 
 import { GalleryDetailVideoPlayer } from '@/components/business/GalleryDetailVideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -37,6 +44,33 @@ const loadPublicGeneration = cache(getPublicGenerationById)
 
 interface ImageDetailPageProps {
   params: Promise<{ locale: AppLocale; id: string }>
+}
+
+/**
+ * 标题 / 描述 / alt 的同一套口径（seo.md「作品详情页的文字」）：
+ * 提示词公开 → 清洗后的提示词摘要；没公开 → 「@作者 的 AI 图片 · 模型」，
+ * ⛔ 不拿提示词或由它派生的任何东西兜底（`prompt` 在这里已被 redact 成空串）。
+ */
+async function getDetailSeoText(
+  locale: AppLocale,
+  generation: GenerationRecord,
+  modelLabel: string,
+) {
+  const t = await getTranslations({ locale, namespace: 'ImageDetail' })
+  const type = generation.outputType
+  const username = generation.creator?.username
+  const prompt = generation.isPromptPublic ? generation.prompt : ''
+  const summary = buildPromptTitleSummary(prompt)
+  const headline = summary
+    ? `${summary} · ${modelLabel}`
+    : username
+      ? t('seoTitleNoPrompt', { type, username, model: modelLabel })
+      : t('seoTitleNoPromptAnonymous', { type, model: modelLabel })
+  const description =
+    buildPromptDescription(prompt) ||
+    t('seoDescriptionNoPrompt', { type, model: modelLabel, site: SITE_NAME })
+  const alt = buildPromptAltText(prompt) || headline
+  return { headline, description, alt }
 }
 
 export async function generateMetadata({
@@ -55,10 +89,12 @@ export async function generateMetadata({
     ? tModels(`${getModelMessageKey(generation.model)}.label`)
     : generation.model
 
-  const title = `${modelLabel} — ${SITE_NAME}`
-  const description = generation.isPromptPublic
-    ? generation.prompt.slice(0, 160)
-    : `AI-generated ${generation.outputType === 'VIDEO' ? 'video' : 'image'} by ${modelLabel}`
+  const { headline, description } = await getDetailSeoText(
+    locale,
+    generation,
+    modelLabel,
+  )
+  const title = `${headline} — ${SITE_NAME}`
 
   const ogImageUrl = `${getAppOrigin()}/api/og?type=generation&id=${id}`
   const address = pageAddress({ locale, path: galleryGenerationPath(id) })
@@ -118,33 +154,38 @@ export default async function ImageDetailPage({
 
   const isVideo = generation.outputType === 'VIDEO'
 
-  const jsonLdDescription = generation.isPromptPublic
-    ? generation.prompt
-    : `AI-generated ${isVideo ? 'video' : 'image'}`
+  const seo = await getDetailSeoText(locale, generation, modelLabel)
+  const creator = generation.creator
+    ? {
+        '@type': 'Person',
+        name: generation.creator.displayName || generation.creator.username,
+        url: localeUrl(locale, creatorProfilePath(generation.creator.username)),
+      }
+    : { '@type': 'Organization', name: SITE_NAME }
 
   const jsonLd = isVideo
     ? {
         '@context': 'https://schema.org',
         '@type': 'VideoObject',
-        name: `${modelLabel} generation`,
-        description: jsonLdDescription,
+        name: seo.headline,
+        description: seo.description,
         contentUrl: generation.url,
         url: pageUrl,
         duration: generation.duration ? `PT${generation.duration}S` : undefined,
         uploadDate: createdAt.toISOString(),
-        creator: { '@type': 'Organization', name: SITE_NAME },
+        creator,
       }
     : {
         '@context': 'https://schema.org',
         '@type': 'ImageObject',
-        name: `${modelLabel} generation`,
-        description: jsonLdDescription,
+        name: seo.headline,
+        description: seo.description,
         contentUrl: generation.url,
         url: pageUrl,
         width: generation.width,
         height: generation.height,
         dateCreated: createdAt.toISOString(),
-        creator: { '@type': 'Organization', name: SITE_NAME },
+        creator,
       }
 
   const labelClass = cn(
@@ -212,7 +253,7 @@ export default async function ImageDetailPage({
             ) : (
               <img
                 src={previewUrl}
-                alt={generation.isPromptPublic ? generation.prompt : modelLabel}
+                alt={seo.alt}
                 className="h-auto max-h-[70svh] w-full object-contain"
                 style={{ aspectRatio }}
               />

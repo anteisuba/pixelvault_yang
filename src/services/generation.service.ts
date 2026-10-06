@@ -938,20 +938,34 @@ export async function getGenerationByIdForUser(
 export async function getPublicGenerationById(
   id: string,
 ): Promise<GenerationRecord | null> {
-  const generation = await db.generation.findFirst({
+  const row = await db.generation.findFirst({
     where: { id, isPublic: true },
-    select: LIST_GENERATION_SELECT,
+    select: {
+      ...LIST_GENERATION_SELECT,
+      user: { select: { username: true, displayName: true, avatarUrl: true } },
+    },
   })
 
-  if (!generation) return null
+  if (!row) return null
+
+  // 作者进标题与 JSON-LD（提示词没公开时标题靠它）；形状与列表口的 `creator` 一致。
+  const { user, ...generation } = row
+  const creator = user?.username
+    ? {
+        username: user.username,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      }
+    : null
 
   // No snapshot column was loaded — `normalizeGenerationReferenceImages`
   // would just fall back to `referenceImageUrl`. Apply the prompt-redaction
   // path that the public list query uses so private prompts stay hidden in
   // detail view too.
-  const normalized = normalizeGenerationReferenceImages(
-    generation as unknown as GenerationRecord,
-  )
+  const normalized = normalizeGenerationReferenceImages({
+    ...(generation as unknown as GenerationRecord),
+    creator,
+  })
   return normalized.isPromptPublic
     ? normalized
     : { ...normalized, prompt: '', negativePrompt: null }

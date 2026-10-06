@@ -3325,7 +3325,10 @@
     "editSavedToGallery": "已保存到画廊！",
     "decomposing": "正在分解图层...",
     "downloadFailed": "下载失败，正在打开原图。",
-    "shareFailed": "复制分享链接失败。"
+    "shareFailed": "复制分享链接失败。",
+    "seoTitleNoPrompt": "@{username} 的 AI {type, select, VIDEO {视频} AUDIO {音频} MODEL_3D {3D 模型} other {图片}} · {model}",
+    "seoTitleNoPromptAnonymous": "AI {type, select, VIDEO {视频} AUDIO {音频} MODEL_3D {3D 模型} other {图片}} · {model}",
+    "seoDescriptionNoPrompt": "用 {model} 生成的 AI {type, select, VIDEO {视频} AUDIO {音频} MODEL_3D {3D 模型} other {图片}}，发布在 {site}。"
   },
   "GalleryCard": {
     "openImage": "在新标签页中打开图像",

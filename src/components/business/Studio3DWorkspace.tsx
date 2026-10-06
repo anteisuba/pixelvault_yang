@@ -2743,10 +2743,6 @@ export function Studio3DWorkspace({
               setSelectedModelId(option.modelId)
               setModelPickerOpen(false)
             }}
-            onRequestSetup={() => {
-              setModelPickerOpen(false)
-              setQuickSetupOpen(true)
-            }}
             searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
             emptySearchText={tForm('modelSelector.emptySearch')}
           />

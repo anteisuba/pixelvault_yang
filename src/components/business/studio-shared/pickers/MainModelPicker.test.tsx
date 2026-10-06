@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/studio/image',
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}.${key}`,

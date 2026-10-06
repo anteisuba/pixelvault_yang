@@ -1,21 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { AUDIO_KIND } from '@/constants/audio-options'
-import type { StudioModelOption } from '@/types/model-option'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers'
-import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { useAudioModelOptionsFor } from '@/hooks/use-audio-model-options'
 
 /**
  * 房间顶栏的模型入口。
- *
- * 它主要不是「换模型」——语音档目录里长期只有一个可用型号。它真正的职责是
- * **把缺 API key 这件事变成一条能走通的路**（Hard Rule 8：缺 key 时不禁用 UI，
- * 路由到 `QuickSetupDialog` 内联配置）。在此之前，配音间没有任何地方能配 key，
- * 没配的人只会看到一句失败提示然后无路可走。
  *
  * ⚠ 用 `ModelPickerPopover` 而不是 `MainModelPicker`：后者内部调
  * `useAudioModelOptions()`，那个 hook 读 `useStudioForm()`——配音间**故意**住在
@@ -36,7 +28,6 @@ export function VoiceRoomModelChip({
 }: VoiceRoomModelChipProps) {
   const t = useTranslations('VoiceRoom')
   const { modelOptions } = useAudioModelOptionsFor(AUDIO_KIND.SPEECH, value)
-  const [setupFor, setSetupFor] = useState<StudioModelOption | null>(null)
 
   /*
    * ⚠ 还没选过时显示**第一个可用型号**，而不是「选择模型」。
@@ -48,35 +39,14 @@ export function VoiceRoomModelChip({
   const shown = value ?? modelOptions[0]?.optionId ?? null
 
   return (
-    <>
-      <ModelPickerPopover
-        options={modelOptions}
-        value={shown}
-        // 五处宿主同一颗触发器、同一个弹层（D2 ④）——⛔ 不在配音间另调形状。
-        memoryScope="audio"
-        side="bottom"
-        onChange={(option) => onChange(option.optionId, option.modelId)}
-        onRequestSetup={setSetupFor}
-        triggerEmptyLabel={t('pickModel')}
-      />
-
-      {setupFor ? (
-        <QuickSetupDialog
-          open
-          onOpenChange={(next) => {
-            if (!next) setSetupFor(null)
-          }}
-          modelId={setupFor.modelId}
-          modelLabel={setupFor.modelId}
-          adapterType={setupFor.adapterType}
-          optionId={setupFor.optionId}
-          onVerified={() => {
-            // 配好就直接用上它——不然用户得再点一次那个刚刚还锁着的条目。
-            onChange(setupFor.optionId, setupFor.modelId)
-            setSetupFor(null)
-          }}
-        />
-      ) : null}
-    </>
+    <ModelPickerPopover
+      options={modelOptions}
+      value={shown}
+      // 五处宿主同一颗触发器、同一个弹层（D2 ④）——⛔ 不在配音间另调形状。
+      memoryScope="audio"
+      side="bottom"
+      onChange={(option) => onChange(option.optionId, option.modelId)}
+      triggerEmptyLabel={t('pickModel')}
+    />
   )
 }

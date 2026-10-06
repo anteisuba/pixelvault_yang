@@ -13,8 +13,34 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="quick-setup" /> : null,
+  QuickSetupDialog: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+  }) =>
+    open ? (
+      <div data-testid="quick-setup">
+        <button
+          type="button"
+          data-testid="quick-setup-close"
+          onClick={() => onOpenChange(false)}
+        />
+      </div>
+    ) : null,
+}))
+
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  search: new URLSearchParams(),
+}))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => navigation.search,
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ replace: navigation.replace }),
+  usePathname: () => '/settings/keys',
 }))
 
 const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
@@ -89,6 +115,8 @@ function rowSummaries(): string[] {
 describe('SettingsKeysSection', () => {
   beforeEach(() => {
     mockUseApiKeysContext.mockReset()
+    navigation.replace.mockReset()
+    navigation.search = new URLSearchParams()
   })
 
   it('sorts failing providers first, then configured, then unconfigured', () => {
@@ -171,5 +199,28 @@ describe('SettingsKeysSection', () => {
 
     const spendCells = screen.getAllByText('Settings:keys.monthlySpend')
     expect(spendCells).toHaveLength(1)
+  })
+
+  it('?setup= 带着 provider 进来就直接打开它的配置弹窗；关掉时去掉这个参数、留下 from', () => {
+    navigation.search = new URLSearchParams(
+      `from=${encodeURIComponent('/studio/image')}&setup=${AI_ADAPTER_TYPES.OPENAI}`,
+    )
+    mountWith([], {})
+    expect(screen.getByTestId('quick-setup')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('quick-setup-close'))
+    expect(navigation.replace).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage',
+    )
+  })
+
+  it('?setup= 写了不认识的 provider 时什么都不弹', () => {
+    navigation.search = new URLSearchParams('setup=not-a-provider')
+    mountWith([], {})
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
+  })
+
+  it('没有 ?setup= 时不自己弹', () => {
+    mountWith([], {})
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
   })
 })

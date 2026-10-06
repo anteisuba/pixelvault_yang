@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ROUTES,
+  keySettingsPath,
   studioCanvasEditPath,
   studioImageEditPath,
   studioImageWithCharacterPath,
@@ -51,6 +52,28 @@ describe('studioImageWithCharacterPath', () => {
   it('带着角色 id 去图片工作台', () => {
     expect(studioImageWithCharacterPath('denia')).toBe(
       '/studio/image?character=denia',
+    )
+  })
+})
+
+describe('keySettingsPath', () => {
+  it('goes to the keys page, remembering where to return to', () => {
+    expect(keySettingsPath('/studio/image')).toBe(
+      '/settings/keys?from=%2Fstudio%2Fimage',
+    )
+    expect(keySettingsPath()).toBe('/settings/keys')
+  })
+
+  it('names the provider to set up, with or without a return path', () => {
+    expect(keySettingsPath('/studio/image/tags', 'ideogram')).toBe(
+      '/settings/keys?from=%2Fstudio%2Fimage%2Ftags&setup=ideogram',
+    )
+    expect(keySettingsPath(null, 'openai')).toBe('/settings/keys?setup=openai')
+  })
+
+  it('refuses a return path that leaves the site', () => {
+    expect(keySettingsPath('//evil.example', 'openai')).toBe(
+      '/settings/keys?setup=openai',
     )
   })
 })

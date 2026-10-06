@@ -24,6 +24,8 @@ import { useTranslations } from 'next-intl'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
@@ -43,6 +45,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
     state.selectedOptionId ?? '',
   )
   const { modelOptions: audioModelOptions } = useAudioModelOptions()
+  const openKeySettings = useOpenKeySettings()
   const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
   const modelOptions =
@@ -65,12 +68,20 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  /**
+   * 没配 key 的模型选不上：直接去配它那一家的 key（与模型选择器同一条规矩，
+   * owner 2026-10-06）。⛔ 不先把它设成当前模型再让出图键去报缺 key。
+   */
   const selectModel = useCallback(
-    (optionId: string) => {
-      dispatch({ type: 'SET_OPTION_ID', payload: optionId })
+    (option: (typeof modelOptions)[number]) => {
       setOpen(false)
+      if (!isRunnableModelOption(option)) {
+        openKeySettings(option.adapterType)
+        return
+      }
+      dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
     },
-    [dispatch],
+    [dispatch, openKeySettings],
   )
 
   const switchMode = useCallback(
@@ -188,7 +199,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
                   <CommandItem
                     key={opt.optionId}
                     value={`${label} ${opt.keyLabel ?? ''} ${provider}`}
-                    onSelect={() => selectModel(opt.optionId)}
+                    onSelect={() => selectModel(opt)}
                     className="studio-command-item"
                   >
                     <Search className="size-4 text-muted-foreground" />

@@ -1,22 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 
 import type { StudioModelOption } from '@/types/model-option'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
-}))
-
 // Capture the props the wrapper hands to the shared two-step picker so we can
-// assert the value mapping and drive its onChange / onRequestSetup callbacks.
+// assert the value mapping and drive its onChange callback.
 type CapturedPickerProps = {
   modality: string
   llmCapability?: string
   value: string | null
   onChange: (option: StudioModelOption) => void
-  onRequestSetup?: (option: StudioModelOption) => void
   triggerEmptyLabel?: string
   popoverSide?: 'top' | 'bottom'
 }
@@ -26,28 +20,6 @@ vi.mock('@/components/business/studio-shared/pickers', () => ({
   MainModelPicker: (props: CapturedPickerProps) => {
     pickerProps = props
     return <div data-testid="picker" data-value={String(props.value)} />
-  },
-}))
-
-type CapturedQuickSetupProps = {
-  open: boolean
-  modelLabel: string
-  adapterType: AI_ADAPTER_TYPES
-  optionId: string
-}
-let quickSetupProps: CapturedQuickSetupProps | null = null
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: CapturedQuickSetupProps) => {
-    quickSetupProps = props
-    return (
-      <div
-        data-testid="quick-setup"
-        data-open={String(props.open)}
-        data-label={props.modelLabel}
-        data-adapter={props.adapterType}
-      />
-    )
   },
 }))
 
@@ -195,34 +167,5 @@ describe('CanvasAssistantRouteSelector', () => {
     )
     pickerProps?.onChange(makeOption({ keyId: undefined }))
     expect(onChange).not.toHaveBeenCalled()
-  })
-
-  it('opens QuickSetup for a needs-key provider with the adapter-matched label', () => {
-    render(
-      <CanvasAssistantRouteSelector
-        emptyRouteLabel="Auto route"
-        value={{
-          optionId: 'node-studio-assistant:auto',
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-        }}
-        onChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByTestId('quick-setup').dataset.open).toBe('false')
-
-    act(() => {
-      pickerProps?.onRequestSetup?.(
-        makeOption({
-          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-          optionId: 'llm-route:assistant:setup:claude-fable-5-1',
-          modelId: 'claude-fable-5-1',
-        }),
-      )
-    })
-    expect(quickSetupProps?.open).toBe(true)
-    expect(quickSetupProps?.adapterType).toBe(AI_ADAPTER_TYPES.ANTHROPIC)
-    expect(quickSetupProps?.modelLabel).toBe(
-      'StudioNode.assistantRoute.setupClaude',
-    )
   })
 })

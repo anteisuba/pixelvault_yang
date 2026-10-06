@@ -234,7 +234,7 @@
 
 ### 4.3 横切规则
 
-- **缺 API key**：模型仍显示、入口不禁用，点击开 `QuickSetupDialog`（CLAUDE.md Hard Rule 8）。⛔ 不做置灰占位。
+- **缺 API key**：模型仍显示、入口不禁用。画布 / 工作台的**模型选择器**点没配 key 的模型不选中、跳 `/settings/keys?setup=<provider>` 直开那一家的配置弹窗（2026-10-06）；助手自己的模型小选择器仍开 `QuickSetupDialog`，配完才选上（CLAUDE.md Hard Rule 8）。⛔ 不做置灰占位。
 - **不支持的能力不渲染**，不做禁用占位。
 - **七态**：每个可点元素覆盖 `default/hover/active/focus-visible/disabled/loading/selected`（`ui-defaults.md §5`）；命中区 fine ≥32px。
 - **空态**：一句说明 + 建议药丸，不留白板。

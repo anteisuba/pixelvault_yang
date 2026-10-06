@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, within } from '@testing-library/react'
 
+const navigation = vi.hoisted(() => ({ push: vi.fn() }))
+
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: navigation.push }),
+  usePathname: () => '/studio/image',
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations:
     (namespace: string) => (key: string, values?: Record<string, unknown>) =>
@@ -100,25 +107,22 @@ function openPicker(
   props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
 ) {
   const onChange = vi.fn()
-  const onRequestSetup = vi.fn()
   const view = render(
     <ModelPickerPopover
       options={FIXTURE}
       value={null}
       onChange={onChange}
-      onRequestSetup={onRequestSetup}
       {...props}
     />,
   )
   fireEvent.click(screen.getByRole('button', { name: /Common.selectModel/ }))
-  return { onChange, onRequestSetup, ...view }
+  return { onChange, ...view }
 }
 
 function openCanvasPicker(
   props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
 ) {
   const onChange = vi.fn()
-  const onRequestSetup = vi.fn()
   const view = render(
     <StudioChipDensityProvider value="compact">
       <div className="react-flow">
@@ -128,7 +132,6 @@ function openCanvasPicker(
             options={FIXTURE}
             value={null}
             onChange={onChange}
-            onRequestSetup={onRequestSetup}
             canvasNodeId="node-a"
             {...props}
           />
@@ -137,13 +140,74 @@ function openCanvasPicker(
     </StudioChipDensityProvider>,
   )
   fireEvent.click(document.querySelector('[data-model-chip]') as HTMLElement)
-  return { onChange, onRequestSetup, ...view }
+  return { onChange, ...view }
 }
 
 beforeEach(() => {
   window.localStorage.clear()
+  navigation.push.mockClear()
   // 「未选渠道」住模块级 store —— 不清就会漏进下一个用例。
   resetModelPickerGate()
+})
+
+describe('ModelPickerPopover — 未配置渠道跳转设置', () => {
+  it('直接点未配置的单渠道模型行时不选中，并跳转 API 配置页', () => {
+    const { onChange } = openPicker()
+    fireEvent.click(row('gpt-image-2'))
+    expect(onChange).not.toHaveBeenCalled()
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
+    )
+    expect(window.localStorage.length).toBe(0)
+  })
+
+  it.each([
+    ['saved', { sourceType: 'saved' as const, keyId: 'openai-key' }],
+    ['provider key', { providerKeyId: 'openai-key' }],
+    ['Runner', { adapterType: AI_ADAPTER_TYPES.RUNNER }],
+  ])('%s 渠道直接选择仍然正常', (_label, ready) => {
+    const readyOption = option({
+      optionId: 'ready:model',
+      modelId: AI_MODELS.OPENAI_GPT_IMAGE_2,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      ...ready,
+    })
+    const { onChange } = openPicker({ options: [readyOption] })
+    fireEvent.click(document.querySelector('[data-model-key]') as HTMLElement)
+    expect(onChange).toHaveBeenCalledWith(readyOption)
+    expect(navigation.push).not.toHaveBeenCalled()
+  })
+
+  it('记住过的渠道失去 key 后不能通过模型行重新选中', () => {
+    const { onChange, rerender } = openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const memoryBefore = { ...window.localStorage }
+    rerender(
+      <ModelPickerPopover
+        options={FIXTURE.map((item) =>
+          item.optionId === 'key:fal-1'
+            ? { ...item, sourceType: 'workspace', keyId: undefined }
+            : item,
+        )}
+        value={null}
+        onChange={onChange}
+      />,
+    )
+    onChange.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /Common.selectModel/ }))
+    fireEvent.click(row('seedream-5.0-pro'))
+    expect(onChange).not.toHaveBeenCalled()
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage&setup=fal',
+    )
+    expect({ ...window.localStorage }).toEqual(memoryBefore)
+  })
 })
 
 describe('ModelPickerPopover — 画布模型弹层', () => {
@@ -192,8 +256,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
   })
 
   it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点去配置', () => {
-    const onRequestSetup = vi.fn()
-    openCanvasPicker({ value: 'key:fal-1', onRequestSetup })
+    const { onChange } = openCanvasPicker({ value: 'key:fal-1' })
     const pro = row('seedream-5.0-pro')
     expect(pro.textContent).toContain('5.0 Pro')
     expect(pro.textContent).not.toContain('Seedream')
@@ -203,7 +266,10 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     const locked = row('gpt-image-2')
     expect(locked.textContent).toContain('ModelPicker.missingKeyConfigure')
     fireEvent.click(locked)
-    expect(onRequestSetup).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
+    )
   })
 
   it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', () => {
@@ -460,42 +526,36 @@ describe('ModelPickerPopover — 没有「自动」', () => {
   })
 })
 
-describe('ModelPickerPopover — 缺 key 走 QuickSetupDialog', () => {
-  it('点黄点渠道 → 关弹层、交给宿主的 onRequestSetup，⛔ 不选中', () => {
-    const { onChange, onRequestSetup } = openPicker()
+describe('ModelPickerPopover — 缺 key 渠道跳转 API 配置', () => {
+  it('点黄点渠道时关闭弹层、不选中，也不记住缺 key 渠道', () => {
+    const { onChange } = openPicker()
     fireEvent.mouseEnter(row('gpt-image-2'))
     fireEvent.click(
       within(channelPanel() as HTMLElement).getAllByRole(
         'option',
       )[0] as HTMLElement,
     )
-    expect(onRequestSetup).toHaveBeenCalledTimes(1)
-    expect(onRequestSetup.mock.calls[0][0].optionId).toBe(
-      'workspace:gpt-image-2',
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
     )
     expect(onChange).not.toHaveBeenCalled()
-    expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
+    expect(window.localStorage.length).toBe(0)
+    expect(channelPanel()).toBeNull()
   })
 
-  it('宿主没给 onRequestSetup 时自己开那一个现有对话框', () => {
-    const onChange = vi.fn()
-    render(
-      <ModelPickerPopover
-        options={FIXTURE}
-        value={null}
-        memoryScope="image"
-        onChange={onChange}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button'))
-    fireEvent.mouseEnter(row('gpt-image-2'))
-    fireEvent.click(
-      within(channelPanel() as HTMLElement).getAllByRole(
-        'option',
-      )[0] as HTMLElement,
-    )
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  it('多选模式点未配置模型行时不切换选项，并跳转配置页', () => {
+    const onToggleOption = vi.fn()
+    const { onChange } = openPicker({
+      selectedOptionIds: new Set<string>(),
+      onToggleOption,
+    })
+    fireEvent.click(row('gpt-image-2'))
+    expect(onToggleOption).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
+    expect(navigation.push).toHaveBeenCalledWith(
+      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
+    )
+    expect(window.localStorage.length).toBe(0)
   })
 })
 
@@ -627,31 +687,6 @@ describe('ModelPickerPopover — 未选渠道闸门', () => {
     )
     act(() => requestModelPickerOpen(modelPickerGateKey('image', 'node-b')))
     expect(document.querySelector('[data-model-key]')).toBeNull()
-  })
-
-  /**
-   * 画板 ④ 那格：标题「设置 {渠道}」、命名框预填「型号 · 渠道」——两处逐字不同。
-   */
-  it('开 QuickSetupDialog 时标题读渠道名、命名框预填「型号 · 渠道」', () => {
-    render(
-      <ModelPickerPopover
-        options={FIXTURE}
-        value={null}
-        memoryScope="image"
-        onChange={vi.fn()}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button'))
-    fireEvent.mouseEnter(row('gpt-image-2'))
-    fireEvent.click(
-      within(channelPanel() as HTMLElement).getAllByRole(
-        'option',
-      )[0] as HTMLElement,
-    )
-    const dialog = screen.getByRole('dialog')
-    expect(dialog.textContent).toContain('QuickSetup.title')
-    const named = within(dialog).getByDisplayValue(/GPT Image 2 · /)
-    expect(named).toBeInTheDocument()
   })
 })
 

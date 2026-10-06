@@ -12,8 +12,13 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {}
 }
 
+const harness = vi.hoisted(() => ({
+  dispatch: vi.fn(),
+  openKeySettings: vi.fn(),
+}))
+
 const modelFixtures = vi.hoisted(() => {
-  const makeModelOption = (optionId: string) => {
+  const makeModelOption = (optionId: string, keyId?: string) => {
     const modelId = optionId.replace('workspace:', '')
     return {
       optionId,
@@ -23,12 +28,14 @@ const modelFixtures = vi.hoisted(() => {
       requestCount: 1,
       isBuiltIn: false,
       sourceType: 'workspace',
+      ...(keyId ? { keyId, sourceType: 'saved' } : {}),
     }
   }
 
   return {
     image: makeModelOption('workspace:image-only-model'),
     video: makeModelOption('workspace:video-only-model'),
+    videoReady: makeModelOption('workspace:video-ready-model', 'key-1'),
     audio: makeModelOption('workspace:audio-only-model'),
   }
 })
@@ -45,8 +52,12 @@ vi.mock('@/contexts/studio-context', () => ({
       selectedOptionId: null,
       workflowMode: 'quick',
     },
-    dispatch: vi.fn(),
+    dispatch: harness.dispatch,
   })),
+}))
+
+vi.mock('@/hooks/use-open-key-settings', () => ({
+  useOpenKeySettings: () => harness.openKeySettings,
 }))
 
 vi.mock('@/hooks/use-image-model-options', () => ({
@@ -57,7 +68,7 @@ vi.mock('@/hooks/use-image-model-options', () => ({
 
 vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: vi.fn(() => ({
-    modelOptions: [modelFixtures.video],
+    modelOptions: [modelFixtures.video, modelFixtures.videoReady],
   })),
 }))
 
@@ -80,5 +91,32 @@ describe('StudioCommandPalette', () => {
     expect(screen.getByText('video-only-model')).toBeInTheDocument()
     expect(screen.queryByText('image-only-model')).not.toBeInTheDocument()
     expect(screen.queryByText('audio-only-model')).not.toBeInTheDocument()
+  })
+
+  it('没配 key 的模型选不上：不改当前模型，直接去配它那一家的 key', () => {
+    harness.dispatch.mockClear()
+    harness.openKeySettings.mockClear()
+    render(<StudioCommandPalette />)
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+
+    fireEvent.click(screen.getByText('video-only-model'))
+
+    expect(harness.dispatch).not.toHaveBeenCalled()
+    expect(harness.openKeySettings).toHaveBeenCalledWith('fal')
+  })
+
+  it('配好 key 的模型照常选中', () => {
+    harness.dispatch.mockClear()
+    harness.openKeySettings.mockClear()
+    render(<StudioCommandPalette />)
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+
+    fireEvent.click(screen.getByText('video-ready-model'))
+
+    expect(harness.dispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: 'workspace:video-ready-model',
+    })
+    expect(harness.openKeySettings).not.toHaveBeenCalled()
   })
 })

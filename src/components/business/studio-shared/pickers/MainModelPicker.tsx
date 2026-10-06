@@ -37,7 +37,6 @@ export type MainModelPickerModality =
 interface CommonProps {
   value: string | null
   onChange: (option: StudioModelOption) => void
-  onRequestSetup?: (option: StudioModelOption) => void
   triggerEmptyLabel?: string
   searchPlaceholder?: string
   emptySearchText?: string

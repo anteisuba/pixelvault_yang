@@ -1,11 +1,9 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useCallback } from 'react'
 
 import type { StudioModelOption } from '@/types/model-option'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
-import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -47,40 +45,6 @@ export function getAssistantRouteKeyOptionId(
   return modelId ? `${base}:${modelId}` : base
 }
 
-// ⚠ The `default` here means a missing case shows the WRONG provider's name
-// on the setup button (it falls through to Gemini) — compile-clean and
-// silently misleading. Add a case whenever an adapter joins the assistant
-// route table.
-function getSetupLabelKey(
-  adapterType: AI_ADAPTER_TYPES,
-):
-  | 'setupChatGpt'
-  | 'setupDeepSeek'
-  | 'setupGemini'
-  | 'setupClaude'
-  | 'setupGrok' {
-  switch (adapterType) {
-    case AI_ADAPTER_TYPES.OPENAI:
-      return 'setupChatGpt'
-    case AI_ADAPTER_TYPES.DEEPSEEK:
-      return 'setupDeepSeek'
-    case AI_ADAPTER_TYPES.ANTHROPIC:
-      return 'setupClaude'
-    case AI_ADAPTER_TYPES.XAI:
-      return 'setupGrok'
-    default:
-      return 'setupGemini'
-  }
-}
-
-interface QuickSetupState {
-  open: boolean
-  modelId: string
-  modelLabel: string
-  adapterType: AI_ADAPTER_TYPES
-  optionId: string
-}
-
 /**
  * Adapts the shared two-step MainModelPicker (厂商 → 模型 — the same picker the
  * canvas image/video/audio nodes use) to the NodeAssistantRouteSelection
@@ -99,22 +63,12 @@ interface QuickSetupState {
  *     `llm-route:assistant:key:${keyId}` for the picker value
  *   - converts the picked StudioModelOption back into
  *     NodeAssistantRouteSelection via getAssistantRouteKeyOptionId
- *   - routes needs-key providers to the locally-owned QuickSetupDialog
  */
 export function CanvasAssistantRouteSelector({
   value,
   onChange,
   emptyRouteLabel,
 }: CanvasAssistantRouteSelectorProps) {
-  const t = useTranslations('StudioNode.assistantRoute')
-  const [quickSetup, setQuickSetup] = useState<QuickSetupState>({
-    open: false,
-    optionId: '',
-    adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: '',
-    modelLabel: '',
-  })
-
   const handleSelect = useCallback(
     (option: StudioModelOption) => {
       if (!option.keyId) return
@@ -128,66 +82,24 @@ export function CanvasAssistantRouteSelector({
     [onChange],
   )
 
-  const handleRequestSetup = useCallback(
-    (option: StudioModelOption) => {
-      setQuickSetup({
-        open: true,
-        modelId: option.modelId,
-        modelLabel: t(getSetupLabelKey(option.adapterType)),
-        adapterType: option.adapterType,
-        optionId: option.optionId,
-      })
-    },
-    [t],
-  )
-
-  const handleQuickSetupOpenChange = useCallback((nextOpen: boolean) => {
-    setQuickSetup((current) => ({ ...current, open: nextOpen }))
-  }, [])
-
-  const handleQuickSetupVerified = useCallback(
-    (_modelId: string, keyId: string) => {
-      onChange({
-        optionId: getAssistantRouteKeyOptionId(keyId, quickSetup.modelId),
-        apiKeyId: keyId,
-        adapterType: quickSetup.adapterType,
-        modelId: quickSetup.modelId,
-      })
-    },
-    [onChange, quickSetup.adapterType, quickSetup.modelId],
-  )
-
   return (
-    <>
-      <MainModelPicker
-        modality="llm_assist"
-        // 与其余四处同一颗触发器、同一个弹层（D2 ④）。LLM 路由没有
-        // MODEL_FAMILIES，会退回按 adapterType 分组 —— 分组标题正好是厂商，
-        // 行上是模型，语义仍然成立。
-        llmCapability="assistant"
-        value={
-          // Saved-route optionIds carry the modelId since tiers multiplied —
-          // a selection without one (legacy "auto") matches no option, which
-          // renders the empty label; that is the honest display for it.
-          value.apiKeyId && value.modelId
-            ? `llm-route:assistant:key:${value.apiKeyId}:${value.modelId}`
-            : null
-        }
-        onChange={handleSelect}
-        onRequestSetup={handleRequestSetup}
-        triggerEmptyLabel={emptyRouteLabel}
-        popoverSide="bottom"
-      />
-
-      <QuickSetupDialog
-        open={quickSetup.open}
-        onOpenChange={handleQuickSetupOpenChange}
-        modelId={quickSetup.modelId}
-        modelLabel={quickSetup.modelLabel}
-        adapterType={quickSetup.adapterType}
-        optionId={quickSetup.optionId}
-        onVerified={handleQuickSetupVerified}
-      />
-    </>
+    <MainModelPicker
+      modality="llm_assist"
+      // 与其余四处同一颗触发器、同一个弹层（D2 ④）。LLM 路由没有
+      // MODEL_FAMILIES，会退回按 adapterType 分组 —— 分组标题正好是厂商，
+      // 行上是模型，语义仍然成立。
+      llmCapability="assistant"
+      value={
+        // Saved-route optionIds carry the modelId since tiers multiplied —
+        // a selection without one (legacy "auto") matches no option, which
+        // renders the empty label; that is the honest display for it.
+        value.apiKeyId && value.modelId
+          ? `llm-route:assistant:key:${value.apiKeyId}:${value.modelId}`
+          : null
+      }
+      onChange={handleSelect}
+      triggerEmptyLabel={emptyRouteLabel}
+      popoverSide="bottom"
+    />
   )
 }

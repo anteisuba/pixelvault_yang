@@ -22,7 +22,7 @@ export interface SplitModelOptions<T extends SplitableModelOption> {
  * 这个选项现在**能不能真的跑起来** —— 自带 key 或 provider 级 key 覆盖。
  *
  * ⚠ 2026-09-17 owner 拍板：生成类没有「平台免费额度」这一档，所以曾经算进来的
- * `freeTier` 整个删掉了；BYOK 缺 key 落 locked，点开走 QuickSetupDialog（Hard Rule 8）。
+ * `freeTier` 整个删掉了；BYOK 缺 key 落 locked。
  * Runner 使用服务端凭证与独立预算，不要求用户填写 provider key。
  *
  * 台账 D7（2026-08-02）抽出来的：`useSplitModelOptions` 的分桶本来就

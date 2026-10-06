@@ -177,6 +177,24 @@ export function settingsPath(
   return `${route}?from=${encodeURIComponent(from)}`
 }
 
+/** `/settings/keys?setup=<adapterType>`：到了就把这一家的配置弹窗直接打开（读完即从地址栏去掉）。 */
+export const KEY_SETUP_QUERY = 'setup'
+
+/**
+ * 去配 key 的那条路：`/settings/keys`，可选带上**要配哪一家**（`setup`）。
+ *
+ * ⭐ 选了没配 key 的模型就直接落在那一家的配置弹窗上（owner 2026-10-06），而不是先
+ * 落在一张 provider 列表里让他自己找。`from` 照旧是返回键的去处。
+ */
+export function keySettingsPath(
+  from?: string | null,
+  adapterType?: string | null,
+): string {
+  const base = settingsPath(ROUTES.SETTINGS_KEYS, from)
+  if (!adapterType) return base
+  return `${base}${base.includes('?') ? '&' : '?'}${KEY_SETUP_QUERY}=${encodeURIComponent(adapterType)}`
+}
+
 /** `?from=` 读回来的那一跳——同一条判据，⛔ 别在组件里各写一遍。 */
 export function safeReturnPath(from: string | null | undefined): string | null {
   if (!from || !from.startsWith('/') || from.startsWith('//')) return null

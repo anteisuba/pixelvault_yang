@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { ChevronRight, Plus, Trash2 } from '@/components/icons'
 
 import { API_KEY_MASK } from '@/constants/api-keys'
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { KEY_SETUP_QUERY } from '@/constants/routes'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
   useProviderKeyRows,
@@ -14,6 +16,7 @@ import {
   type ProviderKeyState,
 } from '@/hooks/use-provider-key-rows'
 import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
+import { usePathname, useRouter } from '@/i18n/navigation'
 import type { ApiKeyHealthStatus } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -28,12 +31,30 @@ import { Spinner } from '@/components/ui/spinner'
  * 排序：失效 → 已配 → 未配置（`useProviderKeyRows`）。未配置行「配置」与失效行
  * 「换一把」打开的都是**面 1**（`QuickSetupDialog`）—— ⛔ 这一页不自带第二个
  * 录入表单。
+ *
+ * ⭐ `?setup=<adapterType>` 进来就直接把那一家的面 1 打开（选了没配 key 的模型从
+ * 选择器跳到这里，owner 2026-10-06）；关掉弹窗时把这个参数从地址栏去掉，`from`
+ * 留着给返回键。
  */
 export function SettingsKeysSection() {
   const t = useTranslations('Settings')
   const { rows, healthMap, verifiedAtMap, isLoading } = useProviderKeyRows()
   const { providers } = useMonthlyUsage()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [expanded, setExpanded] = useState<string | null>(null)
+  /** 地址栏要求直接配哪一家 —— 开关就由地址栏说了算，⛔ 不再拷一份进 state。 */
+  const setupAdapter = searchParams.get(KEY_SETUP_QUERY)
+  const urlSetupRow = setupAdapter
+    ? rows.find((row) => row.adapterType === setupAdapter)
+    : undefined
+  const closeUrlSetup = useCallback(() => {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete(KEY_SETUP_QUERY)
+    const query = next.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname)
+  }, [pathname, router, searchParams])
   const [quickSetup, setQuickSetup] = useState<{
     open: boolean
     adapterType: AI_ADAPTER_TYPES
@@ -87,6 +108,19 @@ export function SettingsKeysSection() {
           ))}
         </ul>
       )}
+
+      {urlSetupRow ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) closeUrlSetup()
+          }}
+          modelId={urlSetupRow.sampleModelId}
+          modelLabel={urlSetupRow.label}
+          adapterType={urlSetupRow.adapterType}
+          optionId={`settings:keys:${urlSetupRow.adapterType}`}
+        />
+      ) : null}
 
       {quickSetup ? (
         <QuickSetupDialog

@@ -658,7 +658,6 @@ export function ImageEditSurface({
           options={modelOptions}
           value={selectedOption?.optionId ?? null}
           onChange={chooseModel}
-          onRequestSetup={setQuickSetup}
           labelForOption={(option) =>
             EDIT_MODELS[option.modelId]?.displayName ?? option.modelId
           }

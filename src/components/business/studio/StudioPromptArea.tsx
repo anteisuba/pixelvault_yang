@@ -42,8 +42,6 @@ import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/types/model-option'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
@@ -76,7 +74,6 @@ import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { StudioVideoPromptInput } from './StudioVideoPromptInput'
-import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   StudioChipLookProvider,
   studioOutlineChipClass,
@@ -231,33 +228,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     imageUpload.referenceEntries.length,
   )
 
-  // ── Quick Setup Dialog state ────────────────────────────────────
-  const [quickSetup, setQuickSetup] = useState<{
-    open: boolean
-    modelId: string
-    modelLabel: string
-    adapterType: AI_ADAPTER_TYPES
-    optionId: string
-  }>({
-    open: false,
-    modelId: '',
-    modelLabel: '',
-    adapterType: AI_ADAPTER_TYPES.GEMINI,
-    optionId: '',
-  })
-  const handleOpenQuickSetup = useCallback(
-    (option: StudioModelOption) => {
-      setQuickSetup({
-        open: true,
-        modelId: option.modelId,
-        modelLabel: getTranslatedModelLabel(tModels, option.modelId),
-        adapterType: option.adapterType,
-        optionId: option.optionId,
-      })
-    },
-    [tModels],
-  )
-
   const composerContainerRef = useRef<HTMLDivElement>(null)
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
@@ -360,21 +330,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
       : tStudio('audioPlaceholder')
     : t('freePromptPlaceholder')
 
-  const dialogs = (
-    <>
-      {state.workflowMode === 'quick' && (
-        <QuickSetupDialog
-          open={quickSetup.open}
-          onOpenChange={(v) => setQuickSetup((prev) => ({ ...prev, open: v }))}
-          modelId={quickSetup.modelId}
-          modelLabel={quickSetup.modelLabel}
-          adapterType={quickSetup.adapterType}
-          optionId={quickSetup.optionId}
-        />
-      )}
-    </>
-  )
-
   const negativePromptValue = state.advancedParams.negativePrompt ?? ''
   const setNegativePrompt = (value: string) =>
     dispatch({
@@ -426,7 +381,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     }
     return (
       <>
-        {dialogs}
         <PromptInput
           ref={composerContainerRef}
           id="studio-prompt"
@@ -661,7 +615,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                         value={state.selectedOptionId ?? null}
                         onChange={handleSelectSingleModel}
                         filterOption={filterVideoModelOption}
-                        onRequestSetup={handleOpenQuickSetup}
                         triggerEmptyLabel={t('noModelHint')}
                         searchPlaceholder={tForm(
                           'modelSelector.searchPlaceholder',
@@ -697,7 +650,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                         renderSearchFallback={(query, close) => (
                           <StudioDialectJumpHint query={query} close={close} />
                         )}
-                        onRequestSetup={handleOpenQuickSetup}
                         triggerEmptyLabel={modelChipLabel}
                         searchPlaceholder={tForm(
                           'modelSelector.searchPlaceholder',
@@ -783,20 +735,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   return (
     <>
-      {/* Quick-Setup modal lives at fragment root because it's a Dialog
-          (no flow-layout footprint). The model picker capsule itself now
-          renders inline inside PromptInputActions below. */}
-      {state.workflowMode === 'quick' && (
-        <QuickSetupDialog
-          open={quickSetup.open}
-          onOpenChange={(v) => setQuickSetup((prev) => ({ ...prev, open: v }))}
-          modelId={quickSetup.modelId}
-          modelLabel={quickSetup.modelLabel}
-          adapterType={quickSetup.adapterType}
-          optionId={quickSetup.optionId}
-        />
-      )}
-
       {/* 两台之间那扇门的**这一侧**。⚠ 与标签台挂的是同一颗组件、同一个位置
           （参数列的第一行）—— 只装一边它就不是门，是单向阀。
           ⛔ 只给图片档：视频与音频没有方言这一说。 */}
@@ -1127,7 +1065,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               modality="audio"
               value={state.selectedOptionId ?? null}
               onChange={handleSelectSingleModel}
-              onRequestSetup={handleOpenQuickSetup}
               triggerEmptyLabel={t('noModelHint')}
               searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
               emptySearchText={tForm('modelSelector.emptySearch')}
@@ -1191,7 +1128,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               renderSearchFallback={(query, close) => (
                 <StudioDialectJumpHint query={query} close={close} />
               )}
-              onRequestSetup={handleOpenQuickSetup}
               triggerEmptyLabel={
                 runModels.length > 0 ? t('modelAdd') : t('noModelHint')
               }

@@ -39,6 +39,7 @@ import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
+import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
   channelHasOption,
@@ -57,7 +58,6 @@ import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
-import { QuickSetupDialog } from '../setup/QuickSetupDialog'
 import {
   useStudioChipDensity,
   useStudioChipPopoverMotion,
@@ -81,8 +81,7 @@ import { ModelChip } from './ModelChip'
  * 3. **没有「自动」渠道**（`resolveModelChannel`）。多渠道型号没点过渠道 = 空态：
  *    价格位写「—」，触发器写「先选渠道」。单渠道型号面板只有一行且自动选中。
  *
- * 缺 key 的渠道被点 → 弹层与面板一起关闭，开**现有** `QuickSetupDialog`；验证通过
- * 后把这条渠道设为该型号的选择（点随之变绿）。⛔ 不做任何迷你配置面板。
+ * 缺 key 的渠道被点 → 弹层与面板一起关闭，跳转 `/settings/keys` 配置 API。
  */
 
 /** 一条渠道在面板上的样子。 */
@@ -161,8 +160,6 @@ export interface ModelPickerPopoverProps {
   /** 当前选中的 `optionId`；多选时传 null（选中状态由 `selectedOptionIds` 说）。 */
   value: string | null
   onChange: (option: StudioModelOption) => void
-  /** 缺 key 的渠道点了走这里（宿主自己开 `QuickSetupDialog`）；不给则本组件开。 */
-  onRequestSetup?: (option: StudioModelOption) => void
   /**
    * 记忆作用域 —— 手选渠道、未选渠道与「最近」按它分开存。传模态名
    * （`image` / `video` …），同一模态的多个入口共用一份记忆。
@@ -320,7 +317,6 @@ export function ModelPickerPopover({
   options,
   value,
   onChange,
-  onRequestSetup,
   memoryScope = MODEL_PICKER_DEFAULT_SCOPE,
   labelForOption,
   triggerEmptyLabel,
@@ -360,13 +356,7 @@ export function ModelPickerPopover({
   const t = useTranslations('ModelPicker')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
-  const [quickSetup, setQuickSetup] = useState<{
-    modelKey: string
-    option: StudioModelOption
-    channelLabel: string
-    /** 命名框的预填：「型号 · 渠道」（画板 ④ 那格）。 */
-    labelDefault: string
-  } | null>(null)
+  const openKeySettings = useOpenKeySettings()
 
   const { healthMap } = useApiKeysContext()
   const memory = useModelPickerMemory(memoryScope, gateId)
@@ -726,6 +716,12 @@ export function ModelPickerPopover({
   }, [focusPanelPending, panelRowId])
 
   const commit = (option: StudioModelOption, modelKey: string) => {
+    if (!isRunnableModelOption(option)) {
+      setOpen(false)
+      setActiveRowId(null)
+      openKeySettings(option.adapterType)
+      return
+    }
     memory.setPendingModel(null)
     memory.rememberRecent(modelKey)
     if (multi) {
@@ -761,20 +757,9 @@ export function ModelPickerPopover({
 
   const handleSelectChannel = (row: ModelRow, view: ChannelView) => {
     if (!view.hasKey) {
-      // 黄点渠道：弹层与面板一起关，开现有 QuickSetupDialog（⛔ 不做迷你面板）。
       setOpen(false)
-      if (onRequestSetup) {
-        onRequestSetup(view.channel.option)
-        return
-      }
-      setQuickSetup({
-        modelKey: row.modelKey,
-        option: view.channel.option,
-        // 标题读「设置 {渠道}」，命名框预填「型号 · 渠道」——画板 ④ 那两格写的
-        // 不是同一件事，⛔ 别拿一个字符串糊两处。
-        channelLabel: view.channel.label,
-        labelDefault: `${row.label} · ${view.channel.label}`,
-      })
+      setActiveRowId(null)
+      openKeySettings(view.channel.option.adapterType)
       return
     }
     // 点过就是记住 —— 下次这个型号默认走这条（跨会话，按型号存）。
@@ -1195,34 +1180,7 @@ export function ModelPickerPopover({
     </div>
   )
 
-  const setupDialog = quickSetup ? (
-    <QuickSetupDialog
-      open
-      onOpenChange={(next) => {
-        if (!next) setQuickSetup(null)
-      }}
-      modelId={quickSetup.option.modelId}
-      // 标题读「设置 {渠道}」——这一步配的是**渠道的 key**，不是型号。
-      modelLabel={quickSetup.channelLabel}
-      labelDefault={quickSetup.labelDefault}
-      adapterType={quickSetup.option.adapterType}
-      optionId={quickSetup.option.optionId}
-      onVerified={() => {
-        // 验证通过 → 这条渠道就是该型号的选择（面板上那颗点随 healthMap 变绿）。
-        memory.rememberChannel(quickSetup.modelKey, quickSetup.option.optionId)
-        commit(quickSetup.option, quickSetup.modelKey)
-        setQuickSetup(null)
-      }}
-    />
-  ) : null
-
-  if (inline)
-    return (
-      <>
-        <div className={className}>{body}</div>
-        {setupDialog}
-      </>
-    )
+  if (inline) return <div className={className}>{body}</div>
 
   const triggerStatus = ((): {
     label: string | null
@@ -1307,7 +1265,6 @@ export function ModelPickerPopover({
               document.body,
             )
           : null}
-        {setupDialog}
       </>
     )
   }
@@ -1364,7 +1321,6 @@ export function ModelPickerPopover({
           {body}
         </ResponsivePopoverContent>
       </ResponsivePopover>
-      {setupDialog}
     </>
   )
 }

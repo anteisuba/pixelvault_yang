@@ -259,10 +259,6 @@ vi.mock('@/contexts/api-keys-context', () => ({
   }),
 }))
 
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: () => null,
-}))
-
 vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
   StudioEnhanceButton: () => <button type="button">enhance</button>,
 }))

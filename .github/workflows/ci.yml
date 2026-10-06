@@ -107,6 +107,9 @@ jobs:
           # 本目录没有 package.json；测试是 node:test，直接 import ./index.ts。
           - worker: civitai-image-proxy
             test: node --experimental-strip-types --test src/index.test.mjs
+          # Modal 应用没有单测；真正的回归在 Modal 上跑（runner.md），这里只防语法坏掉。
+          - worker: runner-modal
+            test: python3 -m py_compile app.py
     defaults:
       run:
         working-directory: workers/${{ matrix.worker }}
@@ -291,6 +294,10 @@ jobs:
           # 没有自己的 package.json，借 execution 锁定的 wrangler 版本。
           - worker: civitai-image-proxy
             deploy: npm --prefix ../execution ci && ../execution/node_modules/.bin/wrangler deploy
+          # Runner on Modal（2026-10-06 迁移）。镜像已缓存时部署只要几秒。
+          - worker: runner-modal
+            # ubuntu-latest 的系统 Python 不让直接 pip install（PEP 668），装进 venv。
+            deploy: python3 -m venv /tmp/modal-venv && /tmp/modal-venv/bin/pip install --quiet "modal>=1.6,<2" && /tmp/modal-venv/bin/modal deploy app.py
     defaults:
       run:
         working-directory: workers/${{ matrix.worker }}
@@ -322,9 +329,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Deploy to Cloudflare
+      - name: Deploy
         if: steps.changes.outputs.deploy == 'true'
         run: ${{ matrix.deploy }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}

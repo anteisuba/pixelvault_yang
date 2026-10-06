@@ -26,6 +26,11 @@
     // 没了。要退回 US-CA-2 得重新建卷 + 重灌 checkpoint，不是改一行就能回。
     "RUNPOD_ENDPOINT": "dt0wyuid7lywic",
     "RUNPOD_QWEN_ENDPOINT": "ok6riemrmpdiic",
+    // Runner 迁 Modal（2026-10-06）：切到 "modal" 前先 `wrangler secret put
+    // RUNNER_MODAL_TOKEN`（值 = Modal Secret `pixelvault-runner-token`）。在飞作业按 id
+    // 前缀判后端，切开关不影响已提交的。观察期后删掉这三项与上面两个 RunPod 端点。
+    "RUNNER_BACKEND": "runpod",
+    "RUNNER_MODAL_URL": "https://xiuruisu--pixelvault-runner-api.modal.run",
   },
   "r2_buckets": [
     {

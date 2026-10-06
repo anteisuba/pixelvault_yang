@@ -2670,6 +2670,86 @@ describe('provider submit reports providerJobId', () => {
     ).rejects.toThrow('Unknown Runner job endpoint')
   })
 
+  it('RUNNER_BACKEND=modal sends the same input to Modal and routes fc- ids there for polling and cancel', async () => {
+    const requests: Array<{
+      url: string
+      auth: string | null
+      body: Record<string, unknown>
+    }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({
+          url: String(url),
+          auth: new Headers(init?.headers).get('Authorization'),
+          body: init?.body ? JSON.parse(String(init.body)) : {},
+        })
+        if (String(url).endsWith('/run'))
+          return Response.json({ id: 'fc-modal-job' })
+        if (String(url).includes('/status/'))
+          return Response.json({ status: 'IN_PROGRESS' })
+        return new Response(null, { status: 200 })
+      }),
+    )
+    const env = {
+      INTERNAL_CALLBACK_SECRET: 'secret',
+      INTERNAL_CALLBACK_URL:
+        'https://app.example.com/api/internal/execution/callback',
+      RUNPOD_ENDPOINT: 'sdxl-endpoint',
+      RUNNER_BACKEND: 'modal',
+      RUNNER_MODAL_URL: 'https://runner.modal.example/',
+      RUNNER_MODAL_TOKEN: 'modal-token',
+    } as never
+    const context = {
+      ...makeFalImageContext({ externalModelId: 'waiIllustriousSDXL_v150' }),
+      providerId: 'runner',
+    }
+
+    const job = await submitRunnerImageJob(context, env, 'runpod-key')
+    expect(job.id).toBe('fc-modal-job')
+    const submit = requests.find((r) => r.url.endsWith('/run'))
+    expect(submit).toMatchObject({
+      url: 'https://runner.modal.example/run',
+      auth: 'Bearer modal-token',
+      body: { target: 'main', input: { workflow: expect.any(Object) } },
+    })
+    expect(submit?.body).not.toHaveProperty('policy')
+
+    await pollAndPersistRunnerImageJob(job.id, env, 'runpod-key', 'image/t.png')
+    expect(
+      await cancelProviderJob(env, 'job-1', 'runner', job.id),
+    ).toMatchObject({ ok: true })
+    expect(requests.map((r) => r.url)).toEqual(
+      expect.arrayContaining([
+        'https://runner.modal.example/status/fc-modal-job',
+        'https://runner.modal.example/cancel/fc-modal-job',
+      ]),
+    )
+    expect(requests.some((r) => r.url.includes('api.runpod.ai'))).toBe(false)
+  })
+
+  it('keeps polling RunPod for jobs submitted before the switch', async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL) => {
+        urls.push(String(url))
+        return Response.json({ status: 'IN_QUEUE' })
+      }),
+    )
+    const env = {
+      RUNPOD_ENDPOINT: 'sdxl-endpoint',
+      RUNNER_BACKEND: 'modal',
+      RUNNER_MODAL_URL: 'https://runner.modal.example',
+      RUNNER_MODAL_TOKEN: 'modal-token',
+    } as never
+
+    await pollAndPersistRunnerImageJob('runpod-job', env, 'k', 'image/t.png')
+    expect(urls).toEqual([
+      'https://api.runpod.ai/v2/sdxl-endpoint/status/runpod-job',
+    ])
+  })
+
   it('a failed report callback does not affect the returned submit result', async () => {
     const fetchMock = vi
       .fn()

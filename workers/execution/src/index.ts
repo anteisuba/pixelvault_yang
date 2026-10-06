@@ -204,6 +204,15 @@ interface ExecutionEnv {
    */
   RUNPOD_ENDPOINT?: string
   RUNPOD_QWEN_ENDPOINT?: string
+  /**
+   * Runner 后端开关（2026-10-06 迁 Modal）：`modal` = 新作业发到 `workers/runner-modal`，
+   * 其余（含缺省）仍走 RunPod。在飞作业按 id 判后端（Modal 的是 `fc-` 开头），
+   * 所以切开关不影响已提交的作业。观察期结束后删掉 RunPod 分支与这个开关。
+   */
+  RUNNER_BACKEND?: string
+  RUNNER_MODAL_URL?: string
+  /** wrangler secret；与 Modal Secret `pixelvault-runner-token` 同值。 */
+  RUNNER_MODAL_TOKEN?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
@@ -6335,7 +6344,8 @@ export async function submitRunnerImageJob(
 ): Promise<RunnerSubmitResult> {
   const qwen = context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
   if (qwen) env = qwenRunnerEnvironment(env)
-  if (!env.RUNPOD_ENDPOINT) {
+  const modal = usesModalRunner(env)
+  if (!modal && !env.RUNPOD_ENDPOINT) {
     throw new Error('RUNPOD_ENDPOINT is not configured.')
   }
 
@@ -6515,21 +6525,24 @@ export async function submitRunnerImageJob(
     }
   }
 
-  const response = await fetch(
-    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': JSON_CONTENT_TYPE,
-      },
-      body: JSON.stringify({
-        input: runpodInput,
-        // 孤儿闸：轮询窗口耗尽/工作流被杀后没人再管的 job，到 TTL 自动出队。
-        policy: { ttl: RUNNER_JOB_TTL_MS },
-      }),
-    },
-  )
+  const response = modal
+    ? // 同一份 input；Modal 侧的单次时限（600s）就是这里的 TTL 兜底。
+      await modalRunnerRequest(env, '/run', {
+        method: 'POST',
+        body: { input: runpodInput, target: qwen ? 'qwen' : 'main' },
+      })
+    : await fetch(`${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': JSON_CONTENT_TYPE,
+        },
+        body: JSON.stringify({
+          input: runpodInput,
+          // 孤儿闸：轮询窗口耗尽/工作流被杀后没人再管的 job，到 TTL 自动出队。
+          policy: { ttl: RUNNER_JOB_TTL_MS },
+        }),
+      })
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -6544,7 +6557,7 @@ export async function submitRunnerImageJob(
   if (!id) {
     throw new Error('Runner submit response did not include a job id.')
   }
-  const routedId = qwen ? `${env.RUNPOD_ENDPOINT}/${id}` : id
+  const routedId = qwen && !modal ? `${env.RUNPOD_ENDPOINT}/${id}` : id
   await reportProviderJobId(env, context, routedId)
   await reportExecutionStage(
     env,
@@ -6561,7 +6574,37 @@ export async function submitRunnerImageJob(
 
 type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 
+const MODAL_RUNNER_JOB_PREFIX = 'fc-'
+
+function usesModalRunner(env: ExecutionEnv): boolean {
+  return env.RUNNER_BACKEND === 'modal'
+}
+
+function isModalRunnerJob(jobId: string): boolean {
+  return jobId.startsWith(MODAL_RUNNER_JOB_PREFIX)
+}
+
+function modalRunnerRequest(
+  env: ExecutionEnv,
+  path: string,
+  init: { method: 'GET' | 'POST'; body?: unknown } = { method: 'GET' },
+): Promise<Response> {
+  if (!env.RUNNER_MODAL_URL || !env.RUNNER_MODAL_TOKEN) {
+    throw new Error('RUNNER_MODAL_URL / RUNNER_MODAL_TOKEN are not configured.')
+  }
+  return fetch(`${env.RUNNER_MODAL_URL.replace(/\/$/, '')}${path}`, {
+    method: init.method,
+    headers: {
+      Authorization: `Bearer ${env.RUNNER_MODAL_TOKEN}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+    },
+    ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+  })
+}
+
 function qwenRunnerEnvironment(env: ExecutionEnv): ExecutionEnv {
+  // Modal 按请求里的 target 分主端点 / Qwen，不需要换端点 id。
+  if (usesModalRunner(env)) return env
   if (!env.RUNPOD_QWEN_ENDPOINT)
     throw new Error('Qwen evaluation endpoint is not configured.')
   return { ...env, RUNPOD_ENDPOINT: env.RUNPOD_QWEN_ENDPOINT }
@@ -6621,11 +6664,17 @@ async function pollRunnerImageJob(
   env: ExecutionEnv,
   apiKey: string,
 ): Promise<RunnerPollResult> {
-  const route = runnerJobRoute(jobId, env)
-  const response = await fetch(
-    `${RUNPOD_BASE_URL}/${route.endpoint}/status/${route.id}`,
-    { headers: { Authorization: `Bearer ${apiKey}` } },
-  )
+  const response = isModalRunnerJob(jobId)
+    ? await modalRunnerRequest(env, `/status/${jobId}`)
+    : await (() => {
+        const route = runnerJobRoute(jobId, env)
+        return fetch(
+          `${RUNPOD_BASE_URL}/${route.endpoint}/status/${route.id}`,
+          {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          },
+        )
+      })()
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -6687,6 +6736,12 @@ async function cancelRunnerImageJob(
   apiKey: string,
 ): Promise<boolean> {
   try {
+    if (isModalRunnerJob(jobId)) {
+      const response = await modalRunnerRequest(env, `/cancel/${jobId}`, {
+        method: 'POST',
+      })
+      return response.ok
+    }
     const route = runnerJobRoute(jobId, env)
     const response = await fetch(
       `${RUNPOD_BASE_URL}/${route.endpoint}/cancel/${route.id}`,
@@ -8393,6 +8448,8 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           if (
             !completed &&
             !leftQueue &&
+            // 幻影名额是 RunPod 端点的病；Modal 作业没有 IN_QUEUE 也没有端点计数。
+            !isModalRunnerJob(currentJob.id) &&
             attemptsSinceSubmit % RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS === 0
           ) {
             // 步骤返回计数本身（不是布尔）：判据留在工作流日志里，事后能直接
@@ -8847,6 +8904,14 @@ export async function cancelProviderJob(
   providerJobId: string,
 ): Promise<CancelProviderResult> {
   if (provider === RUNNER_PROVIDER_ID) {
+    if (isModalRunnerJob(providerJobId)) {
+      const ok = await cancelRunnerImageJob(providerJobId, env, '')
+      return {
+        attempted: true,
+        ok,
+        detail: ok ? 'Modal cancel requested.' : 'Modal cancel request failed.',
+      }
+    }
     if (!env.RUNPOD_ENDPOINT) {
       return {
         attempted: false,

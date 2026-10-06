@@ -60,7 +60,7 @@ describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
     mockIsMobile = false
   })
 
-  it('M1 纯底模：两组七张、没有「自动」、没有开关，Turbo 推荐 + 快出', () => {
+  it('M1 纯底模：两组八张、没有「自动」、没有开关，Turbo 推荐 + 快出', () => {
     renderModal()
 
     expect(screen.queryByText('LoraWorkbench:spine.sourceCheckpointAuto')).toBe(
@@ -95,8 +95,8 @@ describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
     expect(
       within(turbo).getByText('LoraWorkbench:familyLabel.anima'),
     ).toBeInTheDocument()
-    // SDXL 系 4 张 + DiT 系 3 张（Base · Turbo · Z-Image Turbo）。
-    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(6)
+    // SDXL 系 4 张 + DiT 系 4 张（Base · Turbo · Z-Image Turbo · Krea 2 Turbo）。
+    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(7)
     const zImage = card(/Z-Image Turbo/)
     expect(
       within(zImage).getByText('LoraWorkbench:familyLabel.zImage'),

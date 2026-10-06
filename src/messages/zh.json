@@ -3921,6 +3921,10 @@
       "label": "Z-Image Turbo（Runner）",
       "description": "通过 ANTEI Runner 跑通义 Z-Image 的步数蒸馏档——9 步、CFG 1，擅长写实与中英文字，Apache-2.0；CFG 1 下负面词不起作用。"
     },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo（Runner）",
+      "description": "Krea 的 12B 步数蒸馏模型 Krea 2，经 ANTEI Runner 出图：CFG 1、8 步，适合自然语言提示词，风格化和写实都强；Krea 2 Community License。CFG 1 时负面提示词不起作用。"
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
       "description": "官方推荐生产 TTS — 83 语言、自然语言情绪标签、声音克隆"

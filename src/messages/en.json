@@ -3921,6 +3921,10 @@
       "label": "Z-Image Turbo (Runner)",
       "description": "Tongyi-MAI's step-distilled Z-Image via ANTEI Runner — 9 steps at CFG 1, strong at photoreal images and English / Chinese text; Apache-2.0. Negative prompts have no effect at CFG 1."
     },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo (Runner)",
+      "description": "Krea's 12B step-distilled Krea 2 via ANTEI Runner — 8 steps at CFG 1, natural-language prompts, strong at stylized and photoreal images; Krea 2 Community License. Negative prompts have no effect at CFG 1."
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
       "description": "A recommended choice for finished voice work, with 83 languages, emotion tags, and voice cloning."

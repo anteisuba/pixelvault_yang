@@ -30,7 +30,7 @@ export interface RunnerCheckpointDefinition {
    * 'anima' / 'zimage' = DiT (UNETLoader + shared text encoder / VAE +
    * ModelSamplingAuraFlow; per-family pieces in DIT_WORKFLOW_PROFILES).
    */
-  architecture?: 'sdxl' | 'anima' | 'zimage'
+  architecture?: 'sdxl' | 'anima' | 'zimage' | 'krea2'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
@@ -97,6 +97,18 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
     recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'zimage',
+  },
+  // Krea 2 Turbo fp8（Comfy-Org/Krea-2 官方分包）：采样照官方模板 euler · simple ·
+  // 8 步 · CFG 1。编码器 qwen3vl_4b 另下，VAE 与 Anima 共用。
+  {
+    id: 'krea2Turbo_fp8',
+    filename: 'krea2_turbo_fp8_scaled.safetensors',
+    recommendedSampler: 'euler',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 8,
+    recommendedCfg: 1,
+    clipSkip: 1,
+    architecture: 'krea2',
   },
 ]
 

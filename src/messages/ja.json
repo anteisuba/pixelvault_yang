@@ -3921,6 +3921,10 @@
       "label": "Z-Image Turbo（Runner）",
       "description": "ANTEI Runner による Tongyi-MAI の Z-Image ステップ蒸留版 — 9 ステップ・CFG 1。写実表現と英語 / 中国語の文字描画が得意、Apache-2.0。CFG 1 ではネガティブプロンプトは効きません。"
     },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo（Runner）",
+      "description": "Krea の 12B ステップ蒸留モデル Krea 2 を ANTEI Runner で実行。CFG 1・8 ステップ、自然文プロンプト向きで、スタイル表現と写実の両方に強い。Krea 2 Community License。CFG 1 ではネガティブプロンプトは効きません。"
+    },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
       "description": "完成作品にもおすすめの読み上げモデル。83言語、感情タグ、ボイスクローンに対応"

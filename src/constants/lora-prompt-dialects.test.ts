@@ -63,10 +63,10 @@ describe('lora prompt dialects', () => {
     expect(LORA_PROMPT_DIALECTS.illustrious.weightedParens).toBe(true)
   })
 
-  it('recommends a negative for every family but the CFG 1 routes (flux, z-image), which run without one', () => {
+  it('recommends a negative for every family but the CFG 1 routes (flux, z-image, krea2), which run without one', () => {
     for (const family of LORA_BASE_FAMILIES) {
       const { negative } = LORA_PROMPT_DIALECTS[family]
-      if (family === 'flux' || family === 'z-image')
+      if (family === 'flux' || family === 'z-image' || family === 'krea2')
         expect(negative).toEqual([])
       else expect(negative.length).toBeGreaterThan(0)
     }

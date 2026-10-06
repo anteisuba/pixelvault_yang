@@ -25,6 +25,10 @@ describe('normalizeToLoraBaseFamily', () => {
     expect(normalizeToLoraBaseFamily('Illustrious')).toBe('illustrious')
     expect(normalizeToLoraBaseFamily('NoobAI')).toBe('illustrious')
     expect(normalizeToLoraBaseFamily('Pony')).toBe('pony')
+    // Krea 2 是独立 DiT；Flux.1 Krea 仍是 Flux.1 dev 的同架构变体。
+    expect(normalizeToLoraBaseFamily('Krea 2')).toBe('krea2')
+    expect(normalizeToLoraBaseFamily('krea2')).toBe('krea2')
+    expect(normalizeToLoraBaseFamily('Flux.1 Krea')).toBe('flux')
     expect(normalizeToLoraBaseFamily('Flux.1 D')).toBe('flux')
     expect(normalizeToLoraBaseFamily('SDXL 1.0')).toBe('sdxl')
     expect(normalizeToLoraBaseFamily('SD 1.5')).toBe('sd15')
@@ -163,7 +167,7 @@ describe('getLoraBaseArchitectureGroup', () => {
     // "anima" = Anima Pencil XL）全部落 SDXL 桶——新增架构默认也走这条路，
     // 除非显式加进 LORA_BASE_DIT_FAMILIES。
     const nonDit = LORA_BASE_FAMILIES.filter(
-      (f) => f !== 'anima-dit' && f !== 'z-image',
+      (f) => f !== 'anima-dit' && f !== 'z-image' && f !== 'krea2',
     )
     expect(nonDit.length).toBeGreaterThan(0)
     for (const family of nonDit) {
@@ -216,7 +220,11 @@ describe('LORA_BASE_MODELS catalog', () => {
     }
     expect(
       LORA_BASE_MODELS.filter((base) => base.distilled).map((base) => base.id),
-    ).toEqual(['anima-dit-turbo-v11-runner', 'z-image-turbo-runner'])
+    ).toEqual([
+      'anima-dit-turbo-v11-runner',
+      'z-image-turbo-runner',
+      'krea2-turbo-runner',
+    ])
   })
 })
 
@@ -236,5 +244,13 @@ describe('resolveLoraStackWeightBudget', () => {
 
   it('does not judge when the base is undetermined (null)', () => {
     expect(resolveLoraStackWeightBudget(null)).toBeNull()
+  })
+
+  it('lets a base override its tier: Krea 2 Turbo is distilled but stacks to 4.0', () => {
+    expect(
+      resolveLoraStackWeightBudget(
+        LORA_BASE_MODELS.find((base) => base.id === 'krea2-turbo-runner')!,
+      ),
+    ).toBe(4)
   })
 })

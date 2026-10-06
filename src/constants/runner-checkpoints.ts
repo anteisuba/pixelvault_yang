@@ -23,6 +23,8 @@ export const RUNNER_CHECKPOINT_FAMILIES = [
   'anima-dit',
   // Z-Image（Tongyi-MAI，S3-DiT）——自己一套编码器 / VAE 的 DiT。
   'z-image',
+  // Krea 2（from-scratch 12B DiT，Qwen3-VL 编码器）——与 Flux.1 Krea 无关。
+  'krea2',
 ] as const
 
 export type RunnerCheckpointFamily = (typeof RUNNER_CHECKPOINT_FAMILIES)[number]
@@ -34,7 +36,8 @@ export interface RunnerCheckpointManifestEntry {
   displayName: string
   /** Exact filename on the Volume. SDXL → `models/checkpoints/`; Anima DiT → `models/unet/`. */
   filename: string
-  civitaiModelVersionId: number
+  /** 缺省 = 官方权重不在 Civitai（Krea 2 只发在 HF 的 Comfy-Org/Krea-2）。 */
+  civitaiModelVersionId?: number
   recommendedSampler: string
   recommendedScheduler: string
   /**
@@ -47,8 +50,8 @@ export interface RunnerCheckpointManifestEntry {
   clipSkip: number
   /** Prefixed onto the positive prompt for checkpoints with quality-tag conventions (e.g. Pony's score_9 tags). */
   recommendedPositivePrefix?: string
-  /** Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple). 'anima' / 'zimage' = DiT. */
-  architecture?: 'sdxl' | 'anima' | 'zimage'
+  /** Workflow architecture. Omitted = 'sdxl' (CheckpointLoaderSimple). 'anima' / 'zimage' / 'krea2' = DiT. */
+  architecture?: 'sdxl' | 'anima' | 'zimage' | 'krea2'
 }
 
 export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
@@ -138,6 +141,21 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     recommendedCfg: 1,
     clipSkip: 1,
     architecture: 'zimage',
+  },
+  // Krea 2 Turbo fp8（Comfy-Org/Krea-2 官方分包）：采样照官方模板 euler · simple ·
+  // 8 步 · CFG 1。编码器 qwen3vl_4b 另下，VAE 与 Anima 共用。owner 2026-10-07 定接入，
+  // 不加图片审核（许可证「合理内容过滤」的风险由 owner 承担，见 runner.md）。
+  {
+    id: 'krea2Turbo_fp8',
+    family: 'krea2',
+    displayName: 'Krea 2 Turbo',
+    filename: 'krea2_turbo_fp8_scaled.safetensors',
+    recommendedSampler: 'euler',
+    recommendedScheduler: 'simple',
+    recommendedSteps: 8,
+    recommendedCfg: 1,
+    clipSkip: 1,
+    architecture: 'krea2',
   },
 ] as const
 

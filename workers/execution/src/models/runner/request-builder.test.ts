@@ -608,3 +608,37 @@ describe('Z-Image Turbo dispatch (architecture: "zimage")', () => {
     ).toThrow(/SDXL/)
   })
 })
+
+describe('Krea 2 Turbo dispatch (architecture: "krea2")', () => {
+  it('mirrors the official Comfy-Org template: krea2 CLIP, shared Qwen VAE, no AuraFlow shift, zeroed negative', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        architecture: 'krea2',
+        externalModelId: 'krea2Turbo_fp8',
+        loras: [{ filename: 'civitai-3000000.safetensors', scale: 0.8 }],
+      }),
+      fixedRandomSeed,
+    )
+    expect(workflow.unet.inputs.unet_name).toBe(
+      'krea2_turbo_fp8_scaled.safetensors',
+    )
+    expect(workflow['clip-loader'].inputs).toMatchObject({
+      clip_name: 'qwen3vl_4b_fp8_scaled.safetensors',
+      type: 'krea2',
+    })
+    expect(workflow['vae-loader'].inputs.vae_name).toBe(
+      'qwen_image_vae.safetensors',
+    )
+    expect(workflow.latent.class_type).toBe('EmptyLatentImage')
+    // The template has no ModelSamplingAuraFlow: the sampler reads the LoRA chain.
+    expect(workflow['model-sampling']).toBeUndefined()
+    expect(workflow.sampler.inputs.model).toEqual(['lora-0', 0])
+    expect(workflow['negative-prompt'].class_type).toBe('ConditioningZeroOut')
+    expect(workflow.sampler.inputs).toMatchObject({
+      sampler_name: 'euler',
+      scheduler: 'simple',
+      steps: 8,
+      cfg: 1,
+    })
+  })
+})

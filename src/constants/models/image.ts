@@ -643,4 +643,21 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
+  // Krea 2 Turbo——自己一套编码器（Qwen3-VL 4B）的 DiT（Worker 按 architecture:'krea2'
+  // 分派），8 步 · CFG 1。Krea 2 系 LoRA 都挂它。
+  {
+    id: AI_MODELS.KREA2_TURBO_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('krea2Turbo_fp8')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    officialUrl: 'https://huggingface.co/Comfy-Org/Krea-2',
+    qualityTier: 'standard',
+    styleTag: 'general',
+    imageKind: IMAGE_KIND.LORA_BASE,
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
 ]

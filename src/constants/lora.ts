@@ -539,11 +539,8 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
   Pony: 'native',
   'SD 1.5': 'external',
   Anima: 'native',
-  // Krea 2 原生支持需要 ComfyUI ≥0.27，runner 基础镜像 worker-comfyui 5.8.6
-  // 内置 0.25.0（upstream main 已钉 0.29.0 但未发版）→ 现在没有可用端点，
-  // 引导去 Civitai。发版接通 r4b 管线后翻 'native'，见
-  // docs/references/domains/runner.md §5。
-  'Krea 2': 'external',
+  // 2026-10-07 接通：Krea 2 Turbo 上 Runner（Modal，ComfyUI 0.34）。
+  'Krea 2': 'native',
   Qwen: 'external',
   // 2026-09-28 接通：Z-Image Turbo 上 Runner（ZImageBase / ZImageTurbo 的 LoRA 都挂它）。
   'Z-Image': 'native',

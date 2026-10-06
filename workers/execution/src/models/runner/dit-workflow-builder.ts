@@ -39,8 +39,8 @@ export interface DitWorkflowProfile {
   emptyLatentClass: 'EmptyLatentImage' | 'EmptySD3LatentImage'
   /** No negative text: encode an empty string, or zero out the positive conditioning. */
   emptyNegative: 'encode' | 'zero-out'
-  /** ModelSamplingAuraFlow shift. */
-  modelSamplingShift: number
+  /** ModelSamplingAuraFlow shift；`null` = 官方模板不包这一层（Krea 2）。 */
+  modelSamplingShift: number | null
 }
 
 export const DIT_WORKFLOW_PROFILES = {
@@ -61,6 +61,17 @@ export const DIT_WORKFLOW_PROFILES = {
     emptyLatentClass: 'EmptySD3LatentImage',
     emptyNegative: 'zero-out',
     modelSamplingShift: 3.0,
+  },
+  // Krea 2 Turbo：照 Comfy-Org `text_to_image_krea_2_turbo` 模板（CLIPLoader type krea2、
+  // EmptyLatentImage、空负面清零、不包 ModelSamplingAuraFlow）。VAE 与 Anima 同一文件
+  // （HF LFS oid 相同），卷上共用。
+  krea2: {
+    clipType: 'krea2',
+    textEncoderFilename: 'qwen3vl_4b_fp8_scaled.safetensors',
+    vaeFilename: 'qwen_image_vae.safetensors',
+    emptyLatentClass: 'EmptyLatentImage',
+    emptyNegative: 'zero-out',
+    modelSamplingShift: null,
   },
 } as const satisfies Record<string, DitWorkflowProfile>
 
@@ -157,9 +168,12 @@ export function buildDitWorkflow(input: DitWorkflowInput): ComfyWorkflow {
   })
 
   // AuraFlow-style sampling shift wraps the (LoRA-patched) model.
-  workflow[NODE_ID.modelSampling] = {
-    class_type: 'ModelSamplingAuraFlow',
-    inputs: { model: modelSource, shift: profile.modelSamplingShift },
+  if (profile.modelSamplingShift !== null) {
+    workflow[NODE_ID.modelSampling] = {
+      class_type: 'ModelSamplingAuraFlow',
+      inputs: { model: modelSource, shift: profile.modelSamplingShift },
+    }
+    modelSource = [NODE_ID.modelSampling, 0]
   }
 
   workflow[NODE_ID.positivePrompt] = {
@@ -228,7 +242,7 @@ export function buildDitWorkflow(input: DitWorkflowInput): ComfyWorkflow {
       sampler_name: input.samplerName,
       scheduler: input.scheduler,
       denoise,
-      model: [NODE_ID.modelSampling, 0],
+      model: modelSource,
       positive: [NODE_ID.positivePrompt, 0],
       negative: [NODE_ID.negativePrompt, 0],
       latent_image: latentSource,

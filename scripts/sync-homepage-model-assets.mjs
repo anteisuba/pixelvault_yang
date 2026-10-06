@@ -50,6 +50,9 @@ const SOURCES = {
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/bb377487-c631-4a5d-a37d-eb3b8cb086ce/original=true/130697922.jpeg',
     'z-image-turbo-runner':
       'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/3ab86051-9dd2-4279-be8b-7faa43e4b704/original=true/111679197.jpeg',
+    // Krea 2 没有官方 Civitai 页；用 Comfy-Org 官方模板的示例出图（同一个 Turbo fp8 权重）。
+    'krea2-turbo-runner':
+      'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/output/image_krea2_turbo_t2i.png',
   },
   video: {
     'seedance-2.0-fast':

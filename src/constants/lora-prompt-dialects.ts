@@ -177,6 +177,37 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
       },
     ],
   },
+  // Krea 2 Turbo (Qwen3-VL 4B text encoder, step-distilled): 298 real recipes (2026-10-07,
+  // Civitai most-reacted SFW of the month) — median 130 words, 6% tag walls, 2% Chinese,
+  // 4% parenthesis weights; CFG 1 in 82%, 8 steps in 53% (10 in 24%), negative empty in 73%.
+  krea2: {
+    fingerprint:
+      'a long natural-language description — several full sentences, often 80–200 words, the style or medium usually named first; English; no tag wall, no parenthesis weighting, no negative',
+    order:
+      'style / medium sentence (with the style LoRA trigger) → subject, appearance, pose and expression → clothing → setting and background → light and color → camera or composition',
+    skeleton: {
+      subject:
+        '{trigger}, a cinematic portrait of {subject}; the figure is lit by a soft key light from one side, the expression is calm and natural, and the background falls away into a gentle, out-of-focus blur',
+      style:
+        '{trigger}, a wide scene rendered in {style}; one clear focal point anchors the composition, atmospheric detail fills the background, and warm directional light shapes the forms',
+    },
+    weightedParens: false,
+    sourceMatchTags: [],
+    sourceMatchNegative: [],
+    // Krea 2 Turbo runs at CFG 1, where ComfyUI skips the negative branch entirely.
+    negative: [],
+    parameters: 'euler + simple, 8 steps (8–10), CFG 1, about 1 MP',
+    forbidden: [
+      {
+        pattern: SCORE_PREFIX_PATTERN,
+        why: 'score_N tags are Pony and Anima conventions and do nothing on Krea 2.',
+      },
+      {
+        pattern: /(?:^|,)\s*(?:very awa|newest|year 20\d\d)\s*(?=,|$)/i,
+        why: 'very awa / newest / year tags are NoobAI and Anima conventions; Krea 2 reads them as noise.',
+      },
+    ],
+  },
   sdxl: SDXL_BASE_DIALECT,
   illustrious: SDXL_DIALECT,
   pony: {

@@ -40,6 +40,7 @@ const BASE_FAMILY_LABEL_KEYS: Record<LoraBaseFamily, string> = {
   anima: 'animaPencil',
   'anima-dit': 'anima',
   'z-image': 'zImage',
+  krea2: 'krea2',
   flux: 'flux',
   sd15: 'sd15',
 }

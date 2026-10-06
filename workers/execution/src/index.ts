@@ -4996,6 +4996,9 @@ const ANIMA_HF_BASE = `https://huggingface.co/circlestone-labs/Anima/resolve/${A
 // Comfy-Org/z_image_turbo（官方 ComfyUI 分包，2026-09-28 回读）。
 const ZIMAGE_HF_REVISION = '6fc90a3b1b653e935a0d175e260736de25b84df5'
 const ZIMAGE_HF_BASE = `https://huggingface.co/Comfy-Org/z_image_turbo/resolve/${ZIMAGE_HF_REVISION}/split_files`
+// Comfy-Org/Krea-2（官方 ComfyUI 分包，2026-10-07 回读）。
+const KREA2_HF_REVISION = 'eb1eddd3983a54678545a9b2c178c5853b30f7be'
+const KREA2_HF_BASE = `https://huggingface.co/Comfy-Org/Krea-2/resolve/${KREA2_HF_REVISION}`
 
 const RUNNER_DIT_COMPANIONS: Readonly<
   Record<
@@ -5072,6 +5075,37 @@ const RUNNER_DIT_COMPANIONS: Readonly<
         source: 'huggingface',
         sha256:
           '2407613050b809ffdff18a4ac99af83ea6b95443ecebdf80e064a79c825574a6',
+      },
+    },
+  },
+  krea2: {
+    shared: [
+      {
+        filename: 'qwen3vl_4b_fp8_scaled.safetensors',
+        url: `${KREA2_HF_BASE}/text_encoders/qwen3vl_4b_fp8_scaled.safetensors`,
+        target_dir: 'clip',
+        source: 'huggingface',
+        sha256:
+          '54bd5144df0bbc25dd6ccadfcb826b521445a1b06ae5a42570bdd2974ca87094',
+      },
+      // 与 Anima 那份同一文件（SHA 相同），卷上已有就直接命中。
+      {
+        filename: 'qwen_image_vae.safetensors',
+        url: `${KREA2_HF_BASE}/vae/qwen_image_vae.safetensors`,
+        target_dir: 'vae',
+        source: 'huggingface',
+        sha256:
+          'a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f',
+      },
+    ],
+    checkpoints: {
+      krea2Turbo_fp8: {
+        filename: 'krea2_turbo_fp8_scaled.safetensors',
+        url: `${KREA2_HF_BASE}/diffusion_models/krea2_turbo_fp8_scaled.safetensors`,
+        target_dir: 'unet',
+        source: 'huggingface',
+        sha256:
+          'eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1',
       },
     },
   },

@@ -27,6 +27,8 @@ export const LORA_BASE_FAMILIES = [
   // Z-Image（Tongyi-MAI）：Civitai 的 ZImageBase / ZImageTurbo 两个值同一套权重结构，
   // 都挂 Z-Image Turbo 出图。
   'z-image',
+  // Krea 2（Civitai baseModel 精确为 "Krea 2"）——from-scratch DiT，与 Flux.1 Krea 无关。
+  'krea2',
 ] as const
 export type LoraBaseFamily = (typeof LORA_BASE_FAMILIES)[number]
 
@@ -50,6 +52,8 @@ export interface LoraBaseModel {
   coverImage: string
   /** 步数蒸馏（turbo / lightning / hyper / LCM / schnell）；FLUX.1-dev 的 guidance 蒸馏不算 */
   distilled: boolean
+  /** LoRA 栈总权重护栏的单独一档（缺省按 `distilled` 取 LORA_STACK_WEIGHT_BUDGET）。 */
+  loraStackWeightBudget?: number
 }
 
 /**
@@ -153,6 +157,21 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     coverImage: '/homepage/production/models/image/z-image-turbo-runner.webp',
     distilled: true,
   },
+  {
+    id: 'krea2-turbo-runner',
+    displayName: 'Krea 2 Turbo',
+    family: 'krea2',
+    available: runnerAvailable(AI_MODELS.KREA2_TURBO_RUNNER),
+    providerModelId: AI_MODELS.KREA2_TURBO_RUNNER,
+    runnerCheckpointId: 'krea2Turbo_fp8',
+    recipeCheckpointMode: 'fixed',
+    recommended: true,
+    coverImage: '/homepage/production/models/image/krea2-turbo-runner.webp',
+    distilled: true,
+    // Krea 2 的 LoRA 习惯叠得重：真实配方栈总权重中位 2.7（runner.md），按蒸馏档 1.0
+    // 会让绝大多数配方标红。
+    loraStackWeightBudget: 4.0,
+  },
 ]
 
 /**
@@ -208,6 +227,9 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   if (s === 'anima' || s === 'anima-dit') return 'anima-dit'
   // Civitai 'ZImageBase' / 'ZImageTurbo'，库的家族桶 'Z-Image'，HF 的 'z-image'。
   if (s.replace(/[\s_-]/g, '').startsWith('zimage')) return 'z-image'
+  // Civitai 'Krea 2'，库的 slug 'krea2'。⚠ 必须在 flux 之前，且只认精确值：
+  // 'Flux.1 Krea' 是 Flux.1 dev 的同架构变体，仍归下面的 flux。
+  if (s.replace(/[\s_-]/g, '') === 'krea2') return 'krea2'
   if (s.includes('anima')) return 'anima'
   if (s.includes('flux')) return 'flux'
   if (
@@ -248,6 +270,7 @@ export function getDefaultBase(rawBaseModel: string): LoraBaseModel | null {
 export const LORA_BASE_DIT_FAMILIES: readonly LoraBaseFamily[] = [
   'anima-dit',
   'z-image',
+  'krea2',
 ]
 
 export type LoraBaseArchitectureGroup = 'sdxl' | 'dit'
@@ -270,9 +293,11 @@ export const LORA_STACK_WEIGHT_BUDGET = {
 
 /** 底模未定（`base` 为 null）时不判——没有底模就没有预算。 */
 export function resolveLoraStackWeightBudget(
-  base: Pick<LoraBaseModel, 'distilled'> | null,
+  base: Pick<LoraBaseModel, 'distilled' | 'loraStackWeightBudget'> | null,
 ): number | null {
   if (!base) return null
+  if (base.loraStackWeightBudget !== undefined)
+    return base.loraStackWeightBudget
   return base.distilled
     ? LORA_STACK_WEIGHT_BUDGET.distilled
     : LORA_STACK_WEIGHT_BUDGET.default

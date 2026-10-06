@@ -115,14 +115,17 @@
 
 - **r4a（multi-reference IPAdapter）已施工完成、测试端点验证绿，生产未切换**。
   fork 仓库 HEAD `c1dbf58`（2026-07-18）。要切生产得走 fork 构建 + template + 端点滚动。
-- **Krea 2 暂不接**（owner 2026-09-29）：Krea 2 Community License 只许年收入低于 100 万美元的主体免费商用，
-  且要求「合理的内容过滤」——PixelVault 只有提示词注入防护，没有出图过滤。所以仍是
-  `generatability = 'external'`，`normalizeToLoraBaseFamily` **故意**对它返回 null（只开浏览、不开生成，别"顺手修正"），
-  UI 引导去 Civitai。
-  - 已定的接法（恢复时直接用）：只接官方 Turbo fp8（Comfy-Org/Krea-2 的 `krea2_turbo_fp8_scaled` +
-    `qwen3vl_4b_fp8_scaled`，VAE 与 Anima 共用 `qwen_image_vae`，新下约 18.4G，150G Volume 够）；固定档、不跟来源底模；
-    纯底模默认仍是 Anima Turbo；官方模板 8 步 · CFG 1 · euler simple · CLIP type `krea2`；LoRA 叠加总权重超过 4.0
-    才提醒（真实配方中位 2.7）。版本闸已开（要 ComfyUI ≥ 0.27，生产 0.34）。
+- **Krea 2 已接（owner 2026-10-07，在 Modal 上）**：固定档 `krea2Turbo_fp8`（应用模型 `krea2-turbo-runner`，
+  家族 `krea2`，Civitai baseModel 精确值 "Krea 2"；`Flux.1 Krea` 仍归 flux）。权重钉 HF `Comfy-Org/Krea-2`
+  revision `eb1eddd3…`：`diffusion_models/krea2_turbo_fp8_scaled`（13.1G，SHA `eb4dd8c6…02f1`）→ `models/unet/`、
+  `text_encoders/qwen3vl_4b_fp8_scaled`（5.2G，SHA `54bd5144…7094`）→ `models/clip/`；VAE `qwen_image_vae` 与 Anima
+  **同一文件**（LFS oid 相同），卷上共用。工作流照 Comfy-Org `text_to_image_krea_2_turbo` 模板：CLIP type `krea2`、
+  `EmptyLatentImage`、空负面清零、**不包 ModelSamplingAuraFlow**（profile `modelSamplingShift: null`）；euler · simple ·
+  8 步 · CFG 1。方言来自 298 条真实配方（中位 130 词、标签墙 6%、CFG 1 占 82%、8 步占 53%）。LoRA 栈总权重护栏
+  单独一档 4.0（真实配方中位 2.7，蒸馏档的 1.0 会让大多数标红）。回归：纯底模（首次下载 252s）+ 官方
+  retroanime LoRA（32s）均出图且带加载证据。
+  - ⚠ 许可证：Krea 2 Community License 只许年收入低于 100 万美元的主体免费商用，且要求「合理的内容过滤」。
+    owner 2026-10-07 定**不加图片审核**，只有公开前的提示词检查（`lib/content-safety.ts`），这条风险由 owner 承担。
 - 托管 LoRA 底模 2026-09-17 全部退役。它们挂社区 LoRA 报的 `layer ... not supported`（错误码
   `lora_incompatible_hosted`）只为历史记录的文案保留；为它而设的「能力路由」（托管 Illustrious 遇到
   白名单 LoRA 升到 Runner）与 LoRA 白名单 2026-09-28 删除——任意 LoRA 早已按需从 R2 下到卷上。

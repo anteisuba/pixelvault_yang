@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Check, Copy } from '@/components/icons'
+import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
 
 /** 「已复制」停留多久再换回复制图标。 */
@@ -57,10 +58,29 @@ function CodeBlockCode({
         return
       }
 
-      const { codeToHtml } = await import('shiki')
-      const html = await codeToHtml(code, { lang: language, theme })
-      if (!isCancelled) {
-        setHighlightedHtml(html)
+      try {
+        const { bundledLanguages, codeToHtml, isSpecialLang } =
+          await import('shiki')
+        if (
+          !Object.hasOwn(bundledLanguages, language) &&
+          !isSpecialLang(language)
+        ) {
+          return
+        }
+
+        const html = await codeToHtml(code, { lang: language, theme })
+        if (!isCancelled) {
+          setHighlightedHtml(html)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          logger.warn('Code block highlighting failed; rendering plain text', {
+            language,
+            theme,
+            error,
+          })
+          setHighlightedHtml(null)
+        }
       }
     }
 

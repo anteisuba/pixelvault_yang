@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { StudioImageEditWorkspace } from './StudioImageEditWorkspace'
 
@@ -9,7 +9,8 @@ vi.mock('next-intl', () => ({
     params ? `${key}:${params.index}` : key,
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+const viewport = vi.hoisted(() => ({ phone: false }))
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.phone }))
 vi.mock('@/hooks/use-image-upload', () => ({
   useImageUpload: () => ({
     referenceImage: undefined,
@@ -18,27 +19,11 @@ vi.mock('@/hooks/use-image-upload', () => ({
     openFilePicker: vi.fn(),
   }),
 }))
-vi.mock(
-  '@/components/business/studio-shared/chrome/StudioWorkbenchLayout',
-  () => ({
-    StudioWorkbenchLayout: ({
-      header,
-      stage,
-      params,
-    }: {
-      header: ReactNode
-      stage: ReactNode
-      params: ReactNode
-    }) => (
-      <>
-        {header}
-        {stage}
-        {params}
-      </>
-    ),
-  }),
-)
-vi.mock('./StudioImageEditStage', () => ({ StudioImageEditStage: () => null }))
+vi.mock('./StudioImageEditStage', () => ({
+  StudioImageEditStage: ({ active }: { active: boolean }) => (
+    <input data-testid="edit-draft" data-active={active} defaultValue="" />
+  ),
+}))
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: ({
     open,
@@ -68,6 +53,33 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
     ) : null,
 }))
 
+function renderSlots({
+  stage,
+  params,
+  composer,
+}: {
+  stage: ReactNode
+  params: ReactNode
+  composer: ReactNode
+}) {
+  return (
+    <div className="studio-layout-v2" data-testid="shared-workspace">
+      <div data-testid="shared-header">Workbench</div>
+      {stage}
+      <div data-testid="params">{params}</div>
+      {composer}
+    </div>
+  )
+}
+
+beforeEach(() => {
+  viewport.phone = false
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
 function renderPicker() {
   const onSelect = vi.fn()
   render(
@@ -80,12 +92,13 @@ function renderPicker() {
       onBack={vi.fn()}
       onChangeSource={vi.fn()}
       onRunStateChange={vi.fn()}
-      header={null}
       references={[
         { url: 'https://cdn.example.com/a.png' },
         { url: 'https://cdn.example.com/b.png' },
       ]}
-    />,
+    >
+      {renderSlots}
+    </StudioImageEditWorkspace>,
   )
   return onSelect
 }
@@ -115,5 +128,107 @@ describe('StudioImageEditWorkspace source picker', () => {
       referenceIndex: 1,
       referenceTotal: 2,
     })
+  })
+})
+
+describe('StudioImageEditWorkspace slots', () => {
+  const session = {
+    target: { url: 'https://cdn.example.com/source.png' },
+    sessionId: 1,
+    onSelect: vi.fn(),
+    onTargetChange: vi.fn(),
+    onBack: vi.fn(),
+    onChangeSource: vi.fn(),
+    onRunStateChange: vi.fn(),
+    references: [],
+    children: renderSlots,
+  }
+
+  it('keeps the edit session and shared header mounted while inactive', () => {
+    const view = render(<StudioImageEditWorkspace {...session} active />)
+    const header = screen.getByTestId('shared-header')
+    const draft = screen.getByTestId('edit-draft')
+    const params = screen.getByTestId('params').firstElementChild
+    fireEvent.change(draft, { target: { value: 'Keep this edit' } })
+
+    view.rerender(<StudioImageEditWorkspace {...session} active={false} />)
+    expect(screen.getByTestId('shared-header')).toBe(header)
+    expect(screen.getByTestId('edit-draft')).toBe(draft)
+    expect(draft).toHaveValue('Keep this edit')
+    expect(draft).toHaveAttribute('data-active', 'false')
+    expect(draft.parentElement).toHaveClass('hidden')
+    expect(draft.parentElement).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByTestId('params').firstElementChild).toBe(params)
+    expect(params).toHaveClass('hidden')
+
+    view.rerender(<StudioImageEditWorkspace {...session} active />)
+    expect(screen.getByTestId('shared-header')).toBe(header)
+    expect(screen.getByTestId('edit-draft')).toBe(draft)
+    expect(draft).toHaveValue('Keep this edit')
+    expect(draft.parentElement).toHaveClass('flex')
+    expect(params).not.toHaveClass('hidden')
+
+    view.rerender(
+      <StudioImageEditWorkspace {...session} active sessionId={2} />,
+    )
+    expect(screen.getByTestId('edit-draft')).not.toBe(draft)
+    expect(screen.getByTestId('edit-draft')).toHaveValue('')
+    expect(screen.getByTestId('shared-header')).toBe(header)
+  })
+
+  it('does not mount the source picker before editing starts', () => {
+    render(
+      <StudioImageEditWorkspace {...session} active={false} target={null} />,
+    )
+    expect(screen.getByTestId('shared-header')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chooseSource' })).toBeNull()
+    expect(screen.queryByTestId('edit-draft')).toBeNull()
+    expect(screen.getByTestId('params')).toBeEmptyDOMElement()
+  })
+
+  it('retains one mobile composer and updates its height only while active', () => {
+    viewport.phone = true
+    const observe = vi.fn()
+    const disconnect = vi.fn()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = observe
+        disconnect = disconnect
+      },
+    )
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 390, 128),
+    )
+
+    const view = render(<StudioImageEditWorkspace {...session} active />)
+    const workspace = screen.getByTestId('shared-workspace')
+    const composer = workspace.querySelector('.studio-mobile-composer')
+    expect(workspace.querySelectorAll('.studio-mobile-composer')).toHaveLength(
+      1,
+    )
+    expect(screen.getByTestId('params')).toBeEmptyDOMElement()
+    expect(
+      workspace.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('128px')
+    expect(observe).toHaveBeenCalledWith(composer)
+
+    view.rerender(<StudioImageEditWorkspace {...session} active={false} />)
+    expect(workspace.querySelector('.studio-mobile-composer')).toBe(composer)
+    expect(composer).toHaveClass('hidden')
+    expect(
+      workspace.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('')
+    expect(disconnect).toHaveBeenCalledOnce()
+
+    view.rerender(<StudioImageEditWorkspace {...session} active />)
+    expect(workspace.querySelector('.studio-mobile-composer')).toBe(composer)
+    expect(composer).not.toHaveClass('hidden')
+    expect(
+      workspace.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('128px')
+    expect(workspace.querySelectorAll('.studio-mobile-composer')).toHaveLength(
+      1,
+    )
   })
 })

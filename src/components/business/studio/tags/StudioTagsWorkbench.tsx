@@ -1,7 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 import { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
@@ -11,7 +10,6 @@ import { useStudioGen } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { StudioTagsPromptArea } from './StudioTagsPromptArea'
-import { StudioDialectHeader } from './StudioDialectHeader'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
 
@@ -167,18 +165,17 @@ export function StudioTagsWorkbench({
   templates,
   templatesRestoring,
   overlay,
-  onEdit,
   onEditImage,
+  children,
 }: {
   panel: TagWorkbenchPanel | null
   onPanelChange: (panel: TagWorkbenchPanel | null) => void
   templates: ReactNode
   templatesRestoring?: boolean
   overlay?: ReactNode
-  onEdit?: () => void
   onEditImage?: (target: StudioImageEditTarget) => void
+  children: (slots: { stage: ReactNode; composer: ReactNode }) => ReactNode
 }) {
-  const { isGenerating } = useStudioGen()
   const stageRef = useRef<HTMLDivElement>(null)
   const openPanel = (next: TagWorkbenchPanel | null) => {
     onPanelChange(next)
@@ -190,37 +187,29 @@ export function StudioTagsWorkbench({
     stageRef.current?.scrollIntoView({ block: 'start' })
   }
 
-  return (
-    <StudioWorkbenchLayout
-      params={null}
-      stage={
-        <>
-          <div className="mb-3 shrink-0">
-            <StudioDialectHeader disabled={isGenerating} onEdit={onEdit} />
-          </div>
-          <div
-            ref={stageRef}
-            tabIndex={-1}
-            className="flex min-h-0 flex-1 scroll-mt-16 flex-col outline-none"
-          >
-            <StudioTagsStage
-              panel={panel}
-              onClose={showResults}
-              bottom
-              templates={templates}
-              onEditImage={onEditImage}
-            />
-          </div>
-        </>
-      }
-      composer={
-        <StudioTagsPromptArea
-          onOpenPanel={openPanel}
-          activePanel={panel}
-          restoring={templatesRestoring}
-          overlay={overlay}
+  return children({
+    stage: (
+      <div
+        ref={stageRef}
+        tabIndex={-1}
+        className="flex min-h-0 flex-1 scroll-mt-16 flex-col outline-none"
+      >
+        <StudioTagsStage
+          panel={panel}
+          onClose={showResults}
+          bottom
+          templates={templates}
+          onEditImage={onEditImage}
         />
-      }
-    />
-  )
+      </div>
+    ),
+    composer: (
+      <StudioTagsPromptArea
+        onOpenPanel={openPanel}
+        activePanel={panel}
+        restoring={templatesRestoring}
+        overlay={overlay}
+      />
+    ),
+  })
 }

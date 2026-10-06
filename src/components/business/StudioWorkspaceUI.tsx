@@ -315,7 +315,12 @@ export function StudioWorkspaceUI() {
         )}
       </h1>
       {state.outputType === 'image' ? (
-        <StudioDialectHeader disabled={isGenerating} onEdit={beginEdit} />
+        <StudioDialectHeader
+          disabled={isGenerating || editRunning}
+          editing={isEditing}
+          onEdit={beginEdit}
+          onGenerate={exitEdit}
+        />
       ) : null}
     </div>
   ) : undefined
@@ -582,112 +587,133 @@ export function StudioWorkspaceUI() {
               那条路连同 `StudioFlowLayout` / `StudioBottomDock` /
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
-          {/* ⚠ 桌面两台（自然语言 · 标签）挂的是**同一个** `StudioWorkbenchLayout`
-              元素，只换 params / stage —— 头部那颗写法切换因此跨台不重挂，液态
-              分段才演得完（owner 2026-09-26）。手机标签台用固定底部编辑框。 */}
-          {state.outputType === 'image' && (editOpen || editTarget) ? (
-            <StudioImageEditWorkspace
-              active={isEditing}
-              target={editTarget}
-              sessionId={editSessionId}
-              onSelect={beginEdit}
-              onTargetChange={setEditTarget}
-              onBack={exitEdit}
-              onChangeSource={changeEditSource}
-              onRunStateChange={handleEditRunState}
-              references={imageUpload.referenceEntries}
-              header={
-                <StudioDialectHeader
-                  disabled={isGenerating || editRunning}
-                  editing
-                  onEdit={beginEdit}
-                  onGenerate={exitEdit}
-                />
-              }
-            />
-          ) : null}
-          {isEditing ? null : isTagsWorkbench && !isBottomComposer ? (
-            <StudioTagsWorkbench
-              panel={stagePanel}
-              onPanelChange={setStagePanel}
-              templates={templatesPanel}
-              templatesRestoring={composerRestoring}
-              overlay={undoToast('above')}
-              onEdit={beginEdit}
-              onEditImage={beginEdit}
-            />
-          ) : (
-            <StudioWorkbenchLayout
-              layout={isBottomComposer ? 'bottom' : 'columns'}
-              header={
-                useMobileComposer && state.outputType === 'image' ? (
-                  // 手机图片台：写法切换在舞台左上角（owner 2026-10-02，输入条只留
-                  // 提示词与一行 ＋ · 模型 · 规格 · 生成），与标签台手机同一位置。
-                  <StudioDialectHeader
-                    disabled={isGenerating}
-                    onEdit={beginEdit}
+          <StudioImageEditWorkspace
+            active={isEditing}
+            target={state.outputType === 'image' ? editTarget : null}
+            sessionId={editSessionId}
+            onSelect={beginEdit}
+            onTargetChange={setEditTarget}
+            onBack={exitEdit}
+            onChangeSource={changeEditSource}
+            onRunStateChange={handleEditRunState}
+            references={imageUpload.referenceEntries}
+          >
+            {({
+              stage: editStage,
+              params: editParams,
+              composer: editComposer,
+            }) => (
+              <StudioTagsWorkbench
+                panel={stagePanel}
+                onPanelChange={setStagePanel}
+                templates={templatesPanel}
+                templatesRestoring={composerRestoring}
+                overlay={undoToast('above')}
+                onEditImage={beginEdit}
+              >
+                {({ stage: tagsStage, composer: tagsComposer }) => (
+                  <StudioWorkbenchLayout
+                    layout={isBottomComposer ? 'bottom' : 'columns'}
+                    header={
+                      useMobileComposer && state.outputType === 'image' ? (
+                        // 手机图片台：写法切换在舞台左上角（owner 2026-10-02，输入条只留
+                        // 提示词与一行 ＋ · 模型 · 规格 · 生成），与标签台手机同一位置。
+                        <StudioDialectHeader
+                          disabled={isGenerating || editRunning}
+                          editing={isEditing}
+                          onEdit={beginEdit}
+                          onGenerate={exitEdit}
+                        />
+                      ) : (
+                        workbenchHeader
+                      )
+                    }
+                    params={
+                      useMobileComposer || (isEditing && !editTarget) ? null : (
+                        <>
+                          {editParams}
+                          {!isEditing &&
+                            (isTagsWorkbench ? (
+                              <StudioTagsComposer
+                                onOpenPanel={setStagePanel}
+                                activePanel={stagePanel}
+                              />
+                            ) : (
+                              <StudioPromptArea
+                                layout={
+                                  isPromptAreaBottom ? 'bottom' : 'column'
+                                }
+                                templates={templatesControl}
+                              />
+                            ))}
+                        </>
+                      )
+                    }
+                    stage={
+                      <>
+                        {editStage}
+                        {!isEditing &&
+                          (isTagsWorkbench && useMobileComposer ? (
+                            tagsStage
+                          ) : isTagsWorkbench ? (
+                            <StudioTagsStage
+                              panel={stagePanel}
+                              onClose={() => setStagePanel(null)}
+                              bottom
+                              templates={templatesPanel}
+                              onEditImage={beginEdit}
+                            />
+                          ) : (
+                            <StudioStageSwap
+                              panelKey={
+                                stagePanel === 'templates' ? 'templates' : null
+                              }
+                              renderPanel={() => templatesPanel}
+                              renderResults={(motionClass) => (
+                                <StudioCanvas
+                                  referenceRail={!isPromptAreaBottom}
+                                  className={motionClass}
+                                  onEdit={beginEdit}
+                                />
+                              )}
+                            />
+                          ))}
+                      </>
+                    }
+                    composer={
+                      useMobileComposer && (!isEditing || editTarget) ? (
+                        <>
+                          {editComposer}
+                          {!isEditing &&
+                            (isTagsWorkbench ? (
+                              tagsComposer
+                            ) : (
+                              <StudioMobileComposer
+                                templates={templatesControl}
+                                overlay={undoToast('above')}
+                              />
+                            ))}
+                        </>
+                      ) : null
+                    }
+                    composerOverlay={
+                      isBottomComposer && !isEditing ? undoToast('above') : null
+                    }
+                    stageOverlay={
+                      !isBottomComposer && !useMobileComposer
+                        ? undoToast('inside')
+                        : null
+                    }
+                    paramsClassName={
+                      composerRestoring
+                        ? 'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none'
+                        : undefined
+                    }
                   />
-                ) : (
-                  workbenchHeader
-                )
-              }
-              params={
-                useMobileComposer ? null : isTagsWorkbench ? (
-                  <StudioTagsComposer
-                    onOpenPanel={setStagePanel}
-                    activePanel={stagePanel}
-                  />
-                ) : (
-                  <StudioPromptArea
-                    layout={isPromptAreaBottom ? 'bottom' : 'column'}
-                    templates={templatesControl}
-                  />
-                )
-              }
-              stage={
-                isTagsWorkbench ? (
-                  <StudioTagsStage
-                    panel={stagePanel}
-                    onClose={() => setStagePanel(null)}
-                    bottom
-                    templates={templatesPanel}
-                    onEditImage={beginEdit}
-                  />
-                ) : (
-                  <StudioStageSwap
-                    panelKey={stagePanel === 'templates' ? 'templates' : null}
-                    renderPanel={() => templatesPanel}
-                    renderResults={(motionClass) => (
-                      <StudioCanvas
-                        referenceRail={!isPromptAreaBottom}
-                        className={motionClass}
-                        onEdit={beginEdit}
-                      />
-                    )}
-                  />
-                )
-              }
-              composer={
-                useMobileComposer ? (
-                  <StudioMobileComposer
-                    templates={templatesControl}
-                    overlay={undoToast('above')}
-                  />
-                ) : null
-              }
-              composerOverlay={isBottomComposer ? undoToast('above') : null}
-              stageOverlay={
-                !isBottomComposer && !useMobileComposer
-                  ? undoToast('inside')
-                  : null
-              }
-              paramsClassName={
-                composerRestoring
-                  ? 'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none'
-                  : undefined
-              }
-            />
-          )}
+                )}
+              </StudioTagsWorkbench>
+            )}
+          </StudioImageEditWorkspace>
         </motion.div>
         {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的
             覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标

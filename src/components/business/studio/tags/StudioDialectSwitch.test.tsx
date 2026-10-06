@@ -144,16 +144,15 @@ describe('两台之间那扇门', () => {
 
 /**
  * ⭐ 真机 2026-09-20：`/studio/image` 上整页查不到这对切换，标签台只能手敲地址
- * 进 —— 门只装了一侧就不是门，是单向阀。这条扫源码锁住「三个宿主都挂它」，
+ * 进 —— 门只装了一侧就不是门，是单向阀。这条扫源码锁住参数列与公共工作台的入口，
  * 因为渲染测只能证明装了的那一侧还在，证不了没装的那一侧。
  * 手机自然语言台那一侧 2026-10-02 起住在舞台左上角（`StudioWorkspaceUI` 传给
  * `StudioWorkbenchLayout` 的 `header`），不再在输入条里。
  */
-describe('三个参数宿主都挂着这扇门', () => {
+describe('参数列与公共工作台都挂着这扇门', () => {
   it.each([
     'src/components/business/studio/StudioPromptArea.tsx',
     'src/components/business/StudioWorkspaceUI.tsx',
-    'src/components/business/studio/tags/StudioTagsWorkbench.tsx',
   ])('%s 渲染 StudioDialectHeader', (file) => {
     const source = readFileSync(join(process.cwd(), file), 'utf8')
     expect(source).toContain('<StudioDialectHeader')

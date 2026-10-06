@@ -5,11 +5,11 @@ import { ImagePlus, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import {
   StudioImageEditStage,
   type StudioImageEditTarget,
@@ -130,7 +130,7 @@ export function StudioImageEditWorkspace({
   onBack,
   onChangeSource,
   onRunStateChange,
-  header,
+  children,
   references,
 }: {
   active: boolean
@@ -141,7 +141,11 @@ export function StudioImageEditWorkspace({
   onBack: () => void
   onChangeSource: () => void
   onRunStateChange: (state: 'running' | 'success' | 'error') => void
-  header: ReactNode
+  children: (slots: {
+    stage: ReactNode
+    params: ReactNode
+    composer: ReactNode
+  }) => ReactNode
   references: readonly { url: string }[]
 }) {
   const [composerContainer, setComposerContainer] =
@@ -180,38 +184,36 @@ export function StudioImageEditWorkspace({
     <ImageEditSourcePicker onSelect={onSelect} references={references} />
   )
 
-  return (
-    <div className={active ? 'contents' : 'hidden'} aria-hidden={!active}>
-      {mobile ? (
-        // 手机：与生成台同一副骨架 —— 写法切换在舞台卡左上角，底部一条地台灰里浮
-        // 一张输入框白卡，舞台卡在它上方结束（owner 2026-10-04「上下两个框」）。
-        <StudioWorkbenchLayout
-          params={null}
-          stage={
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="mb-3 shrink-0">{header}</div>
-              {body}
-            </div>
-          }
-          composer={
-            target ? (
-              <div className="studio-mobile-composer studio-tags-mobile-composer fixed inset-x-0 z-40 flex min-h-0 flex-col bg-surface-workbench px-2.5 pt-2.5">
-                <div
-                  ref={setComposerContainer}
-                  className="min-h-0 overflow-y-auto rounded-2xl bg-card px-3 pt-2.5 pb-2 shadow-float"
-                />
-              </div>
-            ) : null
-          }
+  return children({
+    stage:
+      active || target ? (
+        <div
+          className={active ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+          aria-hidden={!active}
+        >
+          {body}
+        </div>
+      ) : null,
+    params:
+      !mobile && target ? (
+        <div
+          ref={setComposerContainer}
+          className={active ? undefined : 'hidden'}
         />
-      ) : (
-        <StudioWorkbenchLayout
-          layout="bottom"
-          header={header}
-          params={target ? <div ref={setComposerContainer} /> : null}
-          stage={<div className="flex min-h-0 flex-1 flex-col">{body}</div>}
-        />
-      )}
-    </div>
-  )
+      ) : null,
+    composer:
+      mobile && target ? (
+        <div
+          className={cn(
+            'studio-mobile-composer studio-tags-mobile-composer fixed inset-x-0 z-40 flex min-h-0 flex-col bg-surface-workbench px-2.5 pt-2.5',
+            !active && 'hidden',
+          )}
+        >
+          <div
+            ref={setComposerContainer}
+            className="min-h-0 overflow-y-auto rounded-2xl bg-card px-3 pt-2.5 pb-2 shadow-float"
+          />
+        </div>
+      ) : null,
+  })
 }

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import {
   afterEach,
   beforeAll,
@@ -27,26 +28,6 @@ vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.phone }))
 vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
   StudioCanvas: () => <div data-testid="results" />,
 }))
-vi.mock(
-  '@/components/business/studio-shared/chrome/StudioWorkbenchLayout',
-  () => ({
-    StudioWorkbenchLayout: ({
-      params,
-      stage,
-      composer,
-    }: {
-      params: import('react').ReactNode
-      stage: import('react').ReactNode
-      composer: import('react').ReactNode
-    }) => (
-      <>
-        {params}
-        {stage}
-        {composer}
-      </>
-    ),
-  }),
-)
 vi.mock('./StudioTagsPromptArea', () => ({
   StudioTagsPromptArea: ({
     onOpenPanel,
@@ -54,7 +35,6 @@ vi.mock('./StudioTagsPromptArea', () => ({
     onOpenPanel: (panel: string) => void
   }) => <button onClick={() => onOpenPanel('catalog')}>openCatalog</button>,
 }))
-vi.mock('./StudioDialectHeader', () => ({ StudioDialectHeader: () => null }))
 // 查资料自带头部：宿主只把「挂上就落焦点」的 ref 递给它。
 vi.mock('./StudioDanbooruPanel', () => ({
   StudioDanbooruPanel: ({
@@ -77,6 +57,19 @@ vi.mock('./NovelAiCharacterComposer', () => ({
 }))
 
 import { StudioTagsStage, StudioTagsWorkbench } from './StudioTagsWorkbench'
+
+const renderSlots = ({
+  stage,
+  composer,
+}: {
+  stage: ReactNode
+  composer: ReactNode
+}) => (
+  <>
+    {stage}
+    {composer}
+  </>
+)
 
 describe('标签台舞台面板', () => {
   beforeAll(() => {
@@ -137,22 +130,32 @@ describe('标签台舞台面板', () => {
         panel={null}
         onPanelChange={onPanelChange}
         templates={null}
-      />,
+      >
+        {renderSlots}
+      </StudioTagsWorkbench>,
     )
+    const stage = screen.getByTestId('results').closest('[tabindex="-1"]')
     fireEvent.click(screen.getByRole('button', { name: 'openCatalog' }))
     expect(onPanelChange).toHaveBeenCalledWith('catalog')
+    expect(
+      vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1),
+    ).toBe(stage)
     rerender(
       <StudioTagsWorkbench
         panel="catalog"
         onPanelChange={onPanelChange}
         templates={null}
-      />,
+      >
+        {renderSlots}
+      </StudioTagsWorkbench>,
     )
     act(() => {
       vi.advanceTimersByTime(DURATION_MS.fast)
     })
     fireEvent.click(screen.getByRole('button', { name: 'backToResults' }))
     expect(onPanelChange).toHaveBeenLastCalledWith(null)
+    expect(screen.getByTestId('results').closest('[tabindex="-1"]')).toBe(stage)
+    expect(stage).toHaveFocus()
     expect(
       screen.queryByRole('button', { name: 'backToEditor' }),
     ).not.toBeInTheDocument()

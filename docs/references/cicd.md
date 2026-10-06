@@ -4,14 +4,14 @@
 
 ## GitHub Actions（6 workflows，2026-07-10 核验；2026-08-25 新增 cron-monitor）
 
-| Workflow                | 触发                                                                                                                               | 内容                                                                                                                                                                                                                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                | push main/feat/\* · PR→main · workflow_dispatch                                                                                    | **六个 job**：lint（prisma generate → `tsc --noEmit` → eslint）· app test · Execution Worker test · audit（high 报告、critical 阻断、Prisma drift、空库迁移重放）· build（needs lint + 两套 test）· **deploy-worker**（needs worker-test，仅 main；见下方「Execution Worker 部署」）；Node 22 + npm cache |
-| `deploy-check.yml`      | deployment_status（仅 **Production** 成功后）                                                                                      | 等 45s CDN 传播 → **内联 curl 冒烟**（`/api/health`、`/en`、`/en/gallery` 各重试 3 次；`/api/models/health` 失败不阻塞）；失败自动开/追评 issue（`deploy-failure` label；preview 部署有保护不跑，恒 401）                                                                                                 |
-| `health-monitor.yml`    | cron `17 */6 * * *`（每 6 小时）+ 手动                                                                                             | POST `/api/health/providers`（HEALTH_CHECK_TOKEN 鉴权）；有模型 unavailable → 开 issue（`provider-outage` label，已有 open 则不重复）；endpoint 非 200 → workflow 失败                                                                                                                                    |
-| `model-doc-monitor.yml` | cron `17 0 * * 1`（每周一）+ 手动                                                                                                  | `npm run models:check-docs`：模型文档/接口检查，报告进 job summary + artifact（用 OPENAI/GEMINI key 做探测）；errorCount 或 changeCount ≠ 0 时自动开/更新 issue（`model-doc-monitor` label）                                                                                                              |
-| `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                                                                                                         |
-| `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」                                                                                          |
+| Workflow                | 触发                                                                                                                               | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                | push main/feat/\* · PR→main · workflow_dispatch                                                                                    | **八个 job**：lint（prisma generate → `tsc --noEmit` → eslint）· app test（`--shard` 拆 3 片并行，2026-10-06 起）· Execution Worker test · side-worker test（render-video / civitai-image-proxy）· audit（high 报告、critical 阻断、Prisma drift、空库迁移重放）· build（needs lint + app test + Execution Worker test）· **deploy-worker**（needs worker-test，仅 main；见下方「Execution Worker 部署」）· **deploy-side-workers**（仅 main 且目录有改动；见「另外两个 Worker」）；Node 22 + npm cache |
+| `deploy-check.yml`      | deployment_status（仅 **Production** 成功后）                                                                                      | 等 45s CDN 传播 → **内联 curl 冒烟**（`/api/health`、`/en`、`/en/gallery` 各重试 3 次；`/api/models/health` 失败不阻塞）；失败自动开/追评 issue（`deploy-failure` label；preview 部署有保护不跑，恒 401）                                                                                                                                                                                                                                                                                               |
+| `health-monitor.yml`    | cron `17 */6 * * *`（每 6 小时）+ 手动                                                                                             | POST `/api/health/providers`（HEALTH_CHECK_TOKEN 鉴权）；有模型 unavailable → 开 issue（`provider-outage` label，已有 open 则不重复）；endpoint 非 200 → workflow 失败                                                                                                                                                                                                                                                                                                                                  |
+| `model-doc-monitor.yml` | cron `17 0 * * 1`（每周一）+ 手动                                                                                                  | `npm run models:check-docs`：模型文档/接口检查，报告进 job summary + artifact（用 OPENAI/GEMINI key 做探测）；errorCount 或 changeCount ≠ 0 时自动开/更新 issue（`model-doc-monitor` label）                                                                                                                                                                                                                                                                                                            |
+| `post-deploy-smoke.yml` | **独立 workflow**（不是被 deploy-check 调用）：workflow_dispatch（手动传 base_url）+ deployment_status（同样仅 Production 成功后） | 跑 `scripts/smoke.ts`（带 Vercel protection bypass secret）；与 deploy-check 的内联冒烟是并行两套                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `cron-monitor.yml`      | cron `37 13 * * *`（每日）+ 手动                                                                                                   | GET `/api/health/crons`（HEALTH_CHECK_TOKEN 鉴权，与 health-monitor 同一把，无需新 secret）；`healthy:false` → 开/追评 issue（`cron-failure` label）；端点非 200 → workflow 失败。见下方「Vercel cron 的可见性」                                                                                                                                                                                                                                                                                        |
 
 ### model-doc-monitor 基线
 
@@ -43,9 +43,32 @@ Workers" 模板）+ `CLOUDFLARE_ACCOUNT_ID`。缺任一 wrangler 直接失败退
 push 自动更新，worker 这半边停在原地，两边悄悄分叉且**没有任何信号**——绿的 CI
 在这类问题上不构成任何证据（同族判断见下方「约束型迁移：CI 结构性地看不见」）。
 
+### 另外两个 Worker（2026-10-06 接进 CI）
+
+`render-video` 与 `civitai-image-proxy` 由 **deploy-side-workers**（matrix）部署，
+`needs: side-worker-test`，同样只在 main 的 push / workflow_dispatch 上跑。
+
+⚠ **与 execution 不同：只在自己目录有改动时部署**（`github.event.before..HEAD`
+对 `workers/<name>` 做 diff；手动触发总是部署；上一个提交解析不到时按有改动处理）。
+理由是 render-video 的容器镜像每次都要从源码冷编 ffmpeg（10–20 分钟），随每个
+push 重推不值得。代价：某次部署失败后，后续不碰该目录的 push 不会自动重试——
+那次失败本身是红的，补救用 workflow_dispatch。
+
+- render-video 用自己 lock 里的 wrangler（`npm run deploy`），需要 runner 上的
+  Docker（`ubuntu-latest` 自带）。
+- civitai-image-proxy 目录没有 `package.json`，借 `workers/execution` 锁定的
+  wrangler 部署；测试是 `node --experimental-strip-types --test src/index.test.mjs`。
+- ⚠ **未验证**：仓库 secret `CLOUDFLARE_API_TOKEN` 是按 "Edit Cloudflare Workers"
+  模板建的，是否覆盖 Containers（render-video）与自定义域（proxy 的
+  `img.anteisuba.com`）所需权限，第一次真跑之前不知道。缺权限时 job 会红，按报错
+  去 Cloudflare 后台给 token 补权限即可。
+
 ## 部署（Vercel）
 
 - push main → Vercel 自动构建部署；构建对比**上一个 deployment**（fix `5552da9a`）。
+- `dependabot/*` 分支在 `scripts/vercel-ignore-build.sh` 里直接跳过（2026-10-06）：
+  CI 的 build job 已经构建它们，而 Hobby 只有一个并发构建位，这些 Preview 会排在
+  生产构建前面。
 - Production 部署成功 → `deploy-check` 自动冒烟；失败开 issue。
 - 环境变量边界：`NEXT_PUBLIC_` 只准 Clerk public key / CDN domain / App URL；其余机密只进服务端。
 
@@ -189,6 +212,11 @@ provider 上一个字节都不产出，**响应头因此从未 flush**，函数�
 这样上游挂住时是我们主动放弃并报 `PROVIDER_TIMEOUT`。
 
 ## Dependabot 分流规则（2026-07-10 实践沉淀）
+
+配置（2026-10-06）：minor/patch 按 `dependency-type` 分 **生产 / 开发两组**（此前
+单一大组里一个包类型检查失败就让整组 40 个包连红一个月）；`cooldown` 新版本发布
+3 天后才提 PR、major 7 天（只作用于版本更新，不影响安全更新）；
+`open-pull-requests-limit` 5 → 10（曾被 4 个长期挂着的 major PR 占满）。
 
 | 类型                                            | 处理                                                                                          |
 | ----------------------------------------------- | --------------------------------------------------------------------------------------------- |

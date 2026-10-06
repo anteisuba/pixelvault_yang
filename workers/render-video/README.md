@@ -47,6 +47,9 @@ GPL 的义务由**分发**触发（不是 AGPL），我们只在自己的容器�
 
 ## 部署（给 owner 的命令）
 
+> 2026-10-06 起，main 上改到本目录时由 CI 自动部署（见 `docs/references/cicd.md`
+> 「另外两个 Worker」）。下面的命令用于首次部署、设 secret 与本机排障。
+
 前置：Workers Paid（$5/月）；Containers 需要 Docker 在本机可用（`wrangler deploy` 会
 本地 build 镜像再推 Cloudflare 镜像仓）。
 

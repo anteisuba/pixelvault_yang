@@ -5,9 +5,23 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    # 5 曾被 4 个长期挂着的 major PR + 1 个分组 PR 占满，新分组开不出来。
+    open-pull-requests-limit: 10
+    # 新版本发布后先观望几天再提 PR（供应链投毒通常在几天内被撤下）。
+    # 只作用于版本更新，安全更新不受影响。
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    # 生产 / 开发依赖分两组：2026-09～10 的单一大组里一个包（@xyflow/react 的
+    # OnNodeDrag 类型变更）类型检查失败，就让整组 40 个包连续红了一个月。
     groups:
-      minor-and-patch:
+      production-minor-and-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development-minor-and-patch:
+        dependency-type: development
         update-types:
           - minor
           - patch

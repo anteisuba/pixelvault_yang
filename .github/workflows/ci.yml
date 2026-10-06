@@ -39,9 +39,14 @@ jobs:
         run: npm run lint
 
   test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # 单机全量约 13 分钟（2026-10-06）；拆三片并行。公开仓库 Actions 分钟不计费。
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
 
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +63,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Run tests
-        run: npx vitest run --reporter=verbose
+        run: npx vitest run --reporter=verbose --shard=${{ matrix.shard }}/3
         env:
           NODE_ENV: test
 
@@ -88,6 +93,33 @@ jobs:
 
       - name: Run Worker tests
         run: npm test
+
+  side-worker-test:
+    name: ${{ matrix.worker }} Worker Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - worker: render-video
+            test: npm ci && npm test
+          # 本目录没有 package.json；测试是 node:test，直接 import ./index.ts。
+          - worker: civitai-image-proxy
+            test: node --experimental-strip-types --test src/index.test.mjs
+    defaults:
+      run:
+        working-directory: workers/${{ matrix.worker }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run Worker tests
+        run: ${{ matrix.test }}
 
   audit:
     name: Security & Schema Check
@@ -238,5 +270,61 @@ jobs:
           # 两个 secret 都必须配，缺任一 wrangler 直接失败退出（刻意不静默跳过：
           # 静默跳过 = 把这个 job 要修的那个漂移原样请回来）。
           # token 用 Cloudflare 后台的 "Edit Cloudflare Workers" 模板。
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-side-workers:
+    name: Deploy ${{ matrix.worker }} Worker
+    runs-on: ubuntu-latest
+    # render-video 的容器镜像要从源码编译 ffmpeg，冷构建 10–20 分钟。
+    timeout-minutes: 40
+    needs: [side-worker-test]
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - worker: render-video
+            deploy: npm ci && npm run deploy
+          # 没有自己的 package.json，借 execution 锁定的 wrangler 版本。
+          - worker: civitai-image-proxy
+            deploy: npm --prefix ../execution ci && ../execution/node_modules/.bin/wrangler deploy
+    defaults:
+      run:
+        working-directory: workers/${{ matrix.worker }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 与 execution 不同，这两个只在自己目录有改动时部署：render-video 每次
+      # 都要冷编 ffmpeg 镜像，不值得随每个 push 重推。手动触发总是部署。
+      # 上一个提交找不到（如 force push）时按「有改动」处理，宁可多部署一次。
+      - name: Detect changes
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] \
+            && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null \
+            && git diff --quiet "$BEFORE" HEAD -- .; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "No changes under workers/${{ matrix.worker }}; skipping deploy."
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.deploy == 'true'
+        with:
+          node-version: 22
+
+      - name: Deploy to Cloudflare
+        if: steps.changes.outputs.deploy == 'true'
+        run: ${{ matrix.deploy }}
+        env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

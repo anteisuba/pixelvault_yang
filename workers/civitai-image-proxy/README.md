@@ -37,6 +37,9 @@ img.anteisuba.com/<bucket>/<uuid>/<transform>/<file>
 
 ## 部署（owner）
 
+> 2026-10-06 起，main 上改到本目录时由 CI 自动部署（见 `docs/references/cicd.md`
+> 「另外两个 Worker」）。下面的命令用于首次部署与本机排障。
+
 前置：`anteisuba.com` 这个 zone 已托管在 Cloudflare（`cdn.anteisuba.com` 已在用，
 满足）。
 

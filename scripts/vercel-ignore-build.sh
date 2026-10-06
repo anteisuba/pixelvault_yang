@@ -9,6 +9,13 @@
 # production when the tip is docs-only after undeployed app commits.
 set -euo pipefail
 
+# Dependabot branches are fully built by CI (ci.yml `build`). On Hobby the
+# single build slot would queue these previews ahead of production builds.
+if [[ "${VERCEL_GIT_COMMIT_REF:-}" == dependabot/* ]]; then
+  echo "Dependabot branch ${VERCEL_GIT_COMMIT_REF}; CI builds it, skipping Vercel."
+  exit 0
+fi
+
 watched_paths=(
   "src/"
   "prisma/"

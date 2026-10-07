@@ -1362,6 +1362,39 @@ describe('llmTextCompletion - OpenAI', () => {
 })
 
 describe('llmTextCompletion - DeepSeek', () => {
+  it('reports the usage block of a buffered response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 7700, completion_tokens: 6000 },
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const onUsage = vi.fn()
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+      onUsage,
+    })
+
+    expect(onUsage).toHaveBeenCalledWith({
+      inputTokens: 7700,
+      outputTokens: 6000,
+    })
+  })
+
   it('omits the app output cap when the provider manages the budget', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -2748,6 +2781,223 @@ describe('llmTextStream', () => {
     ).rejects.toMatchObject({
       errorCode: 'PROVIDER_TIMEOUT',
       httpStatus: 504,
+    })
+  })
+
+  describe('provider 自报的 usage 进 onUsage（只记录）', () => {
+    const openAiEvent = (payload: Record<string, unknown>) =>
+      `data: ${JSON.stringify(payload)}\n\n`
+
+    it('Grok：每帧带累计 usage，以最后一帧为准', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            openAiEvent({
+              choices: [{ delta: { content: '{"a"' } }],
+              usage: { prompt_tokens: 9000, completion_tokens: 1 },
+            }),
+            openAiEvent({
+              choices: [{ delta: { content: ':1}' }, finish_reason: 'stop' }],
+              usage: {
+                prompt_tokens: 9000,
+                completion_tokens: 40,
+                prompt_tokens_details: { cached_tokens: 8000 },
+                completion_tokens_details: { reasoning_tokens: 900 },
+              },
+            }),
+            'data: [DONE]\n\n',
+          ]),
+        ),
+      )
+      const onUsage = vi.fn()
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+          apiKey: 'test-key',
+          onUsage,
+        }),
+      )
+
+      expect(chunks.join('')).toBe('{"a":1}')
+      expect(onUsage).toHaveBeenLastCalledWith({
+        inputTokens: 9000,
+        outputTokens: 40,
+        reasoningTokens: 900,
+        cachedInputTokens: 8000,
+      })
+    })
+
+    it('DeepSeek：最后一帧 choices 为空、只带 usage，正文不受影响', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            openAiEvent({
+              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+            }),
+            openAiEvent({
+              choices: [],
+              usage: {
+                prompt_tokens: 26000,
+                completion_tokens: 12000,
+                prompt_cache_hit_tokens: 20000,
+                completion_tokens_details: { reasoning_tokens: 11500 },
+              },
+            }),
+            'data: [DONE]\n\n',
+          ]),
+        ),
+      )
+      const onUsage = vi.fn()
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          providerConfig: {
+            label: 'DeepSeek',
+            baseUrl: 'https://api.deepseek.com',
+          },
+          apiKey: 'test-key',
+          onUsage,
+        }),
+      )
+
+      expect(chunks).toEqual(['ok'])
+      expect(onUsage).toHaveBeenCalledOnce()
+      expect(onUsage).toHaveBeenCalledWith({
+        inputTokens: 26000,
+        outputTokens: 12000,
+        reasoningTokens: 11500,
+        cachedInputTokens: 20000,
+      })
+    })
+
+    it('Gemini：usageMetadata 的思考数单独记，不并进输出', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            geminiEvent('ok'),
+            `data: ${JSON.stringify({
+              candidates: [{ finishReason: 'STOP' }],
+              usageMetadata: {
+                promptTokenCount: 10000,
+                candidatesTokenCount: 300,
+                thoughtsTokenCount: 5000,
+              },
+            })}\n\n`,
+          ]),
+        ),
+      )
+      const onUsage = vi.fn()
+
+      await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          ...GEMINI_ROUTE,
+          onUsage,
+        }),
+      )
+
+      expect(onUsage).toHaveBeenLastCalledWith({
+        inputTokens: 10000,
+        outputTokens: 300,
+        reasoningTokens: 5000,
+      })
+    })
+
+    it('Claude：message_start 的输入（含缓存）与 message_delta 的累计输出合在一起', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            `event: message_start\ndata: ${JSON.stringify({
+              type: 'message_start',
+              message: {
+                usage: {
+                  input_tokens: 200,
+                  cache_read_input_tokens: 9800,
+                  cache_creation_input_tokens: 0,
+                  output_tokens: 1,
+                },
+              },
+            })}\n\n`,
+            `event: content_block_delta\ndata: ${JSON.stringify({
+              type: 'content_block_delta',
+              delta: { type: 'text_delta', text: 'ok' },
+            })}\n\n`,
+            `event: message_delta\ndata: ${JSON.stringify({
+              type: 'message_delta',
+              delta: { stop_reason: 'end_turn' },
+              usage: { output_tokens: 700 },
+            })}\n\n`,
+            CLAUDE_MESSAGE_STOP_FRAME,
+          ]),
+        ),
+      )
+      const onUsage = vi.fn()
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          providerConfig: {
+            label: 'Claude',
+            baseUrl: 'https://api.anthropic.com',
+          },
+          apiKey: 'test-key',
+          onUsage,
+        }),
+      )
+
+      expect(chunks).toEqual(['ok'])
+      expect(onUsage).toHaveBeenLastCalledWith({
+        inputTokens: 10000,
+        outputTokens: 700,
+        cachedInputTokens: 9800,
+      })
+    })
+
+    it('没报 usage、或 usage 形状对不上：不回调，正文照常', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            openAiEvent({
+              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+              usage: { prompt_tokens: 'many' },
+            }),
+            'data: [DONE]\n\n',
+          ]),
+        ),
+      )
+      const onUsage = vi.fn()
+
+      const chunks = await collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          providerConfig: {
+            label: 'OpenAI',
+            baseUrl: 'https://api.openai.com/v1',
+          },
+          apiKey: 'test-key',
+          onUsage,
+        }),
+      )
+
+      expect(chunks).toEqual(['ok'])
+      expect(onUsage).not.toHaveBeenCalled()
     })
   })
 })

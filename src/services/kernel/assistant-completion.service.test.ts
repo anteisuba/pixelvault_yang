@@ -225,3 +225,124 @@ describe('assistant completion cancellation and context retry', () => {
     expect(completion).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('assistant llm call 日志（每次请求一行，只记录）', () => {
+  /** 走真的 logger，连脱敏一起验：`*token` 结尾的字段会被打成 [REDACTED]。 */
+  function loggedCalls(spy: { mock: { calls: unknown[][] } }) {
+    return spy.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('assistant llm call'))
+      .map(
+        (line) =>
+          JSON.parse(line.slice(line.indexOf('{'))) as Record<string, unknown>,
+      )
+  }
+
+  beforeEach(() => {
+    completion.mockReset()
+    stream.mockReset()
+  })
+
+  it('completion: provider 报的 token 原样进日志，带用途', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      completion.mockImplementationOnce(
+        async (input: { onUsage?: (usage: object) => void }) => {
+          input.onUsage?.({ inputTokens: 26000, outputTokens: 12000 })
+          return 'answer'
+        },
+      )
+      await completeAssistantTextWithContextRetry({
+        ...options,
+        modelId: 'deepseek-v4.1-flash',
+        buildUserPrompt: () => 'full',
+        callLog: { purpose: 'promptReview', domain: 'canvas' },
+      })
+      expect(loggedCalls(consoleLog)).toEqual([
+        expect.objectContaining({
+          purpose: 'promptReview',
+          domain: 'canvas',
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          modelId: 'deepseek-v4.1-flash',
+          attempt: 1,
+          outcome: 'ok',
+          usageReported: true,
+          inputTokens: 26000,
+          outputTokens: 12000,
+          llmMs: expect.any(Number),
+        }),
+      ])
+    } finally {
+      consoleLog.mockRestore()
+    }
+  })
+
+  it('stream: 重发的两次各一行；没报 token 的那次标 usageReported:false', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      stream.mockImplementationOnce(async function* () {
+        throw new Error('context overflow')
+      })
+      stream.mockImplementationOnce(async function* (input: {
+        onUsage?: (usage: object) => void
+      }) {
+        yield 'answer'
+        input.onUsage?.({ inputTokens: 9000, reasoningTokens: 800 })
+      })
+      await collect(
+        streamAssistantTextWithContextRetry({
+          ...options,
+          buildUserPrompt: (limit?: number) => (limit ? 'compact' : 'full'),
+          callLog: { purpose: 'step', domain: 'canvas', step: 3 },
+        }),
+      )
+      const calls = loggedCalls(consoleLog)
+      expect(calls).toEqual([
+        expect.objectContaining({
+          step: 3,
+          attempt: 1,
+          outcome: 'error',
+          usageReported: false,
+        }),
+        expect.objectContaining({
+          step: 3,
+          attempt: 2,
+          outcome: 'ok',
+          usageReported: true,
+          inputTokens: 9000,
+          reasoningTokens: 800,
+        }),
+      ])
+      expect(calls[0]).not.toHaveProperty('inputTokens')
+    } finally {
+      consoleLog.mockRestore()
+    }
+  })
+
+  it('stream: 被掐断（⏹ / 时间预算）记成 aborted', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const controller = new AbortController()
+      stream.mockImplementationOnce(async function* () {
+        yield 'partial'
+        yield 'more'
+      })
+      const iterator = streamAssistantTextWithContextRetry({
+        ...options,
+        signal: controller.signal,
+        buildUserPrompt: () => 'full',
+        callLog: { purpose: 'step' },
+      })[Symbol.asyncIterator]()
+      await iterator.next()
+      controller.abort(new DOMException('stopped', 'AbortError'))
+      await expect(iterator.next()).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+      expect(loggedCalls(consoleLog)).toEqual([
+        expect.objectContaining({ outcome: 'aborted', usageReported: false }),
+      ])
+    } finally {
+      consoleLog.mockRestore()
+    }
+  })
+})

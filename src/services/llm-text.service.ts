@@ -108,6 +108,11 @@ export interface LlmTextInput {
   apiKey: string
   /** Enable web search grounding (Gemini google_search / OpenAI web_search) */
   useGrounding?: boolean
+  /**
+   * provider 每报一次 usage 就回调一次（流式可能多次，以最后一次为准）。
+   * ⚠ 只给日志用：回调里不许抛、不许影响这次调用。
+   */
+  onUsage?: (usage: LlmTextUsage) => void
 }
 
 export interface ResolvedLlmTextRoute {
@@ -195,6 +200,126 @@ const OpenAiChatResponseSchema = z.object({
     .passthrough()
     .optional(),
 })
+
+// ─── Usage（只进日志，不参与任何判断） ────────────────────────────
+
+/**
+ * provider 自报的单次调用 token 数（助手花费排查，2026-10-08）。
+ *
+ * - `inputTokens`：整个输入，含命中缓存的那部分（Claude 的三段相加，与另外几家同口径）；
+ *   `cachedInputTokens` 是其中命中缓存的数。
+ * - `outputTokens` / `reasoningTokens` 照各家原字段抄，⛔ 不换算：Gemini 的
+ *   `candidatesTokenCount` 不含思考，思考另在 `thoughtsTokenCount`；OpenAI 兼容三家的
+ *   `reasoning_tokens` 是否已含在 `completion_tokens` 里，以各家文档为准。
+ * - 字段缺 = 这家这次没报，⛔ 不当 0。OpenAI 流式请求没开 `include_usage`，报不出来。
+ */
+export interface LlmTextUsage {
+  inputTokens?: number
+  outputTokens?: number
+  reasoningTokens?: number
+  cachedInputTokens?: number
+}
+
+/** 解析失败 / 没有 usage 一律返回 null —— usage 的形状再怪也不能弄坏正文。 */
+function compactUsage(
+  usage: Record<keyof LlmTextUsage, number | null | undefined>,
+): LlmTextUsage | null {
+  const entries = Object.entries(usage).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number',
+  )
+  return entries.length > 0 ? Object.fromEntries(entries) : null
+}
+
+const OpenAiCompatibleUsageSchema = z.object({
+  usage: z.object({
+    prompt_tokens: z.number().nullish(),
+    completion_tokens: z.number().nullish(),
+    /** DeepSeek 的缓存命中数。 */
+    prompt_cache_hit_tokens: z.number().nullish(),
+    prompt_tokens_details: z
+      .object({ cached_tokens: z.number().nullish() })
+      .nullish(),
+    completion_tokens_details: z
+      .object({ reasoning_tokens: z.number().nullish() })
+      .nullish(),
+  }),
+})
+
+function readOpenAiCompatibleUsage(value: unknown): LlmTextUsage | null {
+  const parsed = OpenAiCompatibleUsageSchema.safeParse(value)
+  if (!parsed.success) return null
+  const { usage } = parsed.data
+  return compactUsage({
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+    reasoningTokens: usage.completion_tokens_details?.reasoning_tokens,
+    cachedInputTokens:
+      usage.prompt_tokens_details?.cached_tokens ??
+      usage.prompt_cache_hit_tokens,
+  })
+}
+
+const GeminiUsageSchema = z.object({
+  usageMetadata: z.object({
+    promptTokenCount: z.number().nullish(),
+    candidatesTokenCount: z.number().nullish(),
+    thoughtsTokenCount: z.number().nullish(),
+    cachedContentTokenCount: z.number().nullish(),
+  }),
+})
+
+function readGeminiUsage(value: unknown): LlmTextUsage | null {
+  const parsed = GeminiUsageSchema.safeParse(value)
+  if (!parsed.success) return null
+  const usage = parsed.data.usageMetadata
+  return compactUsage({
+    inputTokens: usage.promptTokenCount,
+    outputTokens: usage.candidatesTokenCount,
+    reasoningTokens: usage.thoughtsTokenCount,
+    cachedInputTokens: usage.cachedContentTokenCount,
+  })
+}
+
+const AnthropicUsageFieldsSchema = z.object({
+  input_tokens: z.number().nullish(),
+  output_tokens: z.number().nullish(),
+  cache_read_input_tokens: z.number().nullish(),
+  cache_creation_input_tokens: z.number().nullish(),
+})
+
+/** Claude 的 `input_tokens` 不含缓存读写，三段相加才是整个输入。 */
+function toAnthropicUsage(
+  usage: z.infer<typeof AnthropicUsageFieldsSchema>,
+): LlmTextUsage | null {
+  const inputParts = [
+    usage.input_tokens,
+    usage.cache_read_input_tokens,
+    usage.cache_creation_input_tokens,
+  ].filter((part): part is number => typeof part === 'number')
+  return compactUsage({
+    inputTokens:
+      inputParts.length > 0
+        ? inputParts.reduce((sum, part) => sum + part, 0)
+        : null,
+    outputTokens: usage.output_tokens,
+    reasoningTokens: null,
+    cachedInputTokens: usage.cache_read_input_tokens,
+  })
+}
+
+const AnthropicResponseUsageSchema = z.object({
+  usage: AnthropicUsageFieldsSchema,
+})
+
+/** 流式：`message_start` 带输入，`message_delta` 带累计输出。 */
+const AnthropicStreamUsageSchema = z.object({
+  message: z.object({ usage: AnthropicUsageFieldsSchema }).nullish(),
+  usage: AnthropicUsageFieldsSchema.nullish(),
+})
+
+function reportUsage(input: LlmTextInput, usage: LlmTextUsage | null): void {
+  if (usage) input.onUsage?.(usage)
+}
 
 // ─── LLM Text Models ────────────────────────────────────────────
 
@@ -1594,7 +1719,9 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       })
     }
 
-    const parsed = GeminiTextResponseSchema.safeParse(await response.json())
+    const json: unknown = await response.json()
+    reportUsage(input, readGeminiUsage(json))
+    const parsed = GeminiTextResponseSchema.safeParse(json)
     if (!parsed.success) throw parsed.error
     const data = parsed.data
     const text = (data.candidates?.[0]?.content?.parts ?? [])
@@ -1720,7 +1847,9 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const json: unknown = await response.json()
+  reportUsage(input, readOpenAiCompatibleUsage(json))
+  const data = OpenAiChatResponseSchema.parse(json)
   const content = getOpenAiChatText(data)
 
   if (!content) {
@@ -1818,7 +1947,9 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const json: unknown = await response.json()
+  reportUsage(input, readOpenAiCompatibleUsage(json))
+  const data = OpenAiChatResponseSchema.parse(json)
   const content = getOpenAiChatText(data)
 
   checkTextFinishReason(
@@ -1947,7 +2078,9 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = OpenAiChatResponseSchema.parse(await response.json())
+  const json: unknown = await response.json()
+  reportUsage(input, readOpenAiCompatibleUsage(json))
+  const data = OpenAiChatResponseSchema.parse(json)
   const content = getOpenAiChatText(data)
 
   checkTextFinishReason(
@@ -2174,7 +2307,10 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = AnthropicTextResponseSchema.parse(await response.json())
+  const json: unknown = await response.json()
+  const usage = AnthropicResponseUsageSchema.safeParse(json)
+  if (usage.success) reportUsage(input, toAnthropicUsage(usage.data.usage))
+  const data = AnthropicTextResponseSchema.parse(json)
   // Check `stop_reason` before touching `content`: a refusal is HTTP 200 with
   // an empty (pre-output) or partial (mid-output) content array.
   if (data.stop_reason === ANTHROPIC_API.REFUSAL_STOP_REASON) {
@@ -2255,6 +2391,7 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
         modelId,
         hasLinkedVideo,
       })
+      reportUsage(input, readGeminiUsage(parsed))
       const chunk = GeminiTextResponseSchema.safeParse(parsed)
       if (!chunk.success) throw textResponseError(modelId, true)
       const reason = chunk.data.candidates?.[0]?.finishReason
@@ -2317,6 +2454,7 @@ async function* streamOpenAiCompatibleChat(options: {
   modelId: string
   label: string
   signal?: AbortSignal
+  onUsage?: LlmTextInput['onUsage']
 }): AsyncIterable<string> {
   const response = await fetchLlmTextStreaming(
     options.endpoint,
@@ -2349,6 +2487,8 @@ async function* streamOpenAiCompatibleChat(options: {
       break
     }
     const parsed = parseLlmStreamEvent(data, options)
+    const usage = readOpenAiCompatibleUsage(parsed)
+    if (usage) options.onUsage?.(usage)
     const chunk = OpenAiChatStreamSchema.safeParse(parsed)
     if (!chunk.success) throw textResponseError(options.modelId, true)
     const choice = chunk.data.choices?.[0]
@@ -2384,6 +2524,7 @@ export async function* openAiTextStream(
     modelId: requestModelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.OPENAI],
     signal: input.signal,
+    onUsage: input.onUsage,
   })
 }
 
@@ -2400,6 +2541,7 @@ async function* deepseekTextStream(input: LlmTextInput): AsyncIterable<string> {
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
     signal: input.signal,
+    onUsage: input.onUsage,
   })
 }
 
@@ -2457,12 +2599,29 @@ async function* anthropicTextStream(
   if (!response.body) throw textResponseError(modelId)
   let hasText = false
   let finished = false
+  let usage: z.infer<typeof AnthropicUsageFieldsSchema> = {}
   for await (const data of readLlmSseData(response.body, modelId)) {
     if (!data) continue
     const parsed = parseLlmStreamEvent(data, {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       modelId,
     })
+    const usageEvent = AnthropicStreamUsageSchema.safeParse(parsed)
+    const usageFields =
+      usageEvent.success &&
+      (usageEvent.data.message?.usage ?? usageEvent.data.usage)
+    if (usageFields) {
+      usage = {
+        input_tokens: usageFields.input_tokens ?? usage.input_tokens,
+        output_tokens: usageFields.output_tokens ?? usage.output_tokens,
+        cache_read_input_tokens:
+          usageFields.cache_read_input_tokens ?? usage.cache_read_input_tokens,
+        cache_creation_input_tokens:
+          usageFields.cache_creation_input_tokens ??
+          usage.cache_creation_input_tokens,
+      }
+      reportUsage(input, toAnthropicUsage(usage))
+    }
     const event = AnthropicTextStreamSchema.safeParse(parsed)
     if (!event.success) throw textResponseError(modelId, true)
     if (event.data.type === 'message_stop') {
@@ -2498,6 +2657,7 @@ async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.XAI],
     signal: input.signal,
+    onUsage: input.onUsage,
   })
 }
 

@@ -1,11 +1,13 @@
 import 'server-only'
 
+import { logger } from '@/lib/logger'
 import {
   isLlmTextContextLimitError,
   isLlmTextTransientError,
   llmTextCompletion,
   llmTextStream,
   type LlmTextInput,
+  type LlmTextUsage,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 
@@ -35,6 +37,51 @@ interface CompleteAssistantTextOptions {
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
   jsonSchema?: LlmTextInput['jsonSchema']
+  /** 进 `assistant llm call` 那行日志：这次调用是干什么的、第几步。 */
+  callLog?: AssistantLlmCallLog
+}
+
+type CallOutcome = 'ok' | 'error' | 'aborted' | 'closed'
+
+export interface AssistantLlmCallLog {
+  purpose: string
+  domain?: string
+  step?: number
+}
+
+/**
+ * 每一次发出去的请求（含重发）打一行 `assistant llm call`：耗时、结果与 provider 自报的
+ * token（助手花费排查 2026-10-08；口径见 `LlmTextUsage`）。⭐ 生产也打，只有数。
+ * `usageReported: false` = 这家这次没报 token（失败、被掐、OpenAI 流式）。
+ * ⚠ 字段名用复数 `*Tokens`：logger 会把以 `token` 结尾的字段当密钥脱敏。
+ */
+function startCallLog(
+  options: Pick<CompleteAssistantTextOptions, 'callLog' | 'route' | 'modelId'>,
+  attempt: number,
+) {
+  const startedAt = Date.now()
+  let usage: LlmTextUsage | null = null
+  return {
+    onUsage(next: LlmTextUsage) {
+      usage = next
+    },
+    finish(outcome: CallOutcome) {
+      logger.info('assistant llm call', {
+        ...options.callLog,
+        adapterType: options.route.adapterType,
+        modelId: options.modelId ?? null,
+        attempt,
+        outcome,
+        llmMs: Date.now() - startedAt,
+        usageReported: usage !== null,
+        ...usage,
+      })
+    },
+  }
+}
+
+function failureOutcome(signal: AbortSignal | undefined): CallOutcome {
+  return signal?.aborted ? 'aborted' : 'error'
 }
 
 export function truncateAssistantContextBlock(
@@ -140,27 +187,39 @@ export async function completeAssistantTextWithContextRetry({
   useGrounding,
   responseFormat,
   jsonSchema,
+  callLog,
 }: CompleteAssistantTextOptions): Promise<string> {
   signal?.throwIfAborted()
-  const complete = (userPrompt: string) =>
-    llmTextCompletion({
-      systemPrompt,
-      signal,
-      userPrompt,
-      modelId,
-      imageData,
-      videoData,
-      audioData,
-      videoAnalysis,
-      adapterType: route.adapterType,
-      providerConfig: route.providerConfig,
-      apiKey: route.apiKey,
-      useGrounding,
-      providerManagedOutput: true,
-      promptGuardMaxLength: null,
-      responseFormat,
-      jsonSchema,
-    })
+  let attempt = 0
+  const complete = async (userPrompt: string) => {
+    const call = startCallLog({ callLog, route, modelId }, ++attempt)
+    try {
+      const result = await llmTextCompletion({
+        systemPrompt,
+        signal,
+        userPrompt,
+        modelId,
+        imageData,
+        videoData,
+        audioData,
+        videoAnalysis,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
+        useGrounding,
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
+        responseFormat,
+        jsonSchema,
+        onUsage: call.onUsage,
+      })
+      call.finish('ok')
+      return result
+    } catch (error) {
+      call.finish(failureOutcome(signal))
+      throw error
+    }
+  }
 
   const fullPrompt = buildUserPrompt()
   try {
@@ -245,27 +304,42 @@ export async function* streamAssistantTextWithContextRetry({
   useGrounding,
   responseFormat,
   jsonSchema,
+  callLog,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
   signal?.throwIfAborted()
-  const stream = (userPrompt: string) =>
-    llmTextStream({
-      systemPrompt,
-      signal,
-      userPrompt,
-      modelId,
-      imageData,
-      videoData,
-      audioData,
-      videoAnalysis,
-      adapterType: route.adapterType,
-      providerConfig: route.providerConfig,
-      apiKey: route.apiKey,
-      useGrounding,
-      providerManagedOutput: true,
-      promptGuardMaxLength: null,
-      responseFormat,
-      jsonSchema,
-    })
+  let attempt = 0
+  async function* stream(userPrompt: string): AsyncIterable<string> {
+    const call = startCallLog({ callLog, route, modelId }, ++attempt)
+    /** 没跑完也没抛 = 调用方提前收了这条流（⏹ / 时间预算掐断时就是这样）。 */
+    let outcome: CallOutcome = 'closed'
+    try {
+      yield* llmTextStream({
+        systemPrompt,
+        signal,
+        userPrompt,
+        modelId,
+        imageData,
+        videoData,
+        audioData,
+        videoAnalysis,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
+        useGrounding,
+        providerManagedOutput: true,
+        promptGuardMaxLength: null,
+        responseFormat,
+        jsonSchema,
+        onUsage: call.onUsage,
+      })
+      outcome = 'ok'
+    } catch (error) {
+      outcome = failureOutcome(signal)
+      throw error
+    } finally {
+      call.finish(outcome === 'closed' && signal?.aborted ? 'aborted' : outcome)
+    }
+  }
 
   const fullPrompt = buildUserPrompt()
   let emittedText = false

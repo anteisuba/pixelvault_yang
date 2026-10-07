@@ -3175,6 +3175,7 @@ async function synthesizeResearchConclusion(
       ...(run.modelId ? { modelId: run.modelId } : {}),
       responseFormat: 'json_object',
       jsonSchema: RESEARCH_CONCLUSION_JSON_SCHEMA,
+      callLog: { purpose: 'researchConclusion', domain: run.request.domain },
     })
     for (const candidate of jsonCandidates(raw)) {
       try {
@@ -3979,6 +3980,7 @@ function creatorAskedToOverwrite(request: AssistantOperatorRequest): boolean {
 
 async function completeReferenceAnalysisText(
   run: OperatorRun,
+  purpose: string,
   system: string,
   prompt: string,
   images?: string[],
@@ -4003,6 +4005,7 @@ async function completeReferenceAnalysisText(
     ...(images?.length ? { imageData: images } : {}),
     responseFormat: 'json_object',
     jsonSchema,
+    callLog: { purpose, domain: run.request.domain },
   })) {
     result += chunk
   }
@@ -4068,6 +4071,7 @@ async function planAnalyzeReferences(
       complete: (system, prompt, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
+          'referenceAnalysis',
           system,
           prompt,
           images,
@@ -4175,6 +4179,7 @@ async function checkReferencePrompt(
     complete: (system, prompt, images, jsonSchema) =>
       completeReferenceAnalysisText(
         run,
+        'promptReview',
         system,
         prompt,
         images,
@@ -4434,6 +4439,7 @@ async function planSetText(
           complete: (system, prompt, images, jsonSchema) =>
             completeReferenceAnalysisText(
               run,
+              'referenceBrief',
               system,
               prompt,
               images,
@@ -6591,6 +6597,7 @@ async function planVideoCritique(
         ...(visionModelId ? { modelId: visionModelId } : {}),
         // ⭐ 唯一真的「看」的那三下，喂进去的是**转存后的静态帧**，不是 mp4。
         imageData: frame.url,
+        callLog: { purpose: 'videoFrame', domain: run.request.domain },
       }),
     ),
   )
@@ -6598,6 +6605,7 @@ async function planVideoCritique(
   const raw = await completeAssistantTextWithContextRetry({
     signal: run.signal,
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
+    callLog: { purpose: 'videoCritique', domain: run.request.domain },
     buildUserPrompt: (maxLength) =>
       buildVideoCritiquePrompt(
         run,
@@ -6733,6 +6741,7 @@ async function planCritiqueResult(
   const raw = await completeAssistantTextWithContextRetry({
     signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
+    callLog: { purpose: 'critique', domain: run.request.domain },
     buildUserPrompt: (maxLength) =>
       buildCritiquePrompt(run, goal, result.modelLabel, maxLength),
     route: visionRoute,
@@ -7316,6 +7325,7 @@ async function checkCanvasReferencePrompt(
       complete: (system, input, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
+          'referenceAnalysis',
           system,
           input,
           images,
@@ -7357,6 +7367,7 @@ async function checkCanvasReferencePrompt(
       complete: (system, input, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
+          'referenceBrief',
           system,
           input,
           images,
@@ -10924,6 +10935,7 @@ async function compressRoundLedger(
     const raw = await completeAssistantTextWithContextRetry({
       signal: run.signal,
       systemPrompt: ROUND_SUMMARY_SYSTEM_PROMPT,
+      callLog: { purpose: 'roundSummary', domain: run.request.domain },
       buildUserPrompt: (maxLength) =>
         maxLength === undefined
           ? sections.join('\n\n')
@@ -11875,6 +11887,7 @@ async function* runOperatorTurn(
         ...(videoData.length ? { videoData } : {}),
         ...(audioData.length ? { audioData } : {}),
         responseFormat: 'json_object',
+        callLog: { purpose: 'step', domain: request.domain, step: index },
       })) {
         raw += chunk
         // ⚠ 客户端走了就别再往一条没人读的流里收字（同下面那道 abort 复查）。

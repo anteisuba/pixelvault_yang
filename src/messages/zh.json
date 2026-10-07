@@ -8060,6 +8060,7 @@
       "workbenchHandoffDeclined": "先不换台：{subject}"
     },
     "attach": {
+      "latestResult": "最新 · {label}",
       "label": "上传图片 / 音频 / 视频",
       "remove": "摘掉这个附件",
       "upload": {

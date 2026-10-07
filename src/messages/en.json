@@ -8060,6 +8060,7 @@
       "workbenchHandoffDeclined": "Stayed on this workbench: {subject}"
     },
     "attach": {
+      "latestResult": "Latest · {label}",
       "label": "Upload image / audio / video",
       "remove": "Remove this attachment",
       "upload": {

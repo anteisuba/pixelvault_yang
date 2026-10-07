@@ -8060,6 +8060,7 @@
       "workbenchHandoffDeclined": "切り替えませんでした：{subject}"
     },
     "attach": {
+      "latestResult": "最新 · {label}",
       "label": "画像 / 音声 / 動画をアップロード",
       "remove": "この添付を外す",
       "upload": {

@@ -216,6 +216,7 @@ export function StudioOperatorDock() {
     anchor: hostAnchor,
     projectId: hostProjectId,
     attachmentsMountReferences = false,
+    results,
   } = useStudioOperatorHost()
   const { user } = useUser()
   const userId = user?.id ?? null
@@ -683,6 +684,49 @@ export function StudioOperatorDock() {
     },
     [attachmentScope],
   )
+  /**
+   * ⭐ **刚出的结果自动带进下一句**（owner 2026-10-07）：在工作台出完图直接说「眼睛
+   * 糊了」，助手得知道指的是哪张 —— 快照里不带结果，此前它只能猜。新的一批落地时
+   * 输入框上方多出它们的 chip（可删），发出去才进对话；⛔ 不自动发、不自检（D12）。
+   * ⚠ 挂载那一刻已有的结果不算「新」；下一批到了就换掉上一批还没发出的自动 chip。
+   * 渲染期比对（与上面参考图那段同一写法），⛔ 不在 effect 里同步 setState。
+   */
+  const resultIds = results.map((result) => result.id).join('\n')
+  const [previousResultIds, setPreviousResultIds] = useState(resultIds)
+  const [autoResultIds, setAutoResultIds] = useState<readonly string[]>([])
+  if (previousResultIds !== resultIds) {
+    setPreviousResultIds(resultIds)
+    const seen = new Set(previousResultIds.split('\n'))
+    const fresh = results.filter((result) => !seen.has(result.id))
+    if (fresh.length > 0 && !attachmentsMountReferences && attachmentScope) {
+      const replaced = new Set([
+        ...autoResultIds,
+        ...fresh.map((result) => result.id),
+      ])
+      setAutoResultIds(fresh.map((result) => result.id))
+      setLocalAttachments((current) => [
+        ...current.filter((item) => !replaced.has(item.id)),
+        ...fresh.map(
+          (result): StudioOperatorAttachment => ({
+            id: result.id,
+            kind:
+              result.outputType === 'VIDEO'
+                ? 'video'
+                : result.outputType === 'AUDIO'
+                  ? 'audio'
+                  : 'image',
+            url: result.url,
+            ...(result.thumbnailUrl || result.outputType !== 'VIDEO'
+              ? { thumbnailUrl: result.thumbnailUrl ?? result.url }
+              : {}),
+            label: t('attach.latestResult', {
+              label: result.label ?? '',
+            }),
+          }),
+        ),
+      ])
+    }
+  }
   // ⚠ 宿主自己带出来的参考图（`implicit`，画布上的图）不摆成 chip：助手照样看得见、
   //   能 @，只是不在输入框上方堆成一墙（owner 2026-09-29）。
   const attachments = useMemo<readonly StudioOperatorAttachment[]>(

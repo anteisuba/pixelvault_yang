@@ -56,6 +56,13 @@ let clerkUserId = 'user-a'
 let hostCollapseOnOutsidePointer: boolean | undefined
 /** 宿主声明附图挂参考位（画布）；缺省 = 只进对话。 */
 let hostMountsReferences: boolean | undefined
+/** 宿主这一批跑完的结果（新到的会自动带进下一句）。 */
+let hostResults: {
+  id: string
+  url: string
+  label?: string
+  outputType?: string
+}[] = []
 let hostAnchor: StudioOperatorShellAnchor | undefined
 let mobile = false
 let references: ReturnType<typeof useImageUpload>
@@ -96,7 +103,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
           if (index >= 0) references.removeReferenceImage(index)
         },
       },
-      results: [],
+      results: hostResults,
       collapseOnOutsidePointer: hostCollapseOnOutsidePointer,
       attachmentsMountReferences: hostMountsReferences,
       ...(hostAnchor ? { anchor: hostAnchor } : {}),
@@ -199,6 +206,7 @@ beforeEach(() => {
   claimOperatorThreadScope(null, 'image')
   hostCollapseOnOutsidePointer = undefined
   hostMountsReferences = undefined
+  hostResults = []
   hostAnchor = undefined
   mobile = false
   setOpen.mockClear()
@@ -255,6 +263,42 @@ describe('StudioOperatorDock', () => {
     expect(references.referenceImages).toEqual([])
     expect(panelProps.attachments).toEqual([uploaded])
     act(() => panelProps.onAttachmentsChange([]))
+    expect(panelProps.attachments).toEqual([])
+  })
+
+  it('⭐ 新出的结果自动带进下一句（可删），挂载时已有的不算；下一批换掉上一批', () => {
+    hostResults = [
+      { id: 'old', url: 'https://cdn.test/old.png', label: '图_010' },
+    ]
+    const view = render(<StudioOperatorDock />)
+    expect(panelProps.attachments).toEqual([])
+    hostResults = [
+      { id: 'new-1', url: 'https://cdn.test/new-1.png', label: '图_011' },
+      ...hostResults,
+    ]
+    view.rerender(<StudioOperatorDock />)
+    expect(panelProps.attachments).toEqual([
+      expect.objectContaining({
+        id: 'new-1',
+        kind: 'image',
+        label: 'attach.latestResult',
+      }),
+    ])
+    hostResults = [
+      { id: 'new-2', url: 'https://cdn.test/new-2.png', label: '图_012' },
+      ...hostResults,
+    ]
+    view.rerender(<StudioOperatorDock />)
+    expect(panelProps.attachments.map((item) => item.id)).toEqual(['new-2'])
+    act(() => panelProps.onAttachmentsChange([]))
+    expect(panelProps.attachments).toEqual([])
+  })
+
+  it('挂参考位的宿主（画布）不自动带结果', () => {
+    hostMountsReferences = true
+    const view = render(<StudioOperatorDock />)
+    hostResults = [{ id: 'new', url: 'https://cdn.test/new.png' }]
+    view.rerender(<StudioOperatorDock />)
     expect(panelProps.attachments).toEqual([])
   })
 

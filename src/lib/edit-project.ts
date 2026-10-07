@@ -16,6 +16,7 @@
 
 import {
   EDIT_ASPECT_DEFAULT,
+  EDIT_ATTACH_EPSILON_SEC,
   EDIT_CLIP_MIN_DURATION_SEC,
   EDIT_CLIP_SPEED_DEFAULT,
   EDIT_EXPORT_RANGE_IDS,
@@ -61,6 +62,7 @@ import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { clampCodeUnits } from '@/lib/node-display-name'
 import { readOutputVersions, readOutputIndex } from '@/lib/node-output-versions'
 import type {
+  EditAttachment,
   EditClip,
   EditProject,
   EditTextClip,
@@ -94,6 +96,43 @@ export function trackDurationSec(clips: readonly EditClip[]): number {
 }
 
 /**
+ * 这条轨的段按**自己的起点**摆（台词 A 轨，v2 第 1 片），而不是首尾相接。
+ * ⚠ 只有 A 轨：V 轨是磁性主线，M 轨铺底，两条都首尾相接。
+ */
+export function isPositionedTrack(track: EditTrackId): boolean {
+  return track === EDIT_TRACK_IDS.audio
+}
+
+/**
+ * 每一段在时间线上的起点。按起点摆的轨读 `startSec`；没有起点的存量段接在**前一段
+ * 后面**（就是改版前它们排的位置）—— 与 `reflowAttachments` 第 1 步是同一条规则。
+ */
+export function trackClipStarts(
+  clips: readonly EditClip[],
+  positioned: boolean,
+): readonly number[] {
+  let cursor = 0
+  return clips.map((clip) => {
+    const start = positioned ? (clip.startSec ?? cursor) : cursor
+    cursor = start + clipDurationSec(clip)
+    return start
+  })
+}
+
+/** 一条轨在时间线上占到第几秒（最靠后那一段的尾）。 */
+export function trackEndSec(
+  clips: readonly EditClip[],
+  positioned: boolean,
+): number {
+  const starts = trackClipStarts(clips, positioned)
+  return clips.reduce(
+    (end, clip, index) =>
+      Math.max(end, (starts[index] ?? 0) + clipDurationSec(clip)),
+    0,
+  )
+}
+
+/**
  * 成片时长 = **最长的那条轨**。
  *
  * ⚠ 不是 V 轨：配乐比画面长是常态（画板的 M 轨就横跨全片），按 V 轨报数会让
@@ -101,7 +140,9 @@ export function trackDurationSec(clips: readonly EditClip[]): number {
  */
 export function projectDurationSec(project: EditProject): number {
   return Math.max(
-    ...EDIT_TRACKS.map((track) => trackDurationSec(project.tracks[track])),
+    ...EDIT_TRACKS.map((track) =>
+      trackEndSec(project.tracks[track], isPositionedTrack(track)),
+    ),
     // ⚠ 字幕也算进总长：T 段是**绝对定位**的，一段摆在画面尾巴之后时不算进来，
     // 播放头就永远走不到它 —— 用户于是有一段自己摆下、却再也点不中的字幕。
     textTrackDurationSec(project.tracks.text),
@@ -192,10 +233,15 @@ export function splitTextClipAt(
   ) {
     return null
   }
+  // ⚠ 后一半**不抄挂点**：它从 `atSec` 起，挂点要按这一刻重新找（`reflowAttachments`
+  // 会补上）；抄过去会让它被拉回前一半的那一帧上。
   return [
     ...clips.slice(0, index),
     { ...clip, durationSec: head },
-    { ...clip, id: mintId('text'), startSec: atSec, durationSec: tail },
+    withAttach(
+      { ...clip, id: mintId('text'), startSec: atSec, durationSec: tail },
+      undefined,
+    ),
     ...clips.slice(index + 1),
   ]
 }
@@ -491,6 +537,272 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+/* ─── 挂件（剪辑台 v2 第 1 片 · spec §6「磁性主线 + 挂件」）─────────────── */
+
+/** 位置只留到毫秒：挂点 ↔ 时间线秒来回换算不攒浮点尾巴，`reflowAttachments` 才幂等。 */
+function roundMs(seconds: number): number {
+  return Math.round(seconds * 1000) / 1000
+}
+
+interface MainSpan {
+  readonly clip: EditClip
+  readonly startSec: number
+  readonly endSec: number
+}
+
+/** 主线（V 轨）每一段占的时间线区间。 */
+function mainSpans(project: EditProject): readonly MainSpan[] {
+  let cursor = 0
+  return project.tracks.video.map((clip) => {
+    const startSec = cursor
+    cursor += clipDurationSec(clip)
+    return { clip, startSec, endSec: cursor }
+  })
+}
+
+function speedOf(clip: EditClip): number {
+  return clip.speed || EDIT_CLIP_SPEED_DEFAULT
+}
+
+/** 挂点 → 时间线秒。 */
+function positionOf(span: MainSpan, atSec: number): number {
+  return roundMs(
+    Math.max(0, span.startSec + (atSec - span.clip.in) / speedOf(span.clip)),
+  )
+}
+
+/** 时间线秒 → 挂点。落在主线之后挂最后一段（多半是断挂）；主线空着 = `null`。 */
+function attachAtSpans(
+  spans: readonly MainSpan[],
+  timeSec: number,
+): EditAttachment | null {
+  const last = spans[spans.length - 1]
+  if (!last) return null
+  const span =
+    spans.find((item) => timeSec >= item.startSec && timeSec < item.endSec) ??
+    last
+  return {
+    clipId: span.clip.id,
+    atSec: roundMs(
+      Math.max(
+        0,
+        span.clip.in + (timeSec - span.startSec) * speedOf(span.clip),
+      ),
+    ),
+  }
+}
+
+/** 时间线上这一刻底下是主线哪一段的哪一帧。 */
+export function attachAt(
+  project: EditProject,
+  timeSec: number,
+): EditAttachment | null {
+  return attachAtSpans(mainSpans(project), timeSec)
+}
+
+/**
+ * 断挂：挂点那一帧已经不在宿主的入出点之间（被裁掉了）。台面上半透明，导出时不出声
+ * 不出字；拖一下就按落点重新挂上。没有挂点、或宿主不在了，都不算断挂。
+ */
+export function isAttachmentCut(
+  project: EditProject,
+  attach: EditAttachment | undefined,
+): boolean {
+  if (!attach) return false
+  const host = project.tracks.video.find((clip) => clip.id === attach.clipId)
+  if (!host) return false
+  return (
+    attach.atSec < host.in - EDIT_ATTACH_EPSILON_SEC ||
+    attach.atSec > host.out + EDIT_ATTACH_EPSILON_SEC
+  )
+}
+
+/** 换挂点（`undefined` = 摘掉，回到自由摆放）。 */
+export function withAttach<T extends { readonly attach?: EditAttachment }>(
+  item: T,
+  attach: EditAttachment | undefined,
+): T {
+  if (attach) return { ...item, attach }
+  const next: { attach?: EditAttachment } = { ...item }
+  delete next.attach
+  return next as T
+}
+
+function sameAttach(
+  left: EditAttachment | undefined,
+  right: EditAttachment | undefined,
+): boolean {
+  if (!left || !right) return left === right
+  return left.clipId === right.clipId && left.atSec === right.atSec
+}
+
+/** 一件挂件该在哪：有宿主按挂点算；没有就按现在的位置找一个挂上。 */
+function placeAttachment(
+  spans: readonly MainSpan[],
+  hosts: ReadonlyMap<string, MainSpan>,
+  attach: EditAttachment | undefined,
+  startSec: number,
+): { readonly startSec: number; readonly attach?: EditAttachment } {
+  const host = attach ? hosts.get(attach.clipId) : undefined
+  if (attach && host)
+    return { startSec: positionOf(host, attach.atSec), attach }
+  const found = attachAtSpans(spans, startSec)
+  return found ? { startSec, attach: found } : { startSec }
+}
+
+/**
+ * 归位 —— 每次写入时间线都过一遍（op 执行器的 `withEditProject`），读端（台面、
+ * MCP 快照、渲染计划）也先过一遍，所以存量项目**不用迁库**：
+ *
+ * 1. 存量台词没有起点 → 接在前一条台词后面（就是改版前它们排的位置）；
+ * 2. 有挂点、宿主还在 → 按挂点重算起点（主线怎么挪、怎么裁，挂件就怎么跟）；
+ * 3. 没挂点、或宿主不在了 → 按现在的起点挂到那一刻底下的主线段；主线空着就自由摆放。
+ *
+ * 幂等；什么都没变时原样返回同一个对象（台面的 memo 靠它不白重画）。
+ */
+export function reflowAttachments(project: EditProject): EditProject {
+  const spans = mainSpans(project)
+  const hosts = new Map(spans.map((span) => [span.clip.id, span]))
+  let changed = false
+
+  let cursor = 0
+  const audio = project.tracks.audio.map((clip) => {
+    const placed = placeAttachment(
+      spans,
+      hosts,
+      clip.attach,
+      clip.startSec ?? cursor,
+    )
+    cursor = placed.startSec + clipDurationSec(clip)
+    if (
+      clip.startSec === placed.startSec &&
+      sameAttach(clip.attach, placed.attach)
+    ) {
+      return clip
+    }
+    changed = true
+    return withAttach({ ...clip, startSec: placed.startSec }, placed.attach)
+  })
+
+  const text = project.tracks.text.map((clip) => {
+    const placed = placeAttachment(spans, hosts, clip.attach, clip.startSec)
+    if (
+      clip.startSec === placed.startSec &&
+      sameAttach(clip.attach, placed.attach)
+    ) {
+      return clip
+    }
+    changed = true
+    return withAttach({ ...clip, startSec: placed.startSec }, placed.attach)
+  })
+
+  if (!changed) return project
+  return { ...project, tracks: { ...project.tracks, audio, text } }
+}
+
+/** 挂在某一段主线上的台词（连同它在 A 轨的下标）与字幕 —— 删段时一起走、撤销时一起回。 */
+export function attachmentsOf(
+  project: EditProject,
+  clipId: string,
+): {
+  readonly audio: readonly { readonly clip: EditClip; readonly index: number }[]
+  readonly text: readonly EditTextClip[]
+} {
+  return {
+    audio: project.tracks.audio
+      .map((clip, index) => ({ clip, index }))
+      .filter(({ clip }) => clip.attach?.clipId === clipId),
+    text: project.tracks.text.filter((clip) => clip.attach?.clipId === clipId),
+  }
+}
+
+/** 摘掉挂在某一段主线上的全部台词与字幕（owner 2026-10-07：删镜头时一起删）。 */
+export function withoutAttachmentsOf(
+  project: EditProject,
+  clipId: string,
+): EditProject {
+  return {
+    ...project,
+    tracks: {
+      ...project.tracks,
+      audio: project.tracks.audio.filter(
+        (clip) => clip.attach?.clipId !== clipId,
+      ),
+      text: project.tracks.text.filter(
+        (clip) => clip.attach?.clipId !== clipId,
+      ),
+    },
+  }
+}
+
+/**
+ * 在**时间线秒** `atSec` 把主线一段切成两段，挂在切点之后那几帧上的台词与字幕换到
+ * 后一半上（S 键）。`null` 同 `splitClipAt`。
+ */
+export function splitMainClipAt(
+  project: EditProject,
+  atSec: number,
+  mintId: (prefix: string) => string,
+): EditProject | null {
+  const clips = project.tracks.video
+  const index = clipIndexAt(clips, atSec)
+  const original = clips[index]
+  const next = splitClipAt(clips, atSec, mintId)
+  const tail = next?.[index + 1]
+  if (!original || !next || !tail) return null
+  const rehost = <T extends { readonly attach?: EditAttachment }>(
+    item: T,
+  ): T =>
+    item.attach?.clipId === original.id &&
+    item.attach.atSec >= tail.in - EDIT_ATTACH_EPSILON_SEC
+      ? withAttach(item, { ...item.attach, clipId: tail.id })
+      : item
+  return reflowAttachments({
+    ...project,
+    tracks: {
+      ...project.tracks,
+      video: [...next],
+      audio: project.tracks.audio.map(rehost),
+      text: project.tracks.text.map(rehost),
+    },
+  })
+}
+
+/**
+ * 在时间线秒 `atSec` 把一条**按起点摆**的段（A 轨台词）切成两段。后一半从 `atSec`
+ * 起、不抄挂点（落表时按这一刻重挂）。`null` = 切点不在任何一段内或任一半太短。
+ */
+export function splitPositionedClipAt(
+  clips: readonly EditClip[],
+  atSec: number,
+  mintId: (prefix: string) => string,
+): readonly EditClip[] | null {
+  const starts = trackClipStarts(clips, true)
+  const index = clips.findIndex((clip, at) => {
+    const start = starts[at] ?? 0
+    return atSec >= start && atSec < start + clipDurationSec(clip)
+  })
+  const clip = clips[index]
+  if (!clip) return null
+  const localCut = clipLocalTimeSec(clip, atSec - (starts[index] ?? 0))
+  if (
+    localCut - clip.in < EDIT_CLIP_MIN_DURATION_SEC ||
+    clip.out - localCut < EDIT_CLIP_MIN_DURATION_SEC
+  ) {
+    return null
+  }
+  const tail = withAttach(
+    { ...clip, id: mintId('clip'), in: localCut, startSec: atSec },
+    undefined,
+  )
+  return [
+    ...clips.slice(0, index),
+    { ...clip, out: localCut },
+    tail,
+    ...clips.slice(index + 1),
+  ]
+}
+
 /* ─── 读端汇总 ─────────────────────────────────────────────────────────── */
 
 export interface EditTimelineRow {
@@ -502,24 +814,26 @@ export interface EditTimelineRow {
   readonly source: EditClipSourceFacts
 }
 
-/** 一条轨道 → 渲染要的一排行。**换算只在这里做一次**。 */
+/**
+ * 一条轨道 → 渲染要的一排行。**换算只在这里做一次**。`positioned` = 这条轨按段自己
+ * 的起点摆（`isPositionedTrack`）。
+ */
 export function buildTimelineRows(
   clips: readonly EditClip[],
   nodes: readonly NodeV4[],
+  positioned = false,
 ): readonly EditTimelineRow[] {
-  let cursor = 0
+  const starts = trackClipStarts(clips, positioned)
   return clips.map((clip, index) => {
     const durationSec = clipDurationSec(clip)
-    const row: EditTimelineRow = {
+    return {
       clip,
       index,
-      startSec: cursor,
+      startSec: starts[index] ?? 0,
       durationSec,
       widthPx: secondsToPx(durationSec),
       source: readClipSource(nodes, clip),
     }
-    cursor += durationSec
-    return row
   })
 }
 
@@ -622,7 +936,7 @@ export function resolveRenderWindow(
         'Selected clip is not on the timeline.',
       )
     }
-    const start = clipStartSec(clips, index)
+    const start = trackClipStarts(clips, isPositionedTrack(track))[index] ?? 0
     const clip = clips[index]
     return {
       fromSec: start,
@@ -643,19 +957,24 @@ interface SlicedClip {
   readonly tailIntact: boolean
 }
 
-/** 把一条轨道按时间线窗口裁一刀。**空数组 = 这条轨在窗口里什么都没有**。 */
+/**
+ * 把一条轨道按时间线窗口裁一刀。**空数组 = 这条轨在窗口里什么都没有**。
+ * `positioned` = 按段自己的起点摆（A 轨）；`skip` 为真的段不进成片（断挂的台词）。
+ */
 function sliceTrack(
   clips: readonly EditClip[],
   fromSec: number,
   toSec: number,
+  positioned = false,
+  skip?: (clip: EditClip) => boolean,
 ): readonly SlicedClip[] {
   const sliced: SlicedClip[] = []
-  let cursor = 0
-  for (const clip of clips) {
+  const starts = trackClipStarts(clips, positioned)
+  for (const [index, clip] of clips.entries()) {
+    if (skip?.(clip)) continue
     const duration = clipDurationSec(clip)
-    const start = cursor
-    const end = cursor + duration
-    cursor = end
+    const start = starts[index] ?? 0
+    const end = start + duration
     const visibleStart = Math.max(start, fromSec)
     const visibleEnd = Math.min(end, toSec)
     if (visibleEnd - visibleStart < RENDER_MIN_SEGMENT_SEC) continue
@@ -680,11 +999,13 @@ function sliceTrack(
  * 的不一样」这类问题永远能在一个单测里复现。
  */
 export function toRenderPlan(
-  project: EditProject,
+  stored: EditProject,
   nodes: readonly NodeV4[],
   range: RenderPlanRange,
   settings: RenderPlanSettings,
 ): RenderPlan {
+  // 挂件先归位：成片里的台词与字幕必须落在台面上看到的那一刻。
+  const project = reflowAttachments(stored)
   if (project.tracks.video.length === 0) {
     throw new RenderPlanError(
       RENDER_PLAN_ERROR_CODES.emptyTimeline,
@@ -756,7 +1077,11 @@ export function toRenderPlan(
       sourceNodeId: slice.clip.sourceNodeId,
     }))
 
-  const audio = toAudio(sliceTrack(project.tracks.audio, fromSec, toSec))
+  const audio = toAudio(
+    sliceTrack(project.tracks.audio, fromSec, toSec, true, (clip) =>
+      isAttachmentCut(project, clip.attach),
+    ),
+  )
   const music = toAudio(sliceTrack(project.tracks.music, fromSec, toSec))
 
   if (video.length + audio.length + music.length > RENDER_MAX_SEGMENTS) {
@@ -796,7 +1121,14 @@ export function toRenderPlan(
     resolution,
   )
 
-  const texts = sliceTextTrack(project.tracks.text, fromSec, toSec, height)
+  const texts = sliceTextTrack(
+    project.tracks.text.filter(
+      (clip) => !isAttachmentCut(project, clip.attach),
+    ),
+    fromSec,
+    toSec,
+    height,
+  )
 
   return {
     version: RENDER_PLAN_VERSION,

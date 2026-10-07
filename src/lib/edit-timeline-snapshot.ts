@@ -16,11 +16,25 @@ import {
 import {
   clipDurationSec,
   clipLocalTimeSec,
-  clipStartSec,
+  isAttachmentCut,
+  isPositionedTrack,
   projectDurationSec,
   readClipSource,
+  reflowAttachments,
+  trackClipStarts,
 } from '@/lib/edit-project'
-import type { EditClip, EditProject, NodeV4 } from '@/types/node-workflow'
+import type {
+  EditAttachment,
+  EditClip,
+  EditProject,
+  NodeV4,
+} from '@/types/node-workflow'
+
+/** 台词 / 字幕挂在主线哪一段的哪一帧（素材本地秒）。 */
+export interface TimelineSnapshotAttach {
+  readonly clipId: string
+  readonly atSec: number
+}
 
 export interface TimelineSnapshotClip {
   readonly clipId: string
@@ -45,6 +59,10 @@ export interface TimelineSnapshotClip {
   readonly gain?: number
   /** 来源卡出了新版本，这段还是旧的。 */
   readonly stale?: true
+  /** 台词（A 轨）挂在主线哪一段的哪一帧；主线还空着时缺席。 */
+  readonly attachedTo?: TimelineSnapshotAttach
+  /** 挂点那一帧被裁掉了：导出时不出声，挪一下就按落点重新挂上。 */
+  readonly cut?: true
 }
 
 export interface TimelineSnapshotText {
@@ -56,6 +74,9 @@ export interface TimelineSnapshotText {
   readonly size: string
   readonly tone: string
   readonly fadeSec: number
+  readonly attachedTo?: TimelineSnapshotAttach
+  /** 挂点那一帧被裁掉了：导出时不出字。 */
+  readonly cut?: true
 }
 
 export interface TimelineSnapshot {
@@ -71,18 +92,32 @@ function round(seconds: number): number {
   return Math.round(seconds * 1000) / 1000
 }
 
+function attachFacts(
+  edit: EditProject,
+  attach: EditAttachment | undefined,
+): { attachedTo?: TimelineSnapshotAttach; cut?: true } {
+  if (!attach) return {}
+  return {
+    attachedTo: { clipId: attach.clipId, atSec: round(attach.atSec) },
+    ...(isAttachmentCut(edit, attach) ? { cut: true as const } : {}),
+  }
+}
+
 export function buildTimelineSnapshot(
-  edit: EditProject | undefined,
+  stored: EditProject | undefined,
   nodes: readonly NodeV4[],
 ): TimelineSnapshot | null {
-  if (!edit) return null
+  if (!stored) return null
+  // 挂件先归位：模型读到的起点必须与台面、成片里的同一刻。
+  const edit = reflowAttachments(stored)
 
   const clips: TimelineSnapshotClip[] = []
   for (const track of EDIT_TRACKS) {
     const trackClips = edit.tracks[track]
+    const starts = trackClipStarts(trackClips, isPositionedTrack(track))
     trackClips.forEach((clip, index) => {
       const source = readClipSource(nodes, clip)
-      const startSec = clipStartSec(trackClips, index)
+      const startSec = starts[index] ?? 0
       const transition = clip.transitionOut
       clips.push({
         clipId: clip.id,
@@ -104,6 +139,7 @@ export function buildTimelineSnapshot(
         ...(clip.muted ? { muted: true as const } : {}),
         ...(clip.gain !== undefined ? { gain: clip.gain } : {}),
         ...(source.stale ? { stale: true as const } : {}),
+        ...(isPositionedTrack(track) ? attachFacts(edit, clip.attach) : {}),
       })
     })
   }
@@ -123,6 +159,7 @@ export function buildTimelineSnapshot(
       size: text.size,
       tone: text.tone,
       fadeSec: text.fadeSec,
+      ...attachFacts(edit, text.attach),
     })),
   }
 }
@@ -136,10 +173,11 @@ export interface TimelineClipHit {
 
 /** 按段 id 找段（字幕段不在这里：它没有画面来源）。 */
 export function findTimelineClip(
-  edit: EditProject | undefined,
+  stored: EditProject | undefined,
   clipId: string,
 ): TimelineClipHit | null {
-  if (!edit) return null
+  if (!stored) return null
+  const edit = reflowAttachments(stored)
   for (const track of EDIT_TRACKS) {
     const trackClips = edit.tracks[track]
     const index = trackClips.findIndex((clip) => clip.id === clipId)
@@ -148,7 +186,8 @@ export function findTimelineClip(
     return {
       track,
       clip,
-      startSec: clipStartSec(trackClips, index),
+      startSec:
+        trackClipStarts(trackClips, isPositionedTrack(track))[index] ?? 0,
       durationSec: clipDurationSec(clip),
     }
   }

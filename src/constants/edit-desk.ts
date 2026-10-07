@@ -488,6 +488,12 @@ export const EDIT_TEXT_FADE_MAX_SEC = 5
 /** 工具条「文字」落一段多长（spec §6：播放头处 3s）。 */
 export const EDIT_TEXT_CLIP_DEFAULT_DURATION_SEC = 3
 
+/**
+ * 挂件（v2 第 1 片）：挂点那一帧落在宿主入出点之外多远才算「断挂」。位置一律算到
+ * 毫秒，这一档只吸收那一毫秒的舍入。
+ */
+export const EDIT_ATTACH_EPSILON_SEC = 0.001
+
 /** 一段字幕最短 / 内容多长。 */
 export const EDIT_TEXT_CLIP_MIN_DURATION_SEC = EDIT_CLIP_MIN_DURATION_SEC
 export const EDIT_TEXT_MAX_LENGTH = 500

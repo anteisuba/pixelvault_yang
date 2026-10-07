@@ -74,16 +74,21 @@ import {
   setSlotVersion,
 } from '@/lib/node-slot-binding'
 import {
+  EDIT_TRACK_IDS,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITION_IDS,
   type EditTrackId,
 } from '@/constants/edit-desk'
 import {
+  attachmentsOf,
   clampTextClip,
   clampTrim,
   insertClip,
   moveClip as moveClipInTrack,
+  reflowAttachments,
   removeClip as removeClipFromTrack,
+  withAttach,
+  withoutAttachmentsOf,
 } from '@/lib/edit-project'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import {
@@ -330,7 +335,9 @@ function withEditProject(
     delete next.edit
     return next as NodeWorkflowStateV4
   }
-  return { ...state, edit: project }
+  // 每次写入都让挂件归位（v2 第 1 片）：主线怎么挪、怎么裁，台词与字幕就跟着那一帧走。
+  // ⚠ 收在这一处 —— 八条剪辑 op 与它们的 inverse 都从这里落表，⛔ 不在各条里各算一遍。
+  return { ...state, edit: reflowAttachments(project) }
 }
 
 function withTextTrack(
@@ -1346,23 +1353,58 @@ export function applyNodeAssistantOpV4(
       const index = clips.findIndex((clip) => clip.id === op.clipId)
       const removed = index < 0 ? undefined : clips[index]
       if (!removed) return { ok: false, reason: 'unknownClip' }
+      const trimmed = withTrack(
+        project,
+        track,
+        removeClipFromTrack(clips, op.clipId),
+      )
+      // ⚠ inverse 要带**位置**：删中间一段之后撤销，段必须回到原位而不是排到队尾。
+      const restoreClip: NodeV4Inverse = {
+        kind: 'op',
+        op: { op: ids.editAddClip, track: op.track, clip: removed, index },
+      }
+      // 主线上的镜头一删，挂在它上面的台词与字幕一起走（owner 2026-10-07）。撤销
+      // **先放回镜头、再放回挂件**：顺序反了，挂件落表时找不到宿主，会被挂到别的段上。
+      const riders =
+        track === EDIT_TRACK_IDS.video
+          ? attachmentsOf(project, op.clipId)
+          : { audio: [], text: [] }
+      const hasRiders = riders.audio.length + riders.text.length > 0
       return {
         ok: true,
         state: withEditProject(
           state,
-          withTrack(project, track, removeClipFromTrack(clips, op.clipId)),
+          hasRiders ? withoutAttachmentsOf(trimmed, op.clipId) : trimmed,
         ),
-        // ⚠ inverse 要带**位置**：删中间一段之后撤销，段必须回到原位而不是排到队尾。
-        inverse: {
-          kind: 'op',
-          op: {
-            op: ids.editAddClip,
-            track: op.track,
-            clip: removed,
-            index,
-          },
-        },
-        changedNodeIds: [removed.sourceNodeId],
+        inverse: hasRiders
+          ? {
+              kind: 'sequence',
+              items: [
+                restoreClip,
+                ...riders.audio.map(
+                  ({ clip, index: at }): NodeV4Inverse => ({
+                    kind: 'op',
+                    op: {
+                      op: ids.editAddClip,
+                      track: EDIT_TRACK_IDS.audio,
+                      clip,
+                      index: at,
+                    },
+                  }),
+                ),
+                ...riders.text.map(
+                  (clip): NodeV4Inverse => ({
+                    kind: 'op',
+                    op: { op: ids.editAddText, clip },
+                  }),
+                ),
+              ],
+            }
+          : restoreClip,
+        changedNodeIds: [
+          removed.sourceNodeId,
+          ...riders.audio.map(({ clip }) => clip.sourceNodeId),
+        ],
         changedEdgeIds: [],
       }
     }
@@ -1399,6 +1441,11 @@ export function applyNodeAssistantOpV4(
           ? {}
           : { sourceVersionId: op.patch.sourceVersionId }),
       }
+      // 挪台词 = 「谁被拖了谁说了算」：丢掉旧挂点，落表时按新起点重新挂（`withEditProject`）。
+      const placed =
+        op.patch.startSec === undefined || track !== EDIT_TRACK_IDS.audio
+          ? next
+          : withAttach({ ...next, startSec: op.patch.startSec }, undefined)
 
       // inverse 只回**这次动过的那几项**（见 op schema 头注：整段快照会把用户
       // 在别处改的也一起退回）。
@@ -1419,6 +1466,9 @@ export function applyNodeAssistantOpV4(
         current.sourceVersionId === undefined
           ? {}
           : { sourceVersionId: current.sourceVersionId }),
+        ...(op.patch.startSec === undefined || current.startSec === undefined
+          ? {}
+          : { startSec: current.startSec }),
       }
 
       return {
@@ -1428,7 +1478,7 @@ export function applyNodeAssistantOpV4(
           withTrack(
             project,
             track,
-            clips.map((clip) => (clip.id === op.clipId ? next : clip)),
+            clips.map((clip) => (clip.id === op.clipId ? placed : clip)),
           ),
         ),
         inverse: {
@@ -1535,8 +1585,13 @@ export function applyNodeAssistantOpV4(
       const current = clips.find((clip) => clip.id === op.clipId)
       if (!current) return { ok: false, reason: 'unknownClip' }
 
+      // 挪字幕同挪台词：给了新起点就丢掉旧挂点，落表时按新位置重新挂。
+      const base =
+        op.patch.startSec === undefined
+          ? current
+          : withAttach(current, undefined)
       const next = clampTextClip({
-        ...current,
+        ...base,
         ...(op.patch.text === undefined ? {} : { text: op.patch.text }),
         ...(op.patch.startSec === undefined
           ? {}

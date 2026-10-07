@@ -474,7 +474,12 @@ export function EditDesk({
    * 按总帧数算会在正常路径上误报「没落上」。
    */
   const onDropLibraryAsset = useCallback(
-    (asset: EditDeskLibraryAsset, track: EditTrackId, index: number) => {
+    (
+      asset: EditDeskLibraryAsset,
+      track: EditTrackId,
+      index: number,
+      startSec: number,
+    ) => {
       const nodeId = addNode(asset.kind, asset.subtype, { name: asset.name })
       if (!nodeId) {
         toast.error(t('library.landFailed'))
@@ -519,6 +524,7 @@ export function EditDesk({
         }
         latest.current.desk.dropNode(nodeId, track, index, {
           ...(asset.durationSec ? { durationSec: asset.durationSec } : {}),
+          startSec,
         })
       }
       step(0)

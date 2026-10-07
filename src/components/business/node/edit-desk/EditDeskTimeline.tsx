@@ -64,6 +64,7 @@ import {
   EDIT_TOOLS,
   EDIT_TOOL_IDS,
   EDIT_TRACKS,
+  EDIT_ATTACH_EPSILON_SEC,
   EDIT_TRACK_IDS,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
@@ -72,7 +73,13 @@ import {
   type EditTransitionId,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { clampTrim, currentUrlOf, formatEditClock } from '@/lib/edit-project'
+import {
+  clampTrim,
+  currentUrlOf,
+  formatEditClock,
+  isAttachmentCut,
+  isPositionedTrack,
+} from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditClip, EditTextClip } from '@/types/node-workflow'
@@ -137,6 +144,8 @@ export interface EditDeskTimelineProps {
     asset: EditDeskLibraryAsset,
     track: EditTrackId,
     index: number,
+    /** 松手那一刻（时间线秒）：按起点摆的轨（台词）落在这里。 */
+    startSec: number,
   ): void
   /** 高亮哪条轨（工具条「语音」/「配乐」按下之后）。`null` = 不高亮。 */
   readonly highlightTrack?: EditTrackId | null
@@ -1113,6 +1122,10 @@ function TextClipView({
           selected &&
             'px-3.5 ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted hover:ring-primary',
           preview?.edge === 'move' && 'cursor-grabbing shadow-overlay',
+          // 断挂：挂点那一帧被裁掉了，导出时不出字 —— 半透明留在原处。
+          !preview &&
+            isAttachmentCut(desk.project, clip.attach) &&
+            'opacity-40',
         )}
       >
         <span className="grid size-4 shrink-0 place-items-center rounded-sm bg-primary text-3xs font-semibold text-primary-foreground">
@@ -1170,6 +1183,7 @@ function TrackLane({
     asset: EditDeskLibraryAsset,
     track: EditTrackId,
     index: number,
+    startSec: number,
   ): void
   readonly highlighted: boolean
 }) {
@@ -1178,6 +1192,9 @@ function TrackLane({
   const [dropping, setDropping] = useState(false)
   const [drag, setDrag] = useState<LaneDrag | null>(null)
   const isVideo = track === EDIT_TRACK_IDS.video
+  /** 台词轨（v2 第 1 片）：段按自己的起点摆，拖 = 改起点，⛔ 不是换顺序。 */
+  const positioned = isPositionedTrack(track)
+  const { snap, setGuide } = useTimelineInteraction()
 
   /**
    * 按住段拖 = 换位置（owner 2026-09-28「拖段换位置」）：段跟着指针走、别的段实时
@@ -1193,6 +1210,49 @@ function TrackLane({
     event.stopPropagation()
     event.preventDefault()
     desk.select({ track, clipId: row.clip.id })
+    if (positioned) {
+      // 拖台词 = 改它的起点；落下时按那一刻底下的镜头重新挂上（op 执行器）。
+      // 贴近别的段头尾 / 播放头就吸住，与字幕段同一套。
+      const own = [row.startSec, row.startSec + row.durationSec]
+      const startOf = (deltaPx: number) => {
+        const raw = Math.max(0, row.startSec + scale.toSeconds(deltaPx))
+        const byStart = snap(raw, own)
+        if (byStart !== null) return { start: byStart, guide: byStart }
+        const byEnd = snap(raw + row.durationSec, own)
+        if (byEnd !== null) {
+          return { start: Math.max(0, byEnd - row.durationSec), guide: byEnd }
+        }
+        return { start: raw, guide: null }
+      }
+      followPointer(event, {
+        onMove: (deltaPx) => {
+          const next = startOf(deltaPx)
+          setGuide(next.guide)
+          setDrag({
+            id: row.clip.id,
+            from: row.index,
+            to: row.index,
+            deltaPx: scale.toPx(next.start - row.startSec),
+            widthPx,
+          })
+        },
+        onEnd: (deltaPx, dragged) => {
+          setGuide(null)
+          setDrag(null)
+          if (!dragged) return
+          const next = startOf(deltaPx)
+          if (Math.abs(next.start - row.startSec) < EDIT_ATTACH_EPSILON_SEC) {
+            return
+          }
+          desk.updateClip(track, row.clip.id, { startSec: next.start })
+        },
+        onCancel: () => {
+          setGuide(null)
+          setDrag(null)
+        },
+      })
+      return
+    }
     const centers = rows.map((candidate) =>
       scale.toPx(candidate.startSec + candidate.durationSec / 2),
     )
@@ -1225,6 +1285,7 @@ function TrackLane({
   const offsetOf = (index: number): number => {
     if (!drag) return 0
     if (index === drag.from) return drag.deltaPx
+    if (positioned) return 0
     const shift = drag.widthPx + CLIP_GAP_PX
     if (drag.from < drag.to && index > drag.from && index <= drag.to) {
       return -shift
@@ -1253,14 +1314,15 @@ function TrackLane({
       onDragLeave={() => setDropping(false)}
       onDrop={(event) => {
         setDropping(false)
-        const index = desk.insertIndexAt(track, secondsFromEvent(event.clientX))
+        const seconds = secondsFromEvent(event.clientX)
+        const index = desk.insertIndexAt(track, seconds)
         // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
         const asset = parseEditDeskLibraryAsset(
           event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
         )
         if (asset) {
           event.preventDefault()
-          onDropLibraryAsset(asset, track, index)
+          onDropLibraryAsset(asset, track, index, seconds)
           return
         }
         const nodeId =
@@ -1268,7 +1330,7 @@ function TrackLane({
           event.dataTransfer.getData('text/plain')
         if (!nodeId) return
         event.preventDefault()
-        desk.dropNode(nodeId, track, index)
+        desk.dropNode(nodeId, track, index, { startSec: seconds })
       }}
       // 空白处按下 = 取消选中（点段的那一路 stopPropagation 了）。
       onPointerDown={onBlankPointerDown}
@@ -1276,33 +1338,73 @@ function TrackLane({
       style={{ height: laneHeightOf(track) }}
     >
       <LaneBed dropping={dropping} highlighted={highlighted} />
-      <div
-        className="absolute inset-x-0 flex items-stretch gap-1"
-        style={{
-          top: EDIT_DESK_LAYOUT.laneInsetPx,
-          bottom: EDIT_DESK_LAYOUT.laneInsetPx,
-        }}
-      >
-        {rows.length === 0 ? (
-          <span className="flex items-center px-2.5 text-2xs text-muted-foreground">
-            {t('tracks.empty')}
-          </span>
-        ) : null}
-        {rows.map((row, index) => (
-          <ClipView
-            key={row.clip.id}
-            row={row}
-            track={track}
-            desk={desk}
-            isVideo={isVideo}
-            showTransitionAfter={isVideo && index < rows.length - 1}
-            offsetPx={offsetOf(index)}
-            lifted={drag?.id === row.clip.id}
-            reordering={drag !== null}
-            onBodyPointerDown={beginMove}
-          />
-        ))}
-      </div>
+      {positioned ? (
+        <div
+          className="absolute inset-x-0"
+          style={{
+            top: EDIT_DESK_LAYOUT.laneInsetPx,
+            bottom: EDIT_DESK_LAYOUT.laneInsetPx,
+          }}
+        >
+          {rows.length === 0 ? (
+            <span className="absolute inset-y-0 left-2.5 flex items-center text-2xs text-muted-foreground">
+              {t('tracks.empty')}
+            </span>
+          ) : null}
+          {rows.map((row, index) => (
+            <div
+              key={row.clip.id}
+              className={cn(
+                'absolute inset-y-0 flex items-stretch',
+                drag?.id === row.clip.id && 'z-30',
+              )}
+              style={{ left: scale.toPx(row.startSec) }}
+            >
+              <ClipView
+                row={row}
+                track={track}
+                desk={desk}
+                isVideo={false}
+                showTransitionAfter={false}
+                offsetPx={offsetOf(index)}
+                lifted={drag?.id === row.clip.id}
+                reordering={false}
+                positioned
+                dimmed={isAttachmentCut(desk.project, row.clip.attach)}
+                onBodyPointerDown={beginMove}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="absolute inset-x-0 flex items-stretch gap-1"
+          style={{
+            top: EDIT_DESK_LAYOUT.laneInsetPx,
+            bottom: EDIT_DESK_LAYOUT.laneInsetPx,
+          }}
+        >
+          {rows.length === 0 ? (
+            <span className="flex items-center px-2.5 text-2xs text-muted-foreground">
+              {t('tracks.empty')}
+            </span>
+          ) : null}
+          {rows.map((row, index) => (
+            <ClipView
+              key={row.clip.id}
+              row={row}
+              track={track}
+              desk={desk}
+              isVideo={isVideo}
+              showTransitionAfter={isVideo && index < rows.length - 1}
+              offsetPx={offsetOf(index)}
+              lifted={drag?.id === row.clip.id}
+              reordering={drag !== null}
+              onBodyPointerDown={beginMove}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1316,6 +1418,8 @@ function ClipView({
   offsetPx,
   lifted,
   reordering,
+  positioned = false,
+  dimmed = false,
   onBodyPointerDown,
 }: {
   readonly row: EditTimelineRow
@@ -1323,6 +1427,10 @@ function ClipView({
   readonly desk: EditDesk
   readonly isVideo: boolean
   readonly showTransitionAfter: boolean
+  /** 按自己的起点摆（台词）：拖左端 = 起点跟着入点动、尾巴不动。 */
+  readonly positioned?: boolean
+  /** 断挂：挂点那一帧被裁掉了，导出时不出声 —— 半透明留在原处。 */
+  readonly dimmed?: boolean
   /** 换位途中这一段该挪多少（被拖的那段 = 跟手，别的段 = 让位）。 */
   readonly offsetPx: number
   readonly lifted: boolean
@@ -1351,6 +1459,12 @@ function ClipView({
     EDIT_DESK_LAYOUT.handleWidthPx * 3,
   )
   const gone = !row.source.exists
+  /** 按起点摆的段拖左端时，左边沿跟着入点挪（尾巴不动）。 */
+  const leadPx =
+    positioned && preview?.edge === 'in'
+      ? scale.toPx((preview.in - clip.in) / speed)
+      : 0
+  const shiftPx = offsetPx + leadPx
   const sourceName = readSourceName(row)
   const sourceData = row.source.node?.data
   const sourceDurationSec =
@@ -1375,6 +1489,22 @@ function ClipView({
 
       const nextOf = (deltaPx: number) => {
         const delta = scale.toSeconds(deltaPx) * speed
+        if (positioned && edge === 'in') {
+          // 按起点摆的段：拖左端时左边沿跟手、尾巴不动，吸附的是左边沿。
+          const rawIn = origin.in + delta
+          const snappedStart = snap(
+            row.startSec + (rawIn - origin.in) / speed,
+            [row.startSec, ownEnd],
+          )
+          const nextIn =
+            snappedStart === null
+              ? rawIn
+              : origin.in + (snappedStart - row.startSec) * speed
+          return {
+            ...clampTrim(clip, { in: nextIn }, sourceDurationSec),
+            guide: snappedStart,
+          }
+        }
         const raw =
           edge === 'in'
             ? { in: origin.in + delta, out: origin.out }
@@ -1415,7 +1545,19 @@ function ClipView({
           desk.updateClip(
             track,
             clip.id,
-            edge === 'in' ? { in: next.in } : { out: next.out },
+            edge === 'in'
+              ? {
+                  in: next.in,
+                  ...(positioned
+                    ? {
+                        startSec: Math.max(
+                          0,
+                          row.startSec + (next.in - clip.in) / speed,
+                        ),
+                      }
+                    : {}),
+                }
+              : { out: next.out },
           )
         },
         onCancel: () => {
@@ -1434,10 +1576,11 @@ function ClipView({
             ? 'z-30'
             : reordering &&
                 'transition-transform duration-base ease-standard motion-reduce:transition-none',
+          dimmed && 'opacity-40',
         )}
         style={{
           width: widthPx,
-          transform: offsetPx ? `translateX(${offsetPx}px)` : undefined,
+          transform: shiftPx ? `translateX(${shiftPx}px)` : undefined,
         }}
       >
         {preview ? (

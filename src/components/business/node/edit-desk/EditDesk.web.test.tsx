@@ -1009,3 +1009,84 @@ describe('剪辑台 · 回执与段闪', () => {
     expect(onBackToNode).toHaveBeenCalledWith('render_1')
   })
 })
+
+describe('台词挂在主线上（v2 第 1 片）', () => {
+  const clipOf = (id: string, patch: Record<string, unknown> = {}) => ({
+    id,
+    sourceNodeId: id === 'c1' || id === 'c2' ? 'v1' : 'a1',
+    in: 0,
+    out: 4,
+    speed: 1,
+    muted: false,
+    ...patch,
+  })
+  const hung: NodeWorkflowStateV4 = {
+    version: 4,
+    nodes: [videoNode('v1'), audioNode('a1')],
+    edges: [],
+    edit: {
+      name: '成片',
+      tracks: {
+        video: [clipOf('c1'), clipOf('c2')],
+        // l1 是存量（没有起点，排在 0 秒）；l2 挂在 c2 素材 2 秒那一帧（时间线 6 秒）。
+        audio: [
+          clipOf('l1', { out: 1 }),
+          clipOf('l2', {
+            out: 1,
+            startSec: 6,
+            attach: { clipId: 'c2', atSec: 2 },
+          }),
+        ],
+        music: [],
+        text: [],
+      },
+      settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+    },
+  }
+  /** 段视图外面那一层绝对定位的框（台词轨按起点摆）。 */
+  const slotOf = (id: string): HTMLElement =>
+    screen.getByTestId(`edit-desk-clip-${id}`).parentElement!.parentElement!
+
+  it('voice lines sit at their own start and ride along when their shot moves', () => {
+    const { pushRemote, read } = renderDesk(hung)
+    expect(slotOf('l1').style.left).toBe('0px')
+    const before = parseFloat(slotOf('l2').style.left)
+    expect(before).toBeGreaterThan(0)
+
+    const moved = applyNodeAssistantOpV4(
+      read(),
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.editMoveClip,
+        track: 'video',
+        clipId: 'c2',
+        toIndex: 0,
+      },
+      { now: NOW, mintId: (prefix) => `${prefix}_m` },
+    )
+    if (!moved.ok) throw new Error('move rejected')
+    pushRemote(moved.state)
+
+    // c2 挪到最前：素材 2 秒那一帧从 6 秒到了 2 秒。
+    expect(parseFloat(slotOf('l2').style.left)).toBeCloseTo(before / 3, 3)
+  })
+
+  it('a line whose frame was trimmed away fades out in place', () => {
+    const { pushRemote, read } = renderDesk(hung)
+    expect(slotOf('l2').firstElementChild).not.toHaveClass('opacity-40')
+
+    const trimmed = applyNodeAssistantOpV4(
+      read(),
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
+        track: 'video',
+        clipId: 'c2',
+        patch: { in: 3 },
+      },
+      { now: NOW, mintId: (prefix) => `${prefix}_t` },
+    )
+    if (!trimmed.ok) throw new Error('trim rejected')
+    pushRemote(trimmed.state)
+
+    expect(slotOf('l2').firstElementChild).toHaveClass('opacity-40')
+  })
+})

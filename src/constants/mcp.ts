@@ -73,6 +73,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   'PixelVault canvas projects: shots are video/image/audio/text nodes; the edit desk timeline lives in the project.',
   'All times are in seconds. Timeline times are seconds on the cut; look_at converts them to source time for you.',
   'Look before you cut: use look_at on a shot or a timeline clip to see actual frames.',
+  'The video track is the main line. Voice lines (audio track) and captions hang on a frame of a main-line clip (attachedTo): moving, trimming or deleting that clip carries them along. To move one, set its startSec and it re-attaches to whatever clip is under that moment. A line marked cut lost its frame to a trim and stays silent until moved.',
   'Change things with apply_ops, passing the version you got from read_project. If it says the project changed, read it again and redo your change on the new version.',
   'After a round of cuts, render a draft (480p, not saved anywhere the user sees), poll get_render, then look_at the render at the cut points before calling it done. Render final only when the user asks for the finished cut.',
   'Nothing here spends money: generating a shot is always the user’s own click in the browser. To redo a shot, rewrite its prompt (set_prompt) and mark the take you looked at as rejected (set_review_state with that take’s url from read_project, and a reason), then ask the user to press generate.',

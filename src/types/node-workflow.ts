@@ -1350,6 +1350,18 @@ export const NodeWorkflowEdgeV4Schema = z.object({
  * ⛔ 段里**不存 url**：url 是那一版的属性，存进段就等于把素材复制了一份，
  * 换版本 / 改名 / 重传之后段会指向一个谁都不再拥有的地址。
  */
+/**
+ * 挂件挂在哪（剪辑台 v2 第 1 片 · spec §6「磁性主线 + 挂件」）：主线（V 轨）上的
+ * 哪一段 + 那一段**素材本地秒**的哪一帧（与 `EditClip.in` / `out` 同一把尺）。
+ *
+ * ⚠ 挂的是**帧**不是时间线秒：主线换序、裁剪、变速之后，挂件跟着那一帧走，位置由
+ * `reflowAttachments` 重新算出来；那一帧被裁掉了就是「断挂」（不出声、不出字）。
+ */
+export const EditAttachmentSchema = z.object({
+  clipId: z.string().trim().min(1).max(160),
+  atSec: z.number().min(0).max(36_000),
+})
+
 export const EditClipSchema = z.object({
   id: z.string().trim().min(1).max(160),
   sourceNodeId: z.string().trim().min(1).max(160),
@@ -1374,15 +1386,23 @@ export const EditClipSchema = z.object({
   transitionOut: z.enum(EDIT_TRANSITIONS).optional(),
   /** 音量增益（0..2，1 = 原样）。 */
   gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
+  /**
+   * 台词（A 轨）在时间线上的起点，时间线秒。⚠ 只对 A 轨有意义：V 轨是磁性主线、
+   * M 轨铺底，两条都首尾相接。存的是**算好的位置**：挂着的台词每次写入都由
+   * `reflowAttachments` 按挂点重算；缺席 = 存量（接在前一条台词后面）。
+   */
+  startSec: z.number().min(0).max(36_000).optional(),
+  /** 挂在主线哪一段的哪一帧（只对 A 轨有意义）。缺席 = 主线还空着，自由摆放。 */
+  attach: EditAttachmentSchema.optional(),
 })
 
 /**
  * T 轨上的一段字幕（S8d · spec §6「文字段」）。
  *
  * ⚠ 与 `EditClip` 是**两种形状**，理由写在 `EDIT_TEXT_TRACK_ID` 上：这一段不指向
- * 任何一张卡（内容就在它自己身上），也不参与磁吸 —— 所以它存的是**时间线秒的绝对
- * 起点**（`startSec`）而不是「排在前面那些段之后」。V 轨那条「位置由前面的段决定」
- * 的纪律在这里反过来：字幕必须钉在画面的某一刻，画面换了序它也不该跟着挪。
+ * 任何一张卡（内容就在它自己身上），也不参与磁吸。它**挂在主线某一段的某一帧上**
+ * （`attach`，v2 第 1 片）：画面换序、裁剪时跟着那一帧走；`startSec` 是按挂点算好的
+ * 时间线秒，主线还空着时才是自由摆放的位置。
  */
 export const EditTextClipSchema = z.object({
   id: z.string().trim().min(1).max(160),
@@ -1399,6 +1419,11 @@ export const EditTextClipSchema = z.object({
     .min(0)
     .max(EDIT_TEXT_FADE_MAX_SEC)
     .default(EDIT_TEXT_FADE_DEFAULT),
+  /**
+   * 挂在主线哪一段的哪一帧（v2 第 1 片）。有它时 `startSec` 是按挂点算好的位置；
+   * ⚠ 与 `anchor`（字幕摆在画面九宫格哪一格）是两件事。
+   */
+  attach: EditAttachmentSchema.optional(),
 })
 
 export const EditProjectTracksSchema = z.object({
@@ -1432,6 +1457,7 @@ export const EditProjectSchema = z.object({
   settings: EditProjectSettingsSchema,
 })
 
+export type EditAttachment = z.infer<typeof EditAttachmentSchema>
 export type EditClip = z.infer<typeof EditClipSchema>
 export type EditTextClip = z.infer<typeof EditTextClipSchema>
 export type EditProjectTracks = z.infer<typeof EditProjectTracksSchema>

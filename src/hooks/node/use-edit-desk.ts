@@ -36,10 +36,14 @@ import {
   clipStartSec,
   createEmptyEditProject,
   defaultTrackFor,
+  isPositionedTrack,
   listEditableAssets,
   projectDurationSec,
   readClipSource,
+  reflowAttachments,
   splitClipAt,
+  splitMainClipAt,
+  splitPositionedClipAt,
   splitTextClipAt,
   textClipsAt,
   toRenderPlan,
@@ -122,12 +126,13 @@ export interface EditDesk {
    *
    * `options.durationSec` 只在**卡上量不到时长**时用得上（素材库那条记录量过，
    * 而 `setMedia` 的补丁里没有时长这一项）——⛔ 不覆盖卡上的值。
+   * `options.startSec` = 松手那一刻：台词轨按它摆，别的轨按 `index`。
    */
   dropNode(
     nodeId: string,
     track: EditTrackId,
     index?: number,
-    options?: { readonly durationSec?: number },
+    options?: { readonly durationSec?: number; readonly startSec?: number },
   ): boolean
   updateClip(track: EditTrackId, clipId: string, patch: EditClipPatch): boolean
   moveClip(track: EditTrackId, clipId: string, toIndex: number): boolean
@@ -181,6 +186,8 @@ export interface EditTextClipPatch {
 export interface EditClipPatch {
   readonly in?: number
   readonly out?: number
+  /** 挪台词（只对 A 轨有意义）：时间线秒，落下后按那一刻重新挂。 */
+  readonly startSec?: number
   readonly speed?: number
   readonly muted?: boolean
   readonly transitionOut?: EditClip['transitionOut']
@@ -212,15 +219,24 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   }, [])
 
   const stored = state.edit
+  // 读端先归位（v2 第 1 片）：存量项目的台词还没有起点、挂件还没有挂点，⛔ 不迁库，
+  // 打开时就按改版前的位置算好；下一次写入时由 op 执行器落表。
   const project = useMemo(
-    () => stored ?? createEmptyEditProject(defaultTimelineName),
+    () =>
+      stored
+        ? reflowAttachments(stored)
+        : createEmptyEditProject(defaultTimelineName),
     [stored, defaultTimelineName],
   )
 
   const rows = useMemo(() => {
     const built = {} as Record<EditTrackId, readonly EditTimelineRow[]>
     for (const track of EDIT_TRACKS) {
-      built[track] = buildTimelineRows(project.tracks[track], state.nodes)
+      built[track] = buildTimelineRows(
+        project.tracks[track],
+        state.nodes,
+        isPositionedTrack(track),
+      )
     }
     return built
   }, [project, state.nodes])
@@ -281,12 +297,20 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
       nodeId: string,
       track: EditTrackId,
       index?: number,
-      options?: { readonly durationSec?: number },
+      options?: {
+        readonly durationSec?: number
+        /** 松手那一刻（时间线秒）。只对按起点摆的轨（台词）有意义：落在这里。 */
+        readonly startSec?: number
+      },
     ): boolean => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return false
-      const clip = buildClipFromNode(node, mintId, options?.durationSec)
-      if (!clip) return false
+      const built = buildClipFromNode(node, mintId, options?.durationSec)
+      if (!built) return false
+      const clip =
+        isPositionedTrack(track) && options?.startSec !== undefined
+          ? { ...built, startSec: Math.max(0, options.startSec) }
+          : built
       return run([
         {
           op: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
@@ -403,11 +427,18 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
           tracks: { ...project.tracks, text: [...next] },
         })
       }
-      const clips = project.tracks[track]
-      const next = splitClipAt(clips, playheadSec, mintId)
-      if (!next) return false
       // ⚠ 分割 = 一段变两段，用**整表替换**：拆成 update + add 两条 op 会让撤销
       // 中间出现「一段已经变短、另一半还没出现」的半截状态。
+      if (track === EDIT_TRACK_IDS.video) {
+        // 主线切开时，挂在切点之后那几帧上的台词与字幕换到后一半上。
+        const next = splitMainClipAt(project, playheadSec, mintId)
+        return next ? setTimeline(next) : false
+      }
+      const clips = project.tracks[track]
+      const next = isPositionedTrack(track)
+        ? splitPositionedClipAt(clips, playheadSec, mintId)
+        : splitClipAt(clips, playheadSec, mintId)
+      if (!next) return false
       return setTimeline({
         ...project,
         tracks: { ...project.tracks, [track]: [...next] },

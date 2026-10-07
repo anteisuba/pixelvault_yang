@@ -245,7 +245,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 ### 8.5 剪辑台数据
 
-`EditProject`（时间线 JSON：`tracks` / `clips{sourceNodeId, sourceVersionId, in, out, speed, transitionOut, muted}` / audio / music）落在画布项目状态里（`state.edit`）；渲染任务走 `render-video` worker（CF Container），进度与产物回 `Generation`；「上游已更新」= 对比 `sourceVersionId` 与节点当前版本。
+`EditProject`（时间线 JSON：`tracks` / `clips{sourceNodeId, sourceVersionId, in, out, speed, transitionOut, muted}` / audio / music）落在画布项目状态里（`state.edit`）。**挂件**（v2 第 1 片，2026-10-07）：台词段（A 轨）多 `startSec` 与 `attach{clipId, atSec}`，字幕段多 `attach`；`atSec` 是宿主段的**素材本地秒**，`startSec` 是按挂点算好的时间线秒。规则只有一处——`reflowAttachments`：存量台词没有起点就接在前一条后面（改版前的位置），有宿主就按挂点重算，没有就按现在的位置挂到那一刻底下的主线段；op 执行器每次落表都过它，台面、MCP 快照、渲染计划读之前也过它，所以**不迁库**。删主线段时挂件一起删（撤销先放回段再放回挂件）；挪台词 / 字幕 = 丢掉旧挂点按落点重挂；切开主线时切点之后的挂件换到后一半；挂点那一帧不在宿主入出点之间 = 断挂（半透明、导出时跳过）。渲染任务走 `render-video` worker（CF Container），进度与产物回 `Generation`；「上游已更新」= 对比 `sourceVersionId` 与节点当前版本。
 
 ⚠ **渲染任务的 jobId 不进 `EditProject`**：那是项目内容、会进撤销栈、会同步给别的设备，而一个渲染任务是这台机器上的一次操作——它住 `localStorage`，按 projectId 分键。
 

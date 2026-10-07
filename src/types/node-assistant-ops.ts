@@ -750,6 +750,11 @@ export const NodeAssistantEditUpdateClipOpSchema = z.object({
     gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
     /** 「上游已更新 → 一点换新」写的就是它。 */
     sourceVersionId: z.string().trim().min(1).max(160).optional(),
+    /**
+     * 挪一条台词（只对 A 轨有意义）：时间线秒。执行器丢掉旧挂点，按落点重新挂到
+     * 那一刻底下的主线段上 —— 「谁被拖了谁说了算」。
+     */
+    startSec: z.number().min(0).max(36_000).optional(),
   }),
 })
 

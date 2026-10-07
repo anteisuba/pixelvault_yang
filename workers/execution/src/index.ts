@@ -136,6 +136,11 @@ const IMAGE_QUEUE_PATH = '/workflows/image-queue'
 const IMAGE_QUEUE_WORKFLOW_ID = 'IMAGE_QUEUE'
 /** Best-effort cancel: app → worker. Mirrors `EXECUTION_WORKER.CANCEL_PATH`. */
 const CANCEL_PATH = '/cancel'
+/** 助手 LLM 调用日志：app → worker。Mirrors `EXECUTION_WORKER.LLM_CALL_LOG_PATH`. */
+const LLM_CALL_LOG_PATH = '/logs/llm-call'
+/** 一行日志最多这么多字段；字段值只收原始类型，⛔ 不收对象和长文。 */
+const LLM_CALL_LOG_MAX_FIELDS = 24
+const LLM_CALL_LOG_MAX_STRING = 120
 /**
  * Mirrors `EXECUTION_INTERNAL.RESOLVE_KEY_PATH` in `src/constants/execution.ts`.
  * The worker bundle can't import from `src/` (separate build), so this is a
@@ -9337,6 +9342,68 @@ async function handleCancel(
   })
 }
 
+/**
+ * 助手每次 LLM 调用的那一行（token / 耗时 / 用途），原样写进 Workers Logs —— Vercel
+ * Hobby 的运行时日志只留 1 小时，这里留 7 天，够攒数据定输出上限（2026-10-08）。
+ * ⚠ 只记数：值必须是短字符串 / 数字 / 布尔 / null，任何一项不合规整行拒收。
+ */
+export function parseLlmCallLog(
+  input: unknown,
+): Record<string, string | number | boolean | null> | null {
+  if (!isRecord(input)) return null
+  const entries = Object.entries(input)
+  if (entries.length === 0 || entries.length > LLM_CALL_LOG_MAX_FIELDS) {
+    return null
+  }
+  const valid = entries.every(
+    ([, value]) =>
+      value === null ||
+      typeof value === 'boolean' ||
+      (typeof value === 'number' && Number.isFinite(value)) ||
+      (typeof value === 'string' && value.length <= LLM_CALL_LOG_MAX_STRING),
+  )
+  return valid
+    ? (Object.fromEntries(entries) as Record<
+        string,
+        string | number | boolean | null
+      >)
+    : null
+}
+
+async function handleLlmCallLog(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+  let entry: ReturnType<typeof parseLlmCallLog> = null
+  try {
+    entry = parseLlmCallLog(JSON.parse(rawBody))
+  } catch {
+    entry = null
+  }
+  if (!entry) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid log entry.' },
+      { status: 400 },
+    )
+  }
+  console.log({ ...entry, message: 'assistant llm call' })
+  return new Response(null, { status: 204 })
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -9378,6 +9445,10 @@ const executionWorker = {
 
     if (request.method === 'POST' && url.pathname === CANCEL_PATH) {
       return handleCancel(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === LLM_CALL_LOG_PATH) {
+      return handleLlmCallLog(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

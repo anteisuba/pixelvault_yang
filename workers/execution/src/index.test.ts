@@ -33,6 +33,7 @@ import {
   isModel3DWorkflowId,
   isWorkerWorkflowId,
   parseCancelRequest,
+  parseLlmCallLog,
   parseLongVideoPipelineRunContext,
   parseModel3DRunContext,
   parseWorkerRunContext,
@@ -4946,5 +4947,74 @@ describe('generatePixAiImage', () => {
     await expect(
       generatePixAiImage(makeEnv(), makeContext(), 'pixai-key'),
     ).rejects.toThrow('completed without an image URL')
+  })
+})
+
+describe('/logs/llm-call route', () => {
+  const secret = 'test-execution-secret'
+  const url = 'https://execution.example.com/logs/llm-call'
+
+  async function signedLogRequest(body: string) {
+    return new Request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await createSignedRequestHeaders({ secret, body, url })),
+      },
+      body,
+    })
+  }
+
+  it('rejects an unsigned entry', async () => {
+    const response = await executionWorker.fetch(
+      new Request(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purpose: 'step' }),
+      }),
+      { INTERNAL_CALLBACK_SECRET: secret } as never,
+    )
+
+    expect(response.status).toBe(401)
+  })
+
+  it('writes a signed entry to the worker log as one structured line', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const entry = {
+        purpose: 'step',
+        step: 3,
+        adapterType: 'deepseek',
+        modelId: null,
+        usageReported: true,
+        inputTokens: 26000,
+        outputTokens: 12000,
+      }
+
+      const response = await executionWorker.fetch(
+        await signedLogRequest(JSON.stringify(entry)),
+        { INTERNAL_CALLBACK_SECRET: secret } as never,
+      )
+
+      expect(response.status).toBe(204)
+      expect(consoleLog).toHaveBeenCalledWith({
+        ...entry,
+        message: 'assistant llm call',
+      })
+    } finally {
+      consoleLog.mockRestore()
+    }
+  })
+
+  it('refuses nested objects and long text, so nothing but numbers lands in the log', () => {
+    expect(parseLlmCallLog({ purpose: 'step', detail: { prompt: 'x' } })).toBe(
+      null,
+    )
+    expect(parseLlmCallLog({ purpose: 'x'.repeat(500) })).toBe(null)
+    expect(parseLlmCallLog({})).toBe(null)
+    expect(parseLlmCallLog({ purpose: 'step', llmMs: 1200 })).toEqual({
+      purpose: 'step',
+      llmMs: 1200,
+    })
   })
 })

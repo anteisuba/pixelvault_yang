@@ -7,6 +7,7 @@ import {
   buildInternalUrl,
   dispatchImageWorkerRun,
   ExecutionWorkerDispatchError,
+  sendLlmCallLogToWorker,
 } from './execution-worker.service'
 
 const runContext: WorkerRunContext = {
@@ -119,5 +120,39 @@ describe('execution-worker.service', () => {
     expect(buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH)).toBe(
       `${expectedOrigin.replace(/\/$/, '')}${EXECUTION_INTERNAL.CALLBACK_PATH}`,
     )
+  })
+
+  it('signs the assistant llm call log and posts it to the worker', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendLlmCallLogToWorker({ purpose: 'step', inputTokens: 9000 })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://worker.example.com/logs/llm-call',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ purpose: 'step', inputTokens: 9000 }),
+      }),
+    )
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<
+      string,
+      string
+    >
+    expect(headers[EXECUTION_INTERNAL.SIGNATURE_HEADER]).toMatch(
+      /^[0-9a-f]{64}$/,
+    )
+  })
+
+  it('skips the llm call log when no worker is configured', async () => {
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', '')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendLlmCallLogToWorker({ purpose: 'step' })
+
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

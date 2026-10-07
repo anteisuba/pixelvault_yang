@@ -89,7 +89,7 @@ primitive → semantic → domain/component → page
 
 ### `ui/` 原语分类（58 文件，2026-07-10 清点）
 
-- **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · option-group · param-slider · seed-input · aspect-ratio-selector
+- **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · param-slider · seed-input
 - **覆层**：dialog · sheet · drawer(vaul) · responsive-dialog · responsive-popover · popover（带交互守卫）· alert-dialog · confirm-dialog · dropdown-menu · tooltip（delay 0）· command(cmdk)
 - **反馈**：skeleton（单一 pulse 原语）· progress · badge · error-alert · sonner
 - **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare · tree-view · collapsible-panel · animated-collapse

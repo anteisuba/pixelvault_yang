@@ -5,11 +5,11 @@ import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Switch } from '@/components/ui/switch'
+import { CapabilitySelectControl } from '@/components/business/studio/CapabilitySelectControl'
 import { useStudioForm } from '@/contexts/studio-context'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getCapabilityChipValue } from '@/lib/model-capability-chips'
 import type { TagWorkbenchControl } from '@/lib/tag-workbench-controls'
-import { cn } from '@/lib/utils'
 import type { AdvancedParams } from '@/types'
 
 interface StudioTagCapabilityControlProps {
@@ -74,50 +74,15 @@ export function StudioTagCapabilityControl({
       )}
 
       {chip.kind === 'select' && chip.options ? (
-        compact && chip.capability === 'sampler' ? (
-          <select
-            aria-label={label}
-            disabled={disabled}
-            value={String(value)}
-            onChange={(event) =>
-              update({
-                [chip.capability]: event.target.value,
-              } as AdvancedParams)
-            }
-            className="min-h-11 w-full rounded-md border border-input bg-background p-2 text-base lg:min-h-0 lg:text-sm"
-          >
-            {chip.options.map((option) => (
-              <option key={option} value={option}>
-                {tAdvanced(`${chip.capability}Option.${option}`)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {chip.options.map((option) => {
-              const selected = String(value) === option
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={selected}
-                  disabled={disabled}
-                  onClick={() =>
-                    update({ [chip.capability]: option } as AdvancedParams)
-                  }
-                  className={cn(
-                    'min-h-11 rounded-full border px-2.5 py-1 text-sm transition-[background-color,border-color] duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 lg:min-h-0 lg:text-2xs',
-                    selected
-                      ? 'border-foreground bg-background font-medium'
-                      : 'border-border bg-background text-muted-foreground hover:bg-accent',
-                  )}
-                >
-                  {tAdvanced(`${chip.capability}Option.${option}`)}
-                </button>
-              )
-            })}
-          </div>
-        )
+        <CapabilitySelectControl
+          chip={chip}
+          value={String(value)}
+          label={label}
+          disabled={disabled}
+          onChange={(next) =>
+            update({ [chip.capability]: next } as AdvancedParams)
+          }
+        />
       ) : null}
 
       {chip.kind === 'slider' && chip.range ? (

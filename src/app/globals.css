@@ -3139,6 +3139,42 @@ html:lang(ja) {
   }
 }
 
+/* ── 助手的光标（owner 2026-10-07 动效第 2 批「改工作台」）──────────
+   `lib/studio-operator-cursor.ts` 命令式挂在 body 上的那颗：近黑箭头 + 助手名字
+   小牌。只用前景 / 背景两色（动效不加颜色），位移由脚本写 transform。
+   ⛔ 不接指针事件：它只是看的，挡住下面那一格就成 bug 了。 */
+.assistant-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  pointer-events: none;
+  opacity: 0;
+}
+.assistant-cursor svg path {
+  fill: var(--foreground);
+  stroke: var(--background);
+  stroke-width: 1;
+}
+.assistant-cursor span {
+  margin-top: 12px;
+  border-radius: 4px;
+  background: var(--foreground);
+  color: var(--background);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.assistant-cursor span:empty {
+  display: none;
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

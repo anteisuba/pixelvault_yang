@@ -44,6 +44,7 @@ import { animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { useUser } from '@clerk/nextjs'
 import { assistantWorkspaceScope } from '@/lib/assistant-workspace'
+import { setAssistantCursorLabel } from '@/lib/studio-operator-cursor'
 
 import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
@@ -537,6 +538,10 @@ export function StudioOperatorDock() {
   useEffect(() => {
     setOperatorPlanMode(persona.planMode)
   }, [persona.planMode])
+  /** 助手光标上写的名字（改工作台时那颗黑箭头，`lib/studio-operator-cursor.ts`）。 */
+  useEffect(() => {
+    setAssistantCursorLabel(persona.name ?? '')
+  }, [persona.name])
   const width = useSyncExternalStore(
     subscribeWidth,
     getWidthSnapshot,

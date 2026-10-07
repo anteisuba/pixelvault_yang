@@ -110,6 +110,25 @@ export const LIQUID_TIMING = {
 } as const
 
 /**
+ * 结果图到达（owner 2026-10-07 PC 动效方向「图由糊变清」）：占位格换成结果图时，
+ * 图从这份模糊 + 微放大落到清晰原尺寸。时长走 `DURATION.slow`。
+ */
+export const RESULT_REVEAL = {
+  blurPx: 10,
+  fromScale: 1.04,
+} as const
+
+/**
+ * 「用它当参考」那一下（owner 2026-10-07）：缩略图的一个影子从结果格飞进助手输入框，
+ * 落点缩到 `toSizePx` 见方。纯装饰：挂载照常立即发生，⛔ 不等它飞完。
+ */
+export const REFERENCE_FLY = {
+  toSizePx: 28,
+  /** 中途抬起的高度（px），飞出一条弧而不是直线。 */
+  liftPx: 40,
+} as const
+
+/**
  * 查资料加进标签之后（owner 2026-09-27 查资料 B 动效表）：按钮上「已加进 ✓」停多久、
  * 输入框里「角色 N」那一页的小点亮多久。与 `--animate-tag-land` 的浅底褪色同一拍。
  */
@@ -197,6 +216,18 @@ export const ASSISTANT_TOUCH_FLASH_MOTION = {
   durationMs: 320,
   outlineWidthPx: 2,
   outlineOffsetPx: 4,
+} as const
+
+/**
+ * 助手的光标（owner 2026-10-07 动效第 2 批「改工作台」，`lib/studio-operator-cursor.ts`）。
+ * 走一站 = `DURATION_MS.slow`，到站那一闪 = 上面的 `ASSISTANT_TOUCH_FLASH_MOTION`。
+ * `insetPx` = 箭头尖落在那一格左沿往里多少；`enterOffsetPx` = 第一次出现时从右下
+ * 挪进来多远；`idleHideMs` = 走完最后一站后停多久再淡出。
+ */
+export const ASSISTANT_CURSOR_MOTION = {
+  insetPx: 16,
+  enterOffsetPx: 10,
+  idleHideMs: 900,
 } as const
 
 export const INGEST_MOTION = {

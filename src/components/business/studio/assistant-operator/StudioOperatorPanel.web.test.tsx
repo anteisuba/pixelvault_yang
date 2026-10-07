@@ -59,7 +59,7 @@ vi.mock('next/image', () => ({
 }))
 
 vi.mock('motion/react', () => ({
-  motion: { div: 'div' },
+  motion: { div: 'div', span: 'span', p: 'p' },
   useReducedMotion: () => true,
 }))
 

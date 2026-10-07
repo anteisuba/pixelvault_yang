@@ -79,6 +79,7 @@ vi.mock('@/contexts/studio-context', () => ({
     characters: { activeCardIds: [] },
   }),
   useStudioGen: () => ({ lastGeneration: null }),
+  useStudioGenOptional: () => ({ lastGeneration: null }),
 }))
 
 vi.mock('@/hooks/use-studio-generate-action', () => ({

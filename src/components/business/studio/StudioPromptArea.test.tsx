@@ -193,6 +193,12 @@ vi.mock('@/contexts/studio-context', () => ({
     canQueueMoreVideo: true,
     cancelAllRunItems: mockCancelAllRunItems,
   }),
+  // 「先搜再画」那份状态读的是可选版（助手宿主在没有生成层的路由上也读它）。
+  useStudioGenOptional: () => ({
+    isGenerating: mockGenState.isGenerating,
+    elapsedSeconds: 0,
+    activeRun: null,
+  }),
 }))
 
 // 两台跳转那一行（`StudioDialectJumpHint`）要一个 router —— 参数栏本身

@@ -69,6 +69,8 @@ export enum AI_MODELS {
   SEEDREAM_50_LITE_BYTEPLUS = 'seedream-5.0-lite-byteplus',
   /** Nano Banana 2 Lite — ultra-low-latency Gemini image tier. */
   GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
+  /** Nano Banana 2.1 — GA 2026-10-06, Google's successor to 3.1 Flash Image. */
+  GEMINI_NANO_BANANA_21 = 'gemini-nano-banana-2.1',
   NOVELAI_V45_FULL = 'nai-diffusion-4-5-full',
   NOVELAI_V45_CURATED = 'nai-diffusion-4-5-curated',
   NOVELAI_V5_FULL = 'nai-diffusion-5-full',

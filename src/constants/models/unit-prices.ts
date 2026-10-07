@@ -588,6 +588,13 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
       'Gemini API pricing：「Equivalent to $0.0336 per 1K resolution image」（Standard 档；Batch 档 $0.0168）',
     verifiedAt: '2026-08-18',
   },
+  [AI_MODELS.GEMINI_NANO_BANANA_21]: {
+    amount: 0.0336,
+    unit: 'image',
+    source:
+      'Gemini API pricing：输出 $30/百万 token，「$0.0336 per 1K image, $0.0504 per 2K image, $0.113 per 4K image」→ 默认 1K 档；输入 $1.50/百万 token（文本/图/视频）',
+    verifiedAt: '2026-10-07',
+  },
 
   // ── Replicate ──────────────────────────────────────────────────────────
   [AI_MODELS.ILLUSTRIOUS_XL]: {

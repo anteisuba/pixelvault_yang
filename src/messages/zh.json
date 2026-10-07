@@ -3813,6 +3813,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google 最快、成本最低的图像档位——适合快速草稿与大批量迭代。"
     },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google 最新的 Gemini 图像模型——图中文字更清晰，多轮修改角色更稳定，支持 1K 到 4K。"
+    },
     "ideogram45": {
       "label": "Ideogram 4.5",
       "description": "通过 Ideogram 官方接口生成图片与精确编辑。"

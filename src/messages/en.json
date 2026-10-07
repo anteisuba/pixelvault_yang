@@ -3813,6 +3813,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google's fastest, lowest-cost image tier — quick drafts and high-volume iteration."
     },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google's newest Gemini image model — sharper text in images, steadier characters across edits, 1K to 4K."
+    },
     "ideogram45": {
       "label": "Ideogram 4.5",
       "description": "Image generation and precise editing through the official Ideogram API."

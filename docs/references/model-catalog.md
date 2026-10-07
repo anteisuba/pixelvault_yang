@@ -66,14 +66,16 @@ owner 已选择接入 [H3 Max Turbo](https://fal.ai/models/minimax/h3-max-turbo/
 | OPENAI_GPT_IMAGE_25_FLARE    | gpt-image-2.5-flare                               | OpenAI 直连（BYOK）   |
 | OPENAI_GPT_IMAGE_25_SUNBURST | gpt-image-2.5-sunburst                            | OpenAI 直连（BYOK）   |
 | GEMINI_PRO_IMAGE             | gemini-3-pro-image                                | Gemini 直连           |
-| GEMINI_FLASH_IMAGE           | gemini-3.1-flash-image                            | Gemini 直连           |
 | **GEMINI_FLASH_LITE_IMAGE**  | gemini-3.1-flash-lite-image                       | Gemini 直连           |
+| **GEMINI_NANO_BANANA_21**    | gemini-nano-banana-2.1                            | Gemini 直连           |
 | FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                   |
 | FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi                 | fal                   |
 | **SEEDREAM_50_PRO**          | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                   |
 | **SEEDREAM_50_LITE**         | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                   |
 | **SEEDREAM_50_VOLCENGINE**   | doubao-seedream-5-0-260128                        | 火山方舟直连（cn）    |
 | RECRAFT_V4_PRO               | fal-ai/recraft/v4.1/pro/text-to-image             | fal                   |
+
+2026-10-07：接入 Nano Banana 2.1（[模型页](https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1)，10-06 GA），同日退役 `GEMINI_FLASH_IMAGE`（3.1 Flash Image，Google 已标弃用、指向 2.1；条目保留供历史作品解析，3D 多视角改用 2.1）。`models.get` 实测 2.1 支持 `generateContent`，Worker 现有 Gemini 图片路径原样可用。1K / 2K / 4K（无 512），最多 14 张参考；输出 $0.0336 / 1K 图（2K $0.0504、4K $0.113），输入 $1.50 / 百万 token。支持 Google 搜索接地（含图片搜索），按条款须展示搜索建议，尚未接入。
 
 ⚠ **`bytedance/seedream/v5/pro/...` 没有 `fal-ai/` 前缀**（同 `ideogram/v4` 的模式）——fal 上第三方 owner 的模型按 owner/model 直接寻址，照 4.5 的写法抄会 404。
 

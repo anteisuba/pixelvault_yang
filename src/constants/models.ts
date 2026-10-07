@@ -59,6 +59,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: 'seedream50ProByteplus',
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'seedream50LiteByteplus',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'geminiFlashLiteImage',
+  [AI_MODELS.GEMINI_NANO_BANANA_21]: 'geminiNanoBanana21',
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
   [AI_MODELS.NOVELAI_V45_CURATED]: 'novelaiV45Curated',
   [AI_MODELS.NOVELAI_V5_FULL]: 'novelaiV5Full',
@@ -157,6 +158,9 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.PIXAI_TSUBAKI_2,
   AI_MODELS.PIXAI_HARUKA_V2,
   AI_MODELS.PIXAI_HOSHINO_V2,
+  // ─── 2026-10-07 Google deprecated 3.1 Flash Image ─────────────────
+  // Nano Banana 2.1 (GEMINI_NANO_BANANA_21) is the successor.
+  AI_MODELS.GEMINI_FLASH_IMAGE,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)
@@ -220,6 +224,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: 'Seedream',
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'Seedream',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'Gemini',
+  [AI_MODELS.GEMINI_NANO_BANANA_21]: 'Gemini',
   [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
   [AI_MODELS.IDEOGRAM_45]: 'Ideogram',
   [AI_MODELS.RECRAFT_V4_PRO]: 'Recraft',

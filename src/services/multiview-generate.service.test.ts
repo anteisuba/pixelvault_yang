@@ -147,7 +147,7 @@ describe('generateMultiView', () => {
   it('honours user-supplied modelId / apiKeyId / projectId', async () => {
     await generateMultiView('clerk_test', {
       imageUrl: 'https://cdn.test/front.png',
-      modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+      modelId: AI_MODELS.GEMINI_NANO_BANANA_21,
       apiKeyId: 'key_42',
       projectId: 'proj_99',
     })
@@ -155,7 +155,7 @@ describe('generateMultiView', () => {
     for (const call of mockSubmitImageGeneration.mock.calls) {
       expect(call[1]).toEqual(
         expect.objectContaining({
-          modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+          modelId: AI_MODELS.GEMINI_NANO_BANANA_21,
           apiKeyId: 'key_42',
           projectId: 'proj_99',
         }),

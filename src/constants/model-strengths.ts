@@ -213,6 +213,14 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.9,
     },
   },
+  [AI_MODELS.GEMINI_NANO_BANANA_21]: {
+    bestFor: ['general', 'concept', 'text-in-image', 'instruction-following'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint: `Gemini Nano Banana 2.1, successor to 3.1 Flash Image with sharper in-image text and steadier characters across edits. ${GEMINI_PROMPT_FORMULA} It takes up to 14 references — describe each one's role rather than listing them.`,
+    editHint:
+      'Say which element changes and leave the rest alone: Change the sky to overcast. Do not change any other elements. Name the role of each input image when combining several.',
+  },
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: {
     bestFor: ['general', 'quick-iteration', 'draft', 'instruction-following'],
     promptStyle: 'natural-language',

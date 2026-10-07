@@ -3813,6 +3813,10 @@
       "label": "Gemini 3.1 Flash Lite Image",
       "description": "Google の最速・最安の画像モデル。ラフを作ったり、何度も試したりする用途に。"
     },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google の最新 Gemini 画像モデル。画像内の文字がより鮮明に、編集を重ねてもキャラクターが崩れにくい。1K〜4K 対応。"
+    },
     "ideogram45": {
       "label": "Ideogram 4.5",
       "description": "Ideogram 公式 API による画像生成と精密な編集。"

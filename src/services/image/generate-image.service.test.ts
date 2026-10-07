@@ -208,11 +208,11 @@ describe('resolveGenerationRoute', () => {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.api' },
       keyValue: 'user-key-123',
-      modelId: 'gemini-3.1-flash-image-preview',
+      modelId: 'gemini-nano-banana-2.1',
     } as never)
 
     const route = await resolveGenerationRoute('user-1', {
-      modelId: 'gemini-3.1-flash-image-preview',
+      modelId: 'gemini-nano-banana-2.1',
       apiKeyId: 'key-1',
     })
 
@@ -225,7 +225,7 @@ describe('resolveGenerationRoute', () => {
 
     await expect(
       resolveGenerationRoute('user-1', {
-        modelId: 'gemini-3.1-flash-image-preview',
+        modelId: 'gemini-nano-banana-2.1',
         apiKeyId: 'bad-key',
       }),
     ).rejects.toThrow(GenerateImageServiceError)
@@ -241,7 +241,7 @@ describe('resolveGenerationRoute', () => {
 
     await expect(
       resolveGenerationRoute('user-1', {
-        modelId: 'gemini-3.1-flash-image-preview',
+        modelId: 'gemini-nano-banana-2.1',
         apiKeyId: 'key-1',
       }),
     ).rejects.toThrow(GenerateImageServiceError)
@@ -252,11 +252,11 @@ describe('resolveGenerationRoute', () => {
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.api' },
       keyValue: 'auto-key',
-      modelId: 'gemini-3.1-flash-image-preview',
+      modelId: 'gemini-nano-banana-2.1',
     } as never)
 
     const route = await resolveGenerationRoute('user-1', {
-      modelId: 'gemini-3.1-flash-image-preview',
+      modelId: 'gemini-nano-banana-2.1',
     })
 
     expect(route.apiKey).toBe('auto-key')
@@ -270,7 +270,7 @@ describe('resolveGenerationRoute', () => {
 
     await expect(
       resolveGenerationRoute('user-1', {
-        modelId: 'gemini-3.1-flash-image-preview',
+        modelId: 'gemini-nano-banana-2.1',
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
     expect(getSystemApiKey).not.toHaveBeenCalled()

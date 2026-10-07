@@ -465,7 +465,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
     externalModelId: 'gemini-3.1-flash-image',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-10-07: Google deprecated 3.1 Flash Image in favour of
+    // Nano Banana 2.1 (GEMINI_NANO_BANANA_21). See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image',
     qualityTier: 'standard',
@@ -485,6 +487,23 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl:
       'https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-image',
     qualityTier: 'budget',
+    styleTag: 'general',
+    maxPromptChars: 8000,
+  },
+  {
+    // Nano Banana 2.1 — GA 2026-10-06; Google marks 3.1 Flash Image deprecated
+    // in its favour. Same generateContent surface (models.get lists it), 1K /
+    // 2K / 4K only (no 512px tier), up to 14 references.
+    id: AI_MODELS.GEMINI_NANO_BANANA_21,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+    externalModelId: 'gemini-nano-banana-2.1',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1',
+    qualityTier: 'standard',
     styleTag: 'general',
     maxPromptChars: 8000,
   },

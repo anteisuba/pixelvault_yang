@@ -128,6 +128,8 @@ const GeminiTextResponseSchema = z.object({
               .array(
                 z.object({
                   text: z.string().optional(),
+                  /** 思考摘要（流式请求带 `includeThoughts`），不是回答正文。 */
+                  thought: z.boolean().optional(),
                 }),
               )
               .optional(),
@@ -370,6 +372,14 @@ export function isLlmTextContextLimitError(error: unknown): boolean {
   }
 
   return containsContextLimitMessage(getErrorClassificationText(error))
+}
+
+/** provider 临时不可用（503 / 529 / overloaded）—— 同一请求稍后重发值得一试。 */
+export function isLlmTextTransientError(error: unknown): boolean {
+  return (
+    error instanceof ApiRequestError &&
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable
+  )
 }
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
@@ -1386,7 +1396,10 @@ function resolveGeminiMaxOutputTokens(
     : input.maxTokens
 }
 
-async function buildGeminiRequest(input: LlmTextInput): Promise<{
+async function buildGeminiRequest(
+  input: LlmTextInput,
+  options: { stream?: boolean } = {},
+): Promise<{
   modelId: string
   baseUrl: string
   body: string
@@ -1475,6 +1488,15 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
         generationConfig: {
           responseModalities: ['TEXT'],
           ...(maxOutputTokens ? { maxOutputTokens } : {}),
+          /**
+           * ⚠ Gemini 要等第一个字生成完才回响应头，静默思考的整段时间都压在
+           * `STREAM_HEADERS` 那 90s 上（2026-10-07 实测头 = 首字 11s；生产上长对话
+           * 连续 90s 超时）。流式请求带上思考摘要，响应头与字节在思考期间就开始流动，
+           * 计时器回到「空闲多久」的本意；摘要在解析时丢掉，不进正文。
+           */
+          ...(options.stream
+            ? { thinkingConfig: { includeThoughts: true } }
+            : {}),
           ...(input.responseFormat === 'json_object'
             ? {
                 responseMimeType: 'application/json',
@@ -1580,10 +1602,13 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     const parsed = GeminiTextResponseSchema.safeParse(await response.json())
     if (!parsed.success) throw parsed.error
     const data = parsed.data
-    const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
+    const text = (data.candidates?.[0]?.content?.parts ?? [])
+      .filter((part) => !part.thought)
+      .map((part) => part.text ?? '')
+      .join('')
 
     if (
-      !textPart?.text?.trim() ||
+      !text.trim() ||
       data.promptFeedback?.blockReason ||
       (data.candidates?.[0]?.finishReason &&
         data.candidates[0].finishReason !== 'STOP')
@@ -1591,7 +1616,7 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
       throw buildGeminiNoTextError(data, modelId)
     }
 
-    return textPart.text.trim()
+    return text.trim()
   } finally {
     await Promise.allSettled(
       uploadedVideoNames.map((name) =>
@@ -2008,8 +2033,14 @@ function toLlmTextRefusalError(context: {
  * so every explicit budget is raised to the Anthropic floor — it is a cap,
  * not spend, so the floor costs nothing on short replies.
  */
-function resolveAnthropicMaxTokens(input: LlmTextInput): number {
-  if (input.providerManagedOutput) return LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC
+function resolveAnthropicMaxTokens(
+  input: LlmTextInput,
+  stream: boolean,
+): number {
+  if (input.providerManagedOutput)
+    return stream
+      ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM
+      : LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC
   return Math.max(
     input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
     LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
@@ -2055,7 +2086,7 @@ function buildAnthropicMessagesRequest(
     body: serializeLlmRequest(input, {
       model: modelId,
       ...(options.stream ? { stream: true } : {}),
-      max_tokens: resolveAnthropicMaxTokens(input),
+      max_tokens: resolveAnthropicMaxTokens(input, options.stream === true),
       // Omission enables adaptive thinking; disabled and budget_tokens are
       // unsupported. No sampling parameters or forced tool choice are sent.
       // Effort stays at the model default (Opus: medium; Sonnet/Fable: high); tune via
@@ -2193,7 +2224,7 @@ function guardUserPrompt(prompt: string, maxLength?: number | null): void {
 
 async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
   const { modelId, baseUrl, body, uploadedVideoNames, hasLinkedVideo } =
-    await buildGeminiRequest(input)
+    await buildGeminiRequest(input, { stream: true })
   const endpoint = `${baseUrl}/${modelId}:streamGenerateContent?alt=sse`
 
   try {
@@ -2240,7 +2271,7 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
       }
       if (reason === 'STOP') finished = true
       for (const part of chunk.data.candidates?.[0]?.content?.parts ?? []) {
-        if (part.text) {
+        if (part.text && !part.thought) {
           hasText ||= part.text.trim().length > 0
           yield part.text
         }

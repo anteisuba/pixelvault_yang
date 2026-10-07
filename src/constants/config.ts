@@ -603,6 +603,11 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.
   ANTHROPIC: 16_000,
+  // Streaming Claude requests get the wide ceiling: Sonnet 5.5 / Opus 5.5 /
+  // Fable 5.1 output up to 128K and streaming has no HTTP-timeout reason to
+  // stay low. 16K was cutting operator turns off mid-JSON once adaptive
+  // thinking ran long (2026-10-07 production `ASSISTANT_OUTPUT_TRUNCATED`).
+  ANTHROPIC_STREAM: 64_000,
   // grok-4.7 reasoning cannot be disabled and defaults to high. Official
   // Chat Completions uses `max_completion_tokens` for *visible* output
   // only (default 128k when omitted). Deprecated `max_tokens` must not be

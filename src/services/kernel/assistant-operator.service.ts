@@ -10235,12 +10235,51 @@ function jsonCandidates(raw: string): string[] {
   ].filter((candidate): candidate is string => Boolean(candidate))
 }
 
+/**
+ * Claude 偶尔把工具调用写成它原生的 `<invoke name="…"><parameter name="…">` 标记，
+ * 而不是协议里的 JSON（2026-10-07 生产：Sonnet 5.5 在画布连写两次，整段标记被当成
+ * 正文显示）。两种写法一一对应 `{"tool":{"name","args"}}`，这里按原样译回去；
+ * 标记前的那段话当 `message`。⚠ 只认闭合完整的 `</invoke>`：截断的半截不猜。
+ */
+const OPERATOR_TOOL_MARKUP_PATTERN = /<\/?(?:invoke|parameter|function_calls)\b/
+
+function invokeMarkupTurn(raw: string): Record<string, unknown> | null {
+  const invoke = raw.match(/<invoke\s+name="([^"]+)"\s*>([\s\S]*?)<\/invoke>/)
+  if (!invoke?.[1] || invoke.index === undefined) return null
+  const args: Record<string, unknown> = {}
+  for (const [, key, value] of (invoke[2] ?? '').matchAll(
+    /<parameter\s+name="([^"]+)"\s*>([\s\S]*?)<\/parameter>/g,
+  )) {
+    if (!key) continue
+    const text = (value ?? '').trim()
+    try {
+      args[key] = /^(?:[[{]|-?\d|true$|false$|null$)/.test(text)
+        ? (JSON.parse(text) as unknown)
+        : text
+    } catch {
+      args[key] = text
+    }
+  }
+  const message = raw
+    .slice(0, invoke.index)
+    .replace(/<\/?function_calls>/g, '')
+    .trim()
+  return { tool: { name: invoke[1], args }, ...(message ? { message } : {}) }
+}
+
 function parseTurnJson(
   raw: string,
 ):
   | { success: true; turn: AssistantOperatorTurn }
   | { success: false; error: string } {
   let validationError: string | undefined
+  const markup = OPERATOR_TOOL_MARKUP_PATTERN.test(raw)
+    ? invokeMarkupTurn(raw)
+    : null
+  if (markup) {
+    const parsed = AssistantOperatorTurnSchema.safeParse(markup)
+    if (parsed.success) return { success: true, turn: parsed.data }
+  }
   for (const candidate of jsonCandidates(raw)) {
     try {
       const parsed = AssistantOperatorTurnSchema.safeParse(
@@ -11278,7 +11317,9 @@ export async function* runAssistantOperator(
           const language = resolveResponseLanguage(request, persona)
           const salvaged =
             extractJsonStringValue(raw, 'message')?.trim() ||
-            (raw.includes('{') ? '' : raw.trim())
+            (raw.includes('{') || OPERATOR_TOOL_MARKUP_PATTERN.test(raw)
+              ? ''
+              : raw.trim())
           yield {
             type: ASSISTANT_OPERATOR_EVENTS.message,
             text: clamp(

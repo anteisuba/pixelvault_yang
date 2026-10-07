@@ -2245,6 +2245,39 @@ describe('llmTextStream', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toContain('alt=sse')
   })
 
+  it('Gemini：流式请求带思考摘要保活，摘要不进正文', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        `data: ${JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: 'Weighing the refs', thought: true }],
+              },
+            },
+          ],
+        })}\n\n`,
+        geminiEvent('{"ok":true}'),
+        GEMINI_STOP_FRAME,
+      ]),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const chunks = await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        ...GEMINI_ROUTE,
+      }),
+    )
+
+    expect(chunks).toEqual(['{"ok":true}'])
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body.generationConfig.thinkingConfig).toEqual({
+      includeThoughts: true,
+    })
+  })
+
   it('chunk 边界切在一行中间也要能拼回来', async () => {
     const whole = geminiEvent('半截字')
     const cut = Math.floor(whole.length / 2)
@@ -2450,6 +2483,36 @@ describe('llmTextStream', () => {
       expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
     },
   )
+
+  it('Claude：provider 管上限的流式请求给宽上限，思考长了也不截断正文', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        sseResponse([
+          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
+          CLAUDE_MESSAGE_STOP_FRAME,
+        ]),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        providerManagedOutput: true,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: {
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com/v1',
+        },
+        apiKey: 'test-key',
+      }),
+    )
+
+    expect(readFetchJson(fetchMock).max_tokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM,
+    )
+  })
 
   it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
     'Claude：流中途 stop_reason=refusal 抛 PROVIDER_REFUSED，不把半截当完整回复 (%s)',

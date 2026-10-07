@@ -170,6 +170,73 @@ describe('reference analysis', () => {
     expect(complete.mock.calls[0]?.[3]).not.toHaveProperty('$schema')
   })
 
+  it('sends provider schemas every structured-output provider accepts', async () => {
+    const schemas: Record<string, unknown>[] = []
+    const capture = vi.fn(
+      async (
+        _system: string,
+        _prompt: string,
+        _images?: string[],
+        schema?: Record<string, unknown>,
+      ) => {
+        if (schema) schemas.push(schema)
+        throw new Error('captured')
+      },
+    )
+    await analyzeOperatorReferences({ ...input, complete: capture }).catch(
+      () => undefined,
+    )
+    await buildOperatorReferenceBrief({
+      profiles,
+      context: input.context,
+      language: 'English',
+      complete: capture,
+    }).catch(() => undefined)
+    await reviewOperatorReferencePrompt({
+      analysis: { profiles, brief },
+      language: 'English',
+      prompt: 'A character',
+      context: 'Draw the character.',
+      modelHint: 'natural',
+      complete: capture,
+    }).catch(() => undefined)
+    expect(schemas).toHaveLength(3)
+
+    // OpenAI strict 与 Anthropic output_config 的交集：不许 `$ref`（带兄弟字段即 400），
+    // 每个对象封口且全字段必填，数值 / 长度约束只能写进 description。
+    const violations: string[] = []
+    const walk = (value: unknown, path: string): void => {
+      if (Array.isArray(value)) {
+        value.forEach((child, index) => walk(child, `${path}[${index}]`))
+        return
+      }
+      if (!value || typeof value !== 'object') return
+      const node = value as Record<string, unknown>
+      if ('$ref' in node || '$defs' in node) violations.push(`${path}: $ref`)
+      if (node.type === 'object') {
+        const keys = Object.keys((node.properties as object) ?? {})
+        const required = (node.required as string[] | undefined) ?? []
+        if (node.additionalProperties !== false)
+          violations.push(`${path}: additionalProperties`)
+        for (const key of keys)
+          if (!required.includes(key))
+            violations.push(`${path}.${key}: optional`)
+      }
+      for (const key of ['minLength', 'maxLength', 'minimum', 'maximum'])
+        if (key in node) violations.push(`${path}: ${key}`)
+      if ('maxItems' in node) violations.push(`${path}: maxItems`)
+      if ('minItems' in node && node.minItems !== 0 && node.minItems !== 1)
+        violations.push(`${path}: minItems`)
+      for (const [key, child] of Object.entries(node))
+        walk(child, `${path}.${key}`)
+    }
+    schemas.forEach((schema, index) => {
+      expect(schema.type).toBe('object')
+      walk(schema, `schema${index}`)
+    })
+    expect(violations).toEqual([])
+  })
+
   it('refreshes cached evidence that has rendering but no character coverage', async () => {
     const old = { ...profiles[0]!, characterEvidence: undefined }
     const complete = vi.fn().mockResolvedValue(

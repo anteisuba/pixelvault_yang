@@ -49,10 +49,12 @@ type Complete = (
 ) => Promise<string>
 
 function referenceOutputContract(schema: z.ZodType) {
+  // ⚠ 复用的子 schema 一律内联：`reused: 'ref'` 会产出 `{ $ref, description }`
+  // 这类带兄弟字段的引用，OpenAI strict 模式整份拒收（2026-10-07 生产 400）。
   const canonical = z.toJSONSchema(schema, {
     target: 'draft-2020-12',
     unrepresentable: 'any',
-    reused: 'ref',
+    reused: 'inline',
   })
   const providerSchema = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(providerSchema)

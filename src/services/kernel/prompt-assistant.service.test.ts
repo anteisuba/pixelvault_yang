@@ -27,6 +27,7 @@ vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
   isLlmTextContextLimitError: (error: unknown) =>
     mockIsContextLimitError(error),
+  isLlmTextTransientError: () => false,
 }))
 
 const mockBuildInspirationContext = vi.fn()

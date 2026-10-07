@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
   isLlmTextContextLimitError,
+  isLlmTextTransientError,
   llmTextCompletion,
   llmTextStream,
   type LlmTextInput,
@@ -121,8 +122,9 @@ export function buildAssistantConversation(
  * Shared non-streaming assistant completion policy.
  *
  * The selected provider owns input/output ceilings. PixelVault sends the full
- * sanitized context first and performs exactly one compacted retry only when
- * the provider explicitly reports an input-context overflow.
+ * sanitized context first and retries exactly once: compacted when the
+ * provider reports an input-context overflow, unchanged after a short wait
+ * when it reports a transient outage (see `promptForRetry`).
  */
 export async function completeAssistantTextWithContextRetry({
   systemPrompt,
@@ -167,24 +169,67 @@ export async function completeAssistantTextWithContextRetry({
     return result
   } catch (error) {
     signal?.throwIfAborted()
-    if (!isLlmTextContextLimitError(error)) throw error
-
-    const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
-    if (compactedPrompt === fullPrompt) throw error
-    signal?.throwIfAborted()
-    const result = await complete(compactedPrompt)
+    const retryPrompt = await promptForRetry(error, {
+      fullPrompt,
+      buildUserPrompt,
+      contextCompactionTargetLength,
+      signal,
+    })
+    const result = await complete(retryPrompt)
     signal?.throwIfAborted()
     return result
   }
 }
 
+/** provider 临时不可用时，同一请求等这么久再发一次。 */
+const TRANSIENT_RETRY_DELAY_MS = 1_500
+
 /**
- * 流式版，策略与上面那条一致：先发全量上下文，**只有** provider 明确报输入超限
- * 才压缩重试一次。
+ * 两类错误各值得**一次**重发，其余原样抛出：
+ *  · 上下文超限 → 压缩历史后重发；
+ *  · provider 临时不可用（503 / 529）→ 稍等后原样重发（2026-10-07 生产：
+ *    Gemini 一次 503 就让整轮失败）。超时不在此列 —— 再等一轮只会翻倍等待。
+ */
+async function promptForRetry(
+  error: unknown,
+  {
+    fullPrompt,
+    buildUserPrompt,
+    contextCompactionTargetLength,
+    signal,
+  }: {
+    fullPrompt: string
+    buildUserPrompt(maxLength?: number): string
+    contextCompactionTargetLength: number
+    signal?: AbortSignal
+  },
+): Promise<string> {
+  if (isLlmTextTransientError(error)) {
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS)
+      signal?.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer)
+          reject(signal.reason)
+        },
+        { once: true },
+      )
+    })
+    return fullPrompt
+  }
+  if (!isLlmTextContextLimitError(error)) throw error
+  const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
+  if (compactedPrompt === fullPrompt) throw error
+  signal?.throwIfAborted()
+  return compactedPrompt
+}
+
+/**
+ * 流式版，策略与上面那条一致：先发全量上下文，超限压缩 / 临时不可用稍等，各重发一次。
  *
  * ⚠ **已经吐出过字就绝不重试**（照搬画布 gateway 分支用真机换来的规则）：重试会把
- * 同一段开场白再流一遍，用户看到的是重复的半截话。超上下文这种错必然发生在任何
- * 可见输出之前，所以「吐过字」等价于「这个错不是超上下文」，直接抛。
+ * 同一段开场白再流一遍，用户看到的是重复的半截话。
  */
 export async function* streamAssistantTextWithContextRetry({
   systemPrompt,
@@ -235,12 +280,15 @@ export async function* streamAssistantTextWithContextRetry({
     return
   } catch (error) {
     signal?.throwIfAborted()
-    if (emittedText || !isLlmTextContextLimitError(error)) throw error
+    if (emittedText) throw error
 
-    const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
-    if (compactedPrompt === fullPrompt) throw error
-    signal?.throwIfAborted()
-    for await (const chunk of stream(compactedPrompt)) {
+    const retryPrompt = await promptForRetry(error, {
+      fullPrompt,
+      buildUserPrompt,
+      contextCompactionTargetLength,
+      signal,
+    })
+    for await (const chunk of stream(retryPrompt)) {
       signal?.throwIfAborted()
       yield chunk
     }

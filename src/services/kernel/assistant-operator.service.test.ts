@@ -82,6 +82,7 @@ vi.mock('@/services/llm-text.service', () => ({
     mockSupportsNativeWebSearch(adapter),
   llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
   isLlmTextContextLimitError: () => false,
+  isLlmTextTransientError: () => false,
 }))
 
 const mockGetPublicGenerationPage = vi.fn()
@@ -979,6 +980,38 @@ describe('工具环 · 逐事件顺序', () => {
       ASSISTANT_OPERATOR_EVENTS.message,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
+  })
+
+  it('⭐ Claude 写成 <invoke> 标记的工具调用按原样译回 JSON 执行', async () => {
+    queueTurns(
+      '我先把提示词写进去。\n<function_calls>\n<invoke name="apply">\n<parameter name="action">set_prompt</parameter>\n<parameter name="value">1girl, night city</parameter>\n</invoke>\n</function_calls>',
+      { finished: true, message: '写好了。' },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const done = stepsOf(events).filter(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done.map((step) => step.tool)).toEqual([
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    ])
+    expect(done[0]?.payload).toMatchObject({ value: '1girl, night city' })
+  })
+
+  it('⛔ 读不出来的工具标记不当正文显示', async () => {
+    const markup =
+      '<invoke name="apply">\n<parameter name="action">set_prompt</parameter>\n<parameter name="value">unterminated'
+    queueTurns(markup, markup)
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const message = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+    )
+    expect(message?.text).toBeTruthy()
+    expect(message?.text).not.toContain('<invoke')
+    expect(message?.text).not.toContain('<parameter')
   })
 
   /**

@@ -12,6 +12,8 @@ vi.mock('@/services/llm-text.service', () => ({
   llmTextStream: stream,
   isLlmTextContextLimitError: (error: unknown) =>
     error instanceof Error && error.message === 'context overflow',
+  isLlmTextTransientError: (error: unknown) =>
+    error instanceof Error && error.message === 'overloaded',
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -128,6 +130,63 @@ describe('assistant completion cancellation and context retry', () => {
       )
     },
   )
+
+  it.each(['completion', 'stream'] as const)(
+    '%s resends the same prompt once after a transient provider outage',
+    async (mode) => {
+      vi.useFakeTimers()
+      try {
+        const buildUserPrompt = vi.fn(() => 'full')
+        if (mode === 'completion') {
+          completion.mockRejectedValueOnce(new Error('overloaded'))
+          completion.mockResolvedValueOnce('answer')
+        } else {
+          stream.mockImplementationOnce(async function* () {
+            throw new Error('overloaded')
+          })
+          stream.mockImplementationOnce(async function* () {
+            yield 'answer'
+          })
+        }
+        const input = { ...options, buildUserPrompt }
+        const pending =
+          mode === 'completion'
+            ? completeAssistantTextWithContextRetry(input)
+            : collect(streamAssistantTextWithContextRetry(input))
+        await vi.runAllTimersAsync()
+        await expect(pending).resolves.toEqual(
+          mode === 'completion' ? 'answer' : ['answer'],
+        )
+        const transport = mode === 'completion' ? completion : stream
+        expect(transport).toHaveBeenCalledTimes(2)
+        expect(transport).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ userPrompt: 'full' }),
+        )
+        expect(buildUserPrompt).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it('gives up after one transient retry', async () => {
+    vi.useFakeTimers()
+    try {
+      const failure = new Error('overloaded')
+      completion.mockRejectedValue(failure)
+      const pending = completeAssistantTextWithContextRetry({
+        ...options,
+        buildUserPrompt: () => 'full',
+      })
+      const assertion = expect(pending).rejects.toBe(failure)
+      await vi.runAllTimersAsync()
+      await assertion
+      expect(completion).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 
   it('does not retry a stream after visible text', async () => {
     const failure = new Error('context overflow')

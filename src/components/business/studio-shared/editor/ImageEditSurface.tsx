@@ -33,8 +33,9 @@ import {
   ImageEditComposer,
   type ImageEditComposerControls,
 } from './ImageEditComposer'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useImageEditModelOptions } from '@/hooks/use-image-edit-model-options'
-import { isRunnableModelOption } from '@/hooks/use-split-model-options'
+import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import type { StudioModelOption } from '@/types/model-option'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
@@ -215,6 +216,7 @@ export function ImageEditSurface({
   const selectedModelId =
     selectedModels[activeTask] ?? getDefaultModelId(activeTask)
   const modelOptions = useImageEditModelOptions(activeCapability.models)
+  const { hasLoaded: keysLoaded } = useApiKeysContext()
   const selectedOption =
     modelOptions.find(
       (option) =>
@@ -279,8 +281,11 @@ export function ImageEditSurface({
       operation: () => Promise<boolean>,
     ) => {
       if (runningRef.current || !sourceUrl || !active) return
-      if (!selectedOption || !isRunnableModelOption(selectedOption)) {
-        if (selectedOption) setQuickSetup(selectedOption)
+      if (!selectedOption) return
+      // key 名单没回来 = 不知道缺不缺：照常跑，服务端按 adapter 找这位用户的 key
+      // （已无平台 key 兜底，真缺只会报错、不会花钱）。⛔ 别把有 key 的人弹进 QuickSetup。
+      if (isMissingKeyModelOption(selectedOption, keysLoaded)) {
+        setQuickSetup(selectedOption)
         return
       }
 
@@ -302,7 +307,7 @@ export function ImageEditSurface({
         setPreviewUrl(null)
       }
     },
-    [active, onRunStateChange, selectedOption, sourceUrl],
+    [active, keysLoaded, onRunStateChange, selectedOption, sourceUrl],
   )
 
   const target = useMemo(

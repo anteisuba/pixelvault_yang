@@ -15,6 +15,8 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
 const harness = vi.hoisted(() => ({
   dispatch: vi.fn(),
   openKeySettings: vi.fn(),
+  /** key 名单回没回来 —— 默认回来了。 */
+  keysLoaded: true,
 }))
 
 const modelFixtures = vi.hoisted(() => {
@@ -58,6 +60,10 @@ vi.mock('@/contexts/studio-context', () => ({
 
 vi.mock('@/hooks/use-open-key-settings', () => ({
   useOpenKeySettings: () => harness.openKeySettings,
+}))
+
+vi.mock('@/contexts/api-keys-context', () => ({
+  useApiKeysContext: () => ({ hasLoaded: harness.keysLoaded }),
 }))
 
 vi.mock('@/hooks/use-image-model-options', () => ({
@@ -118,5 +124,25 @@ describe('StudioCommandPalette', () => {
       payload: 'workspace:video-ready-model',
     })
     expect(harness.openKeySettings).not.toHaveBeenCalled()
+  })
+
+  it('key 名单还没回来：不知道缺不缺，照常选中、⛔ 不跳配置页', () => {
+    harness.dispatch.mockClear()
+    harness.openKeySettings.mockClear()
+    harness.keysLoaded = false
+    try {
+      render(<StudioCommandPalette />)
+      fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+
+      fireEvent.click(screen.getByText('video-only-model'))
+
+      expect(harness.dispatch).toHaveBeenCalledWith({
+        type: 'SET_OPTION_ID',
+        payload: 'workspace:video-only-model',
+      })
+      expect(harness.openKeySettings).not.toHaveBeenCalled()
+    } finally {
+      harness.keysLoaded = true
+    }
   })
 })

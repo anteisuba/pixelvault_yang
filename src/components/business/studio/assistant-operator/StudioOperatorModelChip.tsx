@@ -120,10 +120,18 @@ export function StudioOperatorModelChip({
     adapterType: NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].adapterType,
   })
   /** 哪些模型已经有 key —— 没有的那些点下去走 `QuickSetupDialog`。 */
-  const { savedRoutes } = useLLMRoutePicker('assistant')
+  const { savedRoutes, hasLoaded: keysLoaded } = useLLMRoutePicker('assistant')
   const boundModelIds = useMemo(
     () => new Set(savedRoutes.map((route) => route.modelId)),
     [savedRoutes],
+  )
+  /**
+   * **确定**缺 key。⚠ key 名单回来之前 `savedRoutes` 是空的 —— 那是「不知道」，
+   * ⛔ 不标「需要 key」、不弹配置，点了照常写 persona。
+   */
+  const needsKey = useCallback(
+    (modelId: string) => keysLoaded && !boundModelIds.has(modelId),
+    [boundModelIds, keysLoaded],
   )
   const selected = pending && pending.base === value ? pending.next : value
 
@@ -140,7 +148,7 @@ export function StudioOperatorModelChip({
 
   const handlePick = useCallback(
     (model: RouteModel) => {
-      if (!boundModelIds.has(model.modelId)) {
+      if (needsKey(model.modelId)) {
         setOpen(false)
         setQuickSetup({
           open: true,
@@ -152,7 +160,7 @@ export function StudioOperatorModelChip({
       }
       void commit(model.modelId)
     },
-    [boundModelIds, commit],
+    [commit, needsKey],
   )
 
   const selectedLabel =
@@ -236,7 +244,7 @@ export function StudioOperatorModelChip({
                 </p>
                 {group.models.map((model) => {
                   const isSelected = selected === model.modelId
-                  const needsKey = !boundModelIds.has(model.modelId)
+                  const missingKey = needsKey(model.modelId)
                   return (
                     <button
                       key={model.modelId}
@@ -256,7 +264,7 @@ export function StudioOperatorModelChip({
                           className="size-3.5 shrink-0 text-foreground"
                           aria-hidden
                         />
-                      ) : needsKey ? (
+                      ) : missingKey ? (
                         <span className="shrink-0 text-3xs text-muted-foreground">
                           {t('needsKey')}
                         </span>

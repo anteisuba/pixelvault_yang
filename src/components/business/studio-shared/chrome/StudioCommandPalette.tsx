@@ -21,11 +21,12 @@ import {
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
+import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
-import { isRunnableModelOption } from '@/hooks/use-split-model-options'
+import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
@@ -45,6 +46,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
     state.selectedOptionId ?? '',
   )
   const { modelOptions: audioModelOptions } = useAudioModelOptions()
+  const { hasLoaded: keysLoaded } = useApiKeysContext()
   const openKeySettings = useOpenKeySettings()
   const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
@@ -71,17 +73,18 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   /**
    * 没配 key 的模型选不上：直接去配它那一家的 key（与模型选择器同一条规矩，
    * owner 2026-10-06）。⛔ 不先把它设成当前模型再让出图键去报缺 key。
+   * key 名单还没回来时不知道缺不缺 —— 照常选（同选择器）。
    */
   const selectModel = useCallback(
     (option: (typeof modelOptions)[number]) => {
       setOpen(false)
-      if (!isRunnableModelOption(option)) {
+      if (isMissingKeyModelOption(option, keysLoaded)) {
         openKeySettings(option.adapterType)
         return
       }
       dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
     },
-    [dispatch, openKeySettings],
+    [dispatch, keysLoaded, openKeySettings],
   )
 
   const switchMode = useCallback(

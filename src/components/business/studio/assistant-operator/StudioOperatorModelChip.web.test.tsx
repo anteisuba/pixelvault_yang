@@ -70,20 +70,25 @@ const BOUND = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
   (model) =>
     model.adapterType === NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].adapterType,
 )
+/** key 名单回没回来 —— 默认回来了；没回来时 `savedRoutes` 也是空的。 */
+const routeKeys = vi.hoisted(() => ({ hasLoaded: true }))
 vi.mock('@/hooks/use-llm-route-picker', () => ({
   useLLMRoutePicker: () => ({
-    savedRoutes: BOUND.map((model) => ({
-      optionId: `llm-route:assistant:key:k1:${model.modelId}`,
-      apiKeyId: 'k1',
-      adapterType: model.adapterType,
-      modelId: model.modelId,
-      label: model.label,
-      providerLabel: 'OpenAI',
-      isSaved: true,
-    })),
+    savedRoutes: routeKeys.hasLoaded
+      ? BOUND.map((model) => ({
+          optionId: `llm-route:assistant:key:k1:${model.modelId}`,
+          apiKeyId: 'k1',
+          adapterType: model.adapterType,
+          modelId: model.modelId,
+          label: model.label,
+          providerLabel: 'OpenAI',
+          isSaved: true,
+        }))
+      : [],
     lockedRoutes: [],
     allRoutes: [],
     healthMap: {},
+    hasLoaded: routeKeys.hasLoaded,
   }),
 }))
 
@@ -96,6 +101,7 @@ function openMenu() {
 describe('StudioOperatorModelChip', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    routeKeys.hasLoaded = true
   })
 
   it('「自动」排第一、默认打勾，九条模型按厂商分组列全', () => {
@@ -209,5 +215,26 @@ describe('StudioOperatorModelChip', () => {
 
     expect(onChange).not.toHaveBeenCalled()
     expect(quickSetup).toHaveBeenLastCalledWith(locked.modelId)
+  })
+
+  it('key 名单还没回来：不标「需要 key」，点了照常写 persona、⛔ 不弹配置', () => {
+    routeKeys.hasLoaded = false
+    const onChange = vi.fn()
+    render(
+      <StudioOperatorModelChip
+        value={ASSISTANT_ROUTE_MODEL_AUTO}
+        onChange={onChange}
+      />,
+    )
+    openMenu()
+
+    expect(screen.queryByText('needsKey')).not.toBeInTheDocument()
+    const target = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[1]
+    fireEvent.click(
+      screen.getByTestId(`operator-model-option-${target.modelId}`),
+    )
+
+    expect(onChange).toHaveBeenCalledWith(target.modelId)
+    expect(quickSetup).not.toHaveBeenCalled()
   })
 })

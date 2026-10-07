@@ -35,6 +35,11 @@ export interface UseLLMRoutePickerReturn {
   lockedRoutes: LLMRouteOption[]
   allRoutes: LLMRouteOption[]
   healthMap: Record<string, ApiKeyHealthStatus>
+  /**
+   * key 名单回来没有（`useApiKeys().hasLoaded`）。⚠ 没回来时 `savedRoutes` 是空的
+   * —— 那是「不知道」不是「没有 key」，据此标「需要 key」之前先看这一格。
+   */
+  hasLoaded: boolean
 }
 
 /**
@@ -66,7 +71,7 @@ function getRegistryEntries(
 export function useLLMRoutePicker(
   scope: LlmCapabilityScope,
 ): UseLLMRoutePickerReturn {
-  const { keys, healthMap } = useApiKeysContext()
+  const { keys, healthMap, hasLoaded } = useApiKeysContext()
 
   const savedRoutes = useMemo<LLMRouteOption[]>(() => {
     return keys
@@ -107,5 +112,5 @@ export function useLLMRoutePicker(
     [savedRoutes, lockedRoutes],
   )
 
-  return { savedRoutes, lockedRoutes, allRoutes, healthMap }
+  return { savedRoutes, lockedRoutes, allRoutes, healthMap, hasLoaded }
 }

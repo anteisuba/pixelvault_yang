@@ -12,6 +12,8 @@ import { ImageEditSurface } from './ImageEditSurface'
 const mocks = vi.hoisted(() => ({
   keys: [] as UserApiKeyRecord[],
   healthMap: {} as Record<string, ApiKeyHealthStatus>,
+  /** key 名单回没回来 —— 默认回来了。 */
+  keysLoaded: true,
   run: vi.fn(),
 }))
 
@@ -23,6 +25,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: () => ({
     keys: mocks.keys,
     healthMap: mocks.healthMap,
+    hasLoaded: mocks.keysLoaded,
   }),
 }))
 
@@ -111,6 +114,7 @@ function configureOpenAI() {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.keys = []
+  mocks.keysLoaded = true
   mocks.run.mockResolvedValue({
     success: true,
     outputs: [{ imageUrl: 'https://cdn.example.com/extracted.png' }],
@@ -155,6 +159,19 @@ describe('ImageEditSurface · 提取元素凭据选择', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'extract.run' })).toBeEnabled(),
     )
+  })
+
+  it('key 名单还没回来：不知道缺不缺，照常提取、⛔ 不弹配置', async () => {
+    mocks.keysLoaded = false
+    renderExtraction()
+    fireEvent.click(screen.getByRole('button', { name: 'extract.run' }))
+
+    await waitFor(() =>
+      expect(mocks.run).toHaveBeenCalledWith(
+        expect.objectContaining({ capability: 'extract-element' }),
+      ),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('同模型但不同 adapter 的已存凭据不能放行 Gemini 提取', () => {

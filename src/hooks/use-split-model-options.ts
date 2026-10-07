@@ -40,6 +40,21 @@ export function isRunnableModelOption(option: SplitableModelOption): boolean {
 }
 
 /**
+ * 这一条**确定**缺 key：key 名单已经回来（`keysLoaded` =
+ * `useApiKeysContext().hasLoaded`），而它跑不起来。
+ *
+ * ⚠ 名单回来之前每条都还没有 `providerKeyId`，`isRunnableModelOption` 一律 false
+ * —— 那是「不知道」不是「缺」。要据此写「缺 key」、跳配 key 页或开
+ * `QuickSetupDialog` 的地方用这一个，⛔ 别拿 `!isRunnableModelOption` 顶。
+ */
+export function isMissingKeyModelOption(
+  option: SplitableModelOption,
+  keysLoaded: boolean,
+): boolean {
+  return keysLoaded && !isRunnableModelOption(option)
+}
+
+/**
  * 分桶本体。抽成纯函数是因为三层选择器要**按分组**判桶（一个型号底下的几条
  * 渠道，只要有一条能跑，这个型号就不该落进「需要 API key」），而分组判桶发生在
  * 一次 render 里的循环中，调不了 hook。两处共用同一份分类，别再手写第三份。

@@ -513,7 +513,7 @@ export function Studio3DWorkspace({
   // API key gating — surface fal key state up-front so users without a key
   // don't get a confusing 400 at generate time. The selector below lets the
   // user pick *which* fal key powers the run when they have more than one.
-  const { keys } = useApiKeysContext()
+  const { keys, hasLoaded: keysLoaded } = useApiKeysContext()
   const falActiveKeys = useMemo(
     () =>
       keys.filter((k) => k.adapterType === AI_ADAPTER_TYPES.FAL && k.isActive),
@@ -1133,6 +1133,9 @@ export function Studio3DWorkspace({
   }
 
   const hasGenerationKey = isRodin ? hasRodinKey : hasFalKey
+  // key 名单没回来 = 不知道缺不缺：⛔ 不写「配置 API Key」、不弹 QuickSetup，照常
+  // 生成（不带 apiKeyId 时服务端按 adapter 找这位用户的 key）。
+  const generationKeyMissing = keysLoaded && !hasGenerationKey
   const hasGenerationInput =
     isRodin && rodinTextMode
       ? rodinPrompt.trim().length > 0
@@ -1158,9 +1161,11 @@ export function Studio3DWorkspace({
       )}
       <Button
         type="button"
-        disabled={isGenerating || (hasGenerationKey && !hasGenerationInput)}
+        disabled={
+          isGenerating || (!generationKeyMissing && !hasGenerationInput)
+        }
         onClick={() => {
-          if (!hasGenerationKey) {
+          if (generationKeyMissing) {
             setQuickSetupOpen(true)
             return
           }
@@ -1172,7 +1177,7 @@ export function Studio3DWorkspace({
         {isGenerating ? <Spinner size="sm" /> : <Sparkles className="size-4" />}
         {isGenerating
           ? t('generating')
-          : !hasGenerationKey
+          : generationKeyMissing
             ? t('setupApiKeyButton')
             : !hasGenerationInput
               ? isRodin && rodinTextMode

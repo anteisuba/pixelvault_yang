@@ -46,6 +46,10 @@ vi.mock('@/lib/api-client', () => ({
   inpaintImageAPI: mocks.inpaintImageAPI,
 }))
 
+vi.mock('@/contexts/api-keys-context', () => ({
+  useApiKeysContext: () => ({ hasLoaded: true }),
+}))
+
 vi.mock('@/hooks/use-image-edit-model-options', () => ({
   useImageEditModelOptions: (modelIds: readonly string[]) =>
     modelIds.map((modelId) => ({

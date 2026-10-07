@@ -8,6 +8,8 @@ import { Studio3DWorkspace } from './Studio3DWorkspace'
 const mocks = vi.hoisted(() => ({
   mobile: false,
   hasKey: true,
+  /** key 名单回没回来 —— 默认回来了。 */
+  keysLoaded: true,
   error: null as string | null,
   generate: vi.fn(),
   reset: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
         ]
       : [],
     isLoading: false,
+    hasLoaded: mocks.keysLoaded,
   }),
 }))
 vi.mock('@/hooks/use-generate-3d', () => ({
@@ -93,6 +96,7 @@ vi.mock('@/components/ui/responsive-dialog', () => ({
 beforeEach(() => {
   mocks.mobile = false
   mocks.hasKey = true
+  mocks.keysLoaded = true
   mocks.error = null
   vi.clearAllMocks()
 })
@@ -142,6 +146,24 @@ describe('Studio3DWorkspace approved layout', () => {
       'A ceramic vase',
     )
     expect(mocks.generate).not.toHaveBeenCalled()
+  })
+  it('key 名单还没回来：不写「配置 API Key」，有输入就照常生成', () => {
+    mocks.keysLoaded = false
+    mocks.hasKey = false
+    mount()
+    expect(
+      screen.queryByRole('button', { name: 'setupApiKeyButton' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
+      target: { value: 'text' },
+    })
+    fireEvent.change(screen.getByLabelText(/rodinPromptLabel/), {
+      target: { value: 'A ceramic vase' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'generateButton' }))
+    expect(mocks.generate).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('setup-dialog')).not.toBeInTheDocument()
   })
   it('offers inline setup instead of a disabled missing-key action', () => {
     mocks.hasKey = false

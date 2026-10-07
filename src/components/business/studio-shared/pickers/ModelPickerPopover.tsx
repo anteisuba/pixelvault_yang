@@ -40,7 +40,10 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
-import { isRunnableModelOption } from '@/hooks/use-split-model-options'
+import {
+  isMissingKeyModelOption,
+  isRunnableModelOption,
+} from '@/hooks/use-split-model-options'
 import {
   channelHasOption,
   flattenPickerModels,
@@ -453,14 +456,13 @@ export function ModelPickerPopover({
     const toView = (channel: PickerChannel): ChannelView => {
       const { option } = channel
       const unitPrice = getModelUnitPriceByStringId(option.modelId)
-      const hasKey = isRunnableModelOption(option)
       return {
         channel,
         price: unitPrice
           ? tCommon(`unitPrice.${unitPrice.unit}`, { amount: unitPrice.amount })
           : null,
-        hasKey,
-        missingKey: keysLoaded && !hasKey,
+        hasKey: isRunnableModelOption(option),
+        missingKey: isMissingKeyModelOption(option, keysLoaded),
       }
     }
 
@@ -725,7 +727,7 @@ export function ModelPickerPopover({
 
   const commit = (option: StudioModelOption, modelKey: string) => {
     // 名单没回来时不知道缺不缺 —— 照常选，⛔ 别把有 key 的人送去配置页。
-    if (keysLoaded && !isRunnableModelOption(option)) {
+    if (isMissingKeyModelOption(option, keysLoaded)) {
       setOpen(false)
       setActiveRowId(null)
       openKeySettings(option.adapterType)

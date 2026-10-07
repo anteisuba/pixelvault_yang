@@ -28,6 +28,10 @@ import {
   STUDIO_OPERATOR_FIELD_IDS,
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
+import {
+  canGuideAssistantCursor,
+  guideAssistantCursor,
+} from '@/lib/studio-operator-cursor'
 
 /** 被闪的那一格挂的 class；真值（时长 / 曲线 / 降级）在 `globals.css`。 */
 export const ASSISTANT_FIELD_TOUCH_CLASS = 'assistant-field-touched'
@@ -64,8 +68,28 @@ function selectorOf(field: StudioOperatorField): string {
  */
 export function flashAssistantTouchedField(field: StudioOperatorField): void {
   if (typeof document === 'undefined') return
-  const targets = document.querySelectorAll<HTMLElement>(selectorOf(field))
-  for (const target of targets) {
+  /**
+   * 桌面且动效开着时，先让助手的光标走过去、到了再闪（owner 2026-10-07 动效第
+   * 2 批，见 `studio-operator-cursor.ts`）—— 一轮改几格就一格一格走。其余情况
+   * （触屏 / 减少动效 / 没有 WAAPI）照旧当场闪。
+   */
+  if (canGuideAssistantCursor()) {
+    guideAssistantCursor({
+      field,
+      targets: () => targetsOf(field),
+      flash: () => flashNow(field),
+    })
+    return
+  }
+  flashNow(field)
+}
+
+function targetsOf(field: StudioOperatorField): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(selectorOf(field)))
+}
+
+function flashNow(field: StudioOperatorField): void {
+  for (const target of targetsOf(field)) {
     const pending = pendingRemovals.get(target)
     if (pending !== undefined) window.clearTimeout(pending)
     target.classList.remove(ASSISTANT_FIELD_TOUCH_CLASS)

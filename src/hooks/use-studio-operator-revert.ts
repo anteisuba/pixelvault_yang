@@ -16,6 +16,7 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
 } from '@/constants/assistant-operator'
 import {
+  STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_FIELDS,
   studioOperatorChangeSubject,
   type StudioOperatorField,
@@ -34,6 +35,7 @@ import {
   revertOperatorStep,
   type StudioOperatorApplyContext,
 } from '@/lib/studio-operator-apply'
+import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import type {
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
@@ -182,6 +184,21 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
               getOperatorStepField(entry.step) === field,
           )
           if (!stillChanged) clearOperatorChange(field)
+        }
+
+        /**
+         * 撤销也让助手的光标**倒着**走一遍（owner 2026-10-07 动效第 2 批）：
+         * 改的时候一格一格走过去，撤的时候按相反的顺序一格一格改回去。
+         * ⚠ 排到下一帧：这一刻表单刚落回去、那几格正在重渲染（与应用那一侧同源）。
+         * ⚠ 画布那一格不走这里（画布有自己的节点闪）。
+         */
+        const revisit = [...touched].filter(
+          (field) => field !== STUDIO_OPERATOR_FIELD_IDS.canvasNodes,
+        )
+        if (revisit.length > 0 && typeof window !== 'undefined') {
+          window.requestAnimationFrame(() => {
+            for (const field of revisit) flashAssistantTouchedField(field)
+          })
         }
 
         if (revertedEntries.length > 0) {

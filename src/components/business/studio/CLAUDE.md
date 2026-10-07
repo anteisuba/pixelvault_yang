@@ -80,7 +80,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 施工基准 `docs/references/pages/assistant-shell-v2.md`（A 方向节 · §3.2 五类卡片 · §4.3 收起态 · §12 皮肤）；`assistant-shell.md` 只作钱闸 / 检索链参考。动这一系之前先读 v2，别照现状扩。
 
-按需挂载、不在主树固定位置的常用单元：StudioModeSelector / StudioGenerateBar / StudioWorkflowPicker
+按需挂载、不在主树固定位置的常用单元：StudioWorkflowPicker
 （studio-shared/workflow/）、StudioSpecChip /
 StudioGallery（studio/）、StudioLightbox / StudioErrorBoundary（studio-shared/chrome/）。
 

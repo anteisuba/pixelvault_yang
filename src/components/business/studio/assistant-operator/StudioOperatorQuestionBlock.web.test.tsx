@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { StudioOperatorQuestionBlock } from './StudioOperatorQuestionBlock'
@@ -17,6 +17,13 @@ import type { StudioOperatorQuestionPrompt } from '@/types/studio-assistant-oper
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join('/')}` : key,
+}))
+
+/** 缺省按「减少动效」跑：点中即提交。停一拍的那一支单独开一条用例。 */
+const motionPrefs = vi.hoisted(() => ({ reduce: true }))
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
+  useReducedMotion: () => motionPrefs.reduce,
 }))
 
 vi.mock('next/image', () => ({
@@ -175,5 +182,32 @@ describe('StudioOperatorQuestionBlock', () => {
       key: 'Escape',
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('动效开着时：选中那一行先变黑，停一拍再换题', () => {
+    vi.useFakeTimers()
+    motionPrefs.reduce = false
+    try {
+      const onAnswer = vi.fn()
+      render(
+        <StudioOperatorQuestionBlock
+          prompt={PROMPT}
+          onAnswer={onAnswer}
+          onBack={vi.fn()}
+          onDismiss={vi.fn()}
+        />,
+      )
+      const [first] = screen.getAllByTestId('operator-question-option')
+      fireEvent.click(first!)
+      expect(first!.getAttribute('data-picked')).toBe('true')
+      expect(onAnswer).not.toHaveBeenCalled()
+      act(() => {
+        vi.advanceTimersByTime(120)
+      })
+      expect(onAnswer).toHaveBeenCalledTimes(1)
+    } finally {
+      motionPrefs.reduce = true
+      vi.useRealTimers()
+    }
   })
 })

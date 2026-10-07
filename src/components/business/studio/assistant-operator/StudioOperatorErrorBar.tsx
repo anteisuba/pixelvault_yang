@@ -27,6 +27,8 @@ import { useEffect, useState } from 'react'
 import { Copy, Check } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
+import { BlurSwap } from '@/components/ui/blur-swap'
+
 import type { StudioOperatorErrorTrace } from '@/types/studio-assistant-operator'
 
 /**
@@ -107,12 +109,15 @@ export function StudioOperatorErrorBar({
                `touch-target-y` 的「只撑高不撑宽」在这里不会压到邻居。 */
             className="touch-target-y inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
           >
-            {copied ? (
-              <Check className="size-3.5" aria-hidden />
-            ) : (
-              <Copy className="size-3.5" aria-hidden />
-            )}
-            {copied ? t('error.copied') : t('error.copyDetail')}
+            {/* 复制 → 已复制（owner 2026-10-07）：图标和字一起糊着换，⛔ 硬切。 */}
+            <BlurSwap swapKey={copied ? 'copied' : 'copy'} className="gap-1">
+              {copied ? (
+                <Check className="size-3.5" aria-hidden />
+              ) : (
+                <Copy className="size-3.5" aria-hidden />
+              )}
+              {copied ? t('error.copied') : t('error.copyDetail')}
+            </BlurSwap>
           </button>
         </div>
       ) : null}

@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
@@ -27,6 +28,11 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   type AssistantOperatorConfirmChoice,
 } from '@/constants/assistant-operator'
+import {
+  DURATION_MS,
+  LIQUID_TIMING,
+  motionTransition,
+} from '@/constants/motion'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorQuestionAnswer,
@@ -92,6 +98,7 @@ export function StudioOperatorQuestionBlock({
   onDismiss,
 }: StudioOperatorQuestionBlockProps) {
   const t = useTranslations('StudioOperator')
+  const reduceMotion = useReducedMotion()
   /** ⭐ 当前是第几题 = 已答几道（⛔ 不另存一个下标，见 prompt 的头注）。 */
   const step = prompt.answers.length
   const question = prompt.questions[step]
@@ -105,6 +112,19 @@ export function StudioOperatorQuestionBlock({
    * 答两遍（第二下落在还没换掉的那一题上）。
    */
   const [submitted, setSubmitted] = useState(false)
+  /**
+   * 刚被选中的那一行（owner 2026-10-07 动效第 2 批「点一行就进下一题」）：
+   * 那一行先变成近黑实底、编号键帽按下去，停一拍再换题 —— 用户看得见自己点中了
+   * 哪一行。减少动效时不停这一拍，直接提交。
+   */
+  const [picked, setPicked] = useState<string | null>(null)
+  const pickTimer = useRef<number | null>(null)
+  useEffect(
+    () => () => {
+      if (pickTimer.current !== null) window.clearTimeout(pickTimer.current)
+    },
+    [],
+  )
 
   /**
    * ⭐ **块出现时自己拿走焦点**：键盘 1–4 / ↑↓ 要生效，焦点就不能留在输入框上。
@@ -122,20 +142,47 @@ export function StudioOperatorQuestionBlock({
   const pickOption = (option: StudioOperatorQuestionOption) => {
     if (submitted) return
     setSubmitted(true)
+    setPicked(option.id)
     const choice = toConfirmChoice(option.id)
-    onAnswer(
-      { questionId: question.id, optionIds: [option.id] },
-      {
-        label: option.label,
-        ...(choice ? { choice } : {}),
-        ...(option.assetUrl ? { assetOptionId: option.id } : {}),
-      },
-    )
+    const submit = () =>
+      onAnswer(
+        { questionId: question.id, optionIds: [option.id] },
+        {
+          label: option.label,
+          ...(choice ? { choice } : {}),
+          ...(option.assetUrl ? { assetOptionId: option.id } : {}),
+        },
+      )
+    if (reduceMotion) {
+      submit()
+      return
+    }
+    pickTimer.current = window.setTimeout(() => {
+      pickTimer.current = null
+      submit()
+    }, DURATION_MS.fast)
   }
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
+      /**
+       * 问题从输入框里**长出来**（owner 2026-10-07 动效方向）：每道题都是新挂上的
+       * （key 带题号），所以每进一题都由糊变清地进来 —— 第一题往上浮一下，
+       * 之后每一题从右边糊进来（「点一行就进下一题」）。只有进场：答完整块
+       * 立即让位给输入框，⛔ 不套 `AnimatePresence`（见 `BlurSwap` 头注）。
+       */
+      initial={
+        reduceMotion
+          ? false
+          : {
+              opacity: 0,
+              ...(step === 0 ? { y: 6 } : { x: 12 }),
+              filter: `blur(${LIQUID_TIMING.blurPx}px)`,
+            }
+      }
+      animate={{ opacity: 1, x: 0, y: 0, filter: 'blur(0px)' }}
+      transition={motionTransition('base', reduceMotion)}
       tabIndex={-1}
       data-testid="operator-question-block"
       data-step={step + 1}
@@ -277,17 +324,26 @@ export function StudioOperatorQuestionBlock({
           data-option-id={option.id}
           data-index={index}
           data-cursor={cursor === index ? 'true' : 'false'}
+          data-picked={picked === option.id ? 'true' : 'false'}
           disabled={submitted}
           onMouseEnter={() => setCursor(index)}
           onClick={() => pickOption(option)}
           className={cn(
             'flex min-w-0 items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
             cursor === index && 'bg-muted',
+            // 选中那一行：近黑实底 + 白字（信号位，§12.2），⛔ 不跟着 disabled 变淡。
+            picked === option.id &&
+              'bg-foreground text-background disabled:opacity-100',
           )}
         >
           <span
             aria-hidden
-            className="mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground"
+            className={cn(
+              'mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground transition-transform duration-fast ease-standard motion-reduce:transition-none',
+              // 键帽按下去（「按数字键直选」）。
+              picked === option.id &&
+                'scale-90 border-background/40 text-background',
+            )}
           >
             {index + 1}
           </span>
@@ -303,7 +359,12 @@ export function StudioOperatorQuestionBlock({
           ) : null}
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="flex min-w-0 items-center gap-1.5">
-              <span className="min-w-0 text-sm font-medium text-foreground">
+              <span
+                className={cn(
+                  'min-w-0 text-sm font-medium text-foreground',
+                  picked === option.id && 'text-background',
+                )}
+              >
                 {option.label}
               </span>
               {option.recommended ? (
@@ -317,7 +378,12 @@ export function StudioOperatorQuestionBlock({
             </span>
             {/* 说明那一句由模型给 —— 没有就只剩标签（⛔ 不编一句）。 */}
             {option.description ? (
-              <span className="text-xs leading-relaxed text-muted-foreground">
+              <span
+                className={cn(
+                  'text-xs leading-relaxed text-muted-foreground',
+                  picked === option.id && 'text-background/70',
+                )}
+              >
                 {option.description}
               </span>
             ) : null}
@@ -326,6 +392,6 @@ export function StudioOperatorQuestionBlock({
       ))}
       {/* 「其他」= 下面那一行输入框（Q6），分隔线只是提示那一行也能答。 */}
       <div aria-hidden className="mx-1 mt-1 border-t border-border" />
-    </div>
+    </motion.div>
   )
 }

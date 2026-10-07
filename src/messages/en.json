@@ -6340,8 +6340,8 @@
         }
       },
       "tracks": {
-        "video": "Picture",
-        "audio": "Voice",
+        "video": "Main",
+        "audio": "Lines",
         "music": "Music",
         "empty": "Drop media here",
         "text": "Captions",
@@ -6351,6 +6351,7 @@
         "split": "Split",
         "remove": "Delete"
       },
+      "overview": "Whole cut",
       "staleBadge": "Source updated",
       "clipTag": "{name} · {duration}",
       "previewTitle": "Preview · {name}",

@@ -2719,6 +2719,18 @@ html:lang(ja) {
 
 /* 选中环的轨道：平时就挂一圈透明 outline，选中只换颜色 —— `outline-style` 不能过渡，
    选中那一刻才挂上的话环会瞬出瞬没（node-canvas-v2 §1 第 12 条：选中环走 120）。 */
+/* 剪辑台的磁性让位（v2 关键切片动效表「插、删、换位、变长短」）：段、挂件、连接线、
+   菱形同一条曲线同一个时长滑到新位置，⛔ 挂件晚一拍。只动 left / width —— 时间线的
+   位置就是秒数，换 transform 会让命中区与看见的位置对不上。 */
+@utility transition-magnetic {
+  transition:
+    left var(--duration-reveal) var(--ease-standard),
+    width var(--duration-reveal) var(--ease-standard);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
 @utility node-ring-track {
   outline: 1.5px solid transparent;
   outline-offset: 0;

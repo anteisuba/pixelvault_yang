@@ -6340,8 +6340,8 @@
         }
       },
       "tracks": {
-        "video": "映像",
-        "audio": "ボイス",
+        "video": "メイン",
+        "audio": "セリフ",
         "music": "音楽",
         "empty": "ここに素材をドロップ",
         "text": "字幕",
@@ -6351,6 +6351,7 @@
         "split": "分割",
         "remove": "削除"
       },
+      "overview": "全体",
       "staleBadge": "元素材が更新",
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",

@@ -6340,8 +6340,8 @@
         }
       },
       "tracks": {
-        "video": "画面",
-        "audio": "配音",
+        "video": "主线",
+        "audio": "台词",
         "music": "配乐",
         "empty": "把素材拖到这里",
         "text": "字幕",
@@ -6351,6 +6351,7 @@
         "split": "分割",
         "remove": "删除"
       },
+      "overview": "全片条",
       "staleBadge": "上游已更新",
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",

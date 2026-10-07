@@ -94,32 +94,17 @@ export const EDIT_PANELS: readonly EditPanelId[] = [
   EDIT_PANEL_IDS.transition,
 ]
 
-/**
- * 台面几何（「剪辑台 A · 全部状态」画板，owner 2026-09-28 定稿：工作台那一套卡片语言）。
- * ⚠ 每一条轨是一道轨槽，段在槽里上下各让 `laneInsetPx`：段高 + 两倍让位 = 轨高。
- */
+/** 台面几何里与时间线轨道无关的那几样（素材面板 / 素材格 / 手柄 / 菱形图标）。 */
 export const EDIT_DESK_LAYOUT = {
   /** 素材面板宽（画板 `.ed-fly` 268 减去内边距后的内容宽，沿用 236 的两列格）。 */
   panelWidthPx: 236,
-  /** 画面段高（spec §6「段高 52」）。画面轨 = 52 + 3 × 2。 */
-  clipHeightPx: 52,
-  /** 配音 / 配乐段高。声音轨 = 30 + 3 × 2。 */
+  /** 素材格里那条波形高。 */
   waveHeightPx: 30,
-  /** 段在轨槽里上下各让多少。 */
-  laneInsetPx: 3,
-  /** 左边轨道名那一列宽（画板 `.ed-heads`）。 */
-  trackHeadWidthPx: 64,
-  /** 标尺高（画板 `.ed-rul`）。 */
-  rulerHeightPx: 22,
   /** 素材缩略高（画板 `.ptile { height:64 }`）。 */
   assetTileHeightPx: 64,
-  /** 播放头宽（画板 width:2）。 */
-  playheadWidthPx: 2,
-  /** 段之间的空隙（画板 gap:4）。 */
-  clipGapPx: 4,
   /** 裁剪手柄宽（画板 `.hl` / `.hr`）。 */
   handleWidthPx: 9,
-  /** 转场菱形边长（画板 12）。 */
+  /** 转场图标里那颗菱形边长（左列转场页）。 */
   transitionMarkPx: 12,
   /**
    * 波形一根柱占多宽（柱 3 + 缝 2，见 `AudioWaveform` 的 `w-0.75 gap-0.5`）。
@@ -128,15 +113,62 @@ export const EDIT_DESK_LAYOUT = {
   waveBarPitchPx: 5,
 } as const
 
+/**
+ * 时间线的轨道几何（v2 第 3 片 3b · 关键切片 `JtN1ur…` 台面）：从上到下 全片条 · 标尺 ·
+ * **字幕 · 主线 · 台词 · 配乐**。轨与轨之间那几道缝不是留白 —— 挂件的**连接线**就画在
+ * 缝里（字幕往下连主线，台词往上连主线）。所有段在自己的轨里铺满轨高，⛔ 不再上下让位。
+ * 时间线是纵向绝对定位的一块画布，各轨的 `top` 由这里算（`EDIT_TIMELINE_LANE_TOP`）。
+ */
+export const EDIT_TIMELINE_GEOMETRY = {
+  /** 左边轨道名那一列宽。 */
+  headWidthPx: 70,
+  /** 全片条（只在放大到装不下时出现，但位置一直留着，⛔ 出现时把时间线往下推）。 */
+  overviewPx: 18,
+  overviewGapPx: 6,
+  rulerPx: 20,
+  textPx: 22,
+  videoPx: 66,
+  audioPx: 24,
+  musicPx: 60,
+  /** 标尺 → 字幕 · 字幕 → 主线 · 主线 → 台词 · 台词 → 配乐。 */
+  rulerGapPx: 8,
+  textGapPx: 6,
+  videoGapPx: 10,
+  audioGapPx: 10,
+  /** 段间菱形边长（压在主线上沿）。 */
+  seamPx: 13,
+  /** 挂件的连接线离挂件左缘多远。 */
+  linkInsetPx: 6,
+  /** 换挂点之后连接线亮多久。 */
+  linkGlowMs: 900,
+} as const
+
+/** 各轨在时间线画布里的 `top`（标尺下沿为 0 之前的那几格都算在内）。 */
+export const EDIT_TIMELINE_LANE_TOP = (() => {
+  const g = EDIT_TIMELINE_GEOMETRY
+  const text = g.rulerPx + g.rulerGapPx
+  const video = text + g.textPx + g.textGapPx
+  const audio = video + g.videoPx + g.videoGapPx
+  const music = audio + g.audioPx + g.audioGapPx
+  return { text, video, audio, music, bottom: music + g.musicPx } as const
+})()
+
+/**
+ * 主线段上那排缩略帧（v2：一段铺多帧，看得出镜头里在发生什么）。帧走自家 CDN 的边缘
+ * 截帧（`getVideoFrameUrl`），时间点按 `stepSec` 取整 —— 裁剪拖动时只换得了有限几张，
+ * 同一组 (源, 时间, 宽) 一个月只截一次。截不了（不在自家 CDN）就回落成封面帧。
+ */
+export const EDIT_TIMELINE_FILMSTRIP = {
+  frameWidthPx: 240,
+  stepSec: 0.5,
+} as const
+
 /** 左栏音频素材格里那条波形画几根柱（236 面板两列，一格约 106px 宽）。 */
 export const EDIT_DESK_ASSET_WAVE_BARS = 28
 
 /**
- * 时间线上一段画几条缩略帧（画板 `.clip` 里那排 `.fr`）。
- *
- * ⚠ 是**上限**不是定值：段有多宽就按 `clipHeightPx` 的 16:9 宽度铺满，短段少铺
- * 几条。⛔ 不按秒抽真帧 —— 一段一张封面已经能回答「这是哪一镜」，逐帧抽要 N 次
- * seek，拖手柄时页面直接停住。
+ * 时间线上一段最多画几帧（主线轨高的 16:9 宽度铺满，短段少铺几帧）。⚠ 是**上限**：
+ * 长段的帧拉宽而不是加帧 —— 帧数就是边缘截帧的请求数。
  */
 export const EDIT_DESK_CLIP_FRAME_MAX = 12
 
@@ -414,10 +446,6 @@ export const EDIT_ATTACH_EPSILON_SEC = 0.001
 /** 一段字幕最短 / 内容多长。 */
 export const EDIT_TEXT_CLIP_MIN_DURATION_SEC = EDIT_CLIP_MIN_DURATION_SEC
 export const EDIT_TEXT_MAX_LENGTH = 500
-
-/** T 段高 / T 轨行高（画板 `.tclip { height:32 }` / `.lane { height:44 }`）。 */
-export const EDIT_TEXT_CLIP_HEIGHT_PX = 24
-export const EDIT_TEXT_LANE_HEIGHT_PX = 30
 
 /* ─── 快捷键预设（S8d · spec §6「快捷键」）─────────────────────────────── */
 

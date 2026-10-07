@@ -1067,8 +1067,9 @@ describe('台词挂在主线上（v2 第 1 片）', () => {
     },
   }
   /** 段视图外面那一层绝对定位的框（台词轨按起点摆）。 */
+  /** 段的定位层（left 与断挂的半透明都在它上面）。 */
   const slotOf = (id: string): HTMLElement =>
-    screen.getByTestId(`edit-desk-clip-${id}`).parentElement!.parentElement!
+    screen.getByTestId(`edit-desk-clip-${id}`).parentElement!
 
   it('voice lines sit at their own start and ride along when their shot moves', () => {
     const { pushRemote, read } = renderDesk(hung)
@@ -1093,9 +1094,29 @@ describe('台词挂在主线上（v2 第 1 片）', () => {
     expect(parseFloat(slotOf('l2').style.left)).toBeCloseTo(before / 3, 3)
   })
 
+  it('拖台词到别的镜头上：途中那一段描虚线框；松手挂点换过去、连接线亮一下（第 3 片 3b）', async () => {
+    const { read } = renderDesk(hung)
+    const line = screen.getByTestId('edit-desk-clip-l2')
+    // jsdom 量不到宽度：每秒 40px。l2 在 6 秒（240px），往左拖 200px = 1 秒，落在 c1 上。
+    fireEvent.pointerDown(line, { clientX: 240, button: 0 })
+    fireEvent.pointerMove(line, { clientX: 40 })
+    await waitFor(() =>
+      expect(screen.getByTestId('edit-desk-clip-c1')).toHaveClass(
+        'outline-dashed',
+      ),
+    )
+    fireEvent.pointerUp(line, { clientX: 40 })
+
+    expect(read().edit?.tracks.audio[1]?.attach?.clipId).toBe('c1')
+    expect(screen.getByTestId('edit-desk-link-l2')).toHaveClass('bg-primary')
+    expect(screen.getByTestId('edit-desk-clip-c1')).not.toHaveClass(
+      'outline-dashed',
+    )
+  })
+
   it('a line whose frame was trimmed away fades out in place', () => {
     const { pushRemote, read } = renderDesk(hung)
-    expect(slotOf('l2').firstElementChild).not.toHaveClass('opacity-40')
+    expect(slotOf('l2')).not.toHaveClass('opacity-30')
 
     const trimmed = applyNodeAssistantOpV4(
       read(),
@@ -1110,6 +1131,8 @@ describe('台词挂在主线上（v2 第 1 片）', () => {
     if (!trimmed.ok) throw new Error('trim rejected')
     pushRemote(trimmed.state)
 
-    expect(slotOf('l2').firstElementChild).toHaveClass('opacity-40')
+    expect(slotOf('l2')).toHaveClass('opacity-30')
+    // 连接线跟着半透明
+    expect(screen.getByTestId('edit-desk-link-l2')).toHaveClass('opacity-30')
   })
 })

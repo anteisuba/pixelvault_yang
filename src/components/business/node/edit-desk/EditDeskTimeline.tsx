@@ -1,25 +1,30 @@
 'use client'
 
 /**
- * 时间线（v2 暗场，关键切片 `JtN1ur…`）：顶上一条**走带行**（播放 · 时间码 · 声音 ·
- * 选中段的属性 · 缩放），下面 **轨道名一列 + T / V / A / M 四道轨 + 标尺 + 播放头**。
+ * 时间线（v2 暗场 · 关键切片 `JtN1ur…` 台面，第 3 片）：顶上一条**走带行**（播放 · 时间码 ·
+ * 声音 · 选中段的属性 · 缩放），下面 **全片条 · 标尺 · 字幕 · 主线 · 台词 · 配乐**。
  * ⛔ 没有工具键那一排：加字幕在左列「文字」页，分割 / 删除在选中段那一行（也走 S / ⌫），
  * 转场在段与段之间的菱形上；主线永远磁吸，⛔ 没有磁吸开关。
  *
- * ── 段是什么 ────────────────────────────────────────────────────────────
- * 画面段 = 胶片条式封面 + 镜头名 + 右上时长；配音 / 配乐段 = 浅底胶囊 + 淡色波形 +
- * 名字（配乐多一条音量线）；字幕段 = 白底 + 黑色「T」角标。选中 = 黑环 + 一圈浅晕，
- * 两端出现黑色手柄（裁剪）。段与段之间那颗菱形是**段尾转场**——实心 = 有转场，
- * 空心 = 无。⛔ 转场不是轨道上的独立对象（数据上它是段的属性）。
+ * ── 段长什么样（owner 2026-10-08 选 B「调色台 · 全暗中性」：⛔ 不给轨上色）──────────
+ * 主线 = 一排缩略帧 + 左上「n 镜头名」；台词 = 描边胶囊；字幕 = 浅底胶囊 + 「T」；
+ * 配乐 = 淡底 + 波形。台词和字幕挂在主线某一段的某一帧上，**连接线**画在轨与轨的缝里
+ * （字幕往下、台词往上连主线）；挂点那一帧被裁掉了 = 半透明（断挂，导出时跳过）。
+ * 选中 = 白环；拖台词 / 字幕时，松手会挂上的那一段描一圈虚线（换挂点）。
+ *
+ * ── 位置只有一份算法（`buildTimelineLayout`）──────────────────────────────
+ * 拖的途中画的是「假如现在松手」的那一份时间线：换位 / 裁剪时后面的段与挂件实时跟上，
+ * 换挂点在拖的途中就看得见。松手发的 op 与预览改的是同一组字段，所以落表后一个像素都
+ * 不跳；**磁性动效**（`transition-magnetic`）只在别的东西改了时间线时才真的滑 ——
+ * 删段、撤销、助手、MCP。每秒像素变了的那一帧（缩放、助手开合）不动画。
  *
  * ── 交互只有四种手势 ────────────────────────────────────────────────────
- * 点段 = 选中 · 拖手柄 = 裁剪（上方实时读数）· 拖段体 = 排序 · 点空白 / 标尺 = 移
- * 播放头。键盘（空格 / S / ⌫ / I / O / ⌘Z）不在这里，它们是整个剪辑台的事（`EditDesk`）。
- * 缩放：走带行右端「− 滑杆 + · 铺满」，或 ⌘ / Ctrl + 滚轮（触控板捏合同一条事件），
- * 以播放头为中心；轨道名那一列不动。
+ * 点段 = 选中 · 拖手柄 = 裁剪（上方实时读数）· 拖段体 = 换位（台词 / 字幕 = 挪位置，按
+ * 落点重新挂）· 标尺 / 播放头读数 = 拖播放头。点轨道空白 = 取消选中。键盘不在这里。
+ * 缩放：走带行右端，或 ⌘ / Ctrl + 滚轮；放大到装不下时标尺上方淡入全片条。
  *
- * ⚠ 裁剪与排序**落地时才发 op**（`onPointerUp`），拖的过程只动本地预览：拖一次
- * 手柄发 60 条 op 会把撤销栈冲成 60 步。
+ * ⚠ 裁剪与换位**落地时才发 op**（`pointerup`）：拖一次手柄发 60 条 op 会把撤销栈冲成
+ * 60 步。
  */
 
 import {
@@ -33,45 +38,43 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
-  Film,
-  Mic,
-  Music,
   Pause,
   Play,
-  Type,
   Volume2,
   VolumeX,
   ZoomIn,
   ZoomOut,
-  type LucideIcon,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
+  EDIT_ATTACH_EPSILON_SEC,
   EDIT_DESK_CLIP_FRAME_MAX,
   EDIT_DESK_LAYOUT,
   EDIT_DESK_LIBRARY_DRAG_MIME,
   EDIT_DESK_NODE_DRAG_MIME,
   EDIT_DESK_TRANSITION_DRAG_MIME,
-  EDIT_TEXT_CLIP_HEIGHT_PX,
   EDIT_TEXT_CLIP_MIN_DURATION_SEC,
-  EDIT_TEXT_LANE_HEIGHT_PX,
   EDIT_TIMELINE_FEEL,
+  EDIT_TIMELINE_FILMSTRIP,
   EDIT_TIMELINE_FIT,
+  EDIT_TIMELINE_GEOMETRY,
+  EDIT_TIMELINE_LANE_TOP,
   EDIT_TIMELINE_PX_PER_SECOND,
   EDIT_TIMELINE_TICK_MIN_PX,
   EDIT_TIMELINE_TICK_STEPS,
   EDIT_TIMELINE_ZOOM,
   EDIT_TRACKS,
-  EDIT_ATTACH_EPSILON_SEC,
   EDIT_TRACK_IDS,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
   type EditTrackId,
-  type EditTransitionId,
 } from '@/constants/edit-desk'
+import { DURATION } from '@/constants/motion'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { RENDER_CROSSFADE_SEC } from '@/constants/render-video'
 import {
   clampTrim,
   currentUrlOf,
@@ -79,38 +82,41 @@ import {
   isAttachmentCut,
   isPositionedTrack,
 } from '@/lib/edit-project'
+import {
+  buildTimelineLayout,
+  type TimelineDragPreview,
+  type TimelineLayout,
+  type TimelineSpan,
+} from '@/lib/edit-timeline-layout'
 import { cn } from '@/lib/utils'
+import { getVideoFrameUrl } from '@/lib/video-poster'
 import type { EditTimelineRow } from '@/lib/edit-project'
-import type { EditClip, EditTextClip } from '@/types/node-workflow'
+import type {
+  EditAttachment,
+  EditClip,
+  EditTextClip,
+} from '@/types/node-workflow'
 
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 import { Slider } from '@/components/ui/slider'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
-import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
+import { EditDeskIconButton } from './EditDeskIconButton'
 import {
   parseEditDeskLibraryAsset,
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
-import { EDIT_CLIP_FLASH_ATTRIBUTE } from './edit-desk-flash'
+import { EDIT_CLIP_FLASH_ATTRIBUTE, flashEditClips } from './edit-desk-flash'
 
-const TRACK_ICONS: Record<EditTrackId, LucideIcon> = {
-  [EDIT_TRACK_IDS.video]: Film,
-  [EDIT_TRACK_IDS.audio]: Mic,
-  [EDIT_TRACK_IDS.music]: Music,
-}
+const G = EDIT_TIMELINE_GEOMETRY
+const LANE_TOP = EDIT_TIMELINE_LANE_TOP
 
-/** 画面轨 / 声音轨的轨高 = 段高 + 上下各让一格。 */
-const VIDEO_LANE_HEIGHT_PX =
-  EDIT_DESK_LAYOUT.clipHeightPx + EDIT_DESK_LAYOUT.laneInsetPx * 2
-const SOUND_LANE_HEIGHT_PX =
-  EDIT_DESK_LAYOUT.waveHeightPx + EDIT_DESK_LAYOUT.laneInsetPx * 2
-
-function laneHeightOf(track: EditTrackId): number {
-  return track === EDIT_TRACK_IDS.video
-    ? VIDEO_LANE_HEIGHT_PX
-    : SOUND_LANE_HEIGHT_PX
+/** 三条段轨各自的 `top` 与高。 */
+const TRACK_LANE: Record<EditTrackId, { top: number; height: number }> = {
+  [EDIT_TRACK_IDS.video]: { top: LANE_TOP.video, height: G.videoPx },
+  [EDIT_TRACK_IDS.audio]: { top: LANE_TOP.audio, height: G.audioPx },
+  [EDIT_TRACK_IDS.music]: { top: LANE_TOP.music, height: G.musicPx },
 }
 
 export interface EditDeskTimelineProps {
@@ -142,7 +148,7 @@ export interface EditDeskTimelineProps {
    * 「回节点」「到预览里改字」都要碰台面的状态。
    */
   readonly props?: ReactNode
-  /** 开始拖播放头（标尺 / 播放头上的时间读数 / 轨槽空白处）—— 台面借它停播。 */
+  /** 开始拖播放头（标尺 / 播放头上的时间读数）—— 台面借它停播。 */
   onScrubStart?(): void
 }
 
@@ -175,23 +181,58 @@ function useTimelineScale(): TimelineScale {
   return useContext(TimelineScaleContext)
 }
 
-/**
- * 拖东西时的吸附（owner 2026-09-28「操作体验不太好」）：离播放头或任何一段的头尾不到
- * `EDIT_TIMELINE_FEEL.snapPx` 就贴上去，同时画一条吸附线。
- * `snap` 返回贴上的那一刻，`null` = 附近没有；`exclude` = 自己那几条边（⛔ 自己吸自己）。
- */
-interface TimelineInteraction {
-  snap(seconds: number, exclude?: readonly number[]): number | null
-  setGuide(seconds: number | null): void
+/** 换位时被拖的那一段：从哪一秒起拖、指针已经挪了多少像素。 */
+interface TimelineLift {
+  readonly id: string
+  readonly originSec: number
+  readonly deltaPx: number
 }
 
-const TimelineInteractionContext = createContext<TimelineInteraction>({
-  snap: () => null,
-  setGuide: () => undefined,
-})
+/**
+ * 时间线上所有段共用的拖动现场。
+ *
+ * `snap`：离播放头或任何一段的头尾不到 `EDIT_TIMELINE_FEEL.snapPx` 就贴上去（同时画一条
+ * 吸附线），`exclude` = 自己那几条边（⛔ 自己吸自己）。
+ * `layout`：此刻画在哪（拖的途中就是预览那一份）。`liftShiftPx`：换位时被拖的那一段
+ * （连同挂在它上面的台词、字幕）跟手多偏出去的像素。
+ */
+interface TimelineInteraction {
+  readonly layout: TimelineLayout
+  readonly preview: TimelineDragPreview | null
+  readonly lift: TimelineLift | null
+  readonly liftShiftPx: number
+  /** 拖台词 / 字幕时，松手会挂上的那一段。 */
+  readonly hostId: string | null
+  /** 刚换了挂点、连接线亮着的那一件。 */
+  readonly glowId: string | null
+  /** 这一帧的位置变化走不走磁性动效。 */
+  readonly animate: boolean
+  snap(seconds: number, exclude?: readonly number[]): number | null
+  setGuide(seconds: number | null): void
+  setDrag(
+    drag: {
+      readonly preview: TimelineDragPreview
+      readonly lift?: TimelineLift
+    } | null,
+  ): void
+  /**
+   * 台词 / 字幕落下之后：挂点换了 = 连接线亮一下 + 新宿主闪一下（关键切片「换挂点」）。
+   */
+  landAttachment(
+    itemId: string,
+    before: EditAttachment | undefined,
+    after: EditAttachment | undefined,
+  ): void
+}
+
+const TimelineInteractionContext = createContext<TimelineInteraction | null>(
+  null,
+)
 
 function useTimelineInteraction(): TimelineInteraction {
-  return useContext(TimelineInteractionContext)
+  const value = useContext(TimelineInteractionContext)
+  if (!value) throw new Error('timeline interaction outside the timeline')
+  return value
 }
 
 /** 时间线最右一刻：四条轨里最晚结束的那一段（字幕段有自己的绝对起点）。 */
@@ -265,6 +306,19 @@ export function EditDeskTimeline({
       ? fitPxPerSecond
       : Math.min(EDIT_TIMELINE_ZOOM.maxPxPerSecond, fitPxPerSecond * zoom)
   const scale = useMemo(() => makeTimelineScale(pxPerSecond), [pxPerSecond])
+  const canvasPx = scale.toPx(spanSec)
+
+  /**
+   * 每秒像素变了的那一帧不走磁性动效：缩放、助手开合（时间线变窄）时所有段一起换位置，
+   * 滑着过去读起来是「时间线在动」而不是「段在动」。⚠ 比的是上一次**提交**的那个数。
+   */
+  const committedPpsRef = useRef(pxPerSecond)
+  const [ppsStable, setPpsStable] = useState(true)
+  useLayoutEffect(() => {
+    const stable = committedPpsRef.current === pxPerSecond
+    committedPpsRef.current = pxPerSecond
+    setPpsStable(stable)
+  }, [pxPerSecond])
 
   /**
    * 以播放头为中心缩放：换倍数之前记下播放头在视口里的横坐标，换完把滚动条挪回去，
@@ -312,6 +366,17 @@ export function EditDeskTimeline({
     return () => scroller.removeEventListener('wheel', onWheel)
   }, [])
 
+  /** 滚到哪了（全片条上那个白框跟着它）。 */
+  const [scrollLeft, setScrollLeft] = useState(0)
+  const scrollFrame = useRef(0)
+  const onScroll = useCallback(() => {
+    if (scrollFrame.current) return
+    scrollFrame.current = window.requestAnimationFrame(() => {
+      scrollFrame.current = 0
+      setScrollLeft(scrollRef.current?.scrollLeft ?? 0)
+    })
+  }, [])
+
   const tickSec =
     EDIT_TIMELINE_TICK_STEPS.find(
       (step) => scale.toPx(step) >= EDIT_TIMELINE_TICK_MIN_PX,
@@ -325,6 +390,51 @@ export function EditDeskTimeline({
       return Math.max(0, scale.toSeconds(clientX - rect.left))
     },
     [scale],
+  )
+
+  /* ── 拖动现场 → 布局 ─────────────────────────────────────────────────── */
+  const [drag, setDrag] = useState<{
+    readonly preview: TimelineDragPreview
+    readonly lift?: TimelineLift
+  } | null>(null)
+  const preview = drag?.preview ?? null
+  const lift = drag?.lift ?? null
+  const layout = useMemo(
+    () => buildTimelineLayout(desk.project, preview),
+    [desk.project, preview],
+  )
+  const committedLayout = useMemo(
+    () => (preview ? buildTimelineLayout(desk.project) : layout),
+    [desk.project, preview, layout],
+  )
+  const liftShiftPx = lift
+    ? scale.toPx(lift.originSec) +
+      lift.deltaPx -
+      scale.toPx(layout.clips.get(lift.id)?.startSec ?? lift.originSec)
+    : 0
+  const hostId =
+    preview?.kind === 'shift'
+      ? (layout.clips.get(preview.clipId)?.attach?.clipId ?? null)
+      : preview?.kind === 'text' && preview.reattach
+        ? (layout.texts.get(preview.clipId)?.attach?.clipId ?? null)
+        : null
+
+  const [glowId, setGlowId] = useState<string | null>(null)
+  const glowTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(glowTimer.current), [])
+  const landAttachment = useCallback(
+    (
+      itemId: string,
+      before: EditAttachment | undefined,
+      after: EditAttachment | undefined,
+    ) => {
+      if (!after || before?.clipId === after.clipId) return
+      setGlowId(itemId)
+      window.clearTimeout(glowTimer.current)
+      glowTimer.current = window.setTimeout(() => setGlowId(null), G.linkGlowMs)
+      flashEditClips([after.clipId])
+    },
+    [],
   )
 
   /* ── 吸附 ─────────────────────────────────────────────────────────── */
@@ -359,8 +469,31 @@ export function EditDeskTimeline({
     [snapTargets, scale],
   )
   const interaction = useMemo<TimelineInteraction>(
-    () => ({ snap, setGuide: setGuideSec }),
-    [snap],
+    () => ({
+      layout,
+      preview,
+      lift,
+      liftShiftPx,
+      hostId,
+      glowId,
+      // 拖的途中只有换位时邻段在滑；裁剪、挪台词 / 字幕时一切跟手。
+      animate: preview ? preview.kind === 'move' : ppsStable,
+      snap,
+      setGuide: setGuideSec,
+      setDrag,
+      landAttachment,
+    }),
+    [
+      layout,
+      preview,
+      lift,
+      liftShiftPx,
+      hostId,
+      glowId,
+      ppsStable,
+      snap,
+      landAttachment,
+    ],
   )
 
   /**
@@ -412,7 +545,7 @@ export function EditDeskTimeline({
   )
 
   /**
-   * 轨道上空白处按下 = **取消选中**，⛔ 不再挪播放头（owner「点哪儿会发生什么」：
+   * 轨道上空白处按下 = **取消选中**，⛔ 不挪播放头（owner「点哪儿会发生什么」：
    * 点空白挪播放头太容易误触）。挪播放头只在标尺和播放头的时间读数上。
    */
   const { select, selectText } = desk
@@ -441,6 +574,16 @@ export function EditDeskTimeline({
   )
 
   const canPlay = desk.durationSec > 0
+  const overflowing = viewportPx > 0 && canvasPx > viewportPx + 1
+
+  /** 段来源（镜头名 / 卡还在不在 / 上游有没有新版本）按段 id 取。 */
+  const rowById = useMemo(() => {
+    const map = new Map<string, EditTimelineRow>()
+    for (const track of EDIT_TRACKS) {
+      for (const row of desk.rows[track]) map.set(row.clip.id, row)
+    }
+    return map
+  }, [desk.rows])
 
   return (
     <div
@@ -473,7 +616,7 @@ export function EditDeskTimeline({
             {formatEditClock(desk.durationSec, true)}
           </span>
         </span>
-        <ShellIconButton
+        <EditDeskIconButton
           icon={muted ? VolumeX : Volume2}
           label={muted ? t('unmute') : t('mute')}
           active={muted}
@@ -489,7 +632,7 @@ export function EditDeskTimeline({
               aria-label={t('zoom.label')}
               className="flex shrink-0 items-center gap-0.5"
             >
-              <ShellIconButton
+              <EditDeskIconButton
                 icon={ZoomOut}
                 label={t('zoom.out')}
                 testId="edit-desk-zoom-out"
@@ -508,7 +651,7 @@ export function EditDeskTimeline({
                   if (next !== undefined) setZoom(next)
                 }}
               />
-              <ShellIconButton
+              <EditDeskIconButton
                 icon={ZoomIn}
                 label={t('zoom.in')}
                 testId="edit-desk-zoom-in"
@@ -530,140 +673,172 @@ export function EditDeskTimeline({
       </div>
 
       <div
-        className="flex min-w-0 gap-2.5"
+        className="flex min-w-0 flex-col"
         {...(readOnly ? { inert: true } : {})}
         data-edit-desk-readonly={readOnly ? 'true' : 'false'}
       >
-        {/* 轨道名那一列：⛔ 不跟着横向滚 —— 放大后也要一眼看出哪条是哪条。 */}
+        {/* 全片条那一格一直留着：放大到装不下时才淡入，⛔ 出现时把时间线往下推。 */}
         <div
-          aria-hidden
-          className="flex shrink-0 flex-col gap-1.5"
-          style={{ width: EDIT_DESK_LAYOUT.trackHeadWidthPx }}
+          className="relative min-w-0"
+          style={{
+            height: G.overviewPx,
+            marginBottom: G.overviewGapPx,
+            marginLeft: G.headWidthPx + 10,
+          }}
         >
-          <span
-            className="shrink-0"
-            style={{ height: EDIT_DESK_LAYOUT.rulerHeightPx }}
-          />
-          <TrackHead
-            icon={Type}
-            label={t('tracks.text')}
-            height={EDIT_TEXT_LANE_HEIGHT_PX}
-          />
-          {EDIT_TRACKS.map((track) => (
-            <TrackHead
-              key={track}
-              icon={TRACK_ICONS[track]}
-              label={t(`tracks.${track}`)}
-              height={laneHeightOf(track)}
-            />
-          ))}
+          <AnimatePresence>
+            {overflowing ? (
+              <OverviewStrip
+                key="overview"
+                rows={desk.rows[EDIT_TRACK_IDS.video]}
+                layout={layout}
+                spanSec={spanSec}
+                canvasPx={canvasPx}
+                viewportPx={viewportPx}
+                scrollLeft={scrollLeft}
+                playheadSec={desk.playheadSec}
+                onScrollTo={(left) => {
+                  const scroller = scrollRef.current
+                  if (!scroller) return
+                  scroller.scrollLeft = left
+                  setScrollLeft(scroller.scrollLeft)
+                }}
+              />
+            ) : null}
+          </AnimatePresence>
         </div>
 
-        <TimelineScaleContext.Provider value={scale}>
-          <TimelineInteractionContext.Provider value={interaction}>
-            <div
-              ref={scrollRef}
-              data-testid="edit-desk-timeline-scroll"
-              className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
-            >
+        <div className="flex min-w-0 gap-2.5">
+          {/* 轨道名那一列：⛔ 不跟着横向滚 —— 放大后也要一眼看出哪条是哪条。 */}
+          <div
+            aria-hidden
+            className="relative shrink-0"
+            style={{ width: G.headWidthPx, height: LANE_TOP.bottom }}
+          >
+            <TrackHead
+              label={t('tracks.text')}
+              top={LANE_TOP.text}
+              height={G.textPx}
+            />
+            {EDIT_TRACKS.map((track) => (
+              <TrackHead
+                key={track}
+                label={t(`tracks.${track}`)}
+                top={TRACK_LANE[track].top}
+                height={TRACK_LANE[track].height}
+              />
+            ))}
+          </div>
+
+          <TimelineScaleContext.Provider value={scale}>
+            <TimelineInteractionContext.Provider value={interaction}>
               <div
-                ref={canvasRef}
-                className="relative flex min-w-full flex-col gap-1.5"
-                style={{ width: scale.toPx(spanSec) }}
+                ref={scrollRef}
+                data-testid="edit-desk-timeline-scroll"
+                onScroll={onScroll}
+                className="relative min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
               >
-                <Ruler
-                  spanSec={spanSec}
-                  tickSec={tickSec}
-                  minorSec={minorSec}
-                  onScrub={startScrub}
-                  onHover={onRulerHover}
-                />
-                {/*
-                T 轨在 V 之上（spec §6「文字段」）。⚠ 它**不参与磁吸主轨**，所以段是
-                绝对定位（left = 起点秒）而不是首尾相接的一排 —— 字幕钉在画面的某一刻，
-                画面换了序它不该跟着挪。
-              */}
-                <TextLane desk={desk} onBlankPointerDown={deselect} />
-                {EDIT_TRACKS.map((track) => (
-                  <TrackLane
-                    key={track}
-                    track={track}
-                    rows={desk.rows[track]}
-                    desk={desk}
-                    secondsFromEvent={secondsFromEvent}
-                    onBlankPointerDown={deselect}
-                    onDropLibraryAsset={onDropLibraryAsset}
-                  />
-                ))}
-
-                {/* 吸附线：拖的那条边贴上了谁。 */}
-                {guideSec !== null ? (
-                  <span
-                    data-testid="edit-desk-snap-guide"
-                    aria-hidden
-                    className="pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-primary/60"
-                    style={{ left: scale.toPx(guideSec) }}
-                  />
-                ) : null}
-                {/* 标尺悬停线：点下去播放头会到哪儿。 */}
-                {hoverSec !== null && guideSec === null ? (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-foreground/20"
-                    style={{ left: scale.toPx(hoverSec) }}
-                  >
-                    <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted-foreground px-1.5 font-mono text-3xs leading-5 text-background">
-                      {formatEditClock(hoverSec, true)}
-                    </span>
-                  </span>
-                ) : null}
-
-                {/* 播放头 —— 四轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
                 <div
-                  data-testid="edit-desk-playhead"
-                  aria-hidden
-                  className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 -translate-x-px bg-primary"
-                  style={{ left: scale.toPx(desk.playheadSec) }}
+                  ref={canvasRef}
+                  className="relative min-w-full"
+                  style={{ width: canvasPx, height: LANE_TOP.bottom }}
                 >
-                  {/* 顶上那枚时间读数就是拖柄。⚠ 贴近开头时整枚往右让，⛔ 半截藏到轨道名底下。 */}
-                  <span
-                    data-testid="edit-desk-playhead-grip"
-                    onPointerDown={startScrub}
-                    className={cn(
-                      'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-3xs leading-5 text-primary-foreground',
-                      scale.toPx(desk.playheadSec) < 28
-                        ? 'left-0'
-                        : 'left-1/2 -translate-x-1/2',
-                    )}
+                  <Ruler
+                    spanSec={spanSec}
+                    tickSec={tickSec}
+                    minorSec={minorSec}
+                    onScrub={startScrub}
+                    onHover={onRulerHover}
+                  />
+
+                  <TextLane
+                    desk={desk}
+                    committed={committedLayout}
+                    onBlankPointerDown={deselect}
+                  />
+                  {EDIT_TRACKS.map((track) => (
+                    <TrackLane
+                      key={track}
+                      track={track}
+                      desk={desk}
+                      rowById={rowById}
+                      committed={committedLayout}
+                      secondsFromEvent={secondsFromEvent}
+                      onBlankPointerDown={deselect}
+                      onDropLibraryAsset={onDropLibraryAsset}
+                    />
+                  ))}
+                  <Seams desk={desk} />
+                  <LinkLines />
+
+                  {/* 吸附线：拖的那条边贴上了谁。 */}
+                  {guideSec !== null ? (
+                    <span
+                      data-testid="edit-desk-snap-guide"
+                      aria-hidden
+                      className="pointer-events-none absolute bottom-0 top-0 z-30 w-px bg-primary/60"
+                      style={{ left: scale.toPx(guideSec) }}
+                    />
+                  ) : null}
+                  {/* 标尺悬停线：点下去播放头会到哪儿。 */}
+                  {hoverSec !== null && guideSec === null ? (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-foreground/20"
+                      style={{ left: scale.toPx(hoverSec) }}
+                    >
+                      <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted-foreground px-1.5 font-mono text-3xs leading-5 text-background">
+                        {formatEditClock(hoverSec, true)}
+                      </span>
+                    </span>
+                  ) : null}
+
+                  {/* 播放头 —— 四轨共用一条，⛔ 每轨一条会在缩放时对不齐 */}
+                  <div
+                    data-testid="edit-desk-playhead"
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-0 top-0 z-20 w-0.5 -translate-x-px bg-primary"
+                    style={{ left: scale.toPx(desk.playheadSec) }}
                   >
-                    {formatEditClock(desk.playheadSec, true)}
-                  </span>
+                    {/* 顶上那枚时间读数就是拖柄。⚠ 贴近开头时整枚往右让，⛔ 半截藏到轨道名底下。 */}
+                    <span
+                      data-testid="edit-desk-playhead-grip"
+                      onPointerDown={startScrub}
+                      className={cn(
+                        'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-3xs leading-5 text-primary-foreground',
+                        scale.toPx(desk.playheadSec) < 28
+                          ? 'left-0'
+                          : 'left-1/2 -translate-x-1/2',
+                      )}
+                    >
+                      {formatEditClock(desk.playheadSec, true)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </TimelineInteractionContext.Provider>
-        </TimelineScaleContext.Provider>
+            </TimelineInteractionContext.Provider>
+          </TimelineScaleContext.Provider>
+        </div>
       </div>
     </div>
   )
 }
 
 function TrackHead({
-  icon: Icon,
   label,
+  top,
   height,
 }: {
-  readonly icon: LucideIcon
   readonly label: string
+  readonly top: number
   readonly height: number
 }) {
   return (
     <span
-      className="flex shrink-0 items-center gap-1.5 pl-1 text-xs text-muted-foreground"
-      style={{ height }}
+      className="absolute inset-x-0 flex items-center truncate pl-1 text-2xs text-muted-foreground"
+      style={{ top, height }}
     >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
-      <span className="truncate">{label}</span>
+      {label}
     </span>
   )
 }
@@ -697,8 +872,8 @@ function Ruler({
       onPointerDown={onScrub}
       onPointerMove={(event) => onHover(event.clientX)}
       onPointerLeave={() => onHover(null)}
-      className="relative shrink-0 cursor-ew-resize touch-none select-none"
-      style={{ height: EDIT_DESK_LAYOUT.rulerHeightPx }}
+      className="absolute inset-x-0 top-0 cursor-ew-resize touch-none select-none border-b border-border"
+      style={{ height: G.rulerPx }}
     >
       {minors.map((at) => (
         <i
@@ -713,8 +888,8 @@ function Ruler({
           className="absolute bottom-0"
           style={{ left: scale.toPx(at) }}
         >
-          <i className="absolute bottom-0 left-0 h-2.5 w-px bg-foreground/30" />
-          <span className="absolute bottom-2.5 left-1.5 whitespace-nowrap font-mono text-2xs text-muted-foreground">
+          <i className="absolute bottom-0 left-0 h-2 w-px bg-muted-foreground/50" />
+          <span className="absolute bottom-1.5 left-1 whitespace-nowrap font-mono text-3xs text-muted-foreground/70">
             {formatEditClock(at)}
           </span>
         </span>
@@ -723,54 +898,244 @@ function Ruler({
   )
 }
 
-/** 一道轨槽的底（画板 `.ed-bed`）：空着的地方也看得出这是一条轨。 */
-function LaneBed({ dropping }: { readonly dropping?: boolean }) {
+/**
+ * 全片条（v2 关键切片「借自 B」）：放大到装不下时，标尺上方一条整条片子的缩略，白框是
+ * 你正在看的那一段；按下哪里就去哪里，拖白框就跟着滚。缩回铺满时淡出（220ms 上移 4px）。
+ */
+function OverviewStrip({
+  rows,
+  layout,
+  spanSec,
+  canvasPx,
+  viewportPx,
+  scrollLeft,
+  playheadSec,
+  onScrollTo,
+}: {
+  readonly rows: readonly EditTimelineRow[]
+  readonly layout: TimelineLayout
+  readonly spanSec: number
+  readonly canvasPx: number
+  readonly viewportPx: number
+  readonly scrollLeft: number
+  readonly playheadSec: number
+  onScrollTo(scrollLeft: number): void
+}) {
+  const t = useTranslations('StudioNode.editDesk')
+  const reduceMotion = useReducedMotion()
+  const stripRef = useRef<HTMLDivElement | null>(null)
+  /** 时间线秒 / 滚动像素 → 全片条上的百分比。 */
+  const pct = (seconds: number) =>
+    `${Math.max(0, Math.min(100, (seconds / spanSec) * 100))}%`
+  const windowLeft = (scrollLeft / canvasPx) * 100
+  const windowWidth = Math.min(100, (viewportPx / canvasPx) * 100)
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    const strip = stripRef.current
+    if (!strip) return
+    const rect = strip.getBoundingClientRect()
+    if (rect.width <= 0) return
+    event.preventDefault()
+    const ratio = canvasPx / rect.width
+    const at = (event.clientX - rect.left) * ratio
+    // 按在白框外 = 跳过去（白框居中）；按在白框里 = 抓住它拖。
+    const inside = at >= scrollLeft && at <= scrollLeft + viewportPx
+    const startLeft = inside ? scrollLeft : at - viewportPx / 2
+    onScrollTo(startLeft)
+    const startX = event.clientX
+    const target = event.currentTarget
+    target.setPointerCapture?.(event.pointerId)
+    const move = (moveEvent: PointerEvent) =>
+      onScrollTo(startLeft + (moveEvent.clientX - startX) * ratio)
+    const up = () => {
+      target.removeEventListener('pointermove', move)
+      target.removeEventListener('pointerup', up)
+      target.removeEventListener('pointercancel', up)
+    }
+    target.addEventListener('pointermove', move)
+    target.addEventListener('pointerup', up)
+    target.addEventListener('pointercancel', up)
+  }
+
+  return (
+    <motion.div
+      ref={stripRef}
+      data-testid="edit-desk-overview"
+      role="scrollbar"
+      aria-label={t('overview')}
+      aria-orientation="horizontal"
+      aria-controls="edit-desk-timeline-scroll"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(windowLeft)}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        transition: { duration: reduceMotion ? 0 : DURATION.base },
+      }}
+      exit={{
+        opacity: 0,
+        y: 4,
+        transition: { duration: reduceMotion ? 0 : DURATION.base },
+      }}
+      onPointerDown={onPointerDown}
+      className="absolute inset-0 cursor-pointer touch-none overflow-hidden rounded-md bg-card ring-1 ring-inset ring-border"
+    >
+      {rows.map((row) => {
+        const span = layout.clips.get(row.clip.id)
+        if (!span) return null
+        return (
+          <OverviewClip
+            key={row.clip.id}
+            row={row}
+            left={pct(span.startSec)}
+            width={pct(span.durationSec)}
+          />
+        )
+      })}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 rounded-md bg-foreground/7 ring-2 ring-inset ring-foreground/60"
+        style={{ left: `${windowLeft}%`, width: `${windowWidth}%` }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 w-px bg-primary"
+        style={{ left: pct(playheadSec) }}
+      />
+    </motion.div>
+  )
+}
+
+function OverviewClip({
+  row,
+  left,
+  width,
+}: {
+  readonly row: EditTimelineRow
+  readonly left: string
+  readonly width: string
+}) {
+  const node = row.source.node
+  const data = node?.data
+  const poster = useVideoPoster(
+    node ? currentUrlOf(node) : undefined,
+    data && data.kind === NODE_MEDIA_KIND_IDS.video
+      ? data.videoThumbnailUrl
+      : undefined,
+  )
   return (
     <span
       aria-hidden
-      className={cn(
-        'pointer-events-none absolute inset-0 rounded-lg bg-muted transition-colors duration-fast',
-        dropping && 'bg-surface-fill',
-      )}
+      className="absolute inset-y-0.75 overflow-hidden rounded-xs bg-muted bg-cover bg-center opacity-75"
+      style={{
+        left,
+        width,
+        ...(poster ? { backgroundImage: `url(${poster})` } : {}),
+      }}
     />
   )
 }
 
-/** T 轨（S8d）。 */
+/** 一条轨的底：放置区（拖进来）+ 空白处按下 = 取消选中 + 空着时一句提示。 */
+function LaneBed({
+  testId,
+  top,
+  height,
+  empty,
+  hint,
+  bed,
+  onPointerDown,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  dropping,
+}: {
+  readonly testId: string
+  readonly top: number
+  readonly height: number
+  readonly empty: boolean
+  readonly hint: string
+  /** 主线有一层很淡的底（关键切片 `.lane-main`），别的轨没有。 */
+  readonly bed?: boolean
+  readonly dropping?: boolean
+  onPointerDown(): void
+  onDragOver?(event: React.DragEvent<HTMLDivElement>): void
+  onDragLeave?(): void
+  onDrop?(event: React.DragEvent<HTMLDivElement>): void
+}) {
+  return (
+    <div
+      data-testid={testId}
+      onPointerDown={onPointerDown}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={cn(
+        'absolute inset-x-0 rounded-lg transition-colors duration-fast',
+        bed && 'bg-foreground/2',
+        dropping && 'bg-surface-fill',
+      )}
+      style={{ top, height }}
+    >
+      {empty ? (
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-2xs text-muted-foreground/70">
+          {hint}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+/** 字幕轨（S8d）：段是绝对定位的胶囊，挂在主线某一帧上（连接线往下连）。 */
 function TextLane({
   desk,
+  committed,
   onBlankPointerDown,
 }: {
   readonly desk: EditDesk
+  readonly committed: TimelineLayout
   onBlankPointerDown(): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
-
+  const { layout } = useTimelineInteraction()
+  const reduceMotion = useReducedMotion()
   return (
-    <div
-      data-testid="edit-desk-track-text"
-      onPointerDown={onBlankPointerDown}
-      className="relative shrink-0"
-      style={{ height: EDIT_TEXT_LANE_HEIGHT_PX }}
-    >
-      <LaneBed />
-      {desk.project.tracks.text.length === 0 ? (
-        <span className="absolute inset-y-0 left-2.5 flex items-center text-2xs text-muted-foreground">
-          {t('tracks.textEmpty')}
-        </span>
-      ) : null}
-      {desk.project.tracks.text.map((clip) => (
-        <TextClipView key={clip.id} clip={clip} desk={desk} />
-      ))}
-    </div>
+    <>
+      <LaneBed
+        testId="edit-desk-track-text"
+        top={LANE_TOP.text}
+        height={G.textPx}
+        empty={desk.project.tracks.text.length === 0}
+        hint={t('tracks.textEmpty')}
+        onPointerDown={onBlankPointerDown}
+      />
+      <AnimatePresence initial={false}>
+        {desk.project.tracks.text.map((clip) => {
+          const span = layout.texts.get(clip.id)
+          if (!span) return null
+          return (
+            <TextClipView
+              key={clip.id}
+              clip={clip}
+              span={span}
+              committed={committed.texts.get(clip.id)}
+              desk={desk}
+              reduceMotion={Boolean(reduceMotion)}
+            />
+          )
+        })}
+      </AnimatePresence>
+    </>
   )
 }
 
 /**
  * 段两端的裁剪区（owner 2026-09-28「拉长 / 缩短一段」）：**没选中也能直接拖** —— 鼠标
- * 移到段的两端，那根黑手柄（中间一根白色握线）就浮出来、光标变成左右箭头；选中的段
- * 两端一直亮着。命中区统一 `EDIT_TIMELINE_FEEL.edgeHitPx` 宽。⚠ 悬停和选中是**同一根
- * 手柄**：画面缩略图大多偏暗，一根细黑线落上去看不见，白握线才是看得见的那一笔。
+ * 移到段的两端，那根白手柄（中间一根黑色握线）就浮出来、光标变成左右箭头；选中的段
+ * 两端一直亮着。命中区统一 `EDIT_TIMELINE_FEEL.edgeHitPx` 宽。
  */
 function TrimHandle({
   edge,
@@ -828,7 +1193,7 @@ function TrimReadout({
       data-testid="edit-desk-trim-readout"
       role="status"
       className={cn(
-        'pointer-events-none absolute bottom-full z-30 mb-2 whitespace-nowrap rounded-md bg-primary px-2 py-1 font-mono text-2xs text-primary-foreground shadow-float',
+        'pointer-events-none absolute bottom-full z-30 mb-1.5 whitespace-nowrap rounded-md bg-primary px-2 font-mono text-2xs leading-5 text-primary-foreground shadow-float',
         edge === 'in' ? 'left-0' : 'right-0',
       )}
     >
@@ -896,33 +1261,55 @@ function followPointer(
   window.addEventListener('keydown', onKey, true)
 }
 
+/** 挂件跟着谁动：换位时被拖的那一段上挂着的台词、字幕一起跟手。 */
+function useFollowsLift(attach: EditAttachment | undefined): boolean {
+  const { lift } = useTimelineInteraction()
+  return Boolean(lift && attach?.clipId === lift.id)
+}
+
+/** 段删掉时缩小淡出（关键切片动效表「删镜头 260ms」），随后后面的段合拢。 */
+function exitMotion(reduceMotion: boolean) {
+  return {
+    opacity: 0,
+    scale: 0.92,
+    transition: { duration: reduceMotion ? 0 : DURATION.base },
+  }
+}
+
 /**
- * 一段字幕。点 = 选中 · 按住拖 = 挪位置 · 拖两端 = 改入出点；拖的时候段头段尾贴近
- * 播放头或别的段就吸上去。⌫ / S 在台面上（键盘不归时间线管）。
- *
- * ⚠ 与 V 段一样**落地时才发 op**（`pointerup`）：拖的过程只动本地预览，⛔ 不把
- * 撤销栈冲成 60 步。
+ * 一段字幕。点 = 选中 · 按住拖 = 挪位置（按落点重新挂）· 拖两端 = 改入出点；拖的时候
+ * 段头段尾贴近播放头或别的段就吸上去。⌫ / S 在台面上（键盘不归时间线管）。
  */
 function TextClipView({
   clip,
+  span,
+  committed,
   desk,
+  reduceMotion,
 }: {
   readonly clip: EditTextClip
+  readonly span: TimelineSpan
+  /** 落表那一份（拖动预览开始前），裁剪读数与换挂点比较读它。 */
+  readonly committed: TimelineSpan | undefined
   readonly desk: EditDesk
+  readonly reduceMotion: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const scale = useTimelineScale()
-  const { snap, setGuide } = useTimelineInteraction()
+  const {
+    layout,
+    preview,
+    animate,
+    liftShiftPx,
+    snap,
+    setGuide,
+    setDrag,
+    landAttachment,
+  } = useTimelineInteraction()
   const selected = desk.textSelectionId === clip.id
-  const [preview, setPreview] = useState<{
-    startSec: number
-    durationSec: number
-    edge: 'move' | 'in' | 'out'
-  } | null>(null)
-  const shown = preview ?? {
-    startSec: clip.startSec,
-    durationSec: clip.durationSec,
-  }
+  const own = preview?.kind === 'text' && preview.clipId === clip.id
+  const follows = useFollowsLift(span.attach)
+  const cut = isAttachmentCut(layout.project, span.attach)
 
   const startDrag =
     (mode: 'move' | 'in' | 'out') =>
@@ -935,7 +1322,7 @@ function TextClipView({
         startSec: clip.startSec,
         durationSec: clip.durationSec,
       }
-      const own = [origin.startSec, origin.startSec + origin.durationSec]
+      const ownEdges = [origin.startSec, origin.startSec + origin.durationSec]
 
       const nextOf = (
         deltaPx: number,
@@ -943,7 +1330,7 @@ function TextClipView({
         const delta = scale.toSeconds(deltaPx)
         if (mode === 'move') {
           const start = Math.max(0, origin.startSec + delta)
-          const byStart = snap(start, own)
+          const byStart = snap(start, ownEdges)
           if (byStart !== null) {
             return {
               startSec: byStart,
@@ -951,7 +1338,7 @@ function TextClipView({
               guide: byStart,
             }
           }
-          const byEnd = snap(start + origin.durationSec, own)
+          const byEnd = snap(start + origin.durationSec, ownEdges)
           if (byEnd !== null) {
             return {
               startSec: Math.max(0, byEnd - origin.durationSec),
@@ -969,7 +1356,7 @@ function TextClipView({
         if (mode === 'in') {
           // 拖左端 = 起点动、尾巴不动（所以长度反向变）。
           const raw = origin.startSec + delta
-          const snapped = snap(raw, own)
+          const snapped = snap(raw, ownEdges)
           const startSec = Math.max(
             0,
             Math.min(snapped ?? raw, end - EDIT_TEXT_CLIP_MIN_DURATION_SEC),
@@ -977,7 +1364,7 @@ function TextClipView({
           return { startSec, durationSec: end - startSec, guide: snapped }
         }
         const raw = end + delta
-        const snapped = snap(raw, own)
+        const snapped = snap(raw, ownEdges)
         return {
           startSec: origin.startSec,
           durationSec: Math.max(
@@ -987,72 +1374,96 @@ function TextClipView({
           guide: snapped,
         }
       }
+      const previewOf = (next: {
+        startSec: number
+        durationSec: number
+      }): TimelineDragPreview => ({
+        kind: 'text',
+        clipId: clip.id,
+        startSec: next.startSec,
+        durationSec: next.durationSec,
+        // 起点动了 = 按落点重新挂（与 op 执行器同一条）；只裁尾巴不换挂点。
+        reattach: mode !== 'out',
+      })
 
       followPointer(event, {
         onMove: (deltaPx) => {
           const next = nextOf(deltaPx)
           setGuide(next.guide)
-          setPreview({
-            startSec: next.startSec,
-            durationSec: next.durationSec,
-            edge: mode,
-          })
+          setDrag({ preview: previewOf(next) })
         },
         onEnd: (deltaPx, dragged) => {
           setGuide(null)
-          setPreview(null)
-          if (!dragged) return
+          if (!dragged) {
+            setDrag(null)
+            return
+          }
           const next = nextOf(deltaPx)
+          const landed = buildTimelineLayout(
+            desk.project,
+            previewOf(next),
+          ).texts.get(clip.id)
           desk.updateTextClip(clip.id, {
             startSec: next.startSec,
             durationSec: next.durationSec,
           })
+          setDrag(null)
+          landAttachment(clip.id, committed?.attach, landed?.attach)
         },
         onCancel: () => {
           setGuide(null)
-          setPreview(null)
+          setDrag(null)
         },
       })
     }
 
   const firstLine = clip.text.split('\n')[0] ?? ''
-  const trimming = preview && preview.edge !== 'move' ? preview : null
+  const readoutEdge: 'in' | 'out' | null =
+    own && preview.durationSec !== clip.durationSec
+      ? preview.startSec !== clip.startSec
+        ? 'in'
+        : 'out'
+      : null
 
   return (
-    <div
-      className="absolute"
+    <motion.div
+      className={cn(
+        'absolute',
+        animate && !own && !follows && 'transition-magnetic',
+        own && 'z-30',
+      )}
       style={{
-        top: (EDIT_TEXT_LANE_HEIGHT_PX - EDIT_TEXT_CLIP_HEIGHT_PX) / 2,
-        left: scale.toPx(shown.startSec),
+        top: LANE_TOP.text,
+        left: scale.toPx(span.startSec),
         width: Math.max(
-          scale.toPx(shown.durationSec),
+          scale.toPx(span.durationSec),
           EDIT_DESK_LAYOUT.handleWidthPx * 4,
         ),
-        height: EDIT_TEXT_CLIP_HEIGHT_PX,
+        height: G.textPx,
+        x: follows ? liftShiftPx : 0,
       }}
+      exit={exitMotion(reduceMotion)}
     >
-      {trimming ? (
+      {readoutEdge ? (
         <TrimReadout
-          edge={trimming.edge === 'in' ? 'in' : 'out'}
+          edge={readoutEdge}
           text={t('trim', {
             edge: t(
-              trimming.edge === 'in'
-                ? 'inspector.inPoint'
-                : 'inspector.outPoint',
+              readoutEdge === 'in' ? 'inspector.inPoint' : 'inspector.outPoint',
             ),
             from: formatEditClock(
-              trimming.edge === 'in'
+              readoutEdge === 'in'
                 ? clip.startSec
                 : clip.startSec + clip.durationSec,
               true,
             ),
             to: formatEditClock(
-              trimming.edge === 'in'
-                ? trimming.startSec
-                : trimming.startSec + trimming.durationSec,
+              readoutEdge === 'in'
+                ? span.startSec
+                : span.startSec + span.durationSec,
               true,
             ),
-            length: trimming.durationSec.toFixed(1),
+            length: span.durationSec.toFixed(1),
           })}
         />
       ) : null}
@@ -1067,17 +1478,15 @@ function TextClipView({
           if (event.key === 'Enter') desk.selectText(clip.id)
         }}
         className={cn(
-          'relative flex size-full cursor-grab touch-none select-none items-center gap-1.5 overflow-hidden rounded-md bg-card px-2.5 text-2xs text-foreground ring-1 ring-inset ring-border transition-shadow duration-fast hover:ring-foreground/30',
-          selected &&
-            'px-3.5 ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted hover:ring-primary',
-          preview?.edge === 'move' && 'cursor-grabbing shadow-overlay',
+          'relative flex size-full cursor-grab touch-none select-none items-center gap-1.5 overflow-hidden rounded-sm bg-foreground/10 px-2 text-2xs text-foreground/80 ring-1 ring-inset ring-foreground/15 transition-[box-shadow,opacity] duration-fast hover:ring-foreground/40',
+          selected && 'ring-2 ring-primary hover:ring-primary',
+          own &&
+            '-translate-y-1 cursor-grabbing shadow-overlay ring-2 ring-primary',
           // 断挂：挂点那一帧被裁掉了，导出时不出字 —— 半透明留在原处。
-          !preview &&
-            isAttachmentCut(desk.project, clip.attach) &&
-            'opacity-40',
+          cut && !own && 'opacity-30',
         )}
       >
-        <span className="grid size-4 shrink-0 place-items-center rounded-sm bg-primary text-3xs font-semibold text-primary-foreground">
+        <span className="shrink-0 font-mono text-3xs font-semibold text-muted-foreground">
           T
         </span>
         <span className="truncate">{firstLine}</span>
@@ -1085,7 +1494,7 @@ function TextClipView({
           edge="in"
           testId={`edit-desk-text-handle-in-${clip.id}`}
           label={t('inspector.inPoint')}
-          value={shown.startSec}
+          value={span.startSec}
           selected={selected}
           onPointerDown={startDrag('in')}
         />
@@ -1093,38 +1502,28 @@ function TextClipView({
           edge="out"
           testId={`edit-desk-text-handle-out-${clip.id}`}
           label={t('inspector.outPoint')}
-          value={shown.startSec + shown.durationSec}
+          value={span.startSec + span.durationSec}
           selected={selected}
           onPointerDown={startDrag('out')}
         />
       </div>
-    </div>
+    </motion.div>
   )
 }
 
-/** 一次按住段拖动换位的现场（段之间实时让位）。 */
-interface LaneDrag {
-  readonly id: string
-  readonly from: number
-  readonly to: number
-  readonly deltaPx: number
-  readonly widthPx: number
-}
-
-/** 同一条轨上段与段之间的缝（`gap-1`）。 */
-const CLIP_GAP_PX = 4
-
 function TrackLane({
   track,
-  rows,
   desk,
+  rowById,
+  committed,
   secondsFromEvent,
   onBlankPointerDown,
   onDropLibraryAsset,
 }: {
   readonly track: EditTrackId
-  readonly rows: readonly EditTimelineRow[]
   readonly desk: EditDesk
+  readonly rowById: ReadonlyMap<string, EditTimelineRow>
+  readonly committed: TimelineLayout
   secondsFromEvent(clientX: number): number
   onBlankPointerDown(): void
   onDropLibraryAsset(
@@ -1135,283 +1534,131 @@ function TrackLane({
   ): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
-  const scale = useTimelineScale()
+  const { layout } = useTimelineInteraction()
+  const reduceMotion = useReducedMotion()
   const [dropping, setDropping] = useState(false)
-  const [drag, setDrag] = useState<LaneDrag | null>(null)
-  const isVideo = track === EDIT_TRACK_IDS.video
-  /** 台词轨（v2 第 1 片）：段按自己的起点摆，拖 = 改起点，⛔ 不是换顺序。 */
-  const positioned = isPositionedTrack(track)
-  const { snap, setGuide } = useTimelineInteraction()
-
-  /**
-   * 按住段拖 = 换位置（owner 2026-09-28「拖段换位置」）：段跟着指针走、别的段实时
-   * 让开，松手才发一条 `edit_move_clip`。⛔ 不再用浏览器原生拖放 —— 那是拖一张半
-   * 透明截图、松手才换位，看不见会落在哪。
-   */
-  const beginMove = (
-    event: React.PointerEvent<HTMLElement>,
-    row: EditTimelineRow,
-    widthPx: number,
-  ) => {
-    if (event.button !== 0) return
-    event.stopPropagation()
-    event.preventDefault()
-    desk.select({ track, clipId: row.clip.id })
-    if (positioned) {
-      // 拖台词 = 改它的起点；落下时按那一刻底下的镜头重新挂上（op 执行器）。
-      // 贴近别的段头尾 / 播放头就吸住，与字幕段同一套。
-      const own = [row.startSec, row.startSec + row.durationSec]
-      const startOf = (deltaPx: number) => {
-        const raw = Math.max(0, row.startSec + scale.toSeconds(deltaPx))
-        const byStart = snap(raw, own)
-        if (byStart !== null) return { start: byStart, guide: byStart }
-        const byEnd = snap(raw + row.durationSec, own)
-        if (byEnd !== null) {
-          return { start: Math.max(0, byEnd - row.durationSec), guide: byEnd }
-        }
-        return { start: raw, guide: null }
-      }
-      followPointer(event, {
-        onMove: (deltaPx) => {
-          const next = startOf(deltaPx)
-          setGuide(next.guide)
-          setDrag({
-            id: row.clip.id,
-            from: row.index,
-            to: row.index,
-            deltaPx: scale.toPx(next.start - row.startSec),
-            widthPx,
-          })
-        },
-        onEnd: (deltaPx, dragged) => {
-          setGuide(null)
-          setDrag(null)
-          if (!dragged) return
-          const next = startOf(deltaPx)
-          if (Math.abs(next.start - row.startSec) < EDIT_ATTACH_EPSILON_SEC) {
-            return
-          }
-          desk.updateClip(track, row.clip.id, { startSec: next.start })
-        },
-        onCancel: () => {
-          setGuide(null)
-          setDrag(null)
-        },
-      })
-      return
-    }
-    const centers = rows.map((candidate) =>
-      scale.toPx(candidate.startSec + candidate.durationSec / 2),
-    )
-    const targetOf = (deltaPx: number) => {
-      const center = (centers[row.index] ?? 0) + deltaPx
-      return rows.filter(
-        (candidate, index) =>
-          index !== row.index && (centers[index] ?? 0) < center,
-      ).length
-    }
-    followPointer(event, {
-      onMove: (deltaPx) =>
-        setDrag({
-          id: row.clip.id,
-          from: row.index,
-          to: targetOf(deltaPx),
-          deltaPx,
-          widthPx,
-        }),
-      onEnd: (deltaPx, dragged) => {
-        setDrag(null)
-        if (!dragged) return
-        const to = targetOf(deltaPx)
-        if (to !== row.index) desk.moveClip(track, row.clip.id, to)
-      },
-      onCancel: () => setDrag(null),
-    })
-  }
-
-  const offsetOf = (index: number): number => {
-    if (!drag) return 0
-    if (index === drag.from) return drag.deltaPx
-    if (positioned) return 0
-    const shift = drag.widthPx + CLIP_GAP_PX
-    if (drag.from < drag.to && index > drag.from && index <= drag.to) {
-      return -shift
-    }
-    if (drag.to < drag.from && index >= drag.to && index < drag.from) {
-      return shift
-    }
-    return 0
-  }
+  const lane = TRACK_LANE[track]
+  const order = layout.order[track]
 
   return (
-    <div
-      data-testid={`edit-desk-track-${track}`}
-      onDragOver={(event) => {
-        const types = event.dataTransfer.types
-        if (
-          !types.includes(EDIT_DESK_NODE_DRAG_MIME) &&
-          !types.includes(EDIT_DESK_LIBRARY_DRAG_MIME)
-        ) {
-          return
-        }
-        event.preventDefault()
-        event.dataTransfer.dropEffect = 'copy'
-        setDropping(true)
-      }}
-      onDragLeave={() => setDropping(false)}
-      onDrop={(event) => {
-        setDropping(false)
-        const seconds = secondsFromEvent(event.clientX)
-        const index = desk.insertIndexAt(track, seconds)
-        // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
-        const asset = parseEditDeskLibraryAsset(
-          event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
-        )
-        if (asset) {
+    <>
+      <LaneBed
+        testId={`edit-desk-track-${track}`}
+        top={lane.top}
+        height={lane.height}
+        bed={track === EDIT_TRACK_IDS.video}
+        dropping={dropping}
+        empty={desk.rows[track].length === 0}
+        hint={t('tracks.empty')}
+        onPointerDown={onBlankPointerDown}
+        onDragOver={(event) => {
+          const types = event.dataTransfer.types
+          if (
+            !types.includes(EDIT_DESK_NODE_DRAG_MIME) &&
+            !types.includes(EDIT_DESK_LIBRARY_DRAG_MIME)
+          ) {
+            return
+          }
           event.preventDefault()
-          onDropLibraryAsset(asset, track, index, seconds)
-          return
-        }
-        const nodeId =
-          event.dataTransfer.getData(EDIT_DESK_NODE_DRAG_MIME) ||
-          event.dataTransfer.getData('text/plain')
-        if (!nodeId) return
-        event.preventDefault()
-        desk.dropNode(nodeId, track, index, { startSec: seconds })
-      }}
-      // 空白处按下 = 取消选中（点段的那一路 stopPropagation 了）。
-      onPointerDown={onBlankPointerDown}
-      className="relative shrink-0"
-      style={{ height: laneHeightOf(track) }}
-    >
-      <LaneBed dropping={dropping} />
-      {positioned ? (
-        <div
-          className="absolute inset-x-0"
-          style={{
-            top: EDIT_DESK_LAYOUT.laneInsetPx,
-            bottom: EDIT_DESK_LAYOUT.laneInsetPx,
-          }}
-        >
-          {rows.length === 0 ? (
-            <span className="absolute inset-y-0 left-2.5 flex items-center text-2xs text-muted-foreground">
-              {t('tracks.empty')}
-            </span>
-          ) : null}
-          {rows.map((row, index) => (
-            <div
-              key={row.clip.id}
-              className={cn(
-                'absolute inset-y-0 flex items-stretch',
-                drag?.id === row.clip.id && 'z-30',
-              )}
-              style={{ left: scale.toPx(row.startSec) }}
-            >
-              <ClipView
-                row={row}
-                track={track}
-                desk={desk}
-                isVideo={false}
-                showTransitionAfter={false}
-                offsetPx={offsetOf(index)}
-                lifted={drag?.id === row.clip.id}
-                reordering={false}
-                positioned
-                dimmed={isAttachmentCut(desk.project, row.clip.attach)}
-                onBodyPointerDown={beginMove}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div
-          className="absolute inset-x-0 flex items-stretch gap-1"
-          style={{
-            top: EDIT_DESK_LAYOUT.laneInsetPx,
-            bottom: EDIT_DESK_LAYOUT.laneInsetPx,
-          }}
-        >
-          {rows.length === 0 ? (
-            <span className="flex items-center px-2.5 text-2xs text-muted-foreground">
-              {t('tracks.empty')}
-            </span>
-          ) : null}
-          {rows.map((row, index) => (
+          event.dataTransfer.dropEffect = 'copy'
+          setDropping(true)
+        }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(event) => {
+          setDropping(false)
+          const seconds = secondsFromEvent(event.clientX)
+          const index = desk.insertIndexAt(track, seconds)
+          // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
+          const asset = parseEditDeskLibraryAsset(
+            event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
+          )
+          if (asset) {
+            event.preventDefault()
+            onDropLibraryAsset(asset, track, index, seconds)
+            return
+          }
+          const nodeId =
+            event.dataTransfer.getData(EDIT_DESK_NODE_DRAG_MIME) ||
+            event.dataTransfer.getData('text/plain')
+          if (!nodeId) return
+          event.preventDefault()
+          desk.dropNode(nodeId, track, index, { startSec: seconds })
+        }}
+      />
+      <AnimatePresence initial={false}>
+        {order.map((clipId) => {
+          const row = rowById.get(clipId)
+          const span = layout.clips.get(clipId)
+          if (!row || !span) return null
+          return (
             <ClipView
-              key={row.clip.id}
+              key={clipId}
               row={row}
               track={track}
+              span={span}
+              committed={committed}
               desk={desk}
-              isVideo={isVideo}
-              showTransitionAfter={isVideo && index < rows.length - 1}
-              offsetPx={offsetOf(index)}
-              lifted={drag?.id === row.clip.id}
-              reordering={drag !== null}
-              onBodyPointerDown={beginMove}
+              reduceMotion={Boolean(reduceMotion)}
             />
-          ))}
-        </div>
-      )}
-    </div>
+          )
+        })}
+      </AnimatePresence>
+    </>
   )
 }
 
 function ClipView({
   row,
   track,
+  span,
+  committed,
   desk,
-  isVideo,
-  showTransitionAfter,
-  offsetPx,
-  lifted,
-  reordering,
-  positioned = false,
-  dimmed = false,
-  onBodyPointerDown,
+  reduceMotion,
 }: {
   readonly row: EditTimelineRow
   readonly track: EditTrackId
+  /** 此刻画在哪（拖动预览那一份）。 */
+  readonly span: TimelineSpan
+  /** 落表那一份 —— 换位的中心点、裁剪起点、换挂点比较都读它。 */
+  readonly committed: TimelineLayout
   readonly desk: EditDesk
-  readonly isVideo: boolean
-  readonly showTransitionAfter: boolean
-  /** 按自己的起点摆（台词）：拖左端 = 起点跟着入点动、尾巴不动。 */
-  readonly positioned?: boolean
-  /** 断挂：挂点那一帧被裁掉了，导出时不出声 —— 半透明留在原处。 */
-  readonly dimmed?: boolean
-  /** 换位途中这一段该挪多少（被拖的那段 = 跟手，别的段 = 让位）。 */
-  readonly offsetPx: number
-  readonly lifted: boolean
-  readonly reordering: boolean
-  onBodyPointerDown(
-    event: React.PointerEvent<HTMLElement>,
-    row: EditTimelineRow,
-    widthPx: number,
-  ): void
+  readonly reduceMotion: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const scale = useTimelineScale()
-  const { snap, setGuide } = useTimelineInteraction()
+  const {
+    layout,
+    preview,
+    lift,
+    liftShiftPx,
+    hostId,
+    animate,
+    snap,
+    setGuide,
+    setDrag,
+    landAttachment,
+  } = useTimelineInteraction()
   const clip = row.clip
+  const isVideo = track === EDIT_TRACK_IDS.video
+  const isMusic = track === EDIT_TRACK_IDS.music
+  /** 台词轨（v2 第 1 片）：段按自己的起点摆，拖 = 改起点，⛔ 不是换顺序。 */
+  const positioned = isPositionedTrack(track)
+  const lane = TRACK_LANE[track]
   const selected = desk.selection?.clipId === clip.id
-  /** 拖手柄时的本地预览（⛔ 不落 op，见文件头）。 */
-  const [preview, setPreview] = useState<{
-    in: number
-    out: number
-    edge: 'in' | 'out'
-  } | null>(null)
-  const shown = preview ?? { in: clip.in, out: clip.out }
+  const lifted = lift?.id === clip.id
+  const follows = useFollowsLift(span.attach)
+  const trimming =
+    preview?.kind === 'trim' && preview.clipId === clip.id ? preview : null
+  const shifting = preview?.kind === 'shift' && preview.clipId === clip.id
+  const own = lifted || trimming !== null || shifting
+  const gone = !row.source.exists
+  const cut = isAttachmentCut(layout.project, span.attach)
   const speed = clip.speed || 1
+  const shown = trimming ? { in: trimming.in, out: trimming.out } : clip
   const widthPx = Math.max(
-    scale.toPx((shown.out - shown.in) / speed),
+    scale.toPx(span.durationSec),
     EDIT_DESK_LAYOUT.handleWidthPx * 3,
   )
-  const gone = !row.source.exists
-  /** 按起点摆的段拖左端时，左边沿跟着入点挪（尾巴不动）。 */
-  const leadPx =
-    positioned && preview?.edge === 'in'
-      ? scale.toPx((preview.in - clip.in) / speed)
-      : 0
-  const shiftPx = offsetPx + leadPx
   const sourceName = readSourceName(row)
   const sourceData = row.source.node?.data
   const sourceDurationSec =
@@ -1420,10 +1667,12 @@ function ClipView({
       sourceData.kind === NODE_MEDIA_KIND_IDS.audio)
       ? sourceData.durationSec
       : undefined
+  const committedSpan = committed.clips.get(clip.id) ?? span
 
   /**
-   * 裁剪：拖左端改入点、拖右端改出点。磁吸主轨上这一段的起点不动，变的是**它的尾巴**
-   * （后面的段跟着补位），所以两种拖法吸附的都是尾巴那条边。
+   * 裁剪：拖左端改入点、拖右端改出点。首尾相接的轨上这一段的起点不动，变的是**它的
+   * 尾巴**（后面的段跟着补位），所以两种拖法吸附的都是尾巴那条边；按起点摆的轨（台词）
+   * 拖左端时左边沿跟手、尾巴不动。
    */
   const startTrim =
     (edge: 'in' | 'out') => (event: React.PointerEvent<HTMLElement>) => {
@@ -1432,23 +1681,25 @@ function ClipView({
       event.preventDefault()
       desk.select({ track, clipId: clip.id })
       const origin = { in: clip.in, out: clip.out }
-      const ownEnd = row.startSec + row.durationSec
+      const rowStart = committedSpan.startSec
+      const ownEnd = rowStart + committedSpan.durationSec
 
       const nextOf = (deltaPx: number) => {
         const delta = scale.toSeconds(deltaPx) * speed
         if (positioned && edge === 'in') {
-          // 按起点摆的段：拖左端时左边沿跟手、尾巴不动，吸附的是左边沿。
           const rawIn = origin.in + delta
-          const snappedStart = snap(
-            row.startSec + (rawIn - origin.in) / speed,
-            [row.startSec, ownEnd],
-          )
+          const snappedStart = snap(rowStart + (rawIn - origin.in) / speed, [
+            rowStart,
+            ownEnd,
+          ])
           const nextIn =
             snappedStart === null
               ? rawIn
-              : origin.in + (snappedStart - row.startSec) * speed
+              : origin.in + (snappedStart - rowStart) * speed
+          const clamped = clampTrim(clip, { in: nextIn }, sourceDurationSec)
           return {
-            ...clampTrim(clip, { in: nextIn }, sourceDurationSec),
+            ...clamped,
+            startSec: Math.max(0, rowStart + (clamped.in - origin.in) / speed),
             guide: snappedStart,
           }
         }
@@ -1456,354 +1707,605 @@ function ClipView({
           edge === 'in'
             ? { in: origin.in + delta, out: origin.out }
             : { in: origin.in, out: origin.out + delta }
-        const rawEnd = row.startSec + (raw.out - raw.in) / speed
-        const snappedEnd = snap(rawEnd, [row.startSec, ownEnd])
+        const rawEnd = rowStart + (raw.out - raw.in) / speed
+        const snappedEnd = snap(rawEnd, [rowStart, ownEnd])
         const patched =
           snappedEnd === null
             ? raw
             : edge === 'in'
               ? {
-                  in: origin.out - (snappedEnd - row.startSec) * speed,
+                  in: origin.out - (snappedEnd - rowStart) * speed,
                   out: origin.out,
                 }
               : {
                   in: origin.in,
-                  out: origin.in + (snappedEnd - row.startSec) * speed,
+                  out: origin.in + (snappedEnd - rowStart) * speed,
                 }
         const clamped = clampTrim(
           clip,
           edge === 'in' ? { in: patched.in } : { out: patched.out },
           sourceDurationSec,
         )
-        return { ...clamped, guide: snappedEnd }
+        return { ...clamped, startSec: undefined, guide: snappedEnd }
       }
+      const previewOf = (next: {
+        in: number
+        out: number
+        startSec: number | undefined
+      }): TimelineDragPreview => ({
+        kind: 'trim',
+        track,
+        clipId: clip.id,
+        in: next.in,
+        out: next.out,
+        ...(next.startSec === undefined ? {} : { startSec: next.startSec }),
+      })
 
       followPointer(event, {
         onMove: (deltaPx) => {
           const next = nextOf(deltaPx)
           setGuide(next.guide)
-          setPreview({ in: next.in, out: next.out, edge })
+          setDrag({ preview: previewOf(next) })
         },
         onEnd: (deltaPx, dragged) => {
           setGuide(null)
-          setPreview(null)
-          if (!dragged) return
+          if (!dragged) {
+            setDrag(null)
+            return
+          }
           const next = nextOf(deltaPx)
+          const landed = buildTimelineLayout(
+            desk.project,
+            previewOf(next),
+          ).clips.get(clip.id)
           desk.updateClip(
             track,
             clip.id,
             edge === 'in'
               ? {
                   in: next.in,
-                  ...(positioned
-                    ? {
-                        startSec: Math.max(
-                          0,
-                          row.startSec + (next.in - clip.in) / speed,
-                        ),
-                      }
-                    : {}),
+                  ...(next.startSec === undefined
+                    ? {}
+                    : { startSec: next.startSec }),
                 }
               : { out: next.out },
           )
+          setDrag(null)
+          if (positioned) {
+            landAttachment(clip.id, committedSpan.attach, landed?.attach)
+          }
         },
         onCancel: () => {
           setGuide(null)
-          setPreview(null)
+          setDrag(null)
         },
       })
     }
 
-  return (
-    <>
-      <div
-        className={cn(
-          'relative shrink-0',
-          lifted
-            ? 'z-30'
-            : reordering &&
-                'transition-transform duration-base ease-standard motion-reduce:transition-none',
-          dimmed && 'opacity-40',
-        )}
-        style={{
-          width: widthPx,
-          transform: shiftPx ? `translateX(${shiftPx}px)` : undefined,
-        }}
-      >
-        {preview ? (
-          <TrimReadout
-            edge={preview.edge}
-            text={t('trim', {
-              edge: t(
-                preview.edge === 'in'
-                  ? 'inspector.inPoint'
-                  : 'inspector.outPoint',
-              ),
-              from: formatEditClock(
-                preview.edge === 'in' ? clip.in : clip.out,
-                true,
-              ),
-              to: formatEditClock(
-                preview.edge === 'in' ? preview.in : preview.out,
-                true,
-              ),
-              length: ((preview.out - preview.in) / speed).toFixed(1),
-            })}
-          />
-        ) : null}
-        <div
-          role="button"
-          tabIndex={0}
-          aria-pressed={selected}
-          data-testid={`edit-desk-clip-${clip.id}`}
-          {...{ [EDIT_CLIP_FLASH_ATTRIBUTE]: clip.id }}
-          data-clip-index={row.index}
-          onPointerDown={(event) => onBodyPointerDown(event, row, widthPx)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') desk.select({ track, clipId: clip.id })
-          }}
-          className={cn(
-            'relative size-full cursor-grab touch-none select-none overflow-hidden rounded-md transition-shadow duration-fast hover:ring-1 hover:ring-foreground/30',
-            isVideo
-              ? gone
-                ? 'edit-clip-gone'
-                : 'bg-surface-fill-track'
-              : 'bg-surface-fill',
-            selected &&
-              'ring-2 ring-primary outline outline-3 outline-offset-2 outline-muted hover:ring-2 hover:ring-primary',
-            lifted && 'scale-102 cursor-grabbing shadow-overlay',
-          )}
-        >
-          <ClipCanvas row={row} isVideo={isVideo} widthPx={widthPx} />
-
-          {isVideo ? (
-            gone ? (
-              <span className="absolute left-2.5 top-1.5 truncate text-2xs text-status-risk">
-                {t('inspector.sourceGone')}
-              </span>
-            ) : (
-              <>
-                {/* 压在画面上的读数：固定明暗（ui-defaults §2.4 媒体 chrome 例外）。 */}
-                <span className="pointer-events-none absolute inset-0 bg-linear-to-t from-neutral-950/60 via-transparent to-neutral-950/15" />
-                <span className="absolute right-1.5 top-1.5 rounded-sm bg-neutral-950/45 px-1 font-mono text-3xs leading-4 text-white">
-                  {t('clipDuration', {
-                    seconds: ((shown.out - shown.in) / speed).toFixed(1),
-                  })}
-                </span>
-                <span
-                  className={cn(
-                    'absolute bottom-1.5 right-2 truncate text-2xs font-semibold text-white',
-                    selected ? 'left-4' : 'left-2.5',
-                  )}
-                >
-                  {sourceName}
-                </span>
-              </>
-            )
-          ) : (
-            <>
-              {track === EDIT_TRACK_IDS.music ? (
-                // 配乐的音量线：1 = 原样，画在中线偏上；2 倍贴顶、0 贴底。
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-1 h-px bg-foreground/45"
-                  style={{
-                    top: `${Math.min(90, Math.max(10, (1 - (clip.gain ?? 1) / 2) * 100))}%`,
-                  }}
-                />
-              ) : null}
-              <span
-                className={cn(
-                  'absolute inset-y-0 flex items-center',
-                  selected ? 'left-4' : 'left-2',
-                )}
-              >
-                <span className="truncate rounded-sm bg-card/75 px-1.5 text-2xs font-medium text-foreground">
-                  {sourceName}
-                </span>
-              </span>
-            </>
-          )}
-
-          {row.source.stale ? (
-            <button
-              type="button"
-              data-testid={`edit-desk-stale-${clip.id}`}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation()
-                desk.refreshClipSource(track, clip.id)
-              }}
-              className={cn(
-                'absolute top-1.5 z-10 rounded-full bg-status-warning px-1.5 text-3xs leading-4 text-white',
-                selected ? 'left-4' : 'left-1.5',
-              )}
-            >
-              {t('staleBadge')}
-            </button>
-          ) : null}
-
-          <TrimHandle
-            edge="in"
-            testId={`edit-desk-handle-in-${clip.id}`}
-            label={t('inspector.inPoint')}
-            value={shown.in}
-            selected={selected}
-            onPointerDown={startTrim('in')}
-          />
-          <TrimHandle
-            edge="out"
-            testId={`edit-desk-handle-out-${clip.id}`}
-            label={t('inspector.outPoint')}
-            value={shown.out}
-            selected={selected}
-            onPointerDown={startTrim('out')}
-          />
-        </div>
-      </div>
-
-      {showTransitionAfter ? (
-        <TransitionMark
-          clip={clip}
-          hidden={reordering}
-          onSet={(transition) =>
-            desk.updateClip(track, clip.id, { transitionOut: transition })
+  /**
+   * 按住段拖：首尾相接的轨 = 换位置（段跟手、邻段实时让位，挂件跟着各自的段走，松手
+   * 才发一条 `edit_move_clip`）；台词轨 = 改起点，按落点重新挂。⛔ 不用浏览器原生拖放
+   * —— 那是拖一张半透明截图、松手才换位，看不见会落在哪。
+   */
+  const beginMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return
+    event.stopPropagation()
+    event.preventDefault()
+    desk.select({ track, clipId: clip.id })
+    if (positioned) {
+      const rowStart = committedSpan.startSec
+      const own = [rowStart, rowStart + committedSpan.durationSec]
+      const startOf = (deltaPx: number) => {
+        const raw = Math.max(0, rowStart + scale.toSeconds(deltaPx))
+        const byStart = snap(raw, own)
+        if (byStart !== null) return { start: byStart, guide: byStart }
+        const byEnd = snap(raw + committedSpan.durationSec, own)
+        if (byEnd !== null) {
+          return {
+            start: Math.max(0, byEnd - committedSpan.durationSec),
+            guide: byEnd,
           }
+        }
+        return { start: raw, guide: null }
+      }
+      const previewOf = (start: number): TimelineDragPreview => ({
+        kind: 'shift',
+        track,
+        clipId: clip.id,
+        startSec: start,
+      })
+      followPointer(event, {
+        onMove: (deltaPx) => {
+          const next = startOf(deltaPx)
+          setGuide(next.guide)
+          setDrag({ preview: previewOf(next.start) })
+        },
+        onEnd: (deltaPx, dragged) => {
+          setGuide(null)
+          if (!dragged) {
+            setDrag(null)
+            return
+          }
+          const next = startOf(deltaPx)
+          if (Math.abs(next.start - rowStart) < EDIT_ATTACH_EPSILON_SEC) {
+            setDrag(null)
+            return
+          }
+          const landed = buildTimelineLayout(
+            desk.project,
+            previewOf(next.start),
+          ).clips.get(clip.id)
+          desk.updateClip(track, clip.id, { startSec: next.start })
+          setDrag(null)
+          landAttachment(clip.id, committedSpan.attach, landed?.attach)
+        },
+        onCancel: () => {
+          setGuide(null)
+          setDrag(null)
+        },
+      })
+      return
+    }
+    const ids = committed.order[track]
+    const centers = ids.map((id) => {
+      const candidate = committed.clips.get(id)
+      return candidate ? candidate.startSec + candidate.durationSec / 2 : 0
+    })
+    const from = ids.indexOf(clip.id)
+    const targetOf = (deltaPx: number) => {
+      const center = (centers[from] ?? 0) + scale.toSeconds(deltaPx)
+      return ids.filter(
+        (id, index) => index !== from && (centers[index] ?? 0) < center,
+      ).length
+    }
+    followPointer(event, {
+      onMove: (deltaPx) =>
+        setDrag({
+          preview: {
+            kind: 'move',
+            track,
+            clipId: clip.id,
+            toIndex: targetOf(deltaPx),
+          },
+          lift: { id: clip.id, originSec: committedSpan.startSec, deltaPx },
+        }),
+      onEnd: (deltaPx, dragged) => {
+        if (dragged) {
+          const to = targetOf(deltaPx)
+          if (to !== from) desk.moveClip(track, clip.id, to)
+        }
+        setDrag(null)
+      },
+      onCancel: () => setDrag(null),
+    })
+  }
+
+  const readoutEdge: 'in' | 'out' | null = trimming
+    ? trimming.in !== clip.in
+      ? 'in'
+      : 'out'
+    : null
+
+  return (
+    <motion.div
+      className={cn(
+        'absolute',
+        animate && !own && !follows && 'transition-magnetic',
+        own && 'z-30',
+        // 断挂：挂点那一帧被裁掉了，导出时不出声 —— 半透明留在原处。
+        cut && !own && 'opacity-30',
+      )}
+      style={{
+        top: lane.top,
+        left: scale.toPx(span.startSec),
+        width: widthPx,
+        height: lane.height,
+        x: lifted || follows ? liftShiftPx : 0,
+        y: lifted ? -6 : shifting ? -4 : 0,
+      }}
+      exit={exitMotion(reduceMotion)}
+    >
+      {readoutEdge ? (
+        <TrimReadout
+          edge={readoutEdge}
+          text={t('trim', {
+            edge: t(
+              readoutEdge === 'in' ? 'inspector.inPoint' : 'inspector.outPoint',
+            ),
+            from: formatEditClock(
+              readoutEdge === 'in' ? clip.in : clip.out,
+              true,
+            ),
+            to: formatEditClock(
+              readoutEdge === 'in' ? shown.in : shown.out,
+              true,
+            ),
+            length: ((shown.out - shown.in) / speed).toFixed(1),
+          })}
         />
       ) : null}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-pressed={selected}
+        data-testid={`edit-desk-clip-${clip.id}`}
+        {...{ [EDIT_CLIP_FLASH_ATTRIBUTE]: clip.id }}
+        data-clip-index={row.index}
+        onPointerDown={beginMove}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') desk.select({ track, clipId: clip.id })
+        }}
+        className={cn(
+          'relative size-full cursor-grab touch-none select-none overflow-hidden transition-shadow duration-fast',
+          isVideo
+            ? cn(
+                'rounded-md hover:ring-1 hover:ring-foreground/30',
+                gone ? 'edit-clip-gone' : 'bg-card',
+              )
+            : isMusic
+              ? 'rounded-md bg-foreground/4 ring-1 ring-inset ring-foreground/10 hover:ring-foreground/30'
+              : 'rounded-sm bg-surface-workbench ring-1 ring-inset ring-foreground/30 hover:ring-foreground/50',
+          selected && 'ring-2 ring-primary hover:ring-2 hover:ring-primary',
+          // 拖台词 / 字幕时松手会挂上的那一段：虚线框，与白色选中环分得开。
+          hostId === clip.id &&
+            'outline-2 outline-offset-1 outline-dashed outline-foreground',
+          lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
+        )}
+      >
+        {isVideo ? (
+          <ClipFilmstrip row={row} shown={shown} widthPx={widthPx} />
+        ) : isMusic ? (
+          <MusicWave row={row} widthPx={widthPx} />
+        ) : null}
+
+        {isVideo ? (
+          gone ? (
+            <span className="absolute left-2 top-1 truncate text-2xs text-status-risk">
+              {t('inspector.sourceGone')}
+            </span>
+          ) : (
+            // 压在画面上的读数：固定明暗（ui-defaults §2.4 媒体 chrome 例外）。
+            <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/65 px-1.5 text-2xs leading-4 text-white">
+              <b className="mr-1 font-semibold">{row.index + 1}</b>
+              {sourceName}
+            </span>
+          )
+        ) : isMusic ? (
+          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/55 px-1.5 text-3xs leading-4 text-muted-foreground">
+            {sourceName}
+          </span>
+        ) : (
+          <span className="pointer-events-none absolute inset-y-0 left-2 right-2 flex items-center truncate text-2xs font-medium text-foreground/85">
+            {sourceName}
+          </span>
+        )}
+
+        {isMusic ? (
+          // 配乐的音量线：1 = 原样，画在中线偏上；2 倍贴顶、0 贴底。
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-1 h-px bg-foreground/45"
+            style={{
+              top: `${Math.min(90, Math.max(10, (1 - (clip.gain ?? 1) / 2) * 100))}%`,
+            }}
+          />
+        ) : null}
+
+        {row.source.stale ? (
+          <button
+            type="button"
+            data-testid={`edit-desk-stale-${clip.id}`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              desk.refreshClipSource(track, clip.id)
+            }}
+            className="absolute right-1.5 top-1 z-10 rounded-sm bg-primary px-1.5 text-3xs leading-4 text-primary-foreground"
+          >
+            {t('staleBadge')}
+          </button>
+        ) : null}
+
+        <TrimHandle
+          edge="in"
+          testId={`edit-desk-handle-in-${clip.id}`}
+          label={t('inspector.inPoint')}
+          value={shown.in}
+          selected={selected}
+          onPointerDown={startTrim('in')}
+        />
+        <TrimHandle
+          edge="out"
+          testId={`edit-desk-handle-out-${clip.id}`}
+          label={t('inspector.outPoint')}
+          value={shown.out}
+          selected={selected}
+          onPointerDown={startTrim('out')}
+        />
+      </div>
+    </motion.div>
+  )
+}
+
+/**
+ * 段间菱形（关键切片 `.seam`）：压在主线上沿两段的接缝处，实心 = 有转场。叠化横跨接缝
+ * 画一块淡光，宽 = 两段重叠的秒数。菱形也是**落点**：从左列转场页拖一个预设过来 = 设
+ * **前一段**的 `transitionOut`。⚠ 命中区靠一层透明覆盖放大，⛔ 不把菱形本身画大。
+ */
+function Seams({ desk }: { readonly desk: EditDesk }) {
+  const scale = useTimelineScale()
+  const { layout, animate, lift } = useTimelineInteraction()
+  const order = layout.order[EDIT_TRACK_IDS.video]
+  const byId = new Map(
+    desk.project.tracks[EDIT_TRACK_IDS.video].map((clip) => [clip.id, clip]),
+  )
+  return (
+    <>
+      {order.slice(0, -1).map((clipId) => {
+        const clip = byId.get(clipId)
+        const span = layout.clips.get(clipId)
+        if (!clip || !span) return null
+        const at = scale.toPx(span.startSec + span.durationSec)
+        const overlapPx =
+          (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
+          EDIT_TRANSITION_IDS.crossfade
+            ? scale.toPx(RENDER_CROSSFADE_SEC)
+            : 0
+        // 换位途中被拖的那一段两侧的菱形先藏起来（它跟着指针走，菱形对不上）。
+        const hidden = lift !== null
+        return (
+          <SeamMark
+            key={clipId}
+            clip={clip}
+            at={at}
+            overlapPx={overlapPx}
+            hidden={hidden}
+            animate={animate}
+            onSet={(transition) =>
+              desk.updateClip(EDIT_TRACK_IDS.video, clip.id, {
+                transitionOut: transition,
+              })
+            }
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function SeamMark({
+  clip,
+  at,
+  overlapPx,
+  hidden,
+  animate,
+  onSet,
+}: {
+  readonly clip: EditClip
+  readonly at: number
+  readonly overlapPx: number
+  readonly hidden: boolean
+  readonly animate: boolean
+  onSet(transition: (typeof EDIT_TRANSITIONS)[number]): void
+}) {
+  const t = useTranslations('StudioNode.editDesk')
+  const [over, setOver] = useState(false)
+  const current = clip.transitionOut ?? EDIT_TRANSITION_IDS.none
+  return (
+    <>
+      {overlapPx > 0 ? (
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute z-5 border-x border-foreground/25 bg-linear-to-r from-transparent via-foreground/20 to-transparent',
+            animate && 'transition-magnetic',
+            hidden && 'opacity-0',
+          )}
+          style={{
+            top: LANE_TOP.video,
+            height: G.videoPx,
+            left: at - overlapPx / 2,
+            width: overlapPx,
+          }}
+        />
+      ) : null}
+      <span
+        data-testid={`edit-desk-transition-${clip.id}`}
+        data-transition={current}
+        aria-label={t('inspector.transition')}
+        onDragOver={(event) => {
+          if (
+            !event.dataTransfer.types.includes(EDIT_DESK_TRANSITION_DRAG_MIME)
+          ) {
+            return
+          }
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'copy'
+          setOver(true)
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(event) => {
+          setOver(false)
+          const raw = event.dataTransfer.getData(EDIT_DESK_TRANSITION_DRAG_MIME)
+          const transition = EDIT_TRANSITIONS.find(
+            (candidate) => candidate === raw,
+          )
+          if (!transition) return
+          event.preventDefault()
+          event.stopPropagation()
+          onSet(transition)
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        style={{
+          top: LANE_TOP.video - G.seamPx / 2,
+          left: at - G.seamPx / 2,
+          width: G.seamPx,
+          height: G.seamPx,
+        }}
+        className={cn(
+          'absolute z-10 rotate-45 rounded-xs ring-2 ring-background',
+          'after:absolute after:-inset-2 after:content-[""]',
+          current === EDIT_TRANSITION_IDS.none
+            ? 'border border-input bg-muted'
+            : 'bg-foreground/80',
+          animate && 'transition-magnetic',
+          over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
+          hidden && 'opacity-0',
+        )}
+      />
     </>
   )
 }
 
 /**
- * 两段之间那颗菱形 —— 既是**读数**（实心 = 有转场）也是**落点**：从左栏转场页拖
- * 一个预设过来落在这里 = 设**前一段**的 `transitionOut`。
- *
- * ⚠ 命中区靠一层 `-inset-2` 的透明覆盖放大，⛔ 不把菱形本身画大；它压在两段的缝上
- * （负外边距），白色描边把它和两边的画面分开。
+ * 挂件的连接线（关键切片 `.lk`）：字幕从下沿往下连到主线上沿，台词从上沿往上连到主线
+ * 下沿，主线那一头一颗小圆点。断挂 = 跟着挂件半透明；刚换了挂点 = 亮一下。
+ * ⚠ 颜色取对暗地台刚好过 3:1 的那一档（图形门槛，方向稿实算）。
  */
-function TransitionMark({
-  clip,
-  hidden,
-  onSet,
-}: {
-  readonly clip: EditClip
-  /** 段在换位途中：菱形先藏起来（它夹在两段的缝上，跟着让位会对不上）。 */
-  readonly hidden: boolean
-  onSet(transition: EditTransitionId): void
-}) {
-  const t = useTranslations('StudioNode.editDesk')
-  const [over, setOver] = useState(false)
-  const current = clip.transitionOut ?? EDIT_TRANSITION_IDS.none
-
+function LinkLines() {
+  const scale = useTimelineScale()
+  const { layout, animate, lift, liftShiftPx, glowId, preview } =
+    useTimelineInteraction()
+  const reduceMotion = useReducedMotion()
+  const items: {
+    id: string
+    span: TimelineSpan
+    kind: 'text' | 'audio'
+  }[] = []
+  for (const [id, span] of layout.texts) {
+    if (span.attach) items.push({ id, span, kind: 'text' })
+  }
+  for (const id of layout.order[EDIT_TRACK_IDS.audio]) {
+    const span = layout.clips.get(id)
+    if (span?.attach) items.push({ id, span, kind: 'audio' })
+  }
   return (
-    <span
-      data-testid={`edit-desk-transition-${clip.id}`}
-      data-transition={current}
-      aria-label={t('inspector.transition')}
-      onDragOver={(event) => {
-        if (
-          !event.dataTransfer.types.includes(EDIT_DESK_TRANSITION_DRAG_MIME)
-        ) {
-          return
-        }
-        event.preventDefault()
-        event.dataTransfer.dropEffect = 'copy'
-        setOver(true)
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(event) => {
-        setOver(false)
-        const raw = event.dataTransfer.getData(EDIT_DESK_TRANSITION_DRAG_MIME)
-        const transition = EDIT_TRANSITIONS.find(
-          (candidate) => candidate === raw,
+    <AnimatePresence initial={false}>
+      {items.map(({ id, span, kind }) => {
+        const follows = Boolean(lift && span.attach?.clipId === lift.id)
+        const dragging =
+          (preview?.kind === 'text' || preview?.kind === 'shift') &&
+          preview.clipId === id
+        const cut = isAttachmentCut(layout.project, span.attach)
+        const glowing = glowId === id || dragging
+        const top =
+          kind === 'text'
+            ? LANE_TOP.text + G.textPx
+            : LANE_TOP.video + G.videoPx
+        const height =
+          kind === 'text' ? LANE_TOP.video - top : LANE_TOP.audio - top
+        return (
+          <motion.span
+            key={`${kind}:${id}`}
+            aria-hidden
+            data-testid={`edit-desk-link-${id}`}
+            className={cn(
+              'pointer-events-none absolute z-4 w-px',
+              glowing ? 'bg-primary' : 'bg-foreground/40',
+              animate && !follows && !dragging && 'transition-magnetic',
+              cut && !dragging && 'opacity-30',
+            )}
+            style={{
+              top,
+              height,
+              left: scale.toPx(span.startSec) + G.linkInsetPx,
+              x: follows ? liftShiftPx : 0,
+            }}
+            exit={{
+              opacity: 0,
+              transition: { duration: reduceMotion ? 0 : DURATION.base },
+            }}
+          >
+            <i
+              className={cn(
+                'absolute -left-0.5 size-1.25 rounded-full bg-inherit',
+                kind === 'text' ? '-bottom-0.5' : '-top-0.5',
+              )}
+            />
+          </motion.span>
         )
-        if (!transition) return
-        event.preventDefault()
-        event.stopPropagation()
-        onSet(transition)
-      }}
-      onPointerDown={(event) => event.stopPropagation()}
-      style={{
-        width: EDIT_DESK_LAYOUT.transitionMarkPx,
-        height: EDIT_DESK_LAYOUT.transitionMarkPx,
-      }}
-      className={cn(
-        'relative z-10 -mx-2 shrink-0 self-center rotate-45 rounded-xs ring-2 ring-card',
-        'after:absolute after:-inset-2 after:content-[""]',
-        current === EDIT_TRANSITION_IDS.none
-          ? 'border-[1.5px] border-foreground bg-card'
-          : 'bg-foreground',
-        over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
-        hidden && 'opacity-0',
-      )}
-    />
+      })}
+    </AnimatePresence>
   )
 }
 
 /**
- * 段里的**内容**。
- *
- * 视频段 = 一排等宽缩略帧：**同一张封面帧铺满**，这就是剪辑软件里「一段胶片」的
- * 读法。⛔ 不逐条抽真帧：那要 N 次 seek，拖手柄时页面直接停住，而「这是哪一镜」一张
- * 封面已经答完了（`EDIT_DESK_CLIP_FRAME_MAX` 头注）。
- * 音频段 = 一条淡色波形（复用音频卡那一只）。
+ * 主线段里那排缩略帧：按轨高的 16:9 宽度铺，帧数有上限（多了就拉宽）。帧是这一段在
+ * 那一刻的画面（自家 CDN 边缘截帧，时间取整到 `stepSec`）；截不了就用封面帧铺满。
  */
-function ClipCanvas({
+function ClipFilmstrip({
   row,
-  isVideo,
+  shown,
   widthPx,
 }: {
   readonly row: EditTimelineRow
-  readonly isVideo: boolean
+  readonly shown: { readonly in: number; readonly out: number }
   readonly widthPx: number
 }) {
   const node = row.source.node
   const data = node?.data
   const url = node ? currentUrlOf(node) : undefined
   const poster = useVideoPoster(
-    isVideo ? url : undefined,
+    url,
     data && data.kind === NODE_MEDIA_KIND_IDS.video
       ? data.videoThumbnailUrl
       : undefined,
   )
-
-  if (!isVideo) {
-    return (
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 flex items-center px-1 opacity-45"
-      >
-        <AudioWaveform
-          seed={url ?? row.clip.sourceNodeId}
-          barCount={Math.max(
-            4,
-            Math.floor(widthPx / EDIT_DESK_LAYOUT.waveBarPitchPx),
-          )}
-          height={EDIT_DESK_LAYOUT.waveHeightPx - 10}
-          className="w-full"
-        />
-      </div>
-    )
-  }
-
-  if (!poster) return null
-
-  const frameWidthPx = Math.round((EDIT_DESK_LAYOUT.clipHeightPx * 16) / 9)
+  const frameWidthPx = (G.videoPx * 16) / 9
   const count = Math.min(
     EDIT_DESK_CLIP_FRAME_MAX,
-    Math.max(1, Math.round(widthPx / frameWidthPx)),
+    Math.max(1, Math.ceil(widthPx / frameWidthPx)),
   )
-
+  const step = EDIT_TIMELINE_FILMSTRIP.stepSec
+  const frames = Array.from({ length: count }, (_, index) => {
+    const at =
+      shown.in + ((index + 0.5) / count) * Math.max(0, shown.out - shown.in)
+    const sec = Math.min(
+      Math.max(shown.in, Math.round(at / step) * step),
+      Math.max(shown.in, shown.out - step / 2),
+    )
+    return (
+      getVideoFrameUrl(url, sec, EDIT_TIMELINE_FILMSTRIP.frameWidthPx) ?? poster
+    )
+  })
+  if (frames.every((frame) => !frame)) return null
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 flex">
-      {Array.from({ length: count }).map((_, index) => (
+      {frames.map((frame, index) => (
         <span
           key={index}
-          className="min-w-0 flex-1 bg-cover bg-center"
-          style={{ backgroundImage: `url(${poster})` }}
+          className="min-w-0 flex-1 border-r border-neutral-950/35 bg-cover bg-center"
+          style={frame ? { backgroundImage: `url(${frame})` } : undefined}
         />
       ))}
+    </div>
+  )
+}
+
+/** 配乐段里那条波形（复用音频卡那一只）。 */
+function MusicWave({
+  row,
+  widthPx,
+}: {
+  readonly row: EditTimelineRow
+  readonly widthPx: number
+}) {
+  const node = row.source.node
+  const url = node ? currentUrlOf(node) : undefined
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-x-1 inset-y-0 flex items-center pt-3 opacity-60"
+    >
+      <AudioWaveform
+        seed={url ?? row.clip.sourceNodeId}
+        barCount={Math.max(
+          4,
+          Math.floor(widthPx / EDIT_DESK_LAYOUT.waveBarPitchPx),
+        )}
+        height={G.musicPx - 22}
+        className="w-full"
+      />
     </div>
   )
 }

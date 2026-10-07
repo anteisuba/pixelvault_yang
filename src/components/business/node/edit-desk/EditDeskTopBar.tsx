@@ -33,7 +33,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 
-import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
+import { EditDeskIconButton } from './EditDeskIconButton'
 
 export interface EditDeskTopBarProps {
   readonly project: EditProject
@@ -157,7 +157,7 @@ export function EditDeskTopBar({
       <div className="flex min-w-0 flex-1 justify-center">{receipt}</div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <ShellIconButton
+        <EditDeskIconButton
           icon={Undo2}
           label={t('undo')}
           disabled={!canUndo}

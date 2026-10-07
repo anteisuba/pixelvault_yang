@@ -28,8 +28,7 @@ import {
 import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
-import { ApiRequestError } from '@/lib/errors'
-import { getSystemApiKey } from '@/lib/platform-keys'
+import { ApiKeyError, ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
@@ -943,7 +942,9 @@ export async function findLlmTextKeyId(
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: specified apiKeyId → the user's newest active key in `LLM_TEXT_ADAPTERS` order → platform Gemini key
+ * Priority: specified apiKeyId → the user's newest active key in `LLM_TEXT_ADAPTERS` order.
+ * ⚠ No platform fallback (owner 2026-10-07): every user brings their own key —
+ * a keyless request ends in `ApiKeyError('missing')`, never on the owner's bill.
  */
 export async function resolveLlmTextRoute(
   userId: string,
@@ -1013,21 +1014,9 @@ export async function resolveLlmTextRoute(
     }
   }
 
-  // Platform fallback: use system Gemini key for users without their own keys
-  const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.GEMINI)
-  if (platformKey) {
-    return {
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      providerConfig: {
-        label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.GEMINI],
-        baseUrl: getBaseUrlForAdapter(AI_ADAPTER_TYPES.GEMINI),
-      },
-      apiKey: platformKey,
-    }
-  }
-
   const tried = triedProviders.join(', ')
-  throw new Error(
+  throw new ApiKeyError(
+    'missing',
     `No API key available. Tried: ${tried}. Please add a ${LLM_TEXT_PROVIDER_NAMES} API key in Settings > API Keys.`,
   )
 }

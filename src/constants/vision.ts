@@ -202,12 +202,6 @@ export const VISION_CAPABLE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = (() => {
 })()
 
 /**
- * 都借不到时的平台兜底 key 用哪个 adapter。
- * 与 `research-route.service.ts` 的 `findGroundingRoute` 同一个选择。
- */
-export const VISION_PLATFORM_FALLBACK_ADAPTER = AI_ADAPTER_TYPES.GEMINI
-
-/**
  * 一条都借不到时的结构化错误。
  *
  * ⛔ **不静默降级成「用文本模型瞎猜」** —— 那会产出一份看起来完整、实际一眼没看过

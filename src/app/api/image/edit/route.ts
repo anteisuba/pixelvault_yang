@@ -7,7 +7,6 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getSystemApiKey } from '@/lib/platform-keys'
 import { ApiKeyError } from '@/lib/errors'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
@@ -21,13 +20,12 @@ export const POST = createApiRoute({
   handler: async (clerkId, data) => {
     const user = await ensureUser(clerkId)
 
-    // Resolve fal.ai API key: user's saved key first, then platform key
+    // BYOK only — no platform fal key (owner 2026-10-07).
     const userKeyRecord = await findActiveKeyForAdapter(
       user.id,
       AI_ADAPTER_TYPES.FAL,
     )
-    const apiKey =
-      userKeyRecord?.keyValue ?? getSystemApiKey(AI_ADAPTER_TYPES.FAL)
+    const apiKey = userKeyRecord?.keyValue
 
     if (!apiKey) {
       throw new ApiKeyError(

@@ -8141,7 +8141,9 @@
       "invalidRequest": "The server did not accept this request",
       "traceLabel": "Error ID {traceId}",
       "copyDetail": "Copy details",
-      "copied": "Copied"
+      "copied": "Copied",
+      "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
+      "addKey": "Add a key"
     },
     "assistantSettings": "Assistant settings",
     "rule": {

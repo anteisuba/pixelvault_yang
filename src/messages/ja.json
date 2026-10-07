@@ -8141,7 +8141,9 @@
       "invalidRequest": "このリクエストはサーバーに受け付けられませんでした",
       "traceLabel": "エラー ID {traceId}",
       "copyDetail": "詳細をコピー",
-      "copied": "コピーしました"
+      "copied": "コピーしました",
+      "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
+      "addKey": "キーを追加"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {

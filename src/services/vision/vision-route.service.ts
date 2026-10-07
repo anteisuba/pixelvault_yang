@@ -1,14 +1,11 @@
 import 'server-only'
 
-import { getDefaultProviderConfig } from '@/constants/providers'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import {
   VISION_CAPABLE_ADAPTERS,
   VISION_NO_CAPABLE_ROUTE_ERROR,
-  VISION_PLATFORM_FALLBACK_ADAPTER,
 } from '@/constants/vision'
 import { ApiRequestError } from '@/lib/errors'
-import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import {
@@ -40,7 +37,7 @@ export interface ResolvedVisionRoute {
   borrowed: boolean
 }
 
-/** 找任意一条能吃图的路：先用户自己的 key（省平台额度），再平台兜底 key。 */
+/** 找任意一条能吃图的路：只认用户自己的 key（2026-10-07 起没有平台兜底）。 */
 export async function findVisionCapableRoute(
   userId: string,
 ): Promise<ResolvedLlmTextRoute | null> {
@@ -52,17 +49,6 @@ export async function findVisionCapableRoute(
         providerConfig: userKey.providerConfig,
         apiKey: userKey.keyValue,
       }
-    }
-  }
-
-  const platformKey = getSystemApiKey(VISION_PLATFORM_FALLBACK_ADAPTER)
-  if (platformKey) {
-    return {
-      adapterType: VISION_PLATFORM_FALLBACK_ADAPTER,
-      providerConfig: getDefaultProviderConfig(
-        VISION_PLATFORM_FALLBACK_ADAPTER,
-      ),
-      apiKey: platformKey,
     }
   }
 

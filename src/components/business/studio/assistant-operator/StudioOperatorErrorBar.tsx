@@ -43,11 +43,14 @@ interface StudioOperatorErrorBarProps {
   text: string
   /** 第二、三段的数据。缺席 = 这一族失败本来就说得出原因，只画第一段。 */
   trace: StudioOperatorErrorTrace | null
+  /** 这次失败能就地修的那一步（缺 key → 「配置 Key」，Hard Rule 8）。 */
+  action?: { label: string; onClick: () => void }
 }
 
 export function StudioOperatorErrorBar({
   text,
   trace,
+  action,
 }: StudioOperatorErrorBarProps) {
   const t = useTranslations('StudioOperator')
   const [copied, setCopied] = useState(false)
@@ -66,6 +69,16 @@ export function StudioOperatorErrorBar({
       className="flex flex-col gap-1 rounded-md border border-status-risk/40 bg-status-risk-surface px-2.5 py-1.5 text-2sm text-status-risk"
     >
       <p>{text}</p>
+      {action ? (
+        <button
+          type="button"
+          data-testid="operator-error-action"
+          onClick={action.onClick}
+          className="touch-target-y self-start rounded-md border border-status-risk/40 px-2 py-0.5 text-2xs font-medium text-status-risk transition-colors duration-fast ease-standard hover:bg-status-risk/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        >
+          {action.label}
+        </button>
+      ) : null}
       {trace ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span

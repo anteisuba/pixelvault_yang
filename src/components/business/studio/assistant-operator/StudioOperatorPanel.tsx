@@ -85,6 +85,8 @@ import {
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
 } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
@@ -102,6 +104,7 @@ import {
   type MentionToken,
 } from '@/components/ui/mention-input'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   getReferenceMentionIndices,
   getReferenceImageAttachmentId,
@@ -357,6 +360,11 @@ function collectCanvasChangedCards(
   })
 }
 
+/** 缺 key 时引导去配的那一档：Gemini 文本模型在 Google AI Studio 有免费档。 */
+const FREE_TIER_ASSISTANT_ROUTE = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+  (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+)
+
 export function StudioOperatorPanel({
   operator,
   draft,
@@ -392,6 +400,7 @@ export function StudioOperatorPanel({
     status,
     errorText,
     errorTrace,
+    errorCode,
     history: allHistoryEntries,
     historyRounds,
     queue,
@@ -520,6 +529,8 @@ export function StudioOperatorPanel({
    * （首屏 10 张、文件夹分类、往下拉继续翻）。
    */
   const [libraryOpen, setLibraryOpen] = useState(false)
+  /** 缺 key 的那条错误条上「配置 Key」打开的内联配置（Hard Rule 8）。 */
+  const [keySetupOpen, setKeySetupOpen] = useState(false)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -2312,6 +2323,14 @@ export function StudioOperatorPanel({
                         <StudioOperatorErrorBar
                           text={errorText ?? t('error.generic')}
                           trace={errorTrace}
+                          {...(errorCode === 'MISSING_API_KEY'
+                            ? {
+                                action: {
+                                  label: t('error.addKey'),
+                                  onClick: () => setKeySetupOpen(true),
+                                },
+                              }
+                            : {})}
                         />
                       </StudioOperatorTimelineRow>
                     ) : null,
@@ -2845,6 +2864,18 @@ export function StudioOperatorPanel({
           multiSelect
           pageSize={STUDIO_OPERATOR_LIBRARY_PAGE_SIZE}
           onConfirmMany={pickLibraryAssets}
+        />
+      ) : null}
+
+      {/* 缺 key：直接配 Gemini —— 文本模型在 AI Studio 有免费档（2026-10-07 起没有平台兜底）。 */}
+      {keySetupOpen && FREE_TIER_ASSISTANT_ROUTE ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={setKeySetupOpen}
+          modelId={FREE_TIER_ASSISTANT_ROUTE.modelId}
+          modelLabel={FREE_TIER_ASSISTANT_ROUTE.label}
+          adapterType={FREE_TIER_ASSISTANT_ROUTE.adapterType}
+          optionId={`llm-route:assistant:setup:${FREE_TIER_ASSISTANT_ROUTE.modelId}`}
         />
       ) : null}
     </>

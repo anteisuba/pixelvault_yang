@@ -10,10 +10,6 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/lib/crypto', () => ({
   decryptApiKey: vi.fn().mockReturnValue('user-key'),
 }))
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemApiKey: vi.fn().mockReturnValue(null),
-}))
-
 const mockKeyFindFirst = vi.fn()
 const mockGenerationFindUnique = vi.fn()
 const mockGenerationUpdate = vi.fn()

@@ -15,11 +15,6 @@ vi.mock('@/services/apiKey.service', () => ({
     mockFindActiveKeyForAdapter(...args),
 }))
 
-const mockGetSystemApiKey = vi.fn()
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemApiKey: (...args: unknown[]) => mockGetSystemApiKey(...args),
-}))
-
 const mockResolveLlmTextRoute = vi.fn()
 vi.mock('@/services/llm-text.service', () => ({
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
@@ -42,7 +37,6 @@ describe('resolveVisionRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFindActiveKeyForAdapter.mockResolvedValue(null)
-    mockGetSystemApiKey.mockReturnValue(null)
   })
 
   it.each([AI_ADAPTER_TYPES.OPENAI, AI_ADAPTER_TYPES.DEEPSEEK])(
@@ -111,24 +105,6 @@ describe('resolveVisionRoute', () => {
     expect(mockFindActiveKeyForAdapter).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to the platform key when the user owns no image-capable key', async () => {
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
-      providerConfig: {
-        label: 'Volcengine',
-        baseUrl: 'https://volcengine.test',
-      },
-      apiKey: 'volcengine-key',
-    })
-    mockGetSystemApiKey.mockReturnValue('platform-gemini-key')
-
-    const resolved = await resolveVisionRoute('db_user_1', 'key_1')
-
-    expect(resolved.borrowed).toBe(true)
-    expect(resolved.route.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
-    expect(resolved.route.apiKey).toBe('platform-gemini-key')
-  })
-
   it('throws a structured error instead of guessing when nothing can see images', async () => {
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
@@ -175,8 +151,6 @@ describe('resolveVisionRoute', () => {
     mockResolveLlmTextRoute.mockRejectedValue(
       new Error('The selected API key is unavailable.'),
     )
-    mockGetSystemApiKey.mockReturnValue('platform-gemini-key')
-
     await expect(resolveVisionRoute('db_user_1', 'key_dead')).rejects.toThrow(
       'The selected API key is unavailable.',
     )

@@ -60,10 +60,6 @@ vi.mock('@/services/apiKey.service', () => ({
   findActiveKeyForAdapter: vi.fn(),
 }))
 
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemApiKey: vi.fn(() => null),
-}))
-
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: vi.fn(),
 }))

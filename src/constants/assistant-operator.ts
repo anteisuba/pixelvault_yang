@@ -1576,6 +1576,11 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
   UNAUTHORIZED: 'unauthorized',
   RATE_LIMIT_EXCEEDED: 'rateLimited',
   VALIDATION_ERROR: 'invalidRequest',
+  /**
+   * 没有任何一把能跑助手的文本模型 key（2026-10-07 起没有平台兜底）。面板在这条
+   * 错误条上给「配置 Key」，⛔ 不借 `Errors.apiKey.missing` 那句「此模型需要 API Key」。
+   */
+  MISSING_API_KEY: 'missingKey',
 }
 
 /** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */

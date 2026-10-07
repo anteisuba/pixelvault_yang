@@ -12,7 +12,6 @@ import { encodeSseEvent } from '@/lib/sse'
 import { ensureUser } from '@/services/user.service'
 import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { getSystemApiKey } from '@/lib/platform-keys'
 import { withRetry } from '@/lib/with-retry'
 import {
   findActiveKeyForAdapter,
@@ -1082,12 +1081,7 @@ export async function extractElement(params: {
   }
 }
 
-/**
- * Generic API key resolver that picks the right adapter based on `modelId`.
- * Prefer this in new code; `resolveFalImageEditApiKey` stays as a thin alias
- * so legacy callers (the four route files written before Phase 4) compile
- * untouched.
- */
+/** Generic API key resolver that picks the right adapter based on `modelId`. */
 export async function resolveEditApiKey(
   userId: string,
   modelId: string | undefined,
@@ -1114,28 +1108,12 @@ export async function resolveEditApiKey(
     return userKeyRecord.keyValue
   }
 
-  // BYOK enforcement: Gemini and OpenAI never fall back to platform keys.
-  // The cost would silently land on the project owner — surface a clear
-  // "go configure your key" error instead. fal keeps the platform fallback
-  // for backwards compatibility with the existing upscale / remove-bg /
-  // inpaint flows that shipped before Phase 4.
-  if (provider === 'fal') {
-    const platformKey = getSystemApiKey(adapterType)
-    if (platformKey) return platformKey
-  }
-
+  // BYOK only: no provider falls back to a platform key (owner 2026-10-07) —
+  // the cost would silently land on the project owner.
   throw new ApiKeyError(
     'missing',
     `No ${adapterType} API key configured. Add one in API Keys to use this model.`,
   )
-}
-
-/** @deprecated Phase 4: use {@link resolveEditApiKey} with the model ID. */
-export async function resolveFalImageEditApiKey(
-  userId: string,
-  apiKeyId?: string,
-): Promise<string> {
-  return resolveEditApiKey(userId, FAL_DEFAULT_UPSCALE_MODEL, apiKeyId)
 }
 
 /**

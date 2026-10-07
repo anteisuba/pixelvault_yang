@@ -17,11 +17,6 @@ vi.mock('@/services/apiKey.service', () => ({
     mockFindActiveKeyForAdapter(...args),
 }))
 
-const mockGetSystemApiKey = vi.fn()
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemApiKey: (...args: unknown[]) => mockGetSystemApiKey(...args),
-}))
-
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
 vi.mock('@/services/llm-text.service', () => ({
@@ -110,7 +105,6 @@ describe('createScriptBreakdown', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockFindActiveKeyForAdapter.mockResolvedValue(FAKE_KEY_ROUTE)
-    mockGetSystemApiKey.mockReturnValue(null)
   })
 
   it('returns validated breakdown data from the selected planner route', async () => {

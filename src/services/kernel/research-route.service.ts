@@ -1,10 +1,6 @@
 import 'server-only'
 
-import {
-  AI_ADAPTER_TYPES,
-  getDefaultProviderConfig,
-} from '@/constants/providers'
-import { getSystemApiKey } from '@/lib/platform-keys'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import {
   resolveLlmTextRoute,
@@ -28,9 +24,9 @@ export const GROUNDING_CAPABLE_ADAPTERS: AI_ADAPTER_TYPES[] = [
 
 /**
  * Find any grounding-capable route for a research turn: a bound Gemini/OpenAI
- * key first (honors the user's "prefer live web" intent), then the platform
- * Gemini key. Returns null when nothing can ground — the caller then degrades
- * to the model's own knowledge.
+ * key (honors the user's "prefer live web" intent). No platform fallback
+ * (owner 2026-10-07). Returns null when nothing can ground — the caller then
+ * degrades to the model's own knowledge.
  */
 export async function findGroundingRoute(
   userId: string,
@@ -43,15 +39,6 @@ export async function findGroundingRoute(
         providerConfig: userKey.providerConfig,
         apiKey: userKey.keyValue,
       }
-    }
-  }
-
-  const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.GEMINI)
-  if (platformKey) {
-    return {
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
-      apiKey: platformKey,
     }
   }
 

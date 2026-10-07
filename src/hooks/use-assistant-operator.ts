@@ -1155,7 +1155,12 @@ export function useAssistantOperator(
           setOperatorStatus('idle')
           return
         }
-        setOperatorStatus('error', describeError(result), toErrorTrace(result))
+        setOperatorStatus(
+          'error',
+          describeError(result),
+          toErrorTrace(result),
+          result.errorCode ?? null,
+        )
         return
       }
 
@@ -1692,6 +1697,7 @@ export function useAssistantOperator(
                 'error',
                 describeError(event),
                 toErrorTrace(event),
+                event.errorCode ?? null,
               )
               break
             default:

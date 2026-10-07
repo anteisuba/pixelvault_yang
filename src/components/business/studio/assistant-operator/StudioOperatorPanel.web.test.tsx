@@ -1,6 +1,6 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import {
   afterEach,
   beforeEach,
@@ -74,6 +74,12 @@ vi.mock('@/hooks/use-llm-route-picker', () => ({
     allRoutes: [],
     healthMap: {},
   }),
+}))
+
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: (props: { modelLabel: string }) => (
+    <div data-testid="quick-setup">{props.modelLabel}</div>
+  ),
 }))
 
 vi.mock('@/hooks/use-my-profile', () => ({
@@ -564,6 +570,26 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     fireEvent.keyDown(editor, { key: 'Enter' })
     expect(send).toHaveBeenCalledWith('改成夜景', [])
     now.mockRestore()
+  })
+
+  it('⭐ 缺 key 的错误条带「配置 Key」，点开就地配 Gemini（免费档）', () => {
+    renderPanel()
+    act(() =>
+      store.setOperatorStatus(
+        'error',
+        'missing key text',
+        null,
+        'MISSING_API_KEY',
+      ),
+    )
+    fireEvent.click(screen.getByTestId('operator-error-action'))
+    expect(screen.getByTestId('quick-setup')).toHaveTextContent('Gemini')
+  })
+
+  it('其他错误不给动作键', () => {
+    renderPanel()
+    act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
+    expect(screen.queryByTestId('operator-error-action')).toBeNull()
   })
 
   it('⭐ 默认宿主：输入框里的图跟这条消息一起发出去，发完清空', () => {

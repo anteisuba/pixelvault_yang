@@ -6,10 +6,6 @@ vi.mock('@/lib/crypto', () => ({
   decryptApiKey: vi.fn().mockReturnValue('decrypted-key'),
 }))
 
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemApiKey: vi.fn().mockReturnValue(null),
-}))
-
 const mockFindFirst = vi.fn()
 vi.mock('@/lib/db', () => ({
   db: {
@@ -199,12 +195,15 @@ describe('resolveLlmTextRoute', () => {
     expect(route.apiKey).toBe('decrypted-key')
   })
 
-  it('throws when no user keys and no platform key available', async () => {
+  it('throws a missing-key error when the user owns no LLM key — no platform fallback', async () => {
     mockFindFirst.mockResolvedValue(null)
 
-    await expect(resolveLlmTextRoute('db_user_1')).rejects.toThrow(
-      'Please add a Gemini, DeepSeek, OpenAI, Claude, or Grok API key',
-    )
+    await expect(resolveLlmTextRoute('db_user_1')).rejects.toMatchObject({
+      errorCode: 'MISSING_API_KEY',
+      message: expect.stringContaining(
+        'Please add a Gemini, DeepSeek, OpenAI, Claude, or Grok API key',
+      ),
+    })
   })
 })
 

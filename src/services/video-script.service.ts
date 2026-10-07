@@ -14,7 +14,6 @@ import {
   type ResolvedApiKeyValue,
 } from '@/services/apiKey.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
-import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import {
   CreateVideoScriptInputSchema,
   LLMScriptOutputSchema,
@@ -171,29 +170,8 @@ async function resolveKeyForAdapter(
   userId: string,
   adapterType: AI_ADAPTER_TYPES,
 ): Promise<ResolvedApiKeyValue | null> {
-  const userKey = await findActiveKeyForAdapter(userId, adapterType)
-  if (userKey) return userKey
-
-  // Platform fallback for Gemini only (matches llm-text.service behaviour)
-  if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
-    const { getSystemApiKey } = await import('@/lib/platform-keys')
-    const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.GEMINI)
-    if (platformKey) {
-      return {
-        id: 'platform:gemini',
-        modelId: 'gemini-platform',
-        adapterType,
-        providerConfig: {
-          label: 'Gemini (platform)',
-          baseUrl: AI_PROVIDER_ENDPOINTS.GEMINI,
-        },
-        label: 'Gemini (platform)',
-        keyValue: platformKey,
-      }
-    }
-  }
-
-  return null
+  // ⚠ 只认用户自己的 key（owner 2026-10-07 清空平台兜底）。
+  return findActiveKeyForAdapter(userId, adapterType)
 }
 
 function validateAndNormalizeLlmOutput(

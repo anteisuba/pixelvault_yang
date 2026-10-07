@@ -8141,7 +8141,9 @@
       "invalidRequest": "这一轮的请求服务端没认下来",
       "traceLabel": "错误编号 {traceId}",
       "copyDetail": "复制详情",
-      "copied": "已复制"
+      "copied": "已复制",
+      "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
+      "addKey": "配置 Key"
     },
     "assistantSettings": "助手设置",
     "rule": {

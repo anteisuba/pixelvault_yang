@@ -105,6 +105,11 @@ export interface StudioOperatorState {
    */
   errorTrace: StudioOperatorErrorTrace | null
   /**
+   * 那次失败的错误码 —— 面板据此决定错误条上要不要一颗动作键（缺 key → 「配置 Key」，
+   * Hard Rule 8）。⚠ 文案仍走 `errorText`，⛔ 不按码在面板里另取一份。
+   */
+  errorCode: string | null
+  /**
    * 排着队、还没发出去的那些话（§3.1 ㉒，本片）。
    *
    * ⭐ **住在 store 不住在面板**：面板会被收放法则（拍板 7）随时卸载，而排队条
@@ -263,6 +268,7 @@ const INITIAL_STATE: StudioOperatorState = {
   plannedSteps: 0,
   errorText: null,
   errorTrace: null,
+  errorCode: null,
   queue: [],
   mentions: [],
   autoGenerate: false,
@@ -694,8 +700,9 @@ export function setOperatorStatus(
    * 有码有文案的那一族失败，都不该留着上一次的短码在屏幕上。
    */
   errorTrace: StudioOperatorErrorTrace | null = null,
+  errorCode: string | null = null,
 ): void {
-  emit({ ...state, status, errorText, errorTrace })
+  emit({ ...state, status, errorText, errorTrace, errorCode })
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1093,6 +1100,7 @@ export function loadOperatorThread(args: {
     plannedSteps: 0,
     errorText: null,
     errorTrace: null,
+    errorCode: null,
     queue: [],
     mentions: [],
     selectedResultId: null,
@@ -1304,6 +1312,7 @@ export function resetOperatorThread(
     plannedSteps: 0,
     errorText: null,
     errorTrace: null,
+    errorCode: null,
     // ⚠ 队列跟着走：排的那几句是说给**上一条线程**听的，留到新话题里接住，
     //   用户会看到助手回答一个他已经翻篇的问题。
     queue: [],

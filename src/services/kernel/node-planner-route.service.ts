@@ -1,16 +1,12 @@
 import 'server-only'
 
-import {
-  AI_ADAPTER_TYPES,
-  getDefaultProviderConfig,
-} from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   SCRIPT_PLANNER_PROVIDER_IDS,
   SCRIPT_PLANNER_MODELS,
   type ScriptPlannerConcreteProvider,
   type ScriptPlannerProvider,
 } from '@/constants/script-breakdown'
-import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { ApiKeyError } from '@/lib/errors'
 import {
@@ -61,17 +57,6 @@ async function resolveSpecificNodePlannerRoute(
       apiKey: userKey.keyValue,
       modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
       label: userKey.providerConfig.label,
-    }
-  }
-
-  const platformKey = getSystemApiKey(adapterType)
-  if (platformKey) {
-    return {
-      adapterType,
-      providerConfig: getDefaultProviderConfig(adapterType),
-      apiKey: platformKey,
-      modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
-      label: SCRIPT_PLANNER_MODELS[provider].label,
     }
   }
 

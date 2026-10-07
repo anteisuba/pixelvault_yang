@@ -104,7 +104,7 @@ jobs:
         include:
           - worker: render-video
             test: npm ci && npm test
-          # 本地 D1（miniflare）里跑真 SQLite + FTS5。部署是手动的（npm run deploy）。
+          # 本地 D1（miniflare）里跑真 SQLite + FTS5。
           - worker: civitai-index
             test: npm ci && npm test
           # 本目录没有 package.json；测试是 node:test，直接 import ./index.ts。
@@ -294,6 +294,9 @@ jobs:
         include:
           - worker: render-video
             deploy: npm ci && npm run deploy
+          # 先改 D1 表结构再部署代码（与 Neon 迁移同一套做法）。令牌要带 D1 编辑权限。
+          - worker: civitai-index
+            deploy: npm ci && npm run migrate && npm run deploy
           # 没有自己的 package.json，借 execution 锁定的 wrangler 版本。
           - worker: civitai-image-proxy
             deploy: npm --prefix ../execution ci && ../execution/node_modules/.bin/wrangler deploy

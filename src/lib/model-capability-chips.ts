@@ -68,9 +68,7 @@ const SELECT_OPTION_KEYS: Partial<
  */
 const TEXT_MAX_LENGTH_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
-> = {
-  textRendering: 'textRenderingMaxChars',
-}
+> = {}
 
 /**
  * 无论哪个 provider 都只有挂了参考图才成立的能力：`referenceStrength` 要一张

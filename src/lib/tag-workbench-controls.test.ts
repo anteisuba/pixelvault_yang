@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 
@@ -68,13 +69,18 @@ describe('标签台右列控件', () => {
 
   // 值域按名单第一位（= 主模型）取，出图时各自再裁剪一次。
   it('同名能力取名单第一位的值域', () => {
-    const curated = {
-      modelId: AI_MODELS.NOVELAI_V5_CURATED as string,
+    const v45 = {
+      modelId: AI_MODELS.NOVELAI_V45_FULL as string,
       adapterType: AI_ADAPTER_TYPES.NOVELAI,
     }
-    const fromFull = byCapability([NAI_V5, curated])
-    const fromCurated = byCapability([curated, NAI_V5])
-    expect(fromFull.textRendering.chip.maxLength).toBe(750)
-    expect(fromCurated.textRendering.chip.maxLength).toBe(374)
+    const fromV5 = byCapability([NAI_V5, v45])
+    const fromV45 = byCapability([v45, NAI_V5])
+    expect(fromV5.steps.chip.range).toEqual(
+      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, NAI_V5.modelId).steps,
+    )
+    expect(fromV45.steps.chip.range).toEqual(
+      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, v45.modelId).steps,
+    )
+    expect(fromV5.steps.chip.range).not.toEqual(fromV45.steps.chip.range)
   })
 })

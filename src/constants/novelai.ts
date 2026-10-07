@@ -55,6 +55,87 @@ export function supportsNovelAiCharacters(modelId?: string): boolean {
   return getNovelAiCharacterLayoutMode(modelId) !== undefined
 }
 
+/** 一位角色最多挂几条互动（角色页「再加一条」的上限）。 */
+export const NOVELAI_MAX_INTERACTIONS_PER_CHARACTER = 4
+/** 自己写的互动动作标签最长多少字。 */
+export const NOVELAI_INTERACTION_TAG_MAX_CHARS = 60
+
+/**
+ * 互动的常用动作（设计画布「C · 选动作」）。`tag` 是 Danbooru 标签，发送时
+ * 发起方写 `source#tag`、对方写 `target#tag`；`targetTag` 只在对方那边写法
+ * 不同时给（官方多人页的例子就是 `source#pointing at another` /
+ * `target#pointing`）；`mutual` = 天然两边都在做，「对谁」默认选「互相」，
+ * 两边都写 `mutual#tag`。
+ * https://docs.novelai.net/en/image/multiplecharacters/
+ */
+export const NOVELAI_INTERACTION_PRESETS = [
+  { key: 'headpat', tag: 'headpat' },
+  { key: 'hug', tag: 'hug' },
+  { key: 'hugFromBehind', tag: 'hug from behind' },
+  { key: 'holdingHands', tag: 'holding hands', mutual: true },
+  { key: 'lookingAt', tag: 'looking at another' },
+  { key: 'pointing', tag: 'pointing at another', targetTag: 'pointing' },
+  { key: 'handOnShoulder', tag: "hand on another's shoulder" },
+  { key: 'kiss', tag: 'kiss' },
+  { key: 'princessCarry', tag: 'princess carry' },
+  { key: 'feeding', tag: 'feeding' },
+  { key: 'backToBack', tag: 'back-to-back', mutual: true },
+  { key: 'faceToFace', tag: 'face-to-face', mutual: true },
+] as const satisfies readonly {
+  key: string
+  tag: string
+  targetTag?: string
+  mutual?: boolean
+}[]
+
+export type NovelAiInteractionPreset =
+  (typeof NOVELAI_INTERACTION_PRESETS)[number]
+
+export function findNovelAiInteractionPreset(
+  tag: string,
+): NovelAiInteractionPreset | undefined {
+  const key = tag.trim().toLowerCase()
+  return NOVELAI_INTERACTION_PRESETS.find((preset) => preset.tag === key)
+}
+
+/**
+ * 画面文字的种类（整体页那一行的下拉）。发送时各自翻成一句自然语言再并入
+ * `Text:`：招牌 / 标题 / 封面 / 其他。
+ */
+export const NOVELAI_SCENE_TEXT_KINDS = [
+  'sign',
+  'title',
+  'cover',
+  'other',
+] as const
+export type NovelAiSceneTextKind = (typeof NOVELAI_SCENE_TEXT_KINDS)[number]
+/** 整体页最多几条画面文字。 */
+export const NOVELAI_MAX_SCENE_TEXTS = 4
+
+/**
+ * 画中文字（全部台词 + 画面文字合计）的上限与语言。V5 Full 750 / Curated 374
+ * 认中日英；V4 / V4.5 只认英文、≤118（含空白与换行）。
+ * ⚠ 这几个数只当护栏：官方文字页写 characters、模型页写 tokens，⛔ 不当成
+ * provider 的精确契约。
+ * https://docs.novelai.net/en/image/textrendering/
+ */
+export const NOVELAI_TEXT_LIMITS: Readonly<
+  Record<string, { maxChars: number; latinOnly: boolean }>
+> = {
+  [AI_MODELS.NOVELAI_V5_FULL]: { maxChars: 750, latinOnly: false },
+  [AI_MODELS.NOVELAI_V5_CURATED]: { maxChars: 374, latinOnly: false },
+  [AI_MODELS.NOVELAI_V45_FULL]: { maxChars: 118, latinOnly: true },
+  [AI_MODELS.NOVELAI_V45_CURATED]: { maxChars: 118, latinOnly: true },
+}
+/** 全名册里最大的那个上限 —— schema 不知道当前是哪个模型，只能卡这一档。 */
+export const NOVELAI_TEXT_MAX_CHARS = 750
+
+export function getNovelAiTextLimit(
+  modelId?: string,
+): { maxChars: number; latinOnly: boolean } | undefined {
+  return modelId ? NOVELAI_TEXT_LIMITS[modelId] : undefined
+}
+
 /**
  * 网格档的格心坐标：5 格时是 0.1 / 0.3 / 0.5 / 0.7 / 0.9。
  * 自由档不经过它（V5 收的就是任意 0–1 的小数）。

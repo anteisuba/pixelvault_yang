@@ -153,7 +153,14 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { snapToNovelAiGrid } from '@/constants/novelai'
+import {
+  findNovelAiInteractionPreset,
+  NOVELAI_INTERACTION_TAG_MAX_CHARS,
+  NOVELAI_MAX_INTERACTIONS_PER_CHARACTER,
+  NOVELAI_TEXT_MAX_CHARS,
+  snapToNovelAiGrid,
+} from '@/constants/novelai'
+import type { NovelAiInteraction } from '@/types/novelai'
 import {
   AI_MODELS,
   getModelFamily,
@@ -1393,6 +1400,18 @@ function describeCapability(
   return `${capability.key}: ${current} — ${domain}${blocked}${onlyFor}`
 }
 
+/** 一位角色的互动印成「headpat → 2, holding hands ↔ 3」：编号从 1 数，与名单同一套。 */
+function describeNovelAiInteractions(
+  interactions: readonly NovelAiInteraction[],
+): string {
+  return interactions
+    .map(
+      (interaction) =>
+        `${interaction.tag} ${interaction.mutual ? '↔' : '→'} ${interaction.target + 1}`,
+    )
+    .join(', ')
+}
+
 function renderState(
   run: OperatorRun,
   materialBudget: number = LIMITS.maxLoraMaterialChars,
@@ -1661,7 +1680,7 @@ function renderState(
         ? layout.characters
             .map(
               (character, index) =>
-                `  ${index + 1}. ${character.enabled === false ? '[off] ' : ''}prompt: "${clamp(character.prompt, LIMITS.maxPromptChars)}"${character.negativePrompt ? ` · negative: "${clamp(character.negativePrompt, LIMITS.maxPromptChars)}"` : ''} · at (${character.position.x.toFixed(2)}, ${character.position.y.toFixed(2)})`,
+                `  ${index + 1}. ${character.enabled === false ? '[off] ' : ''}prompt: "${clamp(character.prompt, LIMITS.maxPromptChars)}"${character.negativePrompt ? ` · negative: "${clamp(character.negativePrompt, LIMITS.maxPromptChars)}"` : ''} · at (${character.position.x.toFixed(2)}, ${character.position.y.toFixed(2)})${character.interactions?.length ? ` · interactions: ${describeNovelAiInteractions(character.interactions)}` : ''}${character.dialogue ? ` · says: "${clamp(character.dialogue, LIMITS.maxPromptChars)}"` : ''}`,
             )
             .join('\n')
         : '  (none — only the base prompt; with two or more people, give each one a slot)',
@@ -5065,7 +5084,10 @@ function planSetCount(run: OperatorRun, args: { count: number }): ToolPlan {
  * ⚠ 位置：`manual` 时用给的 x / y；没给就沿用同一格原来的位置，再没有就均匀摆开。
  *   网格档（V4.5）一律吸到格心，与界面上拖动落位同一条判据（`snapToNovelAiGrid`）。
  * ⚠ 每位的标签照样过 NAI 两道硬闸（中文 / 句子 / 夸张权重）—— 同一步的草稿，
- *   ⛔ 不在时间线上画成失败（与 `set_prompt` 同一做法）。
+ *   ⛔ 不在时间线上画成失败（与 `set_prompt` 同一做法）。互动的动作标签同闸；
+ *   ⛔ 台词不过闸 —— 它是画进图里的原文，中文是正当的。
+ * ⚠ 互动 / 台词没给就沿用同一格原来的（与位置同一条判据），指向名单外或自己的
+ *   旧互动跟着删；给 `[]` / `""` 才是清掉。互动的 `target` 从 1 数，这里换成下标。
  */
 function planSetTagCharacters(
   run: OperatorRun,
@@ -5077,6 +5099,8 @@ function planSetTagCharacters(
       enabled?: boolean
       x?: number
       y?: number
+      interactions?: { tag: string; target: number; mutual?: boolean }[]
+      dialogue?: string
     }[]
   },
 ): ToolPlan {
@@ -5093,8 +5117,44 @@ function planSetTagCharacters(
       `This model takes at most ${section.max} characters; you sent ${args.characters.length}.`,
     )
   }
+  const count = args.characters.length
   for (const [index, character] of args.characters.entries()) {
-    for (const text of [character.prompt, character.negativePrompt ?? '']) {
+    const interactions = character.interactions ?? []
+    if (interactions.length > NOVELAI_MAX_INTERACTIONS_PER_CHARACTER) {
+      return reject(
+        REJECT.unknownValue,
+        `Character ${index + 1} has ${interactions.length} interactions; keep at most ${NOVELAI_MAX_INTERACTIONS_PER_CHARACTER} per person.`,
+      )
+    }
+    for (const interaction of interactions) {
+      if (
+        interaction.target < 1 ||
+        interaction.target > count ||
+        interaction.target === index + 1
+      ) {
+        return reject(
+          REJECT.unknownValue,
+          `Character ${index + 1}'s "${interaction.tag}" points at ${interaction.target}, which is ${interaction.target === index + 1 ? 'that same person' : 'not in this list'}. "target" is the other person's number in this list (1–${count}).`,
+        )
+      }
+      if (interaction.tag.length > NOVELAI_INTERACTION_TAG_MAX_CHARS) {
+        return reject(
+          REJECT.unknownValue,
+          `Character ${index + 1}'s interaction tag is longer than ${NOVELAI_INTERACTION_TAG_MAX_CHARS} characters; use one Danbooru action tag such as "headpat" or "holding hands".`,
+        )
+      }
+    }
+    if ((character.dialogue?.length ?? 0) > NOVELAI_TEXT_MAX_CHARS) {
+      return reject(
+        REJECT.unknownValue,
+        `Character ${index + 1}'s line is longer than ${NOVELAI_TEXT_MAX_CHARS} characters.`,
+      )
+    }
+    for (const text of [
+      character.prompt,
+      character.negativePrompt ?? '',
+      ...interactions.map((interaction) => interaction.tag),
+    ]) {
       const problem = findNovelAiPromptProblem(text)
       if (problem) {
         return {
@@ -5111,7 +5171,6 @@ function planSetTagCharacters(
   }
 
   const previous = section.layout
-  const count = args.characters.length
   const positioning = args.positioning ?? previous?.positioning ?? 'auto'
   const place = (value: number) =>
     section.mode === 'grid' ? snapToNovelAiGrid(value) : value
@@ -5121,15 +5180,38 @@ function planSetTagCharacters(
       : {
           positioning,
           characters: args.characters.map((character, index) => {
-            const before = previous?.characters[index]?.position
+            const before = previous?.characters[index]
+            const interactions: NovelAiInteraction[] =
+              character.interactions?.map(({ tag, target, mutual }) => {
+                // 没说是不是「一起做」就照预设（牵手 / 背靠背 / 面对面），与选择器同一张表。
+                const preset = findNovelAiInteractionPreset(tag)
+                const together =
+                  mutual ?? (preset !== undefined && 'mutual' in preset)
+                return {
+                  tag,
+                  target: target - 1,
+                  ...(together ? { mutual: true } : {}),
+                }
+              }) ??
+              (before?.interactions ?? []).filter(
+                (interaction) =>
+                  interaction.target < count && interaction.target !== index,
+              )
+            const dialogue = character.dialogue ?? before?.dialogue ?? ''
             return {
               prompt: character.prompt,
               negativePrompt: character.negativePrompt ?? '',
               ...(character.enabled === false ? { enabled: false } : {}),
               position: {
-                x: place(character.x ?? before?.x ?? (index + 1) / (count + 1)),
-                y: place(character.y ?? before?.y ?? 0.5),
+                x: place(
+                  character.x ??
+                    before?.position.x ??
+                    (index + 1) / (count + 1),
+                ),
+                y: place(character.y ?? before?.position.y ?? 0.5),
               },
+              ...(interactions.length ? { interactions } : {}),
+              ...(dialogue ? { dialogue } : {}),
             }
           }),
         }
@@ -5140,7 +5222,10 @@ function planSetTagCharacters(
     inverse: { layout: previous ? structuredClone(previous) : null },
     observation: layout
       ? `Character layout is now ${count} ${count === 1 ? 'person' : 'people'} (positioning ${positioning}): ${layout.characters
-          .map((character, index) => `${index + 1}. "${character.prompt}"`)
+          .map(
+            (character, index) =>
+              `${index + 1}. "${character.prompt}"${character.interactions ? ` (${describeNovelAiInteractions(character.interactions)})` : ''}${character.dialogue ? ` says "${character.dialogue}"` : ''}`,
+          )
           .join(' · ')}.`
       : 'Character layout removed — only the base prompt is left.',
     apply: () => {

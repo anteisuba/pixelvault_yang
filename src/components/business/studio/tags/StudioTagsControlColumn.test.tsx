@@ -86,11 +86,10 @@ describe('标签台右列', () => {
     expect(headings().at(-1)).toBe('resolutionTitle')
   })
 
-  // UC 预设与 `Text:` 归编辑器主区，右列不重复画。
-  it('不画归编辑器的那两条', () => {
+  // UC 预设归编辑器主区，右列不重复画。
+  it('不画归编辑器的那一条', () => {
     render(<StudioTagsControlColumn />)
     expect(headings()).not.toContain('capability.ucPreset')
-    expect(headings()).not.toContain('capability.textRendering')
   })
 
   it('手机上角色构图自己占一条，这一叠里不重复', () => {
@@ -200,23 +199,17 @@ describe('标签台右列', () => {
     }
   })
 
-  // 桌面底部输入框「专属」那颗 chip 的弹层：编辑器主区已经没有 UC 预设与
-  // `Text:` 的位置，它们进来；角色构图走舞台面板、额度写在价格那一格。
-  it('弹层那一排法：带上 UC 预设与画中文字，不画构图与额度卡', () => {
+  // 桌面底部输入框「专属」那颗 chip 的弹层：编辑器主区已经没有 UC 预设的位置，
+  // 它进来；画中文字改成台词与画面文字（2026-10-07），弹层里不再有它；角色构图走
+  // 舞台面板、额度写在价格那一格。
+  it('弹层那一排法：带上 UC 预设，不画画中文字、构图与额度卡', () => {
     render(<StudioTagsControlColumn placement="popover" compact />)
     const titles = headings()
     expect(titles).toContain('capability.ucPreset')
-    expect(titles).toContain('capability.textRendering')
+    expect(titles).toContain('capability.sampler · capability.steps')
+    expect(titles).not.toContain('capability.textRendering')
     expect(titles).not.toContain('characterTitle')
     expect(titles).not.toContain('resolutionTitle')
-  })
-  it('手机参数面板保留 UC 与采样设置，文字由独立入口编辑', () => {
-    render(
-      <StudioTagsControlColumn placement="popover" hideTextRendering compact />,
-    )
-    expect(headings()).toContain('capability.ucPreset')
-    expect(headings()).toContain('capability.sampler · capability.steps')
-    expect(headings()).not.toContain('capability.textRendering')
     expect(
       screen.getByRole('spinbutton', { name: 'workbench.seed' }),
     ).toBeVisible()

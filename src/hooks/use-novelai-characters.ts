@@ -6,6 +6,10 @@ import {
   getNovelAiMaxCharacters,
   snapToNovelAiGrid,
 } from '@/constants/novelai'
+import {
+  moveNovelAiCharacter,
+  removeNovelAiCharacter,
+} from '@/lib/novelai-cast'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
 export function useNovelAiCharacters() {
@@ -63,12 +67,27 @@ export function useNovelAiCharacters() {
    * 输入框那一页亮个小点就够了（查资料 B 动效表）。
    */
   const addWithPrompt = (prompt: string) => append(prompt)
+  /** 删人：指向他的互动一起删，后面的人下标前移（`novelai-cast`）。 */
   const remove = (index: number) => {
-    const next = characters.filter((_, i) => i !== index)
+    const next = removeNovelAiCharacter(characters, index)
     setLayout(
       next.length && layout ? { ...layout, characters: next } : undefined,
     )
     select(null)
+  }
+  /** 换顺序（拖分页）：交给模型时这就是从左到右的站位；互动跟着人走。 */
+  const move = (from: number, to: number) => {
+    if (!layout) return
+    setLayout({
+      ...layout,
+      characters: moveNovelAiCharacter(characters, from, to),
+    })
+    // 正在编辑的那位跟着人走（夹在中间的人各挪一格）。
+    const active = state.activeTagCharacterIndex
+    if (active === null) return
+    if (active === from) select(to)
+    else if (from < active && active <= to) select(active - 1)
+    else if (to <= active && active < from) select(active + 1)
   }
   return {
     model,
@@ -83,5 +102,6 @@ export function useNovelAiCharacters() {
     add,
     addWithPrompt,
     remove,
+    move,
   }
 }

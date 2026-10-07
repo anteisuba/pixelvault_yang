@@ -44,7 +44,6 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
-  Type,
   X,
 } from '@/components/icons'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -79,10 +78,14 @@ import {
   type StudioMobileAddRow,
 } from '@/components/business/studio/StudioMobileAddSheet'
 import { StudioDialectJumpHint } from './StudioDialectJumpHint'
+import {
+  StudioTagCharacterExtras,
+  StudioTagCountHint,
+  StudioTagSceneTexts,
+} from './StudioTagCast'
 import { StudioTagCarryNote } from './StudioTagCarryNote'
 import { StudioTagChipField } from './StudioTagChipField'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
-import { StudioTagCapabilityControl } from './StudioTagCapabilityControl'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
 
 /** 分页里「整体」那一格的值（角色页用下标）。 */
@@ -94,7 +97,9 @@ const WHOLE = 'whole'
  * - 第一行：**整体 / 角色 1 / 角色 2 …** 分页 +「加人」—— 同一对正负两栏，换页只换
  *   编辑的是谁；正在编辑的角色与角色构图面板里点中的那一位是同一份状态
  *   （`activeTagCharacterIndex`）。
- * - 正向 · 负向（UC）两栏，行内排，⛔ 不再各套一个框。
+ * - 正向 · 负向（UC）两栏，行内排，⛔ 不再各套一个框。角色页下面是「互动」
+ *   「台词」两行，整体页下面是「画面文字」（`StudioTagCast`，2026-10-07 C）；
+ *   人数提示挂在正向栏正下方。
  * - 工具行：左 = 参考图 · 模板 · 查资料 · 角色构图（查资料与构图在舞台上开面板）；
  *   右 = 模型 · 规格 · 专属 · 额度 · 圆键。⛔ 没有「画风串」：2026-09-27 取消，画师词
  *   就是普通标签，画风在查资料的「画风」页里挑。
@@ -191,8 +196,7 @@ export function StudioTagsComposer({
     )
   }
 
-  // 手机「＋」下半截：模板 · 查资料 ·（角色构图）·（画中文字，抽屉里推进一页）。
-  const textControl = useTagTextControl(runModels)
+  // 手机「＋」下半截：模板 · 查资料 ·（角色构图）。
   const addRows: StudioMobileAddRow[] = [
     {
       key: 'templates',
@@ -213,24 +217,6 @@ export function StudioTagsComposer({
             icon: <Grid2x2 className="size-4" />,
             label: t('workbench.composition'),
             onSelect: () => onOpenPanel('composition'),
-          },
-        ]
-      : []),
-    ...(textControl.control
-      ? [
-          {
-            key: 'text',
-            icon: <Type className="size-4" />,
-            label: t('workbench.textRendering'),
-            detail:
-              textControl.length > 0 ? String(textControl.length) : undefined,
-            page: (
-              <StudioTagCapabilityControl
-                control={textControl.control}
-                disabled={isGenerating}
-                hideLabel
-              />
-            ),
           },
         ]
       : []),
@@ -414,6 +400,13 @@ export function StudioTagsComposer({
                 }
               />
             </div>
+            {characters.mode ? (
+              <StudioTagCountHint
+                activeIndex={activeIndex}
+                mobile={mobile}
+                disabled={isGenerating || characterDisabled}
+              />
+            ) : null}
             {mobile ? (
               // 额度那一句挂在这一行右端（手机工具行只剩一行，放不下它）。
               <div className="flex items-center justify-between gap-2">
@@ -457,6 +450,17 @@ export function StudioTagsComposer({
                 />
               </div>
             ) : null}
+            {characters.mode ? (
+              activeIndex !== null ? (
+                <StudioTagCharacterExtras
+                  index={activeIndex}
+                  mobile={mobile}
+                  disabled={isGenerating || characterDisabled}
+                />
+              ) : (
+                <StudioTagSceneTexts mobile={mobile} disabled={isGenerating} />
+              )
+            ) : null}
           </motion.div>
         </div>
 
@@ -474,11 +478,7 @@ export function StudioTagsComposer({
             ) : null}
             <div className="flex min-w-0 items-center gap-2">
               <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                <StudioMobileAddSheet
-                  disabled={isGenerating}
-                  rows={addRows}
-                  hasHiddenSetting={textControl.length > 0}
-                />
+                <StudioMobileAddSheet disabled={isGenerating} rows={addRows} />
                 <span
                   data-assistant-field="model"
                   className="flex min-w-0 shrink"
@@ -686,14 +686,12 @@ function TagCapabilityChip({
     [runModels],
   )
   const params = state.advancedParams
-  const visible = controls.filter(
-    (control) =>
-      (!mobile || control.chip.capability !== 'textRendering') &&
-      isCapabilityChipVisible(
-        control.chip,
-        params,
-        imageUpload.referenceImages.length > 0,
-      ),
+  const visible = controls.filter((control) =>
+    isCapabilityChipVisible(
+      control.chip,
+      params,
+      imageUpload.referenceImages.length > 0,
+    ),
   )
   const takesSeed = runModels.some((model) =>
     getCapabilityConfig(model.adapterType, model.modelId).capabilities.includes(
@@ -788,30 +786,11 @@ function TagCapabilityChip({
           {mobile ? (
             <h2 className="text-base font-medium">{t('mobileParameters')}</h2>
           ) : null}
-          <StudioTagsControlColumn
-            placement="popover"
-            hideTextRendering={mobile}
-            compact
-          />
+          <StudioTagsControlColumn placement="popover" compact />
         </div>
       </ResponsivePopoverContent>
     </StudioToolSurface>
   )
-}
-
-/** 画中文字（`Text:`）—— 只有收这一项的标签模型才有；手机「＋」里那一页读它。 */
-function useTagTextControl(runModels: readonly StudioModelOption[]) {
-  const { state } = useStudioForm()
-  const controls = useMemo(
-    () => getTagWorkbenchControls(runModels),
-    [runModels],
-  )
-  return {
-    control:
-      controls.find((entry) => entry.chip.capability === 'textRendering') ??
-      null,
-    length: (state.advancedParams.textRendering ?? '').length,
-  }
 }
 
 /**

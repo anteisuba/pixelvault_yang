@@ -10,6 +10,7 @@ import {
   snapToNovelAiGrid,
   type NovelAiCharacterLayoutMode,
 } from '@/constants/novelai'
+import { removeNovelAiCharacter } from '@/lib/novelai-cast'
 import { cn } from '@/lib/utils'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
@@ -227,7 +228,7 @@ export function NovelAiCharacterComposer({
               disabled={disabled}
               aria-label={t('removeCharacter', { number: index + 1 })}
               onClick={() => {
-                write(characters.filter((_, i) => i !== index))
+                write(removeNovelAiCharacter(characters, index))
                 if (activeIndex !== null)
                   onSelect(
                     activeIndex === index

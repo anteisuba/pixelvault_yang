@@ -373,7 +373,7 @@ describe('PixAI capability chips', () => {
 })
 
 describe('NovelAI capability chips', () => {
-  it('gives V5 the quality tag, UC preset and Text controls', () => {
+  it('gives V5 the quality tag and UC preset controls', () => {
     expect(
       capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V5_FULL),
     ).toEqual([
@@ -385,7 +385,6 @@ describe('NovelAI capability chips', () => {
       'ucPreset',
       'sampler',
       'qualityToggle',
-      'textRendering',
     ])
   })
 
@@ -423,47 +422,28 @@ describe('NovelAI capability chips', () => {
     expect(isCapabilityChipSet(chip!, {})).toBe(false)
   })
 
-  // 两档不同上限（官方文字页 / 模型页：Full 750、Curated 374）。
-  it.each([
-    [AI_MODELS.NOVELAI_V5_FULL, 750],
-    [AI_MODELS.NOVELAI_V5_CURATED, 374],
-  ])('derives the Text control for %s with its own cap', (id, maxLength) => {
-    const chip = getModelCapabilityChips(AI_ADAPTER_TYPES.NOVELAI, id).find(
-      (entry) => entry.capability === 'textRendering',
-    )
-    expect(chip?.kind).toBe('text')
-    expect(chip?.maxLength).toBe(maxLength)
-    expect(chip?.defaultValue).toBe('')
-  })
+  // 画中文字不再是专属 chip（改成角色页的台词与整体页的画面文字，2026-10-07）。
+  it.each([AI_MODELS.NOVELAI_V5_FULL, AI_MODELS.NOVELAI_V5_CURATED])(
+    'has no text-rendering chip for %s',
+    (id) => {
+      expect(
+        getModelCapabilityChips(AI_ADAPTER_TYPES.NOVELAI, id).some(
+          (entry) => entry.kind === 'text',
+        ),
+      ).toBe(false)
+    },
+  )
 
   it('drops V5-only values when switching to V4.5', () => {
     expect(
       pruneIncompatibleCapabilityValues(
         {
-          qualityToggle: 'standard',
-          textRendering: 'hello',
+          qualityToggle: 'light',
           ucPreset: 'heavy',
         },
         AI_ADAPTER_TYPES.NOVELAI,
         AI_MODELS.NOVELAI_V45_FULL,
       ),
-    ).toEqual({ ucPreset: 'heavy', qualityToggle: 'standard' })
-  })
-
-  it('drops a Text value longer than the model cap', () => {
-    expect(
-      pruneIncompatibleCapabilityValues(
-        { textRendering: 'x'.repeat(751) },
-        AI_ADAPTER_TYPES.NOVELAI,
-        AI_MODELS.NOVELAI_V5_FULL,
-      ),
-    ).toEqual({})
-    expect(
-      pruneIncompatibleCapabilityValues(
-        { textRendering: 'x'.repeat(750) },
-        AI_ADAPTER_TYPES.NOVELAI,
-        AI_MODELS.NOVELAI_V5_FULL,
-      ),
-    ).toBeNull()
+    ).toEqual({ ucPreset: 'heavy' })
   })
 })

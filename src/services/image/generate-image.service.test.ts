@@ -718,22 +718,50 @@ describe('NovelAI capability gate (slice 26/1)', () => {
       run(AI_MODELS.NOVELAI_V5_FULL, NAI_V5_ROUTE, {
         qualityToggle: 'standard',
         ucPreset: 'heavy',
-        textRendering: 'hello',
+        novelAiSceneTexts: [{ kind: 'sign', text: 'hello' }],
       }),
     ).resolves.toMatchObject({ route: NAI_V5_ROUTE })
   })
 
-  // V4.5 不支持 Light 质量标签或文字渲染。
-  it.each([
-    ['qualityToggle', { qualityToggle: 'light' }],
-    ['textRendering', { textRendering: 'hello' }],
-  ])('rejects %s on V4.5', async (field, params) => {
+  // V4.5 不支持 Light 质量标签。
+  it.each([['qualityToggle', { qualityToggle: 'light' }]])(
+    'rejects %s on V4.5',
+    async (field, params) => {
+      await expect(
+        run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, params),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: `Unsupported ${field} for the selected model`,
+        }),
+      )
+    },
+  )
+
+  // V4 / V4.5 的画中文字只认英文、≤118（官方 textrendering 页）。
+  it('accepts English text on V4.5 and rejects other scripts', async () => {
     await expect(
-      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, params),
+      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, {
+        novelAiSceneTexts: [{ kind: 'sign', text: 'CAFE' }],
+      }),
+    ).resolves.toMatchObject({ route: NAI_V45_ROUTE })
+    await expect(
+      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, {
+        novelAiLayout: {
+          positioning: 'auto',
+          characters: [
+            {
+              prompt: 'girl',
+              negativePrompt: '',
+              position: { x: 0.5, y: 0.5 },
+              dialogue: '你迟到了！',
+            },
+          ],
+        },
+      }),
     ).rejects.toThrow(
       expect.objectContaining({
-        code: 'VALIDATION_ERROR',
-        message: `Unsupported ${field} for the selected model`,
+        message: 'The selected model only draws English text',
       }),
     )
   })
@@ -872,14 +900,14 @@ describe('NovelAI capability gate (slice 26/1)', () => {
     )
   })
 
-  it('rejects a Text value over the 750-char cap', async () => {
+  it('rejects text over the 750-char cap', async () => {
     await expect(
       run(AI_MODELS.NOVELAI_V5_FULL, NAI_V5_ROUTE, {
-        textRendering: 'x'.repeat(751),
+        novelAiSceneTexts: [{ kind: 'other', text: 'x'.repeat(751) }],
       }),
     ).rejects.toThrow(
       expect.objectContaining({
-        message: 'Text rendering is limited to 750 characters',
+        message: 'Text in the image is limited to 750 characters',
       }),
     )
   })

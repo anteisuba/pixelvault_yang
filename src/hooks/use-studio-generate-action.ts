@@ -42,6 +42,7 @@ import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import { planStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
@@ -132,6 +133,26 @@ export function useStudioGenerateAction() {
       : undefined
   const isImagePromptOverLimit =
     imagePromptMaxChars !== undefined && imagePromptLength > imagePromptMaxChars
+  /**
+   * NovelAI 的台词与画面文字 —— 与服务端、worker 同一份编排与上限
+   * （`novelai-compose`）：逐模型字数，V4 / V4.5 只认英文。只数这一轮真会发出去
+   * 的人（停用 / 空白的发送前会被剔掉）。
+   */
+  const novelAiLayout = state.advancedParams.novelAiLayout
+  const novelAiSceneTexts = state.advancedParams.novelAiSceneTexts
+  const novelAiTextProblem = useMemo(() => {
+    if (!isImageMode) return null
+    return checkNovelAiText(
+      planNovelAiText({
+        characters: (novelAiLayout?.characters ?? []).filter(
+          (character) => character.enabled !== false && character.prompt.trim(),
+        ),
+        positioning: novelAiLayout?.positioning ?? 'auto',
+        sceneTexts: novelAiSceneTexts,
+      }),
+      selectedModel?.modelId,
+    )
+  }, [isImageMode, novelAiLayout, novelAiSceneTexts, selectedModel?.modelId])
 
   const audioEstimatedMinutesLabel = useMemo(() => {
     const estimatedMinutes =
@@ -254,6 +275,7 @@ export function useStudioGenerateAction() {
     !hasUnavailableMention &&
     !isAudioPromptOverLimit &&
     !isImagePromptOverLimit &&
+    !novelAiTextProblem &&
     !isAudioReferenceIncomplete &&
     !videoAudioNeedsVisual &&
     // ⚠ 多渠道型号没选渠道 = 发不出去（没有渠道就没有端点）。⛔ 别在这里替他挑
@@ -954,6 +976,16 @@ export function useStudioGenerateAction() {
         focusPrompt: 'now',
       }
     }
+    if (novelAiTextProblem) {
+      return {
+        message:
+          novelAiTextProblem.kind === 'latinOnly'
+            ? tPromptArea('blocked.novelAiTextLatinOnly')
+            : tPromptArea('blocked.novelAiTextTooLong', {
+                max: novelAiTextProblem.max,
+              }),
+      }
+    }
     if (isAudioReferenceIncomplete) {
       return { message: tPromptArea('blocked.audioReferenceTextRequired') }
     }
@@ -988,6 +1020,7 @@ export function useStudioGenerateAction() {
     audioTextLimit.enforced,
     isImagePromptOverLimit,
     imagePromptMaxChars,
+    novelAiTextProblem,
     isAudioReferenceIncomplete,
     trimmedPrompt,
     hasPromptForImage,

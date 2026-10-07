@@ -2398,6 +2398,11 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     resolution: ParamValueSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: z.object({ count: z.number() }),
+  /**
+   * ⚠ 互动的 `target` 是**名单里的序号（从 1 数）**，与状态块印的编号同一套；
+   * 规划器换成从 0 数的下标。序号越界 / 指向自己 / 条数超限都留在规划器拒
+   * （本文件头注 ②）。
+   */
   [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: z.object({
     positioning: z.enum(['auto', 'manual']).optional(),
     characters: z
@@ -2408,6 +2413,16 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
           enabled: z.boolean().optional(),
           x: z.number().min(0).max(1).optional(),
           y: z.number().min(0).max(1).optional(),
+          interactions: z
+            .array(
+              z.object({
+                tag: z.string().trim().min(1),
+                target: z.number().int(),
+                mutual: z.boolean().optional(),
+              }),
+            )
+            .optional(),
+          dialogue: z.string().trim().optional(),
         }),
       )
       .max(NOVELAI_V5_MAX_CHARACTERS),

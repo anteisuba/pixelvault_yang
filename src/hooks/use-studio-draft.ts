@@ -13,7 +13,10 @@ import {
   isImageBatchCount,
   type ImageBatchCount,
 } from '@/constants/studio'
-import { NovelAiCharacterDraftSchema } from '@/types/novelai'
+import {
+  NovelAiCharacterDraftSchema,
+  NovelAiSceneTextDraftsSchema,
+} from '@/types/novelai'
 import { TagChipListSchema } from '@/types/tag-composer'
 import { AdvancedParamsSchema, RecipeUsageSchema } from '@/types'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
@@ -29,6 +32,7 @@ const StudioDraftSchema = z.object({
   prompt: z.string().default(''),
   advancedParams: AdvancedParamsSchema.extend({
     novelAiLayout: NovelAiCharacterDraftSchema.optional(),
+    novelAiSceneTexts: NovelAiSceneTextDraftsSchema.optional(),
     resolution: AdvancedParamsSchema.shape.resolution.catch(undefined),
   }).default({}),
   aspectRatio: z

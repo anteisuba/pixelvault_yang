@@ -5,6 +5,7 @@ import {
 } from '@/constants/novelai'
 import type { PromptDialect } from '@/constants/prompt-dialects'
 import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
+import { keepNovelAiCharacters } from '@/lib/novelai-cast'
 import { translateTagPromptText } from '@/lib/tag-composer'
 import type { AdvancedParams } from '@/types'
 
@@ -18,7 +19,9 @@ import type { AdvancedParams } from '@/types'
  * 裁三件事：
  * 1. **能力**：不认识的专属键整个删掉（与切模型时的静默回默认同一个函数）。
  * 2. **角色构图**：不支持的模型删掉整块；支持但人数上限更低的（V4.5 6 人）
- *    截到它的上限 —— ⛔ 不整块丢：用户摆的前六个人是有意义的。
+ *    截到它的上限 —— ⛔ 不整块丢：用户摆的前六个人是有意义的。剔人走
+ *    `keepNovelAiCharacters`，指向被剔那位的互动一起删、其余重新编号；空台词
+ *    与空的画面文字不发，画面文字只发给 NovelAI。
  * 3. **方言**：标签台写出来的统一串按 provider 翻成它自己的语法
  *    （NAI `{tag}` / PixAI `(tag:1.2)`）。⚠ 只有标签台的串能翻 ——
  *    自然语言台写的 `a girl: 1.2 meters tall` 翻一遍会被改写成权重。
@@ -66,15 +69,17 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
 
     const sourceLayout = advancedParams.novelAiLayout
     if (sourceLayout) {
-      const characters = sourceLayout.characters
-        .filter(
-          (character) => character.enabled !== false && character.prompt.trim(),
-        )
-        .map((character) => {
-          const value = { ...character }
-          delete value.enabled
-          return value
-        })
+      const characters = keepNovelAiCharacters(
+        sourceLayout.characters,
+        (character) => character.enabled !== false && !!character.prompt.trim(),
+      ).map((character) => {
+        const value = { ...character }
+        delete value.enabled
+        const dialogue = value.dialogue?.trim()
+        if (dialogue) value.dialogue = dialogue
+        else delete value.dialogue
+        return value
+      })
       advancedParams = {
         ...advancedParams,
         novelAiLayout: characters.length
@@ -93,11 +98,27 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
             ...advancedParams,
             novelAiLayout: {
               ...layout,
-              characters: layout.characters.slice(0, max),
+              characters: keepNovelAiCharacters(
+                layout.characters,
+                (_, index) => index < max,
+              ),
             },
           }
         }
       }
+    }
+    const sceneTexts = advancedParams.novelAiSceneTexts
+    if (sceneTexts) {
+      const kept =
+        request.modelId && supportsNovelAiCharacters(request.modelId)
+          ? sceneTexts.flatMap((item) => {
+              const text = item.text.trim()
+              return text ? [{ ...item, text }] : []
+            })
+          : []
+      advancedParams = { ...advancedParams }
+      if (kept.length) advancedParams.novelAiSceneTexts = kept
+      else delete advancedParams.novelAiSceneTexts
     }
   }
 

@@ -1464,6 +1464,160 @@ describe('工具环 · 逐事件顺序', () => {
       expect(stepsOf(chinese)).toHaveLength(0)
       expect(lastUserPrompt()).toContain("NovelAI's tag dialect")
     })
+
+    it('互动的序号从 1 数换成下标，牵手照预设记成一起做；台词原样（中文不过标签闸）', async () => {
+      queueTurns(
+        writeTurn({
+          characters: [
+            {
+              prompt: '1girl, pink hair',
+              interactions: [
+                { tag: 'headpat', target: 2 },
+                { tag: 'holding hands', target: 2 },
+              ],
+              dialogue: '早上好',
+            },
+            { prompt: '1girl, black hair' },
+          ],
+        }),
+        { finished: true, message: '写好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'free', max: 22, layout: null }),
+        ),
+      )
+      const done = stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters &&
+          step.status === 'done',
+      )
+      const layout = (
+        done?.payload as {
+          layout: {
+            characters: { interactions?: unknown; dialogue?: string }[]
+          }
+        }
+      ).layout
+      expect(layout.characters[0]?.interactions).toEqual([
+        { tag: 'headpat', target: 1 },
+        { tag: 'holding hands', target: 1, mutual: true },
+      ])
+      expect(layout.characters[0]?.dialogue).toBe('早上好')
+      expect(layout.characters[1]).not.toHaveProperty('interactions')
+      expect(lastUserPrompt()).toContain('headpat → 2')
+    })
+
+    it('没给互动 / 台词就沿用同一格的；指向名单外的旧互动跟着删；给空串才清', async () => {
+      queueTurns(
+        writeTurn({
+          characters: [
+            { prompt: '1girl, pink hair, smile' },
+            { prompt: '1girl, black hair', dialogue: '' },
+          ],
+        }),
+        { finished: true, message: '改好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({
+            mode: 'free',
+            max: 22,
+            layout: {
+              positioning: 'auto',
+              characters: [
+                {
+                  prompt: '1girl, pink hair',
+                  negativePrompt: '',
+                  position: { x: 0.25, y: 0.5 },
+                  interactions: [
+                    { tag: 'hug', target: 1 },
+                    { tag: 'headpat', target: 2 },
+                  ],
+                  dialogue: '你好',
+                },
+                {
+                  prompt: '1girl, black hair',
+                  negativePrompt: '',
+                  position: { x: 0.5, y: 0.5 },
+                  dialogue: '嗨',
+                },
+                {
+                  prompt: '1boy',
+                  negativePrompt: '',
+                  position: { x: 0.75, y: 0.5 },
+                },
+              ],
+            },
+          }),
+        ),
+      )
+      const firstPrompt = mockLlmTextCompletion.mock.calls
+        .map(
+          (entry) => entry[0] as { userPrompt: string; systemPrompt?: string },
+        )
+        .find((entry) => !isSideCall(entry))?.userPrompt
+      expect(firstPrompt).toContain(
+        'interactions: hug → 2, headpat → 3 · says: "你好"',
+      )
+      const done = stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters &&
+          step.status === 'done',
+      )
+      const layout = (
+        done?.payload as {
+          layout: {
+            characters: { interactions?: unknown; dialogue?: string }[]
+          }
+        }
+      ).layout
+      expect(layout.characters[0]?.interactions).toEqual([
+        { tag: 'hug', target: 1 },
+      ])
+      expect(layout.characters[0]?.dialogue).toBe('你好')
+      expect(layout.characters[1]).not.toHaveProperty('dialogue')
+    })
+
+    it('互动指向自己或名单外都拒，理由读得到', async () => {
+      queueTurns(
+        writeTurn({
+          characters: [
+            { prompt: '1girl', interactions: [{ tag: 'hug', target: 1 }] },
+            { prompt: '1boy' },
+          ],
+        }),
+        { finished: true, message: '重写。' },
+      )
+      const self = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'free', max: 22, layout: null }),
+        ),
+      )
+      expect(stepsOf(self).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('that same person')
+
+      queueTurns(
+        writeTurn({
+          characters: [
+            { prompt: '1girl', interactions: [{ tag: 'hug', target: 3 }] },
+            { prompt: '1boy' },
+          ],
+        }),
+        { finished: true, message: '重写。' },
+      )
+      const outside = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withLayout({ mode: 'free', max: 22, layout: null }),
+        ),
+      )
+      expect(stepsOf(outside).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('not in this list')
+    })
   })
 
   describe('两台图片工作台互跳（switch_workbench）', () => {

@@ -35,7 +35,6 @@ export type ProviderCapability =
   | 'sampler'
   | 'pixaiMode'
   | 'pixaiSize'
-  | 'textRendering'
   | 'imageAnalysis'
   | 'lora'
   | 'voiceSelection'
@@ -149,18 +148,6 @@ export const NOVELAI_UC_PRESET_OPTIONS = [
   'human',
 ] as const
 
-/**
- * `Text:` 文字渲染上限：V5 Full 750、V5 Curated 374。
- *
- * ⚠ **单位在官方两页上不一致**（文字页写 characters、模型页写 tokens），所以
- * 这两个数在这里只当**前端护栏**用 —— 拦住明显越界的长串、给用户一个计数器，
- * ⛔ 不当作 provider 的精确契约（`providers.md` 的 V5 节早写过这条不确定性）。
- * https://docs.novelai.net/en/image/textrendering/
- * https://docs.novelai.net/en/image/models/
- */
-export const NOVELAI_TEXT_RENDERING_MAX_CHARS = 750
-export const NOVELAI_CURATED_TEXT_RENDERING_MAX_CHARS = 374
-
 /** Range constraints for numeric parameters */
 export interface NumericRange {
   min: number
@@ -215,8 +202,6 @@ export interface CapabilityConfig {
    * 「同一个身份两种含义」那类 bug 的来源。
    */
   pixaiSizeOptions?: readonly string[]
-  /** `textRendering` 文本框的字数上限；没有这一项就等于没有这档能力。 */
-  textRenderingMaxChars?: number
   /** Maximum number of LoRAs that can be applied simultaneously */
   maxLoras?: number
   /** Maximum number of reference images supported (default: 1) */
@@ -242,8 +227,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'referenceStrength',
         'cfgRescale',
         'img2imgNoise',
-        // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签与 Text: 是 V5
-        // 专属，逐模型 override 声明。
+        // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签逐模型 override 声明。
         'ucPreset',
         // 采样器适用于所有 NAI 档（官方 sampling 页没有分代）。D10 ⑤ 之前
         // worker 硬编 `k_euler_ancestral`，那一档现在是这张表的 options[0]。
@@ -518,7 +502,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
     qualityToggleOptions: ['off', 'standard'],
   },
-  // Light 质量标签与文字渲染只在 V5 声明；V4.5 只有 standard 质量标签。
+  // Light 质量标签只在 V5 声明；V4.5 只有 standard 质量标签。画中文字（台词 / 画面文字）
+  // 不是专属 chip，逐模型上限见 `NOVELAI_TEXT_LIMITS`。
   [AI_MODELS.NOVELAI_V5_FULL]: {
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 23 },
@@ -533,7 +518,6 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'ucPreset',
       'sampler',
       'qualityToggle',
-      'textRendering',
       // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
       // （`getCapabilityFieldType` 对它返回 null）。
       'inpaint',
@@ -541,7 +525,6 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     samplerOptions: NOVELAI_SAMPLER_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
-    textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
   },
   [AI_MODELS.NOVELAI_V5_CURATED]: {
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
@@ -557,7 +540,6 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'ucPreset',
       'sampler',
       'qualityToggle',
-      'textRendering',
       // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
       // （`getCapabilityFieldType` 对它返回 null）。
       'inpaint',
@@ -565,7 +547,6 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     samplerOptions: NOVELAI_SAMPLER_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
-    textRenderingMaxChars: NOVELAI_CURATED_TEXT_RENDERING_MAX_CHARS,
   },
   // SDXL 两档才有 `sampling`（steps / cfg / sampler）与 `loras`；Tsubaki 是 DiT，
   // 收的是 `mode` / `style`，那两样一个都不收。⚠ 声明 `capabilities` 是整体替换，
@@ -910,9 +891,6 @@ export function getCapabilityFieldType(
     sampler: 'select',
     pixaiMode: 'select',
     pixaiSize: 'select',
-    // 单行文本 —— 与 negativePrompt 的 `textarea` 不同档：那条住在通用参数栏的
-    // 折叠行里，这条是专属 chip 行上的一颗。
-    textRendering: 'text',
     layerDecomposition: 'toggle',
     style: 'select',
     preview: 'toggle',

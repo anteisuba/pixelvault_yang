@@ -2,7 +2,10 @@ import { z } from 'zod'
 
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import { NovelAiCharacterLayoutSchema } from './novelai'
+import {
+  NovelAiCharacterLayoutSchema,
+  NovelAiSceneTextsSchema,
+} from './novelai'
 
 import {
   PROFILE,
@@ -68,7 +71,6 @@ import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
-  NOVELAI_TEXT_RENDERING_MAX_CHARS,
   NOVELAI_UC_PRESET_OPTIONS,
   VOLCENGINE_SEEDREAM_MAX_LAYERS,
 } from '@/constants/provider-capabilities'
@@ -342,13 +344,12 @@ export const AdvancedParamsSchema = z.object({
    */
   pixaiSize: z.enum(PIXAI_SIZES).optional(),
   /**
-   * NovelAI `Text:` 文字渲染（V5，EN/JA/ZH）。worker 把它拼到 prompt **最末**。
-   * https://docs.novelai.net/en/image/textrendering/
+   * NovelAI 画面文字（招牌 / 标题 / 封面…，不属于任何人）。台词在
+   * `novelAiLayout` 各角色身上；两样发送时一起编进整体与末尾的 `Text:`
+   * （`src/lib/novelai-compose.ts`），逐模型字数上限由 `generate-image.service`
+   * 用同一份编译结果判。
    */
-  // ⚠ 这里卡的是**全名册里最大的那个上限**（V5 Full 750）；逐模型的真上限
-  // （Curated 374）由 `generate-image.service` 按能力表判 —— schema 不知道当前
-  // 选的是哪个模型。
-  textRendering: z.string().max(NOVELAI_TEXT_RENDERING_MAX_CHARS).optional(),
+  novelAiSceneTexts: NovelAiSceneTextsSchema.optional(),
   /**
    * NovelAI 遮罩重绘的遮罩图：白 = 重画，黑 = 保留。客户端发 data URL，服务端
    * 在 `submit-image.service` 里换成 R2 的 http URL 之后才进 DB 与 worker
@@ -5028,8 +5029,8 @@ export type CivitaiLoraLibraryItem = z.infer<
 >
 
 export const CivitaiLoraLibraryResultSchema = z.object({
-// 来自我们自己的全量索引（见 civitai-lora-library.service）：总数是准数，
-// 按页码直接翻页。
+  // 来自我们自己的全量索引（见 civitai-lora-library.service）：总数是准数，
+  // 按页码直接翻页。
   items: z.array(CivitaiLoraLibraryItemSchema),
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),

@@ -268,8 +268,8 @@ describe('标签台底部输入框 · 编辑谁', () => {
     expect(mocks.dispatch).not.toHaveBeenCalled()
   })
 
-  // 2026-10-04 起画中文字收进手机输入条的「＋」，在抽屉里推进一页。
-  it('V5 的画中文字独立打开，输入直接写入生成参数', async () => {
+  // 2026-10-07 起画中文字改成角色页的台词与整体页的画面文字，「＋」里不再有那一页。
+  it('手机「＋」里不再有画中文字那一页', async () => {
     mocks.runModels = [
       {
         modelId: AI_MODELS.NOVELAI_V5_FULL,
@@ -278,46 +278,60 @@ describe('标签台底部输入框 · 编辑谁', () => {
     ]
     render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
     fireEvent.click(screen.getByTestId('studio-mobile-add'))
-    fireEvent.click(await screen.findByTestId('studio-mobile-add-text'))
-    const field = await screen.findByRole('textbox', {
-      name: 'capability.textRendering',
-    })
-    fireEvent.change(field, { target: { value: '你好' } })
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_ADVANCED_PARAMS',
-      payload: { textRendering: '你好' },
-    })
+    await screen.findByTestId('studio-mobile-add-catalog')
+    expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
   })
 
-  it('画中文字入口保留已填数量，不依赖采样器或步数', async () => {
-    mocks.runModels = [
-      {
-        modelId: AI_MODELS.NOVELAI_V5_FULL,
-        adapterType: AI_ADAPTER_TYPES.NOVELAI,
-      },
+  it('角色页：「＋ 台词」打开一行，写的字进这个人的台词', () => {
+    mocks.mode = 'free'
+    mocks.activeIndex = 0
+    mocks.characters = [
+      { prompt: 'girl', negativePrompt: '' },
+      { prompt: 'boy', negativePrompt: '' },
     ]
-    mocks.advancedParams = {
-      textRendering: '你好',
-      sampler: 'k_euler',
-      steps: 30,
-    }
-    const { rerender } = render(
-      <StudioTagsComposer mobile onOpenPanel={vi.fn()} />,
-    )
-    // 填了字但输入框里看不见 —— 「＋」灰底，行尾报字数。
-    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute('data-set')
-    fireEvent.click(screen.getByTestId('studio-mobile-add'))
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
     expect(
-      await screen.findByTestId('studio-mobile-add-text'),
-    ).toHaveTextContent('2')
-    expect(screen.getByRole('button', { name: 'parameters' })).toBeVisible()
-    mocks.runModels = [
-      {
-        modelId: AI_MODELS.NOVELAI_V45_CURATED,
-        adapterType: AI_ADAPTER_TYPES.NOVELAI,
-      },
+      screen.getByRole('button', { name: 'addInteraction' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'addDialogue' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'dialogueAria:1' }), {
+      target: { value: 'Hi' },
+    })
+    expect(mocks.update).toHaveBeenCalledWith(0, { dialogue: 'Hi' })
+  })
+
+  it('一个人时没有「＋ 互动」（没有对象）', () => {
+    mocks.mode = 'free'
+    mocks.activeIndex = 0
+    mocks.characters = [{ prompt: 'girl', negativePrompt: '' }]
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'addInteraction' })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'addDialogue' }),
+    ).toBeInTheDocument()
+  })
+
+  it('整体页：「＋ 画面文字」加一行，人数对不上时一键改', () => {
+    mocks.mode = 'free'
+    mocks.characters = [
+      { prompt: 'girl, red hair', negativePrompt: '' },
+      { prompt: 'girl', negativePrompt: '' },
     ]
-    rerender(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
-    expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'addSceneText' }))
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { novelAiSceneTexts: [{ kind: 'sign', text: '' }] },
+    })
+
+    expect(screen.getByText(/countHint:2,solo/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'countFix:2girls' }))
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [{ text: '2girls', weight: 1 }],
+      },
+    })
   })
 })

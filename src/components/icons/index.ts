@@ -173,6 +173,8 @@ export {
   // A speech bubble with text reads as speech; `WarningCircle` would have
   // turned one chip in that row into an alert.
   ChatCircleTextIcon as MessageCircleWarning,
+  // 标签台的台词（谁说的那一句）。
+  ChatCircleTextIcon as ChatCircleText,
   // lucide `MessageSquarePlus` — no chat+plus in Phosphor. All three call sites
   // are "new conversation" controls carrying their own label/aria-label, and
   // compose is the glyph that means "start a new one".

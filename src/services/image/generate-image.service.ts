@@ -1,5 +1,6 @@
 import {
   getNovelAiMaxCharacters,
+  getNovelAiTextLimit,
   supportsNovelAiCharacters,
   supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
@@ -41,6 +42,7 @@ import {
   RunnerMonthlyLimitExceededError,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
 import { canUseQwenEvaluation } from '@/lib/qwen-evaluation-access'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
@@ -511,9 +513,15 @@ export async function resolveImageRouteAndValidate(
     )
   }
 
-  for (const character of input.advancedParams?.novelAiLayout?.characters ??
-    []) {
-    const check = validatePromptFn(character.prompt)
+  // 角色标签、台词、画面文字都会进 NovelAI 的提示词 —— 同一道检查。
+  for (const text of [
+    ...(input.advancedParams?.novelAiLayout?.characters ?? []).flatMap(
+      (character) => [character.prompt, character.dialogue ?? ''],
+    ),
+    ...(input.advancedParams?.novelAiSceneTexts ?? []).map((item) => item.text),
+  ]) {
+    if (!text.trim()) continue
+    const check = validatePromptFn(text)
     if (!check.valid) {
       throw new GenerateImageServiceError(
         'PROVIDER_ERROR',
@@ -745,20 +753,34 @@ export async function resolveImageRouteAndValidate(
       }
     }
 
-    const textRendering = input.advancedParams?.textRendering
-    if (textRendering) {
-      const maxChars = naiConfig.textRenderingMaxChars
-      if (!declared.has('textRendering') || !maxChars) {
+    // NovelAI 的台词与画面文字：与 worker、界面计数同一份编排（`novelai-compose`），
+    // 逐模型上限与「V4.5 只认英文」在这里拒，⛔ 不放到 provider 去画乱码。
+    const layout = input.advancedParams?.novelAiLayout
+    const naiText = planNovelAiText({
+      characters: layout?.characters ?? [],
+      positioning: layout?.positioning ?? 'auto',
+      sceneTexts: input.advancedParams?.novelAiSceneTexts,
+    })
+    if (naiText.texts.length) {
+      if (!getNovelAiTextLimit(input.modelId)) {
         throw new GenerateImageServiceError(
           'VALIDATION_ERROR',
-          'Unsupported textRendering for the selected model',
+          'Text in the image is not supported by the selected model',
           400,
         )
       }
-      if (textRendering.length > maxChars) {
+      const problem = checkNovelAiText(naiText, input.modelId)
+      if (problem?.kind === 'latinOnly') {
         throw new GenerateImageServiceError(
           'VALIDATION_ERROR',
-          `Text rendering is limited to ${maxChars} characters`,
+          'The selected model only draws English text',
+          400,
+        )
+      }
+      if (problem?.kind === 'tooLong') {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `Text in the image is limited to ${problem.max} characters`,
           400,
         )
       }

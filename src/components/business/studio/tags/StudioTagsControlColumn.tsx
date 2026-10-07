@@ -31,7 +31,7 @@ import type { StudioModelOption } from '@/types/model-option'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
 /** 模型能力派生的参数；部分模型支持的控件保持可改，提交时按模型裁剪。 */
-const EDITOR_OWNED: readonly string[] = ['ucPreset', 'textRendering']
+const EDITOR_OWNED: readonly string[] = ['ucPreset']
 
 /**
  * 卡片顺序 —— 画板自上而下的那一列。⚠ 排的是**能力键**不是模型名，所以它仍然
@@ -50,10 +50,9 @@ export interface StudioTagsControlColumnProps {
    */
   hideCharacters?: boolean
   compact?: boolean
-  hideTextRendering?: boolean
   /**
    * `popover` = 桌面底部输入框那颗「专属」chip 的弹层（owner 2026-09-26）：编辑器
-   * 主区已经没有 UC 预设与 `Text:` 的位置，它们一起进来；角色构图走舞台面板、
+   * 主区已经没有 UC 预设的位置，它进来；画中文字改成角色页的台词与整体页的画面文字；角色构图走舞台面板、
    * 分辨率 · 额度写在价格那一格，这两张不画；⛔ 弹层里不再套一层卡片边框。
    */
   placement?: 'column' | 'popover'
@@ -62,7 +61,6 @@ export interface StudioTagsControlColumnProps {
 export function StudioTagsControlColumn({
   hideCharacters,
   compact = false,
-  hideTextRendering = false,
   placement = 'column',
 }: StudioTagsControlColumnProps = {}) {
   const inPopover = placement === 'popover'
@@ -113,7 +111,6 @@ export function StudioTagsControlColumn({
   // 画板顺序在前，表外的按能力表自己的声明顺序跟在后面。
   const visible = controls.filter(
     (control) =>
-      (!hideTextRendering || control.chip.capability !== 'textRendering') &&
       (inPopover || !EDITOR_OWNED.includes(control.chip.capability)) &&
       isCapabilityChipVisible(
         control.chip,

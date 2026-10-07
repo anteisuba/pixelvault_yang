@@ -971,6 +971,69 @@ describe('generateNovelAiImage', () => {
     },
   )
 
+  it('writes interactions into both character captions and attributes dialogue by position', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      novelAiLayout: {
+        positioning: 'auto',
+        characters: [
+          {
+            prompt: 'girl, blonde hair',
+            negativePrompt: '',
+            position: { x: 0.5, y: 0.5 },
+            interactions: [{ tag: 'headpat', target: 1 }],
+            dialogue: "You're late!",
+          },
+          {
+            prompt: 'girl, black hair',
+            negativePrompt: '',
+            position: { x: 0.5, y: 0.5 },
+            dialogue: 'Good morning!',
+          },
+        ],
+      },
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    )
+    expect(
+      body.parameters.v4_prompt.caption.char_captions.map(
+        (caption: { char_caption: string }) => caption.char_caption,
+      ),
+    ).toEqual([
+      'girl, blonde hair, source#headpat',
+      'girl, black hair, target#headpat',
+    ])
+    expect(body.input).toBe(
+      'masterpiece, best quality, 1girl, blue hair, text, english text, speech bubble. The girl on the left says "You\'re late!" and the girl on the right says "Good morning!", Text: You\'re late!\n\nGood morning!',
+    )
+    expect(body.parameters.v4_prompt.caption.base_caption).toBe(body.input)
+  })
+
+  it('rejects an interaction that points at a missing character', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      novelAiLayout: {
+        positioning: 'auto',
+        characters: [
+          {
+            prompt: 'girl',
+            negativePrompt: '',
+            position: { x: 0.5, y: 0.5 },
+            interactions: [{ tag: 'hug', target: 3 }],
+          },
+        ],
+      },
+    }
+    await expect(
+      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
+    ).rejects.toThrow('Invalid NovelAI character layout')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid V5 coordinates before making a request', async () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V5_FULL)
@@ -1060,14 +1123,14 @@ describe('generateNovelAiImage', () => {
     ).rejects.toThrow()
   })
 
-  // 进度表 26 切片 1。三颗控件的字段对照都来自官方文档：质量标签与 UC 预设是
-  // **标签串**（不是 API 字段），`Text:` 落在 prompt 最末。
-  it('appends the V5 quality tag string and keeps Text: last', async () => {
+  // 质量标签与 UC 预设是**标签串**（不是 API 字段）；画面文字翻成一句自然语言，
+  // 内容进最末的 `Text:`；有字时质量标签去掉 `no text`（2026-10-07 实测）。
+  it('appends the V5 quality tag string without no text and keeps Text: last', async () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V5_FULL)
     context.providerInput.advancedParams = {
       qualityToggle: 'standard',
-      textRendering: 'Hello world',
+      novelAiSceneTexts: [{ kind: 'other', text: 'Hello world' }],
     }
 
     await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
@@ -1076,7 +1139,7 @@ describe('generateNovelAiImage', () => {
       String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
     ) as { input: string; parameters: Record<string, unknown> }
     const expected =
-      'masterpiece, best quality, 1girl, blue hair, very aesthetic, masterpiece, no text, Text: Hello world'
+      'masterpiece, best quality, 1girl, blue hair, text, english text. The text "Hello world" appears in the image, very aesthetic, masterpiece, Text: Hello world'
     expect(body.parameters.prompt).toBe(expected)
     expect(body.input).toBe(expected)
     expect(

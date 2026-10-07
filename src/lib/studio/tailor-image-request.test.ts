@@ -16,18 +16,87 @@ const LAYOUT = {
 describe('出图时按各模型能力裁剪 payload', () => {
   it('把不认识的专属键删掉', () => {
     const advancedParams: AdvancedParams = {
-      qualityToggle: 'standard',
-      textRendering: 'hello',
+      qualityToggle: 'light',
       ucPreset: 'heavy',
     }
     const out = tailorImageRequestToModel(
       { modelId: AI_MODELS.NOVELAI_V45_FULL, advancedParams },
       'tags',
     )
-    // V4.5 支持标准质量标签与 UC，不支持 Text:。
+    // V4.5 支持 UC，质量标签只有 standard 一档。
     expect(out.advancedParams).toMatchObject({ ucPreset: 'heavy' })
-    expect(out.advancedParams?.qualityToggle).toBe('standard')
-    expect(out.advancedParams?.textRendering).toBeUndefined()
+    expect(out.advancedParams?.qualityToggle).toBeUndefined()
+  })
+
+  // 剔人走同一个函数：指向被剔那位的互动一起删，其余重新编号；空台词不发。
+  it('剔掉停用的人时互动跟着改，空台词与空的画面文字不发', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        advancedParams: {
+          novelAiLayout: {
+            positioning: 'auto',
+            characters: [
+              {
+                prompt: 'girl',
+                negativePrompt: '',
+                position: { x: 0.5, y: 0.5 },
+                enabled: false,
+              },
+              {
+                prompt: 'boy',
+                negativePrompt: '',
+                position: { x: 0.5, y: 0.5 },
+                dialogue: '  ',
+                interactions: [
+                  { tag: 'hug', target: 2 },
+                  { tag: 'kiss', target: 0 },
+                ],
+              },
+              {
+                prompt: 'girl',
+                negativePrompt: '',
+                position: { x: 0.5, y: 0.5 },
+                dialogue: ' Hi ',
+              },
+            ],
+          },
+          novelAiSceneTexts: [
+            { kind: 'sign', text: ' CAFE ' },
+            { kind: 'title', text: '' },
+          ],
+        },
+      },
+      'tags',
+    )
+    expect(out.advancedParams?.novelAiLayout?.characters).toEqual([
+      {
+        prompt: 'boy',
+        negativePrompt: '',
+        position: { x: 0.5, y: 0.5 },
+        interactions: [{ tag: 'hug', target: 1 }],
+      },
+      {
+        prompt: 'girl',
+        negativePrompt: '',
+        position: { x: 0.5, y: 0.5 },
+        dialogue: 'Hi',
+      },
+    ])
+    expect(out.advancedParams?.novelAiSceneTexts).toEqual([
+      { kind: 'sign', text: 'CAFE' },
+    ])
+  })
+
+  it('画面文字只发给 NovelAI', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.PIXAI_TSUBAKI_2,
+        advancedParams: { novelAiSceneTexts: [{ kind: 'sign', text: 'CAFE' }] },
+      },
+      'tags',
+    )
+    expect(out.advancedParams?.novelAiSceneTexts).toBeUndefined()
   })
 
   // 角色构图上限逐模型不同 —— 截到这家的上限，⛔ 不整块丢。

@@ -2426,6 +2426,69 @@ describe('read_state', () => {
       expect(toolRingCalls()).toHaveLength(1)
     },
   )
+  it.each([
+    { mode: 'replace', done: false },
+    { mode: 'append', done: true },
+  ])('⭐ 只读到开头的文本节点不许整段替换（$mode）', async ({ mode, done }) => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          title: '改剧本',
+          args: { op: 'set_text', target: 'script-1', body: '新剧本', mode },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          planApproved: true,
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'script-1',
+                      name: '剧本设定',
+                      kind: 'text',
+                      subtype: 'script',
+                      text: '第一幕……',
+                      textTruncated: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const step = stepsOf(events).find(
+      (candidate) =>
+        candidate.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
+        candidate.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+    )
+    if (done) {
+      expect(step?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    } else {
+      expect(step).toMatchObject({
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.partialText },
+      })
+    }
+  })
+
   it('读的是请求里的快照，不查库；负面框缺席时明说没有这个控件', async () => {
     queueTurns(
       {

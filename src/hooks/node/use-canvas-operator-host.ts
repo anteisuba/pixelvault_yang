@@ -69,6 +69,9 @@ const CANVAS_ANCHOR: StudioOperatorShellAnchor = {
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
 
+/** `@` 选择器悬停时预览文本节点的前几个字（只是认得出是哪一段，⛔ 不是全文）。 */
+const MENTION_PREVIEW_CHARS = 200
+
 export interface UseCanvasOperatorHostInput {
   readonly projectId: string
   /** ⚠ 现读：事件循环跨很多次 render，第 5 步用的必须是此刻这张图。 */
@@ -229,51 +232,79 @@ export function useCanvasOperatorHost({
   const library = useCharacterLibrary()
   const locale = useLocale()
 
-  const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
-    const graph = graphRef.current
-    const onCanvasIds = new Set(
-      graph.nodes.flatMap((node) =>
-        isCharacterCardNode(node) &&
-        node.data.kind === NODE_MEDIA_KIND_IDS.image &&
-        node.data.characterId
-          ? [node.data.characterId]
+  const buildSnapshot = useCallback(
+    (options?: { latestMessage?: string }): AssistantOperatorSnapshot => {
+      const graph = graphRef.current
+      const latestMessage = options?.latestMessage ?? ''
+      /** 这句话里 `@` 到的节点（`@名字`）——文本节点据此给全文，见快照头注。 */
+      const mentionedNodeIds = latestMessage
+        ? graph.nodes.flatMap((node) =>
+            node.data.name && latestMessage.includes(`@${node.data.name}`)
+              ? [node.id]
+              : [],
+          )
+        : []
+      const onCanvasIds = new Set(
+        graph.nodes.flatMap((node) =>
+          isCharacterCardNode(node) &&
+          node.data.kind === NODE_MEDIA_KIND_IDS.image &&
+          node.data.characterId
+            ? [node.data.characterId]
+            : [],
+        ),
+      )
+      return {
+        /**
+         * ⚠ 画布上**没有**那张表单，所以 `prompt` 恒空、其余控件一格都不给 ——
+         * 「字段缺席 = 没有这个控件」是快照契约里写死的那条（2026-08-22 真机实证）。
+         * 提示词在画布上住在节点身上，它在 `canvas` 那一格里。
+         */
+        prompt: '',
+        availableModels: [],
+        references: {
+          items: referenceImages.slice(
+            0,
+            ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
+          ),
+          limit: ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
+        },
+        canvas: buildCanvasOperatorSnapshot({
+          referenceUrls: referenceImages.map((image) => image.url),
+          nodes: graph.nodes,
+          edges: graph.edges,
+          currentShotNo: graph.currentShotNo,
+          selectedNodeIds: graph.selectedNodeIds,
+          ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
+          ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
+          ...(library.cards.length
+            ? {
+                characters: buildCanvasCharacters(
+                  library.cards,
+                  onCanvasIds,
+                  locale,
+                ),
+              }
+            : {}),
+        }),
+      }
+    },
+    [availableModelsByNodeId, library.cards, locale, referenceImages],
+  )
+  const mentionTextNodes = useMemo(
+    () =>
+      nodes.flatMap((node) =>
+        node.data.kind === NODE_MEDIA_KIND_IDS.text && node.data.name
+          ? [
+              {
+                id: node.id,
+                name: node.data.name,
+                preview: node.data.body.trim().slice(0, MENTION_PREVIEW_CHARS),
+              },
+            ]
           : [],
       ),
-    )
-    return {
-      /**
-       * ⚠ 画布上**没有**那张表单，所以 `prompt` 恒空、其余控件一格都不给 ——
-       * 「字段缺席 = 没有这个控件」是快照契约里写死的那条（2026-08-22 真机实证）。
-       * 提示词在画布上住在节点身上，它在 `canvas` 那一格里。
-       */
-      prompt: '',
-      availableModels: [],
-      references: {
-        items: referenceImages.slice(
-          0,
-          ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
-        ),
-        limit: ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
-      },
-      canvas: buildCanvasOperatorSnapshot({
-        referenceUrls: referenceImages.map((image) => image.url),
-        nodes: graph.nodes,
-        edges: graph.edges,
-        currentShotNo: graph.currentShotNo,
-        selectedNodeIds: graph.selectedNodeIds,
-        ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
-        ...(library.cards.length
-          ? {
-              characters: buildCanvasCharacters(
-                library.cards,
-                onCanvasIds,
-                locale,
-              ),
-            }
-          : {}),
-      }),
-    }
-  }, [availableModelsByNodeId, library.cards, locale, referenceImages])
+    [nodes],
+  )
 
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {
@@ -483,6 +514,7 @@ export function useCanvasOperatorHost({
       collapseOnOutsidePointer: false,
       /** 画布的参考列表就是助手上下文，附图照旧挂上去（见宿主类型头注）。 */
       attachmentsMountReferences: true,
+      mentionTextNodes,
       anchor: CANVAS_ANCHOR,
       canvasTargets: {
         // ⚠ 现读（`graphRef`）：清单渲染在回执之后，卡可能已经改过名或被删。
@@ -505,6 +537,7 @@ export function useCanvasOperatorHost({
       setOpen,
       onLocate,
       nodes,
+      mentionTextNodes,
     ],
   )
 }

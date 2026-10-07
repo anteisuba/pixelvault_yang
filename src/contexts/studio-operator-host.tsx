@@ -96,8 +96,9 @@ export interface StudioOperatorHost {
    *
    * ⚠ 必须是**每次调用现读**（不是渲染时算好的对象）：事件循环跨很多次 render，
    * 应用第 5 步时用的必须是此刻的表单，不是发消息那一刻的。
+   * `latestMessage` = 这一轮用户刚说的那句：画布据它认出 `@` 到的节点（文本节点给全文）。
    */
-  buildSnapshot(): AssistantOperatorSnapshot
+  buildSnapshot(options?: { latestMessage?: string }): AssistantOperatorSnapshot
   /**
    * op 往哪落、撤销从哪撤 —— 应用与撤销共用同一份判据的两侧。
    *
@@ -211,6 +212,11 @@ export interface StudioOperatorHost {
    * 与 `collapseOnOutsidePointer` 同一条判据。
    */
   attachmentsMountReferences?: boolean
+  /**
+   * `@` 选择器里可以点名的文本节点（只有画布给）。选中 = 在正文里写下 `@名字`，
+   * ⛔ 不粘原文：要的是「指着它让助手读 / 改」，不是把它倒进这句话里。
+   */
+  mentionTextNodes?: readonly { id: string; name: string; preview: string }[]
   /**
    * 改动清单（node-canvas-v2 §1 第 4 条 · 方向 B）：这一轮改了哪几张卡，点一行 = 镜头
    * 移过去、卡面闪一下。只有画布给 —— 其余宿主没有「卡」，回执下面就不列清单。

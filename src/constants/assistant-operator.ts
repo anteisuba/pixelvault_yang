@@ -2594,6 +2594,11 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   unknownModel: 'unknownModel',
   /** 档位值不在快照给的那张表里。⛔ 不做就近匹配。 */
   unknownValue: 'unknownValue',
+  /**
+   * 只读到了文本节点的开头一段却要整段替换 —— 没读到的后半段会被覆盖（2026-10-07）。
+   * 让创作者 @ 或选中它（快照随之给全文），或者改用追加。
+   */
+  partialText: 'partialText',
   referenceAnalysisRequired: 'referenceAnalysisRequired',
   referenceImageUnavailable: 'referenceImageUnavailable',
   referenceAnalysisFailed: 'referenceAnalysisFailed',

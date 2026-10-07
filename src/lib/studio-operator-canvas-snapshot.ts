@@ -18,6 +18,7 @@
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
+import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
 import {
   ADAPTER_CAPABILITIES,
   getCapabilityConfig,
@@ -171,15 +172,27 @@ export function buildCanvasGenerationRequest(
   }
 }
 
-function nodeText(node: NodeV4): string | undefined {
+/**
+ * 节点上那段字。⭐ 被 @ 或选中的文本节点给**全文**（到快照上限为止）：助手要改的
+ * 就是它，只给开头 400 字的表现是整段改写时把没读到的后半段覆盖掉（2026-10-07）。
+ * 读不全的一律带 `truncated`，服务端据此拒掉整段替换。
+ */
+function nodeText(
+  node: NodeV4,
+  full: boolean,
+): { text?: string; truncated?: true } {
   const data = node.data
-  if (data.kind === NODE_MEDIA_KIND_IDS.image) return data.prompt
+  if (data.kind === NODE_MEDIA_KIND_IDS.image) return { text: data.prompt }
   const raw = data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : data.prompt
   const trimmed = raw?.trim()
-  if (!trimmed) return undefined
-  return trimmed.length > MAX_NODE_TEXT_CHARS
-    ? `${trimmed.slice(0, MAX_NODE_TEXT_CHARS)}…`
-    : trimmed
+  if (!trimmed) return {}
+  const limit =
+    full && data.kind === NODE_MEDIA_KIND_IDS.text
+      ? NODE_V4_PROMPT_MAX_LENGTH
+      : MAX_NODE_TEXT_CHARS
+  return trimmed.length > limit
+    ? { text: `${trimmed.slice(0, limit)}…`, truncated: true }
+    : { text: trimmed }
 }
 
 function imageReviewContext(
@@ -274,9 +287,10 @@ function toSnapshotNode(
   referenceUrls: readonly string[],
   nodes: readonly NodeV4[],
   edges: readonly NodeWorkflowEdgeV4[],
+  fullText: boolean,
 ): AssistantOperatorCanvasNode {
   const data = node.data
-  const text = nodeText(node)
+  const { text, truncated } = nodeText(node, fullText)
   const availableModels = availableModelsByNodeId?.[node.id]
   const inputs = incoming
     .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
@@ -305,6 +319,7 @@ function toSnapshotNode(
           },
         }),
     ...(text === undefined ? {} : { text }),
+    ...(truncated ? { textTruncated: true as const } : {}),
     ...imageReviewContext(node, nodes, edges),
     ...(availableModels === undefined || availableModels.length === 0
       ? {}
@@ -358,6 +373,8 @@ export interface BuildCanvasSnapshotInput {
   readonly availableModelsByNodeId?: Readonly<Record<string, readonly string[]>>
   /** 角色库（`buildCanvasCharacters` 现算）；缺席 = 宿主没给。 */
   readonly characters?: AssistantOperatorCanvasSnapshot['characters']
+  /** 这一句里 `@` 到的节点：与选中的一样算焦点，文本节点给全文。 */
+  readonly mentionedNodeIds?: readonly string[]
 }
 
 export function buildCanvasOperatorSnapshot({
@@ -368,6 +385,7 @@ export function buildCanvasOperatorSnapshot({
   selectedNodeIds = [],
   availableModelsByNodeId,
   characters,
+  mentionedNodeIds = [],
 }: BuildCanvasSnapshotInput): AssistantOperatorCanvasSnapshot {
   const incomingByTarget = new Map<string, NodeWorkflowEdgeV4[]>()
   for (const edge of edges) {
@@ -377,7 +395,8 @@ export function buildCanvasOperatorSnapshot({
   }
 
   const scriptProjections = buildScriptProjectionSummaries(nodes)
-  const focusedNodeIds = new Set(selectedNodeIds)
+  const fullTextNodeIds = new Set([...selectedNodeIds, ...mentionedNodeIds])
+  const focusedNodeIds = new Set(fullTextNodeIds)
   const newestNode = nodes.at(-1)
   if (newestNode) focusedNodeIds.add(newestNode.id)
   const inputNodeIds = new Set(
@@ -438,6 +457,7 @@ export function buildCanvasOperatorSnapshot({
             referenceUrls,
             nodes,
             edges,
+            fullTextNodeIds.has(node.id),
           ),
         ),
     })

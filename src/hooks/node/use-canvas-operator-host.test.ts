@@ -290,6 +290,35 @@ describe('canvas assistant image references', () => {
     expect(characters?.list[1]).toMatchObject({ name: 'Rixi', onCanvas: false })
   })
 
+  it('⭐ 文本节点进 @ 列表；这句话里 @ 到的文本节点在快照里给全文', () => {
+    const body = `${'剧情推进。'.repeat(150)}结尾`
+    const text = {
+      id: 'script-1',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'text',
+        subtype: 'script',
+        name: '剧本设定',
+        status: 'idle',
+        createdAt: '2026-09-21T00:00:00.000Z',
+        body,
+      },
+    } as NodeV4
+    const { result } = setup([text])
+    expect(result.current.mentionTextNodes).toEqual([
+      { id: 'script-1', name: '剧本设定', preview: body.slice(0, 200) },
+    ])
+    const nodeOf = (latestMessage?: string) =>
+      result.current
+        .buildSnapshot(latestMessage ? { latestMessage } : undefined)
+        .canvas?.shots.flatMap((shot) => (shot.expanded ? shot.nodes : []))
+        .find((entry) => entry.id === 'script-1')
+    expect(nodeOf()?.textTruncated).toBe(true)
+    expect(nodeOf('把 @剧本设定 的第二幕改紧凑一点')).toMatchObject({
+      text: body,
+    })
+  })
+
   // 方向 B：改动清单要能说出卡名、点一行定位过去。
   it('canvasTargets 现读卡名（卡不在了就是 undefined），locate 交给画布', () => {
     const { result } = setup([image('one', 'https://example.com/one.png')])

@@ -7848,6 +7848,7 @@
       "reverted": "已撤销"
     },
     "reject": {
+      "partialText": "只读到了这段文本的开头，没有整段替换——@ 或选中这个节点后再试",
       "referenceAnalysisRequired": "需要先分析当前参考图",
       "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
       "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
@@ -8110,6 +8111,7 @@
       "cancel": "撤回"
     },
     "mention": {
+      "textNodes": "文本节点",
       "pickerLabel": "挑一张给助手看",
       "recent": "最近生成",
       "empty": "没找到 —— 接着打字试试",

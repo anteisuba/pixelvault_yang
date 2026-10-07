@@ -7848,6 +7848,7 @@
       "reverted": "取り消しました"
     },
     "reject": {
+      "partialText": "このテキストの一部しか読めていないため置き換えませんでした。ノードを @ するか選択してから、もう一度お試しください",
       "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
       "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
       "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
@@ -8110,6 +8111,7 @@
       "cancel": "取り消す"
     },
     "mention": {
+      "textNodes": "テキストノード",
       "pickerLabel": "アシスタントに見せるものを選ぶ",
       "recent": "最近の生成",
       "empty": "見つかりません —— そのまま入力してください",

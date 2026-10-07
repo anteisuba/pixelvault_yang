@@ -689,8 +689,13 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
   name: LabelSchema,
   kind: LabelSchema,
   subtype: LabelSchema.optional(),
-  /** 图片节点保留提示词全文；其余节点提供摘要。 */
+  /** 图片节点保留提示词全文；其余节点提供摘要（被 @ 或选中的文本节点给全文）。 */
   text: NodeV4ImageDataSchema.shape.prompt,
+  /**
+   * `text` 只是开头一段，节点里还有更多（2026-10-07）。⚠ 这种节点不能整段替换 ——
+   * 没读到的后半段会被覆盖掉；服务端按它拒掉 `set_text` 的 replace。
+   */
+  textTruncated: z.literal(true).optional(),
   referenceUrls: z
     .array(AssistantOperatorSnapshotReferenceSchema.shape.url)
     .max(LIMITS.maxSnapshotReferences)

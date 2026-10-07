@@ -544,6 +544,34 @@ describe('buildCanvasOperatorSnapshot', () => {
     ).toBe(true)
   })
 
+  it('⭐ 选中或 @ 到的文本节点给全文；其余只给开头并标明读不全', () => {
+    const long = `${'第一幕铺垫。'.repeat(120)}\n结尾：列车进站`
+    const nodes = [
+      scriptNode('selected', long),
+      scriptNode('mentioned', long),
+      scriptNode('other', long),
+    ]
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes,
+      edges: [],
+      currentShotNo: null,
+      selectedNodeIds: ['selected'],
+      mentionedNodeIds: ['mentioned'],
+    })
+    expect(snapshotNode(snapshot, 'selected')).toMatchObject({ text: long })
+    expect(snapshotNode(snapshot, 'selected')).not.toHaveProperty(
+      'textTruncated',
+    )
+    expect(snapshotNode(snapshot, 'mentioned')?.text).toBe(long)
+    expect(snapshotNode(snapshot, 'other')).toMatchObject({
+      textTruncated: true,
+    })
+    expect(snapshotNode(snapshot, 'other')?.text).toHaveLength(401)
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
   it('上游文字超出复核容量时明确不完整，不截断为已检查全文', () => {
     const snapshot = buildCanvasOperatorSnapshot({
       nodes: [

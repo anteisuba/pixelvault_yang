@@ -360,6 +360,9 @@ function collectCanvasChangedCards(
   })
 }
 
+/** `@` 选择器里文本节点那一族的分组键。 */
+const TEXT_NODE_MENTION_GROUP = 'text-node'
+
 /** 缺 key 时引导去配的那一档：Gemini 文本模型在 Google AI Studio 有免费档。 */
 const FREE_TIER_ASSISTANT_ROUTE = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
   (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
@@ -863,7 +866,20 @@ export function StudioOperatorPanel({
     })
   }
 
-  const mentionCandidates = referenceCandidates
+  /**
+   * 画布上的文本节点也能 `@`（owner 2026-10-07）：写下的是 `@名字`，助手据此读它的
+   * 全文并能改它。⚠ 分一族（`group`），⛔ 不与图片抢名额。
+   */
+  const mentionCandidates: MentionCandidate[] = [
+    ...referenceCandidates,
+    ...(operatorHost.mentionTextNodes ?? []).map((node) => ({
+      id: `text-node:${node.id}`,
+      name: node.name,
+      group: TEXT_NODE_MENTION_GROUP,
+      groupLabel: t('mention.textNodes'),
+      preview: node.preview,
+    })),
+  ]
 
   /**
    * 从素材库弹层挑中的那些 = **挂进工作台 + 正文里留一个 @ chip**（切片 #7c）。
@@ -2691,11 +2707,16 @@ export function StudioOperatorPanel({
                    参考图」，另一句是「有，但没一条对得上你打的字」。合成一句的话
                    前者会把用户支使去改搜索词。 */
             emptyLabel={
-              referenceCandidates.length
+              mentionCandidates.length
                 ? tReference('noMatches')
                 : tReference('empty')
             }
             onMentionSelect={(candidate) => {
+              // 文本节点没有引用胶囊（`MentionToken` 头注）：写成普通文字 `@名字`。
+              if (candidate.group === TEXT_NODE_MENTION_GROUP) {
+                inputRef.current?.insertText(`@${candidate.name} `)
+                return
+              }
               inputRef.current?.insertToken(
                 candidate.tokenName ?? candidate.name,
               )

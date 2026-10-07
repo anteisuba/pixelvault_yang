@@ -7848,6 +7848,7 @@
       "reverted": "Undone"
     },
     "reject": {
+      "partialText": "Only part of this text was read, so it was not replaced — @ the node or select it, then try again",
       "referenceAnalysisRequired": "Analyze the current references first",
       "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
       "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
@@ -8110,6 +8111,7 @@
       "cancel": "Pull back"
     },
     "mention": {
+      "textNodes": "Text nodes",
       "pickerLabel": "Pick something for the assistant to look at",
       "recent": "Recent results",
       "empty": "Nothing matches — keep typing",

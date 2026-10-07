@@ -1428,7 +1428,7 @@ function renderState(
       `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
       `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
       'Use actual node ids from this snapshot. add_node creates a blank node; after it lands the next snapshot supplies its real id. Never guess a new id or reuse a batch ref across calls.',
-      'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. Do not call global set_prompt or mount_reference on a canvas.',
+      'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textTruncated shows only its opening — never replace it; ask the creator to @-mention or select it to read the full text, or append. Do not call global set_prompt or mount_reference on a canvas.',
       "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
       'Creating nodes, editing prompts and wiring references do not generate media. canvas_generate is a separate confirmation. Complete the requested board setup before offering generation.',
       ...state.referenceUrls.map(
@@ -7370,6 +7370,19 @@ async function planCanvasApply(
       const blocked = await checkCanvasReferencePrompt(run, node, next, userId)
       if (blocked) return blocked
     }
+  }
+
+  if (
+    op.op === NODE_ASSISTANT_OP_V4_IDS.setText &&
+    op.mode === 'replace' &&
+    canvas.shots
+      .flatMap((shot) => (shot.expanded ? shot.nodes : []))
+      .find((candidate) => candidate.id === op.target)?.textTruncated
+  ) {
+    return reject(
+      REJECT.partialText,
+      'You only read the start of this text node, so replacing it would erase the part you have not seen. Ask the creator to @-mention or select it so the next turn carries its full text, or write with mode "append".',
+    )
   }
 
   const spec = NODE_ASSISTANT_OP_V4_SPECS[op.op]

@@ -1062,7 +1062,12 @@ export function useAssistantOperator(
         if (!isCurrentRun()) return
       }
 
-      const snapshot = buildSnapshot()
+      const latestMessage = messages.findLast(
+        (message) => message.role === 'user',
+      )?.content
+      const snapshot = buildSnapshot(
+        latestMessage ? { latestMessage } : undefined,
+      )
       const authoredByAssistant = buildAuthoredByAssistant(
         entries,
         snapshot,

@@ -6537,7 +6537,6 @@
     "sheetDone": "完了",
     "actionDownload": "保存",
     "actionOriginal": "原寸",
-    "actionShare": "共有",
     "actionRemix": "リミックス",
     "actionEdit": "編集",
     "actionMore": "その他"
@@ -6950,7 +6949,6 @@
     "apiUnverified": "未確認",
     "toolDownload": "ダウンロード",
     "toolViewOriginal": "原画を表示",
-    "toolShare": "共有",
     "toolLockSeed": "シードを固定",
     "seedLockedToast": "シード {seed} を固定しました。プロンプトを調整して、同じシードでバリエーションを試せます。",
     "toolSuperRes": "超解像",

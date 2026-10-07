@@ -11,7 +11,6 @@ import {
   PenTool,
   Pin,
   RotateCcw,
-  Share2,
   Sparkles,
   X,
 } from '@/components/icons'
@@ -381,15 +380,6 @@ export const GenerationPreview = memo(function GenerationPreview({
     }
   }
 
-  const handleShare = async () => {
-    if (!generation.url) return
-    try {
-      await navigator.clipboard.writeText(generation.url)
-    } catch {
-      // Fallback: ignore
-    }
-  }
-
   // Phase 1B: "Lock seed" — copies the current generation's seed into
   // FormContext.advancedParams.seed. Once locked, the next Generate
   // tap reuses this seed even if the user tweaks the prompt, which is
@@ -620,12 +610,6 @@ export const GenerationPreview = memo(function GenerationPreview({
         onClick={() => setDetailOpen(true)}
         variant={variant}
       />
-      <CanvasToolButton
-        icon={Share2}
-        label={t('toolShare')}
-        onClick={handleShare}
-        variant={variant}
-      />
       {onRemix && generation && (
         <CanvasToolButton
           icon={RotateCcw}
@@ -710,12 +694,6 @@ export const GenerationPreview = memo(function GenerationPreview({
         icon: Maximize2,
         label: tMobile('actionOriginal'),
         onClick: () => setDetailOpen(true),
-      },
-      {
-        key: 'share',
-        icon: Share2,
-        label: tMobile('actionShare'),
-        onClick: handleShare,
       },
       ...(onRemix
         ? [

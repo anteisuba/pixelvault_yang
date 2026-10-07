@@ -6537,7 +6537,6 @@
     "sheetDone": "Done",
     "actionDownload": "Save",
     "actionOriginal": "Full",
-    "actionShare": "Share",
     "actionRemix": "Remix",
     "actionEdit": "Edit",
     "actionMore": "More"
@@ -6950,7 +6949,6 @@
     "apiUnverified": "Unverified",
     "toolDownload": "Download",
     "toolViewOriginal": "View original",
-    "toolShare": "Share",
     "toolLockSeed": "Lock seed",
     "seedLockedToast": "Seed {seed} locked. Adjust the prompt and generate again to try variations with the same seed.",
     "toolSuperRes": "Super resolution",

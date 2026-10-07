@@ -6537,7 +6537,6 @@
     "sheetDone": "完成",
     "actionDownload": "下载",
     "actionOriginal": "原图",
-    "actionShare": "分享",
     "actionRemix": "重混",
     "actionEdit": "编辑",
     "actionMore": "更多"
@@ -6950,7 +6949,6 @@
     "apiUnverified": "未验证",
     "toolDownload": "下载",
     "toolViewOriginal": "查看原图",
-    "toolShare": "分享",
     "toolLockSeed": "固定 Seed",
     "seedLockedToast": "Seed {seed} 已固定 — 改 prompt 再点生成，可保留构图微调细节。",
     "toolSuperRes": "超分辨率",

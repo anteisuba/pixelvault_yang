@@ -927,6 +927,16 @@ export function useAssistantOperator(
        */
       let roundFinished = false
       let terminalReceived = false
+      /**
+       * 流没等到终态就断了 —— 在线程里落一行（随会话落库），断流才量得到
+       * （assistant-durable-turns §2）。⚠ 只在这两处断流里调；abort 是用户按的，不算。
+       */
+      const appendStreamInterrupted = () =>
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'streamInterrupted',
+        })
       let runFailed = false
       let canvasSync = false
       let canvasApplied = false
@@ -1662,6 +1672,18 @@ export function useAssistantOperator(
                 break
               }
               /**
+               * ⭐ **这一次请求的时间用到头了**（服务端在平台 300 秒杀函数之前自己收的尾）。
+               * 画布照 `canvas_sync` 接下一次请求，⚠ 不看这次有没有落 op —— 收尾不是因为
+               * 要同步画布，是时间到了；其他域没有接力，出「继续 / 先到这里」。
+               */
+              if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget) {
+                if (domain === 'canvas') {
+                  canvasSync = true
+                  break
+                }
+                setOperatorOutOfSteps(true)
+              }
+              /**
                * ⭐ **停在确认卡 / 问题卡上的那一轮也带结论**（2026-09-12 实测
                * 第 2 组）：生成确认之后用户点的是生成键，⛔ 不再开一轮 —— 不收
                * 这一份，整个生成轮次在时间线上就没有结论块。
@@ -1727,6 +1749,7 @@ export function useAssistantOperator(
          * 错误态就永久挂在胶囊上，新一轮跑完也擦不掉。
          */
         if (controller.signal.aborted) return
+        appendStreamInterrupted()
         setOperatorStatus('error', null)
         return
       }
@@ -1739,6 +1762,7 @@ export function useAssistantOperator(
       if (controller.signal.aborted) return
       if (runFailed) return
       if (!terminalReceived) {
+        appendStreamInterrupted()
         setOperatorStatus('error', tError('streamInterrupted'))
         return
       }

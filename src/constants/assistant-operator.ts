@@ -1549,6 +1549,26 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
   canvasSync: 'canvas_sync',
   /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
   maxSteps: 'max_steps',
+  /**
+   * 这一次请求的时间用到头了（`ASSISTANT_OPERATOR_TIME_BUDGET`），在平台 300 秒
+   * 杀函数之前自己收尾。画布照 `canvas_sync` 那样自动接下一次请求；其他域出「继续」。
+   * ⚠ 它只发生在步与步之间、或掐掉一步之后 —— 没有写到一半的东西，接着跑不会重复写。
+   */
+  timeBudget: 'time_budget',
+} as const
+
+/**
+ * 一次请求的**时间预算**（`docs/references/assistant-durable-turns.md` §2）。
+ *
+ * ⭐ 平台上限是 300 秒（Hobby `maxDuration`），到点是杀进程 —— 用户看到的是
+ * 「连接在本轮完成前中断」。这里在那之前自己收尾，换成一次可续跑的停止。
+ *  · `softMs`：只管画布（它有自动接力，收尾是无感的）—— 用到这个数就不再开新的一步。
+ *    120 是「最慢的一步约 160 秒还落得进 300」倒推出来的（2026-10-07 实测 Grok 单次到 160 秒）。
+ *  · `hardMs`：所有域 —— 正在跑的那一步到这个数还没回来就掐掉，留到下一次请求重做。
+ */
+export const ASSISTANT_OPERATOR_TIME_BUDGET = {
+  softMs: 120_000,
+  hardMs: 270_000,
 } as const
 
 export type AssistantOperatorStopReason =
@@ -2342,6 +2362,12 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    */
   maxRepeatedStepStrikes: 2,
   /**
+   * 同一个工具因**同一个理由**连着被拒几次就收尾（2026-10-07 实测：`unknownAsset`
+   * 换着参数连试 4 次，四步全白跑）。参数每次都不同，上面那道「同一步」闸认不出来。
+   * ⚠ 中间成功过一步就重新数。
+   */
+  maxSameRejectionStrikes: 2,
+  /**
    * 同一个改动型工具一轮里最多跑几次（D12 B1）。
    *
    * 🔬 真机：`set_prompt` 换着措辞连调 8 次、步数烧光 —— 每次参数都不同，
@@ -2887,6 +2913,11 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * 仍照旧上抛，由客户端路由到 `QuickSetupDialog` 等入口（Hard Rule 8）。
    */
   toolFailed: 'toolFailed',
+  /**
+   * 这一步跑到时间预算的硬线还没回来，被掐掉了（`ASSISTANT_OPERATOR_TIME_BUDGET.hardMs`）。
+   * ⚠ 不是失败：它会在下一次请求里重做。这一条只为把时间线上那一行 `running` 收掉。
+   */
+  timeBudget: 'timeBudget',
 } as const
 
 /**

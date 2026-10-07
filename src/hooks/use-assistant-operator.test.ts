@@ -520,6 +520,54 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     ).toBe(true)
   })
 
+  it('断流在线程里落一行 streamInterrupted（随会话落库，断流才量得到）', async () => {
+    const { result } = render()
+    act(() => result.current.send('看一眼'))
+    await settle()
+    streams[0].emit(doneStepEvent('read-1'))
+    streams[0].close()
+    await settle()
+    expect(store.getOperatorState().entries).toContainEqual(
+      expect.objectContaining({ kind: 'system', code: 'streamInterrupted' }),
+    )
+  })
+
+  it('画布收到 time_budget 就照 canvas_sync 接下一次请求，哪怕这次没落 op', async () => {
+    hostDomain.current = 'canvas'
+    const { result } = render()
+    act(() => result.current.send('把这几镜都看一遍'))
+    await settle()
+    streams[0].emit(doneStepEvent('read-1'))
+    streams[0].emit({ type: 'stopped', reason: 'time_budget' })
+    streams[0].close()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+      planApproved: true,
+    })
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
+    await settle()
+    expect(store.getOperatorState().entries).not.toContainEqual(
+      expect.objectContaining({ kind: 'system', code: 'streamInterrupted' }),
+    )
+  })
+
+  it('其他域收到 time_budget 不接力，出「继续 / 先到这里」', async () => {
+    const { result } = render()
+    act(() => result.current.send('配一下这张图'))
+    await settle()
+    streams[0].emit(doneStepEvent('read-1'))
+    streams[0].emit({ type: 'stopped', reason: 'time_budget' })
+    streams[0].close()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState()).toMatchObject({
+      status: 'idle',
+      outOfSteps: true,
+    })
+  })
+
   it('重复完成已命名的建卡步骤不会把失败的连线步骤冒充为完成', async () => {
     hostDomain.current = 'canvas'
     const { result } = render()

@@ -7941,7 +7941,8 @@
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
       "videoFramesMissing": "这段片子没能取出可看的帧",
       "blockedSource": "这张被你判过失败，不能再作首帧或尾帧",
-      "toolFailed": "这一步暂时没做成（技术故障），可以稍后再试"
+      "toolFailed": "这一步暂时没做成（技术故障），可以稍后再试",
+      "timeBudget": "这一步跑太久了，挪到下一段接着做。"
     },
     "field": {
       "prompt": "提示词",
@@ -8083,6 +8084,7 @@
       "revertAll": "你清掉了助手的全部改动（{count} 处）—— 助手已知晓",
       "stopped": "你叫停了当前工作",
       "interrupted": "你插话了 —— 助手已转向",
+      "streamInterrupted": "这一轮还没跑完，连接就断了。",
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
       "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",

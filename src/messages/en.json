@@ -7941,7 +7941,8 @@
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
       "videoFramesMissing": "Could not read frames from this clip",
       "blockedSource": "You rejected this asset, so it can't be used as a first or last frame.",
-      "toolFailed": "This step hit a technical problem and didn't go through — you can try again in a moment."
+      "toolFailed": "This step hit a technical problem and didn't go through — you can try again in a moment.",
+      "timeBudget": "This step ran too long; it will be redone in the next round of work."
     },
     "field": {
       "prompt": "Prompt",
@@ -8083,6 +8084,7 @@
       "revertAll": "Undid all {count} assistant changes. The assistant has been informed.",
       "stopped": "You stopped the current work",
       "interrupted": "Your message changed the assistant's direction.",
+      "streamInterrupted": "The connection dropped before this turn finished.",
       "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
       "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
       "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",

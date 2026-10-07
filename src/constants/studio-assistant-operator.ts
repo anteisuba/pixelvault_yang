@@ -247,6 +247,12 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'stopped',
   'interrupted',
   /**
+   * 流在本轮跑完之前断了（没收到 `done` / `stopped` / `error`）—— 网掉了、页面切走、
+   * 平台超时。⭐ 落进历史是为了**量得到**：此前断流只改内存里的状态，库里查不出一次
+   * （`docs/references/assistant-durable-turns.md` §1）。
+   */
+  'streamInterrupted',
+  /**
    * 排队的那句在**工具步边界**被接住了（§3.1 ㉓，本片）。
    *
    * ⚠ 与 `interrupted` 是**两件事**，⛔ 别合成一条：`interrupted` 说的是
@@ -894,4 +900,6 @@ export const STUDIO_OPERATOR_RESUME_TTL_MS = 24 * 60 * 60 * 1000
  */
 export const STUDIO_OPERATOR_SKIPPED_REJECT_REASONS: readonly string[] = [
   ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+  // 时间到了被掐掉的那一步会在下一次请求里重做 —— 没做成，但也不是失败。
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS.timeBudget,
 ]

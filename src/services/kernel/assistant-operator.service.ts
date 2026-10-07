@@ -49,6 +49,7 @@ import {
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_STOP_REASONS,
+  ASSISTANT_OPERATOR_TIME_BUDGET,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
   ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS,
@@ -182,6 +183,7 @@ import {
   ApiRequestError,
   AuthError,
   InsufficientCreditsError,
+  ProviderError,
 } from '@/lib/errors'
 import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
@@ -482,6 +484,7 @@ import {
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
   type AssistantOperatorResult,
+  type AssistantOperatorStep,
   AssistantOperatorRoundSummaryDraftSchema,
   AssistantResearchConclusionDraftSchema,
   type AssistantOperatorRoundSummary,
@@ -9202,6 +9205,30 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
       '我在同一步上打转了，先停下来，不再耗你的时间。说一句下一步想怎么办，我换个路子。',
   }
 
+/** 同一个工具因同一个理由连着被拒（`LIMITS.maxSameRejectionStrikes`）时收尾的那句。 */
+const OPERATOR_SAME_FAILURE_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english:
+    'That step failed twice in a row for the same reason, so I stopped instead of trying more variations. The reason is on the line above. Tell me how you want to handle it.',
+  japanese:
+    '同じ操作が同じ理由で2回続けて失敗したので、やり方を変えて試し続ける前に止めました。理由は上の行にあります。どうするか教えてください。',
+  chinese:
+    '同一个操作因为同一个原因连着失败了两次，我先停下，不再换着法子硬试。原因写在上面那一行，告诉我想怎么处理。',
+}
+
+/**
+ * 被拒的这一步算不算进「同理由连败」：重复步有自己那道闸；「先看图」是让它看完再来，
+ * 照做之后重试是对的。
+ */
+function countsTowardSameRejection(reason: AssistantOperatorRejectReason) {
+  return (
+    reason !== REJECT.repeatedStep &&
+    reason !== REJECT.referenceAnalysisRequired
+  )
+}
+
 /**
  * 当前快照选中的那个模型**吃什么方言**。
  *
@@ -10792,6 +10819,17 @@ export interface AssistantOperatorRunOptions {
    * 客户端断开时触发（拍板 13 的插话 / ⏹）。
    */
   signal?: AbortSignal
+  /** 覆盖 `ASSISTANT_OPERATOR_TIME_BUDGET`。⚠ 只给测试用，路由不传。 */
+  timeBudget?: { softMs: number; hardMs: number }
+  /** 读当前时间。⚠ 同上，只给测试用。 */
+  now?: () => number
+}
+
+/** 工具环本体收到的那一份：signal 已经并进了时间预算的硬线。 */
+interface OperatorTurnOptions {
+  signal: AbortSignal
+  /** 这一次请求是不是已经过了软线（只有画布看它）。 */
+  pastSoftBudget: () => boolean
 }
 
 const ROUND_SUMMARY_SYSTEM_PROMPT = `You write the creator-facing closing record of one assistant turn in an AI image/video studio.
@@ -11250,10 +11288,95 @@ async function optionalContext<T>(
   }
 }
 
+/**
+ * 工具环外面套一层**时间预算**（`ASSISTANT_OPERATOR_TIME_BUDGET`，2026-10-07 画布两天 7 次被
+ * Vercel 300 秒杀掉）。
+ *
+ * ⭐ 硬线是一个并进 signal 的定时 abort：工具环对它的反应与对 ⏹ 一模一样（停在原地、
+ * 吐 `stopped: aborted`），这一层把那一帧换成 `time_budget`，并把被掐掉的那一步收成
+ * `timeBudget` —— 不然时间线上会留一行永远在转的 `running`。
+ * ⚠ 这一次请求**一步都没跑完**就到了硬线时抛超时错：接着跑只会在同一步上再超时一次，
+ *   而画布的自动接力按「跑完几步」计数，一步不前进它就会无限接下去。
+ */
 export async function* runAssistantOperator(
   clerkId: string,
   request: AssistantOperatorRequest,
   options: AssistantOperatorRunOptions = {},
+): AsyncIterable<AssistantOperatorEvent> {
+  const budget = options.timeBudget ?? ASSISTANT_OPERATOR_TIME_BUDGET
+  const now = options.now ?? Date.now
+  const startedAt = now()
+  const hardStop = new AbortController()
+  const timer = setTimeout(() => hardStop.abort(), budget.hardMs)
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, hardStop.signal])
+    : hardStop.signal
+  const timedOut = () => hardStop.signal.aborted && !options.signal?.aborted
+  let running: AssistantOperatorStep | null = null
+  let concluded = 0
+  let terminal = false
+  try {
+    for await (const event of runOperatorTurn(clerkId, request, {
+      signal,
+      pastSoftBudget: () => now() - startedAt >= budget.softMs,
+    })) {
+      if (
+        event.type === ASSISTANT_OPERATOR_EVENTS.stopped &&
+        event.reason === ASSISTANT_OPERATOR_STOP_REASONS.aborted &&
+        timedOut()
+      ) {
+        break
+      }
+      if (event.type === ASSISTANT_OPERATOR_EVENTS.step) {
+        if (event.step.status === STATUS.running) {
+          running = event.step
+        } else {
+          concluded += 1
+          if (running?.id === event.step.id) running = null
+        }
+      }
+      if (
+        event.type === ASSISTANT_OPERATOR_EVENTS.done ||
+        event.type === ASSISTANT_OPERATOR_EVENTS.stopped ||
+        event.type === ASSISTANT_OPERATOR_EVENTS.error
+      ) {
+        terminal = true
+      }
+      yield event
+    }
+  } catch (error) {
+    if (!timedOut()) throw error
+  } finally {
+    clearTimeout(timer)
+  }
+  if (terminal || !timedOut()) return
+  if (concluded === 0) {
+    throw new ProviderError(
+      'assistant-operator',
+      `One assistant step ran past ${budget.hardMs}ms without finishing.`,
+      { timeout: true },
+    )
+  }
+  if (running) {
+    yield toStepEvent({
+      id: running.id,
+      tool: running.tool,
+      verb: running.verb,
+      title: running.title,
+      status: STATUS.error,
+      error: { reason: REJECT.timeBudget },
+    })
+  }
+  yield {
+    type: ASSISTANT_OPERATOR_EVENTS.stopped,
+    reason: ASSISTANT_OPERATOR_STOP_REASONS.timeBudget,
+  }
+}
+
+async function* runOperatorTurn(
+  clerkId: string,
+  request: AssistantOperatorRequest,
+  options: OperatorTurnOptions,
 ): AsyncIterable<AssistantOperatorEvent> {
   if (options.signal?.aborted) {
     yield {
@@ -11568,6 +11691,31 @@ export async function* runAssistantOperator(
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
+  /** 上一次被拒是哪个工具、什么理由，连着几次了 —— 成功一步就归零。 */
+  let lastRejection: string | null = null
+  let sameRejectionStrikes = 0
+  const noteRejection = (
+    tool: string,
+    reason: AssistantOperatorRejectReason,
+  ): boolean => {
+    const key = `${tool}:${reason}`
+    sameRejectionStrikes = key === lastRejection ? sameRejectionStrikes + 1 : 1
+    lastRejection = key
+    return sameRejectionStrikes >= LIMITS.maxSameRejectionStrikes
+  }
+  async function* stopAfterSameFailure(): AsyncIterable<AssistantOperatorEvent> {
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: OPERATOR_SAME_FAILURE_MESSAGES[
+        resolveResponseLanguage(request, persona)
+      ],
+    }
+    const roundSummary = await closeRound(run, { clerkId, userId: user.id })
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.done,
+      ...(roundSummary ? { roundSummary } : {}),
+    }
+  }
   /** 这一轮每个工具真跑成了几次 —— 改动型工具的上限判据（D12 B1）。 */
   const writeToolCalls = new Map<string, number>()
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
@@ -11679,6 +11827,24 @@ export async function* runAssistantOperator(
         completed = true
         return
       }
+      /**
+       * 画布过了时间预算的软线就不再开新的一步（见 `runAssistantOperator` 头注）：
+       * 客户端照 `canvas_sync` 那样带最新快照接下一次请求，用户看不出这一刀。
+       * ⚠ 本次请求至少跑过一步才停（不然接力一步不前进）；最后一步留给收尾那句话。
+       */
+      if (
+        index > 0 &&
+        !lastStep &&
+        request.domain === 'canvas' &&
+        options.pastSoftBudget()
+      ) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.timeBudget,
+        }
+        completed = true
+        return
+      }
 
       /**
        * 收尾轮把正文边生成边显示（同一条气泡，逐段 `message_delta` 追加）。
@@ -11696,6 +11862,7 @@ export async function* runAssistantOperator(
           ].map((image) => image.url)
         : []
       const systemPrompt = composeSystemPrompt()
+      const llmStartedAt = Date.now()
       for await (const chunk of streamAssistantTextWithContextRetry({
         signal: run.signal,
         systemPrompt,
@@ -11737,6 +11904,21 @@ export async function* runAssistantOperator(
           delta,
         }
       }
+
+      /**
+       * 每一步那次主调用的耗时与长短（assistant-durable-turns §2）。⭐ 生产也打：
+       * 只有数，没有创作者的原话。输出长度是**看得见的正文**，与 AI Gateway 记的
+       * 输出 token 一对，就知道那 6K–14K 是推理还是正文。
+       */
+      logger.info('assistant operator llm call', {
+        step: index,
+        domain: request.domain,
+        adapterType: route.adapterType,
+        modelId,
+        llmMs: Date.now() - llmStartedAt,
+        systemChars: systemPrompt.length,
+        outputChars: raw.length,
+      })
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
       //    这里再查一次，免得往一条没人读的流里继续吐事件。
@@ -12628,6 +12810,15 @@ export async function* runAssistantOperator(
             plan.detail ? `: ${plan.detail}` : ''
           }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )
+        if (
+          !plan.quiet &&
+          countsTowardSameRejection(plan.reason) &&
+          noteRejection(name, plan.reason)
+        ) {
+          yield* stopAfterSameFailure()
+          completed = true
+          return
+        }
         continue
       }
 
@@ -12660,6 +12851,11 @@ export async function* runAssistantOperator(
           run.observations.push(
             `${name} was REFUSED (${REJECT.toolFailed}): ${TOOL_FAILED_DETAIL} Do not retry it unchanged.`,
           )
+          if (noteRejection(name, REJECT.toolFailed)) {
+            yield* stopAfterSameFailure()
+            completed = true
+            return
+          }
           continue
         }
         const { result, observation } = outcome
@@ -12695,6 +12891,7 @@ export async function* runAssistantOperator(
         //    会被自己的护栏拦住。归零同理 —— 真跑成了一步就不算在打转。
         run.executedStepKeys.add(stepKey)
         repeatedStepStrikes = 0
+        lastRejection = null
         continue
       }
 
@@ -12712,6 +12909,7 @@ export async function* runAssistantOperator(
       run.executedStepKeys.add(stepKey)
       writeToolCalls.set(name, (writeToolCalls.get(name) ?? 0) + 1)
       repeatedStepStrikes = 0
+      lastRejection = null
       if (name === TOOL.canvasApply) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

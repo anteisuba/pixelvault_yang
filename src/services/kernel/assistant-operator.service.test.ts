@@ -3899,8 +3899,9 @@ describe('打断（拍板 13）', () => {
   it('模型在飞时取消：信号贯通并干净收尾，不压缩重试或结账', async () => {
     const controller = new AbortController()
     const reason = new DOMException('stopped', 'AbortError')
+    let observedSignal: AbortSignal | undefined
     mockLlmTextCompletion.mockImplementationOnce(async (input) => {
-      expect(input.signal).toBe(controller.signal)
+      observedSignal = input.signal
       return new Promise((_resolve, reject) => {
         input.signal.addEventListener('abort', () => reject(reason), {
           once: true,
@@ -3919,6 +3920,10 @@ describe('打断（拍板 13）', () => {
         reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
       },
     ])
+    // ⚠ 传下去的是「客户端 signal + 时间预算硬线」合成的那一个，⛔ 不是同一个对象 ——
+    //    贯通的判据是它随客户端一起 abort、带着同一个理由。
+    expect(observedSignal?.aborted).toBe(true)
+    expect(observedSignal?.reason).toBe(reason)
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
     expect(mockRecordMemories).not.toHaveBeenCalled()
@@ -9236,7 +9241,8 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       ),
     )
 
-    expect(observedSignal).toBe(controller.signal)
+    expect(observedSignal?.aborted).toBe(true)
+    expect(observedSignal?.reason).toBe(reason)
     expect(mockLlmNativeWebSearch).toHaveBeenCalledTimes(1)
     expect(events.at(-1)).toMatchObject({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -18786,5 +18792,138 @@ describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 
         detail: expect.stringContaining('edit_set_timeline'),
       },
     })
+  })
+})
+
+describe('时间预算与同理由连败（assistant-durable-turns 第 0 片）', () => {
+  const CANVAS_SNAPSHOT = {
+    prompt: '',
+    availableModels: [],
+    canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+  }
+  const READ_STATE = {
+    tool: {
+      name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+      title: '读画布',
+      args: {},
+    },
+  }
+
+  /** 下一次往返挂住，直到被 abort —— 模拟一步慢到撞线的 provider。 */
+  function hangNextCall(): Promise<void> {
+    return new Promise((ready) => {
+      mockLlmTextCompletion.mockImplementationOnce(
+        (input: { signal?: AbortSignal }) =>
+          new Promise((_, reject) => {
+            ready()
+            input.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            )
+          }),
+      )
+    })
+  }
+
+  function stopReasonsOf(events: readonly AssistantOperatorEvent[]) {
+    return events.flatMap((event) =>
+      event.type === ASSISTANT_OPERATOR_EVENTS.stopped ? [event.reason] : [],
+    )
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('画布过了软线不再开新的一步，以 time_budget 收尾', async () => {
+    queueTurns(READ_STATE, READ_STATE, { finished: true })
+    const now = vi.fn().mockReturnValueOnce(0).mockReturnValue(1_000)
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'canvas', snapshot: CANVAS_SNAPSHOT }),
+        { timeBudget: { softMs: 500, hardMs: 60_000 }, now },
+      ),
+    )
+    expect(toolRingCalls()).toHaveLength(1)
+    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'time_budget' })
+  })
+
+  it('软线只管画布：图片台照常跑完', async () => {
+    queueTurns(READ_STATE, { finished: true, message: '看过了。' })
+    const now = vi.fn().mockReturnValueOnce(0).mockReturnValue(1_000)
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest(), {
+        timeBudget: { softMs: 500, hardMs: 60_000 },
+        now,
+      }),
+    )
+    expect(toolRingCalls().length).toBeGreaterThanOrEqual(2)
+    expect(stopReasonsOf(events)).not.toContain('time_budget')
+  })
+
+  it('硬线掐掉挂住的那一步：跑完过一步就收成 time_budget 等接力', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    mockLlmTextCompletion.mockReset()
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      JSON.stringify(wrapEntryToolCall(READ_STATE)),
+    )
+    const hung = hangNextCall()
+    const pending = collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'canvas', snapshot: CANVAS_SNAPSHOT }),
+        { timeBudget: { softMs: 60_000, hardMs: 5_000 } },
+      ),
+    )
+    await hung
+    vi.advanceTimersByTime(5_000)
+    const events = await pending
+    expect(
+      stepsOf(events).filter((step) => step.status === 'done'),
+    ).toHaveLength(1)
+    expect(stopReasonsOf(events)).toEqual(['time_budget'])
+    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'time_budget' })
+  })
+
+  it('一步都没跑完就撞上硬线时报 provider 超时，不接力', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    mockLlmTextCompletion.mockReset()
+    const hung = hangNextCall()
+    const pending = collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'canvas', snapshot: CANVAS_SNAPSHOT }),
+        { timeBudget: { softMs: 60_000, hardMs: 5_000 } },
+      ),
+    )
+    await hung
+    vi.advanceTimersByTime(5_000)
+    await expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TIMEOUT',
+    })
+  })
+
+  it('同一个工具因同一个理由连着被拒两次就收尾，不再换着参数硬试', async () => {
+    queueTurns(
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-a' } } },
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-b' } } },
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-c' } } },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const rejected = stepsOf(events).filter(
+      (step) =>
+        step.status === 'error' && step.error?.reason === 'unknownModel',
+    )
+    expect(rejected).toHaveLength(2)
+    expect(toolRingCalls()).toHaveLength(2)
+    const closing = events.findLast(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+    )
+    expect(closing).toMatchObject({
+      text: expect.stringMatching(/twice in a row|2回続けて|连着失败了两次/),
+    })
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 })

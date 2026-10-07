@@ -93,9 +93,6 @@ export const ModelName = {
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
-  CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
-  CivitaiLoraMirror: 'CivitaiLoraMirror',
-  CivitaiMirrorSyncState: 'CivitaiMirrorSyncState',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory'
 } as const
@@ -936,54 +933,6 @@ export const InspirationPromptScalarFieldEnum = {
 } as const
 
 export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
-
-
-export const CivitaiSearchSnapshotScalarFieldEnum = {
-  key: 'key',
-  payload: 'payload',
-  fetchedAt: 'fetchedAt',
-  lastUsedAt: 'lastUsedAt'
-} as const
-
-export type CivitaiSearchSnapshotScalarFieldEnum = (typeof CivitaiSearchSnapshotScalarFieldEnum)[keyof typeof CivitaiSearchSnapshotScalarFieldEnum]
-
-
-export const CivitaiLoraMirrorScalarFieldEnum = {
-  modelId: 'modelId',
-  versionId: 'versionId',
-  versionName: 'versionName',
-  name: 'name',
-  creator: 'creator',
-  category: 'category',
-  nsfwLevelMax: 'nsfwLevelMax',
-  nsfwNamed: 'nsfwNamed',
-  baseModel: 'baseModel',
-  tags: 'tags',
-  trainedWords: 'trainedWords',
-  hashAutoV3: 'hashAutoV3',
-  downloadCount: 'downloadCount',
-  thumbsUpCount: 'thumbsUpCount',
-  collectedCount: 'collectedCount',
-  commentCount: 'commentCount',
-  images: 'images',
-  createdAt: 'createdAt',
-  lastVersionAt: 'lastVersionAt',
-  syncedAt: 'syncedAt'
-} as const
-
-export type CivitaiLoraMirrorScalarFieldEnum = (typeof CivitaiLoraMirrorScalarFieldEnum)[keyof typeof CivitaiLoraMirrorScalarFieldEnum]
-
-
-export const CivitaiMirrorSyncStateScalarFieldEnum = {
-  id: 'id',
-  cursor: 'cursor',
-  passStartedAt: 'passStartedAt',
-  lastCompletedAt: 'lastCompletedAt',
-  lastError: 'lastError',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CivitaiMirrorSyncStateScalarFieldEnum = (typeof CivitaiMirrorSyncStateScalarFieldEnum)[keyof typeof CivitaiMirrorSyncStateScalarFieldEnum]
 
 
 export const ContextCardScalarFieldEnum = {

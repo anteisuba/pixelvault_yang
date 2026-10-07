@@ -426,9 +426,6 @@ export const ModelName = {
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
-  CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
-  CivitaiLoraMirror: 'CivitaiLoraMirror',
-  CivitaiMirrorSyncState: 'CivitaiMirrorSyncState',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory'
 } as const
@@ -446,7 +443,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3558,228 +3555,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    CivitaiSearchSnapshot: {
-      payload: Prisma.$CivitaiSearchSnapshotPayload<ExtArgs>
-      fields: Prisma.CivitaiSearchSnapshotFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CivitaiSearchSnapshotFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CivitaiSearchSnapshotFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        findFirst: {
-          args: Prisma.CivitaiSearchSnapshotFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CivitaiSearchSnapshotFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        findMany: {
-          args: Prisma.CivitaiSearchSnapshotFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>[]
-        }
-        create: {
-          args: Prisma.CivitaiSearchSnapshotCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        createMany: {
-          args: Prisma.CivitaiSearchSnapshotCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CivitaiSearchSnapshotCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>[]
-        }
-        delete: {
-          args: Prisma.CivitaiSearchSnapshotDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        update: {
-          args: Prisma.CivitaiSearchSnapshotUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        deleteMany: {
-          args: Prisma.CivitaiSearchSnapshotDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CivitaiSearchSnapshotUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CivitaiSearchSnapshotUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>[]
-        }
-        upsert: {
-          args: Prisma.CivitaiSearchSnapshotUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiSearchSnapshotPayload>
-        }
-        aggregate: {
-          args: Prisma.CivitaiSearchSnapshotAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCivitaiSearchSnapshot>
-        }
-        groupBy: {
-          args: Prisma.CivitaiSearchSnapshotGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiSearchSnapshotGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CivitaiSearchSnapshotCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiSearchSnapshotCountAggregateOutputType> | number
-        }
-      }
-    }
-    CivitaiLoraMirror: {
-      payload: Prisma.$CivitaiLoraMirrorPayload<ExtArgs>
-      fields: Prisma.CivitaiLoraMirrorFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CivitaiLoraMirrorFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CivitaiLoraMirrorFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        findFirst: {
-          args: Prisma.CivitaiLoraMirrorFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CivitaiLoraMirrorFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        findMany: {
-          args: Prisma.CivitaiLoraMirrorFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>[]
-        }
-        create: {
-          args: Prisma.CivitaiLoraMirrorCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        createMany: {
-          args: Prisma.CivitaiLoraMirrorCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CivitaiLoraMirrorCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>[]
-        }
-        delete: {
-          args: Prisma.CivitaiLoraMirrorDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        update: {
-          args: Prisma.CivitaiLoraMirrorUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        deleteMany: {
-          args: Prisma.CivitaiLoraMirrorDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CivitaiLoraMirrorUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CivitaiLoraMirrorUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>[]
-        }
-        upsert: {
-          args: Prisma.CivitaiLoraMirrorUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiLoraMirrorPayload>
-        }
-        aggregate: {
-          args: Prisma.CivitaiLoraMirrorAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCivitaiLoraMirror>
-        }
-        groupBy: {
-          args: Prisma.CivitaiLoraMirrorGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiLoraMirrorGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CivitaiLoraMirrorCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiLoraMirrorCountAggregateOutputType> | number
-        }
-      }
-    }
-    CivitaiMirrorSyncState: {
-      payload: Prisma.$CivitaiMirrorSyncStatePayload<ExtArgs>
-      fields: Prisma.CivitaiMirrorSyncStateFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CivitaiMirrorSyncStateFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CivitaiMirrorSyncStateFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        findFirst: {
-          args: Prisma.CivitaiMirrorSyncStateFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CivitaiMirrorSyncStateFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        findMany: {
-          args: Prisma.CivitaiMirrorSyncStateFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>[]
-        }
-        create: {
-          args: Prisma.CivitaiMirrorSyncStateCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        createMany: {
-          args: Prisma.CivitaiMirrorSyncStateCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CivitaiMirrorSyncStateCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>[]
-        }
-        delete: {
-          args: Prisma.CivitaiMirrorSyncStateDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        update: {
-          args: Prisma.CivitaiMirrorSyncStateUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        deleteMany: {
-          args: Prisma.CivitaiMirrorSyncStateDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CivitaiMirrorSyncStateUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CivitaiMirrorSyncStateUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>[]
-        }
-        upsert: {
-          args: Prisma.CivitaiMirrorSyncStateUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CivitaiMirrorSyncStatePayload>
-        }
-        aggregate: {
-          args: Prisma.CivitaiMirrorSyncStateAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCivitaiMirrorSyncState>
-        }
-        groupBy: {
-          args: Prisma.CivitaiMirrorSyncStateGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiMirrorSyncStateGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CivitaiMirrorSyncStateCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CivitaiMirrorSyncStateCountAggregateOutputType> | number
-        }
-      }
-    }
     ContextCard: {
       payload: Prisma.$ContextCardPayload<ExtArgs>
       fields: Prisma.ContextCardFieldRefs
@@ -4789,54 +4564,6 @@ export const InspirationPromptScalarFieldEnum = {
 export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
 
 
-export const CivitaiSearchSnapshotScalarFieldEnum = {
-  key: 'key',
-  payload: 'payload',
-  fetchedAt: 'fetchedAt',
-  lastUsedAt: 'lastUsedAt'
-} as const
-
-export type CivitaiSearchSnapshotScalarFieldEnum = (typeof CivitaiSearchSnapshotScalarFieldEnum)[keyof typeof CivitaiSearchSnapshotScalarFieldEnum]
-
-
-export const CivitaiLoraMirrorScalarFieldEnum = {
-  modelId: 'modelId',
-  versionId: 'versionId',
-  versionName: 'versionName',
-  name: 'name',
-  creator: 'creator',
-  category: 'category',
-  nsfwLevelMax: 'nsfwLevelMax',
-  nsfwNamed: 'nsfwNamed',
-  baseModel: 'baseModel',
-  tags: 'tags',
-  trainedWords: 'trainedWords',
-  hashAutoV3: 'hashAutoV3',
-  downloadCount: 'downloadCount',
-  thumbsUpCount: 'thumbsUpCount',
-  collectedCount: 'collectedCount',
-  commentCount: 'commentCount',
-  images: 'images',
-  createdAt: 'createdAt',
-  lastVersionAt: 'lastVersionAt',
-  syncedAt: 'syncedAt'
-} as const
-
-export type CivitaiLoraMirrorScalarFieldEnum = (typeof CivitaiLoraMirrorScalarFieldEnum)[keyof typeof CivitaiLoraMirrorScalarFieldEnum]
-
-
-export const CivitaiMirrorSyncStateScalarFieldEnum = {
-  id: 'id',
-  cursor: 'cursor',
-  passStartedAt: 'passStartedAt',
-  lastCompletedAt: 'lastCompletedAt',
-  lastError: 'lastError',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CivitaiMirrorSyncStateScalarFieldEnum = (typeof CivitaiMirrorSyncStateScalarFieldEnum)[keyof typeof CivitaiMirrorSyncStateScalarFieldEnum]
-
-
 export const ContextCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -5419,9 +5146,6 @@ export type GlobalOmitConfig = {
   extractedElement?: Prisma.ExtractedElementOmit
   generationLayer?: Prisma.GenerationLayerOmit
   inspirationPrompt?: Prisma.InspirationPromptOmit
-  civitaiSearchSnapshot?: Prisma.CivitaiSearchSnapshotOmit
-  civitaiLoraMirror?: Prisma.CivitaiLoraMirrorOmit
-  civitaiMirrorSyncState?: Prisma.CivitaiMirrorSyncStateOmit
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
 }

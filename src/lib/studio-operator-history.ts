@@ -213,6 +213,9 @@ export function describeOperatorStepDetail(
           .filter(Boolean)
           .join(' · ') || null
       )
+    /** 画面文字：把字写出来（「招牌 CAFE」那一类，一眼认得出）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
+      return step.payload.items.map((item) => item.text).join(' · ') || null
     /** 专属 chip（进度表 21）：键与值都写出来 —— 一行只写值读不出它改的是哪颗。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return `${step.payload.key} ${String(step.payload.value)}`

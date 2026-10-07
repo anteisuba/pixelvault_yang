@@ -1620,6 +1620,178 @@ describe('工具环 · 逐事件顺序', () => {
     })
   })
 
+  describe('NovelAI 画面文字（set_scene_texts）', () => {
+    const V5_TEXT = { maxChars: 750, latinOnly: false }
+    const V45_TEXT = { maxChars: 118, latinOnly: true }
+    const withText = (
+      text: NonNullable<
+        AssistantOperatorRequest['snapshot']['novelAiSceneTexts']
+      >,
+      characters?: AssistantOperatorRequest['snapshot']['novelAiCharacters'],
+    ) =>
+      buildRequest({
+        snapshot: {
+          ...SNAPSHOT,
+          novelAiSceneTexts: text,
+          ...(characters ? { novelAiCharacters: characters } : {}),
+        },
+      })
+    const writeTurn = (name: string, args: unknown) => ({
+      tool: { name, title: '写字', args },
+    })
+    const sceneTurn = (args: unknown) =>
+      writeTurn(ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts, args)
+
+    it('整份清单写进去，逆操作是改前那份；状态块印得出现有清单与上限', async () => {
+      queueTurns(
+        sceneTurn({
+          items: [
+            { kind: 'sign', text: ' 喫茶 ふたり ' },
+            { kind: 'title', text: 'Spring' },
+          ],
+        }),
+        { finished: true, message: '写好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withText({ ...V5_TEXT, items: [{ kind: 'cover', text: 'OLD' }] }),
+        ),
+      )
+      const done = stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts &&
+          step.status === 'done',
+      )
+      expect(done?.payload).toEqual({
+        items: [
+          { kind: 'sign', text: '喫茶 ふたり' },
+          { kind: 'title', text: 'Spring' },
+        ],
+      })
+      expect(done?.inverse).toEqual({
+        items: [{ kind: 'cover', text: 'OLD' }],
+      })
+      const firstPrompt = mockLlmTextCompletion.mock.calls
+        .map(
+          (entry) => entry[0] as { userPrompt: string; systemPrompt?: string },
+        )
+        .find((entry) => !isSideCall(entry))?.userPrompt
+      expect(firstPrompt).toContain(
+        'up to 750 characters together with the lines',
+      )
+      expect(firstPrompt).toContain('1. cover: "OLD"')
+    })
+
+    it('画不了字的模型拒；种类不对拒，理由里列出那四种', async () => {
+      queueTurns(sceneTurn({ items: [{ kind: 'sign', text: 'CAFE' }] }), {
+        finished: true,
+        message: '这个模型画不了字。',
+      })
+      const none = await collect(
+        runAssistantOperator('clerk-1', buildRequest()),
+      )
+      expect(stepsOf(none).at(-1)?.error?.reason).toBe('noSuchControl')
+
+      queueTurns(sceneTurn({ items: [{ kind: 'poster', text: 'CAFE' }] }), {
+        finished: true,
+        message: '重写。',
+      })
+      const kind = await collect(
+        runAssistantOperator('clerk-1', withText({ ...V5_TEXT, items: [] })),
+      )
+      expect(stepsOf(kind).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('sign, title, cover, other')
+    })
+
+    it('V4.5 只认英文：写中文拒；和台词合计超上限拒', async () => {
+      queueTurns(sceneTurn({ items: [{ kind: 'sign', text: '咖啡馆' }] }), {
+        finished: true,
+        message: '换成英文。',
+      })
+      const latin = await collect(
+        runAssistantOperator('clerk-1', withText({ ...V45_TEXT, items: [] })),
+      )
+      expect(stepsOf(latin).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('only draws English letters')
+
+      queueTurns(
+        sceneTurn({ items: [{ kind: 'sign', text: 'x'.repeat(60) }] }),
+        { finished: true, message: '太长了。' },
+      )
+      const long = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withText(
+            { ...V45_TEXT, items: [] },
+            {
+              mode: 'grid',
+              max: 6,
+              layout: {
+                positioning: 'auto',
+                characters: [
+                  {
+                    prompt: '1girl',
+                    negativePrompt: '',
+                    position: { x: 0.5, y: 0.5 },
+                    dialogue: 'y'.repeat(60),
+                  },
+                ],
+              },
+            },
+          ),
+        ),
+      )
+      expect(stepsOf(long).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('limited to 118 characters')
+    })
+
+    it('台词同一把尺：V4.5 写中文台词拒；原本就超的字不算到这一步头上', async () => {
+      const characters = {
+        mode: 'grid' as const,
+        max: 6,
+        layout: null,
+      }
+      queueTurns(
+        writeTurn(ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters, {
+          characters: [{ prompt: '1girl', dialogue: '早上好' }],
+        }),
+        { finished: true, message: '换成英文。' },
+      )
+      const latin = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withText({ ...V45_TEXT, items: [] }, characters),
+        ),
+      )
+      expect(stepsOf(latin).at(-1)?.error?.reason).toBe('unknownValue')
+      expect(lastUserPrompt()).toContain('only draws English letters')
+
+      queueTurns(
+        writeTurn(ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters, {
+          characters: [{ prompt: '1girl, smile' }],
+        }),
+        { finished: true, message: '好了。' },
+      )
+      const unblamed = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          withText(
+            { ...V45_TEXT, items: [{ kind: 'sign', text: 'z'.repeat(130) }] },
+            characters,
+          ),
+        ),
+      )
+      expect(
+        stepsOf(unblamed).find(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters &&
+            step.status === 'done',
+        ),
+      ).toBeDefined()
+    })
+  })
+
   describe('两台图片工作台互跳（switch_workbench）', () => {
     const TAG_MODEL = { id: 'novelai-v5-full', label: 'NovelAI V5 Full' }
     const withOtherBench = () =>

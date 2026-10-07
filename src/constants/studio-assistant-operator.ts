@@ -153,6 +153,8 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
   capabilities: 'capabilities',
   /** NovelAI 的角色构图（标签台「角色构图」那一块）—— 整份名单一格。 */
   characters: 'characters',
+  /** NovelAI 的画面文字（招牌 / 标题 / 封面字）—— 整份清单一格。 */
+  sceneTexts: 'sceneTexts',
   references: 'references',
   /** 视频域的音频参考位（台账 A 的那条通道）。 */
   audioReferences: 'audioReferences',
@@ -220,6 +222,7 @@ export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.count,
   STUDIO_OPERATOR_FIELD_IDS.capabilities,
   STUDIO_OPERATOR_FIELD_IDS.characters,
+  STUDIO_OPERATOR_FIELD_IDS.sceneTexts,
   STUDIO_OPERATOR_FIELD_IDS.references,
   STUDIO_OPERATOR_FIELD_IDS.audioReferences,
   STUDIO_OPERATOR_FIELD_IDS.sound,

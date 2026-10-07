@@ -534,6 +534,28 @@ describe('applyOperatorStep', () => {
     expect(describeOperatorInverse(step)).toBe('0')
   })
 
+  it('画面文字整份写进去、撤销回改前那份（原本没有就清掉），其余高级参数不动', () => {
+    const { ctx, state } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
+      verb: 'apply',
+      payload: { items: [{ kind: 'sign' as const, text: 'CAFE' }] },
+      inverse: { items: [] },
+    } satisfies AssistantOperatorAppliedStep
+    expect(applyOperatorStep(step, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.sceneTexts,
+    )
+    expect(state.advancedParams).toMatchObject({
+      seed: 1234,
+      novelAiSceneTexts: [{ kind: 'sign', text: 'CAFE' }],
+    })
+    expect(revertOperatorStep(step, ctx)).toBe(true)
+    expect(state.advancedParams.novelAiSceneTexts).toBeUndefined()
+    expect(state.advancedParams).toMatchObject({ seed: 1234 })
+    expect(describeOperatorInverse(step)).toBe('')
+  })
+
   it('prime_generate 只点亮生成键 —— 一个 dispatch 都不发（钱闸）', () => {
     const { ctx, dispatched, primed } = makeContext()
     expect(

@@ -157,10 +157,18 @@ import {
   findNovelAiInteractionPreset,
   NOVELAI_INTERACTION_TAG_MAX_CHARS,
   NOVELAI_MAX_INTERACTIONS_PER_CHARACTER,
+  NOVELAI_MAX_SCENE_TEXTS,
+  NOVELAI_SCENE_TEXT_KINDS,
   NOVELAI_TEXT_MAX_CHARS,
   snapToNovelAiGrid,
+  type NovelAiSceneTextKind,
 } from '@/constants/novelai'
-import type { NovelAiInteraction } from '@/types/novelai'
+import { hasNonLatinScript, planNovelAiText } from '@/lib/novelai-compose'
+import type {
+  NovelAiCharacter,
+  NovelAiInteraction,
+  NovelAiSceneText,
+} from '@/types/novelai'
 import {
   AI_MODELS,
   getModelFamily,
@@ -607,6 +615,8 @@ interface OperatorWorkingState {
   hasCapabilityControl: boolean
   /** NovelAI 角色构图（可变副本，`set_tag_characters` 之后跟着变）；缺席 = 没有这一块。 */
   novelAiCharacters: AssistantOperatorSnapshot['novelAiCharacters']
+  /** NovelAI 画面文字与字数上限（可变副本，`set_scene_texts` 之后跟着变）；缺席 = 画不了字。 */
+  novelAiSceneTexts: AssistantOperatorSnapshot['novelAiSceneTexts']
   referenceCount: number
   referenceUrls: (string | null)[]
   referenceLimit: number
@@ -722,6 +732,9 @@ function toWorkingState(
     hasCapabilityControl: snapshot.capabilities !== undefined,
     novelAiCharacters: snapshot.novelAiCharacters
       ? structuredClone(snapshot.novelAiCharacters)
+      : undefined,
+    novelAiSceneTexts: snapshot.novelAiSceneTexts
+      ? structuredClone(snapshot.novelAiSceneTexts)
       : undefined,
     referenceCount: snapshot.references?.items.length ?? 0,
     referenceUrls: (snapshot.references?.items ?? []).map((item) => item.url),
@@ -1684,6 +1697,27 @@ function renderState(
             )
             .join('\n')
         : '  (none — only the base prompt; with two or more people, give each one a slot)',
+    )
+  }
+  /**
+   * ⭐ **画面文字**（owner 2026-10-07「助手也接上画面文字」）。印上限的理由与参数同源：
+   * 看不见上限的助手会写一段 118 字装不下的招牌，然后撞生成闸。
+   */
+  if (state.novelAiSceneTexts) {
+    const { items, maxChars, latinOnly } = state.novelAiSceneTexts
+    const written = items.filter((item) => item.text.trim())
+    lines.push(
+      `- Text drawn in the picture that is nobody's line (signs, titles, cover text) — up to ${maxChars} characters together with the lines${latinOnly ? ', English letters only on this model' : ''}; write it with set_scene_texts, the full list each time:`,
+    )
+    lines.push(
+      written.length
+        ? written
+            .map(
+              (item, index) =>
+                `  ${index + 1}. ${item.kind}: "${clamp(item.text, LIMITS.maxPromptChars)}"`,
+            )
+            .join('\n')
+        : '  (none)',
     )
   }
 
@@ -5216,6 +5250,19 @@ function planSetTagCharacters(
           }),
         }
 
+  const textSection = run.state.novelAiSceneTexts
+  const textProblem = textSection
+    ? novelAiTextRejection(
+        textSection,
+        novelAiTextPlanOf(previous, textSection.items),
+        novelAiTextPlanOf(layout, textSection.items),
+        args.characters.flatMap((character) =>
+          character.dialogue?.trim() ? [character.dialogue] : [],
+        ),
+      )
+    : null
+  if (textProblem) return reject(REJECT.unknownValue, textProblem)
+
   return {
     kind: 'mutate',
     payload: { layout },
@@ -5230,6 +5277,124 @@ function planSetTagCharacters(
       : 'Character layout removed — only the base prompt is left.',
     apply: () => {
       section.layout = layout ? structuredClone(layout) : null
+    },
+  }
+}
+
+type NovelAiTextLayout = {
+  positioning: 'auto' | 'manual'
+  characters: readonly (Pick<
+    NovelAiCharacter,
+    'prompt' | 'dialogue' | 'position'
+  > & { enabled?: boolean })[]
+}
+
+/** 这一份名单 + 画面文字发出去时的字（只算发得出去的人，与发送时同一条判据）。 */
+function novelAiTextPlanOf(
+  layout: NovelAiTextLayout | null | undefined,
+  sceneTexts: readonly Pick<NovelAiSceneText, 'kind' | 'text'>[],
+) {
+  return planNovelAiText({
+    characters: (layout?.characters ?? []).filter(
+      (character) => character.enabled !== false && character.prompt.trim(),
+    ),
+    positioning: layout?.positioning ?? 'auto',
+    sceneTexts,
+  })
+}
+
+/**
+ * 这一步写进来的字这个模型画不画得了（与界面计数、服务端校验同一把尺）。
+ * ⚠ 只拦这一步**造成**的问题：原本就超了、这一步没让它更长，不拦 —— 用户自己
+ *   写下的字轮不到助手背锅；只认英文也只看这一步写的那几段。
+ */
+function novelAiTextRejection(
+  limit: { maxChars: number; latinOnly: boolean },
+  before: { length: number },
+  after: { length: number },
+  written: readonly string[],
+): string | null {
+  if (limit.latinOnly && written.some(hasNonLatinScript)) {
+    return 'This model (NovelAI V4.5) only draws English letters in the picture. Write that text in English, or switch to a V5 model first.'
+  }
+  if (after.length > limit.maxChars && after.length > before.length) {
+    return `Text in the picture is limited to ${limit.maxChars} characters on this model, lines and scene text together; this would make it ${after.length}. Shorten it.`
+  }
+  return null
+}
+
+const isSceneTextKind = (kind: string): kind is NovelAiSceneTextKind =>
+  (NOVELAI_SCENE_TEXT_KINDS as readonly string[]).includes(kind)
+
+/**
+ * 写 NovelAI 的**画面文字**（owner 2026-10-07）—— 整份清单替换，空清单 = 清掉。
+ *
+ * ⚠ 种类不在那四种、空条、条数超限都在这里拒（schema 那边放宽，见 args 头注）。
+ * ⚠ 字原样存：发送时由系统补那句自然语言和 `Text:` 段。⛔ 不过标签方言闸 ——
+ *   招牌上写中文是正当的；画不画得了中文由上面那把尺判（V4.5 只认英文）。
+ */
+function planSetSceneTexts(
+  run: OperatorRun,
+  args: { items: { kind: string; text: string }[] },
+): ToolPlan {
+  const section = run.state.novelAiSceneTexts
+  if (!section) {
+    return reject(
+      REJECT.noSuchControl,
+      'The selected model cannot draw text in the picture (only NovelAI V4.5 / V5 can). Leave signs and titles out of this one.',
+    )
+  }
+  if (args.items.length > NOVELAI_MAX_SCENE_TEXTS) {
+    return reject(
+      REJECT.unknownValue,
+      `At most ${NOVELAI_MAX_SCENE_TEXTS} pieces of text; you sent ${args.items.length}.`,
+    )
+  }
+  const items: NovelAiSceneText[] = []
+  for (const [index, item] of args.items.entries()) {
+    const text = item.text.trim()
+    if (!isSceneTextKind(item.kind)) {
+      return reject(
+        REJECT.unknownValue,
+        `Text ${index + 1} has kind "${clamp(item.kind, LIMITS.maxLabelChars)}"; use one of ${NOVELAI_SCENE_TEXT_KINDS.join(', ')}.`,
+      )
+    }
+    if (!text) {
+      return reject(
+        REJECT.unknownValue,
+        `Text ${index + 1} is empty — leave it out instead.`,
+      )
+    }
+    if (text.length > NOVELAI_TEXT_MAX_CHARS) {
+      return reject(
+        REJECT.unknownValue,
+        `Text ${index + 1} is longer than ${NOVELAI_TEXT_MAX_CHARS} characters.`,
+      )
+    }
+    items.push({ kind: item.kind, text })
+  }
+
+  const layout = run.state.novelAiCharacters?.layout
+  const textProblem = novelAiTextRejection(
+    section,
+    novelAiTextPlanOf(layout, section.items),
+    novelAiTextPlanOf(layout, items),
+    items.map((item) => item.text),
+  )
+  if (textProblem) return reject(REJECT.unknownValue, textProblem)
+
+  const previous = section.items
+  return {
+    kind: 'mutate',
+    payload: { items },
+    inverse: { items: structuredClone(previous) },
+    observation: items.length
+      ? `Text in the picture is now: ${items
+          .map((item, index) => `${index + 1}. ${item.kind} "${item.text}"`)
+          .join(' · ')}.`
+      : 'Text in the picture removed.',
+    apply: () => {
+      section.items = structuredClone(items)
     },
   }
 }
@@ -8444,6 +8609,11 @@ async function planTool(
       return planSetTagCharacters(
         run,
         parsed.data as Parameters<typeof planSetTagCharacters>[1],
+      )
+    case TOOL.setSceneTexts:
+      return planSetSceneTexts(
+        run,
+        parsed.data as Parameters<typeof planSetSceneTexts>[1],
       )
     case TOOL.setCapability:
       return planSetCapability(

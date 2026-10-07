@@ -33,6 +33,7 @@ import { getModelById } from '@/constants/models'
 import {
   getNovelAiCharacterLayoutMode,
   getNovelAiMaxCharacters,
+  getNovelAiTextLimit,
 } from '@/constants/novelai'
 import {
   IMAGE_BATCH_COUNTS,
@@ -304,6 +305,15 @@ export function buildImageOperatorSnapshot({
         layout: form.advancedParams.novelAiLayout ?? null,
       }
     : undefined
+  /** 画面文字与字数上限 —— 与界面计数同一个模型说了算（`useNovelAiText`）。 */
+  const textLimit = getNovelAiTextLimit(layoutModel?.modelId)
+  const novelAiSceneTexts = textLimit
+    ? {
+        items: form.advancedParams.novelAiSceneTexts ?? [],
+        maxChars: textLimit.maxChars,
+        latinOnly: textLimit.latinOnly,
+      }
+    : undefined
   const otherWorkbenchModels = imageRunnableOptions(
     otherModelOptions ?? [],
   ).map((option) => ({
@@ -368,6 +378,7 @@ export function buildImageOperatorSnapshot({
     availableModels,
     ...(otherWorkbenchModels.length > 0 ? { otherWorkbenchModels } : {}),
     ...(novelAiCharacters ? { novelAiCharacters } : {}),
+    ...(novelAiSceneTexts ? { novelAiSceneTexts } : {}),
     specs: {
       aspectRatio: form.aspectRatio,
       resolution: form.imageResolution,

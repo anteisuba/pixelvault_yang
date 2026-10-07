@@ -48,6 +48,7 @@ import {
   Star,
   Tags,
   TextSearch,
+  Type,
   CheckCheck,
   Unplug,
   Volume2,
@@ -122,6 +123,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: Layers,
   /** 角色构图 —— 几个人。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]: Users,
+  /** 画面文字 —— 与整体页那一行同一枚「T」。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts]: Type,
   /**
    * 专属 chip（进度表 21）—— 借 `set_lora_weight` 那颗滑杆图标：两条在日志流里
    * 不会同屏（一条住工作台、一条住装配台），而「拧了一颗旋钮」本来就是同一件事。

@@ -381,6 +381,8 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.count
     case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
       return STUDIO_OPERATOR_FIELD_IDS.characters
+    case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
+      return STUDIO_OPERATOR_FIELD_IDS.sceneTexts
     case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
       return STUDIO_OPERATOR_FIELD_IDS.capabilities
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
@@ -441,6 +443,12 @@ export function describeOperatorInverse(
       return step.inverse.value === null ? '' : String(step.inverse.value)
     case ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters:
       return String(step.inverse.layout?.characters.length ?? 0)
+    /** 空串 = 原来没有画面文字（hover 里渲染成「原来是空的」）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
+      return step.inverse.items
+        .map((item) => item.text.trim())
+        .filter(Boolean)
+        .join(' · ')
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       return step.payload.label ?? step.payload.url
     /**
@@ -727,6 +735,19 @@ export function applyOperatorStep(
         },
       })
       return STUDIO_OPERATOR_FIELD_IDS.characters
+
+    /** 画面文字 —— 整份清单替换（与整体页那一行写的是同一个键）；空 = 清掉。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...ctx.getState().advancedParams,
+          novelAiSceneTexts: step.payload.items.length
+            ? step.payload.items
+            : undefined,
+        },
+      })
+      return STUDIO_OPERATOR_FIELD_IDS.sceneTexts
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference: {
       ctx.addAudioReference({
@@ -1064,6 +1085,18 @@ export function revertOperatorStep(
         payload: {
           ...ctx.getState().advancedParams,
           novelAiLayout: step.inverse.layout ?? undefined,
+        },
+      })
+      return true
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts:
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...ctx.getState().advancedParams,
+          novelAiSceneTexts: step.inverse.items.length
+            ? step.inverse.items
+            : undefined,
         },
       })
       return true

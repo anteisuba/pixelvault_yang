@@ -24,9 +24,12 @@ import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 import {
   NovelAiCharacterDraftSchema,
   NovelAiCharacterLayoutSchema,
+  NovelAiSceneTextDraftsSchema,
+  NovelAiSceneTextsSchema,
 } from '@/types/novelai'
 import {
   NOVELAI_CHARACTER_LAYOUT_MODES,
+  NOVELAI_TEXT_MAX_CHARS,
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
@@ -900,6 +903,18 @@ export const AssistantOperatorSnapshotNovelAiCharactersSchema = z.object({
   layout: NovelAiCharacterDraftSchema.nullable(),
 })
 
+/**
+ * NovelAI 的**画面文字**（标签台整体页那一行：招牌 / 标题 / 封面 / 其他）。缺席 = 这个
+ * 模型画不了字。`maxChars` 是台词与画面文字**合计**的上限，`latinOnly` = 只认英文
+ * （V4.5）—— 规划器拿它们判，⛔ 不去查模型 id。
+ * ⚠ `items` 用草稿 schema：刚点「＋」那一条内容还空着。
+ */
+export const AssistantOperatorSnapshotNovelAiSceneTextsSchema = z.object({
+  items: NovelAiSceneTextDraftsSchema,
+  maxChars: z.number().int().positive().max(NOVELAI_TEXT_MAX_CHARS),
+  latinOnly: z.boolean(),
+})
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -950,6 +965,9 @@ export const AssistantOperatorSnapshotSchema = z.object({
   /** ⚠ 缺席 = 没有角色构图（非 NovelAI V4.5 / V5）。见 schema 头注。 */
   novelAiCharacters:
     AssistantOperatorSnapshotNovelAiCharactersSchema.optional(),
+  /** ⚠ 缺席 = 这个模型画不了字（非 NovelAI V4.5 / V5）。见 schema 头注。 */
+  novelAiSceneTexts:
+    AssistantOperatorSnapshotNovelAiSceneTextsSchema.optional(),
   /** ⚠ 缺席 = 这个宿主上没有参考视频位。见 schema 头注。 */
   videoReferences: AssistantOperatorSnapshotVideoReferencesSchema.optional(),
   /** ⚠ 缺席 = 这个工作台挂不了音频参考（图片档、或视频档但线路不吃音频）。 */
@@ -2428,6 +2446,13 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .max(NOVELAI_V5_MAX_CHARACTERS),
   }),
   /**
+   * ⚠ `kind` 收任意字符串、`text` 允许空：种类不在那四种、空条、条数超限都留在
+   * 规划器拒（本文件头注 ②）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts]: z.object({
+    items: z.array(z.object({ kind: z.string(), text: z.string() })),
+  }),
+  /**
    * 专属 chip 那一格（进度表 21）。
    *
    * ⚠ `key` 与 `value` 的值域**都留在规划器**（本文件头注 ②）：白名单是快照现给的
@@ -3586,6 +3611,15 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
     z.object({ layout: NovelAiCharacterLayoutSchema.nullable() }),
     z.object({ layout: NovelAiCharacterDraftSchema.nullable() }),
+  ),
+  /**
+   * 画面文字 —— 载荷与逆操作都是**整份清单**（空 = 没有）。
+   * ⚠ 逆操作用草稿 schema：改前那份里可能有一条内容还空着。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
+    z.object({ items: NovelAiSceneTextsSchema }),
+    z.object({ items: NovelAiSceneTextDraftsSchema }),
   ),
   /**
    * 专属 chip 那一格（进度表 21）。

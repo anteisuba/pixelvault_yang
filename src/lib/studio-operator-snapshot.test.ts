@@ -449,15 +449,47 @@ describe('buildImageOperatorSnapshot', () => {
       layout,
     })
     const seedream = option({ optionId: 'a', modelId: 'seedream-4' })
-    expect(
+    const plain = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [seedream],
+      selectedModel: seedream,
+      runModels: [seedream],
+      references: { items: [], limit: 4 },
+    })
+    expect(plain).not.toHaveProperty('novelAiCharacters')
+    expect(plain).not.toHaveProperty('novelAiSceneTexts')
+  })
+
+  it('画面文字一节带上现有清单与这个模型的字数上限（V4.5 只认英文）', () => {
+    const nai = (modelId: string) =>
+      option({
+        optionId: `workspace:${modelId}`,
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      })
+    const build = (modelId: string) =>
       buildImageOperatorSnapshot({
-        form: FORM,
-        modelOptions: [seedream],
-        selectedModel: seedream,
-        runModels: [seedream],
-        references: { items: [], limit: 4 },
-      }),
-    ).not.toHaveProperty('novelAiCharacters')
+        form: {
+          ...FORM,
+          advancedParams: {
+            novelAiSceneTexts: [{ kind: 'sign', text: 'CAFE' }],
+          },
+        },
+        modelOptions: [nai(modelId)],
+        selectedModel: nai(modelId),
+        runModels: [nai(modelId)],
+        references: { items: [], limit: 1 },
+      })
+    expect(build(AI_MODELS.NOVELAI_V5_FULL).novelAiSceneTexts).toEqual({
+      items: [{ kind: 'sign', text: 'CAFE' }],
+      maxChars: 750,
+      latinOnly: false,
+    })
+    expect(build(AI_MODELS.NOVELAI_V45_CURATED).novelAiSceneTexts).toEqual({
+      items: [{ kind: 'sign', text: 'CAFE' }],
+      maxChars: 118,
+      latinOnly: true,
+    })
   })
 
   it('另一台图片工作台的模型单列一节（去重、只给跑得了的），缺席时整节不给', () => {

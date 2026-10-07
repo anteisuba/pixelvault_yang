@@ -281,6 +281,14 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   setTagCharacters: 'set_tag_characters',
   /**
+   * 写 NovelAI 的**画面文字**（标签台整体页「招牌 · 标题 · 封面字」那一行，owner
+   * 2026-10-07）—— 不属于任何人的字。台词属于人，走 `set_tag_characters`。
+   *
+   * ⭐ 一次写**整份清单**，空清单 = 清掉。⚠ 第二道闸是快照里 `novelAiSceneTexts`
+   * 这一节在不在：只有画得了字的模型（V4.5 / V5）才有。
+   */
+  setSceneTexts: 'set_scene_texts',
+  /**
    * 设**当前模型专属的那一格**（进度表 21 · 差距清单 #1）。
    *
    * ── ⭐ 为什么不是一条一条的工具 ──────────────────────────────────
@@ -699,6 +707,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
   ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+  ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
   ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
@@ -845,6 +854,8 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
   /** ⚠ 角色构图也是改动型：`inverse` 里放改前的整份名单（`null` = 原本没有）。 */
   ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+  /** 画面文字同理：`inverse` 里放改前的整份清单（空 = 原本没有）。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
   /**
    * ⚠ 专属 chip 那条也是改动型（进度表 21）：它动的是参数栏上看得见的一颗旋钮，
    * `inverse` 里放的是**旧值**（允许 `null` = 用户没设过那一档）。
@@ -1049,6 +1060,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -1830,6 +1843,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     /** NovelAI 角色构图 —— 只在快照带着 `novelAiCharacters` 那一节时成立。 */
     ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters,
+    /** NovelAI 画面文字 —— 只在快照带着 `novelAiSceneTexts` 那一节时成立。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts,
     /**
      * 专属 chip 那一行（进度表 11 + 21）。⚠ 域表里有它**不等于**每台工作台上都
      * 有：第二道闸是快照里 `capabilities` 这一节在不在（判据与 `set_negative`
@@ -2956,6 +2971,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'set how many outputs one send produces. Pick from the options in the state.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setTagCharacters]:
     'write the NovelAI character layout — the per-person prompts under the base prompt. Send the FULL list every time: {"characters":[{"prompt":"…","negativePrompt":"…","x":0.3,"y":0.5,"enabled":true,"interactions":[{"tag":"headpat","target":2}],"dialogue":"…"}, …], "positioning":"auto"|"manual"}. Each prompt is that one person in English Danbooru tags (identity tag, look, clothes, pose, expression); the base prompt keeps the scene, style, quality and the head count (2girls, 1boy …) and never repeats a person\'s traits. negativePrompt is optional per person. x / y (0–1, left/top = 0) matter only with positioning "manual"; leave them out to keep each slot\'s current spot. interactions is what this person does to another one: "tag" is one English Danbooru action tag (headpat, hug, holding hands, looking at another …), "target" is the other person\'s number in this list (1-based, never their own), "mutual": true when both do it together (holding hands, back-to-back, face-to-face); at most 4 per person. dialogue is the line this person says, drawn as a speech bubble, written in the language it should appear in — never put spoken lines or quotes into any prompt. Leave interactions / dialogue out to keep that slot\'s current ones; send [] or "" to clear them, and send them again when you reorder people. An empty list removes the layout. Use it when two or more people are in the picture or the creator asks for it.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSceneTexts]:
+    'write the text drawn in a NovelAI picture that is nobody\'s spoken line — a sign, a title, cover text. Send the FULL list every time: {"items":[{"kind":"sign"|"title"|"cover"|"other","text":"…"}]}; an empty list removes them. Write each text exactly as it should appear, in its own language, and never put it (or quotes) into the base prompt — the system adds the sentence and the Text: block when it sends. A spoken line belongs to a person: that is set_tag_characters dialogue. At most 4 items; the state gives the length limit (lines included) and whether this model only draws English letters.',
   /**
    * ⚠ 「只从状态块里抄 key」那句是硬要求（判据同 `set_model` 的「copy the id
    * verbatim」）：这一行 chip 是逐模型派生的，模型按名字猜出来的键在这台机器上

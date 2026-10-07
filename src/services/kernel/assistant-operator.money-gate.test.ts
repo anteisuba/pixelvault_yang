@@ -36,6 +36,12 @@ const CHARACTER_LOOK_SOURCE = readFileSync(
   ),
   'utf8',
 )
+const EDIT_LOOK_SOURCE = [
+  'src/services/kernel/assistant-edit-look.service.ts',
+  'src/services/video-frames/edge-frame.service.ts',
+]
+  .map((path) => readFileSync(join(process.cwd(), path), 'utf8'))
+  .join('\n')
 const WEB_IMAGE_VISION_SOURCE = readFileSync(
   join(
     process.cwd(),
@@ -84,6 +90,12 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 交给结构化视觉补全，连库都不读（下面同一条用例扫它的源码）。
    */
   '@/services/kernel/assistant-character-look.service',
+  /**
+   * 看片（剪辑台 v2 第 2 片 2b）：判据与上一条逐字同源 —— 截帧地址只随快照来，取的是
+   * 自家 CDN 的边缘截帧（字节只在内存里转一手），再走一次结构化视觉补全；连库都不读
+   * （下面同一条用例扫它和截帧那条腿的源码）。
+   */
+  '@/services/kernel/assistant-edit-look.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
   // 文本补全的重试策略，工具环每一步都走它。
@@ -349,6 +361,27 @@ describe('⛔ 助手工具环的钱闸', () => {
       ).toBe(false)
     }
     expect(CHARACTER_LOOK_SOURCE).toContain('completeVisionStructured')
+  })
+
+  it('看片服务只看截帧：够不着生成、扣费、写入，连库都不读', () => {
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      'uploadToR2',
+      'uploadFromHttpToR2',
+      "from '@/lib/db'",
+      'prisma',
+    ]) {
+      expect(
+        EDIT_LOOK_SOURCE.includes(identifier),
+        `看片服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    expect(EDIT_LOOK_SOURCE).toContain('completeVisionStructured')
   })
 
   it('联网候选看图服务只看缩略图：够不着生成、扣费、写入，连库都不读', () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiRequestError, InsufficientCreditsError } from '@/lib/errors'
 import { readOperatorReferenceProfiles } from '@/lib/studio-operator-history'
@@ -110,6 +110,18 @@ const mockCheckCharacterLook = vi.fn()
 vi.mock('@/services/kernel/assistant-character-look.service', () => ({
   checkCharacterLook: (...args: unknown[]) => mockCheckCharacterLook(...args),
 }))
+
+// 看片（2b）：截帧规划照真的跑，只把「取帧 + 看图」那一跳换掉。
+const mockLookAtEditFrames = vi.fn()
+vi.mock(
+  '@/services/kernel/assistant-edit-look.service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/services/kernel/assistant-edit-look.service')
+    >()),
+    lookAtEditFrames: (...args: unknown[]) => mockLookAtEditFrames(...args),
+  }),
+)
 
 const mockInspectWebImageCandidates = vi.fn()
 vi.mock('@/services/kernel/assistant-web-image-vision.service', () => ({
@@ -18536,6 +18548,10 @@ describe('读写长提示词（owner 2026-09-27：提示词不设我们自己的
 })
 
 describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 op 有准入', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   const timeline = {
     name: '成片',
     durationSec: 4,
@@ -18557,11 +18573,14 @@ describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 
     texts: [],
   }
 
-  function editRequest(current: typeof timeline | null = timeline) {
+  function editRequest(
+    current: typeof timeline | null = timeline,
+    content = '把这两个镜头排成初剪',
+  ) {
     return buildRequest({
       domain: 'canvas',
       responseLanguage: 'chinese',
-      messages: [{ role: 'user', content: '把这两个镜头排成初剪' }],
+      messages: [{ role: 'user', content }],
       snapshot: {
         prompt: '',
         availableModels: [],
@@ -18587,10 +18606,23 @@ describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 
                 durationSec: 3,
               },
             ],
+            videoUrls: [
+              { nodeId: 'v1', url: 'https://cdn.example.test/shots/v1.mp4' },
+            ],
           },
         },
       },
     })
+  }
+
+  function look(args: Record<string, unknown>) {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+        title: '看一下这段',
+        args: { action: ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt, ...args },
+      },
+    }
   }
 
   function cut(args: Record<string, unknown>) {
@@ -18606,6 +18638,83 @@ describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 
     expect(prompt).toContain('EDIT DESK')
     expect(prompt).toContain('"clipId":"c1"')
     expect(prompt).toContain('"nodeId":"v2"')
+    // ⛔ 视频地址只给看片那一步，不进模型读的状态块。
+    expect(prompt).not.toContain('cdn.example.test')
+    expect(prompt).toContain('canvas_look_at')
+  })
+
+  it('looks at a clip (2b): frames are mapped from the snapshot and the words come back', async () => {
+    mockLookAtEditFrames.mockResolvedValue({
+      frames: [
+        { label: '1s on the timeline', seen: '中景，少女回头，右手六根手指' },
+        { label: '5s on the timeline', missed: 'outside this clip (0s–4s)' },
+      ],
+      answer: '右手坏了',
+      viewed: 1,
+    })
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.example.test')
+    queueTurns(look({ clipId: 'c1', times: [1, 5], question: '手有没有坏' }), {
+      finished: true,
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        editRequest(timeline, '看看第一段手坏没坏'),
+      ),
+    )
+    expect(mockLookAtEditFrames).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: '手有没有坏',
+        plans: [
+          {
+            label: '1s on the timeline',
+            url: expect.stringContaining('/shots/v1.mp4'),
+          },
+          {
+            label: '5s on the timeline',
+            url: null,
+            reason: 'outside this clip (0s–4s)',
+          },
+        ],
+      }),
+    )
+    expect(stepsOf(events).at(-1)).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      result: { viewed: 1, missed: 1 },
+    })
+    const after = toolRingCalls().at(-1)!.userPrompt
+    expect(after).toContain('1s on the timeline — 中景，少女回头，右手六根手指')
+    expect(after).toContain('no frame: outside this clip')
+    expect(after).toContain('Answer to "手有没有坏": 右手坏了')
+  })
+
+  it('refuses to look at a clip that is not on the timeline, without fetching', async () => {
+    queueTurns(look({ clipId: 'ghost' }), { finished: true })
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', editRequest())),
+    )
+    expect(mockLookAtEditFrames).not.toHaveBeenCalled()
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+        detail: expect.stringContaining('editDesk.timeline.clips'),
+      },
+    })
+  })
+
+  it('says plainly when the frames could not be looked at', async () => {
+    mockLookAtEditFrames.mockResolvedValue(null)
+    queueTurns(look({ nodeId: 'v1' }), { finished: true })
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', editRequest())),
+    )
+    expect(steps.at(-1)).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      result: { viewed: 0, missed: 3 },
+    })
+    expect(toolRingCalls().at(-1)!.userPrompt).toContain('do not guess')
   })
 
   it('lets a card from editDesk.assets onto the timeline', async () => {

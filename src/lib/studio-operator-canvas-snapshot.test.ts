@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
@@ -789,6 +789,10 @@ describe('剧本投影在快照里（进度表 24）', () => {
 })
 
 describe('剪辑台那一块（v2 第 2 片）', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   function videoNode(id: string, durationSec: number): NodeV4 {
     return {
       id,
@@ -865,6 +869,28 @@ describe('剪辑台那一块（v2 第 2 片）', () => {
     })
     expect(snapshot.editDesk?.timeline).toBeNull()
     expect(snapshot.editDesk?.assets).toHaveLength(1)
+  })
+
+  it('carries the address of each video it can take frames from, and only those (2b)', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test.com')
+    const offCdn = videoNode('v3', 2)
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        videoNode('v1', 4),
+        {
+          ...offCdn,
+          data: { ...offCdn.data, url: 'https://fal.media/v3.mp4' },
+        },
+      ] as NodeV4[],
+      edges: [],
+      currentShotNo: null,
+    })
+    expect(snapshot.editDesk?.videoUrls).toEqual([
+      { nodeId: 'v1', url: 'https://cdn.test.com/v1.mp4' },
+    ])
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
   })
 
   it('leaves the block out when nothing can be cut', () => {

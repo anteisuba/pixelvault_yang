@@ -41,12 +41,8 @@ export const MCP_RATE_LIMIT = { limit: 60, windowSeconds: 60 } as const
 
 export const MCP_LIST_PROJECTS_LIMIT = 50
 
-/** `look_at` 一次最多几个时间点、每帧多宽（§4.2）。 */
+/** `look_at` 一次最多几个时间点（§4.2）；帧宽见 `LOOK_FRAME_WIDTH`。 */
 export const MCP_LOOK_AT_MAX_TIMES = 8
-export const MCP_LOOK_AT_FRAME_WIDTH = 512
-
-/** 取一帧最多等多久（边缘截帧冷的时候要现解码）。 */
-export const MCP_LOOK_AT_FETCH_TIMEOUT_MS = 15_000
 
 export const MCP_SERVER_INFO = { name: 'pixelvault', version: '1.0.0' } as const
 

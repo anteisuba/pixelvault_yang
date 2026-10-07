@@ -31,6 +31,13 @@ import {
 } from '@/services/node/node-workflow.service'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
 import {
+  EDGE_FRAME_NOT_ON_CDN,
+  fetchEdgeFrame,
+  formatFrameSec,
+  type EdgeFrame,
+  type EdgeFramePlan,
+} from '@/services/video-frames/edge-frame.service'
+import {
   getRenderJob,
   RenderSubmitSchema,
   submitRenderJob,
@@ -41,12 +48,8 @@ import {
   EDIT_TRACK_IDS,
   type EditResolution,
 } from '@/constants/edit-desk'
-import {
-  MCP_LIST_PROJECTS_LIMIT,
-  MCP_LOOK_AT_FETCH_TIMEOUT_MS,
-  MCP_LOOK_AT_FRAME_WIDTH,
-  type McpRenderKind,
-} from '@/constants/mcp'
+import { LOOK_FRAME_WIDTH } from '@/constants/media-transformations'
+import { MCP_LIST_PROJECTS_LIMIT, type McpRenderKind } from '@/constants/mcp'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
@@ -230,33 +233,10 @@ export async function readProjectForMcp(
 
 /* ─── look_at ─────────────────────────────────────────────────────────── */
 
-export type McpFrame =
-  | {
-      readonly label: string
-      readonly ok: true
-      readonly mimeType: string
-      readonly base64: string
-    }
-  | { readonly label: string; readonly ok: false; readonly reason: string }
-
-interface FramePlan {
-  readonly label: string
-  readonly url: string | null
-  /** 截不了的原因（时间落在段外等），有它就不去取。 */
-  readonly reason?: string
-}
-
-function formatSec(seconds: number): string {
-  return `${Math.round(seconds * 1000) / 1000}s`
-}
-
-const NOT_ON_CDN =
-  'this media is not a PixelVault-hosted MP4/image, so no frame can be taken'
-
 function planFrames(
   state: NodeWorkflowStateV4,
   input: McpLookAtInput,
-): FramePlan[] {
+): EdgeFramePlan[] {
   if (input.clipId) {
     const hit = findTimelineClip(state.edit, input.clipId)
     if (!hit) {
@@ -281,18 +261,18 @@ function planFrames(
     }
     return input.times.map((time) => {
       const sourceSec = timelineToSourceSec(hit, time)
-      const label = `${formatSec(time)} on the timeline`
+      const label = `${formatFrameSec(time)} on the timeline`
       if (sourceSec === null) {
         return {
           label,
           url: null,
-          reason: `outside this clip (${formatSec(hit.startSec)}–${formatSec(hit.startSec + hit.durationSec)})`,
+          reason: `outside this clip (${formatFrameSec(hit.startSec)}–${formatFrameSec(hit.startSec + hit.durationSec)})`,
         }
       }
-      const frameUrl = getVideoFrameUrl(url, sourceSec, MCP_LOOK_AT_FRAME_WIDTH)
+      const frameUrl = getVideoFrameUrl(url, sourceSec, LOOK_FRAME_WIDTH)
       return frameUrl
         ? { label, url: frameUrl }
-        : { label, url: null, reason: NOT_ON_CDN }
+        : { label, url: null, reason: EDGE_FRAME_NOT_ON_CDN }
     })
   }
 
@@ -305,11 +285,11 @@ function planFrames(
   const url = currentUrlOf(node)
   if (node.data.kind === NODE_MEDIA_KIND_IDS.image) {
     if (!url) throw new McpToolError('This image card has no image yet.')
-    const previewUrl = getImagePreviewUrl(url, MCP_LOOK_AT_FRAME_WIDTH)
+    const previewUrl = getImagePreviewUrl(url, LOOK_FRAME_WIDTH)
     return [
       previewUrl
         ? { label: 'image', url: previewUrl }
-        : { label: 'image', url: null, reason: NOT_ON_CDN },
+        : { label: 'image', url: null, reason: EDGE_FRAME_NOT_ON_CDN },
     ]
   }
   if (node.data.kind !== NODE_MEDIA_KIND_IDS.video) {
@@ -322,40 +302,12 @@ function planFrames(
     )
   }
   return input.times.map((time) => {
-    const label = `${formatSec(time)} into the take`
-    const frameUrl = getVideoFrameUrl(url, time, MCP_LOOK_AT_FRAME_WIDTH)
+    const label = `${formatFrameSec(time)} into the take`
+    const frameUrl = getVideoFrameUrl(url, time, LOOK_FRAME_WIDTH)
     return frameUrl
       ? { label, url: frameUrl }
-      : { label, url: null, reason: NOT_ON_CDN }
+      : { label, url: null, reason: EDGE_FRAME_NOT_ON_CDN }
   })
-}
-
-async function fetchFrame(plan: FramePlan): Promise<McpFrame> {
-  if (!plan.url) {
-    return { label: plan.label, ok: false, reason: plan.reason ?? NOT_ON_CDN }
-  }
-  try {
-    const response = await fetch(plan.url, {
-      signal: AbortSignal.timeout(MCP_LOOK_AT_FETCH_TIMEOUT_MS),
-    })
-    const mimeType = response.headers.get('content-type') ?? ''
-    if (!response.ok || !mimeType.startsWith('image/')) {
-      // 边缘截帧的失败多半是源不合格（>100MB / >10 分钟 / 时间点超出片长）。
-      return {
-        label: plan.label,
-        ok: false,
-        reason: `the CDN could not extract this frame (HTTP ${response.status}); the time may be past the end of the video`,
-      }
-    }
-    const base64 = Buffer.from(await response.arrayBuffer()).toString('base64')
-    return { label: plan.label, ok: true, mimeType, base64 }
-  } catch {
-    return {
-      label: plan.label,
-      ok: false,
-      reason: 'timed out fetching this frame',
-    }
-  }
 }
 
 /** 渲染出来的片子：小样 / 成片都在自家 CDN 上，截帧与看镜头同一条路。 */
@@ -363,7 +315,7 @@ async function planRenderFrames(
   owner: McpTokenOwner,
   jobId: string,
   times: readonly number[] | undefined,
-): Promise<FramePlan[]> {
+): Promise<EdgeFramePlan[]> {
   const job = await getRenderJob(owner.clerkId, jobId)
   if (!job) {
     throw new McpToolError(`No render ${jobId}. Use the jobId render returned.`)
@@ -380,11 +332,11 @@ async function planRenderFrames(
     )
   }
   return times.map((time) => {
-    const label = `${formatSec(time)} into the render`
-    const frameUrl = getVideoFrameUrl(url, time, MCP_LOOK_AT_FRAME_WIDTH)
+    const label = `${formatFrameSec(time)} into the render`
+    const frameUrl = getVideoFrameUrl(url, time, LOOK_FRAME_WIDTH)
     return frameUrl
       ? { label, url: frameUrl }
-      : { label, url: null, reason: NOT_ON_CDN }
+      : { label, url: null, reason: EDGE_FRAME_NOT_ON_CDN }
   })
 }
 
@@ -392,13 +344,13 @@ async function planRenderFrames(
 export async function lookAtForMcp(
   owner: McpTokenOwner,
   input: McpLookAtInput,
-): Promise<McpFrame[]> {
+): Promise<EdgeFrame[]> {
   if (input.renderJobId) {
     const plans = await planRenderFrames(owner, input.renderJobId, input.times)
-    return Promise.all(plans.map(fetchFrame))
+    return Promise.all(plans.map(fetchEdgeFrame))
   }
   const project = await loadProject(owner, input.projectId)
-  return Promise.all(planFrames(project.state, input).map(fetchFrame))
+  return Promise.all(planFrames(project.state, input).map(fetchEdgeFrame))
 }
 
 /* ─── apply_ops（S3）──────────────────────────────────────────────────── */

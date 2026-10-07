@@ -649,6 +649,13 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   canvasPlanRerun: 'canvas_plan_rerun',
   /**
+   * **看片**（剪辑台 v2 第 2 片 2b）：截时间线上一段 / 一张视频卡的几帧，交给能看图的
+   * 模型逐帧描述，再把文字观察交回来。
+   * ⚠ 归**读**：一帧都不落、一分钱都不花（截帧走 CDN 边缘转换，看图走助手线自己的
+   *   token，与 `check_character_look` 同源）。地址只随快照来（`editDesk.videoUrls`）。
+   */
+  canvasLookAt: 'canvas_look_at',
+  /**
    * 让画布上某个节点出图 / 出片 —— 画布域唯一会扣 credit 的一条（花钱档）。
    *
    * ⚠ 钱闸结构一个字都没松：服务端只吐载荷，扳机在宿主那只手上
@@ -739,6 +746,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
 ] as const
 
@@ -829,6 +837,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 是之后那一串 `canvas_generate`，每一枪各自要用户点头。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+  /** ⚠ 看片（剪辑台 2b）：只看不写，判据与 `check_character_look` 同源。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
 ] as const
 
 /**
@@ -1100,6 +1110,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   /** ⚠ 重跑名单归**看**：它产出的是「事实」（哪几个过期了），不是「改完了」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
+  /** 看片（剪辑台 2b）—— 看帧，归**看**。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]: ASSISTANT_OPERATOR_VERB_IDS.look,
   /** ⚠ 画布那一枪归**请求生成**：它与工作台的 `request_generation` 一样只吐载荷。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
@@ -1982,6 +1994,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
   ],
   /**
@@ -2139,6 +2152,13 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxDialectModels: 4,
   /** 剪辑台：快照里最多列几张剪得进时间线的卡（v2 第 2 片）。 */
   maxEditAssets: 60,
+  /**
+   * 看片一次最多几帧（2b）。⚠ 比 MCP 的 8 少：这里每帧都要过一遍视觉模型，花的是
+   * 用户自己的 token；四帧够看头、中、尾外加一个问题点。
+   */
+  maxLookAtTimes: 4,
+  /** 看片的问题一句话。 */
+  maxLookAtQuestionChars: 300,
 } as const
 
 export const ASSISTANT_OPERATOR_LIMITS = {
@@ -3062,6 +3082,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "change one thing on the board — add a card, wire two cards together, rewrite a prompt, switch a model, hang one card's picture onto another, retag a frame, or work out what has gone stale downstream. One call changes one thing, so a wrong one costs one retry and one undo. Every node id comes from the board snapshot you read; a made-up id is refused. Deleting a card or projecting a script asks the creator first (a card's wires go with it; a projection adds a whole row of shots) — once they say yes, send that same call again and it lands.",
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     'work out which cards downstream of one card are now out of date, after something upstream changed. It fires nothing and spends nothing — it hands the creator a list so they can decide what to run again. Never write the list yourself; this walks the wires for you.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]:
+    'LOOK at actual frames of the cut: one video clip on the edit timeline ("clipId" from editDesk.timeline.clips, "times" in timeline seconds) or one video card ("nodeId" from editDesk.assets, "times" in seconds into its take). Pass exactly one of clipId / nodeId, up to 4 times; leave times out to see the start, middle and end. Add "question" when you are checking something specific ("is the hand deformed?", "does the shot match the next one?"). You get back what each frame shows, in words. Use it before judging a shot, a cut or a continuity problem — never describe a clip you have not looked at. Single frames cannot show motion, flicker or sound; say so if that is what the creator asked about. It changes nothing and spends no credits.',
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
     'ask to run one card on the board. This is the only thing here that costs credits, so it never happens on its own: it puts a confirmation in front of the creator and they pull the trigger. Check the prompt, the model and the references on that card first. Your turn ends on that confirmation, so offer one card per round and name any other cards still waiting to run.',
 }

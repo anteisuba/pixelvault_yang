@@ -1,6 +1,6 @@
 # MCP 参考 — 外部 Claude 剪片接入契约
 
-> 状态：**施工基准**（进度表 37）。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」2026-10-07 施工完（未推），站内 `look_at` 与 S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
+> 状态：**施工基准**（进度表 37）。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」与站内看片 `canvas_look_at` 2026-10-07 施工完（未推），S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
 
 ## 1. 定位
 
@@ -105,7 +105,10 @@ claude mcp add --transport http --scope user pixelvault https://www.anteisuba.co
 ## 8. 站内助手（S5）
 
 - 画布快照加上时间线（4.1 同一个构建函数）；画布提示词教会它剪辑 op 与「重拍怎么标」。
-- `look_at` 作为只读工具进画布域：同一个 service。进钱闸白名单的判据：不建 generation · 不扣费 · 不写库（边缘截帧只读）。
+- 看片 `canvas_look_at`（画布域只读，「看」组）：段（时间线秒）或视频卡（素材秒）二选一，最多 4 帧（`ASSISTANT_OPERATOR_CANVAS_LIMITS.maxLookAtTimes`，比 MCP 的 8 少：每帧都过视觉线），不给时间点就看头、中、尾。
+  - 换算与地址按**客户端快照**（`editDesk.timeline` + `editDesk.videoUrls`），⛔ 不读库：剪辑台刚改的段要等 5 秒防抖才落库。地址只列截得了帧的（自家 CDN 上的 MP4），⛔ 不进模型读的状态块。
+  - 截帧与 MCP `look_at` 同一条腿（`services/video-frames/edge-frame.service.ts`）；截成的帧交视觉线（`resolveVisionRoute`：主模型看不了图就借一条）逐帧描述，带问题时另答一句，文字观察交回主模型。只送静态帧，⛔ 不喂 mp4。
+  - 钱闸白名单 `assistant-edit-look.service`，判据：不建 generation · 不扣费 · 不读写库 · 不落字节（边缘截帧只读），钱闸测试扫它与截帧那条腿的源码。
 - 改法与 MCP 一致：直接改、一批一个撤销、改到的闪一下。剪辑台原来那套「一句话排片」（虚线预排 + 提案卡 + `deliverTimelineProposal` 便条 + `timeline-plan.ts`）随剪辑台改版删除，底部排片栏改成站内助手的输入入口（`node-canvas-v2.md` §6 / §13.6）。
 
 ## 9. 切片与验收

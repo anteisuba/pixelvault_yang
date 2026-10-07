@@ -42,3 +42,12 @@ export const VIDEO_POSTER_FIT = 'scale-down'
  * 失败只表现为「这一格回落到占位」，不会更坏 —— 但别再往下加没验过的容器。
  */
 export const VIDEO_POSTER_SOURCE_EXTENSIONS = ['.mp4', '.webm'] as const
+
+/**
+ * 给模型看的截帧多宽（MCP `look_at` 与站内助手 `canvas_look_at` 共用）。512 宽的
+ * JPEG 约 40KB，够认出主体、构图与坏手坏脸。
+ */
+export const LOOK_FRAME_WIDTH = 512
+
+/** 取一帧最多等多久（边缘截帧冷的时候要现解码）。 */
+export const LOOK_FRAME_FETCH_TIMEOUT_MS = 15_000

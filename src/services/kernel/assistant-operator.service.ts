@@ -211,6 +211,10 @@ import {
 } from '@/services/kernel/assistant-asset-folder-vision.service'
 import { checkCharacterLook } from '@/services/kernel/assistant-character-look.service'
 import {
+  lookAtEditFrames,
+  planEditDeskFrames,
+} from '@/services/kernel/assistant-edit-look.service'
+import {
   inspectWebImageCandidates,
   type WebImageVisionItem,
 } from '@/services/kernel/assistant-web-image-vision.service'
@@ -487,6 +491,7 @@ import {
   type AssistantOperatorCardsSnapshot,
   type AssistantOperatorCharacterProfileDraft,
   type AssistantOperatorCharacterImageCandidate,
+  type AssistantOperatorCanvasLookAtArgs,
   type AssistantOperatorCharacterImagesDraft,
   type AssistantOperatorCharacterImagesProposal,
   type AssistantOperatorImageHandoff,
@@ -1453,7 +1458,15 @@ function renderState(
   if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
     return [
       'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
-      `Current board: ${JSON.stringify(state.canvas ?? null)}`,
+      // ⛔ 视频地址只给看片那一步（2b），不给模型：拿到地址它就会想贴进提示词。
+      `Current board: ${JSON.stringify(
+        state.canvas?.editDesk
+          ? {
+              ...state.canvas,
+              editDesk: { ...state.canvas.editDesk, videoUrls: undefined },
+            }
+          : (state.canvas ?? null),
+      )}`,
       'A node without model has NO model selected. availableModels lists candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Connect its intended references and set its model before writing the final prompt; verify the fresh state after each operation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
       'Node parameters.values contains current generation settings; parameters.options lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change; verify the updated values after canvas_sync and include them when summarizing generation. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
       'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id and URL, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
@@ -7170,6 +7183,7 @@ const EDIT_DESK_GUIDE: readonly string[] = [
   'EDIT DESK — board.editDesk.timeline is the cut (null = this project has no timeline yet); board.editDesk.assets are the cards that can go on it (nodeId, track, durationSec). The video track is the main line: its clips play back to back in array order. Voice lines (audio track) and captions hang on a frame of a main-line clip (attachedTo): moving, trimming, splitting or deleting that clip carries them along. A line marked cut lost its frame to a trim and stays silent until moved. Times are timeline seconds; in/out are seconds inside the source.',
   'Cut with canvas_apply, flat arguments. Only when timeline is null, start one: {action:"canvas_apply",op:"edit_set_timeline",project:{name:"...",tracks:{video:[],audio:[],music:[],text:[]},settings:{}}}. Add a clip: {action:"canvas_apply",op:"edit_add_clip",track:"video",clip:{id:"clip_<new unique id>",sourceNodeId:"<asset nodeId>",in:0,out:4.5},index:2} — out at most the asset durationSec; omit index to append; on the audio track also give clip.startSec. Change a clip: {action:"canvas_apply",op:"edit_update_clip",track:"video",clipId:"<id>",patch:{in:1,out:3,speed:1,muted:false,transitionOut:"crossfade"}} (transitionOut is none, crossfade or black; patch.startSec moves a voice line). Reorder: {action:"canvas_apply",op:"edit_move_clip",track:"video",clipId:"<id>",toIndex:0}. Delete: {action:"canvas_apply",op:"edit_remove_clip",track:"video",clipId:"<id>"}. Captions: {action:"canvas_apply",op:"edit_add_text",clip:{id:"text_<new unique id>",text:"...",startSec:2,durationSec:3}}, edit_update_text {clipId,patch:{text,startSec,durationSec}}, edit_remove_text {clipId}.',
   'Use clip ids exactly as editDesk.timeline lists them and read the fresh timeline after each change. Cutting never generates and never spends credits; to redo a shot, rewrite that node prompt with set_prompt and tell the creator to press generate.',
+  'To see what a clip or a video card actually shows, use look/canvas_look_at before you judge a shot, a cut or continuity: {action:"canvas_look_at",clipId:"<id>",times:[2.5,4],question:"..."}. Never describe footage you have not looked at.',
 ]
 
 /**
@@ -7749,6 +7763,63 @@ function planCanvasPlanRerun(
       result: { nodeIds: [] as string[] },
       observation: `Asked the board which cards downstream of ${args.target} are now out of date. The creator sees the list; nothing ran and nothing was spent.`,
     }),
+  }
+}
+
+/**
+ * **看片**（剪辑台 v2 第 2 片 2b）：截几帧交给能看图的模型，文字观察交回主模型。
+ * ⚠ 换算与地址只按快照（`editDesk`），⛔ 服务端不读库 —— 见 `assistant-edit-look.service`。
+ */
+function planCanvasLookAt(
+  run: OperatorRun,
+  args: AssistantOperatorCanvasLookAtArgs,
+  userId: string,
+): ToolPlan {
+  const canvas = run.state.canvas
+  if (!canvas) {
+    return reject(
+      REJECT.noSuchControl,
+      'There is no board here. This tool only works on the node canvas.',
+    )
+  }
+  const planned = planEditDeskFrames(canvas.editDesk, args)
+  if (!planned.ok) return reject(REJECT.noSuchControl, planned.reason)
+  return {
+    kind: 'read',
+    payload: args,
+    run: async () => {
+      const looked = await lookAtEditFrames({
+        userId,
+        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+        plans: planned.plans,
+        ...(args.question ? { question: args.question } : {}),
+      })
+      if (!looked) {
+        return {
+          result: { viewed: 0, missed: planned.plans.length },
+          observation:
+            'canvas_look_at could NOT look at the frames this time (no vision route or it failed). Tell the creator plainly that you could not see the footage; do not guess what is in it.',
+        }
+      }
+      const observation = [
+        `canvas_look_at looked at ${planned.subject}: ${looked.viewed} of ${looked.frames.length} frame(s) seen.`,
+        ...looked.frames.map(
+          (frame, index) =>
+            `  ${index + 1}. ${frame.label} — ${frame.seen ?? `no frame: ${frame.missed}`}`,
+        ),
+        ...(looked.answer
+          ? [`Answer to "${args.question}": ${looked.answer}`]
+          : []),
+        'These are still frames: they cannot show motion, flicker or sound. Tell the creator what you saw in your own words.',
+      ].join('\n')
+      return {
+        result: {
+          viewed: looked.viewed,
+          missed: looked.frames.length - looked.viewed,
+        },
+        observation,
+      }
+    },
   }
 }
 
@@ -8806,6 +8877,12 @@ async function planTool(
       return planCanvasPlanRerun(
         run,
         parsed.data as { target: string; includeSelf?: boolean },
+      )
+    case TOOL.canvasLookAt:
+      return planCanvasLookAt(
+        run,
+        parsed.data as AssistantOperatorCanvasLookAtArgs,
+        userId,
       )
     case TOOL.canvasGenerate:
       return planCanvasGenerate(run, parsed.data as { target: string }, userId)

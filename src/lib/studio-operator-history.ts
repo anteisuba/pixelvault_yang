@@ -367,6 +367,16 @@ export function describeOperatorStepDetail(
       return step.payload.op
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
       return step.result === null ? null : String(step.result.nodeIds.length)
+    /** 看片（剪辑台 2b）—— 详情写**看的是哪段 · 看到几帧**。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt:
+      return [
+        step.payload.clipId ?? step.payload.nodeId,
+        step.result
+          ? `· ${step.result.viewed}/${step.result.viewed + step.result.missed}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
       return step.payload.target
   }

@@ -43,6 +43,7 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
+import { currentUrlOf } from '@/lib/edit-project'
 import { parseScriptShots } from '@/lib/node-script-shots'
 import { readScriptShotRef } from '@/lib/node-script-projection'
 import {
@@ -50,6 +51,7 @@ import {
   buildTimelineSnapshot,
 } from '@/lib/edit-timeline-snapshot'
 import { buildV4ImagePayload } from '@/lib/node-slot-payload'
+import { getVideoPosterUrl } from '@/lib/video-poster'
 import {
   AssistantOperatorCanvasNodeSchema,
   type AssistantOperatorCanvasNode,
@@ -503,10 +505,18 @@ function buildEditDeskSnapshot(
     ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets,
   )
   if (!edit && assets.length === 0) return {}
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  // 看片（2b）只截得了自家 CDN 上的 MP4：截不了的不带，省得服务端拿到一个注定 4xx 的源。
+  const videoUrls = assets.flatMap((asset) => {
+    if (asset.kind !== NODE_MEDIA_KIND_IDS.video) return []
+    const url = currentUrlOf(byId.get(asset.nodeId))
+    return url && getVideoPosterUrl(url) ? [{ nodeId: asset.nodeId, url }] : []
+  })
   return {
     editDesk: {
       timeline: buildTimelineSnapshot(edit, nodes),
       assets: [...assets],
+      ...(videoUrls.length > 0 ? { videoUrls } : {}),
     },
   }
 }

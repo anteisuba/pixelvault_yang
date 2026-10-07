@@ -837,6 +837,15 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
       assets: z
         .array(TimelineSnapshotAssetSchema)
         .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets),
+      /**
+       * 视频卡当前那一版的地址 —— **只给服务端截帧用**（`canvas_look_at`，2b）。
+       * ⛔ 不渲染进模型读的状态块（与角色页 `cardImageUrls` 同一条论据）。只列截得了
+       * 帧的（自家 CDN 上的 MP4）。
+       */
+      videoUrls: z
+        .array(z.object({ nodeId: IdSchema, url: z.string().url().max(4_000) }))
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets)
+        .optional(),
     })
     .optional(),
 })
@@ -2077,6 +2086,36 @@ export type AssistantOperatorLookCheckResult = z.infer<
 >
 
 /**
+ * **看片**（剪辑台 2b）：看时间线上一段（时间线秒）或一张视频卡（素材秒）的几帧。
+ * ⚠ `clipId` / `nodeId` 二选一由规划器判（宽松档：schema 拒 = 整步作废）；`times`
+ *   缺席 = 头、中、尾三帧。
+ */
+export const AssistantOperatorCanvasLookAtArgsSchema = z.object({
+  clipId: IdSchema.optional(),
+  nodeId: IdSchema.optional(),
+  times: z
+    .array(z.number().min(0).max(36_000))
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxLookAtTimes)
+    .optional(),
+  question: z
+    .string()
+    .trim()
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxLookAtQuestionChars)
+    .optional(),
+})
+
+export type AssistantOperatorCanvasLookAtArgs = z.infer<
+  typeof AssistantOperatorCanvasLookAtArgsSchema
+>
+
+/** 看片的结果：看到了几帧、几帧没截成（日志条上那一格）。 */
+export const AssistantOperatorCanvasLookAtResultSchema = z.object({
+  viewed: z.number().int().min(0),
+  missed: z.number().int().min(0),
+})
+
+/**
  * **交给图片助手**（卡片助手 C3，画板 S11）：要对图片助手说的那一句话。
  * ⚠ 同一个形状既是入参也是 `confirm(imageHandoff)` 的载荷。
  */
@@ -2754,6 +2793,9 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   /** 画布：算下游名单。`includeSelf` 默认 false —— 刚换上去的那个不该被盖掉。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     NodeAssistantPlanRerunDownstreamOpSchema.omit({ op: true }),
+  /** 画布：看片（剪辑台 2b）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]:
+    AssistantOperatorCanvasLookAtArgsSchema,
   /** 画布：那一枪。⛔ 载荷里只有目标节点 —— 模型不填模型 / 张数（快照现取）。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
     NodeAssistantGenerateV4OpSchema.omit({ op: true }),
@@ -4082,6 +4124,12 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
         .array(z.string().trim().min(1))
         .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxRerunNodes),
     }),
+  ),
+  /** 画布：看片（剪辑台 2b）。⚠ 读类 —— 一帧都不落，没有东西可撤。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
+    AssistantOperatorCanvasLookAtArgsSchema,
+    AssistantOperatorCanvasLookAtResultSchema,
   ),
   /**
    * 画布那一枪（花钱档）。⛔ 没有 `inverse`：出来的东西删不掉、钱退不回，

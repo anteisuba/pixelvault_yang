@@ -173,7 +173,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 **新增进「查」组的**：证据本翻页 `recall_evidence`（§7.3）。
 **新增进「问」组的**：`propose_context_card`（§8.1）——它本质是「问一句要不要记住」。
 
-**2026-09-19 并入的 canvas 域三条**（进度表 22）：`canvas_apply` 进「改」、`canvas_plan_rerun` 进「看」（它只列名单，一个字不改）、`canvas_generate` 进「请求生成」。分组判据一条没改——沿用的仍是上表最右那一列。细节见 [`node-canvas-v2.md` §13](node-canvas-v2.md)。
+**2026-09-19 并入的 canvas 域三条**（进度表 22）：`canvas_apply` 进「改」、`canvas_plan_rerun` 进「看」（它只列名单，一个字不改）、`canvas_generate` 进「请求生成」；2026-10-07 剪辑台 v2 第 2 片再加 `canvas_look_at` 进「看」（截帧看片，只读）。分组判据一条没改——沿用的仍是上表最右那一列。细节见 [`node-canvas-v2.md` §13](node-canvas-v2.md)。
 
 ### 2.2 模型只见五个入口
 

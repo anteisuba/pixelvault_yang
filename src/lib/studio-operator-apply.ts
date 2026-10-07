@@ -897,6 +897,8 @@ export function applyOperatorStep(
      * 名单本身由宿主在读流里回填进 step 的 `result`。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
+    /** 画布：看片（剪辑台 2b，读类）—— 只截帧给模型看，时间线一格都没动。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt:
       return null
 
     /**
@@ -949,6 +951,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
     /** ⚠ 画布的下游名单也是读：一个节点都没动，也就没有东西可撤。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt:
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
       return false
 

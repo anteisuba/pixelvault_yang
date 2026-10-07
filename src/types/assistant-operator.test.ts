@@ -705,6 +705,11 @@ const STEP_FIXTURES: Record<
     payload: { target: 'node-1' },
     result: { nodeIds: ['node-2', 'node-3'] },
   },
+  /** 看片（剪辑台 2b）——**读类**：看了几帧、几帧没截成。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]: {
+    payload: { clipId: 'clip-1', times: [1.5, 3], question: '手有没有坏' },
+    result: { viewed: 2, missed: 0 },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]: {
     payload: { target: 'node-1' },
   },
@@ -895,7 +900,8 @@ describe('五动词入口', () => {
     // 两台图片工作台互跳（2026-10-04）把 49 变成 50（`switch_workbench`）。
     // 助手写角色构图（2026-10-05）把 50 变成 51（`set_tag_characters`），
     // 画面文字（2026-10-07）再加一个（`set_scene_texts`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(52)
+    // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(53)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

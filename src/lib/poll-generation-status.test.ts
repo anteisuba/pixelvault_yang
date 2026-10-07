@@ -56,6 +56,26 @@ describe('pollGenerationStatus', () => {
     expect(probe).toHaveBeenCalledTimes(1)
   })
 
+  it('先搜再画：完成时把交回的来源一起带出来', async () => {
+    const searchGrounding = {
+      status: 'empty' as const,
+      sources: [],
+      suggestionsHtml: '<a>s</a>',
+    }
+    const probe = vi.fn(async () => ({
+      success: true,
+      data: {
+        status: 'COMPLETED' as const,
+        generation: GENERATION,
+        searchGrounding,
+      },
+    }))
+
+    await expect(pollGenerationStatus('job-1', probe, CONFIG)).resolves.toEqual(
+      { status: 'completed', generation: GENERATION, searchGrounding },
+    )
+  })
+
   it('surfaces FAILED error fields, falling back when the message is absent', async () => {
     const probe = vi.fn().mockResolvedValue({
       success: true,

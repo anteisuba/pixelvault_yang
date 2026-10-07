@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import type { AspectRatio } from '@/constants/config'
+import { supportsSearchGrounding } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -34,6 +35,12 @@ import {
 import { resolveVideoSendModelId } from '@/constants/video-node-modes'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
+import {
+  addNodeSearchGroundingResult,
+  clearNodeSearchGrounding,
+  finishNodeSearchGrounding,
+  startNodeSearchGrounding,
+} from '@/hooks/node/use-node-search-grounding'
 import { probeMediaDuration } from '@/lib/media-probe'
 import {
   buildV4AudioPayload,
@@ -78,6 +85,8 @@ export interface V4GenerationPlan {
   readonly quality?: string
   /** 图片分辨率档 —— 同上，走 `advancedParams.resolution`。 */
   readonly imageResolution?: string
+  /** 「先搜再画」：卡上开着、型号又支持 —— 走 `advancedParams.searchGrounding`。 */
+  readonly searchGrounding?: boolean
   /**
    * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 顺序发
    * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
@@ -358,6 +367,10 @@ export function planV4Generation(
     ...(data.params?.quality ? { quality: data.params.quality } : {}),
     ...(data.params?.resolution
       ? { imageResolution: data.params.resolution }
+      : {}),
+    ...(data.params?.searchGrounding === true &&
+    supportsSearchGrounding(data.model.modelId)
+      ? { searchGrounding: true }
       : {}),
     ...(storyboardGrid
       ? { count: 1 }
@@ -674,6 +687,7 @@ export function useNodeMediaGenerationV4() {
         ...(imageResolution.success && imageResolution.data
           ? { resolution: imageResolution.data }
           : {}),
+        ...(plan.searchGrounding ? { searchGrounding: true } : {}),
       }
       const runOnce = () =>
         inner.generate(
@@ -728,15 +742,27 @@ export function useNodeMediaGenerationV4() {
             : undefined,
         )
 
+      // 「先搜再画」的资料只在出图当下、只在内存里：开始时让出资料位，每一枪交回
+      // 的来源合起来；没开搜索的一枪把上一次的资料收起。
+      if (plan.searchGrounding) startNodeSearchGrounding(nodeId)
+      else clearNodeSearchGrounding(nodeId)
+      const collect = (result: Awaited<ReturnType<typeof runOnce>>) => {
+        if (result.success && result.searchGrounding) {
+          addNodeSearchGroundingResult(nodeId, result.searchGrounding)
+        }
+        options.onEach?.(result)
+      }
+
       // ⚠ **顺序**发，⛔ 不并发：并发时 N 个 `onJobCreated` 会互相盖掉节点身上
       // 那一个 `mediaJobId`，刷新之后只剩最后一单能被回填 hook 找回来。
       const times = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
       let last = await runOnce()
-      options.onEach?.(last)
+      collect(last)
       for (let i = 1; i < times; i += 1) {
         last = await runOnce()
-        options.onEach?.(last)
+        collect(last)
       }
+      if (plan.searchGrounding) finishNodeSearchGrounding(nodeId)
       return last
     },
     [inner, characterCards, describeBlocker, t],

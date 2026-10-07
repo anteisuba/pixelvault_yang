@@ -3038,6 +3038,58 @@ html:lang(ja) {
     transition: opacity var(--duration-base) var(--ease-standard) 550ms;
   }
 
+  /* 画布图片卡：资料列在卡左边，出线伸 56px 描到卡的输入口（画板 nsc）。
+     选中 = 从输入口方向滑出（x 12→0、spring-slot）；取消选中 = 淡出、x 8、缩到 .96
+     （base），输入口旁冒出「资料 N」（.72 放大、由糊变清）。 */
+  .search-sources--canvas .search-comb {
+    --search-reach: 3.5rem;
+    --search-port-x: 3.5px;
+  }
+
+  .node-search-stack {
+    transform-origin: 100% 50%;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(8px) scale(0.96);
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      transform var(--duration-base) var(--ease-standard),
+      visibility 0s linear var(--duration-base);
+  }
+
+  .node-search-stack[data-shown='true'] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      transform var(--spring-slot-duration) var(--spring-slot-ease),
+      visibility 0s;
+  }
+
+  .node-search-fold {
+    transform-origin: 100% 50%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.72);
+    filter: blur(4px);
+    pointer-events: none;
+    transition:
+      opacity var(--duration-fast) var(--ease-standard),
+      transform var(--duration-base) ease-in,
+      filter var(--duration-base) ease-in;
+  }
+
+  .node-search-fold[data-shown='true'] {
+    opacity: 1;
+    transform: translateY(-50%);
+    filter: none;
+    pointer-events: auto;
+    transition:
+      opacity var(--duration-base) var(--ease-standard) 120ms,
+      transform var(--spring-slot-duration) var(--spring-slot-ease) 120ms,
+      filter var(--duration-base) var(--ease-standard) 120ms;
+  }
+
   /* 输入框顶上那道虚线槽在搜索时的微光（从左扫到右）。 */
   .search-slot-shimmer::after {
     content: '';

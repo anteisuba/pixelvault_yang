@@ -27,6 +27,7 @@ import type {
   AdvancedParams,
   CharacterImagePick,
   GenerationRecord,
+  SearchGroundingResult,
 } from '@/types'
 import type { NodeWorkflowMediaKind } from '@/types/node-workflow'
 
@@ -101,6 +102,8 @@ type NodeMediaGenerationResult =
       mediaUrl: string
       /** Poster frame for video generations (§9.1) — undefined for image/audio. */
       thumbnailUrl?: string
+      /** 图片「先搜再画」交回的来源与搜索建议（只这一次，⛔ 不存）。 */
+      searchGrounding?: SearchGroundingResult
     }
   | {
       success: false
@@ -296,8 +299,10 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           }
         }
 
+        let searchGrounding: SearchGroundingResult | undefined
         if (pollOutcome?.status === 'completed') {
           generation = pollOutcome.generation
+          searchGrounding = pollOutcome.searchGrounding
         }
 
         if (pollOutcome?.status === 'failed') {
@@ -334,6 +339,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           generation,
           mediaUrl: generation.url,
           thumbnailUrl: generation.thumbnailUrl ?? undefined,
+          ...(searchGrounding ? { searchGrounding } : {}),
         }
       } catch (caughtError) {
         const message =

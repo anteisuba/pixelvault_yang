@@ -86,6 +86,11 @@ export interface NodePromptBarProps {
    * ⚠ 有内容才占这一行（`null` / `false` / 空数组都当没有）。
    */
   readonly leadingRow?: ReactNode
+  /**
+   * 提示词栏最上面那一行、自己会开合的槽（图片卡「先搜再画」的虚线胶囊）。
+   * 与 `leadingRow` 分开：那一行有最小高度，收不成 0。
+   */
+  readonly slotRow?: ReactNode
   readonly ariaLabel: string
   readonly className?: string
   readonly compact?: boolean
@@ -144,6 +149,7 @@ export function NodePromptBar({
   sidebarOpen = false,
   trailing,
   leadingRow,
+  slotRow,
   ariaLabel,
   className,
   compact = false,
@@ -536,6 +542,7 @@ export function NodePromptBar({
           emptyLabel={t('emptyHint')}
         />
       ) : null}
+      {slotRow}
       {hasLeadingRow ? (
         <div
           data-prompt-bar-leading

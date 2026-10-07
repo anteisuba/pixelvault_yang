@@ -249,6 +249,31 @@ describe('planV4Generation · 其余分支', () => {
     expect(plan.count).toBe(2)
   })
 
+  it('图 · 先搜再画：卡上开着、型号支持才带上', () => {
+    const grounded = node('g', {
+      kind: 'image',
+      subtype: 'shot',
+      model: Object.assign({}, MODEL, { modelId: 'gemini-nano-banana-2.1' }),
+      prompt: '台北 101 雨夜',
+      params: { searchGrounding: true },
+    })
+    expect(
+      planV4Generation('g', { nodes: [grounded], edges: [] })!.searchGrounding,
+    ).toBe(true)
+
+    const unsupported = node('u', {
+      kind: 'image',
+      subtype: 'shot',
+      model: MODEL,
+      prompt: '台北 101 雨夜',
+      params: { searchGrounding: true },
+    })
+    expect(
+      planV4Generation('u', { nodes: [unsupported], edges: [] })!
+        .searchGrounding,
+    ).toBeUndefined()
+  })
+
   it('音：台词经 text 槽进 prompt', () => {
     const out = node('out', { kind: 'audio', subtype: 'voice', model: MODEL })
     const plan = planV4Generation('out', {

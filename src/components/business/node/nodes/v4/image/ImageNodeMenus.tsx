@@ -22,6 +22,7 @@ import {
   Check,
   Crop,
   Eye,
+  Globe,
   Grid2x2,
   Grid3X3,
   Image as ImageIcon,
@@ -205,6 +206,7 @@ export function ImageAddMenuItems({
   onLibrary,
   canvasCandidates,
   onPickCanvas,
+  searchGrounding,
 }: {
   onUpload(): void
   onLibrary(): void
@@ -217,6 +219,11 @@ export function ImageAddMenuItems({
     readonly blockedReason?: string | undefined
   }[]
   onPickCanvas?(nodeId: string): void
+  /**
+   * 「先搜再画」开关（B 定稿：在「+」菜单里，跟这张卡存）。只对支持的型号给；
+   * 拨动不收菜单。
+   */
+  searchGrounding?: { checked: boolean; onChange(next: boolean): void }
 }) {
   const t = useTranslations('StudioNode.v4.image')
   const tNode = useTranslations('StudioNode.v4')
@@ -305,6 +312,55 @@ export function ImageAddMenuItems({
           )}
         </>
       ) : null}
+      {searchGrounding ? (
+        <>
+          <DropdownMenuSeparator className="mx-1.5 my-1" />
+          <ImageSearchGroundingMenuItem {...searchGrounding} />
+        </>
+      ) : null}
     </>
+  )
+}
+
+/**
+ * 「先搜再画」那一行开关：整行是 `menuitemcheckbox`，右边一颗拨子（开 = 轨变近黑、
+ * 拨子横移 12px，spring-slot）。拨动不收菜单。桌面在「+」菜单底部，手机抽屉里
+ * 单独挂这一项。
+ */
+export function ImageSearchGroundingMenuItem({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange(next: boolean): void
+}) {
+  const tSearch = useTranslations('SearchGrounding')
+  return (
+    <DropdownMenuItem
+      data-image-add="search-grounding"
+      role="menuitemcheckbox"
+      aria-checked={checked}
+      onSelect={(event) => {
+        event.preventDefault()
+        onChange(!checked)
+      }}
+      className="cursor-pointer gap-2.5 rounded-lg px-2.5 py-2 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+    >
+      <Globe aria-hidden className="size-4" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span>{tSearch('toggle')}</span>
+        <small className="text-2xs leading-snug text-muted-foreground">
+          {tSearch('hintCard')}
+        </small>
+      </span>
+      <span
+        aria-hidden
+        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors duration-fast ease-standard ${checked ? 'bg-foreground' : 'bg-surface-fill-track'}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow-sm transition-transform duration-spring-slot ease-spring-slot ${checked ? 'translate-x-3' : ''}`}
+        />
+      </span>
+    </DropdownMenuItem>
   )
 }

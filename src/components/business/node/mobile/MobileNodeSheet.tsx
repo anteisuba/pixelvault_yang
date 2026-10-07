@@ -18,6 +18,7 @@ import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Drawer as DrawerPrimitive } from 'vaul'
 
+import { supportsSearchGrounding } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { NODE_MOBILE_RAIL } from '@/constants/node-studio'
 import { chooseVoiceOps, renameForVoiceOps } from '@/lib/audio-node-name'
@@ -44,6 +45,7 @@ import {
 } from '../voice-library/VoiceLibraryPanel'
 import { CharacterMentionRail } from '../nodes/v4/character/CharacterMentionRail'
 import { ImageFrameChip } from '../nodes/v4/image/ImageFrameChip'
+import { ImageSearchGroundingMenuItem } from '../nodes/v4/image/ImageNodeMenus'
 import { imageNodeAcceptsReferences } from '../nodes/v4/image/image-node-model'
 import { ImageRefRail } from '../nodes/v4/image/ImageRefRail'
 import { useImagePromptMentions } from '../nodes/v4/image/use-image-prompt-mentions'
@@ -58,6 +60,9 @@ import { useVideoComposer } from '../nodes/v4/video/use-video-composer'
 import { VideoRefRail } from '../nodes/v4/video/VideoRefRail'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
+import { SearchGroundingRail } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
+import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import { useNodeSearchGrounding } from '@/hooks/node/use-node-search-grounding'
 import { isShotNode } from './mobile-rail-model'
 
 export interface MobileNodeSheetProps {
@@ -199,8 +204,17 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
 function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
   const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
+  const tSearch = useTranslations('SearchGrounding')
   const canvas = useNodeV4Canvas()
   const data = node.data as NodeV4ImageData
+  // 「先搜再画」跟卡存；手机抽屉里「+」只挂这一项开关（B 定稿）。
+  const searchAvailable = Boolean(
+    data.model?.modelId && supportsSearchGrounding(data.model.modelId),
+  )
+  const searchOn = searchAvailable && data.params?.searchGrounding === true
+  const searchState = useNodeSearchGrounding(node.id)
+  const setSearch = (on: boolean) =>
+    canvas.onSetParams(node.id, { ...data.params, searchGrounding: on })
   const draft = useNodeGenerateDraft({
     id: node.id,
     prompt: data.prompt,
@@ -254,6 +268,8 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
           }
         />
       ) : null}
+      {/* 「先搜再画」的资料条：出图当下在抽屉里、提示词栏上方（列表行只有缩略）。 */}
+      <SearchGroundingRail state={searchState} layout="strip" />
       <NodePromptBar
         value={draft.draft}
         onValueChange={draft.setDraft}
@@ -263,6 +279,25 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
         placeholder={tImage('promptPlaceholder')}
         ariaLabel={tImage('promptLabel')}
         className="w-full"
+        {...(searchAvailable
+          ? {
+              addMenu: (
+                <ImageSearchGroundingMenuItem
+                  checked={searchOn}
+                  onChange={setSearch}
+                />
+              ),
+              slotRow: (
+                <SearchGroundingSlot
+                  open={searchOn}
+                  description={tSearch('slotCard')}
+                  searching={searchState?.phase === 'searching'}
+                  disabled={draft.generating}
+                  onTurnOff={() => setSearch(false)}
+                />
+              ),
+            }
+          : {})}
         leadingRow={
           acceptsRefs ? (
             <div className="flex min-w-0 max-w-full items-start gap-2">

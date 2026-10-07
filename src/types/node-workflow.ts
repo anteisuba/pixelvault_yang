@@ -942,6 +942,12 @@ export const NodeV4GenerationParamsSchema = z.object({
    * ⚠ 只影响**发出去的那一份**，⛔ 不改你写的提示词。
    */
   storyboardGrid: z.boolean().optional(),
+  /**
+   * 「先搜再画」（B 定稿 2026-10-07）：跟这张卡存，和比例、清晰度一样 —— 重跑老卡
+   * 照样会搜。只对支持的型号发（`supportsSearchGrounding`）；来源与搜索建议
+   * ⛔ 不进卡（出图当下只在内存里，见 `use-node-search-grounding`）。
+   */
+  searchGrounding: z.boolean().optional(),
 })
 
 /**

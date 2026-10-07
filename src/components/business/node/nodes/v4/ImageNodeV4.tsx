@@ -47,6 +47,7 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
+import { supportsSearchGrounding } from '@/constants/models'
 import {
   NODE_STUDIO_DOCK,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -59,7 +60,8 @@ import {
 } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
-import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { useNodeSearchGrounding } from '@/hooks/node/use-node-search-grounding'
+import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
@@ -108,6 +110,8 @@ import {
   type VideoRailEntry,
 } from '@/lib/video-node-rail'
 
+import { ImageSearchGroundingSide } from './image/ImageSearchGroundingSide'
+import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
 import { ImageRefRail } from './image/ImageRefRail'
 import { useImageRefBinding } from './image/use-image-ref-binding'
 import { useStoryboardLanding } from './image/use-storyboard-landing'
@@ -169,6 +173,15 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     }
   }, [modelOptions])
   const effectiveModel = imageData.model ?? defaultModel
+  // 「先搜再画」跟卡存（`params.searchGrounding`），只对支持的型号出现。
+  const searchGroundingAvailable = Boolean(
+    effectiveModel?.modelId && supportsSearchGrounding(effectiveModel.modelId),
+  )
+  const searchGroundingOn =
+    searchGroundingAvailable && imageData.params?.searchGrounding === true
+  const searchGroundingState = useNodeSearchGrounding(id)
+  const setSearchGrounding = (on: boolean) =>
+    canvas.onSetParams(id, { ...imageData.params, searchGrounding: on })
   const pendingUpload = canvas.pendingUploads?.find((item) => item.id === id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
@@ -720,6 +733,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             onPickCanvas: refs.railProps.onPickFromCanvas,
           }
         : {})}
+      {...(searchGroundingAvailable
+        ? {
+            searchGrounding: {
+              checked: searchGroundingOn,
+              onChange: setSearchGrounding,
+            },
+          }
+        : {})}
     />
   )
   const paramsChip = (
@@ -830,6 +851,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       </NodeChromeLayer>
 
       <NodeCardShell
+        beside={
+          <ImageSearchGroundingSide
+            nodeId={id}
+            selected={Boolean(selected)}
+            onSelect={() => canvas.onSelectNode?.(id)}
+          />
+        }
         name={imageData.name}
         renameAriaLabel={t('renameNode')}
         onRename={renameNode}
@@ -841,7 +869,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             <NodeFrameProgress
               elapsedSeconds={elapsed}
               stageLabel={tStage(
-                `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
+                `generatingOverlayStages.${resolveGeneratingStageKey(
+                  elapsed,
+                  undefined,
+                  searchGroundingState?.phase === 'searching',
+                )}` as const,
               )}
               isCompleting={genFinish.completing}
               onEdgeRelease={genFinish.release}
@@ -1061,6 +1093,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             ariaLabel={tImage('promptLabel')}
             className="w-160"
             inputRef={promptInputRef}
+            slotRow={
+              searchGroundingAvailable ? (
+                <SearchGroundingSlot
+                  open={searchGroundingOn}
+                  variant="pill"
+                  description=""
+                  searching={searchGroundingState?.phase === 'searching'}
+                  disabled={generating}
+                  onTurnOff={() => setSearchGrounding(false)}
+                />
+              ) : null
+            }
             leadingRow={
               acceptsRefs && hasAttachedRefs ? (
                 <div className="flex min-w-0 max-w-full items-start gap-2">

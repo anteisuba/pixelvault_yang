@@ -1,11 +1,17 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AI_MODELS } from '@/constants/models'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
+import { ImageSearchGroundingSide } from '@/components/business/node/nodes/v4/image/ImageSearchGroundingSide'
+import {
+  addNodeSearchGroundingResult,
+  finishNodeSearchGrounding,
+  startNodeSearchGrounding,
+} from '@/hooks/node/use-node-search-grounding'
 import {
   SearchGroundingRail,
   type SearchGroundingRailState,
@@ -67,7 +73,7 @@ const RESULTS = {
 } as const satisfies Record<string, SearchGroundingResult>
 
 type GalleryState = 'searching' | keyof typeof RESULTS
-type GalleryRun = 'single' | 'pair1' | 'pair2'
+type GalleryRun = 'single' | 'pair1' | 'pair2' | 'canvas'
 
 const STATE_LABELS: Record<GalleryState, string> = {
   searching: '正在搜',
@@ -80,7 +86,10 @@ const RUN_LABELS: Record<GalleryRun, string> = {
   single: '单跑',
   pair1: '同系列一起跑 · NB 在第 1 格',
   pair2: 'NB 在第 2 格',
+  canvas: '画布卡（「收起」= 取消选中）',
 }
+
+const CANVAS_NODE_ID = 'ui-states-search-grounding-node'
 
 function railState(state: GalleryState): SearchGroundingRailState {
   return state === 'searching'
@@ -124,6 +133,14 @@ export function SearchGroundingGallery() {
       ) ?? null,
     [],
   )
+  // 画布卡的资料只住在内存表里：样板间直接往表里喂这一份。
+  useEffect(() => {
+    if (run !== 'canvas') return
+    startNodeSearchGrounding(CANVAS_NODE_ID)
+    if (state === 'searching') return
+    addNodeSearchGroundingResult(CANVAS_NODE_ID, RESULTS[state])
+    finishNodeSearchGrounding(CANVAS_NODE_ID)
+  }, [run, state])
   const single = makeRunItems({
     models: [AI_MODELS.GEMINI_NANO_BANANA_21],
     perModel: 1,
@@ -149,7 +166,17 @@ export function SearchGroundingGallery() {
         </Chip>
       </div>
 
-      {run === 'single' && state === 'searching' ? (
+      {run === 'canvas' ? (
+        <div className="flex min-h-0 flex-1 items-start justify-center pt-16 pl-72">
+          <div className="relative h-106.75 w-80 rounded-node bg-card shadow-node-card">
+            <ImageSearchGroundingSide
+              nodeId={CANVAS_NODE_ID}
+              selected={open}
+              onSelect={() => setOpen(true)}
+            />
+          </div>
+        </div>
+      ) : run === 'single' && state === 'searching' ? (
         // 样板间里没有真的在跑的一轮（`isGenerating` 来自 context），出图前那一段
         // 用一个空图框代替 —— 量的是资料列，不是加载线。
         <div className="flex min-h-0 flex-1 items-center justify-center">

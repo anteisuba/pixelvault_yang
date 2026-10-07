@@ -48,6 +48,41 @@ async function openMenu() {
 }
 
 describe('canvas node add menus', () => {
+  it('先搜再画：只对支持的型号给这一行，拨动不收菜单', async () => {
+    const onChange = vi.fn()
+    render(
+      <Menu>
+        <ImageAddMenuItems
+          onUpload={vi.fn()}
+          onLibrary={vi.fn()}
+          searchGrounding={{ checked: false, onChange }}
+        />
+      </Menu>,
+    )
+    await openMenu()
+
+    const row = document.querySelector('[data-image-add="search-grounding"]')!
+    expect(row.getAttribute('role')).toBe('menuitemcheckbox')
+    expect(row.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(row)
+    expect(onChange).toHaveBeenCalledWith(true)
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]'),
+    ).toBeTruthy()
+  })
+
+  it('没给开关（型号不支持）就没有这一行', async () => {
+    render(
+      <Menu>
+        <ImageAddMenuItems onUpload={vi.fn()} onLibrary={vi.fn()} />
+      </Menu>,
+    )
+    await openMenu()
+    expect(
+      document.querySelector('[data-image-add="search-grounding"]'),
+    ).toBeNull()
+  })
+
   it('shows image candidates as thumbnails; blocked candidates explain why, attached ones only close', async () => {
     const onPickCanvas = vi.fn()
     render(

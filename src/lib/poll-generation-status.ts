@@ -1,5 +1,9 @@
 import { GENERATION_POLL } from '@/constants/config'
-import type { AsyncJobStatus, GenerationRecord } from '@/types'
+import type {
+  AsyncJobStatus,
+  GenerationRecord,
+  SearchGroundingResult,
+} from '@/types'
 
 /**
  * Minimal structural shape every async generation status endpoint shares
@@ -12,6 +16,8 @@ export interface GenerationStatusProbeResponse {
   data?: {
     status: AsyncJobStatus
     generation?: GenerationRecord
+    /** 图片「先搜再画」：第一次读到完成时带一次。 */
+    searchGrounding?: SearchGroundingResult
     error?: string
     errorCode?: string
     i18nKey?: string
@@ -24,7 +30,11 @@ export type GenerationStatusProbe = (
 ) => Promise<GenerationStatusProbeResponse>
 
 export type GenerationPollOutcome =
-  | { status: 'completed'; generation: GenerationRecord }
+  | {
+      status: 'completed'
+      generation: GenerationRecord
+      searchGrounding?: SearchGroundingResult
+    }
   | {
       status: 'failed'
       error: string
@@ -98,7 +108,13 @@ export async function pollGenerationStatus(
     consecutiveTransient = 0
 
     if (data.status === 'COMPLETED' && data.generation) {
-      return { status: 'completed', generation: data.generation }
+      return {
+        status: 'completed',
+        generation: data.generation,
+        ...(data.searchGrounding
+          ? { searchGrounding: data.searchGrounding }
+          : {}),
+      }
     }
 
     if (data.status === 'FAILED' || data.status === 'CANCELLED') {

@@ -93,6 +93,8 @@ export interface NodeCardShellProps {
   readonly className?: string
   /** 卡面内层的额外类（如图片卡的 `overflow-hidden`）。 */
   readonly surfaceClassName?: string
+  /** 挂在卡旁边、相对卡面定位的东西（图片卡「先搜再画」的资料列）。 */
+  readonly beside?: ReactNode
 }
 
 export function NodeCardShell({
@@ -119,6 +121,7 @@ export function NodeCardShell({
   ports,
   className,
   surfaceClassName,
+  beside,
 }: NodeCardShellProps) {
   const empty = emptyProp ?? (children === undefined || children === null)
   /**
@@ -255,6 +258,7 @@ export function NodeCardShell({
         ) : null}
         {ports ??
           (portSpec && <NodePorts {...portSpec} nodeId={nodeId} zoom={zoom} />)}
+        {beside}
       </div>
     </div>
   )

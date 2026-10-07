@@ -281,6 +281,7 @@ adapter / Worker 抛错
 
 - Date: 2026-07-10 · Method: registry（**当时** 10 adapter，名册已被上面 2026-08-24 条目取代）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
 - **payload 字段级事实一律以改动当时的官方文档为准**——本文件不承诺字段级新鲜度。
+- Date: 2026-10-07 · Method: 先搜再画。image-generation / google-search / generate-content / Nano Banana 2.1 与 3 Pro Image 型号页 / API 条款逐页读取；请求与读回形状由 worker 单测覆盖（`workers/execution/src/index.test.ts`），交付链路由 `submit-image` / `execution-callback` / `execution-sweeper` 单测覆盖。**真实 API 未联调**。
 - Date: 2026-09-20 · Method: 进度表 26。NovelAI 的 [qualitytags](https://docs.novelai.net/en/image/qualitytags/) / [undesiredcontent](https://docs.novelai.net/en/image/undesiredcontent/) / [textrendering](https://docs.novelai.net/en/image/textrendering/) / [inpaint](https://docs.novelai.net/en/image/inpaint/) 四页与 PixAI 的 [createImage](https://platform.pixai.art/en/docs/api-v2/image/createImage) / [quick start](https://platform.pixai.art/en/docs/quick-start/first-api-call) / models 三页逐条读取；registry 名册按 `PROVIDER_ADAPTERS` 重新清点，**实到 14 个**。⚠ NovelAI `ucPreset` 的数字含义与 inpaint 模型名的完整清单在官方页上**没有**，前者按「不猜」处理（改发标签串），后者只收了本轮要用的两个。PixAI **价目未核实、真实 API 未联调**。
 
 ## NovelAI V5 character composition (verified 2026-09-14)
@@ -364,3 +365,15 @@ Owner 决定暂时移除 PixAI 接入。三个模型标记 unavailable 并加入
   - `background: transparent`：仅图生图 · 只支持 1 张带透明通道的输入 · 输出默认 png 且**配 `output_format: jpeg` 会报错** → worker 把输出钉成 png。
   - `layer_decomposition: true`：仅单张待拆分图（多张报错）· 开了以后 `image` 必选 · 任一图层失败整体报错。响应 `data[]` 每项 `url / size / output_format` + `z_index`（底图固定 0，图层从 1 递增）/ `name` / `description` / `bounding_box`；`bounding_box.normalized` 是 **0–1000 整数**，两个数组都是 `[left, top, right, bottom]`；`output_format` 只控制底图，图层恒 png；此场景 `size` 默认 `auto`（可选 1K / 1.5K / 2K / auto），底图尺寸必须读响应。文档未写两颗互斥，按各自前置独立判。
   - 落库形状：底图 = `Generation` 本身；图层 = `GenerationLayer`（z_index ≥ 1），与 Generation 同事务写入；worker 先把每个图层传 R2（Ark URL 24 小时失效）再回调，回调契约加可选 `layers[]`（≤16）；`outputImageCount` = 底图 + 图层数，计费 `requestCount` 不变。
+
+## Gemini 先搜再画（Google 搜索落地，verified 2026-10-07）
+
+一手出处：[image-generation](https://ai.google.dev/gemini-api/docs/image-generation) · [google-search](https://ai.google.dev/gemini-api/docs/google-search) · [generate-content](https://ai.google.dev/api/generate-content)（`GoogleSearch.searchTypes`）· [Nano Banana 2.1 型号页](https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1) · [API 条款](https://ai.google.dev/gemini-api/terms)。
+
+- **只给 Nano Banana 2.1**（owner 2026-10-07）：能力键 `supportsSearchGrounding`（`src/constants/models/image.ts`），读法 `supportsSearchGrounding(modelId)`。3 Pro Image 只支持网页搜索、不支持图片搜索，**不开**；其余图片型号没有这个工具。参数 `advancedParams.searchGrounding: true`，不支持的型号在 `submit-image.service.ts` 入口剥掉，⛔ 不报错。
+- **请求形状**：`tools: [{ googleSearch: { searchTypes: { webSearch: {}, imageSearch: {} } } }]`，与 `contents` / `generationConfig` 同级（worker `buildGeminiImageRequestBody`）。
+- **读回**：`candidates[].groundingMetadata`。网页块 `web.uri`（Google 跳转链）+ `web.title`（通常是域名）；图片块取出图所在网页 `image.sourceUri` + `title` + `domain`，⛔ 不取 `imageUri`（来源不显示缩略图）。按链接去重、顺序照 Google 给的。`searchEntryPoint.renderedContent` = 搜索建议 HTML，条款要求**原样展示**，放进 sandbox iframe（`SearchSuggestions.tsx`），链接新窗口打开。没有来源 = `empty`。
+- **失败退回**：带搜索那一枪失败且不是 401 / 403 / 429 时，去掉 `tools` 再画一次，结果标 `error`（界面说「搜索没成功，按提示词照常画了」）；鉴权 / 额度错误换不搜也一样失败，原样报。
+- **条款 → 不落库**：搜索结果与建议只能在出图当下给提交提示词的本人看，⛔ 不缓存、不存。交付路径：worker 在生成那一步里用 status 回调送 `data.searchGrounding`（⛔ 不进 step 返回值，Workflows 会把 step 输出存下来）→ 应用暂放在 `GenerationJob.externalRequestId` 的元数据里 → 发起者的状态轮询 `checkImageGenerationStatus` 取一次即清（`updateMany` 比对旧值）→ 没被取走的由 execution-sweeper 在 `SEARCH_GROUNDING_HANDOFF_MS`（10 分钟）后清掉；任务失败 / 取消时一并清。前端只放内存（图片台 RunItem、画布按节点的内存表），刷新即无。
+- **落库的只有一个标记**：`Generation.searchGrounded`（默认 false，不回填）。条款同样不许把落地结果公开，所以 `searchGrounded` 的图**不能公开**：服务端 `getPublishBlockedErrorCode` → `SEARCH_GROUNDED_NOT_PUBLISHABLE`（`errors.generation.publish_blocked_search`），界面禁用发布并写原因。
+- **未验证**：真实出图端到端（部署的 execution worker 要随应用一同发布）；`searchEntryPoint` 在图片模型上是否总会给出（没给就不显示建议条）。

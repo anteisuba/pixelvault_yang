@@ -47,6 +47,17 @@
 
 **发送时翻译**（`src/lib/novelai-compose.ts`，服务端校验与 worker 共用）：互动 → 发起方 `source#动作`、对方 `target#动作`，互相 → 两边 `mutual#动作`。台词 → 整体末尾一句按位置称呼（手动按横坐标、交给模型按分页顺序；2 人 left / right，3 人 left / middle / right；人称取角色标签里的 girl / boy / woman / man，没有就 person；4 人以上未实测，改把 `Text:` 写进各自的角色栏）+ 最末 `Text:` 每句之间空一行。画面文字 → 整体补一句（招牌 a sign that reads、标题 the title、封面 the cover text、其他 the text）并入 `Text:`。有字时补 `text` 与语言标签（英文 `english text`、中文 `chinese text`、韩文 `korean text`；日文不补 —— NAI 官方联想里没有 `japanese text`），有台词才补 `speech bubble`，质量标签去掉其中的 `no text`；没字时都不动（`no text` 能挡住背景乱冒的字）。字数按全部台词 + 画面文字合计：V5 Full 750 / Curated 374 / V4.5 118 且只认英文；超了或 V4.5 遇到非英文，计数变红、生成键灰掉并在左边说原因，服务端用同一把尺拒绝。计数桌面挂在输入框里；手机框里不放（画板 NcPhone），只在超了 / 只认英文时在那一行底下单占一行。只算发得出去的角色：没写标签的角色发送时整个丢掉，他的台词也不计。
 
+## 2026-10-07 · 先搜再画（B「资料在左」，owner 已确认）
+
+> 设计 artifact `C5fVtR1jVi4LN28tGUZMth`（B 定稿首屏 + 动效表）。接入契约与条款见 [providers](../providers.md#gemini-先搜再画google-搜索落地verified-2026-10-07)。
+
+- **开关只有一份**：`StudioFormState.searchGrounding`，跟会话草稿走；输入框工具行一颗、手机「＋」抽屉一行、助手确认卡一颗，三处读写同一份（`useStudioSearchGrounding`）。这一轮名单里**没有支持的型号**（目前只有 Nano Banana 2.1）就整颗不出现；换到不支持的型号再换回来，开关照旧。发送时只给支持的型号带 `advancedParams.searchGrounding`，其余型号这一枪不带。
+- **开着 = 输入框上方一道虚线槽**：「出图前搜网页和图片，用到的资料摆在图左边 · 不搜真人」+ ×（关掉）；同系列多型号一起跑、只有部分会搜时，槽里点名「只对 X」。手机槽写「…摆在图上方」。
+- **出图中**：阶段词前两段换成「正在搜网页和图片」（按已用时长估，与其余阶段词同一种估法，⛔ 不是 worker 实报）；资料位先占着（「资料位 · 搜到的随图一起回来」）。
+- **出完**：桌面资料列在图左边、梳子连线描到图；对照多格时只连到会搜的那一格。手机资料是图上方一条横排。网页 / 图片两种来源各带记号，点开新窗口；Google 搜索建议条按条款原样放在资料下面。没搜到 =「这次没搜到能用的资料，按提示词照常画了。」，搜索失败 =「搜索没成功，按提示词照常画了。」。
+- **资料只在内存**（RunItem 上），⛔ 不进草稿、不进历史、刷新即无；图本身照常入库并带 `searchGrounded` 标记 → 这张图不能公开（见 [assets](assets.md)）。
+- 开合动效：槽 spring-slot 340ms、资料列展开 spring-expand 480ms，连线与逐条出现的延迟照 B 定稿动效表；实现在 `globals.css` 的 search-sources 一段。
+
 ## 0 · 作用域与非目标
 
 除上方 NAI 标签台已确认布局外，以下章节约束 `/studio/image` 右侧结果区中两件事：

@@ -21,6 +21,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { ChevronDown } from '@/components/icons'
+import { useBlurSwapIn } from '@/components/ui/blur-swap'
 import {
   CHIP_POPOVER,
   DURATION,
@@ -346,6 +347,15 @@ export function SpecChip({
   const summaryValue = [model.summary, summarySuffix]
     .filter(Boolean)
     .join(' · ')
+  // 桌面：改了比例 / 张数，摘要字糊一下换掉；画布那一档保留原来的淡入。
+  const summaryBlurSwap = useBlurSwapIn(summaryValue)
+  const summaryMotion = compact
+    ? ({
+        initial: { opacity: 0.2 },
+        animate: { opacity: 1 },
+        transition: { duration: DURATION.fast, ease: 'linear' },
+      } as const)
+    : summaryBlurSwap
   const popoverBody = (
     <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-3')}>
       {model.ratios.length > 0 ? (
@@ -493,29 +503,14 @@ export function SpecChip({
                   </span>{' '}
                   <motion.span
                     key={summaryValue}
-                    initial={compact ? { opacity: 0.2 } : false}
-                    animate={{ opacity: 1 }}
-                    transition={
-                      compact
-                        ? { duration: DURATION.fast, ease: 'linear' }
-                        : undefined
-                    }
+                    {...summaryMotion}
                     className="text-muted-foreground"
                   >
                     {summaryValue}
                   </motion.span>
                 </>
               ) : (
-                <motion.span
-                  key={summaryValue}
-                  initial={compact ? { opacity: 0.2 } : false}
-                  animate={{ opacity: 1 }}
-                  transition={
-                    compact
-                      ? { duration: DURATION.fast, ease: 'linear' }
-                      : undefined
-                  }
-                >
+                <motion.span key={summaryValue} {...summaryMotion}>
                   {[summaryPrefix, model.summary, summarySuffix]
                     .filter(Boolean)
                     .join(' · ')}

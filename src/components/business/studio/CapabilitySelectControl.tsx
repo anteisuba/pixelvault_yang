@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Select,
@@ -70,7 +71,10 @@ export function CapabilitySelectControl({
         aria-label={label}
         className="h-7 w-full font-mono text-xs coarse:h-11"
       >
-        <SelectValue />
+        {/* 换了一档 = 值字糊一下换掉。 */}
+        <BlurSwap swapKey={value} className="min-w-0">
+          <SelectValue />
+        </BlurSwap>
       </SelectTrigger>
       <SelectContent>
         {items.map((item) => (

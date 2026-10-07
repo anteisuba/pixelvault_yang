@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronDown } from '@/components/icons'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   DURATION,
   EASE_STANDARD,
@@ -121,24 +122,29 @@ export function ModelChip({
           </motion.span>
         </AnimatePresence>
       ) : (
-        <>
+        // 换模型（同系列多选、换系列）= 同一颗 chip 里的字糊一下换掉，宽度跟着字变。
+        <BlurSwap
+          swapKey={`${modelLabel}:${variantLabel ?? ''}`}
+          className="min-w-0 gap-2"
+        >
           <span className="truncate font-medium">{modelLabel}</span>
           {variantLabel ? (
             <span className="truncate text-muted-foreground">
               {variantLabel}
             </span>
           ) : null}
-        </>
+        </BlurSwap>
       )}
       {!compact && statusLabel ? (
-        <span
+        <BlurSwap
+          swapKey={statusLabel}
           className={cn(
             'shrink-0 font-mono text-2xs tabular-nums',
             warning ? 'text-status-warning' : 'text-muted-foreground',
           )}
         >
           {statusLabel}
-        </span>
+        </BlurSwap>
       ) : null}
       {showChevron ? (
         <motion.span

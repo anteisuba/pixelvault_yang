@@ -18,6 +18,25 @@ vi.mock('next-intl', () => ({
         : `${namespace}.${key}`,
 }))
 
+/** 缺 key 就地弹的配置窗 —— 只认它开没开、开给哪家，「验证」一键回调。 */
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: ({
+    modelId,
+    adapterType,
+    onVerified,
+  }: {
+    modelId: string
+    adapterType: string
+    onVerified?: (modelId: string, keyId: string) => void
+  }) => (
+    <div data-testid="quick-setup" data-adapter={adapterType}>
+      <button type="button" onClick={() => onVerified?.(modelId, 'k1')}>
+        verify
+      </button>
+    </div>
+  ),
+}))
+
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: vi.fn(() => ({
     keys: [],
@@ -102,6 +121,10 @@ function row(modelKey: string): HTMLElement {
   return el as HTMLElement
 }
 
+function quickSetup(): HTMLElement | null {
+  return screen.queryByTestId('quick-setup')
+}
+
 function channelPanel(): HTMLElement | null {
   return document.querySelector('[data-channel-panel]')
 }
@@ -154,15 +177,21 @@ beforeEach(() => {
   resetModelPickerGate()
 })
 
-describe('ModelPickerPopover — 未配置渠道跳转设置', () => {
-  it('直接点未配置的单渠道模型行时不选中，并跳转 API 配置页', () => {
+describe('ModelPickerPopover — 未配置渠道就地弹配置窗', () => {
+  it('直接点未配置的单渠道模型行时先不选中，就地弹配置窗，⛔ 不跳页', () => {
     const { onChange } = openPicker()
     fireEvent.click(row('gpt-image-2'))
     expect(onChange).not.toHaveBeenCalled()
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
-    )
+    expect(navigation.push).not.toHaveBeenCalled()
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
     expect(window.localStorage.length).toBe(0)
+  })
+
+  it('配置窗验证通过后才选中这一行', () => {
+    const { onChange } = openPicker()
+    fireEvent.click(row('gpt-image-2'))
+    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
   })
 
   it.each([
@@ -179,7 +208,7 @@ describe('ModelPickerPopover — 未配置渠道跳转设置', () => {
     const { onChange } = openPicker({ options: [readyOption] })
     fireEvent.click(document.querySelector('[data-model-key]') as HTMLElement)
     expect(onChange).toHaveBeenCalledWith(readyOption)
-    expect(navigation.push).not.toHaveBeenCalled()
+    expect(quickSetup()).toBeNull()
   })
 
   it('记住过的渠道失去 key 后不能通过模型行重新选中', () => {
@@ -207,9 +236,7 @@ describe('ModelPickerPopover — 未配置渠道跳转设置', () => {
     fireEvent.click(screen.getByRole('button', { name: /Common.selectModel/ }))
     fireEvent.click(row('seedream-5.0-pro'))
     expect(onChange).not.toHaveBeenCalled()
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage&setup=fal',
-    )
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'fal')
     expect({ ...window.localStorage }).toEqual(memoryBefore)
   })
 })
@@ -259,7 +286,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     ).toHaveClass('h-10')
   })
 
-  it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点去配置', () => {
+  it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点开配置窗', () => {
     const { onChange } = openCanvasPicker({ value: 'key:fal-1' })
     const pro = row('seedream-5.0-pro')
     expect(pro.textContent).toContain('5.0 Pro')
@@ -271,9 +298,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     expect(locked.textContent).toContain('ModelPicker.missingKeyConfigure')
     fireEvent.click(locked)
     expect(onChange).not.toHaveBeenCalled()
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
-    )
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
   })
 
   it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', () => {
@@ -530,7 +555,7 @@ describe('ModelPickerPopover — 没有「自动」', () => {
   })
 })
 
-describe('ModelPickerPopover — 缺 key 渠道跳转 API 配置', () => {
+describe('ModelPickerPopover — 缺 key 渠道就地弹配置窗', () => {
   it('点黄点渠道时关闭弹层、不选中，也不记住缺 key 渠道', () => {
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('gpt-image-2'))
@@ -539,15 +564,26 @@ describe('ModelPickerPopover — 缺 key 渠道跳转 API 配置', () => {
         'option',
       )[0] as HTMLElement,
     )
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
-    )
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
     expect(onChange).not.toHaveBeenCalled()
     expect(window.localStorage.length).toBe(0)
     expect(channelPanel()).toBeNull()
   })
 
-  it('多选模式点未配置模型行时不切换选项，并跳转配置页', () => {
+  it('黄点渠道验证通过后选中，并按型号记住这条渠道', () => {
+    const { onChange } = openPicker()
+    fireEvent.mouseEnter(row('gpt-image-2'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
+    expect(window.localStorage.length).toBeGreaterThan(0)
+  })
+
+  it('多选模式点未配置模型行时不切换选项，就地弹配置窗', () => {
     const onToggleOption = vi.fn()
     const { onChange } = openPicker({
       selectedOptionIds: new Set<string>(),
@@ -556,10 +592,10 @@ describe('ModelPickerPopover — 缺 key 渠道跳转 API 配置', () => {
     fireEvent.click(row('gpt-image-2'))
     expect(onToggleOption).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
-    expect(navigation.push).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
-    )
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
     expect(window.localStorage.length).toBe(0)
+    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    expect(onToggleOption).toHaveBeenCalledWith(FIXTURE[3])
   })
 })
 
@@ -645,7 +681,7 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
     const { onChange } = openPicker()
     fireEvent.click(row('gpt-image-2'))
     expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
-    expect(navigation.push).not.toHaveBeenCalled()
+    expect(quickSetup()).toBeNull()
   })
 
   it('点渠道 = 照常选，⛔ 不跳配置页', () => {

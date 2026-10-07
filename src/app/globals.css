@@ -3235,6 +3235,22 @@ html:lang(ja) {
   animation: studio-winner-badge-in var(--duration-slow) var(--ease-standard);
 }
 
+/* 模型选择器（owner 2026-10-07 选择器原型）：打开时一行行由糊变清地进来（延迟由
+   组件按行序给），渠道面板换到另一行时同一下糊进来。只有进场，⛔ 退场。 */
+@keyframes picker-row-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.picker-row-in {
+  animation: picker-row-in var(--duration-base) var(--ease-standard) both;
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

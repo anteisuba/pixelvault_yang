@@ -216,6 +216,10 @@ provider 上一个字节都不产出，**响应头因此从未 flush**，函数�
 （`LLM_TEXT_TIMEOUTS_MS`：缓冲补全 120s、流式只盖「连接 + 响应头」30s），
 这样上游挂住时是我们主动放弃并报 `PROVIDER_TIMEOUT`。
 
+🔥 **2026-10-07：300 秒也被跑穿了**——`studio/assistant-operator` 2 天里 7 次，
+画布回合连跑慢模型的只读步所致。实测、不用 DO 的软截止接力与 DO 方案见
+[assistant-durable-turns](assistant-durable-turns.md)。
+
 ## Dependabot 分流规则（2026-07-10 实践沉淀）
 
 配置（2026-10-06）：minor/patch 按 `dependency-type` 分 **生产 / 开发两组**（此前

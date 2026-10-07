@@ -8,7 +8,7 @@
  */
 
 import {
-  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+  STUDIO_OPERATOR_SHELL,
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 
@@ -73,27 +73,6 @@ export const EDIT_EXPORT_RANGES: readonly EditExportRangeId[] = [
   EDIT_EXPORT_RANGE_IDS.all,
   EDIT_EXPORT_RANGE_IDS.inOut,
   EDIT_EXPORT_RANGE_IDS.clip,
-]
-
-/** 时间线工具条六颗（画板顺序：分割 / 转场 / 文字 / 语音 / 配乐 / 删除）。 */
-export const EDIT_TOOL_IDS = {
-  split: 'split',
-  transition: 'transition',
-  text: 'text',
-  voice: 'voice',
-  music: 'music',
-  remove: 'remove',
-} as const
-
-export type EditToolId = (typeof EDIT_TOOL_IDS)[keyof typeof EDIT_TOOL_IDS]
-
-export const EDIT_TOOLS: readonly EditToolId[] = [
-  EDIT_TOOL_IDS.split,
-  EDIT_TOOL_IDS.transition,
-  EDIT_TOOL_IDS.text,
-  EDIT_TOOL_IDS.voice,
-  EDIT_TOOL_IDS.music,
-  EDIT_TOOL_IDS.remove,
 ]
 
 /** 左侧图标栏五项（画布素材 / 素材库 / 音频 / 文字 / 转场）。 */
@@ -330,13 +309,25 @@ export type EditDeskLibraryFilterId =
  * 模式（而不是页）的全部理由。
  */
 /**
- * 剪辑台里助手面板的落点：**就是图片台布局 A 那一个**（画板「剪辑台 A · 全部状态」
- * 用工作台的地台几何：内边距 18 · 头部 `h-9` · 行距 `gap-3`）。头像留在头部最右那
- * 一格当开关，面板贴舞台右边滑入、舞台同一根弹簧让位。
- * ⚠ 台面改地台几何时，这里跟着 `StudioWorkbenchLayout` 的 `bottom` 分支一起改。
+ * 剪辑台顶栏（v2 暗场，owner 2026-10-08 选 B）：一条通栏 `h-12`、左右内边距 `px-3.5`。
+ * ⚠ 两个数是助手锚点的依据（下一条），改顶栏的 class 必须改这里。
  */
-export const EDIT_DESK_OPERATOR_ANCHOR: StudioOperatorShellAnchor =
-  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR
+export const EDIT_DESK_TOP_BAR = { heightPx: 48, insetPx: 14 } as const
+
+/**
+ * 剪辑台里助手面板的落点：头像坐在顶栏最右那一格（竖直居中），面板从顶栏下面
+ * 18 开始、贴右 18 滑入，舞台同一根弹簧让位（与图片台布局 A 同一套开合）。
+ * ⚠ 助手面板保持浅色（owner 2026-10-08）：它不在台面的 `dark` 作用域里。
+ */
+export const EDIT_DESK_OPERATOR_ANCHOR: StudioOperatorShellAnchor = {
+  avatarTopPx:
+    (EDIT_DESK_TOP_BAR.heightPx - STUDIO_OPERATOR_SHELL.avatarSizePx) / 2,
+  avatarRightPx: EDIT_DESK_TOP_BAR.insetPx,
+  panelTopPx: EDIT_DESK_TOP_BAR.heightPx + 18,
+  panelRightPx: 18,
+  panelBottomPx: 18,
+  avatarStays: true,
+}
 
 export const EDIT_DESK_MODE_PARAM = 'mode'
 export const EDIT_DESK_MODE_VALUE = 'edit'
@@ -411,7 +402,7 @@ export const EDIT_TEXT_FADE_DEFAULT: EditTextFade = 0
 /** schema 只守区间（与 `speed` 同一条论据：档位会长，落库形状不跟着改）。 */
 export const EDIT_TEXT_FADE_MAX_SEC = 5
 
-/** 工具条「文字」落一段多长（spec §6：播放头处 3s）。 */
+/** 「加一条字幕」落一段多长（spec §6：播放头处 3s）。 */
 export const EDIT_TEXT_CLIP_DEFAULT_DURATION_SEC = 3
 
 /**

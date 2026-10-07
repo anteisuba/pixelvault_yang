@@ -1,15 +1,15 @@
 'use client'
 
 /**
- * 选中段的属性 —— **时间线卡工具行中间那一格**（画板「剪辑台 A · 全部状态」）。
+ * 选中段的属性 —— **走带行中间那一格**（v2 关键切片：播放 · 时间码 · 这一格 · 缩放）。
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
- * 三种段各一行，长相与工作台输入框的工具行同一套（描边胶囊 · 液态分段 · 从胶囊长出来
- * 的弹层）：
+ * 三种段各一行，一律是暗台上的实底小胶囊（读数胶囊不可点，可点的悬停提亮）：
  * - 视频段：镜头名 · 入点 · 出点 · 速度 · 原声 · 转场 · 回节点；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
- *   四颗胶囊，各开一个小弹层，一次只开一个。时间线卡变窄（助手展开）时胶囊收成图标。
+ *   四颗胶囊，各开一个小弹层，一次只开一个。
+ * 末尾两颗小键 **分割 · 删除**（时间线上那排工具键去掉了，S / ⌫ 之外留一个看得见的入口）。
  * 没选中时是一句话 —— ⛔ 不摆一排灰掉的控件。
  *
  * ⚠ 「回节点」**不在剪辑台开生成入口**（spec §6）：它关掉全屏模式、回画布并选中
@@ -23,7 +23,9 @@ import {
   ChevronDown,
   Grid3X3,
   Palette,
+  Scissors,
   Sunrise,
+  Trash2,
   Type,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -56,13 +58,15 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
-import {
-  getChipZoomMotion,
-  studioOutlineChipClass,
-  studioOutlineChipCompactClass,
-  studioOutlineChipCompactLabelClass,
-  studioOutlineChipOpenClass,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+
+/** 暗台上的实底小胶囊（关键切片 `.chip`）：读数用它，可点的再加 `CHIP_ACTIVE`。 */
+const CHIP =
+  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-card px-2.5 text-xs text-foreground/80'
+const CHIP_ACTIVE =
+  'transition-colors duration-fast hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
+/** 胶囊里的值（「入 0:06.0」里那个 0:06.0）。 */
+const CHIP_VALUE = 'font-mono not-italic tabular-nums text-muted-foreground'
 
 export interface EditDeskInspectorProps {
   readonly desk: EditDesk
@@ -78,6 +82,7 @@ export function EditDeskInspector({
   onEditText,
 }: EditDeskInspectorProps) {
   const t = useTranslations('StudioNode.editDesk.inspector')
+  const tDesk = useTranslations('StudioNode.editDesk')
   const textClip = desk.selectedTextClip
   const row = desk.selectedRow
   const clip = desk.selectedClip
@@ -86,7 +91,7 @@ export function EditDeskInspector({
   return (
     <div
       data-testid="edit-desk-inspector"
-      className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden whitespace-nowrap text-xs text-muted-foreground"
+      className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs text-muted-foreground"
     >
       {textClip ? (
         <TextClipFields clip={textClip} desk={desk} onEditText={onEditText} />
@@ -96,13 +101,17 @@ export function EditDeskInspector({
         <>
           {row.source.exists ? (
             <span
-              className="max-w-36 shrink-0 truncate text-2sm font-semibold text-foreground"
+              className="mr-1 max-w-36 shrink-0 truncate font-medium text-foreground/80"
               title={sourceName(row)}
             >
-              {sourceName(row)}
+              {selection.track === EDIT_TRACK_IDS.video
+                ? tDesk('shotTag', { n: row.index + 1, name: sourceName(row) })
+                : sourceName(row)}
             </span>
           ) : (
-            <span className="shrink-0 text-status-risk">{t('sourceGone')}</span>
+            <span className="mr-1 shrink-0 text-status-risk">
+              {t('sourceGone')}
+            </span>
           )}
           <Reading
             label={t('inPoint')}
@@ -115,44 +124,65 @@ export function EditDeskInspector({
 
           {selection.track === EDIT_TRACK_IDS.video ? (
             <>
-              <LiquidSegmented
-                ariaLabel={t('speed')}
-                semantics="radio"
-                value={String(clip.speed || 1)}
-                onChange={(value) =>
-                  desk.updateClip(selection.track, clip.id, {
-                    speed: Number(value),
-                  })
-                }
-                items={EDIT_CLIP_SPEEDS.map((speed) => ({
-                  value: String(speed),
-                  label: t('speedOption', { speed }),
-                }))}
-              />
-              <DeskSwitch
-                label={t('sound')}
-                checked={!clip.muted}
-                testId="edit-desk-muted"
-                onToggle={() =>
+              <RowPopover
+                testId="edit-desk-speed"
+                label={t('speed')}
+                value={t('speedOption', { speed: clip.speed || 1 })}
+              >
+                <LiquidSegmented
+                  ariaLabel={t('speed')}
+                  semantics="radio"
+                  value={String(clip.speed || 1)}
+                  onChange={(value) =>
+                    desk.updateClip(selection.track, clip.id, {
+                      speed: Number(value),
+                    })
+                  }
+                  items={EDIT_CLIP_SPEEDS.map((speed) => ({
+                    value: String(speed),
+                    label: t('speedOption', { speed }),
+                  }))}
+                />
+              </RowPopover>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!clip.muted}
+                data-testid="edit-desk-muted"
+                onClick={() =>
                   desk.updateClip(selection.track, clip.id, {
                     muted: !clip.muted,
                   })
                 }
-              />
-              <LiquidSegmented
-                ariaLabel={t('transition')}
-                semantics="radio"
-                value={clip.transitionOut ?? EDIT_TRANSITION_IDS.none}
-                onChange={(transition) =>
-                  desk.updateClip(selection.track, clip.id, {
-                    transitionOut: transition,
-                  })
-                }
-                items={EDIT_TRANSITIONS.map((transition) => ({
-                  value: transition,
-                  label: t(`transitions.${transition}`),
-                }))}
-              />
+                className={cn(CHIP, CHIP_ACTIVE)}
+              >
+                {t('sound')}
+                <em className={CHIP_VALUE}>
+                  {clip.muted ? t('soundOff') : t('soundOn')}
+                </em>
+              </button>
+              <RowPopover
+                testId="edit-desk-transition"
+                label={t('transition')}
+                value={t(
+                  `transitions.${clip.transitionOut ?? EDIT_TRANSITION_IDS.none}`,
+                )}
+              >
+                <LiquidSegmented
+                  ariaLabel={t('transition')}
+                  semantics="radio"
+                  value={clip.transitionOut ?? EDIT_TRANSITION_IDS.none}
+                  onChange={(transition) =>
+                    desk.updateClip(selection.track, clip.id, {
+                      transitionOut: transition,
+                    })
+                  }
+                  items={EDIT_TRANSITIONS.map((transition) => ({
+                    value: transition,
+                    label: t(`transitions.${transition}`),
+                  }))}
+                />
+              </RowPopover>
             </>
           ) : (
             <GainSlider
@@ -171,19 +201,45 @@ export function EditDeskInspector({
             disabled={!row.source.exists}
             title={t('backToNode')}
             onClick={() => onBackToNode(clip.sourceNodeId)}
-            className={cn(
-              studioOutlineChipClass,
-              studioOutlineChipCompactClass,
-            )}
+            className={cn(CHIP, CHIP_ACTIVE)}
           >
             <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
-            <span className={studioOutlineChipCompactLabelClass}>
-              {t('backToNodeShort')}
-            </span>
+            {t('backToNodeShort')}
           </button>
         </>
       )}
+      {textClip || (row && clip && selection) ? <EditKeys desk={desk} /> : null}
     </div>
+  )
+}
+
+/** 选中一段之后行尾那两颗小键：分割（S）· 删除（⌫）。 */
+function EditKeys({ desk }: { readonly desk: EditDesk }) {
+  const t = useTranslations('StudioNode.editDesk')
+  return (
+    <>
+      <span aria-hidden className="mx-1 h-4.5 w-px shrink-0 bg-border" />
+      <button
+        type="button"
+        data-testid="edit-desk-split"
+        aria-label={t('tools.split')}
+        title={t('tools.split')}
+        onClick={() => desk.splitAtPlayhead()}
+        className={cn(CHIP, CHIP_ACTIVE, 'px-0 w-7 justify-center')}
+      >
+        <Scissors className="size-3.5" aria-hidden />
+      </button>
+      <button
+        type="button"
+        data-testid="edit-desk-remove"
+        aria-label={t('tools.remove')}
+        title={t('tools.remove')}
+        onClick={() => desk.removeSelected()}
+        className={cn(CHIP, CHIP_ACTIVE, 'px-0 w-7 justify-center')}
+      >
+        <Trash2 className="size-3.5" aria-hidden />
+      </button>
+    </>
   )
 }
 
@@ -196,49 +252,10 @@ function Reading({
   readonly value: string
 }) {
   return (
-    <span className="shrink-0">
-      {label}{' '}
-      <span className="font-mono tabular-nums text-foreground">{value}</span>
+    <span className={CHIP}>
+      {label}
+      <em className={CHIP_VALUE}>{value}</em>
     </span>
-  )
-}
-
-/**
- * 属性行上的开关（原声 · 与工具行的主轨道磁吸同一个样子）：拨子走 `spring-slot`。
- */
-function DeskSwitch({
-  label,
-  checked,
-  testId,
-  onToggle,
-}: {
-  readonly label: string
-  readonly checked: boolean
-  readonly testId: string
-  onToggle(): void
-}) {
-  return (
-    <label className="inline-flex shrink-0 items-center gap-2">
-      <span>{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        data-testid={testId}
-        onClick={onToggle}
-        className={cn(
-          'relative h-5 w-8.5 shrink-0 rounded-full transition-colors duration-fast motion-reduce:transition-none',
-          checked ? 'bg-primary' : 'bg-surface-fill-track',
-        )}
-      >
-        <span
-          className={cn(
-            'absolute left-0.5 top-0.5 size-4 rounded-full bg-background shadow-sm transition-transform duration-spring-slot ease-spring-slot motion-reduce:transition-none',
-            checked && 'translate-x-3.5',
-          )}
-        />
-      </button>
-    </label>
   )
 }
 
@@ -257,7 +274,7 @@ function GainSlider({
 }) {
   const [draft, setDraft] = useState(value)
   return (
-    <label className="inline-flex shrink-0 items-center gap-2">
+    <label className={CHIP}>
       <span>{label}</span>
       <Slider
         data-testid="edit-desk-gain"
@@ -274,9 +291,7 @@ function GainSlider({
           if (next !== undefined) onCommit(next)
         }}
       />
-      <span className="w-9 font-mono tabular-nums text-foreground">
-        {Math.round(draft * 100)}%
-      </span>
+      <span className={cn(CHIP_VALUE, 'w-9')}>{Math.round(draft * 100)}%</span>
     </label>
   )
 }
@@ -310,7 +325,7 @@ function TextClipFields({
         data-testid="edit-desk-text-edit"
         title={t('editInPreview')}
         onClick={() => onEditText(clip.id)}
-        className="inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-lg px-1.5 text-2sm font-semibold text-foreground transition-colors duration-fast hover:bg-surface-fill"
+        className={cn(CHIP, CHIP_ACTIVE, 'mr-1 max-w-44 font-medium')}
       >
         <span className="grid size-4.5 shrink-0 place-items-center rounded-sm bg-primary text-3xs font-semibold text-primary-foreground">
           T
@@ -372,7 +387,8 @@ function TextClipFields({
       <RowPopover
         testId="edit-desk-text-size"
         icon={<Type className="size-3.5 shrink-0" aria-hidden />}
-        label={`${t('size')} · ${t(`sizes.${clip.size}`)}`}
+        label={t('size')}
+        value={t(`sizes.${clip.size}`)}
       >
         <LiquidSegmented
           ariaLabel={t('size')}
@@ -389,7 +405,8 @@ function TextClipFields({
       <RowPopover
         testId="edit-desk-text-tone"
         icon={<Palette className="size-3.5 shrink-0" aria-hidden />}
-        label={`${t('tone')} · ${t(`tones.${clip.tone}`)}`}
+        label={t('tone')}
+        value={t(`tones.${clip.tone}`)}
       >
         <LiquidSegmented
           ariaLabel={t('tone')}
@@ -406,11 +423,12 @@ function TextClipFields({
       <RowPopover
         testId="edit-desk-text-fade"
         icon={<Sunrise className="size-3.5 shrink-0" aria-hidden />}
-        label={`${t('fade')} · ${
+        label={t('fade')}
+        value={
           clip.fadeSec === 0
             ? t('fadeNone')
             : t('fadeSeconds', { fadeSec: clip.fadeSec })
-        }`}
+        }
       >
         <LiquidSegmented
           ariaLabel={t('fade')}
@@ -443,11 +461,14 @@ function RowPopover({
   testId,
   icon,
   label,
+  value,
   children,
 }: {
   readonly testId: string
-  readonly icon: ReactNode
+  readonly icon?: ReactNode
   readonly label: string
+  /** 胶囊上的当前值（「速度 1×」里那个 1×）。 */
+  readonly value?: string
   readonly children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -458,15 +479,12 @@ function RowPopover({
         <button
           type="button"
           data-testid={`${testId}-trigger`}
-          aria-label={label}
-          className={cn(
-            studioOutlineChipClass,
-            studioOutlineChipCompactClass,
-            open && studioOutlineChipOpenClass,
-          )}
+          aria-label={value ? `${label} · ${value}` : label}
+          className={cn(CHIP, CHIP_ACTIVE, open && 'bg-muted text-foreground')}
         >
           {icon}
-          <span className={studioOutlineChipCompactLabelClass}>{label}</span>
+          {label}
+          {value ? <em className={CHIP_VALUE}>{value}</em> : null}
           <ChevronDown
             className="size-3 shrink-0 text-muted-foreground"
             aria-hidden
@@ -477,7 +495,8 @@ function RowPopover({
         side="top"
         align="start"
         sideOffset={8}
-        className={cn('w-auto p-2', zoom.className)}
+        // 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。
+        className={cn('dark w-auto p-2', zoom.className)}
         style={zoom.style}
       >
         {children}

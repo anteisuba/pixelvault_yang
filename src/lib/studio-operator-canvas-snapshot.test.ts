@@ -832,7 +832,7 @@ describe('剪辑台那一块（v2 第 2 片）', () => {
           music: [],
           text: [],
         },
-        settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+        settings: { aspect: '16:9', resolution: '1080p' },
       },
     })
 

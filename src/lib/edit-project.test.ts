@@ -130,7 +130,6 @@ describe('EditProject schema', () => {
     })
     expect(parsed.tracks.video[0]?.speed).toBe(1)
     expect(parsed.tracks.video[0]?.muted).toBe(false)
-    expect(parsed.settings.magnetic).toBe(true)
     expect(parsed.settings.aspect).toBe('16:9')
   })
 

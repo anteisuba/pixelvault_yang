@@ -68,9 +68,11 @@ export function EditDeskExportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* 对话框传送到 body：自己带 `dark`，与暗台同一档（⛔ 在暗台上弹一块白的）。 */}
       <DialogContent
         data-testid="edit-desk-export-dialog"
-        className="sm:max-w-100"
+        className="dark text-foreground sm:max-w-100"
+        overlayClassName="dark"
       >
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>

@@ -6329,7 +6329,15 @@
         "loading": "加载中…",
         "loadMore": "加载更多",
         "libraryEmpty": "素材库里还没有视频或音频",
-        "title": "素材"
+        "title": "素材",
+        "addCaption": "在播放头处加一条字幕",
+        "short": {
+          "canvas": "素材",
+          "library": "素材库",
+          "audio": "音频",
+          "text": "文字",
+          "transition": "转场"
+        }
       },
       "tracks": {
         "video": "画面",
@@ -6337,18 +6345,12 @@
         "music": "配乐",
         "empty": "把素材拖到这里",
         "text": "字幕",
-        "textEmpty": "按「文字」在播放头处落一段"
+        "textEmpty": "在左边「文字」里加一条"
       },
       "tools": {
         "split": "分割",
-        "transition": "转场",
-        "text": "文字",
-        "voice": "语音",
-        "music": "配乐",
-        "remove": "删除",
-        "pending": "「{tool}」还在路上"
+        "remove": "删除"
       },
-      "magnetic": "主轨道磁吸",
       "staleBadge": "上游已更新",
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",
@@ -6358,7 +6360,6 @@
       "stageEmptyAction": "从画布素材加镜头",
       "play": "播放",
       "pause": "暂停",
-      "scrub": "成片进度",
       "mute": "静音",
       "unmute": "打开声音",
       "clipDuration": "{seconds}s",
@@ -6378,8 +6379,10 @@
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "原声",
+        "soundOn": "开",
+        "soundOff": "关",
         "gain": "音量",
-        "transition": "转场 →",
+        "transition": "转场",
         "transitions": {
           "none": "无",
           "crossfade": "叠化",
@@ -6402,7 +6405,7 @@
         "confirm": "开始导出",
         "pending": "渲染层还在路上（S9）——「{range}」的导出很快就能按下去"
       },
-      "clipBadge": "{name} · {at} / {total}",
+      "shotTag": "镜 {n} · {name}",
       "render": {
         "exporting": "导出中 · {step} {percent}%",
         "done": "成片已就绪",

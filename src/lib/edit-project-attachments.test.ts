@@ -83,7 +83,7 @@ function fixture(): EditProject {
       music: [],
       text: [caption({ id: 't1', startSec: 5 })],
     },
-    settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+    settings: { aspect: '16:9', resolution: '1080p' },
   }
 }
 

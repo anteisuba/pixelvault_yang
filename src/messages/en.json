@@ -6329,7 +6329,15 @@
         "loading": "Loading…",
         "loadMore": "Load more",
         "libraryEmpty": "No video or audio in your library yet",
-        "title": "Materials"
+        "title": "Materials",
+        "addCaption": "Add a caption at the playhead",
+        "short": {
+          "canvas": "Media",
+          "library": "Library",
+          "audio": "Audio",
+          "text": "Text",
+          "transition": "Seams"
+        }
       },
       "tracks": {
         "video": "Picture",
@@ -6337,18 +6345,12 @@
         "music": "Music",
         "empty": "Drop media here",
         "text": "Captions",
-        "textEmpty": "Press “Text” to drop a caption at the playhead"
+        "textEmpty": "Add one from Text on the left"
       },
       "tools": {
         "split": "Split",
-        "transition": "Transition",
-        "text": "Text",
-        "voice": "Voice",
-        "music": "Music",
-        "remove": "Delete",
-        "pending": "“{tool}” is still on the way"
+        "remove": "Delete"
       },
-      "magnetic": "Snap main track",
       "staleBadge": "Source updated",
       "clipTag": "{name} · {duration}",
       "previewTitle": "Preview · {name}",
@@ -6358,7 +6360,6 @@
       "stageEmptyAction": "Add shots from the canvas",
       "play": "Play",
       "pause": "Pause",
-      "scrub": "Cut progress",
       "mute": "Mute",
       "unmute": "Unmute",
       "clipDuration": "{seconds}s",
@@ -6378,8 +6379,10 @@
         "speed": "Speed",
         "speedOption": "{speed}×",
         "sound": "Original audio",
+        "soundOn": "On",
+        "soundOff": "Off",
         "gain": "Volume",
-        "transition": "Transition →",
+        "transition": "Transition",
         "transitions": {
           "none": "None",
           "crossfade": "Crossfade",
@@ -6402,7 +6405,7 @@
         "confirm": "Start export",
         "pending": "Exporting “{range}” isn't available yet."
       },
-      "clipBadge": "{name} · {at} / {total}",
+      "shotTag": "Shot {n} · {name}",
       "render": {
         "exporting": "Exporting · {step} {percent}%",
         "done": "The cut is ready",

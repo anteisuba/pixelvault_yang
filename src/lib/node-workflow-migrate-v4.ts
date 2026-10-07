@@ -721,7 +721,6 @@ export function migrateRetireVideoMergeV4(
             settings: {
               aspect: EDIT_ASPECT_DEFAULT,
               resolution: EDIT_RESOLUTION_DEFAULT,
-              magnetic: true,
             },
           },
         }

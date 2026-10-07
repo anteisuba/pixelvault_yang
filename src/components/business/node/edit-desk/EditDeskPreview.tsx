@@ -1,9 +1,9 @@
 'use client'
 
 /**
- * 舞台卡里的预览（画板「剪辑台 A · 全部状态」）：画面按高度定尺寸居中；画面上只有
- * **左上一枚读数（镜头名 · 段内时间）** 和 **底部一条半透明播放条**（播放 · 整条进度 ·
- * 时间 · 声音），与视频台的结果播放器同一个样子。
+ * 黑舞台上的预览（v2 关键切片）：画面按高度定尺寸居中；画面上只有**右上一枚「镜 n ·
+ * 镜头名」**和字幕。播放 / 时间码 / 声音在预览下面那条走带行（`EditDeskTimeline`），
+ * ⛔ 不再压一条播放条在画面上 —— 时间线本身就是进度条，两条进度会互相打架。
  *
  * 播放头落在哪一段，就把那一段的来源 url 放进这一只 `<video>`。⚠ 播放条管的是**整条
  * 成片**（进度 = 播放头 / 总长，点哪儿播放头就去哪儿），⛔ 不是这一段的原片 ——
@@ -32,14 +32,7 @@
  * ⛔ 不放一个点了没反应的播放钮。
  */
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react'
-import { Pause, Play, Volume2, VolumeX } from '@/components/icons'
+import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -50,11 +43,7 @@ import {
   type EditTextAnchor,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import {
-  clipLocalTimeSec,
-  currentUrlOf,
-  formatEditClock,
-} from '@/lib/edit-project'
+import { clipLocalTimeSec, currentUrlOf } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
@@ -66,8 +55,10 @@ export interface EditDeskPreviewProps {
   readonly row: EditTimelineRow | null
   readonly playheadSec: number
   readonly durationSec: number
-  /** 空格键 / 播放器自己的钮共用的这一份播放态。 */
+  /** 空格键 / 走带行那颗钮共用的这一份播放态。 */
   readonly playing: boolean
+  /** 走带行那颗声音键。 */
+  readonly muted: boolean
   onPlayingChange(playing: boolean): void
   /** 预览走到哪儿了 —— 推回整条时间线的秒数。 */
   onPlayheadChange(seconds: number): void
@@ -143,6 +134,7 @@ export function EditDeskPreview({
   playheadSec,
   durationSec,
   playing,
+  muted,
   onPlayingChange,
   onPlayheadChange,
   textClips,
@@ -155,7 +147,6 @@ export function EditDeskPreview({
   const videosRef = useRef(new Map<string, HTMLVideoElement>())
   /** 上一次 seek 还没落地时，最新那个目标先存着（拖播放头时不叠一串 seek）。 */
   const pendingSeekRef = useRef<number | null>(null)
-  const [muted, setMuted] = useState(false)
   const node = row?.source.node
   const data = node?.data
   const url = row?.source.url
@@ -313,7 +304,6 @@ export function EditDeskPreview({
   )
 
   const aspect = project.settings.aspect
-  const progress = durationSec > 0 ? Math.min(1, playheadSec / durationSec) : 0
   const sourceData = row?.source.node?.data
   const shotName =
     sourceData && sourceData.kind === NODE_MEDIA_KIND_IDS.video
@@ -348,12 +338,12 @@ export function EditDeskPreview({
   return (
     <div
       data-testid="edit-desk-preview"
-      className="flex min-h-0 flex-1 items-center justify-center px-6 pb-5 pt-5.5"
+      className="flex min-h-0 flex-1 items-center justify-center px-6 pb-2.5 pt-3.5"
       // 外层量尺寸：里面那只盒子用 `cqh` 按**预览区高**推宽，占满两个方向里先到顶的那个。
       style={{ containerType: 'size' }}
     >
       <div
-        className="relative max-h-full max-w-full overflow-hidden rounded-xl bg-neutral-950"
+        className="relative max-h-full max-w-full overflow-hidden rounded-lg bg-neutral-950 ring-1 ring-border"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
         // ⚠ 盒子按预览区的高定尺寸：宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个
@@ -438,107 +428,19 @@ export function EditDeskPreview({
           </div>
         ))}
 
-        {/* 左上一枚读数：这一段是哪一镜、段内走到哪儿。压在画面上的 chrome 固定明暗
+        {/* 右上一枚「镜 n · 镜头名」。压在画面上的 chrome 固定明暗
             （ui-defaults §2.4 媒体 chrome 例外）。 */}
         {row ? (
           <span
-            data-testid="edit-desk-clip-clock"
-            className="pointer-events-none absolute left-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 font-mono text-2xs leading-5.5 text-white backdrop-blur-md"
+            data-testid="edit-desk-shot-tag"
+            className="pointer-events-none absolute right-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 text-2xs leading-5.5 text-white"
           >
-            {t('clipBadge', {
-              name: shotName,
-              at: formatEditClock(
-                Math.max(0, playheadSec - row.startSec),
-                true,
-              ),
-              total: formatEditClock(row.durationSec, true),
+            {t('shotTag', {
+              n: row.index + 1,
+              name: shotName || t('inspector.sourceGone'),
             })}
           </span>
         ) : null}
-
-        {/* 底部播放条：播放 · 整条成片的进度（点哪儿播放头去哪儿）· 时间 · 声音。 */}
-        <div className="absolute inset-x-3 bottom-3 flex h-8.5 items-center gap-2.5 rounded-xl bg-neutral-950/45 px-3 text-white backdrop-blur-md">
-          <button
-            type="button"
-            data-testid="edit-desk-play"
-            aria-label={playing ? t('pause') : t('play')}
-            onClick={() => onPlayingChange(!playing)}
-            disabled={!url}
-            className="grid size-6 shrink-0 place-items-center rounded-md transition-colors duration-fast hover:bg-white/15 disabled:opacity-50"
-          >
-            {playing ? (
-              <Pause className="size-3.5" aria-hidden />
-            ) : (
-              <Play className="size-3.5" aria-hidden />
-            )}
-          </button>
-          <div
-            data-testid="edit-desk-scrub"
-            role="slider"
-            aria-label={t('scrub')}
-            aria-valuemin={0}
-            aria-valuemax={Math.round(durationSec * 10) / 10}
-            aria-valuenow={Math.round(playheadSec * 10) / 10}
-            tabIndex={0}
-            onPointerDown={(event) => {
-              // 按下即落、按住拖着走（与时间线标尺同一种手感）。
-              const bar = event.currentTarget
-              const rect = bar.getBoundingClientRect()
-              if (rect.width <= 0) return
-              const seek = (clientX: number) =>
-                onPlayheadChange(
-                  Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) *
-                    durationSec,
-                )
-              onPlayingChange(false)
-              seek(event.clientX)
-              bar.setPointerCapture?.(event.pointerId)
-              const move = (moveEvent: PointerEvent) => seek(moveEvent.clientX)
-              const up = () => {
-                bar.removeEventListener('pointermove', move)
-                bar.removeEventListener('pointerup', up)
-                bar.removeEventListener('pointercancel', up)
-              }
-              bar.addEventListener('pointermove', move)
-              bar.addEventListener('pointerup', up)
-              bar.addEventListener('pointercancel', up)
-            }}
-            className="group/scrub relative h-4 min-w-0 flex-1 cursor-pointer touch-none"
-          >
-            <span className="absolute inset-x-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white/30" />
-            <span
-              className="absolute left-0 top-1/2 h-0.75 -translate-y-1/2 rounded-full bg-white"
-              style={{ width: `${progress * 100}%` }}
-            />
-            <span
-              aria-hidden
-              className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-white transition-transform duration-fast group-hover/scrub:scale-100 motion-reduce:transition-none"
-              style={{ left: `${progress * 100}%` }}
-            />
-          </div>
-          <span
-            data-testid="edit-desk-clock"
-            className="shrink-0 font-mono text-2xs tabular-nums"
-          >
-            {t('clock', {
-              at: formatEditClock(playheadSec, true),
-              total: formatEditClock(durationSec, true),
-            })}
-          </span>
-          <button
-            type="button"
-            aria-label={muted ? t('unmute') : t('mute')}
-            aria-pressed={muted}
-            onClick={() => setMuted((current) => !current)}
-            className="grid size-6 shrink-0 place-items-center rounded-md transition-colors duration-fast hover:bg-white/15"
-          >
-            {muted ? (
-              <VolumeX className="size-3.5" aria-hidden />
-            ) : (
-              <Volume2 className="size-3.5" aria-hidden />
-            )}
-          </button>
-        </div>
       </div>
     </div>
   )

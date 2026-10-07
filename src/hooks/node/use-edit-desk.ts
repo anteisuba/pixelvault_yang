@@ -68,7 +68,7 @@ export interface UseEditDeskOptions {
   mintId(prefix: string): string
   /** 时间线第一次落表时的成片名（i18n 由调用方给）。 */
   readonly defaultTimelineName: string
-  /** 工具条「文字」落下的那一段写什么（i18n 由调用方给）。 */
+  /** 「加一条字幕」落下的那一段写什么（i18n 由调用方给）。 */
   readonly defaultTextBody: string
 }
 
@@ -103,7 +103,7 @@ export interface EditDesk {
   readonly selectedTextClip: EditTextClip | null
   /** 播放头这一刻要叠哪几句（预览读它）。 */
   readonly activeTextClips: readonly EditTextClip[]
-  /** 工具条「文字」：在播放头处落一段 3s 字幕，并选中它。 */
+  /** 左列「文字」页「加一条字幕」：在播放头处落一段 3s 字幕，并选中它。 */
   addTextAtPlayhead(): boolean
   updateTextClip(clipId: string, patch: EditTextClipPatch): boolean
   removeTextClip(clipId: string): boolean
@@ -148,10 +148,9 @@ export interface EditDesk {
   setSettings(patch: {
     readonly aspect?: EditAspect
     readonly resolution?: EditResolution
-    readonly magnetic?: boolean
   }): boolean
 
-  /** 落点像素 → 插入下标。磁吸开着时吸到最近的段边界。 */
+  /** 落点 → 插入下标：吸到最近的段边界（主线永远磁吸）。 */
   insertIndexAt(track: EditTrackId, seconds: number): number
 
   /**
@@ -280,11 +279,7 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
       if (clips.length === 0) return 0
       const hit = clipIndexAt(clips, seconds)
       if (hit < 0) return clips.length
-      if (!project.settings.magnetic) {
-        // 磁吸关：落点覆盖哪一段就插在它后面（所见即所得）。
-        return hit + 1
-      }
-      // 磁吸开：吸到最近的**段边界** —— 落在前半段就插它前面。
+      // 吸到最近的**段边界** —— 落在前半段就插它前面。
       const start = clipStartSec(clips, hit)
       const end = clipStartSec(clips, hit + 1)
       return seconds - start < (end - start) / 2 ? hit : hit + 1
@@ -473,7 +468,6 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     (patch: {
       readonly aspect?: EditAspect
       readonly resolution?: EditResolution
-      readonly magnetic?: boolean
     }): boolean =>
       setTimeline({
         ...project,

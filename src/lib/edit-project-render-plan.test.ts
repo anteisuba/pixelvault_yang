@@ -58,7 +58,7 @@ function project(patch: Partial<EditProject> = {}): EditProject {
   return {
     name: '成片',
     tracks: { video: [], audio: [], music: [], text: [] },
-    settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+    settings: { aspect: '16:9', resolution: '1080p' },
     ...patch,
   } as EditProject
 }

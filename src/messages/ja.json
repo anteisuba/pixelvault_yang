@@ -6329,7 +6329,15 @@
         "loading": "読み込み中…",
         "loadMore": "もっと読み込む",
         "libraryEmpty": "素材ライブラリに動画も音声もまだありません",
-        "title": "素材"
+        "title": "素材",
+        "addCaption": "再生ヘッド位置に字幕を追加",
+        "short": {
+          "canvas": "素材",
+          "library": "ライブラリ",
+          "audio": "音声",
+          "text": "テキスト",
+          "transition": "つなぎ"
+        }
       },
       "tracks": {
         "video": "映像",
@@ -6337,18 +6345,12 @@
         "music": "音楽",
         "empty": "ここに素材をドロップ",
         "text": "字幕",
-        "textEmpty": "「テキスト」で再生ヘッド位置に字幕を置く"
+        "textEmpty": "左の「テキスト」から追加"
       },
       "tools": {
         "split": "分割",
-        "transition": "トランジション",
-        "text": "テキスト",
-        "voice": "音声",
-        "music": "BGM",
-        "remove": "削除",
-        "pending": "「{tool}」は準備中です"
+        "remove": "削除"
       },
-      "magnetic": "メイントラックにスナップ",
       "staleBadge": "元素材が更新",
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",
@@ -6358,7 +6360,6 @@
       "stageEmptyAction": "キャンバスの素材からショットを追加",
       "play": "再生",
       "pause": "一時停止",
-      "scrub": "カットの進行",
       "mute": "ミュート",
       "unmute": "ミュート解除",
       "clipDuration": "{seconds}s",
@@ -6378,8 +6379,10 @@
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "元の音声",
+        "soundOn": "オン",
+        "soundOff": "オフ",
         "gain": "音量",
-        "transition": "トランジション →",
+        "transition": "トランジション",
         "transitions": {
           "none": "なし",
           "crossfade": "クロスフェード",
@@ -6402,7 +6405,7 @@
         "confirm": "書き出し開始",
         "pending": "「{range}」の書き出しは、まだ準備中です。"
       },
-      "clipBadge": "{name} · {at} / {total}",
+      "shotTag": "カット {n} · {name}",
       "render": {
         "exporting": "書き出し中 · {step} {percent}%",
         "done": "カットができました",

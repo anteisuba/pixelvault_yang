@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 舞台正上方那一条回执（④ A 关键切片 · node-canvas-v2 §6「回执与段闪」）。
+ * 顶栏正中那一条回执（④ A 关键切片 · node-canvas-v2 §6「回执与段闪」）。
  *
  * 永远只有一条（⛔ 不弹 toast、不堆叠）：
  * - 外部 Claude 改了时间线 →「Claude 改了 N 段 · 撤销」，同一来源连着改数字累加；
@@ -50,7 +50,7 @@ export function EditDeskReceipt({
   const reduceMotion = useReducedMotion()
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center">
+    <div className="pointer-events-none flex min-w-0 justify-center">
       {/* ⚠ `wait`：换一种回执时旧的先淡出 —— 永远只有一条，⛔ 两条并排挤一下。 */}
       <AnimatePresence mode="wait">
         {receipt ? (
@@ -76,7 +76,7 @@ export function EditDeskReceipt({
             }}
             onPointerEnter={() => onHoverChange(true)}
             onPointerLeave={() => onHoverChange(false)}
-            className="pointer-events-auto inline-flex h-8 items-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-card pl-3.5 pr-1 text-xs text-foreground shadow-float"
+            className="pointer-events-auto inline-flex h-8 items-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-card pl-3.5 pr-1 text-xs text-foreground"
           >
             <span className="size-1.5 shrink-0 rounded-full bg-foreground" />
             <span data-testid="edit-desk-receipt-text">

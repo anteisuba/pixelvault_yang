@@ -12,8 +12,9 @@
  * 图标栏五项：画布素材 / 素材库 / 音频 / 文字 / 转场。
  * - **画布素材** 是唯一一条与时间线数据相通的路（拖进去就是一段）；
  * - **音频** 是画布素材的音频子集（同一批卡，只是省掉在视频里找的那一步）；
- * - **文字** 列画布上的文本卡首行 —— 写「一句话排片」时要照着剧本说话，
- *   ⛔ 它不进时间线（`EditClip` 没有文本段），所以那一格不可拖也不可双击；
+ * - **文字** 顶上一颗「在播放头处加一条字幕」（v2 第 3 片：时间线上那排工具键去掉了，
+ *   加字幕搬到这里），下面列画布上的文本卡首行 —— 照着剧本写字幕用，文本卡本身
+ *   ⛔ 不进时间线，所以那一格不可拖也不可双击；
  * - **素材库** 是用户自己的产物（`fetchGalleryImages` 的 `mine`），按视频 / 音频筛；
  *   拖进时间线时**先落成一张画布卡**再进轨（⛔ 段不指向素材库记录，见下面那条
  *   MIME 的头注）；
@@ -161,13 +162,12 @@ export function EditDeskAssetRail({
 }: EditDeskAssetRailProps) {
   const t = useTranslations('StudioNode.editDesk')
   return (
-    // 工作台左导航那一列的长相（画板 `.nav` / `.navi`）：壳底色一列，36 的圆角格，
-    // 当前那格是白的。
+    // 暗台左列（v2 关键切片）：一列 56 宽，图标下面一行小字，当前那格抬起一层。
     <nav
       data-testid="edit-desk-rail"
       data-edit-desk-rail
       aria-label={t('panels.title')}
-      className="flex w-13 shrink-0 flex-col items-center gap-1.5 bg-surface-sunken pt-4.5"
+      className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-border bg-background pt-3"
     >
       {EDIT_PANELS.map((panel) => {
         const Icon = PANEL_ICONS[panel]
@@ -182,13 +182,16 @@ export function EditDeskAssetRail({
             aria-pressed={active}
             onClick={() => onPanelClick(panel)}
             className={cn(
-              'grid size-9 place-items-center rounded-lg transition-colors duration-fast',
+              'grid w-13 justify-items-center gap-0.5 rounded-lg pb-1.5 pt-2 transition-colors duration-fast',
               active
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'bg-card text-foreground'
                 : 'text-muted-foreground hover:bg-card/60 hover:text-foreground',
             )}
           >
             <Icon className="size-4.5" aria-hidden />
+            <span className="w-full truncate text-3xs leading-tight">
+              {t(`panels.short.${panel}`)}
+            </span>
           </button>
         )
       })}
@@ -203,6 +206,8 @@ export interface EditDeskAssetPanelProps {
   readonly textNodes: readonly NodeV4[]
   /** 双击素材 = 追加到对应轨（不想拖的人也有一条路）。 */
   onAppend(nodeId: string): void
+  /** 「文字」页顶上那颗：在播放头处落一段字幕。 */
+  onAddCaption(): void
   /** 音频页的三档筛 —— 工具条「语音」/「配乐」按它切页并高亮对应轨。 */
   readonly audioFilter: EditAudioFilterId
   onAudioFilterChange(filter: EditAudioFilterId): void
@@ -213,6 +218,7 @@ export function EditDeskAssetPanel({
   assets,
   textNodes,
   onAppend,
+  onAddCaption,
   audioFilter,
   onAudioFilterChange,
 }: EditDeskAssetPanelProps) {
@@ -264,17 +270,28 @@ export function EditDeskAssetPanel({
           </div>
         )
       ) : activePanel === EDIT_PANEL_IDS.text ? (
-        textNodes.length === 0 ? (
-          <p className="text-2xs text-muted-foreground">
-            {t('panels.textEmpty')}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {textNodes.map((node) => (
-              <TextRow key={node.id} node={node} />
-            ))}
-          </div>
-        )
+        <>
+          <button
+            type="button"
+            data-testid="edit-desk-add-caption"
+            onClick={onAddCaption}
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-muted text-xs text-foreground transition-colors duration-fast hover:bg-accent"
+          >
+            <Type className="size-3.5 shrink-0" aria-hidden />
+            {t('panels.addCaption')}
+          </button>
+          {textNodes.length === 0 ? (
+            <p className="text-2xs text-muted-foreground">
+              {t('panels.textEmpty')}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {textNodes.map((node) => (
+                <TextRow key={node.id} node={node} />
+              ))}
+            </div>
+          )}
+        </>
       ) : activePanel === EDIT_PANEL_IDS.library ? (
         <EditDeskLibraryPanel />
       ) : (

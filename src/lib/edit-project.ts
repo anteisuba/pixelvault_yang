@@ -78,7 +78,6 @@ export function createEmptyEditProject(name: string): EditProject {
     settings: {
       aspect: EDIT_ASPECT_DEFAULT,
       resolution: EDIT_RESOLUTION_DEFAULT,
-      magnetic: true,
     },
   }
 }
@@ -177,7 +176,7 @@ export function clampTextClip(clip: EditTextClip): EditTextClip {
 }
 
 /**
- * 工具条「文字」在播放头处落的那一段（spec §6：3s、下中、中号、白字、不淡）。
+ * 左列「文字」页「加一条字幕」在播放头处落的那一段（spec §6：3s、下中、中号、白字、不淡）。
  *
  * ⚠ 内容由调用方给（i18n 的「双击改文字」占位），⛔ 这里不编中文 —— 与
  * `createEmptyEditProject` 同一条纪律。

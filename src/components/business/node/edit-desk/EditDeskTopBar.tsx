@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * 剪辑台头部那一行（画板「剪辑台 A · 全部状态」：工作台地台上的 `h-9` 头部，⛔ 不再是
- * 一条带底边的白色顶栏）：**回画布 · 成片名（可改）· 读数 / 导出进度 · 撤销 · 快捷键 ·
- * 导出**，最右那一格留给助手头像。
+ * 剪辑台顶栏（v2 暗场，owner 2026-10-08 选 B · 关键切片 `JtN1ur…`）：一条通栏 `h-12`、
+ * 底边一道线 —— 左边 **回画布 · 成片名（可改）· 读数 / 导出进度**，正中是**回执**
+ * （永远只有一条，见 `EditDeskReceipt`），右边 **撤销 · 快捷键 · 导出**，最右那一格
+ * 留给助手头像（`EDIT_DESK_OPERATOR_ANCHOR` 按这条栏的高与内边距算）。
  *
  * ⚠ 只有这几样。画布顶栏的项目胶囊不在这里 —— 剪辑台是全屏模式，进来就是为了剪一条
  * 片子，⛔ 不把外壳的东西再摆一遍。
@@ -55,6 +56,8 @@ export interface EditDeskTopBarProps {
    * 缺席 = 读数。⛔ 不在头部下面另起一条栏。
    */
   readonly status?: ReactNode
+  /** 正中那条回执。 */
+  readonly receipt?: ReactNode
 }
 
 export function EditDeskTopBar({
@@ -69,6 +72,7 @@ export function EditDeskTopBar({
   shortcutPreset,
   onShortcutPresetChange,
   status,
+  receipt,
 }: EditDeskTopBarProps) {
   const t = useTranslations('StudioNode.editDesk')
   const [editing, setEditing] = useState(false)
@@ -88,9 +92,10 @@ export function EditDeskTopBar({
     <div
       data-testid="edit-desk-top-bar"
       className={cn(
-        'flex h-9 shrink-0 items-center gap-3',
-        // 头像 36 + 与导出键的间距 12（头像本身住在地台内边距那 18 里）。
-        reserveAssistantSlot && 'pr-12',
+        // ⚠ `h-12` / `px-3.5` 与 `EDIT_DESK_TOP_BAR` 同源（助手头像按它们落位）。
+        'flex h-12 shrink-0 items-center gap-3.5 border-b border-border bg-background px-3.5',
+        // 头像 36 + 与导出键的间距 14。
+        reserveAssistantSlot && 'pr-16',
       )}
     >
       <button
@@ -103,7 +108,7 @@ export function EditDeskTopBar({
         <span>{t('back')}</span>
       </button>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2.5">
+      <div className="flex min-w-0 shrink items-center gap-2.5">
         {editing ? (
           <input
             ref={inputRef}
@@ -120,7 +125,7 @@ export function EditDeskTopBar({
               }
               event.stopPropagation()
             }}
-            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-md font-semibold text-foreground outline-none"
+            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-sm font-semibold text-foreground outline-none"
           />
         ) : (
           <button
@@ -130,7 +135,7 @@ export function EditDeskTopBar({
               setDraft(project.name)
               setEditing(true)
             }}
-            className="max-w-56 truncate rounded-md px-1 text-md font-semibold text-foreground transition-colors duration-fast hover:bg-surface-fill"
+            className="max-w-56 truncate rounded-md px-1 text-sm font-semibold text-foreground transition-colors duration-fast hover:bg-surface-fill"
           >
             {project.name}
           </button>
@@ -148,6 +153,8 @@ export function EditDeskTopBar({
           </span>
         )}
       </div>
+
+      <div className="flex min-w-0 flex-1 justify-center">{receipt}</div>
 
       <div className="flex shrink-0 items-center gap-1.5">
         <ShellIconButton
@@ -204,11 +211,12 @@ function ShortcutPresetPopover({
           <Keyboard className="size-4" aria-hidden />
         </button>
       </PopoverTrigger>
+      {/* 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。 */}
       <PopoverContent
         align="end"
         data-testid="edit-desk-shortcuts-popover"
         style={{ width: EDIT_SHORTCUT_POPOVER_WIDTH_PX }}
-        className="flex flex-col gap-2.5 p-3"
+        className="dark flex flex-col gap-2.5 p-3"
       >
         <LiquidSegmented
           ariaLabel={t('title')}

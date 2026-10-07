@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * 时间线卡（画板「剪辑台 A · 全部状态」：舞台下面第二张白卡，占工作台「输入框」的位置）：
- * **工具 · 选中段的属性 · 缩放 · 主轨道磁吸**一行，下面 **轨道名一列 + T / V / A / M
- * 四道轨槽 + 标尺 + 播放头**。
+ * 时间线（v2 暗场，关键切片 `JtN1ur…`）：顶上一条**走带行**（播放 · 时间码 · 声音 ·
+ * 选中段的属性 · 缩放），下面 **轨道名一列 + T / V / A / M 四道轨 + 标尺 + 播放头**。
+ * ⛔ 没有工具键那一排：加字幕在左列「文字」页，分割 / 删除在选中段那一行（也走 S / ⌫），
+ * 转场在段与段之间的菱形上；主线永远磁吸，⛔ 没有磁吸开关。
  *
  * ── 段是什么 ────────────────────────────────────────────────────────────
  * 画面段 = 胶片条式封面 + 镜头名 + 右上时长；配音 / 配乐段 = 浅底胶囊 + 淡色波形 +
@@ -14,7 +15,7 @@
  * ── 交互只有四种手势 ────────────────────────────────────────────────────
  * 点段 = 选中 · 拖手柄 = 裁剪（上方实时读数）· 拖段体 = 排序 · 点空白 / 标尺 = 移
  * 播放头。键盘（空格 / S / ⌫ / I / O / ⌘Z）不在这里，它们是整个剪辑台的事（`EditDesk`）。
- * 缩放：工具行右端「− 滑杆 + · 铺满」，或 ⌘ / Ctrl + 滚轮（触控板捏合同一条事件），
+ * 缩放：走带行右端「− 滑杆 + · 铺满」，或 ⌘ / Ctrl + 滚轮（触控板捏合同一条事件），
  * 以播放头为中心；轨道名那一列不动。
  *
  * ⚠ 裁剪与排序**落地时才发 op**（`onPointerUp`），拖的过程只动本地预览：拖一次
@@ -36,10 +37,11 @@ import {
   Film,
   Mic,
   Music,
-  Scissors,
-  Shuffle,
-  Trash2,
+  Pause,
+  Play,
   Type,
+  Volume2,
+  VolumeX,
   ZoomIn,
   ZoomOut,
   type LucideIcon,
@@ -61,14 +63,11 @@ import {
   EDIT_TIMELINE_TICK_MIN_PX,
   EDIT_TIMELINE_TICK_STEPS,
   EDIT_TIMELINE_ZOOM,
-  EDIT_TOOLS,
-  EDIT_TOOL_IDS,
   EDIT_TRACKS,
   EDIT_ATTACH_EPSILON_SEC,
   EDIT_TRACK_IDS,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
-  type EditToolId,
   type EditTrackId,
   type EditTransitionId,
 } from '@/constants/edit-desk'
@@ -87,10 +86,6 @@ import type { EditClip, EditTextClip } from '@/types/node-workflow'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 import { Slider } from '@/components/ui/slider'
-import {
-  studioOutlineChipClass,
-  studioOutlineChipSetClass,
-} from '@/components/business/studio-shared/primitives/tool-surface'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
@@ -99,15 +94,6 @@ import {
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
 import { EDIT_CLIP_FLASH_ATTRIBUTE } from './edit-desk-flash'
-
-const TOOL_ICONS: Record<EditToolId, LucideIcon> = {
-  [EDIT_TOOL_IDS.split]: Scissors,
-  [EDIT_TOOL_IDS.transition]: Shuffle,
-  [EDIT_TOOL_IDS.text]: Type,
-  [EDIT_TOOL_IDS.voice]: Mic,
-  [EDIT_TOOL_IDS.music]: Music,
-  [EDIT_TOOL_IDS.remove]: Trash2,
-}
 
 const TRACK_ICONS: Record<EditTrackId, LucideIcon> = {
   [EDIT_TRACK_IDS.video]: Film,
@@ -129,13 +115,11 @@ function laneHeightOf(track: EditTrackId): number {
 
 export interface EditDeskTimelineProps {
   readonly desk: EditDesk
-  /**
-   * 时间线自己答不了的那几颗工具（文字 / 语音 / 配乐）交回台面。
-   *
-   * ⚠ 分割 / 转场 / 删除**就在这里做完**：它们只动时间线；语音 / 配乐要切左栏
-   * 的页并高亮一条轨，那是台面的事（左栏与轨道高亮都住在它那儿）。
-   */
-  onTool(tool: EditToolId): void
+  /** 走带行：播放态与声音（与空格键、预览共用台面那一份）。 */
+  readonly playing: boolean
+  onPlayingChange(playing: boolean): void
+  readonly muted: boolean
+  onMutedChange(muted: boolean): void
   /**
    * 素材库那一格落进轨 —— **先建卡再进轨**（`EDIT_DESK_LIBRARY_DRAG_MIME` 头注）。
    * 所以它不在 `desk` 上：建卡是图的动作，时间线自己碰不到。
@@ -147,15 +131,14 @@ export interface EditDeskTimelineProps {
     /** 松手那一刻（时间线秒）：按起点摆的轨（台词）落在这里。 */
     startSec: number,
   ): void
-  /** 高亮哪条轨（工具条「语音」/「配乐」按下之后）。`null` = 不高亮。 */
-  readonly highlightTrack?: EditTrackId | null
   /**
-   * **只看不剪**（手机档，node-canvas-v2 §7.x）：工具行整条不渲染。
-   * ⛔ 不是置灰 —— 手机上剪辑本来就做不了，一排灰键只会让人反复去点。
+   * **只看不剪**（手机档，node-canvas-v2 §7.x）：走带行只留播放 · 时间码 · 声音，
+   * 轨道整块 `inert`（连键盘焦点一起挡掉）。⛔ 不是置灰 —— 手机上剪辑本来就做不了，
+   * 一排灰键只会让人反复去点。
    */
   readonly readOnly?: boolean
   /**
-   * 选中段的属性行（工具行中间那一格，⛔ 不再有右侧属性栏）。由台面给 ——
+   * 选中段的属性（走带行中间那一格，⛔ 不再有右侧属性栏）。由台面给 ——
    * 「回节点」「到预览里改字」都要碰台面的状态。
    */
   readonly props?: ReactNode
@@ -234,9 +217,11 @@ function clampZoom(zoom: number): number {
 
 export function EditDeskTimeline({
   desk,
-  onTool,
+  playing,
+  onPlayingChange,
+  muted,
+  onMutedChange,
   onDropLibraryAsset,
-  highlightTrack,
   readOnly = false,
   props,
   onScrubStart,
@@ -455,127 +440,100 @@ export function EditDeskTimeline({
     [secondsFromEvent],
   )
 
-  const onToolClick = (tool: EditToolId) => {
-    if (tool === EDIT_TOOL_IDS.split) {
-      desk.splitAtPlayhead()
-      return
-    }
-    if (tool === EDIT_TOOL_IDS.remove) {
-      desk.removeSelected()
-      return
-    }
-    if (tool === EDIT_TOOL_IDS.transition) {
-      const selected = desk.selectedClip
-      if (!selected || !desk.selection) return
-      // 三档循环：无 → 叠化 → 黑场 → 无。工具条那颗是**快捷**，属性行才是全貌。
-      const current = selected.transitionOut ?? EDIT_TRANSITION_IDS.none
-      const next =
-        current === EDIT_TRANSITION_IDS.none
-          ? EDIT_TRANSITION_IDS.crossfade
-          : current === EDIT_TRANSITION_IDS.crossfade
-            ? EDIT_TRANSITION_IDS.black
-            : EDIT_TRANSITION_IDS.none
-      desk.updateClip(desk.selection.track, selected.id, {
-        transitionOut: next,
-      })
-      return
-    }
-    onTool(tool)
-  }
-
-  const magnetic = desk.project.settings.magnetic
+  const canPlay = desk.durationSec > 0
 
   return (
     <div
       data-testid="edit-desk-timeline"
-      className="@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-2xl bg-card px-4 pb-3.5 pt-2.5 shadow-float"
+      className="@container/composer relative flex shrink-0 flex-col gap-3 bg-background px-4 pb-3.5 pt-2.5"
     >
-      {readOnly ? null : (
-        <div className="flex h-9 min-w-0 items-center gap-2">
-          <div className="inline-flex shrink-0 gap-0.5">
-            {EDIT_TOOLS.map((tool) => (
-              <ShellIconButton
-                key={tool}
-                icon={TOOL_ICONS[tool]}
-                label={t(`tools.${tool}`)}
-                testId={`edit-desk-tool-${tool}`}
-                onClick={() => onToolClick(tool)}
-              />
-            ))}
-          </div>
-          <span className="h-4.5 w-px shrink-0 bg-border" aria-hidden />
-          {props ?? <div className="flex-1" />}
-          <div
-            role="group"
-            aria-label={t('zoom.label')}
-            className="flex shrink-0 items-center gap-0.5"
-          >
-            <ShellIconButton
-              icon={ZoomOut}
-              label={t('zoom.out')}
-              testId="edit-desk-zoom-out"
-              disabled={zoom <= EDIT_TIMELINE_ZOOM.min}
-              onClick={() => setZoom(zoom - EDIT_TIMELINE_ZOOM.step)}
-            />
-            <Slider
-              data-testid="edit-desk-zoom"
+      {/* 走带行：播放 · 时间码 · 声音 ｜ 选中段的属性 ｜ 缩放。 */}
+      <div className="flex h-9.5 min-w-0 items-center gap-3">
+        <button
+          type="button"
+          data-testid="edit-desk-play"
+          aria-label={playing ? t('pause') : t('play')}
+          onClick={() => onPlayingChange(!playing)}
+          disabled={!canPlay}
+          className="grid size-8.5 shrink-0 place-items-center rounded-full bg-muted text-foreground transition-colors duration-fast hover:bg-accent disabled:opacity-50"
+        >
+          {playing ? (
+            <Pause className="size-4" aria-hidden />
+          ) : (
+            <Play className="size-4" aria-hidden />
+          )}
+        </button>
+        <span
+          data-testid="edit-desk-clock"
+          className="shrink-0 font-mono text-2sm tabular-nums text-foreground/80"
+        >
+          {formatEditClock(desk.playheadSec, true)}
+          <span className="text-muted-foreground/70">
+            {' / '}
+            {formatEditClock(desk.durationSec, true)}
+          </span>
+        </span>
+        <ShellIconButton
+          icon={muted ? VolumeX : Volume2}
+          label={muted ? t('unmute') : t('mute')}
+          active={muted}
+          testId="edit-desk-mute"
+          onClick={() => onMutedChange(!muted)}
+        />
+        {readOnly ? null : (
+          <>
+            <span className="h-4.5 w-px shrink-0 bg-border" aria-hidden />
+            {props ?? <div className="flex-1" />}
+            <div
+              role="group"
               aria-label={t('zoom.label')}
-              className="mx-1 w-16 @max-7xl/composer:hidden"
-              min={EDIT_TIMELINE_ZOOM.min}
-              max={EDIT_TIMELINE_ZOOM.max}
-              step={EDIT_TIMELINE_ZOOM.step}
-              value={[zoom]}
-              onValueChange={([next]) => {
-                if (next !== undefined) setZoom(next)
-              }}
-            />
-            <ShellIconButton
-              icon={ZoomIn}
-              label={t('zoom.in')}
-              testId="edit-desk-zoom-in"
-              disabled={zoom >= EDIT_TIMELINE_ZOOM.max}
-              onClick={() => setZoom(zoom + EDIT_TIMELINE_ZOOM.step)}
-            />
-            <button
-              type="button"
-              data-testid="edit-desk-zoom-fit"
-              aria-pressed={zoom <= EDIT_TIMELINE_ZOOM.min}
-              onClick={() => setZoom(EDIT_TIMELINE_ZOOM.min)}
-              className={cn(
-                studioOutlineChipClass,
-                'ml-1 h-7 px-2.5 text-xs @max-4xl/composer:hidden',
-                zoom <= EDIT_TIMELINE_ZOOM.min && studioOutlineChipSetClass,
-              )}
+              className="flex shrink-0 items-center gap-0.5"
             >
-              {t('zoom.fit')}
-            </button>
-          </div>
-          <span className="h-4.5 w-px shrink-0 bg-border" aria-hidden />
-          <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-            <span>{t('magnetic')}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={magnetic}
-              data-testid="edit-desk-magnetic"
-              onClick={() => desk.setSettings({ magnetic: !magnetic })}
-              className={cn(
-                'relative h-5 w-8.5 shrink-0 rounded-full transition-colors duration-fast motion-reduce:transition-none',
-                magnetic ? 'bg-primary' : 'bg-surface-fill-track',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute left-0.5 top-0.5 size-4 rounded-full bg-background shadow-sm transition-transform duration-spring-slot ease-spring-slot motion-reduce:transition-none',
-                  magnetic && 'translate-x-3.5',
-                )}
+              <ShellIconButton
+                icon={ZoomOut}
+                label={t('zoom.out')}
+                testId="edit-desk-zoom-out"
+                disabled={zoom <= EDIT_TIMELINE_ZOOM.min}
+                onClick={() => setZoom(zoom - EDIT_TIMELINE_ZOOM.step)}
               />
-            </button>
-          </label>
-        </div>
-      )}
+              <Slider
+                data-testid="edit-desk-zoom"
+                aria-label={t('zoom.label')}
+                className="mx-1 w-20 @max-7xl/composer:hidden"
+                min={EDIT_TIMELINE_ZOOM.min}
+                max={EDIT_TIMELINE_ZOOM.max}
+                step={EDIT_TIMELINE_ZOOM.step}
+                value={[zoom]}
+                onValueChange={([next]) => {
+                  if (next !== undefined) setZoom(next)
+                }}
+              />
+              <ShellIconButton
+                icon={ZoomIn}
+                label={t('zoom.in')}
+                testId="edit-desk-zoom-in"
+                disabled={zoom >= EDIT_TIMELINE_ZOOM.max}
+                onClick={() => setZoom(zoom + EDIT_TIMELINE_ZOOM.step)}
+              />
+              <button
+                type="button"
+                data-testid="edit-desk-zoom-fit"
+                aria-pressed={zoom <= EDIT_TIMELINE_ZOOM.min}
+                onClick={() => setZoom(EDIT_TIMELINE_ZOOM.min)}
+                className="ml-1 h-7 rounded-md px-2 text-xs text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground aria-pressed:text-foreground @max-4xl/composer:hidden"
+              >
+                {t('zoom.fit')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
-      <div className="flex min-w-0 gap-2.5">
+      <div
+        className="flex min-w-0 gap-2.5"
+        {...(readOnly ? { inert: true } : {})}
+        data-edit-desk-readonly={readOnly ? 'true' : 'false'}
+      >
         {/* 轨道名那一列：⛔ 不跟着横向滚 —— 放大后也要一眼看出哪条是哪条。 */}
         <div
           aria-hidden
@@ -635,7 +593,6 @@ export function EditDeskTimeline({
                     secondsFromEvent={secondsFromEvent}
                     onBlankPointerDown={deselect}
                     onDropLibraryAsset={onDropLibraryAsset}
-                    highlighted={highlightTrack === track}
                   />
                 ))}
 
@@ -767,21 +724,13 @@ function Ruler({
 }
 
 /** 一道轨槽的底（画板 `.ed-bed`）：空着的地方也看得出这是一条轨。 */
-function LaneBed({
-  dropping,
-  highlighted,
-}: {
-  readonly dropping?: boolean
-  readonly highlighted?: boolean
-}) {
+function LaneBed({ dropping }: { readonly dropping?: boolean }) {
   return (
     <span
       aria-hidden
       className={cn(
         'pointer-events-none absolute inset-0 rounded-lg bg-muted transition-colors duration-fast',
         dropping && 'bg-surface-fill',
-        // 「语音」/「配乐」按下之后这条轨点亮 —— 用户接着要往它上面拖东西。
-        highlighted && 'ring-2 ring-inset ring-primary',
       )}
     />
   )
@@ -1172,7 +1121,6 @@ function TrackLane({
   secondsFromEvent,
   onBlankPointerDown,
   onDropLibraryAsset,
-  highlighted,
 }: {
   readonly track: EditTrackId
   readonly rows: readonly EditTimelineRow[]
@@ -1185,7 +1133,6 @@ function TrackLane({
     index: number,
     startSec: number,
   ): void
-  readonly highlighted: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const scale = useTimelineScale()
@@ -1337,7 +1284,7 @@ function TrackLane({
       className="relative shrink-0"
       style={{ height: laneHeightOf(track) }}
     >
-      <LaneBed dropping={dropping} highlighted={highlighted} />
+      <LaneBed dropping={dropping} />
       {positioned ? (
         <div
           className="absolute inset-x-0"

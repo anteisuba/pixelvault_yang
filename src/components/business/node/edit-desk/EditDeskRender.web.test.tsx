@@ -111,7 +111,7 @@ function stateWithTimeline(): NodeWorkflowStateV4 {
         music: [],
         text: [],
       },
-      settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+      settings: { aspect: '16:9', resolution: '1080p' },
     },
   } as NodeWorkflowStateV4
 }

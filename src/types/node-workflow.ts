@@ -1446,8 +1446,6 @@ export const EditProjectTracksSchema = z.object({
 export const EditProjectSettingsSchema = z.object({
   aspect: z.enum(EDIT_ASPECTS).default(EDIT_ASPECT_DEFAULT),
   resolution: z.enum(EDIT_RESOLUTIONS).default(EDIT_RESOLUTION_DEFAULT),
-  /** 主轨道磁吸：V 轨的段首尾相接、删一段后面自动补位。 */
-  magnetic: z.boolean().default(true),
 })
 
 /**

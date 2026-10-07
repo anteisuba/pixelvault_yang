@@ -27,7 +27,7 @@ function project(video: readonly EditClip[]): EditProject {
   return {
     name: '成片',
     tracks: { video: [...video], audio: [], music: [], text: [] },
-    settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+    settings: { aspect: '16:9', resolution: '1080p' },
   }
 }
 

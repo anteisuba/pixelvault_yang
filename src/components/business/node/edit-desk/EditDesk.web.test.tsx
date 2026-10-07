@@ -263,6 +263,12 @@ function openMaterials(): void {
   fireEvent.click(screen.getByTestId('edit-desk-panel-canvas'))
 }
 
+/** 加字幕在左列「文字」页顶上（v2 第 3 片：时间线上那排工具键去掉了）。 */
+function addCaption(): void {
+  fireEvent.click(screen.getByTestId('edit-desk-panel-text'))
+  fireEvent.click(screen.getByTestId('edit-desk-add-caption'))
+}
+
 const emptyState: NodeWorkflowStateV4 = {
   version: 4,
   nodes: [videoNode('v1'), videoNode('v2')],
@@ -326,10 +332,9 @@ describe('剪辑台 · 台面', () => {
 
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
     const inspector = screen.getByTestId('edit-desk-inspector')
-    const fast = within(inspector).getByRole('radio', { name: '2×' })
-    expect(fast).toBeInTheDocument()
-
-    fireEvent.click(fast)
+    // 速度是一颗小胶囊，点开才是三档
+    fireEvent.click(within(inspector).getByTestId('edit-desk-speed-trigger'))
+    fireEvent.click(screen.getByRole('radio', { name: '2×' }))
     expect(read().edit?.tracks.video[0]?.speed).toBe(2)
   })
 
@@ -339,8 +344,33 @@ describe('剪辑台 · 台面', () => {
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
+    fireEvent.click(screen.getByTestId('edit-desk-transition-trigger'))
     fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
     expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
+  })
+
+  it('走带行：播放键与空格同一份播放态；声音键让预览静音；分割 / 删除两颗小键', () => {
+    // jsdom 的 <video> 不会播：`play()` 给一个立即兑现的 promise 就够了。
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
+    const play = screen.getByTestId('edit-desk-play')
+    expect(play).toHaveAttribute('aria-label', '播放')
+    fireEvent.click(play)
+    expect(play).toHaveAttribute('aria-label', '暂停')
+
+    const video = screen.getByTestId(
+      'edit-desk-preview-video',
+    ) as HTMLVideoElement
+    expect(video.muted).toBe(false)
+    fireEvent.click(screen.getByTestId('edit-desk-mute'))
+    expect(video.muted).toBe(true)
+
+    // 没选中时没有那两颗键；选中一段才出
+    expect(screen.queryByTestId('edit-desk-remove')).toBeNull()
+    const clipId = read().edit?.tracks.video[0]?.id
+    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
+    fireEvent.click(screen.getByTestId('edit-desk-remove'))
+    expect(read().edit?.tracks.video).toHaveLength(0)
   })
 
   it('素材库页：拖一条产物进 V 轨 —— 先落成画布卡，段指向那张卡', async () => {
@@ -399,37 +429,35 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
   })
 
-  it('工具「语音」/「配乐」：切到音频页 + 换筛 + 点亮对应轨', () => {
+  it('只看不剪（手机档）：走带行只留播放 · 时间码 · 声音，轨道整块 inert', () => {
+    renderDesk(emptyState, { initialNodeIds: ['v1'], readOnly: true })
+    expect(screen.getByTestId('edit-desk-play')).toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-mute')).toBeInTheDocument()
+    expect(screen.queryByTestId('edit-desk-inspector')).toBeNull()
+    expect(screen.queryByTestId('edit-desk-zoom-fit')).toBeNull()
+    expect(screen.queryByTestId('edit-desk-rail')).toBeNull()
+    const lanes = screen
+      .getByTestId('edit-desk-timeline')
+      .querySelector('[data-edit-desk-readonly="true"]')
+    expect(lanes).toHaveAttribute('inert')
+    // 播放键不在 inert 那一块里
+    expect(lanes?.contains(screen.getByTestId('edit-desk-play'))).toBe(false)
+  })
+
+  it('音频页的三档筛：语音 / 配乐各只列自己那一类', () => {
     renderDesk({
       version: 4,
       nodes: [videoNode('v1'), audioNode('a1')],
       edges: [],
     })
 
-    fireEvent.click(screen.getByTestId('edit-desk-tool-voice'))
-    expect(screen.getByRole('radio', { name: '语音' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
+    fireEvent.click(screen.getByTestId('edit-desk-panel-audio'))
+    fireEvent.click(screen.getByRole('radio', { name: '语音' }))
     expect(screen.getByTestId('edit-desk-asset-a1')).toBeInTheDocument()
-    expect(
-      screen
-        .getByTestId('edit-desk-track-audio')
-        .querySelector('.ring-primary'),
-    ).not.toBeNull()
 
-    fireEvent.click(screen.getByTestId('edit-desk-tool-music'))
-    expect(screen.getByRole('radio', { name: '配乐' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    )
+    fireEvent.click(screen.getByRole('radio', { name: '配乐' }))
     // 语音卡在「配乐」这一档里筛掉了
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
-    expect(
-      screen
-        .getByTestId('edit-desk-track-music')
-        .querySelector('.ring-primary'),
-    ).not.toBeNull()
   })
 
   it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {
@@ -463,7 +491,7 @@ describe('剪辑台 · 台面', () => {
           music: [],
           text: [],
         },
-        settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+        settings: { aspect: '16:9', resolution: '1080p' },
       },
     }
     const { read } = renderDesk(staleState)
@@ -471,12 +499,6 @@ describe('剪辑台 · 台面', () => {
     fireEvent.click(badge)
     expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2')
     expect(screen.queryByTestId('edit-desk-stale-c1')).not.toBeInTheDocument()
-  })
-
-  it('磁吸开关落进 settings', () => {
-    const { read } = renderDesk(emptyState)
-    fireEvent.click(screen.getByTestId('edit-desk-magnetic'))
-    expect(read().edit?.settings.magnetic).toBe(false)
   })
 
   it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {
@@ -728,8 +750,8 @@ describe('剪辑台 · 素材与段的长相', () => {
     renderDesk(posterState)
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
-    // ⚠ 按 `data-clip-index` 找，⛔ 不按 testid 前缀 —— `edit-desk-clip-clock`
-    // （预览左上那个段读数）会一起命中。
+    // ⚠ 按 `data-clip-index` 找，⛔ 不按 testid 前缀 —— `edit-desk-clip-` 这个前缀太宽，
+    // 会把别的件一起命中。
     const clip = document.querySelector('[data-clip-index="0"]')
     expect(clip).not.toBeNull()
     if (!clip) throw new Error('no clip')
@@ -748,9 +770,9 @@ describe('剪辑台 · 素材与段的长相', () => {
 /* ─── 文字段与快捷键预设（S8d · spec §6，画板 `EditDeskText.dc.html`）───── */
 
 describe('剪辑台 · 文字段', () => {
-  it('工具条「文字」= 在播放头处落一段，段上写内容首行，属性行换成字幕', () => {
+  it('左列「文字」页「加一条字幕」= 在播放头处落一段，段上写内容首行，属性行换成字幕', () => {
     const { read } = renderDesk(emptyState)
-    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    addCaption()
 
     const text = read().edit?.tracks.text ?? []
     expect(text).toHaveLength(1)
@@ -767,7 +789,7 @@ describe('剪辑台 · 文字段', () => {
 
   it('预览上双击字幕原地改字（Enter 确认）；四颗小按钮改位置 / 字号 / 淡入淡出', () => {
     const { read } = renderDesk(emptyState)
-    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    addCaption()
     const clipId = (read().edit?.tracks.text ?? [])[0]!.id
 
     fireEvent.doubleClick(
@@ -798,7 +820,7 @@ describe('剪辑台 · 文字段', () => {
 
   it('Esc 放弃改字：原文不变，⛔ 不退出剪辑台；空字不收', () => {
     const { read, onExit } = renderDesk(emptyState)
-    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    addCaption()
     const original = (read().edit?.tracks.text ?? [])[0]!
     const clipId = original.id
 
@@ -840,7 +862,7 @@ describe('剪辑台 · 文字段', () => {
 
   it('播放头走出段外就不显示（⛔ 不留一句一直挂着的字幕）', () => {
     const { read } = renderDesk(emptyState)
-    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    addCaption()
     const clipId = (read().edit?.tracks.text ?? [])[0]!.id
     expect(
       screen.queryByTestId(`edit-desk-preview-text-${clipId}`),
@@ -857,7 +879,7 @@ describe('剪辑台 · 文字段', () => {
     const { read } = renderDesk(emptyState)
     openMaterials()
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
-    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    addCaption()
     expect(read().edit?.tracks.text).toHaveLength(1)
 
     fireEvent.keyDown(window, { key: 'Backspace' })
@@ -968,6 +990,7 @@ describe('剪辑台 · 回执与段闪', () => {
     expect(screen.getByTestId('edit-desk-receipt')).toBeInTheDocument()
 
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
+    fireEvent.click(screen.getByTestId('edit-desk-transition-trigger'))
     fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
     await waitFor(() =>
       expect(screen.queryByTestId('edit-desk-receipt')).toBeNull(),
@@ -1040,7 +1063,7 @@ describe('台词挂在主线上（v2 第 1 片）', () => {
         music: [],
         text: [],
       },
-      settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+      settings: { aspect: '16:9', resolution: '1080p' },
     },
   }
   /** 段视图外面那一层绝对定位的框（台词轨按起点摆）。 */

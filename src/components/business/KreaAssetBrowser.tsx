@@ -151,6 +151,7 @@ import { clearGalleryCache } from '@/lib/gallery-cache'
 import { getChildFolders } from '@/lib/folder-tree'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
 import { cn } from '@/lib/utils'
+import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
 import { isTouchPrimary } from '@/lib/touch'
 import {
   captureVideoThumbnail,
@@ -334,6 +335,7 @@ export function KreaAssetBrowser({
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
+  const tSearch = useTranslations('SearchGrounding')
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const [isToolbarStuck, setIsToolbarStuck] = useState(false)
@@ -537,7 +539,8 @@ export function KreaAssetBrowser({
   // replaces the native window.confirm() pop-up which looked out of place.
   type ConfirmAction =
     | { kind: 'delete-bulk'; count: number }
-    | { kind: 'publish-bulk'; count: number }
+    /** `kept` = 选中里用过「先搜再画」、只能留在私密的那几张。 */
+    | { kind: 'publish-bulk'; count: number; kept: number }
     | { kind: 'favorite-bulk'; count: number }
     | { kind: 'delete-folder'; folder: ProjectRecord }
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
@@ -636,14 +639,39 @@ export function KreaAssetBrowser({
     }
   }, [selectedIds, t, removeGeneration, refreshCounts, exitSelectionMode])
 
+  /**
+   * 选中里用过「先搜再画」的那几张（按 Gemini API 条款不能公开）：混选只发能发的，
+   * 全是这类图时「发布到画廊」置灰、工具条上方说一句原因。
+   */
+  const searchGroundedSelectedIds = useMemo(
+    () =>
+      new Set(
+        generations
+          .filter(
+            (generation) =>
+              selectedIds.has(generation.id) &&
+              generation.searchGrounded &&
+              !generation.isPublic,
+          )
+          .map((generation) => generation.id),
+      ),
+    [generations, selectedIds],
+  )
+  const bulkPublishAllBlocked =
+    selectedIds.size > 0 && searchGroundedSelectedIds.size === selectedIds.size
+
   const requestBulkPublish = () => {
-    const count = selectedIds.size
-    if (count === 0) return
-    setConfirmAction({ kind: 'publish-bulk', count })
+    const kept = searchGroundedSelectedIds.size
+    const count = selectedIds.size - kept
+    if (count <= 0) return
+    setConfirmAction({ kind: 'publish-bulk', count, kept })
   }
 
   const performBulkPublish = useCallback(async () => {
-    const ids = Array.from(selectedIds)
+    const kept = searchGroundedSelectedIds.size
+    const ids = Array.from(selectedIds).filter(
+      (id) => !searchGroundedSelectedIds.has(id),
+    )
     if (ids.length === 0) return
     setIsBulkPublishing(true)
     try {
@@ -664,7 +692,11 @@ export function KreaAssetBrowser({
       }
       if (updatedCount > 0) {
         // 发完给一条回链：发布的结果长在画廊里，而用户此刻站在素材库。
-        toast.success(t('bulkPublishSuccess', { count: updatedCount }), {
+        const message =
+          kept > 0
+            ? tSearch('bulkPublishedKept', { published: updatedCount, kept })
+            : t('bulkPublishSuccess', { count: updatedCount })
+        toast.success(message, {
           action: {
             label: t('bulkPublishView'),
             onClick: () => router.push(ROUTES.GALLERY),
@@ -677,7 +709,9 @@ export function KreaAssetBrowser({
     }
   }, [
     selectedIds,
+    searchGroundedSelectedIds,
     t,
+    tSearch,
     updateGeneration,
     refreshCounts,
     exitSelectionMode,
@@ -2160,12 +2194,20 @@ export function KreaAssetBrowser({
           于是「点了『选择』什么都没发生」，用户不知道进没进选择模式。 */}
       {!isPickerMode && selectionMode && (
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 md:pb-6"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex flex-col items-center px-3 md:pb-6"
           style={{
             paddingBottom:
               'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
           }}
         >
+          {/* 选中的全是「先搜再画」出的图：「发布到画廊」置灰，原因长在工具条上方。 */}
+          <SearchGroundingPublishNote
+            id="asset-bulk-publish-note"
+            show={bulkPublishAllBlocked}
+            variant="bulk"
+            className="max-w-full"
+            noteClassName="pointer-events-auto mb-1.5 rounded-lg border border-border/60 bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur-md"
+          />
           <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
             <span className="px-2 text-xs font-medium tabular-nums">
               {t('selectedCount', { count: selectedIds.size })}
@@ -2227,7 +2269,14 @@ export function KreaAssetBrowser({
             <button
               type="button"
               onClick={requestBulkPublish}
-              disabled={isBulkActionPending || selectedIds.size === 0}
+              disabled={
+                isBulkActionPending ||
+                selectedIds.size === 0 ||
+                bulkPublishAllBlocked
+              }
+              aria-describedby={
+                bulkPublishAllBlocked ? 'asset-bulk-publish-note' : undefined
+              }
               className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isBulkPublishing ? (
@@ -2280,7 +2329,11 @@ export function KreaAssetBrowser({
                   {confirmAction.kind === 'delete-bulk'
                     ? t('bulkDeleteConfirm', { count: confirmAction.count })
                     : confirmAction.kind === 'publish-bulk'
-                      ? t('bulkPublishConfirm', { count: confirmAction.count })
+                      ? confirmAction.kept > 0
+                        ? `${tSearch('bulkConfirmTitle', { count: confirmAction.count })} ${tSearch('bulkSomeKept', { count: confirmAction.kept })}`
+                        : t('bulkPublishConfirm', {
+                            count: confirmAction.count,
+                          })
                       : confirmAction.kind === 'favorite-bulk'
                         ? t('bulkFavoriteConfirm', {
                             count: confirmAction.count,
@@ -2316,7 +2369,11 @@ export function KreaAssetBrowser({
                   }}
                 >
                   {confirmAction.kind === 'publish-bulk'
-                    ? t('bulkPublish')
+                    ? confirmAction.kept > 0
+                      ? tSearch('bulkConfirmAction', {
+                          count: confirmAction.count,
+                        })
+                      : t('bulkPublish')
                     : confirmAction.kind === 'favorite-bulk'
                       ? t('bulkFavorite')
                       : t('folderDelete')}

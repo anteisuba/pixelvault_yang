@@ -24,6 +24,7 @@ import type { GenerationRecord, ProjectRecord } from '@/types'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetDetailOverlays } from '@/components/business/assets/AssetDetailOverlays'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
 import {
   InPlaceViewer,
   useInPlaceViewer,
@@ -205,6 +206,9 @@ function AssetViewerAside({
     generation.model === USER_UPLOAD_PROVIDER ||
     generation.provider === USER_UPLOAD_PROVIDER
   const isLiked = Boolean(generation.isLiked)
+  // 「先搜再画」出的图按条款只能自己看：「发布」置灰，原因写在操作行下面。
+  const publishBlocked =
+    Boolean(generation.searchGrounded) && !generation.isPublic
   const seed = formatGenerationSeed(generation.seed)
   const durationLabel =
     typeof generation.duration === 'number' && generation.duration > 0
@@ -297,9 +301,15 @@ function AssetViewerAside({
         <button
           type="button"
           onClick={() => actions.setIsPublishScopeOpen(true)}
-          disabled={actions.isPublishing}
+          disabled={actions.isPublishing || publishBlocked}
           aria-pressed={generation.isPublic}
-          className={VIEWER_OUTLINE_PILL}
+          aria-describedby={
+            publishBlocked ? 'asset-viewer-publish-note' : undefined
+          }
+          className={cn(
+            VIEWER_OUTLINE_PILL,
+            'transition-[background-color,opacity]',
+          )}
         >
           {generation.isPublic ? t('viewer.published') : t('viewer.publish')}
         </button>
@@ -374,6 +384,11 @@ function AssetViewerAside({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <SearchGroundingPublishNote
+        id="asset-viewer-publish-note"
+        show={publishBlocked}
+        className="px-5"
+      />
 
       <div className="studio-scrollbar flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5">
         {generation.prompt.trim() ? (

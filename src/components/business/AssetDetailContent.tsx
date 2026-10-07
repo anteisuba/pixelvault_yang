@@ -35,6 +35,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { createProjectAPI } from '@/lib/api-client'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetDetailOverlays } from '@/components/business/assets/AssetDetailOverlays'
+import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
 import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import {
   getGenerationModel3DVisualUrl,
@@ -147,6 +148,9 @@ export function AssetDetailContent({
 
   const isAudioAsset = generation.outputType === 'AUDIO'
   const isVideoAsset = generation.outputType === 'VIDEO'
+  // 「先搜再画」出的图按条款只能自己看：地球钮置灰，原因写在图标行下面。
+  const publishBlocked =
+    Boolean(generation.searchGrounded) && !generation.isPublic
 
   const previewUrl = getGenerationPreviewUrl(generation)
   const toolbarActions = (
@@ -276,8 +280,12 @@ export function AssetDetailContent({
           title={
             generation.isPublic ? t('detailPublishScope') : t('detailPublish')
           }
-          disabled={isPublishing}
+          disabled={isPublishing || publishBlocked}
           aria-pressed={generation.isPublic}
+          aria-describedby={
+            publishBlocked ? 'asset-detail-publish-note' : undefined
+          }
+          className="transition-[background-color,color,opacity]"
         >
           {isPublishing ? (
             <Spinner size="md" />
@@ -367,6 +375,10 @@ export function AssetDetailContent({
           }
         />
       </div>
+      <SearchGroundingPublishNote
+        id="asset-detail-publish-note"
+        show={publishBlocked}
+      />
     </div>
   )
 

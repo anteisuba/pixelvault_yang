@@ -135,6 +135,35 @@ describe('AssetViewer', () => {
     ).toBeInTheDocument()
   })
 
+  it('先搜再画出的图：「发布」置灰，原因写在下面一行', () => {
+    renderViewer(image('g', { searchGrounded: true, isPublic: false }))
+
+    const publish = screen.getByRole('button', {
+      name: 'AssetsPage:viewer.publish',
+    })
+    expect(publish).toBeDisabled()
+    expect(publish).toHaveAttribute(
+      'aria-describedby',
+      'asset-viewer-publish-note',
+    )
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'SearchGrounding:publishWhy',
+    )
+  })
+
+  it('普通出图照常能发布，原因行收起', () => {
+    renderViewer(image('p', { isPublic: false }))
+
+    expect(
+      screen.getByRole('button', { name: 'AssetsPage:viewer.publish' }),
+    ).toBeEnabled()
+    expect(
+      document
+        .getElementById('asset-viewer-publish-note')
+        ?.closest('[data-open]'),
+    ).toHaveAttribute('data-open', 'false')
+  })
+
   it('has no rail or arrows for a video, and brings its analysis panel', () => {
     renderViewer(
       image('v', {

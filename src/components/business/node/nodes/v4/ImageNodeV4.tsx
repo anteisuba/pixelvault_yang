@@ -96,6 +96,7 @@ import {
   buildConnectToShotOps,
   buildConnectToShotTargets,
 } from './connect-to-shot-targets'
+import { ImageCapabilityChip } from './image/ImageCapabilityChip'
 import { ImageFrameChip } from './image/ImageFrameChip'
 import { ImageNodeFrame } from './image/ImageNodeFrame'
 import {
@@ -756,9 +757,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       onAspectRatioChange={(aspectRatio) =>
         canvas.onSetParams(id, { ...imageData.params, aspectRatio })
       }
-      onQualityChange={(quality) =>
-        canvas.onSetParams(id, { ...imageData.params, quality })
-      }
       onResolutionChange={(resolution) =>
         canvas.onSetParams(id, { ...imageData.params, resolution })
       }
@@ -775,6 +773,16 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               }),
           }
         : {})}
+    />
+  )
+  const capabilityChip = (
+    <ImageCapabilityChip
+      key="capability"
+      model={effectiveModel}
+      params={imageData.params}
+      onParamsChange={(next) => canvas.onSetParams(id, next)}
+      hasReferenceImage={refs.railProps.items.length > 0}
+      disabled={generating}
     />
   )
   const modelChip = (
@@ -1130,7 +1138,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             mentionOptions={promptMentions.mentionOptions}
             renderValue={promptMentions.renderValue}
             addMenu={refAddMenu}
-            chips={[paramsChip, modelChip].filter(Boolean)}
+            chips={[paramsChip, capabilityChip, modelChip].filter(Boolean)}
           />
         </div>
       </NodeChromeLayer>
@@ -1187,6 +1195,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               slots: refs.items.length,
             })}
             paramsChip={paramsChip}
+            capabilityChip={capabilityChip}
             modelChip={modelChip}
             showReferences={acceptsRefs}
             refRail={

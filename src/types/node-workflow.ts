@@ -948,6 +948,14 @@ export const NodeV4GenerationParamsSchema = z.object({
    * ⛔ 不进卡（出图当下只在内存里，见 `use-node-search-grounding`）。
    */
   searchGrounding: z.boolean().optional(),
+  /**
+   * 「专属」chip 的其余几项（owner 2026-10-08：与图片台同一颗 chip）——背景、输入
+   * 保真、CFG……键与 `AdvancedParams` 同名。值域跟着模型能力表走，⛔ 这里不收窄；
+   * 发出去之前逐项过服务端 `AdvancedParamsSchema`。⚠ 画质仍住上面的 `quality`。
+   */
+  advanced: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .optional(),
 })
 
 /**

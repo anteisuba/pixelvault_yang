@@ -24,11 +24,7 @@ import { STORYBOARD_GRID_PROMPT_TEMPLATE } from '@/constants/storyboard-grid'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
 import { Switch } from '@/components/ui/switch'
 
-import {
-  IMAGE_COUNT_OPTIONS,
-  imageFrameReadout,
-  imageQualityOptions,
-} from './image-node-model'
+import { IMAGE_COUNT_OPTIONS, imageFrameReadout } from './image-node-model'
 
 export interface ImageFrameChipProps {
   readonly aspectRatio: string | undefined
@@ -41,7 +37,6 @@ export interface ImageFrameChipProps {
   readonly resolution: string | undefined
   readonly count: number | undefined
   onAspectRatioChange(next: string): void
-  onQualityChange(next: string): void
   onResolutionChange(next: string): void
   onCountChange(next: number): void
   /**
@@ -69,7 +64,6 @@ export function ImageFrameChip({
   resolution,
   count,
   onAspectRatioChange,
-  onQualityChange,
   onResolutionChange,
   onCountChange,
   storyboardGrid = false,
@@ -93,7 +87,6 @@ export function ImageFrameChip({
     aspectRatio: aspectRatio ?? null,
     resolution: resolution ?? null,
   })
-  const qualities = imageQualityOptions(model)
   const readout = imageFrameReadout(aspectRatio, modelId, {
     ...(quality ? { quality } : {}),
     ...(effectiveCount === undefined ? {} : { count: effectiveCount }),
@@ -190,45 +183,6 @@ export function ImageFrameChip({
                 })}
               </div>
             </div>
-            {/* 画质是**逐模型的专属能力**（第 11 项把它从规格里搬走），所以它落在
-              「更多」里而不是与比例 / 清晰度并列。不支持的档灰显划线不移除。 */}
-            {qualities.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-2xs font-medium text-muted-foreground/70">
-                  {t('frame.quality')}
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {qualities.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={quality === option.value}
-                      aria-disabled={option.disabled || disabled}
-                      title={
-                        option.disabled
-                          ? tSpec('tierUnsupported', { tier: option.value })
-                          : undefined
-                      }
-                      onClick={() => {
-                        if (option.disabled || disabled) return
-                        onQualityChange(option.value)
-                      }}
-                      className={cn(
-                        moreTierClass,
-                        option.disabled
-                          ? moreTierBlockedClass
-                          : quality === option.value
-                            ? moreTierActiveClass
-                            : moreTierIdleClass,
-                      )}
-                    >
-                      {option.value}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
             {/* 比例与单价都还不知道时**整行不渲染**，⛔ 不留一条空行占位。 */}
             {readout ? (
               <p

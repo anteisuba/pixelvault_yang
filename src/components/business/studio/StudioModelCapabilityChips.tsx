@@ -9,6 +9,7 @@ import {
   isCapabilityChipSet,
   type CapabilityChip,
 } from '@/lib/model-capability-chips'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { cn } from '@/lib/utils'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
@@ -69,7 +70,7 @@ export function StudioModelCapabilityChips({
   variant = 'section',
   triggerClassName,
 }: StudioModelCapabilityChipsProps) {
-  const { state } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const { runModels } = useStudioRunModels()
   const t = useTranslations('StudioCapabilityChips')
@@ -78,6 +79,8 @@ export function StudioModelCapabilityChips({
   const chips = getRunCapabilityChips(runModels)
   if (chips.length === 0) return null
 
+  const onParamsChange = (next: AdvancedParams) =>
+    dispatch({ type: 'SET_ADVANCED_PARAMS', payload: next })
   const hasReferenceImage = imageUpload.referenceImages.length > 0
   const visibleChips = chips.filter((chip) =>
     isCapabilityChipVisible(chip, state.advancedParams, hasReferenceImage),
@@ -114,6 +117,7 @@ export function StudioModelCapabilityChips({
         sectionLabel={sectionLabel}
         scopeNotes={scopeNotes}
         triggerClassName={triggerClassName}
+        onParamsChange={onParamsChange}
       />
     )
   }
@@ -143,10 +147,57 @@ export function StudioModelCapabilityChips({
             disabled={disabled}
             hasReferenceImage={hasReferenceImage}
             scopeNote={scopeNotes.get(chip.capability)}
+            onParamsChange={onParamsChange}
           />
         ))}
       </div>
     </div>
+  )
+}
+
+/**
+ * 同一颗专属 chip，**不读工作台 context**（owner 2026-10-08：画布图片卡也要有）。
+ * 值与写回由宿主给：画布把它存在卡的参数上。
+ */
+export function ModelCapabilitySingleChip({
+  models,
+  params,
+  onParamsChange,
+  hasReferenceImage,
+  disabled = false,
+  triggerClassName,
+}: {
+  models: readonly { adapterType: AI_ADAPTER_TYPES; modelId: string }[]
+  params: AdvancedParams
+  onParamsChange: (next: AdvancedParams) => void
+  hasReferenceImage: boolean
+  disabled?: boolean
+  triggerClassName?: string
+}) {
+  const t = useTranslations('StudioCapabilityChips')
+  const tModels = useTranslations('Models')
+  const visibleChips = getRunCapabilityChips(models).filter((chip) =>
+    isCapabilityChipVisible(chip, params, hasReferenceImage),
+  )
+  if (visibleChips.length === 0) return null
+  const sectionLabel = t('sectionLabel', {
+    model: [
+      ...new Set(
+        models.map((model) => getTranslatedModelLabel(tModels, model.modelId)),
+      ),
+    ].join(' · '),
+  })
+  return (
+    <CapabilitySingleChip
+      chips={visibleChips}
+      params={params}
+      disabled={disabled}
+      hasReferenceImage={hasReferenceImage}
+      sectionLabel={sectionLabel}
+      scopeNotes={new Map()}
+      triggerClassName={triggerClassName}
+      onParamsChange={onParamsChange}
+    />
   )
 }
 
@@ -300,6 +351,7 @@ function CapabilityControlList({
   hasReferenceImage,
   sectionLabel,
   scopeNotes,
+  onParamsChange,
 }: {
   chips: CapabilityChip[]
   params: AdvancedParams
@@ -307,17 +359,14 @@ function CapabilityControlList({
   hasReferenceImage: boolean
   sectionLabel: string
   scopeNotes: ReadonlyMap<string, string>
+  onParamsChange: (next: AdvancedParams) => void
 }) {
-  const { dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
   const tAdvanced = useTranslations('AdvancedSettings')
 
+  // ⚠ 整个对象带过去，只换一个键 —— 宿主那一侧是整体替换。
   const update = (patch: Partial<AdvancedParams>) =>
-    dispatch({
-      // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是整体替换。
-      type: 'SET_ADVANCED_PARAMS',
-      payload: { ...params, ...patch },
-    })
+    onParamsChange({ ...params, ...patch })
 
   return (
     <div className="flex flex-col gap-4">
@@ -394,6 +443,7 @@ function CapabilitySingleChip({
   sectionLabel,
   scopeNotes,
   triggerClassName,
+  onParamsChange,
 }: {
   chips: CapabilityChip[]
   params: AdvancedParams
@@ -402,6 +452,7 @@ function CapabilitySingleChip({
   sectionLabel: string
   scopeNotes: ReadonlyMap<string, string>
   triggerClassName?: string
+  onParamsChange: (next: AdvancedParams) => void
 }) {
   const t = useTranslations('StudioCapabilityChips')
   const tAdvanced = useTranslations('AdvancedSettings')
@@ -458,6 +509,7 @@ function CapabilitySingleChip({
           hasReferenceImage={hasReferenceImage}
           sectionLabel={sectionLabel}
           scopeNotes={scopeNotes}
+          onParamsChange={onParamsChange}
         />
       </ResponsivePopoverContent>
     </StudioToolSurface>
@@ -470,6 +522,7 @@ function CapabilityChipControl({
   disabled,
   hasReferenceImage,
   scopeNote,
+  onParamsChange,
 }: {
   chip: CapabilityChip
   params: AdvancedParams
@@ -477,8 +530,8 @@ function CapabilityChipControl({
   hasReferenceImage: boolean
   /** 「只对谁生效」—— 一行 chip 里没地方写字，挂在 title 上。 */
   scopeNote?: string
+  onParamsChange: (next: AdvancedParams) => void
 }) {
-  const { dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
   const tAdvanced = useTranslations('AdvancedSettings')
 
@@ -486,12 +539,9 @@ function CapabilityChipControl({
   const isSet = isCapabilityChipSet(chip, params)
   const unavailable = chip.requiresReferenceImage && !hasReferenceImage
 
+  // ⚠ 整个对象带过去，只换一个键 —— 宿主那一侧是整体替换。
   const update = (patch: Partial<AdvancedParams>) =>
-    dispatch({
-      // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是整体替换。
-      type: 'SET_ADVANCED_PARAMS',
-      payload: { ...params, ...patch },
-    })
+    onParamsChange({ ...params, ...patch })
 
   const label = t(`capability.${chip.capability}`)
   const valueLabel = capabilityValueLabel(chip, value, t, tAdvanced)

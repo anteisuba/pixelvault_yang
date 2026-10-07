@@ -373,6 +373,31 @@ export function SpecChip({
         </SpecSection>
       ) : null}
 
+      {model.resolutions.length > 0 ? (
+        <SpecSection compact={compact} label={resolutionLabel} note={note}>
+          {model.resolutions.map((tier) => (
+            <SpecTierButton
+              key={tier.value}
+              compact={compact}
+              tier={tier}
+              active={resolution === tier.value}
+              disabled={disabled}
+              locked={false}
+              unsupportedTitle={
+                model.resolutionNote?.kind === 'unsupported' &&
+                model.resolutionNote.maxSupported
+                  ? t('resolutionCeiling', {
+                      tier: tier.value,
+                      max: model.resolutionNote.maxSupported,
+                    })
+                  : t('tierUnsupported', { tier: tier.value })
+              }
+              onSelect={(next) => selectValue(next, onResolutionChange)}
+            />
+          ))}
+        </SpecSection>
+      ) : null}
+
       {compact && compactBatchCount ? (
         <SpecSection
           compact
@@ -393,31 +418,6 @@ export function SpecChip({
               locked={compactBatchCount.locked ?? false}
               unsupportedTitle=""
               onSelect={() => selectValue(value, compactBatchCount.onChange)}
-            />
-          ))}
-        </SpecSection>
-      ) : null}
-
-      {!compactImage && model.resolutions.length > 0 ? (
-        <SpecSection compact={compact} label={resolutionLabel} note={note}>
-          {model.resolutions.map((tier) => (
-            <SpecTierButton
-              key={tier.value}
-              compact={compact}
-              tier={tier}
-              active={resolution === tier.value}
-              disabled={disabled}
-              locked={false}
-              unsupportedTitle={
-                model.resolutionNote?.kind === 'unsupported' &&
-                model.resolutionNote.maxSupported
-                  ? t('resolutionCeiling', {
-                      tier: tier.value,
-                      max: model.resolutionNote.maxSupported,
-                    })
-                  : t('tierUnsupported', { tier: tier.value })
-              }
-              onSelect={(next) => selectValue(next, onResolutionChange)}
             />
           ))}
         </SpecSection>

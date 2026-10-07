@@ -44,6 +44,7 @@ import {
   type VoiceLibraryClip,
 } from '../voice-library/VoiceLibraryPanel'
 import { CharacterMentionRail } from '../nodes/v4/character/CharacterMentionRail'
+import { ImageCapabilityChip } from '../nodes/v4/image/ImageCapabilityChip'
 import { ImageFrameChip } from '../nodes/v4/image/ImageFrameChip'
 import { ImageSearchGroundingMenuItem } from '../nodes/v4/image/ImageNodeMenus'
 import { imageNodeAcceptsReferences } from '../nodes/v4/image/image-node-model'
@@ -327,15 +328,20 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
             onAspectRatioChange={(aspectRatio) =>
               canvas.onSetParams(node.id, { ...data.params, aspectRatio })
             }
-            onQualityChange={(quality) =>
-              canvas.onSetParams(node.id, { ...data.params, quality })
-            }
             onResolutionChange={(resolution) =>
               canvas.onSetParams(node.id, { ...data.params, resolution })
             }
             onCountChange={(count) =>
               canvas.onSetParams(node.id, { ...data.params, count })
             }
+          />,
+          <ImageCapabilityChip
+            key="capability"
+            model={data.model}
+            params={data.params}
+            onParamsChange={(next) => canvas.onSetParams(node.id, next)}
+            hasReferenceImage={refs.railProps.items.length > 0}
+            disabled={draft.generating}
           />,
           <NodeModelChip
             key="model"

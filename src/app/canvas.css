@@ -402,7 +402,8 @@
   :is(
     [data-spec-chip-state]:not([data-spec-chip-state='flash']),
     [data-model-chip]:not([data-status-tone='warning']),
-    [data-audio-voice-chip]
+    [data-audio-voice-chip],
+    [data-assistant-field='capabilities']
   ) {
   border-color: transparent;
   background: var(--surface-fill);
@@ -414,7 +415,8 @@
   :is(
     [data-spec-chip-state]:not([data-spec-chip-state='flash']),
     [data-model-chip]:not([data-status-tone='warning']),
-    [data-audio-voice-chip]
+    [data-audio-voice-chip],
+    [data-assistant-field='capabilities']
   ):hover {
   background: var(--surface-fill-hover);
 }
@@ -423,7 +425,8 @@
   :is(
     [data-spec-chip-state='open'],
     [data-model-chip][data-active='true'],
-    [data-audio-voice-chip][data-state='open']
+    [data-audio-voice-chip][data-state='open'],
+    [data-assistant-field='capabilities'][data-state='open']
   ) {
   border-color: transparent;
   background: var(--surface-fill-track);

@@ -49,6 +49,8 @@ export interface ImageNodeFrameProps {
   readonly regenerateDisabled: boolean
   readonly footerReadout: string
   readonly paramsChip: ReactNode
+  /** 「专属」chip —— 模型没有专属能力时为 null。 */
+  readonly capabilityChip?: ReactNode
   readonly modelChip: ReactNode
   readonly showReferences: boolean
   readonly refRail: ReactNode
@@ -80,6 +82,7 @@ export function ImageNodeFrame({
   regenerateDisabled,
   footerReadout,
   paramsChip,
+  capabilityChip,
   modelChip,
   showReferences,
   refRail,
@@ -220,6 +223,7 @@ export function ImageNodeFrame({
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             {paramsChip}
+            {capabilityChip}
             {modelChip}
             <button
               type="button"

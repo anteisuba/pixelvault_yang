@@ -17,6 +17,7 @@
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
+import type { z } from 'zod'
 
 import type { AspectRatio } from '@/constants/config'
 import { supportsSearchGrounding } from '@/constants/models'
@@ -87,6 +88,8 @@ export interface V4GenerationPlan {
   readonly imageResolution?: string
   /** 「先搜再画」：卡上开着、型号又支持 —— 走 `advancedParams.searchGrounding`。 */
   readonly searchGrounding?: boolean
+  /** 「专属」chip 的其余几项 —— 逐项过 `AdvancedParamsSchema` 后并进 `advancedParams`。 */
+  readonly advanced?: Readonly<Record<string, string | number | boolean>>
   /**
    * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 顺序发
    * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
@@ -372,6 +375,7 @@ export function planV4Generation(
     supportsSearchGrounding(data.model.modelId)
       ? { searchGrounding: true }
       : {}),
+    ...(data.params?.advanced ? { advanced: data.params.advanced } : {}),
     ...(storyboardGrid
       ? { count: 1 }
       : data.params?.count === undefined
@@ -682,7 +686,20 @@ export function useNodeMediaGenerationV4() {
       const imageResolution = AdvancedParamsSchema.shape.resolution.safeParse(
         plan.imageResolution,
       )
+      // 专属那几项逐项收：认不出的那一项不发，⛔ 不连累其余几项。画质 / 清晰度 /
+      // 先搜再画各有自己的字段，这里不让它们被覆盖。
+      const shape = AdvancedParamsSchema.shape as Record<string, z.ZodType>
+      const advanced = Object.fromEntries(
+        Object.entries(plan.advanced ?? {}).filter(
+          ([key, value]) =>
+            key !== 'quality' &&
+            key !== 'resolution' &&
+            key !== 'searchGrounding' &&
+            shape[key]?.safeParse(value).success === true,
+        ),
+      )
       const advancedParams = {
+        ...advanced,
         ...(quality.success && quality.data ? { quality: quality.data } : {}),
         ...(imageResolution.success && imageResolution.data
           ? { resolution: imageResolution.data }

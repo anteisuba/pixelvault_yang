@@ -240,7 +240,7 @@ describe('SpecChip · 附加段', () => {
 })
 
 describe('SpecChip · 画布 compact', () => {
-  it('画布图片 chip 从下方展开 304px 弹层，只含比例和张数', () => {
+  it('画布图片 chip 从下方展开 304px 弹层：比例 · 清晰度 · 张数', () => {
     render(
       <StudioChipDensityProvider value="compact">
         <SpecChip
@@ -272,8 +272,13 @@ describe('SpecChip · 画布 compact', () => {
           text ?? '',
         ),
       )
-    expect(labels).toEqual(['aspectRatioLabel', 'moreItem.batchCount'])
-    expect(popover?.querySelectorAll('[role="radio"]')).toHaveLength(6)
+    // owner 2026-10-08：画布卡也要能选清晰度（与图片台同一份档位）。
+    expect(labels).toEqual([
+      'aspectRatioLabel',
+      '清晰度',
+      'moreItem.batchCount',
+    ])
+    expect(popover?.querySelectorAll('[role="radio"]')).toHaveLength(9)
   })
 
   it('选张数先回传新值，160ms 后收起弹层', () => {

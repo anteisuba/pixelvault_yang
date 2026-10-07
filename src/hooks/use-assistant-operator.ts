@@ -641,6 +641,8 @@ export interface UseAssistantOperatorResult {
     options: {
       label: string
       asset?: StudioOperatorAttachment
+      /** 打字作答时那句话里挂的图（@ / 📎）。 */
+      attachments?: readonly StudioOperatorAttachment[]
       choice?: AssistantOperatorConfirmChoice
     },
   ): void
@@ -2048,6 +2050,8 @@ export function useAssistantOperator(
         label: string
         /** 选项带缩略图时，被点中的那一张 —— 走 @chip 管线端上去。 */
         asset?: StudioOperatorAttachment
+        /** 打字作答时那句话里挂的图（@ / 📎）。 */
+        attachments?: readonly StudioOperatorAttachment[]
         /** 覆盖三选时选的那一档。 */
         choice?: AssistantOperatorConfirmChoice
       },
@@ -2171,12 +2175,34 @@ export function useAssistantOperator(
         ...prompt.answers,
         { header: current.header, label: options.label, answer: answered },
       ]
-      if (answeredAll.length < prompt.questions.length) {
+      /**
+       * ⚠ **带图的答复当场收组**：服务端看图的准入名单只读**最后一条用户消息**的
+       * 附件（`buildMentionedAssets`），所以这一句必须落成那条用户行、并且马上发。
+       * 留到组末的话，后面那几道题一答，它就不再是最后一条了。没答的题助手要问
+       * 自然会再问。
+       */
+      const carried = options.attachments ?? []
+      if (
+        answeredAll.length < prompt.questions.length &&
+        carried.length === 0
+      ) {
         setOperatorQuestion({ ...prompt, answers: answeredAll })
         return
       }
       setOperatorQuestion(null)
-      for (const item of answeredAll) {
+      for (const [index, item] of answeredAll.entries()) {
+        if (carried.length > 0 && index === answeredAll.length - 1) {
+          appendOperatorEntry({
+            kind: 'user',
+            id: nextOperatorEntryId('user'),
+            text: describeQuestionAnswerText(
+              item.answer.question ?? '',
+              item.label,
+            ),
+            attachments: carried,
+          })
+          continue
+        }
         appendOperatorEntry({
           kind: 'system',
           id: nextOperatorEntryId('sys'),

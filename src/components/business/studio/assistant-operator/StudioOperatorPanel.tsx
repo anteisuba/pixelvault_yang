@@ -960,30 +960,6 @@ export function StudioOperatorPanel({
       // 见上面 `uploading` 的注释：在飞的上传是发送的硬前提。
       if (uploading) return
       /**
-       * ⭐ **问题块开着时，直接打字 = 用一句话回答当前这题**（56b 切片 4）。
-       *
-       * ⚠ 它替掉了 v2 §3.4 的「不答直接打字」：那一档把没答的问题留到本轮结束
-       * 再折进时间线，而用户打的那句话往往**正是**答案（「8 镜，前 3 镜慢一点」）。
-       * 当成一条普通发言送出去的表现是助手下一轮把同一道题再问一遍。
-       * ⚠ 不想答就按 `Esc`（问题块收起，输入框回到普通发言）。
-       * ⚠ ⛔ 这条路不带附件：它走的是那道题的 `otherText`，而附件留在输入区等
-       *   下一句真正的发言。
-       */
-      const pending = getOperatorState().question
-      if (pending) {
-        answerQuestion(
-          {
-            questionId:
-              pending.questions[pending.answers.length]?.id ?? pending.id,
-            optionIds: [],
-            otherText: value,
-          },
-          { label: value },
-        )
-        onDraftChange('')
-        return
-      }
-      /**
        * ⭐ **@chip 与 📎 附件合成同一个数组送出去**（§7「四条走同一条 chip 管线」）：
        * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
        * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
@@ -1089,7 +1065,30 @@ export function StudioOperatorPanel({
         toast.info(tReference('invalid'))
         return
       }
-      send(compiled, merged)
+      /**
+       * ⭐ **问题块开着时，直接打字 = 用一句话回答当前这题**（56b 切片 4）。
+       *
+       * ⚠ 它替掉了 v2 §3.4 的「不答直接打字」：那一档把没答的问题留到本轮结束
+       * 再折进时间线，而用户打的那句话往往**正是**答案（「8 镜，前 3 镜慢一点」）。
+       * 当成一条普通发言送出去的表现是助手下一轮把同一道题再问一遍。
+       * ⚠ 不想答就按 `Esc`（问题块收起，输入框回到普通发言）。
+       * ⚠ 答复**带着这句话里的图走**（2026-10-08 真机）：从前这条路丢掉附件、把
+       *   `@Attachment[…]` 原样当答案，助手连问三轮「那张图我看不到」。
+       */
+      const pending = getOperatorState().question
+      if (pending) {
+        answerQuestion(
+          {
+            questionId:
+              pending.questions[pending.answers.length]?.id ?? pending.id,
+            optionIds: [],
+            otherText: compiled,
+          },
+          { label: compiled, attachments: merged },
+        )
+      } else {
+        send(compiled, merged)
+      }
       onDraftChange('')
       onAttachmentsChange(
         mountsReferences

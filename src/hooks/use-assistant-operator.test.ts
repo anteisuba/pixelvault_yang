@@ -2477,6 +2477,67 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     expect(store.getOperatorState().question).toBeNull()
   })
 
+  /**
+   * 2026-10-08 真机：问题块开着时在输入框里 `@` 一张画布图作答，图被丢掉，助手连问
+   * 三轮「那张图我看不到」。钉住：带图的答复落成最后一条用户行、当场发，
+   * 服务端的准入名单里有那张图。
+   */
+  it('打字作答带图 → 当场收组，图随 mentionedAssets 上去', async () => {
+    const second = {
+      id: 'q2',
+      header: '节奏',
+      question: '快切还是长镜头？',
+      multiSelect: false,
+      allowOther: true,
+      options: [{ id: 'fast', label: '快切', description: '2–4 秒' }],
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('按参考改比例')
+    })
+    await settle()
+    streams[0].emit(askEvent(QUESTIONS[0]!, second))
+    await settle()
+
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q1', optionIds: [], otherText: '按「生成图2」的比例' },
+        {
+          label: '按「生成图2」的比例',
+          attachments: [
+            {
+              id: 'node-gen-2',
+              url: 'https://cdn.test/gen-2.png',
+              label: '生成图2',
+              kind: 'image',
+            },
+          ],
+        },
+      )
+    })
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.question).toBeNull()
+    expect(
+      state.entries.filter((entry) => entry.kind === 'user').at(-1),
+    ).toMatchObject({ attachments: [{ id: 'node-gen-2' }] })
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    const request = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    expect(request.mentionedAssets).toEqual([
+      {
+        id: 'node-gen-2',
+        url: 'https://cdn.test/gen-2.png',
+        label: '生成图2',
+      },
+    ])
+    expect(
+      request.planAnswers?.map(
+        (item: { questionId: string }) => item.questionId,
+      ),
+    ).toEqual(['q1'])
+  })
+
   it('Esc 收起问题块：这一组题作废，⛔ 一行都不落', async () => {
     const { result } = render()
     act(() => {

@@ -151,72 +151,39 @@ grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名
 - `src/services/**`（含就地 `src/services/CLAUDE.md`、`src/app/api/CLAUDE.md`）· `src/services/providers/registry.ts` · `src/proxy.ts`
 - 历史详版：`git show cddc4384:docs/architecture/{auth,generation,overview,storage}.md`
 
-## Civitai 搜索的三级降级（2026-08-19 建，全部数字实测）
+## Civitai LoRA 库：全量索引（2026-10-07 起）
 
-> 2026-09-27（LoRA 库 B）：**浏览（不带搜索词）也先走 meilisearch**——要准数、要和搜索同一套「安全」口径，REST 两样都给不了。浏览失败照样回落 REST（2026-08-19 实录它是另一个失败域），搜索不回落。下文的「浏览不受影响 / 不罩断路器」都按这一条读。
+**列表与搜索只查我们自己的索引**：Cloudflare D1 上的 `civitai-index`（`workers/civitai-index`），应用侧入口 `src/services/civitai-lora-library.service.ts`（`CIVITAI_INDEX_URL` / `CIVITAI_INDEX_TOKEN`）。条目、总数、翻页都以索引为准；上游 meilisearch 只在同步时碰，按名字 / 哈希反查单个 LoRA 的路径（`civitai-lora.service.ts`）不变。
 
-**起因**：Civitai 对 `/api/v1/models?query=` 主动 load shedding（503 + `Retry-After: 2` + body `"Model search is temporarily overloaded"`，`x-handled-by` 是它自己的应用层不是 Cloudflare），同一时刻**不带 query 的浏览路径全程 200**。挂的是搜索子系统，不是整个 Civitai。
+**为什么重做，而不是在旧链上再打补丁**：2026-10-07 实测上游 meilisearch 把 offset 翻页**和总数**都封顶在 1000（9-27 还能拿到 1065）。旧的「上游 → L2 快照 → L3 镜像（Neon 里只装得下下载量前 5 万）→ REST 回落」四层，每一层都在补上一层的缺口：总数不准、深页翻不到、镜像同步按下载量 offset 扫，扫到 1000 就「完成」，于是把 4.9 万行判成过期、被比例闸挡住。owner 要「条目全、搜得快、准」——只能把目录整份搬到自己手里。
 
-⚠ **别再把 REST `query=` 当 meilisearch 的回落。** 两者是同一个搜索子系统的两张脸，上游一过载必然一起死——原来的"回落"只是把失败重演一遍再赔上十几秒（实录：单次请求 21–24 秒才吐 502）。回落只在 **4xx / 端点坏了 / 公钥轮换**时才有意义，`isUpstreamSearchDegraded()` 就是这条判据。
+**同步**（Worker 定时任务 `0 19 * * *` = 日本凌晨 4 点，owner 定每天一次；手动 `POST /sync`）：
 
-**降级顺序**（`listCivitaiLoras`）：
+- 上游 `id` 可过滤可排序：按 `id > 上一页最后一个` 续翻，每页都是 offset 0，1000 的封顶碰不到。类型取 `LoRA / LoCon / DoRA`。
+- 每页先取**轻量字段**（id、名字、分级、标签、指标、最新版本时刻，一千条约 0.4 MB；带图片的完整字段约 7 MB），与本地按指纹对账：新出现或指纹变了 → 只对这些 id 拉完整字段写入；只是下载量 / 点赞变了 → 只改这两列（不碰全文索引）；本地有、上游这一段没有 → 删（一段里要删的超过 50 行且超过 20% 就先不删，多半是上游这一页不完整）。没变的行一行都不写。
+- 跑在 Cloudflare Workflow 里，一步 5 页、失败按步重试；读不懂的响应抛错，不当成「扫到头」。结果写进 `sync_state`，`/api/health/crons` 里那条 `civitai-index-sync` 读它（26 小时没完整跑完或报了错就不健康）。
+- 首灌约 70 万条，每步约 20 秒（大半是解析上游 JSON）——免费版 Workers 每次 10 ms CPU 跑不动，**要 Workers 付费版**。
+- 索引多存一样东西（新列、新的派生索引）时把 `src/rows.ts` 的 `INDEX_ROW_VERSION` 加一：所有指纹对不上，下一轮同步整个目录重写一遍，不另写回填。
 
-1. **上游 meilisearch** — 两级超时 5s → 10s（健康时实测 0.55–1.1s，2026-09-27 实测 0.2–0.4s；事故当天返回在 7.99s，单一 8s 闸把"慢但会成功"判成了死）。搜索与浏览都罩 `civitai.search` 断路器（3 次失败 / 30 秒）；浏览在断路器打开或上游失败时回落 REST 浏览，搜索按 `isUpstreamSearchDegraded()` 判。
-2. **L2 快照**（`CivitaiSearchSnapshot`）— 每个规范化查询留最近一次成功结果。**不是通用缓存**：只在上游失败那一刻读。一条实测 7.6–7.8 KB，上限 1000 条 ≈ 8 MB，LRU 淘汰搭 prewarm cron（6h）。
-3. **L3 本地镜像**（`CivitaiLoraMirror`）— **兜底层，不是主查询层**。只覆盖 top N，当主路径会让长尾搜索静默变少。它的价值是能回答**从没搜过的词**，这是快照填不了的洞。
+**查询**（`POST /search`，结构化条件由应用侧算好，Worker 只按白名单拼 SQL）：
 
-顺序上快照优先于镜像：快照是这个查询（连同排序/档位/页码）的精确历史答案，保真度更高。
+- 全文：FTS5 `trigram`（名字 / 作者 / 标签 / 触发词，任意 ≥ 3 字的子串，中日文一样）。不到 3 个字的中日韩词（「鸣潮」「银发」）查另一份 `lora_cjk`：名字里每段中日韩字切成单字 + 相邻两字，按整词匹配（全表 `LIKE` 要 0.7 s）；不到 3 个字的拉丁词仍退回名字 `LIKE`。
+- 「推荐」有搜索词时按相关度分档：名字完全相同 → 名字以它开头 → 名字含整句 → 名字含每个词 → 只在标签 / 作者 / 触发词里命中，同档按下载量；没有搜索词按点赞。「最多下载 / 最新」照字段排。
+- 三态是「存在」语义（owner 2026-09-27）：安全 = 至少一张图 ≤ Soft（看 `nsfw_level_min`），仅 NSFW = 至少一张 > Soft（看 `nsfw_level_max`），两档不互斥。每个模型安全图与其余图各存前 6 张，安全档才挑得出封面。
+- 内容类型：标签精确命中（标签列存 JSON 文本，短语带上引号就只匹配整个标签）或名字含关键词；「oc」这类两个字的关键词按整词匹配。「其他」底模 = 不在任何具名家族里。
+- 总数是 `count(*)` 精确数，翻页按页码。先数再取：命中 ≥ 2000 条时过滤列前加一元 `+`，让规划器沿排序索引走、够一页就停（排序索引与 `ORDER BY` 逐列一致、以 `model_id` 升序收尾）；少于 2000 条时按过滤条件取出再排（冷门底模沿排序索引走反而要 0.9 s）。没有搜索词的总数按「条件 + 最近一次同步完成时刻」存进 `count_cache`，同步完成时清旧的。
+- 一次搜索连查 D1 两三次，Worker 开了 Smart Placement（跑在 D1 旁边）。响应带 `Server-Timing: index;dur=…`。路由边缘缓存 1 小时（索引一天才变一次）。
 
-**上游慢就先给快照**（2026-09-27，owner「搜索要等好几秒」）：路由把 next/server 的 `after` 传进 `listCivitaiLoras({…}, { defer })`。上游 1.5 秒还没回、手上又有这一组的快照，就先把快照给出去（`stale: true`，响应 `Cache-Control: no-store`，不进 CDN），上游在响应之后接着跑完、刷新快照；客户端几秒后（`CIVITAI_STALE_REFRESH_MS`）对同一组查询再要一次。上游正常回来时快照也挪到响应之后写，不再挡一趟数据库往返。每个响应带 `Server-Timing`（`upstream` / `total`，先给快照时多一个 `snapshot;desc="stale"`），先量出慢在哪再下刀。没有 `defer` 的调用方（预热 cron、助手检索）照旧就地写快照、不竞速。
+**容量与费用**（2026-10-07 实测，首灌 681,517 条、51 分钟）：一行连索引约 2.2 KB，约 1.6 GB；Workers 付费版包含 D1 存储 5 GB、每月写 5000 万行、读 250 亿行，日常同步只写当天变了的行，全在额度内。
 
-**搜索过载没有上游解法。** Civitai 对搜索子系统主动 load shedding，我们控不了。能做的是：断路器打开后立刻失败（不再等 5–10s）、禁止回落同失败域的 REST `query=`、用快照/镜像接着服务，并且降级时仍按用户选的「最新 / 最多下载」排序。浏览回落 REST 浏览（另一个失败域），那时没有准数（REST 不给总数）。
+### 上游实测事实（改同步前先看，别重新踩）
 
-### 排序与准数（2026-09-27 起：最匹配的排最前，界面上是一条列表）
-
-2026-08-25 曾对齐 Civitai 官网做**全局排序**；owner 2026-09-27 改成「最匹配的排最前」：实测「鸣潮 洛可可」选最多下载，全局排序的前 5 全是别的鸣潮角色（上游带 sort 时 sort 规则排在 words 之前，`showRankingScoreDetails` 实测 order 0）。现在一次 multi-search 拿全（`listCivitaiLorasViaMeilisearch`）：
-
-1. 所有词都对上的精确总数（`matchingStrategy: 'all'`，`page: 1, hitsPerPage: 0` 回 `totalHits`）；
-2. 第一档这一页（'all'，按所选排序）；
-3. 至少对上第一个词的精确总数（'last'）= 整条列表的总数；
-4. 第二档这一页（'last'，相关性序，同一个 offset）。
-
-实测（4 个多词查询）'last' 相关性序的前 |第一档| 条恰好就是第一档，所以合并列表第 m 位（m ≥ |第一档|）就是 'last' 相关性序第 m 位，一次往返、任意页都能取。浏览只有一档，只发 1、2。界面上不分段、不加说明（owner 09-27）。
-
-| 档       | 第一档（所有词都对上）                                                    | 第二档 | 镜像降级                                    |
-| -------- | ------------------------------------------------------------------------- | ------ | ------------------------------------------- |
-| 推荐     | 相关性为主、热度为辅：前 60 条按 `_rankingScore + 0.15 × 下载数对数` 重排 | 相关性 | 点赞降序（复制不了相关性，UI 标排序已降级） |
-| 最多下载 | `metrics.downloadCount:desc`                                              | 相关性 | `downloadCount`                             |
-| 最新     | `createdAt:desc`                                                          | 相关性 | `createdAt`                                 |
-
-浏览的推荐档不混热度（没有相关性可言），照上游点赞序。总数一律是精确数（旧的 `estimatedTotalHits` 不再用）；类型筛选合并路径的总数 = |L1| + |L2| − |L1 ∩ L2|（交集是「L2 的词 + L1 的标签」那一条，实测与取回全部 id 后的真实并集一致）。
-
-**「安全」档**（owner 2026-09-27 放宽）：`nsfwLevel <= 2`——至少有一张安全样例就列出，卡片与详情只放安全的图；原来的 `NOT nsfwLevel > 2`（一张都不许超过）实测把大半结果藏掉了（roccia 12 → 4、wuthering waves 1065 → 238、Enchanting Eyes 6 → 0）。名字关键词不再单独过滤（再删一次就会让数对不上）。「安全」与「仅 NSFW」因此不再互斥。本地镜像只存了 `nsfwLevelMax`，降级到镜像时「安全」仍是旧的严格口径。
-
-⚠ 下载档**不是** `sortMetrics.downloadCount`：那是官网 Creator Controls 预留的 sort-only 字段（隐藏下载数时保真值），从未在 live 索引上声明成 sortable（官网注释：要先做一次 models index reset）。2026-08-26 对齐时抄了 search-index 侧的意图值没实测，上游恒 400 → 「最多下载」每次静默降级 REST 相关性序，3 天后才发现。教训：**官网源码只是意图，live 索引的 sortable 白名单才是现状**——改 sort 字段前对 live 端点实测（非法字段的 400 报错自带完整白名单），测试锁见 `civitai-lora.service.test.ts` 的 sortable whitelist 用例。
-
-搜索路径用真实 `offset=(page-1)*pageSize`（推荐档第一页另取前 60 条混热度）。类型筛选合并路径仍在合并后按同一套 sort 重排。
-
-### 官方分页契约（2026-08-24 核 [Civitai Pagination](https://developer.civitai.com/site/guide/pagination)）
-
-历史几轮「page-only / page+cursor / cursor-priority / revert」都在猜 REST 怎么分页。官方现在写死了：
-
-- 浏览（无 `query`）：`page` 或 `cursor` 均可；深页用 cursor。`page * limit` 不得超过 1000，否则 429。
-- 搜索（有 `query`）：**必须 cursor，禁止 `page`+`query`（400 Bad Request）**。`query` 不带 cursor 可以（第一页）。
-- REST `query=` 与非正式 meilisearch（`search-new.civitai.com`）是同一个搜索子系统，过载时一起死——所以 L1 失败后的回落是快照/镜像，不是 REST `query=`。
-- ⚠ **页码不能跨后端搬。** meilisearch offset 的第 6 页 ≠ 本地镜像 offset 的第 6 页（镜像只覆盖 top N，同一词可能只有几十条）。L1 失败时如果请求页在回落语料里是空的、但这个词其实有命中，必须回到回落第 1 页，不能把「第 6 页 · 41 个 LoRA」配上空列表。
-
-### 上游实测事实（改动前先看，别重新踩）
-
-- **下载地址可直接构造**：`https://civitai.com/api/download/models/{versionId}`，32/32 与 REST 返回值一致（跨 top / 第 2 万名 / 最新发布三段采样，含早期访问模型）。原来每个 hit 单独打一次 `/model-versions/:id`，一页 12 条 = 13 次上游请求，**且拿不到就把整条丢掉**——上游一降级搜索页静默返回空，比报错更糟。现在一页 1 次请求。
-- **AutoV3 在 `version.hashData` 里**（50/50 命中，带 type 标注），不在 `files[].hashes` 上。旧注释说 meilisearch 拿不到 AutoV3 是找错了地方。
-- **meilisearch offset 硬上限 100,000**（offset=99990 有结果，100500 返回 0 条）。`metrics.downloadCount` **可排序但不可过滤**，所以"按下载量取前 20 万"够不着。
-- **`lastVersionAtUnix` 是可过滤的**——新模型首发和老模型出新版本都会更新它，等于上游白送一个 changed-since 接口。但**指标不走这个信号**（下载量变化不更新它），所以指标刷新绕不开全量扫描，镜像同步因此只做一条管线而不是三条。
-- **目录规模 642,554 条**（按 lastVersionAtUnix 月度分桶精确求和），日增 800–900，2025 年初见顶后稳定在 2 万/月，是线性不是指数。
-- **（2026-09-27）** `page` + `hitsPerPage: 0` 只回精确 `totalHits`（大数也准，实测 1065）；每张图带 blurhash `hash`（封面先铺它的平均色 `coverColor`）；安全档下约 2–3% 的命中在 `hit.images` 里挑不出安全静态图（安全图是视频或不在子集里）——照样计数、照样列出，卡片没有封面。
-
-### 容量算术（改截断线前先重算）
-
-单行实测 **1,724 B**（灌到 6000 行时量的；1000 行时是 2,662 B，小样本会高估）。Neon 免费档整个项目 0.5 GB，当时已用 128 MB，`Generation` 表 701 行就占 67 MB。`CIVITAI_MIRROR_BACKFILL_LIMIT` 现为 5 万 ≈ 85 MB，注释里有完整推导。
+- **下载地址可直接构造**：`https://civitai.com/api/download/models/{versionId}`，32/32 与 REST 返回值一致。
+- **AutoV3 在 `version.hashData` 里**（带 type 标注），不在 `files[].hashes` 上。
+- **`attributesToRetrieve` 不认嵌套路径**（`images.url` 这类会被整个丢掉），只能按顶层字段取；图片占完整字段的大头。
+- **`user.image` 在搜索索引里恒为 null**（头像在 `profilePicture`），卡片上作者头像因此一直是空的。
+- **`metrics.downloadCount` 可排序但不可过滤**；`id`、`lastVersionAtUnix` 可过滤可排序。
+- REST `query=` 与 meilisearch（`search-new.civitai.com`）是同一个搜索子系统，过载时一起死。
 
 ## Last Verified
 

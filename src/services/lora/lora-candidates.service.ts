@@ -53,10 +53,8 @@ import {
   resolveLoraFamily,
 } from '@/lib/lora-source-snapshot'
 import { withRetry } from '@/lib/with-retry'
-import {
-  listCivitaiLoras,
-  normalizeLoraNameKey,
-} from '@/services/civitai-lora.service'
+import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
+import { normalizeLoraNameKey } from '@/services/civitai-lora.service'
 import { searchHuggingFaceLoras } from '@/services/huggingface-lora.service'
 import {
   HuggingFaceLoraSearchQuerySchema,
@@ -634,8 +632,7 @@ export async function searchLoraCandidates(
  *
  * ⭐ 参数与库页那一次请求**逐字相同**：词 · 底模（当前底模家族下推成 Civitai 值，
  * 与上面的同族下推同一张映射）· 排序 / 分级 / 类型（库页网址上现在的那几个）· 每页
- * 24。同一组条件命中 `listCivitaiLoras` 同一份快照缓存 —— 网格第一段就是助手挑选
- * 时看到的那一组，圈才圈得到卡上。
+ * 24。同一组条件查同一份索引 —— 网格第一段就是助手挑选时看到的那一组，圈才圈得到卡上。
  * ⚠ 只搜 Civitai：owner 定「只搜库」，⛔ Hugging Face、⛔ 收藏。
  * ⚠ 返回这次用的 Civitai 底模值：客户端照它设库页的底模筛选，⛔ 自己再算一遍。
  */

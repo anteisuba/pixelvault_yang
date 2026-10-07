@@ -183,7 +183,7 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 ## 10. 事实源
 
 - 产品定位：[`../product.md`](../product.md)
-- **Civitai 搜索的三级降级与实测事实**（改搜索前必读）：[`../backend.md`](../backend.md#civitai-搜索的三级降级2026-08-19-建全部数字实测)
+- **Civitai LoRA 库的全量索引与上游实测事实**（改列表 / 搜索前必读）：[`../backend.md`](../backend.md#civitai-lora-库全量索引2026-10-07-起)
 - 当前业务施工：[`../pages/lora-workbench.md`](../pages/lora-workbench.md)
 - 底模/工作流社区调研：《LoRA底模与工作流调研-2026-07》（已随任务包清理，git 历史可取）；对账摘要见 [`../model-catalog.md`](../model-catalog.md) §④
 - 底模目录实现：`src/constants/lora-base-models.ts`

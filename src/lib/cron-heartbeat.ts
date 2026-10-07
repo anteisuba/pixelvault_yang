@@ -138,7 +138,7 @@ function safeJsonParse(raw: string): unknown {
 }
 
 /**
- * 读全部三条 cron 的心跳。
+ * 读全部 Vercel Cron 的心跳。
  *
  * ⚠ 与 `recordCronRun` 相反，这里**故意会抛**：读不到就是「监控本身瞎了」，
  * 必须冒到 HTTP 层变成非 200，让 GitHub Action 开 issue。悄悄返回「一切正常」

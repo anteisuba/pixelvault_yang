@@ -5,14 +5,12 @@ import { useTranslations } from 'next-intl'
 
 import {
   CIVITAI_LORA_PAGE_SIZE,
-  CIVITAI_STALE_REFRESH_MS,
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   isLoraNsfwFilter,
   LORA_LIBRARY_NSFW_STORAGE_KEY,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
-  type CivitaiSearchBackend,
   type LoraContentType,
   type LoraNsfwFilter,
 } from '@/constants/lora'
@@ -55,18 +53,6 @@ export interface UseCivitaiLoraLibraryReturn {
   page: number
   pageSize: number
   hasNextPage: boolean
-  /**
-   * B11：搜索路径的 civitai meilisearch 端点挂了、回落到忽略 sort 的 REST
-   * 路径时为 true——UI 据此把排序控件降级显示成「排序已降级」。
-   */
-  sortFellBackToRelevance: boolean
-  /**
-   * L2 陈旧兜底：这一页来自服务端快照，因为 Civitai 搜索子系统当时不可用。
-   * UI 必须显式告诉用户——静默端上旧数据比直接报错更糟。staleFetchedAt 是
-   * 这份快照最后一次成功取到的时刻（ISO 字符串）。
-   */
-  isStale: boolean
-  staleFetchedAt: string | null
   /**
    * True only when there is nothing to show AND we are fetching. UI uses this
    * to render the full-section loader on first paint. After we have any items
@@ -120,8 +106,8 @@ export interface UseCivitaiLoraLibraryReturn {
 // returns quickly once the next facet/search request resolves.
 //
 // Module-scoped (not per-hook-instance) so navigating away and back to /lora
-// still hits the cache. TTL guards against truly stale data — the Next.js
-// CDN already caches for 5–15 min, so 5 min here is roughly aligned.
+// still hits the cache. The index only changes once a day; the 5 min TTL
+// just keeps one tab from holding a page forever.
 
 const CACHE_MAX_ENTRIES = 30
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -143,7 +129,6 @@ function buildCacheKey(params: {
   contentType: LoraContentType
   pageSize: number
   page: number
-  cursor: string | null
 }): string {
   // pageSize 排在筛选之后：一段 24 与一页 12 的第 2 页不是同一批，⛔ 混用缓存；
   // `invalidateCacheForQuery` 按筛选前缀清，照样清得到。
@@ -155,7 +140,6 @@ function buildCacheKey(params: {
     params.contentType,
     params.pageSize,
     params.page,
-    params.cursor ?? '',
   ].join('|')
 }
 
@@ -181,27 +165,6 @@ function writeCache(key: string, result: CivitaiLoraLibraryResult): void {
   }
 }
 
-function invalidateCacheForQuery(params: {
-  baseModel: CivitaiLoraBaseModel
-  sort: CivitaiLoraSort
-  search: string
-  nsfwFilter: LoraNsfwFilter
-  contentType: LoraContentType
-}): void {
-  const prefix = [
-    params.baseModel,
-    params.sort,
-    params.search,
-    params.nsfwFilter,
-    params.contentType,
-  ].join('|')
-  for (const key of [...libraryCache.keys()]) {
-    if (key === prefix || key.startsWith(`${prefix}|`)) {
-      libraryCache.delete(key)
-    }
-  }
-}
-
 /**
  * Test-only escape hatch. Call from `beforeEach` so the module-level cache
  * does not leak between specs.
@@ -221,16 +184,6 @@ export function useCivitaiLoraLibrary(
   const [total, setTotal] = useState<number | null>(null)
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
-  const [sortFellBackToRelevance, setSortFellBackToRelevance] = useState(false)
-  const [isStale, setIsStale] = useState(false)
-  const [staleFetchedAt, setStaleFetchedAt] = useState<string | null>(null)
-  // Bug 修复（类型筛选「下一页不可点」的真根因，见
-  // CivitaiLoraLibraryResultSchema.offsetPaginationSupported 的注释）：此前
-  // nextPage() 用「有没有输入搜索词」当「后端是否支持按页码直接翻页」的代
-  // 理判断——类型筛选场景即使没搜索词也恒走 offset 分页的合并路径，代理
-  // 判断失真导致点击下一页静默无效。改为直接读服务端回传的显式信号。
-  const [offsetPaginationSupported, setOffsetPaginationSupported] =
-    useState(false)
   // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
   // running, possibly while stale items remain visible". Splitting them lets
   // the section render normal content + a small spinner instead of a white
@@ -272,34 +225,16 @@ export function useCivitaiLoraLibrary(
     options.initialContentType ?? DEFAULT_LORA_CONTENT_TYPE,
   )
   const requestIdRef = useRef(0)
-  // requestIdRef 只负责在响应回来时丢弃过期结果——被取代的请求照样在服务端
-  // 跑完。2026-08-19 Civitai 过载时这意味着同一个搜索词并发三条、每条 21–24
-  // 秒，对着一个正在卸载的上游把压力乘了三倍。这个 ref 负责真的把它们掐掉。
+  // requestIdRef 只负责在响应回来时丢弃过期结果；这个 ref 负责把被取代的请求
+  // 真的掐掉。
   const inFlightRef = useRef<AbortController | null>(null)
   const paginationPendingRef = useRef(false)
-  const cursorByPageRef = useRef<Map<number, string | null>>(
-    new Map([[1, null]]),
-  )
-  // 一次搜索会话
-  // 内锁定 meilisearch/REST 后端选择。首页拿到结果后写入这里；第 2+ 页把
-  // 它原样回传给服务端，防止会话中途换后端打乱 page↔cursor 分页契约（两
-  // 条路径分页范式不同——meilisearch=offset 靠 page 号，REST 回落=cursor
-  // scan 靠 cursorByPageRef）。null = 尚未锁定（自由选择，等同今天行为）。
-  // 只在 debouncedSearch 非空时写入/读取——浏览模式永远走 REST，没有需要
-  // 锁定的选择。随 cursorByPageRef 一起在每个新会话起点重置（搜索词/
-  // baseModel/sort/nsfwFilter 变化）。
-  const searchBackendRef = useRef<CivitaiSearchBackend | null>(null)
-  const staleRetryRef = useRef<{
-    key: string
-    timer: ReturnType<typeof setTimeout>
-  } | null>(null)
-  const refreshRef = useRef<() => Promise<void>>(async () => {})
 
   const applyResult = useCallback(
     (result: CivitaiLoraLibraryResult) => {
       const appending = accumulate && result.page > 1
       if (appending) {
-        // 接在后面；同一个 LoRA 只出现一次（降级快照与上游对不齐时可能重叠）。
+        // 接在后面；同一个 LoRA 只出现一次（翻页期间索引刚同步过、排名挪动时可能重叠）。
         setItems((prev) => {
           const seen = new Set(prev.map((item) => item.id))
           return [...prev, ...result.items.filter((item) => !seen.has(item.id))]
@@ -309,14 +244,6 @@ export function useCivitaiLoraLibrary(
       }
       setTotal(result.total)
       setHasNextPage(result.hasNextPage)
-      setSortFellBackToRelevance(result.sortFellBackToRelevance ?? false)
-      setIsStale(result.stale ?? false)
-      setStaleFetchedAt(result.stale ? (result.fetchedAt ?? null) : null)
-      setOffsetPaginationSupported(result.offsetPaginationSupported ?? false)
-      // 服务端在降级时可能把深页钳回第 1 页（meilisearch 页码不能套到镜像
-      // 语料上）。页码是客户端 state，必须跟结果一起改，否则会显示
-      // 「第 6 页 · 41 个 LoRA」配上空列表。
-      setPage((current) => (result.page === current ? current : result.page))
       // 接下一段时选中项还在列表里，⛔ 被新一段的第一项顶掉。
       if (appending) return
       setSelectedItemId((current) => {
@@ -339,10 +266,6 @@ export function useCivitaiLoraLibrary(
       setSelectedItemId(null)
       setTotal(null)
       setHasNextPage(false)
-      setSortFellBackToRelevance(false)
-      setIsStale(false)
-      setStaleFetchedAt(null)
-      setOffsetPaginationSupported(false)
     }
     setError(null)
     setIsRevalidating(true)
@@ -361,7 +284,6 @@ export function useCivitaiLoraLibrary(
     requestIdRef.current = requestId
 
     const activeSearch = debouncedSearch
-    const cursor = cursorByPageRef.current.get(page) ?? null
     const cacheKey = buildCacheKey({
       baseModel,
       sort,
@@ -370,22 +292,11 @@ export function useCivitaiLoraLibrary(
       contentType,
       pageSize,
       page,
-      cursor,
     })
 
     const cached = readCache(cacheKey)
     if (cached) {
       applyResult(cached)
-      if (cached.nextCursor) {
-        cursorByPageRef.current.set(page + 1, cached.nextCursor)
-      } else {
-        cursorByPageRef.current.delete(page + 1)
-      }
-      // Issue C: keep the backend lock in sync even on a cache hit — a
-      // cached entry still carries which backend actually served it.
-      searchBackendRef.current = cached.offsetPaginationSupported
-        ? 'meilisearch'
-        : 'rest'
       paginationPendingRef.current = false
       setError(null)
       setIsRevalidating(false)
@@ -404,63 +315,21 @@ export function useCivitaiLoraLibrary(
       signal: controller.signal,
       page,
       pageSize,
-      cursor,
       search: activeSearch || undefined,
       sort,
       baseModel,
       nsfwFilter,
       contentType,
-      // Issue C: undefined on the session's first request (free choice);
-      // locked to whatever backend served the previous page for the rest of
-      // the session. 浏览也锁——2026-09-27 起浏览同样先走 meilisearch、失败回
-      // 落 REST，两边分页范式不同。contentType 分支不读 `source`，传了无害。
-      source: searchBackendRef.current ?? undefined,
     })
     if (requestIdRef.current !== requestId) return
 
     if (response.success && response.data) {
-      if (response.data.nextCursor) {
-        cursorByPageRef.current.set(page + 1, response.data.nextCursor)
-      } else {
-        cursorByPageRef.current.delete(page + 1)
-      }
-      // Issue C: lock the backend from this response. meilisearch 回的结果恒
-      // 带 offsetPaginationSupported；REST 回落（搜索或浏览）不带。
-      searchBackendRef.current = response.data.offsetPaginationSupported
-        ? 'meilisearch'
-        : 'rest'
-      // 上游慢时服务端先给了上一次的结果：过几秒自己再要一次新的（同一组查询
-      // 只补这一次——上游若真挂着，降级链会继续给旧结果，不必一直敲）。
-      if (response.data.stale && staleRetryRef.current?.key !== cacheKey) {
-        if (staleRetryRef.current) clearTimeout(staleRetryRef.current.timer)
-        staleRetryRef.current = {
-          key: cacheKey,
-          timer: setTimeout(() => {
-            void refreshRef.current()
-          }, CIVITAI_STALE_REFRESH_MS),
-        }
-      }
-      // 降级快照不进客户端缓存。写进去的话，上游恢复之后用户还要再盯着旧
-      // 数据看满 5 分钟的 TTL——兜底数据的寿命必须止于上游恢复那一刻。
-      // 同一查询下已经缓存的 live 页也要清掉：服务端把深页钳回第 1 页时
-      // setPage(1) 会再触发一次 fetch，否则会命中 5 分钟前的 live 第 1 页，
-      // 把刚端上的降级结果盖掉。
-      if (response.data.stale) {
-        invalidateCacheForQuery({
-          baseModel,
-          sort,
-          search: activeSearch,
-          nsfwFilter,
-          contentType,
-        })
-      } else {
-        writeCache(cacheKey, response.data)
-      }
+      writeCache(cacheKey, response.data)
       applyResult(response.data)
     } else {
-      // Stale-tolerant error mode: keep whatever items we had on screen so the
-      // user is not punished with a blank wall when Civitai blips. Just
-      // surface the error so the caller can render a toast/banner.
+      // Keep whatever items we had on screen so a failed request does not
+      // turn into a blank wall. Just surface the error so the caller can
+      // render a toast/banner.
       setError(response.error ?? t('communityLoadFailed'))
     }
     paginationPendingRef.current = false
@@ -482,9 +351,7 @@ export function useCivitaiLoraLibrary(
   /**
    * 把输入框里的字正式变成「在搜的词」。
    *
-   * 2026-08-20 从防抖自动提交改成显式提交：每敲一个键就打一次上游太浪费，
-   * 而且 Civitai 的搜索子系统本来就会主动卸载（见 backend.md 三级降级那
-   * 节）——少发几十倍的请求本身就是对上游友好。
+   * 2026-08-20 从防抖自动提交改成显式提交：每敲一个键就搜一次太浪费。
    */
   const commitSearch = useCallback(
     (term: string) => {
@@ -495,10 +362,6 @@ export function useCivitaiLoraLibrary(
       // requestId 必须先加——abort 会让 fetch 立刻以 success:false 回来，
       // 若不先加，refresh 会把 AbortError 当成真正的加载失败。
       clearFacetResults()
-      cursorByPageRef.current = new Map([[1, null]])
-      // Issue C: a new search term starts a new session — unlock the
-      // backend so the next page 1 is free to pick meilisearch/REST again.
-      searchBackendRef.current = null
       if (trimmed) setSortValue('Highest Rated')
       setDebouncedSearch(trimmed)
       setPage(1)
@@ -512,7 +375,6 @@ export function useCivitaiLoraLibrary(
   }, [commitSearch, search])
 
   useEffect(() => {
-    refreshRef.current = refresh
     return deferEffectTask(() => {
       void refresh()
     })
@@ -521,11 +383,9 @@ export function useCivitaiLoraLibrary(
   // 组件卸载时掐掉在飞请求——离开页面不该继续占着上游。
   useEffect(() => {
     const inFlight = inFlightRef
-    const staleRetry = staleRetryRef
     return () => {
       inFlight.current?.abort()
       inFlight.current = null
-      if (staleRetry.current) clearTimeout(staleRetry.current.timer)
     }
   }, [])
 
@@ -547,9 +407,6 @@ export function useCivitaiLoraLibrary(
   const setSort = useCallback(
     (value: CivitaiLoraSort) => {
       if (value === sort) return
-      cursorByPageRef.current = new Map([[1, null]])
-      // Issue C: facet change starts a new session — unlock the backend.
-      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setSortValue(value)
@@ -560,8 +417,6 @@ export function useCivitaiLoraLibrary(
   const setBaseModel = useCallback(
     (value: CivitaiLoraBaseModel) => {
       if (value === baseModel) return
-      cursorByPageRef.current = new Map([[1, null]])
-      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setBaseModelValue(value)
@@ -572,8 +427,6 @@ export function useCivitaiLoraLibrary(
   const setNsfwFilter = useCallback(
     (value: LoraNsfwFilter) => {
       if (value === nsfwFilter) return
-      cursorByPageRef.current = new Map([[1, null]])
-      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setNsfwFilterOverride(null)
@@ -585,8 +438,6 @@ export function useCivitaiLoraLibrary(
   const setContentType = useCallback(
     (value: LoraContentType) => {
       if (value === contentType) return
-      cursorByPageRef.current = new Map([[1, null]])
-      searchBackendRef.current = null
       setPage(1)
       clearFacetResults()
       setContentTypeValue(value)
@@ -607,28 +458,10 @@ export function useCivitaiLoraLibrary(
     }
 
     const targetPage = page + 1
-    const cursorReady = cursorByPageRef.current.has(targetPage)
-    // offsetPaginationSupported 是服务端的显式信号（这次结果是不是走按页码
-    // 直接 offset 分页的后端）——不再用「有没有搜索词」当代理判断，类型
-    // 筛选浏览（无搜索词）也会正确落进这个分支。sortFellBackToRelevance
-    // 仍保留一层防御：REST 回落理论上不会同时置 offsetPaginationSupported，
-    // 但两个信号都检查更稳。
-    const canUseOffsetPagination =
-      offsetPaginationSupported && !sortFellBackToRelevance
-    if (!canUseOffsetPagination && !cursorReady) return
-
     paginationPendingRef.current = true
     setIsRevalidating(true)
     setPage(targetPage)
-  }, [
-    hasNextPage,
-    isRevalidating,
-    offsetPaginationSupported,
-    page,
-    pageSize,
-    sortFellBackToRelevance,
-    total,
-  ])
+  }, [hasNextPage, isRevalidating, page, pageSize, total])
 
   const previousPage = useCallback(() => {
     if (paginationPendingRef.current || isRevalidating) return
@@ -670,9 +503,6 @@ export function useCivitaiLoraLibrary(
     page,
     pageSize,
     hasNextPage,
-    sortFellBackToRelevance,
-    isStale,
-    staleFetchedAt,
     isLoading,
     isRevalidating,
     error,

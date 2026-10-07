@@ -5,7 +5,6 @@ import {
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
-  type CivitaiSearchBackend,
   type HuggingFaceLoraSort,
   type LoraContentType,
   type LoraNsfwFilter,
@@ -100,38 +99,25 @@ export async function listDiscoverLoraAssetsAPI(): Promise<ListResponse> {
 export async function listCivitaiLoraAssetsAPI(params: {
   page?: number
   pageSize?: number
-  cursor?: string | null
   search?: string
   baseModel?: CivitaiLoraBaseModel
   sort?: CivitaiLoraSort
   nsfwFilter?: LoraNsfwFilter
-  /**
-   * 本次搜索会话
-   * 内锁定的 meilisearch/REST 后端选择，由 useCivitaiLoraLibrary 在首页拿
-   * 到结果后回填，第 2+ 页原样带上，防止会话中途换后端打乱分页契约。
-   */
-  source?: CivitaiSearchBackend
   /** S2 内容类型筛选（lora-workbench.md §3）。'all'（默认）不入 URL/请求。 */
   contentType?: LoraContentType
-  /**
-   * 取消被取代的搜索。没有它的时候，用户连切排序/NSFW 档会让多个注定被丢弃
-   * 的请求同时压在 Civitai 上——2026-08-19 的过载日志里同一个搜索词并发了
-   * 三条、每条跑满 21–24 秒，等于对着一个正在卸载的上游把压力乘了三倍。
-   */
+  /** 取消被取代的请求（连切排序 / 分级时只留最后一次）。 */
   signal?: AbortSignal
 }): Promise<CivitaiListResponse> {
   try {
     const query = new URLSearchParams()
     if (params.page) query.set('page', String(params.page))
     if (params.pageSize) query.set('pageSize', String(params.pageSize))
-    if (params.cursor) query.set('cursor', params.cursor)
     if (params.search) query.set('search', params.search)
     if (params.baseModel) query.set('baseModel', params.baseModel)
     if (params.sort) query.set('sort', params.sort)
     if (params.nsfwFilter && params.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER) {
       query.set('nsfw', params.nsfwFilter)
     }
-    if (params.source) query.set('source', params.source)
     if (
       params.contentType &&
       params.contentType !== DEFAULT_LORA_CONTENT_TYPE

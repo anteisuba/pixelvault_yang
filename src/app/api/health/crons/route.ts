@@ -5,11 +5,13 @@ import { NextResponse } from 'next/server'
 import { isValidBearerToken } from '@/lib/bearer-token'
 import { logger } from '@/lib/logger'
 import { readCronHeartbeats, type CronHeartbeat } from '@/lib/cron-heartbeat'
+import { readCivitaiIndexHeartbeat } from '@/services/civitai-lora-library.service'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/health/crons — 三条 Vercel Cron 的「上一次运行结果」。
+ * GET /api/health/crons — 定时任务的「上一次运行结果」：Vercel Cron 读 Upstash
+ * 心跳，Cloudflare 上的 Civitai 索引同步直接问索引。
  *
  * 鉴权沿用 `HEALTH_CHECK_TOKEN`（与 `/api/health/providers` 同一把），因此
  * `cron-monitor.yml` **不需要新建任何 GitHub secret**。
@@ -17,7 +19,7 @@ export const dynamic = 'force-dynamic'
  * 状态码的约定与 health/providers 一致，别改：
  *  - 有 cron 漏跑/失败 → 仍然是 **200**，判据在响应体的 `healthy` 上；
  *  - **非 200** 只表示「监控本身坏了」（没配 token、Upstash 读不到）。
- * workflow 因此能把「三条 cron 出事」和「监控瞎了」分成两种报警，而不是把
+ * workflow 因此能把「cron 出事」和「监控瞎了」分成两种报警，而不是把
  * 后者误报成前者。
  */
 
@@ -59,7 +61,10 @@ export async function GET(
   }
 
   try {
-    const data = await readCronHeartbeats()
+    const data = [
+      ...(await readCronHeartbeats()),
+      await readCivitaiIndexHeartbeat(),
+    ]
     const summary: CronHealthSummary = {
       total: data.length,
       healthy: data.filter((entry) => entry.healthy).length,

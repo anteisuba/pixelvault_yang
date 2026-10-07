@@ -130,8 +130,9 @@ Preview scope 的 `DIRECT_URL` 至此已经用不上了（那条路径不跑迁�
 ### ⚠ 加 cron 前必须做的三件事（2026-08-20 又栽了一次，补成清单；第 3 条 2026-08-25 加）
 
 1. **表达式只能是每日粒度。** `0 * * * *` / `0 */6 * * *` 这类会炸构建——
-   `6320100a`「use Hobby-compatible cron schedules」删掉的正是这两个。现存三条
-   （prewarm `0 0`、sweep `0 12`、civitai-mirror/sync `0 4`）都是每日。
+   `6320100a`「use Hobby-compatible cron schedules」删掉的正是这两个。现存
+   一条（sweep `0 12`）。Civitai 索引的每日同步跑在 Cloudflare Worker 的定时
+   任务里（`workers/civitai-index`），不占 Vercel Cron。
 2. **同步把路径加进 `src/proxy.ts` 的 `isPublicRoute`。** Vercel Cron 没有
    Clerk 会话，漏了不是"偶尔失败"是 **100% 被拦在路由外**——连路由里的
    `CRON_SECRET` 校验都够不到，失败也不进 logger，表现为这条 cron 静悄悄地
@@ -164,12 +165,12 @@ Preview scope 的 `DIRECT_URL` 至此已经用不上了（那条路径不跑迁�
   - 落点选 Upstash 不选新建表：Upstash 在生产**已经是硬依赖**（`execution-replay-guard` 没它直接 fail-closed），而加 Prisma 表要在开发机上跑迁移——本仓开发机连的就是生产库。
   - `recordCronRun` **永不抛错**：正事已经做完了，不能让观测手段反过来制造故障。
   - `readCronHeartbeats` **故意会抛**：读不到就是「监控本身瞎了」，必须冒到 HTTP 层。
-- `GET /api/health/crons` — 汇总三条心跳。**状态码约定**：cron 出事仍是 200（判据在响应体 `healthy` 上），**非 200 只表示监控自己坏了**。两种故障因此能分开报警。
+- `GET /api/health/crons` — 汇总心跳：Vercel Cron 读 Upstash，Cloudflare 上的 Civitai 索引同步直接问索引的 `/status`。**状态码约定**：cron 出事仍是 200（判据在响应体 `healthy` 上），**非 200 只表示监控自己坏了**。两种故障因此能分开报警。
 - `cron-monitor.yml` — 每天 13:37 UTC 读一次；`healthy:false` 开 `cron-failure` issue，非 200 直接让 workflow 红。
 
 **过期阈值 26h 的来历**：日常间隔 24h + Hobby 整点内漂移最多 1h = 正常最大 25h，26h 只留一小时余量。**调大它就等于把「漏跑一次」变成「漏跑两次才报」**，别随手放宽。
 
-⚠ **首次部署会有一条 bootstrap issue**：三条心跳要各自等到自己下一次 cron 才第一次写入，在那之前 `lastRun` 为 null → 判 stale。24 小时内自愈，同标签只会开一条。
+⚠ **首次部署会有一条 bootstrap issue**：每条心跳要各自等到自己下一次 cron 才第一次写入，在那之前 `lastRun` 为 null → 判 stale。24 小时内自愈，同标签只会开一条。
 
 **`maxDuration` 的真实上限：Hobby = 300s**（fluid compute 默认开启时，Hobby 的
 默认值与最大值都是 300；Pro 才有 800s、扩展 1800s）。来源：
@@ -182,7 +183,8 @@ limits 表，2026-08-21 查证。
 即为证据）。且那 14 条全是快返路由（arena 建完 match 就 return、generate-video
 是 submit 路径，等待在 /status 轮询侧），**没有一条真跑到过 240**，所以「240 已
 验证」是把「声明了 240 且部署通过」当成了「跑到过 240」——部署通过只证明配置被
-接受。唯一刻意吃满时长的是 `civitai-mirror/sync`，它取 300。
+接受。（曾经唯一刻意吃满时长的 `civitai-mirror/sync` 已随 Civitai 索引迁到
+Cloudflare 删掉。）
 
 🔥 **2026-08-24：60 秒第一次被真的跑穿。** 助手三条路由（`prompt/assistant`、
 `prompt/assistant/stream`、`studio/node-assistant`）此前都写 60，Grok 一轮对话

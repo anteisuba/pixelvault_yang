@@ -149,23 +149,6 @@ export const CIVITAI_LORA_PAGE_SIZE = 12
 // 提前取下一段。手机仍是一页 12 个的翻页。
 export const LORA_LIBRARY_BROWSE_PAGE_SIZE = 24
 
-// Civitai 搜索索引的总数封顶（实测「character」「style」都停在 100000）：到顶时
-// 库 B 写「100,000+」，⛔ 把封顶值当精确数。
-export const CIVITAI_SEARCH_TOTAL_HITS_CAP = 100_000
-
-// Bug 修复（2026-07-18，owner 报「类型筛选后不满 12 张 + 下一页不可点」）：
-// listCivitaiLorasByContentType 此前让 L1(tag)/L2(关键词) 两条 meilisearch
-// 子 query 各自独立按 `offset=(page-1)*pageSize, limit=pageSize` 分页，
-// 合并去重后再裁到一页——两个独立窗口有重叠时，去重会让当页凑不满
-// pageSize（重叠越多缺得越多）。修复：两条子 query 改成每次都从 offset 0
-// 扫到"当前页末尾 + 缓冲"，合并去重→全局重排→再按页切片，缓冲量吸收
-// L1/L2 重叠造成的去重损耗。深页成本：这个策略随 page 增长线性变贵（子
-// query limit = page×pageSize+缓冲），12/页 × 常见浏览深度（几十页内）仍
-// 可接受；MAX_FETCH_LIMIT 兜底极端深页（如 URL 篡改 page=99999）不会打出
-// 天价请求——触顶后深页可能提前报 hasNextPage=false，是已知取舍。
-export const CIVITAI_LORA_CONTENT_TYPE_OVERFETCH_BUFFER = 24
-export const CIVITAI_LORA_CONTENT_TYPE_MAX_FETCH_LIMIT = 480
-
 // Hugging Face LoRA browser/import contract. The Hub remains the source of
 // truth; PixelVault admits public image-diffusion SafeTensors adapters and
 // caches the exact file selected by the user in R2.
@@ -486,31 +469,6 @@ export const CIVITAI_BASE_MODEL_FAMILY_MEMBERS = {
 export const CIVITAI_NAMED_BASE_MODEL_MEMBER_SET: ReadonlySet<string> = new Set(
   Object.values(CIVITAI_BASE_MODEL_FAMILY_MEMBERS).flat(),
 )
-
-// Civitai REST can filter by explicit baseModels but cannot express NOT IN.
-// Keep the full complement check in service code, and use this curated long-tail
-// set only to keep the "other" browse path from scanning broad all-model pages.
-export const CIVITAI_OTHER_BASE_MODEL_MEMBERS = [
-  'Pony V7',
-  'Flux.2 D',
-  'Flux.2 S',
-  'HiDream',
-  'SD 3.5',
-  'SD 3',
-  'SD 2.1',
-  'SD 2.0',
-  'AuraFlow',
-  'Kolors',
-  'PixArt a',
-  'PixArt E',
-  'Wan Video 14B t2v',
-  'Wan Video 14B i2v 480p',
-  'Wan Video 14B i2v 720p',
-  'Hunyuan Video',
-  'LTXV',
-  'Mochi',
-  'CogVideoX',
-] as const
 
 // 每个 base model family 在 PixelVault 上能不能跑生成：
 //   - 'native':   有 native 端点，用户能在 PixelVault 内部生成
@@ -853,13 +811,6 @@ export const LORA_CONTENT_TYPE_VALUES_BY_SOURCE: Record<
   [LORA_LIBRARY_SOURCES.HUGGINGFACE]: LORA_CONTENT_TYPE_VALUES,
 }
 
-// L3 自建映射（§3.2）：人工/挖掘维护的纠错层，优先级最高——L2 误报进
-// exclude、L1/L2 都漏的热门模型进 override。首发允许空表，机制先立起来。
-// civitai 用 modelId（数字，稳定）；HF 没有稳定数字 id，用 repoId。
-export const LORA_CONTENT_TYPE_OVERRIDES: Record<number, LoraContentTypeId> = {}
-
-export const LORA_CONTENT_TYPE_EXCLUDES: Record<number, LoraContentTypeId> = {}
-
 export const LORA_CONTENT_TYPE_OVERRIDES_HF: Record<string, LoraContentTypeId> =
   {}
 
@@ -1066,193 +1017,12 @@ export const LORA_LIBRARY_NSFW_STORAGE_KEY =
   'pixelvault:lora-library-nsfw' as const
 
 /**
- * 上游慢时先给出去的旧结果，过这么久客户端自己再要一次——服务端那时多半已
- * 经在响应之后把上游跑完、刷新了快照。
- */
-export const CIVITAI_STALE_REFRESH_MS = 3000
-
-// civitai 搜索有
-// 两条互不兼容的分页范式——meilisearch 走 offset（client 用 page 号算
-// offset）、REST 回落走 cursor scan（client 用 cursorByPageRef 记录服务端
-// 发的 cursor）。服务端 listCivitaiLoras 每次请求独立决定走哪条，中途从
-// meilisearch 切到 REST（或反之）会让 page 号与 cursor map 不再自洽，翻页
-// 出现重复/错位页。修复：一次搜索会话内锁定后端——首页决定用哪条，后续页
-// 把锁定结果回传给服务端（这个 type），服务端据此跳过另一条、不再中途切。
-export const CIVITAI_SEARCH_BACKEND_VALUES = ['meilisearch', 'rest'] as const
-
-export type CivitaiSearchBackend =
-  (typeof CIVITAI_SEARCH_BACKEND_VALUES)[number]
-
-export function isCivitaiSearchBackend(
-  value: string,
-): value is CivitaiSearchBackend {
-  return (CIVITAI_SEARCH_BACKEND_VALUES as readonly string[]).includes(value)
-}
-
-// P1-6：安全档下，civitai `nsfw=false` 已经把 NSFW 分级的封面挡成占位卡——
-// 但模型名本身还在（比如标题带 "Hentai"），留着只剩一张无信息量的空卡。
-// 名称词表按小写子串匹配，只过滤"这名字本身就是 NSFW 标签"的场景，不做
-// 内容层面的判断（内容层面已经交给 civitai 的 nsfwLevel）。
-export const LORA_NSFW_NAME_KEYWORDS = [
-  'hentai',
-  'nsfw',
-  'r18',
-  'r-18',
-  'porn',
-  'nudity',
-  'nude',
-  'ecchi',
-  'lewd',
-] as const
-
-export function isNsfwNamedModel(name: string): boolean {
-  const haystack = name.toLowerCase()
-  return LORA_NSFW_NAME_KEYWORDS.some((keyword) => haystack.includes(keyword))
-}
-
-/**
- * L2 陈旧兜底快照的容量上限（条）。
- *
- * 一条快照实测 7.6–7.8 KB（12 条 LoRA 的完整字段，2026-08-19 真机量的两条
- * 真实搜索结果），1000 条稳态约 8 MB。上限是硬要求不是调优参数：Neon 免费
- * 档整个项目 0.5 GB，L3 本地目录镜像还要占约 198 MB，一个不设界的结果缓存
- * 迟早把额度吃穿。淘汰按 lastUsedAt 做 LRU，在 6 小时一次的 prewarm cron 里
- * 执行，不占请求路径。
- */
-export const CIVITAI_SEARCH_SNAPSHOT_MAX_ENTRIES = 1000
-
-/**
- * L3 本地目录镜像的首灌截断（按 downloadCount 取前 N）。
- *
- * 三个实测数字把它夹到 50,000：
- *   · meilisearch 的 offset 上限是 100,000（2026-08-19 实测：offset=99990
- *     有结果，offset=100500 返回 0），而 metrics.downloadCount 可排序但不
- *     可过滤——一次排序扫描的天花板就是 10 万，取不到更多。
- *   · 单行实测 1,724 B（灌到 6000 行时测的，索引固定开销已摊薄；1000 行时
- *     还是 2,662 B，别用小样本估）。10 万行 ≈ 170 MB。
- *   · Neon 免费档整个项目 0.5 GB，当时已用 128 MB，L2 快照上限再占 8 MB。
- *     取 10 万只剩 194 MB 给应用自己长，而 Generation 表 701 行就占 67 MB
- *     （约 95 KB/行）——两千多次生成就吃光了。镜像不该去抢这块地。
- *
- * 取 5 万 ≈ 85 MB，合计约 221 MB，留 279 MB 余量。截断点落在第 5 万名 =
- * 1,307 次下载（实测），仍然覆盖真正有人用的那一段。长尾不入镜像，由 L1
- * 断路器 + L2 快照兜。
- *
- * 这是一个数字，不是一个架构：表结构和同步管线都按全量设计，存储宽裕之后
- * 直接调大即可。要真的做到全量 642,554 条（约 1.1 GB）还需要改成按
- * lastVersionAt 月度切片灌——offset 上限那条绕不过去。
- */
-export const CIVITAI_MIRROR_BACKFILL_LIMIT = 50_000
-
-/**
- * 每次上游取数的条数。limit=1000 上游能给（实测 8.6 MB / 6.2s），但深
- * offset 段实测会慢到超过 10 秒——500 一批更稳，整轮多几十个请求换不用重
- * 试整批，划算。
- */
-export const CIVITAI_MIRROR_FETCH_BATCH = 500
-
-/** 单行同步状态表的固定主键。 */
-export const CIVITAI_MIRROR_SYNC_STATE_ID = 'civitai-lora'
-
-/**
  * 「safe」档的封面 nsfw 等级上限（None=1 / Soft=2 视为安全）。
  *
- * 2026-08-19 从 civitai-lora.service 搬到这里：L3 本地镜像的三态过滤要用同
- * 一个阈值，一个真值不能有两份。上游路径把它下推进 meilisearch 的
- * `nsfwLevel > N` 过滤，镜像路径拿它比 nsfwLevelMax 列——两边必须相等，否
- * 则降级到镜像时 safe 档的边界会悄悄挪动。
+ * 索引查询（安全 = 至少一张 ≤ 它，仅 NSFW = 至少一张 > 它）与卡片选图共用
+ * 这一个值，一个真值不能有两份。
  */
 export const CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL = 2
-
-/**
- * 单次 cron 的批数上限与时间预算。
- *
- * ⚠ Vercel 是 Hobby 计划，**cron 只吃每日粒度**（`docs/references/cicd.md`
- * 有记，且 6320100a「use Hobby-compatible cron schedules」就是被每小时表达
- * 式炸过构建之后改的）。所以一天只有一次机会，单次要尽量多推进。
- *
- * 两道闸并存，缺一不可：
- *   · 批数上限——防止水位异常时无限拉；
- *   · 时间预算——真正的护栏。只按批数封顶会冲过函数执行时限，那时进度还没
- *     落库就被杀（时间预算这条路径上唯一的写回在循环之后）。
- *
- * ⚠ **预算不能按「单批 30 秒」算**。`fetchMirrorPage` 走的
- * `fetchCivitaiSearchPayload` 是两级**顺序**尝试（先 fastMs 30s，超时才
- * patientMs 60s），所以单批最坏是 30 + 60 = **90 秒**。而预算检查在 fetch
- * **之前**，超支的是一整批。此前写 200s 并注释「留 40 秒收尾」是错的：
- * 200 + 90 ≈ 290s，早就冲过 maxDuration=240，被杀时 cursor 写不回去，
- * 那一次运行整个白跑（最多 15,000 行重扫）。
- *
- * 180s 是这么算出来的，不是拍的：
- *   300（route 的 maxDuration = **Hobby 计划的文档上限**，2026-08-21 查证；
- *       ⚠ 不是仓内其余路由那个从没被验证过的 240，理由见 route.ts 的注释）
- *   − 90（最坏单批的**取数** = fast 30 + patient 60）
- *   − 3（同一批的 upsert：500 行 × 6 个索引含两个 GIN。⚠ 预算检查在 fetch
- *       之前，所以超支的是「取数 + upsert」整批，不是只有取数）
- *   − 15（收尾：**两次**全表顺序扫——比例闸用一条 `count(*) FILTER` 一次拿
- *        齐两个数，加上 deleteMany。`syncedAt` 无索引且**故意不加**，理由见
- *        service 里那段注释：收尾几天才跑一次，而索引的税收在每一次 upsert 上）
- *   − 5（冷启动 + 开头两次状态表往返）
- *   ≈ 187，取 180 留余量
- *
- * 实际批数 = `min(30, floor(budget / b) + 1)`（`batch > 0` 守卫让第一批必跑）。
- * 180s 配本文件声明的 1–6 秒健康区间：**整个区间批数上限都先触发**
- * （b = 6s 时 floor(180/6)+1 = 31 > 30），也就是健康情况下时间预算根本不
- * 参与、吞吐维持 15,000 行/次、一轮 4 天。时间预算只在上游变慢时才启用，
- * 那正是它该起作用的时候。
- *
- * ⚠ 别把预算调回 200 以上：那会让最坏情况 200+90 ≈ 290s 逼近 300 的墙，而
- * `commitCursor` 在循环之后，被杀时进度写不回去，**整次运行白跑**（最多
- * 15,000 行重扫）。这条路径上没有第二次落库机会。
- *
- * 镜像是兜底层，名称/tag/底模几乎不变，指标漂几天不影响用途。
- *
- * 升到 Pro 之后可以把 cron 改回小时级，一轮 13 小时。
- */
-export const CIVITAI_MIRROR_SYNC_MAX_BATCHES_PER_RUN = 30
-export const CIVITAI_MIRROR_SYNC_TIME_BUDGET_MS = 180_000
-
-/**
- * 剪枝的比例闸：本轮没扫到的行占全表比例超过它就**放弃剪枝**并记 lastError。
- *
- * 要删的比例异常大，说明边界或这一轮的扫描本身出了问题——宁可不删留给下一轮
- * （下一轮取新边界，该删的照样删得掉），也不要把这个兜底层削空。
- *
- * 0.20 的来历（⚠ 定这个数**必须**拿它和「一次运行的扫描量」比，别只跟事故比）：
- *   · 正常一轮的 stale 约 3–10%：掉出 top N 的自然流失 1–3%，加上游标漂移漏扫
- *     2–7%（排序键 downloadCount 是可变的，模型在被扫到前排名上升穿过游标就会
- *     漏，尾部密度高，这一项才是大头）。
- *   · **一次运行扫 30 批 × 500 = 15,000 行 = 全表的 30%。** 所以「本轮少跑了一
- *     次运行」这类故障的 stale ≈ 25–35%。原先取 0.35 比这还大，等于这档事故照
- *     样从闸下钻过去、照删不误——闸只挡得住「上游只给回一小撮」（接近 100%）。
- *   0.20 卡在两者之间：比正常上限 10% 留了一倍余量，又低于一次运行的 30%。
- *
- * 取值宁低勿高，因为两类误判的代价不对称：误挡 = 这一轮不删，下一轮自愈（表不
- * 会膨胀，upsert 命中同一 modelId）；误放 = 删掉还活着的行，而且是**静默**的
- * ——`readCivitaiMirrorFreshness` 只读 lastCompletedAt。
- */
-export const CIVITAI_MIRROR_PRUNE_MAX_STALE_RATIO = 0.2
-
-/**
- * 镜像同步单次上游取数的超时预算。搜索路径的 5s/10s 是按「用户在等」定
- * 的，后台同步拉整页（limit=500）实测会超过那个闸——没人在等的时候，慢一
- * 点远好过失败重来一整批。
- */
-export const CIVITAI_MIRROR_FETCH_TIMEOUT_MS = 30_000
-
-/**
- * 搜索路径的过取窗口。
- *
- * 「完全匹配排最前」不能只在当前页内重排——那样第 10 位的前缀匹配翻到第 2
- * 页反而更靠后。必须每次从 0 重扫一个「当前页末尾 + 缓冲」的前缀窗口，合并
- * 去重后整体分层再切片（与 listCivitaiLorasByContentType 同一套范式）。
- *
- * 缓冲 24 = 两页。exact/prefix 命中在 meilisearch 的相关性序里天然靠顶，
- * 窗口不需要很大就能把它们兜住；MAX 兜底极端深页，防止翻到第 40 页时一次
- * 拉几千条。
- */
-export const CIVITAI_LORA_SEARCH_OVERFETCH_BUFFER = 24
-export const CIVITAI_LORA_SEARCH_MAX_FETCH_LIMIT = 480
 
 /**
  * 移动端（<1024，`useIsMobile`）结果卡自动滚动 —— `LoraWorkbench` GenerateBranch。

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@clerk/nextjs'
 import { AlertCircle, History, Search } from '@/components/icons'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
@@ -98,7 +98,6 @@ export function CivitaiCommunityBranch({
   onSourceChange,
 }: CivitaiCommunityBranchOwnProps) {
   const t = useTranslations('LoraWorkbench')
-  const format = useFormatter()
   const router = useRouter()
   const stack = useActiveLoraStack()
   // 挂载前的 Civitai 下载闸（与「＋添加 LoRA」库 modal 共用同一实现）。
@@ -412,20 +411,6 @@ export function CivitaiCommunityBranch({
           onClearFilters={handleClearFilters}
           onRefresh={() => void library.refresh()}
         />
-
-        {library.isStale && library.staleFetchedAt ? (
-          <div
-            role="status"
-            className="border-border bg-muted/50 text-foreground mb-2 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs font-medium"
-          >
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            <span>
-              {t('staleSnapshotNotice', {
-                time: format.relativeTime(new Date(library.staleFetchedAt)),
-              })}
-            </span>
-          </div>
-        ) : null}
 
         <div
           className={cn(

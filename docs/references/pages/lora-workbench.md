@@ -21,12 +21,12 @@
 
 **做**（简报设计线四缺口）：
 
-| 缺口            | 本文章节 | 一句话                                                            |
-| --------------- | -------- | ----------------------------------------------------------------- |
-| G2 双源统一     | §2       | civitai/HF 收敛成一套库外壳，源变成一个筛选维度                   |
-| G1 内容类型筛选 | §3       | 人物/服装/表情/姿势/风格/概念 一等 chip 行 + 三重兜底 + 稀疏/空态 |
-| G3 组合体验     | §4       | 兼容度圆点 + 「常与它同挂」推荐行 + 触发词 chips 化               |
-| G4 tag 补全 UI  | §5       | 提示词纸 inline danbooru 补全（引擎已有，只补 UI）                |
+| 缺口            | 本文章节 | 一句话                                                                  |
+| --------------- | -------- | ----------------------------------------------------------------------- |
+| G2 双源统一     | §2       | civitai/HF 收敛成一套库外壳，源变成一个筛选维度                         |
+| G1 内容类型筛选 | §3       | 人物/服装/表情/姿势/风格/概念 一等 chip 行 + 标签或名字命中 + 稀疏/空态 |
+| G3 组合体验     | §4       | 兼容度圆点 + 「常与它同挂」推荐行 + 触发词 chips 化                     |
+| G4 tag 补全 UI  | §5       | 提示词纸 inline danbooru 补全（引擎已有，只补 UI）                      |
 
 **不做**（明确排除，防scope漂移）：
 
@@ -164,19 +164,10 @@ tag-level 计数 API，改用 `GET huggingface.co/api/models?filter=lora&search=
 - 每项字段：`id` / `labelKey` / `civitaiTags` / `hfTags`（Hub tag 候选，供给差，允许空数组——本批只有 character/style/concept 三类给了非空 hfTags，其余取经验证的空数组，纯靠 L2）/ `nameKeywords` / `searchFallbackTerm`（空态逃生口用的搜索词）。
 - **单选**（与家族行同模式），`type=all` 默认。
 
-### 3.2 三重兜底（工程契约，UI 依赖它的合并结果）
+### 3.2 内容类型的命中规则（工程契约）
 
-civitai 社区 tag 质量参差（官方 discussion #499：大量模型不打 tag），单靠 L1 会漏。检索结果 = 三层**并集去重**（服务端合并，客户端只见统一列表）：
+civitai 社区 tag 质量参差（官方 discussion #499：大量模型不打 tag），单靠标签会漏。一个模型属于某类型 = **命中任一 `civitaiTags`（整个标签精确相等）或名字含任一 `nameKeywords`**，两者取并集，在 Civitai 索引里一条查询完成（2026-10-07 起，见 [`../backend.md`](../backend.md#civitai-lora-库全量索引2026-10-07-起)）：总数是精确数、按页码翻页，两个字的关键词（如「oc」）按整词匹配。旧的 meilisearch 两个子查询合并 + 自建 override / exclude 表随索引一起删掉（两张表从来是空的）。
 
-1. **L1 tag 下推**：meilisearch `tags.name IN (civitaiTags)`——精确但覆盖不全；
-2. **L2 名称词表**：`nameKeywords` 下推进 meilisearch **第二个 query 的 `q`**（全文，覆盖 name/tags/description，typo-tolerant）——补 L1 的漏，可能引入误报；
-3. **L3 自建映射** `LORA_CONTENT_TYPE_OVERRIDES`（新常量，`modelId → type` 与 `modelId → exclude` 两张小表）：人工/挖掘维护的纠错层，**优先级最高**——L2 误报进 exclude、L1/L2 都漏的热门模型进 override。首发允许空表，机制先立起来。
-
-**S2 工程实现**（`src/services/civitai-lora.service.ts` `listCivitaiLorasByContentType`）：type≠'all' 时整条请求路由到这个函数，绕开 REST 浏览分支（REST `tag=` 只支持单值、表达不了 civitaiTags 的多 tag OR，也没有名称关键词兜底）——统一走 meilisearch。
-
-- **L2 工程选型：下推进 `q=`，不是客户端子串过滤**。理由：① multi-search 端点原生支持一次 HTTP 请求带多个独立 `query` 对象（2026-07-17 实测确认，`body.queries` 数组，每个 query 各自返回独立 `hits`）——L1（tag 过滤）+ L2（关键词全文）打包进同一次 POST，零额外往返；② 客户端子串过滤需要先对已抓取页做宽口径 over-fetch 才有东西可过滤，这正是简报 §0 明确排除的「over-fetch 根治」方向；③ meilisearch 的 typo-tolerant 全文匹配是「名称/描述子串匹配」的合理超集，宁可稍宽，多余命中交给 L3 exclude 纠错。
-- 合并：两个 query 各自按 `offset/limit` 独立分页，返回的 hits 按 `hit.id`（civitai modelId）去重合并，L3 exclude 剔除、L3 override 补漏（modelId 不在合并集里时另发一次 REST 单模型请求解析），再按请求的 `sort` 字段重新排序（`Highest Rated` 无暴露的相关性分数，保留合并顺序）后裁到 `pageSize`。
-- **已知限制**：两个独立分页窗口的并集不是精确分页（跟简报 §0 排除的 over-fetch 根治同一个已知代价档）。`total` 自 2026-09-27 起是精确数：同一次请求多发三条只要数的 query，|L1| + |L2| − |L1 ∩ L2|（见 `backend.md` Civitai 搜索一节）；上游没回数时才报 `null`、`hasNextPage` 退回「任一底层 query 在这页之后还有更多」。meilisearch 请求失败**没有 REST 回落**（REST 表达不了多 tag OR/名称关键词），直接向上抛错、路由层 502——失败大声暴露好过悄悄丢弃用户选中的类型筛选。
 - HF 侧（`src/services/huggingface-lora.service.ts`）走既有的「抓 Hub 页 + 服务端过滤」架构（不是 meilisearch）：`isPotentialLoraCandidate` 新增 `modelMatchesContentType` 判据，同一套 L1(`hfTags`)/L2(`nameKeywords` 对 repoId/模型名/tags/文件名子串匹配，复用 `matchesRepositorySearch` 的 haystack 构造)/L3(`LORA_CONTENT_TYPE_OVERRIDES_HF`/`_EXCLUDES_HF`，repoId 键) 语义，不新开 over-fetch 路径。
 
 UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（3.3）。排序在合并集上生效。
@@ -296,19 +287,19 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 ## 9. 组件与文件改动面（现状 → 目标）
 
-| 件       | 文件                                                                 | 改动                                                                                                   |
-| -------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 库外壳   | `LoraWorkbench.tsx` `CommunitySourceBranch`                          | Tabs 套双组件 → `LoraLibraryShell`（建议**趁机拆文件**：`lora/library/` 子目录，Workbench 已 4268 行） |
-| 控件行   | 同上 `CivitaiCommunityBranch` 控件区 + `HuggingFaceLoraLibrary` 头部 | 收敛为一套三行控件（§2.1）；HF 自有面板壳/搜索/family 行退役                                           |
-| 统一卡   | `CivitaiLoraCard`（:3497）+ `HuggingFaceLoraCard`                    | → `LoraLibraryCard`（§2.3）；HF 卡 file select 迁抽屉                                                  |
-| 统一抽屉 | `CivitaiLoraInspector`（:3575）                                      | → `LoraLibraryInspector` 双源装配（§2.4）                                                              |
-| 类型常量 | `src/constants/lora.ts`                                              | 新增 `LORA_CONTENT_TYPES` / `LORA_CONTENT_TYPE_OVERRIDES` / family slug 枚举与映射                     |
-| 类型检索 | `civitai-lora.service.ts` / `huggingface-lora.service.ts` / 两 hook  | L1–L3 合并（工程线规格，Sonnet 依 §3.2 契约实现）                                                      |
-| 兼容圆点 | `LoraSpineBar`（:1939）                                              | chip 内圆点 + 警示行（§4.1）                                                                           |
-| 推荐行   | GenerateBranch 配方面板区                                            | 聚合 extras Top3（§4.2）                                                                               |
-| 触发词行 | GenerateBranch 纸区（:1391 起）                                      | TriggerChipRow + prefill 迁移（§4.3）                                                                  |
-| 补全     | `prompt-tags/PromptTagAutocomplete.tsx`（新）                        | §5 全部；挂正/负 textarea                                                                              |
-| URL      | `CivitaiCommunityBranch` URL effect（:2827）                         | + source/type 参数；family slug 兼容解析                                                               |
+| 件       | 文件                                                                        | 改动                                                                                                   |
+| -------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 库外壳   | `LoraWorkbench.tsx` `CommunitySourceBranch`                                 | Tabs 套双组件 → `LoraLibraryShell`（建议**趁机拆文件**：`lora/library/` 子目录，Workbench 已 4268 行） |
+| 控件行   | 同上 `CivitaiCommunityBranch` 控件区 + `HuggingFaceLoraLibrary` 头部        | 收敛为一套三行控件（§2.1）；HF 自有面板壳/搜索/family 行退役                                           |
+| 统一卡   | `CivitaiLoraCard`（:3497）+ `HuggingFaceLoraCard`                           | → `LoraLibraryCard`（§2.3）；HF 卡 file select 迁抽屉                                                  |
+| 统一抽屉 | `CivitaiLoraInspector`（:3575）                                             | → `LoraLibraryInspector` 双源装配（§2.4）                                                              |
+| 类型常量 | `src/constants/lora.ts`                                                     | 新增 `LORA_CONTENT_TYPES` / `LORA_CONTENT_TYPE_OVERRIDES` / family slug 枚举与映射                     |
+| 类型检索 | `civitai-lora-library.service.ts` / `huggingface-lora.service.ts` / 两 hook | 依 §3.2 契约（Civitai 走索引一条查询）                                                                 |
+| 兼容圆点 | `LoraSpineBar`（:1939）                                                     | chip 内圆点 + 警示行（§4.1）                                                                           |
+| 推荐行   | GenerateBranch 配方面板区                                                   | 聚合 extras Top3（§4.2）                                                                               |
+| 触发词行 | GenerateBranch 纸区（:1391 起）                                             | TriggerChipRow + prefill 迁移（§4.3）                                                                  |
+| 补全     | `prompt-tags/PromptTagAutocomplete.tsx`（新）                               | §5 全部；挂正/负 textarea                                                                              |
+| URL      | `CivitaiCommunityBranch` URL effect（:2827）                                | + source/type 参数；family slug 兼容解析                                                               |
 
 禁改范围沿用 ui-page 场景默认值；其中 §3.2 检索合并、§2.5 HF sort 是**设计+工程双属**改动，越 service 边界属预期（简报 §5 已把 G1/G2 标为「设计+工程」），执行时按 Hard Rules（server-only / Zod / withRetry）走。
 

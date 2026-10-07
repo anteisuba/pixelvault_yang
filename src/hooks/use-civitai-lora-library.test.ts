@@ -63,15 +63,14 @@ function createItem(id: string, name: string): CivitaiLoraLibraryItem {
 function createResult(
   item: CivitaiLoraLibraryItem,
   page: number,
-  nextCursor: string | null = `cursor-${page + 1}`,
+  hasNextPage = true,
 ): CivitaiLoraLibraryResult {
   return {
     items: [item],
     page,
     pageSize: 10,
-    total: null,
-    hasNextPage: nextCursor !== null,
-    nextCursor,
+    total: 1000,
+    hasNextPage,
   }
 }
 
@@ -129,7 +128,6 @@ describe('useCivitaiLoraLibrary', () => {
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
       expect.objectContaining({
         page: 1,
-        cursor: null,
         search: '鸣潮',
       }),
     )
@@ -147,8 +145,6 @@ describe('useCivitaiLoraLibrary', () => {
         data: {
           ...createResult(oldItem, 1),
           total: 200,
-          stale: true,
-          fetchedAt: '2026-09-01T00:00:00Z',
         },
       })
       .mockReturnValueOnce(
@@ -170,7 +166,6 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.selectedItem).toBeNull()
     expect(result.current.total).toBeNull()
     expect(result.current.hasNextPage).toBe(false)
-    expect(result.current.isStale).toBe(false)
     expect(result.current.isLoading).toBe(true)
     await waitFor(() =>
       expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2),
@@ -283,7 +278,6 @@ describe('useCivitaiLoraLibrary', () => {
       expect.objectContaining({
         baseModel: 'other',
         page: 1,
-        cursor: null,
       }),
     )
   })
@@ -310,35 +304,8 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.isRevalidating).toBe(false)
   })
 
-  it('does not advance non-search pagination when the next cursor is missing', async () => {
-    const item = createItem('page-1', 'Browse page 1')
-
-    mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
-      success: true,
-      data: {
-        ...createResult(item, 1, null),
-        hasNextPage: true,
-      },
-    })
-
-    const { result } = renderHook(() => useCivitaiLoraLibrary())
-    await waitFor(() => expect(result.current.items).toEqual([item]))
-
-    act(() => {
-      result.current.nextPage()
-    })
-
-    expect(result.current.page).toBe(1)
-    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
-  })
-
-  // Bug 修复（owner 报告：类型筛选下「下一页」不可点）：listCivitaiLoras
-  // ByContentType 恒走 meilisearch 按页码 offset 分页、从不返回 nextCursor
-  // ——纯浏览（无搜索词）时旧版 nextPage() 用「有没有搜索词」当「是否支持
-  // 直接翻页」的代理判断，代理判断失真导致点击静默无效。服务端现在显式
-  // 回传 offsetPaginationSupported，hook 应据此翻页，不再要求 cursor 就绪。
-  describe('offset pagination without a cursor (Bug 2)', () => {
-    it('advances to the next page when offsetPaginationSupported is true, even with no search term and no cursor', async () => {
+  describe('page-number pagination', () => {
+    it('advances to the next page by page number, with or without a search term', async () => {
       const page1Item = createItem('type-filter-1', 'Type filter page 1')
       const page2Item = createItem('type-filter-2', 'Type filter page 2')
 
@@ -346,17 +313,13 @@ describe('useCivitaiLoraLibrary', () => {
         .mockResolvedValueOnce({
           success: true,
           data: {
-            ...createResult(page1Item, 1, null),
-            hasNextPage: true,
-            offsetPaginationSupported: true,
+            ...createResult(page1Item, 1),
           },
         })
         .mockResolvedValueOnce({
           success: true,
           data: {
-            ...createResult(page2Item, 2, null),
-            hasNextPage: false,
-            offsetPaginationSupported: true,
+            ...createResult(page2Item, 2, false),
           },
         })
 
@@ -382,9 +345,7 @@ describe('useCivitaiLoraLibrary', () => {
       mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
         success: true,
         data: {
-          ...createResult(item, 1, null),
-          hasNextPage: true,
-          offsetPaginationSupported: true,
+          ...createResult(item, 1),
           total: 5,
         },
       })
@@ -399,85 +360,9 @@ describe('useCivitaiLoraLibrary', () => {
       expect(result.current.page).toBe(1)
       expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
     })
-
-    it('adopts the server page when a stale fallback clamps to page 1', async () => {
-      const liveItem = createItem('live-1', 'Live page 1')
-      const fallbackItem = createItem('fallback-1', '鸣潮 fallback')
-
-      mockListCivitaiLoraAssetsAPI
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(liveItem, 1, null),
-            hasNextPage: true,
-            offsetPaginationSupported: true,
-            total: 5000,
-          },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(fallbackItem, 1, null),
-            hasNextPage: true,
-            offsetPaginationSupported: true,
-            total: 41,
-            stale: true,
-            fetchedAt: '2026-08-19T10:00:00.000Z',
-          },
-        })
-        .mockResolvedValue({
-          success: true,
-          data: {
-            ...createResult(fallbackItem, 1, null),
-            hasNextPage: true,
-            offsetPaginationSupported: true,
-            total: 41,
-            stale: true,
-            fetchedAt: '2026-08-19T10:00:00.000Z',
-          },
-        })
-
-      const { result } = renderHook(() =>
-        useCivitaiLoraLibrary({ initialSearch: '鸣潮' }),
-      )
-      await waitFor(() => expect(result.current.items).toEqual([liveItem]))
-
-      act(() => {
-        result.current.nextPage()
-      })
-
-      await waitFor(() => expect(result.current.items).toEqual([fallbackItem]))
-      expect(result.current.page).toBe(1)
-      expect(result.current.isStale).toBe(true)
-      expect(result.current.total).toBe(41)
-    })
-
-    it('still refuses to advance without offsetPaginationSupported and without a cursor (unchanged REST-browse behaviour)', async () => {
-      const item = createItem('rest-browse-1', 'REST browse page 1')
-
-      mockListCivitaiLoraAssetsAPI.mockResolvedValueOnce({
-        success: true,
-        data: {
-          ...createResult(item, 1, null),
-          hasNextPage: true,
-        },
-      })
-
-      const { result } = renderHook(() =>
-        useCivitaiLoraLibrary({ initialContentType: 'clothing' }),
-      )
-      await waitFor(() => expect(result.current.items).toEqual([item]))
-
-      act(() => {
-        result.current.nextPage()
-      })
-
-      expect(result.current.page).toBe(1)
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(1)
-    })
   })
 
-  it('does not skip cursor pages on rapid next clicks', async () => {
+  it('does not skip pages on rapid next clicks', async () => {
     const firstPageItem = createItem('page-1', 'Browse page 1')
     const secondPageItem = createItem('page-2', 'Browse page 2')
     let resolveSecondPage:
@@ -492,7 +377,7 @@ describe('useCivitaiLoraLibrary', () => {
     mockListCivitaiLoraAssetsAPI
       .mockResolvedValueOnce({
         success: true,
-        data: createResult(firstPageItem, 1, 'cursor-2'),
+        data: createResult(firstPageItem, 1),
       })
       .mockReturnValueOnce(secondPagePromise)
 
@@ -510,16 +395,13 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.page).toBe(2)
     expect(result.current.isRevalidating).toBe(true)
     expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        page: 2,
-        cursor: 'cursor-2',
-      }),
+      expect.objectContaining({ page: 2 }),
     )
 
     act(() => {
       resolveSecondPage?.({
         success: true,
-        data: createResult(secondPageItem, 2, 'cursor-3'),
+        data: createResult(secondPageItem, 2),
       })
     })
 
@@ -689,7 +571,6 @@ describe('useCivitaiLoraLibrary', () => {
             pageSize: 10,
             total: 0,
             hasNextPage: false,
-            nextCursor: null,
           },
         })
       })
@@ -700,16 +581,10 @@ describe('useCivitaiLoraLibrary', () => {
     })
   })
 
-  // Search-session backend lock: once a search
-  // session falls back to REST, every subsequent page in that same session
-  // must keep requesting the REST backend explicitly — letting a later page
-  // silently retry meilisearch (and maybe succeed) would put that page on a
-  // different pagination paradigm (offset vs. cursor-scan) than the pages
-  // around it, producing duplicate/misaligned pages.
   it('remembers the rating choice in this browser and starts from it next time', async () => {
     mockListCivitaiLoraAssetsAPI.mockResolvedValue({
       success: true,
-      data: createResult(createItem('rated-1', 'Rated'), 1, null),
+      data: createResult(createItem('rated-1', 'Rated'), 1, false),
     })
 
     const first = renderHook(() => useCivitaiLoraLibrary())
@@ -734,7 +609,7 @@ describe('useCivitaiLoraLibrary', () => {
     window.localStorage.setItem('pixelvault:lora-library-nsfw', 'unrestricted')
     mockListCivitaiLoraAssetsAPI.mockResolvedValue({
       success: true,
-      data: createResult(createItem('deep-1', 'Deep'), 1, null),
+      data: createResult(createItem('deep-1', 'Deep'), 1, false),
     })
 
     const { result } = renderHook(() =>
@@ -745,184 +620,6 @@ describe('useCivitaiLoraLibrary', () => {
     expect(result.current.nsfwFilter).toBe('nsfwOnly')
   })
 
-  it('asks again a few seconds after the server served an earlier result', async () => {
-    const staleItem = createItem('stale-1', 'From snapshot')
-    const freshItem = createItem('fresh-1', 'Fresh')
-    mockListCivitaiLoraAssetsAPI
-      .mockResolvedValueOnce({
-        success: true,
-        data: {
-          ...createResult(staleItem, 1, null),
-          stale: true,
-          fetchedAt: '2026-09-27T10:00:00.000Z',
-        },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: createResult(freshItem, 1, null),
-      })
-
-    const { result } = renderHook(() => useCivitaiLoraLibrary())
-
-    await waitFor(() => expect(result.current.items).toEqual([staleItem]))
-    expect(result.current.isStale).toBe(true)
-    // 服务端在响应之后已经把上游跑完、刷新了快照——几秒后再要一次就是新的。
-    await waitFor(() => expect(result.current.items).toEqual([freshItem]), {
-      timeout: 5000,
-    })
-    expect(result.current.isStale).toBe(false)
-    expect(mockListCivitaiLoraAssetsAPI).toHaveBeenCalledTimes(2)
-  })
-
-  describe('search backend lock (Issue C)', () => {
-    it('locks onto REST after a fallback and keeps sending source=rest on later pages', async () => {
-      const page1Item = createItem('locked-1', 'Page 1')
-      const page2Item = createItem('locked-2', 'Page 2')
-      const page3Item = createItem('locked-3', 'Page 3')
-
-      mockListCivitaiLoraAssetsAPI
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(page1Item, 1, 'rest-cursor-2'),
-            sortFellBackToRelevance: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(page2Item, 2, 'rest-cursor-3'),
-            sortFellBackToRelevance: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(page3Item, 3, null),
-            sortFellBackToRelevance: true,
-          },
-        })
-
-      const { result } = renderHook(() =>
-        useCivitaiLoraLibrary({ initialSearch: 'locked query' }),
-      )
-
-      await waitFor(() => expect(result.current.items).toEqual([page1Item]))
-      // First page is unlocked — free choice, same as today.
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ source: undefined }),
-      )
-
-      act(() => {
-        result.current.nextPage()
-      })
-      await waitFor(() => expect(result.current.items).toEqual([page2Item]))
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 2, source: 'rest' }),
-      )
-
-      act(() => {
-        result.current.nextPage()
-      })
-      await waitFor(() => expect(result.current.items).toEqual([page3Item]))
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 3, source: 'rest' }),
-      )
-    })
-
-    it('locks browse pagination too — a REST-served browse page keeps later pages on REST', async () => {
-      const page1Item = createItem('browse-1', 'Browse 1')
-      const page2Item = createItem('browse-2', 'Browse 2')
-
-      mockListCivitaiLoraAssetsAPI
-        .mockResolvedValueOnce({
-          success: true,
-          data: createResult(page1Item, 1, 'cursor-2'),
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: createResult(page2Item, 2, null),
-        })
-
-      const { result } = renderHook(() => useCivitaiLoraLibrary())
-      await waitFor(() => expect(result.current.items).toEqual([page1Item]))
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ source: undefined }),
-      )
-
-      act(() => {
-        result.current.nextPage()
-      })
-      await waitFor(() => expect(result.current.items).toEqual([page2Item]))
-      // 2026-09-27 起浏览也先走 meilisearch、失败回落 REST——这一页是 REST
-      // 给的（没带 offsetPaginationSupported），下一页必须接着走 REST 的 cursor。
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ source: 'rest' }),
-      )
-    })
-
-    it('resets the backend lock when the search term changes (new session)', async () => {
-      const firstQueryPage1 = createItem('reset-a-1', 'A page 1')
-      const firstQueryPage2 = createItem('reset-a-2', 'A page 2')
-      const secondQueryPage1 = createItem('reset-b-1', 'B page 1')
-
-      mockListCivitaiLoraAssetsAPI
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(firstQueryPage1, 1, 'rest-cursor-2'),
-            sortFellBackToRelevance: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: {
-            ...createResult(firstQueryPage2, 2, null),
-            sortFellBackToRelevance: true,
-          },
-        })
-        .mockResolvedValueOnce({
-          success: true,
-          data: createResult(secondQueryPage1, 1),
-        })
-
-      const { result } = renderHook(() =>
-        useCivitaiLoraLibrary({ initialSearch: 'first query' }),
-      )
-      await waitFor(() =>
-        expect(result.current.items).toEqual([firstQueryPage1]),
-      )
-
-      act(() => {
-        result.current.nextPage()
-      })
-      await waitFor(() =>
-        expect(result.current.items).toEqual([firstQueryPage2]),
-      )
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ source: 'rest' }),
-      )
-
-      act(() => {
-        result.current.setSearch('second query')
-      })
-      act(() => {
-        result.current.submitSearch()
-      })
-      await waitFor(() =>
-        expect(result.current.items).toEqual([secondQueryPage1]),
-      )
-
-      // New session — must NOT carry over the previous session's REST lock.
-      expect(mockListCivitaiLoraAssetsAPI).toHaveBeenLastCalledWith(
-        expect.objectContaining({ page: 1, source: undefined }),
-      )
-    })
-  })
-
-  // L1 抗抖动：被取代的请求必须真的掐掉，而不只是丢弃它的结果。
-  // 2026-08-19 Civitai 过载时，同一个搜索词有三条请求同时压在上游、每条跑满
-  // 21–24 秒——requestIdRef 只在响应回来时丢结果，拦不住已经发出去的请求。
   it('aborts the in-flight request when a new one supersedes it', async () => {
     const first = createItem('sort-1', 'First sort')
     const second = createItem('sort-2', 'Second sort')
@@ -996,7 +693,7 @@ describe('useCivitaiLoraLibrary — accumulate（库 B 往下滚）', () => {
       })
       .mockResolvedValueOnce({
         success: true,
-        data: { ...createResult(second, 2, null), total: 30 },
+        data: { ...createResult(second, 2, false), total: 30 },
       })
 
     const { result } = renderHook(() =>
@@ -1048,7 +745,7 @@ describe('useCivitaiLoraLibrary — accumulate（库 B 往下滚）', () => {
     await act(async () => {
       resolveSearch({
         success: true,
-        data: { ...createResult(newItem, 1, null), total: 1 },
+        data: { ...createResult(newItem, 1, false), total: 1 },
       })
     })
 

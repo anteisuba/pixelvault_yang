@@ -11,8 +11,10 @@ vi.mock('@/lib/with-retry', () => ({
 }))
 
 const mockListCivitaiLoras = vi.fn()
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/services/civitai-lora-library.service', () => ({
   listCivitaiLoras: (...args: unknown[]) => mockListCivitaiLoras(...args),
+}))
+vi.mock('@/services/civitai-lora.service', () => ({
   // 与真实实现同一归一化语义（小写 + 去分隔符）。
   normalizeLoraNameKey: (value: string) =>
     value.toLowerCase().replace(/[\s\-_.]+/g, ''),

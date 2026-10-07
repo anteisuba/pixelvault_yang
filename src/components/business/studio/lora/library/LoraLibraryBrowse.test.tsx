@@ -118,9 +118,6 @@ function libraryState(overrides: Record<string, unknown> = {}) {
     isRevalidating: false,
     isReplacing: false,
     isLoadingMore: false,
-    isStale: false,
-    staleFetchedAt: null,
-    sortFellBackToRelevance: false,
     error: null,
     search: '',
     debouncedSearch: '',
@@ -161,11 +158,11 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     resetOperatorThread()
   })
 
-  it('writes the exact count, and 100,000+ once the index caps it', () => {
+  it('writes the exact count, however large', () => {
     const { rerender } = renderBrowse()
     expect(screen.getByText('18,402')).toBeInTheDocument()
 
-    mockLibrary = libraryState({ total: 100000 })
+    mockLibrary = libraryState({ total: 642554 })
     rerender(
       <LoraLibraryBrowse
         sourceSwitch={<span>source</span>}
@@ -174,7 +171,7 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
         isFavorited={() => false}
       />,
     )
-    expect(screen.getByText('100,000+')).toBeInTheDocument()
+    expect(screen.getByText('642,554')).toBeInTheDocument()
   })
 
   it('keeps type, base, rating and sort as dropdowns in the one bar', () => {

@@ -15,7 +15,6 @@ import { toast } from 'sonner'
 import { AlertCircle } from '@/components/icons'
 import {
   CIVITAI_LORA_SORT_OPTIONS,
-  CIVITAI_SEARCH_TOTAL_HITS_CAP,
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
@@ -366,12 +365,7 @@ export function LoraLibraryBrowse({
     library.debouncedSearch !== '' && (library.isReplacing || library.isLoading)
   const hasPendingSearch =
     library.search.trim() !== library.debouncedSearch.trim()
-  const shownTotal = library.total ?? library.items.length
-  // 到了索引封顶就写「100,000+」（那不是精确数）。
-  const totalLabel =
-    shownTotal >= CIVITAI_SEARCH_TOTAL_HITS_CAP
-      ? `${format.number(CIVITAI_SEARCH_TOTAL_HITS_CAP)}+`
-      : format.number(shownTotal)
+  const totalLabel = format.number(library.total ?? library.items.length)
   const typeFallbackTerm =
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm
@@ -451,29 +445,6 @@ export function LoraLibraryBrowse({
         />
       </div>
 
-      {/* 过载：先给快照，一句话写明。 */}
-      {library.isStale && library.staleFetchedAt ? (
-        <div
-          role="status"
-          className="mx-5 mt-3 flex shrink-0 items-center gap-2 rounded-xl bg-status-warning-surface px-3 py-2 text-2sm text-status-warning"
-        >
-          <b className="font-semibold">{tb('staleTitle')}</b>
-          <span className="min-w-0 truncate">
-            {tb('staleBody', {
-              time: format.relativeTime(new Date(library.staleFetchedAt)),
-            })}
-          </span>
-          <span className="grow" />
-          <button
-            type="button"
-            onClick={() => void library.refresh()}
-            className="shrink-0 font-semibold hover:underline"
-          >
-            {tb('retry')}
-          </button>
-        </div>
-      ) : null}
-
       {/* 数量一行：精确数；搜着的时候写在搜什么。 */}
       {settledEmpty ? null : (
         <p
@@ -487,22 +458,8 @@ export function LoraLibraryBrowse({
               <b className="text-sm font-semibold tabular-nums text-foreground">
                 {totalLabel}
               </b>
-              <span>
-                {library.isStale && library.staleFetchedAt
-                  ? tb('countUnitStale', {
-                      count: library.total,
-                      time: format.relativeTime(
-                        new Date(library.staleFetchedAt),
-                      ),
-                    })
-                  : tb('countUnit', { count: library.total })}
-              </span>
+              <span>{tb('countUnit', { count: library.total })}</span>
             </>
-          ) : null}
-          {library.sortFellBackToRelevance ? (
-            <span className="ml-auto" title={t('sortFallbackHint')}>
-              {t('sortFallbackLabel')}
-            </span>
           ) : null}
         </p>
       )}

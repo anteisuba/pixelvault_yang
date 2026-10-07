@@ -5028,29 +5028,13 @@ export type CivitaiLoraLibraryItem = z.infer<
 >
 
 export const CivitaiLoraLibraryResultSchema = z.object({
+// 来自我们自己的全量索引（见 civitai-lora-library.service）：总数是准数，
+// 按页码直接翻页。
   items: z.array(CivitaiLoraLibraryItemSchema),
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),
-  total: z.number().int().nonnegative().nullable(),
+  total: z.number().int().nonnegative(),
   hasNextPage: z.boolean(),
-  nextCursor: z.string().nullable(),
-  // B11：搜索路径的 civitai meilisearch 端点挂了，回落到忽略 sort 的 REST
-  // 搜索路径时置 true——UI 用它把排序控件降级显示成「排序已降级」。
-  sortFellBackToRelevance: z.boolean().optional(),
-  // Bug 修复（2026-07-18，类型筛选「下一页不可点」的真根因）：true = 这个
-  // 结果来自按页码直接 offset 分页的后端（meilisearch 搜索路径 /
-  // 内容类型合并路径），client 翻页可以直接 setPage(page+1) 重新请求，不
-  // 需要先拿到 nextCursor。false/undefined = 走 REST cursor 扫描，必须先
-  // 有上一页返回的 nextCursor 才能翻页。此前 client 用「有没有输入搜索
-  // 词」当代理判断是否支持 offset 分页——类型筛选场景即使没搜索词也是走
-  // 内容类型合并路径（恒 offset 分页），代理判断失真导致翻页静默失败
-  // （按钮不会被禁用，点击只是不生效）；这个字段替换那个不准的代理判断。
-  offsetPaginationSupported: z.boolean().optional(),
-  // L2 陈旧兜底：true = 这一页来自服务端快照缓存，因为 Civitai 搜索子系统
-  // 当时不可用。UI 据此显示「离线数据 · X 分钟前」而不是白屏。配套的
-  // stalenessAt 是这份快照最后一次成功从上游取到的时刻（ISO 字符串）。
-  stale: z.boolean().optional(),
-  fetchedAt: z.string().optional(),
 })
 
 export type CivitaiLoraLibraryResult = z.infer<

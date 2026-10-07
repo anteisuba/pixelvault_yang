@@ -7,16 +7,8 @@
   "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "crons": [
     {
-      "path": "/api/internal/civitai-lora/prewarm",
-      "schedule": "0 0 * * *"
-    },
-    {
       "path": "/api/internal/execution/sweep",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/internal/civitai-mirror/sync",
-      "schedule": "0 4 * * *"
     }
   ]
 }

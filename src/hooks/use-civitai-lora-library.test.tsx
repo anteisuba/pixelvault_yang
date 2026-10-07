@@ -69,15 +69,14 @@ function makeItem(
 function makeResult(
   items: CivitaiLoraLibraryItem[],
   page: number,
-  nextCursor: string | null,
+  hasNextPage: boolean,
 ): CivitaiLoraLibraryResult {
   return {
     items,
     page,
     pageSize: 10,
-    total: null,
-    hasNextPage: nextCursor !== null,
-    nextCursor,
+    total: 100,
+    hasNextPage,
   }
 }
 
@@ -87,19 +86,19 @@ describe('useCivitaiLoraLibrary', () => {
     __resetCivitaiLibraryCacheForTests()
   })
 
-  it('uses Civitai cursors when paginating a selected base model', async () => {
+  it('restarts at page 1 for a newly selected base model, then pages by number', async () => {
     mockListCivitaiLoraAssetsAPI
       .mockResolvedValueOnce({
         success: true,
-        data: makeResult([makeItem('all-1', 'SDXL 1.0')], 1, 'all-cursor'),
+        data: makeResult([makeItem('all-1', 'SDXL 1.0')], 1, true),
       })
       .mockResolvedValueOnce({
         success: true,
-        data: makeResult([makeItem('anima-1')], 1, 'anima-cursor'),
+        data: makeResult([makeItem('anima-1')], 1, true),
       })
       .mockResolvedValueOnce({
         success: true,
-        data: makeResult([makeItem('anima-2')], 2, null),
+        data: makeResult([makeItem('anima-2')], 2, false),
       })
 
     const { result } = renderHook(() => useCivitaiLoraLibrary())
@@ -118,7 +117,6 @@ describe('useCivitaiLoraLibrary', () => {
 
     expect(mockListCivitaiLoraAssetsAPI.mock.calls[1]?.[0]).toMatchObject({
       page: 1,
-      cursor: null,
       baseModel: 'Anima',
     })
 
@@ -132,7 +130,6 @@ describe('useCivitaiLoraLibrary', () => {
 
     expect(mockListCivitaiLoraAssetsAPI.mock.calls[2]?.[0]).toMatchObject({
       page: 2,
-      cursor: 'anima-cursor',
       baseModel: 'Anima',
     })
   })

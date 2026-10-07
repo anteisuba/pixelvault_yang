@@ -6,9 +6,12 @@
  * 没上报过」——会被当成故障报出来，而不是安静地失配。
  */
 export const CRON_JOBS = {
-  CIVITAI_LORA_PREWARM: 'civitai-lora-prewarm',
   EXECUTION_SWEEP: 'execution-sweep',
-  CIVITAI_MIRROR_SYNC: 'civitai-mirror-sync',
+  /**
+   * Cloudflare 上 Civitai 索引的每日同步（`workers/civitai-index`）。它不是
+   * Vercel Cron、心跳也不在 Upstash：健康端点直接问索引的 `/status`。
+   */
+  CIVITAI_INDEX_SYNC: 'civitai-index-sync',
 } as const
 
 export type CronJobName = (typeof CRON_JOBS)[keyof typeof CRON_JOBS]
@@ -20,7 +23,9 @@ export type CronJobName = (typeof CRON_JOBS)[keyof typeof CRON_JOBS]
  * ——和它压根没跑一样安静。加 cron 的完整清单见 `docs/references/cicd.md`
  * 「加 cron 前必须做的两件事」，本条是第三件。
  */
-export const CRON_JOB_NAMES: readonly CronJobName[] = Object.values(CRON_JOBS)
+export const CRON_JOB_NAMES: readonly CronJobName[] = [
+  CRON_JOBS.EXECUTION_SWEEP,
+]
 
 export const CRON_HEARTBEAT = {
   KEY_PREFIX: 'pv:cron-heartbeat',
@@ -28,7 +33,7 @@ export const CRON_HEARTBEAT = {
   /**
    * 26 小时——超过这个岁数的心跳判定为「漏跑了」。
    *
-   * 三条 cron 都是每日一次，而 **Hobby 的 cron 会在指定的那个整点内任意时刻
+   * cron 都是每日一次，而 **Hobby 的 cron 会在指定的那个整点内任意时刻
    * 触发**：`0 4 * * *` 实际可能落在 04:00:00–04:59:59（见
    * <https://vercel.com/docs/cron-jobs/manage-cron-jobs> 的 "Cron jobs
    * accuracy"）。于是两次成功运行之间的**正常**最大间隔是 24h + 1h = 25h。

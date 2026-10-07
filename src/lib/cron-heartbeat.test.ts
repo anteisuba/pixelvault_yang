@@ -61,14 +61,14 @@ describe('recordCronRun', () => {
   it('carries the failure detail through', async () => {
     configureUpstash()
 
-    await recordCronRun(CRON_JOBS.CIVITAI_MIRROR_SYNC, {
+    await recordCronRun(CRON_JOBS.EXECUTION_SWEEP, {
       ok: false,
-      detail: 'Prune aborted: 900/1000 rows are stale',
+      detail: 'Sweep failed: database unreachable',
     })
 
     expect(mockSet.mock.calls[0][1]).toMatchObject({
       ok: false,
-      detail: 'Prune aborted: 900/1000 rows are stale',
+      detail: 'Sweep failed: database unreachable',
     })
   })
 
@@ -107,11 +107,8 @@ describe('readCronHeartbeats', () => {
 
     const entries = await readCronHeartbeats(NOW)
 
-    expect(entries).toHaveLength(3)
     expect(entries.map((entry) => entry.name)).toEqual([
-      CRON_JOBS.CIVITAI_LORA_PREWARM,
       CRON_JOBS.EXECUTION_SWEEP,
-      CRON_JOBS.CIVITAI_MIRROR_SYNC,
     ])
     for (const entry of entries) {
       expect(entry.lastRun).toBeNull()
@@ -125,15 +122,13 @@ describe('readCronHeartbeats', () => {
     configureUpstash()
     mockMget.mockResolvedValue([
       { ok: true, detail: null, finishedAt: '2026-08-25T00:30:00.000Z' },
-      null,
-      null,
     ])
 
-    const [prewarm] = await readCronHeartbeats(NOW)
+    const [sweep] = await readCronHeartbeats(NOW)
 
-    expect(prewarm.healthy).toBe(true)
-    expect(prewarm.stale).toBe(false)
-    expect(prewarm.ageMs).toBe(11.5 * 60 * 60 * 1000)
+    expect(sweep.healthy).toBe(true)
+    expect(sweep.stale).toBe(false)
+    expect(sweep.ageMs).toBe(11.5 * 60 * 60 * 1000)
   })
 
   it('accepts a JSON string as well as an object from the SDK', async () => {
@@ -144,13 +139,11 @@ describe('readCronHeartbeats', () => {
         detail: null,
         finishedAt: '2026-08-25T00:30:00.000Z',
       }),
-      null,
-      null,
     ])
 
-    const [prewarm] = await readCronHeartbeats(NOW)
+    const [sweep] = await readCronHeartbeats(NOW)
 
-    expect(prewarm.healthy).toBe(true)
+    expect(sweep.healthy).toBe(true)
   })
 
   it('flags a run that succeeded but is older than the max age', async () => {
@@ -161,46 +154,45 @@ describe('readCronHeartbeats', () => {
     const missedOne = new Date(NOW - 27 * 60 * 60 * 1000).toISOString()
     mockMget.mockResolvedValue([
       { ok: true, detail: null, finishedAt: withinDrift },
-      { ok: true, detail: null, finishedAt: missedOne },
-      null,
     ])
+    const [onTime] = await readCronHeartbeats(NOW)
+    expect(onTime.stale).toBe(false)
+    expect(onTime.healthy).toBe(true)
 
-    const [prewarm, sweep] = await readCronHeartbeats(NOW)
-
-    expect(prewarm.stale).toBe(false)
-    expect(prewarm.healthy).toBe(true)
-    expect(sweep.stale).toBe(true)
-    expect(sweep.healthy).toBe(false)
+    mockMget.mockResolvedValue([
+      { ok: true, detail: null, finishedAt: missedOne },
+    ])
+    const [late] = await readCronHeartbeats(NOW)
+    expect(late.stale).toBe(true)
+    expect(late.healthy).toBe(false)
   })
 
   it('flags a fresh run that reported failure', async () => {
     configureUpstash()
     mockMget.mockResolvedValue([
-      null,
-      null,
       {
         ok: false,
-        detail: 'Prune aborted: above the guard',
+        detail: 'Sweep failed: database unreachable',
         finishedAt: '2026-08-25T04:10:00.000Z',
       },
     ])
 
-    const [, , sync] = await readCronHeartbeats(NOW)
+    const [sweep] = await readCronHeartbeats(NOW)
 
-    expect(sync.stale).toBe(false)
-    expect(sync.healthy).toBe(false)
-    expect(sync.lastRun?.detail).toBe('Prune aborted: above the guard')
+    expect(sweep.stale).toBe(false)
+    expect(sweep.healthy).toBe(false)
+    expect(sweep.lastRun?.detail).toBe('Sweep failed: database unreachable')
   })
 
   it('treats a corrupted stored value as never-reported', async () => {
     configureUpstash()
-    mockMget.mockResolvedValue([{ ok: 'yes' }, 'not json at all', null])
+    for (const corrupted of [{ ok: 'yes' }, 'not json at all']) {
+      mockMget.mockResolvedValue([corrupted])
 
-    const entries = await readCronHeartbeats(NOW)
+      const [entry] = await readCronHeartbeats(NOW)
 
-    expect(entries[0].lastRun).toBeNull()
-    expect(entries[0].stale).toBe(true)
-    expect(entries[1].lastRun).toBeNull()
-    expect(entries[1].stale).toBe(true)
+      expect(entry.lastRun).toBeNull()
+      expect(entry.stale).toBe(true)
+    }
   })
 })

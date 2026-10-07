@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { after, NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import {
@@ -10,20 +10,15 @@ import {
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   LORA_CONTENT_TYPE_VALUES,
-  isCivitaiSearchBackend,
   isLoraNsfwFilter,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
-import { listCivitaiLoras } from '@/services/civitai-lora.service'
+import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
 import type { CivitaiLoraLibraryResult } from '@/types'
 
-// LoRA 排行榜与搜索结果在分钟尺度上稳定，把 CDN edge cache 拉长到 15min
-// 命中 + 1h stale-while-revalidate。配合 prewarm cron (6h) 让默认列表几乎
-// 始终命中边缘，搜索结果在第一次冷启动 (~600 ms) 后也能复用 15min。
-const CACHE_CONTROL = 'public, s-maxage=900, stale-while-revalidate=3600'
-// 先给出去的旧结果（上游慢或挂了）不能进边缘缓存：客户端几秒后要再取一次
-// 新的，缓存住它就等于把旧结果钉满 15 分钟。
-const STALE_CACHE_CONTROL = 'no-store'
+// 索引每天只同步一次，结果在小时尺度上都不变：边缘缓存 1 小时 + 一天的
+// stale-while-revalidate。
+const CACHE_CONTROL = 'public, s-maxage=3600, stale-while-revalidate=86400'
 
 const ListCivitaiLoraQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -33,7 +28,6 @@ const ListCivitaiLoraQuerySchema = z.object({
     .min(1)
     .max(40)
     .default(CIVITAI_LORA_PAGE_SIZE),
-  cursor: z.string().trim().min(1).optional(),
   search: z.string().trim().optional(),
   baseModel: z.enum(CIVITAI_LORA_BASE_MODEL_VALUES).default('all'),
   sort: z.enum(CIVITAI_LORA_SORT_VALUES).default('Highest Rated'),
@@ -51,15 +45,6 @@ const ListCivitaiLoraQuerySchema = z.object({
       value !== undefined && isLoraNsfwFilter(value)
         ? value
         : DEFAULT_LORA_NSFW_FILTER,
-    ),
-  // 搜索分页 hook 在同一会话内锁定的 meilisearch/REST 后端选择。
-  // 未知/缺失值静默落
-  // 回 undefined（= 自由选择，与今天一致），不 400。
-  source: z
-    .string()
-    .optional()
-    .transform((value) =>
-      value !== undefined && isCivitaiSearchBackend(value) ? value : undefined,
     ),
 })
 
@@ -81,12 +66,10 @@ export async function GET(
     const parsed = ListCivitaiLoraQuerySchema.safeParse({
       page: searchParams.get('page') ?? undefined,
       pageSize: searchParams.get('pageSize') ?? undefined,
-      cursor: searchParams.get('cursor') ?? undefined,
       search: searchParams.get('search') ?? undefined,
       baseModel: searchParams.get('baseModel') ?? undefined,
       sort: searchParams.get('sort') ?? undefined,
       nsfwFilter: searchParams.get('nsfw') ?? undefined,
-      source: searchParams.get('source') ?? undefined,
       type: searchParams.get('type') ?? undefined,
     })
 
@@ -98,39 +81,18 @@ export async function GET(
     }
 
     const startedAt = Date.now()
-    const timing: { upstreamMs?: number } = {}
-    const data = await listCivitaiLoras(
-      {
-        page: parsed.data.page,
-        pageSize: parsed.data.pageSize,
-        cursor: parsed.data.cursor,
-        search: parsed.data.search,
-        baseModel: parsed.data.baseModel,
-        sort: parsed.data.sort,
-        nsfwFilter: parsed.data.nsfwFilter,
-        source: parsed.data.source,
-        contentType: parsed.data.type,
-      },
-      { defer: (task) => after(task), timing },
-    )
+    const data = await listCivitaiLoras({
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+      search: parsed.data.search,
+      baseModel: parsed.data.baseModel,
+      sort: parsed.data.sort,
+      nsfwFilter: parsed.data.nsfwFilter,
+      contentType: parsed.data.type,
+    })
     const response = NextResponse.json<SuccessBody>({ success: true, data })
-    response.headers.set(
-      'Cache-Control',
-      data.stale ? STALE_CACHE_CONTROL : CACHE_CONTROL,
-    )
-    // 搜索慢到底慢在哪：上游那一趟 vs 我们这一段，浏览器开发者工具里直接看。
-    response.headers.set(
-      'Server-Timing',
-      [
-        timing.upstreamMs === undefined
-          ? null
-          : `upstream;dur=${timing.upstreamMs}`,
-        data.stale ? 'snapshot;desc="stale"' : null,
-        `total;dur=${Date.now() - startedAt}`,
-      ]
-        .filter(Boolean)
-        .join(', '),
-    )
+    response.headers.set('Cache-Control', CACHE_CONTROL)
+    response.headers.set('Server-Timing', `total;dur=${Date.now() - startedAt}`)
     return response
   } catch (error) {
     logger.error('GET /api/lora-assets/civitai failed', {

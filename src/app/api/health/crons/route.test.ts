@@ -9,6 +9,11 @@ vi.mock('@/lib/cron-heartbeat', () => ({
   readCronHeartbeats: (...args: unknown[]) => mockRead(...args),
 }))
 
+const mockReadIndex = vi.fn()
+vi.mock('@/services/civitai-lora-library.service', () => ({
+  readCivitaiIndexHeartbeat: (...args: unknown[]) => mockReadIndex(...args),
+}))
+
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -48,11 +53,8 @@ function heartbeat(
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.HEALTH_CHECK_TOKEN = TOKEN
-  mockRead.mockResolvedValue([
-    heartbeat(CRON_JOBS.CIVITAI_LORA_PREWARM),
-    heartbeat(CRON_JOBS.EXECUTION_SWEEP),
-    heartbeat(CRON_JOBS.CIVITAI_MIRROR_SYNC),
-  ])
+  mockRead.mockResolvedValue([heartbeat(CRON_JOBS.EXECUTION_SWEEP)])
+  mockReadIndex.mockResolvedValue(heartbeat(CRON_JOBS.CIVITAI_INDEX_SYNC))
 })
 
 afterEach(() => {
@@ -75,7 +77,7 @@ describe('GET /api/health/crons', () => {
     expect(mockRead).not.toHaveBeenCalled()
   })
 
-  it('reports healthy when all three crons checked in successfully', async () => {
+  it('reports healthy when the Vercel cron and the index sync both checked in', async () => {
     const res = await GET(request(TOKEN))
     const body = await parseJSON(res)
 
@@ -83,7 +85,7 @@ describe('GET /api/health/crons', () => {
     expect(body).toMatchObject({
       success: true,
       healthy: true,
-      summary: { total: 3, healthy: 3, stale: 0, failed: 0 },
+      summary: { total: 2, healthy: 2, stale: 0, failed: 0 },
     })
   })
 
@@ -91,9 +93,7 @@ describe('GET /api/health/crons', () => {
     // 200 是刻意的：判据在 healthy 字段上。非 200 专门留给「监控本身坏了」，
     // 这样 workflow 能把两种故障分开报。
     mockRead.mockResolvedValue([
-      heartbeat(CRON_JOBS.CIVITAI_LORA_PREWARM),
       heartbeat(CRON_JOBS.EXECUTION_SWEEP, { stale: true }),
-      heartbeat(CRON_JOBS.CIVITAI_MIRROR_SYNC),
     ])
 
     const res = await GET(request(TOKEN))
@@ -102,25 +102,26 @@ describe('GET /api/health/crons', () => {
     expect(res.status).toBe(200)
     expect(body).toMatchObject({
       healthy: false,
-      summary: { total: 3, healthy: 2, stale: 1, failed: 0 },
+      summary: { total: 2, healthy: 1, stale: 1, failed: 0 },
     })
   })
 
   it('counts a fresh-but-failed run separately from a stale one', async () => {
     mockRead.mockResolvedValue([
-      heartbeat(CRON_JOBS.CIVITAI_LORA_PREWARM),
       heartbeat(CRON_JOBS.EXECUTION_SWEEP, { stale: true }),
-      heartbeat(CRON_JOBS.CIVITAI_MIRROR_SYNC, {
-        healthy: false,
-        detail: 'Prune aborted: above the guard',
-      }),
     ])
+    mockReadIndex.mockResolvedValue(
+      heartbeat(CRON_JOBS.CIVITAI_INDEX_SYNC, {
+        healthy: false,
+        detail: 'Civitai search responded 503',
+      }),
+    )
 
     const body = await parseJSON(await GET(request(TOKEN)))
 
     expect(body).toMatchObject({
       healthy: false,
-      summary: { total: 3, healthy: 1, stale: 1, failed: 1 },
+      summary: { total: 2, healthy: 0, stale: 1, failed: 1 },
     })
   })
 

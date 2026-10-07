@@ -186,7 +186,11 @@ describe('StudioOperatorResultRow', () => {
 
     fireEvent.click(screen.getByTestId('operator-result-reference'))
 
-    expect(onUseAsReference).toHaveBeenCalledWith(items[0])
+    // 第二个参数 = 被挂上去的那一格（「飞进输入框」那一下的起点）。
+    expect(onUseAsReference).toHaveBeenCalledWith(
+      items[0],
+      screen.getAllByTestId('operator-result-tile')[0],
+    )
   })
 
   it('载荷缺席时「再来一组」不渲染，⛔ 不做禁用占位', () => {

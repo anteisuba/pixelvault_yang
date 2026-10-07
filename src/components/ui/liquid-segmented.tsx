@@ -41,9 +41,11 @@ interface LiquidSegmentedProps<T extends string> {
   disabledValues?: readonly T[]
   /**
    * `sm` = 工具行那一档（11px）；`md` = 设置页里的一行选择（14px，触屏 44px 高）；
-   * `row` = 与 32px 高的筛选键、按钮排成一行（整颗正好 32px）。
+   * `row` = 与 32px 高的筛选键、按钮排成一行（整颗正好 32px）；
+   * `xs` = 弹层里一行参数的那一档（「专属」A1，owner 2026-10-07）：左右内边距收窄，
+   * 六个选项能在 260px 里排开。
    */
-  size?: 'sm' | 'md' | 'row'
+  size?: 'xs' | 'sm' | 'md' | 'row'
   /**
    * `tabs` = 换一页（`tablist` / `tab`）；`radio` = 选一档（`radiogroup` / `radio`）。
    * ⚠ 长相一样、读屏念的不一样：选语气不是翻页。
@@ -65,6 +67,7 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
 const UNMEASURED_CLIP = 'inset(0 100% 0 0 round 999px)'
 
 const ITEM_CLASS = {
+  xs: 'shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-2xs font-medium coarse:py-3',
   sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium',
   md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
   // 定高而不是靠行高撑：底下是按钮、上面反色那层是 span，⛔ 靠行高两层会差半像素。

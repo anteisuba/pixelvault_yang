@@ -26,8 +26,6 @@ export * from './chrome/StudioLightbox'
 export * from './setup/QuickSetupDialog'
 
 // workflow — workflow / mode selection chrome
-export * from './workflow/StudioGenerateBar'
-export * from './workflow/StudioModeSelector'
 export * from './workflow/StudioWorkflowGroupTabs'
 export * from './workflow/StudioWorkflowPicker'
 export * from './workflow/StudioWorkflowSummary'

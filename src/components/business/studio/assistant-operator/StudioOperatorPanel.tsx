@@ -29,6 +29,7 @@ import {
 } from './StudioOperatorHandoffCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
+import { flyImageToComposer } from './fly-to-composer'
 import {
   Fragment,
   useCallback,
@@ -146,6 +147,7 @@ import {
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { StudioOperatorPromptNote } from '@/components/business/studio/assistant-operator/StudioOperatorPromptNote'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -554,6 +556,8 @@ export function StudioOperatorPanel({
   // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
   // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
   const inputRef = useRef<MentionInputHandle>(null)
+  /** 输入区那一个边框（「用它当参考」飞进来的落点）。 */
+  const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
   /**
    * **还没落进结论记录的那几条钉住**（v2 §3.2 / §7.2，2026-09-12 实测第三组 B）。
@@ -802,7 +806,14 @@ export function StudioOperatorPanel({
    * ⚠ 挂完把焦点还给输入框：用户点这颗的下一个动作多半是接着说「照这张再来一版」。
    */
   const useResultAsReference = useCallback(
-    (item: StudioOperatorResultItem) => {
+    (item: StudioOperatorResultItem, from?: HTMLElement) => {
+      /* 图从那一格飞进输入框（owner 2026-10-07）—— 纯装饰，挂载不等它。 */
+      if (from && inputAreaRef.current)
+        flyImageToComposer(
+          from,
+          inputAreaRef.current,
+          item.thumbnailUrl ?? item.url,
+        )
       mention.addChip({
         id: item.id,
         url: item.url,
@@ -907,6 +918,8 @@ export function StudioOperatorPanel({
   }
 
   const working = status === 'working'
+  /** ⭐ 跑着且输入框是空的 → 发送键就是**停止**（S2）；跑着但你打了字 → 仍是发送，这一句排队（§3.1 ㉒）。 */
+  const showStop = working && !draft.trim()
   /**
    * ⭐ 有文件还在传时**不许发送**。
    *
@@ -2630,6 +2643,7 @@ export function StudioOperatorPanel({
             跟 Claude 的输入区同形。⛔ 不再有「+」（U2：提及 = 直接打 `@`，指定来源
             在话里说，上下文卡只留助手提议与设置里管理）。 */}
         <div
+          ref={inputAreaRef}
           data-testid="operator-input-area"
           data-drag-over={dragOver}
           /**
@@ -2832,40 +2846,40 @@ export function StudioOperatorPanel({
             {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。
+              ⭐ **同一颗键变形**（owner 2026-10-07 动效方向）：发送 ↔ 停止是一颗键换底色、
+                图标糊着换过去，⛔ 不是两颗键互换 —— 眼睛不用重新找键。
             */}
-            {working && !draft.trim() ? (
-              <button
-                type="button"
-                data-testid="operator-stop"
-                aria-label={t('stop')}
-                title={t('stop')}
-                onClick={stop}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-assistant-line-strong bg-card text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            <button
+              type="button"
+              data-testid={showStop ? 'operator-stop' : 'operator-send'}
+              /**
+               * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
+               * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
+               * 一句「还有文件在传」，⛔ 不做「点了没反应」。
+               */
+              disabled={!showStop && uploading}
+              title={showStop ? t('stop') : sendLabel}
+              aria-label={showStop ? t('stop') : sendLabel}
+              onClick={showStop ? stop : () => submit(draft)}
+              className={cn(
+                'grid size-8 shrink-0 place-items-center rounded-full border transition-[background-color,border-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                showStop
+                  ? 'border-assistant-line-strong bg-card text-foreground hover:bg-accent'
+                  : 'border-transparent bg-foreground text-background hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+              )}
+            >
+              <BlurSwap
+                swapKey={showStop ? 'stop' : uploading ? 'uploading' : 'send'}
               >
-                <Square className="size-3" aria-hidden />
-              </button>
-            ) : (
-              <button
-                type="button"
-                data-testid="operator-send"
-                /**
-                 * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
-                 * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
-                 * 一句「还有文件在传」，⛔ 不做「点了没反应」。
-                 */
-                disabled={uploading}
-                title={sendLabel}
-                aria-label={sendLabel}
-                onClick={() => submit(draft)}
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground motion-reduce:transition-none"
-              >
-                {uploading ? (
+                {showStop ? (
+                  <Square className="size-3" aria-hidden />
+                ) : uploading ? (
                   <Spinner size="sm" className="text-background" />
                 ) : (
                   <ArrowUp className="size-4" aria-hidden />
                 )}
-              </button>
-            )}
+              </BlurSwap>
+            </button>
           </div>
         </div>
       </div>

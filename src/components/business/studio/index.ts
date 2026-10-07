@@ -2,8 +2,6 @@
 // callers that still import from the studio barrel. New code should
 // import directly from '@/components/business/studio-shared' once that
 // public API ships in Action 3.
-export { StudioModeSelector } from '@/components/business/studio-shared/workflow/StudioModeSelector'
-export { StudioGenerateBar } from '@/components/business/studio-shared/workflow/StudioGenerateBar'
 export { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
 export { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 export { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'

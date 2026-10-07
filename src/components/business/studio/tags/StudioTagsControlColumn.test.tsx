@@ -25,6 +25,34 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(',')}` : key,
 }))
+/**
+ * 选一档的控件按选项多少在「分段 / 下拉」之间换（`CapabilitySelectControl` 自己有
+ * 单测）；这里换成一排普通按钮，只验右列把哪几档、给谁、改了什么接对了。
+ */
+vi.mock('@/components/business/studio/CapabilitySelectControl', () => ({
+  CapabilitySelectControl: ({
+    chip,
+    onChange,
+    disabled,
+  }: {
+    chip: { capability: string; options?: readonly string[] }
+    onChange: (next: string) => void
+    disabled?: boolean
+  }) => (
+    <div>
+      {(chip.options ?? []).map((option) => (
+        <button
+          key={option}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(option)}
+        >
+          {`${chip.capability}Option.${option}`}
+        </button>
+      ))}
+    </div>
+  ),
+}))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {

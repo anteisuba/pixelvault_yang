@@ -12,7 +12,11 @@ import {
 } from '@/constants/audio-options'
 import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
-import { getModelById, getModelFamily } from '@/constants/models'
+import {
+  getModelById,
+  getModelFamily,
+  supportsSearchGrounding,
+} from '@/constants/models'
 import { resolveAudioTextLimit } from '@/constants/models/audio'
 import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -341,22 +345,6 @@ export function useStudioGenerateAction() {
     [],
   )
 
-  /** 把额外的负面合进 advancedParams。 */
-  const composeAdvancedParams = useCallback(
-    (negativePrompt?: string) => {
-      const params = { ...state.advancedParams }
-      const negativePrompts = [params.negativePrompt, negativePrompt]
-        .map((prompt) => prompt?.trim())
-        .filter((prompt): prompt is string => !!prompt)
-
-      if (negativePrompts.length > 0) {
-        params.negativePrompt = negativePrompts.join(', ')
-      }
-      return Object.keys(params).length > 0 ? params : undefined
-    },
-    [state.advancedParams],
-  )
-
   // ── Video input builder ──────────────────────────────────────
   const buildVideoInput = useCallback(() => {
     if (!selectedModel) return null
@@ -498,6 +486,33 @@ export function useStudioGenerateAction() {
    * 额外模型里可能有已经不在当前 options 里的（切模态、key 被删），过滤掉。
    */
   const { runModels, runModelIds, filterModelByDialect } = useStudioRunModels()
+
+  /**
+   * 「先搜再画」这一轮带不带：开着、且名单里有支持的型号。同系列一起跑时整轮
+   * 共用一份参数，不支持的那一格由服务端去掉。
+   */
+  const searchGrounding =
+    state.searchGrounding &&
+    runModels.some((model) => supportsSearchGrounding(model.modelId))
+
+  /** 把额外的负面合进 advancedParams。 */
+  const composeAdvancedParams = useCallback(
+    (negativePrompt?: string) => {
+      const params = { ...state.advancedParams }
+      const negativePrompts = [params.negativePrompt, negativePrompt]
+        .map((prompt) => prompt?.trim())
+        .filter((prompt): prompt is string => !!prompt)
+
+      if (negativePrompts.length > 0) {
+        params.negativePrompt = negativePrompts.join(', ')
+      }
+      // 只认开关：「做同款」/ 模板 / 助手写回的参数里即便带着这一位也不算。
+      delete params.searchGrounding
+      if (searchGrounding) params.searchGrounding = true
+      return Object.keys(params).length > 0 ? params : undefined
+    },
+    [state.advancedParams, searchGrounding],
+  )
 
   /**
    * 视频档的成本预览基准 —— 按**真正会发出去的那两个值**算（见 `buildVideoInput`

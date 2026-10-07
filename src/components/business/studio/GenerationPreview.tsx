@@ -28,6 +28,10 @@ import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { StudioEmptyState } from '@/components/business/studio/StudioEmptyState'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import {
+  SearchGroundingRail,
+  type SearchGroundingRailState,
+} from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
+import {
   Drawer,
   DrawerContent,
   DrawerHeader,
@@ -57,6 +61,11 @@ interface GenerationPreviewProps {
    * so its whole edge — where the progress line runs — stays on screen.
    */
   fillStage?: boolean
+  /**
+   * 「先搜再画」的资料位（B 定稿）：桌面在图左边让出一列、手机在图上方一条。
+   * `null` = 这一刻没有（收起）；不传 = 这一台没有这件事（视频 / 音频）。
+   */
+  searchGrounding?: SearchGroundingRailState | null
 }
 
 /**
@@ -108,6 +117,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   onSaveRecipe,
   onRetry,
   fillStage = false,
+  searchGrounding,
 }: GenerationPreviewProps) {
   const {
     error: rawRunError,
@@ -158,6 +168,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   const generatingStageKey = resolveGeneratingStageKey(
     elapsedSeconds,
     activeExecutionStage,
+    Boolean(activeGenerateItem?.searchGrounding),
   )
   const generatingStageLabel = t(
     `generatingOverlayStages.${generatingStageKey}` as const,
@@ -235,6 +246,16 @@ export const GenerationPreview = memo(function GenerationPreview({
         ? generation.width / generation.height
         : 1
 
+  // 资料位：桌面一列在图左边（梳子出线贴着图的左沿），手机一条在图上方。
+  const searchRail =
+    searchGrounding === undefined ? null : (
+      <SearchGroundingRail
+        state={searchGrounding}
+        layout={isMobile ? 'strip' : 'column'}
+        className={isMobile ? undefined : 'self-stretch'}
+      />
+    )
+
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
     if (
@@ -293,68 +314,72 @@ export const GenerationPreview = memo(function GenerationPreview({
     })()
 
     return (
-      // The art box has the requested proportions. On a stage with its own
-      // height it is as large as the stage allows (`studio-fit-box`); elsewhere
-      // the height is capped by the viewport and the width follows the ratio,
-      // `maxWidth: 100%` letterboxing wide ratios into the column.
-      <div
-        className={cn(
-          'flex w-full items-center justify-center',
-          fillStage
-            ? 'studio-fit-area min-h-0 flex-1'
-            : 'mx-auto max-w-7xl 2xl:max-w-[88rem]',
-        )}
-        style={
-          fillStage
-            ? undefined
-            : { height: isMobile ? 'min(45vh, 360px)' : 'min(72vh, 760px)' }
-        }
-        // The failure announces itself (role="alert"); a live region around it
-        // would read it twice.
-        aria-live={failure ? undefined : 'polite'}
-      >
+      <>
+        {isMobile ? searchRail : null}
+        {/* The art box has the requested proportions. On a stage with its own
+          height it is as large as the stage allows (`studio-fit-box`); elsewhere
+          the height is capped by the viewport and the width follows the ratio,
+          `maxWidth: 100%` letterboxing wide ratios into the column. */}
         <div
           className={cn(
-            'relative overflow-hidden rounded-xl bg-card',
-            fillStage ? 'studio-fit-box' : 'h-full',
+            'flex w-full items-center justify-center',
+            fillStage
+              ? 'studio-fit-area min-h-0 flex-1'
+              : 'mx-auto max-w-7xl 2xl:max-w-[88rem]',
           )}
           style={
             fillStage
-              ? fitRatioStyle(requestedRatio)
-              : { aspectRatio: requestedRatio, maxWidth: '100%' }
+              ? undefined
+              : { height: isMobile ? 'min(45vh, 360px)' : 'min(72vh, 760px)' }
           }
+          // The failure announces itself (role="alert"); a live region around it
+          // would read it twice.
+          aria-live={failure ? undefined : 'polite'}
         >
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt={generatingStageLabel}
-              className="absolute inset-0 size-full object-contain"
-            />
-          ) : null}
-          <StudioGeneratingProgress
-            elapsedSeconds={elapsedSeconds}
-            stageLabel={generatingStageLabel}
-            paramsLine={generatingParamsLine}
-            variant="full"
-            cornerRadiusVar="--radius-xl"
-            failure={failure}
-          />
-          {isGenerating &&
-            activeRun?.mode === 'single' &&
-            activeRun.items[0] && (
-              <button
-                type="button"
-                onClick={() => cancelRunItem(activeRun.items[0].id)}
-                data-testid="generation-preview-cancel"
-                className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
-              >
-                <X className="size-4" />
-                <span className="sr-only">{tCancel('cancel')}</span>
-              </button>
+          {isMobile ? null : searchRail}
+          <div
+            className={cn(
+              'relative overflow-hidden rounded-xl bg-card',
+              fillStage ? 'studio-fit-box' : 'h-full',
             )}
+            style={
+              fillStage
+                ? fitRatioStyle(requestedRatio)
+                : { aspectRatio: requestedRatio, maxWidth: '100%' }
+            }
+          >
+            {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt={generatingStageLabel}
+                className="absolute inset-0 size-full object-contain"
+              />
+            ) : null}
+            <StudioGeneratingProgress
+              elapsedSeconds={elapsedSeconds}
+              stageLabel={generatingStageLabel}
+              paramsLine={generatingParamsLine}
+              variant="full"
+              cornerRadiusVar="--radius-xl"
+              failure={failure}
+            />
+            {isGenerating &&
+              activeRun?.mode === 'single' &&
+              activeRun.items[0] && (
+                <button
+                  type="button"
+                  onClick={() => cancelRunItem(activeRun.items[0].id)}
+                  data-testid="generation-preview-cancel"
+                  className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+                >
+                  <X className="size-4" />
+                  <span className="sr-only">{tCancel('cancel')}</span>
+                </button>
+              )}
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
@@ -510,6 +535,12 @@ export const GenerationPreview = memo(function GenerationPreview({
   )
   const imageContainer = fillStage ? (
     <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
+      {isMobile ? null : searchRail}
+      {imageFrame}
+    </div>
+  ) : searchRail && !isMobile ? (
+    <div className="flex items-center justify-center">
+      {searchRail}
       {imageFrame}
     </div>
   ) : (
@@ -740,6 +771,7 @@ export const GenerationPreview = memo(function GenerationPreview({
     return (
       <>
         <div className="space-y-2">
+          {searchRail}
           {previewContent}
 
           {/* Peek action row — always visible */}

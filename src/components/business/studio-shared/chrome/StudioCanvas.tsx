@@ -36,6 +36,7 @@ import {
   studioRunForWorkspace,
 } from '@/lib/studio-operator-result-run'
 import { cn } from '@/lib/utils'
+import { searchGroundingForRun } from '@/lib/search-grounding'
 import {
   applyAudioFeedbackTags,
   type AudioFeedbackTag,
@@ -45,6 +46,7 @@ import type { GenerationRecord } from '@/types'
 import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
+import { SearchGroundingRail } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
@@ -405,6 +407,35 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const isMobile = useIsMobile()
   const resultAnchorRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * 「先搜再画」的资料（B 定稿）：只在出图当下、舞台还在看这一轮的结果时出现；
+   * 换成别的结果（下一张 · 历史）就收起，刷新后运行状态没了自然也没有。
+   */
+  const searchRun =
+    state.outputType === 'image' && activeRun
+      ? searchGroundingForRun(activeRun.items)
+      : null
+  const shownGeneration = focusedQueueGeneration ?? lastGeneration
+  const searchGrounding =
+    searchRun &&
+    (activeRun?.mode !== 'single' ||
+      !shownGeneration ||
+      activeRun.items.some(
+        (item) => item.generation?.id === shownGeneration.id,
+      ))
+      ? searchRun
+      : null
+  const searchWireTarget = useCallback(
+    () =>
+      resultAnchorRef.current?.querySelector<HTMLElement>(
+        '[data-search-grounding-tile]',
+      ) ?? null,
+    [],
+  )
+  const searchRowLeadModelId = activeRun?.items.find(
+    (item) => item.searchGrounding,
+  )?.modelId
   const scrolledResultIdRef = useRef<string | null>(null)
   const resultId =
     lastGeneration?.id ??
@@ -525,17 +556,45 @@ export const StudioCanvas = memo(function StudioCanvas({
               onCancelAll={cancelAllRunItems}
             />
           ) : (
-            <CompareGrid
-              items={activeRun.items}
-              selectedItemId={activeRun.selectedItemId}
-              onSelect={selectWinner}
-              elapsedSeconds={elapsedSeconds}
-              onEdit={handleEdit}
-              onUseAsReference={handleUseAsReference}
-              onCancel={cancelRunItem}
-              onCancelAll={cancelAllRunItems}
-              onRetry={(itemId) => void retryRunItem(itemId)}
-            />
+            // 「先搜再画」：桌面资料列在图墙左边，出线拐弯只接开着搜索的那一格；
+            // 手机资料条挂进那一行（行首条和图之间）。
+            <div className="flex min-h-0 flex-1">
+              {isMobile ? null : (
+                <SearchGroundingRail
+                  state={searchGrounding}
+                  layout="column"
+                  wireTarget={searchWireTarget}
+                  wireKey={activeRun.items
+                    .map((item) => `${item.id}:${item.status}`)
+                    .join()}
+                  className="self-stretch"
+                />
+              )}
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <CompareGrid
+                  items={activeRun.items}
+                  selectedItemId={activeRun.selectedItemId}
+                  onSelect={selectWinner}
+                  elapsedSeconds={elapsedSeconds}
+                  onEdit={handleEdit}
+                  onUseAsReference={handleUseAsReference}
+                  onCancel={cancelRunItem}
+                  onCancelAll={cancelAllRunItems}
+                  onRetry={(itemId) => void retryRunItem(itemId)}
+                  rowLead={
+                    isMobile
+                      ? (row) =>
+                          row.modelId === searchRowLeadModelId ? (
+                            <SearchGroundingRail
+                              state={searchGrounding}
+                              layout="strip"
+                            />
+                          ) : null
+                      : undefined
+                  }
+                />
+              </div>
+            </div>
           )
         ) : videoPoster ? (
           <div className="flex min-h-0 flex-1 animate-in flex-col items-center gap-3 fade-in-0 duration-base ease-linear motion-reduce:animate-none">
@@ -617,6 +676,9 @@ export const StudioCanvas = memo(function StudioCanvas({
           <>
             <GenerationPreview
               generation={focusedQueueGeneration ?? lastGeneration}
+              searchGrounding={
+                state.outputType === 'image' ? searchGrounding : undefined
+              }
               isLatestResult
               onUseAsReference={handleUseAsReference}
               onRemix={handleRemix}

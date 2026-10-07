@@ -331,6 +331,7 @@ export function StudioWorkspaceUI() {
     () => ({
       prompt: state.prompt,
       advancedParams: state.advancedParams,
+      searchGrounding: state.searchGrounding,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
       aspectRatio: state.aspectRatio,
       selectedOptionId: state.selectedOptionId,
@@ -353,6 +354,7 @@ export function StudioWorkspaceUI() {
     [
       state.aspectRatio,
       state.advancedParams,
+      state.searchGrounding,
       state.prompt,
       state.selectedOptionId,
       state.modelSelectionTouched,

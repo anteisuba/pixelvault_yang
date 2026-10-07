@@ -127,6 +127,13 @@ describe('resolveGeneratingStageKey', () => {
     expect(resolveGeneratingStageKey(60, undefined)).toBe('waiting')
   })
 
+  it('先搜再画：前两段说「正在搜网页和图片」，之后照旧', () => {
+    expect(resolveGeneratingStageKey(1, null, true)).toBe('searching')
+    expect(resolveGeneratingStageKey(7, null, true)).toBe('searching')
+    expect(resolveGeneratingStageKey(9, null, true)).toBe('rendering')
+    expect(resolveGeneratingStageKey(60, null, true)).toBe('waiting')
+  })
+
   it('ignores an unknown stage value rather than rendering it as a label', () => {
     expect(
       resolveGeneratingStageKey(3, 'bogus' as unknown as 'runnerQueued'),

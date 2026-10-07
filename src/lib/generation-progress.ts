@@ -31,9 +31,14 @@ export function getGeneratingStageKey(
 export function resolveGeneratingStageKey(
   elapsedSeconds: number,
   executionStage?: ExecutionProgressStage | null,
+  searchGrounding = false,
 ): GeneratingStageKey {
   if (isExecutionProgressStage(executionStage)) return executionStage
-  return getGeneratingStageKey(elapsedSeconds)
+  const stageKey = getGeneratingStageKey(elapsedSeconds)
+  return searchGrounding &&
+    (stageKey === 'preparing' || stageKey === 'connecting')
+    ? 'searching'
+    : stageKey
 }
 
 function easeOutQuad(x: number): number {

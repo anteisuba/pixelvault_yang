@@ -35,6 +35,8 @@ const StudioDraftSchema = z.object({
     novelAiSceneTexts: NovelAiSceneTextDraftsSchema.optional(),
     resolution: AdvancedParamsSchema.shape.resolution.catch(undefined),
   }).default({}),
+  /** 「先搜再画」按会话记：同一个标签页刷新后仍是开。 */
+  searchGrounding: z.boolean().catch(false).default(false),
   aspectRatio: z
     .custom<AspectRatio>(
       (value) => typeof value === 'string' && isAspectRatio(value),

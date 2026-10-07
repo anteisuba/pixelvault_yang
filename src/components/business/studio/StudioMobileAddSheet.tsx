@@ -33,8 +33,14 @@ export type StudioMobileAddRow = {
   /** 行尾的一句现状（已选几个 / 填了几个字）。 */
   detail?: string
 } & (
-  | { onSelect: () => void; page?: never }
-  | { page: ReactNode; onSelect?: never }
+  | { onSelect: () => void; page?: never; toggle?: never }
+  | { page: ReactNode; onSelect?: never; toggle?: never }
+  /** 一行开关（「先搜再画」）：点整行拨开 / 关，抽屉不收。`detail` 写在标签下面。 */
+  | {
+      toggle: { checked: boolean; onChange: (next: boolean) => void }
+      onSelect?: never
+      page?: never
+    }
 )
 
 interface StudioMobileAddSheetProps {
@@ -110,25 +116,38 @@ export function StudioMobileAddSheet({
         <>
           <div className="h-px bg-border/60" aria-hidden />
           <div className="flex flex-col">
-            {rows.map((row) => (
-              <AddSheetRow
-                key={row.key}
-                icon={row.icon}
-                label={row.label}
-                detail={row.detail}
-                pushes={Boolean(row.page)}
-                disabled={disabled}
-                testId={`studio-mobile-add-${row.key}`}
-                onClick={() => {
-                  if (row.page) {
-                    setPageKey(row.key)
-                    return
-                  }
-                  close()
-                  row.onSelect?.()
-                }}
-              />
-            ))}
+            {rows.map((row) =>
+              row.toggle ? (
+                <AddSheetToggleRow
+                  key={row.key}
+                  icon={row.icon}
+                  label={row.label}
+                  hint={row.detail}
+                  checked={row.toggle.checked}
+                  onChange={row.toggle.onChange}
+                  disabled={disabled}
+                  testId={`studio-mobile-add-${row.key}`}
+                />
+              ) : (
+                <AddSheetRow
+                  key={row.key}
+                  icon={row.icon}
+                  label={row.label}
+                  detail={row.detail}
+                  pushes={Boolean(row.page)}
+                  disabled={disabled}
+                  testId={`studio-mobile-add-${row.key}`}
+                  onClick={() => {
+                    if (row.page) {
+                      setPageKey(row.key)
+                      return
+                    }
+                    close()
+                    row.onSelect?.()
+                  }}
+                />
+              ),
+            )}
           </div>
         </>
       ) : null}
@@ -247,6 +266,67 @@ function AddSheetRow({
           aria-hidden
         />
       ) : null}
+    </button>
+  )
+}
+
+/**
+ * 抽屉里的一行开关：整行就是开关（`role="switch"`），右边一颗拨子 —— 开 = 轨变
+ * 近黑、拨子横移 12px（spring-slot）。
+ */
+function AddSheetToggleRow({
+  icon,
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled,
+  testId,
+}: {
+  icon: ReactNode
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (next: boolean) => void
+  disabled?: boolean
+  testId: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      data-testid={testId}
+      className="flex min-h-13 w-full items-center gap-3 rounded-xl px-1.5 py-1.5 text-left text-sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+    >
+      <span
+        className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground/80"
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{label}</span>
+        {hint ? (
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        ) : null}
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          'relative h-5 w-8 shrink-0 rounded-full transition-colors duration-fast ease-standard',
+          checked ? 'bg-foreground' : 'bg-surface-fill-track',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow-sm transition-transform duration-spring-slot ease-spring-slot',
+            checked && 'translate-x-3',
+          )}
+        />
+      </span>
     </button>
   )
 }

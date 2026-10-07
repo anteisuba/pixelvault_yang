@@ -317,6 +317,56 @@ describe('useStudioGenerateAction', () => {
     ])
   })
 
+  it('先搜再画：开着且型号支持才带上，参数里残留的那一位不算数', async () => {
+    const nanoBanana = {
+      ...IMAGE_OPTION,
+      optionId: 'nb-option',
+      modelId: 'gemini-nano-banana-2.1',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: nanoBanana,
+      modelOptions: [IMAGE_OPTION, nanoBanana],
+    })
+    setState({
+      prompt: 'Taipei 101',
+      selectedOptionId: nanoBanana.optionId,
+      searchGrounding: true,
+    } as Partial<StudioFormState>)
+    const { result, rerender } = renderHook(() => useStudioGenerateAction())
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+    expect(mockGenerate.mock.calls[0][0].image.advancedParams).toEqual({
+      searchGrounding: true,
+    })
+
+    // 关着：即便「做同款」把这一位写回了参数，也不发。
+    setState({
+      prompt: 'Taipei 101',
+      selectedOptionId: nanoBanana.optionId,
+      searchGrounding: false,
+      advancedParams: { searchGrounding: true },
+    } as Partial<StudioFormState>)
+    rerender()
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+    expect(mockGenerate.mock.calls[1][0].image.advancedParams).toBeUndefined()
+
+    // 不支持的型号：开着也不发。
+    setState({
+      prompt: 'Taipei 101',
+      selectedOptionId: IMAGE_OPTION.optionId,
+      searchGrounding: true,
+    } as Partial<StudioFormState>)
+    rerender()
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+    expect(mockGenerate.mock.calls[2][0].image.advancedParams).toBeUndefined()
+  })
+
   // ⛔ 不跨方言（D10 ② Q3）：跨台留下来的陈旧选择不进这一轮的名单。
   it('drops a model from the other dialect', () => {
     const novelAi = {

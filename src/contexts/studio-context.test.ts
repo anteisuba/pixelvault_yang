@@ -47,6 +47,7 @@ function makeInitialState(
     recipeUsage: null,
     aspectRatio: '1:1',
     advancedParams: {},
+    searchGrounding: false,
     imageBatchCount: 1,
     extraModelOptionIds: [],
     tokenInput: '',

@@ -347,6 +347,7 @@ function setupStudioForm(
     recipeUsage: null,
     aspectRatio: '16:9',
     advancedParams: {},
+    searchGrounding: false,
     imageBatchCount: 1,
     extraModelOptionIds: [],
     tokenInput: '',

@@ -35,6 +35,7 @@ import type {
   GenerateAudioResponseData,
   GenerationRecord,
   RunItem,
+  SearchGroundingResult,
   StudioGenerateRequest,
   StudioGenerateResponseData,
   GenerateVideoRequest,
@@ -44,6 +45,7 @@ import {
   type PromptDialect,
 } from '@/constants/prompt-dialects'
 import { tailorImageRequestToModel } from '@/lib/studio/tailor-image-request'
+import { searchGroundingForRunItem } from '@/lib/search-grounding'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import {
   checkAudioStatusAPI,
@@ -240,9 +242,14 @@ function buildAudioRequestPayload(
 function toCompletedRunItem<T extends RunItem>(
   item: T,
   generation: GenerationRecord,
+  searchGrounding?: SearchGroundingResult,
 ) {
   return {
     ...item,
+    // 「先搜再画」的来源只在这一格开着搜索时才接（出图当下交回一次）。
+    ...(item.searchGrounding && searchGrounding
+      ? { searchGrounding: { result: searchGrounding } }
+      : {}),
     status: 'completed' as const,
     generation,
     error: null,
@@ -443,9 +450,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   )
 
   const markActiveRunItemCompleted = useCallback(
-    (itemId: string, generation: GenerationRecord) => {
+    (
+      itemId: string,
+      generation: GenerationRecord,
+      searchGrounding?: SearchGroundingResult,
+    ) => {
       updateActiveRunItem(itemId, (item) =>
-        toCompletedRunItem(item, generation),
+        toCompletedRunItem(item, generation, searchGrounding),
       )
     },
     [updateActiveRunItem],
@@ -499,7 +510,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         if (statusResponse.success && statusResponse.data) {
           if (statusResponse.data.status === 'COMPLETED') {
             const generation = statusResponse.data.generation
-            markActiveRunItemCompleted(itemId, generation)
+            markActiveRunItemCompleted(
+              itemId,
+              generation,
+              statusResponse.data.searchGrounding,
+            )
             return { status: 'completed', generation }
           }
           if (statusResponse.data.status === 'FAILED') {
@@ -555,6 +570,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             id: itemId,
             modelId: input.modelId ?? 'unknown',
             operatorResultOwner,
+            ...searchGroundingForRunItem(
+              input.modelId ?? '',
+              input.advancedParams,
+            ),
             status: 'generating',
             generation: null,
             error: null,
@@ -620,7 +639,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   // 出图就是结果原地出现（加载态 A，owner 2026-09-27）：⛔ 再弹成功 toast。
                   const generation = statusData.generation
                   setLastGeneration(generation)
-                  markActiveRunItemCompleted(itemId, generation)
+                  markActiveRunItemCompleted(
+                    itemId,
+                    generation,
+                    statusData.searchGrounding,
+                  )
                   finish()
                   resolve(generation)
                   return
@@ -734,7 +757,11 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
           if (statusData.status === 'COMPLETED') {
             const generation = statusData.generation
-            markActiveRunItemCompleted(itemId, generation)
+            markActiveRunItemCompleted(
+              itemId,
+              generation,
+              statusData.searchGrounding,
+            )
             return { status: 'completed', generation }
           }
 
@@ -979,6 +1006,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         id: crypto.randomUUID(),
         modelId: input.modelId ?? 'unknown',
         operatorResultOwner,
+        ...searchGroundingForRunItem(input.modelId ?? '', input.advancedParams),
         status: 'generating' as const,
         generation: null,
         error: null,
@@ -1155,6 +1183,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           id: crypto.randomUUID(),
           modelId: model.modelId,
           operatorResultOwner,
+          ...searchGroundingForRunItem(model.modelId, input.advancedParams),
           status: 'generating' as const,
           generation: null,
           error: null,

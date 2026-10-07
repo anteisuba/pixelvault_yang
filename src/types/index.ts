@@ -497,6 +497,12 @@ interface RunItemBase {
   modelId: string
   operatorResultOwner?: StudioOperatorResultOwner
   /**
+   * 「先搜再画」：这一格出图前要搜（开关开着、型号支持）。`result` 是出图当下
+   * 交回的来源与搜索建议 —— 只活在这一次的运行状态里，⛔ 不存、刷新即无
+   * （Gemini API 条款）。
+   */
+  searchGrounding?: { result?: SearchGroundingResult }
+  /**
    * 这一条**自己**是什么时候提交的（epoch ms）。
    *
    * ⚠ 队列态下 `ActiveRun.startedAt` 不够用：视频可以边等边排下一条，四条的

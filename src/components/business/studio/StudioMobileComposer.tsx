@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ChevronDown,
   FileText,
+  Globe,
   RotateCw,
   UserRound,
 } from '@/components/icons'
@@ -43,6 +44,8 @@ import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobil
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
+import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
 
 /**
  * 输入框卡里那一行的幽灵丸（模型 / 规格）—— ⛔ 不画边：卡自己有边，框里再套一圈
@@ -185,6 +188,8 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           ? t('regenerate')
           : t('generate')
 
+  const searchGrounding = useStudioSearchGrounding()
+  const tSearch = useTranslations('SearchGrounding')
   const cardCount = characters.activeCardIds.length
   const openTemplates = () => {
     if (!templates.open) templates.onToggle()
@@ -211,6 +216,21 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           detail: cardCount > 0 ? String(cardCount) : undefined,
           page: <StudioCardPicker />,
         },
+    // 「先搜再画」只对支持的型号出现（owner 2026-10-07 B 定稿：开关在「＋」抽屉里）。
+    ...(!isVideo && searchGrounding.available
+      ? [
+          {
+            key: 'search-grounding',
+            icon: <Globe className="size-4" />,
+            label: tSearch('toggle'),
+            detail: tSearch('hint'),
+            toggle: {
+              checked: searchGrounding.on,
+              onChange: searchGrounding.setOn,
+            },
+          },
+        ]
+      : []),
   ]
 
   return (
@@ -244,6 +264,16 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
         role="group"
         className="flex flex-col gap-1.5 rounded-2xl border-0 bg-card px-3 pt-2.5 pb-2 shadow-float"
       >
+        {isVideo ? null : (
+          <SearchGroundingSlot
+            open={searchGrounding.available && searchGrounding.on}
+            description={tSearch('slotWorkbenchMobile')}
+            searching={searchGrounding.searching}
+            onlyModelLabel={searchGrounding.onlyModelLabel}
+            disabled={isGenerating}
+            onTurnOff={() => searchGrounding.setOn(false)}
+          />
+        )}
         {/* 挂着的素材 —— 有才出现（与桌面输入框卡同一颗）：图片档是参考图条，
             视频档是素材排（图 · 参考视频 · 音频，首 / 尾帧角标、这一枪怎么发）。 */}
         {isVideo ? (

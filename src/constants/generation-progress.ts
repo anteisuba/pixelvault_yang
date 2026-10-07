@@ -48,6 +48,12 @@ export type GeneratingStageKey =
   | 'connecting'
   | 'rendering'
   | 'waiting'
+  /**
+   * 「先搜再画」那一枪的前两段（准备 + 连接）换成这个词：搜索与出图是同一次
+   * 调用，中途没有信号可分，阶段词照旧按已用时长猜（与 preparing → connecting
+   * 同一条时间线）。
+   */
+  | 'searching'
   | ExecutionProgressStage
 
 interface GenerationStageProgressStep {

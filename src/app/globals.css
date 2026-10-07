@@ -2178,13 +2178,34 @@ html:lang(ja) {
 /* 舞台上的图框（底部输入框布局）：按舞台剩下的地方等比放到最大，框的比例就是图的
    比例 —— 线跑在图自己的边上（⛔ 一块比图宽的框），整圈都在舞台里（⛔ 按视口算，
    矮屏会切掉下沿）。`--studio-fit-ratio` = 宽 / 高。 */
+/* 「先搜再画」的资料位让出来时，图按剩下的宽度算（`--studio-fit-inset` = 那一列的
+   宽），而且跟资料位同一根弹簧走 —— 注册成 <length> 才能过渡。 */
+@property --studio-fit-inset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
 .studio-fit-area {
   container-type: size;
+  transition: --studio-fit-inset var(--duration-base) var(--ease-standard);
+}
+
+.studio-fit-area:has(> .search-sources-slot[data-open='true']) {
+  --studio-fit-inset: 18.25rem;
+  transition: --studio-fit-inset var(--spring-expand-duration)
+    var(--spring-expand-ease);
 }
 
 .studio-fit-box {
-  width: min(100cqw, 100cqh * var(--studio-fit-ratio, 1));
-  height: min(100cqh, 100cqw / var(--studio-fit-ratio, 1));
+  width: min(
+    100cqw - var(--studio-fit-inset),
+    100cqh * var(--studio-fit-ratio, 1)
+  );
+  height: min(
+    100cqh,
+    (100cqw - var(--studio-fit-inset)) / var(--studio-fit-ratio, 1)
+  );
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2768,6 +2789,290 @@ html:lang(ja) {
   border-radius: inherit;
   animation: assistant-field-touch-flash var(--duration-slow)
     var(--ease-standard);
+}
+
+/* ── 先搜再画 · 资料（B 定稿「资料在左」，owner 2026-10-07）──────────
+   搜到的网页当作「资料」：生成时图左边先让出一列（手机 / 助手是图上方一条），
+   出图那一刻来源卡落进去，梳子形连线 —— 每张一段支线 → 一根主干 → 一条出线 ——
+   汇进图的输入口。来源与 Google 搜索建议只在出图当下显示，⛔ 不存（Gemini API
+   条款）。几何与时序照画板：卡高 60 · 支线 16 · 出线伸到 52 · 支线 360ms 起、
+   间隔 40ms，主干 520ms，出线 640ms，输入口 740ms。
+   为什么写在这里不写工具类：伪元素连线与按序号错开的延迟都是 arbitrary value
+   （Hard Rule 5）。 */
+@layer components {
+  .search-sources {
+    --search-wire: color-mix(in oklab, var(--foreground) 34%, transparent);
+  }
+
+  /* 资料位让出来 / 收回：列宽 0 → 内容宽，图跟同一根弹簧右移（邻居让位与卡宽
+     同一条曲线）；收回不用弹簧。 */
+  .search-sources-slot {
+    display: grid;
+    grid-template-columns: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      grid-template-columns var(--duration-base) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard),
+      visibility 0s linear var(--duration-base);
+  }
+
+  .search-sources-slot > * {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .search-sources-slot[data-open='true'] {
+    grid-template-columns: 1fr;
+    opacity: 1;
+    visibility: visible;
+    transition:
+      grid-template-columns var(--spring-expand-duration)
+        var(--spring-expand-ease),
+      opacity var(--duration-base) var(--ease-standard),
+      visibility 0s;
+  }
+
+  /* 图上方那一条（手机 / 助手）：高度 0 → 内容高。 */
+  .search-sources-slot--rows {
+    grid-template-columns: none;
+    grid-template-rows: 0fr;
+    transition:
+      grid-template-rows var(--duration-base) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard),
+      visibility 0s linear var(--duration-base);
+  }
+
+  .search-sources-slot--rows > * {
+    min-height: 0;
+  }
+
+  .search-sources-slot--rows[data-open='true'] {
+    grid-template-columns: none;
+    grid-template-rows: 1fr;
+    transition:
+      grid-template-rows var(--spring-slot-duration) var(--spring-slot-ease),
+      opacity var(--duration-base) var(--ease-standard),
+      visibility 0s;
+  }
+
+  /* 文字来源卡：标题 + 域名，⛔ 不显示缩略图。 */
+  .search-source-card {
+    position: relative;
+  }
+
+  .search-sources[data-status='grounded']
+    .search-sources__cards--drop
+    .search-source-card {
+    animation: search-source-drop var(--spring-slot-duration)
+      var(--spring-slot-ease) backwards;
+    animation-delay: calc(var(--search-i, 0) * 60ms);
+  }
+
+  .search-sources[data-status='grounded']
+    .search-sources__cards--slide
+    .search-source-card {
+    animation: search-source-slide var(--spring-slot-duration)
+      var(--spring-slot-ease) backwards;
+    animation-delay: calc(var(--search-i, 0) * 40ms);
+  }
+
+  /* 梳子：支线（每张卡右边一小段）→ 主干 → 出线 → 输入口。 */
+  .search-comb {
+    --search-stub: 1rem;
+    --search-reach: 3.25rem;
+    --search-port-x: 0px;
+    position: relative;
+  }
+
+  .search-comb .search-source-card::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    width: var(--search-stub);
+    height: 1px;
+    background: var(--search-wire);
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+    transition:
+      transform var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-comb .search-source-card:hover::after {
+    background: var(--foreground);
+  }
+
+  .search-comb::before {
+    content: '';
+    position: absolute;
+    top: 1.875rem;
+    bottom: 1.875rem;
+    right: calc(-1 * var(--search-stub));
+    width: 1px;
+    background: var(--search-wire);
+    transform: scaleY(0);
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-comb::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: calc(-1 * var(--search-reach));
+    width: calc(var(--search-reach) - var(--search-stub));
+    height: 1px;
+    background: var(--search-wire);
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-comb[data-external-wire='true']::after {
+    display: none;
+  }
+
+  .search-comb__port {
+    position: absolute;
+    top: calc(50% - 0.21875rem);
+    right: calc(-1 * var(--search-reach) - var(--search-port-x));
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 9999px;
+    background: var(--background);
+    border: 1.5px solid var(--foreground);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-sources[data-status='grounded']
+    .search-comb
+    .search-source-card::after {
+    transform: none;
+    transition:
+      transform var(--duration-base) var(--ease-standard)
+        calc(360ms + var(--search-i, 0) * 40ms),
+      background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-sources[data-status='grounded'] .search-comb::before {
+    transform: none;
+    transition: transform var(--duration-base) var(--ease-standard) 520ms;
+  }
+
+  .search-sources[data-status='grounded'] .search-comb::after {
+    transform: none;
+    transition: transform var(--duration-base) var(--ease-standard) 640ms;
+  }
+
+  .search-sources[data-status='grounded'] .search-comb__port {
+    opacity: 1;
+    transition: opacity var(--duration-base) var(--ease-standard) 740ms;
+  }
+
+  /* 图墙只接一格：出线由外面的 SVG 画（拐一个弯接到那一格）。 */
+  .search-wire-path {
+    fill: none;
+    stroke: var(--search-wire);
+    stroke-width: 1;
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-wire-port {
+    fill: var(--background);
+    stroke: var(--foreground);
+    stroke-width: 1.5;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-sources[data-status='grounded'] .search-wire-path {
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset var(--duration-base) var(--ease-standard)
+      640ms;
+  }
+
+  .search-sources[data-status='grounded'] .search-wire-port {
+    opacity: 1;
+    transition: opacity var(--duration-base) var(--ease-standard) 800ms;
+  }
+
+  /* 手机 / 助手：资料条下面一条短竖线 + 输入口指向图。 */
+  .search-strip-down {
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .search-strip-dot {
+    display: block;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    margin-top: -1px;
+    border-radius: 9999px;
+    border: 1.5px solid var(--foreground);
+    background: var(--background);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  /* 图上方那一条横排：可横滑，不露滚动条。 */
+  .search-sources-row {
+    scrollbar-width: none;
+  }
+
+  .search-sources-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .search-sources[data-status='grounded'] .search-strip-down {
+    transform: none;
+    transition: transform var(--duration-base) var(--ease-standard) 400ms;
+  }
+
+  .search-sources[data-status='grounded'] .search-strip-dot {
+    opacity: 1;
+    transition: opacity var(--duration-base) var(--ease-standard) 550ms;
+  }
+
+  /* 输入框顶上那道虚线槽在搜索时的微光（从左扫到右）。 */
+  .search-slot-shimmer::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: 40%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--foreground) 6%, transparent),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: search-slot-sweep 1.4s linear infinite;
+  }
+}
+
+@keyframes search-source-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes search-source-slide {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+@keyframes search-slot-sweep {
+  to {
+    transform: translateX(260%);
+  }
 }
 
 /* ── B7: Reduced motion preference ──────────────────────────────── */

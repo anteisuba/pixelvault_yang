@@ -1,4 +1,4 @@
-import { getModelById } from '@/constants/models'
+import { getModelById, supportsSearchGrounding } from '@/constants/models'
 import {
   getNovelAiMaxCharacters,
   supportsNovelAiCharacters,
@@ -66,6 +66,14 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
       request.modelId,
     )
     if (pruned) advancedParams = pruned
+    // 「先搜再画」只对支持的型号发：同系列一起跑时 Pro Image 那一格不带。
+    if (
+      advancedParams.searchGrounding &&
+      !(request.modelId && supportsSearchGrounding(request.modelId))
+    ) {
+      advancedParams = { ...advancedParams }
+      delete advancedParams.searchGrounding
+    }
 
     const sourceLayout = advancedParams.novelAiLayout
     if (sourceLayout) {

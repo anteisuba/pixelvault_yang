@@ -250,6 +250,13 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'search-grounding',
+    key: 'search-grounding',
+    title: '先搜再画 · 资料位（单跑 / 同系列两行 × 四态）',
+    items: [],
+    selectedIndex: null,
+  },
+  {
     kind: 'empty-state',
     key: 'empty-state-trio',
     title: '空态模板 · 三态（双动作 / 单动作 / 只说明）',

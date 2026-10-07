@@ -1,6 +1,13 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import dynamic from 'next/dynamic'
 import {
   Ban,
@@ -59,6 +66,11 @@ interface CompareGridProps {
   onCancelAll?: () => void
   /** 失败的那一格原地再来一次（加载态 A）。给了才画格子里的「重试」。 */
   onRetry?: (itemId: string) => void
+  /**
+   * 挂在某一行行首条和图之间的东西（手机上「先搜再画」的资料条挂进开着搜索的
+   * 那一行，换位时跟着那一行走）。
+   */
+  rowLead?: (row: { modelId: string; items: RunItem[] }) => ReactNode
 }
 
 interface ModelRow {
@@ -98,6 +110,7 @@ export const CompareGrid = memo(function CompareGrid({
   onCancel,
   onCancelAll,
   onRetry,
+  rowLead,
 }: CompareGridProps) {
   const t = useTranslations('StudioV3')
   const tCancel = useTranslations('GenerationCancel')
@@ -235,6 +248,8 @@ export const CompareGrid = memo(function CompareGrid({
                 <span className="h-px flex-1 bg-border/60" />
               </div>
 
+              {rowLead?.(row)}
+
               {/* ⚠ `studio-result-tiles` 不是装饰：桌面这条行是「等高 + 宽度按
                   各自长宽比推」的横排（`--studio-tile-h`），在 375 宽的手机上
                   一行只放得下一张。globals.css 里那条 `<1024` 的媒体查询把它换成
@@ -267,6 +282,10 @@ export const CompareGrid = memo(function CompareGrid({
                       aria-selected={isFocused}
                       aria-disabled={!isCompleted}
                       aria-label={`${modelLabel} ${takeIndex + 1}/${takes}`}
+                      // 「先搜再画」的出线只接开着搜索的格子（桌面资料列找它）。
+                      data-search-grounding-tile={
+                        item.searchGrounding ? 'true' : undefined
+                      }
                       tabIndex={isCompleted && item.id === tabStopId ? 0 : -1}
                       onFocus={() => {
                         if (isCompleted) setFocusedItemId(item.id)
@@ -380,6 +399,7 @@ export const CompareGrid = memo(function CompareGrid({
                             'executionStage' in item
                               ? item.executionStage
                               : undefined,
+                            Boolean(item.searchGrounding),
                           )}` as const,
                         )}
                         failure={

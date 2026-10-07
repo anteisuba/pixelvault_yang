@@ -187,6 +187,13 @@ export interface StudioFormState {
   recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
+  /**
+   * 「先搜再画」开关（owner 2026-10-07 B 定稿）：图片台输入框与助手确认卡共用
+   * 这一份，按会话记（随草稿进 sessionStorage）、默认关。⚠ 不住在
+   * `advancedParams` 里：换系列会清掉专属参数，而换到不支持的型号再换回来要
+   * 带回刚才的开 / 关；「做同款」也不带它。发送口只对支持的型号带上。
+   */
+  searchGrounding: boolean
   /** Image-specific — how many images one send produces (1 / 2 / 4). */
   imageBatchCount: ImageBatchCount
   tokenInput: string
@@ -378,6 +385,7 @@ export type StudioAction =
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
   | { type: 'RESET_ADVANCED_PARAMS' }
+  | { type: 'SET_SEARCH_GROUNDING'; payload: boolean }
   | { type: 'SET_IMAGE_BATCH_COUNT'; payload: ImageBatchCount }
   | { type: 'TOGGLE_EXTRA_MODEL'; payload: string }
   | { type: 'REMOVE_EXTRA_MODEL'; payload: string }
@@ -517,6 +525,7 @@ const initialFormState: StudioFormState = {
   recipeUsage: null,
   aspectRatio: '1:1',
   advancedParams: {},
+  searchGrounding: false,
   imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
   extraModelOptionIds: [],
   tokenInput: '',
@@ -839,6 +848,8 @@ export function studioFormReducer(
     case 'RESET_ADVANCED_PARAMS':
       // 负向一起清了 —— UC 栏不能还画着一串不会发出去的标签。
       return withNegativeChipsInSync({ ...state, advancedParams: {} })
+    case 'SET_SEARCH_GROUNDING':
+      return { ...state, searchGrounding: action.payload }
     case 'SET_IMAGE_BATCH_COUNT':
       return { ...state, imageBatchCount: action.payload }
     case 'TOGGLE_EXTRA_MODEL': {
@@ -933,6 +944,7 @@ export function studioFormReducer(
         recipeUsage: null,
         aspectRatio: '1:1',
         advancedParams: {},
+        searchGrounding: false,
         imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
         extraModelOptionIds: [],
         selectedOptionId: null,

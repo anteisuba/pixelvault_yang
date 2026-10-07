@@ -55,6 +55,9 @@ import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpain
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
+import { StudioSearchGroundingChip } from '@/components/business/studio/StudioSearchGroundingChip'
+import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
 import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
 // 规格收成**一颗 chip**（D2 ④，第 12 项）：图片与视频共用同一颗，档位各自从能力表
@@ -157,6 +160,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const tScript = useTranslations('VideoScript')
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
+  const tSearch = useTranslations('SearchGrounding')
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
       const key = SAMPLE_PROMPT_KEYS[state.selectedWorkflowId]
@@ -228,6 +232,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     imageUpload.referenceEntries.length,
   )
 
+  const searchGrounding = useStudioSearchGrounding()
   const composerContainerRef = useRef<HTMLDivElement>(null)
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
@@ -405,6 +410,16 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               'rounded-xl ring-2 ring-foreground ring-offset-4 ring-offset-card',
           )}
         >
+          {isVideoMode ? null : (
+            <SearchGroundingSlot
+              open={searchGrounding.available && searchGrounding.on}
+              description={tSearch('slotWorkbench')}
+              searching={searchGrounding.searching}
+              onlyModelLabel={searchGrounding.onlyModelLabel}
+              disabled={isGenerating}
+              onTurnOff={() => searchGrounding.setOn(false)}
+            />
+          )}
           {isVideoMode ? (
             <>
               {videoDropOver ? (
@@ -528,7 +543,10 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                     disabled={isGenerating}
                   />
                 ) : (
-                  <ReferenceImageChip disabled={isGenerating} />
+                  <>
+                    <ReferenceImageChip disabled={isGenerating} />
+                    <StudioSearchGroundingChip disabled={isGenerating} />
+                  </>
                 )}
                 <StudioTemplatesChip
                   open={templates.open}

@@ -1,169 +1,184 @@
 [English](README.md) | **日本語** | [中文](README.zh.md)
 
-# PixelVault — パーソナル AI ギャラリー
+# ANTEI —— パーソナル AI クリエイティブスタジオ
 
-20以上のAIモデルで画像・動画を生成。ブラインド投票で比較。すべてを永久保存。
+ANTEI（コードネーム **PixelVault**）は、画像・動画・音声・3D を扱うマルチモデルの制作ワークベンチです。各社の最先端の生成モデルをひとつの画面にまとめ、すべての生成結果を永久にアーカイブし、作ったものをキャラクター・画風・声・プロンプトのレシピ・LoRA といった再利用できる資産に変えて、次の制作につなげます。
 
-**今すぐ試す:** [pixelvault-seven.vercel.app](https://pixelvault-seven.vercel.app/)
+**公開版：** [www.anteisuba.com](https://www.anteisuba.com) · English / 日本語 / 中文
 
-![PixelVault ホームページ](docs/screenshots/home.png)
-
----
-
-## PixelVault とは？
-
-PixelVault は、マルチモデル対応の AI 画像・動画生成プラットフォームです。GPT-Image、Gemini、FLUX、Kling、Sora など、好きなモデルを選び、同じプロンプトから生成して比較。すべての作品は設定とメタデータとともに永久保存されます。
-
-![PixelVault マルチモデルアーカイブのスケッチ](assets/readme-illustrations/01-pixelvault-overview-ja.png)
+![ANTEI の概要](assets/readme-illustrations/01-pixelvault-overview-ja.png)
 
 ---
 
-## はじめかた
+## ANTEI の特長
 
-1. **サインアップ** — 登録時に無料クレジットが付与されます
-2. **Studio へ移動** — モデルを選んでプロンプトを入力
-3. **生成** — 画像や動画が作成され、自動的に永久保存されます
-
-以上です。セットアップ不要、APIキーも不要です（プレミアムモデルを使う場合を除く）。
-
-![PixelVault はじめかたのスケッチ](assets/readme-illustrations/02-quick-start-ja.png)
+- **ひとつのスタジオで多数のモデル。** 画像・動画・音声・3D をひとつの作業場所で生成。各モデルが実際に対応するパラメータをそのまま扱え、最大公約数的なフォームに押し込めません。
+- **制作のコントロールを最優先。** 参照画像に「人物・ポーズ・画風・内容」の役割を指定し、プロンプトはモデルごとの書き方で作成。複数カットの作品はノードキャンバスで組み立て、LoRA のレシピは元画像から忠実に再現できます。
+- **何も失われない。** 生成のたびにプロンプト・モデル・パラメータ・来歴ごと永久保存し、フォルダ・カード・レシピに整理して何度でも再利用できます。
+- **道具を使いこなすアシスタント。** 内蔵のオペレーターは、まず相談してから手を動かします。参照画像の確認、Web での調査、モデル固有のプロンプト作成、ワークベンチやキャンバスの編集まで行い、すべての変更は元に戻せ、有料の生成は必ずあなたが確定します。
+- **あなたのキー、あなたの支払い。** 生成はあなた自身のプロバイダーキー（BYOK）で行い、キーは暗号化して保存します。リクエストが黙ってプラットフォームのキーに切り替わることはありません。
 
 ---
 
-## 機能
+## 機能紹介
 
-### Studio — 画像・動画を作成
+### スタジオ
 
-クリエイティブワークスペース。プロンプトを書いて、モデルを選んで、生成。
+日々の単発制作のためのワークベンチです。
 
-![PixelVault Studio ワークベンチのスケッチ](assets/readme-illustrations/03-studio-workbench-ja.png)
+- **画像**——自然言語ワークベンチとタグワークベンチ（Danbooru 形式、NovelAI ではタグをリアルタイムに検証）を並べて利用。参照画像には人物・ポーズ・画風・内容の役割を指定でき、アスペクト比と解像度はモデルごとの段階から選べます。
+- **画像編集**——指示による編集、インペイント、オブジェクト置換、スタイル変換、文字描画、背景除去、要素の抽出、アップスケール。
+- **動画**——テキストから動画、先頭/末尾フレーム指定、複数参照の各モード。長さ・解像度・参照枚数はモデルごとに送信前に検証します。
+- **音声**——再利用できるボイスライブラリ付きの音声合成、効果音、音楽。
+- **3D**——1 枚の画像からテクスチャ付き GLB を生成。先に素体メッシュを確認できるプレビュー経路もあります。
 
-- **画像モデル11種 + 動画モデル10種**（6プロバイダー）
-- **プロンプト強化** — AIが5つのスタイル（詳細、アート、フォトリアル、アニメ、LoRA）でプロンプトを改善
-- **参考画像** — 画像をアップロードして生成のビジュアルガイドに
-- **イメージリバース** — 既存の画像から生成パラメータを抽出・分析
-- **画像から動画へ** — 生成した画像を動画クリップに変換
-- **キャラクターカード** — キャラクターのプリセットを保存して、生成間の一貫性を維持
-- **動画の長さ** 3秒〜120秒、最大1080p対応
+![スタジオ](assets/readme-illustrations/03-studio-workbench-ja.png)
 
-#### 画像生成
+### ノードキャンバス——ディレクターデスク
 
-![PixelVault 画像生成のスケッチ](assets/readme-illustrations/07-image-generation-ja.png)
+長尺・複数カットの制作のためのキャンバスです：脚本 → カット割り → カットごとの画像・動画生成 → 編集デスク。
 
-![画像生成ワークスペース](docs/screenshots/studio-image.png)
+- テキスト・画像・動画・音声の 4 種類のノードを型付きのポートでつなぎ、参照や脚本が必要なカットへ自然に流れ込みます。
+- 脚本ノードはカットノードへ展開でき、脚本を直せば再展開できます。
+- タイムライン付きの編集デスクで、つなぎ、トリミング、字幕、レンダリングを行えます。
+- 取り消し履歴はひとつだけ——あなたの操作でもアシスタントの操作でも同じように元に戻せます。
 
-#### 動画生成
+![ノードキャンバス](assets/readme-illustrations/06-node-workflow-ja.png)
 
-![PixelVault 動画生成のスケッチ](assets/readme-illustrations/08-video-generation-ja.png)
+### LoRA ワークベンチ
 
-![動画生成ワークスペース](docs/screenshots/studio-video.png)
+まず再現し、それからカスタマイズ。
 
-#### 音声生成
+- Civitai と Hugging Face から LoRA を探し、個人ライブラリに取り込めます。
+- 元画像のレシピ——ベースモデル、LoRA の組み合わせと重み、サンプラー、ステップ数、CFG、高解像度補正——を再現し、自前のランナーで同じ画像を生成します。
+- ランナーのベースモデルは Anima（Base / Turbo）、WAI-Illustrious-SDXL、Pony Diffusion V6 XL、SDXL 1.0、Z-Image Turbo、Krea 2 Turbo。ベースモデルの系統ごとに、その流儀でプロンプトを書きます。
+- Modal 上の ComfyUI ランナーで動作します（サイト全体で共有する月間枠、キー不要）。
 
-![PixelVault 音声生成のスケッチ](assets/readme-illustrations/09-audio-generation-ja.png)
+### アシスタント
 
-![音声生成ワークスペース](docs/screenshots/studio-audio.png)
+画像・LoRA・動画・キャンバスの 4 つのワークスペースが、同じオペレーターエンジンを共有します。
 
-#### 3D 生成
+- **まず相談、指示されてから実行。** 質問には答えを、指示には変更を。本当に判断が分かれるところだけ、短い選択式の質問で確認します。
+- **5 つの動詞：** 見る（参照画像と結果の確認）、調べる（出典付きの Web 検索）、尋ねる、変更する（プロンプト・モデル・仕様・キャンバスのノード）、生成を依頼する——生成の依頼は必ず確認カードで止まります。有料の生成を始められるのはあなただけです。
+- **プランナーのモデルは自由に選択：** Claude（Opus 5.5 / Sonnet 5.5 / Fable 5.1）、OpenAI GPT-6 シリーズ、Gemini 3.x Flash、DeepSeek、Grok。
+- ラウンドごとのまとめと任意の長期記憶により、履歴全体を再送しなくても決定事項が次のターンへ引き継がれます。
 
-![PixelVault 3D 生成のスケッチ](assets/readme-illustrations/10-3d-generation-ja.png)
+### ライブラリ
 
-![3D 生成ワークスペース](docs/screenshots/studio-3d.png)
+- **素材（Assets）**——生成・アップロードしたすべてのファイル。入れ子のフォルダ、一括操作、その場で開ける詳細表示。
+- **カード（Cards）**——キャラクター・画風・ボイスのカード。生成やカットをまたいでも人物と見た目を揃えられます。
+- **プロンプト（Prompts）**——バージョンと作品の来歴を持つ個人レシピ。
+- **ギャラリー（Gallery）**——任意の公開展示。プロンプトは、整理済みのレシピをあなたが公開したときにだけ共有されます。
 
-#### ノードページ
+### Claude 連携（MCP）
 
-![PixelVault ノードワークフローのスケッチ](assets/readme-illustrations/06-node-workflow-ja.png)
-
-![ノードワークスペース](docs/screenshots/studio-node.png)
-
-### Gallery — 発見と共有
-
-他のユーザーの作品を閲覧。インスピレーションを得る。自分の作品を共有。
-
-- プロンプトテキストで検索
-- モデル、タイプ（画像/動画）、期間でフィルタリング
-- お気に入りにいいね＆ブックマーク
-- 画像をクリックして詳細表示 — プロンプト、モデル、設定
-- ギャラリーの画像を次の生成の参考画像として使用可能
-
-### Profile — パーソナルアーカイブ
-
-これまでのすべての生成作品が一箇所に。
-
-- すべての作品を検索・フィルターで表示
-- 画像ごとに公開/非公開を切り替え
-- 統計ダッシュボード — 総生成数、リクエスト数など
-- ストレージ完全クリーンアップ付きの完全削除
+キャンバスは Model Context Protocol のエンドポイントを提供します。Claude がプロジェクトを読み、クリップを確認し、タイムラインを編集する様子を、ブラウザでそのまま見られます。MCP のツールが有料の生成を起こすことはありません。
 
 ---
 
-## 利用可能なモデル
+## モデル
 
-### 画像モデル
+モデルの構成は頻繁に変わります。正確な一覧は [`src/constants/models/`](src/constants/models/) と [`src/services/providers/registry.ts`](src/services/providers/registry.ts) を参照してください。
 
-| モデル              | ティア   | クレジット |
-| ------------------- | -------- | ---------- |
-| GPT-Image 1.5       | Premium  | 3          |
-| Gemini Pro Image    | Premium  | 2          |
-| FLUX 2 Pro          | Premium  | 2          |
-| Seedream 4.5        | Premium  | 2          |
-| Ideogram 3          | Standard | 2          |
-| Recraft V3          | Standard | 2          |
-| Gemini Flash        | Standard | 1          |
-| FLUX 2 Dev          | Standard | 1          |
-| FLUX 2 Schnell      | Budget   | 1          |
-| Animagine XL 4.0    | Budget   | 1          |
-| Stable Diffusion XL | Budget   | 1          |
+| モダリティ | モデル系統                                                                                                                                                           | 経路                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 画像       | GPT Image 2 / 2.5、Gemini Nano Banana Pro / 2.1 / 2 Lite、FLUX.2 Pro / Flash、FLUX Kontext Max、Seedream 5.0 Pro / Lite、Ideogram 4.5、Recraft V4、NovelAI V4.5 / V5 | OpenAI、Google、fal、Ideogram、NovelAI、Volcano Engine、BytePlus |
+| 動画       | Seedance 2.0 / 2.5、Kling V3 / O3（動画から動画への編集を含む）、Wan 3.0、HappyHorse、Gemini Omni Flash、MiniMax H3                                                  | fal、Google、Volcano Engine、BytePlus、MiniMax                   |
+| 音声       | Fish Audio S2 Pro、ElevenLabs Sound Effects v2、ElevenLabs Music v2                                                                                                  | Fish Audio、ElevenLabs                                           |
+| 3D         | Rodin Gen-2.5、Hunyuan3D v3 / v3.1 Pro、TRELLIS 2、TripoSR                                                                                                           | Hyper3D、fal                                                     |
+| LoRA       | Anima、Illustrious / Pony / SDXL、Z-Image Turbo、Krea 2 Turbo                                                                                                        | Modal 上の ComfyUI ランナー                                      |
 
-### 動画モデル
-
-| モデル         | ティア   | クレジット |
-| -------------- | -------- | ---------- |
-| Kling V3 Pro   | Premium  | 5          |
-| Veo 3          | Premium  | 5          |
-| Sora 2         | Premium  | 5          |
-| Seedance Pro   | Premium  | 4          |
-| MiniMax Hailuo | Standard | 3          |
-| Luma Ray 2     | Standard | 3          |
-| Pika 2.2       | Standard | 3          |
-| Kling V2       | Budget   | 2          |
-| Wan 2.2        | Budget   | 2          |
-| HunyuanVideo   | Budget   | 2          |
+同じモデルを開発元と再販業者の両方が提供している場合は、開発元の API を優先します。
 
 ---
 
-## プロのコツ
+## アーキテクチャ
 
-**Bring Your Own Key (BYOK)** — クレジットを使わずにプレミアムモデルを使いたい？OpenAI、Google、Fal、Replicate、HuggingFace などの自分のAPIキーを追加できます。キーはAES-256-GCMで暗号化保存。
+```mermaid
+flowchart LR
+  B[ブラウザ<br/>Next.js App Router] -->|認証 · 検証 · キュー投入| A[Vercel 上の Next.js<br/>API ルート + services]
+  A --> DB[(PostgreSQL · Neon<br/>Prisma 7)]
+  A -->|ジョブ送信| W[Execution Worker<br/>Cloudflare Workers]
+  W -->|プロバイダー API| P[OpenAI · Google · fal ·<br/>Volcano · MiniMax · …]
+  W -->|LoRA ジョブ| R[ComfyUI ランナー<br/>Modal]
+  W -->|結果を保存| S[(Cloudflare R2)]
+  W -->|認証付きコールバック| A
+  A -->|アシスタントの計画| L[LLM プロバイダー<br/>Claude · GPT · Gemini · DeepSeek · Grok]
+```
 
-**プロンプト強化** — 良いプロンプトの書き方がわからない？Studio で「Append」をクリックすれば、LLMがプロンプトを改善。5つの強化スタイルから選択可能。
+- **Worker 主体の実行。** Web アプリは認証・検証・ジョブの記録・送信だけを担います。時間のかかるプロバイダー呼び出し、ポーリング、アップロードは Cloudflare Worker で処理し、認証付きコールバックで結果を返すため、サーバーレス関数が生き続けることに依存しません。
+- **層に分けたコード。** `constants/` と `types/`（Zod スキーマ）→ `services/`（データベースと外部 API に触れる唯一の層）→ `hooks/` → `components/`。API ルートは認証・検証・service 呼び出しの 3 つだけを行います。
+- **サーバー側での保証。** 所有権の確認、利用量の記録、課金のゲートはすべてサーバー側にあります。アシスタントと MCP のツールは、構造上、有料の生成を開始できません。
 
-**イメージリバース** — 好きな画像を見つけた？「Image Reverse」にアップロードして、生成パラメータを抽出 — スタイルタグ、構図の詳細、すぐに使えるプロンプト。
-
-**キャラクターカード** — シリーズ制作中？キャラクターをカードとして保存（顔、衣装、全身ビュー）し、複数の生成で視覚的一貫性を維持。
-
-**プロンプトのプライバシー** — 元のプロンプトは個人の創作コンテキストです。再利用できる推薦は、同意にもとづくテンプレートや意図カードとして扱うべきです。
-
-![プロンプトのプライバシーとテンプレートのスケッチ](assets/readme-illustrations/05-prompt-privacy-ja.png)
+| 層         | 技術                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- |
+| アプリ     | Next.js 16（App Router、Turbopack）、React 19、TypeScript                             |
+| UI         | Tailwind CSS 4、shadcn/ui、Motion、React Flow、Tiptap                                 |
+| 認証       | Clerk                                                                                 |
+| データ     | Neon 上の PostgreSQL、Prisma 7                                                        |
+| ストレージ | Cloudflare R2（永久アーカイブ、CDN 配信）                                             |
+| 実行       | Cloudflare Workers（生成、動画レンダリング、画像プロキシ）、Modal（ComfyUI ランナー） |
+| 多言語     | next-intl——英語・日本語・中国語                                                       |
+| 検証       | API 契約、プロバイダーへの送信内容、モデル出力まで Zod で一貫して検証                 |
+| テスト     | Vitest、Testing Library、Playwright                                                   |
 
 ---
 
-## 多言語対応
+## ディレクトリ構成
 
-PixelVault は3つの言語に対応。上部のナビゲーションバーからいつでも切り替え可能。
-
-- **English** — `/en`
-- **日本語** — `/ja`
-- **中文** — `/zh`
+```text
+src/
+├── app/            ルート（App Router）と API ルート
+├── components/     ui/（状態を持たない部品）· business/（状態を持つ機能部品）
+├── constants/      モデル、プロバイダー、上限、ルート——まずここを確認
+├── contexts/       スタジオとワークベンチの状態
+├── hooks/          クライアント側の状態とデータの hooks
+├── lib/            共有ユーティリティと API クライアント
+├── messages/       en / ja / zh の文言
+├── services/       サーバー専用のビジネスロジックとプロバイダーアダプター
+└── types/          Zod スキーマと推論型
+workers/            Cloudflare Workers（実行、動画レンダリング、画像プロキシ）とランナー
+prisma/             スキーマとマイグレーション
+docs/               ワークフロー、リファレンス、チェックリスト（docs/README.md から）
+```
 
 ---
 
-## クレジット
+## ローカル開発
 
-新規ユーザーにはサインアップ時に無料クレジットが付与されます。各モデルのティアに応じて1回の生成につき1〜5クレジットが必要です。毎日無料クレジットがリフレッシュされます。
+**必要なもの：** Node.js 22、npm 10 以上、PostgreSQL データベース（Neon 推奨）、Clerk アプリケーション、Cloudflare R2 バケット。
 
-| ティア   | 画像コスト      | 動画コスト      |
-| -------- | --------------- | --------------- |
-| Budget   | 1 クレジット    | 2 クレジット    |
-| Standard | 1〜2 クレジット | 3 クレジット    |
-| Premium  | 2〜3 クレジット | 4〜5 クレジット |
+```bash
+npm install
+cp .env.example .env.local   # データベース、Clerk、R2、暗号化用シークレットを記入
+npm run dev                  # http://localhost:3000
+```
+
+よく使うチェック：
+
+```bash
+npm run typecheck
+npm run lint
+npm run test:run
+```
+
+プロバイダーキーは、アプリ内の **設定 → キー** でユーザーごとに追加します。`.env.local` に必要なのは、プラットフォームのキーを使う機能（たとえばアシスタントの既定の Gemini 経路）の分だけです。実行用 Worker は `workers/execution` にある独立したパッケージで、テストも別に持っています。
+
+---
+
+## セキュリティとプライバシー
+
+- プロバイダーキーは AES-256-GCM で暗号化し、そのキーを使うリクエストの間だけサーバー側で復号します。
+- すべての API ルートは最初に Clerk で認証し、所有権をサーバー側で確認します。
+- ユーザーが指定した URL をサーバー側で取得する際は、SSRF 対策を通します。
+- 元のプロンプトは非公開のままです。公開レシピはあなたが明示的に公開したときだけ、整理されたうえでギャラリーに表示されます。
+
+---
+
+## ドキュメント
+
+開発ドキュメントは [`docs/`](docs/README.md) にあります：タスクのワークフロー、領域ごとのリファレンス（キャンバス、LoRA、アシスタント、プロバイダー、モデル一覧）、リリース前のチェックリスト。
+
+## ライセンス
+
+このリポジトリにはオープンソースライセンスが含まれていません。All rights reserved.

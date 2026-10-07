@@ -37,6 +37,7 @@ import {
   sameVideoRailOrder,
   videoRailMentionLabels,
   VIDEO_RAIL_GROUP_IDS,
+  VIDEO_RAIL_GROUPS,
   type VideoRailEntry,
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
@@ -59,8 +60,10 @@ import {
 } from '../chrome'
 import { useNodeCharacterMentions } from '../character/use-node-character-mentions'
 import { useNodeV4Canvas } from '../NodeV4Context'
+import { buildMentionCandidates, buildMentionTokens } from '../NodeV4Mentions'
 import { toStudioModelOption } from '../image/image-node-model'
 import { VideoAudioToggle } from './VideoAudioToggle'
+import type { VideoSlotCandidate } from './VideoNodeMenus'
 import { VideoFrameChip } from './VideoFrameChip'
 import {
   useVideoRailBinding,
@@ -77,17 +80,20 @@ export interface VideoComposerOptions {
   readonly videoData: NodeV4VideoData
   /** 卡上显示的名字（镜头带带 `S02·` 前缀）——上传时当备注写。 */
   readonly displayName: string
-  /** 画布上的 `@` 候选与胶囊（由调用方按自己那份 tokens 拼好传进来）。 */
-  readonly tokens: readonly MentionToken[]
-  readonly candidates: readonly MentionCandidate[]
-  readonly mediaOf: (name: string) =>
-    | {
-        kind: 'image' | 'video' | 'audio' | 'text'
-        thumbnailUrl?: string
-        videoUrl?: string
-      }
-    | undefined
 }
+
+/**
+ * 按下发送之后这一枪的结局（剪辑台就地重拍读它，v2 第 4 片 4b）。
+ * - `done`：新的一版落到了卡上，`url` 是它的地址；
+ * - `failed`：卡上钉了失败原因（`failureMessage`）；
+ * - `pending`：轮询窗口关了、单子还在服务端跑 —— 回填那一路稍后把结果落到卡上；
+ * - `notSent`：根本没发出去，或这一枪作废了（发送前校验拦下 / 取消 / 被下一枪顶掉）。
+ */
+export type VideoSubmitOutcome =
+  | { readonly status: 'done'; readonly url: string }
+  | { readonly status: 'failed' }
+  | { readonly status: 'pending' }
+  | { readonly status: 'notSent' }
 
 export interface VideoComposer extends Omit<
   VideoRailBinding,
@@ -99,11 +105,14 @@ export interface VideoComposer extends Omit<
   readonly draft: string
   setDraft(next: string): void
   readonly currentPrompt: string
-  submitPrompt(): void
+  /** 发出这一枪。`null` = 没发（草稿空 / 正在生成）。 */
+  submitPrompt(): Promise<VideoSubmitOutcome> | null
   cancelGeneration(): void
 
   readonly railItems: VideoRailBinding['items']
   readonly railCandidatesOf: VideoRailBinding['candidatesOf']
+  /** 提示词栏 `+` 菜单里「画布上的卡」那一组（桌面卡与剪辑台重拍栏同一份）。 */
+  readonly canvasCandidates: readonly VideoSlotCandidate[]
 
   readonly paramsChip: ReactNode
   readonly modelChip: ReactNode
@@ -140,16 +149,61 @@ export function useVideoComposer({
   id,
   videoData,
   displayName,
-  tokens,
-  candidates,
-  mediaOf,
 }: VideoComposerOptions): VideoComposer {
+  const tNode = useTranslations('StudioNode.v4')
   const tErrors = useTranslations('Errors')
   const tCancel = useTranslations('GenerationCancel')
   const tVideo = useTranslations('StudioNode.v4.video')
   const tModels = useTranslations('Models')
   const canvas = useNodeV4Canvas()
   const generation = useNodeMediaGenerationV4()
+
+  /* ── 画布上的 `@` 候选与胶囊（桌面卡 / 手机抽屉 / 剪辑台重拍栏同一份）──────── */
+  const tokens = useMemo(
+    () => buildMentionTokens(canvas.nodes, id),
+    [canvas.nodes, id],
+  )
+  const candidates = useMemo(
+    () =>
+      buildMentionCandidates(canvas.nodes, id, (item) =>
+        tNode(`mentionGroups.${item.data.kind}`),
+      ),
+    [canvas.nodes, id, tNode],
+  )
+  const mediaOf = useMemo(() => {
+    const byName = new Map<
+      string,
+      {
+        kind: 'image' | 'video' | 'audio' | 'text'
+        thumbnailUrl?: string
+        videoUrl?: string
+      }
+    >()
+    for (const item of canvas.nodes) {
+      const itemData = item.data
+      if (itemData.kind === NODE_MEDIA_KIND_IDS.text) continue
+      if (itemData.kind === NODE_MEDIA_KIND_IDS.audio) {
+        byName.set(itemData.name, { kind: 'audio' })
+        continue
+      }
+      // ⚠ 视频的 `url` 是 mp4：封面走 `videoThumbnailUrl`，片子只给第一帧兜底用。
+      if (itemData.kind === NODE_MEDIA_KIND_IDS.video) {
+        byName.set(itemData.name, {
+          kind: 'video',
+          ...(itemData.videoThumbnailUrl
+            ? { thumbnailUrl: itemData.videoThumbnailUrl }
+            : {}),
+          ...(itemData.url ? { videoUrl: itemData.url } : {}),
+        })
+        continue
+      }
+      byName.set(itemData.name, {
+        kind: 'image',
+        ...(itemData.url ? { thumbnailUrl: itemData.url } : {}),
+      })
+    }
+    return (name: string) => byName.get(name)
+  }, [canvas.nodes])
 
   const [draft, setDraft] = useState(videoData.prompt ?? '')
   // 正文里的 @她（画布用角色 ④ 第 2 片）：跟着草稿走，出现在参考轨上。
@@ -430,8 +484,8 @@ export function useVideoComposer({
   const setParams = (patch: Partial<NonNullable<NodeV4VideoData['params']>>) =>
     canvas.onSetParams(id, { ...videoData.params, ...patch })
 
-  const submitPrompt = () => {
-    if (draft.trim().length === 0 || generating) return
+  const submitPrompt = (): Promise<VideoSubmitOutcome> | null => {
+    if (draft.trim().length === 0 || generating) return null
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     // 默认模型 / 默认档到这一刻才落库：用户按了生成，它就是**用户的**选择了。
     if (!videoData.model && effectiveModel)
@@ -462,7 +516,7 @@ export function useVideoComposer({
     jobRef.current = undefined
     cancelRequestedRef.current = false
     setStartedAt(Date.now())
-    void generation
+    return generation
       .generateNode(
         id,
         { nodes, edges: canvas.edges },
@@ -508,22 +562,63 @@ export function useVideoComposer({
           },
         },
       )
-      .then((result) => {
-        if (
-          run === runRef.current &&
-          !result.success &&
-          result.error === 'noPlan'
-        ) {
+      .then((result): VideoSubmitOutcome => {
+        if (run !== runRef.current) return { status: 'notSent' }
+        if (result.success) return { status: 'done', url: result.mediaUrl }
+        if (result.error === 'noPlan') {
           canvas.onSetMedia(id, {
             mediaJobId: undefined,
             generationFailure: { error: tVideo('frame.pickModel') },
           })
+          return { status: 'failed' }
         }
+        if (result.error === 'blocked') return { status: 'notSent' }
+        if ('cancelled' in result && result.cancelled) {
+          return { status: 'notSent' }
+        }
+        if ('pending' in result && result.pending) return { status: 'pending' }
+        return { status: 'failed' }
       })
       .finally(() => {
         if (run === runRef.current) setStartedAt(null)
       })
   }
+
+  /** `+` 菜单里「画布上的卡」那一组：每组按名额标「已挂 / 满了 / 这一路不收」。 */
+  const canvasCandidates: readonly VideoSlotCandidate[] = rail.acceptsRefs
+    ? VIDEO_RAIL_GROUPS.flatMap((group) => {
+        const limit =
+          group === VIDEO_RAIL_GROUP_IDS.image
+            ? rail.railProps.capacity.images
+            : group === VIDEO_RAIL_GROUP_IDS.video
+              ? rail.railProps.capacity.videos
+              : rail.railProps.capacity.voices
+        const occupied =
+          railItems.filter((item) => item.group === group).length +
+          (rail.railProps.pending?.filter(
+            (item) => item.group === group && !item.error,
+          ).length ?? 0)
+        return rail.candidatesOf(group).map((candidate) => {
+          const attached = railItems.some(
+            (item) => item.sourceNodeId === candidate.id,
+          )
+          const blockedReason =
+            !attached &&
+            rail.railProps.referenceUnavailable &&
+            group !== VIDEO_RAIL_GROUP_IDS.image
+              ? tVideo('rail.referenceUnavailable')
+              : !attached && limit !== null && occupied >= limit
+                ? tVideo('rail.full', { limit })
+                : undefined
+          return {
+            ...candidate,
+            group,
+            attached,
+            ...(blockedReason ? { blockedReason } : {}),
+          }
+        })
+      })
+    : []
 
   const railReadoutGroups = (
     [
@@ -599,6 +694,7 @@ export function useVideoComposer({
     railProps: rail.railProps,
     railItems,
     railCandidatesOf: rail.candidatesOf,
+    canvasCandidates,
     paramsChip,
     modelChip,
     audioToggle,

@@ -199,7 +199,7 @@
   }
 }
 .edit-clip-touched {
-  animation: edit-clip-halo 320ms var(--ease-standard);
+  animation: edit-clip-halo var(--edit-clip-flash, 320ms) var(--ease-standard);
 }
 .edit-clip-touched::after {
   content: '';
@@ -209,12 +209,46 @@
   background: white;
   opacity: 0;
   pointer-events: none;
-  animation: edit-clip-lit 320ms var(--ease-standard);
+  animation: edit-clip-lit var(--edit-clip-flash, 320ms) var(--ease-standard);
 }
 @media (prefers-reduced-motion: reduce) {
   .edit-clip-touched,
   .edit-clip-touched::after {
     animation-duration: 1ms;
+  }
+}
+
+/* 剪辑台就地重拍（v2 第 4 片 4b · 关键切片动效表「生成中」）：段面压暗去色，警告琥珀
+   光带从左往右扫，1.5s 一圈、匀速。⛔ 转圈、⛔ 整条变灰。reduced-motion 只留一层静止
+   的琥珀淡罩。 */
+@keyframes edit-clip-sweep {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
+}
+.edit-clip-generating::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklab, var(--status-warning) 42%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 240% 100%;
+  animation: edit-clip-sweep 1.5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .edit-clip-generating::before {
+    animation: none;
+    background: color-mix(in oklab, var(--status-warning) 14%, transparent);
   }
 }
 

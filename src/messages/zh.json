@@ -6364,6 +6364,13 @@
         "badge": "版本 {n}/{count}",
         "badgeFresh": "版本 {n}/{count} · 画布上换了新版"
       },
+      "retake": {
+        "action": "重拍",
+        "generating": "生成中",
+        "previewGenerating": "第 {n} 版生成中",
+        "failed": "第 {n} 版没生成出来：{reason}。改一下提示词再试。",
+        "failedBadge": "重拍失败 · 点开看原因"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",
       "previewEmpty": "播放头下没有片段",

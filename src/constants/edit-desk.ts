@@ -234,6 +234,17 @@ export const EDIT_RECEIPT_MOTION = {
   undoneMs: 1400,
 } as const
 
+/**
+ * 就地重拍（v2 第 4 片 4b · 关键切片动效表）：提示词栏从段在时间线上的位置放大升到
+ * 预览下方（380ms 弹簧），收回时回到那一段（240ms）；新版落位那一下段闪 460ms。
+ */
+export const EDIT_RETAKE_MOTION = {
+  rise: { type: 'spring', visualDuration: 0.38, bounce: 0.12 },
+  closeS: 0.24,
+  fromScale: 0.3,
+  landFlashMs: 460,
+} as const
+
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2
 

@@ -6364,6 +6364,13 @@
         "badge": "Take {n}/{count}",
         "badgeFresh": "Take {n}/{count} · a newer take is on the canvas"
       },
+      "retake": {
+        "action": "Retake",
+        "generating": "Generating",
+        "previewGenerating": "Take {n} generating",
+        "failed": "Take {n} didn't come out: {reason}. Adjust the prompt and try again.",
+        "failedBadge": "Retake failed · open to see why"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "Preview · {name}",
       "previewEmpty": "No clip under the playhead",

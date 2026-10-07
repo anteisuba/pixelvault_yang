@@ -211,12 +211,12 @@ function ShortcutPresetPopover({
           <Keyboard className="size-4" aria-hidden />
         </button>
       </PopoverTrigger>
-      {/* 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。 */}
+      {/* 传送到台面里的 `.dark` 落点（`PortalContainerProvider`），跟着走暗档。 */}
       <PopoverContent
         align="end"
         data-testid="edit-desk-shortcuts-popover"
         style={{ width: EDIT_SHORTCUT_POPOVER_WIDTH_PX }}
-        className="dark flex flex-col gap-2.5 p-3"
+        className="flex flex-col gap-2.5 p-3"
       >
         <LiquidSegmented
           ariaLabel={t('title')}

@@ -35,6 +35,7 @@ import { ArrowUp, Plus, X } from '@/components/icons'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { CHIP_POPOVER, DURATION, EASE_IN, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
+import { usePortalContainer } from '@/components/ui/portal-container'
 
 import {
   MentionPicker,
@@ -59,6 +60,11 @@ export interface NodePromptBarProps {
   readonly blockedLabel?: string
   /** 被挡住时点了发送 —— 宿主在这里把选择器打开并定位到那一行。 */
   onBlockedClick?(): void
+  /**
+   * 发送键的底色。`spend` = 警告琥珀（剪辑台暗场的配色 B：花积分 / 生成中走琥珀，
+   * owner 2026-10-08）；缺席 = 主色（画布浅色上照旧）。
+   */
+  readonly submitTone?: 'spend'
   onCancel?(): void
   readonly placeholder: string
   /**
@@ -142,6 +148,7 @@ export function NodePromptBar({
   generating = false,
   blockedLabel,
   onBlockedClick,
+  submitTone,
   onCancel,
   placeholder,
   chips,
@@ -172,6 +179,7 @@ export function NodePromptBar({
   const [dismissedAt, setDismissedAt] = useState<number | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const reduceMotion = useReducedMotion()
+  const portalContainer = usePortalContainer()
   const addTriggerRef = useRef<HTMLButtonElement>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [addMounted, setAddMounted] = useState(false)
@@ -309,7 +317,7 @@ export function NodePromptBar({
         </motion.button>
       </DropdownMenuPrimitive.Trigger>
       {addMounted ? (
-        <DropdownMenuPrimitive.Portal forceMount>
+        <DropdownMenuPrimitive.Portal forceMount container={portalContainer}>
           <DropdownMenuPrimitive.Content
             asChild
             forceMount
@@ -383,7 +391,9 @@ export function NodePromptBar({
         // 不是字）。
         blockedLabel
           ? 'border border-status-warning bg-surface-fill text-status-warning'
-          : 'bg-primary text-primary-foreground',
+          : submitTone === 'spend'
+            ? 'bg-status-warning text-background'
+            : 'bg-primary text-primary-foreground',
       )}
       whileTap={reduceMotion ? undefined : { scale: 0.96 }}
       transition={SPRING.press}

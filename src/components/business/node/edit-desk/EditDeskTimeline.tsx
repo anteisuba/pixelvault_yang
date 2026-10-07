@@ -1666,6 +1666,10 @@ function ClipView({
       ? sourceData.durationSec
       : undefined
   const takes = isVideo && !gone ? readClipTakes(row) : null
+  /** 这一段在重拍（4b）：生成中画光带，失败描红 + 「!」。 */
+  const retake = isVideo ? desk.retakes.get(clip.id) : undefined
+  const generating = retake?.status === 'generating'
+  const failed = retake?.status === 'failed'
   const committedSpan = committed.clips.get(clip.id) ?? span
 
   /**
@@ -1949,10 +1953,18 @@ function ClipView({
           hostId === clip.id &&
             'outline-2 outline-offset-1 outline-dashed outline-foreground',
           lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
+          generating && 'edit-clip-generating',
+          failed &&
+            'outline-2 -outline-offset-2 outline-status-risk transition duration-base',
         )}
       >
         {isVideo ? (
-          <ClipFilmstrip row={row} shown={shown} widthPx={widthPx} />
+          <ClipFilmstrip
+            row={row}
+            shown={shown}
+            widthPx={widthPx}
+            dimmed={generating}
+          />
         ) : isMusic ? (
           <MusicWave row={row} widthPx={widthPx} />
         ) : null}
@@ -1990,7 +2002,32 @@ function ClipView({
           />
         ) : null}
 
-        {takes && (takes.count > 1 || takes.fresh) ? (
+        {generating ? (
+          <span
+            data-testid={`edit-desk-retaking-${clip.id}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-1/2 whitespace-nowrap rounded-full bg-neutral-950/72 px-2 text-2xs leading-4.5 text-status-warning"
+          >
+            {t('retake.generating')}
+          </span>
+        ) : null}
+
+        {failed ? (
+          // 重拍失败：点「!」= 选中这一段并升起它的重拍栏（栏顶写原因）。
+          <button
+            type="button"
+            data-testid={`edit-desk-retake-failed-${clip.id}`}
+            aria-label={t('retake.failedBadge')}
+            title={t('retake.failedBadge')}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              desk.openRetake(track, clip.id)
+            }}
+            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-status-risk font-mono text-3xs font-bold text-background animate-in fade-in duration-200"
+          >
+            !
+          </button>
+        ) : takes && (takes.count > 1 || takes.fresh) ? (
           // 段角版本读数（关键切片 `.cl-take`）：压在画面上，固定明暗（ui-defaults §2.4）。
           <EditClipVersionsPopover
             desk={desk}
@@ -2254,10 +2291,13 @@ function ClipFilmstrip({
   row,
   shown,
   widthPx,
+  dimmed = false,
 }: {
   readonly row: EditTimelineRow
   readonly shown: { readonly in: number; readonly out: number }
   readonly widthPx: number
+  /** 重拍生成中：压暗去色（关键切片动效表「生成中」）。 */
+  readonly dimmed?: boolean
 }) {
   const url = row.source.url
   const poster = useVideoPoster(url, row.source.version?.thumbnailUrl)
@@ -2280,7 +2320,13 @@ function ClipFilmstrip({
   })
   if (frames.every((frame) => !frame)) return null
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 flex">
+    <div
+      aria-hidden
+      className={cn(
+        'pointer-events-none absolute inset-0 flex transition duration-base',
+        dimmed && 'brightness-40 grayscale',
+      )}
+    >
       {frames.map((frame, index) => (
         <span
           key={index}

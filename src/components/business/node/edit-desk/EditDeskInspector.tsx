@@ -5,15 +5,15 @@
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
  * 三种段各一行，一律是暗台上的实底小胶囊（读数胶囊不可点，可点的悬停提亮）：
- * - 视频段：镜头名 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
+ * - 视频段：镜头名 · 重拍 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
  *   四颗胶囊，各开一个小弹层，一次只开一个。
  * 末尾两颗小键 **分割 · 删除**（时间线上那排工具键去掉了，S / ⌫ 之外留一个看得见的入口）。
  * 没选中时是一句话 —— ⛔ 不摆一排灰掉的控件。
  *
- * ⚠ 「回节点」**不在剪辑台开生成入口**（spec §6）：它关掉全屏模式、回画布并选中
- * 来源卡，改画面的事在那张卡上做。
+ * ⚠ 重拍就地做（v2 第 4 片 4b：「重拍」升起来源卡那条提示词栏）；「回节点」关掉全屏
+ * 模式、回画布并选中来源卡，其余改画面的事（编辑、拆版本……）在那张卡上做。
  * ⚠ 入出点是**读数**不是输入框：改时间用轨道上的手柄，⛔ 不给两个能互相打架的入口。
  */
 
@@ -114,6 +114,28 @@ export function EditDeskInspector({
               {t('sourceGone')}
             </span>
           )}
+          {selection.track === EDIT_TRACK_IDS.video &&
+          row.source.node?.data.kind === NODE_MEDIA_KIND_IDS.video ? (
+            // 就地重拍（4b）：升起来源卡那条提示词栏。花积分的入口走警告琥珀（配色 B）。
+            <button
+              type="button"
+              data-testid="edit-desk-retake"
+              aria-pressed={desk.retakeClipId === clip.id}
+              onClick={() =>
+                desk.retakeClipId === clip.id
+                  ? desk.closeRetake()
+                  : desk.openRetake(selection.track, clip.id)
+              }
+              className={cn(
+                CHIP,
+                CHIP_ACTIVE,
+                'text-status-warning hover:text-status-warning',
+                desk.retakeClipId === clip.id && 'bg-muted',
+              )}
+            >
+              {tDesk('retake.action')}
+            </button>
+          ) : null}
           <Reading
             label={t('inPoint')}
             value={formatEditClock(clip.in, true)}
@@ -536,8 +558,8 @@ function RowPopover({
         side="top"
         align="start"
         sideOffset={8}
-        // 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。
-        className={cn('dark w-auto p-2', zoom.className)}
+        // 传送到台面里的 `.dark` 落点（`PortalContainerProvider`），跟着走暗档。
+        className={cn('w-auto p-2', zoom.className)}
         style={zoom.style}
       >
         {children}

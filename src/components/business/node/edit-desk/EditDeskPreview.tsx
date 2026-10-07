@@ -59,6 +59,8 @@ export interface EditDeskPreviewProps {
   readonly playing: boolean
   /** 走带行那颗声音键。 */
   readonly muted: boolean
+  /** 这一段正在重拍（4b）：左上角写「第 n 版生成中」。`null` / 缺席 = 不在生成。 */
+  readonly generatingTake?: number | null
   onPlayingChange(playing: boolean): void
   /** 预览走到哪儿了 —— 推回整条时间线的秒数。 */
   onPlayheadChange(seconds: number): void
@@ -135,6 +137,7 @@ export function EditDeskPreview({
   durationSec,
   playing,
   muted,
+  generatingTake = null,
   onPlayingChange,
   onPlayheadChange,
   textClips,
@@ -420,6 +423,20 @@ export function EditDeskPreview({
             )}
           </div>
         ))}
+
+        {/* 左上：这一段在重拍（花积分的事走警告琥珀，配色 B）。 */}
+        {generatingTake ? (
+          <span
+            data-testid="edit-desk-preview-generating"
+            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-neutral-950/70 px-3 text-xs leading-6 text-status-warning"
+          >
+            <span
+              aria-hidden
+              className="size-1.75 animate-pulse rounded-full bg-status-warning motion-reduce:animate-none"
+            />
+            {t('retake.previewGenerating', { n: generatingTake })}
+          </span>
+        ) : null}
 
         {/* 右上一枚「镜 n · 镜头名」。压在画面上的 chrome 固定明暗
             （ui-defaults §2.4 媒体 chrome 例外）。 */}

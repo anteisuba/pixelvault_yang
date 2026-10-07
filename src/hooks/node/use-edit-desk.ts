@@ -17,7 +17,7 @@
  * op 执行器**不**替调用方兜这份空表 —— 名字是 i18n 的事，理由写在那边。
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   EDIT_TRACKS,
@@ -53,6 +53,7 @@ import {
   type RenderPlanRange,
 } from '@/lib/edit-project'
 import type { RenderPlan } from '@/constants/render-video'
+import { probeMediaDuration } from '@/lib/media-probe'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
@@ -73,7 +74,32 @@ export interface UseEditDeskOptions {
   readonly defaultTimelineName: string
   /** 「加一条字幕」落下的那一段写什么（i18n 由调用方给）。 */
   readonly defaultTextBody: string
+  /** 一段重拍落版、换上了新的一版（台面拿去闪那一段）。 */
+  onRetakeLanded?(clipId: string): void
 }
+
+/**
+ * 一段正在重拍 / 重拍失败（v2 第 4 片 4b）。**只在内存里**：刷新就散了 —— 那一版照样
+ * 落到来源卡上，只是没人接着换进时间线，段角亮一个点（4a），在版本弹层里换。
+ */
+export interface EditRetake {
+  readonly track: EditTrackId
+  readonly nodeId: string
+  readonly status: 'generating' | 'failed'
+  /** 发起时卡上已有的版本：轮询窗口关了之后，靠「多出来的那一版」认落版。 */
+  readonly baseVersionIds: readonly string[]
+  /** 发起时卡上钉着的失败（按对象认）：换成了新的一个，才是这一枪失败了。 */
+  readonly baseFailure: unknown
+  /** 这一枪落版的地址（发送那一枪回来就知道；轮询窗口关了就没有）。 */
+  readonly landedUrl?: string
+}
+
+/** 重拍栏发出去的那一枪回来时是什么结局（与视频编排件 `submitPrompt` 同形）。 */
+export type EditRetakeOutcome =
+  | { readonly status: 'done'; readonly url: string }
+  | { readonly status: 'failed' }
+  | { readonly status: 'pending' }
+  | { readonly status: 'notSent' }
 
 /** 选中的那一段（右栏属性读它）。 */
 export interface EditDeskSelection {
@@ -168,6 +194,22 @@ export interface EditDesk {
   /** 落点 → 插入下标：吸到最近的段边界（主线永远磁吸）。 */
   insertIndexAt(track: EditTrackId, seconds: number): number
 
+  /* ── 就地重拍（v2 第 4 片 4b）────────────────────────────────────── */
+  /** 重拍栏开在哪一段上（`null` = 收着）。选中别的段 / 取消选中就收。 */
+  readonly retakeClipId: string | null
+  /** 选中这一段并升起它的重拍栏。 */
+  openRetake(track: EditTrackId, clipId: string): void
+  closeRetake(): void
+  /** 正在重拍 / 重拍失败的段（按段 id）。 */
+  readonly retakes: ReadonlyMap<string, EditRetake>
+  /**
+   * 重拍栏发出了一枪：记下这一段在等哪张卡出新版。落版后**自动换上**（一条撤销退回
+   * 旧版），主线跟着让位。
+   */
+  beginRetake(track: EditTrackId, clipId: string): void
+  /** 那一枪回来了。 */
+  settleRetake(clipId: string, outcome: EditRetakeOutcome): void
+
   /**
    * 导出确认 → **渲染计划**（S9）。
    *
@@ -210,8 +252,14 @@ export interface EditClipPatch {
 }
 
 export function useEditDesk(options: UseEditDeskOptions): EditDesk {
-  const { state, dispatchBatch, mintId, defaultTimelineName, defaultTextBody } =
-    options
+  const {
+    state,
+    dispatchBatch,
+    mintId,
+    defaultTimelineName,
+    defaultTextBody,
+    onRetakeLanded,
+  } = options
 
   const [selection, setSelectionState] = useState<EditDeskSelection | null>(
     null,
@@ -220,16 +268,24 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   const [playheadSec, setPlayheadSec] = useState(0)
   const [inPointSec, setInPointSec] = useState<number | null>(null)
   const [outPointSec, setOutPointSec] = useState<number | null>(null)
+  const [retakeClipId, setRetakeClipId] = useState<string | null>(null)
+  const [retakes, setRetakes] = useState<ReadonlyMap<string, EditRetake>>(
+    () => new Map(),
+  )
 
-  /** 选段 = 取消选字幕（互斥，见 `textSelectionId` 头注）。 */
+  /** 选段 = 取消选字幕（互斥，见 `textSelectionId` 头注）；选到别处 = 收起重拍栏。 */
   const setSelection = useCallback((next: EditDeskSelection | null) => {
     setSelectionState(next)
     if (next) setTextSelectionId(null)
+    setRetakeClipId((open) => (open && open === next?.clipId ? open : null))
   }, [])
 
   const selectText = useCallback((clipId: string | null) => {
     setTextSelectionId(clipId)
-    if (clipId) setSelectionState(null)
+    if (clipId) {
+      setSelectionState(null)
+      setRetakeClipId(null)
+    }
   }, [])
 
   const stored = state.edit
@@ -496,6 +552,118 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     [project, state.nodes, run],
   )
 
+  /* ── 就地重拍（4b）────────────────────────────────────────────────── */
+  const openRetake = useCallback(
+    (track: EditTrackId, clipId: string) => {
+      setSelection({ track, clipId })
+      setRetakeClipId(clipId)
+    },
+    [setSelection],
+  )
+  const closeRetake = useCallback(() => setRetakeClipId(null), [])
+
+  const patchRetake = useCallback(
+    (clipId: string, next: EditRetake | null) =>
+      setRetakes((current) => {
+        const copy = new Map(current)
+        if (next) copy.set(clipId, next)
+        else copy.delete(clipId)
+        return copy
+      }),
+    [],
+  )
+
+  const beginRetake = useCallback(
+    (track: EditTrackId, clipId: string) => {
+      const clip = project.tracks[track].find((item) => item.id === clipId)
+      const node = clip
+        ? state.nodes.find((item) => item.id === clip.sourceNodeId)
+        : undefined
+      if (!clip || !node || node.data.kind === NODE_MEDIA_KIND_IDS.text) return
+      patchRetake(clipId, {
+        track,
+        nodeId: node.id,
+        status: 'generating',
+        baseVersionIds: readOutputVersions(node.data).map((item) => item.id),
+        baseFailure: node.data.generationFailure,
+      })
+    },
+    [project, state.nodes, patchRetake],
+  )
+
+  const settleRetake = useCallback(
+    (clipId: string, outcome: EditRetakeOutcome) =>
+      setRetakes((current) => {
+        const retake = current.get(clipId)
+        if (!retake) return current
+        const copy = new Map(current)
+        if (outcome.status === 'notSent') copy.delete(clipId)
+        else if (outcome.status === 'failed') {
+          copy.set(clipId, { ...retake, status: 'failed' })
+        } else if (outcome.status === 'done') {
+          copy.set(clipId, { ...retake, landedUrl: outcome.url })
+        }
+        return copy
+      }),
+    [],
+  )
+
+  /**
+   * 落版 → 换上。⚠ 量两版时长要等一下（`<video>` 元数据），这期间段还画着生成中；
+   * 量完那一刻按**最新**的时间线发 op（`pickRef`），⛔ 不用发起时那一份闭包。
+   */
+  const pickRef = useRef(pickClipVersion)
+  pickRef.current = pickClipVersion
+  const landedRef = useRef(onRetakeLanded)
+  landedRef.current = onRetakeLanded
+  const landingRef = useRef(new Set<string>())
+  useEffect(() => {
+    for (const [clipId, retake] of retakes) {
+      if (retake.status !== 'generating' || landingRef.current.has(clipId)) {
+        continue
+      }
+      const clip = project.tracks[retake.track].find(
+        (item) => item.id === clipId,
+      )
+      const node = state.nodes.find((item) => item.id === retake.nodeId)
+      if (!clip || !node || node.data.kind === NODE_MEDIA_KIND_IDS.text) {
+        patchRetake(clipId, null)
+        continue
+      }
+      const versions = readOutputVersions(node.data)
+      const index = retake.landedUrl
+        ? versions.findIndex((item) => item.url === retake.landedUrl)
+        : versions.findIndex((item) => !retake.baseVersionIds.includes(item.id))
+      if (index < 0) {
+        // 轮询窗口关了之后由回填那一路钉上的失败。
+        const failure = node.data.generationFailure
+        if (
+          failure &&
+          failure !== retake.baseFailure &&
+          !node.data.mediaJobId
+        ) {
+          patchRetake(clipId, { ...retake, status: 'failed' })
+        }
+        continue
+      }
+      const fromUrl = clipVersionOf(node, clip)?.version.url
+      const toUrl = versions[index]?.url
+      landingRef.current.add(clipId)
+      void Promise.all([
+        fromUrl ? probeMediaDuration(fromUrl, 'video') : null,
+        toUrl ? probeMediaDuration(toUrl, 'video') : null,
+      ]).then(([from, to]) => {
+        landingRef.current.delete(clipId)
+        patchRetake(clipId, null)
+        const landed = pickRef.current(retake.track, clipId, index, {
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+        })
+        if (landed) landedRef.current?.(clipId)
+      })
+    }
+  }, [retakes, project, state.nodes, patchRetake])
+
   const rename = useCallback(
     (name: string): boolean => {
       const trimmed = name.trim()
@@ -618,6 +786,12 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     removeSelected,
     splitAtPlayhead,
     pickClipVersion,
+    retakeClipId,
+    openRetake,
+    closeRetake,
+    retakes,
+    beginRetake,
+    settleRetake,
     rename,
     setSettings,
     insertIndexAt,

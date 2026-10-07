@@ -96,8 +96,8 @@ export function EditClipVersionsPopover({
         side="top"
         align={align}
         sideOffset={8}
-        // 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。
-        className={cn('dark w-auto max-w-160 p-3', zoom.className)}
+        // 传送到台面里的 `.dark` 落点（`PortalContainerProvider`），跟着走暗档。
+        className={cn('w-auto max-w-160 p-3', zoom.className)}
         style={zoom.style}
         onPointerDown={(event) => event.stopPropagation()}
       >

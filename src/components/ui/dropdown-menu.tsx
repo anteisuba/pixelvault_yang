@@ -6,6 +6,8 @@ import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
 
+import { usePortalContainer } from './portal-container'
+
 /**
  * 菜单浮层的两档动效。⛔ 别在调用方用 className 去覆盖 —— tw-animate 的
  * 那些类不在 tailwind-merge 的组里，覆盖不掉，只会两套变量一起生效。
@@ -55,8 +57,9 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
   motionPreset?: DropdownMenuMotion
 }) {
+  const container = usePortalContainer()
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={container}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

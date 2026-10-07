@@ -6364,6 +6364,13 @@
         "badge": "テイク {n}/{count}",
         "badgeFresh": "テイク {n}/{count} · キャンバスに新しいテイク"
       },
+      "retake": {
+        "action": "撮り直し",
+        "generating": "生成中",
+        "previewGenerating": "テイク {n} 生成中",
+        "failed": "テイク {n} を生成できませんでした：{reason}。プロンプトを直してもう一度どうぞ。",
+        "failedBadge": "撮り直しに失敗 · 開いて理由を見る"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",
       "previewEmpty": "再生ヘッドの位置にクリップがありません",

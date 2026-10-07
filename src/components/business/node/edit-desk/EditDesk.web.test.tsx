@@ -38,6 +38,41 @@ const fetchGalleryImages = vi.fn(async () => ({
 vi.mock('@/lib/api-client', () => ({
   fetchGalleryImages: () => fetchGalleryImages(),
 }))
+/**
+ * 重拍栏本身是画布卡那条提示词栏（要整套画布上下文，视频卡那组测试已测）。这里桩成两颗
+ * 键，只看台面这一侧：发起 → 段上生成中 → 落版自动换上 / 失败描红。
+ */
+vi.mock('./EditDeskRetakeBar', () => ({
+  EditDeskRetakeBar: ({
+    desk,
+    row,
+    track,
+  }: {
+    readonly desk: import('@/hooks/node/use-edit-desk').EditDesk
+    readonly row: import('@/lib/edit-project').EditTimelineRow
+    readonly track: import('@/constants/edit-desk').EditTrackId
+  }) => (
+    <div data-testid="retake-bar-stub" data-clip={row.clip.id}>
+      <button
+        type="button"
+        data-testid="retake-bar-send"
+        onClick={() => {
+          desk.beginRetake(track, row.clip.id)
+          desk.closeRetake()
+        }}
+      />
+      <button
+        type="button"
+        data-testid="retake-bar-blocked"
+        onClick={() => {
+          desk.beginRetake(track, row.clip.id)
+          desk.closeRetake()
+          desk.settleRetake(row.clip.id, { status: 'notSent' })
+        }}
+      />
+    </div>
+  ),
+}))
 /** 版本弹层会去量每一版多长 —— jsdom 里 `<video>` 不出元数据，直接答「量不出来」。 */
 vi.mock('@/lib/media-probe', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/media-probe')>()),
@@ -537,6 +572,130 @@ describe('剪辑台 · 台面', () => {
     expect(node?.data.kind === 'video' ? node.data.outputs?.cur : null).toBe(0)
     expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
       '版本 1/2',
+    )
+  })
+
+  it('就地重拍：升起栏 → 段上生成中 → 新版落到卡上就自动换上；失败描红点开再改（4b）', async () => {
+    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    const base: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read, pushRemote } = renderDesk(base)
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-clip-c1'))
+
+    // 选中行「重拍」升起栏；Esc 先收栏，⛔ 不退出剪辑台
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+      'data-clip',
+      'c1',
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() =>
+      expect(screen.queryByTestId('retake-bar-stub')).not.toBeInTheDocument(),
+    )
+
+    // 没发出去（发送前校验拦下）：段上什么都不留
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-blocked'))
+    expect(
+      screen.queryByTestId('edit-desk-retaking-c1'),
+    ).not.toBeInTheDocument()
+
+    // 发出去：栏收起，段上生成中，预览左上写第 2 版
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    expect(screen.getByTestId('edit-desk-retaking-c1')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('edit-desk-preview-generating'),
+    ).toHaveTextContent('第 2 版生成中')
+
+    // 新版落到卡上 → 段自动换上
+    const landed = read()
+    pushRemote(
+      {
+        ...landed,
+        nodes: landed.nodes.map((node) =>
+          node.id === 'v1' && node.data.kind === 'video'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  outputs: {
+                    versions: [
+                      take('ver1', 'https://example.test/a.mp4'),
+                      take('ver2', 'https://example.test/b.mp4'),
+                    ],
+                    cur: 1,
+                  },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2'),
+    )
+    expect(
+      screen.queryByTestId('edit-desk-retaking-c1'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveTextContent('2/2')
+
+    // 再拍一次，这回失败：段描红、角上「!」，点它 = 再升起这一段的栏
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    const before = read()
+    pushRemote(
+      {
+        ...before,
+        nodes: before.nodes.map((node) =>
+          node.id === 'v1'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  status: 'failed',
+                  generationFailure: { error: 'moderation' },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    const flag = await screen.findByTestId('edit-desk-retake-failed-c1')
+    expect(screen.queryByTestId('edit-desk-takes-c1')).not.toBeInTheDocument()
+    fireEvent.click(flag)
+    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+      'data-clip',
+      'c1',
     )
   })
 

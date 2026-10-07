@@ -6,6 +6,8 @@ import { Popover as PopoverPrimitive } from 'radix-ui'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
 
+import { usePortalContainer } from './portal-container'
+
 interface PopoverInteractionGuard {
   markInternalInteraction: () => void
 }
@@ -106,6 +108,7 @@ function PopoverContent({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   const guard = React.useContext(PopoverInteractionGuardContext)
+  const container = usePortalContainer()
   const contentRef = React.useRef<HTMLDivElement>(null)
   const keepOpenForInternalOutsideEvent = React.useCallback(
     (event: Event) => {
@@ -137,7 +140,7 @@ function PopoverContent({
   )
 
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

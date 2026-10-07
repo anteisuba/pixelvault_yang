@@ -19,11 +19,13 @@ import { cn } from '@/lib/utils'
 export interface MentionToken {
   name: string
   /**
-   * ⚠ 这里**没有 `text`**：文本不是一个引用物种。2026-08-10 owner 拍板胶囊整套
-   * 退役 —— `@` 菜单里点一个文本节点是把它的**内容原文粘进正文**（走
-   * `insertText`），粘完就是普通文字，没有 token、没有前缀、没有可渲染的 chip。
+   * ⚠ `text` 只给**助手输入框**（owner 2026-10-08）：那里 `@` 一个文本节点写的是
+   * 它的名字，助手按名字读全文，所以它是一个引用、画成与图片同一种胶囊。
+   * 画布卡自己的输入框仍按 2026-08-10 的拍板：`@` 文本节点 = 把内容原文粘进正文
+   * （走 `insertText`），粘完就是普通文字，⛔ 不出 chip。
    */
   kind:
+    | 'text'
     | 'character'
     | 'background'
     | 'shot'
@@ -161,6 +163,7 @@ export function parseMentions(
 }
 
 const CHIP_FILL: Record<MentionToken['kind'], string> = {
+  text: 'bg-muted text-foreground',
   reference: 'bg-muted text-foreground',
   character: 'bg-node-port-character/25',
   background: 'bg-node-port-background/25',
@@ -173,6 +176,7 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
 // circle = 角色/配音 (identity), square = 图/镜头/场景/视频. Placeholder tint uses
 // the port color at higher opacity so a thumbless reference still reads as its kind.
 const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
+  text: 'rounded-sm',
   reference: 'rounded-sm',
   character: 'rounded-full',
   background: 'rounded-sm',
@@ -182,6 +186,7 @@ const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
   video: 'rounded-sm',
 }
 const THUMB_FILL: Record<MentionToken['kind'], string> = {
+  text: 'bg-background',
   reference: 'bg-muted',
   character: 'bg-node-port-character/70',
   background: 'bg-node-port-background/70',
@@ -204,13 +209,14 @@ const MENTION_POPOVER_MAX_W = 280
 const MENTION_POPOVER_EDGE_GAP = 8
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-/** A centered glyph over the thumb — ▶ marks a video, three bars mark audio.
+/** A centered glyph over the thumb — ▶ marks a video, three bars mark audio,
+ *  three lines mark a text node.
  *  Over a real frame it is white + drop-shadow; without one it takes the text
  *  color: outside the canvas the port tints are undefined, so a tinted-box-only
  *  chip reads as an empty gap (09-24 studio video prompt). */
 function buildGlyph(
   doc: Document,
-  kind: 'video' | 'voice',
+  kind: 'video' | 'voice' | 'text',
   overFrame: boolean,
 ): HTMLSpanElement {
   const overlay = doc.createElement('span')
@@ -226,6 +232,21 @@ function buildGlyph(
     poly.setAttribute('points', '3,2 3,8 8,5')
     poly.setAttribute('fill', 'currentColor')
     svg.appendChild(poly)
+  } else if (kind === 'text') {
+    for (const [y, width] of [
+      [2.5, 6],
+      [4.5, 6],
+      [6.5, 4],
+    ] as const) {
+      const line = doc.createElementNS(SVG_NS, 'rect')
+      line.setAttribute('x', '2')
+      line.setAttribute('y', String(y))
+      line.setAttribute('width', String(width))
+      line.setAttribute('height', '1')
+      line.setAttribute('rx', '0.5')
+      line.setAttribute('fill', 'currentColor')
+      svg.appendChild(line)
+    }
   } else {
     for (const [x, h] of [
       [2, 4],
@@ -268,7 +289,7 @@ function buildThumb(
     thumb.appendChild(img)
   }
   if (kind === 'video') thumb.appendChild(buildGlyph(doc, kind, !!thumbnailUrl))
-  else if (kind === 'voice' && !thumbnailUrl)
+  else if ((kind === 'voice' || kind === 'text') && !thumbnailUrl)
     thumb.appendChild(buildGlyph(doc, kind, false))
   return thumb
 }

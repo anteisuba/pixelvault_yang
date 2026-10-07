@@ -867,19 +867,38 @@ export function StudioOperatorPanel({
   }
 
   /**
-   * 画布上的文本节点也能 `@`（owner 2026-10-07）：写下的是 `@名字`，助手据此读它的
+   * 画布上的文本节点也能 `@`（owner 2026-10-07）：发出去的是 `@名字`，助手据此读它的
    * 全文并能改它。⚠ 分一族（`group`），⛔ 不与图片抢名额。
+   * ⭐ 输入框里是一颗与图片同款的胶囊（owner 2026-10-08），发送时换回 `@名字`。
    */
+  const textNodes = useMemo(
+    () => operatorHost.mentionTextNodes ?? [],
+    [operatorHost.mentionTextNodes],
+  )
+  const textNodeTokenName = (id: string) =>
+    `TextNode[${encodeURIComponent(id)}]`
+  for (const node of textNodes) {
+    referenceTokens.push({
+      name: textNodeTokenName(node.id),
+      kind: 'text',
+      slotLabel: `@${node.name}`,
+    })
+  }
   const mentionCandidates: MentionCandidate[] = [
     ...referenceCandidates,
-    ...(operatorHost.mentionTextNodes ?? []).map((node) => ({
+    ...textNodes.map((node) => ({
       id: `text-node:${node.id}`,
       name: node.name,
+      tokenName: textNodeTokenName(node.id),
       group: TEXT_NODE_MENTION_GROUP,
       groupLabel: t('mention.textNodes'),
       preview: node.preview,
     })),
   ]
+  const textNodeNames = useMemo(
+    () => textNodes.map((node) => node.name),
+    [textNodes],
+  )
 
   /**
    * 从素材库弹层挑中的那些 = **挂进工作台 + 正文里留一个 @ chip**（切片 #7c）。
@@ -1046,21 +1065,28 @@ export function StudioOperatorPanel({
             ? `「${referenceLabel(Number(number) - 1)}」`
             : token,
       )
-      const compiled = compileReferenceMentions(namedValue).replace(
-        /@Attachment\[([^\]]+)\]/g,
-        (token, encodedId: string) => {
-          const attachment = merged.find(
-            (item) => encodeURIComponent(item.id) === encodedId,
-          )
-          if (!attachment) {
-            missingAttachment = true
-            return token
-          }
-          return attachment.kind === 'image'
-            ? `「${attachment.label}」`
-            : `@${attachment.label}`
-        },
-      )
+      const compiled = compileReferenceMentions(
+        namedValue.replace(
+          /@TextNode\[([^\]]+)\]/g,
+          (token, encodedId: string) => {
+            const node = textNodes.find(
+              (item) => encodeURIComponent(item.id) === encodedId,
+            )
+            return node ? `@${node.name}` : token
+          },
+        ),
+      ).replace(/@Attachment\[([^\]]+)\]/g, (token, encodedId: string) => {
+        const attachment = merged.find(
+          (item) => encodeURIComponent(item.id) === encodedId,
+        )
+        if (!attachment) {
+          missingAttachment = true
+          return token
+        }
+        return attachment.kind === 'image'
+          ? `「${attachment.label}」`
+          : `@${attachment.label}`
+      })
       if (missingAttachment) {
         toast.info(tReference('invalid'))
         return
@@ -1106,6 +1132,7 @@ export function StudioOperatorPanel({
       onDraftChange,
       operatorHost,
       send,
+      textNodes,
       uploading,
       tReference,
     ],
@@ -1743,6 +1770,7 @@ export function StudioOperatorPanel({
               text={entry.text}
               attachments={entry.attachments}
               references={messageImageReferences.get(entry.id)}
+              textNodeNames={textNodeNames}
             />
             {entry.attachments.some(
               (attachment) => attachment.kind !== 'image',
@@ -2721,11 +2749,7 @@ export function StudioOperatorPanel({
                 : tReference('empty')
             }
             onMentionSelect={(candidate) => {
-              // 文本节点没有引用胶囊（`MentionToken` 头注）：写成普通文字 `@名字`。
-              if (candidate.group === TEXT_NODE_MENTION_GROUP) {
-                inputRef.current?.insertText(`@${candidate.name} `)
-                return
-              }
+              // 文本节点也是一颗胶囊（owner 2026-10-08），发送时换回 `@名字`。
               inputRef.current?.insertToken(
                 candidate.tokenName ?? candidate.name,
               )

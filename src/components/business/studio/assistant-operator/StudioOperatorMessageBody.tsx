@@ -32,7 +32,7 @@ import { Children, isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import Image from 'next/image'
 import type { Components } from 'react-markdown'
-import { ChevronDown } from '@/components/icons'
+import { ChevronDown, FileText } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
@@ -96,9 +96,12 @@ function ReferenceThumb({ url, name }: { url: string; name: string }) {
   )
 }
 
+/** 正文里能画成胶囊的引用：图（缩略图）或画布文本节点（`text`，文档字形）。 */
+type InlineReference = NamedImageReference & { readonly text?: true }
+
 function withImageReferences(
   node: ReactNode,
-  references: readonly NamedImageReference[],
+  references: readonly InlineReference[],
 ): ReactNode {
   if (typeof node === 'string') {
     const byAlias = new Map(
@@ -128,7 +131,13 @@ function withImageReferences(
           /* D12 P8：28px 圆角缩略图 + 名字，⛔ 不带边框，直接贴在字里。 */
           className="mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground"
         >
-          <ReferenceThumb url={reference.url} name={reference.name} />
+          {reference.text ? (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <FileText className="size-4" aria-hidden />
+            </span>
+          ) : (
+            <ReferenceThumb url={reference.url} name={reference.name} />
+          )}
           <span className="min-w-0 break-words">{reference.name}</span>
         </span>
       ) : (
@@ -432,10 +441,13 @@ export function StudioOperatorUserText({
   text,
   attachments,
   references = [],
+  textNodeNames = [],
 }: {
   references?: readonly NamedImageReference[]
   text: string
   attachments: readonly StudioOperatorAttachment[]
+  /** 画布上文本节点的名字 —— 正文里的 `@名字` 画成文档胶囊（owner 2026-10-08）。 */
+  textNodeNames?: readonly string[]
 }) {
   const displayText = attachments.reduce(
     (value, attachment) =>
@@ -463,7 +475,19 @@ export function StudioOperatorUserText({
          右上角收成小圆角；助手那一轮在灰框里。两侧靠材质与左右分。 */
       className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-sm leading-relaxed text-surface-composer-foreground"
     >
-      {withImageReferences(displayText, imageReferences)}
+      {withImageReferences(displayText, [
+        ...imageReferences,
+        ...textNodeNames
+          .filter((name) => displayText.includes(`@${name}`))
+          // ⚠ 只认带 `@` 的那一处：正文里顺口提到同一个词不算引用。
+          .map((name) => ({
+            url: '',
+            name,
+            aliases: [`@${name}`],
+            text: true as const,
+          })),
+        ,
+      ])}
     </p>
   )
 }

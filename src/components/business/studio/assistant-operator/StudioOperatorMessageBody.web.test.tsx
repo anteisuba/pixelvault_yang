@@ -232,4 +232,19 @@ describe('StudioOperatorUserText 引用', () => {
     expect(bubble.textContent).toContain('图1')
     expect(bubble.querySelectorAll('img').length).toBe(2)
   })
+
+  it('@文本节点名 画成文档胶囊（owner 2026-10-08），不是名字的字照常写', () => {
+    render(
+      <StudioOperatorUserText
+        text="按 @剧本 改，剧本以外别动"
+        attachments={[]}
+        textNodeNames={['剧本', '分镜']}
+      />,
+    )
+    const bubble = screen.getByTestId('operator-user-text')
+    expect(bubble.textContent).not.toContain('@')
+    expect(bubble.querySelectorAll('[title="剧本"]').length).toBe(1)
+    expect(bubble.querySelector('[title="分镜"]')).toBeNull()
+    expect(bubble.querySelectorAll('svg').length).toBe(1)
+  })
 })

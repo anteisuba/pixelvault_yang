@@ -1785,8 +1785,9 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     mockRunnerUsage = {
       enabled: true,
       used: 40,
-      limit: 300,
-      remaining: 260,
+      limit: 100,
+      remaining: 60,
+      exempt: false,
       platformEnabled: false,
     }
 

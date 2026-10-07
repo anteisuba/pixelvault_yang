@@ -47,8 +47,9 @@ describe('SettingsUsageSection', () => {
       runner: {
         enabled: true,
         used: 42,
-        limit: 300,
-        remaining: 258,
+        limit: 100,
+        remaining: 58,
+        exempt: false,
         platformEnabled: true,
       },
       isLoading: false,

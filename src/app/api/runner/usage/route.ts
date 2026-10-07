@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 
 import { logger } from '@/lib/logger'
 import { getRunnerUsage } from '@/services/usage.service'
+import { ensureUser } from '@/services/user.service'
 import type { RunnerUsageResult } from '@/types'
 
 interface SuccessBody {
@@ -16,7 +17,7 @@ interface ErrorBody {
   error: string
 }
 
-// 全站 runner 月度额度（全局共享）——随每次生成变化，不缓存。
+// 当前用户的 runner 月度额度——随每次生成变化，不缓存。
 export async function GET(): Promise<NextResponse<SuccessBody | ErrorBody>> {
   const { userId } = await auth()
   if (!userId) {
@@ -27,7 +28,8 @@ export async function GET(): Promise<NextResponse<SuccessBody | ErrorBody>> {
   }
 
   try {
-    const data = await getRunnerUsage()
+    const dbUser = await ensureUser(userId)
+    const data = await getRunnerUsage(dbUser.id)
     const response = NextResponse.json<SuccessBody>({ success: true, data })
     response.headers.set('Cache-Control', 'no-store')
     return response

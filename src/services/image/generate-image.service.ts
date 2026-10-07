@@ -195,12 +195,12 @@ export async function resolveGenerationRoute(
     )
   }
 
-  // Comfy Runner (RunPod) has no BYOK path — it's always the platform's own
-  // RUNPOD_KEY, gated by a monthly budget cap. See
+  // Comfy Runner has no BYOK path — it's always the platform's own key,
+  // gated by per-user and site monthly caps. See
   // constants/config.ts RUNNER_MONTHLY_LIMIT and services/usage.service.ts.
   if (builtInModel.adapterType === AI_ADAPTER_TYPES.RUNNER) {
     try {
-      await assertRunnerMonthlyLimitNotExceeded()
+      await assertRunnerMonthlyLimitNotExceeded(userId)
     } catch (error) {
       if (error instanceof RunnerMonthlyLimitExceededError) {
         throw new GenerateImageServiceError(

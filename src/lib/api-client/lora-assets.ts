@@ -379,7 +379,7 @@ interface RunnerUsageResponse {
   error?: string
 }
 
-// 全站 runner 月度额度快照（「本月剩余 N/300」主动提示）。
+// 当前用户的 runner 月度额度快照（「本月剩余 N/100」主动提示）。
 export async function fetchRunnerUsageAPI(): Promise<RunnerUsageResponse> {
   try {
     const response = await fetch(API_ENDPOINTS.RUNNER_USAGE)

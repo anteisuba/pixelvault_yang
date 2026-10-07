@@ -411,7 +411,7 @@ describe('resolveGenerationRoute', () => {
       expect(route.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
       expect(route.apiKey).toBe('runpod-key')
       expect(route.isFreeGeneration).toBe(false)
-      expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
+      expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledWith('user-1')
       expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
     })
 

@@ -848,16 +848,22 @@ export const RUNAWAY_GENERATION_GUARD = {
 } as const
 
 /**
- * Comfy Runner (RunPod Serverless ComfyUI) budget guardrail.
+ * Comfy Runner (Modal ComfyUI) budget guardrail — monthly only, no daily cap
+ * (owner 2026-10-07).
  *
- * RunPod's panel can cap concurrency/cost per job but not "N generations per
- * month" — that has to live in application code. 300/month is ≈ $1.8 at the
- * measured ~$0.006/image ceiling, leaving ~5x headroom under the $10/month
- * prepaid budget for cold-start variance and retries. See docs/references/domains/runner.md.
+ * Neither Modal nor RunPod can cap "N generations per month", so it lives
+ * here. Modal bills ~$0.03–0.05 per image on average (L40S $0.000542/s, plus
+ * cold start and the 60s scaledown tail — an isolated image is ~$0.09), so the
+ * site cap of 600 stays near the Starter plan's $30/month free credit.
+ * The per-user cap keeps one account from draining it. ADMIN_USER_IDS are
+ * never blocked by either cap, but their jobs still count toward the site
+ * total. See docs/references/domains/runner.md.
  */
 export const RUNNER_MONTHLY_LIMIT = {
-  /** Maximum RUNNER-adapter generation attempts per calendar month (UTC). */
-  LIMIT: 300,
+  /** Site-wide RUNNER generation attempts per calendar month (UTC). */
+  SITE_LIMIT: 600,
+  /** RUNNER generation attempts per user per calendar month (UTC). */
+  PER_USER_LIMIT: 100,
   /** Whether the runner is enabled at all — see FEATURE_FLAGS.comfyRunner. */
   ENABLED: true,
 } as const

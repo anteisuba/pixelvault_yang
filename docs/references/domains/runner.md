@@ -106,8 +106,13 @@
 
 ## 4. 限额
 
-`RUNNER_MONTHLY_LIMIT` = **300/月**，由 `usage.service.ts` 的
-`assertRunnerMonthlyLimitNotExceeded` 按 **GenerationJob 计数**（不是 ApiUsage）执行。
+`RUNNER_MONTHLY_LIMIT`：**每人 100/月 + 全站 600/月，不设日限**（owner 2026-10-07，换 Modal 后由 300 放大）。
+按 **GenerationJob 计数**（不是 ApiUsage，失败与在飞也算），派发前 `assertRunnerMonthlyLimitNotExceeded(userId)`
+先查一遍，`createGenerationJob` 在全站锁里再判一次。`ADMIN_USER_IDS` 两道都不拦，但仍计入全站数。
+同时在跑的上限沿用平台出资并发闸（每人 4 个 = 一批），不另设 Runner 专属并发。
+
+定额依据（2026-10-07 Modal 账单）：L40S $0.000542/s，加冷启动与 60s 缩容尾巴，平均约 $0.03–0.05/张、
+单独一张约 $0.09；全站 600 ≈ Starter 档每月 $30 免费额度。
 
 ---
 

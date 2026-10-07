@@ -30,15 +30,16 @@ describe('useRunnerUsage', () => {
       data: {
         enabled: true,
         used: 40,
-        limit: 300,
-        remaining: 260,
+        limit: 100,
+        remaining: 60,
+        exempt: false,
         platformEnabled: true,
       },
     })
 
     const { result } = renderHook(() => useRunnerUsage(true))
 
-    await waitFor(() => expect(result.current.usage?.remaining).toBe(260))
+    await waitFor(() => expect(result.current.usage?.remaining).toBe(60))
     expect(mockAPI).toHaveBeenCalledOnce()
   })
 

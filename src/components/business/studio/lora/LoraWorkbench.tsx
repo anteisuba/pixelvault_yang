@@ -2745,19 +2745,25 @@ function GenerateBranch({
       <p
         className={cn(
           'text-2xs',
-          !runnerUsage.platformEnabled || runnerUsage.remaining <= 0
+          !runnerUsage.platformEnabled ||
+            (!runnerUsage.exempt && runnerUsage.remaining <= 0)
             ? 'text-status-warning'
             : 'text-muted-foreground',
         )}
       >
         {!runnerUsage.platformEnabled
           ? t('generate.runnerUnavailable')
-          : runnerUsage.remaining <= 0
-            ? t('generate.runnerBudgetExhausted')
-            : t('generate.runnerBudgetRemaining', {
+          : runnerUsage.exempt
+            ? t('generate.runnerBudgetSite', {
                 remaining: runnerUsage.remaining,
                 limit: runnerUsage.limit,
-              })}
+              })
+            : runnerUsage.remaining <= 0
+              ? t('generate.runnerBudgetExhausted')
+              : t('generate.runnerBudgetRemaining', {
+                  remaining: runnerUsage.remaining,
+                  limit: runnerUsage.limit,
+                })}
       </p>
     ) : null
 
@@ -2820,7 +2826,7 @@ function GenerateBranch({
    *
    * ⚠ 不加 `role="alert"`：composer 里那条已经是 alert 且始终在 DOM 里，这里再
    * 挂一个等于同一条错误读屏播两遍。这块只补**可见**的动作。
-   * ⚠ 额度文案只说「按已发起的任务计、失败不返还」——`getRunnerMonthlyGenerationCount`
+   * ⚠ 额度文案只说「按已发起的任务计、失败不返还」——`readRunnerMonthlyQuota`
    * 数的是本月创建的 `generationJob` 行数，全仓没有任何回退/返还路径；派发前就
    * 被拒的失败（缺 key / 总闸关 / 撞上限）根本没建 job，也就无从「扣」。写
    * 「未扣次数」或「本次已计入」都会在另一半情况里说谎。

@@ -5005,13 +5005,15 @@ export type CivitaiModelDescriptionResult = z.infer<
   typeof CivitaiModelDescriptionResultSchema
 >
 
-// runner 全站月度额度（全局共享，非 per-user），给 LoRA 工作台主动提示
-// 「本月剩余 N/300」用。enabled=false 时前端不显示。
+// 当前用户的 runner 月度额度，给 LoRA 工作台主动提示「本月剩余 N/100」用。
+// enabled=false 时前端不显示。见 `getRunnerUsage`。
 export const RunnerUsageResultSchema = z.object({
   enabled: z.boolean(),
   used: z.number().int().nonnegative(),
   limit: z.number().int().nonnegative(),
   remaining: z.number().int().nonnegative(),
+  /** ADMIN 不受限：此时 `limit` / `remaining` 是全站预算，不是这个人的额度。 */
+  exempt: z.boolean(),
   /**
    * 平台出资生成的总闸（`PLATFORM_GENERATION_ENABLED`）是否开着。runner 没有 BYOK
    * 通道，总闸一关它就整条死——余额再多也花不出去，所以额度提示必须带上这一位，

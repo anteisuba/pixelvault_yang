@@ -84,10 +84,12 @@ export function SettingsUsageSection() {
                 <tr className="border-t border-border">
                   <td className="px-3.5 py-2.5">{t('usage.runnerLabel')}</td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                    {t('usage.runnerQuota', {
-                      used: runner.used,
-                      limit: runner.limit,
-                    })}
+                    {runner.exempt
+                      ? runner.used
+                      : t('usage.runnerQuota', {
+                          used: runner.used,
+                          limit: runner.limit,
+                        })}
                   </td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs">
                     {t('usage.runnerCost', {

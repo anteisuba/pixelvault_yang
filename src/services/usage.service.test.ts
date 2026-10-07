@@ -15,6 +15,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   PLATFORM_GENERATION_GUARD,
   RUNAWAY_GENERATION_GUARD,
+  RUNNER_MONTHLY_LIMIT,
 } from '@/constants/config'
 
 // ─── Mocks ──────────────────────────────────────────────────────
@@ -31,15 +32,24 @@ const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
 const mockJobCount = vi.fn()
 const mockExecuteRaw = vi.fn().mockResolvedValue(1)
+const mockUserFindUnique = vi.fn()
+const mockIsAdmin = vi.fn()
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     generationJob: {
       count: (...args: unknown[]) => mockJobCount(...args),
       create: (...args: unknown[]) => mockCreate(...args),
     },
+    user: {
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
     $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
   }),
 )
+
+vi.mock('@/lib/admin', () => ({
+  isAdmin: (clerkId: string) => mockIsAdmin(clerkId),
+}))
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -59,6 +69,9 @@ vi.mock('@/lib/db', () => ({
     generation: {
       count: vi.fn(),
     },
+    user: {
+      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
+    },
     $transaction: (...args: Parameters<typeof mockDbTransaction>) =>
       mockDbTransaction(...args),
   },
@@ -71,7 +84,6 @@ import {
   failActiveGenerationJob,
   createApiUsageEntry,
   attachUsageEntryToGeneration,
-  getRunnerMonthlyGenerationCount,
   getRunnerUsage,
   assertRunnerMonthlyLimitNotExceeded,
   RunnerMonthlyLimitExceededError,
@@ -86,6 +98,8 @@ describe('usage.service', () => {
     vi.clearAllMocks()
     mockCreate.mockReset()
     mockJobCount.mockReset().mockResolvedValue(0)
+    mockUserFindUnique.mockReset().mockResolvedValue({ clerkId: 'clerk-1' })
+    mockIsAdmin.mockReset().mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -127,7 +141,8 @@ describe('usage.service', () => {
       mockJobCount
         .mockResolvedValueOnce(0) // runaway hour window
         .mockResolvedValueOnce(0) // runaway day window
-        .mockResolvedValueOnce(299) // runner monthly
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 1) // runner site month
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 1) // runner user month
         .mockResolvedValueOnce(0) // active jobs (RUNNER is always platform-funded)
       mockCreate.mockResolvedValue({ id: 'runner-job-1', status: 'RUNNING' })
 
@@ -140,7 +155,7 @@ describe('usage.service', () => {
 
       expect(mockDbTransaction).toHaveBeenCalledOnce()
       expect(mockExecuteRaw).toHaveBeenCalledTimes(3)
-      expect(mockJobCount).toHaveBeenCalledTimes(4)
+      expect(mockJobCount).toHaveBeenCalledTimes(5)
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(Math.min(...mockExecuteRaw.mock.invocationCallOrder)).toBeLessThan(
         Math.min(...mockJobCount.mock.invocationCallOrder),
@@ -150,24 +165,58 @@ describe('usage.service', () => {
       )
     })
 
-    it('does not create a RUNNER job when the locked monthly count is at the limit', async () => {
+    const runnerJob = {
+      userId: 'user-1',
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      provider: 'ANTEI Runner',
+      modelId: 'anima-pencil-xl-runner',
+    }
+
+    it('does not create a RUNNER job once this user hit the monthly per-user cap', async () => {
       mockJobCount
         .mockResolvedValueOnce(0) // runaway hour window — under limit
         .mockResolvedValueOnce(0) // runaway day window — under limit
-        .mockResolvedValueOnce(300) // runner monthly — at limit
+        .mockResolvedValueOnce(10) // runner site month — plenty left
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT) // user month — at cap
 
-      await expect(
-        createGenerationJob({
-          userId: 'user-1',
-          adapterType: AI_ADAPTER_TYPES.RUNNER,
-          provider: 'ANTEI Runner',
-          modelId: 'anima-pencil-xl-runner',
-        }),
-      ).rejects.toThrow(RunnerMonthlyLimitExceededError)
+      await expect(createGenerationJob(runnerJob)).rejects.toThrow(
+        RunnerMonthlyLimitExceededError,
+      )
 
       expect(mockExecuteRaw).toHaveBeenCalledTimes(2) // runaway lock + runner lock
-      expect(mockJobCount).toHaveBeenCalledTimes(3)
+      expect(mockJobCount.mock.calls[3]?.[0]).toMatchObject({
+        where: { userId: 'user-1', adapterType: AI_ADAPTER_TYPES.RUNNER },
+      })
       expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not create a RUNNER job once the site-wide monthly cap is hit', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT) // site month — at cap
+        .mockResolvedValueOnce(0) // this user hasn't used any
+
+      await expect(createGenerationJob(runnerJob)).rejects.toThrow(
+        RunnerMonthlyLimitExceededError,
+      )
+      expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it('never blocks an ADMIN account on either monthly cap', async () => {
+      mockIsAdmin.mockReturnValue(true)
+      mockJobCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT + 5)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT + 5)
+        .mockResolvedValueOnce(0) // active jobs
+      mockCreate.mockResolvedValue({ id: 'runner-job-2', status: 'RUNNING' })
+
+      await createGenerationJob(runnerJob)
+
+      expect(mockIsAdmin).toHaveBeenCalledWith('clerk-1')
+      expect(mockCreate).toHaveBeenCalledOnce()
     })
 
     it('does not create a fifth active job for the same platform-funded user (limit raised 2→4, 2026-07-28)', async () => {
@@ -494,48 +543,61 @@ describe('usage.service', () => {
     })
   })
 
-  describe('getRunnerMonthlyGenerationCount', () => {
-    it('counts GenerationJob rows for the RUNNER adapter since the start of the UTC month', async () => {
-      mockJobCount.mockResolvedValue(42)
-
-      const result = await getRunnerMonthlyGenerationCount()
-
-      expect(result).toBe(42)
-      expect(mockJobCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ adapterType: 'runner' }),
-        }),
-      )
-      const call = mockJobCount.mock.calls[0]?.[0] as {
-        where: { createdAt: { gte: Date } }
-      }
-      expect(call.where.createdAt.gte.getUTCDate()).toBe(1)
-      expect(call.where.createdAt.gte.getUTCHours()).toBe(0)
-    })
-  })
-
   describe('getRunnerUsage', () => {
-    it('returns used/limit/remaining from the global monthly count', async () => {
-      mockJobCount.mockResolvedValue(40)
+    it("reports this user's monthly count against the per-user cap", async () => {
+      mockJobCount
+        .mockResolvedValueOnce(40) // site month
+        .mockResolvedValueOnce(10) // user month
 
-      const result = await getRunnerUsage()
+      const result = await getRunnerUsage('user-1')
 
       expect(result).toEqual({
         enabled: true,
-        used: 40,
-        limit: 300,
-        remaining: 260,
+        used: 10,
+        limit: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
+        remaining: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 10,
+        exempt: false,
         platformEnabled: true,
       })
+      const siteCall = mockJobCount.mock.calls[0]?.[0] as {
+        where: { createdAt: { gte: Date } }
+      }
+      expect(siteCall.where.createdAt.gte.getUTCDate()).toBe(1)
+      expect(siteCall.where.createdAt.gte.getUTCHours()).toBe(0)
+    })
+
+    it('caps remaining at what is left of the site budget', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 3)
+        .mockResolvedValueOnce(10)
+
+      const result = await getRunnerUsage('user-1')
+
+      expect(result.remaining).toBe(3)
     })
 
     it('clamps remaining at 0 when already over the limit', async () => {
-      mockJobCount.mockResolvedValue(320)
+      mockJobCount
+        .mockResolvedValueOnce(40)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT + 20)
 
-      const result = await getRunnerUsage()
+      const result = await getRunnerUsage('user-1')
 
-      expect(result.used).toBe(320)
       expect(result.remaining).toBe(0)
+    })
+
+    it('reports the site budget for an exempt ADMIN account', async () => {
+      mockIsAdmin.mockReturnValue(true)
+      mockJobCount.mockResolvedValueOnce(40).mockResolvedValueOnce(30)
+
+      const result = await getRunnerUsage('user-1')
+
+      expect(result).toMatchObject({
+        used: 30,
+        limit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
+        remaining: RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 40,
+        exempt: true,
+      })
     })
 
     // 回归：额度快照和派发路径必须查同一个总闸。曾经只有派发查，快照不查，于是
@@ -543,43 +605,44 @@ describe('usage.service', () => {
     it('reports platformEnabled=false when the platform switch is off, even with budget left', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('PLATFORM_GENERATION_ENABLED', '')
-      mockJobCount.mockResolvedValue(40)
+      mockJobCount.mockResolvedValueOnce(40).mockResolvedValueOnce(10)
 
-      const result = await getRunnerUsage()
+      const result = await getRunnerUsage('user-1')
 
       expect(result.platformEnabled).toBe(false)
-      expect(result.remaining).toBe(260)
+      expect(result.remaining).toBe(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 10)
     })
   })
 
   describe('assertRunnerMonthlyLimitNotExceeded', () => {
-    it('resolves when the monthly count is under the limit (299 < 300)', async () => {
-      mockJobCount.mockResolvedValue(299)
+    it('resolves while both the user and the site are under their caps', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 1)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 1)
 
       await expect(
-        assertRunnerMonthlyLimitNotExceeded(),
+        assertRunnerMonthlyLimitNotExceeded('user-1'),
       ).resolves.toBeUndefined()
     })
 
-    it('throws RunnerMonthlyLimitExceededError when the count equals the limit (300 >= 300)', async () => {
-      mockJobCount.mockResolvedValue(300)
+    it('throws RUNNER_MONTHLY_LIMIT_EXCEEDED when the user is at the cap', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT)
 
-      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toThrow(
-        RunnerMonthlyLimitExceededError,
-      )
-      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toMatchObject(
-        {
-          code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED',
-        },
-      )
+      await expect(
+        assertRunnerMonthlyLimitNotExceeded('user-1'),
+      ).rejects.toMatchObject({ code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED' })
     })
 
-    it('throws when the count exceeds the limit (301 > 300)', async () => {
-      mockJobCount.mockResolvedValue(301)
+    it('throws when the site is over its cap', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT + 1)
+        .mockResolvedValueOnce(0)
 
-      await expect(assertRunnerMonthlyLimitNotExceeded()).rejects.toThrow(
-        RunnerMonthlyLimitExceededError,
-      )
+      await expect(
+        assertRunnerMonthlyLimitNotExceeded('user-1'),
+      ).rejects.toThrow(RunnerMonthlyLimitExceededError)
     })
   })
 })

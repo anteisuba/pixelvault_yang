@@ -7,6 +7,7 @@ import {
   RUNNER_MONTHLY_LIMIT,
 } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { isAdmin } from '@/lib/admin'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { Prisma } from '@/lib/generated/prisma/client'
@@ -21,8 +22,9 @@ import type { MonthlyUsageSummary } from '@/types/usage'
 type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
 type GenerationJobCreateClient = Pick<
   typeof db,
-  'generationJob' | '$executeRaw'
+  'generationJob' | 'user' | '$executeRaw'
 >
+type RunnerQuotaClient = Pick<typeof db, 'generationJob' | 'user'>
 
 export interface CreateGenerationJobInput {
   userId: string
@@ -153,20 +155,23 @@ export function assertPlatformGenerationEnabled(): void {
 
 // ─── Comfy Runner monthly budget guardrail ───────────────────────
 //
-// RunPod's panel can cap per-job concurrency/cost but not "N generations per
-// month" — that lives here. This is a single global monthly counter: the
-// budget it protects (a $10/month prepaid RunPod balance) is shared account
-// spend, not a per-user fairness allowance. Counts `GenerationJob` rows
-// (created at submit time, before the async worker even runs) rather than
-// `ApiUsageLedger` (only written on success) so failed/in-flight runner
-// dispatches — which still cost RunPod compute — count against the budget.
+// Modal can't cap "N generations per month" — that lives here. Two monthly
+// caps, no daily one (owner 2026-10-07): a per-user cap so one account can't
+// drain the budget, and a site cap that protects the budget itself. ADMIN
+// accounts are never blocked, but their jobs still count toward the site
+// total. Counts `GenerationJob` rows (created at submit time, before the
+// async worker even runs) rather than `ApiUsageLedger` (only written on
+// success) so failed/in-flight runner dispatches — which still cost GPU
+// time — count against the budget.
 
 export class RunnerMonthlyLimitExceededError extends Error {
   readonly code = 'RUNNER_MONTHLY_LIMIT_EXCEEDED' as const
 
-  constructor(limit: number) {
+  constructor(scope: 'user' | 'site', limit: number) {
     super(
-      `Runner monthly generation limit reached (${limit}/month). Try again next month, or use a hosted model instead.`,
+      scope === 'user'
+        ? `You have used your ${limit} Runner generations for this month. Try again next month, or use a hosted model instead.`
+        : `Runner's site-wide monthly budget (${limit}) is used up. Try again next month, or use a hosted model instead.`,
     )
     this.name = 'RunnerMonthlyLimitExceededError'
   }
@@ -177,33 +182,74 @@ function startOfMonthUTC(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
 }
 
-/** Number of RUNNER-adapter generation jobs created since the start of the current UTC month. */
-export async function getRunnerMonthlyGenerationCount(): Promise<number> {
-  return db.generationJob.count({
-    where: {
-      adapterType: AI_ADAPTER_TYPES.RUNNER,
-      createdAt: { gte: startOfMonthUTC() },
-    },
-  })
+interface RunnerMonthlyQuota {
+  siteUsed: number
+  userUsed: number
+  exempt: boolean
 }
 
-/**
- * Throws `RunnerMonthlyLimitExceededError` if the monthly RUNNER budget cap
- * has been reached. Call before dispatching a RUNNER generation.
- */
-export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
-  if (!RUNNER_MONTHLY_LIMIT.ENABLED) return
-  assertPlatformGenerationEnabled()
+/** RUNNER jobs created since the start of the current UTC month, site-wide and for one user. */
+async function readRunnerMonthlyQuota(
+  userId: string,
+  client: RunnerQuotaClient,
+): Promise<RunnerMonthlyQuota> {
+  const monthStart = startOfMonthUTC()
+  const user = await client.user.findUnique({
+    where: { id: userId },
+    select: { clerkId: true },
+  })
+  const siteUsed = await client.generationJob.count({
+    where: {
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      createdAt: { gte: monthStart },
+    },
+  })
+  const userUsed = await client.generationJob.count({
+    where: {
+      userId,
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      createdAt: { gte: monthStart },
+    },
+  })
+  return { siteUsed, userUsed, exempt: user ? isAdmin(user.clerkId) : false }
+}
 
-  const count = await getRunnerMonthlyGenerationCount()
-  if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
-    throw new RunnerMonthlyLimitExceededError(RUNNER_MONTHLY_LIMIT.LIMIT)
+function assertRunnerQuotaLeft(quota: RunnerMonthlyQuota): void {
+  if (quota.exempt) return
+  if (quota.userUsed >= RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT) {
+    throw new RunnerMonthlyLimitExceededError(
+      'user',
+      RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
+    )
+  }
+  if (quota.siteUsed >= RUNNER_MONTHLY_LIMIT.SITE_LIMIT) {
+    throw new RunnerMonthlyLimitExceededError(
+      'site',
+      RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
+    )
   }
 }
 
 /**
- * 全站 runner 月度额度快照（全局共享，非 per-user），给 LoRA 工作台「本月剩余
- * N/300」主动提示用。ENABLED=false 时 used/limit=0、remaining=0，前端据此不显示。
+ * Throws `RunnerMonthlyLimitExceededError` if this user's or the site's
+ * monthly RUNNER cap has been reached. Call before dispatching a RUNNER
+ * generation; `createGenerationJob` re-checks under a lock.
+ */
+export async function assertRunnerMonthlyLimitNotExceeded(
+  userId: string,
+): Promise<void> {
+  if (!RUNNER_MONTHLY_LIMIT.ENABLED) return
+  assertPlatformGenerationEnabled()
+
+  assertRunnerQuotaLeft(await readRunnerMonthlyQuota(userId, db))
+}
+
+/**
+ * 这个人的 runner 月度额度快照，给 LoRA 工作台「本月剩余 N/100」与设置页用量用。
+ * `remaining` 取个人余量与全站余量的较小者——全站先见底时个人余量花不出去。
+ * ADMIN（`exempt`）不受任何一道限制：`limit` / `remaining` 报的是全站预算，
+ * 让 owner 看得到别人还能用多少，但前端不能把它说成「你的额度用完了」。
+ * ENABLED=false 时 used/limit=0、remaining=0，前端据此不显示。
  *
  * `platformEnabled` 必须跟着一起报：额度和总闸是两道独立的闸，只报额度会让工作台
  * 承诺一个根本花不出去的余额。2026-07-31 生产上就是这么演的——面板写着「本月
@@ -211,18 +257,44 @@ export async function assertRunnerMonthlyLimitNotExceeded(): Promise<void> {
  * 把每一次出图都在派发前拒了。派发路径查这个开关（见上面 assertRunnerMonthlyLimitNotExceeded
  * 和 createGenerationJobWithinLimits），快照就也得查，否则两边说的不是一回事。
  */
-export async function getRunnerUsage(): Promise<RunnerUsageResult> {
+export async function getRunnerUsage(
+  userId: string,
+): Promise<RunnerUsageResult> {
   const platformEnabled = isPlatformGenerationEnabled()
   if (!RUNNER_MONTHLY_LIMIT.ENABLED) {
-    return { enabled: false, used: 0, limit: 0, remaining: 0, platformEnabled }
+    return {
+      enabled: false,
+      used: 0,
+      limit: 0,
+      remaining: 0,
+      exempt: false,
+      platformEnabled,
+    }
   }
-  const used = await getRunnerMonthlyGenerationCount()
-  const limit = RUNNER_MONTHLY_LIMIT.LIMIT
+  const { siteUsed, userUsed, exempt } = await readRunnerMonthlyQuota(
+    userId,
+    db,
+  )
+  const siteRemaining = Math.max(0, RUNNER_MONTHLY_LIMIT.SITE_LIMIT - siteUsed)
+  if (exempt) {
+    return {
+      enabled: true,
+      used: userUsed,
+      limit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
+      remaining: siteRemaining,
+      exempt: true,
+      platformEnabled,
+    }
+  }
   return {
     enabled: true,
-    used,
-    limit,
-    remaining: Math.max(0, limit - used),
+    used: userUsed,
+    limit: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
+    remaining: Math.min(
+      Math.max(0, RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - userUsed),
+      siteRemaining,
+    ),
+    exempt: false,
     platformEnabled,
   }
 }
@@ -312,16 +384,7 @@ async function createGenerationJobWithinLimits(
 
     await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
 
-    const count = await client.generationJob.count({
-      where: {
-        adapterType: AI_ADAPTER_TYPES.RUNNER,
-        createdAt: { gte: monthStart },
-      },
-    })
-
-    if (count >= RUNNER_MONTHLY_LIMIT.LIMIT) {
-      throw new RunnerMonthlyLimitExceededError(RUNNER_MONTHLY_LIMIT.LIMIT)
-    }
+    assertRunnerQuotaLeft(await readRunnerMonthlyQuota(input.userId, client))
   }
 
   // 并发闸只管平台掏钱的那条路（platform key / 免费额度）。调用方自带 key 时

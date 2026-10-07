@@ -105,6 +105,8 @@ export interface RunnerGenerationRequestInput {
   upscalerModelFilename?: string
 }
 
+const RUNNER_HIRES_MAX_EDGE = 2048
+
 export function resolveRunnerHires(
   value: unknown,
   width: number,
@@ -127,10 +129,16 @@ export function resolveRunnerHires(
     (v.cfg !== undefined && !valid(v.cfg, 0, 30))
   )
     throw new Error('Invalid Latent hires parameters.')
-  const targetWidth = Math.floor((width * v.scale) / 8) * 8
-  const targetHeight = Math.floor((height * v.scale) / 8) * 8
-  if (targetWidth > 2048 || targetHeight > 2048)
-    throw new Error('Latent hires dimensions exceed the Runner 2048px limit.')
+  // 来源配方常是在本地显卡上放大到 2048 以上的（例：672×984 ×2.5 = 1680×2460），
+  // 而 Runner 上限 2048。按长边收到上限内照跑，⛔ 不整单失败（2026-10-07 生产）；
+  // 底图已经顶到上限时第二遍没有意义，直接不放大。
+  const scale = Math.min(
+    v.scale,
+    RUNNER_HIRES_MAX_EDGE / Math.max(width, height),
+  )
+  const targetWidth = Math.floor((width * scale + 1e-6) / 8) * 8
+  const targetHeight = Math.floor((height * scale + 1e-6) / 8) * 8
+  if (targetWidth <= width && targetHeight <= height) return undefined
   return {
     width: targetWidth,
     height: targetHeight,

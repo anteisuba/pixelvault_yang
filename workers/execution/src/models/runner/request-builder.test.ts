@@ -139,13 +139,19 @@ describe('resolveRunnerHires', () => {
     expect(() => resolveRunnerHires(value, 672, 984, 'sdxl')).toThrow()
   })
 
-  it('rejects unsupported architectures and oversized output', () => {
+  it('rejects unsupported architectures', () => {
     expect(() =>
       resolveRunnerHires({ scale: 1.45, denoise: 0.45 }, 672, 984, 'anima'),
     ).toThrow()
-    expect(() =>
-      resolveRunnerHires({ scale: 4, denoise: 0.45 }, 672, 984, 'sdxl'),
-    ).toThrow()
+  })
+
+  it('shrinks an oversized source scale to fit the 2048px long edge', () => {
+    expect(
+      resolveRunnerHires({ scale: 2.5, denoise: 0.45 }, 672, 984, 'sdxl'),
+    ).toEqual({ width: 1392, height: 2048, denoise: 0.45 })
+    expect(
+      resolveRunnerHires({ scale: 2, denoise: 0.45 }, 1024, 2048, 'sdxl'),
+    ).toBeUndefined()
   })
 })
 

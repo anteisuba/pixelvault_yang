@@ -22,6 +22,7 @@
  */
 
 import { useId, useState, type ReactNode } from 'react'
+import { motion } from 'motion/react'
 import { ChevronDown, Check, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -30,6 +31,7 @@ import {
   ASSISTANT_RESEARCH_ESTIMATE_SECONDS,
   type AssistantResearchDepth,
 } from '@/constants/assistant-operator'
+import { useBlurSwapIn } from '@/components/ui/blur-swap'
 import { cn } from '@/lib/utils'
 
 interface StudioOperatorResearchProgressProps {
@@ -67,6 +69,7 @@ export function StudioOperatorResearchProgress({
 }: StudioOperatorResearchProgressProps) {
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
+  const detailsSwap = useBlurSwapIn(open ? 'open' : 'closed')
   const detailsId = useId()
   const deep = depth === ASSISTANT_RESEARCH_DEPTHS.deep
   const estimate = estimateKey(depth)
@@ -133,9 +136,15 @@ export function StudioOperatorResearchProgress({
         />
       </button>
       <div id={detailsId} hidden={!open}>
-        <div className="mt-1 flex min-w-0 flex-col gap-2 border-l border-border pl-3">
+        {/* 点开时查过的那几步由糊变清地进来（owner 2026-10-07 动效第 3 批「调查过程
+            展开」）。只有进场；收起直接藏（`hidden`），⛔ 不做退场。 */}
+        <motion.div
+          key={open ? 'open' : 'closed'}
+          {...detailsSwap}
+          className="mt-1 flex min-w-0 flex-col gap-2 border-l border-border pl-3"
+        >
           {children}
-        </div>
+        </motion.div>
       </div>
     </div>
   )

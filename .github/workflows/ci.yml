@@ -104,6 +104,9 @@ jobs:
         include:
           - worker: render-video
             test: npm ci && npm test
+          # 本地 D1（miniflare）里跑真 SQLite + FTS5。部署是手动的（npm run deploy）。
+          - worker: civitai-index
+            test: npm ci && npm test
           # 本目录没有 package.json；测试是 node:test，直接 import ./index.ts。
           - worker: civitai-image-proxy
             test: node --experimental-strip-types --test src/index.test.mjs

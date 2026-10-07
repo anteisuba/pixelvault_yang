@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelvault-civitai-index",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-14",
+  "observability": {
+    "enabled": true,
+  },
+  // 一次搜索要连查 D1 两三次：让 Worker 跑在 D1 旁边，而不是离用户最近的边缘
+  // （从东京调时每次往返美东约 150 ms）。
+  "placement": {
+    "mode": "smart",
+  },
+  // Civitai LoRA 全量索引（D1 + FTS5）。应用侧经 CIVITAI_INDEX_URL /
+  // CIVITAI_INDEX_TOKEN 调 /search；见 docs/references/domains/lora.md。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "civitai-index",
+      "database_id": "c789584d-3dec-4ddf-9836-eab9c6767767",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "workflows": [
+    {
+      "name": "pixelvault-civitai-index-sync",
+      "binding": "SYNC_WORKFLOW",
+      "class_name": "CivitaiIndexSyncWorkflow",
+    },
+  ],
+  // 每天一轮（owner 2026-10-07 定：不做每小时）。19:00 UTC = 日本凌晨 4 点。
+  "triggers": {
+    "crons": ["0 19 * * *"],
+  },
+}

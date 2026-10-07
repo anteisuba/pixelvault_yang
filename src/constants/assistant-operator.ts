@@ -2138,6 +2138,11 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    */
   maxMessageChars: PROMPT_TEXT_GUARD_MAX_CHARS,
   /**
+   * 对话原文进每一步提示词的上限（字符）。超出时最近的原文保留、更早的压成
+   * 抽取式摘要；每轮结论另行注入，所以压掉的是措辞而不是决定。
+   */
+  maxConversationChars: 30_000,
+  /**
    * 提示词 / 负面提示词载荷的长度上限 = 提示词本身的防滥用护栏。
    *
    * ⚠ 这**不是**产品上限，只是「一条 op 能有多大」的 DoS 护栏 —— 与
@@ -2918,7 +2923,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]:
     'open the evidence you already gathered earlier in THIS conversation, by number. Earlier rounds are summarised for you in "WHAT EARLIER ROUNDS SETTLED", and the evidence there appears only as numbers like #e12 — this is how you read the actual text behind one. Pass the numbers you need in "refs". Use it when an earlier finding decides what you are about to write; never re-run a web search to recover something this conversation already looked up. A number that does not exist is refused — it is not a hint to go searching.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
-    "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
+    "attach one asset from a previous search_assets result, or an image the creator attached to this message, to the workbench as a reference image. Takes an assetId, never a URL. Attached images are for the conversation by default: mount one only when the creator asks to use it as a reference. Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]:
     'take ONE reference off the bench — the mirror image of mount_reference. Name the one you mean with exactly one of: "slotIndex", the N in the @ImageN list printed in the state (counting from 1), or "assetId" for a picture that came back from a search this turn. Pass slot "first" or "last" to clear a named frame slot instead. Use it when you mounted the wrong picture, or when the creator says to drop one — never tell them to click the × themselves. Undoing this puts the same picture back where it was.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:

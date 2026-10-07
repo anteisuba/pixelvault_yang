@@ -200,6 +200,18 @@ export interface StudioOperatorHost {
    */
   anchor?: StudioOperatorShellAnchor
   /**
+   * 助手输入框里递上来的图（📎 / 素材库 / @）是不是**直接挂进这个宿主的参考列表**。
+   *
+   * ⭐ **缺省 = 不挂**（owner 2026-10-07「只给助手看」）：工作台与 LoRA 装配台的参考
+   * 列表就是出图的参考输入，附图一挂上去下一次出图就带着它，而递图多半只是想问一句。
+   * 图于是只跟着这条消息走（`mentionedAssets`），助手看得见；要当参考由用户说一声，
+   * 助手走 `mount_reference`（过程行可撤销）。
+   * ⚠ 画布置 `true`：那边的参考列表本来就只是助手上下文（不是哪张卡的出图输入），
+   * 画布工具还要靠它把图接进节点。⛔ 别在 Dock 里按 `domain === 'canvas'` 硬判 ——
+   * 与 `collapseOnOutsidePointer` 同一条判据。
+   */
+  attachmentsMountReferences?: boolean
+  /**
    * 改动清单（node-canvas-v2 §1 第 4 条 · 方向 B）：这一轮改了哪几张卡，点一行 = 镜头
    * 移过去、卡面闪一下。只有画布给 —— 其余宿主没有「卡」，回执下面就不列清单。
    */

@@ -961,12 +961,15 @@ export function StudioOperatorPanel({
        * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
        * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
        */
+      // ⚠ 附图挂参考位的宿主（画布）：输入框里的图 chip 就是挂着的参考，下面按
+      //   `@图N` 现取；其余宿主的图只跟这条消息走（宿主类型 `attachmentsMountReferences`）。
+      const mountsReferences = operatorHost.attachmentsMountReferences === true
       const merged = attachments.filter(
-        (attachment) => attachment.kind !== 'image',
+        (attachment) => !mountsReferences || attachment.kind !== 'image',
       )
       for (const chip of mention.chips) {
         if (
-          chip.kind !== 'image' &&
+          (!mountsReferences || chip.kind !== 'image') &&
           !merged.some((item) => item.id === chip.id)
         )
           merged.push(chip)
@@ -1061,7 +1064,11 @@ export function StudioOperatorPanel({
       }
       send(compiled, merged)
       onDraftChange('')
-      onAttachmentsChange(attachments.filter((item) => item.kind === 'image'))
+      onAttachmentsChange(
+        mountsReferences
+          ? attachments.filter((item) => item.kind === 'image')
+          : [],
+      )
       mention.clearChips()
       mention.closePicker()
     },

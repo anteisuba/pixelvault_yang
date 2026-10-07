@@ -982,6 +982,29 @@ describe('工具环 · 逐事件顺序', () => {
     ])
   })
 
+  it('⭐ 长会话的对话原文平时就封顶：最近一句原样保留，更早的压成摘要', async () => {
+    queueTurns({ finished: true, message: '好' })
+    const older = Array.from({ length: 40 }, (_, index) => ({
+      role: index % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      content: `第 ${index} 段：${'很长的讨论内容。'.repeat(250)}`,
+    }))
+    const latest = '把眼睛的高光改清楚一点'
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [...older, { role: 'user', content: latest }],
+        }),
+      ),
+    )
+    const conversation = lastUserPrompt().split('\n\nCONVERSATION:\n')[1] ?? ''
+    expect(conversation.length).toBeLessThanOrEqual(
+      ASSISTANT_OPERATOR_LIMITS.maxConversationChars + 64,
+    )
+    expect(conversation).toContain('earlier messages compacted')
+    expect(conversation).toContain(`User: ${latest}`)
+  })
+
   it('⭐ Claude 写成 <invoke> 标记的工具调用按原样译回 JSON 执行', async () => {
     queueTurns(
       '我先把提示词写进去。\n<function_calls>\n<invoke name="apply">\n<parameter name="action">set_prompt</parameter>\n<parameter name="value">1girl, night city</parameter>\n</invoke>\n</function_calls>',
@@ -3816,11 +3839,25 @@ function queueCritiqueRound(
   )
 }
 
-/** 带着 `imageData` 的那次补全 —— 也就是真的「看」的那一下。 */
+/**
+ * 带着 `imageData` 的那次补全 —— 也就是真的「看」的那一下。
+ * ⚠ 规划那一跳也会带上本轮附图（创作者递上来的图规划器直接看得见），按提示词开头剔掉。
+ */
 function visionCalls(): { imageData?: unknown; adapterType?: unknown }[] {
   return mockLlmTextCompletion.mock.calls
-    .map((call) => call[0] as { imageData?: unknown; adapterType?: unknown })
-    .filter((input) => input.imageData !== undefined)
+    .map(
+      (call) =>
+        call[0] as {
+          imageData?: unknown
+          adapterType?: unknown
+          userPrompt?: string
+        },
+    )
+    .filter(
+      (input) =>
+        input.imageData !== undefined &&
+        !input.userPrompt?.startsWith('CURRENT WORKBENCH STATE'),
+    )
 }
 
 describe('看图闭环 · critique_result', () => {
@@ -11411,6 +11448,75 @@ describe('current reference image bindings', () => {
     },
   )
 
+  it('⭐ 附图只进对话，创作者说「当参考」时助手用 mount_reference 把它挂上', async () => {
+    const result = 'https://cdn.test/results/eyes-blurry.png'
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+          title: '挂参考图',
+          args: { assetId: 'gen-12' },
+        },
+      },
+      { finished: true, message: '挂上了。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            {
+              role: 'user',
+              content: `用这张当参考重画\n[attached: 图_012·银发少女 (image) ${result}]`,
+            },
+          ],
+          mentionedAssets: [
+            { id: 'gen-12', url: result, label: '图_012·银发少女', seq: 12 },
+          ],
+        }),
+      ),
+    )
+    const mount = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.mountReference &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(mount?.payload).toMatchObject({ assetId: 'gen-12', url: result })
+  })
+
+  it.each(['image', 'lora'] as const)(
+    '⭐ sends an attached result that is not a mounted reference to the answering model in %s',
+    async (domain) => {
+      const result = 'https://cdn.test/results/eyes-blurry.png'
+      queueTurns({ finished: true, message: '眼睛的高光糊成了一片。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [
+              {
+                role: 'user',
+                content: `这个效果很好！但是眼睛部分有点模糊\n[attached: 图_012·银发少女 (image) ${result}]`,
+              },
+            ],
+            mentionedAssets: [
+              { id: 'gen-1', url: result, label: '图_012·银发少女', seq: 12 },
+            ],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+        imageData: [result],
+      })
+      expect(lastUserPrompt()).toContain(
+        'IMAGES ATTACHED TO THIS MODEL REQUEST',
+      )
+      expect(lastUserPrompt()).toContain('"label":"图_012·银发少女"')
+    },
+  )
+
   it('sends the canvas-named image pixels rather than interpreting the numeric name suffix', async () => {
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -12292,7 +12398,7 @@ describe('current reference image bindings', () => {
     expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
   })
 
-  it('uses only mounted URLs from current attachment metadata for an unnumbered question', async () => {
+  it('sends the attached images, never the other mounted references, for an unnumbered question', async () => {
     queueTurns({ finished: true, message: '这张图是日系插画风格。' })
     await collect(
       runAssistantOperator(
@@ -12309,6 +12415,7 @@ describe('current reference image bindings', () => {
     )
     expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toEqual([
       refs[2]!.url,
+      'https://elsewhere.test/not-mounted.png',
     ])
   })
 
@@ -14785,7 +14892,9 @@ describe('current reference image bindings', () => {
       ),
     )
     const vision = mockLlmTextCompletion.mock.calls.find(
-      ([input]) => input.imageData,
+      ([input]) =>
+        input.imageData &&
+        !String(input.userPrompt).startsWith('CURRENT WORKBENCH STATE'),
     )?.[0]
     expect(vision?.imageData).toEqual([
       'https://cdn.test/hug-result.png',

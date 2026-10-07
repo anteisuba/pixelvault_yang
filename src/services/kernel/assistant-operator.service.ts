@@ -3399,7 +3399,7 @@ async function planMountReference(
   if (!asset) {
     return reject(
       REJECT.unknownAsset,
-      'Only assets that came back from search_assets in this run, or ones you produced earlier in this session, can be mounted.',
+      'Only assets that came back from search_assets in this run, images the creator attached, or ones you produced earlier in this session can be mounted.',
     )
   }
 
@@ -3873,7 +3873,7 @@ function referenceCreatorContext(
   const answered = settled.length
     ? `ALREADY SETTLED WITH THE CREATOR (do not raise these as uncertainties again):\n${settled.join('\n')}\n`
     : ''
-  return `CURRENT PROMPT:\n${currentPrompt}\n${answered}${buildRoundMemorySection(run.priorRounds)}\nCONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
+  return `CURRENT PROMPT:\n${currentPrompt}\n${answered}${buildRoundMemorySection(run.priorRounds)}\nCONVERSATION (latest explicit user instruction wins):\n${operatorConversation(run.request.messages)}`
 }
 
 /**
@@ -9770,6 +9770,30 @@ function currentConversationReferences(
 }
 
 /**
+ * 这一轮 📎 / @ 递上来、但**不在参考图名单里**的图（多半是刚出的结果）。
+ *
+ * ⭐ 创作者指着它说「眼睛有点糊」时，模型得看得见像素（2026-10-07 owner：「助手
+ * 看不见生成的图」）。此前随规划请求发出去的只有挂载的参考图，结果图要等模型自己
+ * 想起来调 critique_result —— 没调就是没看图在回答。
+ */
+function currentAttachedImages(
+  run: OperatorRun,
+): { label?: string; url: string }[] {
+  if (
+    run.request.domain !== 'image' &&
+    run.request.domain !== 'lora' &&
+    run.request.domain !== 'canvas'
+  )
+    return []
+  const mounted = new Set(run.state.referenceUrls)
+  return (run.request.mentionedAssets ?? []).flatMap((asset) =>
+    /^https?:\/\//.test(asset.url) && !mounted.has(asset.url)
+      ? [{ ...(asset.label ? { label: asset.label } : {}), url: asset.url }]
+      : [],
+  )
+}
+
+/**
  * 这轮创作者 `@` 了哪些图。有点名时，分析只准碰这些；没点名才是「看全部挂着的」。
  */
 /** 当前视频模型的显示名（快照标签是「型号 · 渠道 · 积分」，只取型号）。 */
@@ -9909,7 +9933,10 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
       `CURRENT VERIFIED REFERENCE EVIDENCE (server-matched to the current URL order):\n${JSON.stringify(currentEvidence)}\nUse these visual facts when answering. Older assistant claims of an unreadable image do not override verified evidence. Missing evidence means not yet inspected, not a permanent failure.`,
     )
 
-  const currentImages = currentConversationReferences(run)
+  const currentImages = [
+    ...currentConversationReferences(run),
+    ...currentAttachedImages(run),
+  ]
   if (
     currentImages.length &&
     assistantAdapterSupportsImage(run.route.adapterType, run.modelId)
@@ -10013,13 +10040,31 @@ ${run.observations.join('\n')}`)
       ? undefined
       : Math.max(1, maxLength - prefix.length - suffix.length)
 
-  return `${prefix}${buildAssistantConversation(
-    run.request.messages,
-    conversationBudget,
-  )}${suffix}`
+  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
 }
 
 const OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH = 24_000
+
+/**
+ * 对话原文进提示词的那一段，**平时也封顶**（owner 2026-10-07 拍板「自动压缩」）。
+ *
+ * 此前只有 provider 报「超长」才压缩一次，长会话每一步都把整段原文重发 ——
+ * Gemini 思考变长、首字晚到，生产上连续 90s 超时。超出上限时最近的原文照留，
+ * 更早的走抽取式摘要；已定的事由每轮结论另行注入（`buildRoundMemorySection`），
+ * ⛔ 不靠旧原文记住。
+ */
+function operatorConversation(
+  messages: AssistantOperatorRequest['messages'],
+  budget?: number,
+): string {
+  return buildAssistantConversation(
+    messages,
+    Math.min(
+      budget ?? LIMITS.maxConversationChars,
+      LIMITS.maxConversationChars,
+    ),
+  )
+}
 
 /**
  * 看图那一跳的系统提示（P3-C）。
@@ -10087,10 +10132,7 @@ function buildCritiquePrompt(
       ? undefined
       : Math.max(1, maxLength - prefix.length - suffix.length)
 
-  return `${prefix}${buildAssistantConversation(
-    run.request.messages,
-    conversationBudget,
-  )}${suffix}`
+  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
 }
 
 /**
@@ -10136,10 +10178,7 @@ function buildVideoFramePrompt(
   const conversationBudget =
     maxLength === undefined ? undefined : Math.max(1, maxLength - prefix.length)
 
-  return `${prefix}${buildAssistantConversation(
-    run.request.messages,
-    conversationBudget,
-  )}`
+  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}`
 }
 
 /**
@@ -10214,10 +10253,7 @@ function buildVideoCritiquePrompt(
       ? undefined
       : Math.max(1, maxLength - prefix.length - suffix.length)
 
-  return `${prefix}${buildAssistantConversation(
-    run.request.messages,
-    conversationBudget,
-  )}${suffix}`
+  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
 }
 
 /**
@@ -11244,7 +11280,10 @@ export async function* runAssistantOperator(
         route.adapterType,
         modelId,
       )
-        ? currentConversationReferences(run).map((ref) => ref.url)
+        ? [
+            ...currentConversationReferences(run),
+            ...currentAttachedImages(run),
+          ].map((image) => image.url)
         : []
       const systemPrompt = composeSystemPrompt()
       for await (const chunk of streamAssistantTextWithContextRetry({

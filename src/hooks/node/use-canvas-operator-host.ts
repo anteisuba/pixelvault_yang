@@ -481,6 +481,8 @@ export function useCanvasOperatorHost({
        * 先收 expanded 再收 open）。⛔ 别再往画布上加第三条收起路。
        */
       collapseOnOutsidePointer: false,
+      /** 画布的参考列表就是助手上下文，附图照旧挂上去（见宿主类型头注）。 */
+      attachmentsMountReferences: true,
       anchor: CANVAS_ANCHOR,
       canvasTargets: {
         // ⚠ 现读（`graphRef`）：清单渲染在回执之后，卡可能已经改过名或被删。

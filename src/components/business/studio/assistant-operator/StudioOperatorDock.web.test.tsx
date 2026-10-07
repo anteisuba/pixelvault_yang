@@ -54,6 +54,8 @@ let hostDomain = 'image'
 let hostWorkspace = 'image-natural'
 let clerkUserId = 'user-a'
 let hostCollapseOnOutsidePointer: boolean | undefined
+/** 宿主声明附图挂参考位（画布）；缺省 = 只进对话。 */
+let hostMountsReferences: boolean | undefined
 let hostAnchor: StudioOperatorShellAnchor | undefined
 let mobile = false
 let references: ReturnType<typeof useImageUpload>
@@ -96,6 +98,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       },
       results: [],
       collapseOnOutsidePointer: hostCollapseOnOutsidePointer,
+      attachmentsMountReferences: hostMountsReferences,
       ...(hostAnchor ? { anchor: hostAnchor } : {}),
     }
   },
@@ -195,6 +198,7 @@ beforeEach(() => {
   clerkUserId = 'user-a'
   claimOperatorThreadScope(null, 'image')
   hostCollapseOnOutsidePointer = undefined
+  hostMountsReferences = undefined
   hostAnchor = undefined
   mobile = false
   setOpen.mockClear()
@@ -231,7 +235,31 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.attachments).toEqual([])
   })
 
-  it('uploads and workspace reference changes share one list, including removals and draft renumbering', () => {
+  it('⭐ 默认宿主：📎 上传、素材库与 @ 的图只跟这条消息走，⛔ 不挂出图参考位', () => {
+    render(<StudioOperatorDock />)
+    const uploaded: StudioOperatorAttachment = {
+      id: 'uploaded',
+      kind: 'image',
+      url: 'https://cdn.test/first.png',
+      label: 'uploaded',
+    }
+    act(() => onUploaded(uploaded))
+    act(() =>
+      addOperatorMention({
+        id: 'mentioned',
+        kind: 'image',
+        url: 'https://cdn.test/mentioned.png',
+        label: 'mentioned',
+      }),
+    )
+    expect(references.referenceImages).toEqual([])
+    expect(panelProps.attachments).toEqual([uploaded])
+    act(() => panelProps.onAttachmentsChange([]))
+    expect(panelProps.attachments).toEqual([])
+  })
+
+  it('挂参考位的宿主：uploads and workspace reference changes share one list, including removals and draft renumbering', () => {
+    hostMountsReferences = true
     render(<StudioOperatorDock />)
     const first: StudioOperatorAttachment = {
       id: 'uploaded',
@@ -258,6 +286,7 @@ describe('StudioOperatorDock', () => {
     implicitReferences = [
       { url: 'https://cdn.test/canvas.png', name: '生成图', implicit: true },
     ]
+    hostMountsReferences = true
     try {
       render(<StudioOperatorDock />)
       act(() => references.addReferenceImage('https://cdn.test/pinned.png'))
@@ -284,7 +313,8 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.draft).toBe('参考')
   })
 
-  it('library selections and dragged mention images enter the shared references without duplicates', () => {
+  it('挂参考位的宿主：library selections and dragged mention images enter the shared references without duplicates', () => {
+    hostMountsReferences = true
     render(<StudioOperatorDock />)
     const image: StudioOperatorAttachment = {
       id: 'library',

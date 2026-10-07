@@ -1,7 +1,15 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest'
 
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
@@ -142,6 +150,8 @@ const HOST_SPEC = vi.hoisted(() => ({
     >
   },
   trigger: null as null | 'workbench' | 'canvas',
+  /** 宿主声明附图挂参考位（画布那一档）。 */
+  mountsReferences: false,
 }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
@@ -157,6 +167,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       inputPlaceholder: '描述画面，或把参考图挂进来…',
     },
     ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
+    ...(HOST_SPEC.mountsReferences ? { attachmentsMountReferences: true } : {}),
     buildSnapshot: () => ({
       prompt: '',
       availableModels: [],
@@ -555,9 +566,39 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     now.mockRestore()
   })
 
+  it('⭐ 默认宿主：输入框里的图跟这条消息一起发出去，发完清空', () => {
+    initialAttachments = [
+      {
+        id: 'result',
+        kind: 'image',
+        url: 'https://cdn.test/result.png',
+        label: '图_012',
+      },
+      {
+        id: 'audio',
+        kind: 'audio',
+        url: 'https://cdn.test/audio.mp3',
+        label: 'audio',
+      },
+    ]
+    renderPanel()
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
+    editor.textContent = '眼睛有点糊'
+    fireEvent.input(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(send).toHaveBeenCalledWith('眼睛有点糊', initialAttachments)
+    expect(changeAttachments).toHaveBeenCalledWith([])
+  })
+
   it.each([false, true])(
-    '只发送正文 @ 的图片，保留共享参考图（有引用：%s）',
+    '挂参考位的宿主：只发送正文 @ 的图片，保留共享参考图（有引用：%s）',
     (hasMention) => {
+      HOST_SPEC.mountsReferences = true
+      onTestFinished(() => {
+        HOST_SPEC.mountsReferences = false
+      })
       initialAttachments = [
         ...HOST_RESULTS.map((item) => ({ ...item, kind: 'image' as const })),
         {

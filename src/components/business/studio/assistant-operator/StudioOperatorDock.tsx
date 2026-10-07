@@ -215,6 +215,7 @@ export function StudioOperatorDock() {
     collapseOnOutsidePointer,
     anchor: hostAnchor,
     projectId: hostProjectId,
+    attachmentsMountReferences = false,
   } = useStudioOperatorHost()
   const { user } = useUser()
   const userId = user?.id ?? null
@@ -686,31 +687,41 @@ export function StudioOperatorDock() {
   //   能 @，只是不在输入框上方堆成一墙（owner 2026-09-29）。
   const attachments = useMemo<readonly StudioOperatorAttachment[]>(
     () =>
-      attachmentScope
-        ? [
-            ...referenceImages.flatMap(
-              (entry, index): StudioOperatorAttachment[] =>
-                entry.implicit
-                  ? []
-                  : [
-                      {
-                        id: getReferenceImageAttachmentId(entry.url),
-                        url: entry.url,
-                        thumbnailUrl: entry.url,
-                        kind: 'image',
-                        label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
-                      },
-                    ],
-            ),
-            ...localAttachments.filter((item) => item.kind !== 'image'),
-          ]
-        : [],
-    [attachmentScope, referenceImages, localAttachments, tReference],
+      !attachmentScope
+        ? []
+        : // ⭐ 附图只进对话的宿主：输入框里摆的就是这条消息自己的附件，⛔ 不摆挂载的参考图
+          //   （那些在工作台自己的参考位上看得见，助手也从快照里读得到）。
+          !attachmentsMountReferences
+          ? localAttachments
+          : [
+              ...referenceImages.flatMap(
+                (entry, index): StudioOperatorAttachment[] =>
+                  entry.implicit
+                    ? []
+                    : [
+                        {
+                          id: getReferenceImageAttachmentId(entry.url),
+                          url: entry.url,
+                          thumbnailUrl: entry.url,
+                          kind: 'image',
+                          label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
+                        },
+                      ],
+              ),
+              ...localAttachments.filter((item) => item.kind !== 'image'),
+            ],
+    [
+      attachmentScope,
+      attachmentsMountReferences,
+      referenceImages,
+      localAttachments,
+      tReference,
+    ],
   )
   const handleUploaded = useCallback(
     (attachment: StudioOperatorAttachment) => {
       if (!ownsComposer()) return
-      if (attachment.kind === 'image') {
+      if (attachment.kind === 'image' && attachmentsMountReferences) {
         apply.addReference(attachment.url)
         return
       }
@@ -720,11 +731,15 @@ export function StudioOperatorDock() {
           : [...current, attachment],
       )
     },
-    [apply, ownsComposer, setLocalAttachments],
+    [apply, attachmentsMountReferences, ownsComposer, setLocalAttachments],
   )
   const handleAttachmentsChange = useCallback(
     (next: readonly StudioOperatorAttachment[]) => {
       if (!ownsComposer()) return
+      if (!attachmentsMountReferences) {
+        setLocalAttachments(next)
+        return
+      }
       const images = next.filter((item) => item.kind === 'image')
       for (const entry of [...referenceImages].reverse()) {
         // 没摆出来的那些（`implicit`）不在 chip 列表里，⛔ 别把「列表里没有」读成「被移走了」。
@@ -740,7 +755,13 @@ export function StudioOperatorDock() {
       }
       setLocalAttachments(next.filter((item) => item.kind !== 'image'))
     },
-    [apply, ownsComposer, referenceImages, setLocalAttachments],
+    [
+      apply,
+      attachmentsMountReferences,
+      ownsComposer,
+      referenceImages,
+      setLocalAttachments,
+    ],
   )
   const upload = useStudioOperatorUpload({
     onUploaded: handleUploaded,
@@ -748,12 +769,14 @@ export function StudioOperatorDock() {
   })
 
   useEffect(() => {
+    // 附图只进对话的宿主：@ / 素材库选的图留在 chip 上跟消息走，⛔ 不挂参考位。
+    if (!attachmentsMountReferences) return
     for (const mention of mentions) {
       if (mention.kind !== 'image') continue
       apply.addReference(mention.url)
       removeOperatorMention(mention.id)
     }
-  }, [apply, mentions])
+  }, [apply, attachmentsMountReferences, mentions])
 
   const [previousReferences, setPreviousReferences] = useState({
     scope: attachmentScope,

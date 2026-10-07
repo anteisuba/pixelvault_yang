@@ -586,8 +586,9 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 **素材库是下行一颗独立按钮**（切片 #7c，owner 2026-09-11「@ 那边取消，最好新做一个
 按钮」）：点开 `AssetSelectorDialog`（桌面 Dialog / 手机 Drawer），里面仍是
 `AssetPickerBrowser` —— **首屏 10 条**（`STUDIO_OPERATOR_LIBRARY_PAGE_SIZE`）、左侧
-文件夹分类、往下拉继续翻页、多选、锁图片档。选中 → 每张走 `mention.addChip`，图片
-那一档由 `StudioOperatorDock` 的 effect 落到 `apply.addReference`，⛔ 面板不自己挂。
+文件夹分类、往下拉继续翻页、多选、锁图片档。选中 → 每张走 `mention.addChip`，跟这条消息一起发出。
+
+**附图只给助手看（owner 2026-10-07）**：📎 上传、素材库、`@` 递上来的图默认只进这条消息（`mentionedAssets`），规划那一步直接带上像素；⛔ 不再自动挂进工作台 / LoRA 台的出图参考位。创作者说「用这张当参考」时，助手走 `mount_reference`（附图在准入名单里，过程行可撤销）。宿主用 `attachmentsMountReferences` 声明例外：画布置 `true`，那边的参考列表本来就是助手上下文。
 
 **为什么从 `@` 的第二段改成显性按钮**：`@` 得先想起来打一个 `@` 才看得见，而「从素材
 库挑图」是用户一眼要找的入口——藏在提及语法后面等于没有入口。⛔ 随之删掉的：

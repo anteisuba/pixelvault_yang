@@ -268,6 +268,7 @@ export const API_ENDPOINTS = {
   STUDIO_NODE_WORKFLOW: '/api/studio/node-workflow',
 
   /** 外部 Claude 连本站的个人令牌（docs/references/mcp.md §3.1）。 */
+  MCP: '/api/mcp',
   MCP_TOKENS: '/api/mcp/tokens',
 
   /** Character Cards */

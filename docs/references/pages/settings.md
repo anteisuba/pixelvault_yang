@@ -1,7 +1,7 @@
 # 设置整页施工图 — settings
 
 > **状态：现行基准（2026-09-18 落地，进度表第 13 / 14 项）。**
-> 范围：`/settings` 这一条路由树 —— 四个分区的职责、key 行的四态、以及「全站所有 key 入口最终去哪儿」。
+> 范围：`/settings` 这一条路由树 —— 五个分区的职责、key 行的四态、「全站所有 key 入口最终去哪儿」，以及让外部 Claude 进来的令牌（§7）。
 > 不管各业务域皮肤，也不管缺 key 时的**就地**配置（那是 `QuickSetupDialog`，Hard Rule 8）。
 
 ---
@@ -20,10 +20,10 @@
 
 ## 2 · 路由
 
-| 路由                  | 行为                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| `/settings`           | 自身**没有内容**。桌面（`≥1024`）重定向到 `/settings/keys`；手机停在一级列表，点行进二级页 |
-| `/settings/[section]` | 四个分区：`keys` · `usage` · `preferences` · `assistant`；其余 section **404**，不是空页   |
+| 路由                  | 行为                                                                                                     |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `/settings`           | 自身**没有内容**。桌面（`≥1024`）重定向到 `/settings/keys`；手机停在一级列表，点行进二级页               |
+| `/settings/[section]` | 五个分区：`keys` · `usage` · `preferences` · `assistant` · `connections`；其余 section **404**，不是空页 |
 
 - 分区词表与次序住 `src/constants/settings.ts`；**次序就是导航次序**，默认落点 = 第一项，⛔ 不另写一个字面量。
 - 桌面的重定向判据是**挂载时读一次 `window.innerWidth`**，不是 `useIsMobile()`——后者首帧恒为 false，手机会被弹去 keys 再也回不到列表。读一次也意味着窗口后来被拉宽不该把人从列表里弹走。
@@ -115,6 +115,17 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 
 ---
 
+## 7 · connections —— 让 Claude 进来
+
+与 keys 方向相反：keys 是你去用别家的模型，这一页是让外部 Claude 经 MCP 进来读写你的画布项目（契约见 `mcp.md`）。owner 2026-10-07 照小样定（artifact `DqB6AofEnuSAc3uLAPMdqG`）。
+
+- 一块「Claude Code」：一句话说清能做什么（读项目、剪片、出小样）与不能做什么（花积分的生成仍由你点）+ 右上「生成令牌」。
+- **生成**：列表顶上长出一行虚线框，名字预填「Claude Code」；精确指针下自动聚焦并全选，触屏不自动聚焦（会弹键盘）。回车生成，Esc 取消。
+- **刚生成那张卡**（黑框）：令牌明文 + **已经填好令牌**的 `claude mcp add` 命令，各带复制键，标「只显示这一次」；「我复制好了」后收成普通一行。⚠ 明文只活在这张卡里，hook 的列表里永远只有名字与末 4 位。复制成功那颗键写「已复制」`COPIED_ACK_MS`，⛔ 不弹 toast；剪贴板被拒时把那一串选中。
+- **行**：绿点 + 「Claude 在用」= 令牌 `MCP_ACTIVE_WINDOW_MS` 内用过；其余写多久前用过 / 从未使用 · 哪天生成；末 4 位走等宽。「吊销」过 `ConfirmDialog`，立即生效。
+- 满 `MCP_MAX_ACTIVE_TOKENS` 个时生成键变灰，下面一行说原因；服务端 409 同样落成这句。
+- ⛔ 不放 Claude.ai 连接器的占位：OAuth（`mcp.md` S7）做出来才出现在这一页。
+
 ## Source of Truth
 
 - 路由 `src/app/[locale]/(main)/settings/{page.tsx,[section]/page.tsx}` · 组件 `src/components/business/settings/`
@@ -122,9 +133,11 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 - 记忆 `src/services/assistant-memory.service.ts` · `src/constants/assistant-memory.ts` · `src/hooks/use-assistant-memories.ts` · `src/app/api/assistant-memories/**`
 - key 行数据 `src/hooks/use-provider-key-rows.ts` · 用量 `src/hooks/use-monthly-usage.ts` + `src/services/usage.service.ts`
 - 入口收口 `src/hooks/use-open-key-settings.ts` · 画布侧 `shell/ShellKeySettings.tsx`
+- 连接 `SettingsConnectionsSection.tsx` · `src/hooks/use-mcp-tokens.ts` · 命令与上限 `src/constants/mcp.ts` · 接口 `src/app/api/mcp/tokens/**`
 
 ## Last Verified
 
+**2026-10-07 · 连接分区落地（剪辑台 v2 第 0 片）。** §7 对照 `SettingsConnectionsSection.tsx` 核验，带单测（列表只露末 4 位 · 明文与命令只出现一次后收起 · 吊销须确认 · 满额变灰 · 读取失败可重试）；本地 dev 真机只读核过导航、空态、填名字那一行与取消（⛔ 没真生成令牌：本地连的是生产库）。
 **2026-09-20 · 助手记忆区落地（56a，owner 拍板最简版）。** §6 逐条对照 `SettingsAssistantSection.tsx` 与 `assistant-memory.service.ts` 核验；列表 / 筛选 / 就地改 / 删 / 全部清空 / 空态带单测，四条 API 各自有 ownership 用例。
 **2026-09-18 · 实现落地。** 路由、四分区、key 四态与排序、用量口径、入口收口逐条对照源码核验；`SettingsIndexView` / `SettingsKeysSection` / `SettingsUsageSection` 带单测。
 **未验**：真机 1440 / 820 / 375 已登录态目检待 owner（记忆区的 hover「删」与就地改也在内）；迁移 `20260920120000_assistant_memory` **尚未对数据库执行**。

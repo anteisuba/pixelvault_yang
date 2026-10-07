@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { SETTINGS_SECTIONS } from '@/constants/settings'
+
 import { SettingsIndexView } from './SettingsIndexView'
 
 vi.mock('next-intl', () => ({
@@ -51,6 +53,8 @@ describe('SettingsIndexView (mobile first level)', () => {
     render(<SettingsIndexView />)
 
     expect(screen.queryByText('Settings:keys.invalidSummary')).toBeNull()
-    expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getAllByRole('listitem')).toHaveLength(
+      SETTINGS_SECTIONS.length,
+    )
   })
 })

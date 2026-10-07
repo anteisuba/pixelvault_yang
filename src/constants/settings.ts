@@ -1,7 +1,7 @@
 /**
  * `/settings` 整页的分区词表与本地偏好键（D3 ④）。
  *
- * 分区**次序就是导航次序**：API key → 用量 → 偏好 → 助手。`/settings` 自身没有
+ * 分区**次序就是导航次序**：API key → 用量 → 偏好 → 助手 → 连接。`/settings` 自身没有
  * 内容，桌面重定向到第一项，手机停在一级列表。
  */
 
@@ -12,6 +12,8 @@ export const SETTINGS_SECTION_IDS = {
   usage: 'usage',
   preferences: 'preferences',
   assistant: 'assistant',
+  /** 让外部 Claude 进来读写项目（MCP 令牌，`docs/references/mcp.md` §3.1）。 */
+  connections: 'connections',
 } as const
 
 export const SETTINGS_SECTIONS = [
@@ -19,6 +21,7 @@ export const SETTINGS_SECTIONS = [
   SETTINGS_SECTION_IDS.usage,
   SETTINGS_SECTION_IDS.preferences,
   SETTINGS_SECTION_IDS.assistant,
+  SETTINGS_SECTION_IDS.connections,
 ] as const
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number]
@@ -28,6 +31,7 @@ export const SETTINGS_SECTION_ROUTES: Record<SettingsSection, string> = {
   [SETTINGS_SECTION_IDS.usage]: ROUTES.SETTINGS_USAGE,
   [SETTINGS_SECTION_IDS.preferences]: ROUTES.SETTINGS_PREFERENCES,
   [SETTINGS_SECTION_IDS.assistant]: ROUTES.SETTINGS_ASSISTANT,
+  [SETTINGS_SECTION_IDS.connections]: ROUTES.SETTINGS_CONNECTIONS,
 }
 
 /** 默认落点 = 导航第一项。⛔ 不另写一个字面量。 */

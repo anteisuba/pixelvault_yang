@@ -8568,7 +8568,8 @@
       "keys": "API key",
       "usage": "用量",
       "preferences": "偏好",
-      "assistant": "助手"
+      "assistant": "助手",
+      "connections": "连接"
     },
     "keys": {
       "caption": "全部用你自己的 key · 只有 Gemini 文本走平台",
@@ -8626,6 +8627,48 @@
         "/studio/audio": "音频工作台",
         "/studio/node": "画布",
         "/gallery": "画廊"
+      }
+    },
+    "connections": {
+      "caption": "让 Claude 直接读写你的画布项目 · 不能花积分",
+      "claudeCode": {
+        "title": "Claude Code",
+        "description": "贴一个令牌，Claude 就能读你的画布项目、剪片、出小样。要花积分的生成仍然由你在浏览器里点。"
+      },
+      "create": "生成令牌",
+      "limit": "最多 {count} 个，先吊销一个不用的",
+      "loading": "正在读取令牌…",
+      "empty": "还没有令牌。生成一个贴进 Claude Code，Claude 就能帮你剪片。",
+      "retry": "重试",
+      "nameLabel": "令牌名字",
+      "nameHint": "起个能认出是哪台电脑的名字 · 回车生成，Esc 取消",
+      "generate": "生成",
+      "cancel": "取消",
+      "copy": "复制",
+      "copyCommand": "复制命令",
+      "copied": "已复制",
+      "live": "Claude 在用",
+      "usedAt": "{stamp}用过",
+      "neverUsed": "从未使用",
+      "createdOn": "{date} 生成",
+      "revoke": "吊销",
+      "revokeDialog": {
+        "title": "吊销「{name}」？",
+        "description": "用这个令牌连着的 Claude 会立刻断开，这一步撤不回。要再连，生成一个新令牌重新贴。"
+      },
+      "created": {
+        "title": "「{name}」生成好了",
+        "once": "这串令牌只显示这一次",
+        "tokenLabel": "令牌",
+        "commandLabel": "接入 Claude Code：在终端里运行",
+        "verify": "接上后在 Claude Code 里输入 /mcp 能看到 pixelvault。",
+        "done": "我复制好了"
+      },
+      "failed": {
+        "load": "没读到令牌：网络连不上。",
+        "create": "没生成出来，再试一次。",
+        "limit": "最多 {count} 个有效令牌，先吊销一个不用的。",
+        "revoke": "没吊销成功，再试一次。"
       }
     }
   },

@@ -8568,7 +8568,8 @@
       "keys": "API keys",
       "usage": "Usage",
       "preferences": "Preferences",
-      "assistant": "Assistant"
+      "assistant": "Assistant",
+      "connections": "Connections"
     },
     "keys": {
       "caption": "Every route runs on your own key — only Gemini text runs on the platform.",
@@ -8626,6 +8627,48 @@
         "/studio/audio": "Audio workbench",
         "/studio/node": "Canvas",
         "/gallery": "Gallery"
+      }
+    },
+    "connections": {
+      "caption": "Let Claude read and edit your canvas projects · it can't spend credits",
+      "claudeCode": {
+        "title": "Claude Code",
+        "description": "Paste a token into Claude Code and Claude can read your canvas projects, cut edits and render drafts. Anything that spends credits is still your own click in the browser."
+      },
+      "create": "Create token",
+      "limit": "Up to {count} tokens. Revoke one you no longer use.",
+      "loading": "Loading tokens…",
+      "empty": "No tokens yet. Create one and paste it into Claude Code so Claude can edit for you.",
+      "retry": "Retry",
+      "nameLabel": "Token name",
+      "nameHint": "Name it after the computer it's for · Enter to create, Esc to cancel",
+      "generate": "Create",
+      "cancel": "Cancel",
+      "copy": "Copy",
+      "copyCommand": "Copy command",
+      "copied": "Copied",
+      "live": "Claude is using it",
+      "usedAt": "Used {stamp}",
+      "neverUsed": "Never used",
+      "createdOn": "Created {date}",
+      "revoke": "Revoke",
+      "revokeDialog": {
+        "title": "Revoke “{name}”?",
+        "description": "Claude disconnects right away and this can't be undone. To reconnect, create a new token and paste it again."
+      },
+      "created": {
+        "title": "“{name}” is ready",
+        "once": "This token is shown only once",
+        "tokenLabel": "Token",
+        "commandLabel": "Connect Claude Code: run this in a terminal",
+        "verify": "Once connected, type /mcp in Claude Code to see pixelvault.",
+        "done": "I've copied it"
+      },
+      "failed": {
+        "load": "Couldn't load tokens: the network didn't respond.",
+        "create": "Couldn't create the token. Try again.",
+        "limit": "You can have up to {count} active tokens. Revoke one you no longer use.",
+        "revoke": "Couldn't revoke the token. Try again."
       }
     }
   },

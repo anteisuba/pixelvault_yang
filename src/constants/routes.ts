@@ -46,6 +46,7 @@ export const ROUTES = {
   SETTINGS_USAGE: '/settings/usage',
   SETTINGS_PREFERENCES: '/settings/preferences',
   SETTINGS_ASSISTANT: '/settings/assistant',
+  SETTINGS_CONNECTIONS: '/settings/connections',
 
   /** Creator profile (public) */
   CREATOR_PROFILE: '/u',

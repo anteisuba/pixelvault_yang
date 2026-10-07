@@ -16,6 +16,23 @@ export const MCP_TOKEN_NAME_MAX_LENGTH = 60
 /** 明文末几位留在列表里认令牌。 */
 export const MCP_TOKEN_VISIBLE_SUFFIX_LENGTH = 4
 
+/** 设置页「连接」生成令牌时预填的名字。 */
+export const MCP_TOKEN_DEFAULT_NAME = 'Claude Code'
+
+/** 接进 Claude Code 时这台服务器叫什么（`claude mcp add` 的名字，`/mcp` 里也显示它）。 */
+export const MCP_CLAUDE_CODE_SERVER_NAME = 'pixelvault'
+
+/**
+ * 接入 Claude Code 的那一条命令（§3.1）：scope 用 user，所有目录都能用。
+ * ⚠ 令牌直接填在里面 —— 这条命令只在令牌刚生成的那一刻给用户看。
+ */
+export function buildClaudeCodeMcpCommand(
+  serverUrl: string,
+  token: string,
+): string {
+  return `claude mcp add --transport http --scope user ${MCP_CLAUDE_CODE_SERVER_NAME} ${serverUrl} --header "Authorization: Bearer ${token}"`
+}
+
 /** `lastUsedAt` 至少隔多久才写一次 —— ⛔ 不每次调用都写库。 */
 export const MCP_TOKEN_TOUCH_INTERVAL_MS = 30_000
 

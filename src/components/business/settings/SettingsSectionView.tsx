@@ -6,12 +6,13 @@ import {
 } from '@/constants/settings'
 
 import { SettingsAssistantSection } from '@/components/business/settings/SettingsAssistantSection'
+import { SettingsConnectionsSection } from '@/components/business/settings/SettingsConnectionsSection'
 import { SettingsKeysSection } from '@/components/business/settings/SettingsKeysSection'
 import { SettingsPreferencesSection } from '@/components/business/settings/SettingsPreferencesSection'
 import { SettingsShell } from '@/components/business/settings/SettingsShell'
 import { SettingsUsageSection } from '@/components/business/settings/SettingsUsageSection'
 
-/** 四个分区共用同一个外壳；⛔ 每个分区别各画一遍导航。 */
+/** 五个分区共用同一个外壳；⛔ 每个分区别各画一遍导航。 */
 export function SettingsSectionView({ section }: { section: SettingsSection }) {
   return (
     <SettingsShell section={section}>
@@ -22,6 +23,9 @@ export function SettingsSectionView({ section }: { section: SettingsSection }) {
       ) : null}
       {section === SETTINGS_SECTION_IDS.assistant ? (
         <SettingsAssistantSection />
+      ) : null}
+      {section === SETTINGS_SECTION_IDS.connections ? (
+        <SettingsConnectionsSection />
       ) : null}
     </SettingsShell>
   )

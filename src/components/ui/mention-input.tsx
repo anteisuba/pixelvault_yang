@@ -1165,7 +1165,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                 className={
                   variant === 'canvas'
                     ? 'canvas-mention-popover'
-                    : 'fixed z-50 flex w-70 max-w-full flex-col gap-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md'
+                    : 'mention-popover-in fixed z-50 flex w-70 max-w-full flex-col gap-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md'
                 }
                 style={{
                   /**

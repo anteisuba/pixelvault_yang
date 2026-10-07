@@ -526,9 +526,13 @@ export function StudioOperatorConfirmCard({
                               : 'border-border bg-muted text-foreground hover:bg-accent',
                           )}
                         >
-                          <span className="max-w-40 truncate">
+                          {/* 调了一档：值糊着换（工作台那一格同时由光标走过去闪一下）。 */}
+                          <BlurSwap
+                            swapKey={knob.value}
+                            className="max-w-40 truncate"
+                          >
                             {knob.value}
-                          </span>
+                          </BlurSwap>
                           {open ? (
                             <ChevronUp
                               className="size-3 shrink-0"

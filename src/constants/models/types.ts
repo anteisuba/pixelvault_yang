@@ -69,6 +69,12 @@ export interface ModelOption {
   i2vModelId?: string
   videoDefaults?: VideoDefaults
   supportsLora?: boolean
+  /**
+   * 「先搜再画」：出图前让模型用 Google 搜索（网页 + 图片）找资料。只标真能
+   * 搜网页和图片两样的型号 —— 只搜网页的（Gemini 3 Pro Image）不标，界面上
+   * 那句「搜网页和图片」对它不成立（owner 2026-10-07）。
+   */
+  supportsSearchGrounding?: boolean
   videoExtension?: VideoExtensionConfig
   requiresReferenceImage?: boolean
   /**

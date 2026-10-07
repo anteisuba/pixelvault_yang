@@ -506,6 +506,10 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     styleTag: 'general',
     maxPromptChars: 8000,
+    // Google Search grounding with both web and image search — image search is
+    // NB 2.1 / 3.1 Flash only (checked 2026-10-07):
+    // https://ai.google.dev/gemini-api/docs/image-generation
+    supportsSearchGrounding: true,
   },
   {
     id: AI_MODELS.FLUX_KONTEXT_MAX,

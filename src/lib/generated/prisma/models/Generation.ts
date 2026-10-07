@@ -73,6 +73,7 @@ export type GenerationMinAggregateOutputType = {
   isPublic: boolean | null
   isPromptPublic: boolean | null
   isFeatured: boolean | null
+  searchGrounded: boolean | null
   userId: string | null
   projectId: string | null
   characterCardId: string | null
@@ -113,6 +114,7 @@ export type GenerationMaxAggregateOutputType = {
   isPublic: boolean | null
   isPromptPublic: boolean | null
   isFeatured: boolean | null
+  searchGrounded: boolean | null
   userId: string | null
   projectId: string | null
   characterCardId: string | null
@@ -153,6 +155,7 @@ export type GenerationCountAggregateOutputType = {
   isPublic: number
   isPromptPublic: number
   isFeatured: number
+  searchGrounded: number
   userId: number
   projectId: number
   characterCardId: number
@@ -219,6 +222,7 @@ export type GenerationMinAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   isFeatured?: true
+  searchGrounded?: true
   userId?: true
   projectId?: true
   characterCardId?: true
@@ -259,6 +263,7 @@ export type GenerationMaxAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   isFeatured?: true
+  searchGrounded?: true
   userId?: true
   projectId?: true
   characterCardId?: true
@@ -299,6 +304,7 @@ export type GenerationCountAggregateInputType = {
   isPublic?: true
   isPromptPublic?: true
   isFeatured?: true
+  searchGrounded?: true
   userId?: true
   projectId?: true
   characterCardId?: true
@@ -430,6 +436,7 @@ export type GenerationGroupByOutputType = {
   isPublic: boolean
   isPromptPublic: boolean
   isFeatured: boolean
+  searchGrounded: boolean
   userId: string | null
   projectId: string | null
   characterCardId: string | null
@@ -497,6 +504,7 @@ export type GenerationWhereInput = {
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isFeatured?: Prisma.BoolFilter<"Generation"> | boolean
+  searchGrounded?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -554,6 +562,7 @@ export type GenerationOrderByWithRelationInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   isFeatured?: Prisma.SortOrder
+  searchGrounded?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -614,6 +623,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isFeatured?: Prisma.BoolFilter<"Generation"> | boolean
+  searchGrounded?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -671,6 +681,7 @@ export type GenerationOrderByWithAggregationInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   isFeatured?: Prisma.SortOrder
+  searchGrounded?: Prisma.SortOrder
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -723,6 +734,7 @@ export type GenerationScalarWhereWithAggregatesInput = {
   isPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   isFeatured?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
+  searchGrounded?: Prisma.BoolWithAggregatesFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   projectId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   characterCardId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
@@ -767,6 +779,7 @@ export type GenerationCreateInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -820,6 +833,7 @@ export type GenerationUncheckedCreateInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -873,6 +887,7 @@ export type GenerationUpdateInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -926,6 +941,7 @@ export type GenerationUncheckedUpdateInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -979,6 +995,7 @@ export type GenerationCreateManyInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -1023,6 +1040,7 @@ export type GenerationUpdateManyMutationInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1063,6 +1081,7 @@ export type GenerationUncheckedUpdateManyInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1122,6 +1141,7 @@ export type GenerationCountOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   isFeatured?: Prisma.SortOrder
+  searchGrounded?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
@@ -1176,6 +1196,7 @@ export type GenerationMaxOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   isFeatured?: Prisma.SortOrder
+  searchGrounded?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
@@ -1216,6 +1237,7 @@ export type GenerationMinOrderByAggregateInput = {
   isPublic?: Prisma.SortOrder
   isPromptPublic?: Prisma.SortOrder
   isFeatured?: Prisma.SortOrder
+  searchGrounded?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
@@ -1601,6 +1623,7 @@ export type GenerationCreateWithoutUserInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1653,6 +1676,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   projectId?: string | null
   characterCardId?: string | null
   cardRecipeId?: string | null
@@ -1734,6 +1758,7 @@ export type GenerationScalarWhereInput = {
   isPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isPromptPublic?: Prisma.BoolFilter<"Generation"> | boolean
   isFeatured?: Prisma.BoolFilter<"Generation"> | boolean
+  searchGrounded?: Prisma.BoolFilter<"Generation"> | boolean
   userId?: Prisma.StringNullableFilter<"Generation"> | string | null
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"Generation"> | string | null
@@ -1778,6 +1803,7 @@ export type GenerationCreateWithoutProjectInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1830,6 +1856,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   characterCardId?: string | null
   cardRecipeId?: string | null
@@ -1908,6 +1935,7 @@ export type GenerationCreateWithoutFoldersInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1960,6 +1988,7 @@ export type GenerationUncheckedCreateWithoutFoldersInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -2028,6 +2057,7 @@ export type GenerationUpdateWithoutFoldersInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2080,6 +2110,7 @@ export type GenerationUncheckedUpdateWithoutFoldersInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2132,6 +2163,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2184,6 +2216,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -2252,6 +2285,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2304,6 +2338,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2356,6 +2391,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2408,6 +2444,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -2476,6 +2513,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2528,6 +2566,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2580,6 +2619,7 @@ export type GenerationCreateWithoutCharacterCardInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2632,6 +2672,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   cardRecipeId?: string | null
@@ -2710,6 +2751,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2762,6 +2804,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -2830,6 +2873,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2882,6 +2926,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2934,6 +2979,7 @@ export type GenerationCreateWithoutLikesInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2986,6 +3032,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -3054,6 +3101,7 @@ export type GenerationUpdateWithoutLikesInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3106,6 +3154,7 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3158,6 +3207,7 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3210,6 +3260,7 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -3278,6 +3329,7 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3330,6 +3382,7 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3382,6 +3435,7 @@ export type GenerationCreateWithoutCardRecipeInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3434,6 +3488,7 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -3512,6 +3567,7 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3564,6 +3620,7 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -3632,6 +3689,7 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3684,6 +3742,7 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3736,6 +3795,7 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3788,6 +3848,7 @@ export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -3856,6 +3917,7 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3908,6 +3970,7 @@ export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3960,6 +4023,7 @@ export type GenerationCreateWithoutLayersInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4012,6 +4076,7 @@ export type GenerationUncheckedCreateWithoutLayersInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -4080,6 +4145,7 @@ export type GenerationUpdateWithoutLayersInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4132,6 +4198,7 @@ export type GenerationUncheckedUpdateWithoutLayersInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4184,6 +4251,7 @@ export type GenerationCreateManyUserInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   projectId?: string | null
   characterCardId?: string | null
   cardRecipeId?: string | null
@@ -4227,6 +4295,7 @@ export type GenerationUpdateWithoutUserInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4279,6 +4348,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4331,6 +4401,7 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4374,6 +4445,7 @@ export type GenerationCreateManyProjectInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   characterCardId?: string | null
   cardRecipeId?: string | null
@@ -4417,6 +4489,7 @@ export type GenerationUpdateWithoutProjectInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4469,6 +4542,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4521,6 +4595,7 @@ export type GenerationUncheckedUpdateManyWithoutProjectInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4564,6 +4639,7 @@ export type GenerationCreateManyCharacterCardInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   cardRecipeId?: string | null
@@ -4607,6 +4683,7 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4659,6 +4736,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4711,6 +4789,7 @@ export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4754,6 +4833,7 @@ export type GenerationCreateManyCardRecipeInput = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: string | null
   projectId?: string | null
   characterCardId?: string | null
@@ -4797,6 +4877,7 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4849,6 +4930,7 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4901,6 +4983,7 @@ export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
   isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -5029,6 +5112,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: boolean
   projectId?: boolean
   characterCardId?: boolean
@@ -5087,6 +5171,7 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: boolean
   projectId?: boolean
   characterCardId?: boolean
@@ -5135,6 +5220,7 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: boolean
   projectId?: boolean
   characterCardId?: boolean
@@ -5183,6 +5269,7 @@ export type GenerationSelectScalar = {
   isPublic?: boolean
   isPromptPublic?: boolean
   isFeatured?: boolean
+  searchGrounded?: boolean
   userId?: boolean
   projectId?: boolean
   characterCardId?: boolean
@@ -5200,7 +5287,7 @@ export type GenerationSelectScalar = {
   seed?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "thumbnailUrl" | "thumbnailStorageKey" | "previewUrl" | "previewStorageKey" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "sourceSurface" | "loraLineage" | "seq" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "thumbnailUrl" | "thumbnailStorageKey" | "previewUrl" | "previewStorageKey" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "searchGrounded" | "userId" | "projectId" | "characterCardId" | "cardRecipeId" | "recipeSnapshot" | "sourceSurface" | "loraLineage" | "seq" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
@@ -5274,6 +5361,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     isPublic: boolean
     isPromptPublic: boolean
     isFeatured: boolean
+    searchGrounded: boolean
     userId: string | null
     projectId: string | null
     characterCardId: string | null
@@ -5751,6 +5839,7 @@ export interface GenerationFieldRefs {
   readonly isPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly isPromptPublic: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly isFeatured: Prisma.FieldRef<"Generation", 'Boolean'>
+  readonly searchGrounded: Prisma.FieldRef<"Generation", 'Boolean'>
   readonly userId: Prisma.FieldRef<"Generation", 'String'>
   readonly projectId: Prisma.FieldRef<"Generation", 'String'>
   readonly characterCardId: Prisma.FieldRef<"Generation", 'String'>

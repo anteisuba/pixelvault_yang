@@ -8,7 +8,10 @@ import {
 } from '@/constants/execution'
 import { IMAGE_GENERATION } from '@/constants/config'
 import { getNovelAiImageDimensions } from '@/constants/novelai'
-import { getExecutionModelId } from '@/constants/models'
+import {
+  getExecutionModelId,
+  supportsSearchGrounding,
+} from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   GenerateRequest,
@@ -17,11 +20,13 @@ import type {
   ImageStatusResponseData,
   ImageSubmitResponseData,
   MultiViewGeneratedAngle,
+  SearchGroundingResult,
   WorkerRunContext,
 } from '@/types'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { GenerationStageTimer } from '@/lib/generation-observability'
+import { withoutSearchGrounding } from '@/lib/search-grounding'
 import {
   buildInternalUrl,
   dispatchImageWorkerRun,
@@ -221,11 +226,18 @@ export async function submitImageGeneration(
   const referenceImageUrl = referenceImages[0]
   // 遮罩走同一条上传通路 —— 从这里往下，advancedParams 里的 `inpaintMask`
   // 已经是 R2 的 http URL（⛔ 不是客户端那串 data URL）。
-  const advancedParams = await uploadInpaintMaskIfNeeded({
+  const uploadedAdvancedParams = await uploadInpaintMaskIfNeeded({
     userId: dbUser.id,
     input,
     timer,
   })
+  // 「先搜再画」只对支持的型号生效：别的型号带着这一位既不会搜，也不该被
+  // 当成「用过搜索」挡住公开 —— 在进快照之前就去掉。
+  const advancedParams =
+    uploadedAdvancedParams?.searchGrounding &&
+    !supportsSearchGrounding(route.modelId)
+      ? { ...uploadedAdvancedParams, searchGrounding: undefined }
+      : uploadedAdvancedParams
   const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
   const workerAdvancedParams =
     route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM &&
@@ -500,8 +512,19 @@ export async function checkImageGenerationStatus(
       dbUser.id,
     )
     if (generation) {
-      return { jobId: job.id, status: 'COMPLETED', generation }
+      const searchGrounding = await takeSearchGrounding(job)
+      return {
+        jobId: job.id,
+        status: 'COMPLETED',
+        generation,
+        ...(searchGrounding ? { searchGrounding } : {}),
+      }
     }
+  }
+
+  if (job.status === 'FAILED' || job.status === 'CANCELLED') {
+    // 没出图就没有可展示的搜索结果：暂放的来源直接清掉。
+    await takeSearchGrounding(job)
   }
 
   if (job.status === 'FAILED') {
@@ -529,6 +552,25 @@ export async function checkImageGenerationStatus(
       ? { executionStage: metadata.executionStage }
       : {}),
   }
+}
+
+/**
+ * 「先搜再画」来源只交一次：从任务行上取走并当场清掉。清用 `externalRequestId`
+ * 原值做 CAS —— 两个并发轮询只有一个拿得到，另一个照常只拿到图。
+ */
+async function takeSearchGrounding(job: {
+  id: string
+  externalRequestId: string | null
+}): Promise<SearchGroundingResult | undefined> {
+  if (!job.externalRequestId) return undefined
+  const { searchGrounding } = parseWorkerJobMetadata(job.externalRequestId)
+  if (!searchGrounding) return undefined
+
+  const cleared = await db.generationJob.updateMany({
+    where: { id: job.id, externalRequestId: job.externalRequestId },
+    data: { externalRequestId: withoutSearchGrounding(job.externalRequestId) },
+  })
+  return cleared.count > 0 ? searchGrounding : undefined
 }
 
 export async function waitForImageGenerationResult(

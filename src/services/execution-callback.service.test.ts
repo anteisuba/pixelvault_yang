@@ -259,6 +259,43 @@ describe('execution-callback.service', () => {
     expect(mockUpdateMany).not.toHaveBeenCalled()
   })
 
+  it('暂放先搜再画的来源，等发起者轮询时取走', async () => {
+    const metadata = { outputType: 'IMAGE', creditCost: 1 }
+    const externalRequestId = JSON.stringify(metadata)
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      externalRequestId,
+    })
+    const searchGrounding = {
+      status: 'grounded',
+      sources: [
+        {
+          kind: 'image',
+          url: 'https://example.com/page',
+          title: 'Page',
+          domain: 'example.com',
+        },
+      ],
+      suggestionsHtml: '<div>s</div>',
+    }
+
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { searchGrounding },
+    })
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job-1',
+        status: { in: ['QUEUED', 'RUNNING'] },
+        externalRequestId,
+      },
+      data: {
+        externalRequestId: JSON.stringify({ ...metadata, searchGrounding }),
+      },
+    })
+  })
+
   it('stores the worker-reported execution stage alongside existing metadata', async () => {
     // runner 冷启动会在队列里停几分钟，阶段回报是主站唯一能分辨
     // 「排队等 GPU」和「GPU 正在出图」的信号。
@@ -720,6 +757,49 @@ describe('execution-callback.service', () => {
       }),
       expect.anything(),
     )
+  })
+
+  it('开了先搜再画的图落库时记 searchGrounded，来源不进 Generation', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'gemini',
+      provider: 'Gemini',
+      modelId: 'gemini-nano-banana-2.1',
+      prompt: 'Taipei 101',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 1,
+        aspectRatio: '3:4',
+        originalModelId: 'gemini-nano-banana-2.1',
+        advancedParams: { searchGrounding: true },
+        searchGrounding: {
+          status: 'grounded',
+          sources: [
+            { kind: 'web', url: 'https://example.com/a', title: 'example.com' },
+          ],
+        },
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-grounded',
+      outputType: 'IMAGE',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        width: 1536,
+        height: 2048,
+        requestCount: 1,
+      },
+    })
+
+    const input = mockCreateGeneration.mock.calls[0]?.[0]
+    expect(input).toMatchObject({ searchGrounded: true })
+    expect(JSON.stringify(input)).not.toContain('example.com/a')
   })
 
   it('preserves the source prompt and dimensions while storing precise-edit instructions separately', async () => {

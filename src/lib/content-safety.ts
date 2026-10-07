@@ -1,6 +1,8 @@
 import {
   PUBLISH_BLOCK_MINOR_TERMS,
   PUBLISH_BLOCK_SEXUAL_TERMS,
+  PUBLISH_BLOCKED_ERROR_CODE,
+  PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE,
 } from '@/constants/content-safety'
 
 const LATIN_TERM = /^[a-z ]+$/
@@ -42,4 +44,23 @@ export function isPromptBlockedFromPublic(
   if (!prompt) return false
   const text = prompt.replace(/_/g, ' ')
   return hasMinorTerm(text) && hasSexualTerm(text)
+}
+
+/**
+ * 公开闸：这件作品能不能公开，拦下时给出原因码（单张与批量公开共用）。
+ * 「先搜再画」出的图按条款一律不能公开；派生图不继承（owner 2026-10-07）。
+ */
+export function getPublishBlockedErrorCode(generation: {
+  prompt: string | null
+  searchGrounded?: boolean
+}):
+  | typeof PUBLISH_BLOCKED_ERROR_CODE
+  | typeof PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE
+  | null {
+  if (generation.searchGrounded)
+    return PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE
+  if (isPromptBlockedFromPublic(generation.prompt)) {
+    return PUBLISH_BLOCKED_ERROR_CODE
+  }
+  return null
 }

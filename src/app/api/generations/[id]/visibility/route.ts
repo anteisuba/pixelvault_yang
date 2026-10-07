@@ -9,7 +9,10 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { ApiRequestError } from '@/lib/errors'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { PUBLISH_BLOCKED_ERROR_CODE } from '@/constants/content-safety'
+import {
+  PUBLISH_BLOCKED_ERROR_CODE,
+  PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE,
+} from '@/constants/content-safety'
 import { createApiPatchByIdRoute } from '@/lib/api-route-factory'
 
 const VisibilitySchema = z.object({
@@ -42,6 +45,17 @@ export const PATCH = createApiPatchByIdRoute({
         PUBLISH_BLOCKED_ERROR_CODE,
         422,
         'errors.generation.publish_blocked',
+        result.error,
+      )
+    }
+    if (
+      'error' in result &&
+      result.error === PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE
+    ) {
+      throw new ApiRequestError(
+        PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE,
+        422,
+        'errors.generation.publish_blocked_search',
         result.error,
       )
     }

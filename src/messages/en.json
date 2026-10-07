@@ -7343,6 +7343,7 @@
       "runner_lora_unavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
       "lora_download_disabled": "The creator has disabled downloads for this LoRA. It can only be used in Civitai's generator. Choose another LoRA to use here.",
       "publish_blocked": "This work can't be made public: its prompt contains both minor-related and sexual terms. It stays in your library.",
+      "publish_blocked_search": "This image used Google Search while it was made, so under Google's terms only you can see it — it can't be published.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
       "unknownWithDetail": "This generation failed. The provider said: {detail}"
     },

@@ -473,6 +473,10 @@ model Generation {
   isPublic       Boolean @default(false)
   isPromptPublic Boolean @default(false)
   isFeatured     Boolean @default(false)
+  // 「先搜再画」：出图时用了 Google 搜索落地。按 Gemini API 条款这类图只能
+  // 自己看，公开接口按它拦；⛔ 不存来源与搜索建议。顶层列是因为素材库列表口
+  // 不取 snapshot，多选发布要提前知道。派生图不继承（owner 2026-10-07）。
+  searchGrounded Boolean @default(false)
 
   // ── 關聯 ──────────────────────────────────────────────────────
   userId          String?

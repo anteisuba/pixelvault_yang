@@ -7,6 +7,7 @@ import {
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { withoutSearchGrounding } from '@/lib/search-grounding'
 
 export const STALE_EXECUTION_FAILURE_MESSAGE =
   'Reaped by execution sweeper: no worker callback within the stale threshold'
@@ -21,6 +22,7 @@ const staleFailureData = (now: Date) => ({
 export interface SweepResult {
   staleJobsReaped: number
   expiredOutboxesReaped: number
+  undeliveredSearchGroundingCleared: number
 }
 
 export interface ReconcileGenerationJobInput {
@@ -129,6 +131,8 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
     staleJobsReaped: reapedJobs.count,
     expiredOutboxesReaped:
       requeuedPreviewOutboxes.count + failedAmbiguousOutboxes.count,
+    undeliveredSearchGroundingCleared:
+      await clearUndeliveredSearchGrounding(now),
   }
 
   if (result.staleJobsReaped > 0 || result.expiredOutboxesReaped > 0) {
@@ -139,4 +143,36 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
   }
 
   return result
+}
+
+/**
+ * 「先搜再画」来源只该在出图当下交给发起者一次（Gemini API 条款不许缓存）。
+ * 发起者关了页面、没人来取的，过了交接窗口就从任务行上清掉。逐行按原值 CAS，
+ * 与正在交付的那次轮询互不覆盖。
+ */
+async function clearUndeliveredSearchGrounding(now: Date): Promise<number> {
+  const cutoff = new Date(
+    now.getTime() - EXECUTION_SWEEPER.SEARCH_GROUNDING_HANDOFF_MS,
+  )
+  const rows = await db.generationJob.findMany({
+    where: {
+      updatedAt: { lt: cutoff },
+      externalRequestId: { contains: '"searchGrounding"' },
+    },
+    select: { id: true, externalRequestId: true },
+    take: EXECUTION_SWEEPER.SEARCH_GROUNDING_SWEEP_LIMIT,
+  })
+
+  let cleared = 0
+  for (const row of rows) {
+    if (!row.externalRequestId) continue
+    const result = await db.generationJob.updateMany({
+      where: { id: row.id, externalRequestId: row.externalRequestId },
+      data: {
+        externalRequestId: withoutSearchGrounding(row.externalRequestId),
+      },
+    })
+    cleared += result.count
+  }
+  return cleared
 }

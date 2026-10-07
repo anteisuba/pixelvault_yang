@@ -3923,6 +3923,7 @@ export const GenerationScalarFieldEnum = {
   isPublic: 'isPublic',
   isPromptPublic: 'isPromptPublic',
   isFeatured: 'isFeatured',
+  searchGrounded: 'searchGrounded',
   userId: 'userId',
   projectId: 'projectId',
   characterCardId: 'characterCardId',

@@ -687,6 +687,50 @@ describe('submitImageGeneration', () => {
   })
 })
 
+describe('submitImageGeneration 先搜再画', () => {
+  function dispatchedAdvancedParams() {
+    const providerInput = vi.mocked(dispatchImageWorkerRun).mock.calls[0][0]
+      .providerInput as { advancedParams?: { searchGrounding?: boolean } }
+    return providerInput.advancedParams
+  }
+
+  it('支持的型号原样带上开关', async () => {
+    vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
+      dbUser: { id: 'user-1' } as never,
+      provider: 'Gemini',
+      route: {
+        ...routeFor(AI_ADAPTER_TYPES.GEMINI),
+        modelId: 'gemini-nano-banana-2.1',
+      } as never,
+    })
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      modelId: 'gemini-nano-banana-2.1',
+      advancedParams: { searchGrounding: true },
+    })
+
+    expect(dispatchedAdvancedParams()).toMatchObject({ searchGrounding: true })
+  })
+
+  it('别的型号去掉开关，不进快照也不挡公开', async () => {
+    setupResolve(AI_ADAPTER_TYPES.OPENAI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      advancedParams: { searchGrounding: true, quality: 'high' },
+    })
+
+    expect(dispatchedAdvancedParams()?.searchGrounding).toBeUndefined()
+    const metadata = JSON.parse(
+      vi.mocked(createGenerationJob).mock.calls[0][0].externalRequestId ?? '{}',
+    )
+    expect(metadata.advancedParams).toEqual({ quality: 'high' })
+  })
+})
+
 // ─── checkImageGenerationStatus ────────────────────────────────
 
 describe('checkImageGenerationStatus', () => {
@@ -708,6 +752,76 @@ describe('checkImageGenerationStatus', () => {
       status: 'COMPLETED',
       generation: { id: 'gen-1' },
     })
+  })
+
+  it('先搜再画的来源只交一次：带出来并从任务行上清掉', async () => {
+    const searchGrounding = {
+      status: 'grounded',
+      sources: [
+        {
+          kind: 'web',
+          url: 'https://example.com/a',
+          title: 'example.com',
+          domain: 'example.com',
+        },
+      ],
+      suggestionsHtml: '<div>s</div>',
+    }
+    const externalRequestId = JSON.stringify({
+      outputType: 'IMAGE',
+      creditCost: 1,
+      searchGrounding,
+    })
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'COMPLETED',
+      generationId: 'gen-1',
+      externalRequestId,
+    } as never)
+    vi.mocked(getGenerationByIdForUser).mockResolvedValue({
+      id: 'gen-1',
+    } as never)
+    vi.mocked(db.generationJob.updateMany).mockResolvedValue({
+      count: 1,
+    } as never)
+
+    const result = await checkImageGenerationStatus('clerk-1', 'job-1')
+
+    expect(result).toEqual({
+      jobId: 'job-1',
+      status: 'COMPLETED',
+      generation: { id: 'gen-1' },
+      searchGrounding,
+    })
+    expect(db.generationJob.updateMany).toHaveBeenCalledWith({
+      where: { id: 'job-1', externalRequestId },
+      data: {
+        externalRequestId: JSON.stringify({
+          outputType: 'IMAGE',
+          creditCost: 1,
+        }),
+      },
+    })
+  })
+
+  it('并发轮询没抢到清除的那一次只拿到图', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'COMPLETED',
+      generationId: 'gen-1',
+      externalRequestId: JSON.stringify({
+        searchGrounding: { status: 'empty', sources: [] },
+      }),
+    } as never)
+    vi.mocked(getGenerationByIdForUser).mockResolvedValue({
+      id: 'gen-1',
+    } as never)
+
+    const result = await checkImageGenerationStatus('clerk-1', 'job-1')
+
+    expect(result).not.toHaveProperty('searchGrounding')
   })
 
   it('returns FAILED for a failed job', async () => {

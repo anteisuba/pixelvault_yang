@@ -10,6 +10,10 @@ import {
   pollGeminiVideoQueue,
   buildFalImageInput,
   buildGeminiImageParts,
+  buildGeminiImageRequestBody,
+  generateGeminiImage,
+  GEMINI_SEARCH_GROUNDING_TOOL,
+  readGeminiSearchGrounding,
   parseImageRunContext,
   bytesToBase64,
   cancelProviderJob,
@@ -1695,6 +1699,209 @@ describe('buildGeminiImageParts（卡片总线图例交错，进度表 35 ⑥）
       { inlineData: { url: 'https://cdn/a.png' } },
       { inlineData: { url: 'https://cdn/b.png' } },
     ])
+  })
+})
+
+describe('先搜再画（Gemini Google 搜索落地）', () => {
+  const groundedPayload = {
+    candidates: [
+      {
+        content: {
+          parts: [{ inlineData: { mimeType: 'image/png', data: 'ZmluYWw=' } }],
+        },
+        groundingMetadata: {
+          searchEntryPoint: { renderedContent: '<div class="chips">x</div>' },
+          groundingChunks: [
+            {
+              web: {
+                uri: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/a',
+                title: 'wikipedia.org',
+              },
+            },
+            {
+              image: {
+                sourceUri: 'https://commons.wikimedia.org/wiki/Taipei_101',
+                imageUri: 'https://upload.wikimedia.org/taipei.jpg',
+                title: 'Taipei 101 - Wikimedia Commons',
+                domain: 'wikimedia.org',
+              },
+            },
+            {
+              web: {
+                uri: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/a',
+                title: 'wikipedia.org',
+              },
+            },
+            { web: { uri: 'javascript:alert(1)', title: 'bad' } },
+          ],
+        },
+      },
+    ],
+  }
+
+  it('读出网页与图片两类来源，按链接去重，不取图片地址', () => {
+    expect(readGeminiSearchGrounding(groundedPayload)).toEqual({
+      status: 'grounded',
+      sources: [
+        {
+          kind: 'web',
+          url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/a',
+          title: 'wikipedia.org',
+          domain: 'wikipedia.org',
+        },
+        {
+          kind: 'image',
+          url: 'https://commons.wikimedia.org/wiki/Taipei_101',
+          title: 'Taipei 101 - Wikimedia Commons',
+          domain: 'wikimedia.org',
+        },
+      ],
+      suggestionsHtml: '<div class="chips">x</div>',
+    })
+    expect(
+      JSON.stringify(readGeminiSearchGrounding(groundedPayload)),
+    ).not.toContain('upload.wikimedia.org')
+  })
+
+  it('搜了没有来源 = empty，建议条照带', () => {
+    expect(
+      readGeminiSearchGrounding({
+        candidates: [
+          {
+            groundingMetadata: {
+              searchEntryPoint: { renderedContent: '<div>s</div>' },
+            },
+          },
+        ],
+      }),
+    ).toEqual({ status: 'empty', sources: [], suggestionsHtml: '<div>s</div>' })
+    expect(readGeminiSearchGrounding({})).toEqual({
+      status: 'empty',
+      sources: [],
+    })
+  })
+
+  it('只有开了才带搜索工具', () => {
+    expect(buildGeminiImageRequestBody([], {}, true).tools).toEqual([
+      GEMINI_SEARCH_GROUNDING_TOOL,
+    ])
+    expect(buildGeminiImageRequestBody([], {}, false)).not.toHaveProperty(
+      'tools',
+    )
+  })
+
+  function geminiEnv() {
+    const put = vi.fn().mockResolvedValue(undefined)
+    return {
+      GENERATION_BUCKET: { put, get: vi.fn() },
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      INTERNAL_CALLBACK_SECRET: 'secret',
+    } as unknown as Parameters<typeof generateGeminiImage>[0]
+  }
+
+  function geminiContext(
+    advancedParams: Record<string, unknown>,
+  ): Parameters<typeof generateGeminiImage>[1] {
+    return {
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'gemini',
+      resolveKeyUrl: 'https://app.example.com/key',
+      timeoutMs: 300000,
+      maxAttempts: 1,
+      pollIntervalMs: 1000,
+      runId: 'grounding-test',
+      callbackUrl: 'https://app.example.com/callback',
+      providerInput: {
+        modelId: 'gemini-nano-banana-2.1',
+        externalModelId: 'gemini-nano-banana-2.1',
+        prompt: 'Taipei 101 at night',
+        aspectRatio: '3:4',
+        advancedParams,
+      },
+    } as Parameters<typeof generateGeminiImage>[1]
+  }
+
+  it('来源只走 status 回调，不进返回值', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(groundedPayload))
+      .mockResolvedValue(new Response('{}'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await generateGeminiImage(
+      geminiEnv(),
+      geminiContext({ searchGrounding: true }),
+      'key',
+    )
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(request.tools).toEqual([GEMINI_SEARCH_GROUNDING_TOOL])
+    const callback = JSON.parse(fetchMock.mock.calls[1][1].body)
+    expect(fetchMock.mock.calls[1][0]).toBe('https://app.example.com/callback')
+    expect(callback).toMatchObject({
+      runId: 'grounding-test',
+      kind: 'status',
+      data: { searchGrounding: { status: 'grounded' } },
+    })
+    expect(callback.data.searchGrounding.sources).toHaveLength(2)
+    expect(Object.keys(result).sort()).toEqual([
+      'artifactUrl',
+      'height',
+      'imageR2Key',
+      'mimeType',
+      'width',
+    ])
+  })
+
+  it('带搜索那一枪失败 → 去掉搜索照常画，回调写 error', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('{"error":{}}', { status: 500 }))
+      .mockResolvedValueOnce(Response.json(groundedPayload))
+      .mockResolvedValue(new Response('{}'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateGeminiImage(
+      geminiEnv(),
+      geminiContext({ searchGrounding: true }),
+      'key',
+    )
+
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty(
+      'tools',
+    )
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body).data).toEqual({
+      searchGrounding: { status: 'error', sources: [] },
+    })
+  })
+
+  it('额度 / 鉴权错误不退回，原样失败', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{"error":{}}', { status: 429 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      generateGeminiImage(
+        geminiEnv(),
+        geminiContext({ searchGrounding: true }),
+        'key',
+      ),
+    ).rejects.toThrow()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('没开就不搜、不回调', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(groundedPayload))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateGeminiImage(geminiEnv(), geminiContext({}), 'key')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      'tools',
+    )
   })
 })
 

@@ -5642,7 +5642,173 @@ export async function buildGeminiImageParts(
   return parts
 }
 
-async function generateGeminiImage(
+/**
+ * 「先搜再画」：Google 搜索落地，网页 + 图片两种都开（图片搜索只有 Nano
+ * Banana 2.1 / 3.1 Flash 支持，能否开由应用侧按型号决定，这里只认参数）。
+ * https://ai.google.dev/api/generate-content （GoogleSearch.searchTypes）
+ */
+export const GEMINI_SEARCH_GROUNDING_TOOL = {
+  googleSearch: { searchTypes: { webSearch: {}, imageSearch: {} } },
+} as const
+
+export interface WorkerSearchGroundingSource {
+  kind: 'web' | 'image'
+  url: string
+  title: string
+  domain?: string
+}
+
+/** 与应用侧 `SearchGroundingResultSchema` 同形（status 回调的 data.searchGrounding）。 */
+export interface WorkerSearchGroundingResult {
+  status: 'grounded' | 'empty' | 'error'
+  sources: WorkerSearchGroundingSource[]
+  suggestionsHtml?: string
+}
+
+const DOMAIN_LIKE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i
+
+function readHttpUrl(value: string | null): string | null {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || url.protocol === 'http:'
+      ? url.toString()
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 从 `candidates[].groundingMetadata` 读出来源与搜索建议。网页块只有
+ * `uri`（Google 的跳转链）+ `title`（通常就是域名）；图片块给出图所在网页
+ * `sourceUri` + 标题 + 域名 —— ⛔ `imageUri` 不取（owner：来源不显示缩略图）。
+ * 链接原样用，按链接去重，顺序照 Google 给的。
+ */
+export function readGeminiSearchGrounding(
+  payload: unknown,
+): WorkerSearchGroundingResult {
+  const candidates =
+    isRecord(payload) && Array.isArray(payload.candidates)
+      ? payload.candidates
+      : []
+  const sources: WorkerSearchGroundingSource[] = []
+  const seen = new Set<string>()
+  let suggestionsHtml: string | undefined
+
+  for (const candidate of candidates) {
+    if (!isRecord(candidate) || !isRecord(candidate.groundingMetadata)) continue
+    const metadata = candidate.groundingMetadata
+    const entryPoint = isRecord(metadata.searchEntryPoint)
+      ? metadata.searchEntryPoint
+      : null
+    suggestionsHtml ??=
+      (entryPoint && readStringField(entryPoint, 'renderedContent')) ??
+      undefined
+
+    const chunks = Array.isArray(metadata.groundingChunks)
+      ? metadata.groundingChunks
+      : []
+    for (const chunk of chunks) {
+      if (!isRecord(chunk)) continue
+      let source: WorkerSearchGroundingSource | null = null
+      if (isRecord(chunk.image)) {
+        const url = readHttpUrl(readStringField(chunk.image, 'sourceUri'))
+        const domain = readStringField(chunk.image, 'domain') ?? undefined
+        if (url) {
+          source = {
+            kind: 'image',
+            url,
+            title: readStringField(chunk.image, 'title') ?? domain ?? url,
+            ...(domain ? { domain } : {}),
+          }
+        }
+      } else if (isRecord(chunk.web)) {
+        const url = readHttpUrl(readStringField(chunk.web, 'uri'))
+        const title = readStringField(chunk.web, 'title')
+        if (url) {
+          const domain =
+            title && DOMAIN_LIKE.test(title) ? title.toLowerCase() : undefined
+          source = {
+            kind: 'web',
+            url,
+            title: title ?? domain ?? url,
+            ...(domain ? { domain } : {}),
+          }
+        }
+      }
+      if (!source || seen.has(source.url)) continue
+      seen.add(source.url)
+      sources.push(source)
+    }
+  }
+
+  return {
+    status: sources.length > 0 ? 'grounded' : 'empty',
+    sources,
+    ...(suggestionsHtml ? { suggestionsHtml } : {}),
+  }
+}
+
+export function buildGeminiImageRequestBody(
+  parts: Record<string, unknown>[],
+  imageConfig: Record<string, unknown>,
+  searchGrounding: boolean,
+): Record<string, unknown> {
+  return {
+    contents: [{ parts }],
+    ...(searchGrounding ? { tools: [GEMINI_SEARCH_GROUNDING_TOOL] } : {}),
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig,
+    },
+  }
+}
+
+/**
+ * 带搜索那一枪失败时要不要退回不搜照常画：鉴权 / 额度错误换不搜也一样失败，
+ * 原样报；其余（搜索出错、上游 5xx…）去掉搜索再画一次，界面说「搜索没成功」。
+ */
+function shouldRetryWithoutSearch(status: number): boolean {
+  return status !== 401 && status !== 403 && status !== 429
+}
+
+/**
+ * 来源与搜索建议只经 status 回调交给应用、暂放到发起者来取 ——
+ * ⛔ 不进 step 返回值（Workflows 会把 step 输出存下来）。送不到只丢来源，
+ * 图照常交付。
+ */
+async function deliverSearchGrounding(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  searchGrounding: WorkerSearchGroundingResult,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) return
+  try {
+    const response = await postSignedJson(
+      context.callbackUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      {
+        runId: context.runId,
+        kind: 'status',
+        ts: new Date().toISOString(),
+        data: { searchGrounding },
+      },
+    )
+    if (!response.ok) {
+      console.warn('Search grounding could not be delivered', {
+        runId: context.runId,
+        status: response.status,
+      })
+    }
+  } catch {
+    console.warn('Search grounding could not be delivered', {
+      runId: context.runId,
+    })
+  }
+}
+
+export async function generateGeminiImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
   apiKey: string,
@@ -5655,29 +5821,46 @@ async function generateGeminiImage(
     ? tieredGeminiDimensions(context.providerInput.aspectRatio, resolutionTier)
     : getStandardImageDimensions(context.providerInput.aspectRatio)
   const parts = await buildGeminiImageParts(context)
+  const searchGrounding =
+    readBooleanField(advancedParams, 'searchGrounding') === true
 
   const imageConfig: Record<string, unknown> = {
     aspectRatio: context.providerInput.aspectRatio,
   }
   if (resolutionTier) imageConfig.imageSize = resolutionTier
 
-  const response = await fetch(
-    `${GEMINI_IMAGE_BASE_URL}/${context.providerInput.externalModelId}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': JSON_CONTENT_TYPE,
-      },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          imageConfig,
+  const request = (withSearch: boolean) =>
+    fetch(
+      `${GEMINI_IMAGE_BASE_URL}/${context.providerInput.externalModelId}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': JSON_CONTENT_TYPE,
         },
-      }),
-    },
-  )
+        body: JSON.stringify(
+          buildGeminiImageRequestBody(parts, imageConfig, withSearch),
+        ),
+      },
+    )
+
+  let response = await request(searchGrounding)
+  let searchFailed = false
+  if (
+    !response.ok &&
+    searchGrounding &&
+    shouldRetryWithoutSearch(response.status)
+  ) {
+    console.warn(
+      'Gemini grounded image request failed; retrying without search',
+      {
+        runId: context.runId,
+        status: response.status,
+      },
+    )
+    searchFailed = true
+    response = await request(false)
+  }
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -5714,6 +5897,15 @@ async function generateGeminiImage(
         mimeType,
         getWorkerImageOutputKey(context),
       )
+      if (searchGrounding) {
+        await deliverSearchGrounding(
+          env,
+          context,
+          searchFailed
+            ? { status: 'error', sources: [] }
+            : readGeminiSearchGrounding(payload),
+        )
+      }
       return { ...uploaded, ...dimensions }
     }
   }

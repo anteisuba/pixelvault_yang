@@ -10,7 +10,7 @@ import {
   cacheableFn,
   invalidatePublicGalleryCache,
 } from '@/lib/cache-tags'
-import { isPromptBlockedFromPublic } from '@/lib/content-safety'
+import { getPublishBlockedErrorCode } from '@/lib/content-safety'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
 import type {
@@ -23,7 +23,6 @@ import type {
   OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
-import { PUBLISH_BLOCKED_ERROR_CODE } from '@/constants/content-safety'
 import {
   GENERATION_REVIEW_STATES,
   GENERATION_REVIEW_STATE_IDS,
@@ -99,6 +98,8 @@ export interface CreateGenerationInput {
   isFreeGeneration?: boolean
   isPublic?: boolean
   isPromptPublic?: boolean
+  /** 「先搜再画」出的图：按 Gemini API 条款不能公开。 */
+  searchGrounded?: boolean
   userId?: string
   /** Character card IDs to link via join table (multi-card) */
   characterCardIds?: string[]
@@ -224,6 +225,8 @@ export const LIST_GENERATION_SELECT = {
   isPublic: true,
   isPromptPublic: true,
   isFeatured: true,
+  /** 素材库要在列表态就把「发布」置灰（「先搜再画」出的图不能公开）。 */
+  searchGrounded: true,
   userId: true,
   characterCardId: true,
   cardRecipeId: true,
@@ -584,6 +587,7 @@ async function createGenerationWithin(
       isFreeGeneration: input.isFreeGeneration ?? false,
       isPublic: input.isPublic ?? false,
       isPromptPublic: input.isPromptPublic ?? false,
+      searchGrounded: input.searchGrounded ?? false,
       userId: input.userId,
       recipeSnapshot: input.recipeSnapshot,
       seed: input.seed,
@@ -1006,6 +1010,7 @@ export async function toggleGenerationVisibility(
       isPublic: true,
       isPromptPublic: true,
       isFeatured: true,
+      searchGrounded: true,
     },
   })
 
@@ -1015,12 +1020,9 @@ export async function toggleGenerationVisibility(
 
   const nextValue = value ?? !generation[field]
 
-  if (
-    field === 'isPublic' &&
-    nextValue &&
-    isPromptBlockedFromPublic(generation.prompt)
-  ) {
-    return { error: PUBLISH_BLOCKED_ERROR_CODE }
+  if (field === 'isPublic' && nextValue) {
+    const blocked = getPublishBlockedErrorCode(generation)
+    if (blocked) return { error: blocked }
   }
 
   // Enforce featured limit when turning ON
@@ -1069,6 +1071,7 @@ export async function setGenerationVisibility(
       userId: true,
       prompt: true,
       isFeatured: true,
+      searchGrounded: true,
     },
   })
 
@@ -1076,11 +1079,9 @@ export async function setGenerationVisibility(
     return null
   }
 
-  if (
-    values.isPublic === true &&
-    isPromptBlockedFromPublic(generation.prompt)
-  ) {
-    return { error: PUBLISH_BLOCKED_ERROR_CODE }
+  if (values.isPublic === true) {
+    const blocked = getPublishBlockedErrorCode(generation)
+    if (blocked) return { error: blocked }
   }
 
   if (values.isFeatured === true && !generation.isFeatured) {
@@ -1469,7 +1470,7 @@ export async function batchDeleteGenerations(
  * Batch update visibility for generations owned by the user.
  */
 /**
- * 批量改可见性。批量公开时逐条过公开闸（`lib/content-safety.ts`）：
+ * 批量改可见性。批量公开时逐条过公开闸（`getPublishBlockedErrorCode`）：
  * 拦下的不改，id 原样回给调用方，前端据此只把放行的那些标成已公开。
  */
 export async function batchUpdateVisibility(
@@ -1484,10 +1485,10 @@ export async function batchUpdateVisibility(
   if (field === 'isPublic' && value) {
     const owned = await db.generation.findMany({
       where: { id: { in: ids }, userId },
-      select: { id: true, prompt: true },
+      select: { id: true, prompt: true, searchGrounded: true },
     })
     blockedIds = owned
-      .filter((row) => isPromptBlockedFromPublic(row.prompt))
+      .filter((row) => getPublishBlockedErrorCode(row) !== null)
       .map((row) => row.id)
     if (blockedIds.length > 0) {
       const blocked = new Set(blockedIds)

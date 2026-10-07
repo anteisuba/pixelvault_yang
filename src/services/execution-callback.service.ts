@@ -10,6 +10,7 @@ import {
   ExecutionCallbackErrorDataSchema,
   ExecutionCallbackResultDataSchema,
   GenerationSourceSurfaceSchema,
+  SearchGroundingResultSchema,
 } from '@/types'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
@@ -163,6 +164,13 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
      * mesh-only preview once its textured continuation lands.
      */
     parentGenerationId: z.string().min(1).optional(),
+    /**
+     * 「先搜再画」来源的暂放位：worker 出图那一步用 status 回调写进来，
+     * `checkImageGenerationStatus` 第一次读到「完成」时交给发起者并当场清掉，
+     * 没人取的由每日 sweep 清（⛔ 不进 Generation）。坏数据只丢这一格，
+     * 不能拖垮整份元数据 —— finalize 还要靠它落库。
+     */
+    searchGrounding: SearchGroundingResultSchema.optional().catch(undefined),
   })
 
 /**
@@ -269,8 +277,9 @@ async function persistProviderJobIdFromStatusCallback(
 
 /**
  * Best-effort persist of the progress fields a worker `status` callback can
- * carry for an IMAGE job — the streamed `previewUrl` and the worker-reported
- * `executionStage` (runner queued / running). Same CAS guard as
+ * carry for an IMAGE job — the streamed `previewUrl`, the worker-reported
+ * `executionStage` (runner queued / running) and the 「先搜再画」 sources
+ * waiting to be handed to the requester once. Same CAS guard as
  * `persistProviderJobIdFromStatusCallback`, plus an `externalRequestId` match
  * so two concurrent status callbacks cannot lose each other's field.
  */
@@ -281,8 +290,8 @@ async function persistImageStatusMetadata(
   const statusData = executionCallbackStatusDataSchema.safeParse(data)
   if (!statusData.success) return
 
-  const { previewUrl, executionStage } = statusData.data
-  if (!previewUrl && !executionStage) return
+  const { previewUrl, executionStage, searchGrounding } = statusData.data
+  if (!previewUrl && !executionStage && !searchGrounding) return
 
   const metadata = parseWorkerJobMetadata(job.externalRequestId)
   if (metadata?.outputType !== 'IMAGE') return
@@ -298,6 +307,7 @@ async function persistImageStatusMetadata(
         ...JSON.parse(job.externalRequestId ?? '{}'),
         ...(previewUrl ? { previewUrl } : {}),
         ...(executionStage ? { executionStage } : {}),
+        ...(searchGrounding ? { searchGrounding } : {}),
       }),
     },
   })
@@ -1014,6 +1024,9 @@ async function finalizeImageResult(
             requestCount,
             isFreeGeneration: metadata.isFreeGeneration,
             outputType: 'IMAGE',
+            searchGrounded:
+              (metadata.advancedParams as { searchGrounding?: unknown })
+                ?.searchGrounding === true,
             userId: job.userId,
             characterCardIds: metadata.characterCardIds,
             projectId: metadata.projectId,

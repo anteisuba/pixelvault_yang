@@ -13,6 +13,13 @@ export const EXECUTION_SWEEPER = {
    * callback that finalizes first is left untouched.
    */
   STALE_JOB_THRESHOLD_MS: 60 * 60 * 1000,
+  /**
+   * 「先搜再画」来源在任务行上暂放多久算没人取（发起者关了页面）。正常情况
+   * 前端下一次轮询就取走清掉；过了这个时间由每日 sweep 清。
+   */
+  SEARCH_GROUNDING_HANDOFF_MS: 10 * 60 * 1000,
+  /** 每次 sweep 最多清多少条没人取的来源。 */
+  SEARCH_GROUNDING_SWEEP_LIMIT: 500,
 } as const
 
 export const EXECUTION_INTERNAL = {

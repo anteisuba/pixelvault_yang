@@ -923,6 +923,23 @@ describe('generation.service', () => {
       expect(mockGenerationUpdate).not.toHaveBeenCalled()
     })
 
+    it('先搜再画出的图不能公开', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        prompt: 'Taipei 101 at night',
+        isPublic: false,
+        isPromptPublic: false,
+        isFeatured: false,
+        searchGrounded: true,
+      })
+
+      const result = await toggleGenerationVisibility('gen-1', 'user-1')
+
+      expect(result).toEqual({ error: 'SEARCH_GROUNDED_NOT_PUBLISHABLE' })
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+
     it('still lets the owner unpublish a blocked prompt', async () => {
       mockGenerationFindUnique.mockResolvedValue({
         id: 'gen-1',
@@ -964,6 +981,25 @@ describe('generation.service', () => {
     })
   })
 
+  describe('setGenerationVisibility 先搜再画', () => {
+    it('isPublic=true 拦下，原因码与提示词闸分开', async () => {
+      mockGenerationFindUnique.mockResolvedValue({
+        id: 'gen-1',
+        userId: 'user-1',
+        prompt: 'Taipei 101',
+        isFeatured: false,
+        searchGrounded: true,
+      })
+
+      const result = await setGenerationVisibility('gen-1', 'user-1', {
+        isPublic: true,
+      })
+
+      expect(result).toEqual({ error: 'SEARCH_GROUNDED_NOT_PUBLISHABLE' })
+      expect(mockGenerationUpdate).not.toHaveBeenCalled()
+    })
+  })
+
   describe('batchUpdateVisibility', () => {
     it('publishes only the rows that pass the publish check', async () => {
       mockGenerationFindMany.mockResolvedValue([
@@ -980,6 +1016,27 @@ describe('generation.service', () => {
       )
 
       expect(result).toEqual({ updatedCount: 1, blockedIds: ['gen-blocked'] })
+      expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['gen-ok'] }, userId: 'user-1' },
+        data: { isPublic: true },
+      })
+    })
+
+    it('先搜再画出的图留在私密，其余照发', async () => {
+      mockGenerationFindMany.mockResolvedValue([
+        { id: 'gen-ok', prompt: 'night city', searchGrounded: false },
+        { id: 'gen-search', prompt: 'Taipei 101', searchGrounded: true },
+      ])
+      mockGenerationUpdateMany.mockResolvedValue({ count: 1 })
+
+      const result = await batchUpdateVisibility(
+        ['gen-ok', 'gen-search'],
+        'user-1',
+        'isPublic',
+        true,
+      )
+
+      expect(result).toEqual({ updatedCount: 1, blockedIds: ['gen-search'] })
       expect(mockGenerationUpdateMany).toHaveBeenCalledWith({
         where: { id: { in: ['gen-ok'] }, userId: 'user-1' },
         data: { isPublic: true },

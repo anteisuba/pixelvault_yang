@@ -375,6 +375,13 @@ export const AdvancedParamsSchema = z.object({
   loraBaseModel: z.string().max(120).optional(),
   runnerCheckpoint: RunnerCheckpointSpecSchema.optional(),
   runnerCheckpointApproximate: z.boolean().optional(),
+  /**
+   * 「先搜再画」：出图前用 Google 搜索（网页 + 图片）找资料，只对
+   * `supportsSearchGrounding` 的型号生效（服务端对别的型号会去掉）。它留在
+   * `snapshot.advancedParams` 里就是「用过先搜再画」的标记 —— 按 Gemini API
+   * 条款这类图不能公开；⛔ 来源与搜索建议本身不进快照。
+   */
+  searchGrounding: z.boolean().optional(),
 })
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
@@ -1008,6 +1015,8 @@ export type ImageStatusResponseData =
       jobId: string
       status: 'COMPLETED'
       generation: GenerationRecord
+      /** 只在第一次读到「完成」时带一次（交出去就从任务行上清掉）。 */
+      searchGrounding?: SearchGroundingResult
       error?: never
     }
   | {
@@ -1872,11 +1881,38 @@ export type ExecutionCallbackErrorData = z.infer<
  * once the worker has dispatched the request, so the app can persist it
  * (`GenerationJob.providerJobId`) for a later cancel to target.
  */
+/** 「先搜再画」一条来源：只有标题、域名与原网页链接（⛔ 不带图片缩略图）。 */
+export const SearchGroundingSourceSchema = z.object({
+  /** `web` = 网页搜索找到的；`image` = 图片搜索找到的那张图所在的网页。 */
+  kind: z.enum(['web', 'image']),
+  url: z.string().url(),
+  title: z.string(),
+  domain: z.string().optional(),
+})
+
+export type SearchGroundingSource = z.infer<typeof SearchGroundingSourceSchema>
+
+/**
+ * 「先搜再画」这一次的结果，只在出图当下送给发起的人一次（Gemini API 条款：
+ * 带搜索的结果只能连同搜索建议给提交提示词的本人看，不得缓存）。
+ * `grounded` 有来源；`empty` 搜了但没有能用的资料；`error` 搜索没成功、照常画了。
+ */
+export const SearchGroundingResultSchema = z.object({
+  status: z.enum(['grounded', 'empty', 'error']),
+  sources: z.array(SearchGroundingSourceSchema),
+  /** Google 的 `searchEntryPoint.renderedContent`，原样嵌入，⛔ 不改不存。 */
+  suggestionsHtml: z.string().optional(),
+})
+
+export type SearchGroundingResult = z.infer<typeof SearchGroundingResultSchema>
+
 export const executionCallbackStatusDataSchema = z.object({
   previewUrl: z.string().url().optional(),
   providerJobId: z.string().trim().min(1).optional(),
   /** Worker-reported execution stage (runner queue / runner running). */
   executionStage: z.enum(EXECUTION_PROGRESS_STAGE_VALUES).optional(),
+  /** 「先搜再画」来源：暂放在任务行上，状态轮询交给发起者时当场清掉。 */
+  searchGrounding: SearchGroundingResultSchema.optional(),
 })
 
 export type ExecutionCallbackStatusData = z.infer<
@@ -2418,6 +2454,8 @@ export interface GenerationRecord {
   isPublic: boolean
   isPromptPublic: boolean
   isFeatured?: boolean
+  /** 「先搜再画」出的图：按 Gemini API 条款不能公开，发布入口置灰。 */
+  searchGrounded?: boolean
   userId?: string | null
   /** Creator info — present in gallery context */
   creator?: {

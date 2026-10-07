@@ -639,6 +639,10 @@ export function groupModelsByStyle(
 export const getModelTimeout = (modelId: string): number =>
   getModelById(modelId)?.timeoutMs ?? 45_000
 
+/** 「先搜再画」只对标了 `supportsSearchGrounding` 的型号出现。 */
+export const supportsSearchGrounding = (modelId: string): boolean =>
+  getModelById(modelId)?.supportsSearchGrounding === true
+
 /** Check if a model supports long video extension. */
 export const supportsLongVideo = (modelId: string): boolean =>
   getModelById(modelId)?.videoExtension != null

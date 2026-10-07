@@ -116,3 +116,10 @@ export const PUBLISH_BLOCK_SEXUAL_TERMS = [
 
 /** 拦下时 API 回给前端的错误码（visibility 路由与批量路由共用）。 */
 export const PUBLISH_BLOCKED_ERROR_CODE = 'CONTENT_NOT_PUBLISHABLE'
+
+/**
+ * 「先搜再画」出的图不能公开：Gemini API 条款只许把带搜索的结果给提交提示词
+ * 的本人看。与上面那条分开，是因为前端要说的原因不同。
+ */
+export const PUBLISH_BLOCKED_SEARCH_GROUNDED_ERROR_CODE =
+  'SEARCH_GROUNDED_NOT_PUBLISHABLE'

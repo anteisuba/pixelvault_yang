@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EXECUTION_SWEEPER } from '@/constants/execution'
 
 const mockJobUpdateMany = vi.fn()
+const mockJobFindMany = vi.fn()
 const mockOutboxUpdateMany = vi.fn()
 const mockLoggerWarn = vi.fn()
 
@@ -19,6 +20,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     generationJob: {
       updateMany: (...args: unknown[]) => mockJobUpdateMany(...args),
+      findMany: (...args: unknown[]) => mockJobFindMany(...args),
     },
     executionOutbox: {
       updateMany: (...args: unknown[]) => mockOutboxUpdateMany(...args),
@@ -44,6 +46,7 @@ describe('execution-sweeper.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockJobUpdateMany.mockResolvedValue({ count: 0 })
+    mockJobFindMany.mockResolvedValue([])
     mockOutboxUpdateMany.mockResolvedValue({ count: 0 })
   })
 
@@ -93,8 +96,38 @@ describe('execution-sweeper.service', () => {
   it('stays silent when nothing is orphaned', async () => {
     const result = await sweepStaleExecutions()
 
-    expect(result).toEqual({ staleJobsReaped: 0, expiredOutboxesReaped: 0 })
+    expect(result).toEqual({
+      staleJobsReaped: 0,
+      expiredOutboxesReaped: 0,
+      undeliveredSearchGroundingCleared: 0,
+    })
     expect(mockLoggerWarn).not.toHaveBeenCalled()
+  })
+
+  it('清掉过了交接窗口、没人取的先搜再画来源，其余元数据原样', async () => {
+    const externalRequestId = JSON.stringify({
+      outputType: 'IMAGE',
+      searchGrounding: { status: 'empty', sources: [] },
+    })
+    mockJobFindMany.mockResolvedValue([{ id: 'job-left', externalRequestId }])
+    mockJobUpdateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 })
+
+    const before = Date.now()
+    const result = await sweepStaleExecutions()
+
+    expect(result.undeliveredSearchGroundingCleared).toBe(1)
+    const query = mockJobFindMany.mock.calls[0]?.[0] as {
+      where: { updatedAt: { lt: Date } }
+    }
+    expect(query.where.updatedAt.lt.getTime()).toBeLessThanOrEqual(
+      before - EXECUTION_SWEEPER.SEARCH_GROUNDING_HANDOFF_MS + 1000,
+    )
+    expect(mockJobUpdateMany).toHaveBeenLastCalledWith({
+      where: { id: 'job-left', externalRequestId },
+      data: { externalRequestId: JSON.stringify({ outputType: 'IMAGE' }) },
+    })
   })
 
   it('logs a warning when orphans are reaped', async () => {

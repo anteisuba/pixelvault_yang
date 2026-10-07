@@ -7343,6 +7343,7 @@
       "runner_lora_unavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "lora_download_disabled": "这把 LoRA 的作者在 Civitai 关掉了下载，它只能在 Civitai 站内出图。这跟 API Key 无关，换任何 token 都取不到权重——请换一把 LoRA。",
       "publish_blocked": "提示词里同时有未成年相关词和性相关词，这件作品不能公开。它仍留在你的素材库里。",
+      "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
       "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}"
     },

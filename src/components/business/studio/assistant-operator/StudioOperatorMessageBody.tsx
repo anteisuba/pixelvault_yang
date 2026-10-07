@@ -30,12 +30,14 @@
 
 import { Children, isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { motion } from 'motion/react'
 import Image from 'next/image'
 import type { Components } from 'react-markdown'
 import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import { useBlurSwapIn } from '@/components/ui/blur-swap'
 import { INITIAL_COMPONENTS, Markdown } from '@/components/ui/markdown'
 import {
   StudioOperatorAnswerSources,
@@ -302,6 +304,11 @@ export function StudioOperatorCollapsibleText({
 
   const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
+  /**
+   * 「正在思考…」→ 第一个字到达（owner 2026-10-07 动效方向）：正文**糊着进来**，
+   * ⛔ 不是硬切。历史消息一挂上就是正文，不播（见 `useBlurSwapIn` 头注）。
+   */
+  const textSwap = useBlurSwapIn(!text && streaming ? 'pending' : 'text')
 
   /**
    * **等回答时那一行**（D12 R-C）：三颗小点错峰起伏 +「正在思考…」。
@@ -332,9 +339,10 @@ export function StudioOperatorCollapsibleText({
 
   return (
     <>
-      <div
+      <motion.div
         data-testid="operator-message-text"
         {...(collapsed ? { 'data-collapsed': 'true' } : {})}
+        {...textSwap}
         className="min-w-0 text-sm leading-relaxed text-foreground"
       >
         <Markdown
@@ -359,7 +367,7 @@ export function StudioOperatorCollapsibleText({
             className="ml-0.5 inline-block h-3.5 w-1.75 rounded-xs align-middle bg-foreground"
           />
         ) : null}
-      </div>
+      </motion.div>
 
       {collapsible ? (
         <button

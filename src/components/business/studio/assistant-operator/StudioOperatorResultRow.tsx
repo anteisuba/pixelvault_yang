@@ -29,12 +29,14 @@
  * 直接抛 —— 那条路由故意不挂 `<StudioProvider>`。
  */
 
+import { useRef } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 
-import { EASE_STANDARD, DURATION } from '@/constants/motion'
+import { EASE_STANDARD, DURATION, RESULT_REVEAL } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import type {
   StudioOperatorResultEntry,
@@ -46,7 +48,8 @@ interface StudioOperatorResultRowProps {
   /** 「再来一组」—— 缺席时那颗不画（载荷丢了的历史条目）。 */
   onRerun?(entry: StudioOperatorResultEntry): void
   /** 「用它当参考」—— 多张时挂的是第一张（画板上那两颗按钮没有分格）。 */
-  onUseAsReference(item: StudioOperatorResultItem): void
+  /** `from` = 被挂上去的那一格（给「飞进输入框」那一下当起点），可缺。 */
+  onUseAsReference(item: StudioOperatorResultItem, from?: HTMLElement): void
 }
 
 /**
@@ -87,11 +90,21 @@ function ResultThumb({
   aspect: { css: string; value: number }
 }) {
   const reduceMotion = useReducedMotion()
+  /**
+   * 占位格 → 结果图（owner 2026-10-07 PC 动效方向）：图**由糊变清**、从微放大落到
+   * 原尺寸。尺寸与占位格一致，⛔ 不跳动（scale 只动画面，不动格子）。
+   */
   const fade = {
-    initial: reduceMotion ? false : { opacity: 0 },
-    animate: { opacity: 1 },
+    initial: reduceMotion
+      ? false
+      : {
+          opacity: 0,
+          filter: `blur(${RESULT_REVEAL.blurPx}px)`,
+          scale: RESULT_REVEAL.fromScale,
+        },
+    animate: { opacity: 1, filter: 'blur(0px)', scale: 1 },
     transition: {
-      duration: reduceMotion ? 0 : DURATION.base,
+      duration: reduceMotion ? 0 : DURATION.slow,
       ease: EASE_STANDARD,
       delay: reduceMotion
         ? 0
@@ -119,7 +132,6 @@ function ResultThumb({
       type="button"
       data-testid="operator-result-tile"
       onClick={() => openOperatorLightbox(item.url, item.label ?? '')}
-      // 占位格 → 结果图（D12 动效表）：只淡入，尺寸与占位格一致，⛔ 不跳动。
       {...fade}
       style={tileStyle(aspect)}
       className="relative cursor-zoom-in overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -147,6 +159,7 @@ export function StudioOperatorResultRow({
 }: StudioOperatorResultRowProps) {
   const t = useTranslations('StudioOperator.result')
   const format = useFormatter()
+  const gridRef = useRef<HTMLDivElement>(null)
   const { items, total, completed } = entry
   const generating = items.length === 0
   const aspect = toAspect(entry.request?.specs.aspectRatio)
@@ -176,9 +189,12 @@ export function StudioOperatorResultRow({
             data-testid="operator-result-progress"
             className="text-xs text-muted-foreground"
           >
-            {isVideo
-              ? t('generatingVideo')
-              : t('generating', { done: completed, total })}
+            {/* 数到几张换一次字，糊着换（owner 2026-10-07）。 */}
+            <BlurSwap swapKey={String(completed)}>
+              {isVideo
+                ? t('generatingVideo')
+                : t('generating', { done: completed, total })}
+            </BlurSwap>
           </p>
           <div className={grid}>
             {Array.from({ length: count }, (_, index) => (
@@ -197,7 +213,7 @@ export function StudioOperatorResultRow({
         </>
       ) : (
         <>
-          <div className={grid}>
+          <div ref={gridRef} className={grid}>
             {items.map((item, index) => (
               <ResultThumb
                 key={item.id}
@@ -238,7 +254,13 @@ export function StudioOperatorResultRow({
               <button
                 type="button"
                 data-testid="operator-result-reference"
-                onClick={() => onUseAsReference(items[0]!)}
+                onClick={() =>
+                  onUseAsReference(
+                    items[0]!,
+                    (gridRef.current
+                      ?.firstElementChild as HTMLElement | null) ?? undefined,
+                  )
+                }
                 className={ghost}
               >
                 {t('useAsReference')}

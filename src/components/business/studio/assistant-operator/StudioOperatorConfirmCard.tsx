@@ -32,6 +32,7 @@
 
 import { useState } from 'react'
 import { Check, ChevronDown, ChevronUp } from '@/components/icons'
+import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -48,6 +49,8 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { BlurSwap, useBlurSwapIn } from '@/components/ui/blur-swap'
+import { Spinner } from '@/components/ui/spinner'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   buildCanvasGenerationRequest,
@@ -160,6 +163,11 @@ export function StudioOperatorConfirmCard({
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed ||
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
   const busy = confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
+  /**
+   * 待决 → 已确认 / 已取消（owner 2026-10-07 动效方向）：那一行「已确认 · 11:24」
+   * 糊着进来，⛔ 不是整卡硬切。刷新后本来就定下的卡一挂上就是那一行，不播。
+   */
+  const decidedSwap = useBlurSwapIn(decided ? 'decided' : 'open')
   const kind: AssistantOperatorConfirmKind = confirm.kind
 
   const liveCanvasRequest =
@@ -335,7 +343,10 @@ export function StudioOperatorConfirmCard({
     >
       {/* ── 已确认 / 已取消：整卡收成一行「态 · 时间」+ 一句交代 ──────── */}
       {decided ? (
-        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs">
+        <motion.p
+          {...decidedSwap}
+          className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs"
+        >
           <span
             data-testid="operator-confirm-state"
             className="shrink-0 text-muted-foreground"
@@ -388,7 +399,7 @@ export function StudioOperatorConfirmCard({
               · {t('confirm.generate.retry')}
             </button>
           ) : null}
-        </p>
+        </motion.p>
       ) : (
         <>
           <div className="border-b border-border px-3 py-2">
@@ -642,14 +653,23 @@ export function StudioOperatorConfirmCard({
             >
               {/* ⚠ 「确认中」是**按钮上的字**而不是另起一行（画板「确认中」那一
                   态）：那一刻用户的眼睛就在这颗按钮上，写在别处等于没写。 */}
-              {busy
-                ? t('confirm.state.submitting')
-                : contextCard
-                  ? t('confirm.contextCard.save')
-                  : confirm.kind ===
-                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                    ? t('confirm.multistep.start')
-                    : t('confirm.generate.confirm')}
+              {/* 按下去那一刻（owner 2026-10-07）：同一颗键里换成转圈 +「确认中」，
+                  糊着换过去，⛔ 不另起一行。 */}
+              <BlurSwap swapKey={busy ? 'busy' : 'idle'} className="gap-1.5">
+                {busy ? (
+                  <>
+                    <Spinner size="sm" className="text-background" />
+                    {t('confirm.state.submitting')}
+                  </>
+                ) : contextCard ? (
+                  t('confirm.contextCard.save')
+                ) : confirm.kind ===
+                  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep ? (
+                  t('confirm.multistep.start')
+                ) : (
+                  t('confirm.generate.confirm')
+                )}
+              </BlurSwap>
             </button>
             <button
               type="button"

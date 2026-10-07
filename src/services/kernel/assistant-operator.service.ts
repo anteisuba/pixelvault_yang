@@ -1463,6 +1463,7 @@ function renderState(
       'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textTruncated shows only its opening — never replace it; ask the creator to @-mention or select it to read the full text, or append. Do not call global set_prompt or mount_reference on a canvas.',
       "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
       'Creating nodes, editing prompts and wiring references do not generate media. canvas_generate is a separate confirmation. Complete the requested board setup before offering generation.',
+      ...(state.canvas?.editDesk ? EDIT_DESK_GUIDE : []),
       ...state.referenceUrls.map(
         (url, index) =>
           `@Image${index + 1}: ${url ?? '(pending)'} — assistant reference; analyze_references can inspect it. Wiring requires a real source node id, not this URL.`,
@@ -7161,6 +7162,67 @@ async function planSetReviewState(
 //   并把拒绝理由渲染出来。⛔ 别在这里抄第二份连线规则。
 
 /** op 载荷里所有指向节点的那几格 —— 逐条列出来，⛔ 不做反射式扫描。 */
+/**
+ * 剪辑台怎么用（v2 第 2 片）—— 只在快照里有 `editDesk` 时印出来（省 token）。
+ * ⚠ 规则与 MCP 的 instructions 是同一套：主线首尾相接、台词字幕挂在帧上、剪辑不花钱。
+ */
+const EDIT_DESK_GUIDE: readonly string[] = [
+  'EDIT DESK — board.editDesk.timeline is the cut (null = this project has no timeline yet); board.editDesk.assets are the cards that can go on it (nodeId, track, durationSec). The video track is the main line: its clips play back to back in array order. Voice lines (audio track) and captions hang on a frame of a main-line clip (attachedTo): moving, trimming, splitting or deleting that clip carries them along. A line marked cut lost its frame to a trim and stays silent until moved. Times are timeline seconds; in/out are seconds inside the source.',
+  'Cut with canvas_apply, flat arguments. Only when timeline is null, start one: {action:"canvas_apply",op:"edit_set_timeline",project:{name:"...",tracks:{video:[],audio:[],music:[],text:[]},settings:{}}}. Add a clip: {action:"canvas_apply",op:"edit_add_clip",track:"video",clip:{id:"clip_<new unique id>",sourceNodeId:"<asset nodeId>",in:0,out:4.5},index:2} — out at most the asset durationSec; omit index to append; on the audio track also give clip.startSec. Change a clip: {action:"canvas_apply",op:"edit_update_clip",track:"video",clipId:"<id>",patch:{in:1,out:3,speed:1,muted:false,transitionOut:"crossfade"}} (transitionOut is none, crossfade or black; patch.startSec moves a voice line). Reorder: {action:"canvas_apply",op:"edit_move_clip",track:"video",clipId:"<id>",toIndex:0}. Delete: {action:"canvas_apply",op:"edit_remove_clip",track:"video",clipId:"<id>"}. Captions: {action:"canvas_apply",op:"edit_add_text",clip:{id:"text_<new unique id>",text:"...",startSec:2,durationSec:3}}, edit_update_text {clipId,patch:{text,startSec,durationSec}}, edit_remove_text {clipId}.',
+  'Use clip ids exactly as editDesk.timeline lists them and read the fresh timeline after each change. Cutting never generates and never spends credits; to redo a shot, rewrite that node prompt with set_prompt and tell the creator to press generate.',
+]
+
+/**
+ * 剪辑类 op 的准入（v2 第 2 片）：时间线还没有就只能先建；加段只认快照里列出的卡；
+ * 改 / 挪 / 删只认时间线上真有的段与字幕。⚠ 错了退回一句**能照着改**的话，
+ * ⛔ 不在客户端执行器那一侧才发现（那时这一轮已经算「做了」）。
+ */
+function checkEditDeskOp(
+  canvas: AssistantOperatorCanvasSnapshot,
+  op: NodeAssistantOpV4,
+): string | null {
+  const ids = NODE_ASSISTANT_OP_V4_IDS
+  if (op.op === ids.editSetTimeline) return null
+  const isEditOp =
+    op.op === ids.editAddClip ||
+    op.op === ids.editUpdateClip ||
+    op.op === ids.editMoveClip ||
+    op.op === ids.editRemoveClip ||
+    op.op === ids.editAddText ||
+    op.op === ids.editUpdateText ||
+    op.op === ids.editRemoveText
+  if (!isEditOp) return null
+  const timeline = canvas.editDesk?.timeline
+  if (!timeline) {
+    return 'This project has no timeline yet. Start one with edit_set_timeline (empty tracks), then add clips.'
+  }
+  if (op.op === ids.editAddClip) {
+    const assets = canvas.editDesk?.assets ?? []
+    if (!assets.some((asset) => asset.nodeId === op.clip.sourceNodeId)) {
+      return `${op.clip.sourceNodeId} is not a card that can go on the timeline. Pick a nodeId from editDesk.assets.`
+    }
+    return null
+  }
+  if (
+    op.op === ids.editUpdateClip ||
+    op.op === ids.editMoveClip ||
+    op.op === ids.editRemoveClip
+  ) {
+    const found = timeline.clips.some(
+      (clip) => clip.clipId === op.clipId && clip.track === op.track,
+    )
+    return found
+      ? null
+      : `No clip ${op.clipId} on the ${op.track} track. Use a clipId and track from editDesk.timeline.clips.`
+  }
+  if (op.op === ids.editUpdateText || op.op === ids.editRemoveText) {
+    return timeline.texts.some((text) => text.textId === op.clipId)
+      ? null
+      : `No caption ${op.clipId} on the timeline. Use a textId from editDesk.timeline.texts.`
+  }
+  return null
+}
+
 function canvasOpTargets(op: NodeAssistantOpV4): readonly string[] {
   switch (op.op) {
     case NODE_ASSISTANT_OP_V4_IDS.connect:
@@ -7572,6 +7634,9 @@ async function planCanvasApply(
       `No card on the board has the id ${missing.join(', ')}. Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
     )
   }
+
+  const editProblem = checkEditDeskOp(canvas, op)
+  if (editProblem) return reject(REJECT.noSuchControl, editProblem)
 
   if (isCanvasConfirmTierOp(op)) {
     const asked = planCanvasConfirm(run, canvas, op)

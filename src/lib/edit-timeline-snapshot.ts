@@ -13,80 +13,31 @@ import {
   EDIT_TRANSITION_IDS,
   type EditTrackId,
 } from '@/constants/edit-desk'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   clipDurationSec,
   clipLocalTimeSec,
   isAttachmentCut,
   isPositionedTrack,
   projectDurationSec,
+  defaultTrackFor,
+  listEditableAssets,
   readClipSource,
   reflowAttachments,
   trackClipStarts,
 } from '@/lib/edit-project'
+import type {
+  TimelineSnapshot,
+  TimelineSnapshotAsset,
+  TimelineSnapshotAttach,
+  TimelineSnapshotClip,
+} from '@/types/edit-timeline-snapshot'
 import type {
   EditAttachment,
   EditClip,
   EditProject,
   NodeV4,
 } from '@/types/node-workflow'
-
-/** 台词 / 字幕挂在主线哪一段的哪一帧（素材本地秒）。 */
-export interface TimelineSnapshotAttach {
-  readonly clipId: string
-  readonly atSec: number
-}
-
-export interface TimelineSnapshotClip {
-  readonly clipId: string
-  readonly track: EditTrackId
-  /** 这条轨上的第几段（0 起）。 */
-  readonly index: number
-  readonly sourceNodeId: string
-  readonly sourceName?: string
-  /** 来源卡已经不在画布上了。 */
-  readonly sourceMissing?: true
-  /** 时间线秒。 */
-  readonly startSec: number
-  readonly endSec: number
-  /** 素材本地秒（裁剪入出点）。 */
-  readonly inSec: number
-  readonly outSec: number
-  readonly speed: number
-  /** 段尾接下一段的转场；缺席 = 硬切。 */
-  readonly transitionOut?: string
-  /** 原声关了（只对 V 轨有意义）。 */
-  readonly muted?: true
-  readonly gain?: number
-  /** 来源卡出了新版本，这段还是旧的。 */
-  readonly stale?: true
-  /** 台词（A 轨）挂在主线哪一段的哪一帧；主线还空着时缺席。 */
-  readonly attachedTo?: TimelineSnapshotAttach
-  /** 挂点那一帧被裁掉了：导出时不出声，挪一下就按落点重新挂上。 */
-  readonly cut?: true
-}
-
-export interface TimelineSnapshotText {
-  readonly textId: string
-  readonly text: string
-  readonly startSec: number
-  readonly endSec: number
-  readonly anchor: string
-  readonly size: string
-  readonly tone: string
-  readonly fadeSec: number
-  readonly attachedTo?: TimelineSnapshotAttach
-  /** 挂点那一帧被裁掉了：导出时不出字。 */
-  readonly cut?: true
-}
-
-export interface TimelineSnapshot {
-  readonly name: string
-  readonly durationSec: number
-  readonly aspect: string
-  readonly resolution: string
-  readonly clips: readonly TimelineSnapshotClip[]
-  readonly texts: readonly TimelineSnapshotText[]
-}
 
 function round(seconds: number): number {
   return Math.round(seconds * 1000) / 1000
@@ -205,4 +156,37 @@ export function timelineToSourceSec(
   const offset = timelineSec - hit.startSec
   if (offset < 0 || offset >= hit.durationSec) return null
   return clipLocalTimeSec(hit.clip, offset)
+}
+
+/**
+ * 画布上剪得进时间线的卡（有产物的视频 / 音频）—— 剪辑台左栏「画布素材」那一列。
+ * 模型加段时 `sourceNodeId` 只能从这里挑，`durationSec` 就是它能给的最大出点。
+ */
+export function buildTimelineAssets(
+  nodes: readonly NodeV4[],
+): readonly TimelineSnapshotAsset[] {
+  return listEditableAssets({
+    version: 4,
+    nodes: [...nodes],
+    edges: [],
+  }).flatMap((node) => {
+    const data = node.data
+    if (
+      data.kind !== NODE_MEDIA_KIND_IDS.video &&
+      data.kind !== NODE_MEDIA_KIND_IDS.audio
+    ) {
+      return []
+    }
+    const track = defaultTrackFor(node)
+    if (!track) return []
+    return [
+      {
+        nodeId: node.id,
+        name: data.name ?? node.id,
+        kind: data.kind,
+        track,
+        ...(data.durationSec ? { durationSec: round(data.durationSec) } : {}),
+      },
+    ]
+  })
 }

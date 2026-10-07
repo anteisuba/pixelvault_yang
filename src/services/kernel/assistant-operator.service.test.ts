@@ -18534,3 +18534,148 @@ describe('读写长提示词（owner 2026-09-27：提示词不设我们自己的
     expect(toolRingCalls()[0].userPrompt).toContain(`"${longPrompt}"`)
   })
 })
+
+describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 op 有准入', () => {
+  const timeline = {
+    name: '成片',
+    durationSec: 4,
+    aspect: '16:9',
+    resolution: '1080p',
+    clips: [
+      {
+        clipId: 'c1',
+        track: 'video' as const,
+        index: 0,
+        sourceNodeId: 'v1',
+        startSec: 0,
+        endSec: 4,
+        inSec: 0,
+        outSec: 4,
+        speed: 1,
+      },
+    ],
+    texts: [],
+  }
+
+  function editRequest(current: typeof timeline | null = timeline) {
+    return buildRequest({
+      domain: 'canvas',
+      responseLanguage: 'chinese',
+      messages: [{ role: 'user', content: '把这两个镜头排成初剪' }],
+      snapshot: {
+        prompt: '',
+        availableModels: [],
+        canvas: {
+          currentShotNo: null,
+          selectedNodeIds: [],
+          shots: [],
+          editDesk: {
+            timeline: current,
+            assets: [
+              {
+                nodeId: 'v1',
+                name: 'S01',
+                kind: 'video',
+                track: 'video',
+                durationSec: 4,
+              },
+              {
+                nodeId: 'v2',
+                name: 'S02',
+                kind: 'video',
+                track: 'video',
+                durationSec: 3,
+              },
+            ],
+          },
+        },
+      },
+    })
+  }
+
+  function cut(args: Record<string, unknown>) {
+    return {
+      tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply, args },
+    }
+  }
+
+  it('prints the edit desk guide and the timeline into the canvas state', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', editRequest()))
+    const prompt = toolRingCalls()[0]!.userPrompt
+    expect(prompt).toContain('EDIT DESK')
+    expect(prompt).toContain('"clipId":"c1"')
+    expect(prompt).toContain('"nodeId":"v2"')
+  })
+
+  it('lets a card from editDesk.assets onto the timeline', async () => {
+    queueTurns(
+      cut({
+        op: 'edit_add_clip',
+        track: 'video',
+        clip: { id: 'clip_s02', sourceNodeId: 'v2', in: 0, out: 3 },
+      }),
+    )
+    const events = await collect(runAssistantOperator('clerk-1', editRequest()))
+    // 画布 op 由浏览器那一侧的图引擎落表：服务端交出去、停下来等同步。
+    expect(stepsOf(events)[0]).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+      payload: expect.objectContaining({ op: 'edit_add_clip' }),
+    })
+    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
+  })
+
+  it.each([
+    [
+      'a source card that is not in editDesk.assets',
+      {
+        op: 'edit_add_clip',
+        track: 'video',
+        clip: { id: 'clip_x', sourceNodeId: 'ghost', in: 0, out: 2 },
+      },
+    ],
+    [
+      'a clip id that is not on the timeline',
+      {
+        op: 'edit_update_clip',
+        track: 'video',
+        clipId: 'zz',
+        patch: { out: 2 },
+      },
+    ],
+    [
+      'a caption id that is not on the timeline',
+      { op: 'edit_remove_text', clipId: 'nope' },
+    ],
+  ])('refuses %s with a reason it can act on', async (_label, args) => {
+    queueTurns(cut(args))
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', editRequest())),
+    )
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  it('asks for edit_set_timeline first when the project has no timeline yet', async () => {
+    queueTurns(
+      cut({
+        op: 'edit_add_clip',
+        track: 'video',
+        clip: { id: 'clip_s01', sourceNodeId: 'v1', in: 0, out: 4 },
+      }),
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', editRequest(null))),
+    )
+    expect(steps[0]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+        detail: expect.stringContaining('edit_set_timeline'),
+      },
+    })
+  })
+})

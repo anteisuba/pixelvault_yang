@@ -56,7 +56,11 @@ import {
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type {
+  EditProject,
+  NodeV4,
+  NodeWorkflowEdgeV4,
+} from '@/types/node-workflow'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 
 /** 画布沿用工作台布局 A；只有头像贴画布顶栏的 16px 边距。 */
@@ -77,6 +81,8 @@ export interface UseCanvasOperatorHostInput {
   /** ⚠ 现读：事件循环跨很多次 render，第 5 步用的必须是此刻这张图。 */
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
+  /** 这个项目的时间线（剪辑台）—— 助手读得到它才剪得了片（v2 第 2 片）。 */
+  readonly edit?: EditProject
   readonly selectedNodeIds: readonly string[]
   /** 当前项目名 —— 只给头部域标记那一句用（「{项目名} · 选中 {n} 个节点」）。 */
   readonly projectName: string
@@ -100,6 +106,7 @@ export function useCanvasOperatorHost({
   projectId,
   nodes,
   edges,
+  edit,
   selectedNodeIds,
   projectName,
   availableModelsByNodeId,
@@ -194,6 +201,7 @@ export function useCanvasOperatorHost({
   const graphRef = useRef({
     nodes,
     edges,
+    edit,
     selectedNodeIds,
     currentShotNo: null as number | null,
   })
@@ -205,9 +213,10 @@ export function useCanvasOperatorHost({
       ...graphRef.current,
       nodes,
       edges,
+      edit,
       selectedNodeIds,
     }
-  }, [nodes, edges, selectedNodeIds])
+  }, [nodes, edges, edit, selectedNodeIds])
 
   /**
    * 本轮落成的那几步，按落地顺序。
@@ -274,6 +283,7 @@ export function useCanvasOperatorHost({
           edges: graph.edges,
           currentShotNo: graph.currentShotNo,
           selectedNodeIds: graph.selectedNodeIds,
+          ...(graph.edit ? { edit: graph.edit } : {}),
           ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
           ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
           ...(library.cards.length

@@ -33,6 +33,10 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import {
+  TimelineSnapshotAssetSchema,
+  TimelineSnapshotSchema,
+} from '@/types/edit-timeline-snapshot'
 
 import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
 import {
@@ -820,6 +824,19 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
       list: z
         .array(AssistantOperatorCanvasCharacterSchema)
         .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxCharacters),
+    })
+    .optional(),
+  /**
+   * 剪辑台（v2 第 2 片）：这个项目的时间线（还没进过剪辑台 = `null`）与剪得进去的
+   * 卡。缺席 = 画布上没有能剪的东西，也没有时间线。⚠ 与 MCP `read_project` 的
+   * `timeline` 是同一个构建函数（`buildTimelineSnapshot`）。
+   */
+  editDesk: z
+    .object({
+      timeline: TimelineSnapshotSchema.nullable(),
+      assets: z
+        .array(TimelineSnapshotAssetSchema)
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets),
     })
     .optional(),
 })

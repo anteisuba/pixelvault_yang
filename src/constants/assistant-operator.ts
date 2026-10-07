@@ -2137,6 +2137,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxCastProfiles: 6,
   /** 系统提示里印几种节点模型的写法（展开的镜里出现的型号，去重）。 */
   maxDialectModels: 4,
+  /** 剪辑台：快照里最多列几张剪得进时间线的卡（v2 第 2 片）。 */
+  maxEditAssets: 60,
 } as const
 
 export const ASSISTANT_OPERATOR_LIMITS = {

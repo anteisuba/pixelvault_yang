@@ -13,8 +13,8 @@ import {
   buildTimelineSnapshot,
   findTimelineClip,
   timelineToSourceSec,
-  type TimelineSnapshot,
 } from '@/lib/edit-timeline-snapshot'
+import type { TimelineSnapshot } from '@/types/edit-timeline-snapshot'
 import {
   NODE_V4_UPGRADE_OUTCOMES,
   upgradeNodeWorkflowStateToV4,

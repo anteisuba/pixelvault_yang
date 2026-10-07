@@ -45,6 +45,10 @@ import {
 } from '@/constants/node-types'
 import { parseScriptShots } from '@/lib/node-script-shots'
 import { readScriptShotRef } from '@/lib/node-script-projection'
+import {
+  buildTimelineAssets,
+  buildTimelineSnapshot,
+} from '@/lib/edit-timeline-snapshot'
 import { buildV4ImagePayload } from '@/lib/node-slot-payload'
 import {
   AssistantOperatorCanvasNodeSchema,
@@ -54,7 +58,11 @@ import {
   type AssistantOperatorGenerationRequest,
 } from '@/types/assistant-operator'
 import { AdvancedParamsSchema } from '@/types'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type {
+  EditProject,
+  NodeV4,
+  NodeWorkflowEdgeV4,
+} from '@/types/node-workflow'
 
 /** 未归镜的散节点落在这一档（`shotNo` 缺席）。 */
 const LOOSE_SHOT_TITLE = 'Unassigned'
@@ -375,6 +383,8 @@ export interface BuildCanvasSnapshotInput {
   readonly characters?: AssistantOperatorCanvasSnapshot['characters']
   /** 这一句里 `@` 到的节点：与选中的一样算焦点，文本节点给全文。 */
   readonly mentionedNodeIds?: readonly string[]
+  /** 这个项目的时间线（剪辑台，v2 第 2 片）；缺席 = 宿主没给 / 还没进过剪辑台。 */
+  readonly edit?: EditProject
 }
 
 export function buildCanvasOperatorSnapshot({
@@ -386,6 +396,7 @@ export function buildCanvasOperatorSnapshot({
   availableModelsByNodeId,
   characters,
   mentionedNodeIds = [],
+  edit,
 }: BuildCanvasSnapshotInput): AssistantOperatorCanvasSnapshot {
   const incomingByTarget = new Map<string, NodeWorkflowEdgeV4[]>()
   for (const edge of edges) {
@@ -475,5 +486,27 @@ export function buildCanvasOperatorSnapshot({
     ),
     shots: shots.slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxShotLines),
     ...(characters ? { characters } : {}),
+    ...buildEditDeskSnapshot(edit, nodes),
+  }
+}
+
+/**
+ * 剪辑台那一块：时间线 + 剪得进去的卡。两样都没有就不出这一块（省 token）。
+ * ⚠ 时间线与 MCP `read_project` 同一个构建函数，⛔ 不另写一份形状。
+ */
+function buildEditDeskSnapshot(
+  edit: EditProject | undefined,
+  nodes: readonly NodeV4[],
+): Pick<AssistantOperatorCanvasSnapshot, 'editDesk'> {
+  const assets = buildTimelineAssets(nodes).slice(
+    0,
+    ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets,
+  )
+  if (!edit && assets.length === 0) return {}
+  return {
+    editDesk: {
+      timeline: buildTimelineSnapshot(edit, nodes),
+      assets: [...assets],
+    },
   }
 }

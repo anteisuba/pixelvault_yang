@@ -787,3 +787,92 @@ describe('剧本投影在快照里（进度表 24）', () => {
     expect(node).not.toHaveProperty('fromScript')
   })
 })
+
+describe('剪辑台那一块（v2 第 2 片）', () => {
+  function videoNode(id: string, durationSec: number): NodeV4 {
+    return {
+      id,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'video',
+        subtype: 'shot',
+        name: id,
+        status: 'idle',
+        createdAt: '2026-10-07T00:00:00.000Z',
+        url: `https://cdn.test.com/${id}.mp4`,
+        durationSec,
+      },
+    } as NodeV4
+  }
+
+  it('carries the timeline and the cards that can go on it, and passes the request schema', () => {
+    const nodes = [videoNode('v1', 4), videoNode('v2', 3), imageNode('i1', 1)]
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes,
+      edges: [],
+      currentShotNo: null,
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
+      },
+    })
+
+    expect(
+      snapshot.editDesk?.timeline?.clips.map((clip) => clip.clipId),
+    ).toEqual(['c1'])
+    // 只有带产物的视频 / 音频剪得进去，图片卡不在里面。
+    expect(snapshot.editDesk?.assets).toEqual([
+      {
+        nodeId: 'v1',
+        name: 'v1',
+        kind: 'video',
+        track: 'video',
+        durationSec: 4,
+      },
+      {
+        nodeId: 'v2',
+        name: 'v2',
+        kind: 'video',
+        track: 'video',
+        durationSec: 3,
+      },
+    ])
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it('says the timeline is missing when there are cards but no cut yet', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [videoNode('v1', 4)],
+      edges: [],
+      currentShotNo: null,
+    })
+    expect(snapshot.editDesk?.timeline).toBeNull()
+    expect(snapshot.editDesk?.assets).toHaveLength(1)
+  })
+
+  it('leaves the block out when nothing can be cut', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [imageNode('i1', 1)],
+      edges: [],
+      currentShotNo: null,
+    })
+    expect(snapshot).not.toHaveProperty('editDesk')
+  })
+})

@@ -58,6 +58,29 @@
 - **资料只在内存**（RunItem 上），⛔ 不进草稿、不进历史、刷新即无；图本身照常入库并带 `searchGrounded` 标记 → 这张图不能公开（见 [assets](assets.md)）。
 - 开合动效：槽 spring-slot 340ms、资料列展开 spring-expand 480ms，连线与逐条出现的延迟照 B 定稿动效表；实现在 `globals.css` 的 search-sources 一段。
 
+## 2026-10-07 · 出图动效（工作台原型 12 处，owner 已确认）
+
+原型 https://claude.ai/artifact/DoKtoDHnUqFp6TCHc5c9Kp 。总则同 PC 动效方向：同一元素变形、换内容短暂一糊、弹簧最多一点过冲、不加颜色、同一时间只动一处。已落代码（桌面底部输入框台）：
+
+| 时刻                 | 实现                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 输入框点进去长高     | 提示词框 `focus-within:min-h-18`，`min-height` 过渡（`StudioPromptArea` bottom 支）                                   |
+| 生成键变形           | ↑ / ■ / 转圈换的时候 `BlurSwap` 糊一下；外圈进度留在 BlurSwap 外（`StudioGenerateButton`）                            |
+| 顶部进度胶囊         | 图墙跑着时顶上一颗近黑胶囊「正在出图 · n / m」，数字换时糊一下（`CompareGrid`，`compare-grid-progress`）              |
+| 结果从生成键散开     | 这一轮新起的格子从生成键（`data-studio-generate`）缩着飞到自己的位置，错开出场；逐格重试不飞（`flyTileFromGenerate`） |
+| 图由糊变清           | `.studio-result-reveal-in`（blur 10px · scale 1.04，同 `RESULT_REVEAL`）；单张舞台原有的「线合拢后去糊」不动          |
+| 点一张，动作栏升上来 | 动作栏挂载时从下浮上、由糊变清；换聚焦那张不重播                                                                      |
+| 详情从图长出来       | 图墙格 / 单张舞台图把自己的矩形交给 `ImageDetailModal.transitionOrigin`                                               |
+| 定为最佳             | 角标勾 `.studio-winner-badge-in` 顶出来（挂载时已定好的那张不补播），按钮字糊着换成「已定为最佳」                     |
+| 当参考图             | 图的影子飞进输入框（`src/lib/fly-to-composer.ts`，与助手同一颗）                                                      |
+| 做同款落进输入框     | V 简化版：配方写进来后提示词由糊变清、输入框卡（`data-studio-composer`）顶一下（`landRecipeInComposer`）              |
+
+没做 / 另放：
+
+- 选模型、规格、缺密钥 3 处 → 并进模型选择器那一批（选择器原型定稿，含「缺 key 就地弹窗」）。
+- 积分不够、积分滚动 → 产品里没有积分余额与充值；唯一相关的是「今日免费次数用完」，已在格子上就地说原因。
+- 出完那一下的「好了 · N 张」→ 格边线合拢已经是这一拍，胶囊直接收掉。
+
 ## 0 · 作用域与非目标
 
 除上方 NAI 标签台已确认布局外，以下章节约束 `/studio/image` 右侧结果区中两件事：

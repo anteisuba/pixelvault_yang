@@ -5,10 +5,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import dynamic from 'next/dynamic'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   Ban,
   Bot,
@@ -23,8 +25,14 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { isBuiltInModel, getModelMessageKey } from '@/constants/models'
+import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import type { GenerationRecord, RunItem } from '@/types'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { OptimizedImage } from '@/components/ui/optimized-image'
+import {
+  toMediaTransitionOrigin,
+  type MediaTransitionOrigin,
+} from '@/components/business/MediaDetailViewer'
 import {
   StudioGeneratingProgress,
   type StudioGenerationFailure,
@@ -36,7 +44,9 @@ import {
   getApiErrorMessage,
   getGenerationErrorMessage,
 } from '@/lib/api-error-message'
+import { flyImageToComposer } from '@/lib/fly-to-composer'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
+import { flyTileFromGenerate } from '@/lib/studio-workbench-motion'
 import { cn } from '@/lib/utils'
 
 // 详情弹窗按需异步加载，和 ImageCard 里同样的理由：它拖着 VideoPlayer /
@@ -117,10 +127,25 @@ export const CompareGrid = memo(function CompareGrid({
   const tModels = useTranslations('Models')
   const tGallery = useTranslations('GalleryCard')
   const tErrors = useTranslations('Errors')
+  const tOperator = useTranslations('StudioOperator')
   const askAssistantAboutImage = useAskAssistantAboutImage()
+  const reduceMotion = useReducedMotion()
 
   const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [detailOrigin, setDetailOrigin] =
+    useState<MediaTransitionOrigin | null>(null)
+
+  /**
+   * 工作台出图动效（owner 2026-10-07 工作台原型）要知道每一格在哪：
+   * 新一轮的格子从生成键散开、详情从这一格长出来、「当参考图」从这一格飞走。
+   * `flownTiles`：已经出现过的格子（含挂载时就在的旧结果）⛔ 再飞一次 —— 只有这一轮
+   * 新起的、还在生成中的格子才从生成键散开；逐格重试是同一个 id，原地重跑。
+   */
+  const tileEls = useRef(new Map<string, HTMLElement>())
+  const flownTiles = useRef(new Set<string>())
+  /** 挂载时就已定为最佳的那张不补播勾的弹出（刷新后重画那一屏 ⛔ 一起动）。 */
+  const [winnerAtMount] = useState(selectedItemId)
   const [isDownloading, setIsDownloading] = useState(false)
 
   /**
@@ -192,6 +217,7 @@ export const CompareGrid = memo(function CompareGrid({
   }, [focusedGeneration, isDownloading, tErrors, tGallery])
 
   const hasRunning = items.some((item) => item.status === 'generating')
+  const doneCount = items.filter((item) => item.status === 'completed').length
 
   // 逐格重试的那一格自己计时（`startedAt`，整轮早已停表）；只在真有这样的格子在
   // 跑时才起秒表。整轮一起跑的格子仍用批次的计时。
@@ -207,18 +233,46 @@ export const CompareGrid = memo(function CompareGrid({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {hasRunning && onCancelAll && (
-        <div className="mb-3 flex items-center justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="rounded-full text-muted-foreground"
-            onClick={onCancelAll}
+      {hasRunning && (
+        // 顶部进度胶囊（工作台原型「生成键变形 + 顶部胶囊」）：跑着才在，数字换时糊一下。
+        <div className="relative mb-3 flex min-h-8 items-center justify-center">
+          <motion.span
+            data-testid="compare-grid-progress"
+            initial={
+              reduceMotion
+                ? false
+                : {
+                    opacity: 0,
+                    scale: 0.9,
+                    filter: `blur(${LIQUID_TIMING.blurPx}px)`,
+                  }
+            }
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            transition={{
+              duration: LIQUID_TIMING.swapInS,
+              ease: EASE_STANDARD,
+            }}
+            className="inline-flex h-7 items-center rounded-full bg-foreground px-3 font-mono text-xs tabular-nums text-background"
           >
-            <Ban className="size-3.5" />
-            {tCancel('cancelAll')}
-          </Button>
+            <BlurSwap swapKey={String(doneCount)}>
+              {tOperator('result.generating', {
+                done: doneCount,
+                total: items.length,
+              })}
+            </BlurSwap>
+          </motion.span>
+          {onCancelAll && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="absolute right-0 rounded-full text-muted-foreground"
+              onClick={onCancelAll}
+            >
+              <Ban className="size-3.5" />
+              {tCancel('cancelAll')}
+            </Button>
+          )}
         </div>
       )}
       <div
@@ -278,6 +332,17 @@ export const CompareGrid = memo(function CompareGrid({
                   return (
                     <div
                       key={item.id}
+                      ref={(el) => {
+                        if (!el) {
+                          tileEls.current.delete(item.id)
+                          return
+                        }
+                        tileEls.current.set(item.id, el)
+                        if (flownTiles.current.has(item.id)) return
+                        flownTiles.current.add(item.id)
+                        if (item.status === 'generating')
+                          flyTileFromGenerate(el, items.indexOf(item))
+                      }}
                       role="option"
                       aria-selected={isFocused}
                       aria-disabled={!isCompleted}
@@ -383,7 +448,7 @@ export const CompareGrid = memo(function CompareGrid({
                           alt={modelLabel}
                           fill
                           sizes="320px"
-                          containerClassName="size-full animate-in fade-in duration-300"
+                          containerClassName="studio-result-reveal-in size-full"
                           className="object-cover"
                         />
                       )}
@@ -437,7 +502,13 @@ export const CompareGrid = memo(function CompareGrid({
 
                       {/* 已定为最佳：一个角标，不是按钮 —— 图上依旧零可点元素。 */}
                       {isWinner && (
-                        <span className="pointer-events-none absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-foreground text-background">
+                        <span
+                          className={cn(
+                            'pointer-events-none absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-foreground text-background',
+                            selectedItemId !== winnerAtMount &&
+                              'studio-winner-badge-in',
+                          )}
+                        >
                           <Check className="size-3.5" aria-hidden="true" />
                           <span className="sr-only">
                             {t('variantSelected')}
@@ -456,7 +527,24 @@ export const CompareGrid = memo(function CompareGrid({
       {/* 动作栏 —— 全屏唯一一份，永远在图外面。
           `sticky bottom-0`：图墙比一屏长时它跟着停在底边，不用滚回去找。 */}
       {focusedGeneration && (
-        <div className="studio-touch-actions sticky bottom-0 z-20 mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 bg-background/95 py-3 backdrop-blur-sm">
+        // 点一张，动作栏从下面浮上来（工作台原型）；换聚焦的那一张不重播。
+        <motion.div
+          initial={
+            reduceMotion
+              ? false
+              : {
+                  opacity: 0,
+                  y: 12,
+                  filter: `blur(${LIQUID_TIMING.blurPx}px)`,
+                }
+          }
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{
+            duration: LIQUID_TIMING.swapInS * 1.5,
+            ease: EASE_STANDARD,
+          }}
+          className="studio-touch-actions sticky bottom-0 z-20 mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 bg-background/95 py-3 backdrop-blur-sm"
+        >
           <div className="mr-auto flex min-w-0 items-center gap-2.5">
             <span className="truncate text-sm font-medium">
               {isBuiltInModel(focusedGeneration.model)
@@ -480,7 +568,18 @@ export const CompareGrid = memo(function CompareGrid({
             size="sm"
             variant="outline"
             className="rounded-full"
-            onClick={() => setDetailOpen(true)}
+            onClick={() => {
+              // 详情从这一格长出来（`MediaDetailViewer` 的 transitionOrigin）。
+              const tile = focusedItemId
+                ? tileEls.current.get(focusedItemId)
+                : undefined
+              setDetailOrigin(
+                tile
+                  ? toMediaTransitionOrigin(tile.getBoundingClientRect())
+                  : null,
+              )
+              setDetailOpen(true)
+            }}
           >
             <Maximize2 className="size-3.5" />
             {t('openDetail')}
@@ -500,7 +599,16 @@ export const CompareGrid = memo(function CompareGrid({
             size="sm"
             variant="outline"
             className="rounded-full"
-            onClick={() => onUseAsReference(focusedGeneration.url)}
+            onClick={() => {
+              // 图飞进输入框（纯装饰，挂载照常立刻做）。
+              const tile = focusedItemId
+                ? tileEls.current.get(focusedItemId)
+                : undefined
+              const prompt = document.getElementById('studio-prompt')
+              if (tile && prompt)
+                flyImageToComposer(tile, prompt, focusedGeneration.url)
+              onUseAsReference(focusedGeneration.url)
+            }}
           >
             <Images className="size-3.5" />
             {t('useAsReference')}
@@ -533,12 +641,19 @@ export const CompareGrid = memo(function CompareGrid({
             disabled={focusedGeneration.id === selectedItemId}
             onClick={() => onSelect(focusedGeneration.id)}
           >
-            <Check className="size-3.5" />
-            {focusedGeneration.id === selectedItemId
-              ? t('variantSelected')
-              : t('variantSelectWinner')}
+            <BlurSwap
+              swapKey={
+                focusedGeneration.id === selectedItemId ? 'selected' : 'select'
+              }
+              className="gap-1.5"
+            >
+              <Check className="size-3.5" />
+              {focusedGeneration.id === selectedItemId
+                ? t('variantSelected')
+                : t('variantSelectWinner')}
+            </BlurSwap>
           </Button>
-        </div>
+        </motion.div>
       )}
 
       {focusedGeneration && (
@@ -546,6 +661,7 @@ export const CompareGrid = memo(function CompareGrid({
           generation={focusedGeneration}
           open={detailOpen}
           onOpenChange={setDetailOpen}
+          transitionOrigin={detailOrigin}
         />
       )}
     </div>

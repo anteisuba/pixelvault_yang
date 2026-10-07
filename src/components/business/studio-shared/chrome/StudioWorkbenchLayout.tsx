@@ -101,7 +101,11 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
         {params ? (
           // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
           // （`StudioChipClasses.compact`）。
-          <div className="@container/composer relative shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
+          // `data-studio-composer`：「做同款」的配方落进来时这张卡顶一下（`landRecipeInComposer`）。
+          <div
+            data-studio-composer=""
+            className="@container/composer relative shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float"
+          >
             {composerOverlay}
             <div className={paramsClassName}>{params}</div>
           </div>

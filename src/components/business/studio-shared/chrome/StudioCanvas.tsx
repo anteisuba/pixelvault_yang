@@ -26,6 +26,7 @@ import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notic
 import { useIsMobile } from '@/hooks/use-mobile'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
+import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
@@ -239,6 +240,8 @@ export const StudioCanvas = memo(function StudioCanvas({
         })
       }
       focusStudioPrompt()
+      // 配方落进输入框：提示词由糊变清、卡顶一下（工作台原型「做同款」V 简化版）。
+      window.requestAnimationFrame(landRecipeInComposer)
     },
     [dispatch, modelOptions],
   )

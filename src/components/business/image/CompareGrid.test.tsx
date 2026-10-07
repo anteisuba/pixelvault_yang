@@ -407,3 +407,47 @@ describe('CompareGrid — 加载态 A', () => {
     expect(screen.getByTestId('tile-image')).toBeInTheDocument()
   })
 })
+
+describe('CompareGrid — 工作台出图动效（owner 2026-10-07 工作台原型）', () => {
+  it('跑着时舞台顶上有一颗进度胶囊，全部出完就收掉', () => {
+    const running = [
+      matrixItems[0],
+      makeItem({ id: 'a2', modelId: 'flux-dev', status: 'generating' }),
+    ]
+    const { rerender } = renderGrid({ items: running })
+    expect(screen.getByTestId('compare-grid-progress')).toHaveTextContent(
+      'result.generating',
+    )
+
+    rerender(
+      <CompareGrid
+        items={matrixItems}
+        selectedItemId={null}
+        onSelect={vi.fn()}
+        elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('compare-grid-progress')).toBeNull()
+  })
+
+  it('⭐ 定为最佳的勾只在这一次定下时弹出；挂载时就定好的那张不补播', () => {
+    const { container, rerender } = renderGrid({ selectedItemId: 'gen-a1' })
+    const badgeAt = () =>
+      container.querySelector('[role="option"] .rounded-full.bg-foreground')
+    expect(badgeAt()).not.toHaveClass('studio-winner-badge-in')
+
+    rerender(
+      <CompareGrid
+        items={matrixItems}
+        selectedItemId="gen-a2"
+        onSelect={vi.fn()}
+        elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
+      />,
+    )
+    expect(badgeAt()).toHaveClass('studio-winner-badge-in')
+  })
+})

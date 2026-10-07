@@ -2,7 +2,7 @@
  * 剪辑台时间线的**纯函数层**（S8 · spec §6 / §8.5）。
  *
  * 这里住着「一条时间线是什么」的全部算术：段长、总时长、播放头落在哪一段、
- * 磁吸补位、裁剪 / 分割 / 排序的合法性、以及「上游已更新」的判据。
+ * 磁吸补位、裁剪 / 分割 / 排序的合法性、以及段在用哪一版。
  *
  * ⛔ 不碰 React、不碰 DOM、不读时钟（`mintId` 注入）。落图由 op 执行器做 ——
  * 这里只算出**下一份 `EditProject`**，谁把它落进 state 是调用方的事。
@@ -17,6 +17,7 @@
 import {
   EDIT_ASPECT_DEFAULT,
   EDIT_ATTACH_EPSILON_SEC,
+  EDIT_CLIP_FULL_TAKE_EPSILON_SEC,
   EDIT_CLIP_MIN_DURATION_SEC,
   EDIT_CLIP_SPEED_DEFAULT,
   EDIT_EXPORT_RANGE_IDS,
@@ -67,6 +68,7 @@ import type {
   EditProject,
   EditTextClip,
   NodeV4,
+  NodeV4OutputVersion,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
@@ -305,13 +307,13 @@ export function formatEditDurationShort(seconds: number): string {
   return `${Math.round(Number.isFinite(seconds) ? seconds : 0)}s`
 }
 
-/* ─── 段的来源与「上游已更新」 ─────────────────────────────────────────── */
+/* ─── 段的来源与版本 ───────────────────────────────────────────────────── */
 
 /**
  * 这一段指向的节点**现在**的当前版本 id。
  *
- * ⚠ 与段上存的 `sourceVersionId` 一比就是徽标的全部逻辑（spec §6）。节点不在图上
- * （被删了）时返回 `undefined` —— 那不是「更新了」，是「没了」，两者在 UI 上是
+ * ⚠ 与段上存的 `sourceVersionId` 一比就是段角那个点的全部逻辑（spec §6）。节点不在
+ * 图上（被删了）时返回 `undefined` —— 那不是「更新了」，是「没了」，两者在 UI 上是
  * 两种说法。
  */
 export function currentVersionIdOf(
@@ -326,7 +328,7 @@ export function currentVersionIdOf(
   return versions[index]?.id ?? versions[0]?.id
 }
 
-/** 段指向的节点当前版本的 url（预览要播的那一条）。 */
+/** 卡当前版的 url。⚠ 段要播的不是它，是 `clipVersionOf` 那一版。 */
 export function currentUrlOf(node: NodeV4 | undefined): string | undefined {
   if (!node) return undefined
   const data = node.data
@@ -337,22 +339,70 @@ export function currentUrlOf(node: NodeV4 | undefined): string | undefined {
   return versions[index]?.url ?? versions[0]?.url ?? data.url
 }
 
+export interface EditClipVersion {
+  readonly version: NodeV4OutputVersion
+  /** 在卡的版本表里排第几（0 起）。 */
+  readonly index: number
+  /** 卡一共几版。 */
+  readonly count: number
+  /** 这一版的封面（卡上记了才有；没记的由调用方按 url 现取）。 */
+  readonly thumbnailUrl?: string
+}
+
+/**
+ * 段**在用**的那一版（v2 第 4 片 4a）：预览播的、时间线截帧的、导出渲染的、助手看片
+ * 截的都是它，⛔ 不是卡的当前版 —— 画布上出了新版不自动换进剪辑台（owner 10-07），
+ * 只在段角亮一个点。
+ *
+ * 段上没记版本（存量 / 从 merge 迁来的段），或那一版已经从卡上拿掉 → 退回卡的当前版。
+ */
+export function clipVersionOf(
+  node: NodeV4 | undefined,
+  clip: EditClip,
+): EditClipVersion | undefined {
+  if (!node) return undefined
+  const data = node.data
+  if (data.kind === NODE_MEDIA_KIND_IDS.text) return undefined
+  const versions = readOutputVersions(data)
+  const current = readOutputIndex(data)
+  const pinned = clip.sourceVersionId
+    ? versions.findIndex((version) => version.id === clip.sourceVersionId)
+    : -1
+  const index = pinned >= 0 ? pinned : current
+  const version = versions[index]
+  if (!version) return undefined
+  // 当前版的封面镜像在顶层（存量的单版卡只有顶层这一份）。
+  const thumbnailUrl =
+    index === current && data.kind === NODE_MEDIA_KIND_IDS.video
+      ? data.videoThumbnailUrl
+      : version.meta?.videoThumbnailUrl
+  return {
+    version,
+    index,
+    count: versions.length,
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+  }
+}
+
 export interface EditClipSourceFacts {
   readonly node: NodeV4 | undefined
   /** 节点还在不在图上。`false` = 段成了孤儿（画板上不出徽标，出「来源已删」）。 */
   readonly exists: boolean
-  /** 上游出了新版本 —— 段右上那颗橙徽标。 */
+  /** 卡的当前版不是段在用的那一版 —— 段角那个点（画布上出了新版，没换进来）。 */
   readonly stale: boolean
   readonly currentVersionId?: string
+  /** 段在用的那一版（`clipVersionOf`）。 */
+  readonly version?: EditClipVersion
+  /** 段要播的地址 = 在用那一版的。 */
   readonly url?: string
 }
 
 /**
- * 一段的来源事实。**徽标唯一的判据**（spec §8.5 第 5 条）。
+ * 一段的来源事实。**段角那个点唯一的判据**（spec §8.5 第 5 条）。
  *
  * ⚠ 段上没记版本（存量 / 从 merge 迁来的段）时**不算 stale**：那是「我们不知道
  * 它当时是哪一版」，不是「它变了」。把未知当成变了，用户会在一条没人动过的时间线上
- * 看到满屏橙点。
+ * 看到满屏的点。
  */
 export function readClipSource(
   nodes: readonly NodeV4[],
@@ -360,7 +410,7 @@ export function readClipSource(
 ): EditClipSourceFacts {
   const node = nodes.find((candidate) => candidate.id === clip.sourceNodeId)
   const currentVersionId = currentVersionIdOf(node)
-  const url = currentUrlOf(node)
+  const version = clipVersionOf(node, clip)
   return {
     node,
     exists: Boolean(node),
@@ -371,7 +421,39 @@ export function readClipSource(
       currentVersionId !== clip.sourceVersionId,
     ),
     ...(currentVersionId ? { currentVersionId } : {}),
-    ...(url ? { url } : {}),
+    ...(version ? { version, url: version.version.url } : {}),
+  }
+}
+
+/**
+ * 段换到另一版（版本弹层点一张）时改段的那份补丁。
+ *
+ * - 段原本**整段在用**（出点贴着旧版片尾）→ 换上新版整段，主线跟着让位；
+ * - 裁过尾巴的段 → 入出点不动，只在新版更短时钳进新版；
+ * - 两版时长任一量不到 → 入出点不动（⛔ 拿一个没量出来的数去改用户的裁剪）。
+ *
+ * 入点不动 = 挂在这一段上的台词、字幕离镜头开头的秒数不变（关键切片「换版后挂件
+ * 留在原处」）。
+ */
+export function clipVersionPatch(
+  clip: EditClip,
+  versionId: string,
+  durations: { readonly from?: number; readonly to?: number },
+): {
+  readonly sourceVersionId: string
+  readonly in?: number
+  readonly out?: number
+} {
+  const { from, to } = durations
+  if (!from || !to || from <= 0 || to <= 0)
+    return { sourceVersionId: versionId }
+  const whole = clip.out >= from - EDIT_CLIP_FULL_TAKE_EPSILON_SEC
+  const out = whole ? to : Math.min(clip.out, to)
+  const inSec = Math.max(0, Math.min(clip.in, out - EDIT_CLIP_MIN_DURATION_SEC))
+  return {
+    sourceVersionId: versionId,
+    ...(inSec === clip.in ? {} : { in: inSec }),
+    ...(out === clip.out ? {} : { out }),
   }
 }
 
@@ -1030,7 +1112,7 @@ export function toRenderPlan(
 
   const urlOf = (clip: EditClip): string => {
     const node = nodes.find((candidate) => candidate.id === clip.sourceNodeId)
-    const url = currentUrlOf(node)
+    const url = clipVersionOf(node, clip)?.version.url
     if (!url) {
       throw new RenderPlanError(
         RENDER_PLAN_ERROR_CODES.missingSource,

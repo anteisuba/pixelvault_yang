@@ -6352,7 +6352,18 @@
         "remove": "削除"
       },
       "overview": "全体",
-      "staleBadge": "元素材が更新",
+      "versions": {
+        "title": "テイク",
+        "hint": "{name} · 選んだテイクに差し替え",
+        "take": "テイク {n}",
+        "seconds": "{sec}s",
+        "fromCanvas": "キャンバス",
+        "inUse": "使用中 · {from}",
+        "fresh": "{from} · 新",
+        "footer": "差し替え後も、セリフと字幕はショット先頭からの秒数のまま残ります。",
+        "badge": "テイク {n}/{count}",
+        "badgeFresh": "テイク {n}/{count} · キャンバスに新しいテイク"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",
       "previewEmpty": "再生ヘッドの位置にクリップがありません",

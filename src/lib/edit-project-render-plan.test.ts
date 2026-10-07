@@ -157,6 +157,39 @@ describe('resolveRenderWindow', () => {
   })
 })
 
+describe('toRenderPlan · 段在用的那一版（4a）', () => {
+  it('渲染段钉住的版本，⛔ 不是卡的当前版', () => {
+    const node = mediaNode('v1', 'video', 'https://cdn/new.mp4')
+    const pinned = {
+      ...node,
+      data: {
+        ...node.data,
+        outputs: {
+          versions: [
+            { id: 'ver1', url: 'https://cdn/old.mp4', createdAt: NOW },
+            { id: 'ver2', url: 'https://cdn/new.mp4', createdAt: NOW },
+          ],
+          cur: 1,
+        },
+      },
+    } as NodeV4
+    const plan = toRenderPlan(
+      project({
+        tracks: {
+          video: [clip({ id: 'c1', sourceVersionId: 'ver1' })],
+          audio: [],
+          music: [],
+          text: [],
+        },
+      }),
+      [pinned],
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    expect(plan.video[0]?.src).toBe('https://cdn/old.mp4')
+  })
+})
+
 describe('toRenderPlan · 三范围', () => {
   it('整条：三段全在，输出规格 25fps', () => {
     const plan = toRenderPlan(

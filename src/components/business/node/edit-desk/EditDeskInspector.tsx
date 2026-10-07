@@ -5,7 +5,7 @@
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
  * 三种段各一行，一律是暗台上的实底小胶囊（读数胶囊不可点，可点的悬停提亮）：
- * - 视频段：镜头名 · 入点 · 出点 · 速度 · 原声 · 转场 · 回节点；
+ * - 视频段：镜头名 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
  *   四颗胶囊，各开一个小弹层，一次只开一个。
@@ -59,6 +59,7 @@ import {
 } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 
 /** 暗台上的实底小胶囊（关键切片 `.chip`）：读数用它，可点的再加 `CHIP_ACTIVE`。 */
 const CHIP =
@@ -183,6 +184,7 @@ export function EditDeskInspector({
                   }))}
                 />
               </RowPopover>
+              <VersionsChip desk={desk} row={row} />
             </>
           ) : (
             <GainSlider
@@ -210,6 +212,45 @@ export function EditDeskInspector({
       )}
       {textClip || (row && clip && selection) ? <EditKeys desk={desk} /> : null}
     </div>
+  )
+}
+
+/** 「版本 n/m」：开与段角读数同一块版本弹层（4a）。卡没了就不出。 */
+function VersionsChip({
+  desk,
+  row,
+}: {
+  readonly desk: EditDesk
+  readonly row: EditTimelineRow
+}) {
+  const t = useTranslations('StudioNode.editDesk.versions')
+  const takes = row.source.exists ? readClipTakes(row) : null
+  if (!takes) return null
+  return (
+    <EditClipVersionsPopover
+      desk={desk}
+      row={row}
+      track={EDIT_TRACK_IDS.video}
+      align="start"
+    >
+      <button
+        type="button"
+        data-testid="edit-desk-versions-trigger"
+        aria-label={t(takes.fresh ? 'badgeFresh' : 'badge', {
+          n: takes.n,
+          count: takes.count,
+        })}
+        className={cn(CHIP, CHIP_ACTIVE)}
+      >
+        {t('title')}
+        <em className={CHIP_VALUE}>
+          {takes.n}/{takes.count}
+        </em>
+        {takes.fresh ? (
+          <span aria-hidden className="size-1.5 rounded-full bg-foreground" />
+        ) : null}
+      </button>
+    </EditClipVersionsPopover>
   )
 }
 

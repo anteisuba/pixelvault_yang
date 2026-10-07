@@ -28,18 +28,20 @@ import {
   type EditTrackId,
 } from '@/constants/edit-desk'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   buildClipFromNode,
   buildTextClip,
   buildTimelineRows,
   clipIndexAt,
   clipStartSec,
+  clipVersionOf,
+  clipVersionPatch,
   createEmptyEditProject,
   defaultTrackFor,
   isPositionedTrack,
   listEditableAssets,
   projectDurationSec,
-  readClipSource,
   reflowAttachments,
   splitClipAt,
   splitMainClipAt,
@@ -51,6 +53,7 @@ import {
   type RenderPlanRange,
 } from '@/lib/edit-project'
 import type { RenderPlan } from '@/constants/render-video'
+import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   EditClip,
@@ -141,8 +144,20 @@ export interface EditDesk {
   removeSelected(): boolean
   /** S：在播放头处切开选中轨的段。 */
   splitAtPlayhead(track?: EditTrackId): boolean
-  /** 「上游已更新 → 一点换新」。 */
-  refreshClipSource(track: EditTrackId, clipId: string): boolean
+  /**
+   * 版本弹层点一张：段换到卡的第 `index` 版，**来源卡也切到那一版**（同一步撤销）。
+   * `durations` = 弹层量出来的两版时长（段在用那版 → 新版），决定入出点怎么跟
+   * （`clipVersionPatch`）。
+   *
+   * ⚠ 卡跟着切，是为了让段角那个点只表示「画布上换了版、还没换进来」：在剪辑台里挑
+   * 回旧版之后，⛔ 不该再亮一个关不掉的「有新版」。
+   */
+  pickClipVersion(
+    track: EditTrackId,
+    clipId: string,
+    index: number,
+    durations?: { readonly from?: number; readonly to?: number },
+  ): boolean
 
   rename(name: string): boolean
   setSettings(patch: {
@@ -442,17 +457,43 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     [selection, textSelectionId, project, playheadSec, mintId, setTimeline],
   )
 
-  const refreshClipSource = useCallback(
-    (track: EditTrackId, clipId: string): boolean => {
+  const pickClipVersion = useCallback(
+    (
+      track: EditTrackId,
+      clipId: string,
+      index: number,
+      durations: { readonly from?: number; readonly to?: number } = {},
+    ): boolean => {
       const clip = project.tracks[track].find((item) => item.id === clipId)
       if (!clip) return false
-      const facts = readClipSource(state.nodes, clip)
-      if (!facts.stale || !facts.currentVersionId) return false
-      return updateClip(track, clipId, {
-        sourceVersionId: facts.currentVersionId,
-      })
+      const node = state.nodes.find((item) => item.id === clip.sourceNodeId)
+      if (!node || node.data.kind === NODE_MEDIA_KIND_IDS.text) return false
+      const version = readOutputVersions(node.data)[index]
+      if (!version) return false
+      const inUse = clipVersionOf(node, clip)
+      const ops: NodeAssistantOpV4[] = []
+      if (clip.sourceVersionId !== version.id) {
+        ops.push({
+          op: NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
+          track,
+          clipId,
+          patch: clipVersionPatch(
+            clip,
+            version.id,
+            inUse?.version.id === version.id ? {} : durations,
+          ),
+        })
+      }
+      if (readOutputIndex(node.data) !== index) {
+        ops.push({
+          op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+          target: node.id,
+          index,
+        })
+      }
+      return run(ops)
     },
-    [project, state.nodes, updateClip],
+    [project, state.nodes, run],
   )
 
   const rename = useCallback(
@@ -576,7 +617,7 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     removeClip,
     removeSelected,
     splitAtPlayhead,
-    refreshClipSource,
+    pickClipVersion,
     rename,
     setSettings,
     insertIndexAt,

@@ -43,7 +43,7 @@ import {
   type EditTextAnchor,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { clipLocalTimeSec, currentUrlOf } from '@/lib/edit-project'
+import { clipLocalTimeSec } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
@@ -147,15 +147,8 @@ export function EditDeskPreview({
   const videosRef = useRef(new Map<string, HTMLVideoElement>())
   /** 上一次 seek 还没落地时，最新那个目标先存着（拖播放头时不叠一串 seek）。 */
   const pendingSeekRef = useRef<number | null>(null)
-  const node = row?.source.node
-  const data = node?.data
   const url = row?.source.url
-  const poster = useVideoPoster(
-    node ? currentUrlOf(node) : undefined,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
-  )
+  const poster = useVideoPoster(url, row?.source.version?.thumbnailUrl)
 
   const activeVideo = useCallback(
     (): HTMLVideoElement | null =>

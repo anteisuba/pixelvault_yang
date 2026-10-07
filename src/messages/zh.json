@@ -6352,7 +6352,18 @@
         "remove": "删除"
       },
       "overview": "全片条",
-      "staleBadge": "上游已更新",
+      "versions": {
+        "title": "版本",
+        "hint": "{name} · 点哪张换哪张",
+        "take": "第 {n} 版",
+        "seconds": "{sec}s",
+        "fromCanvas": "画布",
+        "inUse": "在用 · {from}",
+        "fresh": "{from} · 新",
+        "footer": "换版后，挂件按离镜头开头的秒数留在原处。",
+        "badge": "版本 {n}/{count}",
+        "badgeFresh": "版本 {n}/{count} · 画布上换了新版"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",
       "previewEmpty": "播放头下没有片段",

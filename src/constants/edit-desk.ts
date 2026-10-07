@@ -237,6 +237,13 @@ export const EDIT_RECEIPT_MOTION = {
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2
 
+/**
+ * 换版时「这一段是整段在用」的容差（v2 第 4 片 4a）：出点离旧版片尾不到这么远就算
+ * 没裁过尾巴，换上新版时跟着新版整段走。⚠ 卡上记的时长是模型报的整数秒，`<video>`
+ * 量出来的常多出几十毫秒，容差要盖得住这一截。
+ */
+export const EDIT_CLIP_FULL_TAKE_EPSILON_SEC = 0.25
+
 /** 一条时间线最多几段（DoS 护栏，与 op 载荷上限同源）。 */
 export const EDIT_TRACK_MAX_CLIPS = 200
 

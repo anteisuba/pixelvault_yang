@@ -77,7 +77,6 @@ import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { RENDER_CROSSFADE_SEC } from '@/constants/render-video'
 import {
   clampTrim,
-  currentUrlOf,
   formatEditClock,
   isAttachmentCut,
   isPositionedTrack,
@@ -107,6 +106,7 @@ import {
   parseEditDeskLibraryAsset,
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
+import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 import { EDIT_CLIP_FLASH_ATTRIBUTE, flashEditClips } from './edit-desk-flash'
 
 const G = EDIT_TIMELINE_GEOMETRY
@@ -1018,13 +1018,9 @@ function OverviewClip({
   readonly left: string
   readonly width: string
 }) {
-  const node = row.source.node
-  const data = node?.data
   const poster = useVideoPoster(
-    node ? currentUrlOf(node) : undefined,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
+    row.source.url,
+    row.source.version?.thumbnailUrl,
   )
   return (
     <span
@@ -1661,12 +1657,15 @@ function ClipView({
   )
   const sourceName = readSourceName(row)
   const sourceData = row.source.node?.data
+  // 卡上记的时长是**当前版**的：段在用别的版时不拿它当裁剪上限。
   const sourceDurationSec =
+    !row.source.stale &&
     sourceData &&
     (sourceData.kind === NODE_MEDIA_KIND_IDS.video ||
       sourceData.kind === NODE_MEDIA_KIND_IDS.audio)
       ? sourceData.durationSec
       : undefined
+  const takes = isVideo && !gone ? readClipTakes(row) : null
   const committedSpan = committed.clips.get(clip.id) ?? span
 
   /**
@@ -1991,19 +1990,37 @@ function ClipView({
           />
         ) : null}
 
-        {row.source.stale ? (
-          <button
-            type="button"
-            data-testid={`edit-desk-stale-${clip.id}`}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              desk.refreshClipSource(track, clip.id)
-            }}
-            className="absolute right-1.5 top-1 z-10 rounded-sm bg-primary px-1.5 text-3xs leading-4 text-primary-foreground"
+        {takes && (takes.count > 1 || takes.fresh) ? (
+          // 段角版本读数（关键切片 `.cl-take`）：压在画面上，固定明暗（ui-defaults §2.4）。
+          <EditClipVersionsPopover
+            desk={desk}
+            row={row}
+            track={track}
+            align="end"
           >
-            {t('staleBadge')}
-          </button>
+            <button
+              type="button"
+              data-testid={`edit-desk-takes-${clip.id}`}
+              aria-label={t(
+                takes.fresh ? 'versions.badgeFresh' : 'versions.badge',
+                { n: takes.n, count: takes.count },
+              )}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                desk.select({ track, clipId: clip.id })
+              }}
+              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-neutral-950/70 px-1.5 font-mono text-3xs leading-4 tabular-nums text-white/80 transition-colors duration-fast hover:bg-white hover:text-neutral-950"
+            >
+              {takes.n}/{takes.count}
+              {takes.fresh ? (
+                <span
+                  aria-hidden
+                  className="size-1.25 rounded-full bg-current"
+                />
+              ) : null}
+            </button>
+          </EditClipVersionsPopover>
         ) : null}
 
         <TrimHandle
@@ -2242,15 +2259,8 @@ function ClipFilmstrip({
   readonly shown: { readonly in: number; readonly out: number }
   readonly widthPx: number
 }) {
-  const node = row.source.node
-  const data = node?.data
-  const url = node ? currentUrlOf(node) : undefined
-  const poster = useVideoPoster(
-    url,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
-  )
+  const url = row.source.url
+  const poster = useVideoPoster(url, row.source.version?.thumbnailUrl)
   const frameWidthPx = (G.videoPx * 16) / 9
   const count = Math.min(
     EDIT_DESK_CLIP_FRAME_MAX,
@@ -2290,8 +2300,7 @@ function MusicWave({
   readonly row: EditTimelineRow
   readonly widthPx: number
 }) {
-  const node = row.source.node
-  const url = node ? currentUrlOf(node) : undefined
+  const url = row.source.url
   return (
     <div
       aria-hidden

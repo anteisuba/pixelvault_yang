@@ -38,6 +38,11 @@ const fetchGalleryImages = vi.fn(async () => ({
 vi.mock('@/lib/api-client', () => ({
   fetchGalleryImages: () => fetchGalleryImages(),
 }))
+/** 版本弹层会去量每一版多长 —— jsdom 里 `<video>` 不出元数据，直接答「量不出来」。 */
+vi.mock('@/lib/media-probe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/media-probe')>()),
+  probeMediaDuration: async () => null,
+}))
 
 import messages from '@/messages/zh.json'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -460,8 +465,8 @@ describe('剪辑台 · 台面', () => {
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
   })
 
-  it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {
-    const staleState: NodeWorkflowStateV4 = {
+  it('段播自己钉住的那一版；画布换了版只亮一个点，在版本弹层里换（4a）', () => {
+    const pinnedState: NodeWorkflowStateV4 = {
       version: 4,
       nodes: [
         videoNode('v1', {
@@ -494,11 +499,45 @@ describe('剪辑台 · 台面', () => {
         settings: { aspect: '16:9', resolution: '1080p' },
       },
     }
-    const { read } = renderDesk(staleState)
-    const badge = screen.getByTestId('edit-desk-stale-c1')
+    const { read } = renderDesk(pinnedState)
+    const sources = () =>
+      [...document.querySelectorAll('video')].map((video) =>
+        video.getAttribute('src'),
+      )
+    // 卡的当前版是 b，段钉的是 a：预览播 a
+    expect(sources()).toContain('https://example.test/a.mp4')
+    expect(sources()).not.toContain('https://example.test/b.mp4')
+
+    const badge = screen.getByTestId('edit-desk-takes-c1')
+    expect(badge).toHaveTextContent('1/2')
+    expect(badge).toHaveAccessibleName('版本 1/2 · 画布上换了新版')
+
     fireEvent.click(badge)
+    expect(screen.getByTestId('edit-desk-versions')).toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-version-1')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByTestId('edit-desk-version-2')).toHaveTextContent(
+      '画布 · 新',
+    )
+
+    fireEvent.click(screen.getByTestId('edit-desk-version-2'))
     expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2')
-    expect(screen.queryByTestId('edit-desk-stale-c1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
+      '版本 2/2',
+    )
+
+    // 挑回旧版：卡也跟着切回去，⛔ 不留一个关不掉的「有新版」点
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    fireEvent.click(screen.getByTestId('edit-desk-version-1'))
+    const after = read()
+    expect(after.edit?.tracks.video[0]?.sourceVersionId).toBe('ver1')
+    const node = after.nodes.find((item) => item.id === 'v1')
+    expect(node?.data.kind === 'video' ? node.data.outputs?.cur : null).toBe(0)
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
+      '版本 1/2',
+    )
   })
 
   it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {

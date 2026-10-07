@@ -37,7 +37,7 @@ export const TimelineSnapshotClipSchema = z.object({
   /** 原声关了（只对 V 轨有意义）。 */
   muted: z.literal(true).optional(),
   gain: z.number().min(0).max(10).optional(),
-  /** 来源卡出了新版本，这段还是旧的。 */
+  /** 来源卡的当前版不是这段在用的那一版（画布上换了版，没换进时间线）。 */
   stale: z.literal(true).optional(),
   /** 台词（A 轨）挂在主线哪一段的哪一帧；主线还空着时缺席。 */
   attachedTo: TimelineSnapshotAttachSchema.optional(),

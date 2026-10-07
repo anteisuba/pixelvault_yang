@@ -43,7 +43,7 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
-import { currentUrlOf } from '@/lib/edit-project'
+import { clipVersionOf, currentUrlOf } from '@/lib/edit-project'
 import { parseScriptShots } from '@/lib/node-script-shots'
 import { readScriptShotRef } from '@/lib/node-script-projection'
 import {
@@ -507,11 +507,22 @@ function buildEditDeskSnapshot(
   if (!edit && assets.length === 0) return {}
   const byId = new Map(nodes.map((node) => [node.id, node]))
   // 看片（2b）只截得了自家 CDN 上的 MP4：截不了的不带，省得服务端拿到一个注定 4xx 的源。
-  const videoUrls = assets.flatMap((asset) => {
+  const cardUrls = assets.flatMap((asset) => {
     if (asset.kind !== NODE_MEDIA_KIND_IDS.video) return []
     const url = currentUrlOf(byId.get(asset.nodeId))
     return url && getVideoPosterUrl(url) ? [{ nodeId: asset.nodeId, url }] : []
   })
+  // 段钉住的是自己那一版（4a）：在用的不是卡当前版的主线段，另列一条它自己的地址。
+  const clipUrls = (edit?.tracks.video ?? []).flatMap((clip) => {
+    const node = byId.get(clip.sourceNodeId)
+    const url = clipVersionOf(node, clip)?.version.url
+    if (!url || url === currentUrlOf(node) || !getVideoPosterUrl(url)) return []
+    return [{ nodeId: clip.sourceNodeId, clipId: clip.id, url }]
+  })
+  const videoUrls = [...cardUrls, ...clipUrls].slice(
+    0,
+    ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditVideoUrls,
+  )
   return {
     editDesk: {
       timeline: buildTimelineSnapshot(edit, nodes),

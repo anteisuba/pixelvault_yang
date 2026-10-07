@@ -324,6 +324,13 @@ adapter / Worker 抛错
 - 官方费用：每张生成、每张精确参考额外 **5 Anlas**。界面明示额外费用，精确参考不显示 Opus 免费提示。不承诺角色复现必然准确。
 - 状态：代码与本地契约验证已接通；尚未部署新版 execution Worker，未做精确参考真实付费生成。需部署 Worker 后再验收真实链路。
 
+## NovelAI 多人互动与台词实测（2026-10-07）
+
+- Sources：[Multiple Characters](https://docs.novelai.net/en/image/multiplecharacters/)（`source#` / `target#` / `mutual#` 写在各自角色栏；整体写人数与场景，角色栏写 `girl` 不写 `1girl`；不摆位时按角色栏顺序站）、[Text Rendering](https://docs.novelai.net/en/image/textrendering/)（`Text:` 放整体最末、多段空一行；整体里补 `text, english text`；质量标签含 `no text`，字出不来时要关；V4 / V4.5 只认英文且 ≤118 字，V5 Curated ≤374、Full ≤750）、[V5 发布公告](https://journal.novelai.net/image-generation-novelai-diffusion-v5-is-here-c2df7c6b8d2d/)（网页端引号里的字会自动生成 `Text:` 段 —— 那是网页端行为，API 要自己拼；漫画页靠自然语言描述版式和 / 或摆角色）。
+- Method：owner 授权 8 张付费生成，V5 Full · 1024×1024 · 23 步 · Euler a · CFG 7 · seed 20261007，两人（金发红裙 / 黑短发蓝外套），图在 owner 图库。整体里的称呼句与多段 `Text:` 界面单行输入写不出，那几张在已登录页面里直接 POST `/api/studio/generate`（同一会话、同一参数，只改被测项）。
+- 结论：① 不摆位时**角色栏顺序 = 从左到右**（对调顺序后左右也对调，2/2）。② 台词在整体里**按位置称呼**（`The girl on the right says "…" and the girl on the left replies "…"` + 末尾 `Text:` 两段）3/3 落对人，包括说话顺序与左右相反、中文（自动竖排气泡）；**按长相称呼**（`The black-haired girl says…`）0/1，字只按 `Text:` 顺序从左往右排；`Text:` 写进各自角色栏 1/1 落对，但那张字序恰与左右一致、区分力弱。③ `source#headpat` / `target#headpat` 方向正确 1/1。④ 质量标签 Standard（含 `no text`）开着时两段短台词照样画出（1/1）；不写字时背景会冒乱码字母，`no text` 有用。⑤ 官方联想（suggest-tags，免费）认识 `english text`、`chinese text`、`korean text`、`speech bubble`，没有 `japanese text`。
+- 未验证：三人以上的位置称呼；漫画页同一人出现在多格（`v4_prompt.caption.char_captions[].centers` 是数组，能否放多点无官方说明）；样本量小，只当方向依据。标签台的翻译规则见 [图片工作台 · NAI 位置关系与台词](pages/studio-image-workbench.md#2026-10-07--nai-位置关系与台词c舞台预演owner-已确认)。
+
 ## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
 
 Owner 决定暂时移除 PixAI 接入。三个模型标记 unavailable 并加入既有退役名单：模型选择器、可用目录与新增 key 配置入口不再出现 PixAI，旧 DB 配置不能重新启用它；服务端拒绝三个型号及以 PixAI key 指定的自定义型号的新生成。已有 key、作品、模型标签和运行记录不删除，已提交任务的 Worker 处理保留。本轮未提交的 style / LoRA 架、链接输入与相关扩展已撤回；下方是历史契约，不代表当前产品入口。

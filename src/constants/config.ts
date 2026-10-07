@@ -565,7 +565,8 @@ export const AI_GATEWAY_PROVIDER_ROUTES = [
   { prefix: 'https://api.openai.com/v1', path: 'openai' },
   { prefix: 'https://api.anthropic.com', path: 'anthropic' },
   { prefix: 'https://api.deepseek.com', path: 'deepseek' },
-  { prefix: 'https://api.x.ai/v1', path: 'grok' },
+  // ⚠ 网关上 Grok 的路径要保留 /v1（`…/grok/v1/chat/completions`），OpenAI 则不带。
+  { prefix: 'https://api.x.ai', path: 'grok' },
 ] as const
 
 /** Anthropic direct API contract shared by generation and key verification. */

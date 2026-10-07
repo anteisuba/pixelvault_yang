@@ -39,7 +39,7 @@ describe('routeThroughAiGateway', () => {
     ],
     [
       'https://api.x.ai/v1/chat/completions',
-      `${GATEWAY}/grok/chat/completions`,
+      `${GATEWAY}/grok/v1/chat/completions`,
     ],
   ])('routes %s through the gateway, keeping the user key', (from, to) => {
     vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', `${GATEWAY}/`)

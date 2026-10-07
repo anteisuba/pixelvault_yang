@@ -143,7 +143,9 @@ export function ImageRefRail({
                   }}
                   transition={hoverTransition}
                   className={cn(
-                    'nodrag nopan relative shrink-0 bg-surface-fill',
+                    // ⚠ `block`：按钮默认 inline-block，坐在基线上会多出 1px 降部空隙，
+                    // 撑出滚动行的竖向溢出 —— Windows 常驻滚动条上就是右边、下面各一条。
+                    'nodrag nopan relative block shrink-0 bg-surface-fill',
                     frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
                     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     'disabled:pointer-events-none disabled:opacity-60',

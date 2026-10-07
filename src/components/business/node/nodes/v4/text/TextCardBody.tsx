@@ -84,8 +84,11 @@ export function TextCardBody({
           setEditing(true)
         }}
         // `nowheel` = 卡内滚动时画布不跟着缩放（ReactFlow 的约定类）。
+        // ⚠ 阅读态**不带 `nodrag`**：卡面就是整张卡，盖上它卡就只剩名字行那个「T」
+        // 能抓（2026-10-07 owner：「文本节点无法移动」）。只有双击进编辑才禁拖。
         className={cn(
-          'nodrag nowheel h-full overflow-y-auto',
+          'nowheel h-full overflow-y-auto',
+          editing && 'nodrag',
           empty
             ? 'flex flex-col items-center justify-center gap-2.5 text-center'
             : 'px-5 py-4.5',

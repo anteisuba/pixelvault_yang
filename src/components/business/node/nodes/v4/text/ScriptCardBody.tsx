@@ -51,7 +51,8 @@ export function ScriptCardBody({
   return (
     <div
       data-script-card
-      className="nodrag nowheel flex h-full flex-col overflow-y-auto"
+      // ⚠ 不带 `nodrag`：整张卡都是这一层，盖上它卡就拖不动（同 `TextCardBody`）。
+      className="nowheel flex h-full flex-col overflow-y-auto"
     >
       <p
         data-script-meta
@@ -126,6 +127,7 @@ export function ScriptCardBody({
         <Button
           type="button"
           size="sm"
+          className="nodrag"
           // 还没投 = 主动作（近黑）；投过 = 次级，与画板 ②③ 一致。
           variant={projected ? 'outline' : 'default'}
           disabled={shots.length === 0 || (projected && pendingCount === 0)}

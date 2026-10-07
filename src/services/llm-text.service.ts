@@ -28,6 +28,7 @@ import {
 import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
+import { routeThroughAiGateway } from '@/lib/ai-gateway'
 import { ApiKeyError, ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
@@ -810,7 +811,12 @@ async function fetchLlmText(
   armTimer()
   let response: Response
   try {
-    response = await fetch(endpoint, { ...init, signal: controller.signal })
+    const routed = routeThroughAiGateway(endpoint, init.headers)
+    response = await fetch(routed.endpoint, {
+      ...init,
+      headers: routed.headers,
+      signal: controller.signal,
+    })
     controller.signal.throwIfAborted()
   } catch (error) {
     cleanup()

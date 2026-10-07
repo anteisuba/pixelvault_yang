@@ -98,6 +98,8 @@
 平台掏钱的只剩 `runner`（见上方 `RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
 `model-health.service.ts` 仍读平台 key 做免费的元数据探测，env 清空后对应厂商报「无系统 key」降级，不影响用户。
 
+**Cloudflare AI Gateway（2026-10-07 接入，env 开关）**：配了 `CLOUDFLARE_AI_GATEWAY_URL`（`https://gateway.ai.cloudflare.com/v1/<account>/<gateway>`）后，`llm-text.service.ts` 的 `fetchLlmText`（补全 / 流式 / 原生联网搜索的唯一出口）把官方默认地址改道网关（`AI_GATEWAY_PROVIDER_ROUTES`：Gemini → `google-ai-studio`、OpenAI → `openai`、Claude → `anthropic`、DeepSeek → `deepseek`、Grok → `grok`），用户 key 照常透传；用户自配的 baseUrl 不改道。网关开了鉴权时再配 `CLOUDFLARE_AI_GATEWAY_TOKEN`（`cf-aig-authorization`）。Worker 里的出图请求暂未改道。
+
 ## Ideogram 4.5（verified 2026-10-01）
 
 - 官方根地址 `https://api.ideogram.ai`，鉴权头 `Api-Key`。生成：`POST /v2/image/generate/ideogram-4-5`；精确编辑：`POST /v2/image/precise-edit/ideogram-4-5`。无图生成使用 JSON，带图使用 multipart；`async=true` 后通过 `GET /v2/generations/{id}` 轮询。执行交给 Execution Worker，结果使用现有回调链归档至 R2。

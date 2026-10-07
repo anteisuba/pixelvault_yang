@@ -549,6 +549,25 @@ export const AI_PROVIDER_ENDPOINTS = {
   RUNPOD: 'https://api.runpod.ai/v2',
 } as const
 
+/**
+ * Cloudflare AI Gateway 上每家 LLM 的路径段（owner 2026-10-07 接入，为了留得住每一次
+ * 请求的日志、限流与重试——Vercel Hobby 的运行日志只留 1 小时）。
+ *
+ * `prefix` = 官方默认地址里被网关替换掉的那一段：`{prefix}/rest` → `{gateway}/{path}/rest`。
+ * 用户 key 照常透传；⚠ 只改写官方默认地址，用户自配的 baseUrl 原样直连。
+ * https://developers.cloudflare.com/ai-gateway/usage/providers/（2026-10-07 核）
+ */
+export const AI_GATEWAY_PROVIDER_ROUTES = [
+  {
+    prefix: 'https://generativelanguage.googleapis.com',
+    path: 'google-ai-studio',
+  },
+  { prefix: 'https://api.openai.com/v1', path: 'openai' },
+  { prefix: 'https://api.anthropic.com', path: 'anthropic' },
+  { prefix: 'https://api.deepseek.com', path: 'deepseek' },
+  { prefix: 'https://api.x.ai/v1', path: 'grok' },
+] as const
+
 /** Anthropic direct API contract shared by generation and key verification. */
 export const ANTHROPIC_API = {
   VERSION: '2023-06-01',

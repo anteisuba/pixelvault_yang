@@ -478,7 +478,7 @@ describe('searchLoraCandidates — 底模家族下推给上游（2026-09-12 真�
   })
 
   it('家族映射不到上游筛选值时只发一次（不猜一个值下推）', async () => {
-    await searchLoraCandidates({ ...INPUT, baseModelFamily: 'krea2' })
+    await searchLoraCandidates({ ...INPUT, baseModelFamily: 'chroma' })
 
     expect(mockListCivitaiLoras).toHaveBeenCalledTimes(1)
     expect(mockSearchHuggingFaceLoras.mock.calls[0]?.[0]).toMatchObject({

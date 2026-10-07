@@ -486,7 +486,6 @@ export function StudioOperatorUserText({
             aliases: [`@${name}`],
             text: true as const,
           })),
-        ,
       ])}
     </p>
   )

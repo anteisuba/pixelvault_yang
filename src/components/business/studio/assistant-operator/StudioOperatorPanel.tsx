@@ -1459,6 +1459,9 @@ export function StudioOperatorPanel({
             {...(operatorHost.generationControls
               ? { controls: operatorHost.generationControls }
               : {})}
+            {...(operatorHost.searchGrounding
+              ? { searchGrounding: operatorHost.searchGrounding }
+              : {})}
             onAdjust={adjustGeneration}
           />
         )}
@@ -1899,6 +1902,13 @@ export function StudioOperatorPanel({
             <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.result}>
               <StudioOperatorResultRow
                 entry={entry}
+                // 「先搜再画」的资料只认工作台当前这一轮（⛔ 不进对话历史）。
+                searchGrounding={
+                  entry.request?.searchGrounding
+                    ? (operatorHost.searchGroundingForResult?.(entry.id) ??
+                      null)
+                    : null
+                }
                 onRerun={(target) =>
                   target.request && rerunGeneration(target.request)
                 }

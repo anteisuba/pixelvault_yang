@@ -2390,6 +2390,16 @@ export function useAssistantOperator(
         if (!request) return
         setOperatorConfirm({ ...confirm, request })
       }
+      if (
+        !confirm.request.canvasNode &&
+        host.searchGrounding?.available &&
+        host.searchGrounding.on
+      ) {
+        setOperatorConfirm({
+          ...confirm,
+          request: { ...confirm.request, searchGrounding: true },
+        })
+      }
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed, {
         auto: options.auto,
       })
@@ -2415,9 +2425,15 @@ export function useAssistantOperator(
        *   写的那几行与真的发出去的逐字相同。
        */
       const controls = host.generationControls
+      // 「先搜再画」那一刻开没开：只记一个布尔，「已确认 · … · 先搜再画」读它。
+      const searchGrounding =
+        host.searchGrounding?.available && host.searchGrounding.on
+          ? { searchGrounding: true }
+          : {}
       const request = controls
         ? {
             ...confirm.request,
+            ...searchGrounding,
             model: controls.model ?? confirm.request.model,
             count: controls.count,
             specs: {
@@ -2426,7 +2442,7 @@ export function useAssistantOperator(
               resolution: controls.resolution,
             },
           }
-        : confirm.request
+        : { ...confirm.request, ...searchGrounding }
       /**
        * **生成中那张结果卡就地落进时间线**（v2 §6.3，commit #10）。
        *
@@ -2456,6 +2472,7 @@ export function useAssistantOperator(
       applyContext,
       host.generationControls,
       host.canvasTargets,
+      host.searchGrounding,
       isCurrentThread,
       localThreadId,
     ],

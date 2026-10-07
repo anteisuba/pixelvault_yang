@@ -34,6 +34,7 @@ import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
+import type { SearchGroundingRailState } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import type { StudioOperatorShellAnchor } from '@/constants/studio-assistant-operator'
 import type {
   StudioOperatorGenerationControls,
@@ -51,6 +52,14 @@ import type {
  * ⛔ **不上色**：域标记是灰底小胶囊，颜色不能当身份用 —— 脊柱 §2.1 把模态色留给
  * prompts 域（`ui-defaults.md`）。
  */
+/** 宿主给确认卡的那一颗「先搜再画」（读写工作台那一份开关）。 */
+export interface StudioOperatorSearchGroundingControl {
+  /** 这一轮名单里有支持的型号。 */
+  available: boolean
+  on: boolean
+  setOn(on: boolean): void
+}
+
 export interface StudioOperatorFace {
   /** 规格行（输入框上方那一行）左边那枚图标。 */
   domainIcon: LucideIcon
@@ -142,6 +151,16 @@ export interface StudioOperatorHost {
    *   时确认卡退回只读读数（⛔ 不摆一颗点了没反应的下拉）。
    */
   generationControls?: StudioOperatorGenerationControls
+  /**
+   * 「先搜再画」开关（B 定稿 2026-10-07：确认卡上的开关就是图片台那一份）。
+   * ⚠ **可选**：只有图片工作台给；缺席 = 确认卡上没有这一颗。
+   */
+  searchGrounding?: StudioOperatorSearchGroundingControl
+  /**
+   * 某一批结果（按结果条目 id）的「先搜再画」资料 —— 只读工作台这一轮的运行状态，
+   * ⛔ 不进对话历史；那一批已经不是工作台当前这一轮了 / 刷新过 = `null`。
+   */
+  searchGroundingForResult?(resultId: string): SearchGroundingRailState | null
   /**
    * 参考位上限（拍板 21：联网候选一行能选几张）。
    *

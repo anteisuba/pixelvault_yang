@@ -170,6 +170,11 @@ function renderCard(
     controls?: StudioOperatorGenerationControls
     canGenerate?: boolean
     canvasState?: CanvasNodeGenerationState | null
+    searchGrounding?: {
+      available: boolean
+      on: boolean
+      setOn: (on: boolean) => void
+    }
     onAdjust?: (
       knob: StudioOperatorGenerateKnob,
       value: string,
@@ -588,5 +593,53 @@ describe('StudioOperatorConfirmCard', () => {
       .getAllByTestId('operator-confirm-knob')
       .find((node) => node.dataset.knob === 'model')!
     expect(trigger).toBeDisabled()
+  })
+})
+
+describe('StudioOperatorConfirmCard 先搜再画（B 定稿）', () => {
+  it('支持且关着：旋钮行末一颗「＋ 先搜再画」，点了写回工作台那一份开关', () => {
+    const setOn = vi.fn()
+    renderCard(GENERATE, {
+      controls: CONTROLS,
+      searchGrounding: { available: true, on: false, setOn },
+    })
+    const add = screen.getByTestId('operator-confirm-search-grounding')
+    expect(add.closest('[data-open]')).toHaveAttribute('data-open', 'true')
+    fireEvent.click(add)
+    expect(setOn).toHaveBeenCalledWith(true)
+  })
+
+  it('开着：按钮收起，虚线槽长出来，× 关掉', () => {
+    const setOn = vi.fn()
+    renderCard(GENERATE, {
+      controls: CONTROLS,
+      searchGrounding: { available: true, on: true, setOn },
+    })
+    expect(
+      screen
+        .getByTestId('operator-confirm-search-grounding')
+        .closest('[data-open]'),
+    ).toHaveAttribute('data-open', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'turnOff' }))
+    expect(setOn).toHaveBeenCalledWith(false)
+  })
+
+  it('画布那一枪不画这一颗（那是卡自己的参数）', () => {
+    renderCard(CANVAS_GENERATE, {
+      searchGrounding: { available: true, on: false, setOn: vi.fn() },
+    })
+    expect(screen.queryByTestId('operator-confirm-search-grounding')).toBeNull()
+  })
+
+  it('已确认那一行带上「· 先搜再画」', () => {
+    renderCard({
+      ...GENERATE,
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed,
+      decidedAt: '2026-10-07T11:24:00.000Z',
+      request: { ...GENERATE.request, searchGrounding: true },
+    } as ConfirmCardPrompt)
+    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
+      'confirmedSuffix',
+    )
   })
 })

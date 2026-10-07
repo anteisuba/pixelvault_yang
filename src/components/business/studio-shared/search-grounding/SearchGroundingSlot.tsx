@@ -86,13 +86,22 @@ export function SearchGroundingSlot({
             >
               <b className="font-semibold whitespace-nowrap">{t('toggle')}</b>
               {onlyModelLabel ? (
-                <span className="inline-flex h-5 items-center self-center rounded-full bg-muted px-2 text-2xs font-medium whitespace-nowrap text-foreground">
+                <span
+                  className={cn(
+                    'inline-flex h-5 items-center rounded-full bg-muted px-2 text-2xs font-medium whitespace-nowrap text-foreground',
+                    stacked ? 'self-start' : 'self-center',
+                  )}
+                >
                   {t('onlyModel', { model: onlyModelLabel })}
                 </span>
               ) : null}
               <span
                 key={searching ? 'searching' : 'idle'}
-                className="min-w-0 flex-1 basis-48 animate-in text-xs text-muted-foreground fade-in-0 duration-fast ease-standard motion-reduce:animate-none"
+                // ⚠ 上下排时 basis 会变成高度，只在横排时给。
+                className={cn(
+                  'min-w-0 animate-in text-xs text-muted-foreground fade-in-0 duration-fast ease-standard motion-reduce:animate-none',
+                  !stacked && 'flex-1 basis-48',
+                )}
               >
                 {searching ? subtitle : `${subtitle} · ${t('noPeople')}`}
               </span>

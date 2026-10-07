@@ -36,6 +36,10 @@ import { useFormatter, useTranslations } from 'next-intl'
 import { EASE_STANDARD, DURATION } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import {
+  SearchGroundingRail,
+  type SearchGroundingRailState,
+} from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import type {
   StudioOperatorResultEntry,
   StudioOperatorResultItem,
@@ -43,6 +47,11 @@ import type {
 
 interface StudioOperatorResultRowProps {
   entry: StudioOperatorResultEntry
+  /**
+   * 「先搜再画」交回的资料（只在出图当下、只在内存里）。出完图才画：资料条在图
+   * 上方，卡逐张滑入，一条短竖线指向图（B 定稿）。
+   */
+  searchGrounding?: SearchGroundingRailState | null
   /** 「再来一组」—— 缺席时那颗不画（载荷丢了的历史条目）。 */
   onRerun?(entry: StudioOperatorResultEntry): void
   /** 「用它当参考」—— 多张时挂的是第一张（画板上那两颗按钮没有分格）。 */
@@ -142,6 +151,7 @@ function ResultThumb({
 
 export function StudioOperatorResultRow({
   entry,
+  searchGrounding,
   onRerun,
   onUseAsReference,
 }: StudioOperatorResultRowProps) {
@@ -197,6 +207,10 @@ export function StudioOperatorResultRow({
         </>
       ) : (
         <>
+          <SearchGroundingRail
+            state={searchGrounding?.phase === 'done' ? searchGrounding : null}
+            layout="strip"
+          />
           <div className={grid}>
             {items.map((item, index) => (
               <ResultThumb

@@ -1244,6 +1244,12 @@ export const AssistantOperatorGenerationRequestSchema = z.object({
    * ⚠ 缺席 = 工作台那颗生成键（`request_generation`）。
    */
   canvasNode: z.object({ id: IdSchema, name: LabelSchema }).optional(),
+  /**
+   * 「先搜再画」：确认那一刻工作台的开关开着、型号支持 —— **客户端记的**，只用来在
+   * 「已确认 · … · 先搜再画」那一行与结果卡上说清这一枪搜过。⚠ 服务端不填它；
+   * 真正发不发由工作台开关决定（发送口），⛔ 来源与搜索建议不进这份载荷。
+   */
+  searchGrounding: z.boolean().optional(),
 })
 
 export type AssistantOperatorGenerationRequest = z.infer<

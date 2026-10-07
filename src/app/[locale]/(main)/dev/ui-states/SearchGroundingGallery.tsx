@@ -6,6 +6,10 @@ import { AI_MODELS } from '@/constants/models'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
+import { StudioOperatorConfirmCard } from '@/components/business/studio/assistant-operator/StudioOperatorConfirmCard'
+import { StudioOperatorResultRow } from '@/components/business/studio/assistant-operator/StudioOperatorResultRow'
+import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
+import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
 import { ImageSearchGroundingSide } from '@/components/business/node/nodes/v4/image/ImageSearchGroundingSide'
 import {
   addNodeSearchGroundingResult,
@@ -73,7 +77,7 @@ const RESULTS = {
 } as const satisfies Record<string, SearchGroundingResult>
 
 type GalleryState = 'searching' | keyof typeof RESULTS
-type GalleryRun = 'single' | 'pair1' | 'pair2' | 'canvas'
+type GalleryRun = 'single' | 'pair1' | 'pair2' | 'canvas' | 'assistant'
 
 const STATE_LABELS: Record<GalleryState, string> = {
   searching: '正在搜',
@@ -87,6 +91,16 @@ const RUN_LABELS: Record<GalleryRun, string> = {
   pair1: '同系列一起跑 · NB 在第 1 格',
   pair2: 'NB 在第 2 格',
   canvas: '画布卡（「收起」= 取消选中）',
+  assistant: '助手确认卡 + 结果行',
+}
+
+const ASSISTANT_REQUEST = {
+  model: {
+    id: AI_MODELS.GEMINI_NANO_BANANA_21,
+    label: 'Gemini Nano Banana 2.1',
+  },
+  count: 2,
+  specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
 }
 
 const CANVAS_NODE_ID = 'ui-states-search-grounding-node'
@@ -166,7 +180,9 @@ export function SearchGroundingGallery() {
         </Chip>
       </div>
 
-      {run === 'canvas' ? (
+      {run === 'assistant' ? (
+        <AssistantSearchGrounding state={state} />
+      ) : run === 'canvas' ? (
         <div className="flex min-h-0 flex-1 items-start justify-center pt-16 pl-72">
           <div className="relative h-106.75 w-80 rounded-node bg-card shadow-node-card">
             <ImageSearchGroundingSide
@@ -244,5 +260,63 @@ function Chip({
     >
       {children}
     </button>
+  )
+}
+
+/** 助手面板 432 宽里那两张：待确认的确认卡（开关可点）+ 出完图的结果行。 */
+function AssistantSearchGrounding({ state }: { state: GalleryState }) {
+  const [on, setOn] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
+  const items = makeRunItems({
+    models: [AI_MODELS.GEMINI_NANO_BANANA_21],
+    perModel: 2,
+  }).flatMap((item) =>
+    item.generation
+      ? [{ id: item.id, url: item.generation.url, label: 'Taipei 101' }]
+      : [],
+  )
+  return (
+    <div className="flex justify-center">
+      <div className="flex w-108 flex-col gap-3 rounded-2xl bg-muted p-3">
+        <StudioOperatorConfirmCard
+          confirm={{
+            id: 'gallery-confirm',
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+            status: confirmed
+              ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+              : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+            ...(confirmed ? { decidedAt: new Date().toISOString() } : {}),
+            request: {
+              ...ASSISTANT_REQUEST,
+              ...(confirmed && on ? { searchGrounding: true } : {}),
+            },
+          }}
+          searchGrounding={{ available: true, on, setOn }}
+          onApprove={() => {}}
+          onDecline={() => {}}
+          onConfirm={() => setConfirmed(true)}
+          onCancel={() => {}}
+          onSaveCard={() => {}}
+          onDismissCard={() => {}}
+          onRetry={() => setConfirmed(false)}
+          formatTime={() => '11:24'}
+        />
+        {confirmed ? (
+          <StudioOperatorResultRow
+            entry={{
+              kind: 'result',
+              id: 'gallery-result',
+              total: 2,
+              completed: 2,
+              items,
+              storedAt: new Date().toISOString(),
+              request: { ...ASSISTANT_REQUEST, searchGrounding: on },
+            }}
+            searchGrounding={on ? railState(state) : null}
+            onUseAsReference={() => {}}
+          />
+        ) : null}
+      </div>
+    </div>
   )
 }

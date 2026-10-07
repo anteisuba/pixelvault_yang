@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { supportsSearchGrounding } from '@/constants/models'
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
+import { useStudioForm, useStudioGenOptional } from '@/contexts/studio-context'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -28,7 +28,11 @@ export interface UseStudioSearchGroundingReturn {
  */
 export function useStudioSearchGrounding(): UseStudioSearchGroundingReturn {
   const { state, dispatch } = useStudioForm()
-  const { activeRun, isGenerating, elapsedSeconds } = useStudioGen()
+  // ⚠ 可选：助手宿主也读这一份，而有的路由（装配台）没有生成那一层 context。
+  const gen = useStudioGenOptional()
+  const activeRun = gen?.activeRun ?? null
+  const isGenerating = gen?.isGenerating ?? false
+  const elapsedSeconds = gen?.elapsedSeconds ?? 0
   const { runModels } = useStudioRunModels()
   const tModels = useTranslations('Models')
 

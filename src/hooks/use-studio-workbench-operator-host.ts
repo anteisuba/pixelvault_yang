@@ -21,6 +21,8 @@ import {
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
+import { searchGroundingForRun } from '@/lib/search-grounding'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
@@ -553,6 +555,37 @@ export function useStudioWorkbenchOperatorHost({
     [activeRun],
   )
 
+  /**
+   * 「先搜再画」：确认卡那一颗读写工作台同一份开关；结果卡上的资料只认工作台
+   * 当前这一轮、且这一轮正是那一批（按结果条目 id 对）—— ⛔ 不进对话历史。
+   */
+  const searchGroundingState = useStudioSearchGrounding()
+  const searchGrounding = useMemo(
+    () =>
+      domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+        ? undefined
+        : {
+            available: searchGroundingState.available,
+            on: searchGroundingState.on,
+            setOn: searchGroundingState.setOn,
+          },
+    [
+      domain,
+      searchGroundingState.available,
+      searchGroundingState.on,
+      searchGroundingState.setOn,
+    ],
+  )
+  const searchGroundingForResult = useCallback(
+    (resultId: string) =>
+      activeRun?.items.some(
+        (item) => item.operatorResultOwner?.pendingResultId === resultId,
+      )
+        ? searchGroundingForRun(activeRun.items)
+        : null,
+    [activeRun],
+  )
+
   /** **这一批的在飞读数**（v2 §6.3）—— 结果卡的生成中态读它，见 `toOperatorResultRun`。 */
   const { threadScope, localThreadId, pendingResultId } =
     useStudioOperatorState()
@@ -678,12 +711,16 @@ export function useStudioWorkbenchOperatorHost({
       results,
       ...(resultRun ? { resultRun } : {}),
       generationControls,
+      ...(searchGrounding ? { searchGrounding } : {}),
+      searchGroundingForResult,
       referenceLimit,
       referenceImages: imageUpload.referenceEntries,
       open,
       setOpen,
     }),
     [
+      searchGrounding,
+      searchGroundingForResult,
       apply,
       buildSnapshot,
       domain,

@@ -31,7 +31,7 @@
  */
 
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronUp } from '@/components/icons'
+import { Check, ChevronDown, ChevronUp, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -48,6 +48,8 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import type { StudioOperatorSearchGroundingControl } from '@/contexts/studio-operator-host'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   buildCanvasGenerationRequest,
@@ -113,6 +115,11 @@ interface StudioOperatorConfirmCardProps {
     knob: StudioOperatorGenerateKnob,
     value: string,
   ): readonly StudioOperatorGenerateKnob[]
+  /**
+   * 「先搜再画」—— 就是图片台那一份开关（B 定稿）。缺席 = 这个宿主没有这一颗；
+   * 画布那一枪（`canvasNode`）不走这里（那是卡自己的参数）。
+   */
+  searchGrounding?: StudioOperatorSearchGroundingControl
 }
 
 type KnobSpec = StudioOperatorKnobSpec
@@ -139,8 +146,10 @@ export function StudioOperatorConfirmCard({
   controls,
   canGenerate = true,
   onAdjust,
+  searchGrounding,
 }: StudioOperatorConfirmCardProps) {
   const t = useTranslations('StudioOperator')
+  const tSearch = useTranslations('SearchGrounding')
   /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
   const tCards = useTranslations('ContextCards')
   /** 模型显示名与模型选择器同一张词表（`Models.<key>.label`）。 */
@@ -200,6 +209,10 @@ export function StudioOperatorConfirmCard({
    * 视频 / 音频，跑一次就是一次，卡名才是用户要核对的那件事。
    */
   const canvasNode = generate?.request.canvasNode
+  /** 工作台那一枪才有这一颗；模型不支持时按钮与槽一起收（宽 / 高 → 0）。 */
+  const searchAvailable =
+    Boolean(generate && !canvasNode && searchGrounding?.available) && !busy
+  const searchOn = searchAvailable && Boolean(searchGrounding?.on)
   /**
    * ⚠ 读数空的也不画（2026-09-12 实测第 5 步）：该模型有清晰度档、而工作台那一格
    * 还没有值时，一颗什么都没写的旋钮比没有这颗旋钮更难读（判据在
@@ -371,7 +384,10 @@ export function StudioOperatorConfirmCard({
                             count: confirm.request.count,
                           }),
                     modelLabel,
-                  )
+                  ) +
+                  (confirm.request.searchGrounding
+                    ? ` · ${tSearch('confirmedSuffix')}`
+                    : '')
                 : t('confirm.multistep.title', {
                     count: confirm.steps.length,
                   })}
@@ -590,7 +606,40 @@ export function StudioOperatorConfirmCard({
                     <span className="text-foreground">{spec.value}</span>
                   </div>
                 ))}
+                {/* 「＋ 先搜再画」：开了就让位给下面那道虚线槽（B 定稿）。 */}
+                {generate && !canvasNode && searchGrounding ? (
+                  <span
+                    data-open={searchAvailable && !searchOn ? 'true' : 'false'}
+                    aria-hidden={!(searchAvailable && !searchOn)}
+                    inert={!(searchAvailable && !searchOn)}
+                    className={cn(
+                      'search-sources-slot shrink-0',
+                      !(searchAvailable && !searchOn) && '-ml-1.5',
+                    )}
+                  >
+                    <span className="-m-0.5 flex p-0.5">
+                      <button
+                        type="button"
+                        data-testid="operator-confirm-search-grounding"
+                        onClick={() => searchGrounding.setOn(true)}
+                        className="flex items-center gap-1.5 rounded-md border border-dashed border-border bg-card px-2.5 py-1 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Plus className="size-3.5" aria-hidden />
+                        {tSearch('toggle')}
+                      </button>
+                    </span>
+                  </span>
+                ) : null}
               </div>
+              {generate && !canvasNode && searchGrounding ? (
+                <SearchGroundingSlot
+                  open={searchOn}
+                  stacked
+                  description={tSearch('slotConfirm')}
+                  onTurnOff={() => searchGrounding.setOn(false)}
+                  className="mt-1"
+                />
+              ) : null}
               {canvasState !== undefined && !canvasState?.model ? (
                 <p className="text-2xs text-muted-foreground">
                   {t('confirm.generate.nodeUnavailable')}

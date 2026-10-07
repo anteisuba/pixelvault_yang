@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, within } from '@testing-library/react'
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }))
+/** key 名单回没回来 —— 默认回来了；「还不知道」那组用例自己改成 false。 */
+const apiKeys = vi.hoisted(() => ({ hasLoaded: true }))
 
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: navigation.push }),
@@ -21,6 +23,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
     keys: [],
     healthMap: {},
     isLoading: false,
+    hasLoaded: apiKeys.hasLoaded,
   })),
 }))
 
@@ -146,6 +149,7 @@ function openCanvasPicker(
 beforeEach(() => {
   window.localStorage.clear()
   navigation.push.mockClear()
+  apiKeys.hasLoaded = true
   // 「未选渠道」住模块级 store —— 不清就会漏进下一个用例。
   resetModelPickerGate()
 })
@@ -556,6 +560,105 @@ describe('ModelPickerPopover — 缺 key 渠道跳转 API 配置', () => {
       '/settings/keys?from=%2Fstudio%2Fimage&setup=openai',
     )
     expect(window.localStorage.length).toBe(0)
+  })
+})
+
+describe('ModelPickerPopover — key 名单还没回来', () => {
+  /**
+   * 名单回来之前选项上还没有 `providerKeyId` —— 那是「还不知道」，不是「缺 key」
+   * （2026-10-07 真机：有 key 的 NovelAI 先挂了约 3 秒「缺 key」）。
+   */
+  const chip = () => document.querySelector('[data-model-chip]')
+  const withLiteKey = FIXTURE.map((item) =>
+    item.optionId === 'workspace:seedream-lite'
+      ? { ...item, providerKeyId: 'fal-1' }
+      : item,
+  )
+
+  it('有 key 的型号：名单回来前后触发器都不写「缺 key」', () => {
+    apiKeys.hasLoaded = false
+    const { rerender } = render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value="workspace:seedream-lite"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(chip()?.getAttribute('data-status-tone')).toBeNull()
+    expect(chip()?.textContent).not.toContain('ModelPicker.missingKey')
+
+    apiKeys.hasLoaded = true
+    rerender(
+      <ModelPickerPopover
+        options={withLiteKey}
+        value="workspace:seedream-lite"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(chip()?.getAttribute('data-status-tone')).toBeNull()
+    expect(chip()?.textContent).toContain('Common.unitPrice')
+  })
+
+  it('真缺 key 的型号：名单回来之后照旧写「缺 key」', () => {
+    apiKeys.hasLoaded = false
+    const { rerender } = render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value="workspace:seedream-lite"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(chip()?.textContent).not.toContain('ModelPicker.missingKey')
+
+    apiKeys.hasLoaded = true
+    rerender(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value="workspace:seedream-lite"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(chip()?.getAttribute('data-status-tone')).toBe('warning')
+    expect(chip()?.textContent).toContain('ModelPicker.missingKey')
+  })
+
+  it('渠道是灰点不是黄点，行里照写单价', () => {
+    apiKeys.hasLoaded = false
+    openPicker()
+    expect(row('seedream-5.0-lite').textContent).toContain('Common.unitPrice')
+    fireEvent.mouseEnter(row('seedream-5.0-lite'))
+    const panel = channelPanel() as HTMLElement
+    expect(panel.querySelector('.bg-muted-foreground\\/40')).not.toBeNull()
+    expect(panel.querySelector('.bg-status-warning')).toBeNull()
+  })
+
+  it('画布行不写「缺 key · 点了去配置」', () => {
+    apiKeys.hasLoaded = false
+    openCanvasPicker()
+    const gpt = row('gpt-image-2')
+    expect(gpt.textContent).not.toContain('ModelPicker.missingKeyConfigure')
+    expect(gpt).not.toHaveAttribute('data-missing-key')
+  })
+
+  it('点模型行 = 照常选，⛔ 不跳配置页', () => {
+    apiKeys.hasLoaded = false
+    const { onChange } = openPicker()
+    fireEvent.click(row('gpt-image-2'))
+    expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
+    expect(navigation.push).not.toHaveBeenCalled()
+  })
+
+  it('点渠道 = 照常选，⛔ 不跳配置页', () => {
+    apiKeys.hasLoaded = false
+    const { onChange } = openPicker()
+    fireEvent.mouseEnter(row('gpt-image-2'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
+    expect(navigation.push).not.toHaveBeenCalled()
   })
 })
 

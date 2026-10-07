@@ -76,8 +76,8 @@ import { ModelChip } from './ModelChip'
  * 1. **行只有三件**：模型名 · 型号 · 价格。⛔ 行里不画状态点、不写渠道名、不写能力
  *    标 —— 那些是收口前那八套各自加的东西，加回来这一版就又散了。
  * 2. **渠道面板是独立浮层**，浮在弹层右侧、与当前 hover / 选中行顶部对齐。每行：
- *    状态点（绿 = 已配 key，黄 = 缺 key）· 渠道名 · 该渠道单价。选中渠道用
- *    `bg-muted` 底表示，**没有对勾**。
+ *    状态点（绿 = 已配 key，黄 = 缺 key，灰 = key 名单还没回来）· 渠道名 ·
+ *    该渠道单价。选中渠道用 `bg-muted` 底表示，**没有对勾**。
  * 3. **没有「自动」渠道**（`resolveModelChannel`）。多渠道型号没点过渠道 = 空态：
  *    价格位写「—」，触发器写「先选渠道」。单渠道型号面板只有一行且自动选中。
  *
@@ -89,8 +89,14 @@ interface ChannelView {
   channel: PickerChannel
   /** 已格式化的单价（`$0.213 / s`）；目录里查不到价时为 null。 */
   price: string | null
-  /** 用户自己配了这条渠道的 key —— 绿点；否则黄点。 */
+  /** 用户自己配了这条渠道的 key —— 绿点。 */
   hasKey: boolean
+  /**
+   * **确定**缺 key —— 黄点、「缺 key」、点了去配 key。⚠ key 名单还没回来时
+   * `hasKey` 也是 false，但那是「不知道」不是「缺」：两格都不成立 = 灰点、
+   * 不写警示、点了照常选（名单回来后真缺的那条再显示「缺 key」）。
+   */
+  missingKey: boolean
 }
 
 /**
@@ -358,7 +364,7 @@ export function ModelPickerPopover({
   const tModels = useTranslations('Models')
   const openKeySettings = useOpenKeySettings()
 
-  const { healthMap } = useApiKeysContext()
+  const { healthMap, hasLoaded: keysLoaded } = useApiKeysContext()
   const memory = useModelPickerMemory(memoryScope, gateId)
   // 触屏紧凑视口走底部 Sheet 分支（`ResponsivePopover` 内部同一条判据）：没有
   // hover，也没有右侧摆面板的地方，渠道列表只能在行里原地展开。
@@ -447,12 +453,14 @@ export function ModelPickerPopover({
     const toView = (channel: PickerChannel): ChannelView => {
       const { option } = channel
       const unitPrice = getModelUnitPriceByStringId(option.modelId)
+      const hasKey = isRunnableModelOption(option)
       return {
         channel,
         price: unitPrice
           ? tCommon(`unitPrice.${unitPrice.unit}`, { amount: unitPrice.amount })
           : null,
-        hasKey: isRunnableModelOption(option),
+        hasKey,
+        missingKey: keysLoaded && !hasKey,
       }
     }
 
@@ -519,7 +527,7 @@ export function ModelPickerPopover({
       .filter((row): row is ModelRow => row !== null)
     // tCommon 随语言变，分组本身只跟着清单、key 健康与记忆走。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options, healthMap, memory, labelOf, value, canvasCompact])
+  }, [options, healthMap, keysLoaded, memory, labelOf, value, canvasCompact])
 
   const query = search.trim().toLowerCase()
   const visibleRows = query
@@ -716,7 +724,8 @@ export function ModelPickerPopover({
   }, [focusPanelPending, panelRowId])
 
   const commit = (option: StudioModelOption, modelKey: string) => {
-    if (!isRunnableModelOption(option)) {
+    // 名单没回来时不知道缺不缺 —— 照常选，⛔ 别把有 key 的人送去配置页。
+    if (keysLoaded && !isRunnableModelOption(option)) {
       setOpen(false)
       setActiveRowId(null)
       openKeySettings(option.adapterType)
@@ -756,7 +765,7 @@ export function ModelPickerPopover({
   }
 
   const handleSelectChannel = (row: ModelRow, view: ChannelView) => {
-    if (!view.hasKey) {
+    if (view.missingKey) {
       setOpen(false)
       setActiveRowId(null)
       openKeySettings(view.channel.option.adapterType)
@@ -800,7 +809,11 @@ export function ModelPickerPopover({
           aria-hidden
           className={cn(
             'size-2 shrink-0 rounded-full',
-            view.hasKey ? 'bg-status-applied' : 'bg-status-warning',
+            view.hasKey
+              ? 'bg-status-applied'
+              : view.missingKey
+                ? 'bg-status-warning'
+                : 'bg-muted-foreground/40',
           )}
         />
         <span className="min-w-0 flex-1 truncate">{view.channel.label}</span>
@@ -830,7 +843,7 @@ export function ModelPickerPopover({
         </span>
       )
     }
-    if (!row.active.hasKey || !row.active.price) return null
+    if (row.active.missingKey || !row.active.price) return null
     return (
       <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
         {row.active.price}
@@ -863,12 +876,12 @@ export function ModelPickerPopover({
     const expanded = sheet && activeRowId === rowId
     if (canvasCompact) {
       const line = row.active
-        ? row.active.hasKey
-          ? [
+        ? row.active.missingKey
+          ? t('missingKeyConfigure')
+          : [
               row.active.channel.label,
               row.active.price ?? t('usageBilled'),
             ].join(' · ')
-          : t('missingKeyConfigure')
         : t('pickChannel')
       return (
         <div
@@ -884,16 +897,14 @@ export function ModelPickerPopover({
             data-picker-canvas-row
             data-row-id={rowId}
             data-row-active={activeRowId === rowId || undefined}
-            data-missing-key={
-              row.active && !row.active.hasKey ? 'true' : undefined
-            }
+            data-missing-key={row.active?.missingKey ? 'true' : undefined}
             ref={(element) => {
               if (element) rowRefs.current.set(rowId, element)
               else rowRefs.current.delete(rowId)
             }}
             onFocus={() => focusRow(rowId)}
             onClick={() => {
-              if (row.active && !row.active.hasKey) {
+              if (row.active?.missingKey) {
                 handleSelectChannel(row, row.active)
                 return
               }
@@ -905,7 +916,7 @@ export function ModelPickerPopover({
               <span
                 className={cn(
                   'block truncate text-2sm leading-4.5',
-                  row.active && !row.active.hasKey
+                  row.active?.missingKey
                     ? 'text-muted-foreground/75'
                     : 'text-foreground',
                 )}
@@ -1188,7 +1199,7 @@ export function ModelPickerPopover({
   } => {
     if (!selectedRow) return { label: null, tone: 'default' }
     if (!selectedRow.active) return { label: t('pickChannel'), tone: 'warning' }
-    if (!selectedRow.active.hasKey)
+    if (selectedRow.active.missingKey)
       return { label: t('missingKey'), tone: 'warning' }
     return { label: selectedRow.active.price, tone: 'default' }
   })()

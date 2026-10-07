@@ -231,6 +231,14 @@ async function loadApiKeysSnapshot(
 export interface UseApiKeysReturn {
   keys: UserApiKeyRecord[]
   isLoading: boolean
+  /**
+   * 当前用户的名单已经从服务端拿到过（未登录 = 名单确定为空，也算）。
+   *
+   * ⚠ 名单回来之前 `keys` 是空数组，「还不知道」与「没有 key」长得一样 ——
+   * 要据此说「缺 key」或跳去配 key 的地方，先看这一格。⛔ 别拿 `isLoading`
+   * 顶：它初值是 false、刷新时又会变 true，两头都不对。
+   */
+  hasLoaded: boolean
   error: string | null
   healthMap: Record<string, ApiKeyHealthStatus>
   /** key id → 上次校验的时间戳（ms）。没校验过的 key 不在表里。 */
@@ -255,6 +263,10 @@ export function useApiKeys({
     () => cachedSnapshot?.keys ?? [],
   )
   const [isLoading, setIsLoading] = useState(false)
+  /** `keys` 是哪位用户的、已从服务端拿到的名单；还没拿到 = null。 */
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(
+    () => cachedSnapshot?.userId ?? null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [healthMap, setHealthMap] = useState<
     Record<string, ApiKeyHealthStatus>
@@ -299,6 +311,7 @@ export function useApiKeys({
         if (isCancelled) return
         setKeys(snapshot.keys)
         setHealthMap(snapshot.healthMap)
+        setLoadedUserId(snapshot.userId)
         setError(null)
       } catch (loadError) {
         if (isCancelled) return
@@ -319,6 +332,7 @@ export function useApiKeys({
       apiKeysRequest = null
       setKeys([])
       setHealthMap({})
+      setLoadedUserId(null)
       setError(null)
       setIsLoading(false)
       return
@@ -328,6 +342,7 @@ export function useApiKeys({
     if (cached) {
       setKeys(cached.keys)
       setHealthMap(cached.healthMap)
+      setLoadedUserId(cached.userId)
       setError(null)
       setIsLoading(false)
       return
@@ -342,8 +357,9 @@ export function useApiKeys({
     setError(null)
 
     // Defer to idle so gallery/assets/studio images win the connection
-    // pool on first paint. API key list is not visible until the user
-    // opens settings, so a ~500ms delay is invisible.
+    // pool on first paint. Model pickers read this list on first paint
+    // too, so until it lands `hasLoaded` stays false and they hold back
+    // their missing-key warnings instead of guessing.
     const cancelDefer = deferToIdle(() => {
       if (!isCancelled) void loadInitialKeys()
     })
@@ -358,6 +374,7 @@ export function useApiKeys({
     if (!userId) {
       setKeys([])
       setHealthMap({})
+      setLoadedUserId(null)
       setIsLoading(false)
       return
     }
@@ -372,6 +389,7 @@ export function useApiKeys({
       )
       setKeys(snapshot.keys)
       setHealthMap(snapshot.healthMap)
+      setLoadedUserId(snapshot.userId)
     } catch (loadError) {
       setError(
         loadError instanceof Error ? loadError.message : t('apiKeyLoadFailed'),
@@ -471,6 +489,8 @@ export function useApiKeys({
   return {
     keys,
     isLoading,
+    // Clerk 还没认出人 = 不知道；认出了 = 只认**这位**用户的名单（换号时旧名单不算）。
+    hasLoaded: isLoaded && (!isSignedIn || loadedUserId === userId),
     error,
     healthMap,
     verifiedAtMap,

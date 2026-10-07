@@ -218,6 +218,18 @@ export const ASSISTANT_TOUCH_FLASH_MOTION = {
   outlineOffsetPx: 4,
 } as const
 
+/**
+ * 助手的光标（owner 2026-10-07 动效第 2 批「改工作台」，`lib/studio-operator-cursor.ts`）。
+ * 走一站 = `DURATION_MS.slow`，到站那一闪 = 上面的 `ASSISTANT_TOUCH_FLASH_MOTION`。
+ * `insetPx` = 箭头尖落在那一格左沿往里多少；`enterOffsetPx` = 第一次出现时从右下
+ * 挪进来多远；`idleHideMs` = 走完最后一站后停多久再淡出。
+ */
+export const ASSISTANT_CURSOR_MOTION = {
+  insetPx: 16,
+  enterOffsetPx: 10,
+  idleHideMs: 900,
+} as const
+
 export const INGEST_MOTION = {
   /** 张口：拖拽物进入合法目标热区。 */
   biteDurationMs: 180,

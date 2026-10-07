@@ -31,5 +31,10 @@
     "**/*.mts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", ".next/dev/types/**/*.ts"]
+  "exclude": [
+    "node_modules",
+    ".next/dev/types/**/*.ts",
+    "workers/civitai-index/src/**/*.test.ts",
+    "workers/civitai-index/src/test/**"
+  ]
 }

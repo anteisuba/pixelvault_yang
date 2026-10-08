@@ -16376,6 +16376,37 @@ describe('每轮结账', () => {
     expect(checkoutPrompt()).toContain('要多少张？')
   })
 
+  it('⭐ 「决定」栏只记这一轮答的题，⛔ 不把几轮之前答过的再记一遍', async () => {
+    queueTurns(searchStep, { finished: true, message: '改好了。' })
+    queueCheckout({ facts: [], decisions: [], todos: [] })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+          messages: [
+            { role: 'user', content: '改罗恩' },
+            {
+              role: 'user',
+              content: '已选择「2:3」（针对问题「罗恩用什么比例？」）',
+              answered: {
+                questionId: 'question-1',
+                optionIds: ['option-1-1'],
+                question: '罗恩用什么比例？',
+                optionLabels: ['2:3'],
+              },
+            },
+            { role: 'assistant', content: '罗恩改好了。' },
+            { role: 'user', content: '哈利那张也改一下' },
+          ],
+        }),
+      ),
+    )
+
+    expect(checkoutPrompt() ?? '').not.toContain('罗恩用什么比例？')
+  })
+
   /**
    * ⚠ 覆盖三选**只记一条**：它同时以 `confirmations` 与一条对话消息到达
    * （合成 id `overwrite:<field>`），而「决定」栏一共只有三行。

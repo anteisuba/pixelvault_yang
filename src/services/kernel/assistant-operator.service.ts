@@ -4120,6 +4120,25 @@ function collectSettledAnswers(
   return settled
 }
 
+/**
+ * **这一轮**点过的那几下 —— 创作者最后一句正常发言之后的答复，加上这一次请求带的。
+ *
+ * 🔬 2026-10-08 马尔福画布：结论块的「决定」栏是拿整段对话里**所有**答过的题现拼的，
+ * 改哈利那一轮的结论里还写着几轮之前「罗恩改 2:3」。⚠ 只给结论块用；闸门判「这道题
+ * 答过没有」照旧看整段历史（`collectSettledAnswers`）。
+ */
+function collectRoundAnswers(
+  request: AssistantOperatorRequest,
+): AssistantOperatorPlanAnswer[] {
+  const lastAsk = request.messages.findLastIndex(
+    (message) => message.role === 'user' && !message.answered,
+  )
+  return collectSettledAnswers({
+    ...request,
+    messages: request.messages.slice(lastAsk + 1),
+  })
+}
+
 function describePlanAnswers(request: AssistantOperatorRequest): string[] {
   return collectSettledAnswers(request).map(describeOneAnswer)
 }
@@ -11689,7 +11708,7 @@ function seedLedgerDecisions(request: AssistantOperatorRequest): string[] {
       overwriteAnswerId(entry.field),
     ),
   )
-  for (const answer of collectSettledAnswers(request)) {
+  for (const answer of collectRoundAnswers(request)) {
     if (coveredByConfirmations.has(answer.questionId)) continue
     const said = describeOneAnswer(answer)
     // ⚠ 一道没答的题不是一条「决定」—— ⛔ 别把「(no answer)」记成结论。

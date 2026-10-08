@@ -2671,7 +2671,6 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   referenceAnalysisFailed: 'referenceAnalysisFailed',
   referenceBriefFailed: 'referenceBriefFailed',
   referenceInputsChanged: 'referenceInputsChanged',
-  promptConflict: 'promptConflict',
   /**
    * `mount_reference` 引的 asset 本轮 `search_assets` 从没返回过。
    * ⛔ 不去补查一次：那等于承认模型可以凭空说出一个 id。

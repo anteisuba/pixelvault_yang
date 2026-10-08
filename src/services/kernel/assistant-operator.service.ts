@@ -13,7 +13,6 @@ import {
   probeReferenceDimensions,
   readReferenceDimensions,
   ReferenceAnalysisValidationError,
-  reviewOperatorReferencePrompt,
 } from '@/services/kernel/assistant-reference-analysis.service'
 import type {
   ReferenceAnalysis,
@@ -792,8 +791,6 @@ interface OperatorRun {
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
   referencePromptWritten: boolean
-  /** 写入后复核挑出的问题已经退回给模型重写过一次（D12 Q3）。 */
-  promptReviewRetried: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
   /**
@@ -3936,8 +3933,8 @@ function referenceCreatorContext(
 ): string {
   /**
    * ⭐ **答过的那几道也是「创作者说过的话」**（2026-09-12 真机 bug）：分工简报
-   * 那一跳会吐 `uncertainties`，而 `uncertainties` 非空时 `set_prompt` 一律被
-   * `promptConflict` 拒。少了这一段，用户在问题卡上答完的那件事对这一跳仍然
+   * 那一跳会吐 `uncertainties`，而 `uncertainties` 非空时 `set_prompt` 先停下来问。
+   * 少了这一段，用户在问题卡上答完的那件事对这一跳仍然
    * 不存在 → 简报照旧提同一个疑问 → 提示词永远写不进去（真机连挂四轮）。
    */
   const settled = describePlanAnswers(run.request)
@@ -4149,96 +4146,6 @@ async function readMissingReferenceEvidence(
   run.observations.push(
     `The app read the mounted references' visual facts itself before writing (match URLs to CURRENT REFERENCE ORDER): ${JSON.stringify(run.referenceAnalysis?.profiles ?? [])}. set_prompt carries on in this same step — do not call analyze_references for them again.`,
   )
-  return null
-}
-
-async function checkReferencePrompt(
-  run: OperatorRun,
-  options: {
-    analysis: ReferenceAnalysis
-    prompt: string
-    context: string
-    modelId: string
-    scope?: ReferenceReviewScope
-    allowMinorGaps?: boolean
-  },
-): Promise<ToolPlan | null> {
-  const checked = await reviewOperatorReferencePrompt({
-    analysis: options.analysis,
-    language:
-      RESPONSE_LANGUAGE_LABELS[
-        resolveResponseLanguage(run.request, run.persona)
-      ],
-    prompt: options.prompt,
-    context: options.context,
-    modelHint:
-      getModelEnhanceHint(
-        options.modelId,
-        resolveAdapterType(options.modelId) ?? undefined,
-      ) ?? '',
-    complete: (system, prompt, images, jsonSchema) =>
-      completeReferenceAnalysisText(
-        run,
-        'promptReview',
-        system,
-        prompt,
-        images,
-        run.route,
-        run.modelId,
-        jsonSchema,
-      ),
-  })
-  if (checked === null) {
-    /**
-     * ⭐ **复核是建议，不是闸门**：复核模型连着两次没给出可用结果时照写，⛔ 不再整轮
-     * 报错（owner 2026-10-04：「error 的次数太多了」）。参考图的视觉事实与角色分工
-     * 在这之前已经核过；漏掉的只是最后一道措辞审查。
-     */
-    logger.warn('assistant prompt review unavailable, writing unreviewed', {
-      scope: options.scope?.target ?? 'prompt',
-    })
-    return null
-  }
-  const conflict = checked.conflicts.find(
-    (issue) => !creatorChoseFollowRequest(run, issue, options.scope),
-  )
-  if (conflict) {
-    return {
-      kind: 'ask',
-      question: buildPromptConflictQuestion(
-        run,
-        resolveResponseLanguage(run.request, run.persona),
-        conflict,
-        options.scope,
-      ),
-      todo: conflict,
-    }
-  }
-  if (checked.unsupportedClaims.length) {
-    return {
-      kind: 'rejected',
-      reason: REJECT.promptConflict,
-      detail: clamp(
-        `Unsupported claims must be corrected before writing: ${checked.unsupportedClaims.join(' / ')}. Remove invented source facts and unapproved body features. Describe explicitly authorized completion as a draft. Preserve accepted parts; do not ask the creator to approve invented evidence.`,
-        LIMITS.maxReasonChars,
-      ),
-      quiet: true,
-    }
-  }
-  const gaps = checked.issues.filter(
-    (issue) => !creatorChoseFollowRequest(run, issue, options.scope),
-  )
-  if (gaps.length && !options.allowMinorGaps) {
-    return {
-      kind: 'rejected',
-      reason: REJECT.promptConflict,
-      detail: clamp(
-        `The prompt check found gaps in what you wrote: ${gaps.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
-        LIMITS.maxReasonChars,
-      ),
-      quiet: true,
-    }
-  }
   return null
 }
 
@@ -4625,20 +4532,6 @@ async function planSetText(
         REJECT.unknownAsset,
         `The complete prompt still references unmounted @Image${missing + 1}. Correct that reference before writing.`,
       )
-    }
-  }
-
-  if (needsReferenceReview && run.referenceAnalysis) {
-    const blocked = await checkReferencePrompt(run, {
-      analysis: run.referenceAnalysis,
-      prompt: next,
-      context: referenceCreatorContext(run),
-      modelId: run.state.modelId ?? '',
-      allowMinorGaps: run.promptReviewRetried,
-    })
-    if (blocked) {
-      if (blocked.kind === 'rejected') run.promptReviewRetried = true
-      return blocked
     }
   }
 
@@ -7270,7 +7163,6 @@ function canvasOpTargets(op: NodeAssistantOpV4): readonly string[] {
 async function checkCanvasReferencePrompt(
   run: OperatorRun,
   node: AssistantOperatorCanvasNode,
-  prompt: string,
   userId: string,
 ): Promise<ToolPlan | null> {
   if (node.kind !== 'image' || node.referenceUrls?.length === 0) return null
@@ -7414,13 +7306,7 @@ async function checkCanvasReferencePrompt(
       todo: uncertainty,
     }
   }
-  return checkReferencePrompt(run, {
-    analysis,
-    prompt,
-    context,
-    modelId: node.model ?? '',
-    scope,
-  })
+  return null
 }
 
 /**
@@ -7706,11 +7592,7 @@ async function planCanvasApply(
       .flatMap((shot) => (shot.expanded ? shot.nodes : []))
       .find((candidate) => candidate.id === op.target)
     if (node) {
-      const next =
-        op.mode === 'append' && node.text
-          ? `${node.text}\n\n${op.prompt}`
-          : op.prompt
-      const blocked = await checkCanvasReferencePrompt(run, node, next, userId)
+      const blocked = await checkCanvasReferencePrompt(run, node, userId)
       if (blocked) return blocked
     }
   }
@@ -7877,12 +7759,7 @@ async function planCanvasGenerate(
       `The card ${args.target} has no model to run. Text cards never generate; for a media card set its model with canvas_apply set_model first.`,
     )
   }
-  const blocked = await checkCanvasReferencePrompt(
-    run,
-    node,
-    node.text ?? '',
-    userId,
-  )
+  const blocked = await checkCanvasReferencePrompt(run, node, userId)
   if (blocked) return blocked
   return {
     kind: 'confirmGenerate',
@@ -11605,7 +11482,6 @@ async function* runOperatorTurn(
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
     referencePromptWritten: false,
-    promptReviewRetried: false,
     tagCheckRetried: false,
     negativeFolded: false,
     request,

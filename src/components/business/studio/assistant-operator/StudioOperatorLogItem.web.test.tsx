@@ -460,7 +460,7 @@ it('exposes the concrete rejection detail when the failed log is expanded', () =
       tool: 'set_prompt',
       verb: 'apply',
       status: 'error',
-      error: { reason: 'promptConflict', detail: '人物来源应为图2。' },
+      error: { reason: 'unknownValue', detail: '人物来源应为图2。' },
     },
   })
   expect(screen.queryByTestId('operator-log-detail')).toBeNull()

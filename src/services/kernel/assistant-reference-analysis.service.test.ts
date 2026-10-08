@@ -6,7 +6,6 @@ import {
   analyzeOperatorReferences,
   buildOperatorReferenceBrief,
   hasCompleteReferenceVisualEvidence,
-  reviewOperatorReferencePrompt,
   probeReferenceDimensions,
   readReferenceDimensions,
 } from './assistant-reference-analysis.service'
@@ -15,7 +14,6 @@ import {
   ReferenceBriefSchema,
   type ReferenceVisualProfile,
 } from '@/types/assistant-reference-analysis'
-import { logger } from '@/lib/logger'
 
 const urls = ['https://cdn.test/character.png', 'https://cdn.test/style.png']
 const characterEvidence: NonNullable<
@@ -139,37 +137,6 @@ describe('reference dimension cancellation', () => {
 })
 
 describe('reference analysis', () => {
-  it('uses the same validation contract for output instructions and the provider schema', async () => {
-    const complete = vi
-      .fn()
-      .mockResolvedValue(
-        JSON.stringify({ issues: [], conflicts: [], unsupportedClaims: [] }),
-      )
-    await reviewOperatorReferencePrompt({
-      analysis: { profiles, brief },
-      language: 'English',
-      prompt: 'A character',
-      context: 'Draw the character.',
-      modelHint: 'natural',
-      complete,
-    })
-    expect(complete.mock.calls[0]?.[0]).toContain('"maxItems":8')
-    expect(complete.mock.calls[0]?.[0]).toContain('"maxItems":4')
-    expect(complete.mock.calls[0]?.[3]).toMatchObject({
-      type: 'object',
-      additionalProperties: false,
-      required: ['issues', 'conflicts', 'unsupportedClaims'],
-      properties: {
-        issues: { type: 'array', description: 'Constraints: {"maxItems":8}' },
-        conflicts: {
-          type: 'array',
-          description: 'Constraints: {"maxItems":4}',
-        },
-      },
-    })
-    expect(complete.mock.calls[0]?.[3]).not.toHaveProperty('$schema')
-  })
-
   it('sends provider schemas every structured-output provider accepts', async () => {
     const schemas: Record<string, unknown>[] = []
     const capture = vi.fn(
@@ -192,15 +159,7 @@ describe('reference analysis', () => {
       language: 'English',
       complete: capture,
     }).catch(() => undefined)
-    await reviewOperatorReferencePrompt({
-      analysis: { profiles, brief },
-      language: 'English',
-      prompt: 'A character',
-      context: 'Draw the character.',
-      modelHint: 'natural',
-      complete: capture,
-    }).catch(() => undefined)
-    expect(schemas).toHaveLength(3)
+    expect(schemas).toHaveLength(2)
 
     // OpenAI strict 与 Anthropic output_config 的交集：不许 `$ref`（带兄弟字段即 400），
     // 每个对象封口且全字段必填，数值 / 长度约束只能写进 description。
@@ -779,230 +738,5 @@ describe('reference analysis', () => {
     expect(complete.mock.calls[0]?.[1]).toContain('[2]')
     expect(result.profiles[2]?.url).toBe(third)
     expect(result.brief).toBeNull()
-  })
-
-  it('checks the entire appended prompt and reports concrete conflicts without rewriting', async () => {
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        issues: ['Forest contradicts the requested white background.'],
-        unsupportedClaims: [],
-      }),
-    )
-    const issues = await reviewOperatorReferencePrompt({
-      language: 'Chinese',
-      analysis: { profiles, brief },
-      prompt: 'Forest background, white background',
-      context: input.context,
-      modelHint: 'Natural language',
-      complete,
-    })
-    expect(complete.mock.calls[0]?.[1]).toContain(
-      'Forest background, white background',
-    )
-    expect(issues).toEqual({
-      issues: ['Forest contradicts the requested white background.'],
-      conflicts: [],
-      unsupportedClaims: [],
-    })
-    expect(complete).toHaveBeenCalledTimes(1)
-  })
-
-  it('tells the reviewer a change the creator asked for is the request, not a conflict', async () => {
-    const complete = vi
-      .fn()
-      .mockResolvedValue(
-        JSON.stringify({ issues: [], conflicts: [], unsupportedClaims: [] }),
-      )
-    await reviewOperatorReferencePrompt({
-      analysis: { profiles, brief: null },
-      language: 'Chinese',
-      prompt: '2D cel animation',
-      context: '把三渲二改成 2D 赛璐璐',
-      modelHint: '',
-      complete,
-    })
-    const system = complete.mock.calls[0]?.[0] as string
-    expect(system).toContain(
-      'A change the creator asked for in plain words is never a conflict',
-    )
-    expect(system).not.toContain(
-      'pure 2D look while the style source is a 3D render',
-    )
-  })
-
-  it('D12 Q3：把「漏写」和「真冲突」分成两类交回去', async () => {
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        issues: ['漏写了背面的红色细带。'],
-        conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
-        unsupportedClaims: [],
-      }),
-    )
-    const review = await reviewOperatorReferencePrompt({
-      language: 'Chinese',
-      analysis: { profiles, brief },
-      prompt: 'Pure 2D cel',
-      context: input.context,
-      modelHint: '',
-      complete,
-    })
-    expect(review).toEqual({
-      issues: ['漏写了背面的红色细带。'],
-      conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
-      unsupportedClaims: [],
-    })
-    expect(complete.mock.calls[0]?.[0]).toContain('"conflicts"')
-  })
-
-  it.each(['Looks good!', JSON.stringify({ issues: [], conflicts: [] })])(
-    'does not accept an unreadable or incomplete review as a pass: %s',
-    async (reply) => {
-      const complete = vi.fn().mockResolvedValue(reply)
-      expect(
-        await reviewOperatorReferencePrompt({
-          language: 'Chinese',
-          analysis: { profiles, brief },
-          prompt: 'White background',
-          context: input.context,
-          modelHint: '',
-          complete,
-        }),
-      ).toBeNull()
-      expect(complete).toHaveBeenCalledTimes(2)
-    },
-  )
-
-  it.each([
-    ['not JSON', 'json', 'not valid JSON'],
-    [
-      JSON.stringify({ issues: [], conflicts: [] }),
-      'schema',
-      'unsupportedClaims',
-    ],
-    [
-      JSON.stringify({
-        issues: [{ detail: 'Keep the ribbon' }],
-        conflicts: [],
-        unsupportedClaims: [],
-      }),
-      'schema',
-      'issues.0',
-    ],
-    [
-      JSON.stringify({
-        issues: Array.from({ length: 9 }, (_, index) => `Finding ${index}`),
-        conflicts: [],
-        unsupportedClaims: [],
-      }),
-      'schema',
-      'Too big: expected array to have <=8 items',
-    ],
-  ])(
-    'repairs an invalid review using its rejected response and validation issues: %s',
-    async (reply, reason, issue) => {
-      const corrected = {
-        issues: ['Keep the ribbon.'],
-        conflicts: [],
-        unsupportedClaims: [
-          'The source does not establish a 7.5-head body ratio.',
-        ],
-      }
-      const complete = vi
-        .fn()
-        .mockResolvedValueOnce(reply)
-        .mockResolvedValueOnce(JSON.stringify(corrected))
-      const result = await reviewOperatorReferencePrompt({
-        language: 'Chinese',
-        analysis: { profiles, brief },
-        prompt: 'Preserve the exact 7.5-head body ratio.',
-        context: input.context,
-        modelHint: '',
-        complete,
-      })
-      expect(result).toEqual(corrected)
-      expect(complete).toHaveBeenCalledTimes(2)
-      const repair = String(complete.mock.calls[1]?.[1])
-      expect(repair).toContain(`PREVIOUS REPLY REJECTED (${reason})`)
-      expect(repair).toContain(reply)
-      expect(repair).toContain(issue)
-      expect(repair).toContain('Preserve the exact 7.5-head body ratio.')
-    },
-  )
-
-  it('records both validation failures without logging private prompt or model text', async () => {
-    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
-    try {
-      const complete = vi
-        .fn()
-        .mockResolvedValue(
-          JSON.stringify({ issues: ['private model text'], conflicts: [] }),
-        )
-      const result = await reviewOperatorReferencePrompt({
-        language: 'Chinese',
-        analysis: { profiles, brief },
-        prompt: 'private prompt',
-        context: input.context,
-        modelHint: '',
-        complete,
-      })
-      expect(result).toBeNull()
-      expect(complete).toHaveBeenCalledTimes(2)
-      expect(warn.mock.calls).toEqual(
-        [1, 2].map((attempt) => [
-          'assistant prompt review validation failed',
-          expect.objectContaining({
-            attempt,
-            reason: 'schema',
-            paths: ['unsupportedClaims:invalid_type'],
-          }),
-        ]),
-      )
-      expect(JSON.stringify(warn.mock.calls)).not.toContain('private')
-    } finally {
-      warn.mockRestore()
-    }
-  })
-
-  it('propagates provider failures without spending a format-repair retry', async () => {
-    const error = new Error('provider request failed')
-    const complete = vi.fn().mockRejectedValue(error)
-    await expect(
-      reviewOperatorReferencePrompt({
-        language: 'Chinese',
-        analysis: { profiles, brief },
-        prompt: 'White background',
-        context: input.context,
-        modelHint: '',
-        complete,
-      }),
-    ).rejects.toBe(error)
-    expect(complete).toHaveBeenCalledTimes(1)
-  })
-
-  it('preserves unsupported anatomical claims separately from editable issues and creator conflicts', async () => {
-    const unsupportedClaims = [
-      'The prompt calls long legs a source fact, but the source is cropped at the waist.',
-    ]
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        issues: [],
-        conflicts: [],
-        unsupportedClaims,
-      }),
-    )
-    const review = await reviewOperatorReferencePrompt({
-      analysis: { profiles, brief },
-      language: 'English',
-      prompt:
-        'Keep the exact long legs and full-body proportions from the source.',
-      context: 'Keep the face; the body of the last result was not accepted.',
-      modelHint: '',
-      complete,
-    })
-    expect(review).toEqual({ issues: [], conflicts: [], unsupportedClaims })
-    const sent = String(complete.mock.calls[0]?.[1])
-      .split('CURRENT REFERENCE ORDER AND BRIEF:\n')[1]!
-      .split('\nCREATOR CONTEXT:')[0]!
-    expect(JSON.parse(sent)).toEqual({ profiles, brief })
   })
 })

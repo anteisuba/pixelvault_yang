@@ -12009,12 +12009,6 @@ describe('current reference image bindings', () => {
         },
       ],
     }
-    const successfulReview = {
-      issues: [],
-      conflicts: [],
-      unsupportedClaims: [],
-    }
-
     function canvasRequest(
       node: AssistantOperatorCanvasNode = targetNode,
       overrides: Partial<AssistantOperatorRequest> = {},
@@ -12066,35 +12060,26 @@ describe('current reference image bindings', () => {
       )
     }
 
-    it('reviews only the target actual references in their submission order, excluding unrelated attachments and cached nodes', async () => {
-      queueTurns(
-        writeTurn('Single half-body portrait.'),
-        targetBrief,
-        successfulReview,
-      )
+    it('briefs only the target actual references in their submission order, excluding unrelated attachments and cached nodes', async () => {
+      queueTurns(writeTurn('Single half-body portrait.'), targetBrief)
       const events = await collect(
         runAssistantOperator('clerk-1', canvasRequest()),
       )
-      const reviewPrompt = String(
-        referenceCalls('Check an image-generation prompt')[0]?.[0].userPrompt,
+      const briefPrompt = String(
+        referenceCalls('Build a reference-use brief')[0]?.[0].userPrompt,
       )
-      const reviewed = JSON.parse(
-        reviewPrompt
-          .split('CURRENT REFERENCE ORDER AND BRIEF:\n')[1]!
+      const briefed = JSON.parse(
+        briefPrompt
+          .split(
+            'CURRENT REFERENCES (imageIndex is zero-based; @ImageN = imageIndex + 1):\n',
+          )[1]!
           .split('\nCREATOR CONTEXT:')[0]!,
       )
-      expect(
-        reviewed.profiles.map((profile: { url: string }) => profile.url),
-      ).toEqual(targetUrls)
-      expect(
-        reviewed.brief.assignments.map(
-          (assignment: { url: string }) => assignment.url,
-        ),
-      ).toEqual(targetUrls)
-      expect(reviewed.profiles).toHaveLength(2)
-      expect(reviewPrompt).toContain(targetNode.referencePromptContext)
-      expect(reviewPrompt).not.toContain(refs[1]!.url)
-      expect(reviewPrompt).not.toContain(refs[3]!.url)
+      expect(briefed).toHaveLength(2)
+      expect(briefPrompt).toContain(JSON.stringify(targetUrls))
+      expect(briefPrompt).toContain(targetNode.referencePromptContext)
+      expect(briefPrompt).not.toContain(refs[1]!.url)
+      expect(briefPrompt).not.toContain(refs[3]!.url)
       expect(stepsOf(events)).toContainEqual(
         expect.objectContaining({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
@@ -12115,7 +12100,6 @@ describe('current reference image bindings', () => {
           images: targetUrls.map((_, imageIndex) => ({ imageIndex, ...facts })),
         },
         targetBrief,
-        successfulReview,
       )
       const first = await collect(
         runAssistantOperator(
@@ -12171,11 +12155,7 @@ describe('current reference image bindings', () => {
           status: 'done',
         }),
       )
-      queueTurns(
-        writeTurn('Another half-body composition.'),
-        targetBrief,
-        successfulReview,
-      )
+      queueTurns(writeTurn('Another half-body composition.'), targetBrief)
       const second = await collect(
         runAssistantOperator(
           'clerk-1',
@@ -12235,9 +12215,6 @@ describe('current reference image bindings', () => {
           },
         })
         expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
-        expect(referenceCalls('Check an image-generation prompt')).toHaveLength(
-          0,
-        )
       },
     )
 
@@ -12284,94 +12261,8 @@ describe('current reference image bindings', () => {
             },
           })
         expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
-        expect(referenceCalls('Check an image-generation prompt')).toHaveLength(
-          0,
-        )
       },
     )
-
-    it.each([false, true])(
-      'rechecks the current stored prompt before offering generation; supported=%s',
-      async (supported) => {
-        const node = {
-          ...targetNode,
-          text: supported
-            ? 'Observed face in a half-body portrait.'
-            : 'Preserve the exact long legs of the source.',
-        }
-        queueTurns(
-          {
-            tool: {
-              name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
-              args: { target: node.id },
-            },
-          },
-          targetBrief,
-          supported
-            ? successfulReview
-            : {
-                ...successfulReview,
-                unsupportedClaims: ['Source legs are not visible.'],
-              },
-          { finished: true },
-        )
-        const events = await collect(
-          runAssistantOperator('clerk-1', canvasRequest(node)),
-        )
-        const reviews = referenceCalls('Check an image-generation prompt')
-        expect(reviews).toHaveLength(1)
-        expect(
-          String(reviews[0]?.[0].userPrompt).split(
-            'PROPOSED COMPLETE PROMPT:\n',
-          )[1],
-        ).toBe(node.text)
-        const proposals = events.flatMap((event) =>
-          event.type === ASSISTANT_OPERATOR_EVENTS.confirm &&
-          event.confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-            ? [event.confirm.request]
-            : [],
-        )
-        expect(proposals).toHaveLength(supported ? 1 : 0)
-        expect(events.some((event) => event.type === 'ask')).toBe(false)
-        if (supported)
-          expect(proposals[0]?.canvasNode).toMatchObject({ id: node.id })
-      },
-    )
-
-    it('reviews the complete appended prompt and catches an unsupported claim in its old tail', async () => {
-      const oldTail = 'Keep the exact source leg proportions.'
-      const node = {
-        ...targetNode,
-        text: `${'Preserve the accepted face. '.repeat(24)}${oldTail}`,
-      }
-      const addition = 'Use a white background.'
-      queueTurns(
-        writeTurn(addition, node, 'append'),
-        targetBrief,
-        {
-          ...successfulReview,
-          unsupportedClaims: [
-            'The existing prompt claims unsupported source leg proportions.',
-          ],
-        },
-        { finished: true },
-      )
-      const events = await collect(
-        runAssistantOperator('clerk-1', canvasRequest(node)),
-      )
-      const reviewed = String(
-        referenceCalls('Check an image-generation prompt')[0]?.[0].userPrompt,
-      ).split('PROPOSED COMPLETE PROMPT:\n')[1]
-      expect(reviewed).toBe(`${node.text}\n\n${addition}`)
-      expect(reviewed).toContain(oldTail)
-      expect(
-        stepsOf(events).filter(
-          (step) =>
-            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
-            step.status === 'done',
-        ),
-      ).toHaveLength(0)
-    })
 
     it.each([
       'same scope',
@@ -12408,7 +12299,6 @@ describe('current reference image bindings', () => {
             nextNode,
           ),
           { ...targetBrief, evidenceGaps: [nextGap] },
-          ...(change === 'same scope' ? [successfulReview] : []),
         )
         const events = await collect(
           runAssistantOperator(
@@ -12442,6 +12332,32 @@ describe('current reference image bindings', () => {
         }
       },
     )
+
+    it('offers generation after one reference brief for the stored prompt', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+            args: { target: targetNode.id },
+          },
+        },
+        targetBrief,
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', canvasRequest()),
+      )
+      expect(referenceCalls('Build a reference-use brief')).toHaveLength(1)
+      const proposals = events.flatMap((event) =>
+        event.type === ASSISTANT_OPERATOR_EVENTS.confirm &&
+        event.confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+          ? [event.confirm.request]
+          : [],
+      )
+      expect(proposals).toHaveLength(1)
+      expect(proposals[0]?.canvasNode).toMatchObject({ id: targetNode.id })
+      expect(events.some((event) => event.type === 'ask')).toBe(false)
+    })
   })
 
   /**
@@ -12906,7 +12822,6 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, assignments: [{ ...brief.assignments[2], imageIndex: 0 }] },
-      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已按图3写好。' },
     )
     const events = await collect(
@@ -13099,12 +13014,12 @@ describe('current reference image bindings', () => {
   /**
    * ⭐ **答过的那道题对分工简报也要可见**（2026-09-12 真机 bug 的另一半）。
    *
-   * 简报吐 `uncertainties` 时 `set_prompt` 一律被 `promptConflict` 拒，而简报那一跳
+   * 简报吐 `uncertainties` 时 `set_prompt` 先停下来问，而简报那一跳
    * 读的是 `referenceCreatorContext`。用户在问题卡上答完的那件事如果进不了这一段，
    * 简报会照旧提同一个疑问 → 提示词永远写不进去（真机连挂四轮，时间线上只留
    * 两条「写入正向提示词」）。
    */
-  it('⭐ 上一轮答过的问题进参考图分工简报的上下文（⛔ 否则提示词永远卡在 promptConflict）', async () => {
+  it('⭐ 上一轮答过的问题进参考图分工简报的上下文（⛔ 否则提示词永远停在同一道问题上）', async () => {
     queueTurns(
       ...analysisTurns(),
       {
@@ -13115,7 +13030,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     await collect(
@@ -13198,60 +13112,7 @@ describe('current reference image bindings', () => {
     expect(String(briefCalls[1]?.[0].userPrompt)).toContain(
       'PREVIOUS REPLY REJECTED',
     )
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        String(input.systemPrompt).includes('Check an image-generation prompt'),
-      ),
-    ).toBe(false)
     expect(lastUserPrompt()).toContain('Preserve the existing prompt')
-  })
-
-  it('sends review gaps back for one rewrite even when the reference brief had to be rebuilt', async () => {
-    queueTurns(
-      ...analysisTurns(),
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '写提示词',
-          args: { value: 'A hug on white' },
-        },
-      },
-      { assignments: [] },
-      brief,
-      { unsupportedClaims: [], issues: ['White background is missing.'] },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '再写一次',
-          args: { value: 'A hug on a white background' },
-        },
-      },
-      { unsupportedClaims: [], issues: [] },
-      { finished: true, message: '已写入。' },
-    )
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      ),
-    )
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) =>
-        String(input.systemPrompt).includes('Build a reference-use brief'),
-      ),
-    ).toHaveLength(2)
-    // ⭐ D12 Q3：第一次复核挑出的是写的人漏掉的东西 —— 退回重写，⛔ 不问用户。
-    expect(
-      stepsOf(events).some(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'done',
-      ),
-    ).toBe(true)
-    expect(events.some((event) => event.type === 'ask')).toBe(false)
-    expect(events.at(-1)?.type).toBe('done')
   })
 
   it('preserves the prompt and reports a technical failure when the brief request times out', async () => {
@@ -13302,11 +13163,6 @@ describe('current reference image bindings', () => {
     ).toBe(false)
     expect(
       events.some((event) => event.type === 'ask' || event.type === 'confirm'),
-    ).toBe(false)
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        String(input.systemPrompt).includes('Check an image-generation prompt'),
-      ),
     ).toBe(false)
     expect(lastUserPrompt()).toContain('technical failure')
   })
@@ -13391,13 +13247,6 @@ describe('current reference image bindings', () => {
           (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
         ),
       ).toHaveLength(0)
-      expect(
-        mockLlmTextCompletion.mock.calls.some(([input]) =>
-          String(input.systemPrompt).includes(
-            'Check an image-generation prompt',
-          ),
-        ),
-      ).toBe(false)
       expect(events.at(-1)).toMatchObject({
         type: 'stopped',
         reason: 'awaiting_confirm',
@@ -13429,7 +13278,6 @@ describe('current reference image bindings', () => {
           evidenceGaps: [evidenceGap],
           requirements: ['Design the unsupported body as a draft'],
         },
-        { issues: [], conflicts: [], unsupportedClaims: [] },
         { finished: true },
       )
       const events = await collect(
@@ -13460,10 +13308,9 @@ describe('current reference image bindings', () => {
       )
       expect(events.some((event) => event.type === 'ask')).toBe(false)
       const check = mockLlmTextCompletion.mock.calls.find(([input]) =>
-        String(input.systemPrompt).includes('Check an image-generation prompt'),
+        String(input.systemPrompt).includes('Build a reference-use brief'),
       )
       expect(String(check?.[0].userPrompt)).toContain('允许设计补全')
-      expect(String(check?.[0].userPrompt)).toContain(value)
     },
   )
 
@@ -13508,11 +13355,6 @@ describe('current reference image bindings', () => {
       },
     })
     expect(events.some((event) => event.type === 'ask')).toBe(false)
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        String(input.systemPrompt).includes('Check an image-generation prompt'),
-      ),
-    ).toBe(false)
   })
 
   it('does not block a portrait with analyzed unknown legs when its brief has no relevant gap', async () => {
@@ -13523,7 +13365,6 @@ describe('current reference image bindings', () => {
         tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt, args: { value } },
       },
       { ...brief, requirements: ['Close-up portrait'], evidenceGaps: [] },
-      { issues: [], conflicts: [], unsupportedClaims: [] },
       { finished: true },
     )
     const events = await collect(
@@ -13553,189 +13394,9 @@ describe('current reference image bindings', () => {
     ).toBe(false)
   })
 
-  it.each([false, true])(
-    'never soft-passes repeated unsupported claims; corrected=%s',
-    async (corrected) => {
-      const values = [
-        'Keep the exact long legs seen in the reference.',
-        'Faithfully preserve the source eight-head body proportions.',
-      ]
-      const turns: unknown[] = []
-      for (const [index, value] of values.entries()) {
-        turns.push(
-          {
-            tool: {
-              name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-              args: { value },
-            },
-          },
-          ...(index === 0 ? [brief] : []),
-          {
-            issues: [],
-            conflicts: [],
-            unsupportedClaims: [
-              'Legs and full-body proportions are not visible in the source.',
-            ],
-          },
-        )
-      }
-      const correctedValue =
-        'A close-up portrait preserving the observed pink eyes and cheek mole.'
-      if (corrected)
-        turns.push(
-          {
-            tool: {
-              name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-              args: { value: correctedValue },
-            },
-          },
-          { issues: [], conflicts: [], unsupportedClaims: [] },
-        )
-      queueTurns(...turns, { finished: true })
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildRequest({
-            referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
-            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-          }),
-        ),
-      )
-      const writes = stepsOf(events).filter(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'done',
-      )
-      expect(writes).toHaveLength(corrected ? 1 : 0)
-      if (corrected)
-        expect(writes[0]?.payload).toMatchObject({
-          value: promptWithRoleLegend(correctedValue),
-        })
-      expect(
-        events.some(
-          (event) => event.type === 'ask' || event.type === 'confirm',
-        ),
-      ).toBe(false)
-      expect(
-        mockLlmTextCompletion.mock.calls.filter(([input]) =>
-          String(input.systemPrompt).includes(
-            'Check an image-generation prompt',
-          ),
-        ),
-      ).toHaveLength(corrected ? 3 : 2)
-      expect(lastUserPrompt()).toContain(
-        'Unsupported claims must be corrected before writing',
-      )
-    },
-  )
-
-  it('writes anyway when the prompt review stays unusable — the review is advisory', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          args: { value: 'Faithful full-body portrait' },
-        },
-      },
-      brief,
-      { issues: [], conflicts: [] },
-      { issues: [], conflicts: [] },
-      { finished: true },
-    )
-    const events: AssistantOperatorEvent[] = []
-    for await (const event of runAssistantOperator(
-      'clerk-1',
-      buildRequest({
-        referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
-        snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-      }),
-    )) {
-      expect(AssistantOperatorEventSchema.safeParse(event).success).toBe(true)
-      events.push(event)
-    }
-    expect(streamErrorOf(events)).toBeUndefined()
-    expect(
-      stepsOf(events).filter(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'done',
-      ),
-    ).toHaveLength(1)
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) =>
-        String(input.systemPrompt).includes('Check an image-generation prompt'),
-      ),
-    ).toHaveLength(2)
-  })
-
-  it('asks at a real conflict before any write', async () => {
-    const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
-    queueTurns(
-      ...analysisTurns(),
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '写提示词',
-          args: { value: 'First attempt' },
-        },
-      },
-      brief,
-      { unsupportedClaims: [], issues: [], conflicts: [conflict] },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '不应执行',
-          args: { value: 'Second attempt' },
-        },
-      },
-      { unsupportedClaims: [], issues: [conflict] },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '不应执行',
-          args: { value: 'Third attempt' },
-        },
-      },
-    )
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          responseLanguage: 'chinese',
-          snapshot: {
-            ...SNAPSHOT,
-            prompt: '',
-            references: { items: refs, limit: 4 },
-          },
-        }),
-      ),
-    )
-    const writes = stepsOf(events).filter(
-      (step) =>
-        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-        step.status === 'done',
-    )
-    expect(writes).toHaveLength(0)
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        type: ASSISTANT_OPERATOR_EVENTS.ask,
-        questions: [
-          expect.objectContaining({
-            id: expect.stringMatching(/^prompt-conflict-/),
-            question: conflict,
-          }),
-        ],
-      }),
-    )
-    expect(events.at(-1)).toMatchObject({
-      type: ASSISTANT_OPERATOR_EVENTS.stopped,
-      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
-    })
-  })
-
   /**
    * ⭐ **用途歧义第一次就出问题卡**（进度表 23：反问替代报错）。原来要先吃两条
-   * `promptConflict` 红步才轮到那张卡 —— 模型拿着同一份证据只会换个说法再撞一次。
+   * 复核红步才轮到那张卡 —— 模型拿着同一份证据只会换个说法再撞一次。
    */
   it('asks on the first source-role uncertainty instead of refusing set_prompt', async () => {
     const uncertainty = '哪张图提供服装？'
@@ -13774,13 +13435,6 @@ describe('current reference image bindings', () => {
         (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
       ),
     ).toHaveLength(0)
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        String(input.systemPrompt).includes(
-          'Check an image-generation prompt against',
-        ),
-      ),
-    ).toBe(false)
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
@@ -13805,7 +13459,7 @@ describe('current reference image bindings', () => {
     })
   })
 
-  async function askAboutReference(issue: string, uncertainty = false) {
+  async function askAboutReference(issue: string) {
     queueTurns(
       ...analysisTurns(),
       {
@@ -13814,11 +13468,7 @@ describe('current reference image bindings', () => {
           args: { value: 'A hug on white' },
         },
       },
-      { ...brief, uncertainties: uncertainty ? [issue] : [] },
-      // ⚠ 只有「真冲突」才问（D12 Q3）：复核把它放在 `conflicts` 里。
-      ...(!uncertainty
-        ? [{ unsupportedClaims: [], issues: [], conflicts: [issue] }]
-        : []),
+      { ...brief, uncertainties: [issue] },
     )
     const events = await collect(
       runAssistantOperator(
@@ -13840,7 +13490,7 @@ describe('current reference image bindings', () => {
   }
 
   it('writes the prompt once the creator answered that uncertainty with follow-request', async () => {
-    const question = await askAboutReference('哪张图提供服装？', true)
+    const question = await askAboutReference('哪张图提供服装？')
     queueTurns(
       ...analysisTurns(),
       {
@@ -13850,7 +13500,6 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, uncertainties: ['哪张图提供服装？'] },
-      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     const events = await collect(
@@ -13929,7 +13578,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已填写参考分工。' },
     )
     const events = await collect(
@@ -13979,7 +13627,6 @@ describe('current reference image bindings', () => {
       },
       { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
       brief,
-      { unsupportedClaims: [], issues: [] },
       { finished: true },
     )
     const events = await collect(
@@ -14020,7 +13667,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
       { finished: true },
     )
     const events = await collect(
@@ -14059,7 +13705,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     const events = await collect(
@@ -14111,7 +13756,6 @@ describe('current reference image bindings', () => {
         // 只有第 0 张的缓存不可信 —— 只补读它这一张。
         { images: [{ imageIndex: 0, ...facts }] },
         brief,
-        { unsupportedClaims: [], issues: [] },
         { finished: true, message: '写好了。' },
       )
       const events = await collect(
@@ -14148,7 +13792,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
     )
     const events = await collect(
       runAssistantOperator(
@@ -14309,7 +13952,6 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { unsupportedClaims: [], issues: [] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -14721,59 +14363,6 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).not.toContain('set_prompt was REFUSED')
   })
 
-  it('rewrites once for gaps, then writes without reading the leftovers back to the model', async () => {
-    const turns = analysisTurns()
-    for (const value of ['A hug in a forest', 'An embrace in the woods']) {
-      turns.push(
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-            title: '写提示词',
-            args: { value },
-          },
-        },
-        ...(value === 'A hug in a forest' ? [brief] : []),
-        {
-          unsupportedClaims: [],
-          issues: ['The background must be white, not a forest.'],
-        },
-      )
-    }
-    queueTurns(...turns, { finished: true, message: '写好了。' })
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      ),
-    )
-    expect(
-      stepsOf(events).some(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'done',
-      ),
-    ).toBe(true)
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) =>
-        input.systemPrompt.includes('Check an image-generation prompt'),
-      ),
-    ).toHaveLength(2)
-    // ⛔ 漏写不问创作者。
-    expect(events.some((event) => event.type === 'ask')).toBe(false)
-    // ⭐ 残余意见不念给模型：读到它，模型会把同一段原样再交一遍（2026-09-24 真机）。
-    expect(lastUserPrompt()).not.toContain('The prompt check still flags')
-    // ⭐ 退回重写那一次是草稿，⛔ 不在时间线上画成「没做成」。
-    expect(
-      stepsOf(events).filter(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'error',
-      ),
-    ).toHaveLength(0)
-  })
-
   it('writes the prompt after the creator picks follow-request on a conflict card', async () => {
     const issue = '参考背景是白色，但你的要求是夜景。'
     const question = await askAboutReference(issue)
@@ -14785,8 +14374,7 @@ describe('current reference image bindings', () => {
           args: { value: 'Night city, stylized 3D character' },
         },
       },
-      brief,
-      { unsupportedClaims: [], issues: [], conflicts: [issue] },
+      { ...brief, uncertainties: [issue] },
       { finished: true, message: '写好了。' },
     )
     const events = await collect(
@@ -14814,11 +14402,6 @@ describe('current reference image bindings', () => {
           step.status === 'done',
       ),
     ).toBe(true)
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) =>
-        input.systemPrompt.includes('Check an image-generation prompt'),
-      ),
-    ).toHaveLength(1)
   })
 
   it.each(['new conflict', 'new references', 'changed answer'])(
@@ -14848,8 +14431,7 @@ describe('current reference image bindings', () => {
             args: { value: 'Night city' },
           },
         },
-        brief,
-        { unsupportedClaims: [], issues: [], conflicts: [newIssue] },
+        { ...brief, uncertainties: [newIssue] },
       )
       const events = await collect(
         runAssistantOperator(
@@ -14913,8 +14495,7 @@ describe('current reference image bindings', () => {
           args: { value: 'Night city' },
         },
       },
-      brief,
-      { issues: [], conflicts: [issue], unsupportedClaims: [] },
+      { ...brief, uncertainties: [issue] },
       { finished: true },
     )
     const events = await collect(
@@ -14951,51 +14532,6 @@ describe('current reference image bindings', () => {
     expect(events.some((event) => event.type === 'ask')).toBe(false)
   })
 
-  it.each([true, false])(
-    'retries an unreadable review once; recovery=%s — either way the write goes through',
-    async (recovers) => {
-      queueTurns(
-        ...analysisTurns(),
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-            args: { value: 'A hug on white' },
-          },
-        },
-        brief,
-        'unreadable review',
-        recovers ? { unsupportedClaims: [], issues: [] } : 'still unreadable',
-        { finished: true },
-      )
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildRequest({
-            responseLanguage: 'chinese',
-            snapshot: {
-              ...SNAPSHOT,
-              prompt: '',
-              references: { items: refs, limit: 4 },
-            },
-          }),
-        ),
-      )
-      expect(streamErrorOf(events)).toBeUndefined()
-      expect(stepsOf(events)).toContainEqual(
-        expect.objectContaining({
-          tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          status: 'done',
-        }),
-      )
-      expect(events.some((event) => event.type === 'ask')).toBe(false)
-      expect(
-        mockLlmTextCompletion.mock.calls.filter(([input]) =>
-          input.systemPrompt.includes('Check an image-generation prompt'),
-        ),
-      ).toHaveLength(2)
-    },
-  )
-
   it('writes a validated reference prompt once instead of paying for successful synonym rewrites', async () => {
     const turns = [
       ...analysisTurns(),
@@ -15019,11 +14555,9 @@ describe('current reference image bindings', () => {
       .mockReset()
       .mockImplementation(async (input) =>
         JSON.stringify(
-          input.systemPrompt.includes('Check an image-generation prompt')
-            ? { unsupportedClaims: [], issues: [] }
-            : input.systemPrompt.includes('Build a reference-use brief')
-              ? brief
-              : (turns.shift() ?? { finished: true }),
+          input.systemPrompt.includes('Build a reference-use brief')
+            ? brief
+            : (turns.shift() ?? { finished: true }),
         ),
       )
     const events = await collect(
@@ -15039,11 +14573,6 @@ describe('current reference image bindings', () => {
         (step) =>
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status === 'done',
-      ),
-    ).toHaveLength(1)
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) =>
-        input.systemPrompt.includes('Check an image-generation prompt'),
       ),
     ).toHaveLength(1)
   })
@@ -15083,11 +14612,6 @@ describe('current reference image bindings', () => {
         }),
       ]),
     )
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        input.systemPrompt.includes('Check an image-generation prompt'),
-      ),
-    ).toBe(false)
   })
 
   it.each(['image', 'lora'] as const)(

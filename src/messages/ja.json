@@ -6349,7 +6349,8 @@
       },
       "tools": {
         "split": "分割",
-        "remove": "削除"
+        "remove": "削除",
+        "removeConfirm": "削除を確定"
       },
       "overview": "全体",
       "versions": {
@@ -6473,7 +6474,12 @@
         "undone": "元に戻しました",
         "claudeExported": "Claude がカットを書き出しました · キャンバスに置きました",
         "look": "見る",
-        "backToCanvas": "キャンバスで見る"
+        "backToCanvas": "キャンバスで見る",
+        "removed": "「{name}」を削除",
+        "removedWith": "「{name}」を削除（{riders}も一緒に）",
+        "riderLines": "セリフ {count} 件",
+        "riderCaptions": "字幕 {count} 件",
+        "ridersJoiner": "・"
       },
       "audioFilters": {
         "all": "すべて",

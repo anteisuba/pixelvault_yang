@@ -6349,7 +6349,8 @@
       },
       "tools": {
         "split": "分割",
-        "remove": "删除"
+        "remove": "删除",
+        "removeConfirm": "确认删除"
       },
       "overview": "全片条",
       "versions": {
@@ -6473,7 +6474,12 @@
         "undone": "已撤销",
         "claudeExported": "Claude 导出了成片 · 已落到画布",
         "look": "看看",
-        "backToCanvas": "回画布看"
+        "backToCanvas": "回画布看",
+        "removed": "删了「{name}」",
+        "removedWith": "删了「{name}」，带走 {riders}",
+        "riderLines": "{count} 条台词",
+        "riderCaptions": "{count} 条字幕",
+        "ridersJoiner": "、"
       },
       "audioFilters": {
         "all": "全部",

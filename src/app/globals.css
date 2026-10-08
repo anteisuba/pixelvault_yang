@@ -2731,6 +2731,16 @@ html:lang(ja) {
   }
 }
 
+/* 拖过头松手弹回（剪辑台动效样片 B）：与磁性同两项，换成槽档弹簧（一点点过冲）。 */
+@utility transition-spring-back {
+  transition:
+    left var(--spring-slot-duration) var(--spring-slot-ease),
+    width var(--spring-slot-duration) var(--spring-slot-ease);
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
 @utility node-ring-track {
   outline: 1.5px solid transparent;
   outline-offset: 0;

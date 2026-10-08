@@ -6349,7 +6349,8 @@
       },
       "tools": {
         "split": "Split",
-        "remove": "Delete"
+        "remove": "Delete",
+        "removeConfirm": "Confirm delete"
       },
       "overview": "Whole cut",
       "versions": {
@@ -6473,7 +6474,12 @@
         "undone": "Undone",
         "claudeExported": "Claude exported the cut · it’s on the canvas",
         "look": "Show me",
-        "backToCanvas": "View on canvas"
+        "backToCanvas": "View on canvas",
+        "removed": "Deleted “{name}”",
+        "removedWith": "Deleted “{name}” with {riders}",
+        "riderLines": "{count, plural, one {# line} other {# lines}}",
+        "riderCaptions": "{count, plural, one {# caption} other {# captions}}",
+        "ridersJoiner": " and "
       },
       "audioFilters": {
         "all": "All",

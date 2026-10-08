@@ -86,6 +86,16 @@ export const LIQUID_SPRING = {
   trail: { type: 'spring', stiffness: 260, damping: 29 },
 } as const
 
+/**
+ * 数字滚动（动效样片 K，owner 2026-10-08 剪辑台换皮定）：读数变了，**只有变了的那几位**
+ * 往上 / 往下滚到新数字，没变的不动；k260 · ζ0.75，一点点过冲。
+ */
+export const ROLLING_DIGIT_SPRING = {
+  type: 'spring',
+  stiffness: 260,
+  damping: 24,
+} as const
+
 /** 液态展开的节拍（秒）与内容换场的模糊量。 */
 export const LIQUID_TIMING = {
   /** 第二拍在第一拍之后多久起。 */

@@ -87,6 +87,20 @@ describe('buildTimelineLayout', () => {
     expect(layout.clips.get('l')?.startSec).toBe(4)
   })
 
+  it('拖出素材长度（样片 B）：只把画出来的这一段拉长，后面跟着让', () => {
+    const layout = buildTimelineLayout(fixture(), {
+      kind: 'trim',
+      track: 'video',
+      clipId: 'a',
+      edge: 'out',
+      in: 0,
+      out: 4,
+      stretchSec: 0.6,
+    })
+    expect(layout.clips.get('a')?.durationSec).toBeCloseTo(4.6)
+    expect(layout.clips.get('b')?.startSec).toBeCloseTo(4.6)
+  })
+
   it('拖台词：按落点重新挂 —— 宿主在拖的途中就换了', () => {
     const layout = buildTimelineLayout(fixture(), {
       kind: 'shift',

@@ -65,11 +65,17 @@ import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import { CHIP_POPOVER, DURATION, SPRING } from '@/constants/motion'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
+  countClipRiders,
   diffEditTimeline,
   findLandedRender,
   findNodeByGenerationId,
 } from '@/lib/edit-desk-receipt'
-import { clipIndexAt, currentUrlOf, RenderPlanError } from '@/lib/edit-project'
+import {
+  clipIndexAt,
+  currentUrlOf,
+  editRowName,
+  RenderPlanError,
+} from '@/lib/edit-project'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
 import type { NodeWorkflowRemoteChange } from '@/hooks/node/use-node-workflow-store'
 import { useEditShortcutPreset } from '@/hooks/node/use-edit-shortcut-preset'
@@ -188,6 +194,12 @@ type DeskReceipt = EditDeskReceiptState & { readonly seq: number } & (
         readonly generationId?: string
       }
     | { readonly kind: 'error' }
+    | {
+        readonly kind: 'removed'
+        readonly before: NodeWorkflowStateV4
+        /** 删完那一刻的项目；删完还没换进来之前是 `null`。 */
+        readonly after: NodeWorkflowStateV4 | null
+      }
   )
 
 /**
@@ -198,7 +210,11 @@ function isLiveReceipt(
   receipt: DeskReceipt,
   current: NodeWorkflowStateV4,
 ): boolean {
-  return receipt.kind !== 'changes' || receipt.after === current
+  if (receipt.kind === 'changes') return receipt.after === current
+  if (receipt.kind === 'removed') {
+    return receipt.after === null || receipt.after === current
+  }
+  return true
 }
 
 export function EditDesk({
@@ -273,6 +289,46 @@ export function EditDesk({
   const shownReceipts = receipts.filter((receipt) =>
     isLiveReceipt(receipt, state),
   )
+  /**
+   * 压一条新的上去：对不上的旧回执顺手清掉（⛔ 让看不见的那几条占着三条的名额），
+   * 超出三条的最旧那条退场。
+   */
+  const pushReceipt = useCallback(
+    (
+      make: (seq: number) => DeskReceipt,
+      current: NodeWorkflowStateV4 | null,
+    ) => {
+      receiptSeqRef.current += 1
+      const next = make(receiptSeqRef.current)
+      setReceipts((list) =>
+        [
+          next,
+          ...(current
+            ? list.filter((receipt) => isLiveReceipt(receipt, current))
+            : list),
+        ].slice(0, EDIT_RECEIPT_MOTION.max),
+      )
+    },
+    [],
+  )
+  /**
+   * 删完那一刻的项目记到「删了…」那条上（撤销只在项目还停在那一刻时算数）：⚠ 删是同步
+   * 发出去的，新项目要到下一次渲染才换进来 —— 第一次看到项目变了就记下（React「存前一次
+   * 的值」写法）。
+   */
+  const [seenState, setSeenState] = useState(state)
+  if (seenState !== state) {
+    setSeenState(state)
+    if (receipts.some((item) => item.kind === 'removed' && !item.after)) {
+      setReceipts((list) =>
+        list.map((item) =>
+          item.kind === 'removed' && !item.after
+            ? { ...item, after: state }
+            : item,
+        ),
+      )
+    }
+  }
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -315,11 +371,43 @@ export function EditDesk({
     if (text !== null) desk.updateTextClip(clipId, { text })
   }
 
+  /**
+   * 删掉选中的那一段 + 压一条「删了「名」，带走 N 条台词 · 撤销」（删除键按两次 J 与 ⌫
+   * 同一条路）。
+   */
+  const { removeSelected } = desk
+  const removeWithReceipt = useCallback((): boolean => {
+    const textClip = desk.selectedTextClip
+    const row = desk.selectedRow
+    const name = textClip
+      ? (textClip.text.split('\n')[0] ?? '')
+      : row
+        ? editRowName(row)
+        : ''
+    const riders =
+      !textClip && row && desk.selection?.track === EDIT_TRACK_IDS.video
+        ? countClipRiders(desk.project, row.clip.id)
+        : { lines: 0, captions: 0 }
+    const before = state
+    if (!removeSelected()) return false
+    pushReceipt(
+      (seq) => ({
+        kind: 'removed',
+        name: name || t('inspector.sourceGone'),
+        ...riders,
+        before,
+        after: null,
+        seq,
+      }),
+      before,
+    )
+    return true
+  }, [desk, state, removeSelected, pushReceipt, t])
+
   /* ── 快捷键 ───────────────────────────────────────────────────────── */
   const {
     markIn,
     markOut,
-    removeSelected,
     splitAtPlayhead,
     setPlayhead,
     retakeClipId,
@@ -395,7 +483,7 @@ export function EditDesk({
       }
       if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault()
-        removeSelected()
+        removeWithReceipt()
         return
       }
       if (key === 'i') {
@@ -416,7 +504,7 @@ export function EditDesk({
     playing,
     markIn,
     markOut,
-    removeSelected,
+    removeWithReceipt,
     splitAtPlayhead,
     setPlayhead,
     shortcutPreset,
@@ -454,28 +542,6 @@ export function EditDesk({
     latest.current = { state, desk, setMedia, receipts }
   })
 
-  /**
-   * 压一条新的上去：对不上的旧回执顺手清掉（⛔ 让看不见的那几条占着三条的名额），
-   * 超出三条的最旧那条退场。
-   */
-  const pushReceipt = useCallback(
-    (
-      make: (seq: number) => DeskReceipt,
-      current: NodeWorkflowStateV4 | null,
-    ) => {
-      receiptSeqRef.current += 1
-      const next = make(receiptSeqRef.current)
-      setReceipts((list) =>
-        [
-          next,
-          ...(current
-            ? list.filter((receipt) => isLiveReceipt(receipt, current))
-            : list),
-        ].slice(0, EDIT_RECEIPT_MOTION.max),
-      )
-    },
-    [],
-  )
   /** 剪辑台自己的错：同一摞里的一条「!」。 */
   const pushError = useCallback(
     (message: string) =>
@@ -679,7 +745,7 @@ export function EditDesk({
   /** 提示里的下划线字：「撤销」退回那一批 /「看看」「回画布看」回画布选中那张成片卡。 */
   const onReceiptAction = (seq: number) => {
     const receipt = shownReceipts.find((item) => item.seq === seq)
-    if (receipt?.kind === 'changes') {
+    if (receipt?.kind === 'changes' || receipt?.kind === 'removed') {
       if (restoreState) restoreState(receipt.before)
       else onUndo()
       // 同一条原地换字（⛔ 不换 seq：不重播进场）。
@@ -979,6 +1045,7 @@ export function EditDesk({
                   desk={desk}
                   onBackToNode={onBackToNode}
                   onEditText={startEditText}
+                  onRemove={removeWithReceipt}
                   {...(readOnly ? {} : { mintId })}
                 />
               }

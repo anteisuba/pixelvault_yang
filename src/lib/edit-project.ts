@@ -918,6 +918,14 @@ export function buildTimelineRows(
   })
 }
 
+/** 一段在台面上叫什么：来源卡的名字（视频卡有镜头标签用标签）。卡没了 = 空串。 */
+export function editRowName(row: EditTimelineRow): string {
+  const data = row.source.node?.data
+  if (!data) return ''
+  if (data.kind === NODE_MEDIA_KIND_IDS.video) return data.label ?? data.name
+  return data.name
+}
+
 /** 项目里能进时间线的卡（有产物的视频 / 音频）—— 左栏「画布素材」读它。 */
 export function listEditableAssets(
   state: NodeWorkflowStateV4,

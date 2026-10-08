@@ -7,7 +7,11 @@ import type {
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { diffEditTimeline, findLandedRender } from './edit-desk-receipt'
+import {
+  countClipRiders,
+  diffEditTimeline,
+  findLandedRender,
+} from './edit-desk-receipt'
 
 const NOW = '2026-09-28T00:00:00.000Z'
 
@@ -108,5 +112,37 @@ describe('findLandedRender', () => {
   it('没有新成片卡 → null（旧的成片卡不算）', () => {
     const after = { ...base, nodes: [...base.nodes, videoNode('shot')] }
     expect(findLandedRender(base, after)).toBeNull()
+  })
+})
+
+describe('countClipRiders', () => {
+  it('数挂在这一段上的台词与字幕（别的段的不算）', () => {
+    const base = project([clip('a'), clip('b')])
+    const withRiders: EditProject = {
+      ...base,
+      tracks: {
+        ...base.tracks,
+        audio: [
+          clip('l1', { startSec: 1, attach: { clipId: 'a', atSec: 1 } }),
+          clip('l2', { startSec: 2, attach: { clipId: 'a', atSec: 2 } }),
+          clip('l3', { startSec: 4, attach: { clipId: 'b', atSec: 1 } }),
+        ],
+        text: [
+          {
+            id: 't1',
+            text: '字',
+            startSec: 0.5,
+            durationSec: 1,
+            anchor: 'bc',
+            size: 'm',
+            tone: 'light',
+            fadeSec: 0,
+            attach: { clipId: 'a', atSec: 0.5 },
+          },
+        ],
+      },
+    }
+    expect(countClipRiders(withRiders, 'a')).toEqual({ lines: 2, captions: 1 })
+    expect(countClipRiders(withRiders, 'b')).toEqual({ lines: 1, captions: 0 })
   })
 })

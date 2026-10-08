@@ -4,6 +4,7 @@
  * 回执与提示（换皮第二轮 ⑧ B · 样片 Y · node-canvas-v2 §6「回执与段闪」）：**舞台底部居中
  * 的黑提示，叠成一摞**，照素材页的提示。
  * - 外部 Claude 改了时间线 →「Claude 改了 N 段 · 撤销」，同一来源连着改数字累加在同一条上；
+ * - 删了一段 →「删了「镜头名」，带走 2 条台词 · 撤销」（删除按两次 J 之后、⌫ 也一样）；
  * - 撤销之后 → 同一条原地换成「已撤销」；
  * - 成片落卡 →「Claude 导出了成片 · 已落到画布 · 看看」/「「成片名」已落到画布 · 回画布看」；
  * - 剪辑台自己的错（导出没建起来、素材没落上）→ 一条带「!」的。
@@ -32,6 +33,13 @@ export type EditDeskReceiptState =
       readonly name: string
     }
   | { readonly kind: 'error'; readonly message: string }
+  | {
+      readonly kind: 'removed'
+      readonly name: string
+      /** 一起带走的台词 / 字幕条数。 */
+      readonly lines: number
+      readonly captions: number
+    }
 
 export interface EditDeskReceiptItem {
   /** 换一次 = 换了一条（重播进场）；数字累加、「已撤销」原地换字都不换。 */
@@ -107,17 +115,19 @@ function ReceiptToast({
   const t = useTranslations('StudioNode.editDesk')
   const { seq, receipt } = item
   const text =
-    receipt.kind === 'changes'
-      ? t('receipt.claudeChanged', { count: receipt.count })
-      : receipt.kind === 'undone'
-        ? t('receipt.undone')
-        : receipt.kind === 'error'
-          ? receipt.message
-          : receipt.by === 'claude'
-            ? t('receipt.claudeExported')
-            : t('render.landed', { name: receipt.name })
+    receipt.kind === 'removed'
+      ? removedText(t, receipt)
+      : receipt.kind === 'changes'
+        ? t('receipt.claudeChanged', { count: receipt.count })
+        : receipt.kind === 'undone'
+          ? t('receipt.undone')
+          : receipt.kind === 'error'
+            ? receipt.message
+            : receipt.by === 'claude'
+              ? t('receipt.claudeExported')
+              : t('render.landed', { name: receipt.name })
   const action =
-    receipt.kind === 'changes'
+    receipt.kind === 'changes' || receipt.kind === 'removed'
       ? t('receipt.undo')
       : receipt.kind === 'landed'
         ? receipt.by === 'claude'
@@ -188,4 +198,25 @@ function ReceiptToast({
       ) : null}
     </motion.div>
   )
+}
+
+/** 「删了「名」」/「删了「名」，带走 2 条台词、1 条字幕」。 */
+function removedText(
+  t: ReturnType<typeof useTranslations<'StudioNode.editDesk'>>,
+  receipt: Extract<EditDeskReceiptState, { kind: 'removed' }>,
+): string {
+  const riders = [
+    receipt.lines > 0
+      ? t('receipt.riderLines', { count: receipt.lines })
+      : null,
+    receipt.captions > 0
+      ? t('receipt.riderCaptions', { count: receipt.captions })
+      : null,
+  ].filter((part): part is string => part !== null)
+  return riders.length === 0
+    ? t('receipt.removed', { name: receipt.name })
+    : t('receipt.removedWith', {
+        name: receipt.name,
+        riders: riders.join(t('receipt.ridersJoiner')),
+      })
 }

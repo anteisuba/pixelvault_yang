@@ -99,3 +99,20 @@ export function findNodeByGenerationId(
   )
   return node?.id ?? null
 }
+
+/**
+ * 删一段主线会一起带走的挂件（v2 关键切片「删镜头时挂着的台词、字幕一起删」）：回执上
+ * 写「带走 N 条台词、M 条字幕」。只有主线段有挂件。
+ */
+export function countClipRiders(
+  project: EditProject,
+  clipId: string,
+): { readonly lines: number; readonly captions: number } {
+  return {
+    lines: project.tracks.audio.filter((clip) => clip.attach?.clipId === clipId)
+      .length,
+    captions: project.tracks.text.filter(
+      (clip) => clip.attach?.clipId === clipId,
+    ).length,
+  }
+}

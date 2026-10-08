@@ -17,9 +17,11 @@
  * ⚠ 入出点是**读数**不是输入框：改时间用轨道上的手柄，⛔ 不给两个能互相打架的入口。
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   ArrowUpRight,
+  Check,
   ChevronDown,
   Grid3X3,
   Palette,
@@ -35,6 +37,7 @@ import {
   EDIT_CLIP_GAIN_MIN,
   EDIT_CLIP_GAIN_STEP,
   EDIT_CLIP_SPEEDS,
+  EDIT_DELETE_MOTION,
   EDIT_PICK_CLOSE_DELAY_MS,
   EDIT_TEXT_ANCHORS,
   EDIT_TEXT_ANCHOR_CELL,
@@ -46,13 +49,14 @@ import {
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { formatEditClock } from '@/lib/edit-project'
+import { editRowName, formatEditClock } from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditTextClip } from '@/types/node-workflow'
 
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { RollingText } from '@/components/ui/rolling-text'
 import {
   Popover,
   PopoverContent,
@@ -83,6 +87,8 @@ export interface EditDeskInspectorProps {
   onBackToNode(nodeId: string): void
   /** 字幕段行首那颗字：到预览里原地改这一段。 */
   onEditText(clipId: string): void
+  /** 删掉选中的那一段（台面去删，顺手出「删了… · 撤销」那条回执）。 */
+  onRemove(): void
   /**
    * 新段 id 生成器 —— 给了才出「续拍」（4c：截这一段出点那一帧，在它后面插一段占位并
    * 升起新卡的栏）。
@@ -94,6 +100,7 @@ export function EditDeskInspector({
   desk,
   onBackToNode,
   onEditText,
+  onRemove,
   mintId,
 }: EditDeskInspectorProps) {
   const t = useTranslations('StudioNode.editDesk.inspector')
@@ -117,11 +124,11 @@ export function EditDeskInspector({
           {row.source.exists ? (
             <span
               className="mr-1 max-w-36 shrink-0 truncate font-medium text-foreground/80"
-              title={sourceName(row)}
+              title={editRowName(row)}
             >
               {selection.track === EDIT_TRACK_IDS.video
-                ? tDesk('shotTag', { n: row.index + 1, name: sourceName(row) })
-                : sourceName(row)}
+                ? tDesk('shotTag', { n: row.index + 1, name: editRowName(row) })
+                : editRowName(row)}
             </span>
           ) : (
             <span className="mr-1 shrink-0 text-muted-foreground">
@@ -178,7 +185,7 @@ export function EditDeskInspector({
                 label={t('speed')}
                 value={t('speedOption', { speed: clip.speed || 1 })}
                 set={(clip.speed || 1) !== 1}
-                hint={sourceName(row)}
+                hint={editRowName(row)}
               >
                 {(pick) =>
                   EDIT_CLIP_SPEEDS.map((speed) => (
@@ -223,7 +230,7 @@ export function EditDeskInspector({
                   (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) !==
                   EDIT_TRANSITION_IDS.none
                 }
-                hint={sourceName(row)}
+                hint={editRowName(row)}
               >
                 {(pick) =>
                   EDIT_TRANSITIONS.map((transition) => (
@@ -271,7 +278,14 @@ export function EditDeskInspector({
           </button>
         </>
       )}
-      {textClip || (row && clip && selection) ? <EditKeys desk={desk} /> : null}
+      {textClip || (row && clip && selection) ? (
+        <EditKeys
+          desk={desk}
+          // 换了一段 = 删除键回到垃圾桶（⛔ 上一段按了一下的「确认删除」留到这一段）。
+          selectionKey={textClip?.id ?? clip?.id ?? ''}
+          onRemove={onRemove}
+        />
+      ) : null}
     </div>
   )
 }
@@ -335,7 +349,7 @@ function VersionsChip({
       >
         {t('title')}
         <em className={cn(CHIP_VALUE, takes.count > 1 && CHIP_VALUE_SET)}>
-          {takes.n}/{takes.count}
+          <RollingText text={`${takes.n}/${takes.count}`} />
         </em>
         {takes.fresh ? (
           <span aria-hidden className="size-1.5 rounded-full bg-foreground" />
@@ -345,8 +359,16 @@ function VersionsChip({
   )
 }
 
-/** 选中一段之后行尾那两颗小键：分割（S）· 删除（⌫）。 */
-function EditKeys({ desk }: { readonly desk: EditDesk }) {
+/** 选中一段之后行尾那两颗小键：分割（S）· 删除（按两次 J；⌫ 照删）。 */
+function EditKeys({
+  desk,
+  selectionKey,
+  onRemove,
+}: {
+  readonly desk: EditDesk
+  readonly selectionKey: string
+  onRemove(): void
+}) {
   const t = useTranslations('StudioNode.editDesk')
   return (
     <>
@@ -361,17 +383,67 @@ function EditKeys({ desk }: { readonly desk: EditDesk }) {
       >
         <Scissors className="size-3.5" aria-hidden />
       </button>
-      <button
-        type="button"
-        data-testid="edit-desk-remove"
-        aria-label={t('tools.remove')}
-        title={t('tools.remove')}
-        onClick={() => desk.removeSelected()}
-        className={cn(CHIP, CHIP_ACTIVE, 'px-0 w-7 justify-center')}
-      >
-        <Trash2 className="size-3.5" aria-hidden />
-      </button>
+      <DeleteKey key={selectionKey} onRemove={onRemove} />
     </>
+  )
+}
+
+/**
+ * 删除键（样片 J）：垃圾桶 → 点一下拉长成黑底「确认删除」→ 再点收成对勾、停一下再删；
+ * 3 秒不点自己收回。同一颗键变形，⛔ 不弹系统确认框。
+ */
+function DeleteKey({ onRemove }: { onRemove(): void }) {
+  const t = useTranslations('StudioNode.editDesk')
+  const reduceMotion = useReducedMotion()
+  const [phase, setPhase] = useState<'idle' | 'armed' | 'done'>('idle')
+
+  useEffect(() => {
+    if (phase === 'idle') return undefined
+    const timer = window.setTimeout(
+      () => (phase === 'armed' ? setPhase('idle') : onRemove()),
+      phase === 'armed'
+        ? EDIT_DELETE_MOTION.armMs
+        : reduceMotion
+          ? 0
+          : EDIT_DELETE_MOTION.commitDelayMs,
+    )
+    return () => window.clearTimeout(timer)
+  }, [phase, onRemove, reduceMotion])
+
+  const label = phase === 'idle' ? t('tools.remove') : t('tools.removeConfirm')
+  return (
+    <motion.button
+      type="button"
+      data-testid="edit-desk-remove"
+      data-phase={phase}
+      aria-label={label}
+      title={label}
+      disabled={phase === 'done'}
+      onClick={() => setPhase(phase === 'idle' ? 'armed' : 'done')}
+      initial={false}
+      animate={{
+        width: phase === 'idle' ? EDIT_DELETE_MOTION.idleWidthPx : 'auto',
+      }}
+      transition={reduceMotion ? { duration: 0 } : EDIT_DELETE_MOTION.grow}
+      className={cn(
+        CHIP,
+        'justify-center overflow-hidden whitespace-nowrap transition-colors duration-fast',
+        phase === 'idle'
+          ? 'px-0 hover:bg-muted'
+          : 'bg-foreground px-2.5 text-background',
+      )}
+    >
+      <BlurSwap swapKey={phase} className="gap-1.5">
+        {phase === 'done' ? (
+          <Check className="size-3.5" aria-hidden />
+        ) : (
+          <>
+            <Trash2 className="size-3.5 shrink-0" aria-hidden />
+            {phase === 'armed' ? t('tools.removeConfirm') : null}
+          </>
+        )}
+      </BlurSwap>
+    </motion.button>
   )
 }
 
@@ -386,7 +458,10 @@ function Reading({
   return (
     <span className={CHIP}>
       {label}
-      <em className={CHIP_VALUE}>{value}</em>
+      {/* 拖手柄时入出点跟着滚（样片 K）。 */}
+      <em className={CHIP_VALUE}>
+        <RollingText text={value} />
+      </em>
     </span>
   )
 }
@@ -426,13 +501,6 @@ function GainSlider({
       <span className={cn(CHIP_VALUE, 'w-9')}>{Math.round(draft * 100)}%</span>
     </label>
   )
-}
-
-function sourceName(row: EditTimelineRow): string {
-  const data = row.source.node?.data
-  if (!data) return ''
-  if (data.kind === NODE_MEDIA_KIND_IDS.video) return data.label ?? data.name
-  return data.name
 }
 
 /**

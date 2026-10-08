@@ -43,6 +43,13 @@ export type TimelineDragPreview =
       readonly in: number
       readonly out: number
       readonly startSec?: number
+      /** 拖的是哪一端（读数与变长的手柄跟它走；布局不读）。 */
+      readonly edge?: 'in' | 'out'
+      /**
+       * 拖出素材长度那一截（时间线秒，已按阻力折过，样片 B）：只拉长**画出来**的这一段，
+       * 后面跟着让；松手不落库。
+       */
+      readonly stretchSec?: number
     }
   /** 按起点摆的轨（台词）上拖段：改起点、按落点重新挂。 */
   | {
@@ -123,7 +130,12 @@ export function applyTimelinePreview(
             tracks[preview.track],
             preview.clipId,
             (clip) => {
-              const trimmed = { ...clip, in: preview.in, out: preview.out }
+              const trimmed = {
+                ...clip,
+                in: preview.in,
+                out:
+                  preview.out + (preview.stretchSec ?? 0) * (clip.speed || 1),
+              }
               return preview.startSec === undefined
                 ? trimmed
                 : withAttach(

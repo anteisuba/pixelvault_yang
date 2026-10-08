@@ -211,6 +211,20 @@ export const EDIT_TIMELINE_FEEL = {
 } as const
 
 /**
+ * 拖过头（动效样片 B）：段两端拖出素材长度、播放头拖出片头片尾时**被拉长**而不是硬停 ——
+ * 超出的部分按 `rubber` 跟手，手柄 / 播放头读数跟着变长（手柄每超 1 秒长
+ * `handleGrowPerSec`，读数每超 `gripStretchPx` 像素多拉一倍，两者都最多 `handleGrowMax`）；松手弹回到头（槽档弹簧，
+ * 一点点过冲；时间线上的段走 CSS 同档 `transition-spring-back`，`springBackMs` 后换回磁性）。
+ */
+export const EDIT_TIMELINE_OVERSHOOT = {
+  rubber: 0.3,
+  handleGrowPerSec: 0.4,
+  handleGrowMax: 0.4,
+  gripStretchPx: 40,
+  springBackMs: 600,
+} as const
+
+/**
  * 时间线缩放（owner 2026-09-28 画板「时间线放大 · 横向滚动」）：1 = 铺满整条；放大后
  * 横向滚动，以播放头为中心。`maxPxPerSecond` 管放大的上限（铺满那一档仍按
  * `EDIT_TIMELINE_FIT` 夹）。
@@ -266,6 +280,18 @@ export const EDIT_RETAKE_BAR = {
   widthPx: 640,
   edgePx: 12,
   bottomPx: 12,
+} as const
+
+/**
+ * 删除按两次（动效样片 J）：垃圾桶键先拉长成黑底「确认删除」（弹簧 k300 d26），`armMs`
+ * 内再点一次收成对勾，停 `commitDelayMs` 再删（段连同挂件缩小糊掉、后面合拢）；不点就
+ * 自己收回。⌫ 是看得见选中之后的快捷键，照删不问。
+ */
+export const EDIT_DELETE_MOTION = {
+  grow: { type: 'spring', stiffness: 300, damping: 26 },
+  idleWidthPx: 28,
+  armMs: 3000,
+  commitDelayMs: 380,
 } as const
 
 /**

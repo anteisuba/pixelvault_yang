@@ -434,7 +434,7 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
   })
 
-  it('走带行：播放键与空格同一份播放态；声音键让预览静音；分割 / 删除两颗小键', () => {
+  it('走带行：播放键与空格同一份播放态；声音键让预览静音；分割 / 删除两颗小键', async () => {
     // jsdom 的 <video> 不会播：`play()` 给一个立即兑现的 promise 就够了。
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
     const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
@@ -454,8 +454,22 @@ describe('剪辑台 · 台面', () => {
     expect(screen.queryByTestId('edit-desk-remove')).toBeNull()
     const clipId = read().edit?.tracks.video[0]?.id
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
-    fireEvent.click(screen.getByTestId('edit-desk-remove'))
-    expect(read().edit?.tracks.video).toHaveLength(0)
+    // 删除按两次（样片 J）：第一下只拉长成「确认删除」，⛔ 不删
+    const remove = screen.getByTestId('edit-desk-remove')
+    fireEvent.click(remove)
+    expect(remove).toHaveAccessibleName('确认删除')
+    expect(read().edit?.tracks.video).toHaveLength(1)
+    // 第二下收成对勾，停一下再删；舞台底部出「删了… · 撤销」
+    fireEvent.click(remove)
+    await waitFor(() => expect(read().edit?.tracks.video).toHaveLength(0))
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toMatch(
+      /^删了「.+」$/,
+    )
+    fireEvent.click(screen.getByTestId('edit-desk-receipt-action'))
+    expect(read().edit?.tracks.video).toHaveLength(1)
+    expect(screen.getByTestId('edit-desk-receipt-text').textContent).toBe(
+      '已撤销',
+    )
   })
 
   it('素材库页：拖一条产物进 V 轨 —— 先落成画布卡，段指向那张卡', async () => {

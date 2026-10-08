@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import type { EditProject } from '@/types/node-workflow'
 
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { RollingText } from '@/components/ui/rolling-text'
 import {
   Popover,
   PopoverContent,
@@ -142,11 +143,14 @@ export function EditDeskTopBar({
             data-testid="edit-desk-readout"
             className="font-mono text-xs tabular-nums text-muted-foreground"
           >
-            {t('readout', {
-              duration: formatEditDurationShort(durationSec),
-              aspect: project.settings.aspect,
-              resolution: project.settings.resolution,
-            })}
+            {/* 成片时长变了只滚变了的那几位（样片 K）。 */}
+            <RollingText
+              text={t('readout', {
+                duration: formatEditDurationShort(durationSec),
+                aspect: project.settings.aspect,
+                resolution: project.settings.resolution,
+              })}
+            />
           </span>
         )}
       </div>

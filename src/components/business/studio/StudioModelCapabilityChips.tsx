@@ -15,6 +15,7 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import type { AdvancedParams } from '@/types'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
@@ -510,7 +511,8 @@ function CapabilitySingleChip({
           )}
         >
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
-          {chipText}
+          {/* 换模型清回默认 / 改了某项 = 字糊一下换掉，⛔ 跳字。 */}
+          <BlurSwap swapKey={chipText}>{chipText}</BlurSwap>
         </button>
       </StudioToolSurfaceTrigger>
       <ResponsivePopoverContent

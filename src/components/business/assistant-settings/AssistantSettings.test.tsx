@@ -281,7 +281,7 @@ describe('AssistantSettings · 人设', () => {
 
     expect(
       screen.getByRole('radio', { name: 'tone.character|Denia' }),
-    ).toBeDisabled()
+    ).toHaveAttribute('aria-disabled', 'true')
     expect(
       screen.getByText(/tone\.characterMissing\|Denia/),
     ).toBeInTheDocument()

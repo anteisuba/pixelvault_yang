@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 import type { AspectRatio } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { IMAGE_BATCH_COUNTS } from '@/constants/studio'
+import { IMAGE_BATCH_COUNTS, isImageBatchCount } from '@/constants/studio'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
@@ -31,7 +31,6 @@ import {
   buildImageSpecChipModel,
   buildVideoSpecChipModel,
 } from '@/lib/spec-chip-model'
-import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import type { AdvancedParams } from '@/types'
@@ -45,10 +44,7 @@ interface StudioSpecChipProps {
   readonly popoverAlign?: 'start' | 'end'
 }
 
-const moreTierClass =
-  'inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 text-xs transition-colors duration-fast ease-standard md:h-7.5'
-
-/** 图片档：比例 · 尺寸 / 清晰度，「更多」里是张数。 */
+/** 图片档：比例 · 尺寸 / 清晰度 · 张数，三条分段条（owner 2026-10-08）。 */
 function StudioImageSpecChip({
   disabled,
   triggerClassName,
@@ -99,35 +95,14 @@ function StudioImageSpecChip({
         ? { summarySuffix: t('countSummary', { count: state.imageBatchCount }) }
         : {})}
       {...(disabled === undefined ? {} : { disabled })}
-      more={
-        <div className="flex flex-col gap-1.5" data-assistant-field="count">
-          <span className="text-2xs font-medium text-muted-foreground/70">
-            {t('moreItem.batchCount')}
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {IMAGE_BATCH_COUNTS.map((count) => (
-              <button
-                key={count}
-                type="button"
-                role="radio"
-                aria-checked={state.imageBatchCount === count}
-                disabled={disabled}
-                onClick={() =>
-                  dispatch({ type: 'SET_IMAGE_BATCH_COUNT', payload: count })
-                }
-                className={cn(
-                  moreTierClass,
-                  state.imageBatchCount === count
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-foreground hover:border-foreground/40',
-                )}
-              >
-                {`×${count}`}
-              </button>
-            ))}
-          </div>
-        </div>
-      }
+      batchCount={{
+        value: state.imageBatchCount,
+        options: IMAGE_BATCH_COUNTS,
+        onChange: (count) => {
+          if (isImageBatchCount(count))
+            dispatch({ type: 'SET_IMAGE_BATCH_COUNT', payload: count })
+        },
+      }}
     />
   )
 }

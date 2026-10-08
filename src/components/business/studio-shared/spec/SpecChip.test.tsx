@@ -120,7 +120,7 @@ describe('SpecChip · chip 三态', () => {
 })
 
 describe('SpecChip · 分段', () => {
-  it('不支持的档灰显划线、点不动，hover 看得到原因', () => {
+  it('不支持的档在分段条里灰着、点不动，hover 看得到原因', () => {
     const { onAspectRatioChange } = renderChip()
     openChip()
 
@@ -128,7 +128,6 @@ describe('SpecChip · 分段', () => {
       .getAllByRole('radio')
       .find((node) => node.textContent?.includes('21:9')) as HTMLElement
     expect(ratio21).toHaveAttribute('aria-disabled', 'true')
-    expect(ratio21.className).toContain('line-through')
     expect(ratio21).toHaveAttribute('title', 'tierUnsupported:21:9')
 
     fireEvent.click(ratio21)

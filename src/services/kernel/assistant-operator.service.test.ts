@@ -2182,7 +2182,7 @@ describe('read_state', () => {
     expect(userPrompt).not.toContain('NO NEGATIVE PROMPT FIELD')
     // 固定说明住在系统提示里，不跟着每步的状态重发。
     expect(systemPrompt).toContain('canvas_apply')
-    expect(systemPrompt).toContain('NO model selected')
+    expect(systemPrompt).toContain('null when none is selected')
     expect(systemPrompt).toContain('availableModels names an entry')
     expect(systemPrompt).toContain('sourceNodeId')
     expect(userPrompt).not.toContain('Arguments are flat')
@@ -2317,6 +2317,27 @@ describe('read_state', () => {
         optionSets: Record<string, unknown>
       }
     }
+
+    it('a media card with no model says model null; a text card has no model key', async () => {
+      const request = boardRequest('看一下')
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      shot.nodes[1] = { ...shot.nodes[1]!, model: undefined }
+      shot.nodes[2] = {
+        ...shot.nodes[2]!,
+        kind: 'text',
+        model: undefined,
+        availableModels: undefined,
+        parameters: undefined,
+      }
+      queueTurns({ finished: true })
+      await collect(runAssistantOperator('clerk-1', request))
+      const [white, black, three] = board(toolRingCalls()[0].userPrompt)
+        .shots[0].nodes
+      expect(white.model).toBe('gpt-image-2.5-flare')
+      expect(black).toHaveProperty('model', null)
+      expect(three).not.toHaveProperty('model')
+    })
 
     it('lists models and options once, drops urls, and clips cards nobody pointed at', async () => {
       queueTurns({ finished: true })

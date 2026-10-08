@@ -1518,6 +1518,15 @@ function renderCanvasBoard(run: OperatorRun): string {
       text.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars
     return {
       ...rest,
+      /**
+       * ⚠ 没选模型的媒体卡**写出 `model: null`**，⛔ 不省掉这个键（2026-10-08 马尔福画布：
+       * 十张镜头卡都没有这个键，GPT-6 Luna 连着三轮把选好 Flare 的角色卡也说成「没选
+       * 模型」——让它把卡的 JSON 原样贴出来，`model` 明明在）。有没有都写出来，就没有
+       * 「没找到 = 没有」可猜。
+       */
+      ...(rest.kind !== NODE_MEDIA_KIND_IDS.text && rest.model === undefined
+        ? { model: null }
+        : {}),
       ...(position
         ? {
             position: {
@@ -7317,7 +7326,7 @@ async function planSetReviewState(
  */
 const CANVAS_GUIDE: readonly string[] = [
   'BATCH FIRST: when a request needs more than one change, send ONE canvas_batch {action:"canvas_batch",ops:[...]} with every op in order — add_node with "ref":"new1", then set_model / connect / attach_asset that name "new1" as target or source. The batch lands as one undo and the turn pauses once (canvas_sync) instead of once per op. A card created in the batch has no real id until the board comes back: write its prompt and params in the NEXT call with the id from the fresh board. canvas_apply is for a single change.',
-  'A node without model has NO model selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, check the fresh board has each requested model, prompt and reference input: apply what is missing, never claim it is configured, and do not repeat a change that is already there. Wire references and set the model before the final prompt. After each canvas_sync, read the fresh canvas state and continue until every requested card, reference and link is there; if you cannot finish, name exactly which parts remain.',
+  'Every media card shows "model": its selected model id, or null when none is selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, check the fresh board has each requested model, prompt and reference input: apply what is missing, never claim it is configured, and do not repeat a change that is already there. Wire references and set the model before the final prompt. After each canvas_sync, read the fresh canvas state and continue until every requested card, reference and link is there; if you cannot finish, name exactly which parts remain.',
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
   'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
   `Cards you can add (kind.subtype → input slots): ${JSON.stringify(Object.fromEntries(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => [`${item.v4.kind}.${item.v4.subtype}`, getNodeV4Ports(item.v4.kind, item.v4.subtype)?.inputs.map((input) => input.slot) ?? []]))))}`,

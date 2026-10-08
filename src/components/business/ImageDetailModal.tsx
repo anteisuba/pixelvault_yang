@@ -5,7 +5,6 @@ import { useState } from 'react'
 
 import {
   ArrowUpRight,
-  Check,
   Coins,
   Copy,
   Download,
@@ -43,8 +42,12 @@ import {
 import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import VideoPlayer from '@/components/business/VideoPlayer'
-import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  ConfirmDeleteButton,
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { MetadataList } from '@/components/ui/metadata-list'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn, getLabelClassName } from '@/lib/utils'
@@ -77,7 +80,11 @@ export function ImageDetailModal({
   transitionOrigin,
 }: ImageDetailModalProps) {
   const [isDownloading, setIsDownloading] = useState(false)
-  const [copied, setCopied] = useState<'prompt' | 'link' | null>(null)
+  // 下载 / 复制的结果在键上说（owner 2026-10-08「提示与弹窗」第 1 题 B），⛔ 弹条。
+  const downloadFeedback = useButtonFeedback()
+  const promptFeedback = useButtonFeedback()
+  const linkFeedback = useButtonFeedback()
+  const tFeedback = useTranslations('Feedback')
   const [isPinned, setIsPinned] = useState(generation.isFeatured ?? false)
   const [isPinning, setIsPinning] = useState(false)
   const [referencePreviewOpen, setReferencePreviewOpen] = useState(false)
@@ -117,6 +124,7 @@ export function ImageDetailModal({
 
     if (!isSignedIn) {
       triggerDirectAssetDownload(generation.url, fileName)
+      downloadFeedback.show({ label: tFeedback('downloadStarted') })
       return
     }
 
@@ -128,6 +136,7 @@ export function ImageDetailModal({
         toast.error(getApiErrorMessage(tErrors, result, t('downloadFailed')))
         triggerDirectAssetDownload(generation.url, fileName)
       }
+      downloadFeedback.show({ label: tFeedback('downloadStarted') })
     } finally {
       setIsDownloading(false)
     }
@@ -181,16 +190,18 @@ export function ImageDetailModal({
 
   const toolbarActions = (
     <>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      <FeedbackButton
+        feedback={downloadFeedback.feedback}
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          'rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+        )}
         onClick={() => void handleDownload()}
         disabled={isDownloading}
         aria-label={isDownloading ? t('downloading') : t('download')}
       >
         <Download className="size-4" />
-      </Button>
+      </FeedbackButton>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -344,47 +355,45 @@ export function ImageDetailModal({
   const footerActions = (
     <div className="flex flex-wrap gap-2">
       {(showVisibility || generation.isPromptPublic) && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full"
+        <FeedbackButton
+          feedback={promptFeedback.feedback}
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'sm' }),
+            'rounded-full',
+          )}
           onClick={async () => {
-            await navigator.clipboard.writeText(generation.prompt)
-            setCopied('prompt')
-            setTimeout(() => setCopied(null), 2000)
+            try {
+              await navigator.clipboard.writeText(generation.prompt)
+              promptFeedback.show({ label: t('promptCopied') })
+            } catch {
+              toast.error(t('shareFailed'))
+            }
           }}
         >
-          {copied === 'prompt' ? (
-            <Check className="size-3.5 text-chart-3" />
-          ) : (
-            <Copy className="size-3.5" />
-          )}
-          {copied === 'prompt' ? t('promptCopied') : t('copyPrompt')}
-        </Button>
+          <Copy className="size-3.5" />
+          {t('copyPrompt')}
+        </FeedbackButton>
       )}
 
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full"
+      <FeedbackButton
+        feedback={linkFeedback.feedback}
+        className={cn(
+          buttonVariants({ variant: 'outline', size: 'sm' }),
+          'rounded-full',
+        )}
         onClick={async () => {
           try {
             const url = `${window.location.origin}/${locale}${galleryGenerationPath(generation.id)}`
             await navigator.clipboard.writeText(url)
-            setCopied('link')
-            setTimeout(() => setCopied(null), 2000)
+            linkFeedback.show({ label: t('linkCopied') })
           } catch {
             toast.error(t('shareFailed'))
           }
         }}
       >
-        {copied === 'link' ? (
-          <Check className="size-3.5 text-chart-3" />
-        ) : (
-          <Link2 className="size-3.5" />
-        )}
-        {copied === 'link' ? t('linkCopied') : t('shareLink')}
-      </Button>
+        <Link2 className="size-3.5" />
+        {t('shareLink')}
+      </FeedbackButton>
 
       {(showVisibility || generation.isPromptPublic) && (
         <Button variant="outline" size="sm" className="rounded-full" asChild>
@@ -464,26 +473,21 @@ export function ImageDetailModal({
       )}
 
       {showDelete && onDelete ? (
-        <ConfirmDialog
-          trigger={
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full border-status-risk/30 text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
-            >
-              <Trash2 className="size-3.5" />
-              {t('delete')}
-            </Button>
-          }
-          title={t('deleteConfirmTitle')}
-          description={t('deleteConfirmDescription')}
-          cancelLabel={t('deleteCancel')}
-          confirmLabel={t('deleteConfirm')}
+        // 删一张图是小事：键拉长成红色「确认删除」，再点才删（owner 2026-10-08）。
+        <ConfirmDeleteButton
+          confirmLabel={tFeedback('deleteConfirm')}
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'sm' }),
+            'rounded-full border-status-risk/30 text-status-risk hover:bg-status-risk-surface hover:text-status-risk',
+          )}
           onConfirm={() => {
             onDelete(generation.id)
             onOpenChange(false)
           }}
-        />
+        >
+          <Trash2 className="size-3.5" />
+          {t('delete')}
+        </ConfirmDeleteButton>
       ) : null}
     </div>
   )

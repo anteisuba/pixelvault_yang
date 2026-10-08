@@ -2925,9 +2925,6 @@
     "detailUnfavorited": "Removed from favorites",
     "detailFavoriteFailed": "Action failed",
     "detailDelete": "Delete",
-    "detailDeleteCancel": "Cancel",
-    "detailDeleteConfirmTitle": "Delete this asset?",
-    "detailDeleteConfirmDescription": "This permanently removes the file from your archive and cannot be undone.",
     "detailDeleted": "Asset deleted",
     "detailDeleteFailed": "Couldn't delete this asset",
     "densityLabel": "Density",
@@ -3302,10 +3299,6 @@
     "openOriginal": "Open original",
     "backToGallery": "Back to gallery",
     "delete": "Delete",
-    "deleteConfirmTitle": "Delete this generation?",
-    "deleteConfirmDescription": "This will permanently delete this generation and its stored file. This action cannot be undone.",
-    "deleteCancel": "Cancel",
-    "deleteConfirm": "Delete permanently",
     "referenceImageLabel": "Reference Image",
     "copyPrompt": "Copy prompt",
     "promptCopied": "Copied!",
@@ -4243,6 +4236,12 @@
     "conversationDone": "Your updated prompt is ready.",
     "startFailed": "Couldn't start conversation",
     "responseFailed": "Couldn't get response"
+  },
+  "Feedback": {
+    "notifications": "Notifications",
+    "downloadStarted": "Download started",
+    "deleteConfirm": "Confirm delete",
+    "undo": "Undo"
   },
   "ErrorBoundary": {
     "title": "Something went wrong",

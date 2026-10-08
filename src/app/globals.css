@@ -544,6 +544,9 @@
   --radius: 0.625rem;
   --keyboard-inset: 0px;
   --keyboard-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  /* 底部黑条（全站 toast）离视口底边多远；底部有输入框时由 `useToastLift`
+     改写到输入框上沿之上（owner 2026-10-08「提示与弹窗」）。 */
+  --toast-offset-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
 
   /* ── Light palette — Krea light tokens ──────────────────────────────── */
   --background: oklch(100% 0 0);
@@ -3280,6 +3283,105 @@ html:lang(ja) {
 .number-roll-column {
   display: flex;
   flex-direction: column;
+}
+
+/* ── 底部黑条（全站 toast，owner 2026-10-08「提示与弹窗」）──────────
+   有意放在 @layer 之外：sonner 把自己的 CSS 以**不分层**样式插进页面，分层的
+   Tailwind 工具类不论特异度都压不过它，所以整条的长相写在这里，特异度高过它的
+   `[data-sonner-toaster] [data-sonner-toast]`。
+   · 近黑底白字的小条，单行时是药丸；居中、宽度跟着字走。
+   · 折叠堆叠（最多 3 条）：sonner 负责把旧的往上推、缩小；这里补「变淡」，并把
+     后面那几条的内容藏起来（只露一道边）。
+   · 失败 = 红点（`.toast-bar-dot`），⛔ 整条变红；动作只一颗（查看 / 撤销 / 重试）。 */
+[data-sonner-toaster] [data-sonner-toast].toast-bar {
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+  border-radius: 1.25rem;
+  background: var(--foreground);
+  color: var(--background);
+  font-family: var(--font-stack-sans);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+[data-sonner-toaster]
+  [data-sonner-toast].toast-bar:not(
+    :has(.toast-bar-action, .toast-bar-cancel)
+  ) {
+  padding-right: 1rem;
+}
+[data-sonner-toaster]
+  [data-sonner-toast].toast-bar[data-expanded='false'][data-front='false'] {
+  opacity: calc(1 - var(--toasts-before) * 0.3);
+}
+[data-sonner-toaster]
+  [data-sonner-toast].toast-bar[data-expanded='false'][data-front='false']
+  > * {
+  opacity: 0;
+}
+[data-sonner-toaster] [data-sonner-toast].toast-bar[data-visible='false'] {
+  opacity: 0;
+}
+.toast-bar-icon {
+  display: grid;
+  place-items: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+.toast-bar-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+.toast-bar-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.toast-bar-title {
+  font-weight: 500;
+}
+.toast-bar-description {
+  font-size: 0.75rem;
+  color: color-mix(in oklab, var(--background) 72%, transparent);
+}
+[data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-action,
+[data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-cancel {
+  flex-shrink: 0;
+  height: 1.75rem;
+  padding-inline: 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--background);
+  background: color-mix(in oklab, var(--background) 16%, transparent);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+[data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-action:hover,
+[data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-cancel:hover {
+  background: color-mix(in oklab, var(--background) 26%, transparent);
+}
+[data-sonner-toaster]
+  [data-sonner-toast].toast-bar
+  .toast-bar-action:focus-visible,
+[data-sonner-toaster]
+  [data-sonner-toast].toast-bar
+  .toast-bar-cancel:focus-visible {
+  outline: 2px solid var(--background);
+  outline-offset: 2px;
 }
 
 /* ── B7: Reduced motion preference ──────────────────────────────── */

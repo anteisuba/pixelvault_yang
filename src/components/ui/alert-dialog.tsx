@@ -44,21 +44,79 @@ function AlertDialogOverlay({
   )
 }
 
+/**
+ * 「从按钮位置长到正中」（owner 2026-10-08「提示与弹窗」第 2 题 A：删了找不回的大事
+ * —— 删密钥、删项目、注销账号 —— 用正中弹窗，从按下的那颗键长出来）。
+ *
+ * 记住最近一次按下的位置（捕获阶段，全站一个监听）；弹窗挂上时如果那一下够新，
+ * 就把 tw-animate 的进场 / 退场位移指到那一点：弹窗从那儿缩着出来、长到正中，
+ * 关上时缩回那儿。键盘打开（没有新的按下）就在正中原地放大。
+ * ⚠ 菜单项触发的（菜单随即关掉、键已经不在了）同样成立：记的是**点**，不是元素。
+ * ⚠ `prefers-reduced-motion` 下不指位移（globals.css 也把动画压到 0.01ms）。
+ */
+const ORIGIN_FRESH_MS = 1000
+const ORIGIN_FROM_SCALE = 0.2
+let lastPointerDown: { x: number; y: number; at: number } | null = null
+let pointerTrackerBound = false
+
+function bindPointerTracker() {
+  if (pointerTrackerBound || typeof document === 'undefined') return
+  pointerTrackerBound = true
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      lastPointerDown = {
+        x: event.clientX,
+        y: event.clientY,
+        at: performance.now(),
+      }
+    },
+    true,
+  )
+}
+
+if (typeof document !== 'undefined') bindPointerTracker()
+
+function pointToOrigin(node: HTMLElement) {
+  const point = lastPointerDown
+  if (!point || performance.now() - point.at > ORIGIN_FRESH_MS) return
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  const dx = `${Math.round(point.x - window.innerWidth / 2)}px`
+  const dy = `${Math.round(point.y - window.innerHeight / 2)}px`
+  node.style.setProperty('--tw-enter-translate-x', dx)
+  node.style.setProperty('--tw-enter-translate-y', dy)
+  node.style.setProperty('--tw-enter-scale', String(ORIGIN_FROM_SCALE))
+  node.style.setProperty('--tw-exit-translate-x', dx)
+  node.style.setProperty('--tw-exit-translate-y', dy)
+  node.style.setProperty('--tw-exit-scale', String(ORIGIN_FROM_SCALE))
+}
+
 function AlertDialogContent({
   className,
   size = 'default',
+  ref,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: 'default' | 'sm'
 }) {
+  const growFromPointer = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) pointToOrigin(node)
+      if (typeof ref === 'function') ref(node)
+      else if (ref) ref.current = node
+    },
+    [ref],
+  )
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
+        ref={growFromPointer}
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          'group/alert-dialog-content fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 data-[size=sm]:max-w-xs data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[size=default]:sm:max-w-lg',
+          // 开：弹簧那一档（spring-expand，轻微过冲）；关：线性 base 缩回按下的那一点。
+          'group/alert-dialog-content fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg data-[size=sm]:max-w-xs data-[state=closed]:animate-out data-[state=closed]:duration-base data-[state=closed]:ease-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:duration-spring-expand data-[state=open]:ease-spring-expand data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[size=default]:sm:max-w-lg',
           className,
         )}
         {...props}

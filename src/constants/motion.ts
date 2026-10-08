@@ -151,6 +151,27 @@ export const TAG_ADD_ACK_MS = 1200
 export const COPIED_ACK_MS = 1200
 
 /**
+ * 全站「提示与弹窗」（owner 2026-10-08 定稿，原型 `NzjiqK3k2DuKDji7wQdeBL`）的三段停留。
+ * ⚠ 这三个数是**停留**，不是过渡时长 —— ⛔ 不走四档刻度。
+ *
+ * · `buttonAckMs`：点按钮得到的结果（「✓ 已开始下载」「✓ 已上传 3 张」）在键上停多久再缩回。
+ *   页面文档里单独定过 1.2 秒的复制键（LoRA 库 / 提示词页 / 素材查看器）仍走 `COPIED_ACK_MS`。
+ * · `deleteArmMs`：能撤销的小删除拉长成红色「确认删除」后，不点就自己缩回的时间。
+ * · `undoWindowMs`：删掉之后底部黑条上「撤销」留多久 —— 这段时间里删除还没真的落库。
+ */
+export const FEEDBACK_TIMING = {
+  buttonAckMs: 1600,
+  deleteArmMs: 3000,
+  undoWindowMs: 5000,
+} as const
+
+/**
+ * 底部黑条（sonner）与它要让开的那条底部输入框之间留多少（px）。
+ * 没有输入框时黑条离视口底边 `--toast-offset-bottom`（globals.css）。
+ */
+export const TOAST_LIFT_GAP_PX = 12
+
+/**
  * 工具行 chip 弹层 ②「从 chip 放大」（owner 2026-09-26 画板 PopZoom）的起止形态；
  * 节拍走 CSS token，见 `useStudioChipPopoverMotion`。
  */

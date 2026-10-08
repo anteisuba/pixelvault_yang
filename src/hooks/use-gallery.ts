@@ -96,6 +96,8 @@ export interface UseGalleryReturn {
   removeGenerations: (ids: Set<string>) => void
   /** Insert a generation into the local list (after successful upload/create) */
   prependGeneration: (generation: GenerationRecord) => void
+  /** Put a generation back at `index` (undoing a not-yet-committed delete). */
+  insertGeneration: (generation: GenerationRecord, index: number) => void
   /** Patch a generation in place (after publish/like/etc) so the grid mirrors the new state without refetching. */
   updateGeneration: (id: string, patch: Partial<GenerationRecord>) => void
 }
@@ -534,6 +536,28 @@ export function useGallery({
     [limit, mine, cacheScope, setGenerations, setTotal],
   )
 
+  /**
+   * 撤销删除：把那一张插回它原来的位置（`index` 超出就放到末尾）。
+   * 与 `prependGeneration` 分开：撤销要回到原处，⛔ 不是顶到最前面。
+   */
+  const insertGeneration = useCallback(
+    (generation: GenerationRecord, index: number) => {
+      const current = generationsRef.current.filter(
+        (g) => g.id !== generation.id,
+      )
+      const existed = current.length !== generationsRef.current.length
+      const at = Math.max(0, Math.min(index, current.length))
+      const next = [...current.slice(0, at), generation, ...current.slice(at)]
+      const nextTotal = totalRef.current + (existed ? 0 : 1)
+
+      generationsRef.current = next
+      totalRef.current = nextTotal
+      setGenerations(next)
+      setTotal(nextTotal)
+    },
+    [setGenerations, setTotal],
+  )
+
   const updateGeneration = useCallback(
     (id: string, patch: Partial<GenerationRecord>) => {
       const next = generationsRef.current.map((g) =>
@@ -562,6 +586,7 @@ export function useGallery({
     removeGeneration,
     removeGenerations,
     prependGeneration,
+    insertGeneration,
     updateGeneration,
   }
 }

@@ -13,6 +13,11 @@ export interface EmptyStateProps {
   action?: ReactNode
   /** 次动作。传 `<Button variant="ghost" className="rounded-full">`。 */
   secondaryAction?: ReactNode
+  /**
+   * `error` = 出错 / 加载失败（owner 2026-10-08「提示与弹窗」第 3 题 B：出错与 404 也用
+   * 这一个模板）。⛔ 整块不变红 —— 只在图标格右上角放一颗红点；出了什么错由标题说。
+   */
+  tone?: 'empty' | 'error'
   className?: string
 }
 
@@ -33,10 +38,12 @@ export function EmptyState({
   description,
   action,
   secondaryAction,
+  tone = 'empty',
   className,
 }: EmptyStateProps) {
   return (
     <div
+      data-tone={tone}
       className={cn(
         'flex flex-col items-center justify-center gap-4 rounded-empty-state border border-dashed border-border bg-surface-workbench px-6 py-9 text-center',
         className,
@@ -45,9 +52,15 @@ export function EmptyState({
       {icon ? (
         <span
           aria-hidden
-          className="grid size-10 place-items-center rounded-empty-icon border border-border bg-background text-muted-foreground [&_svg]:size-5"
+          className="relative grid size-10 place-items-center rounded-empty-icon border border-border bg-background text-muted-foreground [&_svg]:size-5"
         >
           {icon}
+          {tone === 'error' ? (
+            <span
+              data-testid="empty-state-error-dot"
+              className="absolute -top-1 -right-1 size-2.5 rounded-full bg-destructive ring-2 ring-surface-workbench"
+            />
+          ) : null}
         </span>
       ) : null}
       <div className="flex max-w-md flex-col gap-1.5">

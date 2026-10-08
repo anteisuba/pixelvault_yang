@@ -1,11 +1,12 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useRef } from 'react'
 
 import {
   STUDIO_MOBILE_STAGE_CLASS,
   STUDIO_MOBILE_STAGE_HEADER_CLASS,
 } from '@/constants/studio-mobile'
+import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
 
 interface StudioWorkbenchLayoutProps {
@@ -83,6 +84,17 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   paramsClassName,
   stageOverlay,
 }: StudioWorkbenchLayoutProps) {
+  // 底部黑条（全站 toast）浮在底部输入框 / 手机固定输入条之上（owner 2026-10-08）。
+  const composerCardRef = useRef<HTMLDivElement>(null)
+  const mobileComposerRef = useRef<HTMLDivElement>(null)
+  useToastLift(composerCardRef, layout === 'bottom' && params != null)
+  useToastLift(mobileComposerRef, composer != null)
+  const mobileComposer =
+    composer != null ? (
+      <div ref={mobileComposerRef} className="contents">
+        {composer}
+      </div>
+    ) : null
   if (layout === 'bottom') {
     return (
       // ⚠ 高度契约与横向那支同一条（`.studio-workbench-shell` 在桌面给显式高度，
@@ -103,6 +115,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           // （`StudioChipClasses.compact`）。
           // `data-studio-composer`：「做同款」的配方落进来时这张卡顶一下（`landRecipeInComposer`）。
           <div
+            ref={composerCardRef}
             data-studio-composer=""
             className="@container/composer relative shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float"
           >
@@ -110,7 +123,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             <div className={paramsClassName}>{params}</div>
           </div>
         ) : null}
-        {composer}
+        {mobileComposer}
       </div>
     )
   }
@@ -175,7 +188,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           <div className="relative h-0 shrink-0">{stageOverlay}</div>
         ) : null}
       </div>
-      {composer}
+      {mobileComposer}
     </div>
   )
 })

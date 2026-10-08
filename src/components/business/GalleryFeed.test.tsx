@@ -187,6 +187,7 @@ function mockGalleryState(
     removeGeneration: vi.fn(),
     removeGenerations: vi.fn(),
     prependGeneration: vi.fn(),
+    insertGeneration: vi.fn(),
     updateGeneration: vi.fn(),
     ...overrides,
   })

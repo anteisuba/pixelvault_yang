@@ -10,6 +10,8 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Spinner } from '@/components/ui/spinner'
+import { useErrorRecoveryReveal } from '@/hooks/use-error-recovery-reveal'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
@@ -22,7 +24,7 @@ import { cn } from '@/lib/utils'
  * | 空库 | 大空态：「所有生成成品会自动回到这里」+ 上传/去生成两个出口；此时**文件夹段一并隐藏** |
  * | 空文件夹 | 「『X』里还没有素材」+ 指路（拖到门牌 / 批量移动）+ 上传到此文件夹 |
  * | 搜索无结果 | 回显当前全部生效筛选 + 「清除全部筛选」**单一出口** |
- * | 整页加载失败 | `destructive` **弱化面**（非满屏红）+ 重试；文案明确「已加载的内容不会丢失」 |
+ * | 整页加载失败 | 空态模板 + 图标角红点（⛔ 整块变红）+ 重试（键里转圈）；文案明确「已加载的内容不会丢失」 |
  * | 分页失败 | ⭐ **只挡这一段**：网格末尾行内错误条 + 重试 |
  */
 
@@ -139,36 +141,45 @@ interface AssetErrorBlockProps {
   className?: string
 }
 
-/** 整页加载失败 —— 弱化的 destructive 面，不是满屏红。 */
+/**
+ * 整页加载失败 —— 与空态同一个模板（owner 2026-10-08「提示与弹窗」第 3 题 B）：
+ * ⛔ 整块不变红，只在图标角放红点；重试时键里转圈，救回来的内容由糊变清。
+ */
 export function AssetPageError({
   message,
   onRetry,
+  retrying = false,
   className,
-}: AssetErrorBlockProps) {
+}: AssetErrorBlockProps & { retrying?: boolean }) {
   const t = useTranslations('AssetsPage')
+  const { ref, markRetrying } = useErrorRecoveryReveal<HTMLDivElement>()
   return (
-    <div
-      role="alert"
-      className={cn(
-        'flex flex-col items-start gap-2 rounded-xl border border-status-risk/30 bg-status-risk-surface px-4 py-3',
-        className,
-      )}
-    >
-      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <AlertCircle className="size-4 text-destructive" />
-        {message}
-      </span>
-      <p className="text-xs text-muted-foreground">{t('errorKeepsLoaded')}</p>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="mt-1"
-        onClick={onRetry}
-      >
-        <RotateCcw className="size-3.5" />
-        {t('errorRetry')}
-      </Button>
+    <div ref={ref} role="alert" className={className}>
+      <EmptyState
+        tone="error"
+        icon={<AlertCircle />}
+        title={message}
+        description={t('errorKeepsLoaded')}
+        action={
+          <Button
+            type="button"
+            className="rounded-full"
+            aria-busy={retrying || undefined}
+            onClick={() => {
+              if (retrying) return
+              markRetrying()
+              onRetry()
+            }}
+          >
+            {retrying ? (
+              <Spinner size="md" />
+            ) : (
+              <RotateCcw className="size-4" aria-hidden />
+            )}
+            {t('errorRetry')}
+          </Button>
+        }
+      />
     </div>
   )
 }

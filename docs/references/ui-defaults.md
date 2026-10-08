@@ -129,25 +129,25 @@
 
 > 真值 SoT = `src/app/globals.css` 的 `--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)` 与四个 `--duration-*`。⛔ 别信任何写着 `150 / 300 / 400ms` 或 `cubic-bezier(.2,0,0,1)` 的设计稿——那是 2026-09-06 助手改版简报里的一处错值，已在 `pages/assistant-shell.md` §11.5 订正。
 
-| 交互                                      | 配方                                                                                                                                                                                                     | 库                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| 按钮/卡片按压                             | `active:scale-[.98] transition-transform duration-fast`（`.98` 尚无 token，是本表唯一容许的 arbitrary）                                                                                                  | CSS                |
-| hover 提亮                                | `transition-colors duration-fast hover:bg-accent`                                                                                                                                                        | CSS                |
-| 焦点环                                    | `focus-visible:ring-2 ring-ring ring-offset-2`，不做动画                                                                                                                                                 | CSS                |
-| Dialog 开/关                              | 已内置：`data-[state=open]:animate-in fade-in-0 zoom-in-95` / closed 反向，`duration-200`。**不要覆盖**                                                                                                  | radix + tw-animate |
-| Sheet / Drawer 开/关                      | Sheet 已内置 slide；手机底部抽屉走 vaul，自带拖拽关闭。**不要自己写 translateY**                                                                                                                         | radix / vaul       |
-| Popover / Dropdown / Tooltip              | 已内置 `fade-in-0 zoom-in-95`，tooltip delay 0                                                                                                                                                           | radix              |
-| 列表/网格项进入                           | `motion.div` `initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}` + 父级 `staggerChildren: 0.03`，最多前 12 项做 stagger，其余直接出现                                                                  | motion             |
-| 元素移除                                  | `AnimatePresence` + `exit={{opacity:0,scale:.98}}`，`duration-fast`                                                                                                                                      | motion             |
-| 骨架 → 内容                               | 骨架 `animate-pulse`；内容到达时容器 `animate-in fade-in-0 duration-base`；**骨架尺寸 = 内容尺寸**，不许跳动                                                                                             | CSS                |
-| Tab / 分段选中指示条                      | `layoutId="tab-indicator"` 共享布局动画                                                                                                                                                                  | motion             |
-| 面板从触发物长出来（助手头像 / 画布侧栏） | 面板按全尺寸排版，只动 `clip-path` 内缩：先横成一条标题条，`LIQUID_TIMING.unfoldDelayS` 后纵向展开；弹簧 `LIQUID_SPRING`；标题随第一拍、正文随第二拍短模糊进场；动着时投影走外层 `drop-shadow`，落定后撤 | motion             |
-| 换内容（同一位置的字 / 图标换成另一份）   | `BlurSwap`（`components/ui/blur-swap.tsx`）或 `useBlurSwapIn`：新内容由糊变清进场（`LIQUID_TIMING.swapInS` / `blurPx`），只有进场、首次挂载不播；owner 2026-10-07 定                                     | motion             |
-| 选中态切换（卡片/chip）                   | `transition-[background-color,border-color,box-shadow] duration-fast`                                                                                                                                    | CSS                |
-| 生成进度                                  | 不确定 = spinner；确定 = 进度条 `linear`（`loading.md`）                                                                                                                                                 | 已有组件           |
-| 页面切换                                  | 默认无动画。**[待验证]** Next 16 `viewTransition` 可试，验证通过前不用                                                                                                                                   | —                  |
-| 数字变化                                  | `number-ticker.tsx` 已有；只给统计数，不给价格/额度                                                                                                                                                      | 已有组件           |
-| 拖拽                                      | dnd-kit / pragmatic-dnd 已装；拖起 `scale-[1.02] shadow-lg`，落下回弹 `--ease-soft-return`                                                                                                               | 已有依赖           |
+| 交互                                      | 配方                                                                                                                                                                                                                                                                                                        | 库                 |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 按钮/卡片按压                             | `active:scale-[.98] transition-transform duration-fast`（`.98` 尚无 token，是本表唯一容许的 arbitrary）                                                                                                                                                                                                     | CSS                |
+| hover 提亮                                | `transition-colors duration-fast hover:bg-accent`                                                                                                                                                                                                                                                           | CSS                |
+| 焦点环                                    | `focus-visible:ring-2 ring-ring ring-offset-2`，不做动画                                                                                                                                                                                                                                                    | CSS                |
+| Dialog 开/关                              | 已内置：`data-[state=open]:animate-in fade-in-0 zoom-in-95` / closed 反向，`duration-200`。**不要覆盖**。例外只有 `AlertDialog`（删了找不回的大事，owner 2026-10-08）：从按下的那一点长到正中（`spring-expand`），关上缩回那一点（`duration-base` + `ease-in`），实现收在 `alert-dialog.tsx`，⛔ 调用方不写 | radix + tw-animate |
+| Sheet / Drawer 开/关                      | Sheet 已内置 slide；手机底部抽屉走 vaul，自带拖拽关闭。**不要自己写 translateY**                                                                                                                                                                                                                            | radix / vaul       |
+| Popover / Dropdown / Tooltip              | 已内置 `fade-in-0 zoom-in-95`，tooltip delay 0                                                                                                                                                                                                                                                              | radix              |
+| 列表/网格项进入                           | `motion.div` `initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}` + 父级 `staggerChildren: 0.03`，最多前 12 项做 stagger，其余直接出现                                                                                                                                                                     | motion             |
+| 元素移除                                  | `AnimatePresence` + `exit={{opacity:0,scale:.98}}`，`duration-fast`                                                                                                                                                                                                                                         | motion             |
+| 骨架 → 内容                               | 骨架 `animate-pulse`；内容到达时容器 `animate-in fade-in-0 duration-base`；**骨架尺寸 = 内容尺寸**，不许跳动                                                                                                                                                                                                | CSS                |
+| Tab / 分段选中指示条                      | `layoutId="tab-indicator"` 共享布局动画                                                                                                                                                                                                                                                                     | motion             |
+| 面板从触发物长出来（助手头像 / 画布侧栏） | 面板按全尺寸排版，只动 `clip-path` 内缩：先横成一条标题条，`LIQUID_TIMING.unfoldDelayS` 后纵向展开；弹簧 `LIQUID_SPRING`；标题随第一拍、正文随第二拍短模糊进场；动着时投影走外层 `drop-shadow`，落定后撤                                                                                                    | motion             |
+| 换内容（同一位置的字 / 图标换成另一份）   | `BlurSwap`（`components/ui/blur-swap.tsx`）或 `useBlurSwapIn`：新内容由糊变清进场（`LIQUID_TIMING.swapInS` / `blurPx`），只有进场、首次挂载不播；owner 2026-10-07 定                                                                                                                                        | motion             |
+| 选中态切换（卡片/chip）                   | `transition-[background-color,border-color,box-shadow] duration-fast`                                                                                                                                                                                                                                       | CSS                |
+| 生成进度                                  | 不确定 = spinner；确定 = 进度条 `linear`（`loading.md`）                                                                                                                                                                                                                                                    | 已有组件           |
+| 页面切换                                  | 默认无动画。**[待验证]** Next 16 `viewTransition` 可试，验证通过前不用                                                                                                                                                                                                                                      | —                  |
+| 数字变化                                  | `number-ticker.tsx` 已有；只给统计数，不给价格/额度                                                                                                                                                                                                                                                         | 已有组件           |
+| 拖拽                                      | dnd-kit / pragmatic-dnd 已装；拖起 `scale-[1.02] shadow-lg`，落下回弹 `--ease-soft-return`                                                                                                                                                                                                                  | 已有依赖           |
 
 **app 内动效库只有一个：`motion`，且只从 `motion/react` 进**（服务端安全的那一档走 `motion/react-client`）。`framer-motion` 是 `motion` 的旧包名，`package.json` 里**没有**它 —— 写 `from 'framer-motion'` 不会报模块找不到（`motion` 把它作为传递依赖拖了进来），只会让一个幽灵包悄悄进 bundle。
 
@@ -182,7 +182,7 @@
 `default` · `hover`（fine pointer 才有）· `active/pressed` · `focus-visible` · `disabled`（`opacity-50 pointer-events-none`，**不隐藏**）· `loading`（按钮内 `Spinner size="sm"` 替换图标，文字不变，宽度不跳）· `selected`（强调色边 + `aria-selected`/`aria-pressed`）。
 
 - 状态不只靠颜色：selected 加图标或边线，error 加图标 + 文案。
-- 点击有结果的按钮，结果必须可见：打开的东西有进入动画（第 4 节），提交成功 toast（sonner），失败 inline error + 可重试。
+- 点击有结果的按钮，结果必须可见：打开的东西有进入动画（第 4 节）；点了就有结果的（下载 / 保存 / 复制 / 上传）**结果写在键上**（`FeedbackButton`，§7.1），⛔ 弹 toast；失败 inline error + 可重试。
 - 触屏（`coarse:`）：hover 态改为按压态；命中区 44px；tooltip 改为长按或省略。
 - 命中区：fine 32/36px，coarse 44px，AA 底线 24px。
 
@@ -219,17 +219,19 @@
 
 **全站空态落点清单（2026-09-20 收口，进度表 33 ①）**——机器门 `src/test/empty-state.contract.test.ts` 守这张表：名册写死，长出第四类落点就红；每个落点都得给一句话 + 一个 `rounded-full` 主动作。
 
-| 落点                   | 文件                                                                                |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                     |
-| 画廊为空               | `GalleryGrid.tsx`                                                                   |
-| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                              |
-| 角色卡 / 画风卡为空    | `cards/CharacterCardManager.tsx` · `StyleCardManager.tsx` · `SimpleCardManager.tsx` |
-| 灵感墙筛空             | `prompts/inspiration/InspirationGrid.tsx`                                           |
-| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                             |
-| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                 |
-| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                      |
-| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                  |
+| 落点                   | 文件                                                                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                                                               |
+| 画廊为空               | `GalleryGrid.tsx`                                                                                                                             |
+| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                                                                                        |
+| 角色卡 / 画风卡为空    | `cards/CharacterCardManager.tsx` · `StyleCardManager.tsx` · `SimpleCardManager.tsx`                                                           |
+| 灵感墙筛空             | `prompts/inspiration/InspirationGrid.tsx`                                                                                                     |
+| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                                                                       |
+| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                                                                           |
+| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                                                                |
+| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                                                                            |
+| 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                                                                              |
+| 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` · `assets/AssetStateBlocks.tsx` 的整页加载失败 |
 
 **故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：
 
@@ -238,9 +240,22 @@
 - **搜索无结果不是空态**：它回答「你的筛选太窄」，出口只有一个「清除筛选」，套空态配方会硬造一个不该有的主动作。
 - **LoRA 稀疏引导卡**本页有 1–5 条内容，是结果流尾部的引导行。
 - **加载**：`loading.md`。行内 `Spinner md`，区块 `lg` + 一行文案，列表用与内容同尺寸的 `Skeleton`。
-- **错误**：`error-alert.tsx`，说明 + 重试按钮；缺 API key 走 `QuickSetupDialog`，不禁用 UI。
+- **错误**：整块出错（路由段、区块、整页加载失败）与 404 用**空态同一个模板**（`EmptyState tone="error"`）：⛔ 整块变红，只在图标格右上角放一颗红点；「重试」是黑丸，按下键里转圈（字不变），救回来的内容由糊变清（`useErrorRecoveryReveal`）。表单里一行的错误仍是 `error-alert.tsx`；缺 API key 走 `QuickSetupDialog`，不禁用 UI。
 - **不支持的能力不渲染**，不做禁用占位。
-- **成功**：轻量 toast；改变布局的结果就地出现（第 4 节进入动画）。
+- **成功**：点按钮得到的结果写在键上；后台跑完的才弹底部黑条（§7.1）；改变布局的结果就地出现（第 4 节进入动画）。
+
+### 7.1 提示与弹窗（owner 2026-10-08 定稿，原型 `NzjiqK3k2DuKDji7wQdeBL`）
+
+| 场合                                         | 做法                                                                                                                                     | 实现                                                                                                                                                        |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 点按钮得到结果（下载 / 保存 / 复制 / 上传）  | 键自己拉长、变黑写结果（「✓ 已开始下载」「上传中 2/3」→「✓ 已上传 3 张」），约 1.6 秒缩回；宽度走 `SPRING.slot`，字由糊变清换进来        | `components/ui/feedback-button.tsx` 的 `FeedbackButton` + `useButtonFeedback`（`progress` 档不自己缩回）。页面文档单独定过 1.2 秒的复制键传 `COPIED_ACK_MS` |
+| 后台跑完的（出图完成 / 失败、上传完成）      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红 | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                   |
+| 黑条与底部输入框                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                              | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                |
+| 能撤销的小删除（删图、删对话、删一条记忆）   | 键拉长成红色「确认删除」，再点才删；点别处 / Esc / 3 秒缩回。键随内容一起消失时（删图关掉查看器），「撤销」放进底部黑条                  | `ConfirmDeleteButton`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库，⛔ 不需要恢复接口                                                                     |
+| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`                                                                                                           |
+| 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                              |
+
+动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--foreground`，危险 = `--destructive`）。红点在黑条上的对比度：`--destructive` 对 `--foreground` ≈ 4.2:1（非文本图形门槛 3:1；`--status-risk` 只有 3.0，所以不用它）。
 
 ---
 
@@ -275,6 +290,8 @@
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-10-08 · 提示与弹窗（§7.1）：sonner 换成底部正中黑条（最多 3 条、红点失败、`useToastLift` 让开底部输入框）；`FeedbackButton` / `ConfirmDeleteButton` 落地，画廊与素材查看器的下载 / 复制、`CopyPromptButton`、`ImageDetailModal`、素材详情的删除改走键上结果；素材删除可撤销（延后落库）；`AlertDialog` 从按下的那一点长出来、`ConfirmDialog` 支持 `confirmPhrase`；四个 `error.tsx`、`not-found.tsx`、`StudioErrorBoundary`、素材页整页加载失败收进空态模板（落点名册见 §7 表）。
 
 - 2026-09-20 · 动效语法合一（进度表 33 ②）：`src/` 里 `framer-motion` = 0（迁移先于本次完成，本次补的是门），eslint `ANIMATION_LIBRARY_FORBIDDEN_PATHS` 锁死 `framer-motion` 与 `gsap`（后者只放行首页域）；三处硬编时长（0.18 / 0.26 / 0.42s）按**角色**归到 `DURATION.base` / `.slow`，两条裸过冲曲线收进 `EASE_POP` / `EASE_POP_STRONG`。
 

@@ -8,7 +8,6 @@ import { toast } from 'sonner'
 
 import {
   ArrowUpRight,
-  Check,
   Copy,
   Download,
   FileText,
@@ -41,18 +40,20 @@ import {
 } from '@/components/business/viewer/ViewerMedia'
 import { ViewerPrompt } from '@/components/business/viewer/ViewerPrompt'
 import {
-  COPY_ACK_CLASS,
   VIEWER_OUTLINE_ICON,
   VIEWER_OUTLINE_PILL,
   VIEWER_SMALL_PILL,
 } from '@/components/business/viewer/viewer-classes'
-import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
 import { Link, useRouter } from '@/i18n/navigation'
 import { downloadRemoteAsset } from '@/lib/api-client'
@@ -135,7 +136,12 @@ function GalleryViewerAside({
   const { isSignedIn } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
-  const [copied, setCopied] = useState<'link' | 'prompt' | null>(null)
+  const tFeedback = useTranslations('Feedback')
+  // 复制 / 下载的结果在键上说（键拉长变黑，过一会儿缩回）。复制停 1.2 秒是画廊页
+  // 动效表定的，下载走全站 1.6 秒（owner 2026-10-08「提示与弹窗」）。
+  const linkFeedback = useButtonFeedback(COPIED_ACK_MS)
+  const promptFeedback = useButtonFeedback(COPIED_ACK_MS)
+  const downloadFeedback = useButtonFeedback()
 
   // 菜单开着时，Esc 与方向键归它。
   const { setKeyboardBlocked } = api
@@ -151,20 +157,12 @@ function GalleryViewerAside({
   const creatorName =
     creator?.displayName?.trim() || creator?.username?.trim() || ''
 
-  const flashCopied = (what: 'link' | 'prompt') => {
-    setCopied(what)
-    window.setTimeout(
-      () => setCopied((value) => (value === what ? null : value)),
-      COPIED_ACK_MS,
-    )
-  }
-
   const share = async () => {
     try {
       await navigator.clipboard.writeText(
         `${window.location.origin}/${locale}${galleryGenerationPath(generation.id)}`,
       )
-      flashCopied('link')
+      linkFeedback.show({ label: t('linkCopied') })
     } catch {
       toast.error(tDetail('shareFailed'))
     }
@@ -173,7 +171,7 @@ function GalleryViewerAside({
   const copyPrompt = async () => {
     try {
       await navigator.clipboard.writeText(generation.prompt)
-      flashCopied('prompt')
+      promptFeedback.show({ label: t('copied') })
     } catch {
       toast.error(t('copyFailed'))
     }
@@ -198,6 +196,7 @@ function GalleryViewerAside({
     const fileName = `pixelvault-${generation.id.slice(0, 8)}.${ext}`
     if (!isSignedIn) {
       triggerDirectAssetDownload(generation.url, fileName)
+      downloadFeedback.show({ label: tFeedback('downloadStarted') })
       return
     }
     setIsDownloading(true)
@@ -209,6 +208,7 @@ function GalleryViewerAside({
         )
         triggerDirectAssetDownload(generation.url, fileName)
       }
+      downloadFeedback.show({ label: tFeedback('downloadStarted') })
     } finally {
       setIsDownloading(false)
     }
@@ -321,27 +321,20 @@ function GalleryViewerAside({
           />
           <LikeCount count={generation.likeCount ?? 0} />
         </button>
-        {/* 分享 = 复制 `/gallery/<id>`；复制后键原地变黑底对勾（原型 I），过一会儿变回来。 */}
-        <button
-          type="button"
+        {/* 分享 = 复制 `/gallery/<id>`；复制后键原地拉长变黑底对勾（原型 I），过一会儿缩回。 */}
+        <FeedbackButton
+          feedback={linkFeedback.feedback}
           onClick={() => void share()}
-          data-copied={copied === 'link' || undefined}
-          className={cn(VIEWER_OUTLINE_PILL, COPY_ACK_CLASS)}
+          className={cn(
+            VIEWER_OUTLINE_PILL,
+            'hover:bg-muted hover:text-foreground',
+          )}
         >
-          <BlurSwap
-            swapKey={copied === 'link' ? 'copied' : 'share'}
-            className="gap-1.5"
-          >
-            {copied === 'link' ? (
-              <Check className="size-3.5" aria-hidden />
-            ) : (
-              <Share2 className="size-3.5" aria-hidden />
-            )}
-            {copied === 'link' ? t('linkCopied') : tDetail('shareLink')}
-          </BlurSwap>
-        </button>
-        <button
-          type="button"
+          <Share2 className="size-3.5" aria-hidden />
+          {tDetail('shareLink')}
+        </FeedbackButton>
+        <FeedbackButton
+          feedback={downloadFeedback.feedback}
           onClick={() => void download()}
           disabled={isDownloading}
           aria-label={
@@ -355,7 +348,7 @@ function GalleryViewerAside({
           ) : (
             <Download className="size-3.5" aria-hidden />
           )}
-        </button>
+        </FeedbackButton>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
@@ -491,24 +484,17 @@ function GalleryViewerAside({
 
       <div className="flex items-center gap-2 px-5">
         {promptPublic ? (
-          <button
-            type="button"
+          <FeedbackButton
+            feedback={promptFeedback.feedback}
             onClick={() => void copyPrompt()}
-            data-copied={copied === 'prompt' || undefined}
-            className={cn(VIEWER_SMALL_PILL, COPY_ACK_CLASS)}
+            className={cn(
+              VIEWER_SMALL_PILL,
+              'hover:bg-muted hover:text-foreground',
+            )}
           >
-            <BlurSwap
-              swapKey={copied === 'prompt' ? 'copied' : 'copy'}
-              className="gap-1.5"
-            >
-              {copied === 'prompt' ? (
-                <Check className="size-3.5" aria-hidden />
-              ) : (
-                <Copy className="size-3.5" aria-hidden />
-              )}
-              {copied === 'prompt' ? t('copied') : tDetail('copyPrompt')}
-            </BlurSwap>
-          </button>
+            <Copy className="size-3.5" aria-hidden />
+            {tDetail('copyPrompt')}
+          </FeedbackButton>
         ) : null}
         <button
           type="button"

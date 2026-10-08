@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 // ─── Mocks ──────────────────────────────────────────────────────
@@ -65,10 +65,6 @@ const MESSAGES = {
     saveUpscaleToGallery: 'Save Upscale',
     decomposing: 'Decomposing...',
     delete: 'Delete',
-    deleteConfirmTitle: 'Delete Image?',
-    deleteConfirmDescription: 'Cannot be undone.',
-    deleteCancel: 'Cancel',
-    deleteConfirm: 'Confirm Delete',
     close: 'Close',
     editFailed: 'Edit failed',
     downloadFailed: 'Download failed',
@@ -97,6 +93,10 @@ const MESSAGES = {
     close: 'Close',
   },
   Models: {},
+  Feedback: {
+    downloadStarted: 'Download started',
+    deleteConfirm: 'Confirm delete',
+  },
   Toasts: {
     featuredAdded: 'Pinned',
     featuredRemoved: 'Unpinned',
@@ -211,6 +211,19 @@ describe('ImageDetailModal', () => {
   it('shows delete button when showDelete and onDelete provided', () => {
     renderModal({ showDelete: true, onDelete: vi.fn() })
     expect(screen.getByText('Delete')).toBeInTheDocument()
+  })
+
+  it('deletes only on the second press: the key first stretches into a red confirm', () => {
+    const onDelete = vi.fn()
+    const onOpenChange = vi.fn()
+    renderModal({ showDelete: true, onDelete, onOpenChange })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const armed = screen.getByRole('button', { name: 'Confirm delete' })
+    expect(armed).toHaveAttribute('data-feedback', 'danger')
+    expect(onDelete).not.toHaveBeenCalled()
+    fireEvent.click(armed)
+    expect(onDelete).toHaveBeenCalledWith(BASE_GEN.id)
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('hides delete button when showDelete is false', () => {

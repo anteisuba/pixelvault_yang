@@ -15,6 +15,7 @@ import {
   toggleLikeAPI,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { runUndoableAction } from '@/lib/undoable-action'
 import {
   openExternalAsset,
   triggerDirectAssetDownload,
@@ -32,6 +33,12 @@ interface UseAssetDetailActionsOptions {
   onLeave?: (reason: 'remix' | 'delete') => void
   /** 删除落库之后（素材页据此把这一张从大河里拿掉、刷新计数）。 */
   onDeleted?: (id: string) => void
+  /**
+   * 给了 = 删除可撤销（owner 2026-10-08「提示与弹窗」第 2 题）：`onDeleted` 立刻把这一张
+   * 拿掉，底部黑条挂「撤销」5 秒，过了才真的落库；点撤销 / 落库失败都用它把这一张放回去。
+   * 不给（整页 `/assets/<id>`，删完就离开、没有列表可放回）= 照旧立刻删。
+   */
+  onRestored?: (generation: GenerationRecord) => void
   /** 发布 / 收藏 / 封面落库之后（大河跟着改这一张）。 */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
 }
@@ -59,9 +66,11 @@ export function useAssetDetailActions({
   generation,
   onLeave,
   onDeleted,
+  onRestored,
   onUpdated,
 }: UseAssetDetailActionsOptions) {
   const t = useTranslations('AssetsPage')
+  const tFeedback = useTranslations('Feedback')
   const tPrompts = useTranslations('PromptLibrary')
   const tErrors = useTranslations('Errors')
   const locale = useLocale()
@@ -102,6 +111,27 @@ export function useAssetDetailActions({
   const remove = async () => {
     if (!generation || isDeleting) return
     const generationId = generation.id
+    if (onRestored) {
+      const removed = generation
+      onLeave?.('delete')
+      runUndoableAction({
+        message: t('detailDeleted'),
+        undoLabel: tFeedback('undo'),
+        apply: () => onDeleted?.(generationId),
+        undo: () => onRestored(removed),
+        commit: async () => {
+          try {
+            const response = await deleteGenerationAPI(generationId)
+            if (response.success) return
+            toast.error(response.error ?? t('detailDeleteFailed'))
+          } catch {
+            toast.error(t('detailDeleteFailed'))
+          }
+          onRestored(removed)
+        },
+      })
+      return
+    }
     setIsDeleting(true)
     onLeave?.('delete')
     try {
@@ -201,8 +231,9 @@ export function useAssetDetailActions({
     }
   }
 
-  const download = async () => {
-    if (!generation || isDownloading) return
+  /** 开始下载了返回 `true`（调用方在键上写「✓ 已开始下载」）。 */
+  const download = async (): Promise<boolean> => {
+    if (!generation || isDownloading) return false
     const downloadUrl = getDownloadTarget(generation)
     const fileName = getAssetFileName(generation)
     setIsDownloading(true)
@@ -214,6 +245,7 @@ export function useAssetDetailActions({
         )
         triggerDirectAssetDownload(downloadUrl, fileName)
       }
+      return true
     } finally {
       setIsDownloading(false)
     }

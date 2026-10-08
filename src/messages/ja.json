@@ -2925,9 +2925,6 @@
     "detailUnfavorited": "お気に入りから削除",
     "detailFavoriteFailed": "操作に失敗しました",
     "detailDelete": "削除",
-    "detailDeleteCancel": "キャンセル",
-    "detailDeleteConfirmTitle": "このアセットを削除しますか？",
-    "detailDeleteConfirmDescription": "アーカイブから完全に削除され、元に戻すことはできません。",
     "detailDeleted": "削除しました",
     "detailDeleteFailed": "削除に失敗しました",
     "densityLabel": "密度",
@@ -3302,10 +3299,6 @@
     "openOriginal": "元画像を開く",
     "backToGallery": "ギャラリーに戻る",
     "delete": "削除",
-    "deleteConfirmTitle": "この作品を削除しますか？",
-    "deleteConfirmDescription": "この作品と保存されたファイルを完全に削除します。元に戻すことはできません。",
-    "deleteCancel": "キャンセル",
-    "deleteConfirm": "完全に削除",
     "referenceImageLabel": "参照画像",
     "copyPrompt": "プロンプトをコピー",
     "promptCopied": "コピーしました！",
@@ -4243,6 +4236,12 @@
     "conversationDone": "調整したプロンプトができました",
     "startFailed": "会話の開始に失敗しました",
     "responseFailed": "応答の取得に失敗しました"
+  },
+  "Feedback": {
+    "notifications": "通知",
+    "downloadStarted": "ダウンロードを開始しました",
+    "deleteConfirm": "削除を確定",
+    "undo": "元に戻す"
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",

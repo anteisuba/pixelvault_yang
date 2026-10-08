@@ -501,6 +501,7 @@ import {
   type AssistantOperatorWorkbenchHandoff,
   type AssistantOperatorWebImage,
   type AssistantOperatorCanvasNode,
+  type AssistantOperatorReadStateArgs,
   type AssistantOperatorSnapshot,
   type AssistantOperatorSnapshotCapability,
   type AssistantOperatorTurn,
@@ -791,6 +792,8 @@ interface OperatorRun {
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
+  /** 这次请求里 `read_state` 点名读过全文的卡 —— 之后每步的画布状态给它们全文。 */
+  canvasReadNodeIds: Set<string>
   /** 画布这一步刚为哪张卡算出的参考要点 —— 写词时据此补图例。 */
   canvasBrief: {
     target: string
@@ -1436,6 +1439,140 @@ function describeNovelAiInteractions(
     .join(', ')
 }
 
+/**
+ * 画布状态**先给目录**（owner 2026-10-08 实测这一段一步 4.1 万字）：
+ * · 可选模型、参数选项按内容去重，卡上只留一个名字（`m1` / `o1`）；
+ * · 参考图地址与复核用的内部字段不给模型（连线认节点 id，复核在服务端做）；
+ * · 提示词合计超过 `boardFullTextChars` 时，只有选中 / 点名 / 本次读过的卡给全文，
+ *   其余给开头一段与全长（`textClipped`），要看全文用 `read_state` 带 `nodeIds`。
+ */
+function renderCanvasBoard(run: OperatorRun): string {
+  const canvas = run.state.canvas
+  if (!canvas) return 'null'
+  const nodes = canvas.shots.flatMap((shot) =>
+    shot.expanded ? shot.nodes : [],
+  )
+  const totalText = nodes.reduce(
+    (sum, node) => sum + (node.text?.length ?? 0),
+    0,
+  )
+  const latest = latestUserMessage(run.request)
+  const full = new Set<string>([
+    ...canvas.selectedNodeIds,
+    ...run.canvasReadNodeIds,
+    ...nodes
+      .filter((node) => node.name.length >= 2 && latest.includes(node.name))
+      .map((node) => node.id),
+  ])
+  const showAll =
+    totalText <= ASSISTANT_OPERATOR_CANVAS_LIMITS.boardFullTextChars
+  const modelLists = new Map<string, string>()
+  const optionSets = new Map<string, string>()
+  const nameOf = (
+    table: Map<string, string>,
+    prefix: string,
+    value: unknown,
+  ): string => {
+    const json = JSON.stringify(value)
+    const known = table.get(json)
+    if (known) return known
+    const name = `${prefix}${table.size + 1}`
+    table.set(json, name)
+    return name
+  }
+  const slim = (node: AssistantOperatorCanvasNode) => {
+    const {
+      referenceUrls: _referenceUrls,
+      reviewContextComplete: _reviewContextComplete,
+      availableModels,
+      parameters,
+      text,
+      position,
+      ...rest
+    } = node
+    const clip =
+      text !== undefined &&
+      !showAll &&
+      !full.has(node.id) &&
+      text.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars
+    return {
+      ...rest,
+      ...(position
+        ? {
+            position: {
+              x: Math.round(position.x),
+              y: Math.round(position.y),
+            },
+          }
+        : {}),
+      ...(text === undefined
+        ? {}
+        : clip
+          ? {
+              text: text.slice(
+                0,
+                ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars,
+              ),
+              textClipped: text.length,
+            }
+          : { text }),
+      ...(parameters
+        ? {
+            parameters: {
+              values: parameters.values,
+              options: nameOf(optionSets, 'o', parameters.options),
+            },
+          }
+        : {}),
+      ...(availableModels
+        ? { availableModels: nameOf(modelLists, 'm', availableModels) }
+        : {}),
+    }
+  }
+  const shots = canvas.shots.map((shot) =>
+    shot.expanded ? { ...shot, nodes: shot.nodes.map(slim) } : shot,
+  )
+  const unpack = (table: Map<string, string>) =>
+    Object.fromEntries(
+      [...table].map(([json, name]) => [name, JSON.parse(json) as unknown]),
+    )
+  // ⛔ 视频地址只给看片那一步（2b），不给模型：拿到地址它就会想贴进提示词。
+  return JSON.stringify({
+    ...canvas,
+    shots,
+    ...(canvas.editDesk
+      ? { editDesk: { ...canvas.editDesk, videoUrls: undefined } }
+      : {}),
+    modelLists: unpack(modelLists),
+    optionSets: unpack(optionSets),
+  })
+}
+
+/**
+ * 挂在对话里、**不在画布上**的图才单列一行（画布上的图已经由卡上的
+ * `referenceImageIndex` 指着）。⛔ 不给地址：连线认节点 id，看图走 analyze_references。
+ */
+function renderCanvasChatImages(run: OperatorRun): string[] {
+  const onBoard = new Set(
+    (run.state.canvas?.shots ?? []).flatMap((shot) =>
+      shot.expanded
+        ? shot.nodes.flatMap((node) =>
+            node.referenceImageIndex === undefined
+              ? []
+              : [node.referenceImageIndex],
+          )
+        : [],
+    ),
+  )
+  return run.state.referenceUrls.flatMap((url, index) =>
+    onBoard.has(index)
+      ? []
+      : [
+          `@Image${index + 1}: ${url ? 'an image attached in the chat, not a card on the board' : '(pending)'} — analyze_references can inspect it; wiring needs a real card id.`,
+        ],
+  )
+}
+
 function renderState(
   run: OperatorRun,
   materialBudget: number = LIMITS.maxLoraMaterialChars,
@@ -1464,29 +1601,8 @@ function renderState(
   if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
     return [
       'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
-      // ⛔ 视频地址只给看片那一步（2b），不给模型：拿到地址它就会想贴进提示词。
-      `Current board: ${JSON.stringify(
-        state.canvas?.editDesk
-          ? {
-              ...state.canvas,
-              editDesk: { ...state.canvas.editDesk, videoUrls: undefined },
-            }
-          : (state.canvas ?? null),
-      )}`,
-      'A node without model has NO model selected. availableModels lists candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Connect its intended references and set its model before writing the final prompt; verify the fresh state after each operation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
-      'Node parameters.values contains current generation settings; parameters.options lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change; verify the updated values after canvas_sync and include them when summarizing generation. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
-      'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id and URL, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
-      `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
-      `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
-      'Use actual node ids from this snapshot. add_node creates a blank node; after it lands the next snapshot supplies its real id. Never guess a new id or reuse a batch ref across calls.',
-      'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textTruncated shows only its opening — never replace it; ask the creator to @-mention or select it to read the full text, or append. Do not call global set_prompt or mount_reference on a canvas.',
-      "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
-      'Creating nodes, editing prompts and wiring references do not generate media. canvas_generate is a separate confirmation. Complete the requested board setup before offering generation.',
-      ...(state.canvas?.editDesk ? EDIT_DESK_GUIDE : []),
-      ...state.referenceUrls.map(
-        (url, index) =>
-          `@Image${index + 1}: ${url ?? '(pending)'} — assistant reference; analyze_references can inspect it. Wiring requires a real source node id, not this URL.`,
-      ),
+      `Current board: ${renderCanvasBoard(run)}`,
+      ...renderCanvasChatImages(run),
     ].join('\n')
   }
 
@@ -1999,10 +2115,49 @@ function renderState(
 
 // ─── 工具规划 ───────────────────────────────────────────────────
 
-function planReadState(run: OperatorRun): ToolPlan {
+function planReadState(
+  run: OperatorRun,
+  args: AssistantOperatorReadStateArgs,
+): ToolPlan {
+  /**
+   * ⭐ 画布：状态**每步都已经在**上面那段里 —— 再整份读一遍只会把上下文翻倍
+   * （owner 2026-10-08 实测：读一次多 4.1 万字）。不点名就说一句它在上面；点名的
+   * 卡记进 `canvasReadNodeIds`，从下一步起那段状态里给它们全文。
+   */
+  if (run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
+    const nodes = (run.state.canvas?.shots ?? []).flatMap((shot) =>
+      shot.expanded ? shot.nodes : [],
+    )
+    const requested = args.nodeIds ?? []
+    const found = nodes.filter((node) => requested.includes(node.id))
+    const missing = requested.filter(
+      (id) => !nodes.some((node) => node.id === id),
+    )
+    return {
+      kind: 'read',
+      payload: args,
+      run: async () => {
+        for (const node of found) run.canvasReadNodeIds.add(node.id)
+        const names = found.map((node) => node.name).join(', ')
+        return {
+          result: {
+            digest: clamp(
+              found.length
+                ? `Read in full: ${names}`
+                : `Board: ${nodes.length} cards (already in context)`,
+              LIMITS.maxMessageChars,
+            ),
+          },
+          observation: found.length
+            ? `read_state: ${names} now appear with their full text in CURRENT WORKBENCH STATE.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''}`
+            : `read_state: the board in CURRENT WORKBENCH STATE is current as of this step — there was nothing new to read.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''} To see clipped cards in full, call read_state with {nodeIds:[...]}.`,
+        }
+      },
+    }
+  }
   return {
     kind: 'read',
-    payload: {},
+    payload: args,
     run: async () => {
       const digest = renderState(run)
       return {
@@ -7090,6 +7245,22 @@ async function planSetReviewState(
  * 剪辑台怎么用（v2 第 2 片）—— 只在快照里有 `editDesk` 时印出来（省 token）。
  * ⚠ 规则与 MCP 的 instructions 是同一套：主线首尾相接、台词字幕挂在帧上、剪辑不花钱。
  */
+/**
+ * 画布的**固定**操作说明 —— 住在系统提示里，⛔ 不跟着每步的画布状态走
+ * （owner 2026-10-08：放在每步都变的那段里吃不到 provider 的提示词缓存，还每步重发一遍）。
+ */
+const CANVAS_GUIDE: readonly string[] = [
+  'A node without model has NO model selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Connect its intended references and set its model before writing the final prompt; verify the fresh state after each operation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
+  'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change; verify the updated values after canvas_sync and include them when summarizing generation. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
+  'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
+  `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
+  `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
+  'Use actual node ids from this snapshot. add_node creates a blank node; after it lands the next snapshot supplies its real id. Never guess a new id or reuse a batch ref across calls.',
+  'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textClipped (its full length) shows only an opening: call read_state with {nodeIds:[...]} to see it in full before you replace, copy from or judge it. A node marked textTruncated shows only its opening and cannot be read in full from here — never replace it; ask the creator to @-mention or select it, or append. Do not call global set_prompt or mount_reference on a canvas.',
+  "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
+  'Creating nodes, editing prompts and wiring references do not generate media. canvas_generate is a separate confirmation. Complete the requested board setup before offering generation.',
+]
+
 const EDIT_DESK_GUIDE: readonly string[] = [
   'EDIT DESK — board.editDesk.timeline is the cut (null = this project has no timeline yet); board.editDesk.assets are the cards that can go on it (nodeId, track, durationSec). The video track is the main line: its clips play back to back in array order. Voice lines (audio track) and captions hang on a frame of a main-line clip (attachedTo): moving, trimming, splitting or deleting that clip carries them along. A line marked cut lost its frame to a trim and stays silent until moved. Times are timeline seconds; in/out are seconds inside the source.',
   'Cut with canvas_apply, flat arguments. Only when timeline is null, start one: {action:"canvas_apply",op:"edit_set_timeline",project:{name:"...",tracks:{video:[],audio:[],music:[],text:[]},settings:{}}}. Add a clip: {action:"canvas_apply",op:"edit_add_clip",track:"video",clip:{id:"clip_<new unique id>",sourceNodeId:"<asset nodeId>",in:0,out:4.5},index:2} — out at most the asset durationSec; omit index to append; on the audio track also give clip.startSec. Change a clip: {action:"canvas_apply",op:"edit_update_clip",track:"video",clipId:"<id>",patch:{in:1,out:3,speed:1,muted:false,transitionOut:"crossfade"}} (transitionOut is none, crossfade or black; patch.startSec moves a voice line). Reorder: {action:"canvas_apply",op:"edit_move_clip",track:"video",clipId:"<id>",toIndex:0}. Delete: {action:"canvas_apply",op:"edit_remove_clip",track:"video",clipId:"<id>"}. Captions: {action:"canvas_apply",op:"edit_add_text",clip:{id:"text_<new unique id>",text:"...",startSec:2,durationSec:3}}, edit_update_text {clipId,patch:{text,startSec,durationSec}}, edit_remove_text {clipId}.',
@@ -8569,7 +8740,7 @@ async function planTool(
   //    `assertNever`）。别改成 if/else 链。
   switch (tool) {
     case TOOL.readState:
-      return planReadState(run)
+      return planReadState(run, parsed.data as AssistantOperatorReadStateArgs)
     case TOOL.analyzeReferences:
       return planAnalyzeReferences(
         run,
@@ -9905,6 +10076,12 @@ function buildOperatorSystemPrompt(
    */
   const domainRules = [
     request.domain === 'canvas'
+      ? `- CANVAS TOOLS:\n${[
+          ...CANVAS_GUIDE,
+          ...(request.snapshot.canvas?.editDesk ? EDIT_DESK_GUIDE : []),
+        ].join('\n')}`
+      : null,
+    request.domain === 'canvas'
       ? "- CANVAS WORK: For a request involving several nodes, plan the full set of nodes and links, then apply one operation at a time. After each canvas_sync, read the fresh canvas state and continue until the requested nodes, references and links are present; if you cannot finish, name exactly which parts remain. When a generated result differs from the references, compare the actual result with the source images before changing prompts. State which image supplies identity, body proportions and rendering style, and which parts are not evidenced. Connect references before the final set_prompt; canvas prompt writes and generation proposals inspect the target node's actual generation inputs. Never promise exact preservation from a prompt alone."
       : null,
     ['image', 'canvas'].includes(request.domain)
@@ -9915,7 +10092,7 @@ function buildOperatorSystemPrompt(
      * 1:1，全身图里脸只有约 90 像素 —— 脸不像几乎是必然的）。⚠ 用户自己定过的比例不动。
      */
     ['image', 'lora', 'canvas'].includes(request.domain)
-      ? '- FRAME BY COMPOSITION: before you put up a generation card or prepare a node, set aspect ratio and resolution (and quality where the model has it) from what the picture will contain — never run on whatever the bench was left at. One character full body → portrait (2:3; 9:16 for a tall standing pose). Half body or bust → 3:4 or 4:5. A face close-up → 1:1 or 4:5. A character sheet / turnaround with several views side by side → wide (16:9; 21:9 for four or more views). A scene or environment → 16:9 or 3:2. When a face must match a reference and will be small in frame (full body, several figures, a turnaround), take the highest resolution and quality tier the model offers — a face drawn at ~90 px cannot match anyone. Say the ratio and why in half a sentence. If the creator set a ratio themselves, keep theirs and only mention the trade-off.'
+      ? '- FRAME BY COMPOSITION: before you put up a generation card or prepare a node, set aspect ratio and resolution (and quality where the model has it) from what the picture will contain — never run on whatever the bench was left at. One character full body → portrait (2:3; 9:16 for a tall standing pose). Half body or bust → 3:4 or 4:5. A face close-up → 1:1 or 4:5. A character sheet / turnaround with several views side by side → wide (16:9; 21:9 for four or more views). A scene or environment → 16:9 or 3:2. Keep resolution at 1K and quality at high (or the model default where it has no such tiers) unless the creator asks for more — higher tiers cost several times as much (owner rule). When a face must match a reference and will be small in frame (full body, several figures, a turnaround), say once that 2K would help and let the creator decide. Say the ratio and why in half a sentence. If the creator set a ratio themselves, keep theirs and only mention the trade-off.'
       : null,
     request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
       ? `- CHARACTER PROFILES: A profile has four parts — identity (who they are, one or two lines), behaviour (what they DO in concrete situations, never adjectives: "holds the umbrella over others first" beats "gentle"), way of speaking (how they address people, habits, sample phrasing) and history. Appearance belongs to the images and tags, not the profile.
@@ -11530,6 +11707,7 @@ async function* runOperatorTurn(
     priorRounds,
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
+    canvasReadNodeIds: new Set(),
     canvasBrief: null,
     referencePromptWritten: false,
     tagCheckRetried: false,

@@ -2043,15 +2043,21 @@ describe('read_state', () => {
     )
     const done = stepsOf(events).find((step) => step.status === 'done')
     const digest = (done?.result as { digest: string }).digest
-    expect(digest).toContain('source-image')
-    expect(digest).toContain('edit-image')
-    expect(digest).toContain('保持五官')
-    expect(digest).toContain('canvas_apply')
-    expect(digest).toContain('NO model selected')
-    expect(digest).toContain('availableModels lists candidates, not selections')
-    expect(digest).toContain('sourceNodeId')
-    expect(digest).not.toContain('NO NEGATIVE PROMPT FIELD')
-    expect(toolRingCalls()[0].userPrompt).toContain('source-image')
+    // ⭐ 画布状态每步都在，read_state 不再整份重发（owner 2026-10-08）：时间线上只一行。
+    expect(digest).toBe('Board: 2 cards (already in context)')
+    const { userPrompt, systemPrompt } = toolRingCalls()[0]
+    expect(userPrompt).toContain('source-image')
+    expect(userPrompt).toContain('edit-image')
+    expect(userPrompt).toContain('保持五官')
+    expect(userPrompt).not.toContain('NO NEGATIVE PROMPT FIELD')
+    // 固定说明住在系统提示里，不跟着每步的状态重发。
+    expect(systemPrompt).toContain('canvas_apply')
+    expect(systemPrompt).toContain('NO model selected')
+    expect(systemPrompt).toContain('availableModels names an entry')
+    expect(systemPrompt).toContain('sourceNodeId')
+    expect(userPrompt).not.toContain('Arguments are flat')
+    // 第二步里观察只有一句，⛔ 不再把画布再塞一遍。
+    expect(toolRingCalls()[1].userPrompt.split('"保持五官"').length).toBe(2)
   })
 
   it('画布：按快照里那条线的 edgeId 断线，一步落地', async () => {
@@ -2117,7 +2123,158 @@ describe('read_state', () => {
         payload: { op: 'disconnect', edgeId: 'edge-source' },
       }),
     )
-    expect(toolRingCalls()[0].userPrompt).toContain('op:"disconnect",edgeId')
+    expect(toolRingCalls()[0].systemPrompt).toContain('op:"disconnect",edgeId')
+  })
+
+  describe('画布状态先给目录（owner 2026-10-08）', () => {
+    const LONG = 'A full-body portrait. '.repeat(200)
+    const MODELS = ['gpt-image-2.5-flare', 'seedream-5.0-pro']
+    const OPTIONS = { aspectRatio: ['1:1', '9:16'], resolution: ['1K', '2K'] }
+    function card(
+      id: string,
+      name: string,
+      extra: Record<string, unknown> = {},
+    ) {
+      return {
+        id,
+        name,
+        kind: 'image' as const,
+        subtype: 'character',
+        text: `${name}: ${LONG}`,
+        model: 'gpt-image-2.5-flare',
+        availableModels: MODELS,
+        parameters: { values: { aspectRatio: '9:16' }, options: OPTIONS },
+        referenceUrls: ['https://cdn.example.test/ref.png'],
+        reviewContextComplete: true,
+        position: { x: 10.123456, y: 20.987654 },
+        ...extra,
+      }
+    }
+    function boardRequest(content: string, selected: string[] = []) {
+      return buildRequest({
+        domain: 'canvas',
+        messages: [{ role: 'user', content }],
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          canvas: {
+            currentShotNo: null,
+            selectedNodeIds: selected,
+            shots: [
+              {
+                expanded: true,
+                shotNo: null,
+                title: 'Unassigned',
+                nodes: [
+                  card('white', '白短袜', { referenceImageIndex: 0 }),
+                  card('black', '黑长袜'),
+                  card('three', '三视图'),
+                ],
+              },
+            ],
+          },
+        },
+      })
+    }
+    function board(prompt: string) {
+      const line = prompt
+        .split('\n')
+        .find((entry) => entry.startsWith('Current board: '))!
+      return JSON.parse(line.slice('Current board: '.length)) as {
+        shots: { nodes: Record<string, unknown>[] }[]
+        modelLists: Record<string, unknown>
+        optionSets: Record<string, unknown>
+      }
+    }
+
+    it('lists models and options once, drops urls, and clips cards nobody pointed at', async () => {
+      queueTurns({ finished: true })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest('把黑长袜改成高筒', ['three']),
+        ),
+      )
+      const parsed = board(toolRingCalls()[0].userPrompt)
+      const [white, black, three] = parsed.shots[0].nodes
+      expect(parsed.modelLists).toEqual({ m1: MODELS })
+      expect(parsed.optionSets).toEqual({ o1: OPTIONS })
+      expect(white).toMatchObject({
+        availableModels: 'm1',
+        parameters: { values: { aspectRatio: '9:16' }, options: 'o1' },
+        position: { x: 10, y: 21 },
+        textClipped: `白短袜: ${LONG}`.length,
+      })
+      expect(String(white.text)).toHaveLength(240)
+      // 点名的（消息里提到的）和选中的给全文。
+      expect(black.text).toBe(`黑长袜: ${LONG}`)
+      expect(black.textClipped).toBeUndefined()
+      expect(three.text).toBe(`三视图: ${LONG}`)
+      expect(toolRingCalls()[0].userPrompt).not.toContain('cdn.example.test')
+      expect(white).not.toHaveProperty('referenceUrls')
+      expect(white).not.toHaveProperty('reviewContextComplete')
+    })
+
+    it('read_state with nodeIds shows those cards in full from the next step on', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+            title: '看白短袜全文',
+            args: { nodeIds: ['white'] },
+          },
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest('照着那张改')),
+      )
+      expect(
+        stepsOf(events).find((step) => step.status === 'done'),
+      ).toMatchObject({ result: { digest: 'Read in full: 白短袜' } })
+      const before = board(toolRingCalls()[0].userPrompt).shots[0].nodes[0]
+      const after = board(toolRingCalls()[1].userPrompt).shots[0].nodes[0]
+      expect(before.textClipped).toBeDefined()
+      expect(after.text).toBe(`白短袜: ${LONG}`)
+      expect(after.textClipped).toBeUndefined()
+    })
+
+    it('lists only chat images that are not cards, without their addresses', async () => {
+      queueTurns({ finished: true })
+      const request = boardRequest('看看')
+      await collect(
+        runAssistantOperator('clerk-1', {
+          ...request,
+          snapshot: {
+            ...request.snapshot,
+            references: {
+              items: [
+                { url: 'https://cdn.example.test/on-board.png' },
+                { url: 'https://cdn.example.test/chat-only.png' },
+              ],
+              limit: 4,
+            },
+          },
+        } as typeof request),
+      )
+      const prompt = toolRingCalls()[0].userPrompt
+      expect(prompt).not.toContain('@Image1:')
+      expect(prompt).toContain(
+        '@Image2: an image attached in the chat, not a card on the board',
+      )
+      expect(prompt).not.toContain('chat-only.png')
+    })
+
+    it('frames at 1K and high quality unless the creator asks for more', async () => {
+      queueTurns({ finished: true })
+      await collect(runAssistantOperator('clerk-1', boardRequest('出图')))
+      expect(toolRingCalls()[0].systemPrompt).toContain(
+        'Keep resolution at 1K and quality at high',
+      )
+      expect(toolRingCalls()[0].systemPrompt).not.toContain(
+        'take the highest resolution and quality tier',
+      )
+    })
   })
 
   it('画布：按展开的镜里每个节点挂的模型给写法，⛔ 不再是空的一段', async () => {
@@ -12055,7 +12212,9 @@ describe('current reference image bindings', () => {
       imageData: [refs[3].url],
     })
     expect(lastUserPrompt()).toContain('"imageIndex":3')
-    expect(lastUserPrompt()).toContain('use the exact canvas node name')
+    expect(toolRingCalls().at(-1)?.systemPrompt).toContain(
+      'use the exact canvas node name',
+    )
   })
 
   describe('canvas target reference checks', () => {
@@ -18351,13 +18510,13 @@ describe('剪辑台（v2 第 2 片）：画布助手读得到时间线，剪辑 
   it('prints the edit desk guide and the timeline into the canvas state', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', editRequest()))
-    const prompt = toolRingCalls()[0]!.userPrompt
-    expect(prompt).toContain('EDIT DESK')
+    const { userPrompt: prompt, systemPrompt } = toolRingCalls()[0]!
+    expect(systemPrompt).toContain('EDIT DESK')
     expect(prompt).toContain('"clipId":"c1"')
     expect(prompt).toContain('"nodeId":"v2"')
     // ⛔ 视频地址只给看片那一步，不进模型读的状态块。
     expect(prompt).not.toContain('cdn.example.test')
-    expect(prompt).toContain('canvas_look_at')
+    expect(systemPrompt).toContain('canvas_look_at')
   })
 
   it('looks at a clip (2b): frames are mapped from the snapshot and the words come back', async () => {

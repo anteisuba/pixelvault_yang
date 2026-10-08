@@ -2266,11 +2266,27 @@ const CanvasApplyOpSchema = NodeAssistantOpV4Schema.superRefine((op, ctx) => {
   })
 })
 
+/**
+ * `read_state` 的参数。画布上状态本来就每步都在，⛔ 再读一遍整份只会让上下文翻倍；
+ * `nodeIds` 点名要看全文的那几张卡（像浏览器助手按 ref 读页面的一块）。
+ */
+export const AssistantOperatorReadStateArgsSchema = z.object({
+  nodeIds: z
+    .array(IdSchema)
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes)
+    .optional(),
+})
+
+export type AssistantOperatorReadStateArgs = z.infer<
+  typeof AssistantOperatorReadStateArgsSchema
+>
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
 > = {
-  [ASSISTANT_OPERATOR_TOOL_IDS.readState]: z.object({}),
+  [ASSISTANT_OPERATOR_TOOL_IDS.readState]: AssistantOperatorReadStateArgsSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]: z.object({
     query: z.string().trim().min(1).max(LIMITS.maxSearchQueryChars),
     kind: AssistantOperatorSearchKindSchema.optional(),
@@ -3378,7 +3394,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   ),
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.readState,
-    z.object({}),
+    AssistantOperatorReadStateArgsSchema,
     /** 助手实际看到的那段状态文本 —— 日志详情直接展示它，省得猜它读到了什么。 */
     z.object({ digest: z.string().max(LIMITS.maxMessageChars) }),
   ),

@@ -2173,6 +2173,15 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   /** 剪辑台：快照里最多列几张剪得进时间线的卡（v2 第 2 片）。 */
   maxEditAssets: 60,
   /**
+   * 画布状态先给目录（owner 2026-10-08 实测：一步 4.1 万字，提示词全文占 1.5 万）。
+   * 全部卡的提示词加起来不超过这个数就照旧全给；超了，只有选中 / 点名 / 本次读过的卡
+   * 给全文，其余给开头一段和总长度，要看全文用 `read_state` 带 `nodeIds` 读。
+   */
+  boardFullTextChars: 6_000,
+  boardTextPreviewChars: 240,
+  /** `read_state` 一次最多点名读几张卡的全文。 */
+  maxReadNodes: 8,
+  /**
    * 看片地址最多几条：每张卡当前版一条，外加在用旧版的主线段各一条（4a）。
    */
   maxEditVideoUrls: 120,

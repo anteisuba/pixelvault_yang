@@ -484,7 +484,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               disabled={isGenerating}
               onPaste={videoPaste}
               onSubmit={submitFromComposer}
-              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
+              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-base ease-standard focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
             />
           ) : (
             <StudioReferencePromptInput
@@ -492,7 +492,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               disabled={isGenerating}
               onPaste={handlePromptPaste}
               onSubmit={submitFromComposer}
-              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
+              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-base ease-standard focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
             />
           )}
           {isImagePromptOverLimit && (

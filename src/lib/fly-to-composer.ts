@@ -75,3 +75,65 @@ export function flyImageToComposer(
   animation.oncancel = cleanup
   window.setTimeout(cleanup, DURATION_MS.slow * 2 + DURATION_MS.base)
 }
+
+/**
+ * 「钉住」：这一排来源卡的影子缩着飞到面板顶上那条钉住条（owner 2026-10-07 动效
+ * 第 3 批「引用和钉住」）。与上面那颗同一套纪律：纯装饰、真正的钉住由调用方先做、
+ * 影子一定会被摘掉、减少动效时不飞。
+ */
+export function flyCloneToTarget(from: HTMLElement, to: HTMLElement): void {
+  if (
+    typeof window === 'undefined' ||
+    typeof from.animate !== 'function' ||
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  )
+    return
+  const a = from.getBoundingClientRect()
+  const b = to.getBoundingClientRect()
+  if (a.width === 0 || b.width === 0) return
+
+  const ghost = from.cloneNode(true) as HTMLElement
+  ghost.setAttribute('aria-hidden', 'true')
+  ghost.removeAttribute('id')
+  ghost.removeAttribute('data-testid')
+  Object.assign(ghost.style, {
+    position: 'fixed',
+    left: `${a.left}px`,
+    top: `${a.top}px`,
+    width: `${a.width}px`,
+    height: `${a.height}px`,
+    margin: '0',
+    pointerEvents: 'none',
+    transformOrigin: 'top left',
+    zIndex: '9999',
+  })
+  document.body.appendChild(ghost)
+
+  const scale = Math.min(1, b.height / Math.max(a.height, 1))
+  const dx = b.left - a.left
+  const dy = b.top - a.top
+  const animation = ghost.animate(
+    [
+      {
+        transform: 'translate(0, 0) scale(1)',
+        opacity: 1,
+        filter: 'blur(0px)',
+      },
+      {
+        transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+        opacity: 0,
+        filter: 'blur(4px)',
+      },
+    ],
+    { duration: DURATION_MS.slow * 2, easing: EASE_STANDARD_CSS },
+  )
+  let done = false
+  const cleanup = () => {
+    if (done) return
+    done = true
+    ghost.remove()
+  }
+  animation.onfinish = cleanup
+  animation.oncancel = cleanup
+  window.setTimeout(cleanup, DURATION_MS.slow * 2 + DURATION_MS.base)
+}

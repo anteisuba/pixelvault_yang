@@ -29,7 +29,7 @@ import {
 } from './StudioOperatorHandoffCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
-import { flyImageToComposer } from './fly-to-composer'
+import { flyImageToComposer } from '@/lib/fly-to-composer'
 import {
   Fragment,
   useCallback,
@@ -2588,7 +2588,7 @@ export function StudioOperatorPanel({
               <span
                 key={chip.id}
                 data-testid="operator-mention-chip"
-                className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
+                className="mention-chip-in flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
               >
                 {chip.thumbnailUrl ? (
                   <Image

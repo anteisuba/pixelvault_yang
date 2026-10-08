@@ -3,6 +3,7 @@
 import { useReducedMotion } from 'motion/react'
 
 import { ArrowUp } from '@/components/icons'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { resolveGenerationProgress } from '@/lib/generation-progress'
 import {
@@ -100,6 +101,8 @@ export function StudioGenerateButton({
         type="button"
         data-operator-primed={isOperatorPrimed ? 'true' : undefined}
         data-state={stoppable ? 'busy' : blocked ? 'blocked' : 'ready'}
+        // 新一轮结果从这颗键散开（`STUDIO_GENERATE_ANCHOR_ATTR` · `flyTileFromGenerate`）。
+        data-studio-generate=""
         onClick={(event) => {
           event.stopPropagation()
           if (stoppable) {
@@ -132,42 +135,47 @@ export function StudioGenerateButton({
           className,
         )}
       >
-        {isGenerating ? (
-          stoppable ? (
-            <>
-              <svg
-                aria-hidden
-                viewBox="0 0 36 36"
-                className="pointer-events-none absolute inset-0 size-full -rotate-90"
-              >
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="16.5"
-                  pathLength={100}
-                  className="fill-none stroke-primary-foreground/25"
-                  strokeWidth={2}
-                />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="16.5"
-                  pathLength={100}
-                  strokeDasharray={100}
-                  strokeDashoffset={100 - percent}
-                  className="fill-none stroke-primary-foreground transition-[stroke-dashoffset] duration-slow ease-linear motion-reduce:transition-none"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span aria-hidden className="size-2.5 rounded-xs bg-current" />
-            </>
-          ) : (
+        {/* 外圈进度留在 BlurSwap 外面：`filter` 会给绝对定位的子元素另起包含块，
+            圈就缩成中间那颗方块的大小了。 */}
+        {stoppable ? (
+          <svg
+            aria-hidden
+            viewBox="0 0 36 36"
+            className="pointer-events-none absolute inset-0 size-full -rotate-90"
+          >
+            <circle
+              cx="18"
+              cy="18"
+              r="16.5"
+              pathLength={100}
+              className="fill-none stroke-primary-foreground/25"
+              strokeWidth={2}
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="16.5"
+              pathLength={100}
+              strokeDasharray={100}
+              strokeDashoffset={100 - percent}
+              className="fill-none stroke-primary-foreground transition-[stroke-dashoffset] duration-slow ease-linear motion-reduce:transition-none"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </svg>
+        ) : null}
+        {/* 同一颗键变形：↑ / ■ / 转圈之间换的时候糊一下（工作台原型「生成键变形」）。 */}
+        <BlurSwap
+          swapKey={stoppable ? 'stop' : isGenerating ? 'spin' : 'ready'}
+        >
+          {stoppable ? (
+            <span aria-hidden className="size-2.5 rounded-xs bg-current" />
+          ) : isGenerating ? (
             <Spinner className="size-4" />
-          )
-        ) : (
-          <ArrowUp className="size-4" aria-hidden />
-        )}
+          ) : (
+            <ArrowUp className="size-4" aria-hidden />
+          )}
+        </BlurSwap>
         {count > 1 && !isGenerating ? (
           <span
             aria-hidden

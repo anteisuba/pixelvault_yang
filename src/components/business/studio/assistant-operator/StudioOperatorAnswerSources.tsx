@@ -19,6 +19,7 @@
  * ⛔ **不画空壳**：一条资料都没有就整块不渲染（同「无数据不渲染」那条判据）。
  */
 
+import { useRef } from 'react'
 import { Globe, Pin, Play } from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
@@ -29,6 +30,7 @@ import {
 } from '@/constants/assistant-operator'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
+import { flyCloneToTarget } from '@/lib/fly-to-composer'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 
 /**
@@ -157,6 +159,25 @@ export function StudioOperatorAnswerSources({
   receiptLabel,
 }: StudioOperatorAnswerSourcesProps) {
   const t = useTranslations('StudioOperator')
+  const cardsRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * 钉住时这一排来源卡的影子飞到面板顶上的钉住条（owner 2026-10-07 动效第 3 批）。
+   * ⚠ 钉住条第一次出现要等这一拍渲染完：排两帧再找落点；找不到就不飞（纯装饰）。
+   */
+  const togglePin = () => {
+    onTogglePin?.()
+    const from = cardsRef.current
+    if (pinned || !from || typeof window === 'undefined') return
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => {
+        const to = document.querySelector<HTMLElement>(
+          '[data-testid="operator-pinned-evidence"]',
+        )
+        if (to) flyCloneToTarget(from, to)
+      }),
+    )
+  }
 
   /**
    * ⚠ 媒体条只收**有画面**的那几条：没有封面的视频（Serper 的网页结果给不出）
@@ -238,6 +259,7 @@ export function StudioOperatorAnswerSources({
       ) : null}
 
       <div
+        ref={cardsRef}
         data-testid="operator-answer-source-cards"
         aria-label={t('answer.sources')}
         className="flex min-w-0 gap-1.5 overflow-x-auto pb-0.5"
@@ -310,7 +332,7 @@ export function StudioOperatorAnswerSources({
               type="button"
               data-testid="operator-answer-pin"
               aria-pressed={pinned}
-              onClick={onTogglePin}
+              onClick={togglePin}
               className={cn(
                 'flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
                 pinned

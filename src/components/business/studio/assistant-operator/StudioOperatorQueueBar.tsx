@@ -30,7 +30,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { motionTransition } from '@/constants/motion'
+import { LIQUID_TIMING, motionTransition } from '@/constants/motion'
 import type { StudioOperatorQueuedMessage } from '@/types/studio-assistant-operator'
 
 interface StudioOperatorQueueBarProps {
@@ -60,8 +60,12 @@ export function StudioOperatorQueueBar({
           data-testid="operator-queue-item"
           // ⚠ 只动 opacity / transform（§11.5），⛔ 不做高度动画：这一条就长在
           //    输入框上方，高度动画会把输入框推着走，正在打字的人会打错位置。
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={
+            reduceMotion
+              ? false
+              : { opacity: 0, y: 8, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
+          }
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={motionTransition('base', reduceMotion)}
           className="flex items-center gap-1.5 rounded-md border border-dashed border-status-warning/70 bg-status-warning-surface px-2 py-1.5 text-2sm text-status-warning"
         >

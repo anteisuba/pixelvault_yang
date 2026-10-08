@@ -3175,6 +3175,66 @@ html:lang(ja) {
   display: none;
 }
 
+/* ── @ 候选浮层从打字处长出来（owner 2026-10-07 动效第 3 批）─────────
+   浮层一打开就是一次挂载，所以只要一条进场动画：由糊变清、从 0.96 放大，原点在
+   左边（`@` 的位置）。只有进场，关上直接卸下。减少动效由文件末尾的全局降级接住。 */
+@keyframes mention-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.mention-popover-in {
+  transform-origin: left center;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+/* 选中之后落成的那颗 @ 标签同一下糊进来（挂载即播，已在的标签 key 不变不重播）。 */
+.mention-chip-in {
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+
+/* 工作台出图（owner 2026-10-07 工作台原型）：结果图由糊变清、略大落到原尺寸
+   （与助手结果卡 `RESULT_REVEAL` 同一组数：blur 10px · scale 1.04）。 */
+@keyframes studio-result-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.studio-result-reveal-in {
+  animation: studio-result-reveal-in var(--duration-slow) var(--ease-standard);
+}
+/* 「定为最佳」的勾从小顶出来：一点点过冲，⛔ 不弹跳。 */
+@keyframes studio-winner-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.studio-winner-badge-in {
+  animation: studio-winner-badge-in var(--duration-slow) var(--ease-standard);
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

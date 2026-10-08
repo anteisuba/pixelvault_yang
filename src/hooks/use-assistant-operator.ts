@@ -71,6 +71,7 @@ import {
   STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_STREAMING,
+  type StudioOperatorField,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -127,6 +128,7 @@ import {
   describeOperatorInverse,
   getOperatorStepField,
 } from '@/lib/studio-operator-apply'
+import { bumpAssistantAvatar } from '@/lib/studio-operator-avatar-bump'
 import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
   describeCharacterImagesDecisionText,
@@ -1526,6 +1528,12 @@ export function useAssistantOperator(
                 const field = flushSync(() =>
                   applyOperatorStep(step, applyContext),
                 )
+                // 记住了一条偏好：头像顶一下（owner 2026-10-07 动效第 3 批）。
+                if (
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
+                  typeof window !== 'undefined'
+                )
+                  window.requestAnimationFrame(bumpAssistantAvatar)
                 if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply) {
                   canvasApplied =
                     field === STUDIO_OPERATOR_FIELD_IDS.canvasNodes
@@ -2383,8 +2391,16 @@ export function useAssistantOperator(
           background: advancedParams.background,
         },
       })
+      /**
+       * 确认卡上调一档，工作台那一格同步变（owner 2026-10-07 动效第 3 批「确认卡与
+       * 工作台同步」）：与助手改工作台同一条路 —— 光标走过去、那一格闪一下。
+       * ⚠ 排到下一帧：这一拍表单刚落、那一格正要重渲染。
+       */
+      const touched: StudioOperatorField[] = []
       for (const step of steps) {
         const field = applyOperatorStep(step, applyContext)
+        if (field && field !== STUDIO_OPERATOR_FIELD_IDS.canvasNodes)
+          touched.push(field)
         if (!field || !record) continue
         recordOperatorChange({
           field,
@@ -2394,6 +2410,10 @@ export function useAssistantOperator(
           previousLabel: describeOperatorInverse(step),
         })
       }
+      if (touched.length > 0 && typeof window !== 'undefined')
+        window.requestAnimationFrame(() => {
+          for (const field of touched) flashAssistantTouchedField(field)
+        })
       return adjusted
     },
     [applyContext, domain, host.generationControls, tConfirm, isCurrentThread],

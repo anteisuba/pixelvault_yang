@@ -70,13 +70,6 @@ import type {
 /** 未归镜的散节点落在这一档（`shotNo` 缺席）。 */
 const LOOSE_SHOT_TITLE = 'Unassigned'
 
-/**
- * 一个节点上模型改得动的那几格。
- *
- * 非图片节点只提供摘要；图片提示词需要全文参与追加与参考复核。
- */
-const MAX_NODE_TEXT_CHARS = 400
-
 export type CanvasNodeGenerationState = Pick<
   AssistantOperatorCanvasNode,
   'id' | 'name' | 'kind' | 'model' | 'parameters'
@@ -184,25 +177,25 @@ export function buildCanvasGenerationRequest(
 }
 
 /**
- * 节点上那段字。⭐ 被 @ 或选中的文本节点给**全文**（到快照上限为止）：助手要改的
- * 就是它，只给开头 400 字的表现是整段改写时把没读到的后半段覆盖掉（2026-10-07）。
- * 读不全的一律带 `truncated`，服务端据此拒掉整段替换。
+ * 节点上那段字 —— **一律给全文**（到快照上限为止）。
+ *
+ * ⭐ 不再只给选中 / @ 到的那张（2026-10-08 马尔福画布）：创作者说「改剧本」时很少先去
+ * 点选剧本卡，没选中的剧本卡只给开头 400 字、标成读不全，助手只能往末尾追加 —— 于是
+ * 新的 12 镜表接在旧的 10 镜表后面，剧本被认成 22 镜。字多不等于 token 多：服务端
+ * 的目录（`renderCanvasBoard`）照旧只露开头、标 `textClipped`，要全文先 read_state。
+ * 读不全（超过节点上限）的仍带 `truncated`，服务端据此拒掉整段替换。
  */
-function nodeText(
-  node: NodeV4,
-  full: boolean,
-): { text?: string; truncated?: true } {
+function nodeText(node: NodeV4): { text?: string; truncated?: true } {
   const data = node.data
   if (data.kind === NODE_MEDIA_KIND_IDS.image) return { text: data.prompt }
   const raw = data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : data.prompt
   const trimmed = raw?.trim()
   if (!trimmed) return {}
-  const limit =
-    full && data.kind === NODE_MEDIA_KIND_IDS.text
-      ? NODE_V4_PROMPT_MAX_LENGTH
-      : MAX_NODE_TEXT_CHARS
-  return trimmed.length > limit
-    ? { text: `${trimmed.slice(0, limit)}…`, truncated: true }
+  return trimmed.length > NODE_V4_PROMPT_MAX_LENGTH
+    ? {
+        text: `${trimmed.slice(0, NODE_V4_PROMPT_MAX_LENGTH - 1)}…`,
+        truncated: true,
+      }
     : { text: trimmed }
 }
 
@@ -311,10 +304,9 @@ function toSnapshotNode(
   referenceUrls: readonly string[],
   nodes: readonly NodeV4[],
   edges: readonly NodeWorkflowEdgeV4[],
-  fullText: boolean,
 ): AssistantOperatorCanvasNode {
   const data = node.data
-  const { text, truncated } = nodeText(node, fullText)
+  const { text, truncated } = nodeText(node)
   const availableModels = availableModelsByNodeId?.[node.id]
   const inputs = incoming
     .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
@@ -450,8 +442,7 @@ export function buildCanvasOperatorSnapshot({
   }
 
   const scriptProjections = buildScriptProjectionSummaries(nodes)
-  const fullTextNodeIds = new Set([...selectedNodeIds, ...mentionedNodeIds])
-  const focusedNodeIds = new Set(fullTextNodeIds)
+  const focusedNodeIds = new Set([...selectedNodeIds, ...mentionedNodeIds])
   const newestNode = nodes.at(-1)
   if (newestNode) focusedNodeIds.add(newestNode.id)
   const inputNodeIds = new Set(
@@ -524,7 +515,6 @@ export function buildCanvasOperatorSnapshot({
             referenceUrls,
             nodes,
             edges,
-            fullTextNodeIds.has(node.id),
           ),
         ),
     })

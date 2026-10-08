@@ -325,7 +325,7 @@ describe('canvas assistant image references', () => {
     expect(characters?.list[1]).toMatchObject({ name: 'Rixi', onCanvas: false })
   })
 
-  it('⭐ 文本节点进 @ 列表；这句话里 @ 到的文本节点在快照里给全文', () => {
+  it('⭐ 文本节点进 @ 列表；不论有没有 @ 到，快照里都给全文', () => {
     const body = `${'剧情推进。'.repeat(150)}结尾`
     const text = {
       id: 'script-1',
@@ -348,7 +348,8 @@ describe('canvas assistant image references', () => {
         .buildSnapshot(latestMessage ? { latestMessage } : undefined)
         .canvas?.shots.flatMap((shot) => (shot.expanded ? shot.nodes : []))
         .find((entry) => entry.id === 'script-1')
-    expect(nodeOf()?.textTruncated).toBe(true)
+    expect(nodeOf()).toMatchObject({ text: body })
+    expect(nodeOf()).not.toHaveProperty('textTruncated')
     expect(nodeOf('把 @剧本设定 的第二幕改紧凑一点')).toMatchObject({
       text: body,
     })

@@ -9,6 +9,7 @@ import {
   getAvailableVideoModels,
   VIDEO_KIND,
 } from '@/constants/models'
+import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { planV4Generation } from '@/hooks/node/use-node-media-generation-v4'
 import {
@@ -573,7 +574,7 @@ describe('buildCanvasOperatorSnapshot', () => {
     )
   })
 
-  it('图片提示词保留全文，复核上下文读取上游全文，其他节点仍为摘要', () => {
+  it('图片提示词保留全文，复核上下文读取上游全文，文本节点也给全文', () => {
     const ownPrompt = `  ${'原始提示词'.repeat(3000)}\n不要改动脸  `
     const upstream = `${'上游内容'.repeat(200)}\n腿部尚未认可`
     const snapshot = buildCanvasOperatorSnapshot({
@@ -590,7 +591,7 @@ describe('buildCanvasOperatorSnapshot', () => {
       referencePromptContext: upstream,
       reviewContextComplete: true,
     })
-    expect(snapshotNode(snapshot, 'script')?.text).toHaveLength(401)
+    expect(snapshotNode(snapshot, 'script')?.text).toBe(upstream)
     expect(snapshotNode(snapshot, 'script')).not.toHaveProperty('referenceUrls')
     expect(snapshotNode(snapshot, 'script')).not.toHaveProperty(
       'reviewContextComplete',
@@ -600,12 +601,14 @@ describe('buildCanvasOperatorSnapshot', () => {
     ).toBe(true)
   })
 
-  it('⭐ 选中或 @ 到的文本节点给全文；其余只给开头并标明读不全', () => {
+  it('⭐ 文本节点不论选没选中都给全文；只有超过节点上限才标明读不全', () => {
     const long = `${'第一幕铺垫。'.repeat(120)}\n结尾：列车进站`
+    const huge = '长'.repeat(NODE_V4_PROMPT_MAX_LENGTH + 5)
     const nodes = [
       scriptNode('selected', long),
       scriptNode('mentioned', long),
       scriptNode('other', long),
+      scriptNode('huge', huge),
     ]
     const snapshot = buildCanvasOperatorSnapshot({
       nodes,
@@ -619,10 +622,14 @@ describe('buildCanvasOperatorSnapshot', () => {
       'textTruncated',
     )
     expect(snapshotNode(snapshot, 'mentioned')?.text).toBe(long)
-    expect(snapshotNode(snapshot, 'other')).toMatchObject({
+    expect(snapshotNode(snapshot, 'other')?.text).toBe(long)
+    expect(snapshotNode(snapshot, 'other')).not.toHaveProperty('textTruncated')
+    expect(snapshotNode(snapshot, 'huge')).toMatchObject({
       textTruncated: true,
     })
-    expect(snapshotNode(snapshot, 'other')?.text).toHaveLength(401)
+    expect(snapshotNode(snapshot, 'huge')?.text).toHaveLength(
+      NODE_V4_PROMPT_MAX_LENGTH,
+    )
     expect(
       AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
     ).toBe(true)

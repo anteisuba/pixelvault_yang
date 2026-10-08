@@ -7226,6 +7226,9 @@
     },
     "stageHistory": "編集履歴",
     "stageHistoryOriginal": "元画像",
+    "compareBefore": "修正前",
+    "compareAfter": "修正後",
+    "compareSlider": "ドラッグして前後を比較",
     "stageHistoryStep": "編集 {index}"
   },
   "sceneFeedback": {

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  floatComposerChips,
   flyTileFromGenerate,
   landRecipeInComposer,
 } from '@/lib/studio-workbench-motion'
@@ -85,5 +86,60 @@ describe('landRecipeInComposer', () => {
     expect(vi.mocked(HTMLElement.prototype.animate).mock.contexts).toContain(
       prompt,
     )
+  })
+})
+
+function mountComposerWithChips() {
+  const card = document.createElement('div')
+  card.setAttribute('data-studio-composer', '')
+  const prompt = document.createElement('div')
+  prompt.id = 'studio-prompt'
+  const spec = document.createElement('span')
+  spec.setAttribute('data-studio-recipe-chip', '1')
+  const model = document.createElement('span')
+  model.setAttribute('data-studio-recipe-chip', '0')
+  card.append(prompt, spec, model)
+  document.body.append(card)
+  return { card, prompt, model, spec }
+}
+
+describe('landRecipeInComposer · 一样接一样', () => {
+  it('提示词先清、chip 按顺序一颗颗落、卡最后才顶', () => {
+    const { card, prompt, model, spec } = mountComposerWithChips()
+    landRecipeInComposer()
+    const calls = vi.mocked(HTMLElement.prototype.animate).mock
+    const delayOf = (el: HTMLElement) => {
+      const index = calls.contexts.indexOf(el)
+      const options = calls.calls[index][1] as KeyframeAnimationOptions
+      return Number(options.delay ?? 0)
+    }
+    expect(delayOf(prompt)).toBe(0)
+    expect(delayOf(model)).toBeGreaterThan(0)
+    expect(delayOf(spec)).toBeGreaterThan(delayOf(model))
+    expect(delayOf(card)).toBeGreaterThan(delayOf(spec))
+  })
+
+  it('减少动效时什么都不动', () => {
+    stubMotion(true)
+    mountComposerWithChips()
+    landRecipeInComposer()
+    expect(HTMLElement.prototype.animate).not.toHaveBeenCalled()
+  })
+})
+
+describe('floatComposerChips', () => {
+  it('工具行 chip 从框里浮上来', () => {
+    const { model, spec } = mountComposerWithChips()
+    floatComposerChips()
+    const contexts = vi.mocked(HTMLElement.prototype.animate).mock.contexts
+    expect(contexts).toContain(model)
+    expect(contexts).toContain(spec)
+  })
+
+  it('减少动效时不浮', () => {
+    stubMotion(true)
+    mountComposerWithChips()
+    floatComposerChips()
+    expect(HTMLElement.prototype.animate).not.toHaveBeenCalled()
   })
 })

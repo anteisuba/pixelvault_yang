@@ -145,6 +145,9 @@ export function StudioImageEditStage({
    *   「自然语言 / 标签」，三处来回切的入口收成一处。
    */
   const showTopRow = history.length > 1 || Boolean(onChangeSource)
+  /** 当前这张的上一步 —— 放大 / 修图结果用它做前后对比（动效样片 W）。 */
+  const currentStep = history.findIndex((entry) => entry.url === target.url)
+  const compareFromUrl = currentStep > 0 ? history[currentStep - 1].url : null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -204,6 +207,7 @@ export function StudioImageEditStage({
         composerContainer={composerContainer}
         active={active}
         onRunStateChange={handleRunState}
+        compareFromUrl={compareFromUrl}
       />
     </div>
   )

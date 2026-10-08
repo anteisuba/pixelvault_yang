@@ -62,18 +62,20 @@
 
 原型 https://claude.ai/artifact/DoKtoDHnUqFp6TCHc5c9Kp 。总则同 PC 动效方向：同一元素变形、换内容短暂一糊、弹簧最多一点过冲、不加颜色、同一时间只动一处。已落代码（桌面底部输入框台）：
 
-| 时刻                 | 实现                                                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 输入框点进去长高     | 提示词框 `focus-within:min-h-18`，`min-height` 过渡（`StudioPromptArea` bottom 支）                                   |
-| 生成键变形           | ↑ / ■ / 转圈换的时候 `BlurSwap` 糊一下；外圈进度留在 BlurSwap 外（`StudioGenerateButton`）                            |
-| 顶部进度胶囊         | 图墙跑着时顶上一颗近黑胶囊「正在出图 · n / m」，数字换时糊一下（`CompareGrid`，`compare-grid-progress`）              |
-| 结果从生成键散开     | 这一轮新起的格子从生成键（`data-studio-generate`）缩着飞到自己的位置，错开出场；逐格重试不飞（`flyTileFromGenerate`） |
-| 图由糊变清           | `.studio-result-reveal-in`（blur 10px · scale 1.04，同 `RESULT_REVEAL`）；单张舞台原有的「线合拢后去糊」不动          |
-| 点一张，动作栏升上来 | 动作栏挂载时从下浮上、由糊变清；换聚焦那张不重播                                                                      |
-| 详情从图长出来       | 图墙格 / 单张舞台图把自己的矩形交给 `ImageDetailModal.transitionOrigin`                                               |
-| 定为最佳             | 角标勾 `.studio-winner-badge-in` 顶出来（挂载时已定好的那张不补播），按钮字糊着换成「已定为最佳」                     |
-| 当参考图             | 图的影子飞进输入框（`src/lib/fly-to-composer.ts`，与助手同一颗）                                                      |
-| 做同款落进输入框     | V 简化版：配方写进来后提示词由糊变清、输入框卡（`data-studio-composer`）顶一下（`landRecipeInComposer`）              |
+| 时刻                 | 实现                                                                                                                                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 输入框点进去长高     | 提示词框 `focus-within:min-h-18`，`min-height` 走 `spring-slot`；长完模型 / 规格 chip 从框里浮上来（Z，`floatComposerChips`，2026-10-08）                                                                |
+| 生成键变形           | ↑ / ■ / 转圈换的时候 `BlurSwap` 糊一下；外圈进度留在 BlurSwap 外（`StudioGenerateButton`）                                                                                                               |
+| 顶部进度胶囊         | 图墙跑着时顶上一颗近黑胶囊「正在出图 · n / m」，数字换时糊一下（`CompareGrid`，`compare-grid-progress`）                                                                                                 |
+| 结果从生成键散开     | 这一轮新起的格子从生成键（`data-studio-generate`）缩着飞到自己的位置，错开出场；逐格重试不飞（`flyTileFromGenerate`）                                                                                    |
+| 图由糊变清           | `.studio-result-reveal-in`（blur 10px · scale 1.04，同 `RESULT_REVEAL`）；单张舞台原有的「线合拢后去糊」不动                                                                                             |
+| 点一张，动作栏升上来 | 动作栏挂载时从下浮上、由糊变清；换聚焦那张不重播                                                                                                                                                         |
+| 详情从图长出来       | 图墙格 / 单张舞台图把自己的矩形交给 `ImageDetailModal.transitionOrigin`                                                                                                                                  |
+| 定为最佳             | 角标勾 `.studio-winner-badge-in` 顶出来（挂载时已定好的那张不补播），按钮字糊着换成「已定为最佳」                                                                                                        |
+| 当参考图             | 图的影子飞进输入框（`src/lib/fly-to-composer.ts`，与助手同一颗）                                                                                                                                         |
+| 做同款落进输入框     | V 简化版：配方写进来后提示词由糊变清 → 模型 / 规格 chip（`data-studio-recipe-chip`）从上方一颗颗落进来 → 输入框卡（`data-studio-composer`）顶一下（`landRecipeInComposer`，chip 那一拍 2026-10-08 补上） |
+| 换比例               | 规格 chip 上那颗比例框弹簧变形成新比例，字照旧糊一下换（M，`StudioMorphRatioGlyph`，2026-10-08）                                                                                                         |
+| 拖图进输入框         | 接住图的区域填实后缩成小缩略图、飞到参考图排 / 视频素材排末尾（T，`flyDropIntoRow`，排上挂 `data-studio-drop-row`，2026-10-08）                                                                          |
 
 没做 / 另放：
 

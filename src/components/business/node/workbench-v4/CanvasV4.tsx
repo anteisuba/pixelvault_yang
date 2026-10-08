@@ -20,7 +20,7 @@
  * 都接（会连出两条边）。
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -39,6 +39,13 @@ import {
   type NodeMouseHandler,
   type XYPosition,
 } from '@xyflow/react'
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -48,6 +55,7 @@ import {
   NODE_STUDIO_TOOL_MODE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
+import { SPRING } from '@/constants/motion'
 import { NODE_PORT_HANDLE_IDS } from '@/constants/node-slots'
 import {
   edgePairKey,
@@ -142,11 +150,45 @@ function nodeIdAtFlowPoint(
   return hit
 }
 
+/** 卡的入口在流坐标里的位置；handle 还没量出来时退到卡左边中点。 */
+function inputPortFlowPoint(node: {
+  readonly internals: {
+    readonly positionAbsolute: XYPosition
+    readonly handleBounds?: {
+      readonly target?:
+        | readonly {
+            readonly id?: string | null
+            readonly x: number
+            readonly y: number
+            readonly width: number
+            readonly height: number
+          }[]
+        | null
+    }
+  }
+  readonly measured: { height?: number | undefined }
+}): XYPosition {
+  const { x, y } = node.internals.positionAbsolute
+  const targets = node.internals.handleBounds?.target ?? []
+  const port =
+    targets.find((handle) => handle.id === NODE_PORT_HANDLE_IDS.input) ??
+    targets[0]
+  if (port) {
+    return { x: x + port.x + port.width / 2, y: y + port.y + port.height / 2 }
+  }
+  return { x, y: y + (node.measured.height ?? 0) / 2 }
+}
+
 /**
  * 拖动中的那条线（spec §1.13）：1.5px 虚线，进入**合法卡**变实线。
  *
  * ⚠ 判据不是 RF 的 `connectionStatus`（那只在指针压在 handle 上时才有值）——
  * 落点是整张卡，所以这里按指针位置自己找卡，再问画布算好的合法集合。
+ *
+ * 线头（动效样片 AB，owner 2026-10-08）：平时死跟指针；进了合法卡，线头用
+ * `SPRING.slot` 吸到那张卡的入口；离开时同一根弹簧追回指针，追上了再改回死跟。
+ * ⚠ 吸附只是**画法**：落点判定仍在 `onConnectEnd`（整卡都算），⛔ 不因为线头
+ * 吸过去了就改判据。`prefers-reduced-motion` 下线头直接跳，不走弹簧。
  */
 function CanvasConnectionLineV4({
   fromX,
@@ -158,23 +200,93 @@ function CanvasConnectionLineV4({
 }: ConnectionLineComponentProps & {
   readonly connectState: NodeConnectState
 }) {
-  const overLegal = useStore(
+  // 返回字符串而不是对象：选择器每次跑都新建对象会让 store 每帧都判「变了」。
+  const snapKey = useStore(
     useCallback(
       (state) => {
         const hovered = nodeIdAtFlowPoint(state.nodeLookup, pointer)
-        return hovered !== null && connectState.legalTargetIds.has(hovered)
+        if (hovered === null || !connectState.legalTargetIds.has(hovered))
+          return null
+        const node = state.nodeLookup.get(hovered)
+        if (!node) return null
+        const port = inputPortFlowPoint(node)
+        return `${port.x},${port.y}`
       },
       [pointer, connectState],
     ),
   )
+  const overLegal = snapKey !== null
+  const reduceMotion = useReducedMotion()
+  const startX = useMotionValue(fromX)
+  const startY = useMotionValue(fromY)
+  const headX = useMotionValue(toX)
+  const headY = useMotionValue(toY)
+  /** 刚离开合法卡、线头还在追指针的路上。 */
+  const returning = useRef(false)
+  const snappedTo = useRef<string | null>(null)
+
+  useLayoutEffect(() => {
+    startX.set(fromX)
+    startY.set(fromY)
+    if (reduceMotion) {
+      snappedTo.current = snapKey
+      returning.current = false
+      const [x, y] = snapKey ? snapKey.split(',').map(Number) : [toX, toY]
+      headX.jump(x)
+      headY.jump(y)
+      return
+    }
+    if (snapKey) {
+      if (snappedTo.current === snapKey) return
+      snappedTo.current = snapKey
+      returning.current = false
+      const [x, y] = snapKey.split(',').map(Number)
+      animate(headX, x, SPRING.slot)
+      animate(headY, y, SPRING.slot)
+      return
+    }
+    if (snappedTo.current !== null) {
+      snappedTo.current = null
+      returning.current = true
+    }
+    if (returning.current) {
+      if (Math.abs(headX.get() - toX) < 1 && Math.abs(headY.get() - toY) < 1) {
+        returning.current = false
+      } else {
+        // 指针每动一下就把弹簧的终点挪过去：动画接着当前速度走，读起来是一根弹簧在追。
+        animate(headX, toX, SPRING.slot)
+        animate(headY, toY, SPRING.slot)
+        return
+      }
+    }
+    headX.jump(toX)
+    headY.jump(toY)
+  }, [
+    fromX,
+    fromY,
+    toX,
+    toY,
+    snapKey,
+    reduceMotion,
+    startX,
+    startY,
+    headX,
+    headY,
+  ])
+
+  const d = useTransform(
+    [startX, startY, headX, headY],
+    ([ax, ay, bx, by]: number[]) =>
+      `M${ax},${ay} C ${ax + 60},${ay} ${bx - 60},${by} ${bx},${by}`,
+  )
   return (
-    <path
+    <motion.path
       fill="none"
       stroke="var(--node-foreground)"
       strokeWidth={1.5}
       strokeLinecap="round"
       {...(overLegal ? {} : { strokeDasharray: '6 6' })}
-      d={`M${fromX},${fromY} C ${fromX + 60},${fromY} ${toX - 60},${toY} ${toX},${toY}`}
+      d={d}
     />
   )
 }
@@ -594,6 +706,15 @@ export function CanvasV4({
     applyForcedNodeInternals,
   )
 
+  // ⚠ 组件身份要稳：内联箭头每次重渲都是一个新组件类型，RF 会把线整条重挂，
+  //   线头那两根弹簧的位置与速度跟着丢。只随拖线起止（`connectState`）换。
+  const connectionLineComponent = useCallback(
+    (props: ConnectionLineComponentProps) => (
+      <CanvasConnectionLineV4 {...props} connectState={connectState} />
+    ),
+    [connectState],
+  )
+
   return (
     <NodeConnectStateProvider value={connectState}>
       <CanvasSurface appearance={canvasAppearance} />
@@ -626,9 +747,7 @@ export function CanvasV4({
         maxZoom={NODE_STUDIO_CANVAS.maxZoom}
         defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
         connectionLineType={ConnectionLineType.Bezier}
-        connectionLineComponent={(props) => (
-          <CanvasConnectionLineV4 {...props} connectState={connectState} />
-        )}
+        connectionLineComponent={connectionLineComponent}
         proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
         nodesDraggable
         nodesConnectable

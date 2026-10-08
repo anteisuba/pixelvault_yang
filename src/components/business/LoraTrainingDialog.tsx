@@ -53,8 +53,10 @@ import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLoraTraining } from '@/hooks/use-lora-training'
+import { useSpringSortableTransition } from '@/hooks/use-spring-sortable-transition'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 import { useTrainingSubmitGate } from '@/hooks/use-training-submit-gate'
+import { TRAINING_CELLS } from '@/constants/motion'
 import { LORA_TRAINING } from '@/constants/config'
 import { USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import {
@@ -383,8 +385,36 @@ export function LoraTrainingForm({
     () => jobs.find((j) => j.status === 'FAILED'),
     [jobs],
   )
+  /**
+   * 刚训练完的那一拍（动效样片 AE）：状态卡多留 `TRAINING_CELLS.doneHoldMs`，进度条
+   * 收成 ✓，再换完成仪式卡 —— ⛔ 两张卡同时动。「上一轮在跑的是谁」放在 state 里，
+   * 在渲染中推导（与 `useState` 记上一值的写法同一种）。
+   */
+  const [lastActiveId, setLastActiveId] = useState<string | null>(null)
+  const [finishingId, setFinishingId] = useState<string | null>(null)
+  if (activeJob && activeJob.id !== lastActiveId) {
+    setLastActiveId(activeJob.id)
+  } else if (!activeJob && lastActiveId !== null) {
+    const finished = jobs.find(
+      (j) => j.id === lastActiveId && j.status === 'COMPLETED',
+    )
+    setLastActiveId(null)
+    if (finished) setFinishingId(finished.id)
+  }
+  useEffect(() => {
+    if (finishingId === null) return
+    const id = window.setTimeout(
+      () => setFinishingId(null),
+      TRAINING_CELLS.doneHoldMs,
+    )
+    return () => window.clearTimeout(id)
+  }, [finishingId])
+  const finishingJob =
+    finishingId === null ? undefined : jobs.find((j) => j.id === finishingId)
+
   const statusCardJob =
     activeJob ??
+    finishingJob ??
     (latestFailedJob && latestFailedJob.id !== dismissedFailedId
       ? latestFailedJob
       : undefined)
@@ -447,7 +477,7 @@ export function LoraTrainingForm({
           <h2 className="text-lg font-semibold tracking-tight">{t('title')}</h2>
         ) : null}
 
-        {showCelebration && latestCompletedJob ? (
+        {showCelebration && latestCompletedJob && !finishingJob ? (
           <CompletionCelebration
             job={latestCompletedJob}
             onTrainAnother={() => {
@@ -1144,7 +1174,7 @@ function TrainingImageTile({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: url })
+  } = useSortable({ id: url, transition: useSpringSortableTransition() })
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),

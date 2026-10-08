@@ -11,7 +11,6 @@ import {
   Copy,
   Download,
   FileText,
-  Heart,
   LockKeyhole,
   MoreHorizontal,
   Plus,
@@ -54,6 +53,7 @@ import {
   FeedbackButton,
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
+import { FavoriteHeart } from '@/components/ui/favorite-heart'
 import { Spinner } from '@/components/ui/spinner'
 import { Link, useRouter } from '@/i18n/navigation'
 import { downloadRemoteAsset } from '@/lib/api-client'
@@ -314,11 +314,7 @@ function GalleryViewerAside({
           aria-label={isLiked ? tCard('unlike') : tCard('like')}
           className={VIEWER_OUTLINE_PILL}
         >
-          <Heart
-            weight={isLiked ? 'fill' : 'bold'}
-            className="size-3.5"
-            aria-hidden
-          />
+          <FavoriteHeart liked={isLiked} />
           <LikeCount count={generation.likeCount ?? 0} />
         </button>
         {/* 分享 = 复制 `/gallery/<id>`；复制后键原地拉长变黑底对勾（原型 I），过一会儿缩回。 */}

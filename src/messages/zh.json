@@ -7226,6 +7226,9 @@
     },
     "stageHistory": "编辑历史",
     "stageHistoryOriginal": "原图",
+    "compareBefore": "修改前",
+    "compareAfter": "修改后",
+    "compareSlider": "拖动对比修改前后",
     "stageHistoryStep": "第 {index} 次"
   },
   "sceneFeedback": {

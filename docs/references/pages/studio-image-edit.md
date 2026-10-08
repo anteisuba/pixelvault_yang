@@ -53,6 +53,8 @@ Ideogram 4.5 使用官方直连和用户自有 Key，图片生成与编辑共享
 
 画笔复用 `StudioInpaintEditor`，导出真实源图像素尺寸蒙版；能力复用 `canvas-image-edit-capabilities` 和 `canvas-capability-runtime`。源图尺寸优先使用实测位图尺寸。Studio 与 Canvas 共享 `ImageEditSurface`，不复制提交、轮询或归档逻辑；画布派生节点本身承担历史。
 
+**前后对比（动效样片 W，owner 2026-10-08）**：工作台舞台这一轮编辑历史里当前这张有上一步时，「放大」「修图」两样的主图换成 `ui/image-compare.tsx` —— 修改后铺底、修改前按分隔线裁掉右半，分隔线左右拖，拖过两端被拉出去一点、变细，松手 `SPRING.slot` 弹回（与参数滑块同一根橡皮筋 `RUBBER_BAND`）；分隔线是 `role="slider"`，←/→/Home/End 可键盘。局部重绘 / 物体替换的画布不换；画布弹窗的结果落派生节点，不显示对比。
+
 本轮不增加多图编辑、SAM 吸附、箭头指令、跨刷新编辑历史或数据库 schema。所有新用户文案同步 en / ja / zh。
 
 ## 验收

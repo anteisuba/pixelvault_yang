@@ -10,7 +10,6 @@ import {
   Copy,
   Download,
   FileText,
-  Heart,
   ImagePlus,
   Link2,
   MoreHorizontal,
@@ -54,6 +53,7 @@ import {
   FeedbackButton,
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
+import { FavoriteHeart } from '@/components/ui/favorite-heart'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import { getFolderMembershipsAPI } from '@/lib/api-client/projects'
@@ -301,11 +301,7 @@ function AssetViewerAside({
           aria-pressed={isLiked}
           className={VIEWER_OUTLINE_PILL}
         >
-          <Heart
-            weight={isLiked ? 'fill' : 'bold'}
-            className="size-3.5"
-            aria-hidden
-          />
+          <FavoriteHeart liked={isLiked} />
           {isLiked ? t('viewer.favorited') : t('detailFavorite')}
         </button>
         <button

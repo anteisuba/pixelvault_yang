@@ -179,7 +179,11 @@ export function StudioVideoAssetRail({
       data-testid="studio-video-asset-rail"
       className="flex min-w-0 items-start gap-2.5"
     >
-      <div className="flex min-w-0 flex-wrap items-start gap-2.5">
+      {/* 拖图进来时那颗缩略图影子飞到这一排末尾（`flyDropIntoRow`，动效样片 T）。 */}
+      <div
+        data-studio-drop-row=""
+        className="flex min-w-0 flex-wrap items-start gap-2.5"
+      >
         {assets.images.map((image) => {
           const roles = assets.rolesFor(image)
           const label = t('image', { n: image.n })

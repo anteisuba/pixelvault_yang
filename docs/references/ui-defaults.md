@@ -278,6 +278,23 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 
 米色卡长相不动，只加动效与功能：卡从「登录」键长出来（`growFromPointer`）；换步卡高 `SPRING.slot` + 内容一糊；黑键字 → 转圈 → ✓；验证码输错六格变红清空回第一格 + 一行红点（⛔ 晃）；重发 60 秒逐位滚；登进来底部黑条「已登录」。⛔ 密码。施工与 Clerk 后台设置见 [`pages/auth.md`](pages/auth.md)。
 
+### 7.4 补动效（owner 2026-10-08 动效样片 `2jv32LhznXpQ5so1nDRBeM`）
+
+只用 `SPRING` 预设 / CSS `--spring-*` 那三档（最多一丝过冲）；同一时刻只有一样在动；颜色只走脊柱（⛔ 发光 / 渐变）；`prefers-reduced-motion` 下全部退成直接到位。
+
+| 样片 | 场合                 | 做法                                                                                                                                                     | 实现                                                                                                           |
+| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| AB   | 画布拖线             | 线头平时死跟指针；进了合法卡 `SPRING.slot` 吸到那张卡的入口，离开同一根弹簧追回指针；合法卡的 2px 黑环用 `--spring-slot` 长出来（原来那圈 8px 淡晕撤掉） | `CanvasV4` 的 `CanvasConnectionLineV4` · `canvas.css .node-card-glow`                                          |
+| V    | 「做同款」落进输入框 | 提示词糊 → 清，模型 / 规格 chip 从上方一颗颗落下（错开 120ms），最后一颗落定卡顶一下                                                                     | `lib/studio-workbench-motion.ts` 的 `landRecipeInComposer`（chip 挂 `data-studio-recipe-chip`）· `RECIPE_LAND` |
+| M    | 规格 chip 换比例     | chip 上那颗比例框用 `SPRING.slot` 拉成新形状，比例字照旧糊一下换掉                                                                                       | `StudioMorphRatioGlyph`（`tool-surface.tsx`）                                                                  |
+| H    | 收藏                 | 心先缩到 0.78 再弹回 + 涂满；卡片、素材瓦片、两个查看器同一颗                                                                                            | `components/ui/favorite-heart.tsx`                                                                             |
+| P    | 拖着排序             | 其余项用弹簧让位、落下滑到新位：dnd-kit 走 `useSpringSortableTransition`（`SORTABLE_SPRING`），原生拖放列表走 `useSpringReorder`（FLIP）                 | 素材页文件夹 · LoRA 训练图 · LoRA 装配栏                                                                       |
+| T    | 拖图进输入框         | 接住图的区域先填实，再整块缩成 28px 缩略图、`spring-expand` 飞到参考图 / 素材排末尾                                                                      | `lib/fly-to-composer.ts` 的 `flyDropIntoRow`（排上挂 `data-studio-drop-row`）· `DROP_FLY`                      |
+| W    | 放大 / 修图结果      | 前后对比：分隔线左右拖，拖过两端被拉出去一点、变细，松手弹回（与参数滑块同一根橡皮筋 `RUBBER_BAND`）；←/→/Home/End 可键盘                                | `components/ui/image-compare.tsx` · 编辑舞台有上一步时显示                                                     |
+| Z    | 点进工作台输入框     | 框先长高（`spring-slot`），长完模型 / 规格 chip 从框里浮上来                                                                                             | `floatComposerChips` · `FOCUS_FLOAT`                                                                           |
+| AE   | LoRA 训练进度        | 进度条拆 10 格一格格填（一格 = 10%，⛔ 编步数），百分比逐位滚；训练完整条收拢后顶出一颗 ✓，卡多留 1.2 秒再换完成仪式卡                                   | `TrainingStatusCard` · `TRAINING_CELLS`                                                                        |
+| AF   | 素材拖上画布         | 拿起：跟手影子放大到 1.06 + 浮层投影；落进画布：影子 `spring-expand` 展开成刚建好的那张卡再淡掉；没落进去：缩回淡掉。落卡照旧走 op 表                    | `hooks/node/node-media-drag-ghost.ts`（替掉 2026-09-12 的纯透明拖影）                                          |
+
 ---
 
 ## 8. 完成定义 — 8 项，缺一不合
@@ -311,6 +328,8 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-10-08 · 补动效（§7.4，动效样片 AB / V / M / H / P / T / W / Z / AE / AF）：画布拖线线头吸附 + 合法卡黑环弹簧长出；做同款 chip 依次落下；规格 chip 比例框变形；收藏心收成 `FavoriteHeart` 一颗；排序让位换弹簧；拖图进输入框飞进参考图排；编辑舞台前后对比；输入框点进 chip 浮出；LoRA 训练格子进度 + ✓；素材拖上画布拿起放大、落下展开成卡。作品卡 / 素材格悬停（R）按 owner 先前「保持现在」不改。新常量全在 `constants/motion.ts`（`RECIPE_LAND` · `FOCUS_FLOAT` · `TRAINING_CELLS` · `SORTABLE_SPRING` · `SPRING_CSS_MS` · `DROP_FLY` · `RUBBER_BAND` · `MEDIA_DRAG_LIFT`）。
 
 - 2026-10-08 · 加载中（§7.2，原型 `ThV7ucUtgNZS4zbGry9XPh`）：`Skeleton` 与全站骨架去掉 `animate-pulse` / `animate-skeleton-breathe`（后者连 keyframe 一起删）；新原语 `load-reveal`（`useMediaReveal` / `LoadReveal` / `ArrivalReveal`）收编画廊卡、素材瓦片、LoRA 封面、`OptimizedImage` 四份各自的「由糊变清」；`FeedTail`（一屏前预取 + 灰块尾巴 + 「这批没拿到 · 重试」+「没有更多了」）画廊与素材库共用；`PageLoadError` 收编画廊 / 素材库整页失败；`useSlowLoadingNotice` 6 秒黑条；查看器先小图后原图；重试键转圈时写「重试中」。
 

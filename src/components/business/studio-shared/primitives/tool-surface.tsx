@@ -2,8 +2,9 @@
 
 import { createContext, useContext, type CSSProperties } from 'react'
 import type * as React from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 
-import { CHIP_POPOVER } from '@/constants/motion'
+import { CHIP_POPOVER, SPRING } from '@/constants/motion'
 import {
   ResponsivePopover,
   ResponsivePopoverContent,
@@ -437,6 +438,36 @@ export function StudioRatioGlyph({ ratio }: { ratio: string }) {
           width: `${(w || BOX) * scale}px`,
           height: `${(h || BOX) * scale}px`,
         }}
+      />
+    </span>
+  )
+}
+
+/**
+ * 规格 chip 上那颗**会变形**的比例框（动效样片 M，owner 2026-10-08）：换比例时框本身
+ * 用 `SPRING.slot` 拉成新形状（只一丝过冲），旁边的比例字照旧糊一下换掉。首次挂载
+ * 直接停在当前形状；`prefers-reduced-motion` 下直接换。与 `StudioRatioGlyph` 同一套
+ * 几何（12px 见方的盒子里等比放下）。
+ */
+export function StudioMorphRatioGlyph({ ratio }: { ratio: string }) {
+  const reducedMotion = useReducedMotion()
+  const [w, h] = ratio.split(':').map(Number)
+  const BOX = 12
+  const scale = !w || !h ? 1 : w >= h ? BOX / w : BOX / h
+  return (
+    <span
+      className="flex size-3.5 shrink-0 items-center justify-center"
+      aria-hidden
+      data-ratio-glyph={ratio}
+    >
+      <motion.span
+        className="rounded-xs border border-current"
+        initial={false}
+        animate={{
+          width: (w || BOX) * scale,
+          height: (h || BOX) * scale,
+        }}
+        transition={reducedMotion ? { duration: 0 } : SPRING.slot}
       />
     </span>
   )

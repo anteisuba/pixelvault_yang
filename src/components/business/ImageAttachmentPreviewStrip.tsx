@@ -112,6 +112,8 @@ export function ImageAttachmentPreviewStrip({
   return (
     <>
       <div
+        // 拖图进来时那颗缩略图影子飞到这一排末尾（`flyDropIntoRow`，动效样片 T）。
+        data-studio-drop-row=""
         className={cn(
           'flex gap-2 overflow-x-auto overscroll-contain',
           variant === 'composer'

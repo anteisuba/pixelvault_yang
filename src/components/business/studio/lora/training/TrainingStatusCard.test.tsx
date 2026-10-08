@@ -60,7 +60,7 @@ describe('TrainingStatusCard', () => {
     expect(
       screen.getByText(en.LoraTraining.statusCardTrainingTitle),
     ).toBeInTheDocument()
-    expect(screen.getByText('42%')).toBeInTheDocument()
+    expect(screen.getByText('42')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute(
       'aria-valuenow',
       '42',
@@ -69,7 +69,7 @@ describe('TrainingStatusCard', () => {
 
   it('clamps out-of-range progress instead of overflowing the bar', () => {
     renderCard(baseJob({ status: 'TRAINING', progress: 1.8 }))
-    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByText('100')).toBeInTheDocument()
     // 夹紧不只是为了视觉：越界值会被 Radix 判成 indeterminate，aria-valuenow
     // 会整个消失（辅助技术读不到完成度）。
     expect(screen.getByRole('progressbar')).toHaveAttribute(
@@ -101,5 +101,18 @@ describe('TrainingStatusCard', () => {
   it('offers no actions while the job is still running', () => {
     renderCard(baseJob({ status: 'TRAINING', progress: 0.1 }))
     expect(screen.queryAllByRole('button')).toHaveLength(0)
+  })
+
+  it('fills one cell per tenth of progress (no invented step counts)', () => {
+    const { container } = renderCard(
+      baseJob({ status: 'TRAINING', progress: 0.42 }),
+    )
+    expect(container.querySelectorAll('[data-filled]')).toHaveLength(4)
+  })
+
+  it('collapses the bar into a check once the job completes', () => {
+    renderCard(baseJob({ status: 'COMPLETED', progress: 1 }))
+    expect(screen.getByTestId('training-cells-done')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 })

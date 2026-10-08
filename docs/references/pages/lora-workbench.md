@@ -396,5 +396,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 ## Last Verified
 
+- 2026-10-08 · 补动效（`ui-defaults.md` §7.4）：训练状态卡的进度条拆成 10 格一格格填（一格 = 10%，记录里没有步数，⛔ 编步数）、百分比逐位滚，训练完整条收拢顶出 ✓，状态卡多留 1.2 秒再换完成仪式卡（AE）；训练图排序的让位与装配栏拖动排序落下改走弹簧（P）。
+
 - Date: 2026-09-20 · Method: 训练分支物理拆出到 `lora/training/TrainWizard.tsx` + `hooks/use-lora-train-wizard.ts`（进度表 34），新增「组件树现状」节并回写行数 4794 → 4625；`vitest run src/components/business/studio/lora` 全绿。
 - Date: 2026-07-17 · Method: 逐文件核实上表代码锚点（LoraWorkbench 结构 grep + 关键区间精读；双库/栈/词库引擎/兼容引擎全读）；未改产品代码。civitai tag 供给数字（§3.1）标注为待 S2 实测项，非已验证值。

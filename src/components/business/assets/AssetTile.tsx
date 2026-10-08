@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
 import { Box, Check, Film, Heart, Mic, Play } from '@/components/icons'
 import NextImage from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import { ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN } from '@/constants/assets-grid'
-import { SPRING } from '@/constants/motion'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { useNearViewport } from '@/hooks/use-near-viewport'
 import {
@@ -16,14 +14,12 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
+import { FavoriteHeart } from '@/components/ui/favorite-heart'
 import { useMediaReveal } from '@/components/ui/load-reveal'
 import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
 
 import styles from './AssetTile.module.css'
-
-/** 收藏那一下先缩到这么大再弹回。 */
-const HEART_POP_FROM = 0.78
 
 /**
  * 一张素材瓦片 —— 媒体表达契约见 `docs/references/pages/assets.md` §6。
@@ -90,12 +86,6 @@ export function AssetTile({
   const isVideo = generation.outputType === 'VIDEO'
   const is3D = generation.outputType === 'MODEL_3D'
   const isLiked = Boolean(generation.isLiked)
-  const reducedMotion = useReducedMotion()
-  // 「上一次的收藏态」放进 state：真的切换过一次之后心才弹（滚回来重挂 ⛔ 弹）。
-  const [likedSeen, setLikedSeen] = useState({ value: isLiked, changed: false })
-  if (likedSeen.value !== isLiked)
-    setLikedSeen({ value: isLiked, changed: true })
-  const heartPop = likedSeen.changed && !reducedMotion
   // 视频的悬停预览：媒体层不接指针，所以悬停记在整格上。
   const [isPreviewing, setIsPreviewing] = useState(false)
   const durationLabel =
@@ -281,15 +271,7 @@ export function AssetTile({
           )}
         >
           {/* 收藏（原型 H）：先缩一下再弹回，同时涂黑；首次挂载不弹。 */}
-          <motion.span
-            key={isLiked ? 'on' : 'off'}
-            initial={heartPop ? { scale: HEART_POP_FROM } : false}
-            animate={{ scale: 1 }}
-            transition={SPRING.slot}
-            className="grid place-items-center"
-          >
-            <Heart weight={isLiked ? 'fill' : 'bold'} className="size-3.5" />
-          </motion.span>
+          <FavoriteHeart liked={isLiked} />
         </button>
       ) : isLiked ? (
         <span

@@ -4,18 +4,18 @@ import * as React from 'react'
 import { animate, useMotionValue, useReducedMotion } from 'motion/react'
 import { Slider as SliderPrimitive } from 'radix-ui'
 
-import { SPRING } from '@/constants/motion'
+import { RUBBER_BAND, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 /**
  * 拖过头的橡皮筋（owner 2026-10-08 定「滑块拉长 B」用到全站参数滑块）：
  * 指针越过两端还往外拉，条顺着拉的方向被拉长、变细一点，圆钮跟着出去；松手弹回。
- * 中间正常拖 ⛔ 不变形。拉出去的距离按 `STRETCH_RATIO` 打折、最多 `STRETCH_MAX_PX`。
+ * 中间正常拖 ⛔ 不变形。参数见 `RUBBER_BAND`（与前后对比的分隔线共用）。
  */
-const STRETCH_RATIO = 0.35
-const STRETCH_MAX_PX = 18
+const STRETCH_RATIO = RUBBER_BAND.ratio
+const STRETCH_MAX_PX = RUBBER_BAND.maxPx
 /** 拉满时条的粗细只剩这么多（1 = 不变细）。 */
-const STRETCH_MIN_THICKNESS = 0.6
+const STRETCH_MIN_THICKNESS = RUBBER_BAND.minThickness
 
 interface SliderProps extends React.ComponentProps<
   typeof SliderPrimitive.Root

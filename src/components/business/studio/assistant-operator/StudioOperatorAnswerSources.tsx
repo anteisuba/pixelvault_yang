@@ -30,7 +30,7 @@ import {
 } from '@/constants/assistant-operator'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
-import { flyCloneToTarget } from './fly-to-composer'
+import { flyCloneToTarget } from '@/lib/fly-to-composer'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 
 /**

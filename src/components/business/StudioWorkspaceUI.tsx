@@ -10,6 +10,7 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
+import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { isStudioResultInWorkspace } from '@/lib/studio-operator-result-run'
 import { ROUTES } from '@/constants/routes'
 import {
@@ -438,6 +439,7 @@ export function StudioWorkspaceUI() {
           block: 'center',
           behavior: 'smooth',
         })
+        landRecipeInComposer()
       })
     }
   }, [dispatch])

@@ -29,7 +29,7 @@ import {
 } from './StudioOperatorHandoffCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
-import { flyImageToComposer } from './fly-to-composer'
+import { flyImageToComposer } from '@/lib/fly-to-composer'
 import {
   Fragment,
   useCallback,

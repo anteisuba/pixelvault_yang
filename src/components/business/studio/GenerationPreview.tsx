@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useState, type CSSProperties } from 'react'
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   BookmarkPlus,
   Bot,
@@ -25,6 +25,10 @@ import { AudioPlayer } from '@/components/ui/audio-player'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { subscribeStudioResultDetail } from '@/lib/studio-result-detail'
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
+import {
+  toMediaTransitionOrigin,
+  type MediaTransitionOrigin,
+} from '@/components/business/MediaDetailViewer'
 import { StudioEmptyState } from '@/components/business/studio/StudioEmptyState'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import {
@@ -39,6 +43,7 @@ import {
 } from '@/components/ui/drawer'
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
+import { flyImageToComposer } from '@/lib/fly-to-composer'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -142,6 +147,13 @@ export const GenerationPreview = memo(function GenerationPreview({
   // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
   const askAssistantAboutImage = useAskAssistantAboutImage()
   const [detailOpen, setDetailOpen] = useState(false)
+  /**
+   * 工作台原型（owner 2026-10-07）：详情从舞台上这张图长出来；「当参考图」时这张图
+   * 飞进输入框。只在桌面工具列那两颗上用 —— 手机抽屉盖着图，起点不可信。
+   */
+  const stageImageRef = useRef<HTMLImageElement>(null)
+  const [detailOrigin, setDetailOrigin] =
+    useState<MediaTransitionOrigin | null>(null)
   /**
    * 台账 L：生成完成 toast 上的「查看作品」打开的就是下面这个浮层，不再整页
    * 跳去 `/gallery/<id>`（那条路必然 404 且会清空整个工作台，理由见
@@ -490,6 +502,7 @@ export const GenerationPreview = memo(function GenerationPreview({
               its layout pushes the image past max-h, cropping it. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            ref={stageImageRef}
             key={generation.id}
             src={isGenerating && previewUrl ? previewUrl : generation.url}
             alt={generation.prompt ?? ''}
@@ -638,7 +651,15 @@ export const GenerationPreview = memo(function GenerationPreview({
       <CanvasToolButton
         icon={Maximize2}
         label={t('toolViewOriginal')}
-        onClick={() => setDetailOpen(true)}
+        onClick={() => {
+          const image = stageImageRef.current
+          setDetailOrigin(
+            variant === 'icon' && image
+              ? toMediaTransitionOrigin(image.getBoundingClientRect())
+              : null,
+          )
+          setDetailOpen(true)
+        }}
         variant={variant}
       />
       {onRemix && generation && (
@@ -681,7 +702,13 @@ export const GenerationPreview = memo(function GenerationPreview({
         <CanvasToolButton
           icon={ImagePlus}
           label={t('useAsReference')}
-          onClick={() => onUseAsReference?.(generation.url)}
+          onClick={() => {
+            const image = stageImageRef.current
+            const prompt = document.getElementById('studio-prompt')
+            if (variant === 'icon' && image && prompt)
+              flyImageToComposer(image, prompt, generation.url)
+            onUseAsReference?.(generation.url)
+          }}
           variant={variant}
         />
       )}
@@ -856,6 +883,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         showVisibility
+        transitionOrigin={detailOrigin}
       />
     </>
   )

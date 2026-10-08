@@ -3199,6 +3199,42 @@ html:lang(ja) {
   animation: mention-popover-in var(--duration-base) var(--ease-standard);
 }
 
+/* 工作台出图（owner 2026-10-07 工作台原型）：结果图由糊变清、略大落到原尺寸
+   （与助手结果卡 `RESULT_REVEAL` 同一组数：blur 10px · scale 1.04）。 */
+@keyframes studio-result-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.studio-result-reveal-in {
+  animation: studio-result-reveal-in var(--duration-slow) var(--ease-standard);
+}
+/* 「定为最佳」的勾从小顶出来：一点点过冲，⛔ 不弹跳。 */
+@keyframes studio-winner-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.studio-winner-badge-in {
+  animation: studio-winner-badge-in var(--duration-slow) var(--ease-standard);
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

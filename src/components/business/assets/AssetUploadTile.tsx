@@ -40,7 +40,7 @@ export function AssetUploadTile({
     <div
       style={{ width, height }}
       className={cn(
-        'relative shrink-0 overflow-hidden rounded-lg border border-dashed bg-muted/40',
+        'relative shrink-0 overflow-hidden rounded-xl border-2 border-dashed bg-muted/40',
         isError ? 'border-destructive' : 'border-border',
       )}
     >
@@ -89,6 +89,7 @@ export function AssetUploadTile({
               stroke="currentColor"
               strokeWidth="3"
               strokeLinecap="round"
+              className="transition-[stroke-dashoffset] duration-base ease-standard motion-reduce:transition-none"
               strokeDasharray={circumference}
               strokeDashoffset={
                 circumference - (circumference * item.progress) / 100

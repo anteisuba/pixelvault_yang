@@ -101,7 +101,7 @@ export function GalleryViewer(props: GalleryViewerProps) {
       onClose={onClose}
       label={t('label')}
       tileAttribute="data-gallery-tile-id"
-      ratio={viewerRatioOf(generation)}
+      ratioOf={viewerRatioOf}
       darkStage={generation.outputType === 'VIDEO'}
       media={<ViewerMedia key={generation.id} generation={generation} />}
       thumbnailOf={getGenerationThumbnailUrl}

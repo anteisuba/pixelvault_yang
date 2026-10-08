@@ -1,19 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Box,
-  CheckCircle2,
-  Circle,
-  Film,
-  Heart,
-  Mic,
-  Play,
-} from '@/components/icons'
+import { motion, useReducedMotion } from 'motion/react'
+import { Box, Check, Film, Heart, Mic, Play } from '@/components/icons'
 import NextImage from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import { ASSET_TILE_VIDEO_MOUNT_ROOT_MARGIN } from '@/constants/assets-grid'
+import { SPRING } from '@/constants/motion'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { useNearViewport } from '@/hooks/use-near-viewport'
 import {
@@ -26,6 +20,9 @@ import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
 
 import styles from './AssetTile.module.css'
+
+/** 收藏那一下先缩到这么大再弹回。 */
+const HEART_POP_FROM = 0.78
 
 /**
  * 一张素材瓦片 —— 媒体表达契约见 `docs/references/pages/assets.md` §6。
@@ -89,6 +86,12 @@ export function AssetTile({
   const isVideo = generation.outputType === 'VIDEO'
   const is3D = generation.outputType === 'MODEL_3D'
   const isLiked = Boolean(generation.isLiked)
+  const reducedMotion = useReducedMotion()
+  // 「上一次的收藏态」放进 state：真的切换过一次之后心才弹（滚回来重挂 ⛔ 弹）。
+  const [likedSeen, setLikedSeen] = useState({ value: isLiked, changed: false })
+  if (likedSeen.value !== isLiked)
+    setLikedSeen({ value: isLiked, changed: true })
+  const heartPop = likedSeen.changed && !reducedMotion
   // 视频的悬停预览：媒体层不接指针，所以悬停记在整格上。
   const [isPreviewing, setIsPreviewing] = useState(false)
   const durationLabel =
@@ -121,8 +124,6 @@ export function AssetTile({
       data-asset-tile-id={generation.id}
       className={cn(
         'group relative shrink-0 rounded-xl transition-shadow duration-fast ease-linear hover:shadow-float has-focus-visible:shadow-float',
-        selected &&
-          'ring-2 ring-primary ring-offset-2 ring-offset-surface-workbench',
       )}
     >
       {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）。 */}
@@ -130,6 +131,9 @@ export function AssetTile({
         className={cn(
           styles.tile,
           'pointer-events-none absolute inset-0 overflow-hidden rounded-xl bg-muted',
+          // 选中 = 图往里缩一点（原型「选择」），弹簧轻过冲。
+          'transition-[scale,border-radius] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
+          selected && 'scale-94 rounded-2xl',
         )}
       >
         {isVideo ? (
@@ -213,24 +217,35 @@ export function AssetTile({
             ) : null}
           </span>
         ) : null}
-
-        {showSelectionMark && (
-          <span
-            className={cn(
-              'absolute left-2 top-2 flex size-5 items-center justify-center rounded-full',
-              selected
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-background/90 text-foreground/70',
-            )}
-          >
-            {selected ? (
-              <CheckCircle2 className="size-3.5" />
-            ) : (
-              <Circle className="size-3.5" />
-            )}
-          </span>
-        )}
       </span>
+
+      {/* 选中的黑色描边环 + 左上圆勾（勾上时从小顶出来）。 */}
+      <span
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-0 rounded-xl ring-foreground ring-inset transition-[box-shadow] duration-base ease-standard motion-reduce:transition-none',
+          selected ? 'ring-3' : 'ring-0',
+        )}
+      />
+      {showSelectionMark && (
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute left-2 top-2 z-20 grid size-5 place-items-center rounded-full border transition-[background-color,border-color,color] duration-fast ease-standard motion-reduce:transition-none',
+            selected
+              ? 'border-foreground bg-foreground text-background'
+              : 'border-muted-foreground/50 bg-background/90 text-transparent',
+          )}
+        >
+          <Check
+            weight="bold"
+            className={cn(
+              'size-3 transition-[scale,opacity] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
+              selected ? 'scale-100 opacity-100' : 'scale-50 opacity-0',
+            )}
+          />
+        </span>
+      )}
 
       {/* 整格就是「打开」（选择模式下是「选中」）。 */}
       <button
@@ -260,7 +275,16 @@ export function AssetTile({
             favoritePending && 'opacity-60',
           )}
         >
-          <Heart weight={isLiked ? 'fill' : 'bold'} className="size-3.5" />
+          {/* 收藏（原型 H）：先缩一下再弹回，同时涂黑；首次挂载不弹。 */}
+          <motion.span
+            key={isLiked ? 'on' : 'off'}
+            initial={heartPop ? { scale: HEART_POP_FROM } : false}
+            animate={{ scale: 1 }}
+            transition={SPRING.slot}
+            className="grid place-items-center"
+          >
+            <Heart weight={isLiked ? 'fill' : 'bold'} className="size-3.5" />
+          </motion.span>
         </button>
       ) : isLiked ? (
         <span

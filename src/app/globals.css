@@ -3261,6 +3261,24 @@ html:lang(ja) {
   animation: picker-row-in var(--duration-base) var(--ease-standard) both;
 }
 
+/* 数字滚（动效样片 K · `RollingNumber`）：每一位是一根 0–9 的竖轴，窗口只露一行。 */
+.number-roll {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+}
+.number-roll-track {
+  display: inline-flex;
+}
+.number-roll-cell {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+}
+.number-roll-column {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

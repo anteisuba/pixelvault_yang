@@ -40,6 +40,12 @@ import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
+import { AssetScopePopover } from '@/components/business/assets/AssetScopePopover'
+import {
+  AssetSelectionMorph,
+  SelectionArmButton,
+  SelectionLink,
+} from '@/components/business/assets/AssetSelectionMorph'
 import {
   AssetFolderSidebar,
   type AssetFolderEdit,
@@ -67,6 +73,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Button } from '@/components/ui/button'
 import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
 import {
@@ -75,6 +82,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { RollingNumber } from '@/components/ui/rolling-number'
 import { Spinner } from '@/components/ui/spinner'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
@@ -339,6 +347,9 @@ export function KreaAssetBrowser({
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const [isToolbarStuck, setIsToolbarStuck] = useState(false)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const facetStartRef = useRef<HTMLDivElement>(null)
+  const selectButtonRef = useRef<HTMLButtonElement>(null)
 
   const effectiveInitialFilters: GalleryFilters = initialFilters
   const {
@@ -1547,6 +1558,85 @@ export function KreaAssetBrowser({
     }
   }, [draggingCount])
 
+  const uploadTotal = uploadQueue.items.length
+  const uploadButtonLabel = isUploading
+    ? t('uploadingProgress', {
+        current: Math.min(uploadTotal, uploadQueue.doneCount + 1),
+        total: uploadTotal,
+      })
+    : t('uploadButton')
+
+  /** ≥768 顶栏选择条里的内容（窄屏是底部浮条，见文件尾）。 */
+  const selectionBarContent = (
+    <>
+      <span className="flex items-center gap-1.5 pr-1 text-xs">
+        {t('selectedPrefix')}
+        <RollingNumber
+          value={selectedIds.size}
+          className="font-mono text-xs font-medium"
+        />
+      </span>
+      <span
+        className={cn(
+          'ml-2 text-xs text-muted-foreground transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+          selectedIds.size > 0 && 'opacity-0 blur-xs',
+        )}
+      >
+        {t('selectHint')}
+      </span>
+      <span className="flex-1" />
+      <SelectionLink onClick={selectAllVisible}>{t('selectAll')}</SelectionLink>
+      <AssetAddToFolderPanel
+        assetIds={Array.from(selectedIds)}
+        folders={folders}
+        counts={folderCounts.byProject}
+        onCreateFolder={(name) => createFolder(name, null)}
+        onChanged={handleMembershipsChanged}
+        onUndone={handleFolderUndone}
+        trigger={
+          <SelectionLink
+            disabled={isBulkActionPending || selectedIds.size === 0}
+          >
+            {t('addToFolder')}
+          </SelectionLink>
+        }
+      />
+      <SelectionLink
+        onClick={requestBulkFavorite}
+        disabled={isBulkActionPending || selectedIds.size === 0}
+      >
+        {isBulkFavoriting ? <Spinner size="sm" /> : null}
+        {t('bulkFavorite')}
+      </SelectionLink>
+      <SelectionLink
+        onClick={requestBulkPublish}
+        disabled={
+          isBulkActionPending || selectedIds.size === 0 || bulkPublishAllBlocked
+        }
+        title={
+          bulkPublishAllBlocked ? tSearch('bulkAllBlockedShort') : undefined
+        }
+      >
+        {isBulkPublishing ? <Spinner size="sm" /> : null}
+        {t('bulkPublish')}
+      </SelectionLink>
+      <SelectionArmButton
+        label={t('bulkDelete')}
+        armedLabel={t('bulkDeleteArm', { count: selectedIds.size })}
+        disabled={isBulkActionPending || selectedIds.size === 0}
+        resetKey={`${selectionMode}:${selectedIds.size}`}
+        onConfirm={() => void performBulkDelete()}
+      />
+      <button
+        type="button"
+        onClick={exitSelectionMode}
+        className="ml-1 inline-flex h-7 items-center rounded-full bg-foreground px-3.5 text-xs font-medium text-background transition-opacity duration-fast hover:opacity-90"
+      >
+        {t('selectDone')}
+      </button>
+    </>
+  )
+
   const sidebarProps = {
     folders,
     isLoading: folderStore.isLoading,
@@ -1578,19 +1668,6 @@ export function KreaAssetBrowser({
       onDragLeave={handleRootDragLeave}
       onDrop={handleRootDrop}
     >
-      {isFileDragging && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-foreground/40 bg-background/60 px-10 py-8 text-center">
-            <UploadCloud className="size-8 text-foreground/70" />
-            <p className="text-sm font-medium text-foreground">
-              {t('uploadDropHint', { folder: uploadTargetLabel })}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t('uploadDropHintSub')}
-            </p>
-          </div>
-        </div>
-      )}
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6">
         {/* ─── 顶栏（默认单行）────────────────────────────────────
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
@@ -1600,6 +1677,7 @@ export function KreaAssetBrowser({
           initial={reducedMotion ? false : { opacity: 0, y: -6, scale: 0.995 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={motionTransition('slow', reducedMotion)}
+          ref={toolbarRef}
           data-stuck={isToolbarStuck || undefined}
           className={cn(
             'relative z-30 flex min-h-14 w-full shrink-0 flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard',
@@ -1625,57 +1703,83 @@ export function KreaAssetBrowser({
             <h1 className="truncate text-base font-semibold text-foreground">
               {t('title')}
             </h1>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {libraryTotal}
-            </span>
-            <button
-              type="button"
-              onClick={revealFolders}
-              aria-label={t('folderScopeChip', { name: scopeTitle })}
-              className={cn(
-                'ml-1.5 inline-flex h-9 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-xl bg-muted pl-2 pr-2.5 text-2sm font-semibold whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-accent motion-reduce:transition-none',
-                railOpen &&
-                  'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
-              )}
-            >
-              {folderScope.kind === 'folder' ? (
-                scopeFolder?.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
-                  <img
-                    src={scopeFolder.coverUrl}
-                    alt=""
-                    className="size-4.5 shrink-0 rounded-sm object-cover"
-                  />
-                ) : (
-                  <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-                )
-              ) : folderScope.kind === 'unassigned' ? (
-                <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
-              ) : (
-                <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="truncate">{scopeTitle}</span>
-              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-            </button>
+            <RollingNumber
+              value={libraryTotal}
+              className="font-mono text-xs text-muted-foreground"
+            />
+            <AssetScopePopover
+              folders={folders}
+              counts={folderCounts}
+              scope={folderScope}
+              onScopeChange={openScope}
+              onTriggerIntercept={() => {
+                // 窄屏没有栏可收：胶囊照旧把文件夹抽屉拿出来。
+                if (window.matchMedia('(min-width: 768px)').matches)
+                  return false
+                setIsFolderDrawerOpen(true)
+                return true
+              }}
+              trigger={
+                <button
+                  type="button"
+                  aria-label={t('folderScopeChip', { name: scopeTitle })}
+                  className={cn(
+                    'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted data-[state=open]:bg-muted motion-reduce:transition-none',
+                    railOpen &&
+                      'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
+                  )}
+                >
+                  {folderScope.kind === 'folder' ? (
+                    scopeFolder?.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
+                      <img
+                        src={scopeFolder.coverUrl}
+                        alt=""
+                        className="size-5 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                    )
+                  ) : folderScope.kind === 'unassigned' ? (
+                    <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <BlurSwap swapKey={scopeTitle} className="min-w-0">
+                    <span className="truncate">{scopeTitle}</span>
+                  </BlurSwap>
+                  <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+                </button>
+              }
+            />
           </div>
 
           {!isPickerMode && (
-            <AssetFacetBar
-              filters={filters}
-              onFiltersChange={setFilters}
-              typeCounts={{
-                image: imageCount,
-                video: videoCount,
-                audio: audioCount,
-                model_3d: model3DCount,
-              }}
-              statusCounts={{
-                favorites: favoritesCount,
-                published: publishedCount,
-              }}
-              modelCounts={counts?.byModel ?? {}}
-              className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"
-            />
+            <div
+              ref={facetStartRef}
+              inert={selectionMode}
+              className={cn(
+                'order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1',
+                SELECTION_YIELD_CLASS,
+                selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+              )}
+            >
+              <AssetFacetBar
+                filters={filters}
+                onFiltersChange={setFilters}
+                typeCounts={{
+                  image: imageCount,
+                  video: videoCount,
+                  audio: audioCount,
+                  model_3d: model3DCount,
+                }}
+                statusCounts={{
+                  favorites: favoritesCount,
+                  published: publishedCount,
+                }}
+                modelCounts={counts?.byModel ?? {}}
+              />
+            </div>
           )}
 
           {!isPickerMode && (
@@ -1685,16 +1789,24 @@ export function KreaAssetBrowser({
                 size="sm"
                 onClick={handleUploadClick}
                 disabled={isUploading}
-                className={TOOLBAR_BUTTON_CLASS}
+                inert={selectionMode}
+                className={cn(
+                  TOOLBAR_BUTTON_CLASS,
+                  SELECTION_YIELD_CLASS,
+                  selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+                )}
               >
                 {isUploading ? (
                   <Spinner size="sm" />
                 ) : (
                   <UploadCloud className="size-3.5" />
                 )}
-                <span>{isUploading ? t('uploading') : t('uploadButton')}</span>
+                <BlurSwap swapKey={uploadButtonLabel}>
+                  {uploadButtonLabel}
+                </BlurSwap>
               </Button>
               <Button
+                ref={selectButtonRef}
                 type="button"
                 size="sm"
                 variant="ghost"
@@ -1705,7 +1817,8 @@ export function KreaAssetBrowser({
                 }}
                 className={cn(
                   TOOLBAR_BUTTON_CLASS,
-                  selectionMode && 'bg-muted hover:bg-muted',
+                  'border border-border',
+                  selectionMode && 'bg-muted hover:bg-muted md:invisible',
                 )}
               >
                 {selectionMode ? (
@@ -1721,6 +1834,20 @@ export function KreaAssetBrowser({
                 )}
               </Button>
               <DensityToggle density={density} onChange={changeDensity} />
+            </div>
+          )}
+
+          {/* 「选择」键往左拉长成的选择条（≥768）；窄屏仍是底部浮条。 */}
+          {!isPickerMode && (
+            <div className="hidden md:contents">
+              <AssetSelectionMorph
+                open={selectionMode}
+                containerRef={toolbarRef}
+                startRef={facetStartRef}
+                buttonRef={selectButtonRef}
+              >
+                {selectionBarContent}
+              </AssetSelectionMorph>
             </div>
           )}
         </motion.div>
@@ -1754,6 +1881,25 @@ export function KreaAssetBrowser({
             style={{ x: riverX }}
             className="relative flex min-w-0 flex-1 flex-col"
           >
+            {/* 拖图上传（原型 T）：大河那一列上一圈虚线框接住，弹簧轻过冲进场。 */}
+            <div
+              aria-hidden={!isFileDragging}
+              className={cn(
+                'pointer-events-none absolute inset-0 bottom-4 z-30 grid place-items-center rounded-2xl border-2 border-dashed border-muted-foreground/50 bg-background/70',
+                'transition-[opacity,scale] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
+                isFileDragging ? 'scale-100 opacity-100' : 'scale-96 opacity-0',
+              )}
+            >
+              <div className="flex flex-col items-center gap-2 text-center">
+                <UploadCloud className="size-6 text-foreground/70" />
+                <p className="text-sm font-medium text-foreground">
+                  {t('uploadDropHint', { folder: uploadTargetLabel })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('uploadDropHintSub')}
+                </p>
+              </div>
+            </div>
             <main
               ref={scrollElementRef}
               className="studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
@@ -1776,9 +1922,10 @@ export function KreaAssetBrowser({
                 ) : (
                   <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground">
                     <span className="truncate">{scopeTitle}</span>
-                    <span className="font-mono text-2sm font-normal text-muted-foreground tabular-nums">
-                      {total}
-                    </span>
+                    <RollingNumber
+                      value={total}
+                      className="font-mono text-2sm font-normal text-muted-foreground"
+                    />
                   </h2>
                 )}
                 {scopeParent ? (
@@ -2194,7 +2341,7 @@ export function KreaAssetBrowser({
           于是「点了『选择』什么都没发生」，用户不知道进没进选择模式。 */}
       {!isPickerMode && selectionMode && (
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex flex-col items-center px-3 md:pb-6"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex flex-col items-center px-3 md:hidden"
           style={{
             paddingBottom:
               'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
@@ -2429,6 +2576,11 @@ function ScopeNameInput({
  * 顶栏右侧的按钮：胶囊、与左边筛选键同高 32px；上传是这页唯一的实心键，选择是
  * 无框文字键（悬停才出灰底）。
  */
+/** 进选择模式时让位的那几样（分面、上传）：先糊掉，条再长出来。 */
+const SELECTION_YIELD_CLASS =
+  'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none'
+const SELECTION_YIELD_HIDDEN_CLASS = 'pointer-events-none opacity-0 blur-xs'
+
 const TOOLBAR_BUTTON_CLASS =
   'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] motion-reduce:active:scale-100'
 

@@ -35,21 +35,13 @@ import {
 } from '@/components/business/viewer/ViewerMedia'
 import { ViewerPrompt } from '@/components/business/viewer/ViewerPrompt'
 import {
+  COPY_ACK_CLASS,
   VIEWER_OUTLINE_ICON,
   VIEWER_OUTLINE_PILL,
   VIEWER_SMALL_PILL,
 } from '@/components/business/viewer/viewer-classes'
 import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +49,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { RollingNumber } from '@/components/ui/rolling-number'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import { getFolderMembershipsAPI } from '@/lib/api-client/projects'
@@ -105,7 +98,7 @@ export function AssetViewer(props: AssetViewerProps) {
       onClose={onClose}
       label={t('viewer.label')}
       tileAttribute="data-asset-tile-id"
-      ratio={viewerRatioOf(generation)}
+      ratioOf={viewerRatioOf}
       darkStage={generation.outputType === 'VIDEO'}
       media={
         <ViewerMedia
@@ -261,7 +254,14 @@ function AssetViewerAside({
         </b>
         {api.hasRail ? (
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
-            {api.index + 1} / {api.total}
+            <span className="sr-only">
+              {api.index + 1} / {api.total}
+            </span>
+            {/* 翻图时第几张往上 / 往下滚（原型 K）。 */}
+            <span aria-hidden className="inline-flex items-center gap-1">
+              <RollingNumber value={api.index + 1} />
+              <span>/ {api.total}</span>
+            </span>
           </span>
         ) : null}
         <button
@@ -329,7 +329,13 @@ function AssetViewerAside({
             <Download className="size-3.5" aria-hidden />
           )}
         </button>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open)
+            if (!open) setConfirmDelete(false)
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -372,14 +378,29 @@ function AssetViewerAside({
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
+            {/* 删除要点两次（原型 J）：第一次原地变成黑底「确认删除」、菜单不关；再点才删。 */}
             <DropdownMenuItem
               variant="destructive"
-              onSelect={() => setConfirmDelete(true)}
+              onSelect={(event) => {
+                if (!confirmDelete) {
+                  event.preventDefault()
+                  setConfirmDelete(true)
+                  return
+                }
+                setConfirmDelete(false)
+                void actions.remove()
+              }}
               disabled={actions.isDeleting}
-              className="rounded-xl"
+              data-armed={confirmDelete || undefined}
+              className="rounded-xl transition-[background-color,color] duration-fast ease-standard data-[armed]:justify-center data-[armed]:bg-foreground data-[armed]:text-background data-[armed]:focus:bg-foreground data-[armed]:focus:text-background"
             >
-              <Trash2 aria-hidden />
-              {t('detailDelete')}
+              <BlurSwap
+                swapKey={confirmDelete ? 'armed' : 'idle'}
+                className="gap-2"
+              >
+                {confirmDelete ? null : <Trash2 aria-hidden />}
+                {confirmDelete ? t('viewer.deleteArm') : t('detailDelete')}
+              </BlurSwap>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -524,14 +545,20 @@ function AssetViewerAside({
           <button
             type="button"
             onClick={() => void copyRecipe()}
-            className={VIEWER_SMALL_PILL}
+            data-copied={recipeCopied || undefined}
+            className={cn(VIEWER_SMALL_PILL, COPY_ACK_CLASS)}
           >
-            {recipeCopied ? (
-              <Check className="size-3.5" aria-hidden />
-            ) : (
-              <Copy className="size-3.5" aria-hidden />
-            )}
-            {recipeCopied ? t('viewer.copied') : t('viewer.copyRecipe')}
+            <BlurSwap
+              swapKey={recipeCopied ? 'copied' : 'copy'}
+              className="gap-1.5"
+            >
+              {recipeCopied ? (
+                <Check className="size-3.5" aria-hidden />
+              ) : (
+                <Copy className="size-3.5" aria-hidden />
+              )}
+              {recipeCopied ? t('viewer.copied') : t('viewer.copyRecipe')}
+            </BlurSwap>
           </button>
         ) : null}
         <button
@@ -545,25 +572,6 @@ function AssetViewerAside({
       </div>
 
       <AssetDetailOverlays generation={generation} actions={actions} />
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('detailDeleteConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('detailDeleteConfirmDescription')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('detailDeleteCancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void actions.remove()}
-            >
-              {t('detailDelete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

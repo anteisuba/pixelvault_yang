@@ -2808,7 +2808,8 @@
       "references": "References used",
       "referenceAlt": "Reference {n}",
       "copyRecipe": "Copy recipe",
-      "openOriginal": "Open original"
+      "openOriginal": "Open original",
+      "deleteArm": "Confirm delete"
     },
     "title": "Assets",
     "description": "All your generations in one place — organised by project and folder.",
@@ -3013,7 +3014,11 @@
     "addToFolderLegendIn": "In this folder",
     "addToFolderLegendSome": "Some are in",
     "addToFolderLegendHint": "Click to add them all; click again to take them out",
-    "addToFolderCreate": "New folder and add"
+    "addToFolderCreate": "New folder and add",
+    "uploadingProgress": "Uploading {current}/{total}",
+    "selectedPrefix": "Selected",
+    "bulkDeleteArm": "Delete {count}?",
+    "selectDone": "Done"
   },
   "PromptLibrary": {
     "title": "Prompt Engineering",

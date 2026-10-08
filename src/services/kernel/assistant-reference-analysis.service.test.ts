@@ -89,6 +89,22 @@ const input = {
   language: 'English',
 }
 
+/**
+ * 视觉一跳现在**一张图一次调用**：按这次附的那张图回它自己的结论。
+ * `make` 缺省回 `profiles` 里同 url 的那一份。
+ */
+function visionByUrl(
+  make: (url: string) => Record<string, unknown> = (url) =>
+    profiles.find((profile) => profile.url === url)!,
+) {
+  return vi.fn(async (_system: string, _prompt: string, images?: string[]) => {
+    const url = images![0]!
+    return JSON.stringify({
+      images: [{ ...make(url), imageIndex: urls.indexOf(url) }],
+    })
+  })
+}
+
 describe('reference dimension cancellation', () => {
   it('does not fetch dimensions for a pre-cancelled run', async () => {
     const controller = new AbortController()
@@ -159,7 +175,10 @@ describe('reference analysis', () => {
       language: 'English',
       complete: capture,
     }).catch(() => undefined)
-    expect(schemas).toHaveLength(2)
+    // 每张图一次视觉调用 + 一次简报：去重后正好两种 schema。
+    expect(new Set(schemas.map((schema) => JSON.stringify(schema))).size).toBe(
+      2,
+    )
 
     // OpenAI strict 与 Anthropic output_config 的交集：不许 `$ref`（带兄弟字段即 400），
     // 每个对象封口且全字段必填，数值 / 长度约束只能写进 description。
@@ -214,13 +233,7 @@ describe('reference analysis', () => {
   })
 
   it('retains unknown legs as analyzed evidence without inventing proportions or reanalyzing', async () => {
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        images: profiles
-          .map((profile, imageIndex) => ({ ...profile, imageIndex }))
-          .reverse(),
-      }),
-    )
+    const complete = visionByUrl()
     const result = await analyzeOperatorReferences({ ...input, complete })
     expect(result.profiles[0]).toMatchObject({
       url: urls[0],
@@ -342,11 +355,7 @@ describe('reference analysis', () => {
   })
 
   it('forces a 2D/3D medium enum and spells out the discriminating evidence', async () => {
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
-      }),
-    )
+    const complete = visionByUrl()
     await analyzeOperatorReferences({ ...input, complete })
     const system = complete.mock.calls[0]?.[0] as string
     expect(system).toContain('renderingMedium')
@@ -365,11 +374,7 @@ describe('reference analysis', () => {
   })
 
   it('hands the creator-stated medium to the vision pass as authoritative data', async () => {
-    const complete = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
-      }),
-    )
+    const complete = visionByUrl()
     await analyzeOperatorReferences({
       ...input,
       complete,
@@ -419,29 +424,18 @@ describe('reference analysis', () => {
   })
 
   it('returns verified visual evidence without requiring a creative brief', async () => {
-    const complete = vi.fn().mockResolvedValueOnce(
-      JSON.stringify({
-        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
-      }),
-    )
+    const complete = visionByUrl()
     const result = await analyzeOperatorReferences({ ...input, complete })
-    expect(complete).toHaveBeenCalledTimes(1)
+    expect(complete).toHaveBeenCalledTimes(2)
     expect(result).toEqual({ profiles, brief: null })
   })
-  it('sends multiple images together and binds visual facts by server-owned URL', async () => {
-    const complete = vi
-      .fn()
-      .mockResolvedValueOnce(
-        JSON.stringify({
-          images: profiles.map((facts, imageIndex) => ({
-            ...facts,
-            imageIndex,
-          })),
-        }),
-      )
-      .mockResolvedValueOnce(JSON.stringify(brief))
+  it('sends one image per call and binds visual facts by server-owned URL', async () => {
+    const complete = visionByUrl()
     const result = await analyzeOperatorReferences({ ...input, complete })
-    expect(complete.mock.calls[0]?.[2]).toEqual(urls)
+    expect(complete.mock.calls.map((call) => call[2])).toEqual([
+      [urls[0]],
+      [urls[1]],
+    ])
     expect(complete.mock.calls[0]?.[0]).toContain('NOT as generated results')
     expect(result?.profiles).toEqual(profiles)
     expect(result?.brief).toBeNull()
@@ -490,23 +484,33 @@ describe('reference analysis', () => {
     expect(result?.profiles[1]?.url).toBe(replacement)
   })
 
-  it.each([[0, 0], [0], [0, 2]])(
-    'rejects missing, duplicate or out-of-range image mappings: %j',
-    async (...indices) => {
-      const complete = vi.fn().mockResolvedValue(
+  it('rejects a multi-entry reply for a single image', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: [0, 1].map((imageIndex) => ({ ...profiles[0], imageIndex })),
+      }),
+    )
+    await expect(
+      analyzeOperatorReferences({ ...input, complete }),
+    ).rejects.toMatchObject({ stage: 'vision', reason: 'image_mapping' })
+  })
+
+  it('binds a single-image reply to that image even when the model writes another index', async () => {
+    const complete = vi.fn(
+      async (_system: string, _prompt: string, images?: string[]) =>
         JSON.stringify({
-          images: indices.map((imageIndex) => ({
-            ...profiles[0],
-            imageIndex,
-          })),
+          images: [
+            {
+              ...profiles.find((profile) => profile.url === images![0])!,
+              imageIndex: 7,
+            },
+          ],
         }),
-      )
-      await expect(
-        analyzeOperatorReferences({ ...input, complete }),
-      ).rejects.toMatchObject({ stage: 'vision', reason: 'image_mapping' })
-      expect(complete).toHaveBeenCalledTimes(1)
-    },
-  )
+    )
+    const result = await analyzeOperatorReferences({ ...input, complete })
+    expect(result.profiles.map((profile) => profile.url)).toEqual(urls)
+    expect(result.profiles).toEqual(profiles)
+  })
 
   it('binds brief indices to server-owned URLs even with reordered output', async () => {
     const complete = vi.fn().mockResolvedValue(
@@ -735,7 +739,7 @@ describe('reference analysis', () => {
     })
     expect(complete).toHaveBeenCalledTimes(1)
     expect(complete.mock.calls[0]?.[2]).toEqual([third])
-    expect(complete.mock.calls[0]?.[1]).toContain('[2]')
+    expect(complete.mock.calls[0]?.[1]).toContain('imageIndex 2')
     expect(result.profiles[2]?.url).toBe(third)
     expect(result.brief).toBeNull()
   })

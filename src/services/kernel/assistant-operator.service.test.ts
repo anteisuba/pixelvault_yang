@@ -2543,7 +2543,9 @@ describe('read_state', () => {
     }
     it('卡上提示词末尾的 Reference roles 图例不给模型看，只留张数', async () => {
       const request = boardRequest()
-      const node = request.snapshot.canvas!.shots[0]!.nodes![1]!
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      const node = shot.nodes[1]!
       node.text =
         '保持五官\n\nReference roles:\n@Image1 — identity — keep this character exactly as shown; keep: 浅金长发'
       queueTurns({ finished: true, message: '看过了。' })
@@ -12218,7 +12220,9 @@ describe('current reference image bindings', () => {
       ...(cached
         ? []
         : [
-            { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
+            ...refs.map((_, imageIndex) => ({
+              images: [{ imageIndex, ...facts }],
+            })),
           ]),
     ]
   }
@@ -12722,9 +12726,9 @@ describe('current reference image bindings', () => {
     it('persists fresh target-only visual evidence for the next canvas sync without inspecting it again', async () => {
       queueTurns(
         writeTurn('Single half-body portrait.'),
-        {
-          images: targetUrls.map((_, imageIndex) => ({ imageIndex, ...facts })),
-        },
+        ...targetUrls.map((_, imageIndex) => ({
+          images: [{ imageIndex, ...facts }],
+        })),
         targetBrief,
       )
       const first = await collect(
@@ -12748,14 +12752,16 @@ describe('current reference image bindings', () => {
       const imageCalls = mockLlmTextCompletion.mock.calls.filter(
         ([input]) => input.imageData?.length,
       )
-      expect(imageCalls).toHaveLength(1)
-      expect(imageCalls[0]?.[0].imageData).toEqual(targetUrls)
-      expect(String(imageCalls[0]?.[0].userPrompt)).toContain(
-        '这是三渲二角色，请保留脸部',
+      // 一张图一次视觉调用。
+      expect(imageCalls.map(([input]) => input.imageData)).toEqual(
+        targetUrls.map((url) => [url]),
       )
-      expect(String(imageCalls[0]?.[0].userPrompt)).not.toContain(
-        'UNVERIFIED_OLD_PROMPT_BODY',
-      )
+      for (const [input] of imageCalls) {
+        expect(String(input.userPrompt)).toContain('这是三渲二角色，请保留脸部')
+        expect(String(input.userPrompt)).not.toContain(
+          'UNVERIFIED_OLD_PROMPT_BODY',
+        )
+      }
       expect(String(imageCalls[0]?.[0].userPrompt)).not.toContain(
         'UNVERIFIED_ASSISTANT_BODY',
       )
@@ -14289,13 +14295,14 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).toContain('@Image4')
     expect(lastUserPrompt()).toContain('https://cdn.test/style.png')
     expect(systemPrompt()).toContain('STYLE REFERENCE')
+    // 一张图一次视觉调用，合起来正好是当前顺序的全部参考图。
     expect(
-      mockLlmTextCompletion.mock.calls.some(
-        ([input]) =>
-          JSON.stringify(input.imageData) ===
-          JSON.stringify(refs.map((ref) => ref.url)),
+      mockLlmTextCompletion.mock.calls.flatMap(([input]) =>
+        input.systemPrompt.startsWith('Analyze reference images')
+          ? (input.imageData ?? [])
+          : [],
       ),
-    ).toBe(true)
+    ).toEqual(refs.map((ref) => ref.url))
   })
 
   it('reads missing reference evidence itself before a prompt write, with no refusal round-trip', async () => {
@@ -14307,7 +14314,7 @@ describe('current reference image bindings', () => {
           args: { value: 'Embracing on white' },
         },
       },
-      { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
+      ...refs.map((_, imageIndex) => ({ images: [{ imageIndex, ...facts }] })),
       brief,
       { finished: true },
     )
@@ -14337,7 +14344,7 @@ describe('current reference image bindings', () => {
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         input.systemPrompt.startsWith('Analyze reference images'),
       ),
-    ).toHaveLength(1)
+    ).toHaveLength(refs.length)
   })
 
   it('continues a confirmed prompt edit from cached visual facts without another analysis tool call', async () => {
@@ -14550,8 +14557,8 @@ describe('current reference image bindings', () => {
       error: { reason: 'toolFailed' },
     })
     expect(events.at(-1)?.type).toBe('done')
-    // 工具轮 + 看图失败 + 收尾轮 + 结账那一跳。
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(4)
+    // 工具轮 + 每张图一次看图（第一张失败，同批并行的几张已经发出）+ 收尾轮 + 结账那一跳。
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(3 + refs.length)
   })
 
   it('reports the unavailable reference instead of aborting the analysis stream on a source 404', async () => {
@@ -15417,9 +15424,9 @@ describe('current reference image bindings', () => {
         ...(cached
           ? []
           : [
-              {
-                images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })),
-              },
+              ...refs.map((_, imageIndex) => ({
+                images: [{ imageIndex, ...facts }],
+              })),
             ]),
         { finished: true, message: '处理完成。' },
       )

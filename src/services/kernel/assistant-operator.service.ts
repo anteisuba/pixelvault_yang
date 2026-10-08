@@ -23,6 +23,7 @@ import {
   getReferenceMentionIndices,
   normalizeReferenceMentions,
   referenceRoleLegendCount,
+  withoutReferenceRoleLegend,
   withReferenceRoleLegend,
 } from '@/lib/studio-reference-mentions'
 import {
@@ -1489,10 +1490,21 @@ function renderCanvasBoard(run: OperatorRun): string {
       reviewContextComplete: _reviewContextComplete,
       availableModels,
       parameters,
-      text,
+      text: rawText,
       position,
       ...rest
     } = node
+    /**
+     * 末尾的 Reference roles 图例由 app 每次写词时重算（见 planCanvasApply），⛔ 不给
+     * 模型看正文：2026-10-08 真机它读回来见到这段中文图例和自己写的不一样，就改一遍、
+     * app 再补一遍，面部那张卡来回改了 4 次。只留一个张数。
+     */
+    const appLegend =
+      rawText === undefined ? null : referenceRoleLegendCount(rawText)
+    const text =
+      rawText !== undefined && appLegend !== null
+        ? withoutReferenceRoleLegend(rawText)
+        : rawText
     const clip =
       text !== undefined &&
       !showAll &&
@@ -1519,6 +1531,7 @@ function renderCanvasBoard(run: OperatorRun): string {
               textClipped: text.length,
             }
           : { text }),
+      ...(appLegend !== null ? { appLegend } : {}),
       ...(parameters
         ? {
             parameters: {
@@ -7291,7 +7304,7 @@ const CANVAS_GUIDE: readonly string[] = [
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
   'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
   `Cards you can add (kind.subtype → input slots): ${JSON.stringify(Object.fromEntries(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => [`${item.v4.kind}.${item.v4.subtype}`, getNodeV4Ports(item.v4.kind, item.v4.subtype)?.inputs.map((input) => input.slot) ?? []]))))}`,
-  'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textClipped (its full length) shows only an opening: call read_state with {nodeIds:[...]} to see it in full before you replace, copy from or judge it. A node marked textTruncated shows only its opening and cannot be read in full from here — never replace it; ask the creator to @-mention or select it, or append.',
+  'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textClipped (its full length) shows only an opening: call read_state with {nodeIds:[...]} to see it in full before you replace, copy from or judge it. A node marked textTruncated shows only its opening and cannot be read in full from here — never replace it; ask the creator to @-mention or select it, or append. appLegend: N means the app keeps a Reference roles legend for N images at the end of that prompt and rewrites it on every prompt write — never write one yourself and never rewrite a prompt to change it.',
   "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
   'SCRIPT → SHOTS: project_script makes one shot card per entry of the script card scriptProjection.titles. It splits on numbered lines (`S01 · …`), else on # headings, else on blank-line paragraphs — so a script of setting notes projects its notes as shots. When those titles are not the shots you mean, first append a shot list to the script with set_text mode "append", one line per shot: `S01 · what happens · 4s` (what the creator wrote above S01 stays as the outline), check the new titles, then project. After projecting, read the shot cards before saying what they contain.',
   'Complete the requested board setup before offering canvas_generate.',

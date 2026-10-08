@@ -149,6 +149,11 @@ export function withReferenceRoleLegend(
   return `${base}\n\n${REFERENCE_ROLE_LEGEND_HEADER}\n${lines.join('\n')}`
 }
 
+/** 去掉提示词末尾那段图例（给写词的模型看：图例由 app 维护，它不该照着改）。 */
+export function withoutReferenceRoleLegend(prompt: string): string {
+  return prompt.replace(EXISTING_LEGEND, '').trimEnd()
+}
+
 /** 提示词末尾那段图例列了几张图；没有图例是 `null`。 */
 export function referenceRoleLegendCount(prompt: string): number | null {
   const legend = prompt.match(EXISTING_LEGEND)?.[0]

@@ -2541,6 +2541,19 @@ describe('read_state', () => {
         },
       })
     }
+    it('卡上提示词末尾的 Reference roles 图例不给模型看，只留张数', async () => {
+      const request = boardRequest()
+      const node = request.snapshot.canvas!.shots[0]!.nodes![1]!
+      node.text =
+        '保持五官\n\nReference roles:\n@Image1 — identity — keep this character exactly as shown; keep: 浅金长发'
+      queueTurns({ finished: true, message: '看过了。' })
+      await collect(runAssistantOperator('clerk-1', request))
+      const prompt = toolRingCalls()[0].userPrompt
+      expect(prompt).toContain('"text":"保持五官"')
+      expect(prompt).toContain('"appLegend":1')
+      expect(prompt).not.toContain('Reference roles:')
+    })
+
     const batch = (ops: unknown[]) => ({
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,

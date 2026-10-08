@@ -1467,8 +1467,14 @@ export const ASSISTANT_PLAN_CARD_LIMITS = {
   maxOptionLabelChars: 40,
   /** 选项那一句说明 —— 没有它，这张卡就退回图钉墙。 */
   maxOptionDescriptionChars: 80,
-  /** 「其他」里用户自己写的那一句。 */
-  maxOtherTextChars: 200,
+  /**
+   * 「其他」里用户自己写的那一句。
+   *
+   * ⚠ 问题卡开着时，**输入框里打的整段话**都算这一格的答复（见 StudioOperatorPanel
+   * 的 `answerQuestion` 那一支）。2026-10-08 马尔福画布：一段 288 字的修改要求撞上旧的
+   * 200 上限，整轮请求 400、红字「服务端没认下来」。按一条正常发言的长度给。
+   */
+  maxOtherTextChars: 4_000,
   /**
    * 人设「谨慎」档**从几步起**先摆计划卡（owner 2026-10-04）。
    *

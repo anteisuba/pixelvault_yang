@@ -50,6 +50,7 @@ import {
   AssistantOperatorEventSchema,
   AssistantOperatorEvidenceSchema,
   AssistantOperatorRecalledEvidenceSchema,
+  AssistantOperatorPlanAnswerSchema,
   AssistantOperatorRequestSchema,
   AssistantOperatorRoundSummarySchema,
   AssistantOperatorRoundSummaryDraftSchema,
@@ -1799,6 +1800,20 @@ describe('事件契约', () => {
         overwrite: { field: 'aspectRatio', have: 'x', proposed: 'y' },
       }).success,
     ).toBe(false)
+  })
+})
+
+describe('问题卡的答复', () => {
+  it('问题卡开着时打的一整段话（几百字）照样是合法答复', () => {
+    const answer = {
+      questionId: 'canvas-confirm-1',
+      optionIds: [],
+      otherText: '把剧本卡整段替换，分镜表只留一份。'.repeat(20),
+    }
+    expect(answer.otherText.length).toBeGreaterThan(300)
+    expect(AssistantOperatorPlanAnswerSchema.safeParse(answer).success).toBe(
+      true,
+    )
   })
 })
 

@@ -7,6 +7,7 @@ import {
   getReferenceImageAttachmentId,
   removeReferenceMentions,
   normalizeReferenceMentions,
+  referenceRoleLegendCount,
   withReferenceRoleLegend,
 } from './studio-reference-mentions'
 
@@ -121,6 +122,22 @@ describe('canvas reference identity', () => {
       ],
     ).get('m')!
     expect(refs.flatMap((ref) => ref.aliases)).toEqual([])
+  })
+})
+
+describe('referenceRoleLegendCount', () => {
+  it('counts the images a trailing legend lists, and null without one', () => {
+    expect(referenceRoleLegendCount('A girl on a rooftop.')).toBeNull()
+    expect(
+      referenceRoleLegendCount(
+        'A girl.\n\nReference roles:\n@Image1 — pose; keep: posture\n@Image3 — identity',
+      ),
+    ).toBe(2)
+    expect(
+      referenceRoleLegendCount(
+        'Reference roles:\n@Image1 — pose\n\nMore prose.',
+      ),
+    ).toBeNull()
   })
 })
 

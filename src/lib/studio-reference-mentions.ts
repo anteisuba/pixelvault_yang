@@ -149,6 +149,13 @@ export function withReferenceRoleLegend(
   return `${base}\n\n${REFERENCE_ROLE_LEGEND_HEADER}\n${lines.join('\n')}`
 }
 
+/** 提示词末尾那段图例列了几张图；没有图例是 `null`。 */
+export function referenceRoleLegendCount(prompt: string): number | null {
+  const legend = prompt.match(EXISTING_LEGEND)?.[0]
+  if (!legend) return null
+  return legend.split('\n').filter((line) => /^@Image\d+/.test(line)).length
+}
+
 export interface NamedImageReference {
   readonly url: string
   readonly name: string

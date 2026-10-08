@@ -12091,7 +12091,7 @@ describe('current reference image bindings', () => {
           status: 'done',
           payload: expect.objectContaining({
             target: targetNode.id,
-            prompt: 'Single half-body portrait.',
+            prompt: promptWithRoleLegend('Single half-body portrait.'),
           }),
         }),
       )
@@ -12337,6 +12337,62 @@ describe('current reference image bindings', () => {
         }
       },
     )
+
+    it('skips the reference brief before generation when the card already carries the assistant legend', async () => {
+      const node = {
+        ...targetNode,
+        text: 'Keep the observed face.\n\nReference roles:\n@Image1 — pose\n@Image2 — identity',
+      }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+            args: { target: node.id },
+          },
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', canvasRequest(node)),
+      )
+      expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
+      expect(
+        events.find(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+        ),
+      ).toMatchObject({
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+          request: { canvasNode: { id: node.id } },
+        },
+      })
+    })
+
+    it('rebuilds the brief before generation when the legend no longer matches the references', async () => {
+      const node = {
+        ...targetNode,
+        text: 'Keep the observed face.\n\nReference roles:\n@Image1 — pose',
+      }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+            args: { target: node.id },
+          },
+        },
+        targetBrief,
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', canvasRequest(node)),
+      )
+      expect(referenceCalls('Build a reference-use brief')).toHaveLength(1)
+      expect(
+        events.some(
+          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+        ),
+      ).toBe(true)
+    })
 
     it('offers generation after one reference brief for the stored prompt', async () => {
       queueTurns(

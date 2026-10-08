@@ -22,6 +22,7 @@ import type {
 import {
   getReferenceMentionIndices,
   normalizeReferenceMentions,
+  referenceRoleLegendCount,
   withReferenceRoleLegend,
 } from '@/lib/studio-reference-mentions'
 import {
@@ -790,6 +791,11 @@ interface OperatorRun {
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
+  /** 画布这一步刚为哪张卡算出的参考要点 —— 写词时据此补图例。 */
+  canvasBrief: {
+    target: string
+    brief: NonNullable<ReferenceAnalysis['brief']>
+  } | null
   referencePromptWritten: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
@@ -7288,6 +7294,7 @@ async function checkCanvasReferencePrompt(
       'The target reference evidence check did not complete. Preserve its prompt and connections; do not treat a missing check as permission to invent unsupported features.',
     )
   }
+  run.canvasBrief = { target: node.id, brief: analysis.brief }
   const scope = { target: node.id, references: urls }
   const gap = planReferenceEvidenceGap(run, analysis.brief.evidenceGaps, scope)
   if (gap) return gap
@@ -7587,6 +7594,8 @@ async function planCanvasApply(
     }
   }
 
+  /** 落到客户端的那条 op —— 写词时可能带上图例，其余原样。 */
+  let payloadOp: NodeAssistantOpV4 = op
   if (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt) {
     const node = canvas.shots
       .flatMap((shot) => (shot.expanded ? shot.nodes : []))
@@ -7594,6 +7603,33 @@ async function planCanvasApply(
     if (node) {
       const blocked = await checkCanvasReferencePrompt(run, node, userId)
       if (blocked) return blocked
+      /**
+       * 每张参考图管什么写在词末（与工作台同一段 `withReferenceRoleLegend`；标签方言
+       * 读不懂 @Image，不加）。它同时是「这张卡的词是助手带着要点写的」的记号：出图
+       * 提案前图例张数与参考图对得上，就不再算一遍要点（owner 2026-10-08）。
+       */
+      const brief =
+        run.canvasBrief?.target === node.id ? run.canvasBrief.brief : null
+      if (
+        brief &&
+        node.referenceUrls?.length &&
+        getPromptDialect(resolveAdapterType(node.model ?? '') ?? undefined) ===
+          'natural'
+      ) {
+        const written =
+          op.mode === 'append' && node.text
+            ? `${node.text}\n\n${op.prompt}`
+            : op.prompt
+        payloadOp = {
+          ...op,
+          mode: 'replace',
+          prompt: withReferenceRoleLegend(
+            written,
+            brief.assignments,
+            node.referenceUrls,
+          ),
+        }
+      }
     }
   }
 
@@ -7622,7 +7658,7 @@ async function planCanvasApply(
 
   return {
     kind: 'mutate',
-    payload: op,
+    payload: payloadOp,
     inverse,
     observation: `Queued ${op.op} on the board. The change lands on the creator's canvas; if the board refuses it you will see why next turn.`,
     // 后果全在客户端的图上 —— 服务端这一步没有本地状态要动。
@@ -7759,7 +7795,13 @@ async function planCanvasGenerate(
       `The card ${args.target} has no model to run. Text cards never generate; for a media card set its model with canvas_apply set_model first.`,
     )
   }
-  const blocked = await checkCanvasReferencePrompt(run, node, userId)
+  // 助手带着要点写过的卡（图例张数 = 参考图张数）不再算要点，直接出确认卡。
+  const legendMatches =
+    (node.referenceUrls?.length ?? 0) > 0 &&
+    referenceRoleLegendCount(node.text ?? '') === node.referenceUrls?.length
+  const blocked = legendMatches
+    ? null
+    : await checkCanvasReferencePrompt(run, node, userId)
   if (blocked) return blocked
   return {
     kind: 'confirmGenerate',
@@ -11478,6 +11520,7 @@ async function* runOperatorTurn(
     priorRounds,
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
+    canvasBrief: null,
     referencePromptWritten: false,
     tagCheckRetried: false,
     negativeFolded: false,

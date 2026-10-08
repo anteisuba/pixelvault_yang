@@ -211,7 +211,7 @@ const OpenAiChatResponseSchema = z.object({
  * - `outputTokens` / `reasoningTokens` 照各家原字段抄，⛔ 不换算：Gemini 的
  *   `candidatesTokenCount` 不含思考，思考另在 `thoughtsTokenCount`；OpenAI 兼容三家的
  *   `reasoning_tokens` 是否已含在 `completion_tokens` 里，以各家文档为准。
- * - 字段缺 = 这家这次没报，⛔ 不当 0。OpenAI 流式请求没开 `include_usage`，报不出来。
+ * - 字段缺 = 这家这次没报，⛔ 不当 0。OpenAI 流式只在官方端点开了 `include_usage`；自填代理报不出来。
  */
 export interface LlmTextUsage {
   inputTokens?: number
@@ -1812,6 +1812,13 @@ async function buildOpenAiChatRequest(
       model: requestModelId,
       messages,
       ...(options.stream ? { stream: true } : {}),
+      /**
+       * 流式默认不报 usage，要显式要（花费计量，2026-10-08）。⚠ 只对官方端点开：
+       * 用户自填的兼容代理未必认这个字段，⛔ 不为计量多出一种报错。
+       */
+      ...(options.stream && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+        ? { stream_options: { include_usage: true } }
+        : {}),
       ...(!input.providerManagedOutput
         ? getOpenAiTokenLimit(
             requestModelId,

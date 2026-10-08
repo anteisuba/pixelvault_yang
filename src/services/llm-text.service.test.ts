@@ -2879,6 +2879,50 @@ describe('llmTextStream', () => {
       })
     })
 
+    it.each([
+      { baseUrl: '', asked: true },
+      { baseUrl: 'https://proxy.example.test/v1', asked: false },
+    ])(
+      'OpenAI 流式：官方端点要 usage，自填代理不加字段（baseUrl=$baseUrl）',
+      async ({ baseUrl, asked }) => {
+        const fetchMock = vi.fn().mockResolvedValue(
+          sseResponse([
+            openAiEvent({
+              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+            }),
+            openAiEvent({
+              choices: [],
+              usage: { prompt_tokens: 30000, completion_tokens: 200 },
+            }),
+            'data: [DONE]\n\n',
+          ]),
+        )
+        vi.stubGlobal('fetch', fetchMock)
+        const onUsage = vi.fn()
+
+        const chunks = await collect(
+          llmTextStream({
+            systemPrompt: 'sys',
+            userPrompt: 'user',
+            adapterType: AI_ADAPTER_TYPES.OPENAI,
+            providerConfig: { label: 'OpenAI', baseUrl },
+            apiKey: 'test-key',
+            onUsage,
+          }),
+        )
+
+        expect(chunks).toEqual(['ok'])
+        const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+        expect(body.stream_options).toEqual(
+          asked ? { include_usage: true } : undefined,
+        )
+        expect(onUsage).toHaveBeenCalledWith({
+          inputTokens: 30000,
+          outputTokens: 200,
+        })
+      },
+    )
+
     it('Gemini：usageMetadata 的思考数单独记，不并进输出', async () => {
       vi.stubGlobal(
         'fetch',

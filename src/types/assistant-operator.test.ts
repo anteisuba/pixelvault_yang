@@ -1803,6 +1803,22 @@ describe('事件契约', () => {
   })
 })
 
+describe('画布 op 的别名', () => {
+  it('project_script 写成 target 也认作 scriptNodeId', () => {
+    const parsed = ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+      ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
+    ].safeParse({
+      ops: [{ op: 'project_script', target: 'script-1', mode: 'reproject' }],
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toEqual({
+      ops: [
+        { op: 'project_script', scriptNodeId: 'script-1', mode: 'reproject' },
+      ],
+    })
+  })
+})
+
 describe('问题卡的答复', () => {
   it('问题卡开着时打的一整段话（几百字）照样是合法答复', () => {
     const answer = {

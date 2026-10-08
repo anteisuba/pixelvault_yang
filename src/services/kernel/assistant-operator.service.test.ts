@@ -13481,6 +13481,47 @@ describe('current reference image bindings', () => {
       },
     )
 
+    const reprojectTurn = (target: string) => ({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        args: { op: 'project_script', scriptNodeId: target, mode: 'reproject' },
+      },
+    })
+
+    it('创作者自己说了「重新投影」：直接投，⛔ 不再弹确认卡', async () => {
+      queueTurns(reprojectTurn(shot.id))
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          boardRequest(undefined, {
+            messages: [{ role: 'user', content: '剧本改好了，重新投影一下' }],
+          }),
+        ),
+      )
+      expect(
+        events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+      ).toBe(false)
+      expect(
+        stepsOf(events).findLast(
+          (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        ),
+      ).toMatchObject({ status: 'done' })
+    })
+
+    it('助手自己要重投影时照旧问，题面说的是「更新镜头卡」而不是新建一排', async () => {
+      queueTurns(reprojectTurn(shot.id))
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const ask = events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+      )
+      if (!ask || ask.type !== ASSISTANT_OPERATOR_EVENTS.ask)
+        throw new Error('Expected the reproject to ask first')
+      expect(ask.questions[0]?.question).toContain('更新镜头卡')
+      expect(ask.questions[0]?.question).not.toContain('新建一排')
+    })
+
     async function askDelete(target: string) {
       queueTurns(deleteTurn(target))
       const events = await collect(

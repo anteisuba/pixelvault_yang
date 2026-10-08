@@ -155,6 +155,7 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
+import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   findNovelAiInteractionPreset,
@@ -7723,7 +7724,8 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
     CanvasConfirmTierOpId,
     {
       header: string
-      question: (name: string) => string
+      /** `reproject`：剧本投过了，这一下是按改过的剧本更新已有的镜头卡。 */
+      question: (name: string, reproject: boolean) => string
       apply: CanvasConfirmOption
       keep: CanvasConfirmOption
     }
@@ -7757,15 +7759,17 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
     },
     project_script: {
       header: 'Project script',
-      question: (name) =>
-        `Turn the script “${name}” into shots? A row of shot cards appears on the board.`,
+      question: (name, reproject) =>
+        reproject
+          ? `Update the shot cards from the revised script “${name}”? Changed shots are marked and new shots get new cards.`
+          : `Turn the script “${name}” into shots? A row of shot cards appears on the board.`,
       apply: {
         label: 'Project it',
-        description: 'Adds the shot cards; you can still undo it.',
+        description: 'Adds or updates the shot cards; you can still undo it.',
       },
       keep: {
         label: 'Not now',
-        description: 'The script stays as it is; no shots are added.',
+        description: 'Nothing changes on the board.',
       },
     },
   },
@@ -7798,15 +7802,17 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
     },
     project_script: {
       header: '台本を展開',
-      question: (name) =>
-        `台本「${name}」をショットに展開しますか？ボードにショットカードが一列並びます。`,
+      question: (name, reproject) =>
+        reproject
+          ? `改訂した台本「${name}」でショットカードを更新しますか？変わったショットに印が付き、新しいショットはカードが追加されます。`
+          : `台本「${name}」をショットに展開しますか？ボードにショットカードが一列並びます。`,
       apply: {
         label: '展開する',
-        description: 'ショットカードを追加します。あとで元に戻せます。',
+        description: 'ショットカードを追加・更新します。あとで元に戻せます。',
       },
       keep: {
         label: '今はしない',
-        description: '台本はそのまま。ショットは増えません。',
+        description: 'ボードは何も変わりません。',
       },
     },
   },
@@ -7837,18 +7843,25 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
     },
     project_script: {
       header: '投影剧本',
-      question: (name) => `把剧本「${name}」投成镜头？画布上会新建一排镜头卡。`,
+      question: (name, reproject) =>
+        reproject
+          ? `按改过的剧本「${name}」更新镜头卡？变了的镜头会标出来，新增的镜头补成新卡。`
+          : `把剧本「${name}」投成镜头？画布上会新建一排镜头卡。`,
       apply: {
         label: '投影',
-        description: '按剧本新建镜头卡，之后还能撤销。',
+        description: '按剧本新建或更新镜头卡，之后还能撤销。',
       },
       keep: {
         label: '先不投',
-        description: '剧本卡保持原样，不新建镜头。',
+        description: '镜头卡保持原样，画布上什么都不变。',
       },
     },
   },
 }
+
+/** 创作者自己说了要投影剧本（中 / 英 / 日）。 */
+const CREATOR_ASKED_TO_PROJECT =
+  /投影|投成镜头|拆成镜头|拆镜头|reproject|project (?:the |this )?script|into shots|ショットに展開|展開して/i
 
 function isCanvasConfirmTierOp(
   op: NodeAssistantOpV4,
@@ -7872,6 +7885,16 @@ function planCanvasConfirm(
     (entry) => entry.questionId === id,
   )
   if (decision?.optionIds.includes(CANVAS_CONFIRM_APPLY_ID)) return null
+  /**
+   * ⭐ 创作者这句话自己点了投影就不再问一遍（2026-10-08 马尔福画布：说了「重新投影」
+   * 还弹卡，两轮都要多点一次；投错了照样能撤）。⚠ 只放投影：一句话里出现「删」
+   * 不等于点名删这一张，删卡照旧问。
+   */
+  if (
+    op.op === NODE_ASSISTANT_OP_V4_IDS.projectScript &&
+    CREATOR_ASKED_TO_PROJECT.test(latestUserMessage(run.request))
+  )
+    return null
   const target = canvasOpTargets(op)[0] ?? op.op
   const name =
     canvas.shots
@@ -7887,7 +7910,14 @@ function planCanvasConfirm(
     CANVAS_CONFIRM_ASK_TEXTS[resolveResponseLanguage(run.request, run.persona)][
       op.op
     ]
-  const question = clamp(texts.question(name), PLAN_LIMITS.maxQuestionChars)
+  const question = clamp(
+    texts.question(
+      name,
+      op.op === NODE_ASSISTANT_OP_V4_IDS.projectScript &&
+        op.mode === NODE_SCRIPT_PROJECTION_MODE_IDS.reproject,
+    ),
+    PLAN_LIMITS.maxQuestionChars,
+  )
   const option = (optionId: string, text: CanvasConfirmOption) => ({
     id: optionId,
     label: clamp(text.label, PLAN_LIMITS.maxOptionLabelChars),

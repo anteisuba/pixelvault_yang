@@ -2289,13 +2289,34 @@ export function isCanvasApplyOpId(op: string): op is NodeAssistantOpV4Id {
  * ⚠ 校验分两跳：形状归 v4 自己那张 union（⛔ 不重写），「这条撤得掉吗」归上面
  * 那张现算的清单。`superRefine` 而不是 `.and()`：错的时候要说得出是哪条 op。
  */
-const CanvasApplyOpSchema = NodeAssistantOpV4Schema.superRefine((op, ctx) => {
-  if (isCanvasApplyOpId(op.op)) return
-  ctx.addIssue({
-    code: 'custom',
-    message: `op ${op.op} cannot be applied through canvas_apply`,
-  })
-})
+/**
+ * `project_script` 是唯一一条把目标写成 `scriptNodeId` 而不是 `target` 的 op。
+ * 2026-10-08 马尔福画布：模型照其余 op 的习惯写 `target`，连着两轮 malformedArgs
+ * 才投影成功。两个名字指的是同一张剧本卡，这里认下 `target`。
+ */
+function withScriptTargetAlias(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const op = raw as Record<string, unknown>
+  if (
+    op.op !== NODE_ASSISTANT_OP_V4_IDS.projectScript ||
+    op.scriptNodeId !== undefined ||
+    typeof op.target !== 'string'
+  )
+    return raw
+  const { target, ...rest } = op
+  return { ...rest, scriptNodeId: target }
+}
+
+const CanvasApplyOpSchema = z.preprocess(
+  withScriptTargetAlias,
+  NodeAssistantOpV4Schema.superRefine((op, ctx) => {
+    if (isCanvasApplyOpId(op.op)) return
+    ctx.addIssue({
+      code: 'custom',
+      message: `op ${op.op} cannot be applied through canvas_apply`,
+    })
+  }),
+)
 
 /**
  * `read_state` 的参数。画布上状态本来就每步都在，⛔ 再读一遍整份只会让上下文翻倍；

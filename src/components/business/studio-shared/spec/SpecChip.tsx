@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl'
 
 import { ChevronDown } from '@/components/icons'
 import { useBlurSwapIn } from '@/components/ui/blur-swap'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   CHIP_POPOVER,
   DURATION,
@@ -88,6 +89,15 @@ export interface SpecChipProps {
     readonly options: readonly number[]
     readonly locked?: boolean
     readonly lockedHint?: string
+    onChange(next: number): void
+  }
+  /**
+   * 桌面档的张数（图片台底部输入框）：和比例、清晰度一样排成分段条，直接摆在
+   * 清晰度下面（owner 2026-10-08 选「分段条」，⛔ 不再收进「更多」）。
+   */
+  readonly batchCount?: {
+    readonly value: number
+    readonly options: readonly number[]
     onChange(next: number): void
   }
   readonly triggerClassName?: string
@@ -177,6 +187,11 @@ function SpecSection({
   )
 }
 
+/** 不支持的档：仍画在分段条里（灰着、悬停写原因），只是点不动。 */
+function unsupportedValues(tiers: readonly SpecTier[]): string[] {
+  return tiers.filter((tier) => !tier.supported).map((tier) => tier.value)
+}
+
 function SpecTierButton({
   tier,
   active,
@@ -258,6 +273,7 @@ export function SpecChip({
   summaryPrefix,
   summaryLead,
   compactBatchCount,
+  batchCount,
   popoverAlign = 'start',
   'data-testid': testId,
 }: SpecChipProps) {
@@ -356,6 +372,14 @@ export function SpecChip({
         transition: { duration: DURATION.fast, ease: 'linear' },
       } as const)
     : summaryBlurSwap
+  const resolutionUnsupportedTitle = (tier: string) =>
+    model.resolutionNote?.kind === 'unsupported' &&
+    model.resolutionNote.maxSupported
+      ? t('resolutionCeiling', {
+          tier,
+          max: model.resolutionNote.maxSupported,
+        })
+      : t('tierUnsupported', { tier })
   const popoverBody = (
     <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-3')}>
       {model.ratios.length > 0 ? (
@@ -367,44 +391,107 @@ export function SpecChip({
             ? { hint: ratioLockedHint }
             : {})}
         >
-          {model.ratios.map((tier) => (
-            <SpecTierButton
-              key={tier.value}
-              compact={compact}
-              tier={tier}
-              glyph
-              active={!model.ratioLocked && aspectRatio === tier.value}
+          {compact ? (
+            model.ratios.map((tier) => (
+              <SpecTierButton
+                key={tier.value}
+                compact
+                tier={tier}
+                glyph
+                active={!model.ratioLocked && aspectRatio === tier.value}
+                disabled={disabled}
+                locked={model.ratioLocked}
+                unsupportedTitle={t('tierUnsupported', { tier: tier.value })}
+                onSelect={(next) => selectValue(next, onAspectRatioChange)}
+              />
+            ))
+          ) : (
+            <LiquidSegmented
+              items={model.ratios.map((tier) => ({
+                value: tier.value,
+                label: tier.value,
+                icon: <StudioRatioGlyph ratio={tier.value} />,
+                ...(tier.supported
+                  ? {}
+                  : { hint: t('tierUnsupported', { tier: tier.value }) }),
+              }))}
+              value={model.ratioLocked ? '' : (aspectRatio ?? '')}
+              onChange={onAspectRatioChange}
+              ariaLabel={t('aspectRatioLabel')}
               disabled={disabled}
-              locked={model.ratioLocked}
-              unsupportedTitle={t('tierUnsupported', { tier: tier.value })}
-              onSelect={(next) => selectValue(next, onAspectRatioChange)}
+              // 首帧锁住比例：整组灰着但仍可悬停（原因写在下面那行提示里）。
+              disabledValues={
+                model.ratioLocked
+                  ? model.ratios.map((tier) => tier.value)
+                  : unsupportedValues(model.ratios)
+              }
+              semantics="radio"
+              size="stack"
+              fill
+              reselect
             />
-          ))}
+          )}
         </SpecSection>
       ) : null}
 
       {model.resolutions.length > 0 ? (
         <SpecSection compact={compact} label={resolutionLabel} note={note}>
-          {model.resolutions.map((tier) => (
-            <SpecTierButton
-              key={tier.value}
-              compact={compact}
-              tier={tier}
-              active={resolution === tier.value}
+          {compact ? (
+            model.resolutions.map((tier) => (
+              <SpecTierButton
+                key={tier.value}
+                compact
+                tier={tier}
+                active={resolution === tier.value}
+                disabled={disabled}
+                locked={false}
+                unsupportedTitle={resolutionUnsupportedTitle(tier.value)}
+                onSelect={(next) => selectValue(next, onResolutionChange)}
+              />
+            ))
+          ) : (
+            <LiquidSegmented
+              items={model.resolutions.map((tier) => ({
+                value: tier.value,
+                label: tier.value,
+                ...(tier.supported
+                  ? {}
+                  : { hint: resolutionUnsupportedTitle(tier.value) }),
+              }))}
+              value={resolution ?? ''}
+              onChange={onResolutionChange}
+              ariaLabel={resolutionLabel}
               disabled={disabled}
-              locked={false}
-              unsupportedTitle={
-                model.resolutionNote?.kind === 'unsupported' &&
-                model.resolutionNote.maxSupported
-                  ? t('resolutionCeiling', {
-                      tier: tier.value,
-                      max: model.resolutionNote.maxSupported,
-                    })
-                  : t('tierUnsupported', { tier: tier.value })
-              }
-              onSelect={(next) => selectValue(next, onResolutionChange)}
+              disabledValues={unsupportedValues(model.resolutions)}
+              semantics="radio"
+              size="sm"
+              fill
+              reselect
+              className="h-8"
             />
-          ))}
+          )}
+        </SpecSection>
+      ) : null}
+
+      {!compact && batchCount ? (
+        <SpecSection label={t('moreItem.batchCount')}>
+          {/* 助手改张数时这一格闪一下（`studio-operator-flash`）。 */}
+          <div data-assistant-field="count" className="w-full">
+            <LiquidSegmented
+              items={batchCount.options.map((count) => ({
+                value: String(count),
+                label: `×${count}`,
+              }))}
+              value={String(batchCount.value)}
+              onChange={(next) => batchCount.onChange(Number(next))}
+              ariaLabel={t('moreItem.batchCount')}
+              disabled={disabled}
+              semantics="radio"
+              size="sm"
+              fill
+              className="h-8"
+            />
+          </div>
         </SpecSection>
       ) : null}
 

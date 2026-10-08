@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
 
 import { LIQUID_SPRING } from '@/constants/motion'
@@ -13,6 +13,10 @@ export interface LiquidSegmentedItem<T extends string> {
   readonly title?: string
   /** 字后面亮一个小点（刚往这一格里加了东西，查资料 B 动效表）。 */
   readonly indicator?: boolean
+  /** 字上面的小图形（`stack` 档：比例格的形状）。两层各画一遍，扫过时一起反色。 */
+  readonly icon?: ReactNode
+  /** 只当悬停提示（不支持这一档的原因）；⛔ 不当读屏名字，名字仍是 `label`。 */
+  readonly hint?: string
 }
 
 /**
@@ -44,13 +48,19 @@ interface LiquidSegmentedProps<T extends string> {
    * `row` = 与 32px 高的筛选键、按钮排成一行（整颗正好 32px）；
    * `xs` = 弹层里一行参数的那一档（「专属」A1，owner 2026-10-07）：左右内边距收窄，
    * 六个选项能在 260px 里排开。
+   * `stack` = 图形在上、字在下的方块格（规格弹层的比例，owner 2026-10-08 选「分段条」）。
    */
-  size?: 'xs' | 'sm' | 'md' | 'row'
+  size?: 'xs' | 'sm' | 'md' | 'row' | 'stack'
   /**
    * `tabs` = 换一页（`tablist` / `tab`）；`radio` = 选一档（`radiogroup` / `radio`）。
    * ⚠ 长相一样、读屏念的不一样：选语气不是翻页。
    */
   semantics?: 'tabs' | 'radio'
+  /**
+   * 点已选中的那一格也回调 `onChange`。规格弹层要它：LoRA 套了配方之后再点当前比例
+   * 要把显式宽高改回这一档，视频清晰度再点一次是清回默认。
+   */
+  reselect?: boolean
   /** 撑满父容器，每一格等分（手机抽屉里那一排页签）。 */
   fill?: boolean
   className?: string
@@ -72,6 +82,8 @@ const ITEM_CLASS = {
   md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
   // 定高而不是靠行高撑：底下是按钮、上面反色那层是 span，⛔ 靠行高两层会差半像素。
   row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm font-medium',
+  stack:
+    'flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-1.5 font-mono text-2xs font-medium',
 } as const
 
 /**
@@ -95,9 +107,13 @@ export function LiquidSegmented<T extends string>({
   size = 'sm',
   semantics = 'tabs',
   fill = false,
+  reselect = false,
   className,
 }: LiquidSegmentedProps<T>) {
   const radio = semantics === 'radio'
+  const stack = size === 'stack'
+  /** 方块格的选中块是 8px 圆角，⛔ 胶囊那一档的 999px 会把高格子裁成半圆。 */
+  const clipRound = stack ? '8px' : '999px'
   const reducedMotion = useReducedMotion()
   const boxRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -155,7 +171,7 @@ export function LiquidSegmented<T extends string>({
     const sync = () =>
       clipPath.set(
         right.get() > left.get()
-          ? `inset(0 ${width.get() - right.get()}px 0 ${left.get()}px round 999px)`
+          ? `inset(0 ${width.get() - right.get()}px 0 ${left.get()}px round ${clipRound})`
           : UNMEASURED_CLIP,
       )
     sync()
@@ -163,7 +179,7 @@ export function LiquidSegmented<T extends string>({
       edge.on('change', sync),
     )
     return () => unsubscribe.forEach((stop) => stop())
-  }, [clipPath, left, right, width])
+  }, [clipPath, left, right, width, clipRound])
 
   // 容器自己变宽变窄（窗口缩放、字体晚到）时跟着落位。
   useEffect(() => {
@@ -188,7 +204,8 @@ export function LiquidSegmented<T extends string>({
       role={radio ? 'radiogroup' : 'tablist'}
       aria-label={ariaLabel}
       className={cn(
-        'inline-flex shrink-0 rounded-full border border-border bg-muted p-0.5',
+        'inline-flex shrink-0 border border-border bg-muted p-0.5',
+        stack ? 'rounded-xl' : 'rounded-full',
         'has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background',
         fill && 'flex w-full',
         disabled && 'opacity-50',
@@ -206,27 +223,34 @@ export function LiquidSegmented<T extends string>({
             type="button"
             role={radio ? 'radio' : 'tab'}
             aria-label={item.title}
-            title={item.title}
+            title={item.hint ?? item.title}
             {...(radio
               ? { 'aria-checked': item.value === value }
               : { 'aria-selected': item.value === value })}
-            disabled={disabled || disabledValues?.includes(item.value)}
+            disabled={disabled}
+            // ⚠ 单项禁用用 `aria-disabled`：不支持的档要能悬停看原因，`disabled` 连 title 都不弹。
+            aria-disabled={disabledValues?.includes(item.value) || undefined}
             onClick={() => {
-              if (item.value !== value) onChange(item.value)
+              if (disabledValues?.includes(item.value)) return
+              if (reselect || item.value !== value) onChange(item.value)
             }}
             className={cn(
               ITEM_CLASS[size],
               fill && 'flex-1 text-center',
-              'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+              'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:text-muted-foreground',
             )}
           >
+            {item.icon}
             {item.label}
             {item.indicator ? <Indicator className="bg-foreground" /> : null}
           </button>
         ))}
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 flex rounded-full bg-foreground"
+          className={cn(
+            'pointer-events-none absolute inset-0 flex bg-foreground',
+            stack ? 'rounded-lg' : 'rounded-full',
+          )}
           style={{ clipPath }}
         >
           {items.map((item) => (
@@ -238,6 +262,7 @@ export function LiquidSegmented<T extends string>({
                 'text-background',
               )}
             >
+              {item.icon}
               {item.label}
               {item.indicator ? <Indicator className="bg-current" /> : null}
             </span>

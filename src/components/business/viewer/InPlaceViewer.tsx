@@ -237,8 +237,8 @@ export function InPlaceViewer<T extends { id: string }>({
         }}
         className="relative flex h-full overflow-hidden rounded-2xl bg-card shadow-overlay"
       >
-        {/* ─── 左：舞台 ─── */}
-        <div className="relative flex min-w-0 flex-1 flex-col bg-surface-workbench">
+        {/* ─── 左：舞台 ─── 裁掉滑到两边的邻居，⛔ 盖到右边配方栏上。 */}
+        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-surface-workbench">
           <div className="flex min-h-0 flex-1 flex-col px-17.5 pb-2 pt-5.5">
             <ViewerReel
               current={current}

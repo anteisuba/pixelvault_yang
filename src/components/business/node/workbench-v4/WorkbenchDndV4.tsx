@@ -28,6 +28,10 @@ import {
 } from '@/constants/node-types'
 import { fadeInNodeCards } from '@/hooks/node/node-ingest-dom'
 import {
+  endMediaDragGhost,
+  landMediaDragGhost,
+} from '@/hooks/node/node-media-drag-ghost'
+import {
   useNodeUploadV4,
   type NodeV4UploadKind,
 } from '@/hooks/node/use-node-upload-v4'
@@ -144,7 +148,7 @@ export interface WorkbenchDndV4Value {
   placeMediaAtFlow(
     payload: ShellMediaDragPayload,
     flowPoint: { x: number; y: number },
-  ): void
+  ): string | null
   readonly isUploading: boolean
   readonly pendingUploads: readonly { id: string; name: string }[]
 }
@@ -272,13 +276,13 @@ export function useWorkbenchDndV4({
     (
       payload: ShellMediaDragPayload,
       position: { x: number; y: number },
-    ): void => {
+    ): string | null => {
       const nodeId = latest.current.graph.addNode(
         payload.kind,
         payload.subtype,
         { position },
       )
-      if (!nodeId) return
+      if (!nodeId) return null
       /**
        * ⚠ 回填必须用**建卡之后**那份图：`setMedia` 闭包着调用时的图，同一 tick 拿
        * 建卡之前那份写回去，等于把刚建出来的卡一起抹掉 —— 卡片闪都不闪一下，看起来
@@ -293,6 +297,7 @@ export function useWorkbenchDndV4({
           ? { mediaWidth: payload.width, mediaHeight: payload.height }
           : {}),
       })
+      return nodeId
     },
     [backfillMedia],
   )
@@ -307,13 +312,16 @@ export function useWorkbenchDndV4({
       const payload = readShellMediaPayload(event)
       if (payload) {
         event.preventDefault()
-        placeMediaAtFlow(
+        const nodeId = placeMediaAtFlow(
           payload,
           latest.current.screenToFlowPosition({
             x: event.clientX,
             y: event.clientY,
           }),
         )
+        // 落下：跟手的影子展开成刚建好的那张卡（动效样片 AF）；没建成就照常收掉。
+        if (nodeId) landMediaDragGhost(nodeId)
+        else endMediaDragGhost()
         return
       }
       const files = Array.from(event.dataTransfer?.files ?? [])

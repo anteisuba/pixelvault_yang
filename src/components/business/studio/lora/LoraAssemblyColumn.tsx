@@ -29,6 +29,10 @@ import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseMo
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
+import {
+  SPRING_REORDER_ATTR,
+  useSpringReorder,
+} from '@/hooks/use-spring-reorder'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { cn } from '@/lib/utils'
@@ -105,6 +109,12 @@ export function LoraAssemblyColumn({
   const tSetup = useTranslations('QuickSetup')
   const reducedMotion = useReducedMotion()
   const stack = useActiveLoraStack()
+  // 拖着换顺序，落下后各行用弹簧滑到新位置（动效样片 P）。
+  const reorderListRef = useRef<HTMLUListElement>(null)
+  useSpringReorder(
+    reorderListRef,
+    stack.items.map((item) => item.asset.id).join('|'),
+  )
   const [baseModalOpen, setBaseModalOpen] = useState(false)
   // 库 / 收藏里浮出来的整列（owner 09-28「浮出整列，默认收起」）：库不重排，整列从
   // 竖条长出来盖在库上面。离开库就收回。
@@ -346,13 +356,14 @@ export function LoraAssemblyColumn({
         'loras',
       )}
       {stack.items.length > 0 ? (
-        <ul className="flex flex-col gap-2">
+        <ul ref={reorderListRef} className="flex flex-col gap-2">
           {stack.items.map((item) => {
             const id = item.asset.id
             const compatible = compatibleWithBase(item.asset.baseModelFamily)
             return (
               <LoraAssemblyRow
                 key={id}
+                reorderId={id}
                 name={item.asset.name}
                 scale={item.scale ?? item.asset.defaultScale}
                 enabled={item.enabled !== false}
@@ -573,6 +584,8 @@ export function LoraAssemblyColumn({
 }
 
 interface LoraAssemblyRowProps {
+  /** 弹簧重排认人用（`useSpringReorder`）。 */
+  reorderId: string
   name: string
   scale: number
   enabled: boolean
@@ -605,6 +618,7 @@ interface LoraAssemblyRowProps {
  *   减少动态效果时直接到终值。
  */
 function LoraAssemblyRow({
+  reorderId,
   name,
   scale,
   enabled,
@@ -646,6 +660,7 @@ function LoraAssemblyRow({
 
   return (
     <li
+      {...{ [SPRING_REORDER_ATTR]: reorderId }}
       draggable={armed}
       onDragStart={(event) => {
         onDragStart()

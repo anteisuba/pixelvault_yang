@@ -30,13 +30,7 @@ import {
   X,
 } from '@/components/icons'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
-import {
-  DURATION,
-  DURATION_MS,
-  EASE_STANDARD,
-  EASE_STANDARD_CSS,
-  LIQUID_SPRING,
-} from '@/constants/motion'
+import { DURATION, EASE_STANDARD, LIQUID_SPRING } from '@/constants/motion'
 import { PROJECT } from '@/constants/config'
 import {
   filterFolders,
@@ -48,6 +42,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { ProjectRecord, ReorderProjectsRequest } from '@/types'
 import { NumberTicker } from '@/components/ui/number-ticker'
+import { useSpringSortableTransition } from '@/hooks/use-spring-sortable-transition'
 import {
   AssetFolderMenu,
   type AssetFolderMenuActions,
@@ -674,6 +669,7 @@ function FolderRow({
 }: FolderRowProps) {
   const t = useTranslations('AssetsPage')
   const [menuOpen, setMenuOpen] = useState(false)
+  const sortableTransition = useSpringSortableTransition()
   const {
     listeners,
     setNodeRef,
@@ -684,7 +680,7 @@ function FolderRow({
   } = useSortable({
     id: folder.id,
     disabled: !sortable || editing,
-    transition: { duration: DURATION_MS.base, easing: EASE_STANDARD_CSS },
+    transition: sortableTransition,
   })
 
   const hasAssets = (event: React.DragEvent) =>

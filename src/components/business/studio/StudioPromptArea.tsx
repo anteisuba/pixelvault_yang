@@ -43,8 +43,13 @@ import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { getImageFileFromDataTransfer } from '@/lib/image-input'
+import {
+  getImageFileFromDataTransfer,
+  getRemoteImageUrlFromDataTransfer,
+} from '@/lib/image-input'
+import { flyDropIntoRow } from '@/lib/fly-to-composer'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
+import { floatComposerChips } from '@/lib/studio-workbench-motion'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
@@ -234,6 +239,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   const searchGrounding = useStudioSearchGrounding()
   const composerContainerRef = useRef<HTMLDivElement>(null)
+  const videoDropZoneRef = useRef<HTMLDivElement>(null)
   const hasOpenToolPanel = STUDIO_TOOL_PANEL_NAMES.some(
     (panel) => state.panels[panel],
   )
@@ -313,6 +319,12 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   const handlePromptDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
+      // 接住图的输入框整块缩成缩略图、飞进参考图那一排（动效样片 T）。
+      const zone = composerContainerRef.current?.getBoundingClientRect()
+      const src =
+        getImageFileFromDataTransfer(event.dataTransfer) ??
+        getRemoteImageUrlFromDataTransfer(event.dataTransfer)
+      if (zone && src) flyDropIntoRow(zone, composerContainerRef.current, src)
       void imageUpload.handleDrop(event).then(() => {
         focusStudioPrompt()
       })
@@ -373,9 +385,15 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     }
     const videoDrop = (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault()
+      // 虚线框松手那一帧就卸了：先量好它，影子从它的位置缩着飞进素材排（动效样片 T）。
+      const zone = videoDropZoneRef.current?.getBoundingClientRect()
       setVideoDropOver(false)
       if (isGenerating) return
+      const src =
+        getImageFileFromDataTransfer(event.dataTransfer) ??
+        getRemoteImageUrlFromDataTransfer(event.dataTransfer)
       videoAssets.acceptTransfer(event.dataTransfer)
+      if (zone) flyDropIntoRow(zone, composerContainerRef.current, src)
       focusStudioPrompt()
     }
     const videoPaste = (event: ClipboardEvent<HTMLElement>) => {
@@ -424,6 +442,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             <>
               {videoDropOver ? (
                 <div
+                  ref={videoDropZoneRef}
                   role="status"
                   className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-xl border border-dashed border-foreground/30 bg-background px-3.5 text-2sm text-foreground/80 fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
                 >
@@ -477,24 +496,34 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               )}
             </>
           )}
-          {isVideoMode ? (
-            // 正文里的素材编号按模型写法渲染成缩略图胶囊（存的仍是原文）。
-            <StudioVideoPromptInput
-              placeholder={placeholder}
-              disabled={isGenerating}
-              onPaste={videoPaste}
-              onSubmit={submitFromComposer}
-              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-base ease-standard focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
-            />
-          ) : (
-            <StudioReferencePromptInput
-              placeholder={placeholder}
-              disabled={isGenerating}
-              onPaste={handlePromptPaste}
-              onSubmit={submitFromComposer}
-              className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-base ease-standard focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
-            />
-          )}
+          {/* 点进来：框先长高，工具行的 chip 再从框里浮出来（动效样片 Z）。
+              `contents` 不占版面，只接冒泡上来的 focus。 */}
+          <div
+            className="contents"
+            onFocus={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node))
+                floatComposerChips()
+            }}
+          >
+            {isVideoMode ? (
+              // 正文里的素材编号按模型写法渲染成缩略图胶囊（存的仍是原文）。
+              <StudioVideoPromptInput
+                placeholder={placeholder}
+                disabled={isGenerating}
+                onPaste={videoPaste}
+                onSubmit={submitFromComposer}
+                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
+              />
+            ) : (
+              <StudioReferencePromptInput
+                placeholder={placeholder}
+                disabled={isGenerating}
+                onPaste={handlePromptPaste}
+                onSubmit={submitFromComposer}
+                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
+              />
+            )}
+          </div>
           {isImagePromptOverLimit && (
             <span className="text-2xs tabular-nums text-destructive">
               {`${imagePromptLength}/${imagePromptMaxChars}`}
@@ -625,7 +654,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               </span>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {state.workflowMode === 'quick' ? (
-                  <span data-assistant-field="model">
+                  <span
+                    data-assistant-field="model"
+                    data-studio-recipe-chip="0"
+                    className="inline-flex"
+                  >
                     {isVideoMode ? (
                       // 视频**单选**：没有对比路径，一枪恒一条（`generateVideo` 恒 single）。
                       <MainModelPicker
@@ -686,7 +719,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                     )}
                   </span>
                 ) : null}
-                <span data-assistant-field="specs">
+                <span
+                  data-assistant-field="specs"
+                  data-studio-recipe-chip="1"
+                  className="inline-flex"
+                >
                   <StudioSpecChip
                     disabled={isGenerating}
                     showCount={!isVideoMode}

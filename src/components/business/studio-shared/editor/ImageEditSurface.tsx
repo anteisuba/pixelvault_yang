@@ -25,6 +25,7 @@ import {
   type InpaintMaskDraft,
 } from '@/components/business/studio/StudioInpaintEditor'
 import { Button } from '@/components/ui/button'
+import { ImageCompare } from '@/components/ui/image-compare'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { ModelChip } from '@/components/business/studio-shared/pickers/ModelChip'
@@ -157,6 +158,11 @@ export interface ImageEditSurfaceProps {
   onCancel?: () => void
   composerContainer?: HTMLElement | null
   active?: boolean
+  /**
+   * 上一步的图（宿主有编辑历史时给）。放大 / 修图这两样的结果用前后对比展示
+   * （动效样片 W）：左右拖分隔线看改了什么。⛔ 局部重绘 / 物体替换那两块画布不换。
+   */
+  compareFromUrl?: string | null
 }
 
 export function ImageEditSurface({
@@ -170,6 +176,7 @@ export function ImageEditSurface({
   onCancel,
   composerContainer,
   active = true,
+  compareFromUrl = null,
 }: ImageEditSurfaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tAdvanced = useTranslations('AdvancedSettings')
@@ -831,6 +838,21 @@ export function ImageEditSurface({
       )}
     </figure>
   )
+  const compareFigure =
+    compareFromUrl && sourceUrl && compareFromUrl !== sourceUrl ? (
+      <figure className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+        <ImageCompare
+          beforeSrc={compareFromUrl}
+          afterSrc={sourceUrl}
+          beforeLabel={t('compareBefore')}
+          afterLabel={t('compareAfter')}
+          sliderLabel={t('compareSlider')}
+          mediaClassName="studio-edit-media"
+        />
+      </figure>
+    ) : (
+      sourceFigure
+    )
   const renderBody = () => {
     switch (activeTask) {
       case 'inpaint':
@@ -866,7 +888,7 @@ export function ImageEditSurface({
       case 'edit-image':
         return (
           <>
-            {sourceFigure}
+            {compareFigure}
             {renderComposer({
               input: promptInput,
               canSubmit: Boolean(prompt.trim()),
@@ -878,7 +900,7 @@ export function ImageEditSurface({
       case 'upscale':
         return (
           <>
-            {sourceFigure}
+            {compareFigure}
             {renderComposer({
               input: (
                 <LiquidSegmented

@@ -2,6 +2,8 @@ import {
   DURATION_MS,
   EASE_STANDARD_CSS,
   LIQUID_TIMING,
+  FOCUS_FLOAT,
+  RECIPE_LAND,
   staggerDelay,
 } from '@/constants/motion'
 
@@ -71,30 +73,111 @@ export function flyTileFromGenerate(tile: HTMLElement, order: number): void {
   settle(animation, delay + duration)
 }
 
+/** 输入框工具行里「做同款」会一颗颗落进来的 chip（模型 / 规格），值 = 落下的先后。 */
+export const STUDIO_RECIPE_CHIP_ATTR = 'data-studio-recipe-chip'
+
 /**
- * 「做同款落进输入框」（V 简化版）：配方写进来之后，提示词由糊变清，整张卡轻轻
- * 顶一下 —— 一处动，⛔ 不逐个飞 chip。
+ * CSS 侧弹簧的 `linear()` 近似（globals.css `--spring-*-ease`），给 WAAPI 用 ——
+ * `Element.animate` 的 easing 不认 `var()`，只好读出算好的值。读不到（测试环境 /
+ * 老浏览器）退回脊柱曲线。
+ */
+export function cssSpringEasing(preset: 'slot' | 'expand' = 'slot'): string {
+  if (typeof window === 'undefined') return EASE_STANDARD_CSS
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(`--spring-${preset}-ease`)
+    .trim()
+  return value || EASE_STANDARD_CSS
+}
+
+/**
+ * 「做同款落进输入框」（动效样片 V 简化版，owner 2026-10-08）：配方写进来之后
+ * **一样接一样**地动 —— ① 提示词由糊变清；② 模型、规格 chip 从上面一颗颗落进
+ * 输入框（`spring-slot`，错开 `RECIPE_LAND.chipStaggerMs`）；③ 最后一颗落定，整张卡
+ * 轻轻顶一下。同一时刻只有一样在动。
  */
 export function landRecipeInComposer(): void {
   const card = document.querySelector<HTMLElement>(`[${STUDIO_COMPOSER_ATTR}]`)
   if (!canAnimate(card)) return
+  const easing = cssSpringEasing('slot')
+  let at = 0
+  const prompt = document.getElementById('studio-prompt')
+  if (prompt) {
+    const swap = prompt.animate(
+      [
+        { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` },
+        { opacity: 1, filter: 'blur(0px)' },
+      ],
+      { duration: DURATION_MS.base, easing: EASE_STANDARD_CSS },
+    )
+    settle(swap, DURATION_MS.base)
+    at = DURATION_MS.base
+  }
+  const chips = Array.from(
+    card.querySelectorAll<HTMLElement>(`[${STUDIO_RECIPE_CHIP_ATTR}]`),
+  ).sort(
+    (a, b) =>
+      Number(a.getAttribute(STUDIO_RECIPE_CHIP_ATTR)) -
+      Number(b.getAttribute(STUDIO_RECIPE_CHIP_ATTR)),
+  )
+  chips.forEach((chip, index) => {
+    const delay = at + index * RECIPE_LAND.chipStaggerMs
+    const drop = chip.animate(
+      [
+        {
+          transform: `translateY(-${RECIPE_LAND.dropPx}px)`,
+          opacity: 0,
+          filter: `blur(${RECIPE_LAND.blurPx}px)`,
+        },
+        { transform: 'translateY(0)', opacity: 1, filter: 'blur(0px)' },
+      ],
+      {
+        duration: DURATION_MS.slow,
+        delay,
+        easing,
+        fill: 'backwards',
+      },
+    )
+    settle(drop, delay + DURATION_MS.slow)
+  })
+  if (chips.length > 0) {
+    at += (chips.length - 1) * RECIPE_LAND.chipStaggerMs + DURATION_MS.slow
+  }
   const bump = card.animate(
     [
       { transform: 'scale(1)' },
-      { transform: 'scale(1.008)', offset: 0.35 },
+      { transform: `scale(${RECIPE_LAND.bumpScale})`, offset: 0.35 },
       { transform: 'scale(1)' },
     ],
-    { duration: DURATION_MS.slow, easing: EASE_STANDARD_CSS },
+    { duration: DURATION_MS.slow, delay: at, easing: EASE_STANDARD_CSS },
   )
-  settle(bump, DURATION_MS.slow)
-  const prompt = document.getElementById('studio-prompt')
-  if (!prompt) return
-  const swap = prompt.animate(
-    [
-      { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` },
-      { opacity: 1, filter: 'blur(0px)' },
-    ],
-    { duration: DURATION_MS.base, easing: EASE_STANDARD_CSS },
-  )
-  settle(swap, DURATION_MS.base)
+  settle(bump, at + DURATION_MS.slow)
+}
+
+/**
+ * 「点进输入框」（动效样片 Z，owner 2026-10-08）：框先长高（CSS `min-height` 那一拍），
+ * 长完之后工具行的模型 / 规格 chip 从框里往上浮出来 —— 由下方 `FOCUS_FLOAT.risePx`
+ * 处、带一点糊，`spring-slot` 落到原位。焦点只在框里挪动（从提示词跳到 chip）⛔ 再浮。
+ */
+export function floatComposerChips(): void {
+  const card = document.querySelector<HTMLElement>(`[${STUDIO_COMPOSER_ATTR}]`)
+  if (!canAnimate(card)) return
+  const easing = cssSpringEasing('slot')
+  card
+    .querySelectorAll<HTMLElement>(`[${STUDIO_RECIPE_CHIP_ATTR}]`)
+    .forEach((chip) => {
+      const delay = DURATION_MS.base
+      const rise = chip.animate(
+        [
+          {
+            transform: `translateY(${FOCUS_FLOAT.risePx}px)`,
+            opacity: FOCUS_FLOAT.fromOpacity,
+            filter: `blur(${FOCUS_FLOAT.blurPx}px)`,
+          },
+          { transform: 'translateY(0)', opacity: 1, filter: 'blur(0px)' },
+        ],
+        { duration: DURATION_MS.slow, delay, easing, fill: 'backwards' },
+      )
+      settle(rise, delay + DURATION_MS.slow)
+    })
 }

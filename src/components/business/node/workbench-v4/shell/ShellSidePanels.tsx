@@ -80,6 +80,10 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
+import {
+  endMediaDragGhost,
+  liftMediaDragGhost,
+} from '@/hooks/node/node-media-drag-ghost'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
@@ -168,11 +172,12 @@ interface ShellMediaPayload {
 }
 
 /**
- * 拖起来时**不画那张小图**（owner 2026-09-12：「图片移动的时候出现的这个小图删掉」）。
+ * 浏览器自带的拖影换成透明图（它是源元素的半透明截图，不可编程）；拿起 / 落下的样子
+ * 交给 `node-media-drag-ghost`（动效样片 AF，owner 2026-10-08 批准，替掉 2026-09-12
+ * 「图片移动的时候出现的这个小图删掉」那一版纯透明拖影）。
  *
- * ⚠ 浏览器的默认拖影是源元素的截图，跟着光标飘在画布上，与卡片本身的落点提示是
- * 两套语言。给它一张 1×1 透明图就没了。⛔ 不能传一个没进 DOM 的元素：那在
- * Chrome 里会被忽略、拖影照旧。
+ * ⚠ 给透明图而不是不设：⛔ 不能传一个没进 DOM 的元素 —— 那在 Chrome 里会被忽略、
+ * 拖影照旧。
  */
 let transparentGhost: HTMLImageElement | null = null
 function dragGhost(): HTMLImageElement | null {
@@ -199,9 +204,15 @@ function mediaTileProps(
         JSON.stringify(payload),
       )
       event.dataTransfer.effectAllowed = 'copy'
-      const ghost = dragGhost()
-      if (ghost) event.dataTransfer.setDragImage(ghost, 0, 0)
+      // 拿起：跟手的影子放大一点、带投影（动效样片 AF）。
+      liftMediaDragGhost(
+        event,
+        event.currentTarget as HTMLElement,
+        payload.url,
+        dragGhost(),
+      )
     },
+    onDragEnd: () => endMediaDragGhost(),
     onClick: () => onPlace(payload),
     // 挂了 onClick 的 div 就得当按钮用（角色 / 焦点 / 回车空格），
     // ⛔ 不留一个只有鼠标点得动的东西。

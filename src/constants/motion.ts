@@ -189,6 +189,90 @@ export const REFERENCE_FLY = {
 } as const
 
 /**
+ * 「做同款」配方落进输入框（动效样片 V 简化版，owner 2026-10-08）：提示词糊→清之后，
+ * 模型 / 规格 chip 从上方 `dropPx` 处一颗颗落下（带 `blurPx` 短糊），错开
+ * `chipStaggerMs`；最后一颗落定后卡顶一下到 `bumpScale`。节拍走四档刻度。
+ */
+export const RECIPE_LAND = {
+  dropPx: 14,
+  blurPx: 3,
+  chipStaggerMs: 120,
+  bumpScale: 1.008,
+} as const
+
+/**
+ * 点进工作台输入框（动效样片 Z，owner 2026-10-08）：框长高之后，模型 / 规格 chip 从
+ * 下方 `risePx` 处、`fromOpacity` 透明度、`blurPx` 短糊浮回原位（`spring-slot`）。
+ */
+export const FOCUS_FLOAT = {
+  risePx: 6,
+  fromOpacity: 0.3,
+  blurPx: 3,
+} as const
+
+/**
+ * LoRA 训练进度条（动效样片 AE，owner 2026-10-08）：拆成 `count` 格一格格填；训练完
+ * 整条收拢后 ✓ 从 `checkFrom` 顶到原尺寸；卡多留 `doneHoldMs` 再交给完成仪式卡。
+ * ⚠ `doneHoldMs` 是停留，不是过渡时长 —— ⛔ 不走四档刻度。
+ */
+export const TRAINING_CELLS = {
+  count: 10,
+  checkFrom: 0.6,
+  doneHoldMs: 1200,
+} as const
+
+/**
+ * 拖着排序时其余项让位（动效样片 P，owner 2026-10-08）：dnd-kit `useSortable` 的
+ * transition 配置 = CSS 侧 `--spring-slot` 那条 `linear()` 近似。时长与
+ * globals.css `--spring-slot-duration` 同一个数，两处同步改。
+ */
+export const SORTABLE_SPRING = {
+  duration: 340,
+  easing: 'var(--spring-slot-ease)',
+} as const
+
+/**
+ * CSS 侧弹簧档的时长（毫秒），给 WAAPI 配 `linear()` 近似用（读法见
+ * `lib/studio-workbench-motion.ts` 的 `cssSpringEasing`）。与 globals.css
+ * `--spring-*-duration` 同一组数，两处同步改。
+ */
+export const SPRING_CSS_MS = {
+  expand: 480,
+  slot: SORTABLE_SPRING.duration,
+} as const
+
+/**
+ * 拖图进来（动效样片 T，owner 2026-10-08）：虚线框接住图 → 先填实（`DURATION.base`）
+ * → 整块缩成 `toSizePx` 见方的小缩略图、`spring-expand` 飞到参考图 / 素材那一排的末尾。
+ */
+export const DROP_FLY = {
+  toSizePx: 28,
+  gapPx: 8,
+} as const
+
+/**
+ * 拖过头的橡皮筋（动效样片 B「滑块拉长」，owner 2026-10-08）：指针越过两端还往外拉，
+ * 拉出去的距离按 `ratio` 打折、最多 `maxPx`，被拉的那根线变细到 `minThickness`；
+ * 松手 `SPRING.slot` 弹回。参数滑块（`ui/slider.tsx`）与前后对比的分隔线
+ * （`ui/image-compare.tsx`，动效样片 W）共用这一组数。
+ */
+export const RUBBER_BAND = {
+  ratio: 0.35,
+  maxPx: 18,
+  minThickness: 0.6,
+} as const
+
+/**
+ * 素材拖上画布（动效样片 AF，owner 2026-10-08）：拿起时影子放大到 `scale`（`spring-slot`）
+ * 带浮层投影；落进画布用 `spring-expand` 展开成卡。`maxLifetimeMs` 是兜底停留
+ * （dragend 没来时多久摘掉影子），⛔ 不走四档刻度。
+ */
+export const MEDIA_DRAG_LIFT = {
+  scale: 1.06,
+  maxLifetimeMs: 60_000,
+} as const
+
+/**
  * 查资料加进标签之后（owner 2026-09-27 查资料 B 动效表）：按钮上「已加进 ✓」停多久、
  * 输入框里「角色 N」那一页的小点亮多久。与 `--animate-tag-land` 的浅底褪色同一拍。
  */

@@ -7226,6 +7226,9 @@
     },
     "stageHistory": "Edit history",
     "stageHistoryOriginal": "Original",
+    "compareBefore": "Before",
+    "compareAfter": "After",
+    "compareSlider": "Drag to compare before and after",
     "stageHistoryStep": "Edit {index}"
   },
   "sceneFeedback": {

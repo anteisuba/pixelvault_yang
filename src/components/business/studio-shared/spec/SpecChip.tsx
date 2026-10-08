@@ -39,6 +39,7 @@ import {
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
 import {
+  StudioMorphRatioGlyph,
   StudioRatioGlyph,
   getChipZoomMotion,
   studioToolPopoverBaseClass,
@@ -478,6 +479,12 @@ export function SpecChip({
           whileTap={compact && !reduceMotion ? { scale: 0.96 } : undefined}
           transition={SPRING.press}
         >
+          {!compact &&
+          model.ratios.length > 0 &&
+          !model.ratioLocked &&
+          aspectRatio ? (
+            <StudioMorphRatioGlyph ratio={aspectRatio} />
+          ) : null}
           <span className="min-w-0 flex-1 truncate text-left tabular-nums">
             {model.summary ? (
               summaryLead ? (

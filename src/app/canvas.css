@@ -1221,12 +1221,18 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   text-align: center;
 }
 
-/* 拖线中的整卡反馈：合法目标发光（2px 黑环 + 8px 淡晕），非法目标压暗。 */
+/* 拖线中的整卡反馈：合法目标描一圈 2px 黑环，非法目标压暗。
+   动效样片 AB（owner 2026-10-08）：环由 0 长到 2px 走 `--spring-slot`（⛔ 一下子亮起来）；
+   退场仍走卡面自己的 `duration-fast` 线性档（移除不用弹簧）。
+   ⛔ 不加晕：原来那圈 8px 淡晕 2026-10-08 撤掉，只留同色的实线环。 */
+/* ⚠ 环排在**最后**：box-shadow 按位次插值，卡自己的投影要与平时那一份逐位对上，
+   环才是从「透明 0 扩散」长出来的那一项。 */
 .node-card-glow {
   box-shadow:
-    0 0 0 2px var(--node-foreground),
-    0 0 0 8px color-mix(in oklab, var(--node-foreground) 8%, transparent),
-    var(--shadow-node-card);
+    var(--shadow-node-card),
+    0 0 0 2px var(--node-foreground);
+  transition-duration: var(--spring-slot-duration);
+  transition-timing-function: var(--spring-slot-ease);
 }
 
 .node-card-dim {

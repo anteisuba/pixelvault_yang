@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Clock, RotateCcw } from '@/components/icons'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { Progress as ProgressPrimitive } from 'radix-ui'
 
+import { AlertTriangle, Check, Clock, RotateCcw } from '@/components/icons'
+import { DURATION, EASE_IN, SPRING, TRAINING_CELLS } from '@/constants/motion'
 import type { LoraTrainingRecord } from '@/types'
-import { Progress } from '@/components/ui/progress'
+import { RollingNumber } from '@/components/ui/rolling-number'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
@@ -44,10 +47,14 @@ export function TrainingStatusCard({
 }: TrainingStatusCardProps) {
   const t = useTranslations('LoraTraining')
   const isFailed = job.status === 'FAILED'
-  const isTraining = job.status === 'TRAINING'
-  const elapsedMin = useElapsedMinutes(job.createdAt, isFailed)
-  // DB 里 progress 是 0–1 的 Float；Progress 原语要 0–100。
-  const pct = Math.max(0, Math.min(100, Math.round((job.progress ?? 0) * 100)))
+  /** 刚训练完：宿主让这张卡多留一拍，进度条收成 ✓ 再交给完成仪式卡。 */
+  const isDone = job.status === 'COMPLETED'
+  const isTraining = job.status === 'TRAINING' || isDone
+  const elapsedMin = useElapsedMinutes(job.createdAt, isFailed || isDone)
+  // DB 里 progress 是 0–1 的 Float；进度条要 0–100。
+  const pct = isDone
+    ? 100
+    : Math.max(0, Math.min(100, Math.round((job.progress ?? 0) * 100)))
 
   return (
     <section
@@ -89,8 +96,8 @@ export function TrainingStatusCard({
                   : t('statusCardQueuedTitle')}
             </h3>
             {isTraining ? (
-              <span className="font-mono text-xs text-muted-foreground">
-                {pct}%
+              <span className="inline-flex font-mono text-xs tabular-nums text-muted-foreground">
+                <RollingNumber value={pct} />%
               </span>
             ) : null}
           </div>
@@ -101,7 +108,7 @@ export function TrainingStatusCard({
 
           {isTraining ? (
             <div className="space-y-1 pt-1">
-              <Progress value={pct} className="h-1.5" />
+              <TrainingCellBar pct={pct} done={isDone} />
               <p className="text-2xs text-muted-foreground">
                 {t('statusCardElapsed', { min: elapsedMin })}
               </p>
@@ -143,6 +150,79 @@ export function TrainingStatusCard({
         </div>
       </div>
     </section>
+  )
+}
+
+/**
+ * 训练进度条（动效样片 AE，owner 2026-10-08）：一条拆成 `TRAINING_CELLS.count` 格，
+ * 进度每跨过一格，那一格由左往右 `SPRING.slot` 填满（只动 `scaleX`）；训练完整条
+ * 先收拢（`duration-base` + `ease-in`），收完再从中间顶出一颗 ✓ —— 同一时刻只有一样在动。
+ *
+ * ⚠ 一格 = 总进度的 1/N，⛔ 不是训练步数：记录里只有 0–1 的 progress，没有步数字段
+ * （见上方卡头注释），不编步数。读屏照旧读 `progressbar` 的百分比。
+ * `prefers-reduced-motion` 下格子直接变色、✓ 直接出现。
+ */
+function TrainingCellBar({ pct, done }: { pct: number; done: boolean }) {
+  const reducedMotion = useReducedMotion()
+  const filled = Math.floor((pct / 100) * TRAINING_CELLS.count)
+  const instant = { duration: 0 }
+  return (
+    <div className="flex h-5 items-center">
+      <AnimatePresence mode="wait" initial={false}>
+        {done ? (
+          <motion.span
+            key="done"
+            data-testid="training-cells-done"
+            initial={
+              reducedMotion
+                ? false
+                : { scale: TRAINING_CELLS.checkFrom, opacity: 0 }
+            }
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reducedMotion ? instant : SPRING.slot}
+            className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground"
+          >
+            <Check weight="bold" className="size-3" aria-hidden />
+          </motion.span>
+        ) : (
+          <motion.div
+            key="bar"
+            className="w-full origin-left"
+            exit={
+              reducedMotion
+                ? { opacity: 0, transition: instant }
+                : {
+                    scaleX: 0,
+                    opacity: 0,
+                    transition: { duration: DURATION.base, ease: EASE_IN },
+                  }
+            }
+          >
+            <ProgressPrimitive.Root
+              data-slot="progress"
+              value={pct}
+              max={100}
+              className="flex h-1.5 w-full gap-0.5"
+            >
+              {Array.from({ length: TRAINING_CELLS.count }, (_, index) => (
+                <span
+                  key={index}
+                  data-filled={index < filled || undefined}
+                  className="relative h-full flex-1 overflow-hidden rounded-full bg-primary/15"
+                >
+                  <motion.span
+                    className="absolute inset-0 origin-left rounded-full bg-primary"
+                    initial={false}
+                    animate={{ scaleX: index < filled ? 1 : 0 }}
+                    transition={reducedMotion ? instant : SPRING.slot}
+                  />
+                </span>
+              ))}
+            </ProgressPrimitive.Root>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 

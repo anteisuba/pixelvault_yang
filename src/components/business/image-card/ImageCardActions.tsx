@@ -1,15 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
-
-import { Download, Heart } from '@/components/icons'
-import { SPRING } from '@/constants/motion'
+import { Download } from '@/components/icons'
+import { FavoriteHeart } from '@/components/ui/favorite-heart'
 import { RollingNumber } from '@/components/ui/rolling-number'
 import { cn } from '@/lib/utils'
-
-/** 点 ♥ 那一下心先缩到这么大再弹回（与素材瓦片同一下，assets.md §4.6 H）。 */
-const HEART_POP_FROM = 0.78
 
 interface ImageCardActionsProps {
   liked: boolean
@@ -44,12 +38,6 @@ export function ImageCardActions({
   downloadLabel,
   hiddenOnCoarse = false,
 }: ImageCardActionsProps) {
-  const reducedMotion = useReducedMotion()
-  // 真的切换过一次之后心才弹：滚回来重挂（窗口化）⛔ 弹。
-  const [likedSeen, setLikedSeen] = useState({ value: liked, changed: false })
-  if (likedSeen.value !== liked) setLikedSeen({ value: liked, changed: true })
-  const heartPop = likedSeen.changed && !reducedMotion
-
   return (
     <div
       className={cn(
@@ -66,15 +54,7 @@ export function ImageCardActions({
         className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
-        <motion.span
-          key={liked ? 'on' : 'off'}
-          initial={heartPop ? { scale: HEART_POP_FROM } : false}
-          animate={{ scale: 1 }}
-          transition={SPRING.slot}
-          className="grid place-items-center"
-        >
-          <Heart weight={liked ? 'fill' : 'bold'} className="size-3.5" />
-        </motion.span>
+        <FavoriteHeart liked={liked} />
         {likeCount > 0 && <LikeCount count={likeCount} />}
       </button>
       <button

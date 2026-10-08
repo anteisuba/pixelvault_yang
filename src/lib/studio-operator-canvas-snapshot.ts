@@ -261,11 +261,24 @@ function buildScriptProjectionSummaries(
     const data = node.data
     if (data.kind !== NODE_MEDIA_KIND_IDS.text) continue
     if (data.subtype !== NODE_V4_TEXT_SUBTYPE_IDS.script) continue
+    const { shots } = parseScriptShots(data.body)
     summaries.set(node.id, {
-      shots: parseScriptShots(data.body).shots.length,
+      shots: shots.length,
       projected: 0,
       changed: 0,
       dropped: 0,
+      ...(shots.length > 0
+        ? {
+            titles: shots
+              .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxScriptShotTitles)
+              .map((shot) =>
+                shot.title.slice(
+                  0,
+                  ASSISTANT_OPERATOR_CANVAS_LIMITS.scriptShotTitleChars,
+                ),
+              ),
+          }
+        : {}),
     })
   }
   for (const node of nodes) {

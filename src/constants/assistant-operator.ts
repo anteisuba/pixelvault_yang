@@ -2194,6 +2194,13 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   /** `read_state` 一次最多点名读几张卡的全文。 */
   maxReadNodes: 8,
   /**
+   * 剧本卡上列出「投影会切成哪几镜」最多几行、每行几字（2026-10-08 真机：模型只看到
+   * 一个镜数，把设定行当成了镜头去投影）。⚠ 每行字数与 `NODE_SCRIPT_PROJECTION.maxTitleChars`
+   * 同量级：标题本来就已截断。
+   */
+  maxScriptShotTitles: 24,
+  scriptShotTitleChars: 80,
+  /**
    * 看片地址最多几条：每张卡当前版一条，外加在用旧版的主线段各一条（4a）。
    */
   maxEditVideoUrls: 120,

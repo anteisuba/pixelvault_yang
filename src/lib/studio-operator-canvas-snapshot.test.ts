@@ -751,6 +751,7 @@ describe('剧本投影在快照里（进度表 24）', () => {
       projected: 3,
       changed: 1,
       dropped: 1,
+      titles: ['甲', '乙', '丙'],
     })
   })
 

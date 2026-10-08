@@ -741,6 +741,13 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
       projected: z.number().int().min(0),
       changed: z.number().int().min(0),
       dropped: z.number().int().min(0),
+      /** 投影会切出的前几镜标题 —— 模型据此判断这些是不是真镜头。 */
+      titles: z
+        .array(
+          z.string().max(ASSISTANT_OPERATOR_CANVAS_LIMITS.scriptShotTitleChars),
+        )
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxScriptShotTitles)
+        .optional(),
     })
     .optional(),
   /** **镜头卡**那一格：这一镜来自哪张剧本卡的哪一段，现在与剧本对不对得上。 */

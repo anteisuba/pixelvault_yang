@@ -245,6 +245,8 @@ export interface StudioOperatorHost {
     nameOf(nodeId: string): string | undefined
     locate(nodeId: string): void
     generationStateOf?(nodeId: string): CanvasNodeGenerationState | undefined
+    /** 这张卡此刻的产出图（出图后自动看一眼认它变没变）；没有图 = `undefined`。 */
+    outputOf?(nodeId: string): { url: string; name: string } | undefined
   }
 }
 

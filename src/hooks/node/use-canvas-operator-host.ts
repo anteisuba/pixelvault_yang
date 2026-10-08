@@ -585,6 +585,12 @@ export function useCanvasOperatorHost({
           const node = nodes.find((candidate) => candidate.id === nodeId)
           return node ? readCanvasNodeGenerationState(node) : undefined
         },
+        outputOf: (nodeId) => {
+          const node = nodes.find((candidate) => candidate.id === nodeId)
+          return node?.data.kind === NODE_MEDIA_KIND_IDS.image && node.data.url
+            ? { url: node.data.url, name: node.data.name }
+            : undefined
+        },
       },
     }),
     [

@@ -8444,6 +8444,9 @@
         "contextOpen": "{name} を表示中"
       }
     },
+    "autoReview": {
+      "message": "画像ができました。参照と見比べて、ずれているところを教えて。"
+    },
     "autoGenerate": {
       "label": "自動生成"
     },

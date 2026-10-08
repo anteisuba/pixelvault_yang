@@ -139,6 +139,10 @@ const canvasGenerationState = vi.hoisted(() => ({
   current: null as Record<string, unknown> | null,
 }))
 const canvasInputSync = vi.hoisted(() => ({ current: false }))
+/** 画布卡此刻的产出图（出图后自动看一眼认它换没换）。 */
+const canvasOutput = vi.hoisted(() => ({
+  current: undefined as { url: string; name: string } | undefined,
+}))
 const hostDomain = vi.hoisted(() => ({
   current: 'image' as AssistantOperatorDomain,
 }))
@@ -161,6 +165,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ? {
           canvasTargets: {
             generationStateOf: () => canvasGenerationState.current ?? undefined,
+            outputOf: () => canvasOutput.current,
           },
         }
       : {}),
@@ -2281,6 +2286,80 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       await settle()
       expect(canvasGenerate).not.toHaveBeenCalled()
       expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    })
+
+    it('⭐ 自动生成出图后自动看一眼：卡上的图换了就发一轮 autoReview，附件是新图', async () => {
+      canvasGenerationState.enabled = true
+      canvasGenerationState.current = {
+        id: 'shot-1',
+        name: '主角正面',
+        kind: 'image',
+        model: 'seedream-4',
+        parameters: { values: { aspectRatio: '3:4', count: 1 }, options: {} },
+      }
+      canvasOutput.current = {
+        url: 'https://cdn.test/old.png',
+        name: '主角正面',
+      }
+      const { rerender } = await proposeOnCanvas(true)
+      expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
+      // 图还没换：不发。
+      rerender()
+      await settle()
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+      canvasOutput.current = {
+        url: 'https://cdn.test/new.png',
+        name: '主角正面',
+      }
+      rerender()
+      await settle()
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+      const request = streamAssistantOperatorAPI.mock.calls[1][0]
+      expect(request).toMatchObject({
+        autoReview: true,
+        mentionedAssets: [
+          expect.objectContaining({ url: 'https://cdn.test/new.png' }),
+        ],
+      })
+      streams[1].emit({ type: 'done' })
+      streams[1].close()
+      await settle()
+      // 一枪只看一次，下一轮不再带。
+      rerender()
+      await settle()
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+      canvasOutput.current = undefined
+      canvasGenerationState.enabled = false
+    })
+
+    it('自动生成后用户先开口了：这一枪不再自动看', async () => {
+      canvasGenerationState.enabled = true
+      canvasGenerationState.current = {
+        id: 'shot-1',
+        name: '主角正面',
+        kind: 'image',
+        model: 'seedream-4',
+        parameters: { values: { aspectRatio: '3:4', count: 1 }, options: {} },
+      }
+      canvasOutput.current = undefined
+      const { result, rerender } = await proposeOnCanvas(true)
+      act(() => result.current.send('先别管这张'))
+      await settle()
+      streams[1].emit({ type: 'done' })
+      streams[1].close()
+      await settle()
+      canvasOutput.current = {
+        url: 'https://cdn.test/new.png',
+        name: '主角正面',
+      }
+      rerender()
+      await settle()
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+      expect(
+        streamAssistantOperatorAPI.mock.calls[1][0].autoReview,
+      ).toBeUndefined()
+      canvasOutput.current = undefined
+      canvasGenerationState.enabled = false
     })
 
     it('⭐ 自动生成开关开着 → 画布那张卡也由客户端替你按下', async () => {

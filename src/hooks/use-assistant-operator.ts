@@ -778,6 +778,7 @@ export function useAssistantOperator(
   const tError = useTranslations('StudioOperator.error')
   /** 卡上就地改参数那几条 step 的文案（§5.2 第二行）—— i18n 只能在 React 层拿。 */
   const tConfirm = useTranslations('StudioOperator.confirm')
+  const tAutoReview = useTranslations('StudioOperator.autoReview')
   const tErrors = useTranslations('Errors')
   /**
    * 一句给用户看的失败文案（见 `ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS` 头注）。
@@ -811,6 +812,18 @@ export function useAssistantOperator(
    * 此后每一条消息都在要求助手重新规划。
    */
   const reviseRef = useRef(false)
+  /**
+   * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）。自动扣下扳机那一刻
+   * 记下这一枪打在哪（画布卡 + 原来的图 / 工作台那张结果卡），图落地后自己发一轮，
+   * 附件就是刚出的那张。⚠ 一枪只看一次；用户在那之前开口了就作废。
+   */
+  const autoReviewRef = useRef<
+    | { kind: 'canvas'; nodeId: string; before: string | undefined }
+    | { kind: 'result'; resultId: string }
+    | null
+  >(null)
+  /** 下一次 `run()` 带不带 `autoReview`（读完就清，见 `reviseRef` 同款）。 */
+  const autoReviewTurnRef = useRef(false)
 
   useEffect(
     () => () => {
@@ -1131,6 +1144,7 @@ export function useAssistantOperator(
            * 展示文本，当成权限清单用就是一条提示词注入的路。
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
+          ...(autoReviewTurnRef.current ? { autoReview: true as const } : {}),
           /**
            * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
            * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
@@ -1960,6 +1974,8 @@ export function useAssistantOperator(
        * 点下去发出的是**上一个话题**的确认 —— 而花钱那张是真的会花钱。
        */
       clearOperatorPrompts()
+      // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
+      if (!autoReviewTurnRef.current) autoReviewRef.current = null
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
@@ -1972,10 +1988,51 @@ export function useAssistantOperator(
        */
       const revising = reviseRef.current
       reviseRef.current = false
-      void run(revising ? { planApproved: false } : {})
+      void run(revising ? { planApproved: false } : {}).finally(() => {
+        autoReviewTurnRef.current = false
+      })
     },
     [flushQueue, run, isCurrentThread],
   )
+
+  /**
+   * 出图落地 → 自己发「看一眼」那一轮。画布：那张卡的产出图换了；工作台：那张结果卡
+   * 收齐了。⚠ 只在助手闲着时发（还在干活就等下一次渲染再看）。
+   */
+  const operatorState = useStudioOperatorState()
+  const canvasTargets = host.canvasTargets
+  useEffect(() => {
+    const pending = autoReviewRef.current
+    if (!pending || operatorState.status !== 'idle') return
+    let attachment: StudioOperatorAttachment | null = null
+    if (pending.kind === 'canvas') {
+      const output = canvasTargets?.outputOf?.(pending.nodeId)
+      if (!output || output.url === pending.before) return
+      attachment = {
+        id: `auto-review-${pending.nodeId}`,
+        url: output.url,
+        label: output.name,
+        kind: 'image',
+      }
+    } else {
+      const entry = operatorState.entries.find(
+        (item) => item.kind === 'result' && item.id === pending.resultId,
+      )
+      if (!entry || entry.kind !== 'result') return
+      if (entry.items.length === 0 || entry.completed < entry.total) return
+      const first = entry.items[0]!
+      attachment = {
+        id: first.id,
+        url: first.url,
+        label: first.label ?? first.id,
+        kind: 'image',
+        ...(typeof first.seq === 'number' ? { seq: first.seq } : {}),
+      }
+    }
+    autoReviewRef.current = null
+    autoReviewTurnRef.current = true
+    send(tAutoReview('message'), [attachment])
+  }, [operatorState, canvasTargets, send, tAutoReview])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
@@ -2521,6 +2578,7 @@ export function useAssistantOperator(
         auto: options.auto,
       })
       setOperatorStatus('idle')
+      autoReviewRef.current = null
       /**
        * ⭐ **画布那一枪**（node-canvas-v2 §13.2.1）：扳机是那张画布卡自己的生成键，
        * ⛔ 不是工作台的 `triggerGeneration`。
@@ -2528,7 +2586,14 @@ export function useAssistantOperator(
        *   落了只会在认领超时后报一句假的「这一批没有出图」。
        */
       if (confirm.request.canvasNode) {
-        applyContext.canvas?.generate(confirm.request.canvasNode.id)
+        const nodeId = confirm.request.canvasNode.id
+        if (options.auto)
+          autoReviewRef.current = {
+            kind: 'canvas',
+            nodeId,
+            before: host.canvasTargets?.outputOf?.(nodeId)?.url,
+          }
+        applyContext.canvas?.generate(nodeId)
         return
       }
       if (confirm.request.label)
@@ -2579,6 +2644,8 @@ export function useAssistantOperator(
         ...(request.label ? { summary: request.label } : {}),
         request,
       })
+      if (options.auto)
+        autoReviewRef.current = { kind: 'result', resultId: pendingResultId }
       applyContext.triggerGeneration?.(request, {
         threadScope,
         localThreadId,

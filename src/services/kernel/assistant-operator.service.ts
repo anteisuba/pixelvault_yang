@@ -10245,6 +10245,9 @@ function buildOperatorSystemPrompt(
    * 而这个域也没有那条工具。一条说不通的规矩会让模型去找一条不存在的路。
    */
   const domainRules = [
+    request.autoReview
+      ? '- AUTO REVIEW (this turn was started by the app, not typed by the creator): the picture attached to the last message just came out of the generation the creator had set to run automatically. Call critique_result once on it, comparing it with the references and the prompt it was made from. Then say in one or two sentences whether it matches and, if not, the one or two things most off (face, proportions, outfit, the requested change). Do not rewrite prompts, change settings or generate again unless the creator asks.'
+      : null,
     request.domain === 'canvas'
       ? `- CANVAS TOOLS:\n${[
           ...CANVAS_GUIDE,

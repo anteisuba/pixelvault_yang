@@ -1767,6 +1767,11 @@ export const AssistantOperatorRequestSchema = z.object({
    *   「别记进我的长期记忆」，不是「这一轮别工作」。
    */
   incognito: z.boolean().optional(),
+  /**
+   * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）：客户端在那一枪落地后
+   * 自己发的这一轮，附件是刚出的那张。服务端据此只做一件事：对照参考看一次、说一两句。
+   */
+  autoReview: z.literal(true).optional(),
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
     .array(AssistantOperatorPriorStepSchema)

@@ -2427,6 +2427,17 @@ describe('read_state', () => {
     )
   })
 
+  it('出图后自动看一眼：autoReview 这一轮在系统提示里只交代看一次、说一两句', async () => {
+    queueTurns({ finished: true, message: '脸对上了，腿偏长。' })
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ autoReview: true })),
+    )
+    expect(toolRingCalls()[0].systemPrompt).toContain('AUTO REVIEW')
+    queueTurns({ finished: true, message: '好。' })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(toolRingCalls()[0].systemPrompt).not.toContain('AUTO REVIEW')
+  })
+
   describe('画布一批 op（canvas_batch）', () => {
     function boardRequest() {
       return buildRequest({

@@ -8444,6 +8444,9 @@
         "contextOpen": "Looking at {name}"
       }
     },
+    "autoReview": {
+      "message": "The picture is out — check it against the references and tell me what is off."
+    },
     "autoGenerate": {
       "label": "Auto-generate"
     },

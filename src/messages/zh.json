@@ -8444,6 +8444,9 @@
         "contextOpen": "正在看 {name}"
       }
     },
+    "autoReview": {
+      "message": "出图了，对照参考图帮我看一眼哪里不对。"
+    },
     "autoGenerate": {
       "label": "自动生成"
     },

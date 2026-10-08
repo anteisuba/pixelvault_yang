@@ -1222,6 +1222,19 @@ describe('project_script · 重投影 diff（画板 DesignD7Script ③）', () =
     ).toBe('递伞 · @小黑')
   })
 
+  it('⭐ 重投影时「已变」的镜卡名跟着新那一镜走，提示词照旧不动', () => {
+    const { result } = reprojected(
+      'S01 · 雨夜街角 · 4s\nS02 · 赫敏找蟾蜍 · @小黑\nS03 · 对视',
+    )
+    const changed = projectedShots(result.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )!
+    expect(changed.data.name).toContain('赫敏找蟾蜍')
+    expect(changed.data.kind === 'video' ? changed.data.prompt : '').toBe(
+      '递伞 · @小黑',
+    )
+  })
+
   it('⭐ 「已变」的镜整段改写提示词 = 采用新文案：角标消掉、卡名换成新那一镜，撤销整张退回', () => {
     const { result } = reprojected(
       'S01 · 雨夜街角 · 4s\nS02 · 赫敏找蟾蜍 · @小黑\nS03 · 对视',

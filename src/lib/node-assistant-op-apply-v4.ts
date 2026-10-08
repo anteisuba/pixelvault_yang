@@ -537,6 +537,35 @@ function applyScriptProjection(
       // ⛔ `projectedText` 不动：它是「上一次同步进来的那一段」，diff 的左边。
       pendingText: entry.shot.text,
     }))
+    /**
+     * ⭐ 卡名跟着这一镜走（2026-10-08 马尔福画布：S02 已经对应「赫敏找蟾蜍」，卡上还写着
+     * 「女德拉科走进来」）。按 `shotKey` 配上的这张卡就是这一镜，名字是它的身份；提示词
+     * 照旧等人采用。⚠ 用户手改过的名字不动。⚠ 撤销不改回名字 —— 与「已变」角标同一
+     * 规矩：这条 op 的撤销只收回新建的镜。
+     */
+    const data = entry.node.data
+    if (!data.nameEdited && data.kind === NODE_MEDIA_KIND_IDS.video) {
+      const previous = data.label
+      if (previous) takenLabels.delete(previous)
+      let label: string | null = null
+      try {
+        label = buildShotLabel({ given: entry.shot.title }, takenLabels)
+      } catch {
+        label = null
+      }
+      if (label) {
+        takenLabels.add(label)
+        const renamed = label
+        next = replaceNodeData(next, entry.node.id, (current) =>
+          current.kind === NODE_MEDIA_KIND_IDS.video &&
+          current.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+            ? { ...current, name: renamed, label: renamed }
+            : current,
+        )
+      } else if (previous) {
+        takenLabels.add(previous)
+      }
+    }
     changedNodeIds.push(entry.node.id)
   }
 

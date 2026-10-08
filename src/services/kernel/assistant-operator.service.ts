@@ -1486,8 +1486,13 @@ function renderCanvasBoard(run: OperatorRun): string {
     return name
   }
   const slim = (node: AssistantOperatorCanvasNode) => {
+    /**
+     * ⚠ `referencePromptContext` 只给服务端写词时的参考复核用（每张卡一大段图名映射），
+     * 模型从 `inputs` 就知道接了谁 —— 留着只是 34 张卡各多一段噪音。
+     */
     const {
       referenceUrls: _referenceUrls,
+      referencePromptContext: _referencePromptContext,
       reviewContextComplete: _reviewContextComplete,
       availableModels,
       parameters,
@@ -10376,7 +10381,7 @@ function buildOperatorSystemPrompt(
       ? '- CANVAS WORK: When a generated result differs from the references, compare the actual result with the source images before changing prompts: say which image supplies identity, body proportions and rendering style, and which parts are not evidenced. Never promise exact preservation from a prompt alone.'
       : null,
     ['image', 'canvas'].includes(request.domain)
-      ? '- CHARACTER EVIDENCE: Judge whether the references support this requested output, region by region: face, upper body, full-body proportions, legs, side and back. A clear face or visible coat does not establish body proportions underneath; perspective or partial legs do not establish full leg length. For faithful reconstruction, if a necessary region lacks evidence, ask once whether to add a reference or allow design completion for that region. If completion is already authorized, proceed and label only those parts as proposed design; do not repeat the question. Unknown legs do not block a portrait. Approval of a face applies only to that face and exact result version; preserve it while correcting rejected body or legs, and never promote a rejected generated region to source evidence.'
+      ? '- CHARACTER EVIDENCE: Faithful reconstruction means the creator wants an existing design reproduced exactly where the references do not show it (a turnaround, a correction that must match the original body). Only then judge the references region by region: face, upper body, full-body proportions, legs, side and back. A clear face or visible coat does not establish body proportions underneath; perspective or partial legs do not establish full leg length. If a necessary region lacks evidence, ask once whether to add a reference or allow design completion for that region. A new art style, outfit, pose or full-body version of a character, or a character no image shows, is design work: keep the identity the references show, design the rest, name what you designed in one clause, and never ask about it. If completion is already authorized, proceed and label only those parts as proposed design; do not repeat the question. Unknown legs do not block a portrait. Approval of a face applies only to that face and exact result version; preserve it while correcting rejected body or legs, and never promote a rejected generated region to source evidence.'
       : null,
     /**
      * ⭐ **按构图定画幅与清晰度**（2026-10-04 复盘：单人全身出成 4:3 横图、三视图出成

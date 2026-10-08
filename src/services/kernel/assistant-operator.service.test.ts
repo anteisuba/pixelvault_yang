@@ -2275,6 +2275,7 @@ describe('read_state', () => {
         availableModels: MODELS,
         parameters: { values: { aspectRatio: '9:16' }, options: OPTIONS },
         referenceUrls: ['https://cdn.example.test/ref.png'],
+        referencePromptContext: 'Reference images in input order: Image 1 "x"',
         reviewContextComplete: true,
         position: { x: 10.123456, y: 20.987654 },
         ...extra,
@@ -2341,6 +2342,7 @@ describe('read_state', () => {
       expect(black.textClipped).toBeUndefined()
       expect(three.text).toBe(`三视图: ${LONG}`)
       expect(toolRingCalls()[0].userPrompt).not.toContain('cdn.example.test')
+      expect(white.referencePromptContext).toBeUndefined()
       expect(white).not.toHaveProperty('referenceUrls')
       expect(white).not.toHaveProperty('reviewContextComplete')
     })

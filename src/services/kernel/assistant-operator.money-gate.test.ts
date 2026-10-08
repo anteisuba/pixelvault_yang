@@ -147,6 +147,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/kernel/assistant-fallback-route.service',
   /**
+   * 参考图视觉结论的跨会话缓存（owner 2026-10-08）。只在 Upstash 里按图片地址存一段
+   * 文字结论，⛔ 不建 generation、不扣额度、不碰 R2。
+   */
+  '@/services/kernel/assistant-reference-profile-cache.service',
+  /**
    * LoRA 检索（P4-C）。⭐ 判据与 `web-research.service` 那条**逐字同源**：它是
    * **搜索 + 归一**模块 —— 打 Civitai / HF 的搜索接口，出一串候选对象，一个字节
    * 都不下载、一分钱都不扣、一行 generation 都不创建。

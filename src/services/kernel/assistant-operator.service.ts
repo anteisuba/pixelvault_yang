@@ -14,6 +14,7 @@ import {
   readReferenceDimensions,
   ReferenceAnalysisValidationError,
 } from '@/services/kernel/assistant-reference-analysis.service'
+import { referenceProfileStore } from '@/services/kernel/assistant-reference-profile-cache.service'
 import type {
   ReferenceAnalysis,
   ReferenceVisualProfile,
@@ -4275,6 +4276,12 @@ async function planAnalyzeReferences(
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
         ],
+      store: referenceProfileStore(
+        run.userId,
+        RESPONSE_LANGUAGE_LABELS[
+          resolveResponseLanguage(run.request, run.persona)
+        ],
+      ),
       complete: (system, prompt, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,
@@ -7439,6 +7446,12 @@ async function checkCanvasReferencePrompt(
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
         ],
+      store: referenceProfileStore(
+        run.userId,
+        RESPONSE_LANGUAGE_LABELS[
+          resolveResponseLanguage(run.request, run.persona)
+        ],
+      ),
       complete: (system, input, images, jsonSchema) =>
         completeReferenceAnalysisText(
           run,

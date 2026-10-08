@@ -13,6 +13,7 @@ import {
   type ReferenceVisualProfile,
 } from '@/types/assistant-reference-analysis'
 import { logger } from '@/lib/logger'
+import type { ReferenceProfileStore } from '@/services/kernel/assistant-reference-profile-cache.service'
 import { safeFetch } from '@/lib/url-guard'
 
 export class ReferenceAnalysisValidationError extends Error {
@@ -177,6 +178,7 @@ export async function analyzeOperatorReferences({
   complete,
   imageIndices,
   creatorNote,
+  store,
 }: {
   urls: string[]
   cached: ReferenceVisualProfile[]
@@ -189,6 +191,11 @@ export async function analyzeOperatorReferences({
    * 读成 2D（2026-09-24 真机），而创作者本人知道图是怎么做出来的。
    */
   creatorNote?: string
+  /**
+   * 跨会话的结论缓存（按图片地址）：会话里没有的先去这里取，新看的写回去。
+   * 缺省就只用会话里带来的那份。
+   */
+  store?: ReferenceProfileStore
 }): Promise<ReferenceAnalysis> {
   const byUrl = new Map(cached.map((profile) => [profile.url, profile]))
   const selected = imageIndices ?? urls.map((_, index) => index)
@@ -199,6 +206,14 @@ export async function analyzeOperatorReferences({
     )
   )
     throw new ReferenceAnalysisValidationError('vision', 'image_mapping')
+  if (store) {
+    const uncached = selected
+      .map((index) => urls[index]!)
+      .filter((url) => !hasCompleteReferenceVisualEvidence(byUrl.get(url)))
+    for (const profile of await store.read(uncached))
+      if (hasCompleteReferenceVisualEvidence(profile))
+        byUrl.set(profile.url, profile)
+  }
   const missingIndices = selected.filter(
     (index) => !hasCompleteReferenceVisualEvidence(byUrl.get(urls[index]!)),
   )
@@ -262,6 +277,7 @@ export async function analyzeOperatorReferences({
       )
     }
     for (const { url, facts } of results) byUrl.set(url, { url, ...facts })
+    await store?.write(results.map(({ url, facts }) => ({ url, ...facts })))
   }
   const profiles = urls.flatMap((url) =>
     byUrl.has(url) ? [byUrl.get(url)!] : [],

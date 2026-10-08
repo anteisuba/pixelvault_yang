@@ -723,6 +723,44 @@ describe('reference analysis', () => {
     })
   })
 
+  it('reuses cross-conversation cached facts and writes back only what it newly looked at', async () => {
+    const written: ReferenceVisualProfile[][] = []
+    const store = {
+      read: vi.fn(async (asked: readonly string[]) =>
+        profiles.filter(
+          (profile) => profile.url === urls[0] && asked.includes(profile.url),
+        ),
+      ),
+      write: vi.fn(async (fresh: readonly ReferenceVisualProfile[]) => {
+        written.push([...fresh])
+      }),
+    }
+    const complete = visionByUrl()
+    const result = await analyzeOperatorReferences({
+      ...input,
+      cached: [],
+      store,
+      complete,
+    })
+    expect(store.read).toHaveBeenCalledWith(urls)
+    // 第一张缓存里有：只看第二张。
+    expect(complete.mock.calls.map((call) => call[2])).toEqual([[urls[1]]])
+    expect(written).toEqual([[profiles[1]]])
+    expect(result.profiles).toEqual(profiles)
+  })
+
+  it('treats an incomplete cached profile as a miss', async () => {
+    const store = {
+      read: vi.fn(async () => [
+        { ...profiles[0]!, characterEvidence: undefined },
+      ]),
+      write: vi.fn(async () => {}),
+    }
+    const complete = visionByUrl()
+    await analyzeOperatorReferences({ ...input, cached: [], store, complete })
+    expect(complete).toHaveBeenCalledTimes(2)
+  })
+
   it('inspects only image 3 and keeps its current index with two cached references', async () => {
     const third = 'https://cdn.test/third.png'
     const complete = vi

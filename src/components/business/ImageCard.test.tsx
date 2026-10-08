@@ -149,8 +149,9 @@ describe('ImageCard', () => {
     const generation = { ...BASE_GEN, likeCount: 5, isLiked: true }
     renderCard({ generation, onToggleLike })
 
-    expect(screen.getByText('5')).toBeInTheDocument()
     const like = screen.getByRole('button', { name: 'Unlike' })
+    // 数字是滚轴：读屏只念 sr-only 那一份。
+    expect(like.querySelector('.sr-only')).toHaveTextContent(/^5$/)
     expect(like).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(like)
     expect(onToggleLike).toHaveBeenCalledWith(generation)

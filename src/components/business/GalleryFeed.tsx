@@ -16,8 +16,8 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
 import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
+import { AssetPaginationError } from '@/components/business/assets/AssetStateBlocks'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
-import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -44,13 +44,13 @@ export function GalleryFeed({
   const t = useTranslations('GalleryPage')
   const {
     generations,
-    total: currentTotal,
     isLoading,
     hasMore,
     error,
+    appendError,
+    retryLoadMore,
     filters,
     setFilters,
-    loadMore,
     sentinelRef,
     updateGeneration,
   } = useGallery({
@@ -94,8 +94,6 @@ export function GalleryFeed({
     },
     [setFilters],
   )
-
-  const displayTotal = currentTotal ?? total
 
   /**
    * ♥ 由画廊统一记：卡片与查看器看同一个数。先改（数字跳一下），请求没落库就
@@ -142,11 +140,12 @@ export function GalleryFeed({
 
   return (
     <>
-      <div ref={rootRef} className="space-y-5 sm:space-y-6">
+      {/* 顶栏与图之间 12（owner 2026-10-08）。 */}
+      <div ref={rootRef} className="flex flex-col gap-3">
         <GalleryHeader
           filters={filters}
           onFiltersChange={handleFiltersChange}
-          total={displayTotal}
+          pinnedOpen={Boolean(viewing)}
         />
 
         <GalleryGrid
@@ -167,40 +166,31 @@ export function GalleryFeed({
           </div>
         ) : null}
 
-        {hasMore ? (
-          <div className="flex flex-col items-center gap-4">
-            <div ref={sentinelRef} className="h-4 w-full" />
-            {isLoading ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                disabled
-                className="rounded-full border-border/80 bg-card/74 px-6"
-              >
-                <Spinner size="md" />
-                {t('loadingMore')}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={loadMore}
-                className="rounded-full border-border/80 bg-card/74 px-6 text-foreground transition-colors hover:border-foreground/30 hover:bg-muted/40"
-              >
-                {t('loadMore')}
-              </Button>
-            )}
+        {/* 无限滚动：滚到底自动接下一页（哨兵在 `useGallery` 里）；翻页失败只挡这一段，
+            点「重试」再接着加载，⛔ 自动重试打死接口。 */}
+        {appendError ? (
+          <AssetPaginationError message={appendError} onRetry={retryLoadMore} />
+        ) : null}
+        {hasMore && !appendError ? (
+          <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+        ) : null}
+        {isLoading && generations.length > 0 ? (
+          <div
+            role="status"
+            className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
+          >
+            <Spinner size="md" />
+            <span className="sr-only">{t('loadingMore')}</span>
           </div>
-        ) : generations.length > 0 ? (
-          <div className="rounded-3xl border border-border/70 bg-secondary/18 px-4 py-3 text-center text-sm text-muted-foreground">
+        ) : null}
+        {!hasMore && generations.length > 0 ? (
+          <p className="py-6 text-center text-xs text-muted-foreground">
             {t('endOfArchive')}
-          </div>
+          </p>
         ) : null}
       </div>
 
-      {/* 放在间距容器外：`space-y` 会给它一道下边距，把 bottom: 0 顶起来。 */}
+      {/* 放在间距容器外：`gap` 会给它让出一道缝，把 bottom: 0 顶起来。 */}
       {viewing && viewerBounds ? (
         <div style={viewerBounds} className="fixed z-20">
           <GalleryViewer

@@ -45,6 +45,7 @@ import {
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { clipLocalTimeSec } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditProject, EditTextClip } from '@/types/node-workflow'
@@ -334,12 +335,14 @@ export function EditDeskPreview({
   return (
     <div
       data-testid="edit-desk-preview"
-      className="flex min-h-0 flex-1 items-center justify-center px-6 pb-2.5 pt-3.5"
+      // 黑井（换皮第一轮 B）：白舞台上只有放画面的这一块是黑的 —— 画面按比例居中，两侧
+      // 留下的就是黑边。固定明暗（ui-defaults §2.4 媒体 chrome 例外）。
       // 外层量尺寸：里面那只盒子用 `cqh` 按**预览区高**推宽，占满两个方向里先到顶的那个。
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-neutral-950"
       style={{ containerType: 'size' }}
     >
       <div
-        className="relative max-h-full max-w-full overflow-hidden rounded-lg bg-neutral-950 ring-1 ring-border"
+        className="relative max-h-full max-w-full overflow-hidden"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
         // ⚠ 盒子按预览区的高定尺寸：宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个
@@ -429,16 +432,13 @@ export function EditDeskPreview({
           </div>
         ))}
 
-        {/* 左上：这一段在重拍（花积分的事走警告琥珀，配色 B）。 */}
+        {/* 左上：这一段在重拍（换皮第一轮 A：白底小转圈，界面不加颜色）。 */}
         {generatingTake ? (
           <span
             data-testid="edit-desk-preview-generating"
-            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-neutral-950/70 px-3 text-xs leading-6 text-status-warning"
+            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/95 pl-2 pr-3 text-xs leading-6 text-neutral-900"
           >
-            <span
-              aria-hidden
-              className="size-1.75 animate-pulse rounded-full bg-status-warning motion-reduce:animate-none"
-            />
+            <Spinner size="sm" aria-hidden />
             {t('retake.previewGenerating', { n: generatingTake })}
           </span>
         ) : null}

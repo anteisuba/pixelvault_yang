@@ -3,9 +3,8 @@
 /**
  * 剪辑台里的图标键（顶栏撤销 · 走带行声音 / 缩放）。
  *
- * ⚠ 不借画布外壳那颗 `ShellIconButton`：它的悬停 / 按下态用的是画布域的浅色专用色
- * （`--node-foreground` 没有暗档），在暗台上一悬停就变成黑字黑底。这一颗只用脊柱令牌，
- * 跟着台面的 `.dark` 走。
+ * ⚠ 不借画布外壳那颗 `ShellIconButton`：它的悬停 / 按下态用的是画布域专用色
+ * （`--node-foreground`），剪辑台不在画布域里。这一颗只用脊柱令牌。
  */
 
 import type { ComponentType } from 'react'

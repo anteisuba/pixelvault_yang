@@ -401,6 +401,28 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.speed).toBe(2)
   })
 
+  it('主线段平时只有画面，名字只在选中（或悬停）时出来（换皮第一轮 B）', () => {
+    renderDesk(emptyState)
+    openMaterials()
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v2'))
+    const [first, second] = screen
+      .getAllByTestId(/^edit-desk-clip-name-/)
+      .map((element) =>
+        element.dataset.testid?.replace('edit-desk-clip-name-', ''),
+      )
+    expect(screen.getByTestId(`edit-desk-clip-name-${first}`)).toHaveClass(
+      'opacity-0',
+    )
+    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${first}`))
+    expect(screen.getByTestId(`edit-desk-clip-name-${first}`)).toHaveClass(
+      'opacity-100',
+    )
+    expect(screen.getByTestId(`edit-desk-clip-name-${second}`)).toHaveClass(
+      'opacity-0',
+    )
+  })
+
   it('转场三档从属性行落回段上', () => {
     const { read } = renderDesk(emptyState)
     openMaterials()

@@ -359,7 +359,7 @@ export type EditDeskLibraryFilterId =
  * 模式（而不是页）的全部理由。
  */
 /**
- * 剪辑台顶栏（v2 暗场，owner 2026-10-08 选 B）：一条通栏 `h-12`、左右内边距 `px-3.5`。
+ * 剪辑台顶栏（v2 第 3 片；10-08 换白台面）：一条通栏 `h-12`、左右内边距 `px-3.5`。
  * ⚠ 两个数是助手锚点的依据（下一条），改顶栏的 class 必须改这里。
  */
 export const EDIT_DESK_TOP_BAR = { heightPx: 48, insetPx: 14 } as const

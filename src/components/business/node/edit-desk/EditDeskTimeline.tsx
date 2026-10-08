@@ -97,6 +97,7 @@ import type {
 } from '@/types/node-workflow'
 
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
+import { Spinner } from '@/components/ui/spinner'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 import { Slider } from '@/components/ui/slider'
 
@@ -598,7 +599,7 @@ export function EditDeskTimeline({
           aria-label={playing ? t('pause') : t('play')}
           onClick={() => onPlayingChange(!playing)}
           disabled={!canPlay}
-          className="grid size-8.5 shrink-0 place-items-center rounded-full bg-muted text-foreground transition-colors duration-fast hover:bg-accent disabled:opacity-50"
+          className="grid size-8.5 shrink-0 place-items-center rounded-full bg-foreground text-background transition duration-fast active:scale-96 disabled:opacity-40 motion-reduce:active:scale-100"
         >
           {playing ? (
             <Pause className="size-4" aria-hidden />
@@ -1666,7 +1667,7 @@ function ClipView({
       ? sourceData.durationSec
       : undefined
   const takes = isVideo && !gone ? readClipTakes(row) : null
-  /** 这一段在重拍（4b）：生成中画光带，失败描红 + 「!」。 */
+  /** 这一段在重拍（4b · 换皮第一轮 A）：生成中变淡去色 + 小转圈，失败黑虚线框 + 「!」。 */
   const retake = isVideo ? desk.retakes.get(clip.id) : undefined
   const generating = retake?.status === 'generating'
   const failed = retake?.status === 'failed'
@@ -1941,7 +1942,7 @@ function ClipView({
           if (event.key === 'Enter') desk.select({ track, clipId: clip.id })
         }}
         className={cn(
-          'relative size-full cursor-grab touch-none select-none overflow-hidden transition-shadow duration-fast',
+          'group/clip relative size-full cursor-grab touch-none select-none overflow-hidden transition-shadow duration-fast',
           isVideo
             ? cn(
                 'rounded-md hover:ring-1 hover:ring-foreground/30',
@@ -1957,9 +1958,8 @@ function ClipView({
           lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
           pending &&
             'outline-1 -outline-offset-1 outline-dashed outline-foreground/40',
-          generating && 'edit-clip-generating',
           failed &&
-            'outline-2 -outline-offset-2 outline-status-risk transition duration-base',
+            'outline-2 -outline-offset-2 outline-dashed outline-foreground',
         )}
       >
         {isVideo ? (
@@ -1975,18 +1975,27 @@ function ClipView({
 
         {isVideo ? (
           gone ? (
-            <span className="absolute left-2 top-1 truncate text-2xs text-status-risk">
+            <span className="absolute left-2 top-1 truncate text-2xs text-muted-foreground">
               {t('inspector.sourceGone')}
             </span>
           ) : (
-            // 压在画面上的读数：固定明暗（ui-defaults §2.4 媒体 chrome 例外）。
-            <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/65 px-1.5 text-2xs leading-4 text-white">
+            // 压在画面上的白标签（固定明暗，ui-defaults §2.4 媒体 chrome 例外）。换皮第一轮 B：
+            // 名字只在悬停 / 选中时出来，主线平时只有画面。
+            <span
+              data-testid={`edit-desk-clip-name-${clip.id}`}
+              className={cn(
+                'pointer-events-none absolute left-1.5 top-1 z-10 max-w-3/4 truncate rounded-sm bg-white/90 px-1.5 text-2xs leading-4 text-neutral-800 transition duration-fast',
+                selected
+                  ? 'opacity-100 blur-none'
+                  : 'opacity-0 blur-xs group-hover/clip:opacity-100 group-hover/clip:blur-none',
+              )}
+            >
               <b className="mr-1 font-semibold">{row.index + 1}</b>
               {sourceName}
             </span>
           )
         ) : isMusic ? (
-          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/55 px-1.5 text-3xs leading-4 text-muted-foreground">
+          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate text-3xs leading-4 text-muted-foreground">
             {sourceName}
           </span>
         ) : (
@@ -2018,8 +2027,9 @@ function ClipView({
         {generating ? (
           <span
             data-testid={`edit-desk-retaking-${clip.id}`}
-            className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-1/2 whitespace-nowrap rounded-full bg-neutral-950/72 px-2 text-2xs leading-4.5 text-status-warning"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white py-0.5 pl-1.5 pr-2 text-2xs leading-4 text-neutral-900"
           >
+            <Spinner size="sm" aria-hidden />
             {t('retake.generating')}
           </span>
         ) : null}
@@ -2036,7 +2046,7 @@ function ClipView({
               event.stopPropagation()
               desk.openRetake(track, clip.id)
             }}
-            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-status-risk font-mono text-3xs font-bold text-background animate-in fade-in duration-200"
+            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-foreground font-mono text-3xs font-bold text-background animate-in fade-in duration-200"
           >
             !
           </button>
@@ -2060,7 +2070,7 @@ function ClipView({
                 event.stopPropagation()
                 desk.select({ track, clipId: clip.id })
               }}
-              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-neutral-950/70 px-1.5 font-mono text-3xs leading-4 tabular-nums text-white/80 transition-colors duration-fast hover:bg-white hover:text-neutral-950"
+              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-white/90 px-1.5 font-mono text-3xs leading-4 tabular-nums text-neutral-800 transition-colors duration-fast hover:bg-white"
             >
               {takes.n}/{takes.count}
               {takes.fresh ? (
@@ -2164,7 +2174,8 @@ function SeamMark({
         <span
           aria-hidden
           className={cn(
-            'pointer-events-none absolute z-5 border-x border-foreground/25 bg-linear-to-r from-transparent via-foreground/20 to-transparent',
+            // 白纱 + 两侧虚线（换皮：界面不用渐变、不发光）：宽 = 两段重叠的秒数。
+            'pointer-events-none absolute z-5 border-x border-dashed border-white/80 bg-white/35',
             animate && 'transition-magnetic',
             hidden && 'opacity-0',
           )}
@@ -2213,8 +2224,8 @@ function SeamMark({
           'absolute z-10 rotate-45 rounded-xs ring-2 ring-background',
           'after:absolute after:-inset-2 after:content-[""]',
           current === EDIT_TRANSITION_IDS.none
-            ? 'border border-input bg-muted'
-            : 'bg-foreground/80',
+            ? 'border border-foreground bg-background'
+            : 'bg-foreground',
           animate && 'transition-magnetic',
           over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
           hidden && 'opacity-0',
@@ -2309,7 +2320,7 @@ function ClipFilmstrip({
   readonly row: EditTimelineRow
   readonly shown: { readonly in: number; readonly out: number }
   readonly widthPx: number
-  /** 重拍生成中：压暗去色（关键切片动效表「生成中」）。 */
+  /** 重拍生成中：变淡去色（换皮第一轮 A）。 */
   readonly dimmed?: boolean
 }) {
   const url = row.source.url
@@ -2337,7 +2348,7 @@ function ClipFilmstrip({
       aria-hidden
       className={cn(
         'pointer-events-none absolute inset-0 flex transition duration-base',
-        dimmed && 'brightness-40 grayscale',
+        dimmed && 'opacity-45 grayscale',
       )}
     >
       {frames.map((frame, index) => (

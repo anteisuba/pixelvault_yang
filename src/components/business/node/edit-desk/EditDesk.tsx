@@ -77,7 +77,6 @@ import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'
-import { PortalContainerProvider } from '@/components/ui/portal-container'
 
 import {
   EditDeskAssetPanel,
@@ -222,11 +221,6 @@ export function EditDesk({
         flashEditClips([clipId], EDIT_RETAKE_MOTION.landFlashMs),
       ),
   })
-  /**
-   * 台面里浮层的落点：一个在 `.dark` 里的空节点。台面复用的画布件（重拍栏的 chip、
-   * 参考轨菜单……）弹层都传送到这里，跟着走暗档（`PortalContainerProvider`）。
-   */
-  const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null)
   const { preset: shortcutPreset, setPreset: setShortcutPreset } =
     useEditShortcutPreset()
 
@@ -744,196 +738,190 @@ export function EditDesk({
       className="fixed inset-0 z-canvas-workspace flex"
     >
       {/*
-        暗场（v2 第 3 片，owner 2026-10-08 选 B「调色台 · 全暗中性」）：台面整块套全站
-        `.dark` 档，零色偏 —— 看色调和亮度要暗底。⚠ `dark` 只套在台面这一层：助手面板
-        （下面那个 `{assistant}`）在作用域外，保持浅色（owner 同日定）。
+        白台面（owner 2026-10-08 下午改方向，跟素材页换皮一致）：白底、中性灰、黑字，只有
+        作品有颜色；放画面的那一块是黑的（预览里的黑井），其余都白。
       */}
-      <PortalContainerProvider value={portalHost}>
-        <div className="dark flex min-w-0 flex-1 flex-col bg-background text-foreground">
-          <EditDeskTopBar
-            project={desk.project}
-            durationSec={desk.durationSec}
-            canUndo={canUndo}
-            onUndo={onUndo}
-            onBack={onExit}
-            onRename={desk.rename}
-            onExport={() => setExportOpen(true)}
-            reserveAssistantSlot={Boolean(assistant)}
-            shortcutPreset={shortcutPreset}
-            onShortcutPresetChange={setShortcutPreset}
-            status={
-              render.job && render.job.jobId !== landedJobId ? (
-                <EditDeskRenderStatus
-                  job={render.job}
-                  onCancel={() => void render.cancel()}
-                  onClear={render.clear}
-                  onDownload={onDownload}
-                />
-              ) : render.resumable && !render.job ? (
-                <EditDeskResumeStatus
-                  job={render.resumable}
-                  onResume={render.resume}
-                  onDismiss={render.dismissResumable}
-                />
-              ) : null
-            }
-            receipt={
-              <EditDeskReceipt
-                receipt={shownReceipt}
-                receiptKey={String(shownReceipt?.seq ?? 0)}
-                onUndo={undoReceipt}
-                onDismiss={() => setReceipt(null)}
-                onLook={lookAtLanded}
-                onHoverChange={setReceiptHovered}
+      <div className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
+        <EditDeskTopBar
+          project={desk.project}
+          durationSec={desk.durationSec}
+          canUndo={canUndo}
+          onUndo={onUndo}
+          onBack={onExit}
+          onRename={desk.rename}
+          onExport={() => setExportOpen(true)}
+          reserveAssistantSlot={Boolean(assistant)}
+          shortcutPreset={shortcutPreset}
+          onShortcutPresetChange={setShortcutPreset}
+          status={
+            render.job && render.job.jobId !== landedJobId ? (
+              <EditDeskRenderStatus
+                job={render.job}
+                onCancel={() => void render.cancel()}
+                onClear={render.clear}
+                onDownload={onDownload}
               />
-            }
-          />
-
-          <div className="flex min-h-0 flex-1">
-            {/* 左边一列 = 素材入口；手机只看不剪，不出。 */}
-            {readOnly ? null : (
-              <EditDeskAssetRail
-                activePanel={activePanel}
-                open={materialsOpen}
-                onPanelClick={(panel) => {
-                  // 同一页再点 = 收回；别的页 = 换页并飞出。
-                  if (materialsOpen && panel === activePanel) {
-                    setMaterialsOpen(false)
-                    return
-                  }
-                  setActivePanel(panel)
-                  setMaterialsOpen(true)
-                }}
+            ) : render.resumable && !render.job ? (
+              <EditDeskResumeStatus
+                job={render.resumable}
+                onResume={render.resume}
+                onDismiss={render.dismissResumable}
               />
-            )}
+            ) : null
+          }
+          receipt={
+            <EditDeskReceipt
+              receipt={shownReceipt}
+              receiptKey={String(shownReceipt?.seq ?? 0)}
+              onUndo={undoReceipt}
+              onDismiss={() => setReceipt(null)}
+              onLook={lookAtLanded}
+              onHoverChange={setReceiptHovered}
+            />
+          }
+        />
 
-            {/* 助手开着时舞台与时间线同一根弹簧让位（与图片台布局 A 同一套）。 */}
-            <motion.div
-              style={{ paddingRight: operatorYield }}
-              className="flex min-w-0 flex-1 flex-col"
+        <div className="flex min-h-0 flex-1">
+          {/* 左边一列 = 素材入口；手机只看不剪，不出。 */}
+          {readOnly ? null : (
+            <EditDeskAssetRail
+              activePanel={activePanel}
+              open={materialsOpen}
+              onPanelClick={(panel) => {
+                // 同一页再点 = 收回；别的页 = 换页并飞出。
+                if (materialsOpen && panel === activePanel) {
+                  setMaterialsOpen(false)
+                  return
+                }
+                setActivePanel(panel)
+                setMaterialsOpen(true)
+              }}
+            />
+          )}
+
+          {/* 助手开着时舞台与时间线同一根弹簧让位（与图片台布局 A 同一套）。 */}
+          <motion.div
+            style={{ paddingRight: operatorYield }}
+            className="flex min-w-0 flex-1 flex-col"
+          >
+            {/* 白舞台，放画面的那一块是黑井（预览里画）；预览按高度居中（助手开合时
+                  预览不变大小）。 */}
+            <section
+              data-testid="edit-desk-stage"
+              aria-label={t('stage')}
+              className="relative flex min-h-0 flex-1 flex-col bg-background p-3.5"
             >
-              {/* 黑舞台：预览按高度居中（助手开合时预览不变大小）。 */}
-              <section
-                data-testid="edit-desk-stage"
-                aria-label={t('stage')}
-                className="relative flex min-h-0 flex-1 flex-col bg-surface-workbench"
-              >
-                {/* 素材面板从左列那颗图标处长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
+              {/* 素材面板从左列那颗图标处长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
                   为止（⛔ 不盖时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。
                   开合沿用工具行弹层那一套：0.72 → 1、由糊变清（`CHIP_POPOVER`）。 */}
-                <AnimatePresence>
-                  {!readOnly && materialsOpen ? (
-                    <motion.div
-                      ref={materialsRef}
-                      key="materials"
-                      initial={{
-                        opacity: 0,
-                        scale: CHIP_POPOVER.fromScale,
-                        filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        scale: 1,
-                        filter: 'blur(0px)',
-                        transition: reduceMotion
-                          ? { duration: 0 }
-                          : SPRING.slot,
-                      }}
-                      exit={{
-                        opacity: 0,
-                        scale: CHIP_POPOVER.fromScale,
-                        filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-                        transition: {
-                          duration: reduceMotion ? 0 : DURATION.base,
-                          ease: 'easeIn',
-                        },
-                      }}
-                      className="absolute bottom-3 left-3 top-3 z-30 flex origin-top-left"
-                    >
-                      {/* ⚠ HTML5 的 `dragend` 挂在普通 div 上：motion 元素的 `onDragEnd`
+              <AnimatePresence>
+                {!readOnly && materialsOpen ? (
+                  <motion.div
+                    ref={materialsRef}
+                    key="materials"
+                    initial={{
+                      opacity: 0,
+                      scale: CHIP_POPOVER.fromScale,
+                      filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      filter: 'blur(0px)',
+                      transition: reduceMotion ? { duration: 0 } : SPRING.slot,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: CHIP_POPOVER.fromScale,
+                      filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                      transition: {
+                        duration: reduceMotion ? 0 : DURATION.base,
+                        ease: 'easeIn',
+                      },
+                    }}
+                    className="absolute bottom-3 left-3 top-3 z-30 flex origin-top-left"
+                  >
+                    {/* ⚠ HTML5 的 `dragend` 挂在普通 div 上：motion 元素的 `onDragEnd`
                         是它自己的拖拽手势，接不到素材格的拖投。 */}
-                      <div
-                        className="flex max-h-full"
-                        onDragEnd={() => setMaterialsOpen(false)}
-                      >
-                        <EditDeskAssetPanel
-                          activePanel={activePanel}
-                          assets={desk.assets}
-                          textNodes={textNodes}
-                          onAppend={(nodeId) => desk.addClips([nodeId])}
-                          onAddCaption={() => desk.addTextAtPlayhead()}
-                          audioFilter={audioFilter}
-                          onAudioFilterChange={setAudioFilter}
-                        />
-                      </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-                <EditDeskPreview
-                  project={desk.project}
-                  row={previewRow}
-                  generatingTake={previewRetakeTake}
-                  neighbors={previewNeighbors}
-                  playheadSec={desk.playheadSec}
-                  durationSec={desk.durationSec}
-                  playing={playing}
-                  muted={muted}
-                  onPlayingChange={setPlaying}
-                  onPlayheadChange={setPlayhead}
-                  textClips={desk.activeTextClips}
-                  {...(readOnly
-                    ? {}
-                    : {
-                        onOpenMaterials: () => {
-                          setActivePanel(EDIT_PANEL_IDS.canvas)
-                          setMaterialsOpen(true)
-                        },
-                        textEditing: {
-                          selectedId: desk.selectedTextClip?.id ?? null,
-                          editingId: editingTextVisibleId,
-                          onSelect: desk.selectText,
-                          onStartEdit: startEditText,
-                          onEndEdit: endEditText,
-                        },
-                      })}
-                />
-                {/* 就地重拍栏：从段上长出来，停在预览下方（4b）。 */}
-                <AnimatePresence>
-                  {!readOnly && retakeRow ? (
-                    <EditDeskRetakeBar
-                      key={retakeRow.clip.id}
-                      desk={desk}
-                      row={retakeRow}
-                      track={EDIT_TRACK_IDS.video}
-                    />
-                  ) : null}
-                </AnimatePresence>
-              </section>
-
-              <EditDeskTimeline
-                desk={desk}
-                readOnly={readOnly}
+                    <div
+                      className="flex max-h-full"
+                      onDragEnd={() => setMaterialsOpen(false)}
+                    >
+                      <EditDeskAssetPanel
+                        activePanel={activePanel}
+                        assets={desk.assets}
+                        textNodes={textNodes}
+                        onAppend={(nodeId) => desk.addClips([nodeId])}
+                        onAddCaption={() => desk.addTextAtPlayhead()}
+                        audioFilter={audioFilter}
+                        onAudioFilterChange={setAudioFilter}
+                      />
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+              <EditDeskPreview
+                project={desk.project}
+                row={previewRow}
+                generatingTake={previewRetakeTake}
+                neighbors={previewNeighbors}
+                playheadSec={desk.playheadSec}
+                durationSec={desk.durationSec}
                 playing={playing}
-                onPlayingChange={setPlaying}
                 muted={muted}
-                onMutedChange={setMuted}
-                onDropLibraryAsset={onDropLibraryAsset}
-                onScrubStart={() => setPlaying(false)}
-                props={
-                  <EditDeskInspector
-                    desk={desk}
-                    onBackToNode={onBackToNode}
-                    onEditText={startEditText}
-                    {...(readOnly ? {} : { mintId })}
-                  />
-                }
+                onPlayingChange={setPlaying}
+                onPlayheadChange={setPlayhead}
+                textClips={desk.activeTextClips}
+                {...(readOnly
+                  ? {}
+                  : {
+                      onOpenMaterials: () => {
+                        setActivePanel(EDIT_PANEL_IDS.canvas)
+                        setMaterialsOpen(true)
+                      },
+                      textEditing: {
+                        selectedId: desk.selectedTextClip?.id ?? null,
+                        editingId: editingTextVisibleId,
+                        onSelect: desk.selectText,
+                        onStartEdit: startEditText,
+                        onEndEdit: endEditText,
+                      },
+                    })}
               />
-            </motion.div>
-          </div>
-          {/* 浮层落点（见 `portalHost`）：⛔ 不占位，弹层自己 `fixed`。 */}
-          <div ref={setPortalHost} />
+              {/* 就地重拍栏：从段上长出来，停在预览下方（4b）。 */}
+              <AnimatePresence>
+                {!readOnly && retakeRow ? (
+                  <EditDeskRetakeBar
+                    key={retakeRow.clip.id}
+                    desk={desk}
+                    row={retakeRow}
+                    track={EDIT_TRACK_IDS.video}
+                  />
+                ) : null}
+              </AnimatePresence>
+            </section>
+
+            <EditDeskTimeline
+              desk={desk}
+              readOnly={readOnly}
+              playing={playing}
+              onPlayingChange={setPlaying}
+              muted={muted}
+              onMutedChange={setMuted}
+              onDropLibraryAsset={onDropLibraryAsset}
+              onScrubStart={() => setPlaying(false)}
+              props={
+                <EditDeskInspector
+                  desk={desk}
+                  onBackToNode={onBackToNode}
+                  onEditText={startEditText}
+                  {...(readOnly ? {} : { mintId })}
+                />
+              }
+            />
+          </motion.div>
         </div>
-      </PortalContainerProvider>
+      </div>
 
       <EditDeskExportDialog
         open={exportOpen}

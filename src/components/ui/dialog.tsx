@@ -51,7 +51,6 @@ function DialogOverlay({
 
 function DialogContent({
   className,
-  overlayClassName,
   children,
   showCloseButton = true,
   closeLabel,
@@ -60,15 +59,13 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   closeLabel?: string
-  /** 遮罩的 class（暗色孤岛里弹的对话框给 `dark`：遮罩传送到 body，不继承宿主主题）。 */
-  overlayClassName?: string
 }) {
   const t = useTranslations('Common')
   const resolvedCloseLabel = closeLabel ?? t('close')
 
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay className={overlayClassName} />
+      <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         /**

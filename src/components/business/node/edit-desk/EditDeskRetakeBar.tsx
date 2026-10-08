@@ -4,13 +4,12 @@
  * 就地重拍栏（v2 第 4 片 4b · 关键切片「② 重拍」）。
  *
  * 就是画布视频卡那条提示词栏 —— 同一份编排件（`useVideoComposer`）、同一个
- * `NodePromptBar`，搬到暗场上：模型、参考、参数都是来源卡那一份，改了就是改那张卡；
- * 弹层经台面的传送落点走暗档（`PortalContainerProvider`）。
+ * `NodePromptBar`：模型、参考、参数都是来源卡那一份，改了就是改那张卡。
  * - 从段在时间线上的位置放大升到预览下方（380ms 弹簧），收回时回到那一段（240ms）；
  * - 发出去就收起，段上画生成中，可以接着剪；落版自动换上（`useEditDesk` 记账）；
- * - 失败：栏顶一行原因，段上描红 + 「!」，改一下提示词再发就是重试。
+ * - 失败：栏顶一行原因，段上黑虚线框 + 「!」，改一下提示词再发就是重试。
  *
- * ⚠ 花积分的永远是用户按下的这一下：发送键走警告琥珀（配色 B），助手 / MCP 不走这里。
+ * ⚠ 花积分的永远是用户按下的这一下：助手 / MCP 不走这里。
  */
 
 import { useEffect, useLayoutEffect, useRef } from 'react'
@@ -179,7 +178,7 @@ function RetakeBarBody({
             <p
               role="alert"
               data-testid="edit-desk-retake-failed"
-              className="mr-3.5 rounded-lg bg-status-risk-surface px-2.5 py-1.5 text-xs leading-5 text-status-risk"
+              className="mr-3.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs leading-5 text-foreground"
             >
               {t('failed', { n: nextTake, reason: composer.failureMessage })}
             </p>
@@ -206,7 +205,6 @@ function RetakeBarBody({
         value={composer.draft}
         onValueChange={composer.setDraft}
         onSubmit={submit}
-        submitTone="spend"
         {...(channelGate.blocked
           ? {
               blockedLabel: tPicker('pickChannel'),

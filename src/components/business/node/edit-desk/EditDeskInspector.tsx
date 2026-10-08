@@ -4,7 +4,7 @@
  * 选中段的属性 —— **走带行中间那一格**（v2 关键切片：播放 · 时间码 · 这一格 · 缩放）。
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
- * 三种段各一行，一律是暗台上的实底小胶囊（读数胶囊不可点，可点的悬停提亮）：
+ * 三种段各一行，一律是一排文字键（换皮第一轮 B：无边框，悬停浅灰块，改过的加粗；读数不可点）：
  * - 视频段：镜头名 · 重拍 · 续拍 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
@@ -62,13 +62,18 @@ import { getChipZoomMotion } from '@/components/business/studio-shared/primitive
 import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 import { useEditDeskContinue } from './use-edit-desk-continue'
 
-/** 暗台上的实底小胶囊（关键切片 `.chip`）：读数用它，可点的再加 `CHIP_ACTIVE`。 */
+/**
+ * 一排**文字键**（换皮第一轮 B，照素材页筛选条）：无边框无底，悬停浅灰块；读数用同一个
+ * 底样（不可点、没有悬停），可点的再加 `CHIP_ACTIVE`，改过的（不是默认值）加 `CHIP_SET`。
+ */
 const CHIP =
-  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md bg-card px-2.5 text-xs text-foreground/80'
+  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-foreground'
 const CHIP_ACTIVE =
-  'transition-colors duration-fast hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
-/** 胶囊里的值（「入 0:06.0」里那个 0:06.0）。 */
+  'transition-colors duration-fast hover:bg-muted disabled:pointer-events-none disabled:opacity-40'
+const CHIP_SET = 'font-medium'
+/** 键里的值（「入 0:06.0」里那个 0:06.0）。改过的键里值也转成墨色。 */
 const CHIP_VALUE = 'font-mono not-italic tabular-nums text-muted-foreground'
+const CHIP_VALUE_SET = 'text-foreground'
 
 export interface EditDeskInspectorProps {
   readonly desk: EditDesk
@@ -117,15 +122,15 @@ export function EditDeskInspector({
                 : sourceName(row)}
             </span>
           ) : (
-            <span className="mr-1 shrink-0 text-status-risk">
+            <span className="mr-1 shrink-0 text-muted-foreground">
               {t('sourceGone')}
             </span>
           )}
           {selection.track === EDIT_TRACK_IDS.video &&
           row.source.node?.data.kind === NODE_MEDIA_KIND_IDS.video ? (
             <>
-              {/* 就地重拍（4b）：升起来源卡那条提示词栏。花积分的入口走警告琥珀（配色 B）。
-                  还没有片子的段（续拍的占位）写「生成」。 */}
+              {/* 就地重拍（4b）：升起来源卡那条提示词栏。还没有片子的段（续拍的占位）
+                  写「生成」。 */}
               <button
                 type="button"
                 data-testid="edit-desk-retake"
@@ -138,7 +143,6 @@ export function EditDeskInspector({
                 className={cn(
                   CHIP,
                   CHIP_ACTIVE,
-                  'text-status-warning hover:text-status-warning',
                   desk.retakeClipId === clip.id && 'bg-muted',
                 )}
               >
@@ -171,6 +175,7 @@ export function EditDeskInspector({
                 testId="edit-desk-speed"
                 label={t('speed')}
                 value={t('speedOption', { speed: clip.speed || 1 })}
+                set={(clip.speed || 1) !== 1}
               >
                 <LiquidSegmented
                   ariaLabel={t('speed')}
@@ -197,10 +202,10 @@ export function EditDeskInspector({
                     muted: !clip.muted,
                   })
                 }
-                className={cn(CHIP, CHIP_ACTIVE)}
+                className={cn(CHIP, CHIP_ACTIVE, clip.muted && CHIP_SET)}
               >
                 {t('sound')}
-                <em className={CHIP_VALUE}>
+                <em className={cn(CHIP_VALUE, clip.muted && CHIP_VALUE_SET)}>
                   {clip.muted ? t('soundOff') : t('soundOn')}
                 </em>
               </button>
@@ -210,6 +215,10 @@ export function EditDeskInspector({
                 value={t(
                   `transitions.${clip.transitionOut ?? EDIT_TRANSITION_IDS.none}`,
                 )}
+                set={
+                  (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) !==
+                  EDIT_TRANSITION_IDS.none
+                }
               >
                 <LiquidSegmented
                   ariaLabel={t('transition')}
@@ -280,11 +289,7 @@ function ContinueChip({
       data-testid="edit-desk-continue"
       disabled={disabled || continueClip.busy}
       onClick={() => void continueClip.run(clipId)}
-      className={cn(
-        CHIP,
-        CHIP_ACTIVE,
-        'text-status-warning hover:text-status-warning',
-      )}
+      className={cn(CHIP, CHIP_ACTIVE)}
     >
       {tDesk('continue.action')}
     </button>
@@ -316,10 +321,10 @@ function VersionsChip({
           n: takes.n,
           count: takes.count,
         })}
-        className={cn(CHIP, CHIP_ACTIVE)}
+        className={cn(CHIP, CHIP_ACTIVE, takes.count > 1 && CHIP_SET)}
       >
         {t('title')}
-        <em className={CHIP_VALUE}>
+        <em className={cn(CHIP_VALUE, takes.count > 1 && CHIP_VALUE_SET)}>
           {takes.n}/{takes.count}
         </em>
         {takes.fresh ? (
@@ -579,13 +584,16 @@ function RowPopover({
   icon,
   label,
   value,
+  set = false,
   children,
 }: {
   readonly testId: string
   readonly icon?: ReactNode
   readonly label: string
-  /** 胶囊上的当前值（「速度 1×」里那个 1×）。 */
+  /** 键上的当前值（「速度 1×」里那个 1×）。 */
   readonly value?: string
+  /** 改过（不是默认值）：键加粗、值转墨色。 */
+  readonly set?: boolean
   readonly children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -597,11 +605,13 @@ function RowPopover({
           type="button"
           data-testid={`${testId}-trigger`}
           aria-label={value ? `${label} · ${value}` : label}
-          className={cn(CHIP, CHIP_ACTIVE, open && 'bg-muted text-foreground')}
+          className={cn(CHIP, CHIP_ACTIVE, set && CHIP_SET, open && 'bg-muted')}
         >
           {icon}
           {label}
-          {value ? <em className={CHIP_VALUE}>{value}</em> : null}
+          {value ? (
+            <em className={cn(CHIP_VALUE, set && CHIP_VALUE_SET)}>{value}</em>
+          ) : null}
           <ChevronDown
             className="size-3 shrink-0 text-muted-foreground"
             aria-hidden
@@ -612,7 +622,6 @@ function RowPopover({
         side="top"
         align="start"
         sideOffset={8}
-        // 传送到台面里的 `.dark` 落点（`PortalContainerProvider`），跟着走暗档。
         className={cn('w-auto p-2', zoom.className)}
         style={zoom.style}
       >

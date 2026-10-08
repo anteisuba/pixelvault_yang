@@ -8423,7 +8423,8 @@
       "continue": "Continue",
       "stop": "Stop here",
       "continuePrompt": "Continue"
-    }
+    },
+    "stopShort": "Stop"
   },
   "GenerationCancel": {
     "cancel": "Cancel",

@@ -63,6 +63,7 @@ import {
   mergeOperatorSystemRuns,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
+import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
@@ -88,6 +89,7 @@ import {
 import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { SPRING } from '@/constants/motion'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
@@ -369,6 +371,9 @@ const TEXT_NODE_MENTION_GROUP = 'text-node'
 const FREE_TIER_ASSISTANT_ROUTE = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
   (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
 )
+
+/** 发送键收着时是一颗 32 的圆键。 */
+const SEND_BUTTON_SIZE_PX = 32
 
 export function StudioOperatorPanel({
   operator,
@@ -939,6 +944,7 @@ export function StudioOperatorPanel({
   const working = status === 'working'
   /** ⭐ 跑着且输入框是空的 → 发送键就是**停止**（S2）；跑着但你打了字 → 仍是发送，这一句排队（§3.1 ㉒）。 */
   const showStop = working && !draft.trim()
+  const reducedMotion = useReducedMotion()
   /**
    * ⭐ 有文件还在传时**不许发送**。
    *
@@ -2882,7 +2888,8 @@ export function StudioOperatorPanel({
               ⭐ **同一颗键变形**（owner 2026-10-07 动效方向）：发送 ↔ 停止是一颗键换底色、
                 图标糊着换过去，⛔ 不是两颗键互换 —— 眼睛不用重新找键。
             */}
-            <button
+            {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
+            <motion.button
               type="button"
               data-testid={showStop ? 'operator-stop' : 'operator-send'}
               /**
@@ -2894,25 +2901,36 @@ export function StudioOperatorPanel({
               title={showStop ? t('stop') : sendLabel}
               aria-label={showStop ? t('stop') : sendLabel}
               onClick={showStop ? stop : () => submit(draft)}
+              initial={false}
+              animate={{ width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX }}
+              transition={reducedMotion ? { duration: 0 } : SPRING.slot}
               className={cn(
-                'grid size-8 shrink-0 place-items-center rounded-full border transition-[background-color,border-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-                showStop
-                  ? 'border-assistant-line-strong bg-card text-foreground hover:bg-accent'
-                  : 'border-transparent bg-foreground text-background hover:bg-foreground/90 disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                'flex h-8 shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                showStop && 'px-3.5',
               )}
             >
               <BlurSwap
                 swapKey={showStop ? 'stop' : uploading ? 'uploading' : 'send'}
+                className="gap-1.5"
               >
                 {showStop ? (
-                  <Square className="size-3" aria-hidden />
+                  <>
+                    <Square
+                      weight="fill"
+                      className="size-2.5 shrink-0"
+                      aria-hidden
+                    />
+                    <span className="text-xs font-medium">
+                      {t('stopShort')}
+                    </span>
+                  </>
                 ) : uploading ? (
                   <Spinner size="sm" className="text-background" />
                 ) : (
                   <ArrowUp className="size-4" aria-hidden />
                 )}
               </BlurSwap>
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

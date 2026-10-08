@@ -1122,6 +1122,12 @@ export const AssistantOperatorPriorStepSchema = z.object({
    */
   rejectReason: z.string().trim().max(LIMITS.maxReasonChars).optional(),
   detail: z.string().trim().max(LIMITS.maxReasonChars).optional(),
+  /**
+   * 这一步发生在创作者**最后一句话之后** —— 同一轮里接力（canvas_sync）或插话之前
+   * 已经做完的。2026-10-08 马尔福画布：接力后模型把它们当成「历史尝试」，三张卡刚写完
+   * 又整批重写一遍。
+   */
+  thisTurn: z.literal(true).optional(),
 })
 
 export const AssistantOperatorConfirmDecisionSchema = z.object({

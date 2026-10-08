@@ -487,6 +487,7 @@ import {
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
   type AssistantOperatorResult,
+  type AssistantOperatorPriorStep,
   type AssistantOperatorStep,
   AssistantOperatorRoundSummaryDraftSchema,
   AssistantResearchConclusionDraftSchema,
@@ -7326,7 +7327,7 @@ async function planSetReviewState(
  */
 const CANVAS_GUIDE: readonly string[] = [
   'BATCH FIRST: when a request needs more than one change, send ONE canvas_batch {action:"canvas_batch",ops:[...]} with every op in order — add_node with "ref":"new1", then set_model / connect / attach_asset that name "new1" as target or source. The batch lands as one undo and the turn pauses once (canvas_sync) instead of once per op. A card created in the batch has no real id until the board comes back: write its prompt and params in the NEXT call with the id from the fresh board. canvas_apply is for a single change.',
-  'lastFailure on a card is why its last generation failed. code content_filtered means the provider safety system blocked the prompt or the finished image: name that reason, then rewrite the prompt around what likely tripped it (a real person likeness, an age-and-body description) instead of retrying it unchanged.',
+  'lastFailure on a card is why its last generation failed. code content_filtered means the provider safety system blocked the prompt or the finished image: name that reason, then rewrite the prompt around what likely tripped it (a real person likeness, an age-and-body description) instead of retrying it unchanged. It stays on the card until the next generation: once you have rewritten that prompt, the failure is handled.',
   'Every media card shows "model": its selected model id, or null when none is selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, check the fresh board has each requested model, prompt and reference input: apply what is missing, never claim it is configured, and do not repeat a change that is already there. Wire references and set the model before the final prompt. After each canvas_sync, read the fresh canvas state and continue until every requested card, reference and link is there; if you cannot finish, name exactly which parts remain.',
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
   'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
@@ -10818,14 +10819,25 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
       `IMAGES ATTACHED TO THIS MODEL REQUEST (in attachment order):\n${JSON.stringify(currentImages)}\nThese actual image inputs are for the latest user question. Inspect them directly, regardless of failed reads described in older conversation. Do not repeat an old failure as a new observation. Answer visual questions directly; analyze_references is only needed to record structured evidence for prompt editing. Current pixels override stale descriptions; uncertain appearance is not a transport failure.`,
     )
 
-  if (run.request.priorSteps?.length) {
-    sections.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
-${run.request.priorSteps
-  .map(
-    (step) =>
-      `- [${step.status}${step.rejectReason ? `:${step.rejectReason}` : ''}] ${step.tool}: ${step.summary}${step.detail ? ` — ${step.detail}` : ''}`,
+  const priorStepLine = (step: AssistantOperatorPriorStep) =>
+    `- [${step.status}${step.rejectReason ? `:${step.rejectReason}` : ''}] ${step.tool}: ${step.summary}${step.detail ? ` — ${step.detail}` : ''}`
+  const earlierSteps = (run.request.priorSteps ?? []).filter(
+    (step) => !step.thisTurn,
   )
-  .join('\n')}`)
+  const thisTurnSteps = (run.request.priorSteps ?? []).filter(
+    (step) => step.thisTurn,
+  )
+  if (earlierSteps.length) {
+    sections.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
+${earlierSteps.map(priorStepLine).join('\n')}`)
+  }
+  /**
+   * ⭐ **这一轮已经做完的**单列一段（2026-10-08 马尔福画布）：接力之后它们混在「历史
+   * 尝试」里，模型读不出是自己刚落的，三张卡写完又整批重写、还抄错一个 id。
+   */
+  if (thisTurnSteps.length) {
+    sections.push(`ALREADY DONE IN THIS TURN (before the app paused for canvas_sync or an interruption — every [done] change is on the board now; never repeat or rewrite it. Continue only with what the creator asked that is still missing, or finish):
+${thisTurnSteps.map(priorStepLine).join('\n')}`)
   }
 
   /**

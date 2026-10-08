@@ -4792,6 +4792,37 @@ describe('前情 steps（没有服务端会话态）', () => {
     )
     expect(lastUserPrompt()).toContain('wrote the umbrella prompt')
   })
+
+  it('这一轮接力前做完的单列一段「已经做完」，⛔ 不和历史尝试混在一起', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          priorSteps: [
+            {
+              tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+              status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+              summary: 'last turn prompt',
+            },
+            {
+              tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+              status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+              summary: '调整三张一年级角色卡',
+              thisTurn: true,
+            },
+          ],
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    const done = prompt.indexOf('ALREADY DONE IN THIS TURN')
+    const history = prompt.indexOf('HISTORICAL TOOL ATTEMPTS')
+    expect(done).toBeGreaterThan(-1)
+    expect(prompt.slice(done)).toContain('调整三张一年级角色卡')
+    expect(prompt.slice(history, done)).toContain('last turn prompt')
+    expect(prompt.slice(history, done)).not.toContain('调整三张一年级角色卡')
+  })
 })
 
 describe('联网搜图 · 预览优先（P3-B）', () => {

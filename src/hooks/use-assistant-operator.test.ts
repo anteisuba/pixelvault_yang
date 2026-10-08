@@ -793,6 +793,8 @@ describe('useAssistantOperator 的四条收尾路径', () => {
           status: 'error',
           rejectReason: 'canvasBatchPartial',
           detail: expect.stringContaining('ops[2] connect'),
+          // 接力时这一步是创作者那句话之后做的：服务端把它列进「这一轮已经做完」。
+          thisTurn: true,
         }),
       ],
     })

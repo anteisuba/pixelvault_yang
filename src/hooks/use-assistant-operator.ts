@@ -280,7 +280,8 @@ function buildPriorSteps(
   fromHistory: AssistantOperatorPriorStep[] = [],
 ): AssistantOperatorPriorStep[] {
   const steps: AssistantOperatorPriorStep[] = [...fromHistory]
-  for (const entry of entries) {
+  const lastUserIndex = entries.findLastIndex((entry) => entry.kind === 'user')
+  for (const [index, entry] of entries.entries()) {
     if (entry.kind === 'system' && entry.code === 'checkpointRestored')
       steps.length = 0
     if (entry.kind !== 'step') continue
@@ -312,6 +313,7 @@ function buildPriorSteps(
               : {}),
           }
         : {}),
+      ...(index > lastUserIndex ? { thisTurn: true as const } : {}),
     })
   }
   return steps.slice(-ASSISTANT_OPERATOR_LIMITS.maxPriorSteps)

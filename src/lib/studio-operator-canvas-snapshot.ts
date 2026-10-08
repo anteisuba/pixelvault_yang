@@ -442,7 +442,14 @@ export function buildCanvasOperatorSnapshot({
   const shotNumbers = [...byShot.keys()]
     .filter((shotNo): shotNo is number => shotNo !== null)
     .sort((a, b) => a - b)
-  const expanded = expandedShotNumbers(shotNumbers, currentShotNo)
+  const shotNodeCount = shotNumbers.reduce(
+    (sum, shotNo) => sum + (byShot.get(shotNo)?.length ?? 0),
+    0,
+  )
+  const expanded =
+    shotNodeCount <= ASSISTANT_OPERATOR_CANVAS_LIMITS.expandAllShotsUpToNodes
+      ? new Set(shotNumbers)
+      : expandedShotNumbers(shotNumbers, currentShotNo)
 
   const shots: AssistantOperatorCanvasShot[] = []
   const pushShot = (shotNo: number | null, isExpanded: boolean): void => {

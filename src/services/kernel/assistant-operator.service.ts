@@ -2145,7 +2145,12 @@ function planReadState(
     const nodes = (run.state.canvas?.shots ?? []).flatMap((shot) =>
       shot.expanded ? shot.nodes : [],
     )
-    const requested = args.nodeIds ?? []
+    const asked = args.nodeIds ?? []
+    const requested = asked.slice(
+      0,
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes,
+    )
+    const deferred = asked.slice(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes)
     const found = nodes.filter((node) => requested.includes(node.id))
     const missing = requested.filter(
       (id) => !nodes.some((node) => node.id === id),
@@ -2166,7 +2171,7 @@ function planReadState(
             ),
           },
           observation: found.length
-            ? `read_state: ${names} now appear with their full text in CURRENT WORKBENCH STATE.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''}`
+            ? `read_state: ${names} now appear with their full text in CURRENT WORKBENCH STATE.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''}${deferred.length ? ` ${deferred.length} more were not read this step (at most ${ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes} per call): read ${deferred.join(', ')} next.` : ''}`
             : `read_state: the board in CURRENT WORKBENCH STATE is current as of this step — there was nothing new to read.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''} To see clipped cards in full, call read_state with {nodeIds:[...]}.`,
         }
       },

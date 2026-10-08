@@ -2165,6 +2165,13 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
    * 看得见「这镜」和「下一镜」的槽与连线；再往外的镜头它只需要知道叫什么。
    */
   expandedShots: 3,
+  /**
+   * 镜头里的卡合计不超过这个数时**每一面都展开**（2026-10-08 真机：十镜剧本投完，
+   * 助手只看得见前三镜，S04–S10 的卡 id 拿不到，逐镜改词改不下去）。长正文已经按
+   * 目录截成开头（`boardTextPreviewChars`），全展开不会把上下文撑开；画布真大了
+   * 才退回「焦点 + 左右各一」。
+   */
+  expandAllShotsUpToNodes: 60,
   /** 其余每镜只出一行标题 —— 整张画布最多列这么多行。 */
   maxShotLines: 60,
   /** 一面展开的镜里最多列几个节点。 */
@@ -2192,7 +2199,13 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   boardFullTextChars: 6_000,
   boardTextPreviewChars: 240,
   /** `read_state` 一次最多点名读几张卡的全文。 */
-  maxReadNodes: 8,
+  maxReadNodes: 16,
+  /**
+   * `read_state` 点名的结构上限 —— 只防荒唐的长度。超过 `maxReadNodes` 的部分 ⛔ 不整步
+   * 退回（10-08 真机：点了十张被退两次，同类失败闸把整轮停了），而是先读前面的、
+   * 告诉它其余的下一步再点。
+   */
+  maxReadNodeIds: 64,
   /**
    * 剧本卡上列出「投影会切成哪几镜」最多几行、每行几字（2026-10-08 真机：模型只看到
    * 一个镜数，把设定行当成了镜头去投影）。⚠ 每行字数与 `NODE_SCRIPT_PROJECTION.maxTitleChars`

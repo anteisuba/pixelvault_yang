@@ -2286,7 +2286,7 @@ export const AssistantOperatorReadStateArgsSchema = z.object({
   nodeIds: z
     .array(IdSchema)
     .min(1)
-    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodeIds)
     .optional(),
 })
 

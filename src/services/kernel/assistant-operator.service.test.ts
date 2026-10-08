@@ -2541,6 +2541,42 @@ describe('read_state', () => {
         },
       })
     }
+    it('read_state 点名超过上限时先读前面的，其余留到下一步，⛔ 不整步退回', async () => {
+      const request = boardRequest()
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      const ids = Array.from({ length: 20 }, (_, index) => `shot-${index}`)
+      shot.nodes.push(
+        ...ids.map((id) => ({
+          id,
+          name: id,
+          kind: 'video',
+          subtype: 'shot',
+          text: `${id} text`,
+        })),
+      )
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+            title: '读镜头卡',
+            args: { nodeIds: ids },
+          },
+        },
+        { finished: true, message: '读过了。' },
+      )
+      const events = await collect(runAssistantOperator('clerk-1', request))
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          status: 'done',
+        }),
+      )
+      expect(toolRingCalls()[1].userPrompt).toContain(
+        '4 more were not read this step',
+      )
+    })
+
     it('卡上提示词末尾的 Reference roles 图例不给模型看，只留张数', async () => {
       const request = boardRequest()
       const shot = request.snapshot.canvas!.shots[0]!

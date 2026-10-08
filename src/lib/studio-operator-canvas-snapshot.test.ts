@@ -331,10 +331,28 @@ describe('buildCanvasOperatorSnapshot', () => {
    * ⭐ 分层是这份快照**存在的理由**（进度表 22）：焦点那面镜与左右各一完整，
    * 其余每面一行。断不出这一条的话，一张六十镜的画布会把整轮步数烧在读上下文上。
    */
-  it('⭐ 焦点镜与左右各一展开，其余每面只出一行标题', () => {
-    const nodes = [1, 2, 3, 4, 5].map((shotNo) =>
-      imageNode(`node-${shotNo}`, shotNo),
+  /** 镜头里的卡超过 `expandAllShotsUpToNodes` 时才按焦点折叠 —— 用填充卡撑过阈值。 */
+  const fillers = (shotNo: number, count: number) =>
+    Array.from({ length: count }, (_, index) =>
+      imageNode(`filler-${shotNo}-${index}`, shotNo),
     )
+
+  it('镜头里的卡不多时每一面都展开（十镜剧本逐镜改词要看得见每张卡）', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: Array.from({ length: 10 }, (_, index) =>
+        imageNode(`node-${index + 1}`, index + 1),
+      ),
+      edges: [],
+      currentShotNo: null,
+    })
+    expect(snapshot.shots.every((shot) => shot.expanded)).toBe(true)
+  })
+
+  it('⭐ 焦点镜与左右各一展开，其余每面只出一行标题', () => {
+    const nodes = [1, 2, 3, 4, 5].flatMap((shotNo) => [
+      imageNode(`node-${shotNo}`, shotNo),
+      ...fillers(shotNo, 12),
+    ])
     const snapshot = buildCanvasOperatorSnapshot({
       nodes,
       edges: [],
@@ -354,7 +372,7 @@ describe('buildCanvasOperatorSnapshot', () => {
       expanded: false,
       shotNo: 1,
       title: 'S1',
-      nodeCount: 1,
+      nodeCount: 13,
     })
     expect(
       AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
@@ -367,7 +385,10 @@ describe('buildCanvasOperatorSnapshot', () => {
    */
   it('没有焦点时展开最前面三面，⛔ 不是一面都不展开', () => {
     const snapshot = buildCanvasOperatorSnapshot({
-      nodes: [1, 2, 3, 4].map((shotNo) => imageNode(`node-${shotNo}`, shotNo)),
+      nodes: [1, 2, 3, 4].flatMap((shotNo) => [
+        imageNode(`node-${shotNo}`, shotNo),
+        ...fillers(shotNo, 16),
+      ]),
       edges: [],
       currentShotNo: null,
     })
@@ -491,6 +512,7 @@ describe('buildCanvasOperatorSnapshot', () => {
           blocked: true,
         }),
         imageNode('shot-2', 2),
+        ...fillers(2, 60),
         imageNode('shot-3', 3),
         imageNode('target', 4),
         imageNode('shot-5', 5),

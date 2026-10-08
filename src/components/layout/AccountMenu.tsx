@@ -4,7 +4,7 @@ import { Globe, LogOut, Settings } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES, settingsPath } from '@/constants/routes'
-import { Link, usePathname } from '@/i18n/navigation'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
   Tooltip,
@@ -16,22 +16,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useLocaleSwitch } from '@/hooks/use-locale-switch'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { useLocaleSwitch, type AppLocale } from '@/hooks/use-locale-switch'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useSignOut } from '@/hooks/use-sign-out'
-import { cn } from '@/lib/utils'
 
 /**
  * 账号菜单（D11 ④，2026-09-20 owner 确认画板）。侧栏最底那一行和手机顶栏
  * 胶囊右端那颗头像都挂它 —— 两处同一颗菜单，⛔ 不各写一份。
  *
- * 内容自上而下：头部（头像 · 名字 · @用户名）→ 语言（带当前值，展子菜单）
- * → 设置 → 退出登录（红字，上有分隔线）。
+ * 内容自上而下：头部（头像 · 名字 · @用户名）→ 语言（一行分段条）
+ * → 设置 → 退出登录（红字，上有分隔线）。从触发行**长出来**（`grow` 档：
+ * 侧栏展开往上、收起往右、手机顶栏往下）。
  *
  * ⛔ 菜单里不放额度、不放 key 数、不挂红点 / 角标 —— 那三样各有各的页
  * （`/settings/usage` · `/settings/keys`），是 D3 ④ 的既有收口结论。
@@ -71,11 +69,11 @@ export function AccountMenu({
         align={align}
         sideOffset={6}
         collisionPadding={8}
-        motionPreset="lift"
+        motionPreset="grow"
         /* ⚠ 视口夹取不是装饰：手机档这颗菜单从顶栏右端往下开，216 的固定宽在
            窄屏会顶出右边缘。夹取写在代码里，窄屏溢出就不可能（仓库先例：
            `LoraLibraryFilterCombobox`）。 */
-        className="w-54 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
+        className="w-58 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
       >
         <AccountMenuHeader />
         <DropdownMenuSeparator />
@@ -117,60 +115,61 @@ function AccountMenuHeader() {
 }
 
 /**
- * 语言 —— 行上带当前值，展开是三档单选表（en / ja / zh，⛔ 不多不少）。
+ * 语言 —— 一行分段条（en / ja / zh，⛔ 不多不少；owner 2026-10-08 侧栏原型 v1），
+ * 复用 `LiquidSegmented`：选中块两条边各一根弹簧滑过去，⛔ 不再展二级子菜单。
  *
  * 当前值、落点和名册全部来自 `useLocaleSwitch()`，与设置 → 偏好**同一条路**：
- * ⛔ 这里不另存一份当前值、⛔ 不另写一遍切换，否则「界面显示的」和
- * 「服务端认得的」会开始漂（判据三）。
+ * ⛔ 这里不另存一份当前值、⛔ 不另写一遍落点，否则「界面显示的」和
+ * 「服务端认得的」会开始漂（判据三）。切换 = next-intl 的 `router.replace(href,
+ * { locale })`，与 `<Link locale>` 重写的是同一个地址前缀。
+ *
+ * ⚠ 整行是一颗 `menuitem`：Radix 菜单里 Tab 被吃掉、方向键只在菜单项之间走，
+ *   分段条里的按钮键盘到不了。所以键盘落在这一行上，←/→ 换语言；鼠标直接点格子。
+ *   `onSelect` 拦掉默认的「选完就关」—— 换语言不是一个关菜单的动作。
  */
 function AccountMenuLanguage() {
   const t = useTranslations('LocaleSwitcher')
   const { locale, href, locales } = useLocaleSwitch()
+  const router = useRouter()
+
+  const switchTo = (next: AppLocale) => {
+    if (next !== locale) router.replace(href, { locale: next })
+  }
+
+  const step = (delta: number) => {
+    const index = locales.indexOf(locale)
+    const next = locales[(index + delta + locales.length) % locales.length]
+    switchTo(next)
+  }
 
   return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger className="h-8 rounded-lg px-2">
-        <Globe />
-        <span className="flex-1 truncate">{t('label')}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {t(`names.${locale}`)}
-        </span>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent
-        motionPreset="lift"
-        sideOffset={6}
-        className="w-44 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
-      >
-        {locales.map((option) => {
-          const isActive = option === locale
-          return (
-            <DropdownMenuItem
-              key={option}
-              asChild
-              className={cn(
-                'h-8 rounded-lg px-2',
-                // 选中靠**底色 + 字重 + 右侧圆点**三样说话，⛔ 不只靠颜色。
-                isActive && 'bg-accent font-medium text-accent-foreground',
-              )}
-            >
-              <Link
-                href={href}
-                locale={option}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <span className="flex-1 truncate">{t(`names.${option}`)}</span>
-                {isActive ? (
-                  <span
-                    aria-hidden
-                    className="size-1.5 shrink-0 rounded-full bg-foreground"
-                  />
-                ) : null}
-              </Link>
-            </DropdownMenuItem>
-          )
-        })}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <DropdownMenuItem
+      data-slot="account-menu-language"
+      aria-label={`${t('label')} · ${t(`names.${locale}`)}`}
+      onSelect={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault()
+          step(event.key === 'ArrowRight' ? 1 : -1)
+        }
+      }}
+      className="h-9 cursor-default rounded-lg px-2 focus:bg-accent"
+    >
+      <Globe />
+      <span className="flex-1 truncate">{t('label')}</span>
+      <LiquidSegmented
+        size="xs"
+        semantics="radio"
+        ariaLabel={t('label')}
+        value={locale}
+        onChange={switchTo}
+        items={locales.map((option) => ({
+          value: option,
+          label: t(`options.${option}`),
+          title: t(`names.${option}`),
+        }))}
+      />
+    </DropdownMenuItem>
   )
 }
 

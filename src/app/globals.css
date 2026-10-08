@@ -517,6 +517,39 @@
       background-color: var(--surface-fill-track);
     }
   }
+  /* 菜单从触发行长出来（owner 2026-10-08 侧栏原型 v1 账号菜单，`DropdownMenuContent`
+     的 `grow` 档）：靠触发器那条边不动，另一条边走 `--spring-slot` 推出去 + 由糊变清；
+     收回反着走、`--duration-fast`。往哪边长由 `[data-menu-motion='grow']` 按
+     `data-side` 给 `--menu-grow-from`（见下方 components 层）。
+     模糊 4px = `CHIP_POPOVER.blurPx`（motion.ts），两处同步改。
+     ⚠ 只填 `backwards`：长完必须把 clip-path 放掉，否则菜单的投影被裁没。 */
+  --animate-menu-grow: menu-grow var(--spring-slot-duration)
+    var(--spring-slot-ease) backwards;
+  --animate-menu-shrink: menu-shrink var(--duration-fast) var(--ease-standard)
+    forwards;
+  @keyframes menu-grow {
+    from {
+      opacity: 0;
+      filter: blur(4px);
+      clip-path: var(--menu-grow-from);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      clip-path: var(--menu-grow-to);
+    }
+  }
+  @keyframes menu-shrink {
+    from {
+      opacity: 1;
+      clip-path: var(--menu-grow-to);
+    }
+    to {
+      opacity: 0;
+      filter: blur(4px);
+      clip-path: var(--menu-grow-from);
+    }
+  }
   /* 「加到角色 N」之后输入框里那一页的小点：弹一下再站住。 */
   --animate-target-dot: target-dot 320ms var(--ease-standard) both;
   @keyframes target-dot {
@@ -608,9 +641,10 @@
   --sidebar-active-surface: #ffffff;
   --sidebar-border: rgb(11 14 18 / 0.08); /* 卡描边，材质用，不是功能边界 */
   --sidebar-ring: #0b0e12;
-  /* 菜单项到分组边缘的内沟。激活竖条贴在这条沟的外侧，所以两处必须同源。 */
-  --sidebar-rail-gutter: 0.375rem;
-  --sidebar-rail-gutter-icon: 0.25rem;
+  /* 菜单项到分组边缘的内沟。激活竖条贴在这条沟的外侧，所以两处必须同源。
+     展开 / 收起同一档（owner 2026-10-08 侧栏原型 v1：收展时图标不动）——
+     收起 40 = 4 + 32 + 4，`AppSidebar` 的分组 `px-1` 与它同值。 */
+  --sidebar-rail-gutter: 0.25rem;
 
   --overlay-chip: oklch(100% 0 0 / 0.1);
   --overlay-chip-foreground: oklch(100% 0 0 / 0.7);
@@ -1001,10 +1035,12 @@ html:lang(ja) {
     transform: translate3d(var(--slider-x), var(--slider-y), 0);
     border-radius: calc(var(--radius) - 2px);
     pointer-events: none;
+    /* 换行走弹簧（owner 2026-10-08 侧栏原型 v1）：白片连同竖条、悬停灰块都
+       `--spring-slot` 滑过去，一丝过冲；淡入淡出仍走脊柱线性档 —— ⛔ 透明度不走弹簧。 */
     transition:
-      transform var(--duration-slow) var(--ease-standard),
-      width var(--duration-base) var(--ease-standard),
-      height var(--duration-base) var(--ease-standard),
+      transform var(--spring-slot-duration) var(--spring-slot-ease),
+      width var(--spring-slot-duration) var(--spring-slot-ease),
+      height var(--spring-slot-duration) var(--spring-slot-ease),
       opacity var(--duration-fast) var(--ease-standard);
   }
 
@@ -1016,6 +1052,8 @@ html:lang(ja) {
     box-shadow: var(--shadow-sidebar-chip);
   }
 
+  /* 竖条是白片的伪元素 —— 片子滑，竖条跟着一起滑，⛔ 不各走各的。
+     内沟展开 / 收起同一档（4px），收展时图标与竖条都不横跳。 */
   .shell-nav-slider--active::before {
     content: '';
     position: absolute;
@@ -1028,17 +1066,26 @@ html:lang(ja) {
     background: var(--sidebar-primary);
   }
 
-  /* 收缩态：分组内沟从 6 收到 4，滑片与竖条一起跟上，否则竖条会探出轨外。 */
-  .group[data-collapsible='icon'] .shell-nav-slider--active::before {
-    left: calc(var(--sidebar-rail-gutter-icon) * -1);
-    height: 16px;
-    margin-top: -8px;
-  }
-
   /* hover 幽灵块：往「暗」走。和白浮片反极性才分得开。 */
   .shell-nav-slider--hover {
     z-index: 0;
     background: var(--sidebar-accent);
+  }
+
+  /* 菜单 `grow` 档往哪边长（keyframes 见 @theme 的 `menu-grow`）。四边各多放
+     1.5rem 给投影；起点把远离触发器的那条边压到触发器那一侧。 */
+  [data-menu-motion='grow'] {
+    --menu-grow-to: inset(-1.5rem);
+    --menu-grow-from: inset(100% -1.5rem -1.5rem -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='bottom'] {
+    --menu-grow-from: inset(-1.5rem -1.5rem 100% -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='right'] {
+    --menu-grow-from: inset(-1.5rem 100% -1.5rem -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='left'] {
+    --menu-grow-from: inset(-1.5rem -1.5rem -1.5rem 100%);
   }
 
   /* 刚进入列表时不该从上一个位置滑过来 —— 先就位再淡入。 */
@@ -1047,6 +1094,12 @@ html:lang(ja) {
       opacity var(--duration-fast) var(--ease-standard),
       width var(--duration-base) var(--ease-standard),
       height var(--duration-base) var(--ease-standard);
+  }
+
+  /* 轨在收展：宽度每帧都在变，片子逐帧贴着按钮走（ResizeObserver 量），
+     ⛔ 再叠一层弹簧只会让白片落后按钮半拍、露出一截。 */
+  .shell-nav-slider--tracking {
+    transition: opacity var(--duration-fast) var(--ease-standard);
   }
 
   .keyboard-aware-bottom-padding {

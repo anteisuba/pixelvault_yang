@@ -272,6 +272,40 @@ describe('buildCanvasOperatorSnapshot', () => {
     expect(shot.expanded && shot.nodes).toHaveLength(40)
   })
 
+  it('卡停在失败态时带上失败原因；重新生成后不再带', () => {
+    const failure = {
+      errorCode: 'content_filtered',
+      error: `Your request was rejected by the safety system. ${'x'.repeat(400)}`,
+    }
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        imageNode('failed', undefined, {
+          status: 'failed',
+          generationFailure: failure,
+        }),
+        imageNode('retrying', undefined, {
+          status: 'running',
+          generationFailure: failure,
+        }),
+      ],
+      edges: [],
+      currentShotNo: null,
+      selectedNodeIds: [],
+    })
+
+    expect(snapshotNode(snapshot, 'failed')?.lastFailure).toEqual({
+      code: 'content_filtered',
+      message: failure.error.slice(
+        0,
+        ASSISTANT_OPERATOR_CANVAS_LIMITS.failureMessageChars,
+      ),
+    })
+    expect(snapshotNode(snapshot, 'retrying')?.lastFailure).toBeUndefined()
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
   it('视频目录的全部候选进入快照时仍满足请求契约', () => {
     const models = getAvailableVideoModels(VIDEO_KIND.GENERATE).map(
       (model) => model.id,

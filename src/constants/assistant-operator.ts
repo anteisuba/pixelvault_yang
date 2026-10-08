@@ -2176,6 +2176,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxShotLines: 60,
   /** 一面展开的镜里最多列几个节点（散卡那一组常常最大：角色、场景、资产都在里面）。 */
   maxNodesPerShot: 40,
+  /** 卡上失败原因给助手看的长度 —— 服务商原话通常一两句，够判断是审核还是额度。 */
+  failureMessageChars: 200,
   /** 画布保留节点选择器的模型目录；视频目录已超过通用快照的 24 项。 */
   maxAvailableModels: 64,
   maxParameterOptions: 64,

@@ -727,6 +727,19 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
   hasOutput: z.boolean().optional(),
   /**
+   * 上一次生成**失败了**，卡上那行红字的原因（2026-10-08 马尔福画布：哈利那张被服务商
+   * 审核拦下，助手读不到原因，只能反问「没有失败日志」）。⚠ 只在卡还停在失败态时给。
+   */
+  lastFailure: z
+    .object({
+      code: LabelSchema.optional(),
+      message: z
+        .string()
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.failureMessageChars)
+        .optional(),
+    })
+    .optional(),
+  /**
    * **剧本卡**那一格（进度表 24）：这张卡拆得出几面镜、已经投出去几面、其中
    * 几面与剧本对不上。
    *

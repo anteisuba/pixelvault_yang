@@ -40,6 +40,7 @@ import type { VideoResolution } from '@/constants/video-options'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_STATUS_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
@@ -349,6 +350,34 @@ function toSnapshotNode(
       : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
+    ...readLastFailure(node),
+  }
+}
+
+/** 卡还停在失败态时，那行红字的原因（码 + 服务商原话的开头）。 */
+function readLastFailure(
+  node: NodeV4,
+): Pick<AssistantOperatorCanvasNode, 'lastFailure'> {
+  const { data } = node
+  if (
+    data.kind === NODE_MEDIA_KIND_IDS.text ||
+    data.status !== NODE_STATUS_IDS.failed
+  )
+    return {}
+  const failure = data.generationFailure
+  if (!failure?.errorCode && !failure?.error) return {}
+  return {
+    lastFailure: {
+      ...(failure.errorCode ? { code: failure.errorCode } : {}),
+      ...(failure.error
+        ? {
+            message: failure.error.slice(
+              0,
+              ASSISTANT_OPERATOR_CANVAS_LIMITS.failureMessageChars,
+            ),
+          }
+        : {}),
+    },
   }
 }
 

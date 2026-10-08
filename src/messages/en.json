@@ -3454,12 +3454,6 @@
       "xhigh": "Extra high",
       "max": "Maximum"
     },
-    "inputFidelity": "Input fidelity",
-    "inputFidelityHint": "How strongly the model preserves detail from the attached reference images. Applies to edits only.",
-    "inputFidelityOption": {
-      "low": "Low",
-      "high": "High"
-    },
     "background": "Background",
     "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
     "backgroundOption": {
@@ -8562,7 +8556,6 @@
     "onlyFor": "Only applies to {models}",
     "capability": {
       "quality": "Quality",
-      "inputFidelity": "Input fidelity",
       "background": "Background",
       "layerDecomposition": "Split layers",
       "style": "Style",

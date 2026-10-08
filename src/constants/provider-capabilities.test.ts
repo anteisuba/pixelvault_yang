@@ -46,31 +46,6 @@ describe('provider-capabilities', () => {
     ).not.toContain('max')
   })
 
-  // `input_fidelity` is a 2.5-only field: the image-generation guide tells you
-  // to omit it for gpt-image-2 (that model always runs inputs at high
-  // fidelity), so it must not leak onto the adapter default or the older model.
-  it.each([
-    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
-    AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
-  ])('offers low/high input fidelity for %s', (modelId) => {
-    const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, modelId)
-    expect(config.capabilities).toContain('inputFidelity')
-    expect(config.inputFidelityOptions).toEqual(['low', 'high'])
-  })
-
-  it('keeps input fidelity off gpt-image-2 and off the adapter default', () => {
-    for (const config of [
-      getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI),
-      getCapabilityConfig(
-        AI_ADAPTER_TYPES.OPENAI,
-        AI_MODELS.OPENAI_GPT_IMAGE_2,
-      ),
-    ]) {
-      expect(config.capabilities).not.toContain('inputFidelity')
-      expect(config.inputFidelityOptions).toBeUndefined()
-    }
-  })
-
   // 火山 Ark 的 `background` 是 5.0 Pro 专属（文档「模型支持」一栏只列它），
   // 所以这颗 chip 只能出现在两条原生线上——fal 那条 5.0 Pro 的入参里根本没有
   // 这个字段，Lite / 4.5 也没有。

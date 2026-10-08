@@ -22,42 +22,19 @@ describe('getModelCapabilityChips', () => {
   })
 
   // 2.5 的 override 是**整体替换**（不是合并），style 因此在这一档消失。
-  // 输入保真（`input_fidelity`）只在这两档 2.5 上 —— gpt-image-2 的官方指引明说
-  // 「omit this parameter」，所以它下面那条断言是闸不是凑数。
   it.each([
     AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
   ])('follows a per-model override instead of the adapter default', (id) => {
     expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, id)).toEqual([
       'quality',
-      'inputFidelity',
       'preview',
       'background',
     ])
   })
 
-  it('offers input fidelity only where the provider accepts it', () => {
-    const chip = getModelCapabilityChips(
-      AI_ADAPTER_TYPES.OPENAI,
-      AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
-    ).find((entry) => entry.capability === 'inputFidelity')
-    expect(chip?.kind).toBe('select')
-    // 没有 `auto` —— 官方 reference 只给 high / low，不设就是不发。
-    expect(chip?.options).toEqual(['low', 'high'])
-    expect(chip?.defaultValue).toBe('low')
-    // `/v1/images/edits` 专属字段，纯文生图那条路上发过去是 400。
-    expect(chip?.requiresReferenceImage).toBe(true)
-
-    expect(
-      capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, AI_MODELS.OPENAI_GPT_IMAGE_2),
-    ).not.toContain('inputFidelity')
-    expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI)).not.toContain(
-      'inputFidelity',
-    )
-  })
-
   // 火山 / BytePlus 的 5.0 Pro：透明底是一颗 select chip，且**必须**标成依赖
-  // 参考图 —— 文档写死「仅支持图生图场景」。它和 inputFidelity 不同，不能靠
+  // 参考图 —— 文档写死「仅支持图生图场景」。它和 referenceStrength 不同，不能靠
   // 「这个能力键天生依赖参考图」实现：同一个 `background` 键在 OpenAI 上文生图
   // 也能用，所以依赖关系只能由能力表逐模型声明。
   it.each([
@@ -244,24 +221,6 @@ describe('pruneIncompatibleCapabilityValues', () => {
       seed: 42,
       negativePrompt: 'blurry',
     })
-  })
-
-  // 切到不认输入保真的型号（gpt-image-2）时，这个键必须跟着走。
-  it('drops input fidelity when the target model cannot take it', () => {
-    expect(
-      pruneIncompatibleCapabilityValues(
-        { inputFidelity: 'high' },
-        AI_ADAPTER_TYPES.OPENAI,
-        AI_MODELS.OPENAI_GPT_IMAGE_2,
-      ),
-    ).toEqual({})
-    expect(
-      pruneIncompatibleCapabilityValues(
-        { inputFidelity: 'high' },
-        AI_ADAPTER_TYPES.OPENAI,
-        AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
-      ),
-    ).toBeNull()
   })
 
   it('drops a quality tier the target model does not declare', () => {

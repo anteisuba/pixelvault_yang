@@ -3203,12 +3203,7 @@ describe('OpenAI image streaming execution', () => {
   })
 })
 
-/**
- * `input_fidelity` 是 `/v1/images/edits` 的字段 —— 挂了参考图才有那条路，
- * 纯文生图走 `/v1/images/generations`，把它发过去是 400。所以这两例锁的不是
- * 「值有没有被读出来」，是**它只跟着参考图走**。
- * https://developers.openai.com/api/reference/resources/images/methods/edit
- */
+/** 挂了参考图走 `/v1/images/edits`（multipart），纯文生图走 `/v1/images/generations`。 */
 describe('OpenAI reference uploads and input fidelity', () => {
   function openAiEnv(): {
     env: Parameters<typeof generateOpenAIImage>[0]
@@ -3268,7 +3263,9 @@ describe('OpenAI reference uploads and input fidelity', () => {
     return { fetchMock, uploadedForm: () => form }
   }
 
-  it('sends input_fidelity on the edits route when a reference is attached', async () => {
+  // OpenAI rejects `input_fidelity` (2.5 Flare 400 in prod, 2026-10-08): a value
+  // still stored on an old card must never reach the edits form.
+  it('never sends input_fidelity, even when an old card still carries it', async () => {
     const { env } = openAiEnv()
     const { fetchMock, uploadedForm } = stubImageResponse()
 
@@ -3283,24 +3280,9 @@ describe('OpenAI reference uploads and input fidelity', () => {
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://api.openai.com/v1/images/edits')
-    expect(uploadedForm()?.get('input_fidelity')).toBe('high')
+    expect(uploadedForm()?.has('input_fidelity')).toBe(false)
     const image = uploadedForm()?.get('image[]') as File
     expect(await image.text()).toBe('reference')
-  })
-
-  it('omits input_fidelity on the text-only generations route', async () => {
-    const { env } = openAiEnv()
-    const { fetchMock } = stubImageResponse()
-
-    await generateOpenAIImage(
-      env,
-      openAiContext({ advancedParams: { inputFidelity: 'high' } }),
-      'test-key',
-    )
-
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toBe('https://api.openai.com/v1/images/generations')
-    expect(JSON.parse(String(init.body))).not.toHaveProperty('input_fidelity')
   })
 
   it('sends nothing when the chip was never touched', async () => {
@@ -3347,7 +3329,6 @@ describe('OpenAI reference uploads and input fidelity', () => {
           quality: 'max',
           resolution: '2K',
           background: 'transparent',
-          inputFidelity: 'high',
         },
       }),
       'test-key',
@@ -3365,7 +3346,6 @@ describe('OpenAI reference uploads and input fidelity', () => {
       n: '1',
       quality: 'max',
       background: 'transparent',
-      input_fidelity: 'high',
       output_format: 'png',
     })
     const files = form.getAll('image[]') as File[]

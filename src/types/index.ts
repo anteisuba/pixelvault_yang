@@ -298,12 +298,6 @@ export const AdvancedParamsSchema = z.object({
   quality: z
     .enum(['auto', 'very_low', 'low', 'medium', 'high', 'xhigh', 'max'])
     .optional(),
-  /**
-   * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
-   * 没有 `auto`；不设 = 不发这个字段（provider 自己的默认）。
-   * https://developers.openai.com/api/reference/resources/images/methods/edit
-   */
-  inputFidelity: z.enum(['low', 'high']).optional(),
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),

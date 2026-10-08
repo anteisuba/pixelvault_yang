@@ -330,6 +330,7 @@ import {
  * 那条链会落库。
  */
 import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
+import { findFallbackAssistantRoute } from '@/services/kernel/assistant-fallback-route.service'
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
 import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
@@ -789,6 +790,8 @@ function toWorkingState(
 
 interface OperatorRun {
   signal?: AbortSignal
+  /** 这一轮是谁的 —— 借路（换 key 接着跑）要按它找 key。 */
+  userId: string
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
@@ -4164,10 +4167,43 @@ async function completeReferenceAnalysisText(
     responseFormat: 'json_object',
     jsonSchema,
     callLog: { purpose, domain: run.request.domain },
+    ...routeFallback(run, route, purpose, { needsImages: !!images?.length }),
   })) {
     result += chunk
   }
   return result
+}
+
+/**
+ * **借路**（owner 2026-10-08）：这一步的模型超时 / 限流 / 临时不可用、重发也不行时，
+ * 换用户配过的另一把 key 把这一步跑完，并让模型对用户说一句；⛔ 不悄悄换，也⛔ 不把
+ * 安全拒答和余额不足当成可借（`isLlmTextRecoverableError`）。
+ */
+function routeFallback(
+  run: OperatorRun,
+  route: ResolvedLlmTextRoute,
+  purpose: string,
+  options: { needsImages?: boolean } = {},
+): Pick<
+  Parameters<typeof streamAssistantTextWithContextRetry>[0],
+  'fallback' | 'onFallback'
+> {
+  return {
+    fallback: () =>
+      findFallbackAssistantRoute(run.userId, route.adapterType, options),
+    onFallback: ({ route: alt, error }) => {
+      const code = error instanceof ApiRequestError ? error.errorCode : 'error'
+      logger.warn('assistant route fell back to another key', {
+        purpose,
+        from: route.adapterType,
+        to: alt.adapterType,
+        code,
+      })
+      run.observations.push(
+        `NOTE: ${route.adapterType} did not answer this step (${code}); it ran on ${alt.adapterType} instead. Mention that in one short clause to the creator.`,
+      )
+    },
+  }
 }
 
 async function planAnalyzeReferences(
@@ -11838,6 +11874,7 @@ async function* runOperatorTurn(
 
   const run: OperatorRun = {
     signal: options.signal,
+    userId: user.id,
     priorRounds,
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
@@ -12147,6 +12184,9 @@ async function* runOperatorTurn(
         ...(audioData.length ? { audioData } : {}),
         responseFormat: 'json_object',
         callLog: { purpose: 'step', domain: request.domain, step: index },
+        ...routeFallback(run, route, 'step', {
+          needsImages: conversationImages.length > 0,
+        }),
       })) {
         raw += chunk
         // ⚠ 客户端走了就别再往一条没人读的流里收字（同下面那道 abort 复查）。

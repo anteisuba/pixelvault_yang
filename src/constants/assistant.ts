@@ -222,6 +222,18 @@ function getAssistantMediaCapability(
   )
 }
 
+/**
+ * 一步的模型临时出不来（超时 / 限流 / 503）时，按这个顺序找用户配过的另一把 key
+ * 接着跑这一步（owner 2026-10-08）。顺序按今天实测的稳定度与速度排，⛔ 不是偏好。
+ */
+export const ASSISTANT_FALLBACK_ADAPTER_ORDER = [
+  AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.ANTHROPIC,
+  AI_ADAPTER_TYPES.GEMINI,
+  AI_ADAPTER_TYPES.DEEPSEEK,
+  AI_ADAPTER_TYPES.XAI,
+] as const
+
 export function assistantAdapterSupportsImage(
   adapterType: AI_ADAPTER_TYPES,
   modelId?: string,

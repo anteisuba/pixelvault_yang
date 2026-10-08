@@ -83,6 +83,19 @@ vi.mock('@/services/llm-text.service', () => ({
   llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
   isLlmTextContextLimitError: () => false,
   isLlmTextTransientError: () => false,
+  isLlmTextRecoverableError: (error: unknown) => mockIsRecoverableError(error),
+}))
+
+/** 借路（换 key 接着跑）：缺省借不到；验借路的用例自己给一条。 */
+const mockIsRecoverableError = vi.hoisted(() =>
+  vi.fn<(error: unknown) => boolean>(() => false),
+)
+const mockFindFallbackAssistantRoute = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => null as unknown),
+)
+vi.mock('@/services/kernel/assistant-fallback-route.service', () => ({
+  findFallbackAssistantRoute: (...args: unknown[]) =>
+    mockFindFallbackAssistantRoute(...args),
 }))
 
 const mockGetPublicGenerationPage = vi.fn()
@@ -1128,6 +1141,61 @@ describe('工具环 · 逐事件顺序', () => {
       collect(runAssistantOperator('clerk-1', buildRequest())),
     ).rejects.toBe(failure)
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+  })
+
+  it('借路：模型超时就换用户另一把 key 跑这一步，并让模型对用户说一句（owner 2026-10-08）', async () => {
+    mockIsRecoverableError.mockReturnValue(true)
+    mockFindFallbackAssistantRoute.mockResolvedValueOnce({
+      route: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: {
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com',
+        },
+        apiKey: 'alt-key',
+      },
+      modelId: 'claude-sonnet-5-5',
+    })
+    const timeout = new ApiRequestError(
+      'PROVIDER_TIMEOUT',
+      504,
+      'errors.provider.timeout',
+      'timed out',
+    )
+    let calls = 0
+    mockLlmTextCompletion.mockReset().mockImplementation(async () => {
+      calls += 1
+      if (calls === 1) throw timeout
+      if (calls === 2)
+        return JSON.stringify(
+          wrapEntryToolCall({
+            tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.readState, args: {} },
+          }),
+        )
+      return JSON.stringify({ finished: true, message: '好了。' })
+    })
+    try {
+      const events = await collect(
+        runAssistantOperator('clerk-1', buildRequest()),
+      )
+      expect(streamErrorOf(events)).toBeUndefined()
+      expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+      // 第二次调用走的是借来的那条路。
+      expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: 'alt-key',
+        modelId: 'claude-sonnet-5-5',
+      })
+      expect(mockFindFallbackAssistantRoute).toHaveBeenCalledWith(
+        expect.any(String),
+        AI_ADAPTER_TYPES.GEMINI,
+        expect.objectContaining({ needsImages: false }),
+      )
+      // 下一步模型读得到「这一步换了家」，收尾时对用户说一句。
+      expect(lastUserPrompt()).toContain('it ran on anthropic instead')
+    } finally {
+      mockIsRecoverableError.mockReturnValue(false)
+    }
   })
 
   it('does not execute a complete tool JSON when its stream subsequently fails', async () => {

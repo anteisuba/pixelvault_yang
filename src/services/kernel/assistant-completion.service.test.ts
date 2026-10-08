@@ -19,6 +19,9 @@ vi.mock('@/services/llm-text.service', () => ({
     error instanceof Error && error.message === 'context overflow',
   isLlmTextTransientError: (error: unknown) =>
     error instanceof Error && error.message === 'overloaded',
+  isLlmTextRecoverableError: (error: unknown) =>
+    error instanceof Error &&
+    (error.message === 'overloaded' || error.message === 'timed out'),
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -191,6 +194,135 @@ describe('assistant completion cancellation and context retry', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  describe('借路：这条路临时出不来就换用户另一把 key（owner 2026-10-08）', () => {
+    const alt = {
+      route: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: {
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com',
+        },
+        apiKey: 'alt-key',
+      },
+      modelId: 'claude-sonnet-5-5',
+    }
+
+    it.each(['completion', 'stream'] as const)(
+      '%s: timed out → borrow another route, same prompt, caller told',
+      async (mode) => {
+        const failure = new Error('timed out')
+        if (mode === 'completion') {
+          completion.mockRejectedValueOnce(failure)
+          completion.mockResolvedValueOnce('answer')
+        } else {
+          stream.mockImplementationOnce(async function* () {
+            throw failure
+          })
+          stream.mockImplementationOnce(async function* () {
+            yield 'answer'
+          })
+        }
+        const fallback = vi.fn(async () => alt)
+        const onFallback = vi.fn()
+        const input = {
+          ...options,
+          buildUserPrompt: () => 'full',
+          fallback,
+          onFallback,
+        }
+        const result =
+          mode === 'completion'
+            ? await completeAssistantTextWithContextRetry(input)
+            : await collect(streamAssistantTextWithContextRetry(input))
+        expect(result).toEqual(mode === 'completion' ? 'answer' : ['answer'])
+        const transport = mode === 'completion' ? completion : stream
+        expect(transport).toHaveBeenCalledTimes(2)
+        expect(transport).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            userPrompt: 'full',
+            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+            apiKey: 'alt-key',
+            modelId: 'claude-sonnet-5-5',
+          }),
+        )
+        expect(onFallback).toHaveBeenCalledWith({ ...alt, error: failure })
+      },
+    )
+
+    it('overloaded: retry the same route once, then borrow', async () => {
+      vi.useFakeTimers()
+      try {
+        completion.mockRejectedValueOnce(new Error('overloaded'))
+        completion.mockRejectedValueOnce(new Error('overloaded'))
+        completion.mockResolvedValueOnce('answer')
+        const pending = completeAssistantTextWithContextRetry({
+          ...options,
+          buildUserPrompt: () => 'full',
+          fallback: async () => alt,
+        })
+        await vi.runAllTimersAsync()
+        await expect(pending).resolves.toBe('answer')
+        expect(completion).toHaveBeenCalledTimes(3)
+        expect(completion).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.OPENAI }),
+        )
+        expect(completion).toHaveBeenNthCalledWith(
+          3,
+          expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
+        )
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('never borrows for a refusal, bad key or empty balance', async () => {
+      const failure = new Error('insufficient balance')
+      completion.mockRejectedValue(failure)
+      const fallback = vi.fn(async () => alt)
+      await expect(
+        completeAssistantTextWithContextRetry({
+          ...options,
+          buildUserPrompt: () => 'full',
+          fallback,
+        }),
+      ).rejects.toBe(failure)
+      expect(fallback).not.toHaveBeenCalled()
+      expect(completion).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not borrow once the stream has shown text', async () => {
+      const failure = new Error('timed out')
+      stream.mockImplementationOnce(async function* () {
+        yield 'partial'
+        throw failure
+      })
+      const fallback = vi.fn(async () => alt)
+      await expect(
+        collect(
+          streamAssistantTextWithContextRetry({
+            ...options,
+            buildUserPrompt: () => 'full',
+            fallback,
+          }),
+        ),
+      ).rejects.toBe(failure)
+      expect(fallback).not.toHaveBeenCalled()
+    })
+
+    it('nothing to borrow → the original error', async () => {
+      const failure = new Error('timed out')
+      completion.mockRejectedValue(failure)
+      await expect(
+        completeAssistantTextWithContextRetry({
+          ...options,
+          buildUserPrompt: () => 'full',
+          fallback: async () => null,
+        }),
+      ).rejects.toBe(failure)
+    })
   })
 
   it('does not retry a stream after visible text', async () => {

@@ -507,6 +507,26 @@ export function isLlmTextTransientError(error: unknown): boolean {
   )
 }
 
+/**
+ * **换一把 key 接着跑值得一试**的那几类（owner 2026-10-08：除了安全策略和额度，别让
+ * 用户看见报错）：临时不可用、限流、超时、上游 502 / 504。⛔ 不含 key 失效、余额不足、
+ * 安全拒答、上下文超限、请求过大、输出预算耗尽 —— 换 key 也过不去，或者该让用户知道。
+ */
+export function isLlmTextRecoverableError(error: unknown): boolean {
+  if (!(error instanceof ApiRequestError)) return false
+  if (
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable ||
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.rateLimited ||
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.timeout
+  )
+    return true
+  return (
+    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.failed &&
+    (error.httpStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure ||
+      error.httpStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.gatewayTimeout)
+  )
+}
+
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
   switch (adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:

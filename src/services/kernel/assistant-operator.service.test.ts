@@ -2609,6 +2609,8 @@ describe('read_state', () => {
       expect(prompt).not.toContain('import_user_url')
       expect(prompt).toContain('SCRIPT → SHOTS')
       expect(prompt).toContain('mode "reproject"')
+      // 用户已经说清楚要做什么时不再弹计划卡（10-08 真机连弹 4 次）。
+      expect(prompt).toContain('that message is the green light')
     })
 
     it('给批里新建的卡写词：整批退回并点名那一条', async () => {

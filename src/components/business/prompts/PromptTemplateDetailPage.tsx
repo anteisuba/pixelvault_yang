@@ -498,7 +498,7 @@ export function PromptTemplateDetailPage({
           className="flex min-h-0 min-w-0 flex-1 flex-col gap-3"
         >
           {loadState === 'loading' ? (
-            <div className="min-h-64 flex-1 animate-pulse rounded-xl bg-muted" />
+            <div className="min-h-64 flex-1 rounded-xl bg-muted" />
           ) : shown ? (
             <>
               <div className="relative grid min-h-64 flex-1 place-items-center overflow-hidden rounded-xl bg-muted">
@@ -738,7 +738,7 @@ export function PromptTemplateDetailPage({
                   {parameterLine ? (
                     <p className={box}>{parameterLine}</p>
                   ) : (
-                    <div className="h-11 animate-pulse rounded-xl bg-muted" />
+                    <div className="h-11 rounded-xl bg-muted" />
                   )}
                 </section>
               ) : null}
@@ -759,7 +759,7 @@ export function PromptTemplateDetailPage({
                       })}
                 </h3>
                 {loadState === 'loading' ? (
-                  <div className="h-11 animate-pulse rounded-xl bg-muted" />
+                  <div className="h-11 rounded-xl bg-muted" />
                 ) : negativePrompt ? (
                   <PromptTemplateTagChips text={negativePrompt} negative />
                 ) : (
@@ -795,7 +795,7 @@ export function PromptTemplateDetailPage({
               <section>
                 <h3 className={blockTitle}>{t('detailNegative')}</h3>
                 {loadState === 'loading' ? (
-                  <div className="h-11 animate-pulse rounded-xl bg-muted" />
+                  <div className="h-11 rounded-xl bg-muted" />
                 ) : negativePrompt ? (
                   <p className={box}>{negativePrompt}</p>
                 ) : (

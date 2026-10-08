@@ -23,7 +23,7 @@ interface RouteErrorStateProps {
  * 与空态同一个模板 —— 虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸。
  * ⛔ 整块不变红，只在图标角放一颗红点。
  *
- * 「重试」：键里转圈（字不变、宽度不跳），重试成功出错块被换下，内容由糊变清地
+ * 「重试」：键里转圈、字换成「重试中」（owner 2026-10-08 加载中），重试成功出错块被换下，内容由糊变清地
  * 回来（`useErrorRecoveryReveal`）；又失败了，转圈停下。
  */
 export function RouteErrorState({
@@ -75,7 +75,7 @@ export function RouteErrorState({
             ) : (
               <RotateCcw className="size-4" aria-hidden />
             )}
-            {t('retry')}
+            {retrying ? t('retrying') : t('retry')}
           </Button>
         }
         secondaryAction={

@@ -16,7 +16,14 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
 
 vi.mock('@/lib/api-client/projects', () => ({
   getFolderMembershipsAPI: vi.fn(async () => ({ success: true, data: {} })),

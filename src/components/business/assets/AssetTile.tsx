@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Box, Check, Film, Heart, Mic, Play } from '@/components/icons'
 import NextImage from 'next/image'
@@ -16,6 +16,7 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
+import { useMediaReveal } from '@/components/ui/load-reveal'
 import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
 
@@ -63,6 +64,8 @@ interface AssetTileProps {
   onToggleFavorite?: () => void
   /** 收藏请求在飞：♥ 半透明、不再接第二下。 */
   favoritePending?: boolean
+  /** 数据到了由糊变清时错开第几步（`revealStep`，左上往右下）。 */
+  revealStep?: number
 }
 
 export function AssetTile({
@@ -80,6 +83,7 @@ export function AssetTile({
   onDragStart,
   onToggleFavorite,
   favoritePending = false,
+  revealStep,
 }: AssetTileProps) {
   const t = useTranslations('AssetsPage')
   const isAudio = generation.outputType === 'AUDIO'
@@ -150,6 +154,7 @@ export function AssetTile({
             src={getGenerationThumbnailUrl(generation)}
             alt={generation.prompt || ''}
             width={width}
+            revealStep={revealStep}
           />
         )}
 
@@ -299,60 +304,41 @@ export function AssetTile({
 }
 
 /**
- * 真图解码好后 200 由糊变清（与 LoRA 封面同一种）。⚠ 已在缓存里的图（虚拟列表
- * 滚回来重挂）直接出真图，⛔ 每滚一次重播一遍。
+ * 真图到了在自己那一格里由糊变清（加载中 2026-10-08，`useMediaReveal`，按位置错开
+ * `revealStep` 步）。⚠ 已在缓存里的图（虚拟列表滚回来重挂）直接出真图，⛔ 每滚一次重播。
  */
 function TileImage({
   src,
   alt,
   width,
+  revealStep,
 }: {
   src: string
   alt: string
   width: number
+  revealStep?: number
 }) {
-  const [phase, setPhase] = useState<{
-    src: string
-    value: 'loading' | 'fading' | 'shown'
-  }>({ src, value: 'loading' })
-  if (phase.src !== src) setPhase({ src, value: 'loading' })
-  const current = phase.src === src ? phase.value : 'loading'
-  // 图片元素挂上的那一刻就量（在画之前）：缓存里的图此刻已经解码好，直接出
-  // 真图，连一帧浅灰都不闪。
-  const imageRef = useCallback(
-    (image: HTMLImageElement | null) => {
-      if (!image?.complete || image.naturalWidth === 0) return
-      setPhase((previous) =>
-        previous.src === src && previous.value === 'loading'
-          ? { src, value: 'shown' }
-          : previous,
-      )
-    },
-    [src],
-  )
+  const {
+    imageRef: revealRef,
+    onLoad: onRevealLoad,
+    onError: onRevealError,
+    style: revealStyle,
+    className: revealClassName,
+  } = useMediaReveal({ src, step: revealStep })
 
   return (
     <NextImage
-      ref={imageRef}
+      ref={revealRef}
       src={src}
       alt={alt}
       fill
       sizes={`${Math.max(Math.round(width), 1)}px`}
       loading="lazy"
       draggable={false}
-      onLoad={() =>
-        setPhase((previous) =>
-          previous.src === src && previous.value === 'loading'
-            ? { src, value: 'fading' }
-            : previous,
-        )
-      }
-      className={cn(
-        'object-cover',
-        current === 'loading' && 'scale-118 opacity-0 blur-md',
-        current === 'fading' &&
-          'transition-[filter,scale,opacity] duration-base ease-standard motion-reduce:transition-none',
-      )}
+      onLoad={onRevealLoad}
+      onError={onRevealError}
+      style={revealStyle}
+      className={cn('object-cover', revealClassName)}
     />
   )
 }

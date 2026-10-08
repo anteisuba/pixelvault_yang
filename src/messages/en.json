@@ -1961,8 +1961,6 @@
     "emptyDescription": "Creations shared from the studio will appear here.",
     "emptyAction": "Open studio",
     "loadMore": "Load more images",
-    "loadingMore": "Loading more images...",
-    "endOfArchive": "You're all caught up.",
     "viewer": {
       "label": "Gallery viewer",
       "close": "Close viewer",
@@ -4241,13 +4239,22 @@
     "notifications": "Notifications",
     "downloadStarted": "Download started",
     "deleteConfirm": "Confirm delete",
-    "undo": "Undo"
+    "undo": "Undo",
+    "slowLoading": "Slow connection — still loading",
+    "batchFailed": "Couldn't load this batch",
+    "retry": "Retry",
+    "retrying": "Retrying",
+    "loadingMore": "Loading more",
+    "endOfList": "That's everything",
+    "pageLoadFailedHint": "The connection may have dropped for a moment. Retry — nothing will be lost.",
+    "previewFallback": "Showing the small preview for now"
   },
   "ErrorBoundary": {
     "title": "Something went wrong",
     "sectionError": "{section} encountered an error",
     "description": "An unexpected error occurred. Please try again.",
     "retry": "Try again",
+    "retrying": "Retrying",
     "home": "Back to home"
   },
   "GlobalError": {

@@ -603,9 +603,9 @@ export function StudioTemplatesPanel({
                     aria-hidden
                     className="flex flex-col gap-2 p-1.5"
                   >
-                    <Skeleton className="aspect-4/3 w-full animate-skeleton-breathe rounded-lg bg-surface-fill" />
-                    <Skeleton className="h-2.5 w-7/10 animate-skeleton-breathe rounded-sm bg-surface-fill" />
-                    <Skeleton className="h-2 w-9/10 animate-skeleton-breathe rounded-sm bg-surface-fill" />
+                    <Skeleton className="aspect-4/3 w-full rounded-lg bg-surface-fill" />
+                    <Skeleton className="h-2.5 w-7/10 rounded-sm bg-surface-fill" />
+                    <Skeleton className="h-2 w-9/10 rounded-sm bg-surface-fill" />
                   </div>
                 ))
               : null}

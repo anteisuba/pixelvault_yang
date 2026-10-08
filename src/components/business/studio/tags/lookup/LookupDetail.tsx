@@ -373,8 +373,7 @@ export function LookupAddButton({
 
 /** 右栏骨架：名字两行、三张样图、一排标签，1.4s 呼吸。 */
 export function LookupDetailSkeleton({ label }: { label: string }) {
-  const bar =
-    'block animate-skeleton-breathe rounded-md bg-muted motion-reduce:animate-none'
+  const bar = 'block rounded-md bg-muted'
   return (
     <div
       role="status"

@@ -146,6 +146,39 @@ export const RESULT_REVEAL = {
 } as const
 
 /**
+ * 加载中（owner 2026-10-08 定稿，原型 `ThV7ucUtgNZS4zbGry9XPh`）：灰块静止不闪，数据到了
+ * 内容在自己那一格里由糊变清。共享原语 `components/ui/load-reveal.tsx`，⛔ 页面里各抄一份。
+ *
+ * · `media`：图 —— 模糊 14px + 透明 → 清楚，0.5 秒；按位置从左上往右下错开 70ms
+ *   （第几列 + 第几行），最多错开 `maxSteps` 步，再往后的不再多等。
+ *   CSS 侧模糊半径是 globals.css 的 `--blur-reveal`，两处同步改。
+ * · `list`：列表行 / 面板 / 文字行 —— 短一点、轻一点的「糊一下」，逐行错开。
+ * `prefers-reduced-motion` 下不糊、不错开，内容直接出现。
+ */
+export const LOAD_REVEAL = {
+  media: {
+    blurPx: 14,
+    durationS: DURATION.reveal,
+    staggerS: 0.07,
+    maxSteps: 12,
+  },
+  list: {
+    blurPx: LIQUID_TIMING.blurPx,
+    durationS: DURATION.slow,
+    staggerS: 0.04,
+    maxSteps: 8,
+  },
+} as const
+
+export type LoadRevealTone = keyof typeof LOAD_REVEAL
+
+/**
+ * 等多久算「网有点慢」：超过它底部黑条写「网有点慢，还在加载」，数据到了自己收掉
+ * （`useSlowLoadingNotice`）。⚠ 这是**停留阈值**，不是过渡时长 —— ⛔ 不走四档刻度。
+ */
+export const SLOW_LOADING_NOTICE_MS = 6000
+
+/**
  * 「用它当参考」那一下（owner 2026-10-07）：缩略图的一个影子从结果格飞进助手输入框，
  * 落点缩到 `toSizePx` 见方。纯装饰：挂载照常立即发生，⛔ 不等它飞完。
  */

@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { PAGINATION } from '@/constants/config'
+import { INFINITE_SCROLL_PREFETCH_MARGIN, PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
@@ -467,9 +467,7 @@ export function useGallery({
           void fetchPage(pageRef.current + 1, true)
         }
       },
-      {
-        rootMargin: '240px 0px',
-      },
+      { rootMargin: INFINITE_SCROLL_PREFETCH_MARGIN },
     )
 
     observer.observe(target)
@@ -477,7 +475,10 @@ export function useGallery({
     return () => {
       observer.disconnect()
     }
-  }, [hasMore, appendError, fetchPage])
+    // ⚠ `generations.length` 在依赖里是故意的：提前一屏就开始拿，一批接上之后哨兵
+    // 常常**还在**那一屏里 —— 观察器不会为「一直相交」再报一次，于是会停住不拿。
+    // 每接上一批重挂一次观察器，挂上那一刻它会按当前位置补报一次。
+  }, [hasMore, appendError, fetchPage, generations.length])
 
   const removeGeneration = useCallback(
     (id: string) => {

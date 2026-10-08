@@ -658,10 +658,17 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
     expect(chip()?.textContent).toContain('ModelPicker.missingKey')
   })
 
-  it('渠道是灰点不是黄点，行里照写单价', () => {
+  it('渠道是灰点不是黄点，行尾先摆一条灰条（加载中 2026-10-08）', () => {
     apiKeys.hasLoaded = false
     openPicker()
-    expect(row('seedream-5.0-lite').textContent).toContain('Common.unitPrice')
+    const pending = row('seedream-5.0-lite').querySelector(
+      '[data-picker-price-pending]',
+    )
+    expect(pending).not.toBeNull()
+    expect(pending?.className).not.toContain('animate-pulse')
+    expect(row('seedream-5.0-lite').textContent).not.toContain(
+      'ModelPicker.missingKey',
+    )
     fireEvent.mouseEnter(row('seedream-5.0-lite'))
     const panel = channelPanel() as HTMLElement
     expect(panel.querySelector('.bg-muted-foreground\\/40')).not.toBeNull()

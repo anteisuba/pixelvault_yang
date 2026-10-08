@@ -24,7 +24,10 @@ import {
 } from '@/lib/compress-image'
 
 export interface PrepareImageUploadMessages {
-  /** Shown via `toast.loading` while compressImageToLimit is running. */
+  /**
+   * Shown via `toast.loading` while compressImageToLimit is running（`inlineProgress`
+   * 时不弹，键上已经在写进度）.
+   */
   compressing: string
   /**
    * Built lazily so the caller can plug `from` / `to` MB strings into its
@@ -46,6 +49,12 @@ export interface PrepareImageUploadOptions {
    * stay in sync. Optional.
    */
   onError?: (message: string) => void
+  /**
+   * 调用方自己在键上写进度（「上传中 3/12」，`FeedbackButton` / 上传键，owner
+   * 2026-10-08 加载中 · 按钮里）：压缩那一下 ⛔ 再弹一条 `toast.loading` 黑条 ——
+   * 同一件事在键上和黑条上各说一遍。压缩结果与失败照旧弹（那是后台跑完的事）。
+   */
+  inlineProgress?: boolean
 }
 
 export async function prepareImageUpload(
@@ -54,12 +63,14 @@ export async function prepareImageUpload(
 ): Promise<File | null> {
   if (file.size <= options.maxBytes) return file
 
-  const loadingId = toast.loading(options.messages.compressing)
+  const loadingId = options.inlineProgress
+    ? undefined
+    : toast.loading(options.messages.compressing)
   try {
     const result = await compressImageToLimit(file, {
       maxBytes: options.maxBytes,
     })
-    toast.dismiss(loadingId)
+    if (loadingId !== undefined) toast.dismiss(loadingId)
     if (result.wasCompressed) {
       toast.message(
         options.messages.compressed({
@@ -70,7 +81,7 @@ export async function prepareImageUpload(
     }
     return result.file
   } catch (err) {
-    toast.dismiss(loadingId)
+    if (loadingId !== undefined) toast.dismiss(loadingId)
     const message =
       err instanceof ImageCompressionError && err.code === 'UNSUPPORTED_FORMAT'
         ? options.messages.gifTooLarge

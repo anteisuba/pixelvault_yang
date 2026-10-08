@@ -91,7 +91,7 @@ primitive → semantic → domain/component → page
 
 - **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · param-slider · seed-input
 - **覆层**：dialog · sheet · drawer(vaul) · responsive-dialog · responsive-popover · popover（带交互守卫）· alert-dialog · confirm-dialog · dropdown-menu · tooltip（delay 0）· command(cmdk)
-- **反馈**：skeleton（单一 pulse 原语）· progress · badge · error-alert · sonner（底部黑条）· feedback-button（键上结果 / 两段删除）· empty-state（空态 / 出错 / 404 同一模板）
+- **反馈**：skeleton（静止灰块，⛔ pulse）· load-reveal（数据到了由糊变清，`loading.md`）· progress · badge · error-alert · sonner（底部黑条）· feedback-button（键上结果 / 两段删除）· empty-state（空态 / 出错 / 404 同一模板）
 - **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare · tree-view · collapsible-panel · animated-collapse
 - **输入复合**：prompt-input（约 41 处）· placeholders-input · image-drop-zone · reference-image-section
 - **装饰/动效**：blur-fade · hyper-text · number-ticker · particles · pulsating-button · brand-mark；使用时验证任务价值、性能与 reduced-motion，不因存在而默认复用

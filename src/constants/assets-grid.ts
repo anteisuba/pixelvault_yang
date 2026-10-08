@@ -84,6 +84,12 @@ export const ASSET_GRID_SKELETON_ASPECT_RATIOS: readonly number[] = [
   1.5, 0.67, 1, 1.78, 0.75, 1.33, 0.56, 1, 2.4, 0.8, 1.25, 1,
 ]
 
+/**
+ * 往下滚接下一批时，网格末尾那一排灰块摆几块（加载中 2026-10-08）：取上面那组比例的
+ * 前几个，按比例分一整行宽，高 = 当前目标行高 —— 和真的一行长得一样。
+ */
+export const ASSET_TAIL_SKELETON_COUNT = 5
+
 /** picker 首格内联上传格的比例（原型 `layoutPk` 的 `extra*0.8`）。 */
 export const ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO = 0.8
 

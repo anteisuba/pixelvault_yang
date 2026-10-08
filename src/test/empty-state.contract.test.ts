@@ -26,6 +26,8 @@ const LANDING_POINTS = [
   // 404 与出错也走同一个模板（owner 2026-10-08「提示与弹窗」第 3 题 B）。
   'src/app/[locale]/not-found.tsx',
   'src/components/business/RouteErrorState.tsx',
+  // 整页加载失败（画廊 / 素材库共用，owner 2026-10-08 加载中）。
+  'src/components/business/PageLoadError.tsx',
   'src/components/business/studio-shared/chrome/StudioErrorBoundary.tsx',
   'src/components/business/GalleryGrid.tsx',
   'src/components/business/KreaAssetBrowser.tsx',

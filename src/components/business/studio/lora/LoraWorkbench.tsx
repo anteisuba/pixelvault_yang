@@ -3067,7 +3067,7 @@ function GenerateBranch({
                         {Array.from({ length: 4 }).map((_, idx) => (
                           <div
                             key={idx}
-                            className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
+                            className="h-24 w-20 shrink-0 rounded-md bg-muted/50"
                           />
                         ))}
                       </div>
@@ -3089,7 +3089,7 @@ function GenerateBranch({
                       {Array.from({ length: 4 }).map((_, idx) => (
                         <div
                           key={idx}
-                          className="h-24 w-20 shrink-0 animate-pulse rounded-md bg-muted/50"
+                          className="h-24 w-20 shrink-0 rounded-md bg-muted/50"
                         />
                       ))}
                     </div>
@@ -3707,10 +3707,7 @@ function GenerateBranch({
     bandKind === 'loading' ? (
       <div className="flex gap-2.5" aria-hidden>
         {Array.from({ length: 6 }).map((_, idx) => (
-          <div
-            key={idx}
-            className="h-22 w-16.5 shrink-0 animate-pulse rounded-lg bg-muted"
-          />
+          <div key={idx} className="h-22 w-16.5 shrink-0 rounded-lg bg-muted" />
         ))}
       </div>
     ) : bandKind === 'showcase' ? (
@@ -5747,7 +5744,7 @@ function SkeletonGrid() {
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-5 w-24 rounded bg-muted" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={`s-trained-${i}`} />
@@ -5755,7 +5752,7 @@ function SkeletonGrid() {
         </div>
       </div>
       <div className="space-y-3">
-        <div className="h-5 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-5 w-24 rounded bg-muted" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={`s-fav-${i}`} />
@@ -5769,11 +5766,11 @@ function SkeletonGrid() {
 function SkeletonCard() {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-      <div className="aspect-square animate-pulse bg-muted" />
+      <div className="aspect-square bg-muted" />
       <div className="space-y-2 p-3">
-        <div className="h-3.5 w-3/4 animate-pulse rounded bg-muted" />
-        <div className="h-3 w-1/2 animate-pulse rounded bg-muted/70" />
-        <div className="h-7 w-full animate-pulse rounded bg-muted/60" />
+        <div className="h-3.5 w-3/4 rounded bg-muted" />
+        <div className="h-3 w-1/2 rounded bg-muted/70" />
+        <div className="h-7 w-full rounded bg-muted/60" />
       </div>
     </div>
   )

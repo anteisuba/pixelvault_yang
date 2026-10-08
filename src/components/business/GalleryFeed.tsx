@@ -16,11 +16,13 @@ import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
 import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
-import { AssetPaginationError } from '@/components/business/assets/AssetStateBlocks'
+import { GallerySkeletonGrid } from '@/components/business/gallery/GallerySkeleton'
+import { FeedTail } from '@/components/business/FeedTail'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
-import { Spinner } from '@/components/ui/spinner'
+import { PageLoadError } from '@/components/business/PageLoadError'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { toggleLikeAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 
@@ -48,6 +50,7 @@ export function GalleryFeed({
     hasMore,
     error,
     appendError,
+    retry,
     retryLoadMore,
     filters,
     setFilters,
@@ -61,6 +64,9 @@ export function GalleryFeed({
     initialTotal: total,
     initialFilters,
   })
+
+  // 等太久（6 秒）底部黑条「网有点慢，还在加载」，数据到了自己收掉（加载中 2026-10-08）。
+  useSlowLoadingNotice(isLoading)
 
   // 桌面点开是就地查看器；平板与手机沿用卡片自己的全屏详情（owner 09-29）。
   const isCompact = useIsMobile()
@@ -148,45 +154,39 @@ export function GalleryFeed({
           pinnedOpen={Boolean(viewing)}
         />
 
-        <GalleryGrid
-          generations={generations}
-          emptyTitle={t('emptyTitle')}
-          emptyDescription={t('emptyDescription')}
-          emptyActionHref={ROUTES.STUDIO}
-          emptyActionLabel={t('emptyAction')}
-          feedLabel={t('feedLabel')}
-          itemFallbackLabel={t('itemFallbackLabel')}
-          onOpen={isCompact ? undefined : openViewer}
-          onToggleLike={handleToggleLike}
-        />
+        {/* 换筛选、缓存里没有：静止的灰块（⛔ 先闪一下「空」）；整页没拿到：统一出错模板。 */}
+        {generations.length === 0 && error ? (
+          <PageLoadError title={error} onRetry={retry} retrying={isLoading} />
+        ) : generations.length === 0 && isLoading ? (
+          <GallerySkeletonGrid rows={3} />
+        ) : (
+          <GalleryGrid
+            generations={generations}
+            emptyTitle={t('emptyTitle')}
+            emptyDescription={t('emptyDescription')}
+            emptyActionHref={ROUTES.STUDIO}
+            emptyActionLabel={t('emptyAction')}
+            feedLabel={t('feedLabel')}
+            itemFallbackLabel={t('itemFallbackLabel')}
+            onOpen={isCompact ? undefined : openViewer}
+            onToggleLike={handleToggleLike}
+          />
+        )}
 
-        {error ? (
-          <div className="rounded-3xl border border-status-risk/30 bg-status-risk-surface px-4 py-3 text-sm text-status-risk">
-            {error}
-          </div>
-        ) : null}
-
-        {/* 无限滚动：滚到底自动接下一页（哨兵在 `useGallery` 里）；翻页失败只挡这一段，
-            点「重试」再接着加载，⛔ 自动重试打死接口。 */}
-        {appendError ? (
-          <AssetPaginationError message={appendError} onRetry={retryLoadMore} />
+        {/* 无限滚动（哨兵在 `useGallery` 里，离底部一屏就开始拿）：在拿 = 接一排灰块；
+            这一批没拿到 = 灰块底下一句「这批没拿到 · 重试」，⛔ 自动重试打死接口；
+            拿完 = 最底「没有更多了」。 */}
+        {generations.length > 0 ? (
+          <FeedTail
+            loading={isLoading}
+            error={appendError}
+            ended={!hasMore}
+            onRetry={retryLoadMore}
+            placeholder={<GallerySkeletonGrid />}
+          />
         ) : null}
         {hasMore && !appendError ? (
           <div ref={sentinelRef} aria-hidden className="h-px w-full" />
-        ) : null}
-        {isLoading && generations.length > 0 ? (
-          <div
-            role="status"
-            className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
-          >
-            <Spinner size="md" />
-            <span className="sr-only">{t('loadingMore')}</span>
-          </div>
-        ) : null}
-        {!hasMore && generations.length > 0 ? (
-          <p className="py-6 text-center text-xs text-muted-foreground">
-            {t('endOfArchive')}
-          </p>
         ) : null}
       </div>
 

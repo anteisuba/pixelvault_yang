@@ -23,7 +23,28 @@
 - 颜色：按钮/行内默认 `currentColor`；独立居中用 `text-muted-foreground`。⛔ 禁止彩色 spinner，禁止在非 primary 表面上用 `text-primary` 抢焦点。
 - 动效：`animate-spin` 原样（1s linear），**不新造时长 token**。reduced-motion 走 `motion-reduce:animate-none` + `motion-reduce:opacity-70`。
 - a11y：`role="status"` + `aria-label`（默认「加载中」i18n）。
-- ⚠ 收编边界：只收「通用 loading spinner」语义。特定语义的转圈（如 `NodeStatusBadge` 的 queued 动画）不无脑替换。`skeleton.tsx` 是另一回事，不动。
+- ⚠ 收编边界：只收「通用 loading spinner」语义。特定语义的转圈（如 `NodeStatusBadge` 的 queued 动画）不无脑替换。灰块占位（`skeleton.tsx`）是另一回事，见下一节。
+
+## 页面 / 列表加载：灰块静止，数据到了由糊变清（owner 2026-10-08 定稿）
+
+原型 `ThV7ucUtgNZS4zbGry9XPh`（画廊 / 列表和面板 / 按钮里 / 看大图四屏）。生成中那条「边即进度」不在这一节，照旧。
+
+| 场合               | 做法                                                                                                                                                                              | 实现                                                                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 页面打开、数据没到 | **静止**的浅灰块，⛔ `animate-pulse` / 呼吸；形状 = 真内容（瀑布流按真实比例占位，不知道比例时按常见几种轮着摆）                                                                  | `Skeleton`（已去掉 pulse）· `gallery/GallerySkeleton` · 路由级 `loading.tsx`                                                                                                                                                           |
+| 数据到了           | 每张图在**自己那一格**里由糊变清：模糊 14px + 透明 → 清楚，0.5 秒；按位置从左上往右下错开 70ms（第几列 + 第几行，最多 12 步）；文字 / 行同样短暂一糊变清                          | `components/ui/load-reveal.tsx`：图 `useMediaReveal`（画廊卡、素材瓦片、LoRA 封面、`OptimizedImage`、查看器大图）· 块 `LoadReveal` / `ArrivalReveal` · 步数 `revealStep` + `useRevealBatchStart`；常量 `LOAD_REVEAL` · `--blur-reveal` |
+| 往下滚加载更多     | 离底部还有**一屏**就开始拿，末尾接一排灰块；图到了在格里由糊变清；拿完最底写「没有更多了」                                                                                        | `FeedTail` + `INFINITE_SCROLL_PREFETCH_MARGIN`（`useGallery` 每接上一批重挂观察器，⛔ 停在半屏里不拿）                                                                                                                                 |
+| 等超过 6 秒        | 底部黑条「网有点慢，还在加载」（同 §7.1 那条 sonner 黑条，进行中 = 转圈），数据到了自己收掉                                                                                       | `useSlowLoadingNotice`（`SLOW_LOADING_NOTICE_MS`）                                                                                                                                                                                     |
+| 整页失败           | 统一出错模板：图标角红点 + 黑丸「重试」，按下键里转圈写「重试中」                                                                                                                 | `PageLoadError`（画廊 / 素材库）· `RouteErrorState`（`error.tsx`）                                                                                                                                                                     |
+| 往下滚那一批失败   | 灰块留着，底下只写一句「这批没拿到 · 重试」；⛔ 红框、⛔ 自动重试                                                                                                                 | `FeedTail`                                                                                                                                                                                                                             |
+| 列表和面板         | 设置 · key 列表、助手历史会话、模型选择器下拉：灰条占位，数据到了短暂一糊变清；打开时数据本来就在 → 直接出现                                                                      | `SettingsKeysSection` · `StudioOperatorHeader`（`ArrivalReveal`）· `ModelPickerPopover`（行尾灰条 → `BlurSwap`）                                                                                                                       |
+| 按钮里             | 照 §7.1：转圈 +「保存中」→「✓ 已保存」；有真进度的长等写「上传中 3/12」（素材库上传键、素材选择器上传格），压缩那一下 ⛔ 再弹转圈黑条（`prepareImageUpload` 的 `inlineProgress`） | `FeedbackButton` · `KreaAssetBrowser` · `AssetPickerBrowser`                                                                                                                                                                           |
+| 看大图             | 先摆列表里那张小图（糊着），原图到了在上面由糊变清，⛔ 转圈；原图没拿到 → 小图变清留着，底下一颗黑丸「先给你看小图 · 重试」                                                       | `viewer/ViewerMedia`（画廊 / 素材查看器共用）                                                                                                                                                                                          |
+
+- **`prefers-reduced-motion`**：不糊、不错开，内容直接出现（`motion-reduce:blur-none` / `transition-none`；`LoadReveal` 读 `useReducedMotion`）。
+- 只有**真等过**的才糊进来：缓存里的图（窗口化列表滚回来重挂）挂上那一刻就是好的，直接出真图；打开下拉时列表本来就在，⛔ 每开一次糊一次。
+- 与 `BlurSwap` 的分工：`BlurSwap` 是同一位置的字换成另一份（换内容）；`load-reveal` 是灰块换成第一次到的真内容（到达）。
+- ⚠ 没改的：生成中的占位（助手结果行的图位、`StudioOperatorResearchProgress` 那一行微光）、状态点（`NodeStatusBadge`、`StageStepperBar`）、按钮里图标的脉冲 —— 它们说的是「在做」不是「在等数据」，不在这一节。
 
 ## 生成中混合进度（`src/constants/generation-progress.ts` · `StudioGeneratingProgress`）
 
@@ -57,11 +78,15 @@
 
 ## Source of Truth
 
-- 组件：`src/components/ui/spinner.tsx` · `src/components/business/studio-shared/primitives/StudioGeneratingProgress.tsx`
+- 组件：`src/components/ui/spinner.tsx` · `src/components/business/studio-shared/primitives/StudioGeneratingProgress.tsx` · `src/components/ui/skeleton.tsx` · `src/components/ui/load-reveal.tsx` · `src/components/business/FeedTail.tsx` · `src/components/business/PageLoadError.tsx`
+- hook：`src/hooks/use-slow-loading-notice.ts`
 - 常量：`src/constants/generation-progress.ts`（阶段区间，禁 magic value）
-- i18n：`generatingOverlayStages.*`
+- 常量：`LOAD_REVEAL` · `SLOW_LOADING_NOTICE_MS`（`constants/motion.ts`）· `INFINITE_SCROLL_PREFETCH_MARGIN`（`constants/config.ts`）· `--blur-reveal`（globals.css）
+- i18n：`generatingOverlayStages.*` · `Feedback.{slowLoading,batchFailed,retry,retrying,loadingMore,endOfList,pageLoadFailedHint,previewFallback}`
 
 ## Last Verified
+
+- 2026-10-08 · 页面 / 列表加载（上面那一节）：单测覆盖原语（`load-reveal.test` · `FeedTail.test` · `use-slow-loading-notice.test`）与画廊三态（`GalleryFeed.test`：换筛选摆灰块不闪空态、整页出错模板、滚动尾巴三态）。**未验**：真机 1440 / 375 目检错开节奏与 reduced-motion，待 owner。
 
 - 2026-09-27 · 加载态 A：`/dev/ui-states` 的「加载态 A」样板间（真计时驱动同一份组件：舞台图框、真卡壳、对比图墙大格 / 小格、音频矮卡，出图 / 失败 / 重新开始走真实收尾路径）在 Chrome 里逐态核过；边线路径有单测（`buildGenerationEdgePath`）。
 - 2026-08-07 · 方法：从三份原任务包（`git show HEAD~1` 可取回）合并，未重新实测组件行为。**下次改加载态时顺手核一遍尺寸档与阶段区间是否仍与代码一致。**

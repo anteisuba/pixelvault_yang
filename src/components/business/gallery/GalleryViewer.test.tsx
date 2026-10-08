@@ -47,7 +47,14 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
 
 function work(id: string, overrides: Partial<GenerationRecord> = {}) {
   return {

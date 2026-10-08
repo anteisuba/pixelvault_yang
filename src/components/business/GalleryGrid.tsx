@@ -17,6 +17,7 @@ import { Link } from '@/i18n/navigation'
 import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
 import type { GenerationRecord } from '@/types'
 
 interface GalleryGridProps {
@@ -225,6 +226,10 @@ export function GalleryGrid({
     [],
   )
 
+  // 数据到了每张图在自己格里由糊变清：一批之内按「第几列 + 第几行」从左上往右下错开
+  // （加载中 2026-10-08）。往下滚接上的那一批从它自己的第一行重新数。
+  const batchStartOf = useRevealBatchStart(generations.length)
+
   const ssrGenerations = useMemo(
     () => generations.slice(0, GALLERY_GRID_SSR_ITEM_COUNT),
     [generations],
@@ -265,6 +270,10 @@ export function GalleryGrid({
             onOpen={onOpen}
             onToggleLike={onToggleLike}
             priority={index < 2}
+            revealStep={revealStep(
+              index % columnCount,
+              Math.floor(index / columnCount),
+            )}
           />
         ))}
       </section>
@@ -283,6 +292,7 @@ export function GalleryGrid({
       {virtualizer.getVirtualItems().map((virtualItem) => {
         const generation = generations[virtualItem.index]
         if (!generation) return null
+        const inBatch = virtualItem.index - batchStartOf(virtualItem.index)
         return (
           <div
             key={virtualItem.key}
@@ -303,6 +313,10 @@ export function GalleryGrid({
               onOpen={onOpen}
               onToggleLike={onToggleLike}
               priority={virtualItem.index < columnCount}
+              revealStep={revealStep(
+                virtualItem.lane,
+                Math.floor(inBatch / columnCount),
+              )}
             />
           </div>
         )
@@ -319,6 +333,7 @@ interface GalleryGridItemProps {
   onOpen?: (generation: GenerationRecord) => void
   onToggleLike: (generation: GenerationRecord) => void
   priority: boolean
+  revealStep: number
 }
 
 /**
@@ -333,6 +348,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
   onOpen,
   onToggleLike,
   priority,
+  revealStep,
 }: GalleryGridItemProps) {
   return (
     <div
@@ -347,6 +363,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
       <ImageCard
         generation={generation}
         priority={priority}
+        revealStep={revealStep}
         onOpen={onOpen}
         onToggleLike={onToggleLike}
       />

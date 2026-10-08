@@ -18,6 +18,7 @@ import {
   type PickerScope,
 } from '@/components/business/assets/AssetPickerFolderNav'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import {
   ASSET_BROWSER_PAGE_SIZE,
@@ -154,6 +155,8 @@ function AssetPickerBrowserContent({
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [limitWarning, setLimitWarning] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  /** 一次挑了好几张：上传格上写「上传中 3/12」（加载中 2026-10-08 · 按钮里）。 */
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 })
   const [recentFolders, setRecentFolders] = useState<string[]>(() =>
     readRecentFolders(),
   )
@@ -268,11 +271,15 @@ function AssetPickerBrowserContent({
       )
       if (images.length === 0) return
       setIsUploading(true)
+      setUploadProgress({ done: 0, total: images.length })
       try {
-        for (const image of images) {
+        for (const [index, image] of images.entries()) {
+          setUploadProgress({ done: index, total: images.length })
           const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
           const prepared = await prepareImageUpload(image, {
             maxBytes: CLIENT_UPLOAD_MAX_BYTES,
+            // 上传格自己写「上传中 n/m」，压缩那一下 ⛔ 再弹转圈黑条。
+            inlineProgress: true,
             messages: {
               compressing: t('uploadCompressing'),
               compressed: ({ from, to }) => t('uploadCompressed', { from, to }),
@@ -479,7 +486,23 @@ function AssetPickerBrowserContent({
                           <UploadCloud className="size-4" />
                         )}
                         <span className="text-3xs font-medium">
-                          {t('uploadButton')}
+                          <BlurSwap
+                            swapKey={
+                              isUploading
+                                ? `${uploadProgress.done}/${uploadProgress.total}`
+                                : 'idle'
+                            }
+                          >
+                            {isUploading
+                              ? t('uploadingProgress', {
+                                  current: Math.min(
+                                    uploadProgress.total,
+                                    uploadProgress.done + 1,
+                                  ),
+                                  total: uploadProgress.total,
+                                })
+                              : t('uploadButton')}
+                          </BlurSwap>
                         </span>
                         <input
                           type="file"

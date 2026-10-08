@@ -53,9 +53,7 @@ const MESSAGES = {
     emptyAction: 'Create',
     feedLabel: 'Gallery feed',
     itemFallbackLabel: 'Untitled generation',
-    loadingMore: 'Loading more',
     loadMore: 'Load more',
-    endOfArchive: 'End of archive',
     filters: {
       tabs: {
         favorites: 'Liked',
@@ -136,6 +134,15 @@ const MESSAGES = {
   },
   Models: {},
   Errors: {},
+  Feedback: {
+    slowLoading: 'Slow connection — still loading',
+    batchFailed: "Couldn't load this batch",
+    retry: 'Retry',
+    retrying: 'Retrying',
+    loadingMore: 'Loading more',
+    endOfList: "That's everything",
+    pageLoadFailedHint: 'Nothing will be lost.',
+  },
 }
 
 function work(id: string): GenerationRecord {
@@ -205,6 +212,57 @@ describe('GalleryFeed', () => {
       disconnect() {}
     }
     Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  it('shows still gray blocks (not the empty state) while a filter switch loads', () => {
+    mockGalleryState({ generations: [], isLoading: true })
+
+    renderFeed()
+
+    const skeleton = screen.getByTestId('gallery-skeleton')
+    expect(skeleton.querySelector('.animate-pulse')).toBeNull()
+    expect(screen.queryByText('No works yet')).not.toBeInTheDocument()
+  })
+
+  it('uses the unified error template when the whole page fails', () => {
+    const retry = vi.fn()
+    mockGalleryState({ generations: [], error: 'Load failed', retry })
+
+    renderFeed()
+
+    expect(screen.getByTestId('empty-state-error-dot')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('appends gray blocks while scrolling, one line on a failed batch, and an end note', () => {
+    mockGalleryState({
+      generations: [work('a')],
+      isLoading: true,
+      hasMore: true,
+    })
+    const { unmount } = renderFeed()
+    expect(screen.getByTestId('feed-tail-loading')).toBeInTheDocument()
+    unmount()
+
+    const retryLoadMore = vi.fn()
+    mockGalleryState({
+      generations: [work('a')],
+      hasMore: true,
+      appendError: 'boom',
+      retryLoadMore,
+    })
+    const second = renderFeed()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "Couldn't load this batch",
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(retryLoadMore).toHaveBeenCalledTimes(1)
+    second.unmount()
+
+    mockGalleryState({ generations: [work('a')], hasMore: false })
+    renderFeed()
+    expect(screen.getByText("That's everything")).toBeInTheDocument()
   })
 
   it('renders a single public gallery heading', () => {

@@ -182,4 +182,26 @@ describe('prepareImageUpload', () => {
 
     expect(onError).not.toHaveBeenCalled()
   })
+
+  it('skips the loading toast when the caller writes progress on its own key', async () => {
+    const file = makeFile('big.png', 'image/png', 8 * 1024 * 1024)
+    const compressed = makeFile('big.png', 'image/png', 2 * 1024 * 1024)
+    compressImageToLimitMock.mockResolvedValue({
+      file: compressed,
+      originalBytes: 8 * 1024 * 1024,
+      compressedBytes: 2 * 1024 * 1024,
+      wasCompressed: true,
+    })
+
+    const result = await prepareImageUpload(file, {
+      maxBytes: FIVE_MB,
+      messages,
+      inlineProgress: true,
+    })
+
+    expect(result).toBe(compressed)
+    expect(toastMock.loading).not.toHaveBeenCalled()
+    expect(toastMock.dismiss).not.toHaveBeenCalled()
+    expect(toastMock.message).toHaveBeenCalledTimes(1)
+  })
 })

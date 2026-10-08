@@ -9040,8 +9040,18 @@ async function planTool(
      *   通用形状、不知道错在哪，同一批原样再发一次，两步都是草稿然后被闸收尾。
      */
     const shape = ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS[tool]
-    const issues = parsed.error.issues
-      .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+    /**
+     * ⚠ 同一句只说一次（2026-10-09：一批两条 set_field 各带一份十几个字段的名单，
+     * 300 字被两份名单占满，后面的提示与形状全被截掉）。
+     */
+    const pathsByMessage = new Map<string, string[]>()
+    for (const issue of parsed.error.issues) {
+      const paths = pathsByMessage.get(issue.message) ?? []
+      paths.push(issue.path.join('.') || 'root')
+      pathsByMessage.set(issue.message, paths)
+    }
+    const issues = [...pathsByMessage]
+      .map(([message, paths]) => `${paths.join(', ')}: ${message}`)
       .join('; ')
     /**
      * ⚠ op 名写错时 zod 只报「Invalid input」（2026-10-08：一批 8 条全错、没说该写什么）。
@@ -9051,6 +9061,11 @@ async function planTool(
       (tool === TOOL.canvasApply || tool === TOOL.canvasBatch) &&
       parsed.error.issues.some((issue) => issue.path.at(-1) === 'op')
         ? ` Valid op values: ${CANVAS_APPLY_OP_IDS.join(', ')}.`
+        : ''
+    const fieldHint =
+      (tool === TOOL.canvasApply || tool === TOOL.canvasBatch) &&
+      parsed.error.issues.some((issue) => issue.path.at(-1) === 'field')
+        ? ' set_field only sets card labels; a prompt goes in set_prompt, a text card body in set_text, the model in set_model, generation settings in set_params.'
         : ''
     const mounted = loraMountedIdsHint(run, tool)
     /**
@@ -9062,7 +9077,7 @@ async function planTool(
       kind: 'rejected',
       reason: REJECT.malformedArgs,
       detail: clamp(
-        `${issues}${opNames}${shape ? ` — ${shape}` : ''}${mounted}`,
+        `${issues}${opNames}${fieldHint}${shape ? ` — ${shape}` : ''}${mounted}`,
         LIMITS.maxReasonChars,
       ),
       quiet: true,

@@ -105,6 +105,7 @@ import {
   NodeAssistantOpV4Schema,
   NodeAssistantPlanRerunDownstreamOpSchema,
   NodeAssistantGenerateV4OpSchema,
+  NodeAssistantSetParamsV4OpSchema,
 } from '@/types/node-assistant-ops'
 import {
   NodeV4GenerationParamsSchema,
@@ -2307,8 +2308,33 @@ function withScriptTargetAlias(raw: unknown): unknown {
   return { ...rest, scriptNodeId: target }
 }
 
+/**
+ * 生成参数（比例、九宫格、画质……）写成了 `set_field`（2026-10-09 马尔福画布：两张
+ * 试验卡的设置连着两批写成 set_field，同类失败闸收尾）。名单就是 `set_params.params`
+ * 那几格；值域照旧在规划器按这张卡的档位查。
+ */
+const SET_PARAMS_KEYS: ReadonlySet<string> = new Set(
+  Object.keys(NodeAssistantSetParamsV4OpSchema.shape.params.shape),
+)
+
+function withParamFieldAlias(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const op = raw as Record<string, unknown>
+  if (
+    op.op !== NODE_ASSISTANT_OP_V4_IDS.setField ||
+    typeof op.field !== 'string' ||
+    !SET_PARAMS_KEYS.has(op.field)
+  )
+    return raw
+  return {
+    op: NODE_ASSISTANT_OP_V4_IDS.setParams,
+    target: op.target,
+    params: { [op.field]: op.value },
+  }
+}
+
 const CanvasApplyOpSchema = z.preprocess(
-  withScriptTargetAlias,
+  (raw) => withParamFieldAlias(withScriptTargetAlias(raw)),
   NodeAssistantOpV4Schema.superRefine((op, ctx) => {
     if (isCanvasApplyOpId(op.op)) return
     ctx.addIssue({

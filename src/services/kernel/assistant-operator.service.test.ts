@@ -4899,9 +4899,11 @@ describe('前情 steps（没有服务端会话态）', () => {
             {
               tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
               status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
-              rejectReason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.canvasBatchPartial,
+              rejectReason:
+                ASSISTANT_OPERATOR_REJECT_REASON_IDS.canvasBatchPartial,
               summary: '改写8张镜头并接好场景',
-              detail: '23 of 24 landed. Not landed: ops[12] disconnect — unknownEdge',
+              detail:
+                '23 of 24 landed. Not landed: ops[12] disconnect — unknownEdge',
               thisTurn: true,
             },
           ],
@@ -13618,6 +13620,43 @@ describe('current reference image bindings', () => {
       )
       const detail = String((step?.error as { detail?: string })?.detail)
       expect(detail).toContain('Valid op values:')
+      expect(detail).toContain('set_prompt')
+    })
+
+    it('批里几条 set_field 写了不认识的字段：同一句只说一次，并指明该用哪条 op', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+            args: {
+              ops: [
+                {
+                  op: 'set_field',
+                  target: shot.id,
+                  field: 'prompt',
+                  value: '雨夜',
+                },
+                {
+                  op: 'set_field',
+                  target: shot.id,
+                  field: 'prompt',
+                  value: '晴天',
+                },
+              ],
+            },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const step = stepsOf(events).findLast(
+        (entry) => entry.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+      )
+      const detail = String((step?.error as { detail?: string })?.detail)
+      expect(detail).toContain('ops.0.field, ops.1.field: ')
+      expect(detail.split('Invalid option').length).toBe(2)
       expect(detail).toContain('set_prompt')
     })
 

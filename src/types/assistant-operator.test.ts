@@ -1817,6 +1817,54 @@ describe('画布 op 的别名', () => {
       ],
     })
   })
+
+  it('生成参数写成 set_field 也认作 set_params', () => {
+    const parsed = ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+      ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
+    ].safeParse({
+      ops: [
+        {
+          op: 'set_field',
+          target: 'image-1',
+          field: 'storyboardGrid',
+          value: true,
+        },
+        {
+          op: 'set_field',
+          target: 'image-1',
+          field: 'aspectRatio',
+          value: '16:9',
+        },
+        {
+          op: 'set_field',
+          target: 'image-1',
+          field: 'name',
+          value: 'S04 首帧',
+        },
+      ],
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toEqual({
+      ops: [
+        {
+          op: 'set_params',
+          target: 'image-1',
+          params: { storyboardGrid: true },
+        },
+        {
+          op: 'set_params',
+          target: 'image-1',
+          params: { aspectRatio: '16:9' },
+        },
+        {
+          op: 'set_field',
+          target: 'image-1',
+          field: 'name',
+          value: 'S04 首帧',
+        },
+      ],
+    })
+  })
 })
 
 describe('问题卡的答复', () => {

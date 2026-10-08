@@ -2522,6 +2522,16 @@ describe('read_state', () => {
       expect(toolRingCalls()[0].systemPrompt).toContain('BATCH FIRST')
     })
 
+    it('画布系统提示不讲画布上没有的闸：首尾帧失败图、手写词覆盖、逐张配完再建、导入链接', async () => {
+      queueTurns({ finished: true })
+      await collect(runAssistantOperator('clerk-1', boardRequest()))
+      const prompt = toolRingCalls()[0].systemPrompt
+      expect(prompt).not.toContain('marked as FAILED')
+      expect(prompt).not.toContain('hand-wrote a prompt')
+      expect(prompt).not.toContain('before creating the next one')
+      expect(prompt).not.toContain('import_user_url')
+    })
+
     it('给批里新建的卡写词：整批退回并点名那一条', async () => {
       queueTurns(
         batch([
@@ -5023,7 +5033,7 @@ describe('看图闭环 · critique_result', () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     expect(systemPrompt()).toContain(
-      'Never review a finished result on your own',
+      'Look at a finished result only when the creator @-mentions it',
     )
     expect(lastUserPrompt()).not.toContain('FRESH RESULT')
   })

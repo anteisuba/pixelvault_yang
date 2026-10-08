@@ -32,7 +32,8 @@ const mockSubmit = vi.fn()
 const mockGet = vi.fn()
 const mockCancel = vi.fn()
 
-vi.mock('@/lib/api-client', () => ({
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
   submitRenderAPI: (...args: unknown[]) => mockSubmit(...args),
   getRenderJobAPI: (...args: unknown[]) => mockGet(...args),
   cancelRenderJobAPI: (...args: unknown[]) => mockCancel(...args),

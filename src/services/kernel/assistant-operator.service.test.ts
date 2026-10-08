@@ -2256,6 +2256,71 @@ describe('read_state', () => {
     expect(toolRingCalls()[0].systemPrompt).toContain('op:"disconnect",edgeId')
   })
 
+  it('画布：抄错一个字符的线 id，退回理由指出最近的那条线，⛔ 不落到画布上', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          title: '移除旧参考',
+          args: { op: 'disconnect', edgeId: 'edge-sorce' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: ['edit-image'],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'source-image',
+                      name: '角色原图',
+                      kind: 'image',
+                      subtype: 'result',
+                      hasOutput: true,
+                    },
+                    {
+                      id: 'edit-image',
+                      name: '换装',
+                      kind: 'image',
+                      subtype: 'shot',
+                      inputs: [
+                        {
+                          slot: 'reference',
+                          from: 'source-image',
+                          edgeId: 'edge-source',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const step = stepsOf(events).find(
+      (entry) => entry.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+    )
+    expect(step?.status).not.toBe('done')
+    expect(String((step?.error as { detail?: string })?.detail)).toContain(
+      'Did you mean edge-source (角色原图 → 换装 reference)?',
+    )
+  })
+
   describe('画布状态先给目录（owner 2026-10-08）', () => {
     const LONG = 'A full-body portrait. '.repeat(200)
     const MODELS = ['gpt-image-2.5-flare', 'seedream-5.0-pro']
@@ -4822,6 +4887,31 @@ describe('前情 steps（没有服务端会话态）', () => {
     expect(prompt.slice(done)).toContain('调整三张一年级角色卡')
     expect(prompt.slice(history, done)).toContain('last turn prompt')
     expect(prompt.slice(history, done)).not.toContain('调整三张一年级角色卡')
+  })
+
+  it('这一轮落了一部分的批：「已经做完」说清只有列出的那几条没落', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          priorSteps: [
+            {
+              tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+              status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+              rejectReason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.canvasBatchPartial,
+              summary: '改写8张镜头并接好场景',
+              detail: '23 of 24 landed. Not landed: ops[12] disconnect — unknownEdge',
+              thisTurn: true,
+            },
+          ],
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    const done = prompt.slice(prompt.indexOf('ALREADY DONE IN THIS TURN'))
+    expect(done).toContain('canvasBatchPartial')
+    expect(done).toContain('only the ops it lists as Not landed')
   })
 })
 

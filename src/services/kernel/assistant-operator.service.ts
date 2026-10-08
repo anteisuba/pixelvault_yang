@@ -7966,20 +7966,56 @@ function planCanvasConfirm(
  * `…9c6e…` 抄成 `…9c4c…`，各白跑一轮接力）。⚠ 只在差得很少（去掉空白后编辑距离
  * ≤ 2）时给，⛔ 不猜远的 —— 猜错一张卡比报不认识更糟。
  */
+function nearestIdHint(
+  candidates: readonly { id: string; label: string }[],
+  wrong: string,
+): string {
+  const cleaned = wrong.replace(/\s+/g, '')
+  let best: { id: string; label: string; distance: number } | null = null
+  for (const candidate of candidates) {
+    const distance = editDistance(cleaned, candidate.id)
+    if (distance <= 2 && (!best || distance < best.distance))
+      best = { ...candidate, distance }
+  }
+  return best ? ` Did you mean ${best.id} (${best.label})?` : ''
+}
+
 function nearestCardHint(
   canvas: AssistantOperatorCanvasSnapshot,
   wrong: string,
 ): string {
-  const cleaned = wrong.replace(/\s+/g, '')
-  let best: { id: string; name: string; distance: number } | null = null
-  for (const node of canvas.shots.flatMap((shot) =>
+  return nearestIdHint(
+    canvas.shots.flatMap((shot) =>
+      shot.expanded
+        ? shot.nodes.map((node) => ({ id: node.id, label: node.name }))
+        : [],
+    ),
+    wrong,
+  )
+}
+
+/**
+ * 断线认的线 id 也会抄错（2026-10-09 马尔福画布：`e54636a84-…` 抄成 `e54636a4-…`，
+ * 批里那条到客户端才失败，模型把落了的 23 条整批重写，再断一次又失败，整轮以
+ * 「没有这个控件」收场）。线 id 就在快照每张卡的 `inputs` 里，规划时就能核对。
+ */
+function unknownLineDetail(
+  canvas: AssistantOperatorCanvasSnapshot,
+  edgeId: string,
+): string | null {
+  const nodes = canvas.shots.flatMap((shot) =>
     shot.expanded ? shot.nodes : [],
-  )) {
-    const distance = editDistance(cleaned, node.id)
-    if (distance <= 2 && (!best || distance < best.distance))
-      best = { id: node.id, name: node.name, distance }
-  }
-  return best ? ` Did you mean ${best.id} (${best.name})?` : ''
+  )
+  const nameOf = (id: string) =>
+    nodes.find((node) => node.id === id)?.name ?? id
+  const lines = nodes.flatMap((node) =>
+    (node.inputs ?? []).map((input) => ({
+      id: input.edgeId,
+      label: `${nameOf(input.from)} → ${node.name} ${input.slot}`,
+    })),
+  )
+  if (lines.some((line) => line.id === edgeId)) return null
+  return `No line on the board has the id ${edgeId}.${nearestIdHint(lines, edgeId)} Use an edgeId from a card's inputs on the board you just read.`
 }
 
 async function planCanvasApply(
@@ -8005,6 +8041,11 @@ async function planCanvasApply(
       REJECT.noSuchControl,
       `No card on the board has the id ${missing.join(', ')}.${missing.map((id) => nearestCardHint(canvas, id)).join('')} Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
     )
+  }
+
+  if (op.op === NODE_ASSISTANT_OP_V4_IDS.disconnect) {
+    const unknownLine = unknownLineDetail(canvas, op.edgeId)
+    if (unknownLine) return reject(REJECT.noSuchControl, unknownLine)
   }
 
   const editProblem = checkEditDeskOp(canvas, op)
@@ -10917,7 +10958,7 @@ ${earlierSteps.map(priorStepLine).join('\n')}`)
    * 尝试」里，模型读不出是自己刚落的，三张卡写完又整批重写、还抄错一个 id。
    */
   if (thisTurnSteps.length) {
-    sections.push(`ALREADY DONE IN THIS TURN (before the app paused for canvas_sync or an interruption — every [done] change is on the board now; never repeat or rewrite it. Continue only with what the creator asked that is still missing, or finish):
+    sections.push(`ALREADY DONE IN THIS TURN (before the app paused for canvas_sync or an interruption — every [done] change is on the board now, and so is every op of a canvasBatchPartial batch except only the ops it lists as Not landed; never repeat or rewrite any of it. Continue only with what the creator asked that is still missing, or finish):
 ${thisTurnSteps.map(priorStepLine).join('\n')}`)
   }
 

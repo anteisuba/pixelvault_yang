@@ -222,18 +222,20 @@ const SHELL_NAV_CANVAS_ORDER: readonly CanvasShellPanelId[] = [
 ]
 
 /**
- * ⭐ 「画布」那一项下面长出来的子图标（owner 2026-10-08 拍板原型四格：添加节点 / 节点 /
- * 当前项目 / 历史对话）。只在画布路由上、画布真的挂着时出现；点一颗 = 在侧栏旁边打开那一格
+ * ⭐ 「画布」那一项下面长出来的子图标（owner 2026-10-08 拍板六格：原型四格 添加节点 / 节点 /
+ * 当前项目 / 历史对话，再加线上就有的 角色 / 素材库）。只在画布路由上、画布真的挂着时出现；点一颗 = 在侧栏旁边打开那一格
  * 面板（`ShellSidePanels`），再点收起。768–1023 画布里兜底那条栏也按这张表画。
  *
- * ⚠ **不在这张表里的格子自动落到画布底栏**（现在是角色 / 素材库）。要把它们也搬进侧栏
- *   （六颗），只改这一张列表 —— 底栏、兜底栏、选中底块都跟着它走。
+ * ⚠ **不在这张表里的格子自动落到画布底栏**（现在一格都没有）。要把它们也搬进侧栏
+ *   ⇄ 底栏，只改这一张列表 —— 底栏、兜底栏、选中底块都跟着它走。
  */
 const SHELL_NAV_CANVAS_SIDEBAR_IDS: readonly CanvasShellPanelId[] = [
   CANVAS_SHELL_PANEL_IDS.addNode,
   CANVAS_SHELL_PANEL_IDS.nodes,
   CANVAS_SHELL_PANEL_IDS.project,
   CANVAS_SHELL_PANEL_IDS.history,
+  CANVAS_SHELL_PANEL_IDS.cards,
+  CANVAS_SHELL_PANEL_IDS.library,
 ]
 
 export const SHELL_NAV_CANVAS_ENTRIES: readonly ShellNavCanvasEntry[] =
@@ -241,7 +243,7 @@ export const SHELL_NAV_CANVAS_ENTRIES: readonly ShellNavCanvasEntry[] =
     SHELL_NAV_CANVAS_SIDEBAR_IDS.includes(id),
   ).map((id) => SHELL_NAV_CANVAS_ENTRY_BY_ID[id])
 
-/** 画布底栏上的面板入口 = 侧栏没收走的那几格（现在是角色 / 素材库）。 */
+/** 画布底栏上的面板入口 = 侧栏没收走的那几格（现在一格都没有）。 */
 export const SHELL_CANVAS_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
   SHELL_NAV_CANVAS_ORDER.filter(
     (id) => !SHELL_NAV_CANVAS_SIDEBAR_IDS.includes(id),

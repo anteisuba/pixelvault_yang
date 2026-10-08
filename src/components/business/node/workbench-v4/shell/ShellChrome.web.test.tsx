@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧面板（原型四格 + 底栏两格）、三条加节点路、
+ * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧面板（六格：原型四格 + 角色 / 素材库）、三条加节点路、
  * ⌘K、底栏、助手 dock 收放与宽度、快捷键。
  *
  * ⚠ 只证「点了会调什么」，不证画板像素：对稿在真机验收里逐项比。
@@ -118,7 +118,6 @@ vi.mock('motion/react', async (importOriginal) => ({
 import { CANVAS_ADD_INTENT_IDS } from '@/constants/canvas-add-catalog'
 import {
   CANVAS_SHELL_PANEL_IDS,
-  CANVAS_SHELL_SIDEBAR_ENTRY_ATTR,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
 import { LIQUID_TIMING } from '@/constants/motion'
@@ -214,7 +213,7 @@ describe('ShellProjectPill · 项目胶囊与切换弹层', () => {
   })
 })
 
-describe('ShellSidePanels · 原型四格 + 底栏两格', () => {
+describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () => {
   function renderPanels() {
     const props = {
       activePanel: null as null | CanvasShellPanelId,
@@ -232,7 +231,7 @@ describe('ShellSidePanels · 原型四格 + 底栏两格', () => {
     return { props, view }
   }
 
-  it('兜底图标栏 = 原型四格（添加节点 / 节点 / 当前项目 / 历史对话），角色 / 素材库不在栏上', () => {
+  it('兜底图标栏 = 六格（添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库）', () => {
     renderPanels()
     const rail = screen.getByTestId('shell-side-rail')
     expect(
@@ -244,9 +243,9 @@ describe('ShellSidePanels · 原型四格 + 底栏两格', () => {
       'shell-rail-nodes',
       'shell-rail-project',
       'shell-rail-history',
+      'shell-rail-cards',
+      'shell-rail-library',
     ])
-    expect(screen.queryByTestId('shell-rail-cards')).toBeNull()
-    expect(screen.queryByTestId('shell-rail-library')).toBeNull()
     expect(screen.queryByTestId('shell-side-panel')).toBeNull()
   })
 
@@ -284,17 +283,18 @@ describe('ShellSidePanels · 原型四格 + 底栏两格', () => {
     }
   })
 
-  it('开着的是底栏那一格（角色）：同一块面板，栏上没有一格亮着', () => {
+  it('开着的是角色那一格：栏上只有它亮着', () => {
     const { props, view } = renderPanels()
     view.rerender(
       <ShellSidePanels {...props} activePanel={CANVAS_SHELL_PANEL_IDS.cards} />,
     )
     expect(screen.getByTestId('shell-side-panel').dataset.panel).toBe('cards')
-    for (const button of screen
-      .getByTestId('shell-side-rail')
-      .querySelectorAll('button')) {
-      expect(button.getAttribute('aria-pressed')).toBe('false')
-    }
+    expect(
+      screen.getByTestId('shell-rail-cards').getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      screen.getByTestId('shell-rail-nodes').getAttribute('aria-pressed'),
+    ).toBe('false')
   })
 
   it('点图标开面板；再点同一个收起', () => {
@@ -623,24 +623,12 @@ describe('ShellBottomBar · 无加号', () => {
     const props = renderBar()
     expect(screen.getByTestId('shell-zoom-level').textContent).toBe('80%')
     const bar = screen.getByTestId('shell-bottom-bar')
-    // ⛔ 底栏不该再有加号：八颗相机 / 编辑键 + 角色 / 素材库两颗（缩放百分比不是按钮）。
-    expect(bar.querySelectorAll('button')).toHaveLength(10)
+    // ⛔ 底栏不该再有加号：八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
+    expect(bar.querySelectorAll('button')).toHaveLength(8)
+    expect(screen.queryByTestId('shell-bottom-cards')).toBeNull()
     fireEvent.click(screen.getByTestId('shell-tool-select'))
     expect(screen.getByTestId('shell-fit-view')).toBeTruthy()
     expect(props.onUndo).not.toHaveBeenCalled()
-  })
-
-  it('角色 / 素材库两颗：点 = 切那一格；亮的那颗带面板入口属性', () => {
-    const props = renderBar(CANVAS_SHELL_PANEL_IDS.library)
-    const cards = screen.getByTestId('shell-bottom-cards')
-    const library = screen.getByTestId('shell-bottom-library')
-    expect(cards.getAttribute('aria-pressed')).toBe('false')
-    expect(library.getAttribute('aria-pressed')).toBe('true')
-    expect(cards.getAttribute(CANVAS_SHELL_SIDEBAR_ENTRY_ATTR)).toBe('cards')
-    fireEvent.click(cards)
-    expect(props.onTogglePanel).toHaveBeenCalledWith(
-      CANVAS_SHELL_PANEL_IDS.cards,
-    )
   })
 })
 

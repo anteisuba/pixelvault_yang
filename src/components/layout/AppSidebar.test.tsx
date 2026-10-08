@@ -257,7 +257,7 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
     act(() => resetCanvasShellPanelStore())
   })
 
-  it('画布挂着、停在画布路由：「画布」下面长出原型四颗（按顺序），点一颗开、再点收', () => {
+  it('画布挂着、停在画布路由：「画布」下面长出六颗（原型四颗 + 角色 / 素材库，按顺序），点一颗开、再点收', () => {
     mockPathname.current = '/studio/node'
     render(
       <SidebarProvider>
@@ -276,14 +276,9 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
       'StudioNode.shell.panels.nodes',
       'StudioNode.shell.panels.project',
       'StudioNode.shell.panels.history',
+      'StudioNode.shell.panels.cards',
+      'StudioNode.shell.panels.library',
     ])
-    // 角色 / 素材库在画布底栏，不在侧栏。
-    expect(
-      within(group).queryByLabelText('StudioNode.shell.panels.cards'),
-    ).toBeNull()
-    expect(
-      within(group).queryByLabelText('StudioNode.shell.panels.library'),
-    ).toBeNull()
 
     const nodes = within(group).getByLabelText('StudioNode.shell.panels.nodes')
     const history = within(group).getByLabelText(

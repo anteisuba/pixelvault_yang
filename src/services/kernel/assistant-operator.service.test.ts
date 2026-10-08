@@ -13481,6 +13481,56 @@ describe('current reference image bindings', () => {
       },
     )
 
+    it('抄错一两个字符的卡 id：退回理由指出最近的那张卡', async () => {
+      const typo = `${shot.id.slice(0, 3)} ${shot.id.slice(3)}`
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+            args: {
+              op: 'set_prompt',
+              target: typo,
+              prompt: '雨夜',
+              mode: 'replace',
+            },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const step = stepsOf(events).findLast(
+        (entry) => entry.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+      )
+      expect(String((step?.error as { detail?: string })?.detail)).toContain(
+        `Did you mean ${shot.id}`,
+      )
+    })
+
+    it('批里的 op 名写错：退回理由列出合法的 op 名', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+            args: {
+              ops: [{ op: 'update_prompt', target: shot.id, prompt: '雨夜' }],
+            },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const step = stepsOf(events).findLast(
+        (entry) => entry.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+      )
+      const detail = String((step?.error as { detail?: string })?.detail)
+      expect(detail).toContain('Valid op values:')
+      expect(detail).toContain('set_prompt')
+    })
+
     const reprojectTurn = (target: string) => ({
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,

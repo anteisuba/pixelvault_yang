@@ -1,6 +1,7 @@
 import { ASSISTANT_NAI_TAG_CHECK } from '@/constants/assistant-operator'
 import { PROMPT_TAG_CURATED_DEFINITIONS } from '@/constants/prompt-tags.curated'
 import { PROMPT_TAG_DANBOORU_DEFINITIONS } from '@/constants/prompt-tags.danbooru.generated'
+import { editDistance } from '@/lib/edit-distance'
 
 /**
  * NAI 标签核对的纯文本半边（拆分与反推 B3）：切段、取核心标签、查本地词表、
@@ -106,21 +107,6 @@ export function listCheckableNovelAiTags(prompt: string): string[] {
 /** 本地词表里的正名；别名命中也回正名。查不到回 `null`。 */
 export function findLocalNovelAiTag(tag: string): string | null {
   return LOCAL_TAGS.get(normalizeNovelAiTag(tag)) ?? null
-}
-
-function editDistance(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i]
-    for (let j = 1; j <= b.length; j++)
-      current[j] = Math.min(
-        previous[j]! + 1,
-        current[j - 1]! + 1,
-        previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
-      )
-    previous = current
-  }
-  return previous[b.length]!
 }
 
 /** 词干：连字符当空格、去掉复数尾巴 —— `pleated-skirts` 与 `pleated skirt` 同干。 */

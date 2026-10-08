@@ -1,5 +1,6 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
+import { editDistance } from '@/lib/edit-distance'
 import { findNovelAiPromptProblem } from '@/lib/novelai-prompt-guard'
 import type { NovelAiTagFix } from '@/lib/novelai-tag-check'
 import {
@@ -470,6 +471,7 @@ import {
 import { logger } from '@/lib/logger'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
+  CANVAS_APPLY_OP_IDS,
   ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
   AssistantOperatorVideoCritiqueSchema,
@@ -7959,6 +7961,27 @@ function planCanvasConfirm(
   }
 }
 
+/**
+ * 抄错的 id 指回最近的那张卡（2026-10-08 马尔福画布：`video f00f…` 多了个空格、
+ * `…9c6e…` 抄成 `…9c4c…`，各白跑一轮接力）。⚠ 只在差得很少（去掉空白后编辑距离
+ * ≤ 2）时给，⛔ 不猜远的 —— 猜错一张卡比报不认识更糟。
+ */
+function nearestCardHint(
+  canvas: AssistantOperatorCanvasSnapshot,
+  wrong: string,
+): string {
+  const cleaned = wrong.replace(/\s+/g, '')
+  let best: { id: string; name: string; distance: number } | null = null
+  for (const node of canvas.shots.flatMap((shot) =>
+    shot.expanded ? shot.nodes : [],
+  )) {
+    const distance = editDistance(cleaned, node.id)
+    if (distance <= 2 && (!best || distance < best.distance))
+      best = { id: node.id, name: node.name, distance }
+  }
+  return best ? ` Did you mean ${best.id} (${best.name})?` : ''
+}
+
 async function planCanvasApply(
   run: OperatorRun,
   op: NodeAssistantOpV4,
@@ -7980,7 +8003,7 @@ async function planCanvasApply(
   if (missing.length > 0) {
     return reject(
       REJECT.noSuchControl,
-      `No card on the board has the id ${missing.join(', ')}. Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
+      `No card on the board has the id ${missing.join(', ')}.${missing.map((id) => nearestCardHint(canvas, id)).join('')} Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
     )
   }
 
@@ -8979,6 +9002,15 @@ async function planTool(
     const issues = parsed.error.issues
       .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
       .join('; ')
+    /**
+     * ⚠ op 名写错时 zod 只报「Invalid input」（2026-10-08：一批 8 条全错、没说该写什么）。
+     * 把合法的 op 名单接在后面。
+     */
+    const opNames =
+      (tool === TOOL.canvasApply || tool === TOOL.canvasBatch) &&
+      parsed.error.issues.some((issue) => issue.path.at(-1) === 'op')
+        ? ` Valid op values: ${CANVAS_APPLY_OP_IDS.join(', ')}.`
+        : ''
     const mounted = loraMountedIdsHint(run, tool)
     /**
      * ⭐ 形状错是**同一步的草稿**（owner 2026-10-08：除了安全策略和额度，不该让用户
@@ -8989,7 +9021,7 @@ async function planTool(
       kind: 'rejected',
       reason: REJECT.malformedArgs,
       detail: clamp(
-        `${shape ? `${issues} — ${shape}` : issues}${mounted}`,
+        `${issues}${opNames}${shape ? ` — ${shape}` : ''}${mounted}`,
         LIMITS.maxReasonChars,
       ),
       quiet: true,

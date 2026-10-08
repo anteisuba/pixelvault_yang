@@ -26,7 +26,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 5. **No Tailwind arbitrary values** — 扩展 `globals.css` 的 `@theme inline`（Tailwind 4，项目无 tailwind.config.ts）
 6. **分层实现** — 沿依赖关系贯通 constants/types → services → hooks → components；只修改当前切片需要的层
 7. **Import order** — React/Next → 第三方 → 内部 constants/types → components/hooks → styles
-8. **API key gates** — 缺 API key 时不禁用 UI。**选模型**：选了没配 key 的模型不选中，调 `useOpenKeySettings()(adapterType)` 跳 `/settings/keys?setup=<provider>`，直接落在那一家的配置弹窗上；**出图 / 生成键等动作**缺 key 仍路由 `QuickSetupDialog` 内联配置
+8. **API key gates** — 缺 API key 时不禁用 UI。**选模型**：点没配 key 的模型先不选中，就地弹 `QuickSetupDialog`，验证通过才选上（owner 2026-10-07：一律就地弹窗，⛔ 跳 `/settings/keys`）；**出图 / 生成键等动作**缺 key 同样走 `QuickSetupDialog`。`/settings/keys` 只留给「配置渠道与 key…」这类主动管理入口
 
 ## Key Entry Points
 

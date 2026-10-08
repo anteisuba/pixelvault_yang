@@ -8447,7 +8447,8 @@
       "continue": "继续",
       "stop": "先到这里",
       "continuePrompt": "继续"
-    }
+    },
+    "stopShort": "停止"
   },
   "GenerationCancel": {
     "cancel": "取消",

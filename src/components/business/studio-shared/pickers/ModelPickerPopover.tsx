@@ -32,6 +32,7 @@ import {
   DURATION_MS,
   EASE_IN,
   SPRING,
+  staggerDelay,
 } from '@/constants/motion'
 import { getModelById } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
@@ -39,7 +40,6 @@ import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
-import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import {
   isMissingKeyModelOption,
   isRunnableModelOption,
@@ -67,6 +67,7 @@ import {
 } from '../primitives/tool-surface'
 
 import { ModelChip } from './ModelChip'
+import { QuickSetupDialog } from '../setup/QuickSetupDialog'
 
 /**
  * **统一模型选择器**（D2 ④，画板 `DesignD2Picker.dc.html`；决策见
@@ -365,7 +366,19 @@ export function ModelPickerPopover({
   const t = useTranslations('ModelPicker')
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
-  const openKeySettings = useOpenKeySettings()
+  /**
+   * 缺 key 的那一条：**就地**开通用配置弹窗（`QuickSetupDialog`），配好就是选中它
+   * （owner 2026-10-07：缺 key 只在选模型时出现，一律就地弹窗，⛔ 跳 /settings/keys）。
+   * ⚠ 开着才挂 —— 同 `StudioOperatorModelChip`。
+   */
+  const [keySetup, setKeySetup] = useState<{
+    option: StudioModelOption
+    modelKey: string
+    title: string
+    labelDefault: string
+    /** 从渠道面板点进来的：配好后记住这条渠道。 */
+    channelId?: string
+  } | null>(null)
 
   const { healthMap, hasLoaded: keysLoaded } = useApiKeysContext()
   const memory = useModelPickerMemory(memoryScope, gateId)
@@ -730,9 +743,19 @@ export function ModelPickerPopover({
     if (isMissingKeyModelOption(option, keysLoaded)) {
       setOpen(false)
       setActiveRowId(null)
-      openKeySettings(option.adapterType)
+      setKeySetup({
+        option,
+        modelKey,
+        title: labelOf(option),
+        labelDefault: labelOf(option),
+      })
       return
     }
+    select(option, modelKey)
+  }
+
+  /** 真正选中（含配完 key 回来的那一下）。 */
+  const select = (option: StudioModelOption, modelKey: string) => {
     memory.setPendingModel(null)
     memory.rememberRecent(modelKey)
     if (multi) {
@@ -740,6 +763,7 @@ export function ModelPickerPopover({
       return
     }
     onChange(option)
+
     if (canvasCompact) {
       if (selectionCloseTimerRef.current !== null)
         clearTimeout(selectionCloseTimerRef.current)
@@ -770,7 +794,14 @@ export function ModelPickerPopover({
     if (view.missingKey) {
       setOpen(false)
       setActiveRowId(null)
-      openKeySettings(view.channel.option.adapterType)
+      // 标题写渠道（这一步配的是这条渠道的 key），命名框预填「型号 · 渠道」。
+      setKeySetup({
+        option: view.channel.option,
+        modelKey: row.modelKey,
+        title: view.channel.label,
+        labelDefault: `${row.label} · ${view.channel.label}`,
+        channelId: view.channel.channelId,
+      })
       return
     }
     // 点过就是记住 —— 下次这个型号默认走这条（跨会话，按型号存）。
@@ -845,7 +876,22 @@ export function ModelPickerPopover({
         </span>
       )
     }
-    if (row.active.missingKey || !row.active.price) return null
+    if (row.active.missingKey) {
+      // 缺 key 写成行尾一颗小标签（owner 2026-10-07 选择器定稿：一眼看出点了会弹配置）。
+      return (
+        <span
+          data-picker-missing-key
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-1.5 text-2xs text-muted-foreground"
+        >
+          <span
+            aria-hidden
+            className="size-1.5 rounded-full border border-muted-foreground"
+          />
+          {t('missingKey')}
+        </span>
+      )
+    }
+    if (!row.active.price) return null
     return (
       <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
         {row.active.price}
@@ -861,6 +907,8 @@ export function ModelPickerPopover({
    * 不需要再重复」）。判据从数据推导（`group.key === row.seriesKey`），
    * ⛔ 不按字符串前缀裁 —— 前缀只说明标签长什么样，说明不了这一行摆在谁下面。
    */
+  /** 这一次渲染里第几行（打开时的错开出场用；每次渲染从 0 数）。 */
+  const rowOrder = { n: 0 }
   const renderRow = (
     row: ModelRow,
     underSeriesHeading = false,
@@ -950,12 +998,18 @@ export function ModelPickerPopover({
         </div>
       )
     }
+    // 弹层打开时一行行由糊变清地进来（选择器原型「打开选择器」），先后错开。
+    const order = rowOrder.n++
     return (
       <div
         key={rowId}
+        style={{
+          animationDelay: `${Math.round(staggerDelay(order) * 1000 * 0.6)}ms`,
+        }}
         className={cn(
-          sheet && expanded && 'rounded-lg bg-muted',
-          selected && !expanded && 'rounded-lg bg-muted',
+          'picker-row-in rounded-lg transition-colors duration-base ease-standard motion-reduce:transition-none',
+          sheet && expanded && 'bg-muted',
+          selected && !expanded && 'bg-muted',
         )}
       >
         <button
@@ -1022,9 +1076,15 @@ export function ModelPickerPopover({
             </span>
           ) : null}
           {renderRowPrice(row)}
-          {selected ? (
-            <Check className="size-4 shrink-0 text-foreground" aria-hidden />
-          ) : null}
+          {/* 勾常驻、只换状态：勾上时从小顶出来，换系列时旧勾糊掉（选择器原型 1A）。 */}
+          <Check
+            aria-hidden
+            data-picker-check={selected ? 'on' : 'off'}
+            className={cn(
+              'size-4 shrink-0 text-foreground transition-[opacity,scale,filter] duration-base ease-standard motion-reduce:transition-none',
+              selected ? 'scale-100 opacity-100' : 'scale-50 opacity-0 blur-xs',
+            )}
+          />
         </button>
 
         {expanded ? (
@@ -1166,6 +1226,7 @@ export function ModelPickerPopover({
           className="absolute left-full z-50 pl-2"
         >
           <div
+            key={panelRowId ?? undefined}
             ref={panelRef}
             role="listbox"
             aria-label={t('channelPanelLabel', { model: panelRow.label })}
@@ -1178,7 +1239,8 @@ export function ModelPickerPopover({
               if (panelRowId) rowRefs.current.get(panelRowId)?.focus()
             }}
             className={cn(
-              'rounded-lg border border-border bg-popover p-1.5 shadow-md',
+              // 换到另一行时面板内容糊一下换（选择器原型「渠道面板」）。
+              'picker-row-in rounded-lg border border-border bg-popover p-1.5 shadow-md',
               compact ? 'w-48' : 'w-model-channel-panel',
             )}
           >
@@ -1205,6 +1267,28 @@ export function ModelPickerPopover({
       return { label: t('missingKey'), tone: 'warning' }
     return { label: selectedRow.active.price, tone: 'default' }
   })()
+
+  const keySetupDialog = keySetup ? (
+    <QuickSetupDialog
+      open
+      onOpenChange={(next) => {
+        if (!next) setKeySetup(null)
+      }}
+      modelId={keySetup.option.modelId}
+      modelLabel={keySetup.title}
+      labelDefault={keySetup.labelDefault}
+      adapterType={keySetup.option.adapterType}
+      optionId={keySetup.option.optionId}
+      // 选中走宿主自己的 onChange / onToggleOption（同系列多选、画布都对），
+      // ⛔ 让弹窗直接改工作台的主模型。
+      selectStudioModel={false}
+      onVerified={() => {
+        if (keySetup.channelId)
+          memory.rememberChannel(keySetup.modelKey, keySetup.channelId)
+        select(keySetup.option, keySetup.modelKey)
+      }}
+    />
+  ) : null
 
   if (canvasCompact) {
     const label =
@@ -1278,6 +1362,7 @@ export function ModelPickerPopover({
               document.body,
             )
           : null}
+        {keySetupDialog}
       </>
     )
   }
@@ -1334,6 +1419,7 @@ export function ModelPickerPopover({
           {body}
         </ResponsivePopoverContent>
       </ResponsivePopover>
+      {keySetupDialog}
     </>
   )
 }

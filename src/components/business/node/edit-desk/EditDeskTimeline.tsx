@@ -641,6 +641,8 @@ export function EditDeskTimeline({
                 onClick={() => setZoom(zoom - EDIT_TIMELINE_ZOOM.step)}
               />
               <Slider
+                // 边画边调 / 看的范围，⛔ 拖过头的橡皮筋（owner 2026-10-08）。
+                stretch={false}
                 data-testid="edit-desk-zoom"
                 aria-label={t('zoom.label')}
                 className="mx-1 w-20 @max-7xl/composer:hidden"

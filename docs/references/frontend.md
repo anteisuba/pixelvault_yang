@@ -83,7 +83,7 @@ primitive → semantic → domain/component → page
 | Studio 当前工具面板           | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板                                                                                              |
 | 选素材                        | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                                                                                                                     |
 | 选模型                        | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）；`layout="columns"` = 三列居中 Dialog（系列 / 型号 / 渠道，支持多选），`"drill"` = 原逐级下钻，移动端只能用 drill |
-| 缺 API key                    | **选模型** → 跳 `/settings/keys?setup=<provider>` 直开那一家的配置弹窗；**出图等动作** → `QuickSetupDialog`（Hard Rule 8：不禁用 UI，内联配置）                                     |
+| 缺 API key                    | **选模型**、**出图等动作** → 都就地弹 `QuickSetupDialog`，选模型验证通过才选上（Hard Rule 8：不禁用 UI，⛔ 跳页）                                                                   |
 | 确认 / 危险操作               | `confirm-dialog` / `alert-dialog`                                                                                                                                                   |
 | Toast                         | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`）                                                                                             |
 

@@ -8447,7 +8447,8 @@
       "continue": "続ける",
       "stop": "ここまで",
       "continuePrompt": "続けて"
-    }
+    },
+    "stopShort": "停止"
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

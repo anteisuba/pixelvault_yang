@@ -69,3 +69,35 @@ describe('LiquidSegmented', () => {
     expect(dots[1]).toHaveClass('bg-current')
   })
 })
+
+describe('LiquidSegmented · 规格分段条（owner 2026-10-08）', () => {
+  it('单项禁用仍可悬停看原因，点不动；图形两层各画一遍', () => {
+    const onChange = vi.fn()
+    const { getAllByRole, container } = render(
+      <LiquidSegmented
+        items={[
+          { value: '1:1', label: '1:1', icon: <i data-glyph /> },
+          {
+            value: '21:9',
+            label: '21:9',
+            icon: <i data-glyph />,
+            hint: '不支持',
+          },
+        ]}
+        value="1:1"
+        onChange={onChange}
+        ariaLabel="比例"
+        disabledValues={['21:9']}
+        semantics="radio"
+        size="stack"
+      />,
+    )
+    const wide = getAllByRole('radio')[1] as HTMLElement
+    expect(wide).toHaveAttribute('aria-disabled', 'true')
+    expect(wide).not.toBeDisabled()
+    expect(wide).toHaveAttribute('title', '不支持')
+    wide.click()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(container.querySelectorAll('[data-glyph]')).toHaveLength(4)
+  })
+})

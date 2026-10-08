@@ -1286,6 +1286,38 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('prefixes the provider moderation stage and categories to the stored error', async () => {
+    mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
+    const bodyExcerpt = JSON.stringify({
+      error: {
+        message: 'Your request was rejected by the safety system.',
+        code: 'moderation_blocked',
+        moderation_details: {
+          moderation_stage: 'output',
+          categories: ['other'],
+        },
+      },
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        error: 'Your request was rejected by the safety system.',
+        errorCode: 'content_filtered',
+        providerMetadata: { provider: 'openai', bodyExcerpt },
+      },
+    })
+
+    expect(mockFailActiveGenerationJob).toHaveBeenCalledWith(
+      'job-1',
+      expect.objectContaining({
+        errorMessage:
+          '[moderation: output · other] Your request was rejected by the safety system.',
+        errorCode: 'content_filtered',
+      }),
+    )
+  })
+
   it('reports the persisted terminal status when a late provider failure loses the CAS race', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
     mockFailActiveGenerationJob.mockResolvedValue({

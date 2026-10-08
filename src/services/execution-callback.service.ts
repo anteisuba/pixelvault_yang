@@ -464,6 +464,27 @@ async function claimRunningJobForFinalize(
   return claim.count === 1
 }
 
+/**
+ * 服务商审核拦截的**阶段与类别**（OpenAI 的 `moderation_details`）前置到错误原话上。
+ *
+ * 🔬 2026-10-08 马尔福画布：哈利、赫敏两张都是「出图后（output）· other」被拦 —— 多半是
+ * 3D 化后像真人演员；而存下来的只有一句「被安全系统拒绝」，助手只能按性相关去改，
+ * 写了一堆「穿戴整齐」也没用。带上阶段和类别，它才分得清该改哪一句。
+ * ⚠ 摘录可能被截断，⛔ 不整段 JSON.parse，只抠这两个字段。
+ */
+function moderationNote(
+  providerMetadata: Record<string, unknown> | undefined,
+): string | null {
+  const excerpt = providerMetadata?.bodyExcerpt
+  if (typeof excerpt !== 'string') return null
+  const stage = /"moderation_stage"\s*:\s*"([\w-]+)"/.exec(excerpt)?.[1]
+  const categories = /"categories"\s*:\s*\[([^\]]*)\]/
+    .exec(excerpt)?.[1]
+    ?.match(/[\w-]+/g)
+  const parts = [stage, categories?.join(', ')].filter(Boolean)
+  return parts.length ? `[moderation: ${parts.join(' · ')}]` : null
+}
+
 async function finalizeExecutionResult(
   payload: ExecutionCallbackPayload,
   job: {
@@ -483,9 +504,12 @@ async function finalizeExecutionResult(
   const errorResult = ExecutionCallbackErrorDataSchema.safeParse(payload.data)
 
   if (errorResult.success) {
+    const moderation = moderationNote(errorResult.data.providerMetadata)
     const failure = await failActiveGenerationJob(job.id, {
       requestCount: errorResult.data.requestCount,
-      errorMessage: errorResult.data.error,
+      errorMessage: moderation
+        ? `${moderation} ${errorResult.data.error}`
+        : errorResult.data.error,
       errorCode: errorResult.data.errorCode,
       providerFailure: buildProviderFailureJson({
         job,

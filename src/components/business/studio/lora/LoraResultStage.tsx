@@ -1,6 +1,7 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { BookmarkPlus, Bot, Check, X } from '@/components/icons'
@@ -9,6 +10,12 @@ import {
   type StudioGenerationFailure,
 } from '@/components/business/studio-shared'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  DURATION,
+  EASE_STANDARD,
+  RESULT_REVEAL,
+  SPRING,
+} from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface LoraResultRoundItem {
@@ -54,8 +61,17 @@ interface LoraResultStageProps {
   eta: string | null
 }
 
-const fitStyle = (ratio: number) =>
-  ({ '--studio-fit-ratio': ratio }) as CSSProperties
+/**
+ * 这一张图是怎么来的：`hold` = 出图那一拍到的（压在白纱下糊着，线松手时与白纱同一拍
+ * 变清）；`swap` = 点了这一轮里的另一张（直接由糊变清）；`none` = 首次挂载就在（⛔ 不演）。
+ */
+type ResultArrival = 'none' | 'hold' | 'swap'
+
+const REVEAL_BLURRED = {
+  filter: `blur(${RESULT_REVEAL.blurPx}px)`,
+  scale: RESULT_REVEAL.fromScale,
+} as const
+const REVEAL_CLEAR = { opacity: 1, filter: 'blur(0px)', scale: 1 } as const
 
 /** 图上右上角那几颗小圆键（问助手 · 存成模板）：贴在媒体上的固定亮底。 */
 const mediaButton =
@@ -69,6 +85,8 @@ const mediaButton =
  *   进度线跑在图自己的边上，⛔ 不是一块比图宽的框。
  * ⚠ 生成中 / 失败都在框里说（加载态 A）：没有旧图 = 素底框；有旧图 = 旧图盖白纱。
  *   ⛔ 不弹 toast、⛔ 不把失败写进输入框。
+ * ⭐ 新图由糊变清（与图片台同一套 `RESULT_REVEAL`）：出图那一拍到的新图先在白纱下
+ *   糊着，线松手时白纱撤、图变清；点这一轮里的另一张也由糊变清换进来。⛔ 直接换。
  */
 export function LoraResultStage({
   resultUrl,
@@ -100,6 +118,22 @@ export function LoraResultStage({
   const busy = generating || failure !== null
   const ratio = resultUrl ? (resultRatio ?? pendingRatio) : pendingRatio
   const showBox = busy || resultUrl !== null
+  const reduceMotion = useReducedMotion()
+  // 新图到了怎么进来（与图片台同一套「由糊变清」，`RESULT_REVEAL`）：记在 state 里
+  // （渲染中调整 state 的写法），⛔ 在渲染里读写 ref。
+  const [arrival, setArrival] = useState<{
+    url: string | null
+    kind: ResultArrival
+  }>({ url: resultUrl, kind: 'none' })
+  if (arrival.url !== resultUrl) {
+    setArrival({
+      url: resultUrl,
+      kind: resultUrl === null ? 'none' : generating ? 'hold' : 'swap',
+    })
+  }
+  const arrivalKind = reduceMotion ? 'none' : arrival.kind
+  // 出图那一拍：线合拢停住时新图在白纱下糊着，线松手那一下白纱撤、图变清。
+  const holding = arrivalKind === 'hold' && isCompleting && !completionReleased
 
   return (
     <div
@@ -108,8 +142,12 @@ export function LoraResultStage({
     >
       {showBox ? (
         <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
-          <div
-            style={fitStyle(ratio)}
+          {/* 框的比例跟着比例走：换了比例出的新图到了，框用 `SPRING.slot` 拉成新形状
+              （与规格 chip 上那颗比例框同一根弹簧），⛔ 直接跳。 */}
+          <motion.div
+            initial={false}
+            animate={{ '--studio-fit-ratio': ratio }}
+            transition={reduceMotion ? { duration: 0 } : SPRING.slot}
             className={cn(
               'studio-fit-box relative overflow-hidden rounded-xl',
               resultUrl ? 'bg-muted' : 'bg-card',
@@ -117,10 +155,20 @@ export function LoraResultStage({
           >
             {resultUrl ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <motion.img
+                  key={resultUrl}
                   src={resultUrl}
                   alt=""
+                  data-result-arrival={arrivalKind}
+                  initial={
+                    arrivalKind === 'swap'
+                      ? { opacity: 0, ...REVEAL_BLURRED }
+                      : arrivalKind === 'hold'
+                        ? REVEAL_BLURRED
+                        : false
+                  }
+                  animate={holding ? REVEAL_BLURRED : REVEAL_CLEAR}
+                  transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
                   className="size-full object-cover"
                 />
                 {busy ? (
@@ -209,7 +257,7 @@ export function LoraResultStage({
                 </button>
               </div>
             ) : null}
-          </div>
+          </motion.div>
         </div>
       ) : (
         <p className="grid min-h-0 flex-1 place-items-center text-2sm text-muted-foreground/70">

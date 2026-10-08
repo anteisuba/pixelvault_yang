@@ -98,6 +98,7 @@ export function CivitaiCommunityBranch({
   onSourceChange,
 }: CivitaiCommunityBranchOwnProps) {
   const t = useTranslations('LoraWorkbench')
+  const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const stack = useActiveLoraStack()
   // 挂载前的 Civitai 下载闸（与「＋添加 LoRA」库 modal 共用同一实现）。
@@ -165,15 +166,26 @@ export function CivitaiCommunityBranch({
         })
         return
       }
+      const fresh = !stack.items.some((entry) => entry.asset.id === item.id)
       stack.push(item)
+      // 键随页面一起走了（跳去生成台），结果放进底部黑条（ui-defaults §7.1）；
+      // 这一下新挂上的带一个「撤销」。
       toast.success(t('addedToStack', { name: item.name }), {
         duration: LORA_TOAST_DURATION_MS,
+        ...(fresh
+          ? {
+              action: {
+                label: tFeedback('undo'),
+                onClick: () => stack.remove(item.id),
+              },
+            }
+          : {}),
       })
       router.push(
         `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
       )
     },
-    [ensureMountable, router, stack, t],
+    [ensureMountable, router, stack, t, tFeedback],
   )
 
   const handleFavoriteToggle = useCallback(

@@ -242,6 +242,16 @@ export const SPRING_CSS_MS = {
 } as const
 
 /**
+ * LoRA 停用 / 启用时正文里那个触发词（owner 2026-10-08 LoRA 页动效）：停用 = 那个词短暂
+ * 糊一下（`blurPx`）并暗到 `dimOpacity`，随后照旧从正文里拿掉；启用 = 写回来的词从暗、糊
+ * 变回清楚。一拍 `DURATION.slow`。
+ */
+export const TRIGGER_WORD_PULSE = {
+  blurPx: 3,
+  dimOpacity: 0.35,
+} as const
+
+/**
  * 拖图进来（动效样片 T，owner 2026-10-08）：虚线框接住图 → 先填实（`DURATION.base`）
  * → 整块缩成 `toSizePx` 见方的小缩略图、`spring-expand` 飞到参考图 / 素材那一排的末尾。
  */

@@ -396,6 +396,8 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 ## Last Verified
 
+- 2026-10-08 · LoRA 页 6 处动效（施工落点见 [`lora-generate.md`](lora-generate.md) §4）：比例 chip 收进 `SpecChip`；结果图 `RESULT_REVEAL` 由糊变清；装配栏拖着时弹簧让位（`useSpringReorder` 记布局位置，打断时接着走）；交叉淡去掉延迟；触发词停用 / 启用糊一下（`PromptTriggerHighlight` 背板接手那一拍）；做同款 / 挂载黑条带「撤销」、补挂结果写在键上。
+
 - 2026-10-08 · 补动效（`ui-defaults.md` §7.4）：训练状态卡的进度条拆成 10 格一格格填（一格 = 10%，记录里没有步数，⛔ 编步数）、百分比逐位滚，训练完整条收拢顶出 ✓，状态卡多留 1.2 秒再换完成仪式卡（AE）；训练图排序的让位与装配栏拖动排序落下改走弹簧（P）。
 
 - Date: 2026-09-20 · Method: 训练分支物理拆出到 `lora/training/TrainWizard.tsx` + `hooks/use-lora-train-wizard.ts`（进度表 34），新增「组件树现状」节并回写行数 4794 → 4625；`vitest run src/components/business/studio/lora` 全绿。

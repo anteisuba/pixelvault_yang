@@ -305,3 +305,16 @@
     animation: lora-breath 1200ms linear infinite;
   }
 }
+
+/* 停用 / 启用一把 LoRA 的那一拍（owner 2026-10-08 LoRA 页动效，`PromptTriggerHighlight`）：
+ * 正文里那个触发词要单独糊一下、暗下去 / 变回清楚，textarea 给不了单个词样式 ——
+ * 这一拍（`DURATION.slow`）里字改由背板画，压在上面的 textarea 字透明、光标照旧。
+ * 演完背板回到只画底色。 */
+.domain-lora .lora-trigger-backdrop[data-trigger-pulse] {
+  color: var(--foreground);
+}
+
+.domain-lora .lora-trigger-backdrop[data-trigger-pulse] ~ textarea {
+  color: transparent;
+  caret-color: var(--foreground);
+}

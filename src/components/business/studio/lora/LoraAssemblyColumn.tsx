@@ -23,7 +23,12 @@ import {
 } from '@/components/icons'
 import { LORA_ASSEMBLY_COLUMN_PX } from '@/constants/lora'
 import type { LoraBaseModel } from '@/constants/lora-base-models'
-import { DURATION, EASE_STANDARD, LIQUID_SPRING } from '@/constants/motion'
+import {
+  DURATION,
+  EASE_STANDARD,
+  LIQUID_SPRING,
+  SPRING,
+} from '@/constants/motion'
 import type { NumericRange } from '@/constants/provider-capabilities'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import { Slider } from '@/components/ui/slider'
@@ -37,6 +42,8 @@ import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { cn } from '@/lib/utils'
 
+/** 被拖的那一行落下时从多大弹回原尺寸（ui-defaults §4「拖拽」：拖起 1.02）。 */
+const DRAG_LIFT_SCALE = 1.02
 /** 竖条上挂载数「跳一下」的时长（动效表：240）。 */
 const DURATION_BUMP_S = 0.24
 /** 权重读数与滑杆走到新值的时长（lora-generate §4「应用这组权重」：240 线性）。 */
@@ -84,8 +91,8 @@ interface LoraAssemblyColumnProps {
 /**
  * 生成台 B 的装配列（lora-generate.md §2.1）：舞台左边 272，收起成 48 的竖条。
  *
- * ⭐ 一个容器换宽度（与助手让位同一根弹簧），两块内容叠在里面交叉淡：整列始终
- *   按 272 排版，收起时只是外框变窄 —— ⛔ 列里的字不跟着被挤成两行。
+ * ⭐ 一个容器换宽度（与助手让位同一根弹簧），两块内容叠在里面交叉淡、与宽度同一刻起
+ *   （owner 2026-10-08：⛔ 等宽度走完再淡入，一卡一卡的）：整列始终按 272 排版，收起时只是外框变窄 —— ⛔ 列里的字不跟着被挤成两行。
  * ⚠ 收起的那一块挂 `inert`：看不见的按钮不能还在 Tab 序里。
  * ⚠ 挂载栈自取（与手机装配抽屉里的 `LoraSpineBar` 同一份 `useActiveLoraStack`），
  *   底模这些 GenerateBranch 的局部 state 由它传进来。
@@ -109,11 +116,29 @@ export function LoraAssemblyColumn({
   const tSetup = useTranslations('QuickSetup')
   const reducedMotion = useReducedMotion()
   const stack = useActiveLoraStack()
-  // 拖着换顺序，落下后各行用弹簧滑到新位置（动效样片 P）。
+  // 拖动排序：只从封面起手（按下封面才把这一行设成可拖），滑杆和开关不会误触发。
+  const [armedId, setArmedId] = useState<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
+  // 拖着时那一行要落进的位置（预览顺序里的下标）：列表按预览顺序渲染，其余行
+  // 用弹簧让位（动效样片 P），⛔ 只在落下那一下才动。
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const dragFrom =
+    dragId === null
+      ? -1
+      : stack.items.findIndex((item) => item.asset.id === dragId)
+  const shownItems =
+    dragFrom === -1 || previewIndex === null || previewIndex === dragFrom
+      ? stack.items
+      : (() => {
+          const next = [...stack.items]
+          const [moved] = next.splice(dragFrom, 1)
+          next.splice(previewIndex, 0, moved)
+          return next
+        })()
   const reorderListRef = useRef<HTMLUListElement>(null)
   useSpringReorder(
     reorderListRef,
-    stack.items.map((item) => item.asset.id).join('|'),
+    shownItems.map((item) => item.asset.id).join('|'),
   )
   const [baseModalOpen, setBaseModalOpen] = useState(false)
   // 库 / 收藏里浮出来的整列（owner 09-28「浮出整列，默认收起」）：库不重排，整列从
@@ -177,10 +202,6 @@ export function LoraAssemblyColumn({
       document.removeEventListener('keydown', onKeyDown, true)
     }
   }, [floating])
-  // 拖动排序：只从封面起手（按下封面才把这一行设成可拖），滑杆和开关不会误触发。
-  const [armedId, setArmedId] = useState<string | null>(null)
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [overId, setOverId] = useState<string | null>(null)
   // 竖条上「刚挂上」的那一个：只认这一列在场之后才发生的挂载（`push` 才写挂载事件，
   // 刷新读回挂载栈不算），⛔ 刷新页面时小封面不该自己弹一遍。
   const [seenMountAt] = useState(() => stack.mountEvent?.at ?? 0)
@@ -191,7 +212,38 @@ export function LoraAssemblyColumn({
   const endDrag = () => {
     setArmedId(null)
     setDragId(null)
-    setOverId(null)
+    setPreviewIndex(null)
+  }
+  // 指针落在哪一格：按其余各行的**布局**中线数（`offsetTop` 不吃 transform），让位
+  // 弹簧走到一半时行从指针底下滑过也不会来回翻。
+  const insertionIndexAt = (clientY: number) => {
+    const list = reorderListRef.current
+    if (!list) return null
+    const top = list.getBoundingClientRect().top
+    let index = 0
+    for (const row of Array.from(list.children)) {
+      if (!(row instanceof HTMLElement)) continue
+      if (row.getAttribute(SPRING_REORDER_ATTR) === dragId) continue
+      if (clientY > top + row.offsetTop + row.offsetHeight / 2) index += 1
+    }
+    return index
+  }
+  // 落下：按预览顺序写回挂载栈（下标 k 那一格的原主就是 `reorder` 的目标），被拖的
+  // 那一行从「拿起」的样子弹回原尺寸、落定。
+  const commitDrop = () => {
+    if (dragId !== null && previewIndex !== null && previewIndex !== dragFrom) {
+      const target = stack.items[previewIndex]
+      if (target) stack.reorder(dragId, target.asset.id)
+    }
+    const row = Array.from(reorderListRef.current?.children ?? []).find(
+      (child): child is HTMLElement =>
+        child instanceof HTMLElement &&
+        child.getAttribute(SPRING_REORDER_ATTR) === dragId,
+    )
+    if (row && !reducedMotion) {
+      animate(row, { scale: [DRAG_LIFT_SCALE, 1] }, SPRING.slot)
+    }
+    endDrag()
   }
 
   const baseName = (base: LoraBaseModel) =>
@@ -279,7 +331,7 @@ export function LoraAssemblyColumn({
       className={cn(
         'absolute inset-y-0 left-0 flex flex-col gap-2.5 overflow-y-auto py-5 pl-5 pr-4.5 transition-opacity ease-linear',
         panelOpen
-          ? 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast'
+          ? 'opacity-100 duration-base motion-reduce:duration-fast'
           : 'pointer-events-none opacity-0 duration-fast',
       )}
     >
@@ -356,8 +408,25 @@ export function LoraAssemblyColumn({
         'loras',
       )}
       {stack.items.length > 0 ? (
-        <ul ref={reorderListRef} className="flex flex-col gap-2">
-          {stack.items.map((item) => {
+        <ul
+          ref={reorderListRef}
+          onDragOver={(event) => {
+            if (dragId === null) return
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+            const index = insertionIndexAt(event.clientY)
+            if (index !== null && index !== previewIndex) {
+              setPreviewIndex(index)
+            }
+          }}
+          onDrop={(event) => {
+            if (dragId === null) return
+            event.preventDefault()
+            commitDrop()
+          }}
+          className="relative flex flex-col gap-2"
+        >
+          {shownItems.map((item) => {
             const id = item.asset.id
             const compatible = compatibleWithBase(item.asset.baseModelFamily)
             return (
@@ -373,21 +442,11 @@ export function LoraAssemblyColumn({
                 loraScaleConfig={loraScaleConfig}
                 armed={armedId === id}
                 dragging={dragId === id}
-                over={overId === id && dragId !== id}
                 onArm={() => setArmedId(id)}
                 onDisarm={() =>
                   setArmedId((current) => (current === id ? null : current))
                 }
                 onDragStart={() => setDragId(id)}
-                onDragOver={() => {
-                  if (!dragId || dragId === id) return false
-                  if (overId !== id) setOverId(id)
-                  return true
-                }}
-                onDrop={() => {
-                  if (dragId && dragId !== id) stack.reorder(dragId, id)
-                  endDrag()
-                }}
                 onDragEnd={endDrag}
                 onEnabledChange={(value) => stack.setEnabled(id, value)}
                 onScaleChange={(value) => stack.setScale(id, value)}
@@ -427,7 +486,7 @@ export function LoraAssemblyColumn({
         'absolute inset-y-0 left-0 flex flex-col items-center gap-3 overflow-y-auto py-3 transition-opacity ease-linear',
         panelOpen
           ? 'pointer-events-none opacity-0 duration-fast'
-          : 'opacity-100 delay-200 duration-base motion-reduce:delay-0 motion-reduce:duration-fast',
+          : 'opacity-100 duration-base motion-reduce:duration-fast',
       )}
     >
       <button
@@ -595,14 +654,12 @@ interface LoraAssemblyRowProps {
   cover: ReactNode
   loraScaleConfig: NumericRange | undefined
   armed: boolean
+  /** 正被拖着：留在预览位置上当一格占位（淡着），落下再弹回。 */
   dragging: boolean
-  over: boolean
   onArm(): void
   onDisarm(): void
   onDragStart(): void
-  /** 返回 true = 这一行接得住拖过来的那把（要 `preventDefault`）。 */
-  onDragOver(): boolean
-  onDrop(): void
+  /** 没落进列表（Esc / 拖出去）也走这里：预览撤掉，其余行弹回原位。 */
   onDragEnd(): void
   onEnabledChange(enabled: boolean): void
   onScaleChange(scale: number): void
@@ -628,12 +685,9 @@ function LoraAssemblyRow({
   loraScaleConfig,
   armed,
   dragging,
-  over,
   onArm,
   onDisarm,
   onDragStart,
-  onDragOver,
-  onDrop,
   onDragEnd,
   onEnabledChange,
   onScaleChange,
@@ -666,13 +720,6 @@ function LoraAssemblyRow({
         onDragStart()
         event.dataTransfer.effectAllowed = 'move'
       }}
-      onDragOver={(event) => {
-        if (onDragOver()) event.preventDefault()
-      }}
-      onDrop={(event) => {
-        event.preventDefault()
-        onDrop()
-      }}
       onDragEnd={onDragEnd}
       className={cn(
         'group relative flex flex-col gap-1.75 rounded-xl p-2 transition-[background-color,box-shadow,opacity] duration-fast',
@@ -680,7 +727,6 @@ function LoraAssemblyRow({
           ? 'bg-status-warning-surface ring-1 ring-inset ring-status-warning/25'
           : 'bg-muted/60',
         dragging && 'opacity-50',
-        over && 'ring-1 ring-foreground/40',
       )}
     >
       <div className="flex min-w-0 items-center gap-2">

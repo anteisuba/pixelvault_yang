@@ -52,7 +52,6 @@ import {
   CIVITAI_MODEL_SEARCH_URL,
   DEFAULT_LORA_WORKBENCH_SECTION,
   LORA_CHIP_THUMBNAIL_WIDTH,
-  LORA_GENERATE_ASPECT_RATIOS,
   LORA_MOBILE_RESULT_SCROLL_OPTIONS,
   LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED,
   LORA_RESULT_HISTORY_MAX,
@@ -191,7 +190,6 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
-import type { SpecChipModel } from '@/lib/spec-chip-model'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getAvailableImageModels, resolveAdapterType } from '@/constants/models'
 import {
@@ -212,7 +210,11 @@ import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
-import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
+import {
+  LoraAspectRatioChip,
+  isLoraAspectRatio,
+  loraAspectSpecModel,
+} from '@/components/business/studio/lora/LoraAspectRatioChip'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import {
   LoraCollocationBar,
@@ -1083,16 +1085,18 @@ function GenerateBranch({
     },
     [activeTriggers],
   )
-  // CD④：正文里要高亮的触发词 = 生效中的挂载的那些。
+  // CD④：正文里要高亮的触发词 = 生效中的挂载的那些。停用的也带上（`enabled: false`，
+  // 不高亮）：停用 / 启用那一拍背板要认得出是哪个词在翻面（糊一下暗下去 / 变回清楚）。
   const triggerHighlightPhrases = useMemo(
     () =>
-      [...activeTriggers.values()].flatMap((entry) =>
+      triggerChipEntries.flatMap((entry) =>
         entry.triggerWord.split(',').map((phrase) => ({
           phrase: phrase.trim(),
           ownerName: entry.name,
+          enabled: entry.enabled,
         })),
       ),
-    [activeTriggers],
+    [triggerChipEntries],
   )
   // 背板层不是 textarea，自己不会跟着滚：正文超出可视区时手动同步 scrollTop。
   // 直接改 DOM 而不是走 state——滚动每帧都触发，走 state 会把整棵树重渲染。
@@ -1594,7 +1598,9 @@ function GenerateBranch({
   ])
 
   // 一键补挂配方里叠加的其他 LoRA：解析（本地库→Civitai）→ push 进挂载栈，
-  // 状态（loading/mounted/failed）回写驱动「常与它同挂」行内反馈 + toast。
+  // 状态（loading/mounted/failed/incompatible）回写驱动「常与它同挂」行内反馈。
+  // 结果怎么说（ui-defaults §7.1）：行内「补挂」的结果写在那颗键上（✓ / 去 Civitai 找 /
+  // 与底模不兼容），⛔ 弹条；「做同款」点完查看器就关了、键不在了，结果走底部黑条。
   // 「做同款」与行内「补挂」按钮共用这一份（owner 2026-07-20：做同款要把额外
   // LoRA 一起挂上，才是真还原）。baseModelFamily 用当前主 LoRA 的家族做解析
   // 提示，挑对底模变体；架构不兼容的额外 LoRA 会被兼容闸拦下不挂。
@@ -1606,11 +1612,24 @@ function GenerateBranch({
   const [extraMountedIdsByKey, setExtraMountedIdsByKey] = useState<
     Record<string, string | undefined>
   >({})
-  const reportExtraMountResult = useCallback(
-    (result: RecipeExtraMountResult) => {
+  const tFeedback = useTranslations('Feedback')
+  const reportRecipeExtraMountResult = useCallback(
+    (result: RecipeExtraMountResult, mountedIds: readonly string[]) => {
       if (result.newlyMounted > 0) {
+        // 黑条带一个「撤销」：只卸下这一下新挂上的那几把（⛔ 动输入框 —— 那是搭配条
+        // 「撤销」的事，两件事分开）。
         toast.success(
           tExtra('recipeExtraAutoMounted', { count: result.newlyMounted }),
+          mountedIds.length > 0
+            ? {
+                action: {
+                  label: tFeedback('undo'),
+                  onClick: () => {
+                    for (const id of mountedIds) stack.remove(id)
+                  },
+                },
+              }
+            : undefined,
         )
       }
       // overCapacity 恒为 0：挂载不设上限，mountExtras 不传 maxStack。留在算式里
@@ -1620,8 +1639,8 @@ function GenerateBranch({
       if (unresolved > 0) {
         // 「为什么没挂上」要说清——补救动作不一样：架构不兼容要换底模，定位不到
         // 只能去 Civitai 找。以前两种都只报一句「仍有 N 个未挂载」，做同款看上去
-        // 就像凭空把多挂载弄坏了。
-        toast.warning(
+        // 就像凭空把多挂载弄坏了。没挂上 = 红点（§7.1），⛔ 整条变色。
+        toast.error(
           tExtra('recipeExtraApplyLimited', { count: unresolved }),
           result.incompatible > 0
             ? { description: tExtra('recipeExtraIncompatible') }
@@ -1629,13 +1648,21 @@ function GenerateBranch({
         )
       }
     },
-    [tExtra],
+    [stack, tExtra, tFeedback],
   )
   const mountExtras = useCallback(
-    async (extras: readonly CivitaiRecipeExtraLora[], base = selectedBase) => {
+    async (
+      extras: readonly CivitaiRecipeExtraLora[],
+      {
+        base = selectedBase,
+        announce,
+      }: { base?: LoraBaseModel | null; announce: boolean },
+    ) => {
       if (extras.length === 0) return
       extraMountsPending.current += 1
       setIsMountingExtras(true)
+      const before = new Set(stack.items.map((item) => item.asset.id))
+      const mountedIds = new Set<string>()
       try {
         const result = await mountRecipeExtraLoras({
           extras,
@@ -1648,18 +1675,21 @@ function GenerateBranch({
           setStatus: (key, status, assetId) => {
             setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status }))
             setExtraMountedIdsByKey((prev) => ({ ...prev, [key]: assetId }))
+            if (status === 'mounted' && assetId && !before.has(assetId)) {
+              mountedIds.add(assetId)
+            }
           },
           isBaseCompatible: base
             ? (fam) => isLoraBaseModelMountCompatible(fam, base.family)
             : undefined,
         })
-        reportExtraMountResult(result)
+        if (announce) reportRecipeExtraMountResult(result, [...mountedIds])
       } finally {
         extraMountsPending.current -= 1
         setIsMountingExtras(extraMountsPending.current > 0)
       }
     },
-    [stack, loraFamily, selectedBase, reportExtraMountResult],
+    [stack, loraFamily, selectedBase, reportRecipeExtraMountResult],
   )
 
   // CD③ 搭配审阅：做同款把值直接写进主台（不改），但标成「待审阅」并自动摊开
@@ -1758,7 +1788,10 @@ function GenerateBranch({
       // 异步回报成功/失败数，避免静默失败。
       // owner 2026-08-07：挂哪些由 modal 的勾选决定（默认全选），不再无条件用
       // plan.extraLoras 全量——所以这里读 options 而不是 plan。
-      void mountExtras(options.extraLoras, recipeBase)
+      void mountExtras(options.extraLoras, {
+        base: recipeBase,
+        announce: true,
+      })
       // CD③：落台即进「待审阅」，并把变更卡摊开——用户得先看见改了什么。
       if (recipeGroupAsset) {
         setCollocationPending(true)
@@ -1884,10 +1917,11 @@ function GenerateBranch({
     t,
   ])
 
-  // 行内「补挂」单个额外 LoRA——与做同款共用 mountExtras（含 toast）。
+  // 行内「补挂」单个额外 LoRA——与做同款共用 mountExtras；结果写在那颗键上
+  // （`LoraOftenMountedWithRow` 读 `extraMountStatusByKey`），⛔ 弹黑条。
   const handleMountExtraLora = useCallback(
     (extra: CivitaiRecipeExtraLora) => {
-      void mountExtras([extra])
+      void mountExtras([extra], { announce: false })
     },
     [mountExtras],
   )
@@ -3766,21 +3800,7 @@ function GenerateBranch({
 
   // 「比例」chip：与图片台同一颗 `SpecChip`，只有比例一段；Runner 底模在虚线下多一格
   // 精确宽高。本域一次出一张，⛔ 不画张数。
-  const specModel: SpecChipModel = {
-    ratios: LORA_GENERATE_ASPECT_RATIOS.map((value) => ({
-      value,
-      supported: true,
-    })),
-    ratioLocked: false,
-    resolutions: [],
-    durations: [],
-    durationSeconds: null,
-    pricePerSecond: null,
-    totalPrice: null,
-    summary: aspectRatio,
-    resolutionNote: null,
-    isEmpty: false,
-  }
+  const specModel = loraAspectSpecModel(aspectRatio)
   const exactSizeSet =
     isRunnerBase &&
     runnerWidth.trim().length > 0 &&
@@ -3885,7 +3905,8 @@ function GenerateBranch({
           budget={runnerBudgetNote ?? undefined}
         />
         <div className="relative min-w-0 flex-1">
-          {/* 生成这一层：进库 120 淡出，回来等 120 再 200 淡入；看不见时挂 inert。 */}
+          {/* 生成这一层：进库 120 淡出，回来 200 淡入 —— 与装配列收放同一刻起，⛔ 等前一层
+            淡完再进（owner 2026-10-08「一卡一卡的」）；看不见时挂 inert。 */}
           <div
             ref={stageRightRef}
             inert={libraryActive}
@@ -3894,7 +3915,7 @@ function GenerateBranch({
               'absolute inset-0 flex min-w-0 flex-col transition-opacity ease-linear',
               libraryActive
                 ? 'pointer-events-none opacity-0 duration-fast'
-                : 'opacity-100 delay-120 duration-base motion-reduce:delay-0 motion-reduce:duration-fast',
+                : 'opacity-100 duration-base motion-reduce:duration-fast',
             )}
           >
             <LoraSourceBand
@@ -4002,7 +4023,7 @@ function GenerateBranch({
               }
             />
           </div>
-          {/* 库这一层：进来等生成那层淡出（120）再 200 淡入，离开 120 淡出；库 ↔ 收藏
+          {/* 库这一层：进来 200 淡入（与生成那层淡出同一刻起，⛔ 等），离开 120 淡出；库 ↔ 收藏
             外壳不动，只有内容先淡出再淡入另一边的（动效表「库 ↔ 收藏」）。 */}
           <AnimatePresence initial={false}>
             {library ? (
@@ -4011,11 +4032,7 @@ function GenerateBranch({
                 initial={{ opacity: 0 }}
                 animate={{
                   opacity: 1,
-                  transition: {
-                    duration: DURATION.base,
-                    delay: reduceMotion ? 0 : DURATION.fast,
-                    ease: 'linear',
-                  },
+                  transition: { duration: DURATION.base, ease: 'linear' },
                 }}
                 exit={{
                   opacity: 0,
@@ -4437,13 +4454,7 @@ function GenerateBranch({
                   model={specModel}
                   aspectRatio={aspectRatio}
                   onAspectRatioChange={(next) => {
-                    if (
-                      (
-                        LORA_GENERATE_ASPECT_RATIOS as readonly string[]
-                      ).includes(next)
-                    ) {
-                      handleAspectRatioChange(next as AspectRatio)
-                    }
+                    if (isLoraAspectRatio(next)) handleAspectRatioChange(next)
                   }}
                   resolution={null}
                   onResolutionChange={() => undefined}
@@ -5167,6 +5178,21 @@ function LoraOftenMountedWithRow({
             >
               <span className="truncate">{label}</span>
             </a>
+          ) : status === 'incompatible' ? (
+            // 补挂的结果写在这一颗上（§7.1）：与底模不兼容，重试也挂不上。
+            <span
+              key={key}
+              role="note"
+              title={`${tExtra('recipeExtraIncompatible')} · ${full}`}
+              aria-label={`${tExtra('recipeExtraIncompatible')} · ${full}`}
+              className={cn(chipClass, 'bg-status-warning-surface')}
+            >
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full bg-status-warning"
+              />
+              <span className="truncate">{label}</span>
+            </span>
           ) : (
             <button
               key={key}
@@ -5227,6 +5253,10 @@ function LoraOftenMountedWithRow({
               >
                 {tExtra('recipeExtraSearchLink')}
               </a>
+            ) : status === 'incompatible' ? (
+              <span className="text-status-warning">
+                {tExtra('recipeExtraIncompatible')}
+              </span>
             ) : (
               <button
                 type="button"

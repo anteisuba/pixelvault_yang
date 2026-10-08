@@ -20,6 +20,8 @@ import { LoraAssetCard } from './LoraAssetCard'
 
 const mockPush = vi.hoisted(() => vi.fn())
 const mockStackPush = vi.hoisted(() => vi.fn())
+const mockStackRemove = vi.hoisted(() => vi.fn())
+const mockToastSuccess = vi.hoisted(() => vi.fn())
 const mockMinePrompts = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/lora-assets', () => ({
   mineCivitaiLoraPromptsAPI: mockMinePrompts,
@@ -39,7 +41,7 @@ vi.mock('next-intl', () => {
 })
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  toast: { success: mockToastSuccess, error: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -53,7 +55,7 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
     },
     push: mockStackPush,
     setScale: vi.fn(),
-    remove: vi.fn(),
+    remove: mockStackRemove,
     clear: vi.fn(),
   }),
 }))
@@ -191,6 +193,21 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining('section=generate'),
     )
+  })
+
+  it('去生成: the bottom bar carries one undo that unmounts what was just mounted', () => {
+    mockToastSuccess.mockReset()
+    mockStackRemove.mockReset()
+    render(<LoraAssetCard asset={makeAsset({ id: '5', name: 'Undo Me' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'LoraWorkbench:use' }))
+
+    const options = mockToastSuccess.mock.calls[0]?.[1] as {
+      action?: { label: string; onClick: () => void }
+    }
+    expect(options.action?.label).toBe('Feedback:undo')
+    options.action?.onClick()
+    expect(mockStackRemove).toHaveBeenCalledWith('5')
   })
 
   it('shows the alreadyInUse state (no re-mount) when the LoRA is already in the stack', () => {

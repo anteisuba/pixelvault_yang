@@ -1,17 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { RatioIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { SpecChip } from '@/components/business/studio-shared/spec'
+import { StudioChipZoomProvider } from '@/components/business/studio-shared/primitives/tool-surface'
 import type { AspectRatio } from '@/constants/config'
 import { LORA_GENERATE_ASPECT_RATIOS } from '@/constants/lora'
-import { cn } from '@/lib/utils'
+import type { SpecChipModel } from '@/lib/spec-chip-model'
 
 interface LoraAspectRatioChipProps {
   value: AspectRatio
@@ -20,32 +15,37 @@ interface LoraAspectRatioChipProps {
 }
 
 /**
- * Visual wireframe of the picked ratio (mirrors StudioAspectRatioPopover's
- * RatioPreview) so portrait/landscape reads at a glance. Inscribed in a fixed
- * box; the rectangle scales to the ratio.
+ * LoRA 台的「比例」规格：只有比例一段（本域一次出一张，⛔ 不画张数 / 清晰度）。
+ * 桌面输入框工具行那颗 `SpecChip` 与手机这颗共用这一份。
  */
-function RatioPreview({ ratio }: { ratio: AspectRatio }) {
-  const [w, h] = ratio.split(':').map(Number)
-  const BOX = 72
-  const scale = w >= h ? BOX / w : BOX / h
-  return (
-    <div className="flex size-[4.5rem] shrink-0 items-center justify-center rounded-md border border-border/40 bg-muted/20">
-      <div
-        className="rounded-sm border-2 border-foreground/80"
-        style={{ width: `${w * scale}px`, height: `${h * scale}px` }}
-        aria-hidden
-      />
-    </div>
-  )
+export function loraAspectSpecModel(aspectRatio: AspectRatio): SpecChipModel {
+  return {
+    ratios: LORA_GENERATE_ASPECT_RATIOS.map((value) => ({
+      value,
+      supported: true,
+    })),
+    ratioLocked: false,
+    resolutions: [],
+    durations: [],
+    durationSeconds: null,
+    pricePerSecond: null,
+    totalPrice: null,
+    summary: aspectRatio,
+    resolutionNote: null,
+    isEmpty: false,
+  }
+}
+
+export function isLoraAspectRatio(value: string): value is AspectRatio {
+  return (LORA_GENERATE_ASPECT_RATIOS as readonly string[]).includes(value)
 }
 
 /**
- * P1-10 (D7①): aspect-ratio chip for the LoRA generate paper's tool row. The
- * link (handleGenerate → request `aspectRatio`) was already wired; the page just
- * had no control, locking users to 1:1 while LoRA output is mostly 3:4 立绘.
- * Self-contained plain Popover (LoRA domain has no Studio context), value/onChange
- * driven so the parent keeps the single source of truth and URL replay stays
- * bidirectional.
+ * 手机输入条上的比例 chip（P1-10 D7①）：与图片台同一颗 `SpecChip` —— 弹层从 chip
+ * 长出来、由糊变清（`CHIP_POPOVER`），比例是带小形状的分段条，chip 上那颗比例框换比例时
+ * 弹成新形状（动效样片 M）。⛔ 不再是蓝色选中的旧 Popover。
+ * `StudioChipZoomProvider` 只开「从 chip 放大」那一种开合、不换 chip 外观（这一行不在
+ * 描边工具行宿主里）。值仍由父层持有（URL 回放双向）。
  */
 export function LoraAspectRatioChip({
   value,
@@ -53,54 +53,20 @@ export function LoraAspectRatioChip({
   disabled,
 }: LoraAspectRatioChipProps) {
   const t = useTranslations('LoraWorkbench')
-  const [open, setOpen] = useState(false)
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label={t('generate.aspectRatioLabel')}
-          className={cn(
-            'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors disabled:opacity-50',
-            open
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:border-primary/20 hover:text-foreground',
-          )}
-        >
-          <RatioIcon className="size-3.5" aria-hidden />
-          {value}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-auto">
-        <div className="flex items-center gap-3">
-          <div
-            role="radiogroup"
-            aria-label={t('generate.aspectRatioLabel')}
-            className="flex flex-col gap-1.5"
-          >
-            {LORA_GENERATE_ASPECT_RATIOS.map((ratio) => (
-              <button
-                key={ratio}
-                type="button"
-                role="radio"
-                aria-checked={value === ratio}
-                onClick={() => onChange(ratio)}
-                className={cn(
-                  'inline-flex min-w-14 items-center justify-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                  value === ratio
-                    ? 'border-primary/40 bg-primary/10 text-primary'
-                    : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground',
-                )}
-              >
-                {ratio}
-              </button>
-            ))}
-          </div>
-          <RatioPreview ratio={value} />
-        </div>
-      </PopoverContent>
-    </Popover>
+    <StudioChipZoomProvider value>
+      <SpecChip
+        model={loraAspectSpecModel(value)}
+        aspectRatio={value}
+        onAspectRatioChange={(next) => {
+          if (isLoraAspectRatio(next)) onChange(next)
+        }}
+        resolution={null}
+        onResolutionChange={() => undefined}
+        resolutionLabel={t('generate.aspectRatioLabel')}
+        disabled={disabled}
+        ariaLabel={t('generate.aspectRatioLabel')}
+      />
+    </StudioChipZoomProvider>
   )
 }

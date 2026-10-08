@@ -77,6 +77,7 @@ export function HuggingFaceLoraLibrary({
   onSourceChange,
 }: HuggingFaceLoraLibraryProps) {
   const t = useTranslations('LoraWorkbench')
+  const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const stack = useActiveLoraStack()
   const library = useHuggingFaceLoraLibraryWithUrl()
@@ -132,15 +133,26 @@ export function HuggingFaceLoraLibrary({
       }
       const record = await onImport(buildImportPayload(item, file))
       if (!record) return
+      const fresh = !stack.items.some((entry) => entry.asset.id === record.id)
       stack.push(record)
+      // 键随页面一起走了（跳去生成台），结果放进底部黑条（ui-defaults §7.1）；
+      // 这一下新挂上的带一个「撤销」。
       toast.success(t('addedToStack', { name: record.name }), {
         duration: LORA_TOAST_DURATION_MS,
+        ...(fresh
+          ? {
+              action: {
+                label: tFeedback('undo'),
+                onClick: () => stack.remove(record.id),
+              },
+            }
+          : {}),
       })
       router.push(
         `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
       )
     },
-    [buildImportPayload, onImport, router, stack, t],
+    [buildImportPayload, onImport, router, stack, t, tFeedback],
   )
 
   // 拍板②：HF 的「导入」语义统一为「收藏」，落 LoraAssetRecord 的实现不变

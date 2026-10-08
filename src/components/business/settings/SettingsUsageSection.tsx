@@ -4,6 +4,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
+import { CountUp } from '@/components/ui/count-up'
 import { Spinner } from '@/components/ui/spinner'
 
 /**
@@ -12,6 +13,9 @@ import { Spinner } from '@/components/ui/spinner'
  *
  * 花费是「次数 × 该模型单价」累加出来的估算，所以表头就把口径写死在脸上；
  * 一家里**没有任何模型有可信单价**时那一格留空，只显次数。
+ *
+ * 进来时每个数字从 0 弹簧滚到本月值（owner 2026-10-08 设置页原型 v1，`CountUp`）；
+ * ⛔ 不画图、不画环。
  */
 export function SettingsUsageSection() {
   const t = useTranslations('Settings')
@@ -71,12 +75,15 @@ export function SettingsUsageSection() {
                 >
                   <td className="px-3.5 py-2.5">{provider.label}</td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                    {provider.requests}
+                    <CountUp value={provider.requests} format={formatCount} />
                   </td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                    {provider.estimatedCostUsd === null
-                      ? ''
-                      : formatUnitPriceAmount(provider.estimatedCostUsd)}
+                    {provider.estimatedCostUsd === null ? null : (
+                      <CountUp
+                        value={provider.estimatedCostUsd}
+                        format={formatUnitPriceAmount}
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -104,12 +111,18 @@ export function SettingsUsageSection() {
               <tr className="border-t border-border font-medium">
                 <td className="px-3.5 py-2.5">{t('usage.total')}</td>
                 <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                  {totalRequests + (showRunner ? runner.used : 0)}
+                  <CountUp
+                    value={totalRequests + (showRunner ? runner.used : 0)}
+                    format={formatCount}
+                  />
                 </td>
                 <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                  {totalEstimatedCostUsd === null
-                    ? ''
-                    : formatUnitPriceAmount(totalEstimatedCostUsd)}
+                  {totalEstimatedCostUsd === null ? null : (
+                    <CountUp
+                      value={totalEstimatedCostUsd}
+                      format={formatUnitPriceAmount}
+                    />
+                  )}
                 </td>
               </tr>
             </tbody>
@@ -122,6 +135,11 @@ export function SettingsUsageSection() {
       </p>
     </section>
   )
+}
+
+/** 次数滚动途中也只显整数。 */
+function formatCount(value: number): string {
+  return String(Math.round(value))
 }
 
 /** Runner 额度按 UTC 自然月重置，与 `getRunnerUsage` 的月界同源。 */

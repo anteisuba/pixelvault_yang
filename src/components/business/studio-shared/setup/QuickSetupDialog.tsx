@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ExternalLink, CheckCircle2, XCircle } from '@/components/icons'
+import { Check, ExternalLink, XCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
@@ -19,6 +19,7 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
@@ -281,7 +282,8 @@ export function QuickSetupDialog({
 
   return (
     <ResponsiveDialog open={open} onOpenChange={handleClose}>
-      <ResponsiveDialogContent className="sm:max-w-md">
+      {/* 从按下的那颗键（「配置 / 换一把 / 再加一把」、选择器里没 key 的模型）长到正中。 */}
+      <ResponsiveDialogContent className="sm:max-w-md" growFromPointer>
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>
             {t('title', { model: modelLabel })}
@@ -391,15 +393,8 @@ export function QuickSetupDialog({
             </div>
           )}
 
-          {/* Success message */}
-          {step === 'success' && (
-            <div className="flex items-center gap-2 text-sm text-status-applied">
-              <CheckCircle2 className="size-4 shrink-0" />
-              <span>{t('success')}</span>
-            </div>
-          )}
-
-          {/* Verify button */}
+          {/* Verify button —— 结果写在键上（ui-defaults §7.1）：「检查中」转圈 →
+              「✓ 已保存」→ 弹窗自己关。字由糊变清换进来。 */}
           <button
             type="button"
             onClick={() => void handleVerify()}
@@ -409,28 +404,37 @@ export function QuickSetupDialog({
               step === 'success'
             }
             className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
-              keyValue.trim().length >= 10 &&
-                step !== 'verifying' &&
-                step !== 'success'
-                ? 'bg-primary text-primary-foreground hover:shadow-md active:scale-[0.97]'
-                : 'bg-muted text-muted-foreground cursor-not-allowed',
+              'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[background-color,color,transform] duration-fast ease-standard motion-reduce:transition-none',
+              step === 'verifying' || step === 'success'
+                ? 'bg-foreground text-background'
+                : keyValue.trim().length >= 10
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[.98]'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed',
             )}
           >
-            {step === 'verifying' ? (
-              <>
-                <Spinner size="md" />
-                {t('verifying')}
-              </>
-            ) : step === 'success' ? (
-              <>
-                <CheckCircle2 className="size-4" />
-                {t('success')}
-              </>
-            ) : (
-              t('verify')
-            )}
+            <BlurSwap swapKey={step} className="gap-2">
+              {step === 'verifying' ? (
+                <>
+                  <Spinner size="sm" />
+                  {t('checking')}
+                </>
+              ) : step === 'success' ? (
+                <>
+                  <Check className="size-4" aria-hidden />
+                  {t('saved')}
+                </>
+              ) : (
+                t('verify')
+              )}
+            </BlurSwap>
           </button>
+          <span role="status" aria-live="polite" className="sr-only">
+            {step === 'verifying'
+              ? t('checking')
+              : step === 'success'
+                ? t('saved')
+                : ''}
+          </span>
 
           {/* 面 1 唯一的出口（D3 ④）：底部虚线上一行灰字，跳 /settings/keys。
               ⛔ 这里不摆第二个录入表单，弹层本体一律不动。

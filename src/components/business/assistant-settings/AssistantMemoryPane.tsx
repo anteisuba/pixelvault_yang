@@ -1,9 +1,9 @@
 'use client'
 
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ChevronDown, PencilLine, Plus, X } from '@/components/icons'
+import { Check, ChevronDown, PencilLine, Plus, X } from '@/components/icons'
 
 import {
   ASSISTANT_MEMORY_LIMITS,
@@ -17,16 +17,26 @@ import {
   PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_KINDS,
 } from '@/constants/assistant-operator'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import {
+  DURATION,
+  EASE_STANDARD,
+  FEEDBACK_TIMING,
+  LIQUID_TIMING,
+  SPRING,
+  springTransition,
+} from '@/constants/motion'
 import type { UseAssistantMemoriesValue } from '@/hooks/use-assistant-memories'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import { useProjectRules } from '@/hooks/use-project-rules'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { runUndoableAction } from '@/lib/undoable-action'
 import { cn } from '@/lib/utils'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import { ProjectRuleSourceTokenSchema } from '@/types/assistant-persona'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { BlurSwap, useBlurSwapIn } from '@/components/ui/blur-swap'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,12 +45,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDeleteButton } from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 
 /**
@@ -49,7 +55,9 @@ import { Switch } from '@/components/ui/switch'
  * ⭐ **一列**（owner 2026-09-26「这次就并成一列」）：助手在对话里记下的和你自己
  * 写的都在这里，每行标「你写的 / 助手记的」；你写的优先（进系统提示的规则段）。
  * 顶上一行说明 +「让助手记住」开关（关 = 只停记新的，清单照样生效）；下面一格
- * 「写一条，回车存下」；筛选三颗 chip，清空跟着筛选走。
+ * 「写一条，回车存下」；筛选三颗 chip（选中是一块滑动的黑丸），清空跟着筛选走、
+ * 删了找不回所以走正中弹窗；删一条能撤销，走键上确认 + 底部黑条（owner 2026-10-08
+ * 设置页原型 v1 · ui-defaults §7.1）。
  * 搜图来源白 / 黑名单在下面单独一块 —— 它们是闸，不是一句话。
  */
 
@@ -69,7 +77,7 @@ const SCOPE_MENU: readonly AssistantMemoryScopeId[] = [
   ),
 ]
 
-/** 菜单与确认卡都「从按钮长出来」（动效表：与工具行弹层同一种）。 */
+/** 「用在哪」菜单从按钮长出来（动效表：与工具行弹层同一种）。 */
 const MENU_MOTION = getChipZoomMotion({
   side: 'bottom',
   align: 'end',
@@ -102,6 +110,7 @@ function MemorySection({
   const tErrors = useTranslations('Errors')
   const reducedMotion = useReducedMotion()
   const captureId = useId()
+  const pillId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const { memories, isLoading, error, create, update, remove, clear } = store
   const capture = autosave.draft.memoryCapture
@@ -111,30 +120,57 @@ function MemorySection({
   const [filter, setFilter] = useState<MemoryFilter>('all')
   const [freshId, setFreshId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [confirmingId, setConfirmingId] = useState<string | null>(null)
-  const [clearOpen, setClearOpen] = useState(false)
   /**
-   * 删 / 清空之后行还在退场（动效表：一起淡出再收起）。退完之前 ⛔ 不出空态、
+   * 删掉、还在撤销窗口里的那几条（`runUndoableAction` 延后落库）：界面上先拿掉，
+   * 服务端还没碰。点撤销 = 放回来；窗口过了才真删。
+   */
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+  /** 刚就地改完的那一条：时间那一格闪「✓ 已保存」。 */
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const listSwap = useBlurSwapIn(filter)
+  /**
+   * 删 / 清空之后行还在退场（动效表：收起高度 + 糊掉）。退完之前 ⛔ 不出空态、
    * 不出「这一类还没有」；清空的那一次退完才把筛选归到「全部」（画板）。
    */
   const [settling, setSettling] = useState<false | 'delete' | 'clear'>(false)
 
-  const mine = memories.filter(
+  useEffect(() => {
+    if (!savedId) return
+    const timer = window.setTimeout(
+      () => setSavedId(null),
+      FEEDBACK_TIMING.buttonAckMs,
+    )
+    return () => window.clearTimeout(timer)
+  }, [savedId])
+
+  const visible = useMemo(
+    () => memories.filter((memory) => !hiddenIds.has(memory.id)),
+    [hiddenIds, memories],
+  )
+  const mine = visible.filter(
     (memory) => memory.source === ASSISTANT_MEMORY_SOURCE_IDS.creator,
   ).length
-  const theirs = memories.length - mine
+  const theirs = visible.length - mine
   const shown = useMemo(
     () =>
       filter === 'all'
-        ? memories
-        : memories.filter((memory) => memory.source === filter),
-    [filter, memories],
+        ? visible
+        : visible.filter((memory) => memory.source === filter),
+    [filter, visible],
   )
+
+  const setHidden = (memoryId: string, hidden: boolean) =>
+    setHiddenIds((current) => {
+      const next = new Set(current)
+      if (hidden) next.add(memoryId)
+      else next.delete(memoryId)
+      return next
+    })
 
   const pickFilter = (next: MemoryFilter) => {
     setFilter(next)
-    setClearOpen(false)
-    setConfirmingId(null)
     setFreshId(null)
   }
 
@@ -152,23 +188,44 @@ function MemorySection({
   }
 
   const confirmClear = async () => {
-    setClearOpen(false)
     setSettling('clear')
     const ok = await clear(filter === 'all' ? undefined : filter)
     if (!ok) setSettling(false)
   }
 
-  const deleteMemory = async (memoryId: string) => {
-    setConfirmingId(null)
-    setSettling('delete')
-    const ok = await remove(memoryId)
-    if (!ok) setSettling(false)
+  /**
+   * 能撤销的小删除（ui-defaults §7.1）：键上点两下 → 这一行收起、糊掉 → 底部黑条
+   * 「已删除一条记忆 · 撤销」。没人撤销才真的落库；落库失败把这一行放回来。
+   */
+  const deleteMemory = (memoryId: string) => {
+    runUndoableAction({
+      message: t('memory.deleted'),
+      undoLabel: t('memory.undo'),
+      apply: () => {
+        setSettling('delete')
+        setHidden(memoryId, true)
+      },
+      undo: () => setHidden(memoryId, false),
+      commit: async () => {
+        await remove(memoryId)
+        setHidden(memoryId, false)
+      },
+    })
+  }
+
+  const saveMemory = async (
+    memoryId: string,
+    input: { text?: string; scope?: AssistantMemoryScopeId },
+  ) => {
+    const saved = await update(memoryId, input)
+    if (saved && input.text !== undefined) setSavedId(memoryId)
+    return saved
   }
 
   const clearLabel = t(`memory.clear.${filter}`)
   const clearTitle =
     filter === 'all'
-      ? t('memory.clear.titleAll', { count: memories.length })
+      ? t('memory.clear.titleAll', { count: visible.length })
       : filter === ASSISTANT_MEMORY_SOURCE_IDS.creator
         ? t('memory.clear.titleCreator', { count: mine })
         : t('memory.clear.titleAssistant', { count: theirs })
@@ -192,17 +249,20 @@ function MemorySection({
   const rowTransition = reducedMotion
     ? { duration: 0 }
     : {
-        height: { duration: DURATION.slow, ease: EASE_STANDARD },
+        height: SPRING.slot,
         opacity: { duration: DURATION.base, ease: EASE_STANDARD },
       }
+  /** 退场：高度收起 + 糊掉一起走（原型「这一行收起」）。⛔ 移除不走弹簧（§4.1）。 */
   const rowExit = reducedMotion
     ? { opacity: 0, height: 0, transition: { duration: 0 } }
     : {
         opacity: 0,
         height: 0,
+        filter: `blur(${LIQUID_TIMING.blurPx}px)`,
         transition: {
-          opacity: { duration: DURATION.fast, ease: 'linear' as const },
-          height: { duration: DURATION.base, ease: EASE_STANDARD },
+          opacity: { duration: DURATION.base, ease: EASE_STANDARD },
+          filter: { duration: DURATION.base, ease: EASE_STANDARD },
+          height: { duration: DURATION.slow, ease: EASE_STANDARD },
         },
       }
 
@@ -253,12 +313,13 @@ function MemorySection({
         </p>
       ) : null}
 
-      {memories.length > 0 ? (
+      {visible.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* 选中那颗是一块黑丸，在 chip 之间弹簧滑过去（`SPRING.slot`）。 */}
           <div
             role="group"
             aria-label={t('memory.filters.label')}
-            className="flex flex-wrap items-center gap-1.5"
+            className="flex flex-wrap items-center gap-1"
           >
             {MEMORY_FILTERS.map((id) => (
               <button
@@ -268,70 +329,49 @@ function MemorySection({
                 data-testid={`assistant-memory-filter-${id}`}
                 onClick={() => pickFilter(id)}
                 className={cn(
-                  'inline-flex h-7 items-center rounded-full border px-2.75 text-2sm whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
+                  'relative inline-flex h-7 items-center rounded-full px-2.75 text-2sm whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
                   filter === id
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border text-muted-foreground hover:bg-surface-fill hover:text-foreground',
+                    ? 'text-background'
+                    : 'text-muted-foreground hover:bg-surface-fill hover:text-foreground',
                 )}
               >
-                {t(`memory.filters.${id}`)}
+                {filter === id ? (
+                  <motion.span
+                    aria-hidden
+                    layoutId={`memory-filter-pill-${pillId}`}
+                    data-testid="assistant-memory-filter-pill"
+                    className="absolute inset-0 rounded-full bg-foreground"
+                    transition={springTransition('slot', reducedMotion)}
+                  />
+                ) : null}
+                <span className="relative">{t(`memory.filters.${id}`)}</span>
               </button>
             ))}
           </div>
           <span className="flex-1" />
           {shown.length > 0 ? (
-            <Popover open={clearOpen} onOpenChange={setClearOpen}>
-              <PopoverTrigger asChild>
+            <ConfirmDialog
+              trigger={
                 <button
                   type="button"
                   data-testid="assistant-memory-clear"
-                  onClick={() => setConfirmingId(null)}
                   className="-mx-2 -my-1 rounded-lg px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:-my-3 coarse:py-3 coarse:text-md"
                 >
                   {clearLabel}
                 </button>
-              </PopoverTrigger>
-              <PopoverContent
-                role="alertdialog"
-                aria-label={clearTitle}
-                align="end"
-                sideOffset={6}
-                className={cn(
-                  'flex w-75 flex-col gap-1.5 rounded-2xl p-4',
-                  MENU_MOTION.className,
-                )}
-                style={MENU_MOTION.style}
-              >
-                <p className="text-md font-semibold">{clearTitle}</p>
-                <p className="text-2sm leading-5 text-muted-foreground">
-                  {clearDescription}
-                </p>
-                <div className="mt-2 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8.5 rounded-lg shadow-none"
-                    onClick={() => setClearOpen(false)}
-                  >
-                    {t('memory.clear.cancel')}
-                  </Button>
-                  <Button
-                    type="button"
-                    data-testid="assistant-memory-clear-confirm"
-                    className="h-8.5 rounded-lg bg-status-risk font-semibold text-background hover:bg-status-risk/90"
-                    onClick={() => void confirmClear()}
-                  >
-                    {clearLabel}
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
+              }
+              title={clearTitle}
+              description={clearDescription}
+              cancelLabel={t('memory.clear.cancel')}
+              confirmLabel={clearLabel}
+              onConfirm={() => void confirmClear()}
+            />
           ) : null}
         </div>
       ) : null}
 
-      {/* 换筛选 = 换一张清单（按 key 整张换，⛔ 不逐行淡入淡出）。 */}
-      <ul key={filter} className="flex flex-col">
+      {/* 换筛选 = 换一张清单（按 key 整张换，糊一下进来；⛔ 不逐行淡入淡出）。 */}
+      <motion.ul key={filter} {...listSwap} className="flex flex-col">
         <AnimatePresence
           initial={false}
           onExitComplete={() => {
@@ -355,33 +395,24 @@ function MemorySection({
               <MemoryRow
                 memory={memory}
                 editing={editingId === memory.id}
-                confirming={confirmingId === memory.id}
-                onStartEdit={() => {
-                  setEditingId(memory.id)
-                  setConfirmingId(null)
-                  setClearOpen(false)
-                }}
+                justSaved={savedId === memory.id}
+                onStartEdit={() => setEditingId(memory.id)}
                 onEndEdit={() => setEditingId(null)}
-                onSave={(input) => update(memory.id, input)}
-                onAskDelete={() => {
-                  setConfirmingId(memory.id)
-                  setClearOpen(false)
-                }}
-                onCancelDelete={() => setConfirmingId(null)}
-                onDelete={() => void deleteMemory(memory.id)}
+                onSave={(input) => saveMemory(memory.id, input)}
+                onDelete={() => deleteMemory(memory.id)}
               />
             </motion.li>
           ))}
         </AnimatePresence>
-      </ul>
+      </motion.ul>
 
-      {memories.length > 0 && shown.length === 0 && !settling ? (
+      {visible.length > 0 && shown.length === 0 && !settling ? (
         <p className="text-2sm text-muted-foreground">
           {t('memory.filteredEmpty')}
         </p>
       ) : null}
 
-      {memories.length === 0 && !settling ? (
+      {visible.length === 0 && !settling ? (
         isLoading ? (
           <p className="text-2sm text-muted-foreground">
             {t('memory.loading')}
@@ -413,32 +444,29 @@ function MemorySection({
  * 一行 = 一条记忆（画板 M-A）。
  *
  * 默认：文字（点一下就地改）· 行尾「范围标签 + 你写的 / 助手记的 · 时间」·
- * 悬停出「删」（触屏常显）。点「删」原地变红「确认删除」，再点才删（⛔ 不弹框）。
- * 就地改：输入框 + 右边「用在哪」下拉，下面一行提示；回车存、Esc 退、点到别处也存。
- * 选「用在哪」当场存（改了就存）。
+ * 悬停出「删」（触屏常显）。点「删」键拉长成红色「确认删除」，再点才删，点别处 /
+ * Esc / 3 秒缩回（`ConfirmDeleteButton`，⛔ 不弹框）。
+ * 就地改：输入框 + 右边「用在哪」下拉，下面一行提示；回车存、Esc 退、点到别处也存；
+ * 改完时间那一格闪「✓ 已保存」。选「用在哪」当场存（改了就存）。
  */
 function MemoryRow({
   memory,
   editing,
-  confirming,
+  justSaved,
   onStartEdit,
   onEndEdit,
   onSave,
-  onAskDelete,
-  onCancelDelete,
   onDelete,
 }: {
   memory: AssistantMemory
   editing: boolean
-  confirming: boolean
+  justSaved: boolean
   onStartEdit(): void
   onEndEdit(): void
   onSave(input: {
     text?: string
     scope?: AssistantMemoryScopeId
   }): Promise<AssistantMemory | null>
-  onAskDelete(): void
-  onCancelDelete(): void
   onDelete(): void
 }) {
   const t = useTranslations('AssistantSettings')
@@ -569,30 +597,30 @@ function MemoryRow({
             {scopeLabel}
           </span>
         ) : null}
-        <MemoryMeta memory={memory} />
+        {/* 就地改完：这一格先写「✓ 已保存」，停一下再换回时间，字由糊变清换进来
+            （原型：结果写在原地，⛔ 不弹提示）。 */}
+        <BlurSwap swapKey={justSaved ? 'saved' : 'meta'} className="gap-1">
+          {justSaved ? (
+            <>
+              <Check className="size-3.5 text-foreground" aria-hidden />
+              <span role="status" className="text-foreground">
+                {t('memory.saved')}
+              </span>
+            </>
+          ) : (
+            <MemoryMeta memory={memory} />
+          )}
+        </BlurSwap>
       </span>
-      <button
-        type="button"
-        aria-label={
-          confirming ? t('memory.deleteConfirmAria') : t('memory.deleteAria')
-        }
+      <ConfirmDeleteButton
+        aria-label={t('memory.deleteAria')}
         data-testid="assistant-memory-delete"
-        onClick={confirming ? onDelete : onAskDelete}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && confirming) onCancelDelete()
-        }}
-        onBlur={() => {
-          if (confirming) onCancelDelete()
-        }}
-        className={cn(
-          'h-7 shrink-0 rounded-lg px-2.5 text-2sm transition-[opacity,background-color,color] duration-fast ease-linear focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-9 coarse:opacity-100',
-          confirming
-            ? 'bg-status-risk font-semibold text-background opacity-100'
-            : 'text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface',
-        )}
+        confirmLabel={t('memory.deleteConfirm')}
+        onConfirm={onDelete}
+        className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[armed]:opacity-100 coarse:h-9 coarse:opacity-100"
       >
-        {confirming ? t('memory.deleteConfirm') : t('memory.delete')}
-      </button>
+        {t('memory.delete')}
+      </ConfirmDeleteButton>
     </div>
   )
 }

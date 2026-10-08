@@ -3,10 +3,12 @@
 import { useCallback, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronRight, Plus, Trash2 } from '@/components/icons'
 
 import { API_KEY_MASK } from '@/constants/api-keys'
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
+import { DURATION, EASE_STANDARD, springTransition } from '@/constants/motion'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { KEY_SETUP_QUERY } from '@/constants/routes'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -32,6 +34,10 @@ import { Spinner } from '@/components/ui/spinner'
  * 「换一把」打开的都是**面 1**（`QuickSetupDialog`）—— ⛔ 这一页不自带第二个
  * 录入表单。
  *
+ * 动效（owner 2026-10-08 设置页原型 v1）：展开 / 收起走高度弹簧；配好一把之后这一行
+ * 按新的排序 FLIP 滑到它该在的组（`layout="position"`），健康点由灰变绿；删掉的那把
+ * 收起高度再走。弹窗从按下的那颗键长出来（`QuickSetupDialog` 自带）。
+ *
  * ⭐ `?setup=<adapterType>` 进来就直接把那一家的面 1 打开（选了没配 key 的模型从
  * 选择器跳到这里，owner 2026-10-06）；关掉弹窗时把这个参数从地址栏去掉，`from`
  * 留着给返回键。
@@ -44,6 +50,7 @@ export function SettingsKeysSection() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [expanded, setExpanded] = useState<string | null>(null)
+  const reduceMotion = useReducedMotion()
   /** 地址栏要求直接配哪一家 —— 开关就由地址栏说了算，⛔ 不再拷一份进 state。 */
   const setupAdapter = searchParams.get(KEY_SETUP_QUERY)
   const urlSetupRow = setupAdapter
@@ -86,7 +93,11 @@ export function SettingsKeysSection() {
       ) : (
         <ul className="mt-4 flex flex-col gap-2">
           {rows.map((row) => (
-            <li key={row.adapterType}>
+            <motion.li
+              key={row.adapterType}
+              layout="position"
+              transition={springTransition('slot', reduceMotion)}
+            >
               <ProviderRow
                 row={row}
                 healthMap={healthMap}
@@ -104,7 +115,7 @@ export function SettingsKeysSection() {
                 }
                 onQuickSetup={() => openQuickSetup(row)}
               />
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}
@@ -167,6 +178,8 @@ function ProviderRow({
   const t = useTranslations('Settings')
   const tCommon = useTranslations('Common')
   const format = useFormatter()
+  const reduceMotion = useReducedMotion()
+  const grow = springTransition('slot', reduceMotion)
 
   const lastVerifiedAt = row.keys
     .map((key) => verifiedAtMap[key.id])
@@ -191,7 +204,12 @@ function ProviderRow({
     <div className="rounded-lg border border-border bg-card transition-colors duration-fast hover:border-muted-foreground/40">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-3 text-sm">
         <span
-          className={cn('size-2 shrink-0 rounded-full', STATE_DOT[row.state])}
+          data-testid="provider-state-dot"
+          data-state={row.state}
+          className={cn(
+            'size-2 shrink-0 rounded-full transition-colors duration-slow ease-standard',
+            STATE_DOT[row.state],
+          )}
           aria-hidden
         />
         <span className="min-w-28 font-medium">{row.label}</span>
@@ -226,27 +244,55 @@ function ProviderRow({
         />
       </div>
 
-      {isExpanded && row.keys.length > 0 ? (
-        <div className="flex flex-col gap-2 border-t border-dashed border-border bg-muted/50 py-3 pl-9 pr-3.5">
-          {row.keys.map((key) => (
-            <KeyLine
-              key={key.id}
-              id={key.id}
-              label={key.label}
-              status={healthMap[key.id]}
-              verifiedAt={verifiedAtMap[key.id]}
-            />
-          ))}
-          <button
-            type="button"
-            onClick={onQuickSetup}
-            className="inline-flex min-h-8 items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <AnimatePresence initial={false}>
+        {isExpanded && row.keys.length > 0 ? (
+          <motion.div
+            key="keys"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{
+              height: grow,
+              opacity: {
+                duration: reduceMotion ? 0 : DURATION.fast,
+                ease: EASE_STANDARD,
+              },
+            }}
+            className="overflow-hidden"
           >
-            <Plus className="size-3.5" />
-            {t('keys.addAnother')}
-          </button>
-        </div>
-      ) : null}
+            <div className="flex flex-col gap-2 border-t border-dashed border-border bg-muted/50 py-3 pl-9 pr-3.5">
+              <AnimatePresence initial={false}>
+                {row.keys.map((key) => (
+                  <motion.div
+                    key={key.id}
+                    exit={{ height: 0, opacity: 0, filter: 'blur(4px)' }}
+                    transition={{
+                      duration: reduceMotion ? 0 : DURATION.base,
+                      ease: EASE_STANDARD,
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <KeyLine
+                      id={key.id}
+                      label={key.label}
+                      status={healthMap[key.id]}
+                      verifiedAt={verifiedAtMap[key.id]}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              <button
+                type="button"
+                onClick={onQuickSetup}
+                className="inline-flex min-h-8 items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Plus className="size-3.5" />
+                {t('keys.addAnother')}
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }
@@ -288,7 +334,7 @@ function RowAction({
     >
       <ChevronRight
         className={cn(
-          'size-4 transition-transform duration-fast motion-reduce:transition-none',
+          'size-4 transition-transform duration-spring-slot ease-spring-slot motion-reduce:transition-none',
           isExpanded && 'rotate-90',
         )}
       />
@@ -328,7 +374,7 @@ function KeyLine({
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       <span
         className={cn(
-          'size-1.5 shrink-0 rounded-full',
+          'size-1.5 shrink-0 rounded-full transition-colors duration-slow ease-standard',
           status === 'available'
             ? 'bg-status-applied'
             : status === 'failed'

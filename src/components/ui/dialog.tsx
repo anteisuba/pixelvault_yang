@@ -5,6 +5,10 @@ import { XIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 
+import {
+  GROW_FROM_POINTER_CLASS,
+  growFromLastPointer,
+} from '@/lib/grow-from-pointer'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
 import { Button } from '@/components/ui/button'
@@ -55,18 +59,35 @@ function DialogContent({
   showCloseButton = true,
   closeLabel,
   onOpenAutoFocus,
+  growFromPointer = false,
+  ref,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   closeLabel?: string
+  /**
+   * 从按下的那颗键长到正中、关上缩回那一点（`lib/grow-from-pointer.ts`）。只给
+   * 「点一颗键弹出的那一份」用（`QuickSetupDialog`，owner 2026-10-08 设置页原型 v1）；
+   * 其余对话框照旧原地放大。
+   */
+  growFromPointer?: boolean
 }) {
   const t = useTranslations('Common')
   const resolvedCloseLabel = closeLabel ?? t('close')
+  const contentRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node && growFromPointer) growFromLastPointer(node)
+      if (typeof ref === 'function') ref(node)
+      else if (ref) ref.current = node
+    },
+    [growFromPointer, ref],
+  )
 
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={contentRef}
         data-slot="dialog-content"
         /**
          * ⚠ radix 只在 `modal`（默认）时给内容加 `aria-modal`——**它不加**，
@@ -78,6 +99,7 @@ function DialogContent({
         aria-modal="true"
         className={cn(
           'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard sm:max-w-lg',
+          growFromPointer && GROW_FROM_POINTER_CLASS,
           className,
         )}
         onOpenAutoFocus={(event) => {

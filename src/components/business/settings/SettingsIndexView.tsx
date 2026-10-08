@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, ChevronRight, LogOut } from '@/components/icons'
+import { ArrowLeft, ChevronRight } from '@/components/icons'
 
 import { ROUTES, safeReturnPath, settingsPath } from '@/constants/routes'
 import {
@@ -14,8 +14,9 @@ import {
 } from '@/constants/settings'
 import { MOBILE_BREAKPOINT } from '@/hooks/use-mobile'
 import { useProviderKeyRows } from '@/hooks/use-provider-key-rows'
-import { useSignOut } from '@/hooks/use-sign-out'
 import { Link, useRouter } from '@/i18n/navigation'
+
+import { SettingsSignOutButton } from '@/components/business/settings/SettingsShell'
 
 /**
  * `/settings` 本身（D3 ④）。
@@ -79,24 +80,7 @@ export function SettingsIndexView() {
         ))}
       </ul>
 
-      <SignOutRow />
+      <SettingsSignOutButton className="mt-5 min-h-11 px-1" />
     </main>
-  )
-}
-
-function SignOutRow() {
-  const t = useTranslations('Settings')
-  // 退出登录只有一条路（`use-sign-out.ts`），侧栏账号菜单调的是同一支。
-  const handleSignOut = useSignOut()
-
-  return (
-    <button
-      type="button"
-      onClick={handleSignOut}
-      className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <LogOut className="size-4" />
-      {t('signOut')}
-    </button>
   )
 }

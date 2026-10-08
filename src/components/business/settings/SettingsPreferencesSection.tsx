@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
+import { Check } from '@/components/icons'
 
 import { PROFILE } from '@/constants/config'
+import { FEEDBACK_TIMING } from '@/constants/motion'
 import {
   SETTINGS_DEFAULT_WORKBENCH_OPTIONS,
   SETTINGS_PREFERENCE_KEYS,
@@ -14,8 +15,10 @@ import { ROUTES } from '@/constants/routes'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { updateProfileAPI } from '@/lib/api-client'
+import { toastError } from '@/lib/toast'
 
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   Select,
   SelectContent,
@@ -23,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 
 /**
@@ -31,6 +35,10 @@ import { Switch } from '@/components/ui/switch'
  *
  * 语言与显示名接的是**现成的那两条路**（`LocaleSwitcher` / `updateProfileAPI`）；
  * 后三项没有服务端形状，落在既有的 localStorage 偏好机制上，⛔ 不新开一张表。
+ *
+ * 动效（owner 2026-10-08 设置页原型 v1，控件照旧是开关 + 下拉）：下拉从触发器弹簧
+ * 放大出来（`SelectContent motionPreset="spring"`）；开关拨子走 `--spring-slot`
+ * （`Switch` 自带）；显示名失焦即存，框边先转圈再闪「✓ 已保存」，⛔ 不弹提示。
  */
 export function SettingsPreferencesSection() {
   const t = useTranslations('Settings')
@@ -113,7 +121,7 @@ function DefaultWorkbenchField() {
       <SelectTrigger size="sm" className="w-44">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent motionPreset="spring">
         {SETTINGS_DEFAULT_WORKBENCH_OPTIONS.map((route) => (
           <SelectItem key={route} value={route}>
             {t(`preferences.workbench.${route}`)}
@@ -124,12 +132,24 @@ function DefaultWorkbenchField() {
   )
 }
 
+type SaveMark = 'saving' | 'saved' | null
+
 function DisplayNameField() {
   const t = useTranslations('Settings')
   const { profile, refresh } = useMyProfile()
   const [draft, setDraft] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
+  const [mark, setMark] = useState<SaveMark>(null)
   const value = draft ?? profile?.displayName ?? ''
+
+  // 「✓ 已保存」闪一下就走（与键上结果同一段停留）。
+  useEffect(() => {
+    if (mark !== 'saved') return
+    const timer = window.setTimeout(
+      () => setMark(null),
+      FEEDBACK_TIMING.buttonAckMs,
+    )
+    return () => window.clearTimeout(timer)
+  }, [mark])
 
   const commit = useCallback(async () => {
     const next = value.trim()
@@ -137,33 +157,59 @@ function DisplayNameField() {
       setDraft(null)
       return
     }
-    setIsSaving(true)
+    setMark('saving')
     const result = await updateProfileAPI({ displayName: next || null })
-    setIsSaving(false)
     if (result.success) {
       setDraft(null)
+      setMark('saved')
       void refresh()
-      toast.success(t('preferences.displayNameSaved'))
       return
     }
-    toast.error(result.error ?? t('preferences.displayNameFailed'))
+    setMark(null)
+    toastError(result.error ?? t('preferences.displayNameFailed'))
   }, [profile?.displayName, refresh, t, value])
 
   return (
-    <input
-      type="text"
-      value={value}
-      disabled={isSaving}
-      maxLength={PROFILE.DISPLAY_NAME_MAX_LENGTH}
-      aria-label={t('preferences.displayName')}
-      placeholder={t('preferences.displayNamePlaceholder')}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => void commit()}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-        if (event.key === 'Escape') setDraft(null)
-      }}
-      className="h-8 w-44 rounded-md border border-border bg-background px-2.5 text-right text-xs transition-colors duration-fast focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-    />
+    <span className="flex items-center gap-2">
+      <span
+        data-testid="display-name-mark"
+        className="inline-flex min-w-4 items-center justify-end text-xs text-muted-foreground"
+      >
+        {mark ? (
+          <BlurSwap swapKey={mark} className="gap-1">
+            {mark === 'saving' ? (
+              <Spinner size="sm" />
+            ) : (
+              <>
+                <Check className="size-3.5" aria-hidden />
+                {t('preferences.saved')}
+              </>
+            )}
+          </BlurSwap>
+        ) : null}
+      </span>
+      <span role="status" aria-live="polite" className="sr-only">
+        {mark === 'saving'
+          ? t('preferences.saving')
+          : mark === 'saved'
+            ? t('preferences.saved')
+            : ''}
+      </span>
+      <input
+        type="text"
+        value={value}
+        disabled={mark === 'saving'}
+        maxLength={PROFILE.DISPLAY_NAME_MAX_LENGTH}
+        aria-label={t('preferences.displayName')}
+        placeholder={t('preferences.displayNamePlaceholder')}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') setDraft(null)
+        }}
+        className="h-8 w-44 rounded-md border border-border bg-background px-2.5 text-right text-xs transition-colors duration-fast focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      />
+    </span>
   )
 }

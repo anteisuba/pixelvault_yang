@@ -17,7 +17,12 @@ import { cn } from '@/lib/utils'
  *   那一屏 ⛔ 不该整屏一起糊一下。
  * ⚠ `prefers-reduced-motion` 下直接换，⛔ 不模糊。
  */
-export function useBlurSwapIn(swapKey: string) {
+export function useBlurSwapIn(
+  swapKey: string,
+  options: { blurPx?: number; durationS?: number } = {},
+) {
+  const blurPx = options.blurPx ?? LIQUID_TIMING.blurPx
+  const durationS = options.durationS ?? LIQUID_TIMING.swapInS
   const reduceMotion = useReducedMotion()
   /* 「上一次渲染时的 key」放进 state（React 文档的「存前一次的值」写法）：
      key 一换就在同一次渲染里记成「换过了」。 */
@@ -25,11 +30,9 @@ export function useBlurSwapIn(swapKey: string) {
   if (seen.key !== swapKey) setSeen({ key: swapKey, swapped: true })
   const animateIn = seen.swapped && !reduceMotion
   return {
-    initial: animateIn
-      ? { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
-      : false,
+    initial: animateIn ? { opacity: 0, filter: `blur(${blurPx}px)` } : false,
     animate: { opacity: 1, filter: 'blur(0px)' },
-    transition: { duration: LIQUID_TIMING.swapInS, ease: EASE_STANDARD },
+    transition: { duration: durationS, ease: EASE_STANDARD },
   } as const
 }
 

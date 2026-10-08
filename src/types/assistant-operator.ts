@@ -838,13 +838,21 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
         .array(TimelineSnapshotAssetSchema)
         .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets),
       /**
-       * 视频卡当前那一版的地址 —— **只给服务端截帧用**（`canvas_look_at`，2b）。
+       * 视频的地址 —— **只给服务端截帧用**（`canvas_look_at`，2b）。没有 `clipId` 的是
+       * 卡的当前版；带 `clipId` 的是那一段在用的旧版（4a：段钉住自己那一版，画布上换
+       * 了版不换进时间线），只在与卡当前版不同时才列。
        * ⛔ 不渲染进模型读的状态块（与角色页 `cardImageUrls` 同一条论据）。只列截得了
        * 帧的（自家 CDN 上的 MP4）。
        */
       videoUrls: z
-        .array(z.object({ nodeId: IdSchema, url: z.string().url().max(4_000) }))
-        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditAssets)
+        .array(
+          z.object({
+            nodeId: IdSchema,
+            clipId: IdSchema.optional(),
+            url: z.string().url().max(4_000),
+          }),
+        )
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxEditVideoUrls)
         .optional(),
     })
     .optional(),

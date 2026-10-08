@@ -3327,9 +3327,10 @@ export function useAssistantOperator(
     const resume = getOperatorState().resume
     if (!resume) return
     const resumeFrom = toResumeFrom(resume)
-    // ⚠ 一步都没做完 = 这不是续跑而是重跑，⛔ 别发一份服务端会拒的空清单。
-    if (!resumeFrom) return
-    void run({ resumeFrom, planApproved: true })
+    // ⚠ 一步都没做完 = 按「开始」重跑这份已批的计划，⛔ 别发一份服务端会拒的空清单。
+    void run(
+      resumeFrom ? { resumeFrom, planApproved: true } : { planApproved: true },
+    )
   }, [run, isCurrentThread])
 
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在

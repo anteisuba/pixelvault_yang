@@ -715,6 +715,7 @@ export const NodeAssistantEditSetTimelineOpSchema = z.object({
 export const NodeAssistantEditAddClipOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editAddClip),
   track: z.enum(EDIT_TRACKS_TUPLE),
+  /** `clip.sourceNodeId` 也可以是同一批里 `add_node.ref` 的别名（剪辑台续拍）。 */
   clip: EditClipSchema,
   /** 插在第几位。省略 = 追加到尾（拖进空白处、「加入剪辑台」都是追加）。 */
   index: z.number().int().min(0).max(EDIT_TRACK_MAX_CLIPS).optional(),
@@ -748,7 +749,7 @@ export const NodeAssistantEditUpdateClipOpSchema = z.object({
     muted: z.boolean().optional(),
     transitionOut: z.enum(EDIT_TRANSITIONS_TUPLE).optional(),
     gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
-    /** 「上游已更新 → 一点换新」写的就是它。 */
+    /** 段换版（版本弹层）写的就是它：段播这一版。 */
     sourceVersionId: z.string().trim().min(1).max(160).optional(),
     /**
      * 挪一条台词（只对 A 轨有意义）：时间线秒。执行器丢掉旧挂点，按落点重新挂到

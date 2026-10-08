@@ -279,3 +279,34 @@ export async function notifyWorkerCancel(
     )
   }
 }
+
+/**
+ * 助手 LLM 调用的那一行日志转给 execution worker，存进 Workers Logs —— Vercel Hobby 的
+ * 运行时日志只留 1 小时（2026-10-08）。没配 worker 时什么都不做；失败照常抛，调用方吞掉。
+ */
+export async function sendLlmCallLogToWorker(
+  entry: Record<string, string | number | boolean | null | undefined>,
+): Promise<void> {
+  if (!isExecutionWorkerDispatchConfigured()) return
+  const body = JSON.stringify(entry)
+  const url = `${getWorkerBaseUrl()}${EXECUTION_WORKER.LLM_CALL_LOG_PATH}`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url,
+        secret: getInternalCallbackSecret(),
+      }),
+    },
+    body,
+    signal: AbortSignal.timeout(EXECUTION_WORKER.LLM_CALL_LOG_TIMEOUT_MS),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Execution worker log failed (${response.status})`)
+  }
+}

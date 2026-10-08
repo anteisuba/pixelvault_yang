@@ -42,6 +42,44 @@ function context() {
 const op = (value: Record<string, unknown>) => value as NodeAssistantOpV4
 
 describe('applyCanvasBatchV4', () => {
+  it('lets a timeline clip point at a card the same batch created (edit desk continue)', () => {
+    const withTimeline = {
+      ...STATE,
+      edit: {
+        name: '成片',
+        tracks: { video: [], audio: [], music: [], text: [] },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    } as typeof STATE
+    const batch = applyCanvasBatchV4(
+      withTimeline,
+      [
+        op({
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: NODE_MEDIA_KIND_IDS.video,
+          subtype: 'shot',
+          ref: 'shot',
+        }),
+        op({
+          op: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+          track: 'video',
+          clip: {
+            id: 'clip_placeholder',
+            sourceNodeId: 'shot',
+            in: 0,
+            out: 5,
+            speed: 1,
+            muted: false,
+          },
+        }),
+      ],
+      context(),
+    )
+    const shotId = batch.createdNodeIds[0]
+    expect(shotId).toBeDefined()
+    expect(batch.state.edit?.tracks.video[0]?.sourceNodeId).toBe(shotId)
+  })
+
   it('lets a later op in the batch reach a node an earlier op created', () => {
     const batch = applyCanvasBatchV4(
       STATE,

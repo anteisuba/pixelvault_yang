@@ -6352,7 +6352,30 @@
         "remove": "Delete"
       },
       "overview": "Whole cut",
-      "staleBadge": "Source updated",
+      "versions": {
+        "title": "Takes",
+        "hint": "{name} · hover to compare",
+        "take": "Take {n}",
+        "seconds": "{sec}s",
+        "fromCanvas": "Canvas",
+        "compareInUse": "In use",
+        "fresh": "{from} · new",
+        "badge": "Take {n}/{count}",
+        "badgeFresh": "Take {n}/{count} · a newer take is on the canvas"
+      },
+      "retake": {
+        "action": "Retake",
+        "generate": "Generate",
+        "generating": "Generating",
+        "previewGenerating": "Take {n} generating",
+        "failed": "Take {n} didn't come out: {reason}. Adjust the prompt and try again.",
+        "failedBadge": "Retake failed · open to see why"
+      },
+      "continue": {
+        "action": "Continue",
+        "pending": "Not generated yet",
+        "previewPending": "This shot has no take yet · write a prompt to generate it"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "Preview · {name}",
       "previewEmpty": "No clip under the playhead",
@@ -6437,6 +6460,7 @@
         "planError": {
           "emptyTimeline": "The timeline has no video yet — drag a video card in first.",
           "missingSource": "One clip's source is missing — check whether its source node is still there.",
+          "pendingSource": "One clip hasn't been generated yet (a continue placeholder) — generate it, or delete it, then export.",
           "emptyRange": "There is nothing to export in this range.",
           "zeroDuration": "The export would be zero seconds long.",
           "tooManySegments": "Too many clips to render — remove a few and try again.",

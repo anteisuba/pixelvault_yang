@@ -43,11 +43,17 @@ import {
   type EditTextAnchor,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { clipLocalTimeSec, currentUrlOf } from '@/lib/edit-project'
+import { clipLocalTimeSec } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditProject, EditTextClip } from '@/types/node-workflow'
+
+import {
+  TakeCompareOverlay,
+  type EditTakeCompareView,
+} from './EditDeskVersions'
 
 export interface EditDeskPreviewProps {
   readonly project: EditProject
@@ -59,6 +65,8 @@ export interface EditDeskPreviewProps {
   readonly playing: boolean
   /** 走带行那颗声音键。 */
   readonly muted: boolean
+  /** 这一段正在重拍（4b）：左上角写「第 n 版生成中」。`null` / 缺席 = 不在生成。 */
+  readonly generatingTake?: number | null
   onPlayingChange(playing: boolean): void
   /** 预览走到哪儿了 —— 推回整条时间线的秒数。 */
   onPlayheadChange(seconds: number): void
@@ -78,6 +86,10 @@ export interface EditDeskPreviewProps {
   onOpenMaterials?(): void
   /** V 轨上紧挨着这一段的前后两段：提前挂好、停在衔接的那一帧。 */
   readonly neighbors?: readonly EditTimelineRow[]
+  /**
+   * 版本弹层里鼠标停着的那一版（样片 W）：盖在画面上左右对比。缺席 = 不挂对比层（手机）。
+   */
+  readonly compare?: EditTakeCompareView | null
 }
 
 export interface PreviewTextEditing {
@@ -135,27 +147,22 @@ export function EditDeskPreview({
   durationSec,
   playing,
   muted,
+  generatingTake = null,
   onPlayingChange,
   onPlayheadChange,
   textClips,
   textEditing,
   onOpenMaterials,
   neighbors = [],
+  compare,
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
   /** 按 url 登记的那几只 `<video>`；当前那只 = 播放头这一段的 url。 */
   const videosRef = useRef(new Map<string, HTMLVideoElement>())
   /** 上一次 seek 还没落地时，最新那个目标先存着（拖播放头时不叠一串 seek）。 */
   const pendingSeekRef = useRef<number | null>(null)
-  const node = row?.source.node
-  const data = node?.data
   const url = row?.source.url
-  const poster = useVideoPoster(
-    node ? currentUrlOf(node) : undefined,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
-  )
+  const poster = useVideoPoster(url, row?.source.version?.thumbnailUrl)
 
   const activeVideo = useCallback(
     (): HTMLVideoElement | null =>
@@ -338,12 +345,14 @@ export function EditDeskPreview({
   return (
     <div
       data-testid="edit-desk-preview"
-      className="flex min-h-0 flex-1 items-center justify-center px-6 pb-2.5 pt-3.5"
+      // 黑井（换皮第一轮 B）：白舞台上只有放画面的这一块是黑的 —— 画面按比例居中，两侧
+      // 留下的就是黑边。固定明暗（ui-defaults §2.4 媒体 chrome 例外）。
       // 外层量尺寸：里面那只盒子用 `cqh` 按**预览区高**推宽，占满两个方向里先到顶的那个。
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-neutral-950"
       style={{ containerType: 'size' }}
     >
       <div
-        className="relative max-h-full max-w-full overflow-hidden rounded-lg bg-neutral-950 ring-1 ring-border"
+        className="relative max-h-full max-w-full overflow-hidden"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
         // ⚠ 盒子按预览区的高定尺寸：宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个
@@ -384,7 +393,12 @@ export function EditDeskPreview({
         })}
         {url ? null : (
           <div className="flex size-full items-center justify-center">
-            <p className="text-xs text-white/70">{t('previewEmpty')}</p>
+            <p className="text-xs text-white/70">
+              {/* 播放头下有段、来源卡还没片子（续拍的占位，4c）≠ 播放头下没有段。 */}
+              {row?.source.exists
+                ? t('continue.previewPending')
+                : t('previewEmpty')}
+            </p>
           </div>
         )}
         {/*
@@ -428,12 +442,31 @@ export function EditDeskPreview({
           </div>
         ))}
 
+        {compare !== undefined ? (
+          <TakeCompareOverlay compare={compare} playheadSec={playheadSec} />
+        ) : null}
+
+        {/* 左上：这一段在重拍（换皮第一轮 A：白底小转圈，界面不加颜色）。 */}
+        {generatingTake ? (
+          <span
+            data-testid="edit-desk-preview-generating"
+            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/95 pl-2 pr-3 text-xs leading-6 text-neutral-900"
+          >
+            <Spinner size="sm" aria-hidden />
+            {t('retake.previewGenerating', { n: generatingTake })}
+          </span>
+        ) : null}
+
         {/* 右上一枚「镜 n · 镜头名」。压在画面上的 chrome 固定明暗
             （ui-defaults §2.4 媒体 chrome 例外）。 */}
         {row ? (
           <span
             data-testid="edit-desk-shot-tag"
-            className="pointer-events-none absolute right-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 text-2xs leading-5.5 text-white"
+            className={cn(
+              'pointer-events-none absolute right-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 text-2xs leading-5.5 text-white transition-opacity duration-fast',
+              // 对比时右上那枚换成「第 n 版」。
+              compare && 'opacity-0',
+            )}
           >
             {t('shotTag', {
               n: row.index + 1,

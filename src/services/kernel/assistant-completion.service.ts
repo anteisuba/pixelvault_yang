@@ -1,6 +1,9 @@
 import 'server-only'
 
+import { after } from 'next/server'
+
 import { logger } from '@/lib/logger'
+import { sendLlmCallLogToWorker } from '@/services/execution-worker.service'
 import {
   isLlmTextContextLimitError,
   isLlmTextTransientError,
@@ -53,6 +56,7 @@ export interface AssistantLlmCallLog {
  * 每一次发出去的请求（含重发）打一行 `assistant llm call`：耗时、结果与 provider 自报的
  * token（助手花费排查 2026-10-08；口径见 `LlmTextUsage`）。⭐ 生产也打，只有数。
  * `usageReported: false` = 这家这次没报 token（失败、被掐、OpenAI 流式）。
+ * 同一行另发给 execution worker 存进 Workers Logs（Vercel 的只留 1 小时）。
  * ⚠ 字段名用复数 `*Tokens`：logger 会把以 `token` 结尾的字段当密钥脱敏。
  */
 function startCallLog(
@@ -66,7 +70,7 @@ function startCallLog(
       usage = next
     },
     finish(outcome: CallOutcome) {
-      logger.info('assistant llm call', {
+      const entry = {
         ...options.callLog,
         adapterType: options.route.adapterType,
         modelId: options.modelId ?? null,
@@ -75,8 +79,25 @@ function startCallLog(
         llmMs: Date.now() - startedAt,
         usageReported: usage !== null,
         ...usage,
-      })
+      }
+      logger.info('assistant llm call', entry)
+      shipCallLog(entry)
     },
+  }
+}
+
+/** ⛔ 不等、不抛：日志发不出去绝不能拖慢或弄坏这次回答。 */
+function shipCallLog(entry: Parameters<typeof sendLlmCallLogToWorker>[0]) {
+  const pending = sendLlmCallLogToWorker(entry).catch((error: unknown) => {
+    logger.warn('assistant llm call log not shipped', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  })
+  try {
+    // 最后一次调用的日志常在响应收尾时才发出，`after` 让函数等它发完再退。
+    after(() => pending)
+  } catch {
+    // 不在请求作用域里（脚本 / 测试）：已经发出去了，不必再等。
   }
 }
 

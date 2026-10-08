@@ -77,7 +77,6 @@ import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { RENDER_CROSSFADE_SEC } from '@/constants/render-video'
 import {
   clampTrim,
-  currentUrlOf,
   formatEditClock,
   isAttachmentCut,
   isPositionedTrack,
@@ -98,6 +97,7 @@ import type {
 } from '@/types/node-workflow'
 
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
+import { Spinner } from '@/components/ui/spinner'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 import { Slider } from '@/components/ui/slider'
 
@@ -107,6 +107,7 @@ import {
   parseEditDeskLibraryAsset,
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
+import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 import { EDIT_CLIP_FLASH_ATTRIBUTE, flashEditClips } from './edit-desk-flash'
 
 const G = EDIT_TIMELINE_GEOMETRY
@@ -598,7 +599,7 @@ export function EditDeskTimeline({
           aria-label={playing ? t('pause') : t('play')}
           onClick={() => onPlayingChange(!playing)}
           disabled={!canPlay}
-          className="grid size-8.5 shrink-0 place-items-center rounded-full bg-muted text-foreground transition-colors duration-fast hover:bg-accent disabled:opacity-50"
+          className="grid size-8.5 shrink-0 place-items-center rounded-full bg-foreground text-background transition duration-fast active:scale-96 disabled:opacity-40 motion-reduce:active:scale-100"
         >
           {playing ? (
             <Pause className="size-4" aria-hidden />
@@ -1020,13 +1021,9 @@ function OverviewClip({
   readonly left: string
   readonly width: string
 }) {
-  const node = row.source.node
-  const data = node?.data
   const poster = useVideoPoster(
-    node ? currentUrlOf(node) : undefined,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
+    row.source.url,
+    row.source.version?.thumbnailUrl,
   )
   return (
     <span
@@ -1663,12 +1660,21 @@ function ClipView({
   )
   const sourceName = readSourceName(row)
   const sourceData = row.source.node?.data
+  // 卡上记的时长是**当前版**的：段在用别的版时不拿它当裁剪上限。
   const sourceDurationSec =
+    !row.source.stale &&
     sourceData &&
     (sourceData.kind === NODE_MEDIA_KIND_IDS.video ||
       sourceData.kind === NODE_MEDIA_KIND_IDS.audio)
       ? sourceData.durationSec
       : undefined
+  const takes = isVideo && !gone ? readClipTakes(row) : null
+  /** 这一段在重拍（4b · 换皮第一轮 A）：生成中变淡去色 + 小转圈，失败黑虚线框 + 「!」。 */
+  const retake = isVideo ? desk.retakes.get(clip.id) : undefined
+  const generating = retake?.status === 'generating'
+  const failed = retake?.status === 'failed'
+  /** 来源卡还没有片子（续拍的占位段，4c）：虚线框，等新版落下来。 */
+  const pending = isVideo && !gone && !row.source.url
   const committedSpan = committed.clips.get(clip.id) ?? span
 
   /**
@@ -1938,7 +1944,7 @@ function ClipView({
           if (event.key === 'Enter') desk.select({ track, clipId: clip.id })
         }}
         className={cn(
-          'relative size-full cursor-grab touch-none select-none overflow-hidden transition-shadow duration-fast',
+          'group/clip relative size-full cursor-grab touch-none select-none overflow-hidden transition-shadow duration-fast',
           isVideo
             ? cn(
                 'rounded-md hover:ring-1 hover:ring-foreground/30',
@@ -1952,28 +1958,46 @@ function ClipView({
           hostId === clip.id &&
             'outline-2 outline-offset-1 outline-dashed outline-foreground',
           lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
+          pending &&
+            'outline-1 -outline-offset-1 outline-dashed outline-foreground/40',
+          failed &&
+            'outline-2 -outline-offset-2 outline-dashed outline-foreground',
         )}
       >
         {isVideo ? (
-          <ClipFilmstrip row={row} shown={shown} widthPx={widthPx} />
+          <ClipFilmstrip
+            row={row}
+            shown={shown}
+            widthPx={widthPx}
+            dimmed={generating}
+          />
         ) : isMusic ? (
           <MusicWave row={row} widthPx={widthPx} />
         ) : null}
 
         {isVideo ? (
           gone ? (
-            <span className="absolute left-2 top-1 truncate text-2xs text-status-risk">
+            <span className="absolute left-2 top-1 truncate text-2xs text-muted-foreground">
               {t('inspector.sourceGone')}
             </span>
           ) : (
-            // 压在画面上的读数：固定明暗（ui-defaults §2.4 媒体 chrome 例外）。
-            <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/65 px-1.5 text-2xs leading-4 text-white">
+            // 压在画面上的白标签（固定明暗，ui-defaults §2.4 媒体 chrome 例外）。换皮第一轮 B：
+            // 名字只在悬停 / 选中时出来，主线平时只有画面。
+            <span
+              data-testid={`edit-desk-clip-name-${clip.id}`}
+              className={cn(
+                'pointer-events-none absolute left-1.5 top-1 z-10 max-w-3/4 truncate rounded-sm bg-white/90 px-1.5 text-2xs leading-4 text-neutral-800 transition duration-fast',
+                selected
+                  ? 'opacity-100 blur-none'
+                  : 'opacity-0 blur-xs group-hover/clip:opacity-100 group-hover/clip:blur-none',
+              )}
+            >
               <b className="mr-1 font-semibold">{row.index + 1}</b>
               {sourceName}
             </span>
           )
         ) : isMusic ? (
-          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate rounded-sm bg-neutral-950/55 px-1.5 text-3xs leading-4 text-muted-foreground">
+          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate text-3xs leading-4 text-muted-foreground">
             {sourceName}
           </span>
         ) : (
@@ -1993,19 +2017,72 @@ function ClipView({
           />
         ) : null}
 
-        {row.source.stale ? (
+        {pending && !generating ? (
+          <span
+            data-testid={`edit-desk-pending-${clip.id}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-1/2 whitespace-nowrap text-2xs text-muted-foreground"
+          >
+            {t('continue.pending')}
+          </span>
+        ) : null}
+
+        {generating ? (
+          <span
+            data-testid={`edit-desk-retaking-${clip.id}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-white py-0.5 pl-1.5 pr-2 text-2xs leading-4 text-neutral-900"
+          >
+            <Spinner size="sm" aria-hidden />
+            {t('retake.generating')}
+          </span>
+        ) : null}
+
+        {failed ? (
+          // 重拍失败：点「!」= 选中这一段并升起它的重拍栏（栏顶写原因）。
           <button
             type="button"
-            data-testid={`edit-desk-stale-${clip.id}`}
+            data-testid={`edit-desk-retake-failed-${clip.id}`}
+            aria-label={t('retake.failedBadge')}
+            title={t('retake.failedBadge')}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation()
-              desk.refreshClipSource(track, clip.id)
+              desk.openRetake(track, clip.id)
             }}
-            className="absolute right-1.5 top-1 z-10 rounded-sm bg-primary px-1.5 text-3xs leading-4 text-primary-foreground"
+            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-foreground font-mono text-3xs font-bold text-background animate-in fade-in duration-200"
           >
-            {t('staleBadge')}
+            !
           </button>
+        ) : takes && (takes.count > 1 || takes.fresh) ? (
+          // 段角版本读数（关键切片 `.cl-take`）：压在画面上，固定明暗（ui-defaults §2.4）。
+          <EditClipVersionsPopover
+            desk={desk}
+            row={row}
+            track={track}
+            align="end"
+          >
+            <button
+              type="button"
+              data-testid={`edit-desk-takes-${clip.id}`}
+              aria-label={t(
+                takes.fresh ? 'versions.badgeFresh' : 'versions.badge',
+                { n: takes.n, count: takes.count },
+              )}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                desk.select({ track, clipId: clip.id })
+              }}
+              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-white/90 px-1.5 font-mono text-3xs leading-4 tabular-nums text-neutral-800 transition-colors duration-fast hover:bg-white"
+            >
+              {takes.n}/{takes.count}
+              {takes.fresh ? (
+                <span
+                  aria-hidden
+                  className="size-1.25 rounded-full bg-current"
+                />
+              ) : null}
+            </button>
+          </EditClipVersionsPopover>
         ) : null}
 
         <TrimHandle
@@ -2099,7 +2176,8 @@ function SeamMark({
         <span
           aria-hidden
           className={cn(
-            'pointer-events-none absolute z-5 border-x border-foreground/25 bg-linear-to-r from-transparent via-foreground/20 to-transparent',
+            // 白纱 + 两侧虚线（换皮：界面不用渐变、不发光）：宽 = 两段重叠的秒数。
+            'pointer-events-none absolute z-5 border-x border-dashed border-white/80 bg-white/35',
             animate && 'transition-magnetic',
             hidden && 'opacity-0',
           )}
@@ -2148,8 +2226,8 @@ function SeamMark({
           'absolute z-10 rotate-45 rounded-xs ring-2 ring-background',
           'after:absolute after:-inset-2 after:content-[""]',
           current === EDIT_TRANSITION_IDS.none
-            ? 'border border-input bg-muted'
-            : 'bg-foreground/80',
+            ? 'border border-foreground bg-background'
+            : 'bg-foreground',
           animate && 'transition-magnetic',
           over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
           hidden && 'opacity-0',
@@ -2239,20 +2317,16 @@ function ClipFilmstrip({
   row,
   shown,
   widthPx,
+  dimmed = false,
 }: {
   readonly row: EditTimelineRow
   readonly shown: { readonly in: number; readonly out: number }
   readonly widthPx: number
+  /** 重拍生成中：变淡去色（换皮第一轮 A）。 */
+  readonly dimmed?: boolean
 }) {
-  const node = row.source.node
-  const data = node?.data
-  const url = node ? currentUrlOf(node) : undefined
-  const poster = useVideoPoster(
-    url,
-    data && data.kind === NODE_MEDIA_KIND_IDS.video
-      ? data.videoThumbnailUrl
-      : undefined,
-  )
+  const url = row.source.url
+  const poster = useVideoPoster(url, row.source.version?.thumbnailUrl)
   const frameWidthPx = (G.videoPx * 16) / 9
   const count = Math.min(
     EDIT_DESK_CLIP_FRAME_MAX,
@@ -2272,7 +2346,13 @@ function ClipFilmstrip({
   })
   if (frames.every((frame) => !frame)) return null
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 flex">
+    <div
+      aria-hidden
+      className={cn(
+        'pointer-events-none absolute inset-0 flex transition duration-base',
+        dimmed && 'opacity-45 grayscale',
+      )}
+    >
       {frames.map((frame, index) => (
         <span
           key={index}
@@ -2292,8 +2372,7 @@ function MusicWave({
   readonly row: EditTimelineRow
   readonly widthPx: number
 }) {
-  const node = row.source.node
-  const url = node ? currentUrlOf(node) : undefined
+  const url = row.source.url
   return (
     <div
       aria-hidden

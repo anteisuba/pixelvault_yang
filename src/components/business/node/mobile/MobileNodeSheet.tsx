@@ -13,7 +13,7 @@
  * ⛔ 这里不写第二条手机分支。
  */
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { Drawer as DrawerPrimitive } from 'vaul'
@@ -53,10 +53,6 @@ import { useImagePromptMentions } from '../nodes/v4/image/use-image-prompt-menti
 import { useImageRefBinding } from '../nodes/v4/image/use-image-ref-binding'
 import { TextAssistantBar } from '../nodes/v4/text/TextAssistantBar'
 import { useNodeV4Canvas } from '../nodes/v4/NodeV4Context'
-import {
-  buildMentionCandidates,
-  buildMentionTokens,
-} from '../nodes/v4/NodeV4Mentions'
 import { useVideoComposer } from '../nodes/v4/video/use-video-composer'
 import { VideoRefRail } from '../nodes/v4/video/VideoRefRail'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -75,65 +71,15 @@ export interface MobileNodeSheetProps {
 function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
-  const canvas = useNodeV4Canvas()
   const data = node.data as NodeV4VideoData
   const displayName = isShotNode(node)
     ? formatShotDisplayName(data.label ?? data.name, data.shotNo)
     : data.name
 
-  const tokens = useMemo(
-    () => buildMentionTokens(canvas.nodes, node.id),
-    [canvas.nodes, node.id],
-  )
-  const candidates = useMemo(
-    () =>
-      buildMentionCandidates(canvas.nodes, node.id, (item) =>
-        t(`mentionGroups.${item.data.kind}`),
-      ),
-    [canvas.nodes, node.id, t],
-  )
-  const mediaOf = useMemo(() => {
-    const byName = new Map<
-      string,
-      {
-        kind: 'image' | 'video' | 'audio' | 'text'
-        thumbnailUrl?: string
-        videoUrl?: string
-      }
-    >()
-    for (const item of canvas.nodes) {
-      const itemData = item.data
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.text) continue
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.audio) {
-        byName.set(itemData.name, { kind: 'audio' })
-        continue
-      }
-      // ⚠ 视频的 `url` 是 mp4：封面走 `videoThumbnailUrl`，片子只给第一帧兜底用。
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.video) {
-        byName.set(itemData.name, {
-          kind: 'video',
-          ...(itemData.videoThumbnailUrl
-            ? { thumbnailUrl: itemData.videoThumbnailUrl }
-            : {}),
-          ...(itemData.url ? { videoUrl: itemData.url } : {}),
-        })
-        continue
-      }
-      byName.set(itemData.name, {
-        kind: 'image',
-        ...(itemData.url ? { thumbnailUrl: itemData.url } : {}),
-      })
-    }
-    return (name: string) => byName.get(name)
-  }, [canvas.nodes])
-
   const composer = useVideoComposer({
     id: node.id,
     videoData: data,
     displayName,
-    tokens,
-    candidates,
-    mediaOf,
   })
 
   return (

@@ -893,6 +893,74 @@ describe('剪辑台那一块（v2 第 2 片）', () => {
     ).toBe(true)
   })
 
+  it('adds the take a clip still uses when it is not the card current one (4a)', () => {
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test.com')
+    const base = videoNode('v1', 4)
+    const v1 = {
+      ...base,
+      data: {
+        ...base.data,
+        url: 'https://cdn.test.com/new.mp4',
+        outputs: {
+          versions: [
+            {
+              id: 'ver1',
+              url: 'https://cdn.test.com/old.mp4',
+              createdAt: '2026-10-07T00:00:00.000Z',
+            },
+            {
+              id: 'ver2',
+              url: 'https://cdn.test.com/new.mp4',
+              createdAt: '2026-10-07T00:00:00.000Z',
+            },
+          ],
+          cur: 1,
+        },
+      },
+    } as NodeV4
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [v1],
+      edges: [],
+      currentShotNo: null,
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'old',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+            {
+              id: 'new',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver2',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    })
+    expect(snapshot.editDesk?.videoUrls).toEqual([
+      { nodeId: 'v1', url: 'https://cdn.test.com/new.mp4' },
+      { nodeId: 'v1', clipId: 'old', url: 'https://cdn.test.com/old.mp4' },
+    ])
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
   it('leaves the block out when nothing can be cut', () => {
     const snapshot = buildCanvasOperatorSnapshot({
       nodes: [imageNode('i1', 1)],

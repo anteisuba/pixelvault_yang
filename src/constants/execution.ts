@@ -72,6 +72,9 @@ export const EXECUTION_WORKER = {
   CANCEL_PATH: '/cancel',
   /** Short timeout for the best-effort cancel notify — the DB-side cancel has already succeeded by the time this fires. */
   CANCEL_TIMEOUT_MS: 5_000,
+  /** 助手 LLM 调用日志：app → worker，写进 Workers Logs（留 7 天）。 */
+  LLM_CALL_LOG_PATH: '/logs/llm-call',
+  LLM_CALL_LOG_TIMEOUT_MS: 5_000,
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,

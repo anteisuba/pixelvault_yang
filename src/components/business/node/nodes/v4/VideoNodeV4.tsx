@@ -32,7 +32,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Camera,
   Download,
@@ -52,7 +52,7 @@ import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { NODE_V4_CARD } from '@/constants/node-studio'
-import { VIDEO_RAIL_GROUP_IDS, VIDEO_RAIL_GROUPS } from '@/lib/video-node-rail'
+import { VIDEO_RAIL_GROUP_IDS } from '@/lib/video-node-rail'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -84,7 +84,6 @@ import {
 } from './chrome'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
-import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
@@ -92,18 +91,15 @@ import { VideoPlayer } from './video/VideoPlayer'
 import { VideoRefRail } from './video/VideoRefRail'
 import { VideoScriptShotBadge } from './video/VideoScriptShotChips'
 import { useVideoComposer } from './video/use-video-composer'
+import { useVideoContinue } from './video/use-video-continue'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import {
   formatVideoSeconds,
   formatVideoClock,
   videoCardHeight,
-  videoContinueSourceHandle,
 } from './video/video-node-model'
 import { useNodeCanvasActions } from './NodeV4ActionsBridge'
 import { CharacterMentionRail } from './character/CharacterMentionRail'
-
-/** 「续拍」那一批里的两个别名（只在这一批之内有效）。 */
-const CONTINUE_BATCH_REFS = { tail: 'tail', shot: 'shot' } as const
 
 export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
@@ -115,6 +111,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const tCapture = useTranslations('VideoAnalysis')
   const canvas = useNodeV4Canvas()
   const frames = useVideoReferenceSlots()
+  const continueVideo = useVideoContinue(frames)
   /** ⋯「加入剪辑台」的出口（模式不是 op，见 `NodeV4ActionsBridge`）。 */
   const { openEditDesk } = useNodeCanvasActions()
   const videoData = data as unknown as NodeV4VideoData
@@ -149,53 +146,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   /** 画中框与快速看的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
   const cardRef = useRef<HTMLDivElement>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
-  const tokens = useMemo(
-    () => buildMentionTokens(canvas.nodes, id),
-    [canvas.nodes, id],
-  )
-  const candidates = useMemo(
-    () =>
-      buildMentionCandidates(canvas.nodes, id, (item) =>
-        t(`mentionGroups.${item.data.kind}`),
-      ),
-    [canvas.nodes, id, t],
-  )
-
-  const mediaOf = useMemo(() => {
-    const byName = new Map<
-      string,
-      {
-        kind: 'image' | 'video' | 'audio' | 'text'
-        thumbnailUrl?: string
-        videoUrl?: string
-      }
-    >()
-    for (const item of canvas.nodes) {
-      const itemData = item.data
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.text) continue
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.audio) {
-        byName.set(itemData.name, { kind: 'audio' })
-        continue
-      }
-      // ⚠ 视频的 `url` 是 mp4：封面走 `videoThumbnailUrl`，片子只给第一帧兜底用。
-      if (itemData.kind === NODE_MEDIA_KIND_IDS.video) {
-        byName.set(itemData.name, {
-          kind: 'video',
-          ...(itemData.videoThumbnailUrl
-            ? { thumbnailUrl: itemData.videoThumbnailUrl }
-            : {}),
-          ...(itemData.url ? { videoUrl: itemData.url } : {}),
-        })
-        continue
-      }
-      byName.set(itemData.name, {
-        kind: 'image',
-        ...(itemData.url ? { thumbnailUrl: itemData.url } : {}),
-      })
-    }
-    return (name: string) => byName.get(name)
-  }, [canvas.nodes])
-
   const displayName =
     videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       ? formatShotDisplayName(videoData.label, videoData.shotNo)
@@ -221,7 +171,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     cancelGeneration,
     railProps,
     railItems,
-    railCandidatesOf,
+    canvasCandidates,
     paramsChip,
     modelChip,
     audioToggle,
@@ -251,9 +201,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     id,
     videoData,
     displayName,
-    tokens,
-    candidates,
-    mediaOf,
   })
   const frameKey = JSON.stringify([
     videoData.url ?? '',
@@ -312,41 +259,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   }, [railMountState.animate])
 
   if (!node) return null
-
-  const canvasCandidates = acceptsRefs
-    ? VIDEO_RAIL_GROUPS.flatMap((group) => {
-        const limit =
-          group === VIDEO_RAIL_GROUP_IDS.image
-            ? railProps.capacity.images
-            : group === VIDEO_RAIL_GROUP_IDS.video
-              ? railProps.capacity.videos
-              : railProps.capacity.voices
-        const occupied =
-          railItems.filter((item) => item.group === group).length +
-          (railProps.pending?.filter(
-            (item) => item.group === group && !item.error,
-          ).length ?? 0)
-        return railCandidatesOf(group).map((candidate) => {
-          const attached = railItems.some(
-            (item) => item.sourceNodeId === candidate.id,
-          )
-          const blockedReason =
-            !attached &&
-            railProps.referenceUnavailable &&
-            group !== VIDEO_RAIL_GROUP_IDS.image
-              ? tVideo('rail.referenceUnavailable')
-              : !attached && limit !== null && occupied >= limit
-                ? tVideo('rail.full', { limit })
-                : undefined
-          return {
-            ...candidate,
-            group,
-            attached,
-            ...(blockedReason ? { blockedReason } : {}),
-          }
-        })
-      })
-    : []
 
   const expanded = canvas.expandedNodeId === id
   const showChrome =
@@ -421,58 +333,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const reportCaptureFailure = (reasonKey: string) =>
     toast.error(tCapture(`captureReason.${reasonKey}` as never))
 
-  /** 续拍：抓这一段的末帧 → 落成一张图 → 当下一段的首帧。 */
+  /** 续拍：抓这一段的末帧 → 落成一张图 → 当下一段的首帧（与剪辑台同一个动作）。 */
   const runContinue = async () => {
     if (!videoData.url) return
-    const grabbed = await frames.captureLastFrame(videoData.url, displayName)
-    if (!grabbed.ok) {
-      reportCaptureFailure(grabbed.reasonKey)
-      return
-    }
-    // 末帧 → 下一镜排成一行，落在本卡右边第一个空位（§7 摆放 A「让位」）。
-    const [tailAt, shotAt] =
-      canvas.onPlaceBeside(id, [
-        {
-          kind: NODE_MEDIA_KIND_IDS.image,
-          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
-        },
-        {
-          kind: NODE_MEDIA_KIND_IDS.video,
-          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-        },
-      ]) ?? []
-    const outcome = await canvas.onApplyBatch([
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-        kind: NODE_MEDIA_KIND_IDS.image,
-        subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
-        ref: CONTINUE_BATCH_REFS.tail,
-        name: tVideo('tailFrameName', { name: displayName }),
-        ...(tailAt ? { position: tailAt } : {}),
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-        kind: NODE_MEDIA_KIND_IDS.video,
-        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-        ref: CONTINUE_BATCH_REFS.shot,
-        ...(shotAt ? { position: shotAt } : {}),
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: CONTINUE_BATCH_REFS.tail,
-        target: CONTINUE_BATCH_REFS.shot,
-        slot: NODE_SLOT_IDS.firstFrame,
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: id,
-        sourceHandle: videoContinueSourceHandle(videoData.subtype),
-        target: CONTINUE_BATCH_REFS.shot,
-        slot: NODE_SLOT_IDS.reference,
-      },
-    ])
-    const tailId = outcome?.createdNodeIds?.[0]
-    if (tailId) backfillMedia(tailId, { url: grabbed.url })
+    await continueVideo({
+      nodeId: id,
+      subtype: videoData.subtype,
+      url: videoData.url,
+      displayName,
+    })
   }
 
   /**

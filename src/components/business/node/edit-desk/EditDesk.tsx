@@ -52,6 +52,7 @@ import {
   EDIT_AUDIO_FILTER_IDS,
   EDIT_PANEL_IDS,
   EDIT_RECEIPT_MOTION,
+  EDIT_RETAKE_MOTION,
   EDIT_SHORTCUT_SPLIT_CODE,
   EDIT_TRACK_IDS,
   type EditAudioFilterId,
@@ -87,6 +88,7 @@ import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
 import { EditDeskReceipt, type EditDeskReceiptState } from './EditDeskReceipt'
 import { EditDeskRenderStatus, EditDeskResumeStatus } from './EditDeskRenderBar'
+import { EditDeskRetakeBar } from './EditDeskRetakeBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
 import { flashEditClips } from './edit-desk-flash'
@@ -214,6 +216,10 @@ export function EditDesk({
     mintId,
     defaultTimelineName: t('untitled'),
     defaultTextBody: t('text.placeholder'),
+    onRetakeLanded: (clipId) =>
+      window.requestAnimationFrame(() =>
+        flashEditClips([clipId], EDIT_RETAKE_MOTION.landFlashMs),
+      ),
   })
   const { preset: shortcutPreset, setPreset: setShortcutPreset } =
     useEditShortcutPreset()
@@ -302,7 +308,15 @@ export function EditDesk({
   }
 
   /* ── 快捷键 ───────────────────────────────────────────────────────── */
-  const { markIn, markOut, removeSelected, splitAtPlayhead, setPlayhead } = desk
+  const {
+    markIn,
+    markOut,
+    removeSelected,
+    splitAtPlayhead,
+    setPlayhead,
+    retakeClipId,
+    closeRetake,
+  } = desk
   const playheadSec = desk.playheadSec
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -323,7 +337,11 @@ export function EditDesk({
 
       if (event.key === 'Escape') {
         event.preventDefault()
-        // Esc 梯：先收飞出来的素材面板，再回画布。
+        // Esc 梯：先收重拍栏，再收飞出来的素材面板，再回画布。
+        if (retakeClipId) {
+          closeRetake()
+          return
+        }
         if (materialsOpen) {
           setMaterialsOpen(false)
           return
@@ -395,6 +413,8 @@ export function EditDesk({
     setPlayhead,
     shortcutPreset,
     materialsOpen,
+    retakeClipId,
+    closeRetake,
     onExit,
     onUndo,
   ])
@@ -691,6 +711,24 @@ export function EditDesk({
   )
   const videoRows = desk.rows[EDIT_TRACK_IDS.video]
   const previewRow = videoRows[previewIndex] ?? null
+  const retakeRow = retakeClipId
+    ? (videoRows.find((row) => row.clip.id === retakeClipId) ?? null)
+    : null
+  /** 版本弹层里停在另一版上：大预览左右对比（样片 W）。 */
+  const compareRow = desk.compare
+    ? (desk.rows[desk.compare.track].find(
+        (row) => row.clip.id === desk.compare?.clipId,
+      ) ?? null)
+    : null
+  const compareView =
+    compareRow && desk.compare
+      ? { row: compareRow, index: desk.compare.index }
+      : null
+  /** 播放头这一段正在重拍：预览左上角写「第 n 版生成中」。 */
+  const previewRetakeTake =
+    previewRow && desk.retakes.get(previewRow.clip.id)?.status === 'generating'
+      ? (previewRow.source.version?.count ?? 0) + 1
+      : null
   const previewNeighbors = useMemo(
     () =>
       previewIndex < 0
@@ -710,11 +748,10 @@ export function EditDesk({
       className="fixed inset-0 z-canvas-workspace flex"
     >
       {/*
-        暗场（v2 第 3 片，owner 2026-10-08 选 B「调色台 · 全暗中性」）：台面整块套全站
-        `.dark` 档，零色偏 —— 看色调和亮度要暗底。⚠ `dark` 只套在台面这一层：助手面板
-        （下面那个 `{assistant}`）在作用域外，保持浅色（owner 同日定）。
+        白台面（owner 2026-10-08 下午改方向，跟素材页换皮一致）：白底、中性灰、黑字，只有
+        作品有颜色；放画面的那一块是黑的（预览里的黑井），其余都白。
       */}
-      <div className="dark flex min-w-0 flex-1 flex-col bg-background text-foreground">
+      <div className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
         <EditDeskTopBar
           project={desk.project}
           durationSec={desk.durationSec}
@@ -777,11 +814,12 @@ export function EditDesk({
             style={{ paddingRight: operatorYield }}
             className="flex min-w-0 flex-1 flex-col"
           >
-            {/* 黑舞台：预览按高度居中（助手开合时预览不变大小）。 */}
+            {/* 白舞台，放画面的那一块是黑井（预览里画）；预览按高度居中（助手开合时
+                  预览不变大小）。 */}
             <section
               data-testid="edit-desk-stage"
               aria-label={t('stage')}
-              className="relative flex min-h-0 flex-1 flex-col bg-surface-workbench"
+              className="relative flex min-h-0 flex-1 flex-col bg-background p-3.5"
             >
               {/* 素材面板从左列那颗图标处长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
                   为止（⛔ 不盖时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。
@@ -835,6 +873,7 @@ export function EditDesk({
               <EditDeskPreview
                 project={desk.project}
                 row={previewRow}
+                generatingTake={previewRetakeTake}
                 neighbors={previewNeighbors}
                 playheadSec={desk.playheadSec}
                 durationSec={desk.durationSec}
@@ -846,6 +885,7 @@ export function EditDesk({
                 {...(readOnly
                   ? {}
                   : {
+                      compare: compareView,
                       onOpenMaterials: () => {
                         setActivePanel(EDIT_PANEL_IDS.canvas)
                         setMaterialsOpen(true)
@@ -859,6 +899,17 @@ export function EditDesk({
                       },
                     })}
               />
+              {/* 就地重拍栏：从段上长出来，停在预览下方（4b）。 */}
+              <AnimatePresence>
+                {!readOnly && retakeRow ? (
+                  <EditDeskRetakeBar
+                    key={retakeRow.clip.id}
+                    desk={desk}
+                    row={retakeRow}
+                    track={EDIT_TRACK_IDS.video}
+                  />
+                ) : null}
+              </AnimatePresence>
             </section>
 
             <EditDeskTimeline
@@ -875,6 +926,7 @@ export function EditDesk({
                   desk={desk}
                   onBackToNode={onBackToNode}
                   onEditText={startEditText}
+                  {...(readOnly ? {} : { mintId })}
                 />
               }
             />

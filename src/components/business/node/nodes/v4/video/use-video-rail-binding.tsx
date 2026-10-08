@@ -35,7 +35,10 @@ import {
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowModelSelection } from '@/types/node-workflow'
 
-import { useNodeV4Canvas } from '../NodeV4Context'
+import {
+  useNodeV4Canvas,
+  type NodeV4CanvasContextValue,
+} from '../NodeV4Context'
 import { videoNodeAcceptsReferences } from './video-node-model'
 import type { VideoRailPendingItem, VideoRefRailProps } from './VideoRefRail'
 
@@ -115,6 +118,29 @@ export interface VideoRailBinding {
   readonly overlays: ReactNode
 }
 
+/**
+ * 一批 op **之后**的媒体回填：等那张刚建的卡出现在图上再写（最多等 10 帧）。
+ *
+ * ⚠ `getCanvas` 要取**批之后**那份 `canvas`：`onSetMedia` 闭包着调用时的图，拿批之前
+ * 那份写回去，等于把刚建出来的卡与边一起抹掉（2026-09-10 真机实测：素材库落卡后节点
+ * 凭空消失）。参考轨落卡与续拍落末帧（`use-video-continue`）都走这一条。
+ */
+export function backfillWhenPresent(
+  getCanvas: () => Pick<NodeV4CanvasContextValue, 'nodes' | 'onSetMedia'>,
+  nodeId: string,
+  patch: { readonly url: string },
+): void {
+  const step = (attempt: number): void => {
+    const fresh = getCanvas()
+    if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
+      fresh.onSetMedia(nodeId, patch)
+      return
+    }
+    requestAnimationFrame(() => step(attempt + 1))
+  }
+  step(0)
+}
+
 export function useVideoRailBinding({
   id,
   displayName,
@@ -157,25 +183,10 @@ export function useVideoRailBinding({
     latest.current = { upload, canvas, id, name: displayName }
   })
 
-  /**
-   * 一批 op **之后**的媒体回填。
-   *
-   * ⚠ 必须用**批之后**那份 `canvas`：`onSetMedia` 闭包着调用时的图，拿批之前那
-   * 份写回去，等于把刚建出来的卡与边一起抹掉（2026-09-10 真机实测：素材库落卡
-   * 后节点凭空消失）。
-   */
+  /** 一批 op **之后**的媒体回填（`backfillWhenPresent`，取最新那份 `canvas`）。 */
   const backfillMedia = useCallback(
-    (nodeId: string, patch: { readonly url: string }) => {
-      const step = (attempt: number): void => {
-        const fresh = latest.current.canvas
-        if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
-          fresh.onSetMedia(nodeId, patch)
-          return
-        }
-        requestAnimationFrame(() => step(attempt + 1))
-      }
-      step(0)
-    },
+    (nodeId: string, patch: { readonly url: string }) =>
+      backfillWhenPresent(() => latest.current.canvas, nodeId, patch),
     [],
   )
 

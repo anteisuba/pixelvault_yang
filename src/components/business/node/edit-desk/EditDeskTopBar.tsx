@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 剪辑台顶栏（v2 暗场，owner 2026-10-08 选 B · 关键切片 `JtN1ur…`）：一条通栏 `h-12`、
+ * 剪辑台顶栏（v2 第 3 片 · 关键切片 `JtN1ur…`；10-08 换白台面）：一条通栏 `h-12`、
  * 底边一道线 —— 左边 **回画布 · 成片名（可改）· 读数 / 导出进度**，正中是**回执**
  * （永远只有一条，见 `EditDeskReceipt`），右边 **撤销 · 快捷键 · 导出**，最右那一格
  * 留给助手头像（`EDIT_DESK_OPERATOR_ANCHOR` 按这条栏的高与内边距算）。
@@ -211,12 +211,11 @@ function ShortcutPresetPopover({
           <Keyboard className="size-4" aria-hidden />
         </button>
       </PopoverTrigger>
-      {/* 弹层传送到 body：自己带 `dark`，⛔ 在暗台上弹一块白的。 */}
       <PopoverContent
         align="end"
         data-testid="edit-desk-shortcuts-popover"
         style={{ width: EDIT_SHORTCUT_POPOVER_WIDTH_PX }}
-        className="dark flex flex-col gap-2.5 p-3"
+        className="flex flex-col gap-2.5 p-3"
       >
         <LiquidSegmented
           ariaLabel={t('title')}

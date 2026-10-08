@@ -38,6 +38,69 @@ const fetchGalleryImages = vi.fn(async () => ({
 vi.mock('@/lib/api-client', () => ({
   fetchGalleryImages: () => fetchGalleryImages(),
 }))
+/**
+ * 重拍栏本身是画布卡那条提示词栏（要整套画布上下文，视频卡那组测试已测）。这里桩成两颗
+ * 键，只看台面这一侧：发起 → 段上生成中 → 落版自动换上 / 失败描红。
+ */
+vi.mock('./EditDeskRetakeBar', () => ({
+  EditDeskRetakeBar: ({
+    desk,
+    row,
+    track,
+  }: {
+    readonly desk: import('@/hooks/node/use-edit-desk').EditDesk
+    readonly row: import('@/lib/edit-project').EditTimelineRow
+    readonly track: import('@/constants/edit-desk').EditTrackId
+  }) => (
+    <div data-testid="retake-bar-stub" data-clip={row.clip.id}>
+      <button
+        type="button"
+        data-testid="retake-bar-send"
+        onClick={() => {
+          desk.beginRetake(track, row.clip.id)
+          desk.closeRetake()
+        }}
+      />
+      <button
+        type="button"
+        data-testid="retake-bar-blocked"
+        onClick={() => {
+          desk.beginRetake(track, row.clip.id)
+          desk.closeRetake()
+          desk.settleRetake(row.clip.id, { status: 'notSent' })
+        }}
+      />
+    </div>
+  ),
+}))
+/** 版本弹层会去量每一版多长 —— jsdom 里 `<video>` 不出元数据，直接答「量不出来」。 */
+const probeDuration = vi.fn(async (): Promise<number | null> => null)
+vi.mock('@/lib/media-probe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/media-probe')>()),
+  probeMediaDuration: () => probeDuration(),
+}))
+
+/**
+ * 续拍那一批（截末帧 + 建卡 + 连线）是画布卡同一个动作，视频卡那组测试已测。这里只看
+ * 剪辑台托它带上的那一段占位：插在哪、截到哪一秒、之后栏升在哪一段上。
+ */
+const continueVideo = vi.fn<
+  (
+    input: import('../nodes/v4/video/use-video-continue').VideoContinueInput,
+  ) => Promise<{ shotId: string } | null>
+>(async () => ({ shotId: 'shot_new' }))
+vi.mock('../nodes/v4/video/use-video-continue', () => ({
+  VIDEO_CONTINUE_REFS: { tail: 'tail', shot: 'shot' },
+  useVideoContinue: () => continueVideo,
+}))
+vi.mock('@/hooks/node/use-video-reference-slots', () => ({
+  useVideoReferenceSlots: () => ({
+    grabbing: null,
+    uploadError: null,
+    captureLastFrame: vi.fn(),
+    captureCurrentFrame: vi.fn(),
+  }),
+}))
 
 import messages from '@/messages/zh.json'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -338,6 +401,28 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.speed).toBe(2)
   })
 
+  it('主线段平时只有画面，名字只在选中（或悬停）时出来（换皮第一轮 B）', () => {
+    renderDesk(emptyState)
+    openMaterials()
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v2'))
+    const [first, second] = screen
+      .getAllByTestId(/^edit-desk-clip-name-/)
+      .map((element) =>
+        element.dataset.testid?.replace('edit-desk-clip-name-', ''),
+      )
+    expect(screen.getByTestId(`edit-desk-clip-name-${first}`)).toHaveClass(
+      'opacity-0',
+    )
+    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${first}`))
+    expect(screen.getByTestId(`edit-desk-clip-name-${first}`)).toHaveClass(
+      'opacity-100',
+    )
+    expect(screen.getByTestId(`edit-desk-clip-name-${second}`)).toHaveClass(
+      'opacity-0',
+    )
+  })
+
   it('转场三档从属性行落回段上', () => {
     const { read } = renderDesk(emptyState)
     openMaterials()
@@ -460,8 +545,8 @@ describe('剪辑台 · 台面', () => {
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
   })
 
-  it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {
-    const staleState: NodeWorkflowStateV4 = {
+  it('段播自己钉住的那一版；画布换了版只亮一个点，在版本弹层里换（4a）', async () => {
+    const pinnedState: NodeWorkflowStateV4 = {
       version: 4,
       nodes: [
         videoNode('v1', {
@@ -494,11 +579,380 @@ describe('剪辑台 · 台面', () => {
         settings: { aspect: '16:9', resolution: '1080p' },
       },
     }
-    const { read } = renderDesk(staleState)
-    const badge = screen.getByTestId('edit-desk-stale-c1')
+    const { read } = renderDesk(pinnedState)
+    const sources = () =>
+      [...document.querySelectorAll('video')].map((video) =>
+        video.getAttribute('src'),
+      )
+    // 卡的当前版是 b，段钉的是 a：预览播 a
+    expect(sources()).toContain('https://example.test/a.mp4')
+    expect(sources()).not.toContain('https://example.test/b.mp4')
+
+    const badge = screen.getByTestId('edit-desk-takes-c1')
+    expect(badge).toHaveTextContent('1/2')
+    expect(badge).toHaveAccessibleName('版本 1/2 · 画布上换了新版')
+
     fireEvent.click(badge)
+    expect(screen.getByTestId('edit-desk-versions')).toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-version-1')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByTestId('edit-desk-version-2')).toHaveTextContent(
+      '画布 · 新',
+    )
+
+    // 点下去对勾立刻挪过去，弹层停一会儿再收（换皮第二轮）
+    fireEvent.click(screen.getByTestId('edit-desk-version-2'))
     expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2')
-    expect(screen.queryByTestId('edit-desk-stale-c1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-version-2')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
+      '版本 2/2',
+    )
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-versions')).toBeNull(),
+    )
+
+    // 挑回旧版：卡也跟着切回去，⛔ 不留一个关不掉的「有新版」点
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    fireEvent.click(screen.getByTestId('edit-desk-version-1'))
+    const after = read()
+    expect(after.edit?.tracks.video[0]?.sourceVersionId).toBe('ver1')
+    const node = after.nodes.find((item) => item.id === 'v1')
+    expect(node?.data.kind === 'video' ? node.data.outputs?.cur : null).toBe(0)
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
+      '版本 1/2',
+    )
+  })
+
+  it('版本弹层里停在另一版上：大预览左右对比，停回在用那版 / 关上弹层就收（换皮第二轮 W）', async () => {
+    const twoTakes: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [
+            { id: 'ver1', url: 'https://example.test/a.mp4' },
+            { id: 'ver2', url: 'https://example.test/b.mp4' },
+          ],
+          cur: 0,
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read } = renderDesk(twoTakes)
+    expect(screen.queryByTestId('edit-desk-take-compare')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-2'))
+    const compare = screen.getByTestId('edit-desk-take-compare')
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+    expect(
+      screen.getByTestId('edit-desk-take-compare-label'),
+    ).toHaveTextContent('第 2 版')
+    const compareSources = [...compare.querySelectorAll('video')].map((video) =>
+      video.getAttribute('src'),
+    )
+    expect(compareSources).toEqual([
+      'https://example.test/a.mp4',
+      'https://example.test/b.mp4',
+    ])
+    // 只是看：时间线不动
+    expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver1')
+
+    // 拖分隔线不算点在弹层外面：弹层不收、对比还在
+    const handle = screen.getByTestId('edit-desk-take-compare-handle')
+    fireEvent.pointerDown(handle, { clientX: 10, pointerId: 1 })
+    fireEvent.pointerUp(handle, { clientX: 10, pointerId: 1 })
+    expect(screen.getByTestId('edit-desk-versions')).toBeInTheDocument()
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+
+    // 停回在用那一版 = 不比
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-1'))
+    expect(compare).toHaveAttribute('aria-hidden', 'true')
+
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-2'))
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+    // 弹层的防误关只挡焦点刚进来的那一拍：真人点两下之间早过了这一拍。
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-versions')).toBeNull(),
+    )
+    expect(compare).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('就地重拍：升起栏 → 段上生成中 → 新版落到卡上就自动换上；失败描红点开再改（4b）', async () => {
+    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    const base: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read, pushRemote } = renderDesk(base)
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-clip-c1'))
+
+    // 选中行「重拍」升起栏；Esc 先收栏，⛔ 不退出剪辑台
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+      'data-clip',
+      'c1',
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() =>
+      expect(screen.queryByTestId('retake-bar-stub')).not.toBeInTheDocument(),
+    )
+
+    // 没发出去（发送前校验拦下）：段上什么都不留
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-blocked'))
+    expect(
+      screen.queryByTestId('edit-desk-retaking-c1'),
+    ).not.toBeInTheDocument()
+
+    // 发出去：栏收起，段上生成中，预览左上写第 2 版
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    expect(screen.getByTestId('edit-desk-retaking-c1')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('edit-desk-preview-generating'),
+    ).toHaveTextContent('第 2 版生成中')
+
+    // 新版落到卡上 → 段自动换上
+    const landed = read()
+    pushRemote(
+      {
+        ...landed,
+        nodes: landed.nodes.map((node) =>
+          node.id === 'v1' && node.data.kind === 'video'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  outputs: {
+                    versions: [
+                      take('ver1', 'https://example.test/a.mp4'),
+                      take('ver2', 'https://example.test/b.mp4'),
+                    ],
+                    cur: 1,
+                  },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2'),
+    )
+    expect(
+      screen.queryByTestId('edit-desk-retaking-c1'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('edit-desk-takes-c1')).toHaveTextContent('2/2')
+
+    // 再拍一次，这回失败：段描红、角上「!」，点它 = 再升起这一段的栏
+    fireEvent.click(screen.getByTestId('edit-desk-retake'))
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    const before = read()
+    pushRemote(
+      {
+        ...before,
+        nodes: before.nodes.map((node) =>
+          node.id === 'v1'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  status: 'failed',
+                  generationFailure: { error: 'moderation' },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    const flag = await screen.findByTestId('edit-desk-retake-failed-c1')
+    expect(screen.queryByTestId('edit-desk-takes-c1')).not.toBeInTheDocument()
+    fireEvent.click(flag)
+    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+      'data-clip',
+      'c1',
+    )
+  })
+
+  it('续拍：段后插一段占位、栏升在占位上；新版落下来占位按新版整段换成真段（4c）', async () => {
+    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    const base: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0.5,
+              out: 3.5,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read, pushRemote } = renderDesk(base)
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-clip-c1'))
+    fireEvent.click(screen.getByTestId('edit-desk-continue'))
+    await waitFor(() => expect(continueVideo).toHaveBeenCalled())
+
+    // 末帧截在段的出点（⛔ 不是整版片尾），占位插在这一段后面、来源是同一批新建的卡
+    const input = continueVideo.mock.calls[0]![0]
+    expect(input).toMatchObject({
+      nodeId: 'v1',
+      url: 'https://example.test/a.mp4',
+      untilSec: 3.5,
+    })
+    const added = input.then?.[0]
+    expect(added).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+      track: 'video',
+      index: 1,
+      clip: { sourceNodeId: 'shot', in: 0 },
+    })
+    if (added?.op !== NODE_ASSISTANT_OP_V4_IDS.editAddClip) {
+      throw new Error('续拍没有带上占位段')
+    }
+    const placeholder = added.clip
+
+    // 那一批落下来（桩里不落，这里照它落）：栏升在占位段上，段上写「待生成」
+    const after = read()
+    pushRemote(
+      {
+        ...after,
+        nodes: [...after.nodes, videoNode('shot_new', { url: '' })].map(
+          (node) =>
+            node.id === 'shot_new'
+              ? ({ ...node, data: { ...node.data, url: undefined } } as NodeV4)
+              : node,
+        ),
+        edit: {
+          ...after.edit!,
+          tracks: {
+            ...after.edit!.tracks,
+            video: [
+              ...after.edit!.tracks.video,
+              { ...placeholder, sourceNodeId: 'shot_new' },
+            ],
+          },
+        },
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+        'data-clip',
+        placeholder.id,
+      ),
+    )
+    expect(
+      screen.getByTestId(`edit-desk-pending-${placeholder.id}`),
+    ).toBeInTheDocument()
+
+    // 在占位上发一枪 → 新版 8 秒落到卡上 → 占位按新版整段换成真段
+    probeDuration.mockResolvedValue(8)
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    const sent = read()
+    pushRemote(
+      {
+        ...sent,
+        nodes: sent.nodes.map((node) =>
+          node.id === 'shot_new' && node.data.kind === 'video'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  url: 'https://example.test/next.mp4',
+                  outputs: {
+                    versions: [take('nv1', 'https://example.test/next.mp4')],
+                    cur: 0,
+                  },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(read().edit?.tracks.video[1]).toMatchObject({
+        id: placeholder.id,
+        sourceVersionId: 'nv1',
+        out: 8,
+      }),
+    )
+    expect(
+      screen.queryByTestId(`edit-desk-pending-${placeholder.id}`),
+    ).not.toBeInTheDocument()
+    probeDuration.mockResolvedValue(null)
   })
 
   it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {

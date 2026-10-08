@@ -234,8 +234,44 @@ export const EDIT_RECEIPT_MOTION = {
   undoneMs: 1400,
 } as const
 
+/**
+ * 就地重拍（v2 第 4 片 4b · 关键切片动效表）：提示词栏从段在时间线上的位置放大升到
+ * 预览下方（380ms 弹簧），收回时回到那一段（240ms）；新版落位那一下段闪 460ms。
+ */
+export const EDIT_RETAKE_MOTION = {
+  rise: { type: 'spring', visualDuration: 0.38, bounce: 0.12 },
+  closeS: 0.24,
+  fromScale: 0.3,
+  landFlashMs: 460,
+} as const
+
+/**
+ * 一行一项的弹层（换皮第二轮，照模型选择器）：点下去对勾立刻挪过去，停这么久再收起 ——
+ * 看得见选中了哪一行，⛔ 不是点完弹层就没了。
+ */
+export const EDIT_PICK_CLOSE_DELAY_MS = 260
+
+/**
+ * 版本对比（换皮第二轮 ⑥ C · 样片 W）：悬停另一版，大预览左右对比在用那一版。分隔线
+ * 拖出画面时按 `rubber` 比例跟手、压扁到 `squashScale`；松手弹回边上，带一点过冲。
+ */
+export const EDIT_TAKE_COMPARE_MOTION = {
+  release: { type: 'spring', stiffness: 260, damping: 18 },
+  squash: { type: 'spring', stiffness: 300, damping: 16 },
+  squashScale: 0.93,
+  rubber: 0.3,
+  overshootPx: 40,
+} as const
+
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2
+
+/**
+ * 换版时「这一段是整段在用」的容差（v2 第 4 片 4a）：出点离旧版片尾不到这么远就算
+ * 没裁过尾巴，换上新版时跟着新版整段走。⚠ 卡上记的时长是模型报的整数秒，`<video>`
+ * 量出来的常多出几十毫秒，容差要盖得住这一截。
+ */
+export const EDIT_CLIP_FULL_TAKE_EPSILON_SEC = 0.25
 
 /** 一条时间线最多几段（DoS 护栏，与 op 载荷上限同源）。 */
 export const EDIT_TRACK_MAX_CLIPS = 200
@@ -341,7 +377,7 @@ export type EditDeskLibraryFilterId =
  * 模式（而不是页）的全部理由。
  */
 /**
- * 剪辑台顶栏（v2 暗场，owner 2026-10-08 选 B）：一条通栏 `h-12`、左右内边距 `px-3.5`。
+ * 剪辑台顶栏（v2 第 3 片；10-08 换白台面）：一条通栏 `h-12`、左右内边距 `px-3.5`。
  * ⚠ 两个数是助手锚点的依据（下一条），改顶栏的 class 必须改这里。
  */
 export const EDIT_DESK_TOP_BAR = { heightPx: 48, insetPx: 14 } as const

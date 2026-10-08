@@ -199,7 +199,7 @@
   }
 }
 .edit-clip-touched {
-  animation: edit-clip-halo 320ms var(--ease-standard);
+  animation: edit-clip-halo var(--edit-clip-flash, 320ms) var(--ease-standard);
 }
 .edit-clip-touched::after {
   content: '';
@@ -209,7 +209,7 @@
   background: white;
   opacity: 0;
   pointer-events: none;
-  animation: edit-clip-lit 320ms var(--ease-standard);
+  animation: edit-clip-lit var(--edit-clip-flash, 320ms) var(--ease-standard);
 }
 @media (prefers-reduced-motion: reduce) {
   .edit-clip-touched,

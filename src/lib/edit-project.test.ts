@@ -20,6 +20,8 @@ import {
   clipDurationSec,
   clipIndexAt,
   clipStartSec,
+  clipVersionOf,
+  clipVersionPatch,
   createEmptyEditProject,
   formatEditClock,
   listEditableAssets,
@@ -222,7 +224,7 @@ describe('裁剪 / 分割 / 排序', () => {
   })
 })
 
-describe('来源与「上游已更新」徽标', () => {
+describe('来源与段在用的那一版（4a）', () => {
   const node = videoNode('v1', {
     versions: [
       { id: 'ver1', url: 'https://a' },
@@ -231,11 +233,19 @@ describe('来源与「上游已更新」徽标', () => {
     cur: 1,
   })
 
-  it('段记的版本 ≠ 节点当前版本 → stale', () => {
+  it('段记的版本 ≠ 节点当前版本 → stale，⛔ 但段照样播自己那一版', () => {
     const facts = readClipSource([node], clip({ sourceVersionId: 'ver1' }))
     expect(facts.stale).toBe(true)
     expect(facts.currentVersionId).toBe('ver2')
-    expect(facts.url).toBe('https://b')
+    expect(facts.url).toBe('https://a')
+    expect(facts.version).toMatchObject({ index: 0, count: 2 })
+  })
+
+  it('段没记版本、或那一版已从卡上拿掉 → 退回卡的当前版', () => {
+    expect(clipVersionOf(node, clip())?.version.url).toBe('https://b')
+    expect(
+      clipVersionOf(node, clip({ sourceVersionId: 'gone' }))?.version.url,
+    ).toBe('https://b')
   })
 
   it('段记的就是当前版本 → 不 stale', () => {
@@ -252,6 +262,29 @@ describe('来源与「上游已更新」徽标', () => {
     const facts = readClipSource([], clip({ sourceVersionId: 'ver1' }))
     expect(facts.exists).toBe(false)
     expect(facts.stale).toBe(false)
+  })
+})
+
+describe('clipVersionPatch · 换版时入出点怎么跟', () => {
+  it('整段在用 → 换上新版整段（出点贴旧版片尾也算，容得下几十毫秒）', () => {
+    expect(
+      clipVersionPatch(clip({ in: 0, out: 5 }), 'ver2', { from: 5.04, to: 8 }),
+    ).toEqual({ sourceVersionId: 'ver2', out: 8 })
+  })
+
+  it('裁过尾巴 → 入出点不动；新版更短才钳进去', () => {
+    expect(
+      clipVersionPatch(clip({ in: 1, out: 3 }), 'ver2', { from: 5, to: 8 }),
+    ).toEqual({ sourceVersionId: 'ver2' })
+    expect(
+      clipVersionPatch(clip({ in: 1, out: 4 }), 'ver2', { from: 6, to: 2.5 }),
+    ).toEqual({ sourceVersionId: 'ver2', out: 2.5 })
+  })
+
+  it('任一版时长量不到 → 只换版本，⛔ 不动用户的裁剪', () => {
+    expect(
+      clipVersionPatch(clip({ in: 0, out: 5 }), 'ver2', { from: 5 }),
+    ).toEqual({ sourceVersionId: 'ver2' })
   })
 })
 

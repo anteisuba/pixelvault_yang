@@ -123,6 +123,34 @@ describe('planEditDeskFrames（看片 2b）', () => {
     expect(c2).toMatchObject({ ok: true, plans: [{ url: frameUrl('2000ms') }] })
   })
 
+  it('段在用旧版时截它自己那一版（4a）', () => {
+    const plan = planEditDeskFrames(
+      {
+        ...EDIT_DESK,
+        videoUrls: [
+          { nodeId: 'v1', url: `${CDN}/shots/v1.mp4` },
+          { nodeId: 'v1', clipId: 'c2', url: `${CDN}/shots/old.mp4` },
+        ],
+      },
+      { clipId: 'c2', times: [5] },
+    )
+    expect(plan.ok && plan.plans[0]?.url).toBe(
+      frameUrl('2000ms').replace('/shots/v1.mp4', '/shots/old.mp4'),
+    )
+    // c1 没另列：照样截卡的当前版
+    const c1 = planEditDeskFrames(
+      {
+        ...EDIT_DESK,
+        videoUrls: [
+          { nodeId: 'v1', url: `${CDN}/shots/v1.mp4` },
+          { nodeId: 'v1', clipId: 'c2', url: `${CDN}/shots/old.mp4` },
+        ],
+      },
+      { clipId: 'c1', times: [1.5] },
+    )
+    expect(c1.ok && c1.plans[0]?.url).toBe(frameUrl('3500ms'))
+  })
+
   it('不给 times 就看头、中、尾', () => {
     const plan = planEditDeskFrames(EDIT_DESK, { clipId: 'c1' })
     expect(plan.ok && plan.plans.map((entry) => entry.label)).toEqual([

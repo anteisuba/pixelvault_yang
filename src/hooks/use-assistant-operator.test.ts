@@ -3367,7 +3367,7 @@ describe('断点续跑', () => {
     expect(sent.resumeFrom.completedSteps[0].label).toBe('第 1 步')
   })
 
-  it('一步都没做完时「继续」是 no-op（那是重跑，不是续跑）', async () => {
+  it('一步都没做完时「从第 1 步继续」按已批计划重跑，不带 resumeFrom', async () => {
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -3375,12 +3375,19 @@ describe('断点续跑', () => {
     await settle()
     startPlan(3)
     await settle()
+    streams[0].fail(new Error('boom'))
+    await settle()
+    expect(nextResumeStepNumber(store.getOperatorState().resume!)).toBe(1)
+    const callsBefore = streamAssistantOperatorAPI.mock.calls.length
 
     act(() => {
       result.current.resumePlan()
     })
     await settle()
-    expect(streamAssistantOperatorAPI.mock.calls).toHaveLength(1)
+    expect(streamAssistantOperatorAPI.mock.calls).toHaveLength(callsBefore + 1)
+    const sent = streamAssistantOperatorAPI.mock.calls.at(-1)?.[0]
+    expect(sent.planApproved).toBe(true)
+    expect(sent.resumeFrom).toBeUndefined()
   })
 
   /**

@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { completion, stream } = vi.hoisted(() => ({
+const { completion, stream, sendLog } = vi.hoisted(() => ({
   completion: vi.fn(),
   stream: vi.fn(),
+  sendLog: vi.fn(async () => undefined),
+}))
+
+vi.mock('@/services/execution-worker.service', () => ({
+  sendLlmCallLogToWorker: sendLog,
 }))
 
 vi.mock('@/services/llm-text.service', () => ({
@@ -241,6 +246,8 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
   beforeEach(() => {
     completion.mockReset()
     stream.mockReset()
+    sendLog.mockReset()
+    sendLog.mockResolvedValue(undefined)
   })
 
   it('completion: provider 报的 token 原样进日志，带用途', async () => {
@@ -343,6 +350,45 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
       ])
     } finally {
       consoleLog.mockRestore()
+    }
+  })
+
+  it('同一行转给 execution worker；发失败只记一条 warn，不影响回答', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      sendLog.mockRejectedValueOnce(new Error('worker down'))
+      completion.mockImplementationOnce(
+        async (input: { onUsage?: (usage: object) => void }) => {
+          input.onUsage?.({ inputTokens: 100, outputTokens: 20 })
+          return 'answer'
+        },
+      )
+      await expect(
+        completeAssistantTextWithContextRetry({
+          ...options,
+          buildUserPrompt: () => 'full',
+          callLog: { purpose: 'roundSummary' },
+        }),
+      ).resolves.toBe('answer')
+      expect(sendLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          purpose: 'roundSummary',
+          outcome: 'ok',
+          inputTokens: 100,
+          outputTokens: 20,
+        }),
+      )
+      await vi.waitFor(() =>
+        expect(
+          consoleWarn.mock.calls.some(([line]) =>
+            String(line).includes('assistant llm call log not shipped'),
+          ),
+        ).toBe(true),
+      )
+    } finally {
+      consoleLog.mockRestore()
+      consoleWarn.mockRestore()
     }
   })
 })

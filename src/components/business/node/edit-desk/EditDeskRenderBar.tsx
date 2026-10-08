@@ -50,7 +50,7 @@ export function EditDeskRenderStatus({
         data-testid="edit-desk-render-status"
         className={cn(
           'truncate tabular-nums',
-          failed ? 'text-status-warning' : 'text-muted-foreground',
+          failed ? 'font-medium text-foreground' : 'text-muted-foreground',
         )}
       >
         {done

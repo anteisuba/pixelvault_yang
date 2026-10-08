@@ -92,7 +92,13 @@ export function planEditDeskFrames(
     }
   }
   const urlOf = (nodeId: string) =>
-    editDesk.videoUrls?.find((entry) => entry.nodeId === nodeId)?.url
+    editDesk.videoUrls?.find(
+      (entry) => entry.nodeId === nodeId && !entry.clipId,
+    )?.url
+  // 段在用的那一版（4a）：快照只在它不是卡当前版时另列一条，没列就是卡当前版。
+  const clipUrlOf = (clipId: string, nodeId: string) =>
+    editDesk.videoUrls?.find((entry) => entry.clipId === clipId)?.url ??
+    urlOf(nodeId)
 
   if (args.clipId) {
     const clip = editDesk.timeline?.clips.find(
@@ -111,7 +117,7 @@ export function planEditDeskFrames(
           'Only video clips have pictures; this clip is on an audio track.',
       }
     }
-    const url = urlOf(clip.sourceNodeId)
+    const url = clipUrlOf(clip.clipId, clip.sourceNodeId)
     if (!url) {
       return {
         ok: false,

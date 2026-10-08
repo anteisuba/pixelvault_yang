@@ -257,11 +257,19 @@ export function captureVideoFrames(
  * ⚠ 产物直接就是 `AssistantOperatorVideoFramesSchema.frames` 的形状（`index` /
  * `timestampSeconds` / `dataUrl`），⛔ 调用方不要再自己拼一遍：服务端按 `index`
  * 认位置（0=start / 1=mid / 2=end），下标与序号在这里必须是同一个数。
+ *
+ * `untilSec` = 只看到这一秒为止（剪辑台续拍：段的出点，末帧就是这一段剪下来的最后
+ * 一帧）。缺席 = 整段片子。
  */
 export function captureVideoEndpointFrames(
   source: string | File,
+  untilSec?: number,
 ): Promise<VideoFrameCaptureResult> {
   return captureFramesWithPlan(source, (duration) =>
-    planVideoEndpointFrames(duration),
+    planVideoEndpointFrames(
+      untilSec !== undefined && untilSec > 0
+        ? Math.min(duration, untilSec)
+        : duration,
+    ),
   )
 }

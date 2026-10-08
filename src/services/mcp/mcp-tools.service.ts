@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import {
+  clipVersionOf,
   currentUrlOf,
   projectDurationSec,
   RenderPlanError,
@@ -250,7 +251,8 @@ function planFrames(
       )
     }
     const node = state.nodes.find((n) => n.id === hit.clip.sourceNodeId)
-    const url = currentUrlOf(node)
+    // 段在用的那一版（4a）：⛔ 不是卡的当前版 —— 画布上换了版不会换进时间线。
+    const url = clipVersionOf(node, hit.clip)?.version.url
     if (!url) {
       throw new McpToolError(
         'The card this clip came from is gone or has no video.',

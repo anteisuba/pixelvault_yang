@@ -2173,6 +2173,10 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   /** 剪辑台：快照里最多列几张剪得进时间线的卡（v2 第 2 片）。 */
   maxEditAssets: 60,
   /**
+   * 看片地址最多几条：每张卡当前版一条，外加在用旧版的主线段各一条（4a）。
+   */
+  maxEditVideoUrls: 120,
+  /**
    * 看片一次最多几帧（2b）。⚠ 比 MCP 的 8 少：这里每帧都要过一遍视觉模型，花的是
    * 用户自己的 token；四帧够看头、中、尾外加一个问题点。
    */

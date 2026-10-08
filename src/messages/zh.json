@@ -6352,7 +6352,30 @@
         "remove": "删除"
       },
       "overview": "全片条",
-      "staleBadge": "上游已更新",
+      "versions": {
+        "title": "版本",
+        "hint": "{name} · 悬停对比",
+        "take": "第 {n} 版",
+        "seconds": "{sec}s",
+        "fromCanvas": "画布",
+        "compareInUse": "在用",
+        "fresh": "{from} · 新",
+        "badge": "版本 {n}/{count}",
+        "badgeFresh": "版本 {n}/{count} · 画布上换了新版"
+      },
+      "retake": {
+        "action": "重拍",
+        "generate": "生成",
+        "generating": "生成中",
+        "previewGenerating": "第 {n} 版生成中",
+        "failed": "第 {n} 版没生成出来：{reason}。改一下提示词再试。",
+        "failedBadge": "重拍失败 · 点开看原因"
+      },
+      "continue": {
+        "action": "续拍",
+        "pending": "待生成",
+        "previewPending": "这一镜还没有片子 · 写一句提示词生成"
+      },
       "clipTag": "{name} · {duration}",
       "previewTitle": "预览 · {name}",
       "previewEmpty": "播放头下没有片段",
@@ -6437,6 +6460,7 @@
         "planError": {
           "emptyTimeline": "时间线上还没有画面，先拖一张视频卡进来。",
           "missingSource": "有一段的来源素材找不到了 —— 检查一下它的来源节点还在不在。",
+          "pendingSource": "还有一段没生成出来（续拍的占位段）—— 先生成它，或者把它删掉再导出。",
           "emptyRange": "这个范围里没有东西可导出。",
           "zeroDuration": "导出的长度是 0 秒。",
           "tooManySegments": "段太多了，先删掉一些再导出。",

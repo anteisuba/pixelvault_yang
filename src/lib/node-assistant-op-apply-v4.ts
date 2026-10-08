@@ -1331,7 +1331,10 @@ export function applyNodeAssistantOpV4(
       if (clips.some((clip) => clip.id === op.clip.id)) {
         return { ok: false, reason: 'duplicateClip' }
       }
-      const next = insertClip(clips, op.clip, op.index)
+      // 来源可以是批内别名（剪辑台续拍：同一批里刚建的下一镜卡，`add_node.ref`）。
+      const sourceNodeId =
+        context.refs?.get(op.clip.sourceNodeId) ?? op.clip.sourceNodeId
+      const next = insertClip(clips, { ...op.clip, sourceNodeId }, op.index)
       if (next === clips) return { ok: false, reason: 'trackFull' }
       return {
         ok: true,
@@ -1340,7 +1343,7 @@ export function applyNodeAssistantOpV4(
           kind: 'op',
           op: { op: ids.editRemoveClip, track: op.track, clipId: op.clip.id },
         },
-        changedNodeIds: [op.clip.sourceNodeId],
+        changedNodeIds: [sourceNodeId],
         changedEdgeIds: [],
       }
     }

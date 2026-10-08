@@ -5542,7 +5542,7 @@ describe('域工具表', () => {
     const prompt = systemPrompt()
     expect(prompt).toContain('DISCUSS FIRST, ACT WHEN TOLD')
     expect(prompt).toContain(
-      '"How should I change/generate this?" is a discussion until they tell you to do it',
+      'offer to do it with the ask tool ("要我按这个改吗？") instead of doing it',
     )
     expect(prompt).toContain('treat it as a discussion')
     expect(prompt).toContain('body proportions, style, reference priority')

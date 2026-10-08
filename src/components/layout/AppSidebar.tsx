@@ -44,14 +44,25 @@ import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
 
-const SIDEBAR_FOOTER_CLASS =
-  'gap-1 p-1.5 group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:p-1'
+/**
+ * 收起时原地糊掉的那几样字（owner 2026-10-08 侧栏原型 v1：标签、段标题、账号名）。
+ * 淡出 + `blur-xs` 走脊柱 `duration-base`，与轨宽那条弹簧同时起步、⛔ 不排队。
+ * ⚠ 收起后一律不接鼠标（app-shell.md §5.1「看不见的东西不许接住鼠标」）。
+ */
+const COLLAPSE_BLUR_CLASS =
+  'transition-[opacity,filter] duration-base ease-standard group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:blur-xs'
+
+/** 内沟展开 / 收起同一档 4px（`--sidebar-rail-gutter`）——收展时图标不横跳。 */
+const SIDEBAR_FOOTER_CLASS = 'gap-1 p-1'
 
 /**
  * AppSidebar — 全局导航轨。施工基准：`docs/references/pages/app-shell.md`。
  *
  * 形态「分段浮岛」（2026-08-18 owner 拍板）：壳底浅灰，轨坐在灰底上，主区是
- * 一张左缘浮起的白卡。轨宽 144 展开 / 44 收起。
+ * 一张左缘浮起的白卡。轨宽 144 展开 / 40 收起。
+ *
+ * 收展（owner 2026-10-08 侧栏原型 v1）：轨宽走弹簧推挤主卡；字原地糊掉，
+ * 图标从头到尾不动（行高、内沟、内距两档同值）；收起后悬停一项出黑色名字提示。
  *
  * 结构：品牌 + 折叠钮 · 去处段 · 工具段 · 最底一行「账号」。
  * 条目清单**只在** `src/constants/navigation.ts`，任何断点都从那里取。
@@ -95,18 +106,17 @@ function AppSidebarHeader() {
   // brand at /studio works for both states: signed-in users land in their
   // workspace; signed-out users hit the protected-route redirect to sign-in.
   return (
-    <SidebarHeader className="p-1.5">
-      <div
-        className={cn(
-          'flex min-h-9 items-center justify-between gap-1',
-          isCollapsed && 'justify-center',
-        )}
-      >
+    <SidebarHeader className="p-1">
+      {/* 收起时品牌名原地糊掉、折叠钮跟着轨的右沿一起收到 40 档正中 ——
+          ⛔ 不 `hidden` 掉品牌名：那会让折叠钮在第一帧就跳到正中。 */}
+      <div className="flex min-h-9 items-center justify-between">
         <Link
           href={ROUTES.STUDIO}
+          aria-hidden={isCollapsed || undefined}
+          tabIndex={isCollapsed ? -1 : undefined}
           className={cn(
-            'flex min-w-0 shrink-0 items-center rounded-md px-2 py-1 text-sidebar-accent-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent',
-            isCollapsed && 'hidden',
+            'flex min-w-0 shrink items-center overflow-hidden rounded-md px-2 py-1 whitespace-nowrap text-sidebar-accent-foreground transition-[color,background-color,opacity,filter] duration-base ease-standard hover:bg-sidebar-accent',
+            'group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:blur-xs',
           )}
         >
           {/* 静态字。改版前这里挂着 HyperText 的逐字乱码 hover 动画 ——
@@ -118,7 +128,7 @@ function AppSidebarHeader() {
         </Link>
         {/* 头像不在这里了（D11 ④）—— 它下沉到最底与「设置」合成账号入口。
             顶端只剩品牌与折叠钮。 */}
-        <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
+        <SidebarTrigger className="size-11 shrink-0 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
       </div>
     </SidebarHeader>
   )
@@ -188,13 +198,13 @@ function AppSidebarContent() {
         rect={indicator.active}
         tone="active"
         visible={indicator.active !== null}
+        tracking={indicator.activeTracking}
       />
 
       {SHELL_NAV_SECTIONS.map((section) => (
-        <SidebarGroup
-          key={section.id}
-          className="px-1.5 py-1 group-data-[collapsible=icon]:px-1 md:p-1.5 md:group-data-[collapsible=icon]:p-1"
-        >
+        <SidebarGroup key={section.id} className="p-1">
+          {/* 段标题「去处 / 工具」保留；收起时原地糊掉、留下这一行当段间空白
+              （⛔ 不收走高度 —— 收走的话下面的图标全会往上跳）。 */}
           <SidebarGroupLabel className="h-7 px-2 text-sidebar-subtle">
             {t(section.labelKey)}
           </SidebarGroupLabel>
@@ -210,28 +220,47 @@ function AppSidebarContent() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// 画布子图标 —— 画布自己的左侧图标栏并进来（owner 2026-10-08 画布换皮）
+// 画布子项 —— 画布自己的左侧图标栏并进来（owner 2026-10-08 画布换皮 + 侧栏原型 v1）
 // ──────────────────────────────────────────────────────────────────────
 
-/** 子图标逐颗晚多少（秒）—— 与列表进场 stagger 同一档。 */
-const CANVAS_ENTRY_STAGGER_S = 0.03
-
 /**
- * 「画布」下面长出来的子图标（owner 2026-10-08 原型四格：添加节点 / 节点 / 当前项目 /
- * 历史对话；角色 / 素材库在画布底栏 —— 哪几颗在这里只看 `SHELL_NAV_CANVAS_ENTRIES`）。
- * 点一颗 = 画布在侧栏旁边打开那一格面板（`ShellSidePanels` 从这一颗所在的那一行长出来），
- * 再点收起。
+ * 「画布」下面长出来的六个子项（添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库 ——
+ * 哪几个在这里只看 `SHELL_NAV_CANVAS_ENTRIES`）。点一个 = 画布在侧栏旁边打开那一格
+ * 面板（`ShellSidePanels` 从这一个所在的那一行长出来），再点收起。
  *
- * ⚠ 只在画布路由上、画布真的挂着时出现（`useCanvasShellPanel().mounted`）；离开画布
- *   一起收回。状态与画布共用一份模块级 store，⛔ 侧栏不另存一份「开着哪格」。
- * ⚠ 每颗都从「画布」那一行往下长出来：0.72 → 1 + 糊变清，`spring-slot`，逐颗晚 30ms；
- *   收回只淡出（`duration-fast`）。选中 = 整颗深一档底（与侧栏 pressed 同一档）+
- *   `aria-pressed`，⛔ 不借激活白浮片（那一块只属于当前路由）。
+ * 长相（owner 2026-10-08 侧栏第 3 题选 A「缩进成几行」）：
+ * - 展开 144：缩进的几行，每行带名字，**一整块浅灰**包住；开着的那一个是白底。
+ * - 收起 40：同一块浅灰包住一列图标（名字随轨一起糊掉，悬停出黑色名字提示）。
+ * - 进画布时从「画布」那一行底下**长出来**（高度 0 → auto 走 `SPRING.expand`，
+ *   内容由糊变清）；离开画布反着收回去。几件事同时起步，⛔ 不逐个错开。
+ *
+ * ⚠ 只在画布路由上、画布真的挂着时出现（`useCanvasShellPanel().mounted`）。
+ *   状态与画布共用一份模块级 store，⛔ 侧栏不另存一份「开着哪格」。
+ * ⚠ 开着的那一个 = 白底 + 墨字 + `aria-pressed`；⛔ 不借路由的激活白浮片与竖条
+ *   （那一块只属于当前路由）。
  */
 function AppSidebarCanvasEntries({ visible }: { readonly visible: boolean }) {
   const t = useTranslations()
   const { activePanel } = useCanvasShellPanel()
   const reduceMotion = useReducedMotion() ?? false
+
+  const shown = reduceMotion
+    ? { opacity: 1 }
+    : {
+        height: 'auto',
+        opacity: 1,
+        filter: 'blur(0px)',
+        // 长完之后放开裁剪：白底那一格的投影不该被裁掉。
+        transitionEnd: { filter: 'none', overflow: 'visible' },
+      }
+  const hidden = reduceMotion
+    ? { opacity: 0 }
+    : {
+        height: 0,
+        opacity: 0,
+        filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+        overflow: 'hidden',
+      }
 
   return (
     <AnimatePresence initial={false}>
@@ -239,68 +268,48 @@ function AppSidebarCanvasEntries({ visible }: { readonly visible: boolean }) {
         <motion.div
           key="canvas-entries"
           data-testid="sidebar-canvas-entries"
-          exit={{ opacity: 0 }}
-          transition={motionTransition('fast', reduceMotion)}
+          initial={hidden}
+          animate={shown}
+          exit={hidden}
+          transition={
+            reduceMotion
+              ? motionTransition('fast', true)
+              : {
+                  ...SPRING.expand,
+                  // 透明度与模糊不走弹簧：过冲会把它们推出终点。
+                  opacity: motionTransition('base'),
+                  filter: motionTransition('base'),
+                }
+          }
         >
           <ul
             role="group"
             aria-label={t('StudioTools.tools.node.label')}
-            className="flex flex-col gap-0.5 py-0.5 pl-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pl-0"
+            className="mt-0.5 ml-3 flex flex-col gap-0.5 rounded-md bg-sidebar-accent p-0.5 transition-[margin] duration-spring-expand ease-spring-expand group-data-[collapsible=icon]:ml-0"
           >
-            {SHELL_NAV_CANVAS_ENTRIES.map((entry, index) => {
+            {SHELL_NAV_CANVAS_ENTRIES.map((entry) => {
               const Icon = entry.icon
               const label = t(entry.labelKey)
               const pressed = activePanel === entry.id
               return (
                 <li key={entry.id}>
                   <SidebarMenuButton
-                    asChild
+                    type="button"
                     size="sm"
                     tooltip={label}
+                    aria-label={label}
+                    aria-pressed={pressed}
+                    {...{ [CANVAS_SHELL_SIDEBAR_ENTRY_ATTR]: entry.id }}
+                    onClick={() => toggleCanvasShellPanel(entry.id)}
                     className={cn(
-                      'h-8',
+                      // 收起 40：浅灰块 32 宽、内边 2px，图标在 28 宽的格里居中。
+                      'h-8 group-data-[collapsible=icon]:px-1.5',
                       pressed &&
-                        'bg-sidebar-accent-strong font-medium text-sidebar-accent-foreground',
+                        'bg-sidebar-active-surface font-medium text-sidebar-accent-foreground shadow-sidebar-chip',
                     )}
                   >
-                    <motion.button
-                      type="button"
-                      aria-label={label}
-                      aria-pressed={pressed}
-                      {...{ [CANVAS_SHELL_SIDEBAR_ENTRY_ATTR]: entry.id }}
-                      onClick={() => toggleCanvasShellPanel(entry.id)}
-                      initial={
-                        reduceMotion
-                          ? { opacity: 0 }
-                          : {
-                              opacity: 0,
-                              scale: CHIP_POPOVER.fromScale,
-                              filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-                            }
-                      }
-                      animate={
-                        reduceMotion
-                          ? { opacity: 1 }
-                          : {
-                              opacity: 1,
-                              scale: 1,
-                              filter: 'blur(0px)',
-                              transitionEnd: { filter: 'none' },
-                            }
-                      }
-                      transition={
-                        reduceMotion
-                          ? motionTransition('fast', true)
-                          : {
-                              ...SPRING.slot,
-                              delay: index * CANVAS_ENTRY_STAGGER_S,
-                            }
-                      }
-                      style={{ transformOrigin: 'top center' }}
-                    >
-                      <Icon />
-                      <span>{label}</span>
-                    </motion.button>
+                    <Icon />
+                    <span>{label}</span>
                   </SidebarMenuButton>
                 </li>
               )
@@ -318,9 +327,10 @@ function AppSidebarCanvasEntries({ visible }: { readonly visible: boolean }) {
 
 /**
  * 最底那一行就是账号入口（D11 ④，2026-09-20 owner 确认画板）：
- * 头像 + 名字 + ▾，整行一颗触发器，点开**向上弹**账号菜单（语言 / 设置 /
- * 退出登录）。收起 40 只剩头像，仍是一颗**真 button**，tooltip「账号」，
- * 菜单锚到右侧 —— 那一档它是**唯一**的账号入口，键盘必须到得了。
+ * 头像 + 名字 + ▾，整行一颗触发器，点开账号菜单从这一行**往上长出来**
+ * （语言分段条 / 设置 / 退出登录，owner 2026-10-08 侧栏原型 v1）。收起 40 名字
+ * 与 ▾ 原地糊掉、头像不动，仍是一颗**真 button**，tooltip「账号」，菜单改成
+ * **往右长** —— 那一档它是**唯一**的账号入口，键盘必须到得了。
  *
  * ⚠ 底色三档走侧栏的**反极性**（app-shell.md §5.1，别破例）：
  * hover 往暗 `--sidebar-accent` → pressed / 菜单打开更暗
@@ -356,18 +366,30 @@ function AppSidebarFooter() {
                      ⛔ 别把它挂进菜单内容里：那一层只在打开后才挂载，
                      `OnboardingTooltip` 查不到目标就只能把气泡居中。 */
                   data-onboarding="apiKey"
-                  className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-1.5 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-fast ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[state=open]:bg-sidebar-accent-strong data-[state=open]:text-sidebar-accent-foreground motion-reduce:transition-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
+                  className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-1 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-fast ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[state=open]:bg-sidebar-accent-strong data-[state=open]:text-sidebar-accent-foreground motion-reduce:transition-none"
                 >
+                  {/* 头像在 40 档正中（4 沟 + 4 内距 + 24 + 4 + 4），展开时也站在
+                      同一处 —— 收展全程不动。 */}
                   <ProfileAvatar
                     avatarUrl={profile?.avatarUrl}
                     size={24}
-                    className="size-6"
+                    className="size-6 shrink-0"
                     iconClassName="size-3.5"
                   />
-                  <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 truncate group-data-[collapsible=icon]:shrink-0 group-data-[collapsible=icon]:text-clip',
+                      COLLAPSE_BLUR_CLASS,
+                    )}
+                  >
                     {name ?? t('account')}
                   </span>
-                  <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle group-data-[collapsible=icon]:hidden" />
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 shrink-0 text-sidebar-subtle',
+                      COLLAPSE_BLUR_CLASS,
+                    )}
+                  />
                 </button>
               </AccountMenu>
             </div>
@@ -398,9 +420,14 @@ function AppSidebarFooter() {
 
 function SidebarFooterLoadingState() {
   return (
-    <div className="flex h-9 items-center gap-2 border-t border-sidebar-border px-2 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-      <div className="size-4 rounded-sm bg-sidebar-accent" />
-      <div className="h-3 w-12 rounded-sm bg-sidebar-accent group-data-[collapsible=icon]:hidden" />
+    <div className="flex h-9 items-center gap-2 overflow-hidden border-t border-sidebar-border px-1 pt-1">
+      <div className="size-6 shrink-0 rounded-full bg-sidebar-accent" />
+      <div
+        className={cn(
+          'h-3 w-12 shrink-0 rounded-sm bg-sidebar-accent',
+          COLLAPSE_BLUR_CLASS,
+        )}
+      />
     </div>
   )
 }

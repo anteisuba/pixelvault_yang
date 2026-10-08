@@ -233,6 +233,63 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     expect(row.className).toContain('motion-reduce:transition-none')
   })
 
+  /**
+   * 收展动效（owner 2026-10-08 侧栏原型 v1）。jsdom 不跑 CSS，这里钉的是
+   * **结构**：轨宽走弹簧；字是原地糊掉（还在 DOM 里），⛔ 不是 `display:none`；
+   * 图标所在的按钮两档同尺寸同内距 —— 收展全程不动。
+   */
+  it('收起时字原地糊掉、图标不动，轨宽走弹簧', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    const { container } = renderSidebar()
+
+    // 默认收起（刷新后重新收起）。
+    const rail = container.querySelector('[data-slot="sidebar"]')
+    expect(rail?.getAttribute('data-collapsible')).toBe('icon')
+
+    const gap = container.querySelector('[data-slot="sidebar-gap"]')
+    const shell = container.querySelector('[data-slot="sidebar-container"]')
+    for (const el of [gap, shell]) {
+      expect(el?.className).toContain('duration-spring-expand')
+      expect(el?.className).toContain('ease-spring-expand')
+    }
+
+    const button = container.querySelector<HTMLElement>(
+      '[data-slot="sidebar-menu-button"][href="/gallery"]',
+    )
+    const className = button?.className ?? ''
+    // 标签糊掉而不是藏掉。
+    expect(className).toContain(
+      'group-data-[collapsible=icon]:[&>span:last-child]:blur-xs',
+    )
+    expect(className).toContain(
+      'group-data-[collapsible=icon]:[&>span:last-child]:opacity-0',
+    )
+    expect(className).not.toContain('[&>span:last-child]:hidden')
+    // 图标不动：收起档不换尺寸、不换内距。
+    expect(className).not.toContain('group-data-[collapsible=icon]:size-8')
+    expect(className).not.toContain('group-data-[collapsible=icon]:p-0')
+    expect(button?.querySelector('span')?.textContent).toBe(
+      'Navbar.links.gallery',
+    )
+
+    // 段标题保留，收起时原地糊掉、⛔ 不收走高度。
+    const label = container.querySelector<HTMLElement>(
+      '[data-slot="sidebar-group-label"]',
+    )
+    expect(label?.className).toContain('group-data-[collapsible=icon]:blur-xs')
+    expect(label?.className).not.toContain('-mt-8')
+
+    // 账号名同样糊掉。
+    const name = within(screen.getByLabelText('Navbar:account')).getByText(
+      'fulina',
+    )
+    expect(name.className).toContain('group-data-[collapsible=icon]:blur-xs')
+  })
+
   it('⛔ 底部不读任何账户数字，也不挂红点 / 角标', () => {
     mockProfile.current = {
       username: 'fulina',
@@ -296,6 +353,31 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
 
     fireEvent.click(history)
     expect(history.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('子项装在一整块浅灰里，开着的那一个是白底 —— ⛔ 不借路由的激活白浮片', () => {
+    mockPathname.current = '/studio/node'
+    render(
+      <SidebarProvider>
+        <AppSidebar />
+        <CanvasHost />
+      </SidebarProvider>,
+    )
+
+    const group = screen.getByTestId('sidebar-canvas-entries')
+    const block = within(group).getByRole('group')
+    expect(block.className).toContain('bg-sidebar-accent')
+
+    const project = within(group).getByLabelText(
+      'StudioNode.shell.panels.project',
+    )
+    // 每行带名字（展开时显示，收起时糊掉）。
+    expect(project.textContent).toContain('StudioNode.shell.panels.project')
+    expect(project.className).not.toContain('bg-sidebar-active-surface')
+
+    fireEvent.click(project)
+    expect(project.className).toContain('bg-sidebar-active-surface')
+    expect(project.getAttribute('data-active')).toBe('false')
   })
 
   it('画布没挂（或不在画布路由）就不长出来', () => {

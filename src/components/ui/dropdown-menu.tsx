@@ -11,13 +11,16 @@ import { cn } from '@/lib/utils'
  * 那些类不在 tailwind-merge 的组里，覆盖不掉，只会两套变量一起生效。
  *
  * - `zoom`：shadcn 原样。缩放 95 → 100 + 按侧滑入 8px，200ms。
- * - `lift`：贴着触发器长出来的那种（D11 ④ 账号菜单）。开 `duration-fast`
- *   ease-out，淡入 + 上移 4px；关只淡出。⛔ 不缩放、关时⛔ 不位移 ——
- *   菜单是底行的延伸，缩放会把它读成一个独立弹窗。
+ * - `grow`：从触发器那一行**长出来**（owner 2026-10-08 侧栏原型 v1 账号菜单）。
+ *   开：靠触发器那条边不动，另一条边走 `--spring-slot` 弹簧推出去（clip-path）+
+ *   由糊变清；关：反着收回、`duration-fast`。往哪边长看 Radix 的 `data-side`
+ *   （侧栏展开 = 往上、收起 = 往右、手机顶栏 = 往下），keyframes 在 globals.css
+ *   `[data-menu-motion='grow']`。⛔ 不缩放 —— 菜单是那一行的延伸，缩放会把它读成
+ *   一个独立弹窗。
  */
 const DROPDOWN_MENU_MOTION = {
   zoom: 'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard',
-  lift: 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1 data-[state=open]:duration-fast data-[state=open]:ease-out data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-fast data-[state=closed]:ease-standard motion-reduce:animate-none',
+  grow: 'data-[state=open]:animate-menu-grow data-[state=closed]:animate-menu-shrink motion-reduce:animate-none',
 } as const
 
 export type DropdownMenuMotion = keyof typeof DROPDOWN_MENU_MOTION
@@ -59,6 +62,7 @@ function DropdownMenuContent({
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
+        data-menu-motion={motionPreset}
         sideOffset={sideOffset}
         className={cn(
           'z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
@@ -268,6 +272,7 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
+      data-menu-motion={motionPreset}
       className={cn(
         'z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg',
         DROPDOWN_MENU_MOTION[motionPreset],

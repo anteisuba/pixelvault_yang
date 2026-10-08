@@ -29,6 +29,8 @@ export interface NavRect {
 interface NavIndicatorState {
   /** 激活浮片。null = 还没量到（首帧别闪一块在 0,0） */
   active: NavRect | null
+  /** true = 这次是容器尺寸在变（收展弹簧途中），浮片逐帧贴着走，CSS 据此关掉弹簧。 */
+  activeTracking: boolean
   /** hover 幽灵块的位置。**只增不清** —— 隐藏时保留最后位置，否则会先弹回
    *  (0,0) 再淡出。显隐看 `hoverVisible`。 */
   hover: NavRect | null
@@ -64,16 +66,26 @@ export function useNavIndicator(
   const hoverVisibleRef = useRef(false)
 
   const [active, setActive] = useState<NavRect | null>(null)
+  const [activeTracking, setActiveTracking] = useState(false)
   const [hover, setHover] = useState<NavRect | null>(null)
   const [hoverVisible, setHoverVisible] = useState(false)
   const [hoverJumped, setHoverJumped] = useState(true)
 
-  const remeasure = useCallback(() => {
-    const scope = scopeRef.current
-    if (!scope) return
-    const el = scope.querySelector<HTMLElement>(ACTIVE_SELECTOR)
-    setActive(el ? rectWithin(scope, el) : null)
-  }, [scopeRef])
+  const measureActive = useCallback(
+    (tracking: boolean) => {
+      const scope = scopeRef.current
+      if (!scope) return
+      const el = scope.querySelector<HTMLElement>(ACTIVE_SELECTOR)
+      setActiveTracking(tracking)
+      setActive(el ? rectWithin(scope, el) : null)
+    },
+    [scopeRef],
+  )
+
+  /** 换了当前项（路由 / 收展态变了）：浮片弹簧滑过去。 */
+  const remeasure = useCallback(() => measureActive(false), [measureActive])
+  /** 容器自己在变宽变窄：逐帧贴着走，⛔ 不叠弹簧。 */
+  const track = useCallback(() => measureActive(true), [measureActive])
 
   const onPointerOver = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -116,13 +128,14 @@ export function useNavIndicator(
   useEffect(() => {
     const scope = scopeRef.current
     if (!scope || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(remeasure)
+    const observer = new ResizeObserver(track)
     observer.observe(scope)
     return () => observer.disconnect()
-  }, [scopeRef, remeasure])
+  }, [scopeRef, track])
 
   return {
     active,
+    activeTracking,
     hover,
     hoverVisible,
     hoverJumped,

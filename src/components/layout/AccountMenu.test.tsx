@@ -7,19 +7,20 @@ import { AccountMenu } from './AccountMenu'
 /**
  * 账号菜单的回归闸（D11 ④ 画板，2026-09-20 owner 确认）。
  *
- * 钉六件事：
+ * 钉这几件事：
  *  ① 菜单内容自上而下 = 头部（名字 + @用户名）· 语言 · 设置 · 退出登录；
- *  ② ⭐ 语言行**带当前值**，子菜单只有 en / ja / zh 三档；
+ *  ② ⭐ 语言是一行分段条（owner 2026-10-08 侧栏原型 v1，复用 `LiquidSegmented`），
+ *     只有 en / ja / zh 三档，⛔ 不再展二级子菜单；
  *  ③ ⭐ 语言与设置 → 偏好**同一条路**：落点是当前地址 + 原样带回 query，
- *     切换由 `<Link locale>` 做，⛔ 菜单里没有第二份状态；
- *  ④ ⭐ 当前语言不只靠颜色：`aria-current` + 圆点 + 字重；
+ *     切换走 next-intl 的 `router.replace(href, { locale })`，⛔ 菜单里没有第二份状态；
+ *  ④ ⭐ 当前语言不只靠颜色：`aria-checked`（分段条的选中块之外）；
  *  ⑤ ⭐ 退出登录走 `/settings` 同一条路（Clerk `signOut` + 回首页），
  *     ⛔ 没有二次确认；
  *  ⑥ ⛔ 菜单里没有额度、没有 key 数、没有「外观」——那三样各有各的落点，
  *     主题切换这个应用根本没有；
- *  ⑦ ⭐ 两层浮层都带 `motion-reduce:` 降级 —— 这条浏览器工具模拟不了
- *     （2026-09-20 实测缺口），只能在这里钉住；
- *  ⑧ ⭐ 两层浮层都带视口夹取 —— 375 档没验到（Chrome 最窄 ~500），
+ *  ⑦ ⭐ 浮层是 `grow` 档（从触发行长出来）并带 `motion-reduce:` 降级 ——
+ *     这条浏览器工具模拟不了（2026-09-20 实测缺口），只能在这里钉住；
+ *  ⑧ ⭐ 浮层带视口夹取 —— 375 档没验到（Chrome 最窄 ~500），
  *     夹取写死在代码里，窄屏溢出就不可能。
  */
 
@@ -42,8 +43,11 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('tab=lora'),
 }))
 
+const replace = vi.hoisted(() => vi.fn())
+
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/studio/image',
+  useRouter: () => ({ replace }),
   Link: ({
     href,
     locale,
@@ -72,17 +76,15 @@ function openMenu() {
   })
 }
 
-async function openLanguageSubmenu() {
-  openMenu()
-  fireEvent.click(await screen.findByText('LocaleSwitcher:label'))
-}
-
-/** 子菜单里那三颗，按 DOM 顺序。 */
-async function findLocaleOptions() {
-  await screen.findAllByText('LocaleSwitcher:names.en')
-  return Array.from(
-    document.querySelectorAll<HTMLAnchorElement>('a[data-locale]'),
-  )
+/** 语言那一行（整行一颗 menuitem）与里面的三格，按 DOM 顺序。 */
+async function findLanguageRow() {
+  const row = await screen.findByText('LocaleSwitcher:label')
+  const item = row.closest<HTMLElement>('[data-slot="account-menu-language"]')
+  if (!item) throw new Error('language row not found')
+  return {
+    item,
+    options: Array.from(item.querySelectorAll<HTMLElement>('[role="radio"]')),
+  }
 }
 
 describe('AccountMenu（D11 ④）', () => {
@@ -96,40 +98,61 @@ describe('AccountMenu（D11 ④）', () => {
     expect(screen.queryByText(/appearance|外观/i)).toBeNull()
   })
 
-  it('语言行带当前值；展开只有 en / ja / zh 三档', async () => {
+  it('语言是一行分段条：只有 en / ja / zh 三档，⛔ 不再展子菜单', async () => {
     openMenu()
 
-    // 行上那个当前值和子菜单里的选项文案是同一条 key —— 行上的先出现。
-    const row = (await screen.findByText('LocaleSwitcher:label')).closest(
-      '[data-slot="dropdown-menu-sub-trigger"]',
-    )
-    expect(row?.textContent).toContain('LocaleSwitcher:names.zh')
-
-    fireEvent.click(screen.getByText('LocaleSwitcher:label'))
-    const options = await findLocaleOptions()
-    expect(options.map((option) => option.dataset.locale)).toEqual([
-      'en',
-      'ja',
-      'zh',
+    const { item, options } = await findLanguageRow()
+    expect(item.getAttribute('role')).toBe('menuitem')
+    expect(options.map((option) => option.getAttribute('aria-label'))).toEqual([
+      'LocaleSwitcher:names.en',
+      'LocaleSwitcher:names.ja',
+      'LocaleSwitcher:names.zh',
     ])
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-sub-trigger"]'),
+    ).toBeNull()
+  })
+
+  it('当前语言不只靠颜色：aria-checked 标出当前那一格', async () => {
+    openMenu()
+
+    const { options } = await findLanguageRow()
+    expect(
+      options.map((option) => option.getAttribute('aria-checked')),
+    ).toEqual(['false', 'false', 'true'])
   })
 
   it('语言切换与设置 → 偏好同一条路：当前地址 + 原样带回 query', async () => {
-    await openLanguageSubmenu()
+    replace.mockClear()
+    openMenu()
 
-    const [, japanese] = await findLocaleOptions()
-    expect(japanese.getAttribute('href')).toBe('/studio/image?tab=lora')
-    expect(japanese.textContent).toContain('LocaleSwitcher:names.ja')
+    const { options } = await findLanguageRow()
+    fireEvent.click(options[1])
+    expect(replace).toHaveBeenCalledWith('/studio/image?tab=lora', {
+      locale: 'ja',
+    })
+    // 换语言不是关菜单的动作：菜单还开着。
+    expect(screen.getByText('LocaleSwitcher:label')).toBeInTheDocument()
+
+    // 点当前那一格什么都不做。
+    replace.mockClear()
+    fireEvent.click(options[2])
+    expect(replace).not.toHaveBeenCalled()
   })
 
-  it('当前语言不只靠颜色：aria-current + 字重 + 圆点', async () => {
-    await openLanguageSubmenu()
+  it('键盘落在语言行上：←/→ 换语言（分段条里的格子在菜单里键盘到不了）', async () => {
+    replace.mockClear()
+    openMenu()
 
-    const [english, , current] = await findLocaleOptions()
-    expect(current.getAttribute('aria-current')).toBe('page')
-    expect(current.querySelector('span[aria-hidden]')).not.toBeNull()
-    expect(current.className).toContain('font-medium')
-    expect(english.getAttribute('aria-current')).toBeNull()
+    const { item } = await findLanguageRow()
+    fireEvent.keyDown(item, { key: 'ArrowRight' })
+    expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
+      locale: 'en',
+    })
+    fireEvent.keyDown(item, { key: 'ArrowLeft' })
+    expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
+      locale: 'ja',
+    })
   })
 
   it('「设置」带上来处，与旧的最底一行同一个去处', async () => {
@@ -141,33 +164,28 @@ describe('AccountMenu（D11 ④）', () => {
     )
   })
 
-  it('两层浮层都带 motion-reduce 降级', async () => {
-    await openLanguageSubmenu()
+  it('浮层从触发行长出来（grow 档），带 motion-reduce 降级、⛔ 不缩放', async () => {
+    openMenu()
+    await findLanguageRow()
 
-    const content = document.querySelector(
+    const content = document.querySelector<HTMLElement>(
       '[data-slot="dropdown-menu-content"]',
     )
-    const sub = document.querySelector(
-      '[data-slot="dropdown-menu-sub-content"]',
-    )
+    expect(content?.dataset.menuMotion).toBe('grow')
+    expect(content?.className).toContain('data-[state=open]:animate-menu-grow')
     expect(content?.className).toContain('motion-reduce:animate-none')
-    expect(sub?.className).toContain('motion-reduce:animate-none')
-    // ⛔ 开场不缩放（画板动效表）：`lift` 档不许带 zoom。
     expect(content?.className).not.toContain('zoom-in')
     expect(content?.className).not.toContain('zoom-out')
   })
 
-  it('两层浮层都带视口夹取 —— 窄屏溢出在代码层就不可能', async () => {
-    await openLanguageSubmenu()
+  it('浮层带视口夹取 —— 窄屏溢出在代码层就不可能', async () => {
+    openMenu()
+    await findLanguageRow()
 
     const content = document.querySelector(
       '[data-slot="dropdown-menu-content"]',
     )
-    const sub = document.querySelector(
-      '[data-slot="dropdown-menu-sub-content"]',
-    )
     expect(content?.className).toContain('max-w-[calc(100vw-2rem)]')
-    expect(sub?.className).toContain('max-w-[calc(100vw-2rem)]')
   })
 
   it('退出登录走 Clerk 同一条路，⛔ 没有二次确认', async () => {

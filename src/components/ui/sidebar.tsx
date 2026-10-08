@@ -226,7 +226,9 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-slow ease-standard',
+          // 收展走弹簧（owner 2026-10-08 侧栏原型 v1）：推挤主卡的这条缝与下面
+          // fixed 的轨**同一条**弹簧，否则主卡与轨会错开半拍。
+          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-spring-expand ease-spring-expand',
           'group-data-[collapsible=offcanvas]:w-0',
           'group-data-[side=right]:rotate-180',
           variant === 'floating' || variant === 'inset'
@@ -237,7 +239,7 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-slow ease-standard lg:flex',
+          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-spring-expand ease-spring-expand lg:flex',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -424,21 +426,17 @@ function SidebarGroupLabel({
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
-        'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
+        'flex h-8 shrink-0 items-center overflow-hidden rounded-md px-2 text-xs font-medium whitespace-nowrap text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[opacity,filter] duration-base ease-standard focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
         /**
-         * 收起态：淡出 + 负边距收走。⚠ `pointer-events-none` 不是可选项 ——
-         * 看不见的东西不该还能接住鼠标。
+         * 收起态：标题**原地糊掉**（owner 2026-10-08 侧栏原型 v1），⛔ 不再用
+         * `-mt-8` 把它收走 —— 标题让出高度，下面每一颗图标都会跟着往上跳，
+         * 而这一版要的是「收起时图标不动」。标题那一行在 40 档留成段间空白。
          *
-         * 这是 shadcn 默认写法自带的缺陷，2026-09-20 owner 真机撞到：`-mt-8`
-         * 把这块 28px 高、`opacity: 0` 但仍 `pointer-events: auto` 的标题压在
-         * **上一组最后一项**身上（实测重叠 24px，`elementFromPoint(28, 256)`
-         * 命中的是标题不是链接），于是那一项悬停有反馈却点不动。
-         *
-         * ⛔ 不用 `hidden` 换掉这两个类：上面那条 `transition-[margin,opacity]`
-         * 就是收起 / 展开时标题滑走滑回的动画，`display: none` 会把它整条掐掉。
-         * 留着元素、只收走命中区，是这里唯一两头都成立的写法。
+         * ⚠ `pointer-events-none` 不是可选项 —— 看不见的东西不该还能接住鼠标
+         * （2026-09-20 owner 真机撞到过：透明标题压在上一组最后一项身上，那一项
+         * 悬停有反馈却点不动）。⛔ 也不用 `hidden`：`display: none` 会把糊掉那一拍掐掉。
          */
-        'group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
+        'group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:blur-xs',
         className,
       )}
       {...props}
@@ -515,9 +513,15 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
  * ⚠ `transition-property` **必须包含 color**。改版前它只列了
  * `width,height,padding`，所以颜色是瞬时跳变的 —— 真机 `getComputedStyle`
  * 量到过，别再退回去。
+ *
+ * ⚠ 收起 40 档（owner 2026-10-08 侧栏原型 v1）：按钮**不换尺寸也不换内距** ——
+ * 宽度跟着轨的弹簧一起收（轨 40 − 两侧 4px 沟 = 32，`p-2` 下 16px 图标正好居中），
+ * 所以图标从头到尾不动；标签原地糊掉（淡出 + `blur-xs`），收起后 `shrink-0` +
+ * `text-clip` 让它被按钮裁掉而不是被压成「G…」。⛔ 别退回 `size-8!` +
+ * `[&>span]:hidden`：那会让图标在收展第一帧就跳到新位置，标签也来不及糊。
  */
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[color,background-color,width,height,padding] duration-fast ease-standard group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-semibold data-[active=true]:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-transform [&>svg]:duration-fast [&>svg]:ease-standard hover:[&>svg]:scale-105',
+  'peer/menu-button relative flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[color,background-color,height,padding] duration-fast ease-standard group-has-data-[sidebar=menu-action]/menu-item:pr-8 hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:font-semibold data-[active=true]:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>span:last-child]:transition-[opacity,filter] [&>span:last-child]:duration-base [&>span:last-child]:ease-standard group-data-[collapsible=icon]:[&>span:last-child]:pointer-events-none group-data-[collapsible=icon]:[&>span:last-child]:shrink-0 group-data-[collapsible=icon]:[&>span:last-child]:text-clip group-data-[collapsible=icon]:[&>span:last-child]:opacity-0 group-data-[collapsible=icon]:[&>span:last-child]:blur-xs [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-transform [&>svg]:duration-fast [&>svg]:ease-standard hover:[&>svg]:scale-105',
   {
     variants: {
       variant: {
@@ -596,7 +600,8 @@ function SidebarMenuButton({
  * 会滑的那两块片子（app-shell.md §5.1）。放在滚动容器里、菜单项之前，
  * 由 `useNavIndicator` 量出位置喂进来。
  *
- * 位置全部走 transform，不动布局属性。`rect` 变 null 时**保留上一次的位置**
+ * 位置全部走 transform，不动布局属性；换行时走 `--spring-slot` 弹簧滑过去
+ * （owner 2026-10-08 侧栏原型 v1：白片连同竖条一起滑）。`rect` 变 null 时**保留上一次的位置**
  * 再淡出 —— 否则会先弹回 (0,0) 再消失。
  */
 function SidebarMenuSlider({
@@ -604,6 +609,7 @@ function SidebarMenuSlider({
   tone,
   visible,
   jumped = false,
+  tracking = false,
   className,
   ...props
 }: Omit<React.ComponentProps<'div'>, 'style'> & {
@@ -612,6 +618,8 @@ function SidebarMenuSlider({
   /** 隐藏时 `rect` 仍保留最后位置，只淡出，不弹回 (0,0)。 */
   visible: boolean
   jumped?: boolean
+  /** true = 轨正在收展，片子逐帧贴着按钮走，⛔ 不再叠一层弹簧（会落后半拍）。 */
+  tracking?: boolean
 }) {
   return (
     <div
@@ -624,6 +632,7 @@ function SidebarMenuSlider({
           ? 'shell-nav-slider--active'
           : 'shell-nav-slider--hover',
         jumped && 'shell-nav-slider--jumped',
+        tracking && 'shell-nav-slider--tracking',
         !visible && 'opacity-0',
         className,
       )}

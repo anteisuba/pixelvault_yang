@@ -75,6 +75,12 @@ import type { GenerationRecord, OutputTypeValue } from '@/types'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
+import {
+  beginEditAssetDrag,
+  endEditAssetDrag,
+  setLiftedDragImage,
+  type EditAssetDrag,
+} from './edit-desk-asset-drag'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 
@@ -354,6 +360,10 @@ function AssetTile({
     data.kind === NODE_MEDIA_KIND_IDS.video
       ? (data.label ?? data.name)
       : data.name
+  const lift = useAssetLift(
+    isAudio ? NODE_MEDIA_KIND_IDS.audio : NODE_MEDIA_KIND_IDS.video,
+    duration,
+  )
 
   return (
     <div className="flex flex-col gap-1">
@@ -362,13 +372,16 @@ function AssetTile({
         tabIndex={0}
         data-testid={`edit-desk-asset-${node.id}`}
         data-node-id={node.id}
+        data-lifted={lift.lifted || undefined}
         draggable
         onDragStart={(event) => {
           event.dataTransfer.setData(EDIT_DESK_NODE_DRAG_MIME, node.id)
           // ⚠ 同时写 text/plain：某些浏览器在没有任何标准类型时不启动拖拽。
           event.dataTransfer.setData('text/plain', node.id)
           event.dataTransfer.effectAllowed = 'copy'
+          lift.onDragStart(event)
         }}
+        onDragEnd={lift.onDragEnd}
         onDoubleClick={() => onAppend(node.id)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') onAppend(node.id)
@@ -376,7 +389,8 @@ function AssetTile({
         style={{ height: EDIT_DESK_LAYOUT.assetTileHeightPx }}
         className={cn(
           'relative overflow-hidden rounded-lg bg-muted',
-          'cursor-grab transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none',
+          'cursor-grab transition duration-fast active:scale-[.98] motion-reduce:transition-none',
+          lift.lifted && 'opacity-40',
         )}
       >
         {isAudio ? (
@@ -412,6 +426,29 @@ function AssetTile({
       <span className="truncate text-2xs text-muted-foreground">{name}</span>
     </div>
   )
+}
+
+/**
+ * 素材格拿起来（样片 AF）：拖着走的图换成放大带影子的那张，主线按它的长短让位；原格子
+ * 留在原处变淡，松手（落没落下都算）就回来。
+ */
+function useAssetLift(kind: EditAssetDrag['kind'], durationSec: number) {
+  const [lifted, setLifted] = useState(false)
+  return {
+    lifted,
+    onDragStart(event: React.DragEvent<HTMLElement>) {
+      beginEditAssetDrag({
+        kind,
+        ...(durationSec > 0 ? { durationSec } : {}),
+      })
+      setLiftedDragImage(event, event.currentTarget)
+      setLifted(true)
+    },
+    onDragEnd() {
+      endEditAssetDrag()
+      setLifted(false)
+    },
+  }
 }
 
 /**
@@ -606,10 +643,16 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
     ...(record.thumbnailUrl ? { thumbnailUrl: record.thumbnailUrl } : {}),
   }
 
+  const lift = useAssetLift(
+    isAudio ? NODE_MEDIA_KIND_IDS.audio : NODE_MEDIA_KIND_IDS.video,
+    duration,
+  )
+
   return (
     <div className="flex flex-col gap-1">
       <div
         data-testid={`edit-desk-library-tile-${record.id}`}
+        data-lifted={lift.lifted || undefined}
         draggable
         onDragStart={(event) => {
           event.dataTransfer.setData(
@@ -617,11 +660,14 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
             JSON.stringify(payload),
           )
           event.dataTransfer.effectAllowed = 'copy'
+          lift.onDragStart(event)
         }}
+        onDragEnd={lift.onDragEnd}
         style={{ height: EDIT_DESK_LAYOUT.assetTileHeightPx }}
         className={cn(
           'relative overflow-hidden rounded-lg bg-muted',
-          'cursor-grab transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none',
+          'cursor-grab transition duration-fast active:scale-[.98] motion-reduce:transition-none',
+          lift.lifted && 'opacity-40',
         )}
       >
         {isAudio ? (

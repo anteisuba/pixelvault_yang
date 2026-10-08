@@ -26,7 +26,10 @@ import type {
   EditTextClip,
 } from '@/types/node-workflow'
 
-/** 拖的途中那一份预览改了什么（四种手势各一种）。 */
+/** 素材拖进来时那一格空位的 id（布局里有它，台面画成一个虚线槽）。 */
+export const EDIT_DROP_SLOT_ID = '__edit_drop_slot__'
+
+/** 拖的途中那一份预览改了什么（每种手势一种）。 */
 export type TimelineDragPreview =
   /** 首尾相接的轨（主线 / 配乐）上按住段换位置。 */
   | {
@@ -57,6 +60,18 @@ export type TimelineDragPreview =
       readonly track: EditTrackId
       readonly clipId: string
       readonly startSec: number
+    }
+  /**
+   * 从素材栏拖一张卡过来、还没松手（换皮 R4 · 样片 AF）：在落点那一格插一段**空位**
+   * （`EDIT_DROP_SLOT_ID`），首尾相接的轨上后面的段让出这么宽；按起点摆的轨（台词）
+   * 空位就落在 `startSec`。空位只是画出来的，⛔ 不进项目。
+   */
+  | {
+      readonly kind: 'insert'
+      readonly track: EditTrackId
+      readonly index: number
+      readonly startSec: number
+      readonly durationSec: number
     }
   /** 字幕段挪位置或裁两端；`reattach` = 起点动了，按落点重新挂（与 op 执行器同一条）。 */
   | {
@@ -146,6 +161,22 @@ export function applyTimelinePreview(
           ),
         },
       }
+    case 'insert': {
+      const clips = [...tracks[preview.track]]
+      const slot: EditClip = {
+        id: EDIT_DROP_SLOT_ID,
+        sourceNodeId: '',
+        in: 0,
+        out: preview.durationSec,
+        speed: 1,
+        muted: true,
+        ...(isPositionedTrack(preview.track)
+          ? { startSec: preview.startSec }
+          : {}),
+      }
+      clips.splice(Math.max(0, Math.min(clips.length, preview.index)), 0, slot)
+      return { ...project, tracks: { ...tracks, [preview.track]: clips } }
+    }
     case 'shift':
       return {
         ...project,

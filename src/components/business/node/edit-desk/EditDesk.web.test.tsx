@@ -381,6 +381,58 @@ describe('剪辑台 · 台面', () => {
     expect(read().edit?.tracks.video[0]?.sourceNodeId).toBe('v1')
   })
 
+  it('素材拖到主线上方：没松手就让出一格空位；拖走就收；落下就是一段（样片 AF）', async () => {
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1'] })
+    openMaterials()
+    const tile = screen.getByTestId('edit-desk-asset-v2')
+    const data = new Map<string, string>([[EDIT_DESK_NODE_DRAG_MIME, 'v2']])
+    const transfer = {
+      types: [EDIT_DESK_NODE_DRAG_MIME],
+      getData: (type: string) => data.get(type) ?? '',
+      setData: (type: string, value: string) => data.set(type, value),
+      setDragImage: () => undefined,
+      dropEffect: 'none',
+      effectAllowed: 'all',
+    }
+    fireEvent.dragStart(tile, { dataTransfer: transfer })
+    expect(tile).toHaveAttribute('data-lifted', 'true')
+
+    // 拖到已有的那一段上方也接得住（⛔ 只在空轨底上接）
+    const first = read().edit?.tracks.video[0]?.id
+    fireEvent.dragOver(screen.getByTestId(`edit-desk-clip-${first}`), {
+      dataTransfer: transfer,
+      clientX: 0,
+    })
+    expect(screen.getByTestId('edit-desk-drop-slot-video')).toBeInTheDocument()
+    // 视频卡 ⛔ 往配乐轨让位
+    fireEvent.dragOver(screen.getByTestId('edit-desk-track-music'), {
+      dataTransfer: transfer,
+      clientX: 0,
+    })
+    expect(screen.queryByTestId('edit-desk-drop-slot-music')).toBeNull()
+
+    fireEvent.drop(screen.getByTestId('edit-desk-track-video'), {
+      dataTransfer: transfer,
+      clientX: 0,
+    })
+    fireEvent.dragEnd(tile, { dataTransfer: transfer })
+    // ⚠ jsdom 的拖放事件不带坐标（落在哪一格测不了，交给真机）—— 只查落进去了
+    expect(
+      read()
+        .edit?.tracks.video.map((clip) => clip.sourceNodeId)
+        .sort(),
+    ).toEqual(['v1', 'v2'])
+    // 空位淡出（退场有动画）
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-drop-slot-video')).toBeNull(),
+    )
+    expect(tile).not.toHaveAttribute('data-lifted')
+    // 拖完就收素材栏（⚠ `dragend` 要挂在普通 div 上，motion 元素会把它当成自己的手势）
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-materials')).toBeNull(),
+    )
+  })
+
   it('「进剪辑台」带进来的卡开台就落进 V 轨', () => {
     const { read } = renderDesk(emptyState, { initialNodeIds: ['v1', 'v2'] })
     expect(read().edit?.tracks.video).toHaveLength(2)

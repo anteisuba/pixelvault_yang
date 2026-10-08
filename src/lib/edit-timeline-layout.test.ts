@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildTimelineLayout } from '@/lib/edit-timeline-layout'
+import {
+  buildTimelineLayout,
+  EDIT_DROP_SLOT_ID,
+} from '@/lib/edit-timeline-layout'
 import type { EditClip, EditProject, EditTextClip } from '@/types/node-workflow'
 
 /**
@@ -99,6 +102,37 @@ describe('buildTimelineLayout', () => {
     })
     expect(layout.clips.get('a')?.durationSec).toBeCloseTo(4.6)
     expect(layout.clips.get('b')?.startSec).toBeCloseTo(4.6)
+  })
+
+  it('素材拖进来（样片 AF）：主线在落点插一格空位，后面的段连同挂件让开', () => {
+    const layout = buildTimelineLayout(fixture(), {
+      kind: 'insert',
+      track: 'video',
+      index: 1,
+      startSec: 4,
+      durationSec: 3,
+    })
+    expect(layout.clips.get(EDIT_DROP_SLOT_ID)).toMatchObject({
+      startSec: 4,
+      durationSec: 3,
+    })
+    expect(layout.clips.get('b')?.startSec).toBe(7)
+    // 挂在 b 上的台词跟着 b 走
+    expect(layout.clips.get('l')?.startSec).toBe(8)
+    // ⛔ 进项目：空位只是画出来的
+    expect(fixture().tracks.video).toHaveLength(2)
+  })
+
+  it('台词轨按起点摆：空位落在那一秒，别的段不动', () => {
+    const layout = buildTimelineLayout(fixture(), {
+      kind: 'insert',
+      track: 'audio',
+      index: 0,
+      startSec: 1.5,
+      durationSec: 2,
+    })
+    expect(layout.clips.get(EDIT_DROP_SLOT_ID)?.startSec).toBe(1.5)
+    expect(layout.clips.get('l')?.startSec).toBe(5)
   })
 
   it('拖台词：按落点重新挂 —— 宿主在拖的途中就换了', () => {

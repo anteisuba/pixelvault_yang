@@ -292,6 +292,32 @@ export const EDIT_DELETE_MOTION = {
 } as const
 
 /**
+ * 素材拖上主线（换皮 R4 · 样片 AF）：拖起时那张图放大 `liftScale`、带一圈影子（`shadowPx`
+ * 也是影子在图框里留的边，⛔ 被裁掉）；落下的段从同样大、糊着落成原样。
+ */
+export const EDIT_ASSET_DRAG = {
+  liftScale: 1.08,
+  shadowPx: 14,
+  shadow: 'rgb(10 10 10 / 0.22)',
+  /** 落下那一下：从 `liftScale` 糊着落成原样（k300 d26）。 */
+  land: { type: 'spring', stiffness: 300, damping: 26 },
+  landBlurPx: 4,
+} as const
+
+/**
+ * 素材栏开合（换皮 R4 · 样片 Q）：展开先长宽（从左边那一列往右长，k300 d26），里面的东西
+ * 晚 `contentDelayS` 糊着出来；收起反过来 —— 东西先糊掉（`contentOutS`），再收窄。
+ * `growInset` 是长满时四边留出的余量（%），给面板的影子留地方，⛔ 被裁掉。
+ */
+export const EDIT_MATERIALS_MOTION = {
+  grow: { type: 'spring', stiffness: 300, damping: 26 },
+  contentDelayS: 0.12,
+  contentInS: 0.16,
+  contentOutS: 0.12,
+  growInsetPct: 10,
+} as const
+
+/**
  * 一行一项的弹层（换皮第二轮，照模型选择器）：点下去对勾立刻挪过去，停这么久再收起 ——
  * 看得见选中了哪一行，⛔ 不是点完弹层就没了。
  */

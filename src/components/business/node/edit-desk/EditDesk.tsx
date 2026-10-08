@@ -45,10 +45,16 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  type Variants,
+} from 'motion/react'
 
 import {
   EDIT_AUDIO_FILTER_IDS,
+  EDIT_MATERIALS_MOTION,
   EDIT_PANEL_IDS,
   EDIT_RECEIPT_MOTION,
   EDIT_RETAKE_BAR,
@@ -62,7 +68,7 @@ import {
   type EditTrackId,
 } from '@/constants/edit-desk'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
-import { CHIP_POPOVER, DURATION, SPRING } from '@/constants/motion'
+import { LIQUID_TIMING } from '@/constants/motion'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   countClipRiders,
@@ -262,6 +268,38 @@ export function EditDesk({
   const [materialsOpen, setMaterialsOpen] = useState(false)
   const materialsRef = useRef<HTMLDivElement | null>(null)
   const reduceMotion = useReducedMotion()
+  /**
+   * 素材栏开合（样片 Q）：外层只管宽（clip-path 从左往右长，长满时四边多留一点给影子），
+   * 里面的东西晚半拍糊着出来；收起时外层等里面先退完（`afterChildren`）再收窄。
+   */
+  const { grow, contentDelayS, contentInS, contentOutS, growInsetPct } =
+    EDIT_MATERIALS_MOTION
+  const materialsVariants: Variants = {
+    closed: {
+      clipPath: 'inset(0% 100% 0% 0%)',
+      transition: reduceMotion
+        ? { duration: 0 }
+        : { ...grow, when: 'afterChildren' },
+    },
+    open: {
+      clipPath: `inset(-${growInsetPct}% -${growInsetPct}% -${growInsetPct}% -${growInsetPct}%)`,
+      transition: reduceMotion
+        ? { duration: 0 }
+        : { ...grow, delayChildren: contentDelayS },
+    },
+  }
+  const materialsContentVariants: Variants = {
+    closed: {
+      opacity: 0,
+      filter: `blur(${LIQUID_TIMING.blurPx}px)`,
+      transition: { duration: reduceMotion ? 0 : contentOutS },
+    },
+    open: {
+      opacity: 1,
+      filter: 'blur(0px)',
+      transition: { duration: reduceMotion ? 0 : contentInS },
+    },
+  }
   const [exportOpen, setExportOpen] = useState(false)
   /** 预览在不在播 —— 空格与走带行那颗钮共用这一份（spec §6「空格播放」）。 */
   const [playing, setPlaying] = useState(false)
@@ -923,52 +961,42 @@ export function EditDesk({
               aria-label={t('stage')}
               className="relative flex min-h-0 flex-1 flex-col bg-background p-3.5"
             >
-              {/* 素材面板从左列那颗图标处长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
+              {/* 素材面板从左列那一边长出来、盖在舞台上：⛔ 不推开舞台，高度只到舞台
                   为止（⛔ 不盖时间线 —— 要能往时间线上拖）。拖完就收（`dragend` 冒泡上来）。
-                  开合沿用工具行弹层那一套：0.72 → 1、由糊变清（`CHIP_POPOVER`）。 */}
+                  开合（样片 Q）：先长宽、东西晚半拍糊着出来；收起东西先糊掉、再收窄。 */}
               <AnimatePresence>
                 {!readOnly && materialsOpen ? (
                   <motion.div
                     ref={materialsRef}
                     key="materials"
-                    initial={{
-                      opacity: 0,
-                      scale: CHIP_POPOVER.fromScale,
-                      filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      scale: 1,
-                      filter: 'blur(0px)',
-                      transition: reduceMotion ? { duration: 0 } : SPRING.slot,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      scale: CHIP_POPOVER.fromScale,
-                      filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-                      transition: {
-                        duration: reduceMotion ? 0 : DURATION.base,
-                        ease: 'easeIn',
-                      },
-                    }}
-                    className="absolute bottom-3 left-3 top-3 z-30 flex origin-top-left"
+                    data-testid="edit-desk-materials"
+                    initial="closed"
+                    animate="open"
+                    exit="closed"
+                    variants={materialsVariants}
+                    className="absolute bottom-3 left-3 top-3 z-30 flex"
                   >
                     {/* ⚠ HTML5 的 `dragend` 挂在普通 div 上：motion 元素的 `onDragEnd`
                         是它自己的拖拽手势，接不到素材格的拖投。 */}
-                    <div
+                    <motion.div
+                      variants={materialsContentVariants}
                       className="flex max-h-full"
-                      onDragEnd={() => setMaterialsOpen(false)}
                     >
-                      <EditDeskAssetPanel
-                        activePanel={activePanel}
-                        assets={desk.assets}
-                        textNodes={textNodes}
-                        onAppend={(nodeId) => desk.addClips([nodeId])}
-                        onAddCaption={() => desk.addTextAtPlayhead()}
-                        audioFilter={audioFilter}
-                        onAudioFilterChange={setAudioFilter}
-                      />
-                    </div>
+                      <div
+                        className="flex max-h-full"
+                        onDragEnd={() => setMaterialsOpen(false)}
+                      >
+                        <EditDeskAssetPanel
+                          activePanel={activePanel}
+                          assets={desk.assets}
+                          textNodes={textNodes}
+                          onAppend={(nodeId) => desk.addClips([nodeId])}
+                          onAddCaption={() => desk.addTextAtPlayhead()}
+                          audioFilter={audioFilter}
+                          onAudioFilterChange={setAudioFilter}
+                        />
+                      </div>
+                    </motion.div>
                   </motion.div>
                 ) : null}
               </AnimatePresence>

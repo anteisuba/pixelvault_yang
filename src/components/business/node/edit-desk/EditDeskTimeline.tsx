@@ -64,6 +64,7 @@ import {
   EDIT_DESK_NODE_DRAG_MIME,
   EDIT_DESK_TRANSITION_DRAG_MIME,
   EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+  EDIT_ASSET_DRAG,
   EDIT_TIMELINE_FEEL,
   EDIT_TIMELINE_OVERSHOOT,
   EDIT_TIMELINE_FILMSTRIP,
@@ -87,11 +88,13 @@ import {
   clampTrim,
   editRowName,
   formatEditClock,
+  EDIT_CLIP_FALLBACK_DURATION_SEC,
   isAttachmentCut,
   isPositionedTrack,
 } from '@/lib/edit-project'
 import {
   buildTimelineLayout,
+  EDIT_DROP_SLOT_ID,
   type TimelineDragPreview,
   type TimelineLayout,
   type TimelineSpan,
@@ -118,6 +121,7 @@ import {
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
 import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
+import { currentEditAssetDrag, laneTakesAsset } from './edit-desk-asset-drag'
 import { EDIT_CLIP_FLASH_ATTRIBUTE, flashEditClips } from './edit-desk-flash'
 
 const G = EDIT_TIMELINE_GEOMETRY
@@ -508,7 +512,9 @@ export function EditDeskTimeline({
       hostId,
       glowId,
       // 拖的途中只有换位时邻段在滑；裁剪、挪台词 / 字幕时一切跟手。
-      animate: preview ? preview.kind === 'move' : ppsStable,
+      animate: preview
+        ? preview.kind === 'move' || preview.kind === 'insert'
+        : ppsStable,
       slideClass: springBack ? 'transition-spring-back' : 'transition-magnetic',
       bounceBack,
       snap,
@@ -620,6 +626,110 @@ export function EditDeskTimeline({
       reduceMotion,
     ],
   )
+
+  /**
+   * 素材拖上来（换皮 R4 · 样片 AF）：整块时间线一起接 —— 段压在轨底上面，只在轨底上接的话
+   * 拖到已有的段上方就落不下去。落在哪条轨先看指针底下是哪条（`data-edit-lane`），再按
+   * 落点那一刻插一格空位（布局 `insert` 预览）：首尾相接的轨后面的段让开这一张的长度，台词
+   * 轨就落在这一秒。认不得这张卡的轨（视频拖到声音轨）不让位、不接。
+   */
+  const laneOf = useCallback(
+    (event: React.DragEvent<HTMLElement>): EditTrackId | null => {
+      const target = event.target instanceof Element ? event.target : null
+      const lane = target
+        ?.closest('[data-edit-lane]')
+        ?.getAttribute('data-edit-lane')
+      const byTarget = EDIT_TRACKS.find((track) => track === lane)
+      if (byTarget) return byTarget
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return null
+      const y = event.clientY - rect.top
+      return (
+        EDIT_TRACKS.find(
+          (track) =>
+            y >= TRACK_LANE[track].top &&
+            y < TRACK_LANE[track].top + TRACK_LANE[track].height,
+        ) ?? null
+      )
+    },
+    [],
+  )
+  const dropSpot = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      const types = event.dataTransfer.types
+      if (
+        !types.includes(EDIT_DESK_NODE_DRAG_MIME) &&
+        !types.includes(EDIT_DESK_LIBRARY_DRAG_MIME)
+      ) {
+        return null
+      }
+      const track = laneOf(event)
+      if (!track) return null
+      const drag = currentEditAssetDrag()
+      if (drag && !laneTakesAsset(track, drag.kind)) return null
+      const seconds = secondsFromEvent(event.clientX)
+      return {
+        track,
+        seconds,
+        index: desk.insertIndexAt(track, seconds),
+        durationSec: drag?.durationSec ?? EDIT_CLIP_FALLBACK_DURATION_SEC,
+      }
+    },
+    [laneOf, secondsFromEvent, desk],
+  )
+  const clearSlot = useCallback(() => {
+    setDrag((current) => (current?.preview.kind === 'insert' ? null : current))
+  }, [])
+  const onAssetDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    const spot = dropSpot(event)
+    if (!spot) {
+      clearSlot()
+      return
+    }
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    const positioned = isPositionedTrack(spot.track)
+    const same =
+      preview?.kind === 'insert' &&
+      preview.track === spot.track &&
+      preview.index === spot.index &&
+      (!positioned || Math.abs(preview.startSec - spot.seconds) < 0.01)
+    if (same) return
+    setDrag({
+      preview: {
+        kind: 'insert',
+        track: spot.track,
+        index: spot.index,
+        startSec: spot.seconds,
+        durationSec: spot.durationSec,
+      },
+    })
+  }
+  const onAssetDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget
+    if (next instanceof Node && event.currentTarget.contains(next)) return
+    clearSlot()
+  }
+  const onAssetDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const spot = dropSpot(event)
+    clearSlot()
+    if (!spot) return
+    // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
+    const asset = parseEditDeskLibraryAsset(
+      event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
+    )
+    if (asset) {
+      event.preventDefault()
+      onDropLibraryAsset(asset, spot.track, spot.index, spot.seconds)
+      return
+    }
+    const nodeId =
+      event.dataTransfer.getData(EDIT_DESK_NODE_DRAG_MIME) ||
+      event.dataTransfer.getData('text/plain')
+    if (!nodeId) return
+    event.preventDefault()
+    desk.dropNode(nodeId, spot.track, spot.index, { startSec: spot.seconds })
+  }
 
   /**
    * 轨道上空白处按下 = **取消选中**，⛔ 不挪播放头（owner「点哪儿会发生什么」：
@@ -822,6 +932,9 @@ export function EditDeskTimeline({
                   ref={canvasRef}
                   className="relative min-w-full"
                   style={{ width: canvasPx, height: LANE_TOP.bottom }}
+                  onDragOver={onAssetDragOver}
+                  onDragLeave={onAssetDragLeave}
+                  onDrop={onAssetDrop}
                 >
                   <Ruler
                     spanSec={spanSec}
@@ -843,9 +956,7 @@ export function EditDeskTimeline({
                       desk={desk}
                       rowById={rowById}
                       committed={committedLayout}
-                      secondsFromEvent={secondsFromEvent}
                       onBlankPointerDown={deselect}
-                      onDropLibraryAsset={onDropLibraryAsset}
                     />
                   ))}
                   <Seams desk={desk} />
@@ -1122,18 +1233,18 @@ function OverviewClip({
 /** 一条轨的底：放置区（拖进来）+ 空白处按下 = 取消选中 + 空着时一句提示。 */
 function LaneBed({
   testId,
+  lane,
   top,
   height,
   empty,
   hint,
   bed,
   onPointerDown,
-  onDragOver,
-  onDragLeave,
-  onDrop,
   dropping,
 }: {
   readonly testId: string
+  /** 素材拖进来时认这一条（`data-edit-lane`，落点判据见 `EditDeskTimeline` 的拖放那一段）。 */
+  readonly lane?: EditTrackId
   readonly top: number
   readonly height: number
   readonly empty: boolean
@@ -1142,17 +1253,12 @@ function LaneBed({
   readonly bed?: boolean
   readonly dropping?: boolean
   onPointerDown(): void
-  onDragOver?(event: React.DragEvent<HTMLDivElement>): void
-  onDragLeave?(): void
-  onDrop?(event: React.DragEvent<HTMLDivElement>): void
 }) {
   return (
     <div
       data-testid={testId}
+      data-edit-lane={lane}
       onPointerDown={onPointerDown}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
       className={cn(
         'absolute inset-x-0 rounded-lg transition-colors duration-fast',
         bed && 'bg-foreground/2',
@@ -1603,27 +1709,20 @@ function TrackLane({
   desk,
   rowById,
   committed,
-  secondsFromEvent,
   onBlankPointerDown,
-  onDropLibraryAsset,
 }: {
   readonly track: EditTrackId
   readonly desk: EditDesk
   readonly rowById: ReadonlyMap<string, EditTimelineRow>
   readonly committed: TimelineLayout
-  secondsFromEvent(clientX: number): number
   onBlankPointerDown(): void
-  onDropLibraryAsset(
-    asset: EditDeskLibraryAsset,
-    track: EditTrackId,
-    index: number,
-    startSec: number,
-  ): void
 }) {
   const t = useTranslations('StudioNode.editDesk')
-  const { layout } = useTimelineInteraction()
+  const scale = useTimelineScale()
+  const { layout, preview } = useTimelineInteraction()
   const reduceMotion = useReducedMotion()
-  const [dropping, setDropping] = useState(false)
+  const dropping = preview?.kind === 'insert' && preview.track === track
+  const slot = dropping ? layout.clips.get(EDIT_DROP_SLOT_ID) : undefined
   const lane = TRACK_LANE[track]
   const order = layout.order[track]
 
@@ -1638,44 +1737,33 @@ function TrackLane({
         empty={desk.rows[track].length === 0}
         hint={t('tracks.empty')}
         onPointerDown={onBlankPointerDown}
-        onDragOver={(event) => {
-          const types = event.dataTransfer.types
-          if (
-            !types.includes(EDIT_DESK_NODE_DRAG_MIME) &&
-            !types.includes(EDIT_DESK_LIBRARY_DRAG_MIME)
-          ) {
-            return
-          }
-          event.preventDefault()
-          event.dataTransfer.dropEffect = 'copy'
-          setDropping(true)
-        }}
-        onDragLeave={() => setDropping(false)}
-        onDrop={(event) => {
-          setDropping(false)
-          const seconds = secondsFromEvent(event.clientX)
-          const index = desk.insertIndexAt(track, seconds)
-          // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
-          const asset = parseEditDeskLibraryAsset(
-            event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
-          )
-          if (asset) {
-            event.preventDefault()
-            onDropLibraryAsset(asset, track, index, seconds)
-            return
-          }
-          const nodeId =
-            event.dataTransfer.getData(EDIT_DESK_NODE_DRAG_MIME) ||
-            event.dataTransfer.getData('text/plain')
-          if (!nodeId) return
-          event.preventDefault()
-          desk.dropNode(nodeId, track, index, { startSec: seconds })
-        }}
+        lane={track}
       />
+      {/* 素材拖进来、还没松手：落点那一格的空位（样片 AF），后面的段已经让开了。 */}
+      <AnimatePresence>
+        {slot ? (
+          <motion.span
+            key="drop-slot"
+            data-testid={`edit-desk-drop-slot-${track}`}
+            aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: DURATION.fast } }}
+            className="pointer-events-none absolute rounded-lg border-2 border-dashed border-foreground/40 bg-foreground/5"
+            style={{
+              top: lane.top,
+              height: lane.height,
+              left: scale.toPx(slot.startSec),
+              width: scale.toPx(slot.durationSec),
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
       <AnimatePresence initial={false}>
         {order.map((clipId) => {
           const row = rowById.get(clipId)
           const span = layout.clips.get(clipId)
+          // 拖进来的空位不是一段（上面单独画虚线槽）。
           if (!row || !span) return null
           return (
             <ClipView
@@ -2013,6 +2101,7 @@ function ClipView({
 
   return (
     <motion.div
+      data-edit-lane={track}
       className={cn(
         'absolute',
         animate && !own && !follows && slideClass,
@@ -2028,6 +2117,18 @@ function ClipView({
         x: lifted || follows ? liftShiftPx : 0,
         y: lifted ? -6 : shifting ? -4 : 0,
       }}
+      // 新落进来的段（样片 AF「放下变形成一段」）：从拿起来那么大、糊着落成原样。⚠ 轨上
+      // 原有的段首次挂载不播（外层 `AnimatePresence initial={false}`）。
+      initial={
+        reduceMotion
+          ? false
+          : {
+              scale: EDIT_ASSET_DRAG.liftScale,
+              filter: `blur(${EDIT_ASSET_DRAG.landBlurPx}px)`,
+            }
+      }
+      animate={{ scale: 1, filter: 'blur(0px)' }}
+      transition={reduceMotion ? { duration: 0 } : EDIT_ASSET_DRAG.land}
       exit={exitMotion(reduceMotion)}
     >
       {readoutEdge ? (

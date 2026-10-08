@@ -139,7 +139,7 @@
 | Popover / Dropdown / Tooltip              | 已内置 `fade-in-0 zoom-in-95`，tooltip delay 0。设置页的下拉走 `SelectContent motionPreset="spring"`：开 `spring-slot` 放大 + 由糊变清，关 `duration-fast` 且关着那一拍 `pointer-events-none`                                                                                                                                                                                                                             | radix              |
 | 列表/网格项进入                           | `motion.div` `initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}` + 父级 `staggerChildren: 0.03`，最多前 12 项做 stagger，其余直接出现                                                                                                                                                                                                                                                                                   | motion             |
 | 元素移除                                  | `AnimatePresence` + `exit={{opacity:0,scale:.98}}`，`duration-fast`                                                                                                                                                                                                                                                                                                                                                       | motion             |
-| 骨架 → 内容                               | 骨架 `animate-pulse`；内容到达时容器 `animate-in fade-in-0 duration-base`；**骨架尺寸 = 内容尺寸**，不许跳动                                                                                                                                                                                                                                                                                                              | CSS                |
+| 骨架 → 内容                               | 灰块**静止**（⛔ `animate-pulse` / 呼吸，owner 2026-10-08）；数据到了内容在自己那一格里由糊变清（图 14px → 清楚 0.5 秒、按位置左上往右下错开 70ms；行 / 文字短暂一糊），实现只有 `components/ui/load-reveal.tsx` 一份；**骨架尺寸 = 内容尺寸**，不许跳动；细则见 `loading.md`「页面 / 列表加载」                                                                                                                          | motion / CSS       |
 | Tab / 分段选中指示条                      | `layoutId="tab-indicator"` 共享布局动画                                                                                                                                                                                                                                                                                                                                                                                   | motion             |
 | 面板从触发物长出来（助手头像 / 画布侧栏） | 面板按全尺寸排版，只动 `clip-path` 内缩：先横成一条标题条，`LIQUID_TIMING.unfoldDelayS` 后纵向展开；弹簧 `LIQUID_SPRING`；标题随第一拍、正文随第二拍短模糊进场；动着时投影走外层 `drop-shadow`，落定后撤                                                                                                                                                                                                                  | motion             |
 | 换内容（同一位置的字 / 图标换成另一份）   | `BlurSwap`（`components/ui/blur-swap.tsx`）或 `useBlurSwapIn`：新内容由糊变清进场（`LIQUID_TIMING.swapInS` / `blurPx`），只有进场、首次挂载不播；owner 2026-10-07 定                                                                                                                                                                                                                                                      | motion             |
@@ -155,7 +155,7 @@
 
 两条都由 `eslint.config.mjs` 的 **`ANIMATION_LIBRARY_FORBIDDEN_PATHS`** 守（`@typescript-eslint/no-restricted-imports`，与 Phosphor 图标门同一条规则 id，⛔ 不能各起一个块——flat config 会整块替换同名规则的 options）。
 
-**液态展开那一族**（owner 2026-09-26 定 B）走 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`：形状只裁剪不变尺寸，这是「只动 transform / opacity」之外唯一放行的 `clip-path` 用法；内容换场的短模糊（`filter: blur`）只在这一族和上表「换内容」那一行（`BlurSwap`，owner 2026-10-07 起）里用。⚠ 同时要让工作台每帧重排的场合**不用**这一族（owner 09-26「打开时有点卡」）：图片台的助手列从右侧滑入、工作台同一根弹簧让位，只动 `transform`。 chip 弹层**不在**这一族（owner 2026-09-26 从四种开法里选 ②「从 chip 放大」，替掉液态共享形状）：弹层以 chip 中心为原点从 0.72 放大、由糊变清进场（`spring-slot` 弹簧，轻过冲），关上缩回 chip（`--duration-base` + `ease-in`）；每颗弹层各开各的、⛔ 不跨弹层共享形状。实现只有一处（`studio-shared/primitives/tool-surface.tsx` 的 `useStudioChipPopoverMotion`，起止形态见 `CHIP_POPOVER`），宿主用 chip 外观（`outline`）接入，⛔ 不在弹层里各写一套开合动画。 分段切换也在这一族（`components/ui/liquid-segmented.tsx`，owner 2026-09-26「视频里那个效果」）：选中块的两条边各一根弹簧，往哪边走哪边是硬的 `lead`、身后是软的 `trail`，途中被拉长再收拢；选中块是一层按两条边裁出来的实底，里面反色再排一遍字，字是被扫过时逐像素变色的。写法切换 · 标签台「整体 / 角色」分页 · 查资料「角色 / 画师」都用它，⛔ 不再各画一颗滑块。
+**液态展开那一族**（owner 2026-09-26 定 B）走 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`：形状只裁剪不变尺寸，这是「只动 transform / opacity」之外唯一放行的 `clip-path` 用法；内容换场的短模糊（`filter: blur`）只在这一族、上表「换内容」那一行（`BlurSwap`，owner 2026-10-07 起）与「骨架 → 内容」那一行（`load-reveal`，owner 2026-10-08 起）里用。⚠ 同时要让工作台每帧重排的场合**不用**这一族（owner 09-26「打开时有点卡」）：图片台的助手列从右侧滑入、工作台同一根弹簧让位，只动 `transform`。 chip 弹层**不在**这一族（owner 2026-09-26 从四种开法里选 ②「从 chip 放大」，替掉液态共享形状）：弹层以 chip 中心为原点从 0.72 放大、由糊变清进场（`spring-slot` 弹簧，轻过冲），关上缩回 chip（`--duration-base` + `ease-in`）；每颗弹层各开各的、⛔ 不跨弹层共享形状。实现只有一处（`studio-shared/primitives/tool-surface.tsx` 的 `useStudioChipPopoverMotion`，起止形态见 `CHIP_POPOVER`），宿主用 chip 外观（`outline`）接入，⛔ 不在弹层里各写一套开合动画。 分段切换也在这一族（`components/ui/liquid-segmented.tsx`，owner 2026-09-26「视频里那个效果」）：选中块的两条边各一根弹簧，往哪边走哪边是硬的 `lead`、身后是软的 `trail`，途中被拉长再收拢；选中块是一层按两条边裁出来的实底，里面反色再排一遍字，字是被扫过时逐像素变色的。写法切换 · 标签台「整体 / 角色」分页 · 查资料「角色 / 画师」都用它，⛔ 不再各画一颗滑块。
 
 **过冲那一族**（助手灯箱 / 参考图挂上去）走 `constants/motion.ts` 的 `EASE_POP` / `EASE_POP_STRONG`：时长照旧四档刻度，曲线单列是因为「蹦出来」和脊柱那条收敛曲线是两种意思。⛔ 组件里不再出现裸的 `ease: [...]` 数组。
 
@@ -219,19 +219,20 @@
 
 **全站空态落点清单（2026-09-20 收口，进度表 33 ①）**——机器门 `src/test/empty-state.contract.test.ts` 守这张表：名册写死，长出第四类落点就红；每个落点都得给一句话 + 一个 `rounded-full` 主动作。
 
-| 落点                   | 文件                                                                                                                                          |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                                                               |
-| 画廊为空               | `GalleryGrid.tsx`                                                                                                                             |
-| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                                                                                        |
-| 角色卡 / 画风卡为空    | `cards/CharacterCardManager.tsx` · `StyleCardManager.tsx` · `SimpleCardManager.tsx`                                                           |
-| 灵感墙筛空             | `prompts/inspiration/InspirationGrid.tsx`                                                                                                     |
-| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                                                                       |
-| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                                                                           |
-| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                                                                |
-| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                                                                            |
-| 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                                                                              |
-| 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` · `assets/AssetStateBlocks.tsx` 的整页加载失败 |
+| 落点                   | 文件                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                |
+| 画廊为空               | `GalleryGrid.tsx`                                                                              |
+| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                                         |
+| 角色卡 / 画风卡为空    | `cards/CharacterCardManager.tsx` · `StyleCardManager.tsx` · `SimpleCardManager.tsx`            |
+| 灵感墙筛空             | `prompts/inspiration/InspirationGrid.tsx`                                                      |
+| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                        |
+| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                            |
+| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                 |
+| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                             |
+| 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                               |
+| 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` |
+| 整页加载失败           | `PageLoadError.tsx`（画廊与素材库共用，owner 2026-10-08 加载中）                               |
 
 **故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：
 
@@ -239,8 +240,8 @@
 - **起手屏不是空态**：`StudioEmptyState`（示例卡 + 最近作品）与 `StudioOperatorEmptyState`（一句话 + 起手药丸）都是 owner 逐条定过的形态，D7b ③ 的原话是「一句话就是一句话，不再是标题 + 说明两段」。
 - **搜索无结果不是空态**：它回答「你的筛选太窄」，出口只有一个「清除筛选」，套空态配方会硬造一个不该有的主动作。
 - **LoRA 稀疏引导卡**本页有 1–5 条内容，是结果流尾部的引导行。
-- **加载**：`loading.md`。行内 `Spinner md`，区块 `lg` + 一行文案，列表用与内容同尺寸的 `Skeleton`。
-- **错误**：整块出错（路由段、区块、整页加载失败）与 404 用**空态同一个模板**（`EmptyState tone="error"`）：⛔ 整块变红，只在图标格右上角放一颗红点；「重试」是黑丸，按下键里转圈（字不变），救回来的内容由糊变清（`useErrorRecoveryReveal`）。表单里一行的错误仍是 `error-alert.tsx`；缺 API key 走 `QuickSetupDialog`，不禁用 UI。
+- **加载**：`loading.md`。行内 `Spinner md`，区块 `lg` + 一行文案，列表用与内容同尺寸的 `Skeleton`（**静止**，⛔ 呼吸）。页面 / 列表 / 面板 / 查看器怎么等、怎么到、等太久与失败怎么说，见 §7.2。
+- **错误**：整块出错（路由段、区块、整页加载失败）与 404 用**空态同一个模板**（`EmptyState tone="error"`）：⛔ 整块变红，只在图标格右上角放一颗红点；「重试」是黑丸，按下键里转圈、字换成「重试中」（owner 2026-10-08 加载中），救回来的内容由糊变清（`useErrorRecoveryReveal`）。表单里一行的错误仍是 `error-alert.tsx`；缺 API key 走 `QuickSetupDialog`，不禁用 UI。
 - **不支持的能力不渲染**，不做禁用占位。
 - **成功**：点按钮得到的结果写在键上；后台跑完的才弹底部黑条（§7.1）；改变布局的结果就地出现（第 4 节进入动画）。
 
@@ -256,6 +257,22 @@
 | 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                              |
 
 动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--foreground`，危险 = `--destructive`）。红点在黑条上的对比度：`--destructive` 对 `--foreground` ≈ 4.2:1（非文本图形门槛 3:1；`--status-risk` 只有 3.0，所以不用它）。
+
+### 7.2 加载中（owner 2026-10-08 定稿，原型 `ThV7ucUtgNZS4zbGry9XPh`）
+
+| 场合               | 做法                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------ |
+| 页面打开、数据没到 | 静止的灰块（⛔ 呼吸），形状 = 真内容；瀑布流按已知的真实比例占位                                       |
+| 数据到了           | 每张图在自己格里由糊变清（14px + 透明 → 清楚，0.5 秒，左上往右下错开 70ms）；文字行同样糊一下变清      |
+| 往下滚             | 离底部一屏就接一排灰块并开始拿；拿完最底写「没有更多了」                                               |
+| 等超过 6 秒        | 底部黑条「网有点慢，还在加载」（§7.1 那条），数据到了自己收掉                                          |
+| 失败               | 整页 → 统一出错模板（红点 + 「重试」→ 转圈「重试中」）；滚动那一批 → 灰块底下一句「这批没拿到 · 重试」 |
+| 列表和面板         | 设置 key 列表 / 助手历史会话 / 模型选择器：灰条占位，到了短暂一糊变清                                  |
+| 按钮里             | 照 §7.1（转圈 +「保存中」→「✓ 已保存」）；有真进度的写「上传中 3/12」；转圈三档不变                    |
+| 看大图             | 先显列表里那张小图（糊），原图到了变清，⛔ 转圈；原图没拿到 →「先给你看小图 · 重试」                   |
+| 生成中             | 「边即进度」照旧（`loading.md`），不归这一节                                                           |
+
+reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loading.md`「页面 / 列表加载」；共享原语只有 `components/ui/load-reveal.tsx`，⛔ 页面里各抄一份 `loading → fading → shown`。
 
 ---
 
@@ -290,6 +307,8 @@
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-10-08 · 加载中（§7.2，原型 `ThV7ucUtgNZS4zbGry9XPh`）：`Skeleton` 与全站骨架去掉 `animate-pulse` / `animate-skeleton-breathe`（后者连 keyframe 一起删）；新原语 `load-reveal`（`useMediaReveal` / `LoadReveal` / `ArrivalReveal`）收编画廊卡、素材瓦片、LoRA 封面、`OptimizedImage` 四份各自的「由糊变清」；`FeedTail`（一屏前预取 + 灰块尾巴 + 「这批没拿到 · 重试」+「没有更多了」）画廊与素材库共用；`PageLoadError` 收编画廊 / 素材库整页失败；`useSlowLoadingNotice` 6 秒黑条；查看器先小图后原图；重试键转圈时写「重试中」。
 
 - 2026-10-08 · 设置页换皮加动效（原型 `Scp29Uk4yzuMG2foDn6y76`，落点见 `pages/settings.md` §8）：`QuickSetupDialog` 加入「从按下的那一点长出来」（`lib/grow-from-pointer.ts` 与 `AlertDialog` 共用），保存键「检查中 → ✓ 已保存」写在键上；`SelectContent` 新增 `spring` 档；新原语 `CountUp`；助手记忆删一条改走 `ConfirmDeleteButton` + 撤销黑条、全部清空改正中弹窗（§7.1 表的用法不变）。
 

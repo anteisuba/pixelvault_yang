@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback, useState } from 'react'
 import NextImage from 'next/image'
 
 import { ImageIcon, Layers, Music, Play } from '@/components/icons'
@@ -10,6 +9,7 @@ import {
 } from '@/lib/generation-media'
 import { buildPromptAltText } from '@/lib/generation-seo'
 import { cn } from '@/lib/utils'
+import { useMediaReveal } from '@/components/ui/load-reveal'
 import type { GenerationRecord } from '@/types'
 import {
   toMediaTransitionOrigin,
@@ -28,6 +28,8 @@ interface ImageCardMediaProps {
   /** 「底图 + N 图层」角标文案；没有图层时宿主不传。 */
   layerBadgeLabel?: string
   priority?: boolean
+  /** 数据到了由糊变清时错开第几步（`revealStep`，左上往右下）。 */
+  revealStep?: number
 }
 
 export function ImageCardMedia({
@@ -41,6 +43,7 @@ export function ImageCardMedia({
   referenceImageLabel,
   layerBadgeLabel,
   priority,
+  revealStep,
 }: ImageCardMediaProps) {
   const imageSrc = getGenerationThumbnailUrl(generation)
   // 派生列优先，缺了走 CDN 现场抽帧 —— 以前这里靠 `preload="metadata"` +
@@ -92,6 +95,7 @@ export function ImageCardMedia({
             width={generation.width}
             height={generation.height}
             priority={priority}
+            revealStep={revealStep}
           />
         )}
       </button>
@@ -132,9 +136,9 @@ export function ImageCardMedia({
 }
 
 /**
- * 卡片里的图（卡片与详情 A）：宽高属性先把位置占好、底下铺浅灰；真图解码好后
- * 200 由糊变清（与 LoRA 封面、素材瓦片同一种）。⚠ 已在缓存里的图（窗口化列表
- * 滚回来重挂）直接出真图，⛔ 每滚一次重播一遍。
+ * 卡片里的图（卡片与详情 A · 加载中 2026-10-08）：宽高属性先把位置占好、底下铺浅灰；
+ * 真图到了在自己那一格里由糊变清（`useMediaReveal`，按位置错开 `revealStep` 步）。
+ * ⚠ 已在缓存里的图（窗口化列表滚回来重挂）直接出真图，⛔ 每滚一次重播一遍。
  */
 function BlurUpImage({
   src,
@@ -142,34 +146,26 @@ function BlurUpImage({
   width,
   height,
   priority,
+  revealStep,
 }: {
   src: string
   alt: string
   width: number
   height: number
   priority?: boolean
+  revealStep?: number
 }) {
-  const [phase, setPhase] = useState<{
-    src: string
-    value: 'loading' | 'fading' | 'shown'
-  }>({ src, value: 'loading' })
-  if (phase.src !== src) setPhase({ src, value: 'loading' })
-  const current = phase.src === src ? phase.value : 'loading'
-  const imageRef = useCallback(
-    (image: HTMLImageElement | null) => {
-      if (!image?.complete || image.naturalWidth === 0) return
-      setPhase((previous) =>
-        previous.src === src && previous.value === 'loading'
-          ? { src, value: 'shown' }
-          : previous,
-      )
-    },
-    [src],
-  )
+  const {
+    imageRef: revealRef,
+    onLoad: onRevealLoad,
+    onError: onRevealError,
+    style: revealStyle,
+    className: revealClassName,
+  } = useMediaReveal({ src, step: revealStep })
 
   return (
     <NextImage
-      ref={imageRef}
+      ref={revealRef}
       src={src}
       alt={alt}
       width={Math.max(width, 1)}
@@ -179,19 +175,10 @@ function BlurUpImage({
       fetchPriority={priority ? 'high' : 'auto'}
       unoptimized
       draggable={false}
-      onLoad={() =>
-        setPhase((previous) =>
-          previous.src === src && previous.value === 'loading'
-            ? { src, value: 'fading' }
-            : previous,
-        )
-      }
-      className={cn(
-        'h-auto w-full object-cover',
-        current === 'loading' && 'scale-110 opacity-0 blur-md',
-        current === 'fading' &&
-          'transition-[filter,scale,opacity] duration-base ease-standard motion-reduce:transition-none',
-      )}
+      onLoad={onRevealLoad}
+      onError={onRevealError}
+      style={revealStyle}
+      className={cn('h-auto w-full object-cover', revealClassName)}
     />
   )
 }

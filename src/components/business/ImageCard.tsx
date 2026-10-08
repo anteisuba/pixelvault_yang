@@ -26,6 +26,8 @@ const ImageDetailModal = dynamic(
 interface ImageCardProps {
   generation: GenerationRecord
   priority?: boolean
+  /** 数据到了由糊变清时错开第几步（画廊按格子位置算，左上往右下）。 */
+  revealStep?: number
   /**
    * 桌面：点开交给画廊的就地查看器（宿主持有那一张）。不给 = 平板 / 手机：这张卡
    * 自己开全屏详情（domains/gallery.md「卡片、顶栏与详情」）。
@@ -43,6 +45,7 @@ interface ImageCardProps {
 export const ImageCard = memo(function ImageCard({
   generation,
   priority,
+  revealStep,
   onOpen,
   onToggleLike,
 }: ImageCardProps) {
@@ -119,6 +122,7 @@ export const ImageCard = memo(function ImageCard({
       >
         <ImageCardMedia
           priority={priority}
+          revealStep={revealStep}
           generation={generation}
           isAudio={isAudio}
           isVideo={isVideo}

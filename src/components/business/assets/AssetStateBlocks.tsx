@@ -1,20 +1,12 @@
 'use client'
 
-import {
-  AlertCircle,
-  FolderOpen,
-  ImageIcon,
-  RotateCcw,
-} from '@/components/icons'
+import { FolderOpen, ImageIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Spinner } from '@/components/ui/spinner'
-import { useErrorRecoveryReveal } from '@/hooks/use-error-recovery-reveal'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
-import { cn } from '@/lib/utils'
 
 /**
  * 状态矩阵里的几块 —— `docs/references/pages/assets.md` §7。
@@ -24,8 +16,8 @@ import { cn } from '@/lib/utils'
  * | 空库 | 大空态：「所有生成成品会自动回到这里」+ 上传/去生成两个出口；此时**文件夹段一并隐藏** |
  * | 空文件夹 | 「『X』里还没有素材」+ 指路（拖到门牌 / 批量移动）+ 上传到此文件夹 |
  * | 搜索无结果 | 回显当前全部生效筛选 + 「清除全部筛选」**单一出口** |
- * | 整页加载失败 | 空态模板 + 图标角红点（⛔ 整块变红）+ 重试（键里转圈）；文案明确「已加载的内容不会丢失」 |
- * | 分页失败 | ⭐ **只挡这一段**：网格末尾行内错误条 + 重试 |
+ * | 整页加载失败 | 与画廊同一块 `PageLoadError`（空态模板 + 图标角红点 + 重试转圈「重试中」）；文案明确「已加载的内容不会丢失」 |
+ * | 分页失败 | ⭐ **只挡这一段**：与画廊同一条尾巴 `FeedTail`——灰块留着，底下一句「这批没拿到 · 重试」 |
  */
 
 interface AssetEmptyLibraryProps {
@@ -131,86 +123,6 @@ export function AssetEmptySearch({
       >
         {t('facetClearAll')}
       </Button>
-    </div>
-  )
-}
-
-interface AssetErrorBlockProps {
-  message: string
-  onRetry: () => void
-  className?: string
-}
-
-/**
- * 整页加载失败 —— 与空态同一个模板（owner 2026-10-08「提示与弹窗」第 3 题 B）：
- * ⛔ 整块不变红，只在图标角放红点；重试时键里转圈，救回来的内容由糊变清。
- */
-export function AssetPageError({
-  message,
-  onRetry,
-  retrying = false,
-  className,
-}: AssetErrorBlockProps & { retrying?: boolean }) {
-  const t = useTranslations('AssetsPage')
-  const { ref, markRetrying } = useErrorRecoveryReveal<HTMLDivElement>()
-  return (
-    <div ref={ref} role="alert" className={className}>
-      <EmptyState
-        tone="error"
-        icon={<AlertCircle />}
-        title={message}
-        description={t('errorKeepsLoaded')}
-        action={
-          <Button
-            type="button"
-            className="rounded-full"
-            aria-busy={retrying || undefined}
-            onClick={() => {
-              if (retrying) return
-              markRetrying()
-              onRetry()
-            }}
-          >
-            {retrying ? (
-              <Spinner size="md" />
-            ) : (
-              <RotateCcw className="size-4" aria-hidden />
-            )}
-            {t('errorRetry')}
-          </Button>
-        }
-      />
-    </div>
-  )
-}
-
-/** 分页失败 —— 网格末尾的行内错误条，**只挡这一段**。 */
-export function AssetPaginationError({
-  message,
-  onRetry,
-  className,
-}: AssetErrorBlockProps) {
-  const t = useTranslations('AssetsPage')
-  return (
-    <div
-      role="alert"
-      className={cn(
-        'flex flex-wrap items-center gap-2 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-2',
-        className,
-      )}
-    >
-      <AlertCircle className="size-3.5 shrink-0 text-destructive" />
-      <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-        {message}
-      </span>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs text-foreground transition-colors hover:bg-muted"
-      >
-        <RotateCcw className="size-3" />
-        {t('errorRetry')}
-      </button>
     </div>
   )
 }

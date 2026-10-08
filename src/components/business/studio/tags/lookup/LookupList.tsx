@@ -137,15 +137,10 @@ export function LookupSkeletonRows({ label }: { label: string }) {
     >
       {['w-3/5', 'w-1/2', 'w-2/3', 'w-2/5', 'w-3/5'].map((width, index) => (
         <div key={index} className="flex h-14 items-center gap-3 p-1.5">
-          <span className="size-11 shrink-0 animate-skeleton-breathe rounded-lg bg-muted motion-reduce:animate-none" />
+          <span className="size-11 shrink-0 rounded-lg bg-muted" />
           <span className="flex flex-1 flex-col gap-1.75">
-            <span
-              className={cn(
-                'h-2.75 animate-skeleton-breathe rounded-sm bg-muted motion-reduce:animate-none',
-                width,
-              )}
-            />
-            <span className="h-2.25 w-1/3 animate-skeleton-breathe rounded-sm bg-muted motion-reduce:animate-none" />
+            <span className={cn('h-2.75 rounded-sm bg-muted', width)} />
+            <span className="h-2.25 w-1/3 rounded-sm bg-muted" />
           </span>
         </div>
       ))}

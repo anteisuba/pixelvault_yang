@@ -97,10 +97,10 @@ function GridSkeleton() {
           key={i}
           className="mb-4 break-inside-avoid overflow-hidden rounded-2xl border border-border/60 bg-card/60"
         >
-          <div className="aspect-video animate-pulse bg-muted/50" />
+          <div className="aspect-video bg-muted/50" />
           <div className="flex items-center justify-between p-4">
-            <div className="h-3 w-1/3 animate-pulse rounded bg-muted/50" />
-            <div className="h-3 w-1/4 animate-pulse rounded bg-muted/50" />
+            <div className="h-3 w-1/3 rounded bg-muted/50" />
+            <div className="h-3 w-1/4 rounded bg-muted/50" />
           </div>
         </div>
       ))}

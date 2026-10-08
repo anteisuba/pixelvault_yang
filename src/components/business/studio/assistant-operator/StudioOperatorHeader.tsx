@@ -80,10 +80,12 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { ArrivalReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
+import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -224,6 +226,8 @@ export function StudioOperatorHeader({
    */
   /** 骨架只给「一条都还没载到」那一刻（见列表那段 ⚠）。 */
   const listLoading = history.isHydrating && history.sessions.length === 0
+  // 菜单开着还在等、等过 6 秒：底部黑条「网有点慢，还在加载」（关着时后台拉 ⛔ 打扰）。
+  useSlowLoadingNotice(menuOpen && listLoading)
   const sessionTitle =
     deriveAssistantConversationTitle(
       history.sessions.find((item) => item.id === history.currentSessionId)
@@ -369,13 +373,8 @@ export function StudioOperatorHeader({
                 {HISTORY_SKELETON_WIDTHS.map((width) => (
                   <div key={width} className="flex h-11 items-center px-2.25">
                     <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <Skeleton
-                        className={cn(
-                          'h-2.5 animate-skeleton-breathe rounded-sm',
-                          width,
-                        )}
-                      />
-                      <Skeleton className="h-2 w-2/5 animate-skeleton-breathe rounded-sm" />
+                      <Skeleton className={cn('h-2.5 rounded-sm', width)} />
+                      <Skeleton className="h-2 w-2/5 rounded-sm" />
                     </span>
                   </div>
                 ))}
@@ -391,48 +390,52 @@ export function StudioOperatorHeader({
                 {t('history.empty')}
               </p>
             ) : null}
-            {/* ⚠ 列表与骨架**互斥**：骨架只在列表为空时出现，两者天然不叠加。 */}
-            {history.sessions.map((session) => {
-              /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
+            {/* ⚠ 列表与骨架**互斥**：骨架只在列表为空时出现，两者天然不叠加。
+                等过骨架才到的那一份短暂一糊变清（加载中 2026-10-08）；打开时手上就有的
+                直接出现，⛔ 每开一次糊一次。 */}
+            <ArrivalReveal loading={listLoading}>
+              {history.sessions.map((session) => {
+                /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
                  哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
                  ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
                  `t()` 的键类型里（编译期就红）。 */
-              const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
-              return (
-                <StudioOperatorSessionRow
-                  key={session.id}
-                  session={session}
-                  domainLabel={
-                    sessionDomain ? t(`domainName.${sessionDomain}`) : null
-                  }
-                  dateLabel={sessionDateLabel(session.updatedAt)}
-                  current={session.id === history.currentSessionId}
-                  selectDisabled={
-                    working ||
-                    Boolean(history.loadingSessionId) ||
-                    history.deletingSessionId === session.id
-                  }
-                  deleteDisabled={
-                    Boolean(history.deletingSessionId) ||
-                    (working && session.id === history.currentSessionId)
-                  }
-                  renaming={history.renamingSessionId === session.id}
-                  deleting={history.deletingSessionId === session.id}
-                  confirming={confirmDeleteId === session.id}
-                  onSelect={() => history.selectSession(session)}
-                  onRename={(title) =>
-                    void history.renameSession(session, title)
-                  }
-                  onRequestDelete={() => setConfirmDeleteId(session.id)}
-                  onCancelDelete={cancelConfirmDelete}
-                  onConfirmDelete={() => {
-                    void history.deleteSession(session).then((deleted) => {
-                      if (deleted) setConfirmDeleteId(null)
-                    })
-                  }}
-                />
-              )
-            })}
+                const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
+                return (
+                  <StudioOperatorSessionRow
+                    key={session.id}
+                    session={session}
+                    domainLabel={
+                      sessionDomain ? t(`domainName.${sessionDomain}`) : null
+                    }
+                    dateLabel={sessionDateLabel(session.updatedAt)}
+                    current={session.id === history.currentSessionId}
+                    selectDisabled={
+                      working ||
+                      Boolean(history.loadingSessionId) ||
+                      history.deletingSessionId === session.id
+                    }
+                    deleteDisabled={
+                      Boolean(history.deletingSessionId) ||
+                      (working && session.id === history.currentSessionId)
+                    }
+                    renaming={history.renamingSessionId === session.id}
+                    deleting={history.deletingSessionId === session.id}
+                    confirming={confirmDeleteId === session.id}
+                    onSelect={() => history.selectSession(session)}
+                    onRename={(title) =>
+                      void history.renameSession(session, title)
+                    }
+                    onRequestDelete={() => setConfirmDeleteId(session.id)}
+                    onCancelDelete={cancelConfirmDelete}
+                    onConfirmDelete={() => {
+                      void history.deleteSession(session).then((deleted) => {
+                        if (deleted) setConfirmDeleteId(null)
+                      })
+                    }}
+                  />
+                )
+              })}
+            </ArrivalReveal>
             {history.error ? (
               <DropdownMenuItem disabled className="text-2sm text-destructive">
                 {history.error}

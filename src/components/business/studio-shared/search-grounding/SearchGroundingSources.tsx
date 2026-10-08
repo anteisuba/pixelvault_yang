@@ -101,10 +101,10 @@ export function SearchGroundingSources({
                 !isColumn && 'w-47 shrink-0',
               )}
             >
-              <i className="size-7 shrink-0 animate-pulse rounded-md bg-muted" />
+              <i className="size-7 shrink-0 rounded-md bg-muted" />
               <span className="flex flex-1 flex-col gap-1.5">
-                <b className="block h-2 w-1/2 animate-pulse rounded-sm bg-muted" />
-                <b className="block h-2 w-11/12 animate-pulse rounded-sm bg-muted" />
+                <b className="block h-2 w-1/2 rounded-sm bg-muted" />
+                <b className="block h-2 w-11/12 rounded-sm bg-muted" />
               </span>
             </span>
           ))}

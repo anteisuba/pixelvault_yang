@@ -61,6 +61,8 @@ import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
+import { BlurSwap } from '@/components/ui/blur-swap'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import {
   useStudioChipDensity,
@@ -868,6 +870,31 @@ export function ModelPickerPopover({
    * - 缺 key → **什么都不写**（状态只在渠道面板里用点表示，owner D2 Q1）。
    */
   const renderRowPrice = (row: ModelRow) => {
+    // 加载中（owner 2026-10-08）：key 名单还没回来时，这一格写价格还是写「缺 key」说不准
+    // → 先摆一条静止灰条；名单回来了短暂一糊变清换上真的（`BlurSwap`，打开时名单本来
+    // 就在的话直接出现）。
+    if (row.active) {
+      const settled = renderSettledRowPrice(row)
+      return (
+        <BlurSwap
+          swapKey={keysLoaded ? 'keys-ready' : 'keys-pending'}
+          className="shrink-0"
+        >
+          {keysLoaded ? (
+            settled
+          ) : (
+            <Skeleton
+              data-picker-price-pending
+              className="h-2 w-10 rounded-full"
+            />
+          )}
+        </BlurSwap>
+      )
+    }
+    return renderSettledRowPrice(row)
+  }
+
+  const renderSettledRowPrice = (row: ModelRow) => {
     if (!row.active) {
       return (
         <span

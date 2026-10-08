@@ -889,6 +889,12 @@ export const PAGINATION = {
 } as const
 
 /**
+ * 无限滚动提前多少开始拿下一页（owner 2026-10-08 加载中：离底部还有**一屏**时就接一排
+ * 灰块并开始拿）。`IntersectionObserver` 的 `rootMargin` 百分比按视口高度算。
+ */
+export const INFINITE_SCROLL_PREFETCH_MARGIN = '100% 0px'
+
+/**
  * Rows pulled per query while `sitemap.ts` walks the public catalogue. It is a
  * database batch size, not a URL budget — every batch lands in the same
  * `/sitemap.xml`.

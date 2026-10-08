@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, type ReactNode, type Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
+import { useMediaReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export interface LoraCoverTileProps {
@@ -67,38 +68,44 @@ export function LoraCoverTile({
   containerRef,
   className,
 }: LoraCoverTileProps) {
-  // P1-1: some CDNs take seconds to deliver — pulse the placeholder while
-  // loading, then fade the image in, instead of a dead black frame. On error
-  // fall back to the icon: Civitai covers can 429/503 under burst load (see
-  // proxyCivitaiImageUrl), and without onError a failed cover stays a black
-  // pulsing hole forever instead of degrading to the same placeholder as a
-  // cover-less card.
-  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(
-    'loading',
-  )
+  // P1-1: some CDNs take seconds to deliver — a static gray block holds the
+  // slot, then the cover goes from blurred to sharp (`useMediaReveal`, owner
+  // 2026-10-08 加载中: 灰块静止不闪). On error fall back to the icon: Civitai
+  // covers can 429/503 under burst load (see proxyCivitaiImageUrl), and
+  // without onError a failed cover stays an empty hole forever instead of
+  // degrading to the same placeholder as a cover-less card.
 
   // Route civitai covers through our edge-cache proxy so the browser never
   // hotlinks image.civitai.com directly (that burst is what trips the rate
   // limit). No-op for R2/own covers and when the proxy env is unset.
   const resolvedUrl = coverUrl ? proxyCivitaiImageUrl(coverUrl) : null
-  const showImage = resolvedUrl !== null && status !== 'error'
+  const {
+    phase: revealPhase,
+    imageRef: revealRef,
+    onLoad: onRevealLoad,
+    onError: onRevealError,
+    style: revealStyle,
+    className: revealClassName,
+  } = useMediaReveal({ src: resolvedUrl ?? '' })
+  const showImage = resolvedUrl !== null && revealPhase !== 'failed'
 
   const cover = isLoadingCover ? (
     <Skeleton className="size-full rounded-none" />
   ) : showImage ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={resolvedUrl}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onLoad={() => setStatus('loaded')}
-      onError={() => setStatus('error')}
-      className={cn(
-        'size-full object-cover transition-all duration-200 group-hover:scale-105',
-        status === 'loaded' ? 'opacity-100' : 'opacity-0',
-      )}
-    />
+    <span className="block size-full transition-transform duration-base group-hover:scale-105">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={revealRef}
+        src={resolvedUrl}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={onRevealLoad}
+        onError={onRevealError}
+        style={revealStyle}
+        className={cn('size-full object-cover', revealClassName)}
+      />
+    </span>
   ) : (
     <div className="flex size-full items-center justify-center text-muted-foreground">
       {fallbackIcon}
@@ -110,10 +117,6 @@ export function LoraCoverTile({
       ref={containerRef}
       className={cn(
         'group relative aspect-[3/4] overflow-hidden rounded-xl bg-muted',
-        !isLoadingCover &&
-          resolvedUrl !== null &&
-          status === 'loading' &&
-          'animate-pulse',
         selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
         className,
       )}

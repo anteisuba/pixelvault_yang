@@ -56,9 +56,12 @@ import {
   AssetEmptyFolder,
   AssetEmptyLibrary,
   AssetEmptySearch,
-  AssetPageError,
-  AssetPaginationError,
 } from '@/components/business/assets/AssetStateBlocks'
+import { FeedTail } from '@/components/business/FeedTail'
+import { PageLoadError } from '@/components/business/PageLoadError'
+import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
 import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
 import { AssetViewer } from '@/components/business/assets/AssetViewer'
@@ -125,6 +128,7 @@ import {
   ASSET_GRID_GAP,
   ASSET_GRID_ROW_OVERSCAN,
   ASSET_GRID_SKELETON_ASPECT_RATIOS,
+  ASSET_TAIL_SKELETON_COUNT,
   ASSET_GRID_TARGET_ROW_HEIGHT,
   ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO,
   type AssetGridDensity,
@@ -1173,6 +1177,8 @@ export function KreaAssetBrowser({
         const maxMb = String(CLIENT_UPLOAD_MAX_BYTES / 1024 / 1024)
         const uploadFile = await prepareImageUpload(file, {
           maxBytes: CLIENT_UPLOAD_MAX_BYTES,
+          // 上传键自己写「上传中 3/12」，压缩那一下 ⛔ 再弹一条转圈黑条。
+          inlineProgress: true,
           messages: {
             compressing: t('uploadCompressing'),
             compressed: ({ from, to }) => t('uploadCompressed', { from, to }),
@@ -1385,6 +1391,8 @@ export function KreaAssetBrowser({
   }, [showUploadCell, uploadQueue.pendingItems, generations])
 
   const showSkeleton = generations.length === 0 && isLoading
+  // 等太久（6 秒）底部黑条「网有点慢，还在加载」，数据到了自己收掉。
+  useSlowLoadingNotice(isLoading)
   const gridAspectRatios = useMemo(
     () =>
       showSkeleton
@@ -1412,6 +1420,18 @@ export function KreaAssetBrowser({
     aspectRatios: gridAspectRatios,
     targetRowHeight,
   })
+  // 数据到了每张图由糊变清，一批之内从左上往右下错开（「这一行第几格 + 离这一批第一行
+  // 几行」）。justified 排版每行格数不一样，所以按「这一格在第几行」来数。
+  const batchStartOf = useRevealBatchStart(gridItems.length)
+  const gridRowOfItem = useMemo(() => {
+    const rowOf: number[] = []
+    gridRows.forEach((row, rowIndex) => {
+      row.boxes.forEach((box) => {
+        rowOf[box.index] = rowIndex
+      })
+    })
+    return rowOf
+  }, [gridRows])
 
   // ─── justified 行的窗口化（2026-09-03）──────────────────────────
   // 素材库是「滚到底就再追加 24 条」的无限流，退役前所有瓦片都留在 DOM 里，
@@ -2013,8 +2033,9 @@ export function KreaAssetBrowser({
               the existing error path below. */}
               {/* 整页加载失败 —— 弱化面 + 重试，已加载内容不丢（§7）。 */}
               {galleryError && !isPickerMode && (
-                <AssetPageError
-                  message={galleryError}
+                <PageLoadError
+                  title={galleryError}
+                  description={t('errorKeepsLoaded')}
                   onRetry={retryGallery}
                   retrying={isLoading}
                   className="mb-3"
@@ -2055,7 +2076,7 @@ export function KreaAssetBrowser({
                           transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
                         }}
                       >
-                        {row.boxes.map((box) => {
+                        {row.boxes.map((box, column) => {
                           // 行内每格的尺寸由 justified 排版算出来，瓦片按它自己的
                           // 真实比例占位 —— 所以 object-cover 在这里不裁任何东西。
                           const boxStyle = {
@@ -2067,7 +2088,7 @@ export function KreaAssetBrowser({
                               <div
                                 key={`skeleton-${box.index}`}
                                 style={boxStyle}
-                                className="shrink-0 animate-pulse rounded-lg bg-muted/40"
+                                className="shrink-0 rounded-lg bg-muted"
                               />
                             )
                           }
@@ -2197,6 +2218,11 @@ export function KreaAssetBrowser({
                                   : () => void toggleTileFavorite(gen.id)
                               }
                               favoritePending={favoritePendingIds.has(gen.id)}
+                              revealStep={revealStep(
+                                column,
+                                virtualRow.index -
+                                  (gridRowOfItem[batchStartOf(box.index)] ?? 0),
+                              )}
                             />
                           )
                           // 从当前夹里拿出去的那几张：缩小淡出 200 再离开。
@@ -2217,22 +2243,35 @@ export function KreaAssetBrowser({
                   })}
                 </div>
               )}
-              {/* ⭐ 分页失败只挡这一段：已加载的内容一个都不动。 */}
-              {appendError && (
-                <AssetPaginationError
-                  message={appendError}
-                  onRetry={retryLoadMore}
-                  className="mt-3"
-                />
-              )}
+              {/* 无限滚动的尾巴（加载中 2026-10-08）：在拿 = 接一排灰块；这一批没拿到 = 灰块
+                  底下一句「这批没拿到 · 重试」，⭐ 已加载的内容一个都不动。 */}
+              <FeedTail
+                loading={isLoading && generations.length > 0}
+                error={appendError}
+                ended={false}
+                onRetry={retryLoadMore}
+                className="mt-1"
+                placeholder={
+                  <div
+                    aria-hidden
+                    className="flex w-full"
+                    style={{ gap: ASSET_GRID_GAP, height: targetRowHeight }}
+                  >
+                    {ASSET_GRID_SKELETON_ASPECT_RATIOS.slice(
+                      0,
+                      ASSET_TAIL_SKELETON_COUNT,
+                    ).map((ratio, index) => (
+                      <Skeleton
+                        key={index}
+                        className="h-full min-w-0 rounded-lg bg-muted"
+                        style={{ flex: `${ratio} 1 0` }}
+                      />
+                    ))}
+                  </div>
+                }
+              />
               {hasMore && !appendError && (
                 <div ref={sentinelRef} className="h-2" />
-              )}
-
-              {isLoading && generations.length > 0 && (
-                <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-                  <Spinner size="md" />
-                </div>
               )}
             </main>
             {!isPickerMode && !isPhone && selectedGeneration ? (

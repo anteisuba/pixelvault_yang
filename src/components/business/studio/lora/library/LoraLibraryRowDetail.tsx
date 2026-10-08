@@ -28,6 +28,7 @@ import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-de
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
+import { useMediaReveal } from '@/components/ui/load-reveal'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import type {
   LoraAssetRecord,
@@ -370,7 +371,6 @@ function CivitaiRowDetail({
   onPreviewCover,
 }: CivitaiDetailProps) {
   const t = useTranslations('LoraWorkbench')
-  const [coverLoaded, setCoverLoaded] = useState(false)
   const isGeneratable = isCivitaiBaseModelGeneratable(item.baseModelFamily)
   const isCommercial = isCivitaiLoraCommerciallyUsable(item.allowCommercialUse)
   const needsAttribution = item.allowNoCredit === false
@@ -379,6 +379,15 @@ function CivitaiRowDetail({
   const { descriptionText } = useCivitaiModelDescription(item.modelId)
 
   const coverUrl = item.coverImageUrl ?? sampleImages[0]?.url
+  const coverSrc = coverUrl
+    ? civitaiDisplayImageUrl(coverUrl, LORA_DETAIL_IMAGE_WIDTH)
+    : ''
+  const {
+    imageRef: revealRef,
+    onLoad: onRevealLoad,
+    style: revealStyle,
+    className: revealClassName,
+  } = useMediaReveal({ src: coverSrc })
 
   const cover = (
     <button
@@ -391,22 +400,20 @@ function CivitaiRowDetail({
       aria-label={t('viewCover')}
       className={cn(
         'block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
-        coverUrl && !coverLoaded && 'animate-pulse',
         coverUrl ? 'cursor-zoom-in hover:opacity-95' : 'cursor-default',
       )}
     >
       {coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={civitaiDisplayImageUrl(coverUrl, LORA_DETAIL_IMAGE_WIDTH)}
+          ref={revealRef}
+          src={coverSrc}
           alt={item.name}
           width={512}
           height={640}
-          onLoad={() => setCoverLoaded(true)}
-          className={cn(
-            'aspect-[4/5] w-full object-cover transition-opacity duration-200',
-            coverLoaded ? 'opacity-100' : 'opacity-0',
-          )}
+          onLoad={onRevealLoad}
+          style={revealStyle}
+          className={cn('aspect-[4/5] w-full object-cover', revealClassName)}
           loading="lazy"
           decoding="async"
         />
@@ -610,7 +617,12 @@ function HuggingFaceRowDetail({
   onPreviewCover,
 }: HuggingFaceDetailProps) {
   const t = useTranslations('LoraWorkbench')
-  const [coverLoaded, setCoverLoaded] = useState(false)
+  const {
+    imageRef: revealRef,
+    onLoad: onRevealLoad,
+    style: revealStyle,
+    className: revealClassName,
+  } = useMediaReveal({ src: item.coverImageUrl ?? '' })
   const needsExplicitPick = item.files.length > 1
   const [selectedFilename, setSelectedFilename] = useState<string | null>(() =>
     needsExplicitPick ? null : (item.files[0]?.filename ?? null),
@@ -635,7 +647,6 @@ function HuggingFaceRowDetail({
       aria-label={t('viewCover')}
       className={cn(
         'block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
-        item.coverImageUrl && !coverLoaded && 'animate-pulse',
         item.coverImageUrl
           ? 'cursor-zoom-in hover:opacity-95'
           : 'cursor-default',
@@ -644,15 +655,14 @@ function HuggingFaceRowDetail({
       {item.coverImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={revealRef}
           src={item.coverImageUrl}
           alt={item.name}
           width={512}
           height={640}
-          onLoad={() => setCoverLoaded(true)}
-          className={cn(
-            'aspect-[4/5] w-full object-cover transition-opacity duration-200',
-            coverLoaded ? 'opacity-100' : 'opacity-0',
-          )}
+          onLoad={onRevealLoad}
+          style={revealStyle}
+          className={cn('aspect-[4/5] w-full object-cover', revealClassName)}
           loading="lazy"
           decoding="async"
         />

@@ -18,12 +18,15 @@ import {
   type ProviderKeyState,
 } from '@/hooks/use-provider-key-rows'
 import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
+import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { ApiKeyHealthStatus } from '@/types'
 import { cn } from '@/lib/utils'
 
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { LoadReveal, useArrivedAfterWait } from '@/components/ui/load-reveal'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 
 /**
@@ -51,6 +54,11 @@ export function SettingsKeysSection() {
   const searchParams = useSearchParams()
   const [expanded, setExpanded] = useState<string | null>(null)
   const reduceMotion = useReducedMotion()
+  // 加载中（owner 2026-10-08）：key 名单还没回来 = 每家一条静止灰条（形状 = 真行）；
+  // 回来了一行行短暂一糊变清。等过 6 秒底部黑条「网有点慢，还在加载」。
+  const showSkeleton = isLoading && rows.every((row) => row.keys.length === 0)
+  const arrived = useArrivedAfterWait(showSkeleton)
+  useSlowLoadingNotice(showSkeleton)
   /** 地址栏要求直接配哪一家 —— 开关就由地址栏说了算，⛔ 不再拷一份进 state。 */
   const setupAdapter = searchParams.get(KEY_SETUP_QUERY)
   const urlSetupRow = setupAdapter
@@ -85,36 +93,54 @@ export function SettingsKeysSection() {
         <p className="text-xs text-muted-foreground">{t('keys.caption')}</p>
       </header>
 
-      {isLoading && rows.every((row) => row.keys.length === 0) ? (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
-          <Spinner size="md" />
-          {t('keys.loading')}
-        </div>
+      {showSkeleton ? (
+        <ul
+          role="status"
+          aria-label={t('keys.loading')}
+          data-testid="settings-keys-skeleton"
+          className="mt-4 flex flex-col gap-2"
+        >
+          {rows.map((row) => (
+            <li
+              key={row.adapterType}
+              aria-hidden
+              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3"
+            >
+              <Skeleton className="size-2 shrink-0 rounded-full" />
+              <Skeleton className="h-3.5 w-28 rounded-sm" />
+              <Skeleton className="h-3 w-16 rounded-sm" />
+              <Skeleton className="h-3 flex-1 rounded-sm" />
+              <Skeleton className="h-7 w-16 rounded-md" />
+            </li>
+          ))}
+        </ul>
       ) : (
         <ul className="mt-4 flex flex-col gap-2">
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <motion.li
               key={row.adapterType}
               layout="position"
               transition={springTransition('slot', reduceMotion)}
             >
-              <ProviderRow
-                row={row}
-                healthMap={healthMap}
-                verifiedAtMap={verifiedAtMap}
-                spendUsd={
-                  providers.find(
-                    (provider) => provider.adapterType === row.adapterType,
-                  )?.estimatedCostUsd ?? null
-                }
-                isExpanded={expanded === row.adapterType}
-                onToggleExpanded={() =>
-                  setExpanded((current) =>
-                    current === row.adapterType ? null : row.adapterType,
-                  )
-                }
-                onQuickSetup={() => openQuickSetup(row)}
-              />
+              <LoadReveal play={arrived} step={index}>
+                <ProviderRow
+                  row={row}
+                  healthMap={healthMap}
+                  verifiedAtMap={verifiedAtMap}
+                  spendUsd={
+                    providers.find(
+                      (provider) => provider.adapterType === row.adapterType,
+                    )?.estimatedCostUsd ?? null
+                  }
+                  isExpanded={expanded === row.adapterType}
+                  onToggleExpanded={() =>
+                    setExpanded((current) =>
+                      current === row.adapterType ? null : row.adapterType,
+                    )
+                  }
+                  onQuickSetup={() => openQuickSetup(row)}
+                />
+              </LoadReveal>
             </motion.li>
           ))}
         </ul>

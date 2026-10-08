@@ -1961,8 +1961,6 @@
     "emptyDescription": "スタジオで公開した作品が、ここに並びます。",
     "emptyAction": "スタジオを開く",
     "loadMore": "さらに画像を読み込む",
-    "loadingMore": "画像を読み込んでいます...",
-    "endOfArchive": "公開作品はここまでです。",
     "viewer": {
       "label": "ギャラリービューアー",
       "close": "ビューアーを閉じる",
@@ -4241,13 +4239,22 @@
     "notifications": "通知",
     "downloadStarted": "ダウンロードを開始しました",
     "deleteConfirm": "削除を確定",
-    "undo": "元に戻す"
+    "undo": "元に戻す",
+    "slowLoading": "通信が遅いようです。読み込みを続けています",
+    "batchFailed": "この分を読み込めませんでした",
+    "retry": "再試行",
+    "retrying": "再試行中",
+    "loadingMore": "さらに読み込み中",
+    "endOfList": "これで全部です",
+    "pageLoadFailedHint": "通信が一瞬途切れたかもしれません。再試行しても何も失われません。",
+    "previewFallback": "ひとまず縮小版を表示しています"
   },
   "ErrorBoundary": {
     "title": "エラーが発生しました",
     "sectionError": "{section}でエラーが発生しました",
     "description": "予期しないエラーが発生しました。もう一度お試しください。",
     "retry": "再試行",
+    "retrying": "再試行中",
     "home": "ホームに戻る"
   },
   "GlobalError": {

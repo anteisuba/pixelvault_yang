@@ -467,10 +467,7 @@ export function AssetFolderSidebar({
             {isLoading && folders.length === 0 ? (
               <div aria-hidden className="space-y-1">
                 {[0, 1, 2, 3].map((index) => (
-                  <div
-                    key={index}
-                    className="h-8.5 animate-pulse rounded-lg bg-muted/60"
-                  />
+                  <div key={index} className="h-8.5 rounded-lg bg-muted/60" />
                 ))}
               </div>
             ) : null}

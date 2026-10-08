@@ -50,6 +50,11 @@ import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditProject, EditTextClip } from '@/types/node-workflow'
 
+import {
+  TakeCompareOverlay,
+  type EditTakeCompareView,
+} from './EditDeskVersions'
+
 export interface EditDeskPreviewProps {
   readonly project: EditProject
   /** 播放头下的那一段（`null` = 轨道之外）。 */
@@ -81,6 +86,10 @@ export interface EditDeskPreviewProps {
   onOpenMaterials?(): void
   /** V 轨上紧挨着这一段的前后两段：提前挂好、停在衔接的那一帧。 */
   readonly neighbors?: readonly EditTimelineRow[]
+  /**
+   * 版本弹层里鼠标停着的那一版（样片 W）：盖在画面上左右对比。缺席 = 不挂对比层（手机）。
+   */
+  readonly compare?: EditTakeCompareView | null
 }
 
 export interface PreviewTextEditing {
@@ -145,6 +154,7 @@ export function EditDeskPreview({
   textEditing,
   onOpenMaterials,
   neighbors = [],
+  compare,
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
   /** 按 url 登记的那几只 `<video>`；当前那只 = 播放头这一段的 url。 */
@@ -432,6 +442,10 @@ export function EditDeskPreview({
           </div>
         ))}
 
+        {compare !== undefined ? (
+          <TakeCompareOverlay compare={compare} playheadSec={playheadSec} />
+        ) : null}
+
         {/* 左上：这一段在重拍（换皮第一轮 A：白底小转圈，界面不加颜色）。 */}
         {generatingTake ? (
           <span
@@ -448,7 +462,11 @@ export function EditDeskPreview({
         {row ? (
           <span
             data-testid="edit-desk-shot-tag"
-            className="pointer-events-none absolute right-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 text-2xs leading-5.5 text-white"
+            className={cn(
+              'pointer-events-none absolute right-3 top-3 max-w-3/4 truncate rounded-md bg-neutral-950/60 px-2 text-2xs leading-5.5 text-white transition-opacity duration-fast',
+              // 对比时右上那枚换成「第 n 版」。
+              compare && 'opacity-0',
+            )}
           >
             {t('shotTag', {
               n: row.index + 1,

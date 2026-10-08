@@ -106,6 +106,14 @@ export type EditRetakeOutcome =
   | { readonly status: 'pending' }
   | { readonly status: 'notSent' }
 
+/** 版本弹层里悬停的那一版（换皮第二轮 ⑥ C · 样片 W）：大预览上拿它和在用那一版对比。 */
+export interface EditTakeCompare {
+  readonly track: EditTrackId
+  readonly clipId: string
+  /** 卡上的第几版（0 起）。 */
+  readonly index: number
+}
+
 /** 选中的那一段（右栏属性读它）。 */
 export interface EditDeskSelection {
   readonly track: EditTrackId
@@ -215,6 +223,10 @@ export interface EditDesk {
   /** 那一枪回来了。 */
   settleRetake(clipId: string, outcome: EditRetakeOutcome): void
 
+  /** 版本对比：`null` = 不比（弹层关上 / 停在在用那一版上）。只是看，⛔ 不改时间线。 */
+  readonly compare: EditTakeCompare | null
+  setCompare(compare: EditTakeCompare | null): void
+
   /**
    * 导出确认 → **渲染计划**（S9）。
    *
@@ -274,6 +286,7 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   const [inPointSec, setInPointSec] = useState<number | null>(null)
   const [outPointSec, setOutPointSec] = useState<number | null>(null)
   const [retakeClipId, setRetakeClipId] = useState<string | null>(null)
+  const [compare, setCompare] = useState<EditTakeCompare | null>(null)
   const [retakes, setRetakes] = useState<ReadonlyMap<string, EditRetake>>(
     () => new Map(),
   )
@@ -798,6 +811,8 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     retakes,
     beginRetake,
     settleRetake,
+    compare,
+    setCompare,
     rename,
     setSettings,
     insertIndexAt,

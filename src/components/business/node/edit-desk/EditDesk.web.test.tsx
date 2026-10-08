@@ -545,7 +545,7 @@ describe('剪辑台 · 台面', () => {
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
   })
 
-  it('段播自己钉住的那一版；画布换了版只亮一个点，在版本弹层里换（4a）', () => {
+  it('段播自己钉住的那一版；画布换了版只亮一个点，在版本弹层里换（4a）', async () => {
     const pinnedState: NodeWorkflowStateV4 = {
       version: 4,
       nodes: [
@@ -595,17 +595,25 @@ describe('剪辑台 · 台面', () => {
     fireEvent.click(badge)
     expect(screen.getByTestId('edit-desk-versions')).toBeInTheDocument()
     expect(screen.getByTestId('edit-desk-version-1')).toHaveAttribute(
-      'aria-pressed',
+      'aria-checked',
       'true',
     )
     expect(screen.getByTestId('edit-desk-version-2')).toHaveTextContent(
       '画布 · 新',
     )
 
+    // 点下去对勾立刻挪过去，弹层停一会儿再收（换皮第二轮）
     fireEvent.click(screen.getByTestId('edit-desk-version-2'))
     expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2')
+    expect(screen.getByTestId('edit-desk-version-2')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
     expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
       '版本 2/2',
+    )
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-versions')).toBeNull(),
     )
 
     // 挑回旧版：卡也跟着切回去，⛔ 不留一个关不掉的「有新版」点
@@ -618,6 +626,82 @@ describe('剪辑台 · 台面', () => {
     expect(screen.getByTestId('edit-desk-takes-c1')).toHaveAccessibleName(
       '版本 1/2',
     )
+  })
+
+  it('版本弹层里停在另一版上：大预览左右对比，停回在用那版 / 关上弹层就收（换皮第二轮 W）', async () => {
+    const twoTakes: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [
+            { id: 'ver1', url: 'https://example.test/a.mp4' },
+            { id: 'ver2', url: 'https://example.test/b.mp4' },
+          ],
+          cur: 0,
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0,
+              out: 4,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read } = renderDesk(twoTakes)
+    expect(screen.queryByTestId('edit-desk-take-compare')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-2'))
+    const compare = screen.getByTestId('edit-desk-take-compare')
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+    expect(
+      screen.getByTestId('edit-desk-take-compare-label'),
+    ).toHaveTextContent('第 2 版')
+    const compareSources = [...compare.querySelectorAll('video')].map((video) =>
+      video.getAttribute('src'),
+    )
+    expect(compareSources).toEqual([
+      'https://example.test/a.mp4',
+      'https://example.test/b.mp4',
+    ])
+    // 只是看：时间线不动
+    expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver1')
+
+    // 拖分隔线不算点在弹层外面：弹层不收、对比还在
+    const handle = screen.getByTestId('edit-desk-take-compare-handle')
+    fireEvent.pointerDown(handle, { clientX: 10, pointerId: 1 })
+    fireEvent.pointerUp(handle, { clientX: 10, pointerId: 1 })
+    expect(screen.getByTestId('edit-desk-versions')).toBeInTheDocument()
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+
+    // 停回在用那一版 = 不比
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-1'))
+    expect(compare).toHaveAttribute('aria-hidden', 'true')
+
+    fireEvent.pointerEnter(screen.getByTestId('edit-desk-version-2'))
+    expect(compare).toHaveAttribute('aria-hidden', 'false')
+    // 弹层的防误关只挡焦点刚进来的那一拍：真人点两下之间早过了这一拍。
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.click(screen.getByTestId('edit-desk-takes-c1'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('edit-desk-versions')).toBeNull(),
+    )
+    expect(compare).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('就地重拍：升起栏 → 段上生成中 → 新版落到卡上就自动换上；失败描红点开再改（4b）', async () => {

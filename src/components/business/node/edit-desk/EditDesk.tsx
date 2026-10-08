@@ -714,6 +714,16 @@ export function EditDesk({
   const retakeRow = retakeClipId
     ? (videoRows.find((row) => row.clip.id === retakeClipId) ?? null)
     : null
+  /** 版本弹层里停在另一版上：大预览左右对比（样片 W）。 */
+  const compareRow = desk.compare
+    ? (desk.rows[desk.compare.track].find(
+        (row) => row.clip.id === desk.compare?.clipId,
+      ) ?? null)
+    : null
+  const compareView =
+    compareRow && desk.compare
+      ? { row: compareRow, index: desk.compare.index }
+      : null
   /** 播放头这一段正在重拍：预览左上角写「第 n 版生成中」。 */
   const previewRetakeTake =
     previewRow && desk.retakes.get(previewRow.clip.id)?.status === 'generating'
@@ -875,6 +885,7 @@ export function EditDesk({
                 {...(readOnly
                   ? {}
                   : {
+                      compare: compareView,
                       onOpenMaterials: () => {
                         setActivePanel(EDIT_PANEL_IDS.canvas)
                         setMaterialsOpen(true)

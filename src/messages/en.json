@@ -6354,13 +6354,12 @@
       "overview": "Whole cut",
       "versions": {
         "title": "Takes",
-        "hint": "{name} · pick one to use it",
+        "hint": "{name} · hover to compare",
         "take": "Take {n}",
         "seconds": "{sec}s",
         "fromCanvas": "Canvas",
-        "inUse": "In use · {from}",
+        "compareInUse": "In use",
         "fresh": "{from} · new",
-        "footer": "Lines and captions stay the same seconds into the shot.",
         "badge": "Take {n}/{count}",
         "badgeFresh": "Take {n}/{count} · a newer take is on the canvas"
       },

@@ -35,6 +35,7 @@ import {
   EDIT_CLIP_GAIN_MIN,
   EDIT_CLIP_GAIN_STEP,
   EDIT_CLIP_SPEEDS,
+  EDIT_PICK_CLOSE_DELAY_MS,
   EDIT_TEXT_ANCHORS,
   EDIT_TEXT_ANCHOR_CELL,
   EDIT_TEXT_FADES,
@@ -51,7 +52,7 @@ import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditTextClip } from '@/types/node-workflow'
 
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   Popover,
   PopoverContent,
@@ -59,6 +60,7 @@ import {
 } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { PickHeader, PickList, PickRow } from './EditDeskPickRow'
 import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 import { useEditDeskContinue } from './use-edit-desk-continue'
 
@@ -176,21 +178,23 @@ export function EditDeskInspector({
                 label={t('speed')}
                 value={t('speedOption', { speed: clip.speed || 1 })}
                 set={(clip.speed || 1) !== 1}
+                hint={sourceName(row)}
               >
-                <LiquidSegmented
-                  ariaLabel={t('speed')}
-                  semantics="radio"
-                  value={String(clip.speed || 1)}
-                  onChange={(value) =>
-                    desk.updateClip(selection.track, clip.id, {
-                      speed: Number(value),
-                    })
-                  }
-                  items={EDIT_CLIP_SPEEDS.map((speed) => ({
-                    value: String(speed),
-                    label: t('speedOption', { speed }),
-                  }))}
-                />
+                {(pick) =>
+                  EDIT_CLIP_SPEEDS.map((speed) => (
+                    <PickRow
+                      key={speed}
+                      mono
+                      label={t('speedOption', { speed })}
+                      selected={(clip.speed || 1) === speed}
+                      onPick={() =>
+                        pick(() =>
+                          desk.updateClip(selection.track, clip.id, { speed }),
+                        )
+                      }
+                    />
+                  ))
+                }
               </RowPopover>
               <button
                 type="button"
@@ -219,21 +223,27 @@ export function EditDeskInspector({
                   (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) !==
                   EDIT_TRANSITION_IDS.none
                 }
+                hint={sourceName(row)}
               >
-                <LiquidSegmented
-                  ariaLabel={t('transition')}
-                  semantics="radio"
-                  value={clip.transitionOut ?? EDIT_TRANSITION_IDS.none}
-                  onChange={(transition) =>
-                    desk.updateClip(selection.track, clip.id, {
-                      transitionOut: transition,
-                    })
-                  }
-                  items={EDIT_TRANSITIONS.map((transition) => ({
-                    value: transition,
-                    label: t(`transitions.${transition}`),
-                  }))}
-                />
+                {(pick) =>
+                  EDIT_TRANSITIONS.map((transition) => (
+                    <PickRow
+                      key={transition}
+                      label={t(`transitions.${transition}`)}
+                      selected={
+                        (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
+                        transition
+                      }
+                      onPick={() =>
+                        pick(() =>
+                          desk.updateClip(selection.track, clip.id, {
+                            transitionOut: transition,
+                          }),
+                        )
+                      }
+                    />
+                  ))
+                }
               </RowPopover>
               <VersionsChip desk={desk} row={row} />
             </>
@@ -467,43 +477,46 @@ function TextClipFields({
         testId="edit-desk-text-anchor"
         icon={<Grid3X3 className="size-3.5 shrink-0" aria-hidden />}
         label={t('anchor')}
+        wide
       >
-        <div
-          role="radiogroup"
-          aria-label={t('anchor')}
-          style={{ gap: EDIT_TEXT_ANCHOR_CELL.gapPx }}
-          className="grid w-fit grid-cols-3 p-1"
-        >
-          {EDIT_TEXT_ANCHORS.map((anchor) => (
-            <button
-              key={anchor}
-              type="button"
-              role="radio"
-              aria-checked={clip.anchor === anchor}
-              aria-label={t(`anchors.${anchor}`)}
-              data-testid={`edit-desk-text-anchor-${anchor}`}
-              onClick={() => desk.updateTextClip(clip.id, { anchor })}
-              style={{
-                width: EDIT_TEXT_ANCHOR_CELL.widthPx,
-                height: EDIT_TEXT_ANCHOR_CELL.heightPx,
-                borderRadius: EDIT_TEXT_ANCHOR_CELL.radiusPx,
-              }}
-              className={cn(
-                'grid place-items-center transition-colors duration-fast',
-                clip.anchor === anchor ? 'bg-primary' : 'bg-surface-fill',
-              )}
-            >
-              <span
+        {() => (
+          <div
+            role="radiogroup"
+            aria-label={t('anchor')}
+            style={{ gap: EDIT_TEXT_ANCHOR_CELL.gapPx }}
+            className="grid w-fit grid-cols-3 p-1"
+          >
+            {EDIT_TEXT_ANCHORS.map((anchor) => (
+              <button
+                key={anchor}
+                type="button"
+                role="radio"
+                aria-checked={clip.anchor === anchor}
+                aria-label={t(`anchors.${anchor}`)}
+                data-testid={`edit-desk-text-anchor-${anchor}`}
+                onClick={() => desk.updateTextClip(clip.id, { anchor })}
+                style={{
+                  width: EDIT_TEXT_ANCHOR_CELL.widthPx,
+                  height: EDIT_TEXT_ANCHOR_CELL.heightPx,
+                  borderRadius: EDIT_TEXT_ANCHOR_CELL.radiusPx,
+                }}
                 className={cn(
-                  'size-1.5 rounded-full',
-                  clip.anchor === anchor
-                    ? 'bg-primary-foreground'
-                    : 'bg-muted-foreground/50',
+                  'grid place-items-center transition-colors duration-fast',
+                  clip.anchor === anchor ? 'bg-primary' : 'bg-surface-fill',
                 )}
-              />
-            </button>
-          ))}
-        </div>
+              >
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    clip.anchor === anchor
+                      ? 'bg-primary-foreground'
+                      : 'bg-muted-foreground/50',
+                  )}
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </RowPopover>
 
       <RowPopover
@@ -512,16 +525,16 @@ function TextClipFields({
         label={t('size')}
         value={t(`sizes.${clip.size}`)}
       >
-        <LiquidSegmented
-          ariaLabel={t('size')}
-          semantics="radio"
-          value={clip.size}
-          onChange={(size) => desk.updateTextClip(clip.id, { size })}
-          items={EDIT_TEXT_SIZES.map((size) => ({
-            value: size,
-            label: t(`sizes.${size}`),
-          }))}
-        />
+        {(pick) =>
+          EDIT_TEXT_SIZES.map((size) => (
+            <PickRow
+              key={size}
+              label={t(`sizes.${size}`)}
+              selected={clip.size === size}
+              onPick={() => pick(() => desk.updateTextClip(clip.id, { size }))}
+            />
+          ))
+        }
       </RowPopover>
 
       <RowPopover
@@ -530,16 +543,16 @@ function TextClipFields({
         label={t('tone')}
         value={t(`tones.${clip.tone}`)}
       >
-        <LiquidSegmented
-          ariaLabel={t('tone')}
-          semantics="radio"
-          value={clip.tone}
-          onChange={(tone) => desk.updateTextClip(clip.id, { tone })}
-          items={EDIT_TEXT_TONES.map((tone) => ({
-            value: tone,
-            label: t(`tones.${tone}`),
-          }))}
-        />
+        {(pick) =>
+          EDIT_TEXT_TONES.map((tone) => (
+            <PickRow
+              key={tone}
+              label={t(`tones.${tone}`)}
+              selected={clip.tone === tone}
+              onPick={() => pick(() => desk.updateTextClip(clip.id, { tone }))}
+            />
+          ))
+        }
       </RowPopover>
 
       <RowPopover
@@ -552,39 +565,41 @@ function TextClipFields({
             : t('fadeSeconds', { fadeSec: clip.fadeSec })
         }
       >
-        <LiquidSegmented
-          ariaLabel={t('fade')}
-          semantics="radio"
-          value={String(clip.fadeSec)}
-          onChange={(value) => {
-            const fadeSec = EDIT_TEXT_FADES.find(
-              (candidate) => String(candidate) === value,
-            )
-            if (fadeSec !== undefined) {
-              desk.updateTextClip(clip.id, { fadeSec })
-            }
-          }}
-          items={EDIT_TEXT_FADES.map((fadeSec) => ({
-            value: String(fadeSec),
-            label:
-              fadeSec === 0 ? t('fadeNone') : t('fadeSeconds', { fadeSec }),
-          }))}
-        />
+        {(pick) =>
+          EDIT_TEXT_FADES.map((fadeSec) => (
+            <PickRow
+              key={fadeSec}
+              mono={fadeSec !== 0}
+              label={
+                fadeSec === 0 ? t('fadeNone') : t('fadeSeconds', { fadeSec })
+              }
+              selected={clip.fadeSec === fadeSec}
+              onPick={() =>
+                pick(() => desk.updateTextClip(clip.id, { fadeSec }))
+              }
+            />
+          ))
+        }
       </RowPopover>
     </>
   )
 }
 
 /**
- * 属性行上的一颗胶囊 + 它的小弹层：长相与开合都是工作台输入框工具行那一套（描边
- * 胶囊 · 从胶囊原地放大 · 关上缩回），一次只开一个是 Popover 自己的行为。
+ * 属性行上的一颗文字键 + 它的小弹层：从键原地长出来、关上缩回（工作台输入框工具行那一套），
+ * 一次只开一个是 Popover 自己的行为。弹层里一行一项（`PickRow`，换皮第二轮照模型选择器）。
+ *
+ * `children(pick)`：行点下去调 `pick(apply)` —— 立刻落改动（对勾马上挪过去、键上的值糊一下
+ * 换掉），停 `EDIT_PICK_CLOSE_DELAY_MS` 再收。
  */
 function RowPopover({
   testId,
   icon,
   label,
   value,
+  hint,
   set = false,
+  wide = false,
   children,
 }: {
   readonly testId: string
@@ -592,12 +607,20 @@ function RowPopover({
   readonly label: string
   /** 键上的当前值（「速度 1×」里那个 1×）。 */
   readonly value?: string
+  /** 弹层头右边那行灰字（这是哪一段）。 */
+  readonly hint?: string
   /** 改过（不是默认值）：键加粗、值转墨色。 */
   readonly set?: boolean
-  readonly children: ReactNode
+  /** 内容自己定宽（九宫格），⛔ 不套一行一项的固定宽。 */
+  readonly wide?: boolean
+  children(pick: (apply: () => void) => void): ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const zoom = getChipZoomMotion({ side: 'top', align: 'start', sideOffset: 8 })
+  const pick = (apply: () => void) => {
+    apply()
+    window.setTimeout(() => setOpen(false), EDIT_PICK_CLOSE_DELAY_MS)
+  }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -610,7 +633,9 @@ function RowPopover({
           {icon}
           {label}
           {value ? (
-            <em className={cn(CHIP_VALUE, set && CHIP_VALUE_SET)}>{value}</em>
+            <em className={cn(CHIP_VALUE, set && CHIP_VALUE_SET)}>
+              <BlurSwap swapKey={value}>{value}</BlurSwap>
+            </em>
           ) : null}
           <ChevronDown
             className="size-3 shrink-0 text-muted-foreground"
@@ -622,10 +647,17 @@ function RowPopover({
         side="top"
         align="start"
         sideOffset={8}
-        className={cn('w-auto p-2', zoom.className)}
+        className={cn(wide ? 'w-auto p-2' : 'w-50 p-1.5', zoom.className)}
         style={zoom.style}
       >
-        {children}
+        {wide ? (
+          children(pick)
+        ) : (
+          <>
+            <PickHeader title={label} hint={hint} />
+            <PickList label={label}>{children(pick)}</PickList>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   )

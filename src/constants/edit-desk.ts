@@ -245,6 +245,24 @@ export const EDIT_RETAKE_MOTION = {
   landFlashMs: 460,
 } as const
 
+/**
+ * 一行一项的弹层（换皮第二轮，照模型选择器）：点下去对勾立刻挪过去，停这么久再收起 ——
+ * 看得见选中了哪一行，⛔ 不是点完弹层就没了。
+ */
+export const EDIT_PICK_CLOSE_DELAY_MS = 260
+
+/**
+ * 版本对比（换皮第二轮 ⑥ C · 样片 W）：悬停另一版，大预览左右对比在用那一版。分隔线
+ * 拖出画面时按 `rubber` 比例跟手、压扁到 `squashScale`；松手弹回边上，带一点过冲。
+ */
+export const EDIT_TAKE_COMPARE_MOTION = {
+  release: { type: 'spring', stiffness: 260, damping: 18 },
+  squash: { type: 'spring', stiffness: 300, damping: 16 },
+  squashScale: 0.93,
+  rubber: 0.3,
+  overshootPx: 40,
+} as const
+
 /** 一段最短能裁到多短 —— 再短就不是一段而是一个误操作。 */
 export const EDIT_CLIP_MIN_DURATION_SEC = 0.2
 

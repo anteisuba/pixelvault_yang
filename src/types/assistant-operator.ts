@@ -716,9 +716,12 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .array(LabelSchema)
     .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxAvailableModels)
     .optional(),
-  /** 接进来的线：哪个槽、从哪个节点来。 */
+  /**
+   * 接进来的线：哪个槽、从哪个节点来，以及这条线的 id —— `disconnect` 只认线 id，
+   * 快照不给它助手就永远断不了线（2026-10-08 真机两次 malformedArgs）。
+   */
   inputs: z
-    .array(z.object({ slot: LabelSchema, from: IdSchema }))
+    .array(z.object({ slot: LabelSchema, from: IdSchema, edgeId: IdSchema }))
     .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
     .optional(),
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */

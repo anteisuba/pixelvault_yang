@@ -2025,7 +2025,13 @@ describe('read_state', () => {
                       kind: 'image',
                       subtype: 'shot',
                       text: '保持五官',
-                      inputs: [{ slot: 'reference', from: 'source-image' }],
+                      inputs: [
+                        {
+                          slot: 'reference',
+                          from: 'source-image',
+                          edgeId: 'edge-source',
+                        },
+                      ],
                     },
                   ],
                 },
@@ -2046,6 +2052,72 @@ describe('read_state', () => {
     expect(digest).toContain('sourceNodeId')
     expect(digest).not.toContain('NO NEGATIVE PROMPT FIELD')
     expect(toolRingCalls()[0].userPrompt).toContain('source-image')
+  })
+
+  it('画布：按快照里那条线的 edgeId 断线，一步落地', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          title: '移除旧参考',
+          args: { op: 'disconnect', edgeId: 'edge-source' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: ['edit-image'],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'source-image',
+                      name: '角色原图',
+                      kind: 'image',
+                      subtype: 'result',
+                      hasOutput: true,
+                    },
+                    {
+                      id: 'edit-image',
+                      name: '换装',
+                      kind: 'image',
+                      subtype: 'shot',
+                      inputs: [
+                        {
+                          slot: 'reference',
+                          from: 'source-image',
+                          edgeId: 'edge-source',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toContainEqual(
+      expect.objectContaining({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        status: 'done',
+        payload: { op: 'disconnect', edgeId: 'edge-source' },
+      }),
+    )
+    expect(toolRingCalls()[0].userPrompt).toContain('op:"disconnect",edgeId')
   })
 
   it('画布：按展开的镜里每个节点挂的模型给写法，⛔ 不再是空的一段', async () => {

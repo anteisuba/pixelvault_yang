@@ -304,7 +304,7 @@ function toSnapshotNode(
   const availableModels = availableModelsByNodeId?.[node.id]
   const inputs = incoming
     .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
-    .map((edge) => ({ slot: edge.slot, from: edge.source }))
+    .map((edge) => ({ slot: edge.slot, from: edge.source, edgeId: edge.id }))
 
   const scriptProjection = scriptProjections.get(node.id)
   const fromScript = readScriptShotRef(node)

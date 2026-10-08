@@ -1164,7 +1164,9 @@ describe('五动词入口', () => {
                 text: '黄昏的街口',
                 model: 'seedream-4',
                 availableModels: ['seedream-4'],
-                inputs: [{ slot: 'reference', from: 'node-1' }],
+                inputs: [
+                  { slot: 'reference', from: 'node-1', edgeId: 'edge-1' },
+                ],
                 hasOutput: true,
               },
             ],

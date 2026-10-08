@@ -266,7 +266,7 @@ describe('buildCanvasOperatorSnapshot', () => {
     }
     expect(snapshotNode(snapshot, 'node-3')).toBeUndefined()
     expect(snapshotNode(snapshot, 'node-39')?.inputs).toEqual([
-      { slot: 'reference', from: 'node-2' },
+      { slot: 'reference', from: 'node-2', edgeId: 'new-ref' },
     ])
     const shot = snapshot.shots[0]
     expect(shot.expanded && shot.nodes).toHaveLength(24)
@@ -412,7 +412,7 @@ describe('buildCanvasOperatorSnapshot', () => {
     expect(shot.expanded).toBe(true)
     if (!shot.expanded) throw new Error('expected an expanded shot')
     const b = shot.nodes.find((node) => node.id === 'b')
-    expect(b?.inputs).toEqual([{ slot: 'reference', from: 'a' }])
+    expect(b?.inputs).toEqual([{ slot: 'reference', from: 'a', edgeId: 'e1' }])
     expect(b?.availableModels).toEqual(['seedream-4'])
     // 产出地址不暴露给 op；referenceUrls 只承载实际参考输入。
     expect(Object.keys(b ?? {})).not.toContain('url')

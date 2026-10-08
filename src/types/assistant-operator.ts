@@ -4316,6 +4316,8 @@ export const AssistantOperatorMessageEventSchema = z.object({
 export const AssistantOperatorMessageDeltaEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.messageDelta),
   delta: z.string().min(1).max(LIMITS.maxMessageChars),
+  /** 这一步的第一段：换掉还在流的那段旧稿，⛔ 不接在后面。 */
+  restart: z.literal(true).optional(),
 })
 
 /**

@@ -1098,6 +1098,64 @@ describe('工具环 · 逐事件顺序', () => {
     expect(deltas.every((event) => event.delta.length > 0)).toBe(true)
   })
 
+  /**
+   * 问题卡选项都没写说明时被退回，只回一句观察 —— 2026-10-08 真机同一张卡被退 8 次。
+   * 连着两次就用模型写好的正文收尾，⛔ 不再开第三次。
+   */
+  it('问题卡连着两次被退就收尾，不再重试', async () => {
+    const badAsk = {
+      message: '要按这个方案搭卡吗？',
+      tool: {
+        name: 'ask',
+        title: 'ask',
+        args: {
+          question: '要按这个方案搭卡吗？',
+          options: [{ label: '搭卡' }, { label: '先不搭' }],
+        },
+      },
+    }
+    queueTurns(badAsk, badAsk, { finished: true, message: '不该走到这里' })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(toolRingCalls()).toHaveLength(2)
+    expect(toolRingCalls()[1].userPrompt).toContain('0 had a "description"')
+    expect(
+      events
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .map((event) => event.text),
+    ).toEqual(['要按这个方案搭卡吗？'])
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.done,
+    })
+  })
+
+  it('每一步流出的第一段增量带 restart，客户端据此换掉上一步的旧稿', async () => {
+    const badAsk = {
+      message: '第一稿',
+      tool: {
+        name: 'ask',
+        title: 'ask',
+        args: {
+          question: '选哪个？',
+          options: [{ label: 'A' }, { label: 'B' }],
+        },
+      },
+    }
+    queueTurns(badAsk, { finished: true, message: '第二稿' })
+    mockLlmTextStreamChunks.mockImplementation((raw) =>
+      raw.match(/[\s\S]{1,4}/g),
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const deltas = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
+    )
+    expect(deltas.filter((event) => event.restart).length).toBe(2)
+    expect(deltas[0]).toMatchObject({ restart: true })
+  })
+
   it('⛔ 工具轮那句旁白整帧不发 —— 那一步已经有 step 事件在说同一件事', async () => {
     queueTurns(
       {
@@ -1355,9 +1413,12 @@ describe('工具环 · 逐事件顺序', () => {
       return Promise.resolve(
         JSON.stringify({
           tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+            name: 'research',
             title: 'look again',
-            args: { query: `query-${step}` },
+            args: {
+              action: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+              query: `query-${step}`,
+            },
           },
         }),
       )
@@ -1373,15 +1434,16 @@ describe('工具环 · 逐事件顺序', () => {
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
     })
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(
-      ASSISTANT_OPERATOR_LIMITS.maxSteps,
-    )
+    // 每一步都真跑成了，收尾另有一次回合归纳 —— 只数工具环那几次。
+    expect(toolRingCalls()).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSteps)
     // ⭐ D12 B1：步数用完不许静默 —— 最后一步只收尾，停之前必有一句话。
     expect(events.at(-2)).toMatchObject({
       type: ASSISTANT_OPERATOR_EVENTS.message,
     })
     expect(lastUserPrompt()).toContain('THIS IS YOUR LAST STEP THIS TURN')
-    expect(stepsOf(events)).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSteps - 1)
+    expect(new Set(stepsOf(events).map((step) => step.id)).size).toBe(
+      ASSISTANT_OPERATOR_LIMITS.maxSteps - 1,
+    )
   })
 
   it('读类工具跑到一半抛了技术故障：这一步记为 toolFailed，整轮照样收尾，⛔ 不吐 error 帧', async () => {

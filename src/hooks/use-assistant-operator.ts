@@ -1450,8 +1450,24 @@ export function useAssistantOperator(
                 (entry) =>
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
-              if (index >= 0 && index !== entries.length - 1) messageSeq += 1
-              appendOperatorStreamingMessage(messageEntryId(), event.delta)
+              const entry = index >= 0 ? entries[index] : undefined
+              /**
+               * `restart`：这一步重写了一份新稿。还在流的旧稿就地换掉；已经定稿
+               * 的那段不动，新稿另起一条。
+               */
+              if (
+                index >= 0 &&
+                (index !== entries.length - 1 ||
+                  (event.restart &&
+                    entry?.kind === 'message' &&
+                    !entry.streaming))
+              )
+                messageSeq += 1
+              appendOperatorStreamingMessage(
+                messageEntryId(),
+                event.delta,
+                event.restart === true,
+              )
               break
             }
             /**

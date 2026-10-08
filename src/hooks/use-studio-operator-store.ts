@@ -561,13 +561,17 @@ export function appendOperatorPending(id: string): void {
 export function appendOperatorStreamingMessage(
   id: string,
   delta: string,
+  /** 新一稿的第一段：换掉还在流的旧稿，⛔ 不接在后面。 */
+  restart = false,
 ): void {
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,
   )
   const current = index >= 0 ? state.entries[index] : undefined
   const text =
-    current && current.kind === 'message' ? `${current.text}${delta}` : delta
+    current && current.kind === 'message' && !(restart && current.streaming)
+      ? `${current.text}${delta}`
+      : delta
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,

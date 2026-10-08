@@ -481,6 +481,26 @@ describe('正文与占位行', () => {
     ])
   })
 
+  it('restart：新一稿换掉还在流的旧稿，⛔ 不接在后面', () => {
+    const result = readState()
+    act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '第一稿'))
+    act(() =>
+      store.appendOperatorStreamingMessage('run-1:msg-0', '第二稿', true),
+    )
+    expect(result.current.entries).toEqual([
+      { kind: 'message', id: 'run-1:msg-0', text: '第二稿', streaming: true },
+    ])
+    act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '继续'))
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '第二稿继续',
+        streaming: true,
+      },
+    ])
+  })
+
   it('⛔ 占位行被顶走时不静默丢字 —— 新建一条装它', () => {
     const result = readState()
     act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '第一段'))

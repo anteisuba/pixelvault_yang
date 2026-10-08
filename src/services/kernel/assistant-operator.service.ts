@@ -11996,6 +11996,12 @@ async function* runOperatorTurn(
   /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */
   const emittedRuleHits = new Set<string>()
   let consecutiveParseFailures = 0
+  /**
+   * 只回一句观察就 `continue` 的退回（问题卡选项不够、动词写错）连着几次了。
+   * 它们不出 step、不进同类失败闸 —— 2026-10-08 真机一轮里同一张问题卡被退 8 次、
+   * 烧掉约 23 万 token。连着两次就收尾，⛔ 不再开放重试。执行成功一步就归零。
+   */
+  let silentRefusals = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
   /** 上一次被拒是哪个工具、什么理由，连着几次了 —— 成功一步就归零。 */
@@ -12229,11 +12235,18 @@ async function* runOperatorTurn(
          * ⚠ 定稿仍旧只由下面那一帧 `message` 说了算，⛔ 这里不是第二条正文来源。
          */
         const delta = partial.slice(streamedMessage.length)
+        /**
+         * 这一步写的是一份新稿：上一步若被退回重写，它流出去的半段不该留在气泡里
+         * （2026-10-08 真机：同一段话叠了七八遍）。客户端见 `restart` 就换掉还在流的
+         * 那段，而不是接在后面。
+         */
+        const restart = streamedMessage.length === 0
         streamedMessage = partial
         if (!delta) continue
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
           delta,
+          ...(restart ? { restart: true as const } : {}),
         }
       }
 
@@ -12598,6 +12611,31 @@ async function* runOperatorTurn(
        * ⭐ **拆入口**（v2 §2.1）—— 模型只写了五个动词之一，组内哪一支由 `action` 定。
        * 拆完之后 `name` / `args` 与 v1 逐字同义，往下每一道闸都不知道入口存在过。
        */
+      /**
+       * 第二次静默退回：模型写好的正文就是它要说的话（问题卡被退时正文里通常已经
+       * 把问题讲清楚了），当收尾发出去；什么都没写才用兜底那句。
+       */
+      const closeAfterSilentRefusal =
+        async function* (): AsyncGenerator<AssistantOperatorEvent> {
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.message,
+            text: clamp(
+              turn.message?.trim() ||
+                OPERATOR_UNREADABLE_REPLY_MESSAGES[
+                  resolveResponseLanguage(request, persona)
+                ],
+              LIMITS.maxMessageChars,
+            ),
+          }
+          const roundSummary = await closeRound(run, {
+            clerkId,
+            userId: user.id,
+          })
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.done,
+            ...(roundSummary ? { roundSummary } : {}),
+          }
+        }
       const unwrapped = unwrapEntryToolCall(rawToolName, rawToolArgs)
       if (!unwrapped.ok) {
         /**
@@ -12618,6 +12656,12 @@ async function* runOperatorTurn(
             },
           })
         }
+        silentRefusals += 1
+        if (silentRefusals >= 2) {
+          yield* closeAfterSilentRefusal()
+          completed = true
+          return
+        }
         run.observations.push(unwrapped.observation)
         continue
       }
@@ -12633,8 +12677,18 @@ async function* runOperatorTurn(
           clerkId,
         )
         if (!question) {
+          silentRefusals += 1
+          if (silentRefusals >= 2) {
+            yield* closeAfterSilentRefusal()
+            completed = true
+            return
+          }
+          const options = unwrapped.ask.options ?? []
+          const described = options.filter((option) =>
+            option.description?.trim(),
+          ).length
           run.observations.push(
-            `ask was REFUSED: after dropping options without a description, fewer than ${PLAN_LIMITS.minOptions} were left. Every option needs a one-line description saying what that choice actually does.`,
+            `ask was REFUSED: you sent ${options.length} option(s) and ${described} had a "description". Every option needs both "label" and a one-line "description" saying what that choice does, and at least ${PLAN_LIMITS.minOptions} must have one. Shape: {"question":"…","options":[{"label":"…","description":"…"},{"label":"…","description":"…"}]}. Send the ask again in that shape.`,
           )
           continue
         }
@@ -13229,6 +13283,7 @@ async function* runOperatorTurn(
         run.executedStepKeys.add(stepKey)
         repeatedStepStrikes = 0
         lastRejection = null
+        silentRefusals = 0
         continue
       }
 
@@ -13247,6 +13302,7 @@ async function* runOperatorTurn(
       writeToolCalls.set(name, (writeToolCalls.get(name) ?? 0) + 1)
       repeatedStepStrikes = 0
       lastRejection = null
+      silentRefusals = 0
       if (name === TOOL.canvasApply || name === TOOL.canvasBatch) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

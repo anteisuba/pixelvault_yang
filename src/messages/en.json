@@ -6462,7 +6462,11 @@
         "transitions": {
           "none": "None",
           "crossfade": "Crossfade",
-          "black": "To black"
+          "black": "To black",
+          "wipe": "Wipe",
+          "push": "Push",
+          "zoom": "Zoom",
+          "iris": "Iris"
         },
         "backToNode": "Regenerate this shot on its node",
         "backToNodeShort": "Back to node"
@@ -6543,8 +6547,17 @@
         "audio": "Audio"
       },
       "transitionPanel": {
-        "hint": "Drop it on the seam between two clips",
-        "duration": "{seconds}s"
+        "hint": "Drop it on the seam between two clips"
+      },
+      "seam": {
+        "title": "Transition",
+        "between": "Shot {from} → Shot {to}",
+        "duration": "Length",
+        "durationHint": "How long the two clips overlap in the cut — the cut gets this much shorter.",
+        "seconds": "{sec}s",
+        "hardCut": "Back to a hard cut",
+        "markerAdd": "Add a transition",
+        "markerSet": "Transition · {name}"
       },
       "library": {
         "sourceLabel": "From library · {name}",

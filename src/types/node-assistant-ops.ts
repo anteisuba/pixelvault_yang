@@ -40,6 +40,8 @@ import {
   EDIT_TRACKS_TUPLE,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITIONS_TUPLE,
+  EDIT_TRANSITION_SEC_MAX,
+  EDIT_TRANSITION_SEC_MIN,
 } from '@/constants/edit-desk'
 import {
   EditClipSchema,
@@ -753,6 +755,12 @@ export const NodeAssistantEditUpdateClipOpSchema = z.object({
       .optional(),
     muted: z.boolean().optional(),
     transitionOut: z.enum(EDIT_TRANSITIONS_TUPLE).optional(),
+    /** 转场多长（秒，5a）：两段在成片里重叠这么久。 */
+    transitionSec: z
+      .number()
+      .min(EDIT_TRANSITION_SEC_MIN)
+      .max(EDIT_TRANSITION_SEC_MAX)
+      .optional(),
     gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
     /** 段换版（版本弹层）写的就是它：段播这一版。 */
     sourceVersionId: z.string().trim().min(1).max(160).optional(),

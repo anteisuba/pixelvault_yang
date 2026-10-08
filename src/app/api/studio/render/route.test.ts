@@ -57,6 +57,7 @@ const PLAN = {
       speed: 1,
       muted: false,
       transitionOut: 'none',
+      transitionSec: 0,
       durationSec: 4,
       sourceNodeId: 'v1',
     },

@@ -18,7 +18,7 @@
  * - **素材库** 是用户自己的产物（`fetchGalleryImages` 的 `mine`），按视频 / 音频筛；
  *   拖进时间线时**先落成一张画布卡**再进轨（⛔ 段不指向素材库记录，见下面那条
  *   MIME 的头注）；
- * - **转场** 列三个预设，拖到 V 轨两段之间的缝上 = 设**前一段**的 `transitionOut`
+ * - **转场** 列六个预设与「无」，拖到 V 轨两段之间的缝上 = 设**前一段**的 `transitionOut`
  *   （与右栏「转场 →」同一个字段）。
  *
  * ── 每一格都必须**看得见内容**（owner 真机 2026-09-10）───────────────────
@@ -57,9 +57,7 @@ import {
   type EditAudioFilterId,
   type EditDeskLibraryFilterId,
   type EditPanelId,
-  type EditTransitionId,
 } from '@/constants/edit-desk'
-import { RENDER_CROSSFADE_SEC } from '@/constants/render-video'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
@@ -83,6 +81,7 @@ import {
 } from './edit-desk-asset-drag'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
+import { TransitionGlyph } from './EditDeskSeamPopover'
 
 const PANEL_ICONS: Record<EditPanelId, LucideIcon> = {
   [EDIT_PANEL_IDS.canvas]: Layers,
@@ -707,7 +706,7 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
 /* ─── 转场页 ───────────────────────────────────────────────────────────── */
 
 /**
- * 三个预设。**拖到 V 轨两段之间的缝上**落下 = 设前一段的 `transitionOut`
+ * 六个预设与「无」（5a）。**拖到 V 轨两段之间的缝上**落下 = 设前一段的 `transitionOut`
  * （与右栏「转场 →」同一个字段，⛔ 不另存一份轨道对象）。
  */
 function EditDeskTransitionPanel() {
@@ -731,44 +730,35 @@ function EditDeskTransitionPanel() {
               transition,
             )
             event.dataTransfer.effectAllowed = 'copy'
+            // 硬切的接缝平时不画：拖着预设时全部亮出来，落点看得见（canvas.css）。
+            document.body.dataset.editTransitionDrag = ''
+          }}
+          onDragEnd={() => {
+            delete document.body.dataset.editTransitionDrag
           }}
           className="flex cursor-grab items-center gap-2 rounded-lg bg-muted px-2 py-1.5 transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
         >
+          {/* 与时间线上的接缝标记同一套长相（5a 改版 A）：转场 = 黑底小块，无 = 一道缝。 */}
           <span
             aria-hidden
-            style={{
-              width: EDIT_DESK_LAYOUT.transitionMarkPx,
-              height: EDIT_DESK_LAYOUT.transitionMarkPx,
-            }}
             className={cn(
-              'shrink-0 rotate-45 rounded-[2px]',
+              'grid h-4 w-5 shrink-0 place-items-center rounded-sm',
               transition === EDIT_TRANSITION_IDS.none
-                ? 'border-[1.5px] border-foreground'
-                : 'bg-foreground',
+                ? 'ring-1 ring-border'
+                : 'bg-foreground text-background',
             )}
-          />
+          >
+            {transition === EDIT_TRANSITION_IDS.none ? (
+              <span className="h-2.5 w-0.5 rounded-full bg-muted-foreground" />
+            ) : (
+              <TransitionGlyph className="size-3" />
+            )}
+          </span>
           <span className="min-w-0 flex-1 truncate text-2xs text-foreground">
             {t(`inspector.transitions.${transition}`)}
           </span>
-          {transition === EDIT_TRANSITION_IDS.crossfade ? (
-            <span className="shrink-0 text-3xs tabular-nums text-muted-foreground">
-              {t('transitionPanel.duration', {
-                seconds: crossfadeLabel(transition),
-              })}
-            </span>
-          ) : null}
         </div>
       ))}
     </div>
   )
-}
-
-/**
- * 叠化的时长档。⚠ 只有**一档**（`RENDER_CROSSFADE_SEC`）——渲染层今天就按这个数
- * 跑 xfade，⛔ 不在面板上摆一排选了也不会被用上的秒数。
- */
-function crossfadeLabel(transition: EditTransitionId): string {
-  return transition === EDIT_TRANSITION_IDS.crossfade
-    ? String(RENDER_CROSSFADE_SEC)
-    : '0'
 }

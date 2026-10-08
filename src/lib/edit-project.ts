@@ -36,6 +36,7 @@ import {
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
   EDIT_TRACK_MAX_CLIPS,
+  EDIT_TRANSITION_DEFAULT_SEC,
   EDIT_TRANSITION_IDS,
   type EditAspect,
   type EditExportRangeId,
@@ -45,7 +46,6 @@ import {
 } from '@/constants/edit-desk'
 import {
   RENDER_ASPECT_RATIO_PARTS,
-  RENDER_CROSSFADE_SEC,
   RENDER_MAX_DURATION_SEC,
   RENDER_MAX_SEGMENTS,
   RENDER_MIN_SEGMENT_SEC,
@@ -994,9 +994,23 @@ function transitionOf(clip: EditClip): EditTransitionId {
   return clip.transitionOut ?? EDIT_TRANSITION_IDS.none
 }
 
-/** 这一段的转场会从成片里扣掉多少秒。 */
-function overlapSecOf(transition: EditTransitionId): number {
-  return transition === EDIT_TRANSITION_IDS.crossfade ? RENDER_CROSSFADE_SEC : 0
+/**
+ * 一个接缝两段在成片里重叠多久（5a）：段上写的时长（缺席 = 默认档），再夹到**两边段长
+ * 的一半**以内 —— 一段两头都有转场时，两次重叠加起来也吃不掉整段。不满一帧 = 不重叠。
+ */
+export function seamOverlapSec(
+  transition: EditTransitionId,
+  wantSec: number | undefined,
+  beforeSec: number,
+  afterSec: number,
+): number {
+  if (transition === EDIT_TRANSITION_IDS.none) return 0
+  const overlap = Math.min(
+    wantSec ?? EDIT_TRANSITION_DEFAULT_SEC,
+    beforeSec / 2,
+    afterSec / 2,
+  )
+  return overlap < 1 / RENDER_OUTPUT_FPS ? 0 : overlap
 }
 
 /**
@@ -1137,12 +1151,20 @@ export function toRenderPlan(
   }
 
   const video: RenderVideoSegment[] = videoSlices.map((slice, index) => {
-    const isLast = index === videoSlices.length - 1
+    const next = videoSlices[index + 1]
     // 尾巴被切掉的段、以及最后一段，都不接转场 —— 后面没有东西可接。
-    const transition =
-      isLast || !slice.tailIntact
+    const wanted =
+      !next || !slice.tailIntact
         ? EDIT_TRANSITION_IDS.none
         : transitionOf(slice.clip)
+    const overlap = next
+      ? seamOverlapSec(
+          wanted,
+          slice.clip.transitionSec,
+          slice.durationSec,
+          next.durationSec,
+        )
+      : 0
     return {
       id: slice.clip.id,
       src: urlOf(slice.clip),
@@ -1150,7 +1172,8 @@ export function toRenderPlan(
       out: slice.out,
       speed: slice.clip.speed || EDIT_CLIP_SPEED_DEFAULT,
       muted: slice.clip.muted ?? false,
-      transitionOut: transition,
+      transitionOut: overlap > 0 ? wanted : EDIT_TRANSITION_IDS.none,
+      transitionSec: overlap,
       durationSec: slice.durationSec,
       sourceNodeId: slice.clip.sourceNodeId,
       ...(slice.clip.sourceVersionId
@@ -1159,7 +1182,32 @@ export function toRenderPlan(
     }
   })
 
-  const toAudio = (slices: readonly SlicedClip[]): RenderAudioSegment[] =>
+  /**
+   * 时间线秒 → 成片秒（5a）：每过一个有转场的接缝，后面的画面在成片里提前那么多秒。
+   * 台词、字幕挂在画面某一帧上，起点跟着提前，⛔ 转场之后对不上口型。配乐是垫底的一条，
+   * ⛔ 不挪（挪了相邻两段配乐会在成片里叠起来），超出成片的尾巴由混音按画面长度截掉。
+   */
+  const seams = video.map((segment, index) => ({
+    atSec: (videoSlices[index]?.startSec ?? 0) + segment.durationSec,
+    overlapSec: segment.transitionSec,
+  }))
+  const toOutputSec = (timelineSec: number): number =>
+    Math.max(
+      0,
+      timelineSec -
+        seams.reduce(
+          (total, seam) =>
+            seam.atSec <= timelineSec + Number.EPSILON
+              ? total + seam.overlapSec
+              : total,
+          0,
+        ),
+    )
+
+  const toAudio = (
+    slices: readonly SlicedClip[],
+    followPicture: boolean,
+  ): RenderAudioSegment[] =>
     slices.map((slice) => ({
       id: slice.clip.id,
       src: urlOf(slice.clip),
@@ -1167,7 +1215,7 @@ export function toRenderPlan(
       out: slice.out,
       speed: slice.clip.speed || EDIT_CLIP_SPEED_DEFAULT,
       gain: slice.clip.gain ?? 1,
-      startSec: slice.startSec,
+      startSec: followPicture ? toOutputSec(slice.startSec) : slice.startSec,
       durationSec: slice.durationSec,
       sourceNodeId: slice.clip.sourceNodeId,
     }))
@@ -1176,8 +1224,9 @@ export function toRenderPlan(
     sliceTrack(project.tracks.audio, fromSec, toSec, true, (clip) =>
       isAttachmentCut(project, clip.attach),
     ),
+    true,
   )
-  const music = toAudio(sliceTrack(project.tracks.music, fromSec, toSec))
+  const music = toAudio(sliceTrack(project.tracks.music, fromSec, toSec), false)
 
   if (video.length + audio.length + music.length > RENDER_MAX_SEGMENTS) {
     throw new RenderPlanError(
@@ -1186,9 +1235,9 @@ export function toRenderPlan(
     )
   }
 
-  // ⚠ 叠化**重叠**：两段叠 0.5s，成片就短 0.5s。⛔ 不能拿轨道时长当成片时长。
+  // ⚠ 转场**重叠**：两段叠 0.5s，成片就短 0.5s。⛔ 不能拿轨道时长当成片时长。
   const overlap = video.reduce(
-    (total, segment) => total + overlapSecOf(segment.transitionOut),
+    (total, segment) => total + segment.transitionSec,
     0,
   )
   const videoDuration = video.reduce(
@@ -1223,7 +1272,7 @@ export function toRenderPlan(
     fromSec,
     toSec,
     height,
-  )
+  ).map((text) => ({ ...text, startSec: toOutputSec(text.startSec) }))
 
   return {
     version: RENDER_PLAN_VERSION,

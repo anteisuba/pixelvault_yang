@@ -5,7 +5,8 @@
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
  * 三种段各一行，一律是一排文字键（换皮第一轮 B：无边框，悬停浅灰块，改过的加粗；读数不可点）：
- * - 视频段：镜头名 · 重拍 · 续拍 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
+ * - 视频段：镜头名 · 重拍 · 续拍 · 入点 · 出点 · 速度 · 原声 · 版本 · 回节点（转场在段间
+ *   接缝标记的弹层里，5a）；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
  *   四颗胶囊，各开一个小弹层，一次只开一个。
@@ -45,8 +46,6 @@ import {
   EDIT_TEXT_SIZES,
   EDIT_TEXT_TONES,
   EDIT_TRACK_IDS,
-  EDIT_TRANSITIONS,
-  EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { editRowName, formatEditClock } from '@/lib/edit-project'
@@ -220,38 +219,6 @@ export function EditDeskInspector({
                   {clip.muted ? t('soundOff') : t('soundOn')}
                 </em>
               </button>
-              <RowPopover
-                testId="edit-desk-transition"
-                label={t('transition')}
-                value={t(
-                  `transitions.${clip.transitionOut ?? EDIT_TRANSITION_IDS.none}`,
-                )}
-                set={
-                  (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) !==
-                  EDIT_TRANSITION_IDS.none
-                }
-                hint={editRowName(row)}
-              >
-                {(pick) =>
-                  EDIT_TRANSITIONS.map((transition) => (
-                    <PickRow
-                      key={transition}
-                      label={t(`transitions.${transition}`)}
-                      selected={
-                        (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
-                        transition
-                      }
-                      onPick={() =>
-                        pick(() =>
-                          desk.updateClip(selection.track, clip.id, {
-                            transitionOut: transition,
-                          }),
-                        )
-                      }
-                    />
-                  ))
-                }
-              </RowPopover>
               <VersionsChip desk={desk} row={row} />
             </>
           ) : (

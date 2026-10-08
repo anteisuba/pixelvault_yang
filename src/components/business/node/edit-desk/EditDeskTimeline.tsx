@@ -4,7 +4,7 @@
  * 时间线（v2 暗场 · 关键切片 `JtN1ur…` 台面，第 3 片）：顶上一条**走带行**（播放 · 时间码 ·
  * 声音 · 选中段的属性 · 缩放），下面 **全片条 · 标尺 · 字幕 · 主线 · 台词 · 配乐**。
  * ⛔ 没有工具键那一排：加字幕在左列「文字」页，分割 / 删除在选中段那一行（也走 S / ⌫），
- * 转场在段与段之间的菱形上；主线永远磁吸，⛔ 没有磁吸开关。
+ * 转场在段与段之间的接缝标记上；主线永远磁吸，⛔ 没有磁吸开关。
  *
  * ── 段长什么样（owner 2026-10-08 选 B「调色台 · 全暗中性」：⛔ 不给轨上色）──────────
  * 主线 = 一排缩略帧 + 左上「n 镜头名」；台词 = 描边胶囊；字幕 = 浅底胶囊 + 「T」；
@@ -49,6 +49,7 @@ import {
 import {
   Pause,
   Play,
+  Plus,
   Volume2,
   VolumeX,
   ZoomIn,
@@ -83,7 +84,6 @@ import {
 } from '@/constants/edit-desk'
 import { DURATION, SPRING } from '@/constants/motion'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { RENDER_CROSSFADE_SEC } from '@/constants/render-video'
 import {
   clampTrim,
   editRowName,
@@ -91,6 +91,7 @@ import {
   EDIT_CLIP_FALLBACK_DURATION_SEC,
   isAttachmentCut,
   isPositionedTrack,
+  seamOverlapSec,
 } from '@/lib/edit-project'
 import {
   buildTimelineLayout,
@@ -120,6 +121,7 @@ import {
   parseEditDeskLibraryAsset,
   type EditDeskLibraryAsset,
 } from './EditDeskAssetRail'
+import { EditDeskSeamPopover, TransitionGlyph } from './EditDeskSeamPopover'
 import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
 import { currentEditAssetDrag, laneTakesAsset } from './edit-desk-asset-drag'
 import { EDIT_CLIP_FLASH_ATTRIBUTE, flashEditClips } from './edit-desk-flash'
@@ -224,7 +226,7 @@ interface TimelineInteraction {
   readonly animate: boolean
   /**
    * 滑的时候用哪一种：平时磁性；拖过头刚松手的那一下换成槽档弹簧（样片 B），所有段 /
-   * 菱形 / 连接线一起换，⛔ 一部分弹一部分滑、途中错开。
+   * 接缝标记 / 连接线一起换，⛔ 一部分弹一部分滑、途中错开。
    */
   readonly slideClass: 'transition-magnetic' | 'transition-spring-back'
   /** 拖过头松手：接下来这一下按弹簧弹回。 */
@@ -2327,35 +2329,44 @@ function ClipView({
 }
 
 /**
- * 段间菱形（关键切片 `.seam`）：压在主线上沿两段的接缝处，实心 = 有转场。叠化横跨接缝
- * 画一块淡光，宽 = 两段重叠的秒数。菱形也是**落点**：从左列转场页拖一个预设过来 = 设
- * **前一段**的 `transitionOut`。⚠ 命中区靠一层透明覆盖放大，⛔ 不把菱形本身画大。
+ * 接缝标记（5a 改版 A）：压在主线正中两段的接缝处 —— 硬切平时透明、停上去冒「+」圆钮，
+ * 有转场是黑底小块。有转场时横跨接缝画一块白纱，宽 = 成片里两段重叠的秒数。标记也是
+ * **落点**：从左列转场页拖一个预设过来 = 设**前一段**的 `transitionOut`。
  */
 function Seams({ desk }: { readonly desk: EditDesk }) {
   const scale = useTimelineScale()
   const { layout, animate, slideClass, lift } = useTimelineInteraction()
   const order = layout.order[EDIT_TRACK_IDS.video]
-  const byId = new Map(
-    desk.project.tracks[EDIT_TRACK_IDS.video].map((clip) => [clip.id, clip]),
+  const rowById = new Map(
+    desk.rows[EDIT_TRACK_IDS.video].map((row) => [row.clip.id, row]),
   )
   return (
     <>
-      {order.slice(0, -1).map((clipId) => {
-        const clip = byId.get(clipId)
+      {order.slice(0, -1).map((clipId, index) => {
+        const from = rowById.get(clipId)
+        const to = rowById.get(order[index + 1] ?? '')
         const span = layout.clips.get(clipId)
-        if (!clip || !span) return null
+        const nextSpan = layout.clips.get(order[index + 1] ?? '')
+        if (!from || !to || !span || !nextSpan) return null
+        const clip = from.clip
         const at = scale.toPx(span.startSec + span.durationSec)
-        const overlapPx =
-          (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
-          EDIT_TRANSITION_IDS.crossfade
-            ? scale.toPx(RENDER_CROSSFADE_SEC)
-            : 0
+        // 白纱宽 = 成片里两段重叠的秒数（与渲染计划同一条夹法，5a）。
+        const overlapPx = scale.toPx(
+          seamOverlapSec(
+            clip.transitionOut ?? EDIT_TRANSITION_IDS.none,
+            clip.transitionSec,
+            span.durationSec,
+            nextSpan.durationSec,
+          ),
+        )
         // 换位途中被拖的那一段两侧的菱形先藏起来（它跟着指针走，菱形对不上）。
         const hidden = lift !== null
         return (
           <SeamMark
             key={clipId}
-            clip={clip}
+            desk={desk}
+            from={from}
+            to={to}
             at={at}
             overlapPx={overlapPx}
             hidden={hidden}
@@ -2373,14 +2384,18 @@ function Seams({ desk }: { readonly desk: EditDesk }) {
 }
 
 function SeamMark({
-  clip,
+  desk,
+  from,
+  to,
   at,
   overlapPx,
   hidden,
   slide,
   onSet,
 }: {
-  readonly clip: EditClip
+  readonly desk: EditDesk
+  readonly from: EditTimelineRow
+  readonly to: EditTimelineRow
   readonly at: number
   readonly overlapPx: number
   readonly hidden: boolean
@@ -2390,7 +2405,11 @@ function SeamMark({
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const [over, setOver] = useState(false)
+  const clip = from.clip
   const current = clip.transitionOut ?? EDIT_TRANSITION_IDS.none
+  const set = current !== EDIT_TRANSITION_IDS.none
+  const markW = set ? G.seamChipW : G.seamDotPx
+  const markH = set ? G.seamChipH : G.seamDotPx
   return (
     <>
       {overlapPx > 0 ? (
@@ -2410,50 +2429,82 @@ function SeamMark({
           }}
         />
       ) : null}
-      <span
-        data-testid={`edit-desk-transition-${clip.id}`}
-        data-transition={current}
-        aria-label={t('inspector.transition')}
-        onDragOver={(event) => {
-          if (
-            !event.dataTransfer.types.includes(EDIT_DESK_TRANSITION_DRAG_MIME)
-          ) {
-            return
+      {/* 接缝标记（5a 改版 A，推翻菱形）：压在主线正中。硬切平时不画，停上去 / 拖着转场
+          预设过来 / 弹层开着时冒一颗「+」圆钮；有转场 = 一颗黑底小块。点它 = 接缝弹层。
+          ⚠ 只占接缝正中这一小块：上下两头照样是两段的裁剪手柄。 */}
+      <EditDeskSeamPopover desk={desk} from={from} to={to}>
+        <button
+          type="button"
+          data-testid={`edit-desk-transition-${clip.id}`}
+          data-transition={current}
+          data-edit-seam={set ? 'set' : 'cut'}
+          aria-label={
+            set
+              ? t('seam.markerSet', {
+                  name: t(`inspector.transitions.${current}`),
+                })
+              : t('seam.markerAdd')
           }
-          event.preventDefault()
-          event.dataTransfer.dropEffect = 'copy'
-          setOver(true)
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(event) => {
-          setOver(false)
-          const raw = event.dataTransfer.getData(EDIT_DESK_TRANSITION_DRAG_MIME)
-          const transition = EDIT_TRANSITIONS.find(
-            (candidate) => candidate === raw,
-          )
-          if (!transition) return
-          event.preventDefault()
-          event.stopPropagation()
-          onSet(transition)
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        style={{
-          top: LANE_TOP.video - G.seamPx / 2,
-          left: at - G.seamPx / 2,
-          width: G.seamPx,
-          height: G.seamPx,
-        }}
-        className={cn(
-          'absolute z-10 rotate-45 rounded-xs ring-2 ring-background',
-          'after:absolute after:-inset-2 after:content-[""]',
-          current === EDIT_TRANSITION_IDS.none
-            ? 'border border-foreground bg-background'
-            : 'bg-foreground',
-          slide,
-          over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
-          hidden && 'opacity-0',
-        )}
-      />
+          title={
+            set
+              ? t('seam.markerSet', {
+                  name: t(`inspector.transitions.${current}`),
+                })
+              : t('seam.markerAdd')
+          }
+          onDragOver={(event) => {
+            if (
+              !event.dataTransfer.types.includes(EDIT_DESK_TRANSITION_DRAG_MIME)
+            ) {
+              return
+            }
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'copy'
+            setOver(true)
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(event) => {
+            setOver(false)
+            const raw = event.dataTransfer.getData(
+              EDIT_DESK_TRANSITION_DRAG_MIME,
+            )
+            const transition = EDIT_TRANSITIONS.find(
+              (candidate) => candidate === raw,
+            )
+            if (!transition) return
+            event.preventDefault()
+            event.stopPropagation()
+            onSet(transition)
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          style={{
+            top: LANE_TOP.video + (G.videoPx - markH) / 2,
+            left: at - markW / 2,
+            width: markW,
+            height: markH,
+          }}
+          className={cn(
+            'absolute z-20 grid cursor-pointer place-items-center transition duration-fast motion-reduce:transition-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            set
+              ? 'rounded-md bg-foreground text-background ring-2 ring-background hover:scale-110'
+              : 'rounded-full bg-background text-foreground shadow-md ring-1 ring-border',
+            // 硬切：平时透明（照样点得到、接得住拖放），停上去 / 弹层开着 / 拖转场预设时才出。
+            !set &&
+              !over &&
+              'opacity-0 hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100',
+            slide,
+            over && 'scale-110 opacity-100',
+            hidden && 'pointer-events-none opacity-0',
+          )}
+        >
+          {set ? (
+            <TransitionGlyph className="size-3.5" />
+          ) : (
+            <Plus className="size-3" aria-hidden />
+          )}
+        </button>
+      </EditDeskSeamPopover>
     </>
   )
 }

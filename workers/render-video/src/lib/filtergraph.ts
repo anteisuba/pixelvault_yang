@@ -19,21 +19,52 @@
  * 可选说明符糊过去，那只会把「没有声音」变成「静默地少一层」。
  *
  * ── 为什么画面与它自己的原声一起折叠 ────────────────────────────────────
- * 视频轨的音频跟着视频用**同一套折叠规则**（叠化 → `acrossfade`，硬切 → `concat`），
+ * 视频轨的音频跟着视频用**同一套折叠规则**（转场 → `acrossfade`，硬切 → `concat`），
  * 所以音画天然同步。⛔ 不把段的原声当成又一条 `amix` 层：那样每加一次叠化就要手算
  * 一次偏移，算错的表现是「转场处声音早半秒」。
  */
 
-/** 与 `src/constants/render-video.ts` 同源 —— worker 是另一套构建，值在这里再写一份。 */
-export const FG_CROSSFADE_SEC = 0.5
-export const FG_BLACK_FADE_SEC = 0.35
+/**
+ * 与 `src/constants/render-video.ts` 同源 —— worker 是另一套构建，值在这里再写一份。
+ * `FG_DEFAULT_TRANSITION_SEC`：载荷没写重叠多久时（5a 之前的计划）按这一档。
+ */
+export const FG_DEFAULT_TRANSITION_SEC = 0.5
 export const FG_MIX_WEIGHTS = { clip: 1, voice: 1.4, music: 0.35 } as const
 
 /** `atempo` 单次范围。>2 或 <0.5 必须串联（ffmpeg 官方建议）。 */
 export const ATEMPO_MIN = 0.5
 export const ATEMPO_MAX = 2
 
-export type FgTransition = 'none' | 'crossfade' | 'black'
+/** 与 `EDIT_TRANSITION_IDS` 同源（剪辑台 v2 第 5 片 5a：六种预设）。 */
+export type FgTransition =
+  | 'none'
+  | 'crossfade'
+  | 'black'
+  | 'wipe'
+  | 'push'
+  | 'zoom'
+  | 'iris'
+
+/**
+ * 六种转场在成片里**全是重叠**，各自翻成 `xfade` 的一种 `transition`。⚠ 认不出来的名字
+ * 退成硬切（`concat`），⛔ 整条片子渲不出来。
+ */
+export const FG_XFADE_TRANSITION: Readonly<
+  Record<Exclude<FgTransition, 'none'>, string>
+> = {
+  crossfade: 'fade',
+  black: 'fadeblack',
+  wipe: 'wipeleft',
+  push: 'slideleft',
+  zoom: 'zoomin',
+  iris: 'circleopen',
+}
+
+function xfadeNameOf(transition: FgTransition): string | null {
+  return transition === 'none'
+    ? null
+    : (FG_XFADE_TRANSITION[transition] ?? null)
+}
 
 /**
  * 字幕字体（S8d）。**容器里的系统字体**，`container/Dockerfile` 装 `fonts-noto-cjk`
@@ -82,6 +113,8 @@ export interface FgVideoSegment {
   readonly durationSec: number
   readonly muted: boolean
   readonly transitionOut: FgTransition
+  /** 这一接缝重叠多久（秒）。缺席 = `FG_DEFAULT_TRANSITION_SEC`。 */
+  readonly transitionSec?: number
 }
 
 export interface FgAudioSegment {
@@ -138,11 +171,6 @@ export function atempoChain(speed: number): readonly string[] {
   return factors.map((factor) => `atempo=${sec(factor)}`)
 }
 
-/** 一条链的写法：`a,b,c`（空链返回 `null`，调用方用 `anull` 之类占位）。 */
-function chain(parts: readonly string[]): string | null {
-  return parts.length > 0 ? parts.join(',') : null
-}
-
 /**
  * 字幕文本 → `drawtext` 的 `text=` 值。
  *
@@ -171,8 +199,7 @@ export function escapeDrawtext(text: string): string {
 function drawtextOf(segment: FgTextSegment): string {
   const start = Math.max(0, segment.startSec)
   const end = start + Math.max(0, segment.durationSec)
-  const anchor =
-    FG_TEXT_ANCHOR_EXPR[segment.anchor] ?? FG_TEXT_ANCHOR_EXPR.bc!
+  const anchor = FG_TEXT_ANCHOR_EXPR[segment.anchor] ?? FG_TEXT_ANCHOR_EXPR.bc!
   const margin = sec(Math.max(0, segment.marginPx))
   const light = segment.tone === 'light'
   const parts = [
@@ -211,56 +238,39 @@ export function buildFilterGraph(plan: FgPlan): FgResult {
   const lines: string[] = []
   const videoCount = plan.video.length
 
-  /* ── 1. 每段先各自处理黑场淡入 / 淡出与静音 ────────────────────────── */
+  /* ── 1. 每段先各自处理静音 ─────────────────────────────────────────── */
   for (let index = 0; index < videoCount; index += 1) {
     const segment = plan.video[index]!
-    const previous = index > 0 ? plan.video[index - 1] : undefined
-    const fadeIn = previous?.transitionOut === 'black'
-    const fadeOut = segment.transitionOut === 'black'
-
-    const videoParts: string[] = []
-    const audioParts: string[] = []
-    if (fadeIn) {
-      videoParts.push(`fade=t=in:st=0:d=${sec(FG_BLACK_FADE_SEC)}`)
-      audioParts.push(`afade=t=in:st=0:d=${sec(FG_BLACK_FADE_SEC)}`)
-    }
-    if (fadeOut) {
-      const start = Math.max(0, segment.durationSec - FG_BLACK_FADE_SEC)
-      videoParts.push(`fade=t=out:st=${sec(start)}:d=${sec(FG_BLACK_FADE_SEC)}`)
-      audioParts.push(
-        `afade=t=out:st=${sec(start)}:d=${sec(FG_BLACK_FADE_SEC)}`,
-      )
-    }
     // ⚠ 静音写成 `volume=0` 而不是「不接这一路」：`concat` / `acrossfade` 要求
     // 每一路都有音频流，少一路整张图就拼不起来。
-    audioParts.push(`volume=${segment.muted ? '0' : '1'}`)
-
     lines.push(
-      `[${index}:v]${chain(videoParts) ?? 'null'}[v${index}]`,
-      `[${index}:a]${chain(audioParts) ?? 'anull'}[a${index}]`,
+      `[${index}:v]null[v${index}]`,
+      `[${index}:a]volume=${segment.muted ? '0' : '1'}[a${index}]`,
     )
   }
 
-  /* ── 2. 左折叠：叠化用 xfade / acrossfade，其余用 concat ─────────── */
+  /* ── 2. 左折叠：转场用 xfade / acrossfade，硬切用 concat ─────────── */
   let videoLabel = '[v0]'
   let audioLabel = '[a0]'
   let accumulated = plan.video[0]!.durationSec
 
   for (let index = 1; index < videoCount; index += 1) {
     const segment = plan.video[index]!
-    const join = plan.video[index - 1]!.transitionOut
+    const previous = plan.video[index - 1]!
+    const xfade = xfadeNameOf(previous.transitionOut)
     const nextVideo = `[vx${index}]`
     const nextAudio = `[ax${index}]`
 
-    if (join === 'crossfade') {
+    if (xfade) {
+      // 计划里已按两边段长夹过；这里再夹一次只为不让一份坏载荷把 offset 算成负数。
       const duration = Math.min(
-        FG_CROSSFADE_SEC,
+        previous.transitionSec ?? FG_DEFAULT_TRANSITION_SEC,
         accumulated,
         segment.durationSec,
       )
       const offset = Math.max(0, accumulated - duration)
       lines.push(
-        `${videoLabel}[v${index}]xfade=transition=fade:duration=${sec(duration)}:offset=${sec(offset)}${nextVideo}`,
+        `${videoLabel}[v${index}]xfade=transition=${xfade}:duration=${sec(duration)}:offset=${sec(offset)}${nextVideo}`,
         `${audioLabel}[a${index}]acrossfade=d=${sec(duration)}:c1=tri:c2=tri${nextAudio}`,
       )
       accumulated = accumulated + segment.durationSec - duration
@@ -277,13 +287,11 @@ export function buildFilterGraph(plan: FgPlan): FgResult {
 
   /* ── 2.5 字幕（S8d）──────────────────────────────────────────────────
      ⚠ 叠在**折叠之后**的那一路画面上：叠在每段自己身上的话，一段字幕横跨两段
-     画面时要拆成两句 drawtext，而叠化那 0.5s 里两路都画着它，重叠处会明显加深。 */
+     画面时要拆成两句 drawtext，而转场重叠那几帧里两路都画着它，重叠处会明显加深。 */
   const texts = plan.texts ?? []
   if (texts.length > 0) {
     const drawn = '[vtext]'
-    lines.push(
-      `${videoLabel}${texts.map(drawtextOf).join(',')}${drawn}`,
-    )
+    lines.push(`${videoLabel}${texts.map(drawtextOf).join(',')}${drawn}`)
     videoLabel = drawn
   }
 

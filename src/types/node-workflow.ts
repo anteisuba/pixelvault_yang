@@ -69,6 +69,8 @@ import {
   EDIT_TEXT_TONE_DEFAULT,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITIONS,
+  EDIT_TRANSITION_SEC_MAX,
+  EDIT_TRANSITION_SEC_MIN,
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
@@ -1398,6 +1400,12 @@ export const EditClipSchema = z.object({
   muted: z.boolean().default(false),
   /** 段尾接下一段的转场。缺席 = `none`。 */
   transitionOut: z.enum(EDIT_TRANSITIONS).optional(),
+  /** 转场多长（秒，5a）。缺席 = 默认档 `EDIT_TRANSITION_DEFAULT_SEC`。 */
+  transitionSec: z
+    .number()
+    .min(EDIT_TRANSITION_SEC_MIN)
+    .max(EDIT_TRANSITION_SEC_MAX)
+    .optional(),
   /** 音量增益（0..2，1 = 原样）。 */
   gain: z.number().min(EDIT_CLIP_GAIN_MIN).max(EDIT_CLIP_GAIN_MAX).optional(),
   /**

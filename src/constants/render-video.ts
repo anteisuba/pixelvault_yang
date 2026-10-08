@@ -13,23 +13,13 @@
  * 服务端收不下**的载荷。
  */
 
+import type { EditTransitionId } from '@/constants/edit-desk'
+
 /** 载荷版本。worker 收到不认识的版本要**拒绝**而不是尽力而为。 */
 export const RENDER_PLAN_VERSION = 1
 
 /** 成片帧率。spec §6 定 25 —— ⚠ 规格化那一步把所有素材都拉到这个数。 */
 export const RENDER_OUTPUT_FPS = 25
-
-/**
- * 叠化时长。
- *
- * ⚠ 这个数**会扣总时长**：两段叠 0.5s，成片就短 0.5s。用户在时间线上看到的段长
- * 之和因此不等于成片时长，顶栏读数与导出结果的差就是所有叠化之和。
- * 黑场（`black`）不扣 —— 它是段内的淡入淡出，不是重叠。
- */
-export const RENDER_CROSSFADE_SEC = 0.5
-
-/** 黑场淡入淡出各占多久（段内，不扣时长）。 */
-export const RENDER_BLACK_FADE_SEC = 0.35
 
 /** 一段最短能短到多少还值得渲染 —— 比这更短的段在成片里连一帧都不满。 */
 export const RENDER_MIN_SEGMENT_SEC = 0.1
@@ -173,9 +163,17 @@ export interface RenderVideoSegment {
   readonly out: number
   readonly speed: number
   readonly muted: boolean
-  /** 段尾转场（接下一段）。最后一段永远是 `none`。 */
-  readonly transitionOut: 'none' | 'crossfade' | 'black'
-  /** 成片时间轴上占多久 = `(out - in) / speed`（不含叠化扣减）。 */
+  /**
+   * 段尾转场（接下一段）。最后一段永远是 `none`。v2 第 5 片（5a）起六种全是**重叠**
+   * （worker 翻成 `xfade` 的 fade / fadeblack / wipeleft / slideleft / zoomin / circleopen）。
+   */
+  readonly transitionOut: EditTransitionId
+  /**
+   * 这一接缝两段在成片里重叠多久（秒，已按两边段长夹过；`none` 时为 0）。⚠ 这个数**会扣
+   * 总时长**：重叠 0.5s，成片就短 0.5s —— 顶栏读数与导出结果的差就是所有重叠之和。
+   */
+  readonly transitionSec: number
+  /** 成片时间轴上占多久 = `(out - in) / speed`（不含重叠扣减）。 */
   readonly durationSec: number
   /** 来源节点 —— 「导出到画布」连线回去要它。 */
   readonly sourceNodeId: string
@@ -230,7 +228,7 @@ export interface RenderPlan {
   readonly music: readonly RenderAudioSegment[]
   /** 字幕（S8d）。⚠ 空数组 = 这条片子没有字幕，⛔ 不缺席（少一个 key 会让 worker 的读法分叉）。 */
   readonly texts: readonly RenderTextSegment[]
-  /** 成片总时长（**已扣**所有叠化重叠）。 */
+  /** 成片总时长（**已扣**所有转场重叠）。 */
   readonly totalDurationSec: number
 }
 

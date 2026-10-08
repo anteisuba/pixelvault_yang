@@ -264,6 +264,8 @@ export interface EditClipPatch {
   readonly speed?: number
   readonly muted?: boolean
   readonly transitionOut?: EditClip['transitionOut']
+  /** 转场重叠多久（5a 接缝弹层的时长档）。 */
+  readonly transitionSec?: number
   readonly gain?: number
   readonly sourceVersionId?: string
 }

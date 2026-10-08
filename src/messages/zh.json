@@ -6462,7 +6462,11 @@
         "transitions": {
           "none": "无",
           "crossfade": "叠化",
-          "black": "黑场"
+          "black": "黑场",
+          "wipe": "擦除",
+          "push": "推移",
+          "zoom": "缩放",
+          "iris": "圆形"
         },
         "backToNode": "回节点重生成这段",
         "backToNodeShort": "回节点"
@@ -6543,8 +6547,17 @@
         "audio": "音频"
       },
       "transitionPanel": {
-        "hint": "拖到两段之间的缝上",
-        "duration": "{seconds}s"
+        "hint": "拖到两段之间的缝上"
+      },
+      "seam": {
+        "title": "转场",
+        "between": "镜 {from} → 镜 {to}",
+        "duration": "时长",
+        "durationHint": "两段在成片里重叠这么久，成片会短这么多秒。",
+        "seconds": "{sec}s",
+        "hardCut": "改回硬切",
+        "markerAdd": "加转场",
+        "markerSet": "转场 · {name}"
       },
       "library": {
         "sourceLabel": "来自素材库 · {name}",

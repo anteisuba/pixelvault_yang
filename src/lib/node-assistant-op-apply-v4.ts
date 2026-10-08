@@ -77,6 +77,7 @@ import {
 import {
   EDIT_TRACK_IDS,
   EDIT_TRACK_MAX_CLIPS,
+  EDIT_TRANSITION_DEFAULT_SEC,
   EDIT_TRANSITION_IDS,
   type EditTrackId,
 } from '@/constants/edit-desk'
@@ -1563,6 +1564,9 @@ export function applyNodeAssistantOpV4(
         ...(op.patch.transitionOut === undefined
           ? {}
           : { transitionOut: op.patch.transitionOut }),
+        ...(op.patch.transitionSec === undefined
+          ? {}
+          : { transitionSec: op.patch.transitionSec }),
         ...(op.patch.gain === undefined ? {} : { gain: op.patch.gain }),
         ...(op.patch.sourceVersionId === undefined
           ? {}
@@ -1585,6 +1589,13 @@ export function applyNodeAssistantOpV4(
           ? {}
           : {
               transitionOut: current.transitionOut ?? EDIT_TRANSITION_IDS.none,
+            }),
+        // 没写过时长的段回到默认档（与「缺席」画出来、渲出来都一样）。
+        ...(op.patch.transitionSec === undefined
+          ? {}
+          : {
+              transitionSec:
+                current.transitionSec ?? EDIT_TRANSITION_DEFAULT_SEC,
             }),
         ...(op.patch.gain === undefined || current.gain === undefined
           ? {}

@@ -475,15 +475,46 @@ describe('剪辑台 · 台面', () => {
     )
   })
 
-  it('转场三档从属性行落回段上', () => {
-    const { read } = renderDesk(emptyState)
-    openMaterials()
-    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
-    const clipId = read().edit?.tracks.video[0]?.id
-    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
-    fireEvent.click(screen.getByTestId('edit-desk-transition-trigger'))
-    fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
-    expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
+  it('点接缝标记开接缝弹层：六种一行一项、选了才出时长与改回硬切（5a）', async () => {
+    const { read } = renderDesk(emptyState, { initialNodeIds: ['v1', 'v2'] })
+    const first = () => read().edit?.tracks.video[0]
+    const firstId = first()?.id
+    // 属性行里 ⛔ 再有转场键（转场只在接缝上改）
+    fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${firstId}`))
+    expect(screen.queryByTestId('edit-desk-transition-trigger')).toBeNull()
+
+    // 接缝标记（改版 A）：硬切是一颗平时透明的「加转场」圆钮
+    const marker = screen.getByTestId(`edit-desk-transition-${firstId}`)
+    expect(marker).toHaveAttribute('data-edit-seam', 'cut')
+    expect(marker).toHaveAccessibleName('加转场')
+
+    fireEvent.click(marker)
+    const popover = screen.getByTestId(`edit-desk-seam-popover-${firstId}`)
+    expect(popover).toHaveTextContent('镜 1 → 镜 2')
+    expect(within(popover).getAllByRole('radio')).toHaveLength(6)
+    // 还是硬切：没有时长、没有「改回硬切」
+    expect(screen.queryByTestId('edit-desk-seam-hard-cut')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('edit-desk-seam-wipe'))
+    expect(first()?.transitionOut).toBe('wipe')
+    // ⛔ 收起：接着挑时长
+    fireEvent.click(within(popover).getByRole('radio', { name: '1s' }))
+    expect(first()?.transitionSec).toBe(1)
+    // 有转场 = 黑底小块，名字读得出来
+    expect(
+      screen.getByTestId(`edit-desk-transition-${firstId}`),
+    ).toHaveAttribute('data-edit-seam', 'set')
+    expect(
+      screen.getByTestId(`edit-desk-transition-${firstId}`),
+    ).toHaveAccessibleName('转场 · 擦除')
+
+    fireEvent.click(screen.getByTestId('edit-desk-seam-hard-cut'))
+    expect(first()?.transitionOut).toBe('none')
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId(`edit-desk-seam-popover-${firstId}`),
+      ).toBeNull(),
+    )
   })
 
   it('走带行：播放键与空格同一份播放态；声音键让预览静音；分割 / 删除两颗小键', async () => {
@@ -1510,8 +1541,8 @@ describe('剪辑台 · 回执与段闪', () => {
     expect(screen.getByTestId('edit-desk-receipt')).toBeInTheDocument()
 
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
-    fireEvent.click(screen.getByTestId('edit-desk-transition-trigger'))
-    fireEvent.click(screen.getByRole('radio', { name: '叠化' }))
+    fireEvent.click(screen.getByTestId('edit-desk-speed-trigger'))
+    fireEvent.click(screen.getByRole('radio', { name: '0.5×' }))
     await waitFor(() =>
       expect(screen.queryByTestId('edit-desk-receipt')).toBeNull(),
     )

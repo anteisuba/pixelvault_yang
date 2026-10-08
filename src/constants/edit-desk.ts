@@ -24,11 +24,21 @@ export const EDIT_TRACKS: readonly EditTrackId[] = [
   EDIT_TRACK_IDS.music,
 ]
 
-/** 段尾转场。⚠ 转场是**段的属性**（接下一段），不是轨道上的独立对象。 */
+/**
+ * 段尾转场。⚠ 转场是**段的属性**（接下一段），不是轨道上的独立对象。
+ *
+ * v2 第 5 片（5a）：从 无 / 叠化 / 黑场 扩到六种预设。六种在成片里**全是重叠**（ffmpeg
+ * `xfade`：fade / fadeblack / wipeleft / slideleft / zoomin / circleopen），重叠多久由段上
+ * 的 `transitionSec` 定，成片因此短那么多秒。
+ */
 export const EDIT_TRANSITION_IDS = {
   none: 'none',
   crossfade: 'crossfade',
   black: 'black',
+  wipe: 'wipe',
+  push: 'push',
+  zoom: 'zoom',
+  iris: 'iris',
 } as const
 
 export type EditTransitionId =
@@ -38,7 +48,31 @@ export const EDIT_TRANSITIONS: readonly EditTransitionId[] = [
   EDIT_TRANSITION_IDS.none,
   EDIT_TRANSITION_IDS.crossfade,
   EDIT_TRANSITION_IDS.black,
+  EDIT_TRANSITION_IDS.wipe,
+  EDIT_TRANSITION_IDS.push,
+  EDIT_TRANSITION_IDS.zoom,
+  EDIT_TRANSITION_IDS.iris,
 ]
+
+/** 接缝弹层与左列「转场」页列的六种预设（不含「无」——改回硬切另有一颗键）。 */
+export const EDIT_TRANSITION_PRESETS: readonly Exclude<
+  EditTransitionId,
+  'none'
+>[] = [
+  EDIT_TRANSITION_IDS.crossfade,
+  EDIT_TRANSITION_IDS.black,
+  EDIT_TRANSITION_IDS.wipe,
+  EDIT_TRANSITION_IDS.push,
+  EDIT_TRANSITION_IDS.zoom,
+  EDIT_TRANSITION_IDS.iris,
+]
+
+/** 转场时长三档（关键切片：0.3 / 0.5 / 1.0s）。段上没写 = 默认档。 */
+export const EDIT_TRANSITION_DURATIONS = [0.3, 0.5, 1] as const
+export const EDIT_TRANSITION_DEFAULT_SEC = 0.5
+/** 段上 `transitionSec` 的合法区间（op 载荷与落库都过它）。 */
+export const EDIT_TRANSITION_SEC_MIN = 0.1
+export const EDIT_TRANSITION_SEC_MAX = 2
 
 /** 速度三档（画板右栏分段控件 0.5× / 1× / 2×）。 */
 export const EDIT_CLIP_SPEEDS = [0.5, 1, 2] as const
@@ -91,7 +125,7 @@ export const EDIT_PANELS: readonly EditPanelId[] = [
   EDIT_PANEL_IDS.transition,
 ]
 
-/** 台面几何里与时间线轨道无关的那几样（素材面板 / 素材格 / 手柄 / 菱形图标）。 */
+/** 台面几何里与时间线轨道无关的那几样（素材面板 / 素材格 / 手柄）。 */
 export const EDIT_DESK_LAYOUT = {
   /** 素材面板宽（画板 `.ed-fly` 268 减去内边距后的内容宽，沿用 236 的两列格）。 */
   panelWidthPx: 236,
@@ -101,8 +135,6 @@ export const EDIT_DESK_LAYOUT = {
   assetTileHeightPx: 64,
   /** 裁剪手柄宽（画板 `.hl` / `.hr`）。 */
   handleWidthPx: 9,
-  /** 转场图标里那颗菱形边长（左列转场页）。 */
-  transitionMarkPx: 12,
   /**
    * 波形一根柱占多宽（柱 3 + 缝 2，见 `AudioWaveform` 的 `w-0.75 gap-0.5`）。
    * 段有多宽就画几根，⛔ 不固定根数 —— 固定根数的短段会挤成一团。
@@ -132,8 +164,13 @@ export const EDIT_TIMELINE_GEOMETRY = {
   textGapPx: 6,
   videoGapPx: 10,
   audioGapPx: 10,
-  /** 段间菱形边长（压在主线上沿）。 */
-  seamPx: 13,
+  /**
+   * 接缝标记（5a 改版 A，推翻段间菱形）：压在主线**正中**。硬切平时不画，停上去冒一颗
+   * `seamDotPx` 的「+」圆钮；有转场 = 一颗 `seamChipW × seamChipH` 的黑底小块。
+   */
+  seamDotPx: 20,
+  seamChipW: 24,
+  seamChipH: 18,
   /** 挂件的连接线离挂件左缘多远。 */
   linkInsetPx: 6,
   /** 换挂点之后连接线亮多久。 */
@@ -377,6 +414,10 @@ export const EDIT_TRANSITIONS_TUPLE = [
   EDIT_TRANSITION_IDS.none,
   EDIT_TRANSITION_IDS.crossfade,
   EDIT_TRANSITION_IDS.black,
+  EDIT_TRANSITION_IDS.wipe,
+  EDIT_TRANSITION_IDS.push,
+  EDIT_TRANSITION_IDS.zoom,
+  EDIT_TRANSITION_IDS.iris,
 ] as const
 
 /**

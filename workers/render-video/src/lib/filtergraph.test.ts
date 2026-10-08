@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   atempoChain,
   buildFilterGraph,
-  FG_BLACK_FADE_SEC,
-  FG_CROSSFADE_SEC,
+  FG_DEFAULT_TRANSITION_SEC,
   escapeDrawtext,
   FG_FONT_FILE,
   type FgAudioSegment,
@@ -124,7 +123,7 @@ describe('buildFilterGraph · 叠化', () => {
         '[a0][a1]acrossfade=d=0.5:c1=tri:c2=tri[ax1]',
       ].join(';'),
     )
-    expect(graph.totalDurationSec).toBe(8 - FG_CROSSFADE_SEC)
+    expect(graph.totalDurationSec).toBe(8 - FG_DEFAULT_TRANSITION_SEC)
   })
 
   it('段比叠化还短时叠化被压到段长 —— ⛔ 不出负偏移', () => {
@@ -141,28 +140,45 @@ describe('buildFilterGraph · 叠化', () => {
   })
 })
 
-describe('buildFilterGraph · 黑场', () => {
-  it('前一段淡出、后一段淡入，音画同步，时长不扣', () => {
+describe('buildFilterGraph · 六种转场（5a）', () => {
+  it('每种翻成 xfade 的一种 transition，重叠多久按段上写的', () => {
+    const cases = [
+      ['black', 'fadeblack'],
+      ['wipe', 'wipeleft'],
+      ['push', 'slideleft'],
+      ['zoom', 'zoomin'],
+      ['iris', 'circleopen'],
+    ] as const
+    for (const [transition, xfade] of cases) {
+      const graph = buildFilterGraph(
+        plan({
+          video: [
+            videoSegment('a', { transitionOut: transition, transitionSec: 1 }),
+            videoSegment('b'),
+          ],
+        }),
+      )
+      expect(graph.filter).toContain(
+        `[v0][v1]xfade=transition=${xfade}:duration=1:offset=3[vx1]`,
+      )
+      expect(graph.filter).toContain(
+        '[a0][a1]acrossfade=d=1:c1=tri:c2=tri[ax1]',
+      )
+      expect(graph.totalDurationSec).toBe(7)
+    }
+  })
+
+  it('黑场也是重叠（fadeblack）：⛔ 再在段内各自淡入淡出', () => {
     const graph = buildFilterGraph(
       plan({
         video: [
-          videoSegment('a', { transitionOut: 'black' }),
+          videoSegment('a', { transitionOut: 'black', transitionSec: 0.3 }),
           videoSegment('b'),
         ],
       }),
     )
-    const st = String(4 - FG_BLACK_FADE_SEC)
-    expect(graph.filter).toBe(
-      [
-        `[0:v]fade=t=out:st=${st}:d=0.35[v0]`,
-        `[0:a]afade=t=out:st=${st}:d=0.35,volume=1[a0]`,
-        '[1:v]fade=t=in:st=0:d=0.35[v1]',
-        '[1:a]afade=t=in:st=0:d=0.35,volume=1[a1]',
-        '[v0][v1]concat=n=2:v=1:a=0[vx1]',
-        '[a0][a1]concat=n=2:v=0:a=1[ax1]',
-      ].join(';'),
-    )
-    expect(graph.totalDurationSec).toBe(8)
+    expect(graph.filter).not.toContain('fade=t=')
+    expect(graph.totalDurationSec).toBe(7.7)
   })
 })
 

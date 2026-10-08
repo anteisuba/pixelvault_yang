@@ -445,6 +445,38 @@ describe('剪辑台 op（tier / inverse）', () => {
     expect(back.edit?.tracks.video[0]?.speed).toBe(1)
   })
 
+  it('edit_update_clip 改转场与时长（5a）：撤销回到原样，没写过时长的回默认档', () => {
+    const project = {
+      ...createEmptyEditProject('成片'),
+      tracks: {
+        video: [clip({ id: 'a' }), clip({ id: 'b' })],
+        audio: [],
+        music: [],
+        text: [],
+      },
+    }
+    const updated = applyNodeAssistantOpV4(
+      stateWith(project),
+      {
+        op: ids.editUpdateClip,
+        track: EDIT_TRACK_IDS.video,
+        clipId: 'a',
+        patch: { transitionOut: 'iris', transitionSec: 1 },
+      },
+      makeContext(),
+    )
+    expect(updated.ok).toBe(true)
+    if (!updated.ok) return
+    expect(updated.state.edit?.tracks.video[0]).toMatchObject({
+      transitionOut: 'iris',
+      transitionSec: 1,
+    })
+    expect(updated.inverse).toMatchObject({
+      kind: 'op',
+      op: { patch: { transitionOut: 'none', transitionSec: 0.5 } },
+    })
+  })
+
   it('edit_update_clip 的裁剪过守卫：in >= out 落不下去', () => {
     const project = {
       ...createEmptyEditProject('成片'),

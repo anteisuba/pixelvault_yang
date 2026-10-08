@@ -218,6 +218,154 @@
   }
 }
 
+/* 剪辑台接缝标记（5a 改版 A）：硬切的接缝平时透明，从左列拖转场预设时全部亮出来当落点。 */
+body[data-edit-transition-drag] [data-edit-seam='cut'] {
+  opacity: 1;
+}
+
+/* 剪辑台接缝弹层（v2 第 5 片 5a · 换皮第二轮 ⑤ A）：行首小缩略 = 前一段出点那一帧叠后一段
+   入点那一帧，鼠标停在这一行上就把这种转场演一遍（循环），离开停在前一段。六种与成片里
+   `xfade` 的那六种一一对应（fade / fadeblack / wipeleft / slideleft / zoomin / circleopen）。 */
+.edit-seam-row:hover .edit-seam-thumb > i {
+  animation-duration: 1.4s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.edit-seam-row:hover
+  .edit-seam-thumb[data-transition='crossfade']
+  .edit-seam-b {
+  animation-name: edit-seam-dissolve;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='black'] .edit-seam-a {
+  animation-name: edit-seam-dip-a;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='black'] .edit-seam-b {
+  animation-name: edit-seam-dip-b;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='wipe'] .edit-seam-b {
+  opacity: 1;
+  animation-name: edit-seam-wipe;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='push'] .edit-seam-a {
+  animation-name: edit-seam-push-a;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='push'] .edit-seam-b {
+  opacity: 1;
+  animation-name: edit-seam-push-b;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='zoom'] .edit-seam-a {
+  animation-name: edit-seam-zoom-a;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='zoom'] .edit-seam-b {
+  animation-name: edit-seam-zoom-b;
+}
+.edit-seam-row:hover .edit-seam-thumb[data-transition='iris'] .edit-seam-b {
+  opacity: 1;
+  animation-name: edit-seam-iris;
+}
+.edit-seam-thumb[data-transition='black'] {
+  background: black;
+}
+@keyframes edit-seam-dissolve {
+  0%,
+  25% {
+    opacity: 0;
+  }
+  75%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes edit-seam-dip-a {
+  0%,
+  20% {
+    opacity: 1;
+  }
+  48%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes edit-seam-dip-b {
+  0%,
+  52% {
+    opacity: 0;
+  }
+  80%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes edit-seam-wipe {
+  0%,
+  20% {
+    clip-path: inset(0 100% 0 0);
+  }
+  80%,
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes edit-seam-push-a {
+  0%,
+  20% {
+    transform: none;
+  }
+  80%,
+  100% {
+    transform: translateX(-100%);
+  }
+}
+@keyframes edit-seam-push-b {
+  0%,
+  20% {
+    transform: translateX(100%);
+  }
+  80%,
+  100% {
+    transform: none;
+  }
+}
+@keyframes edit-seam-zoom-a {
+  0%,
+  20% {
+    transform: none;
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes edit-seam-zoom-b {
+  0%,
+  35% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  80%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes edit-seam-iris {
+  0%,
+  20% {
+    clip-path: circle(0% at 50% 50%);
+  }
+  80%,
+  100% {
+    clip-path: circle(75% at 50% 50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edit-seam-row:hover .edit-seam-thumb > i {
+    animation: none;
+  }
+}
+
 .node-ingest-reject {
   transition: outline-color 180ms var(--ease-standard);
   outline: 2px solid var(--node-status-failed);

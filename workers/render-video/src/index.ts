@@ -21,7 +21,7 @@ import {
   buildNormalizeCommand,
   buildPosterCommand,
 } from './lib/ffmpeg-commands'
-import type { FgPlan } from './lib/filtergraph'
+import type { FgPlan, FgTransition } from './lib/filtergraph'
 import { waitUntilListening } from './lib/container-ready'
 import { createSignedRequestHeaders, verifySignedBody } from './lib/signature'
 
@@ -114,7 +114,9 @@ export interface RenderRunContext {
       out: number
       speed: number
       muted: boolean
-      transitionOut: 'none' | 'crossfade' | 'black'
+      transitionOut: FgTransition
+      /** 这一接缝重叠多久（5a）。旧载荷没有它 = 按 0.5s 叠化那一档。 */
+      transitionSec?: number
       durationSec: number
       sourceNodeId: string
       sourceVersionId?: string
@@ -291,6 +293,9 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
             durationSec: segment.durationSec,
             muted: segment.muted,
             transitionOut: segment.transitionOut,
+            ...(segment.transitionSec === undefined
+              ? {}
+              : { transitionSec: segment.transitionSec }),
           })),
           audio: plan.audio.map(toGraphAudio),
           music: plan.music.map(toGraphAudio),

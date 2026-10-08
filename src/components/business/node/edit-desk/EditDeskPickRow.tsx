@@ -58,6 +58,7 @@ export function PickRow({
   detail,
   mono = false,
   testId,
+  className,
 }: {
   readonly label: ReactNode
   readonly selected: boolean
@@ -71,6 +72,8 @@ export function PickRow({
   /** 名字本身是读数（`2×`、`0.3s`）：走等宽槽。 */
   readonly mono?: boolean
   readonly testId?: string
+  /** 行上要挂的钩子类（接缝弹层靠它让行首小缩略在悬停时演转场）。 */
+  readonly className?: string
 }) {
   return (
     <button
@@ -87,6 +90,7 @@ export function PickRow({
         'hover:outline hover:outline-1 hover:outline-border',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         selected && 'bg-muted',
+        className,
       )}
     >
       {leading}

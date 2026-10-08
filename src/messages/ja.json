@@ -6462,7 +6462,11 @@
         "transitions": {
           "none": "なし",
           "crossfade": "クロスフェード",
-          "black": "暗転"
+          "black": "暗転",
+          "wipe": "ワイプ",
+          "push": "プッシュ",
+          "zoom": "ズーム",
+          "iris": "アイリス"
         },
         "backToNode": "このカットをノードで再生成",
         "backToNodeShort": "ノードへ"
@@ -6543,8 +6547,17 @@
         "audio": "オーディオ"
       },
       "transitionPanel": {
-        "hint": "2 つのクリップの継ぎ目にドロップ",
-        "duration": "{seconds}s"
+        "hint": "2 つのクリップの継ぎ目にドロップ"
+      },
+      "seam": {
+        "title": "トランジション",
+        "between": "ショット {from} → ショット {to}",
+        "duration": "長さ",
+        "durationHint": "2 つのクリップが書き出しで重なる長さです。そのぶん全体が短くなります。",
+        "seconds": "{sec}s",
+        "hardCut": "カットに戻す",
+        "markerAdd": "トランジションを追加",
+        "markerSet": "トランジション · {name}"
       },
       "library": {
         "sourceLabel": "素材ライブラリより · {name}",

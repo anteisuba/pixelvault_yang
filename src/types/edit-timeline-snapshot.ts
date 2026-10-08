@@ -34,6 +34,8 @@ export const TimelineSnapshotClipSchema = z.object({
   speed: z.number().min(0).max(100),
   /** 段尾接下一段的转场；缺席 = 硬切。 */
   transitionOut: z.string().max(40).optional(),
+  /** 转场重叠多久（秒，5a）；只在有转场时出。 */
+  transitionSec: z.number().optional(),
   /** 原声关了（只对 V 轨有意义）。 */
   muted: z.literal(true).optional(),
   gain: z.number().min(0).max(10).optional(),

@@ -10,6 +10,7 @@
 
 import {
   EDIT_TRACKS,
+  EDIT_TRANSITION_DEFAULT_SEC,
   EDIT_TRANSITION_IDS,
   type EditTrackId,
 } from '@/constants/edit-desk'
@@ -85,7 +86,10 @@ export function buildTimelineSnapshot(
         outSec: round(clip.out),
         speed: clip.speed,
         ...(transition && transition !== EDIT_TRANSITION_IDS.none
-          ? { transitionOut: transition }
+          ? {
+              transitionOut: transition,
+              transitionSec: clip.transitionSec ?? EDIT_TRANSITION_DEFAULT_SEC,
+            }
           : {}),
         ...(clip.muted ? { muted: true as const } : {}),
         ...(clip.gain !== undefined ? { gain: clip.gain } : {}),

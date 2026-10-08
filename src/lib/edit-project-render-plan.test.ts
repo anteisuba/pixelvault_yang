@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   EDIT_EXPORT_RANGE_IDS,
   EDIT_TRACK_IDS,
+  EDIT_TRANSITION_DEFAULT_SEC,
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import {
-  RENDER_CROSSFADE_SEC,
   RENDER_OUTPUT_FPS,
   RENDER_PLAN_ERROR_CODES,
   RENDER_PLAN_VERSION,
@@ -299,10 +299,14 @@ describe('toRenderPlan · 转场重叠扣时', () => {
       { range: EDIT_EXPORT_RANGE_IDS.all },
       SETTINGS,
     )
-    expect(plan.totalDurationSec).toBeCloseTo(12 - 2 * RENDER_CROSSFADE_SEC, 6)
+    expect(plan.totalDurationSec).toBeCloseTo(
+      12 - 2 * EDIT_TRANSITION_DEFAULT_SEC,
+      6,
+    )
+    expect(plan.video[0]?.transitionSec).toBe(EDIT_TRANSITION_DEFAULT_SEC)
   })
 
-  it('黑场不扣时长 —— 它是段内的淡入淡出，不是重叠', () => {
+  it('黑场也是重叠（5a：六种全是 xfade），重叠多久按段上写的', () => {
     const withBlack = project({
       tracks: {
         video: [
@@ -310,6 +314,7 @@ describe('toRenderPlan · 转场重叠扣时', () => {
             id: 'c1',
             sourceNodeId: 'v1',
             transitionOut: EDIT_TRANSITION_IDS.black,
+            transitionSec: 1,
           }),
           clip({ id: 'c2', sourceNodeId: 'v2' }),
         ],
@@ -324,7 +329,97 @@ describe('toRenderPlan · 转场重叠扣时', () => {
       { range: EDIT_EXPORT_RANGE_IDS.all },
       SETTINGS,
     )
-    expect(plan.totalDurationSec).toBe(8)
+    expect(plan.video[0]).toMatchObject({
+      transitionOut: EDIT_TRANSITION_IDS.black,
+      transitionSec: 1,
+    })
+    expect(plan.totalDurationSec).toBe(7)
+  })
+
+  it('重叠夹到两边段长的一半以内（一段两头都有转场也吃不掉整段）', () => {
+    const short = project({
+      tracks: {
+        video: [
+          clip({
+            id: 'c1',
+            sourceNodeId: 'v1',
+            out: 1,
+            transitionOut: EDIT_TRANSITION_IDS.wipe,
+            transitionSec: 2,
+          }),
+          clip({ id: 'c2', sourceNodeId: 'v2' }),
+        ],
+        audio: [],
+        music: [],
+        text: [],
+      },
+    })
+    const plan = toRenderPlan(
+      short,
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    expect(plan.video[0]?.transitionSec).toBe(0.5)
+    expect(plan.totalDurationSec).toBe(4.5)
+  })
+
+  it('接缝之后的台词与字幕跟着画面提前；配乐 ⛔ 挪', () => {
+    const withLayers = project({
+      tracks: {
+        video: [
+          clip({
+            id: 'c1',
+            sourceNodeId: 'v1',
+            transitionOut: EDIT_TRANSITION_IDS.push,
+            transitionSec: 1,
+          }),
+          clip({ id: 'c2', sourceNodeId: 'v2' }),
+        ],
+        audio: [
+          clip({
+            id: 'l1',
+            sourceNodeId: 'a1',
+            out: 1,
+            startSec: 5,
+            attach: { clipId: 'c2', atSec: 1 },
+          }),
+          clip({
+            id: 'l0',
+            sourceNodeId: 'a1',
+            out: 1,
+            startSec: 1,
+            attach: { clipId: 'c1', atSec: 1 },
+          }),
+        ],
+        music: [clip({ id: 'm1', sourceNodeId: 'a1', out: 6 })],
+        text: [
+          {
+            id: 't1',
+            text: '字',
+            startSec: 6,
+            durationSec: 1,
+            anchor: 'bc',
+            size: 'm',
+            tone: 'light',
+            fadeSec: 0,
+            attach: { clipId: 'c2', atSec: 2 },
+          },
+        ],
+      },
+    })
+    const plan = toRenderPlan(
+      withLayers,
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    const startOf = (id: string) =>
+      plan.audio.find((segment) => segment.id === id)?.startSec
+    expect(startOf('l1')).toBe(4)
+    expect(startOf('l0')).toBe(1)
+    expect(plan.music[0]?.startSec).toBe(0)
+    expect(plan.texts[0]?.startSec).toBe(5)
   })
 
   it('最后一段的转场被抹平 —— 后面没有东西可接', () => {

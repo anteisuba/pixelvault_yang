@@ -8,7 +8,6 @@ import type { Route } from '@/constants/routes'
 import {
   GALLERY_GRID_COLUMN_BREAKPOINTS,
   GALLERY_GRID_GAP_X,
-  GALLERY_GRID_GAP_X_BREAKPOINT,
   GALLERY_GRID_GAP_Y,
   GALLERY_GRID_OVERSCAN,
   GALLERY_GRID_SSR_ITEM_COUNT,
@@ -102,12 +101,6 @@ function getColumnCount(viewportWidth: number): number {
   return columns
 }
 
-function getGapX(viewportWidth: number): number {
-  return viewportWidth >= GALLERY_GRID_GAP_X_BREAKPOINT.minWidth
-    ? GALLERY_GRID_GAP_X.wide
-    : GALLERY_GRID_GAP_X.narrow
-}
-
 /**
  * 画廊图墙（2026-09-03 起窗口化）。
  *
@@ -177,7 +170,7 @@ export function GalleryGrid({
 
   const isVirtualized = metrics.containerWidth > 0
   const columnCount = getColumnCount(metrics.viewportWidth)
-  const gapX = getGapX(metrics.viewportWidth)
+  const gapX = GALLERY_GRID_GAP_X
   const columnWidth = isVirtualized
     ? (metrics.containerWidth - gapX * (columnCount - 1)) / columnCount
     : 0
@@ -259,7 +252,7 @@ export function GalleryGrid({
         ref={feedRef}
         role="feed"
         aria-label={feedLabel}
-        className="grid grid-cols-2 items-start gap-x-2 gap-y-6 sm:gap-x-6 xl:grid-cols-3 2xl:grid-cols-4"
+        className="grid grid-cols-2 items-start gap-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6"
         onKeyDown={handleGalleryKeyDown}
       >
         {ssrGenerations.map((generation, index) => (

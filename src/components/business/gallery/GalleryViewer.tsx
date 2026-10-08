@@ -41,10 +41,12 @@ import {
 } from '@/components/business/viewer/ViewerMedia'
 import { ViewerPrompt } from '@/components/business/viewer/ViewerPrompt'
 import {
+  COPY_ACK_CLASS,
   VIEWER_OUTLINE_ICON,
   VIEWER_OUTLINE_PILL,
   VIEWER_SMALL_PILL,
 } from '@/components/business/viewer/viewer-classes'
+import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -319,17 +321,24 @@ function GalleryViewerAside({
           />
           <LikeCount count={generation.likeCount ?? 0} />
         </button>
+        {/* 分享 = 复制 `/gallery/<id>`；复制后键原地变黑底对勾（原型 I），过一会儿变回来。 */}
         <button
           type="button"
           onClick={() => void share()}
-          className={VIEWER_OUTLINE_PILL}
+          data-copied={copied === 'link' || undefined}
+          className={cn(VIEWER_OUTLINE_PILL, COPY_ACK_CLASS)}
         >
-          {copied === 'link' ? (
-            <Check className="size-3.5" aria-hidden />
-          ) : (
-            <Share2 className="size-3.5" aria-hidden />
-          )}
-          {copied === 'link' ? t('linkCopied') : tDetail('shareLink')}
+          <BlurSwap
+            swapKey={copied === 'link' ? 'copied' : 'share'}
+            className="gap-1.5"
+          >
+            {copied === 'link' ? (
+              <Check className="size-3.5" aria-hidden />
+            ) : (
+              <Share2 className="size-3.5" aria-hidden />
+            )}
+            {copied === 'link' ? t('linkCopied') : tDetail('shareLink')}
+          </BlurSwap>
         </button>
         <button
           type="button"
@@ -485,14 +494,20 @@ function GalleryViewerAside({
           <button
             type="button"
             onClick={() => void copyPrompt()}
-            className={VIEWER_SMALL_PILL}
+            data-copied={copied === 'prompt' || undefined}
+            className={cn(VIEWER_SMALL_PILL, COPY_ACK_CLASS)}
           >
-            {copied === 'prompt' ? (
-              <Check className="size-3.5" aria-hidden />
-            ) : (
-              <Copy className="size-3.5" aria-hidden />
-            )}
-            {copied === 'prompt' ? t('copied') : tDetail('copyPrompt')}
+            <BlurSwap
+              swapKey={copied === 'prompt' ? 'copied' : 'copy'}
+              className="gap-1.5"
+            >
+              {copied === 'prompt' ? (
+                <Check className="size-3.5" aria-hidden />
+              ) : (
+                <Copy className="size-3.5" aria-hidden />
+              )}
+              {copied === 'prompt' ? t('copied') : tDetail('copyPrompt')}
+            </BlurSwap>
           </button>
         ) : null}
         <button

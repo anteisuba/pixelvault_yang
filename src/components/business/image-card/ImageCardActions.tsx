@@ -4,8 +4,12 @@ import { useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 
 import { Download, Heart } from '@/components/icons'
-import { EASE_STANDARD } from '@/constants/motion'
+import { SPRING } from '@/constants/motion'
+import { RollingNumber } from '@/components/ui/rolling-number'
 import { cn } from '@/lib/utils'
+
+/** 点 ♥ 那一下心先缩到这么大再弹回（与素材瓦片同一下，assets.md §4.6 H）。 */
+const HEART_POP_FROM = 0.78
 
 interface ImageCardActionsProps {
   liked: boolean
@@ -40,6 +44,12 @@ export function ImageCardActions({
   downloadLabel,
   hiddenOnCoarse = false,
 }: ImageCardActionsProps) {
+  const reducedMotion = useReducedMotion()
+  // 真的切换过一次之后心才弹：滚回来重挂（窗口化）⛔ 弹。
+  const [likedSeen, setLikedSeen] = useState({ value: liked, changed: false })
+  if (likedSeen.value !== liked) setLikedSeen({ value: liked, changed: true })
+  const heartPop = likedSeen.changed && !reducedMotion
+
   return (
     <div
       className={cn(
@@ -56,10 +66,15 @@ export function ImageCardActions({
         className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
-        <Heart
-          weight={liked ? 'fill' : 'bold'}
-          className="size-3.5 transition-colors"
-        />
+        <motion.span
+          key={liked ? 'on' : 'off'}
+          initial={heartPop ? { scale: HEART_POP_FROM } : false}
+          animate={{ scale: 1 }}
+          transition={SPRING.slot}
+          className="grid place-items-center"
+        >
+          <Heart weight={liked ? 'fill' : 'bold'} className="size-3.5" />
+        </motion.span>
         {likeCount > 0 && <LikeCount count={likeCount} />}
       </button>
       <button
@@ -77,24 +92,10 @@ export function ImageCardActions({
   )
 }
 
-/** ♥ 旁的数：变了就跳一下（240，画廊「卡片与详情」动效表）；第一次画出来不跳。 */
+/**
+ * ♥ 旁的数：变了就滚到新值，只滚变了的那几位（`RollingNumber`，动效样片 K）；
+ * 第一次画出来不滚。卡片与查看器共用这一颗。
+ */
 export function LikeCount({ count }: { count: number }) {
-  const reducedMotion = useReducedMotion()
-  const [shown, setShown] = useState(count)
-  const [bumps, setBumps] = useState(0)
-  if (shown !== count) {
-    setShown(count)
-    setBumps((value) => value + 1)
-  }
-  return (
-    <motion.span
-      key={bumps}
-      initial={bumps > 0 && !reducedMotion ? { scale: 1.35 } : false}
-      animate={{ scale: 1 }}
-      transition={{ duration: 0.24, ease: EASE_STANDARD }}
-      className="inline-block font-mono tabular-nums"
-    >
-      {count}
-    </motion.span>
-  )
+  return <RollingNumber value={count} className="font-mono" />
 }

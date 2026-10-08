@@ -265,6 +265,10 @@ const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
   unknownSlot: 'connectRejected.unknownSlot',
   unknownEdge: 'connectRejected.unknownNode',
   blockedVersion: 'connectRejected.blockedVersion',
+  alreadyProjected: 'scriptRejected.alreadyProjected',
+  notProjected: 'scriptRejected.notProjected',
+  emptyScript: 'scriptRejected.emptyScript',
+  notScriptNode: 'scriptRejected.notScriptNode',
 }
 
 /**

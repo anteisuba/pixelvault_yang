@@ -6199,6 +6199,12 @@
         "chipLabel": "{name} · {count} 枚",
         "count": "このカットで {count} 枚",
         "limit": "このモデルの参照画像は最大 {max} 枚 · 使用中 {used} 枚（レールの画像を含む）"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "この台本はすでに展開済みです。変更をショットに反映するには「再展開」を使ってください。",
+        "notProjected": "この台本はまだ展開されていません。先に一度展開してください。",
+        "emptyScript": "台本にショットに分けられる段落がありません。",
+        "notScriptNode": "ショットに展開できるのは台本カードだけです。"
       }
     },
     "rerunDownstream": {

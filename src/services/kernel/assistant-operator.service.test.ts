@@ -2608,6 +2608,7 @@ describe('read_state', () => {
       expect(prompt).not.toContain('before creating the next one')
       expect(prompt).not.toContain('import_user_url')
       expect(prompt).toContain('SCRIPT → SHOTS')
+      expect(prompt).toContain('mode "reproject"')
     })
 
     it('给批里新建的卡写词：整批退回并点名那一条', async () => {

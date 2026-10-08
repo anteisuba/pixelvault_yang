@@ -6199,6 +6199,12 @@
         "chipLabel": "{name} · 带 {count} 张",
         "count": "这一镜带 {count} 张",
         "limit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含轨上挂的）"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "这个剧本已经投影过了，要按改动更新镜头请用「重新投影」。",
+        "notProjected": "这个剧本还没有投影过，先投影一次。",
+        "emptyScript": "剧本里没有可以拆成镜头的段落。",
+        "notScriptNode": "只有剧本卡可以投影成镜头。"
       }
     },
     "rerunDownstream": {

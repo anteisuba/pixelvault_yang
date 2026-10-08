@@ -6199,6 +6199,12 @@
         "chipLabel": "{name} · {count} images",
         "count": "{count} images in this shot",
         "limit": "This model takes up to {max} reference images · {used} in use (including the rail)"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "This script is already projected — use re-project to update the shots.",
+        "notProjected": "This script has not been projected yet — project it first.",
+        "emptyScript": "The script has no sections to split into shots.",
+        "notScriptNode": "Only a script card can be projected into shots."
       }
     },
     "rerunDownstream": {

@@ -6233,7 +6233,10 @@
       "editDesk": "Edit desk",
       "assistant": "Assistant",
       "panels": {
+        "addNode": "Add node",
         "nodes": "Nodes",
+        "project": "Current project",
+        "history": "History",
         "cards": "Characters",
         "library": "Library",
         "searchNodes": "Search nodes…",

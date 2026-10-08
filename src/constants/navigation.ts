@@ -10,10 +10,13 @@ import {
   Box,
   FileText,
   FolderOpen,
+  FolderTree,
+  History,
   IdCard,
   ListTree,
   Image as ImageIcon,
   Images,
+  Plus,
   SwatchBook,
   User,
   UserRound,
@@ -163,31 +166,83 @@ export function isShellNavItemActive(
 }
 
 /**
- * 「画布」那一项下面长出来的三颗子图标（owner 2026-10-08 画布换皮：画布自己的左侧图标栏
- * 并进全站侧栏）。只在画布路由上、画布真的挂着时出现；点一颗 = 在侧栏旁边打开那一格
- * 面板（`ShellSidePanels`），再点收起。顺序即面板顺序，图标与画布里兜底那条栏同一份。
+ * 画布左侧面板六格的入口（图标 + 文案）。哪几格长在全站侧栏「画布」下面、哪几格留在
+ * 画布底栏，**只看下面 `SHELL_NAV_CANVAS_SIDEBAR_IDS` 那一张列表**。
  */
 export interface ShellNavCanvasEntry {
   readonly id: CanvasShellPanelId
   readonly icon: Icon
-  /** 完整 i18n 路径（与面板标题同一条）。 */
+  /** 完整 i18n 路径（与面板标题同一条：`StudioNode.shell.panels.<id>`）。 */
   readonly labelKey: string
 }
 
-export const SHELL_NAV_CANVAS_ENTRIES: readonly ShellNavCanvasEntry[] = [
-  {
+const SHELL_NAV_CANVAS_ENTRY_BY_ID: Readonly<
+  Record<CanvasShellPanelId, ShellNavCanvasEntry>
+> = {
+  [CANVAS_SHELL_PANEL_IDS.addNode]: {
+    id: CANVAS_SHELL_PANEL_IDS.addNode,
+    icon: Plus,
+    labelKey: 'StudioNode.shell.panels.addNode',
+  },
+  [CANVAS_SHELL_PANEL_IDS.nodes]: {
     id: CANVAS_SHELL_PANEL_IDS.nodes,
     icon: ListTree,
     labelKey: 'StudioNode.shell.panels.nodes',
   },
-  {
+  [CANVAS_SHELL_PANEL_IDS.project]: {
+    id: CANVAS_SHELL_PANEL_IDS.project,
+    icon: FolderTree,
+    labelKey: 'StudioNode.shell.panels.project',
+  },
+  [CANVAS_SHELL_PANEL_IDS.history]: {
+    id: CANVAS_SHELL_PANEL_IDS.history,
+    icon: History,
+    labelKey: 'StudioNode.shell.panels.history',
+  },
+  [CANVAS_SHELL_PANEL_IDS.cards]: {
     id: CANVAS_SHELL_PANEL_IDS.cards,
     icon: UserRound,
     labelKey: 'StudioNode.shell.panels.cards',
   },
-  {
+  [CANVAS_SHELL_PANEL_IDS.library]: {
     id: CANVAS_SHELL_PANEL_IDS.library,
     icon: FolderOpen,
     labelKey: 'StudioNode.shell.panels.library',
   },
-] as const
+}
+
+/** 六格的固定次序 —— 侧栏与底栏各自按它排。 */
+const SHELL_NAV_CANVAS_ORDER: readonly CanvasShellPanelId[] = [
+  CANVAS_SHELL_PANEL_IDS.addNode,
+  CANVAS_SHELL_PANEL_IDS.nodes,
+  CANVAS_SHELL_PANEL_IDS.project,
+  CANVAS_SHELL_PANEL_IDS.history,
+  CANVAS_SHELL_PANEL_IDS.cards,
+  CANVAS_SHELL_PANEL_IDS.library,
+]
+
+/**
+ * ⭐ 「画布」那一项下面长出来的子图标（owner 2026-10-08 拍板原型四格：添加节点 / 节点 /
+ * 当前项目 / 历史对话）。只在画布路由上、画布真的挂着时出现；点一颗 = 在侧栏旁边打开那一格
+ * 面板（`ShellSidePanels`），再点收起。768–1023 画布里兜底那条栏也按这张表画。
+ *
+ * ⚠ **不在这张表里的格子自动落到画布底栏**（现在是角色 / 素材库）。要把它们也搬进侧栏
+ *   （六颗），只改这一张列表 —— 底栏、兜底栏、选中底块都跟着它走。
+ */
+const SHELL_NAV_CANVAS_SIDEBAR_IDS: readonly CanvasShellPanelId[] = [
+  CANVAS_SHELL_PANEL_IDS.addNode,
+  CANVAS_SHELL_PANEL_IDS.nodes,
+  CANVAS_SHELL_PANEL_IDS.project,
+  CANVAS_SHELL_PANEL_IDS.history,
+]
+
+export const SHELL_NAV_CANVAS_ENTRIES: readonly ShellNavCanvasEntry[] =
+  SHELL_NAV_CANVAS_ORDER.filter((id) =>
+    SHELL_NAV_CANVAS_SIDEBAR_IDS.includes(id),
+  ).map((id) => SHELL_NAV_CANVAS_ENTRY_BY_ID[id])
+
+/** 画布底栏上的面板入口 = 侧栏没收走的那几格（现在是角色 / 素材库）。 */
+export const SHELL_CANVAS_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
+  SHELL_NAV_CANVAS_ORDER.filter(
+    (id) => !SHELL_NAV_CANVAS_SIDEBAR_IDS.includes(id),
+  ).map((id) => SHELL_NAV_CANVAS_ENTRY_BY_ID[id])

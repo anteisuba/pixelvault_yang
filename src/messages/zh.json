@@ -6233,7 +6233,10 @@
       "editDesk": "剪辑台",
       "assistant": "助手",
       "panels": {
-        "nodes": "节点一览",
+        "addNode": "添加节点",
+        "nodes": "节点",
+        "project": "当前项目",
+        "history": "历史对话",
         "cards": "角色",
         "library": "素材库",
         "searchNodes": "搜节点…",

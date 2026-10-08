@@ -677,13 +677,16 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   Record<string, DynamicSiteEntry>
 > = {
   'components/layout/AppSidebar.tsx': {
-    // line 160 as of 2026-08-25
+    // lines 133 and 230 as of 2026-10-08
     reason:
       'Renders `SHELL_NAV_GO` / `SHELL_NAV_TOOLS` / `SHELL_NAV_LOCKED` from ' +
       '`src/constants/navigation.ts` via `t(item.labelKey)`. Every `labelKey` ' +
-      'there is a full dotted path under `Navbar.` or `StudioTools.`.',
-    calls: ['useTranslations()'],
-    namespaces: ['Navbar', 'StudioTools'],
+      'there is a full dotted path under `Navbar.` or `StudioTools.`. The ' +
+      'second call renders the canvas sub-icons (`SHELL_NAV_CANVAS_ENTRIES`, ' +
+      'labelKey `StudioNode.shell.panels.<id>`) and the group label ' +
+      '`StudioTools.tools.node.label`.',
+    calls: ['useTranslations()', 'useTranslations()'],
+    namespaces: ['Navbar', 'StudioTools', 'StudioNode'],
   },
   'components/layout/MobileShell.tsx': {
     // lines 69 and 169 as of 2026-08-25

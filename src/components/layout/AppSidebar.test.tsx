@@ -257,7 +257,7 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
     act(() => resetCanvasShellPanelStore())
   })
 
-  it('画布挂着、停在画布路由：「画布」下面长出三颗，点一颗开、再点收', () => {
+  it('画布挂着、停在画布路由：「画布」下面长出原型四颗（按顺序），点一颗开、再点收', () => {
     mockPathname.current = '/studio/node'
     render(
       <SidebarProvider>
@@ -267,23 +267,40 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
     )
 
     const group = screen.getByTestId('sidebar-canvas-entries')
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual([
+      'StudioNode.shell.panels.addNode',
+      'StudioNode.shell.panels.nodes',
+      'StudioNode.shell.panels.project',
+      'StudioNode.shell.panels.history',
+    ])
+    // 角色 / 素材库在画布底栏，不在侧栏。
+    expect(
+      within(group).queryByLabelText('StudioNode.shell.panels.cards'),
+    ).toBeNull()
+    expect(
+      within(group).queryByLabelText('StudioNode.shell.panels.library'),
+    ).toBeNull()
+
     const nodes = within(group).getByLabelText('StudioNode.shell.panels.nodes')
-    const library = within(group).getByLabelText(
-      'StudioNode.shell.panels.library',
+    const history = within(group).getByLabelText(
+      'StudioNode.shell.panels.history',
     )
-    expect(within(group).getAllByRole('button')).toHaveLength(3)
     expect(nodes.getAttribute('aria-pressed')).toBe('false')
     expect(nodes.getAttribute(CANVAS_SHELL_SIDEBAR_ENTRY_ATTR)).toBe('nodes')
 
     fireEvent.click(nodes)
     expect(nodes.getAttribute('aria-pressed')).toBe('true')
 
-    fireEvent.click(library)
+    fireEvent.click(history)
     expect(nodes.getAttribute('aria-pressed')).toBe('false')
-    expect(library.getAttribute('aria-pressed')).toBe('true')
+    expect(history.getAttribute('aria-pressed')).toBe('true')
 
-    fireEvent.click(library)
-    expect(library.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(history)
+    expect(history.getAttribute('aria-pressed')).toBe('false')
   })
 
   it('画布没挂（或不在画布路由）就不长出来', () => {

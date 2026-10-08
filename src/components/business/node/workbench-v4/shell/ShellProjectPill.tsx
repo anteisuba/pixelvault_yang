@@ -7,6 +7,9 @@
  * · 新建 ⌘N；重命名 / 复制 / 删除在 ⋯（接现有 `ProjectNameDialog` / 删除确认弹窗，
  * ⛔ 不新造第二套项目弹窗）。
  *
+ * ⭐ 弹层里那份列表（`ShellProjectList`）也是左侧「当前项目」面板的内容（owner
+ *   2026-10-08 原型四格）—— 同一个组件、同一组出口，⛔ 不为面板另写一份项目列表。
+ *
  * ⚠ 只做「选哪个项目」这件事：项目的读写全部走 `useNodeWorkflowStore` 的既有出口，
  * 本组件不碰存储。
  */
@@ -37,11 +40,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 
-export interface ShellProjectPillProps {
-  readonly projectName: string
+/** 项目列表的数据与出口 —— 胶囊弹层与「当前项目」面板共用。 */
+export interface ShellProjectActions {
   readonly projects: readonly NodeWorkflowProjectSummary[]
   readonly currentProjectId: string
-  readonly isSaving: boolean
   onSwitchProject(id: string): void
   onCreateProject(): void
   onRenameProject(): void
@@ -49,17 +51,28 @@ export interface ShellProjectPillProps {
   onDeleteProject(): void
 }
 
-export function ShellProjectPill({
-  projectName,
+export interface ShellProjectListProps extends ShellProjectActions {
+  /**
+   * 撑满父容器（面板里）：列表区吃掉剩余高度、自己滚。缺省 = 弹层里那一版
+   * （列表最高 `max-h-72`）。
+   */
+  readonly fill?: boolean
+  /** 点完一行 / 新建 / ⋯ 里一项之后调 —— 弹层借它收起自己，面板不传。 */
+  onDone?(): void
+}
+
+/** 搜索 · 最近项目行 · 新建 ⌘N。 */
+export function ShellProjectList({
   projects,
   currentProjectId,
-  isSaving,
   onSwitchProject,
   onCreateProject,
   onRenameProject,
   onDuplicateProject,
   onDeleteProject,
-}: ShellProjectPillProps) {
+  fill = false,
+  onDone,
+}: ShellProjectListProps) {
   const t = useTranslations('StudioNode.shell.project')
   const format = useFormatter()
   /**
@@ -68,7 +81,6 @@ export function ShellProjectPill({
    * 存住 —— 这是弹开看一眼的列表，⛔ 不为它上一个每秒走的钟。
    */
   const [now] = useState(() => new Date())
-  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
 
   const matches = useMemo(() => {
@@ -83,13 +95,158 @@ export function ShellProjectPill({
   }, [projects, query])
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) setQuery('')
-      }}
+    <div
+      data-testid="shell-project-list"
+      className={cn('flex flex-col', fill && 'h-full min-h-0')}
     >
+      <div className="flex h-9 shrink-0 items-center gap-2 px-2.5 text-node-muted">
+        <Search className="size-4 shrink-0" aria-hidden />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t('search')}
+          aria-label={t('search')}
+          data-testid="shell-project-search"
+          className="min-w-0 flex-1 bg-transparent text-sm text-node-foreground outline-none placeholder:text-node-muted"
+        />
+      </div>
+      <div className="my-1.5 h-px shrink-0 bg-node-panel-inner" aria-hidden />
+      <div
+        className={cn('overflow-y-auto', fill ? 'min-h-0 flex-1' : 'max-h-72')}
+      >
+        {matches.length === 0 ? (
+          <p className="px-2.5 py-3 text-2xs text-node-muted">{t('empty')}</p>
+        ) : (
+          matches.map((project) => {
+            const current = project.id === currentProjectId
+            return (
+              <div
+                key={project.id}
+                style={{ height: CANVAS_SHELL_LAYOUT.projectRowHeightPx }}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg px-2',
+                  current && 'bg-node-panel-inner',
+                )}
+              >
+                <button
+                  type="button"
+                  data-testid="shell-project-row"
+                  onClick={() => {
+                    onSwitchProject(project.id)
+                    onDone?.()
+                  }}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: CANVAS_SHELL_LAYOUT.projectThumbWidthPx,
+                      height: CANVAS_SHELL_LAYOUT.projectThumbHeightPx,
+                    }}
+                    className="shrink-0 rounded-md bg-node-panel-soft"
+                  />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm text-node-foreground">
+                      {project.name}
+                    </span>
+                    <span className="truncate text-2xs text-node-muted">
+                      {t('nodeCount', { count: project.nodeCount })}
+                      {' · '}
+                      {format.relativeTime(new Date(project.updatedAt), now)}
+                    </span>
+                  </span>
+                </button>
+                {current ? (
+                  <>
+                    <Check
+                      className="size-4 shrink-0 text-node-muted"
+                      aria-hidden
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={t('more')}
+                          title={t('more')}
+                          data-testid="shell-project-more"
+                          className="flex size-6 shrink-0 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
+                        >
+                          <MoreHorizontal className="size-4" aria-hidden />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            onDone?.()
+                            onRenameProject()
+                          }}
+                        >
+                          {t('rename')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            onDone?.()
+                            onDuplicateProject()
+                          }}
+                        >
+                          {t('duplicate')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => {
+                            onDone?.()
+                            onDeleteProject()
+                          }}
+                        >
+                          {t('delete')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                ) : null}
+              </div>
+            )
+          })
+        )}
+      </div>
+      <div
+        className="mb-1 mt-1.5 h-px shrink-0 bg-node-panel-inner"
+        aria-hidden
+      />
+      <button
+        type="button"
+        data-testid="shell-project-create"
+        onClick={() => {
+          onDone?.()
+          onCreateProject()
+        }}
+        className="flex h-8 w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm text-node-foreground transition-colors hover:bg-node-panel-inner"
+      >
+        <Plus className="size-4 shrink-0 text-node-muted" aria-hidden />
+        <span>{t('new')}</span>
+        <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
+          ⌘N
+        </kbd>
+      </button>
+    </div>
+  )
+}
+
+export interface ShellProjectPillProps extends ShellProjectActions {
+  readonly projectName: string
+  readonly isSaving: boolean
+}
+
+export function ShellProjectPill({
+  projectName,
+  isSaving,
+  ...actions
+}: ShellProjectPillProps) {
+  const t = useTranslations('StudioNode.shell.project')
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -124,130 +281,8 @@ export function ShellProjectPill({
         style={{ width: CANVAS_SHELL_LAYOUT.projectPopoverWidthPx }}
         className="rounded-xl border p-1.5 shadow-node-menu"
       >
-        <div className="flex h-9 items-center gap-2 px-2.5 text-node-muted">
-          <Search className="size-4 shrink-0" aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('search')}
-            aria-label={t('search')}
-            data-testid="shell-project-search"
-            className="min-w-0 flex-1 bg-transparent text-sm text-node-foreground outline-none placeholder:text-node-muted"
-          />
-        </div>
-        <div className="my-1.5 h-px bg-node-panel-inner" aria-hidden />
-        <div className="max-h-72 overflow-y-auto">
-          {matches.length === 0 ? (
-            <p className="px-2.5 py-3 text-2xs text-node-muted">{t('empty')}</p>
-          ) : (
-            matches.map((project) => {
-              const current = project.id === currentProjectId
-              return (
-                <div
-                  key={project.id}
-                  style={{ height: CANVAS_SHELL_LAYOUT.projectRowHeightPx }}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-2',
-                    current && 'bg-node-panel-inner',
-                  )}
-                >
-                  <button
-                    type="button"
-                    data-testid="shell-project-row"
-                    onClick={() => {
-                      onSwitchProject(project.id)
-                      setOpen(false)
-                    }}
-                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                  >
-                    <span
-                      aria-hidden
-                      style={{
-                        width: CANVAS_SHELL_LAYOUT.projectThumbWidthPx,
-                        height: CANVAS_SHELL_LAYOUT.projectThumbHeightPx,
-                      }}
-                      className="shrink-0 rounded-md bg-node-panel-soft"
-                    />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm text-node-foreground">
-                        {project.name}
-                      </span>
-                      <span className="truncate text-2xs text-node-muted">
-                        {t('nodeCount', { count: project.nodeCount })}
-                        {' · '}
-                        {format.relativeTime(new Date(project.updatedAt), now)}
-                      </span>
-                    </span>
-                  </button>
-                  {current ? (
-                    <>
-                      <Check
-                        className="size-4 shrink-0 text-node-muted"
-                        aria-hidden
-                      />
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label={t('more')}
-                            title={t('more')}
-                            data-testid="shell-project-more"
-                            className="flex size-6 shrink-0 items-center justify-center rounded-md text-node-muted transition-colors hover:text-node-foreground"
-                          >
-                            <MoreHorizontal className="size-4" aria-hidden />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setOpen(false)
-                              onRenameProject()
-                            }}
-                          >
-                            {t('rename')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setOpen(false)
-                              onDuplicateProject()
-                            }}
-                          >
-                            {t('duplicate')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => {
-                              setOpen(false)
-                              onDeleteProject()
-                            }}
-                          >
-                            {t('delete')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </>
-                  ) : null}
-                </div>
-              )
-            })
-          )}
-        </div>
-        <div className="mb-1 mt-1.5 h-px bg-node-panel-inner" aria-hidden />
-        <button
-          type="button"
-          data-testid="shell-project-create"
-          onClick={() => {
-            setOpen(false)
-            onCreateProject()
-          }}
-          className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm text-node-foreground transition-colors hover:bg-node-panel-inner"
-        >
-          <Plus className="size-4 shrink-0 text-node-muted" aria-hidden />
-          <span>{t('new')}</span>
-          <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
-            ⌘N
-          </kbd>
-        </button>
+        {/* 弹层收起即卸载，搜索词跟着清空（与原先「关掉就清搜索」同一个手感）。 */}
+        <ShellProjectList {...actions} onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
   )

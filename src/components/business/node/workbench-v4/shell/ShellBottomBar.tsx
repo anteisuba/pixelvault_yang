@@ -2,7 +2,11 @@
 
 /**
  * 底栏（S7 §7 · 画板 `ChromeOverview.dc.html` 底部胶囊）：
- * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做。**没有加号**。
+ * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做 ‖ 角色 / 素材库。**没有加号**。
+ *
+ * ⭐ 角色 / 素材库两颗（owner 2026-10-08）：侧栏「画布」下面只留原型四格，这两格搬到
+ *   底栏（= `SHELL_CANVAS_BOTTOM_ENTRIES`，侧栏那张列表没收走的格子）。点一颗打开的仍是侧栏旁边**同一块**左侧面板（`ShellSidePanels`，开着哪格是
+ *   `use-canvas-shell-panel` 那一份），再点收起；按钮就是底栏这一颗，⛔ 不另起样式。
  *
  * ⚠ 相机动作直接用 ReactFlow 自己的 `zoomIn/zoomOut/fitView`，⛔ 不另存一份缩放
  * state：真值在 RF store 里，存第二份必然漂。
@@ -25,8 +29,12 @@ import {
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
+import {
+  CANVAS_SHELL_LAYOUT,
+  type CanvasShellPanelId,
+} from '@/constants/canvas-shell'
 import { SPRING } from '@/constants/motion'
+import { SHELL_CANVAS_BOTTOM_ENTRIES } from '@/constants/navigation'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import {
   NODE_STUDIO_CANVAS,
@@ -44,6 +52,10 @@ export interface ShellBottomBarProps {
   onUndo(): void
   onRedo(): void
   onTidyLayout(): void
+  /** 左侧面板开着哪一格（底栏的角色 / 素材库按它亮）。 */
+  readonly activePanel: CanvasShellPanelId | null
+  /** 点角色 / 素材库：没开 = 打开那一格，开着 = 收起。 */
+  onTogglePanel(panel: CanvasShellPanelId): void
 }
 
 export function ShellBottomBar({
@@ -54,8 +66,11 @@ export function ShellBottomBar({
   onUndo,
   onRedo,
   onTidyLayout,
+  activePanel,
+  onTogglePanel,
 }: ShellBottomBarProps) {
   const t = useTranslations('StudioNode.shell.bottom')
+  const tPanels = useTranslations('StudioNode.shell.panels')
   const { zoomIn, zoomOut, fitView } = useReactFlow()
   const zoom = useStore((state) => state.transform[2])
   const percent = Math.round(zoom * 100)
@@ -152,6 +167,22 @@ export function ShellBottomBar({
         disabled={!canRedo}
         onClick={onRedo}
       />
+      {/* 侧栏没收走的面板入口（现在是角色 / 素材库；哪几格在这里只看
+          `SHELL_NAV_CANVAS_ENTRIES`）。一格都没有时连分隔线一起不画。 */}
+      {SHELL_CANVAS_BOTTOM_ENTRIES.length > 0 ? (
+        <span className="mx-1 h-5 w-px bg-node-panel-inner" aria-hidden />
+      ) : null}
+      {SHELL_CANVAS_BOTTOM_ENTRIES.map((entry) => (
+        <ShellIconButton
+          key={entry.id}
+          icon={entry.icon}
+          label={tPanels(entry.id)}
+          testId={`shell-bottom-${entry.id}`}
+          panelEntry={entry.id}
+          active={activePanel === entry.id}
+          onClick={() => onTogglePanel(entry.id)}
+        />
+      ))}
     </motion.div>
   )
 }

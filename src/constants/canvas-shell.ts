@@ -87,20 +87,25 @@ export function canvasShellSafeLeftPx(options: {
     : L.edgeInsetPx
 }
 
-/** 左侧面板。顺序即图标栏从上到下的顺序。 */
+/**
+ * 左侧面板（全部六格，开着哪一格是一份 `use-canvas-shell-panel` store）。
+ *
+ * ⭐ owner 2026-10-08 拍板（原型四格）：全站侧栏「画布」下面 / 768–1023 画布兜底栏里
+ *   只放 添加节点 / 节点 / 当前项目 / 历史对话 四格；角色与素材库搬到底栏，点开的仍是
+ *   侧栏旁边同一块面板。哪一格的入口落在哪里**只由** `navigation.ts` 的
+ *   `SHELL_NAV_CANVAS_ENTRIES` 那一张 id 列表决定（不在列表里的 = 底栏），⛔ 别在这里
+ *   另存一份顺序。
+ */
 export const CANVAS_SHELL_PANEL_IDS = {
+  addNode: 'addNode',
   nodes: 'nodes',
+  project: 'project',
+  history: 'history',
   cards: 'cards',
   library: 'library',
 } as const
 export type CanvasShellPanelId =
   (typeof CANVAS_SHELL_PANEL_IDS)[keyof typeof CANVAS_SHELL_PANEL_IDS]
-
-export const CANVAS_SHELL_PANELS: readonly CanvasShellPanelId[] = [
-  CANVAS_SHELL_PANEL_IDS.nodes,
-  CANVAS_SHELL_PANEL_IDS.cards,
-  CANVAS_SHELL_PANEL_IDS.library,
-]
 
 /**
  * 无加号三条加节点路共用的四类**空卡意图**。
@@ -176,7 +181,8 @@ export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
 })
 
 /**
- * 全站侧栏「画布」下面那三颗子图标身上的属性（值 = 面板 id）。面板的液态开合从被点的
- * 那一颗所在的那一行长出来，靠它在 DOM 里找到起点 —— ⛔ 不在两边各猜一个坐标。
+ * 面板入口（全站侧栏「画布」下面那四颗、底栏的角色 / 素材库两颗）身上的属性（值 = 面板
+ * id）。面板的液态开合从被点的那一颗所在的那一行长出来，靠它在 DOM 里找到起点 ——
+ * ⛔ 不在两边各猜一个坐标。
  */
 export const CANVAS_SHELL_SIDEBAR_ENTRY_ATTR = 'data-canvas-shell-entry'

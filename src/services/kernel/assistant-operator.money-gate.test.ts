@@ -142,6 +142,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/vision/vision-route.service',
   /**
+   * 借路（owner 2026-10-08）：模型超时 / 限流时找用户另一把文字 key。判据与上一条同源 ——
+   * 只读 key、产出「用哪把 key、走哪个 adapter」，一个字节都不落、一分钱都不扣。
+   */
+  '@/services/kernel/assistant-fallback-route.service',
+  /**
    * LoRA 检索（P4-C）。⭐ 判据与 `web-research.service` 那条**逐字同源**：它是
    * **搜索 + 归一**模块 —— 打 Civitai / HF 的搜索接口，出一串候选对象，一个字节
    * 都不下载、一分钱都不扣、一行 generation 都不创建。

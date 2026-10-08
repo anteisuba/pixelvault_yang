@@ -1222,6 +1222,88 @@ describe('project_script · 重投影 diff（画板 DesignD7Script ③）', () =
     ).toBe('递伞 · @小黑')
   })
 
+  it('⭐ 「已变」的镜整段改写提示词 = 采用新文案：角标消掉、卡名换成新那一镜，撤销整张退回', () => {
+    const { result } = reprojected(
+      'S01 · 雨夜街角 · 4s\nS02 · 赫敏找蟾蜍 · @小黑\nS03 · 对视',
+    )
+    const changed = projectedShots(result.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )!
+    const context = makeContext()
+    const written = applyNodeAssistantOpV4(
+      result.state,
+      {
+        op: 'set_prompt',
+        target: changed.id,
+        prompt: '中景。赫敏推门问有没有人见到蟾蜍。',
+        mode: 'replace',
+      },
+      context,
+    )
+    if (!written.ok) throw new Error(written.reason)
+    const adopted = written.state.nodes.find((node) => node.id === changed.id)!
+    expect(scriptRefOf(adopted)).toMatchObject({
+      state: 'synced',
+      projectedText: '赫敏找蟾蜍 · @小黑',
+    })
+    expect(scriptRefOf(adopted)).not.toHaveProperty('pendingText')
+    expect(adopted.data.name).toContain('赫敏找蟾蜍')
+    expect(adopted.data.kind === 'video' ? adopted.data.label : '').toContain(
+      '赫敏找蟾蜍',
+    )
+    const undone = applyInverseV4(written.state, written.inverse, context)
+    expect(undone.nodes.find((node) => node.id === changed.id)).toEqual(changed)
+  })
+
+  it('追加不算采用；手改过名字的卡只清角标不改名', () => {
+    const { result } = reprojected(
+      'S01 · 雨夜街角 · 4s\nS02 · 赫敏找蟾蜍 · @小黑\nS03 · 对视',
+    )
+    const changed = projectedShots(result.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )!
+    const appended = applyNodeAssistantOpV4(
+      result.state,
+      {
+        op: 'set_prompt',
+        target: changed.id,
+        prompt: '补一句',
+        mode: 'append',
+      },
+      makeContext(),
+    )
+    if (!appended.ok) throw new Error(appended.reason)
+    expect(
+      scriptRefOf(appended.state.nodes.find((node) => node.id === changed.id)),
+    ).toMatchObject({ state: 'changed' })
+
+    const named: NodeWorkflowStateV4 = {
+      ...result.state,
+      nodes: result.state.nodes.map((node) =>
+        node.id === changed.id
+          ? {
+              ...node,
+              data: { ...node.data, name: '我的镜头', nameEdited: true },
+            }
+          : node,
+      ),
+    } as NodeWorkflowStateV4
+    const replaced = applyNodeAssistantOpV4(
+      named,
+      {
+        op: 'set_prompt',
+        target: changed.id,
+        prompt: '新提示词',
+        mode: 'replace',
+      },
+      makeContext(),
+    )
+    if (!replaced.ok) throw new Error(replaced.reason)
+    const kept = replaced.state.nodes.find((node) => node.id === changed.id)!
+    expect(kept.data.name).toBe('我的镜头')
+    expect(scriptRefOf(kept)).toMatchObject({ state: 'synced' })
+  })
+
   it('⭐ 剧本里删掉的镜标灰不删', () => {
     const { result } = reprojected('S01 · 雨夜街角 · 4s\nS02 · 递伞 · @小黑')
     const shots = projectedShots(result.state)

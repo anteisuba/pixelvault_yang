@@ -56,6 +56,7 @@ import {
   selectOutputVersion,
 } from '@/lib/node-output-versions'
 import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
+import { parseScriptShots } from '@/lib/node-script-shots'
 import {
   looseAreaSpawn,
   moveNodeToShot,
@@ -389,6 +390,62 @@ function withScriptShotState(
     }
     return { ...data, scriptShot: patch(data.scriptShot) }
   })
+}
+
+/**
+ * 「已变」的镜头卡整段改写了提示词 = **采用了剧本的新文案**。
+ *
+ * 🔬 2026-10-08 马尔福画布：重投影只把新文案挂在 `pendingText` 上等人决定，可画布上
+ * 没有任何一处会去「决定」—— 助手把 12 张卡按新剧本改写完，「已变」角标一个都不消，
+ * 卡名也还是旧剧本那一句（S02 写的是赫敏找蟾蜍，卡名仍是「女德拉科走进来」）。
+ * ⭐ 所以整段替换（`replace`）就算采用：`projectedText` 换成新文案、回到 `synced`，
+ *   卡名跟着换成新那一镜的一句话。⚠ 追加 / 建议不算，用户手改过的卡名（`nameEdited`）
+ *   不动。剧本卡里找不到这一镜（被删了）就只清角标、不改名。
+ */
+function adoptPendingScriptShot(
+  state: NodeWorkflowStateV4,
+  node: NodeV4,
+): {
+  scriptShot: NodeV4ScriptShot
+  name?: string
+  label?: string
+} | null {
+  const data = node.data
+  const ref = readScriptShotRef(node)
+  if (
+    !ref ||
+    ref.state !== NODE_SCRIPT_SHOT_STATE_IDS.changed ||
+    ref.pendingText === undefined
+  )
+    return null
+  const scriptShot: NodeV4ScriptShot = { ...ref }
+  delete (scriptShot as { pendingText?: string }).pendingText
+  scriptShot.projectedText = ref.pendingText
+  scriptShot.state = NODE_SCRIPT_SHOT_STATE_IDS.synced
+  if (data.nameEdited) return { scriptShot }
+  const script = state.nodes.find((item) => item.id === ref.scriptNodeId)
+  const title =
+    script?.data.kind === NODE_MEDIA_KIND_IDS.text
+      ? parseScriptShots(script.data.body ?? '').shots.find(
+          (shot) => shot.key === ref.shotKey,
+        )?.title
+      : undefined
+  if (!title) return { scriptShot }
+  const taken = new Set(
+    state.nodes.flatMap((item) =>
+      item.id !== node.id &&
+      item.data.kind === NODE_MEDIA_KIND_IDS.video &&
+      item.data.label
+        ? [item.data.label]
+        : [],
+    ),
+  )
+  try {
+    const label = buildShotLabel({ given: title }, taken)
+    return { scriptShot, name: label, label }
+  } catch {
+    return { scriptShot }
+  }
 }
 
 function applyScriptProjection(
@@ -1092,24 +1149,37 @@ export function applyNodeAssistantOpV4(
       }
       const previous = node.data.prompt ?? ''
       const prompt = applyWriteMode(previous, op.prompt, op.mode)
-      const written = replaceNodeData(state, node.id, (data) => ({
+      const adopted =
+        op.mode === 'replace' ? adoptPendingScriptShot(state, node) : null
+      let written = replaceNodeData(state, node.id, (data) => ({
         ...data,
         prompt,
       }))
+      if (adopted) {
+        written = replaceNodeData(written, node.id, (data) =>
+          data.kind === NODE_MEDIA_KIND_IDS.video &&
+          data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+            ? { ...data, ...adopted }
+            : data,
+        )
+      }
       const sync = syncMentionSlots(written, node.id, prompt, context, now)
       return {
         ok: true,
         state: sync.state,
         inverse: withMentionInverse(
-          {
-            kind: 'op',
-            op: {
-              op: ids.setPrompt,
-              target: node.id,
-              prompt: previous || ' ',
-              mode: 'replace',
-            },
-          },
+          adopted
+            ? // 采用改了镜头卡的三处（提示词 / 同步态 / 卡名），整张卡快照一次退回。
+              { kind: 'restore', nodes: [node], edges: [] }
+            : {
+                kind: 'op',
+                op: {
+                  op: ids.setPrompt,
+                  target: node.id,
+                  prompt: previous || ' ',
+                  mode: 'replace',
+                },
+              },
           sync,
         ),
         changedNodeIds: [node.id],

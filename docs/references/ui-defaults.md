@@ -274,6 +274,10 @@
 
 reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loading.md`「页面 / 列表加载」；共享原语只有 `components/ui/load-reveal.tsx`，⛔ 页面里各抄一份 `loading → fading → shown`。
 
+### 7.3 登录注册（owner 2026-10-08 定稿，原型 `5Uc2abc9KvKWGtpzM7HbFX`）
+
+米色卡长相不动，只加动效与功能：卡从「登录」键长出来（`growFromPointer`）；换步卡高 `SPRING.slot` + 内容一糊；黑键字 → 转圈 → ✓；验证码输错六格变红清空回第一格 + 一行红点（⛔ 晃）；重发 60 秒逐位滚；登进来底部黑条「已登录」。⛔ 密码。施工与 Clerk 后台设置见 [`pages/auth.md`](pages/auth.md)。
+
 ---
 
 ## 8. 完成定义 — 8 项，缺一不合

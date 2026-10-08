@@ -253,11 +253,11 @@
 /* The field label repeats its own placeholder word for word («email address»
    over «enter your email address»), so it is dropped from the layout — but kept
    for screen readers, which is the whole reason this isn't `display: none`. */
-/* The row that holds the label — and, on the password step, the "forgot
-   password" link. It is collapsed rather than hidden: with the label lifted out
-   of flow the row has nothing left to show and its 7px of reserved height was
-   the one interval in the card that did not land on the scale. If a step does
-   put a link in here, the row grows back on its own. */
+/* The row that holds the label. It is collapsed rather than hidden: with the
+   label lifted out of flow the row has nothing left to show and its 7px of
+   reserved height was the one interval in the card that did not land on the
+   scale. If a step does put a link in here, the row grows back on its own.
+   (There is no password step anywhere: passwords are off in Clerk.) */
 .auth-label-row {
   margin: 0;
   min-height: 0;
@@ -342,11 +342,19 @@
   background: #fbfaf7;
 }
 
-/* Clerk's "last used" tag hangs off the top edge of the provider button, so it
-   reads as a notch bitten out of the button rather than a label. It is a
-   convenience, not information the reader needs to proceed. */
+/* Clerk's own "last used" tag, on the prebuilt sub-routes only. It used to be
+   hidden because it hung off the top edge like a notch; it now wears the same
+   small dark pill as ours, inside the row. */
 .auth-surface .cl-lastAuthenticationStrategyBadge {
-  display: none;
+  position: static;
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--auth-solid);
+  color: var(--auth-on-solid);
+  font-size: 10px;
+  line-height: 1.4;
+  box-shadow: none;
 }
 
 .auth-divider-row {
@@ -425,9 +433,275 @@
   font-weight: 500;
 }
 
+/* ── our own flow (`AuthFlow`) ──────────────────────────────────────────────
+ *
+ * The bare `/sign-in`, `/sign-up` and the dialog run our own two-step flow
+ * instead of Clerk's widget (docs/references/pages/auth.md「为什么自建」). It
+ * reuses the class names above — `.auth-social`, `.auth-input`, `.auth-primary`,
+ * the divider — so the card looks exactly as it did; what follows is only the
+ * structure Clerk used to provide, plus the pieces Clerk never had: the
+ * last-used pill, the six code boxes, the error line and the resend row.
+ */
+
+/* The card height springs between steps (motion animates `height` on this
+   box), so it has to clip. A 5px bleed keeps the focus rings and the control
+   hairlines — all drawn as box-shadows outside the box — from being cut. */
+.auth-flow {
+  margin: -5px;
+  overflow: hidden;
+}
+
+.auth-flow > div {
+  padding: 5px;
+}
+
+.auth-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+}
+
+.auth-surface .auth-social {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.auth-surface .auth-social:disabled {
+  cursor: default;
+}
+
+.auth-social-logo {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* 「上次用的」: a small dark pill at the row's far end, and the row it sits on
+   gets a darker hairline. Remembers the method only, never the address. */
+.auth-last-used {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  /* 16.05:1 with white text */
+  background: var(--auth-input-ink);
+  color: var(--auth-on-solid);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.auth-surface .auth-social[data-last-used],
+.auth-surface .auth-field[data-last-used] .auth-input {
+  box-shadow: 0 0 0 1px var(--auth-input-ink) !important;
+}
+
+.auth-surface .auth-divider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-surface .auth-divider-line {
+  flex: 1;
+  height: 1px;
+}
+
+.auth-field {
+  position: relative;
+}
+
+.auth-surface .auth-input {
+  width: 100%;
+  padding: 0 12px;
+  outline: none;
+}
+
+.auth-surface .auth-field[data-last-used] .auth-input {
+  padding-right: 76px;
+}
+
+/* The darker hairline above out-ranks the shared focus ring; put it back. */
+.auth-surface .auth-field[data-last-used] .auth-input:focus {
+  box-shadow:
+    0 0 0 1px var(--auth-ink),
+    0 0 0 4px rgb(23 29 43 / 0.12) !important;
+}
+
+.auth-surface .auth-input::placeholder {
+  color: var(--auth-dim);
+}
+
+.auth-surface .auth-primary-own {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Pending and done are not "disabled" to the eye: the key keeps its fill while
+   the label turns into a spinner and then a tick. */
+.auth-surface .auth-primary-own:disabled {
+  cursor: default;
+}
+
+.auth-surface .auth-primary-own:disabled:hover {
+  background: var(--auth-solid);
+}
+
+.auth-code-sent,
+.auth-resend {
+  margin: 0;
+  text-align: center;
+  font-size: var(--auth-control-font);
+  line-height: 1.6;
+  color: var(--auth-dim);
+}
+
+.auth-code-sent b {
+  color: var(--auth-ink);
+  font-weight: 600;
+}
+
+.auth-code-sent .auth-text-button {
+  margin-left: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-resend {
+  display: flex;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.auth-resend .auth-text-button {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-text-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--auth-ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.auth-text-button:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-text-button:disabled {
+  cursor: default;
+}
+
+/* Six boxes, centred, 42×48 (36×44 on a phone) as in the prototype. */
+.auth-code {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-surface .auth-code-box {
+  width: 42px;
+  min-width: 0;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--auth-radius);
+  background: var(--auth-white);
+  box-shadow: 0 0 0 1px var(--auth-line);
+  color: var(--auth-input-ink);
+  font-size: 19px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: box-shadow 160ms ease;
+}
+
+.auth-surface .auth-code-box:focus-visible,
+.auth-surface .auth-code-box:focus {
+  box-shadow:
+    0 0 0 1px var(--auth-ink),
+    0 0 0 4px rgb(23 29 43 / 0.12);
+}
+
+/* Wrong code: the boxes go red (and are cleared by the component). No shake. */
+.auth-surface .auth-code[data-invalid] .auth-code-box {
+  box-shadow: 0 0 0 1px var(--destructive);
+}
+
+.auth-surface .auth-code[data-invalid] .auth-code-box:focus {
+  box-shadow:
+    0 0 0 1px var(--destructive),
+    0 0 0 4px color-mix(in oklab, var(--destructive) 14%, transparent);
+}
+
+/* One line under the field: a red dot and the sentence in ink. The text is not
+   red: --destructive on the cream card is 4.2:1, under 4.5 for body text; the
+   dot is a graphic and clears 3:1. */
+.auth-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--auth-control-font);
+  line-height: 1.5;
+  color: var(--auth-ink);
+}
+
+.auth-error-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--destructive);
+}
+
+.auth-captcha:empty {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .auth-code {
+    gap: 5px;
+  }
+
+  .auth-surface .auth-code-box {
+    width: 36px;
+    height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-social,
-  .auth-primary {
+  .auth-primary,
+  .auth-code-box {
     transition: none;
   }
 }

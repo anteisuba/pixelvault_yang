@@ -28,6 +28,7 @@ const ALLOWED_CONSUMERS: Readonly<Record<string, readonly string[]>> = {
   Auth: [
     'components/business/auth/AuthCard.tsx',
     'components/business/auth/AuthDialog.tsx',
+    'components/business/auth/AuthFlow.tsx',
     'components/business/home-v4/HomeV4Topbar.tsx',
   ],
   // Read as a plain JSON import in `app/global-error.tsx`, which renders

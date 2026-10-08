@@ -526,7 +526,8 @@
     "loraTrainingSubmitted": "LoRA学習を開始しました",
     "loraTrainingSubmitFailed": "LoRA学習の開始に失敗しました",
     "loraTrainingComplete": "LoRA の学習が完了しました。モデルを使ってみましょう。",
-    "loraTrainingFailed": "LoRA学習に失敗しました"
+    "loraTrainingFailed": "LoRA学習に失敗しました",
+    "signedIn": "ログインしました"
   },
   "Projects": {
     "title": "プロジェクト",
@@ -1377,7 +1378,31 @@
     "subtitle": "ログインまたは新規登録して続ける",
     "terms": "続けると<terms>利用規約</terms>と<privacy>プライバシーポリシー</privacy>に同意したことになります。",
     "backHome": "ホームに戻る",
-    "close": "閉じる"
+    "close": "閉じる",
+    "continueWith": "{provider}で続ける",
+    "lastUsed": "前回使用",
+    "or": "または",
+    "emailLabel": "メールアドレス",
+    "emailPlaceholder": "メールアドレスを入力",
+    "continue": "続ける",
+    "sending": "送信中",
+    "redirecting": "{provider} に移動中",
+    "codeSentTo": "<b>{email}</b> に確認コードを送りました",
+    "changeEmail": "メールアドレスを変更",
+    "codeLabel": "確認コード",
+    "verifying": "確認中",
+    "signedIn": "ログインしました",
+    "resendIn": "届きませんか？<seconds></seconds> 秒後に再送信できます",
+    "resendPrompt": "届きませんか？",
+    "resend": "再送信",
+    "errors": {
+      "emailInvalid": "メールアドレスの形式が正しくありません",
+      "codeIncorrect": "コードが違います。もう一度お試しください",
+      "codeExpired": "コードの有効期限が切れました。再送信してください",
+      "tooManyAttempts": "試行回数が多すぎます。少し待ってからお試しください",
+      "providerUnavailable": "このログイン方法は現在利用できません",
+      "generic": "うまくいきませんでした。もう一度お試しください"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "スタジオ",

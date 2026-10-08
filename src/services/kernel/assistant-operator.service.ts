@@ -8906,6 +8906,9 @@ async function planTool(
      * ⚠ 理由后面**接一份正确形状**（2026-09-12 实测第 9 步）：一句
      * 「text: Required」不可教，模型只会换个值再撞一次。形状表只覆盖实测撞过的
      * 那几条，缺席时照旧只报 issue（见 `ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS`）。
+     * ⚠ **issue 在前、形状在后**（2026-10-08 马尔福画布）：canvas_batch 那份形状
+     *   一份就超过 `maxReasonChars`，放在前面时 issue 整段被截掉 —— 模型只读到
+     *   通用形状、不知道错在哪，同一批原样再发一次，两步都是草稿然后被闸收尾。
      */
     const shape = ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS[tool]
     const issues = parsed.error.issues
@@ -8921,7 +8924,7 @@ async function planTool(
       kind: 'rejected',
       reason: REJECT.malformedArgs,
       detail: clamp(
-        `${shape ? `${shape} (${issues})` : issues}${mounted}`,
+        `${shape ? `${issues} — ${shape}` : issues}${mounted}`,
         LIMITS.maxReasonChars,
       ),
       quiet: true,
@@ -10278,6 +10281,14 @@ function reconcileClosingWithCard(
   if (fixes.length)
     logger.warn('assistant closing contradicted the confirm card', { fixes })
   return text
+}
+
+/** 写入停在规划期问题卡前面时，替掉模型那句「已经写好」的一句话。 */
+const HELD_WRITE_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
+  english:
+    'Before I write this in, one thing needs your call — answer below and I will carry on.',
+  japanese: '書き込む前に一つだけ決めてください。答えてもらえたら続けます。',
+  chinese: '写进去之前先问你一件事，你定了我接着改。',
 }
 
 function* messageBeforeCard(
@@ -13009,7 +13020,18 @@ async function* runOperatorTurn(
          * 停流，客户端答完带 `planAnswers` 重发。⛔ 不出被拒的 step：这一步没有
          * 失败可报，缺的只是创作者的一句话。
          */
-        yield* messageBeforeCard(turn.message)
+        /**
+         * ⚠ 模型那句话是跟着这次写入一起写的，读起来是「已经写进去了」（2026-10-08
+         * 马尔福画布：「四张卡的提示词…已一起写入」，而整批正停在这张卡前面）。
+         * 这里换成一句「先停一下」覆盖掉已经流出去的那句。
+         */
+        yield* messageBeforeCard(
+          turn.message?.trim()
+            ? HELD_WRITE_MESSAGES[
+                resolveResponseLanguage(run.request, run.persona)
+              ]
+            : undefined,
+        )
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
           questions: [plan.question],

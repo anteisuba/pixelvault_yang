@@ -2541,6 +2541,25 @@ describe('read_state', () => {
         },
       })
     }
+    it('批的形状错：退回理由先说错在哪，形状再跟在后面（不被截掉）', async () => {
+      queueTurns(batch([{ op: 'set_prompt', target: 'edit-image' }]), {
+        finished: true,
+        message: '好。',
+      })
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const [step] = stepsOf(events)
+      expect(step).toMatchObject({
+        status: 'error',
+        draft: true,
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs },
+      })
+      const detail = (step.error as { detail: string }).detail
+      expect(detail.startsWith('ops.0')).toBe(true)
+      expect(detail).toContain('Correct shape')
+    })
+
     it('整批都是画布上已经有的改动：静默退回并说明，⛔ 不再落一次', async () => {
       const request = boardRequest()
       const shot = request.snapshot.canvas!.shots[0]!
@@ -14048,6 +14067,40 @@ describe('current reference image bindings', () => {
       })
     },
   )
+
+  it('the held write does not keep the model line that says it is already written', async () => {
+    queueTurns(
+      {
+        message: '提示词已经写进去了。',
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Faithful full-body portrait' },
+        },
+      },
+      { ...brief, evidenceGaps: [evidenceGap] },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const askIndex = events.findIndex((event) => event.type === 'ask')
+    expect(events[askIndex - 1]).toEqual({
+      type: 'message',
+      text: '写进去之前先问你一件事，你定了我接着改。',
+    })
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'message' && event.text.includes('已经写进去'),
+      ),
+    ).toBe(false)
+  })
 
   it.each(['current answer', 'historical answer'] as const)(
     'continues the same evidence gap with authorized design completion from %s',

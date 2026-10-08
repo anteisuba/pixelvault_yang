@@ -628,6 +628,7 @@ type AssistantOperatorStepView = Pick<
   result?: StepField<'result'>
   inverse?: StepField<'inverse'>
   error?: StepField<'error'>
+  draft?: true
 }
 
 function stepsOf(
@@ -1473,7 +1474,9 @@ describe('工具环 · 逐事件顺序', () => {
           withLayout({ mode: 'free', max: 22, layout: null }),
         ),
       )
-      expect(stepsOf(chinese)).toHaveLength(0)
+      expect(stepsOf(chinese).map((step) => [step.status, step.draft])).toEqual(
+        [['error', true]],
+      )
       expect(lastUserPrompt()).toContain("NovelAI's tag dialect")
     })
 
@@ -3818,10 +3821,12 @@ describe('就地确认往返（拍板 3）', () => {
       ),
     ).toBe(false)
     expect(
-      steps.some(
-        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      steps.flatMap((step) =>
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
+          ? [step.error?.reason, step.draft]
+          : [],
       ),
-    ).toBe(false)
+    ).toEqual(['repeatedStep', true])
   })
 
   it('带着「覆盖」重发就整段换掉', async () => {
@@ -13999,7 +14004,7 @@ describe('current reference image bindings', () => {
       model: { id: 'nai-diffusion-5-curated', label: 'NovelAI V5 Curated' },
     }
 
-    it('拦中文整句：退回重写成英文标签，⛔ 不在时间线上画成失败', async () => {
+    it('拦中文整句：退回重写成英文标签，时间线上是一条草稿不是失败', async () => {
       queueTurns(
         {
           tool: {
@@ -14026,7 +14031,11 @@ describe('current reference image bindings', () => {
       const writes = stepsOf(events).filter(
         (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
       )
-      expect(writes.some((step) => step.status === 'error')).toBe(false)
+      expect(
+        writes.flatMap((step) =>
+          step.status === 'error' ? [step.error?.reason, step.draft] : [],
+        ),
+      ).toEqual(['unknownValue', true])
       expect(writes.some((step) => step.status === 'done')).toBe(true)
       expect(
         mockLlmTextCompletion.mock.calls.some(([input]) =>
@@ -14035,6 +14044,52 @@ describe('current reference image bindings', () => {
           ),
         ),
       ).toBe(true)
+    })
+
+    it('草稿也算数：同一步连着两次因同一个理由退回就收尾，并点名那一步', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, 她穿着黑色校服站在雨里' },
+          },
+        },
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, 还是一句中文' },
+          },
+        },
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, black school uniform, rain' },
+          },
+        },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ responseLanguage: 'chinese', snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      const writes = stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      )
+      expect(writes.map((step) => step.status)).toEqual(['error', 'error'])
+      expect(toolRingCalls()).toHaveLength(2)
+      const closing = events.findLast(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+      )
+      expect(closing).toMatchObject({
+        text: expect.stringContaining(
+          '「写提示词」因为同一个原因连着失败了两次',
+        ),
+      })
+      expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
     })
 
     it('拦夸张权重（20::）', async () => {
@@ -14142,12 +14197,13 @@ describe('current reference image bindings', () => {
         ),
       ).toBe(true)
       expect(
-        stepsOf(events).some(
-          (step) =>
-            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-            step.status === 'error',
+        stepsOf(events).flatMap((step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'error'
+            ? [step.draft]
+            : [],
         ),
-      ).toBe(false)
+      ).toEqual([true])
       const write = stepsOf(events).find(
         (step) =>
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
@@ -18041,14 +18097,15 @@ describe('视频助手 · 写法 / 素材轨 / 负面项', () => {
         JSON.stringify(input).includes('no negative-prompt field'),
       ),
     ).toBe(true)
-    // 草稿退回不画成失败。
+    // 草稿退回进时间线但标成草稿，不画成失败。
     expect(
-      stepsOf(events).some(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setNegative &&
-          step.status === 'error',
+      stepsOf(events).flatMap((step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setNegative &&
+        step.status === 'error'
+          ? [step.draft]
+          : [],
       ),
-    ).toBe(false)
+    ).toEqual([true])
     const write = stepsOf(events).find(
       (step) =>
         step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
@@ -18449,5 +18506,60 @@ describe('时间预算与同理由连败（assistant-durable-turns 第 0 片）'
       text: expect.stringMatching(/twice in a row|2回続けて|连着失败了两次/),
     })
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('接力带来的上一段失败接着数：priorSteps 尾部同理由一次 + 本段再一次就收尾', async () => {
+    queueTurns(
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-a' } } },
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-b' } } },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          priorSteps: [
+            {
+              tool: 'set_model',
+              status: 'error',
+              summary: '选模型',
+              rejectReason: 'unknownModel',
+              detail: 'No such model.',
+            },
+          ],
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).filter((step) => step.status === 'error'),
+    ).toHaveLength(1)
+    expect(toolRingCalls()).toHaveLength(1)
+    expect(
+      String(mockLlmTextCompletion.mock.calls[0]?.[0].userPrompt),
+    ).toContain('[error:unknownModel] set_model: 选模型 — No such model.')
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('账本尾巴至多记到上限减一：本段总得让它试一次', async () => {
+    queueTurns(
+      { tool: { name: 'set_model', args: { modelId: 'no-such-model-a' } } },
+      { finished: true, message: '换个说法。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          priorSteps: [1, 2, 3].map(() => ({
+            tool: 'set_model' as const,
+            status: 'error' as const,
+            summary: '选模型',
+            rejectReason: 'unknownModel',
+          })),
+        }),
+      ),
+    )
+    expect(toolRingCalls()).toHaveLength(1)
+    expect(
+      stepsOf(events).filter((step) => step.status === 'error'),
+    ).toHaveLength(1)
   })
 })

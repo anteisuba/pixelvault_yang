@@ -258,6 +258,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
 
   const isRunning = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
+  const isDraft = isRejected && step.draft === true
   const isMoney =
     step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate && !isRejected
 
@@ -287,6 +288,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
         'group relative min-w-0 text-xs leading-relaxed',
         undone && 'opacity-55',
       )}
+      data-draft={isDraft ? 'true' : undefined}
     >
       <div className="flex min-w-0 items-start gap-2">
         <button
@@ -308,7 +310,11 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
           </span>
           <span className="min-w-0 flex-1 text-foreground/80">
             {isRejected ? (
-              <span className="text-status-risk">
+              <span
+                className={
+                  isDraft ? 'text-muted-foreground' : 'text-status-risk'
+                }
+              >
                 {t(`reject.${step.error.reason}`)}
               </span>
             ) : (

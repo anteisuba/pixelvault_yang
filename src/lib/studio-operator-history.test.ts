@@ -250,6 +250,33 @@ describe('线程 → 可读历史', () => {
     expect(history.some((entry) => entry.id === 'run-1:step-9')).toBe(false)
   })
 
+  it('退回的草稿步带着 draft 进历史', () => {
+    const history = toOperatorHistory([
+      {
+        kind: 'step',
+        id: 'run-1:step-9',
+        runKey: 'run-1',
+        undone: false,
+        step: {
+          id: 'step-9',
+          title: '写提示词',
+          tool: 'set_prompt',
+          verb: 'apply',
+          status: 'error',
+          draft: true,
+          error: { reason: 'unknownValue', detail: 'Not tags.' },
+        },
+      },
+    ])
+    expect(history[0]).toMatchObject({
+      kind: 'step',
+      status: 'error',
+      rejectReason: 'unknownValue',
+      detail: 'Not tags.',
+      draft: true,
+    })
+  })
+
   it('撤销痕迹留着（划线是历史事实），但没有可撤的本钱', () => {
     const history = toOperatorHistory(threadEntries())
     const undoneStep = history.find((entry) => entry.id === 'run-1:step-1')

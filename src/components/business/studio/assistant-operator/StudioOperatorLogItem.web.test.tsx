@@ -452,6 +452,22 @@ describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {
   })
 })
 
+it('a returned draft is marked as such and not painted as a failure', () => {
+  renderItem({
+    step: {
+      id: 'draft',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      draft: true,
+      error: { reason: 'unknownValue', detail: 'Not tags.' },
+    },
+  })
+  expect(document.querySelector('[data-draft="true"]')).not.toBeNull()
+  expect(document.querySelector('.text-status-risk')).toBeNull()
+})
+
 it('exposes the concrete rejection detail when the failed log is expanded', () => {
   renderItem({
     step: {

@@ -142,6 +142,7 @@ export function StudioOperatorHistoryItem({
 function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
   const t = useTranslations('StudioOperator')
   const rejected = entry.status === 'error'
+  const draft = rejected && entry.draft === true
   /**
    * ⚠ 图标查不到就给个通用的：`tool` 在历史里是自由字符串（一条半年前的线程
    * 可能引用着今天已经改名的工具）—— 一条读不出图标的历史仍然是一条读得懂的历史。
@@ -163,9 +164,10 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
       data-tool={entry.tool}
       data-status={entry.status}
       data-undone={entry.undone ? 'true' : 'false'}
+      data-draft={draft ? 'true' : undefined}
       className={cn(
         'rounded-xl border border-border/60 bg-muted/20 px-2.5 py-2 text-md',
-        rejected && 'border-status-risk/30 bg-status-risk-surface',
+        rejected && !draft && 'border-status-risk/30 bg-status-risk-surface',
         entry.undone && 'opacity-55',
       )}
     >
@@ -174,6 +176,7 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
           className={cn(
             'mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-border bg-muted text-muted-foreground',
             rejected &&
+              !draft &&
               'border-status-risk/40 bg-status-risk-surface text-status-risk',
           )}
         >
@@ -194,7 +197,12 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
             </span>
           ) : null}
           {rejectText ? (
-            <span className="mt-0.5 block text-2sm text-destructive">
+            <span
+              className={cn(
+                'mt-0.5 block text-2sm',
+                draft ? 'text-muted-foreground' : 'text-destructive',
+              )}
+            >
               {rejectText}
             </span>
           ) : null}

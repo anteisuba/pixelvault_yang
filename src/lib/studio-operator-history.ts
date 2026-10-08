@@ -742,6 +742,7 @@ function toOperatorHistoryStep(
       ...(step.error.detail
         ? { detail: truncate(step.error.detail, LIMITS.maxReasonChars) }
         : {}),
+      ...(step.draft ? { draft: true } : {}),
     }
   }
 

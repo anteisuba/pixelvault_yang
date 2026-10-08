@@ -1042,8 +1042,8 @@ type ToolPlan =
       reason: AssistantOperatorRejectReason
       detail?: string
       /**
-       * 只退给模型、不进时间线（2026-09-24 真机）：复核挑出漏写、退回重写那一次是
-       * 同一步的草稿，画成一条「没做成」会让一轮全做成的操作顶着一笔失败。
+       * 退回重写的草稿：进时间线但标成 `draft`（不算失败），也进下一次请求的
+       * priorSteps —— 接力 / 插话之后模型才知道上次为什么没写成（2026-10-08）。
        */
       quiet?: true
     }
@@ -9096,25 +9096,19 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
 /** 同一个工具因同一个理由连着被拒（`LIMITS.maxSameRejectionStrikes`）时收尾的那句。 */
 const OPERATOR_SAME_FAILURE_MESSAGES: Record<
   PromptAssistantResponseLanguage,
-  string
+  (step: string) => string
 > = {
-  english:
-    'That step failed twice in a row for the same reason, so I stopped instead of trying more variations. The reason is on the line above. Tell me how you want to handle it.',
-  japanese:
-    '同じ操作が同じ理由で2回続けて失敗したので、やり方を変えて試し続ける前に止めました。理由は上の行にあります。どうするか教えてください。',
-  chinese:
-    '同一个操作因为同一个原因连着失败了两次，我先停下，不再换着法子硬试。原因写在上面那一行，告诉我想怎么处理。',
+  english: (step) =>
+    `“${step}” failed twice in a row for the same reason, so I stopped instead of trying more variations. The reason is on that line. Tell me how you want to handle it.`,
+  japanese: (step) =>
+    `「${step}」が同じ理由で2回続けて失敗したので、やり方を変えて試し続ける前に止めました。理由はその行にあります。どうするか教えてください。`,
+  chinese: (step) =>
+    `「${step}」因为同一个原因连着失败了两次，我先停下，不再换着法子硬试。原因写在那一行上，告诉我想怎么处理。`,
 }
 
-/**
- * 被拒的这一步算不算进「同理由连败」：重复步有自己那道闸；「先看图」是让它看完再来，
- * 照做之后重试是对的。
- */
+/** 被拒的这一步算不算进「同理由连败」：只有重复步例外，它有自己那道闸。 */
 function countsTowardSameRejection(reason: AssistantOperatorRejectReason) {
-  return (
-    reason !== REJECT.repeatedStep &&
-    reason !== REJECT.referenceAnalysisRequired
-  )
+  return reason !== REJECT.repeatedStep
 }
 
 /**
@@ -10273,7 +10267,10 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
   if (run.request.priorSteps?.length) {
     sections.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
 ${run.request.priorSteps
-  .map((step) => `- [${step.status}] ${step.tool}: ${step.summary}`)
+  .map(
+    (step) =>
+      `- [${step.status}${step.rejectReason ? `:${step.rejectReason}` : ''}] ${step.tool}: ${step.summary}${step.detail ? ` — ${step.detail}` : ''}`,
+  )
   .join('\n')}`)
   }
 
@@ -11591,12 +11588,33 @@ async function* runOperatorTurn(
     lastRejection = key
     return sameRejectionStrikes >= LIMITS.maxSameRejectionStrikes
   }
-  async function* stopAfterSameFailure(): AsyncIterable<AssistantOperatorEvent> {
+  /**
+   * 账本的尾巴先记上：上一段接力 / 被插话之前已经因同一个理由被拒过的，这一段接着数，
+   * ⛔ 不清零（每段清零正是 2026-10-08 那种无限重写）。⚠ 至多记到上限减一：本段总得让它试一次。
+   */
+  for (const step of [...(request.priorSteps ?? [])].reverse()) {
+    if (
+      step.status !== STATUS.error ||
+      !step.rejectReason ||
+      step.rejectReason === REJECT.repeatedStep
+    )
+      break
+    const key = `${step.tool}:${step.rejectReason}`
+    if (lastRejection !== null && key !== lastRejection) break
+    lastRejection = key
+    sameRejectionStrikes = Math.min(
+      sameRejectionStrikes + 1,
+      LIMITS.maxSameRejectionStrikes - 1,
+    )
+  }
+  async function* stopAfterSameFailure(
+    step: string,
+  ): AsyncIterable<AssistantOperatorEvent> {
     yield {
       type: ASSISTANT_OPERATOR_EVENTS.message,
       text: OPERATOR_SAME_FAILURE_MESSAGES[
         resolveResponseLanguage(request, persona)
-      ],
+      ](step),
     }
     const roundSummary = await closeRound(run, { clerkId, userId: user.id })
     yield {
@@ -12683,16 +12701,16 @@ async function* runOperatorTurn(
             quiet: plan.quiet === true,
             detail: clamp(plan.detail ?? '', 400),
           })
-        if (!plan.quiet)
-          yield toStepEvent({
-            ...base,
-            tool: name,
-            status: STATUS.error,
-            error: {
-              reason: plan.reason,
-              ...(plan.detail ? { detail: plan.detail } : {}),
-            },
-          })
+        yield toStepEvent({
+          ...base,
+          tool: name,
+          status: STATUS.error,
+          error: {
+            reason: plan.reason,
+            ...(plan.detail ? { detail: plan.detail } : {}),
+          },
+          ...(plan.quiet ? { draft: true } : {}),
+        })
         // ⚠ 重复步不是失败：念成 REFUSED，模型会对创作者说「没写进去」（2026-09-24 真机）。
         run.observations.push(
           `${name} ${plan.reason === REJECT.repeatedStep ? 'was skipped' : 'was REFUSED'} (${plan.reason})${
@@ -12700,11 +12718,10 @@ async function* runOperatorTurn(
           }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )
         if (
-          !plan.quiet &&
           countsTowardSameRejection(plan.reason) &&
           noteRejection(name, plan.reason)
         ) {
-          yield* stopAfterSameFailure()
+          yield* stopAfterSameFailure(base.title)
           completed = true
           return
         }
@@ -12741,7 +12758,7 @@ async function* runOperatorTurn(
             `${name} was REFUSED (${REJECT.toolFailed}): ${TOOL_FAILED_DETAIL} Do not retry it unchanged.`,
           )
           if (noteRejection(name, REJECT.toolFailed)) {
-            yield* stopAfterSameFailure()
+            yield* stopAfterSameFailure(base.title)
             completed = true
             return
           }

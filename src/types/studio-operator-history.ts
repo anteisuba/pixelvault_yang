@@ -74,6 +74,8 @@ export const StudioOperatorHistoryStepSchema = z.object({
   detail: z.string().trim().max(LIMITS.maxPromptChars).optional(),
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
+  /** 退回重写的草稿 —— 不算失败，刷新后照样画成灰的。 */
+  draft: z.boolean().optional(),
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
   /** NAI 标签核对换了什么 —— 刷新后过程行上方那句灰字照样画。 */
   tagCheck: AssistantOperatorTagCheckSchema.optional(),

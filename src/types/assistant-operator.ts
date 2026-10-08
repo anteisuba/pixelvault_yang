@@ -1092,6 +1092,13 @@ export const AssistantOperatorPriorStepSchema = z.object({
   tool: AssistantOperatorToolSchema,
   status: AssistantOperatorStepStatusSchema,
   summary: z.string().trim().max(LIMITS.maxPriorStepSummaryChars),
+  /**
+   * 被拒那一步的理由与给模型的修法 —— 接力 / 插话之后它仍知道上次为什么没写成
+   * （2026-10-08：少了这两格，画布每一段接力都在同一步从头再猜）。
+   * ⚠ 理由是字符串不收窄成枚举：历史里可能带着已经删掉的理由，一条 400 不值。
+   */
+  rejectReason: z.string().trim().max(LIMITS.maxReasonChars).optional(),
+  detail: z.string().trim().max(LIMITS.maxReasonChars).optional(),
 })
 
 export const AssistantOperatorConfirmDecisionSchema = z.object({
@@ -4170,6 +4177,8 @@ export const AssistantOperatorRejectedStepSchema = z.object({
     reason: AssistantOperatorRejectReasonSchema,
     detail: z.string().max(LIMITS.maxReasonChars).optional(),
   }),
+  /** 退回重写的草稿（同一步还没结束）：进时间线和 priorSteps，但不算这一轮的失败。 */
+  draft: z.literal(true).optional(),
 })
 
 /**

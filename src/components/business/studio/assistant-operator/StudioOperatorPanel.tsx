@@ -1525,13 +1525,19 @@ export function StudioOperatorPanel({
             item.step.error.reason,
           ),
       ).length
-      const failed = rejected.length - skipped
+      const drafts = rejected.filter(
+        (item) =>
+          item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+          item.step.draft === true,
+      ).length
+      const failed = rejected.length - skipped - drafts
       const roundSteps = entries.flatMap((entry) =>
         entry.kind === 'step' && entry.runKey === block.runKey ? [entry] : [],
       )
       const blocker = roundSteps.findLast(
         (item, index) =>
           item.step.status === 'error' &&
+          !item.step.draft &&
           !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
             item.step.error.reason,
           ) &&
@@ -2186,7 +2192,9 @@ export function StudioOperatorPanel({
                     const entry = historyEntries[index]
                     return entry?.kind === 'step' ? [entry] : []
                   })
-                  const errors = steps.filter((step) => step.status === 'error')
+                  const errors = steps.filter(
+                    (step) => step.status === 'error' && !step.draft,
+                  )
                   const skipped = errors.filter((step) =>
                     STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
                       (reason) => reason === step.rejectReason,
@@ -2204,6 +2212,7 @@ export function StudioOperatorPanel({
                   const roundBlocker = roundSteps.findLast(
                     (step, index) =>
                       step.status === 'error' &&
+                      !step.draft &&
                       !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
                         (reason) => reason === step.rejectReason,
                       ) &&

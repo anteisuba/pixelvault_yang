@@ -1492,9 +1492,10 @@ export function useAssistantOperator(
                 //   也不是失败 —— 占了的话下一格的勾就错位一整格。
                 !(
                   step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
-                  STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
-                    step.error.reason,
-                  )
+                  (step.draft === true ||
+                    STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
+                      step.error.reason,
+                    ))
                 )
               ) {
                 if (resumeStepId) {

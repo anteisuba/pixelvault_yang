@@ -5,6 +5,7 @@ import { ChevronRight } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
+import { StudioOperatorThinkingDots } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 
 interface StudioOperatorToolGroupProps {
   total: number
@@ -60,6 +61,7 @@ export function StudioOperatorToolGroup({
           onClick={() => setOpen(!open)}
           className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
         >
+          {running ? <StudioOperatorThinkingDots /> : null}
           <span
             data-testid={
               running

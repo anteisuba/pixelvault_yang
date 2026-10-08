@@ -45,11 +45,30 @@ describe('StudioOperatorToolGroup', () => {
       </StudioOperatorToolGroup>,
     )
     expect(screen.getByRole('status')).toHaveTextContent('核对参考图')
+    // 跑着时标题前有那三颗起伏的小点，跑完的步骤没有。
+    expect(
+      screen
+        .getByTestId('operator-tool-group-toggle')
+        .querySelectorAll('.animate-thinking-dot'),
+    ).toHaveLength(3)
     expect(screen.getByTestId('operator-tool-group-toggle')).toHaveAttribute(
       'aria-expanded',
       'false',
     )
     expect(screen.queryByTestId('operator-tool-group-succeeded')).toBeNull()
+  })
+
+  it('shows no activity dots once the group has finished', () => {
+    render(
+      <StudioOperatorToolGroup total={2} failed={0} running={false}>
+        <p>内部记录</p>
+      </StudioOperatorToolGroup>,
+    )
+    expect(
+      screen
+        .getByTestId('operator-tool-group-toggle')
+        .querySelectorAll('.animate-thinking-dot'),
+    ).toHaveLength(0)
   })
 
   it('preserves a manual expansion through running and failure transitions', () => {

@@ -330,17 +330,7 @@ export function StudioOperatorCollapsibleText({
         data-testid="operator-message-pending"
         className="flex h-6 items-center gap-2 text-xs text-muted-foreground"
       >
-        <span aria-hidden className="flex items-center gap-0.75">
-          {[0, 1, 2].map((dot) => (
-            <span
-              key={dot}
-              style={{
-                animationDelay: `${dot * STUDIO_OPERATOR_SHELL.thinkingDotStaggerMs}ms`,
-              }}
-              className="size-1.25 rounded-full bg-muted-foreground/70 animate-thinking-dot motion-reduce:animate-none"
-            />
-          ))}
-        </span>
+        <StudioOperatorThinkingDots />
         {t('streaming.thinking')}
       </p>
     )
@@ -496,5 +486,26 @@ export function StudioOperatorUserText({
           })),
       ])}
     </p>
+  )
+}
+
+/**
+ * 「还在干活」的三颗小点（D12 R-C）：错峰起伏，⛔ 不转圈。等第一个字时与工具步
+ * 跑着时共用这一个 —— 2026-10-08 owner：看图那一步只有一行灰字，和跑完的步骤长得
+ * 一样，不看停止键看不出它还在动。
+ */
+export function StudioOperatorThinkingDots() {
+  return (
+    <span aria-hidden className="flex shrink-0 items-center gap-0.75">
+      {[0, 1, 2].map((dot) => (
+        <span
+          key={dot}
+          style={{
+            animationDelay: `${dot * STUDIO_OPERATOR_SHELL.thinkingDotStaggerMs}ms`,
+          }}
+          className="size-1.25 rounded-full bg-muted-foreground/70 animate-thinking-dot motion-reduce:animate-none"
+        />
+      ))}
+    </span>
   )
 }

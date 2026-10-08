@@ -21,7 +21,7 @@ import { useTranslations } from 'next-intl'
 import { Check, ChevronDown } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
 import { motionTransition } from '@/constants/motion'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
@@ -315,25 +315,18 @@ export function AudioVoiceChip({
             <span className="text-3xs tracking-node-sec text-muted-foreground">
               {t('speed')}
             </span>
-            <ToggleGroup
-              type="single"
-              variant="segmented"
-              aria-label={t('speed')}
+            {/* A1 分段条（与工作台规格弹层同一颗，owner 2026-10-08 画布换皮）。 */}
+            <LiquidSegmented
+              items={VOICE_SPEED_STEPS.map((step) => ({
+                value: String(step),
+                label: `${step.toFixed(1)}×`,
+              }))}
               value={String(speed ?? TTS_SPEED_RANGE.default)}
-              onValueChange={(next) => {
-                if (next) onSpeedChange(Number(next))
-              }}
-            >
-              {VOICE_SPEED_STEPS.map((step) => (
-                <ToggleGroupItem
-                  key={step}
-                  value={String(step)}
-                  data-audio-voice-speed={step}
-                >
-                  {`${step.toFixed(1)}×`}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+              onChange={(next) => onSpeedChange(Number(next))}
+              ariaLabel={t('speed')}
+              semantics="radio"
+              size="xs"
+            />
           </div>
           <ParamSlider
             label={t('volume')}

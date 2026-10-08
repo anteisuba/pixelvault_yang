@@ -52,7 +52,7 @@ import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
  * 正是「同一个搜索框只过滤半个面板」的 bug。query 现在提到这里持有，下发给
  * `CastDock` 当 controlled prop，同时用来过滤 `cards`——判据复用
  * `resolveNodeDisplayName`（全仓单一事实源），不手写第二套匹配。
- * G3：两段标题原来是「节点」（外层 `CanvasLeftPanel` 头部chrome）+「卡片」
+ * G3：两段标题原来是「节点」（外层左侧面板的头部 chrome，现 `ShellSidePanels`）+「卡片」
  * （本组件下段），关系不明显——卡片本身也是节点，同一张角色卡在两段里各出现
  * 一次。这里给上段补一句「画布上的全部节点」标题（不重复外层已经显示过的计数），
  * 下段标题改成更具体的「可复用的角色与场景」，读两个标题就能猜到下段是上段的
@@ -147,7 +147,7 @@ export function CanvasRosterRail() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 上段：G3 补的标题。不重复外层 `CanvasLeftPanel` 头部 chrome 已经显示
+      {/* 上段：G3 补的标题。不重复外层左侧面板（`ShellSidePanels`）头部 chrome 已经显示
         过的「节点」+ 计数，只加一句更具体的说明，让两段的关系读得出来。 */}
       <div className="flex flex-col gap-1.5">
         <div

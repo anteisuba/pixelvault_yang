@@ -1,13 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧三面板开关、三条加节点路、
+ * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧面板（六格：原型四格 + 角色 / 素材库）、三条加节点路、
  * ⌘K、底栏、助手 dock 收放与宽度、快捷键。
  *
  * ⚠ 只证「点了会调什么」，不证画板像素：对稿在真机验收里逐项比。
  */
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   renderHook,
@@ -115,7 +116,10 @@ vi.mock('motion/react', async (importOriginal) => ({
 }))
 
 import { CANVAS_ADD_INTENT_IDS } from '@/constants/canvas-add-catalog'
-import { CANVAS_SHELL_PANEL_IDS } from '@/constants/canvas-shell'
+import {
+  CANVAS_SHELL_PANEL_IDS,
+  type CanvasShellPanelId,
+} from '@/constants/canvas-shell'
 import { LIQUID_TIMING } from '@/constants/motion'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { fetchGalleryImages } from '@/lib/api-client'
@@ -133,6 +137,13 @@ import { ShellPaneMenu, ShellQuickAdd } from './ShellCanvasMenus'
 import { ShellCommandPalette } from './ShellCommandPalette'
 import { ShellSidePanels } from './ShellSidePanels'
 import { ShellProjectPill } from './ShellProjectPill'
+
+/** 「当前项目」/「历史对话」两格的内容由宿主给；这里只证面板把它们摆进来。 */
+const PANEL_SLOT_PROPS = {
+  onAddNode: vi.fn(),
+  projectPanel: <div data-testid="project-slot" />,
+  historyPanel: <div data-testid="history-slot" />,
+}
 
 const PROJECTS: NodeWorkflowProjectSummary[] = [
   {
@@ -202,29 +213,88 @@ describe('ShellProjectPill · 项目胶囊与切换弹层', () => {
   })
 })
 
-describe('ShellSidePanels · 三面板', () => {
+describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () => {
   function renderPanels() {
     const props = {
-      activePanel: null as null | (typeof CANVAS_SHELL_PANEL_IDS)['nodes'],
+      activePanel: null as null | CanvasShellPanelId,
       onActivePanelChange: vi.fn(),
       nodeQuery: '',
       onNodeQueryChange: vi.fn(),
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
+      ...PANEL_SLOT_PROPS,
     }
     const view = render(<ShellSidePanels {...props} />)
     return { props, view }
   }
 
-  it('图标栏三项，默认全收（面板不在场）', () => {
+  it('兜底图标栏 = 六格（添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库）', () => {
     renderPanels()
-    expect(screen.getByTestId('shell-rail-nodes')).toBeTruthy()
-    expect(screen.getByTestId('shell-rail-cards')).toBeTruthy()
-    expect(screen.getByTestId('shell-rail-library')).toBeTruthy()
-    expect(screen.queryByTestId('shell-rail-history')).toBeNull()
+    const rail = screen.getByTestId('shell-side-rail')
+    expect(
+      Array.from(rail.querySelectorAll('button')).map(
+        (button) => button.dataset.testid,
+      ),
+    ).toEqual([
+      'shell-rail-addNode',
+      'shell-rail-nodes',
+      'shell-rail-project',
+      'shell-rail-history',
+      'shell-rail-cards',
+      'shell-rail-library',
+    ])
     expect(screen.queryByTestId('shell-side-panel')).toBeNull()
+  })
+
+  it('四格各开各的内容：添加目录 / 节点定位器 / 宿主给的项目与历史', () => {
+    const { props, view } = renderPanels()
+    view.rerender(
+      <ShellSidePanels
+        {...props}
+        activePanel={CANVAS_SHELL_PANEL_IDS.addNode}
+      />,
+    )
+    expect(screen.getByTestId('shell-add-panel')).toBeTruthy()
+    // 全目录（四组十一项）+ 上传 / 从素材库选。
+    fireEvent.click(
+      screen.getByTestId(`shell-add-${CANVAS_ADD_INTENT_IDS.videoShot}`),
+    )
+    expect(props.onAddNode).toHaveBeenCalledWith(
+      CANVAS_ADD_INTENT_IDS.videoShot,
+    )
+    fireEvent.click(screen.getByTestId('shell-add-upload'))
+    expect(props.onUpload).toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('shell-add-library'))
+    expect(props.onActivePanelChange).toHaveBeenLastCalledWith(
+      CANVAS_SHELL_PANEL_IDS.library,
+    )
+
+    for (const [panel, testId] of [
+      [CANVAS_SHELL_PANEL_IDS.project, 'project-slot'],
+      [CANVAS_SHELL_PANEL_IDS.history, 'history-slot'],
+    ] as const) {
+      cleanup()
+      render(<ShellSidePanels {...props} activePanel={panel} />)
+      expect(screen.getByTestId('shell-side-panel').dataset.panel).toBe(panel)
+      expect(screen.getByTestId(testId)).toBeTruthy()
+    }
+  })
+
+  it('开着的是角色那一格：栏上只有它亮着', () => {
+    const { props, view } = renderPanels()
+    view.rerender(
+      <ShellSidePanels {...props} activePanel={CANVAS_SHELL_PANEL_IDS.cards} />,
+    )
+    expect(screen.getByTestId('shell-side-panel').dataset.panel).toBe('cards')
+    expect(
+      screen.getByTestId('shell-rail-cards').getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      screen.getByTestId('shell-rail-nodes').getAttribute('aria-pressed'),
+    ).toBe('false')
   })
 
   it('点图标开面板；再点同一个收起', () => {
@@ -242,6 +312,22 @@ describe('ShellSidePanels · 三面板', () => {
 
     fireEvent.click(screen.getByTestId('shell-rail-nodes'))
     expect(props.onActivePanelChange).toHaveBeenLastCalledWith(null)
+  })
+
+  it('≥1024 图标栏并进全站侧栏：画布里没有栏，面板贴边距开在侧栏旁边', () => {
+    const { props, view } = renderPanels()
+    view.rerender(
+      <ShellSidePanels
+        {...props}
+        railVisible={false}
+        activePanel={CANVAS_SHELL_PANEL_IDS.nodes}
+      />,
+    )
+    expect(screen.queryByTestId('shell-side-rail')).toBeNull()
+    expect(screen.queryByTestId('shell-rail-indicator')).toBeNull()
+    const panel = screen.getByTestId('shell-side-panel')
+    expect(panel.dataset.panel).toBe('nodes')
+    expect(panel.parentElement?.style.left).toBe('16px')
   })
 })
 
@@ -277,7 +363,9 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(placed),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
+      ...PANEL_SLOT_PROPS,
     }
     render(<ShellSidePanels {...props} />)
     return props
@@ -312,7 +400,9 @@ describe('ShellSidePanels · 液态开合', () => {
     onUpload: vi.fn(),
     onPlaceMedia: vi.fn(),
     placedCharacterIds: new Set<string>(),
+    railVisible: true,
     onPlaceCharacter: vi.fn(),
+    ...PANEL_SLOT_PROPS,
   }
 
   function advance(ms: number) {
@@ -359,13 +449,13 @@ describe('ShellSidePanels · 液态开合', () => {
     view.rerender(
       <ShellSidePanels
         {...baseProps}
-        activePanel={CANVAS_SHELL_PANEL_IDS.cards}
+        activePanel={CANVAS_SHELL_PANEL_IDS.project}
       />,
     )
     // 同一块面板、相位不动 —— 只换内容。
     expect(screen.getByTestId('shell-side-panel')).toBe(panel)
     expect(panel.dataset.phase).toBe('open')
-    expect(panel.dataset.panel).toBe('cards')
+    expect(panel.dataset.panel).toBe('project')
     // 旧内容还叠在下面退场，且不可交互；退场那一拍走完就摘掉。
     expect(screen.getByTestId('cast-dock').closest('[inert]')).not.toBeNull()
     advance(LIQUID_TIMING.swapOutS * 1000)
@@ -373,10 +463,10 @@ describe('ShellSidePanels · 液态开合', () => {
 
     view.rerender(<ShellSidePanels {...baseProps} activePanel={null} />)
     expect(panel.dataset.phase).toBe('closing')
-    expect(panel.dataset.panel).toBe('cards')
+    expect(panel.dataset.panel).toBe('project')
     expect(panel.className).toContain('pointer-events-none')
     expect(
-      screen.getByTestId('shell-rail-cards').getAttribute('aria-pressed'),
+      screen.getByTestId('shell-rail-project').getAttribute('aria-pressed'),
     ).toBe('false')
     // 形状还在收：落定前不卸载。
     advance(
@@ -513,26 +603,32 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
 })
 
 describe('ShellBottomBar · 无加号', () => {
+  function renderBar(activePanel: CanvasShellPanelId | null = null) {
+    const props = {
+      toolMode: NODE_STUDIO_TOOL_MODE_IDS.hand,
+      onToolModeChange: vi.fn(),
+      canUndo: true,
+      canRedo: false,
+      onUndo: vi.fn(),
+      onRedo: vi.fn(),
+      onTidyLayout: vi.fn(),
+      activePanel,
+      onTogglePanel: vi.fn(),
+    }
+    render(<ShellBottomBar {...props} />)
+    return props
+  }
+
   it('缩放读 RF 的 transform，撤销/重做按可用性置灰', () => {
-    const onUndo = vi.fn()
-    render(
-      <ShellBottomBar
-        toolMode={NODE_STUDIO_TOOL_MODE_IDS.hand}
-        onToolModeChange={vi.fn()}
-        canUndo
-        canRedo={false}
-        onUndo={onUndo}
-        onRedo={vi.fn()}
-        onTidyLayout={vi.fn()}
-      />,
-    )
+    const props = renderBar()
     expect(screen.getByTestId('shell-zoom-level').textContent).toBe('80%')
     const bar = screen.getByTestId('shell-bottom-bar')
-    // ⛔ 底栏不该再有加号：按钮总数是固定的八颗（缩放百分比不是按钮）。
+    // ⛔ 底栏不该再有加号：八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
     expect(bar.querySelectorAll('button')).toHaveLength(8)
+    expect(screen.queryByTestId('shell-bottom-cards')).toBeNull()
     fireEvent.click(screen.getByTestId('shell-tool-select'))
     expect(screen.getByTestId('shell-fit-view')).toBeTruthy()
-    expect(onUndo).not.toHaveBeenCalled()
+    expect(props.onUndo).not.toHaveBeenCalled()
   })
 })
 
@@ -642,7 +738,9 @@ describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
+      ...PANEL_SLOT_PROPS,
     }
     render(<ShellSidePanels {...props} />)
     return props

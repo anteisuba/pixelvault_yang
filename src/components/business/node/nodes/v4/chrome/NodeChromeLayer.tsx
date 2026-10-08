@@ -12,6 +12,8 @@ import {
 } from '@xyflow/react'
 import { shallow } from 'zustand/shallow'
 
+import { CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX } from '@/constants/canvas-shell'
+
 import { useNodeV4Canvas } from '../NodeV4Context'
 import { GROW_FROM_EDGE, REDUCED_GROW_FROM_EDGE } from './chrome-motion'
 import { layoutNodeChrome } from './node-chrome-safe-area'
@@ -30,7 +32,7 @@ export function NodeChromeLayer({
 }) {
   const reduce = useReducedMotion()
   const nodeId = useNodeId()
-  const { sidebarOpen = false } = useNodeV4Canvas()
+  const { safeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX } = useNodeV4Canvas()
   const geometry = useStore((state) => {
     const node = state.nodeLookup?.get(nodeId ?? '')
     const [panX, panY, zoom] = state.transform
@@ -82,7 +84,7 @@ export function NodeChromeLayer({
       height: geometry.cardHeight,
     },
     zoom: geometry.zoom,
-    sidebarOpen,
+    safeLeft: safeLeftPx,
     content: contentSize,
     position,
   })

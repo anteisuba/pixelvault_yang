@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { canvasShellSafeLeftPx } from '@/constants/canvas-shell'
+
 import {
   layoutNodeChrome,
   type NodeChromeLayoutInput,
@@ -9,7 +11,7 @@ const base: NodeChromeLayoutInput = {
   viewport: { width: 1440, height: 900 },
   card: { x: 500, y: 300, width: 320, height: 180 },
   zoom: 1,
-  sidebarOpen: false,
+  safeLeft: 72,
   content: { width: 640, height: 100 },
   position: 'bottom',
 }
@@ -33,7 +35,7 @@ describe('节点浮层安全区 · mock.html after', () => {
     const opened = layoutNodeChrome({
       ...base,
       card: { ...base.card, x: 0 },
-      sidebarOpen: true,
+      safeLeft: 346,
     })
     expect(closed.left).toBe(72)
     expect(opened.left).toBe(346)
@@ -147,5 +149,25 @@ describe('节点浮层安全区 · mock.html after', () => {
     expect(short.left).toBe(1004)
     expect(tall.left).toBe(798)
     expect(tall.top).toBe(704)
+  })
+})
+
+describe('canvasShellSafeLeftPx · 图标栏并进全站侧栏（owner 2026-10-08）', () => {
+  it('≥1024 画布里没有图标栏：收着只留边距，面板开着让出面板', () => {
+    expect(
+      canvasShellSafeLeftPx({ panelOpen: false, railVisible: false }),
+    ).toBe(16)
+    expect(canvasShellSafeLeftPx({ panelOpen: true, railVisible: false })).toBe(
+      294,
+    )
+  })
+
+  it('768–1023 图标栏仍在画布里：沿用 72 / 346', () => {
+    expect(canvasShellSafeLeftPx({ panelOpen: false, railVisible: true })).toBe(
+      72,
+    )
+    expect(canvasShellSafeLeftPx({ panelOpen: true, railVisible: true })).toBe(
+      346,
+    )
   })
 })

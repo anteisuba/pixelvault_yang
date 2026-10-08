@@ -57,20 +57,55 @@ export const CANVAS_SHELL_LAYOUT = {
   nodeThumbHeightPx: 26,
 } as const
 
-/** 左侧面板。顺序即图标栏从上到下的顺序。 */
+/** 安全区的左界离画布左缘多少：图标栏（若在）右缘 + 12；面板开着时面板右缘 + 14。 */
+const SAFE_GAP_RAIL_PX = 12
+const SAFE_GAP_PANEL_PX = 14
+
+/**
+ * 选中浮层 / 定位 / 弹层避让共用的**安全区左界**（node-canvas-v2 §1 第 4 条「推回安全区」）。
+ *
+ * ⭐ owner 2026-10-08 换皮：画布自己的图标栏并进了全站侧栏，≥1024 画布里**没有栏**，
+ *   左界只剩边距（面板开着再加面板）；768–1023 全站侧栏不在，栏仍留在画布里兜底。
+ *   ⛔ 别再在调用点手写 `72` / `346`。
+ */
+export function canvasShellSafeLeftPx(options: {
+  readonly panelOpen: boolean
+  readonly railVisible: boolean
+}): number {
+  const { panelOpen, railVisible } = options
+  const L = CANVAS_SHELL_LAYOUT
+  if (panelOpen) {
+    return (
+      L.edgeInsetPx +
+      (railVisible ? L.railWidthPx + L.panelGapPx : 0) +
+      L.panelWidthPx +
+      SAFE_GAP_PANEL_PX
+    )
+  }
+  return railVisible
+    ? L.edgeInsetPx + L.railWidthPx + SAFE_GAP_RAIL_PX
+    : L.edgeInsetPx
+}
+
+/**
+ * 左侧面板（全部六格，开着哪一格是一份 `use-canvas-shell-panel` store）。
+ *
+ * ⭐ owner 2026-10-08 拍板（原型四格）：全站侧栏「画布」下面 / 768–1023 画布兜底栏里
+ *   只放 添加节点 / 节点 / 当前项目 / 历史对话 四格；角色与素材库搬到底栏，点开的仍是
+ *   侧栏旁边同一块面板。哪一格的入口落在哪里**只由** `navigation.ts` 的
+ *   `SHELL_NAV_CANVAS_ENTRIES` 那一张 id 列表决定（不在列表里的 = 底栏），⛔ 别在这里
+ *   另存一份顺序。
+ */
 export const CANVAS_SHELL_PANEL_IDS = {
+  addNode: 'addNode',
   nodes: 'nodes',
+  project: 'project',
+  history: 'history',
   cards: 'cards',
   library: 'library',
 } as const
 export type CanvasShellPanelId =
   (typeof CANVAS_SHELL_PANEL_IDS)[keyof typeof CANVAS_SHELL_PANEL_IDS]
-
-export const CANVAS_SHELL_PANELS: readonly CanvasShellPanelId[] = [
-  CANVAS_SHELL_PANEL_IDS.nodes,
-  CANVAS_SHELL_PANEL_IDS.cards,
-  CANVAS_SHELL_PANEL_IDS.library,
-]
 
 /**
  * 无加号三条加节点路共用的四类**空卡意图**。
@@ -138,3 +173,16 @@ export const CANVAS_SHELL_MEDIA_DRAG_MIME =
  * 落成图片 / 声音 / 视频卡），⛔ 不另写一套上传。
  */
 export const CANVAS_SHELL_UPLOAD_ACCEPT = 'image/*,video/*,audio/*'
+
+/** 没人告诉安全区左界时的默认值：≥1024、面板收着（画布里没有图标栏）。 */
+export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
+  panelOpen: false,
+  railVisible: false,
+})
+
+/**
+ * 面板入口（全站侧栏「画布」下面那四颗、底栏的角色 / 素材库两颗）身上的属性（值 = 面板
+ * id）。面板的液态开合从被点的那一颗所在的那一行长出来，靠它在 DOM 里找到起点 ——
+ * ⛔ 不在两边各猜一个坐标。
+ */
+export const CANVAS_SHELL_SIDEBAR_ENTRY_ATTR = 'data-canvas-shell-entry'

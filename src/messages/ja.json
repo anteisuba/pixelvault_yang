@@ -6233,7 +6233,10 @@
       "editDesk": "編集台",
       "assistant": "アシスタント",
       "panels": {
-        "nodes": "ノード一覧",
+        "addNode": "ノードを追加",
+        "nodes": "ノード",
+        "project": "現在のプロジェクト",
+        "history": "履歴",
         "cards": "キャラクター",
         "library": "素材ライブラリ",
         "searchNodes": "ノードを検索…",

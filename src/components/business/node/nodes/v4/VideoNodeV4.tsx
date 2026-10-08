@@ -865,7 +865,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             }
           />
           <NodePromptBar
-            sidebarOpen={canvas.sidebarOpen}
+            safeLeftPx={canvas.safeLeftPx}
             // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
             // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
             // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -1037,10 +1043,12 @@ describe('音色弹层', () => {
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
-    const steps = document.querySelectorAll('[data-audio-voice-speed]')
-    expect(
-      Array.from(steps).map((s) => s.getAttribute('data-audio-voice-speed')),
-    ).toEqual(['0.8', '1', '1.2'])
+    // A1 分段条（owner 2026-10-08 画布换皮）：三档是一组 radio。
+    const steps = within(
+      screen.getByRole('radiogroup', { name: 'speed' }),
+    ).getAllByRole('radio')
+    expect(steps.map((s) => s.textContent)).toEqual(['0.8×', '1.0×', '1.2×'])
+    expect(steps[1]).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('volume')).toBeInTheDocument()
   })
 })
@@ -1229,7 +1237,11 @@ describe('加语气浮层', () => {
     render(<AudioTonePopover onInsert={onInsert} />)
     fireEvent.click(document.querySelector('[data-tone-tag="emotion:愤怒"]')!)
     fireEvent.click(document.querySelector('[data-tone-tag="tone:咬牙切齿"]')!)
-    fireEvent.click(document.querySelector('[data-tone-intensity="strong"]')!)
+    fireEvent.click(
+      screen
+        .getAllByRole('radio')
+        .find((node) => node.textContent === 'intensities.strong')!,
+    )
     fireEvent.click(document.querySelector('[data-tone-apply]')!)
     expect(onInsert).toHaveBeenCalledWith([
       { label: '愤怒', intensity: VOICE_MARKUP_INTENSITY_IDS.strong },

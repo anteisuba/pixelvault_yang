@@ -57,7 +57,8 @@ interface CanvasAddMenuLayout {
   maxHeight: number
 }
 
-const ICON_BY_INTENT: Record<
+/** 添加目录每一项的图标 —— 画布「添加节点」面板与这份菜单共用一份。 */
+export const CANVAS_ADD_INTENT_ICONS: Record<
   CanvasAddIntentId,
   ComponentType<{ className?: string }>
 > = {
@@ -289,7 +290,7 @@ export function CanvasAddMenu({
                 与 owner 拍板的两行诉求对齐（此前 organizeScene 是 UI 不可
                 达的死代码，见 canvas-add-catalog.ts 头注旁的调查记录）。 */}
             {group.items.map((item) => {
-              const Icon = ICON_BY_INTENT[item.id]
+              const Icon = CANVAS_ADD_INTENT_ICONS[item.id]
               return (
                 <button
                   key={item.id}

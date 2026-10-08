@@ -29,7 +29,7 @@ This is an already-confirmed implementation slice, not a new visual direction.
 
 The existing left glass panel remains. Its content becomes:
 
-1. Header: `节点` + total node count (owned by `CanvasLeftPanel`).
+1. Header: `节点` + total node count (owned by the left panel frame, `ShellSidePanels`; the old `CanvasLeftPanel` was deleted 2026-10-08).
 2. Search field: searches display name, localized node type, prompt, and image
    role.
 3. Non-empty modality groups in fixed order:

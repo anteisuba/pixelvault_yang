@@ -6,9 +6,16 @@
  * ⚠ 面板**浮在画布上**，⛔ 不挤画布：它是 `absolute` 的兄弟，画布几何不因为开合
  * 而变（与助手 dock 同一条「覆盖，不挤压」）。再点同一个图标 = 收起。
  *
- * 三个面板各自只做「列出来 + 交出去」：
- * · 节点一览 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
+ * 六格（owner 2026-10-08 原型四格：入口 = 全站侧栏「画布」下面那几颗 / 768–1023 兜底栏
+ * · 添加节点 / 节点 / 当前项目 / 历史对话；角色 / 素材库的入口在底栏 —— 哪格在哪只看
+ * `SHELL_NAV_CANVAS_ENTRIES`）开的都是这**同一块**面板，各自只做「列出来 + 交出去」：
+ * · 添加节点 → `CANVAS_ADD_CATALOG` 全目录（与 ⌘K / 双击 / 右键同一张意图表、同一个
+ *   落点 `onAddNode`），顶上两行 = 上传 / 从素材库选（后者切到素材库那一格）。
+ * · 节点 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
  *   ⛔ 不再写第二个定位器。
+ * · 当前项目 → 项目胶囊弹层里那份 `ShellProjectList`（宿主传进来），⛔ 不另写项目列表。
+ * · 历史对话 → `CanvasAssistantHistoryPanel`（宿主传进来；数据是操作员 dock 那一份
+ *   历史的只读发布），⛔ 不另起一个会话引擎。
  * · 角色 → 角色库（`useCharacterLibrary`，与角色页同一份）。**点一位**放到画布上；
  *   已经在画布上的点了定位到她（owner 09-27：⛔ 不拖；旧上下文卡不再显示）。
  * · 素材库 → 上传与生成记录合并，复用素材页文件夹，按类型筛、一页一页往下翻。
@@ -38,21 +45,25 @@ import {
   type MotionValue,
 } from 'motion/react'
 import {
-  FolderOpen,
   ChevronDown,
-  ListTree,
+  FolderOpen,
+  Images,
   PanelLeftClose,
-  UserRound,
+  Upload,
 } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 
+import {
+  CANVAS_ADD_CATALOG,
+  type CanvasAddIntentId,
+} from '@/constants/canvas-add-catalog'
 import {
   CANVAS_SHELL_LAYOUT,
   CANVAS_SHELL_LIBRARY_FILTER_IDS,
   CANVAS_SHELL_LIST_PAGE_SIZE,
   CANVAS_SHELL_MEDIA_DRAG_MIME,
-  CANVAS_SHELL_PANELS,
   CANVAS_SHELL_PANEL_IDS,
+  CANVAS_SHELL_SIDEBAR_ENTRY_ATTR,
   type CanvasShellLibraryFilter,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
@@ -83,6 +94,7 @@ import {
 } from '@/components/ui/popover'
 import { Link } from '@/i18n/navigation'
 import { ROUTES, cardManagementPath } from '@/constants/routes'
+import { SHELL_NAV_CANVAS_ENTRIES } from '@/constants/navigation'
 import { getFolderPath } from '@/lib/folder-tree'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -96,15 +108,20 @@ import type {
 } from '@/types'
 import type { NodeV4Data } from '@/types/node-workflow'
 
+import { CANVAS_ADD_INTENT_ICONS } from '../../CanvasAddMenu'
 import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
 import { ShellIconButton } from './ShellIconButton'
 
-const PANEL_ICONS = {
-  [CANVAS_SHELL_PANEL_IDS.nodes]: ListTree,
-  [CANVAS_SHELL_PANEL_IDS.cards]: UserRound,
-  [CANVAS_SHELL_PANEL_IDS.library]: FolderOpen,
-} as const
+/** 兜底栏上的格子与全站侧栏「画布」下面那几颗同一份（`SHELL_NAV_CANVAS_ENTRIES`）。 */
+const RAIL_PANELS: readonly CanvasShellPanelId[] = SHELL_NAV_CANVAS_ENTRIES.map(
+  (entry) => entry.id,
+)
+
+/** 这一格的入口在不在图标栏上（不在 = 入口在底栏）。 */
+function inRail(panel: CanvasShellPanelId | null): panel is CanvasShellPanelId {
+  return panel !== null && RAIL_PANELS.includes(panel)
+}
 
 /** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
 function planNodeForOutput(outputType: string): {
@@ -356,6 +373,83 @@ function ShellPanelFrame({
         {children}
       </motion.div>
     </>
+  )
+}
+
+/**
+ * 「添加节点」那一格：上传 / 从素材库选 + 四类分组全目录。
+ *
+ * ⚠ 每一项只交出意图 id，落卡走宿主的 `onAddNode`（与 ⌘K 同一个视口中心落点，
+ *   `CANVAS_ADD_CATALOG` 的 `intent.v4` 定身份），⛔ 不在这里推 `{kind, subtype}`。
+ */
+function ShellAddPanel({
+  onAddNode,
+  onUpload,
+  onPickFromLibrary,
+}: {
+  onAddNode(intentId: CanvasAddIntentId): void
+  onUpload(): void
+  onPickFromLibrary(): void
+}) {
+  const tAdd = useTranslations('StudioNode.shell.add')
+  const tNode = useTranslations('StudioNode')
+  const rowClass =
+    'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none'
+
+  return (
+    <div
+      className="flex flex-col gap-0.5 px-1 pb-2"
+      data-testid="shell-add-panel"
+    >
+      <button
+        type="button"
+        data-testid="shell-add-upload"
+        onClick={onUpload}
+        className={rowClass}
+      >
+        <Upload className="size-4 shrink-0 text-node-muted" aria-hidden />
+        <span>{tAdd('uploadMenu')}</span>
+        <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">
+          ⌘U
+        </kbd>
+      </button>
+      <button
+        type="button"
+        data-testid="shell-add-library"
+        onClick={onPickFromLibrary}
+        className={rowClass}
+      >
+        <Images className="size-4 shrink-0 text-node-muted" aria-hidden />
+        <span>{tNode('addCatalog.pickFromLibrary')}</span>
+      </button>
+      {CANVAS_ADD_CATALOG.map((group) => (
+        <section
+          key={group.id}
+          className="mt-1 flex flex-col gap-0.5 border-t border-node-panel-inner pt-1.5"
+        >
+          <p className="px-2.5 py-0.5 text-2xs text-node-muted">
+            {tNode(`addCatalog.groups.${group.id}`)}
+          </p>
+          {group.items.map((item) => {
+            const Icon = CANVAS_ADD_INTENT_ICONS[item.id]
+            return (
+              <button
+                key={item.id}
+                type="button"
+                data-testid={`shell-add-${item.id}`}
+                onClick={() => onAddNode(item.id)}
+                className={rowClass}
+              >
+                <Icon className="size-4 shrink-0 text-node-muted" />
+                <span className="truncate">
+                  {tNode(`addCatalog.items.${item.labelKey}.label`)}
+                </span>
+              </button>
+            )
+          })}
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -909,7 +1003,12 @@ function ShellPanelLayer({
 }
 
 export interface ShellSidePanelsProps {
-  /** `null` = 三个面板都收着（只剩图标栏）。 */
+  /**
+   * 画布里还留不留自己那条图标栏。≥1024 那几颗长在全站侧栏「画布」下面（owner
+   * 2026-10-08），画布里只剩面板；768–1023 全站侧栏不在，栏留着兜底。
+   */
+  readonly railVisible: boolean
+  /** `null` = 面板都收着（只剩图标栏）。 */
   readonly activePanel: CanvasShellPanelId | null
   onActivePanelChange(panel: CanvasShellPanelId | null): void
   /** 节点一览的搜索词（与 ⌘K 同一份词，⛔ 不各存一份）。 */
@@ -923,9 +1022,16 @@ export interface ShellSidePanelsProps {
   readonly placedCharacterIds: ReadonlySet<string>
   /** 点一位角色：不在画布上 = 放到视口中央；已在 = 定位到她。 */
   onPlaceCharacter(card: CharacterCardRecord): void
+  /** 「添加节点」里点一项 —— 与 ⌘K 同一个落点（视口中央）。 */
+  onAddNode(intentId: CanvasAddIntentId): void
+  /** 「当前项目」那一格的内容（`ShellProjectList`，与项目胶囊弹层同一份）。 */
+  readonly projectPanel: React.ReactNode
+  /** 「历史对话」那一格的内容（`CanvasAssistantHistoryPanel`）。 */
+  readonly historyPanel: React.ReactNode
 }
 
 export function ShellSidePanels({
+  railVisible,
   activePanel,
   onActivePanelChange,
   nodeQuery,
@@ -934,6 +1040,9 @@ export function ShellSidePanels({
   onPlaceMedia,
   placedCharacterIds,
   onPlaceCharacter,
+  onAddNode,
+  projectPanel,
+  historyPanel,
 }: ShellSidePanelsProps) {
   const t = useTranslations('StudioNode.shell.panels')
   const close = useCallback(
@@ -957,12 +1066,15 @@ export function ShellSidePanels({
   const moving = phase === 'opening' || phase === 'closing'
 
   const titleByPanel: Record<CanvasShellPanelId, string> = {
+    [CANVAS_SHELL_PANEL_IDS.addNode]: t('addNode'),
     [CANVAS_SHELL_PANEL_IDS.nodes]: t('nodes'),
+    [CANVAS_SHELL_PANEL_IDS.project]: t('project'),
+    [CANVAS_SHELL_PANEL_IDS.history]: t('history'),
     [CANVAS_SHELL_PANEL_IDS.cards]: t('cards'),
     [CANVAS_SHELL_PANEL_IDS.library]: t('library'),
   }
 
-  /** 三格图标按钮 —— 选中底块与形状的起点都从它们身上量，⛔ 不在 render 里猜。 */
+  /** 兜底栏上的图标按钮 —— 选中底块与形状的起点都从它们身上量，⛔ 不在 render 里猜。 */
   const railSlots = useRef<
     Partial<Record<CanvasShellPanelId, HTMLButtonElement | null>>
   >({})
@@ -1015,14 +1127,16 @@ export function ShellSidePanels({
 
   /**
    * ── 选中底块 ──────────────────────────────────────────────────────────
-   * 一块底在三格之间滑；上下两条边各走一根弹簧（前进方向那条 `lead`、另一条
+   * 一块底在栏上几格之间滑；上下两条边各走一根弹簧（前进方向那条 `lead`、另一条
    * `trail`），途中自然拉长。开 / 收只淡入淡出（图标状态切换那一档 `fast`）。
+   * ⚠ 开着的是入口在底栏的那几格（角色 / 素材库）时栏上没有它的格子：底块淡出；从那几格
+   *   切回栏上某格 = 当作从全收起来点开（直接落位、只淡入），⛔ 从上一次的格子滑过来。
    */
   const indicatorTop = useMotionValue(0)
   const indicatorBottom = useMotionValue<number>(
     CANVAS_SHELL_LAYOUT.iconButtonPx,
   )
-  const indicatorOpacity = useMotionValue(activePanel === null ? 0 : 1)
+  const indicatorOpacity = useMotionValue(inRail(activePanel) ? 1 : 0)
   const indicatorHeight = useTransform(
     () => indicatorBottom.get() - indicatorTop.get(),
   )
@@ -1038,6 +1152,10 @@ export function ShellSidePanels({
       indicatorOpacity.jump(0)
       return
     }
+    if (!inRail(shown)) {
+      animate(indicatorOpacity, 0, motionTransition('fast', reducedMotion))
+      return
+    }
     const top = railSlots.current[shown]?.offsetTop ?? 0
     const bottom = top + CANVAS_SHELL_LAYOUT.iconButtonPx
     const visible = phase === 'closing' ? 0 : 1
@@ -1047,14 +1165,17 @@ export function ShellSidePanels({
       indicatorOpacity.jump(visible)
       return
     }
-    if (previous.phase === 'closed' || previous.shown === null) {
+    if (
+      previous.phase === 'closed' ||
+      previous.shown === null ||
+      !inRail(previous.shown)
+    ) {
       // 从全收起来点开：底块直接落在那一格，只淡入（⛔ 不从上一次的格子滑过来）。
       indicatorTop.jump(top)
       indicatorBottom.jump(bottom)
     } else if (previous.shown !== shown) {
       const down =
-        CANVAS_SHELL_PANELS.indexOf(shown) >
-        CANVAS_SHELL_PANELS.indexOf(previous.shown)
+        RAIL_PANELS.indexOf(shown) > RAIL_PANELS.indexOf(previous.shown)
       animate(
         indicatorBottom,
         bottom,
@@ -1099,8 +1220,21 @@ export function ShellSidePanels({
     const strip = CANVAS_SHELL_LAYOUT.panelTitleStripPx
     const width = CANVAS_SHELL_LAYOUT.panelWidthPx
     const height = panel.offsetHeight
-    const slot = railSlots.current[origin]
-    const row = slot ? slot.getBoundingClientRect().top - panelTop : 0
+    // 起点：兜底栏上那一格；栏上没有（≥1024，或入口在底栏的那几格）就按属性找全站
+    // 侧栏 / 底栏上那一颗。
+    const slot =
+      (railVisible ? railSlots.current[origin] : null) ??
+      document.querySelector<HTMLElement>(
+        `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
+      )
+    // 侧栏那一颗可能高过面板顶（面板从顶栏下面起）、底栏那一颗低过面板底：夹进面板里，
+    // ⛔ 从面板外长出来。
+    const row = slot
+      ? Math.min(
+          Math.max(0, slot.getBoundingClientRect().top - panelTop),
+          Math.max(0, height - icon),
+        )
+      : 0
     const stripTop = row + icon / 2 - strip / 2
     const stripBottom = stripTop + strip
     const titleRow = titleRowRef.current
@@ -1219,6 +1353,7 @@ export function ShellSidePanels({
     phase,
     from,
     origin,
+    railVisible,
     reducedMotion,
     shapeTop,
     shapeRight,
@@ -1245,48 +1380,50 @@ export function ShellSidePanels({
 
   return (
     <>
-      <div
-        data-testid="shell-side-rail"
-        style={{
-          top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
-          left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
-          width: CANVAS_SHELL_LAYOUT.railWidthPx,
-          borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
-        }}
-        className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
-      >
-        {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
-            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
-        <motion.span
-          aria-hidden
-          data-testid="shell-rail-indicator"
-          className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
+      {railVisible ? (
+        <div
+          data-testid="shell-side-rail"
           style={{
-            width: CANVAS_SHELL_LAYOUT.iconButtonPx,
-            height: indicatorHeight,
-            y: indicatorTop,
-            opacity: indicatorOpacity,
-            borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
+            top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
+            left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+            width: CANVAS_SHELL_LAYOUT.railWidthPx,
+            borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
           }}
-        />
-        {CANVAS_SHELL_PANELS.map((panel) => (
-          <ShellIconButton
-            key={panel}
-            ref={(element) => {
-              railSlots.current[panel] = element
+          className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
+        >
+          {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
+            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
+          <motion.span
+            aria-hidden
+            data-testid="shell-rail-indicator"
+            className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
+            style={{
+              width: CANVAS_SHELL_LAYOUT.iconButtonPx,
+              height: indicatorHeight,
+              y: indicatorTop,
+              opacity: indicatorOpacity,
+              borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
             }}
-            icon={PANEL_ICONS[panel]}
-            label={titleByPanel[panel]}
-            testId={`shell-rail-${panel}`}
-            active={activePanel === panel}
-            externalActiveSurface
-            tooltipSide="right"
-            onClick={() =>
-              onActivePanelChange(activePanel === panel ? null : panel)
-            }
           />
-        ))}
-      </div>
+          {SHELL_NAV_CANVAS_ENTRIES.map(({ id: panel, icon }) => (
+            <ShellIconButton
+              key={panel}
+              ref={(element) => {
+                railSlots.current[panel] = element
+              }}
+              icon={icon}
+              label={titleByPanel[panel]}
+              testId={`shell-rail-${panel}`}
+              active={activePanel === panel}
+              externalActiveSurface
+              tooltipSide="right"
+              onClick={() =>
+                onActivePanelChange(activePanel === panel ? null : panel)
+              }
+            />
+          ))}
+        </div>
+      ) : null}
 
       {phase === 'closed' || shown === null ? null : (
         <div
@@ -1294,8 +1431,10 @@ export function ShellSidePanels({
             top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
             left:
               CANVAS_SHELL_LAYOUT.edgeInsetPx +
-              CANVAS_SHELL_LAYOUT.railWidthPx +
-              CANVAS_SHELL_LAYOUT.panelGapPx,
+              (railVisible
+                ? CANVAS_SHELL_LAYOUT.railWidthPx +
+                  CANVAS_SHELL_LAYOUT.panelGapPx
+                : 0),
             bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
             width: CANVAS_SHELL_LAYOUT.panelWidthPx,
             ...(moving ? { filter: MOVING_SHADOW_FILTER } : {}),
@@ -1331,11 +1470,23 @@ export function ShellSidePanels({
                   title={titleByPanel[panel]}
                   onClose={close}
                 >
-                  {panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
+                  {panel === CANVAS_SHELL_PANEL_IDS.addNode ? (
+                    <ShellAddPanel
+                      onAddNode={onAddNode}
+                      onUpload={onUpload}
+                      onPickFromLibrary={() =>
+                        onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)
+                      }
+                    />
+                  ) : panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
                     <CastDock
                       query={nodeQuery}
                       onQueryChange={onNodeQueryChange}
                     />
+                  ) : panel === CANVAS_SHELL_PANEL_IDS.project ? (
+                    projectPanel
+                  ) : panel === CANVAS_SHELL_PANEL_IDS.history ? (
+                    historyPanel
                   ) : panel === CANVAS_SHELL_PANEL_IDS.cards ? (
                     <ShellCardsPanel
                       placedCharacterIds={placedCharacterIds}

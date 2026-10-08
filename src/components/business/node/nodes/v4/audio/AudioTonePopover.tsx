@@ -17,7 +17,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Input } from '@/components/ui/input'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   VOICE_MARKUP_EMOTIONS,
   VOICE_MARKUP_INTENSITIES,
@@ -136,25 +136,19 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
         <span className="text-3xs tracking-node-sec text-muted-foreground">
           {t('intensityLabel')}
         </span>
-        <ToggleGroup
-          type="single"
-          variant="segmented"
+        {/* A1 分段条（owner 2026-10-08 画布换皮）。 */}
+        <LiquidSegmented
+          items={VOICE_MARKUP_INTENSITIES.map((item) => ({
+            value: item.id,
+            label: t(`intensities.${item.id}`),
+          }))}
           value={intensity}
-          aria-label={t('intensityLabel')}
-          onValueChange={(next) => {
-            if (next) setIntensity(next as VoiceMarkupIntensity)
-          }}
-        >
-          {VOICE_MARKUP_INTENSITIES.map((item) => (
-            <ToggleGroupItem
-              key={item.id}
-              value={item.id}
-              data-tone-intensity={item.id}
-            >
-              {t(`intensities.${item.id}`)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+          onChange={setIntensity}
+          ariaLabel={t('intensityLabel')}
+          semantics="radio"
+          size="sm"
+          fill
+        />
       </div>
 
       {/* 自定义描述：S2 的标记**不限于固定集**，锁死下拉会把最强的能力关掉

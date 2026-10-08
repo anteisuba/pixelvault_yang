@@ -1,11 +1,16 @@
 'use client'
 
 import { useCallback, useRef } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { ChevronDown, UserCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
+import { CANVAS_SHELL_SIDEBAR_ENTRY_ATTR } from '@/constants/canvas-shell'
+import { CHIP_POPOVER, SPRING, motionTransition } from '@/constants/motion'
 import {
+  SHELL_NAV_CANVAS_ENTRIES,
+  SHELL_NAV_CANVAS_ITEM_ID,
   SHELL_NAV_SECTIONS,
   isShellNavItemActive,
   type ShellNavItem,
@@ -30,6 +35,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
+import {
+  toggleCanvasShellPanel,
+  useCanvasShellPanel,
+} from '@/hooks/node/use-canvas-shell-panel'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'
@@ -124,6 +133,7 @@ function AppSidebarContent() {
   const t = useTranslations()
   const { isMobile, setOpenMobile, state } = useSidebar()
   const navScopeRef = useRef<HTMLDivElement>(null)
+  const { mounted: canvasMounted } = useCanvasShellPanel()
 
   const indicator = useNavIndicator(navScopeRef, pathname, state)
 
@@ -139,13 +149,10 @@ function AppSidebarContent() {
   const renderItem = (item: ShellNavItem) => {
     const Icon = item.icon
     const label = t(item.labelKey)
+    const active = isShellNavItemActive(item, pathname)
     return (
       <SidebarMenuItem key={item.id}>
-        <SidebarMenuButton
-          asChild
-          isActive={isShellNavItemActive(item, pathname)}
-          tooltip={label}
-        >
+        <SidebarMenuButton asChild isActive={active} tooltip={label}>
           <Link
             href={item.href}
             aria-label={label}
@@ -155,6 +162,9 @@ function AppSidebarContent() {
             <span>{label}</span>
           </Link>
         </SidebarMenuButton>
+        {item.id === SHELL_NAV_CANVAS_ITEM_ID ? (
+          <AppSidebarCanvasEntries visible={active && canvasMounted} />
+        ) : null}
       </SidebarMenuItem>
     )
   }
@@ -196,6 +206,109 @@ function AppSidebarContent() {
         </SidebarGroup>
       ))}
     </SidebarContent>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// 画布子图标 —— 画布自己的左侧图标栏并进来（owner 2026-10-08 画布换皮）
+// ──────────────────────────────────────────────────────────────────────
+
+/** 子图标逐颗晚多少（秒）—— 与列表进场 stagger 同一档。 */
+const CANVAS_ENTRY_STAGGER_S = 0.03
+
+/**
+ * 「画布」下面长出来的子图标（owner 2026-10-08 原型四格：添加节点 / 节点 / 当前项目 /
+ * 历史对话；角色 / 素材库在画布底栏 —— 哪几颗在这里只看 `SHELL_NAV_CANVAS_ENTRIES`）。
+ * 点一颗 = 画布在侧栏旁边打开那一格面板（`ShellSidePanels` 从这一颗所在的那一行长出来），
+ * 再点收起。
+ *
+ * ⚠ 只在画布路由上、画布真的挂着时出现（`useCanvasShellPanel().mounted`）；离开画布
+ *   一起收回。状态与画布共用一份模块级 store，⛔ 侧栏不另存一份「开着哪格」。
+ * ⚠ 每颗都从「画布」那一行往下长出来：0.72 → 1 + 糊变清，`spring-slot`，逐颗晚 30ms；
+ *   收回只淡出（`duration-fast`）。选中 = 整颗深一档底（与侧栏 pressed 同一档）+
+ *   `aria-pressed`，⛔ 不借激活白浮片（那一块只属于当前路由）。
+ */
+function AppSidebarCanvasEntries({ visible }: { readonly visible: boolean }) {
+  const t = useTranslations()
+  const { activePanel } = useCanvasShellPanel()
+  const reduceMotion = useReducedMotion() ?? false
+
+  return (
+    <AnimatePresence initial={false}>
+      {visible ? (
+        <motion.div
+          key="canvas-entries"
+          data-testid="sidebar-canvas-entries"
+          exit={{ opacity: 0 }}
+          transition={motionTransition('fast', reduceMotion)}
+        >
+          <ul
+            role="group"
+            aria-label={t('StudioTools.tools.node.label')}
+            className="flex flex-col gap-0.5 py-0.5 pl-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pl-0"
+          >
+            {SHELL_NAV_CANVAS_ENTRIES.map((entry, index) => {
+              const Icon = entry.icon
+              const label = t(entry.labelKey)
+              const pressed = activePanel === entry.id
+              return (
+                <li key={entry.id}>
+                  <SidebarMenuButton
+                    asChild
+                    size="sm"
+                    tooltip={label}
+                    className={cn(
+                      'h-8',
+                      pressed &&
+                        'bg-sidebar-accent-strong font-medium text-sidebar-accent-foreground',
+                    )}
+                  >
+                    <motion.button
+                      type="button"
+                      aria-label={label}
+                      aria-pressed={pressed}
+                      {...{ [CANVAS_SHELL_SIDEBAR_ENTRY_ATTR]: entry.id }}
+                      onClick={() => toggleCanvasShellPanel(entry.id)}
+                      initial={
+                        reduceMotion
+                          ? { opacity: 0 }
+                          : {
+                              opacity: 0,
+                              scale: CHIP_POPOVER.fromScale,
+                              filter: `blur(${CHIP_POPOVER.blurPx}px)`,
+                            }
+                      }
+                      animate={
+                        reduceMotion
+                          ? { opacity: 1 }
+                          : {
+                              opacity: 1,
+                              scale: 1,
+                              filter: 'blur(0px)',
+                              transitionEnd: { filter: 'none' },
+                            }
+                      }
+                      transition={
+                        reduceMotion
+                          ? motionTransition('fast', true)
+                          : {
+                              ...SPRING.slot,
+                              delay: index * CANVAS_ENTRY_STAGGER_S,
+                            }
+                      }
+                      style={{ transformOrigin: 'top center' }}
+                    >
+                      <Icon />
+                      <span>{label}</span>
+                    </motion.button>
+                  </SidebarMenuButton>
+                </li>
+              )
+            })}
+          </ul>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   )
 }
 

@@ -239,7 +239,7 @@ describe('SpecChip · 附加段', () => {
 })
 
 describe('SpecChip · 画布 compact', () => {
-  it('画布图片 chip 从下方展开 304px 弹层：比例 · 清晰度 · 张数', () => {
+  it('画布图片 chip 从下方展开 360px 弹层（与图片台同宽）：比例 · 清晰度 · 张数', () => {
     render(
       <StudioChipDensityProvider value="compact">
         <SpecChip
@@ -262,7 +262,7 @@ describe('SpecChip · 画布 compact', () => {
     expect(chip.className).toContain('bg-surface-fill')
     expect(chip.className).toContain('h-7')
     const popover = document.querySelector('[data-spec-chip-popover]')
-    expect(popover?.className).toContain('w-76')
+    expect(popover?.className).toContain('w-90')
     expect(popover).toHaveAttribute('data-side', 'bottom')
     const labels = Array.from(popover?.querySelectorAll('span') ?? [])
       .map((node) => node.textContent)
@@ -278,6 +278,14 @@ describe('SpecChip · 画布 compact', () => {
       'moreItem.batchCount',
     ])
     expect(popover?.querySelectorAll('[role="radio"]')).toHaveLength(9)
+    // owner 2026-10-08 画布换皮：画布也是 A1 分段条（与图片台同一颗），比例格带小形状。
+    const groups = popover?.querySelectorAll('[role="radiogroup"]') ?? []
+    expect(groups).toHaveLength(3)
+    const ratioOne = Array.from(
+      groups[0]?.querySelectorAll('[role="radio"]') ?? [],
+    ).find((node) => node.textContent === '1:1')
+    expect(ratioOne).toHaveAttribute('aria-checked', 'true')
+    expect(ratioOne?.querySelector('span[aria-hidden]')).not.toBeNull()
   })
 
   it('选张数先回传新值，160ms 后收起弹层', () => {
@@ -305,7 +313,7 @@ describe('SpecChip · 画布 compact', () => {
       const chip = openChip()
       const countTwo = Array.from(
         document.querySelectorAll('[data-spec-chip-popover] [role="radio"]'),
-      ).find((node) => node.textContent === '2') as HTMLElement
+      ).find((node) => node.textContent === '×2') as HTMLElement
       fireEvent.click(countTwo)
       expect(onCountChange).toHaveBeenCalledWith(2)
       expect(chip).toHaveAttribute('data-spec-chip-state', 'open')

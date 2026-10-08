@@ -8,7 +8,7 @@
  * 走，拖动时实时更新、松手后留在原位；段标题右侧只显**合计价**（秒 × 该渠道每秒
  * 单价），⛔ 不再写「5 s ·」那一段 —— 秒数已经在气泡上了。
  *
- * ⚠ ≤3 档的模型（Veo 4 / 6 / 8 s）退回三颗按钮：三档并排一眼比完，做成滑条反而要
+ * ⚠ ≤3 档的模型（Veo 4 / 6 / 8 s）退回一条 A1 分段条：三档并排一眼比完，做成滑条反而要
  * 拖两下才知道中间那档是几秒。
  *
  * ⚠ 气泡的水平位置按**拇指实际行程**算，不是按轨道全宽：拇指在两端会各差半个身位
@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl'
 
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import { cn } from '@/lib/utils'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Slider } from '@/components/ui/slider'
 
 /** 超过这个档数才用滚动条（owner 批注 41：「只有 ≤3 档的模型退回按钮」）。 */
@@ -33,9 +34,6 @@ export interface SpecDurationFieldProps {
   readonly compact?: boolean
   onChange(seconds: number): void
 }
-
-const buttonBaseClass =
-  'inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 text-xs transition-colors duration-fast ease-standard md:h-7.5'
 
 export function SpecDurationField({
   durations,
@@ -80,54 +78,25 @@ export function SpecDurationField({
   )
 
   if (durations.length <= SPEC_DURATION_SLIDER_THRESHOLD) {
+    // 三档以内是 A1 分段条（与比例 / 清晰度同一颗，owner 2026-10-08）。
     return (
       <div className={cn('flex flex-col', compact ? 'gap-0' : 'gap-1.5')}>
         {header}
-        <div
-          className={cn(
-            'flex flex-wrap',
-            compact
-              ? 'mb-3 gap-0.5 rounded-lg bg-surface-fill p-0.75'
-              : 'gap-1.5',
-          )}
-        >
-          {durations.map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={current === value}
-              aria-disabled={disabled}
-              onClick={() => {
-                if (disabled) return
-                onChange(value)
-              }}
-              className={cn(
-                compact
-                  ? 'inline-flex h-7 min-w-0 flex-1 items-center justify-center px-1 text-xs transition-colors duration-fast ease-standard'
-                  : buttonBaseClass,
-                compact
-                  ? current === value
-                    ? 'bg-popover font-medium text-foreground'
-                    : 'text-muted-foreground hover:bg-surface-fill-hover'
-                  : current === value
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-foreground hover:border-foreground/40',
-              )}
-              style={
-                compact
-                  ? {
-                      borderRadius: 'calc(var(--radius-node-bar) / 2)',
-                      ...(current === value
-                        ? { boxShadow: '0 1px 2px rgb(0 0 0 / 0.08)' }
-                        : {}),
-                    }
-                  : undefined
-              }
-            >
-              {t('durationSeconds', { seconds: value })}
-            </button>
-          ))}
+        <div className={cn('flex', compact && 'mb-3')}>
+          <LiquidSegmented
+            items={durations.map((value) => ({
+              value: String(value),
+              label: t('durationSeconds', { seconds: value }),
+            }))}
+            value={String(current)}
+            onChange={(next) => onChange(Number(next))}
+            ariaLabel={t('durationLabel')}
+            disabled={disabled}
+            semantics="radio"
+            size="sm"
+            fill
+            className="h-8"
+          />
         </div>
       </div>
     )

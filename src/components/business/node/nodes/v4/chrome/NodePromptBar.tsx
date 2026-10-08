@@ -32,6 +32,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { useTranslations } from 'next-intl'
 import { ArrowUp, Plus, X } from '@/components/icons'
+import { CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX } from '@/constants/canvas-shell'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { CHIP_POPOVER, DURATION, EASE_IN, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
@@ -68,8 +69,8 @@ export interface NodePromptBarProps {
   readonly chips?: readonly ReactNode[]
   /** `+` 的菜单项（用 `DropdownMenuItem` 拼）。不给就不渲染 `+`。 */
   readonly addMenu?: ReactNode
-  /** 画布侧栏开启时，菜单也要避开同一块安全区。 */
-  readonly sidebarOpen?: boolean
+  /** 安全区左界（`canvasShellSafeLeftPx`）：「+」菜单也要避开同一块安全区。 */
+  readonly safeLeftPx?: number
   /**
    * chip 与发送钮之间那一格（画板 `DesignD2Spec` 的「画布提示词栏 · 结果」：
    * 模型 chip · 规格 chip · 竖线 · 声音图标 · 竖线 · 生成）。
@@ -146,7 +147,7 @@ export function NodePromptBar({
   placeholder,
   chips,
   addMenu,
-  sidebarOpen = false,
+  safeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX,
   trailing,
   leadingRow,
   slotRow,
@@ -273,7 +274,7 @@ export function NodePromptBar({
         if (open) {
           const stage = addTriggerRef.current?.closest('.react-flow')
           const bounds = stage?.getBoundingClientRect()
-          const left = sidebarOpen ? 346 : 72
+          const left = safeLeftPx
           setMenuCollisionPadding(
             bounds && bounds.width > 0 && bounds.height > 0
               ? {

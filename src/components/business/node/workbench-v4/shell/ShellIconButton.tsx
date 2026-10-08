@@ -18,7 +18,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
+import {
+  CANVAS_SHELL_LAYOUT,
+  CANVAS_SHELL_SIDEBAR_ENTRY_ATTR,
+  type CanvasShellPanelId,
+} from '@/constants/canvas-shell'
 import { cn } from '@/lib/utils'
 
 export interface ShellIconButtonProps {
@@ -35,6 +39,11 @@ export interface ShellIconButtonProps {
   readonly externalActiveSurface?: boolean
   /** 标签在哪一边（竖排的左侧栏给 `right`；贴边时 Radix 自己翻面）。 */
   readonly tooltipSide?: 'top' | 'right' | 'bottom' | 'left'
+  /**
+   * 这颗是哪一格左侧面板的入口（底栏的角色 / 素材库）：挂上
+   * `CANVAS_SHELL_SIDEBAR_ENTRY_ATTR`，面板的液态开合据它找到从哪一颗长出来。
+   */
+  readonly panelEntry?: CanvasShellPanelId
   readonly ref?: Ref<HTMLButtonElement>
   onClick(): void
 }
@@ -47,6 +56,7 @@ export function ShellIconButton({
   testId,
   externalActiveSurface = false,
   tooltipSide = 'top',
+  panelEntry,
   ref,
   onClick,
 }: ShellIconButtonProps) {
@@ -61,6 +71,9 @@ export function ShellIconButton({
             aria-pressed={active}
             disabled={disabled}
             data-testid={testId}
+            {...(panelEntry
+              ? { [CANVAS_SHELL_SIDEBAR_ENTRY_ATTR]: panelEntry }
+              : {})}
             onClick={onClick}
             style={{
               width: CANVAS_SHELL_LAYOUT.iconButtonPx,

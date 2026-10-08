@@ -259,7 +259,8 @@ function PaneMenuLayer({
       animate={grow.motionSet.animate}
       exit={grow.motionSet.exit}
       className={cn(
-        'pointer-events-auto absolute z-canvas-transient rounded-xl border border-node-panel-inner bg-node-panel p-1.5 text-node-foreground shadow-node-menu',
+        // 右键空白菜单是只放图标与短词的浮层：玻璃（owner 2026-10-08 画布换皮，v2 §1 第 12 条）。
+        'canvas-glass pointer-events-auto absolute z-canvas-transient rounded-xl p-1.5 text-node-foreground',
         !grow.present && 'pointer-events-none',
       )}
     >

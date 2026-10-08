@@ -19,7 +19,14 @@
  * `types/studio-operator-history.ts`：那个类型装不下 inverse。
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
@@ -231,6 +238,42 @@ export interface UseStudioOperatorHistoryResult {
   retrySave(): Promise<boolean>
   deletingSessionId: string | null
   deleteSession(session: AssistantConversationSummary): Promise<boolean>
+}
+
+/**
+ * 挂着的那位操作员的历史，**只读地**递给面板外的落点（画布左侧「历史对话」那一格，
+ * owner 2026-10-08 原型四格）。
+ *
+ * ⚠ 会话引擎只有一份：仍是 `StudioOperatorDock` 里那一次 `useStudioOperatorHistory`
+ *   （水化、自动落库、载回都在它身上）。这里只把它的结果发布出来，⛔ 别在画布里再调
+ *   一次 `useStudioOperatorHistory` —— 第二个实例会再认领一次作用域、再挂一条落库防抖。
+ */
+let publishedHistory: UseStudioOperatorHistoryResult | null = null
+const publishedListeners = new Set<() => void>()
+
+function publishHistory(next: UseStudioOperatorHistoryResult | null): void {
+  if (publishedHistory === next) return
+  publishedHistory = next
+  publishedListeners.forEach((listener) => listener())
+}
+
+function subscribePublishedHistory(listener: () => void): () => void {
+  publishedListeners.add(listener)
+  return () => {
+    publishedListeners.delete(listener)
+  }
+}
+
+const getPublishedHistory = () => publishedHistory
+const getServerPublishedHistory = () => null
+
+/** 当前挂着的操作员历史；没有操作员在场时是 `null`。 */
+export function useStudioOperatorHistoryView(): UseStudioOperatorHistoryResult | null {
+  return useSyncExternalStore(
+    subscribePublishedHistory,
+    getPublishedHistory,
+    getServerPublishedHistory,
+  )
 }
 
 export function useStudioOperatorHistory({
@@ -623,18 +666,44 @@ export function useStudioOperatorHistory({
     [applyConversation, workspaceKey],
   )
 
-  return {
-    sessions,
-    currentSessionId: sessionId,
-    isHydrating,
-    loadingSessionId,
-    renamingSessionId,
-    renameSession,
-    error: saveFailed ? t('saveFailed') : error,
-    selectSession,
-    refreshSessions,
-    retrySave: save,
-    deletingSessionId,
-    deleteSession,
-  }
+  const visibleError = saveFailed ? t('saveFailed') : error
+  const result = useMemo<UseStudioOperatorHistoryResult>(
+    () => ({
+      sessions,
+      currentSessionId: sessionId,
+      isHydrating,
+      loadingSessionId,
+      renamingSessionId,
+      renameSession,
+      error: visibleError,
+      selectSession,
+      refreshSessions,
+      retrySave: save,
+      deletingSessionId,
+      deleteSession,
+    }),
+    [
+      sessions,
+      sessionId,
+      isHydrating,
+      loadingSessionId,
+      renamingSessionId,
+      renameSession,
+      visibleError,
+      selectSession,
+      refreshSessions,
+      save,
+      deletingSessionId,
+      deleteSession,
+    ],
+  )
+
+  useEffect(() => {
+    publishHistory(result)
+    return () => {
+      if (publishedHistory === result) publishHistory(null)
+    }
+  }, [result])
+
+  return result
 }

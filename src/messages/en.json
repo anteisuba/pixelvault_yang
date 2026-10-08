@@ -526,7 +526,8 @@
     "loraTrainingSubmitted": "LoRA training started",
     "loraTrainingSubmitFailed": "Couldn't start LoRA training",
     "loraTrainingComplete": "LoRA training is complete. Your model is ready to use.",
-    "loraTrainingFailed": "LoRA training failed"
+    "loraTrainingFailed": "LoRA training failed",
+    "signedIn": "Signed in"
   },
   "Projects": {
     "title": "Projects",
@@ -1377,7 +1378,31 @@
     "subtitle": "Sign in or create an account to continue",
     "terms": "By continuing you agree to our <terms>terms of service</terms> and <privacy>privacy policy</privacy>.",
     "backHome": "Back to home",
-    "close": "Close"
+    "close": "Close",
+    "continueWith": "Continue with {provider}",
+    "lastUsed": "Last used",
+    "or": "or",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "Enter your email address",
+    "continue": "Continue",
+    "sending": "Sending",
+    "redirecting": "Redirecting to {provider}",
+    "codeSentTo": "Code sent to <b>{email}</b>",
+    "changeEmail": "Use a different email",
+    "codeLabel": "Verification code",
+    "verifying": "Verifying",
+    "signedIn": "Signed in",
+    "resendIn": "Didn't get it? Resend in <seconds></seconds>s",
+    "resendPrompt": "Didn't get it?",
+    "resend": "Resend",
+    "errors": {
+      "emailInvalid": "That email address doesn't look right",
+      "codeIncorrect": "That code isn't right — try again",
+      "codeExpired": "That code has expired — send a new one",
+      "tooManyAttempts": "Too many tries — wait a moment and try again",
+      "providerUnavailable": "This sign-in option isn't available right now",
+      "generic": "That didn't work — try again"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "Studio",

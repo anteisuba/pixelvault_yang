@@ -6,7 +6,6 @@ const zhClerk = {
   ...zhCN,
   formFieldInputPlaceholder__firstName: '名字',
   formFieldInputPlaceholder__lastName: '姓氏',
-  formFieldInputPlaceholder__password: '输入密码',
 } as const satisfies typeof zhCN
 
 export const CLERK_LOCALIZATIONS = {

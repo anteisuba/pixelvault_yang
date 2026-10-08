@@ -6,12 +6,13 @@ import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
 import { AuthCard } from '@/components/business/auth/AuthCard'
+import { AuthFlow } from '@/components/business/auth/AuthFlow'
 import { getPathname, Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 
 interface SignUpPageProps {
-  params: Promise<{ locale: AppLocale }>
+  params: Promise<{ locale: AppLocale; 'sign-up'?: string[] }>
 }
 
 export async function generateMetadata({
@@ -31,9 +32,13 @@ export async function generateMetadata({
  * point here, not because anything on the site links to it — the one door in
  * the header opens the dialog. Same card as `/sign-in`, so a visitor who lands
  * on either sees one window, not two different pages.
+ *
+ * Same split as `/sign-in`: the bare route runs our own one-door flow, and the
+ * sub-routes (`continue` when the dashboard asks for more fields,
+ * `verify-email-address`, `sso-callback`) stay with Clerk's prebuilt `<SignUp>`.
  */
 export default async function SignUpPage({ params }: SignUpPageProps) {
-  const { locale } = await params
+  const { locale, 'sign-up': subPath } = await params
   const t = await getTranslations({ locale, namespace: 'Auth' })
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
   const signInPath = getPathname({ locale, href: ROUTES.SIGN_IN })
@@ -50,14 +55,18 @@ export default async function SignUpPage({ params }: SignUpPageProps) {
         }
         description={<p className="auth-subtitle">{t('subtitle')}</p>}
       >
-        <SignUp
-          path={signUpPath}
-          routing="path"
-          signInUrl={signInPath}
-          fallbackRedirectUrl={studioPath}
-          signInFallbackRedirectUrl={studioPath}
-          appearance={clerkAuthAppearance}
-        />
+        {subPath?.length ? (
+          <SignUp
+            path={signUpPath}
+            routing="path"
+            signInUrl={signInPath}
+            fallbackRedirectUrl={studioPath}
+            signInFallbackRedirectUrl={studioPath}
+            appearance={clerkAuthAppearance}
+          />
+        ) : (
+          <AuthFlow />
+        )}
       </AuthCard>
 
       <Link href={ROUTES.HOME} className="auth-page-back">

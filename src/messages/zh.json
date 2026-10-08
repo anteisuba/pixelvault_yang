@@ -526,7 +526,8 @@
     "loraTrainingSubmitted": "LoRA 训练已开始",
     "loraTrainingSubmitFailed": "LoRA 训练启动失败",
     "loraTrainingComplete": "LoRA 训练完成！模型已可使用。",
-    "loraTrainingFailed": "LoRA 训练失败"
+    "loraTrainingFailed": "LoRA 训练失败",
+    "signedIn": "已登录"
   },
   "Projects": {
     "title": "项目",
@@ -1377,7 +1378,31 @@
     "subtitle": "登录或注册以继续",
     "terms": "继续即代表你同意我们的<terms>服务条款</terms>与<privacy>隐私政策</privacy>。",
     "backHome": "返回首页",
-    "close": "关闭"
+    "close": "关闭",
+    "continueWith": "使用 {provider} 登录",
+    "lastUsed": "上次用的",
+    "or": "或者",
+    "emailLabel": "邮箱地址",
+    "emailPlaceholder": "输入你的邮箱地址",
+    "continue": "继续",
+    "sending": "发送中",
+    "redirecting": "正在跳转 {provider}",
+    "codeSentTo": "验证码已发到 <b>{email}</b>",
+    "changeEmail": "换邮箱",
+    "codeLabel": "验证码",
+    "verifying": "验证中",
+    "signedIn": "已登录",
+    "resendIn": "没收到？<seconds></seconds> 秒后可重新发送",
+    "resendPrompt": "没收到？",
+    "resend": "重新发送",
+    "errors": {
+      "emailInvalid": "邮箱格式不对",
+      "codeIncorrect": "验证码不对，再试一次",
+      "codeExpired": "验证码过期了，重新发一个",
+      "tooManyAttempts": "试太多次了，稍等一会儿再试",
+      "providerUnavailable": "这个登录方式暂时用不了",
+      "generic": "没成功，再试一次"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "工作台",

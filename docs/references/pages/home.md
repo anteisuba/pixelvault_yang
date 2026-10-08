@@ -174,7 +174,7 @@ owner 确认首页整体设计不变，仅修上下滚动。竖向翻页保留�
 
 ## 相邻域
 
-登录页（`/sign-in` `/sign-up`）**不共享**本域皮肤：它有自己的 `src/app/auth.css`（`.auth-surface`），文案挂自己的 `Auth` 命名空间，载体 `AuthCard.tsx` 与 `AuthDialog` 是同一张卡。首页顶栏的登录按钮登录前后长得一样、只换目标，为的是边缘缓存的页面不必等 Clerk 才能画。
+登录页（`/sign-in` `/sign-up`）**不共享**本域皮肤：它有自己的 `src/app/auth.css`（`.auth-surface`），文案挂自己的 `Auth` 命名空间，载体 `AuthCard.tsx` 与 `AuthDialog` 是同一张卡。首页顶栏的登录按钮登录前后长得一样、只换目标，为的是边缘缓存的页面不必等 Clerk 才能画。卡里的流程、动效、Google 一键框（挂在首页的 `AuthDialogProvider` 里）与 Clerk 后台设置见 [`auth.md`](auth.md)。
 
 ## 已知缺口
 

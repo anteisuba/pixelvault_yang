@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
+import { AuthArrivalToast } from '@/components/business/auth/AuthArrivalToast'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileShell } from '@/components/layout/MobileShell'
@@ -54,6 +55,9 @@ export default async function MainLayout({
           </SidebarProvider>
         </MainProviders>
         <Toaster />
+        {/* After the Toaster on purpose: sibling effects run in order, so the
+            bar is subscribed before the first「已登录」is pushed. */}
+        <AuthArrivalToast />
       </NextIntlClientProvider>
     </div>
   )

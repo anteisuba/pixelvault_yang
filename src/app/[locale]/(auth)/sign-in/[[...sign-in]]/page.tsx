@@ -6,12 +6,13 @@ import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
 import { AuthCard } from '@/components/business/auth/AuthCard'
+import { AuthFlow } from '@/components/business/auth/AuthFlow'
 import { getPathname, Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { clerkAuthAppearance } from '@/lib/clerk-appearance'
 
 interface SignInPageProps {
-  params: Promise<{ locale: AppLocale }>
+  params: Promise<{ locale: AppLocale; 'sign-in'?: string[] }>
 }
 
 export async function generateMetadata({
@@ -35,11 +36,14 @@ export async function generateMetadata({
  * identical card rather than the two-column marketing page it used to be
  * (docs/references/pages/home.md §A8).
  *
- * `withSignUp` matches the dialog: one door, and Clerk works out whether the
- * address it is given is new.
+ * The bare `/sign-in` renders our own flow (`AuthFlow`), the same one the
+ * dialog runs. Every sub-route — `sso-callback` after Google / GitHub / Apple,
+ * `factor-two`, anything an email link points at — still goes to Clerk's
+ * prebuilt `<SignIn>`, which knows how to pick up an attempt already in flight
+ * (docs/references/pages/auth.md「为什么自建」).
  */
 export default async function SignInPage({ params }: SignInPageProps) {
-  const { locale } = await params
+  const { locale, 'sign-in': subPath } = await params
   const t = await getTranslations({ locale, namespace: 'Auth' })
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
   const signInPath = getPathname({ locale, href: ROUTES.SIGN_IN })
@@ -56,15 +60,19 @@ export default async function SignInPage({ params }: SignInPageProps) {
         }
         description={<p className="auth-subtitle">{t('subtitle')}</p>}
       >
-        <SignIn
-          path={signInPath}
-          routing="path"
-          withSignUp
-          signUpUrl={signUpPath}
-          fallbackRedirectUrl={studioPath}
-          signUpFallbackRedirectUrl={studioPath}
-          appearance={clerkAuthAppearance}
-        />
+        {subPath?.length ? (
+          <SignIn
+            path={signInPath}
+            routing="path"
+            withSignUp
+            signUpUrl={signUpPath}
+            fallbackRedirectUrl={studioPath}
+            signUpFallbackRedirectUrl={studioPath}
+            appearance={clerkAuthAppearance}
+          />
+        ) : (
+          <AuthFlow />
+        )}
       </AuthCard>
 
       <Link href={ROUTES.HOME} className="auth-page-back">

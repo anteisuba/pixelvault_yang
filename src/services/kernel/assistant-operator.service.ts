@@ -10071,6 +10071,72 @@ function operatorStepBudget(request: AssistantOperatorRequest): number {
  * ⭐ 讨论的回答与反问卡同一轮出 —— ⛔ 卡不能顶掉回答：只出一张卡，用户读到的
  * 就只剩选项。生成确认卡同理（D12 S5：回答必有收尾那句）。
  */
+const CARD_FALLBACK_WORD: Record<PromptAssistantResponseLanguage, string> = {
+  english: 'default',
+  japanese: '既定',
+  chinese: '默认',
+}
+
+/**
+ * **收尾按卡说话**（owner 2026-10-08：模型说「4K、max」，卡上是 1K、high）。
+ *
+ * 卡前那句话是模型凭记忆写的，它记的是自己的打算，不是落下来的值。这里拿确认卡的
+ * 实际值逐项对一遍：话里提到同一字段的**别的**档位，就换成卡上的；卡上没设（走模型
+ * 默认）而话里说了具体档位，就换成「默认」。⛔ 不改措辞，只换那几个词；换过就记一行日志。
+ */
+function reconcileClosingWithCard(
+  message: string | undefined,
+  card: AssistantOperatorGenerationRequest,
+  language: PromptAssistantResponseLanguage,
+): string | undefined {
+  if (!message?.trim()) return message
+  let text = message
+  const fixes: { field: string; said: string; actual: string }[] = []
+  const swap = (
+    field: string,
+    pattern: RegExp,
+    actual: string | null | undefined,
+    same: (token: string) => boolean,
+  ) => {
+    const replacement = actual ?? CARD_FALLBACK_WORD[language]
+    text = text.replace(pattern, (token) => {
+      if (actual !== null && actual !== undefined && same(token)) return token
+      fixes.push({ field, said: token, actual: replacement })
+      return replacement
+    })
+  }
+  const specs = card.specs
+  swap(
+    'resolution',
+    /\b[1248][kK]\b/g,
+    specs.resolution,
+    (token) => token.toUpperCase() === String(specs.resolution).toUpperCase(),
+  )
+  swap(
+    'quality',
+    /\b(?:very_low|low|medium|high|xhigh|max)\b/g,
+    specs.quality,
+    (token) => token === specs.quality,
+  )
+  swap(
+    'aspectRatio',
+    /\b\d{1,2}:\d{1,2}\b/g,
+    specs.aspectRatio,
+    (token) => token === specs.aspectRatio,
+  )
+  text = text.replace(
+    /(\d+)(\s*张)/g,
+    (whole, digits: string, unit: string) => {
+      if (Number(digits) === card.count) return whole
+      fixes.push({ field: 'count', said: digits, actual: String(card.count) })
+      return `${card.count}${unit}`
+    },
+  )
+  if (fixes.length)
+    logger.warn('assistant closing contradicted the confirm card', { fixes })
+  return text
+}
+
 function* messageBeforeCard(
   message: string | undefined,
 ): Generator<AssistantOperatorEvent> {
@@ -12797,7 +12863,13 @@ async function* runOperatorTurn(
          * ⭐ 卡前先说那一句收尾（D12 S5：回答必有收尾那句）—— 这是工具轮，
          *   平常不吐正文；但这一轮就停在这张卡上了，不说就再也没机会说。
          */
-        yield* messageBeforeCard(turn.message)
+        yield* messageBeforeCard(
+          reconcileClosingWithCard(
+            turn.message,
+            plan.request,
+            resolveResponseLanguage(request, persona),
+          ),
+        )
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.confirm,
           confirm: {

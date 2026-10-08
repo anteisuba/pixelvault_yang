@@ -2277,6 +2277,88 @@ describe('read_state', () => {
     })
   })
 
+  it('收尾按卡说话：话里的档位和确认卡不一致就换成卡上的（owner 2026-10-08）', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+        title: '提交生成确认',
+        args: { target: 'card' },
+      },
+      message: '按站立全身的 3:4、4K、max 画质出 2 张，确认卡在下面。',
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          responseLanguage: 'chinese',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'card',
+                      name: '黑长袜',
+                      kind: 'image',
+                      subtype: 'character',
+                      text: 'A full-body portrait.',
+                      model: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+                      availableModels: [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE],
+                      referenceUrls: [],
+                      referencePromptContext: '',
+                      reviewContextComplete: true,
+                      parameters: {
+                        values: {
+                          aspectRatio: '9:16',
+                          resolution: '1K',
+                          quality: 'high',
+                          count: 1,
+                        },
+                        options: {
+                          aspectRatio: ['3:4', '9:16'],
+                          resolution: ['1K', '2K', '4K'],
+                          quality: ['high', 'max'],
+                          count: [1, 2],
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const said = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+    )
+    expect(said).toMatchObject({
+      text: '按站立全身的 9:16、1K、high 画质出 1 张，确认卡在下面。',
+    })
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: expect.objectContaining({
+          request: expect.objectContaining({
+            specs: expect.objectContaining({
+              resolution: '1K',
+              quality: 'high',
+            }),
+          }),
+        }),
+      }),
+    )
+  })
+
   describe('画布一批 op（canvas_batch）', () => {
     function boardRequest() {
       return buildRequest({

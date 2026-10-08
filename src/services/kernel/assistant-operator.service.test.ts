@@ -2541,6 +2541,74 @@ describe('read_state', () => {
         },
       })
     }
+    it('整批都是画布上已经有的改动：静默退回并说明，⛔ 不再落一次', async () => {
+      const request = boardRequest()
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      shot.nodes[1] = {
+        ...shot.nodes[1]!,
+        model: 'gpt-image-2.5-flare',
+        inputs: [{ slot: 'reference', from: 'source-image', edgeId: 'e1' }],
+      }
+      queueTurns(
+        batch([
+          {
+            op: 'set_model',
+            target: 'edit-image',
+            modelId: 'gpt-image-2.5-flare',
+          },
+          {
+            op: 'connect',
+            source: 'source-image',
+            target: 'edit-image',
+            slot: 'reference',
+          },
+        ]),
+        { finished: true, message: '都已经在了。' },
+      )
+      const events = await collect(runAssistantOperator('clerk-1', request))
+      const [step] = stepsOf(events)
+      expect(step).toMatchObject({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+        status: 'error',
+        draft: true,
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },
+      })
+      expect(toolRingCalls()[1].userPrompt).toContain('Already on the board')
+      expect(events.at(-1)).toMatchObject({ type: 'done' })
+    })
+
+    it('批里混着已有的改动：跳过它们，其余照常落', async () => {
+      const request = boardRequest()
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      shot.nodes[1] = { ...shot.nodes[1]!, model: 'gpt-image-2.5-flare' }
+      const fresh = {
+        op: 'connect',
+        source: 'source-image',
+        target: 'edit-image',
+        slot: 'reference',
+      }
+      queueTurns(
+        batch([
+          {
+            op: 'set_model',
+            target: 'edit-image',
+            modelId: 'gpt-image-2.5-flare',
+          },
+          fresh,
+        ]),
+      )
+      const events = await collect(runAssistantOperator('clerk-1', request))
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+          status: 'done',
+          payload: { ops: [fresh] },
+        }),
+      )
+    })
+
     it('read_state 点名超过上限时先读前面的，其余留到下一步，⛔ 不整步退回', async () => {
       const request = boardRequest()
       const shot = request.snapshot.canvas!.shots[0]!

@@ -241,35 +241,35 @@ describe('buildCanvasOperatorSnapshot', () => {
     })
     expect(snapshotNode(snapshot, 'existing-23')).toBeDefined()
     const shot = snapshot.shots[0]
-    expect(shot.expanded && shot.nodes).toHaveLength(24)
+    expect(shot.expanded && shot.nodes).toHaveLength(25)
     expect(
       AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
     ).toBe(true)
   })
 
   it('截取快照时优先保留选中节点、新节点及其实际输入，余量取最近节点', () => {
-    const nodes = Array.from({ length: 40 }, (_, index) =>
+    const nodes = Array.from({ length: 60 }, (_, index) =>
       imageNode(`node-${index}`, undefined),
     )
     const snapshot = buildCanvasOperatorSnapshot({
       nodes,
       edges: [
         edge('selected-ref', 'node-1', 'node-0'),
-        edge('new-ref', 'node-2', 'node-39'),
+        edge('new-ref', 'node-2', 'node-59'),
       ],
       currentShotNo: null,
       selectedNodeIds: ['node-0'],
     })
 
-    for (const id of ['node-0', 'node-1', 'node-2', 'node-38', 'node-39']) {
+    for (const id of ['node-0', 'node-1', 'node-2', 'node-58', 'node-59']) {
       expect(snapshotNode(snapshot, id), id).toBeDefined()
     }
     expect(snapshotNode(snapshot, 'node-3')).toBeUndefined()
-    expect(snapshotNode(snapshot, 'node-39')?.inputs).toEqual([
+    expect(snapshotNode(snapshot, 'node-59')?.inputs).toEqual([
       { slot: 'reference', from: 'node-2', edgeId: 'new-ref' },
     ])
     const shot = snapshot.shots[0]
-    expect(shot.expanded && shot.nodes).toHaveLength(24)
+    expect(shot.expanded && shot.nodes).toHaveLength(40)
   })
 
   it('视频目录的全部候选进入快照时仍满足请求契约', () => {

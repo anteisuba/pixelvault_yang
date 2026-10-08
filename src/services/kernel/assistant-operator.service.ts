@@ -7556,6 +7556,53 @@ async function checkCanvasReferencePrompt(
 const NO_BATCH_REFS: ReadonlySet<string> = new Set()
 
 /**
+ * 这条改动画布上**已经是这样了** —— 返回一句说明，否则 `null`。
+ *
+ * 2026-10-08 真机：画布到了 34 张卡、四五万 token 时，模型在长长的状态里读漏了卡上的
+ * `model`，把「给四张卡设模型」整批成功落了四次（每次落地都换一个请求，同类失败闸
+ * 只数失败、不数这种成功的空转）。⭐ 判据只看快照里的事实，⛔ 不猜意图。
+ */
+function canvasNoOpReason(
+  canvas: AssistantOperatorCanvasSnapshot,
+  op: NodeAssistantOpV4,
+): string | null {
+  const nodeOf = (id: string) =>
+    canvas.shots
+      .flatMap((shot) => (shot.expanded ? shot.nodes : []))
+      .find((node) => node.id === id)
+  if (op.op === NODE_ASSISTANT_OP_V4_IDS.setModel) {
+    const node = nodeOf(op.target)
+    return node?.model === op.modelId
+      ? `${node.name} already uses ${op.modelId}`
+      : null
+  }
+  if (op.op === NODE_ASSISTANT_OP_V4_IDS.connect) {
+    const node = nodeOf(op.target)
+    return node?.inputs?.some(
+      (input) => input.from === op.source && input.slot === op.slot,
+    )
+      ? `${node.name} already has ${op.source} in its ${op.slot} slot`
+      : null
+  }
+  if (op.op === NODE_ASSISTANT_OP_V4_IDS.setParams) {
+    const node = nodeOf(op.target)
+    const values = node?.parameters?.values as
+      | Record<string, unknown>
+      | undefined
+    if (!node || !values) return null
+    return Object.entries(op.params).every(
+      ([key, value]) => value === undefined || values[key] === value,
+    )
+      ? `${node.name} already has those settings`
+      : null
+  }
+  return null
+}
+
+const CANVAS_NO_OP_DETAIL =
+  'Already on the board, nothing changed: {list}. Do not send these again — read the board once more if unsure, then continue with what is still missing or finish.'
+
+/**
  * **一批 op 一次落图**（owner 2026-10-08：每条 `canvas_apply` 一个来回，建一张卡要五趟）。
  *
  * 逐条过 `planCanvasApply` 的全部检查（确认档的问句、参数值域、写词前的参考要点与图例），
@@ -7573,7 +7620,14 @@ async function planCanvasBatch(
     ),
   )
   const payload: NodeAssistantOpV4[] = []
+  const alreadyThere: string[] = []
+  const canvas = run.state.canvas
   for (const [index, op] of ops.entries()) {
+    const noOp = canvas ? canvasNoOpReason(canvas, op) : null
+    if (noOp) {
+      alreadyThere.push(noOp)
+      continue
+    }
     if (
       (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt ||
         op.op === NODE_ASSISTANT_OP_V4_IDS.setParams) &&
@@ -7600,12 +7654,23 @@ async function planCanvasBatch(
     }
     return plan
   }
+  if (payload.length === 0) {
+    return {
+      kind: 'rejected',
+      reason: REJECT.repeatedStep,
+      detail: clamp(
+        CANVAS_NO_OP_DETAIL.replace('{list}', alreadyThere.join('; ')),
+        LIMITS.maxReasonChars,
+      ),
+      quiet: true,
+    }
+  }
   const first = payload.flatMap((op) => canvasOpTargets(op))[0]
   return {
     kind: 'mutate',
     payload: { ops: payload },
     inverse: { op: 'batch', nodeRef: first ?? 'batch' },
-    observation: `Queued ${payload.length} operations on the board as one batch (${payload.map((op) => op.op).join(', ')}). They land on the creator's canvas now; the fresh board arrives with the next step — cards created here get their real ids there.`,
+    observation: `Queued ${payload.length} operations on the board as one batch (${payload.map((op) => op.op).join(', ')}). They land on the creator's canvas now; the fresh board arrives with the next step — cards created here get their real ids there.${alreadyThere.length ? ` Skipped ${alreadyThere.length} already on the board: ${alreadyThere.join('; ')}.` : ''}`,
     apply: () => {},
   }
 }
@@ -9113,6 +9178,19 @@ async function planTool(
       )
     // ── 画布三条（进度表 22）────────────────────────────────────
     case TOOL.canvasApply:
+      const noOp = run.state.canvas
+        ? canvasNoOpReason(run.state.canvas, parsed.data as NodeAssistantOpV4)
+        : null
+      if (noOp)
+        return {
+          kind: 'rejected',
+          reason: REJECT.repeatedStep,
+          detail: clamp(
+            CANVAS_NO_OP_DETAIL.replace('{list}', noOp),
+            LIMITS.maxReasonChars,
+          ),
+          quiet: true,
+        }
       return planCanvasApply(run, parsed.data as NodeAssistantOpV4, userId)
     case TOOL.canvasBatch:
       return planCanvasBatch(

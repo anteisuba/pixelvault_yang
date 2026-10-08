@@ -2174,8 +2174,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   expandAllShotsUpToNodes: 60,
   /** 其余每镜只出一行标题 —— 整张画布最多列这么多行。 */
   maxShotLines: 60,
-  /** 一面展开的镜里最多列几个节点。 */
-  maxNodesPerShot: 24,
+  /** 一面展开的镜里最多列几个节点（散卡那一组常常最大：角色、场景、资产都在里面）。 */
+  maxNodesPerShot: 40,
   /** 画布保留节点选择器的模型目录；视频目录已超过通用快照的 24 项。 */
   maxAvailableModels: 64,
   maxParameterOptions: 64,

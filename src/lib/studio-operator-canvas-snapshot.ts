@@ -469,6 +469,11 @@ export function buildCanvasOperatorSnapshot({
         ...new Set(
           [
             ...shotNodes.filter((node) => focusedNodeIds.has(node.id)),
+            // 剧本 / 文本卡是整组的骨架：⛔ 别因为它建得最早就被新卡挤出去（10-08 真机：
+            // 散卡到了 25 张，剧本卡掉出了快照）。
+            ...shotNodes.filter(
+              (node) => node.data.kind === NODE_MEDIA_KIND_IDS.text,
+            ),
             ...shotNodes.filter((node) => inputNodeIds.has(node.id)),
             ...shotNodes.toReversed(),
           ].map((node) => node.id),

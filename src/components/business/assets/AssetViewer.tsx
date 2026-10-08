@@ -50,6 +50,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { RollingNumber } from '@/components/ui/rolling-number'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import { getFolderMembershipsAPI } from '@/lib/api-client/projects'
@@ -76,6 +80,8 @@ interface AssetViewerProps {
   onFoldersChanged: (memberships: Record<string, string[]>) => void
   onFoldersUndone: () => void
   onDeleted: (id: string) => void
+  /** 撤销删除：把这一张放回原处（删除先在界面上生效，5 秒后才落库）。 */
+  onRestored: (generation: GenerationRecord) => void
   onUpdated: (id: string, patch: Partial<GenerationRecord>) => void
   /** 音频封面回退链算出的那一张（与瓦片同一张）。 */
   audioCoverUrl?: string
@@ -126,10 +132,13 @@ function AssetViewerAside({
   onFoldersChanged,
   onFoldersUndone,
   onDeleted,
+  onRestored,
   onUpdated,
 }: AssetViewerProps) {
   const api = useInPlaceViewer()
   const t = useTranslations('AssetsPage')
+  const tFeedback = useTranslations('Feedback')
+  const downloadFeedback = useButtonFeedback()
   const tPrompts = useTranslations('PromptLibrary')
   const format = useFormatter()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -146,6 +155,7 @@ function AssetViewerAside({
       else api.requestClose()
     },
     onDeleted,
+    onRestored,
     onUpdated,
   })
 
@@ -313,9 +323,16 @@ function AssetViewerAside({
         >
           {generation.isPublic ? t('viewer.published') : t('viewer.publish')}
         </button>
-        <button
-          type="button"
-          onClick={() => void actions.download()}
+        {/* 下载的结果在键上说（owner 2026-10-08「提示与弹窗」第 1 题 B）：键拉长变黑
+            写「✓ 已开始下载」，1.6 秒后缩回，⛔ 弹条。 */}
+        <FeedbackButton
+          feedback={downloadFeedback.feedback}
+          onClick={() =>
+            void actions.download().then((started) => {
+              if (started)
+                downloadFeedback.show({ label: tFeedback('downloadStarted') })
+            })
+          }
           disabled={actions.isDownloading}
           aria-label={
             actions.isDownloading ? t('detailDownloading') : t('detailDownload')
@@ -328,7 +345,7 @@ function AssetViewerAside({
           ) : (
             <Download className="size-3.5" aria-hidden />
           )}
-        </button>
+        </FeedbackButton>
         <DropdownMenu
           open={menuOpen}
           onOpenChange={(open) => {
@@ -378,7 +395,8 @@ function AssetViewerAside({
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuSeparator />
-            {/* 删除要点两次（原型 J）：第一次原地变成黑底「确认删除」、菜单不关；再点才删。 */}
+            {/* 删除要点两次：第一次原地变成红底「确认删除」、菜单不关；再点才删（owner 2026-10-08
+                「提示与弹窗」第 2 题 B）。删掉之后这一张连同查看器一起消失，「撤销」在底部黑条上。 */}
             <DropdownMenuItem
               variant="destructive"
               onSelect={(event) => {
@@ -392,7 +410,7 @@ function AssetViewerAside({
               }}
               disabled={actions.isDeleting}
               data-armed={confirmDelete || undefined}
-              className="rounded-xl transition-[background-color,color] duration-fast ease-standard data-[armed]:justify-center data-[armed]:bg-foreground data-[armed]:text-background data-[armed]:focus:bg-foreground data-[armed]:focus:text-background"
+              className="rounded-xl transition-[background-color,color] duration-fast ease-standard data-[armed]:justify-center data-[armed]:bg-destructive data-[armed]:text-destructive-foreground data-[armed]:focus:bg-destructive data-[armed]:focus:text-destructive-foreground"
             >
               <BlurSwap
                 swapKey={confirmDelete ? 'armed' : 'idle'}

@@ -5,6 +5,8 @@ import { AlertTriangle, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { useErrorRecoveryReveal } from '@/hooks/use-error-recovery-reveal'
 
 interface Props {
   children: ReactNode
@@ -17,7 +19,10 @@ interface State {
   error: Error | null
 }
 
-/** Inner FC that can use hooks for i18n */
+/**
+ * 出错块（owner 2026-10-08「提示与弹窗」第 3 题 B）：与空态同一个模板，图标角一颗
+ * 红点，⛔ 整块不变红。重试是同步的（重置边界），救回来的内容由糊变清。
+ */
 function ErrorFallback({
   section,
   errorMessage,
@@ -28,27 +33,29 @@ function ErrorFallback({
   onReset: () => void
 }) {
   const t = useTranslations('ErrorBoundary')
+  const { ref, markRetrying } = useErrorRecoveryReveal<HTMLDivElement>()
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-status-risk/20 bg-status-risk-surface p-6 text-center">
-      <AlertTriangle className="size-6 text-destructive/60" />
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">
-          {section ? t('sectionError', { section }) : t('title')}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {errorMessage ?? t('description')}
-        </p>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onReset}
-        className="rounded-full text-xs"
-      >
-        <RotateCcw className="size-3" />
-        {t('retry')}
-      </Button>
+    <div ref={ref}>
+      <EmptyState
+        tone="error"
+        icon={<AlertTriangle />}
+        title={section ? t('sectionError', { section }) : t('title')}
+        description={errorMessage ?? t('description')}
+        action={
+          <Button
+            size="sm"
+            onClick={() => {
+              markRetrying()
+              onReset()
+            }}
+            className="rounded-full"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            {t('retry')}
+          </Button>
+        }
+      />
     </div>
   )
 }

@@ -51,6 +51,8 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-api-keys.ts` — User API key management
 - `use-civitai-token.ts` — Civitai integration token
 - `use-usage-summary.ts` — Credit usage display
+- `use-toast-lift.ts` — 贴底输入框（工作台输入框卡 / 手机固定输入条 / 画布底栏）挂上它，底部黑条（toast）就浮在它上面（改写 `--toast-offset-bottom`）
+- `use-error-recovery-reveal.ts` — 出错块点重试且救回来时，让原位长出来的内容由糊变清（出错块卸下时动它的父元素）
 - `use-audio-model-options.ts` / `use-image-model-options.ts` — Model option lists；`use-studio-mode-model-options.ts` 按当前档（图片 / 视频 / 音频）取其一，⛔ 不带生成副作用（要模型清单别去挂 `useStudioGenerateAction`）
 - `use-lora-training.ts` — LoRA training jobs
 - `use-my-profile.ts` / `use-creator-profile.ts` — Profile data

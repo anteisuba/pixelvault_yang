@@ -15,6 +15,7 @@
  * ⛔ 不是两颗各自瞬间换底色。
  */
 
+import { useRef } from 'react'
 import { useReactFlow, useStore } from '@xyflow/react'
 import { motion, useReducedMotion, useTransform } from 'motion/react'
 import {
@@ -36,6 +37,7 @@ import {
 import { SPRING } from '@/constants/motion'
 import { SHELL_CANVAS_BOTTOM_ENTRIES } from '@/constants/navigation'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useToastLift } from '@/hooks/use-toast-lift'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_TOOL_MODE_IDS,
@@ -78,9 +80,13 @@ export function ShellBottomBar({
   const handActive = toolMode === NODE_STUDIO_TOOL_MODE_IDS.hand
   // 助手推开画布时（方向 B），底栏跟着可见画布居中：往左挪让位量的一半。
   const shift = useTransform(useStudioOperatorYield(), (value) => -value / 2)
+  // 底部黑条（全站 toast）浮在这条底栏之上（owner 2026-10-08「提示与弹窗」）。
+  const barRef = useRef<HTMLDivElement>(null)
+  useToastLift(barRef)
 
   return (
     <motion.div
+      ref={barRef}
       data-testid="shell-bottom-bar"
       style={{
         bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,

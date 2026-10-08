@@ -18,7 +18,7 @@ primitive → semantic → domain/component → page
 ## CSS 与 token 现状
 
 - 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层，**唯一挂根 `layout.tsx` 的样式表**）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css` / `src/app/lora.css` / `src/app/voiceroom.css` / `src/app/auth.css`（域内局部，令牌一律写在域根上**不准写 `:root`**）。
-- **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`voiceroom.css` → `VoiceRoomPage.tsx`；`legal.css` → `LegalPage.tsx` + `not-found.tsx`。
+- **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`voiceroom.css` → `VoiceRoomPage.tsx`；`legal.css` → `LegalPage.tsx`（`not-found.tsx` 2026-10-08 起走空态模板，不再引 legal.css）。
 - ⚠ **canvas.css 泄漏的那一小部分留在 `globals.css` 脊柱上**（皮肤当年写 `:root` 的代价，2026-09-03 下沉时按真实消费者逐条查证后拆分，别搬回去也别两边各留一份）：
   - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`、`node/CanvasAssistantReferencePicker`（由 `prompts/PromptAssistantPanel` 渲染）在画布路由之外读它们。
   - `.node-canvas-panel-motion`——`StudioAssistantDock` / `LoraAssistantDock` 两个域外 dock 也挂这个类。
@@ -76,22 +76,22 @@ primitive → semantic → domain/component → page
 
 ### 覆层行为矩阵 — 强约定
 
-| 场景                          | 用什么                                                                                                                                                                              |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 桌面居中弹窗 ↔ 手机底部抽屉   | **ResponsiveDialog**（勿 `defaultOpen`）                                                                                                                                            |
-| 锚定 Popover ↔ 触屏紧凑态抽屉 | **ResponsivePopover**；窄视口 + fine pointer 仍走 Popover，保持触发器可重复关闭                                                                                                     |
-| Studio 当前工具面板           | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板                                                                                              |
-| 选素材                        | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                                                                                                                     |
-| 选模型                        | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）；`layout="columns"` = 三列居中 Dialog（系列 / 型号 / 渠道，支持多选），`"drill"` = 原逐级下钻，移动端只能用 drill |
-| 缺 API key                    | **选模型**、**出图等动作** → 都就地弹 `QuickSetupDialog`，选模型验证通过才选上（Hard Rule 8：不禁用 UI，⛔ 跳页）                                                                   |
-| 确认 / 危险操作               | `confirm-dialog` / `alert-dialog`                                                                                                                                                   |
-| Toast                         | sonner（`Toaster` 已挂主布局 top-right，业务代码直接 `import { toast } from 'sonner'`）                                                                                             |
+| 场景                          | 用什么                                                                                                                                                                                                                                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 桌面居中弹窗 ↔ 手机底部抽屉   | **ResponsiveDialog**（勿 `defaultOpen`）                                                                                                                                                                                                                                                      |
+| 锚定 Popover ↔ 触屏紧凑态抽屉 | **ResponsivePopover**；窄视口 + fine pointer 仍走 Popover，保持触发器可重复关闭                                                                                                                                                                                                               |
+| Studio 当前工具面板           | `studio-shared/primitives/tool-surface`；只作为 Studio 现有行为/实现，不是跨域外观模板                                                                                                                                                                                                        |
+| 选素材                        | `AssetSelectorDialog`（约 39 处引用；单/多选、mediaType、上限）                                                                                                                                                                                                                               |
+| 选模型                        | `MainModelPicker`（约 44 处）/ `BaseModelPickerPanel`（约 29 处）；`layout="columns"` = 三列居中 Dialog（系列 / 型号 / 渠道，支持多选），`"drill"` = 原逐级下钻，移动端只能用 drill                                                                                                           |
+| 缺 API key                    | **选模型**、**出图等动作** → 都就地弹 `QuickSetupDialog`，选模型验证通过才选上（Hard Rule 8：不禁用 UI，⛔ 跳页）                                                                                                                                                                             |
+| 确认 / 危险操作               | 能撤销的小删除（删图、删对话、删一条记忆）→ `feedback-button` 的 `ConfirmDeleteButton`（键拉长成红色「确认删除」，再点才删）；删了找不回的大事（删密钥 / 项目 / 注销）→ `confirm-dialog`（`alert-dialog` 自带从按下的位置长到正中；`confirmPhrase` 要求先打字）。规则见 `ui-defaults.md` §7.1 |
+| Toast / 键上结果              | 点按钮得到的结果 → `FeedbackButton` + `useButtonFeedback`（键拉长变黑写结果，1.6 秒缩回）；后台跑完的 → sonner 底部正中黑条（`Toaster` 挂主布局，业务代码照旧 `import { toast } from 'sonner'`；底部输入框用 `useToastLift` 把它抬高；可撤销的删除走 `lib/undoable-action`）                  |
 
 ### `ui/` 原语分类（58 文件，2026-07-10 清点）
 
 - **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · param-slider · seed-input
 - **覆层**：dialog · sheet · drawer(vaul) · responsive-dialog · responsive-popover · popover（带交互守卫）· alert-dialog · confirm-dialog · dropdown-menu · tooltip（delay 0）· command(cmdk)
-- **反馈**：skeleton（单一 pulse 原语）· progress · badge · error-alert · sonner
+- **反馈**：skeleton（单一 pulse 原语）· progress · badge · error-alert · sonner（底部黑条）· feedback-button（键上结果 / 两段删除）· empty-state（空态 / 出错 / 404 同一模板）
 - **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare · tree-view · collapsible-panel · animated-collapse
 - **输入复合**：prompt-input（约 41 处）· placeholders-input · image-drop-zone · reference-image-section
 - **装饰/动效**：blur-fade · hyper-text · number-ticker · particles · pulsating-button · brand-mark；使用时验证任务价值、性能与 reduced-motion，不因存在而默认复用

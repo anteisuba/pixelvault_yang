@@ -2925,9 +2925,6 @@
     "detailUnfavorited": "已取消收藏",
     "detailFavoriteFailed": "操作失败",
     "detailDelete": "删除",
-    "detailDeleteCancel": "取消",
-    "detailDeleteConfirmTitle": "确认删除该素材？",
-    "detailDeleteConfirmDescription": "删除后文件将从你的存档中永久移除，无法恢复。",
     "detailDeleted": "已删除",
     "detailDeleteFailed": "删除失败",
     "densityLabel": "密度",
@@ -3302,10 +3299,6 @@
     "openOriginal": "查看原图",
     "backToGallery": "返回画廊",
     "delete": "删除",
-    "deleteConfirmTitle": "确定删除此作品？",
-    "deleteConfirmDescription": "此作品及其存储文件将被永久删除，此操作不可恢复。",
-    "deleteCancel": "取消",
-    "deleteConfirm": "永久删除",
     "referenceImageLabel": "参考图",
     "copyPrompt": "复制提示词",
     "promptCopied": "已复制！",
@@ -4243,6 +4236,12 @@
     "conversationDone": "优化后的提示词已就绪！",
     "startFailed": "启动对话失败",
     "responseFailed": "获取回复失败"
+  },
+  "Feedback": {
+    "notifications": "通知",
+    "downloadStarted": "已开始下载",
+    "deleteConfirm": "确认删除",
+    "undo": "撤销"
   },
   "ErrorBoundary": {
     "title": "出了点问题",

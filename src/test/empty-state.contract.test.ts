@@ -23,6 +23,10 @@ const PRIMITIVE = 'src/components/ui/empty-state.tsx'
 /** 用了原语的落点。改这张表 = 改全站空态的名册，要连文档一起改。 */
 const LANDING_POINTS = [
   'src/app/[locale]/(main)/dev/ui-states/UiStateGallery.tsx',
+  // 404 与出错也走同一个模板（owner 2026-10-08「提示与弹窗」第 3 题 B）。
+  'src/app/[locale]/not-found.tsx',
+  'src/components/business/RouteErrorState.tsx',
+  'src/components/business/studio-shared/chrome/StudioErrorBoundary.tsx',
   'src/components/business/GalleryGrid.tsx',
   'src/components/business/KreaAssetBrowser.tsx',
   'src/components/business/assets/AssetStateBlocks.tsx',

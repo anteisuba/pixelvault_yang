@@ -46,4 +46,25 @@ describe('EmptyState', () => {
     render(<EmptyState title="还没有训练过模型" />)
     expect(screen.queryByText(/先挑个预设/)).not.toBeInTheDocument()
   })
+
+  it('error tone keeps the same frame and only puts a red dot on the icon corner', () => {
+    const { container } = render(
+      <EmptyState
+        tone="error"
+        icon={<svg data-testid="icon" />}
+        title="加载失败"
+        description="已加载的内容不会丢失。"
+      />,
+    )
+    expect(container.firstElementChild).toHaveAttribute('data-tone', 'error')
+    expect(container.firstElementChild?.className).toContain('border-dashed')
+    expect(screen.getByTestId('empty-state-error-dot')).toBeInTheDocument()
+  })
+
+  it('empty tone has no red dot', () => {
+    render(<EmptyState icon={<svg />} title="还没有训练过模型" />)
+    expect(
+      screen.queryByTestId('empty-state-error-dot'),
+    ).not.toBeInTheDocument()
+  })
 })

@@ -68,6 +68,7 @@ function renderViewer(
       onFoldersChanged={vi.fn()}
       onFoldersUndone={vi.fn()}
       onDeleted={vi.fn()}
+      onRestored={vi.fn()}
       onUpdated={vi.fn()}
     />,
   )

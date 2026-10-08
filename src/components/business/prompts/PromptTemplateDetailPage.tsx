@@ -442,7 +442,6 @@ export function PromptTemplateDetailPage({
               </Button>
             )}
             <CopyPromptButton
-              quiet
               prompt={compiledPrompt}
               label={source ? t('copyTagsAction') : t('copyPromptAction')}
               className={pill}

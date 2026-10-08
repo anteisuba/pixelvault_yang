@@ -27,8 +27,12 @@ import {
   type MediaTransitionOrigin,
 } from '@/components/business/MediaDetailViewer'
 import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
-import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  ConfirmDeleteButton,
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
 import { ROUTES } from '@/constants/routes'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -63,6 +67,8 @@ export interface AssetDetailContentProps {
   onFoldersUndone?: () => void
   /** Called after a successful delete so the parent can prune the grid + refresh counts. */
   onDeleted?: (id: string) => void
+  /** 给了 = 删除可撤销（底部黑条「撤销」，见 `useAssetDetailActions`）。 */
+  onRestored?: (generation: GenerationRecord) => void
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
   transitionOrigin?: MediaTransitionOrigin | null
@@ -90,11 +96,14 @@ export function AssetDetailContent({
   onFoldersChanged,
   onFoldersUndone,
   onDeleted,
+  onRestored,
   onUpdated,
   transitionOrigin,
   imageNavigation,
 }: AssetDetailContentProps) {
   const t = useTranslations('AssetsPage')
+  const tFeedback = useTranslations('Feedback')
+  const downloadFeedback = useButtonFeedback()
   const tCommon = useTranslations('Common')
   const tPrompts = useTranslations('PromptLibrary')
   const router = useRouter()
@@ -130,6 +139,7 @@ export function AssetDetailContent({
       onOpenChange?.(false)
     },
     onDeleted,
+    onRestored,
     onUpdated,
   })
   const {
@@ -155,18 +165,26 @@ export function AssetDetailContent({
   const previewUrl = getGenerationPreviewUrl(generation)
   const toolbarActions = (
     <>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={() => void actions.download()}
+      {/* 下载的结果在键上说：拉长变黑「✓ 已开始下载」，1.6 秒后缩回。 */}
+      <FeedbackButton
+        feedback={downloadFeedback.feedback}
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          'rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+        )}
+        onClick={() =>
+          void actions.download().then((started) => {
+            if (started)
+              downloadFeedback.show({ label: tFeedback('downloadStarted') })
+          })
+        }
         disabled={isDownloading}
         aria-label={
           isDownloading ? t('detailDownloading') : t('detailDownload')
         }
       >
         <Download className="size-4" />
-      </Button>
+      </FeedbackButton>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -350,30 +368,21 @@ export function AssetDetailContent({
             )}
           </Button>
         )}
-        <ConfirmDialog
-          title={t('detailDeleteConfirmTitle')}
-          description={t('detailDeleteConfirmDescription')}
-          cancelLabel={t('detailDeleteCancel')}
-          confirmLabel={t('detailDelete')}
-          variant="destructive"
-          onConfirm={actions.remove}
-          trigger={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-auto text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
-              aria-label={t('detailDelete')}
-              title={t('detailDelete')}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <Spinner size="md" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
-            </Button>
-          }
-        />
+        {/* 删一张图是能撤销的小事（owner 2026-10-08「提示与弹窗」第 2 题 B）：键拉长成
+            红色「确认删除」，再点才删；点别处 / 3 秒缩回。⛔ 正中弹窗。 */}
+        <ConfirmDeleteButton
+          confirmLabel={tFeedback('deleteConfirm')}
+          onConfirm={() => void actions.remove()}
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'icon' }),
+            'ml-auto text-status-risk hover:bg-status-risk-surface hover:text-status-risk',
+          )}
+          aria-label={t('detailDelete')}
+          title={t('detailDelete')}
+          disabled={isDeleting}
+        >
+          {isDeleting ? <Spinner size="md" /> : <Trash2 className="size-4" />}
+        </ConfirmDeleteButton>
       </div>
       <SearchGroundingPublishNote
         id="asset-detail-publish-note"

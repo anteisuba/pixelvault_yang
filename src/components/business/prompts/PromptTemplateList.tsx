@@ -401,7 +401,6 @@ function PromptTemplateCard({
           )}
         >
           <CopyPromptButton
-            quiet
             prompt={recipe.compiledPrompt}
             label={t('copyShort')}
             className="h-7.5 rounded-full px-3 text-2sm"

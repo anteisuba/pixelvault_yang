@@ -366,6 +366,7 @@ export function KreaAssetBrowser({
     setFilters,
     removeGeneration,
     prependGeneration,
+    insertGeneration,
     updateGeneration,
   } = useGallery({
     initialGenerations,
@@ -609,13 +610,27 @@ export function KreaAssetBrowser({
     setSelectionMode(true)
     setSelectedIds(new Set([id]))
   }, [])
+  /** 删掉的那一张原来排第几（撤销时放回原处，owner 2026-10-08「提示与弹窗」）。 */
+  const deletedIndexRef = useRef(new Map<string, number>())
   const handleAssetDeleted = useCallback(
     (id: string) => {
+      const index = generations.findIndex((g) => g.id === id)
+      if (index >= 0) deletedIndexRef.current.set(id, index)
       clearGalleryCache()
       removeGeneration(id)
       void refreshCounts()
     },
-    [removeGeneration, refreshCounts],
+    [generations, removeGeneration, refreshCounts],
+  )
+  const handleAssetRestored = useCallback(
+    (generation: GenerationRecord) => {
+      const index = deletedIndexRef.current.get(generation.id) ?? 0
+      deletedIndexRef.current.delete(generation.id)
+      clearGalleryCache()
+      insertGeneration(generation, index)
+      void refreshCounts()
+    },
+    [insertGeneration, refreshCounts],
   )
 
   const selectAllVisible = useCallback(() => {
@@ -2001,6 +2016,7 @@ export function KreaAssetBrowser({
                 <AssetPageError
                   message={galleryError}
                   onRetry={retryGallery}
+                  retrying={isLoading}
                   className="mb-3"
                 />
               )}
@@ -2240,6 +2256,7 @@ export function KreaAssetBrowser({
                   onFoldersChanged={handleMembershipsChanged}
                   onFoldersUndone={handleFolderUndone}
                   onDeleted={handleAssetDeleted}
+                  onRestored={handleAssetRestored}
                   onUpdated={handleAssetUpdated}
                   audioCoverUrl={
                     selectedGeneration.outputType === 'AUDIO'
@@ -2269,6 +2286,7 @@ export function KreaAssetBrowser({
           onFoldersChanged={handleMembershipsChanged}
           onFoldersUndone={handleFolderUndone}
           onDeleted={handleAssetDeleted}
+          onRestored={handleAssetRestored}
           onUpdated={handleAssetUpdated}
           transitionOrigin={selectedOriginRect}
           imageNavigation={

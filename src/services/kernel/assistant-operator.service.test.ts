@@ -4259,6 +4259,8 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
     expect((step.error as { reason: string }).reason).toBe(
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
     )
+    // 形状错是草稿：时间线上灰着，不当成失败给用户看。
+    expect(step.draft).toBe(true)
     expect(mockWebImageSearch).not.toHaveBeenCalled()
   })
 

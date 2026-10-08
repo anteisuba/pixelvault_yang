@@ -8549,10 +8549,20 @@ async function planTool(
       .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
       .join('; ')
     const mounted = loraMountedIdsHint(run, tool)
-    return reject(
-      REJECT.malformedArgs,
-      `${shape ? `${shape} (${issues})` : issues}${mounted}`,
-    )
+    /**
+     * ⭐ 形状错是**同一步的草稿**（owner 2026-10-08：除了安全策略和额度，不该让用户
+     * 看见报错）：退回给模型照着形状重写，时间线上是一行灰色草稿，⛔ 不是红字失败。
+     * 连着两次同样的形状错仍由同类失败闸收尾，不会打转。
+     */
+    return {
+      kind: 'rejected',
+      reason: REJECT.malformedArgs,
+      detail: clamp(
+        `${shape ? `${shape} (${issues})` : issues}${mounted}`,
+        LIMITS.maxReasonChars,
+      ),
+      quiet: true,
+    }
   }
 
   // ⚠ `switch` 上的穷举：工具表加一条而这里没接，编译期就红（见文件末尾的

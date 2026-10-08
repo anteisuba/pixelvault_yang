@@ -8,13 +8,12 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 
 import { ChevronLeft, ChevronRight } from '@/components/icons'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface InPlaceViewerApi {
@@ -49,8 +48,8 @@ interface InPlaceViewerProps<T extends { id: string }> {
   label: string
   /** 瓦片上标着自己 id 的属性名：从那一格长出来、缩回那一格、焦点回到那一格。 */
   tileAttribute: string
-  /** 舞台上那一件的宽高比（外框按它等比放到最大）。 */
-  ratio: number
+  /** 每一件的宽高比（外框按它等比放到最大；翻图时左右邻居也按它摆）。 */
+  ratioOf: (item: T) => number
   /** 视频放在深底上。 */
   darkStage?: boolean
   /** 舞台上的那一件（调用方按 id 换 key，换一张就淡入）。 */
@@ -86,7 +85,7 @@ export function InPlaceViewer<T extends { id: string }>({
   onClose,
   label,
   tileAttribute,
-  ratio,
+  ratioOf,
   darkStage = false,
   media,
   thumbnailOf,
@@ -241,17 +240,16 @@ export function InPlaceViewer<T extends { id: string }>({
         {/* ─── 左：舞台 ─── */}
         <div className="relative flex min-w-0 flex-1 flex-col bg-surface-workbench">
           <div className="flex min-h-0 flex-1 flex-col px-17.5 pb-2 pt-5.5">
-            <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
-              <div
-                style={{ '--studio-fit-ratio': ratio } as CSSProperties}
-                className={cn(
-                  'studio-fit-box relative overflow-hidden rounded-lg shadow-overlay',
-                  darkStage ? 'bg-foreground' : 'bg-muted',
-                )}
-              >
-                {media}
-              </div>
-            </div>
+            <ViewerReel
+              current={current}
+              items={hasRail ? items : [current]}
+              index={hasRail ? index : 0}
+              ratioOf={ratioOf}
+              darkStage={darkStage}
+              media={media}
+              thumbnailOf={thumbnailOf}
+              onNavigate={onNavigate}
+            />
           </div>
           {hasRail ? (
             <>
@@ -273,8 +271,9 @@ export function InPlaceViewer<T extends { id: string }>({
               >
                 <ChevronRight className="size-4" aria-hidden />
               </button>
-              <div
+              <motion.div
                 ref={railRef}
+                layoutScroll
                 className="studio-scrollbar shrink-0 overflow-x-auto px-4 pb-3.5 pt-2.5"
               >
                 <div className="mx-auto flex w-max gap-1.5">
@@ -286,24 +285,37 @@ export function InPlaceViewer<T extends { id: string }>({
                       aria-current={i === index ? 'true' : undefined}
                       onClick={() => onNavigate(item)}
                       className={cn(
-                        'h-11.5 w-8.5 shrink-0 overflow-hidden rounded-md bg-muted transition-[opacity,box-shadow] duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'relative h-11.5 w-8.5 shrink-0 rounded-md transition-opacity duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         i === index
-                          ? 'opacity-100 ring-2 ring-foreground ring-offset-2 ring-offset-surface-workbench'
+                          ? 'opacity-100'
                           : 'opacity-55 hover:opacity-80',
                       )}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element -- 缩略轨是一排 34px 小图，走派生缩略图直链。 */}
-                      <img
-                        src={thumbnailOf(item)}
-                        alt=""
-                        loading="lazy"
-                        draggable={false}
-                        className="size-full object-cover"
-                      />
+                      <span className="block size-full overflow-hidden rounded-md bg-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- 缩略轨是一排 34px 小图，走派生缩略图直链。 */}
+                        <img
+                          src={thumbnailOf(item)}
+                          alt=""
+                          loading="lazy"
+                          draggable={false}
+                          className="size-full object-cover"
+                        />
+                      </span>
+                      {/* 当前那一圈黑框是同一个元素，翻图时弹簧滑到下一格（原型 AC）。 */}
+                      {i === index ? (
+                        <motion.span
+                          aria-hidden
+                          layoutId={`${tileAttribute}:thumb-ring`}
+                          transition={
+                            reducedMotion ? { duration: 0 } : SPRING.slot
+                          }
+                          className="pointer-events-none absolute -inset-1 rounded-lg border-2 border-foreground"
+                        />
+                      ) : null}
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </>
           ) : null}
         </div>
@@ -317,6 +329,134 @@ export function InPlaceViewer<T extends { id: string }>({
           </InPlaceViewerContext.Provider>
         </aside>
       </motion.div>
+    </div>
+  )
+}
+
+/** 邻居离当前那张多远（舞台宽度的比例）、缩多少、淡多少（原型 AC）。 */
+const REEL_STEP = 0.5
+const REEL_NEIGHBOR_SCALE = 0.78
+const REEL_NEIGHBOR_OPACITY = 0.45
+/** 有邻居时当前那张最多占舞台宽的这么多，两边露出邻居。 */
+const REEL_CURRENT_MAX_WIDTH = 0.62
+/** 只摆当前左右各两张，再远的不挂。 */
+const REEL_REACH = 2
+
+/**
+ * 舞台（原型 AC「点开后左右切」，owner 2026-10-08 定「滑过去」）：当前那张居中，左右邻居
+ * 缩小变淡露一点边；翻图时每一张都是同一个元素，按离当前的距离弹簧滑到新位置 ——
+ * 下一张从右边滑进来，这一张缩着滑到左边。点邻居 = 翻到它。
+ * 邻居只铺缩略图；当前那张在缩略图上面盖真正的媒体（视频 / 音频 / 3D）。
+ */
+function ViewerReel<T extends { id: string }>({
+  current,
+  items,
+  index,
+  ratioOf,
+  darkStage,
+  media,
+  thumbnailOf,
+  onNavigate,
+}: {
+  current: T
+  items: readonly T[]
+  index: number
+  ratioOf: (item: T) => number
+  darkStage: boolean
+  media: ReactNode
+  thumbnailOf: (item: T) => string
+  onNavigate: (next: T) => void
+}) {
+  const reducedMotion = useReducedMotion()
+  const areaRef = useRef<HTMLDivElement>(null)
+  const [area, setArea] = useState({ width: 0, height: 0 })
+
+  useLayoutEffect(() => {
+    const el = areaRef.current
+    if (!el) return
+    const measure = () =>
+      setArea({ width: el.clientWidth, height: el.clientHeight })
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const hasNeighbors = items.length > 1
+  const maxWidth = area.width * (hasNeighbors ? REEL_CURRENT_MAX_WIDTH : 1)
+  const spring = reducedMotion ? { duration: 0 } : SPRING.slot
+
+  return (
+    <div ref={areaRef} className="relative min-h-0 flex-1">
+      {items.map((item, i) => {
+        const offset = i - index
+        if (Math.abs(offset) > REEL_REACH) return null
+        // 还没量到舞台（首帧 / 测试环境）：只摆当前那张、铺满。
+        const measured = area.width > 0 && area.height > 0
+        if (!measured && offset !== 0) return null
+        const isCurrent = item.id === current.id
+        const ratio = ratioOf(item) || 1
+        const width = Math.min(maxWidth, area.height * ratio)
+        const height = width / ratio
+        const far = Math.min(1, Math.abs(offset))
+        return (
+          <motion.div
+            key={item.id}
+            initial={false}
+            animate={{
+              x: offset * area.width * REEL_STEP,
+              scale: 1 - far * (1 - REEL_NEIGHBOR_SCALE),
+              opacity:
+                Math.abs(offset) >= REEL_REACH
+                  ? 0
+                  : 1 - far * (1 - REEL_NEIGHBOR_OPACITY),
+            }}
+            transition={spring}
+            style={
+              measured
+                ? {
+                    width,
+                    height,
+                    left: (area.width - width) / 2,
+                    top: (area.height - height) / 2,
+                  }
+                : { inset: 0 }
+            }
+            className={cn(
+              'absolute overflow-hidden rounded-lg shadow-overlay',
+              darkStage && isCurrent ? 'bg-foreground' : 'bg-muted',
+              !isCurrent && 'cursor-pointer',
+            )}
+            onClick={isCurrent ? undefined : () => onNavigate(item)}
+            aria-hidden={isCurrent ? undefined : true}
+          >
+            {isCurrent ? (
+              <>
+                {/* 邻居滑成当前那一下，真图淡入前先垫着同一张缩略图，⛔ 闪一下灰。 */}
+                {hasNeighbors ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- 同上，垫底的缩略图。
+                  <img
+                    src={thumbnailOf(item)}
+                    alt=""
+                    draggable={false}
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                ) : null}
+                <div className="relative size-full">{media}</div>
+              </>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- 邻居只是露一点边的缩略图。
+              <img
+                src={thumbnailOf(item)}
+                alt=""
+                draggable={false}
+                className="size-full object-cover"
+              />
+            )}
+          </motion.div>
+        )
+      })}
     </div>
   )
 }

@@ -5,7 +5,10 @@ import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
 import { Check, Copy } from '@/components/icons'
+import { BlurSwap } from '@/components/ui/blur-swap'
+import { COPY_ACK_CLASS } from '@/components/business/viewer/viewer-classes'
 import { COPIED_ACK_MS, LIQUID_SPRING } from '@/constants/motion'
+import { cn } from '@/lib/utils'
 
 /** 提示词收着时露 6 行（`leading-5` = 20px 一行）。 */
 const PROMPT_COLLAPSED_HEIGHT = 120
@@ -76,14 +79,21 @@ export function ViewerPrompt({
         <button
           type="button"
           onClick={() => void copy()}
-          className="ml-auto inline-flex items-center gap-1 rounded-md px-1 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {copied ? (
-            <Check className="size-3" aria-hidden />
-          ) : (
-            <Copy className="size-3" aria-hidden />
+          data-copied={copied || undefined}
+          className={cn(
+            'ml-auto inline-flex h-6 items-center rounded-full px-2 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            COPY_ACK_CLASS,
           )}
-          {copied ? labels.copied : labels.copy}
+        >
+          {/* 复制（原型 I）：键变成黑底对勾「已复制」，过一会儿变回来。 */}
+          <BlurSwap swapKey={copied ? 'copied' : 'copy'} className="gap-1">
+            {copied ? (
+              <Check className="size-3" aria-hidden />
+            ) : (
+              <Copy className="size-3" aria-hidden />
+            )}
+            {copied ? labels.copied : labels.copy}
+          </BlurSwap>
         </button>
       </div>
       <div className="rounded-lg bg-muted/60 px-2.5 py-2 ring-1 ring-inset ring-border/60">
@@ -118,7 +128,9 @@ export function ViewerPrompt({
           aria-expanded={expanded}
           className="self-start rounded-md text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {expanded ? labels.collapse : labels.expand}
+          <BlurSwap swapKey={expanded ? 'collapse' : 'expand'}>
+            {expanded ? labels.collapse : labels.expand}
+          </BlurSwap>
         </button>
       ) : null}
     </div>

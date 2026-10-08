@@ -2808,7 +2808,8 @@
       "references": "使った参照画像",
       "referenceAlt": "参照画像 {n}",
       "copyRecipe": "レシピをコピー",
-      "openOriginal": "元画像を開く"
+      "openOriginal": "元画像を開く",
+      "deleteArm": "削除を確定"
     },
     "title": "アセット",
     "description": "あなたのすべての生成物をひとつの場所で。プロジェクトとフォルダで整理。",
@@ -3013,7 +3014,11 @@
     "addToFolderLegendIn": "このフォルダに入っている",
     "addToFolderLegendSome": "一部が入っている",
     "addToFolderLegendHint": "クリックで全部追加、もう一度で外す",
-    "addToFolderCreate": "新しいフォルダを作って追加"
+    "addToFolderCreate": "新しいフォルダを作って追加",
+    "uploadingProgress": "アップロード中 {current}/{total}",
+    "selectedPrefix": "選択中",
+    "bulkDeleteArm": "{count} 件を削除",
+    "selectDone": "完了"
   },
   "PromptLibrary": {
     "title": "プロンプト設計",

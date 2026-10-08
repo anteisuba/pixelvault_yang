@@ -2808,7 +2808,8 @@
       "references": "用到的参考图",
       "referenceAlt": "参考图 {n}",
       "copyRecipe": "复制配方",
-      "openOriginal": "打开原图"
+      "openOriginal": "打开原图",
+      "deleteArm": "确认删除"
     },
     "title": "素材",
     "description": "你的所有作品集中管理 — 按项目和文件夹组织。",
@@ -3013,7 +3014,11 @@
     "addToFolderLegendIn": "在这个夹里",
     "addToFolderLegendSome": "有几张在",
     "addToFolderLegendHint": "点一下 = 全部放进去；再点 = 从这个夹拿出",
-    "addToFolderCreate": "新建文件夹并放进去"
+    "addToFolderCreate": "新建文件夹并放进去",
+    "uploadingProgress": "上传中 {current}/{total}",
+    "selectedPrefix": "已选",
+    "bulkDeleteArm": "确认删除 {count} 张",
+    "selectDone": "完成"
   },
   "PromptLibrary": {
     "title": "提示词工程",

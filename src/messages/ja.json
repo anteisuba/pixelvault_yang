@@ -6471,7 +6471,6 @@
         "claudeChanged": "Claude が {count} クリップを変更しました",
         "undo": "元に戻す",
         "undone": "元に戻しました",
-        "ok": "OK",
         "claudeExported": "Claude がカットを書き出しました · キャンバスに置きました",
         "look": "見る",
         "backToCanvas": "キャンバスで見る"

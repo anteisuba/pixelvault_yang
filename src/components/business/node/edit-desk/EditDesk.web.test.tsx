@@ -1485,6 +1485,42 @@ describe('剪辑台 · 回执与段闪', () => {
     fireEvent.click(screen.getByTestId('edit-desk-receipt-action'))
     expect(onBackToNode).toHaveBeenCalledWith('render_1')
   })
+
+  it('几条连着来 → 舞台底部叠成一摞，新的在最前面（换皮第二轮 ⑧ B · 样片 Y）', () => {
+    const { pushRemote, read } = withOneClip()
+    const landed = {
+      ...videoNode('render_1'),
+      data: {
+        ...videoNode('render_1').data,
+        outputs: {
+          versions: [
+            {
+              id: 'ov_render',
+              url: 'https://example.test/cut.mp4',
+              createdAt: NOW,
+              generationId: 'gen_claude',
+              source: { kind: 'render', label: '来自剪辑台 · 成片' },
+            },
+          ],
+          cur: 0,
+        },
+      },
+    } as NodeV4
+    pushRemote({ ...read(), nodes: [...read().nodes, landed] })
+    pushRemote(withFirstClipSpeed(read(), 2))
+
+    expect(
+      screen
+        .getAllByTestId('edit-desk-receipt-text')
+        .map((element) => element.textContent),
+    ).toEqual(['Claude 改了 1 段', 'Claude 导出了成片 · 已落到画布'])
+    // ⛔ 不在顶栏：回执挂在舞台里
+    expect(
+      within(screen.getByTestId('edit-desk-stage')).getAllByTestId(
+        'edit-desk-receipt',
+      ),
+    ).toHaveLength(2)
+  })
 })
 
 describe('台词挂在主线上（v2 第 1 片）', () => {

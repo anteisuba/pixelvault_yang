@@ -6471,7 +6471,6 @@
         "claudeChanged": "Claude changed {count, plural, one {# clip} other {# clips}}",
         "undo": "Undo",
         "undone": "Undone",
-        "ok": "OK",
         "claudeExported": "Claude exported the cut · it’s on the canvas",
         "look": "Show me",
         "backToCanvas": "View on canvas"

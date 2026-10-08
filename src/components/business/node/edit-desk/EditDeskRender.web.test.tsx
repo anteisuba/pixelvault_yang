@@ -38,14 +38,8 @@ vi.mock('@/lib/api-client', () => ({
   cancelRenderJobAPI: (...args: unknown[]) => mockCancel(...args),
 }))
 
-const toastError = vi.fn()
-const toastSuccess = vi.fn()
 vi.mock('sonner', () => ({
-  toast: {
-    info: vi.fn(),
-    error: (...args: unknown[]) => toastError(...args),
-    success: (...args: unknown[]) => toastSuccess(...args),
-  },
+  toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() },
 }))
 
 const { EditDesk } = await import('./EditDesk')
@@ -201,7 +195,10 @@ describe('导出确认 → 请求体', () => {
   it('空表：一条人话，⛔ 不发请求', async () => {
     renderDesk({ version: 4, nodes: [], edges: [] } as NodeWorkflowStateV4)
     confirmExport()
-    await waitFor(() => expect(toastError).toHaveBeenCalled())
+    // 错走舞台底部那一摞（换皮第二轮 ⑧ B），带「!」的一条
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      messages.StudioNode.editDesk.render.planError.emptyTimeline,
+    )
     expect(mockSubmit).not.toHaveBeenCalled()
   })
 
@@ -212,11 +209,8 @@ describe('导出确认 → 请求体', () => {
     })
     renderDesk(stateWithTimeline())
     confirmExport()
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(
-        'RENDER_WORKER_BASE_URL is not set',
-        expect.anything(),
-      ),
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'RENDER_WORKER_BASE_URL is not set',
     )
     expect(screen.queryByTestId('edit-desk-render-bar')).toBeNull()
   })

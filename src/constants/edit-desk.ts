@@ -223,26 +223,49 @@ export const EDIT_TIMELINE_ZOOM = {
 } as const
 
 /**
- * 舞台上方那条回执（④ A 关键切片动效表：180ms 淡入上移 4px / 180ms 淡出）。
+ * 回执与提示（换皮第二轮 ⑧ B · 样片 Y）：舞台底部居中的黑提示，叠成一摞 —— 新的从下面
+ * 推上来（`enterY`），旧的每往后一条上移 `stepY`、缩 `stepScale`、淡 `stepFade`；最多
+ * `max` 条。收起糊一下淡掉（`outS`）。
  * `idleMs` = 没有新改动多久自己收起（悬停不计时）；`undoneMs` = 「已撤销」停多久。
+ * `bottomPx` 离舞台底多高；重拍栏开着时垫在栏上面 `gapPx`。
  */
 export const EDIT_RECEIPT_MOTION = {
-  inS: 0.18,
+  stack: { type: 'spring', stiffness: 300, damping: 26 },
+  enterY: 40,
+  stepY: 10,
+  stepScale: 0.06,
+  stepFade: 0.35,
+  max: 3,
   outS: 0.18,
-  riseY: 4,
   idleMs: 8000,
   undoneMs: 1400,
+  bottomPx: 28,
+  gapPx: 12,
 } as const
 
 /**
- * 就地重拍（v2 第 4 片 4b · 关键切片动效表）：提示词栏从段在时间线上的位置放大升到
- * 预览下方（380ms 弹簧），收回时回到那一段（240ms）；新版落位那一下段闪 460ms。
+ * 就地重拍（v2 第 4 片 4b · 关键切片动效表；换皮第二轮 ⑦ C）：栏**从选中的段上长出来**
+ * —— 一块浅灰底从段的位置长成栏的大小（380ms 弹簧，一点点过冲），栏里的东西随后由糊
+ * 变清（`contentInDelayS`）；收回时东西先糊掉（`contentOutS`），底再缩回那一段（240ms）
+ * 淡掉。新版落位那一下段闪 460ms。
  */
 export const EDIT_RETAKE_MOTION = {
   rise: { type: 'spring', visualDuration: 0.38, bounce: 0.12 },
+  contentInDelayS: 0.09,
+  contentOutS: 0.12,
   closeS: 0.24,
-  fromScale: 0.3,
+  shellFadeS: 0.14,
   landFlashMs: 460,
+} as const
+
+/**
+ * 重拍栏（换皮第二轮 ⑦ C）：横向以选中的段为中，贴着走带行上沿（舞台底下 12px）；宽与
+ * 画布视频卡那条提示词栏一样，离舞台两边至少 `edgePx`。
+ */
+export const EDIT_RETAKE_BAR = {
+  widthPx: 640,
+  edgePx: 12,
+  bottomPx: 12,
 } as const
 
 /**

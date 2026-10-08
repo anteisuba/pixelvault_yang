@@ -46,12 +46,12 @@ import {
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { toast } from 'sonner'
 
 import {
   EDIT_AUDIO_FILTER_IDS,
   EDIT_PANEL_IDS,
   EDIT_RECEIPT_MOTION,
+  EDIT_RETAKE_BAR,
   EDIT_RETAKE_MOTION,
   EDIT_SHORTCUT_SPLIT_CODE,
   EDIT_TRACK_IDS,
@@ -86,7 +86,7 @@ import {
 import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
-import { EditDeskReceipt, type EditDeskReceiptState } from './EditDeskReceipt'
+import { EditDeskReceipts, type EditDeskReceiptState } from './EditDeskReceipt'
 import { EditDeskRenderStatus, EditDeskResumeStatus } from './EditDeskRenderBar'
 import { EditDeskRetakeBar } from './EditDeskRetakeBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
@@ -187,7 +187,19 @@ type DeskReceipt = EditDeskReceiptState & { readonly seq: number } & (
         readonly nodeId: string | null
         readonly generationId?: string
       }
+    | { readonly kind: 'error' }
   )
+
+/**
+ * 「Claude 改了 N 段」只在项目**还停在那批改动之后**时才算数：你自己又改了一笔、或按了
+ * ⌘Z，这条回执的「撤销」就对不上了 —— 收起，⛔ 不留一颗会把你的改动一起退掉的按钮。
+ */
+function isLiveReceipt(
+  receipt: DeskReceipt,
+  current: NodeWorkflowStateV4,
+): boolean {
+  return receipt.kind !== 'changes' || receipt.after === current
+}
 
 export function EditDesk({
   state,
@@ -249,22 +261,18 @@ export function EditDesk({
    */
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
 
-  const [receipt, setReceipt] = useState<DeskReceipt | null>(null)
+  /** 舞台底部那一摞回执与提示（样片 Y），新的在前。 */
+  const [receipts, setReceipts] = useState<readonly DeskReceipt[]>([])
   /** 落好卡的那一单：顶栏不再挂它（结果由回执说），⛔ 两处说同一件事。 */
   const [landedJobId, setLandedJobId] = useState<string | null>(null)
   /** 你自己导出落下的成片（按 `generationId`）—— 它们换进来时 ⛔ 不说成 Claude 的。 */
   const ownGenerationsRef = useRef(new Set<string>())
-  const [receiptHovered, setReceiptHovered] = useState(false)
   const receiptSeqRef = useRef(0)
-  /**
-   * 「Claude 改了 N 段」只在项目**还停在那批改动之后**时才算数：你自己又改了一笔、
-   * 或按了 ⌘Z，这条回执的「撤销」就对不上了 —— 收起，⛔ 不留一颗会把你的改动一起
-   * 退掉的按钮。
-   */
-  const shownReceipt =
-    receipt && (receipt.kind !== 'changes' || receipt.after === state)
-      ? receipt
-      : null
+  /** 重拍栏量到的高（回执那一摞垫在它上面）。 */
+  const [retakeBarHeight, setRetakeBarHeight] = useState(0)
+  const shownReceipts = receipts.filter((receipt) =>
+    isLiveReceipt(receipt, state),
+  )
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -441,10 +449,42 @@ export function EditDesk({
    * 隔帧之后再拿旧的那一份写回去，等于把刚建出来的卡抹掉（与
    * `VideoNodeV4.backfillMedia` 同一条实测结论）。
    */
-  const latest = useRef({ state, desk, setMedia })
+  const latest = useRef({ state, desk, setMedia, receipts })
   useEffect(() => {
-    latest.current = { state, desk, setMedia }
+    latest.current = { state, desk, setMedia, receipts }
   })
+
+  /**
+   * 压一条新的上去：对不上的旧回执顺手清掉（⛔ 让看不见的那几条占着三条的名额），
+   * 超出三条的最旧那条退场。
+   */
+  const pushReceipt = useCallback(
+    (
+      make: (seq: number) => DeskReceipt,
+      current: NodeWorkflowStateV4 | null,
+    ) => {
+      receiptSeqRef.current += 1
+      const next = make(receiptSeqRef.current)
+      setReceipts((list) =>
+        [
+          next,
+          ...(current
+            ? list.filter((receipt) => isLiveReceipt(receipt, current))
+            : list),
+        ].slice(0, EDIT_RECEIPT_MOTION.max),
+      )
+    },
+    [],
+  )
+  /** 剪辑台自己的错：同一摞里的一条「!」。 */
+  const pushError = useCallback(
+    (message: string) =>
+      pushReceipt(
+        (seq) => ({ kind: 'error', message, seq }),
+        latest.current.state,
+      ),
+    [pushReceipt],
+  )
 
   /**
    * 完成 → 成片卡**已经由服务端落进项目了**（docs/references/mcp.md §7），这里只把
@@ -462,17 +502,19 @@ export function EditDesk({
       setLandedJobId(job.jobId)
       refreshProject()
       // 只出回执，⛔ 不自动退出剪辑台（owner 2026-09-28）。
-      receiptSeqRef.current += 1
-      setReceipt({
-        kind: 'landed',
-        by: 'you',
-        name: job.name,
-        nodeId: null,
-        ...(job.generationId ? { generationId: job.generationId } : {}),
-        seq: receiptSeqRef.current,
-      })
+      pushReceipt(
+        (seq) => ({
+          kind: 'landed',
+          by: 'you',
+          name: job.name,
+          nodeId: null,
+          ...(job.generationId ? { generationId: job.generationId } : {}),
+          seq,
+        }),
+        latest.current.state,
+      )
     },
-    [refreshProject],
+    [refreshProject, pushReceipt],
   )
 
   /**
@@ -495,14 +537,14 @@ export function EditDesk({
     ) => {
       const nodeId = addNode(asset.kind, asset.subtype, { name: asset.name })
       if (!nodeId) {
-        toast.error(t('library.landFailed'))
+        pushError(t('library.landFailed'))
         return
       }
       /** 回填只发一次 —— 发过还没到位就只等，⛔ 不每帧再写一遍（那会把空转计数一直归零）。 */
       let filled = false
       const step = (idle: number): void => {
         if (idle > LIBRARY_LAND_MAX_FRAMES) {
-          toast.error(t('library.landFailed'))
+          pushError(t('library.landFailed'))
           return
         }
         const node = latest.current.state.nodes.find(
@@ -541,7 +583,7 @@ export function EditDesk({
       }
       step(0)
     },
-    [addNode, t],
+    [addNode, pushError, t],
   )
 
   /**
@@ -553,8 +595,7 @@ export function EditDesk({
   const render = useEditDeskRender({
     projectId,
     onCompleted: onRenderCompleted,
-    onError: (message) =>
-      toast.error(message || t('render.failed'), { duration: 8000 }),
+    onError: (message) => pushError(message || t('render.failed')),
   })
 
   const { submit: submitRender } = render
@@ -586,70 +627,74 @@ export function EditDesk({
         landed?.generationId !== undefined &&
         ownGenerationsRef.current.has(landed.generationId)
       if (landed && !ownInFlight && !ownLanded) {
-        receiptSeqRef.current += 1
-        setReceipt({
-          kind: 'landed',
-          by: 'claude',
-          name: '',
-          nodeId: landed.nodeId,
-          seq: receiptSeqRef.current,
-        })
+        pushReceipt(
+          (seq) => ({
+            kind: 'landed',
+            by: 'claude',
+            name: '',
+            nodeId: landed.nodeId,
+            seq,
+          }),
+          change.after,
+        )
         return
       }
       if (touch.count === 0) return
-      setReceipt((current) => {
-        // 同一来源连着改：数字累加在同一条上，撤销退回这一条里的全部。
-        if (current?.kind === 'changes' && current.after === change.before) {
-          return {
-            ...current,
-            count: current.count + touch.count,
-            after: change.after,
-          }
-        }
-        receiptSeqRef.current += 1
-        return {
+      // 同一来源连着改：数字累加在最前面那一条上，撤销退回这一条里的全部。
+      const top = latest.current.receipts[0]
+      if (top?.kind === 'changes' && top.after === change.before) {
+        setReceipts((list) =>
+          list.map((receipt) =>
+            receipt.seq === top.seq && receipt.kind === 'changes'
+              ? {
+                  ...receipt,
+                  count: receipt.count + touch.count,
+                  after: change.after,
+                }
+              : receipt,
+          ),
+        )
+        return
+      }
+      // 换了一批：别的「改了 N 段」对不上了（它们的「之后」不是这一批的「之前」）。
+      pushReceipt(
+        (seq) => ({
           kind: 'changes',
           count: touch.count,
           before: change.before,
           after: change.after,
-          seq: receiptSeqRef.current,
-        }
-      })
+          seq,
+        }),
+        change.before,
+      )
     })
-  }, [subscribeRemoteChange])
+  }, [subscribeRemoteChange, pushReceipt])
 
-  /** 8 秒没有新改动自己收起；「已撤销」停 1.4 秒；悬停时不计时。 */
-  useEffect(() => {
-    if (!receipt || receiptHovered) return undefined
-    const timer = window.setTimeout(
-      () => setReceipt(null),
-      receipt.kind === 'undone'
-        ? EDIT_RECEIPT_MOTION.undoneMs
-        : EDIT_RECEIPT_MOTION.idleMs,
-    )
-    return () => window.clearTimeout(timer)
-  }, [receipt, receiptHovered])
+  const dropReceipt = useCallback(
+    (seq: number) =>
+      setReceipts((list) => list.filter((receipt) => receipt.seq !== seq)),
+    [],
+  )
 
-  const undoReceipt = () => {
-    if (shownReceipt?.kind !== 'changes') return
-    if (restoreState) restoreState(shownReceipt.before)
-    else onUndo()
-    // 同一条回执原地换字（⛔ 不换 seq：不重播进场）。
-    setReceipt({ kind: 'undone', seq: shownReceipt.seq })
-  }
-
-  /** 「看看」/「回画布看」：回画布并选中那张成片卡（找不到就只回画布）。 */
-  const lookAtLanded = () => {
-    if (shownReceipt?.kind !== 'landed') return
+  /** 提示里的下划线字：「撤销」退回那一批 /「看看」「回画布看」回画布选中那张成片卡。 */
+  const onReceiptAction = (seq: number) => {
+    const receipt = shownReceipts.find((item) => item.seq === seq)
+    if (receipt?.kind === 'changes') {
+      if (restoreState) restoreState(receipt.before)
+      else onUndo()
+      // 同一条原地换字（⛔ 不换 seq：不重播进场）。
+      setReceipts((list) =>
+        list.map((item) => (item.seq === seq ? { kind: 'undone', seq } : item)),
+      )
+      return
+    }
+    if (receipt?.kind !== 'landed') return
     const nodeId =
-      shownReceipt.nodeId ??
-      (shownReceipt.generationId
-        ? findNodeByGenerationId(
-            latest.current.state,
-            shownReceipt.generationId,
-          )
+      receipt.nodeId ??
+      (receipt.generationId
+        ? findNodeByGenerationId(latest.current.state, receipt.generationId)
         : null)
-    setReceipt(null)
+    dropReceipt(seq)
     if (nodeId) onBackToNode(nodeId)
     else onExit()
   }
@@ -671,13 +716,14 @@ export function EditDesk({
         // ⚠ 失败**可见**：建不出计划的三种原因（缺 url / 空区间 / 零时长）各有
         // 一句人话，⛔ 不吞掉再让用户对着一条没动静的进度条等。
         if (error instanceof RenderPlanError) {
-          toast.error(t(`render.planError.${error.code}`))
+          pushError(t(`render.planError.${error.code}`))
           return
         }
-        toast.error(t('render.failed'))
+        pushError(t('render.failed'))
       }
     },
     [
+      pushError,
       exportTimeline,
       projectId,
       desk.project.settings.resolution,
@@ -778,16 +824,6 @@ export function EditDesk({
                 onDismiss={render.dismissResumable}
               />
             ) : null
-          }
-          receipt={
-            <EditDeskReceipt
-              receipt={shownReceipt}
-              receiptKey={String(shownReceipt?.seq ?? 0)}
-              onUndo={undoReceipt}
-              onDismiss={() => setReceipt(null)}
-              onLook={lookAtLanded}
-              onHoverChange={setReceiptHovered}
-            />
           }
         />
 
@@ -899,7 +935,7 @@ export function EditDesk({
                       },
                     })}
               />
-              {/* 就地重拍栏：从段上长出来，停在预览下方（4b）。 */}
+              {/* 就地重拍栏：从选中的段上长出来，贴在走带行上沿（4b · 换皮第二轮 ⑦ C）。 */}
               <AnimatePresence>
                 {!readOnly && retakeRow ? (
                   <EditDeskRetakeBar
@@ -907,9 +943,26 @@ export function EditDesk({
                     desk={desk}
                     row={retakeRow}
                     track={EDIT_TRACK_IDS.video}
+                    onHeightChange={setRetakeBarHeight}
                   />
                 ) : null}
               </AnimatePresence>
+              {/* 回执与提示：舞台底部的黑提示叠成一摞（换皮第二轮 ⑧ B）；重拍栏开着时垫在栏上面。 */}
+              <EditDeskReceipts
+                items={shownReceipts.map((receipt) => ({
+                  seq: receipt.seq,
+                  receipt,
+                }))}
+                bottomPx={
+                  !readOnly && retakeRow && retakeBarHeight > 0
+                    ? EDIT_RETAKE_BAR.bottomPx +
+                      retakeBarHeight +
+                      EDIT_RECEIPT_MOTION.gapPx
+                    : EDIT_RECEIPT_MOTION.bottomPx
+                }
+                onAction={onReceiptAction}
+                onExpire={dropReceipt}
+              />
             </section>
 
             <EditDeskTimeline

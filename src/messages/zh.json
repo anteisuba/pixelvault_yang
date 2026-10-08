@@ -6471,7 +6471,6 @@
         "claudeChanged": "Claude 改了 {count} 段",
         "undo": "撤销",
         "undone": "已撤销",
-        "ok": "好",
         "claudeExported": "Claude 导出了成片 · 已落到画布",
         "look": "看看",
         "backToCanvas": "回画布看"

@@ -2,9 +2,9 @@
 
 /**
  * 剪辑台顶栏（v2 第 3 片 · 关键切片 `JtN1ur…`；10-08 换白台面）：一条通栏 `h-12`、
- * 底边一道线 —— 左边 **回画布 · 成片名（可改）· 读数 / 导出进度**，正中是**回执**
- * （永远只有一条，见 `EditDeskReceipt`），右边 **撤销 · 快捷键 · 导出**，最右那一格
- * 留给助手头像（`EDIT_DESK_OPERATOR_ANCHOR` 按这条栏的高与内边距算）。
+ * 底边一道线 —— 左边 **回画布 · 成片名（可改）· 读数 / 导出进度**，右边 **撤销 · 快捷键 ·
+ * 导出**，最右那一格留给助手头像（`EDIT_DESK_OPERATOR_ANCHOR` 按这条栏的高与内边距算）。
+ * 回执不在这里了：换皮第二轮 ⑧ B 挪到舞台底部叠成一摞（`EditDeskReceipts`）。
  *
  * ⚠ 只有这几样。画布顶栏的项目胶囊不在这里 —— 剪辑台是全屏模式，进来就是为了剪一条
  * 片子，⛔ 不把外壳的东西再摆一遍。
@@ -56,8 +56,6 @@ export interface EditDeskTopBarProps {
    * 缺席 = 读数。⛔ 不在头部下面另起一条栏。
    */
   readonly status?: ReactNode
-  /** 正中那条回执。 */
-  readonly receipt?: ReactNode
 }
 
 export function EditDeskTopBar({
@@ -72,7 +70,6 @@ export function EditDeskTopBar({
   shortcutPreset,
   onShortcutPresetChange,
   status,
-  receipt,
 }: EditDeskTopBarProps) {
   const t = useTranslations('StudioNode.editDesk')
   const [editing, setEditing] = useState(false)
@@ -154,7 +151,7 @@ export function EditDeskTopBar({
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 justify-center">{receipt}</div>
+      <div className="min-w-0 flex-1" />
 
       <div className="flex shrink-0 items-center gap-1.5">
         <EditDeskIconButton

@@ -57,6 +57,36 @@ export const CANVAS_SHELL_LAYOUT = {
   nodeThumbHeightPx: 26,
 } as const
 
+/** 安全区的左界离画布左缘多少：图标栏（若在）右缘 + 12；面板开着时面板右缘 + 14。 */
+const SAFE_GAP_RAIL_PX = 12
+const SAFE_GAP_PANEL_PX = 14
+
+/**
+ * 选中浮层 / 定位 / 弹层避让共用的**安全区左界**（node-canvas-v2 §1 第 4 条「推回安全区」）。
+ *
+ * ⭐ owner 2026-10-08 换皮：画布自己的图标栏并进了全站侧栏，≥1024 画布里**没有栏**，
+ *   左界只剩边距（面板开着再加面板）；768–1023 全站侧栏不在，栏仍留在画布里兜底。
+ *   ⛔ 别再在调用点手写 `72` / `346`。
+ */
+export function canvasShellSafeLeftPx(options: {
+  readonly panelOpen: boolean
+  readonly railVisible: boolean
+}): number {
+  const { panelOpen, railVisible } = options
+  const L = CANVAS_SHELL_LAYOUT
+  if (panelOpen) {
+    return (
+      L.edgeInsetPx +
+      (railVisible ? L.railWidthPx + L.panelGapPx : 0) +
+      L.panelWidthPx +
+      SAFE_GAP_PANEL_PX
+    )
+  }
+  return railVisible
+    ? L.edgeInsetPx + L.railWidthPx + SAFE_GAP_RAIL_PX
+    : L.edgeInsetPx
+}
+
 /** 左侧面板。顺序即图标栏从上到下的顺序。 */
 export const CANVAS_SHELL_PANEL_IDS = {
   nodes: 'nodes',
@@ -138,3 +168,15 @@ export const CANVAS_SHELL_MEDIA_DRAG_MIME =
  * 落成图片 / 声音 / 视频卡），⛔ 不另写一套上传。
  */
 export const CANVAS_SHELL_UPLOAD_ACCEPT = 'image/*,video/*,audio/*'
+
+/** 没人告诉安全区左界时的默认值：≥1024、面板收着（画布里没有图标栏）。 */
+export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
+  panelOpen: false,
+  railVisible: false,
+})
+
+/**
+ * 全站侧栏「画布」下面那三颗子图标身上的属性（值 = 面板 id）。面板的液态开合从被点的
+ * 那一颗所在的那一行长出来，靠它在 DOM 里找到起点 —— ⛔ 不在两边各猜一个坐标。
+ */
+export const CANVAS_SHELL_SIDEBAR_ENTRY_ATTR = 'data-canvas-shell-entry'

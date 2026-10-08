@@ -993,7 +993,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
             />
           ) : (
             <NodePromptBar
-              sidebarOpen={canvas.sidebarOpen}
+              safeLeftPx={canvas.safeLeftPx}
               value={draft}
               onValueChange={setDraft}
               onSubmit={submitPrompt}
@@ -1123,7 +1123,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   memoryScope={NODE_MEDIA_KIND_IDS.audio}
                   gateId={id}
                   canvasNodeId={id}
-                  canvasSidebarOpen={canvas.sidebarOpen}
+                  canvasSafeLeftPx={canvas.safeLeftPx}
                   // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
                   {...(openKeySettings
                     ? { onManageChannels: openKeySettings }

@@ -10,6 +10,10 @@
  * 认出「这是版本」。
  */
 
+import { useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+
+import { SPRING } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface VersionDotsProps {
@@ -31,6 +35,14 @@ export function VersionDots({
   labelOf,
   className,
 }: VersionDotsProps) {
+  /**
+   * 挂上来时已有几版：在那之后长出来的点（生成完多出来的那一版）从 0 弹到原大
+   * （`spring-slot`，owner 2026-10-08 画布换皮「出完图多一颗版本点」）；挂载时就在的
+   * 点直接在。⚠ 只在挂载时记一次 —— 点是按序号挂的，后来的点各自只在自己挂上时演一次。
+   */
+  const [mountedCount] = useState(count)
+  const reduceMotion = useReducedMotion()
+
   if (count <= 1) return null
 
   const step = (delta: number) => {
@@ -75,10 +87,18 @@ export function VersionDots({
               'flex h-6 w-3 shrink-0 items-center justify-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             )}
           >
-            <span
+            <motion.span
               aria-hidden
+              data-version-dot-fresh={index >= mountedCount ? '' : undefined}
+              initial={
+                index >= mountedCount && !reduceMotion
+                  ? { scale: 0, opacity: 0 }
+                  : false
+              }
+              animate={{ scale: 1, opacity: 1 }}
+              transition={SPRING.slot}
               className={cn(
-                'block size-1.5 rounded-full',
+                'block size-1.5 rounded-full transition-colors duration-fast ease-standard',
                 active ? 'bg-foreground' : 'bg-surface-fill-track',
               )}
             />

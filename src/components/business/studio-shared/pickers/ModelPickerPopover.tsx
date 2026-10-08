@@ -25,6 +25,7 @@ import {
   DEFAULT_AUDIO_KIND,
   type AudioKind,
 } from '@/constants/audio-options'
+import { CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX } from '@/constants/canvas-shell'
 import { MODEL_PICKER_DEFAULT_SCOPE } from '@/constants/model-picker'
 import {
   CHIP_POPOVER,
@@ -219,7 +220,8 @@ export interface ModelPickerPopoverProps {
   gateId?: string
   /** 画布节点专用：在屏幕安全区内避开当前卡和提示词栏。 */
   canvasNodeId?: string
-  canvasSidebarOpen?: boolean
+  /** 画布安全区左界（`canvasShellSafeLeftPx`）。 */
+  canvasSafeLeftPx?: number
 }
 
 type CanvasRect = {
@@ -346,7 +348,7 @@ export function ModelPickerPopover({
   groupBy = MODEL_PICKER_GROUP_BY.series,
   gateId,
   canvasNodeId,
-  canvasSidebarOpen = false,
+  canvasSafeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX,
 }: ModelPickerPopoverProps) {
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
@@ -604,7 +606,7 @@ export function ModelPickerPopover({
           bar: rect(barRect),
           card: cardRect ? rect(cardRect) : { x: 0, y: 0, width: 0, height: 0 },
           safe: {
-            left: (stageRect?.left ?? 0) + (canvasSidebarOpen ? 346 : 72),
+            left: (stageRect?.left ?? 0) + canvasSafeLeftPx,
             top: (stageRect?.top ?? 0) + 64,
             right: (stageRect?.right ?? window.innerWidth) - 16,
             bottom: (stageRect?.bottom ?? window.innerHeight) - 76,
@@ -625,7 +627,7 @@ export function ModelPickerPopover({
     canvasCompact,
     open,
     canvasNodeId,
-    canvasSidebarOpen,
+    canvasSafeLeftPx,
     search,
     visibleRows.length,
     recentRows.length,

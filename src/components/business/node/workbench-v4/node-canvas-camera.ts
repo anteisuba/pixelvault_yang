@@ -25,9 +25,10 @@ export function locateCanvasNode(
   stage: CanvasCameraStage,
   node: CanvasCameraNode,
   currentZoom: number,
-  sidebarOpen: boolean,
+  /** 安全区左界（`canvasShellSafeLeftPx`）。 */
+  safeLeft: number,
 ): Viewport {
-  const left = sidebarOpen ? 346 : 72
+  const left = safeLeft
   const top = 64
   const right = stage.width - 16
   const bottom = stage.height - 76

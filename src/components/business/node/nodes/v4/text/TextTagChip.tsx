@@ -16,7 +16,7 @@
 import { Tag } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   NODE_SLOT_TEXT_ROLES,
   type NodeSlotTextRole,
@@ -65,26 +65,19 @@ export function TextTagChip({ subtype, role, onRoleChange }: TextTagChipProps) {
           <span className="text-3xs tracking-node-sec text-muted-foreground">
             {t('tag.role')}
           </span>
-          <ToggleGroup
-            type="single"
-            variant="segmented"
-            value={role ?? ''}
-            onValueChange={(next) => {
-              if (next) onRoleChange(next as NodeSlotTextRole)
-            }}
-            aria-label={t('tag.role')}
-            className="flex-wrap"
-          >
-            {NODE_SLOT_TEXT_ROLES.map((item) => (
-              <ToggleGroupItem
-                key={item}
-                value={item}
-                data-text-role-option={item}
-              >
-                {t(`roles.${item}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          {/* A1 分段条（owner 2026-10-08 画布换皮）。 */}
+          <LiquidSegmented
+            items={NODE_SLOT_TEXT_ROLES.map((item) => ({
+              value: item,
+              label: t(`roles.${item}`),
+            }))}
+            value={role ?? ('' as NodeSlotTextRole)}
+            onChange={onRoleChange}
+            ariaLabel={t('tag.role')}
+            semantics="radio"
+            size="sm"
+            fill
+          />
         </div>
       </div>
     </ChipPopover>

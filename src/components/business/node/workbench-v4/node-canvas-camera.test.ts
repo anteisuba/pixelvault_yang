@@ -28,7 +28,7 @@ const stage = { width: 1383, height: 900 }
 describe('locateCanvasNode', () => {
   it('centers a card face in the sidebar safe area without changing 90% zoom', () => {
     const node = { x: 500, y: 200, width: 320, height: 180 + 22 / 0.9 }
-    const target = locateCanvasNode(stage, node, 0.9, true)
+    const target = locateCanvasNode(stage, node, 0.9, 346)
 
     expect(target.zoom).toBe(0.9)
     expect(target.x + (node.x + node.width / 2) * target.zoom).toBe(856.5)
@@ -37,15 +37,15 @@ describe('locateCanvasNode', () => {
 
   it('raises only a card narrower than 160 screen pixels to 100%', () => {
     const node = { x: 50, y: 40, width: 150, height: 100 + 22 / 0.9 }
-    expect(locateCanvasNode(stage, node, 0.9, false).zoom).toBe(1)
-    expect(
-      locateCanvasNode(stage, { ...node, width: 180 }, 0.9, false).zoom,
-    ).toBe(0.9)
+    expect(locateCanvasNode(stage, node, 0.9, 72).zoom).toBe(1)
+    expect(locateCanvasNode(stage, { ...node, width: 180 }, 0.9, 72).zoom).toBe(
+      0.9,
+    )
   })
 
   it('shrinks a card and its chrome to the available height', () => {
     const node = { x: 50, y: 40, width: 600, height: 300 + 22 }
-    const target = locateCanvasNode({ width: 600, height: 500 }, node, 1, false)
+    const target = locateCanvasNode({ width: 600, height: 500 }, node, 1, 72)
     expect(target.zoom).toBeCloseTo(190 / 300)
   })
 })

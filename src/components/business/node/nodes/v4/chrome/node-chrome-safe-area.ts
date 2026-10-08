@@ -9,7 +9,8 @@ export interface NodeChromeLayoutInput {
     readonly height: number
   }
   readonly zoom: number
-  readonly sidebarOpen: boolean
+  /** 安全区左界（`canvasShellSafeLeftPx`）。 */
+  readonly safeLeft: number
   /** 浮层未经画布缩放时的布局尺寸。 */
   readonly content: { readonly width: number; readonly height: number }
   readonly position: 'top' | 'bottom'
@@ -33,12 +34,11 @@ export function layoutNodeChrome({
   viewport,
   card,
   zoom,
-  sidebarOpen,
+  safeLeft,
   content,
   position,
 }: NodeChromeLayoutInput): NodeChromeLayout {
   const scale = clamp(zoom, 0.6, 1)
-  const safeLeft = sidebarOpen ? 346 : 72
   const safeTop = 64
   const safeRight = viewport.width - 16
   const safeBottom = viewport.height - 76

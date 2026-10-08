@@ -51,7 +51,7 @@ export function NodeModelChip({
       // 每张卡各管各的「未选渠道」——按 scope 共用一份会让一张卡挡住整块画布。
       gateId={nodeId}
       canvasNodeId={nodeId}
-      canvasSidebarOpen={canvas.sidebarOpen}
+      canvasSafeLeftPx={canvas.safeLeftPx}
       {...(groupBy ? { groupBy } : {})}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
       {...(triggerEmptyLabel ? { triggerEmptyLabel } : {})}

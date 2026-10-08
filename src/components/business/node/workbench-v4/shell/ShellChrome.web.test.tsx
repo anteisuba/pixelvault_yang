@@ -212,6 +212,7 @@ describe('ShellSidePanels · 三面板', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
     }
     const view = render(<ShellSidePanels {...props} />)
@@ -242,6 +243,22 @@ describe('ShellSidePanels · 三面板', () => {
 
     fireEvent.click(screen.getByTestId('shell-rail-nodes'))
     expect(props.onActivePanelChange).toHaveBeenLastCalledWith(null)
+  })
+
+  it('≥1024 图标栏并进全站侧栏：画布里没有栏，面板贴边距开在侧栏旁边', () => {
+    const { props, view } = renderPanels()
+    view.rerender(
+      <ShellSidePanels
+        {...props}
+        railVisible={false}
+        activePanel={CANVAS_SHELL_PANEL_IDS.nodes}
+      />,
+    )
+    expect(screen.queryByTestId('shell-side-rail')).toBeNull()
+    expect(screen.queryByTestId('shell-rail-indicator')).toBeNull()
+    const panel = screen.getByTestId('shell-side-panel')
+    expect(panel.dataset.panel).toBe('nodes')
+    expect(panel.parentElement?.style.left).toBe('16px')
   })
 })
 
@@ -277,6 +294,7 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(placed),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
     }
     render(<ShellSidePanels {...props} />)
@@ -312,6 +330,7 @@ describe('ShellSidePanels · 液态开合', () => {
     onUpload: vi.fn(),
     onPlaceMedia: vi.fn(),
     placedCharacterIds: new Set<string>(),
+    railVisible: true,
     onPlaceCharacter: vi.fn(),
   }
 
@@ -642,6 +661,7 @@ describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
+      railVisible: true,
       onPlaceCharacter: vi.fn(),
     }
     render(<ShellSidePanels {...props} />)

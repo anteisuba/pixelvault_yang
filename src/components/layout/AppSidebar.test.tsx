@@ -1,5 +1,11 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { CANVAS_SHELL_SIDEBAR_ENTRY_ATTR } from '@/constants/canvas-shell'
+import {
+  resetCanvasShellPanelStore,
+  useCanvasShellPanelHost,
+} from '@/hooks/node/use-canvas-shell-panel'
 
 import { SidebarProvider } from '@/components/ui/sidebar'
 
@@ -237,5 +243,62 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
 
     expect(screen.queryByText('Navbar:requestsLoading')).toBeNull()
     expect(screen.queryByText('Navbar:apiKeys')).toBeNull()
+  })
+})
+
+describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () => {
+  function CanvasHost() {
+    useCanvasShellPanelHost()
+    return null
+  }
+
+  afterEach(() => {
+    mockPathname.current = '/studio/image'
+    act(() => resetCanvasShellPanelStore())
+  })
+
+  it('画布挂着、停在画布路由：「画布」下面长出三颗，点一颗开、再点收', () => {
+    mockPathname.current = '/studio/node'
+    render(
+      <SidebarProvider>
+        <AppSidebar />
+        <CanvasHost />
+      </SidebarProvider>,
+    )
+
+    const group = screen.getByTestId('sidebar-canvas-entries')
+    const nodes = within(group).getByLabelText('StudioNode.shell.panels.nodes')
+    const library = within(group).getByLabelText(
+      'StudioNode.shell.panels.library',
+    )
+    expect(within(group).getAllByRole('button')).toHaveLength(3)
+    expect(nodes.getAttribute('aria-pressed')).toBe('false')
+    expect(nodes.getAttribute(CANVAS_SHELL_SIDEBAR_ENTRY_ATTR)).toBe('nodes')
+
+    fireEvent.click(nodes)
+    expect(nodes.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(library)
+    expect(nodes.getAttribute('aria-pressed')).toBe('false')
+    expect(library.getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.click(library)
+    expect(library.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('画布没挂（或不在画布路由）就不长出来', () => {
+    mockPathname.current = '/studio/node'
+    const { unmount } = renderSidebar()
+    expect(screen.queryByTestId('sidebar-canvas-entries')).toBeNull()
+    unmount()
+
+    mockPathname.current = '/studio/image'
+    render(
+      <SidebarProvider>
+        <AppSidebar />
+        <CanvasHost />
+      </SidebarProvider>,
+    )
+    expect(screen.queryByTestId('sidebar-canvas-entries')).toBeNull()
   })
 })

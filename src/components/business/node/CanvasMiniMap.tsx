@@ -71,8 +71,7 @@ export function CanvasMiniMap({
             borderRadius:
               'calc((var(--radius-node-bar) + var(--radius-node-thumb)) / 2)',
             boxShadow: 'var(--shadow-node-chrome)',
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
+            // 小地图是外壳浮层：毛玻璃照挂（owner 2026-10-08 画布换皮，v2 §1 第 12 条）。
           }}
           className="canvas-glass pointer-events-auto !relative !bottom-auto !left-auto !m-0 !h-32 !w-48.5 cursor-grab overflow-hidden active:cursor-grabbing"
         />

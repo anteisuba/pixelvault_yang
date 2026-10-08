@@ -33,7 +33,7 @@ vi.mock('@xyflow/react', () => ({
     props.isVisible ? <div>{props.children}</div> : null,
 }))
 vi.mock('../NodeV4Context', () => ({
-  useNodeV4Canvas: () => ({ sidebarOpen: false }),
+  useNodeV4Canvas: () => ({ safeLeftPx: 72 }),
 }))
 
 import { NodeChromeLayer } from './NodeChromeLayer'

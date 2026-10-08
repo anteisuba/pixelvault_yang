@@ -1,3 +1,7 @@
+import {
+  CANVAS_SHELL_PANEL_IDS,
+  type CanvasShellPanelId,
+} from '@/constants/canvas-shell'
 import { ROUTES } from '@/constants/routes'
 
 import {
@@ -5,11 +9,14 @@ import {
   AudioLines,
   Box,
   FileText,
+  FolderOpen,
   IdCard,
+  ListTree,
   Image as ImageIcon,
   Images,
   SwatchBook,
   User,
+  UserRound,
   Video,
   Waypoints,
   type Icon,
@@ -29,6 +36,9 @@ import {
 
 /** 激活判定：`exact` 只认自己，`prefix` 连子路由一起认。 */
 export type ShellNavMatch = 'exact' | 'prefix'
+
+/** 「画布」那一项的 id —— 侧栏据它在下面长出画布面板的子图标。 */
+export const SHELL_NAV_CANVAS_ITEM_ID = 'canvas'
 
 export interface ShellNavItem {
   id: string
@@ -127,7 +137,7 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     labelKey: 'StudioTools.tools.lora.label',
   },
   {
-    id: 'canvas',
+    id: SHELL_NAV_CANVAS_ITEM_ID,
     href: ROUTES.STUDIO_NODE,
     icon: Waypoints,
     labelKey: 'StudioTools.tools.node.label',
@@ -151,3 +161,33 @@ export function isShellNavItemActive(
       : pathname === path,
   )
 }
+
+/**
+ * 「画布」那一项下面长出来的三颗子图标（owner 2026-10-08 画布换皮：画布自己的左侧图标栏
+ * 并进全站侧栏）。只在画布路由上、画布真的挂着时出现；点一颗 = 在侧栏旁边打开那一格
+ * 面板（`ShellSidePanels`），再点收起。顺序即面板顺序，图标与画布里兜底那条栏同一份。
+ */
+export interface ShellNavCanvasEntry {
+  readonly id: CanvasShellPanelId
+  readonly icon: Icon
+  /** 完整 i18n 路径（与面板标题同一条）。 */
+  readonly labelKey: string
+}
+
+export const SHELL_NAV_CANVAS_ENTRIES: readonly ShellNavCanvasEntry[] = [
+  {
+    id: CANVAS_SHELL_PANEL_IDS.nodes,
+    icon: ListTree,
+    labelKey: 'StudioNode.shell.panels.nodes',
+  },
+  {
+    id: CANVAS_SHELL_PANEL_IDS.cards,
+    icon: UserRound,
+    labelKey: 'StudioNode.shell.panels.cards',
+  },
+  {
+    id: CANVAS_SHELL_PANEL_IDS.library,
+    icon: FolderOpen,
+    labelKey: 'StudioNode.shell.panels.library',
+  },
+] as const

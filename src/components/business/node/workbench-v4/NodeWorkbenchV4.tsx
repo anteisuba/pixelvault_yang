@@ -56,7 +56,7 @@ import { toast } from 'sonner'
 
 import {
   CANVAS_SHELL_UPLOAD_ACCEPT,
-  type CanvasShellPanelId,
+  canvasShellSafeLeftPx,
 } from '@/constants/canvas-shell'
 import {
   getCanvasAddCatalogItem,
@@ -95,7 +95,8 @@ import {
   STUDIO_CHARACTER_QUERY,
 } from '@/constants/routes'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
-import { useIsPhone } from '@/hooks/use-mobile'
+import { useIsMobile, useIsPhone } from '@/hooks/use-mobile'
+import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
@@ -305,6 +306,11 @@ function NodeWorkbenchV4Inner() {
   const openKeySettings = useContext(KeySettingsContext)
   /** < 768 = 镜头带视图（桌面 ReactFlow 不挂载）。 */
   const isPhone = useIsPhone()
+  /**
+   * 768–1023 全站侧栏不在（MobileShell 接管），画布自己的图标栏留着兜底；≥1024 那三颗
+   * 图标长在全站侧栏「画布」下面（owner 2026-10-08）。
+   */
+  const shellRailVisible = useIsMobile() ?? false
 
   // Clerk userId 给 store 划分本地槽与服务端调用；未加载时传 null = 停在空态，
   // ⛔ 不泄漏上一个账号的快照。
@@ -476,9 +482,12 @@ function NodeWorkbenchV4Inner() {
   const relationsCollapsed = false
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [assistantExpanded, setAssistantExpanded] = useState(false)
-  const [activePanel, setActivePanel] = useState<CanvasShellPanelId | null>(
-    null,
-  )
+  // 与全站侧栏共用的一份（侧栏「画布」下面那三颗子图标读写同一格）。
+  const [activePanel, setActivePanel] = useCanvasShellPanelHost()
+  const safeLeftPx = canvasShellSafeLeftPx({
+    panelOpen: activePanel !== null,
+    railVisible: shellRailVisible,
+  })
   const [nodeQuery, setNodeQuery] = useState('')
   /**
    * ⚠ 宽度记忆与「从没开过」那一条随旧 dock 一起退场（进度表 22）：两者都长在
@@ -601,12 +610,7 @@ function NodeWorkbenchV4Inner() {
         }
         animateCameraTo(
           sequence,
-          locateCanvasNode(
-            stage,
-            node,
-            getViewport().zoom,
-            activePanel !== null,
-          ),
+          locateCanvasNode(stage, node, getViewport().zoom, safeLeftPx),
           () => {
             const current = cameraGraphRef.current
             current.onRfNodesChange([
@@ -626,7 +630,7 @@ function NodeWorkbenchV4Inner() {
       })
     },
     [
-      activePanel,
+      safeLeftPx,
       animateCameraTo,
       beginCameraMove,
       getViewport,
@@ -929,6 +933,7 @@ function NodeWorkbenchV4Inner() {
     paneMenu,
     quickAdd,
     activePanel,
+    setActivePanel,
     assistantOpen,
     assistantExpanded,
     reviewMode,
@@ -1756,7 +1761,7 @@ function NodeWorkbenchV4Inner() {
           >
             <NodeV4Provider
               graph={graph}
-              sidebarOpen={activePanel !== null}
+              safeLeftPx={safeLeftPx}
               modelOptionsByKind={modelOptionsByKind}
               pendingUploads={dnd.pendingUploads}
               onFocusNode={focusNode}
@@ -1851,6 +1856,7 @@ function NodeWorkbenchV4Inner() {
                        那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
                   />
                   <ShellSidePanels
+                    railVisible={shellRailVisible}
                     activePanel={activePanel}
                     onActivePanelChange={setActivePanel}
                     nodeQuery={nodeQuery}

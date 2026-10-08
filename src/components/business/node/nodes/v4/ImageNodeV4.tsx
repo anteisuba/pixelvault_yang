@@ -793,7 +793,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       memoryScope={NODE_MEDIA_KIND_IDS.image}
       gateId={id}
       canvasNodeId={id}
-      canvasSidebarOpen={canvas.sidebarOpen}
+      canvasSafeLeftPx={canvas.safeLeftPx}
       disabled={generating}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
       onChange={(option) => {
@@ -1080,7 +1080,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             }
           />
           <NodePromptBar
-            sidebarOpen={canvas.sidebarOpen}
+            safeLeftPx={canvas.safeLeftPx}
             value={draft}
             onValueChange={setDraft}
             onSubmit={submitPrompt}

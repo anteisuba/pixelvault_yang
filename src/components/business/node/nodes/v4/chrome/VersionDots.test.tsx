@@ -60,4 +60,24 @@ describe('VersionDots', () => {
     fireEvent.keyDown(group, { key: 'ArrowRight' })
     expect(onSelect).toHaveBeenCalledWith(1)
   })
+
+  it('出完图多出来的那一版才弹出来；挂载时就在的点不演（owner 2026-10-08）', () => {
+    const props = {
+      current: 0,
+      onSelect: vi.fn(),
+      ariaLabel: '版本',
+      labelOf: (index: number) => `第 ${index + 1} 版`,
+    }
+    const { container, rerender } = render(<VersionDots {...props} count={2} />)
+    expect(container.querySelectorAll('[data-version-dot-fresh]')).toHaveLength(
+      0,
+    )
+
+    rerender(<VersionDots {...props} count={3} current={2} />)
+    const fresh = container.querySelectorAll('[data-version-dot-fresh]')
+    expect(fresh).toHaveLength(1)
+    expect(
+      fresh[0]?.closest('[data-version-dot]')?.getAttribute('data-version-dot'),
+    ).toBe('2')
+  })
 })

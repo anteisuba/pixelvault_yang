@@ -37,13 +37,7 @@ import {
   type MotionStyle,
   type MotionValue,
 } from 'motion/react'
-import {
-  FolderOpen,
-  ChevronDown,
-  ListTree,
-  PanelLeftClose,
-  UserRound,
-} from '@/components/icons'
+import { ChevronDown, FolderOpen, PanelLeftClose } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
@@ -53,6 +47,7 @@ import {
   CANVAS_SHELL_MEDIA_DRAG_MIME,
   CANVAS_SHELL_PANELS,
   CANVAS_SHELL_PANEL_IDS,
+  CANVAS_SHELL_SIDEBAR_ENTRY_ATTR,
   type CanvasShellLibraryFilter,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
@@ -83,6 +78,7 @@ import {
 } from '@/components/ui/popover'
 import { Link } from '@/i18n/navigation'
 import { ROUTES, cardManagementPath } from '@/constants/routes'
+import { SHELL_NAV_CANVAS_ENTRIES } from '@/constants/navigation'
 import { getFolderPath } from '@/lib/folder-tree'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -100,11 +96,13 @@ import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
 import { ShellIconButton } from './ShellIconButton'
 
-const PANEL_ICONS = {
-  [CANVAS_SHELL_PANEL_IDS.nodes]: ListTree,
-  [CANVAS_SHELL_PANEL_IDS.cards]: UserRound,
-  [CANVAS_SHELL_PANEL_IDS.library]: FolderOpen,
-} as const
+/** 三格的图标与全站侧栏「画布」下面那三颗同一份（`SHELL_NAV_CANVAS_ENTRIES`）。 */
+const PANEL_ICONS = Object.fromEntries(
+  SHELL_NAV_CANVAS_ENTRIES.map((entry) => [entry.id, entry.icon]),
+) as Record<
+  CanvasShellPanelId,
+  (typeof SHELL_NAV_CANVAS_ENTRIES)[number]['icon']
+>
 
 /** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
 function planNodeForOutput(outputType: string): {
@@ -909,6 +907,11 @@ function ShellPanelLayer({
 }
 
 export interface ShellSidePanelsProps {
+  /**
+   * 画布里还留不留自己那条图标栏。≥1024 那三颗长在全站侧栏「画布」下面（owner
+   * 2026-10-08），画布里只剩面板；768–1023 全站侧栏不在，栏留着兜底。
+   */
+  readonly railVisible: boolean
   /** `null` = 三个面板都收着（只剩图标栏）。 */
   readonly activePanel: CanvasShellPanelId | null
   onActivePanelChange(panel: CanvasShellPanelId | null): void
@@ -926,6 +929,7 @@ export interface ShellSidePanelsProps {
 }
 
 export function ShellSidePanels({
+  railVisible,
   activePanel,
   onActivePanelChange,
   nodeQuery,
@@ -1099,8 +1103,18 @@ export function ShellSidePanels({
     const strip = CANVAS_SHELL_LAYOUT.panelTitleStripPx
     const width = CANVAS_SHELL_LAYOUT.panelWidthPx
     const height = panel.offsetHeight
-    const slot = railSlots.current[origin]
-    const row = slot ? slot.getBoundingClientRect().top - panelTop : 0
+    const slot = railVisible
+      ? railSlots.current[origin]
+      : document.querySelector<HTMLElement>(
+          `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
+        )
+    // 侧栏那一颗可能高过面板顶（面板从顶栏下面起）：夹进面板里，⛔ 从面板外长出来。
+    const row = slot
+      ? Math.min(
+          Math.max(0, slot.getBoundingClientRect().top - panelTop),
+          Math.max(0, height - icon),
+        )
+      : 0
     const stripTop = row + icon / 2 - strip / 2
     const stripBottom = stripTop + strip
     const titleRow = titleRowRef.current
@@ -1219,6 +1233,7 @@ export function ShellSidePanels({
     phase,
     from,
     origin,
+    railVisible,
     reducedMotion,
     shapeTop,
     shapeRight,
@@ -1245,48 +1260,50 @@ export function ShellSidePanels({
 
   return (
     <>
-      <div
-        data-testid="shell-side-rail"
-        style={{
-          top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
-          left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
-          width: CANVAS_SHELL_LAYOUT.railWidthPx,
-          borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
-        }}
-        className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
-      >
-        {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
-            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
-        <motion.span
-          aria-hidden
-          data-testid="shell-rail-indicator"
-          className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
+      {railVisible ? (
+        <div
+          data-testid="shell-side-rail"
           style={{
-            width: CANVAS_SHELL_LAYOUT.iconButtonPx,
-            height: indicatorHeight,
-            y: indicatorTop,
-            opacity: indicatorOpacity,
-            borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
+            top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
+            left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+            width: CANVAS_SHELL_LAYOUT.railWidthPx,
+            borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
           }}
-        />
-        {CANVAS_SHELL_PANELS.map((panel) => (
-          <ShellIconButton
-            key={panel}
-            ref={(element) => {
-              railSlots.current[panel] = element
+          className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
+        >
+          {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
+            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
+          <motion.span
+            aria-hidden
+            data-testid="shell-rail-indicator"
+            className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
+            style={{
+              width: CANVAS_SHELL_LAYOUT.iconButtonPx,
+              height: indicatorHeight,
+              y: indicatorTop,
+              opacity: indicatorOpacity,
+              borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
             }}
-            icon={PANEL_ICONS[panel]}
-            label={titleByPanel[panel]}
-            testId={`shell-rail-${panel}`}
-            active={activePanel === panel}
-            externalActiveSurface
-            tooltipSide="right"
-            onClick={() =>
-              onActivePanelChange(activePanel === panel ? null : panel)
-            }
           />
-        ))}
-      </div>
+          {CANVAS_SHELL_PANELS.map((panel) => (
+            <ShellIconButton
+              key={panel}
+              ref={(element) => {
+                railSlots.current[panel] = element
+              }}
+              icon={PANEL_ICONS[panel]}
+              label={titleByPanel[panel]}
+              testId={`shell-rail-${panel}`}
+              active={activePanel === panel}
+              externalActiveSurface
+              tooltipSide="right"
+              onClick={() =>
+                onActivePanelChange(activePanel === panel ? null : panel)
+              }
+            />
+          ))}
+        </div>
+      ) : null}
 
       {phase === 'closed' || shown === null ? null : (
         <div
@@ -1294,8 +1311,10 @@ export function ShellSidePanels({
             top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
             left:
               CANVAS_SHELL_LAYOUT.edgeInsetPx +
-              CANVAS_SHELL_LAYOUT.railWidthPx +
-              CANVAS_SHELL_LAYOUT.panelGapPx,
+              (railVisible
+                ? CANVAS_SHELL_LAYOUT.railWidthPx +
+                  CANVAS_SHELL_LAYOUT.panelGapPx
+                : 0),
             bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
             width: CANVAS_SHELL_LAYOUT.panelWidthPx,
             ...(moving ? { filter: MOVING_SHADOW_FILTER } : {}),

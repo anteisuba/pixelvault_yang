@@ -59,9 +59,11 @@ export interface UseVideoReferenceSlotsValue {
   readonly grabbing: VideoFrameGrab | null
   /** 上传失败时的原文（`useNodeUploadV4.error`）。 */
   readonly uploadError: string | null
+  /** `untilSec` = 截到这一秒为止的末帧（剪辑台：段的出点）；缺席 = 整版片尾。 */
   captureLastFrame(
     videoUrl: string,
     name: string,
+    untilSec?: number,
   ): Promise<VideoFrameGrabResult>
   captureCurrentFrame(
     video: HTMLVideoElement,
@@ -143,10 +145,14 @@ export function useVideoReferenceSlots(): UseVideoReferenceSlotsValue {
   )
 
   const captureLastFrame = useCallback(
-    async (videoUrl: string, name: string): Promise<VideoFrameGrabResult> => {
+    async (
+      videoUrl: string,
+      name: string,
+      untilSec?: number,
+    ): Promise<VideoFrameGrabResult> => {
       setGrabbing('lastFrame')
       try {
-        const result = await captureVideoEndpointFrames(videoUrl)
+        const result = await captureVideoEndpointFrames(videoUrl, untilSec)
         if (!result.ok) {
           return {
             ok: false,

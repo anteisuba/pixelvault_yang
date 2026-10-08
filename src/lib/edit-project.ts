@@ -1114,10 +1114,16 @@ export function toRenderPlan(
     const node = nodes.find((candidate) => candidate.id === clip.sourceNodeId)
     const url = clipVersionOf(node, clip)?.version.url
     if (!url) {
-      throw new RenderPlanError(
-        RENDER_PLAN_ERROR_CODES.missingSource,
-        `Clip ${clip.id} has no playable source.`,
-      )
+      // 卡在、只是还没生成（续拍的占位段）与卡没了是两件事，说法也分开。
+      throw node
+        ? new RenderPlanError(
+            RENDER_PLAN_ERROR_CODES.pendingSource,
+            `Clip ${clip.id} is waiting for its card to be generated.`,
+          )
+        : new RenderPlanError(
+            RENDER_PLAN_ERROR_CODES.missingSource,
+            `Clip ${clip.id} has no playable source.`,
+          )
     }
     return url
   }

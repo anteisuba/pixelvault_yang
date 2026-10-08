@@ -715,6 +715,7 @@ export const NodeAssistantEditSetTimelineOpSchema = z.object({
 export const NodeAssistantEditAddClipOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editAddClip),
   track: z.enum(EDIT_TRACKS_TUPLE),
+  /** `clip.sourceNodeId` 也可以是同一批里 `add_node.ref` 的别名（剪辑台续拍）。 */
   clip: EditClipSchema,
   /** 插在第几位。省略 = 追加到尾（拖进空白处、「加入剪辑台」都是追加）。 */
   index: z.number().int().min(0).max(EDIT_TRACK_MAX_CLIPS).optional(),

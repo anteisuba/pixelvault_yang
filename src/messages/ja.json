@@ -6366,10 +6366,16 @@
       },
       "retake": {
         "action": "撮り直し",
+        "generate": "生成",
         "generating": "生成中",
         "previewGenerating": "テイク {n} 生成中",
         "failed": "テイク {n} を生成できませんでした：{reason}。プロンプトを直してもう一度どうぞ。",
         "failedBadge": "撮り直しに失敗 · 開いて理由を見る"
+      },
+      "continue": {
+        "action": "続きを撮る",
+        "pending": "未生成",
+        "previewPending": "このカットはまだ映像がありません · プロンプトを書いて生成"
       },
       "clipTag": "{name} · {duration}",
       "previewTitle": "プレビュー · {name}",
@@ -6455,6 +6461,7 @@
         "planError": {
           "emptyTimeline": "タイムラインにまだ映像がありません。動画カードをドラッグしてください。",
           "missingSource": "あるクリップの素材が見つかりません。元のノードが残っているか確認してください。",
+          "pendingSource": "まだ生成されていないクリップがあります（続きの仮クリップ）。生成するか削除してから書き出してください。",
           "emptyRange": "この範囲には書き出せるものがありません。",
           "zeroDuration": "書き出しの長さが 0 秒です。",
           "tooManySegments": "クリップが多すぎます。いくつか減らしてから書き出してください。",

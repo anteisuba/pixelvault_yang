@@ -74,9 +74,32 @@ vi.mock('./EditDeskRetakeBar', () => ({
   ),
 }))
 /** 版本弹层会去量每一版多长 —— jsdom 里 `<video>` 不出元数据，直接答「量不出来」。 */
+const probeDuration = vi.fn(async (): Promise<number | null> => null)
 vi.mock('@/lib/media-probe', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/media-probe')>()),
-  probeMediaDuration: async () => null,
+  probeMediaDuration: () => probeDuration(),
+}))
+
+/**
+ * 续拍那一批（截末帧 + 建卡 + 连线）是画布卡同一个动作，视频卡那组测试已测。这里只看
+ * 剪辑台托它带上的那一段占位：插在哪、截到哪一秒、之后栏升在哪一段上。
+ */
+const continueVideo = vi.fn<
+  (
+    input: import('../nodes/v4/video/use-video-continue').VideoContinueInput,
+  ) => Promise<{ shotId: string } | null>
+>(async () => ({ shotId: 'shot_new' }))
+vi.mock('../nodes/v4/video/use-video-continue', () => ({
+  VIDEO_CONTINUE_REFS: { tail: 'tail', shot: 'shot' },
+  useVideoContinue: () => continueVideo,
+}))
+vi.mock('@/hooks/node/use-video-reference-slots', () => ({
+  useVideoReferenceSlots: () => ({
+    grabbing: null,
+    uploadError: null,
+    captureLastFrame: vi.fn(),
+    captureCurrentFrame: vi.fn(),
+  }),
 }))
 
 import messages from '@/messages/zh.json'
@@ -697,6 +720,133 @@ describe('剪辑台 · 台面', () => {
       'data-clip',
       'c1',
     )
+  })
+
+  it('续拍：段后插一段占位、栏升在占位上；新版落下来占位按新版整段换成真段（4c）', async () => {
+    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    const base: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        videoNode('v1', {
+          versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
+        }),
+      ],
+      edges: [],
+      edit: {
+        name: '成片',
+        tracks: {
+          video: [
+            {
+              id: 'c1',
+              sourceNodeId: 'v1',
+              sourceVersionId: 'ver1',
+              in: 0.5,
+              out: 3.5,
+              speed: 1,
+              muted: false,
+            },
+          ],
+          audio: [],
+          music: [],
+          text: [],
+        },
+        settings: { aspect: '16:9', resolution: '1080p' },
+      },
+    }
+    const { read, pushRemote } = renderDesk(base)
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-clip-c1'))
+    fireEvent.click(screen.getByTestId('edit-desk-continue'))
+    await waitFor(() => expect(continueVideo).toHaveBeenCalled())
+
+    // 末帧截在段的出点（⛔ 不是整版片尾），占位插在这一段后面、来源是同一批新建的卡
+    const input = continueVideo.mock.calls[0]![0]
+    expect(input).toMatchObject({
+      nodeId: 'v1',
+      url: 'https://example.test/a.mp4',
+      untilSec: 3.5,
+    })
+    const added = input.then?.[0]
+    expect(added).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+      track: 'video',
+      index: 1,
+      clip: { sourceNodeId: 'shot', in: 0 },
+    })
+    if (added?.op !== NODE_ASSISTANT_OP_V4_IDS.editAddClip) {
+      throw new Error('续拍没有带上占位段')
+    }
+    const placeholder = added.clip
+
+    // 那一批落下来（桩里不落，这里照它落）：栏升在占位段上，段上写「待生成」
+    const after = read()
+    pushRemote(
+      {
+        ...after,
+        nodes: [...after.nodes, videoNode('shot_new', { url: '' })].map(
+          (node) =>
+            node.id === 'shot_new'
+              ? ({ ...node, data: { ...node.data, url: undefined } } as NodeV4)
+              : node,
+        ),
+        edit: {
+          ...after.edit!,
+          tracks: {
+            ...after.edit!.tracks,
+            video: [
+              ...after.edit!.tracks.video,
+              { ...placeholder, sourceNodeId: 'shot_new' },
+            ],
+          },
+        },
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
+        'data-clip',
+        placeholder.id,
+      ),
+    )
+    expect(
+      screen.getByTestId(`edit-desk-pending-${placeholder.id}`),
+    ).toBeInTheDocument()
+
+    // 在占位上发一枪 → 新版 8 秒落到卡上 → 占位按新版整段换成真段
+    probeDuration.mockResolvedValue(8)
+    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    const sent = read()
+    pushRemote(
+      {
+        ...sent,
+        nodes: sent.nodes.map((node) =>
+          node.id === 'shot_new' && node.data.kind === 'video'
+            ? ({
+                ...node,
+                data: {
+                  ...node.data,
+                  url: 'https://example.test/next.mp4',
+                  outputs: {
+                    versions: [take('nv1', 'https://example.test/next.mp4')],
+                    cur: 0,
+                  },
+                },
+              } as NodeV4)
+            : node,
+        ),
+      },
+      false,
+    )
+    await waitFor(() =>
+      expect(read().edit?.tracks.video[1]).toMatchObject({
+        id: placeholder.id,
+        sourceVersionId: 'nv1',
+        out: 8,
+      }),
+    )
+    expect(
+      screen.queryByTestId(`edit-desk-pending-${placeholder.id}`),
+    ).not.toBeInTheDocument()
+    probeDuration.mockResolvedValue(null)
   })
 
   it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {

@@ -90,6 +90,11 @@ export interface EditRetake {
   readonly baseVersionIds: readonly string[]
   /** 发起时卡上钉着的失败（按对象认）：换成了新的一个，才是这一枪失败了。 */
   readonly baseFailure: unknown
+  /**
+   * 发起时这一段在播的那一版。缺席 = 那时还没有片子（续拍的占位段）：落版后整段跟
+   * 着新版走。
+   */
+  readonly baseUrl?: string
   /** 这一枪落版的地址（发送那一枪回来就知道；轮询窗口关了就没有）。 */
   readonly landedUrl?: string
 }
@@ -526,18 +531,15 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
       if (!node || node.data.kind === NODE_MEDIA_KIND_IDS.text) return false
       const version = readOutputVersions(node.data)[index]
       if (!version) return false
-      const inUse = clipVersionOf(node, clip)
       const ops: NodeAssistantOpV4[] = []
+      // ⚠ 比的是段**钉住**的那一版：还没钉过的段（续拍的占位）此刻借卡的当前版在播，
+      // 那不是「已经在用这一版」，入出点照样要跟新版走。
       if (clip.sourceVersionId !== version.id) {
         ops.push({
           op: NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
           track,
           clipId,
-          patch: clipVersionPatch(
-            clip,
-            version.id,
-            inUse?.version.id === version.id ? {} : durations,
-          ),
+          patch: clipVersionPatch(clip, version.id, durations),
         })
       }
       if (readOutputIndex(node.data) !== index) {
@@ -580,12 +582,14 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
         ? state.nodes.find((item) => item.id === clip.sourceNodeId)
         : undefined
       if (!clip || !node || node.data.kind === NODE_MEDIA_KIND_IDS.text) return
+      const baseUrl = clipVersionOf(node, clip)?.version.url
       patchRetake(clipId, {
         track,
         nodeId: node.id,
         status: 'generating',
         baseVersionIds: readOutputVersions(node.data).map((item) => item.id),
         baseFailure: node.data.generationFailure,
+        ...(baseUrl ? { baseUrl } : {}),
       })
     },
     [project, state.nodes, patchRetake],
@@ -646,11 +650,13 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
         }
         continue
       }
-      const fromUrl = clipVersionOf(node, clip)?.version.url
       const toUrl = versions[index]?.url
       landingRef.current.add(clipId)
       void Promise.all([
-        fromUrl ? probeMediaDuration(fromUrl, 'video') : null,
+        // 占位段（发起时还没有片子）= 整段在用：拿它自己的长度当「旧版片长」。
+        retake.baseUrl
+          ? probeMediaDuration(retake.baseUrl, 'video')
+          : clip.out - clip.in,
         toUrl ? probeMediaDuration(toUrl, 'video') : null,
       ]).then(([from, to]) => {
         landingRef.current.delete(clipId)

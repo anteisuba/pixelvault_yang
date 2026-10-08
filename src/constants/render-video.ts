@@ -139,6 +139,8 @@ export const RENDER_WORKER = {
 export const RENDER_PLAN_ERROR_CODES = {
   emptyTimeline: 'emptyTimeline',
   missingSource: 'missingSource',
+  /** 来源卡在，只是还没有片子（剪辑台续拍的占位段，4c）。 */
+  pendingSource: 'pendingSource',
   emptyRange: 'emptyRange',
   zeroDuration: 'zeroDuration',
   tooManySegments: 'tooManySegments',

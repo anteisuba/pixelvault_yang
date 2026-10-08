@@ -91,18 +91,15 @@ import { VideoPlayer } from './video/VideoPlayer'
 import { VideoRefRail } from './video/VideoRefRail'
 import { VideoScriptShotBadge } from './video/VideoScriptShotChips'
 import { useVideoComposer } from './video/use-video-composer'
+import { useVideoContinue } from './video/use-video-continue'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import {
   formatVideoSeconds,
   formatVideoClock,
   videoCardHeight,
-  videoContinueSourceHandle,
 } from './video/video-node-model'
 import { useNodeCanvasActions } from './NodeV4ActionsBridge'
 import { CharacterMentionRail } from './character/CharacterMentionRail'
-
-/** 「续拍」那一批里的两个别名（只在这一批之内有效）。 */
-const CONTINUE_BATCH_REFS = { tail: 'tail', shot: 'shot' } as const
 
 export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
@@ -114,6 +111,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const tCapture = useTranslations('VideoAnalysis')
   const canvas = useNodeV4Canvas()
   const frames = useVideoReferenceSlots()
+  const continueVideo = useVideoContinue(frames)
   /** ⋯「加入剪辑台」的出口（模式不是 op，见 `NodeV4ActionsBridge`）。 */
   const { openEditDesk } = useNodeCanvasActions()
   const videoData = data as unknown as NodeV4VideoData
@@ -335,58 +333,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const reportCaptureFailure = (reasonKey: string) =>
     toast.error(tCapture(`captureReason.${reasonKey}` as never))
 
-  /** 续拍：抓这一段的末帧 → 落成一张图 → 当下一段的首帧。 */
+  /** 续拍：抓这一段的末帧 → 落成一张图 → 当下一段的首帧（与剪辑台同一个动作）。 */
   const runContinue = async () => {
     if (!videoData.url) return
-    const grabbed = await frames.captureLastFrame(videoData.url, displayName)
-    if (!grabbed.ok) {
-      reportCaptureFailure(grabbed.reasonKey)
-      return
-    }
-    // 末帧 → 下一镜排成一行，落在本卡右边第一个空位（§7 摆放 A「让位」）。
-    const [tailAt, shotAt] =
-      canvas.onPlaceBeside(id, [
-        {
-          kind: NODE_MEDIA_KIND_IDS.image,
-          subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
-        },
-        {
-          kind: NODE_MEDIA_KIND_IDS.video,
-          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-        },
-      ]) ?? []
-    const outcome = await canvas.onApplyBatch([
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-        kind: NODE_MEDIA_KIND_IDS.image,
-        subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
-        ref: CONTINUE_BATCH_REFS.tail,
-        name: tVideo('tailFrameName', { name: displayName }),
-        ...(tailAt ? { position: tailAt } : {}),
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-        kind: NODE_MEDIA_KIND_IDS.video,
-        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-        ref: CONTINUE_BATCH_REFS.shot,
-        ...(shotAt ? { position: shotAt } : {}),
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: CONTINUE_BATCH_REFS.tail,
-        target: CONTINUE_BATCH_REFS.shot,
-        slot: NODE_SLOT_IDS.firstFrame,
-      },
-      {
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: id,
-        sourceHandle: videoContinueSourceHandle(videoData.subtype),
-        target: CONTINUE_BATCH_REFS.shot,
-        slot: NODE_SLOT_IDS.reference,
-      },
-    ])
-    const tailId = outcome?.createdNodeIds?.[0]
-    if (tailId) backfillMedia(tailId, { url: grabbed.url })
+    await continueVideo({
+      nodeId: id,
+      subtype: videoData.subtype,
+      url: videoData.url,
+      displayName,
+    })
   }
 
   /**

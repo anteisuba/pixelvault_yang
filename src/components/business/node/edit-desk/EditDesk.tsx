@@ -924,6 +924,7 @@ export function EditDesk({
                     desk={desk}
                     onBackToNode={onBackToNode}
                     onEditText={startEditText}
+                    {...(readOnly ? {} : { mintId })}
                   />
                 }
               />

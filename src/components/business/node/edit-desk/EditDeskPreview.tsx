@@ -380,7 +380,12 @@ export function EditDeskPreview({
         })}
         {url ? null : (
           <div className="flex size-full items-center justify-center">
-            <p className="text-xs text-white/70">{t('previewEmpty')}</p>
+            <p className="text-xs text-white/70">
+              {/* 播放头下有段、来源卡还没片子（续拍的占位，4c）≠ 播放头下没有段。 */}
+              {row?.source.exists
+                ? t('continue.previewPending')
+                : t('previewEmpty')}
+            </p>
           </div>
         )}
         {/*

@@ -5,7 +5,7 @@
  * ⛔ 不再有右侧属性栏：看 Claude 剪的时候舞台要最大，一段的属性一行看完。
  *
  * 三种段各一行，一律是暗台上的实底小胶囊（读数胶囊不可点，可点的悬停提亮）：
- * - 视频段：镜头名 · 重拍 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
+ * - 视频段：镜头名 · 重拍 · 续拍 · 入点 · 出点 · 速度 · 原声 · 转场 · 版本 · 回节点；
  * - 配音 / 配乐段：镜头名 · 入点 · 出点 · 音量 · 回节点；
  * - 字幕段：字（点它 = 到预览里原地改）· 入点 · 出点 · 位置 / 字号 / 颜色 / 淡入淡出
  *   四颗胶囊，各开一个小弹层，一次只开一个。
@@ -60,6 +60,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditClipVersionsPopover, readClipTakes } from './EditDeskVersions'
+import { useEditDeskContinue } from './use-edit-desk-continue'
 
 /** 暗台上的实底小胶囊（关键切片 `.chip`）：读数用它，可点的再加 `CHIP_ACTIVE`。 */
 const CHIP =
@@ -75,12 +76,18 @@ export interface EditDeskInspectorProps {
   onBackToNode(nodeId: string): void
   /** 字幕段行首那颗字：到预览里原地改这一段。 */
   onEditText(clipId: string): void
+  /**
+   * 新段 id 生成器 —— 给了才出「续拍」（4c：截这一段出点那一帧，在它后面插一段占位并
+   * 升起新卡的栏）。
+   */
+  mintId?(prefix: string): string
 }
 
 export function EditDeskInspector({
   desk,
   onBackToNode,
   onEditText,
+  mintId,
 }: EditDeskInspectorProps) {
   const t = useTranslations('StudioNode.editDesk.inspector')
   const tDesk = useTranslations('StudioNode.editDesk')
@@ -116,25 +123,38 @@ export function EditDeskInspector({
           )}
           {selection.track === EDIT_TRACK_IDS.video &&
           row.source.node?.data.kind === NODE_MEDIA_KIND_IDS.video ? (
-            // 就地重拍（4b）：升起来源卡那条提示词栏。花积分的入口走警告琥珀（配色 B）。
-            <button
-              type="button"
-              data-testid="edit-desk-retake"
-              aria-pressed={desk.retakeClipId === clip.id}
-              onClick={() =>
-                desk.retakeClipId === clip.id
-                  ? desk.closeRetake()
-                  : desk.openRetake(selection.track, clip.id)
-              }
-              className={cn(
-                CHIP,
-                CHIP_ACTIVE,
-                'text-status-warning hover:text-status-warning',
-                desk.retakeClipId === clip.id && 'bg-muted',
-              )}
-            >
-              {tDesk('retake.action')}
-            </button>
+            <>
+              {/* 就地重拍（4b）：升起来源卡那条提示词栏。花积分的入口走警告琥珀（配色 B）。
+                  还没有片子的段（续拍的占位）写「生成」。 */}
+              <button
+                type="button"
+                data-testid="edit-desk-retake"
+                aria-pressed={desk.retakeClipId === clip.id}
+                onClick={() =>
+                  desk.retakeClipId === clip.id
+                    ? desk.closeRetake()
+                    : desk.openRetake(selection.track, clip.id)
+                }
+                className={cn(
+                  CHIP,
+                  CHIP_ACTIVE,
+                  'text-status-warning hover:text-status-warning',
+                  desk.retakeClipId === clip.id && 'bg-muted',
+                )}
+              >
+                {row.source.url
+                  ? tDesk('retake.action')
+                  : tDesk('retake.generate')}
+              </button>
+              {mintId ? (
+                <ContinueChip
+                  desk={desk}
+                  mintId={mintId}
+                  clipId={clip.id}
+                  disabled={!row.source.url}
+                />
+              ) : null}
+            </>
           ) : null}
           <Reading
             label={t('inPoint')}
@@ -234,6 +254,40 @@ export function EditDeskInspector({
       )}
       {textClip || (row && clip && selection) ? <EditKeys desk={desk} /> : null}
     </div>
+  )
+}
+
+/**
+ * 「续拍」（4c）。⚠ 自成一个组件：续拍要截帧、要往画布上落卡（画布上下文），只在选中了
+ * 视频段时才挂上 —— ⛔ 不让整个台面为它依赖画布上下文。
+ */
+function ContinueChip({
+  desk,
+  mintId,
+  clipId,
+  disabled,
+}: {
+  readonly desk: EditDesk
+  mintId(prefix: string): string
+  readonly clipId: string
+  readonly disabled: boolean
+}) {
+  const tDesk = useTranslations('StudioNode.editDesk')
+  const continueClip = useEditDeskContinue({ desk, mintId })
+  return (
+    <button
+      type="button"
+      data-testid="edit-desk-continue"
+      disabled={disabled || continueClip.busy}
+      onClick={() => void continueClip.run(clipId)}
+      className={cn(
+        CHIP,
+        CHIP_ACTIVE,
+        'text-status-warning hover:text-status-warning',
+      )}
+    >
+      {tDesk('continue.action')}
+    </button>
   )
 }
 

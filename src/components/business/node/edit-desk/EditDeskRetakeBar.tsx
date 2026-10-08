@@ -215,7 +215,11 @@ function RetakeBarBody({
           : {})}
         generating={composer.generating}
         onCancel={composer.cancelGeneration}
-        placeholder={tVideo('promptPlaceholder')}
+        placeholder={
+          row.source.url
+            ? tVideo('promptPlaceholder')
+            : tVideo('emptyPromptPlaceholder')
+        }
         ariaLabel={tVideo('promptLabel')}
         className="w-full"
         addMenu={

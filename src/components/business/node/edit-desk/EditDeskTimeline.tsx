@@ -1670,6 +1670,8 @@ function ClipView({
   const retake = isVideo ? desk.retakes.get(clip.id) : undefined
   const generating = retake?.status === 'generating'
   const failed = retake?.status === 'failed'
+  /** 来源卡还没有片子（续拍的占位段，4c）：虚线框，等新版落下来。 */
+  const pending = isVideo && !gone && !row.source.url
   const committedSpan = committed.clips.get(clip.id) ?? span
 
   /**
@@ -1953,6 +1955,8 @@ function ClipView({
           hostId === clip.id &&
             'outline-2 outline-offset-1 outline-dashed outline-foreground',
           lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
+          pending &&
+            'outline-1 -outline-offset-1 outline-dashed outline-foreground/40',
           generating && 'edit-clip-generating',
           failed &&
             'outline-2 -outline-offset-2 outline-status-risk transition duration-base',
@@ -2000,6 +2004,15 @@ function ClipView({
               top: `${Math.min(90, Math.max(10, (1 - (clip.gain ?? 1) / 2) * 100))}%`,
             }}
           />
+        ) : null}
+
+        {pending && !generating ? (
+          <span
+            data-testid={`edit-desk-pending-${clip.id}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-1/2 whitespace-nowrap text-2xs text-muted-foreground"
+          >
+            {t('continue.pending')}
+          </span>
         ) : null}
 
         {generating ? (

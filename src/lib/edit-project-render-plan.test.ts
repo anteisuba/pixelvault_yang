@@ -440,11 +440,26 @@ describe('toRenderPlan · 失败可见', () => {
     )
   })
 
-  it('来源节点没有 url', () => {
+  it('来源卡在、只是还没有片子（续拍的占位段）→ 待生成，⛔ 不说「找不到了」', () => {
     expect(() =>
       toRenderPlan(
         threeClipProject(),
-        [mediaNode('v1', 'video', undefined)],
+        [mediaNode('v1', 'video', undefined), ...NODES.slice(1)],
+        { range: EDIT_EXPORT_RANGE_IDS.all },
+        SETTINGS,
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: RENDER_PLAN_ERROR_CODES.pendingSource,
+      }) as Error,
+    )
+  })
+
+  it('来源卡没了 → 找不到来源', () => {
+    expect(() =>
+      toRenderPlan(
+        threeClipProject(),
+        NODES.slice(1),
         { range: EDIT_EXPORT_RANGE_IDS.all },
         SETTINGS,
       ),

@@ -1,9 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Check, Copy, Plus } from '@/components/icons'
+import { Copy, Plus } from '@/components/icons'
 
 import { API_ENDPOINTS, getAppOrigin } from '@/constants/config'
 import {
@@ -13,13 +20,25 @@ import {
   MCP_TOKEN_DEFAULT_NAME,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
-import { COPIED_ACK_MS, DURATION, EASE_STANDARD } from '@/constants/motion'
+import {
+  COPIED_ACK_MS,
+  DURATION,
+  EASE_STANDARD,
+  LIQUID_TIMING,
+  springTransition,
+} from '@/constants/motion'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
 import { useMcpTokens } from '@/hooks/use-mcp-tokens'
+import { toastSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
+import { useBlurSwapIn } from '@/components/ui/blur-swap'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -31,6 +50,11 @@ import { Spinner } from '@/components/ui/spinner'
  * 一块「Claude Code」：生成键 → 列表顶上一行填名字 → 刚生成那张卡给明文与
  * 填好令牌的接入命令（**只此一次**）→「我复制好了」收成普通一行。
  * ⛔ 不放 Claude.ai 连接器的占位：那一块做出来（mcp.md S7）才出现在这一页。
+ *
+ * 动效（owner 2026-10-08 设置页原型 v1）：虚线那一行**长高**出来；回车后同一格长成
+ * 黑框卡（糊一下换进来）；「我复制好了」同一格收回普通一行；吊销过正中弹窗，那一行
+ * 收起高度、糊掉，底部黑条说一句。⚠ 「同一格」靠同一个 key：填名字那一行的 key
+ * 生成后交给新令牌那一行（`slot`），所以三个样子是一个元素在变，⛔ 不是一个走一个来。
  */
 export function SettingsConnectionsSection() {
   const t = useTranslations('Settings')
@@ -39,23 +63,51 @@ export function SettingsConnectionsSection() {
   const [naming, setNaming] = useState<{ focus: boolean } | null>(null)
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<CreatedMcpToken | null>(null)
+  /**
+   * 「同一格」：填名字那一行的 key，生成之后交给新令牌那一行（`tokenId`），
+   * 好让虚线行 → 黑框卡 → 普通一行是同一个元素长高 / 收回。
+   */
+  const [slot, setSlot] = useState<{
+    key: string
+    tokenId: string | null
+  } | null>(null)
+  const slotCount = useRef(0)
   const [now] = useState(() => Date.now())
 
   const isFull = tokens.length >= MCP_MAX_ACTIVE_TOKENS
+  const grow = springTransition('slot', reduceMotion)
   const motionProps = {
-    initial: reduceMotion ? false : { opacity: 0, y: 6 },
-    animate: { opacity: 1, y: 0 },
-    exit: reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 },
+    initial: reduceMotion ? false : { height: 0, opacity: 0 },
+    animate: { height: 'auto', opacity: 1 },
+    exit: reduceMotion
+      ? { opacity: 0, transition: { duration: 0 } }
+      : {
+          height: 0,
+          opacity: 0,
+          filter: `blur(${LIQUID_TIMING.blurPx}px)`,
+          // ⛔ 移除不走弹簧（ui-defaults §4.1）。
+          transition: { duration: DURATION.slow, ease: EASE_STANDARD },
+        },
     transition: {
-      duration: reduceMotion ? 0 : DURATION.base,
-      ease: EASE_STANDARD,
+      height: grow,
+      opacity: {
+        duration: reduceMotion ? 0 : DURATION.base,
+        ease: EASE_STANDARD,
+      },
     },
   }
 
   const openNaming = useCallback(() => {
     setCreated(null)
+    slotCount.current += 1
+    setSlot({ key: `slot-${slotCount.current}`, tokenId: null })
     // 触屏上不自动聚焦：一聚焦就弹键盘、盖住刚长出来的那一行（forbidden.md UI）。
     setNaming({ focus: window.matchMedia('(pointer: fine)').matches })
+  }, [])
+
+  const cancelNaming = useCallback(() => {
+    setNaming(null)
+    setSlot(null)
   }, [])
 
   const submitName = useCallback(
@@ -64,10 +116,22 @@ export function SettingsConnectionsSection() {
       const result = await create(name.trim() || MCP_TOKEN_DEFAULT_NAME)
       setCreating(false)
       if (!result) return
+      setSlot((current) =>
+        current ? { ...current, tokenId: result.id } : current,
+      )
       setNaming(null)
       setCreated(result)
     },
     [create],
+  )
+
+  const revokeToken = useCallback(
+    async (token: McpTokenRecord) => {
+      if (await revoke(token.id)) {
+        toastSuccess(t('connections.revoked', { name: token.name }))
+      }
+    },
+    [revoke, t],
   )
 
   const showList = !(isLoading && tokens.length === 0) && failure !== 'load'
@@ -137,41 +201,90 @@ export function SettingsConnectionsSection() {
       ) : null}
 
       {showList && hasRows ? (
-        <ul className="mt-3 flex flex-col gap-2">
-          <AnimatePresence initial={false} mode="popLayout">
-            {naming ? (
-              <motion.li key="naming" layout {...motionProps}>
-                <NamingRow
-                  autoFocus={naming.focus}
-                  busy={creating}
-                  onSubmit={(name) => void submitName(name)}
-                  onCancel={() => setNaming(null)}
-                />
-              </motion.li>
-            ) : null}
-            {created ? (
-              <motion.li key={`created-${created.id}`} layout {...motionProps}>
-                <CreatedCard
-                  created={created}
-                  onDone={() => setCreated(null)}
-                />
-              </motion.li>
-            ) : null}
-            {tokens
-              .filter((token) => token.id !== created?.id)
-              .map((token) => (
-                <motion.li key={token.id} layout {...motionProps}>
-                  <TokenRow
-                    token={token}
-                    now={now}
-                    onRevoke={() => void revoke(token.id)}
+        <ul className="mt-3 flex flex-col">
+          <AnimatePresence initial={false}>
+            {naming && slot && slot.tokenId === null ? (
+              <motion.li key={slot.key} {...motionProps}>
+                <GrowingSlot swapKey="naming">
+                  <NamingRow
+                    autoFocus={naming.focus}
+                    busy={creating}
+                    onSubmit={(name) => void submitName(name)}
+                    onCancel={cancelNaming}
                   />
+                </GrowingSlot>
+              </motion.li>
+            ) : null}
+            {tokens.map((token) => {
+              const isSlot = slot?.tokenId === token.id
+              const isFresh = created?.id === token.id
+              return (
+                <motion.li
+                  key={isSlot && slot ? slot.key : token.id}
+                  {...motionProps}
+                >
+                  <GrowingSlot swapKey={isFresh ? 'created' : 'row'}>
+                    {isFresh && created ? (
+                      <CreatedCard
+                        created={created}
+                        onDone={() => setCreated(null)}
+                      />
+                    ) : (
+                      <TokenRow
+                        token={token}
+                        now={now}
+                        onRevoke={() => void revokeToken(token)}
+                      />
+                    )}
+                  </GrowingSlot>
                 </motion.li>
-              ))}
+              )
+            })}
           </AnimatePresence>
         </ul>
       ) : null}
     </section>
+  )
+}
+
+/**
+ * 一格里换样子（虚线行 → 黑框卡 → 普通一行）时，高度从旧的弹簧到新的（`SPRING.slot`），
+ * 新内容糊一下进来。量的是里面那层的真实高度，⛔ 不用 `layout`（scale 会把字压扁）。
+ * 底下留 8px 当行距：放在格子里而不是 `ul` 的 gap 上，收起时行距跟着一起收。
+ */
+function GrowingSlot({
+  swapKey,
+  children,
+}: {
+  swapKey: string
+  children: ReactNode
+}) {
+  const reduceMotion = useReducedMotion()
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number | 'auto'>('auto')
+  const swap = useBlurSwapIn(swapKey)
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current
+    if (!inner || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setHeight(inner.offsetHeight))
+    observer.observe(inner)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <motion.div
+      initial={false}
+      animate={{ height }}
+      transition={springTransition('slot', reduceMotion)}
+      className="overflow-hidden"
+    >
+      <div ref={innerRef} className="pb-2">
+        <motion.div key={swapKey} {...swap}>
+          {children}
+        </motion.div>
+      </div>
+    </motion.div>
   )
 }
 
@@ -298,19 +411,13 @@ function CodeLine({
   copyLabel: string
 }) {
   const t = useTranslations('Settings')
-  const [copied, setCopied] = useState(false)
+  const { feedback, show } = useButtonFeedback(COPIED_ACK_MS)
   const codeRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = window.setTimeout(() => setCopied(false), COPIED_ACK_MS)
-    return () => window.clearTimeout(timer)
-  }, [copied])
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value)
-      setCopied(true)
+      show({ label: t('connections.copied') })
     } catch {
       // 剪贴板被拒（权限 / 旧内核）时把那一串选中，让用户自己 ⌘C。
       const node = codeRef.current
@@ -333,16 +440,16 @@ function CodeLine({
         >
           {value}
         </code>
-        <Button
+        {/* 复制好了键自己拉长变黑写「✓ 已复制」（ui-defaults §7.1），⛔ 不弹 toast。 */}
+        <FeedbackButton
           type="button"
-          variant="outline"
-          size="sm"
+          feedback={feedback}
           onClick={() => void copy()}
-          className={cn('h-7 coarse:h-11', copied && 'text-status-applied')}
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:h-11"
         >
-          {copied ? <Check /> : <Copy />}
-          {copied ? t('connections.copied') : copyLabel}
-        </Button>
+          <Copy className="size-3.5" aria-hidden />
+          {copyLabel}
+        </FeedbackButton>
       </div>
     </div>
   )

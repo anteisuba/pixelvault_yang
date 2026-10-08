@@ -25,6 +25,9 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/api-client', () => api)
 
+const toast = vi.hoisted(() => ({ toastSuccess: vi.fn() }))
+vi.mock('@/lib/toast', () => toast)
+
 const TOKEN = 'pvmcp_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG'
 
 function record(overrides: Partial<McpTokenRecord> = {}): McpTokenRecord {
@@ -125,6 +128,39 @@ describe('SettingsConnectionsSection', () => {
     await waitFor(() =>
       expect(screen.queryByText('…a3f9')).not.toBeInTheDocument(),
     )
+    // 吊销是点完才知道结果的事，但那一行已经收走了 —— 结果放进底部黑条。
+    expect(toast.toastSuccess).toHaveBeenCalledWith(
+      'Settings:connections.revoked:Claude Code',
+    )
+  })
+
+  it('turns the copy button itself into 已复制 (no toast)', async () => {
+    api.listMcpTokensAPI.mockResolvedValue({ success: true, data: [] })
+    api.createMcpTokenAPI.mockResolvedValue({
+      success: true,
+      data: { ...record({ id: 'new' }), token: TOKEN },
+    })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    render(<SettingsConnectionsSection />)
+
+    await screen.findByText('Settings:connections.empty')
+    fireEvent.click(screen.getByRole('button', { name: /connections.create/ }))
+    fireEvent.submit(
+      screen
+        .getByRole('textbox', { name: 'Settings:connections.nameLabel' })
+        .closest('form')!,
+    )
+    const copy = await screen.findByRole('button', {
+      name: 'Settings:connections.copy',
+    })
+    await act(async () => {
+      fireEvent.click(copy)
+    })
+    expect(writeText).toHaveBeenCalledWith(TOKEN)
+    expect(copy).toHaveAttribute('data-feedback', 'done')
+    expect(copy).toHaveAccessibleName('Settings:connections.copied')
+    expect(toast.toastSuccess).not.toHaveBeenCalled()
   })
 
   it('greys out create once the active-token limit is reached', async () => {

@@ -19,8 +19,10 @@ function cellsOf(rowLabel: string): string[] {
     .getAllByRole('row')
     .find((candidate) => candidate.textContent?.includes(rowLabel))
   if (!row) throw new Error(`row ${rowLabel} not rendered`)
+  // 数字格里滚动那份是 `aria-hidden` 的过场，读的是旁边那份终值（`CountUp`）。
   return [...row.querySelectorAll('td')].map(
-    (cell) => cell.textContent?.trim() ?? '',
+    (cell) =>
+      (cell.querySelector('.sr-only') ?? cell).textContent?.trim() ?? '',
   )
 }
 
@@ -69,6 +71,34 @@ describe('SettingsUsageSection', () => {
       '210',
       '$86.20',
     ])
+  })
+
+  it('rolls every number up from 0 on entry (the visible copy starts at zero)', () => {
+    mockUseMonthlyUsage.mockReturnValue({
+      month: '2026-09',
+      providers: [
+        {
+          adapterType: 'fal',
+          label: 'fal.ai',
+          requests: 128,
+          estimatedCostUsd: 61.1,
+        },
+      ],
+      totalRequests: 128,
+      totalEstimatedCostUsd: 61.1,
+      runner: null,
+      isLoading: false,
+      refresh: vi.fn(),
+    })
+
+    render(<SettingsUsageSection />)
+
+    const visuals = screen.getAllByTestId('count-up-visual')
+    // 2 格 fal.ai + 2 格合计。读屏念的是旁边那份终值（上面的 `cellsOf`）。
+    expect(visuals).toHaveLength(4)
+    for (const visual of visuals) {
+      expect(visual).toHaveAttribute('aria-hidden', 'true')
+    }
   })
 
   it('shows a request count only when no model in that provider has a unit price', () => {

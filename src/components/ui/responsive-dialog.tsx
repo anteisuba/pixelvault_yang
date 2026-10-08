@@ -85,6 +85,8 @@ interface ResponsiveDialogContentProps extends React.ComponentProps<
    * a deliberate gesture, not a stray click, so it's left alone.
    */
   preventOutsideDismiss?: boolean
+  /** 桌面：从按下的那颗键长到正中（`DialogContent` 同名项）。手机抽屉照旧从底下拉起。 */
+  growFromPointer?: boolean
 }
 
 function ResponsiveDialogContent({
@@ -94,6 +96,7 @@ function ResponsiveDialogContent({
   closeLabel,
   mobileBodyClassName,
   preventOutsideDismiss,
+  growFromPointer,
   style,
   onPointerDownOutside,
   ...props
@@ -129,6 +132,7 @@ function ResponsiveDialogContent({
       className={className}
       showCloseButton={showCloseButton}
       closeLabel={closeLabel}
+      growFromPointer={growFromPointer}
       style={style}
       onPointerDownOutside={(event) => {
         if (preventOutsideDismiss) event.preventDefault()

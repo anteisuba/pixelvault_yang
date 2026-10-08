@@ -96,6 +96,23 @@ export const ROLLING_DIGIT_SPRING = {
   damping: 24,
 } as const
 
+/**
+ * 设置页换分区（owner 2026-10-08 设置页原型 v1 `Scp29Uk4yzuMG2foDn6y76`）：右边内容
+ * 「糊一下」再清（5px · 160ms），比 `LIQUID_TIMING` 那一档（6px）轻 —— 整块内容一起糊，
+ * 半径大了读起来像加载失败。
+ */
+export const SETTINGS_SECTION_SWAP = { blurPx: 5, durationS: 0.16 } as const
+
+/**
+ * 读数「数出来」（`CountUp`，设置页用量进来时从 0 滚到本月值）：k140 · ζ0.93，只留
+ * 一丝过冲。比 `SPRING.slot` 慢 —— 太快就看不出是在数。
+ */
+export const COUNT_UP_SPRING = {
+  type: 'spring',
+  stiffness: 140,
+  damping: 22,
+} as const
+
 /** 液态展开的节拍（秒）与内容换场的模糊量。 */
 export const LIQUID_TIMING = {
   /** 第二拍在第一拍之后多久起。 */

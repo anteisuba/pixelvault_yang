@@ -1,9 +1,17 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import type { UseAssistantMemoriesValue } from '@/hooks/use-assistant-memories'
+import type { UndoableActionOptions } from '@/lib/undoable-action'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type { ProjectRule } from '@/types/assistant-persona'
@@ -28,6 +36,17 @@ vi.mock('next-intl', () => ({
     dateTime: (_date: Date, options: Record<string, string>) =>
       options.hour ? '14:20' : '09-17',
   }),
+}))
+
+/** 删一条走「先拿掉、5 秒后才落库」：测试里把那一下接住，手动撤销 / 落库。 */
+const undoable = vi.hoisted(() => ({
+  last: null as UndoableActionOptions | null,
+}))
+vi.mock('@/lib/undoable-action', () => ({
+  runUndoableAction: (options: UndoableActionOptions) => {
+    undoable.last = options
+    options.apply()
+  },
 }))
 
 const rules = vi.hoisted(() => ({
@@ -125,6 +144,7 @@ function rowTexts(): string[] {
 beforeEach(() => {
   vi.clearAllMocks()
   rules.current = []
+  undoable.last = null
 })
 
 describe('AssistantMemoryPane · 一列（M-A）', () => {
@@ -293,27 +313,66 @@ describe('AssistantMemoryPane · 改 / 删', () => {
     )
   })
 
-  it('删要点两下：先变「确认删除」，再点才删', async () => {
+  it('就地改完：时间那一格闪「✓ 已保存」，⛔ 不弹提示', async () => {
+    store.update.mockResolvedValueOnce(memory({ text: '喜欢赛璐璐' }) as never)
+    renderPane([LEARNED])
+    fireEvent.click(screen.getByText(LEARNED.text))
+    const input = screen.getByLabelText('AssistantSettings:memory.editLabel')
+    fireEvent.change(input, { target: { value: '喜欢赛璐璐' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(
+      await screen.findByText('AssistantSettings:memory.saved'),
+    ).toBeInTheDocument()
+  })
+
+  it('删要点两下：先拉长成「确认删除」，再点这一行收起、底部黑条给撤销', async () => {
     renderPane([LEARNED])
     const del = screen.getByTestId('assistant-memory-delete')
     fireEvent.click(del)
-    expect(store.remove).not.toHaveBeenCalled()
+    expect(undoable.last).toBeNull()
     expect(del).toHaveTextContent('AssistantSettings:memory.deleteConfirm')
+    expect(del).toHaveAttribute('data-feedback', 'danger')
     fireEvent.click(del)
-    await waitFor(() => expect(store.remove).toHaveBeenCalledWith('learned-1'))
+
+    expect(undoable.last?.message).toBe('AssistantSettings:memory.deleted')
+    expect(undoable.last?.undoLabel).toBe('AssistantSettings:memory.undo')
+    // 先在界面上拿掉，服务端还没碰。
+    await waitFor(() => expect(rowTexts()).toEqual([]))
+    expect(store.remove).not.toHaveBeenCalled()
+
+    // 撤销：原样放回来。
+    act(() => undoable.last?.undo())
+    await waitFor(() => expect(rowTexts()).toEqual([LEARNED.text]))
+    expect(store.remove).not.toHaveBeenCalled()
+  })
+
+  it('撤销窗口过了才真删', async () => {
+    renderPane([LEARNED])
+    const del = screen.getByTestId('assistant-memory-delete')
+    fireEvent.click(del)
+    fireEvent.click(del)
+    await act(async () => {
+      await undoable.last?.commit()
+    })
+    expect(store.remove).toHaveBeenCalledWith('learned-1')
   })
 })
 
 describe('AssistantMemoryPane · 清空跟着筛选走', () => {
-  it('全部：清空全部，你写的也一起删要写出来', async () => {
+  it('全部：正中弹窗写清你写的也一起删，确认才清', async () => {
     renderPane([MINE, LEARNED])
     fireEvent.click(screen.getByTestId('assistant-memory-clear'))
+    const dialog = await screen.findByRole('alertdialog')
     expect(
-      await screen.findByText(
+      within(dialog).getByText(
         /memory\.clear\.descAllWithMine\(\{"count":1\}\)/,
       ),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('assistant-memory-clear-confirm'))
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'AssistantSettings:memory.clear.all',
+      }),
+    )
     await waitFor(() => expect(store.clear).toHaveBeenCalledWith(undefined))
   })
 
@@ -324,7 +383,11 @@ describe('AssistantMemoryPane · 清空跟着筛选走', () => {
       'AssistantSettings:memory.clear.assistant',
     )
     fireEvent.click(screen.getByTestId('assistant-memory-clear'))
-    fireEvent.click(await screen.findByTestId('assistant-memory-clear-confirm'))
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'AssistantSettings:memory.clear.assistant',
+      }),
+    )
     await waitFor(() => expect(store.clear).toHaveBeenCalledWith('assistant'))
   })
 

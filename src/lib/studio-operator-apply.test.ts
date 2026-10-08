@@ -12,6 +12,7 @@ import {
   getOperatorStepField,
   revertOperatorStep,
   type StudioOperatorApplyContext,
+  type StudioOperatorCanvasBatchOutcome,
 } from '@/lib/studio-operator-apply'
 import type {
   AssistantAssetWriteRevert,
@@ -680,6 +681,7 @@ describe('applyOperatorStep', () => {
           ...ctx,
           canvas: {
             applyOp: () => true,
+            applyOps: () => ({ applied: 1, failures: [] }),
             revertOp: () => true,
             generate,
             planRerunDownstream: () => [],
@@ -689,6 +691,47 @@ describe('applyOperatorStep', () => {
     ).toBeNull()
     expect(generate).not.toHaveBeenCalled()
     expect(triggered).toHaveLength(0)
+  })
+
+  it('canvas_batch 把整批交给宿主，落了一条就记作画布改动', () => {
+    const { ctx } = makeContext()
+    const applyOps = vi.fn(
+      (): StudioOperatorCanvasBatchOutcome => ({ applied: 2, failures: [] }),
+    )
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+      verb: 'apply',
+      payload: {
+        ops: [
+          {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            name: '新卡',
+            ref: 'n1',
+          },
+          { op: 'set_model', target: 'n1', modelId: 'gpt-image-2' },
+        ],
+      },
+      inverse: { op: 'batch', nodeRef: 'n1' },
+    } satisfies AssistantOperatorAppliedStep
+    const canvas = {
+      applyOp: () => true,
+      applyOps,
+      revertOp: () => true,
+      generate: vi.fn(),
+      planRerunDownstream: () => [],
+    }
+    expect(applyOperatorStep(step, { ...ctx, canvas })).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.canvasNodes,
+    )
+    expect(applyOps).toHaveBeenCalledWith('step-1', step.payload.ops)
+    applyOps.mockReturnValue({
+      applied: 0,
+      failures: [{ index: 0, reason: 'x' }],
+    })
+    expect(applyOperatorStep(step, { ...ctx, canvas })).toBeNull()
   })
 
   it('读类工具不产生任何改动', () => {

@@ -1502,6 +1502,7 @@ function NodeWorkbenchV4Inner() {
     projectName: store.currentProject.name,
     availableModelsByNodeId,
     applyOp: graph.dispatch,
+    dispatchBatch: graph.dispatchBatch,
     getApplyError,
     undo: graph.undo,
     canUndo: graph.canUndo,

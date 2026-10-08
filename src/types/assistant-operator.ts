@@ -2282,6 +2282,14 @@ export type AssistantOperatorReadStateArgs = z.infer<
   typeof AssistantOperatorReadStateArgsSchema
 >
 
+/** 画布：一批 op，形状与 `canvas_apply` 逐条相同，顺序即执行顺序。 */
+export const AssistantOperatorCanvasBatchArgsSchema = z.object({
+  ops: z
+    .array(CanvasApplyOpSchema)
+    .min(1)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxBatchOps),
+})
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -2830,6 +2838,8 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    * 自己那条花钱档。⛔ 别在这里手抄一份可用 op 清单 —— 那就是第二处定义。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: CanvasApplyOpSchema,
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]:
+    AssistantOperatorCanvasBatchArgsSchema,
   /** 画布：算下游名单。`includeSelf` 默认 false —— 刚换上去的那个不该被盖掉。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     NodeAssistantPlanRerunDownstreamOpSchema.omit({ op: true }),
@@ -4151,6 +4161,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       /** 这条 op 的逆是哪条 op（读 `NODE_ASSISTANT_OP_V4_SPECS[op].inverse`）。 */
       op: z.enum(NODE_ASSISTANT_OPS_V4),
       /** 被动到的那个节点 —— 客户端按它取回自己扣着的那份撤销载荷。 */
+      nodeRef: z.string().trim().min(1).max(LIMITS.maxTitleChars),
+    }),
+  ),
+  /**
+   * 画布：一批 op，一个撤销条目。`inverse` 同样只是指路条：客户端按 step id 取回
+   * 整批的撤销载荷；`nodeRef` 是批里第一条动到的节点（给「改了几张卡」那一行用）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+    AssistantOperatorCanvasBatchArgsSchema,
+    z.object({
+      op: z.literal('batch'),
       nodeRef: z.string().trim().min(1).max(LIMITS.maxTitleChars),
     }),
   ),

@@ -204,6 +204,7 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    * （改一格 → 算下游 → 跑一枪），长一样就分不出哪条是哪条。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: Waypoints,
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]: Layers,
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]: RefreshCw,
   /** 看片（剪辑台 2b）—— 胶片，与看图那颗 ScanEye 分开：一个看帧，一个看卡上的图。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]: Film,

@@ -188,6 +188,7 @@ import type {
 import type { GenerationRecord } from '@/types'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   StudioOperatorAttachment,
   StudioOperatorQuestionOption,
@@ -348,15 +349,28 @@ function collectCanvasChangedCards(
     if (entry.kind !== 'step' || entry.runKey !== runKey || entry.undone)
       continue
     const step = entry.step
-    if (
-      step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
-      step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
-    )
-      continue
-    const key = CANVAS_OP_FIELD_KEYS[step.payload.op] ?? 'field.canvasNodes'
-    const keys = touched.get(step.inverse.nodeRef) ?? []
-    if (!keys.includes(key)) keys.push(key)
-    touched.set(step.inverse.nodeRef, keys)
+    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
+    let ops: readonly NodeAssistantOpV4[]
+    let fallbackRef: string
+    if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply) {
+      ops = [step.payload]
+      fallbackRef = step.inverse.nodeRef
+    } else if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch) {
+      ops = step.payload.ops
+      fallbackRef = step.inverse.nodeRef
+    } else continue
+    for (const op of ops) {
+      const key = CANVAS_OP_FIELD_KEYS[op.op] ?? 'field.canvasNodes'
+      const ref =
+        'target' in op && typeof op.target === 'string'
+          ? op.target
+          : 'scriptNodeId' in op
+            ? op.scriptNodeId
+            : fallbackRef
+      const keys = touched.get(ref) ?? []
+      if (!keys.includes(key)) keys.push(key)
+      touched.set(ref, keys)
+    }
   }
   return [...touched].flatMap(([id, keys]) => {
     const name = nameOf(id)
@@ -1625,7 +1639,9 @@ export function StudioOperatorPanel({
         !running &&
         !researchSummary &&
         block.steps.every(
-          (item) => item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          (item) =>
+            item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply ||
+            item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
         )
       /**
        * 本轮改动的「撤销」—— 紧跟在过程那一行后面（D12 P5）；只挂在这一轮

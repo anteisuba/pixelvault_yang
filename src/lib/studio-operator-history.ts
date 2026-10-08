@@ -365,6 +365,8 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply:
       return step.payload.op
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch:
+      return step.payload.ops.map((op) => op.op).join(' · ')
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
       return step.result === null ? null : String(step.result.nodeIds.length)
     /** 看片（剪辑台 2b）—— 详情写**看的是哪段 · 看到几帧**。 */

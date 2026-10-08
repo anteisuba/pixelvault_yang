@@ -47,6 +47,7 @@ import {
 import {
   applyCanvasBatchV4,
   applyRailMentionRemaps,
+  type CanvasBatchFailure,
 } from '@/lib/node-canvas-batch-v4'
 import {
   listMentionNames,
@@ -93,6 +94,8 @@ export interface NodeGraphV4BatchResult {
   /** `skipped` 里连线 / 挂载没建成的那一部分（台账 K-2）。 */
   readonly failedConnects: number
   readonly createdNodeIds: readonly string[]
+  /** 没落的那几条在批里的位置与原因（助手 `canvas_batch` 要逐条回报）。 */
+  readonly failures: readonly CanvasBatchFailure[]
 }
 
 /**
@@ -520,6 +523,7 @@ export function useNodeGraphV4({
         skipped: batch.skipped,
         failedConnects: batch.failedConnects,
         createdNodeIds: batch.createdNodeIds,
+        failures: batch.failures,
       }
       if (!batch.inverse) return result
 
@@ -552,6 +556,7 @@ export function useNodeGraphV4({
         skipped: batch.skipped,
         failedConnects: batch.failedConnects,
         createdNodeIds: batch.createdNodeIds,
+        failures: batch.failures,
       }
       if (!batch.inverse) return result
 

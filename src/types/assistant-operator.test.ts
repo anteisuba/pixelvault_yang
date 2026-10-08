@@ -701,6 +701,22 @@ const STEP_FIXTURES: Record<
     // ⚠ 指路条，不是逆载荷本身 —— 真正的逆在客户端执行器那一侧扣着。
     inverse: { op: 'set_prompt', nodeRef: 'node-1' },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]: {
+    payload: {
+      ops: [
+        {
+          op: 'add_node',
+          kind: 'image',
+          subtype: 'character',
+          name: '新卡',
+          ref: 'new1',
+          position: { x: 0, y: 0 },
+        },
+        { op: 'set_model', target: 'new1', modelId: 'gpt-image-2' },
+      ],
+    },
+    inverse: { op: 'batch', nodeRef: 'new1' },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]: {
     payload: { target: 'node-1' },
     result: { nodeIds: ['node-2', 'node-3'] },
@@ -901,7 +917,7 @@ describe('五动词入口', () => {
     // 助手写角色构图（2026-10-05）把 50 变成 51（`set_tag_characters`），
     // 画面文字（2026-10-07）再加一个（`set_scene_texts`）。
     // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(53)
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(54)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

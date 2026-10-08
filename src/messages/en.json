@@ -7935,6 +7935,7 @@
       "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
       "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
       "referenceInputsChanged": "Reference connections must be updated before checking this prompt",
+      "canvasBatchPartial": "Part of this batch did not land; expand to see which",
       "noSuchControl": "This workspace doesn't have that setting",
       "unknownModel": "That model is not in the list you can pick from",
       "unknownValue": "That value is not one of the options",

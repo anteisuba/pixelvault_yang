@@ -13,6 +13,7 @@ import {
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { nextResumeStepNumber } from '@/lib/studio-operator-resume'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   AssistantOperatorAskEvent,
   AssistantOperatorEvent,
@@ -116,6 +117,21 @@ const hostSnapshot = vi.hoisted(() => ({
   current: { prompt: '', availableModels: [] } as Record<string, unknown>,
 }))
 const canvasApply = vi.hoisted(() => vi.fn(() => true))
+/** 一批落图的回执（`StudioOperatorCanvasContext.applyOps`）—— 可改，部分落地那组要用。 */
+const canvasApplyOps = vi.hoisted(() =>
+  vi.fn(
+    (
+      _stepId: string,
+      ops: readonly unknown[],
+    ): {
+      applied: number
+      failures: readonly { index: number; reason: string }[]
+    } => ({ applied: ops.length, failures: [] }),
+  ),
+)
+const canvasBatchFailures = vi.hoisted(() => ({
+  current: [] as readonly { index: number; reason: string }[],
+}))
 /** 画布那一枪的扳机（`StudioOperatorCanvasContext.generate`）。 */
 const canvasGenerate = vi.hoisted(() => vi.fn())
 const canvasGenerationState = vi.hoisted(() => ({
@@ -155,6 +171,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ...(workbenchHandoffEnabled.current ? { switchImageWorkbench } : {}),
       canvas: {
         applyOp: canvasApply,
+        applyOps: canvasApplyOps,
+        getBatchFailures: () => canvasBatchFailures.current,
         getApplyError: () =>
           canvasInputSync.current
             ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
@@ -291,6 +309,11 @@ beforeEach(async () => {
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
+  canvasApplyOps.mockReset().mockImplementation((_stepId, ops) => ({
+    applied: ops.length,
+    failures: [],
+  }))
+  canvasBatchFailures.current = []
   canvasInputSync.current = false
   canvasGenerationState.enabled = false
   canvasGenerationState.current = null
@@ -713,6 +736,63 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     ).toHaveLength(1)
     streams[3].emit({ type: 'done' })
     streams[3].close()
+    await settle()
+  })
+
+  it('一批 canvas_batch：一次落图一次续接；落了一部分记成 canvasBatchPartial 并把没落的写进 detail', async () => {
+    hostDomain.current = 'canvas'
+    canvasBatchFailures.current = [
+      { index: 2, reason: 'slot reference is full' },
+    ]
+    canvasApplyOps.mockImplementation((_stepId, ops) => ({
+      applied: ops.length - 1,
+      failures: canvasBatchFailures.current,
+    }))
+    const { result } = render()
+    act(() => result.current.send('建卡并接参考'))
+    await settle()
+    const ops: NodeAssistantOpV4[] = [
+      {
+        op: 'add_node',
+        kind: 'image',
+        subtype: 'shot',
+        name: '新卡',
+        ref: 'new1',
+      },
+      { op: 'set_model', target: 'new1', modelId: 'gpt-image-2' },
+      { op: 'connect', source: 'source', target: 'new1', slot: 'reference' },
+    ]
+    streams[0].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '建卡并接参考',
+        tool: 'canvas_batch',
+        verb: 'apply',
+        status: 'done',
+        payload: { ops },
+        inverse: { op: 'batch', nodeRef: 'new1' },
+      },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[0].close()
+    await settle()
+    expect(canvasApplyOps).toHaveBeenCalledTimes(1)
+    expect(canvasApplyOps.mock.calls[0][1]).toEqual(ops)
+    // 落了两条就续接，带新快照；没落的那条随 priorSteps 回去，模型只补它。
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+      priorSteps: [
+        expect.objectContaining({
+          tool: 'canvas_batch',
+          status: 'error',
+          rejectReason: 'canvasBatchPartial',
+          detail: expect.stringContaining('ops[2] connect'),
+        }),
+      ],
+    })
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
     await settle()
   })
 

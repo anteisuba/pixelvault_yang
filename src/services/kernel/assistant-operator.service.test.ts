@@ -2277,6 +2277,147 @@ describe('read_state', () => {
     })
   })
 
+  describe('画布一批 op（canvas_batch）', () => {
+    function boardRequest() {
+      return buildRequest({
+        domain: 'canvas',
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          canvas: {
+            currentShotNo: null,
+            selectedNodeIds: [],
+            shots: [
+              {
+                expanded: true,
+                shotNo: null,
+                title: 'Unassigned',
+                nodes: [
+                  {
+                    id: 'source-image',
+                    name: '角色原图',
+                    kind: 'image',
+                    subtype: 'result',
+                    hasOutput: true,
+                  },
+                  {
+                    id: 'edit-image',
+                    name: '换装',
+                    kind: 'image',
+                    subtype: 'shot',
+                    text: '保持五官',
+                    parameters: {
+                      values: { aspectRatio: '1:1' },
+                      options: { aspectRatio: ['1:1', '9:16'] },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })
+    }
+    const batch = (ops: unknown[]) => ({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+        title: '建卡并接参考',
+        args: { ops },
+      },
+    })
+
+    it('建卡、选模型、连线一批落地，批后只停一次 canvas_sync', async () => {
+      const ops = [
+        {
+          op: 'add_node',
+          kind: 'image',
+          subtype: 'character',
+          name: '新卡',
+          ref: 'new1',
+          position: { x: 0, y: 0 },
+        },
+        { op: 'set_model', target: 'new1', modelId: 'gpt-image-2' },
+        {
+          op: 'connect',
+          source: 'source-image',
+          target: 'new1',
+          slot: 'reference',
+        },
+      ]
+      queueTurns(batch(ops), { finished: true })
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+          status: 'done',
+          payload: { ops },
+          inverse: { op: 'batch', nodeRef: 'new1' },
+        }),
+      )
+      expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
+      expect(toolRingCalls()).toHaveLength(1)
+      expect(toolRingCalls()[0].systemPrompt).toContain('BATCH FIRST')
+    })
+
+    it('给批里新建的卡写词：整批退回并点名那一条', async () => {
+      queueTurns(
+        batch([
+          {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'character',
+            name: '新卡',
+            ref: 'new1',
+            position: { x: 0, y: 0 },
+          },
+          { op: 'set_prompt', target: 'new1', prompt: 'x', mode: 'replace' },
+        ]),
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const step = stepsOf(events).find(
+        (item) => item.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+      )
+      expect(step?.status).toBe('error')
+      expect(step?.error?.reason).toBe('noSuchControl')
+      expect(step?.error?.detail).toContain('ops[1] (set_prompt)')
+      expect(step?.error?.detail).toContain('next call')
+      expect(
+        events.some(
+          (event) => event.type === 'stopped' && event.reason === 'canvas_sync',
+        ),
+      ).toBe(false)
+    })
+
+    it('一条参数不在表里，整批不落', async () => {
+      queueTurns(
+        batch([
+          {
+            op: 'set_params',
+            target: 'edit-image',
+            params: { aspectRatio: '4:3' },
+          },
+          { op: 'set_model', target: 'edit-image', modelId: 'gpt-image-2' },
+        ]),
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', boardRequest()),
+      )
+      const step = stepsOf(events).find(
+        (item) => item.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+      )
+      expect(step?.status).toBe('error')
+      expect(step?.error?.reason).toBe('unknownValue')
+      expect(step?.error?.detail).toContain('ops[0] (set_params)')
+      expect(step?.error?.detail).toContain('Nothing in this batch landed')
+    })
+  })
+
   it('画布：按展开的镜里每个节点挂的模型给写法，⛔ 不再是空的一段', async () => {
     queueTurns({ finished: true })
     await collect(

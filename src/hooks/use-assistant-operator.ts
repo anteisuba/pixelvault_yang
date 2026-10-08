@@ -1535,9 +1535,55 @@ export function useAssistantOperator(
                   typeof window !== 'undefined'
                 )
                   window.requestAnimationFrame(bumpAssistantAvatar)
-                if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply) {
+                if (
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply ||
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
+                ) {
                   canvasApplied =
                     field === STUDIO_OPERATOR_FIELD_IDS.canvasNodes
+                  /**
+                   * 一批落了一部分：步记成 `canvasBatchPartial`，detail 逐条写哪几条没落、
+                   * 为什么 —— 它随 priorSteps 进下一次请求，模型只补那几条。落了的
+                   * 那部分已经在画布上，照样接力带新快照。
+                   */
+                  const failures =
+                    canvasApplied &&
+                    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
+                      ? (applyContext.canvas?.getBatchFailures?.() ?? [])
+                      : []
+                  if (failures.length > 0) {
+                    const ops =
+                      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
+                        ? step.payload.ops
+                        : []
+                    const detail =
+                      `${ops.length - failures.length} of ${ops.length} landed. Not landed: ${failures
+                        .map(
+                          (failure) =>
+                            `ops[${failure.index}] ${ops[failure.index]?.op ?? '?'} — ${failure.reason}`,
+                        )
+                        .join('; ')}`.slice(
+                        0,
+                        ASSISTANT_OPERATOR_LIMITS.maxReasonChars,
+                      )
+                    if (resumeStepId)
+                      markOperatorResumeStep(resumeStepId, {
+                        state: 'failed',
+                        reason: detail,
+                      })
+                    upsertOperatorStep(
+                      {
+                        ...step,
+                        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+                        error: {
+                          reason:
+                            ASSISTANT_OPERATOR_REJECT_REASON_IDS.canvasBatchPartial,
+                          detail,
+                        },
+                      },
+                      runKey,
+                    )
+                  }
                   if (!canvasApplied) {
                     canvasNeedsInputSync =
                       applyContext.canvas?.needsPromptInputSync?.() === true

@@ -7250,6 +7250,7 @@ async function planSetReviewState(
  * （owner 2026-10-08：放在每步都变的那段里吃不到 provider 的提示词缓存，还每步重发一遍）。
  */
 const CANVAS_GUIDE: readonly string[] = [
+  'BATCH FIRST: when a request needs more than one change, send ONE canvas_batch {action:"canvas_batch",ops:[...]} with every op in order — add_node with "ref":"new1", then set_model / connect / attach_asset that name "new1" as target or source. The batch lands as one undo and the turn pauses once (canvas_sync) instead of once per op. A card created in the batch has no real id until the board comes back: write its prompt and params in the NEXT call with the id from the fresh board. canvas_apply is for a single change.',
   'A node without model has NO model selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Connect its intended references and set its model before writing the final prompt; verify the fresh state after each operation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change; verify the updated values after canvas_sync and include them when summarizing generation. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
   'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
@@ -7487,6 +7488,63 @@ async function checkCanvasReferencePrompt(
   return null
 }
 
+const NO_BATCH_REFS: ReadonlySet<string> = new Set()
+
+/**
+ * **一批 op 一次落图**（owner 2026-10-08：每条 `canvas_apply` 一个来回，建一张卡要五趟）。
+ *
+ * 逐条过 `planCanvasApply` 的全部检查（确认档的问句、参数值域、写词前的参考要点与图例），
+ * ⛔ 不另写一套；一条被拒整批不落，模型改那一条再发。批里新建的卡只有别名没有 id，
+ * 写词和设参数要等这批落地、下一步从新画布上拿到真 id —— 服务端这一刻看不见它的参考图。
+ */
+async function planCanvasBatch(
+  run: OperatorRun,
+  ops: readonly NodeAssistantOpV4[],
+  userId: string,
+): Promise<ToolPlan> {
+  const refs = new Set(
+    ops.flatMap((op) =>
+      op.op === NODE_ASSISTANT_OP_V4_IDS.addNode && op.ref ? [op.ref] : [],
+    ),
+  )
+  const payload: NodeAssistantOpV4[] = []
+  for (const [index, op] of ops.entries()) {
+    if (
+      (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt ||
+        op.op === NODE_ASSISTANT_OP_V4_IDS.setParams) &&
+      refs.has(op.target)
+    ) {
+      return reject(
+        REJECT.noSuchControl,
+        `ops[${index}] (${op.op}): "${op.target}" is a card created in this same batch and has no id yet. Send the batch without this op; it ends with canvas_sync, and the fresh board gives the card its real id — then write its prompt and params in the next call.`,
+      )
+    }
+    const plan = await planCanvasApply(run, op, userId, refs)
+    if (plan.kind === 'mutate') {
+      payload.push(plan.payload as NodeAssistantOpV4)
+      continue
+    }
+    if (plan.kind === 'rejected') {
+      return {
+        ...plan,
+        detail: clamp(
+          `ops[${index}] (${op.op}): ${plan.detail ?? plan.reason}. Nothing in this batch landed.`,
+          LIMITS.maxReasonChars,
+        ),
+      }
+    }
+    return plan
+  }
+  const first = payload.flatMap((op) => canvasOpTargets(op))[0]
+  return {
+    kind: 'mutate',
+    payload: { ops: payload },
+    inverse: { op: 'batch', nodeRef: first ?? 'batch' },
+    observation: `Queued ${payload.length} operations on the board as one batch (${payload.map((op) => op.op).join(', ')}). They land on the creator's canvas now; the fresh board arrives with the next step — cards created here get their real ids there.`,
+    apply: () => {},
+  }
+}
+
 /**
  * **`confirm` 档的画布 op 先问一句**（node-canvas-v2 §13.2：`delete` / `project_script`，
  * 一句话能删掉或长出一整排卡）。
@@ -7710,6 +7768,8 @@ async function planCanvasApply(
   run: OperatorRun,
   op: NodeAssistantOpV4,
   userId: string,
+  /** 同一批 `add_node.ref` 声明的别名 —— 批里后面的 op 可以指着它们。 */
+  batchRefs: ReadonlySet<string> = NO_BATCH_REFS,
 ): Promise<ToolPlan> {
   const canvas = run.state.canvas
   if (!canvas) {
@@ -7719,7 +7779,9 @@ async function planCanvasApply(
     )
   }
   const known = canvasNodeIds(canvas)
-  const missing = canvasOpTargets(op).filter((id) => !known.has(id))
+  const missing = canvasOpTargets(op).filter(
+    (id) => !known.has(id) && !batchRefs.has(id),
+  )
   if (missing.length > 0) {
     return reject(
       REJECT.noSuchControl,
@@ -8987,6 +9049,12 @@ async function planTool(
     // ── 画布三条（进度表 22）────────────────────────────────────
     case TOOL.canvasApply:
       return planCanvasApply(run, parsed.data as NodeAssistantOpV4, userId)
+    case TOOL.canvasBatch:
+      return planCanvasBatch(
+        run,
+        (parsed.data as { ops: NodeAssistantOpV4[] }).ops,
+        userId,
+      )
     case TOOL.canvasPlanRerun:
       return planCanvasPlanRerun(
         run,
@@ -10082,7 +10150,7 @@ function buildOperatorSystemPrompt(
         ].join('\n')}`
       : null,
     request.domain === 'canvas'
-      ? "- CANVAS WORK: For a request involving several nodes, plan the full set of nodes and links, then apply one operation at a time. After each canvas_sync, read the fresh canvas state and continue until the requested nodes, references and links are present; if you cannot finish, name exactly which parts remain. When a generated result differs from the references, compare the actual result with the source images before changing prompts. State which image supplies identity, body proportions and rendering style, and which parts are not evidenced. Connect references before the final set_prompt; canvas prompt writes and generation proposals inspect the target node's actual generation inputs. Never promise exact preservation from a prompt alone."
+      ? "- CANVAS WORK: For a request involving several nodes, plan the full set of nodes and links, then send them as ONE canvas_batch (cards created in it get their prompt and params in the next batch, once the board returns with their ids). After each canvas_sync, read the fresh canvas state and continue until the requested nodes, references and links are present; if you cannot finish, name exactly which parts remain. When a generated result differs from the references, compare the actual result with the source images before changing prompts. State which image supplies identity, body proportions and rendering style, and which parts are not evidenced. Connect references before the final set_prompt; canvas prompt writes and generation proposals inspect the target node's actual generation inputs. Never promise exact preservation from a prompt alone."
       : null,
     ['image', 'canvas'].includes(request.domain)
       ? '- CHARACTER EVIDENCE: Judge whether the references support this requested output, region by region: face, upper body, full-body proportions, legs, side and back. A clear face or visible coat does not establish body proportions underneath; perspective or partial legs do not establish full leg length. For faithful reconstruction, if a necessary region lacks evidence, ask once whether to add a reference or allow design completion for that region. If completion is already authorized, proceed and label only those parts as proposed design; do not repeat the question. Unknown legs do not block a portrait. Approval of a face applies only to that face and exact result version; preserve it while correcting rejected body or legs, and never promote a rejected generated region to source evidence.'
@@ -13047,7 +13115,7 @@ async function* runOperatorTurn(
       writeToolCalls.set(name, (writeToolCalls.get(name) ?? 0) + 1)
       repeatedStepStrikes = 0
       lastRejection = null
-      if (name === TOOL.canvasApply) {
+      if (name === TOOL.canvasApply || name === TOOL.canvasBatch) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.canvasSync,

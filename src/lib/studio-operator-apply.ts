@@ -126,6 +126,11 @@ export interface StudioOperatorLoraContext {
  * 落地那一跳已经有一个逐条实现（`lib/node-assistant-op-apply-v4.ts`），它同时
  * 算出 inverse。拆成八只手等于把那个 switch 在这里再写一遍 —— 第二处定义。
  */
+export interface StudioOperatorCanvasBatchOutcome {
+  readonly applied: number
+  readonly failures: readonly { index: number; reason: string }[]
+}
+
 export interface StudioOperatorCanvasContext {
   /**
    * 落一条 v4 op。
@@ -136,7 +141,17 @@ export interface StudioOperatorCanvasContext {
    * ⚠ 撤销载荷由宿主在这一刻扣下来（按 step id 存），⛔ 服务端手上没有它。
    */
   applyOp(stepId: string, op: NodeAssistantOpV4): boolean
+  /**
+   * 落一批 v4 op（`canvas_batch`）：一个撤销条目，按 step id 扣着。回执说落了几条、
+   * 哪几条没落 —— 没落的那几条由调用方写进步的 detail，模型下一步只补它们。
+   */
+  applyOps(
+    stepId: string,
+    ops: readonly NodeAssistantOpV4[],
+  ): StudioOperatorCanvasBatchOutcome
   getApplyError?(): string | undefined
+  /** 上一批里没落的那几条（`applyOps` 之后读）。 */
+  getBatchFailures?(): readonly { index: number; reason: string }[]
   needsPromptInputSync?(): boolean
   /** 撤销：按 step id 取回宿主扣着的那份逆载荷并回放。 */
   revertOp(stepId: string): boolean
@@ -891,6 +906,13 @@ export function applyOperatorStep(
       const landed = ctx.canvas?.applyOp(step.id, step.payload) ?? false
       return landed ? STUDIO_OPERATOR_FIELD_IDS.canvasNodes : null
     }
+    /** 画布：一批 —— 落了至少一条就记账；哪几条没落由调用方问宿主要。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch: {
+      const outcome = ctx.canvas?.applyOps(step.id, step.payload.ops)
+      return outcome && outcome.applied > 0
+        ? STUDIO_OPERATOR_FIELD_IDS.canvasNodes
+        : null
+    }
 
     /**
      * 画布：算下游名单（读类）—— ⚠ 画布上一个节点都没动，所以不记账。
@@ -963,6 +985,7 @@ export function revertOperatorStep(
      * `candidateId` 逐字同源。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply:
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch:
       return ctx.canvas?.revertOp(step.id) ?? false
 
     /**

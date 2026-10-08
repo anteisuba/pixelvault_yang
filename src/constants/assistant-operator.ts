@@ -639,6 +639,12 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   canvasApply: 'canvas_apply',
   /**
+   * 画布：**一批** op 一次落图（owner 2026-10-08「像 Claude in Chrome 一样操作」）。
+   * 每条 `canvas_apply` 都要等画布落地再接下一次请求，建一张卡要五个来回；
+   * 一批 = 一次请求 + 一个撤销条目，与 MCP `apply_ops` 同一个执行函数。
+   */
+  canvasBatch: 'canvas_batch',
+  /**
    * 「改了这个之后下游哪几个要重跑」——⛔ **只列名单，一个字都不改、一分钱都不花**。
    *
    * ⚠ 它归**读**档（与 v4 那张 spec 表逐字一致：`group: read` / `inverse: null`）。
@@ -745,6 +751,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
@@ -932,6 +939,7 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
    * 的执行器在应用那一刻算出来并扣着 —— 形态与 `mount_lora` 逐字同源。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
 ] as const
 
 /**
@@ -1107,6 +1115,7 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
    * ⛔ 别为画布另起一个动词：五动词是**对用户的**分类，不是按宿主分。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   /** ⚠ 重跑名单归**看**：它产出的是「事实」（哪几个过期了），不是「改完了」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
@@ -2013,6 +2022,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
@@ -2172,6 +2182,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxDialectModels: 4,
   /** 剪辑台：快照里最多列几张剪得进时间线的卡（v2 第 2 片）。 */
   maxEditAssets: 60,
+  /** `canvas_batch` 一批最多几条 op（MCP `apply_ops` 是 50；站内一轮建几张卡够用）。 */
+  maxBatchOps: 24,
   /**
    * 画布状态先给目录（owner 2026-10-08 实测：一步 4.1 万字，提示词全文占 1.5 万）。
    * 全部卡的提示词加起来不超过这个数就照旧全给；超了，只有选中 / 点名 / 本次读过的卡
@@ -2680,6 +2692,8 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   referenceAnalysisFailed: 'referenceAnalysisFailed',
   referenceBriefFailed: 'referenceBriefFailed',
   referenceInputsChanged: 'referenceInputsChanged',
+  /** `canvas_batch` 落了一部分：哪几条没落、为什么，写在 detail 里，模型只补那几条。 */
+  canvasBatchPartial: 'canvasBatchPartial',
   /**
    * `mount_reference` 引的 asset 本轮 `search_assets` 从没返回过。
    * ⛔ 不去补查一次：那等于承认模型可以凭空说出一个 id。
@@ -3123,6 +3137,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   //   这里只写「什么时候用这个入口」。
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]:
     "change one thing on the board — add a card, wire two cards together, rewrite a prompt, switch a model, hang one card's picture onto another, retag a frame, or work out what has gone stale downstream. One call changes one thing, so a wrong one costs one retry and one undo. Every node id comes from the board snapshot you read; a made-up id is refused. Deleting a card or projecting a script asks the creator first (a card's wires go with it; a projection adds a whole row of shots) — once they say yes, send that same call again and it lands.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]:
+    'change SEVERAL things on the board in one go — the same ops canvas_apply takes, as an "ops" list, landing together as one undo. Use it whenever a request needs more than one op: add a card with "ref":"new1", then set_model / connect / attach_asset on "new1" in the same list. A card created in a batch has no real id until the batch lands, so write its prompt and params in the NEXT call, with the id from the fresh board. If one op is refused, nothing lands — fix that op and send the batch again.',
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
     'work out which cards downstream of one card are now out of date, after something upstream changed. It fires nothing and spends nothing — it hands the creator a list so they can decide what to run again. Never write the list yourself; this walks the wires for you.',
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasLookAt]:
@@ -3184,6 +3200,8 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS: Record<
 export const ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS: Partial<
   Record<AssistantOperatorTool, string>
 > = {
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch]:
+    'Correct shape: {"action":"canvas_batch","ops":[{"op":"add_node","kind":"image","subtype":"character","name":"...","ref":"new1","position":{"x":0,"y":0}},{"op":"set_model","target":"new1","modelId":"..."},{"op":"connect","source":"<existing id>","target":"new1","slot":"reference"}]} — "ops" is a list of the same op objects canvas_apply takes, in order.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'Correct shape: {"action":"add_project_rule","text":"<their sentence>"} — "text" is a plain string and the only required field. "kind" ("note"/"sourceAllow"/"sourceDeny") and "scope" are optional; leave them out unless you mean them.',
 }

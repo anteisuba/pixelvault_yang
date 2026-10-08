@@ -37,6 +37,8 @@ import {
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import type { NodeGraphV4BatchResult } from '@/hooks/node/use-node-graph-v4'
+import type { StudioOperatorCanvasBatchOutcome } from '@/lib/studio-operator-apply'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { buildCanvasCharacters } from '@/lib/cards-operator-snapshot'
@@ -90,6 +92,8 @@ export interface UseCanvasOperatorHostInput {
   readonly availableModelsByNodeId?: Readonly<Record<string, readonly string[]>>
   /** 落一条 op。⚠ 就是图引擎的 `dispatch` —— ⛔ 别在这里另调执行器。 */
   applyOp(op: NodeAssistantOpV4): boolean
+  /** 一批 op 一次落图（图引擎的 `dispatchBatch`：别名表 + 一个撤销条目）。 */
+  dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
   getApplyError?(): string | undefined
   /** 撤一步（图引擎的线性撤销栈）。 */
   undo(): void
@@ -111,6 +115,7 @@ export function useCanvasOperatorHost({
   projectName,
   availableModelsByNodeId,
   applyOp,
+  dispatchBatch,
   getApplyError,
   undo,
   canUndo,
@@ -226,6 +231,9 @@ export function useCanvasOperatorHost({
    */
   const landedStepIdsRef = useRef<string[]>([])
   const promptInputSyncRef = useRef<string | undefined>(undefined)
+  const lastBatchFailuresRef = useRef<
+    readonly { index: number; reason: string }[]
+  >([])
 
   /** 焦点镜 = 选中的第一个节点所在的镜；没选中就交给快照去展开最前面三面。 */
   const currentShotNo = useMemo(() => {
@@ -316,43 +324,90 @@ export function useCanvasOperatorHost({
     [nodes],
   )
 
+  /**
+   * 写词会不会顺手改到参考线：正文里的 `@` 要先连 / 断线，这一条就先退回，让模型把那条
+   * 连线 op 带上再来（单条和一批共用同一道检查）。
+   */
+  const promptInputSyncFor = useCallback(
+    (op: NodeAssistantOpV4): string | undefined => {
+      if (op.op !== NODE_ASSISTANT_OP_V4_IDS.setPrompt) return undefined
+      const graph = graphRef.current
+      const target = graph.nodes.find((node) => node.id === op.target)
+      if (target?.data.kind !== NODE_MEDIA_KIND_IDS.image) return undefined
+      const previous = target.data.prompt ?? ''
+      const prompt =
+        op.mode === 'append' && previous
+          ? `${previous}\n\n${op.prompt}`
+          : op.prompt
+      const diff = resolveMentionsToSlots(
+        { version: 4, nodes: [...graph.nodes], edges: [...graph.edges] },
+        target.id,
+        prompt,
+      )
+      const disconnect = diff.toDisconnect[0]
+      const connect = diff.toConnect[0]
+      const firstOp = disconnect
+        ? {
+            op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+            edgeId: disconnect.edgeId,
+          }
+        : connect
+          ? {
+              op: NODE_ASSISTANT_OP_V4_IDS.connect,
+              source: connect.sourceNodeId,
+              target: connect.targetNodeId,
+              slot: connect.slot,
+            }
+          : undefined
+      return firstOp
+        ? `First canvas_apply ${JSON.stringify(firstOp)}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.`
+        : undefined
+    },
+    [],
+  )
+
+  const flashTouched = useCallback((op: NodeAssistantOpV4): void => {
+    const touched =
+      'target' in op ? op.target : 'scriptNodeId' in op ? op.scriptNodeId : null
+    if (typeof touched === 'string' && typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => flashAssistantTouchedNode(touched))
+    }
+  }, [])
+
+  const canvasApplyOps = useCallback(
+    (
+      stepId: string,
+      ops: readonly NodeAssistantOpV4[],
+    ): StudioOperatorCanvasBatchOutcome => {
+      promptInputSyncRef.current = undefined
+      lastBatchFailuresRef.current = []
+      for (const [index, op] of ops.entries()) {
+        const sync = promptInputSyncFor(op)
+        if (sync) {
+          promptInputSyncRef.current = sync
+          return { applied: 0, failures: [{ index, reason: sync }] }
+        }
+      }
+      const result = dispatchBatch(ops)
+      lastBatchFailuresRef.current = result.failures
+      if (result.applied === 0) return { applied: 0, failures: result.failures }
+      landedStepIdsRef.current.push(stepId)
+      const failed = new Set(result.failures.map((failure) => failure.index))
+      ops.forEach((op, index) => {
+        if (!failed.has(index)) flashTouched(op)
+      })
+      return { applied: result.applied, failures: result.failures }
+    },
+    [dispatchBatch, promptInputSyncFor, flashTouched],
+  )
+
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {
       promptInputSyncRef.current = undefined
-      if (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt) {
-        const graph = graphRef.current
-        const target = graph.nodes.find((node) => node.id === op.target)
-        if (target?.data.kind === NODE_MEDIA_KIND_IDS.image) {
-          const previous = target.data.prompt ?? ''
-          const prompt =
-            op.mode === 'append' && previous
-              ? `${previous}\n\n${op.prompt}`
-              : op.prompt
-          const diff = resolveMentionsToSlots(
-            { version: 4, nodes: [...graph.nodes], edges: [...graph.edges] },
-            target.id,
-            prompt,
-          )
-          const disconnect = diff.toDisconnect[0]
-          const connect = diff.toConnect[0]
-          const firstOp = disconnect
-            ? {
-                op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
-                edgeId: disconnect.edgeId,
-              }
-            : connect
-              ? {
-                  op: NODE_ASSISTANT_OP_V4_IDS.connect,
-                  source: connect.sourceNodeId,
-                  target: connect.targetNodeId,
-                  slot: connect.slot,
-                }
-              : undefined
-          if (firstOp) {
-            promptInputSyncRef.current = `First canvas_apply ${JSON.stringify(firstOp)}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.`
-            return false
-          }
-        }
+      const sync = promptInputSyncFor(op)
+      if (sync) {
+        promptInputSyncRef.current = sync
+        return false
       }
       const landed = applyOp(op)
       if (!landed) return false
@@ -372,18 +427,10 @@ export function useCanvasOperatorHost({
        * 它身上。新建出来的那几面镜闪不到（id 是执行器现铸的），⛔ 不为它去差集
        * 算一遍图：一整排卡凭空出现本来就比闪一下更响（§13.5 `add_node` 同理）。
        */
-      const touched =
-        'target' in op
-          ? op.target
-          : 'scriptNodeId' in op
-            ? op.scriptNodeId
-            : null
-      if (typeof touched === 'string' && typeof window !== 'undefined') {
-        window.requestAnimationFrame(() => flashAssistantTouchedNode(touched))
-      }
+      flashTouched(op)
       return true
     },
-    [applyOp],
+    [applyOp, promptInputSyncFor, flashTouched],
   )
 
   const canvasApplyError = useCallback(
@@ -457,6 +504,8 @@ export function useCanvasOperatorHost({
       },
       canvas: {
         applyOp: canvasApply,
+        applyOps: canvasApplyOps,
+        getBatchFailures: () => lastBatchFailuresRef.current,
         getApplyError: canvasApplyError,
         needsPromptInputSync,
         revertOp: canvasRevert,
@@ -468,6 +517,7 @@ export function useCanvasOperatorHost({
     addReference,
     removeReference,
     canvasApply,
+    canvasApplyOps,
     canvasApplyError,
     needsPromptInputSync,
     canvasRevert,

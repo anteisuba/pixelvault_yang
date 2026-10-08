@@ -7935,6 +7935,7 @@
       "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
       "referenceBriefFailed": "画像の分析は完了しましたが、参照用途の検証に失敗しました。プロンプトは変更していません。",
       "referenceInputsChanged": "参照の接続を更新してから、このプロンプトを確認します",
+      "canvasBatchPartial": "このバッチの一部が反映されませんでした。展開して確認してください",
       "noSuchControl": "このワークスペースにその項目はありません",
       "unknownModel": "そのモデルは選べる一覧にありません",
       "unknownValue": "その値は選択肢にありません",

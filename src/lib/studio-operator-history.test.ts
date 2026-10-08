@@ -250,6 +250,41 @@ describe('线程 → 可读历史', () => {
     expect(history.some((entry) => entry.id === 'run-1:step-9')).toBe(false)
   })
 
+  it('一批 op 的详情是逐条 op 名', () => {
+    const history = toOperatorHistory([
+      {
+        kind: 'step',
+        id: 'run-1:step-3',
+        runKey: 'run-1',
+        undone: false,
+        step: {
+          id: 'step-3',
+          title: '建卡',
+          tool: 'canvas_batch',
+          verb: 'apply',
+          status: 'done',
+          payload: {
+            ops: [
+              {
+                op: 'add_node',
+                kind: 'image',
+                subtype: 'shot',
+                name: '新卡',
+                ref: 'n1',
+              },
+              { op: 'set_model', target: 'n1', modelId: 'gpt-image-2' },
+            ],
+          },
+          inverse: { op: 'batch', nodeRef: 'n1' },
+        },
+      },
+    ])
+    expect(history[0]).toMatchObject({
+      kind: 'step',
+      detail: 'add_node · set_model',
+    })
+  })
+
   it('退回的草稿步带着 draft 进历史', () => {
     const history = toOperatorHistory([
       {

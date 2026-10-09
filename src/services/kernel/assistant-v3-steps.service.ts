@@ -184,6 +184,19 @@ export interface V3Context {
   readonly stepPrefix: string
   /** 本轮记录（同一个数组，回合循环往里追加）—— 出片前核对过没有，从这里看。 */
   readonly transcript: AssistantV3Transcript
+  /** 这一条回复模型自己写了的正文（停在卡上时，没写才替它说 `say`）。 */
+  readonly replyText: { current: string }
+}
+
+/** 停在卡上的那一轮：模型这条回复没写正文，就把卡上的 `say` 说出来。 */
+export function* sayAboveCard(
+  context: V3Context,
+  say: string,
+): Generator<AssistantOperatorEvent> {
+  const text = say.trim()
+  if (!text || context.replyText.current.trim()) return
+  context.replyText.current = text
+  yield { type: ASSISTANT_OPERATOR_EVENTS.message, text }
 }
 
 export function joinPhrases(

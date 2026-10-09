@@ -729,6 +729,7 @@ async function* runV3Turn(
     language,
     stepPrefix: `v3s${transcript.length}`,
     transcript,
+    replyText: { current: '' },
   }
 
   if (transcript[0]?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) {
@@ -996,6 +997,7 @@ async function* runV3Turn(
     }
     if (text.trim())
       yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: text.trim() }
+    context.replyText.current = text
 
     let pending = false
     let stopTodo: string | null = null

@@ -26,8 +26,9 @@ export interface AssistantV3Model {
 }
 
 /**
- * 用户自己那把 key → AI SDK 模型。S1 只接三家：OpenAI（先跑）、Claude（过几天
- * 另跑一轮）、Gemini（看视频 / 听音频的那家）。别的厂商照走旧内核。
+ * 用户自己那把 key → AI SDK 模型。助手路由上的五家都接：OpenAI、Claude、Gemini，
+ * 以及走兼容 OpenAI 对话接口的 DeepSeek 与 Grok（2026-10-10 补上，此前这两家退回
+ * 旧内核）。别的厂商照走旧内核。
  *
  * ⚠ 缓存键只发给官方端点（代理不一定认这个字段）。
  */
@@ -69,6 +70,36 @@ export function resolveAssistantV3Model(
         model: provider(modelId),
         strictTools: false,
         providerOptions: () => ({}),
+      }
+    }
+    case AI_ADAPTER_TYPES.DEEPSEEK: {
+      const provider = createOpenAI({
+        apiKey: route.apiKey,
+        baseURL:
+          route.providerConfig.baseUrl?.replace(/\/$/, '') ||
+          AI_PROVIDER_ENDPOINTS.DEEPSEEK,
+      })
+      return {
+        model: provider.chat(modelId),
+        strictTools: false,
+        providerOptions: () => ({}),
+      }
+    }
+    case AI_ADAPTER_TYPES.XAI: {
+      const provider = createOpenAI({
+        apiKey: route.apiKey,
+        baseURL:
+          route.providerConfig.baseUrl?.replace(/\/$/, '') ||
+          AI_PROVIDER_ENDPOINTS.XAI,
+      })
+      return {
+        model: provider.chat(modelId),
+        strictTools: false,
+        /**
+         * grok 的推理关不掉、默认 high：工具调用要 low，否则首字前想太久、连接被掐
+         * （与旧内核 `buildXaiChatRequest` 同一条）。
+         */
+        providerOptions: () => ({ openai: { reasoningEffort: 'low' } }),
       }
     }
     default:

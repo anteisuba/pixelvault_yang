@@ -191,6 +191,16 @@ export type AssistantV3AskInput = z.infer<typeof AssistantV3AskInputSchema>
  * ⚠ 规矩同 ①：只写形状，可选字段一律 `nullable`。
  * ───────────────────────────────────────────────────────────────────────── */
 
+/**
+ * 停在卡上那一轮给创作者的那一两句（2026-10-10 五家实测：Luna / Gemini / DeepSeek
+ * 出卡时一个字都不说）。写进入参就是必填 —— 提示词里要求它说，它不说。
+ */
+const CardSaySchema = z
+  .string()
+  .describe(
+    'One or two sentences shown to the creator right above the card, in their language: what you propose and why. The turn ends on the card, so this is all they read.',
+  )
+
 const LoraHandleSchema = z
   .string()
   .describe('A LoRA handle from the board, e.g. "lora-cmg1ab".')
@@ -237,6 +247,7 @@ export const AssistantV3LoraEditOpInputSchema = z.union([
     .object({
       op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.proposeSetup),
       question: z.string(),
+      say: CardSaySchema,
       mounts: z.array(
         z.object({
           candidate: z
@@ -309,6 +320,7 @@ export const AssistantV3LoraLookInputSchema = z.object({
 
 export const AssistantV3LoraGenerateInputSchema = z.object({
   label: z.string().nullable(),
+  say: CardSaySchema,
 })
 
 export const AssistantV3LoraSearchLibraryInputSchema = z.object({

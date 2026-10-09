@@ -49,6 +49,7 @@ import {
   planGuarded,
   planSafely,
   rejectedStep,
+  sayAboveCard,
   settlePlan,
   TITLE_TEXT,
   type V3Context,
@@ -370,6 +371,7 @@ async function* runEditOp(
           )
         weights.push({ loraId: lora.id, weight: entry.weight })
       }
+      yield* sayAboveCard(context, op.say)
       return yield* runOldTool(context, TOOL.planLoraSetup, text.setup, {
         question: op.question,
         ...(op.mounts.length
@@ -623,6 +625,7 @@ export async function* executeAssistantV3LoraCall(
     }
     case ASSISTANT_V3_TOOL_IDS.generate: {
       const parsed = AssistantV3LoraGenerateInputSchema.parse(input)
+      yield* sayAboveCard(context, parsed.say)
       return yield* runOldTool(
         context,
         TOOL.requestGeneration,

@@ -1071,6 +1071,39 @@ describe('v3 内核 · LoRA 台', () => {
     )
   })
 
+  it('停在搭配卡上：这条回复没写正文，就把卡上的 say 放在卡上方', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'propose_setup',
+              question: '画风收一点？',
+              say: '画风压到 0.5，免得盖过角色。',
+              mounts: [],
+              unmounts: [],
+              weights: [{ lora: 'lora-cmg1ab', weight: 0.8 }],
+            },
+          ],
+        },
+      }),
+    )
+    plan.mockResolvedValue({
+      kind: 'confirmLoraSetup',
+      setup: { question: 'q' },
+    })
+    const events = await collect(
+      runAssistantV3('clerk-1', loraRequest('交给你调')),
+    )
+    const types = events.map((event) => event.type)
+    expect(types.indexOf('message')).toBeLessThan(types.indexOf('confirm'))
+    expect(events.find((event) => event.type === 'message')).toMatchObject({
+      text: '画风压到 0.5，免得盖过角色。',
+    })
+  })
+
   it('参数：Civitai 的「Euler a」换成跑得了的采样器名', async () => {
     script(
       toolTurn({

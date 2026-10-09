@@ -336,6 +336,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'Claude Fable 5.1',
   },
   {
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5,
+    label: 'Claude Haiku 5.5',
+  },
+  {
     // 2026-08-23: xAI joins as the fifth assistant route. 500k context with
     // vision at $2/$6 — the cheapest flagship on this route.
     adapterType: AI_ADAPTER_TYPES.XAI,

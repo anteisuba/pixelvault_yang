@@ -610,6 +610,8 @@ export const LLM_TEXT_MODEL_IDS = {
   CLAUDE_OPUS_5_5: 'claude-opus-5-5',
   CLAUDE_SONNET_5_5: 'claude-sonnet-5-5',
   CLAUDE_FABLE_5_1: 'claude-fable-5-1',
+  // 2026-10-07 发布：$0.10/$0.50 per MTok（≤100K 提示），Sonnet 5.5 的二十分之一。
+  CLAUDE_HAIKU_5_5: 'claude-haiku-5-5',
   XAI_GROK_4_7: 'grok-4.7',
 } as const
 

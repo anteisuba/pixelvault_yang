@@ -148,7 +148,7 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI and Claude each expose three tiers; DeepSeek exposes two.
+      // OpenAI exposes three tiers, Claude four (Haiku 5.5 since 10-10); DeepSeek two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
@@ -156,6 +156,7 @@ describe('useLLMRoutePicker', () => {
         'k2',
         'k4',
         'k4',
+        'k5',
         'k5',
         'k5',
         'k5',
@@ -181,6 +182,7 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,
+        AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.ANTHROPIC,

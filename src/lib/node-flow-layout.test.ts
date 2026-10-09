@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { NODE_V4_LAYOUT } from '@/constants/node-studio'
+import { NODE_V4_CARD, NODE_V4_LAYOUT } from '@/constants/node-studio'
 import type {
   NodeV4,
   NodeWorkflowEdgeV4,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { placeRowBeside, tidyByFlow } from './node-flow-layout'
+import { placeNewCards, placeRowBeside, tidyByFlow } from './node-flow-layout'
 
 const NOW = '2026-09-29T00:00:00.000Z'
 const SIZE = { width: 300, height: 200 }
@@ -157,5 +157,81 @@ describe('placeRowBeside（§7 摆放 A「让位」）', () => {
     expect(placeRowBeside([], anchor, [card], 40, 'left')).toEqual([
       { x: -340, y: 0 },
     ])
+  })
+})
+
+describe('placeNewCards（助手新建的卡找空位）', () => {
+  const overlaps = (next: NodeWorkflowStateV4, a: string, b: string) => {
+    const p = at(next, a)
+    const q = at(next, b)
+    return (
+      p.x < q.x + SIZE.width &&
+      q.x < p.x + SIZE.width &&
+      p.y < q.y + SIZE.height &&
+      q.y < p.y + SIZE.height
+    )
+  }
+
+  it('没连线的新卡不压在散卡区已有的卡上，几张排成一行', () => {
+    const origin = { x: NODE_V4_LAYOUT.originX, y: NODE_V4_LAYOUT.looseAreaY }
+    const next = placeNewCards(
+      state([
+        node('old', 'image', 'character', origin),
+        node('a', 'image', 'character', origin),
+        node('b', 'image', 'character', origin),
+      ]),
+      ['a', 'b'],
+      sizeOf,
+    )
+    expect(overlaps(next, 'a', 'old')).toBe(false)
+    expect(overlaps(next, 'b', 'old')).toBe(false)
+    expect(at(next, 'a').y).toBe(at(next, 'b').y)
+    expect(at(next, 'b').x).toBe(
+      at(next, 'a').x + SIZE.width + NODE_V4_CARD.derivedGap,
+    )
+  })
+
+  it('喂进已有卡的落在它左边，从已有卡接出来的落在右边', () => {
+    const shot = node('shot', 'video', 'shot', { x: 2000, y: 2000 })
+    const next = placeNewCards(
+      state(
+        [
+          shot,
+          node('ref', 'image', 'character', { x: 0, y: 0 }),
+          node('out', 'image', 'shot', { x: 0, y: 0 }),
+        ],
+        [edge('ref', 'shot'), edge('shot', 'out')],
+      ),
+      ['ref', 'out'],
+      sizeOf,
+    )
+    expect(at(next, 'ref').x).toBeLessThan(2000)
+    expect(at(next, 'out').x).toBeGreaterThan(2000 + SIZE.width)
+    expect(at(next, 'ref').y).toBe(2000)
+  })
+
+  it('紧挨着那一列一直往下都满了：去外面一列，⛔ 落到几千像素以下', () => {
+    const wall: NodeV4[] = Array.from({ length: 20 }, (_, index) =>
+      node(`wall${index}`, 'image', 'character', {
+        x: SIZE.width + NODE_V4_CARD.derivedGap,
+        y: index * (SIZE.height + 10),
+      }),
+    )
+    const next = placeNewCards(
+      state(
+        [
+          node('anchor', 'image', 'result', { x: 0, y: 0 }),
+          ...wall,
+          node('fresh', 'image', 'character', { x: 0, y: 0 }),
+        ],
+        [edge('anchor', 'fresh')],
+      ),
+      ['fresh'],
+      sizeOf,
+    )
+    expect(at(next, 'fresh').y).toBe(0)
+    expect(at(next, 'fresh').x).toBeGreaterThan(
+      SIZE.width * 2 + NODE_V4_CARD.derivedGap,
+    )
   })
 })

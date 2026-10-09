@@ -15,10 +15,11 @@ import {
   type ApplyOpV4Context,
   type NodeV4Inverse,
 } from '@/lib/node-assistant-op-apply-v4'
+import { placeNewCards, type FlowLayoutSize } from '@/lib/node-flow-layout'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { planRailMentionRemaps } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
+import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 /**
  * 参考轨变了，正文里的 `@图N` 跟着走（owner 2026-09-28）—— 图引擎三条提交口
@@ -48,6 +49,8 @@ export interface CanvasBatchContext {
   readonly mintId: (prefix: string) => string
   readonly resolveModel?: ApplyOpV4Context['resolveModel']
   readonly castCards?: ApplyOpV4Context['castCards']
+  /** 卡在画布上量到的尺寸（新卡找空位用）；不给 = 一律按收起态估。 */
+  readonly sizeOf?: (node: NodeV4) => FlowLayoutSize | undefined
 }
 
 export interface CanvasBatchFailure {
@@ -81,6 +84,8 @@ export function applyCanvasBatchV4(
   // 刚建的节点。
   const refs = new Map<string, string>()
   const createdNodeIds: string[] = []
+  /** 没给坐标、也不进镜头带的新卡 —— 整批落完再统一找空位。 */
+  const unplaced: string[] = []
   const changedNodeIds = new Set<string>()
   const failures: CanvasBatchFailure[] = []
   let applied = 0
@@ -112,7 +117,11 @@ export function applyCanvasBatchV4(
     for (const id of result.changedNodeIds) changedNodeIds.add(id)
     if (op.op === NODE_ASSISTANT_OP_V4_IDS.addNode) {
       const created = result.changedNodeIds[0]
-      if (created) createdNodeIds.push(created)
+      if (created) {
+        createdNodeIds.push(created)
+        if (op.position === undefined && op.shotNo === undefined)
+          unplaced.push(created)
+      }
     }
   })
 
@@ -130,7 +139,9 @@ export function applyCanvasBatchV4(
     }
   }
 
-  const reconciled = reconcileStateSlots(working)
+  const reconciled = reconcileStateSlots(
+    placeNewCards(working, unplaced, context.sizeOf),
+  )
   const remap = applyRailMentionRemaps(state, reconciled, context.mintId)
   inverses.push(...remap.inverses)
   const next =

@@ -378,6 +378,20 @@ export function useNodeGraphV4({
     })
   }
 
+  /** 助手一批新建的卡找空位时用量到的尺寸（⚠ ref：别让落批回调跟着每次量尺重建）。 */
+  const measuredRef = useRef(rendered.nodes)
+  useLayoutEffect(() => {
+    measuredRef.current = rendered.nodes
+  }, [rendered.nodes])
+  const sizeOf = useCallback((node: NodeV4) => {
+    const size = measuredRef.current.find(
+      (item) => item.id === node.id,
+    )?.measured
+    return size?.width && size.height
+      ? { width: size.width, height: size.height }
+      : undefined
+  }, [])
+
   const onRfNodesChange = useCallback((changes: NodeChange[]) => {
     setRendered((current) => ({
       ...current,
@@ -514,6 +528,7 @@ export function useNodeGraphV4({
       // （docs/references/mcp.md §2 第 2 条），⛔ 别在这里另写一份。
       const batch = applyCanvasBatchV4(stateRef.current, ops, {
         mintId,
+        sizeOf,
         ...(resolveModel ? { resolveModel } : {}),
         ...(castCards ? { castCards } : {}),
       })
@@ -537,7 +552,7 @@ export function useNodeGraphV4({
       onStateChange(batch.state)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
+    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated, sizeOf],
   )
 
   const dispatchBatchWithMedia = useCallback(
@@ -547,6 +562,7 @@ export function useNodeGraphV4({
     ): NodeGraphV4BatchResult => {
       const batch = applyCanvasBatchV4(stateRef.current, ops, {
         mintId,
+        sizeOf,
         ...(resolveModel ? { resolveModel } : {}),
         ...(castCards ? { castCards } : {}),
       })
@@ -589,7 +605,7 @@ export function useNodeGraphV4({
       onStateChange(seeded)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
+    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated, sizeOf],
   )
 
   /**

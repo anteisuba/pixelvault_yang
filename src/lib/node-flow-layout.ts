@@ -103,6 +103,123 @@ export function placeRowBeside(
   })
 }
 
+/** 往外再试几列：紧挨着那一列一直往下都满了，就到外面一列去找，取离锚点最近的空位。 */
+const NEW_CARD_SEARCH_COLUMNS = 6
+
+/**
+ * 新卡这一行落在哪：锚点那一侧一列一列往外试（每列从锚点的高度往下找第一个空位），
+ * 取离锚点最近的那个（v3 回放 T03：密的画布上紧挨着那一列一直满到四千多像素以下）。
+ */
+function nearestFreeRow(
+  occupied: readonly FlowLayoutRect[],
+  anchor: FlowLayoutRect,
+  sizes: readonly FlowLayoutSize[],
+  side: 'left' | 'right',
+): { readonly x: number; readonly y: number }[] {
+  const gap = NODE_V4_CARD.derivedGap
+  const rowWidth =
+    sizes.reduce((sum, size) => sum + size.width, 0) + gap * (sizes.length - 1)
+  let best: { x: number; y: number }[] = []
+  let bestDistance = Infinity
+  for (let column = 0; column < NEW_CARD_SEARCH_COLUMNS; column += 1) {
+    const shift = column * (rowWidth + gap)
+    const shifted: FlowLayoutRect = {
+      ...anchor,
+      x: side === 'right' ? anchor.x + shift : anchor.x - shift,
+    }
+    const row = placeRowBeside(occupied, shifted, sizes, gap, side)
+    const first = row[0]
+    if (!first) return row
+    const distance = Math.abs(first.x - anchor.x) + Math.abs(first.y - anchor.y)
+    if (distance < bestDistance) {
+      best = row
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+/**
+ * **新卡落位**：一批里新建、没给坐标的散卡（助手 `add_node`）。跟已有卡连着的落在那张
+ * 卡旁边 —— 喂进它的放左边、从它接出来的放右边；没连线的在散卡区找第一行空位。落在
+ * 同一处的几张排成一行，整行一起找空位（v3 回放 T18：按格子排压在已有卡上）。
+ *
+ * 纯函数：`sizeOf` 给 ReactFlow 量到的尺寸，量不到按收起态估。
+ */
+export function placeNewCards(
+  state: NodeWorkflowStateV4,
+  createdIds: readonly string[],
+  sizeOf: (node: NodeV4) => FlowLayoutSize | undefined = () => undefined,
+): NodeWorkflowStateV4 {
+  if (createdIds.length === 0) return state
+  const created = new Set(createdIds)
+  const byId = new Map(state.nodes.map((node) => [node.id, node]))
+  const rectOf = (node: NodeV4, at = node.position): FlowLayoutRect => ({
+    ...at,
+    ...(sizeOf(node) ?? estimateCardSize(node)),
+  })
+  const groups = new Map<
+    string,
+    { anchor: NodeV4 | null; side: 'left' | 'right'; nodes: NodeV4[] }
+  >()
+  for (const id of createdIds) {
+    const node = byId.get(id)
+    if (!node) continue
+    const feeds = state.edges.find(
+      (edge) => edge.source === id && !created.has(edge.target),
+    )
+    const fedBy = state.edges.find(
+      (edge) => edge.target === id && !created.has(edge.source),
+    )
+    const anchorId = feeds?.target ?? fedBy?.source ?? null
+    const side = feeds ? 'left' : 'right'
+    const key = `${anchorId ?? ''}|${side}`
+    const group = groups.get(key) ?? {
+      anchor: anchorId ? (byId.get(anchorId) ?? null) : null,
+      side,
+      nodes: [],
+    }
+    group.nodes.push(node)
+    groups.set(key, group)
+  }
+  const occupied: FlowLayoutRect[] = state.nodes
+    .filter((node) => !created.has(node.id))
+    .map((node) => rectOf(node))
+  const looseStart: FlowLayoutRect = {
+    x: NODE_V4_LAYOUT.originX - NODE_V4_CARD.derivedGap,
+    y: NODE_V4_LAYOUT.looseAreaY,
+    width: 0,
+    height: 0,
+  }
+  const positions = new Map<string, { x: number; y: number }>()
+  for (const group of groups.values()) {
+    const anchorRect = group.anchor ? rectOf(group.anchor) : looseStart
+    const sizes = group.nodes.map((node) => rectOf(node))
+    const row = nearestFreeRow(
+      occupied.filter(
+        (rect) =>
+          !group.anchor || rect.x !== anchorRect.x || rect.y !== anchorRect.y,
+      ),
+      anchorRect,
+      sizes,
+      group.anchor ? group.side : 'right',
+    )
+    row.forEach((at, index) => {
+      const node = group.nodes[index]
+      if (!node) return
+      positions.set(node.id, at)
+      occupied.push(rectOf(node, at))
+    })
+  }
+  return {
+    ...state,
+    nodes: state.nodes.map((node) => {
+      const at = positions.get(node.id)
+      return at ? { ...node, position: at } : node
+    }),
+  }
+}
+
 /** 素材 0 · 镜头图 1 · 视频镜头 2。 */
 function flowRankOf(node: NodeV4): number {
   const { kind, subtype } = node.data

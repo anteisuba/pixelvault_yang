@@ -14,6 +14,8 @@ import {
   getFolderMoveTargets,
   getFolderPath,
   getFolderSubtreeIds,
+  planFolderDrop,
+  resolveFolderDropTarget,
 } from './folder-tree'
 
 function folder(
@@ -104,5 +106,66 @@ describe('folder-tree at any depth', () => {
     expect(folderIndentPx('sidebar', FOLDER_TREE_MAX_INDENT_DEPTH + 3)).toBe(
       folderIndentPx('sidebar', FOLDER_TREE_MAX_INDENT_DEPTH),
     )
+  })
+})
+
+// a ─ b ─ c ─ d      e ─ f   （TREE 同上）
+describe('dragging a folder: where it lands', () => {
+  it('middle of a row = into, top / bottom quarter = before / after', () => {
+    expect(resolveFolderDropTarget(TREE, 'f', 'a', 0.5)).toEqual({
+      kind: 'into',
+      id: 'a',
+    })
+    expect(resolveFolderDropTarget(TREE, 'f', 'a', 0.1)).toEqual({
+      kind: 'before',
+      id: 'a',
+    })
+    expect(resolveFolderDropTarget(TREE, 'f', 'a', 0.9)).toEqual({
+      kind: 'after',
+      id: 'a',
+    })
+  })
+
+  it('never lands on itself or any of its descendants', () => {
+    expect(resolveFolderDropTarget(TREE, 'b', 'b', 0.5)).toBeNull()
+    expect(resolveFolderDropTarget(TREE, 'b', 'd', 0.5)).toBeNull()
+    expect(resolveFolderDropTarget(TREE, 'b', 'd', 0.1)).toBeNull()
+    expect(resolveFolderDropTarget(TREE, 'b', 'ghost', 0.5)).toBeNull()
+    expect(planFolderDrop(TREE, 'a', { kind: 'into', id: 'c' })).toBeNull()
+  })
+
+  it('into = becomes the last child of that folder', () => {
+    expect(planFolderDrop(TREE, 'e', { kind: 'into', id: 'b' })).toEqual({
+      id: 'e',
+      parentId: 'b',
+      ids: ['c', 'e'],
+    })
+  })
+
+  it('before / after = same level as that row, in that slot', () => {
+    // f（e 的子夹）排到最外层 a 的后面
+    expect(planFolderDrop(TREE, 'f', { kind: 'after', id: 'a' })).toEqual({
+      id: 'f',
+      parentId: null,
+      ids: ['a', 'f', 'e'],
+    })
+    // 同一层里换位置：e 排到 a 前面
+    expect(planFolderDrop(TREE, 'e', { kind: 'before', id: 'a' })).toEqual({
+      id: 'e',
+      parentId: null,
+      ids: ['e', 'a'],
+    })
+    // d 排到 c 前面：从第四层挪到第三层
+    expect(planFolderDrop(TREE, 'd', { kind: 'before', id: 'c' })).toEqual({
+      id: 'd',
+      parentId: 'b',
+      ids: ['d', 'c'],
+    })
+  })
+
+  it('a drop that changes nothing is no plan', () => {
+    expect(planFolderDrop(TREE, 'e', { kind: 'after', id: 'a' })).toBeNull()
+    expect(planFolderDrop(TREE, 'a', { kind: 'before', id: 'e' })).toBeNull()
+    expect(planFolderDrop(TREE, 'f', { kind: 'into', id: 'e' })).toBeNull()
   })
 })

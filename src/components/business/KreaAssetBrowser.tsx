@@ -48,7 +48,6 @@ import {
 } from '@/components/business/assets/AssetSelectionMorph'
 import {
   AssetFolderSidebar,
-  type AssetFolderEdit,
   type AssetFolderScope,
 } from '@/components/business/assets/AssetFolderSidebar'
 import { AssetTile } from '@/components/business/assets/AssetTile'
@@ -1035,7 +1034,8 @@ export function KreaAssetBrowser({
   )
   const railOpen = storedRail !== 'closed'
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
-  const [folderEdit, setFolderEdit] = useState<AssetFolderEdit | null>(null)
+  /** 栏里正在改名的夹（Eagle 式新建：建好的「未命名文件夹」直接进这里）。 */
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
   const [isRenamingScope, setIsRenamingScope] = useState(false)
 
   /** 把当前范围写进地址栏（用户点出来的都 push，后退才有东西可回）。 */
@@ -1404,12 +1404,15 @@ export function KreaAssetBrowser({
   )
 
   const folderMenuActions = (folder: ProjectRecord) => ({
-    onRename: () => setFolderEdit({ kind: 'rename', id: folder.id }),
+    onRename: () => setRenamingFolderId(folder.id),
     onTogglePin: () =>
       void folderStore.setPinned(folder.id, folder.pinnedOrder === null),
+    // 段头 ⋯「新建子文件夹」：同栏里一样当场建「未命名文件夹」，栏打开、那一行改名。
     onCreateChild: () => {
       setStoredRail('open')
-      setFolderEdit({ kind: 'create', parentId: folder.id })
+      void createFolder(t('folderUntitled'), folder.id).then((created) => {
+        if (created) setRenamingFolderId(created.id)
+      })
     },
     onMove: (parentId: string | null) =>
       void folderStore.moveTo(folder.id, parentId),
@@ -1737,8 +1740,8 @@ export function KreaAssetBrowser({
     counts: folderCounts,
     scope: folderScope,
     onScopeChange: openScope,
-    edit: folderEdit,
-    onEditChange: setFolderEdit,
+    renamingId: renamingFolderId,
+    onRenamingChange: setRenamingFolderId,
     onCreate: createFolder,
     onRename: (id: string, name: string) => void folderStore.rename(id, name),
     onTogglePin: (folder: ProjectRecord) =>
@@ -1749,6 +1752,8 @@ export function KreaAssetBrowser({
       setConfirmAction({ kind: 'delete-folder', folder }),
     onReorder: (input: Parameters<typeof folderStore.reorder>[0]) =>
       void folderStore.reorder(input),
+    onPlace: (plan: Parameters<typeof folderStore.place>[0]) =>
+      void folderStore.place(plan),
     draggingCount,
     onDropAssets: (folderId: string, ids: string[]) =>
       void handleDropAssetsOnFolder(folderId, ids),

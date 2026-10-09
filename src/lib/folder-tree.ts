@@ -1,4 +1,5 @@
 import {
+  FOLDER_TREE_DRAG,
   FOLDER_TREE_INDENT,
   FOLDER_TREE_MAX_INDENT_DEPTH,
   type FolderTreeIndentSurface,
@@ -152,4 +153,79 @@ export function folderIndentPx(
 ): number {
   const { basePx, stepPx } = FOLDER_TREE_INDENT[surface]
   return basePx + Math.min(depth, FOLDER_TREE_MAX_INDENT_DEPTH) * stepPx
+}
+
+// ─── 拖动一个夹（左栏 Eagle 式，owner 2026-10-09）────────────────────
+
+export type FolderDropTarget = {
+  kind: 'into' | 'before' | 'after'
+  /** 指针压着的那一行。 */
+  id: string
+}
+
+/**
+ * 指针压在某一行的哪里 → 落点。`relY` = 指针在这一行里的竖直位置（0 顶 … 1 底）。
+ * 中间 = 放进去；上 / 下 `FOLDER_TREE_DRAG.edgeRatio` = 排到它前 / 后（同一层）。
+ * ⛔ 压在它自己或它任何一层的子孙上 = 没有落点（会成环，服务端同样拒）。
+ */
+export function resolveFolderDropTarget(
+  projects: ProjectRecord[],
+  draggedId: string,
+  overId: string,
+  relY: number,
+): FolderDropTarget | null {
+  if (getFolderSubtreeIds(projects, draggedId).has(overId)) return null
+  if (!projects.some((project) => project.id === overId)) return null
+  const { edgeRatio } = FOLDER_TREE_DRAG
+  if (relY < edgeRatio) return { kind: 'before', id: overId }
+  if (relY > 1 - edgeRatio) return { kind: 'after', id: overId }
+  return { kind: 'into', id: overId }
+}
+
+export interface FolderDropPlan {
+  id: string
+  /** 落下后的父夹（`null` = 最外层）。 */
+  parentId: string | null
+  /** 落下后那一层的完整顺序（含它自己）—— 直接喂给 `reorder({ kind: 'tree' })`。 */
+  ids: string[]
+}
+
+/**
+ * 落点 → 落下后挂在哪、那一层排成什么样。放进去 = 排在那个夹的子夹最后；
+ * 排到一行前 / 后 = 和那一行同一层。成环或什么都没变 → `null`。
+ */
+export function planFolderDrop(
+  projects: ProjectRecord[],
+  draggedId: string,
+  target: FolderDropTarget,
+): FolderDropPlan | null {
+  const dragged = projects.find((project) => project.id === draggedId)
+  const over = projects.find((project) => project.id === target.id)
+  if (!dragged || !over) return null
+  if (getFolderSubtreeIds(projects, draggedId).has(target.id)) return null
+
+  const roots = getRootFolders(projects)
+  // 孤儿（父夹已不在列表里）按最外层算 —— 与树里画出来的位置一致。
+  const levelOf = (folder: ProjectRecord) =>
+    roots.some((root) => root.id === folder.id) ? null : folder.parentId
+
+  const parentId = target.kind === 'into' ? over.id : levelOf(over)
+  const siblings = (
+    parentId === null ? roots : getChildFolders(projects, parentId)
+  ).map((folder) => folder.id)
+  const rest = siblings.filter((id) => id !== draggedId)
+
+  let ids: string[]
+  if (target.kind === 'into') {
+    ids = [...rest, draggedId]
+  } else {
+    const at = rest.indexOf(over.id) + (target.kind === 'after' ? 1 : 0)
+    ids = [...rest.slice(0, at), draggedId, ...rest.slice(at)]
+  }
+
+  const unchanged =
+    levelOf(dragged) === parentId &&
+    ids.length === siblings.length &&
+    ids.every((id, index) => id === siblings[index])
+  return unchanged ? null : { id: draggedId, parentId, ids }
 }

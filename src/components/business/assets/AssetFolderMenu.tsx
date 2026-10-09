@@ -17,6 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -37,12 +38,17 @@ interface AssetFolderMenuProps extends AssetFolderMenuActions {
   folders: ProjectRecord[]
   trigger: React.ReactNode
   align?: 'start' | 'end'
+  /** 受控打开（左栏那一行右键 / 长按也要打开同一个菜单）；不给 = 只由键开关。 */
+  open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** 「改名」后面写 F2（只有左栏那一行认 F2；段头改的是标题，不认）。 */
+  showRenameShortcut?: boolean
 }
 
 /**
  * 一个夹的 ⋯ 菜单（画板 `AfB_Menu`）：改名 · 置顶 · 新建子文件夹 · 移到… · 删除。
- * 左栏那一行和段头用的是同一个，从键长出来（与标签模板「使用」同一颗弹层动效）。
+ * 左栏那一行和段头用的是同一个，从键长出来（与标签模板「使用」同一颗弹层动效）；
+ * 左栏那一行右键（桌面）/ 长按（触屏）打开的也是它，同样从行尾 ⋯ 长出来。
  *
  * 层数不限：每一层的夹都有「新建子文件夹」；「移到…」列出整棵树里能去的夹（照树
  * 缩进），除掉它自己、它所有层的子孙（会成环，服务端同样拒）和它现在的父夹。
@@ -52,7 +58,9 @@ export function AssetFolderMenu({
   folders,
   trigger,
   align = 'start',
+  open,
   onOpenChange,
+  showRenameShortcut = false,
   onRename,
   onTogglePin,
   onCreateChild,
@@ -65,7 +73,7 @@ export function AssetFolderMenu({
   const moveTargets = getFolderMoveTargets(folders, folder)
 
   return (
-    <DropdownMenu onOpenChange={onOpenChange}>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent
         align={align}
@@ -78,6 +86,9 @@ export function AssetFolderMenu({
         <DropdownMenuItem onSelect={onRename} className="rounded-xl">
           <Pencil aria-hidden />
           {t('folderRename')}
+          {showRenameShortcut ? (
+            <DropdownMenuShortcut>F2</DropdownMenuShortcut>
+          ) : null}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onTogglePin} className="rounded-xl">
           <Pin aria-hidden />

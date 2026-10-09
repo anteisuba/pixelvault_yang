@@ -3014,6 +3014,7 @@
     "folderExpand": "サブフォルダを開く",
     "folderDropAdd": "+ {count} 件を追加",
     "folderNewName": "新しいフォルダ",
+    "folderUntitled": "名称未設定フォルダ",
     "folderScopeChip": "表示中：{name}（フォルダを切り替え）",
     "folderInParent": "{name} 内",
     "folderDeleteTitle": "フォルダ「{name}」を削除しますか？",

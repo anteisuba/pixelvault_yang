@@ -24,3 +24,22 @@ export type FolderTreeIndentSurface = keyof typeof FOLDER_TREE_INDENT
 
 /** 再深就不再往里缩的层（最外层 = 0）。 */
 export const FOLDER_TREE_MAX_INDENT_DEPTH = 5
+
+/**
+ * 左栏的 Eagle 式交互（owner 2026-10-09 选「像 Eagle」，原型 `8BdQmDyx2yNwpB592ZLYa2`）。
+ *
+ * - 拖动一个夹：指针压在一行**中间**（上下各留 `edgeRatio`）= 放进去当子夹；压在
+ *   上 / 下四分之一 = 排到这一行前 / 后（同一层）。
+ * - 拖出 `activationPx` 才算拖 —— 点一下仍是打开这个夹。
+ * - 压在一个收着、有子夹的夹中间停 `hoverExpandMs` 就自己展开，可以继续往深处拖。
+ * - 触屏不拖：长按一行 `longPressMs` 弹出 ⋯ 菜单；手指挪出 `longPressSlopPx` 就算滑动、作废。
+ */
+export const FOLDER_TREE_DRAG = {
+  edgeRatio: 0.25,
+  activationPx: 4,
+  hoverExpandMs: 650,
+  longPressMs: 500,
+  longPressSlopPx: 8,
+  /** 拿起来的影子放大多少（同画布素材拖起那一档的手感，略收）。 */
+  liftScale: 1.04,
+} as const

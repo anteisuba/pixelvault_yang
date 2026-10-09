@@ -3014,6 +3014,7 @@
     "folderExpand": "Expand subfolders",
     "folderDropAdd": "+ Add {count}",
     "folderNewName": "New folder",
+    "folderUntitled": "Untitled folder",
     "folderScopeChip": "Showing {name} — change folder",
     "folderInParent": "in {name}",
     "folderDeleteTitle": "Delete folder “{name}”?",

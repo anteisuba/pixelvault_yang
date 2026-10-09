@@ -42,9 +42,9 @@ export function useCivitaiToken(): UseCivitaiTokenReturn {
   const save = useCallback(
     async (token: string): Promise<boolean> => {
       const result = await setCivitaiTokenAPI(token)
+      // 存好的结果由调用方写在「保存」键上（ui-defaults §7.1），这里只管失败。
       if (result.success) {
         setHasToken(true)
-        toast.success(t('saveSuccess'))
         return true
       }
       toast.error(result.error ?? t('saveFailed'))

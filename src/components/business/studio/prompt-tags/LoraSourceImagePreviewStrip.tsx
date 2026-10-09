@@ -9,15 +9,20 @@ import {
   LORA_CARD_SOURCE_IMAGE_WIDTH,
   LORA_DETAIL_IMAGE_WIDTH,
 } from '@/constants/lora'
+import { COPIED_ACK_MS } from '@/constants/motion'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import type { CivitaiPreviewImage } from '@/types'
 
 interface LoraSourceImagePreviewStripProps {
@@ -54,6 +59,7 @@ export function LoraSourceImagePreviewStrip({
   const band = size === 'band'
   const t = useTranslations('LoraPromptControl.generate')
   const [preview, setPreview] = useState<SourceImagePreview | null>(null)
+  const copied = useButtonFeedback(COPIED_ACK_MS)
   // 来源图带里作者描述默认收成一行（次要信息收起，⛔ 整段 markdown 铺在舞台上）。
   const [descriptionOpen, setDescriptionOpen] = useState(false)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -67,7 +73,8 @@ export function LoraSourceImagePreviewStrip({
   const handleCopyDescription = async () => {
     try {
       await navigator.clipboard.writeText(trimmedDescription)
-      toast.success(t('descriptionCopied'))
+      // 复制好了写在「复制」键上（ui-defaults §7.1），失败照旧底部黑条红点。
+      copied.show({ label: t('descriptionCopied') })
     } catch {
       toast.error(t('descriptionCopyFailed'))
     }
@@ -166,15 +173,15 @@ export function LoraSourceImagePreviewStrip({
               ? t('descriptionCollapse')
               : t('descriptionExpand')}
           </button>
-          <button
-            type="button"
+          <FeedbackButton
+            feedback={copied.feedback}
             disabled={disabled}
             onClick={handleCopyDescription}
-            className="inline-flex shrink-0 items-center gap-1 text-muted-foreground transition-colors duration-fast hover:text-foreground"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full text-muted-foreground hover:text-foreground"
           >
             <Copy className="size-3.5" aria-hidden />
             {t('descriptionCopy')}
-          </button>
+          </FeedbackButton>
         </div>
       ) : hasDescription ? (
         <div className="rounded-md border border-dashed border-border/70 p-2.5">
@@ -182,16 +189,15 @@ export function LoraSourceImagePreviewStrip({
             <p className="text-2xs font-medium text-muted-foreground">
               {t('descriptionLabel')}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
+            <FeedbackButton
+              feedback={copied.feedback}
               disabled={disabled}
               onClick={handleCopyDescription}
+              className={buttonVariants({ variant: 'outline', size: 'xs' })}
             >
               <Copy className="size-3.5" aria-hidden />
               {t('descriptionCopy')}
-            </Button>
+            </FeedbackButton>
           </div>
           <p className="mt-1.5 max-h-48 overflow-y-auto whitespace-pre-wrap break-words text-2xs leading-relaxed text-foreground/90">
             {trimmedDescription}

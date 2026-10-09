@@ -213,7 +213,11 @@ export function AssetFolderSidebar({
       onEditChange(null)
       return
     }
-    await onCreate(name, parentId)
+    const created = await onCreate(name, parentId)
+    // 建好的子夹要看得见：父夹留在展开态（新建时只是临时展开）。
+    if (created && parentId) {
+      setExpandedIds((prev) => new Set(prev).add(parentId))
+    }
     onEditChange(null)
   }
 
@@ -230,7 +234,10 @@ export function AssetFolderSidebar({
       options.group === 'tree' && options.depth === 0
         ? getChildFolders(folders, folder.id)
         : []
-    const expanded = children.length > 0 && isExpanded(folder.id)
+    // 还没有子夹时，「新建子文件夹」那一行也得把它撑开，否则输入行根本不出现。
+    const expanded =
+      (children.length > 0 || creatingUnder === folder.id) &&
+      isExpanded(folder.id)
     const editing = edit?.kind === 'rename' && edit.id === folder.id
     const path =
       options.group === 'search' && folder.parentId

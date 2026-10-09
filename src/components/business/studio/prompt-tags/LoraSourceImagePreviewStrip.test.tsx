@@ -76,8 +76,13 @@ describe('LoraSourceImagePreviewStrip', () => {
       expect(writeText).toHaveBeenCalledWith(
         'Lora提示词：\nAemeath, long hair, pink hair',
       )
-      expect(toastSuccess).toHaveBeenCalled()
     })
+    // 复制的结果写在键上（ui-defaults §7.1），⛔ 弹底部黑条。
+    const key = await screen.findByRole('button', {
+      name: 'descriptionCopied',
+    })
+    expect(key).toHaveAttribute('data-feedback', 'done')
+    expect(toastSuccess).not.toHaveBeenCalled()
   })
 
   it('renders nothing when there are neither preview images nor a description', () => {

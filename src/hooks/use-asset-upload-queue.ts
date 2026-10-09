@@ -35,6 +35,17 @@ export interface UploadQueueItem {
   error?: string
   targetProjectId: string | null
   generation?: GenerationRecord
+  /**
+   * 第几轮（从空闲到传完算一轮）。上传键写「上传中 2/3」只数这一轮的，
+   * ⛔ 把上一轮留在队列里的已完成项也算进分母。
+   */
+  batch: number
+}
+
+/** 一轮传完：上传键据此写「✓ 已上传 N 张」。 */
+export interface UploadBatchSummary {
+  done: number
+  failed: number
 }
 
 export interface UploadResult {
@@ -53,6 +64,8 @@ interface UseAssetUploadQueueOptions {
   ) => Promise<UploadResult>
   /** 单项成功后回调 —— 页面据此决定要不要把它插进当前网格。 */
   onUploaded?: (generation: GenerationRecord) => void
+  /** 这一轮全部跑完（队列空了）回调一次。 */
+  onBatchSettled?: (summary: UploadBatchSummary) => void
 }
 
 export interface UseAssetUploadQueueReturn {
@@ -62,6 +75,8 @@ export interface UseAssetUploadQueueReturn {
   doneCount: number
   errorCount: number
   isUploading: boolean
+  /** 正在传的这一轮：第几项 / 共几项（上传键「上传中 2/3」）。空闲时为 `null`。 */
+  batchProgress: { current: number; total: number } | null
   enqueue: (files: File[], targetProjectId: string | null) => void
   retry: (id: string) => void
   retryAll: () => void
@@ -116,6 +131,7 @@ function readAspectRatio(objectUrl: string, mimeType: string): Promise<number> {
 export function useAssetUploadQueue({
   upload,
   onUploaded,
+  onBatchSettled,
 }: UseAssetUploadQueueOptions): UseAssetUploadQueueReturn {
   const [items, setItems] = useState<UploadQueueItem[]>([])
   const itemsRef = useRef<UploadQueueItem[]>([])
@@ -131,12 +147,23 @@ export function useAssetUploadQueue({
   const filesRef = useRef<Map<string, File>>(new Map())
   const runningRef = useRef(false)
   const queueRef = useRef<string[]>([])
+  const batchRef = useRef(0)
   const uploadRef = useRef(upload)
   const onUploadedRef = useRef(onUploaded)
+  const onBatchSettledRef = useRef(onBatchSettled)
   useEffect(() => {
     uploadRef.current = upload
     onUploadedRef.current = onUploaded
-  }, [upload, onUploaded])
+    onBatchSettledRef.current = onBatchSettled
+  }, [upload, onUploaded, onBatchSettled])
+
+  /** 空闲时进来的开新一轮；正在跑时进来的并进这一轮（分母跟着变大）。 */
+  const currentBatch = useCallback(() => {
+    if (!runningRef.current && queueRef.current.length === 0) {
+      batchRef.current += 1
+    }
+    return batchRef.current
+  }, [])
 
   const patchItem = useCallback(
     (id: string, patch: Partial<UploadQueueItem>) => {
@@ -192,11 +219,19 @@ export function useAssetUploadQueue({
     } finally {
       runningRef.current = false
     }
+    const batch = itemsRef.current.filter(
+      (item) => item.batch === batchRef.current,
+    )
+    onBatchSettledRef.current?.({
+      done: batch.filter((item) => item.status === 'done').length,
+      failed: batch.filter((item) => item.status === 'error').length,
+    })
   }, [patchItem])
 
   const enqueue = useCallback(
     (files: File[], targetProjectId: string | null) => {
       if (files.length === 0) return
+      const batch = currentBatch()
       const created = files.map((file) => {
         const id = `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 9)}`
         filesRef.current.set(id, file)
@@ -213,6 +248,7 @@ export function useAssetUploadQueue({
           progress: 0,
           status: 'uploading',
           targetProjectId,
+          batch,
         }
         return item
       })
@@ -220,7 +256,7 @@ export function useAssetUploadQueue({
       queueRef.current.push(...created.map((item) => item.id))
       void drain()
     },
-    [drain, patchItem, updateItems],
+    [currentBatch, drain, patchItem, updateItems],
   )
 
   const retry = useCallback(
@@ -231,11 +267,16 @@ export function useAssetUploadQueue({
         queueRef.current.includes(id)
       )
         return
-      patchItem(id, { status: 'uploading', progress: 0, error: undefined })
+      patchItem(id, {
+        status: 'uploading',
+        progress: 0,
+        error: undefined,
+        batch: currentBatch(),
+      })
       queueRef.current.push(id)
       void drain()
     },
-    [drain, patchItem],
+    [currentBatch, drain, patchItem],
   )
 
   const retryAll = useCallback(() => {
@@ -293,12 +334,24 @@ export function useAssetUploadQueue({
   }, [])
 
   const pendingItems = items.filter((item) => item.status !== 'done')
+  const isUploading = items.some((item) => item.status === 'uploading')
+  let batchProgress: UseAssetUploadQueueReturn['batchProgress'] = null
+  if (isUploading) {
+    const latest = Math.max(...items.map((item) => item.batch))
+    const batch = items.filter((item) => item.batch === latest)
+    const settled = batch.filter((item) => item.status !== 'uploading').length
+    batchProgress = {
+      current: Math.min(batch.length, settled + 1),
+      total: batch.length,
+    }
+  }
   return {
     items,
     pendingItems,
     doneCount: items.filter((item) => item.status === 'done').length,
     errorCount: items.filter((item) => item.status === 'error').length,
-    isUploading: items.some((item) => item.status === 'uploading'),
+    isUploading,
+    batchProgress,
     enqueue,
     retry,
     retryAll,

@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const deleteGenerationAPI = vi.fn()
+const toggleLikeAPI = vi.fn()
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
 
@@ -22,7 +23,7 @@ vi.mock('@/lib/api-client', () => ({
   downloadRemoteAsset: vi.fn(),
   setAudioCoverAPI: vi.fn(),
   setGenerationVisibility: vi.fn(),
-  toggleLikeAPI: vi.fn(),
+  toggleLikeAPI: (...args: unknown[]) => toggleLikeAPI(...args),
 }))
 
 import { FEEDBACK_TIMING } from '@/constants/motion'
@@ -114,5 +115,47 @@ describe('useAssetDetailActions · remove with undo', () => {
     })
     expect(toastError).toHaveBeenCalledWith('detailDeleteFailed')
     expect(onRestored).toHaveBeenCalledWith(GENERATION)
+  })
+})
+
+describe('useAssetDetailActions · button results', () => {
+  beforeEach(() => {
+    toggleLikeAPI.mockReset()
+    toastSuccess.mockClear()
+    toastError.mockClear()
+  })
+
+  it('favorite resolves the result for the key instead of raising a bar', async () => {
+    toggleLikeAPI.mockResolvedValue({
+      success: true,
+      data: { liked: true, likeCount: 1 },
+    })
+    const onUpdated = vi.fn()
+    const { result } = renderHook(() =>
+      useAssetDetailActions({ generation: GENERATION, onUpdated }),
+    )
+    let label: string | null = null
+    await act(async () => {
+      label = await result.current.toggleFavorite()
+    })
+    expect(label).toBe('detailFavorited')
+    expect(onUpdated).toHaveBeenCalledWith('gen_1', {
+      isLiked: true,
+      likeCount: 1,
+    })
+    expect(toastSuccess).not.toHaveBeenCalled()
+  })
+
+  it('a failed favorite stays a red-dot bar and resolves null', async () => {
+    toggleLikeAPI.mockResolvedValue({ success: false })
+    const { result } = renderHook(() =>
+      useAssetDetailActions({ generation: GENERATION }),
+    )
+    let label: string | null = 'unset'
+    await act(async () => {
+      label = await result.current.toggleFavorite()
+    })
+    expect(label).toBeNull()
+    expect(toastError).toHaveBeenCalledWith('detailFavoriteFailed')
   })
 })

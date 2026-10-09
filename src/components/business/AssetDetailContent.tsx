@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Box,
-  Check,
   Download,
   Link2,
   FileText,
@@ -34,6 +33,7 @@ import {
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
+import { COPIED_ACK_MS } from '@/constants/motion'
 import { ROUTES } from '@/constants/routes'
 import { Link, useRouter } from '@/i18n/navigation'
 import { createProjectAPI } from '@/lib/api-client'
@@ -104,6 +104,9 @@ export function AssetDetailContent({
   const t = useTranslations('AssetsPage')
   const tFeedback = useTranslations('Feedback')
   const downloadFeedback = useButtonFeedback()
+  const linkFeedback = useButtonFeedback(COPIED_ACK_MS)
+  const favoriteFeedback = useButtonFeedback()
+  const recipeFeedback = useButtonFeedback()
   const tCommon = useTranslations('Common')
   const tPrompts = useTranslations('PromptLibrary')
   const router = useRouter()
@@ -148,7 +151,6 @@ export function AssetDetailContent({
     isFavoriting,
     isSavingRecipe,
     isDownloading,
-    isLinkCopied,
     isSettingCover,
   } = actions
 
@@ -185,19 +187,21 @@ export function AssetDetailContent({
       >
         <Download className="size-4" />
       </FeedbackButton>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={() => void actions.copyLink()}
+      <FeedbackButton
+        feedback={linkFeedback.feedback}
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          'rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+        )}
+        onClick={() =>
+          void actions.copyLink().then((copied) => {
+            if (copied) linkFeedback.show({ label: t('detailLinkCopied') })
+          })
+        }
         aria-label={t('detailCopyLink')}
       >
-        {isLinkCopied ? (
-          <Check className="size-4" />
-        ) : (
-          <Link2 className="size-4" />
-        )}
-      </Button>
+        <Link2 className="size-4" />
+      </FeedbackButton>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -313,13 +317,17 @@ export function AssetDetailContent({
             <Globe className="size-4" />
           )}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
+        <FeedbackButton
+          feedback={favoriteFeedback.feedback}
           className={cn(
+            buttonVariants({ variant: 'ghost', size: 'icon' }),
             generation.isLiked && 'text-primary hover:text-primary',
           )}
-          onClick={() => void actions.toggleFavorite()}
+          onClick={() =>
+            void actions.toggleFavorite().then((result) => {
+              if (result) favoriteFeedback.show({ label: result })
+            })
+          }
           aria-label={
             generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')
           }
@@ -337,11 +345,18 @@ export function AssetDetailContent({
               className="size-4"
             />
           )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => void actions.saveRecipe()}
+        </FeedbackButton>
+        <FeedbackButton
+          feedback={recipeFeedback.feedback}
+          className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+          onClick={() =>
+            void actions.saveRecipe().then((saved) => {
+              if (saved)
+                recipeFeedback.show({
+                  label: tPrompts('saveTemplateSuccess'),
+                })
+            })
+          }
           aria-label={tPrompts('saveAsTemplate')}
           title={tPrompts('saveAsTemplate')}
           disabled={isSavingRecipe}
@@ -351,7 +366,7 @@ export function AssetDetailContent({
           ) : (
             <FileText className="size-4" />
           )}
-        </Button>
+        </FeedbackButton>
         {isAudioAsset && (
           <Button
             variant="ghost"

@@ -25,11 +25,15 @@ import {
   LORA_CHIP_THUMBNAIL_WIDTH,
   LORA_DETAIL_IMAGE_WIDTH,
 } from '@/constants/lora'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { COPIED_ACK_MS, DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
   buildRecipeClipboardText,
   formatSize,
 } from '@/components/business/studio/lora/LoraSourceRecipeModal'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import {
@@ -105,6 +109,10 @@ export function LoraRecipeViewer({
   const recipe = recipes[index] ?? null
   const total = recipes.length
   const [includeSeed, setIncludeSeed] = useState(false)
+  // 复制的结果写在按下的那颗键上（ui-defaults §7.1）：几颗复制键共用一份结果，
+  // `copyTarget` 记住是哪一颗。
+  const copyFeedback = useButtonFeedback(COPIED_ACK_MS)
+  const [copyTarget, setCopyTarget] = useState<string | null>(null)
   const [excluded, setExcluded] = useState<{
     index: number
     keys: ReadonlySet<string>
@@ -143,7 +151,8 @@ export function LoraRecipeViewer({
   const copy = async (text: string, successKey: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      toast.success(t(successKey))
+      setCopyTarget(successKey)
+      copyFeedback.show({ label: t(successKey) })
     } catch {
       toast.error(t('tryPromptCopyFailed'))
     }
@@ -202,15 +211,15 @@ export function LoraRecipeViewer({
       <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-foreground">
         {text}
       </p>
-      <button
-        type="button"
+      <FeedbackButton
+        feedback={copyTarget === copyKey ? copyFeedback.feedback : null}
         onClick={() => void copy(text, copyKey)}
         aria-label={t('sourceRecipeCopy')}
         title={t('sourceRecipeCopy')}
-        className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-card text-muted-foreground opacity-0 shadow-sm transition-opacity duration-fast hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/code:opacity-100 coarse:opacity-100"
+        className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-card text-muted-foreground opacity-0 shadow-sm hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/code:opacity-100 coarse:opacity-100 data-[feedback]:opacity-100"
       >
         <Copy className="size-3.5" aria-hidden />
-      </button>
+      </FeedbackButton>
     </div>
   )
 
@@ -521,19 +530,23 @@ export function LoraRecipeViewer({
             ) : null}
             <div className="flex items-center gap-2">
               {recipe.prompt ? (
-                <button
-                  type="button"
+                <FeedbackButton
+                  feedback={
+                    copyTarget === 'sourceRecipeCopied'
+                      ? copyFeedback.feedback
+                      : null
+                  }
                   onClick={() =>
                     void copy(
                       buildRecipeClipboardText(recipe),
                       'sourceRecipeCopied',
                     )
                   }
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Copy className="size-3.5" aria-hidden />
                   {t('sourceRecipeCopyRecipe')}
-                </button>
+                </FeedbackButton>
               ) : null}
               <a
                 href={sourceUrl}

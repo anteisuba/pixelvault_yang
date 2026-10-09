@@ -84,6 +84,7 @@ export function ImageDetailModal({
   const downloadFeedback = useButtonFeedback()
   const promptFeedback = useButtonFeedback()
   const linkFeedback = useButtonFeedback()
+  const pinFeedback = useButtonFeedback()
   const tFeedback = useTranslations('Feedback')
   const [isPinned, setIsPinned] = useState(generation.isFeatured ?? false)
   const [isPinning, setIsPinning] = useState(false)
@@ -430,10 +431,11 @@ export function ImageDetailModal({
       )}
 
       {showVisibility && (
-        <Button
-          variant="outline"
-          size="sm"
+        // 置顶 / 取消置顶的结果写在键上（ui-defaults §7.1），失败照旧底部黑条红点。
+        <FeedbackButton
+          feedback={pinFeedback.feedback}
           className={cn(
+            buttonVariants({ variant: 'outline', size: 'sm' }),
             'rounded-full',
             isPinned &&
               'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
@@ -460,16 +462,16 @@ export function ImageDetailModal({
                     )
               toast.error(msg)
             } else {
-              toast.success(
-                tToasts(!prev ? 'featuredAdded' : 'featuredRemoved'),
-              )
+              pinFeedback.show({
+                label: tToasts(!prev ? 'featuredAdded' : 'featuredRemoved'),
+              })
             }
             setIsPinning(false)
           }}
         >
           <Pin weight={isPinned ? 'fill' : 'bold'} className="size-3.5" />
           {isPinned ? tCard('unpinAction') : tCard('pinAction')}
-        </Button>
+        </FeedbackButton>
       )}
 
       {showDelete && onDelete ? (

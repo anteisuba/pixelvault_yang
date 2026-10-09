@@ -106,4 +106,45 @@ describe('asset upload queue', () => {
     expect(upload).toHaveBeenCalledTimes(4)
     expect(upload.mock.calls[3][1].projectId).toBe('folder-a')
   })
+  it('counts the upload key progress per batch and reports each batch once when it settles', async () => {
+    const pending: Array<(value: UploadResult) => void> = []
+    const upload = vi.fn(
+      () =>
+        new Promise<UploadResult>((resolve) => {
+          pending.push(resolve)
+        }),
+    )
+    const onBatchSettled = vi.fn()
+    const { result } = renderHook(
+      () => useAssetUploadQueue({ upload, onBatchSettled }),
+      { wrapper },
+    )
+    expect(result.current.batchProgress).toBeNull()
+
+    act(() => result.current.enqueue(files(3), null))
+    expect(result.current.batchProgress).toEqual({ current: 1, total: 3 })
+
+    await act(async () => pending.shift()?.(success))
+    await waitFor(() =>
+      expect(result.current.batchProgress).toEqual({ current: 2, total: 3 }),
+    )
+    // 传着时再选一张：并进这一轮，分母跟着变大。
+    act(() => result.current.enqueue(files(1), null))
+    expect(result.current.batchProgress).toEqual({ current: 2, total: 4 })
+
+    await act(async () => pending.shift()?.({ ok: false, error: 'x' }))
+    await waitFor(() => expect(pending).toHaveLength(1))
+    await act(async () => pending.shift()?.(success))
+    await waitFor(() => expect(pending).toHaveLength(1))
+    expect(onBatchSettled).not.toHaveBeenCalled()
+    await act(async () => pending.shift()?.(success))
+
+    await waitFor(() => expect(result.current.batchProgress).toBeNull())
+    expect(onBatchSettled).toHaveBeenCalledTimes(1)
+    expect(onBatchSettled).toHaveBeenCalledWith({ done: 3, failed: 1 })
+
+    // 下一轮从 1 数起，⛔ 把上一轮留在队列里的已完成项算进分母。
+    act(() => result.current.enqueue(files(2), null))
+    expect(result.current.batchProgress).toEqual({ current: 1, total: 2 })
+  })
 })

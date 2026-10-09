@@ -2885,7 +2885,7 @@
     "pickerConfirmAdd": "Add {count}",
     "pickerMaxReached": "Max {max} images",
     "bulkDelete": "Delete",
-    "bulkDeleteConfirm": "Delete {count, plural, one {# asset} other {# assets}}? This cannot be undone.",
+    "bulkDeleteConfirm": "Delete {count, plural, one {# asset} other {# assets}}? You can undo it from the bar at the bottom for 5 seconds.",
     "bulkDeleteSuccess": "Deleted {count, plural, one {# asset} other {# assets}}",
     "bulkDeleteFailed": "Delete failed",
     "bulkPublish": "Publish to gallery",
@@ -3034,6 +3034,7 @@
     "addToFolderLegendHint": "Click to add them all; click again to take them out",
     "addToFolderCreate": "New folder and add",
     "uploadingProgress": "Uploading {current}/{total}",
+    "uploadedCount": "{count, plural, one {Uploaded # file} other {Uploaded # files}}",
     "selectedPrefix": "Selected",
     "bulkDeleteArm": "Delete {count}?",
     "selectDone": "Done"

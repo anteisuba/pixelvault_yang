@@ -247,14 +247,14 @@
 
 ### 7.1 提示与弹窗（owner 2026-10-08 定稿，原型 `NzjiqK3k2DuKDji7wQdeBL`）
 
-| 场合                                         | 做法                                                                                                                                     | 实现                                                                                                                                                        |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 点按钮得到结果（下载 / 保存 / 复制 / 上传）  | 键自己拉长、变黑写结果（「✓ 已开始下载」「上传中 2/3」→「✓ 已上传 3 张」），约 1.6 秒缩回；宽度走 `SPRING.slot`，字由糊变清换进来        | `components/ui/feedback-button.tsx` 的 `FeedbackButton` + `useButtonFeedback`（`progress` 档不自己缩回）。页面文档单独定过 1.2 秒的复制键传 `COPIED_ACK_MS` |
-| 后台跑完的（出图完成 / 失败、上传完成）      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红 | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                   |
-| 黑条与底部输入框                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                              | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                |
-| 能撤销的小删除（删图、删对话、删一条记忆）   | 键拉长成红色「确认删除」，再点才删；点别处 / Esc / 3 秒缩回。键随内容一起消失时（删图关掉查看器），「撤销」放进底部黑条                  | `ConfirmDeleteButton`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库，⛔ 不需要恢复接口                                                                     |
-| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`                                                                                                           |
-| 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                              |
+| 场合                                         | 做法                                                                                                                                     | 实现                                                                                                                                                                                                                   |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 点按钮得到结果（下载 / 保存 / 复制 / 上传）  | 键自己拉长、变黑写结果（「✓ 已开始下载」「上传中 2/3」→「✓ 已上传 3 张」），约 1.6 秒缩回；宽度走 `SPRING.slot`，字由糊变清换进来        | `components/ui/feedback-button.tsx` 的 `FeedbackButton` + `useButtonFeedback`（`progress` 档不自己缩回）。页面文档单独定过 1.2 秒的复制键传 `COPIED_ACK_MS`。上传：素材页上传键（`useAssetUploadQueue.batchProgress`） |
+| 后台跑完的（出图完成 / 失败、上传完成）      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红 | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                                                                              |
+| 黑条与底部输入框                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                              | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                                                                           |
+| 能撤销的小删除（删图、删对话、删一条记忆）   | 键拉长成红色「确认删除」，再点才删；点别处 / Esc / 3 秒缩回。键随内容一起消失时（删图关掉查看器），「撤销」放进底部黑条                  | `ConfirmDeleteButton`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库，⛔ 不需要恢复接口。素材页多选删除同一套（「已删除 N 张 · 撤销」）                                                                                |
+| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`（站内暂无注销账号入口：owner 2026-10-09 定等连数据一起删做好再放出）                                                                                                 |
+| 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                                                                                         |
 
 动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--foreground`，危险 = `--destructive`）。红点在黑条上的对比度：`--destructive` 对 `--foreground` ≈ 4.2:1（非文本图形门槛 3:1；`--status-risk` 只有 3.0，所以不用它）。
 
@@ -330,11 +330,15 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 
 ## Last Verified
 
+- 2026-10-09 · 提示与弹窗收尾（§7.1）：逐个过了剩下的成功 / 提示黑条。改到键上的 10 处：素材详情的复制链接 / 收藏 / 存为模板与查看器的收藏键（`useAssetDetailActions` 改为把结果交回调用方，查看器「⋯」菜单里的复制链接 / 存为模板因菜单会关、仍走黑条）、`ImageDetailModal` 置顶、助手头部分享、Civitai 令牌保存、音色训练「自动转写」、LoRA 作者描述复制、配方查看器与来源配方弹窗的复制键（多颗键共用一份结果、按 `copyTarget` 落到按下的那颗）。其余照旧留黑条：出图 / 修图 / 训练等后台结果，带「撤销」的，菜单项、弹窗或编辑态随结果关掉的，删掉后内容消失的，被闸挡住的提示与引导，以及上传（另有切片接）与批量删除撤销。
+
 - 2026-10-08 · 补动效（§7.4，动效样片 AB / V / M / H / P / T / W / Z / AE / AF）：画布拖线线头吸附 + 合法卡黑环弹簧长出；做同款 chip 依次落下；规格 chip 比例框变形；收藏心收成 `FavoriteHeart` 一颗；排序让位换弹簧；拖图进输入框飞进参考图排；编辑舞台前后对比；输入框点进 chip 浮出；LoRA 训练格子进度 + ✓；素材拖上画布拿起放大、落下展开成卡。作品卡 / 素材格悬停（R）当时保持现在，2026-10-09 owner 看过对比页后改成 R。新常量全在 `constants/motion.ts`（`RECIPE_LAND` · `FOCUS_FLOAT` · `TRAINING_CELLS` · `SORTABLE_SPRING` · `SPRING_CSS_MS` · `DROP_FLY` · `RUBBER_BAND` · `MEDIA_DRAG_LIFT`）。
 
 - 2026-10-08 · 加载中（§7.2，原型 `ThV7ucUtgNZS4zbGry9XPh`）：`Skeleton` 与全站骨架去掉 `animate-pulse` / `animate-skeleton-breathe`（后者连 keyframe 一起删）；新原语 `load-reveal`（`useMediaReveal` / `LoadReveal` / `ArrivalReveal`）收编画廊卡、素材瓦片、LoRA 封面、`OptimizedImage` 四份各自的「由糊变清」；`FeedTail`（一屏前预取 + 灰块尾巴 + 「这批没拿到 · 重试」+「没有更多了」）画廊与素材库共用；`PageLoadError` 收编画廊 / 素材库整页失败；`useSlowLoadingNotice` 6 秒黑条；查看器先小图后原图；重试键转圈时写「重试中」。
 
 - 2026-10-08 · 设置页换皮加动效（原型 `Scp29Uk4yzuMG2foDn6y76`，落点见 `pages/settings.md` §8）：`QuickSetupDialog` 加入「从按下的那一点长出来」（`lib/grow-from-pointer.ts` 与 `AlertDialog` 共用），保存键「检查中 → ✓ 已保存」写在键上；`SelectContent` 新增 `spring` 档；新原语 `CountUp`；助手记忆删一条改走 `ConfirmDeleteButton` + 撤销黑条、全部清空改正中弹窗（§7.1 表的用法不变）。
+
+- 2026-10-09 · 提示与弹窗收尾（§7.1）：素材页上传键「上传中 2/3 → ✓ 已上传 3 张」走 `FeedbackButton`（`progress` → `done`）；素材多选删除走 `runUndoableAction`（「已删除 N 张 · 撤销」）。注销账号入口做过但没上线：owner 2026-10-09 定等连作品 / 文件 / key 一起删的管线做好再放出（现有 Clerk `user.deleted` webhook 只软删）。
 
 - 2026-10-08 · 提示与弹窗（§7.1）：sonner 换成底部正中黑条（最多 3 条、红点失败、`useToastLift` 让开底部输入框）；`FeedbackButton` / `ConfirmDeleteButton` 落地，画廊与素材查看器的下载 / 复制、`CopyPromptButton`、`ImageDetailModal`、素材详情的删除改走键上结果；素材删除可撤销（延后落库）；`AlertDialog` 从按下的那一点长出来、`ConfirmDialog` 支持 `confirmPhrase`；四个 `error.tsx`、`not-found.tsx`、`StudioErrorBoundary`、素材页整页加载失败收进空态模板（落点名册见 §7 表）。
 

@@ -233,6 +233,10 @@ describe('VoiceTrainer', () => {
       'voiceTrainTranscriptPlaceholder',
     ) as HTMLTextAreaElement
     expect(transcriptInput.value).toBe('hello there')
-    expect(toastSuccess).toHaveBeenCalledWith('voiceTranscribeSuccess')
+    // 结果写在「自动转写」键上（ui-defaults §7.1），⛔ 弹底部黑条。
+    expect(
+      await screen.findByRole('button', { name: 'voiceTranscribeSuccess' }),
+    ).toHaveAttribute('data-feedback', 'done')
+    expect(toastSuccess).not.toHaveBeenCalled()
   })
 })

@@ -139,6 +139,7 @@ function AssetViewerAside({
   const t = useTranslations('AssetsPage')
   const tFeedback = useTranslations('Feedback')
   const downloadFeedback = useButtonFeedback()
+  const favoriteFeedback = useButtonFeedback()
   const tPrompts = useTranslations('PromptLibrary')
   const format = useFormatter()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -294,16 +295,20 @@ function AssetViewerAside({
           <Plus className="size-3.5" aria-hidden />
           {t('detailRemix')}
         </button>
-        <button
-          type="button"
-          onClick={() => void actions.toggleFavorite()}
+        <FeedbackButton
+          feedback={favoriteFeedback.feedback}
+          onClick={() =>
+            void actions.toggleFavorite().then((result) => {
+              if (result) favoriteFeedback.show({ label: result })
+            })
+          }
           disabled={actions.isFavoriting}
           aria-pressed={isLiked}
           className={VIEWER_OUTLINE_PILL}
         >
           <FavoriteHeart liked={isLiked} />
           {isLiked ? t('viewer.favorited') : t('detailFavorite')}
-        </button>
+        </FeedbackButton>
         <button
           type="button"
           onClick={() => actions.setIsPublishScopeOpen(true)}
@@ -366,14 +371,23 @@ function AssetViewerAside({
             style={menuZoom.style}
           >
             <DropdownMenuItem
-              onSelect={() => void actions.copyLink()}
+              // 菜单项点完菜单就关了，没有键可写 —— 结果照旧放底部黑条（§7.1）。
+              onSelect={() =>
+                void actions.copyLink().then((copied) => {
+                  if (copied) toast.success(t('detailLinkCopied'))
+                })
+              }
               className="rounded-xl"
             >
               <Link2 aria-hidden />
               {t('detailCopyLink')}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onSelect={() => void actions.saveRecipe()}
+              onSelect={() =>
+                void actions.saveRecipe().then((saved) => {
+                  if (saved) toast.success(tPrompts('saveTemplateSuccess'))
+                })
+              }
               disabled={actions.isSavingRecipe}
               className="rounded-xl"
             >

@@ -38,6 +38,7 @@ vi.mock('@/components/business/VideoPlayer', () => ({
 }))
 
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
+import { toggleGenerationVisibility } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
 
 // ─── Fixtures ───────────────────────────────────────────────────
@@ -268,5 +269,16 @@ describe('ImageDetailModal', () => {
       return svg
     }
     expect(pin(true)).not.toBe(pin(false))
+  })
+
+  it('writes the pin result on the pin key itself', async () => {
+    vi.mocked(toggleGenerationVisibility).mockResolvedValue({
+      success: true,
+      data: { isFeatured: true },
+    } as Awaited<ReturnType<typeof toggleGenerationVisibility>>)
+    renderModal({ showVisibility: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Pin' }))
+    const key = await screen.findByRole('button', { name: 'Pinned' })
+    expect(key).toHaveAttribute('data-feedback', 'done')
   })
 })

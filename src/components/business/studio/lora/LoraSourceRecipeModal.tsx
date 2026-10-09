@@ -25,8 +25,9 @@ import {
   extraLoraLabel,
   isRecipeExtraResolvable,
 } from '@/lib/lora-recipe-extra-mount'
+import { COPIED_ACK_MS } from '@/constants/motion'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Dialog,
   DialogClose,
@@ -34,6 +35,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+  type ButtonFeedback,
+} from '@/components/ui/feedback-button'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 // R2 共享来源配方 modal（docs/references/pages/lora-generate.md §4 +
@@ -141,6 +147,13 @@ export function LoraSourceRecipeModal({
   const hasMultiple = total > 1
   // G3b-seed：做同款是否锁原图 seed（仅当当前配方带 seed 时才有意义）。
   const [includeSeed, setIncludeSeed] = useState(false)
+  // 复制的结果写在按下的那颗键上（ui-defaults §7.1）：几颗复制键共用一份结果，
+  // `copyTarget` 记住是哪一颗。
+  const { feedback: copyFeedback, show: showCopied } =
+    useButtonFeedback(COPIED_ACK_MS)
+  const [copyTarget, setCopyTarget] = useState<string | null>(null)
+  const copyFeedbackFor = (successKey: string) =>
+    copyTarget === successKey ? copyFeedback : null
   // owner 2026-08-07：额外 LoRA 可以逐个取消勾选，做同款只挂勾中的。存「排除集」
   // 而不是「选中集」——默认全挂是既有行为，空集就等于什么都不用初始化；而且
   // prev/next 换图时 extras 整批换掉，选中集会残留上一张的 key。
@@ -223,12 +236,13 @@ export function LoraSourceRecipeModal({
     async (text: string, successKey: string) => {
       try {
         await navigator.clipboard.writeText(text)
-        toast.success(t(successKey))
+        setCopyTarget(successKey)
+        showCopied({ label: t(successKey) })
       } catch {
         toast.error(t('tryPromptCopyFailed'))
       }
     },
-    [t],
+    [showCopied, t],
   )
 
   return (
@@ -391,6 +405,7 @@ export function LoraSourceRecipeModal({
                   onCopy={() =>
                     void handleCopy(recipe.prompt, 'sourceRecipePromptCopied')
                   }
+                  copyFeedback={copyFeedbackFor('sourceRecipePromptCopied')}
                   copyLabel={t('sourceRecipeCopy')}
                 >
                   <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-foreground">
@@ -407,6 +422,7 @@ export function LoraSourceRecipeModal({
                         'sourceRecipeNegativeCopied',
                       )
                     }
+                    copyFeedback={copyFeedbackFor('sourceRecipeNegativeCopied')}
                     copyLabel={t('sourceRecipeCopy')}
                   >
                     <p className="whitespace-pre-wrap break-words font-mono text-2xs leading-relaxed text-muted-foreground">
@@ -587,11 +603,12 @@ export function LoraSourceRecipeModal({
 
                 {/* 次级动作留在滚动区（做同款已提到固定底栏）。 */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="transition-transform active:scale-[0.97]"
+                  <FeedbackButton
+                    feedback={copyFeedbackFor('sourceRecipeCopied')}
+                    className={cn(
+                      buttonVariants({ variant: 'outline', size: 'sm' }),
+                      'active:scale-[0.97]',
+                    )}
                     onClick={() =>
                       void handleCopy(
                         buildRecipeClipboardText(recipe),
@@ -601,7 +618,7 @@ export function LoraSourceRecipeModal({
                   >
                     <Copy className="size-3.5" aria-hidden />
                     {t('sourceRecipeCopyRecipe')}
-                  </Button>
+                  </FeedbackButton>
                   <Button
                     type="button"
                     variant="ghost"
@@ -696,11 +713,14 @@ function RecipeField({
   label,
   copyLabel,
   onCopy,
+  copyFeedback,
   children,
 }: {
   label: string
   copyLabel: string
   onCopy: () => void
+  /** 复制好了写在这颗键上（ui-defaults §7.1）。 */
+  copyFeedback: ButtonFeedback | null
   children: ReactNode
 }) {
   return (
@@ -709,14 +729,14 @@ function RecipeField({
         <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <button
-          type="button"
+        <FeedbackButton
+          feedback={copyFeedback}
           onClick={onCopy}
-          className="inline-flex items-center gap-1 text-2xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-full text-2xs font-medium text-muted-foreground hover:text-foreground"
         >
           <Copy className="size-3" aria-hidden />
           {copyLabel}
-        </button>
+        </FeedbackButton>
       </div>
       {children}
     </div>

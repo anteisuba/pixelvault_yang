@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ImageEditComposerControls } from '@/components/business/studio-shared/editor/ImageEditComposer'
 import type { StudioModelOption } from '@/types/model-option'
@@ -19,6 +19,18 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
 }))
+
+// jsdom 没有 ResizeObserver：编辑面板里 Radix 的开关挂载时要它。
+beforeAll(() => {
+  if (!('ResizeObserver' in globalThis)) {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  }
+})
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -415,11 +427,11 @@ describe('CanvasImageEditWorkspace', () => {
       target: { value: 'gpt-image-2.5-sunburst' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'settingsLabel' }))
-    fireEvent.click(screen.getByRole('button', { name: 'qualityOption.max' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'qualityOption.max' }))
     fireEvent.click(
-      screen.getByRole('button', { name: 'backgroundOption.transparent' }),
+      screen.getByRole('radio', { name: 'backgroundOption.transparent' }),
     )
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('switch'))
     fireEvent.click(
       screen.getByRole('button', { name: 'editor.inpaint.apply' }),
     )

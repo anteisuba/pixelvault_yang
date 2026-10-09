@@ -73,7 +73,7 @@
     "@upstash/redis": "^1.37.0",
     "@vercel/toolbar": "^0.2.6",
     "@xyflow/react": "^12.10.2",
-    "ai": "^6.0.290",
+    "ai": "^7.0.127",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

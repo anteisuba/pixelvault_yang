@@ -729,6 +729,8 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .optional(),
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
   hasOutput: z.boolean().optional(),
+  /** 正在生成（卡上转着圈）。不给的话问「哪些还没出」时模型只能逐张去读（v3 回放 T23）。 */
+  generating: z.literal(true).optional(),
   /**
    * 上一次生成**失败了**，卡上那行红字的原因（2026-10-08 马尔福画布：哈利那张被服务商
    * 审核拦下，助手读不到原因，只能反问「没有失败日志」）。⚠ 只在卡还停在失败态时给。

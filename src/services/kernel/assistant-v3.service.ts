@@ -38,6 +38,7 @@ import { fetchAsBuffer } from '@/services/storage/r2'
 import {
   assistantV3CanvasNodes,
   buildAssistantV3Handles,
+  formatScriptShotKey,
   renderAssistantV3Board,
   renderAssistantV3Card,
   type AssistantV3Handles,
@@ -78,6 +79,7 @@ import {
   OPERATOR_OUT_OF_STEPS_MESSAGES,
   OPERATOR_SAME_FAILURE_MESSAGES,
   operatorCacheKey,
+  planCritiqueResult,
   planTool,
   prepareOperatorTurn,
   recordLedgerStep,
@@ -149,7 +151,7 @@ const tools = (strict: boolean) => ({
   }),
   [ASSISTANT_V3_TOOL_IDS.generate]: tool({
     description:
-      'Put a generation confirm card for a card in front of the creator. It spends nothing until they press it. One card per call for now.',
+      'Put a generation confirm card in front of the creator. It spends nothing until they press it. List every card they asked to generate; for now the first one goes up and the app tells them about the rest.',
     inputSchema: AssistantV3GenerateInputSchema,
     strict,
   }),
@@ -186,6 +188,22 @@ function isMutatingTool(tool: AssistantV3Tool): tool is MutatingTool {
 const MAX_HISTORY_MESSAGES = 24
 const MAX_INLINE_IMAGE_BYTES = 20_000_000
 
+/**
+ * 一条回复里叫了两次 generate：第一张确认卡一出这一轮就停了，模型没机会再说话
+ * （T15：回复里没提只出了一张）。由服务端补这一句，等 S2 的多卡确认上了再删。
+ */
+const SKIPPED_GENERATE_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  (names: string) => string
+> = {
+  chinese: (names) =>
+    `这次只摆出了一张确认卡，${names} 还没放——现在一次只能确认一张，这张处理完再叫我。`,
+  japanese: (names) =>
+    `今回出した確認カードは1枚だけで、${names} はまだです。今は1枚ずつなので、これが済んだらまた声をかけてください。`,
+  english: (names) =>
+    `Only one confirm card went up; ${names} did not. It is one card at a time for now — ask again once this one is done.`,
+}
+
 const EMPTY_REPLY_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
   chinese: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
   japanese:
@@ -218,6 +236,7 @@ const TITLE_TEXT: Record<
     generate: string
     searchWeb: string
     searchLibrary: string
+    inspect: string
     more: (count: number) => string
   }
 > = {
@@ -237,6 +256,7 @@ const TITLE_TEXT: Record<
     generate: '准备生成',
     searchWeb: '联网查',
     searchLibrary: '素材库找',
+    inspect: '核对参考图',
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -255,6 +275,7 @@ const TITLE_TEXT: Record<
     generate: '生成を準備',
     searchWeb: 'Web 検索',
     searchLibrary: '素材検索',
+    inspect: '参照画像を確認',
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -273,6 +294,7 @@ const TITLE_TEXT: Record<
     generate: 'Prepare',
     searchWeb: 'Search the web for',
     searchLibrary: 'Search the library for',
+    inspect: 'Check references',
     more: (count) => `+${count} more`,
   },
 }
@@ -291,7 +313,8 @@ type V3Outcome =
   /** 交给前端落了，结果等接力那一跳再补。 */
   | { kind: 'pending' }
   /** 停在问题卡 / 确认卡上，等创作者。 */
-  | { kind: 'stop'; todo: string }
+  /** `heldBack`：同一次 generate 里排在后面、这次没摆出来的卡（S2 多卡确认之前）。 */
+  | { kind: 'stop'; todo: string; heldBack?: string[] }
 
 interface V3Context {
   readonly clerkId: string
@@ -303,34 +326,54 @@ interface V3Context {
   readonly stepPrefix: string
 }
 
-function nameOf(context: V3Context, handleOrRef: string): string {
+/**
+ * 过程行里怎么称呼一张卡：剧本投出来的镜头卡叫镜号（S04b，卡名是整段镜头描述），
+ * 同一批里刚建的卡叫它的名字（⛔ 不露临时 ref，T03 的过程行写成了 test_batch）。
+ */
+function nameOf(
+  context: V3Context,
+  handleOrRef: string,
+  refNames?: ReadonlyMap<string, string>,
+): string {
+  const added = refNames?.get(handleOrRef)
+  if (added) return `「${shortName(added)}」`
   const id = context.handles.idOf(handleOrRef)
   const node = id
     ? context.nodes.find((candidate) => candidate.id === id)
     : null
-  return node ? `「${shortName(node.name)}」` : handleOrRef
+  if (!node) return handleOrRef
+  if (node.fromScript) return formatScriptShotKey(node.fromScript.shotKey)
+  return `「${shortName(node.name)}」`
 }
 
 function editTitle(context: V3Context, ops: readonly AssistantV3EditOpInput[]) {
   const text = TITLE_TEXT[context.language]
+  const refNames = new Map(
+    ops.flatMap((op) =>
+      op.op === ASSISTANT_V3_EDIT_OP_IDS.add
+        ? [[op.ref, op.name] as const]
+        : [],
+    ),
+  )
+  const name = (card: string) => nameOf(context, card, refNames)
   const phrases = ops.map((op) => {
     switch (op.op) {
       case ASSISTANT_V3_EDIT_OP_IDS.add:
         return `${text.add}「${shortName(op.name)}」`
       case ASSISTANT_V3_EDIT_OP_IDS.set:
-        return `${text.set} ${nameOf(context, op.card)}`
+        return `${text.set} ${name(op.card)}`
       case ASSISTANT_V3_EDIT_OP_IDS.connect:
-        return `${text.connect} ${nameOf(context, op.from)} → ${nameOf(context, op.to)}`
+        return `${text.connect} ${name(op.from)} → ${name(op.to)}`
       case ASSISTANT_V3_EDIT_OP_IDS.disconnect:
-        return `${text.disconnect} ${nameOf(context, op.from)} → ${nameOf(context, op.to)}`
+        return `${text.disconnect} ${name(op.from)} → ${name(op.to)}`
       case ASSISTANT_V3_EDIT_OP_IDS.delete:
-        return `${text.delete} ${nameOf(context, op.card)}`
+        return `${text.delete} ${name(op.card)}`
       case ASSISTANT_V3_EDIT_OP_IDS.moveToShot:
-        return `${text.move} ${nameOf(context, op.card)}`
+        return `${text.move} ${name(op.card)}`
       case ASSISTANT_V3_EDIT_OP_IDS.reorderShot:
         return text.reorder
       case ASSISTANT_V3_EDIT_OP_IDS.projectScript:
-        return `${text.project} ${nameOf(context, op.script)}`
+        return `${text.project} ${name(op.script)}`
     }
   })
   return joinPhrases(context, phrases)
@@ -889,6 +932,7 @@ async function* runV3Turn(
 
     let pending = false
     let stopTodo: string | null = null
+    const skippedGenerates: string[] = []
     const failures: string[] = []
     /**
      * 同一条回复里的改动（edit / write）**合成一批**：一个过程行、一次落、一次接力。
@@ -914,6 +958,13 @@ async function* runV3Turn(
         })
       if (stopTodo !== null) {
         pushResult(NOT_RUN_AFTER_STOP, true)
+        if (entryCall.tool === ASSISTANT_V3_TOOL_IDS.generate) {
+          const parsed = AssistantV3GenerateInputSchema.safeParse(call.input)
+          if (parsed.success)
+            skippedGenerates.push(
+              ...parsed.data.cards.map((card) => nameOf(context, card)),
+            )
+        }
         continue
       }
       if (call.invalid || !knownTools.has(call.toolName)) {
@@ -952,6 +1003,7 @@ async function* runV3Turn(
       const outcome = yield* executeCall(context, tool, call.input)
       if (outcome.kind === 'stop') {
         stopTodo = outcome.todo
+        skippedGenerates.push(...(outcome.heldBack ?? []))
         pushResult(WAITING_FOR_CREATOR, false)
         continue
       }
@@ -1018,6 +1070,15 @@ async function* runV3Turn(
     }
 
     if (stopTodo !== null) {
+      if (skippedGenerates.length > 0)
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text: SKIPPED_GENERATE_MESSAGES[language](
+            [...new Set(skippedGenerates)].join(
+              language === 'english' ? ', ' : '、',
+            ),
+          ),
+        }
       const roundSummary = await closeRoundBeforeStop(run, {
         clerkId,
         userId: user.id,
@@ -1115,16 +1176,26 @@ function nextStep(
   }
 }
 
-async function planSafely(
+function planSafely(
   context: V3Context,
   tool: AssistantOperatorTool,
   args: unknown,
 ): Promise<ToolPlan> {
+  return planGuarded(context, tool, () =>
+    planTool(context.prepared.run, tool, args, context.prepared.user.id),
+  )
+}
+
+async function planGuarded(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  plan: () => Promise<ToolPlan>,
+): Promise<ToolPlan> {
   const run = context.prepared.run
   try {
-    const plan = await planTool(run, tool, args, context.prepared.user.id)
+    const planned = await plan()
     run.signal?.throwIfAborted()
-    return plan
+    return planned
   } catch (error) {
     run.signal?.throwIfAborted()
     if (isFatalOperatorToolError(error)) throw error
@@ -1149,7 +1220,11 @@ function* flushInspectedReferences(
   if (!run.inspectedCanvasReferences) return
   const analysis = run.inspectedCanvasReferences
   run.inspectedCanvasReferences = null
-  const step = nextStep(context, TOOL.analyzeReferences, TOOL.analyzeReferences)
+  const step = nextStep(
+    context,
+    TOOL.analyzeReferences,
+    TITLE_TEXT[context.language].inspect,
+  )
   yield toStepEvent({
     ...step,
     status: STATUS.done,
@@ -1375,33 +1450,37 @@ async function* executeCall(
     }
     case ASSISTANT_V3_TOOL_IDS.generate: {
       const parsed = AssistantV3GenerateInputSchema.parse(input)
-      const title = joinPhrases(
-        context,
-        parsed.cards.map((card) => `${text.generate} ${nameOf(context, card)}`),
-      )
-      if (parsed.cards.length !== ASSISTANT_V3_LIMITS.maxGenerateCards)
-        return yield* rejectedStep(
-          context,
-          TOOL.canvasGenerate,
-          title,
-          REJECT.noSuchControl,
-          'generate takes exactly one card per call for now. Put up the first card; the creator can ask for the next one after confirming.',
-          true,
-        )
-      const id = context.handles.idOf(parsed.cards[0])
+      const [first, ...rest] = parsed.cards
+      if (first === undefined)
+        return {
+          kind: 'result',
+          output: 'generate needs the card to put up.',
+          error: true,
+          failureKey: `${TOOL.canvasGenerate}:empty`,
+        }
+      const title = `${text.generate} ${nameOf(context, first)}`
+      const id = context.handles.idOf(first)
       if (!id)
         return yield* rejectedStep(
           context,
           TOOL.canvasGenerate,
           title,
           REJECT.noSuchControl,
-          `no card "${parsed.cards[0]}" on the board`,
+          `no card "${first}" on the board`,
           true,
         )
       const plan = await planSafely(context, TOOL.canvasGenerate, {
         target: id,
       })
-      return yield* settlePlan(context, TOOL.canvasGenerate, title, plan)
+      const outcome = yield* settlePlan(
+        context,
+        TOOL.canvasGenerate,
+        title,
+        plan,
+      )
+      return outcome.kind === 'stop' && rest.length > 0
+        ? { ...outcome, heldBack: rest.map((card) => nameOf(context, card)) }
+        : outcome
     }
     case ASSISTANT_V3_TOOL_IDS.look:
       return yield* executeLook(
@@ -1472,8 +1551,9 @@ async function* executeCall(
 }
 
 /**
- * 看图：被 @ 的那几张走评审（对着参考与提示词说哪里不对），其余带图的卡走参考
- * 分析（看清画面里有什么）。⛔ 没图的卡不硬看 —— 说清看不到，让创作者 @ 它。
+ * 看图：被 @ 的那几张走评审（对着那张卡接的参考与它的提示词说哪里不对），其余带图
+ * 的卡走参考分析（看清画面里有什么）。⛔ 没图的卡不硬看 —— 说清看不到，让创作者 @ 它。
+ * ⚠ 评审一张一张评：旧执行器一次只看第一张 id，几张一起塞进去后面的会被静默丢掉。
  */
 async function* executeLook(
   context: V3Context,
@@ -1481,19 +1561,20 @@ async function* executeLook(
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
   const cards = input.cards.slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
-  const title = joinPhrases(
-    context,
-    cards.map((card) => `${text.look} ${nameOf(context, card)}`),
-  )
   const mentioned = context.request.mentionedAssets ?? []
   const referenceUrls = context.prepared.run.state.referenceUrls
-  const critiqueIds: string[] = []
+  const critiques: {
+    card: string
+    assetId: string
+    node: AssistantOperatorCanvasNode | null
+  }[] = []
   const imageIndices: number[] = []
+  const imageCards: string[] = []
   const missing: string[] = []
   for (const card of cards) {
     const id = context.handles.idOf(card)
     const node = id
-      ? context.nodes.find((candidate) => candidate.id === id)
+      ? (context.nodes.find((candidate) => candidate.id === id) ?? null)
       : null
     const asset = mentioned.find(
       (candidate) =>
@@ -1503,23 +1584,36 @@ async function* executeLook(
           referenceUrls[node.referenceImageIndex] === candidate.url),
     )
     if (asset) {
-      critiqueIds.push(asset.id)
+      critiques.push({ card, assetId: asset.id, node })
     } else if (
       node?.kind === NODE_MEDIA_KIND_IDS.image &&
       node.referenceImageIndex !== undefined
     ) {
       imageIndices.push(node.referenceImageIndex)
+      imageCards.push(card)
     } else {
       missing.push(card)
     }
   }
   const outputs: string[] = []
   let failed = false
-  if (critiqueIds.length) {
-    const plan = await planSafely(context, TOOL.critiqueResult, {
-      goal: input.question,
-      targetIds: critiqueIds,
-    })
+  for (const critique of critiques) {
+    const title = clampTitle(`${text.look} ${nameOf(context, critique.card)}`)
+    const sources = critique.node?.referenceUrls?.length
+      ? {
+          referenceUrls: critique.node.referenceUrls,
+          prompt:
+            critique.node.referencePromptContext ?? critique.node.text ?? null,
+        }
+      : undefined
+    const plan = await planGuarded(context, TOOL.critiqueResult, () =>
+      planCritiqueResult(
+        context.prepared.run,
+        { goal: input.question, targetIds: [critique.assetId] },
+        context.prepared.user.id,
+        sources,
+      ),
+    )
     const outcome = yield* settlePlan(context, TOOL.critiqueResult, title, plan)
     if (outcome.kind === 'result') {
       outputs.push(outcome.output)
@@ -1533,7 +1627,10 @@ async function* executeLook(
     const outcome = yield* settlePlan(
       context,
       TOOL.analyzeReferences,
-      title,
+      joinPhrases(
+        context,
+        imageCards.map((card) => `${text.look} ${nameOf(context, card)}`),
+      ),
       plan,
     )
     if (outcome.kind === 'result') {

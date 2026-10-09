@@ -226,6 +226,7 @@ export function renderAssistantV3Card(
         ? `models ${node.availableModels.join(', ')}`
         : null,
     node.hasOutput ? 'has output' : null,
+    node.generating ? 'generating' : null,
     node.referenceImageIndex === undefined
       ? null
       : `chat image @Image${node.referenceImageIndex + 1}`,
@@ -292,6 +293,7 @@ function renderBriefCard(
       ? null
       : `model ${node.model ?? 'none'}`,
     node.hasOutput ? 'has output' : null,
+    node.generating ? 'generating' : null,
     text ? `${text.length} chars` : null,
     node.lastFailure?.code ? `last failure ${node.lastFailure.code}` : null,
   ]

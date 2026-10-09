@@ -6951,21 +6951,37 @@ async function planVideoCritique(
 function critiqueImageLabels(
   run: OperatorRun,
   references: readonly string[],
+  canvas: CanvasCritiqueSources | undefined,
 ): string[] {
   const items = run.request.snapshot.references?.items ?? []
   return [
     'IMAGE 1 — THE RESULT you are judging. Describe and judge only this picture.',
     ...references.map((url, index) => {
+      if (canvas)
+        return `IMAGE ${index + 2} — reference @Image${index + 1}, wired into the card this picture came from (its prompt names it): a source, not the result. Use it only to compare identity, outfit, proportions and style.`
       const label = items.find((item) => item.url === url)?.label
       return `IMAGE ${index + 2} — reference @Image${index + 1}${label ? ` "${label}"` : ''}: a source the creator mounted, not the result. Use it only to compare identity and style.`
     }),
   ]
 }
 
-async function planCritiqueResult(
+/**
+ * 画布上评一张卡的成图：参考是**那张卡自己接的图**、对照的是它生成时的提示词。
+ * ⚠ 画布域的 `run.state.referenceUrls` 只有这一轮 @ 上来的图（2026-10-09 v3 回放
+ *   T20：九宫格只把成图交给了看图模型，评语里的「参考」全是从提示词推的）。
+ */
+export interface CanvasCritiqueSources {
+  referenceUrls: readonly string[]
+  prompt: string | null
+}
+
+const CANVAS_CRITIQUE_PROMPT_CHARS = 2_400
+
+export async function planCritiqueResult(
   run: OperatorRun,
   args: { goal?: string; targetIds?: string[] },
   userId: string,
+  canvas?: CanvasCritiqueSources,
 ): Promise<ToolPlan> {
   const target = resolveCritiqueTarget(run, args.targetIds)
   if (target.kind === 'ambiguous') {
@@ -7037,22 +7053,23 @@ async function planCritiqueResult(
     ? resolveAssistantModelId(visionRoute.adapterType)
     : run.modelId
 
-  const references = run.state.referenceUrls.filter((url): url is string =>
-    Boolean(url),
-  )
+  const references = canvas
+    ? [...canvas.referenceUrls]
+    : run.state.referenceUrls.filter((url): url is string => Boolean(url))
   const raw = await completeAssistantTextWithContextRetry({
     signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
     callLog: { purpose: 'critique', domain: run.request.domain },
     cacheKey: operatorCacheKey(run, 'critique'),
-    buildUserPrompt: () => buildCritiquePrompt(run, goal, result.modelLabel),
+    buildUserPrompt: () =>
+      buildCritiquePrompt(run, goal, result.modelLabel, canvas?.prompt ?? null),
     route: visionRoute,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     ...(visionModelId ? { modelId: visionModelId } : {}),
     // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
     imageData: references.length ? [result.url, ...references] : result.url,
     ...(references.length
-      ? { imageLabels: critiqueImageLabels(run, references) }
+      ? { imageLabels: critiqueImageLabels(run, references, canvas) }
       : {}),
     responseFormat: 'json_object',
   })
@@ -11287,8 +11304,13 @@ OUTPUT — one strict-JSON object and nothing else, no prose around it, no code 
  * 输入只有 15% 走缓存）。⚠ 只发哈希，⛔ 不把用户 id 交给 provider。
  */
 export function operatorCacheKey(run: OperatorRun, purpose: string): string {
+  /**
+   * ⚠ 工作台在前、会话在后：一轮的第一次请求还没有会话 id，接力那次才有 ——
+   *   键一变就分到另一台缓存上，接力第一步整段重算（2026-10-09 v3 回放：接力首步
+   *   缓存全是 0）。
+   */
   const scope =
-    run.request.conversationId ?? run.request.workspaceKey ?? run.request.domain
+    run.request.workspaceKey ?? run.request.conversationId ?? run.request.domain
   const digest = createHash('sha256')
     .update(`${run.userId}|${scope}`)
     .digest('hex')
@@ -11314,6 +11336,7 @@ function buildCritiquePrompt(
   run: OperatorRun,
   goal: string | null,
   modelLabel: string | undefined,
+  cardPrompt: string | null,
 ): string {
   const sections: string[] = [
     goal
@@ -11321,6 +11344,10 @@ function buildCritiquePrompt(
       : 'WHAT THIS PICTURE WAS SUPPOSED TO BE: the creator never wrote it down — judge it on its own craft instead.',
   ]
   if (modelLabel) sections.push(`MADE BY: ${modelLabel}`)
+  if (cardPrompt)
+    sections.push(
+      `THE PROMPT IT WAS MADE FROM (it names the reference images):\n${clamp(cardPrompt, CANVAS_CRITIQUE_PROMPT_CHARS)}`,
+    )
   if (run.request.domain === 'image' || run.request.domain === 'lora') {
     sections.push(
       `CURRENT REFERENCE ORDER (after the first/result image):\n${run.state.referenceUrls

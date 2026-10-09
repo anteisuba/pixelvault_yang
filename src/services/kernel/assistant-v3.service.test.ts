@@ -17,8 +17,9 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { plan, legacy, closeRound, model } = vi.hoisted(() => ({
+const { plan, critique, legacy, closeRound, model } = vi.hoisted(() => ({
   plan: vi.fn(),
+  critique: vi.fn(),
   legacy: vi.fn(),
   closeRound: vi.fn(async () => undefined),
   model: { current: null as unknown },
@@ -46,6 +47,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     }),
   ),
   planTool: plan,
+  planCritiqueResult: critique,
   runOperatorTurn: legacy,
   closeRound,
   closeRoundBeforeStop: closeRound,
@@ -121,7 +123,10 @@ const HARRY = 'image249e8bf4-8cc4-46eb-8125-3485e3a9053e'
 const GOYLE = 'image9c0d1e2f-1111-4222-8333-444455556666'
 const S04B = 'video4f610510-8120-436b-b3ac-ba4202af49b5'
 
-function canvas(withGoyle: boolean): AssistantOperatorCanvasSnapshot {
+function canvas(
+  withGoyle: boolean,
+  shot?: Partial<AssistantOperatorCanvasNode>,
+): AssistantOperatorCanvasSnapshot {
   const nodes = [
     {
       id: HARRY,
@@ -146,6 +151,7 @@ function canvas(withGoyle: boolean): AssistantOperatorCanvasSnapshot {
       inputs: withGoyle
         ? [{ slot: 'reference', from: GOYLE, edgeId: 'edge-goyle' }]
         : [],
+      ...shot,
     },
   ] as AssistantOperatorCanvasNode[]
   return {
@@ -248,6 +254,7 @@ const disconnectGoyle = {
 describe('v3 内核', () => {
   beforeEach(() => {
     plan.mockReset()
+    critique.mockReset()
     legacy.mockReset()
     closeRound.mockClear()
   })
@@ -524,6 +531,155 @@ describe('v3 内核', () => {
       text: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
     })
     expect(twice.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('过程行：同一批新建的卡写卡名、剧本镜头卡写镜号', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'add',
+              ref: 'new1',
+              type: 'image/character',
+              name: '赫敏 · 黑袍',
+              model: null,
+              params: null,
+              text: null,
+              shot: null,
+            },
+            {
+              op: 'connect',
+              from: 'new1',
+              to: 'vid-4f6105',
+              slot: 'reference',
+              role: null,
+            },
+          ],
+        },
+      }),
+    )
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: S04B },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: {
+            prompt: '',
+            canvas: canvas(true, {
+              fromScript: { nodeId: 'text-1', shotKey: 's4b', state: 'synced' },
+            }),
+            availableModels: [],
+          },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(events[1]).toMatchObject({
+      step: { title: '新建「赫敏 · 黑袍」；连接 「赫敏 · 黑袍」 → S04b' },
+    })
+  })
+
+  it.each([
+    [
+      '一次列两张',
+      [
+        {
+          id: 'call_1',
+          name: 'generate',
+          input: { cards: ['img-249e8b', 'img-9c0d1e'] },
+        },
+      ],
+    ],
+    [
+      '一条回复里调两次',
+      [
+        { id: 'call_1', name: 'generate', input: { cards: ['img-249e8b'] } },
+        { id: 'call_2', name: 'generate', input: { cards: ['img-9c0d1e'] } },
+      ],
+    ],
+  ])('生成两张（%s）：先摆第一张确认卡，补一句另一张没放', async (_, calls) => {
+    script(toolTurn(...calls))
+    plan.mockResolvedValue({
+      kind: 'confirmGenerate',
+      request: {
+        model: { id: 'gpt-image-2.5-flare', label: 'Flare' },
+        count: 1,
+        specs: { aspectRatio: '3:4', resolution: '1K', durationSeconds: null },
+        canvasNode: { id: HARRY, name: '哈利 · 黑袍' },
+      },
+    })
+    const events = await collect(runAssistantV3('clerk-1', request()))
+    expect(plan).toHaveBeenCalledTimes(1)
+    expect(events.map((event) => event.type)).toEqual([
+      'confirm',
+      'message',
+      'stopped',
+    ])
+    expect(events[1]).toMatchObject({
+      text: expect.stringContaining('「高尔 · 黑袍」 还没放'),
+    })
+  })
+
+  it('看图评成图：把那张卡接的参考图和它的提示词一起交给评审', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'look',
+        input: { cards: ['vid-4f6105'], question: '对照参考哪里不对？' },
+      }),
+      textTurn('裙子画成了长裤。'),
+    )
+    critique.mockResolvedValue({
+      kind: 'read',
+      payload: { imageUrl: 'https://cdn.test/result.png', goal: null },
+      run: async () => ({
+        result: {
+          findings: [{ severity: 'warn', text: '裙子画成了长裤' }],
+          advice: null,
+          borrowedVisionRoute: false,
+        },
+        observation: 'critique_result — looked',
+      }),
+    })
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          mentionedAssets: [
+            {
+              id: 'gen-1',
+              url: 'https://cdn.test/result.png',
+              label: '冲出门',
+            },
+          ],
+          snapshot: {
+            prompt: '',
+            canvas: canvas(true, {
+              referenceUrls: ['https://cdn.test/goyle.png'],
+              referencePromptContext: '图片1「高尔 · 黑袍」',
+            }),
+            availableModels: [],
+          },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(critique).toHaveBeenCalledWith(
+      expect.anything(),
+      { goal: '对照参考哪里不对？', targetIds: ['gen-1'] },
+      'user-1',
+      {
+        referenceUrls: ['https://cdn.test/goyle.png'],
+        prompt: '图片1「高尔 · 黑袍」',
+      },
+    )
   })
 
   it('接不了的厂商 / 没有画布：交回旧内核', async () => {

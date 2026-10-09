@@ -137,7 +137,6 @@ export const ASSISTANT_V3_LIMITS = {
   maxEditOps: 12,
   maxWrites: 8,
   maxWriteEdits: 20,
-  maxGenerateCards: 1,
   maxRefChars: 24,
   maxNameChars: 80,
   maxTextChars: 20_000,

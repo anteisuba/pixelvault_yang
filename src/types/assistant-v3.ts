@@ -52,7 +52,7 @@ export const AssistantV3EditOpInputSchema = z.union([
     type: z
       .enum(ASSISTANT_V3_CARD_TYPES)
       .describe(
-        'Card type as kind/subtype, written the way the board prints it.',
+        'Card type as kind/subtype, written the way the board prints it. image/reference only holds a picture put there by hand: it takes no inputs and never generates. A new picture to generate is image/character, image/background or image/shot.',
       ),
     name: z.string(),
     model: z.string().nullable(),
@@ -85,16 +85,24 @@ export const AssistantV3EditOpInputSchema = z.union([
     op: one(ASSISTANT_V3_EDIT_OP_IDS.delete),
     card: CardHandleSchema,
   }),
-  z.object({
-    op: one(ASSISTANT_V3_EDIT_OP_IDS.moveToShot),
-    card: CardHandleSchema,
-    shot: z.number().int().nullable(),
-  }),
-  z.object({
-    op: one(ASSISTANT_V3_EDIT_OP_IDS.reorderShot),
-    from: z.number().int(),
-    to: z.number().int(),
-  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_EDIT_OP_IDS.moveToShot),
+      card: CardHandleSchema,
+      shot: z.number().int().nullable(),
+    })
+    .describe(
+      'Move ONE card into another existing LANE (null takes it out of every lane). It does not change the order of shots, and a lane number that does not exist leaves a gap.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_EDIT_OP_IDS.reorderShot),
+      from: z.number().int(),
+      to: z.number().int(),
+    })
+    .describe(
+      'Change the order of shots: the whole LANE numbered from moves to position to and the lanes in between shift by one. Use this to move a shot earlier, later or to the end.',
+    ),
   z.object({
     op: one(ASSISTANT_V3_EDIT_OP_IDS.projectScript),
     script: CardHandleSchema,

@@ -342,6 +342,10 @@ function toSnapshotNode(
       : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
+    ...(data.kind !== NODE_MEDIA_KIND_IDS.text &&
+    data.status === NODE_STATUS_IDS.running
+      ? { generating: true as const }
+      : {}),
     ...readLastFailure(node),
   }
 }

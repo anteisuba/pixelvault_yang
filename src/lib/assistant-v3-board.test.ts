@@ -123,6 +123,24 @@ describe('v3 板子', () => {
     expect(text).toContain('model none')
   })
 
+  it('有产出写 has output，正在生成写 generating', () => {
+    const text = renderAssistantV3Board({
+      canvas: board([
+        node({
+          id: HARRY,
+          name: '哈利 · 黑袍',
+          kind: 'image',
+          hasOutput: true,
+        }),
+        node({ id: S01, name: '全景', kind: 'video', generating: true }),
+      ]),
+      handles: buildAssistantV3Handles([HARRY, S01]),
+      latestUserText: '',
+    })
+    expect(text).toMatch(/img-249e8b[^\n]*has output/)
+    expect(text).toMatch(/vid-16f1cb[^\n]*generating/)
+  })
+
   it('大画布只展开点了名的卡与一跳连线，其余一行', () => {
     const filler = Array.from({ length: 20 }, (_, index) =>
       node({

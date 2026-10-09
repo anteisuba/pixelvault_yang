@@ -81,10 +81,15 @@ const NodeAssistantOpNameSchema = z
  * 节点的那段字，否则用户审的和实际写的是两个东西。
  */
 function stripNodeMarkers(value: string): string {
-  return value
-    .replace(/\[\[node:[^\]]+\]\]/g, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim()
+  return (
+    value
+      .replace(/\[\[node:[^\]]+\]\]/g, '')
+      // 行尾那个 Markdown 强制换行的反斜杠（2026-10-09 马尔福画布：整段替换剧本时
+      // 每行末尾多了一个 `\`，礼堂没改的三镜被重投影认成「已变」）。
+      .replace(/[ \t]*\\$/gm, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim()
+  )
 }
 
 export const NodeAssistantAddNodeOpSchema = z.object({

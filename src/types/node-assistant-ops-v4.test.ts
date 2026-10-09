@@ -142,6 +142,18 @@ describe('v4 op 载荷', () => {
     expect(parsed).toMatchObject({ prompt: '沿用 的构图' })
   })
 
+  it('set_text 去掉行尾那个 Markdown 换行反斜杠（⛔ 不让没改的镜被认成「已变」）', () => {
+    const parsed = NodeAssistantOpV4Schema.parse({
+      op: 'set_text',
+      target: 'a',
+      body: 'S05 · 礼堂全景 · 4s\\\nS06 · 分院椅 · 6s \\\n末行',
+      mode: 'replace',
+    })
+    expect(parsed).toMatchObject({
+      body: 'S05 · 礼堂全景 · 4s\nS06 · 分院椅 · 6s\n末行',
+    })
+  })
+
   it('project_script 的 mode 缺省 create，词表外的档整条拒收', () => {
     expect(
       NodeAssistantOpV4Schema.parse({

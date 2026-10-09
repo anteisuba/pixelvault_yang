@@ -2885,8 +2885,8 @@
     "pickerConfirmAdd": "添加 {count} 张",
     "pickerMaxReached": "最多 {max} 张",
     "bulkDelete": "删除",
-    "bulkDeleteConfirm": "确认删除 {count} 个素材？此操作无法撤销。",
-    "bulkDeleteSuccess": "已删除 {count} 个素材",
+    "bulkDeleteConfirm": "删除 {count} 个素材？删完 5 秒内可以在底部撤销。",
+    "bulkDeleteSuccess": "已删除 {count} 张",
     "bulkDeleteFailed": "删除失败",
     "bulkPublish": "发布到画廊",
     "bulkPublishConfirm": "把 {count} 个素材发布到公开画廊？",
@@ -3034,6 +3034,7 @@
     "addToFolderLegendHint": "点一下 = 全部放进去；再点 = 从这个夹拿出",
     "addToFolderCreate": "新建文件夹并放进去",
     "uploadingProgress": "上传中 {current}/{total}",
+    "uploadedCount": "已上传 {count} 张",
     "selectedPrefix": "已选",
     "bulkDeleteArm": "确认删除 {count} 张",
     "selectDone": "完成"
@@ -8752,6 +8753,19 @@
         "limit": "最多 {count} 个有效令牌，先吊销一个不用的。",
         "revoke": "没吊销成功，再试一次。"
       }
+    },
+    "deleteAccount": {
+      "row": "注销账号",
+      "rowHint": "删掉账号后不能再用它登录",
+      "trigger": "注销账号",
+      "title": "注销账号？",
+      "description": "账号和登录方式会被删掉，之后不能再用它登录；你的主页会转为私密、不再对外显示。已生成的素材不会帮你导出，需要的请先下载。这一步不能撤销。",
+      "phrase": "注销",
+      "phraseLabel": "输入「{phrase}」确认",
+      "cancel": "取消",
+      "confirm": "注销账号",
+      "deleting": "正在注销",
+      "failed": "没能注销账号，请重新登录后再试。"
     }
   },
   "AssistantSettings": {

@@ -77,8 +77,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { BlurSwap } from '@/components/ui/blur-swap'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+  type ButtonFeedback,
+} from '@/components/ui/feedback-button'
 import {
   Sheet,
   SheetContent,
@@ -159,6 +164,7 @@ import {
 import { readAudioFileMetadata } from '@/lib/audio-metadata'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import { runUndoableAction } from '@/lib/undoable-action'
 import { clearGalleryCache } from '@/lib/gallery-cache'
 import { getChildFolders } from '@/lib/folder-tree'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
@@ -348,6 +354,7 @@ export function KreaAssetBrowser({
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
   const tSearch = useTranslations('SearchGrounding')
+  const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const [isToolbarStuck, setIsToolbarStuck] = useState(false)
@@ -539,7 +546,6 @@ export function KreaAssetBrowser({
   // Off-screen element used as a custom drag image when dragging a multi-select
   // batch onto a folder — shows the count instead of a lone thumbnail ghost.
   const dragGhostRef = useRef<HTMLDivElement>(null)
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   const [isBulkPublishing, setIsBulkPublishing] = useState(false)
   const [isBulkFavoriting, setIsBulkFavoriting] = useState(false)
   /** 大河里正拖着几张（拖到左栏一行上时写「+ 加入 N 张」）。 */
@@ -647,27 +653,60 @@ export function KreaAssetBrowser({
     setConfirmAction({ kind: 'delete-bulk', count })
   }
 
-  const performBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedIds)
-    if (ids.length === 0) return
-    setIsBulkDeleting(true)
-    clearGalleryCache()
-    ids.forEach((id) => removeGeneration(id))
-    exitSelectionMode()
-    void refreshCounts()
-    try {
-      const result = await batchDeleteGenerationsAPI(ids)
-      if (!result.success) {
-        toast.error(result.error ?? t('bulkDeleteFailed'))
-        return
+  /**
+   * 批量删除与单张同一套（owner 2026-10-08「提示与弹窗」）：选中的那几张立刻从
+   * 大河里拿掉，底部黑条「已删除 N 张 · 撤销」5 秒，过了才真的落库；点撤销 /
+   * 落库失败都按原来的位置放回去。⛔ 不需要恢复接口。
+   */
+  const performBulkDelete = useCallback(() => {
+    const removed = generations
+      .map((generation, index) => ({ generation, index }))
+      .filter(({ generation }) => selectedIds.has(generation.id))
+    if (removed.length === 0) return
+    const ids = removed.map(({ generation }) => generation.id)
+    const restore = () => {
+      clearGalleryCache()
+      // 从前往后插，每一张回到它原来的序号。
+      for (const { generation, index } of removed) {
+        insertGeneration(generation, index)
       }
-      const deletedCount = result.data?.deletedCount ?? ids.length
       void refreshCounts()
-      toast.success(t('bulkDeleteSuccess', { count: deletedCount }))
-    } finally {
-      setIsBulkDeleting(false)
     }
-  }, [selectedIds, t, removeGeneration, refreshCounts, exitSelectionMode])
+    exitSelectionMode()
+    runUndoableAction({
+      message: t('bulkDeleteSuccess', { count: ids.length }),
+      undoLabel: tFeedback('undo'),
+      apply: () => {
+        clearGalleryCache()
+        ids.forEach((id) => removeGeneration(id))
+        void refreshCounts()
+      },
+      undo: restore,
+      commit: async () => {
+        try {
+          const result = await batchDeleteGenerationsAPI(ids)
+          if (result.success) {
+            clearGalleryCache()
+            void refreshCounts()
+            return
+          }
+          toast.error(result.error ?? t('bulkDeleteFailed'))
+        } catch {
+          toast.error(t('bulkDeleteFailed'))
+        }
+        restore()
+      },
+    })
+  }, [
+    generations,
+    selectedIds,
+    t,
+    tFeedback,
+    insertGeneration,
+    removeGeneration,
+    refreshCounts,
+    exitSelectionMode,
+  ])
 
   /**
    * 选中里用过「先搜再画」的那几张（按 Gemini API 条款不能公开）：混选只发能发的，
@@ -1223,9 +1262,24 @@ export function KreaAssetBrowser({
     [filters, prependGeneration, refreshCounts, refreshFolders],
   )
 
+  /**
+   * 上传的结果写在上传键上（owner 2026-10-08「提示与弹窗」第 1 题）：传着时
+   * 「上传中 2/3」，这一轮传完「✓ 已上传 3 张」1.6 秒后缩回；失败的留在队列面板里重试。
+   */
+  const uploadDoneFeedback = useButtonFeedback()
+  const showUploadDone = uploadDoneFeedback.show
+  const handleUploadBatchSettled = useCallback(
+    ({ done }: { done: number }) => {
+      if (done > 0)
+        showUploadDone({ label: t('uploadedCount', { count: done }) })
+    },
+    [showUploadDone, t],
+  )
+
   const uploadQueue = useAssetUploadQueue({
     upload: uploadOneFile,
     onUploaded: handleUploaded,
+    onBatchSettled: handleUploadBatchSettled,
   })
   const isUploading = uploadQueue.isUploading
 
@@ -1367,8 +1421,7 @@ export function KreaAssetBrowser({
    * 空库 = 没有任何筛选、也不在某个夹里，却还是零素材。
    * §7 明写这种情况下**文件夹段一并隐藏** —— 一个新用户不该先看见一排空门牌。
    */
-  const isBulkActionPending =
-    isBulkDeleting || isBulkPublishing || isBulkFavoriting
+  const isBulkActionPending = isBulkPublishing || isBulkFavoriting
 
   // ── justified 真实比例网格（page §5）────────────────────────────
   // 密度控制的是目标行高，行高刻度按视口断点各有一套。picker 的小网格自成
@@ -1593,13 +1646,12 @@ export function KreaAssetBrowser({
     }
   }, [draggingCount])
 
-  const uploadTotal = uploadQueue.items.length
-  const uploadButtonLabel = isUploading
-    ? t('uploadingProgress', {
-        current: Math.min(uploadTotal, uploadQueue.doneCount + 1),
-        total: uploadTotal,
-      })
-    : t('uploadButton')
+  const uploadButtonFeedback: ButtonFeedback | null = uploadQueue.batchProgress
+    ? {
+        label: t('uploadingProgress', uploadQueue.batchProgress),
+        tone: 'progress',
+      }
+    : uploadDoneFeedback.feedback
 
   /** ≥768 顶栏选择条里的内容（窄屏是底部浮条，见文件尾）。 */
   const selectionBarContent = (
@@ -1660,7 +1712,7 @@ export function KreaAssetBrowser({
         armedLabel={t('bulkDeleteArm', { count: selectedIds.size })}
         disabled={isBulkActionPending || selectedIds.size === 0}
         resetKey={`${selectionMode}:${selectedIds.size}`}
-        onConfirm={() => void performBulkDelete()}
+        onConfirm={performBulkDelete}
       />
       <button
         type="button"
@@ -1819,27 +1871,21 @@ export function KreaAssetBrowser({
 
           {!isPickerMode && (
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
+              {/* 传着时还能再点：新选的文件并进这一轮（分母跟着变大）。 */}
+              <FeedbackButton
+                feedback={uploadButtonFeedback}
                 onClick={handleUploadClick}
-                disabled={isUploading}
                 inert={selectionMode}
                 className={cn(
+                  buttonVariants({ size: 'sm' }),
                   TOOLBAR_BUTTON_CLASS,
                   SELECTION_YIELD_CLASS,
                   selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
                 )}
               >
-                {isUploading ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <UploadCloud className="size-3.5" />
-                )}
-                <BlurSwap swapKey={uploadButtonLabel}>
-                  {uploadButtonLabel}
-                </BlurSwap>
-              </Button>
+                <UploadCloud className="size-3.5" aria-hidden />
+                {t('uploadButton')}
+              </FeedbackButton>
               <Button
                 ref={selectButtonRef}
                 type="button"
@@ -2496,11 +2542,7 @@ export function KreaAssetBrowser({
               disabled={isBulkActionPending || selectedIds.size === 0}
               className="flex items-center gap-1.5 rounded-full border border-status-risk/40 px-3 py-1.5 text-xs font-medium text-status-risk transition-colors hover:bg-status-risk-surface disabled:opacity-50"
             >
-              {isBulkDeleting ? (
-                <Spinner size="sm" />
-              ) : (
-                <Trash2 className="size-3.5" />
-              )}
+              <Trash2 className="size-3.5" />
               {t('bulkDelete')}
             </button>
           </div>
@@ -2562,7 +2604,7 @@ export function KreaAssetBrowser({
                     const action = confirmAction
                     setConfirmAction(null)
                     if (action.kind === 'delete-bulk') {
-                      void performBulkDelete()
+                      performBulkDelete()
                     } else if (action.kind === 'publish-bulk') {
                       void performBulkPublish()
                     } else if (action.kind === 'favorite-bulk') {

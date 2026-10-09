@@ -2885,8 +2885,8 @@
     "pickerConfirmAdd": "{count} 件を追加",
     "pickerMaxReached": "最大 {max} 件まで",
     "bulkDelete": "削除",
-    "bulkDeleteConfirm": "{count} 件の素材を削除しますか？元に戻せません。",
-    "bulkDeleteSuccess": "{count} 件の素材を削除しました",
+    "bulkDeleteConfirm": "{count} 件の素材を削除しますか？削除後 5 秒間は下のバーから元に戻せます。",
+    "bulkDeleteSuccess": "{count} 件を削除しました",
     "bulkDeleteFailed": "削除に失敗しました",
     "bulkPublish": "ギャラリーに公開",
     "bulkPublishConfirm": "{count}件の素材を公開ギャラリーに公開しますか？",
@@ -3034,6 +3034,7 @@
     "addToFolderLegendHint": "クリックで全部追加、もう一度で外す",
     "addToFolderCreate": "新しいフォルダを作って追加",
     "uploadingProgress": "アップロード中 {current}/{total}",
+    "uploadedCount": "{count} 件アップロード済み",
     "selectedPrefix": "選択中",
     "bulkDeleteArm": "{count} 件を削除",
     "selectDone": "完了"
@@ -8752,6 +8753,19 @@
         "limit": "有効なトークンは最大 {count} 個です。使っていないものを無効にしてください。",
         "revoke": "無効にできませんでした。もう一度お試しください。"
       }
+    },
+    "deleteAccount": {
+      "row": "アカウント削除",
+      "rowHint": "削除すると、このアカウントではログインできなくなります",
+      "trigger": "アカウント削除",
+      "title": "アカウントを削除しますか？",
+      "description": "アカウントとログイン情報が削除され、このアカウントでは二度とログインできなくなります。プロフィールは非公開になり、他の人には表示されません。作成した素材は自動でエクスポートされないため、必要なものは先にダウンロードしてください。この操作は元に戻せません。",
+      "phrase": "削除",
+      "phraseLabel": "「{phrase}」と入力して確認",
+      "cancel": "キャンセル",
+      "confirm": "アカウント削除",
+      "deleting": "削除中",
+      "failed": "アカウントを削除できませんでした。もう一度ログインしてからお試しください。"
     }
   },
   "AssistantSettings": {

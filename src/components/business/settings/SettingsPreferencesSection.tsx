@@ -17,6 +17,7 @@ import { useMyProfile } from '@/hooks/use-my-profile'
 import { updateProfileAPI } from '@/lib/api-client'
 import { toastError } from '@/lib/toast'
 
+import { SettingsDeleteAccountRow } from '@/components/business/settings/SettingsDeleteAccountRow'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import {
@@ -31,7 +32,7 @@ import { Switch } from '@/components/ui/switch'
 
 /**
  * `/settings/preferences`（D3 ④）——语言 · 显示名 · 默认打开的工作台 ·
- * 生成完成时通知 · 减少动效。
+ * 生成完成时通知 · 减少动效；最底一行「注销账号」（`SettingsDeleteAccountRow`）。
  *
  * 语言与显示名接的是**现成的那两条路**（`LocaleSwitcher` / `updateProfileAPI`）；
  * 后三项没有服务端形状，落在既有的 localStorage 偏好机制上，⛔ 不新开一张表。
@@ -68,6 +69,7 @@ export function SettingsPreferencesSection() {
             ariaLabel={t('preferences.reduceMotion')}
           />
         </PreferenceRow>
+        <SettingsDeleteAccountRow />
       </div>
     </section>
   )

@@ -12,6 +12,11 @@ vi.mock('@/components/layout/LocaleSwitcher', () => ({
   LocaleSwitcher: () => <nav aria-label="locale" />,
 }))
 
+// 注销账号那一行有自己的测试（`SettingsDeleteAccountRow.test`）。
+vi.mock('@/components/business/settings/SettingsDeleteAccountRow', () => ({
+  SettingsDeleteAccountRow: () => null,
+}))
+
 vi.mock('@/hooks/use-local-preference', () => ({
   useLocalPreference: () => [null, vi.fn()],
 }))

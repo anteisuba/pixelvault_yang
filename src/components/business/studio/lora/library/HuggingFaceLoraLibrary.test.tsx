@@ -56,6 +56,7 @@ vi.mock('@/i18n/navigation', () => ({
 // （LoraHuggingFaceBrowse.test.tsx）。
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => true,
+  useIsTablet: () => false,
 }))
 
 vi.mock('@/hooks/use-active-lora-stack', () => ({

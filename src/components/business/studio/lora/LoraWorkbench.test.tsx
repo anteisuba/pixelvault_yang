@@ -184,6 +184,7 @@ vi.mock('@/i18n/navigation', () => ({
 let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => mockIsMobile,
+  useIsTablet: () => false,
 }))
 
 vi.mock('@/hooks/use-lora-assets', () => ({

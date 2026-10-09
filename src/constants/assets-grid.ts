@@ -17,7 +17,7 @@ export const ASSET_GRID_DENSITY_STORAGE_KEY = 'pv:assets:density'
 
 /**
  * 行高刻度的视口断点。
- * ⚠ 与全局 `useIsMobile`（1024）**不是一回事**：那个决定布局壳挂不挂桌面侧栏，
+ * ⚠ 与全局 `useIsMobile`（768）**不是一回事**：那个决定布局壳挂不挂桌面侧栏，
  * 这里只决定一行画多高，契约 §5.6 / §9 明写为 768 / 1280 两道。
  */
 export const ASSET_GRID_TABLET_MIN_WIDTH = 768

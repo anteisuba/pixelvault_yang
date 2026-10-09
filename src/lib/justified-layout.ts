@@ -9,7 +9,7 @@ import {
 
 /**
  * 视口 → 行高刻度档（page §5.6 的 768 / 1280 两道）。
- * ⚠ 与 `useIsMobile`（1024，决定布局壳挂不挂桌面侧栏）不是同一道闸。
+ * ⚠ 与 `useIsMobile`（768，决定布局壳挂不挂桌面侧栏）不是同一道闸。
  */
 export function resolveAssetGridViewport(
   viewportWidth: number,

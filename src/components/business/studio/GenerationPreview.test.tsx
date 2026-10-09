@@ -73,7 +73,10 @@ vi.mock('@/lib/api-client/generation', () => ({
 }))
 
 let mockIsMobile = false
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mockIsMobile }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mockIsMobile,
+  useIsTablet: () => false,
+}))
 
 // §3.0b 第 4 条的注入口。真实实现要 StudioProvider —— 这里要验的是
 // 「按钮按下去带的是这张图的 URL」，不是 reducer。

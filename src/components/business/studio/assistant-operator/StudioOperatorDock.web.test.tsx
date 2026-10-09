@@ -111,7 +111,10 @@ vi.mock('@/contexts/studio-operator-host', () => ({
   },
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mobile,
+  useIsTablet: () => false,
+}))
 vi.mock('@/hooks/use-assistant-operator', () => ({
   useAssistantOperator: (scope: string | null) => {
     useEffect(() => {

@@ -14,11 +14,10 @@ import {
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 
-/** 左侧图标栏与浮起面板的几何（画板：栏 44 / 面板 264，面板浮在画布上）。 */
+/** 外壳浮起物的几何（画板：面板 264，浮在画布上）。 */
 export const CANVAS_SHELL_LAYOUT = {
-  railWidthPx: 44,
   panelWidthPx: 264,
-  /** 图标栏与面板之间的空隙（画板 left:16 → left:68）。 */
+  /** 浮起物与锚点之间的空隙（项目胶囊弹层的 sideOffset）。 */
   panelGapPx: 8,
   /** 玻璃浮起物到视口边的留白（画板四角统一 16）。 */
   edgeInsetPx: 16,
@@ -57,40 +56,28 @@ export const CANVAS_SHELL_LAYOUT = {
   nodeThumbHeightPx: 26,
 } as const
 
-/** 安全区的左界离画布左缘多少：图标栏（若在）右缘 + 12；面板开着时面板右缘 + 14。 */
-const SAFE_GAP_RAIL_PX = 12
+/** 面板开着时安全区左界离面板右缘多少。 */
 const SAFE_GAP_PANEL_PX = 14
 
 /**
  * 选中浮层 / 定位 / 弹层避让共用的**安全区左界**（node-canvas-v2 §1 第 4 条「推回安全区」）。
  *
- * ⭐ owner 2026-10-08 换皮：画布自己的图标栏并进了全站侧栏，≥1024 画布里**没有栏**，
- *   左界只剩边距（面板开着再加面板）；768–1023 全站侧栏不在，栏仍留在画布里兜底。
- *   ⛔ 别再在调用点手写 `72` / `346`。
+ * ⭐ owner 2026-10-08 换皮：画布自己的图标栏并进了全站侧栏（≥768 桌面壳都在），画布里
+ *   **没有栏**，左界只剩边距（面板开着再加面板）。⛔ 别再在调用点手写 `16` / `294`。
  */
 export function canvasShellSafeLeftPx(options: {
   readonly panelOpen: boolean
-  readonly railVisible: boolean
 }): number {
-  const { panelOpen, railVisible } = options
   const L = CANVAS_SHELL_LAYOUT
-  if (panelOpen) {
-    return (
-      L.edgeInsetPx +
-      (railVisible ? L.railWidthPx + L.panelGapPx : 0) +
-      L.panelWidthPx +
-      SAFE_GAP_PANEL_PX
-    )
-  }
-  return railVisible
-    ? L.edgeInsetPx + L.railWidthPx + SAFE_GAP_RAIL_PX
+  return options.panelOpen
+    ? L.edgeInsetPx + L.panelWidthPx + SAFE_GAP_PANEL_PX
     : L.edgeInsetPx
 }
 
 /**
  * 左侧面板（全部六格，开着哪一格是一份 `use-canvas-shell-panel` store）。
  *
- * ⭐ owner 2026-10-08 拍板（原型四格）：全站侧栏「画布」下面 / 768–1023 画布兜底栏里
+ * ⭐ owner 2026-10-08 拍板（原型四格）：全站侧栏「画布」下面
  *   只放 添加节点 / 节点 / 当前项目 / 历史对话 四格；角色与素材库搬到底栏，点开的仍是
  *   侧栏旁边同一块面板。哪一格的入口落在哪里**只由** `navigation.ts` 的
  *   `SHELL_NAV_CANVAS_ENTRIES` 那一张 id 列表决定（不在列表里的 = 底栏），⛔ 别在这里
@@ -174,10 +161,9 @@ export const CANVAS_SHELL_MEDIA_DRAG_MIME =
  */
 export const CANVAS_SHELL_UPLOAD_ACCEPT = 'image/*,video/*,audio/*'
 
-/** 没人告诉安全区左界时的默认值：≥1024、面板收着（画布里没有图标栏）。 */
+/** 没人告诉安全区左界时的默认值：面板收着。 */
 export const CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX = canvasShellSafeLeftPx({
   panelOpen: false,
-  railVisible: false,
 })
 
 /**

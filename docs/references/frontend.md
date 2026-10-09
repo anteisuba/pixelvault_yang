@@ -65,7 +65,7 @@ primitive → semantic → domain/component → page
 ## 布局壳（2026-07-10 核验 `(main)/layout.tsx`）
 
 - 结构：`SidebarProvider` → `AppSidebar` + `MobileCollapsedRail` + `MobileHeader` + `SidebarInset`(#main-content) + `MobileTabBar`；Mobile 三件套都从 `src/components/layout/MobileTabBar.tsx` 导出。
-- **紧凑断点 = 1024**（`use-mobile.ts` MOBILE_BREAKPOINT，C4 决议：<1024 移动 chrome，≥1024 才出桌面侧栏；768–1023 平板区间走移动 chrome。⚠ 2026-06 旧文档写 768 已过时）。inset padding：`pt-11 pb-12 pl-11 lg:pt-0 lg:pb-0 lg:pl-0`。
+- **紧凑断点 = 768**（`use-mobile.ts` MOBILE_BREAKPOINT；owner 2026-10-09 平板 v10 推翻 C4 的 1024：<768 移动 chrome，≥768 桌面侧栏，768–1023 平板侧栏钉死收起、助手不让位，`useIsTablet`）。Tailwind `lg:` 挪到 48rem = 桌面壳，原 1024 档叫 `desk:`。inset padding：`pt-11 pb-12 pl-11 lg:pt-0 lg:pb-0 lg:pl-0`。
 - 侧栏：展开 12rem / 折叠 3rem；初始状态 = `sidebar_state` cookie + UA 判断；快捷键 ctrl/⌘+B。
 - skip link → `#main-content`（保持，勿删）。
 - `KeyboardInsetBridge`：visualViewport 软键盘适配（dock 感知）。
@@ -102,10 +102,10 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ⚠ **两套外壳并列，不是替代**（2026-08-18）：
 
-| 外壳                    | 谁用         | 形状                                                                                                                                               |
-| ----------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `StudioWorkbenchLayout` | **图片模态** | 横向：`lg:w-72` 常驻参数栏 + 结果区。断点 **lg(1024)**，与 `useIsMobile` 对齐——用 md 会在 768–1023 留「列位按 768 预留但内容到 1024 才渲染」的空沟 |
-| `StudioFlowLayout`      | 视频 / 音频  | 纵向 canvas + 底部 dock（原样，未动）                                                                                                              |
+| 外壳                    | 谁用         | 形状                                                                                                                                          |
+| ----------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StudioWorkbenchLayout` | **图片模态** | 横向：`lg:w-72` 常驻参数栏 + 结果区。断点 **lg（= 桌面壳 768）**，与 `useIsMobile` 对齐——两边各取一个数会留「列位已预留但内容还没渲染」的空沟 |
+| `StudioFlowLayout`      | 视频 / 音频  | 纵向 canvas + 底部 dock（原样，未动）                                                                                                         |
 
 分工沿用画布 07-31 那条已验证的分界线：**参数回答「下一版长什么样」，动作回答「我现在要做什么」**——参数栏只放参数，结果区上方不再有横带，每张图自己报状态。
 
@@ -117,8 +117,8 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ## 移动端范式
 
-- 断点体系：<1024 移动 chrome（左侧 44px 竖 rail + 顶部 header + 底部 tab bar）；测试视口集 375 / 390 / 430 / 768 / 1024 / 1440。
-- 披露一律 ResponsiveDialog / ResponsivePopover；ResponsivePopover 仅在 `<1024px` 且 touch-primary 时切 Drawer，fine pointer 的窄窗口仍保留锚定 Popover；侧栏移动 Sheet 宽 `min(13rem, calc(100vw - 8rem))`。
+- 断点体系：<768 移动 chrome（顶栏当切换器）；768–1023 平板 = 桌面壳窄档；测试视口集 375 / 390 / 430 / 768 / 1024 / 1440。
+- 披露一律 ResponsiveDialog / ResponsivePopover；ResponsivePopover 仅在 `<768px` 且 touch-primary 时切 Drawer，fine pointer 的窄窗口仍保留锚定 Popover；侧栏移动 Sheet 宽 `min(13rem, calc(100vw - 8rem))`。
 - 自适应命中区：fine pointer 紧凑控件 ≥32px / 常规控件 ≥36px，coarse pointer/touch ≥44px；底线为 WCAG 2.2 AA 24px（小于时必须满足 spacing/equivalent 例外并断言）。软键盘双保险：visualViewport（KeyboardInsetBridge）+ 触屏键盘策略（isTouchPrimary / focusUnlessTouch——软键盘只在用户直接点输入框时弹）。
 - 移动主路径回归：`npx playwright test e2e/mobile.spec.ts --project=mobile`。
 

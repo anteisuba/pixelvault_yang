@@ -48,8 +48,8 @@ export function GallerySkeletonGrid({
       className={cn(
         // 一排 = 网格（每列一块）；多排 = 分栏，像瀑布流那样各列各自往下排。
         rows === 1
-          ? 'grid grid-cols-2 items-start gap-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6'
-          : 'columns-2 gap-2 md:columns-3 lg:columns-4 2xl:columns-5 3xl:columns-6',
+          ? 'grid grid-cols-2 items-start gap-2 md:grid-cols-3 desk:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6'
+          : 'columns-2 gap-2 md:columns-3 desk:columns-4 2xl:columns-5 3xl:columns-6',
         className,
       )}
     >

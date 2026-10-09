@@ -74,6 +74,7 @@ vi.mock('@/contexts/studio-context', () => ({
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => mockIsMobile,
+  useIsTablet: () => false,
 }))
 
 vi.mock('@/hooks/use-studio-assistant-controls', () => ({

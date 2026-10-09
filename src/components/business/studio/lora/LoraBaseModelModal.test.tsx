@@ -24,6 +24,7 @@ vi.mock('@/constants/feature-flags', async (importOriginal) => {
 let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => mockIsMobile,
+  useIsTablet: () => false,
 }))
 
 // jsdom 没有 ResizeObserver；弹层用它量高度做补间，测试里给个空壳。

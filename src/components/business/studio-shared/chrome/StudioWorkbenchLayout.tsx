@@ -129,8 +129,8 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   }
   return (
     // 移动端退回纵向（参数在上、结果在下）：288px 的常驻栏在手机上会把结果区
-    // 压到没有。断点用 lg（1024）与 `useIsMobile` 对齐 —— 平板 768–1023 那段
-    // 若用 md 会出现「列位按 768 预留但内容到 1024 才渲染」的空沟。
+    // 压到没有。断点用 lg（= 桌面壳，768）与 `useIsMobile` 对齐 —— 两边各取一个数
+    // 会出现「列位已经预留但内容还没渲染」的空沟。
     // ⚠ `lg:flex-none` 不是装饰：本组件是 `.studio-layout-v2`（= `.workbench-ground`，
     // column flex，`min-height:100svh` 无上限）的子项，只写 `flex-1` 会把
     // flex-basis 定成 0，**桌面端高度就被忽略**，高度反过来由内容决定 —— 于是

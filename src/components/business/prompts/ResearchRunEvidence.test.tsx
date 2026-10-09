@@ -30,6 +30,7 @@ vi.mock('next-intl', () => ({
 // 引用弹层在触屏紧凑态会换成抽屉；这套断言只跑桌面那条路（细指针）。
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
+  useIsTablet: () => false,
 }))
 
 const { getResearchRunAPIMock } = vi.hoisted(() => ({

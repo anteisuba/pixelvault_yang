@@ -27,7 +27,7 @@ import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
 
 /**
- * 手机 / 平板（<1024）的导航壳 —— 方向 M2「顶栏当切换器」
+ * 手机（<768）的导航壳 —— 方向 M2「顶栏当切换器」
  * （2026-08-18 owner 拍板，`docs/references/pages/app-shell.md` §6）。
  *
  * **这里没有竖轨。** 改版前是一条 44px 常驻左轨 + 顶栏；M2 把它整个撤掉，
@@ -37,9 +37,8 @@ import { cn } from '@/lib/utils'
  * - 44px 竖轨吃掉 375 宽度的 12%，而且是永久占用；
  * - 触摸目标要 44px，竖轨在小屏上反而得比桌面更宽 —— 形态本身就不对。
  *
- * ⚠ 断点仍是 1024（`useIsMobile`）。别为了让平板拿到桌面竖轨而下调到 768：
- * `use-mobile.ts` 的注释记着，768–1023 挂桌面侧栏会把 studio 内容裁出视口。
- * M2 天然覆盖整个 <1024，不需要第三种形态。
+ * ⚠ 断点 768（`useIsMobile`）。owner 2026-10-09 平板 v10 定了平板 = 缩小版电脑：
+ * 768–1023 挂桌面侧栏（钉死收起档，`SidebarProvider` 里），不再走这个壳。
  *
  * ⛔ 条目清单只来自 `src/constants/navigation.ts`。曾经这里手抄过第二份，
  * 结果桌面独有的那一组入口在小屏直接不可达。

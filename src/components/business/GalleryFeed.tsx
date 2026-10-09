@@ -21,7 +21,7 @@ import { FeedTail } from '@/components/business/FeedTail'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { toggleLikeAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
@@ -69,7 +69,13 @@ export function GalleryFeed({
   useSlowLoadingNotice(isLoading)
 
   // 桌面点开是就地查看器；平板与手机沿用卡片自己的全屏详情（owner 09-29）。
-  const isCompact = useIsMobile()
+  /**
+   * 手机与平板点开走 `ImageDetailModal`，就地查看器只给 ≥1024（owner 09-29：平板 820 宽时
+   * 右栏 340 把舞台挤到约 290 宽）。桌面壳下移到 768 后平板也是桌面壳，这一条单独留着。
+   */
+  const isPhone = useIsMobile()
+  const isTablet = useIsTablet()
+  const isCompact = isPhone || isTablet
   const [viewerId, setViewerId] = useState<string | null>(null)
   const viewing =
     !isCompact && viewerId

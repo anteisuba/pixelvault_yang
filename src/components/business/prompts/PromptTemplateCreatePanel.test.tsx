@@ -12,7 +12,10 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
+  useIsTablet: () => false,
+}))
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))

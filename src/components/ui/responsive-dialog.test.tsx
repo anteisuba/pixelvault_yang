@@ -12,6 +12,7 @@ import {
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(() => true),
+  useIsTablet: () => false,
 }))
 
 const mockUseIsMobile = vi.mocked(useIsMobile)

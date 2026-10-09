@@ -1,12 +1,13 @@
 'use client'
 
 /**
- * 左侧 44px 玻璃图标栏 + 264 宽浮起面板（S7 §7 左侧 · 画板 `ChromePanels{,2}.dc.html`）。
+ * 264 宽浮起面板（S7 §7 左侧 · 画板 `ChromePanels{,2}.dc.html`）。入口全在全站侧栏
+ * 「画布」下面（`AppSidebar`，≥768 都在），画布里没有自己的图标栏。
  *
  * ⚠ 面板**浮在画布上**，⛔ 不挤画布：它是 `absolute` 的兄弟，画布几何不因为开合
  * 而变（与助手 dock 同一条「覆盖，不挤压」）。再点同一个图标 = 收起。
  *
- * 六格（owner 2026-10-08 原型四格：入口 = 全站侧栏「画布」下面那几颗 / 768–1023 兜底栏
+ * 六格（owner 2026-10-08 原型四格：入口 = 全站侧栏「画布」下面那几颗
  * · 添加节点 / 节点 / 当前项目 / 历史对话；角色 / 素材库的入口在底栏 —— 哪格在哪只看
  * `SHELL_NAV_CANVAS_ENTRIES`）开的都是这**同一块**面板，各自只做「列出来 + 交出去」：
  * · 添加节点 → `CANVAS_ADD_CATALOG` 全目录（与 ⌘K / 双击 / 右键同一张意图表、同一个
@@ -72,7 +73,6 @@ import {
   EASE_STANDARD,
   LIQUID_SPRING,
   LIQUID_TIMING,
-  motionTransition,
 } from '@/constants/motion'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -98,7 +98,6 @@ import {
 } from '@/components/ui/popover'
 import { Link } from '@/i18n/navigation'
 import { ROUTES, cardManagementPath } from '@/constants/routes'
-import { SHELL_NAV_CANVAS_ENTRIES } from '@/constants/navigation'
 import { getFolderPath } from '@/lib/folder-tree'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
@@ -115,17 +114,6 @@ import type { NodeV4Data } from '@/types/node-workflow'
 import { CANVAS_ADD_INTENT_ICONS } from '../../CanvasAddMenu'
 import { CastDock } from '../../CastDock'
 import { useBrokenThumbs } from '../../nodes/v4/chrome/NodeMediaMissing'
-import { ShellIconButton } from './ShellIconButton'
-
-/** 兜底栏上的格子与全站侧栏「画布」下面那几颗同一份（`SHELL_NAV_CANVAS_ENTRIES`）。 */
-const RAIL_PANELS: readonly CanvasShellPanelId[] = SHELL_NAV_CANVAS_ENTRIES.map(
-  (entry) => entry.id,
-)
-
-/** 这一格的入口在不在图标栏上（不在 = 入口在底栏）。 */
-function inRail(panel: CanvasShellPanelId | null): panel is CanvasShellPanelId {
-  return panel !== null && RAIL_PANELS.includes(panel)
-}
 
 /** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
 function planNodeForOutput(outputType: string): {
@@ -1014,12 +1002,7 @@ function ShellPanelLayer({
 }
 
 export interface ShellSidePanelsProps {
-  /**
-   * 画布里还留不留自己那条图标栏。≥1024 那几颗长在全站侧栏「画布」下面（owner
-   * 2026-10-08），画布里只剩面板；768–1023 全站侧栏不在，栏留着兜底。
-   */
-  readonly railVisible: boolean
-  /** `null` = 面板都收着（只剩图标栏）。 */
+  /** `null` = 面板都收着。 */
   readonly activePanel: CanvasShellPanelId | null
   onActivePanelChange(panel: CanvasShellPanelId | null): void
   /** 节点一览的搜索词（与 ⌘K 同一份词，⛔ 不各存一份）。 */
@@ -1042,7 +1025,6 @@ export interface ShellSidePanelsProps {
 }
 
 export function ShellSidePanels({
-  railVisible,
   activePanel,
   onActivePanelChange,
   nodeQuery,
@@ -1085,10 +1067,6 @@ export function ShellSidePanels({
     [CANVAS_SHELL_PANEL_IDS.library]: t('library'),
   }
 
-  /** 兜底栏上的图标按钮 —— 选中底块与形状的起点都从它们身上量，⛔ 不在 render 里猜。 */
-  const railSlots = useRef<
-    Partial<Record<CanvasShellPanelId, HTMLButtonElement | null>>
-  >({})
   const panelRef = useRef<HTMLDivElement>(null)
   const stackRef = useRef<HTMLDivElement>(null)
   const titleRowRef = useRef<HTMLDivElement>(null)
@@ -1137,78 +1115,6 @@ export function ShellSidePanels({
   })
 
   /**
-   * ── 选中底块 ──────────────────────────────────────────────────────────
-   * 一块底在栏上几格之间滑；上下两条边各走一根弹簧（前进方向那条 `lead`、另一条
-   * `trail`），途中自然拉长。开 / 收只淡入淡出（图标状态切换那一档 `fast`）。
-   * ⚠ 开着的是入口在底栏的那几格（角色 / 素材库）时栏上没有它的格子：底块淡出；从那几格
-   *   切回栏上某格 = 当作从全收起来点开（直接落位、只淡入），⛔ 从上一次的格子滑过来。
-   */
-  const indicatorTop = useMotionValue(0)
-  const indicatorBottom = useMotionValue<number>(
-    CANVAS_SHELL_LAYOUT.iconButtonPx,
-  )
-  const indicatorOpacity = useMotionValue(inRail(activePanel) ? 1 : 0)
-  const indicatorHeight = useTransform(
-    () => indicatorBottom.get() - indicatorTop.get(),
-  )
-  const indicatorPrevious = useRef<{
-    readonly phase: ShellLiquidPhase
-    readonly shown: CanvasShellPanelId | null
-  }>({ phase: 'closed', shown: null })
-
-  useLayoutEffect(() => {
-    const previous = indicatorPrevious.current
-    indicatorPrevious.current = { phase, shown }
-    if (phase === 'closed' || shown === null) {
-      indicatorOpacity.jump(0)
-      return
-    }
-    if (!inRail(shown)) {
-      animate(indicatorOpacity, 0, motionTransition('fast', reducedMotion))
-      return
-    }
-    const top = railSlots.current[shown]?.offsetTop ?? 0
-    const bottom = top + CANVAS_SHELL_LAYOUT.iconButtonPx
-    const visible = phase === 'closing' ? 0 : 1
-    if (reducedMotion) {
-      indicatorTop.jump(top)
-      indicatorBottom.jump(bottom)
-      indicatorOpacity.jump(visible)
-      return
-    }
-    if (
-      previous.phase === 'closed' ||
-      previous.shown === null ||
-      !inRail(previous.shown)
-    ) {
-      // 从全收起来点开：底块直接落在那一格，只淡入（⛔ 不从上一次的格子滑过来）。
-      indicatorTop.jump(top)
-      indicatorBottom.jump(bottom)
-    } else if (previous.shown !== shown) {
-      const down =
-        RAIL_PANELS.indexOf(shown) > RAIL_PANELS.indexOf(previous.shown)
-      animate(
-        indicatorBottom,
-        bottom,
-        down ? LIQUID_SPRING.lead : LIQUID_SPRING.trail,
-      )
-      animate(
-        indicatorTop,
-        top,
-        down ? LIQUID_SPRING.trail : LIQUID_SPRING.lead,
-      )
-    }
-    animate(indicatorOpacity, visible, motionTransition('fast'))
-  }, [
-    phase,
-    shown,
-    reducedMotion,
-    indicatorTop,
-    indicatorBottom,
-    indicatorOpacity,
-  ])
-
-  /**
    * 两拍的编排。⚠ 尺寸在 layout effect 里量（面板此刻已按全尺寸排好、还没上屏）。
    * ⚠ 只挂在「开 / 收」上：开着时切格不改相位也不改 `origin`，这里不重跑，第二拍
    *   的定时器不会被切格清掉。
@@ -1231,13 +1137,10 @@ export function ShellSidePanels({
     const strip = CANVAS_SHELL_LAYOUT.panelTitleStripPx
     const width = CANVAS_SHELL_LAYOUT.panelWidthPx
     const height = panel.offsetHeight
-    // 起点：兜底栏上那一格；栏上没有（≥1024，或入口在底栏的那几格）就按属性找全站
-    // 侧栏 / 底栏上那一颗。
-    const slot =
-      (railVisible ? railSlots.current[origin] : null) ??
-      document.querySelector<HTMLElement>(
-        `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
-      )
+    // 起点：按属性找全站侧栏 / 底栏上被点的那一颗。
+    const slot = document.querySelector<HTMLElement>(
+      `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
+    )
     // 侧栏那一颗可能高过面板顶（面板从顶栏下面起）、底栏那一颗低过面板底：夹进面板里，
     // ⛔ 从面板外长出来。
     const row = slot
@@ -1364,7 +1267,6 @@ export function ShellSidePanels({
     phase,
     from,
     origin,
-    railVisible,
     reducedMotion,
     shapeTop,
     shapeRight,
@@ -1389,132 +1291,74 @@ export function ShellSidePanels({
     (panel): panel is CanvasShellPanelId => panel !== null,
   )
 
+  if (phase === 'closed' || shown === null) return null
+
   return (
-    <>
-      {railVisible ? (
-        <div
-          data-testid="shell-side-rail"
-          style={{
-            top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
-            left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
-            width: CANVAS_SHELL_LAYOUT.railWidthPx,
-            borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
-          }}
-          className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col gap-0.5 p-1 md:flex"
-        >
-          {/* 选中底块：与按钮自己那块按下底同尺寸同圆角同色；`left-1` 即栏的 `p-1`。
-            排在按钮之前，按钮抬成 `relative` 压在它上面。 */}
-          <motion.span
-            aria-hidden
-            data-testid="shell-rail-indicator"
-            className="pointer-events-none absolute left-1 top-0 bg-node-panel-inner"
-            style={{
-              width: CANVAS_SHELL_LAYOUT.iconButtonPx,
-              height: indicatorHeight,
-              y: indicatorTop,
-              opacity: indicatorOpacity,
-              borderRadius: CANVAS_SHELL_LAYOUT.iconButtonRadiusPx,
-            }}
-          />
-          {SHELL_NAV_CANVAS_ENTRIES.map(({ id: panel, icon }) => (
-            <ShellIconButton
+    <div
+      style={{
+        top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
+        left: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+        bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+        width: CANVAS_SHELL_LAYOUT.panelWidthPx,
+        ...(moving ? { filter: MOVING_SHADOW_FILTER } : {}),
+      }}
+      // 画影子的壳：只在形状动着时挂滤镜（静止档不挂 —— filter 会让它成为 fixed
+      // 子元素的包含块，也会让面板的毛玻璃只看得见壳里的东西）。
+      className="pointer-events-none absolute z-canvas-chrome hidden md:block"
+    >
+      <motion.div
+        ref={panelRef}
+        data-testid="shell-side-panel"
+        data-panel={shown}
+        data-phase={phase}
+        style={{
+          borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
+          clipPath,
+          ...(moving ? MOVING_GLASS_STYLE : {}),
+        }}
+        className={cn(
+          'canvas-glass flex size-full flex-col overflow-hidden p-1.5',
+          // 动着时不接点击：形状没长完就点到里面的东西，落点和看到的对不上。
+          moving ? 'pointer-events-none' : 'pointer-events-auto',
+        )}
+      >
+        <div ref={stackRef} className="relative min-h-0 flex-1">
+          {layers.map((panel) => (
+            <ShellPanelLayer
               key={panel}
-              ref={(element) => {
-                railSlots.current[panel] = element
-              }}
-              icon={icon}
-              label={titleByPanel[panel]}
-              testId={`shell-rail-${panel}`}
-              active={activePanel === panel}
-              externalActiveSurface
-              tooltipSide="right"
-              onClick={() =>
-                onActivePanelChange(activePanel === panel ? null : panel)
-              }
-            />
+              mode={layerMode(liquid, panel)}
+              titleY={titleY}
+              {...(panel === shown ? { titleRowRef } : {})}
+              inert={panel !== shown}
+              title={titleByPanel[panel]}
+              onClose={close}
+            >
+              {panel === CANVAS_SHELL_PANEL_IDS.addNode ? (
+                <ShellAddPanel
+                  onAddNode={onAddNode}
+                  onUpload={onUpload}
+                  onPickFromLibrary={() =>
+                    onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)
+                  }
+                />
+              ) : panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
+                <CastDock query={nodeQuery} onQueryChange={onNodeQueryChange} />
+              ) : panel === CANVAS_SHELL_PANEL_IDS.project ? (
+                projectPanel
+              ) : panel === CANVAS_SHELL_PANEL_IDS.history ? (
+                historyPanel
+              ) : panel === CANVAS_SHELL_PANEL_IDS.cards ? (
+                <ShellCardsPanel
+                  placedCharacterIds={placedCharacterIds}
+                  onPlaceCharacter={onPlaceCharacter}
+                />
+              ) : (
+                <ShellLibraryPanel onUpload={onUpload} onPlace={onPlaceMedia} />
+              )}
+            </ShellPanelLayer>
           ))}
         </div>
-      ) : null}
-
-      {phase === 'closed' || shown === null ? null : (
-        <div
-          style={{
-            top: `calc(var(--canvas-topbar-h) + ${CANVAS_SHELL_LAYOUT.edgeInsetPx}px)`,
-            left:
-              CANVAS_SHELL_LAYOUT.edgeInsetPx +
-              (railVisible
-                ? CANVAS_SHELL_LAYOUT.railWidthPx +
-                  CANVAS_SHELL_LAYOUT.panelGapPx
-                : 0),
-            bottom: CANVAS_SHELL_LAYOUT.edgeInsetPx,
-            width: CANVAS_SHELL_LAYOUT.panelWidthPx,
-            ...(moving ? { filter: MOVING_SHADOW_FILTER } : {}),
-          }}
-          // 画影子的壳：只在形状动着时挂滤镜（静止档不挂 —— filter 会让它成为 fixed
-          // 子元素的包含块，也会让面板的毛玻璃只看得见壳里的东西）。
-          className="pointer-events-none absolute z-canvas-chrome hidden md:block"
-        >
-          <motion.div
-            ref={panelRef}
-            data-testid="shell-side-panel"
-            data-panel={shown}
-            data-phase={phase}
-            style={{
-              borderRadius: CANVAS_SHELL_LAYOUT.glassRadiusPx,
-              clipPath,
-              ...(moving ? MOVING_GLASS_STYLE : {}),
-            }}
-            className={cn(
-              'canvas-glass flex size-full flex-col overflow-hidden p-1.5',
-              // 动着时不接点击：形状没长完就点到里面的东西，落点和看到的对不上。
-              moving ? 'pointer-events-none' : 'pointer-events-auto',
-            )}
-          >
-            <div ref={stackRef} className="relative min-h-0 flex-1">
-              {layers.map((panel) => (
-                <ShellPanelLayer
-                  key={panel}
-                  mode={layerMode(liquid, panel)}
-                  titleY={titleY}
-                  {...(panel === shown ? { titleRowRef } : {})}
-                  inert={panel !== shown}
-                  title={titleByPanel[panel]}
-                  onClose={close}
-                >
-                  {panel === CANVAS_SHELL_PANEL_IDS.addNode ? (
-                    <ShellAddPanel
-                      onAddNode={onAddNode}
-                      onUpload={onUpload}
-                      onPickFromLibrary={() =>
-                        onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)
-                      }
-                    />
-                  ) : panel === CANVAS_SHELL_PANEL_IDS.nodes ? (
-                    <CastDock
-                      query={nodeQuery}
-                      onQueryChange={onNodeQueryChange}
-                    />
-                  ) : panel === CANVAS_SHELL_PANEL_IDS.project ? (
-                    projectPanel
-                  ) : panel === CANVAS_SHELL_PANEL_IDS.history ? (
-                    historyPanel
-                  ) : panel === CANVAS_SHELL_PANEL_IDS.cards ? (
-                    <ShellCardsPanel
-                      placedCharacterIds={placedCharacterIds}
-                      onPlaceCharacter={onPlaceCharacter}
-                    />
-                  ) : (
-                    <ShellLibraryPanel
-                      onUpload={onUpload}
-                      onPlace={onPlaceMedia}
-                    />
-                  )}
-                </ShellPanelLayer>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </>
+      </motion.div>
+    </div>
   )
 }

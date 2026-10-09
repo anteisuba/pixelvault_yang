@@ -44,7 +44,7 @@ export default async function MainLayout({
         <MainProviders>
           <SidebarProvider defaultOpen={false}>
             <AppSidebar />
-            {/* <1024 走方向 M2「顶栏当切换器」：没有竖轨，导航收进顶栏中间那颗
+            {/* <768 走方向 M2「顶栏当切换器」：没有竖轨，导航收进顶栏中间那颗
                 按钮（app-shell.md §6）。所以下面只给顶栏让位 44px，
                 ⚠ 原来的 `pl-11` 是给已删除的左轨让的，必须一起去掉，
                 否则每个移动端页面左边会留一条死白。 */}

@@ -90,7 +90,7 @@ export interface NodeV4CanvasContextValue {
   readonly selectedNodeIds: readonly string[]
   /**
    * 安全区左界（画布局部 px，`canvasShellSafeLeftPx` 算好的）：浮层、弹层、定位都夹在它右边。
-   * 左侧面板开着、或 768–1023 画布里还留着图标栏时变大。
+   * 左侧面板开着时变大。
    */
   readonly safeLeftPx?: number
   readonly pendingUploads?: readonly { id: string; name: string }[]

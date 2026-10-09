@@ -96,7 +96,7 @@ import {
   STUDIO_CHARACTER_QUERY,
 } from '@/constants/routes'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
-import { useIsMobile, useIsPhone } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
@@ -313,12 +313,7 @@ function NodeWorkbenchV4Inner() {
   const tHistory = useTranslations('StudioNode.history')
   const openKeySettings = useContext(KeySettingsContext)
   /** < 768 = 镜头带视图（桌面 ReactFlow 不挂载）。 */
-  const isPhone = useIsPhone()
-  /**
-   * 768–1023 全站侧栏不在（MobileShell 接管），画布自己的图标栏留着兜底；≥1024 那三颗
-   * 图标长在全站侧栏「画布」下面（owner 2026-10-08）。
-   */
-  const shellRailVisible = useIsMobile() ?? false
+  const isPhone = useIsMobile()
 
   // Clerk userId 给 store 划分本地槽与服务端调用；未加载时传 null = 停在空态，
   // ⛔ 不泄漏上一个账号的快照。
@@ -494,7 +489,6 @@ function NodeWorkbenchV4Inner() {
   const [activePanel, setActivePanel] = useCanvasShellPanelHost()
   const safeLeftPx = canvasShellSafeLeftPx({
     panelOpen: activePanel !== null,
-    railVisible: shellRailVisible,
   })
   const [nodeQuery, setNodeQuery] = useState('')
   /**
@@ -1898,7 +1892,6 @@ function NodeWorkbenchV4Inner() {
                        那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
                   />
                   <ShellSidePanels
-                    railVisible={shellRailVisible}
                     activePanel={activePanel}
                     onActivePanelChange={setActivePanel}
                     nodeQuery={nodeQuery}

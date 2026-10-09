@@ -150,6 +150,12 @@
   /* 画廊瀑布流第 6 列的门槛（owner 2026-10-08 画廊换皮：2–6 列按宽取档）——
      `3xl:grid-cols-6`，与 `constants/gallery-grid.ts` 同一档。 */
   --breakpoint-3xl: 120rem;
+  /* 「桌面壳」从 768 起（owner 2026-10-09 平板 v10：平板 = 缩小版电脑，左图标栏 + 中间内容
+     + 右侧助手）。`lg:` 在本仓库只表示「桌面壳」，所以整档挪到 48rem，与 `use-mobile.ts`
+     的 `MOBILE_BREAKPOINT` 同一个数；⚠ 于是 `lg:` 与 `md:` 同档，新代码要表达「桌面壳」
+     一律写 `lg:`；要「1024 才放得下」写 `desk:`（下一行，原来的 lg 档）。 */
+  --breakpoint-lg: 48rem;
+  --breakpoint-desk: 64rem;
   /* ⚠ 这里原有三个 token 已删（2026-08-04，S2）：--width-node-card-expanded、
      --width-node-detail-panel、--width-node-detail-panel-wide。三者全仓零消费者
      （grep 核过），且「宽版/窄版详情面板」这个分法早已不存在 —— 方向 E 的面板是
@@ -835,14 +841,14 @@
   /* ── 工作台脊柱地台数值（owner 2026-09-03）── 唯一事实源：`.workbench-ground` /
      `.workbench-card`（globals.css）与 `.domain-lora` / `.lora-panel-shell`
      （lora.css）此前把 padding / gap / radius / shadow 各写了一遍，字面值同源
-     不同处。升成变量后两处都只引用这里。<1024 的 10px 档见下方媒体块覆盖。 */
+     不同处。升成变量后两处都只引用这里。<768 的 10px 档见下方媒体块覆盖。 */
   --workbench-pad: 18px;
   --workbench-gap: 14px;
   --workbench-card-radius: 18px;
   --workbench-card-shadow: 0 30px 80px -40px rgba(10, 10, 10, 0.28);
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   :root {
     --workbench-pad: 10px;
     --workbench-gap: 10px;
@@ -1107,7 +1113,7 @@ html:lang(ja) {
       opacity var(--duration-base) var(--ease-standard);
   }
 
-  @media (max-width: 1023.98px) {
+  @media (max-width: 767.98px) {
     html[data-keyboard-open='true'] .keyboard-hidden-while-open {
       transform: translate3d(0, calc(100% + 1rem), 0);
       opacity: 0;
@@ -1422,7 +1428,7 @@ html:lang(ja) {
      the left sidebar. The mobile-header reservation above would otherwise
      leave the layout 3.5rem short of the viewport and dump that band as
      dead space below the dock, so reclaim the full height here. */
-  @media (min-width: 1024px) {
+  @media (min-width: 768px) {
     .studio-layout-v2 {
       --studio-generation-media-max-height: 72vh;
 
@@ -1434,7 +1440,7 @@ html:lang(ja) {
      `lg:flex-basis` 坑注释）。地台加了 18px padding 之后单纯的 100svh 会把
      `.workbench-ground` 撑穿、多出一条整页滚动条 —— 两侧 padding 各 18px，这里
      扣掉 2.25rem 对账。 */
-  @media (min-width: 1024px) {
+  @media (min-width: 768px) {
     .studio-workbench-shell {
       height: calc(100svh - 2.25rem);
     }
@@ -1462,7 +1468,7 @@ html:lang(ja) {
     min-height: 0;
   }
 
-  /* ── Studio 移动端画布优先形态（<1024，图片档）─────────────────────
+  /* ── Studio 移动端画布优先形态（<768，图片档）─────────────────────
      施工基准 `docs/references/pages/studio-image-mobile-request.md`
      （owner 2026-09-03 拍板方向 A）。几何写在这里而不是 Tailwind 任意值：
      composer 预留高度、92svh 抽屉、drill 行的触屏高度都不在间距刻度上。 */
@@ -1608,7 +1614,7 @@ html:lang(ja) {
     --studio-edit-media-max-h: calc(100svh - 24rem);
   }
 
-  @media (max-width: 1023.98px) {
+  @media (max-width: 767.98px) {
     .studio-layout-v2 {
       --studio-edit-media-max-h: calc(
         100svh - 11rem - var(--studio-mobile-composer-height, 10rem)
@@ -2308,7 +2314,7 @@ html:lang(ja) {
    坍缩成 0。
    ⚠ 2026-08-23 切片 A：`.studio-canvas-slot` 那一份已删 —— 那个槽位属于退役的
    `StudioFlowLayout`，三个模态统一走横向工作台后 DOM 里不再有这个类。 */
-/* ── 图墙在移动壳里换成真栅格（<1024，有意放在 @layer 之外）────────
+/* ── 图墙在移动壳里换成真栅格（<768，有意放在 @layer 之外）────────
    桌面那套是「一行等高、宽度由各自长宽比推」，扫一行就是在比同一件事。
    那套在 375 宽上会退化成一行一张：竖构图按 30vh 高推出来就有 ~180px 宽，
    两张加间距 376 > 351 可用宽。所以移动壳换成列数固定的栅格，高度交回给每格
@@ -2316,8 +2322,8 @@ html:lang(ja) {
    ⚠ **必须未分层**：格子容器上挂着 Tailwind 的 `flex`（utilities layer），
    写在 @layer components 里的 `display: grid` 压不过它 —— 真机实测过一版，
    375 宽照旧一行一张。
-   ⚠ 上界写死 1023.98：桌面 ≥1024 必须逐像素不变。 */
-@media (max-width: 1023.98px) {
+   ⚠ 上界写死 767.98：桌面壳 ≥768 必须逐像素不变。 */
+@media (max-width: 767.98px) {
   .studio-result-tiles {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2329,7 +2335,7 @@ html:lang(ja) {
   }
 }
 
-@media (min-width: 640px) and (max-width: 1023.98px) {
+@media (min-width: 640px) and (max-width: 767.98px) {
   .studio-result-tiles {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2703,7 +2709,7 @@ html:lang(ja) {
    ⛔ 各页再写一遍 `h-[calc(100svh-3rem)]`。 */
 @utility h-page {
   height: calc(100svh - 3rem);
-  @media (width >= 64rem) {
+  @media (width >= 48rem) {
     height: 100svh;
   }
 }

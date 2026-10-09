@@ -77,11 +77,11 @@
 /* 生成 tab 锁高：值与 `.editorial-page` / `.studio-layout-v2`（globals.css）
  * 同一枚已验证的移动端顶栏预留（3.5rem）——`/studio/lora` 在 <1024 上方有一条
  * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
- * 底部造成整页滚动（真机验证发现）。≥1024 是侧栏壳，没有顶栏，回到满高。 */
+ * 底部造成整页滚动（真机验证发现）。≥768 是侧栏壳，没有顶栏，回到满高。 */
 .domain-lora.lora-locked-height {
   height: calc(100svh - 3.5rem);
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .domain-lora.lora-locked-height {
     height: 100svh;
   }
@@ -204,8 +204,8 @@
  * `background-size: contain` 是配套的：封顶生效那一刻盒子比图更宽，cover 会把
  * 人物裁掉；contain 在未封顶时与 cover 完全等价（同比例），封顶后则是完整出图
  * 居中留侧边——宁可留白也不裁用户刚生成的那张。
- * 断点 1023 与本域其它移动端形态（装配 sheet / 出图条 / useIsMobile）同界。 */
-@media (max-width: 1023px) {
+ * 断点 767 与本域其它移动端形态（装配 sheet / 出图条 / useIsMobile）同界。 */
+@media (max-width: 767px) {
   .domain-lora .lora-result-media {
     max-height: min(60svh, 30rem);
     background-size: contain;

@@ -34,7 +34,7 @@ export default function AssetsLoading() {
 
         {/* Tile grid */}
         <main className="flex-1 p-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-5 xl:grid-cols-6">
             {Array.from({ length: 24 }).map((_, i) => (
               <div key={i} className="aspect-square rounded-md bg-muted" />
             ))}

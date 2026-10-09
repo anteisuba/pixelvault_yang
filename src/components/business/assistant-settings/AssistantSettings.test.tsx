@@ -19,7 +19,10 @@ vi.mock('next-intl', () => ({
   useFormatter: () => ({ dateTime: () => 'date' }),
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
+  useIsTablet: () => false,
+}))
 
 vi.mock('@/i18n/navigation', () => ({
   Link: ({

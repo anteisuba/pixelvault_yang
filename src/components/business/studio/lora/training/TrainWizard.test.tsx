@@ -10,6 +10,7 @@ const mockIsMobile = vi.hoisted(() => vi.fn(() => false))
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: mockIsMobile,
+  useIsTablet: () => false,
 }))
 
 // 表单与任务列表整套状态机（上传 / 配置 / 提交 / 轮询）住在 LoraTrainingDialog

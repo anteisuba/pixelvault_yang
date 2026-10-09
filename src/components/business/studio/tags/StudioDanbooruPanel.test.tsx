@@ -53,7 +53,10 @@ vi.mock('next/image', () => ({
     <img src={src} alt={alt} />
   ),
 }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mocks.phone }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mocks.phone,
+  useIsTablet: () => false,
+}))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: { tagChips: mocks.chips },

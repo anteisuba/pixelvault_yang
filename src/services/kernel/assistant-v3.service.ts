@@ -122,6 +122,7 @@ import {
 } from '@/services/kernel/assistant-v3-cards.service'
 import {
   assistantV3ImageTools,
+  assistantV3VideoTools,
   executeAssistantV3ImageCall,
   executeAssistantV3ImageMutation,
 } from '@/services/kernel/assistant-v3-image.service'
@@ -727,7 +728,9 @@ async function* runV3Turn(
         ? ASSISTANT_V3_FACE_IDS.image
         : request.domain === ASSISTANT_V3_FACE_IDS.cards
           ? ASSISTANT_V3_FACE_IDS.cards
-          : ASSISTANT_V3_FACE_IDS.canvas
+          : request.domain === ASSISTANT_V3_FACE_IDS.video
+            ? ASSISTANT_V3_FACE_IDS.video
+            : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
   const model = modelId
     ? resolveAssistantV3Model(route, modelId, persona.reasoningEffort)
@@ -810,7 +813,10 @@ async function* runV3Turn(
         }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
         images: supportsImages ? [...cardImages, ...mentionedImages] : [],
       })
-    } else if (face === ASSISTANT_V3_FACE_IDS.image) {
+    } else if (
+      face === ASSISTANT_V3_FACE_IDS.image ||
+      face === ASSISTANT_V3_FACE_IDS.video
+    ) {
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
         text: renderAssistantV3ImageBoard({
@@ -883,7 +889,9 @@ async function* runV3Turn(
         ? assistantV3ImageTools(model.strictTools)
         : face === ASSISTANT_V3_FACE_IDS.cards
           ? assistantV3CardsTools(model.strictTools)
-          : tools(model.strictTools)
+          : face === ASSISTANT_V3_FACE_IDS.video
+            ? assistantV3VideoTools(model.strictTools)
+            : tools(model.strictTools)
   const cacheKey = operatorCacheKey(run, 'v3')
   const budget = Math.min(
     request.stepBudget ?? ASSISTANT_V3_LIMITS.maxSteps,

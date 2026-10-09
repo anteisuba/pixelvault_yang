@@ -13,6 +13,7 @@ import {
   ASSISTANT_V3_LORA_WRITE_FIELDS,
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
+  ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WRITE_FIELDS,
   ASSISTANT_V3_WRITE_MODES,
@@ -457,6 +458,95 @@ export type AssistantV3ImageEditOpInput = z.infer<
 
 export const AssistantV3ImageEditInputSchema = z.object({
   ops: z.array(AssistantV3ImageEditOpInputSchema),
+})
+
+/**
+ * 视频台的 edit（S6 最后一张脸）：与图片台同名的几种改法，规格多一格时长、参考图分
+ * 首帧 / 尾帧 / 普通参考，另加参考声音与原声开关。
+ */
+export const AssistantV3VideoEditOpInputSchema = z.union([
+  z.object({
+    op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setModel),
+    model: z.string().describe('A model id or name from the board.'),
+    channel: z.string().nullable(),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs),
+      duration: z.number().int().nullable().describe('Seconds.'),
+      aspectRatio: z.string().nullable(),
+      resolution: z.string().nullable(),
+    })
+    .describe(
+      "Clip length, aspect ratio, resolution — values from the board's options. null keeps a field as it is.",
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setOption),
+      key: z.string(),
+      value: z.union([z.string(), z.number(), z.boolean()]),
+    })
+    .describe('One of the model options the board lists, by its key.'),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference),
+      asset: z
+        .string()
+        .describe(
+          'The name of a picture attached to the message, or an asset id from a search_library result this turn.',
+        ),
+      slot: z
+        .enum(ASSISTANT_V3_VIDEO_REFERENCE_SLOTS)
+        .nullable()
+        .describe(
+          '"first" / "last" frame on the keyframe mode; "reference" (or null) for a reference picture.',
+        ),
+    })
+    .describe('Mount a picture as a frame or a reference.'),
+  z.object({
+    op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference),
+    ref: z
+      .string()
+      .describe('A reference from the board ("ref-2"), or "first" / "last".'),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountAudio),
+      asset: z
+        .string()
+        .describe(
+          'An audio asset id from a search_library kind "audio" this turn.',
+        ),
+      owner: z
+        .string()
+        .nullable()
+        .describe('The character this voice belongs to.'),
+    })
+    .describe("Mount a voice clip from the creator's own audio library."),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSound),
+      enabled: z.boolean(),
+    })
+    .describe(
+      "Turn the clip's own soundtrack on or off. Only when the creator asked for sound or for silence.",
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl),
+      url: z.string(),
+    })
+    .describe(
+      'File a link the creator gave you into their library and mount it.',
+    ),
+])
+
+export type AssistantV3VideoEditOpInput = z.infer<
+  typeof AssistantV3VideoEditOpInputSchema
+>
+
+export const AssistantV3VideoEditInputSchema = z.object({
+  ops: z.array(AssistantV3VideoEditOpInputSchema),
 })
 
 export const AssistantV3ImageReadInputSchema = z.object({

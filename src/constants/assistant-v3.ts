@@ -17,6 +17,7 @@ export const ASSISTANT_V3_FACE_IDS = {
   lora: 'lora',
   image: 'image',
   cards: 'cards',
+  video: 'video',
 } as const
 
 export type AssistantV3Face =
@@ -27,12 +28,14 @@ export const ASSISTANT_V3_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.lora,
   ASSISTANT_V3_FACE_IDS.image,
   ASSISTANT_V3_FACE_IDS.cards,
+  ASSISTANT_V3_FACE_IDS.video,
 ]
 
 /** 改动随步落、当场就有结果的那几张脸（一张表单）；画布要前端落完再接力。 */
 export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.lora,
   ASSISTANT_V3_FACE_IDS.image,
+  ASSISTANT_V3_FACE_IDS.video,
 ]
 
 /** 八个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。 */
@@ -154,7 +157,17 @@ export const ASSISTANT_V3_IMAGE_EDIT_OP_IDS = {
   importUrl: 'import_url',
   setPeople: 'set_people',
   setSceneTexts: 'set_scene_texts',
+  /** 视频台：参考声音（挂给某个角色）、原声开关。 */
+  mountAudio: 'mount_audio',
+  setSound: 'set_sound',
 } as const
+
+/** 视频台 `mount_reference` 落到哪一格（与旧执行器的槽位同名）。 */
+export const ASSISTANT_V3_VIDEO_REFERENCE_SLOTS = [
+  'reference',
+  'first',
+  'last',
+] as const
 
 /** 卡片台 `edit` 的三种提议（S6 第三张脸）：都出一张卡、停下等创作者勾选，服务端不写库。 */
 export const ASSISTANT_V3_CARDS_EDIT_OP_IDS = {

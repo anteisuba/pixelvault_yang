@@ -1640,3 +1640,157 @@ describe('v3 内核 · 角色页', () => {
     )
   })
 })
+
+describe('v3 内核 · 视频台', () => {
+  const run = {
+    stepSeq: 0,
+    signal: undefined,
+    inspectedCanvasReferences: null,
+    state: { referenceUrls: [], prompt: '' },
+  }
+
+  function videoRequest(message: string): AssistantOperatorRequest {
+    return {
+      workspaceKey: 'video',
+      domain: 'video',
+      messages: [{ role: 'user', content: message }],
+      snapshot: {
+        prompt: '她转身冲出包厢门',
+        model: {
+          id: 'key:seedance-2.5',
+          label: 'Seedance 2.5',
+          catalogId: 'seedance-2.5',
+        },
+        availableModels: [{ id: 'key:seedance-2.5', label: 'Seedance 2.5' }],
+        videoSpecs: {
+          durationSeconds: 5,
+          aspectRatio: '16:9',
+          resolution: '720p',
+          durationOptions: [5, 10],
+          aspectRatioOptions: ['16:9', '9:16'],
+          resolutionOptions: ['720p', '1080p'],
+          aspectRatioLock: '16:9',
+        },
+        frameReferences: {
+          slots: 2,
+          first: { url: 'https://cdn.test/f.png', label: '包厢' },
+        },
+        audioReferences: { items: [], limit: 2, requiresVisual: true },
+        sound: { value: null, effective: true },
+      },
+      mentionedAssets: [
+        { id: 'asset-door', url: 'https://cdn.test/door.png', label: '门口' },
+      ],
+    } as unknown as AssistantOperatorRequest
+  }
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+    vi.mocked(prepareOperatorTurn).mockImplementation(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
+          modelId: 'gpt-6-luna',
+          run,
+        }) as never,
+    )
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'already so',
+    })
+  })
+
+  it('板子印出时长 / 首帧锁的画幅 / 首尾帧 / 声音参考 / 原声开关', async () => {
+    const mock = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', videoRequest('台上设了什么')))
+    const prompt = promptText(mock.doStreamCalls[0]!)
+    expect(prompt).toContain('VIDEO WORKBENCH')
+    expect(prompt).toContain('length 5s (options: 5, 10)')
+    expect(prompt).toContain('the first frame pins the aspect ratio to 16:9')
+    expect(prompt).toContain('first set \\"包厢\\" · last empty')
+    expect(prompt).toContain(
+      'this channel needs a picture mounted with any voice',
+    )
+    expect(prompt).toContain(
+      'Soundtrack: untouched (this model makes sound by default)',
+    )
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('改时长、挂尾帧、卸首帧、挂声音、关原声：交给旧执行器的那几步', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'set_specs',
+              duration: 10,
+              aspectRatio: null,
+              resolution: null,
+            },
+            { op: 'mount_reference', asset: '门口', slot: 'last' },
+            { op: 'unmount_reference', ref: 'first' },
+            { op: 'mount_audio', asset: 'asset-voice', owner: '女德拉科' },
+            { op: 'set_sound', enabled: false },
+          ],
+        },
+      }),
+      textTurn('改好了。'),
+    )
+    await collect(
+      runAssistantV3('clerk-1', videoRequest('改成十秒，门口当尾帧')),
+    )
+    const calls = plan.mock.calls.map((call) => [call[1], call[2]])
+    expect(calls).toEqual([
+      ['set_video_specs', { durationSeconds: 10 }],
+      ['mount_reference', { assetId: 'asset-door', slot: 'last' }],
+      ['unmount_reference', { slot: 'first' }],
+      [
+        'mount_audio_reference',
+        { assetId: 'asset-voice', ownerName: '女德拉科' },
+      ],
+      ['set_sound', { enabled: false }],
+    ])
+  })
+
+  it('清晰度是花钱的那一格：创作者没提就不改，提了照改', async () => {
+    const specs = {
+      id: 'call_1',
+      name: 'edit',
+      input: {
+        ops: [
+          {
+            op: 'set_specs',
+            duration: 5,
+            aspectRatio: null,
+            resolution: '1080p',
+          },
+        ],
+      },
+    }
+    script(toolTurn(specs), textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', videoRequest('写这个镜头，5 秒')))
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'set_video_specs',
+      { durationSeconds: 5 },
+      'user-1',
+    )
+    script(toolTurn(specs), textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', videoRequest('清晰度改成 1080p')))
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'set_video_specs',
+      { durationSeconds: 5, resolution: '1080p' },
+      'user-1',
+    )
+  })
+})

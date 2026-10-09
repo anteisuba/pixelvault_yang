@@ -8,6 +8,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
@@ -23,7 +24,9 @@ import {
   AssistantV3LoraGenerateInputSchema,
   AssistantV3LoraWriteInputSchema,
   AssistantV3SearchWebInputSchema,
+  AssistantV3VideoEditInputSchema,
   type AssistantV3ImageEditOpInput,
+  type AssistantV3VideoEditOpInput,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import { toStepEvent } from '@/services/kernel/assistant-operator.service'
@@ -105,6 +108,121 @@ export function assistantV3ImageTools(strict: boolean) {
       inputSchema: AssistantV3AskInputSchema,
       strict,
     }),
+  }
+}
+
+/** 视频台：图片台同一套工具，edit 换成视频那一份（时长、首尾帧、参考声音、原声）。 */
+export function assistantV3VideoTools(strict: boolean) {
+  return {
+    ...assistantV3ImageTools(strict),
+    [ASSISTANT_V3_TOOL_IDS.edit]: tool({
+      description:
+        'Change the bench: model, clip specs, model options, first/last frame or reference pictures, voice clips, the soundtrack switch, import a link. All ops of one request in ONE call.',
+      inputSchema: AssistantV3VideoEditInputSchema,
+      strict,
+    }),
+    [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
+      description:
+        'kind "image" / "video" / "audio": search the creator\'s own assets (results carry asset ids for mount_reference and mount_audio). kind "web_images": find pictures on the web — they appear in the panel and the creator picks which to use.',
+      inputSchema: AssistantV3ImageSearchLibraryInputSchema,
+      strict,
+    }),
+  }
+}
+
+const FRAME_SLOTS: readonly string[] = ['first', 'last']
+
+/** 创作者在话里提到了清晰度没有（数字档位或这几个词）。 */
+const RESOLUTION_WORDS =
+  /\d{3,4}\s*p|\b[248]k\b|清晰度|分辨率|高清|画质|解像度|resolution/i
+
+function creatorSaid(context: V3Context, words: RegExp): boolean {
+  return context.request.messages.some(
+    (message) => message.role === 'user' && words.test(message.content),
+  )
+}
+
+async function* runVideoEditOp(
+  context: V3Context,
+  op: AssistantV3VideoEditOpInput,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const text = TITLE_TEXT[context.language]
+  switch (op.op) {
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs: {
+      // ⭐ 清晰度是花钱的那一格：创作者没提就不动（2026-10-10 回放 V1：没人要，模型两次都
+      //   自己挑了 1080p；提示词里写了也不听）。
+      const askedResolution = creatorSaid(context, RESOLUTION_WORDS)
+      const resolution = askedResolution ? op.resolution : null
+      const dropped = Boolean(op.resolution) && !askedResolution
+      if (op.duration === null && !op.aspectRatio && !resolution)
+        return {
+          kind: 'result',
+          output: dropped
+            ? 'Resolution stays as it is: the creator did not ask to change it. Nothing else to set.'
+            : 'set_specs needs at least one of duration, aspectRatio, resolution.',
+          error: !dropped,
+        }
+      const outcome = yield* runOldTool(
+        context,
+        TOOL.setVideoSpecs,
+        text.specs,
+        {
+          ...(op.duration !== null ? { durationSeconds: op.duration } : {}),
+          ...(op.aspectRatio ? { aspectRatio: op.aspectRatio } : {}),
+          ...(resolution ? { resolution } : {}),
+        },
+      )
+      return dropped && outcome.kind === 'result'
+        ? {
+            ...outcome,
+            output: `${outcome.output}\nResolution left as it is: the creator did not ask to change it (higher tiers cost more).`,
+          }
+        : outcome
+    }
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference: {
+      const key = op.asset.trim().toLowerCase()
+      const attached = (context.request.mentionedAssets ?? []).find(
+        (asset) =>
+          asset.label?.trim().toLowerCase() === key || asset.id === op.asset,
+      )
+      return yield* runOldTool(
+        context,
+        TOOL.mountReference,
+        `${text.mountReference}「${attached?.label ?? op.asset}」`,
+        {
+          assetId: attached?.id ?? op.asset.trim(),
+          ...(op.slot ? { slot: op.slot } : {}),
+        },
+      )
+    }
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference: {
+      const slot = op.ref.trim().toLowerCase()
+      if (FRAME_SLOTS.includes(slot))
+        return yield* runOldTool(
+          context,
+          TOOL.unmountReference,
+          `${text.unmount} ${slot}`,
+          { slot },
+        )
+      return yield* unmountReference(context, op.ref)
+    }
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountAudio:
+      return yield* runOldTool(
+        context,
+        TOOL.mountAudioReference,
+        `${text.mountReference}${op.owner ? `「${op.owner}」` : ''}`,
+        {
+          assetId: op.asset.trim(),
+          ...(op.owner?.trim() ? { ownerName: op.owner.trim() } : {}),
+        },
+      )
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSound:
+      return yield* runOldTool(context, TOOL.setSound, text.option, {
+        enabled: op.enabled,
+      })
+    default:
+      // 换模型 / 选项 / 导入链接：与图片台同形，交给同一条路。
+      return yield* runEditOp(context, op)
   }
 }
 
@@ -244,7 +362,10 @@ export async function* executeAssistantV3ImageMutation(
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   if (name === ASSISTANT_V3_TOOL_IDS.write)
     return yield* executeBenchWrite(context, input)
-  const ops = AssistantV3ImageEditInputSchema.parse(input).ops
+  const video = context.face === ASSISTANT_V3_FACE_IDS.video
+  const ops = video
+    ? AssistantV3VideoEditInputSchema.parse(input).ops
+    : AssistantV3ImageEditInputSchema.parse(input).ops
   if (ops.length > ASSISTANT_V3_LIMITS.maxEditOps)
     return {
       kind: 'result',
@@ -254,7 +375,9 @@ export async function* executeAssistantV3ImageMutation(
     }
   const outcomes: V3Outcome[] = []
   for (const op of ops) {
-    const outcome = yield* runEditOp(context, op)
+    const outcome = video
+      ? yield* runVideoEditOp(context, op as AssistantV3VideoEditOpInput)
+      : yield* runEditOp(context, op as AssistantV3ImageEditOpInput)
     outcomes.push(outcome)
     if (outcome.kind === 'stop') break
   }

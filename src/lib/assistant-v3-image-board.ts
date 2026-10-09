@@ -162,6 +162,65 @@ function referencesLine(snapshot: AssistantOperatorSnapshot): string {
     : `References: none mounted (${room}).`
 }
 
+/** 视频台：时长 / 画幅 / 清晰度三格各自独立，有的模型只给其中一两格。 */
+function videoSpecsLine(snapshot: AssistantOperatorSnapshot): string | null {
+  const specs = snapshot.videoSpecs
+  if (!specs) return null
+  const parts = [
+    specs.durationOptions.length
+      ? `length ${specs.durationSeconds ?? '(not set)'}s (options: ${specs.durationOptions.join(', ')})`
+      : null,
+    choice('aspect ratio', specs.aspectRatio, specs.aspectRatioOptions),
+    choice('resolution', specs.resolution, specs.resolutionOptions),
+  ].filter(Boolean)
+  // ⚠ `aspectRatioLock` 是能力声明：首帧槽里真有图才算锁上（规划器 `aspectLockedByFirstFrame`）。
+  const lock = specs.aspectRatioLock
+  const locked = Boolean(lock && snapshot.frameReferences?.first)
+  return `Clip specs: ${parts.join(' · ') || 'this model has no clip controls'}${
+    locked
+      ? ` — the first frame pins the aspect ratio to ${lock}; set_specs must use exactly that`
+      : lock
+        ? ` — once a first frame is mounted this channel pins the aspect ratio to ${lock} (the picture decides)`
+        : ''
+  }`
+}
+
+function referenceName(label: string | undefined): string {
+  return label ? ` "${label}"` : ''
+}
+
+/** 视频台：首尾帧、参考视频、参考声音、原声开关。 */
+function videoLines(snapshot: AssistantOperatorSnapshot): string[] {
+  const lines: string[] = []
+  const frames = snapshot.frameReferences
+  if (frames)
+    lines.push(
+      `Frames (keyframe mode, ${frames.slots === 1 ? 'first frame only' : 'first and last'}): first ${
+        frames.first ? `set${referenceName(frames.first.label)}` : 'empty'
+      }${frames.slots === 2 ? ` · last ${frames.last ? `set${referenceName(frames.last.label)}` : 'empty'}` : ''}`,
+    )
+  const videos = snapshot.videoReferences
+  if (videos)
+    lines.push(
+      `Reference videos: ${videos.items.length} of ${videos.limit}${videos.items.length ? ` — ${videos.items.map((item, index) => `video-${index + 1}${referenceName(item.label)}`).join(', ')}` : ''}`,
+    )
+  const voices = snapshot.audioReferences
+  if (voices)
+    lines.push(
+      `Voice references (mount_audio): ${voices.items.length} of ${voices.limit}${
+        voices.items.length
+          ? ` — ${voices.items.map((item) => `${item.label ?? 'clip'}${item.ownerName ? ` (voice of ${item.ownerName})` : ''}`).join(', ')}`
+          : ''
+      }${voices.requiresVisual ? ' · this channel needs a picture mounted with any voice' : ''}`,
+    )
+  const sound = snapshot.sound
+  if (sound)
+    lines.push(
+      `Soundtrack: ${sound.value === null ? `untouched (this model ${sound.effective ? 'makes sound' : 'is silent'} by default)` : sound.value ? 'on' : 'off'}`,
+    )
+  return lines
+}
+
 export function renderAssistantV3ImageBoard(input: {
   snapshot: AssistantOperatorSnapshot
   /** 这条消息带的图（上传、@ 的结果）的名字 —— `look` / `mount_reference` 按名字找。 */
@@ -169,14 +228,17 @@ export function renderAssistantV3ImageBoard(input: {
   latestUserText: string
 }): string {
   const { snapshot } = input
+  const video = Boolean(snapshot.videoSpecs)
   return [
-    'IMAGE WORKBENCH — this is the form. Change it with edit (model, specs, count, options, references) and write (prompt, negative).',
+    video
+      ? 'VIDEO WORKBENCH — this is the form. Change it with edit (model, clip specs, options, frames and references, voices, soundtrack) and write (prompt, negative).'
+      : 'IMAGE WORKBENCH — this is the form. Change it with edit (model, specs, count, options, references) and write (prompt, negative).',
     ...modelLines(snapshot),
     `Prompt: ${quote(snapshot.prompt, BOARD_PROMPT_CHARS)}`,
     snapshot.negativePrompt === undefined
       ? 'Negative: this model has no negative prompt.'
       : `Negative: ${quote(snapshot.negativePrompt, BOARD_NEGATIVE_CHARS)}`,
-    specsLine(snapshot),
+    video ? videoSpecsLine(snapshot) : specsLine(snapshot),
     ...(snapshot.count
       ? [
           `Pictures per run: ${snapshot.count.value} (options: ${snapshot.count.options.join(', ')})`,
@@ -184,6 +246,7 @@ export function renderAssistantV3ImageBoard(input: {
       : []),
     ...optionLines(snapshot),
     ...tagLines(snapshot),
+    ...(video ? videoLines(snapshot) : []),
     referencesLine(snapshot),
     ...(input.attachedNames.length
       ? [

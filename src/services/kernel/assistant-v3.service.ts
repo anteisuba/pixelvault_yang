@@ -172,11 +172,16 @@ const tools = (strict: boolean) => ({
   }),
 })
 
-/** 改画布、要前端落的那两样。 */
-const MUTATING_TOOLS: ReadonlySet<AssistantV3Tool> = new Set([
-  ASSISTANT_V3_TOOL_IDS.edit,
-  ASSISTANT_V3_TOOL_IDS.write,
-])
+type MutatingTool =
+  | typeof ASSISTANT_V3_TOOL_IDS.edit
+  | typeof ASSISTANT_V3_TOOL_IDS.write
+
+/** 改画布、要前端落的那两样（同一条回复里合成一批）。 */
+function isMutatingTool(tool: AssistantV3Tool): tool is MutatingTool {
+  return (
+    tool === ASSISTANT_V3_TOOL_IDS.edit || tool === ASSISTANT_V3_TOOL_IDS.write
+  )
+}
 
 const MAX_HISTORY_MESSAGES = 24
 const MAX_INLINE_IMAGE_BYTES = 20_000_000
@@ -509,7 +514,7 @@ function pendingCallsOf(
   return entry.calls.filter((call) => !answered.has(call.id))
 }
 
-/** 本轮的画布步（前端落完、带着成败回来的那几条），按顺序对应待补的调用。 */
+/** 本轮的画布步（前端落完、带着成败回来的那几条）。 */
 function thisTurnCanvasSteps(
   priorSteps: readonly AssistantOperatorPriorStep[],
 ): AssistantOperatorPriorStep[] {
@@ -684,16 +689,6 @@ async function* runV3Turn(
     /** 这一批合成了一个画布步：本轮最后那一条就是它（前端落完写回了成败）。 */
     const landedStep = thisTurnCanvasSteps(request.priorSteps ?? []).at(-1)
     for (const call of pending) {
-      if (!MUTATING_TOOLS.has(call.tool)) {
-        transcript.push({
-          type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
-          id: call.id,
-          tool: call.tool,
-          output: NOT_RUN_WHILE_BOARD_CHANGES,
-          error: true,
-        })
-        continue
-      }
       const landed = landedOutput(call, landedStep, nodes, handles)
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
@@ -900,12 +895,9 @@ async function* runV3Turn(
         failures.push(`${call.toolName}:invalid`)
         continue
       }
-      if (MUTATING_TOOLS.has(entryCall.tool)) {
-        const translated = translateMutation(
-          context,
-          entryCall.tool,
-          call.input,
-        )
+      const tool = entryCall.tool
+      if (isMutatingTool(tool)) {
+        const translated = translateMutation(context, tool, call.input)
         if (!translated.ok) {
           const outcome = yield* rejectedStep(
             context,
@@ -928,7 +920,7 @@ async function* runV3Turn(
         pushResult(NOT_RUN_WHILE_BOARD_CHANGES, true)
         continue
       }
-      const outcome = yield* executeCall(context, entryCall.tool, call.input)
+      const outcome = yield* executeCall(context, tool, call.input)
       if (outcome.kind === 'stop') {
         stopTodo = outcome.todo
         pushResult(WAITING_FOR_CREATOR, false)
@@ -1259,7 +1251,7 @@ async function* settlePlan(
 /** edit / write → 这一批的 v4 op 与过程行标题。⛔ 不落：由回合循环合成一批再落。 */
 function translateMutation(
   context: V3Context,
-  name: AssistantV3Tool,
+  name: MutatingTool,
   input: unknown,
 ):
   | { ok: true; ops: NodeAssistantOpV4[]; title: string; adds: boolean }
@@ -1287,7 +1279,7 @@ function translateMutation(
 
 async function* executeCall(
   context: V3Context,
-  name: AssistantV3Tool,
+  name: Exclude<AssistantV3Tool, MutatingTool>,
   input: unknown,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
@@ -1352,14 +1344,6 @@ async function* executeCall(
       )
       return { kind: 'result', output, error: false }
     }
-    case ASSISTANT_V3_TOOL_IDS.edit:
-    case ASSISTANT_V3_TOOL_IDS.write:
-      // 改画布的两样由回合循环合成一批（`translateMutation`），不走这里。
-      return {
-        kind: 'result',
-        output: 'Board changes are batched by the turn loop.',
-        error: true,
-      }
     case ASSISTANT_V3_TOOL_IDS.generate: {
       const parsed = AssistantV3GenerateInputSchema.parse(input)
       const title = joinPhrases(

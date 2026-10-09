@@ -2,6 +2,7 @@ import 'server-only'
 
 import { Prisma, type OutputType } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
+import { PROJECT } from '@/constants/config'
 
 /**
  * 素材文件夹归属的底层原语 —— 页面接口（`project.service`）与助手
@@ -14,25 +15,52 @@ import { db } from '@/lib/db'
  */
 
 /**
+ * 一个夹连同它**所有层**的活子孙（含它自己）的 id。夹不在 / 已删 / 不是他的 → 空。
+ *
+ * 一条递归 SQL 走完；层数没有上限，但一个用户最多 `PROJECT.MAX_PROJECTS_PER_USER`
+ * 个夹，递归深度按它截断（服务端不让成环，这一道只是兜底）。
+ */
+export async function listFolderSubtreeIds(
+  userId: string,
+  folderId: string,
+): Promise<string[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    WITH RECURSIVE tree AS (
+      SELECT f."id", 0 AS "depth"
+      FROM "Project" AS f
+      WHERE f."id" = ${folderId}
+        AND f."userId" = ${userId}
+        AND f."isDeleted" = false
+      UNION ALL
+      SELECT c."id", t."depth" + 1
+      FROM "Project" AS c
+      JOIN tree AS t ON c."parentId" = t."id"
+      WHERE c."userId" = ${userId}
+        AND c."isDeleted" = false
+        AND t."depth" < ${PROJECT.MAX_PROJECTS_PER_USER}
+    )
+    SELECT DISTINCT tree."id" FROM tree
+  `
+  return rows.map((row) => row.id)
+}
+
+/**
  * 素材属于哪个范围。
  *
  * - `null` = 未归档：一个活夹都不在。
- * - 夹 id = 这个夹**连同子夹**（只有两层，所以子夹就是 `parentId` 等于它的那些）。
+ * - 夹 id = 这个夹**连同所有层的子孙夹**（层数不限，见 `listFolderSubtreeIds`）。
  */
-export function folderScopeWhere(
+export async function folderScopeWhere(
+  userId: string,
   folderId: string | null,
-): Prisma.GenerationWhereInput {
+): Promise<Prisma.GenerationWhereInput> {
   if (folderId === null) {
     return { folders: { none: { project: { isDeleted: false } } } }
   }
+  const ids = await listFolderSubtreeIds(userId, folderId)
   return {
     folders: {
-      some: {
-        project: {
-          isDeleted: false,
-          OR: [{ id: folderId }, { parentId: folderId }],
-        },
-      },
+      some: { project: { isDeleted: false, id: { in: ids } } },
     },
   }
 }
@@ -121,8 +149,9 @@ export async function removeGenerationsFromFolder(
 }
 
 /**
- * 每个夹里有几张 —— **连子夹一起、同一张只算一次**（owner 09-28）。
- * 一条 SQL 算完：直接放在夹里的算给它自己，放在子夹里的再算给父夹一次。
+ * 每个夹里有几张 —— **连所有层的子孙夹一起、同一张只算一次**（owner 09-28 定
+ * 连子夹算；10-09 起层数不限，口径顺延到所有子孙）。
+ * 一条 SQL 算完：先递归展开「祖先夹 → 它自己和每个活子孙」，再按祖先去重计数。
  */
 export async function countFolderItems(
   userId: string,
@@ -134,24 +163,24 @@ export async function countFolderItems(
       )})`
     : Prisma.empty
   const rows = await db.$queryRaw<{ folderId: string; n: number }[]>`
-    SELECT hit."folderId", COUNT(DISTINCT hit."generationId")::int AS "n"
-    FROM (
-      SELECT f."id" AS "folderId", pi."generationId"
-      FROM "ProjectItem" AS pi
-      JOIN "Project" AS f ON f."id" = pi."projectId"
+    WITH RECURSIVE tree AS (
+      SELECT f."id" AS "folderId", f."id" AS "nodeId", 0 AS "depth"
+      FROM "Project" AS f
       WHERE f."userId" = ${userId} AND f."isDeleted" = false
       UNION ALL
-      SELECT parent."id" AS "folderId", pi."generationId"
-      FROM "ProjectItem" AS pi
-      JOIN "Project" AS f ON f."id" = pi."projectId"
-      JOIN "Project" AS parent ON parent."id" = f."parentId"
-      WHERE f."userId" = ${userId}
-        AND f."isDeleted" = false
-        AND parent."isDeleted" = false
-    ) AS hit
-    JOIN "Generation" AS g ON g."id" = hit."generationId"
+      SELECT t."folderId", c."id" AS "nodeId", t."depth" + 1
+      FROM tree AS t
+      JOIN "Project" AS c ON c."parentId" = t."nodeId"
+      WHERE c."userId" = ${userId}
+        AND c."isDeleted" = false
+        AND t."depth" < ${PROJECT.MAX_PROJECTS_PER_USER}
+    )
+    SELECT tree."folderId", COUNT(DISTINCT pi."generationId")::int AS "n"
+    FROM tree
+    JOIN "ProjectItem" AS pi ON pi."projectId" = tree."nodeId"
+    JOIN "Generation" AS g ON g."id" = pi."generationId"
     WHERE g."userId" = ${userId} ${typeFilter}
-    GROUP BY hit."folderId"
+    GROUP BY tree."folderId"
   `
   return Object.fromEntries(rows.map((row) => [row.folderId, row.n]))
 }

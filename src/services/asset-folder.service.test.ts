@@ -21,23 +21,23 @@ beforeEach(() => {
 })
 
 describe('folderScopeWhere', () => {
-  it('unfiled = in no live folder', () => {
-    expect(folderScopeWhere(null)).toEqual({
+  it('unfiled = in no live folder', async () => {
+    expect(await folderScopeWhere('u1', null)).toEqual({
       folders: { none: { project: { isDeleted: false } } },
     })
   })
 
-  it('a folder covers its subfolders too', () => {
-    expect(folderScopeWhere('f1')).toEqual({
+  it('a folder covers all its descendant folders too', async () => {
+    mockQueryRaw.mockResolvedValue([{ id: 'f1' }, { id: 'f2' }, { id: 'f3' }])
+    expect(await folderScopeWhere('u1', 'f1')).toEqual({
       folders: {
         some: {
-          project: {
-            isDeleted: false,
-            OR: [{ id: 'f1' }, { parentId: 'f1' }],
-          },
+          project: { isDeleted: false, id: { in: ['f1', 'f2', 'f3'] } },
         },
       },
     })
+    const sql = (mockQueryRaw.mock.calls[0][0] as string[]).join('?')
+    expect(sql).toContain('WITH RECURSIVE tree')
   })
 })
 
@@ -51,16 +51,15 @@ describe('countFolderItems', () => {
     expect(await countFolderItems('u1')).toEqual({ parent: 7, kid: 3 })
   })
 
-  it('counts each image once per folder, subfolder hits included', async () => {
+  it('counts each image once per folder, hits in any descendant included', async () => {
     mockQueryRaw.mockResolvedValue([])
     await countFolderItems('u1', ['IMAGE'])
 
     const sql = (mockQueryRaw.mock.calls[0][0] as string[]).join('?')
-    expect(sql).toContain('COUNT(DISTINCT hit."generationId")')
-    // 子夹里的那一张再算给父夹一次
-    expect(sql).toContain(
-      'JOIN "Project" AS parent ON parent."id" = f."parentId"',
-    )
+    expect(sql).toContain('COUNT(DISTINCT pi."generationId")')
+    // 递归展开祖先 → 每个活子孙，按祖先去重
+    expect(sql).toContain('WITH RECURSIVE tree')
+    expect(sql).toContain('JOIN "Project" AS c ON c."parentId" = t."nodeId"')
   })
 })
 

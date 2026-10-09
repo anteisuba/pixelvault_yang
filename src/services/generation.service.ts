@@ -305,7 +305,7 @@ function redactPrompts(generations: GenerationRecord[]): GenerationRecord[] {
   )
 }
 
-function buildGalleryWhere(options: {
+async function buildGalleryWhere(options: {
   search?: string
   model?: string[]
   type?: OutputTypeValue[]
@@ -328,11 +328,15 @@ function buildGalleryWhere(options: {
     where.isPublic = true
   }
 
-  // 文件夹范围：夹 id（连子夹）/ "none"（未归档）/ 不传 = 不限。
-  if (options.projectId) {
+  // 文件夹范围：夹 id（连所有层子孙夹）/ "none"（未归档）/ 不传 = 不限。
+  // ⚠ 只在本人视角生效：夹是私有的，没有 userId 时不拿它收窄公开画廊。
+  if (options.projectId && options.userId) {
     Object.assign(
       where,
-      folderScopeWhere(options.projectId === 'none' ? null : options.projectId),
+      await folderScopeWhere(
+        options.userId,
+        options.projectId === 'none' ? null : options.projectId,
+      ),
     )
   }
 
@@ -765,7 +769,7 @@ async function getPublicGenerationSlice({
           : {}),
       }
 
-  const baseWhere = buildGalleryWhere({
+  const baseWhere = await buildGalleryWhere({
     search,
     model,
     type,
@@ -1279,7 +1283,7 @@ export async function countPublicGenerations(
   > = {},
 ): Promise<number> {
   return db.generation.count({
-    where: buildGalleryWhere(options),
+    where: await buildGalleryWhere(options),
   })
 }
 
@@ -1365,7 +1369,11 @@ export async function getAssetSectionCounts(
       where: { userId, likes: { some: { userId } }, ...typeScope },
     }),
     db.generation.count({
-      where: { userId, ...typeScope, ...folderScopeWhere(null) },
+      where: {
+        userId,
+        ...typeScope,
+        ...(await folderScopeWhere(userId, null)),
+      },
     }),
     countFolderItems(userId, outputTypes),
   ])

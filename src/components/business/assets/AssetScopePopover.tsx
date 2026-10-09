@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { staggerDelay } from '@/constants/motion'
-import { getChildFolders, getRootFolders } from '@/lib/folder-tree'
+import { flattenFolderTree, folderIndentPx } from '@/lib/folder-tree'
 import { cn } from '@/lib/utils'
 import type { ProjectRecord } from '@/types'
 
@@ -40,7 +40,8 @@ type ScopeRow = {
   scope: AssetFolderScope
   label: string
   count?: number
-  depth: 0 | 1
+  /** 最外层 = 0；层数不限。 */
+  depth: number
   icon: ReactNode
 }
 
@@ -83,11 +84,8 @@ export function AssetScopePopover({
       icon: <FolderX className="size-3.5" />,
     },
   ]
-  for (const root of getRootFolders(folders)) {
-    rows.push(folderRow(root, 0, counts.byProject))
-    for (const child of getChildFolders(folders, root.id)) {
-      rows.push(folderRow(child, 1, counts.byProject))
-    }
+  for (const { folder, depth } of flattenFolderTree(folders)) {
+    rows.push(folderRow(folder, depth, counts.byProject))
   }
 
   const isActive = (row: ScopeRow) =>
@@ -130,13 +128,14 @@ export function AssetScopePopover({
                 }}
                 style={{
                   animationDelay: `${Math.round(staggerDelay(index) * 1000 * 0.6)}ms`,
+                  // 层深是算出来的数，只能走行内样式（见 FOLDER_TREE_INDENT）。
+                  paddingLeft: folderIndentPx('scopePopover', row.depth),
                 }}
                 className={cn(
                   'picker-row-in flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-xs text-foreground',
                   'transition-colors duration-base ease-standard motion-reduce:transition-none',
                   'hover:outline hover:outline-1 hover:outline-border',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  row.depth === 1 ? 'pl-6.5' : 'pl-2',
                   active && 'bg-muted font-medium',
                 )}
               >
@@ -167,7 +166,7 @@ export function AssetScopePopover({
 
 function folderRow(
   folder: ProjectRecord,
-  depth: 0 | 1,
+  depth: number,
   byProject: Record<string, number>,
 ): ScopeRow {
   return {

@@ -17,7 +17,9 @@ import { PROJECT } from '@/constants/config'
 import { getFolderMembershipsAPI, updateFolderItemsAPI } from '@/lib/api-client'
 import {
   filterFolders,
+  folderIndentPx,
   getChildFolders,
+  getFolderAncestorIds,
   getFolderPath,
   getRootFolders,
 } from '@/lib/folder-tree'
@@ -103,16 +105,13 @@ export function AssetAddToFolderPanel({
     }
     const loaded = response.data
     setMemberships(loaded)
-    // 有几张已经在子夹里的父夹先展开，别让半勾藏在收起的一行下面。
+    // 有几张已经在某个子孙夹里时，它一路往上的祖先先展开，别让半勾藏在收起的行下面。
+    const memberFolderIds = new Set(assetIds.flatMap((id) => loaded[id] ?? []))
     setExpandedIds(
       new Set(
-        roots
-          .filter((root) =>
-            getChildFolders(folders, root.id).some((child) =>
-              assetIds.some((id) => loaded[id]?.includes(child.id)),
-            ),
-          )
-          .map((root) => root.id),
+        [...memberFolderIds].flatMap((folderId) =>
+          getFolderAncestorIds(folders, folderId),
+        ),
       ),
     )
   }
@@ -238,18 +237,20 @@ export function AssetAddToFolderPanel({
     })
   }
 
-  const renderRow = (folder: ProjectRecord, depth: 0 | 1, path?: string) => {
+  const renderRow = (
+    folder: ProjectRecord,
+    depth: number,
+    path?: string,
+  ): React.ReactNode => {
     const state = stateOf(folder.id)
-    const children =
-      depth === 0 && !path ? getChildFolders(folders, folder.id) : []
+    const children = path ? [] : getChildFolders(folders, folder.id)
     const expanded = children.length > 0 && expandedIds.has(folder.id)
     return (
       <div key={folder.id}>
         <div
-          className={cn(
-            'flex h-8.5 items-center gap-2 rounded-lg pr-2 transition-colors duration-fast hover:bg-muted/60',
-            depth === 1 ? 'pl-6' : 'pl-1',
-          )}
+          className="flex h-8.5 items-center gap-2 rounded-lg pr-2 transition-colors duration-fast hover:bg-muted/60"
+          // 层深是算出来的数，只能走行内样式（见 FOLDER_TREE_INDENT）。
+          style={{ paddingLeft: folderIndentPx('addPanel', depth) }}
         >
           {children.length > 0 ? (
             <button
@@ -326,7 +327,7 @@ export function AssetAddToFolderPanel({
             ) : null}
           </button>
         </div>
-        {expanded ? children.map((child) => renderRow(child, 1)) : null}
+        {expanded ? children.map((child) => renderRow(child, depth + 1)) : null}
       </div>
     )
   }

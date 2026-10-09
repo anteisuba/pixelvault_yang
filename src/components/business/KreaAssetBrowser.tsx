@@ -48,7 +48,6 @@ import {
 } from '@/components/business/assets/AssetSelectionMorph'
 import {
   AssetFolderSidebar,
-  type AssetFolderEdit,
   type AssetFolderScope,
 } from '@/components/business/assets/AssetFolderSidebar'
 import { AssetTile } from '@/components/business/assets/AssetTile'
@@ -166,7 +165,11 @@ import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { runUndoableAction } from '@/lib/undoable-action'
 import { clearGalleryCache } from '@/lib/gallery-cache'
-import { getChildFolders } from '@/lib/folder-tree'
+import {
+  getChildFolders,
+  getFolderPath,
+  getFolderSubtreeIds,
+} from '@/lib/folder-tree'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
 import { cn } from '@/lib/utils'
 import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
@@ -425,6 +428,13 @@ export function KreaAssetBrowser({
   const scopeParent = scopeFolder?.parentId
     ? (folders.find((folder) => folder.id === scopeFolder.parentId) ?? null)
     : null
+  /** 段头「在 A / B 里」：层数不限，写整条父路径（Esc 仍只退回直接父夹）。 */
+  const scopeParentPath = scopeFolder
+    ? getFolderPath(folders, scopeFolder.id)
+        .slice(0, -1)
+        .map((folder) => folder.name)
+        .join(' / ')
+    : ''
   const activeMediaType = getActiveMediaType(filters)
   /** 生效的类型口径 = 类型分面本身（空 = 不限）。 */
   const scopedTypes: LockedMediaType[] = filters.types
@@ -849,14 +859,10 @@ export function KreaAssetBrowser({
       void refreshCounts()
       void refreshFolders()
       if (folderScope.kind === 'all') return
+      // 看一个夹 = 它连同所有层的子孙夹（与服务端 `folderScopeWhere` 同一口径）。
       const scopeIds =
         folderScope.kind === 'folder'
-          ? new Set([
-              folderScope.id,
-              ...getChildFolders(folders, folderScope.id).map(
-                (child) => child.id,
-              ),
-            ])
+          ? getFolderSubtreeIds(folders, folderScope.id)
           : null
       const leaving = Object.entries(memberships)
         .filter(([, folderIds]) =>
@@ -1028,7 +1034,8 @@ export function KreaAssetBrowser({
   )
   const railOpen = storedRail !== 'closed'
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
-  const [folderEdit, setFolderEdit] = useState<AssetFolderEdit | null>(null)
+  /** 栏里正在改名的夹（Eagle 式新建：建好的「未命名文件夹」直接进这里）。 */
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
   const [isRenamingScope, setIsRenamingScope] = useState(false)
 
   /** 把当前范围写进地址栏（用户点出来的都 push，后退才有东西可回）。 */
@@ -1385,31 +1392,34 @@ export function KreaAssetBrowser({
 
   const performDeleteFolder = useCallback(
     async (folder: ProjectRecord) => {
-      // 正在看的就是它（或它的子夹）→ 大河回到「全部素材」。
+      // 正在看的就是它（或它任何一层的子孙夹）→ 大河回到「全部素材」。
       const viewingIt =
         folderScope.kind === 'folder' &&
-        (folderScope.id === folder.id || scopeFolder?.parentId === folder.id)
+        getFolderSubtreeIds(folders, folder.id).has(folderScope.id)
       if (viewingIt) openScope({ kind: 'all' })
       const ok = await folderStore.remove(folder.id)
       if (ok) void refreshCounts()
     },
-    [folderScope, scopeFolder, openScope, folderStore, refreshCounts],
+    [folderScope, folders, openScope, folderStore, refreshCounts],
   )
 
   const folderMenuActions = (folder: ProjectRecord) => ({
-    onRename: () => setFolderEdit({ kind: 'rename', id: folder.id }),
+    onRename: () => setRenamingFolderId(folder.id),
     onTogglePin: () =>
       void folderStore.setPinned(folder.id, folder.pinnedOrder === null),
+    // 段头 ⋯「新建子文件夹」：同栏里一样当场建「未命名文件夹」，栏打开、那一行改名。
     onCreateChild: () => {
       setStoredRail('open')
-      setFolderEdit({ kind: 'create', parentId: folder.id })
+      void createFolder(t('folderUntitled'), folder.id).then((created) => {
+        if (created) setRenamingFolderId(created.id)
+      })
     },
     onMove: (parentId: string | null) =>
       void folderStore.moveTo(folder.id, parentId),
     onDelete: () => setConfirmAction({ kind: 'delete-folder', folder }),
   })
 
-  /** 删夹确认那一句：图不删；有子夹就说它们移到最外层（画板 `AfB_Delete`）。 */
+  /** 删夹确认那一句：图不删；有子夹就说它们往上挪一层（画板 `AfB_Delete`）。 */
   const folderDeleteDescription = (folder: ProjectRecord) =>
     t('folderDeleteBody', {
       count: counts?.byProject[folder.id] ?? 0,
@@ -1730,8 +1740,8 @@ export function KreaAssetBrowser({
     counts: folderCounts,
     scope: folderScope,
     onScopeChange: openScope,
-    edit: folderEdit,
-    onEditChange: setFolderEdit,
+    renamingId: renamingFolderId,
+    onRenamingChange: setRenamingFolderId,
     onCreate: createFolder,
     onRename: (id: string, name: string) => void folderStore.rename(id, name),
     onTogglePin: (folder: ProjectRecord) =>
@@ -1742,6 +1752,8 @@ export function KreaAssetBrowser({
       setConfirmAction({ kind: 'delete-folder', folder }),
     onReorder: (input: Parameters<typeof folderStore.reorder>[0]) =>
       void folderStore.reorder(input),
+    onPlace: (plan: Parameters<typeof folderStore.place>[0]) =>
+      void folderStore.place(plan),
     draggingCount,
     onDropAssets: (folderId: string, ids: string[]) =>
       void handleDropAssetsOnFolder(folderId, ids),
@@ -2009,9 +2021,9 @@ export function KreaAssetBrowser({
                     />
                   </h2>
                 )}
-                {scopeParent ? (
-                  <span className="text-2sm text-muted-foreground">
-                    {t('folderInParent', { name: scopeParent.name })}
+                {scopeParentPath ? (
+                  <span className="min-w-0 truncate text-2sm text-muted-foreground">
+                    {t('folderInParent', { name: scopeParentPath })}
                   </span>
                 ) : null}
                 <span className="flex-1" />

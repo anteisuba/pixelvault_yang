@@ -17,6 +17,7 @@ import {
   getChildFolders,
   getPinnedFolders,
   getRootFolders,
+  type FolderDropPlan,
 } from '@/lib/folder-tree'
 
 export interface UseAssetFoldersReturn {
@@ -30,6 +31,8 @@ export interface UseAssetFoldersReturn {
   rename: (id: string, name: string) => Promise<void>
   setPinned: (id: string, pinned: boolean) => Promise<void>
   moveTo: (id: string, parentId: string | null) => Promise<void>
+  /** 拖动落下：挂到 `parentId` 下，那一层排成 `ids`（先挪层再排序，两次写库）。 */
+  place: (plan: FolderDropPlan) => Promise<void>
   remove: (id: string) => Promise<boolean>
   reorder: (input: ReorderProjectsRequest) => Promise<void>
 }
@@ -128,22 +131,57 @@ export function useAssetFolders(): UseAssetFoldersReturn {
     [fail],
   )
 
+  const place = useCallback(
+    async ({ id, parentId, ids }: FolderDropPlan) => {
+      const moving =
+        folders.find((folder) => folder.id === id)?.parentId !== parentId
+      const rank = new Map(ids.map((folderId, index) => [folderId, index]))
+      // 一次在本地改好（换层 + 整层顺序），栏里当场落到位，不先跳到层首再跳回来。
+      setFolders((prev) =>
+        prev.map((folder) => {
+          const index = rank.get(folder.id)
+          if (index === undefined) return folder
+          return folder.id === id
+            ? { ...folder, parentId, sortOrder: index }
+            : { ...folder, sortOrder: index }
+        }),
+      )
+      // ⚠ 先挪层、再排序：服务端只认这一层真的兄弟，挪过去之前它还不算。
+      if (moving) {
+        const moved = await updateProjectAPI(id, { parentId })
+        if (!moved.success) {
+          fail()
+          return
+        }
+      }
+      const response = await reorderProjectsAPI({ kind: 'tree', parentId, ids })
+      if (!response.success) fail()
+    },
+    [fail, folders],
+  )
+
   const remove = useCallback(
     async (id: string) => {
-      // 子夹移到最外层，接在父夹原来的位置上（与服务端同一条规矩）。
+      // 直接子夹往上挪一层（挂到它的父夹下），接在它原来的位置上；更深的子孙
+      // 跟着各自的父夹走（与服务端同一条规矩）。
       setFolders((prev) => {
+        const removed = prev.find((folder) => folder.id === id)
         const children = getChildFolders(prev, id)
         const rest = prev.filter((folder) => folder.id !== id)
-        if (children.length === 0) return rest
-        const rootOrder = getRootFolders(prev).flatMap((root) =>
-          root.id === id ? children.map((child) => child.id) : [root.id],
+        if (!removed || children.length === 0) return rest
+        const parentId = removed.parentId
+        const siblings = parentId
+          ? getChildFolders(prev, parentId)
+          : getRootFolders(prev)
+        const levelOrder = siblings.flatMap((sibling) =>
+          sibling.id === id ? children.map((child) => child.id) : [sibling.id],
         )
         const rank = new Map(
-          rootOrder.map((folderId, index) => [folderId, index]),
+          levelOrder.map((folderId, index) => [folderId, index]),
         )
         return rest.map((folder) =>
           rank.has(folder.id)
-            ? { ...folder, parentId: null, sortOrder: rank.get(folder.id) ?? 0 }
+            ? { ...folder, parentId, sortOrder: rank.get(folder.id) ?? 0 }
             : folder,
         )
       })
@@ -183,6 +221,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
     rename,
     setPinned,
     moveTo,
+    place,
     remove,
     reorder,
   }

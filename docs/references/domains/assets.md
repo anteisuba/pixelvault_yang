@@ -6,7 +6,7 @@
 
 - `/assets` → `KreaAssetBrowser`（2026-08-09 复核为 **2198 行单体组件**，改动谨慎）。
 - **双维组织**（产品事实，不能破坏）：①系统分类区块（全部/收藏/已发布/本地素材/未分类）②私人项目文件夹树（右栏 TreeView）。
-  - 2026-09-28 起：文件夹是页面**左边一列**（文件夹 B）；**一张图可以同时在好几个夹里**（归属表 `ProjectItem`，旧的 `Generation.projectId` 分两次删、代码已不读写）；夹只有两层、顺序由用户自己排（`Project.sortOrder` / `pinnedOrder`）；「未分类」改叫**未归档**（一个活夹都不在）。契约见 [`../pages/assets.md`](../pages/assets.md) §3–§4。
+  - 2026-09-28 起：文件夹是页面**左边一列**（文件夹 B）；**一张图可以同时在好几个夹里**（归属表 `ProjectItem`，旧的 `Generation.projectId` 分两次删、代码已不读写）；夹层数不限（2026-10-09 起，原只两层）、顺序由用户自己排（`Project.sortOrder` / `pinnedOrder`）；「未分类」改叫**未归档**（一个活夹都不在）。契约见 [`../pages/assets.md`](../pages/assets.md) §3–§4。
 - 过滤：媒体类型 toggle；**搜索/排序/时间过滤引擎已存在**（`use-gallery.ts` 的 GalleryFilters 支持 search/model/sort/timeRange/provider）**但 UI 未露出**——这是 P0 优化方向之一。
 - 网格：密度 4/6/8（localStorage 持久化）+ 哨兵无限滚动；无虚拟化、无 blur-up。
 - 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。（2026-09-28 起「移动」改成「加入文件夹」，拖到左栏一行 = 也放进那个夹。）

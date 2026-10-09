@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { UploadQueueItem } from '@/hooks/use-asset-upload-queue'
+import { flattenFolderTree, folderIndentPx } from '@/lib/folder-tree'
 import { cn } from '@/lib/utils'
 import type { ProjectRecord } from '@/types'
 
@@ -111,10 +112,13 @@ export function AssetUploadQueuePanel({
               {t('sidebarUnassigned')}
             </DropdownMenuItem>
             {projects.length > 0 && <DropdownMenuSeparator />}
-            {projects.map((project) => (
+            {/* 与左栏同一棵树、同一个顺序，照层缩进（层数不限）。 */}
+            {flattenFolderTree(projects).map(({ folder: project, depth }) => (
               <DropdownMenuItem
                 key={project.id}
                 onClick={() => onChangeTarget(project.id)}
+                // 层深是算出来的数，只能走行内样式（见 FOLDER_TREE_INDENT）。
+                style={{ paddingLeft: folderIndentPx('menu', depth) }}
               >
                 <span className="truncate">{project.name}</span>
               </DropdownMenuItem>

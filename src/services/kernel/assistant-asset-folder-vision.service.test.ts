@@ -134,7 +134,12 @@ describe('listAssistantAssetFolders', () => {
 
 describe('inspectAssistantAssetFolder', () => {
   it('checks at most 24 images in deterministic batches of 8 and reports coverage honestly', async () => {
-    mockQueryRaw.mockResolvedValue(folderCounts({ 'hero-child': 30 }))
+    // 同一个 $queryRaw 答两条 SQL：张数（COUNT）与这个夹的子孙展开（WITH RECURSIVE）。
+    mockQueryRaw.mockImplementation(async (strings: string[]) =>
+      strings.join('?').includes('COUNT(')
+        ? folderCounts({ 'hero-child': 30 })
+        : [{ id: 'hero-child' }, { id: 'hero-grandchild' }],
+    )
     mockGenerationFindMany.mockResolvedValue(
       generationRows(ASSISTANT_OPERATOR_LIMITS.maxFolderVisionImages),
     )
@@ -166,12 +171,12 @@ describe('inspectAssistantAssetFolder', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: USER_ID,
-          // 与素材页同一个范围：这个夹连子夹。
+          // 与素材页同一个范围：这个夹连所有层的子孙夹。
           folders: {
             some: {
               project: {
                 isDeleted: false,
-                OR: [{ id: 'hero-child' }, { parentId: 'hero-child' }],
+                id: { in: ['hero-child', 'hero-grandchild'] },
               },
             },
           },

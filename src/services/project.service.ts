@@ -24,7 +24,9 @@ import { ensureUser } from '@/services/user.service'
  *
  * - 一张图可以同时在好几个夹里：归属只在 `ProjectItem`。⛔ 不读写
  *   `Generation.projectId`（旧的单值归属，分两次删，见 schema 注释）。
- * - 只有两层：父夹必须在最外层；有子夹的夹不能再挂到别的夹下面。
+ * - 层数不限（owner 2026-10-09「想要能一层层往下建」）：父夹必须是这个用户的
+ *   活夹；一个夹不能挂到自己、也不能挂到自己的子孙下面（成环）。没有深度上限 ——
+ *   一个用户最多 `PROJECT.MAX_PROJECTS_PER_USER` 个夹，往上走的链天然有界。
  * - 顺序是用户自己排的：同一层按 `sortOrder`，置顶组按 `pinnedOrder`；
  *   新建 / 新挪进来 / 新置顶的都排在最前面。
  */
@@ -102,10 +104,11 @@ async function topPinnedOrder(userId: string): Promise<number> {
 }
 
 /**
- * 父夹校验：只两层。
+ * 父夹校验（层数不限）。
  *
- * ⚠ 父夹必须是这个用户的活夹、而且自己在最外层；挪动一个夹时，它自己不能有
- * 子夹（否则就出现第三层），也不能挂到自己下面。
+ * ⚠ 父夹必须是这个用户的活夹；挪动一个夹时，它不能挂到自己下面，也不能挂到自己的
+ * 任何一层子孙下面 —— 从新父夹沿 `parentId` 往上走，碰到它自己就是成环，拒。
+ * 一次读出这个用户全部活夹（最多 `MAX_PROJECTS_PER_USER` 个）在内存里走链。
  */
 async function resolveProjectParentId(
   userId: string,
@@ -119,23 +122,24 @@ async function resolveProjectParentId(
     throw new Error('A folder cannot be moved into itself')
   }
 
-  const parent = await db.project.findFirst({
-    where: { id: parentId, userId, isDeleted: false },
+  const folders = await db.project.findMany({
+    where: { userId, isDeleted: false },
     select: { id: true, parentId: true },
   })
-  if (!parent) {
+  const parentOf = new Map(folders.map((row) => [row.id, row.parentId]))
+  if (!parentOf.has(parentId)) {
     throw new Error('Parent folder not found')
-  }
-  if (parent.parentId) {
-    throw new Error('Folders only nest two levels deep')
   }
 
   if (projectId) {
-    const childCount = await db.project.count({
-      where: { parentId: projectId, userId, isDeleted: false },
-    })
-    if (childCount > 0) {
-      throw new Error('A folder with subfolders stays at the top level')
+    const seen = new Set<string>()
+    let current: string | null | undefined = parentId
+    while (current && !seen.has(current)) {
+      if (current === projectId) {
+        throw new Error('A folder cannot be moved into its own subfolder')
+      }
+      seen.add(current)
+      current = parentOf.get(current)
     }
   }
 
@@ -186,17 +190,33 @@ export async function listProjects(clerkId: string): Promise<ProjectRecord[]> {
   })
   const records = projects.map(toProjectRecord)
 
-  // 父夹自己没放图时借第一个有封面的子夹 —— 它的数字本来就连子夹一起算。
+  // 夹自己没放图时借子孙夹的封面（它的数字本来就连所有子孙一起算）：
+  // 一层一层往下找，近的先；同一层按手动顺序（`records` 已按它排好）。
+  const childrenOf = new Map<string, ProjectRecord[]>()
+  for (const record of records) {
+    if (!record.parentId) continue
+    const siblings = childrenOf.get(record.parentId) ?? []
+    siblings.push(record)
+    childrenOf.set(record.parentId, siblings)
+  }
+  const borrowCover = (rootId: string): string | null => {
+    const seen = new Set([rootId])
+    let level = childrenOf.get(rootId) ?? []
+    while (level.length > 0) {
+      const hit = level.find((child) => child.coverUrl)
+      if (hit) return hit.coverUrl
+      const next: ProjectRecord[] = []
+      for (const child of level) {
+        if (seen.has(child.id)) continue
+        seen.add(child.id)
+        next.push(...(childrenOf.get(child.id) ?? []))
+      }
+      level = next
+    }
+    return null
+  }
   return records.map((record) =>
-    record.coverUrl || record.parentId
-      ? record
-      : {
-          ...record,
-          coverUrl:
-            records.find(
-              (child) => child.parentId === record.id && child.coverUrl,
-            )?.coverUrl ?? null,
-        },
+    record.coverUrl ? record : { ...record, coverUrl: borrowCover(record.id) },
   )
 }
 
@@ -315,7 +335,9 @@ export async function reorderProjects(
 
 /**
  * 删夹（软删）—— ⛔ 不删图：只清掉这个夹的归属行；只在这个夹里的图自然回到
- * 「未归档」。子夹移到最外层，接在父夹原来的位置上。
+ * 「未归档」（或仍在别的夹里）。它的直接子夹**往上挪一层**（挂到它的父夹下，
+ * 删的是最外层夹时就是最外层），按原顺序接在它原来的位置上；更深的子孙跟着
+ * 各自的父夹走，层级关系不变。
  */
 export async function deleteProject(
   clerkId: string,
@@ -328,36 +350,38 @@ export async function deleteProject(
   })
   if (!folder) return false
 
-  const children = folder.parentId
-    ? []
-    : await db.project.findMany({
-        where: { parentId: folder.id, userId: dbUser.id, isDeleted: false },
-        select: { id: true },
-        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-      })
-  const roots =
+  const children = await db.project.findMany({
+    where: { parentId: folder.id, userId: dbUser.id, isDeleted: false },
+    select: { id: true },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  })
+  const siblings =
     children.length > 0
       ? await db.project.findMany({
-          where: { parentId: null, userId: dbUser.id, isDeleted: false },
+          where: {
+            parentId: folder.parentId,
+            userId: dbUser.id,
+            isDeleted: false,
+          },
           select: { id: true },
           orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
         })
       : []
-  const rootOrder = roots.flatMap((root) =>
-    root.id === folder.id ? children.map((child) => child.id) : [root.id],
+  const levelOrder = siblings.flatMap((sibling) =>
+    sibling.id === folder.id ? children.map((child) => child.id) : [sibling.id],
   )
 
   await db.$transaction(async (tx) => {
     await tx.projectItem.deleteMany({ where: { projectId: folder.id } })
     await tx.project.updateMany({
       where: { parentId: folder.id, userId: dbUser.id, isDeleted: false },
-      data: { parentId: null },
+      data: { parentId: folder.parentId },
     })
     await tx.project.update({
       where: { id: folder.id, userId: dbUser.id },
       data: { isDeleted: true, pinnedOrder: null },
     })
-    await writeOrder(dbUser.id, 'sortOrder', rootOrder, tx)
+    await writeOrder(dbUser.id, 'sortOrder', levelOrder, tx)
   })
   return true
 }
@@ -421,7 +445,7 @@ export async function getProjectHistory(
   const dbUser = await ensureUser(clerkId)
   const where: Prisma.GenerationWhereInput = {
     userId: dbUser.id,
-    ...folderScopeWhere(projectId),
+    ...(await folderScopeWhere(dbUser.id, projectId)),
     ...(outputType && { outputType }),
   }
 

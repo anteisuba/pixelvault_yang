@@ -98,6 +98,8 @@ export interface LoraOperatorHostMount {
 export interface UseLoraOperatorHostInput {
   loraParameters?: AssistantOperatorSnapshot['loraParameters']
   sourceRecipe?: AssistantOperatorSnapshot['sourceRecipe']
+  /** 左边打开着的那张示例（没打开 = 缺席）。 */
+  viewingRecipe?: AssistantOperatorSnapshot['viewingRecipe']
   setLoraParameters?(
     parameters: NonNullable<AssistantOperatorSnapshot['loraParameters']>,
   ): void
@@ -290,6 +292,7 @@ export function useLoraOperatorHost(
     return buildLoraOperatorSnapshot({
       loraParameters: current.loraParameters,
       sourceRecipe: current.sourceRecipe,
+      viewingRecipe: current.viewingRecipe,
       prompt: current.prompt,
       negativePrompt: current.negativePrompt,
       base: current.base

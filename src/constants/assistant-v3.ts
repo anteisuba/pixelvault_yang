@@ -11,6 +11,20 @@
  * 画布默认走 v3（S6）；本地开关写 `v2` 照走旧内核。别的工作台还在旧内核上。
  */
 
+/** v3 已经接上的那几张脸（S6 逐个迁：LoRA → 图片 → 卡片 → 视频）。 */
+export const ASSISTANT_V3_FACE_IDS = {
+  canvas: 'canvas',
+  lora: 'lora',
+} as const
+
+export type AssistantV3Face =
+  (typeof ASSISTANT_V3_FACE_IDS)[keyof typeof ASSISTANT_V3_FACE_IDS]
+
+export const ASSISTANT_V3_FACES: readonly string[] = [
+  ASSISTANT_V3_FACE_IDS.canvas,
+  ASSISTANT_V3_FACE_IDS.lora,
+]
+
 /** 八个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。 */
 export const ASSISTANT_V3_TOOL_IDS = {
   read: 'read',
@@ -70,6 +84,54 @@ export const ASSISTANT_V3_EDIT_OPS = [
   ASSISTANT_V3_EDIT_OP_IDS.reorderShot,
   ASSISTANT_V3_EDIT_OP_IDS.projectScript,
 ] as const
+
+/**
+ * LoRA 台（S6 第一张脸）的 `edit`：动的是一张表单，⛔ 没有建卡 / 连线。
+ * ⚠ 新挂一把 LoRA 只能摆搭配卡（`propose_setup`）或在库页圈出来（`show_picks`），
+ *   挂载由创作者在卡上点（owner 2026-09-29，lora-assistant §13）。
+ */
+export const ASSISTANT_V3_LORA_EDIT_OP_IDS = {
+  setModel: 'set_model',
+  setParams: 'set_params',
+  setWeight: 'set_weight',
+  unmount: 'unmount',
+  unmountReference: 'unmount_reference',
+  proposeSetup: 'propose_setup',
+  showPicks: 'show_picks',
+} as const
+
+export const ASSISTANT_V3_LORA_EDIT_OPS = [
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.setModel,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.setParams,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.setWeight,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.unmount,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.unmountReference,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.proposeSetup,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS.showPicks,
+] as const
+
+/** LoRA 台 `write` 写哪一格。 */
+export const ASSISTANT_V3_LORA_WRITE_FIELD_IDS = {
+  prompt: 'prompt',
+  negative: 'negative',
+} as const
+
+export const ASSISTANT_V3_LORA_WRITE_FIELDS = [
+  ASSISTANT_V3_LORA_WRITE_FIELD_IDS.prompt,
+  ASSISTANT_V3_LORA_WRITE_FIELD_IDS.negative,
+] as const
+
+/** LoRA 台板子上不随 id 变的那几个名字（`read` / `look` 用）。 */
+export const ASSISTANT_V3_LORA_ITEM_IDS = {
+  prompt: 'prompt',
+  negative: 'negative',
+  sample: 'sample',
+  referencePrefix: 'ref-',
+  loraPrefix: 'lora',
+} as const
+
+/** `search_library` 在 LoRA 台多一种：找 LoRA。 */
+export const ASSISTANT_V3_LORA_SEARCH_KIND = 'lora'
 
 /**
  * `write` 的三种写法。`edit` = 找句换句：服务端拿卡上全文逐条替换后整段落下，

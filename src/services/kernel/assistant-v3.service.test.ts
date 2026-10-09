@@ -117,6 +117,8 @@ vi.mock('@/services/kernel/assistant-completion.service', () => ({
   startCallLog: () => ({ onUsage: vi.fn(), finish: vi.fn() }),
 }))
 
+import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+
 import { runAssistantV3 } from './assistant-v3.service'
 
 const HARRY = 'image249e8bf4-8cc4-46eb-8125-3485e3a9053e'
@@ -889,5 +891,215 @@ describe('v3 内核', () => {
     )
     expect(legacy).toHaveBeenCalled()
     expect(events).toEqual([{ type: 'done' }])
+  })
+})
+
+/** S6：LoRA 台那张脸 —— 动的是表单，改动随步落、当场就有结果。 */
+describe('v3 内核 · LoRA 台', () => {
+  const TYPHOEUS = 'cmg1abcd0000typhoeus'
+  const SAMPLE = 'https://cdn.test/sample.png'
+
+  function loraRequest(
+    message: string,
+    overrides: Partial<AssistantOperatorRequest> = {},
+  ): AssistantOperatorRequest {
+    return {
+      workspaceKey: 'lora',
+      domain: 'lora',
+      messages: [{ role: 'user', content: message }],
+      snapshot: {
+        prompt: 'typhoeus, 1girl',
+        negativePrompt: 'lowres',
+        model: { id: 'illustrious-runner', label: 'WAI-Illustrious-SDXL' },
+        availableModels: [
+          { id: 'illustrious-runner', label: 'WAI-Illustrious-SDXL' },
+        ],
+        loraParameters: { steps: 20, guidanceScale: 6 },
+        loras: {
+          items: [
+            {
+              id: TYPHOEUS,
+              name: '提弗洛斯',
+              weight: 1,
+              enabled: true,
+              family: 'Illustrious',
+              compatible: true,
+              triggerWord: 'typhoeus',
+              triggerEnabled: true,
+              recommendedPrompt: null,
+              sourcePrompts: [],
+            },
+          ],
+          baseFamily: 'Illustrious',
+          minWeight: 0.1,
+          maxWeight: 2,
+        },
+        viewingRecipe: {
+          loraName: '提弗洛斯',
+          position: 2,
+          total: 5,
+          recipe: {
+            imageUrl: SAMPLE,
+            source: 'model_version_image',
+            prompt: 'snow, warming hands',
+            sampler: 'Euler a',
+            steps: 25,
+            cfgScale: 7,
+          },
+        },
+      },
+      ...overrides,
+    } as unknown as AssistantOperatorRequest
+  }
+
+  function preparedWith(prompt: string, modelId: string | undefined) {
+    vi.mocked(prepareOperatorTurn).mockImplementationOnce(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
+          modelId,
+          run: {
+            stepSeq: 0,
+            signal: undefined,
+            inspectedCanvasReferences: null,
+            state: { referenceUrls: [], prompt, negativePrompt: 'lowres' },
+          },
+        }) as never,
+    )
+  }
+
+  /** 旧执行器回来的改动步（载荷照它真实的形状，步的 schema 按工具校验）。 */
+  const mutated = (observation: string) =>
+    plan.mockImplementation(
+      async (_run, tool: string, args: Record<string, unknown>) => ({
+        kind: 'mutate',
+        payload:
+          tool === 'set_lora_weight'
+            ? { ...args, name: '提弗洛斯' }
+            : tool === 'set_prompt'
+              ? { value: args.value, mode: 'replace' }
+              : args,
+        inverse:
+          tool === 'set_lora_weight'
+            ? { loraId: args.loraId, weight: 1 }
+            : tool === 'set_prompt'
+              ? { value: 'typhoeus, 1girl', mode: 'replace' }
+              : {},
+        observation,
+        apply: () => {},
+      }),
+    )
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+  })
+
+  it('板子是一张表单，左边打开的示例图跟着板子给模型看', async () => {
+    const mock = script(textTurn('看得到。'))
+    await collect(runAssistantV3('clerk-1', loraRequest('能看到左边的示例吗')))
+    const prompt = promptText(mock.doStreamCalls[0]!)
+    expect(prompt).toContain('LORA WORKBENCH')
+    expect(prompt).toContain(
+      'example 2 / 5 of 提弗洛斯 (its picture is attached)',
+    )
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('助手模型选「自动」（没有型号）也走 v3，⛔ 不退回旧内核', async () => {
+    preparedWith('typhoeus, 1girl', undefined)
+    script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', loraRequest('你好')))
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('调权重：句柄换成资产 id 交给旧执行器，当场就有结果、⛔ 不接力', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [{ op: 'set_weight', lora: 'lora-cmg1ab', weight: 0.7 }],
+        },
+      }),
+      textTurn('压到 0.7 了。'),
+    )
+    mutated('weight is 0.7 now')
+    const events = await collect(
+      runAssistantV3('clerk-1', loraRequest('提弗洛斯的权重设成 0.7')),
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_lora_weight',
+      { loraId: TYPHOEUS, weight: 0.7 },
+      'user-1',
+    )
+    expect(events.map((event) => event.type)).not.toContain('transcript')
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('追加：拼好整段再写，⛔ 不让旧执行器把追加读成替换', async () => {
+    preparedWith('typhoeus, 1girl', 'gpt-6-luna')
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'write',
+        input: {
+          writes: [
+            {
+              field: 'prompt',
+              mode: 'append',
+              text: ', detailed eyes',
+              edits: null,
+            },
+          ],
+        },
+      }),
+      textTurn('补上了。'),
+    )
+    mutated('written')
+    await collect(runAssistantV3('clerk-1', loraRequest('加上 detailed eyes')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_prompt',
+      { value: 'typhoeus, 1girl, detailed eyes', overwrite: true },
+      'user-1',
+    )
+  })
+
+  it('参数：Civitai 的「Euler a」换成跑得了的采样器名', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'set_params',
+              steps: 25,
+              cfg: 7,
+              seed: null,
+              width: null,
+              height: null,
+              sampler: 'Euler a',
+              scheduler: null,
+            },
+          ],
+        },
+      }),
+      textTurn('套上了。'),
+    )
+    mutated('parameters set')
+    await collect(runAssistantV3('clerk-1', loraRequest('复刻这张图的参数')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_lora_parameters',
+      { steps: 25, guidanceScale: 7, runnerSampler: 'euler_ancestral' },
+      'user-1',
+    )
   })
 })

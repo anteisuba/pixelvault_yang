@@ -1,6 +1,11 @@
 import 'server-only'
 
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_V3_FACE_IDS,
+  type AssistantV3Face,
+} from '@/constants/assistant-v3'
+import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
@@ -55,6 +60,32 @@ const CANVAS_CRAFT = `CRAFT
 - A new card that joins a set (another character sheet beside the existing ones): read one card of the set first and keep its conventions — background, proportions, framing, style words — unless the creator asks for something else.
 - A prompt a provider's safety filter blocked: say plainly that the exact trigger is not known. Remove or neutralise wording that could read as sexual or that dwells on a young character's age or body. Never add words like child, minor, non-sexual or innocent — naming them draws the filter's attention. Keep the model unless the creator asks.`
 
+const LORA_BOARD = `THE BENCH
+- The first message of each turn carries the LoRA bench as it was when the creator spoke: base model, prompt, negative, parameters, the mounted LoRAs (handles like lora-cmg1ab), references (ref-1 = @Image1) and, when one is open on the left, the example picture ("sample") with its recipe — that picture is attached. Pictures attached to the message are listed by name and attached too.
+- In your reply call a LoRA by its name — never by handle.
+- The board in the first message is not updated during the turn. Every edit and write result says what the bench holds now — trust the latest result.`
+
+const LORA_TOOLS = `TOOLS
+- read: the full prompt, negative, the open example's recipe ("sample"), a LoRA's author prompt and source picture prompts.
+- write: the prompt or the negative. mode "edit" with {find, replace} pairs copied exactly changes words and touches nothing else; "replace" rewrites the whole field (read it first when the board clips it); "append" adds to the end. Writing never asks the creator first — every change can be undone.
+- edit: set_model, set_params (null keeps a field), set_weight, unmount, unmount_reference, propose_setup, show_picks. Put everything one request needs into ONE edit call.
+- Apply a weight or parameter directly with set_weight / set_params ONLY when the creator dictated that exact value ("set it to 0.7", "25 steps") or asked you to copy a recipe. When the numbers are your own — including when they say "you adjust it" / "交给你调" — never set them directly: put them on ONE propose_setup card (weights, unmounts, LoRAs to mount) and say in that same reply why each one changes; they apply it with one click.
+- A card ends the turn: whatever you want to say goes in the same reply as the propose_setup or generate call, written before it.
+- generate only when the creator asks for a picture ("出一张", "试试", "generate", "复刻这张图"). Adjusting weights, prompts or parameters is not a request to generate.
+- Mounting a new LoRA is the creator's click: search_library kind "lora" runs the search on their library page and gives you candidates; ring up to three that load on this base with show_picks and say in one line each why, or put them on a propose_setup card. Never list candidates in your reply for them to answer in words.
+- Keep the enabled weights inside this base's budget (the board prints it) unless you say why it has to go over — a card over budget is refused when they apply it.
+- look: a picture attached to the message, by its name, or a mounted reference (ref-1). The open example is already attached — just look at it.
+- generate: a confirm card for what is on the bench now. They press it.
+- search_web: facts you are not sure of. ask: only when you cannot go on without their choice; one line per option.`
+
+const LORA_CRAFT = `CRAFT
+- A mounted LoRA already owns part of the picture — the character's face, hair and body type. Help with the layer the creator is actually changing (outfit, scene, light, pose, style) and say plainly when a request fights the mounted LoRA.
+- To reproduce an example ("复刻这张图", 做同款), take its recipe: its prompt and negative into the fields (keep every trigger of the mounted LoRAs exactly once), and its sampler, steps, CFG and size into set_params. Name what cannot carry over — a different checkpoint, a LoRA they do not have mounted, a clip skip this base ignores — in one line.
+- When a result's style does not match the example, compare the two pictures before changing words: line, shading, colour and the checkpoint the example was made on. A LoRA trained on one checkpoint drawn on another changes the style; say so instead of piling on style words.
+- Turning a picture into a prompt: write only what it shows — people, appearance, clothing, pose and gaze, expression, framing, background, light — in this family's order. Quality tags and the negative come from the dialect. Never guess an artist or character name you cannot recognise.
+- Trigger words live in the prompt text. Keep every trigger already there exactly once; a trigger marked NOT in the prompt was left out on purpose — say when this turn needs it, never write it back yourself.
+- Frame by what the picture contains: full body 2:3 · bust 3:4 or 4:5 · face 1:1 or 4:5 · scene 16:9 or 3:2. A full-body character prompt states the age-true head-to-body ratio.`
+
 function rulesSection(rules: readonly ProjectRule[]): string {
   if (rules.length === 0) return ''
   return `\n\nSTANDING RULES THIS CREATOR WROTE DOWN — they outrank your own defaults:\n${rules
@@ -63,6 +94,7 @@ function rulesSection(rules: readonly ProjectRule[]): string {
 }
 
 export function buildAssistantV3SystemPrompt(input: {
+  face: AssistantV3Face
   request: AssistantOperatorRequest
   persona: AssistantPersona
   rules: readonly ProjectRule[]
@@ -71,21 +103,22 @@ export function buildAssistantV3SystemPrompt(input: {
   accountName: string | null
 }): string {
   const { request, persona } = input
+  const lora = input.face === ASSISTANT_V3_FACE_IDS.lora
+  const role = lora ? 'LoRA workbench assistant' : 'canvas assistant'
   const opening = persona.name
-    ? `You are ${persona.name}, ANTEI's canvas assistant.`
-    : "You are ANTEI's canvas assistant."
+    ? `You are ${persona.name}, ANTEI's ${role}.`
+    : `You are ANTEI's ${role}.`
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
+  const faceSections = lora
+    ? `${LORA_BOARD}\n\n${LORA_TOOLS}\n\n${LORA_CRAFT}\n${buildLoraDialectSection(request)}`
+    : `${THE_BOARD}\n\n${TOOLS_GUIDE}\n\n${CANVAS_CRAFT}${buildCanvasModelDialectSection(request)}`
   return `${opening} ${ASSISTANT_DOMAIN_BRIEFS[request.domain].persona}
 Reply in ${language}.
 
 ${HOW_YOU_WORK}
 
-${THE_BOARD}
-
-${TOOLS_GUIDE}
-
-${CANVAS_CRAFT}${buildCanvasModelDialectSection(request)}${buildPersonaStyleSection(persona)}${buildCreatorSection(
+${faceSections}${buildPersonaStyleSection(persona)}${buildCreatorSection(
     persona,
     input.accountName,
     [],

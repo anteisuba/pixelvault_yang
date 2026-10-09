@@ -68,6 +68,7 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_KERNEL_IDS,
   ASSISTANT_KERNEL_STORAGE_KEY,
+  ASSISTANT_V3_FACES,
 } from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
@@ -629,7 +630,7 @@ interface RunOptions {
   v3Transcript?: AssistantV3Transcript
 }
 
-/** 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有画布认。 */
+/** 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有迁过去的脸认。 */
 function readsLegacyKernel(): boolean {
   if (typeof window === 'undefined') return false
   try {
@@ -1200,8 +1201,7 @@ export function useAssistantOperator(
            */
           ...(resumeFrom ? { resumeFrom } : {}),
           responseLanguage: toResponseLanguage(locale),
-          ...(domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas &&
-          readsLegacyKernel()
+          ...(ASSISTANT_V3_FACES.includes(domain) && readsLegacyKernel()
             ? { kernel: ASSISTANT_KERNEL_IDS.v2 }
             : {}),
           ...(options.v3Transcript

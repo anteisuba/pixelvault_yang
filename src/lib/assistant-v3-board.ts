@@ -35,7 +35,10 @@ export interface AssistantV3Handles {
   nearest(handle: string): string[]
 }
 
-function handleStem(id: string): { prefix: string; body: string } {
+function handleStem(
+  id: string,
+  fallbackPrefix: string,
+): { prefix: string; body: string } {
   const match = UUID_ID.exec(id)
   if (match) {
     const kind =
@@ -46,15 +49,17 @@ function handleStem(id: string): { prefix: string; body: string } {
     }
   }
   return {
-    prefix: ASSISTANT_V3_HANDLE.fallbackPrefix,
+    prefix: fallbackPrefix,
     body: id.toLowerCase().replace(/[^a-z0-9]/g, ''),
   }
 }
 
+/** `fallbackPrefix`：不是画布节点 id 的那些（LoRA 资产 id）用什么开头。 */
 export function buildAssistantV3Handles(
   ids: readonly string[],
+  fallbackPrefix: string = ASSISTANT_V3_HANDLE.fallbackPrefix,
 ): AssistantV3Handles {
-  const stems = new Map(ids.map((id) => [id, handleStem(id)]))
+  const stems = new Map(ids.map((id) => [id, handleStem(id, fallbackPrefix)]))
   const byId = new Map<string, string>()
   const pending = [...stems.keys()]
   for (

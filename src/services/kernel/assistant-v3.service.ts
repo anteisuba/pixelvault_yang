@@ -18,12 +18,10 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
-  ASSISTANT_OPERATOR_TOOL_VERBS,
-  type AssistantOperatorRejectReason,
-  type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_EDIT_OP_IDS,
+  ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_TOOLS,
@@ -91,21 +89,37 @@ import {
   OPERATOR_SAME_FAILURE_MESSAGES,
   operatorCacheKey,
   planCritiqueResult,
-  planTool,
   prepareOperatorTurn,
   recordLedgerStep,
-  rememberStepArtifacts,
   resolveResponseLanguage,
   runOperatorTurn,
   runWithOperatorTimeBudget,
-  TOOL_FAILED_DETAIL,
   toStepEvent,
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
-  type PreparedOperatorTurn,
-  type ToolPlan,
 } from '@/services/kernel/assistant-operator.service'
 import { resolveAssistantV3Model } from '@/services/kernel/assistant-v3-model.service'
+import {
+  assistantV3LoraTools,
+  executeAssistantV3LoraCall,
+  executeAssistantV3LoraMutation,
+} from '@/services/kernel/assistant-v3-lora.service'
+import {
+  buildAssistantV3LoraHandles,
+  renderAssistantV3LoraBoard,
+} from '@/lib/assistant-v3-lora-board'
+import {
+  clampTitle,
+  joinPhrases,
+  nextStep,
+  planGuarded,
+  planSafely,
+  rejectedStep,
+  settlePlan,
+  TITLE_TEXT,
+  type V3Context,
+  type V3Outcome,
+} from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
 
 /**
@@ -240,113 +254,8 @@ const CHECKED_BEFORE_GENERATE = 'Not put up yet — checked first:'
 const WAITING_FOR_CREATOR =
   'Waiting for the creator: the card is in front of them now. This turn ends here.'
 
-const TITLE_TEXT: Record<
-  PromptAssistantResponseLanguage,
-  {
-    read: string
-    look: string
-    add: string
-    set: string
-    connect: string
-    disconnect: string
-    delete: string
-    move: string
-    reorder: string
-    project: string
-    write: string
-    edit: string
-    generate: string
-    searchWeb: string
-    searchLibrary: string
-    inspect: string
-    more: (count: number) => string
-  }
-> = {
-  chinese: {
-    read: '读取',
-    look: '查看',
-    add: '新建',
-    set: '设置',
-    connect: '连接',
-    disconnect: '断开',
-    delete: '删除',
-    move: '移动',
-    reorder: '调整镜头顺序',
-    project: '投影剧本',
-    write: '改写',
-    edit: '修改',
-    generate: '准备生成',
-    searchWeb: '联网查',
-    searchLibrary: '素材库找',
-    inspect: '核对参考图',
-    more: (count) => `等 ${count} 项`,
-  },
-  japanese: {
-    read: '読み込み',
-    look: '確認',
-    add: '作成',
-    set: '設定',
-    connect: '接続',
-    disconnect: '切断',
-    delete: '削除',
-    move: '移動',
-    reorder: 'ショット順を変更',
-    project: '脚本を展開',
-    write: '書き換え',
-    edit: '修正',
-    generate: '生成を準備',
-    searchWeb: 'Web 検索',
-    searchLibrary: '素材検索',
-    inspect: '参照画像を確認',
-    more: (count) => `ほか ${count} 件`,
-  },
-  english: {
-    read: 'Read',
-    look: 'Look at',
-    add: 'Add',
-    set: 'Set',
-    connect: 'Connect',
-    disconnect: 'Disconnect',
-    delete: 'Delete',
-    move: 'Move',
-    reorder: 'Reorder shots',
-    project: 'Project script',
-    write: 'Rewrite',
-    edit: 'Edit',
-    generate: 'Prepare',
-    searchWeb: 'Search the web for',
-    searchLibrary: 'Search the library for',
-    inspect: 'Check references',
-    more: (count) => `+${count} more`,
-  },
-}
-
-function clampTitle(value: string): string {
-  const max = ASSISTANT_OPERATOR_LIMITS.maxTitleChars
-  return value.length > max ? `${value.slice(0, max - 1)}…` : value
-}
-
 function shortName(name: string): string {
   return name.length > 24 ? `${name.slice(0, 24)}…` : name
-}
-
-type V3Outcome =
-  | { kind: 'result'; output: string; error: boolean; failureKey?: string }
-  /** 交给前端落了，结果等接力那一跳再补。 */
-  | { kind: 'pending' }
-  /** 停在问题卡 / 确认卡上，等创作者。 */
-  | { kind: 'stop'; todo: string }
-
-interface V3Context {
-  readonly clerkId: string
-  readonly prepared: PreparedOperatorTurn
-  readonly request: AssistantOperatorRequest
-  readonly nodes: readonly AssistantOperatorCanvasNode[]
-  readonly handles: AssistantV3Handles
-  readonly language: PromptAssistantResponseLanguage
-  readonly stepPrefix: string
-  /** 本轮记录（同一个数组，回合循环往里追加）—— 出片前核对过没有，从这里看。 */
-  readonly transcript: AssistantV3Transcript
 }
 
 /**
@@ -400,14 +309,6 @@ function editTitle(context: V3Context, ops: readonly AssistantV3EditOpInput[]) {
     }
   })
   return joinPhrases(context, phrases)
-}
-
-function joinPhrases(context: V3Context, phrases: readonly string[]): string {
-  const text = TITLE_TEXT[context.language]
-  const head = phrases.slice(0, 2).join('；')
-  return clampTitle(
-    phrases.length > 2 ? `${head} ${text.more(phrases.length - 2)}` : head,
-  )
 }
 
 function writeTitle(
@@ -795,19 +696,31 @@ async function* runV3Turn(
    *   旧内核：2026-10-09 才发现，画布上选「自动」的一直还在走旧内核。
    */
   const modelId = prepared.modelId ?? resolveAssistantModelId(route.adapterType)
+  const face =
+    request.domain === ASSISTANT_V3_FACE_IDS.lora
+      ? ASSISTANT_V3_FACE_IDS.lora
+      : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
   const model = modelId ? resolveAssistantV3Model(route, modelId) : null
-  if (!model || !modelId || !canvas) {
+  if (
+    !model ||
+    !modelId ||
+    (face === ASSISTANT_V3_FACE_IDS.canvas ? !canvas : !request.snapshot.loras)
+  ) {
     yield* runOperatorTurn(clerkId, request, options, prepared)
     return
   }
 
-  const nodes = assistantV3CanvasNodes(canvas)
-  const handles = buildAssistantV3Handles(nodes.map((node) => node.id))
+  const nodes = canvas ? assistantV3CanvasNodes(canvas) : []
+  const handles =
+    face === ASSISTANT_V3_FACE_IDS.lora
+      ? buildAssistantV3LoraHandles(request.snapshot)
+      : buildAssistantV3Handles(nodes.map((node) => node.id))
   const language = resolveResponseLanguage(request, persona)
   const { history, latest } = historyMessages(request)
   const transcript: AssistantV3Transcript = [...(request.v3?.transcript ?? [])]
   const context: V3Context = {
+    face,
     clerkId,
     prepared,
     request,
@@ -825,25 +738,45 @@ async function* runV3Turn(
       modelId,
     )
     const mentioned = request.mentionedAssets ?? []
-    const mentionedIds = mentioned.flatMap((asset) => {
-      const node = nodes.find((candidate) => candidate.name === asset.label)
-      return node ? [node.id] : []
-    })
-    transcript.push({
-      type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
-      text: renderAssistantV3Board({
-        canvas,
-        handles,
-        latestUserText: latest,
-        mentionedIds,
-      }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
-      images: supportsImages
-        ? mentioned.slice(0, ASSISTANT_V3_LIMITS.maxLookCards).map((asset) => ({
-            url: asset.url,
-            label: asset.label ?? asset.id,
-          }))
-        : [],
-    })
+    const mentionedImages = mentioned
+      .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
+      .map((asset) => ({ url: asset.url, label: asset.label ?? asset.id }))
+    if (canvas) {
+      const mentionedIds = mentioned.flatMap((asset) => {
+        const node = nodes.find((candidate) => candidate.name === asset.label)
+        return node ? [node.id] : []
+      })
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
+        text: renderAssistantV3Board({
+          canvas,
+          handles,
+          latestUserText: latest,
+          mentionedIds,
+        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        images: supportsImages ? mentionedImages : [],
+      })
+    } else {
+      // ⭐ 左边打开着的示例图跟板子一起给模型看（L1「你能看到左边这个示例图吗」）。
+      const sample = request.snapshot.viewingRecipe
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
+        text: renderAssistantV3LoraBoard({
+          snapshot: request.snapshot,
+          handles,
+          attachedNames: mentionedImages.map((image) => image.label),
+          latestUserText: latest,
+        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        images: supportsImages
+          ? [
+              ...(sample
+                ? [{ url: sample.recipe.imageUrl, label: 'sample' }]
+                : []),
+              ...mentionedImages,
+            ]
+          : [],
+      })
+    }
   } else {
     const pending = pendingCallsOf(transcript)
     /** 这一批合成了一个画布步：本轮最后那一条就是它（前端落完写回了成败）。 */
@@ -863,6 +796,7 @@ async function* runV3Turn(
   if (board.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) return
 
   const system = buildAssistantV3SystemPrompt({
+    face,
     request,
     persona,
     rules,
@@ -878,7 +812,10 @@ async function* runV3Turn(
       request.autoReview === true,
     ),
   ]
-  const toolSet = tools(model.strictTools)
+  const toolSet =
+    face === ASSISTANT_V3_FACE_IDS.lora
+      ? assistantV3LoraTools(model.strictTools)
+      : tools(model.strictTools)
   const cacheKey = operatorCacheKey(run, 'v3')
   const budget = Math.min(
     request.stepBudget ?? ASSISTANT_V3_LIMITS.maxSteps,
@@ -1106,6 +1043,23 @@ async function* runV3Turn(
         continue
       }
       const tool = entryCall.tool
+      if (isMutatingTool(tool) && face === ASSISTANT_V3_FACE_IDS.lora) {
+        // 工作台的改动随步落、当场就有结果 —— ⛔ 不攒成一批接力。
+        const outcome = yield* executeAssistantV3LoraMutation(
+          context,
+          tool,
+          call.input,
+        )
+        if (outcome.kind === 'stop') {
+          stopTodo = outcome.todo
+          pushResult(WAITING_FOR_CREATOR, false)
+        } else if (outcome.kind === 'result') {
+          pushResult(outcome.output, outcome.error)
+          if (outcome.error && outcome.failureKey)
+            failures.push(outcome.failureKey)
+        }
+        continue
+      }
       if (isMutatingTool(tool)) {
         const translated = translateMutation(context, tool, call.input)
         if (!translated.ok) {
@@ -1290,204 +1244,6 @@ function toProviderError(provider: string, error: unknown): unknown {
  * 一次工具调用
  * ───────────────────────────────────────────────────────────────────────── */
 
-function nextStep(
-  context: V3Context,
-  tool: AssistantOperatorTool,
-  title: string,
-) {
-  const run = context.prepared.run
-  run.stepSeq += 1
-  return {
-    id: `${context.stepPrefix}-${run.stepSeq}`,
-    tool,
-    verb: ASSISTANT_OPERATOR_TOOL_VERBS[tool],
-    title: clampTitle(title || tool),
-  }
-}
-
-function planSafely(
-  context: V3Context,
-  tool: AssistantOperatorTool,
-  args: unknown,
-): Promise<ToolPlan> {
-  return planGuarded(context, tool, () =>
-    planTool(context.prepared.run, tool, args, context.prepared.user.id),
-  )
-}
-
-async function planGuarded(
-  context: V3Context,
-  tool: AssistantOperatorTool,
-  plan: () => Promise<ToolPlan>,
-): Promise<ToolPlan> {
-  const run = context.prepared.run
-  try {
-    const planned = await plan()
-    run.signal?.throwIfAborted()
-    return planned
-  } catch (error) {
-    run.signal?.throwIfAborted()
-    if (isFatalOperatorToolError(error)) throw error
-    logger.warn('assistant v3 tool failed while planning', {
-      userId: context.clerkId,
-      tool,
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return {
-      kind: 'rejected',
-      reason: REJECT.toolFailed,
-      detail: TOOL_FAILED_DETAIL,
-    }
-  }
-}
-
-/** 写提示词时规划器顺手复核过参考图：那一步也要在时间线上留一行。 */
-function* flushInspectedReferences(
-  context: V3Context,
-): Generator<AssistantOperatorEvent> {
-  const run = context.prepared.run
-  if (!run.inspectedCanvasReferences) return
-  const analysis = run.inspectedCanvasReferences
-  run.inspectedCanvasReferences = null
-  const step = nextStep(
-    context,
-    TOOL.analyzeReferences,
-    TITLE_TEXT[context.language].inspect,
-  )
-  yield toStepEvent({
-    ...step,
-    status: STATUS.done,
-    payload: {},
-    result: analysis,
-  })
-}
-
-function* rejectedStep(
-  context: V3Context,
-  tool: AssistantOperatorTool,
-  title: string,
-  reason: AssistantOperatorRejectReason,
-  detail: string,
-  draft: boolean,
-): Generator<AssistantOperatorEvent, V3Outcome> {
-  yield toStepEvent({
-    ...nextStep(context, tool, title),
-    status: STATUS.error,
-    error: {
-      reason,
-      detail: detail.slice(0, ASSISTANT_OPERATOR_LIMITS.maxReasonChars),
-    },
-    ...(draft ? { draft: true } : {}),
-  })
-  return {
-    kind: 'result',
-    output: detail,
-    error: true,
-    failureKey: `${tool}:${reason}`,
-  }
-}
-
-/** 旧执行器给回来的那份计划 → 时间线上的步 + 给模型的结果。 */
-async function* settlePlan(
-  context: V3Context,
-  tool: AssistantOperatorTool,
-  title: string,
-  plan: ToolPlan,
-): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
-  const run = context.prepared.run
-  yield* flushInspectedReferences(context)
-  switch (plan.kind) {
-    case 'rejected':
-      // 一改什么都没变（要的值卡上本来就是）：不算一步，⛔ 在时间线上留一条红行。
-      if (plan.reason === REJECT.repeatedStep)
-        return {
-          kind: 'result',
-          output: plan.detail ?? 'Nothing changed: the board already had that.',
-          error: false,
-        }
-      return yield* rejectedStep(
-        context,
-        tool,
-        title,
-        plan.reason,
-        plan.detail ?? plan.reason,
-        plan.quiet === true,
-      )
-    case 'read': {
-      const step = nextStep(context, tool, title)
-      yield toStepEvent({
-        ...step,
-        status: STATUS.running,
-        payload: plan.payload,
-        result: null,
-      })
-      let outcome: Awaited<ReturnType<typeof plan.run>>
-      try {
-        outcome = await plan.run()
-      } catch (error) {
-        run.signal?.throwIfAborted()
-        if (isFatalOperatorToolError(error)) throw error
-        yield toStepEvent({
-          ...step,
-          status: STATUS.error,
-          error: { reason: REJECT.toolFailed },
-        })
-        return {
-          kind: 'result',
-          output: TOOL_FAILED_DETAIL,
-          error: true,
-          failureKey: `${tool}:${REJECT.toolFailed}`,
-        }
-      }
-      const done = {
-        ...step,
-        status: STATUS.done,
-        payload: plan.payload,
-        result: outcome.result,
-      }
-      yield toStepEvent(done)
-      rememberStepArtifacts(run, done)
-      recordLedgerStep(run, step.verb, step.title, outcome.observation)
-      return { kind: 'result', output: outcome.observation, error: false }
-    }
-    case 'mutate': {
-      const step = nextStep(context, tool, title)
-      const applied = { ...step, payload: plan.payload, inverse: plan.inverse }
-      yield toStepEvent({ ...applied, status: STATUS.running })
-      plan.apply()
-      yield toStepEvent({ ...applied, status: STATUS.done })
-      recordLedgerStep(run, step.verb, step.title, plan.observation)
-      return { kind: 'pending' }
-    }
-    case 'ask':
-      yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions: [plan.question] }
-      return { kind: 'stop', todo: plan.todo }
-    case 'confirmGenerate':
-      yield {
-        type: ASSISTANT_OPERATOR_EVENTS.confirm,
-        confirm: {
-          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
-          request: plan.request,
-        },
-      }
-      return {
-        kind: 'stop',
-        todo: plan.request.canvasNode
-          ? `等你确认生成「${plan.request.canvasNode.name}」`
-          : `等你确认生成 ${plan.request.count} 张`,
-      }
-    default:
-      return yield* rejectedStep(
-        context,
-        tool,
-        title,
-        REJECT.noSuchControl,
-        'This step is not available in this assistant yet.',
-        false,
-      )
-  }
-}
-
 /** edit / write → 这一批的 v4 op 与过程行标题。⛔ 不落：由回合循环合成一批再落。 */
 function translateMutation(
   context: V3Context,
@@ -1527,6 +1283,14 @@ async function* executeCall(
   input: unknown,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
+  if (
+    context.face === ASSISTANT_V3_FACE_IDS.lora &&
+    (name === ASSISTANT_V3_TOOL_IDS.read ||
+      name === ASSISTANT_V3_TOOL_IDS.look ||
+      name === ASSISTANT_V3_TOOL_IDS.generate ||
+      name === ASSISTANT_V3_TOOL_IDS.searchLibrary)
+  )
+    return yield* executeAssistantV3LoraCall(context, name, input)
   switch (name) {
     case ASSISTANT_V3_TOOL_IDS.read: {
       const parsed = AssistantV3ReadInputSchema.parse(input)

@@ -2033,7 +2033,23 @@ function GenerateBranch({
       : !selectedBase?.available || !selectedBase.providerModelId
         ? ''
         : runnerParameterError
+  // 样例查看器开着哪一张（§5）—— 助手快照也要读它，所以声明在宿主之前。
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState(0)
+  const viewingRecipe = viewerOpen
+    ? mined.recipes[Math.min(viewerIndex, mined.recipes.length - 1)]
+    : undefined
   const operatorHost = useLoraOperatorHost({
+    ...(viewingRecipe
+      ? {
+          viewingRecipe: {
+            loraName: recipeGroupAsset?.name ?? '',
+            position: Math.min(viewerIndex, mined.recipes.length - 1) + 1,
+            total: mined.recipes.length,
+            recipe: viewingRecipe,
+          },
+        }
+      : {}),
     loraParameters:
       isRunnerBase && operatorParameters.success
         ? operatorParameters.data
@@ -2901,8 +2917,6 @@ function GenerateBranch({
 
   // 样例查看器（§5）：点来源图那一张，在舞台右侧原位展开，关上缩回当前那张。
   const stageRightRef = useRef<HTMLDivElement | null>(null)
-  const [viewerOpen, setViewerOpen] = useState(false)
-  const [viewerIndex, setViewerIndex] = useState(0)
   // 库 / 收藏在场（lora-library.md §2）：进库那一拍把样例大图关掉 —— 它挂在看不见
   // 的那一层里，还开着就还在吃 Esc / ← →。
   const libraryActive = library !== null

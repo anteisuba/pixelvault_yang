@@ -655,6 +655,7 @@ export function buildVideoOperatorSnapshot({
 export interface LoraOperatorSnapshotInput {
   loraParameters?: AssistantOperatorSnapshot['loraParameters']
   sourceRecipe?: AssistantOperatorSnapshot['sourceRecipe']
+  viewingRecipe?: AssistantOperatorSnapshot['viewingRecipe']
   prompt: string
   /** `undefined` = 没有负面框。装配台有（可折叠那一格），所以正常总是给。 */
   negativePrompt: string | undefined
@@ -711,6 +712,7 @@ export interface LoraOperatorSnapshotInput {
 export function buildLoraOperatorSnapshot({
   loraParameters,
   sourceRecipe,
+  viewingRecipe,
   prompt,
   negativePrompt,
   base,
@@ -725,6 +727,14 @@ export function buildLoraOperatorSnapshot({
   return {
     ...(loraParameters ? { loraParameters } : {}),
     ...(sourceRecipe ? { sourceRecipe } : {}),
+    ...(viewingRecipe
+      ? {
+          viewingRecipe: {
+            ...viewingRecipe,
+            loraName: clampLabel(viewingRecipe.loraName),
+          },
+        }
+      : {}),
     prompt,
     negativePrompt: negativePrompt ?? '',
     model: base

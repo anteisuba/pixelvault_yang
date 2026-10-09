@@ -4,7 +4,10 @@ import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
-import { ASSISTANT_KERNEL_IDS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_KERNEL_IDS,
+  ASSISTANT_V3_FACES,
+} from '@/constants/assistant-v3'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
@@ -91,11 +94,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
 
     /**
-     * 画布默认走 v3（S6，owner 2026-10-09）；本地开关选了 `v2` 才照走旧内核。
-     * 别的域还在旧内核上（四张脸逐个迁）。v3 接不了的厂商在 v3 里自己退回旧内核。
+     * 迁过去的脸默认走 v3（S6：画布、LoRA 台）；本地开关选了 `v2` 才照走旧内核。
+     * 别的域还在旧内核上（逐个迁）。v3 接不了的厂商在 v3 里自己退回旧内核。
      */
     const useV3 =
-      parsed.data.domain === 'canvas' &&
+      ASSISTANT_V3_FACES.includes(parsed.data.domain) &&
       parsed.data.kernel !== ASSISTANT_KERNEL_IDS.v2
 
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以

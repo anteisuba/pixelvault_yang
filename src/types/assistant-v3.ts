@@ -5,6 +5,9 @@ import {
   ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
+  ASSISTANT_V3_LORA_EDIT_OP_IDS,
+  ASSISTANT_V3_LORA_SEARCH_KIND,
+  ASSISTANT_V3_LORA_WRITE_FIELDS,
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WRITE_FIELDS,
@@ -182,6 +185,139 @@ export const AssistantV3AskInputSchema = z.object({
 })
 
 export type AssistantV3AskInput = z.infer<typeof AssistantV3AskInputSchema>
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * ①b LoRA 台那张脸的入参（S6）。工具名与画布同一套，动的是一张表单。
+ * ⚠ 规矩同 ①：只写形状，可选字段一律 `nullable`。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const LoraHandleSchema = z
+  .string()
+  .describe('A LoRA handle from the board, e.g. "lora-cmg1ab".')
+
+export const AssistantV3LoraEditOpInputSchema = z.union([
+  z.object({
+    op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.setModel),
+    model: z.string().describe('A base model id or name from the board.'),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.setParams),
+      steps: z.number().int().nullable(),
+      cfg: z.number().nullable(),
+      seed: z
+        .string()
+        .nullable()
+        .describe('Digits only. null leaves the seed as it is.'),
+      width: z.number().int().nullable(),
+      height: z.number().int().nullable(),
+      sampler: z
+        .string()
+        .nullable()
+        .describe(
+          'Either a sampler from the board or a Civitai name like "Euler a".',
+        ),
+      scheduler: z.string().nullable(),
+    })
+    .describe('Set sampling parameters. null leaves a field as it is.'),
+  z.object({
+    op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.setWeight),
+    lora: LoraHandleSchema,
+    weight: z.number(),
+  }),
+  z.object({
+    op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.unmount),
+    lora: LoraHandleSchema,
+  }),
+  z.object({
+    op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.unmountReference),
+    ref: z.string().describe('A reference from the board, e.g. "ref-2".'),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.proposeSetup),
+      question: z.string(),
+      mounts: z.array(
+        z.object({
+          candidate: z
+            .string()
+            .describe('A candidateId from a LoRA search this turn.'),
+          weight: z.number().nullable(),
+        }),
+      ),
+      unmounts: z.array(LoraHandleSchema),
+      weights: z.array(
+        z.object({ lora: LoraHandleSchema, weight: z.number() }),
+      ),
+    })
+    .describe(
+      'Put a setup card in front of the creator: LoRAs to mount (from a search this turn), to unmount and weights to change. Nothing changes until they press apply. Mounting a new LoRA only ever happens this way.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_LORA_EDIT_OP_IDS.showPicks),
+      candidates: z.array(z.string()),
+    })
+    .describe(
+      'Ring LoRAs found this turn in the library page so the creator can look and mount them there.',
+    ),
+])
+
+export type AssistantV3LoraEditOpInput = z.infer<
+  typeof AssistantV3LoraEditOpInputSchema
+>
+
+export const AssistantV3LoraEditInputSchema = z.object({
+  ops: z.array(AssistantV3LoraEditOpInputSchema),
+})
+
+export const AssistantV3LoraWriteEntrySchema = z.object({
+  field: z.enum(ASSISTANT_V3_LORA_WRITE_FIELDS),
+  mode: z.enum(ASSISTANT_V3_WRITE_MODES),
+  text: z.string().nullable(),
+  edits: z
+    .array(z.object({ find: z.string(), replace: z.string() }))
+    .nullable(),
+})
+
+export const AssistantV3LoraWriteInputSchema = z.object({
+  writes: z.array(AssistantV3LoraWriteEntrySchema),
+})
+
+export type AssistantV3LoraWriteEntry = z.infer<
+  typeof AssistantV3LoraWriteEntrySchema
+>
+
+const LoraItemSchema = z
+  .string()
+  .describe(
+    '"prompt", "negative", "sample" (the example open on the left), a LoRA handle, or a reference like "ref-1".',
+  )
+
+export const AssistantV3LoraReadInputSchema = z.object({
+  items: z.array(LoraItemSchema),
+})
+
+export const AssistantV3LoraLookInputSchema = z.object({
+  images: z
+    .array(z.string())
+    .describe(
+      'Pictures to look at: the name of a picture attached to the message, "sample", or a reference like "ref-1".',
+    ),
+  question: z.string(),
+})
+
+export const AssistantV3LoraGenerateInputSchema = z.object({
+  label: z.string().nullable(),
+})
+
+export const AssistantV3LoraSearchLibraryInputSchema = z.object({
+  query: z.string(),
+  kind: z.enum([
+    ASSISTANT_V3_LORA_SEARCH_KIND,
+    ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+  ]),
+})
 
 /* ─────────────────────────────────────────────────────────────────────────
  * ② 本轮记录（transcript）—— 前端原样带回，服务端还原成消息。

@@ -1043,6 +1043,18 @@ export const AssistantOperatorSnapshotSchema = z.object({
   loraParameters: AssistantLoraParametersSchema.optional(),
   sourceRecipe: CivitaiImageRecipeSchema.optional(),
   /**
+   * LoRA 台上打开着的那张示例（「这张的配方 2 / 5」）。owner 2026-10-09 问「你能看到左边
+   * 这个示例图和配方吗」—— 此前快照里没有它，助手只读得到表单。缺席 = 没打开。
+   */
+  viewingRecipe: z
+    .object({
+      loraName: z.string().max(LIMITS.maxLabelChars),
+      position: z.number().int().positive(),
+      total: z.number().int().positive(),
+      recipe: CivitaiImageRecipeSchema,
+    })
+    .optional(),
+  /**
    * ⚠ 缺席 = 这个宿主不是画布（图片 / 视频 / LoRA 三台工作台）。画布域的
    * `read_state` 读的就是这一格，⛔ 服务端一个字段都不查库 —— 库里没有
    * 「用户此刻把焦点放在第几镜」。

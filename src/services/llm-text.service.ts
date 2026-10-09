@@ -98,6 +98,13 @@ export interface LlmTextInput {
    */
   imageLabels?: string[]
   /**
+   * Groups requests that share a long prefix (the same system prompt and
+   * conversation) so the provider routes them to the same prompt cache —
+   * OpenAI `prompt_cache_key`. A day of assistant calls hit the cache on only
+   * 15% of input tokens (2026-10-09).
+   */
+  cacheKey?: string
+  /**
    * Native video inputs. Currently supported only by the Gemini branch.
    *
    * Entries may be a `data:` URL, an `http(s)` URL to a video file, or a
@@ -1850,6 +1857,10 @@ async function buildOpenAiChatRequest(
        */
       ...(options.stream && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
         ? { stream_options: { include_usage: true } }
+        : {}),
+      // 同上：只对官方端点开，⛔ 不为缓存路由在自填代理上多一种报错。
+      ...(input.cacheKey && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+        ? { prompt_cache_key: input.cacheKey }
         : {}),
       ...(!input.providerManagedOutput
         ? getOpenAiTokenLimit(

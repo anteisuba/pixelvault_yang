@@ -4858,6 +4858,27 @@ describe('前情 steps（没有服务端会话态）', () => {
     expect(lastUserPrompt()).toContain('wrote the umbrella prompt')
   })
 
+  it('每一步带同一把缓存键（同会话同用途），⛔ 键里没有用户 id', async () => {
+    queueTurns(
+      { tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.readState, args: {} } },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ),
+    )
+    const keys = mockLlmTextCompletion.mock.calls
+      .map((entry) => (entry[0] as { cacheKey?: string }).cacheKey)
+      .filter((key): key is string => key?.startsWith('step:') === true)
+    expect(keys.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(keys).size).toBe(1)
+    expect(keys[0]).not.toContain('clerk-1')
+  })
+
   it('这一轮接力前做完的单列一段「已经做完」，⛔ 不和历史尝试混在一起', async () => {
     queueTurns({ finished: true })
     await collect(

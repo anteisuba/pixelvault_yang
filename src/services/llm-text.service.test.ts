@@ -3001,6 +3001,38 @@ describe('llmTextStream', () => {
     })
 
     it.each([
+      { baseUrl: '', sent: true },
+      { baseUrl: 'https://proxy.example.test/v1', sent: false },
+    ])(
+      'OpenAI：给了 cacheKey 时官方端点带 prompt_cache_key，自填代理不加（baseUrl=$baseUrl）',
+      async ({ baseUrl, sent }) => {
+        const fetchMock = vi.fn().mockResolvedValue(
+          sseResponse([
+            openAiEvent({
+              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
+            }),
+            'data: [DONE]\n\n',
+          ]),
+        )
+        vi.stubGlobal('fetch', fetchMock)
+
+        await collect(
+          llmTextStream({
+            systemPrompt: 'sys',
+            userPrompt: 'user',
+            adapterType: AI_ADAPTER_TYPES.OPENAI,
+            providerConfig: { label: 'OpenAI', baseUrl },
+            apiKey: 'test-key',
+            cacheKey: 'operator-abc',
+          }),
+        )
+
+        const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+        expect(body.prompt_cache_key).toBe(sent ? 'operator-abc' : undefined)
+      },
+    )
+
+    it.each([
       { baseUrl: '', asked: true },
       { baseUrl: 'https://proxy.example.test/v1', asked: false },
     ])(

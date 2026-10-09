@@ -3374,6 +3374,7 @@ async function synthesizeResearchConclusion(
       responseFormat: 'json_object',
       jsonSchema: RESEARCH_CONCLUSION_JSON_SCHEMA,
       callLog: { purpose: 'researchConclusion', domain: run.request.domain },
+      cacheKey: operatorCacheKey(run, 'researchConclusion'),
     })
     for (const candidate of jsonCandidates(raw)) {
       try {
@@ -4223,6 +4224,7 @@ async function completeReferenceAnalysisText(
     responseFormat: 'json_object',
     jsonSchema,
     callLog: { purpose, domain: run.request.domain },
+    cacheKey: operatorCacheKey(run, purpose),
     ...routeFallback(run, route, purpose, { needsImages: !!images?.length }),
   })) {
     result += chunk
@@ -6770,6 +6772,7 @@ async function planVideoCritique(
         // ⭐ 唯一真的「看」的那三下，喂进去的是**转存后的静态帧**，不是 mp4。
         imageData: frame.url,
         callLog: { purpose: 'videoFrame', domain: run.request.domain },
+        cacheKey: operatorCacheKey(run, 'videoFrame'),
       }),
     ),
   )
@@ -6778,6 +6781,7 @@ async function planVideoCritique(
     signal: run.signal,
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
     callLog: { purpose: 'videoCritique', domain: run.request.domain },
+    cacheKey: operatorCacheKey(run, 'videoCritique'),
     buildUserPrompt: () =>
       buildVideoCritiquePrompt(
         run,
@@ -6938,6 +6942,7 @@ async function planCritiqueResult(
     signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
     callLog: { purpose: 'critique', domain: run.request.domain },
+    cacheKey: operatorCacheKey(run, 'critique'),
     buildUserPrompt: () => buildCritiquePrompt(run, goal, result.modelLabel),
     route: visionRoute,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
@@ -11165,6 +11170,21 @@ OUTPUT — one strict-JSON object and nothing else, no prose around it, no code 
 }
 
 /**
+ * 同一会话、同一用途的调用共用一把缓存键（OpenAI `prompt_cache_key`）：它们前缀相同
+ * （同一份系统提示 + 同一段对话），路由到同一处缓存才命中得了（2026-10-09 一天实测：
+ * 输入只有 15% 走缓存）。⚠ 只发哈希，⛔ 不把用户 id 交给 provider。
+ */
+function operatorCacheKey(run: OperatorRun, purpose: string): string {
+  const scope =
+    run.request.conversationId ?? run.request.workspaceKey ?? run.request.domain
+  const digest = createHash('sha256')
+    .update(`${run.userId}|${scope}`)
+    .digest('hex')
+    .slice(0, 24)
+  return `${purpose}:${digest}`
+}
+
+/**
  * 看图那几跳（看成图、逐帧、汇总）只带创作者这一轮那句话（2026-10-09 一天实测：
  * 看图每次平均 4.85 万 token，大头是整段对话）。要评的目标已经在 goal 里，更早的
  * 对话只会让它评着评着去答别的。
@@ -11545,6 +11565,7 @@ async function compressRoundLedger(
       signal: run.signal,
       systemPrompt: ROUND_SUMMARY_SYSTEM_PROMPT,
       callLog: { purpose: 'roundSummary', domain: run.request.domain },
+      cacheKey: operatorCacheKey(run, 'roundSummary'),
       buildUserPrompt: (maxLength) =>
         maxLength === undefined
           ? sections.join('\n\n')
@@ -12526,6 +12547,7 @@ async function* runOperatorTurn(
         ...(audioData.length ? { audioData } : {}),
         responseFormat: 'json_object',
         callLog: { purpose: 'step', domain: request.domain, step: index },
+        cacheKey: operatorCacheKey(run, 'step'),
         ...routeFallback(run, route, 'step', {
           needsImages: conversationImages.length > 0,
         }),

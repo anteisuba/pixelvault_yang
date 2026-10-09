@@ -29,6 +29,7 @@ interface CompleteAssistantTextOptions {
   modelId?: string
   imageData?: LlmTextInput['imageData']
   imageLabels?: LlmTextInput['imageLabels']
+  cacheKey?: LlmTextInput['cacheKey']
   videoData?: LlmTextInput['videoData']
   audioData?: LlmTextInput['audioData']
   /**
@@ -217,6 +218,7 @@ export async function completeAssistantTextWithContextRetry({
   modelId,
   imageData,
   imageLabels,
+  cacheKey,
   videoData,
   audioData,
   videoAnalysis,
@@ -245,6 +247,7 @@ export async function completeAssistantTextWithContextRetry({
         modelId: on.modelId,
         imageData,
         imageLabels,
+        cacheKey,
         videoData,
         audioData,
         videoAnalysis,
@@ -372,6 +375,7 @@ export async function* streamAssistantTextWithContextRetry({
   modelId,
   imageData,
   imageLabels,
+  cacheKey,
   videoData,
   audioData,
   videoAnalysis,
@@ -402,6 +406,7 @@ export async function* streamAssistantTextWithContextRetry({
         modelId: on.modelId,
         imageData,
         imageLabels,
+        cacheKey,
         videoData,
         audioData,
         videoAnalysis,

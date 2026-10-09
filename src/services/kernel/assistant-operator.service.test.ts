@@ -53,6 +53,14 @@ const mockSupportsNativeWebSearch = vi.fn<(adapter: string) => boolean>(
   () => false,
 )
 const mockLlmNativeWebSearch = vi.fn()
+/** 所选模型没有自带联网时借哪一家的 key（owner 2026-10-10）。缺省一把都没有。 */
+const mockFindNativeSearchRoute = vi.fn(async (): Promise<unknown> => null)
+vi.mock('@/services/kernel/research-route.service', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/services/kernel/research-route.service')
+  >()),
+  findNativeSearchRoute: () => mockFindNativeSearchRoute(),
+}))
 /**
  * 工具环那一轮走的是 `llmTextStream`（2026-09-06 的逐字流），**桩到同一颗
  * `mockLlmTextCompletion` 上**：这一层要验的是「模型这一轮说了什么会怎么样」，
@@ -10480,6 +10488,103 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     expect(mockAppendAssistantEvidenceBook).not.toHaveBeenCalled()
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
     expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
+  describe('能用自带联网就用自带，用不了才走管线（owner 2026-10-10）', () => {
+    const SEARCHED = {
+      status: 'searched',
+      queries: ['q'],
+      answer: '查到了。',
+      sources: [
+        {
+          url: 'https://a.test',
+          title: 'A',
+          excerpt: 'x',
+          excerptKind: 'answer_fragment',
+        },
+      ],
+    }
+    function researchWith(args: Record<string, unknown>) {
+      return {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.research,
+          title: 'research',
+          args: { goal: '配色', entities: ['无限大', '时夜'], ...args },
+        },
+      }
+    }
+    const sourcesAsked: unknown[] = []
+    beforeEach(() => {
+      sourcesAsked.length = 0
+      mockLlmNativeWebSearch.mockReset()
+      mockLlmNativeWebSearch.mockResolvedValue(SEARCHED)
+      mockFindNativeSearchRoute.mockReset()
+      mockFindNativeSearchRoute.mockResolvedValue(null)
+      mockRunAssistantResearch.mockImplementation(
+        async (params: {
+          sources?: unknown
+          nativeWebSearch?: () => Promise<unknown>
+        }) => {
+          sourcesAsked.push(params.sources)
+          await params.nativeWebSearch?.()
+          return {
+            queries: [],
+            sources: ['web'],
+            evidence: EVIDENCE,
+            items: ITEMS,
+            receipts: [
+              { sourceId: 'web_search', status: 'ok', count: 1, tookMs: 5 },
+            ],
+          }
+        },
+      )
+    })
+
+    it('深搜也交给自带联网，只打网页那一源、多搜几次', async () => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      queueTurns(researchWith({ depth: 'deep' }), { finished: true })
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+          maxUses: ASSISTANT_RESEARCH_LIMITS.deepNativeSearchUses,
+        }),
+      )
+      expect(sourcesAsked).toEqual([['web']])
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it('所选模型没有自带联网：借创作者配了 key 的那一家搜', async () => {
+      mockFindNativeSearchRoute.mockResolvedValue({
+        route: {
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          providerConfig: { label: 'OpenAI', baseUrl: '' },
+          apiKey: 'sk-lend',
+        },
+        modelId: 'gpt-6-luna',
+      })
+      queueTurns(researchWith({}), { finished: true })
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          apiKey: 'sk-lend',
+          modelId: 'gpt-6-luna',
+        }),
+      )
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it('创作者点了来源：自带联网管不住打哪些站，走管线', async () => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      queueTurns(researchWith({ onlySources: ['danbooru'] }), {
+        finished: true,
+      })
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(mockLlmNativeWebSearch).not.toHaveBeenCalled()
+      expect(mockFindNativeSearchRoute).not.toHaveBeenCalled()
+      mockRunAssistantResearch.mockReset()
+    })
   })
 
   it('⭐ 所选模型有自带联网时快搜交给它：它的回答就是结论，⛔ 不再改写、不再归纳（owner 2026-09-30）', async () => {

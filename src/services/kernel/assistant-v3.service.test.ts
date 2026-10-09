@@ -1379,6 +1379,17 @@ describe('v3 内核 · 图片台', () => {
       { goal: '艾弥丝的英文名', entities: ['艾弥丝'] },
       'user-1',
     )
+    // 光提到站名不算：问的是标签，不是「只在 Danbooru 查」。
+    script(toolTurn(search(['danbooru'])), textTurn('查到了。'))
+    await collect(
+      runAssistantV3('clerk-1', imageRequest('艾弥丝的 Danbooru 标签是什么')),
+    )
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'research',
+      { goal: '艾弥丝的英文名', entities: ['艾弥丝'] },
+      'user-1',
+    )
     script(toolTurn(search(['danbooru'])), textTurn('查到了。'))
     await collect(
       runAssistantV3('clerk-1', imageRequest('只在 danbooru 上查艾弥丝')),

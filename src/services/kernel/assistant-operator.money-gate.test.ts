@@ -98,6 +98,8 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
   '@/services/kernel/assistant-edit-look.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
+  // 自带联网借哪一家的 key（只读 key 表，不出图、不扣点数）。
+  '@/services/kernel/research-route.service',
   // 文本补全的重试策略，工具环每一步都走它。
   '@/services/kernel/assistant-completion.service',
   /**

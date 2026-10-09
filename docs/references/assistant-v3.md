@@ -124,6 +124,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-10 · 联网：v3 的 `search_web` 只认创作者说了「只在…查」的来源（模型自己填的 `onlySources` 会被当成本轮来源名单、绕开自带联网——I1 搜不到艾弥丝就是这个）；名字多于 4 个截掉不拒。实测「艾弥丝英文名和 Danbooru 标签」：「自动」两轮都走 Gemini 自带联网，答对 Aemeath / `aemeath_(wuthering_waves)`；助手切 DeepSeek 时借 GPT 的 key 搜，同样答对。
+
 - 2026-10-10 · S6 图片台 5 题（你的原话与原图，本地 dev，「自动」= Gemini 3.8 Flash，直接调接口、隐身不记会话）：I1 标签台反推艾弥丝：看图、查到 aemeath (wuthering waves)、正负提示词直接写进台 ✅（旧 ⚠ 100 秒，标签只贴在对话里再问写不写）· I2 挡住胸口爱心：改高领、负面填 heart 一组；说「负面没填」就照写一遍 ✅（旧 ❌ 两轮都只出反问卡、一个字没写）· I3 四图换装：图1 出衣服、图2–4 出脸身与画风、排除图1 的 2D 质感、3:4，40 秒 ✅（旧 ✅ 但 147 秒且没要图就摆出图卡）· I4 只换画风：先只分析不动台；第二轮保留图2 的人物与体态、只借图1 的渲染 ✅（旧 第一轮分析完追问用途）· I5 看台面 + 挑模型：照板子答，换 GPT Image 2.5 Sunburst、张数 2 ✅（旧 ✅）。回放中修了：只在 Danbooru 搜中文名搜不到（改成不限站点、先查英文名）、回复里写 @Image1、换装提示词没写不要从衣服图带走什么、Seedream Lite 这类没有清晰度档的模型改不了画幅。毛病：并发跑时单题 50–80 秒；I5 为挑模型联网查了两次。
 
 - 2026-10-10 · 思考档位 chip（Low / Medium / High，默认 Medium，存 persona）：v3 与旧内核都照档位发，Grok 默认从 low 改为 medium。本地 dev 实测：v3「自动」（Gemini）High、旧内核 Claude Haiku 5.5 High（`effort`）、旧内核 DeepSeek Flash High（`max`，推理 633 token）都正常回复。

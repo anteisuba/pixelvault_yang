@@ -387,6 +387,7 @@ import {
   summarizeResearchConclusion,
   type AssistantResearchEvidence,
 } from '@/services/research/research-fanout.service'
+import { findNativeSearchRoute } from '@/services/kernel/research-route.service'
 /**
  * **来源白 / 黑名单**（v2 §9.3）—— 名单在库里（上面那条 import），打源在扇出层，
  * 「名单怎么变成一份源清单」这条判断住在这个纯函数模块里。
@@ -3013,21 +3014,38 @@ async function planResearch(
 
   const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
   /**
+   * ⭐ **能用自带联网就用自带，用不了才走我们的管线**（owner 2026-10-10，八题对比：
+   * GPT 自带 15/16、Gemini 14/16，管线 6/16）。所选模型自己没有（DeepSeek / Grok）
+   * 就借创作者配了 key 的那一家；快搜深搜都一样，深搜只是多搜几次。
+   * ⚠ 走管线的只剩：来源名单在场（自带联网管不住它打哪些站）、「再多找几个源」
+   * （百科 / danbooru 连接器补在自带联网旁边），以及一把能联网的 key 都没有。
+   */
+  const native = hasSourceRules(run.sourceRules)
+    ? null
+    : supportsNativeWebSearch(run.route.adapterType)
+      ? {
+          route: run.route,
+          ...(run.modelId ? { modelId: run.modelId } : {}),
+        }
+      : await findNativeSearchRoute(userId).catch(() => null)
+  const nativeOnly = native !== null && !args.expandSources
+  /**
    * ① 改写 + ② 选源 —— 一次结构化输出，挂了就回落到确定性那份。
    * ⭐ **快搜不改写**（owner 2026-09-30，照 Claude 的做法）：快搜只打网页一源，
    * 「选源」用不上；查询词交给所选模型自带的联网自己写，没有自带联网的
    * 走确定性查询表。省掉的是一次完整的 LLM 往返。
    */
-  const rewrite = quickNarrowed
-    ? {
-        queries: [],
-        langs: [],
-        sources: [ASSISTANT_RESEARCH_SOURCE_IDS.web],
-        questionType: detectResearchQuestionType(
-          [...entities, args.goal].join(' '),
-        ),
-      }
-    : await rewriteVerifyQueries(run, userId, args.goal, entities)
+  const rewrite =
+    quickNarrowed || nativeOnly
+      ? {
+          queries: [],
+          langs: [],
+          sources: [ASSISTANT_RESEARCH_SOURCE_IDS.web],
+          questionType: detectResearchQuestionType(
+            [...entities, args.goal].join(' '),
+          ),
+        }
+      : await rewriteVerifyQueries(run, userId, args.goal, entities)
   /**
    * ⚠ 优先级是硬的：模型自己指定的 `sources` > 「再多找几个源」> 规划器选的。
    * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是
@@ -3041,13 +3059,14 @@ async function planResearch(
    * 根本不在名单里 —— 照收窄的表现是他自己指定的源一个都没打、回来一句「查不到」。
    * 名单在场时照旧按规划器选源，下面那道闸再滤。
    */
-  const requestedSources: readonly AssistantResearchSource[] = quickNarrowed
-    ? [ASSISTANT_RESEARCH_SOURCE_IDS.web]
-    : args.sources?.length
-      ? args.sources
-      : args.expandSources
-        ? ASSISTANT_RESEARCH_SOURCES
-        : rewrite.sources
+  const requestedSources: readonly AssistantResearchSource[] =
+    quickNarrowed || nativeOnly
+      ? [ASSISTANT_RESEARCH_SOURCE_IDS.web]
+      : args.sources?.length
+        ? args.sources
+        : args.expandSources
+          ? ASSISTANT_RESEARCH_SOURCES
+          : rewrite.sources
 
   /**
    * ⭐ **来源白 / 黑名单压在最后**（§9.3）——它比上面那三条优先级都高，
@@ -3090,15 +3109,11 @@ async function planResearch(
   }
 
   /**
-   * ⭐ **所选模型自带联网**（owner 2026-09-30「各家用自带的联网」）：快搜的网页
-   * 那一源交给 Gemini / GPT / Claude 自己搜 —— 它自己写查询、自己读页、写一段
-   * 带引用的回答。那段回答就是这一轮的结论，⛔ 不再另烧一次 LLM 归纳。
-   * 本项目尚未接入 DeepSeek / Grok 原生联网，照旧走外部检索。
+   * ⭐ **自带联网**（owner 2026-09-30「各家用自带的联网」）：网页那一源交给
+   * Gemini / GPT / Claude 自己搜 —— 它自己写查询、自己读页、写一段带引用的回答。
+   * 那段回答就是这一轮的结论，⛔ 不再另烧一次 LLM 归纳。
    */
-  const nativeAdapter =
-    quickNarrowed && supportsNativeWebSearch(run.route.adapterType)
-      ? run.route.adapterType
-      : null
+  const nativeAdapter = native?.route.adapterType ?? null
   let nativeAnswer = ''
   const nativeSearch: {
     result?: Awaited<ReturnType<typeof llmNativeWebSearch>>
@@ -3115,11 +3130,14 @@ async function planResearch(
             const found = await llmNativeWebSearch({
               signal: run.signal,
               adapterType: nativeAdapter,
-              providerConfig: run.route.providerConfig,
-              apiKey: run.route.apiKey,
-              ...(run.modelId ? { modelId: run.modelId } : {}),
+              providerConfig: native!.route.providerConfig,
+              apiKey: native!.route.apiKey,
+              ...(native!.modelId ? { modelId: native!.modelId } : {}),
               systemPrompt: NATIVE_SEARCH_SYSTEM_PROMPT,
               query: [...entities, args.goal].join(' '),
+              ...(quick
+                ? {}
+                : { maxUses: RESEARCH_LIMITS.deepNativeSearchUses }),
             })
             nativeSearch.result = found
             nativeAnswer = found.status === 'searched' ? found.answer : ''
@@ -3263,17 +3281,18 @@ async function planResearch(
    * ⭐ 快搜不归纳（owner 2026-09-30）：自带联网那段回答本身就是结论；走 Serper 的
    * 用确定性摘录 —— 紧接着模型自己就要读证据写回答，再归纳一遍是重复劳动。
    */
-  const conclusion = quick
-    ? nativeAnswer
+  const conclusion =
+    nativeAnswer && !args.expandSources
       ? clamp(nativeAnswer, RESEARCH_LIMITS.maxConclusionChars)
-      : excerpted
-    : evidence.length > 0
-      ? ((await synthesizeResearchConclusion(run, {
-          goal: args.goal,
-          evidence,
-          questionType: rewrite.questionType,
-        })) ?? excerpted)
-      : excerpted
+      : quick
+        ? excerpted
+        : evidence.length > 0
+          ? ((await synthesizeResearchConclusion(run, {
+              goal: args.goal,
+              evidence,
+              questionType: rewrite.questionType,
+            })) ?? excerpted)
+          : excerpted
   const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
   /**
    * ⚠ 回执逐源列出来（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」

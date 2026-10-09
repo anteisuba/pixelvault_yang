@@ -574,8 +574,12 @@ export const AI_GATEWAY_PROVIDER_ROUTES = [
 export const ANTHROPIC_API = {
   VERSION: '2023-06-01',
   MESSAGES_PATH: '/messages',
-  /** 服务端网搜工具（带动态过滤的那一版）。 */
-  WEB_SEARCH_TOOL_TYPE: 'web_search_20260209',
+  /**
+   * 服务端网搜工具。⚠ 不用带动态过滤的 `web_search_20260209`：它让 Claude 写代码
+   * 过滤结果，2026-10-10 对比里过滤代码报错、重试把次数用光，8 题只答对 3 题；
+   * 这一版同题 10–13 秒答对。
+   */
+  WEB_SEARCH_TOOL_TYPE: 'web_search_20250305',
   MODELS_PATH: '/models',
   /**
    * Beta header that unlocks `fallbacks: 'default'` on `/messages`. Claude

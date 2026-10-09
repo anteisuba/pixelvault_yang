@@ -2934,6 +2934,8 @@ export interface LlmNativeSearchInput {
   systemPrompt: string
   query: string
   signal?: AbortSignal
+  /** 一次调用里最多搜几次。缺省 `NATIVE_SEARCH_MAX_USES`；深搜给得多一些。 */
+  maxUses?: number
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
@@ -3382,7 +3384,7 @@ async function anthropicNativeWebSearch(
           {
             type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
             name: 'web_search',
-            max_uses: NATIVE_SEARCH_MAX_USES,
+            max_uses: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
           },
         ],
       }),

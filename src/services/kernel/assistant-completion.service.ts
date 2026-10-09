@@ -74,7 +74,7 @@ export interface AssistantLlmCallLog {
  * 同一行另发给 execution worker 存进 Workers Logs（Vercel 的只留 1 小时）。
  * ⚠ 字段名用复数 `*Tokens`：logger 会把以 `token` 结尾的字段当密钥脱敏。
  */
-function startCallLog(
+export function startCallLog(
   options: Pick<CompleteAssistantTextOptions, 'callLog' | 'route' | 'modelId'>,
   attempt: number,
 ) {

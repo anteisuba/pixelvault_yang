@@ -2963,7 +2963,7 @@ describe('read_state', () => {
       expect(prompt).toContain('that message is the green light')
     })
 
-    it('给批里新建的卡写词：整批退回并点名那一条', async () => {
+    it('给批里新建的卡写词、设参数：同一批落，前端按 ref 换真 id（2026-10-09 T03 / T18）', async () => {
       queueTurns(
         batch([
           {
@@ -2975,6 +2975,7 @@ describe('read_state', () => {
             position: { x: 0, y: 0 },
           },
           { op: 'set_prompt', target: 'new1', prompt: 'x', mode: 'replace' },
+          { op: 'set_params', target: 'new1', params: { aspectRatio: '3:4' } },
         ]),
         { finished: true },
       )
@@ -2982,17 +2983,22 @@ describe('read_state', () => {
         runAssistantOperator('clerk-1', boardRequest()),
       )
       const step = stepsOf(events).find(
-        (item) => item.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+        (item) =>
+          item.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch &&
+          item.status === 'done',
       )
-      expect(step?.status).toBe('error')
-      expect(step?.error?.reason).toBe('noSuchControl')
-      expect(step?.error?.detail).toContain('ops[1] (set_prompt)')
-      expect(step?.error?.detail).toContain('next call')
+      expect(step?.payload).toMatchObject({
+        ops: [
+          { op: 'add_node', ref: 'new1' },
+          { op: 'set_prompt', target: 'new1', prompt: 'x' },
+          { op: 'set_params', target: 'new1', params: { aspectRatio: '3:4' } },
+        ],
+      })
       expect(
         events.some(
           (event) => event.type === 'stopped' && event.reason === 'canvas_sync',
         ),
-      ).toBe(false)
+      ).toBe(true)
     })
 
     it('一条参数不在表里，整批不落', async () => {

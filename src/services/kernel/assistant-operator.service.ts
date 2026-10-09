@@ -1009,7 +1009,7 @@ function pushLedgerLine(lines: string[], line: string): void {
  * ⚠ 只记**真的跑成了**的步：被拒的那些进不了结论 —— 一条「你不能这么干」不是
  * 本轮得出的事实，它已经在观察里对模型说过一次了。
  */
-function recordLedgerStep(
+export function recordLedgerStep(
   run: OperatorRun,
   verb: AssistantOperatorVerb,
   title: string,
@@ -1055,7 +1055,7 @@ function operatorStepKey(tool: AssistantOperatorTool, args: unknown): string {
 
 // ─── 工具计划（纯函数，不碰 IO）──────────────────────────────────
 
-type ToolPlan =
+export type ToolPlan =
   | {
       kind: 'rejected'
       reason: AssistantOperatorRejectReason
@@ -1304,7 +1304,7 @@ function reject(
  * ⭐ 其余一律是「这一步的技术故障」：做成一条被拒的步（`toolFailed`）而不是让整轮以
  * 一句笼统的「出错了」结束 —— 用户要的东西多半不依赖这一步。
  */
-function isFatalOperatorToolError(error: unknown): boolean {
+export function isFatalOperatorToolError(error: unknown): boolean {
   return (
     error instanceof ApiKeyError ||
     error instanceof AuthError ||
@@ -1312,7 +1312,7 @@ function isFatalOperatorToolError(error: unknown): boolean {
   )
 }
 
-const TOOL_FAILED_DETAIL =
+export const TOOL_FAILED_DETAIL =
   "This tool hit a temporary technical problem — not the creator's doing and not a bad argument. Carry on with whatever does not depend on it, or tell the creator plainly that this step could not run and offer to try again. Never claim it succeeded."
 
 /**
@@ -7494,7 +7494,7 @@ async function planSetReviewState(
  * （owner 2026-10-08：放在每步都变的那段里吃不到 provider 的提示词缓存，还每步重发一遍）。
  */
 const CANVAS_GUIDE: readonly string[] = [
-  'BATCH FIRST: when a request needs more than one change, send ONE canvas_batch {action:"canvas_batch",ops:[...]} with every op in order — add_node with "ref":"new1", then set_model / connect / attach_asset that name "new1" as target or source. The batch lands as one undo and the turn pauses once (canvas_sync) instead of once per op. A card created in the batch has no real id until the board comes back: write its prompt and params in the NEXT call with the id from the fresh board. canvas_apply is for a single change.',
+  'BATCH FIRST: when a request needs more than one change, send ONE canvas_batch {action:"canvas_batch",ops:[...]} with every op in order — add_node with "ref":"new1", then set_model / connect / attach_asset that name "new1" as target or source. The batch lands as one undo and the turn pauses once (canvas_sync) instead of once per op. set_prompt and set_params can name "new1" in the same batch too. canvas_apply is for a single change.',
   'lastFailure on a card is why its last generation failed. code content_filtered means the provider safety system blocked the prompt or the finished image: name that reason, then rewrite the prompt around what likely tripped it instead of retrying it unchanged: [moderation: output · other] on a known character usually means the finished image looked like a real actor — make it clearly stylized and non-photoreal, resembling no real person; an input-stage or sexual block points at age-and-body wording. It stays on the card until the next generation: once you have rewritten that prompt, the failure is handled.',
   'Every media card shows "model": its selected model id, or null when none is selected. availableModels names an entry of board.modelLists: candidates, not selections. Before reporting completion, check the fresh board has each requested model, prompt and reference input: apply what is missing, never claim it is configured, and do not repeat a change that is already there. Wire references and set the model before the final prompt. After each canvas_sync, read the fresh canvas state and continue until every requested card, reference and link is there; if you cannot finish, name exactly which parts remain.',
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
@@ -7812,15 +7812,18 @@ async function planCanvasBatch(
       alreadyThere.push(noOp)
       continue
     }
+    /**
+     * 同批新建的卡（`ref`）还不在工作副本上，规划器校验不了它的提示词与参数档位：
+     * 原样交给前端 —— 前端落这一批时按 ref 换真 id（`context.refs`），参数照合并。
+     * ⚠ 从前这里整批拒，建一张卡要三次往返（2026-10-09 回放 T03 / T18）。
+     */
     if (
       (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt ||
         op.op === NODE_ASSISTANT_OP_V4_IDS.setParams) &&
       refs.has(op.target)
     ) {
-      return reject(
-        REJECT.noSuchControl,
-        `ops[${index}] (${op.op}): "${op.target}" is a card created in this same batch and has no id yet. Send the batch without this op; it ends with canvas_sync, and the fresh board gives the card its real id — then write its prompt and params in the next call.`,
-      )
+      payload.push(op)
+      continue
     }
     const plan = await planCanvasApply(run, op, userId, refs)
     if (plan.kind === 'mutate') {
@@ -9141,7 +9144,7 @@ function loraMountedIdsHint(
     .join(' | ')}.`
 }
 
-async function planTool(
+export async function planTool(
   run: OperatorRun,
   tool: AssistantOperatorTool,
   rawArgs: unknown,
@@ -9550,7 +9553,7 @@ function assertNever(value: never): never {
 
 // ─── 提示词 ─────────────────────────────────────────────────────
 
-const RESPONSE_LANGUAGE_LABELS: Record<
+export const RESPONSE_LANGUAGE_LABELS: Record<
   PromptAssistantResponseLanguage,
   string
 > = {
@@ -9565,7 +9568,7 @@ const RESPONSE_LANGUAGE_LABELS: Record<
  * ⚠ `ui` 是「跟界面走」，也就是请求里带上来的那一档；另外两档是用户在助手设置里
  * 明确说过的话，⛔ 不该被界面语言压过去（那正是他去设置里改它的原因）。
  */
-function resolveResponseLanguage(
+export function resolveResponseLanguage(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
 ): PromptAssistantResponseLanguage {
@@ -9790,7 +9793,7 @@ function planReferenceEvidenceGap(
  * ⚠ 只是兜底：最后一步已经提前告诉模型「这一步只许收尾」，它照做时用的是它自己
  * 那句（说得出做到哪、还剩什么），这一句只在它仍去调工具且没写正文时出现。
  */
-const OPERATOR_OUT_OF_STEPS_MESSAGES: Record<
+export const OPERATOR_OUT_OF_STEPS_MESSAGES: Record<
   PromptAssistantResponseLanguage,
   string
 > = {
@@ -9830,7 +9833,7 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
   }
 
 /** 同一个工具因同一个理由连着被拒（`LIMITS.maxSameRejectionStrikes`）时收尾的那句。 */
-const OPERATOR_SAME_FAILURE_MESSAGES: Record<
+export const OPERATOR_SAME_FAILURE_MESSAGES: Record<
   PromptAssistantResponseLanguage,
   (step: string) => string
 > = {
@@ -9898,7 +9901,7 @@ function buildModelDialectSection(request: AssistantOperatorRequest): string {
  * ⚠ 视频写法与 Seedance 控制规则很长：只在展开的镜里真有视频节点时给，且 Seedance
  *   规则只给一份。
  */
-function buildCanvasModelDialectSection(
+export function buildCanvasModelDialectSection(
   request: AssistantOperatorRequest,
 ): string {
   const nodes = (request.snapshot.canvas?.shots ?? []).flatMap((shot) =>
@@ -9996,7 +9999,7 @@ const PLAN_MODE_DIRECTIVES: Record<
     'Skip the plan unless the request spends credits or needs more than three steps.',
 }
 
-function buildPersonaStyleSection(persona: AssistantPersona): string {
+export function buildPersonaStyleSection(persona: AssistantPersona): string {
   const toneCustom = sanitizeToneCustom(persona)
   const lines = [
     persona.tone === ASSISTANT_PERSONA_TONE_IDS.custom
@@ -10214,7 +10217,7 @@ Treat these as settled unless the creator changes them: do not ask again about a
  * 那颗开关说的是「用我的说法」，而这几行说的是「我平时喜欢什么」——两件事，
  * 混在一颗开关下就没人能解释关掉它到底关掉了什么。
  */
-function buildCreatorSection(
+export function buildCreatorSection(
   persona: AssistantPersona,
   accountName: string | null,
   contextCards: readonly ContextCard[],
@@ -11283,7 +11286,7 @@ OUTPUT — one strict-JSON object and nothing else, no prose around it, no code 
  * （同一份系统提示 + 同一段对话），路由到同一处缓存才命中得了（2026-10-09 一天实测：
  * 输入只有 15% 走缓存）。⚠ 只发哈希，⛔ 不把用户 id 交给 provider。
  */
-function operatorCacheKey(run: OperatorRun, purpose: string): string {
+export function operatorCacheKey(run: OperatorRun, purpose: string): string {
   const scope =
     run.request.conversationId ?? run.request.workspaceKey ?? run.request.domain
   const digest = createHash('sha256')
@@ -11575,7 +11578,7 @@ export interface AssistantOperatorRunOptions {
 }
 
 /** 工具环本体收到的那一份：signal 已经并进了时间预算的硬线。 */
-interface OperatorTurnOptions {
+export interface OperatorTurnOptions {
   signal: AbortSignal
   /** 这一次请求是不是已经过了软线（只有画布看它）。 */
   pastSoftBudget: () => boolean
@@ -11786,7 +11789,7 @@ function parseMemoryCandidates(
  * 而他真正损失的只是一条摘要。
  * ⚠ 没有 `conversationId`（第一轮 / 老客户端）时**照旧算、照旧下发，只是不落库**。
  */
-async function closeRound(
+export async function closeRound(
   run: OperatorRun,
   args: {
     clerkId: string
@@ -11931,7 +11934,7 @@ async function closeRound(
  * ⚠ `todo` 是**这一帧自己带的那条待办**（确认卡那一支：「等你确认生成 N 张」），
  *   ⛔ 不在这里凭空写别的栏。
  */
-async function closeRoundBeforeStop(
+export async function closeRoundBeforeStop(
   run: OperatorRun,
   args: { clerkId: string; userId: string; todo?: string },
 ): Promise<AssistantOperatorRoundSummary | undefined> {
@@ -11998,7 +12001,10 @@ function initialMemoryArtifacts(
  * ⚠ 封顶之后**不再加**（⛔ 不挤掉旧的）：先见到的那几件是这一轮的来路，
  * 而截头会让助手记不住这一轮是从什么开始的（与客户端那份判据逐字同源）。
  */
-function rememberStepArtifacts(run: OperatorRun, rawStep: unknown): void {
+export function rememberStepArtifacts(
+  run: OperatorRun,
+  rawStep: unknown,
+): void {
   const parsed = AssistantOperatorStepSchema.safeParse(rawStep)
   if (!parsed.success) return
   for (const artifact of collectStepArtifacts(parsed.data)) {
@@ -12054,6 +12060,19 @@ export async function* runAssistantOperator(
   request: AssistantOperatorRequest,
   options: AssistantOperatorRunOptions = {},
 ): AsyncIterable<AssistantOperatorEvent> {
+  yield* runWithOperatorTimeBudget(options, (turnOptions) =>
+    runOperatorTurn(clerkId, request, turnOptions),
+  )
+}
+
+/**
+ * 时间预算那一层（软线 / 硬线 / 超时收尾）。⚠ 新内核（v3）与旧循环共用，
+ * ⛔ 别在新内核里再写一套计时：两套的表现是一边已经收尾、另一边还在跑。
+ */
+export async function* runWithOperatorTimeBudget(
+  options: AssistantOperatorRunOptions,
+  turn: (options: OperatorTurnOptions) => AsyncIterable<AssistantOperatorEvent>,
+): AsyncIterable<AssistantOperatorEvent> {
   const budget = options.timeBudget ?? ASSISTANT_OPERATOR_TIME_BUDGET
   const now = options.now ?? Date.now
   const startedAt = now()
@@ -12067,7 +12086,7 @@ export async function* runAssistantOperator(
   let concluded = 0
   let terminal = false
   try {
-    for await (const event of runOperatorTurn(clerkId, request, {
+    for await (const event of turn({
       signal,
       pastSoftBudget: () => now() - startedAt >= budget.softMs,
     })) {
@@ -12124,18 +12143,16 @@ export async function* runAssistantOperator(
   }
 }
 
-async function* runOperatorTurn(
+/**
+ * 开跑前的准备：工作区鉴权、人设与规则、记忆、路由与工作副本。
+ * ⚠ 新内核（v3）与旧循环共用这一份，⛔ 别在两处各抄一遍：抄了就是两套鉴权。
+ */
+export async function prepareOperatorTurn(
   clerkId: string,
-  request: AssistantOperatorRequest,
-  options: OperatorTurnOptions,
-): AsyncIterable<AssistantOperatorEvent> {
-  if (options.signal?.aborted) {
-    yield {
-      type: ASSISTANT_OPERATOR_EVENTS.stopped,
-      reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
-    }
-    return
-  }
+  initialRequest: AssistantOperatorRequest,
+  signal: AbortSignal,
+) {
+  let request = initialRequest
   const user = await ensureUser(clerkId)
   const workspace = assistantWorkspaceFromKey(request.workspaceKey)
   if (
@@ -12339,7 +12356,7 @@ async function* runOperatorTurn(
     .map((item) => item.url)
 
   const run: OperatorRun = {
-    signal: options.signal,
+    signal,
     userId: user.id,
     priorRounds,
     referenceAnalysis: null,
@@ -12437,6 +12454,54 @@ async function* runOperatorTurn(
         includeResearchAppendix: runUsedResearch(run),
       },
     )
+  return {
+    request,
+    user,
+    persona,
+    rules,
+    route,
+    questionTurn,
+    modelId,
+    videoData,
+    audioData,
+    run,
+    composeSystemPrompt,
+  }
+}
+
+export type PreparedOperatorTurn = Awaited<
+  ReturnType<typeof prepareOperatorTurn>
+>
+
+export async function* runOperatorTurn(
+  clerkId: string,
+  request: AssistantOperatorRequest,
+  options: OperatorTurnOptions,
+  /** 新内核已经准备过一遍时直接交过来（它接不了这家模型时回到这里），⛔ 不再查一遍库。 */
+  preparedTurn?: PreparedOperatorTurn,
+): AsyncIterable<AssistantOperatorEvent> {
+  if (options.signal?.aborted) {
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+    }
+    return
+  }
+  const prepared =
+    preparedTurn ??
+    (await prepareOperatorTurn(clerkId, request, options.signal))
+  request = prepared.request
+  const {
+    user,
+    persona,
+    route,
+    questionTurn,
+    modelId,
+    videoData,
+    audioData,
+    run,
+    composeSystemPrompt,
+  } = prepared
   let planEmitted = false
   /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */
   const emittedRuleHits = new Set<string>()
@@ -13826,7 +13891,7 @@ async function* runOperatorTurn(
  * ⚠ `allowOther` 缺省 **true**（协议默认）：留一句「都不是」的出口是常态，
  *   关掉它要模型明写。
  */
-function normalizePlanQuestions(
+export function normalizePlanQuestions(
   turn: Pick<AssistantOperatorTurn, 'questions'>,
   clerkId: string,
 ): AssistantOperatorPlanQuestion[] {
@@ -13892,7 +13957,7 @@ function normalizePlanQuestions(
  * 的 step 发给客户端 —— 后者的表现是「点了撤销没反应」，一种最难查的失败。
  * 服务端与客户端因此共用同一份判据。
  */
-function toStepEvent(raw: unknown): AssistantOperatorEvent {
+export function toStepEvent(raw: unknown): AssistantOperatorEvent {
   return {
     type: ASSISTANT_OPERATOR_EVENTS.step,
     step: AssistantOperatorStepSchema.parse(raw),

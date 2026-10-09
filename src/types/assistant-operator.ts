@@ -33,6 +33,8 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { ASSISTANT_V3_KERNEL_ID } from '@/constants/assistant-v3'
+import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import {
   TimelineSnapshotAssetSchema,
   TimelineSnapshotSchema,
@@ -1919,6 +1921,13 @@ export const AssistantOperatorRequestSchema = z.object({
    * 服务端 ffmpeg 要往 Vercel 包里塞几十 MB）。
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
+  /**
+   * 新内核开关（v3 S1）。只有画布、只有管理员账号认它；别的情况照走旧内核。
+   * ⚠ 前端从本地开关读（`ASSISTANT_V3_KERNEL_STORAGE_KEY`），⛔ 不是用户设置。
+   */
+  kernel: z.literal(ASSISTANT_V3_KERNEL_ID).optional(),
+  /** v3 的本轮记录：接力时由前端原样带回（见 `types/assistant-v3.ts` ②）。 */
+  v3: z.object({ transcript: AssistantV3TranscriptSchema }).optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -4643,6 +4652,12 @@ export const AssistantOperatorStoppedEventSchema = z.object({
   roundSummary: AssistantOperatorRoundSummarySchema.optional(),
 })
 
+/** v3：本轮记录的最新一版，前端存着、接力时原样带回。 */
+export const AssistantOperatorTranscriptEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.transcript),
+  transcript: AssistantV3TranscriptSchema,
+})
+
 /**
  * 形态与 `AssistantStreamErrorFrame` 逐字一致 —— 客户端两条流共用一个错误渲染，
  * 外加下面两个**只属于这条流**的诊断字段。
@@ -4682,6 +4697,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,
+  AssistantOperatorTranscriptEventSchema,
 ])
 
 export type AssistantOperatorEvent = z.infer<

@@ -65,6 +65,10 @@ import {
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_V3_KERNEL_ID,
+  ASSISTANT_V3_KERNEL_STORAGE_KEY,
+} from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -174,6 +178,7 @@ import type {
   AssistantOperatorRequest,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
+import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type {
   StudioOperatorAttachment,
   StudioOperatorErrorTrace,
@@ -620,6 +625,21 @@ interface RunOptions {
    * 重新落等于把它们抹掉，于是第二次中断之后又要从头开始。
    */
   resumeFrom?: AssistantOperatorResumeFrom
+  /** v3：上一跳收到的本轮记录，画布接力时原样带回（⛔ 新一轮不带）。 */
+  v3Transcript?: AssistantV3Transcript
+}
+
+/** 新内核的本地开关（v3 S1）：只有画布认，服务端另外只放管理员过。 */
+function readsAssistantV3Kernel(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return (
+      window.localStorage.getItem(ASSISTANT_V3_KERNEL_STORAGE_KEY) ===
+      ASSISTANT_V3_KERNEL_ID
+    )
+  } catch {
+    return false
+  }
 }
 
 export interface UseAssistantOperatorResult {
@@ -959,6 +979,7 @@ export function useAssistantOperator(
       let canvasApplied = false
       let canvasNeedsInputSync = false
       let canvasSteps = options.canvasSteps ?? 0
+      let v3Transcript: AssistantV3Transcript | null = null
       let pendingPlanSteps: readonly string[] | null = null
       /**
        * ⭐ **接着跑同一份计划的那几轮不再落计划**（D12 S9）：点「开始」之后、答完
@@ -1175,6 +1196,13 @@ export function useAssistantOperator(
            */
           ...(resumeFrom ? { resumeFrom } : {}),
           responseLanguage: toResponseLanguage(locale),
+          ...(domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas &&
+          readsAssistantV3Kernel()
+            ? { kernel: ASSISTANT_V3_KERNEL_ID }
+            : {}),
+          ...(options.v3Transcript
+            ? { v3: { transcript: options.v3Transcript } }
+            : {}),
         },
         { signal: controller.signal },
       )
@@ -1798,6 +1826,9 @@ export function useAssistantOperator(
              * 什么都没产出、或者压缩那一跳失败了，都照常收尾 —— ⛔ 别为此画一个
              * 三栏全空的分隔块，那讲的是零。
              */
+            case ASSISTANT_OPERATOR_EVENTS.transcript:
+              v3Transcript = event.transcript
+              break
             case ASSISTANT_OPERATOR_EVENTS.done:
               terminalReceived = true
               if (event.roundSummary) {
@@ -1864,6 +1895,7 @@ export function useAssistantOperator(
           canvasSteps,
           planApproved: true,
           resumeFrom: resume ? (toResumeFrom(resume) ?? undefined) : undefined,
+          v3Transcript: v3Transcript ?? undefined,
         })
         return
       }

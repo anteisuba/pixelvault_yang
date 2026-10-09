@@ -1641,7 +1641,7 @@ describe('事件契约', () => {
    * ⚠ 断的是**集合相等**而不是「这十个都在」：后者放得过一条偷偷留下来的旧帧，
    * 而收敛这件事的全部意义就是「没有第十一个」。
    */
-  it('⭐ 事件联合恰好十一帧，一个不多一个不少', () => {
+  it('⭐ 事件联合恰好十二帧，一个不多一个不少', () => {
     const names = AssistantOperatorEventSchema.options
       .map((option) => option.shape.type.value)
       .sort()
@@ -1658,6 +1658,8 @@ describe('事件契约', () => {
         'done',
         'stopped',
         'error',
+        // v3 的本轮记录（前端存着、画布接力时带回）。
+        'transcript',
       ].sort(),
     )
     expect(Object.values(ASSISTANT_OPERATOR_EVENTS).sort()).toEqual(names)

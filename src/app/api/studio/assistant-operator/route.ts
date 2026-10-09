@@ -4,7 +4,10 @@ import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
+import { ASSISTANT_V3_KERNEL_ID } from '@/constants/assistant-v3'
+import { isAdmin } from '@/lib/admin'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
+import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -88,13 +91,24 @@ export async function POST(request: NextRequest): Promise<Response> {
       durationMs: Date.now() - startedAt,
     })
 
+    /**
+     * 新内核（v3 S1）只开画布、只开管理员、且前端在本地开关里选了 v3。
+     * ⚠ 线上默认不动：三样缺一样都走旧内核。
+     */
+    const useV3 =
+      parsed.data.kernel === ASSISTANT_V3_KERNEL_ID &&
+      parsed.data.domain === 'canvas' &&
+      isAdmin(clerkId)
+
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。
     return toAssistantOperatorSseResponse({
       routeName,
       signal: request.signal,
       events: (signal) =>
-        runAssistantOperator(clerkId, parsed.data, { signal }),
+        useV3
+          ? runAssistantV3(clerkId, parsed.data, { signal })
+          : runAssistantOperator(clerkId, parsed.data, { signal }),
     })
   } catch (error) {
     // 只有「还没开始出流」的失败会落到这里。流开始之后再挂，是成帧器补的

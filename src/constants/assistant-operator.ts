@@ -111,6 +111,8 @@ export const ASSISTANT_OPERATOR_EVENTS = {
   stopped: 'stopped',
   /** 流中途失败，形态与 `AssistantStreamErrorFrame` 一致。 */
   error: 'error',
+  /** v3：本轮记录的最新一版（`types/assistant-v3.ts` ②），前端存着、接力时带回。 */
+  transcript: 'transcript',
 } as const
 
 export type AssistantOperatorEventName =

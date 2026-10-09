@@ -557,7 +557,7 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
   }
 }
 
-function getOpenAiChatBaseUrl(baseUrl?: string): string {
+export function getOpenAiChatBaseUrl(baseUrl?: string): string {
   if (!baseUrl) return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
   return baseUrl.endsWith('/images')
     ? baseUrl.slice(0, -'/images'.length)

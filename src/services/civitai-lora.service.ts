@@ -2154,8 +2154,8 @@ export async function mineCivitaiUserPrompts({
 }: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
   const targetHash = fileHashAutoV3?.toLowerCase() ?? null
 
-  // 无配方兜底：模型版本示例图里没带 prompt 的静态图，留到最后（community
-  // 路径也挖不到配方时）作纯预览展示。
+  // 作者示例图里没带 prompt 的静态图：作为纯预览图始终随结果返回，排在
+  // 带配方的图后面——作者的样图必放，不能被社区配方图顶掉。
   let sourcePreviews: CivitaiPreviewImage[] = []
   if (modelVersionId !== undefined) {
     const { recipes: sourceRecipes, previews } =
@@ -2165,6 +2165,7 @@ export async function mineCivitaiUserPrompts({
         outfits: deriveOutfitsFromRecipes(sourceRecipes),
         totalSampled: sourceRecipes.length,
         recipes: sourceRecipes,
+        previewImages: previews.length > 0 ? previews : undefined,
       }
     }
     sourcePreviews = previews
@@ -2299,11 +2300,7 @@ export async function mineCivitaiUserPrompts({
     outfits: summarised,
     totalSampled: consideredCount,
     recipes,
-    // community 路径也没挖到配方时，才把模型版本示例图当纯预览图露出。
-    previewImages:
-      recipes.length === 0 && sourcePreviews.length > 0
-        ? sourcePreviews
-        : undefined,
+    previewImages: sourcePreviews.length > 0 ? sourcePreviews : undefined,
     descriptionText,
   }
 }

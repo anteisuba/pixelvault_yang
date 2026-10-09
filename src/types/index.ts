@@ -5021,8 +5021,8 @@ export const CivitaiMinedPromptsResultSchema = z.object({
   totalSampled: z.number().int().nonnegative(),
   // 逐图配方（optional：旧缓存/旧响应没有这个字段，消费方需兜底）。
   recipes: z.array(CivitaiImageRecipeSchema).optional(),
-  // 无配方兜底：作者示例图无 prompt 元数据时的纯预览图。仅在 recipes 为空时
-  // 有值；optional 向后兼容旧缓存。
+  // 作者示例图里无 prompt 元数据的纯预览图（与 recipes 并存，展示时排在
+  // 带配方的图后面）；optional 向后兼容旧缓存。
   previewImages: z.array(CivitaiPreviewImageSchema).optional(),
   // 无配方兜底（方案 B）：作者写在 model.description 里的推荐词（已 strip 成纯
   // 文本），原样给用户自读+复制。仅在 recipes 为空时可能有值；optional。

@@ -2763,6 +2763,7 @@
       "statSamples": "サンプル",
       "samplesWithRecipe": "{count} 枚 · すべてレシピあり",
       "samplesCount": "{count} 枚",
+      "samplesSomeWithRecipe": "{count} 枚 · {recipes} 枚レシピあり",
       "mineCountQuery": "{section}のうち「{query}」を含むもの {count} 件",
       "mineCountUnit": "件の{section}",
       "files": "ファイル",

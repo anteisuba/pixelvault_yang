@@ -839,12 +839,14 @@ export function LoraAssetDetail({
   const minedPrompts = useCivitaiMinedPrompts(
     asset.provider === 'civitai' ? asset : null,
   )
+  // 带配方的图在前，作者没带配方的示例图在后（作者的图必放）。
   const sampleUrls =
-    minedPrompts.recipes.length > 0
-      ? minedPrompts.recipes.map((recipe) => recipe.imageUrl)
-      : minedPrompts.previewImages.length > 0
-        ? minedPrompts.previewImages.map((preview) => preview.imageUrl)
-        : asset.previewImageUrls
+    minedPrompts.recipes.length > 0 || minedPrompts.previewImages.length > 0
+      ? [
+          ...minedPrompts.recipes.map((recipe) => recipe.imageUrl),
+          ...minedPrompts.previewImages.map((preview) => preview.imageUrl),
+        ]
+      : asset.previewImageUrls
   const images = [
     ...new Set(
       [asset.coverImageUrl, ...sampleUrls].filter((url): url is string =>

@@ -2763,6 +2763,7 @@
       "statSamples": "Samples",
       "samplesWithRecipe": "{count} · all with recipes",
       "samplesCount": "{count}",
+      "samplesSomeWithRecipe": "{count} · {recipes} with recipes",
       "mineCountQuery": "{count, plural, one {# item} other {# items}} in {section} match “{query}”",
       "mineCountUnit": "{count, plural, one {item} other {items}} in {section}",
       "files": "Files",

@@ -230,23 +230,34 @@ export function LoraLibraryDetailPage({
     copiedTimer.current = setTimeout(() => setCopied(null), COPIED_ACK_MS)
   }
 
-  // 样例：带配方的逐图配方优先；没配方的是作者示例图（Hugging Face 是 README 里的图），只看图。
+  // 样例：带配方的逐图配方在前，作者没带配方的示例图在后（作者的图必放）；
+  // 都没有时退回作者示例图（Hugging Face 是 README 里的图），只看图。
   const samples = useMemo<readonly Sample[]>(() => {
-    if (mined.recipes.length > 0) {
-      return mined.recipes.map((recipe) => ({
-        url: recipe.imageUrl,
-        hasRecipe: true,
-        ratio:
-          recipe.width && recipe.height ? recipe.width / recipe.height : null,
-      }))
-    }
+    const withRecipe = mined.recipes.map((recipe) => ({
+      url: recipe.imageUrl,
+      hasRecipe: true,
+      ratio:
+        recipe.width && recipe.height ? recipe.width / recipe.height : null,
+    }))
+    const recipeUrls = new Set(withRecipe.map((sample) => sample.url))
     const previews =
       mined.previewImages.length > 0
-        ? mined.previewImages.map((image) => image.imageUrl)
-        : showcase.images.length > 0
-          ? showcase.images
-          : current.previewImageUrls
-    return previews.map((url) => ({ url, hasRecipe: false, ratio: null }))
+        ? mined.previewImages.map((image) => ({
+            url: image.imageUrl,
+            hasRecipe: false,
+            ratio:
+              image.width && image.height ? image.width / image.height : null,
+          }))
+        : withRecipe.length > 0
+          ? []
+          : (showcase.images.length > 0
+              ? showcase.images
+              : current.previewImageUrls
+            ).map((url) => ({ url, hasRecipe: false, ratio: null }))
+    return [
+      ...withRecipe,
+      ...previews.filter((sample) => !recipeUrls.has(sample.url)),
+    ]
   }, [
     current.previewImageUrls,
     mined.previewImages,
@@ -256,14 +267,16 @@ export function LoraLibraryDetailPage({
   const samplesLoading = mined.isLoading || showcase.isLoading
   // 查看器吃的是「配方」：没配方的样例补成只有图的一条（右栏写「这张没有公开配方」）。
   const viewerRecipes = useMemo<readonly CivitaiImageRecipe[]>(
-    () =>
-      mined.recipes.length > 0
-        ? mined.recipes
-        : samples.map((sample) => ({
-            imageUrl: sample.url,
-            source: 'model_version_image' as const,
-            prompt: '',
-          })),
+    () => [
+      ...mined.recipes,
+      ...samples
+        .filter((sample) => !sample.hasRecipe)
+        .map((sample) => ({
+          imageUrl: sample.url,
+          source: 'model_version_image' as const,
+          prompt: '',
+        })),
+    ],
     [mined.recipes, samples],
   )
   const recipeCount = mined.recipes.length
@@ -907,9 +920,14 @@ export function LoraLibraryDetailPage({
                       {tb('statSamples')}
                     </dt>
                     <dd className="font-mono text-foreground">
-                      {recipeCount > 0
-                        ? tb('samplesWithRecipe', { count: samples.length })
-                        : tb('samplesCount', { count: samples.length })}
+                      {recipeCount === 0
+                        ? tb('samplesCount', { count: samples.length })
+                        : recipeCount < samples.length
+                          ? tb('samplesSomeWithRecipe', {
+                              count: samples.length,
+                              recipes: recipeCount,
+                            })
+                          : tb('samplesWithRecipe', { count: samples.length })}
                     </dd>
                   </div>
                 ) : null}

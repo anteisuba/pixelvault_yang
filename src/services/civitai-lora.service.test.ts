@@ -413,6 +413,58 @@ describe('mineCivitaiUserPrompts', () => {
     expect(mockFetch).toHaveBeenCalledTimes(3)
   })
 
+  it('keeps prompt-less author images alongside community recipes', async () => {
+    // 作者示例图都没 prompt → 回落社区挖到配方；作者的图仍要放上去，不能被顶掉。
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 3140926,
+        name: 'v0.1',
+        images: [
+          {
+            url: 'https://image.civitai.com/author.jpeg',
+            width: 832,
+            height: 1216,
+            nsfwLevel: 1,
+            meta: {},
+          },
+        ],
+      }),
+    )
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            id: 1,
+            url: 'https://image.civitai.com/community.jpeg',
+            type: 'image',
+            width: 832,
+            height: 1216,
+            meta: {
+              prompt: '<lora:TestLora:0.8>, 1girl',
+              resources: [{ hash: 'AABBCCDDEEFF', name: 'TestLora' }],
+            },
+          },
+        ],
+      }),
+    )
+    mockFetch.mockResolvedValue(
+      jsonResponse({ id: 2787553, description: null }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2787553,
+      modelVersionId: 3140926,
+      fileHashAutoV3: 'aabbccddeeff',
+    })
+
+    expect(result.recipes?.map((recipe) => recipe.imageUrl)).toEqual([
+      'https://image.civitai.com/community.jpeg',
+    ])
+    expect(result.previewImages?.map((image) => image.imageUrl)).toEqual([
+      'https://image.civitai.com/author.jpeg',
+    ])
+  })
+
   it('skips video example images when collecting previewImages', async () => {
     // 视频封面渲染不了 <img> —— 纯预览图兜底也要跳过 video 条目。
     mockFetch.mockResolvedValueOnce(
@@ -492,8 +544,8 @@ describe('mineCivitaiUserPrompts', () => {
     expect(modelUrl.pathname).toBe('/api/v1/models/2769783')
   })
 
-  it('does not surface previewImages once a real recipe is found', async () => {
-    // 有配方就不需要兜底预览图 —— previewImages 应缺省（undefined）。
+  it('keeps author images without prompts next to the real recipes', async () => {
+    // 作者的图必放：没 prompt 的示例图照样作为纯预览图返回。
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         id: 5001,
@@ -534,7 +586,9 @@ describe('mineCivitaiUserPrompts', () => {
     })
 
     expect(result.recipes).toHaveLength(1)
-    expect(result.previewImages).toBeUndefined()
+    expect(result.previewImages?.map((image) => image.imageUrl)).toEqual([
+      'https://image.civitai.com/no-prompt.jpeg',
+    ])
     // 命中配方即返回，不回落 community。
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })

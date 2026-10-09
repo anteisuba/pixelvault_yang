@@ -2763,6 +2763,7 @@
       "statSamples": "样例",
       "samplesWithRecipe": "{count} 张 · 都带配方",
       "samplesCount": "{count} 张",
+      "samplesSomeWithRecipe": "{count} 张 · {recipes} 张带配方",
       "mineCountQuery": "{count} 个{section}里有「{query}」",
       "mineCountUnit": "个{section}",
       "files": "文件",

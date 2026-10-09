@@ -36,6 +36,16 @@ describe('resolveAssistantV3Model', () => {
     })
   })
 
+  it('Gemini 取 medium 思考档（默认最高档一步想 46 秒）', () => {
+    const model = resolveAssistantV3Model(
+      route(AI_ADAPTER_TYPES.GEMINI),
+      'gemini-3.8-flash',
+    )
+    expect(model?.providerOptions('cache')).toEqual({
+      google: { thinkingConfig: { thinkingLevel: 'medium' } },
+    })
+  })
+
   it('不在名单上的厂商照走旧内核', () => {
     expect(
       resolveAssistantV3Model(route(AI_ADAPTER_TYPES.NOVELAI), 'x'),

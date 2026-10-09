@@ -369,6 +369,8 @@ export const AssistantV3TranscriptCallSchema = z.object({
    * 快照减掉它，就知道哪几张是这一批新建的，临时名才对得上真 id。
    */
   knownIds: z.array(TranscriptIdSchema).max(1_000).optional(),
+  /** Gemini 3 的思考签名：回放时原样交回（见 `ASSISTANT_V3_LIMITS.maxSignatureChars`）。 */
+  signature: z.string().max(ASSISTANT_V3_LIMITS.maxSignatureChars).optional(),
 })
 
 export const AssistantV3TranscriptAssistantEntrySchema = z.object({

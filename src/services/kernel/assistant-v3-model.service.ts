@@ -3,6 +3,7 @@ import 'server-only'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
+import type { JSONValue } from '@ai-sdk/provider'
 import type { LanguageModel } from 'ai'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
@@ -15,7 +16,7 @@ import {
 /** AI SDK 的 `providerOptions` 形状（provider 名 → 该家的参数）。 */
 export type AssistantV3ProviderOptions = Record<
   string,
-  Record<string, string | number | boolean>
+  Record<string, JSONValue>
 >
 
 export interface AssistantV3Model {
@@ -69,7 +70,13 @@ export function resolveAssistantV3Model(
       return {
         model: provider(modelId),
         strictTools: false,
-        providerOptions: () => ({}),
+        /**
+         * Gemini 3 默认最高思考档：2026-10-10 一步调权重想了 4465 个 token、46 秒。
+         * 同一题 low 12 秒但把决定推回给创作者，medium 33 秒出卡 —— 取 medium。
+         */
+        providerOptions: () => ({
+          google: { thinkingConfig: { thinkingLevel: 'medium' } },
+        }),
       }
     }
     case AI_ADAPTER_TYPES.DEEPSEEK: {

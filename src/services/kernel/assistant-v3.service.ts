@@ -359,6 +359,13 @@ function transcriptMessages(
             toolCallId: call.id,
             toolName: call.tool,
             input: parseInput(call),
+            ...(call.signature
+              ? {
+                  providerOptions: {
+                    google: { thoughtSignature: call.signature },
+                  },
+                }
+              : {}),
           })),
         ],
       })
@@ -860,6 +867,7 @@ async function* runV3Turn(
       input: unknown
       invalid: boolean
       error?: unknown
+      signature?: string
     }[] = []
     try {
       const result = streamText({
@@ -883,12 +891,17 @@ async function* runV3Turn(
           }
           restart = false
         } else if (part.type === 'tool-call') {
+          const signature = part.providerMetadata?.google?.thoughtSignature
           calls.push({
             toolCallId: part.toolCallId,
             toolName: part.toolName,
             input: part.input,
             invalid: part.invalid === true,
             ...(part.invalid ? { error: part.error } : {}),
+            ...(typeof signature === 'string' &&
+            signature.length <= ASSISTANT_V3_LIMITS.maxSignatureChars
+              ? { signature }
+              : {}),
           })
         } else if (part.type === 'error') {
           throw part.error
@@ -942,6 +955,7 @@ async function* runV3Turn(
         0,
         ASSISTANT_V3_LIMITS.maxEntryChars,
       ),
+      ...(call.signature ? { signature: call.signature } : {}),
     }))
     const assistantEntry: Extract<
       AssistantV3TranscriptEntry,

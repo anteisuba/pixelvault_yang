@@ -1071,6 +1071,33 @@ describe('v3 内核 · LoRA 台', () => {
     )
   })
 
+  /**
+   * 2026-10-10：Gemini 3 每次工具调用带一个思考签名，回放时缺了 SDK 就塞占位签名，
+   * 模型丢了上一步的思考 —— 存进本轮记录、下一步原样交回。
+   */
+  it('Gemini 的思考签名跟着本轮记录走，下一步原样交回', async () => {
+    const mock = script(
+      [
+        {
+          type: 'tool-call',
+          toolCallId: 'call_1',
+          toolName: 'read',
+          input: JSON.stringify({ items: ['prompt'] }),
+          providerMetadata: { google: { thoughtSignature: 'sig-1' } },
+        },
+        {
+          type: 'finish',
+          finishReason: { unified: 'tool-calls', raw: undefined },
+          usage,
+        },
+      ],
+      textTurn('读完了。'),
+    )
+    await collect(runAssistantV3('clerk-1', loraRequest('看看提示词')))
+    const replayed = JSON.stringify(mock.doStreamCalls[1]!.prompt)
+    expect(replayed).toContain('"thoughtSignature":"sig-1"')
+  })
+
   it('停在搭配卡上：这条回复没写正文，就把卡上的 say 放在卡上方', async () => {
     script(
       toolTurn({

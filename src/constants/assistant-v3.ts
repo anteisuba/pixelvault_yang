@@ -190,6 +190,11 @@ export const ASSISTANT_V3_LIMITS = {
   maxEntryChars: 60_000,
   maxCallsPerMessage: 8,
   maxCallIdChars: 96,
+  /**
+   * Gemini 3 每次工具调用附带的思考签名（base64）。⚠ 回放时缺了它，SDK 塞一个占位
+   * 签名糊过去，模型就丢了上一步的思考（2026-10-10 五家实测：Gemini 慢且说做不一）。
+   */
+  maxSignatureChars: 32_000,
   maxReadCards: 12,
   maxLookCards: 6,
   /**

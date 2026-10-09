@@ -5341,6 +5341,30 @@ describe('看图闭环 · critique_result', () => {
     ).toBe('你说的是哪一张？')
   })
 
+  it('看图那一跳只带创作者这一句，⛔ 不带整段对话', async () => {
+    queueCritiqueRound()
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          ...RESULT_MENTION,
+          messages: [
+            { role: 'user', content: '很早以前说过的一句 OLD-MARK' },
+            { role: 'assistant', content: '好的，记下了 OLD-REPLY' },
+            { role: 'user', content: '出图了，帮我看一眼' },
+          ],
+        }),
+      ),
+    )
+    const call = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { imageData?: unknown; userPrompt?: string })
+      .find((input) => input.userPrompt?.startsWith('WHAT THIS PICTURE'))
+    expect(call?.userPrompt).toContain('出图了，帮我看一眼')
+    expect(call?.userPrompt).not.toContain('OLD-MARK')
+    expect(call?.userPrompt).not.toContain('OLD-REPLY')
+  })
+
   it('看图时成图与参考图逐张标明，⛔ 不让参考被读成成图', async () => {
     queueCritiqueRound()
 

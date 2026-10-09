@@ -6761,8 +6761,8 @@ async function planVideoCritique(
       completeAssistantTextWithContextRetry({
         signal: run.signal,
         systemPrompt: buildVideoFrameSystemPrompt(run.request, run.persona),
-        buildUserPrompt: (maxLength) =>
-          buildVideoFramePrompt(run, goal, frame.label, frame.t, maxLength),
+        buildUserPrompt: () =>
+          buildVideoFramePrompt(run, goal, frame.label, frame.t),
         route: visionRoute,
         contextCompactionTargetLength:
           OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
@@ -6778,7 +6778,7 @@ async function planVideoCritique(
     signal: run.signal,
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
     callLog: { purpose: 'videoCritique', domain: run.request.domain },
-    buildUserPrompt: (maxLength) =>
+    buildUserPrompt: () =>
       buildVideoCritiquePrompt(
         run,
         goal,
@@ -6788,7 +6788,6 @@ async function planVideoCritique(
           t: frame.t,
           note: notes[index] ?? '',
         })),
-        maxLength,
       ),
     route: visionRoute,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
@@ -6939,8 +6938,7 @@ async function planCritiqueResult(
     signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
     callLog: { purpose: 'critique', domain: run.request.domain },
-    buildUserPrompt: (maxLength) =>
-      buildCritiquePrompt(run, goal, result.modelLabel, maxLength),
+    buildUserPrompt: () => buildCritiquePrompt(run, goal, result.modelLabel),
     route: visionRoute,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     ...(visionModelId ? { modelId: visionModelId } : {}),
@@ -11166,11 +11164,24 @@ OUTPUT — one strict-JSON object and nothing else, no prose around it, no code 
 {"findings":[{"severity":"${SEVERITY.pass}","text":"..."},{"severity":"${SEVERITY.warn}","text":"..."},{"severity":"${SEVERITY.fail}","text":"..."}],"advice":"..."}`
 }
 
+/**
+ * 看图那几跳（看成图、逐帧、汇总）只带创作者这一轮那句话（2026-10-09 一天实测：
+ * 看图每次平均 4.85 万 token，大头是整段对话）。要评的目标已经在 goal 里，更早的
+ * 对话只会让它评着评着去答别的。
+ */
+function creatorAskSection(run: OperatorRun): string[] {
+  const latest = latestUserMessage(run.request).trim()
+  return latest
+    ? [
+        `WHAT THE CREATOR ASKED THIS TURN:\n${clamp(latest, LIMITS.maxMessageChars)}`,
+      ]
+    : []
+}
+
 function buildCritiquePrompt(
   run: OperatorRun,
   goal: string | null,
   modelLabel: string | undefined,
-  maxLength?: number,
 ): string {
   const sections: string[] = [
     goal
@@ -11191,14 +11202,7 @@ function buildCritiquePrompt(
       )
   }
 
-  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
-  const suffix = '\n\nReply with ONE JSON object.'
-  const conversationBudget =
-    maxLength === undefined
-      ? undefined
-      : Math.max(1, maxLength - prefix.length - suffix.length)
-
-  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
+  return `${[...sections, ...creatorAskSection(run)].join('\n\n')}\n\nReply with ONE JSON object.`
 }
 
 /**
@@ -11231,7 +11235,6 @@ function buildVideoFramePrompt(
   goal: string | null,
   label: string,
   timestampSeconds: number,
-  maxLength?: number,
 ): string {
   const sections: string[] = [
     `THIS FRAME IS THE "${label}" FRAME, taken at ${timestampSeconds}s of the clip.`,
@@ -11240,11 +11243,7 @@ function buildVideoFramePrompt(
       : 'WHAT THE CLIP WAS SUPPOSED TO BE: the creator never wrote it down — describe the frame on its own terms.',
   ]
 
-  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
-  const conversationBudget =
-    maxLength === undefined ? undefined : Math.max(1, maxLength - prefix.length)
-
-  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}`
+  return [...sections, ...creatorAskSection(run)].join('\n\n')
 }
 
 /**
@@ -11292,7 +11291,6 @@ function buildVideoCritiquePrompt(
   goal: string | null,
   modelLabel: string | undefined,
   frames: readonly { label: string; t: number; note: string }[],
-  maxLength?: number,
 ): string {
   const sections: string[] = [
     goal
@@ -11312,14 +11310,7 @@ function buildVideoCritiquePrompt(
       .join('\n\n')}`,
   )
 
-  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
-  const suffix = '\n\nReply with ONE JSON object.'
-  const conversationBudget =
-    maxLength === undefined
-      ? undefined
-      : Math.max(1, maxLength - prefix.length - suffix.length)
-
-  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
+  return `${[...sections, ...creatorAskSection(run)].join('\n\n')}\n\nReply with ONE JSON object.`
 }
 
 /**

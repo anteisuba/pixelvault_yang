@@ -1365,6 +1365,36 @@ describe('v3 内核 · 图片台', () => {
     )
   })
 
+  it('联网只认创作者点名的来源：模型自己加的「只搜 danbooru」丢掉，快搜才走得到自带联网', async () => {
+    const search = (onlySources: string[]) => ({
+      id: 'call_1',
+      name: 'search_web',
+      input: { goal: '艾弥丝的英文名', entities: ['艾弥丝'], onlySources },
+    })
+    script(toolTurn(search(['danbooru'])), textTurn('查到了。'))
+    await collect(runAssistantV3('clerk-1', imageRequest('艾弥丝英文名是什么')))
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'research',
+      { goal: '艾弥丝的英文名', entities: ['艾弥丝'] },
+      'user-1',
+    )
+    script(toolTurn(search(['danbooru'])), textTurn('查到了。'))
+    await collect(
+      runAssistantV3('clerk-1', imageRequest('只在 danbooru 上查艾弥丝')),
+    )
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'research',
+      {
+        goal: '艾弥丝的英文名',
+        entities: ['艾弥丝'],
+        onlySources: ['danbooru'],
+      },
+      'user-1',
+    )
+  })
+
   it('不在这台上的模型：拒掉并把原因交回模型', async () => {
     script(
       toolTurn({

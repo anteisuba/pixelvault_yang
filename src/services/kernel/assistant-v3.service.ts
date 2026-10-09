@@ -1318,6 +1318,26 @@ function translateMutation(
     : { ok: false, error: translated.error, title }
 }
 
+/**
+ * 只留创作者自己在话里点了名的来源。⚠ 模型自己填的（「只搜 danbooru」「只搜 web」）
+ * 会被旧执行器当成这一轮的来源名单，快搜于是不再走所选模型自带的联网，改走
+ * Serper + 读页（2026-10-10 回放 I1：中文名在 danbooru 里搜不到，自带联网一次就查到）。
+ */
+function namedByCreator(
+  context: V3Context,
+  sources: readonly string[],
+): string[] {
+  const said = context.request.messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .join('\n')
+    .toLowerCase()
+  return sources.filter((source) => {
+    const token = source.trim().toLowerCase()
+    return token.length > 0 && said.includes(token.split('.')[0] ?? token)
+  })
+}
+
 async function* executeCall(
   context: V3Context,
   name: Exclude<AssistantV3Tool, MutatingTool>,
@@ -1408,12 +1428,11 @@ async function* executeCall(
     case ASSISTANT_V3_TOOL_IDS.searchWeb: {
       const parsed = AssistantV3SearchWebInputSchema.parse(input)
       const title = `${text.searchWeb} ${parsed.goal}`
+      const onlySources = namedByCreator(context, parsed.onlySources ?? [])
       const plan = await planSafely(context, TOOL.research, {
         goal: parsed.goal,
         ...(parsed.entities.length ? { entities: parsed.entities } : {}),
-        ...(parsed.onlySources?.length
-          ? { onlySources: parsed.onlySources }
-          : {}),
+        ...(onlySources.length ? { onlySources } : {}),
       })
       return yield* settlePlan(context, TOOL.research, title, plan)
     }

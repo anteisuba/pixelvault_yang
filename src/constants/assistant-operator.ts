@@ -2397,6 +2397,13 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   maxCritiqueFindings: 4,
   /** 一条结论一句话 —— 卡片一行放得下的长度。 */
   maxCritiqueFindingChars: 120,
+  /**
+   * 看图先列清单再逐条判（v3 S5，2026-10-09 回放 T20：一次看个大概，每次只抓到
+   * owner 五条里的两三条）。清单不上卡 —— 卡上仍只放最要紧的四条，其余进观察行。
+   */
+  maxCritiqueChecks: 16,
+  /** 清单上一项「要查什么」的长度。 */
+  maxCritiqueCheckChars: 160,
   /** 「下一轮建议」那一行。 */
   maxCritiqueAdviceChars: 300,
   /** 评价那一步能带的目标描述（模型自己写的「这一轮想要什么」）。 */

@@ -1204,6 +1204,20 @@ export type AssistantOperatorCritique = z.infer<
 >
 
 /**
+ * 看图清单上的一项（**模型 → 服务端**，v3 S5）：要查什么、判成哪档、看见了什么。
+ * ⚠ 清单只在服务端：卡片仍按 `findings`（最多四条）渲染，由服务端从清单里挑。
+ */
+export const AssistantOperatorCritiqueCheckSchema = z.object({
+  check: z.string().trim().min(1).max(LIMITS.maxCritiqueCheckChars),
+  severity: AssistantOperatorVerdictSeveritySchema,
+  text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
+})
+
+export type AssistantOperatorCritiqueCheck = z.infer<
+  typeof AssistantOperatorCritiqueCheckSchema
+>
+
+/**
  * 视频评审卡上的**一帧**（第二期）。
  *
  * `t` 是秒（服务端从计划里取的真时间戳），`url` 是转存后的 R2 地址，`label` 是

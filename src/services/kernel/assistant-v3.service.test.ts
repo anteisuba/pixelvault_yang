@@ -740,7 +740,8 @@ describe('v3 内核', () => {
       'user-1',
       {
         referenceUrls: ['https://cdn.test/goyle.png'],
-        prompt: '图片1「高尔 · 黑袍」',
+        // 参考图抬头 + 提示词正文，两段都交给看图那一跳。
+        prompt: '图片1「高尔 · 黑袍」\n\n中景：女德拉科转身冲出门。',
         scriptNotes: null,
       },
     )

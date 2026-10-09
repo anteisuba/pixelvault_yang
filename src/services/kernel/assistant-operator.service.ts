@@ -476,6 +476,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   CANVAS_APPLY_OP_IDS,
   ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
+  AssistantOperatorCritiqueCheckSchema,
   AssistantOperatorCritiqueSchema,
   AssistantOperatorVideoCritiqueSchema,
   AssistantOperatorStepSchema,
@@ -483,6 +484,7 @@ import {
   type AssistantOperatorAskArgs,
   type AssistantOperatorContextCardDraft,
   type AssistantOperatorCritique,
+  type AssistantOperatorCritiqueCheck,
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
@@ -7080,6 +7082,7 @@ export async function planCritiqueResult(
     ...(references.length
       ? { imageLabels: critiqueImageLabels(run, references, canvas) }
       : {}),
+    imageDetail: 'high',
     responseFormat: 'json_object',
   })
   // ⚠ 唯一真的「看」的那一下（切片 X）。
@@ -7118,6 +7121,14 @@ export async function planCritiqueResult(
           (finding) => `  ${SEVERITY_MARKS[finding.severity]} ${finding.text}`,
         )
         .join('\n')}${
+        critique.offCard.length
+          ? `\n  also off (not on the card — say these in your reply too):\n${critique.offCard
+              .map(
+                (check) => `  ${SEVERITY_MARKS[check.severity]} ${check.text}`,
+              )
+              .join('\n')}`
+          : ''
+      }${
         advice ? `\n  next: ${advice}` : ''
       }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
     }),
@@ -11295,19 +11306,41 @@ The FIRST attached image is the result to assess. Any remaining images are sourc
 
 Be the kind of second pair of eyes a working art director is: concrete, specific to THIS picture, and willing to say the uncomfortable thing. Name what you actually see — a hand with six fingers, a horizon that tilts, a face that lost the reference's jawline. Vague praise is worse than silence.
 
+WORK FROM A CHECKLIST, NOT AN IMPRESSION. First write down what you see, then judge every check against it.
+
+"seen" — before judging anything: one line per panel (one line for a single picture). For each person in it: who they are, where their eyes point (into the camera, or at whom), what their hands do, what they wear and its colours, how many heads tall they are, and how the face and body are drawn. Only what is visible; no verdicts yet.
+
+"always" — these ${CRITIQUE_ALWAYS_CHECKS.length} whole-picture checks, every time, one item each, in this order. Look at every person for each of them; in a grid, across all panels:
+${CRITIQUE_ALWAYS_CHECKS.map((check, index) => `${index + 1}. ${check}`).join('\n')}
+
+"checks" — then every explicit requirement in the prompt it was made from and in the project's standing notes: how many people and who, where each one stands, who looks at whom, the action of each beat, framing, text — and anything the creator singled out this turn. In a grid of panels (a storyboard, a 3×3 sheet), go panel by panel and name the panel (panel 1 = top-left, in reading order).
+
 RULES:
-- Between ${1} and ${LIMITS.maxCritiqueFindings} findings, one short sentence each, in ${language}.
+- At most ${LIMITS.maxCritiqueChecks} items in "checks", one requirement each. "check" names the requirement; "text" is one short sentence in ${language} saying what you see for it.
 - "severity" is one of ${ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((value) => `"${value}"`).join(' / ')} and the three are NOT interchangeable:
-  · "${SEVERITY.fail}" — that part of the intent did NOT land. The thing asked for is not in the picture.
-  · "${SEVERITY.warn}" — it DID land, but something about it is visibly off: a smeared hand on an otherwise right pose, a colour that drifted, an edge that frayed. Use this instead of forcing a good-with-a-flaw result into pass or fail.
+  · "${SEVERITY.fail}" — that requirement did NOT land: it is missing or wrong in the picture.
+  · "${SEVERITY.warn}" — it DID land, but something about it is visibly off: a smeared hand on an otherwise right pose, a colour that drifted, an edge that frayed.
   · "${SEVERITY.pass}" — it landed, with nothing worth flagging.
-  Do not mark everything one way.
+  Never pass something that breaks the prompt, a standing note or a reference.
 - "advice" is one sentence about what to change next time — a prompt or a setting, not a pep talk. Use null when the picture is genuinely good enough.
 - Judge only what is visible. You cannot see the generation settings, and you must never claim you changed anything.
 
 OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
-{"findings":[{"severity":"${SEVERITY.pass}","text":"..."},{"severity":"${SEVERITY.warn}","text":"..."},{"severity":"${SEVERITY.fail}","text":"..."}],"advice":"..."}`
+{"seen":["panel 1: ..."],"always":[{"check":"...","severity":"${SEVERITY.warn}","text":"..."}],"checks":[{"check":"...","severity":"${SEVERITY.fail}","text":"..."},{"check":"...","severity":"${SEVERITY.pass}","text":"..."}],"advice":"..."}`
 }
+
+/**
+ * 看图每次都要判的整张图那几项（v3 S5）。⭐ 来自 owner 对马尔福九宫格的五条：
+ * 动漫脸配 3D 身体、比例、五个人对着镜头、学院色穿早了、第一格又伸手 —— 前四条
+ * 是整张图的毛病，提示词里不一定写，模型逐条核提示词时就漏了（回放 T20）。
+ */
+const CRITIQUE_ALWAYS_CHECKS = [
+  "Rendering style — say how the faces are drawn (eye size, ink outlines, flat or modelled shading) and how the bodies and the set are drawn. Faces, bodies and set must be ONE style, the project's look; anime faces (oversized eyes, outlines, flat shading) on 3D-rendered bodies or sets fail.",
+  'Proportions — say how many heads tall the main people are and compare it with the ages the prompt states (children of 10–12 are about six heads tall; four heads or less reads as chibi and fails unless the look asks for it); people of the same age are the same size side by side.',
+  'Eyes — for each person in each panel, where their eyes point; count who looks into the camera. Anyone looking into the camera when nothing asks for it fails.',
+  'Outfits — clothes and their colours against the references and the standing notes, including colours or insignia that should not be there.',
+  'Hands and limbs — finger count and shape, broken or missing limbs. (What a hand is doing belongs to that beat in "checks".)',
+] as const
 
 /**
  * 同一会话、同一用途的调用共用一把缓存键（OpenAI `prompt_cache_key`）：它们前缀相同
@@ -11359,8 +11392,6 @@ function buildCritiquePrompt(
   if (cardPrompt)
     sections.push(
       `THE PROMPT IT WAS MADE FROM (it names the reference images):\n${clamp(cardPrompt, CANVAS_CRITIQUE_PROMPT_CHARS)}`,
-      // v3 回放 T20：评语漏了「五个人对着镜头」——提示词里明写了不看镜头。
-      'Go through every explicit requirement in that prompt one by one — how many people and who, where each one stands, who looks at whom and whether anyone looks at the camera, outfits and their colours, framing and rendering style — and check each against the picture. Spend your findings on the requirements it breaks, the worst first; add a pass only when fewer than four are broken.',
     )
   if (scriptNotes)
     sections.push(
@@ -11573,19 +11604,102 @@ function parseTurnJson(
   }
 }
 
-/** 同上，但吃的是视觉那一跳的产出（P3-C）。解不出来 = 一条被拒的步，不是抛错。 */
-function parseCritiqueJson(raw: string): AssistantOperatorCritique | null {
+/**
+ * 看图那一跳的产出 → 卡上的几条 + 卡上放不下的那几条（P3-C；v3 S5 改清单）。
+ * 解不出来 = 一条被拒的步，不是抛错。
+ *
+ * ⭐ 模型先交一整张清单（`always` 五项 + `checks` 逐条要求），卡上那四条由
+ * **服务端**挑：没做到的在前、有瑕疵的其次，还有空位才放一条做到了的。⛔ 不让模型自己从清单里挑 —— 回放
+ * T20 里它每次挑的子集都不一样，漏掉的正是 owner 指出的那几条。
+ * ⚠ 清单里一项坏了只丢那一项；模型偶尔照旧交 `findings`，那一份也收。
+ */
+function parseCritiqueJson(
+  raw: string,
+):
+  | (AssistantOperatorCritique & { offCard: AssistantOperatorCritiqueCheck[] })
+  | null {
   for (const candidate of jsonCandidates(raw)) {
+    let value: unknown
     try {
-      const parsed = AssistantOperatorCritiqueSchema.safeParse(
-        JSON.parse(candidate) as unknown,
-      )
-      if (parsed.success) return parsed.data
+      value = JSON.parse(candidate) as unknown
     } catch {
-      // 下一个候选
+      continue
     }
+    const checklist = critiqueFromChecks(value)
+    if (checklist) return checklist
+    const parsed = AssistantOperatorCritiqueSchema.safeParse(value)
+    if (parsed.success) return { ...parsed.data, offCard: [] }
   }
   return null
+}
+
+const CRITIQUE_SEVERITY_ORDER: readonly AssistantOperatorVerdictSeverity[] = [
+  SEVERITY.fail,
+  SEVERITY.warn,
+  SEVERITY.pass,
+]
+
+function critiqueFromChecks(
+  value: unknown,
+):
+  | (AssistantOperatorCritique & { offCard: AssistantOperatorCritiqueCheck[] })
+  | null {
+  if (!value || typeof value !== 'object') return null
+  const { always, checks, advice } = value as {
+    always?: unknown
+    checks?: unknown
+    advice?: unknown
+  }
+  if (!Array.isArray(checks) && !Array.isArray(always)) return null
+  const seen = new Set<string>()
+  // ⭐ 整张图那几项排在逐条要求前面：同一档里先上卡（回放 T20：卡上四条全被逐格
+  //   动作占满，画风 / 比例 / 视线一条都没上）。
+  const parsed = [
+    ...(Array.isArray(always)
+      ? always.slice(0, CRITIQUE_ALWAYS_CHECKS.length)
+      : []),
+    ...(Array.isArray(checks) ? checks.slice(0, LIMITS.maxCritiqueChecks) : []),
+  ].flatMap((item: unknown) => {
+    const record =
+      item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
+    const check = AssistantOperatorCritiqueCheckSchema.safeParse({
+      ...record,
+      ...(typeof record.check === 'string'
+        ? { check: clamp(record.check, LIMITS.maxCritiqueCheckChars) }
+        : {}),
+      ...(typeof record.text === 'string'
+        ? { text: clamp(record.text, LIMITS.maxCritiqueFindingChars) }
+        : {}),
+    })
+    if (!check.success || seen.has(check.data.text)) return []
+    seen.add(check.data.text)
+    return [check.data]
+  })
+  if (parsed.length === 0) return null
+  const ranked = CRITIQUE_SEVERITY_ORDER.flatMap((severity) =>
+    parsed.filter((check) => check.severity === severity),
+  )
+  const problems = ranked.filter((check) => check.severity !== SEVERITY.pass)
+  const onCard = (problems.length ? problems : ranked).slice(
+    0,
+    LIMITS.maxCritiqueFindings,
+  )
+  const firstPass = ranked.find((check) => check.severity === SEVERITY.pass)
+  if (
+    onCard.length < LIMITS.maxCritiqueFindings &&
+    problems.length &&
+    firstPass
+  )
+    onCard.push(firstPass)
+  const adviceText =
+    typeof advice === 'string'
+      ? clamp(advice.trim(), LIMITS.maxCritiqueAdviceChars) || null
+      : null
+  return {
+    findings: onCard.map(({ severity, text }) => ({ severity, text })),
+    advice: adviceText,
+    offCard: problems.slice(LIMITS.maxCritiqueFindings),
+  }
 }
 
 /**

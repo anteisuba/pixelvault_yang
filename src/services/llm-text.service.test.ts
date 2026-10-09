@@ -953,6 +953,31 @@ describe('OpenAI reference image transport', () => {
     },
   )
 
+  // 看图那一跳要 high：默认清晰度下九宫格每格的脸只有几个像素（回放 T20）。
+  it('passes imageDetail through as the OpenAI detail of every image part', async () => {
+    const inline = `data:image/png;base64,${Buffer.from('grid').toString('base64')}`
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(providerResponse(false))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      ...input,
+      imageData: [inline, inline],
+      imageDetail: 'high',
+    })
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body
+    if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
+    const payload = JSON.parse(body) as {
+      messages: Array<{ content: Array<{ image_url?: { detail?: string } }> }>
+    }
+    const details = payload.messages[1]?.content
+      .filter((part) => part.image_url)
+      .map((part) => part.image_url?.detail)
+    expect(details).toEqual(['high', 'high'])
+  })
+
   it.each([false, true])(
     'preserves a 21 MiB original image within the OpenAI request budget (stream=%s)',
     async (stream) => {

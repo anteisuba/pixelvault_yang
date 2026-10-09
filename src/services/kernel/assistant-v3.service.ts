@@ -1830,8 +1830,13 @@ async function* executeLook(
     const sources = critique.node?.referenceUrls?.length
       ? {
           referenceUrls: critique.node.referenceUrls,
+          // ⚠ 参考图抬头只点名哪张是哪张，提示词正文在 `text` —— 两段都要（回放
+          //   T20：只交了抬头，「11 岁、一年级儿童比例」那句看图模型从没见过）。
           prompt:
-            critique.node.referencePromptContext ?? critique.node.text ?? null,
+            [critique.node.referencePromptContext, critique.node.text]
+              .map((part) => part?.trim())
+              .filter(Boolean)
+              .join('\n\n') || null,
           scriptNotes,
         }
       : undefined

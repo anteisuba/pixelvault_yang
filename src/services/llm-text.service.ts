@@ -98,6 +98,12 @@ export interface LlmTextInput {
    */
   imageLabels?: string[]
   /**
+   * OpenAI `detail` for every image part. The assistant's critique asks for
+   * `high`: a 3×3 storyboard at the default size leaves each face a few pixels
+   * wide, and "who looks into the camera" goes unseen (2026-10-09 T20).
+   */
+  imageDetail?: 'high'
+  /**
    * Groups requests that share a long prefix (the same system prompt and
    * conversation) so the provider routes them to the same prompt cache —
    * OpenAI `prompt_cache_key`. A day of assistant calls hit the cache on only
@@ -1834,7 +1840,10 @@ async function buildOpenAiChatRequest(
       input,
       inlineImages.map((img) => ({
         type: 'image_url',
-        image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+        image_url: {
+          url: `data:${img.mimeType};base64,${img.data}`,
+          ...(input.imageDetail ? { detail: input.imageDetail } : {}),
+        },
       })),
       (text) => ({ type: 'text', text }),
     )

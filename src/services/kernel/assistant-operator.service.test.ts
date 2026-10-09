@@ -5357,6 +5357,72 @@ describe('看图闭环 · critique_result', () => {
   })
 
   /**
+   * ⭐ v3 S5：看图先列清单再逐条判。卡上那四条由服务端挑（没做到的在前、有瑕疵的
+   * 其次），卡上放不下的进观察行让助手在正文里说；回放 T20 里模型自己挑，每次漏的
+   * 都不一样。
+   */
+  it('清单：卡上放最要紧的四条，其余的进观察行', async () => {
+    queueCritiqueRound({
+      checks: [
+        { check: '红伞', severity: 'pass', text: '红伞是画面唯一的暖色' },
+        { check: '不看镜头', severity: 'fail', text: '五个人都在看镜头' },
+        { check: '画风统一', severity: 'fail', text: '动漫脸配 3D 身体' },
+        { check: '手', severity: 'warn', text: '第一格又伸手' },
+        { check: '比例', severity: 'fail', text: '身材比参考高了一头' },
+        { check: '校袍', severity: 'warn', text: '领带是学院绿，此时应纯黑' },
+        { check: '坏的一项', severity: 'maybe', text: '这一项被丢掉' },
+      ],
+      advice: '把「不看镜头」写在提示词最前面',
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
+    )
+    const done = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    ) as { result: { findings: { severity: string; text: string }[] } }
+    expect(done.result.findings).toEqual([
+      { severity: 'fail', text: '五个人都在看镜头' },
+      { severity: 'fail', text: '动漫脸配 3D 身体' },
+      { severity: 'fail', text: '身材比参考高了一头' },
+      { severity: 'warn', text: '第一格又伸手' },
+    ])
+    const prompts = mockLlmTextCompletion.mock.calls
+      .map((call) => (call[0] as { userPrompt?: string }).userPrompt ?? '')
+      .join('\n')
+    expect(prompts).toContain('also off (not on the card')
+    expect(prompts).toContain('⚠ 领带是学院绿，此时应纯黑')
+    const systemPrompt = visionCalls()[0] as { systemPrompt?: string }
+    expect(systemPrompt.systemPrompt).toContain('WORK FROM A CHECKLIST')
+  })
+
+  it('清单全过：卡上放做到了的，⛔ 不硬凑问题', async () => {
+    queueCritiqueRound({
+      checks: [
+        { check: '红伞', severity: 'pass', text: '红伞是画面唯一的暖色' },
+        { check: '雨', severity: 'pass', text: '雨丝方向一致' },
+      ],
+      advice: null,
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
+    )
+    const done = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    ) as { result: { findings: { severity: string }[]; advice: unknown } }
+    expect(done.result.findings.map((finding) => finding.severity)).toEqual([
+      'pass',
+      'pass',
+    ])
+    expect(done.result.advice).toBeNull()
+  })
+
+  /**
    * ⭐ **拍板 4 推翻（2026-09-06）的服务端一半**：`@` 指定的任意一张一律可看。
    * 三条来源各钉一条 —— ① `@` 的 id、② `@` 的地址、③ 归属票。
    * ⛔ 第四条不存在：名单外的目标一律 `unknownAsset`，模型不许自己写一条地址。

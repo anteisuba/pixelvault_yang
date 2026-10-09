@@ -139,6 +139,31 @@ export const ASSISTANT_PERSONA_TONES = [
 
 export type AssistantPersonaTone = (typeof ASSISTANT_PERSONA_TONES)[number]
 
+/**
+ * 助手的思考档位（owner 2026-10-10：像 Claude Code 那样 Low / Medium / High，三语都写
+ * 英文）。五家对齐：OpenAI / Claude / Gemini / Grok 用同名档；DeepSeek 只有
+ * low / high / max，按 Low→low、Medium→high、High→max（`ASSISTANT_DEEPSEEK_EFFORTS`）。
+ */
+export const ASSISTANT_REASONING_EFFORT_IDS = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const
+
+export const ASSISTANT_REASONING_EFFORTS = [
+  ASSISTANT_REASONING_EFFORT_IDS.low,
+  ASSISTANT_REASONING_EFFORT_IDS.medium,
+  ASSISTANT_REASONING_EFFORT_IDS.high,
+] as const
+
+export type AssistantReasoningEffort =
+  (typeof ASSISTANT_REASONING_EFFORTS)[number]
+
+export const ASSISTANT_DEEPSEEK_EFFORTS: Record<
+  AssistantReasoningEffort,
+  'low' | 'high' | 'max'
+> = { low: 'low', medium: 'high', high: 'max' }
+
 /** 回复长度三档。落到系统提示里是**字数区间**，不是「简短点」这种无边界形容词。 */
 export const ASSISTANT_PERSONA_VERBOSITY_IDS = {
   concise: 'concise',
@@ -336,6 +361,8 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
   /** §4.5：默认「自动」= 库里 `routeModel` 为 null 时的语义，两处必须一致。 */
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+  /** 思考档位默认 Medium（与库上的 `@default("medium")` 一致）。 */
+  reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.medium,
   /**
    * v2 §11.3 的三项。⚠ 与 `prisma/schema.prisma` 上的 `@default` 逐字一致。
    *

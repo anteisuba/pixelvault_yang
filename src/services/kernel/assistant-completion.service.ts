@@ -30,6 +30,7 @@ interface CompleteAssistantTextOptions {
   imageData?: LlmTextInput['imageData']
   imageLabels?: LlmTextInput['imageLabels']
   imageDetail?: LlmTextInput['imageDetail']
+  reasoningEffort?: LlmTextInput['reasoningEffort']
   cacheKey?: LlmTextInput['cacheKey']
   videoData?: LlmTextInput['videoData']
   audioData?: LlmTextInput['audioData']
@@ -220,6 +221,7 @@ export async function completeAssistantTextWithContextRetry({
   imageData,
   imageLabels,
   imageDetail,
+  reasoningEffort,
   cacheKey,
   videoData,
   audioData,
@@ -250,6 +252,7 @@ export async function completeAssistantTextWithContextRetry({
         imageData,
         imageLabels,
         imageDetail,
+        reasoningEffort,
         cacheKey,
         videoData,
         audioData,
@@ -379,6 +382,7 @@ export async function* streamAssistantTextWithContextRetry({
   imageData,
   imageLabels,
   imageDetail,
+  reasoningEffort,
   cacheKey,
   videoData,
   audioData,
@@ -411,6 +415,7 @@ export async function* streamAssistantTextWithContextRetry({
         imageData,
         imageLabels,
         imageDetail,
+        reasoningEffort,
         cacheKey,
         videoData,
         audioData,

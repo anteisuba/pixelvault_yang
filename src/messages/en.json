@@ -8228,6 +8228,19 @@
       "autoHint": "Pick per task",
       "needsKey": "Set up"
     },
+    "effortChip": {
+      "label": "Thinking",
+      "levels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "hints": {
+        "low": "Fastest; may miss details on complex tasks",
+        "medium": "Balances speed and quality",
+        "high": "Slowest, most careful"
+      }
+    },
     "web": {
       "candidates": "From the web · previews, not in your library yet",
       "pickHint": "Click an image to preview it. Choose Use to save it to your library and attach it.",

@@ -708,7 +708,9 @@ async function* runV3Turn(
       ? ASSISTANT_V3_FACE_IDS.lora
       : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
-  const model = modelId ? resolveAssistantV3Model(route, modelId) : null
+  const model = modelId
+    ? resolveAssistantV3Model(route, modelId, persona.reasoningEffort)
+    : null
   if (
     !model ||
     !modelId ||

@@ -189,10 +189,17 @@ export function StudioOperatorModelChip({
             <span className="max-w-32 truncate">{selectedLabel}</span>
             {/* 收着朝下、展开朝上（画板 BCards 两态）——箭头方向本身就是那一句
                 「它会往上开」。 */}
+            {/* 输入条窄时箭头让位给字（思考 chip 同一道门槛）。 */}
             {open ? (
-              <ChevronUp className="size-3 shrink-0" aria-hidden />
+              <ChevronUp
+                className="hidden size-3 shrink-0 @assistant-bar:block"
+                aria-hidden
+              />
             ) : (
-              <ChevronDown className="size-3 shrink-0" aria-hidden />
+              <ChevronDown
+                className="hidden size-3 shrink-0 @assistant-bar:block"
+                aria-hidden
+              />
             )}
           </button>
         </ResponsivePopoverTrigger>

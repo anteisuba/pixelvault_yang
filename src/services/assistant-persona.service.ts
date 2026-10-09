@@ -6,7 +6,9 @@ import {
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_REASONING_EFFORTS,
   ASSISTANT_ROUTE_MODEL_AUTO,
+  type AssistantReasoningEffort,
   isAvatarPresetChoice,
   matchAssistantPersonaArchetype,
   normalizeAvatarPreset,
@@ -63,6 +65,7 @@ interface PersonaRow {
   planMode: string
   language: string
   routeModel: string | null
+  reasoningEffort: string
   nextStepHint: boolean
   useMyWords: boolean
   memoryCapture: boolean
@@ -183,6 +186,12 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
      * 一起退回默认值（用户的语气和长度不该因为换了模型表就丢）。
      */
     routeModel: normalizeRouteModel(row.routeModel),
+    // 词表外的值（将来删掉一档）只让这一格回到默认，⛔ 不连累整份 persona。
+    reasoningEffort: (
+      ASSISTANT_REASONING_EFFORTS as readonly string[]
+    ).includes(row.reasoningEffort)
+      ? (row.reasoningEffort as AssistantReasoningEffort)
+      : ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
     /**
      * ⚠ 人设那一档**按值回推，⛔ 不信库里那个名字**（§11.1）：
      *  · 存量行里它是 NULL（列是后加的），回推让老用户一打开就看到自己那张卡；
@@ -218,6 +227,7 @@ const PERSONA_SELECT = {
   planMode: true,
   language: true,
   routeModel: true,
+  reasoningEffort: true,
   nextStepHint: true,
   useMyWords: true,
   memoryCapture: true,
@@ -382,6 +392,9 @@ export async function upsertAssistantPersona(
      */
     routeModel:
       input.routeModel === ASSISTANT_ROUTE_MODEL_AUTO ? null : input.routeModel,
+    ...(input.reasoningEffort
+      ? { reasoningEffort: input.reasoningEffort }
+      : {}),
     /** v2 §11.3 的三项 —— 两个开关照原样落，称呼留空即 null（= 用账号名）。 */
     nextStepHint: input.nextStepHint,
     useMyWords: input.useMyWords,

@@ -53,6 +53,7 @@ export type AssistantPersonaMinAggregateOutputType = {
   addressUserAs: string | null
   archetype: string | null
   routeModel: string | null
+  reasoningEffort: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -79,6 +80,7 @@ export type AssistantPersonaMaxAggregateOutputType = {
   addressUserAs: string | null
   archetype: string | null
   routeModel: string | null
+  reasoningEffort: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -105,6 +107,7 @@ export type AssistantPersonaCountAggregateOutputType = {
   addressUserAs: number
   archetype: number
   routeModel: number
+  reasoningEffort: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -133,6 +136,7 @@ export type AssistantPersonaMinAggregateInputType = {
   addressUserAs?: true
   archetype?: true
   routeModel?: true
+  reasoningEffort?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -159,6 +163,7 @@ export type AssistantPersonaMaxAggregateInputType = {
   addressUserAs?: true
   archetype?: true
   routeModel?: true
+  reasoningEffort?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -185,6 +190,7 @@ export type AssistantPersonaCountAggregateInputType = {
   addressUserAs?: true
   archetype?: true
   routeModel?: true
+  reasoningEffort?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -284,6 +290,7 @@ export type AssistantPersonaGroupByOutputType = {
   addressUserAs: string | null
   archetype: string | null
   routeModel: string | null
+  reasoningEffort: string
   createdAt: Date
   updatedAt: Date
   _count: AssistantPersonaCountAggregateOutputType | null
@@ -331,6 +338,7 @@ export type AssistantPersonaWhereInput = {
   addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   archetype?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  reasoningEffort?: Prisma.StringFilter<"AssistantPersona"> | string
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -359,6 +367,7 @@ export type AssistantPersonaOrderByWithRelationInput = {
   addressUserAs?: Prisma.SortOrderInput | Prisma.SortOrder
   archetype?: Prisma.SortOrderInput | Prisma.SortOrder
   routeModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  reasoningEffort?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -390,6 +399,7 @@ export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
   addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   archetype?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  reasoningEffort?: Prisma.StringFilter<"AssistantPersona"> | string
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -418,6 +428,7 @@ export type AssistantPersonaOrderByWithAggregationInput = {
   addressUserAs?: Prisma.SortOrderInput | Prisma.SortOrder
   archetype?: Prisma.SortOrderInput | Prisma.SortOrder
   routeModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  reasoningEffort?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssistantPersonaCountOrderByAggregateInput
@@ -450,6 +461,7 @@ export type AssistantPersonaScalarWhereWithAggregatesInput = {
   addressUserAs?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   archetype?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
+  reasoningEffort?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantPersona"> | Date | string
 }
@@ -474,6 +486,7 @@ export type AssistantPersonaCreateInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantPersonaInput
@@ -502,6 +515,7 @@ export type AssistantPersonaUncheckedCreateInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -526,6 +540,7 @@ export type AssistantPersonaUpdateInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantPersonaNestedInput
@@ -554,6 +569,7 @@ export type AssistantPersonaUncheckedUpdateInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -580,6 +596,7 @@ export type AssistantPersonaCreateManyInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -604,6 +621,7 @@ export type AssistantPersonaUpdateManyMutationInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -630,6 +648,7 @@ export type AssistantPersonaUncheckedUpdateManyInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -661,6 +680,7 @@ export type AssistantPersonaCountOrderByAggregateInput = {
   addressUserAs?: Prisma.SortOrder
   archetype?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
+  reasoningEffort?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -687,6 +707,7 @@ export type AssistantPersonaMaxOrderByAggregateInput = {
   addressUserAs?: Prisma.SortOrder
   archetype?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
+  reasoningEffort?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -713,6 +734,7 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   addressUserAs?: Prisma.SortOrder
   archetype?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
+  reasoningEffort?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -821,6 +843,7 @@ export type AssistantPersonaCreateWithoutUserInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantPersonasInput
@@ -847,6 +870,7 @@ export type AssistantPersonaUncheckedCreateWithoutUserInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -887,6 +911,7 @@ export type AssistantPersonaUpdateWithoutUserInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantPersonasNestedInput
@@ -913,6 +938,7 @@ export type AssistantPersonaUncheckedUpdateWithoutUserInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -937,6 +963,7 @@ export type AssistantPersonaCreateWithoutCharacterCardInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantPersonaInput
@@ -963,6 +990,7 @@ export type AssistantPersonaUncheckedCreateWithoutCharacterCardInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1018,6 +1046,7 @@ export type AssistantPersonaScalarWhereInput = {
   addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   archetype?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
+  reasoningEffort?: Prisma.StringFilter<"AssistantPersona"> | string
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
 }
@@ -1043,6 +1072,7 @@ export type AssistantPersonaCreateManyCharacterCardInput = {
   addressUserAs?: string | null
   archetype?: string | null
   routeModel?: string | null
+  reasoningEffort?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1067,6 +1097,7 @@ export type AssistantPersonaUpdateWithoutCharacterCardInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantPersonaNestedInput
@@ -1093,6 +1124,7 @@ export type AssistantPersonaUncheckedUpdateWithoutCharacterCardInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1118,6 +1150,7 @@ export type AssistantPersonaUncheckedUpdateManyWithoutCharacterCardInput = {
   addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   archetype?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  reasoningEffort?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1146,6 +1179,7 @@ export type AssistantPersonaSelect<ExtArgs extends runtime.Types.Extensions.Inte
   addressUserAs?: boolean
   archetype?: boolean
   routeModel?: boolean
+  reasoningEffort?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1174,6 +1208,7 @@ export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   addressUserAs?: boolean
   archetype?: boolean
   routeModel?: boolean
+  reasoningEffort?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1202,6 +1237,7 @@ export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   addressUserAs?: boolean
   archetype?: boolean
   routeModel?: boolean
+  reasoningEffort?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1230,11 +1266,12 @@ export type AssistantPersonaSelectScalar = {
   addressUserAs?: boolean
   archetype?: boolean
   routeModel?: boolean
+  reasoningEffort?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "characterCardId" | "nameFromCharacter" | "toneFromCharacter" | "avatarChoice" | "memoryCapture" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
+export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "characterCardId" | "nameFromCharacter" | "toneFromCharacter" | "avatarChoice" | "memoryCapture" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "reasoningEffort" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
 export type AssistantPersonaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
@@ -1346,6 +1383,10 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      * ⛔ 不做成 Prisma 枚举：模型表住 constants，边界校验交给 Zod。
      */
     routeModel: string | null
+    /**
+     * 思考档位 low / medium / high（`ASSISTANT_REASONING_EFFORTS`），输入区「思考」chip 选的。
+     */
+    reasoningEffort: string
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assistantPersona"]>
@@ -1794,6 +1835,7 @@ export interface AssistantPersonaFieldRefs {
   readonly addressUserAs: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly archetype: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly routeModel: Prisma.FieldRef<"AssistantPersona", 'String'>
+  readonly reasoningEffort: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly createdAt: Prisma.FieldRef<"AssistantPersona", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssistantPersona", 'DateTime'>
 }

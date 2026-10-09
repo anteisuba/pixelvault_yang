@@ -861,6 +861,9 @@ model AssistantPersona {
   /// ⛔ 不做成 Prisma 枚举：模型表住 constants，边界校验交给 Zod。
   routeModel String?
 
+  /// 思考档位 low / medium / high（`ASSISTANT_REASONING_EFFORTS`），输入区「思考」chip 选的。
+  reasoningEffort String @default("medium")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

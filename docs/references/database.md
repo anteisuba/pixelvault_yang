@@ -67,6 +67,8 @@
 | `toneFromCharacter` | 语气跟着角色设定里的 `persona.speech` 走；角色没写说话方式时不生效                                  |
 | `memoryCapture`     | 「让助手记住」（默认开）；关 = 不再记新的（每轮结账与 `add_project_rule` 的普通规矩都不写）         |
 
+`reasoningEffort`（默认 `medium`，Low / Medium / High 三档）由 `20261010120000_assistant_reasoning_effort` 加入，owner 授权后已对共用库执行；读时不在名单里的值按默认处理。
+
 `characterCardId`（→ `CharacterCard`，`onDelete: SetNull`）由 `20260926120000_card_assistant` 加入；卡删了只清绑定，读的那一跳当没用角色。
 
 ## 迁移纪律

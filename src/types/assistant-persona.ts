@@ -13,6 +13,7 @@
 import { z } from 'zod'
 
 import {
+  ASSISTANT_REASONING_EFFORTS,
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_AVATAR_CHOICES,
   ASSISTANT_AVATAR_PRESET_IDS,
@@ -144,6 +145,8 @@ const AssistantPersonaShapeSchema = z.object({
   language: AssistantPersonaLanguageSchema,
   /** `auto` = 服务端自己挑（库里存 null）。⛔ 不做成可空：读回来永远是个词。 */
   routeModel: AssistantRouteModelSchema,
+  /** 思考档位（输入区「思考」chip）。 */
+  reasoningEffort: z.enum(ASSISTANT_REASONING_EFFORTS),
   /**
    * v2 §11.3 的三项 —— 它们只改**说话方式**，注入点在系统提示的
    * 「关于这位创作者」那一段（§8.3）。
@@ -218,7 +221,13 @@ export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({
   avatarUrl: true,
   uploadedAvatarUrl: true,
   character: true,
-}).refine(toneCustomPresentWhenCustom, TONE_CUSTOM_REFINEMENT)
+})
+  /**
+   * ⚠ 思考档位可缺：上线前打开的页面保存设置时不带这一格，缺了就不动库里那一格
+   *   （⛔ 不当必填 —— 那会让旧页面每次保存都 400）。
+   */
+  .extend({ reasoningEffort: z.enum(ASSISTANT_REASONING_EFFORTS).optional() })
+  .refine(toneCustomPresentWhenCustom, TONE_CUSTOM_REFINEMENT)
 
 export type UpdateAssistantPersonaRequest = z.infer<
   typeof UpdateAssistantPersonaSchema

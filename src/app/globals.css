@@ -147,6 +147,9 @@
   /* 生成进度的「窄格」门槛（加载态 A，owner 2026-09-27）：格子窄于 160px 只写百分比，
      阶段词只给读屏 —— `@max-4xs/progress:`。 */
   --container-4xs: 10rem;
+  /* 助手输入条的「宽」门槛（思考 chip，owner 2026-10-10）：窄于 352px 时思考 chip
+     收成脑图标、两颗 chip 都去掉箭头 —— `@assistant-bar:`。 */
+  --container-assistant-bar: 22rem;
   /* 画廊瀑布流第 6 列的门槛（owner 2026-10-08 画廊换皮：2–6 列按宽取档）——
      `3xl:grid-cols-6`，与 `constants/gallery-grid.ts` 同一档。 */
   --breakpoint-3xl: 120rem;

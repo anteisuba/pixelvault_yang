@@ -6,6 +6,11 @@ import { createOpenAI } from '@ai-sdk/openai'
 import type { JSONValue } from '@ai-sdk/provider'
 import type { LanguageModel } from 'ai'
 
+import {
+  ASSISTANT_DEEPSEEK_EFFORTS,
+  ASSISTANT_REASONING_EFFORT_IDS,
+  type AssistantReasoningEffort,
+} from '@/constants/assistant-persona'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -32,10 +37,15 @@ export interface AssistantV3Model {
  * 旧内核）。别的厂商照走旧内核。
  *
  * ⚠ 缓存键只发给官方端点（代理不一定认这个字段）。
+ *
+ * ⭐ 思考档位（owner 2026-10-10，输入区「思考」chip）按各家参数名落：OpenAI / Grok 的
+ *   `reasoning_effort`、Claude 的 `effort`、Gemini 的 `thinkingLevel` 都是同名三档；
+ *   DeepSeek 只有 low / high / max，按 `ASSISTANT_DEEPSEEK_EFFORTS` 换。
  */
 export function resolveAssistantV3Model(
   route: ResolvedLlmTextRoute,
   modelId: string,
+  effort: AssistantReasoningEffort = ASSISTANT_REASONING_EFFORT_IDS.medium,
 ): AssistantV3Model | null {
   switch (route.adapterType) {
     case AI_ADAPTER_TYPES.OPENAI: {
@@ -51,9 +61,16 @@ export function resolveAssistantV3Model(
       return {
         model: official ? provider.responses(modelId) : provider.chat(modelId),
         strictTools: official,
+        // ⚠ 代理端点走 Chat Completions：GPT-6 在那里推理档与工具调用不能同开，⛔ 不发档位。
         providerOptions: (cacheKey): AssistantV3ProviderOptions =>
           official
-            ? { openai: { promptCacheKey: cacheKey, store: false } }
+            ? {
+                openai: {
+                  promptCacheKey: cacheKey,
+                  store: false,
+                  reasoningEffort: effort,
+                },
+              }
             : {},
       }
     }
@@ -62,7 +79,7 @@ export function resolveAssistantV3Model(
       return {
         model: provider(modelId),
         strictTools: false,
-        providerOptions: () => ({}),
+        providerOptions: () => ({ anthropic: { effort } }),
       }
     }
     case AI_ADAPTER_TYPES.GEMINI: {
@@ -71,11 +88,11 @@ export function resolveAssistantV3Model(
         model: provider(modelId),
         strictTools: false,
         /**
-         * Gemini 3 默认最高思考档：2026-10-10 一步调权重想了 4465 个 token、46 秒。
-         * 同一题 low 12 秒但把决定推回给创作者，medium 33 秒出卡 —— 取 medium。
+         * ⚠ Gemini 3 自己默认最高档：2026-10-10 一步调权重想了 4465 个 token、46 秒；
+         *   同题 low 12 秒但把决定推回给创作者，medium 33 秒出卡（所以默认 Medium）。
          */
         providerOptions: () => ({
-          google: { thinkingConfig: { thinkingLevel: 'medium' } },
+          google: { thinkingConfig: { thinkingLevel: effort } },
         }),
       }
     }
@@ -89,7 +106,9 @@ export function resolveAssistantV3Model(
       return {
         model: provider.chat(modelId),
         strictTools: false,
-        providerOptions: () => ({}),
+        providerOptions: () => ({
+          openai: { reasoningEffort: ASSISTANT_DEEPSEEK_EFFORTS[effort] },
+        }),
       }
     }
     case AI_ADAPTER_TYPES.XAI: {
@@ -103,10 +122,10 @@ export function resolveAssistantV3Model(
         model: provider.chat(modelId),
         strictTools: false,
         /**
-         * grok 的推理关不掉、默认 high：工具调用要 low，否则首字前想太久、连接被掐
-         * （与旧内核 `buildXaiChatRequest` 同一条）。
+         * ⚠ grok 的推理关不掉、自己默认 high：High 档首字前想得久，旧内核那边曾因此被掐
+         *   连接（`buildXaiChatRequest`）。
          */
-        providerOptions: () => ({ openai: { reasoningEffort: 'low' } }),
+        providerOptions: () => ({ openai: { reasoningEffort: effort } }),
       }
     }
     default:

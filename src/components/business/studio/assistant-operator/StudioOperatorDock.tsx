@@ -46,6 +46,7 @@ import { useUser } from '@clerk/nextjs'
 import { assistantWorkspaceScope } from '@/lib/assistant-workspace'
 import { setAssistantCursorLabel } from '@/lib/studio-operator-cursor'
 
+import type { AssistantReasoningEffort } from '@/constants/assistant-persona'
 import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
@@ -375,6 +376,11 @@ export function StudioOperatorDock() {
   const handleSelectRouteModel = useCallback(
     (routeModel: AssistantRouteModel) =>
       savePersona({ ...toAssistantPersonaUpdate(persona), routeModel }),
+    [persona, savePersona],
+  )
+  const handleSelectReasoningEffort = useCallback(
+    (reasoningEffort: AssistantReasoningEffort) =>
+      savePersona({ ...toAssistantPersonaUpdate(persona), reasoningEffort }),
     [persona, savePersona],
   )
   /**
@@ -1034,6 +1040,7 @@ export function StudioOperatorDock() {
       history={history}
       persona={persona}
       onSelectRouteModel={handleSelectRouteModel}
+      onSelectReasoningEffort={handleSelectReasoningEffort}
       onOpenAssistantSettings={() =>
         setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
       }

@@ -16,6 +16,10 @@ import {
   ASSISTANT_MEDIA_LIMITS,
 } from '@/constants/assistant'
 import {
+  ASSISTANT_DEEPSEEK_EFFORTS,
+  type AssistantReasoningEffort,
+} from '@/constants/assistant-persona'
+import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
@@ -103,6 +107,12 @@ export interface LlmTextInput {
    * wide, and "who looks into the camera" goes unseen (2026-10-09 T20).
    */
   imageDetail?: 'high'
+  /**
+   * 助手的思考档位（输入区「思考」chip）。只有助手主循环传；缺席 = 各家照旧。
+   * OpenAI 官方 / Grok 的 `reasoning_effort`、Claude 的 `output_config.effort`、
+   * Gemini 的 `thinkingLevel` 都是同名三档；DeepSeek 按 `ASSISTANT_DEEPSEEK_EFFORTS` 换。
+   */
+  reasoningEffort?: AssistantReasoningEffort
   /**
    * Groups requests that share a long prefix (the same system prompt and
    * conversation) so the provider routes them to the same prompt cache —
@@ -1673,8 +1683,15 @@ async function buildGeminiRequest(
            * 连续 90s 超时）。流式请求带上思考摘要，响应头与字节在思考期间就开始流动，
            * 计时器回到「空闲多久」的本意；摘要在解析时丢掉，不进正文。
            */
-          ...(options.stream
-            ? { thinkingConfig: { includeThoughts: true } }
+          ...(options.stream || input.reasoningEffort
+            ? {
+                thinkingConfig: {
+                  ...(options.stream ? { includeThoughts: true } : {}),
+                  ...(input.reasoningEffort
+                    ? { thinkingLevel: input.reasoningEffort }
+                    : {}),
+                },
+              }
             : {}),
           ...(input.responseFormat === 'json_object'
             ? {
@@ -1871,6 +1888,11 @@ async function buildOpenAiChatRequest(
       ...(input.cacheKey && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
         ? { prompt_cache_key: input.cacheKey }
         : {}),
+      ...(input.reasoningEffort &&
+      !input.useGrounding &&
+      baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+        ? { reasoning_effort: input.reasoningEffort }
+        : {}),
       ...(!input.providerManagedOutput
         ? getOpenAiTokenLimit(
             requestModelId,
@@ -1997,6 +2019,11 @@ function buildDeepseekChatRequest(
             max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
           }
         : {}),
+      ...(input.reasoningEffort
+        ? {
+            reasoning_effort: ASSISTANT_DEEPSEEK_EFFORTS[input.reasoningEffort],
+          }
+        : {}),
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
@@ -2110,7 +2137,7 @@ function buildXaiChatRequest(
       // Official "low" is the latency-sensitive agentic / tool-calling tier
       // the assistant operator needs; high burns the first-byte window
       // and the client sees a dropped connection.
-      reasoning_effort: 'low',
+      reasoning_effort: input.reasoningEffort ?? 'low',
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
@@ -2307,10 +2334,15 @@ function buildAnthropicMessagesRequest(
       // Server-side refusal fallback — routes a classifier decline through the
       // provider's default chain in the same round trip (needs the beta below).
       fallbacks: 'default',
-      ...(jsonSchema
+      ...(jsonSchema || input.reasoningEffort
         ? {
             output_config: {
-              format: { type: 'json_schema', schema: jsonSchema },
+              ...(jsonSchema
+                ? { format: { type: 'json_schema', schema: jsonSchema } }
+                : {}),
+              ...(input.reasoningEffort
+                ? { effort: input.reasoningEffort }
+                : {}),
             },
           }
         : {}),

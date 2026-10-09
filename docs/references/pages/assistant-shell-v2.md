@@ -616,6 +616,8 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 **为什么持久化到 `AssistantPersona` 而不是会话**：模型偏好是「我喜欢用哪个脑子」，属于人设而不是某一次对话——存会话意味着每开一个新会话都要重选一次，而新会话恰恰是最不想做设置的时刻。`AssistantPersona` 已经是「用户级、一份、四域共用」的那张表（`@unique userId`），语义完全对上。⚠ 代价是「这个会话临时换个模型」不会被记住，接受——那正是它该有的行为。
 
+**思考档位 chip**（owner 2026-10-10 选 B）：模型 chip 右边单独一颗「思考 Medium」，点开三档 Low / Medium / High（三语都写英文，各带一行说明），默认 Medium；存 `AssistantPersona.reasoningEffort`，理由同上。各家换算在服务端：OpenAI 官方 / Grok 的 `reasoning_effort`、Claude 的 `effort`、Gemini 的 `thinkingLevel` 同名三档；DeepSeek 只有 low / high / max，按 Low→low、Medium→high、High→max 换。v3 和旧内核主循环都照档位发。输入条窄于 352px（`@assistant-bar`）时只留一个脑图标、两颗 chip 都去掉箭头 —— 320 宽的面板给两颗 chip 只剩约 70px。
+
 ### 4.6 移动端：半屏可拖 Sheet
 
 | 规则   | 内容                                                                                                                                                                                                       |
@@ -755,6 +757,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 | ----------------------- | ------------------------------------------------------------------------------------------- | ----- |
 | `AssistantConversation` | `rounds Json @default("[]")`                                                                | §7.2  |
 | `AssistantPersona`      | `routeModel String?`                                                                        | §4.5  |
+| `AssistantPersona`      | `reasoningEffort String @default("medium")`（2026-10-10 另一个迁移）                        | §4.5  |
 | `AssistantPersona`      | `nextStepHint Boolean @default(false)`                                                      | §11.3 |
 | `AssistantPersona`      | `useMyWords Boolean @default(true)`（默认开：用用户自己的词是零成本的礼貌，关掉才需要理由） | §11.3 |
 | `AssistantPersona`      | `addressUserAs String?`                                                                     | §11.3 |

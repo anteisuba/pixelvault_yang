@@ -290,6 +290,7 @@ let libraryPicks: unknown[] = []
 const onOpenProjectRules = vi.fn()
 const onOpenAssistantSettings = vi.fn()
 const onSelectRouteModel = vi.fn().mockResolvedValue(true)
+const onSelectReasoningEffort = vi.fn().mockResolvedValue(true)
 
 const send = vi.fn()
 const changeAttachments = vi.fn()
@@ -325,6 +326,7 @@ function PanelHarness() {
       history={HISTORY}
       onOpenAssistantSettings={onOpenAssistantSettings}
       onSelectRouteModel={onSelectRouteModel}
+      onSelectReasoningEffort={onSelectReasoningEffort}
       onOpenProjectRules={onOpenProjectRules}
       onCollapse={vi.fn()}
       headerAvatar="slot"

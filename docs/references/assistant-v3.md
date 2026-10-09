@@ -119,6 +119,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-10 · 思考档位 chip（Low / Medium / High，默认 Medium，存 persona）：v3 与旧内核都照档位发，Grok 默认从 low 改为 medium。本地 dev 实测：v3「自动」（Gemini）High、旧内核 Claude Haiku 5.5 High（`effort`）、旧内核 DeepSeek Flash High（`max`，推理 633 token）都正常回复。
+
 - 2026-10-10 · Gemini 修两处：① 本轮记录没存 Gemini 3 工具调用的思考签名，回放时 SDK 塞占位签名（日志里一直有 `skip_thought_signature_validator` 警告），模型每一步都丢了上一步的思考 —— 签名进记录、回放交回，跨画布接力也带着；② 默认最高思考档，一步调权重想 4465 token / 46 秒 —— 取 medium（同题 low 12 秒但把决定推回、medium 33 秒出卡）。LoRA L4 从 111 秒降到 58 秒。五家（Luna · Sonnet 5.5 · Gemini 3.8 Flash · DeepSeek V4.1 Flash · Grok 4.7）在画布跑 T25（S04b 断克拉布、高尔，接哈利，提示词不动）：全部一批落地、接力续上，并都提醒提示词里的图号绑定对不上了；15–34 秒。
 
 - 2026-10-10 · 五家各用最便宜的型号跑 LoRA 台 L3「挂载强度你能调吗？交给你调」（同一台：提弗洛斯 1.0 + 画风 0.65）。都走 v3、工具形状全对。加 `say` 前：Luna / Gemini / DeepSeek 出卡不说话，Grok 说了不出卡，Claude Sonnet 两样都有。搭配卡与出图卡的入参加必填 `say`（这条回复没写正文时由服务端放在卡上方）之后：Grok · Luna · DeepSeek 卡上方有理由、卡在预算内；Claude 先用问题卡问偏角色还是画风；Gemini 3.8 Flash 不稳（一次 22 秒出卡，一次 70 秒只回话不出卡）。DeepSeek 与 Grok 这天才接进 v3（兼容 OpenAI 的对话接口，Grok 推理强度 low）。

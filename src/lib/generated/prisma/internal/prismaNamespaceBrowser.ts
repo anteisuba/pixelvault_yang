@@ -515,6 +515,7 @@ export const AssistantPersonaScalarFieldEnum = {
   addressUserAs: 'addressUserAs',
   archetype: 'archetype',
   routeModel: 'routeModel',
+  reasoningEffort: 'reasoningEffort',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

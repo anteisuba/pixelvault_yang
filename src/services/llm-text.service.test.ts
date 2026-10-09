@@ -5302,3 +5302,116 @@ describe('assistant image size contracts', () => {
     },
   )
 })
+
+/** 思考档位 chip（2026-10-10）：旧内核也照档位发，没传就照旧。 */
+describe('reasoningEffort', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function stubFetch(body: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () => new Response(JSON.stringify(body), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+  const OPENAI_REPLY = { choices: [{ message: { content: 'ok' } }] }
+
+  it('OpenAI 官方端点发 reasoning_effort', async () => {
+    const fetchMock = stubFetch(OPENAI_REPLY)
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      apiKey: 'sk-test',
+      reasoningEffort: 'high',
+    })
+    expect(readFetchJson(fetchMock).reasoning_effort).toBe('high')
+  })
+
+  it('Grok 照档位发，替掉默认的 low', async () => {
+    const fetchMock = stubFetch(OPENAI_REPLY)
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'xai-test',
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
+      reasoningEffort: 'medium',
+    })
+    expect(readFetchJson(fetchMock).reasoning_effort).toBe('medium')
+  })
+
+  it('DeepSeek 只有 low / high / max：Medium → high，High → max', async () => {
+    const fetchMock = stubFetch(OPENAI_REPLY)
+    for (const reasoningEffort of ['low', 'medium', 'high'] as const) {
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: {
+          label: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        },
+        apiKey: 'sk-deepseek',
+        reasoningEffort,
+      })
+    }
+    expect(
+      [0, 1, 2].map((i) => readFetchJson(fetchMock, i).reasoning_effort),
+    ).toEqual(['low', 'high', 'max'])
+  })
+
+  it('Claude 走 output_config.effort，与结构化输出并存', async () => {
+    const fetchMock = stubFetch({ content: [{ type: 'text', text: '{}' }] })
+    const schema = {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    }
+    await llmTextCompletion({
+      systemPrompt: 'Return json.',
+      userPrompt: 'user',
+      modelId: LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: {
+        label: 'Anthropic',
+        baseUrl: 'https://api.anthropic.com',
+      },
+      apiKey: 'sk-ant-test',
+      responseFormat: 'json_object',
+      jsonSchema: schema,
+      reasoningEffort: 'low',
+    })
+    expect(readFetchJson(fetchMock).output_config).toEqual({
+      format: { type: 'json_schema', schema },
+      effort: 'low',
+    })
+  })
+
+  it('Gemini 写进 thinkingConfig.thinkingLevel', async () => {
+    const fetchMock = stubFetch({
+      candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+    })
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+      reasoningEffort: 'high',
+    })
+    const body = readFetchJson(fetchMock) as {
+      generationConfig: { thinkingConfig?: unknown }
+    }
+    expect(body.generationConfig.thinkingConfig).toEqual({
+      thinkingLevel: 'high',
+    })
+  })
+})

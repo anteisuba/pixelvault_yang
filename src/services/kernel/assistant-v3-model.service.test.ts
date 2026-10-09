@@ -26,24 +26,38 @@ describe('resolveAssistantV3Model', () => {
     expect(model?.strictTools).toBe(false)
   })
 
-  it('Grok 带 low 推理强度（关不掉的推理默认 high，首字前想太久会断线）', () => {
-    const model = resolveAssistantV3Model(
-      route(AI_ADAPTER_TYPES.XAI),
-      'grok-4.7',
-    )
-    expect(model?.providerOptions('cache')).toEqual({
-      openai: { reasoningEffort: 'low' },
-    })
+  it('默认 Medium：Grok / Gemini 都取 medium', () => {
+    expect(
+      resolveAssistantV3Model(
+        route(AI_ADAPTER_TYPES.XAI),
+        'grok-4.7',
+      )?.providerOptions('cache'),
+    ).toEqual({ openai: { reasoningEffort: 'medium' } })
+    expect(
+      resolveAssistantV3Model(
+        route(AI_ADAPTER_TYPES.GEMINI),
+        'gemini-3.8-flash',
+      )?.providerOptions('cache'),
+    ).toEqual({ google: { thinkingConfig: { thinkingLevel: 'medium' } } })
   })
 
-  it('Gemini 取 medium 思考档（默认最高档一步想 46 秒）', () => {
-    const model = resolveAssistantV3Model(
-      route(AI_ADAPTER_TYPES.GEMINI),
-      'gemini-3.8-flash',
-    )
-    expect(model?.providerOptions('cache')).toEqual({
-      google: { thinkingConfig: { thinkingLevel: 'medium' } },
+  it('思考档位换成各家原生写法（DeepSeek 没有 medium）', () => {
+    const options = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+      resolveAssistantV3Model(route(adapter), modelId, 'high')?.providerOptions(
+        'cache',
+      )
+    expect(options(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-haiku-5-5')).toEqual({
+      anthropic: { effort: 'high' },
     })
+    expect(options(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toEqual({
+      openai: { reasoningEffort: 'max' },
+    })
+    expect(
+      resolveAssistantV3Model(
+        route(AI_ADAPTER_TYPES.DEEPSEEK),
+        'deepseek-flash',
+      )?.providerOptions('cache'),
+    ).toEqual({ openai: { reasoningEffort: 'high' } })
   })
 
   it('不在名单上的厂商照走旧内核', () => {

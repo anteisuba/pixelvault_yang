@@ -8228,6 +8228,19 @@
       "autoHint": "按任务挑模型",
       "needsKey": "待配置"
     },
+    "effortChip": {
+      "label": "思考",
+      "levels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "hints": {
+        "low": "最快，复杂的事可能想不周全",
+        "medium": "平衡速度和质量",
+        "high": "最慢，最仔细"
+      }
+    },
     "web": {
       "candidates": "联网候选 · 预览，还没进你的库",
       "pickHint": "点图看大图（不下载）· 点「选用」才收进素材库并挂上",

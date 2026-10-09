@@ -87,11 +87,16 @@ import {
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
 } from '@/constants/studio-assistant-operator'
-import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
+import {
+  ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
+  type AssistantReasoningEffort,
+} from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { SPRING } from '@/constants/motion'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
+import { StudioOperatorEffortChip } from '@/components/business/studio/assistant-operator/StudioOperatorEffortChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
 import { StudioOperatorCheckpointCard } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
@@ -302,6 +307,8 @@ interface StudioOperatorPanelProps {
    * 拉一次（`StudioOperatorDock`），面板自己 `save()` 会开出第二份 persona 状态。
    */
   onSelectRouteModel(next: AssistantRouteModel): Promise<boolean>
+  /** 思考档位 chip 选中即写 persona，回调同上由外壳给。 */
+  onSelectReasoningEffort(next: AssistantReasoningEffort): Promise<boolean>
   /** ⋯ 菜单 →「助手设置」（§8.1 主入口）。弹层住在外壳里（收放法则会卸载面板）。 */
   onOpenAssistantSettings(): void
   /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到记忆页（规则住在那里）。 */
@@ -403,6 +410,7 @@ export function StudioOperatorPanel({
   history,
   persona,
   onSelectRouteModel,
+  onSelectReasoningEffort,
   onOpenAssistantSettings,
   onOpenProjectRules,
   onCollapse,
@@ -2881,7 +2889,7 @@ export function StudioOperatorPanel({
           />
           <div
             data-testid="operator-toolbar"
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 @container"
           >
             {/*
               ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
@@ -2926,6 +2934,13 @@ export function StudioOperatorPanel({
             <StudioOperatorModelChip
               value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
               onChange={onSelectRouteModel}
+            />
+            <StudioOperatorEffortChip
+              value={
+                persona?.reasoningEffort ??
+                ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
+              }
+              onChange={onSelectReasoningEffort}
             />
             <span className="flex-1" />
             {/*

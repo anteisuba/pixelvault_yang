@@ -55,6 +55,7 @@ export {
   BookmarkSimpleIcon as BookmarkPlus,
   BookOpenIcon as BookOpen,
   AddressBookIcon as BookUser,
+  BrainIcon as Brain,
   RobotIcon as Bot,
   CubeIcon as Box,
   CubeFocusIcon as Boxes,

@@ -42,6 +42,7 @@ const BASE = {
   verbosity: ASSISTANT_PERSONA_DEFAULTS.verbosity,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   language: ASSISTANT_PERSONA_DEFAULTS.language,
+  reasoningEffort: ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
   nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
   useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
   memoryCapture: ASSISTANT_PERSONA_DEFAULTS.memoryCapture,

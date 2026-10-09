@@ -12808,6 +12808,7 @@ export async function* runOperatorTurn(
         ...(videoData.length ? { videoData } : {}),
         ...(audioData.length ? { audioData } : {}),
         responseFormat: 'json_object',
+        reasoningEffort: run.persona.reasoningEffort,
         callLog: { purpose: 'step', domain: request.domain, step: index },
         cacheKey: operatorCacheKey(run, 'step'),
         ...routeFallback(run, route, 'step', {

@@ -6381,14 +6381,17 @@ function planRequestGeneration(
 }
 
 /**
- * 助手问「你说的是哪一张」时那句话。
- *
- * ⚠ 英文写死在服务端**是有意的**：这一帧到客户端之后原样显示在卡上，而助手本来
- * 就按 `responseLanguage` 说话 —— 这句由模型说不出来（它是服务端在模型没给出
- * 目标时替它问的）。⚠ 与 `OPERATOR_STUCK_MESSAGES` 那张三语表不同的是，这一句
- * 挂在一张有缩略图的卡上，图本身已经把问题说清楚了。
+ * 助手问「你说的是哪一张」时那句话。服务端在模型没给出目标时替它问，所以按
+ * `responseLanguage` 三语写死（2026-10-09：中文界面上弹了一张英文卡）。
  */
-const CRITIQUE_CHOICE_QUESTION = 'Which one do you mean?'
+const CRITIQUE_CHOICE_QUESTIONS: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english: 'Which one do you mean?',
+  japanese: 'どの画像のことですか？',
+  chinese: '你说的是哪一张？',
+}
 
 /**
  * **覆盖手写三选**那一道题的字（v2 §3.1：覆盖确认降级成一张问题卡）。
@@ -6589,6 +6592,23 @@ function resolveCritiqueTarget(
         url: hit.url,
         generationId: hit.id,
         ...(hit.label ? { prompt: hit.label } : {}),
+      },
+    }
+  }
+
+  /**
+   * 这一轮只 `@` 了一张：看的就是它（2026-10-09 马尔福画布：出图后自动看一眼只带
+   * 那一张新图，参考位上的两张被凑成候选，弹了一张「哪一张」）。参考位上的是源图，
+   * 不是要评的结果。
+   */
+  if (mentioned.length === 1) {
+    const only = mentioned[0]!
+    return {
+      kind: 'result',
+      result: {
+        url: only.url,
+        generationId: only.id,
+        ...(only.label ? { prompt: only.label } : {}),
       },
     }
   }
@@ -6827,7 +6847,10 @@ async function planCritiqueResult(
   if (target.kind === 'ambiguous') {
     return {
       kind: 'choice',
-      question: CRITIQUE_CHOICE_QUESTION,
+      question:
+        CRITIQUE_CHOICE_QUESTIONS[
+          resolveResponseLanguage(run.request, run.persona)
+        ],
       options: target.options,
     }
   }

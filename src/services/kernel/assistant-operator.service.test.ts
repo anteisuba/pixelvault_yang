@@ -5305,6 +5305,7 @@ describe('看图闭环 · critique_result', () => {
       runAssistantOperator(
         'clerk-1',
         buildRequest({
+          responseLanguage: 'chinese',
           snapshot: {
             ...SNAPSHOT,
             references: {
@@ -5334,6 +5335,39 @@ describe('看图闭环 · critique_result', () => {
       events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.stopped),
     ).toMatchObject({ reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm })
     expect(visionCalls()).toHaveLength(0)
+    expect(
+      (choice as Extract<AssistantOperatorEvent, { type: 'ask' }>).questions[0]!
+        .question,
+    ).toBe('你说的是哪一张？')
+  })
+
+  it('只 @ 了一张、参考位上还挂着别的图 → 不问，看 @ 的那张', async () => {
+    queueCritiqueRound(CRITIQUE_JSON, {})
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          ...RESULT_MENTION,
+          snapshot: {
+            ...SNAPSHOT,
+            references: {
+              items: [
+                { url: 'https://cdn.example.com/ref-a.png', label: '参考 A' },
+                { url: 'https://cdn.example.com/ref-b.png', label: '参考 B' },
+              ],
+              limit: 4,
+            },
+          },
+        }),
+      ),
+    )
+    expect(
+      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+    ).toBeUndefined()
+    expect(
+      stepsOf(events).find((step) => step.status === 'done')?.payload,
+    ).toMatchObject({ imageUrl: RESULT.url })
   })
 
   it('评价随后进了下一轮的语境，助手据此改表单', async () => {

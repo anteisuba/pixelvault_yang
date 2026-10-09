@@ -26,15 +26,18 @@ import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
 
 import { POST } from './route'
 
-function body(domain: 'canvas' | 'image' | 'lora', kernel?: 'v2' | 'v3') {
+function body(
+  domain: 'canvas' | 'image' | 'lora' | 'video',
+  kernel?: 'v2' | 'v3',
+) {
   return {
     messages: [{ role: 'user', content: '看看这张' }],
     domain,
     workspaceKey:
       domain === 'canvas'
         ? 'canvas:project-1'
-        : domain === 'lora'
-          ? 'lora'
+        : domain === 'lora' || domain === 'video'
+          ? domain
           : 'image-natural',
     snapshot: {
       prompt: '',
@@ -53,7 +56,7 @@ beforeEach(() => {
   mockRateLimitAllowed()
 })
 
-/** S6（owner 2026-10-09）：画布与 LoRA 台默认走 v3，开关选 v2 才回旧内核；别的工作台还在旧内核上。 */
+/** S6（owner 2026-10-09）：画布、LoRA 台、图片台默认走 v3，开关选 v2 才回旧内核；别的工作台还在旧内核上。 */
 describe('POST /api/studio/assistant-operator · 走哪个内核', () => {
   it('画布默认走 v3，不看是不是管理员', async () => {
     await POST(createPOST('/api/studio/assistant-operator', body('canvas')))
@@ -76,9 +79,18 @@ describe('POST /api/studio/assistant-operator · 走哪个内核', () => {
     expect(runAssistantOperator).toHaveBeenCalledTimes(1)
   })
 
-  it('图片台还在旧内核上，带着 v3 也一样', async () => {
+  it('图片台默认走 v3，开关选 v2 照走旧内核', async () => {
+    await POST(createPOST('/api/studio/assistant-operator', body('image')))
+    expect(runAssistantV3).toHaveBeenCalledTimes(1)
     await POST(
-      createPOST('/api/studio/assistant-operator', body('image', 'v3')),
+      createPOST('/api/studio/assistant-operator', body('image', 'v2')),
+    )
+    expect(runAssistantOperator).toHaveBeenCalledTimes(1)
+  })
+
+  it('视频台还在旧内核上，带着 v3 也一样', async () => {
+    await POST(
+      createPOST('/api/studio/assistant-operator', body('video', 'v3')),
     )
     expect(runAssistantOperator).toHaveBeenCalledTimes(1)
     expect(runAssistantV3).not.toHaveBeenCalled()

@@ -108,6 +108,12 @@ import {
   buildAssistantV3LoraHandles,
   renderAssistantV3LoraBoard,
 } from '@/lib/assistant-v3-lora-board'
+import { renderAssistantV3ImageBoard } from '@/lib/assistant-v3-image-board'
+import {
+  assistantV3ImageTools,
+  executeAssistantV3ImageCall,
+  executeAssistantV3ImageMutation,
+} from '@/services/kernel/assistant-v3-image.service'
 import {
   clampTitle,
   joinPhrases,
@@ -706,19 +712,25 @@ async function* runV3Turn(
   const face =
     request.domain === ASSISTANT_V3_FACE_IDS.lora
       ? ASSISTANT_V3_FACE_IDS.lora
-      : ASSISTANT_V3_FACE_IDS.canvas
+      : request.domain === ASSISTANT_V3_FACE_IDS.image
+        ? ASSISTANT_V3_FACE_IDS.image
+        : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
   const model = modelId
     ? resolveAssistantV3Model(route, modelId, persona.reasoningEffort)
     : null
-  if (
-    !model ||
-    !modelId ||
-    (face === ASSISTANT_V3_FACE_IDS.canvas ? !canvas : !request.snapshot.loras)
-  ) {
+  /** 这张脸的板子画得出来吗。 */
+  const faceReady =
+    face === ASSISTANT_V3_FACE_IDS.canvas
+      ? Boolean(canvas)
+      : face === ASSISTANT_V3_FACE_IDS.lora
+        ? Boolean(request.snapshot.loras)
+        : true
+  if (!model || !modelId || !faceReady) {
     yield* runOperatorTurn(clerkId, request, options, prepared)
     return
   }
+  if (face === ASSISTANT_V3_FACE_IDS.image) run.skipReferenceReview = true
 
   const nodes = canvas ? assistantV3CanvasNodes(canvas) : []
   const handles =
@@ -763,6 +775,16 @@ async function* runV3Turn(
           handles,
           latestUserText: latest,
           mentionedIds,
+        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        images: supportsImages ? mentionedImages : [],
+      })
+    } else if (face === ASSISTANT_V3_FACE_IDS.image) {
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
+        text: renderAssistantV3ImageBoard({
+          snapshot: request.snapshot,
+          attachedNames: mentionedImages.map((image) => image.label),
+          latestUserText: latest,
         }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
         images: supportsImages ? mentionedImages : [],
       })
@@ -825,7 +847,9 @@ async function* runV3Turn(
   const toolSet =
     face === ASSISTANT_V3_FACE_IDS.lora
       ? assistantV3LoraTools(model.strictTools)
-      : tools(model.strictTools)
+      : face === ASSISTANT_V3_FACE_IDS.image
+        ? assistantV3ImageTools(model.strictTools)
+        : tools(model.strictTools)
   const cacheKey = operatorCacheKey(run, 'v3')
   const budget = Math.min(
     request.stepBudget ?? ASSISTANT_V3_LIMITS.maxSteps,
@@ -1061,13 +1085,12 @@ async function* runV3Turn(
         continue
       }
       const tool = entryCall.tool
-      if (isMutatingTool(tool) && face === ASSISTANT_V3_FACE_IDS.lora) {
+      if (isMutatingTool(tool) && face !== ASSISTANT_V3_FACE_IDS.canvas) {
         // 工作台的改动随步落、当场就有结果 —— ⛔ 不攒成一批接力。
-        const outcome = yield* executeAssistantV3LoraMutation(
-          context,
-          tool,
-          call.input,
-        )
+        const outcome =
+          face === ASSISTANT_V3_FACE_IDS.lora
+            ? yield* executeAssistantV3LoraMutation(context, tool, call.input)
+            : yield* executeAssistantV3ImageMutation(context, tool, call.input)
         if (outcome.kind === 'stop') {
           stopTodo = outcome.todo
           pushResult(WAITING_FOR_CREATOR, false)
@@ -1302,13 +1325,15 @@ async function* executeCall(
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
   if (
-    context.face === ASSISTANT_V3_FACE_IDS.lora &&
+    context.face !== ASSISTANT_V3_FACE_IDS.canvas &&
     (name === ASSISTANT_V3_TOOL_IDS.read ||
       name === ASSISTANT_V3_TOOL_IDS.look ||
       name === ASSISTANT_V3_TOOL_IDS.generate ||
       name === ASSISTANT_V3_TOOL_IDS.searchLibrary)
   )
-    return yield* executeAssistantV3LoraCall(context, name, input)
+    return context.face === ASSISTANT_V3_FACE_IDS.lora
+      ? yield* executeAssistantV3LoraCall(context, name, input)
+      : yield* executeAssistantV3ImageCall(context, name, input)
   switch (name) {
     case ASSISTANT_V3_TOOL_IDS.read: {
       const parsed = AssistantV3ReadInputSchema.parse(input)

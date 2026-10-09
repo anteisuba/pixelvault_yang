@@ -4,16 +4,19 @@ import { ASSISTANT_OPERATOR_SEARCH_KINDS } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_EDIT_OP_IDS,
+  ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
   ASSISTANT_V3_LORA_WRITE_FIELDS,
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
+  ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WRITE_FIELDS,
   ASSISTANT_V3_WRITE_MODES,
 } from '@/constants/assistant-v3'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
+import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -329,6 +332,158 @@ export const AssistantV3LoraSearchLibraryInputSchema = z.object({
     ASSISTANT_V3_LORA_SEARCH_KIND,
     ...ASSISTANT_OPERATOR_SEARCH_KINDS,
   ]),
+})
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * ①c 图片台那张脸的入参（S6 第二张脸）。write / generate / ask 与 LoRA 台同一份。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const ReferenceNameSchema = z
+  .string()
+  .describe('A reference from the board, e.g. "ref-2".')
+
+export const AssistantV3ImageEditOpInputSchema = z.union([
+  z.object({
+    op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setModel),
+    model: z.string().describe('A model id or name from the board.'),
+    channel: z
+      .string()
+      .nullable()
+      .describe(
+        'Only for a model the board lists with channels: the channel id the creator named. null otherwise.',
+      ),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs),
+      aspectRatio: z.string().nullable(),
+      resolution: z.string().nullable(),
+      quality: z.string().nullable(),
+      background: z.string().nullable(),
+    })
+    .describe(
+      "Aspect ratio, resolution, quality, background — values from the board's options. null keeps a field as it is.",
+    ),
+  z.object({
+    op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setCount),
+    count: z.number().int(),
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setOption),
+      key: z.string(),
+      value: z.union([z.string(), z.number(), z.boolean()]),
+    })
+    .describe('One of the model options the board lists, by its key.'),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference),
+      asset: z
+        .string()
+        .describe(
+          'The name of a picture attached to the message, or an asset id from a search_library result this turn.',
+        ),
+    })
+    .describe('Mount a picture as the next reference (ref-N = @ImageN).'),
+  z.object({
+    op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference),
+    ref: ReferenceNameSchema,
+  }),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl),
+      url: z.string(),
+    })
+    .describe(
+      'File a link the creator gave you (an image address or a web page) into their library and mount it.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPeople),
+      positioning: z.enum(['auto', 'manual']),
+      people: z.array(
+        z.object({
+          prompt: z
+            .string()
+            .describe(
+              'This one person in English Danbooru tags: identity, look, clothes, pose, expression.',
+            ),
+          negative: z.string().nullable(),
+          x: z.number().nullable(),
+          y: z.number().nullable(),
+          interactions: z
+            .array(
+              z.object({
+                tag: z.string(),
+                target: z
+                  .number()
+                  .int()
+                  .describe(
+                    'The other person, by number in this list (1-based).',
+                  ),
+                mutual: z.boolean(),
+              }),
+            )
+            .nullable(),
+          dialogue: z
+            .string()
+            .nullable()
+            .describe(
+              'The line this person says, in the language it should appear in.',
+            ),
+        }),
+      ),
+    })
+    .describe(
+      'Tag workbench only: the full list of people, each with their own prompt. The base prompt keeps the scene, style and head count (2girls …). null keeps that part of a slot as it is; an empty list removes the layout.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSceneTexts),
+      items: z.array(
+        z.object({ kind: z.enum(NOVELAI_SCENE_TEXT_KINDS), text: z.string() }),
+      ),
+    })
+    .describe(
+      'Tag workbench only: the full list of text drawn in the picture that nobody says (a sign, a title, cover text), exactly as it should appear. An empty list removes them.',
+    ),
+])
+
+export type AssistantV3ImageEditOpInput = z.infer<
+  typeof AssistantV3ImageEditOpInputSchema
+>
+
+export const AssistantV3ImageEditInputSchema = z.object({
+  ops: z.array(AssistantV3ImageEditOpInputSchema),
+})
+
+export const AssistantV3ImageReadInputSchema = z.object({
+  items: z
+    .array(z.string())
+    .describe('"prompt", "negative", or a reference like "ref-1".'),
+})
+
+export const AssistantV3ImageLookInputSchema = z.object({
+  images: z
+    .array(z.string())
+    .describe(
+      'Pictures to look at: the name of a picture attached to the message, or a reference like "ref-1".',
+    ),
+  question: z.string(),
+})
+
+export const AssistantV3ImageSearchLibraryInputSchema = z.object({
+  query: z.string(),
+  kind: z.enum([
+    ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+    ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+  ]),
+  subject: z
+    .string()
+    .nullable()
+    .describe(
+      'web_images only: the work and character name, so the search also runs in their own languages. null otherwise.',
+    ),
 })
 
 /* ─────────────────────────────────────────────────────────────────────────

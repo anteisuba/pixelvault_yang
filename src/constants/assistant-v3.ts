@@ -15,6 +15,7 @@
 export const ASSISTANT_V3_FACE_IDS = {
   canvas: 'canvas',
   lora: 'lora',
+  image: 'image',
 } as const
 
 export type AssistantV3Face =
@@ -23,6 +24,13 @@ export type AssistantV3Face =
 export const ASSISTANT_V3_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.canvas,
   ASSISTANT_V3_FACE_IDS.lora,
+  ASSISTANT_V3_FACE_IDS.image,
+]
+
+/** 改动随步落、当场就有结果的那几张脸（一张表单）；画布要前端落完再接力。 */
+export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
+  ASSISTANT_V3_FACE_IDS.lora,
+  ASSISTANT_V3_FACE_IDS.image,
 ]
 
 /** 八个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。 */
@@ -132,6 +140,22 @@ export const ASSISTANT_V3_LORA_ITEM_IDS = {
 
 /** `search_library` 在 LoRA 台多一种：找 LoRA。 */
 export const ASSISTANT_V3_LORA_SEARCH_KIND = 'lora'
+
+/** 图片台 `edit` 的几种改法（S6 第二张脸）。 */
+export const ASSISTANT_V3_IMAGE_EDIT_OP_IDS = {
+  setModel: 'set_model',
+  setSpecs: 'set_specs',
+  setCount: 'set_count',
+  setOption: 'set_option',
+  mountReference: 'mount_reference',
+  unmountReference: 'unmount_reference',
+  importUrl: 'import_url',
+  setPeople: 'set_people',
+  setSceneTexts: 'set_scene_texts',
+} as const
+
+/** `search_library` 在图片台多一种：联网找图（结果摆在面板上，创作者点「选用」）。 */
+export const ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND = 'web_images'
 
 /**
  * `write` 的三种写法。`edit` = 找句换句：服务端拿卡上全文逐条替换后整段落下，

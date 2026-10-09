@@ -811,6 +811,11 @@ interface OperatorRun {
     brief: NonNullable<ReferenceAnalysis['brief']>
   } | null
   referencePromptWritten: boolean
+  /**
+   * v3 图片台：写提示词不走「参考图证据简报」那道闸 —— v3 的模型自己用 look 看图再写
+   * （S6 第二张脸，2026-10-10）。
+   */
+  skipReferenceReview: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
   /**
@@ -4654,7 +4659,8 @@ async function planSetText(
   const needsReferenceReview =
     isPrompt &&
     run.request.domain === 'image' &&
-    run.state.referenceUrls.length > 0
+    run.state.referenceUrls.length > 0 &&
+    !run.skipReferenceReview
   if (needsReferenceReview && run.referencePromptWritten) {
     return reject(
       REJECT.repeatedStep,
@@ -9895,7 +9901,9 @@ function countsTowardSameRejection(reason: AssistantOperatorRejectReason) {
  * 表单填对了，出图是废的。旧的提示词助手一直有这一段（见
  * `prompt-assistant.service.ts` 的 `buildAssistantSystemPrompt`），操作员漏了。
  */
-function buildModelDialectSection(request: AssistantOperatorRequest): string {
+export function buildModelDialectSection(
+  request: AssistantOperatorRequest,
+): string {
   if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas)
     return buildCanvasModelDialectSection(request)
   // ⚠ 视频档的 `id` 是选项 id，写法规则按目录 id 查（`catalogId`）。
@@ -12451,6 +12459,7 @@ export async function prepareOperatorTurn(
     inspectedCanvasReferences: null,
     canvasBrief: null,
     referencePromptWritten: false,
+    skipReferenceReview: false,
     tagCheckRetried: false,
     negativeFolded: false,
     request,

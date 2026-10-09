@@ -6,6 +6,7 @@ import type {
   LanguageModelV3StreamPart,
 } from '@ai-sdk/provider'
 
+import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type {
   AssistantOperatorCanvasNode,
@@ -1160,6 +1161,227 @@ describe('v3 内核 · LoRA 台', () => {
       'set_lora_parameters',
       { steps: 25, guidanceScale: 7, runnerSampler: 'euler_ancestral' },
       'user-1',
+    )
+  })
+})
+
+describe('v3 内核 · 图片台', () => {
+  const run = {
+    stepSeq: 0,
+    signal: undefined,
+    inspectedCanvasReferences: null,
+    skipReferenceReview: false,
+    state: { referenceUrls: ['https://cdn.test/ref-1.png'], prompt: '' },
+  }
+
+  function imageRequest(
+    message: string,
+    overrides: Partial<AssistantOperatorRequest> = {},
+  ): AssistantOperatorRequest {
+    return {
+      workspaceKey: 'image-natural',
+      domain: 'image',
+      messages: [{ role: 'user', content: message }],
+      snapshot: {
+        prompt: 'a girl in a garden',
+        negativePrompt: '',
+        model: { id: 'seedream-5.0-pro', label: 'Seedream 5.0 Pro' },
+        availableModels: [
+          { id: 'seedream-5.0-pro', label: 'Seedream 5.0 Pro' },
+          {
+            id: 'gpt-image-2',
+            label: 'GPT Image 2',
+            channels: [
+              { id: 'openai', label: 'OpenAI' },
+              { id: 'fal', label: 'fal' },
+            ],
+          },
+        ],
+        specs: {
+          quality: null,
+          preview: null,
+          background: null,
+          aspectRatio: '1:1',
+          resolution: '1K',
+          aspectRatioOptions: ['1:1', '2:3', '16:9'],
+          resolutionOptions: ['1K', '2K'],
+        },
+        count: { value: 1, options: [1, 2, 4] },
+        references: {
+          items: [{ url: 'https://cdn.test/ref-1.png', label: '艾弥丝' }],
+          limit: 4,
+        },
+      },
+      mentionedAssets: [
+        { id: 'asset-heart', url: 'https://cdn.test/heart.png', label: '图1' },
+      ],
+      ...overrides,
+    } as unknown as AssistantOperatorRequest
+  }
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+    run.skipReferenceReview = false
+    vi.mocked(prepareOperatorTurn).mockImplementation(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
+          modelId: 'gpt-6-luna',
+          run,
+        }) as never,
+    )
+    // 这几题只问交给旧执行器的参数：回「台上本来就是这样」，不画改动步。
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'already so',
+    })
+  })
+
+  it('板子是一张表单：每个旋钮带上能选的值，写提示词不走参考图简报那道闸', async () => {
+    const mock = script(textTurn('看到了。'))
+    await collect(runAssistantV3('clerk-1', imageRequest('台上都设了什么')))
+    const prompt = promptText(mock.doStreamCalls[0]!)
+    expect(prompt).toContain('IMAGE WORKBENCH')
+    expect(prompt).toContain('aspect ratio 1:1 (options: 1:1, 2:3, 16:9)')
+    expect(prompt).toContain(
+      'GPT Image 2 [gpt-image-2] (channels: OpenAI [openai], fal [fal])',
+    )
+    expect(prompt).toContain('ref-1 \\"艾弥丝\\"')
+    expect(run.skipReferenceReview).toBe(true)
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('标签台也走 v3：板子印出分角色与画面文字', async () => {
+    const mock = script(textTurn('好。'))
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        imageRequest('你好', {
+          workspaceKey: 'image-tags',
+          snapshot: {
+            ...imageRequest('').snapshot,
+            novelAiCharacters: {
+              mode: 'v4',
+              max: 6,
+              layout: {
+                positioning: 'auto',
+                characters: [
+                  {
+                    prompt: 'aemeath_(wuthering_waves)',
+                    negativePrompt: '',
+                    position: { x: 0.5, y: 0.5 },
+                    dialogue: 'hi',
+                  },
+                ],
+              },
+            },
+            novelAiSceneTexts: { items: [], maxChars: 40, latinOnly: true },
+          },
+        } as never),
+      ),
+    )
+    const prompt = promptText(mock.doStreamCalls[0]!)
+    expect(prompt).toContain(
+      '- 1: \\"aemeath_(wuthering_waves)\\" · says \\"hi\\"',
+    )
+    expect(prompt).toContain('this model draws English letters only')
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('改画幅、张数、换模型：没说的清晰度沿用台上的值，渠道按名字认', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'set_specs',
+              aspectRatio: '2:3',
+              resolution: null,
+              quality: null,
+              background: null,
+            },
+            { op: 'set_count', count: 4 },
+            { op: 'set_model', model: 'GPT Image 2', channel: 'fal' },
+          ],
+        },
+      }),
+      textTurn('换好了。'),
+    )
+    await collect(runAssistantV3('clerk-1', imageRequest('全身立绘，出四张')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_specs',
+      { aspectRatio: '2:3', resolution: '1K' },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_count',
+      { count: 4 },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'set_model',
+      { modelId: 'gpt-image-2', channelId: 'fal' },
+      'user-1',
+    )
+  })
+
+  it('挂参考图按附图的名字找资产；卸下 ref-1 交的是 @Image1 的 1', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            { op: 'unmount_reference', ref: 'ref-1' },
+            { op: 'mount_reference', asset: '图1' },
+          ],
+        },
+      }),
+      textTurn('换上了。'),
+    )
+    await collect(runAssistantV3('clerk-1', imageRequest('用图1当参考')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'unmount_reference',
+      { slotIndex: 1 },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'mount_reference',
+      { assetId: 'asset-heart' },
+      'user-1',
+    )
+  })
+
+  it('不在这台上的模型：拒掉并把原因交回模型', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [{ op: 'set_model', model: 'Midjourney', channel: null }],
+        },
+      }),
+      textTurn('这台没有。'),
+    )
+    const events = await collect(
+      runAssistantV3('clerk-1', imageRequest('换成 Midjourney')),
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(JSON.stringify(events)).toContain(
+      'not one of the models on the board',
     )
   })
 })

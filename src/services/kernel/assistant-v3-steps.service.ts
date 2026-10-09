@@ -69,6 +69,15 @@ export const TITLE_TEXT: Record<
     picks: string
     prompt: string
     negative: string
+    imageModel: string
+    specs: string
+    count: string
+    option: string
+    mountReference: string
+    importUrl: string
+    searchImages: string
+    people: string
+    sceneTexts: string
     more: (count: number) => string
   }
 > = {
@@ -98,6 +107,15 @@ export const TITLE_TEXT: Record<
     picks: '在库页圈出',
     prompt: '提示词',
     negative: '负面',
+    imageModel: '换模型',
+    specs: '设画幅',
+    count: '设张数',
+    option: '设选项',
+    mountReference: '挂参考图',
+    importUrl: '导入链接',
+    searchImages: '联网找图',
+    people: '设角色',
+    sceneTexts: '设画面文字',
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -126,6 +144,15 @@ export const TITLE_TEXT: Record<
     picks: 'ライブラリで囲む',
     prompt: 'プロンプト',
     negative: 'ネガティブ',
+    imageModel: 'モデルを変更',
+    specs: 'サイズを設定',
+    count: '枚数を設定',
+    option: 'オプションを設定',
+    mountReference: '参照画像を追加',
+    importUrl: 'リンクを取り込む',
+    searchImages: 'Web で画像検索',
+    people: 'キャラクターを設定',
+    sceneTexts: '画面の文字を設定',
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -154,6 +181,15 @@ export const TITLE_TEXT: Record<
     picks: 'Ring in the library',
     prompt: 'prompt',
     negative: 'negative',
+    imageModel: 'Switch model',
+    specs: 'Set size',
+    count: 'Set count',
+    option: 'Set option',
+    mountReference: 'Mount reference',
+    importUrl: 'Import link',
+    searchImages: 'Search web images for',
+    people: 'Set people',
+    sceneTexts: 'Set scene text',
     more: (count) => `+${count} more`,
   },
 }

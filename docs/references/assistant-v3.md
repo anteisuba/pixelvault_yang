@@ -1,6 +1,6 @@
 # 助手新内核（v3）— 施工基准
 
-> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。画布与 LoRA 台默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 时照走旧内核，只为对比，删旧内核时一起删。v3 接不了的厂商（OpenAI / Claude / Gemini 以外）在 v3 里自己退回旧内核。图片 / 卡片 / 视频还在旧内核上，按图片 → 卡片 → 视频逐个迁（§4 S6）。
+> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。画布、LoRA 台与图片台（自然语言台 + 标签台）默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 时照走旧内核，只为对比，删旧内核时一起删。v3 接不了的厂商（OpenAI / Claude / Gemini 以外）在 v3 里自己退回旧内核。卡片 / 视频还在旧内核上，按卡片 → 视频逐个迁（§4 S6）。
 > owner 2026-10-09 定：AI SDK 原生工具；OpenAI 先跑，Claude 另跑一轮；五张脸（图片 / 视频 / LoRA / 画布 / 角色）都迁到新内核，画布先；最后删旧内核。正文不复述改动：改了什么由过程行说（按实际落地的 op 生成），正文只写判断与下一步。
 
 ## 1. 为什么换（2026-10-09 回放基线）
@@ -42,12 +42,17 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ### 一张脸一个适配（S6）
 
-- 两张脸共用一层「步骤」（`assistant-v3-steps.service.ts`：过程行、调旧执行器、把计划变成步与工具结果）。差别只在改动型那一步：画布要前端落完再接力（`pending`），工作台随步落、当场就有结果。
+- 各张脸共用一层「步骤」（`assistant-v3-steps.service.ts`：过程行、调旧执行器、把计划变成步与工具结果）。差别只在改动型那一步：画布要前端落完再接力（`pending`），工作台随步落、当场就有结果。两张工作台脸（LoRA 台、图片台）再共用一层 `assistant-v3-bench.service.ts`：写提示词、看图、出确认卡、卸参考图（旧执行器的 `slotIndex` 从 1 起）。
 - **LoRA 台**（`assistant-v3-lora.service.ts` · `lib/assistant-v3-lora-board.ts`）：工具名不变，动的是一张表单。板子一行一格：底模、提示词、负面、采样参数（附可选的采样器 / 调度器）、挂着的 LoRA（句柄 `lora-cmg1ab`，权重、开关、触发词在不在提示词里、合不合底模）、总权重与这台底模的上限、参考图 `ref-N`、左边打开着的示例（`sample`，图跟着板子给模型看，配方写在板上，全文用 `read`）。
   - edit：`set_model` · `set_params`（Civitai 的采样器名照认）· `set_weight` · `unmount` · `unmount_reference` · `propose_setup`（搭配卡）· `show_picks`（库页圈选）。新挂 LoRA 只走搭配卡或圈选，挂载由创作者点；助手自己定的权重 / 参数也上卡，创作者说了确切数值或要照抄配方才直接设。
   - write：提示词 / 负面，替换 · 追加 · 找句换句；⛔ 不再问「你写过了，覆盖吗」（创作者叫助手改就是要改，每步可撤）。追加由 v3 拼好整段再写。
   - search_library：`kind: "lora"` 在库页当面搜；look：@ 来的图 · `ref-N`；generate：只在创作者要图时摆确认卡。
   - 系统提示的方言段只注入当前底模那一族（`lib/lora-dialect-section.ts`，旧内核同用）。
+- **图片台**（`assistant-v3-image.service.ts` · `lib/assistant-v3-image-board.ts`）：自然语言台与标签台同一张脸。板子一行一格，每个旋钮带可选值：模型（多渠道的列出渠道）、提示词、负面（模型没有负面就说没有）、画幅 / 清晰度 / 质量 / 背景、每次张数、模型选项（`set_option` 按 key）、标签台的分角色与画面文字、参考图 `ref-N`。
+  - edit：`set_model`（带渠道）· `set_specs`（没说的那一格沿用台上的值；没有清晰度档的模型写 auto）· `set_count` · `set_option` · `mount_reference`（按附图名或检索结果的资产 id）· `unmount_reference` · `import_url` · 标签台 `set_people` / `set_scene_texts`。
+  - 写提示词不走旧内核的「参考图证据简报」闸（`run.skipReferenceReview`）：v3 的模型自己用 look 看参考图再写。NAI 标签核对照旧（查不到的退回改写一次）。
+  - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用）。
+  - 系统提示的方言段是选中模型的写法（与旧内核同源，旧工具名换成 v3 的说法）。
 
 ### 校验器（工具里跑，不靠提示词）
 
@@ -118,6 +123,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 结账提示在画布项目里换一段：记这个项目的角色 / 画风 / 规矩，只留在这个项目；「未成年」只挡真人，故事里角色的年龄与年级照记，与性有关的一概不记。
 
 ## Last Verified
+
+- 2026-10-10 · S6 图片台 5 题（你的原话与原图，本地 dev，「自动」= Gemini 3.8 Flash，直接调接口、隐身不记会话）：I1 标签台反推艾弥丝：看图、查到 aemeath (wuthering waves)、正负提示词直接写进台 ✅（旧 ⚠ 100 秒，标签只贴在对话里再问写不写）· I2 挡住胸口爱心：改高领、负面填 heart 一组；说「负面没填」就照写一遍 ✅（旧 ❌ 两轮都只出反问卡、一个字没写）· I3 四图换装：图1 出衣服、图2–4 出脸身与画风、排除图1 的 2D 质感、3:4，40 秒 ✅（旧 ✅ 但 147 秒且没要图就摆出图卡）· I4 只换画风：先只分析不动台；第二轮保留图2 的人物与体态、只借图1 的渲染 ✅（旧 第一轮分析完追问用途）· I5 看台面 + 挑模型：照板子答，换 GPT Image 2.5 Sunburst、张数 2 ✅（旧 ✅）。回放中修了：只在 Danbooru 搜中文名搜不到（改成不限站点、先查英文名）、回复里写 @Image1、换装提示词没写不要从衣服图带走什么、Seedream Lite 这类没有清晰度档的模型改不了画幅。毛病：并发跑时单题 50–80 秒；I5 为挑模型联网查了两次。
 
 - 2026-10-10 · 思考档位 chip（Low / Medium / High，默认 Medium，存 persona）：v3 与旧内核都照档位发，Grok 默认从 low 改为 medium。本地 dev 实测：v3「自动」（Gemini）High、旧内核 Claude Haiku 5.5 High（`effort`）、旧内核 DeepSeek Flash High（`max`，推理 633 token）都正常回复。
 

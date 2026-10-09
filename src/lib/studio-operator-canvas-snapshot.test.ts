@@ -249,28 +249,39 @@ describe('buildCanvasOperatorSnapshot', () => {
   })
 
   it('截取快照时优先保留选中节点、新节点及其实际输入，余量取最近节点', () => {
-    const nodes = Array.from({ length: 60 }, (_, index) =>
+    const cap = ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot
+    const total = cap + 20
+    const newest = `node-${total - 1}`
+    const nodes = Array.from({ length: total }, (_, index) =>
       imageNode(`node-${index}`, undefined),
     )
     const snapshot = buildCanvasOperatorSnapshot({
       nodes,
       edges: [
         edge('selected-ref', 'node-1', 'node-0'),
-        edge('new-ref', 'node-2', 'node-59'),
+        edge('new-ref', 'node-2', newest),
       ],
       currentShotNo: null,
       selectedNodeIds: ['node-0'],
     })
 
-    for (const id of ['node-0', 'node-1', 'node-2', 'node-58', 'node-59']) {
+    for (const id of [
+      'node-0',
+      'node-1',
+      'node-2',
+      `node-${total - 2}`,
+      newest,
+    ]) {
       expect(snapshotNode(snapshot, id), id).toBeDefined()
     }
     expect(snapshotNode(snapshot, 'node-3')).toBeUndefined()
-    expect(snapshotNode(snapshot, 'node-59')?.inputs).toEqual([
+    expect(snapshotNode(snapshot, newest)?.inputs).toEqual([
       { slot: 'reference', from: 'node-2', edgeId: 'new-ref' },
     ])
     const shot = snapshot.shots[0]
-    expect(shot.expanded && shot.nodes).toHaveLength(40)
+    if (!shot.expanded) throw new Error('expected an expanded shot')
+    expect(shot.nodes).toHaveLength(cap)
+    expect(shot.omittedCount).toBe(20)
   })
 
   it('卡停在失败态时带上失败原因；重新生成后不再带', () => {
@@ -718,8 +729,8 @@ describe('buildCanvasOperatorSnapshot', () => {
   })
 
   /** ⚠ 上限守的是步数预算，不是内存：越界就截断，⛔ 不整条拒。 */
-  it('镜数与每镜节点数都封顶', () => {
-    const many = ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot + 5
+  it('镜数与每镜节点数都封顶，截掉几张就写明几张', () => {
+    const many = ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot + 5
     const snapshot = buildCanvasOperatorSnapshot({
       nodes: Array.from({ length: many }, (_, index) =>
         imageNode(`node-${index}`, 1),
@@ -730,11 +741,40 @@ describe('buildCanvasOperatorSnapshot', () => {
     const shot = snapshot.shots[0]
     if (!shot.expanded) throw new Error('expected an expanded shot')
     expect(shot.nodes).toHaveLength(
-      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot,
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot,
     )
+    expect(shot.omittedCount).toBe(5)
     expect(
       AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
     ).toBe(true)
+  })
+
+  /**
+   * 2026-10-09 马尔福画布：散卡到了 54 张，旧上限 40 把包厢 / 礼堂两张场景图和 5 张
+   * 黑袍图悄悄截掉，助手在素材库里搜了 6 次「包厢场景」。
+   */
+  it('散卡多于 40 张也照列；连着线的源头卡先保住', () => {
+    const loose = Array.from({ length: 60 }, (_, index) =>
+      imageNode(`loose-${index}`, undefined),
+    )
+    const shot = imageNode('shot-card', 1)
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [...loose, shot],
+      edges: [
+        {
+          id: 'edge-scene',
+          source: 'loose-0',
+          target: 'shot-card',
+          slot: 'reference',
+        },
+      ] as never,
+      currentShotNo: null,
+    })
+    const group = snapshot.shots.find((entry) => entry.shotNo === null)
+    if (!group?.expanded) throw new Error('expected the loose group expanded')
+    expect(group.nodes).toHaveLength(60)
+    expect(group.omittedCount).toBeUndefined()
+    expect(group.nodes.some((node) => node.id === 'loose-0')).toBe(true)
   })
 })
 

@@ -2180,8 +2180,14 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   expandAllShotsUpToNodes: 60,
   /** 其余每镜只出一行标题 —— 整张画布最多列这么多行。 */
   maxShotLines: 60,
-  /** 一面展开的镜里最多列几个节点（散卡那一组常常最大：角色、场景、资产都在里面）。 */
+  /** 一张卡最多列几条接进来的线、一次最多带几张选中的卡。 */
   maxNodesPerShot: 40,
+  /**
+   * 一面展开的镜里最多列几个节点（散卡那一组常常最大：角色、场景、资产都在里面）。
+   * ⚠ 2026-10-09 从 40 放到 150：散卡到了 54 张，场景图和黑袍图被悄悄截掉。服务端
+   * 大画布本来就只展开相关的卡、其余一行（`boardCatalogMinNodes`），多列不多花 token。
+   */
+  maxSnapshotNodesPerShot: 150,
   /** 卡上失败原因给助手看的长度 —— 服务商原话通常一两句，够判断是审核还是额度。 */
   failureMessageChars: 200,
   /** 画布保留节点选择器的模型目录；视频目录已超过通用快照的 24 项。 */

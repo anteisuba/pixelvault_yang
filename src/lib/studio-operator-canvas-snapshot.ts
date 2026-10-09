@@ -450,6 +450,8 @@ export function buildCanvasOperatorSnapshot({
       focusedNodeIds.has(edge.target) ? [edge.source] : [],
     ),
   )
+  /** 任何一条线的源头（场景图、角色图）—— 镜头卡认它们，截的时候排在新卡前面。 */
+  const wiredSourceIds = new Set(edges.map((edge) => edge.source))
 
   const byShot = new Map<number | null, NodeV4[]>()
   for (const node of nodes) {
@@ -495,15 +497,18 @@ export function buildCanvasOperatorSnapshot({
               (node) => node.data.kind === NODE_MEDIA_KIND_IDS.text,
             ),
             ...shotNodes.filter((node) => inputNodeIds.has(node.id)),
+            ...shotNodes.filter((node) => wiredSourceIds.has(node.id)),
             ...shotNodes.toReversed(),
           ].map((node) => node.id),
         ),
-      ].slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot),
+      ].slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot),
     )
+    const omittedCount = shotNodes.length - visibleNodeIds.size
     shots.push({
       expanded: true,
       shotNo,
       title,
+      ...(omittedCount > 0 ? { omittedCount } : {}),
       nodes: shotNodes
         .filter((node) => visibleNodeIds.has(node.id))
         .map((node) =>

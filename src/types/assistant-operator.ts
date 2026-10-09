@@ -793,7 +793,9 @@ export const AssistantOperatorCanvasShotSchema = z.discriminatedUnion(
       title: LabelSchema,
       nodes: z
         .array(AssistantOperatorCanvasNodeSchema)
-        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot),
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot),
+      /** 超出上限没列出的卡数 —— ⛔ 不悄悄截（2026-10-09：截掉的场景图被当成不存在）。 */
+      omittedCount: z.number().int().min(1).optional(),
     }),
     z.object({
       expanded: z.literal(false),

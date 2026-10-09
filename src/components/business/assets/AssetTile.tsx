@@ -117,7 +117,8 @@ export function AssetTile({
       style={{ width, height }}
       data-asset-tile-id={generation.id}
       className={cn(
-        'group relative shrink-0 rounded-xl transition-shadow duration-fast ease-linear hover:shadow-float has-focus-visible:shadow-float',
+        // 悬停（动效样片 R）：整格抬起一点 + 投影，`spring-slot`；减少动效时只留投影。
+        'group relative shrink-0 rounded-xl transition-[translate,box-shadow] duration-spring-slot ease-spring-slot hover:shadow-float has-focus-visible:shadow-float motion-safe:hover:-translate-y-1 motion-reduce:transition-shadow motion-reduce:duration-fast motion-reduce:ease-linear',
       )}
     >
       {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）。 */}
@@ -191,7 +192,8 @@ export function AssetTile({
           >
             {hasTag ? (
               /* 窄图上只截模型名，尺寸常留（尺寸才是认图的那一半）。 */
-              <span className="asset-tile-badge flex min-w-0 items-center gap-1 rounded-md px-1.75 font-mono text-3xs leading-5 tabular-nums opacity-0 transition-opacity duration-fast ease-linear group-hover:opacity-100 group-has-focus-visible:opacity-100">
+              /* 悬停时从下面滑上来（动效样片 R），⛔ 只是淡出来。 */
+              <span className="asset-tile-badge flex min-w-0 translate-y-2 items-center gap-1 rounded-md px-1.75 font-mono text-3xs leading-5 tabular-nums opacity-0 transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:translate-y-0 group-hover:opacity-100 group-has-focus-visible:translate-y-0 group-has-focus-visible:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear">
                 {modelLabel ? (
                   <span className="min-w-0 truncate">{modelLabel}</span>
                 ) : null}

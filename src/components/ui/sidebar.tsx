@@ -39,6 +39,17 @@ const SIDEBAR_WIDTH = '10rem'
 const SIDEBAR_WIDTH_MOBILE = 'min(10rem, calc(100vw - 5rem))'
 const SIDEBAR_WIDTH_ICON = '3.5rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+/** 单键开关（侧边栏原型 1SN6YY7…）：不带修饰键，打字时不算。 */
+const SIDEBAR_BARE_SHORTCUT = '['
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  )
+}
 
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed'
@@ -104,6 +115,19 @@ function SidebarProvider({
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
         (event.metaKey || event.ctrlKey)
+      ) {
+        event.preventDefault()
+        toggleSidebar()
+        return
+      }
+      if (
+        event.key === SIDEBAR_BARE_SHORTCUT &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.repeat &&
+        !event.defaultPrevented &&
+        !isTypingTarget(event.target)
       ) {
         event.preventDefault()
         toggleSidebar()

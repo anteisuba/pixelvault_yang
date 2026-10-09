@@ -27,7 +27,7 @@ const ELAPSED_TICK_MS = 30_000
 /**
  * CD 训练状态矩阵里「提交之后」的三态卡：排队中 / 训练中 / 失败。
  *
- * 完成态由 CompletionCelebration 承担（绿色仪式卡），空态由 EmptyState 承担，
+ * 完成态由 CompletionCelebration 承担（白卡 + 绿勾），空态由 EmptyState 承担，
  * 组建/提交摘要由表单本身 + SubmitSummaryCard 承担 —— 这张卡只补上原先缺的
  * 中间三态：以前它们只在右栏历史列表里显示成一行小徽章，主列没有任何「我的
  * 任务正在跑」的存在感。

@@ -90,7 +90,7 @@
 
 - 颜色一律用 token 类名，Tailwind 调色板类（`text-amber-700` `bg-emerald-500/15` 一类）**不出现在业务代码**。文字用 `text-status-*`，浅底用 `bg-status-*-surface`，实心点 / 进度用 `bg-status-*` 或 `bg-status-*/70` 一类透明度。
 - **风险面**：浅红底用 `bg-status-risk-surface`，同一个 className 里文字 `text-status-risk`、边 `border-status-risk/N`；不拿 `bg-destructive/N` 透明度凑浅红。`--destructive` 只给**实心破坏按钮**（`bg-destructive text-destructive-foreground hover:bg-destructive/90`）。警告浅底同理用 `bg-status-warning-surface`。对比度（实算）：`#b3261e` 对 risk-surface **5.91** · 对白 **6.54** · 对 `--surface-workbench` **5.93**；`--foreground` 对 risk-surface **16.65**；暗档 `#e06c65` 对 `#3e1d1a` **4.66**；warning **5.28** · applied **4.98**。
-- 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块、训练完成庆祝）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。
+- 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。
 - 任何新颜色先用脚本算对比度（Claude Code 用 `contrast-check`，其他客户端用同等 WCAG 计算），文字 4.5:1、大字与图标 3:1、AA 底线 24px 命中区。
 - 透明度修饰符是允许的：`bg-primary/90` `border-border/60`。
 
@@ -289,6 +289,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 | M    | 规格 chip 换比例     | chip 上那颗比例框用 `SPRING.slot` 拉成新形状，比例字照旧糊一下换掉                                                                                       | `StudioMorphRatioGlyph`（`tool-surface.tsx`）                                                                  |
 | H    | 收藏                 | 心先缩到 0.78 再弹回 + 涂满；卡片、素材瓦片、两个查看器同一颗                                                                                            | `components/ui/favorite-heart.tsx`                                                                             |
 | P    | 拖着排序             | 其余项用弹簧让位、落下滑到新位：dnd-kit 走 `useSpringSortableTransition`（`SORTABLE_SPRING`），原生拖放列表走 `useSpringReorder`（FLIP）                 | 素材页文件夹 · LoRA 训练图 · LoRA 装配栏                                                                       |
+| R    | 悬停作品卡 / 素材格  | 卡抬起 4px + 浮层投影（`spring-slot`），左下信息条从下面滑上来                                                                                           | `ImageCard` · `AssetTile`                                                                                      |
 | T    | 拖图进输入框         | 接住图的区域先填实，再整块缩成 28px 缩略图、`spring-expand` 飞到参考图 / 素材排末尾                                                                      | `lib/fly-to-composer.ts` 的 `flyDropIntoRow`（排上挂 `data-studio-drop-row`）· `DROP_FLY`                      |
 | W    | 放大 / 修图结果      | 前后对比：分隔线左右拖，拖过两端被拉出去一点、变细，松手弹回（与参数滑块同一根橡皮筋 `RUBBER_BAND`）；←/→/Home/End 可键盘                                | `components/ui/image-compare.tsx` · 编辑舞台有上一步时显示                                                     |
 | Z    | 点进工作台输入框     | 框先长高（`spring-slot`），长完模型 / 规格 chip 从框里浮上来                                                                                             | `floatComposerChips` · `FOCUS_FLOAT`                                                                           |
@@ -329,7 +330,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 
 ## Last Verified
 
-- 2026-10-08 · 补动效（§7.4，动效样片 AB / V / M / H / P / T / W / Z / AE / AF）：画布拖线线头吸附 + 合法卡黑环弹簧长出；做同款 chip 依次落下；规格 chip 比例框变形；收藏心收成 `FavoriteHeart` 一颗；排序让位换弹簧；拖图进输入框飞进参考图排；编辑舞台前后对比；输入框点进 chip 浮出；LoRA 训练格子进度 + ✓；素材拖上画布拿起放大、落下展开成卡。作品卡 / 素材格悬停（R）按 owner 先前「保持现在」不改。新常量全在 `constants/motion.ts`（`RECIPE_LAND` · `FOCUS_FLOAT` · `TRAINING_CELLS` · `SORTABLE_SPRING` · `SPRING_CSS_MS` · `DROP_FLY` · `RUBBER_BAND` · `MEDIA_DRAG_LIFT`）。
+- 2026-10-08 · 补动效（§7.4，动效样片 AB / V / M / H / P / T / W / Z / AE / AF）：画布拖线线头吸附 + 合法卡黑环弹簧长出；做同款 chip 依次落下；规格 chip 比例框变形；收藏心收成 `FavoriteHeart` 一颗；排序让位换弹簧；拖图进输入框飞进参考图排；编辑舞台前后对比；输入框点进 chip 浮出；LoRA 训练格子进度 + ✓；素材拖上画布拿起放大、落下展开成卡。作品卡 / 素材格悬停（R）当时保持现在，2026-10-09 owner 看过对比页后改成 R。新常量全在 `constants/motion.ts`（`RECIPE_LAND` · `FOCUS_FLOAT` · `TRAINING_CELLS` · `SORTABLE_SPRING` · `SPRING_CSS_MS` · `DROP_FLY` · `RUBBER_BAND` · `MEDIA_DRAG_LIFT`）。
 
 - 2026-10-08 · 加载中（§7.2，原型 `ThV7ucUtgNZS4zbGry9XPh`）：`Skeleton` 与全站骨架去掉 `animate-pulse` / `animate-skeleton-breathe`（后者连 keyframe 一起删）；新原语 `load-reveal`（`useMediaReveal` / `LoadReveal` / `ArrivalReveal`）收编画廊卡、素材瓦片、LoRA 封面、`OptimizedImage` 四份各自的「由糊变清」；`FeedTail`（一屏前预取 + 灰块尾巴 + 「这批没拿到 · 重试」+「没有更多了」）画廊与素材库共用；`PageLoadError` 收编画廊 / 素材库整页失败；`useSlowLoadingNotice` 6 秒黑条；查看器先小图后原图；重试键转圈时写「重试中」。
 

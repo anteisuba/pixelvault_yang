@@ -487,6 +487,15 @@ function applyScriptProjection(
       projectedText: shot.text,
       state: NODE_SCRIPT_SHOT_STATE_IDS.synced,
     }
+    const parent = plan.splitFrom.get(shot.key)
+    const parentData =
+      parent?.data.kind === NODE_MEDIA_KIND_IDS.video ? parent.data : undefined
+    const params = {
+      ...parentData?.params,
+      ...(shot.durationSec === undefined
+        ? {}
+        : { duration: String(shot.durationSec) }),
+    }
     const parsed = NodeV4DataSchema.safeParse({
       kind: NODE_MEDIA_KIND_IDS.video,
       subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
@@ -497,9 +506,8 @@ function applyScriptProjection(
       shotNo,
       prompt: shot.text,
       scriptShot,
-      ...(shot.durationSec === undefined
-        ? {}
-        : { params: { duration: String(shot.durationSec) } }),
+      ...(parentData?.model ? { model: parentData.model } : {}),
+      ...(Object.keys(params).length > 0 ? { params } : {}),
     })
     if (!parsed.success) return { ok: false, reason: 'invalidShot' }
     next = {
@@ -526,6 +534,23 @@ function applyScriptProjection(
     if (!wired.ok) return { ok: false, reason: wired.reason }
     next = wired.state
     changedEdgeIds.push(wired.edgeId)
+    // 拆镜：原镜接的参考线（剧本那条除外）照样接到新镜上；接不上的跳过。
+    if (parent) {
+      for (const edge of state.edges) {
+        if (edge.target !== parent.id || edge.source === script.id) continue
+        const inherited = connectIntoSlot(next, {
+          source: edge.source,
+          target: id,
+          slot: edge.slot,
+          sourceHandle: edge.sourceHandle,
+          edgeId: context.mintId('e'),
+          now,
+        })
+        if (!inherited.ok) continue
+        next = inherited.state
+        changedEdgeIds.push(inherited.edgeId)
+      }
+    }
     createdIds.push(id)
     changedNodeIds.push(id)
   }

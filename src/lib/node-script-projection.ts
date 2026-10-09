@@ -47,6 +47,11 @@ export interface ScriptProjectionPlan {
   readonly toResync: readonly NodeV4[]
   /** 剧本里没有了 → 标灰。⛔ 不删。 */
   readonly toDrop: readonly NodeV4[]
+  /**
+   * 拆镜：新镜 `s7a` / `s7b` 来自这次标灰的 `s7` → 新卡照它的模型、参数和参考线来
+   * （v3 回放 T22：拆出来的两镜什么都没有，要从头配）。键 = 新镜的 `shotKey`。
+   */
+  readonly splitFrom: ReadonlyMap<string, NodeV4>
 }
 
 export function readScriptShotRef(node: NodeV4): NodeV4ScriptShot | undefined {
@@ -70,6 +75,16 @@ export function listProjectedShots(
   return found
 }
 
+/**
+ * 两段镜头文案算不算同一段：行尾 Markdown 强制换行的反斜杠不算差别（2026-10-09 v3 回放
+ * T08：写剧本卡时那个反斜杠会被剥掉，早先投出去的镜存的文案还带着它，改一句台词就把
+ * 列车段五镜全标成「已变」）。
+ */
+function sameShotText(a: string, b: string): boolean {
+  const plain = (text: string) => text.replace(/[ \t]*\\$/gm, '').trim()
+  return a === b || plain(a) === plain(b)
+}
+
 export function planScriptProjection(
   nodes: readonly NodeV4[],
   scriptNodeId: string,
@@ -91,7 +106,7 @@ export function planScriptProjection(
       continue
     }
     seen.add(shot.key)
-    if (existing.ref.projectedText === shot.text) {
+    if (sameShotText(existing.ref.projectedText, shot.text)) {
       // ⚠ 已经是 `synced` 的也报进来：调用方据此把曾经的「已变 / 标灰」角标消掉。
       toResync.push(existing.node)
       continue
@@ -108,6 +123,19 @@ export function planScriptProjection(
     )
     .map((item) => item.node)
 
+  const dropping = new Map(
+    toDrop.flatMap((node) => {
+      const ref = readScriptShotRef(node)
+      return ref ? [[ref.shotKey, node] as const] : []
+    }),
+  )
+  const splitFrom = new Map<string, NodeV4>()
+  for (const shot of toCreate) {
+    const parentKey = /^(.*\d)[a-z]$/i.exec(shot.key)?.[1]
+    const parent = parentKey ? dropping.get(parentKey) : undefined
+    if (parent) splitFrom.set(shot.key, parent)
+  }
+
   return {
     shots: breakdown.shots,
     outline: breakdown.outline,
@@ -117,5 +145,6 @@ export function planScriptProjection(
     toMark,
     toResync,
     toDrop,
+    splitFrom,
   }
 }

@@ -54,6 +54,22 @@ describe('planScriptProjection · 重投影 diff（进度表 24）', () => {
     expect(plan.toDrop).toHaveLength(0)
   })
 
+  it('行尾的 Markdown 换行反斜杠被剥掉不算「已变」', () => {
+    const body = 'S01 雨夜街角\nS02 递伞'
+    const nodes = [
+      scriptNode('script', body),
+      projectedShot('v1', 1, {
+        scriptNodeId: 'script',
+        shotKey: 's1',
+        projectedText: '雨夜街角\\',
+        state: NODE_SCRIPT_SHOT_STATE_IDS.synced,
+      }),
+    ]
+    const plan = planScriptProjection(nodes, 'script', body)
+    expect(plan.toMark).toHaveLength(0)
+    expect(plan.toResync.map((node) => node.id)).toEqual(['v1'])
+  })
+
   /**
    * ⭐ diff 的三种结局各出现一次 —— 这一条是重投影唯一的规格。
    */

@@ -1203,6 +1203,82 @@ describe('project_script · 重投影 diff（画板 DesignD7Script ③）', () =
     }
   }
 
+  it('⭐ 拆镜：S02 拆成 S02a / S02b，新镜照原镜的模型、参数与参考线来，时长按剧本', () => {
+    const context = makeContext()
+    const first = runBatch(
+      scriptState(),
+      [{ op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' }],
+      context,
+    )
+    const parent = projectedShots(first.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )!
+    const model = {
+      optionId: 'seedance',
+      modelId: 'seedance-2.5',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: { label: 'fal', baseUrl: 'https://fal.example.com' },
+    }
+    const configured: NodeWorkflowStateV4 = {
+      ...first.state,
+      nodes: [
+        ...first.state.nodes.map((node) =>
+          node.id === parent.id && node.data.kind === 'video'
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  model,
+                  params: { duration: '6', resolution: '720p' },
+                },
+              }
+            : node,
+        ),
+        imageNode('i_ref'),
+      ],
+      edges: [
+        ...first.state.edges,
+        {
+          id: 'e_ref',
+          source: 'i_ref',
+          sourceHandle: 'out',
+          target: parent.id,
+          slot: NODE_SLOT_IDS.reference,
+        },
+      ],
+    }
+    const edited = replaceScriptBody(
+      configured,
+      'S01 · 雨夜街角 · 4s\nS02a · 递伞 · 3s\nS02b · 接过伞 · 2s\nS03 · 对视',
+    )
+    const result = applyNodeAssistantOpV4(
+      edited,
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'reproject' },
+      context,
+    )
+    if (!result.ok) throw new Error(result.reason)
+    for (const [key, duration] of [
+      ['s2a', '3'],
+      ['s2b', '2'],
+    ] as const) {
+      const split = projectedShots(result.state).find(
+        (node) => scriptRefOf(node)?.shotKey === key,
+      )!
+      expect(split.data).toMatchObject({
+        model,
+        params: { duration, resolution: '720p' },
+      })
+      expect(
+        result.state.edges.some(
+          (edge) => edge.source === 'i_ref' && edge.target === split.id,
+        ),
+      ).toBe(true)
+    }
+    expect(
+      scriptRefOf(result.state.nodes.find((node) => node.id === parent.id)),
+    ).toMatchObject({ state: 'dropped' })
+  })
+
   it('⭐ 文案变了的旧镜只标「已变」并带上新文本，⛔ 不覆盖节点上的内容', () => {
     const { result } = reprojected(
       'S01 · 雨夜街角 · 4s\nS02 · 递伞 · 近景 · @小黑\nS03 · 对视',

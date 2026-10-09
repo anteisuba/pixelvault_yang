@@ -28,6 +28,7 @@ interface CompleteAssistantTextOptions {
   contextCompactionTargetLength: number
   modelId?: string
   imageData?: LlmTextInput['imageData']
+  imageLabels?: LlmTextInput['imageLabels']
   videoData?: LlmTextInput['videoData']
   audioData?: LlmTextInput['audioData']
   /**
@@ -215,6 +216,7 @@ export async function completeAssistantTextWithContextRetry({
   contextCompactionTargetLength,
   modelId,
   imageData,
+  imageLabels,
   videoData,
   audioData,
   videoAnalysis,
@@ -242,6 +244,7 @@ export async function completeAssistantTextWithContextRetry({
         userPrompt,
         modelId: on.modelId,
         imageData,
+        imageLabels,
         videoData,
         audioData,
         videoAnalysis,
@@ -368,6 +371,7 @@ export async function* streamAssistantTextWithContextRetry({
   contextCompactionTargetLength,
   modelId,
   imageData,
+  imageLabels,
   videoData,
   audioData,
   videoAnalysis,
@@ -397,6 +401,7 @@ export async function* streamAssistantTextWithContextRetry({
         userPrompt,
         modelId: on.modelId,
         imageData,
+        imageLabels,
         videoData,
         audioData,
         videoAnalysis,

@@ -303,6 +303,42 @@ describe('llmTextCompletion - Gemini', () => {
     expect(result).toBe('hello world')
   })
 
+  it('puts each image label right before its Gemini inline image', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You judge images.',
+      userPrompt: 'Judge the result.',
+      imageData: ['data:image/png;base64,abc', 'data:image/png;base64,def'],
+      imageLabels: ['RESULT', 'REFERENCE 1'],
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+
+    const body = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as string
+    const parts = (
+      JSON.parse(body) as { contents: Array<{ parts: unknown[] }> }
+    ).contents[0]!.parts
+    expect(parts.slice(0, 4)).toEqual([
+      { text: 'RESULT' },
+      { inlineData: { mimeType: 'image/png', data: 'abc' } },
+      { text: 'REFERENCE 1' },
+      { inlineData: { mimeType: 'image/png', data: 'def' } },
+    ])
+  })
+
   it('fetches http image URLs before sending them to Gemini inlineData', async () => {
     const imageBytes = new Uint8Array([1, 2, 3])
     const fetchMock = vi
@@ -1570,6 +1606,52 @@ describe('llmTextCompletion - DeepSeek', () => {
     ])
   })
 
+  it('puts each image label right before its image', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'You judge images.',
+      userPrompt: 'Judge the result.',
+      imageData: [
+        'https://cdn.example.com/result.png',
+        'https://cdn.example.com/ref.png',
+      ],
+      imageLabels: ['RESULT', 'REFERENCE 1'],
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      messages: Array<{ content: unknown }>
+    }
+    expect(payload.messages[1]!.content).toEqual([
+      { type: 'text', text: 'RESULT' },
+      {
+        type: 'image_url',
+        image_url: { url: 'https://cdn.example.com/result.png' },
+      },
+      { type: 'text', text: 'REFERENCE 1' },
+      {
+        type: 'image_url',
+        image_url: { url: 'https://cdn.example.com/ref.png' },
+      },
+      { type: 'text', text: 'Judge the result.' },
+    ])
+  })
+
   it('throws a structured balance error when DeepSeek reports insufficient balance', async () => {
     vi.stubGlobal(
       'fetch',
@@ -2073,6 +2155,45 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       })
     },
   )
+
+  it('puts each image label right before its image block', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ content: [{ type: 'text', text: 'seen' }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'Judge the result.',
+      imageData: ['data:image/png;base64,abc', 'https://cdn.example.com/b.jpg'],
+      imageLabels: ['RESULT', 'REFERENCE 1'],
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      messages: Array<{ content: unknown }>
+    }
+    expect(payload.messages[0]!.content).toEqual([
+      { type: 'text', text: 'RESULT' },
+      {
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/png', data: 'abc' },
+      },
+      { type: 'text', text: 'REFERENCE 1' },
+      {
+        type: 'image',
+        source: { type: 'url', url: 'https://cdn.example.com/b.jpg' },
+      },
+      { type: 'text', text: 'Judge the result.' },
+    ])
+  })
 
   it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
     'sends images as base64 / url blocks ahead of the text (%s)',

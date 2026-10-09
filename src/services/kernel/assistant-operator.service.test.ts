@@ -5341,6 +5341,40 @@ describe('看图闭环 · critique_result', () => {
     ).toBe('你说的是哪一张？')
   })
 
+  it('看图时成图与参考图逐张标明，⛔ 不让参考被读成成图', async () => {
+    queueCritiqueRound()
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          ...RESULT_MENTION,
+          snapshot: {
+            ...SNAPSHOT,
+            references: {
+              items: [
+                { url: 'https://cdn.example.com/ref-a.png', label: '女德拉科' },
+              ],
+              limit: 4,
+            },
+          },
+        }),
+      ),
+    )
+    const call = mockLlmTextCompletion.mock.calls
+      .map(
+        (entry) => entry[0] as { imageData?: unknown; imageLabels?: string[] },
+      )
+      .find((input) => Array.isArray(input.imageData) && input.imageLabels)
+    expect(call?.imageData).toEqual([
+      RESULT.url,
+      'https://cdn.example.com/ref-a.png',
+    ])
+    expect(call?.imageLabels?.[0]).toContain('RESULT')
+    expect(call?.imageLabels?.[1]).toContain('女德拉科')
+    expect(call?.imageLabels?.[1]).toContain('not the result')
+  })
+
   it('只 @ 了一张、参考位上还挂着别的图 → 不问，看 @ 的那张', async () => {
     queueCritiqueRound(CRITIQUE_JSON, {})
 

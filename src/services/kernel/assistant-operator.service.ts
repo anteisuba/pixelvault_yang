@@ -6838,6 +6838,25 @@ async function planVideoCritique(
   }
 }
 
+/**
+ * 看图那一跳每张图前面的那行字。⚠ 不标的话几张图挨着送进去，模型会把参考读成
+ * 成图（2026-10-09 马尔福画布：黑袍那张被评成「领口有绿色拼色」，绿的是参考里
+ * 那身斯莱特林制服）。
+ */
+function critiqueImageLabels(
+  run: OperatorRun,
+  references: readonly string[],
+): string[] {
+  const items = run.request.snapshot.references?.items ?? []
+  return [
+    'IMAGE 1 — THE RESULT you are judging. Describe and judge only this picture.',
+    ...references.map((url, index) => {
+      const label = items.find((item) => item.url === url)?.label
+      return `IMAGE ${index + 2} — reference @Image${index + 1}${label ? ` "${label}"` : ''}: a source the creator mounted, not the result. Use it only to compare identity and style.`
+    }),
+  ]
+}
+
 async function planCritiqueResult(
   run: OperatorRun,
   args: { goal?: string; targetIds?: string[] },
@@ -6913,6 +6932,9 @@ async function planCritiqueResult(
     ? resolveAssistantModelId(visionRoute.adapterType)
     : run.modelId
 
+  const references = run.state.referenceUrls.filter((url): url is string =>
+    Boolean(url),
+  )
   const raw = await completeAssistantTextWithContextRetry({
     signal: run.signal,
     systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
@@ -6923,14 +6945,10 @@ async function planCritiqueResult(
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     ...(visionModelId ? { modelId: visionModelId } : {}),
     // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
-    imageData: run.state.referenceUrls.some(Boolean)
-      ? [
-          result.url,
-          ...run.state.referenceUrls.filter((url): url is string =>
-            Boolean(url),
-          ),
-        ]
-      : result.url,
+    imageData: references.length ? [result.url, ...references] : result.url,
+    ...(references.length
+      ? { imageLabels: critiqueImageLabels(run, references) }
+      : {}),
     responseFormat: 'json_object',
   })
   // ⚠ 唯一真的「看」的那一下（切片 X）。

@@ -90,6 +90,14 @@ export interface LlmTextInput {
    */
   imageData?: string | string[]
   /**
+   * One short label per `imageData` entry, sent as a text part right before
+   * that image. Without labels several images arrive as an unnamed row and a
+   * model can read a reference as the result it was asked to judge
+   * (2026-10-09: a black-robe result was faulted for the green uniform in its
+   * reference).
+   */
+  imageLabels?: string[]
+  /**
    * Native video inputs. Currently supported only by the Gemini branch.
    *
    * Entries may be a `data:` URL, an `http(s)` URL to a video file, or a
@@ -1189,6 +1197,18 @@ function parseInlineImage(image: string) {
   return header ? { mimeType: header[1], data: image.slice(comma + 1) } : null
 }
 
+/** Each image part, preceded by its label's text part when one is given. */
+function withImageLabels<Part>(
+  input: LlmTextInput,
+  images: readonly Part[],
+  toText: (text: string) => Part,
+): Part[] {
+  return images.flatMap((image, index) => {
+    const label = input.imageLabels?.[index]?.trim()
+    return label ? [toText(label), image] : [image]
+  })
+}
+
 function getLlmImages(input: LlmTextInput): string[] {
   const images = input.imageData
     ? Array.isArray(input.imageData)
@@ -1560,7 +1580,13 @@ async function buildGeminiRequest(
         AI_ADAPTER_TYPES.GEMINI,
         input.signal,
       )
-      parts.push(...imageParts.map((inlineData) => ({ inlineData })))
+      parts.push(
+        ...withImageLabels<Record<string, unknown>>(
+          input,
+          imageParts.map((inlineData) => ({ inlineData })),
+          (text) => ({ text }),
+        ),
+      )
     }
 
     let hasVideoPart = false
@@ -1795,10 +1821,16 @@ async function buildOpenAiChatRequest(
       AI_ADAPTER_TYPES.OPENAI,
       input.signal,
     )
-    const content: Array<Record<string, unknown>> = inlineImages.map((img) => ({
-      type: 'image_url',
-      image_url: { url: `data:${img.mimeType};base64,${img.data}` },
-    }))
+    const content: Array<Record<string, unknown>> = withImageLabels<
+      Record<string, unknown>
+    >(
+      input,
+      inlineImages.map((img) => ({
+        type: 'image_url',
+        image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+      })),
+      (text) => ({ type: 'text', text }),
+    )
     content.push({ type: 'text', text: input.userPrompt })
     messages.push({ role: 'user', content })
   } else {
@@ -1920,10 +1952,13 @@ function buildDeepseekChatRequest(
   ]
   if (input.imageData) {
     const images = getLlmImages(input)
-    const content: Array<Record<string, unknown>> = images.map((image) => ({
-      type: 'image_url',
-      image_url: { url: image },
-    }))
+    const content: Array<Record<string, unknown>> = withImageLabels<
+      Record<string, unknown>
+    >(
+      input,
+      images.map((image) => ({ type: 'image_url', image_url: { url: image } })),
+      (text) => ({ type: 'text', text }),
+    )
     content.push({ type: 'text', text: input.userPrompt })
     messages.push({ role: 'user', content })
   } else {
@@ -2030,10 +2065,13 @@ function buildXaiChatRequest(
 
   if (input.imageData) {
     const images = getLlmImages(input)
-    const content: Array<Record<string, unknown>> = images.map((img) => ({
-      type: 'image_url',
-      image_url: { url: img },
-    }))
+    const content: Array<Record<string, unknown>> = withImageLabels<
+      Record<string, unknown>
+    >(
+      input,
+      images.map((img) => ({ type: 'image_url', image_url: { url: img } })),
+      (text) => ({ type: 'text', text }),
+    )
     content.push({ type: 'text', text: input.userPrompt })
     messages.push({ role: 'user', content })
   } else {
@@ -2280,15 +2318,21 @@ function toAnthropicUserContent(
 ): string | Array<Record<string, unknown>> {
   if (!input.imageData) return input.userPrompt
   const images = getLlmImages(input)
-  const content: Array<Record<string, unknown>> = images.map((image) => {
-    const inline = parseInlineImage(image)
-    return {
-      type: 'image',
-      source: inline
-        ? { type: 'base64', media_type: inline.mimeType, data: inline.data }
-        : { type: 'url', url: image },
-    }
-  })
+  const content: Array<Record<string, unknown>> = withImageLabels<
+    Record<string, unknown>
+  >(
+    input,
+    images.map((image) => {
+      const inline = parseInlineImage(image)
+      return {
+        type: 'image',
+        source: inline
+          ? { type: 'base64', media_type: inline.mimeType, data: inline.data }
+          : { type: 'url', url: image },
+      }
+    }),
+    (text) => ({ type: 'text', text }),
+  )
   content.push({ type: 'text', text: input.userPrompt })
   return content
 }

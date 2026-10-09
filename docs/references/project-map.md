@@ -187,7 +187,7 @@ flowchart LR
 ### 🌐 展示 / 画廊　✅
 
 - 🎯 你想做：优化 UI；承接公开作品自带配方的发现与复用；可能做社区管理。
-- 📍 现状：公开 feed + 详情（gallery）；Profile 创作者主页（/u）；follow/like service；`GalleryAdvancedFilters` / `GalleryFilterBar`。
+- 📍 现状：公开 feed + 详情（gallery）；Profile 创作者主页（/u）；follow/like service；`GalleryHeader`（顶栏分面复用素材页 `AssetFacetBar`）。
 - 💡 衔接：公共单位仍是作品/图集，Prompt、模型、参数、seed、LoRA 等作为经授权清洗的作品配方展开、比较和复用；Prompts 不再另做公共 feed。⚠ "社区管理"仍不是当前主定位。
 
 ### ⚙ 底座（全域共享，你没提，仅登记）

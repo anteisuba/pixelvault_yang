@@ -1,15 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import {
-  CheckCircle2,
-  ImageIcon,
-  RotateCcw,
-  Sparkles,
-} from '@/components/icons'
+import { CheckCircle2, ImageIcon, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { LoraTrainingRecord } from '@/types'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 export interface CompletionCelebrationProps {
@@ -64,7 +60,8 @@ export function CompletionCelebration({
       role="status"
       aria-live="polite"
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-status-applied/40 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-transparent p-5 shadow-sm',
+        // 白卡 + 细边（站内白底中性灰），⛔ 渐变 / 闪光装饰：完成的信号交给绿勾。
+        'relative overflow-hidden rounded-2xl border border-border bg-card p-5',
         className,
       )}
     >
@@ -89,38 +86,28 @@ export function CompletionCelebration({
             {t('completionBody', { name: job.name })}
           </p>
           {job.triggerWord ? (
-            <p className="rounded-md bg-background/70 px-2 py-1 text-xs text-foreground">
+            <p className="rounded-md bg-muted px-2 py-1 text-xs text-foreground">
               {t('completionTriggerHint', { triggerWord: job.triggerWord })}
             </p>
           ) : null}
         </div>
       </div>
 
+      {/* 主动作黑丸 + 次动作 ghost，同空态（ui-defaults §7）。 */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={handleUse}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.98]"
-        >
+        <Button className="rounded-full" onClick={handleUse}>
           <ImageIcon className="size-3.5" aria-hidden />
           {t('completionCtaUse')}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="ghost"
+          className="rounded-full"
           onClick={onTrainAnother}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-muted/40"
         >
           <RotateCcw className="size-3.5" aria-hidden />
           {t('completionCtaAnother')}
-        </button>
+        </Button>
       </div>
-
-      {/* Subtle sparkle accent — matches the design language's editorial
-          motion (fade-in + translate, no neon glow). */}
-      <Sparkles
-        className="pointer-events-none absolute -right-2 -top-2 size-16 text-primary/10"
-        aria-hidden
-      />
     </section>
   )
 }

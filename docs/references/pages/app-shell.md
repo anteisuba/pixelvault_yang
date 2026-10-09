@@ -300,4 +300,4 @@ M3 边缘手势（与画布 pan、画廊/素材横滑直接冲突）。
 
 **2026-09-18 · §8 与 §6 的账户 / 设置形态**：随 `/settings` 整页与入口收口落地，事实源为 `AppSidebar.tsx` · `MobileShell.tsx` · `ProfileAvatar.tsx`。真机 1440 / 820 / 375 已登录态目检仍未做。
 
-**2026-10-08 · 全站侧边栏动效批（原型 v1 `1SN6YY7TTUvm2c85JWgNAd` 定稿）**：§3 收展图标不动、§5 动效表、§6 画布子项、§8 账号菜单落地，事实源为 `AppSidebar.tsx` · `ui/sidebar.tsx` · `use-nav-indicator.ts` · `AccountMenu.tsx` · `ui/dropdown-menu.tsx` · `globals.css`（`.shell-nav-slider*` / `menu-grow`）。验证：tsc / lint / 全量 vitest；**真机录屏未做**（收展、切工具、子项进出、菜单长出四段待目检）。原型里的 `[` 键开关未实装（现有 ⌘/Ctrl+B 保留）。
+**2026-10-08 · 全站侧边栏动效批（原型 v1 `1SN6YY7TTUvm2c85JWgNAd` 定稿）**：§3 收展图标不动、§5 动效表、§6 画布子项、§8 账号菜单落地，事实源为 `AppSidebar.tsx` · `ui/sidebar.tsx` · `use-nav-indicator.ts` · `AccountMenu.tsx` · `ui/dropdown-menu.tsx` · `globals.css`（`.shell-nav-slider*` / `menu-grow`）。验证：tsc / lint / 全量 vitest；**真机录屏未做**（收展、切工具、子项进出、菜单长出四段待目检）。原型里的 `[` 键开关 2026-10-09 补上（单键、打字时不算，⌘/Ctrl+B 保留）。

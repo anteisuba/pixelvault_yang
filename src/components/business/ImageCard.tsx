@@ -118,7 +118,8 @@ export const ImageCard = memo(function ImageCard({
     <>
       <article
         data-gallery-tile-id={generation.id}
-        className="group relative overflow-hidden rounded-xl bg-muted transition-shadow duration-fast ease-linear hover:shadow-float has-focus-visible:shadow-float"
+        // 悬停（动效样片 R）：卡抬起一点 + 投影，左下作者小签从下面滑上来。
+        className="group relative overflow-hidden rounded-xl bg-muted transition-[translate,box-shadow] duration-spring-slot ease-spring-slot hover:shadow-float has-focus-visible:shadow-float motion-safe:hover:-translate-y-1 motion-reduce:transition-shadow motion-reduce:duration-fast motion-reduce:ease-linear"
       >
         <ImageCardMedia
           priority={priority}
@@ -158,7 +159,7 @@ export const ImageCard = memo(function ImageCard({
             href={creatorHref}
             onClick={(e) => e.stopPropagation()}
             aria-label={t('creatorProfileLabel', { name: creatorName })}
-            className="pointer-events-none absolute bottom-2.5 left-2.5 z-10 inline-flex h-7 max-w-48 items-center gap-1.5 rounded-full bg-black/55 pl-1 pr-2.5 text-xs font-semibold text-white opacity-0 backdrop-blur-md transition-opacity duration-fast ease-linear group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 coarse:hidden"
+            className="pointer-events-none absolute bottom-2.5 left-2.5 z-10 inline-flex h-7 max-w-48 items-center gap-1.5 rounded-full bg-black/55 pl-1 pr-2.5 text-xs font-semibold text-white translate-y-2 opacity-0 backdrop-blur-md transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 coarse:hidden"
           >
             {creator.avatarUrl ? (
               <Image
